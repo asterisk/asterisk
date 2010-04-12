@@ -1,0 +1,89 @@
+===============================================================================
+===
+=== HowTo: Collect Debug Information for the Asterisk Issue Tracker
+===
+=== Written by: Paul Belanger
+=== Last updated: 2010-04-12
+===============================================================================
+
+This document will provide instructions on how to collect debugging logs from an
+Asterisk machine, for the purpose of helping bug marshals troubleshoot an issue
+on https://issues.asterisk.org
+-------------------------------------------------------------------------------
+--- PREREQUISITES
+-------------------------------------------------------------------------------
+
+- Asterisk 1.4.30 or greater.
+
+-------------------------------------------------------------------------------
+--- STEPS
+-------------------------------------------------------------------------------
+
+1. Edit the logger.conf file to enable debug output to your filesystem.
+
+   Add the following line. The word "myDebugLog" can be changed to anything you
+   want, as that is the filename the logging will be written to. A good example
+   might be something like: issue_12345_full_log
+
+   myDebugLog => notice,warning,error,debug,verbose,dtmf
+
+2. From the Asterisk CLI, restart the logger module:
+
+   *CLI> core set verbose 15
+   *CLI> core set debug 15
+   *CLI> module reload logger
+
+   Optionally, if you've used this file to record data previously, then rotate
+   the logs:
+
+   *CLI> logger rotate
+
+2.1. Depending on your issue, be sure to enable the channel driver logging.
+
+     SIP (1.6.0 or higher)
+
+        *ClI> sip set debug on
+
+     SIP (1.4)
+
+        *CLI> sip set debug
+
+     IAX2 (1.6.0 or higher)
+
+        *CLI> iax2 set debug on
+
+     IAX2 (1.4)
+
+        *CLI> iax2 set debug
+
+3. Reproduce your issue.
+
+4. Once finished, be sure to disable the extra debbuging:
+
+   *CLI> core set verbose 0
+   *CLI> core set debug 0
+
+4.1. Again, remember to disable any extra logging if you enabled it in the
+     channel driver.
+
+     SIP (1.4 or higher)
+
+        *ClI> sip set debug off
+
+     IAX2 (1.4 or higher)
+
+        *CLI> iax2 set debug off
+
+5. Upload the file located in /var/log/asterisk/myDebugLog to the issue tracker.
+
+   *** IMPORTANT ***
+   Do NOT post the output of your file as a comment. This clutters the issue
+   and will only result in your comment being deleted.
+
+6. Disable logging to the filesystem. Edit the logger.conf file and comment out
+   or delete the line you added in step 1. Using a semi-colon as the first
+   character on the line will comment out the line.
+
+   Then reload the logger module like in step 2:
+
+   *CLI> module reload logger
