@@ -103,6 +103,7 @@ static int asock = -1;
 static int displayconnects = 1;
 static int timestampevents;
 static int httptimeout = 60;
+static int broken_events_action = 0;
 
 static pthread_t t;
 static int block_sockets;
@@ -1432,13 +1433,31 @@ static char mandescr_events[] =
 static int action_events(struct mansession *s, const struct message *m)
 {
 	const char *mask = astman_get_header(m, "EventMask");
-	int res;
+	int res, x;
 
 	res = set_eventmask(s->session, mask);
+	if (broken_events_action) {
+		/* if this option is set we should not return a response on
+		 * error, or when all events are set */
+
+		if (res > 0) {
+			for (x = 0; x < ARRAY_LEN(perms); x++) {
+				if (!strcasecmp(perms[x].label, "all") && res == perms[x].num) {
+					return 0;
+				}
+			}
+			astman_send_response(s, m, "Events On", NULL);
+		} else if (res == 0)
+			astman_send_response(s, m, "Events Off", NULL);
+		return 0;
+	}
+
 	if (res > 0)
 		astman_send_response(s, m, "Events On", NULL);
 	else if (res == 0)
 		astman_send_response(s, m, "Events Off", NULL);
+	else
+		astman_send_error(s, m, "Invalid event mask");
 
 	return 0;
 }
@@ -3067,6 +3086,7 @@ int init_manager(void)
 	}
 	portno = DEFAULT_MANAGER_PORT;
 	displayconnects = 1;
+	broken_events_action = 0;
 	cfg = ast_config_load("manager.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
@@ -3093,6 +3113,9 @@ int init_manager(void)
 
 	if ((val = ast_variable_retrieve(cfg, "general", "displayconnects")))
 		displayconnects = ast_true(val);
+
+	if ((val = ast_variable_retrieve(cfg, "general", "brokeneventsaction")))
+		broken_events_action = ast_true(val);
 
 	if ((val = ast_variable_retrieve(cfg, "general", "timestampevents")))
 		timestampevents = ast_true(val);

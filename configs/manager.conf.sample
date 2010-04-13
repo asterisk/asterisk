@@ -40,6 +40,11 @@ bindaddr = 0.0.0.0
 ;
 ;timestampevents = yes
 
+;brokeneventsaction = yes   ; Restore previous behavior that caused the events
+                            ; action to not return a response in certain
+                            ; circumstances.  Defaults to 'no'.
+
+
 ;[mark]
 ;secret = mysecret
 ;deny=0.0.0.0/0.0.0.0
