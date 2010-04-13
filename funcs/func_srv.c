@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006 Digium, Inc.
+ * Copyright (C) 1999 - 2010 Digium, Inc.
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -99,14 +99,17 @@ static struct srv_context *srv_datastore_setup(const char *service, struct ast_c
 		return NULL;
 	}
 
+	ast_autoservice_start(chan);
 	if (ast_srv_lookup(&srds->context, service, &host, &port) < 0) {
+		ast_autoservice_stop(chan);
 		ast_log(LOG_NOTICE, "Error performing lookup of service '%s'\n", service);
 		ast_free(srds);
 		return NULL;
 	}
+	ast_autoservice_stop(chan);
 
 	strcpy(srds->id, service);
-	
+
 	if (!(datastore = ast_datastore_alloc(&srv_result_datastore_info, srds->id))) {
 		ast_srv_cleanup(&srds->context);
 		ast_free(srds);
@@ -245,12 +248,16 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	int res = AST_MODULE_LOAD_SUCCESS;
+	int res = ast_custom_function_register(&srv_query_function);
+	if (res < 0) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	res = ast_custom_function_register(&srv_result_function);
+	if (res < 0) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
-	res |= ast_custom_function_register(&srv_query_function);
-	res |= ast_custom_function_register(&srv_result_function);
-
-	return res;
+	return AST_MODULE_LOAD_SUCCESS;;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SRV related dialplan functions");
