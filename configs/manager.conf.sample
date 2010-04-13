@@ -56,6 +56,10 @@ bindaddr = 0.0.0.0
 ;
 ;timestampevents = yes
 
+;brokeneventsaction = yes   ; Restore previous behavior that caused the events
+                            ; action to not return a response in certain
+                            ; circumstances.  Defaults to 'no'.
+
 ; debug = on	; enable some debugging info in AMI messages (default off).
 		; Also accessible through the "manager debug" CLI command.
 ;[mark]
