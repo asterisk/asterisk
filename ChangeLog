@@ -2,6 +2,18 @@
 
 	* Asterisk 1.6.1.19-rc2 Released
 
+2010-04-13 [r257208]  Tilghman Lesher <tlesher@digium.com
+
+	Also unref the pvt when we delete the provisional keepalive job.
+
+	(closes issue #16774)
+	 Reported by: kowalma
+	 Patches: 
+	       20100315__issue16774.diff.txt uploaded by tilghman (license 14)
+	 Tested by: falves11, jamicque
+
+	Review: https://reviewboard.asterisk.org/r/591/
+
 2010-04-05  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.1.19-rc1 Released
