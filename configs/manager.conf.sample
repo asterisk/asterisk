@@ -57,6 +57,10 @@ bindaddr = 0.0.0.0
 ;
 ;timestampevents = yes
 
+;brokeneventsaction = yes   ; Restore previous behavior that caused the events
+                            ; action to not return a response in certain
+                            ; circumstances.  Defaults to 'no'.
+
 ;
 ; Display certain channel variables every time a channel-oriented
 ; event is emitted:
