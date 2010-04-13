@@ -51,6 +51,14 @@
 ;
 ;         SIP/sales@mysipproxy!sales@edvina.net
 ;
+; A new feature for 1.8 allows one to specify a host or IP address to use
+; when routing the call. This is typically used in tandem with func_srv if
+; multiple methods of reaching the same domain exist. The host or IP address
+; is specified after the third slash in the dialstring. Examples:
+;
+; SIP/devicename/extension/IPorHost
+; SIP/username@domain//IPorHost
+;
 ; CLI Commands
 ; -------------------------------------------------------------
 ; Useful CLI commands to check peers/users:
