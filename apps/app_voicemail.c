@@ -5082,26 +5082,28 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	int retries = 0, prepend_duration = 0, already_recorded = 0;
 	signed char zero_gain = 0;
 	struct ast_config *msg_cfg;
-	const char *duration_str;
-	char msgfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
+	const char *duration_cstr;
+	char msgfile[PATH_MAX], backup[PATH_MAX];
 	char textfile[PATH_MAX];
+	struct ast_category *msg_cat;
+	char duration_str[12] = "";
 
+	ast_log(LOG_NOTICE, "curdir=%s\n", curdir);
 	/* Must always populate duration correctly */
 	make_file(msgfile, sizeof(msgfile), curdir, curmsg);
 	strcpy(textfile, msgfile);
 	strcpy(backup, msgfile);
-	strcpy(backup_textfile, msgfile);
 	strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
 	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
-	strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
 
 	if (!(msg_cfg = ast_config_load(textfile))) {
 		return -1;
 	}
 
 	*duration = 0;
-	if ((duration_str = ast_variable_retrieve(msg_cfg, "message", "duration")))
-		*duration = atoi(duration_str);
+	if ((duration_cstr = ast_variable_retrieve(msg_cfg, "message", "duration"))) {
+		*duration = atoi(duration_cstr);
+	}
 
 	while ((cmd >= 0) && (cmd != 't') && (cmd != '*')) {
 		if (cmd)
@@ -5112,19 +5114,11 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 		{
 			prepend_duration = 0;
 
-			/* if we can't read the message metadata, stop now */
-			if (!msg_cfg) {
-				cmd = 0;
-				break;
-			}
-
 			/* Back up the original file, so we can retry the prepend */
 			if (already_recorded) {
 				ast_filecopy(backup, msgfile, NULL);
-				copy(backup_textfile, textfile);
 			} else {
 				ast_filecopy(msgfile, backup, NULL);
-				copy(textfile, backup_textfile);
 			}
 			already_recorded = 1;
 
@@ -5136,16 +5130,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
 
 			if (prepend_duration) {
-				struct ast_category *msg_cat;
-				/* need enough space for a maximum-length message duration */
-				char duration_str[12];
-
 				prepend_duration += *duration;
-				msg_cat = ast_category_get(msg_cfg, "message");
-				snprintf(duration_str, 11, "%d", prepend_duration);
-				if (!ast_variable_update(msg_cat, "duration", duration_str, NULL, 0)) {
-					config_text_file_save(textfile, msg_cfg, "app_voicemail");
-				}
 			}
 
 			break;
@@ -5171,14 +5156,22 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 		}
 	}
 
-	ast_config_destroy(msg_cfg);
-	if (already_recorded) {
-		/* Restore original files */
+	if (already_recorded && cmd == -1) {
+		/* Restore original files, if operation cancelled */
 		ast_filerename(backup, msgfile, NULL);
-		rename(backup_textfile, textfile);
-	}
-	if (prepend_duration)
+		if (duration_cstr) {
+			ast_copy_string(duration_str, duration_cstr, sizeof(duration_str));
+		}
+	} else if (prepend_duration) {
 		*duration = prepend_duration;
+		snprintf(duration_str, sizeof(duration_str), "%d", prepend_duration);
+	}
+
+	msg_cat = ast_category_get(msg_cfg, "message");
+	if (!ast_strlen_zero(duration_str) && !ast_variable_update(msg_cat, "duration", duration_str, NULL, 0)) {
+		config_text_file_save(textfile, msg_cfg, "app_voicemail");
+	}
+	ast_config_destroy(msg_cfg);
 
 	if (cmd == 't' || cmd == 'S')
 		cmd = 0;
@@ -5394,19 +5387,12 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	} else {
 		/* Forward VoiceMail */
 		long duration = 0;
-		char origmsgfile[PATH_MAX], msgfile[PATH_MAX];
+		char msgfile[PATH_MAX];
 		struct vm_state vmstmp;
 
 		memcpy(&vmstmp, vms, sizeof(vmstmp));
 
-		make_file(origmsgfile, sizeof(origmsgfile), dir, curmsg);
-		create_dirpath(vmstmp.curdir, sizeof(vmstmp.curdir), sender->context, vmstmp.username, "tmp");
-		make_file(msgfile, sizeof(msgfile), vmstmp.curdir, curmsg);
-
- 		RETRIEVE(dir, curmsg, sender);
-
-		/* Alter a surrogate file, only */
-		copy_plain_file(origmsgfile, msgfile);
+		RETRIEVE(dir, curmsg, sender);
 
 		cmd = vm_forwardoptions(chan, sender, vmstmp.curdir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, &vmstmp);
 		if (!cmd) {
@@ -5437,7 +5423,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				/* NULL category for IMAP storage */
 				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, dstvms->curbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
 #else
-				copy_message(chan, sender, -1, curmsg, duration, vmtmp, fmt, vmstmp.curdir);
+				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir);
 #endif
 				saved_messages++;
 				AST_LIST_REMOVE_CURRENT(&extensions, list);
@@ -5472,9 +5458,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			}
 #endif
 		}
-
-		/* Remove surrogate file */
-		vm_delete(msgfile);
 		DISPOSE(dir, curmsg);
 	}
 
