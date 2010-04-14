@@ -3320,25 +3320,33 @@ static int load_config(void)
 	ast_unregister_features();
 	for (var = ast_variable_browse(cfg, "applicationmap"); var; var = var->next) {
 		char *tmp_val = ast_strdupa(var->value);
-		char *exten, *activateon, *activatedby, *app, *app_args, *moh_class; 
+		char *activateon; 
 		struct ast_call_feature *feature;
+		AST_DECLARE_APP_ARGS(args,
+			AST_APP_ARG(exten);
+			AST_APP_ARG(activatedby);
+			AST_APP_ARG(app);
+			AST_APP_ARG(app_args);
+			AST_APP_ARG(moh_class);
+		);
 
-		/* strsep() sets the argument to NULL if match not found, and it
-		 * is safe to use it with a NULL argument, so we don't check
-		 * between calls.
-		 */
-		exten = strsep(&tmp_val,",");
-		activatedby = strsep(&tmp_val,",");
-		app = strsep(&tmp_val,",");
-		app_args = strsep(&tmp_val,",");
-		moh_class = strsep(&tmp_val,",");
+		AST_STANDARD_APP_ARGS(args, tmp_val);
+		if (strchr(args.app, '(')) {
+			/* New syntax */
+			args.moh_class = args.app_args;
+			args.app_args = strchr(args.app, '(');
+			*args.app_args++ = '\0';
+			if (args.app_args[strlen(args.app_args) - 1] == ')') {
+				args.app_args[strlen(args.app_args) - 1] = '\0';
+			}
+		}
 
-		activateon = strsep(&activatedby, "/");	
+		activateon = strsep(&args.activatedby, "/");	
 
 		/*! \todo XXX var_name or app_args ? */
-		if (ast_strlen_zero(app) || ast_strlen_zero(exten) || ast_strlen_zero(activateon) || ast_strlen_zero(var->name)) {
+		if (ast_strlen_zero(args.app) || ast_strlen_zero(args.exten) || ast_strlen_zero(activateon) || ast_strlen_zero(var->name)) {
 			ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",
-				app, exten, activateon, var->name);
+				args.app, args.exten, activateon, var->name);
 			continue;
 		}
 
@@ -3350,20 +3358,23 @@ static int load_config(void)
 		}
 		AST_RWLIST_UNLOCK(&feature_list);
 				
-		if (!(feature = ast_calloc(1, sizeof(*feature))))
-			continue;					
+		if (!(feature = ast_calloc(1, sizeof(*feature)))) {
+			continue;
+		}
 
 		ast_copy_string(feature->sname, var->name, FEATURE_SNAME_LEN);
-		ast_copy_string(feature->app, app, FEATURE_APP_LEN);
-		ast_copy_string(feature->exten, exten, FEATURE_EXTEN_LEN);
+		ast_copy_string(feature->app, args.app, FEATURE_APP_LEN);
+		ast_copy_string(feature->exten, args.exten, FEATURE_EXTEN_LEN);
 		
-		if (app_args) 
-			ast_copy_string(feature->app_args, app_args, FEATURE_APP_ARGS_LEN);
+		if (args.app_args) {
+			ast_copy_string(feature->app_args, args.app_args, FEATURE_APP_ARGS_LEN);
+		}
 
-		if (moh_class)
-			ast_copy_string(feature->moh_class, moh_class, FEATURE_MOH_LEN);
-			
-		ast_copy_string(feature->exten, exten, sizeof(feature->exten));
+		if (args.moh_class) {
+			ast_copy_string(feature->moh_class, args.moh_class, FEATURE_MOH_LEN);
+		}
+
+		ast_copy_string(feature->exten, args.exten, sizeof(feature->exten));
 		feature->operation = feature_exec_app;
 		ast_set_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF);
 
@@ -3378,13 +3389,13 @@ static int load_config(void)
 			continue;
 		}
 
-		if (ast_strlen_zero(activatedby))
+		if (ast_strlen_zero(args.activatedby))
 			ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
-		else if (!strcasecmp(activatedby, "caller"))
+		else if (!strcasecmp(args.activatedby, "caller"))
 			ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLER);
-		else if (!strcasecmp(activatedby, "callee"))
+		else if (!strcasecmp(args.activatedby, "callee"))
 			ast_set_flag(feature, AST_FEATURE_FLAG_BYCALLEE);
-		else if (!strcasecmp(activatedby, "both"))
+		else if (!strcasecmp(args.activatedby, "both"))
 			ast_set_flag(feature, AST_FEATURE_FLAG_BYBOTH);
 		else {
 			ast_log(LOG_NOTICE, "Invalid 'ActivatedBy' specification for feature '%s',"
@@ -3393,8 +3404,8 @@ static int load_config(void)
 		}
 
 		ast_register_feature(feature);
-			
-		ast_verb(2, "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, app, app_args, exten);
+
+		ast_verb(2, "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, args.app, args.app_args, args.exten);
 	}
 
 	ast_unregister_groups();
