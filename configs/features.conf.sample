@@ -77,9 +77,11 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;  on the outbound channels, as well.  Otherwise, only the original channel
 ;  will have access to these features.)
 ;
-; The syntax for declaring a dynamic feature is the following:
+; The syntax for declaring a dynamic feature is any of the following:
 ;
 ;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,<AppArguments>[,MOH_Class]]
+;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,"<AppArguments>"[,MOH_Class]]
+;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>([<AppArguments>])[,MOH_Class]
 ;
 ;  FeatureName   -> This is the name of the feature used in when setting the
 ;                   DYNAMIC_FEATURES variable to enable usage of this feature.
@@ -94,7 +96,9 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;                   The "caller" is the channel that executed the Dial application, while
 ;                   the "callee" is the channel called by the Dial application.
 ;  Application   -> This is the application to execute.
-;  AppArguments  -> These are the arguments to be passed into the application.
+;  AppArguments  -> These are the arguments to be passed into the application.  If you need
+;                   commas in your arguments, you should use either the second or third
+;                   syntax, above.
 ;  MOH_Class     -> This is the music on hold class to play while the idle
 ;                   channel waits for the feature to complete. If left blank,
 ;                   no music will be played.
@@ -115,6 +119,10 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;
 ;testfeature => #9,peer,Playback,tt-monkeys  ;Allow both the caller and callee to play
 ;                                            ;tt-monkeys to the opposite channel
+;
+; Set arbitrary channel variables, based upon CALLERID number (Note that the application
+; argument contains commas)
+;retrieveinfo => #8,peer,Set(ARRAY(CDR(mark),CDR(name))=${ODBC_FOO(${CALLERID(num)})})
 ;
 ;pauseMonitor   => #1,self/callee,Pausemonitor     ;Allow the callee to pause monitoring
 ;                                                  ;on their channel
