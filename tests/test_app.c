@@ -40,6 +40,88 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define BASE_GROUP "a group"
 
+AST_TEST_DEFINE(options_parsing)
+{
+	enum test_option_flags {
+		OPT_SIMPLE,
+		OPT_WITHQUOTES,
+		OPT_WITHBACKSLASH,
+	};
+	enum test_option_args {
+		OPT_ARG_SIMPLE,
+		OPT_ARG_WITHQUOTES,
+		OPT_ARG_WITHBACKSLASH,
+		OPT_ARG_ARRAY_SIZE,
+	};
+	AST_APP_OPTIONS(test_options, {
+		AST_APP_OPTION_ARG('a', OPT_SIMPLE,        OPT_ARG_SIMPLE),
+		AST_APP_OPTION_ARG('b', OPT_WITHQUOTES,    OPT_ARG_WITHQUOTES),
+		AST_APP_OPTION_ARG('c', OPT_WITHBACKSLASH, OPT_ARG_WITHBACKSLASH),
+	});
+	struct ast_flags opts = { 0, };
+	struct ast_flags64 opts64 = { 0, };
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	struct {
+		const char *string;
+		const char *parse[3];
+	} options[] = {
+		{ "a(simple)b(\"quoted\")c(back\\slash)", { "simple", "quoted", "backslash", }, },
+		{ "b(\"((())))\")a(simple)c(back\\)slash)", { "simple", "((())))", "back)slash", }, },
+		{ "b(\"((\\\"\\)\\(\")a(simple)c(back\\\"\\)\\(\\\"slash)", { "simple", "((\"\\)\\(", "back\")(\"slash", }, },
+	};
+	int i, j, res = AST_TEST_PASS;
+	char buffer[256];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "options_parsing";
+		info->category = "main/app/";
+		info->summary = "App options unit test";
+		info->description =
+			"This tests the options parsing code to ensure that it behaves as expected";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(options); i++) {
+		ast_copy_string(buffer, options[i].string, sizeof(buffer));
+
+		if (ast_app_parse_options(test_options, &opts, opt_args, buffer)) {
+			ast_test_status_update(test, "ast_app_parse_options() of '%s' failed\n", options[i].string);
+			res = AST_TEST_FAIL;
+		} else {
+			/* Check arguments for success */
+			for (j = 0; j < 3; j++) {
+				if (strcmp(opt_args[j], options[i].parse[j])) {
+					ast_test_status_update(test, "Parse of option %c from '%s' produced '%s', "
+						"but it should have produced '%s'\n",
+						'a' + j, options[i].string, opt_args[j], options[i].parse[j]);
+					res = AST_TEST_FAIL;
+				}
+			}
+		}
+
+		ast_copy_string(buffer, options[i].string, sizeof(buffer));
+		if (ast_app_parse_options64(test_options, &opts64, opt_args, buffer)) {
+			ast_test_status_update(test, "ast_app_parse_options64() of '%s' failed\n", options[i].string);
+			res = AST_TEST_FAIL;
+		} else {
+			/* Check arguments for success */
+			for (j = 0; j < 3; j++) {
+				if (strcmp(opt_args[j], options[i].parse[j])) {
+					ast_test_status_update(test, "Parse of option %c from '%s' produced '%s', "
+						"but it should have produced '%s'\n",
+						'a' + j, options[i].string, opt_args[j], options[i].parse[j]);
+					res = AST_TEST_FAIL;
+				}
+			}
+		}
+	}
+
+	return res;
+}
+
 AST_TEST_DEFINE(app_group)
 {
 	struct ast_channel *test_channel1 = NULL;
@@ -147,13 +229,15 @@ exit_group_test:
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(app_group);
+	AST_TEST_UNREGISTER(options_parsing);
 	return 0;
 }
 
 static int load_module(void)
 {
 	AST_TEST_REGISTER(app_group);
+	AST_TEST_REGISTER(options_parsing);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "App unit test");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "App unit tests");
