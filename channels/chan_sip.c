@@ -9352,6 +9352,21 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 
 	ast_string_field_set(p, exten, name);
 	build_contact(p);
+	if (ast_test_flag(req, SIP_PKT_IGNORE)) {
+		/* Expires is a special case, where we only want to load the peer if this isn't a deregistration attempt */
+		const char *expires = get_header(req, "Expires");
+		int expire = atoi(expires);
+
+		if (ast_strlen_zero(expires)) { /* No expires header; look in Contact */
+			if ((expires = strcasestr(get_header(req, "Contact"), ";expires="))) {
+				expire = atoi(expires + 9);
+			}
+		}
+		if (!ast_strlen_zero(expires) && expire == 0) {
+			transmit_response_with_date(p, "200 OK", req);
+			return 0;
+		}
+	}
 	peer = find_peer(name, NULL, 1, 0);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		/* Peer fails ACL check */
