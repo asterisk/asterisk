@@ -1,12 +1,25 @@
+===============================================================================
+===
+=== Collecting Backtrace Information
+===
+=== Last updated: 2010-04-12
+===============================================================================
+
 This document is intended to provide information on how to obtain the
 backtraces required on the asterisk bug tracker, available at
-http://issues.asterisk.org. 
+https://issues.asterisk.org. 
 
-The information is required by developers to
-help fix problem with bugs of any kind. Backtraces provide information
-about what was wrong when a program crashed; in our case,
-Asterisk. There are two kind of backtraces (aka 'bt') which are
-useful: bt and bt full.
+-------------------------------------------------------------------------------
+--- Overview
+-------------------------------------------------------------------------------
+
+The backtrace information is required by developers to help fix problem with 
+bugs of any kind. Backtraces provide information about what was wrong when a 
+program crashed; in our case, Asterisk. 
+
+-------------------------------------------------------------------------------
+--- Preparing Asterisk To Produce Core Files On Crash
+-------------------------------------------------------------------------------
 
 First of all, when you start Asterisk, you MUST start it with option
 -g. This tells Asterisk to produce a core file if it crashes.
@@ -29,6 +42,10 @@ optimization or the backtrace will be (nearly) unusable. This can be
 done by selecting the 'DONT_OPTIMIZE' option in the Compiler Flags
 submenu in the 'make menuselect' tree before building Asterisk.
 
+Running a production server with DONT_OPTIMIZE is generally safe.
+You'll notice the binary files may be a bit larger, but in terms of
+Asterisk performance, and impact should be negligible.
+
 After Asterisk crashes, a core file will be "dumped" in your /tmp/
 directory. To make sure it's really there, you can just type the
 following command in your shell:
@@ -46,11 +63,21 @@ In the event that there are multiple core files present (as in the
 above example), it is important to look at the file timestamps in
 order to determine which one you really intend to look at.
 
-Now that we've verified the core file has been written to disk, the
-final part is to extract 'bt' from the core file. Core files are
-pretty big, don't be scared, it's normal.
+-------------------------------------------------------------------------------
+--- Getting Information After A Crash
+-------------------------------------------------------------------------------
 
-*** NOTE: Don't attach core files on the bug tracker, we only need the bt and bt full. ***
+There are two kind of backtraces (aka 'bt') which are useful: bt and bt full.
+
+Now that we've verified the core file has been written to disk, the final part 
+is to extract 'bt' from the core file. Core files are pretty big, don't be 
+scared, it's normal.
+
+******************************************************************************
+*** NOTE: Don't attach core files on the bug tracker as they are only useful *
+***       on the machine they were generated on. We only need the output of  *
+***       the 'bt' and 'bt full.'                                            *
+******************************************************************************
 
 For extraction, we use a really nice tool, called gdb. To verify that
 you have gdb installed on your system:
@@ -65,11 +92,25 @@ There is absolutely no warranty for GDB.  Type "show warranty" for details.
 This GDB was configured as "i386-linux".
 debian:/tmp#
 
-Which is great, we can continue. If you don't have gdb installed, go install gdb.
+If you don't have gdb installed, go install gdb. You should be able to install
+using something like: apt-get install gdb --or-- yum install gdb
 
-Now load the core file in gdb, as follows:
+Now load the core file in gdb with the following command. This will also save
+the output of gdb to the /tmp/backtract.txt file.
 
-debian:/tmp# gdb asterisk /tmp/core.26252
+# gdb -se "asterisk" -c /tmp/core.26252 | tee /tmp/backtrace.txt
+
+******************************************************************************
+*** TIP!
+***     Just run the following command to get the output into the
+***     backtrace.txt file, ready for uploading to the issue tracker. Be sure
+***     to change the name of the core file to your actual core dump file:
+***
+*** gdb -se "asterisk" -ex "bt full" -ex "thread apply all bt" --batch -c /tmp/core.26252 > /tmp/backtrace.txt
+***
+******************************************************************************
+
+
 [...]
 (You would see a lot of output here.)
 [...]
@@ -85,6 +126,7 @@ uploaded as an attachment to the bug tracker.
 
 Now at the gdb prompt, type: bt
 You would see output similar to:
+
 (gdb) bt
 #0  0x29b45d7e in ?? ()
 #1  0x08180bf8 in ?? ()
@@ -110,6 +152,7 @@ You would see output similar to:
 The bt's output is the information that we need on the bug tracker.
 
 Now do a bt full as follows:
+
 (gdb) bt full
 #0  0x29b45d7e in ?? ()
 No symbol table info available.
@@ -150,13 +193,9 @@ No symbol table info available.
 No symbol table info available.
 (gdb)
 
-We also need gdb's output. That output gives more details compared to
-the simple "bt". So we recommend that you use bt full instead of bt.
-But, if you could include both, we appreciate that.
-
-The final "extraction" would be to know all traces by all
-threads. Even if asterisk runs on the same thread for each call, it
-could have created some new threads.
+The final "extraction" would be to know all traces by all threads. Even if 
+Asterisk runs on the same thread for each call, it could have created some new
+threads.
 
 To make sure we have the correct information, just do:
 (gdb) thread apply all bt
@@ -185,15 +224,54 @@ Thread 1 (process 26252):
 
 That output tells us crucial information about each thread.
 
-Now, if you turned on logging upload your gdb.txt file. Otherwise,
-create an output.txt file and dump your "bt full" (and/or "bt")
-ALONG WITH "thread apply all bt" into it.
+-------------------------------------------------------------------------------
+--- Getting Information For A Deadlock
+-------------------------------------------------------------------------------
 
-Note: Please ATTACH your output, DO NOT paste it as a note.
+Whenever supplying information about a deadlock (i.e. when you run the
+'core show locks' command on the Asterisk console), it is useful to also have
+additional information about the threads. We can generate this information by
+attaching to a running Asterisk process and gathering that information.
 
-And you're ready for upload on the bug tracker.
+You can easily attach to a running Asterisk process, gather the output required
+and then detach from the process all in a single step. Execute the following
+command and upload the resulting backtrace-threads.txt file to the Asterisk
+issue tracker:
 
+   gdb -ex "thread apply all bt" --batch /usr/sbin/asterisk `pidof asterisk` > /tmp/backtrace-threads.txt
 
-If you have questions or comments regarding this documentation, feel
-free to pass by the #asterisk-bugs channel on irc.freenode.net.
+Note that this gathers information from the running Asterisk process, so you
+want to make sure you run this command immediately before or after gathering
+the output of 'core show locks'. You can gather that information by running the
+following command:
 
+   asterisk -rx "core show locks" > /tmp/core-show-locks.txt
+
+-------------------------------------------------------------------------------
+--- Verify Your Backtraces
+-------------------------------------------------------------------------------
+
+Before uploading your backtraces to the issue tracker, you should double check
+to make sure the data you have is of use to the developers. Check your
+backtrace files to make sure you're not seeing several of the following:
+
+   <value optimized out>
+
+If you are, then you likely haven't compiled with DONT_OPTIMIZE. The impact of
+DONT_OPTIMIZE is negligible on most systems. Be sure you've enabled the
+DONT_OPTIMIZE flag within the Compiler Flags section of menuselect. After
+doing so, be sure to run 'make install' and restart Asterisk.
+
+-------------------------------------------------------------------------------
+--- Uploading Your Information To The Issue Tracker
+-------------------------------------------------------------------------------
+
+You're now ready to upload your files to the Asterisk issue tracker (located at
+https://issues.asterisk.org).
+
+******************************************************************************
+*** NOTE: Please ATTACH your output! DO NOT paste it as a note!              *
+******************************************************************************
+
+If you have questions or comments regarding this documentation, feel free to
+pass by the #asterisk-bugs channel on irc.freenode.net.
