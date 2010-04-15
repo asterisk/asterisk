@@ -1438,8 +1438,40 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 		curarg = *s++ & 0x7f;	/* the array (in app.h) has 128 entries */
 		argloc = options[curarg].arg_index;
 		if (*s == '(') {
+			int paren = 1, quote = 0;
+			int parsequotes = (s[1] == '"') ? 1 : 0;
+
 			/* Has argument */
 			arg = ++s;
+			for (; *s; s++) {
+				if (*s == '(' && !quote) {
+					paren++;
+				} else if (*s == ')' && !quote) {
+					/* Count parentheses, unless they're within quotes (or backslashed, below) */
+					paren--;
+				} else if (*s == '"' && parsequotes) {
+					/* Leave embedded quotes alone, unless they are the first character */
+					quote = quote ? 0 : 1;
+					ast_copy_string(s, s + 1, INT_MAX);
+					s--;
+				} else if (*s == '\\') {
+					if (!quote) {
+						/* If a backslash is found outside of quotes, remove it */
+						ast_copy_string(s, s + 1, INT_MAX);
+					} else if (quote && s[1] == '"') {
+						/* Backslash for a quote character within quotes, remove the backslash */
+						ast_copy_string(s, s + 1, INT_MAX);
+					} else {
+						/* Backslash within quotes, keep both characters */
+						s++;
+					}
+				}
+
+				if (paren == 0) {
+					break;
+				}
+			}
+			/* This will find the closing paren we found above, or none, if the string ended before we found one. */
 			if ((s = strchr(s, ')'))) {
 				if (argloc)
 					args[argloc - 1] = arg;
