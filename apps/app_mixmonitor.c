@@ -270,13 +270,14 @@ static void *mixmonitor_thread(void *obj)
 	while (mixmonitor->audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING && !mixmonitor->mixmonitor_ds->fs_quit) {
 		struct ast_frame *fr = NULL;
 
-		ast_audiohook_trigger_wait(&mixmonitor->audiohook);
+		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR))) {
+			ast_audiohook_trigger_wait(&mixmonitor->audiohook);
 
-		if (mixmonitor->audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING)
-			break;
-
-		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR)))
+			if (mixmonitor->audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING) {
+				break;
+			}
 			continue;
+		}
 
 		/* audiohook lock is not required for the next block.
 		 * Unlock it, but remember to lock it before looping or exiting */
