@@ -18981,6 +18981,16 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			ast_string_field_set(p, theirtag, tag);
 		}
 
+		if (sipmethod == SIP_SUBSCRIBE && resp >= 400) {
+			struct sip_monitor_instance *monitor_instance = ao2_callback(sip_monitor_instances,
+					0, find_sip_monitor_instance_by_subscription_pvt, p);
+			if (monitor_instance) {
+				ast_cc_monitor_failed(monitor_instance->core_id, monitor_instance->device_name,
+						"Received error response to our SUBSCRIBE");
+				return;
+			}
+		}
+
 		switch(resp) {
 		case 200:
 			if (sipmethod == SIP_INVITE) {
