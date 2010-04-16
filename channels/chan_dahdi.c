@@ -14051,7 +14051,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 				} else {
 					ast_cli(fd,
 						"\n\tThis operation has not been enabled in chan_dahdi.conf, set 'service_message_support=yes' to use this operation.\n"
-						"\tNote only 4ESS and 5ESS switch types are supported.\n\n");
+						"\tNote only 4ESS, 5ESS, and NI2 switch types are supported.\n\n");
 				}
 				return CLI_SUCCESS;
 			}
@@ -14068,7 +14068,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 				ast_mutex_unlock(&tmp->pri->lock);
 				ast_cli(fd,
 					"\n\tThis operation has not been enabled in chan_dahdi.conf, set 'service_message_support=yes' to use this operation.\n"
-					"\tNote only 4ESS and 5ESS switch types are supported.\n\n");
+					"\tNote only 4ESS, 5ESS, and NI2 switch types are supported.\n\n");
 				return CLI_SUCCESS;
 			}
 			snprintf(db_chan_name, sizeof(db_chan_name), "%s/%d:%d", dahdi_db, tmp->span, channel);
@@ -17044,10 +17044,13 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 			} else if (!strcasecmp(v->name, "service_message_support")) {
 				/* assuming switchtype for this channel group has been configured already */
-				if ((confp->pri.pri.switchtype == PRI_SWITCH_ATT4ESS || confp->pri.pri.switchtype == PRI_SWITCH_LUCENT5E) && ast_true(v->value))
+				if ((confp->pri.pri.switchtype == PRI_SWITCH_ATT4ESS 
+					|| confp->pri.pri.switchtype == PRI_SWITCH_LUCENT5E
+					|| confp->pri.pri.switchtype == PRI_SWITCH_NI2) && ast_true(v->value)) {
 					confp->pri.pri.enable_service_message_support = 1;
-				else
+				} else {
 					confp->pri.pri.enable_service_message_support = 0;
+				}
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 #ifdef HAVE_PRI_INBANDDISCONNECT
 			} else if (!strcasecmp(v->name, "inbanddisconnect")) {
