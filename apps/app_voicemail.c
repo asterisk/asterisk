@@ -2877,6 +2877,7 @@ static int remove_file(char *dir, int msgnum)
 }
 #endif
 
+#ifndef IMAP_STORAGE
 static int copy(char *infile, char *outfile)
 {
 	int ifd;
@@ -2926,7 +2927,9 @@ static int copy(char *infile, char *outfile)
 	}
 #endif
 }
+#endif
 
+#ifndef IMAP_STORAGE
 static void copy_plain_file(char *frompath, char *topath)
 {
 	char frompath2[PATH_MAX], topath2[PATH_MAX];
@@ -2935,7 +2938,9 @@ static void copy_plain_file(char *frompath, char *topath)
 	snprintf(topath2, sizeof(topath2), "%s.txt", topath);
 	copy(frompath2, topath2);
 }
+#endif
 
+#ifndef IMAP_STORAGE
 static int vm_delete(char *file)
 {
 	char *txt;
@@ -2950,6 +2955,7 @@ static int vm_delete(char *file)
 	unlink(txt);
 	return ast_filedelete(file, NULL);
 }
+#endif
 
 static int inbuf(struct baseio *bio, FILE *fi)
 {
@@ -5387,8 +5393,10 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	} else {
 		/* Forward VoiceMail */
 		long duration = 0;
-		char msgfile[PATH_MAX];
 		struct vm_state vmstmp;
+#ifndef IMAP_STORAGE
+		char msgfile[PATH_MAX];
+#endif
 
 		memcpy(&vmstmp, vms, sizeof(vmstmp));
 
