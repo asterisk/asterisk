@@ -2209,8 +2209,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_bridge_config backup_config;
 	struct ast_cdr *bridge_cdr = NULL;
 	struct ast_cdr *orig_peer_cdr = NULL;
-	struct ast_cdr *chan_cdr = pick_unlocked_cdr(chan->cdr); /* the proper chan cdr, if there are forked cdrs */
-	struct ast_cdr *peer_cdr = pick_unlocked_cdr(peer->cdr); /* the proper chan cdr, if there are forked cdrs */
+	struct ast_cdr *chan_cdr = chan->cdr; /* the proper chan cdr, if there are forked cdrs */
+	struct ast_cdr *peer_cdr = peer->cdr; /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *new_chan_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *new_peer_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
 
@@ -2272,6 +2272,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_set_flag(chan_cdr, AST_CDR_FLAG_MAIN);
 			ast_cdr_update(chan);
 			bridge_cdr = ast_cdr_dup(chan_cdr);
+			/* rip any forked CDR's off of the chan_cdr and attach
+			 * them to the bridge_cdr instead */
+			bridge_cdr->next = chan_cdr->next;
+			chan_cdr->next = NULL;
 			ast_copy_string(bridge_cdr->lastapp, S_OR(chan->appl, ""), sizeof(bridge_cdr->lastapp));
 			ast_copy_string(bridge_cdr->lastdata, S_OR(chan->data, ""), sizeof(bridge_cdr->lastdata));
 			if (peer_cdr && !ast_strlen_zero(peer_cdr->userfield)) {
@@ -2318,11 +2322,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		   tvcmp check to the if below */
 
 		if (peer_cdr && !ast_tvzero(peer_cdr->answer) && ast_tvcmp(peer_cdr->answer, bridge_cdr->start) >= 0) {
-			bridge_cdr->answer = peer_cdr->answer;
-			bridge_cdr->disposition = peer_cdr->disposition;
+			ast_cdr_setanswer(bridge_cdr, peer_cdr->answer);
+			ast_cdr_setdisposition(bridge_cdr, peer_cdr->disposition);
 			if (chan_cdr) {
-				chan_cdr->answer = peer_cdr->answer;
-				chan_cdr->disposition = peer_cdr->disposition;
+				ast_cdr_setanswer(chan_cdr, peer_cdr->answer);
+				ast_cdr_setdisposition(chan_cdr, peer_cdr->disposition);
 			}
 		} else {
 			ast_cdr_answer(bridge_cdr);
