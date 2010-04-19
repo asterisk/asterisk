@@ -4483,7 +4483,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #ifdef IMAP_STORAGE
 				{
 					/* Convert body to native line terminators for IMAP backend */
-					char *line = passdata, *next;
+					char *line = ast_str_buffer(str1), *next;
 					do {
 						/* Terminate line before outputting it to the file */
 						if ((next = strchr(line, '\n'))) {
