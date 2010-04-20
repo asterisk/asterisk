@@ -153,6 +153,7 @@ show version=core show version
 show version files=core show file version
 show profile=core show profile
 clear profile=core clear profile
+soft hangup=channel request hangup
 
 [asterisk12](asterisk12_tpl)
 ; add any additional custom commands you want below here, for example:
@@ -181,6 +182,7 @@ stop when convenient=core stop when convenient
 restart now=core restart now
 restart gracefully=core restart gracefully
 restart when convenient=core restart when convenient
+soft hangup=channel request hangup
 
 [asterisk14](asterisk14_tpl)
 ; add any additional custom commands you want below here.
