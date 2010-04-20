@@ -49,6 +49,7 @@ CREATE TABLE `sipfriends` (
   `rtpkeepalive` varchar(15),
   `lastms` int(11) NOT NULL default '-1',
   `setvar` varchar(200),
+  `useragent` varchar(50),
   PRIMARY KEY  (`name`),
   INDEX host (host, port),
   INDEX ipaddr (ipaddr, port)
