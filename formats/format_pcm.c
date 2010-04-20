@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Flat, binary, ulaw PCM file format.
- * \arg File name extension: pcm, ulaw, ul, mu
+ * \arg File name extension: alaw, al, alw, pcm, ulaw, ul, mu, ulw, g722, au
  * 
  * \ingroup formats
  */
