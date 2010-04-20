@@ -150,6 +150,11 @@ TRUNK=DAHDI/G2					; Trunk interface
 ;
 TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;TRUNK=IAX2/user:pass@provider
+
+;FREENUMDOMAIN=mydomain.com                     ; domain to send on outbound
+                                                ; freenum calls (uses outbound-freenum
+                                                ; context)
+
 ;
 ; WARNING WARNING WARNING WARNING
 ; If you load any other extension configuration engine, such as pbx_ael.so,
@@ -390,6 +395,45 @@ include => parkedcalls
 ; being passed to the switch routine.
 ;
 ; eswitch => IAX2/context@${CURSERVER}
+
+; The following two contexts are a template to enable the ability to dial
+; ISN numbers. For more information about what an ISN number is, please see
+; http://www.freenum.org.
+;
+; This is the dialing hook.  use:
+; include => outbound-freenum
+
+[outbound-freenum]
+; We'll add more digits as needed. The purpose is to dial things
+; like extension numbers at domains (ITAD number) so we're matching
+; on lengths of 1 through 6 prior to the separator (the asterisk [*])
+;
+exten => _X*X!,1,Goto(outbound-freenum2,${EXTEN},1)
+exten => _XX*X!,1,Goto(outbound-freenum2,${EXTEN},1)
+exten => _XXX*X!,1,Goto(outbound-freenum2,${EXTEN},1)
+exten => _XXXX*X!,1,Goto(outbound-freenum2,${EXTEN},1)
+exten => _XXXXX*X!,1,Goto(outbound-freenum2,${EXTEN},1)
+exten => _XXXXXX*X!,1,Goto(outbound-freenum2,${EXTEN},1)
+
+[outbound-freenum2]
+; This is the handler which performs the dialing logic. It is called
+; from the [outbound-freenum] context
+;
+exten => _X!,1,Verbose(2,Performing ISN lookup for ${EXTEN})
+same => n,Set(SUFFIX=${CUT(EXTEN,*,2-)})                                ; make sure the suffix is all digits as well
+same => n,GotoIf($["${FILTER(0-9,${SUFFIX})}" != "${SUFFIX}"]?i:)       ; filter out bad characters per the README-SERIOUSLY.best-practices.txt document
+same => n,Set(TIMEOUT(absolute)=10800)
+same => n,Set(isnresult=${ENUMLOOKUP(${EXTEN},sip,,1,freenum.org)})     ; perform our lookup with freenum.org
+same => n,GotoIf($["${isnresult}" != ""]?:notfound)
+same => n,GotoIf($["${GLOBAL(FREENUMDOMAIN)}" == ""]?dial:)             ; check if we set the FREENUMDOMAIN global variable in [global]
+same => n,Set(SIPFROMDOMAIN=${GLOBAL(FREENUMDOMAIN)})                   ;    if we did set it, then we'll use it for our outbound dialing domain
+same => n(dial),Dial(SIP/${isnresult},40)
+same => n,Goto(fn-${DIALSTATUS})
+
+exten => fn-BUSY,1,Busy()
+
+exten => _fn-.,1,NoOp(ISN: ${DIALSTATUS})
+same => n,Congestion()
 
 [macro-trunkdial]
 ;
