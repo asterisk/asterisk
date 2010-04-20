@@ -2053,6 +2053,26 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 	return 0;
 }
 
+static int imap_check_limits(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu, int msgnum)
+{
+	/* Check if mailbox is full */
+	check_quota(vms, vmu->imapfolder);
+	if (vms->quota_limit && vms->quota_usage >= vms->quota_limit) {
+		ast_debug(1, "*** QUOTA EXCEEDED!! %u >= %u\n", vms->quota_usage, vms->quota_limit);
+		ast_play_and_wait(chan, "vm-mailboxfull");
+		return -1;
+	}
+	
+	/* Check if we have exceeded maxmsg */
+	if (msgnum >= vmu->maxmsg  - inprocess_count(vmu->mailbox, vmu->context, 0)) {
+		ast_log(AST_LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
+		ast_play_and_wait(chan, "vm-mailboxfull");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*!
  * \brief Gets the number of messages that exist in a mailbox folder.
  * \param context
@@ -2086,11 +2106,16 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	STRING str;
 	int ret; /* for better error checking */
 	char *imap_flags = NIL;
+	int msgcount = (messagecount(vmu->context, vmu->mailbox, "INBOX") + messagecount(vmu->context, vmu->mailbox, "Old"));
 
     /* Back out early if this is a greeting and we don't want to store greetings in IMAP */
     if (msgnum < 0 && !imapgreetings) {
         return 0;
     }
+	
+	if (imap_check_limits(chan, vms, vmu, msgcount)) {
+		return -1;
+	}
 
 	/* Set urgent flag for IMAP message */
 	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) {
@@ -5084,6 +5109,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	char fromdir[PATH_MAX], todir[PATH_MAX], frompath[PATH_MAX], topath[PATH_MAX];
 	const char *frombox = mbox(vmu, imbox);
 	int recipmsgnum;
+	int res = 0;
 
 	ast_log(AST_LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
 
@@ -5121,11 +5147,12 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		}
 	} else {
 		ast_log(AST_LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
+		res = -1;
 	}
 	ast_unlock_path(todir);
 	notify_new_message(chan, recip, NULL, recipmsgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), flag);
 	
-	return 0;
+	return res;
 }
 #endif
 #if !(defined(IMAP_STORAGE) || defined(ODBC_STORAGE))
@@ -5620,21 +5647,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		/* set variable for compatibility */
 		pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
 
-		/* Check if mailbox is full */
-		check_quota(vms, vmu->imapfolder);
-		if (vms->quota_limit && vms->quota_usage >= vms->quota_limit) {
-			ast_debug(1, "*** QUOTA EXCEEDED!! %u >= %u\n", vms->quota_usage, vms->quota_limit);
-			ast_play_and_wait(chan, "vm-mailboxfull");
-			ast_free(tmp);
-			return -1;
-		}
-		
-		/* Check if we have exceeded maxmsg */
-		if (msgnum >= vmu->maxmsg  - inprocess_count(vmu->mailbox, vmu->context, 0)) {
-			ast_log(AST_LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
-			ast_play_and_wait(chan, "vm-mailboxfull");
-			ast_free(tmp);
-			return -1;
+		if ((res = imap_check_limits(chan, vms, vmu, msgnum))) {
+			goto leave_vm_out;
 		}
 #else
 		if (count_messages(vmu, dir) >= vmu->maxmsg - inprocess_count(vmu->mailbox, vmu->context, +1)) {
@@ -6959,6 +6973,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* Forward VoiceMail */
 		long duration = 0;
 		struct vm_state vmstmp;
+		int copy_msg_result = 0;
 		memcpy(&vmstmp, vms, sizeof(vmstmp));
 
  		RETRIEVE(dir, curmsg, sender->mailbox, sender->context);
@@ -6980,7 +6995,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					if (!dstvms->mailstream) {
 						ast_log(AST_LOG_ERROR, "IMAP mailstream for %s is NULL\n", vmtmp->mailbox);
 					} else {
-						STORE(vmstmp.curdir, vmtmp->mailbox, vmtmp->context, dstvms->curmsg, chan, vmtmp, fmt, duration, dstvms, urgent_str);
+						copy_msg_result = STORE(vmstmp.curdir, vmtmp->mailbox, vmtmp->context, dstvms->curmsg, chan, vmtmp, fmt, duration, dstvms, urgent_str);
 						run_externnotify(vmtmp->context, vmtmp->mailbox, urgent_str); 
 					}
 				} else {
@@ -6992,7 +7007,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				/* NULL category for IMAP storage */
 				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, dstvms->curbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vmstmp.fn, vmstmp.introfn, fmt, duration, attach_user_voicemail, chan, NULL, urgent_str);
 #else
-				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir, urgent_str);
+				copy_msg_result = copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir, urgent_str);
 #endif
 				saved_messages++;
 				AST_LIST_REMOVE_CURRENT(list);
@@ -7001,7 +7016,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					break;
 			}
 			AST_LIST_TRAVERSE_SAFE_END;
-			if (saved_messages > 0) {
+			if (saved_messages > 0 && !copy_msg_result) {
 				/* give confirmation that the message was saved */
 				/* commented out since we can't forward batches yet
 				if (saved_messages == 1)
@@ -7015,8 +7030,12 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				if (ast_strlen_zero(vmstmp.introfn))
 #endif
 				res = ast_play_and_wait(chan, "vm-msgsaved");
-			}	
+			}
 #ifndef IMAP_STORAGE
+			else {
+				/* with IMAP, mailbox full warning played by imap_check_limits */
+				res = ast_play_and_wait(chan, "vm-mailboxfull");
+			}
 			/* Restore original message without prepended message if backup exists */
 			make_file(msgfile, sizeof(msgfile), dir, curmsg);
 			strcpy(textfile, msgfile);
