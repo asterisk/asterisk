@@ -357,6 +357,8 @@ Asterisk Manager Interface
    location than the first.
  * Added new event "JabberStatus" in the Jabber module to monitor buddies
    status.
+ * Added a "MixMonitorMute" AMI action for muting inbound and/or outbound audio
+   in a MixMonitor recording.
 
 Channel Event Logging
 ---------------------
