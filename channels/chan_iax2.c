@@ -6422,7 +6422,7 @@ static char *handle_cli_iax2_show_users(struct ast_cli_entry *e, int cmd, struct
 #undef FORMAT2
 }
 
-static int __iax2_show_peers(int manager, int fd, struct mansession *s, const int argc, const char * const argv[])
+static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int argc, const char * const argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -6432,18 +6432,17 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, const in
 	int unmonitored_peers = 0;
 	struct ao2_iterator i;
 
-#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s%s"
-#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s%s"
+#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s\n"
+#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s\n"
 
 	struct iax2_peer *peer = NULL;
 	char name[256];
 	struct ast_str *encmethods = ast_str_alloca(256);
 	int registeredonly=0;
-	char *term = manager ? "\r\n" : "\n";
 	char idtext[256] = "";
 	switch (argc) {
 	case 6:
- 		if (!strcasecmp(argv[3], "registered"))
+		if (!strcasecmp(argv[3], "registered"))
 			registeredonly = 1;
 		else
 			return RESULT_SHOWUSAGE;
@@ -6476,10 +6475,10 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, const in
 
 
 	if (!s)
-		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
+		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status");
 
 	i = ao2_iterator_init(peers, 0);
-	for (peer = ao2_iterator_next(&i); peer; 
+	for (peer = ao2_iterator_next(&i); peer;
 		peer_unref(peer), peer = ao2_iterator_next(&i)) {
 		char nm[20];
 		char status[20];
@@ -6534,18 +6533,21 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, const in
 				ntohs(peer->addr.sin_port),
 				ast_test_flag64(peer, IAX_TRUNK) ? "(T)" : "   ",
 				peer->encmethods ? "(E)" : "   ",
-				status,
-				term);
+				status);
 		}
 		total_peers++;
 	}
 	ao2_iterator_destroy(&i);
 
 	if (!s)
-		ast_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
+		ast_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]\n",
+			total_peers, online_peers, offline_peers, unmonitored_peers);
 
 	if (havepattern)
 		regfree(&regexbuf);
+
+	if (total)
+		*total = total_peers;
 
 	return RESULT_SUCCESS;
 #undef FORMAT
@@ -6704,7 +6706,7 @@ static char *handle_cli_iax2_show_peers(struct ast_cli_entry *e, int cmd, struct
 		return NULL;
 	}
 
-	switch (__iax2_show_peers(0, a->fd, NULL, a->argc, a->argv)) {
+	switch (__iax2_show_peers(a->fd, NULL, NULL, a->argc, a->argv)) {
 	case RESULT_SHOWUSAGE:
 		return CLI_SHOWUSAGE;
 	case RESULT_FAILURE:
@@ -6758,12 +6760,23 @@ static int manager_iax2_show_peers(struct mansession *s, const struct message *m
 	static const char * const a[] = { "iax2", "show", "peers" };
 	const char *id = astman_get_header(m,"ActionID");
 	char idtext[256] = "";
+	int total = 0;
 
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
-	astman_send_ack(s, m, "Peer status list will follow");
-	return __iax2_show_peers(1, -1, s, 3, a);
-} 
+
+	astman_send_listack(s, m, "Peer status list will follow", "start");
+        /* List the peers in separate manager events */
+	__iax2_show_peers(-1, &total, s, 3, a);
+        /* Send final confirmation */
+        astman_append(s,
+        "Event: PeerlistComplete\r\n"
+        "EventList: Complete\r\n"
+        "ListItems: %d\r\n"
+        "%s"
+        "\r\n", total, idtext);
+        return 0;
+}
 
 /*! \brief callback to display iax peers in manager format */
 static int manager_iax2_show_peer_list(struct mansession *s, const struct message *m)

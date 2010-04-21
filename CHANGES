@@ -359,6 +359,8 @@ Asterisk Manager Interface
    status.
  * Added a "MixMonitorMute" AMI action for muting inbound and/or outbound audio
    in a MixMonitor recording.
+ * The 'iax2 show peers' output is now similar to the expected output of
+   'sip show peers'.
 
 Channel Event Logging
 ---------------------
