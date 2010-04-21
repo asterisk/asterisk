@@ -79,7 +79,7 @@ subdirectory of AST\_DATA\_DIR/phoneprov specified.
 
 Since phone-specific config files generally have file names based on phone-specifc data, 
 dynamic filenames in res\_phoneprov can be defined with Asterisk dialplan function and 
-variable substitution. In the above example, \$\{TOLOWER(\$\{MAC\})\}.cfg $\Rightarrow$ 
+variable substitution. In the above example, \$\{TOLOWER(\$\{MAC\})\}.cfg =$>$
 000000000000.cfg would define a relative URI to be served that matches the format of 
 MACADDRESS.cfg, all lower case. A request for that file would then point to the template 
 found at AST\_DATA\_DIR/phoneprov/000000000000.cfg. The template can be followed by a 
@@ -96,8 +96,8 @@ Variable substitution on this value is done while building the route list, so
 dynamic filename.
 
 NOTE: Any dialplan function that is used for generation of dynamic file names MUST be 
-loaded before res\_phoneprov. Add "preload $\Rightarrow$ modulename.so" to 
-\path{modules.conf} for required functions. In the example above, "preload $\Rightarrow$ 
+loaded before res\_phoneprov. Add "preload =$>$ modulename.so" to 
+\path{modules.conf} for required functions. In the example above, "preload =$>$
 func\_strings.so" would be required.
 
 \section{Configuration of users.conf}

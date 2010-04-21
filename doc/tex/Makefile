@@ -20,7 +20,7 @@ ifeq ($(findstring fncychap.sty,$(shell find `$(KPATHSEA) --expand-braces='$${TE
 	@echo "WARNING:  The fncychap.sty document was not found"
 	@echo "On Ubuntu, install the texlive-latex-extra package."
 	@echo
-	@exit
+	@exit 1
 endif
 endif
 	@cp asterisk.tex asterisk.tex.orig
@@ -44,3 +44,33 @@ html:
 	@latex2html asterisk.tex
 	@mv asterisk.tex.orig asterisk.tex
 
+txt: asterisk.txt
+
+asterisk.txt: $(wildcard *.tex)
+ifeq ($(findstring catdvi,$(CATDVI)),)
+	@echo "**********************************************"
+	@echo "** You must install the \"catdvi\" tool      ***"
+	@echo "** to generate the Asterisk reference TXT. ***"
+	@echo "**********************************************"
+else
+	@echo "**********************************************"
+	@echo "** The Asterisk reference TXT will now be  ***"
+	@echo "** generated.  When complete, it will be   ***"
+	@echo "** located at asterisk.txt.                ***"	
+	@echo "**********************************************"
+ifneq ($(findstring kpsewhich,$(KPATHSEA)),)
+ifeq ($(findstring fncychap.sty,$(shell find `$(KPATHSEA) --expand-braces='$${TEXMF}'| tr -d \! | sed 's/:/ /g'` -name fncychap.sty -print)),)
+	@echo
+	@echo "WARNING:  The fncychap.sty document was not found"
+	@echo "On Ubuntu, install the texlive-latex-extra package."
+	@echo
+	@exit 1
+endif
+endif
+	@cp asterisk.tex asterisk.tex.orig
+	@sed -e 's/ASTERISKVERSION/$(ASTERISKVERSION)/' asterisk.tex > asterisk_local.tex
+	@mv asterisk_local.tex asterisk.tex
+	@latex asterisk.tex
+	-@$(CATDVI) -e 1 -U asterisk.dvi | sed -re "s/\[U\+2022\]/*/g" | sed -re "s/\[U\+02C6\]/^/g" | sed -re "s/([^^[:space:]])\s+/\1 /g" > asterisk.txt
+	@mv asterisk.tex.orig asterisk.tex
+endif

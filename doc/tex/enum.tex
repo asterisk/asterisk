@@ -53,7 +53,7 @@ Function: ENUMLOOKUP(number[,Method-type[,options[,record#[,zone-suffix]]]])
      ALL. Default type is "sip".
      Special name of "ALL" will create a list of method types across
      all NAPTR records for the search number, and then put the results
-     in an ordinal list starting with 1. The position <number>
+     in an ordinal list starting with 1. The position $<$number$>$
      specified will then be returned, starting with 1 as the first
      record (lowest value) in the list.  The service types are not
      hardcoded in Asterisk except for the default (sip) if no other
@@ -75,11 +75,11 @@ Function: ENUMLOOKUP(number[,Method-type[,options[,record#[,zone-suffix]]]])
   \item record\#
   \begin{itemize}
     \item which record to present if multiple answers are returned
-    <integer> = The record in priority/order sequence based on the
+    $<$integer$>$ = The record in priority/order sequence based on the
     total count of records passed back by the query. If a service\_type
     is specified, all entries of that type will be sorted into an
     ordinal list starting with 1 (by order first, then priority).
-    The default of <options> is "1"
+    The default of $<$options$>$ is "1"
   \end{itemize}
 
   \item zone\_suffix
