@@ -163,6 +163,7 @@ the mailing list archives and the documentation page on the
  DestinationContext:      -- Destination context (cdr_manager)
  DestinationChannel:      -- Destination channel (cdr_manager)
  DestUniqueID:            -- UniqueID of destination (dial event)
+ Direction: <type>        -- Audio to mute (read | write | both) 
  Disposition:             -- Call disposition (CDR manager)
  Domain: <domain>         -- DNS domain
  Duration: <secs>         -- Duration of call (cdr_manager)
@@ -231,6 +232,7 @@ the mailing list archives and the documentation page on the
  SrcUniqueID:             -- UniqueID of source (dial event)
  StartTime:               -- Start time of call (cdr_manager)
  State:                   -- Channel state
+ State: <1 | 0>           -- Mute flag
  Status:                  -- Registration status (Registry events SIP)
  Status:                  -- Extension status (Extensionstate)
  Status:                  -- Peer status (if monitored)  ** Will change name **
