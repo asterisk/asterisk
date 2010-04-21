@@ -1587,3 +1587,15 @@ int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2)
 
 	return 0;
 }
+
+int ast_frame_clear(struct ast_frame *frame)
+{
+	struct ast_frame *next;
+
+	for (next = AST_LIST_NEXT(frame, frame_list);
+		 frame;
+		 frame = next, next = frame ? AST_LIST_NEXT(frame, frame_list) : NULL) {
+		memset(frame->data.ptr, 0, frame->datalen);
+	}
+	return 0;
+}

@@ -116,19 +116,6 @@ static const struct ast_datastore_info mute_datastore = {
 	.destroy = destroy_callback
 };
 
-/*! \brief Wipe out all audio samples from an ast_frame. Clean it. */
-static void ast_frame_clear(struct ast_frame *frame)
-{
-	struct ast_frame *next;
-
-	for (next = AST_LIST_NEXT(frame, frame_list);
-		frame;
-		frame = next, next = frame ? AST_LIST_NEXT(frame, frame_list) : NULL) {
-		memset(frame->data.ptr, 0, frame->datalen);
-        }
-}
-
-
 /*! \brief The callback from the audiohook subsystem. We basically get a frame to have fun with */
 static int mute_callback(struct ast_audiohook *audiohook, struct ast_channel *chan, struct ast_frame *frame, enum ast_audiohook_direction direction)
 {

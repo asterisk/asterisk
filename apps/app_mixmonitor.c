@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/channel.h"
 #include "asterisk/autochan.h"
+#include "asterisk/manager.h"
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
@@ -124,7 +125,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">MixMonitor</ref>
 		</see-also>
 	</application>
-		
+	<manager name="MixMonitorMute" language="en_US">
+		<synopsis>
+			Mute / unMute a Mixmonitor recording.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Used to specify the channel to mute.</para>
+			</parameter>
+			<parameter name="Direction">
+				<para>Which part of the recording to mute:  read, write or both (from channel, to channel or both channels).</para>
+			</parameter>
+			<parameter name="State">
+				<para>Turn mute on or off : 1 to turn on, 0 to turn off.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action may be used to mute a MixMonitor recording.</para>
+		</description>
+	</manager>
+
  ***/
 
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
@@ -606,6 +627,73 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
+/*! \brief  Mute / unmute  a MixMonitor channel */
+static int manager_mute_mixmonitor(struct mansession *s, const struct message *m)
+{
+	struct ast_channel *c = NULL;
+
+	const char *name = astman_get_header(m, "Channel");
+	const char *id = astman_get_header(m, "ActionID");
+	const char *state = astman_get_header(m, "State");
+	const char *direction = astman_get_header(m,"Direction");
+
+	int clearmute = 1;
+
+	enum ast_audiohook_flags flag;
+
+	if (ast_strlen_zero(direction)) {
+		astman_send_error(s, m, "No direction specified. Must be read, write or both");
+		return AMI_SUCCESS;
+	}
+
+	if (!strcasecmp(direction, "read")) {
+		flag = AST_AUDIOHOOK_MUTE_READ;
+	} else  if (!strcasecmp(direction, "write")) {
+		flag = AST_AUDIOHOOK_MUTE_WRITE;
+	} else  if (!strcasecmp(direction, "both")) {
+		flag = AST_AUDIOHOOK_MUTE_READ | AST_AUDIOHOOK_MUTE_WRITE;
+	} else {
+		astman_send_error(s, m, "Invalid direction specified. Must be read, write or both");
+		return AMI_SUCCESS;
+	}
+
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return AMI_SUCCESS;
+	}
+
+	if (ast_strlen_zero(state)) {
+		astman_send_error(s, m, "No state specified");
+		return AMI_SUCCESS;
+	}
+
+	clearmute = ast_false(state);
+	c = ast_channel_get_by_name(name);
+
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return AMI_SUCCESS;
+	}
+
+	if (ast_audiohook_set_mute(c, mixmonitor_spy_type, flag, clearmute)) {
+		c = ast_channel_unref(c);
+		astman_send_error(s, m, "Cannot set mute flag");
+		return AMI_SUCCESS;
+	}
+
+	astman_append(s, "Response: Success\r\n");
+
+	if (!ast_strlen_zero(id)) {
+		astman_append(s, "ActionID: %s\r\n", id);
+	}
+
+	astman_append(s, "\r\n");
+
+	c = ast_channel_unref(c);
+
+	return AMI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_mixmonitor[] = {
 	AST_CLI_DEFINE(handle_cli_mixmonitor, "Execute a MixMonitor command")
 };
@@ -617,6 +705,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_mixmonitor, ARRAY_LEN(cli_mixmonitor));
 	res = ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
+	res |= ast_manager_unregister("MixMonitorMute");
 	
 	return res;
 }
@@ -628,6 +717,7 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_mixmonitor, ARRAY_LEN(cli_mixmonitor));
 	res = ast_register_application_xml(app, mixmonitor_exec);
 	res |= ast_register_application_xml(stop_app, stop_mixmonitor_exec);
+	res |= ast_manager_register_xml("MixMonitorMute", 0, manager_mute_mixmonitor);
 
 	return res;
 }

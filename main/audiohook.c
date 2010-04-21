@@ -127,6 +127,7 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	int our_factory_ms;
 	int other_factory_samples;
 	int other_factory_ms;
+	int muteme = 0;
 
 	/* Update last feeding time to be current */
 	*rwtime = ast_tvnow();
@@ -149,6 +150,17 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 		}
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
+	}
+
+	/* swap frame data for zeros if mute is required */
+	if ((ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_READ) && (direction == AST_AUDIOHOOK_DIRECTION_READ)) ||
+		(ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_WRITE) && (direction == AST_AUDIOHOOK_DIRECTION_WRITE)) ||
+		(ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_READ | AST_AUDIOHOOK_MUTE_WRITE) == (AST_AUDIOHOOK_MUTE_READ | AST_AUDIOHOOK_MUTE_WRITE))) {
+			muteme = 1;
+	}
+
+	if (muteme && frame->datalen > 0) {
+		ast_frame_clear(frame);
 	}
 
 	/* Write frame out to respective factory */
@@ -1000,4 +1012,38 @@ int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_dir
 	}
 
 	return 0;
+}
+
+/*! \brief Mute frames read from or written to a channel
+ * \param chan Channel to muck with
+ * \param source Type of audiohook
+ * \param flag which flag to set / clear
+ * \param clear set or clear
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_audiohook_set_mute(struct ast_channel *chan, const char *source, enum ast_audiohook_flags flag, int clear)
+{
+	struct ast_audiohook *audiohook = NULL;
+
+	ast_channel_lock(chan);
+
+	/* Ensure the channel has audiohooks on it */
+	if (!chan->audiohooks) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	audiohook = find_audiohook_by_source(chan->audiohooks, source);
+
+	if (audiohook) {
+		if (clear) {
+			ast_clear_flag(audiohook, flag);
+		} else {
+			ast_set_flag(audiohook, flag);
+		}
+	}
+
+	ast_channel_unlock(chan);
+
+	return (audiohook ? 0 : -1);
 }

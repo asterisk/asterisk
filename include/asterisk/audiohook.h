@@ -62,6 +62,8 @@ enum ast_audiohook_flags {
 	 * slinfactories. We will flush the factories if they contain too many samples.
 	 */
 	AST_AUDIOHOOK_SMALL_QUEUE = (1 << 3),
+	AST_AUDIOHOOK_MUTE_READ = (1 << 4),     /*!< audiohook should be mute frames read */
+	AST_AUDIOHOOK_MUTE_WRITE = (1 << 5),    /*!< audiohook should be mute frames written */
 };
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*< Tolerance in milliseconds for audiohooks synchronization */
@@ -276,6 +278,16 @@ int ast_audiohook_volume_get(struct ast_channel *chan, enum ast_audiohook_direct
  * \since 1.6.1
  */
 int ast_audiohook_volume_adjust(struct ast_channel *chan, enum ast_audiohook_direction direction, int volume);
+
+/*! \brief Mute frames read from or written to a channel
+ * \param chan Channel to muck with
+ * \param source Type of audiohook
+ * \param flag which direction to set / clear
+ * \param clear set or clear muted frames on direction based on flag parameter
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_audiohook_set_mute(struct ast_channel *chan, const char *source, enum ast_audiohook_flags flag, int clear);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

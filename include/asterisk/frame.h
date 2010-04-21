@@ -728,6 +728,11 @@ static force_inline int ast_format_rate(format_t format)
 	}
 }
 
+/*!
+ * \brief Clear all audio samples from an ast_frame. The frame must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR 
+ */
+int ast_frame_clear(struct ast_frame *frame);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
