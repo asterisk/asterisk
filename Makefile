@@ -987,6 +987,10 @@ pdf: asterisk.pdf
 asterisk.pdf:
 	$(MAKE) -C doc/tex asterisk.pdf
 
+txt: asterisk.txt
+asterisk.txt:
+	$(MAKE) -C doc/tex asterisk.txt
+
 .PHONY: menuselect
 .PHONY: main
 .PHONY: sounds

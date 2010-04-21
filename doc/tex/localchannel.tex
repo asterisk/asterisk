@@ -383,11 +383,13 @@ as expected.
 
 This following dialplan will not perform as expected.
 
+\begin{verbatim}
 [services]
 exten => 2,1,Dial(SIP/PHONE\_B,,L(60000:45000:15000))
 
 [internal]
-exten => 4,1,Dial(Local/2@services);
+exten => 4,1,Dial(Local/2@services)
+\end{verbatim}
 
 By default, the Local channel will try to optimize itself out of the call path.
 This means that once the Local channel has established the call between the
