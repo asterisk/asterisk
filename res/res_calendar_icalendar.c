@@ -17,7 +17,7 @@
  */
 
 /*! \file
- * \brief Resource for handling iCalnedar calendars
+ * \brief Resource for handling iCalendar calendars
  */
 
 /*** MODULEINFO
