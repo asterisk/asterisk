@@ -1494,104 +1494,6 @@ static int imap_check_limits(struct ast_channel *chan, struct vm_state *vms, str
 	return 0;
 }
 
-static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms)
-{
-	char *myserveremail = serveremail;
-	char fn[PATH_MAX];
-	char mailbox[256];
-	char *stringp;
-	FILE *p = NULL;
-	char tmp[80] = "/tmp/astmail-XXXXXX";
-	long len;
-	void *buf;
-	int tempcopy = 0;
-	STRING str;
-	int msgcount = (messagecount(vmu->context, vmu->mailbox, "INBOX") + messagecount(vmu->context, vmu->mailbox, "Old"));
-
-	/* Back out early if this is a greeting and we don't want to store greetings in IMAP */
-	if (msgnum < 0 && !imapgreetings) {
-		return 0;
-	}
-	if (imap_check_limits(chan, vms, vmu, msgcount)) {
-		return -1;
-	}
-	
-	/* Attach only the first format */
-	fmt = ast_strdupa(fmt);
-	stringp = fmt;
-	strsep(&stringp, "|");
-
-	if (!ast_strlen_zero(vmu->serveremail))
-		myserveremail = vmu->serveremail;
-
-	if (msgnum > -1)
-		make_file(fn, sizeof(fn), dir, msgnum);
-	else
-		ast_copy_string (fn, dir, sizeof(fn));
-	
-	if (ast_strlen_zero(vmu->email)) {
-		/* We need the vmu->email to be set when we call make_email_file, but
-		* if we keep it set, a duplicate e-mail will be created. So at the end
-		* of this function, we will revert back to an empty string if tempcopy
-		* is 1.
-		*/
-		ast_copy_string(vmu->email, vmu->imapuser, sizeof(vmu->email));
-		tempcopy = 1;
-	}
-
-	if (!strcmp(fmt, "wav49"))
-		fmt = "WAV";
-	ast_debug(3, "Storing file '%s', format '%s'\n", fn, fmt);
-
-	/* Make a temporary file instead of piping directly to sendmail, in case the mail
-	command hangs. */
-	if (!(p = vm_mkftemp(tmp))) {
-		ast_log(LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
-		if (tempcopy)
-			*(vmu->email) = '\0';
-		return -1;
-	}
-
-	if (msgnum < 0 && imapgreetings) {
-		init_mailstream(vms, GREETINGS_FOLDER);
-		imap_delete_old_greeting(fn, vms);
-	}
-	
-	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, "INBOX", S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
-	/* read mail file to memory */		
-	len = ftell(p);
-	rewind(p);
-	if (!(buf = ast_malloc(len + 1))) {
-		ast_log(LOG_ERROR, "Can't allocate %ld bytes to read message\n", len + 1);
-		fclose(p);
-		if (tempcopy)
-			*(vmu->email) = '\0';
-		return -1;
-	}
-	if (fread(buf, len, 1, p) < len) {
-		if (ferror(p)) {
-			ast_log(LOG_ERROR, "Short read while reading in mail file.\n");
-			return -1;
-		}
-	}
-	((char *)buf)[len] = '\0';
-	INIT(&str, mail_string, buf, len);
-	init_mailstream(vms, NEW_FOLDER);
-	imap_mailbox_name(mailbox, sizeof(mailbox), vms, NEW_FOLDER, 1);
-	if (!mail_append(vms->mailstream, mailbox, &str))
-		ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
-	fclose(p);
-	unlink(tmp);
-	ast_free(buf);
-	ast_debug(3, "%s stored\n", fn);
-	
-	if (tempcopy)
-		*(vmu->email) = '\0';
-	
-	return 0;
-
-}
-
 static int messagecount(const char *context, const char *mailbox, const char *folder)
 {
 	SEARCHPGM *pgm;
@@ -1693,6 +1595,105 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	}
 	return 0;
 }
+
+static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms)
+{
+	char *myserveremail = serveremail;
+	char fn[PATH_MAX];
+	char mailbox[256];
+	char *stringp;
+	FILE *p = NULL;
+	char tmp[80] = "/tmp/astmail-XXXXXX";
+	long len;
+	void *buf;
+	int tempcopy = 0;
+	STRING str;
+	int msgcount = (messagecount(vmu->context, vmu->mailbox, "INBOX") + messagecount(vmu->context, vmu->mailbox, "Old"));
+
+	/* Back out early if this is a greeting and we don't want to store greetings in IMAP */
+	if (msgnum < 0 && !imapgreetings) {
+		return 0;
+	}
+	if (imap_check_limits(chan, vms, vmu, msgcount)) {
+		return -1;
+	}
+	
+	/* Attach only the first format */
+	fmt = ast_strdupa(fmt);
+	stringp = fmt;
+	strsep(&stringp, "|");
+
+	if (!ast_strlen_zero(vmu->serveremail))
+		myserveremail = vmu->serveremail;
+
+	if (msgnum > -1)
+		make_file(fn, sizeof(fn), dir, msgnum);
+	else
+		ast_copy_string (fn, dir, sizeof(fn));
+	
+	if (ast_strlen_zero(vmu->email)) {
+		/* We need the vmu->email to be set when we call make_email_file, but
+		* if we keep it set, a duplicate e-mail will be created. So at the end
+		* of this function, we will revert back to an empty string if tempcopy
+		* is 1.
+		*/
+		ast_copy_string(vmu->email, vmu->imapuser, sizeof(vmu->email));
+		tempcopy = 1;
+	}
+
+	if (!strcmp(fmt, "wav49"))
+		fmt = "WAV";
+	ast_debug(3, "Storing file '%s', format '%s'\n", fn, fmt);
+
+	/* Make a temporary file instead of piping directly to sendmail, in case the mail
+	command hangs. */
+	if (!(p = vm_mkftemp(tmp))) {
+		ast_log(LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
+		if (tempcopy)
+			*(vmu->email) = '\0';
+		return -1;
+	}
+
+	if (msgnum < 0 && imapgreetings) {
+		init_mailstream(vms, GREETINGS_FOLDER);
+		imap_delete_old_greeting(fn, vms);
+	}
+	
+	make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, "INBOX", S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
+	/* read mail file to memory */		
+	len = ftell(p);
+	rewind(p);
+	if (!(buf = ast_malloc(len + 1))) {
+		ast_log(LOG_ERROR, "Can't allocate %ld bytes to read message\n", len + 1);
+		fclose(p);
+		if (tempcopy)
+			*(vmu->email) = '\0';
+		return -1;
+	}
+	if (fread(buf, len, 1, p) < len) {
+		if (ferror(p)) {
+			ast_log(LOG_ERROR, "Short read while reading in mail file.\n");
+			return -1;
+		}
+	}
+	((char *)buf)[len] = '\0';
+	INIT(&str, mail_string, buf, len);
+	init_mailstream(vms, NEW_FOLDER);
+	imap_mailbox_name(mailbox, sizeof(mailbox), vms, NEW_FOLDER, 1);
+	if (!mail_append(vms->mailstream, mailbox, &str))
+		ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
+	fclose(p);
+	unlink(tmp);
+	ast_free(buf);
+	ast_debug(3, "%s stored\n", fn);
+	
+	if (tempcopy)
+		*(vmu->email) = '\0';
+	
+	return 0;
+
+}
+
 static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
 {
 	char tmp[PATH_MAX] = "";
@@ -5520,10 +5521,16 @@ leave_vm_out:
 	static int get_folder2(struct ast_channel *chan, char *fn, int start)
 	{
 		int res = 0;
+		int loops = 0;
 		res = ast_play_and_wait(chan, fn);	/* Folder name */
 		while (((res < '0') || (res > '9')) &&
-				(res != '#') && (res >= 0)) {
+				(res != '#') && (res >= 0) &&
+				loops < 4) {
 			res = get_folder(chan, 0);
+			loops++;
+		}
+		if (loops == 4) { /* give up */
+			return '#';
 		}
 		return res;
 	}
@@ -5740,6 +5747,7 @@ leave_vm_out:
 		int valid_extensions = 0;
 		char *dir;
 		int curmsg;
+		int prompt_played = 0;
 
 		if (vms == NULL) return -1;
 		dir = vms->curdir;
@@ -5819,7 +5827,8 @@ leave_vm_out:
 			} else {
 				/* Ask for an extension */
 				res = ast_streamfile(chan, "vm-extension", chan->language);	/* "extension" */
-				if (res)
+				prompt_played++;
+				if (res || prompt_played > 4)
 					break;
 				if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0))
 					break;
