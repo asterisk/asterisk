@@ -5094,10 +5094,16 @@ static int get_folder(struct ast_channel *chan, int start)
 static int get_folder2(struct ast_channel *chan, char *fn, int start)
 {
 	int res = 0;
+	int loops = 0;
 	res = ast_play_and_wait(chan, fn);	/* Folder name */
 	while (((res < '0') || (res > '9')) &&
-			(res != '#') && (res >= 0)) {
+			(res != '#') && (res >= 0) &&
+			loops < 4) {
 		res = get_folder(chan, 0);
+		loops++;
+	}
+	if (loops == 4) { /* give up */
+		return '#';
 	}
 	return res;
 }
@@ -5283,6 +5289,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	int valid_extensions = 0;
 	char *dir;
 	int curmsg;
+	int prompt_played = 0;
 
 	if (vms == NULL) return -1;
 	dir = vms->curdir;
@@ -5364,7 +5371,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		} else {
 			/* Ask for an extension */
 			res = ast_streamfile(chan, "vm-extension", chan->language);	/* "extension" */
-			if (res)
+			prompt_played++;
+			if (res || prompt_played > 4)
 				break;
 			if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0))
 				break;
