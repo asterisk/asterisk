@@ -3480,7 +3480,6 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
 		if (chan->cdr) {
 			ast_set_flag(chan->cdr, AST_CDR_FLAG_DIALED);
-			ast_set_flag(chan->cdr, AST_CDR_FLAG_ORIGINATED);
 		}
 		if (chan->tech->call)
 			res = chan->tech->call(chan, addr, timeout);

@@ -1847,6 +1847,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				ast_set_flag(peer_cdr, AST_CDR_FLAG_BRIDGED);
 			}
 		}
+		/* the DIALED flag may be set if a dialed channel is transfered
+		 * and then bridged to another channel.  In order for the
+		 * bridge CDR to be written, the DIALED flag must not be
+		 * present. */
+		ast_clear_flag(bridge_cdr, AST_CDR_FLAG_DIALED);
 	}
 
 	for (;;) {
