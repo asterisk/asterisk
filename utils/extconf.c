@@ -2852,6 +2852,12 @@ struct timeval ast_tvsub(struct timeval a, struct timeval b)
 }
 #undef ONE_MILLION
 
+void ast_mark_lock_failed(void *lock_addr);
+void ast_mark_lock_failed(void *lock_addr)
+{
+	/* Pretend to do something. */
+}
+
 /* stolen from pbx.c */
 #define VAR_BUF_SIZE 4096
 
