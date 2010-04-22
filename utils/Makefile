@@ -147,7 +147,7 @@ aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 
 aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
 aelparse: LIBS+=-lm
-aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o utils.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
+aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
 astobj2.c: $(ASTTOPDIR)/main/astobj2.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"

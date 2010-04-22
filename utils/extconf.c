@@ -2821,6 +2821,7 @@ static struct timeval tvfix(struct timeval a)
 	return a;
 }
 
+struct timeval ast_tvadd(struct timeval a, struct timeval b);
 struct timeval ast_tvadd(struct timeval a, struct timeval b)
 {
 	/* consistency checks to guarantee usec in 0..999999 */
@@ -2835,6 +2836,7 @@ struct timeval ast_tvadd(struct timeval a, struct timeval b)
 	return a;
 }
 
+struct timeval ast_tvsub(struct timeval a, struct timeval b);
 struct timeval ast_tvsub(struct timeval a, struct timeval b)
 {
 	/* consistency checks to guarantee usec in 0..999999 */
