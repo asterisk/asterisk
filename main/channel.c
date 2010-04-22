@@ -4522,8 +4522,19 @@ struct ast_channel *__ast_request_and_dial(const char *type, format_t format, co
 					break;
 
 				case AST_CONTROL_BUSY:
+					ast_cdr_busy(chan->cdr);
+					*outstate = f->subclass.integer;
+					timeout = 0;
+					break;
+
 				case AST_CONTROL_CONGESTION:
+					ast_cdr_failed(chan->cdr);
+					*outstate = f->subclass.integer;
+					timeout = 0;
+					break;
+
 				case AST_CONTROL_ANSWER:
+					ast_cdr_answer(chan->cdr);
 					*outstate = f->subclass.integer;
 					timeout = 0;		/* trick to force exit from the while() */
 					break;
@@ -6140,24 +6151,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
-
-				case AST_CONTROL_BUSY:
-					ast_cdr_busy(chan->cdr);
-					*outstate = f->subclass;
-					timeout = 0;
-					break;
-
-				case AST_CONTROL_CONGESTION:
-					ast_cdr_failed(chan->cdr);
-					*outstate = f->subclass;
-					timeout = 0;
-					break;
-
-				case AST_CONTROL_ANSWER:
-					ast_cdr_answer(chan->cdr);
-					*outstate = f->subclass;
-					timeout = 0;		/* trick to force exit from the while() */
-					break;
 
 				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
 					continue;
