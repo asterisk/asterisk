@@ -10739,6 +10739,206 @@ static struct ast_cli_entry cli_voicemail[] = {
 	AST_CLI_DEFINE(handle_voicemail_reload, "Reload voicemail configuration"),
 };
 
+#ifdef IMAP_STORAGE
+	#define DATA_EXPORT_VM_USERS(USER)					\
+		USER(ast_vm_user, context, AST_DATA_STRING)			\
+		USER(ast_vm_user, mailbox, AST_DATA_STRING)			\
+		USER(ast_vm_user, password, AST_DATA_STRING)			\
+		USER(ast_vm_user, fullname, AST_DATA_STRING)			\
+		USER(ast_vm_user, email, AST_DATA_STRING)			\
+		USER(ast_vm_user, emailsubject, AST_DATA_STRING)		\
+		USER(ast_vm_user, emailbody, AST_DATA_STRING)			\
+		USER(ast_vm_user, pager, AST_DATA_STRING)			\
+		USER(ast_vm_user, serveremail, AST_DATA_STRING)			\
+		USER(ast_vm_user, mailcmd, AST_DATA_STRING)			\
+		USER(ast_vm_user, language, AST_DATA_STRING)			\
+		USER(ast_vm_user, zonetag, AST_DATA_STRING)			\
+		USER(ast_vm_user, callback, AST_DATA_STRING)			\
+		USER(ast_vm_user, dialout, AST_DATA_STRING)			\
+		USER(ast_vm_user, uniqueid, AST_DATA_STRING)			\
+		USER(ast_vm_user, exit, AST_DATA_STRING)			\
+		USER(ast_vm_user, attachfmt, AST_DATA_STRING)			\
+		USER(ast_vm_user, flags, AST_DATA_UNSIGNED_INTEGER)		\
+		USER(ast_vm_user, saydurationm, AST_DATA_INTEGER)		\
+		USER(ast_vm_user, maxmsg, AST_DATA_INTEGER)			\
+		USER(ast_vm_user, maxdeletedmsg, AST_DATA_INTEGER)		\
+		USER(ast_vm_user, maxsecs, AST_DATA_INTEGER)			\
+		USER(ast_vm_user, imapuser, AST_DATA_STRING)			\
+		USER(ast_vm_user, imappassword, AST_DATA_STRING)		\
+		USER(ast_vm_user, imapvmshareid, AST_DATA_STRING)		\
+		USER(ast_vm_user, volgain, AST_DATA_DOUBLE)
+#else
+	#define DATA_EXPORT_VM_USERS(USER)					\
+		USER(ast_vm_user, context, AST_DATA_STRING)			\
+		USER(ast_vm_user, mailbox, AST_DATA_STRING)			\
+		USER(ast_vm_user, password, AST_DATA_STRING)			\
+		USER(ast_vm_user, fullname, AST_DATA_STRING)			\
+		USER(ast_vm_user, email, AST_DATA_STRING)			\
+		USER(ast_vm_user, emailsubject, AST_DATA_STRING)		\
+		USER(ast_vm_user, emailbody, AST_DATA_STRING)			\
+		USER(ast_vm_user, pager, AST_DATA_STRING)			\
+		USER(ast_vm_user, serveremail, AST_DATA_STRING)			\
+		USER(ast_vm_user, mailcmd, AST_DATA_STRING)			\
+		USER(ast_vm_user, language, AST_DATA_STRING)			\
+		USER(ast_vm_user, zonetag, AST_DATA_STRING)			\
+		USER(ast_vm_user, callback, AST_DATA_STRING)			\
+		USER(ast_vm_user, dialout, AST_DATA_STRING)			\
+		USER(ast_vm_user, uniqueid, AST_DATA_STRING)			\
+		USER(ast_vm_user, exit, AST_DATA_STRING)			\
+		USER(ast_vm_user, attachfmt, AST_DATA_STRING)			\
+		USER(ast_vm_user, flags, AST_DATA_UNSIGNED_INTEGER)		\
+		USER(ast_vm_user, saydurationm, AST_DATA_INTEGER)		\
+		USER(ast_vm_user, maxmsg, AST_DATA_INTEGER)			\
+		USER(ast_vm_user, maxdeletedmsg, AST_DATA_INTEGER)		\
+		USER(ast_vm_user, maxsecs, AST_DATA_INTEGER)			\
+		USER(ast_vm_user, volgain, AST_DATA_DOUBLE)
+#endif
+
+AST_DATA_STRUCTURE(ast_vm_user, DATA_EXPORT_VM_USERS);
+
+#define DATA_EXPORT_VM_ZONES(ZONE)			\
+	ZONE(vm_zone, name, AST_DATA_STRING)		\
+	ZONE(vm_zone, timezone, AST_DATA_STRING)	\
+	ZONE(vm_zone, msg_format, AST_DATA_STRING)
+
+AST_DATA_STRUCTURE(vm_zone, DATA_EXPORT_VM_ZONES);
+
+#ifdef IMAP_STORAGE
+	#define DATA_EXPORT_VM_STATES(STATE)						\
+		STATE(vm_state, curbox, AST_DATA_STRING)				\
+		STATE(vm_state, username, AST_DATA_STRING)				\
+		STATE(vm_state, context, AST_DATA_STRING)				\
+		STATE(vm_state, curdir, AST_DATA_STRING)				\
+		STATE(vm_state, vmbox, AST_DATA_STRING)					\
+		STATE(vm_state, fn, AST_DATA_STRING)					\
+		STATE(vm_state, intro, AST_DATA_STRING)					\
+		STATE(vm_state, curmsg, AST_DATA_INTEGER)				\
+		STATE(vm_state, lastmsg, AST_DATA_INTEGER)				\
+		STATE(vm_state, newmessages, AST_DATA_INTEGER)				\
+		STATE(vm_state, oldmessages, AST_DATA_INTEGER)				\
+		STATE(vm_state, urgentmessages, AST_DATA_INTEGER)			\
+		STATE(vm_state, starting, AST_DATA_INTEGER)				\
+		STATE(vm_state, repeats, AST_DATA_INTEGER)				\
+		STATE(vm_state, updated, AST_DATA_INTEGER)				\
+		STATE(vm_state, msgArray, AST_DATA_CONTAINER)				\
+		STATE(vm_state, vmArrayIndex, AST_DATA_INTEGER)				\
+		STATE(vm_state, imapuser, AST_DATA_STRING)				\
+		STATE(vm_state, interactive, AST_DATA_INTEGER)				\
+		STATE(vm_state, introfn, AST_DATA_STRING)				\
+		STATE(vm_state, quota_limit, AST_DATA_UNSIGNED_INTEGER)			\
+		STATE(vm_state, quota_usage, AST_DATA_UNSIGNED_INTEGER)
+#else
+	#define DATA_EXPORT_VM_STATES(STATE)						\
+		STATE(vm_state, curbox, AST_DATA_STRING)				\
+		STATE(vm_state, username, AST_DATA_STRING)				\
+		STATE(vm_state, context, AST_DATA_STRING)				\
+		STATE(vm_state, curdir, AST_DATA_STRING)				\
+		STATE(vm_state, vmbox, AST_DATA_STRING)					\
+		STATE(vm_state, fn, AST_DATA_STRING)					\
+		STATE(vm_state, intro, AST_DATA_STRING)					\
+		STATE(vm_state, curmsg, AST_DATA_INTEGER)				\
+		STATE(vm_state, lastmsg, AST_DATA_INTEGER)				\
+		STATE(vm_state, newmessages, AST_DATA_INTEGER)				\
+		STATE(vm_state, oldmessages, AST_DATA_INTEGER)				\
+		STATE(vm_state, urgentmessages, AST_DATA_INTEGER)			\
+		STATE(vm_state, starting, AST_DATA_INTEGER)				\
+		STATE(vm_state, repeats, AST_DATA_INTEGER)
+#endif
+
+AST_DATA_STRUCTURE(vm_state, DATA_EXPORT_VM_STATES);
+
+/*!
+ * \internal
+ * \brief Add voicemail user to the data_root.
+ * \param[in] search The search tree.
+ * \param[in] data_root The main result node.
+ * \param[in] user The voicemail user.
+ */
+static void vm_users_data_provider_get_helper(const struct ast_data_search *search,
+    struct ast_data *data_root, struct ast_vm_user *user)
+{
+	struct ast_data *data_user, *data_zone;
+#ifdef IMAP_STORAGE
+	struct ast_data *data_state;
+	struct vm_state *state;
+#endif
+	struct vm_zone *zone = NULL;
+
+	/* check the search pattern to make sure it's valid to add it */
+	if (ast_data_search_cmp_structure(search, ast_vm_user, user, "user")) {
+		return;
+	}
+
+	data_user = ast_data_add_node(data_root, "user");
+	if (!data_user) {
+		return;
+	}
+
+	ast_data_add_structure(ast_vm_user, data_user, user);
+
+#ifdef IMAP_STORAGE
+	state = get_vm_state_by_mailbox(user->mailbox, user->context, user->interactive);
+#endif
+
+	AST_LIST_LOCK(&zones);
+	AST_LIST_TRAVERSE(&zones, zone, list) {
+		if (!strcmp(zone->name, user->zonetag)) {
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&zones);
+
+	/* TODO: Should a user's vm state be accessible without compiling in
+	 *       IMAP support? */
+
+	if (
+#ifdef IMAP_STORAGE
+		!ast_data_search_cmp_structure(search, vm_state, state, "user/state") ||
+#endif
+		(zone && !ast_data_search_cmp_structure(search, vm_zone,
+							zone, "user/zone"))) {
+		ast_data_remove_node(data_root, data_user);
+		return;
+	}
+
+#ifdef IMAP_STORAGE
+	data_state = ast_data_add_node(data_user, "state");
+	ast_data_add_structure(vm_state, data_state, state);
+	ast_data_add_int(data_state, "deleted", *(state->deleted));
+	ast_data_add_int(data_state, "heard", *(state->heard));
+#endif
+
+	if (zone) {
+		data_zone = ast_data_add_node(data_user, "zone");
+		ast_data_add_structure(vm_zone, data_zone, zone);
+	}
+
+	return;
+}
+
+static int vm_data_provider_get(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct ast_vm_user *user;
+
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE(&users, user, list) {
+		vm_users_data_provider_get_helper(search, data_root, user);
+	}
+	AST_LIST_UNLOCK(&users);
+
+	return 0;
+}
+
+static const struct ast_data_handler vm_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = vm_data_provider_get
+};
+
+static const struct ast_data_entry vm_data_providers[] = {
+	AST_DATA_ENTRY("asterisk/application/app_voicemail/voicemail", &vm_data_provider)
+};
+
 static void poll_subscribed_mailbox(struct mwi_sub *mwi_sub)
 {
 	int new = 0, old = 0, urgent = 0;
@@ -12241,6 +12441,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app4);
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
 	res |= ast_manager_unregister("VoicemailUsersList");
+	res |= ast_data_unregister(NULL);
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
 	res |= AST_TEST_UNREGISTER(test_voicemail_msgcount);
@@ -12301,6 +12502,7 @@ static int load_module(void)
 		return res;
 
 	ast_cli_register_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
+	ast_data_register_multiple(vm_data_providers, ARRAY_LEN(vm_data_providers));
 
 	ast_install_vm_functions(has_voicemail, inboxcount, inboxcount2, messagecount, sayname);
 	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);

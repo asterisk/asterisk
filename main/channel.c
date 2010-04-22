@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/timing.h"
 #include "asterisk/autochan.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/data.h"
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -132,6 +133,52 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 #else
 #define NUM_CHANNEL_BUCKETS 1567
 #endif
+
+#define DATA_EXPORT_CHANNEL(MEMBER)						\
+	MEMBER(ast_channel, blockproc, AST_DATA_STRING)				\
+	MEMBER(ast_channel, appl, AST_DATA_STRING)				\
+	MEMBER(ast_channel, data, AST_DATA_STRING)				\
+	MEMBER(ast_channel, name, AST_DATA_STRING)				\
+	MEMBER(ast_channel, language, AST_DATA_STRING)				\
+	MEMBER(ast_channel, musicclass, AST_DATA_STRING)			\
+	MEMBER(ast_channel, accountcode, AST_DATA_STRING)			\
+	MEMBER(ast_channel, peeraccount, AST_DATA_STRING)			\
+	MEMBER(ast_channel, userfield, AST_DATA_STRING)				\
+	MEMBER(ast_channel, call_forward, AST_DATA_STRING)			\
+	MEMBER(ast_channel, uniqueid, AST_DATA_STRING)				\
+	MEMBER(ast_channel, linkedid, AST_DATA_STRING)				\
+	MEMBER(ast_channel, parkinglot, AST_DATA_STRING)			\
+	MEMBER(ast_channel, hangupsource, AST_DATA_STRING)			\
+	MEMBER(ast_channel, dialcontext, AST_DATA_STRING)			\
+	MEMBER(ast_channel, _softhangup, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, streamid, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, vstreamid, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, oldwriteformat, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, _state, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, rings, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, priority, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, macropriority, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, amaflags, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, adsicpe, AST_DATA_INTEGER)				\
+	MEMBER(ast_channel, fin, AST_DATA_UNSIGNED_INTEGER)			\
+	MEMBER(ast_channel, fout, AST_DATA_UNSIGNED_INTEGER)			\
+	MEMBER(ast_channel, hangupcause, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, flags, AST_DATA_UNSIGNED_INTEGER)			\
+	MEMBER(ast_channel, nativeformats, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, readformat, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, writeformat, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, rawreadformat, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, rawwriteformat, AST_DATA_INTEGER)			\
+	MEMBER(ast_channel, emulate_dtmf_duration, AST_DATA_UNSIGNED_INTEGER)	\
+	MEMBER(ast_channel, visible_indication, AST_DATA_INTEGER)		\
+	MEMBER(ast_channel, transfercapability, AST_DATA_INTEGER)		\
+	MEMBER(ast_channel, context, AST_DATA_STRING)				\
+	MEMBER(ast_channel, exten, AST_DATA_STRING)				\
+	MEMBER(ast_channel, macrocontext, AST_DATA_STRING)			\
+	MEMBER(ast_channel, macroexten, AST_DATA_STRING)
+
+AST_DATA_STRUCTURE(ast_channel, DATA_EXPORT_CHANNEL);
+
 
 /*! \brief All active channels on the system */
 static struct ao2_container *channels;
@@ -209,6 +256,17 @@ struct ast_variable *ast_channeltype_list(void)
 	AST_RWLIST_UNLOCK(&backends);
 
 	return var;
+}
+
+int ast_channel_data_add_structure(struct ast_data *tree, struct ast_channel *chan)
+{
+	return ast_data_add_structure(ast_channel, tree, chan);
+}
+
+int ast_channel_data_cmp_structure(const struct ast_data_search *tree,
+	struct ast_channel *chan, const char *structure_name)
+{
+	return ast_data_search_cmp_structure(tree, ast_channel, chan, structure_name);
 }
 
 /*! \brief Show channel types - CLI command */
@@ -6422,12 +6480,88 @@ static int ast_channel_hash_cb(const void *obj, const int flags)
 	return ast_str_case_hash(chan->name);
 }
 
+/*!
+ * \internal
+ * \brief Implements the channels provider.
+ */
+static int data_channels_provider_handler(const struct ast_data_search *search,
+	struct ast_data *root)
+{
+	struct ast_channel *c, *bc;
+	struct ast_channel_iterator *iter = NULL;
+	struct ast_data *data_channel, *data_bridged;
+	int channel_match, bridged_match;
+
+	channel_match = ast_data_search_has_condition(search,
+			"channel");
+	bridged_match = ast_data_search_has_condition(search,
+			"channel/bridged");
+
+	for (iter = ast_channel_iterator_all_new();
+		iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
+		ast_channel_lock(c);
+
+		if (channel_match &&
+			ast_channel_data_cmp_structure(search, c, "channel")) {
+			ast_channel_unlock(c);
+			continue;
+		}
+
+		bc = ast_bridged_channel(c);
+
+		if (bridged_match && bc &&
+			ast_channel_data_cmp_structure(search, bc, "channel/bridged")) {
+			ast_channel_unlock(c);
+			continue;
+		}
+
+		data_channel = ast_data_add_node(root, "channel");
+		if (!data_channel) {
+			ast_channel_unlock(c);
+			continue;
+		}
+
+		ast_channel_data_add_structure(data_channel, c);
+
+		if (bc) {
+			data_bridged = ast_data_add_node(data_channel, "bridged");
+			if (!data_bridged) {
+				ast_channel_unlock(c);
+				continue;
+			}
+			ast_channel_data_add_structure(data_bridged, bc);
+		}
+
+		ast_channel_unlock(c);
+	}
+	if (iter) {
+		ast_channel_iterator_destroy(iter);
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief /asterisk/core/channels provider.
+ */
+static const struct ast_data_handler channels_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = data_channels_provider_handler
+};
+
+static const struct ast_data_entry channel_providers[] = {
+	AST_DATA_ENTRY("/asterisk/core/channels", &channels_provider),
+};
+
 void ast_channels_init(void)
 {
 	channels = ao2_container_alloc(NUM_CHANNEL_BUCKETS,
 			ast_channel_hash_cb, ast_channel_cmp_cb);
 
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
+
+	ast_data_register_multiple_core(channel_providers, ARRAY_LEN(channel_providers));
 }
 
 /*! \brief Print call group and pickup group ---*/

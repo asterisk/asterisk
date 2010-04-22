@@ -90,6 +90,7 @@
  * \arg \ref AstThreadStorage
  * \arg \ref DataStores
  * \arg \ref AstExtState
+ * \arg \ref AstDataRetrieval
  *
  * \subsection model_txt Generic Model
  * \verbinclude model.txt

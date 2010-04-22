@@ -3611,6 +3611,12 @@ int main(int argc, char *argv[])
 	ast_xmldoc_load_documentation();
 #endif
 
+	/* initialize the data retrieval API */
+	if (ast_data_init()) {
+		printf ("%s", term_quit());
+		exit(1);
+	}
+
 	ast_channels_init();
 
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */

@@ -137,6 +137,16 @@ Changes to manager version 1.1:
 
 * NEW ACTIONS
 -------------
+- Action: DataGet
+	Modules: data.c
+	Purpose:
+		To be able to retrieve the asterisk data tree.
+	Variables:
+	  ActionID: <id>          Action ID for this transaction. Will be returned.
+	  Path: <data path>       The path to the callback node to retrieve.
+	  Filter: <filter>        Which nodes to retrieve.
+	  Search: <search>        Search condition.
+
 - Action: IAXregistry
 	Modules: chan_iax2
 	Purpose:

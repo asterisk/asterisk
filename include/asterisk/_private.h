@@ -35,6 +35,7 @@ int astobj2_init(void);			/*!< Provided by astobj2.c */
 int ast_file_init(void);		/*!< Provided by file.c */
 int ast_features_init(void);            /*!< Provided by features.c */
 void ast_autoservice_init(void);	/*!< Provided by autoservice.c */
+int ast_data_init(void);		/*!< Provided by data.c */
 int ast_http_init(void);		/*!< Provided by http.c */
 int ast_http_reload(void);		/*!< Provided by http.c */
 int ast_tps_init(void); 		/*!< Provided by taskprocessor.c */

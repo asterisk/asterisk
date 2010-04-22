@@ -68,6 +68,46 @@ struct ast_xml_doc *ast_xml_open(char *filename)
 	return (struct ast_xml_doc *) doc;
 }
 
+struct ast_xml_doc *ast_xml_new(void)
+{
+	xmlDoc *doc;
+
+	doc = xmlNewDoc((const xmlChar *) "1.0");
+	return (struct ast_xml_doc *) doc;
+}
+
+struct ast_xml_node *ast_xml_new_node(const char *name)
+{
+	xmlNode *node;
+	if (!name) {
+		return NULL;
+	}
+
+	node = xmlNewNode(NULL, (const xmlChar *) name);
+
+	return (struct ast_xml_node *) node;
+}
+
+struct ast_xml_node *ast_xml_new_child(struct ast_xml_node *parent, const char *child_name)
+{
+	xmlNode *child;
+
+	if (!parent || !child_name) {
+		return NULL;
+	}
+
+	child = xmlNewChild((xmlNode *) parent, NULL, (const xmlChar *) child_name, NULL);
+	return (struct ast_xml_node *) child;
+}
+
+struct ast_xml_node *ast_xml_add_child(struct ast_xml_node *parent, struct ast_xml_node *child)
+{
+	if (!parent || !child) {
+		return NULL;
+	}
+	return (struct ast_xml_node *) xmlAddChild((xmlNode *) parent, (xmlNode *) child);
+}
+
 struct ast_xml_doc *ast_xml_read_memory(char *buffer, size_t size)
 {
 	xmlDoc *doc;
@@ -97,6 +137,14 @@ void ast_xml_close(struct ast_xml_doc *doc)
 	doc = NULL;
 }
 
+void ast_xml_set_root(struct ast_xml_doc *doc, struct ast_xml_node *node)
+{
+	if (!doc || !node) {
+		return;
+	}
+
+	xmlDocSetRootElement((xmlDoc *) doc, (xmlNode *) node);
+}
 
 struct ast_xml_node *ast_xml_get_root(struct ast_xml_doc *doc)
 {
@@ -152,6 +200,19 @@ const char *ast_xml_get_attribute(struct ast_xml_node *node, const char *attrnam
 	return (const char *) attrvalue;
 }
 
+int ast_xml_set_attribute(struct ast_xml_node *node, const char *name, const char *value)
+{
+	if (!name || !value) {
+		return -1;
+	}
+
+	if (!xmlSetProp((xmlNode *) node, (xmlChar *) name, (xmlChar *) value)) {
+		return -1;
+	}
+
+	return 0;
+}
+
 struct ast_xml_node *ast_xml_find_element(struct ast_xml_node *root_node, const char *name, const char *attrname, const char *attrvalue)
 {
 	struct ast_xml_node *cur;
@@ -184,6 +245,15 @@ struct ast_xml_node *ast_xml_find_element(struct ast_xml_node *root_node, const 
 	return NULL;
 }
 
+struct ast_xml_doc *ast_xml_get_doc(struct ast_xml_node *node)
+{
+	if (!node) {
+		return NULL;
+	}
+
+	return (struct ast_xml_doc *) ((xmlNode *)node)->doc;
+}
+
 struct ast_xml_ns *ast_xml_find_namespace(struct ast_xml_doc *doc, struct ast_xml_node *node, const char *ns_name) {
 	xmlNsPtr ns = xmlSearchNs((xmlDocPtr) doc, (xmlNodePtr) node, (xmlChar *) ns_name);
 	return (struct ast_xml_ns *) ns;
@@ -201,6 +271,20 @@ const char *ast_xml_get_text(struct ast_xml_node *node)
 	}
 
 	return (const char *) xmlNodeGetContent((xmlNode *) node);
+}
+
+void ast_xml_set_text(struct ast_xml_node *node, const char *content)
+{
+	if (!node || !content) {
+		return;
+	}
+
+	xmlNodeSetContent((xmlNode *) node, (const xmlChar *) content);
+}
+
+int ast_xml_doc_dump_file(FILE *output, struct ast_xml_doc *doc)
+{
+	return xmlDocDump(output, (xmlDocPtr)doc);
 }
 
 const char *ast_xml_node_get_name(struct ast_xml_node *node)

@@ -96,6 +96,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/taskprocessor.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cel.h"
+#include "asterisk/data.h"
 
 /* Define, to debug reference counts on queues, without debugging reference counts on queue members */
 /* #define REF_DEBUG_ONLY_QUEUES */
@@ -7616,6 +7617,281 @@ static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(handle_queue_reset, "Reset statistics for a queue"),
 };
 
+/* struct call_queue astdata mapping. */
+#define DATA_EXPORT_CALL_QUEUE(MEMBER)					\
+	MEMBER(call_queue, name, AST_DATA_STRING)			\
+	MEMBER(call_queue, moh, AST_DATA_STRING)			\
+	MEMBER(call_queue, announce, AST_DATA_STRING)			\
+	MEMBER(call_queue, context, AST_DATA_STRING)			\
+	MEMBER(call_queue, membermacro, AST_DATA_STRING)		\
+	MEMBER(call_queue, membergosub, AST_DATA_STRING)		\
+	MEMBER(call_queue, defaultrule, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_next, AST_DATA_STRING)			\
+	MEMBER(call_queue, sound_thereare, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_calls, AST_DATA_STRING)		\
+	MEMBER(call_queue, queue_quantity1, AST_DATA_STRING)		\
+	MEMBER(call_queue, queue_quantity2, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_holdtime, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_minutes, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_minute, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_seconds, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_thanks, AST_DATA_STRING)		\
+	MEMBER(call_queue, sound_callerannounce, AST_DATA_STRING)	\
+	MEMBER(call_queue, sound_reporthold, AST_DATA_STRING)		\
+	MEMBER(call_queue, dead, AST_DATA_BOOLEAN)			\
+	MEMBER(call_queue, eventwhencalled, AST_DATA_BOOLEAN)		\
+	MEMBER(call_queue, ringinuse, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, setinterfacevar, AST_DATA_BOOLEAN)		\
+	MEMBER(call_queue, setqueuevar, AST_DATA_BOOLEAN)		\
+	MEMBER(call_queue, setqueueentryvar, AST_DATA_BOOLEAN)		\
+	MEMBER(call_queue, reportholdtime, AST_DATA_BOOLEAN)		\
+	MEMBER(call_queue, wrapped, AST_DATA_BOOLEAN)			\
+	MEMBER(call_queue, timeoutrestart, AST_DATA_BOOLEAN)		\
+	MEMBER(call_queue, announceholdtime, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, announceposition, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, strategy, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, maskmemberstatus, AST_DATA_BOOLEAN)		\
+	MEMBER(call_queue, realtime, AST_DATA_BOOLEAN)			\
+	MEMBER(call_queue, found, AST_DATA_BOOLEAN)			\
+	MEMBER(call_queue, announcepositionlimit, AST_DATA_INTEGER)	\
+	MEMBER(call_queue, announcefrequency, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, minannouncefrequency, AST_DATA_INTEGER)	\
+	MEMBER(call_queue, periodicannouncefrequency, AST_DATA_INTEGER)	\
+	MEMBER(call_queue, numperiodicannounce, AST_DATA_INTEGER)	\
+	MEMBER(call_queue, randomperiodicannounce, AST_DATA_INTEGER)	\
+	MEMBER(call_queue, roundingseconds, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, holdtime, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, talktime, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, callscompleted, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, callsabandoned, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, servicelevel, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, callscompletedinsl, AST_DATA_INTEGER)	\
+	MEMBER(call_queue, monfmt, AST_DATA_STRING)			\
+	MEMBER(call_queue, montype, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, count, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, maxlen, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, wrapuptime, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, retry, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, timeout, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, weight, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, autopause, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, timeoutpriority, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, rrpos, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, memberdelay, AST_DATA_INTEGER)		\
+	MEMBER(call_queue, autofill, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, members, AST_DATA_CONTAINER)			\
+	MEMBER(call_queue, membercount, AST_DATA_INTEGER)
+
+AST_DATA_STRUCTURE(call_queue, DATA_EXPORT_CALL_QUEUE);
+
+/* struct member astdata mapping. */
+#define DATA_EXPORT_MEMBER(MEMBER)					\
+	MEMBER(member, interface, AST_DATA_STRING)			\
+	MEMBER(member, state_interface, AST_DATA_STRING)		\
+	MEMBER(member, membername, AST_DATA_STRING)			\
+	MEMBER(member, penalty, AST_DATA_INTEGER)			\
+	MEMBER(member, calls, AST_DATA_INTEGER)				\
+	MEMBER(member, dynamic, AST_DATA_INTEGER)			\
+	MEMBER(member, realtime, AST_DATA_INTEGER)			\
+	MEMBER(member, status, AST_DATA_INTEGER)			\
+	MEMBER(member, paused, AST_DATA_BOOLEAN)			\
+	MEMBER(member, rt_uniqueid, AST_DATA_STRING)
+
+AST_DATA_STRUCTURE(member, DATA_EXPORT_MEMBER);
+
+#define DATA_EXPORT_QUEUE_ENT(MEMBER)						\
+	MEMBER(queue_ent, moh, AST_DATA_STRING)					\
+	MEMBER(queue_ent, announce, AST_DATA_STRING)				\
+	MEMBER(queue_ent, context, AST_DATA_STRING)				\
+	MEMBER(queue_ent, digits, AST_DATA_STRING)				\
+	MEMBER(queue_ent, valid_digits, AST_DATA_INTEGER)			\
+	MEMBER(queue_ent, pos, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, prio, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, last_pos_said, AST_DATA_INTEGER)			\
+	MEMBER(queue_ent, last_periodic_announce_time, AST_DATA_INTEGER)	\
+	MEMBER(queue_ent, last_periodic_announce_sound, AST_DATA_INTEGER)	\
+	MEMBER(queue_ent, last_pos, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, opos, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, handled, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, pending, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, max_penalty, AST_DATA_INTEGER)			\
+	MEMBER(queue_ent, min_penalty, AST_DATA_INTEGER)			\
+	MEMBER(queue_ent, linpos, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, linwrapped, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, start, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, expire, AST_DATA_INTEGER)				\
+	MEMBER(queue_ent, cancel_answered_elsewhere, AST_DATA_INTEGER)
+
+AST_DATA_STRUCTURE(queue_ent, DATA_EXPORT_QUEUE_ENT);
+
+/*!
+ * \internal
+ * \brief Add a queue to the data_root node.
+ * \param[in] search The search tree.
+ * \param[in] data_root The main result node.
+ * \param[in] queue The queue to add.
+ */
+static void queues_data_provider_get_helper(const struct ast_data_search *search,
+	struct ast_data *data_root, struct call_queue *queue)
+{
+	int member_notmatch, caller_notmatch, caller_channel_notmatch;
+	struct ao2_iterator im;
+	struct member *member;
+	struct queue_ent *qe;
+	struct ast_data *data_queue, *data_members = NULL;
+	struct ast_data *data_member, *data_callers = NULL, *data_caller, *data_caller_channel;
+
+	/* compare the search pattern. */
+	if (ast_data_search_cmp_structure(search, call_queue, queue, "queue")) {
+		/* this doesn't match! continue! */
+		return;
+	}
+
+	data_queue = ast_data_add_node(data_root, "queue");
+	if (!data_queue) {
+		return;
+	}
+
+	ast_data_add_structure(call_queue, data_queue, queue);
+
+	member_notmatch = ast_data_search_has_condition(search, "queue/members/member");
+	/* add queue members */
+	im = ao2_iterator_init(queue->members, 0);
+	while ((member = ao2_iterator_next(&im))) {
+		/* compare the member structure. */
+		if (!ast_data_search_cmp_structure(search, member, member,
+					"queue/members/member")) {
+			member_notmatch = 0;
+		}
+
+		if (!data_members) {
+			data_members = ast_data_add_node(data_queue, "members");
+			if (!data_members) {
+				ao2_ref(member, -1);
+				continue;
+			}
+		}
+
+		data_member = ast_data_add_node(data_members, "member");
+		if (!data_member) {
+			ao2_ref(member, -1);
+			continue;
+		}
+
+		ast_data_add_structure(member, data_member, member);
+
+		ao2_ref(member, -1);
+	}
+
+	if (member_notmatch) {
+		ast_data_remove_node(data_root, data_queue);
+		return;
+	}
+
+	caller_notmatch = ast_data_search_has_condition(search, "queue/callers/caller");
+	caller_channel_notmatch = ast_data_search_has_condition(search,
+		"queue/callers/caller/channel");
+	/* include the callers inside the result. */
+	if (queue->head) {
+		for (qe = queue->head; qe; qe = qe->next) {
+			/* compare the member structure. */
+			if (!ast_data_search_cmp_structure(search, queue_ent, qe,
+						"queue/callers/caller")) {
+				caller_notmatch = 0;
+			}
+
+			if (!ast_channel_data_cmp_structure(search, qe->chan,
+				"queue/callers/caller/channel")) {
+				caller_channel_notmatch = 0;
+			}
+
+			if (!data_callers) {
+				data_callers = ast_data_add_node(data_queue, "callers");
+				if (!data_callers) {
+					continue;
+				}
+			}
+
+			data_caller = ast_data_add_node(data_callers, "caller");
+			if (!data_caller) {
+				continue;
+			}
+
+			ast_data_add_structure(queue_ent, data_caller, qe);
+
+			/* add the caller channel. */
+			data_caller_channel = ast_data_add_node(data_caller, "channel");
+			if (!data_caller_channel) {
+				continue;
+			}
+
+			ast_channel_data_add_structure(data_caller_channel, qe->chan);
+		}
+	}
+
+	/* if this queue doesn't match remove the added queue. */
+	if (caller_notmatch || caller_channel_notmatch) {
+		ast_data_remove_node(data_root, data_queue);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Callback used to generate the queues tree.
+ * \param[in] search The search pattern tree.
+ * \retval NULL on error.
+ * \retval non-NULL The generated tree.
+ */
+static int queues_data_provider_get(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct ao2_iterator i;
+	struct call_queue *queue, *queue_realtime = NULL;
+	struct ast_config *cfg;
+	char *queuename;
+
+	/* load realtime queues. */
+	cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
+	if (cfg) {
+		for (queuename = ast_category_browse(cfg, NULL);
+				!ast_strlen_zero(queuename);
+				queuename = ast_category_browse(cfg, queuename)) {
+			if ((queue = load_realtime_queue(queuename))) {
+				queue_unref(queue);
+			}
+		}
+		ast_config_destroy(cfg);
+	}
+
+	/* static queues. */
+	i = ao2_iterator_init(queues, 0);
+	while ((queue = ao2_iterator_next(&i))) {
+		ao2_lock(queue);
+		if (queue->realtime && !(queue_realtime = load_realtime_queue(queue->name))) {
+			ao2_unlock(queue);
+			queue_unref(queue);
+			continue;
+		} else if (queue->realtime) {
+			queue_unref(queue_realtime);
+		}
+
+		queues_data_provider_get_helper(search, data_root, queue);
+		ao2_unlock(queue);
+		queue_unref(queue);
+	}
+
+	return 0;
+}
+
+static const struct ast_data_handler queues_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = queues_data_provider_get
+};
+
+static const struct ast_data_entry queue_data_providers[] = {
+	AST_DATA_ENTRY("asterisk/application/app_queue/queues", &queues_data_provider),
+};
+
 static int unload_module(void)
 {
 	int res;
@@ -7645,6 +7921,8 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
 	res |= ast_custom_function_unregister(&queuememberpenalty_function);
+
+	res |= ast_data_unregister(NULL);
 
 	if (device_state_sub)
 		ast_event_unsubscribe(device_state_sub);
@@ -7689,6 +7967,8 @@ static int load_module(void)
 
 	if (queue_persistent_members)
 		reload_queue_members();
+
+	ast_data_register_multiple(queue_data_providers, ARRAY_LEN(queue_data_providers));
 
 	ast_cli_register_multiple(cli_queue, ARRAY_LEN(cli_queue));
 	res = ast_register_application_xml(app, queue_exec);
