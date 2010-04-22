@@ -10877,7 +10877,7 @@ static void vm_users_data_provider_get_helper(const struct ast_data_search *sear
 	ast_data_add_structure(ast_vm_user, data_user, user);
 
 #ifdef IMAP_STORAGE
-	state = get_vm_state_by_mailbox(user->mailbox, user->context, user->interactive);
+	state = get_vm_state_by_mailbox(user->mailbox, user->context, 0);
 #endif
 
 	AST_LIST_LOCK(&zones);
