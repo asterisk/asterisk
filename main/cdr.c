@@ -707,8 +707,7 @@ void ast_cdr_busy(struct ast_cdr *cdr)
 	for (; cdr; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			check_post(cdr);
-			if (cdr->disposition < AST_CDR_BUSY)
-				cdr->disposition = AST_CDR_BUSY;
+			cdr->disposition = AST_CDR_BUSY;
 		}
 	}
 }
@@ -732,10 +731,8 @@ void ast_cdr_noanswer(struct ast_cdr *cdr)
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-			if (cdr->disposition < AST_CDR_NOANSWER)
-				cdr->disposition = AST_CDR_NOANSWER;
+			check_post(cdr);
+			cdr->disposition = AST_CDR_NOANSWER;
 		}
 		cdr = cdr->next;
 	}
