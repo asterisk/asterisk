@@ -1150,11 +1150,7 @@ static int aoro2_obj_cb(void *vobj, void *arg, int flags)
 	return 0;
 }
 
-#ifdef DEBUG_THREADS
 struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags, const char *file, const char *function, int lineno)
-#else
-struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags)
-#endif
 {
 	struct odbc_obj *obj = NULL;
 	struct odbc_class *class;
@@ -1325,18 +1321,10 @@ struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags)
 	return obj;
 }
 
-#ifdef DEBUG_THREADS
 struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno)
-#else
-struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
-#endif
 {
 	struct ast_flags flags = { check ? RES_ODBC_SANITY_CHECK : 0 };
-#ifdef DEBUG_THREADS
 	return _ast_odbc_request_obj2(name, flags, file, function, lineno);
-#else
-	return ast_odbc_request_obj2(name, flags);
-#endif
 }
 
 struct odbc_obj *ast_odbc_retrieve_transaction_obj(struct ast_channel *chan, const char *objname)

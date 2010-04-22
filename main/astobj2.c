@@ -143,11 +143,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				   char *tag, char *file, int line, const char *funcname);
 static void *internal_ao2_iterator_next(struct ao2_iterator *a, struct bucket_list **q);
 
-#ifndef DEBUG_THREADS
-int ao2_lock(void *user_data)
-#else
 int __ao2_lock(void *user_data, const char *file, const char *func, int line, const char *var)
-#endif
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
 
@@ -158,18 +154,10 @@ int __ao2_lock(void *user_data, const char *file, const char *func, int line, co
 	ast_atomic_fetchadd_int(&ao2.total_locked, 1);
 #endif
 
-#ifndef DEBUG_THREADS
-	return ast_mutex_lock(&p->priv_data.lock);
-#else
 	return __ast_pthread_mutex_lock(file, line, func, var, &p->priv_data.lock);
-#endif
 }
 
-#ifndef DEBUG_THREADS
-int ao2_unlock(void *user_data)
-#else
 int __ao2_unlock(void *user_data, const char *file, const char *func, int line, const char *var)
-#endif
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
 
@@ -180,29 +168,17 @@ int __ao2_unlock(void *user_data, const char *file, const char *func, int line, 
 	ast_atomic_fetchadd_int(&ao2.total_locked, -1);
 #endif
 
-#ifndef DEBUG_THREADS
-	return ast_mutex_unlock(&p->priv_data.lock);
-#else
 	return __ast_pthread_mutex_unlock(file, line, func, var, &p->priv_data.lock);
-#endif
 }
 
-#ifndef DEBUG_THREADS
-int ao2_trylock(void *user_data)
-#else
 int __ao2_trylock(void *user_data, const char *file, const char *func, int line, const char *var)
-#endif
 {
 	struct astobj2 *p = INTERNAL_OBJ(user_data);
 	int ret;
 	
 	if (p == NULL)
 		return -1;
-#ifndef DEBUG_THREADS
-	ret = ast_mutex_trylock(&p->priv_data.lock);
-#else
 	ret = __ast_pthread_mutex_trylock(file, line, func, var, &p->priv_data.lock);
-#endif
 
 #ifdef AO2_DEBUG
 	if (!ret)

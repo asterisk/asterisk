@@ -209,8 +209,6 @@ void *ast_heap_peek(struct ast_heap *h, unsigned int index);
  */
 size_t ast_heap_size(struct ast_heap *h);
 
-#ifndef DEBUG_THREADS
-
 /*!
  * \brief Write-Lock a heap
  *
@@ -223,7 +221,7 @@ size_t ast_heap_size(struct ast_heap *h);
  * \return see the documentation for pthread_rwlock_wrlock()
  * \since 1.6.1
  */
-int ast_heap_wrlock(struct ast_heap *h);
+int __ast_heap_wrlock(struct ast_heap *h, const char *file, const char *func, int line);
 
 /*!
  * \brief Read-Lock a heap
@@ -237,7 +235,7 @@ int ast_heap_wrlock(struct ast_heap *h);
  * \return see the documentation for pthread_rwlock_rdlock()
  * \since 1.6.1
  */
-int ast_heap_rdlock(struct ast_heap *h);
+int __ast_heap_rdlock(struct ast_heap *h, const char *file, const char *func, int line);
 
 /*!
  * \brief Unlock a heap
@@ -247,18 +245,11 @@ int ast_heap_rdlock(struct ast_heap *h);
  * \return see the documentation for pthread_rwlock_unlock()
  * \since 1.6.1
  */
-int ast_heap_unlock(struct ast_heap *h);
-
-#else /* DEBUG_THREADS */
-
-#define ast_heap_wrlock(h) __ast_heap_wrlock(h, __FILE__, __PRETTY_FUNCTION__, __LINE__)
-int __ast_heap_wrlock(struct ast_heap *h, const char *file, const char *func, int line);
-#define ast_heap_rdlock(h) __ast_heap_rdlock(h, __FILE__, __PRETTY_FUNCTION__, __LINE__)
-int __ast_heap_rdlock(struct ast_heap *h, const char *file, const char *func, int line);
-#define ast_heap_unlock(h) __ast_heap_unlock(h, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 int __ast_heap_unlock(struct ast_heap *h, const char *file, const char *func, int line);
 
-#endif /* DEBUG_THREADS */
+#define ast_heap_wrlock(h) __ast_heap_wrlock(h, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#define ast_heap_rdlock(h) __ast_heap_rdlock(h, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#define ast_heap_unlock(h) __ast_heap_unlock(h, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 
 /*!
  * \brief Verify that a heap has been properly constructed

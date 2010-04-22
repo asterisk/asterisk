@@ -111,19 +111,11 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__((d
  * thread which requests it.  Note that all connections should be released
  * when the thread is done by calling odbc_release_obj(), below.
  */
-#ifdef DEBUG_THREADS
 struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags, const char *file, const char *function, int lineno);
-#define ast_odbc_request_obj2(a, b)	_ast_odbc_request_obj2(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
-#else
-struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags);
-#endif
-
-#ifdef DEBUG_THREADS
 struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno);
+
+#define ast_odbc_request_obj2(a, b)	_ast_odbc_request_obj2(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 #define ast_odbc_request_obj(a, b)	_ast_odbc_request_obj(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
-#else
-struct odbc_obj *ast_odbc_request_obj(const char *name, int check);
-#endif
 
 /*!
  * \brief Retrieve a stored ODBC object, if a transaction has been started.
