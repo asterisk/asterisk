@@ -4660,7 +4660,6 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_check_hangup(chan)) {
 		if (chan->cdr) {
 			ast_set_flag(chan->cdr, AST_CDR_FLAG_DIALED);
-			ast_set_flag(chan->cdr, AST_CDR_FLAG_ORIGINATED);
 		}
 		if (chan->tech->call)
 			res = chan->tech->call(chan, addr, timeout);
@@ -6141,6 +6140,24 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
+
+				case AST_CONTROL_BUSY:
+					ast_cdr_busy(chan->cdr);
+					*outstate = f->subclass;
+					timeout = 0;
+					break;
+
+				case AST_CONTROL_CONGESTION:
+					ast_cdr_failed(chan->cdr);
+					*outstate = f->subclass;
+					timeout = 0;
+					break;
+
+				case AST_CONTROL_ANSWER:
+					ast_cdr_answer(chan->cdr);
+					*outstate = f->subclass;
+					timeout = 0;		/* trick to force exit from the while() */
+					break;
 
 				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
 					continue;
