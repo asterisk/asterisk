@@ -371,7 +371,9 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 	                        chan->name,
 	                        chan->uniqueid
 	                        );
+		pbx_builtin_setvar_helper(chan, "MONITORED", NULL);
 	}
+	pbx_builtin_setvar_helper(chan, "AUTO_MONITOR", NULL);
 
 	UNLOCK_IF_NEEDED(chan, need_lock);
 
