@@ -1907,7 +1907,7 @@ int onNewCallCreated(ooCallData *call)
 				ast_verbose("Setting dialed digits %s\n", p->caller_dialedDigits);
 			}
 			ooCallAddAliasDialedDigits(call, p->caller_dialedDigits);
-		} else if (p->callerid_num) {
+		} else if (!ast_strlen_zero(p->callerid_num)) {
 			if (ooIsDailedDigit(p->callerid_num)) {
 				if (gH323Debug) {
 					ast_verbose("setting callid number %s\n", p->callerid_num);
