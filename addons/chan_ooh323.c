@@ -1882,10 +1882,10 @@ int onNewCallCreated(ooCallData *call)
 		}
 		ast_mutex_lock(&p->lock);
 
-		if (p->callerid_name) {
+		if (!ast_strlen_zero(p->callerid_name)) {
 			ooCallSetCallerId(call, p->callerid_name);
 		}
-		if (p->callerid_num) {
+		if (!ast_strlen_zero(p->callerid_num)) {
 			i = 0;
 			while (*(p->callerid_num + i) != '\0') {
             			if(!isdigit(*(p->callerid_num+i))) { break; }
@@ -1894,7 +1894,7 @@ int onNewCallCreated(ooCallData *call)
          		if(*(p->callerid_num+i) == '\0')
 				ooCallSetCallingPartyNumber(call, p->callerid_num);
          		else {
-            			if(!p->callerid_name)
+            			if(ast_strlen_zero(p->callerid_name))
 					ooCallSetCallerId(call, p->callerid_num);
 			}
 		}
