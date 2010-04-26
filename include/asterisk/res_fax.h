@@ -139,13 +139,19 @@ struct ast_fax_session_details {
 			/*! flag to send debug manager events */
 			uint32_t debug:2;
 			/*! flag indicating the use of Error Correction Mode (ECM) */
-			uint32_t ecm:2;
+			uint32_t ecm:1;
 			/*! flag indicating the sending of status manager events */
 			uint32_t statusevents:2;
 			/*! allow audio mode FAX on T.38-capable channels */
 			uint32_t allow_audio:2;
 			/*! indicating the session switched to T38 */
 			uint32_t switch_to_t38:1;
+			/*! flag indicating whether CED should be sent (for receive mode) */
+			uint32_t send_ced:1;
+			/*! flag indicating whether CNG should be sent (for send mode) */
+			uint32_t send_cng:1;
+			/*! send a T.38 reinvite */
+			uint32_t request_t38:1;
 		};
 	} option;
 	/*! override the minimum transmission rate with a channel variable */
@@ -181,6 +187,8 @@ struct ast_fax_session {
 	enum ast_fax_state state;
 	/*! name of the Asterisk channel using the fax session */
 	char *channame;
+	/*! unique ID of the Asterisk channel using the fax session */
+	char *chan_uniqueid;
 	/*! Asterisk channel using the fax session */
 	struct ast_channel *chan;
 	/*! fax debugging structure */
@@ -229,6 +237,8 @@ struct ast_fax_tech {
 	char * (* const cli_show_session)(struct ast_fax_session *, int);
 	/*! displays statistics from the fax technology module */
 	char * (* const cli_show_stats)(int);
+	/*! displays settings from the fax technology module */
+	char * (* const cli_show_settings)(int);
 };
   
 /*! \brief register a fax technology */

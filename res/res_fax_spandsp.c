@@ -61,6 +61,7 @@ static int spandsp_fax_switch_to_t38(struct ast_fax_session *s);
 static char *spandsp_fax_cli_show_capabilities(int fd);
 static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd);
 static char *spandsp_fax_cli_show_stats(int fd);
+static char *spandsp_fax_cli_show_settings(int fd);
 
 static struct ast_fax_tech spandsp_fax_tech = {
 	.type = "Spandsp",
@@ -85,6 +86,7 @@ static struct ast_fax_tech spandsp_fax_tech = {
 	.cli_show_capabilities = spandsp_fax_cli_show_capabilities,
 	.cli_show_session = spandsp_fax_cli_show_session,
 	.cli_show_stats = spandsp_fax_cli_show_stats,
+	.cli_show_settings = spandsp_fax_cli_show_settings,
 };
 
 struct spandsp_fax_stats {
@@ -405,7 +407,7 @@ static void set_file(t30_state_t *t30_state, struct ast_fax_session_details *det
 
 static void set_ecm(t30_state_t *t30_state, struct ast_fax_session_details *details)
 {
-	t30_set_ecm_capability(t30_state, (details->option.ecm == AST_FAX_OPTFLAG_DEFAULT) ? 1 : details->option.ecm );
+	t30_set_ecm_capability(t30_state, details->option.ecm);
 	t30_set_supported_compressions(t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
 }
 
@@ -729,6 +731,13 @@ static char *spandsp_fax_cli_show_stats(int fd)
 	ast_cli(fd, "%-20.20s : %d\n", "Unknown Error", spandsp_global_stats.t38.unknown_error);
 	ast_mutex_unlock(&spandsp_global_stats.lock);
 
+	return CLI_SUCCESS;
+}
+
+/*! \brief Show res_fax_spandsp settings */
+static char *spandsp_fax_cli_show_settings(int fd)
+{
+	/* no settings at the moment */
 	return CLI_SUCCESS;
 }
 
