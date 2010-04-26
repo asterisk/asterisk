@@ -855,6 +855,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	int x;
 	int flags;
 	struct varshead *headp;
+	char *tech;
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
@@ -977,6 +978,7 @@ alertpipe_failed:
 	}
 
 	if (!ast_strlen_zero(name_fmt)) {
+		char *slash;
 		/* Almost every channel is calling this function, and setting the name via the ast_string_field_build() call.
 		 * And they all use slightly different formats for their name string.
 		 * This means, to set the name here, we have to accept variable args, and call the string_field_build from here.
@@ -985,6 +987,10 @@ alertpipe_failed:
 		 * This new function was written so this can be accomplished.
 		 */
 		ast_string_field_build_va(tmp, name, name_fmt, ap1, ap2);
+		tech = ast_strdupa(tmp->name);
+		if ((slash = strchr(tech, '/'))) {
+			*slash = '\0';
+		}
 	}
 
 	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
@@ -1037,7 +1043,7 @@ alertpipe_failed:
 	 * proper and correct place to make this call, but you sure do have to pass
 	 * a lot of data into this func to do it here!
 	 */
-	if (!ast_strlen_zero(name_fmt)) {
+	if (ast_get_channel_tech(tech)) {
 		ast_manager_event(tmp, EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"ChannelState: %d\r\n"
