@@ -714,7 +714,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	int flags;
 	struct varshead *headp;
 	va_list ap1, ap2;
-	char *tech;
+	char *tech = "";
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
