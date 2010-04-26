@@ -772,7 +772,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	int x;
 	int flags;
 	struct varshead *headp;
-	char *tech;
+	char *tech = "";
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
