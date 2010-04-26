@@ -7992,7 +7992,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			memcpy(&tsin.sin_addr, thp->h_addr, sizeof(tsin.sin_addr));
 			ast_rtp_instance_set_remote_address(p->trtp, &tsin);
 			if (debug) 
-				ast_verbose("Peer T.140 RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
+				ast_verbose("Peer T.140 RTP is at port %s:%d\n", ast_inet_ntoa(tsin.sin_addr), ntohs(tsin.sin_port));
 			if ((p->jointcapability & AST_FORMAT_T140RED)) {
 				p->red = 1;
 				ast_rtp_red_init(p->trtp, 300, red_data_pt, 2);
@@ -8021,7 +8021,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					}
 				}
 			} else {
-				memcpy(&isin.sin_addr, ihp->h_addr, sizeof(sin.sin_addr));
+				memcpy(&isin.sin_addr, ihp->h_addr, sizeof(isin.sin_addr));
 			}
 			ast_udptl_set_peer(p->udptl, &isin);
 			if (debug)
