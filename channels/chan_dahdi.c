@@ -12522,15 +12522,16 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 	int transcapdigital = 0;
 	struct dahdi_starting_point start;
 
+	ast_mutex_lock(&iflock);
 	p = determine_starting_point(data, &start);
 	if (!p) {
 		/* We couldn't determine a starting point, which likely means badly-formatted channel name. Abort! */
+		ast_mutex_unlock(&iflock);
 		return NULL;
 	}
 
 	/* Search for an unowned channel */
 	exitpvt = p;
-	ast_mutex_lock(&iflock);
 	while (p && !tmp) {
 		if (start.roundrobin)
 			round_robin[start.rr_starting_point] = p;
@@ -12714,11 +12715,12 @@ static int dahdi_cc_callback(struct ast_channel *inbound, const char *dest, ast_
 	int groupmatched = 0;
 	int channelmatched = 0;
 
+	ast_mutex_lock(&iflock);
 	p = determine_starting_point(dest, &start);
 	if (!p) {
+		ast_mutex_unlock(&iflock);
 		return -1;
 	}
-	ast_mutex_lock(&iflock);
 	exitpvt = p;
 	for (;;) {
 		if (is_group_or_channel_match(p, start.span, start.groupmatch, &groupmatched, start.channelmatch, &channelmatched)) {
