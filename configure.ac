@@ -132,8 +132,8 @@ AC_PROG_LN_S
 AC_PROG_RANLIB
 AST_CHECK_GNU_MAKE
 
-AC_PATH_TOOL([STRIP], [strip], :)
-AC_PATH_TOOL([AR], [ar], :)
+AC_CHECK_TOOLS([STRIP], [strip gstrip], :)
+AC_CHECK_TOOLS([AR], [ar gar], :)
 
 GNU_LD=0
 if test "x$with_gnu_ld" = "xyes" ; then
