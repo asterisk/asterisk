@@ -76,7 +76,7 @@ esac
 
 AC_PROG_INSTALL
 AC_PROG_RANLIB
-AC_PATH_PROG(AR, ar, , $PATH)
+AC_PATH_PROGS(AR, ar gar, , $PATH)
 
 dnl Search for termcap access routines in termcap, tinfo, curses, and ncurses.
 AC_CHECK_LIB(termcap, tgetent, , \
