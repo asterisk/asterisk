@@ -2350,13 +2350,13 @@ static int cc_generic_agent_init(struct ast_cc_agent *agent, struct ast_channel 
 
 static int offer_timer_expire(const void *data)
 {
-	const struct ast_cc_agent *agent = data;
+	struct ast_cc_agent *agent = (struct ast_cc_agent *) data;
 	struct cc_generic_agent_pvt *agent_pvt = agent->private_data;
 	ast_log_dynamic_level(cc_logger_level, "Core %d: Queuing change request because offer timer has expired.\n",
 			agent->core_id);
 	agent_pvt->offer_timer_id = -1;
 	ast_cc_failed(agent->core_id, "Generic agent %s offer timer expired", agent->device_name);
-	cc_unref((struct ast_cc_agent *)agent, "Remove scheduler's reference to the agent");
+	cc_unref(agent, "Remove scheduler's reference to the agent");
 	return 0;
 }
 
