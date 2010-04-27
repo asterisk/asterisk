@@ -408,10 +408,6 @@
 ;
 usecallerid=yes
 ;
-; Hide the name part and leave just the number part of the caller ID
-; string. Only applies to PRI channels.
-;hidecalleridname=yes
-;
 ; Type of caller ID signalling in use
 ;     bell     = bell202 as used in US (default)
 ;     v23      = v23 as used in the UK
@@ -445,6 +441,10 @@ usecallerid=yes
 ; (If your dialplan doesn't catch it)
 ;
 ;hidecallerid=yes
+;
+; Enable if you need to hide just the name and not the number for legacy PBX use.
+; Only applies to PRI channels.
+;hidecalleridname=yes
 ;
 ; On UK analog lines, the caller hanging up determines the end of calls.  So
 ; Asterisk hanging up the line may or may not end a call (DAHDI could just as
