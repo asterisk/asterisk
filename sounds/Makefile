@@ -18,8 +18,8 @@
 PWD:=$(shell pwd)
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.17
-EXTRA_SOUNDS_VERSION:=1.4.10
+CORE_SOUNDS_VERSION:=1.4.18
+EXTRA_SOUNDS_VERSION:=1.4.11
 SOUNDS_URL:=http://downloads.asterisk.org/pub/telephony/sounds/releases
 MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
 MCS:=$(subst -FR-,-fr-,$(MCS))
