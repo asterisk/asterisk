@@ -270,6 +270,10 @@ usecallerid=yes
 ;
 hidecallerid=no
 ;
+; Enable if you need to hide just the name and not the number for legacy PBX use.
+; Only applies to PRI channels.
+;hidecalleridname=no
+;
 ; Whether or not to enable call waiting on internal extensions
 ; With this set to 'yes', busy extensions will hear the call-waiting
 ; tone, and can use hook-flash to switch between callers. The Dial()
