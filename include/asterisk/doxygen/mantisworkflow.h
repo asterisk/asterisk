@@ -24,182 +24,183 @@
  * \AsteriskTrunkWarning
  *
  * <hr/>
- *
- * The purpose of this document is to briefly describe the various statuses an
- * issue can be placed in, and what that status means. In addition, the simple
- * workflow and transition between statuses will be discussed.
- *
- * \section StatusDefinitions Issue Status Definitions
+ * \section WorkflowDescription Description of the Issue Tracker Workflow
+ * 
+ * (This document is most beneficial for Asterisk bug marshals, however it is good
+ * reading for anyone who may be filing issues or wondering how the Asterisk Open
+ * Source project moves issues through from filing to completion.)
+ * 
+ * The workflow in the issue tracker should be handled in the following way:
+ * 
+ * -# A bug is reported and is automatically placed in the 'New' status.
+ * -# The Bug Marshall team should go through bugs in the 'New' status to determine 
+ *    whether the report is valid (not a duplicate, hasn't already been fixed, not 
+ *    a Digium tech support issue, etc.).  Invalid reports should be set to 
+ *    'Closed' with the appropriate resolution set. Categories and descriptions 
+ *    should be corrected at this point.[Note1]\n
+ *    Issues should also have enough information for a developer to either 
+ *    reproduce the issue or determine where an issue exists (or both). If this is 
+ *    not the case then the issue should be moved to 'Feedback' prior to moving 
+ *    forward in the workflow.
+ * -# The next step is to determine whether the report is about a bug or a 
+ *    submission of a new feature:
+ *       -# BUG: A bug should be moved into the status 'Acknowledged' if enough
+ *          information has been provided by the reporter to either reproduce the
+ *          issue or clearly see where an issue may lie. The bug may also be
+ *          assigned to a developer for the creation of the initial patch, or
+ *          review of the issue.\n
+ *          Once a patch has been created for the issue and attached, the issue can
+ *          then be moved to the 'Confirmed' status. At this point, initial code 
+ *          review and discussion about the patch will take place. Once an adequate
+ *          amount of support for the implementation of the patch is acquired, then
+ *          the bug can be moved to the 'Ready for Testing' status for wider 
+ *          testing by the community. After the testing phase is complete and it
+ *          appears the issue is resolved, the patch can be committed by a 
+ *          developer and closed.
+ *       -# FEATURE: As new features should be filed with a patch, it can be 
+ *          immediately moved to the 'confirmed' status, making it ready for basic
+ *          formatting and code review. From there any changes to style or feel of
+ *          the patch based on feedback from the community can be discussed, and
+ *          changes to the patch made. It can then be moved forward to the 'Ready 
+ *          for Testing' status. Once the feature has been merged, or a decision
+ *          has been made that it will not be merged, the issue should be taken to 
+ *          'Closed' with the appropriate resolution.[Note2]
+ * -# If at any point in the workflow, an issue requires feedback from the original
+ *    poster of the issue, the status should be changed to 'Feedback'.  Once the 
+ *    required information has been provided, it should be placed back in the
+ *    appropriate point of the workflow.
+ * -# If at any point in the workflow, a developer or bug marshal would like to 
+ *    take responsibility for doing the work that is necessary to progress an 
+ *    issue, the status can be changed to 'Assigned'. At that point the developer
+ *    assigned to the issue will be responsible for moving the issue to completion.
+ * 
+ * \section WorkflowSummary Workflow Summary
+ * 
+ * The following is a list of valid statuses and what they mean to the work flow.
  *
  * \subsection New New
- *       The 'New' status is where all bugs start. This is an issue which has not
- *       received a review by a bug marshal to move it to an appropriate next
- *       status. Steps required to move to the next logical step include:
+ *    This issue is awaiting review by bug marshals.  Categorization and summaries
+ *    should be fixed as appropriate.
+ * 
+ * \subsection Feedback
+ *    This issue requires feedback from the poster of the issue before any
+ *    additional progress in the workflow can be made. This may include providing
+ *    additional debugging information, or a backtrace with DONT_OPTIMIZE enabled,
+ *    for example. (See the doc/HOWTO_collect_debug_information.txt file in your
+ *    Asterisk source.)
+ * 
+ * \subsection Acknowledged
+ *    This is a submitted bug which has no patch associated with it, but appears
+ *    to be a valid bug based on the description and provided debugging
+ *    information.
+ * 
+ * \subsection Confirmed
+ *    The patch associated with this issue requires initial formatting and code
+ *    review, and may have some initial testing done. It is waiting for a 
+ *    developer to confirm the patch will no longer need large changes made to it,
+ *    and is ready for wider testing from the community. This stage is used for
+ *    discussing the feel and style of a patch, in addition to the coding style
+ *    utilized.
+ * 
+ * \subsection Ready For Testing
+ *    This is an issue which has a patch that is waiting for testing feedback from
+ *    the community after it has been deemed to no longer need larger changes.
+ * 
+ * \subsection Assigned
+ *    A developer or bug marshal has taken responsibility for taking the necessary
+ *    steps to move forward in the workflow.  Once the issue is ready to be
+ *    reviewed and feedback provided, it should be placed back into the
+ *    appropriate place of the workflow.
+ * 
+ * \subsection Resolved
+ *    A resolution for this issue has been reached.  This issue should immediately
+ *    be Closed.
+ * 
+ * \subsection Closed
+ *    No further action is necessary for this issue.
+ * 
+ * \section SeverityLevels Severity Levels
+ * 
+ * Severity levels generally represent the number of users who are potentially
+ * affected by the reported issue. 
+ * 
+ * \subsection Feature Feature
+ *    This issue is a new feature and will only be committed to Asterisk trunk.
+ *    Asterisk trunk is where future branches will be created and thus this
+ *    feature will only be found in future branches of Asterisk and not merged
+ *    into existing branches. (See Release Branch Commit Policy below.)
+ * 
+ * \subsection Trivial Trivial
+ *    A trivial issue is something that either affects an insignificant number of
+ *    Asterisk users, or is a minimally invasive change that does not affect
+ *    functionality.
+ * 
+ * \subsection Text Text
+ *    A text issue is typically something like a spelling fix, a clarifying of a
+ *    debugging or verbose message, or changes to documentation.
+ * 
+ * \subsection Tweak Tweak
+ *    A tweak to the code the has the potential to either make code clearer to
+ *    read, or a change that could speed up processing in certain circumstances.
+ *    These changes are typically only a couple of lines.
+ * 
+ * \subsection Minor Minor
+ *    An issue that does not affect a large number of Asterisk users, but not an
+ *    insignificant number. The number of lines of code and development effort to
+ *    resolve this issue could be non-trivial.
+ * 
+ * \subsection Major Major
+ *    As issue that affects the majority of Asterisk users. The number of lines of
+ *    code and development effort required to resolve this issue could be
+ *    non-trivial.
+ * 
+ * \subsection Crash Crash
+ *    An issue marked as a Crash is something that would cause Asterisk to be
+ *    unusable for a majority of Asterisk users and is an issue that causes a
+ *    deadlock or crash of the Asterisk process.
+ * 
+ * \subsection Block Block
+ *    A blocking issue is an issue that must be resolved before the next release
+ *    of Asterisk as would affect a significant number of Asterisk users, or could
+ *    be a highly visible regression. A severity of block should only be set by
+ *    Asterisk bug marshals at their discretion.
+ * 
+ *        *** USERS SHOULD NOT FILE ISSUES WITH A SEVERITY OF BLOCK ***
+ * 
+ * \section PriorityLevels Priority Levels
  *
- *       \arg checking Category and Severity are set correctly
- *       \arg verifying the issue does not look like a support issue (if so, note
- *            the reporter should use the appropriate support channels, and change
- *            status to Closed)
- *       \arg determine that enough debugging information has been provided so that
- *            a developer can move the issue forward (e.g. on SIP issues, that the
- *            standard SIP debug and history, console output, and configuration
- *            file information has been provided, or in the case of a crash issue,
- *            that a proper backtrace has been provided)
+ * Currently, the following priority levels are listed on the issue tracker:
+ * - None
+ * - Low
+ * - Normal
+ * - High
+ * - Urgent
+ * - Immediate
  *
- *       If the necessary information has not been collected, then the issue
- *       should be moved to Feedback status, and the missing information be
- *       requested by the reporter*.
+ * However, at this time they are not utilized and all new issue should have a priority of 'Normal'.
  *
- *       When all required information has been collected, the issue can be moved
- *       to the Acknowledged status.
- *
- *       \note (*) issues which remain in the Feedback status for more than 2 weeks
- *             without feedback from the reporter should be marked as
- *             Closed/Suspended
- *
- * \subsection Acknowledged Acknowledged
- *       The 'Acknowledged' status is the first step to issue resolution. It is
- *       an issue that has been filed correctly, the categorization and severity
- *       have been set, and that initial debugging information has been
- *       collected.
- *
- *       A developer may then review the issue tracker for Acknowledged issues
- *       and to determine whether additional information is necessary (i.e. that
- *       a crash issue with backtrace requires valgrind output, or other
- *       non-standard debugging feedback).
- *
- *       Issues may be moved to the next step in the workflow when the developer
- *       has either determined the issue is Confirmed, requires additional
- *       Feedback, is an issue that has already been resolved (or does not need
- *       to be resolved), in which case it should be Closed.
- *
- * \subsection Confirmed Confirmed
- *       The 'Confirmed' status represents issues which have been verified as
- *       existing in the current branch(es), and has all necessary information to
- *       be accepted into Acknowledged status. The general qualifier for an issue
- *       being moved to Confirmed is more than one community member stating the
- *       issue exists.
- *
- *       Confirmed issues may also contain patches created by developers which
- *       need to be applied in order to gain further knowledge or debugging by
- *       the original reporter, or any other community member who has verified
- *       this issue as existing. The developer will then move the issue to
- *       Feedback status while waiting for information from the reporter(s).
- *
- *       Issues with patches that are candidates for inclusion into the various
- *       branches that should resolve the issue are to be moved to the
- *       Ready for Testing status.
- *
- * \subsection ReadyForTesting Ready for Testing
- *       'Ready for Testing' indicates issues which have patches available for
- *       testing by community members or the original reporter which should
- *       resolve the reported issue.
- *
- *       If the patch does not resolve the issue, then it should be placed back
- *       into Confirmed status until an additional patch can be created for
- *       testing.
- *
- *       If the patch resolves the issue, then it should be moved to the Ready
- *       for Review status. 
- *
- * \subsection ReadyForReview Ready for Review
- *       When an issue has a patch that has been tested by a community member and
- *       which resolves the originally reported issue, should then be moved to
- *       the Ready for Review status. Issues marked as Ready for Review should
- *       then either be reviewed by another developer prior to merging (if it is
- *       a non-invasive fix), or the patch should be placed on Reviewboard if it
- *       is a complicated or invasive fix.
- *
- *       If an issue has a reviewboard link, it should be placed in the
- *       Additional Information section of an issue, and the marker [review]
- *       prefixed to the issue title.
- *
- * \subsection Resolved Resolved
- *        The Resolved status is rarely used directly by manual intervention, but
- *       rather is utilized by svnbot and other automated methods prior to an
- *       issue being closed.
- *
- * \subsection Feedback Feedback
- *       Feedback is used when an issue is awaiting information from the original
- *       reporter, or other active members of the community in the issue. Issues
- *       which remain in the feedback state longer than 2 weeks without feedback
- *       from any active participants, and which cannot be moved without, are to
- *       be Closed and marked as suspended.
- *
- * \subsection LicenseRequired License Required
- *       License Required is used when a patch has been attached to an issue, but
- *       which is currently in the License Pending state, or has been rejected
- *       and is awaiting the reporter to resign the license. 
- *
- * \subsection Assigned Assigned
- *        Issues marked as Assigned are the responsibility of the assigned
- *       developer, typically because they contain some sort of special knowledge
- *       required to resolve the issue, or because they have decided to take
- *       responsibility for moving the issue to resolution.
- *
- * \subsection Closed Closed
- *       Issues which have a resolution are marked as Closed. There are several
- *       resolutions that a Closed issue can contain, such as Fixed, Won't Fix,
- *       Duplicate, or Suspended. Issues that have been Closed manually should
- *       have an appropriate resolution set such as Suspended or Won't Fix, along
- *       with a note indicating why the issue was Closed.
- *
- *       If the issue is being closed due to a lack of feedback, the resolution
- *       should be Suspended, and a note indicating the issue was closed due to
- *       a lack of feedback, and that it will be reopened upon request if the
- *       reporter can provide the necessary information to move the issue forward
- *       again.
- *
- * <hr/>
- *
- * \section TypicalWorkflow Typical Workflow
- *
- * The typical workflow of an issue is as follows:
- *
- * \subsection Brief Brief
- *
- * New --> Feedback(*) --> Acknowledged --> Confirmed --> Ready for Testing
- *   --> Ready for Review --> Closed (commited, closed by svnbot)
- *
- * \note (*)Optional status used when not enough information provided to move to
- *          Acknowledged.
- *
- * \subsection Verbose Verbose
- *
- * - Issue is filed by a community member. All issues will start in the status New.
- *
- * - An issue marshal then performs triage on New issues and determined if they are
- *   valid issues (non-support), have been correctly categorized, have the
- *   necessary debugging information, etc...
- *   - Issues without the necessary information are moved to Feedback
- *   - Issues that are support, or feature requests without patches, are Closed
- *   - Issues that have all the necessary debugging information to move forward
- *     are Acknowledged
- *   .
- *
- * - After an issue has been moved to the Acknowledged state, then a developer will
- *   review to determine if the issue exists, and if so, to move it to the
- *   Confirmed state. If additional information is required, the issue may be moved
- *   to Feedback state.
- *
- * - An issue reaches the Confirmed state when the issue has been verified to
- *   exist. Issues that are Confirmed may also contain patches that provide
- *   additional debugging information.
- *
- * - Issues that have patches that require testing and feedback from the community
- *   are then placed in the Ready for Testing status.
- *
- * - Once a patch has been tested and confirmed to resolve the issue, we change the
- *   status to Ready for Review.
- *
- * - An issue that is Ready for Review needs to be looked over by a developer, or
- *   placed on Reviewboard (for larger patches) prior to being commited. Issues
- *   that are in Ready for Review are typically ready, or nearly ready to be
- *   commited.
- *
- * - Once an issue has been commited, svnbot will then Close the issue if the
- *   correct keywords are used in the commit message (see Guidelines for Commit
- *   Messages)
- * .
- * <hr/>
+ * \section Notes Notes
+ * 
+ * -# Using the "Need Triage" filter is useful for finding these issues quickly.
+ * -# The issue tracker now has the ability to monitor the commits list, and if
+ *    the commit message contains something like, "(Closes issue #9999)", the bug
+ *    will be automatically closed.\n
+ *    See http://www.asterisk.org/doxygen/trunk/CommitMessages.html for more
+ *    information on commit messages.
+ * 
+ * \section ReleaseBranchCommitPolicy Release Branch Commit Policy
+ * 
+ * The code in the release branches should be changed as little as possible.  The 
+ * only time the release branches will be changed is to fix a bug.  New features 
+ * will never be included in the release branch unless a special exception is made
+ * by the release branch maintainers.
+ * 
+ * Sometimes it is difficult to determine whether a patch is considered to fix a 
+ * bug or if it is a new feature.  Patches that are considered code cleanup, or to 
+ * improve performance, are NOT to be included in the release branches. Performance
+ * issues will only be considered for the release branch if they are considered 
+ * significant, and should be approved by the maintainers.
+ * 
+ * If there is ever a question about what should be included in the release branch,
+ * the maintainers should be allowed to make the decision.
  */
