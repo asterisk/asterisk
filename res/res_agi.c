@@ -3804,7 +3804,7 @@ AST_TEST_DEFINE(test_agi_null_docs)
 	if (noop_command.usage == NULL) {
 		res = AST_TEST_FAIL;
 	}
-	if (noop_command.description == NULL) {
+	if (noop_command.syntax == NULL) {
 		res = AST_TEST_FAIL;
 	}
 #endif
