@@ -262,7 +262,7 @@ AST_TEST_DEFINE(test_sip_rtpqos_1)
 		.write = test_sip_rtpqos_1_write,
 		.get_stat = test_sip_rtpqos_1_get_stat,
 	};
-	struct sockaddr_in sin = { .sin_port = 31337, .sin_addr = { 4 * 16777216 + 3 * 65536 + 2 * 256 + 1 } };
+	struct sockaddr_in sin = { .sin_port = 31337, .sin_addr = { .s_addr = 4 * 16777216 + 3 * 65536 + 2 * 256 + 1 } };
 	struct ast_rtp_instance_stats mine = { 0, };
 	struct sip_pvt *p = NULL;
 	struct ast_channel *chan = NULL;
