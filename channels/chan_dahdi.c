@@ -1685,9 +1685,12 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 		} else {
 			res = callerid_feed(p->cs, buf, res, AST_LAW(p));
 		}
-
 		if (res < 0) {
-			ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
+			/*
+			 * The previous diagnostic message output likely
+			 * explains why it failed.
+			 */
+			ast_log(LOG_WARNING, "Failed to decode CallerID\n");
 			return -1;
 		}
 
@@ -9789,9 +9792,14 @@ static void *analog_ss_thread(void *data)
 							} else {
 								res = callerid_feed(cs, buf, res, AST_LAW(p));
 							}
-
 							if (res < 0) {
-								ast_log(LOG_WARNING, "CallerID feed failed on channel '%s'\n", chan->name);
+								/*
+								 * The previous diagnostic message output likely
+								 * explains why it failed.
+								 */
+								ast_log(LOG_WARNING,
+									"Failed to decode CallerID on channel '%s'\n",
+									chan->name);
 								break;
 							} else if (res)
 								break;
@@ -10056,7 +10064,13 @@ static void *analog_ss_thread(void *data)
 							samples += res;
 							res = callerid_feed(cs, buf, res, AST_LAW(p));
 							if (res < 0) {
-								ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
+								/*
+								 * The previous diagnostic message output likely
+								 * explains why it failed.
+								 */
+								ast_log(LOG_WARNING,
+									"Failed to decode CallerID on channel '%s'\n",
+									chan->name);
 								break;
 							} else if (res)
 								break;
@@ -10321,7 +10335,11 @@ static void *mwi_thread(void *data)
 			samples += res;
 			if (!spill_done) {
 				if ((spill_result = callerid_feed(cs, mtd->buf, res, AST_LAW(mtd->pvt))) < 0) {
-					ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
+					/*
+					 * The previous diagnostic message output likely
+					 * explains why it failed.
+					 */
+					ast_log(LOG_WARNING, "Failed to decode CallerID\n");
 					break;
 				} else if (spill_result) {
 					spill_done = 1;
