@@ -98,8 +98,17 @@ static unsigned int global_cc_max_requests;
  */
 static int cc_request_count;
 
-#define cc_ref(obj, debug) ({ao2_t_ref((obj), +1, (debug)); (obj);})
-#define cc_unref(obj, debug) ({ao2_t_ref((obj), -1, (debug)); NULL;})
+static inline void *cc_ref(void *obj, const char *debug)
+{
+	ao2_t_ref(obj, +1, debug);
+	return obj;
+}
+
+static inline void *cc_unref(void *obj, const char *debug)
+{
+	ao2_t_ref(obj, -1, debug);
+	return NULL;
+}
 
 /*!
  * \since 1.8
