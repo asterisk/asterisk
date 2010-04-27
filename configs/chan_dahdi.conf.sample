@@ -330,10 +330,6 @@
 ;
 usecallerid=yes
 ;
-; Hide the name part and leave just the number part of the caller ID
-; string. Only applies to PRI channels.
-;hidecalleridname=yes
-;
 ; Type of caller ID signalling in use
 ;     bell     = bell202 as used in US (default)
 ;     v23      = v23 as used in the UK
@@ -356,6 +352,10 @@ usecallerid=yes
 ; (If your dialplan doesn't catch it)
 ;
 ;hidecallerid=yes
+;
+; Enable if you need to hide just the name and not the number for legacy PBX use.
+; Only applies to PRI channels.
+;hidecalleridname=yes
 ;
 ; The following option enables receiving MWI on FXO lines.  The default
 ; value is no.  When this is enabled, and MWI notification indicates on or off,
