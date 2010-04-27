@@ -2,11 +2,9 @@
 # Generic Makefile for libedit.
 #
 
-GREP=@GREP@
-
 OSTYPE=$(shell uname -s)
 define cyg_subst_sys
-	if uname -s | ${GREP} -qi cygwin; then \
+	if uname -s | grep -i cygwin > /dev/null; then \
 	cat $@ | sed -e s/"sys\.h"/"config.h"/g > $@.copy; \
 	mv --force $@.copy $@; \
 	fi
