@@ -540,12 +540,12 @@ static int local_hangup(struct ast_channel *ast)
 			/* Deadlock avoidance */
 			while (p->owner && ast_channel_trylock(p->owner)) {
 				ast_mutex_unlock(&p->lock);
-				if (ast) {
-					ast_channel_unlock(ast);
+				if (p->chan) {
+					ast_channel_unlock(p->chan);
 				}
 				usleep(1);
-				if (ast) {
-					ast_channel_lock(ast);
+				if (p->chan) {
+					ast_channel_lock(p->chan);
 				}
 				ast_mutex_lock(&p->lock);
 			}
@@ -560,8 +560,17 @@ static int local_hangup(struct ast_channel *ast)
 	} else {
 		ast_module_user_remove(p->u_owner);
 		while (p->chan && ast_channel_trylock(p->chan)) {
-			DEADLOCK_AVOIDANCE(&p->lock);
+				ast_mutex_unlock(&p->lock);
+				if (p->owner) {
+					ast_channel_unlock(p->owner);
+				}
+				usleep(1);
+				if (p->owner) {
+					ast_channel_lock(p->owner);
+				}
+				ast_mutex_lock(&p->lock);
 		}
+
 		p->owner = NULL;
 		if (p->chan) {
 			ast_queue_hangup(p->chan);
