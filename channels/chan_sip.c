@@ -13508,8 +13508,9 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 				return -2;
 			}
 		}
-		/* If we have a context defined, overwrite the original context */
-		if (!ast_strlen_zero(domain_context))
+		/* If we don't have a peer (i.e. we're a guest call),
+		 * overwrite the original context */
+		if (!ast_test_flag(&p->flags[1], SIP_PAGE2_HAVEPEERCONTEXT) && !ast_strlen_zero(domain_context))
 			ast_string_field_set(p, context, domain_context);
 	}
 
@@ -24945,6 +24946,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_string_field_set(peer, cid_num, v->value);
 			} else if (!strcasecmp(v->name, "context")) {
 				ast_string_field_set(peer, context, v->value);
+				ast_set_flag(&peer->flags[1], SIP_PAGE2_HAVEPEERCONTEXT);
 			} else if (!strcasecmp(v->name, "subscribecontext")) {
 				ast_string_field_set(peer, subscribecontext, v->value);
 			} else if (!strcasecmp(v->name, "fromdomain")) {
