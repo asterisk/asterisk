@@ -1708,24 +1708,21 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	int res = 0;
 
 	ast_channel_lock(chan);
-
 	if (chan->generatordata) {
 		if (chan->generator && chan->generator->release)
 			chan->generator->release(chan, chan->generatordata);
 		chan->generatordata = NULL;
 	}
-
-	ast_prod(chan);
 	if (gen->alloc && !(chan->generatordata = gen->alloc(chan, params))) {
 		res = -1;
 	}
-	
 	if (!res) {
 		ast_settimeout(chan, 160, generator_force, chan);
 		chan->generator = gen;
 	}
-
 	ast_channel_unlock(chan);
+
+	ast_prod(chan);
 
 	return res;
 }
