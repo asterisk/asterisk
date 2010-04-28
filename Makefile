@@ -85,7 +85,6 @@ export STRIP
 export DOWNLOAD
 export AWK
 export GREP
-export ID
 export MD5
 export WGET_EXTRA_ARGS
 
@@ -490,9 +489,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -f build_tools/menuselect-deps
 
 datafiles: _all
-	if [ `$(ID) -u` = 0 ]; then \
-		CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; \
-	fi
+	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig;
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
 # improved a lot.  I'll put it here for now.
