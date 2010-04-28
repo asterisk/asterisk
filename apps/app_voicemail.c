@@ -10545,10 +10545,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			}
 		}
 	}
-	if (outsidecaller)
-		ast_play_and_wait(chan, "vm-goodbye");
 	if (cmd == 't')
 		cmd = 0;
+	else if (outsidecaller) /* won't play if time out occurs */
+		ast_play_and_wait(chan, "vm-goodbye");
 	return cmd;
 }
 
