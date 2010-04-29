@@ -2,6 +2,22 @@
 
 	* Asterisk 1.6.1.19-rc3 Released
 
+2010-04-29 10:31 +0000 [r260052]  David Vossel <dvossel@digium.com>
+
+	* include/asterisk/audiohook.h, main/audiohook.c: Fixes crash in
+	  audiohook_write_list.  (closes issue 0017052) Reported by: dvossel
+	  Tested by: dvossel. (closes issue 0016196) Reported by: atis.
+	  Review: https://reviewboard.asterisk.org/r/623/
+
+2010-04-28 10:31 +0000 [r259930]  David Vossel <dvossel@digium.com>
+
+	* channels/chan_local.c, main/channel.c: Resolves deadlocks in
+	  chan_local.  (closes issue 0017185) Reported by: schmoozecom
+	  Patches: issue_17185_v1.diff uploaded by dvossel (license 671)
+	  issue_17185_v2.diff uploaded by dvossel (license 671) Tested
+	  by: schmoozecom, GameGamer43
+	  Review: https://reviewboard.asterisk.org/r/631/
+
 2010-04-13  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.1.19-rc2 Released
