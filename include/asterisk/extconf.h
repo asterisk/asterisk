@@ -141,7 +141,7 @@ struct ast_sw {
 	char stuff[0];
 };
 
-*! \brief Ignore patterns in dial plan */
+/*! \brief Ignore patterns in dial plan */
 struct ast_ignorepat {
 	const char *registrar;
 	struct ast_ignorepat *next;
