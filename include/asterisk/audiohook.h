@@ -69,9 +69,16 @@ struct ast_audiohook;
  * \param chan Channel
  * \param frame Frame of audio to manipulate
  * \param direction Direction frame came from
- * \return Returns 0 on success, -1 on failure
- * \note An audiohook does not have any reference to a private data structure for manipulate types. It is up to the manipulate callback to store this data
- *       via it's own method. An example would be datastores.
+ * \return Returns 0 on success, -1 on failure.
+ * \note An audiohook does not have any reference to a private data structure for manipulate
+ *       types. It is up to the manipulate callback to store this data via it's own method.
+ *       An example would be datastores.
+ * \note The input frame should never be freed or corrupted during a manipulate callback.
+ *       If the callback has the potential to corrupt the frame's data during manipulation,
+ *       local data should be used for the manipulation and only copied to the frame on
+ *       success.
+ * \note A failure return value indicates that the frame was not manipulated and that
+ *       is being returned in its original state.
  */
 typedef int (*ast_audiohook_manipulate_callback)(struct ast_audiohook *audiohook, struct ast_channel *chan, struct ast_frame *frame, enum ast_audiohook_direction direction);
 
