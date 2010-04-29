@@ -439,7 +439,7 @@ exten => stdexten-BUSY,1,Voicemail(${mbx},b)
 exten => stdexten-BUSY,n,NoOp(Finish stdexten BUSY)
 exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
-exten => _stdexten-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
+exten => _stde[x]te[n]-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
 exten => a,n,Return()
@@ -479,7 +479,7 @@ exten => stdexten-DONTCALL,1,Goto(${dontcntx},s,1)	; Callee chose to send this c
 
 exten => stdexten-TORTURE,1,Goto(${tortcntx},s,1)	; Callee chose to send this call to a telemarketer torture script.
 
-exten => _stdexten-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
+exten => _stde[x]te[n]-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
 exten => a,n,Return
