@@ -584,7 +584,29 @@ static struct ast_frame *dtmf_audiohook_write_list(struct ast_channel *chan, str
 	return frame;
 }
 
-/*! \brief Pass an AUDIO frame off to be handled by the audiohook core
+/*!
+ * \brief Pass an AUDIO frame off to be handled by the audiohook core
+ *
+ * \details
+ * This function has 3 ast_frames and 3 parts to handle each.  At the beginning of this
+ * function all 3 frames, start_frame, middle_frame, and end_frame point to the initial
+ * input frame.
+ *
+ * Part_1: Translate the start_frame into SLINEAR audio if it is not already in that
+ *         format.  The result of this part is middle_frame is guaranteed to be in
+ *         SLINEAR format for Part_2.
+ * Part_2: Send middle_frame off to spies and manipulators.  At this point middle_frame is
+ *         either a new frame as result of the translation, or points directly to the start_frame
+ *         because no translation to SLINEAR audio was required.  The result of this part
+ *         is end_frame will be updated to point to middle_frame if any audiohook manipulation
+ *         took place.
+ * Part_3: Translate end_frame's audio back into the format of start frame if necessary.
+ *         At this point if middle_frame != end_frame, we are guaranteed that no manipulation
+ *         took place and middle_frame can be freed as it was translated... If middle_frame was
+ *         not translated and still pointed to start_frame, it would be equal to end_frame as well
+ *         regardless if manipulation took place which would not result in this free.  The result
+ *         of this part is end_frame is guaranteed to be the format of start_frame for the return.
+ *         
  * \param chan Channel that the list is coming off of
  * \param audiohook_list List of audiohooks
  * \param direction Direction frame is coming in from
@@ -599,6 +621,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	struct ast_audiohook *audiohook = NULL;
 	int samples = frame->samples;
 
+	/* ---Part_1. translate start_frame to SLINEAR if necessary. */
 	/* If the frame coming in is not signed linear we have to send it through the in_translate path */
 	if (frame->subclass.codec != AST_FORMAT_SLINEAR) {
 		if (in_translate->format != frame->subclass.codec) {
@@ -613,6 +636,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		samples = middle_frame->samples;
 	}
 
+	/* ---Part_2: Send middle_frame to spy and manipulator lists.  middle_frame is guaranteed to be SLINEAR here.*/
 	/* Queue up signed linear frame to each spy */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&audiohook_list->spy_list, audiohook, list) {
 		ast_audiohook_lock(audiohook);
@@ -666,20 +690,21 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				audiohook->manipulate_callback(audiohook, chan, NULL, direction);
 				continue;
 			}
-			/* Feed in frame to manipulation */
+			/* Feed in frame to manipulation. */
 			if (audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
-				ast_frfree(middle_frame);
-				middle_frame = NULL;
+				/* XXX IGNORE FAILURE */
+
+				/* If the manipulation fails then the frame will be returned in its original state.
+				 * Since there are potentially more manipulator callbacks in the list, no action should
+				 * be taken here to exit early. */
 			}
 			ast_audiohook_unlock(audiohook);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
-		if (middle_frame) {
-			end_frame = middle_frame;
-		}
+		end_frame = middle_frame;
 	}
 
-	/* Now we figure out what to do with our end frame (whether to transcode or not) */
+	/* ---Part_3: Decide what to do with the end_frame (whether to transcode or not) */
 	if (middle_frame == end_frame) {
 		/* Middle frame was modified and became the end frame... let's see if we need to transcode */
 		if (end_frame->subclass.codec != start_frame->subclass.codec) {
@@ -704,9 +729,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		}
 	} else {
 		/* No frame was modified, we can just drop our middle frame and pass the frame we got in out */
-		if (middle_frame) {
-			ast_frfree(middle_frame);
-		}
+		ast_frfree(middle_frame);
 	}
 
 	return end_frame;
