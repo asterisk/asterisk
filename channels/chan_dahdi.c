@@ -7239,14 +7239,25 @@ static void *ss_thread(void *data)
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int i = 0;
 				cs = NULL;
-				ast_debug(1, "Receiving DTMF cid on "
-					"channel %s\n", chan->name);
+				ast_debug(1, "Receiving DTMF cid on channel %s\n", chan->name);
 				dahdi_setlinear(p->subs[index].dfd, 0);
-				res = 2000;
+				/*
+				 * We are the only party interested in the Rx stream since
+				 * we have not answered yet.  We don't need or even want DTMF
+				 * emulation.  The DTMF digits can come so fast that emulation
+				 * can drop some of them.
+				 */
+				ast_set_flag(chan, AST_FLAG_END_DTMF_ONLY);
+				res = 4000;/* This is a typical OFF time between rings. */
 				for (;;) {
 					struct ast_frame *f;
 					res = ast_waitfor(chan, res);
 					if (res <= 0) {
+						/*
+						 * We do not need to restore the dahdi_setlinear()
+						 * or AST_FLAG_END_DTMF_ONLY flag settings since we
+						 * are hanging up the channel.
+						 */
 						ast_log(LOG_WARNING, "DTMFCID timed out waiting for ring. "
 							"Exiting simple switch\n");
 						ast_hangup(chan);
@@ -7256,22 +7267,24 @@ static void *ss_thread(void *data)
 					if (!f)
 						break;
 					if (f->frametype == AST_FRAME_DTMF) {
-						dtmfbuf[i++] = f->subclass;
+						if (i < ARRAY_LEN(dtmfbuf) - 1) {
+							dtmfbuf[i++] = f->subclass;
+						}
 						ast_debug(1, "CID got digit '%c'\n", f->subclass);
-						res = 2000;
+						res = 4000;/* This is a typical OFF time between rings. */
 					}
 					ast_frfree(f);
 					if (chan->_state == AST_STATE_RING ||
 					    chan->_state == AST_STATE_RINGING) 
 						break; /* Got ring */
 				}
+				ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 				dtmfbuf[i] = '\0';
 				dahdi_setlinear(p->subs[index].dfd, p->subs[index].linear);
 				/* Got cid and ring. */
 				ast_debug(1, "CID got string '%s'\n", dtmfbuf);
 				callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
-				ast_debug(1, "CID is '%s', flags %d\n", 
-					dtmfcid, flags);
+				ast_debug(1, "CID is '%s', flags %d\n", dtmfcid, flags);
 				/* If first byte is NULL, we have no cid */
 				if (!ast_strlen_zero(dtmfcid)) 
 					number = dtmfcid;
@@ -7354,13 +7367,10 @@ static void *ss_thread(void *data)
 					if (p->cid_signalling == CID_SIG_V23_JP) {
 						res = dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_ONHOOK);
 						usleep(1);
-						res = 4000;
-					} else {
-
-						/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */ 
-						res = 2000;
 					}
 
+					/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */
+					res = 4000;/* This is a typical OFF time between rings. */
 					for (;;) {
 						struct ast_frame *f;
 						res = ast_waitfor(chan, res);
