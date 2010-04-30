@@ -5021,6 +5021,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					p->subs[index].f.frametype = AST_FRAME_CONTROL;
 					p->subs[index].f.subclass = AST_CONTROL_ANSWER;
 					/* Make sure it stops ringing */
+					p->subs[SUB_REAL].needringing = 0;
 					dahdi_set_hook(p->subs[index].dfd, DAHDI_OFFHOOK);
 					ast_debug(1, "channel %d answered\n", p->channel);
 					if (p->cidspill) {
