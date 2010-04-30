@@ -2017,6 +2017,10 @@ void ast_close_fds_above_n(int n)
 		closedir(dir);
 	} else {
 		getrlimit(RLIMIT_NOFILE, &rl);
+		if (rl.rlim_cur > 65535) {
+			/* A more reasonable value */
+			rl.rlim_cur = 65535;
+		}
 		null = open("/dev/null", O_RDONLY);
 		for (x = n + 1; x < rl.rlim_cur; x++) {
 			if (x != null) {
