@@ -421,18 +421,22 @@ exten => _XXXXXX*X!,1,Goto(outbound-freenum2,${EXTEN},1)
 ;
 exten => _X!,1,Verbose(2,Performing ISN lookup for ${EXTEN})
 same => n,Set(SUFFIX=${CUT(EXTEN,*,2-)})                                ; make sure the suffix is all digits as well
-same => n,GotoIf($["${FILTER(0-9,${SUFFIX})}" != "${SUFFIX}"]?i:)       ; filter out bad characters per the README-SERIOUSLY.best-practices.txt document
+same => n,GotoIf($["${FILTER(0-9,${SUFFIX})}" != "${SUFFIX}"]?fn-CONGESTION,1)
+                                                                        ; filter out bad characters per the README-SERIOUSLY.best-practices.txt document
 same => n,Set(TIMEOUT(absolute)=10800)
 same => n,Set(isnresult=${ENUMLOOKUP(${EXTEN},sip,,1,freenum.org)})     ; perform our lookup with freenum.org
-same => n,GotoIf($["${isnresult}" != ""]?:notfound)
-same => n,GotoIf($["${GLOBAL(FREENUMDOMAIN)}" == ""]?dial:)             ; check if we set the FREENUMDOMAIN global variable in [global]
+same => n,GotoIf($["${isnresult}" != ""]?from)
+same => n,Set(DIALSTATUS=CONGESTION)
+same => n,Goto(fn-CONGESTION,1)
+same => n(from),Set(SIPFROMUSER=${CALLERID(num)})
+same => n,GotoIf($["${GLOBAL(FREENUMDOMAIN)}" = ""]?dial)               ; check if we set the FREENUMDOMAIN global variable in [global]
 same => n,Set(SIPFROMDOMAIN=${GLOBAL(FREENUMDOMAIN)})                   ;    if we did set it, then we'll use it for our outbound dialing domain
 same => n(dial),Dial(SIP/${isnresult},40)
-same => n,Goto(fn-${DIALSTATUS})
+same => n,Goto(fn-${DIALSTATUS},1)
 
 exten => fn-BUSY,1,Busy()
 
-exten => _fn-.,1,NoOp(ISN: ${DIALSTATUS})
+exten => _f[n]-.,1,NoOp(ISN: ${DIALSTATUS})
 same => n,Congestion()
 
 [macro-trunkdial]
