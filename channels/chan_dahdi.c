@@ -75,12 +75,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef HAVE_SS7
 /* put this here until sig_ss7 comes along */
-#define NUM_DCHANS		4		/*!< No more than 4 d-channels */
-#define MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
+#define SIG_SS7_NUM_DCHANS		4		/*!< No more than 4 d-channels */
+#define SIG_SS7_MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
 #include <libss7.h>
 #endif
 
 #ifdef HAVE_OPENR2
+/* put this here until sig_mfcr2 comes along */
+#define SIG_MFCR2_MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
 #include <openr2.h>
 #endif
 
@@ -528,9 +530,9 @@ static int ringt_base = DEFAULT_RINGT;
 struct dahdi_ss7 {
 	pthread_t master;						/*!< Thread of master */
 	ast_mutex_t lock;
-	int fds[NUM_DCHANS];
+	int fds[SIG_SS7_NUM_DCHANS];
 	int numsigchans;
-	int linkstate[NUM_DCHANS];
+	int linkstate[SIG_SS7_NUM_DCHANS];
 	int numchans;
 	int type;
 	enum {
@@ -544,7 +546,7 @@ struct dahdi_ss7 {
 	char subscriberprefix[20];					/*!< area access code + area code ('0'+area code for european dialplans) */
 	char unknownprefix[20];						/*!< for unknown dialplans */
 	struct ss7 *ss7;
-	struct dahdi_pvt *pvts[MAX_CHANNELS];				/*!< Member channel pvt structs */
+	struct dahdi_pvt *pvts[SIG_SS7_MAX_CHANNELS];	/*!< Member channel pvt structs */
 	int flags;							/*!< Linkset flags */
 };
 
@@ -563,7 +565,7 @@ static int cur_defaultdpc = -1;
 struct dahdi_mfcr2 {
 	pthread_t r2master;		       /*!< Thread of master */
 	openr2_context_t *protocol_context;    /*!< OpenR2 context handle */
-	struct dahdi_pvt *pvts[MAX_CHANNELS];     /*!< Member channel pvt structs */
+	struct dahdi_pvt *pvts[SIG_MFCR2_MAX_CHANNELS];     /*!< Member channel pvt structs */
 	int numchans;                          /*!< Number of channels in this R2 block */
 	int monitored_count;                   /*!< Number of channels being monitored */
 };
@@ -601,8 +603,8 @@ static int r2links_count = 0;
 #ifdef HAVE_PRI
 
 struct dahdi_pri {
-	int dchannels[NUM_DCHANS];					/*!< What channel are the dchannels on */
-	int mastertrunkgroup;						/*!< What trunk group is our master */
+	int dchannels[SIG_PRI_NUM_DCHANS];		/*!< What channel are the dchannels on */
+	int mastertrunkgroup;					/*!< What trunk group is our master */
 	int prilogicalspan;						/*!< Logical span number within trunk group */
 	struct sig_pri_pri pri;
 };
@@ -11186,7 +11188,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 			return -1;
 		}
 	}
-	for (y = 0; y < NUM_DCHANS; y++) {
+	for (y = 0; y < SIG_PRI_NUM_DCHANS; y++) {
 		if (!channels[y])
 			break;
 		memset(&si, 0, sizeof(si));
@@ -11552,7 +11554,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					destroy_dahdi_pvt(tmp);
 					return NULL;
 				}
-				if (r2_link->numchans == (sizeof(r2_link->pvts)/sizeof(r2_link->pvts[0]))) {
+				if (r2_link->numchans == ARRAY_LEN(r2_link->pvts)) {
 					ast_log(LOG_ERROR, "Cannot add more channels to this link!\n");
 					destroy_dahdi_pvt(tmp);
 					return NULL;
@@ -11622,7 +11624,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					/* Make sure this isn't a d-channel */
 					matchesdchan=0;
 					for (x = 0; x < NUM_SPANS; x++) {
-						for (y = 0; y < NUM_DCHANS; y++) {
+						for (y = 0; y < SIG_PRI_NUM_DCHANS; y++) {
 							if (pris[x].dchannels[y] == tmp->channel) {
 								matchesdchan = 1;
 								break;
@@ -11665,7 +11667,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 							destroy_dahdi_pvt(tmp);
 							return NULL;
 						}
-						if (pris[span].pri.numchans >= MAX_CHANNELS) {
+						if (pris[span].pri.numchans >= ARRAY_LEN(pris[span].pri.pvts)) {
 							ast_log(LOG_ERROR, "Unable to add channel %d: Too many channels in trunk group %d!\n", channel,
 								pris[span].pri.trunkgroup);
 							destroy_dahdi_pvt(tmp);
@@ -12278,7 +12280,7 @@ static int dahdi_new_pri_nobch_channel(struct sig_pri_pri *pri)
 		}
 	}
 	if (pri->numchans == pvt_idx) {
-		if (MAX_CHANNELS <= pvt_idx) {
+		if (ARRAY_LEN(pri->pvts) <= pvt_idx) {
 			ast_log(LOG_ERROR, "Unable to add a no-B-channel interface!\n");
 			return -1;
 		}
@@ -13128,7 +13130,7 @@ static void *ss7_linkset(void *data)
 	ss7_event *e = NULL;
 	struct dahdi_pvt *p;
 	int chanpos;
-	struct pollfd pollers[NUM_DCHANS];
+	struct pollfd pollers[SIG_SS7_NUM_DCHANS];
 	int cic;
 	unsigned int dpc;
 	int nextms = 0;
@@ -13693,7 +13695,7 @@ static void *mfcr2_monitor(void *data)
 	   I think do_monitor() could be leaking, since it
 	   could be cancelled at any time and is not
 	   using thread keys, why?, */
-	struct pollfd pollers[sizeof(mfcr2->pvts)];
+	struct pollfd pollers[ARRAY_LEN(mfcr2->pvts)];
 	int res = 0;
 	int i = 0;
 	int oldstate = 0;
@@ -13773,7 +13775,7 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 
 	if (pri) {
 		for (x = 0; x < NUM_SPANS; x++) {
-			for (y = 0; y < NUM_DCHANS; y++) {
+			for (y = 0; y < SIG_PRI_NUM_DCHANS; y++) {
 				if (pris[x].pri.dchans[y])
 					dchancount++;
 
@@ -13816,7 +13818,7 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 
 	if (pri) {
 		for (x = 0; x < NUM_SPANS; x++) {
-			for (y = 0; y < NUM_DCHANS; y++) {
+			for (y = 0; y < SIG_PRI_NUM_DCHANS; y++) {
 				if (pris[x].pri.dchans[y])
 					dchancount++;
 
@@ -13860,7 +13862,7 @@ static int prepare_pri(struct dahdi_pri *pri)
 
 	pri->pri.calls = &dahdi_pri_callbacks;
 
-	for (i = 0; i < NUM_DCHANS; i++) {
+	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 		if (!pri->dchannels[i])
 			break;
 		pri->pri.fds[i] = open("/dev/dahdi/channel", O_RDWR);
@@ -14010,7 +14012,7 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		ast_cli(a->fd, "No PRI running on span %d\n", span);
 		return CLI_SUCCESS;
 	}
-	for (x = 0; x < NUM_DCHANS; x++) {
+	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 		if (pris[span-1].pri.dchans[x]) {
 			if (level == 1) {
 				pri_set_debug(pris[span-1].pri.dchans[x], SIG_PRI_DEBUG_NORMAL);
@@ -14072,7 +14074,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 
 	/* either servicing a D-Channel */
 	for (x = 0; x < NUM_SPANS; x++) {
-		for (y = 0; y < NUM_DCHANS; y++) {
+		for (y = 0; y < SIG_PRI_NUM_DCHANS; y++) {
 			if (pris[x].dchannels[y] == channel) {
 				pri = pris + x;
 				if (pri->pri.enable_service_message_support) {
@@ -14260,7 +14262,7 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 
 	for (span = 0; span < NUM_SPANS; span++) {
 		if (pris[span].pri.pri) {
-			for (x = 0; x < NUM_DCHANS; x++) {
+			for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 				debug = 0;
 				if (pris[span].pri.dchans[x]) {
 					debug = pri_get_debug(pris[span].pri.dchans[x]);
@@ -14777,7 +14779,7 @@ static int dahdi_restart(void)
 
 #ifdef HAVE_PRI
 	for (i = 0; i < NUM_SPANS; i++) {
-		for (j = 0; j < NUM_DCHANS; j++)
+		for (j = 0; j < SIG_PRI_NUM_DCHANS; j++)
 			dahdi_close_pri_fd(&(pris[i]), j);
 	}
 
@@ -14785,7 +14787,7 @@ static int dahdi_restart(void)
 	for (i = 0; i < NUM_SPANS; i++) {
 		ast_mutex_init(&pris[i].pri.lock);
 		pris[i].pri.master = AST_PTHREADT_NULL;
-		for (j = 0; j < NUM_DCHANS; j++)
+		for (j = 0; j < SIG_PRI_NUM_DCHANS; j++)
 			pris[i].pri.fds[j] = -1;
 		}
 	pri_set_error(dahdi_pri_error);
@@ -14793,7 +14795,7 @@ static int dahdi_restart(void)
 #endif
 #ifdef HAVE_SS7
 	for (i = 0; i < NUM_SPANS; i++) {
-		for (j = 0; j < NUM_DCHANS; j++)
+		for (j = 0; j < SIG_SS7_NUM_DCHANS; j++)
 			dahdi_close_ss7_fd(&(linksets[i]), j);
 	}
 
@@ -14801,7 +14803,7 @@ static int dahdi_restart(void)
 	for (i = 0; i < NUM_SPANS; i++) {
 		ast_mutex_init(&linksets[i].lock);
 		linksets[i].master = AST_PTHREADT_NULL;
-		for (j = 0; j < NUM_DCHANS; j++)
+		for (j = 0; j < SIG_SS7_NUM_DCHANS; j++)
 			linksets[i].fds[j] = -1;
 	}
 	ss7_set_error(dahdi_ss7_error);
@@ -15743,7 +15745,7 @@ static int linkset_addsigchan(int sigchan)
 		ast_log(LOG_ERROR, "Invalid sigchan!\n");
 		return -1;
 	} else {
-		if (link->numsigchans >= NUM_DCHANS) {
+		if (link->numsigchans >= SIG_SS7_NUM_DCHANS) {
 			ast_log(LOG_ERROR, "Too many sigchans on linkset %d\n", cur_linkset);
 			return -1;
 		}
@@ -16312,7 +16314,7 @@ static int __unload_module(void)
 	for (i = 0; i < NUM_SPANS; i++) {
 		if (pris[i].pri.master && (pris[i].pri.master != AST_PTHREADT_NULL))
 			pthread_join(pris[i].pri.master, NULL);
-		for (j = 0; j < NUM_DCHANS; j++) {
+		for (j = 0; j < SIG_PRI_NUM_DCHANS; j++) {
 			dahdi_close_pri_fd(&(pris[i]), j);
 		}
 	}
@@ -16327,7 +16329,7 @@ static int __unload_module(void)
 	for (i = 0; i < NUM_SPANS; i++) {
 		if (linksets[i].master && (linksets[i].master != AST_PTHREADT_NULL))
 			pthread_join(linksets[i].master, NULL);
-		for (j = 0; j < NUM_DCHANS; j++) {
+		for (j = 0; j < SIG_SS7_NUM_DCHANS; j++) {
 			dahdi_close_ss7_fd(&(linksets[i]), j);
 		}
 	}
@@ -17535,7 +17537,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *base_conf, struct
 	int i;
 	int logicalspan;
 	int trunkgroup;
-	int dchannels[NUM_DCHANS];
+	int dchannels[SIG_PRI_NUM_DCHANS];
 #endif
 
 	cfg = ast_config_load(config, config_flags);
@@ -17583,7 +17585,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *base_conf, struct
 					if ((c = strchr(v->value, ','))) {
 						i = 0;
 						memset(dchannels, 0, sizeof(dchannels));
-						while (c && (i < NUM_DCHANS)) {
+						while (c && (i < SIG_PRI_NUM_DCHANS)) {
 							dchannels[i] = atoi(c + 1);
 							if (dchannels[i] < 0) {
 								ast_log(LOG_WARNING, "D-channel for trunk group %d must be a postiive number at line %d of chan_dahdi.conf\n", trunkgroup, v->lineno);
@@ -17820,7 +17822,7 @@ static int load_module(void)
 	for (y = 0; y < NUM_SPANS; y++) {
 		ast_mutex_init(&linksets[y].lock);
 		linksets[y].master = AST_PTHREADT_NULL;
-		for (i = 0; i < NUM_DCHANS; i++)
+		for (i = 0; i < SIG_SS7_NUM_DCHANS; i++)
 			linksets[y].fds[i] = -1;
 	}
 	ss7_set_error(dahdi_ss7_error);

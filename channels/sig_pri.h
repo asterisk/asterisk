@@ -120,8 +120,8 @@ struct sig_pri_callback {
 	void (*module_unref)(void);
 };
 
-#define NUM_DCHANS		4	/*!< No more than 4 d-channels */
-#define MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
+#define SIG_PRI_NUM_DCHANS		4		/*!< No more than 4 d-channels */
+#define SIG_PRI_MAX_CHANNELS	672		/*!< No more than a DS3 per trunk group */
 
 #define SIG_PRI		DAHDI_SIG_CLEAR
 #define SIG_BRI		(0x2000000 | DAHDI_SIG_CLEAR)
@@ -237,11 +237,11 @@ struct sig_pri_pri {
 	struct ast_cc_config_params *cc_params;			/*!< CC config parameters for each new call. */
 	int	pritimers[PRI_MAX_TIMERS];
 	int overlapdial;								/*!< In overlap dialing mode */
-	int qsigchannelmapping;                     	/*!< QSIG channel mapping type */
-    int discardremoteholdretrieval;                 /*!< shall remote hold or remote retrieval notifications be discarded? */
+	int qsigchannelmapping;							/*!< QSIG channel mapping type */
+	int discardremoteholdretrieval;					/*!< shall remote hold or remote retrieval notifications be discarded? */
 	int facilityenable;								/*!< Enable facility IEs */
-	int dchan_logical_span[NUM_DCHANS];				/*!< Logical offset the DCHAN sits in */
-	int fds[NUM_DCHANS];							/*!< FD's for d-channels */
+	int dchan_logical_span[SIG_PRI_NUM_DCHANS];		/*!< Logical offset the DCHAN sits in */
+	int fds[SIG_PRI_NUM_DCHANS];					/*!< FD's for d-channels */
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 	unsigned int enable_service_message_support:1;	/*!< enable SERVICE message support */
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
@@ -276,16 +276,16 @@ struct sig_pri_pri {
 	int cc_qsig_signaling_link_rsp;			/*!< CC Q.SIG signaling link retention (Party B) release(0), retain(1) */
 #endif	/* defined(HAVE_PRI_CCSS) */
 
-	int dchanavail[NUM_DCHANS];				/*!< Whether each channel is available */
+	int dchanavail[SIG_PRI_NUM_DCHANS];		/*!< Whether each channel is available */
 	int debug;								/*!< set to true if to dump PRI event info (tested but never set) */
-	int span;                               /*!< span number put into user output messages */
+	int span;								/*!< span number put into user output messages */
 	int resetting;							/*!< true if span is being reset/restarted */
 	int resetpos;							/*!< current position during a reset (-1 if not started) */
 	int sig;								/*!< ISDN signalling type (SIG_PRI, SIG_BRI, SIG_BRI_PTMP, etc...) */
 	int new_chan_seq;						/*!< New struct ast_channel sequence number */
 
 	/* Everything after here is internally set */
-	struct pri *dchans[NUM_DCHANS];				/*!< Actual d-channels */
+	struct pri *dchans[SIG_PRI_NUM_DCHANS];		/*!< Actual d-channels */
 	struct pri *pri;							/*!< Currently active D-channel */
 	/*!
 	 * List of private structures of the user of this module for no B channel
@@ -298,7 +298,7 @@ struct sig_pri_pri {
 	 */
 	void *no_b_chan_end;
 	int numchans;								/*!< Num of channels we represent */
-	struct sig_pri_chan *pvts[MAX_CHANNELS];	/*!< Member channel pvt structs */
+	struct sig_pri_chan *pvts[SIG_PRI_MAX_CHANNELS];/*!< Member channel pvt structs */
 	pthread_t master;							/*!< Thread of master */
 	ast_mutex_t lock;							/*!< libpri access Mutex */
 	time_t lastreset;							/*!< time when unused channels were last reset */

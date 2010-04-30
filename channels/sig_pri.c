@@ -820,7 +820,7 @@ struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law
 int pri_is_up(struct sig_pri_pri *pri)
 {
 	int x;
-	for (x = 0; x < NUM_DCHANS; x++) {
+	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 		if (pri->dchanavail[x] == DCHAN_AVAILABLE)
 			return 1;
 	}
@@ -848,7 +848,7 @@ static int pri_active_dchan_index(struct sig_pri_pri *pri)
 {
 	int x;
 
-	for (x = 0; x < NUM_DCHANS; x++) {
+	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 		if ((pri->dchans[x] == pri->pri))
 			return x;
 	}
@@ -864,7 +864,7 @@ static int pri_find_dchan(struct sig_pri_pri *pri)
 	int newslot = -1;
 	int x;
 	old = pri->pri;
-	for (x = 0; x < NUM_DCHANS; x++) {
+	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 		if ((pri->dchanavail[x] == DCHAN_AVAILABLE) && (newslot < 0))
 			newslot = x;
 		if (pri->dchans[x] == old) {
@@ -2609,7 +2609,7 @@ static void *pri_dchannel(void *vpri)
 {
 	struct sig_pri_pri *pri = vpri;
 	pri_event *e;
-	struct pollfd fds[NUM_DCHANS];
+	struct pollfd fds[SIG_PRI_NUM_DCHANS];
 	int res;
 	int chanpos = 0;
 	int x;
@@ -2654,7 +2654,7 @@ static void *pri_dchannel(void *vpri)
 			ast_log(LOG_WARNING, "Idle dial string '%s' lacks '@context'\n", pri->idleext);
 	}
 	for (;;) {
-		for (i = 0; i < NUM_DCHANS; i++) {
+		for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 			if (!pri->dchans[i])
 				break;
 			fds[i].fd = pri->fds[i];
@@ -2729,7 +2729,7 @@ static void *pri_dchannel(void *vpri)
 		}
 		/* Start with reasonable max */
 		lowest = ast_tv(60, 0);
-		for (i = 0; i < NUM_DCHANS; i++) {
+		for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 			/* Find lowest available d-channel */
 			if (!pri->dchans[i])
 				break;
@@ -2771,7 +2771,7 @@ static void *pri_dchannel(void *vpri)
 
 		ast_mutex_lock(&pri->lock);
 		if (!res) {
-			for (which = 0; which < NUM_DCHANS; which++) {
+			for (which = 0; which < SIG_PRI_NUM_DCHANS; which++) {
 				if (!pri->dchans[which])
 					break;
 				/* Just a timeout, run the scheduler */
@@ -2780,7 +2780,7 @@ static void *pri_dchannel(void *vpri)
 					break;
 			}
 		} else if (res > -1) {
-			for (which = 0; which < NUM_DCHANS; which++) {
+			for (which = 0; which < SIG_PRI_NUM_DCHANS; which++) {
 				if (!pri->dchans[which])
 					break;
 				if (fds[which].revents & POLLPRI) {
@@ -4018,7 +4018,7 @@ void sig_pri_init_pri(struct sig_pri_pri *pri)
 	ast_mutex_init(&pri->lock);
 
 	pri->master = AST_PTHREADT_NULL;
-	for (i = 0; i < NUM_DCHANS; i++)
+	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++)
 		pri->fds[i] = -1;
 }
 
@@ -4772,7 +4772,7 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 
 	ast_mutex_init(&pri->lock);
 
-	for (i = 0; i < NUM_DCHANS; i++) {
+	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 		if (pri->fds[i] == -1) {
 			break;
 		}
@@ -4839,7 +4839,7 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {
-		for (i = 0; i < NUM_DCHANS; i++) {
+		for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 			if (!pri->dchans[i])
 				break;
 			if (pri->fds[i] > 0)
@@ -4934,7 +4934,7 @@ void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_pri *pri)
 {
 	char status[256];
 	int x;
-	for (x = 0; x < NUM_DCHANS; x++) {
+	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 		if (pri->dchans[x]) {
 			build_status(status, sizeof(status), pri->dchanavail[x], pri->dchans[x] == pri->pri);
 			ast_cli(fd, "PRI span %d/%d: %s\n", span, x, status);
@@ -4947,7 +4947,7 @@ void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_pri *pri)
 	int x;
 	char status[256];
 
-	for (x = 0; x < NUM_DCHANS; x++) {
+	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 		if (pri->dchans[x]) {
 #ifdef PRI_DUMP_INFO_STR
 			char *info_str = NULL;
