@@ -2263,7 +2263,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			/* <= is necessary for the position comparison because it may not be possible to enter
 			 * at our desired position since higher-priority callers may have taken the position we want
 			 */
-			if (!inserted && (qe->prio <= cur->prio) && position && (position <= pos + 1)) {
+			if (!inserted && (qe->prio >= cur->prio) && position && (position <= pos + 1)) {
 				insert_entry(q, prev, qe, &pos);
 				/*pos is incremented inside insert_entry, so don't need to add 1 here*/
 				if (position < pos) {
