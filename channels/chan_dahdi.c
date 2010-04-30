@@ -2625,6 +2625,12 @@ static int my_off_hook(void *pvt)
 	return dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_OFFHOOK);
 }
 
+static void my_set_needringing(void *pvt, int value)
+{
+	struct dahdi_pvt *p = pvt;
+	p->subs[SUB_REAL].needringing = value;
+}
+
 static int my_start(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
@@ -3129,6 +3135,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.confmute = my_confmute,
 	.set_pulsedial = my_set_pulsedial,
 	.get_orig_dialstring = my_get_orig_dialstring,
+	.set_needringing = my_set_needringing,
 };
 
 static struct dahdi_pvt *round_robin[32];
@@ -7599,6 +7606,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				p->subs[idx].f.frametype = AST_FRAME_CONTROL;
 				p->subs[idx].f.subclass.integer = AST_CONTROL_ANSWER;
 				/* Make sure it stops ringing */
+				p->subs[SUB_REAL].needringing = 0;
 				dahdi_set_hook(p->subs[idx].dfd, DAHDI_OFFHOOK);
 				ast_debug(1, "channel %d answered\n", p->channel);
 				if (p->cidspill) {

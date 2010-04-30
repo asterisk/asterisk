@@ -144,6 +144,7 @@ struct analog_callback {
 	int (* const on_hook)(void *pvt);
 	/*! \brief Set channel off hook */
 	int (* const off_hook)(void *pvt);
+	void (* const set_needringing)(void *pvt, int value);
 	/* We're assuming that we're going to only wink on ANALOG_SUB_REAL - even though in the code there's an argument to the index
 	 * function */
 	int (* const wink)(void *pvt, enum analog_sub sub);

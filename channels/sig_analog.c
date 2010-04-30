@@ -519,6 +519,13 @@ static int analog_off_hook(struct analog_pvt *p)
 	return -1;
 }
 
+static void analog_set_needringing(struct analog_pvt *p, int value)
+{
+	if (p->calls->set_needringing) {
+		return p->calls->set_needringing(p->chan_pvt, value);
+	}
+}
+
 static int analog_dsp_set_digitmode(struct analog_pvt *p, enum analog_dsp_digitmode mode)
 {
 	if (p->calls->dsp_set_digitmode) {
@@ -2662,6 +2669,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				p->subs[index].f.frametype = AST_FRAME_CONTROL;
 				p->subs[index].f.subclass.integer = AST_CONTROL_ANSWER;
 				/* Make sure it stops ringing */
+				analog_set_needringing(p, 0);
 				analog_off_hook(p);
 				ast_debug(1, "channel %d answered\n", p->channel);
 				analog_cancel_cidspill(p);
