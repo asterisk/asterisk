@@ -26,6 +26,8 @@
 #include <sys/resource.h>   /* for getrlimit(2) */
 #include <sys/types.h>      /* for opendir(3) */
 #include <dirent.h>         /* for opendir(3) */
+#include <unistd.h>         /* for fcntl(2) */
+#include <fcntl.h>          /* for fcntl(2) */
 
 #ifndef HAVE_STRSEP
 char *strsep(char **str, const char *delims)
@@ -420,14 +422,44 @@ void closefrom(int n)
 				continue;
 			}
 			if ((x = strtol(entry->d_name, &result, 10)) && x >= n) {
+#ifdef STRICT_COMPAT
 				close(x);
+#else
+				/* This isn't strictly compatible, but it's actually faster
+				 * for our purposes to set the CLOEXEC flag than to close
+				 * file descriptors.
+				 */
+				long flags = fcntl(x, F_GETFD);
+				if (flags == -1 && errno == EBADF) {
+					continue;
+				}
+				fcntl(x, F_SETFD, flags | FD_CLOEXEC);
+#endif
 			}
 		}
 		closedir(dir);
 	} else {
 		getrlimit(RLIMIT_NOFILE, &rl);
+		if (rl.rlim_cur > 65535) {
+			/* A more reasonable value.  Consider that the primary source of
+			 * file descriptors in Asterisk are UDP sockets, of which we are
+			 * limited to 65,535 per address.  We additionally limit that down
+			 * to about 10,000 sockets per protocol.  While the kernel will
+			 * allow us to set the fileno limit higher (up to 4.2 billion),
+			 * there really is no practical reason for it to be that high.
+			 */
+			rl.rlim_cur = 65535;
+		}
 		for (x = n; x < rl.rlim_cur; x++) {
+#ifdef STRICT_COMPAT
 			close(x);
+#else
+			long flags = fcntl(x, F_GETFD);
+			if (flags == -1 && errno == EBADF) {
+				continue;
+			}
+			fcntl(x, F_SETFD, flags | FD_CLOEXEC);
+#endif
 		}
 	}
 }
