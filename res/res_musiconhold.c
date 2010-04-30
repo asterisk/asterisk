@@ -288,7 +288,15 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 	state->sample_queue += samples;
 
 	while (state->sample_queue > 0) {
+		ast_channel_lock(chan);
 		if ((f = moh_files_readframe(chan))) {
+			/* We need to be sure that we unlock
+			 * the channel prior to calling
+			 * ast_write. Otherwise, the recursive locking
+			 * that occurs can cause deadlocks when using
+			 * indirect channels, like local channels
+			 */
+			ast_channel_unlock(chan);
 			state->samples += f->samples;
 			state->sample_queue -= f->samples;
 			res = ast_write(chan, f);
@@ -297,8 +305,10 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 				ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 				return -1;
 			}
-		} else
+		} else {
+			ast_channel_unlock(chan);
 			return -1;	
+		}
 	}
 	return res;
 }
@@ -1054,12 +1064,14 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 	ast_clear_flag(chan, AST_FLAG_MOH);
 	ast_deactivate_generator(chan);
 
+	ast_channel_lock(chan);
 	if (chan->music_state) {
 		if (chan->stream) {
 			ast_closestream(chan->stream);
 			chan->stream = NULL;
 		}
 	}
+	ast_channel_unlock(chan);
 }
 
 static void moh_class_destructor(void *obj)
