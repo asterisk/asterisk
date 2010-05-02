@@ -500,6 +500,7 @@ int ast_data_search_has_condition(const struct ast_data_search *search,
  */
 struct ast_data *ast_data_get(const struct ast_data_query *query);
 
+#ifdef HAVE_LIBXML2
 /*!
  * \brief Retrieve a subtree from the asterisk data API in XML format..
  * \param[in] query The query structure specifying what nodes to retrieve.
@@ -509,6 +510,7 @@ struct ast_data *ast_data_get(const struct ast_data_query *query);
  * \see ast_data_free, ast_data_get
  */
 struct ast_xml_doc *ast_data_get_xml(const struct ast_data_query *query);
+#endif
 
 /*!
  * \brief Release the allocated memory of a tree.

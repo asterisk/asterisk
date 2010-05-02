@@ -1845,6 +1845,7 @@ struct ast_data *ast_data_get(const struct ast_data_query *query)
 	return res;
 }
 
+#ifdef HAVE_LIBXML2
 /*!
  * \internal
  * \brief Helper function to move an ast_data tree to xml.
@@ -1944,6 +1945,7 @@ struct ast_xml_doc *ast_data_get_xml(const struct ast_data_query *query)
 
 	return doc;
 }
+#endif
 
 enum ast_data_type ast_data_retrieve_type(struct ast_data *node, const char *path)
 {
