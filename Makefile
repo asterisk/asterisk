@@ -464,7 +464,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -f build_tools/menuselect-deps
 
 datafiles: _all
-	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig;
+	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig $(DESTDIR)$(libdir)/pkgconfig;
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
 # improved a lot.  I'll put it here for now.
