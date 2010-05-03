@@ -1276,6 +1276,8 @@ MeetMe Changes
      conference when there is only one member and the M option is used.
   * Added MEETME_INFO dialplan function which provides a way to query
      various properties of a Meetme conference.
+  * Added new admin features: *81: Roll call, *82: eject all, *83: mute all, 
+     and *84: record in-conf
 
 Other Dialplan Application Changes
 ----------------------------------
