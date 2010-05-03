@@ -42,7 +42,7 @@ on https://issues.asterisk.org
 
      SIP (1.6.0 or higher)
 
-        *ClI> sip set debug on
+        *CLI> sip set debug on
 
      SIP (1.4)
 
