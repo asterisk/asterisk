@@ -190,7 +190,9 @@ shared_lastcall=no
 ;autofill=yes
 ;
 ; Autopause will pause a queue member if they fail to answer a call
-;
+; no: Member will not be paused
+; yes: Member will be paused only in the queue where the timeout took place
+; all: Memeber will be paused in all queues he/she is a member
 ;autopause=yes
 ;
 ; Maximum number of people waiting in the queue (0 for unlimited)

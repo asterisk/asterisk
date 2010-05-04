@@ -235,6 +235,10 @@ Queue changes
   * A 'relative-peroidic-announce' option has been added to queues.conf.  When
     enabled, this option will cause periodic announce times to be calculated
     from the end of announcements rather than from the beginning.
+  * The autopause option in queues.conf can be passed a new value, "all." The
+    result is that if a member becomes auto-paused, he will be paused in all
+	queues for which he is a member, not just the queue that failed to reach
+	the member.
 
 mISDN channel driver (chan_misdn) changes
 ----------------------------------------

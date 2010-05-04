@@ -671,6 +671,12 @@ enum {
 	QUEUE_STRATEGY_WRANDOM
 };
 
+enum {
+     QUEUE_AUTOPAUSE_OFF = 0,
+     QUEUE_AUTOPAUSE_ON,
+     QUEUE_AUTOPAUSE_ALL
+};
+
 enum queue_reload_mask {
 	QUEUE_RELOAD_PARAMETERS = (1 << 0),
 	QUEUE_RELOAD_MEMBER = (1 << 1),
@@ -691,6 +697,16 @@ static const struct strategy {
 	{ QUEUE_STRATEGY_LINEAR, "linear" },
 	{ QUEUE_STRATEGY_WRANDOM, "wrandom"},
 };
+
+static const struct autopause {
+	int autopause;
+	const char *name;
+} autopausesmodes [] = {
+	{ QUEUE_AUTOPAUSE_OFF,"no" },
+	{ QUEUE_AUTOPAUSE_ON, "yes" },
+	{ QUEUE_AUTOPAUSE_ALL,"all" },
+};
+
 
 static struct ast_taskprocessor *devicestate_tps;
 
@@ -1035,6 +1051,26 @@ static int strat2int(const char *strategy)
 	}
 
 	return -1;
+}
+
+static int autopause2int(const char *autopause)
+{
+	int x;
+	/*This 'double check' that default value is OFF */
+	if (ast_strlen_zero(autopause))
+		return QUEUE_AUTOPAUSE_OFF;
+
+	/*This 'double check' is to ensure old values works */
+	if(ast_true(autopause))
+		return QUEUE_AUTOPAUSE_ON;
+
+	for (x = 0; x < ARRAY_LEN(autopausesmodes); x++) {
+		if (!strcasecmp(autopause, autopausesmodes[x].name))
+			return autopausesmodes[x].autopause;
+	}
+
+	/*This 'double check' that default value is OFF */
+	return QUEUE_AUTOPAUSE_OFF;
 }
 
 static int queue_hash_cb(const void *obj, const int flags)
@@ -1466,6 +1502,7 @@ static void init_queue(struct call_queue *q)
 	q->periodicannouncefrequency = 0;
 	q->randomperiodicannounce = 0;
 	q->numperiodicannounce = 0;
+	q->autopause = QUEUE_AUTOPAUSE_OFF;
 	q->timeoutpriority = TIMEOUT_PRIORITY_APP;
 	if (!q->members) {
 		if (q->strategy == QUEUE_STRATEGY_LINEAR)
@@ -1771,7 +1808,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		if (!strcasecmp(val, "mixmonitor"))
 			q->montype = 1;
 	} else if (!strcasecmp(param, "autopause")) {
-		q->autopause = ast_true(val);
+		q->autopause = autopause2int(val);
 	} else if (!strcasecmp(param, "maxlen")) {
 		q->maxlen = atoi(val);
 		if (q->maxlen < 0)
@@ -3128,11 +3165,23 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 	}
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, membername, "RINGNOANSWER", "%d", rnatime);
-	if (qe->parent->autopause && pause) {
-		if (!set_member_paused(qe->parent->name, interface, "Auto-Pause", 1)) {
-			ast_verb(3, "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", interface, qe->parent->name);
+	if (qe->parent->autopause != QUEUE_AUTOPAUSE_OFF && pause) {
+		if (qe->parent->autopause == QUEUE_AUTOPAUSE_ON) {
+			if (!set_member_paused(qe->parent->name, interface, "Auto-Pause", 1)) {
+				ast_verb(3, "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n",
+					interface, qe->parent->name);
+			} else {
+				ast_verb(3, "Failed to pause Queue Member %s in queue %s!\n", interface, qe->parent->name);
+			}
 		} else {
-			ast_verb(3, "Failed to pause Queue Member %s in queue %s!\n", interface, qe->parent->name);
+			/* If queue autopause is mode all, just don't send any queue to stop.
+			* the function will stop in all queues */
+			if (!set_member_paused("", interface, "Auto-Pause", 1)) {
+				ast_verb(3, "Auto-Pausing Queue Member %s in all queues since they failed to answer on queue %s.\n",
+						interface, qe->parent->name);
+			} else {
+					ast_verb(3, "Failed to pause Queue Member %s in all queues!\n", interface);
+			}
 		}
 	}
 	return;
