@@ -2078,10 +2078,15 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	}
 	/* Wait full interval */
 	rms = *ms;
-	if (whentohangup) {
+	/* INT_MAX, not LONG_MAX, because it matters on 64-bit */
+	if (whentohangup && whentohangup < INT_MAX / 1000) {
 		rms = whentohangup * 1000;              /* timeout in milliseconds */
-		if (*ms >= 0 && *ms < rms)		/* original *ms still smaller */
+		if (*ms >= 0 && *ms < rms) {            /* original *ms still smaller */
 			rms =  *ms;
+		}
+	} else if (whentohangup && rms < 0) {
+		/* Tiny corner case... call would need to last >24 days */
+		rms = INT_MAX;
 	}
 	/*
 	 * Build the pollfd array, putting the channels' fds first,
