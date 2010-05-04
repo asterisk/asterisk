@@ -121,7 +121,7 @@ we will accept to just numbers. Our example would then change to something like:
 
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
-exten => _X.,n,Dial(SIP/${FILTER(0-9,${EXTEN})})
+exten => _X.,n,Dial(SIP/${FILTER(0123456789,${EXTEN})})
 exten => _X.,n,Hangup()
 
 Note how we've wrapped the ${EXTEN} channel variable with the FILTER() function
@@ -135,7 +135,7 @@ necessary, and to handle error checking in a separate location.
 
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
-exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0-9,${EXTEN})})
+exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0123456789,${EXTEN})})
 exten => _X.,n,Dial(SIP/${SAFE_EXTEN})
 exten => _X.,n,Hangup()
 
@@ -146,7 +146,7 @@ passed back by FILTER(), and to fail the call if things do not match.
 
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
-exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0-9,${EXTEN})})
+exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0123456789,${EXTEN})})
 exten => _X.,n,GotoIf($[${EXTEN} != ${SAFE_EXTEN}]?error,1)
 exten => _X.,n,Dial(SIP/${SAFE_EXTEN})
 exten => _X.,n,Hangup()
@@ -161,7 +161,7 @@ we're expecting to get a SIP URI for dialing.
 
 [incoming]
 exten => _[0-9a-zA-Z].,1,Verbose(2,Incoming call to extension ${EXTEN})
-exten => _[0-9a-zA-Z].,n,Dial(SIP/${FILTER(.@0-9a-zA-Z,${EXTEN})
+exten => _[0-9a-zA-Z].,n,Dial(SIP/${FILTER(.@0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ,${EXTEN})
 exten => _[0-9a-zA-Z].,n,Hangup()
 
 Of course the FILTER() function doesn't check the formatting of the incoming
