@@ -1791,7 +1791,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	}
 	/* Wait full interval */
 	rms = *ms;
-	if (whentohangup) {
+	if (whentohangup && whentohangup < LONG_MAX / 1000) { /* Protect against overflow */
 		rms = whentohangup * 1000;              /* timeout in milliseconds */
 		if (*ms >= 0 && *ms < rms)		/* original *ms still smaller */
 			rms =  *ms;
