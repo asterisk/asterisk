@@ -2103,19 +2103,28 @@ static void my_set_cadence(void *pvt, int *cidrings, struct ast_channel *ast)
 	}
 }
 
-static void my_set_dialing(void *pvt, int flag)
+static void my_set_alarm(void *pvt, int in_alarm)
 {
 	struct dahdi_pvt *p = pvt;
-	p->dialing = flag;
+
+	p->inalarm = in_alarm;
+}
+
+static void my_set_dialing(void *pvt, int is_dialing)
+{
+	struct dahdi_pvt *p = pvt;
+
+	p->dialing = is_dialing;
 }
 
 #if defined(HAVE_PRI)
-static void my_set_digital(void *pvt, int flag)
+static void my_set_digital(void *pvt, int is_digital)
 {
 	struct dahdi_pvt *p = pvt;
-	p->digital = flag;
+
+	p->digital = is_digital;
 }
-#endif
+#endif	/* defined(HAVE_PRI) */
 
 static void my_set_ringtimeout(void *pvt, int ringt)
 {
@@ -2994,6 +3003,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.unlock_private = my_unlock_private,
 	.new_ast_channel = my_new_pri_ast_channel,
 	.fixup_chans = my_pri_fixup_chans,
+	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
 	.set_digital = my_set_digital,
 	.set_callerid = my_pri_set_callerid,
@@ -3125,6 +3135,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.get_sigpvt_bridged_channel = my_get_sigpvt_bridged_channel,
 	.get_sub_fd = my_get_sub_fd,
 	.set_cadence = my_set_cadence,
+	.set_alarm = my_set_alarm,
 	.set_dialing = my_set_dialing,
 	.set_ringtimeout = my_set_ringtimeout,
 	.set_waitingfordt = my_set_waitingfordt,
@@ -7399,16 +7410,16 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		}
 		break;
 	case DAHDI_EVENT_ALARM:
-#ifdef HAVE_PRI
 		switch (p->sig) {
+#if defined(HAVE_PRI)
 		case SIG_PRI_LIB_HANDLE_CASES:
 			sig_pri_chan_alarm_notify(p->sig_pvt, 0);
 			break;
+#endif	/* defined(HAVE_PRI) */
 		default:
+			p->inalarm = 1;
 			break;
 		}
-#endif
-		p->inalarm = 1;
 		res = get_alarms(p);
 		handle_alarms(p, res);
 #ifdef HAVE_PRI
@@ -7731,16 +7742,16 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 	case DAHDI_EVENT_RINGERON:
 		break;
 	case DAHDI_EVENT_NOALARM:
-#ifdef HAVE_PRI
 		switch (p->sig) {
+#if defined(HAVE_PRI)
 		case SIG_PRI_LIB_HANDLE_CASES:
 			sig_pri_chan_alarm_notify(p->sig_pvt, 1);
 			break;
+#endif	/* defined(HAVE_PRI) */
 		default:
+			p->inalarm = 0;
 			break;
 		}
-#endif
-		p->inalarm = 0;
 		handle_clear_alarms(p);
 		break;
 	case DAHDI_EVENT_WINKFLASH:
@@ -10308,10 +10319,20 @@ static void *mwi_thread(void *data)
 			case DAHDI_EVENT_BITSCHANGED:
 				break;
 			case DAHDI_EVENT_NOALARM:
+				if (analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
+					struct analog_pvt *analog_p = mtd->pvt->sig_pvt;
+
+					analog_p->inalarm = 0;
+				}
 				mtd->pvt->inalarm = 0;
 				handle_clear_alarms(mtd->pvt);
 				break;
 			case DAHDI_EVENT_ALARM:
+				if (analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
+					struct analog_pvt *analog_p = mtd->pvt->sig_pvt;
+
+					analog_p->inalarm = 1;
+				}
 				mtd->pvt->inalarm = 1;
 				res = get_alarms(mtd->pvt);
 				handle_alarms(mtd->pvt, res);
@@ -10726,11 +10747,29 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 		}
 		break;
 	case DAHDI_EVENT_NOALARM:
-		i->inalarm = 0;
+		switch (i->sig) {
+#if defined(HAVE_PRI)
+		case SIG_PRI_LIB_HANDLE_CASES:
+			sig_pri_chan_alarm_notify(i->sig_pvt, 1);
+			break;
+#endif	/* defined(HAVE_PRI) */
+		default:
+			i->inalarm = 0;
+			break;
+		}
 		handle_clear_alarms(i);
 		break;
 	case DAHDI_EVENT_ALARM:
-		i->inalarm = 1;
+		switch (i->sig) {
+#if defined(HAVE_PRI)
+		case SIG_PRI_LIB_HANDLE_CASES:
+			sig_pri_chan_alarm_notify(i->sig_pvt, 0);
+			break;
+#endif	/* defined(HAVE_PRI) */
+		default:
+			i->inalarm = 1;
+			break;
+		}
 		res = get_alarms(i);
 		handle_alarms(i, res);
 		/* fall thru intentionally */
@@ -12030,9 +12069,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #endif
 				default:
 					tmp->inalarm = 1;
-					handle_alarms(tmp, res);
 					break;
 				}
+				handle_alarms(tmp, res);
 			}
 		}
 

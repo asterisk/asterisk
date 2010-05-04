@@ -205,7 +205,8 @@ struct analog_callback {
 	void * (* const get_sigpvt_bridged_channel)(struct ast_channel *chan);
 	int (* const get_sub_fd)(void *pvt, enum analog_sub sub);
 	void (* const set_cadence)(void *pvt, int *cidrings, struct ast_channel *chan);
-	void (* const set_dialing)(void *pvt, int flag);
+	void (* const set_alarm)(void *pvt, int in_alarm);
+	void (* const set_dialing)(void *pvt, int is_dialing);
 	void (* const set_ringtimeout)(void *pvt, int ringt);
 	void (* const set_waitingfordt)(void *pvt, struct ast_channel *ast);
 	int (* const check_waitingfordt)(void *pvt);

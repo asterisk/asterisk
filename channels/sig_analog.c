@@ -760,11 +760,19 @@ static void analog_set_cadence(struct analog_pvt *p, struct ast_channel *chan)
 	}
 }
 
-static void analog_set_dialing(struct analog_pvt *p, int flag)
+static void analog_set_dialing(struct analog_pvt *p, int is_dialing)
 {
-	p->dialing = flag;
+	p->dialing = is_dialing;
 	if (p->calls->set_dialing) {
-		return p->calls->set_dialing(p->chan_pvt, flag);
+		return p->calls->set_dialing(p->chan_pvt, is_dialing);
+	}
+}
+
+static void analog_set_alarm(struct analog_pvt *p, int in_alarm)
+{
+	p->inalarm = in_alarm;
+	if (p->calls->set_alarm) {
+		return p->calls->set_alarm(p->chan_pvt, in_alarm);
 	}
 }
 
@@ -2202,7 +2210,7 @@ static void *__analog_ss_thread(void *data)
 
 						if (res == 1) {
 							if (ev == ANALOG_EVENT_NOALARM) {
-								p->inalarm = 0;
+								analog_set_alarm(p, 0);
 							}
 							if (p->cid_signalling == CID_SIG_V23_JP) {
 								if (ev == ANALOG_EVENT_RINGBEGIN) {
@@ -2291,7 +2299,7 @@ static void *__analog_ss_thread(void *data)
 
 					if (res == 1 || res == 2) {
 						if (ev == ANALOG_EVENT_NOALARM) {
-							p->inalarm = 0;
+							analog_set_alarm(p, 0);
 						} else if (ev == ANALOG_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
 							ast_debug(1, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
 							p->polarity = POLARITY_IDLE;
@@ -2507,7 +2515,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		}
 		break;
 	case ANALOG_EVENT_ALARM:
-		p->inalarm = 1;
+		analog_set_alarm(p, 1);
 		analog_get_and_handle_alarms(p);
 
 	case ANALOG_EVENT_ONHOOK:
@@ -2803,7 +2811,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	case ANALOG_EVENT_RINGERON:
 		break;
 	case ANALOG_EVENT_NOALARM:
-		p->inalarm = 0;
+		analog_set_alarm(p, 0);
 		if (!p->unknown_alarm) {
 			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
 			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
@@ -3403,7 +3411,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 		}
 		break;
 	case ANALOG_EVENT_NOALARM:
-		i->inalarm = 0;
+		analog_set_alarm(i, 0);
 		if (!i->unknown_alarm) {
 			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
 			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
@@ -3413,7 +3421,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 		}
 		break;
 	case ANALOG_EVENT_ALARM:
-		i->inalarm = 1;
+		analog_set_alarm(i, 1);
 		analog_get_and_handle_alarms(i);
 
 		/* fall thru intentionally */

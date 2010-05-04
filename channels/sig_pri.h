@@ -103,8 +103,9 @@ struct sig_pri_callback {
 
 	/* Note: Called with PRI lock held */
 	void (* const handle_dchan_exception)(struct sig_pri_pri *pri, int index);
-	void (* const set_dialing)(void *pvt, int flag);
-	void (* const set_digital)(void *pvt, int flag);
+	void (* const set_alarm)(void *pvt, int in_alarm);
+	void (* const set_dialing)(void *pvt, int is_dialing);
+	void (* const set_digital)(void *pvt, int is_digital);
 	void (* const set_callerid)(void *pvt, const struct ast_party_caller *caller);
 	void (* const set_dnid)(void *pvt, const char *dnid);
 	void (* const set_rdnis)(void *pvt, const char *rdnis);

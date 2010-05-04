@@ -128,17 +128,27 @@ static void sig_pri_handle_dchan_exception(struct sig_pri_pri *pri, int index)
 		pri->calls->handle_dchan_exception(pri, index);
 }
 
-static void sig_pri_set_dialing(struct sig_pri_chan *p, int flag)
+static void sig_pri_set_dialing(struct sig_pri_chan *p, int is_dialing)
 {
-	if (p->calls->set_dialing)
-		p->calls->set_dialing(p->chan_pvt, flag);
+	if (p->calls->set_dialing) {
+		p->calls->set_dialing(p->chan_pvt, is_dialing);
+	}
 }
 
-static void sig_pri_set_digital(struct sig_pri_chan *p, int flag)
+static void sig_pri_set_digital(struct sig_pri_chan *p, int is_digital)
 {
-	p->digital = flag;
-	if (p->calls->set_digital)
-		p->calls->set_digital(p->chan_pvt, flag);
+	p->digital = is_digital;
+	if (p->calls->set_digital) {
+		p->calls->set_digital(p->chan_pvt, is_digital);
+	}
+}
+
+static void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm)
+{
+	p->inalarm = in_alarm;
+	if (p->calls->set_alarm) {
+		p->calls->set_alarm(p->chan_pvt, in_alarm);
+	}
 }
 
 static const char *sig_pri_get_orig_dialstring(struct sig_pri_chan *p)
@@ -2830,7 +2840,7 @@ static void *pri_dchannel(void *vpri)
 				/* Take the channels from inalarm condition */
 				for (i = 0; i < pri->numchans; i++) {
 					if (pri->pvts[i]) {
-						pri->pvts[i]->inalarm = 0;
+						sig_pri_set_alarm(pri->pvts[i], 0);
 					}
 				}
 				sig_pri_span_devstate_changed(pri);
@@ -2861,7 +2871,7 @@ static void *pri_dchannel(void *vpri)
 								if (p->owner)
 									ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 							}
-							p->inalarm = 1;
+							sig_pri_set_alarm(p, 1);
 						}
 					}
 					sig_pri_span_devstate_changed(pri);
@@ -4854,8 +4864,8 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 {
+	sig_pri_set_alarm(p, !noalarm);
 	if (!noalarm) {
-		p->inalarm = 1;
 		if (!p->pri || !p->pri->pri || (pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0)) {
 			/* T309 is not enabled : hangup calls when alarm occurs */
 			if (p->call) {
@@ -4873,8 +4883,6 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 			if (p->owner)
 				ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 		}
-	} else {
-		p->inalarm = 0;
 	}
 }
 
