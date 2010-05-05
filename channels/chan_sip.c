@@ -18076,14 +18076,18 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					}
 				}
 			} else if (!strcasecmp(v->name, "defaultip")) {
-				if (ast_get_ip(&peer->defaddr, v->value)) {
+				if (!ast_strlen_zero(v->value) && ast_get_ip(&peer->defaddr, v->value)) {
 					ASTOBJ_UNREF(peer, sip_destroy_peer);
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-				peer->ha = ast_append_ha(v->name, v->value, peer->ha);
+				if (!ast_strlen_zero(v->value)) {
+					peer->ha = ast_append_ha(v->name, v->value, peer->ha);
+				}
 			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
-				peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha);
+				if (!ast_strlen_zero(v->value)) {
+					peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha);
+				}
 			} else if (!strcasecmp(v->name, "port")) {
 				peer->portinuri = 1;
 				if (!realtime && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC))
