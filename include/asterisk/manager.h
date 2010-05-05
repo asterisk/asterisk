@@ -89,8 +89,7 @@
 #define AST_MAX_MANHEADERS 128
 
 /*! \brief Manager Helper Function */
-typedef int (*manager_hook_t)(int, const char *, char *); 
-
+typedef int (*manager_hook_t)(int, const char *, char *);
 
 struct manager_custom_hook {
 	/*! Identifier */

@@ -747,6 +747,7 @@ static int httptimeout = 60;
 static int broken_events_action = 0;
 static int manager_enabled = 0;
 static int webmanager_enabled = 0;
+static char *manager_channelvars;
 
 #define DEFAULT_REALM		"asterisk"
 static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
@@ -1357,7 +1358,6 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
-
 static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_manager_user *user = NULL;
@@ -1399,7 +1399,6 @@ static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cl
 		      "%d manager users configured.\n", count_amu);
 	return CLI_SUCCESS;
 }
-
 
 /*! \brief  CLI command  manager list commands */
 static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1513,18 +1512,6 @@ static char *handle_manager_reload(struct ast_cli_entry *e, int cmd, struct ast_
 	reload_manager();
 	return CLI_SUCCESS;
 }
-
-
-static struct ast_cli_entry cli_manager[] = {
-	AST_CLI_DEFINE(handle_showmancmd, "Show a manager interface command"),
-	AST_CLI_DEFINE(handle_showmancmds, "List manager interface commands"),
-	AST_CLI_DEFINE(handle_showmanconn, "List connected manager interface users"),
-	AST_CLI_DEFINE(handle_showmaneventq, "List manager interface queued events"),
-	AST_CLI_DEFINE(handle_showmanagers, "List configured manager users"),
-	AST_CLI_DEFINE(handle_showmanager, "Display information on a specific manager user"),
-	AST_CLI_DEFINE(handle_mandebug, "Show, enable, disable debugging of the manager code"),
-	AST_CLI_DEFINE(handle_manager_reload, "Reload manager configurations"),
-};
 
 static struct eventqent *unref_event(struct eventqent *e)
 {
@@ -3703,9 +3690,9 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			ast_config_AST_RUN_USER,
 			ast_config_AST_RUN_GROUP,
 			option_maxfiles,
-			ast_realtime_enabled() ? "Yes" : "No",
-			check_cdr_enabled() ? "Yes" : "No",
-			check_webmanager_enabled() ? "Yes" : "No"
+			AST_CLI_YESNO(ast_realtime_enabled()),
+			AST_CLI_YESNO(check_cdr_enabled()),
+			AST_CLI_YESNO(check_webmanager_enabled())
 			);
 	return 0;
 }
@@ -5559,6 +5546,61 @@ static struct ast_tcptls_session_args amis_desc = {
 	.worker_fn = session_do,	/* thread handling the session */
 };
 
+/*! \brief CLI command manager show settings */
+static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show settings";
+		e->usage =
+			"Usage: manager show settings\n"
+			"       Provides detailed list of the configuration of the Manager.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+#define FORMAT "  %-25.25s  %-15.15s\n"
+#define FORMAT2 "  %-25.25s  %-15d\n"
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+	ast_cli(a->fd, "\nGlobal Settings:\n");
+	ast_cli(a->fd, "----------------\n");
+	ast_cli(a->fd, FORMAT, "Manager (AMI):", AST_CLI_YESNO(manager_enabled));
+	ast_cli(a->fd, FORMAT, "Web Manager (AMI/HTTP):", AST_CLI_YESNO(webmanager_enabled));
+	ast_cli(a->fd, FORMAT, "TCP Bindaddress:", ast_inet_ntoa(ami_desc.local_address.sin_addr));
+	ast_cli(a->fd, FORMAT2, "TCP Port:", ntohs(ami_desc.local_address.sin_port));
+	ast_cli(a->fd, FORMAT2, "HTTP Timeout (minutes):", httptimeout);
+	ast_cli(a->fd, FORMAT, "TLS Enable:", AST_CLI_YESNO(ami_tls_cfg.enabled));
+	ast_cli(a->fd, FORMAT, "TLS Bindaddress:", ast_inet_ntoa(amis_desc.local_address.sin_addr));
+	ast_cli(a->fd, FORMAT2, "TLS Port:", ntohs(amis_desc.local_address.sin_port));
+	ast_cli(a->fd, FORMAT, "TLS Certfile:", ami_tls_cfg.certfile);
+	ast_cli(a->fd, FORMAT, "TLS Privatekey:", ami_tls_cfg.pvtfile);
+	ast_cli(a->fd, FORMAT, "TLS Cipher:", ami_tls_cfg.cipher);
+	ast_cli(a->fd, FORMAT, "Allow multiple login:", AST_CLI_YESNO(allowmultiplelogin));
+	ast_cli(a->fd, FORMAT, "Display connects:", AST_CLI_YESNO(displayconnects));
+	ast_cli(a->fd, FORMAT, "Timestamp events:", AST_CLI_YESNO(timestampevents));
+	ast_cli(a->fd, FORMAT, "Channel vars:", S_OR(manager_channelvars, ""));
+	ast_cli(a->fd, FORMAT, "Debug:", AST_CLI_YESNO(manager_debug));
+	ast_cli(a->fd, FORMAT, "Block sockets:", AST_CLI_YESNO(block_sockets));
+#undef FORMAT
+#undef FORMAT2
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_manager[] = {
+	AST_CLI_DEFINE(handle_showmancmd, "Show a manager interface command"),
+	AST_CLI_DEFINE(handle_showmancmds, "List manager interface commands"),
+	AST_CLI_DEFINE(handle_showmanconn, "List connected manager interface users"),
+	AST_CLI_DEFINE(handle_showmaneventq, "List manager interface queued events"),
+	AST_CLI_DEFINE(handle_showmanagers, "List configured manager users"),
+	AST_CLI_DEFINE(handle_showmanager, "Display information on a specific manager user"),
+	AST_CLI_DEFINE(handle_mandebug, "Show, enable, disable debugging of the manager code"),
+	AST_CLI_DEFINE(handle_manager_reload, "Reload manager configurations"),
+	AST_CLI_DEFINE(handle_manager_show_settings, "Show manager global settings"),
+};
+
 static int __init_manager(int reload)
 {
 	struct ast_config *ucfg = NULL, *cfg = NULL;
@@ -5683,6 +5725,8 @@ static int __init_manager(int reload)
 		} else if (!strcasecmp(var->name, "channelvars")) {
 			struct manager_channel_variable *mcv;
 			char *remaining = ast_strdupa(val), *next;
+			ast_free(manager_channelvars);
+			manager_channelvars = ast_strdup(val);
 			AST_RWLIST_WRLOCK(&channelvars);
 			while ((next = strsep(&remaining, ",|"))) {
 				if (!(mcv = ast_calloc(1, sizeof(*mcv) + strlen(next) + 1))) {

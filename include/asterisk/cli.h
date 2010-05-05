@@ -57,6 +57,13 @@ void ast_cli(int fd, const char *fmt, ...)
  */
 #define ESS(x) ((x) == 1 ? "" : "s")
 
+/*! \brief return Yes or No depending on the argument.
+ * This is used in many places in CLI command, having a function to generate
+ * this helps maintaining a consistent output (and possibly emitting the
+ * output in other languages, at some point).
+ */
+#define AST_CLI_YESNO(x) (x) ? "Yes" : "No"
+
 /*! \page CLI_command_API CLI command API
 
    CLI commands are described by a struct ast_cli_entry that contains
