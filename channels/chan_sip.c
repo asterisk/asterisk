@@ -21982,19 +21982,23 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					}
 				}
 			} else if (!strcasecmp(v->name, "defaultip")) {
-				if (ast_get_ip(&peer->defaddr, v->value)) {
+				if (!ast_strlen_zero(v->value) && ast_get_ip(&peer->defaddr, v->value)) {
 					unref_peer(peer);
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 				int ha_error = 0;
-				peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
+				if (!ast_strlen_zero(v->value)) {
+					peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
+				}
 				if (ha_error) {
 					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
 			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
 				int ha_error = 0;
-				peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha, &ha_error);
+				if (!ast_strlen_zero(v->value)) {
+					peer->contactha = ast_append_ha(v->name + 7, v->value, peer->contactha, &ha_error);
+				}
 				if (ha_error) {
 					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
