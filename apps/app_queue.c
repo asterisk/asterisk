@@ -1543,7 +1543,6 @@ static void clear_queue(struct call_queue *q)
 	q->callscompleted = 0;
 	q->callsabandoned = 0;
 	q->callscompletedinsl = 0;
-	q->wrapuptime = 0;
 	q->talktime = 0;
 
 	if (q->members) {
@@ -1551,6 +1550,7 @@ static void clear_queue(struct call_queue *q)
 		struct ao2_iterator mem_iter = ao2_iterator_init(q->members, 0);
 		while ((mem = ao2_iterator_next(&mem_iter))) {
 			mem->calls = 0;
+			mem->lastcall = 0;
 			ao2_ref(mem, -1);
 		}
 		ao2_iterator_destroy(&mem_iter);
