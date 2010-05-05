@@ -13737,6 +13737,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		/* This is an attended transfer */
 		referdata->attendedtransfer = 1;
 		ast_copy_string(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
+		ast_uri_decode(referdata->replaces_callid);
 		if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Find options */ {
 			*ptr++ = '\0';
 		}
@@ -13754,7 +13755,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 				*to = '\0';
 			if ((to = strchr(ptr, ';')))
 				*to = '\0';
-			ast_uri_decode(ptr);
 			ast_copy_string(referdata->replaces_callid_totag, ptr, sizeof(referdata->replaces_callid_totag));
 		}
 		
@@ -13764,7 +13764,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 				*to = '\0';
 			if ((to = strchr(ptr, ';')))
 				*to = '\0';
-			ast_uri_decode(ptr);
 			ast_copy_string(referdata->replaces_callid_fromtag, ptr, sizeof(referdata->replaces_callid_fromtag));
 		}
 		
