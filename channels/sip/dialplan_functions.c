@@ -91,8 +91,9 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		else
 			return -1;
 
+		/* Return 0 to suppress a console warning message */
 		if (!stream) {
-			return -1;
+			return 0;
 		}
 
 		ast_rtp_instance_get_remote_address(stream, &sin);
@@ -113,8 +114,9 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		else
 			return -1;
 
+		/* Return 0 to suppress a console warning message */
 		if (!stream) {
-			return -1;
+			return 0;
 		}
 
 		ast_rtp_instance_get_local_address(stream, &sin);
