@@ -705,16 +705,16 @@ samples: adsi
 	if [ "$(OVERWRITE)" = "y" ]; then \
 		echo "Updating asterisk.conf"; \
 		sed \
-			-e 's|^;astetcdir.*$$|;astetcdir => $(ASTETCDIR)|' \
-			-e 's|^;astmoddir.*$$|;astmoddir => $(MODULES_DIR)|' \
-			-e 's|^;astvarlibdir.*$$|;astvarlibdir => $(ASTVARLIBDIR)|' \
-			-e 's|^;astdbdir.*$$|;astdbdir => $(ASTDBDIR)|' \
-			-e 's|^;astkeydir.*$$|;astkeydir => $(ASTKEYDIR)|' \
-			-e 's|^;astdatadir.*$$|;astdatadir => $(ASTDATADIR)|' \
-			-e 's|^;astagidir.*$$|;astagidir => $(AGI_DIR)|' \
-			-e 's|^;astspooldir.*$$|;astspooldir => $(ASTSPOOLDIR)|' \
-			-e 's|^;astrundir.*$$|;astrundir => $(ASTVARRUNDIR)|' \
-			-e 's|^;astlogdir.*$$|;astlogdir => $(ASTLOGDIR)|' \
+			-e 's|^astetcdir.*$$|astetcdir => $(ASTETCDIR)|' \
+			-e 's|^astmoddir.*$$|astmoddir => $(MODULES_DIR)|' \
+			-e 's|^astvarlibdir.*$$|astvarlibdir => $(ASTVARLIBDIR)|' \
+			-e 's|^astdbdir.*$$|astdbdir => $(ASTDBDIR)|' \
+			-e 's|^astkeydir.*$$|astkeydir => $(ASTKEYDIR)|' \
+			-e 's|^astdatadir.*$$|astdatadir => $(ASTDATADIR)|' \
+			-e 's|^astagidir.*$$|astagidir => $(AGI_DIR)|' \
+			-e 's|^astspooldir.*$$|astspooldir => $(ASTSPOOLDIR)|' \
+			-e 's|^astrundir.*$$|astrundir => $(ASTVARRUNDIR)|' \
+			-e 's|^astlogdir.*$$|astlogdir => $(ASTLOGDIR)|' \
 			$(DESTDIR)$(ASTCONFPATH) > $(DESTDIR)$(ASTCONFPATH).tmp \
 			&& mv $(DESTDIR)$(ASTCONFPATH).tmp $(DESTDIR)$(ASTCONFPATH); \
 	fi ;\
