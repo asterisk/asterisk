@@ -12083,9 +12083,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 		if (!here) {
 			tmp->locallyblocked = tmp->remotelyblocked = 0;
-			switch (chan_sig) {
+			switch (tmp->sig) {
+#if defined(HAVE_PRI)
 			case SIG_PRI_LIB_HANDLE_CASES:
-			case SIG_SS7:
 				tmp->inservice = 0;
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 				((struct sig_pri_chan *) tmp->sig_pvt)->service_status = 0;
@@ -12117,6 +12117,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				}
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 				break;
+#endif	/* defined(HAVE_PRI) */
+#if defined(HAVE_SS7)
+			case SIG_SS7:
+				tmp->inservice = 0;
+				break;
+#endif	/* defined(HAVE_SS7) */
 			default:
 				 /* We default to in service on protocols that don't have a reset */
 				tmp->inservice = 1;
