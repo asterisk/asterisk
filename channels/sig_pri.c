@@ -895,37 +895,85 @@ static int pri_find_dchan(struct sig_pri_pri *pri)
 	return 0;
 }
 
-static void pri_queue_frame(struct sig_pri_chan *p, struct ast_frame *f, struct sig_pri_pri *pri)
+/*!
+ * \internal
+ * \brief Obtain the sig_pri owner channel lock if the owner exists.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
 {
-	/* We must unlock the PRI to avoid the possibility of a deadlock */
-	if (pri)
-		ast_mutex_unlock(&pri->lock);
 	for (;;) {
-		if (p->owner) {
-			if (ast_channel_trylock(p->owner)) {
-				PRI_DEADLOCK_AVOIDANCE(p);
-			} else {
-				ast_queue_frame(p->owner, f);
-				ast_channel_unlock(p->owner);
-				break;
-			}
-		} else
+		if (!pri->pvts[chanpos]->owner) {
+			/* There is no owner lock to get. */
 			break;
-	}
-	if (pri)
+		}
+		if (!ast_channel_trylock(pri->pvts[chanpos]->owner)) {
+			/* We got the lock */
+			break;
+		}
+		/* We must unlock the PRI to avoid the possibility of a deadlock */
+		ast_mutex_unlock(&pri->lock);
+		PRI_DEADLOCK_AVOIDANCE(pri->pvts[chanpos]);
 		ast_mutex_lock(&pri->lock);
+	}
 }
 
-static void pri_queue_control(struct sig_pri_chan *p, int subclass, struct sig_pri_pri *pri)
+/*!
+ * \internal
+ * \brief Queue the given frame onto the owner channel.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
+ * \param frame Frame to queue onto the owner channel.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void pri_queue_frame(struct sig_pri_pri *pri, int chanpos, struct ast_frame *frame)
+{
+	sig_pri_lock_owner(pri, chanpos);
+	if (pri->pvts[chanpos]->owner) {
+		ast_queue_frame(pri->pvts[chanpos]->owner, frame);
+		ast_channel_unlock(pri->pvts[chanpos]->owner);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Queue a control frame of the specified subclass onto the owner channel.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
+ * \param subclass Control frame subclass to queue onto the owner channel.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing
+ */
+static void pri_queue_control(struct sig_pri_pri *pri, int chanpos, int subclass)
 {
 	struct ast_frame f = {AST_FRAME_CONTROL, };
+	struct sig_pri_chan *p = pri->pvts[chanpos];
 
 	if (p->calls->queue_control) {
 		p->calls->queue_control(p->chan_pvt, subclass);
 	}
 
 	f.subclass.integer = subclass;
-	pri_queue_frame(p, &f, pri);
+	pri_queue_frame(pri, chanpos, &f);
 }
 
 static int pri_find_principle(struct sig_pri_pri *pri, int channel, q931_call *call)
@@ -1519,37 +1567,6 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
 	}
 	/* Did not match any pattern in the list. */
 	return 0;
-}
-
-/*!
- * \internal
- * \brief Obtain the sig_pri owner channel lock if the owner exists.
- * \since 1.8
- *
- * \param pri sig_pri PRI control structure.
- * \param chanpos Channel position in the span.
- *
- * \note Assumes the pri->lock is already obtained.
- * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
- *
- * \return Nothing
- */
-static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
-{
-	for (;;) {
-		if (!pri->pvts[chanpos]->owner) {
-			/* There is no owner lock to get. */
-			break;
-		}
-		if (!ast_channel_trylock(pri->pvts[chanpos]->owner)) {
-			/* We got the lock */
-			break;
-		}
-		/* We must unlock the PRI to avoid the possibility of a deadlock */
-		ast_mutex_unlock(&pri->lock);
-		PRI_DEADLOCK_AVOIDANCE(pri->pvts[chanpos]);
-		ast_mutex_lock(&pri->lock);
-	}
 }
 
 #if defined(HAVE_PRI_CCSS)
@@ -2533,8 +2550,13 @@ static int sig_pri_handle_hold(struct sig_pri_pri *pri, pri_event *ev)
 	} else {
 		struct ast_frame f = { AST_FRAME_CONTROL, };
 
+		/*
+		 * Things are in an odd state here so we cannot use pri_queue_control().
+		 * However, we already have the owner lock so we can simply queue the frame.
+		 */
 		f.subclass.integer = AST_CONTROL_HOLD;
 		ast_queue_frame(owner, &f);
+
 		sig_pri_span_devstate_changed(pri);
 		retval = 0;
 	}
@@ -2602,12 +2624,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_pri *pri, pri_event *ev)
 	sig_pri_lock_private(pri->pvts[chanpos]);
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve.channel,
 		ev->retrieve.subcmds, ev->retrieve.call);
-	{
-		struct ast_frame f = { AST_FRAME_CONTROL, };
-
-		f.subclass.integer = AST_CONTROL_UNHOLD;
-		pri_queue_frame(pri->pvts[chanpos], &f, pri);
-	}
+	pri_queue_control(pri, chanpos, AST_CONTROL_UNHOLD);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
 	sig_pri_span_devstate_changed(pri);
 	pri_retrieve_ack(pri->pri, ev->retrieve.call,
@@ -2953,7 +2970,7 @@ static void *pri_dchannel(void *vpri)
 							for (i = 0; i < digitlen; i++) {
 								struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = e->digit.digits[i], };
 
-								pri_queue_frame(pri->pvts[chanpos], &f, pri);
+								pri_queue_frame(pri, chanpos, &f);
 							}
 						}
 						sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -2988,7 +3005,7 @@ static void *pri_dchannel(void *vpri)
 							for (i = 0; i < digitlen; i++) {
 								struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = e->ring.callednum[i], };
 
-								pri_queue_frame(pri->pvts[chanpos], &f, pri);
+								pri_queue_frame(pri, chanpos, &f);
 							}
 						}
 						sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -3430,7 +3447,7 @@ static void *pri_dchannel(void *vpri)
 							e->ringing.subcmds, e->ringing.call);
 						sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCNR);
 						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
-						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_RINGING, pri);
+						pri_queue_control(pri, chanpos, AST_CONTROL_RINGING);
 						pri->pvts[chanpos]->alerting = 1;
 
 #ifdef SUPPORT_USERUSER
@@ -3469,8 +3486,9 @@ static void *pri_dchannel(void *vpri)
 						|| (e->proceeding.progress == 8)
 #endif
 						) {
-						struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_PROGRESS, };
+						int subclass;
 
+						subclass = AST_CONTROL_PROGRESS;
 						if (e->proceeding.cause > -1) {
 							ast_verb(3, "PROGRESS with cause code %d received\n", e->proceeding.cause);
 
@@ -3480,14 +3498,14 @@ static void *pri_dchannel(void *vpri)
 									ast_verb(3, "PROGRESS with 'user busy' received, signaling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
 
 									pri->pvts[chanpos]->owner->hangupcause = e->proceeding.cause;
-									f.subclass.integer = AST_CONTROL_BUSY;
+									subclass = AST_CONTROL_BUSY;
 								}
 							}
 						}
 
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-						pri_queue_frame(pri->pvts[chanpos], &f, pri);
+						pri_queue_control(pri, chanpos, subclass);
 						if (
 #ifdef PRI_PROGRESS_MASK
 							e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE
@@ -3496,8 +3514,7 @@ static void *pri_dchannel(void *vpri)
 #endif
 							) {
 							/* Bring voice path up */
-							f.subclass.integer = AST_CONTROL_PROGRESS;
-							pri_queue_frame(pri->pvts[chanpos], &f, pri);
+							pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
 						}
 						pri->pvts[chanpos]->progress = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
@@ -3517,11 +3534,9 @@ static void *pri_dchannel(void *vpri)
 					sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
 						e->proceeding.subcmds, e->proceeding.call);
 					if (!pri->pvts[chanpos]->proceeding) {
-						struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_PROCEEDING, };
-
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-						pri_queue_frame(pri->pvts[chanpos], &f, pri);
+						pri_queue_control(pri, chanpos, AST_CONTROL_PROCEEDING);
 						if (
 #ifdef PRI_PROGRESS_MASK
 							e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE
@@ -3530,8 +3545,7 @@ static void *pri_dchannel(void *vpri)
 #endif
 							) {
 							/* Bring voice path up */
-							f.subclass.integer = AST_CONTROL_PROGRESS;
-							pri_queue_frame(pri->pvts[chanpos], &f, pri);
+							pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
 						}
 						pri->pvts[chanpos]->proceeding = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
@@ -3593,7 +3607,7 @@ static void *pri_dchannel(void *vpri)
 
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
 							e->answer.subcmds, e->answer.call);
-						pri_queue_control(pri->pvts[chanpos], AST_CONTROL_ANSWER, pri);
+						pri_queue_control(pri, chanpos, AST_CONTROL_ANSWER);
 						/* Enable echo cancellation if it's not on already */
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
 						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
@@ -3655,7 +3669,7 @@ static void *pri_dchannel(void *vpri)
 								default:
 									switch (e->hangup.cause) {
 									case PRI_CAUSE_USER_BUSY:
-										pri_queue_control(pri->pvts[chanpos], AST_CONTROL_BUSY, pri);
+										pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
 										break;
 									case PRI_CAUSE_CALL_REJECTED:
 									case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
@@ -3663,7 +3677,7 @@ static void *pri_dchannel(void *vpri)
 									case PRI_CAUSE_SWITCH_CONGESTION:
 									case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
 									case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
-										pri_queue_control(pri->pvts[chanpos], AST_CONTROL_CONGESTION, pri);
+										pri_queue_control(pri, chanpos, AST_CONTROL_CONGESTION);
 										break;
 									default:
 										ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
@@ -3756,7 +3770,7 @@ static void *pri_dchannel(void *vpri)
 							default:
 								switch (e->hangup.cause) {
 								case PRI_CAUSE_USER_BUSY:
-									pri_queue_control(pri->pvts[chanpos], AST_CONTROL_BUSY, pri);
+									pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
 									break;
 								case PRI_CAUSE_CALL_REJECTED:
 								case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
@@ -3764,7 +3778,7 @@ static void *pri_dchannel(void *vpri)
 								case PRI_CAUSE_SWITCH_CONGESTION:
 								case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
 								case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
-									pri_queue_control(pri->pvts[chanpos], AST_CONTROL_CONGESTION, pri);
+									pri_queue_control(pri, chanpos, AST_CONTROL_CONGESTION);
 									break;
 								default:
 									ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
@@ -3953,18 +3967,12 @@ static void *pri_dchannel(void *vpri)
 					switch (e->notify.info) {
 					case PRI_NOTIFY_REMOTE_HOLD:
 						if (!pri->discardremoteholdretrieval) {
-							struct ast_frame f = { AST_FRAME_CONTROL, };
-
-							f.subclass.integer = AST_CONTROL_HOLD;
-							pri_queue_frame(pri->pvts[chanpos], &f, pri);
+							pri_queue_control(pri, chanpos, AST_CONTROL_HOLD);
 						}
 						break;
 					case PRI_NOTIFY_REMOTE_RETRIEVAL:
 						if (!pri->discardremoteholdretrieval) {
-							struct ast_frame f = { AST_FRAME_CONTROL, };
-
-							f.subclass.integer = AST_CONTROL_UNHOLD;
-							pri_queue_frame(pri->pvts[chanpos], &f, pri);
+							pri_queue_control(pri, chanpos, AST_CONTROL_UNHOLD);
 						}
 						break;
 					}
