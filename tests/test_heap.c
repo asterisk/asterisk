@@ -190,19 +190,116 @@ return_cleanup:
 	return res;
 }
 
+AST_TEST_DEFINE(heap_test_3)
+{
+	struct ast_heap *h = NULL;
+	struct node *nodes = NULL;
+	struct node *node;
+	static const unsigned int test_size = 100000;
+	unsigned int i = test_size;
+	long last = LONG_MAX, cur;
+	int random_index;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "heap_test_3";
+		info->category = "main/heap/";
+		info->summary = "random element removal test";
+		info->description =
+			"Push a hundred thousand random elements on to a heap, "
+			"verify that the heap has been properly constructed, "
+			"randomly remove and re-add 10000 elements, and then "
+			"ensure that the elements come back off in the proper order.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(nodes = ast_malloc(test_size * sizeof(*node)))) {
+		ast_test_status_update(test, "memory allocation failure\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+
+	if (!(h = ast_heap_create(20, node_cmp, offsetof(struct node, index)))) {
+		ast_test_status_update(test, "Failed to allocate heap\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+
+	while (i--) {
+		nodes[i].val = ast_random();
+		ast_heap_push(h, &nodes[i]);
+	}
+
+	if (ast_heap_verify(h)) {
+		ast_test_status_update(test, "Failed to verify heap after populating it\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+
+	i = test_size / 10;
+	while (i--) {
+		random_index = ast_random() % test_size - 1;
+		node = ast_heap_remove(h, &nodes[random_index]);
+		if (nodes[random_index].val != node->val){
+			ast_test_status_update(test, "Failed to remove what we expected to\n");
+			res = AST_TEST_FAIL;
+			goto return_cleanup;
+		}
+		ast_heap_push(h, &nodes[random_index]);
+	}
+
+	if (ast_heap_verify(h)) {
+		ast_test_status_update(test, "Failed to verify after removals\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+
+	i = 0;
+	while ((node = ast_heap_pop(h))) {
+		cur = node->val;
+		if (cur > last) {
+			ast_test_status_update(test, "i: %u, cur: %ld, last: %ld\n", i, cur, last);
+			res = AST_TEST_FAIL;
+			goto return_cleanup;
+		}
+		last = cur;
+		i++;
+	}
+
+	if (i != test_size) {
+		ast_test_status_update(test, "Stopped popping off after only getting %u nodes\n", i);
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+
+return_cleanup:
+	if (h) {
+		h = ast_heap_destroy(h);
+	}
+	if (nodes) {
+		ast_free(nodes);
+	}
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(heap_test_1);
 	AST_TEST_UNREGISTER(heap_test_2);
+	AST_TEST_UNREGISTER(heap_test_3);
+
 	return 0;
 }
 
 static int load_module(void)
 {
-
 	AST_TEST_REGISTER(heap_test_1);
-
 	AST_TEST_REGISTER(heap_test_2);
+	AST_TEST_REGISTER(heap_test_3);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
