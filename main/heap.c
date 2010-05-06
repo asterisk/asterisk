@@ -92,13 +92,13 @@ int ast_heap_verify(struct ast_heap *h)
 		int r = right_node(i);
 
 		if (l <= h->cur_len) {
-			if (h->cmp_fn(heap_get(h, i), heap_get(h, l)) <= 0) {
+			if (h->cmp_fn(heap_get(h, i), heap_get(h, l)) < 0) {
 				return -1;
 			}
 		}
 
 		if (r <= h->cur_len) {
-			if (h->cmp_fn(heap_get(h, i), heap_get(h, r)) <= 0) {
+			if (h->cmp_fn(heap_get(h, i), heap_get(h, r)) < 0) {
 				return -1;
 			}
 		}
@@ -202,21 +202,25 @@ static inline void max_heapify(struct ast_heap *h, int i)
 	}
 }
 
+static int bubble_up(struct ast_heap *h, int i)
+{
+	while (i > 1 && h->cmp_fn(heap_get(h, parent_node(i)), heap_get(h, i)) < 0) {
+		heap_swap(h, i, parent_node(i));
+		i = parent_node(i);
+	}
+
+	return i;
+}
+
 int ast_heap_push(struct ast_heap *h, void *elm)
 {
-	int i;
-
 	if (h->cur_len == h->avail_len && grow_heap(h)) {
 		return -1;
 	}
 
 	heap_set(h, ++(h->cur_len), elm);
 
-	for (i = h->cur_len;
-			i > 1 && h->cmp_fn(heap_get(h, parent_node(i)), heap_get(h, i)) < 0;
-			i = parent_node(i)) {
-		heap_swap(h, i, parent_node(i));
-	}
+	bubble_up(h, h->cur_len);
 
 	return 0;
 }
@@ -231,7 +235,7 @@ static void *_ast_heap_remove(struct ast_heap *h, unsigned int index)
 
 	ret = heap_get(h, index);
 	heap_set(h, index, heap_get(h, (h->cur_len)--));
-
+	index = bubble_up(h, index);
 	max_heapify(h, index);
 
 	return ret;
