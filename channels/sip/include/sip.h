@@ -93,7 +93,7 @@
 #define MAX_AUTHTRIES             3      /*!< Try authentication three times, then fail */
 
 #define SIP_MAX_HEADERS           64     /*!< Max amount of SIP headers to read */
-#define SIP_MAX_LINES             64     /*!< Max amount of lines in SIP attachment (like SDP) */
+#define SIP_MAX_LINES             256    /*!< Max amount of lines in SIP attachment (like SDP) */
 #define SIP_MIN_PACKET            4096   /*!< Initialize size of memory to allocate for packets */
 #define MAX_HISTORY_ENTRIES		  50	 /*!< Max entires in the history list for a sip_pvt */
 
