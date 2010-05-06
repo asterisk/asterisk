@@ -10179,6 +10179,9 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 	}
 
 	res = leave_voicemail(chan, args.argv0, &leave_options);
+	if (res == OPERATOR_EXIT) {
+		res = 0;
+	}
 
 	if (res == ERROR_LOCK_PATH) {
 		ast_log(AST_LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
@@ -12927,7 +12930,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				return 1;
 #endif
 		case '0':
-			if (!ast_test_flag(vmu, VM_OPERATOR)) {
+			if (!ast_test_flag(vmu, VM_OPERATOR) || !outsidecaller) {
 				cmd = ast_play_and_wait(chan, "vm-sorry");
 				break;
 			}
