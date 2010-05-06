@@ -236,7 +236,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define MAX_AUTHTRIES                3                /*!< Try authentication three times, then fail */
 
 #define SIP_MAX_HEADERS              64               /*!< Max amount of SIP headers to read */
-#define SIP_MAX_LINES                64               /*!< Max amount of lines in SIP attachment (like SDP) */
+#define SIP_MAX_LINES                256              /*!< Max amount of lines in SIP attachment (like SDP) */
 #define SIP_MAX_PACKET               4096             /*!< Also from RFC 3261 (2543), should sub headers tho */
 
 #define INITIAL_CSEQ                 101              /*!< our initial sip sequence number */
