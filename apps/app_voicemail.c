@@ -9468,7 +9468,6 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		case '7':
 		case '8':
 		case '9':
-		case '0':
 		case '*':
 		case '#':
 			cmd = ast_play_and_wait(chan, "vm-sorry");
@@ -9487,6 +9486,25 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			else
 				return 1;
 #endif
+		case '0':
+			if (!ast_test_flag(vmu, VM_OPERATOR)) {
+				cmd = ast_play_and_wait(chan, "vm-sorry");
+				break;
+			}
+			if (message_exists || recorded) {
+				cmd = ast_play_and_wait(chan, "vm-saveoper");
+				if (!cmd)
+					cmd = ast_waitfordigit(chan, 3000);
+				if (cmd == '1') {
+					ast_play_and_wait(chan, "vm-msgsaved");
+					cmd = '0';
+				} else {
+					ast_play_and_wait(chan, "vm-deleted");
+					DELETE(recordfile, -1, recordfile, vmu);
+					cmd = '0';
+				}
+			}
+			return cmd;
 		default:
 			/* If the caller is an ouside caller, and the review option is enabled,
 			   allow them to review the message, but let the owner of the box review
