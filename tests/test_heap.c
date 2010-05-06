@@ -119,7 +119,7 @@ static int test2(int fd)
 
 	ast_cli(fd, "Test #2 - Push a million random elements on to a heap, "
 			"verify that the heap has been properly constructed, "
-			"and then ensure that the elements are come back off in the proper order\n");
+			"and then ensure that the elements come back off in the proper order\n");
 
 	if (!(nodes = ast_malloc(one_million * sizeof(*node)))) {
 		res = -1;
@@ -172,6 +172,90 @@ return_cleanup:
 	return res;
 }
 
+static int test3(int fd)
+{
+	struct ast_heap *h = NULL;
+	struct node *nodes = NULL;
+	struct node *node;
+	static const unsigned int test_size = 100000;
+	unsigned int i = test_size;
+	long last = LONG_MAX, cur;
+	int res = 0;
+	int random_index;
+
+	ast_cli(fd, "Test #3 - Push a hundred thousand random elements on to a heap, "
+			"verify that the heap has been properly constructed, "
+			"randomly remove and re-add 10000 elements and then ensure that the elements come back off in the proper order\n");
+
+	if (!(nodes = ast_malloc(test_size * sizeof(*node)))) {
+		res = -1;
+		goto return_cleanup;
+	}
+
+	if (!(h = ast_heap_create(20, node_cmp, offsetof(struct node, index)))) {
+		res = -2;
+		goto return_cleanup;
+	}
+
+	while (i--) {
+		nodes[i].val = ast_random();
+		ast_heap_push(h, &nodes[i]);
+	}
+
+	if (ast_heap_verify(h)) {
+		res = -3;
+		goto return_cleanup;
+	}
+
+	i = test_size / 10;
+	while (i--) {
+		random_index = ast_random() % test_size - 1;
+		node = ast_heap_remove(h, &nodes[random_index]);
+		if (nodes[random_index].val != node->val){
+			res = -4;
+			goto return_cleanup;
+		}
+		ast_heap_push(h, &nodes[random_index]); 
+
+	}
+
+	if (ast_heap_verify(h)) {
+		res = -5;
+		goto return_cleanup;
+	}
+
+	i = 0;
+	while ((node = ast_heap_pop(h))) {
+		cur = node->val;
+		if (cur > last) {
+			ast_cli(fd, "i: %u, cur: %ld, last: %ld\n", i, cur, last);
+			res = -6;
+			goto return_cleanup;
+		}
+		last = cur;
+		i++;
+	}
+
+	if (i != test_size) {
+		ast_cli(fd, "Stopped popping off after only getting %u nodes\n", i);
+		res = -7;
+		goto return_cleanup;
+	}
+
+	ast_cli(fd, "Test #3 successful.\n");
+
+return_cleanup:
+	if (h) {
+		h = ast_heap_destroy(h);
+	}
+	if (nodes) {
+		ast_free(nodes);
+	}
+
+	return res;
+}
+
+
 static char *handle_cli_heap_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int res;
@@ -198,6 +282,11 @@ static char *handle_cli_heap_test(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	if ((res = test2(a->fd))) {
 		ast_cli(a->fd, "Test 2 failed! (%d)\n", res);
+		return CLI_FAILURE;
+	}
+
+	if ((res = test3(a->fd))) {
+		ast_cli(a->fd, "Test 3 failed! (%d)\n", res);
 		return CLI_FAILURE;
 	}
 
