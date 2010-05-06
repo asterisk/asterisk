@@ -17722,7 +17722,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *base_conf, struct
 			ast_mutex_unlock(&iflock);
 			ast_config_destroy(cfg);
 			if (ucfg) {
-				ast_config_destroy(cfg);
+				ast_config_destroy(ucfg);
 			}
 			return res;
 		}
