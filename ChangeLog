@@ -942,6 +942,46 @@
 	  | 5 lines DAHDI/PRI call to pri_channel_bridge() not protected by
 	  PRI lock. SWP-1231 ABE-2163 ........ ................
 
+2010-05-03  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.7 Released
+
+2010-04-29  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.7-rc3 Released
+
+2010-04-29 10:31 +0000 [r260053]  David Vossel <dvossel@digium.com>
+
+	* include/asterisk/audiohook.h, main/audiohook.c: Fixes crash in
+	  audiohook_write_list.  (closes issue 0017052) Reported by: dvossel
+	  Tested by: dvossel. (closes issue 0016196) Reported by: atis.
+	  Review: https://reviewboard.asterisk.org/r/623/
+
+2010-04-28 10:31 +0000 [r259899]  David Vossel <dvossel@digium.com>
+
+	* channels/chan_local.c, main/channel.c: Resolves deadlocks in
+	  chan_local.  (closes issue 0017185) Reported by: schmoozecom
+	  Patches: issue_17185_v1.diff uploaded by dvossel (license 671)
+	  issue_17185_v2.diff uploaded by dvossel (license 671) Tested
+	  by: schmoozecom, GameGamer43
+	  Review: https://reviewboard.asterisk.org/r/631/
+
+2010-04-13  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.7-rc2 Released
+
+2010-04-13 [r257210]  Tilghman Lesher <tlesher@digium.com>
+
+	Also unref the pvt when we delete the provisional keepalive job.
+
+	(closes issue #16774)
+	 Reported by: kowalma
+	 Patches: 
+	       20100315__issue16774.diff.txt uploaded by tilghman (license 14)
+	 Tested by: falves11, jamicque
+
+	Review: https://reviewboard.asterisk.org/r/591/
+
 2010-04-05  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.7-rc1 Released
