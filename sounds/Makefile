@@ -20,6 +20,7 @@ SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
 CORE_SOUNDS_VERSION:=1.4.18
 EXTRA_SOUNDS_VERSION:=1.4.11
+MOH_VERSION:=2.03
 SOUNDS_URL:=http://downloads.asterisk.org/pub/telephony/sounds/releases
 MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
 MCS:=$(subst -FR-,-fr-,$(MCS))
@@ -50,8 +51,8 @@ MM:=$(subst -ALAW,-alaw,$(MM))
 MM:=$(subst -GSM,-gsm,$(MM))
 MM:=$(subst -G729,-g729,$(MM))
 MM:=$(subst -G722,-g722,$(MM))
-MOH:=$(MM:MOH-%=asterisk-moh-%.tar.gz)
-MOH_TAGS:=$(MM:MOH-%=$(MOH_DIR)/.asterisk-moh-%)
+MOH:=$(MM:MOH-%=asterisk-moh-%-$(MOH_VERSION).tar.gz)
+MOH_TAGS:=$(MM:MOH-%=$(MOH_DIR)/.asterisk-moh-%-$(MOH_VERSION))
 # If "fetch" is used, --continue is not a valid option.
 ifneq ($(findstring wget,$(WGET)),)
 WGET_ARGS:=--continue $(WGET_EXTRA_ARGS)
@@ -127,6 +128,7 @@ $(MOH_DIR)/.asterisk-moh-%: have_download
 	@PACKAGE=$(subst $(MOH_DIR)/.asterisk,asterisk,$@).tar.gz; \
 	if test ! -f $${PACKAGE}; then $(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
+	rm -f $(subst -$(MOH_VERSION),,$@)-* && \
 	(cd $(MOH_DIR); cat $(PWD)/$${PACKAGE} | gzip -d | tar xof -) && \
 	touch $@
 
@@ -156,3 +158,6 @@ core_sounds_version:
 
 extra_sounds_version:
 	@echo $(EXTRA_SOUNDS_VERSION)
+
+moh_version:
+	@echo $(MOH_VERSION)
