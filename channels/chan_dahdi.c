@@ -17267,7 +17267,7 @@ static int setup_dahdi(int reload)
 			ast_mutex_unlock(&iflock);
 			ast_config_destroy(cfg);
 			if (ucfg) {
-				ast_config_destroy(cfg);
+				ast_config_destroy(ucfg);
 			}
 			return res;
 		}
