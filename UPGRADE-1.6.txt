@@ -209,6 +209,12 @@ Channel Drivers:
   The "username" setting still work, but is deprecated and will not work in 
   the next version of Asterisk.
 
+* SIP: The old "insecure" options, deprecated in 1.4, have been removed.
+  "insecure=very" should be changed to "insecure=port,invite"
+  "insecure=yes" should be changed to "insecure=port"
+  Be aware that some telephony providers show the invalid syntax in their
+  sample configurations.
+
 * chan_local.c: the comma delimiter inside the channel name has been changed to a
   semicolon, in order to make the Local channel driver compatible with the comma
   delimiter change in applications.
