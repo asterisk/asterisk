@@ -109,10 +109,10 @@
 /* Define to 1 if your GCC C compiler supports the 'weak_import' attribute. */
 #undef HAVE_ATTRIBUTE_weak_import
 
-/* Define to 1 if you have the Stack Backtrace support library. */
+/* Define to 1 if you have the Stack Backtrace library. */
 #undef HAVE_BKTR
 
-/* Define to the version of the Stack Backtrace support library. */
+/* Define to the version of the Stack Backtrace library. */
 #undef HAVE_BKTR_VERSION
 
 /* Define to 1 if byteswap.h macros are available. */
@@ -142,10 +142,10 @@
 /* Define to 1 if you have the `cosl' function. */
 #undef HAVE_COSL
 
-/* Define to 1 if you have the OpenSSL Cryptography support library. */
+/* Define to 1 if you have the OpenSSL Cryptography library. */
 #undef HAVE_CRYPTO
 
-/* Define to the version of the OpenSSL Cryptography support library. */
+/* Define to the version of the OpenSSL Cryptography library. */
 #undef HAVE_CRYPTO_VERSION
 
 /* Define to 1 if you have a functional curl library. */
@@ -221,10 +221,10 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Define to 1 if you have the Ffmpeg and avcodec library library. */
+/* Define to 1 if you have the Ffmpeg and avcodec library. */
 #undef HAVE_FFMPEG
 
-/* Define to the version of the Ffmpeg and avcodec library library. */
+/* Define to the version of the Ffmpeg and avcodec library. */
 #undef HAVE_FFMPEG_VERSION
 
 /* Define to 1 if you have the `floor' function. */
@@ -302,7 +302,7 @@
 /* Define if your system has the GMIME libraries. */
 #undef HAVE_GMIME
 
-/* Define to the version of the GMime library library. */
+/* Define to the version of the GMime library. */
 #undef HAVE_GMIME_VERSION
 
 /* Define to indicate the GSM library */
@@ -314,7 +314,7 @@
 /* Define to indicate that gsm.h has no prefix for its location */
 #undef HAVE_GSM_HEADER
 
-/* Define to the version of the External GSM library library. */
+/* Define to the version of the External GSM library. */
 #undef HAVE_GSM_VERSION
 
 /* Define if your system has the GTK libraries. */
@@ -323,10 +323,10 @@
 /* Define if your system has the GTK2 libraries. */
 #undef HAVE_GTK2
 
-/* Define to the version of the gtk2 libraries library. */
+/* Define to the version of the gtk2 library. */
 #undef HAVE_GTK2_VERSION
 
-/* Define to the version of the gtk libraries library. */
+/* Define to the version of the gtk library. */
 #undef HAVE_GTK_VERSION
 
 /* Define to 1 if you have the Hoard Memory Allocator library. */
@@ -335,16 +335,16 @@
 /* Define to the version of the Hoard Memory Allocator library. */
 #undef HAVE_HOARD_VERSION
 
-/* Define to 1 if you have the Iconv Library library. */
+/* Define to 1 if you have the Iconv library. */
 #undef HAVE_ICONV
 
-/* Define to the version of the Iconv Library library. */
+/* Define to the version of the Iconv library. */
 #undef HAVE_ICONV_VERSION
 
-/* Define to 1 if you have the Iksemel Jabber Library library. */
+/* Define to 1 if you have the Iksemel Jabber library. */
 #undef HAVE_IKSEMEL
 
-/* Define to the version of the Iksemel Jabber Library library. */
+/* Define to the version of the Iksemel Jabber library. */
 #undef HAVE_IKSEMEL_VERSION
 
 /* Define if your system has the UW IMAP Toolkit c-client library. */
@@ -390,10 +390,10 @@
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
-/* Define to 1 if you have the ISDN4Linux Library library. */
+/* Define to 1 if you have the ISDN4Linux library. */
 #undef HAVE_ISDNNET
 
-/* Define to the version of the ISDN4Linux Library library. */
+/* Define to the version of the ISDN4Linux library. */
 #undef HAVE_ISDNNET_VERSION
 
 /* Define to 1 if you have the Jack Audio Connection Kit library. */
@@ -477,7 +477,7 @@
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
-/* Define to 1 if you have the mISDN User Library library. */
+/* Define to 1 if you have the mISDN user library. */
 #undef HAVE_MISDN
 
 /* Define if your system has the MISDN_FAC_ERROR headers. */
@@ -492,7 +492,7 @@
 /* Define MISDN_FAC_RESULT headers version */
 #undef HAVE_MISDN_FAC_RESULT_VERSION
 
-/* Define to the version of the mISDN User Library library. */
+/* Define to the version of the mISDN user library. */
 #undef HAVE_MISDN_VERSION
 
 /* Define to 1 if you have the `mkdir' function. */
@@ -567,12 +567,10 @@
 /* Define to the version of the MFR2 library. */
 #undef HAVE_OPENR2_VERSION
 
-/* Define to 1 if you have the OpenSSL Secure Sockets Layer support library.
-   */
+/* Define to 1 if you have the OpenSSL Secure Sockets Layer library. */
 #undef HAVE_OPENSSL
 
-/* Define to the version of the OpenSSL Secure Sockets Layer support library.
-   */
+/* Define to the version of the OpenSSL Secure Sockets Layer library. */
 #undef HAVE_OPENSSL_VERSION
 
 /* Define this to indicate the ${OSPTK_DESCRIP} library */
@@ -713,10 +711,10 @@
 /* Define if your system has the SDL libraries. */
 #undef HAVE_SDL
 
-/* Define to 1 if you have the Sdl Image library library. */
+/* Define to 1 if you have the Sdl Image library. */
 #undef HAVE_SDL_IMAGE
 
-/* Define to the version of the Sdl Image library library. */
+/* Define to the version of the Sdl Image library. */
 #undef HAVE_SDL_IMAGE_VERSION
 
 /* Define to the version of the Sdl library. */
@@ -752,10 +750,10 @@
 /* Define to 1 if you have the Speex library. */
 #undef HAVE_SPEEX
 
-/* Define to 1 if you have the Speexdsp library. */
+/* Define to 1 if you have the SpeexDSP library. */
 #undef HAVE_SPEEXDSP
 
-/* Define to the version of the Speexdsp library. */
+/* Define to the version of the SpeexDSP library. */
 #undef HAVE_SPEEXDSP_VERSION
 
 /* Define to 1 if you have the speex_preprocess_ctl library. */
@@ -1051,16 +1049,16 @@
 /* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
 
-/* Define to 1 if you have the X11 support library. */
+/* Define to 1 if you have the X11 library. */
 #undef HAVE_X11
 
-/* Define to the version of the X11 support library. */
+/* Define to the version of the X11 library. */
 #undef HAVE_X11_VERSION
 
-/* Define to 1 if you have the zlib library. */
+/* Define to 1 if you have the zlib compression library. */
 #undef HAVE_ZLIB
 
-/* Define to the version of the zlib library. */
+/* Define to the version of the zlib compression library. */
 #undef HAVE_ZLIB_VERSION
 
 /* Define to 1 if the system has the type `_Bool'. */

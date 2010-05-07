@@ -294,30 +294,30 @@ AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 
 # BKTR is used for backtrace support on platforms that do not
 # have it natively.
-AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace support], [execinfo])
+AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace], [execinfo])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
-AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography support], [crypto])
+AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
-AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec library], [avcodec])
-AST_EXT_LIB_SETUP([GSM], [External GSM library], [gsm], [, use 'internal' GSM otherwise])
-AST_EXT_LIB_SETUP([GTK], [gtk libraries], [gtk])
-AST_EXT_LIB_SETUP([GTK2], [gtk2 libraries], [gtk2])
-AST_EXT_LIB_SETUP([GMIME], [GMime library], [gmime])
+AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec], [avcodec])
+AST_EXT_LIB_SETUP([GSM], [External GSM], [gsm], [, use 'internal' GSM otherwise])
+AST_EXT_LIB_SETUP([GTK], [gtk], [gtk])
+AST_EXT_LIB_SETUP([GTK2], [gtk2], [gtk2])
+AST_EXT_LIB_SETUP([GMIME], [GMime], [gmime])
 AST_EXT_LIB_SETUP([HOARD], [Hoard Memory Allocator], [hoard])
-AST_EXT_LIB_SETUP([ICONV], [Iconv Library], [iconv])
-AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
+AST_EXT_LIB_SETUP([ICONV], [Iconv], [iconv])
+AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber], [iksemel])
 AST_EXT_LIB_SETUP([IMAP_TK], [UW IMAP Toolkit], [imap])
 AST_EXT_LIB_SETUP([INOTIFY], [inotify support], [inotify])
 AST_EXT_LIB_SETUP([IODBC], [iODBC], [iodbc])
-AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux Library], [isdnnet])
+AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux], [isdnnet])
 AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
 AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
 AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
 AST_EXT_LIB_SETUP([LTDL], [libtool], [ltdl])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
-AST_EXT_LIB_SETUP([MISDN], [mISDN User Library], [misdn])
+AST_EXT_LIB_SETUP([MISDN], [mISDN user], [misdn])
 AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
 AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
@@ -338,16 +338,16 @@ AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([SDL], [Sdl], [sdl])
-AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image library], [SDL_image])
+AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image], [SDL_image])
 AST_EXT_LIB_SETUP([OPENAIS], [OpenAIS], [openais])
 AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
 AST_EXT_LIB_SETUP([SPEEX_PREPROCESS], [Speex preprocess routines], [speex])
-AST_EXT_LIB_SETUP([SPEEXDSP], [Speexdsp], [speexdsp])
+AST_EXT_LIB_SETUP([SPEEXDSP], [SpeexDSP], [speexdsp])
 AST_EXT_LIB_SETUP_DEPENDENT([SPEEX_PREPROCESS], [speex_preprocess_ctl], [], [speex])
 AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
 AST_EXT_LIB_SETUP([SQLITE3], [SQLite], [sqlite3])
 AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
-AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer support], [ssl])
+AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
 AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
 AST_EXT_LIB_SETUP([TERMCAP], [Termcap], [termcap])
 AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
@@ -356,8 +356,8 @@ AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [unixodbc])
 AST_EXT_LIB_SETUP([USB], [usb], [usb])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
-AST_EXT_LIB_SETUP([X11], [X11 support], [x11])
-AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
+AST_EXT_LIB_SETUP([X11], [X11], [x11])
+AST_EXT_LIB_SETUP([ZLIB], [zlib compression], [z])
 AST_EXT_LIB_SETUP([TIMERFD], [timerfd], [timerfd])
 
 # check for basic system features and functionality before
@@ -528,6 +528,10 @@ AC_MSG_RESULT(no)
 )
 
 AC_MSG_CHECKING(for pthread_rwlock_timedwrlock() in pthread.h)
+save_LIBS="$LIBS"
+save_CFLAGS="$CFLAGS"
+LIBS="$PTHREAD_LIBS $LIBS"
+CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 AC_LINK_IFELSE(
   [AC_LANG_PROGRAM(
     [#include <pthread.h>
@@ -541,6 +545,8 @@ AC_LINK_IFELSE(
     ac_cv_pthread_rwlock_timedwrlock="no"
   ]
 )
+LIBS="$save_LIBS"
+CFLAGS="$save_CFLAGS"
 if test "${ac_cv_pthread_rwlock_timedwrlock}" = "yes"; then
   AC_DEFINE([HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK], 1, [Define if your system has pthread_rwlock_timedwrlock()])
 fi
@@ -1360,7 +1366,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 	LIBS="${saved_libs}"
 fi
 
-AST_EXT_LIB_CHECK([IODBC], [iodbc], [SQLConnect], [sql.h], [-lpthread])
+AST_EXT_LIB_CHECK([IODBC], [iodbc], [SQLConnect], [sql.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
 
 AST_EXT_LIB_CHECK([INOTIFY], [c], [inotify_init], [sys/inotify.h])
 
@@ -1649,6 +1655,7 @@ AC_LANG_PUSH(C++)
 if test "${USE_VPB}" != "no"; then
    AC_MSG_CHECKING(for vpb_open in -lvpb)
    saved_libs="${LIBS}"
+   saved_cflags="${CFLAGS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
       if test -d ${VPB_DIR}/lib; then
@@ -1659,7 +1666,8 @@ if test "${USE_VPB}" != "no"; then
       LIBS="${LIBS} -L${vpblibdir}"
       CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
    fi
-   LIBS="${LIBS} -lvpb -lpthread"
+   LIBS="${PTHREAD_LIBS} ${LIBS} -lvpb"
+   CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
    AC_LINK_IFELSE(
 	[
 	AC_LANG_PROGRAM(
@@ -1673,6 +1681,7 @@ if test "${USE_VPB}" != "no"; then
 		ac_cv_lib_vpb_vpb_open="no" 
 	]
 	)
+   CFLAGS="${saved_cflags}"
    LIBS="${saved_libs}"
    CPPFLAGS="${saved_cppflags}"
    if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
@@ -1734,7 +1743,7 @@ AC_SUBST(PBX_IXJUSER)
 
 AST_EXT_TOOL_CHECK([SDL], [sdl])
 AST_EXT_LIB_CHECK([SDL_IMAGE], [SDL_image], [IMG_Load], [SDL_image.h], [${SDL_LIB}], [${SDL_INCLUDE}])
-AST_EXT_LIB_CHECK([FFMPEG], [avcodec], [sws_getContext], [ffmpeg/avcodec.h], [-lpthread -lz -lm])
+AST_EXT_LIB_CHECK([FFMPEG], [avcodec], [sws_getContext], [ffmpeg/avcodec.h], [${PTHREAD_LIBS} -lz -lm], [${PTHREAD_CFLAGS}])
 
 # possible places for video4linux version 1
 AC_CHECK_HEADER([linux/videodev.h],
