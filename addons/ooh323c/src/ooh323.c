@@ -16,6 +16,7 @@
 
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/time.h"
 #include <time.h>
 
 #include "ootypes.h"
