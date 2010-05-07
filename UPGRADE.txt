@@ -78,6 +78,10 @@ From 1.6.2 to 1.8:
 * The Manager event 'iax2 show peers' output has been updated.  It now has a
   similar output of 'sip show peers'.
 
+* VoiceMailMain and VMAuthenticate, if a '*' is entered in the first position
+  of a Mailbox or Password, will, if it exists, jump to the 'a' extension in
+  the current dialplan context.
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by

@@ -250,6 +250,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			may be specified. If a <replaceable>mailbox</replaceable> is not provided, the calling party will
 			be prompted to enter one. If a <replaceable>context</replaceable> is not specified, the
 			<literal>default</literal> context will be used.</para>
+			<para>The VoiceMailMain application will exit if the following DTMF digit is entered as Mailbox
+			or Password, and the extension exists:</para>
+			<enumlist>
+				<enum name="*">
+					<para>Jump to the <literal>a</literal> extension in the current dialplan context.</para>
+				</enum>
+			</enumlist>
 		</description>
 	</application>
 	<application name="MailboxExists" language="en_US">
@@ -303,6 +310,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			specified, only that mailbox's password will be considered valid. If the <replaceable>mailbox</replaceable>
 			is not specified, the channel variable <variable>AUTH_MAILBOX</variable> will be set with the authenticated
 			mailbox.</para>
+			<para>The VMAuthenticate application will exit if the following DTMF digit is entered as Mailbox
+			or Password, and the extension exists:</para>
+			<enumlist>
+				<enum name="*">
+					<para>Jump to the <literal>a</literal> extension in the current dialplan context.</para>
+				</enum>
+			</enumlist>
 		</description>
 	</application>
 	<application name="VMSayName" language="en_US">
@@ -9342,7 +9356,14 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 				ast_verb(3, "Username not entered\n");	
 				return -1;
 			}
+		} else if (mailbox[0] == '*') {
+			/* user entered '*' */
+			if (ast_exists_extension(chan, chan->context, "a", 1, chan->cid.cid_num)) {
+				return -1;
+			}
+			mailbox[0] = '\0';
 		}
+
 		if (useadsi)
 			adsi_password(chan);
 
@@ -9366,6 +9387,13 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
 				ast_log(AST_LOG_WARNING, "Unable to read password\n");
 				return -1;
+			} else if (password[0] == '*') {
+				/* user entered '*' */
+				if (ast_exists_extension(chan, chan->context, "a", 1, chan->cid.cid_num)) {
+					mailbox[0] = '*';
+					return -1;
+				}
+				mailbox[0] = '\0';
 			}
 		}
 
@@ -9531,6 +9559,17 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 		res = vm_authenticate(chan, vms.username, sizeof(vms.username), &vmus, context, prefixstr, skipuser, maxlogins, 0);
 
 	ast_debug(1, "After vm_authenticate\n");
+
+	if (vms.username[0] == '*') {
+		ast_debug(1, "user pressed * in context '%s'\n", chan->context);
+
+		/* user entered '*' */
+		if (!ast_goto_if_exists(chan, chan->context, "a", 1)) {
+			res = 0;	/* prevent hangup */
+			goto out;
+		}
+	}
+
 	if (!res) {
 		valid = 1;
 		if (!skipuser)
@@ -10536,6 +10575,11 @@ static int vmauthenticate(struct ast_channel *chan, const char *data)
 		pbx_builtin_setvar_helper(chan, "AUTH_CONTEXT", vmus.context);
 		ast_play_and_wait(chan, "auth-thankyou");
 		res = 0;
+	} else if (mailbox[0] == '*') {
+		/* user entered '*' */
+		if (!ast_goto_if_exists(chan, chan->context, "a", 1)) {
+			res = 0;	/* prevent hangup */
+		}
 	}
 
 	return res;
