@@ -2886,7 +2886,7 @@ static void *pri_dchannel(void *vpri)
 										ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
 								}
 								if (p->owner)
-									ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+									p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
 							sig_pri_set_alarm(p, 1);
 						}
@@ -2925,7 +2925,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						/* Force soft hangup if appropriate */
 						if (pri->pvts[chanpos]->owner)
-							ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				} else {
@@ -2938,7 +2938,7 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[x]->call = NULL;
 							}
  							if (pri->pvts[x]->owner)
-								ast_softhangup_nolock(pri->pvts[x]->owner, AST_SOFTHANGUP_DEV);
+								pri->pvts[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							sig_pri_unlock_private(pri->pvts[x]);
 						}
 				}
@@ -3664,7 +3664,7 @@ static void *pri_dchannel(void *vpri)
 								switch (pri->pvts[chanpos]->owner->_state) {
 								case AST_STATE_BUSY:
 								case AST_STATE_UP:
-									ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 									break;
 								default:
 									switch (e->hangup.cause) {
@@ -3680,7 +3680,7 @@ static void *pri_dchannel(void *vpri)
 										pri_queue_control(pri, chanpos, AST_CONTROL_CONGESTION);
 										break;
 									default:
-										ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 										break;
 									}
 									break;
@@ -3765,7 +3765,7 @@ static void *pri_dchannel(void *vpri)
 							switch (pri->pvts[chanpos]->owner->_state) {
 							case AST_STATE_BUSY:
 							case AST_STATE_UP:
-								ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								break;
 							default:
 								switch (e->hangup.cause) {
@@ -3781,7 +3781,7 @@ static void *pri_dchannel(void *vpri)
 									pri_queue_control(pri, chanpos, AST_CONTROL_CONGESTION);
 									break;
 								default:
-									ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 									break;
 								}
 								break;
@@ -3877,7 +3877,7 @@ static void *pri_dchannel(void *vpri)
 							if (pri->pvts[chanpos]->owner) {
 								ast_log(LOG_WARNING, "Got restart ack on channel %d/%d with owner on span %d\n", pri->pvts[chanpos]->logicalspan,
 									pri->pvts[chanpos]->prioffset, pri->span);
-								ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
 							pri->pvts[chanpos]->resetting = 0;
 							ast_verb(3, "B-channel %d/%d successfully restarted on span %d\n", pri->pvts[chanpos]->logicalspan,
@@ -3898,7 +3898,7 @@ static void *pri_dchannel(void *vpri)
 						if (pri->pvts[chanpos]->owner) {
 							ast_log(LOG_WARNING, "Got restart ack on channel %d/%d span %d with owner\n",
 								PRI_SPAN(e->restartack.channel), PRI_CHANNEL(e->restartack.channel), pri->span);
-							ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						}
 						pri->pvts[chanpos]->resetting = 0;
 						ast_verb(3, "B-channel %d/%d successfully restarted on span %d\n", pri->pvts[chanpos]->logicalspan,
@@ -4889,7 +4889,7 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 					ast_log(LOG_WARNING, "The PRI Call has not been destroyed\n");
 			}
 			if (p->owner)
-				ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+				p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 		}
 	}
 }
