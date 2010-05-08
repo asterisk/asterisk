@@ -1730,7 +1730,6 @@ AC_LANG_PUSH(C++)
 if test "${USE_VPB}" != "no"; then
    AC_MSG_CHECKING(for vpb_open in -lvpb)
    saved_libs="${LIBS}"
-   saved_cflags="${CFLAGS}"
    saved_cppflags="${CPPFLAGS}"
    if test "x${VPB_DIR}" != "x"; then
       if test -d ${VPB_DIR}/lib; then
@@ -1742,7 +1741,7 @@ if test "${USE_VPB}" != "no"; then
       CPPFLAGS="${CPPFLAGS} -I${VPB_DIR}/include"
    fi
    LIBS="${PTHREAD_LIBS} ${LIBS} -lvpb"
-   CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+   CPPFLAGS="${CPPFLAGS} ${PTHREAD_CFLAGS}"
    AC_LINK_IFELSE(
 	[
 	AC_LANG_PROGRAM(
@@ -1756,7 +1755,6 @@ if test "${USE_VPB}" != "no"; then
 		ac_cv_lib_vpb_vpb_open="no" 
 	]
 	)
-   CFLAGS="${saved_cflags}"
    LIBS="${saved_libs}"
    CPPFLAGS="${saved_cppflags}"
    if test "${ac_cv_lib_vpb_vpb_open}" = "yes"; then
