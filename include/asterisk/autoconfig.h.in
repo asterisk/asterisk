@@ -41,9 +41,6 @@
 /* Define to 1 if you have the Advanced Linux Sound Architecture library. */
 #undef HAVE_ALSA
 
-/* Define to the version of the Advanced Linux Sound Architecture library. */
-#undef HAVE_ALSA_VERSION
-
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -99,17 +96,11 @@
 /* Define to 1 if you have the Stack Backtrace library. */
 #undef HAVE_BKTR
 
-/* Define to the version of the Stack Backtrace library. */
-#undef HAVE_BKTR_VERSION
-
 /* Define to 1 if byteswap.h macros are available. */
 #undef HAVE_BYTESWAP_H
 
 /* Define to 1 if you have the POSIX 1.e capabilities library. */
 #undef HAVE_CAP
-
-/* Define to the version of the POSIX 1.e capabilities library. */
-#undef HAVE_CAP_VERSION
 
 /* Define to 1 if you have the `ceil' function. */
 #undef HAVE_CEIL
@@ -129,26 +120,14 @@
 /* Define to 1 if you have the OpenSSL Cryptography library. */
 #undef HAVE_CRYPTO
 
-/* Define to the version of the OpenSSL Cryptography library. */
-#undef HAVE_CRYPTO_VERSION
-
 /* Define to 1 if you have a functional curl library. */
 #undef HAVE_CURL
-
-/* Define to the version of the cURL library. */
-#undef HAVE_CURL_VERSION
 
 /* Define to 1 if you have the curses library. */
 #undef HAVE_CURSES
 
-/* Define to the version of the curses library. */
-#undef HAVE_CURSES_VERSION
-
 /* Define if your system has the DAHDI headers. */
 #undef HAVE_DAHDI
-
-/* Define DAHDI headers version */
-#undef HAVE_DAHDI_VERSION
 
 /* Define to 1 if your system has /dev/urandom. */
 #undef HAVE_DEV_URANDOM
@@ -196,9 +175,6 @@
 /* Define to 1 if you have the Ffmpeg and avcodec library. */
 #undef HAVE_FFMPEG
 
-/* Define to the version of the Ffmpeg and avcodec library. */
-#undef HAVE_FFMPEG_VERSION
-
 /* Define to 1 if you have the `floor' function. */
 #undef HAVE_FLOOR
 
@@ -219,9 +195,6 @@
 
 /* Define to 1 if you have the FreeTDS library. */
 #undef HAVE_FREETDS
-
-/* Define to the version of the FreeTDS library. */
-#undef HAVE_FREETDS_VERSION
 
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #undef HAVE_FSEEKO
@@ -253,9 +226,6 @@
 /* Define if your system has the GETIFADDRS headers. */
 #undef HAVE_GETIFADDRS
 
-/* Define GETIFADDRS headers version */
-#undef HAVE_GETIFADDRS_VERSION
-
 /* Define to 1 if you have the `getloadavg' function. */
 #undef HAVE_GETLOADAVG
 
@@ -271,20 +241,11 @@
 /* Define if your system has the GLOB_BRACE headers. */
 #undef HAVE_GLOB_BRACE
 
-/* Define GLOB_BRACE headers version */
-#undef HAVE_GLOB_BRACE_VERSION
-
 /* Define if your system has the GLOB_NOMAGIC headers. */
 #undef HAVE_GLOB_NOMAGIC
 
-/* Define GLOB_NOMAGIC headers version */
-#undef HAVE_GLOB_NOMAGIC_VERSION
-
 /* Define if your system has the GMIME libraries. */
 #undef HAVE_GMIME
-
-/* Define to the version of the GMime library. */
-#undef HAVE_GMIME_VERSION
 
 /* Define to indicate the GSM library */
 #undef HAVE_GSM
@@ -295,32 +256,17 @@
 /* Define to indicate that gsm.h has no prefix for its location */
 #undef HAVE_GSM_HEADER
 
-/* Define to the version of the External GSM library. */
-#undef HAVE_GSM_VERSION
-
 /* Define if your system has the GTK libraries. */
 #undef HAVE_GTK
 
 /* Define if your system has the GTK2 libraries. */
 #undef HAVE_GTK2
 
-/* Define to the version of the gtk2 library. */
-#undef HAVE_GTK2_VERSION
-
-/* Define to the version of the gtk libraries library. */
-#undef HAVE_GTK_VERSION
-
 /* Define to 1 if you have the Iconv library. */
 #undef HAVE_ICONV
 
-/* Define to the version of the Iconv library. */
-#undef HAVE_ICONV_VERSION
-
 /* Define to 1 if you have the Iksemel Jabber library. */
 #undef HAVE_IKSEMEL
-
-/* Define to the version of the Iksemel Jabber library. */
-#undef HAVE_IKSEMEL_VERSION
 
 /* Define if your system has the UW IMAP Toolkit c-client library. */
 #undef HAVE_IMAP_TK
@@ -328,9 +274,6 @@
 /* Define if your system has the UW IMAP Toolkit c-client library version 2006
    or greater. */
 #undef HAVE_IMAP_TK2006
-
-/* Define to the version of the UW IMAP Toolkit library. */
-#undef HAVE_IMAP_TK_VERSION
 
 /* Define to 1 if you have the `inet_aton' function. */
 #undef HAVE_INET_ATON
@@ -344,29 +287,17 @@
 /* Define if your system has the IP_MTU_DISCOVER headers. */
 #undef HAVE_IP_MTU_DISCOVER
 
-/* Define IP_MTU_DISCOVER headers version */
-#undef HAVE_IP_MTU_DISCOVER_VERSION
-
 /* Define to 1 if you have the `isascii' function. */
 #undef HAVE_ISASCII
 
 /* Define to 1 if you have the ISDN4Linux library. */
 #undef HAVE_ISDNNET
 
-/* Define to the version of the ISDN4Linux library. */
-#undef HAVE_ISDNNET_VERSION
-
 /* Define to 1 if you have the Jack Audio Connection Kit library. */
 #undef HAVE_JACK
 
-/* Define to the version of the Jack Audio Connection Kit library. */
-#undef HAVE_JACK_VERSION
-
 /* Define to 1 if you have the OpenLDAP library. */
 #undef HAVE_LDAP
-
-/* Define to the version of the OpenLDAP library. */
-#undef HAVE_LDAP_VERSION
 
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
@@ -407,14 +338,8 @@
 /* Define to 1 if you have the libtool library. */
 #undef HAVE_LTDL
 
-/* Define to the version of the libtool library. */
-#undef HAVE_LTDL_VERSION
-
 /* Define to 1 if you have the Lua library. */
 #undef HAVE_LUA
-
-/* Define to the version of the Lua library. */
-#undef HAVE_LUA_VERSION
 
 /* Define to 1 if you have the <malloc.h> header file. */
 #undef HAVE_MALLOC_H
@@ -437,17 +362,8 @@
 /* Define if your system has the MISDN_FAC_ERROR headers. */
 #undef HAVE_MISDN_FAC_ERROR
 
-/* Define MISDN_FAC_ERROR headers version */
-#undef HAVE_MISDN_FAC_ERROR_VERSION
-
 /* Define if your system has the MISDN_FAC_RESULT headers. */
 #undef HAVE_MISDN_FAC_RESULT
-
-/* Define MISDN_FAC_RESULT headers version */
-#undef HAVE_MISDN_FAC_RESULT_VERSION
-
-/* Define to the version of the mISDN user library. */
-#undef HAVE_MISDN_VERSION
 
 /* Define to 1 if you have the `mkdir' function. */
 #undef HAVE_MKDIR
@@ -461,14 +377,8 @@
 /* Define to 1 if you have the Network Broadcast Sound library. */
 #undef HAVE_NBS
 
-/* Define to the version of the Network Broadcast Sound library. */
-#undef HAVE_NBS_VERSION
-
 /* Define to 1 if you have the ncurses library. */
 #undef HAVE_NCURSES
-
-/* Define to the version of the ncurses library. */
-#undef HAVE_NCURSES_VERSION
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
@@ -482,44 +392,23 @@
 /* Define if your system has the NETSNMP libraries. */
 #undef HAVE_NETSNMP
 
-/* Define to the version of the Net-SNMP library. */
-#undef HAVE_NETSNMP_VERSION
-
 /* Define to 1 if you have the newt library. */
 #undef HAVE_NEWT
-
-/* Define to the version of the newt library. */
-#undef HAVE_NEWT_VERSION
 
 /* Define to 1 if you have the OGG library. */
 #undef HAVE_OGG
 
-/* Define to the version of the OGG library. */
-#undef HAVE_OGG_VERSION
-
 /* Define if your system has the OpenH323 libraries. */
 #undef HAVE_OPENH323
-
-/* Define to the version of the OpenH323 library. */
-#undef HAVE_OPENH323_VERSION
 
 /* Define to 1 if you have the OpenSSL Secure Sockets Layer library. */
 #undef HAVE_OPENSSL
 
-/* Define to the version of the OpenSSL Secure Sockets Layer library. */
-#undef HAVE_OPENSSL_VERSION
-
 /* Define to 1 if you have the OSP Toolkit library. */
 #undef HAVE_OSPTK
 
-/* Define to the version of the OSP Toolkit library. */
-#undef HAVE_OSPTK_VERSION
-
 /* Define to 1 if you have the Open Sound System library. */
 #undef HAVE_OSS
-
-/* Define to the version of the Open Sound System library. */
-#undef HAVE_OSS_VERSION
 
 /* Define to 1 if OSX atomic operations are supported. */
 #undef HAVE_OSX_ATOMICS
@@ -527,23 +416,14 @@
 /* Define to indicate the PostgreSQL library */
 #undef HAVE_PGSQL
 
-/* Define to the version of the PostgreSQL library. */
-#undef HAVE_PGSQL_VERSION
-
 /* Define to 1 if your system defines IP_PKTINFO. */
 #undef HAVE_PKTINFO
 
 /* Define to 1 if you have the popt library. */
 #undef HAVE_POPT
 
-/* Define to the version of the popt library. */
-#undef HAVE_POPT_VERSION
-
 /* Define to 1 if you have the PortAudio library. */
 #undef HAVE_PORTAUDIO
-
-/* Define to the version of the PortAudio library. */
-#undef HAVE_PORTAUDIO_VERSION
 
 /* Define to 1 if you have the `pow' function. */
 #undef HAVE_POW
@@ -580,14 +460,8 @@
    headers. */
 #undef HAVE_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 
-/* Define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP headers version */
-#undef HAVE_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP_VERSION
-
 /* Define if your system has the PTHREAD_RWLOCK_INITIALIZER headers. */
 #undef HAVE_PTHREAD_RWLOCK_INITIALIZER
-
-/* Define PTHREAD_RWLOCK_INITIALIZER headers version */
-#undef HAVE_PTHREAD_RWLOCK_INITIALIZER_VERSION
 
 /* Define to 1 if your system defines PTHREAD_RWLOCK_PREFER_WRITER_NP in
    pthread.h */
@@ -605,14 +479,8 @@
 /* Define if your system has the PWLib libraries. */
 #undef HAVE_PWLIB
 
-/* Define to the version of the PWlib library. */
-#undef HAVE_PWLIB_VERSION
-
 /* Define to 1 if you have the Radius Client library. */
 #undef HAVE_RADIUS
-
-/* Define to the version of the Radius Client library. */
-#undef HAVE_RADIUS_VERSION
 
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
@@ -625,9 +493,6 @@
 
 /* Define to 1 if you have the LIBRESAMPLE library. */
 #undef HAVE_RESAMPLE
-
-/* Define to the version of the LIBRESAMPLE library. */
-#undef HAVE_RESAMPLE_VERSION
 
 /* Define to 1 if your system has the ndestroy resolver function. */
 #undef HAVE_RES_NDESTROY
@@ -659,12 +524,6 @@
 /* Define to 1 if you have the Sdl Image library. */
 #undef HAVE_SDL_IMAGE
 
-/* Define to the version of the Sdl Image library. */
-#undef HAVE_SDL_IMAGE_VERSION
-
-/* Define to the version of the Sdl library. */
-#undef HAVE_SDL_VERSION
-
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
@@ -689,26 +548,14 @@
 /* Define to 1 if spandsp/expose.h is available. */
 #undef HAVE_SPANDSP_EXPOSE_H
 
-/* Define SPANDSP headers version */
-#undef HAVE_SPANDSP_VERSION
-
 /* Define to 1 if you have the Speex library. */
 #undef HAVE_SPEEX
 
 /* Define to 1 if you have the SpeexDSP library. */
 #undef HAVE_SPEEXDSP
 
-/* Define to the version of the SpeexDSP library. */
-#undef HAVE_SPEEXDSP_VERSION
-
 /* Define to 1 if you have the speex_preprocess_ctl library. */
 #undef HAVE_SPEEX_PREPROCESS
-
-/* Define to the version of the Speex preprocess routines library. */
-#undef HAVE_SPEEX_PREPROCESS_VERSION
-
-/* Define to the version of the Speex library. */
-#undef HAVE_SPEEX_VERSION
 
 /* Define to 1 if you have the SQLite library. */
 #undef HAVE_SQLITE
@@ -716,20 +563,11 @@
 /* Define to 1 if you have the SQLite library. */
 #undef HAVE_SQLITE3
 
-/* Define to the version of the SQLite library. */
-#undef HAVE_SQLITE3_VERSION
-
-/* Define to the version of the SQLite library. */
-#undef HAVE_SQLITE_VERSION
-
 /* Define to 1 if you have the `sqrtl' function. */
 #undef HAVE_SQRTL
 
 /* Define to 1 if you have the ISDN SS7 library. */
 #undef HAVE_SS7
-
-/* Define to the version of the ISDN SS7 library. */
-#undef HAVE_SS7_VERSION
 
 /* Define to 1 if `stat' has the bug that it succeeds when given the
    zero-length file name argument. */
@@ -823,9 +661,6 @@
 /* Define to 1 if you have the mISDN Supplemental Services library. */
 #undef HAVE_SUPPSERV
 
-/* Define to the version of the mISDN Supplemental Services library. */
-#undef HAVE_SUPPSERV_VERSION
-
 /* Define to 1 if your system has sysinfo support */
 #undef HAVE_SYSINFO
 
@@ -886,9 +721,6 @@
 /* Define to 1 if you have the Termcap library. */
 #undef HAVE_TERMCAP
 
-/* Define to the version of the Termcap library. */
-#undef HAVE_TERMCAP_VERSION
-
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
@@ -898,14 +730,8 @@
 /* Define to 1 if you have the Term Info library. */
 #undef HAVE_TINFO
 
-/* Define to the version of the Term Info library. */
-#undef HAVE_TINFO_VERSION
-
 /* Define to 1 if you have the tonezone library. */
 #undef HAVE_TONEZONE
-
-/* Define to the version of the tonezone library. */
-#undef HAVE_TONEZONE_VERSION
 
 /* Define to 1 if you have the `trunc' function. */
 #undef HAVE_TRUNC
@@ -919,17 +745,11 @@
 /* Define to 1 if you have the unixODBC library. */
 #undef HAVE_UNIXODBC
 
-/* Define to the version of the unixODBC library. */
-#undef HAVE_UNIXODBC_VERSION
-
 /* Define to 1 if you have the `unsetenv' function. */
 #undef HAVE_UNSETENV
 
 /* Define to 1 if you have the usb library. */
 #undef HAVE_USB
-
-/* Define to the version of the usb library. */
-#undef HAVE_USB_VERSION
 
 /* Define to 1 if you have the `utime' function. */
 #undef HAVE_UTIME
@@ -955,14 +775,8 @@
 /* Define to 1 if you have the Vorbis library. */
 #undef HAVE_VORBIS
 
-/* Define to the version of the Vorbis library. */
-#undef HAVE_VORBIS_VERSION
-
 /* Define if your system has the VoiceTronix API libraries. */
 #undef HAVE_VPB
-
-/* Define to the version of the Voicetronix API library. */
-#undef HAVE_VPB_VERSION
 
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
@@ -987,9 +801,6 @@
 
 /* Define to 1 if you have the zlib compression library. */
 #undef HAVE_ZLIB
-
-/* Define to the version of the zlib compression library. */
-#undef HAVE_ZLIB_VERSION
 
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
