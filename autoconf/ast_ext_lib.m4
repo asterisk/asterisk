@@ -30,7 +30,6 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
 	esac
     ])
     AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
-    AH_TEMPLATE(m4_bpatsubst([[HAVE_$1_VERSION]], [(.*)]), [Define to the version of the $2 library.])
     AC_SUBST([$1_LIB])
     AC_SUBST([$1_INCLUDE])
     AC_SUBST([$1_DIR])
@@ -81,7 +80,10 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
    if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
       AST_$1_FOUND=yes
    else
-      AC_CHECK_LIB([$2], [${pbxfuncname}], [AST_$1_FOUND=yes], [AST_$1_FOUND=no], ${pbxlibdir} $5)
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} $6"
+      AC_CHECK_LIB([$2], [${pbxfuncname}], [AST_$1_FOUND=yes], [AST_$1_FOUND=no], [${pbxlibdir} $5])
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
    fi
 
    # now check for the header.
@@ -95,10 +97,10 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
       if test "x$4" = "x" ; then	# no header, assume found
          $1_HEADER_FOUND="1"
       else				# check for the header
-         saved_cppflags="${CPPFLAGS}"
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
          CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
          AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
-         CPPFLAGS="${saved_cppflags}"
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
       fi
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
          $1_LIB=""
@@ -110,9 +112,14 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          PBX_$1=1
          cat >>confdefs.h <<_ACEOF
 [@%:@define] HAVE_$1 1
+_ACEOF
+         m4_ifval([$7], [
+         cat >>confdefs.h <<_ACEOF
 [@%:@define] HAVE_$1_VERSION $7
 _ACEOF
+            ])
       fi
    fi
 fi
+m4_ifval([$7], [AH_TEMPLATE(m4_bpatsubst([[HAVE_$1_VERSION]], [(.*)]), [Define to the version of the $2 library.])])
 ])
