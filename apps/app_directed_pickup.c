@@ -179,9 +179,9 @@ static struct ast_channel *my_ast_get_channel_by_name_locked(const char *channam
 	char *chkchan;
 	struct pickup_by_name_args pickup_args;
 
-	pickup_args.len = strlen(channame) + 2;
+	pickup_args.len = strlen(channame) + 1;
 
-	chkchan = alloca(pickup_args.len);
+	chkchan = alloca(pickup_args.len + 1);
 
 	/* need to append a '-' for the comparison so we check full channel name,
 	 * i.e SIP/hgc- , use a temporary variable so original stays the same for
