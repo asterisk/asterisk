@@ -275,6 +275,10 @@ static void *stream_monitor(void *data)
 		res = Pa_ReadStream(pvt->stream, buf, sizeof(buf) / sizeof(int16_t));
 		pthread_testcancel();
 
+		if (!pvt->owner) {
+			return NULL;
+		}
+
 		if (res == paNoError)
 			ast_queue_frame(pvt->owner, &f);
 	}
@@ -350,7 +354,10 @@ static int start_stream(struct console_pvt *pvt)
 
 	console_pvt_lock(pvt);
 
-	if (pvt->streamstate)
+	/* It is possible for console_hangup to be called before the
+	 * stream is started, if this is the case pvt->owner will be NULL
+	 * and start_stream should be aborted. */
+	if (pvt->streamstate || !pvt->owner)
 		goto return_unlock;
 
 	pvt->streamstate = 1;
