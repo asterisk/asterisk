@@ -1432,7 +1432,7 @@ static int pbx_load_config(const char *config_file)
 
 			if (!strncasecmp(v->name, "same", 4)) {
 				if (ast_strlen_zero(lastextension)) {
-					ast_log(LOG_ERROR, "No previous pattern in the first entry of context '%s' to match '%s'!\n", cxt, v->name);
+					ast_log(LOG_ERROR, "No previous pattern in the first entry of context '%s' to match '%s' at line %d!\n", cxt, v->name, v->lineno);
 					continue;
 				}
 				if ((stringp = tc = ast_strdup(v->value))) {
@@ -1477,13 +1477,13 @@ process_extension:
 					if (lastpri > -2) {
 						ipri = lastpri + 1;
 					} else {
-						ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+						ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry at line %d!\n", v->lineno);
 					}
 				} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
 					if (lastpri > -2) {
 						ipri = lastpri;
 					} else {
-						ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+						ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry at line %d!\n", v->lineno);
 					}
 				} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					   (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
@@ -1515,7 +1515,7 @@ process_extension:
 						if ((end = strrchr(data, ')'))) {
 							*end = '\0';
 						} else {
-							ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+							ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s' at line %d\n", appl, data, v->lineno);
 						}
 					}
 					ast_free(orig_appl);
@@ -1548,26 +1548,26 @@ process_extension:
 							break;
 
 						case EEXIST:
-							ast_log(LOG_WARNING, "Context '%s' already included in '%s' context\n",
-									v->value, cxt);
+							ast_log(LOG_WARNING, "Context '%s' already included in '%s' context on include at line %d\n",
+									v->value, cxt, v->lineno);
 							break;
 
 						case ENOENT:
 						case EINVAL:
-							ast_log(LOG_WARNING, "There is no existence of context '%s'\n",
-									errno == ENOENT ? v->value : cxt);
+							ast_log(LOG_WARNING, "There is no existence of context '%s' included at line %d\n",
+									errno == ENOENT ? v->value : cxt, v->lineno);
 							break;
 
 						default:
-							ast_log(LOG_WARNING, "Failed to include '%s' in '%s' context\n",
-									v->value, cxt);
+							ast_log(LOG_WARNING, "Failed to include '%s' in '%s' context at line %d\n",
+									v->value, cxt, v->lineno);
 							break;
 					}
 				}
 			} else if (!strcasecmp(v->name, "ignorepat")) {
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_ignorepat2(con, realvalue, registrar)) {
-					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
+					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s' at line %d\n", v->value, cxt, v->lineno);
 				}
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 				char *stringp = realvalue;
@@ -1581,7 +1581,7 @@ process_extension:
 				appl = strsep(&stringp, "/");
 				data = S_OR(stringp, "");
 				if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar)) {
-					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s' at line %d\n", v->value, cxt, v->lineno);
 				}
 			} else {
 				ast_log(LOG_WARNING, "==!!== Unknown directive: %s at line %d -- IGNORING!!!\n", v->name, v->lineno);
