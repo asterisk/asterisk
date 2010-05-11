@@ -1123,7 +1123,7 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 
 		return principle;
 	}
-	ast_log(LOG_WARNING, "Call specified, but not found?\n");
+	ast_verb(3, "Call specified, but not found.\n");
 	return -1;
 }
 
@@ -3641,6 +3641,11 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup requested on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+					/*
+					 * Continue hanging up the call even though
+					 * it is on an unconfigured channel.
+					 */
+					pri_hangup(pri->pri, e->hangup.call, e->hangup.cause);
 				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->hangup.call);
 					if (chanpos > -1) {
@@ -3685,10 +3690,18 @@ static void *pri_dchannel(void *vpri)
 									}
 									break;
 								}
+							} else {
+								/*
+								 * Continue hanging up the call even though
+								 * we do not have an owner.
+								 */
+								pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
+								pri->pvts[chanpos]->call = NULL;
 							}
 							ast_verb(3, "Channel %d/%d, span %d got hangup, cause %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, e->hangup.cause);
 						} else {
+							/* Continue hanging up the call. */
 							pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
 							pri->pvts[chanpos]->call = NULL;
 						}
@@ -3718,8 +3731,11 @@ static void *pri_dchannel(void *vpri)
 
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					} else {
-						ast_log(LOG_WARNING, "Hangup on bad channel %d/%d on span %d\n",
-							PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+						/*
+						 * Continue hanging up the call even though
+						 * we do not remember it (if we ever did).
+						 */
+						pri_hangup(pri->pri, e->hangup.call, e->hangup.cause);
 					}
 				}
 				break;
@@ -3734,6 +3750,11 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Hangup REQ requested on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+					/*
+					 * Continue hanging up the call even though
+					 * it is on an unconfigured channel.
+					 */
+					pri_hangup(pri->pri, e->hangup.call, e->hangup.cause);
 				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->hangup.call);
 					if (chanpos > -1) {
@@ -3791,6 +3812,10 @@ static void *pri_dchannel(void *vpri)
 								ast_verb(3, "Channel %d/%d, span %d received AOC-E charging %d unit%s\n",
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
 						} else {
+							/*
+							 * Continue hanging up the call even though
+							 * we do not have an owner.
+							 */
 							pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
 							pri->pvts[chanpos]->call = NULL;
 						}
@@ -3817,7 +3842,11 @@ static void *pri_dchannel(void *vpri)
 
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					} else {
-						ast_log(LOG_WARNING, "Hangup REQ on bad channel %d/%d on span %d\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+						/*
+						 * Continue hanging up the call even though
+						 * we do not remember it (if we ever did).
+						 */
+						pri_hangup(pri->pri, e->hangup.call, e->hangup.cause);
 					}
 				}
 				break;
@@ -3840,7 +3869,6 @@ static void *pri_dchannel(void *vpri)
 						if (pri->pvts[chanpos]->owner) {
 							ast_verb(3, "Channel %d/%d, span %d got hangup ACK\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
 						}
-
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
 							struct ast_channel *owner;
@@ -3854,7 +3882,6 @@ static void *pri_dchannel(void *vpri)
 							}
 						}
 #endif
-
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 					}
 				}
@@ -4848,6 +4875,9 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 #if defined(HAVE_PRI_CALL_REROUTING)
 	pri_reroute_enable(pri->pri, 1);
 #endif	/* defined(HAVE_PRI_CALL_REROUTING) */
+#if defined(HAVE_PRI_HANGUP_FIX)
+	pri_hangup_fix_enable(pri->pri, 1);
+#endif	/* defined(HAVE_PRI_HANGUP_FIX) */
 #if defined(HAVE_PRI_CCSS)
 	pri_cc_enable(pri->pri, 1);
 	pri_cc_recall_mode(pri->pri, pri->cc_ptmp_recall_mode);
