@@ -20573,8 +20573,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_reliable(p, "404 Not Found", req);
 				ast_uri_decode(decoded_exten);
 				ast_log(LOG_NOTICE, "Call from '%s' to extension"
-					" '%s' rejected because extension not found.\n",
-					S_OR(p->username, p->peername), decoded_exten);
+					" '%s' rejected because extension not found in context '%s'.\n",
+					S_OR(p->username, p->peername), decoded_exten, p->context);
 			}
 			p->invitestate = INV_COMPLETED;
 			update_call_counter(p, DEC_CALL_LIMIT);
