@@ -50,8 +50,12 @@ else
 ael/ael_lex.c:
 endif
 	$(ECHO_PREFIX) echo "   [FLEX] $< -> $@"
-	$(CMD_PREFIX) (cd ael; $(FLEX) ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
-	$(CMD_PREFIX) (cd ael; sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' ael_lex.c > zz; mv zz ael_lex.c)
+	$(CMD_PREFIX) (cd ael; $(FLEX) ael.flex)
+	$(CMD_PREFIX) sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' $@ > $@.fix
+	$(CMD_PREFIX) echo "#include \"asterisk.h\"" > $@
+	$(CMD_PREFIX) echo >> $@
+	$(CMD_PREFIX) cat $@.fix >> $@
+	$(CMD_PREFIX) rm $@.fix
 
 ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
 ael/ael.tab.c ael/ael.tab.h: ael/ael.y
