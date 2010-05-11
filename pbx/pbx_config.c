@@ -1469,7 +1469,7 @@ static int pbx_load_config(const char *config_file)
 							if ((end = strrchr(data, ')'))) {
 								*end = '\0';
 							} else {
-								ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+								ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s' at line %d\n", appl, data, v->lineno);
 							}
 						}
 						ast_free(orig_appl);
@@ -1493,11 +1493,11 @@ static int pbx_load_config(const char *config_file)
 			} else if (!strcasecmp(v->name, "include")) {
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_include2(con, realvalue, registrar))
-					ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
+					ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s' at line %d\n", v->value, cxt, v->lineno);
 			} else if (!strcasecmp(v->name, "ignorepat")) {
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_ignorepat2(con, realvalue, registrar))
-					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
+					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s' at line %d\n", v->value, cxt, v->lineno);
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 				char *stringp = realvalue;
 				char *appl, *data;
@@ -1509,7 +1509,7 @@ static int pbx_load_config(const char *config_file)
 				appl = strsep(&stringp, "/");
 				data = S_OR(stringp, "");
 				if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
-					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s' at line %d\n", v->value, cxt, v->lineno);
 			} else {
 				ast_log(LOG_WARNING, "==!!== Unknown directive: %s at line %d -- IGNORING!!!\n", v->name, v->lineno);
 			}
