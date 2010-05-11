@@ -6886,6 +6886,7 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 
 	/* Play voicemail intro - syntax is different for different languages */
 	if (0) {
+		return 0;
 	} else if (!strncasecmp(chan->language, "cs", 2)) {  /* CZECH syntax */
 		return vm_intro_cs(chan, vms);
 	} else if (!strncasecmp(chan->language, "cz", 2)) {  /* deprecated CZECH syntax */
