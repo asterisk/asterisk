@@ -263,6 +263,7 @@ static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		ast_cli(a->fd, "Unable to load module %s\n", a->argv[e->args]);
 		return CLI_FAILURE;
 	}
+	ast_cli(a->fd, "Loaded %s\n", a->argv[e->args]);
 	return CLI_SUCCESS;
 }
 
@@ -586,7 +587,9 @@ static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			ast_cli(a->fd, "Unable to unload resource %s\n", a->argv[x]);
 			return CLI_FAILURE;
 		}
+		ast_cli(a->fd, "Unloaded %s\n", a->argv[x]);
 	}
+
 	return CLI_SUCCESS;
 }
 
