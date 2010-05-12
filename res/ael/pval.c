@@ -2506,7 +2506,6 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			|| strcasecmp(item->u1.str,"endwhile") == 0
 			|| strcasecmp(item->u1.str,"random") == 0
 			|| strcasecmp(item->u1.str,"gosub") == 0
-			|| strcasecmp(item->u1.str,"return") == 0
 			|| strcasecmp(item->u1.str,"gosubif") == 0
 			|| strcasecmp(item->u1.str,"continuewhile") == 0
 			|| strcasecmp(item->u1.str,"endwhile") == 0
@@ -2519,6 +2518,8 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			|| strcasecmp(item->u1.str,"macroif") == 0
 			|| strcasecmp(item->u1.str,"stackpop") == 0
 			|| strcasecmp(item->u1.str,"execIf") == 0 ) {
+			ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: application call to %s affects flow of control, and needs to be re-written using AEL if, while, goto, etc. keywords instead!\n",
+					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		}
 		if (strcasecmp(item->u1.str,"macroexit") == 0) {
