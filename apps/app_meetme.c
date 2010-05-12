@@ -2764,6 +2764,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						ast_mutex_lock(&conf->listenlock);
 						if (!conf->transframe[idx]) {
 							if (conf->origframe) {
+								if (musiconhold && !ast_dsp_silence(dsp, conf->origframe, &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
+									ast_moh_stop(chan);
+									mohtempstopped = 1;
+								}
 								if (!conf->transpath[idx])
 									conf->transpath[idx] = ast_translator_build_path((1 << idx), AST_FORMAT_SLINEAR);
 								if (conf->transpath[idx]) {
@@ -2777,11 +2781,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
  							if ((conf->transframe[idx]->frametype != AST_FRAME_NULL) &&
 							    can_write(chan, confflags)) {
 								struct ast_frame *cur;
-								if (musiconhold && !ast_dsp_silence(dsp, conf->transframe[idx], &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
-									ast_moh_stop(chan);
-									mohtempstopped = 1;
-								}
-
 								/* the translator may have returned a list of frames, so
 								   write each one onto the channel
 								*/
