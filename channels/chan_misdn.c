@@ -5128,6 +5128,9 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 		e->usage = "Usage: misdn send facility <type> <channel|port> \"<args>\" \n"
 		"\t type is one of:\n"
 		"\t - calldeflect\n"
+#if defined(AST_MISDN_ENHANCEMENTS)
+		"\t - callrerouting\n"
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 		"\t - CFActivate\n"
 		"\t - CFDeactivate\n";
 
@@ -5189,9 +5192,61 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 		/* Send message */
 		print_facility(&tmp->bc->fac_out, tmp->bc);
 		misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
-	} else if (strstr(a->argv[3], "CFActivate")) {
-		if (a->argc < 7) {
-			ast_verbose("CFActivate requires 2 args: 1.FromNumber, 2.ToNumber\n\n");
+#if defined(AST_MISDN_ENHANCEMENTS)
+	} else if (strstr(a->argv[3], "callrerouteing") || strstr(a->argv[3], "callrerouting")) {
+		if (a->argc < 6) {
+			ast_verbose("callrerouting requires 1 arg: ToNumber\n\n");
+			return 0;
+		}
+		channame = a->argv[4];
+		nr = a->argv[5];
+
+		ast_verbose("Sending Callrerouting (%s) to %s\n", nr, channame);
+		tmp = get_chan_by_ast_name(channame);
+		if (!tmp) {
+			ast_verbose("Sending Call Rerouting with nr %s to %s failed: Channel does not exist.\n", nr, channame);
+			return 0;
+		}
+
+		max_len = sizeof(tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number) - 1;
+		if (max_len < strlen(nr)) {
+			ast_verbose("Sending Call Rerouting with nr %s to %s failed: Number too long (up to %u digits are allowed).\n",
+				nr, channame, max_len);
+			return 0;
+		}
+		tmp->bc->fac_out.Function = Fac_CallRerouteing;
+		tmp->bc->fac_out.u.CallRerouteing.InvokeID = ++misdn_invoke_id;
+		tmp->bc->fac_out.u.CallRerouteing.ComponentType = FacComponent_Invoke;
+
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.ReroutingReason = 0;/* unknown */
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.ReroutingCounter = 1;
+
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.Type = 0;/* unknown */
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.LengthOfNumber = strlen(nr);
+		strcpy((char *) tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number, nr);
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Subaddress.Length = 0;
+
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.CallingPartySubaddress.Length = 0;
+
+		/* 0x90 0x90 0xa3 3.1 kHz audio, circuit mode, 64kbit/sec, level1/a-Law */
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Length = 3;
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents[0] = 0x90;
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents[1] = 0x90;
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents[2] = 0xa3;
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Hlc.Length = 0;
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Llc.Length = 0;
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.UserInfo.Length = 0;
+
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.LastRerouting.Type = 1;/* presentationRestricted */
+		tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.SubscriptionOption = 0;/* no notification to caller */
+
+		/* Send message */
+		print_facility(&tmp->bc->fac_out, tmp->bc);
+		misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+		} else if (strstr(a->argv[3], "CFActivate")) {
+			if (a->argc < 7) {
+				ast_verbose("CFActivate requires 2 args: 1.FromNumber, 2.ToNumber\n\n");
 			return 0;
 		}
 		port = atoi(a->argv[4]);
@@ -10844,6 +10899,9 @@ static int load_module(void)
 		"Supported Facilities are:\n"
 		"\n"
 		"type=calldeflect args=Nr where to deflect\n"
+#if defined(AST_MISDN_ENHANCEMENTS)
+		"type=callrerouting args=Nr where to deflect\n"
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 		);
 
 
@@ -11613,6 +11671,50 @@ static int misdn_facility_exec(struct ast_channel *chan, const char *data)
 		/* Send message */
 		print_facility(&ch->bc->fac_out, ch->bc);
 		misdn_lib_send_event(ch->bc, EVENT_FACILITY);
+#if defined(AST_MISDN_ENHANCEMENTS)
+	} else if (!strcasecmp(args.facility_type, "callrerouteing")
+		|| !strcasecmp(args.facility_type, "callrerouting")) {
+		if (ast_strlen_zero(args.arg[0])) {
+			ast_log(LOG_WARNING, "Facility: Call rerouting requires an argument: Number\n");
+		}
+
+		max_len = sizeof(ch->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number) - 1;
+		if (max_len < strlen(args.arg[0])) {
+			ast_log(LOG_WARNING,
+				"Facility: Number argument too long (up to %u digits are allowed). Ignoring.\n",
+				max_len);
+			return 0;
+		}
+		ch->bc->fac_out.Function = Fac_CallRerouteing;
+		ch->bc->fac_out.u.CallRerouteing.InvokeID = ++misdn_invoke_id;
+		ch->bc->fac_out.u.CallRerouteing.ComponentType = FacComponent_Invoke;
+
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.ReroutingReason = 0;/* unknown */
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.ReroutingCounter = 1;
+
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.Type = 0;/* unknown */
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.LengthOfNumber = strlen(args.arg[0]);
+		strcpy((char *) ch->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number, args.arg[0]);
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Subaddress.Length = 0;
+
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.CallingPartySubaddress.Length = 0;
+
+		/* 0x90 0x90 0xa3 3.1 kHz audio, circuit mode, 64kbit/sec, level1/a-Law */
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Length = 3;
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents[0] = 0x90;
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents[1] = 0x90;
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Bc.Contents[2] = 0xa3;
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Hlc.Length = 0;
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.Llc.Length = 0;
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.Q931ie.UserInfo.Length = 0;
+
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.LastRerouting.Type = 1;/* presentationRestricted */
+		ch->bc->fac_out.u.CallRerouteing.Component.Invoke.SubscriptionOption = 0;/* no notification to caller */
+
+		/* Send message */
+		print_facility(&ch->bc->fac_out, ch->bc);
+		misdn_lib_send_event(ch->bc, EVENT_FACILITY);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	} else {
 		chan_misdn_log(1, ch->bc->port, "Unknown Facility: %s\n", args.facility_type);
 	}
