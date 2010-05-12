@@ -12427,6 +12427,15 @@ static struct dahdi_pvt *duplicate_pseudo(struct dahdi_pvt *src)
 		return NULL;
 	}
 	*p = *src;
+
+	/* Must deep copy the cc_params. */
+	p->cc_params = ast_cc_config_params_init();
+	if (!p->cc_params) {
+		ast_free(p);
+		return NULL;
+	}
+	ast_cc_copy_config_params(p->cc_params, src->cc_params);
+
 	p->which_iflist = DAHDI_IFLIST_NONE;
 	p->next = NULL;
 	p->prev = NULL;
@@ -17559,7 +17568,7 @@ static void deep_copy_dahdi_chan_conf(struct dahdi_chan_conf *dest, const struct
 	struct ast_cc_config_params *cc_params;
 
 	cc_params = dest->chan.cc_params;
-	memcpy(dest, src, sizeof(dest));
+	*dest = *src;
 	dest->chan.cc_params = cc_params;
 	ast_cc_copy_config_params(dest->chan.cc_params, src->chan.cc_params);
 }
