@@ -14486,16 +14486,6 @@ static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 	return res;
 }
 
-/*! \brief return Yes or No depending on the argument.
- * This is used in many places in CLI command, having a function to generate
- * this helps maintaining a consistent output (and possibly emitting the
- * output in other languages, at some point).
- */
-static const char *cli_yesno(int x)
-{
-	return x ? "Yes" : "No";
-}
-
 /*! \brief  Show active TCP connections */
 static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -14593,8 +14583,8 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			user->secret,
 			user->accountcode,
 			user->context,
-			cli_yesno(user->ha != NULL),
-			cli_yesno(ast_test_flag(&user->flags[0], SIP_NAT_FORCE_RPORT)));
+			AST_CLI_YESNO(user->ha != NULL),
+			AST_CLI_YESNO(ast_test_flag(&user->flags[0], SIP_NAT_FORCE_RPORT)));
 		ao2_unlock(user);
 		unref_peer(user, "sip show users");
 	}
@@ -15463,26 +15453,26 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
 		if (peer->busy_level)
 			ast_cli(fd, "  Busy level   : %d\n", peer->busy_level);
-		ast_cli(fd, "  Dynamic      : %s\n", cli_yesno(peer->host_dynamic));
+		ast_cli(fd, "  Dynamic      : %s\n", AST_CLI_YESNO(peer->host_dynamic));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  MaxCallBR    : %d kbps\n", peer->maxcallbitrate);
 		ast_cli(fd, "  Expire       : %ld\n", ast_sched_when(sched, peer->expire));
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
-		ast_cli(fd, "  Force rport  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)));
-		ast_cli(fd, "  ACL          : %s\n", cli_yesno(peer->ha != NULL));
-		ast_cli(fd, "  T.38 support : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
+		ast_cli(fd, "  Force rport  : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)));
+		ast_cli(fd, "  ACL          : %s\n", AST_CLI_YESNO(peer->ha != NULL));
+		ast_cli(fd, "  T.38 support : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 EC mode : %s\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 MaxDtgrm: %d\n", peer->t38_maxdatagram);
-		ast_cli(fd, "  DirectMedia  : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)));
-		ast_cli(fd, "  PromiscRedir : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)));
-		ast_cli(fd, "  User=Phone   : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)));
-		ast_cli(fd, "  Video Support: %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)));
-		ast_cli(fd, "  Text Support : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)));
-		ast_cli(fd, "  Ign SDP ver  : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_IGNORESDPVERSION)));
-		ast_cli(fd, "  Trust RPID   : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_TRUSTRPID)));
-		ast_cli(fd, "  Send RPID    : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_SENDRPID)));
-		ast_cli(fd, "  Subscriptions: %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
-		ast_cli(fd, "  Overlap dial : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP)));
+		ast_cli(fd, "  DirectMedia  : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)));
+		ast_cli(fd, "  PromiscRedir : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)));
+		ast_cli(fd, "  User=Phone   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)));
+		ast_cli(fd, "  Video Support: %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)));
+		ast_cli(fd, "  Text Support : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)));
+		ast_cli(fd, "  Ign SDP ver  : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_IGNORESDPVERSION)));
+		ast_cli(fd, "  Trust RPID   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_TRUSTRPID)));
+		ast_cli(fd, "  Send RPID    : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_SENDRPID)));
+		ast_cli(fd, "  Subscriptions: %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
+		ast_cli(fd, "  Overlap dial : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP)));
 		if (peer->outboundproxy)
 			ast_cli(fd, "  Outb. proxy  : %s %s\n", ast_strlen_zero(peer->outboundproxy->name) ? "<not set>" : peer->outboundproxy->name,
 							peer->outboundproxy->force ? "(forced)" : "");
@@ -15520,8 +15510,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		print_codec_to_cli(fd, &peer->prefs);
 		ast_cli(fd, ")\n");
 
-		ast_cli(fd, "  Auto-Framing :  %s \n", cli_yesno(peer->autoframing));
-		ast_cli(fd, "  100 on REG   : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_REGISTERTRYING) ? "Yes" : "No");
+		ast_cli(fd, "  Auto-Framing :  %s \n", AST_CLI_YESNO(peer->autoframing));
+		ast_cli(fd, "  100 on REG   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_REGISTERTRYING)));
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));
 		ast_cli(fd, "%s\n", status);
@@ -15540,7 +15530,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Min-Sess     : %d secs\n", peer->stimer.st_min_se);
 		ast_cli(fd, "  RTP Engine   : %s\n", peer->engine);
 		ast_cli(fd, "  Parkinglot   : %s\n", peer->parkinglot);
-		ast_cli(fd, "  Use Reason   : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON) ? "Yes" : "No");
+		ast_cli(fd, "  Use Reason   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON)));
 		ast_cli(fd, "\n");
 		peer = unref_peer(peer, "sip_show_peer: unref_peer: done with peer ptr");
 	} else  if (peer && type == 1) { /* manager listing */
@@ -15724,7 +15714,7 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		ast_cli(a->fd, "  Pickupgroup  : ");
 		print_group(a->fd, user->pickupgroup, 0);
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
-		ast_cli(a->fd, "  ACL          : %s\n", cli_yesno(user->ha != NULL));
+		ast_cli(a->fd, "  ACL          : %s\n", AST_CLI_YESNO(user->ha != NULL));
  		ast_cli(a->fd, "  Sess-Timers  : %s\n", stmode2str(user->stimer.st_mode_oper));
  		ast_cli(a->fd, "  Sess-Refresh : %s\n", strefresher2str(user->stimer.st_ref));
  		ast_cli(a->fd, "  Sess-Expires : %d secs\n", user->stimer.st_max_se);
@@ -15735,7 +15725,7 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		print_codec_to_cli(a->fd, &user->prefs);
 		ast_cli(a->fd, ")\n");
 
-		ast_cli(a->fd, "  Auto-Framing:  %s \n", cli_yesno(user->autoframing));
+		ast_cli(a->fd, "  Auto-Framing:  %s \n", AST_CLI_YESNO(user->autoframing));
 		if (user->chanvars) {
  			ast_cli(a->fd, "  Variables    :\n");
 			for (v = user->chanvars ; v ; v = v->next)
@@ -16008,36 +15998,36 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	} else {
 		ast_cli(a->fd, "Disabled\n");
 	}
-	ast_cli(a->fd, "  Videosupport:           %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
-	ast_cli(a->fd, "  Textsupport:            %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
-	ast_cli(a->fd, "  Ignore SDP sess. ver.:  %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION)));
-	ast_cli(a->fd, "  AutoCreate Peer:        %s\n", cli_yesno(sip_cfg.autocreatepeer));
-	ast_cli(a->fd, "  Match Auth Username:    %s\n", cli_yesno(global_match_auth_username));
-	ast_cli(a->fd, "  Allow unknown access:   %s\n", cli_yesno(sip_cfg.allowguest));
-	ast_cli(a->fd, "  Allow subscriptions:    %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
-	ast_cli(a->fd, "  Allow overlap dialing:  %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)));
-	ast_cli(a->fd, "  Allow promsic. redir:   %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
-	ast_cli(a->fd, "  Enable call counters:   %s\n", cli_yesno(global_callcounter));
-	ast_cli(a->fd, "  SIP domain support:     %s\n", cli_yesno(!AST_LIST_EMPTY(&domain_list)));
-	ast_cli(a->fd, "  Realm. auth:            %s\n", cli_yesno(authl != NULL));
+	ast_cli(a->fd, "  Videosupport:           %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
+	ast_cli(a->fd, "  Textsupport:            %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
+	ast_cli(a->fd, "  Ignore SDP sess. ver.:  %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION)));
+	ast_cli(a->fd, "  AutoCreate Peer:        %s\n", AST_CLI_YESNO(sip_cfg.autocreatepeer));
+	ast_cli(a->fd, "  Match Auth Username:    %s\n", AST_CLI_YESNO(global_match_auth_username));
+	ast_cli(a->fd, "  Allow unknown access:   %s\n", AST_CLI_YESNO(sip_cfg.allowguest));
+	ast_cli(a->fd, "  Allow subscriptions:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
+	ast_cli(a->fd, "  Allow overlap dialing:  %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)));
+	ast_cli(a->fd, "  Allow promsic. redir:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
+	ast_cli(a->fd, "  Enable call counters:   %s\n", AST_CLI_YESNO(global_callcounter));
+	ast_cli(a->fd, "  SIP domain support:     %s\n", AST_CLI_YESNO(!AST_LIST_EMPTY(&domain_list)));
+	ast_cli(a->fd, "  Realm. auth:            %s\n", AST_CLI_YESNO(authl != NULL));
 	ast_cli(a->fd, "  Our auth realm          %s\n", sip_cfg.realm);
-	ast_cli(a->fd, "  Use domains as realms:  %s\n", cli_yesno(sip_cfg.domainsasrealm));
-	ast_cli(a->fd, "  Call to non-local dom.: %s\n", cli_yesno(sip_cfg.allow_external_domains));
-	ast_cli(a->fd, "  URI user is phone no:   %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_USEREQPHONE)));
- 	ast_cli(a->fd, "  Always auth rejects:    %s\n", cli_yesno(sip_cfg.alwaysauthreject));
-	ast_cli(a->fd, "  Direct RTP setup:       %s\n", cli_yesno(sip_cfg.directrtpsetup));
+	ast_cli(a->fd, "  Use domains as realms:  %s\n", AST_CLI_YESNO(sip_cfg.domainsasrealm));
+	ast_cli(a->fd, "  Call to non-local dom.: %s\n", AST_CLI_YESNO(sip_cfg.allow_external_domains));
+	ast_cli(a->fd, "  URI user is phone no:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_USEREQPHONE)));
+ 	ast_cli(a->fd, "  Always auth rejects:    %s\n", AST_CLI_YESNO(sip_cfg.alwaysauthreject));
+	ast_cli(a->fd, "  Direct RTP setup:       %s\n", AST_CLI_YESNO(sip_cfg.directrtpsetup));
 	ast_cli(a->fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(a->fd, "  SDP Session Name:       %s\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
 	ast_cli(a->fd, "  SDP Owner Name:         %s\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner);
 	ast_cli(a->fd, "  Reg. context:           %s\n", S_OR(sip_cfg.regcontext, "(not set)"));
-	ast_cli(a->fd, "  Regexten on Qualify:    %s\n", cli_yesno(sip_cfg.regextenonqualify));
+	ast_cli(a->fd, "  Regexten on Qualify:    %s\n", AST_CLI_YESNO(sip_cfg.regextenonqualify));
 	ast_cli(a->fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(a->fd, "  From: Domain:           %s\n", default_fromdomain);
-	ast_cli(a->fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
-	ast_cli(a->fd, "  Call Events:            %s\n", sip_cfg.callevents ? "On" : "Off");
-	ast_cli(a->fd, "  Auth. Failure Events:   %s\n", global_authfailureevents ? "On" : "Off");
+	ast_cli(a->fd, "  Record SIP history:     %s\n", AST_CLI_ONOFF(recordhistory));
+	ast_cli(a->fd, "  Call Events:            %s\n", AST_CLI_ONOFF(sip_cfg.callevents));
+	ast_cli(a->fd, "  Auth. Failure Events:   %s\n", AST_CLI_ONOFF(global_authfailureevents));
 
-	ast_cli(a->fd, "  T.38 support:           %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
+	ast_cli(a->fd, "  T.38 support:           %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
 	ast_cli(a->fd, "  T.38 EC mode:           %s\n", faxec2str(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
 	ast_cli(a->fd, "  T.38 MaxDtgrm:          %d\n", global_t38_maxdatagram);
 	if (!realtimepeers && !realtimeregs)
@@ -16045,7 +16035,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	else
 		ast_cli(a->fd, "  SIP realtime:           Enabled\n" );
 	ast_cli(a->fd, "  Qualify Freq :          %d ms\n", global_qualifyfreq);
-	ast_cli(a->fd, "  Q.850 Reason header:    %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_Q850_REASON)));
+	ast_cli(a->fd, "  Q.850 Reason header:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_Q850_REASON)));
 	ast_cli(a->fd, "\nNetwork QoS Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
 	ast_cli(a->fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
@@ -16056,12 +16046,12 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  802.1p CoS RTP audio:   %d\n", global_cos_audio);
 	ast_cli(a->fd, "  802.1p CoS RTP video:   %d\n", global_cos_video);
 	ast_cli(a->fd, "  802.1p CoS RTP text:    %d\n", global_cos_text);
-	ast_cli(a->fd, "  Jitterbuffer enabled:   %s\n", cli_yesno(ast_test_flag(&global_jbconf, AST_JB_ENABLED)));
-	ast_cli(a->fd, "  Jitterbuffer forced:    %s\n", cli_yesno(ast_test_flag(&global_jbconf, AST_JB_FORCED)));
+	ast_cli(a->fd, "  Jitterbuffer enabled:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_jbconf, AST_JB_ENABLED)));
+	ast_cli(a->fd, "  Jitterbuffer forced:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_jbconf, AST_JB_FORCED)));
 	ast_cli(a->fd, "  Jitterbuffer max size:  %ld\n", global_jbconf.max_size);
 	ast_cli(a->fd, "  Jitterbuffer resync:    %ld\n", global_jbconf.resync_threshold);
 	ast_cli(a->fd, "  Jitterbuffer impl:      %s\n", global_jbconf.impl);
-	ast_cli(a->fd, "  Jitterbuffer log:       %s\n", cli_yesno(ast_test_flag(&global_jbconf, AST_JB_LOG)));
+	ast_cli(a->fd, "  Jitterbuffer log:       %s\n", AST_CLI_YESNO(ast_test_flag(&global_jbconf, AST_JB_LOG)));
 
 	ast_cli(a->fd, "\nNetwork Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
@@ -16102,31 +16092,31 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Codec Order:            ");
 	print_codec_to_cli(a->fd, &default_prefs);
 	ast_cli(a->fd, "\n");
-	ast_cli(a->fd, "  Relax DTMF:             %s\n", cli_yesno(global_relaxdtmf));
-	ast_cli(a->fd, "  RFC2833 Compensation:   %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE)));
-	ast_cli(a->fd, "  Symmetric RTP:          %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_SYMMETRICRTP)));
-	ast_cli(a->fd, "  Compact SIP headers:    %s\n", cli_yesno(sip_cfg.compactheaders));
+	ast_cli(a->fd, "  Relax DTMF:             %s\n", AST_CLI_YESNO(global_relaxdtmf));
+	ast_cli(a->fd, "  RFC2833 Compensation:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE)));
+	ast_cli(a->fd, "  Symmetric RTP:          %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_SYMMETRICRTP)));
+	ast_cli(a->fd, "  Compact SIP headers:    %s\n", AST_CLI_YESNO(sip_cfg.compactheaders));
 	ast_cli(a->fd, "  RTP Keepalive:          %d %s\n", global_rtpkeepalive, global_rtpkeepalive ? "" : "(Disabled)" );
 	ast_cli(a->fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
 	ast_cli(a->fd, "  RTP Hold Timeout:       %d %s\n", global_rtpholdtimeout, global_rtpholdtimeout ? "" : "(Disabled)");
 	ast_cli(a->fd, "  MWI NOTIFY mime type:   %s\n", default_notifymime);
-	ast_cli(a->fd, "  DNS SRV lookup:         %s\n", cli_yesno(sip_cfg.srvlookup));
-	ast_cli(a->fd, "  Pedantic SIP support:   %s\n", cli_yesno(sip_cfg.pedanticsipchecking));
+	ast_cli(a->fd, "  DNS SRV lookup:         %s\n", AST_CLI_YESNO(sip_cfg.srvlookup));
+	ast_cli(a->fd, "  Pedantic SIP support:   %s\n", AST_CLI_YESNO(sip_cfg.pedanticsipchecking));
 	ast_cli(a->fd, "  Reg. min duration       %d secs\n", min_expiry);
 	ast_cli(a->fd, "  Reg. max duration:      %d secs\n", max_expiry);
 	ast_cli(a->fd, "  Reg. default duration:  %d secs\n", default_expiry);
 	ast_cli(a->fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
 	ast_cli(a->fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
-	ast_cli(a->fd, "  Notify ringing state:   %s\n", cli_yesno(sip_cfg.notifyringing));
+	ast_cli(a->fd, "  Notify ringing state:   %s\n", AST_CLI_YESNO(sip_cfg.notifyringing));
 	if (sip_cfg.notifyringing) {
 		ast_cli(a->fd, "    Include CID:          %s%s\n",
-				cli_yesno(sip_cfg.notifycid),
+				AST_CLI_YESNO(sip_cfg.notifycid),
 				sip_cfg.notifycid == IGNORE_CONTEXT ? " (Ignoring context)" : "");
 	}
-	ast_cli(a->fd, "  Notify hold state:      %s\n", cli_yesno(sip_cfg.notifyhold));
+	ast_cli(a->fd, "  Notify hold state:      %s\n", AST_CLI_YESNO(sip_cfg.notifyhold));
 	ast_cli(a->fd, "  SIP Transfer mode:      %s\n", transfermode2str(sip_cfg.allowtransfer));
 	ast_cli(a->fd, "  Max Call Bitrate:       %d kbps\n", default_maxcallbitrate);
-	ast_cli(a->fd, "  Auto-Framing:           %s\n", cli_yesno(global_autoframing));
+	ast_cli(a->fd, "  Auto-Framing:           %s\n", AST_CLI_YESNO(global_autoframing));
 	ast_cli(a->fd, "  Outb. proxy:            %s %s\n", ast_strlen_zero(sip_cfg.outboundproxy.name) ? "<not set>" : sip_cfg.outboundproxy.name,
 							sip_cfg.outboundproxy.force ? "(forced)" : "");
 	ast_cli(a->fd, "  Session Timers:         %s\n", stmode2str(global_st_mode));
@@ -16136,18 +16126,18 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
  	ast_cli(a->fd, "  Timer T1:               %d\n", global_t1);
 	ast_cli(a->fd, "  Timer T1 minimum:       %d\n", global_t1min);
  	ast_cli(a->fd, "  Timer B:                %d\n", global_timer_b);
-	ast_cli(a->fd, "  No premature media:     %s\n", global_prematuremediafilter ? "Yes" : "No");
+	ast_cli(a->fd, "  No premature media:     %s\n", AST_CLI_YESNO(global_prematuremediafilter));
 
 	ast_cli(a->fd, "\nDefault Settings:\n");
 	ast_cli(a->fd, "-----------------\n");
 	ast_cli(a->fd, "  Allowed transports:     %s\n", get_transport_list(default_transports));
 	ast_cli(a->fd, "  Outbound transport:	  %s\n", get_transport(default_primary_transport));
 	ast_cli(a->fd, "  Context:                %s\n", sip_cfg.default_context);
-	ast_cli(a->fd, "  Force rport:            %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_NAT_FORCE_RPORT)));
+	ast_cli(a->fd, "  Force rport:            %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_NAT_FORCE_RPORT)));
 	ast_cli(a->fd, "  DTMF:                   %s\n", dtmfmode2str(ast_test_flag(&global_flags[0], SIP_DTMF)));
 	ast_cli(a->fd, "  Qualify:                %d\n", default_qualify);
-	ast_cli(a->fd, "  Use ClientCode:         %s\n", cli_yesno(ast_test_flag(&global_flags[0], SIP_USECLIENTCODE)));
-	ast_cli(a->fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" );
+	ast_cli(a->fd, "  Use ClientCode:         %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_USECLIENTCODE)));
+	ast_cli(a->fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROG_INBAND) != SIP_PROG_INBAND_NO)));
 	ast_cli(a->fd, "  Language:               %s\n", default_language);
 	ast_cli(a->fd, "  MOH Interpret:          %s\n", default_mohinterpret);
 	ast_cli(a->fd, "  MOH Suggest:            %s\n", default_mohsuggest);
@@ -16157,12 +16147,12 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	if (realtimepeers || realtimeregs) {
 		ast_cli(a->fd, "\nRealtime SIP Settings:\n");
 		ast_cli(a->fd, "----------------------\n");
-		ast_cli(a->fd, "  Realtime Peers:         %s\n", cli_yesno(realtimepeers));
-		ast_cli(a->fd, "  Realtime Regs:          %s\n", cli_yesno(realtimeregs));
-		ast_cli(a->fd, "  Cache Friends:          %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)));
-		ast_cli(a->fd, "  Update:                 %s\n", cli_yesno(sip_cfg.peer_rtupdate));
-		ast_cli(a->fd, "  Ignore Reg. Expire:     %s\n", cli_yesno(sip_cfg.ignore_regexpire));
-		ast_cli(a->fd, "  Save sys. name:         %s\n", cli_yesno(sip_cfg.rtsave_sysname));
+		ast_cli(a->fd, "  Realtime Peers:         %s\n", AST_CLI_YESNO(realtimepeers));
+		ast_cli(a->fd, "  Realtime Regs:          %s\n", AST_CLI_YESNO(realtimeregs));
+		ast_cli(a->fd, "  Cache Friends:          %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)));
+		ast_cli(a->fd, "  Update:                 %s\n", AST_CLI_YESNO(sip_cfg.peer_rtupdate));
+		ast_cli(a->fd, "  Ignore Reg. Expire:     %s\n", AST_CLI_YESNO(sip_cfg.ignore_regexpire));
+		ast_cli(a->fd, "  Save sys. name:         %s\n", AST_CLI_YESNO(sip_cfg.rtsave_sysname));
 		ast_cli(a->fd, "  Auto Clear:             %d\n", sip_cfg.rtautoclear);
 	}
 	ast_cli(a->fd, "\n----\n");
@@ -16190,7 +16180,7 @@ static char *sip_show_mwi(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
-		ast_cli(a->fd, FORMAT, host, iterator->username, iterator->mailbox, iterator->subscribed ? "Yes" : "No");
+		ast_cli(a->fd, FORMAT, host, iterator->username, iterator->mailbox, AST_CLI_YESNO(iterator->subscribed));
 		ASTOBJ_UNLOCK(iterator);
 	} while(0));
 
@@ -16254,7 +16244,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid,
 				ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0),
-				cli_yesno(ast_test_flag(&cur->flags[1], SIP_PAGE2_CALL_ONHOLD)),
+				AST_CLI_YESNO(ast_test_flag(&cur->flags[1], SIP_PAGE2_CALL_ONHOLD)),
 				cur->needdestroy ? "(d)" : "",
 				cur->lastmsg ,
 				referstatus
@@ -16505,13 +16495,13 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "  Their Codec Capability:   %s\n", ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->peercapability));
 			ast_cli(a->fd, "  Joint Codec Capability:   %s\n", ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->jointcapability));
 			ast_cli(a->fd, "  Format:                 %s\n", ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0) );
-			ast_cli(a->fd, "  T.38 support            %s\n", cli_yesno(cur->udptl != NULL));
-			ast_cli(a->fd, "  Video support           %s\n", cli_yesno(cur->vrtp != NULL));
+			ast_cli(a->fd, "  T.38 support            %s\n", AST_CLI_YESNO(cur->udptl != NULL));
+			ast_cli(a->fd, "  Video support           %s\n", AST_CLI_YESNO(cur->vrtp != NULL));
 			ast_cli(a->fd, "  MaxCallBR:              %d kbps\n", cur->maxcallbitrate);
 			ast_cli(a->fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(a->fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(a->fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
-			ast_cli(a->fd, "  Force rport:            %s\n", cli_yesno(ast_test_flag(&cur->flags[0], SIP_NAT_FORCE_RPORT)));
+			ast_cli(a->fd, "  Force rport:            %s\n", AST_CLI_YESNO(ast_test_flag(&cur->flags[0], SIP_NAT_FORCE_RPORT)));
 			ast_cli(a->fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip.sin_addr), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
 			ast_cli(a->fd, "  Our Tag:                %s\n", cur->tag);
 			ast_cli(a->fd, "  Their Tag:              %s\n", cur->theirtag);
@@ -16524,9 +16514,9 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 				ast_cli(a->fd, "  Original uri:           %s\n", cur->uri);
 			if (!ast_strlen_zero(cur->cid_num))
 				ast_cli(a->fd, "  Caller-ID:              %s\n", cur->cid_num);
-			ast_cli(a->fd, "  Need Destroy:           %s\n", cli_yesno(cur->needdestroy));
+			ast_cli(a->fd, "  Need Destroy:           %s\n", AST_CLI_YESNO(cur->needdestroy));
 			ast_cli(a->fd, "  Last Message:           %s\n", cur->lastmsg);
-			ast_cli(a->fd, "  Promiscuous Redir:      %s\n", cli_yesno(ast_test_flag(&cur->flags[0], SIP_PROMISCREDIR)));
+			ast_cli(a->fd, "  Promiscuous Redir:      %s\n", AST_CLI_YESNO(ast_test_flag(&cur->flags[0], SIP_PROMISCREDIR)));
 			ast_cli(a->fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
 			ast_cli(a->fd, "  DTMF Mode:              %s\n", dtmfmode2str(ast_test_flag(&cur->flags[0], SIP_DTMF)));
 			ast_cli(a->fd, "  SIP Options:            ");
