@@ -32,7 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dirent.h>
 #ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
-#elif HAVE_KQUEUE
+#elif defined(HAVE_KQUEUE)
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
