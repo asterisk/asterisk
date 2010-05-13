@@ -347,7 +347,6 @@ AST_EXT_LIB_SETUP_DEPENDENT([PRI_SETUP_KEYPAD], [ISDN PRI keypad facility in SET
 # ------------------------------------v
 # TODO: The code can be changed to always include these features now.
 # These features will always be present if pri_connected_line_update is available.
-AST_EXT_LIB_SETUP_DEPENDENT([PRI_VERSION], [ISDN PRI get_version], [PRI], [pri])
 AST_EXT_LIB_SETUP_DEPENDENT([PRI_INBANDDISCONNECT], [ISDN PRI set_inbanddisconnect], [PRI], [pri])
 AST_EXT_LIB_SETUP_DEPENDENT([PRI_PROG_W_CAUSE], [ISDN progress with cause], [PRI], [pri])
 AST_EXT_LIB_SETUP_DEPENDENT([PRI_SERVICE_MESSAGES], [ISDN service messages], [PRI], [pri])
