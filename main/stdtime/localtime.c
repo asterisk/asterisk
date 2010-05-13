@@ -54,7 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <float.h>
 #ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
-#elif HAVE_KQUEUE
+#elif defined(HAVE_KQUEUE)
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
@@ -335,7 +335,7 @@ static void add_notify(struct state *sp, const char *path)
 		);
 	}
 }
-#elif HAVE_KQUEUE
+#elif defined(HAVE_KQUEUE)
 static int queue_fd = -1;
 
 static void *kqueue_daemon(void *data)
