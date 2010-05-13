@@ -32,6 +32,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dirent.h>
 #ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
+#elif HAVE_KQUEUE
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/event.h>
+#include <fcntl.h>
 #endif
 
 #include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */
@@ -435,7 +440,7 @@ static int scan_service(const char *fn, time_t now)
 	return res;
 }
 
-#ifdef HAVE_INOTIFY
+#if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
 struct direntry {
 	AST_LIST_ENTRY(direntry) list;
 	time_t mtime;
@@ -471,6 +476,15 @@ static void queue_file(const char *filename, time_t when)
 		when = st.st_mtime;
 	}
 
+#ifndef HAVE_INOTIFY
+	/* Need to check the existing list for kqueue(2), in order to avoid duplicates. */
+	AST_LIST_TRAVERSE(&dirlist, cur, list) {
+		if (cur->mtime == when && !strcmp(filename, cur->name)) {
+			return;
+		}
+	}
+#endif
+
 	if ((res = when) > now || (res = scan_service(filename, now)) > 0) {
 		if (!(new = ast_calloc(1, sizeof(*new) + strlen(filename) + 1))) {
 			return;
@@ -501,11 +515,11 @@ static void *scan_thread(void *unused)
 {
 	DIR *dir;
 	struct dirent *de;
-	int res;
 	time_t now;
 	struct timespec ts = { .tv_sec = 1 };
+#ifdef HAVE_INOTIFY
+	int res;
 	int inotify_fd = inotify_init();
-	struct direntry *cur;
 	struct {
 		struct inotify_event iev;
 		/* It may not look like we're using this element, but when we read
@@ -514,17 +528,31 @@ static void *scan_thread(void *unused)
 		char name[FILENAME_MAX + 1];
 	} buf;
 	struct pollfd pfd = { .fd = inotify_fd, .events = POLLIN };
+#else
+	struct timespec nowait = { 0, 1 };
+	int inotify_fd = kqueue();
+	struct kevent kev;
+#endif
+	struct direntry *cur;
 
 	while (!ast_fully_booted) {
 		nanosleep(&ts, NULL);
 	}
 
 	if (inotify_fd < 0) {
-		ast_log(LOG_ERROR, "Unable to initialize inotify(7)\n");
+		ast_log(LOG_ERROR, "Unable to initialize "
+#ifdef HAVE_INOTIFY
+			"inotify(7)"
+#else
+			"kqueue(2)"
+#endif
+			"\n");
 		return NULL;
 	}
 
+#ifdef HAVE_INOTIFY
 	inotify_add_watch(inotify_fd, qdir, IN_CREATE | IN_ATTRIB | IN_MOVED_TO);
+#endif
 
 	/* First, run through the directory and clear existing entries */
 	if (!(dir = opendir(qdir))) {
@@ -532,11 +560,21 @@ static void *scan_thread(void *unused)
 		return NULL;
 	}
 
+#ifndef HAVE_INOTIFY
+	EV_SET(&kev, dirfd(dir), EVFILT_VNODE, EV_ADD | EV_ENABLE, NOTE_WRITE | NOTE_EXTEND | NOTE_DELETE | NOTE_REVOKE | NOTE_ATTRIB, 0, NULL);
+	if (kevent(inotify_fd, &kev, 1, NULL, 0, &nowait) < 0 && errno != 0) {
+		ast_log(LOG_ERROR, "Unable to watch directory %s: %s\n", qdir, strerror(errno));
+	}
+#endif
 	now = time(NULL);
 	while ((de = readdir(dir))) {
 		queue_file(de->d_name, 0);
 	}
+
+#ifdef HAVE_INOTIFY
+	/* Directory needs to remain open for kqueue(2) */
 	closedir(dir);
+#endif
 
 	/* Wait for either a) next timestamp to occur, or b) a change to happen */
 	for (;/* ever */;) {
@@ -544,6 +582,7 @@ static void *scan_thread(void *unused)
 
 		time(&now);
 		if (next > now) {
+#ifdef HAVE_INOTIFY
 			int stage = 0;
 			/* Convert from seconds to milliseconds, unless there's nothing
 			 * in the queue already, in which case, we wait forever. */
@@ -556,6 +595,19 @@ static void *scan_thread(void *unused)
 			} else if (res < 0 && errno != EINTR && errno != EAGAIN) {
 				ast_debug(1, "Got an error back from %s(2): %s\n", stage ? "read" : "poll", strerror(errno));
 			}
+#else
+			struct timespec ts2 = { next - now, 0 };
+			if (kevent(inotify_fd, NULL, 0, &kev, 1, &ts2) <= 0) {
+				/* Interrupt or timeout, restart calculations */
+				continue;
+			} else {
+				/* Directory changed, rescan */
+				rewinddir(dir);
+				while ((de = readdir(dir))) {
+					queue_file(de->d_name, 0);
+				}
+			}
+#endif
 			time(&now);
 		}
 

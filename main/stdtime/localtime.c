@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2010, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -54,6 +54,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <float.h>
 #ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
+#elif HAVE_KQUEUE
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/event.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #endif
 
 #include "private.h"
@@ -153,6 +160,13 @@ struct state {
 	struct lsinfo	lsis[TZ_MAX_LEAPS];
 #ifdef HAVE_INOTIFY
 	int wd[2];
+#elif defined(HAVE_KQUEUE)
+	int fd;
+# ifdef HAVE_O_SYMLINK
+	int fds;
+# else
+	DIR *dir;
+# endif /* defined(HAVE_O_SYMLINK) */
 #else
 	time_t  mtime[2];
 #endif
@@ -298,7 +312,7 @@ static void add_notify(struct state *sp, const char *path)
 			/* Give the thread a chance to initialize */
 			ast_cond_wait(&initialization, &initialization_lock);
 		} else {
-			ast_log(LOG_ERROR, "Unable to start notification thread\n");
+			fprintf(stderr, "Unable to start notification thread\n");
 			ast_mutex_unlock(&initialization_lock);
 			return;
 		}
@@ -319,6 +333,180 @@ static void add_notify(struct state *sp, const char *path)
 			| IN_DONT_FOLLOW
 #endif
 		);
+	}
+}
+#elif HAVE_KQUEUE
+static int queue_fd = -1;
+
+static void *kqueue_daemon(void *data)
+{
+	struct kevent kev;
+	struct state *sp;
+	struct timespec no_wait = { 0, 1 };
+
+	ast_mutex_lock(&initialization_lock);
+	if ((queue_fd = kqueue()) < 0) {
+		/* ast_log uses us to format messages, so if we called ast_log, we'd be
+		 * in for a nasty loop (seen already in testing) */
+		fprintf(stderr, "Unable to initialize kqueue(): %s\n", strerror(errno));
+		inotify_thread = AST_PTHREADT_NULL;
+
+		/* Okay to proceed */
+		ast_cond_signal(&initialization);
+		ast_mutex_unlock(&initialization_lock);
+		return NULL;
+	}
+
+	ast_cond_signal(&initialization);
+	ast_mutex_unlock(&initialization_lock);
+
+	for (;/*ever*/;) {
+		if (kevent(queue_fd, NULL, 0, &kev, 1, NULL) < 0) {
+			AST_LIST_LOCK(&zonelist);
+			ast_cond_broadcast(&initialization);
+			AST_LIST_UNLOCK(&zonelist);
+			continue;
+		}
+
+		sp = kev.udata;
+
+		/*!\note
+		 * If the file event fired, then the file was removed, so we'll need
+		 * to reparse the entry.  The directory event is a bit more
+		 * interesting.  Unfortunately, the queue doesn't contain information
+		 * about the file that changed (only the directory itself), so unless
+		 * we kept a record of the directory state before, it's not really
+		 * possible to know what change occurred.  But if we act paranoid and
+		 * just purge the associated file, then it will get reparsed, and
+		 * everything works fine.  It may be more work, but it's a vast
+		 * improvement over the alternative implementation, which is to stat
+		 * the file repeatedly in what is essentially a busy loop. */
+		AST_LIST_LOCK(&zonelist);
+		AST_LIST_REMOVE(&zonelist, sp, list);
+		AST_LIST_UNLOCK(&zonelist);
+
+		/* If the directory event fired, remove the file event */
+		EV_SET(&kev, sp->fd, EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
+		kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
+		close(sp->fd);
+
+#ifdef HAVE_O_SYMLINK
+		if (sp->fds > -1) {
+			/* If the file event fired, remove the symlink event */
+			EV_SET(&kev, sp->fds, EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
+			kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
+			close(sp->fds);
+		}
+#else
+		if (sp->dir) {
+			/* If the file event fired, remove the directory event */
+			EV_SET(&kev, dirfd(sp->dir), EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
+			kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
+			closedir(sp->dir);
+		}
+#endif
+		free(sp);
+
+		/* Just in case the signal was sent late */
+		AST_LIST_LOCK(&zonelist);
+		ast_cond_broadcast(&initialization);
+		AST_LIST_UNLOCK(&zonelist);
+	}
+}
+
+static void add_notify(struct state *sp, const char *path)
+{
+	struct kevent kev;
+	struct timespec no_wait = { 0, 1 };
+	char watchdir[PATH_MAX + 1] = "";
+
+	if (inotify_thread == AST_PTHREADT_NULL) {
+		ast_cond_init(&initialization, NULL);
+		ast_mutex_init(&initialization_lock);
+		ast_mutex_lock(&initialization_lock);
+		if (!(ast_pthread_create_background(&inotify_thread, NULL, kqueue_daemon, NULL))) {
+			/* Give the thread a chance to initialize */
+			ast_cond_wait(&initialization, &initialization_lock);
+		}
+		ast_mutex_unlock(&initialization_lock);
+	}
+
+	if (queue_fd < 0) {
+		/* Error already sent */
+		return;
+	}
+
+#ifdef HAVE_O_SYMLINK
+	if (readlink(path, watchdir, sizeof(watchdir) - 1) != -1 && (sp->fds = open(path, O_RDONLY | O_SYMLINK
+# ifdef HAVE_O_EVTONLY
+			| O_EVTONLY
+# endif
+			)) >= 0) {
+		EV_SET(&kev, sp->fds, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT, NOTE_WRITE | NOTE_EXTEND | NOTE_DELETE | NOTE_REVOKE | NOTE_ATTRIB, 0, sp);
+		if (kevent(queue_fd, &kev, 1, NULL, 0, &no_wait) < 0 && errno != 0) {
+			/* According to the API docs, we may get -1 return value, due to the
+			 * NULL space for a returned event, but errno should be 0 unless
+			 * there's a real error. Otherwise, kevent will return 0 to indicate
+			 * that the time limit expired. */
+			fprintf(stderr, "Unable to watch '%s': %s\n", path, strerror(errno));
+			close(sp->fds);
+			sp->fds = -1;
+		}
+	}
+#else
+	if (readlink(path, watchdir, sizeof(watchdir) - 1) != -1) {
+		/* Special -- watch the directory for changes, because we cannot directly watch a symlink */
+		char *slash;
+
+		ast_copy_string(watchdir, path, sizeof(watchdir));
+
+		if ((slash = strrchr(watchdir, '/'))) {
+			*slash = '\0';
+		}
+		if (!(sp->dir = opendir(watchdir))) {
+			fprintf(stderr, "Unable to watch directory with symlink '%s': %s\n", path, strerror(errno));
+			goto watch_file;
+		}
+
+		/*!\note
+		 * You may be wondering about whether there is a potential conflict
+		 * with the kqueue interface, because we might be watching the same
+		 * directory for multiple zones.  The answer is no, because kqueue
+		 * looks at the descriptor to know if there's a duplicate.  Since we
+		 * (may) have opened the directory multiple times, each represents a
+		 * different event, so no replacement of an existing event will occur.
+		 * Likewise, there's no potential leak of a descriptor.
+		 */
+		EV_SET(&kev, dirfd(sp->dir), EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+				NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_REVOKE | NOTE_ATTRIB, 0, sp);
+		if (kevent(queue_fd, &kev, 1, NULL, 0, &no_wait) < 0 && errno != 0) {
+			fprintf(stderr, "Unable to watch '%s': %s\n", watchdir, strerror(errno));
+			closedir(sp->dir);
+			sp->dir = NULL;
+		}
+	}
+
+watch_file:
+#endif
+
+	if ((sp->fd = open(path, O_RDONLY
+# ifdef HAVE_O_EVTONLY
+			| O_EVTONLY
+# endif
+			)) < 0) {
+		fprintf(stderr, "Unable to watch '%s' for changes: %s\n", path, strerror(errno));
+		return;
+	}
+
+	EV_SET(&kev, sp->fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT, NOTE_WRITE | NOTE_EXTEND | NOTE_DELETE | NOTE_REVOKE | NOTE_ATTRIB, 0, sp);
+	if (kevent(queue_fd, &kev, 1, NULL, 0, &no_wait) < 0 && errno != 0) {
+		/* According to the API docs, we may get -1 return value, due to the
+		 * NULL space for a returned event, but errno should be 0 unless
+		 * there's a real error. Otherwise, kevent will return 0 to indicate
+		 * that the time limit expired. */
+		fprintf(stderr, "Unable to watch '%s': %s\n", path, strerror(errno));
+		close(sp->fd);
+		sp->fd = -1;
 	}
 }
 #else

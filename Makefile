@@ -158,6 +158,9 @@ else
   ASTVARLIBDIR=$(localstatedir)/lib/asterisk
   ASTDBDIR=$(ASTVARLIBDIR)
 endif
+ifneq ($(findstring darwin,$(OSARCH)),)
+  ASTVARRUNDIR=/Library/Application Support/Asterisk/Run
+endif
   ASTKEYDIR=$(ASTVARLIBDIR)
 endif
 ifeq ($(ASTDATADIR),)
@@ -559,7 +562,7 @@ installdirs:
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	mkdir -p $(DESTDIR)$(ASTBINDIR)
-	mkdir -p $(DESTDIR)$(ASTVARRUNDIR)
+	mkdir -p "$(DESTDIR)$(ASTVARRUNDIR)"
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/dictate
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/system
@@ -572,7 +575,7 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL)
 	$(LN) -sf asterisk $(DESTDIR)$(ASTSBINDIR)/rasterisk
 	$(INSTALL) -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
 	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/
-	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then \
+	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk -a ! -f /sbin/launchd ]; then \
 		cat contrib/scripts/safe_asterisk | sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ;\
 		chmod 755 $(DESTDIR)$(ASTSBINDIR)/safe_asterisk;\
 	fi

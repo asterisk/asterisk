@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Digium, Inc.
+ * Copyright (C) 2010, Digium, Inc.
  *
  * Tilghman Lesher <tlesher AT digium DOT com>
  *
@@ -48,10 +48,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 AST_TEST_DEFINE(test_timezone_watch)
 {
-	const char *zones[2] = { "America/Chicago", "America/New_York" };
+	const char *zones[] = { "America/Chicago", "America/New_York" };
 	int type, i, res = AST_TEST_PASS;
 	struct timeval tv = ast_tvnow();
-	struct ast_tm atm[2];
+	struct ast_tm atm[ARRAY_LEN(zones)];
 	char tmpdir[] = "/tmp/timezone.XXXXXX";
 	char tzfile[50], syscmd[256];
 
@@ -73,15 +73,12 @@ AST_TEST_DEFINE(test_timezone_watch)
 	}
 	snprintf(tzfile, sizeof(tzfile), "%s/test", tmpdir);
 
-	/* Allow system(3) to function correctly */
-	ast_replace_sigchld();
-
 	for (type = 0; type < 2; type++) {
 		ast_test_status_update(test, "Executing %s test...\n", type == 0 ? "deletion" : "symlink");
 		for (i = 0; i < ARRAY_LEN(zones); i++) {
 			int system_res;
 			snprintf(syscmd, sizeof(syscmd), "%s " TZDIR "/%s %s", type == 0 ? "cp" : "ln -sf", zones[i], tzfile);
-			if ((system_res = system(syscmd))) {
+			if ((system_res = ast_safe_system(syscmd))) {
 				ast_log(LOG_WARNING, "system(%s) returned non-zero: %d\n", syscmd, system_res);
 			}
 			ast_localtime_wakeup_monitor();
@@ -93,18 +90,17 @@ AST_TEST_DEFINE(test_timezone_watch)
 				}
 			}
 
-			/* stat(2) only has resolution to 1 second - must wait, or the mtime is the same */
-			usleep(1100000);
+			if (i + 1 != ARRAY_LEN(zones)) {
+				/* stat(2) only has resolution to 1 second - must wait, or the mtime is the same */
+				usleep(1100000);
+			}
 		}
 	}
 
 	snprintf(syscmd, sizeof(syscmd), "rm -rf %s", tmpdir);
-	if (system(syscmd)) {
+	if (ast_safe_system(syscmd)) {
 		ast_log(LOG_WARNING, "system(%s) returned non-zero.\n", syscmd);
 	}
-
-	/* Restore SIGCHLD handler */
-	ast_unreplace_sigchld();
 
 	return res;
 }
