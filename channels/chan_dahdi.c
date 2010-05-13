@@ -15914,7 +15914,7 @@ static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SUCCESS;
 	}
 	if (linksets[span-1].ss7) {
-		if (strcasecmp(a->argv[3], "on")) {
+		if (!strcasecmp(a->argv[3], "on")) {
 			ss7_set_debug(linksets[span-1].ss7, SS7_DEBUG_MTP2 | SS7_DEBUG_MTP3 | SS7_DEBUG_ISUP);
 			ast_cli(a->fd, "Enabled debugging on linkset %d\n", span);
 		} else {
