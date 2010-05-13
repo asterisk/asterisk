@@ -147,11 +147,11 @@ static void kqueue_set_nsecs(struct kqueue_timer *our_timer, uint64_t nsecs)
 {
 	struct timespec nowait = { 0, 1 };
 #ifdef HAVE_KEVENT64
-	struct kevent64 kev;
+	struct kevent64_s kev;
 
 	EV_SET64(&kev, our_timer->handle, EVFILT_TIMER, EV_ADD | EV_ENABLE, NOTE_NSECONDS,
-		nsecs, NULL, 0, 0);
-	kevent64(our_timer->handle, &kev, 1, NULL, 0, &nowait);
+		nsecs, 0, 0, 0);
+	kevent64(our_timer->handle, &kev, 1, NULL, 0, 0, &nowait);
 #else
 	struct kevent kev;
 
