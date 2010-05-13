@@ -40,6 +40,7 @@
 #include "asterisk/utils.h"
 #include "asterisk/time.h"
 #include "asterisk/test.h"
+#include "asterisk/poll-compat.h"       /* for ast_poll() */
 
 static void *timing_funcs_handle;
 
