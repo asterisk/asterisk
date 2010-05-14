@@ -4125,9 +4125,9 @@ static int transmit_frame(void *data)
 	} else {
 		/* We need reliable delivery.  Schedule a retransmission */
 		AST_LIST_INSERT_TAIL(&frame_queue[fr->callno], fr, list);
-		ast_mutex_unlock(&iaxsl[fr->callno]);
 		fr->retries++;
 		fr->retrans = iax2_sched_add(sched, fr->retrytime, attempt_transmit, fr);
+		ast_mutex_unlock(&iaxsl[fr->callno]);
 	}
 
 	return 0;
