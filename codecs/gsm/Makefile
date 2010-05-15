@@ -37,17 +37,19 @@ WAV49	= -DWAV49
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
 ######### probably require gcc. 
 
-ifeq (, $(findstring $(OSARCH) , Darwin SunOS ))
-ifeq (, $(findstring $(PROC) , x86_64 amd64 ultrasparc sparc64 arm armv5b armeb ppc powerpc ppc64 ia64 s390 bfin mipsel mips))
-ifeq (, $(findstring $(shell uname -m) , ppc ppc64 alpha armv4l s390 ))
-ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
-# Wow... Snow Leopard is BROKEN!
-OPTIMIZE+=-mtune=native
+ifeq (,$(findstring $(OSARCH),Darwin SunOS))
+  ifeq (,$(strip $(findstring $(PROC) ,"x86_64 amd64 ultrasparc sparc64 arm armv5b armeb ppc powerpc ppc64 ia64 s390 bfin mipsel mips ")))
+    ifeq (,$(strip $(findstring $(shell uname -m) ,"ppc ppc64 alpha armv4l s390 ")))
+      OPTIMIZE+=-march=$(PROC)
+    endif
+  endif
 else
-OPTIMIZE+=-march=$(PROC)
-endif
-endif
-endif
+  ifneq (,$(findstring $(OSARCH),Darwin))
+    ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
+      # Snow Leopard reports i386, even though it's really x86_64
+      OPTIMIZE+=-mtune=native
+    endif
+  endif
 endif
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
