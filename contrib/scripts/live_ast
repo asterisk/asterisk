@@ -167,6 +167,16 @@ gen_live_conf() {
   | sed  -e '/^#* \(Begin\|End\) Samples/d' >"$LIVE_CONF"
 }
 
+# (re?)generate the ./live/asterisk wrapper script
+gen_live_asterisk() {
+  cat <<EOF >"$BASE_DIR/asterisk"
+#!/bin/sh
+# a wrapper to run asterisk from the "live" copy:
+cd "$PWD"
+exec "$0" run "\$@"
+EOF
+}
+
 command="$1"
 if [ $# -gt 0 ]; then
   shift
@@ -212,12 +222,7 @@ samples)
   cat <<EOF >"$GDB_INIT"
 set args -C "$AST_CONF" -c
 EOF
-cat <<EOF >"$BASE_DIR/asterisk"
-#!/bin/sh
-# a wrapper to run asterisk from the "live" copy:
-cd "$PWD"
-exec "$0" run "\$@"
-EOF
+  gen_live_asterisk
   chmod +x "$BASE_DIR/asterisk"
   # Generate a sample config file for live_ast itself:
   gen_live_conf
@@ -229,6 +234,20 @@ conf-file)
 run)
   set_ld_env
   $AST_BIN -C $AST_CONF "$@"
+  ;;
+rsync)
+  remote_host="$1"
+  remote_dir="$2"
+  me=`basename $0`
+  # FIXME: assumes varrundir is /var/run/asterisk
+  rsync -ai "$0" \
+    --exclude '/live/asterisk' \
+    --exclude '/live/var/run/asterisk/*' --exclude '/live/var/log/asterisk/*' \
+    live "$remote_host:$remote_dir/"
+  ssh $remote_host "cd '$remote_dir' && ./$me gen-live-asterisk"
+  ;;
+gen-live-asterisk)
+  gen_live_asterisk
   ;;
 gdb)
   set_ld_env
@@ -243,6 +262,8 @@ gdb)
   echo "$0 samples              make samples"
   echo "$0 run [params]         asterisk [params]"
   echo "$0 gdb                  gdb asterisk"
+  echo "$0 rsync [user@]host dir  copy files over to [user@]host:dir"
+  echo "$0 gen-live-asterisk    regenerate the wrapper ./live/asterisk"
   echo "$0 conf-file            create live.conf if it does exist"
   exit 1
   ;;
