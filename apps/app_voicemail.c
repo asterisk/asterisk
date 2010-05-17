@@ -1924,30 +1924,34 @@ exit:
 static int folder_int(const char *folder)
 {
 	/*assume a NULL folder means INBOX*/
-	if (!folder)
+	if (!folder) {
 		return 0;
-	if (!strcasecmp(folder, imapfolder))
+	}
+	if (!strcasecmp(folder, imapfolder)) {
 		return 0;
-	else if (!strcasecmp(folder, "Old"))
+	} else if (!strcasecmp(folder, "Old")) {
 		return 1;
-	else if (!strcasecmp(folder, "Work"))
+	} else if (!strcasecmp(folder, "Work")) {
 		return 2;
-	else if (!strcasecmp(folder, "Family"))
+	} else if (!strcasecmp(folder, "Family")) {
 		return 3;
-	else if (!strcasecmp(folder, "Friends"))
+	} else if (!strcasecmp(folder, "Friends")) {
 		return 4;
-	else if (!strcasecmp(folder, "Cust1"))
+	} else if (!strcasecmp(folder, "Cust1")) {
 		return 5;
-	else if (!strcasecmp(folder, "Cust2"))
+	} else if (!strcasecmp(folder, "Cust2")) {
 		return 6;
-	else if (!strcasecmp(folder, "Cust3"))
+	} else if (!strcasecmp(folder, "Cust3")) {
 		return 7;
-	else if (!strcasecmp(folder, "Cust4"))
+	} else if (!strcasecmp(folder, "Cust4")) {
 		return 8;
-	else if (!strcasecmp(folder, "Cust5"))
+	} else if (!strcasecmp(folder, "Cust5")) {
 		return 9;
-	else /*assume they meant INBOX if folder is not found otherwise*/
+	} else if (!strcasecmp(folder, "Urgent")) {
+		return 11;
+	} else { /*assume they meant INBOX if folder is not found otherwise*/
 		return 0;
+	}
 }
 
 static int __messagecount(const char *context, const char *mailbox, const char *folder)
@@ -1998,13 +2002,10 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 	if (vms_p) {
 		ast_debug(3, "Returning before search - user is logged in\n");
 		if (fold == 0) { /* INBOX */
-			return vms_p->newmessages;
+			return urgent ? vms_p->urgentmessages : vms_p->newmessages;
 		}
 		if (fold == 1) { /* Old messages */
 			return vms_p->oldmessages;
-		}
-		if (fold == 11) {/*Urgent messages*/
-		 	return vms_p->urgentmessages;
 		}
 	}
 
@@ -2028,7 +2029,7 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 		hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (char *)(!ast_strlen_zero(vmu->imapvmshareid) ? vmu->imapvmshareid : mailbox));
 		hdr->next = mail_newsearchheader("X-Asterisk-VM-Context", (char *) S_OR(context, "default"));
 		pgm->header = hdr;
-		if (fold != 1) {
+		if (fold != OLD_FOLDER) {
 			pgm->unseen = 1;
 			pgm->seen = 0;
 		}
@@ -2040,9 +2041,14 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 			pgm->seen = 1;
 		}
 		/* look for urgent messages */
-		if (urgent) {
-			pgm->flagged = 1;
-			pgm->unflagged = 0;
+		if (fold == NEW_FOLDER) {
+			if (urgent) {
+				pgm->flagged = 1;
+				pgm->unflagged = 0;
+			} else {
+				pgm->flagged = 0;
+				pgm->unflagged = 1;
+			}
 		}
 		pgm->undeleted = 1;
 		pgm->deleted = 0;
