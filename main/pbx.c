@@ -1960,7 +1960,7 @@ enum ast_extension_states ast_devstate_to_extenstate(enum ast_device_state devst
 /*! \brief  ast_extensions_state2: Check state of extension by using hints */
 static int ast_extension_state2(struct ast_exten *e)
 {
-	char hint[AST_MAX_EXTENSION];
+	char *hint;
 	char *cur, *rest;
 	struct ast_devstate_aggregate agg;
 
@@ -1969,7 +1969,7 @@ static int ast_extension_state2(struct ast_exten *e)
 	if (!e)
 		return -1;
 
-	ast_copy_string(hint, ast_get_extension_app(e), sizeof(hint));
+	hint = ast_strdupa(ast_get_extension_app(e));
 
 	rest = hint;	/* One or more devices separated with a & character */
 	while ( (cur = strsep(&rest, "&")) ) {
