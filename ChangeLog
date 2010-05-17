@@ -1,3 +1,11 @@
+2010-05-17  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.1.20 Released
+
+        * This is the last bug maintenance release for the 1.6.1 branch. For
+          continued support please move to the 1.6.2 branch. This branch will
+          continue to receive security related issues for one additional year.
+
 2010-05-13  Leif Madsen <lmadsen@digium.com>
         
 	* Asterisk 1.6.1.20-rc2 Released
