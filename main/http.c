@@ -572,7 +572,7 @@ char *ast_http_setcookie(const char *var, const char *val, int expires, char *bu
 {
 	char *c;
 	c = buf;
-	ast_build_string(&c, &buflen, "Set-Cookie: %s=\"%s\"; Version=\"1\"", var, val);
+	ast_build_string(&c, &buflen, "Set-Cookie: %s=\"%s\"; Version=1", var, val);
 	if (expires)
 		ast_build_string(&c, &buflen, "; Max-Age=%d", expires);
 	ast_build_string(&c, &buflen, "\r\n");
