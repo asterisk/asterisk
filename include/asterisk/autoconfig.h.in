@@ -555,9 +555,6 @@
 /* Define to 1 if you have the ISDN PRI subaddressing library. */
 #undef HAVE_PRI_SUBADDR
 
-/* Define to 1 if you have the ISDN PRI get_version library. */
-#undef HAVE_PRI_VERSION
-
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 

@@ -36,6 +36,27 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
     AC_SUBST([PBX_$1])
 ])
 
+# AST_OPTION_ONLY([option name], [option variable], [option description], [default value])
+AC_DEFUN([AST_OPTION_ONLY],
+[
+AC_ARG_WITH([$1], AC_HELP_STRING([--with-$1=PATH], [use $3 in PATH]),
+	[
+	case ${withval} in
+	n|no)
+		unset $2
+		;;
+	*)
+		if test "x${$2}" = "x"; then
+			m4_ifval($4, [$2="$4"], [:])
+		else
+			$2="${withval}"
+		fi
+		;;
+	esac
+	])
+AC_SUBST($2)
+])
+
 # AST_EXT_LIB_SETUP_DEPENDENT([package symbol name], [package friendly name], [master package symbol name], [master package option name])
 
 AC_DEFUN([AST_EXT_LIB_SETUP_DEPENDENT],
