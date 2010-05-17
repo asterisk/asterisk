@@ -160,15 +160,6 @@ Dialplan Functions
  * CALLERID and CONNECTEDLINE dialplan functions have been extended to
    support ISDN subaddressing.
  * The CHANNEL() function now supports the "name" option.
- * For DAHDI channels, the CHANNEL() dialplan function now
-   supports changing the channel's buffer policy (for the current
-   call only), using this syntax:
-
-   exten => s,n,Set(CHANNEL(buffers)=6,full)
-
-   This would change the channel to the 'full' buffer policy and
-   6 (six) buffers. Possible options for this setting are the same
-   as those in chan_dahdi.conf.
  * For DAHDI channels, the CHANNEL() dialplan function now allows
    the dialplan to request changes in the configuration of the active
    echo canceller on the channel (if any), for the current call only.
@@ -532,6 +523,15 @@ DAHDI Changes
 
 Dialplan Functions
 ------------------
+ * For DAHDI channels, the CHANNEL() dialplan function now
+   supports changing the channel's buffer policy (for the current
+   call only), using this syntax:
+
+   exten => s,n,Set(CHANNEL(buffers)=6,full)
+
+   This would change the channel to the 'full' buffer policy and
+   6 (six) buffers. Possible options for this setting are the same
+   as those in chan_dahdi.conf.
  * Added a new dialplan function, CURLOPT, which permits setting various
    options that may be useful with the CURL dialplan function, such as
    cookies, proxies, connection timeouts, passwords, etc.
