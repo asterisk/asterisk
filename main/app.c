@@ -2010,7 +2010,7 @@ void ast_close_fds_above_n(int n)
 			if (entry->d_name[0] == '.') {
 				continue;
 			}
-			if ((x = strtol(entry->d_name, &result, 10)) && x >= n) {
+			if ((x = strtol(entry->d_name, &result, 10)) && x > n) {
 				close(x);
 			}
 		}
