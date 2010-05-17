@@ -145,7 +145,7 @@ int ast_device_state(const char *device)
 	number = buf;
 	if (!number) {
 		provider = strsep(&tech, ":");
-		if (!provider)
+		if (!tech)
 			return AST_DEVICE_INVALID;
 		/* We have a provider */
 		number = tech;
