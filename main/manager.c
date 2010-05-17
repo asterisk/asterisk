@@ -4994,7 +4994,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	ast_str_append(&http_header, 0,
 		"Content-type: text/%s\r\n"
 		"Cache-Control: no-cache;\r\n"
-		"Set-Cookie: mansession_id=\"%08x\"; Version=\"1\"; Max-Age=%d"
+		"Set-Cookie: mansession_id=\"%08x\"; Version=1; Max-Age=%d"
 		"Pragma: SuppressEvents\r\n",
 		contenttype[format],
 		session->managerid, httptimeout);
