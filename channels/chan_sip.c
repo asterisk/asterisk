@@ -4741,6 +4741,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, context, peer->context);
 	ast_string_field_set(dialog, cid_num, peer->cid_num);
 	ast_string_field_set(dialog, cid_name, peer->cid_name);
+	ast_string_field_set(dialog, cid_tag, peer->cid_tag);
 	ast_string_field_set(dialog, mwi_from, peer->mwi_from);
 	ast_string_field_set(dialog, parkinglot, peer->parkinglot);
 	ast_string_field_set(dialog, engine, peer->engine);
@@ -6281,6 +6282,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
 	ast_channel_cc_params_init(tmp, i->cc_params);
+	tmp->cid.cid_tag = ast_strdup(i->cid_tag);
 	ast_channel_unlock(tmp);
 
 	tmp->tech = ( ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO || ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_SHORTINFO) ?  &sip_tech_info : &sip_tech;
@@ -13395,7 +13397,11 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 			params++;
 		/* Check if we have a reason parameter */
 		if ((reason_param = strcasestr(params, "reason="))) {
+			char *end;
 			reason_param+=7;
+			if ((end = strchr(reason_param, ';'))) {
+				*end = '\0';
+			}
 			/* Remove enclosing double-quotes */
 			if (*reason_param == '"')
 				ast_strip_quoted(reason_param, "\"", "\"");
@@ -14118,6 +14124,8 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 			}
 			if (!ast_strlen_zero(peer->cid_name))
 				ast_string_field_set(p, cid_name, peer->cid_name);
+			if (!ast_strlen_zero(peer->cid_tag))
+				ast_string_field_set(p, cid_tag, peer->cid_tag);
 			if (peer->callingpres)
 				p->callingpres = peer->callingpres;
 		}
@@ -17527,6 +17535,7 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 		ast_debug(3, "Got redirecting from name %s\n", redirecting_from_name);
 		redirecting->from.name = redirecting_from_name;
 	}
+	redirecting->from.tag = (char *) p->cid_tag;
 	if (!ast_strlen_zero(redirecting_to_number)) {
 		if (redirecting->to.number) {
 			ast_free(redirecting->to.number);
@@ -17541,6 +17550,7 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 		ast_debug(3, "Got redirecting to name %s\n", redirecting_from_number);
 		redirecting->to.name = redirecting_to_name;
 	}
+	redirecting->to.tag = (char *) p->cid_tag;
 	redirecting->reason = reason;
 }
 
@@ -17888,6 +17898,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				ast_party_connected_line_init(&connected);
 				connected.id.number = (char *) p->cid_num;
 				connected.id.name = (char *) p->cid_name;
+				connected.id.tag = (char *) p->cid_tag;
 				connected.id.number_presentation = p->callingpres;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 				ast_channel_queue_connected_line_update(p->owner, &connected);
@@ -17932,6 +17943,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				ast_party_connected_line_init(&connected);
 				connected.id.number = (char *) p->cid_num;
 				connected.id.name = (char *) p->cid_name;
+				connected.id.tag = (char *) p->cid_tag;
 				connected.id.number_presentation = p->callingpres;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 				ast_channel_queue_connected_line_update(p->owner, &connected);
@@ -17977,6 +17989,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			ast_party_connected_line_init(&connected);
 			connected.id.number = (char *) p->cid_num;
 			connected.id.name = (char *) p->cid_name;
+			connected.id.tag = (char *) p->cid_tag;
 			connected.id.number_presentation = p->callingpres;
 			connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 			ast_channel_queue_connected_line_update(p->owner, &connected);
@@ -20121,6 +20134,7 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
 		ast_party_connected_line_init(&connected);
 		connected.id.number = (char *) p->cid_num;
 		connected.id.name = (char *) p->cid_name;
+		connected.id.tag = (char *) p->cid_tag;
 		connected.id.number_presentation = p->callingpres;
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 		ast_channel_queue_connected_line_update(p->owner, &connected);
@@ -20448,6 +20462,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_party_connected_line_init(&connected);
 				connected.id.number = (char *) p->cid_num;
 				connected.id.name = (char *) p->cid_name;
+				connected.id.tag = (char *) p->cid_tag;
 				connected.id.number_presentation = p->callingpres;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 				ast_channel_queue_connected_line_update(p->owner, &connected);
@@ -21073,11 +21088,30 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target);
 		} else {
 			/* Since target.chan1 isn't actually connected to another channel, there is no way for us
-			 * to queue a frame so that its connected line status will be updated. Instead, we have to
-			 * change it directly. Since we are not the channel thread, we cannot run a connected line
-			 * interception macro on target.chan1
+			 * to queue a frame so that its connected line status will be updated.
+			 *
+			 * Instead, we use the somewhat hackish approach of using a special control frame type that
+			 * instructs ast_read to perform a specific action. In this case, the frame we queue tells
+			 * ast_read to call the connected line interception macro configured for target.chan1.
 			 */
-			ast_channel_update_connected_line(target.chan1, &connected_to_target);
+			struct ast_control_read_action_payload *frame_payload;
+			int payload_size;
+			int frame_size;
+			unsigned char connected_line_data[1024];
+			payload_size = ast_connected_line_build_data(connected_line_data, sizeof(connected_line_data), &connected_to_target);
+			frame_size = payload_size + sizeof(*frame_payload);
+			if (payload_size != -1 && (frame_payload = alloca(frame_size))) {
+				frame_payload->payload_size = payload_size;
+				memcpy(frame_payload->payload, connected_line_data, payload_size);
+				frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
+				ast_queue_control_data(target.chan1, AST_CONTROL_READ_ACTION, frame_payload, frame_size);
+			}
+			/* In addition to queueing the read action frame so that target.chan1's connected line info
+			 * will be updated, we also are going to queue a plain old connected line update on target.chan1. This
+			 * way, either Dial or Queue can apply this connected line update to the outgoing ringing channel.
+			 */
+			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee);
+
 		}
 		ast_channel_unref(current->chan1);
 	}
@@ -24718,6 +24752,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	ast_string_field_set(peer, md5secret, "");
 	ast_string_field_set(peer, cid_num, "");
 	ast_string_field_set(peer, cid_name, "");
+	ast_string_field_set(peer, cid_tag, "");
 	ast_string_field_set(peer, fromdomain, "");
 	ast_string_field_set(peer, fromuser, "");
 	ast_string_field_set(peer, regexten, "");
@@ -24933,6 +24968,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_string_field_set(peer, cid_name, "");
 			} else if (!strcasecmp(v->name, "cid_number")) {
 				ast_string_field_set(peer, cid_num, v->value);
+			} else if (!strcasecmp(v->name, "cid_tag")) {
+				ast_string_field_set(peer, cid_tag, v->value);
 			} else if (!strcasecmp(v->name, "context")) {
 				ast_string_field_set(peer, context, v->value);
 				ast_set_flag(&peer->flags[1], SIP_PAGE2_HAVEPEERCONTEXT);

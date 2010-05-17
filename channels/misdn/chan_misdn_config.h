@@ -42,6 +42,8 @@ enum misdn_cfg_elements {
 	MISDN_CFG_LANGUAGE,            /* char[] */
 	MISDN_CFG_MUSICCLASS,            /* char[] */
 	MISDN_CFG_CALLERID,            /* char[] */
+	MISDN_CFG_INCOMING_CALLERID_TAG, /* char[] */
+	MISDN_CFG_APPEND_MSN_TO_CALLERID_TAG, /* int (bool) */
 	MISDN_CFG_METHOD,              /* char[] */
 	MISDN_CFG_DIALPLAN,            /* int */
 	MISDN_CFG_LOCALDIALPLAN,       /* int */

@@ -134,6 +134,13 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"Sets the musiconhold class." },
 	{ "callerid", MISDN_CFG_CALLERID, MISDN_CTYPE_STR, "", NONE,
 		"Set the outgoing caller id to the value." },
+	{ "incoming_cid_tag", MISDN_CFG_INCOMING_CALLERID_TAG, MISDN_CTYPE_STR, "", NONE,
+		"Set the incoming caller id string tag to the value." },
+	{ "append_msn_to_cid_tag", MISDN_CFG_APPEND_MSN_TO_CALLERID_TAG, MISDN_CTYPE_BOOL, "no", NONE,
+		"Automatically appends incoming or outgoing MSN to the incoming caller\n"
+		"\tid string tag. An underscore '_' is used as delimiter. Incoming calls\n"
+		"\twill have the dialed number appended, and outgoing calls will have the\n"
+		"\tcaller number appended to the tag." },
 	{ "method", MISDN_CFG_METHOD, MISDN_CTYPE_STR, "standard", NONE,
 		"Set the method to use for channel selection:\n"
 		"\t  standard     - Use the first free channel starting from the lowest number.\n"

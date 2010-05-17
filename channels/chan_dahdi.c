@@ -1049,6 +1049,11 @@ struct dahdi_pvt {
 	int cid_ani2;
 	/*! \brief Caller ID number from an incoming call. */
 	char cid_num[AST_MAX_EXTENSION];
+	/*!
+	 * \brief Caller ID tag from incoming call
+	 * \note the "cid_tag" string read in from chan_dahdi.conf
+	 */
+	char cid_tag[AST_MAX_EXTENSION];
 	/*! \brief Caller ID Q.931 TON/NPI field values.  Set by PRI. Zero otherwise. */
 	int cid_ton;
 	/*! \brief Caller ID name from an incoming call. */
@@ -1386,6 +1391,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.context = "default",
 			.cid_num = "",
 			.cid_name = "",
+			.cid_tag = "",
 			.mohinterpret = "default",
 			.mohsuggest = "",
 			.parkinglot = "",
@@ -9024,6 +9030,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	tmp->cid.cid_pres = i->callingpres;
 	tmp->cid.cid_ton = i->cid_ton;
 	tmp->cid.cid_ani2 = i->cid_ani2;
+	tmp->cid.cid_tag = ast_strdup(i->cid_tag);
 #if defined(HAVE_SS7)
 	tmp->transfercapability = transfercapability;
 	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
@@ -11995,6 +12002,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			tmp->cid_num[0] = '\0';
 			tmp->cid_name[0] = '\0';
 		}
+		ast_copy_string(tmp->cid_tag, conf->chan.cid_tag, sizeof(tmp->cid_tag));
 		tmp->cid_subaddr[0] = '\0';
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
@@ -16781,6 +16789,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			ast_copy_string(confp->chan.cid_name, v->value, sizeof(confp->chan.cid_name));
 		} else if (!strcasecmp(v->name, "cid_number")) {
 			ast_copy_string(confp->chan.cid_num, v->value, sizeof(confp->chan.cid_num));
+		} else if (!strcasecmp(v->name, "cid_tag")) {
+			ast_copy_string(confp->chan.cid_tag, v->value, sizeof(confp->chan.cid_tag));
 		} else if (!strcasecmp(v->name, "useincomingcalleridondahditransfer")) {
 			confp->chan.dahditrcallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "restrictcid")) {

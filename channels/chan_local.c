@@ -433,6 +433,9 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		if (the_other_channel) {
 			unsigned char frame_data[1024];
 			if (condition == AST_CONTROL_CONNECTED_LINE) {
+				if (isoutbound) {
+					ast_connected_line_copy_to_caller(&the_other_channel->cid, &this_channel->connected);
+				}
 				f.datalen = ast_connected_line_build_data(frame_data, sizeof(frame_data), &this_channel->connected);
 			} else {
 				f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data), &this_channel->redirecting);

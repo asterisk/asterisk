@@ -426,7 +426,9 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			break;
 		case AST_CONTROL_REDIRECTING:
 			ast_verb(3, "%s redirecting info has changed, passing it to %s\n", channel->owner->name, chan->name);
-			ast_indicate_data(chan, AST_CONTROL_REDIRECTING, fr->data.ptr, fr->datalen);
+			if (ast_channel_redirecting_macro(channel->owner, chan, fr, 1, 1)) {
+				ast_indicate_data(chan, AST_CONTROL_REDIRECTING, fr->data.ptr, fr->datalen);
+			}
 			break;
 		case AST_CONTROL_PROCEEDING:
 			ast_verb(3, "%s is proceeding, passing it to %s\n", channel->owner->name, chan->name);

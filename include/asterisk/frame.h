@@ -326,6 +326,24 @@ enum ast_control_frame_type {
 	AST_CONTROL_T38_PARAMETERS = 24, /*! T38 state change request/notification with parameters */
 	AST_CONTROL_CC = 25, /*!< Indication that Call completion service is possible */
 	AST_CONTROL_SRCCHANGE = 26,  /*!< Media source has changed and requires a new RTP SSRC */
+	AST_CONTROL_READ_ACTION = 27, /*!< Tell ast_read to take a specific action */
+};
+
+enum ast_frame_read_action {
+	AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO,
+};
+
+struct ast_control_read_action_payload {
+	/* An indicator to ast_read of what action to
+	 * take with the frame;
+	 */
+	enum ast_frame_read_action action;
+	/* The size of the frame's payload
+	 */
+	size_t payload_size;
+	/* A payload for the frame.
+	 */
+	unsigned char payload[0];
 };
 
 enum ast_control_t38 {

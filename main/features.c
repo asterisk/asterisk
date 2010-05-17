@@ -2728,6 +2728,10 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 					if (ast_channel_connected_line_macro(chan, caller, f, 1, 1)) {
 						ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
 					}
+				} else if (f->subclass.integer == AST_CONTROL_REDIRECTING) {
+					if (ast_channel_redirecting_macro(chan, caller, f, 1, 1)) {
+						ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+					}
 				} else if (f->subclass.integer != -1 && f->subclass.integer != AST_CONTROL_PROGRESS) {
 					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass.integer);
 				}
@@ -3196,7 +3200,14 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				if (!ast_channel_connected_line_macro(who, other, f, who != chan, 1)) {
 					break;
 				}
-				/* The implied "else" falls through purposely */
+				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
+				break;
+			case AST_CONTROL_REDIRECTING:
+				if (!ast_channel_redirecting_macro(who, other, f, who != chan, 1)) {
+					break;
+				}
+				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
+				break;
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
 				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);

@@ -349,6 +349,11 @@ struct misdn_bchannel {
 	 */
 	struct misdn_party_id caller;
 
+	/*! \brief  Incoming Caller ID string tag for special purpose
+	 * \note The element can be set to "incoming_cid_tag" in /etc/asterisk/misdn.conf for incoming calls
+	 */
+	char incoming_cid_tag[MISDN_MAX_NAME_LEN];
+
 	/*! \brief Connected-Party/Connected-Line ID information struct
 	 * \note The number_type element can be set to "cpndialplan" in /etc/asterisk/misdn.conf for outgoing calls
 	 */

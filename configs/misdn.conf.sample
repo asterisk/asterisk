@@ -404,6 +404,19 @@ nodialtone=no
 presentation=-1
 screen=-1
 
+; Incoming calls will have a caller ID tag set to this value
+;
+;incoming_cid_tag = "asterisk"
+
+; With this set, you can automatically append the MSN of a party
+; to the cid_tag. Incoming calls have the dialed number appended
+; to the tag, and outgoing calls have the caller number appended
+; to the tag. An '_' is used to separate the tag from the
+; MSN.
+; Default is no.
+;
+;append_msn_to_cid_tag = no
+
 ; Select what to do with outgoing COLP information on this port.
 ;
 ; 0 - Send out COLP information unaltered. (default)

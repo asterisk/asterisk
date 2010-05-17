@@ -288,6 +288,17 @@ struct ast_callerid {
 	 * (Field will eventually move to struct ast_channel.dialed.transit_network_select)
 	 */
 	int cid_tns;
+
+	/*!
+	 * \brief Callerid "Tag"
+	 * A user-settable field used to help associate some extrinsic information
+	 * about the channel or user of the channel to the caller ID. This information
+	 * is not transmitted over the wire and so is only useful within an Asterisk
+	 * environment.
+	 * (Field will eventually move to struct ast_channel.caller.id.tag)
+	 */
+	char *cid_tag;
+
 	/*!
 	 * \brief Caller id subaddress.
 	 * (Field will eventually move to struct ast_channel.caller.id.subaddress)
@@ -313,6 +324,9 @@ struct ast_party_id {
 
 	/*! \brief Subscriber name (Malloced) */
 	char *name;
+
+	/*! \brief User-set "tag" */
+	char *tag;
 
 	/*! \brief Subscriber subaddress. */
 	struct ast_party_subaddress subaddress;
@@ -2778,6 +2792,36 @@ int ast_channel_data_add_structure(struct ast_data *tree, struct ast_channel *ch
  */
 int ast_channel_data_cmp_structure(const struct ast_data_search *tree, struct ast_channel *chan,
 	const char *structure_name);
+
+/*!
+ * \since 1.8
+ * \brief Run a redirecting interception macro and update a channel's redirecting information
+ *
+ * \details
+ * Whenever we want to update a channel's redirecting information, we may need to run
+ * a macro so that an administrator can manipulate the information before sending it
+ * out. This function both runs the macro and sends the update to the channel.
+ *
+ * \param autoservice_chan Channel to place into autoservice while the macro is running.
+ * It is perfectly safe for this to be NULL
+ * \param macro_chan The channel to run the macro on. Also the channel from which we
+ * determine which macro we need to run.
+ * \param redirecting_info Either an ast_party_redirecting or ast_frame pointer of type
+ * AST_CONTROL_REDIRECTING
+ * \param is_caller If true, then run REDIRECTING_CALLER_SEND_MACRO, otherwise run
+ * REDIRECTING_CALLEE_SEND_MACRO
+ * \param is_frame If true, then redirecting_info is an ast_frame pointer, otherwise it is an
+ * ast_party_redirecting pointer.
+ *
+ * \retval 0 Success
+ * \retval -1 Either the macro does not exist, or there was an error while attempting to
+ * run the macro
+ *
+ * \todo Have multiple return codes based on the MACRO_RESULT
+ * \todo Make constants so that caller and frame can be more expressive than just '1' and
+ * '0'
+ */
+int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *redirecting_info, int is_caller, int is_frame);
 
 #include "asterisk/ccss.h"
 

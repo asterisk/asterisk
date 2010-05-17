@@ -3204,6 +3204,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 {
 	const char *queue = qe->parent->name;
 	struct callattempt *o, *start = NULL, *prev = NULL;
+	int res;
 	int status;
 	int numbusies = prebusies;
 	int numnochan = 0;
@@ -3373,7 +3374,21 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						ast_party_caller_copy(&o->chan->cid, &in->cid);
 						ast_party_connected_line_copy(&o->chan->connected, &original->connected);
 
-						ast_channel_update_redirecting(in, &o->chan->redirecting);
+						/*
+						 * We must unlock o->chan before calling
+						 * ast_channel_redirecting_macro, because we put o->chan into
+						 * autoservice there.  That is pretty much a guaranteed
+						 * deadlock.  This is why the handling of o->chan's lock may
+						 * seem a bit unusual here.
+						 */
+						ast_channel_unlock(o->chan);
+						res = ast_channel_redirecting_macro(o->chan, in, &o->chan->redirecting, 1, 0);
+						while (ast_channel_trylock(o->chan)) {
+							CHANNEL_DEADLOCK_AVOIDANCE(in);
+						}
+						if (res) {
+							ast_channel_update_redirecting(in, &o->chan->redirecting);
+						}
 
 						update_connectedline = 1;
 
@@ -3486,7 +3501,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_verb(3, "Redirecting update to %s prevented\n", inchan_name);
 							} else {
 								ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ochan_name, inchan_name);
-								ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
+								if (ast_channel_redirecting_macro(o->chan, in, f, 1, 1)) {
+									ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
+								}
 							}
 							break;
 						default:

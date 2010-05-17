@@ -1528,6 +1528,8 @@ static void free_cid(struct ast_callerid *cid)
 		ast_free(cid->cid_name);	
 	if (cid->cid_ani)
 		ast_free(cid->cid_ani);
+	if (cid->cid_tag)
+		ast_free(cid->cid_tag);
 	cid->cid_dnid = cid->cid_num = cid->cid_name = cid->cid_ani = NULL;
 	ast_party_subaddress_free(&cid->subaddress);
 	ast_party_subaddress_free(&cid->dialed_subaddress);
@@ -1611,6 +1613,7 @@ static void ast_party_id_init(struct ast_party_id *init)
 {
 	init->number = NULL;
 	init->name = NULL;
+	init->tag = NULL;
 	init->number_type = 0;	/* Unknown */
 	init->number_presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 	ast_party_subaddress_init(&init->subaddress);
@@ -1642,6 +1645,11 @@ static void ast_party_id_copy(struct ast_party_id *dest, const struct ast_party_
 	}
 	dest->name = ast_strdup(src->name);
 
+	if (dest->tag) {
+		ast_free(dest->tag);
+	}
+	dest->tag = ast_strdup(src->tag);
+
 	dest->number_type = src->number_type;
 	dest->number_presentation = src->number_presentation;
 	ast_party_subaddress_copy(&dest->subaddress, &src->subaddress);
@@ -1668,6 +1676,7 @@ static void ast_party_id_set_init(struct ast_party_id *init, const struct ast_pa
 {
 	init->number = NULL;
 	init->name = NULL;
+	init->tag = NULL;
 	init->number_type = guide->number_type;
 	init->number_presentation = guide->number_presentation;
 	ast_party_subaddress_set_init(&init->subaddress, &guide->subaddress);
@@ -1703,6 +1712,13 @@ static void ast_party_id_set(struct ast_party_id *dest, const struct ast_party_i
 		dest->number = ast_strdup(src->number);
 	}
 
+	if (src->tag && src->tag != dest->tag) {
+		if (dest->tag) {
+			ast_free(dest->tag);
+		}
+		dest->tag = ast_strdup(src->tag);
+	}
+
 	dest->number_type = src->number_type;
 	dest->number_presentation = src->number_presentation;
 	ast_party_subaddress_set(&dest->subaddress, &src->subaddress);
@@ -1726,6 +1742,11 @@ static void ast_party_id_free(struct ast_party_id *doomed)
 	if (doomed->name) {
 		ast_free(doomed->name);
 		doomed->name = NULL;
+	}
+
+	if (doomed->tag) {
+		ast_free(doomed->tag);
+		doomed->tag = NULL;
 	}
 	ast_party_subaddress_free(&doomed->subaddress);
 }
@@ -1757,6 +1778,11 @@ void ast_party_caller_copy(struct ast_callerid *dest, const struct ast_callerid 
 		ast_free(dest->cid_name);
 	}
 	dest->cid_name = ast_strdup(src->cid_name);
+
+	if (dest->cid_tag) {
+		ast_free(dest->cid_tag);
+	}
+	dest->cid_tag = ast_strdup(src->cid_tag);
 
 	dest->cid_ton = src->cid_ton;
 	dest->cid_pres = src->cid_pres;
@@ -1843,6 +1869,7 @@ void ast_party_connected_line_collect_caller(struct ast_party_connected_line *co
 	connected->id.name = cid->cid_name;
 	connected->id.number_type = cid->cid_ton;
 	connected->id.number_presentation = cid->cid_pres;
+	connected->id.tag = cid->cid_tag;
 	connected->id.subaddress = cid->subaddress;
 
 	connected->ani = cid->cid_ani;
@@ -3354,6 +3381,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 	if (f) {
 		struct ast_frame *readq_tail = AST_LIST_LAST(&chan->readq);
+		struct ast_control_read_action_payload *read_action_payload;
+		struct ast_party_connected_line connected;
 
 		/* if the channel driver returned more than one frame, stuff the excess
 		   into the readq for the next ast_read call
@@ -3381,6 +3410,23 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					/* removed a call to ast_cdr_answer(chan->cdr) from here. */
 					ast_cel_report_event(chan, AST_CEL_ANSWER, NULL, NULL, NULL);
 				}
+			} else if (f->subclass.integer == AST_CONTROL_READ_ACTION) {
+				ast_party_connected_line_init(&connected);
+				read_action_payload = f->data.ptr;
+				switch (read_action_payload->action) {
+				case AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO:
+					if (ast_connected_line_parse_data(read_action_payload->payload,
+								read_action_payload->payload_size, &connected)) {
+						break;
+					}
+					if (ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
+						ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE,
+								read_action_payload->payload, read_action_payload->payload_size);
+					}
+					break;
+				}
+				ast_frfree(f);
+				f = &ast_null_frame;
 			}
 			break;
 		case AST_FRAME_DTMF_END:
@@ -3606,6 +3652,25 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				* and synchronous generation of outgoing frames is necessary       */
 				ast_read_generator_actions(chan, f);
 			}
+			break;
+		case AST_CONTROL_READ_ACTION:
+			ast_log(LOG_NOTICE, "Read a read action frame\n");
+			read_action_payload = f->data.ptr;
+			switch (read_action_payload->action) {
+			case AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO:
+				if (ast_connected_line_parse_data(read_action_payload->payload,
+							read_action_payload->payload_size, &connected)) {
+					break;
+				}
+				if (ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
+					ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE,
+							read_action_payload->payload, read_action_payload->payload_size);
+				}
+				break;
+			}
+			ast_frfree(f);
+			f = &ast_null_frame;
+			break;
 		default:
 			/* Just pass it on! */
 			break;
@@ -3679,6 +3744,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_T38_PARAMETERS:
 	case _XXX_AST_CONTROL_T38:
 	case AST_CONTROL_CC:
+	case AST_CONTROL_READ_ACTION:
 		break;
 
 	case AST_CONTROL_CONGESTION:
@@ -3823,6 +3889,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_CONNECTED_LINE:
 	case AST_CONTROL_REDIRECTING:
 	case AST_CONTROL_CC:
+	case AST_CONTROL_READ_ACTION:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
@@ -5794,7 +5861,9 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 
 			switch (f->subclass.integer) {
 			case AST_CONTROL_REDIRECTING:
-				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
+				if (ast_channel_redirecting_macro(who, other, f, other == c0, 1)) {
+					ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
+				}
 				break;
 			case AST_CONTROL_CONNECTED_LINE:
 				if (ast_channel_connected_line_macro(who, other, f, other == c0, 1)) {
@@ -6781,6 +6850,11 @@ void ast_connected_line_copy_from_caller(struct ast_party_connected_line *dest, 
 	}
 	dest->id.name = ast_strdup(src->cid_name);
 
+	if (dest->id.tag) {
+		ast_free(dest->id.tag);
+	}
+	dest->id.tag = ast_strdup(src->cid_tag);
+
 	dest->id.number_type = src->cid_ton;
 	dest->id.number_presentation = src->cid_pres;
 
@@ -6822,6 +6896,11 @@ void ast_connected_line_copy_to_caller(struct ast_callerid *dest, const struct a
 		ast_free(dest->cid_name);
 	}
 	dest->cid_name = ast_strdup(src->id.name);
+
+	if (dest->cid_tag) {
+		ast_free(dest->cid_tag);
+	}
+	dest->cid_tag = ast_strdup(src->id.tag);
 
 	dest->cid_ton = src->id.number_type;
 	dest->cid_pres = src->id.number_presentation;
@@ -6876,7 +6955,8 @@ enum {
 	AST_CONNECTED_LINE_SUBADDRESS,
 	AST_CONNECTED_LINE_SUBADDRESS_TYPE,
 	AST_CONNECTED_LINE_SUBADDRESS_ODD_EVEN,
-	AST_CONNECTED_LINE_SUBADDRESS_VALID
+	AST_CONNECTED_LINE_SUBADDRESS_VALID,
+	AST_CONNECTED_LINE_TAG,
 };
 
 int ast_connected_line_build_data(unsigned char *data, size_t datalen, const struct ast_party_connected_line *connected)
@@ -6912,6 +6992,18 @@ int ast_connected_line_build_data(unsigned char *data, size_t datalen, const str
 		data[pos++] = AST_CONNECTED_LINE_NAME;
 		data[pos++] = length;
 		memcpy(data + pos, connected->id.name, length);
+		pos += length;
+	}
+
+	if (connected->id.tag) {
+		length = strlen(connected->id.tag);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for connected line tag\n");
+			return -1;
+		}
+		data[pos++] = AST_CONNECTED_LINE_TAG;
+		data[pos++] = length;
+		memcpy(data + pos, connected->id.tag, length);
 		pos += length;
 	}
 
@@ -7023,6 +7115,16 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 			if (connected->id.name) {
 				memcpy(connected->id.name, data + pos, ie_len);
 				connected->id.name[ie_len] = 0;
+			}
+			break;
+		case AST_CONNECTED_LINE_TAG:
+			if (connected->id.tag) {
+				ast_free(connected->id.tag);
+			}
+			connected->id.tag = ast_malloc(ie_len + 1);
+			if (connected->id.tag) {
+				memcpy(connected->id.tag, data + pos, ie_len);
+				connected->id.tag[ie_len] = 0;
 			}
 			break;
 		case AST_CONNECTED_LINE_NUMBER_TYPE:
@@ -7156,7 +7258,9 @@ enum {
 	AST_REDIRECTING_TO_SUBADDRESS,
 	AST_REDIRECTING_TO_SUBADDRESS_TYPE,
 	AST_REDIRECTING_TO_SUBADDRESS_ODD_EVEN,
-	AST_REDIRECTING_TO_SUBADDRESS_VALID
+	AST_REDIRECTING_TO_SUBADDRESS_VALID,
+	AST_REDIRECTING_FROM_TAG,
+	AST_REDIRECTING_TO_TAG,
 };
 
 int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct ast_party_redirecting *redirecting)
@@ -7192,6 +7296,18 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 		data[pos++] = AST_REDIRECTING_FROM_NAME;
 		data[pos++] = length;
 		memcpy(data + pos, redirecting->from.name, length);
+		pos += length;
+	}
+
+	if (redirecting->from.tag) {
+		length = strlen(redirecting->from.tag);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for redirecting from name\n");
+			return -1;
+		}
+		data[pos++] = AST_REDIRECTING_FROM_TAG;
+		data[pos++] = length;
+		memcpy(data + pos, redirecting->from.tag, length);
 		pos += length;
 	}
 
@@ -7271,6 +7387,18 @@ int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct
 		data[pos++] = AST_REDIRECTING_TO_NAME;
 		data[pos++] = length;
 		memcpy(data + pos, redirecting->to.name, length);
+		pos += length;
+	}
+
+	if (redirecting->to.tag) {
+		length = strlen(redirecting->to.tag);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for redirecting to name\n");
+			return -1;
+		}
+		data[pos++] = AST_REDIRECTING_TO_TAG;
+		data[pos++] = length;
+		memcpy(data + pos, redirecting->to.tag, length);
 		pos += length;
 	}
 
@@ -7393,6 +7521,16 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 				redirecting->from.name[ie_len] = 0;
 			}
 			break;
+		case AST_REDIRECTING_FROM_TAG:
+			if (redirecting->from.tag) {
+				ast_free(redirecting->from.tag);
+			}
+			redirecting->from.tag = ast_malloc(ie_len + 1);
+			if (redirecting->from.tag) {
+				memcpy(redirecting->from.tag, data + pos, ie_len);
+				redirecting->from.tag[ie_len] = 0;
+			}
+			break;
 		case AST_REDIRECTING_FROM_NUMBER_TYPE:
 			if (ie_len != 1) {
 				ast_log(LOG_WARNING, "Invalid redirecting from type of number (%u)\n", (unsigned) ie_len);
@@ -7460,6 +7598,16 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			if (redirecting->to.name) {
 				memcpy(redirecting->to.name, data + pos, ie_len);
 				redirecting->to.name[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_TO_TAG:
+			if (redirecting->to.tag) {
+				ast_free(redirecting->to.tag);
+			}
+			redirecting->to.tag = ast_malloc(ie_len + 1);
+			if (redirecting->to.tag) {
+				memcpy(redirecting->to.tag, data + pos, ie_len);
+				redirecting->to.tag[ie_len] = 0;
 			}
 			break;
 		case AST_REDIRECTING_TO_NUMBER_TYPE:
@@ -7562,39 +7710,72 @@ void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct
 	ast_queue_control_data(chan, AST_CONTROL_REDIRECTING, data, datalen);
 }
 
-int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int caller, int frame)
+int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int is_caller, int is_frame)
 {
 	const char *macro;
 	const char *macro_args;
-	union {
-		const struct ast_frame *frame;
-		const struct ast_party_connected_line *connected;
-	} pointer;
 	int retval;
 
-	if (frame) {
-		pointer.frame = connected_info;
-	} else {
-		pointer.connected = connected_info;
-	}
-
 	ast_channel_lock(macro_chan);
-	macro = ast_strdupa(S_OR(pbx_builtin_getvar_helper(macro_chan, caller ? "CONNECTED_LINE_CALLER_SEND_MACRO" : "CONNECTED_LINE_CALLEE_SEND_MACRO"), ""));
-	macro_args = ast_strdupa(S_OR(pbx_builtin_getvar_helper(macro_chan, caller ? "CONNECTED_LINE_CALLER_SEND_MACRO_ARGS" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS"), ""));
+	macro = pbx_builtin_getvar_helper(macro_chan, is_caller
+			? "CONNECTED_LINE_CALLER_SEND_MACRO" : "CONNECTED_LINE_CALLEE_SEND_MACRO");
+	macro = ast_strdupa(S_OR(macro, ""));
+	macro_args = pbx_builtin_getvar_helper(macro_chan, is_caller
+			? "CONNECTED_LINE_CALLER_SEND_MACRO_ARSG" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS");
+	macro_args = ast_strdupa(S_OR(macro_args, ""));
 	ast_channel_unlock(macro_chan);
 
 	if (ast_strlen_zero(macro)) {
 		return -1;
 	}
 
-	if (frame) {
-		ast_connected_line_parse_data(pointer.frame->data.ptr, pointer.frame->datalen, &macro_chan->connected);
+	if (is_frame) {
+		const struct ast_frame *frame = connected_info;
+		ast_connected_line_parse_data(frame->data.ptr, frame->datalen, &macro_chan->connected);
 	} else {
-		ast_party_connected_line_copy(&macro_chan->connected, pointer.connected);
+		const struct ast_party_connected_line *connected = connected_info;
+		ast_party_connected_line_copy(&macro_chan->connected, connected);
 	}
 
 	if (!(retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args))) {
 		ast_channel_update_connected_line(macro_chan, &macro_chan->connected);
+	}
+
+	return retval;
+}
+
+int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *redirecting_info, int is_caller, int is_frame)
+{
+	const char *macro;
+	const char *macro_args;
+	int retval;
+
+	ast_channel_lock(macro_chan);
+	macro = pbx_builtin_getvar_helper(macro_chan, is_caller
+		? "REDIRECTING_CALLER_SEND_MACRO" : "REDIRECTING_CALLEE_SEND_MACRO");
+	macro = ast_strdupa(S_OR(macro, ""));
+	macro_args = pbx_builtin_getvar_helper(macro_chan, is_caller
+		? "REDIRECTING_CALLER_SEND_MACRO_ARGS" : "REDIRECTING_CALLEE_SEND_MACRO_ARGS");
+	macro_args = ast_strdupa(S_OR(macro_args, ""));
+	ast_channel_unlock(macro_chan);
+
+	if (ast_strlen_zero(macro)) {
+		return -1;
+	}
+
+	if (is_frame) {
+		const struct ast_frame *frame = redirecting_info;
+
+		ast_redirecting_parse_data(frame->data.ptr, frame->datalen, &macro_chan->redirecting);
+	} else {
+		const struct ast_party_redirecting *redirecting = redirecting_info;
+
+		ast_party_redirecting_copy(&macro_chan->redirecting, redirecting);
+	}
+
+	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
+	if (!retval) {
+		ast_channel_update_redirecting(macro_chan, &macro_chan->redirecting);
 	}
 
 	return retval;

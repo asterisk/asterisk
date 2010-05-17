@@ -926,6 +926,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(peermd5secret);
 		AST_STRING_FIELD(cid_num);      /*!< Caller*ID number */
 		AST_STRING_FIELD(cid_name);     /*!< Caller*ID name */
+		AST_STRING_FIELD(cid_tag);      /*!< Caller*ID tag */
 		AST_STRING_FIELD(mwi_from);     /*!< Name to place in the From header in outgoing NOTIFY requests */
 		AST_STRING_FIELD(fullcontact);  /*!< The Contact: that the UA registers with us */
 		                                /* we only store the part in <brackets> in this field. */
@@ -1130,6 +1131,7 @@ struct sip_peer {
 		AST_STRING_FIELD(fullcontact);  /*!< Contact registered with us (not in sip.conf) */
 		AST_STRING_FIELD(cid_num);      /*!< Caller ID num */
 		AST_STRING_FIELD(cid_name);     /*!< Caller ID name */
+		AST_STRING_FIELD(cid_tag);      /*!< Caller ID tag */
 		AST_STRING_FIELD(vmexten);      /*!< Dialplan extension for MWI notify message*/
 		AST_STRING_FIELD(language);     /*!<  Default language for prompts */
 		AST_STRING_FIELD(mohinterpret); /*!<  Music on Hold class */

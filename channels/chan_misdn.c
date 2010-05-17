@@ -5978,6 +5978,10 @@ static int read_config(struct chan_list *ch)
 		ast_mutex_init(&ch->overlap_tv_lock);
 	} /* ORIG MISDN END */
 
+	misdn_cfg_get(port, MISDN_CFG_INCOMING_CALLERID_TAG, bc->incoming_cid_tag, sizeof(bc->incoming_cid_tag));
+	if (!ast_strlen_zero(bc->incoming_cid_tag)) {
+		chan_misdn_log(1, port, " --> * Setting incoming caller id tag to \"%s\"\n", bc->incoming_cid_tag);
+	}
 	ch->overlap_dial_task = -1;
 
 	if (ch->faxdetect  || ch->ast_dsp) {
@@ -6003,10 +6007,11 @@ static int read_config(struct chan_list *ch)
  * \param ast Current Asterisk channel
  * \param id Party id information to send to the other side
  * \param source Why are we sending this update
+ * \param cid_tag Caller ID tag to set in the connected line
  *
  * \return Nothing
  */
-static void misdn_queue_connected_line_update(struct ast_channel *ast, const struct misdn_party_id *id, enum AST_CONNECTED_LINE_UPDATE_SOURCE source)
+static void misdn_queue_connected_line_update(struct ast_channel *ast, const struct misdn_party_id *id, enum AST_CONNECTED_LINE_UPDATE_SOURCE source, char *cid_tag)
 {
 	struct ast_party_connected_line connected;
 
@@ -6016,6 +6021,7 @@ static void misdn_queue_connected_line_update(struct ast_channel *ast, const str
 		| misdn_to_ast_plan(id->number_plan);
 	connected.id.number_presentation = misdn_to_ast_pres(id->presentation)
 		| misdn_to_ast_screen(id->screening);
+	connected.id.tag = cid_tag;
 	connected.source = source;
 	ast_channel_queue_connected_line_update(ast, &connected);
 }
@@ -6168,10 +6174,11 @@ static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct as
  *
  * \param ast Current Asterisk channel
  * \param redirect Associated B channel redirecting info
+ * \param tag Caller ID tag to set in the redirecting party fields
  *
  * \return Nothing
  */
-static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct misdn_party_redirecting *redirect)
+static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct misdn_party_redirecting *redirect, char *tag)
 {
 	struct ast_party_redirecting redirecting;
 
@@ -6184,6 +6191,7 @@ static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct 
 	redirecting.from.number_presentation =
 		misdn_to_ast_pres(redirect->from.presentation)
 		| misdn_to_ast_screen(redirect->from.screening);
+	redirecting.from.tag = tag;
 
 	redirecting.to.number = (char *) redirect->to.number;
 	redirecting.to.number_type =
@@ -6192,6 +6200,7 @@ static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct 
 	redirecting.to.number_presentation =
 		misdn_to_ast_pres(redirect->to.presentation)
 		| misdn_to_ast_screen(redirect->to.screening);
+	redirecting.to.tag = tag;
 
 	redirecting.reason = misdn_to_ast_reason(redirect->reason);
 	redirecting.count = redirect->count;
@@ -6281,6 +6290,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	struct chan_list *ch;
 	struct misdn_bchannel *newbc;
 	char *dest_cp;
+	int append_msn = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(intf);	/* The interface token is discarded. */
@@ -6391,6 +6401,14 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			ast_copy_string(newbc->caller.number, ast->connected.id.number, sizeof(newbc->caller.number));
 			chan_misdn_log(3, port, " --> * set caller:\"%s\" <%s>\n", newbc->caller.name, newbc->caller.number);
 		}
+
+		misdn_cfg_get(port, MISDN_CFG_APPEND_MSN_TO_CALLERID_TAG, &append_msn, sizeof(append_msn));
+		if (append_msn) {
+			strncat(newbc->incoming_cid_tag, "_", sizeof(newbc->incoming_cid_tag) - strlen(newbc->incoming_cid_tag) - 1);
+			strncat(newbc->incoming_cid_tag, newbc->caller.number, sizeof(newbc->incoming_cid_tag) - strlen(newbc->incoming_cid_tag) - 1);
+		}
+
+		ast->cid.cid_tag = ast_strdup(newbc->incoming_cid_tag);
 
 		misdn_cfg_get(port, MISDN_CFG_LOCALDIALPLAN, &number_type, sizeof(number_type));
 		if (number_type < 0) {
@@ -8791,7 +8809,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 				++bc->redirecting.count;
 				bc->redirecting.reason = mISDN_REDIRECTING_REASON_DEFLECTION;
 
-				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
 				ast_string_field_set(ch->ast, call_forward, bc->redirecting.to.number);
 
 				/* Send back positive ACK */
@@ -8855,7 +8873,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 				bc->redirecting.to.presentation = 1;/* restricted */
 				bc->redirecting.to.screening = 0;/* unscreened */
 			}
-			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
 			bc->div_leg_3_rx_wanted = 1;
 		}
 		break;
@@ -8900,7 +8918,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 					/* We have no place to put the OriginalCalled number */
 				}
 #endif
-				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
 			}
 			break;
 		default:
@@ -8950,7 +8968,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 			++bc->redirecting.count;
 			bc->redirecting.reason = mISDN_REDIRECTING_REASON_DEFLECTION;
 
-			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
 			ast_string_field_set(ch->ast, call_forward, bc->redirecting.to.number);
 
 			misdn_lib_send_event(bc, EVENT_DISCONNECT);
@@ -9072,7 +9090,8 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 			misdn_queue_connected_line_update(ch->ast, &party_id,
 				(bc->fac_in.u.EctInform.Status == 0 /* alerting */)
 					? AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING
-					: AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER);
+					: AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER,
+					bc->incoming_cid_tag);
 		}
 		break;
 #if 0	/* We don't handle this yet */
@@ -9707,6 +9726,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		int exceed;
 		int ai;
 		int im;
+		int append_msn = 0;
 
 		if (ch) {
 			switch (ch->state) {
@@ -9780,12 +9800,22 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		ast_set_callerid(chan, bc->caller.number, NULL, bc->caller.number);
 
+		misdn_cfg_get(bc->port, MISDN_CFG_APPEND_MSN_TO_CALLERID_TAG, &append_msn, sizeof(append_msn));
+		if (append_msn) {
+			strncat(bc->incoming_cid_tag, "_", sizeof(bc->incoming_cid_tag) - strlen(bc->incoming_cid_tag) - 1);
+			strncat(bc->incoming_cid_tag, bc->dialed.number, sizeof(bc->incoming_cid_tag) - strlen(bc->incoming_cid_tag) - 1);
+		}
+
+		ast_channel_lock(chan);
+		chan->cid.cid_tag = ast_strdup(bc->incoming_cid_tag);
+		ast_channel_unlock(chan);
+
 		if (!ast_strlen_zero(bc->redirecting.from.number)) {
 			/* Add configured prefix to redirecting.from.number */
 			misdn_add_number_prefix(bc->port, bc->redirecting.from.number_type, bc->redirecting.from.number, sizeof(bc->redirecting.from.number));
 
 			/* Update asterisk channel redirecting information */
-			misdn_copy_redirecting_to_ast(chan, &bc->redirecting);
+			misdn_copy_redirecting_to_ast(chan, &bc->redirecting, bc->incoming_cid_tag);
 		}
 
 		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", ast_transfercapability2str(bc->capability));
@@ -10124,11 +10154,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
-		/* Add configured prefix to connected.number */
-		misdn_add_number_prefix(bc->port, bc->connected.number_type, bc->connected.number, sizeof(bc->connected.number));
+		if (!ast_strlen_zero(bc->connected.number)) {
+			/* Add configured prefix to connected.number */
+			misdn_add_number_prefix(bc->port, bc->connected.number_type, bc->connected.number, sizeof(bc->connected.number));
 
-		/* Update the connected line information on the other channel */
-		misdn_queue_connected_line_update(ch->ast, &bc->connected, AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER);
+			/* Update the connected line information on the other channel */
+			misdn_queue_connected_line_update(ch->ast, &bc->connected, AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER, bc->incoming_cid_tag);
+		}
 
 		ch->l3id = bc->l3_id;
 		ch->addr = bc->addr;
@@ -10511,7 +10543,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 						bc->redirecting.reason = mISDN_REDIRECTING_REASON_UNKNOWN;
 						break;
 					}
-					misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting);
+					misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
 					ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
 				}
 			}
@@ -10530,7 +10562,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				bc->redirecting.to_changed = 0;
 				if (ch && ch->ast) {
 					misdn_queue_connected_line_update(ch->ast, &bc->redirecting.to,
-						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING);
+						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING, bc->incoming_cid_tag);
 				}
 			}
 			break;
@@ -10539,7 +10571,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				bc->redirecting.to_changed = 0;
 				if (ch && ch->ast) {
 					misdn_queue_connected_line_update(ch->ast, &bc->redirecting.to,
-						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER);
+						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER, bc->incoming_cid_tag);
 				}
 			}
 			break;

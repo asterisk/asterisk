@@ -335,6 +335,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Hang up the call <replaceable>x</replaceable> seconds <emphasis>after</emphasis> the called party has
 					answered the call.</para>
 				</option>
+				<option name="s">
+					<argument name="x" required="true" />
+					<para>Force the outgoing callerid tag parameter to be set to the string <replaceable>x</replaceable></para>
+				</option>
 				<option name="t">
 					<para>Allow the called party to transfer the calling party by sending the
 					DTMF sequence defined in <filename>features.conf</filename>. This setting does not perform policy enforcement on
@@ -383,6 +387,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						with this option. Also, pbx services are not run on the peer (called) channel,
 						so you will not be able to set timeouts via the TIMEOUT() function in this routine.</para>
 					</note>
+				</option>
+				<option name="u">
+					<argument name = "x" required="true">
+						<para>Force the outgoing callerid presentation indicator parameter to be set
+						to one of the values passed in <replaceable>x</replaceable>:
+						<literal>allowed_not_screened</literal>
+						<literal>allowed_passed_screen</literal>
+						<literal>allowed_failed_screen</literal>
+						<literal>allowed</literal>
+						<literal>prohib_not_screened</literal>
+						<literal>prohib_passed_screen</literal>
+						<literal>prohib_failed_screen</literal>
+						<literal>prohib</literal>
+						<literal>unavailable</literal></para>
+					</argument>
 				</option>
 				<option name="w">
 					<para>Allow the called party to enable recording of the call by sending
@@ -537,6 +556,8 @@ enum {
 #define OPT_PEER_H           ((uint64_t)1 << 35)
 #define OPT_CALLEE_GO_ON     ((uint64_t)1 << 36)
 #define OPT_CANCEL_TIMEOUT   ((uint64_t)1 << 37)
+#define OPT_FORCE_CID_TAG    ((uint64_t)1 << 38)
+#define OPT_FORCE_CID_PRES   ((uint64_t)1 << 39)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -553,6 +574,8 @@ enum {
 	OPT_ARG_OPERMODE,
 	OPT_ARG_SCREEN_NOINTRO,
 	OPT_ARG_FORCECLID,
+	OPT_ARG_FORCE_CID_TAG,
+	OPT_ARG_FORCE_CID_PRES,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -586,6 +609,8 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('P', OPT_PRIVACY, OPT_ARG_PRIVACY),
 	AST_APP_OPTION_ARG('r', OPT_RINGBACK, OPT_ARG_RINGBACK),
 	AST_APP_OPTION_ARG('S', OPT_DURATION_STOP, OPT_ARG_DURATION_STOP),
+	AST_APP_OPTION_ARG('s', OPT_FORCE_CID_TAG, OPT_ARG_FORCE_CID_TAG),
+	AST_APP_OPTION_ARG('u', OPT_FORCE_CID_PRES, OPT_ARG_FORCE_CID_PRES),
 	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
 	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
 	AST_APP_OPTION_ARG('U', OPT_CALLEE_GOSUB, OPT_ARG_CALLEE_GOSUB),
@@ -854,8 +879,20 @@ static void do_forward(struct chanlist *o,
 			ast_string_field_set(c, accountcode, in->accountcode);
 		}
 		ast_party_connected_line_copy(&c->connected, &original->connected);
-
-		ast_channel_update_redirecting(in, &c->redirecting);
+		/*
+		 * We must unlock c before calling ast_channel_redirecting_macro, because
+		 * we put c into autoservice there. That is pretty much a guaranteed
+		 * deadlock. This is why the handling of c's lock may seem a bit unusual
+		 * here.
+		 */
+		ast_channel_unlock(c);
+		if (ast_channel_redirecting_macro(c, in, &c->redirecting, 1, 0)) {
+			while (ast_channel_trylock(c)) {
+				CHANNEL_DEADLOCK_AVOIDANCE(in);
+			}
+			ast_channel_update_redirecting(in, &c->redirecting);
+			ast_channel_unlock(c);
+		}
 
 		ast_clear_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE);
 		if (ast_test_flag64(peerflags, OPT_CANCEL_TIMEOUT)) {
@@ -863,7 +900,6 @@ static void do_forward(struct chanlist *o,
 		}
 
 		ast_channel_unlock(in);
-		ast_channel_unlock(c);
 
 		if (ast_call(c, tmpchan, 0)) {
 			ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
@@ -1194,7 +1230,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_verb(3, "Redirecting update to %s prevented.\n", in->name);
 					} else {
 						ast_verb(3, "%s redirecting info has changed, passing it to %s\n", c->name, in->name);
-						ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
+						if (ast_channel_redirecting_macro(c, in, f, 1, 1)) {
+							ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
+						}
 						pa->sentringing = 0;
 					}
 					break;
@@ -1333,6 +1371,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
 				} else if (f->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
 					if (ast_channel_connected_line_macro(in, outgoing->chan, f, 0, 1)) {
+						ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+					}
+				} else if (f->subclass.integer == AST_CONTROL_REDIRECTING) {
+					if (ast_channel_redirecting_macro(in, outgoing->chan, f, 0, 1)) {
 						ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
 					}
 				}
@@ -1702,7 +1744,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	struct cause_args num = { chan, 0, 0, 0 };
 	int cause;
 	char numsubst[256];
-	char *cid_num = NULL, *cid_name = NULL;
+	char *cid_num = NULL, *cid_name = NULL, *cid_tag = NULL, *cid_pres = NULL;
 
 	struct ast_bridge_config config = { { 0, } };
 	struct timeval calldurationlimit = { 0, };
@@ -1805,6 +1847,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 	if (ast_test_flag64(&opts, OPT_FORCECLID) && !ast_strlen_zero(opt_args[OPT_ARG_FORCECLID]))
 		ast_callerid_parse(opt_args[OPT_ARG_FORCECLID], &cid_name, &cid_num);
+	if (ast_test_flag64(&opts, OPT_FORCE_CID_TAG) && !ast_strlen_zero(opt_args[OPT_ARG_FORCE_CID_TAG]))
+		cid_tag = ast_strdupa(opt_args[OPT_ARG_FORCE_CID_TAG]);
+	if (ast_test_flag64(&opts, OPT_FORCE_CID_PRES) && !ast_strlen_zero(opt_args[OPT_ARG_FORCE_CID_PRES]))
+		cid_pres = ast_strdupa(opt_args[OPT_ARG_FORCE_CID_PRES]);
 	if (ast_test_flag64(&opts, OPT_RESETCDR) && chan->cdr)
 		ast_cdr_reset(chan->cdr, NULL);
 	if (ast_test_flag64(&opts, OPT_PRIVACY) && ast_strlen_zero(opt_args[OPT_ARG_PRIVACY]))
@@ -1993,11 +2039,20 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		if (ast_test_flag64(peerflags, OPT_FORCECLID) && !ast_strlen_zero(opt_args[OPT_ARG_FORCECLID])) {
 			struct ast_party_connected_line connected;
+			int pres;
 
 			ast_party_connected_line_set_init(&connected, &tmp->chan->connected);
 			connected.id.number = cid_num;
 			connected.id.name = cid_name;
-			connected.id.number_presentation = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+			connected.id.tag = cid_tag;
+			if (cid_pres) {
+				pres = ast_parse_caller_presentation(cid_pres);
+				if (pres >= 0) {
+					connected.id.number_presentation = pres;
+				}
+			} else {
+				connected.id.number_presentation = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+			}
 			ast_channel_set_connected_line(tmp->chan, &connected);
 		} else {
 			ast_connected_line_copy_from_caller(&tc->connected, &chan->cid);

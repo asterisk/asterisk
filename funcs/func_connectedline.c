@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "all" />
 					<enum name = "num" />
 					<enum name = "name" />
+					<enum name = "tag" />
 					<enum name = "ton" />
 					<enum name = "pres" />
 					<enum name = "subaddr[-valid]|[-type]|[-odd]">
@@ -98,6 +99,10 @@ static int connectedline_read(struct ast_channel *chan, const char *cmd, char *d
 	} else if (!strncasecmp("num", data, 3)) {
 		if (chan->connected.id.number) {
 			ast_copy_string(buf, chan->connected.id.number, len);
+		}
+	} else if (!strncasecmp("tag", data, 3)) {
+		if (chan->connected.id.tag) {
+			ast_copy_string(buf, chan->connected.id.tag, len);
 		}
 	} else if (!strncasecmp("ton", data, 3)) {
 		snprintf(buf, len, "%d", chan->connected.id.number_type);
@@ -178,6 +183,10 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 	} else if (!strncasecmp("num", data, 3)) {
 		connected.id.number = ast_strdupa(value);
 		ast_trim_blanks(connected.id.number);
+		set_it(chan, &connected);
+	} else if (!strncasecmp("tag", data, 3)) {
+		connected.id.tag = ast_strdupa(value);
+		ast_trim_blanks(connected.id.tag);
 		set_it(chan, &connected);
 	} else if (!strncasecmp("ton", data, 3)) {
 		val = ast_strdupa(value);
