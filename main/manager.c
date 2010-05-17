@@ -3914,7 +3914,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 	ast_str_append(&out, 0,
 		       "Content-type: text/%s\r\n"
 		       "Cache-Control: no-cache;\r\n"
-		       "Set-Cookie: mansession_id=\"%08x\"; Version=\"1\"; Max-Age=%d\r\n"
+		       "Set-Cookie: mansession_id=\"%08x\"; Version=1; Max-Age=%d\r\n"
 		       "Pragma: SuppressEvents\r\n"
 		       "\r\n",
 			contenttype[format],
