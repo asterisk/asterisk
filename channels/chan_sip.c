@@ -17540,6 +17540,10 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 			ast_free(redirecting->from.tag);
 		}
 		redirecting->from.tag = ast_strdup(p->cid_tag);
+		if (redirecting->to.tag) {
+			ast_free(redirecting->to.tag);
+		}
+		redirecting->to.tag = ast_strdup(p->cid_tag);
 	}
 	if (!ast_strlen_zero(redirecting_to_number)) {
 		if (redirecting->to.number) {
@@ -17555,7 +17559,6 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 		ast_debug(3, "Got redirecting to name %s\n", redirecting_from_number);
 		redirecting->to.name = redirecting_to_name;
 	}
-	redirecting->to.tag = (char *) p->cid_tag;
 	redirecting->reason = reason;
 }
 
