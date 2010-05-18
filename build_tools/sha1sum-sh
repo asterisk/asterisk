@@ -1,0 +1,71 @@
+#!/bin/sh
+
+check=0
+status=0
+
+while [ x"$1" != x ]; do
+	case $1 in
+	-c)
+		check=1
+		shift
+		continue;;
+	--status)
+		status=1
+		shift
+		continue;;
+	-*)
+		if [ $status = 0 ]; then
+			echo "Unrecognized option $1" 1>&2
+		fi
+		exit 1
+		;;
+	*)
+		dst=$1
+		shift
+		continue;;
+	esac
+done
+
+if [ x"$dst" = x ]; then
+	if [ $status = 0 ]; then
+		echo "Usage: $0 [<options>] <filename>" 1>&2
+	fi
+	exit 1
+fi
+
+if [ $check = 1 ]; then
+	if [ -f $dst ]; then
+		sum1=`cut -d' ' -f1 $dst`
+		file=`cut -d' ' -f3 $dst`
+		sum2=`openssl sha1 $file | cut -d' ' -f2`
+		if [ x"$sum1" = x"$sum2" ]; then
+			if [ $status = 0 ]; then
+				echo "$dst: OK"
+			fi
+			exit 0
+		else
+			if [ $status = 0 ]; then
+				echo "$dst: FAILED"
+			fi
+			exit 1
+		fi
+	else
+		echo "$0: $dst: No such file or directory" 1>&2
+		exit 1
+	fi
+else
+	if [ x"$status" = x1 ]; then
+		echo "$0: the --status option is meaningful only when verifying checksums" 1>&2
+		exit 1
+	fi
+
+	if [ -f $dst ]; then
+		sum=`openssl sha1 $dst | cut -d' ' -f2`
+		echo "$dst  $sum"
+		exit 0
+	else
+		echo "$0: $dst: No such file or directory" 1>&2
+		exit 1
+	fi
+fi
+

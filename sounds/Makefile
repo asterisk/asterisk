@@ -64,8 +64,8 @@ MM:=$(subst -SIREN14,-siren14,$(MM))
 MOH:=$(MM:MOH-%=asterisk-moh-%-$(MOH_VERSION).tar.gz)
 MOH_TAGS:=$(MM:MOH-%=$(MOH_DIR)/.asterisk-moh-%-$(MOH_VERSION))
 # If "fetch" is used, --continue is not a valid option.
-ifneq ($(findstring wget,$(WGET)),)
-WGET_ARGS:=--continue $(WGET_EXTRA_ARGS)
+ifneq ($(findstring wget,$(DOWNLOAD)),)
+DOWNLOAD+=--continue $(WGET_EXTRA_ARGS)
 endif
 
 EMPTY:=
@@ -78,8 +78,9 @@ $$($(1))/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
 	$(CMD_PREFIX)PACKAGE=$$(subst $$($(1))/.asterisk,asterisk,$$@).tar.gz; $(BS)
 	if test ! -f $$$${PACKAGE}; then $(BS)
 	  if test ! -f $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}; then $(BS)
-	    (cd $$(SOUNDS_CACHE_DIR); ($$(DOWNLOAD) $$(WGET_ARGS) $$(SOUNDS_URL)/$$$${PACKAGE} $$(SOUNDS_URL)/$$$${PACKAGE}.sha1 $(BS)
-	       && sha1sum -c --status $$$${PACKAGE}.sha1) || $(BS)
+	    (cd $$(SOUNDS_CACHE_DIR); ($$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE} && $(BS)
+		   $$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE}.sha1 $(BS)
+	       && $$(SHA1SUM) -c --status $$$${PACKAGE}.sha1) || $(BS)
 	     (echo "Bad checksum: $$$${PACKAGE}" 1>&2; exit 1)); $(BS)
 	  fi; $(BS)
 	  cp -p $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} .; $(BS)
@@ -94,8 +95,9 @@ define sound_download_rule
 asterisk-$(1)-%.tar.gz: have_download
 	$(CMD_PREFIX)if test ! -f $$@ && test ! -f $$(SOUNDS_DIR)/.$$(subst .tar.gz,,$/$@); then $(BS)
 	  if test ! -f $$(SOUNDS_CACHE_DIR)/$$@; then $(BS)
-	    (cd $$(SOUNDS_CACHE_DIR); ($$(DOWNLOAD) $$(WGET_ARGS) $$(SOUNDS_URL)/$$@ $$(SOUNDS_URL)/$$@.sha1 $(BS)
-	       && sha1sum -c --status $$@.sha1) || $(BS)
+	    (cd $$(SOUNDS_CACHE_DIR); ($$(DOWNLOAD) $$(SOUNDS_URL)/$$@ && $(BS)
+		   $$(DOWNLOAD) $$(SOUNDS_URL)/$$@.sha1 $(BS)
+	       && $$(SHA1SUM) -c --status $$@.sha1) || $(BS)
 	     (echo "Bad checksum: $$@" 1>&2; exit 1)); $(BS)
 	  fi; $(BS)
 	  cp -p $$(SOUNDS_CACHE_DIR)/$$@ .; $(BS)
@@ -108,7 +110,7 @@ define sound_format_lang_rule
 $$($(1))/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
 	$(CMD_PREFIX)PACKAGE=$$(subst $$($(1))/.asterisk,asterisk,$$@).tar.gz; $(BS)
 	if test ! -f $$$${PACKAGE}; then $(BS)
-	  ($$(DOWNLOAD) $$(WGET_ARGS) $$(SOUNDS_URL)/$$$${PACKAGE} || exit 1); $(BS)
+	  ($$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE} || exit 1); $(BS)
 	fi; $(BS)
 $(if $($(4)_VERSION),\
 $(EMPTY)	rm -f $$(subst -$$($(4)_VERSION),,$$@)-* && $(BS)
@@ -119,7 +121,7 @@ endef
 define sound_download_rule
 asterisk-$(1)-%.tar.gz: have_download
 	$(CMD_PREFIX)if test ! -f $$@ && test ! -f $$(SOUNDS_DIR)/.$$(subst .tar.gz,,$$@); then $(BS)
-	  $$(DOWNLOAD) $$(WGET_ARGS) $$(SOUNDS_URL)/$$@; $(BS)
+	  $$(DOWNLOAD) $$(SOUNDS_URL)/$$@; $(BS)
 	fi
 endef
 
