@@ -329,6 +329,14 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 	
 		if (res < 0) /* User hungup, so jump out now */
 			break;
+		if (res == '0') {
+		if (!ast_goto_if_exists(chan, dialcontext, "o", 1) ||
+		    (!ast_strlen_zero(chan->macrocontext) &&
+		     !ast_goto_if_exists(chan, chan->macrocontext, "o", 1))) {
+			/* return 1 to indicate goto has been performed */
+			return '1';
+			}
+		}
 		if (res == '1') {	/* Name selected */
 			if (fromappvm) {
 				/* We still want to set the exten though */
@@ -345,6 +353,8 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 			break;
 		}
 		if (res == '*') /* Skip to next match in list */
+			break;
+		if (res == '#')
 			break;
 
 		/* Not '1', or '*', so decrement number of tries */
@@ -516,6 +526,9 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 						lastuserchoice = res;
 						res = 0;
 						break;
+					case '#':
+						lastuserchoice = res;
+						return 0;
 					default:
 						break;
 				}
@@ -645,6 +658,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
 	if (ast_strlen_zero(dirintro))
 		dirintro = last ? "dir-intro" : "dir-intro-fn";
+	/* the above prompts probably should be modified to include 0 for dialing operator
+	   and # for exiting (continues in dialplan) */
 
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);
