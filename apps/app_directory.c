@@ -244,6 +244,19 @@ static int compare(const char *text, const char *template)
 	return 0;
 }
 
+static int goto_exten(struct ast_channel *chan, const char *dialcontext, char *ext)
+{
+	if (!ast_goto_if_exists(chan, dialcontext, ext, 1) ||
+		(!ast_strlen_zero(chan->macrocontext) &&
+		!ast_goto_if_exists(chan, chan->macrocontext, ext, 1))) {
+		return 0;
+	} else {
+		ast_log(LOG_WARNING, "Can't find extension '%s' in current context.  "
+			"Not Exiting the Directory!\n", ext);
+		return -1;
+	}
+}
+
 /* play name of mailbox owner.
  * returns:  -1 for bad or missing extension
  *           '1' for selected entry from directory
@@ -324,11 +337,17 @@ static int select_item_seq(struct ast_channel *chan, struct directory_item **ite
 				res = ast_waitfordigit(chan, 3000);
 			ast_stopstream(chan);
 	
-			if (res == '1') { /* Name selected */
+			if (res == '0') { /* operator selected */
+				goto_exten(chan, dialcontext, "o");
+				return '0';
+			} else if (res == '1') { /* Name selected */
 				return select_entry(chan, dialcontext, item, flags) ? -1 : 1;
 			} else if (res == '*') {
 				/* Skip to next match in list */
 				break;
+			} else if (res == '#') {
+				/* Exit reading, continue in dialplan */
+				return res;
 			}
 
 			if (res < 0)
@@ -657,19 +676,6 @@ static void sort_items(struct directory_item **sorted, int count)
 	} while (reordered);
 }
 
-static int goto_exten(struct ast_channel *chan, const char *dialcontext, char *ext)
-{
-	if (!ast_goto_if_exists(chan, dialcontext, ext, 1) ||
-		(!ast_strlen_zero(chan->macrocontext) &&
-		!ast_goto_if_exists(chan, chan->macrocontext, ext, 1))) {
-		return 0;
-	} else {
-		ast_log(LOG_WARNING, "Can't find extension '%s' in current context.  "
-			"Not Exiting the Directory!\n", ext);
-		return -1;
-	}
-}
-
 static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, struct ast_config *ucfg, char *context, char *dialcontext, char digit, int digits, struct ast_flags *flags, char *opts[])
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
@@ -783,6 +789,8 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
 	if (ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
+	/* the above prompts probably should be modified to include 0 for dialing operator
+	   and # for exiting (continues in dialplan) */
 
 	if (ast_test_flag(&flags, OPT_LISTBYFIRSTNAME) && ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
 		if (!ast_strlen_zero(opts[OPT_ARG_EITHER])) {

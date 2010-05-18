@@ -571,6 +571,7 @@ Applications
  * Added ConfBridge dialplan application which does conference bridges without
    DAHDI. For information on its use, please see the output of
    "core show application ConfBridge" from the CLI.
+ * app_directory now allows exiting at any time using the operator or pound key.
 
 Miscellaneous
 -------------
