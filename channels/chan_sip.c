@@ -17535,7 +17535,12 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 		ast_debug(3, "Got redirecting from name %s\n", redirecting_from_name);
 		redirecting->from.name = redirecting_from_name;
 	}
-	redirecting->from.tag = (char *) p->cid_tag;
+	if (!ast_strlen_zero(p->cid_tag)) {
+		if (redirecting->from.tag) {
+			ast_free(redirecting->from.tag);
+		}
+		redirecting->from.tag = ast_strdup(p->cid_tag);
+	}
 	if (!ast_strlen_zero(redirecting_to_number)) {
 		if (redirecting->to.number) {
 			ast_free(redirecting->to.number);
@@ -17929,6 +17934,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			struct ast_party_redirecting redirecting = {{0,},};
 			change_redirecting_information(p, req, &redirecting, FALSE);
 			ast_channel_queue_redirecting_update(p->owner, &redirecting);
+			ast_party_redirecting_free(&redirecting);
 			sip_handle_cc(p, req, AST_CC_CCNR);
 		}
 		check_pendings(p);
@@ -18902,6 +18908,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 					struct ast_party_redirecting redirecting = {{0,},};
 					change_redirecting_information(p, req, &redirecting, TRUE);
 					ast_channel_set_redirecting(p->owner, &redirecting);
+					ast_party_redirecting_free(&redirecting);
 				}
 					/* Fall through */
 				case 486: /* Busy here */
@@ -20490,7 +20497,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!p->lastinvite && !req->ignore && !p->owner) {
 		/* This is a new invite */
 		/* Handle authentication if this is our first invite */
-		struct ast_party_redirecting redirecting = {{0,},};
 		int cc_recall_core_id = -1;
 		set_pvt_allowed_methods(p, req);
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
@@ -20560,7 +20566,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			goto request_invite_cleanup;
 		}
 		gotdest = get_destination(p, NULL, &cc_recall_core_id);	/* Get destination right away */
-		change_redirecting_information(p, req, &redirecting, FALSE); /*Will return immediately if no Diversion header is present */
 		extract_uri(p, req);			/* Get the Contact URI */
 		build_contact(p);			/* Build our contact header */
 
@@ -20607,9 +20612,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			build_route(p, req, 0);
 
 			if (c) {
+				struct ast_party_redirecting redirecting = { { 0, }, };
 				/* Pre-lock the call */
 				ast_channel_lock(c);
+				change_redirecting_information(p, req, &redirecting, FALSE); /*Will return immediately if no Diversion header is present */
 				ast_channel_set_redirecting(c, &redirecting);
+				ast_party_redirecting_free(&redirecting);
 			}
 		}
 	} else {
@@ -20627,6 +20635,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (c) {
 			ast_channel_set_redirecting(c, &redirecting);
 		}
+		ast_party_redirecting_free(&redirecting);
 	}
 
 	/* Session-Timers */
