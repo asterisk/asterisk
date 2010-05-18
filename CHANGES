@@ -146,6 +146,7 @@ Applications
    user if it exists, otherwise will play the mailbox number.
  * Added custom device states to ConfBridge bridges.  Use 'confbridge:<name>' to
    retrieve state for a particular bridge, where <name> is the conference name
+ * app_directory now allows exiting at any time using the operator or pound key.
 
 Dialplan Functions
 ------------------
@@ -571,7 +572,6 @@ Applications
  * Added ConfBridge dialplan application which does conference bridges without
    DAHDI. For information on its use, please see the output of
    "core show application ConfBridge" from the CLI.
- * app_directory now allows exiting at any time using the operator or pound key.
 
 Miscellaneous
 -------------
