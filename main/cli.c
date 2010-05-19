@@ -952,7 +952,7 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	if (!strcasecmp(a->argv[3], "all")) {
 		struct ast_channel_iterator *iter = NULL;
-		if (!(iter = ast_channel_iterator_all_new(0))) {
+		if (!(iter = ast_channel_iterator_all_new())) {
 			return CLI_FAILURE;
 		}
 		for (; iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
