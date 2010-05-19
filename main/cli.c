@@ -936,9 +936,11 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	case CLI_INIT:
 		e->command = "channel request hangup";
 		e->usage =
-			"Usage: channel request hangup <channel>\n"
+			"Usage: channel request hangup <channel>|<all>\n"
 			"       Request that a channel be hung up. The hangup takes effect\n"
-			"       the next time the driver reads or writes from the channel\n";
+			"       the next time the driver reads or writes from the channel.\n"
+			"       If 'all' is specified instead of a channel name, all channels\n"
+			"       will see the hangup request.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
@@ -948,7 +950,19 @@ static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	}
 
-	if ((c = ast_channel_get_by_name(a->argv[3]))) {
+	if (!strcasecmp(a->argv[3], "all")) {
+		struct ast_channel_iterator *iter = NULL;
+		if (!(iter = ast_channel_iterator_all_new(0))) {
+			return CLI_FAILURE;
+		}
+		for (; iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
+			ast_channel_lock(c);
+			ast_cli(a->fd, "Requested Hangup on channel '%s'\n", c->name);
+			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+			ast_channel_unlock(c);
+		}
+		ast_channel_iterator_destroy(iter);
+	} else if ((c = ast_channel_get_by_name(a->argv[3]))) {
 		ast_channel_lock(c);
 		ast_cli(a->fd, "Requested Hangup on channel '%s'\n", c->name);
 		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);

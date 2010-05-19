@@ -455,6 +455,8 @@ CLI Changes
    files it was built from.
  * New 'manager show settings' command showing the current settings loaded from
    manager.conf. 
+ * Added 'all' keyword to the CLI command "channel request hangup" so that you can send
+   the channel hangup request to all channels.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
