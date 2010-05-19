@@ -83,4 +83,11 @@ void ast_process_pending_reloads(void);
  */
 int ast_xmldoc_load_documentation(void);
 
+/*!
+ * \brief Reload genericplc configuration value from codecs.conf
+ *
+ * Implementation is in main/channel.c
+ */
+int ast_plc_reload(void);
+
 #endif /* _ASTERISK__PRIVATE_H */

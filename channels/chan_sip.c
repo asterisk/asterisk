@@ -24324,7 +24324,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
 	p->prefcodec = oldformat;				/* Format for this call */
-	p->jointcapability = oldformat;
+	p->jointcapability = oldformat & p->capability;
 	sip_pvt_lock(p);
 	tmpc = sip_new(p, AST_STATE_DOWN, host, requestor ? requestor->linkedid : NULL);	/* Place the call */
 	if (sip_cfg.callevents)
