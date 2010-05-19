@@ -154,6 +154,9 @@
 /* Define if your system has the DAHDI_LINEREVERSE_VMWI headers. */
 #undef HAVE_DAHDI_LINEREVERSE_VMWI
 
+/* Define DAHDI headers version */
+#undef HAVE_DAHDI_VERSION
+
 /* Define to 1 if your system has /dev/urandom. */
 #undef HAVE_DEV_URANDOM
 
