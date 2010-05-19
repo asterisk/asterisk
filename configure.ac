@@ -569,7 +569,9 @@ if test "x${OSARCH}" = "xlinux-gnu" ; then
 fi
 
 if test "${USE_DAHDI}" != "no" ; then
-	AST_C_DEFINE_CHECK([DAHDI], [DAHDI_CODE], [dahdi/user.h])
+	AST_C_DEFINE_CHECK([DAHDI], [DAHDI_RESET_COUNTERS], [dahdi/user.h], [230])
+	AST_C_DEFINE_CHECK([DAHDI], [DAHDI_DEFAULT_MTU_MRU], [dahdi/user.h], [220])
+	AST_C_DEFINE_CHECK([DAHDI], [DAHDI_CODE], [dahdi/user.h], [200])
 	if test "x${PBX_DAHDI}" = "x1" ; then
 		PBX_DAHDI_TRANSCODE=1
 		AC_SUBST(PBX_DAHDI_TRANSCODE)
