@@ -274,6 +274,10 @@ typedef struct
 {
 	char digits[MAX_DTMF_DIGITS + 1];
 	int current_digits;
+	/* Store lengths separately, because next digit may begin before last has
+	 * ended (because hits_to_begin may be less than misses_to_end). */
+	int digitlen[MAX_DTMF_DIGITS + 1];
+	int current_len;
 	int detected_digits;
 	int lost_digits;
 
@@ -503,6 +507,7 @@ static void ast_mf_detect_init (mf_detect_state_t *s)
 static void ast_digit_detect_init(digit_detect_state_t *s, int mf)
 {
 	s->current_digits = 0;
+	s->current_len = 0;
 	s->detected_digits = 0;
 	s->lost_digits = 0;
 	s->digits[0] = '\0';
@@ -622,6 +627,7 @@ static void store_digit(digit_detect_state_t *s, char digit)
 {
 	s->detected_digits++;
 	if (s->current_digits < MAX_DTMF_DIGITS) {
+		s->digitlen[s->current_digits] = 0;
 		s->digits[s->current_digits++] = digit;
 		s->digits[s->current_digits] = '\0';
 	} else {
@@ -725,6 +731,8 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 				}
 			} else {
 				s->td.dtmf.misses = 0;
+				/* Current hit was same as last, so increment digit duration */
+				s->digitlen[s->current_len] += DTMF_GSIZE;
 			}
 		}
 
@@ -1386,7 +1394,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			digit = dtmf_detect(dsp, &dsp->digit_state, shortdata, len, (dsp->digitmode & DSP_DIGITMODE_NOQUELCH) == 0, (dsp->digitmode & DSP_DIGITMODE_RELAXDTMF));
 
 		if (dsp->digit_state.current_digits) {
-			int event = 0;
+			int event = 0, event_len = 0;
 			char event_digit = 0;
 
 			if (!dsp->dtmf_began) {
@@ -1403,9 +1411,12 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 				if (dsp->features & DSP_FEATURE_DIGIT_DETECT) {
 					event = AST_FRAME_DTMF_END;
 					event_digit = dsp->digit_state.digits[0];
+					event_len = dsp->digit_state.digitlen[0] * 1000 / SAMPLE_RATE;
 				}
-				memmove(dsp->digit_state.digits, dsp->digit_state.digits + 1, dsp->digit_state.current_digits);
+				memmove(&dsp->digit_state.digits[0], &dsp->digit_state.digits[1], dsp->digit_state.current_digits);
 				dsp->digit_state.current_digits--;
+				memmove(&dsp->digit_state.digitlen[0], &dsp->digit_state.digitlen[1], dsp->digit_state.current_len * sizeof(dsp->digit_state.digitlen[0]));
+				dsp->digit_state.current_len--;
 				dsp->dtmf_began = 0;
 
 				if (dsp->features & DSP_FEATURE_BUSY_DETECT) {
@@ -1420,6 +1431,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 				memset(&dsp->f, 0, sizeof(dsp->f));
 				dsp->f.frametype = event;
 				dsp->f.subclass.integer = event_digit;
+				dsp->f.len = event_len;
 				outf = &dsp->f;
 				goto done;
 			}
