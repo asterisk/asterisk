@@ -214,14 +214,14 @@ static unsigned int make_components(const char *s, int lineno)
 	unsigned int x;
 
 	while ((w = strsep(&stringp, ","))) {
-		int found = 0;
-
 		w = ast_skip_blanks(w);
 
-		for (x = 0; x < ARRAY_LEN(levels); x++) {
+		if (!strcmp(w, "*")) {
+			res = 0xFFFF;
+			break;
+		} else for (x = 0; x < ARRAY_LEN(levels); x++) {
 			if (levels[x] && !strcasecmp(w, levels[x])) {
 				res |= (1 << x);
-				found = 1;
 				break;
 			}
 		}

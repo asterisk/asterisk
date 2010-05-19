@@ -73,6 +73,15 @@
 ; (see 'astlogdir' in asterisk.conf), or absolute paths that begin with
 ; '/'.
 ;
+; Special level name "*" means all levels, even dynamic levels registered
+; by modules after the logger has been initialized (this means that loading
+; and unloading modules that create/remove dynamic logger levels will result
+; in these levels being included on filenames that have a level name of "*",
+; without any need to perform a 'logger reload' or similar operation). Note
+; that there is no value in specifying both "*" and specific level names for
+; a filename; the "*" level means all levels, and the remaining level names
+; will be ignored.
+;
 ; We highly recommend that you DO NOT turn on debug mode if you are simply
 ; running a production system.  Debug mode turns on a LOT of extra messages,
 ; most of which you are unlikely to understand without an understanding of
