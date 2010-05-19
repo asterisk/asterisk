@@ -23461,6 +23461,9 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 					usleep(1);
 					sip_pvt_lock(dialog);
 				}
+				if (!dialog->owner) {
+					return; /* channel hangup can occur during deadlock avoidance. */
+				}
 				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
 					dialog->owner->name, (long) (t - dialog->lastrtprx));
 				/* Issue a softhangup */
