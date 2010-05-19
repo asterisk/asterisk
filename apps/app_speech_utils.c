@@ -827,6 +827,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 				if (dtmf_terminator != '\0' && f->subclass.integer == dtmf_terminator) {
 					done = 1;
 				} else {
+					quieted = 1;
 					if (chan->stream != NULL) {
 						ast_stopstream(chan);
 					}
