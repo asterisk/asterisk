@@ -1075,14 +1075,16 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 	int pass;
 	int newstate = DSP_TONE_STATE_SILENCE;
 	int res = 0;
-	while(len) {
+	while (len) {
 		/* Take the lesser of the number of samples we need and what we have */
 		pass = len;
-		if (pass > dsp->gsamp_size - dsp->gsamps) 
+		if (pass > dsp->gsamp_size - dsp->gsamps) {
 			pass = dsp->gsamp_size - dsp->gsamps;
-		for (x=0;x<pass;x++) {
-			for (y=0;y<dsp->freqcount;y++) 
+		}
+		for (x = 0; x < pass; x++) {
+			for (y = 0; y < dsp->freqcount; y++) {
 				goertzel_sample(&dsp->freqs[y], s[x]);
+			}
 			dsp->genergy += s[x] * s[x];
 		}
 		s += pass;
@@ -1090,14 +1092,15 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 		len -= pass;
 		if (dsp->gsamps == dsp->gsamp_size) {
 			float hz[7];
-			for (y=0;y<7;y++)
+			for (y = 0; y < 7; y++) {
 				hz[y] = goertzel_result(&dsp->freqs[y]);
+			}
 #if 0
 			printf("\n350:     425:     440:     480:     620:     950:     1400:    1800:    Energy:   \n");
 			printf("%.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e\n", 
 				hz[HZ_350], hz[HZ_425], hz[HZ_440], hz[HZ_480], hz[HZ_620], hz[HZ_950], hz[HZ_1400], hz[HZ_1800], dsp->genergy);
 #endif
-			switch(dsp->progmode) {
+			switch (dsp->progmode) {
 			case PROG_MODE_NA:
 				if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy)) {
 					newstate = DSP_TONE_STATE_BUSY;
@@ -1108,23 +1111,29 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 				} else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH) {
 					newstate = DSP_TONE_STATE_SPECIAL1;
 				} else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH) {
-					if (dsp->tstate == DSP_TONE_STATE_SPECIAL1)
+					/* End of SPECIAL1 or middle of SPECIAL2 */
+					if (dsp->tstate == DSP_TONE_STATE_SPECIAL1 || dsp->tstate == DSP_TONE_STATE_SPECIAL2) {
 						newstate = DSP_TONE_STATE_SPECIAL2;
+					}
 				} else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH) {
-					if (dsp->tstate == DSP_TONE_STATE_SPECIAL2)
+					/* End of SPECIAL2 or middle of SPECIAL3 */
+					if (dsp->tstate == DSP_TONE_STATE_SPECIAL2 || dsp->tstate == DSP_TONE_STATE_SPECIAL3) {
 						newstate = DSP_TONE_STATE_SPECIAL3;
+					}
 				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
 					newstate = DSP_TONE_STATE_TALKING;
-				} else
+				} else {
 					newstate = DSP_TONE_STATE_SILENCE;
+				}
 				break;
 			case PROG_MODE_CR:
 				if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH) {
 					newstate = DSP_TONE_STATE_RINGING;
 				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
 					newstate = DSP_TONE_STATE_TALKING;
-				} else
+				} else {
 					newstate = DSP_TONE_STATE_SILENCE;
+				}
 				break;
 			case PROG_MODE_UK:
 				if (hz[HZ_400] > TONE_MIN_THRESH * TONE_THRESH) {
@@ -1136,46 +1145,47 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			}
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;
-				if (dsp->ringtimeout)
+				if (dsp->ringtimeout) {
 					dsp->ringtimeout++;
-				switch (dsp->tstate) {
-					case DSP_TONE_STATE_RINGING:
-						if ((dsp->features & DSP_PROGRESS_RINGING) &&
-						    (dsp->tcount==THRESH_RING)) {
-							res = AST_CONTROL_RINGING;
-							dsp->ringtimeout= 1;
-						}
-						break;
-					case DSP_TONE_STATE_BUSY:
-						if ((dsp->features & DSP_PROGRESS_BUSY) &&
-						    (dsp->tcount==THRESH_BUSY)) {
-							res = AST_CONTROL_BUSY;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
-					case DSP_TONE_STATE_TALKING:
-						if ((dsp->features & DSP_PROGRESS_TALK) &&
-						    (dsp->tcount==THRESH_TALK)) {
-							res = AST_CONTROL_ANSWER;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
-					case DSP_TONE_STATE_SPECIAL3:
-						if ((dsp->features & DSP_PROGRESS_CONGESTION) &&
-						    (dsp->tcount==THRESH_CONGESTION)) {
-							res = AST_CONTROL_CONGESTION;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
-					case DSP_TONE_STATE_HUNGUP:
-						if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
-						    (dsp->tcount==THRESH_HANGUP)) {
-							res = AST_CONTROL_HANGUP;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
 				}
-				if (dsp->ringtimeout==THRESH_RING2ANSWER) {
+				switch (dsp->tstate) {
+				case DSP_TONE_STATE_RINGING:
+					if ((dsp->features & DSP_PROGRESS_RINGING) &&
+					    (dsp->tcount == THRESH_RING)) {
+						res = AST_CONTROL_RINGING;
+						dsp->ringtimeout = 1;
+					}
+					break;
+				case DSP_TONE_STATE_BUSY:
+					if ((dsp->features & DSP_PROGRESS_BUSY) &&
+					    (dsp->tcount == THRESH_BUSY)) {
+						res = AST_CONTROL_BUSY;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
+				case DSP_TONE_STATE_TALKING:
+					if ((dsp->features & DSP_PROGRESS_TALK) &&
+					    (dsp->tcount == THRESH_TALK)) {
+						res = AST_CONTROL_ANSWER;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
+				case DSP_TONE_STATE_SPECIAL3:
+					if ((dsp->features & DSP_PROGRESS_CONGESTION) &&
+					    (dsp->tcount == THRESH_CONGESTION)) {
+						res = AST_CONTROL_CONGESTION;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
+				case DSP_TONE_STATE_HUNGUP:
+					if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
+					    (dsp->tcount == THRESH_HANGUP)) {
+						res = AST_CONTROL_HANGUP;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
+				}
+				if (dsp->ringtimeout == THRESH_RING2ANSWER) {
 #if 0
 					ast_log(LOG_NOTICE, "Consider call as answered because of timeout after last ring\n");
 #endif
@@ -1190,10 +1200,11 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 				dsp->tstate = newstate;
 				dsp->tcount = 1;
 			}
-			
-			/* Reset goertzel */						
-			for (x=0;x<7;x++)
+
+			/* Reset goertzel */
+			for (x = 0; x < 7; x++) {
 				dsp->freqs[x].v2 = dsp->freqs[x].v3 = 0.0;
+			}
 			dsp->gsamps = 0;
 			dsp->genergy = 0.0;
 		}
@@ -1201,7 +1212,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 #if 0
 	if (res)
 		printf("Returning %d\n", res);
-#endif		
+#endif
 	return res;
 }
 
