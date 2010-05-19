@@ -990,10 +990,13 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 				} else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH) {
 					newstate = DSP_TONE_STATE_SPECIAL1;
 				} else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH) {
-					if (dsp->tstate == DSP_TONE_STATE_SPECIAL1)
+					/* End of SPECIAL1 or middle of SPECIAL2 */
+					if (dsp->tstate == DSP_TONE_STATE_SPECIAL1 || dsp->tstate == DSP_TONE_STATE_SPECIAL2) {
 						newstate = DSP_TONE_STATE_SPECIAL2;
+					}
 				} else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH) {
-					if (dsp->tstate == DSP_TONE_STATE_SPECIAL2) {
+					/* End of SPECIAL2 or middle of SPECIAL3 */
+					if (dsp->tstate == DSP_TONE_STATE_SPECIAL2 || dsp->tstate == DSP_TONE_STATE_SPECIAL3) {
 						newstate = DSP_TONE_STATE_SPECIAL3;
 					}
 				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
@@ -1027,43 +1030,43 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 					dsp->ringtimeout++;
 				}
 				switch (dsp->tstate) {
-					case DSP_TONE_STATE_RINGING:
-						if ((dsp->features & DSP_PROGRESS_RINGING) &&
-						    (dsp->tcount==THRESH_RING)) {
-							res = AST_CONTROL_RINGING;
-							dsp->ringtimeout= 1;
-						}
-						break;
-					case DSP_TONE_STATE_BUSY:
-						if ((dsp->features & DSP_PROGRESS_BUSY) &&
-						    (dsp->tcount==THRESH_BUSY)) {
-							res = AST_CONTROL_BUSY;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
-					case DSP_TONE_STATE_TALKING:
-						if ((dsp->features & DSP_PROGRESS_TALK) &&
-						    (dsp->tcount==THRESH_TALK)) {
-							res = AST_CONTROL_ANSWER;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
-					case DSP_TONE_STATE_SPECIAL3:
-						if ((dsp->features & DSP_PROGRESS_CONGESTION) &&
-						    (dsp->tcount==THRESH_CONGESTION)) {
-							res = AST_CONTROL_CONGESTION;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
-					case DSP_TONE_STATE_HUNGUP:
-						if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
-						    (dsp->tcount==THRESH_HANGUP)) {
-							res = AST_CONTROL_HANGUP;
-							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-						}
-						break;
+				case DSP_TONE_STATE_RINGING:
+					if ((dsp->features & DSP_PROGRESS_RINGING) &&
+					    (dsp->tcount == THRESH_RING)) {
+						res = AST_CONTROL_RINGING;
+						dsp->ringtimeout = 1;
+					}
+					break;
+				case DSP_TONE_STATE_BUSY:
+					if ((dsp->features & DSP_PROGRESS_BUSY) &&
+					    (dsp->tcount == THRESH_BUSY)) {
+						res = AST_CONTROL_BUSY;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
+				case DSP_TONE_STATE_TALKING:
+					if ((dsp->features & DSP_PROGRESS_TALK) &&
+					    (dsp->tcount == THRESH_TALK)) {
+						res = AST_CONTROL_ANSWER;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
+				case DSP_TONE_STATE_SPECIAL3:
+					if ((dsp->features & DSP_PROGRESS_CONGESTION) &&
+					    (dsp->tcount == THRESH_CONGESTION)) {
+						res = AST_CONTROL_CONGESTION;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
+				case DSP_TONE_STATE_HUNGUP:
+					if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
+					    (dsp->tcount == THRESH_HANGUP)) {
+						res = AST_CONTROL_HANGUP;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					}
+					break;
 				}
-				if (dsp->ringtimeout==THRESH_RING2ANSWER) {
+				if (dsp->ringtimeout == THRESH_RING2ANSWER) {
 					ast_debug(1, "Consider call as answered because of timeout after last ring\n");
 					res = AST_CONTROL_ANSWER;
 					dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
@@ -1074,8 +1077,8 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 				dsp->tstate = newstate;
 				dsp->tcount = 1;
 			}
-			
-			/* Reset goertzel */						
+
+			/* Reset goertzel */
 			for (x = 0; x < 7; x++) {
 				dsp->freqs[x].v2 = dsp->freqs[x].v3 = 0.0;
 			}
