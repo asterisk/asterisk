@@ -226,8 +226,8 @@ static int decode_open_type(uint8_t *buf, unsigned int limit, unsigned int *len,
 {
 	unsigned int octet_cnt;
 	unsigned int octet_idx;
-	unsigned int length;
 	unsigned int i;
+	int length; /* a negative length indicates the limit has been reached in decode_length. */
 	const uint8_t **pbuf;
 
 	for (octet_idx = 0, *p_num_octets = 0; ; octet_idx += octet_cnt) {
