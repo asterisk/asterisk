@@ -1097,7 +1097,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	/* Cook up the UDPTL packet, with the relevant EC info. */
 	len = udptl_build_packet(s, buf, sizeof(buf), f->data.ptr, len);
 
-	if (len > 0 && s->them.sin_port && s->them.sin_addr.s_addr) {
+	if ((signed int) len > 0 && s->them.sin_port && s->them.sin_addr.s_addr) {
 		if ((res = sendto(s->fd, buf, len, 0, (struct sockaddr *) &s->them, sizeof(s->them))) < 0)
 			ast_log(LOG_NOTICE, "(%s): UDPTL Transmission error to %s:%d: %s\n",
 				LOG_TAG(s), ast_inet_ntoa(s->them.sin_addr), ntohs(s->them.sin_port), strerror(errno));
