@@ -992,10 +992,10 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 		}
 	} else if ((rtp->resp == resp) && !power) {
 		f = create_dtmf_frame(rtp, AST_FRAME_DTMF_END);
-		f->samples = rtp->dtmfsamples * (rtp_get_rate(f->subclass) / 1000);
+		f->samples = rtp->dtmfsamples * (rtp->lastrxformat ? (rtp_get_rate(rtp->lastrxformat) / 1000) : 8);
 		rtp->resp = 0;
 	} else if (rtp->resp == resp)
-		rtp->dtmfsamples += 20 * (rtp_get_rate(f->subclass) / 1000);
+		rtp->dtmfsamples += 20 * (rtp->lastrxformat ? (rtp_get_rate(rtp->lastrxformat) / 1000) : 8);
 	rtp->dtmf_timeout = dtmftimeout;
 	return f;
 }
