@@ -217,7 +217,7 @@ static unsigned int make_components(const char *s, int lineno)
 		w = ast_skip_blanks(w);
 
 		if (!strcmp(w, "*")) {
-			res = 0xFFFF;
+			res = 0xFFFFFFFF;
 			break;
 		} else for (x = 0; x < ARRAY_LEN(levels); x++) {
 			if (levels[x] && !strcasecmp(w, levels[x])) {
