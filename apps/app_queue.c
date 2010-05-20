@@ -814,8 +814,12 @@ struct callattempt {
 	time_t lastcall;
 	struct call_queue *lastqueue;
 	struct member *member;
-	unsigned int update_connectedline:1;
+	/*! Saved connected party info from an AST_CONTROL_CONNECTED_LINE. */
 	struct ast_party_connected_line connected;
+	/*! TRUE if an AST_CONTROL_CONNECTED_LINE update was saved to the connected element. */
+	unsigned int pending_connected_update:1;
+	/*! TRUE if caller id is not available for connected line */
+	unsigned int dial_callerid_absent:1;
 };
 
 
@@ -2613,6 +2617,24 @@ static void leave_queue(struct queue_ent *qe)
 	queue_t_unref(q, "Expire copied reference");
 }
 
+/*!
+ * \internal
+ * \brief Destroy the given callattempt structure and free it.
+ * \since 1.8
+ *
+ * \param doomed callattempt structure to destroy.
+ *
+ * \return Nothing
+ */
+static void callattempt_free(struct callattempt *doomed)
+{
+	if (doomed->member) {
+		ao2_ref(doomed->member, -1);
+	}
+	ast_party_connected_line_free(&doomed->connected);
+	ast_free(doomed);
+}
+
 /*! \brief Hang up a list of outgoing calls */
 static void hangupcalls(struct callattempt *outgoing, struct ast_channel *exception, int cancel_answered_elsewhere)
 {
@@ -2628,9 +2650,7 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 		}
 		oo = outgoing;
 		outgoing = outgoing->q_next;
-		if (oo->member)
-			ao2_ref(oo->member, -1);
-		ast_free(oo);
+		callattempt_free(oo);
 	}
 }
 
@@ -2870,7 +2890,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		} else if (!ast_strlen_zero(S_OR(qe->chan->macroexten, qe->chan->exten))) {
 			ast_set_callerid(tmp->chan, S_OR(qe->chan->macroexten, qe->chan->exten), NULL, NULL); 
 		}
-		tmp->update_connectedline = 0;
+		tmp->dial_callerid_absent = 1;
 	}
 
 	ast_party_redirecting_copy(&tmp->chan->redirecting, &qe->chan->redirecting);
@@ -3188,7 +3208,8 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 }
 
 #define AST_MAX_WATCHERS 256
-/*! \brief Wait for a member to answer the call
+/*!
+ * \brief Wait for a member to answer the call
  *
  * \param[in] qe the queue_ent corresponding to the caller in the queue
  * \param[in] outgoing the list of callattempts. Relevant ones will have their chan and stillgoing parameters non-zero
@@ -3197,6 +3218,7 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
  * \param[in] prebusies number of busy members calculated prior to calling wait_for_answer
  * \param[in] caller_disconnect if the 'H' option is used when calling Queue(), this is used to detect if the caller pressed * to disconnect the call
  * \param[in] forwardsallowed used to detect if we should allow call forwarding, based on the 'i' option to Queue()
+ * \param[in] update_connectedline Allow connected line and redirecting updates to pass through.
  *
  * \todo eventually all call forward logic should be intergerated into and replaced by ast_call_forward()
  */
@@ -3296,11 +3318,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 					if (update_connectedline) {
-						if (o->connected.id.number) {
+						if (o->pending_connected_update) {
 							if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
 								ast_channel_update_connected_line(in, &o->connected);
 							}
-						} else if (o->update_connectedline) {
+						} else if (!o->dial_callerid_absent) {
 							ast_channel_lock(o->chan);
 							ast_connected_line_copy_from_caller(&connected_caller, &o->chan->cid);
 							ast_channel_unlock(o->chan);
@@ -3415,11 +3437,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (!peer) {
 								ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 								if (update_connectedline) {
-									if (o->connected.id.number) {
+									if (o->pending_connected_update) {
 										if (ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
 											ast_channel_update_connected_line(in, &o->connected);
 										}
-									} else if (o->update_connectedline) {
+									} else if (!o->dial_callerid_absent) {
 										ast_channel_lock(o->chan);
 										ast_connected_line_copy_from_caller(&connected_caller, &o->chan->cid);
 										ast_channel_unlock(o->chan);
@@ -3490,6 +3512,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_connected_line_parse_data(f->data.ptr, f->datalen, &connected);
 								ast_party_connected_line_set(&o->connected, &connected);
 								ast_party_connected_line_free(&connected);
+								o->pending_connected_update = 1;
 							} else {
 								if (ast_channel_connected_line_macro(o->chan, in, f, 1, 1)) {
 									ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
@@ -4200,7 +4223,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_iterator_destroy(&memi);
 				if (need_weight)
 					ao2_unlock(queues);
-				free(tmp);
+				callattempt_free(tmp);
 				goto out;
 			}
 			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
@@ -4210,7 +4233,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_iterator_destroy(&memi);
 				if (need_weight)
 					ao2_unlock(queues);
-				free(tmp);
+				callattempt_free(tmp);
 				goto out;
 			}
 			datastore->data = dialed_interfaces;
@@ -4232,19 +4255,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		AST_LIST_UNLOCK(dialed_interfaces);
 
-		ast_channel_lock(qe->chan);
-		/* If any pre-existing connected line information exists on this
-		 * channel, like from the CONNECTED_LINE dialplan function, use this
-		 * to seed the connected line information. It may, of course, be updated
-		 * during the call
-		 */
-		if (qe->chan->connected.id.number) {
-			ast_party_connected_line_copy(&tmp->connected, &qe->chan->connected);
-		}
-		ast_channel_unlock(qe->chan);
-		
 		if (di) {
-			free(tmp);
+			callattempt_free(tmp);
 			continue;
 		}
 
@@ -4259,7 +4271,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_iterator_destroy(&memi);
 				if (need_weight)
 					ao2_unlock(queues);
-				free(tmp);
+				callattempt_free(tmp);
 				goto out;
 			}
 			strcpy(di->interface, cur->interface);
@@ -4269,11 +4281,20 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			AST_LIST_UNLOCK(dialed_interfaces);
 		}
 
+		ast_channel_lock(qe->chan);
+		/*
+		 * Seed the callattempt's connected line information with previously
+		 * acquired connected line info from the queued channel.  The
+		 * previously acquired connected line info could have been set
+		 * through the CONNECTED_LINE dialplan function.
+		 */
+		ast_party_connected_line_copy(&tmp->connected, &qe->chan->connected);
+		ast_channel_unlock(qe->chan);
+
 		tmp->stillgoing = -1;
-		tmp->member = cur;
+		tmp->member = cur;/* Place the reference for cur into callattempt. */
 		tmp->lastcall = cur->lastcall;
 		tmp->lastqueue = cur->lastqueue;
-		tmp->update_connectedline = 1;
 		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
 		/* Special case: If we ring everyone, go ahead and ring them, otherwise
 		   just calculate their metric for the appropriate strategy */
@@ -4287,8 +4308,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if (outgoing->chan && (outgoing->chan->_state == AST_STATE_UP))
 				break;
 		} else {
-			ao2_ref(cur, -1);
-			ast_free(tmp);
+			callattempt_free(tmp);
 		}
 	}
 	ao2_iterator_destroy(&memi);

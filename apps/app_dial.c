@@ -551,7 +551,7 @@ enum {
 
 #define DIAL_STILLGOING      (1 << 31)
 #define DIAL_NOFORWARDHTML   ((uint64_t)1 << 32) /* flags are now 64 bits, so keep it up! */
-#define DIAL_NOCONNECTEDLINE ((uint64_t)1 << 33)
+#define DIAL_CALLERID_ABSENT ((uint64_t)1 << 33) /* TRUE if caller id is not available for connected line. */
 #define OPT_CANCEL_ELSEWHERE ((uint64_t)1 << 34)
 #define OPT_PEER_H           ((uint64_t)1 << 35)
 #define OPT_CALLEE_GO_ON     ((uint64_t)1 << 36)
@@ -634,7 +634,10 @@ struct chanlist {
 	struct chanlist *next;
 	struct ast_channel *chan;
 	uint64_t flags;
+	/*! Saved connected party info from an AST_CONTROL_CONNECTED_LINE. */
 	struct ast_party_connected_line connected;
+	/*! TRUE if an AST_CONTROL_CONNECTED_LINE update was saved to the connected element. */
+	unsigned int pending_connected_update:1;
 };
 
 static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str *featurecode);
@@ -976,7 +979,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			ast_channel_make_compatible(outgoing->chan, in);
 		}
 
-		if (!ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE) && !ast_test_flag64(outgoing, DIAL_NOCONNECTEDLINE)) {
+		if (!ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE) && !ast_test_flag64(outgoing, DIAL_CALLERID_ABSENT)) {
 			ast_channel_lock(outgoing->chan);
 			ast_connected_line_copy_from_caller(&connected_caller, &outgoing->chan->cid);
 			ast_channel_unlock(outgoing->chan);
@@ -1036,11 +1039,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", c->name, in->name);
 					if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
-						if (o->connected.id.number) {
+						if (o->pending_connected_update) {
 							if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
 								ast_channel_update_connected_line(in, &o->connected);
 							}
-						} else if (!ast_test_flag64(o, DIAL_NOCONNECTEDLINE)) {
+						} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
 							ast_channel_lock(c);
 							ast_connected_line_copy_from_caller(&connected_caller, &c->cid);
 							ast_channel_unlock(c);
@@ -1098,11 +1101,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					if (!peer) {
 						ast_verb(3, "%s answered %s\n", c->name, in->name);
 						if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
-							if (o->connected.id.number) {
+							if (o->pending_connected_update) {
 								if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
 									ast_channel_update_connected_line(in, &o->connected);
 								}
-							} else if (!ast_test_flag64(o, DIAL_NOCONNECTEDLINE)) {
+							} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
 								ast_channel_lock(c);
 								ast_connected_line_copy_from_caller(&connected_caller, &c->cid);
 								ast_channel_unlock(c);
@@ -1219,6 +1222,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_connected_line_parse_data(f->data.ptr, f->datalen, &connected);
 						ast_party_connected_line_set(&o->connected, &connected);
 						ast_party_connected_line_free(&connected);
+						o->pending_connected_update = 1;
 					} else {
 						if (ast_channel_connected_line_macro(c, in, f, 1, 1)) {
 							ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
@@ -1918,14 +1922,13 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		ast_channel_lock(chan);
 		datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL);
-		/* If the incoming channel has previously had connected line information
-		 * set on it (perhaps through the CONNECTED_LINE dialplan function) then
-		 * seed the calllist's connected line information with this previously
-		 * acquired info
+		/*
+		 * Seed the chanlist's connected line information with previously
+		 * acquired connected line info from the incoming channel.  The
+		 * previously acquired connected line info could have been set
+		 * through the CONNECTED_LINE dialplan function.
 		 */
-		if (chan->connected.id.number) {
-			ast_party_connected_line_copy(&tmp->connected, &chan->connected);
-		}
+		ast_party_connected_line_copy(&tmp->connected, &chan->connected);
 		ast_channel_unlock(chan);
 
 		if (datastore)
@@ -2034,7 +2037,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			} else if (!ast_strlen_zero(S_OR(chan->macroexten, chan->exten))) {
 				ast_set_callerid(tc, S_OR(chan->macroexten, chan->exten), NULL, NULL);
 			}
-			ast_set_flag64(tmp, DIAL_NOCONNECTEDLINE);
+			ast_set_flag64(tmp, DIAL_CALLERID_ABSENT);
 		}
 
 		if (ast_test_flag64(peerflags, OPT_FORCECLID) && !ast_strlen_zero(opt_args[OPT_ARG_FORCECLID])) {
