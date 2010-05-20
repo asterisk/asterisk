@@ -1008,6 +1008,8 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 				*ns = '\0';
 				*name = ns + 1;
 				ast_trim_blanks(*name);
+			} else {
+				*name = NULL;
 			}
 		} else { /* no quotes, trim off leading and trailing spaces */
 			*name = ast_skip_blanks(instr);
