@@ -4191,6 +4191,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	
 	register_peer_exten(peer, FALSE);
 	ast_free_ha(peer->ha);
+	ast_free_ha(peer->directmediaha);
 	if (peer->selfdestruct)
 		ast_atomic_fetchadd_int(&apeerobjs, -1);
 	else if (peer->is_realtime) {
@@ -4797,6 +4798,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		dialog->noncodeccapability |= AST_RTP_DTMF;
 	else
 		dialog->noncodeccapability &= ~AST_RTP_DTMF;
+	dialog->directmediaha = ast_duplicate_ha_list(peer->directmediaha);
 	if (peer->call_limit)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
 	if (!dialog->portinuri)
@@ -5193,6 +5195,11 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->chanvars) {
 		ast_variables_destroy(p->chanvars);
 		p->chanvars = NULL;
+	}
+
+	if (p->directmediaha) {
+		ast_free_ha(p->directmediaha);
+		p->directmediaha = NULL;
 	}
 
 	ast_string_field_free_memory(p);
@@ -15468,6 +15475,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		ast_cli(fd, "  Force rport  : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)));
 		ast_cli(fd, "  ACL          : %s\n", AST_CLI_YESNO(peer->ha != NULL));
+		ast_cli(fd, "  DirectMedACL : %s\n", AST_CLI_YESNO(peer->directmediaha != NULL));
 		ast_cli(fd, "  T.38 support : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 EC mode : %s\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 MaxDtgrm: %d\n", peer->t38_maxdatagram);
@@ -24841,6 +24849,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 {
 	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
+	struct ast_ha *olddirectmediaha = NULL;
 	int found = 0;
 	int firstpass = 1;
 	uint16_t port = 0;
@@ -24897,6 +24906,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		peer->lastmsgssent = -1;
 		oldha = peer->ha;
 		peer->ha = NULL;
+		olddirectmediaha = peer->directmediaha;
+		peer->directmediaha = NULL;
 		set_peer_defaults(peer);	/* Set peer defaults */
 		peer->type = 0;
 	}
@@ -25057,6 +25068,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				}
 				if (ha_error) {
 					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+				}
+			} else if (!strcasecmp(v->name, "directmediapermit") || !strcasecmp(v->name, "directmediadeny")) {
+				int ha_error = 0;
+				peer->directmediaha = ast_append_ha(v->name + 11, v->value, peer->directmediaha, &ha_error);
+				if (ha_error) {
+					ast_log(LOG_ERROR, "Bad directmedia ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 				}
 			} else if (!strcasecmp(v->name, "port")) {
 				peer->portinuri = 1;
@@ -25412,6 +25429,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	peer->the_mark = 0;
 
 	ast_free_ha(oldha);
+	ast_free_ha(olddirectmediaha);
 	if (!ast_strlen_zero(callback)) { /* build string from peer info */
 		char *reg_string;
 		if (asprintf(&reg_string, "%s?%s:%s@%s/%s", peer->name, peer->username, !ast_strlen_zero(peer->remotesecret) ? peer->remotesecret : peer->secret, peer->tohost, callback) < 0) {
@@ -26406,8 +26424,18 @@ static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan)
 		return NULL;
 	
 	sip_pvt_lock(p);
-	if (p->udptl && ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA))
-		udptl = p->udptl;
+	if (p->udptl && ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
+		struct sockaddr_in them;
+		struct sockaddr_in us;
+
+		ast_rtp_instance_get_remote_address(p->rtp, &them);
+		ast_rtp_instance_get_local_address(p->rtp, &us);
+		if (!ast_apply_ha(p->directmediaha, &them)) {
+			ast_debug(3, "Reinvite UDPTL T.38 data to %s denied by directmedia ACL on %s\n", ast_inet_ntoa(them.sin_addr), ast_inet_ntoa(us.sin_addr));
+		} else {
+			udptl = p->udptl;
+		}
+	}
 	sip_pvt_unlock(p);
 	return udptl;
 }
@@ -26441,31 +26469,42 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 
 static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
-        struct sip_pvt *p = NULL;
-        enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_LOCAL;
+	struct sip_pvt *p = NULL;
+	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_LOCAL;
 
-        if (!(p = chan->tech_pvt)) {
-                return AST_RTP_GLUE_RESULT_FORBID;
+	if (!(p = chan->tech_pvt)) {
+		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-        sip_pvt_lock(p);
-        if (!(p->rtp)) {
-                sip_pvt_unlock(p);
-                return AST_RTP_GLUE_RESULT_FORBID;
-        }
+	sip_pvt_lock(p);
+	if (!(p->rtp)) {
+		sip_pvt_unlock(p);
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
 
 	ao2_ref(p->rtp, +1);
 	*instance = p->rtp;
 
-	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA | SIP_DIRECT_MEDIA_NAT)) {
-                res = AST_RTP_GLUE_RESULT_REMOTE;
+	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
+		struct sockaddr_in them;
+		struct sockaddr_in us;
+
+		res = AST_RTP_GLUE_RESULT_REMOTE;
+		ast_rtp_instance_get_remote_address(p->rtp, &them);
+		ast_rtp_instance_get_local_address(p->rtp, &us);
+		if (!ast_apply_ha(p->directmediaha, &them)) {
+			ast_debug(3, "Reinvite audio to %s denied by directmedia ACL on %s\n", ast_inet_ntoa(them.sin_addr), ast_inet_ntoa(us.sin_addr));
+			res = AST_RTP_GLUE_RESULT_FORBID;
+		}
+	} else if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
+		res = AST_RTP_GLUE_RESULT_REMOTE;
 	} else if (ast_test_flag(&global_jbconf, AST_JB_FORCED)) {
-                res = AST_RTP_GLUE_RESULT_FORBID;
+		res = AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-        sip_pvt_unlock(p);
+	sip_pvt_unlock(p);
 
-        return res;
+	return res;
 }
 
 static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
@@ -26487,7 +26526,16 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 	*instance = p->vrtp;
 
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
+		struct sockaddr_in them;
+		struct sockaddr_in us;
+
 		res = AST_RTP_GLUE_RESULT_REMOTE;
+		ast_rtp_instance_get_remote_address(p->rtp, &them);
+		ast_rtp_instance_get_local_address(p->rtp, &us);
+		if (!ast_apply_ha(p->directmediaha, &them)) {
+			ast_debug(3, "Reinvite video to %s denied by directmedia ACL on %s\n", ast_inet_ntoa(them.sin_addr), ast_inet_ntoa(us.sin_addr));
+			res = AST_RTP_GLUE_RESULT_FORBID;
+		}
 	}
 
 	sip_pvt_unlock(p);
@@ -26497,105 +26545,114 @@ static enum ast_rtp_glue_result sip_get_vrtp_peer(struct ast_channel *chan, stru
 
 static enum ast_rtp_glue_result sip_get_trtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
-        struct sip_pvt *p = NULL;
-        enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_FORBID;
+	struct sip_pvt *p = NULL;
+	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_FORBID;
 
-        if (!(p = chan->tech_pvt)) {
-                return AST_RTP_GLUE_RESULT_FORBID;
-        }
+	if (!(p = chan->tech_pvt)) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
 
-        sip_pvt_lock(p);
-        if (!(p->trtp)) {
-                sip_pvt_unlock(p);
-                return AST_RTP_GLUE_RESULT_FORBID;
-        }
+	sip_pvt_lock(p);
+	if (!(p->trtp)) {
+		sip_pvt_unlock(p);
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
 
 	ao2_ref(p->trtp, +1);
-        *instance = p->trtp;
+	*instance = p->trtp;
 
-        if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
-                res = AST_RTP_GLUE_RESULT_REMOTE;
-        }
+	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
+		struct sockaddr_in them;
+		struct sockaddr_in us;
 
-        sip_pvt_unlock(p);
+		res = AST_RTP_GLUE_RESULT_REMOTE;
+		ast_rtp_instance_get_remote_address(p->rtp, &them);
+		ast_rtp_instance_get_local_address(p->rtp, &us);
+		if (!ast_apply_ha(p->directmediaha, &them)) {
+			ast_debug(3, "Reinvite text to %s denied by directmedia ACL on %s\n", ast_inet_ntoa(them.sin_addr), ast_inet_ntoa(us.sin_addr));
+			res = AST_RTP_GLUE_RESULT_FORBID;
+		}
+	}
 
-        return res;
+	sip_pvt_unlock(p);
+
+	return res;
 }
 
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_rtp_instance *vinstance, struct ast_rtp_instance *tinstance, format_t codecs, int nat_active)
 {
-        struct sip_pvt *p;
-        int changed = 0;
+	struct sip_pvt *p;
+	int changed = 0;
 
-        p = chan->tech_pvt;
-        if (!p)
-                return -1;
+	p = chan->tech_pvt;
+	if (!p)
+		return -1;
 
 	/* Disable early RTP bridge  */
 	if (!ast_bridged_channel(chan) && !sip_cfg.directrtpsetup) 	/* We are in early state */
 		return 0;
 
-        sip_pvt_lock(p);
-        if (p->alreadygone) {
-                /* If we're destroyed, don't bother */
-                sip_pvt_unlock(p);
-                return 0;
-        }
+	sip_pvt_lock(p);
+	if (p->alreadygone) {
+		/* If we're destroyed, don't bother */
+		sip_pvt_unlock(p);
+		return 0;
+	}
 
-        /* if this peer cannot handle reinvites of the media stream to devices
-           that are known to be behind a NAT, then stop the process now
+	/* if this peer cannot handle reinvites of the media stream to devices
+	   that are known to be behind a NAT, then stop the process now
 	*/
-        if (nat_active && !ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
-                sip_pvt_unlock(p);
-                return 0;
-        }
+	if (nat_active && !ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
+		sip_pvt_unlock(p);
+		return 0;
+	}
 
-        if (instance) {
-                changed |= ast_rtp_instance_get_remote_address(instance, &p->redirip);
-        } else if (p->redirip.sin_addr.s_addr || ntohs(p->redirip.sin_port) != 0) {
-                memset(&p->redirip, 0, sizeof(p->redirip));
-                changed = 1;
-        }
-        if (vinstance) {
-                changed |= ast_rtp_instance_get_remote_address(vinstance, &p->vredirip);
-        } else if (p->vredirip.sin_addr.s_addr || ntohs(p->vredirip.sin_port) != 0) {
-                memset(&p->vredirip, 0, sizeof(p->vredirip));
-                changed = 1;
-        }
-        if (tinstance) {
-                changed |= ast_rtp_instance_get_remote_address(tinstance, &p->tredirip);
-        } else if (p->tredirip.sin_addr.s_addr || ntohs(p->tredirip.sin_port) != 0) {
-                memset(&p->tredirip, 0, sizeof(p->tredirip));
-                changed = 1;
-        }
-        if (codecs && (p->redircodecs != codecs)) {
-                p->redircodecs = codecs;
-                changed = 1;
-        }
-        if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER) && !ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
-                if (chan->_state != AST_STATE_UP) {     /* We are in early state */
-                        if (p->do_history)
-                                append_history(p, "ExtInv", "Initial invite sent with remote bridge proposal.");
-                        ast_debug(1, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
-                } else if (!p->pendinginvite) {         /* We are up, and have no outstanding invite */
-                        ast_debug(3, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
-                        transmit_reinvite_with_sdp(p, FALSE, FALSE);
-                } else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-                        ast_debug(3, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
-                        /* We have a pending Invite. Send re-invite when we're done with the invite */
-                        ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
-                }
-        }
-        /* Reset lastrtprx timer */
-        p->lastrtprx = p->lastrtptx = time(NULL);
-        sip_pvt_unlock(p);
-        return 0;
+	if (instance) {
+		changed |= ast_rtp_instance_get_remote_address(instance, &p->redirip);
+	} else if (p->redirip.sin_addr.s_addr || ntohs(p->redirip.sin_port) != 0) {
+		memset(&p->redirip, 0, sizeof(p->redirip));
+		changed = 1;
+	}
+	if (vinstance) {
+		changed |= ast_rtp_instance_get_remote_address(vinstance, &p->vredirip);
+	} else if (p->vredirip.sin_addr.s_addr || ntohs(p->vredirip.sin_port) != 0) {
+		memset(&p->vredirip, 0, sizeof(p->vredirip));
+		changed = 1;
+	}
+	if (tinstance) {
+		changed |= ast_rtp_instance_get_remote_address(tinstance, &p->tredirip);
+	} else if (p->tredirip.sin_addr.s_addr || ntohs(p->tredirip.sin_port) != 0) {
+		memset(&p->tredirip, 0, sizeof(p->tredirip));
+		changed = 1;
+	}
+	if (codecs && (p->redircodecs != codecs)) {
+		p->redircodecs = codecs;
+		changed = 1;
+	}
+	if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER) && !ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
+		if (chan->_state != AST_STATE_UP) {     /* We are in early state */
+			if (p->do_history)
+				append_history(p, "ExtInv", "Initial invite sent with remote bridge proposal.");
+			ast_debug(1, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
+		} else if (!p->pendinginvite) {	 /* We are up, and have no outstanding invite */
+			ast_debug(3, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
+			transmit_reinvite_with_sdp(p, FALSE, FALSE);
+		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
+			ast_debug(3, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
+			/* We have a pending Invite. Send re-invite when we're done with the invite */
+			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
+		}
+	}
+	/* Reset lastrtprx timer */
+	p->lastrtprx = p->lastrtptx = time(NULL);
+	sip_pvt_unlock(p);
+	return 0;
 }
 
 static format_t sip_get_codec(struct ast_channel *chan)
 {
 	struct sip_pvt *p = chan->tech_pvt;
-        return p->peercapability ? p->peercapability : p->capability;
+	return p->peercapability ? p->peercapability : p->capability;
 }
 
 static struct ast_rtp_glue sip_rtp_glue = {

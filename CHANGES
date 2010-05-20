@@ -59,6 +59,8 @@ SIP Changes
  * When dialing SIP peers, a new component may be added to the end of the dialstring
    to indicate that a specific remote IP address or host should be used when dialing
    the particular peer. The dialstring format is SIP/peer/exten/host_or_IP.
+ * Added directmediapermit/directmediadeny to limit which peers can send direct media
+   to each other
 
 IAX2 Changes
 -----------

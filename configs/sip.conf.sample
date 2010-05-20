@@ -786,6 +786,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; callers INVITE. This will also fail if directmedia is enabled when
                                 ; the device is actually behind NAT.
 
+;directmediadeny=0.0.0.0/0      ; Use directmediapermit and directmediadeny to restrict 
+;directmediapermit=172.16.0.0/16; which peers should be able to pass directmedia to each other
+                                ; (There is no default setting, this is just an example)
+                                ; Use this if some of your phones are on IP addresses that
+                                ; can not reach each other directly. This way you can force 
+                                ; RTP to always flow through asterisk in such cases.
+
 ;ignoresdpversion=yes           ; By default, Asterisk will honor the session version
                                 ; number in SDP packets and will only modify the SDP
                                 ; session if the version number changes. This option will
@@ -1017,6 +1024,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; contactdeny           ; is to register at the same IP as a SIP provider,
 ;                       ; then call oneself, and get redirected to that
 ;                       ; same location).
+; directmediapermit
+; directmediadeny
 ; unsolicited_mailbox
 ; use_q850_reason
 
