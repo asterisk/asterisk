@@ -2339,8 +2339,12 @@ static int cc_generic_agent_init(struct ast_cc_agent *agent, struct ast_channel 
 	}
 
 	generic_pvt->offer_timer_id = -1;
-	ast_copy_string(generic_pvt->cid_num, chan->cid.cid_num, sizeof(generic_pvt->cid_num));
-	ast_copy_string(generic_pvt->cid_name, chan->cid.cid_name, sizeof(generic_pvt->cid_name));
+	if (chan->cid.cid_num) {
+		ast_copy_string(generic_pvt->cid_num, chan->cid.cid_num, sizeof(generic_pvt->cid_num));
+	}
+	if (chan->cid.cid_name) {
+		ast_copy_string(generic_pvt->cid_name, chan->cid.cid_name, sizeof(generic_pvt->cid_name));
+	}
 	ast_copy_string(generic_pvt->exten, S_OR(chan->macroexten, chan->exten), sizeof(generic_pvt->exten));
 	ast_copy_string(generic_pvt->context, S_OR(chan->macrocontext, chan->context), sizeof(generic_pvt->context));
 	agent->private_data = generic_pvt;
