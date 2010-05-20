@@ -415,7 +415,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 
 	if (!ast_exists_extension(chan, chan->context, chan->exten, ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority, chan->cid.cid_num)) {
 		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for gosub: (Context:%s, Extension:%s, Priority:%d)\n",
-				chan->context, chan->exten, chan->priority);
+				chan->context, chan->exten, ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority);
 		ast_copy_string(chan->context, newframe->context, sizeof(chan->context));
 		ast_copy_string(chan->exten, newframe->extension, sizeof(chan->exten));
 		chan->priority = newframe->priority;
