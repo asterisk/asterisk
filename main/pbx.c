@@ -4195,6 +4195,17 @@ int ast_extension_state(struct ast_channel *c, const char *context, const char *
 		return -1;                   /* No hint, return -1 */
 	}
 
+	if (e->exten[0] == '_') {
+		/* Create this hint on-the-fly */
+		ast_add_extension(e->parent->name, 0, exten, e->priority, e->label,
+			e->matchcid ? e->cidmatch : NULL, e->app, ast_strdup(e->data), ast_free_ptr,
+			e->registrar);
+		if (!(e = ast_hint_extension(c, context, exten))) {
+			/* Improbable, but not impossible */
+			return -1;
+		}
+	}
+
 	return ast_extension_state2(e);  /* Check all devices in the hint */
 }
 
