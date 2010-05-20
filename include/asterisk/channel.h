@@ -1467,6 +1467,12 @@ void ast_channel_whisper_stop(struct ast_channel *chan);
  */
 char *ast_channel_reason2str(int reason);
 
+/*!
+ * \brief Reload genericplc configuration value from codecs.conf
+ *
+ * Implementation is in main/channel.c
+ */
+int ast_plc_reload(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
