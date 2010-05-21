@@ -2879,6 +2879,7 @@ static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
 	proxy->force = force;
 	ast_copy_string(proxy->name, name, sizeof(proxy->name));
 	proxy->ip.sin_port = htons(port_str2int(port, STANDARD_SIP_PORT));
+	proxy->ip.sin_family = AF_INET;
 	proxy_update(proxy);
 	return proxy;
 }
