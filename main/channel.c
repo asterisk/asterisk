@@ -864,17 +864,32 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 #if defined(REF_DEBUG)
-	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor, "", file, line, function, 1))) {
-		return NULL;
-	}
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor, "", file, line,
+		function, 1);
 #elif defined(__AST_DEBUG_MALLOC)
-	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor, "", file, line, function, 0))) {
-		return NULL;
-	}
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_channel_destructor, "", file, line,
+		function, 0);
 #else
-	if (!(tmp = ao2_alloc(sizeof(*tmp), ast_channel_destructor))) {
+	tmp = ao2_alloc(sizeof(*tmp), ast_channel_destructor);
+#endif
+	if (!tmp) {
+		/* Channel structure allocation failure. */
 		return NULL;
 	}
+
+	/*
+	 * Init file descriptors to unopened state so
+	 * the destructor can know not to close them.
+	 */
+	tmp->timingfd = -1;
+	for (x = 0; x < ARRAY_LEN(tmp->alertpipe); ++x) {
+		tmp->alertpipe[x] = -1;
+	}
+	for (x = 0; x < ARRAY_LEN(tmp->fds); ++x) {
+		tmp->fds[x] = -1;
+	}
+#ifdef HAVE_EPOLL
+	tmp->epfd = epoll_create(25);
 #endif
 
 	if (!(tmp->sched = sched_context_create())) {
@@ -882,10 +897,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return ast_channel_unref(tmp);
 	}
 	
-	if ((ast_string_field_init(tmp, 128))) {
-		return ast_channel_unref(tmp);
-	}
-
 	if (cid_name) {
 		if (!(tmp->cid.cid_name = ast_strdup(cid_name))) {
 			return ast_channel_unref(tmp);
@@ -897,62 +908,44 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		}
 	}
 
-#ifdef HAVE_EPOLL
-	tmp->epfd = epoll_create(25);
-#endif
-
-	for (x = 0; x < AST_MAX_FDS; x++) {
-		tmp->fds[x] = -1;
-#ifdef HAVE_EPOLL
-		tmp->epfd_data[x] = NULL;
-#endif
-	}
-
 	if ((tmp->timer = ast_timer_open())) {
 		needqueue = 0;
 		tmp->timingfd = ast_timer_fd(tmp->timer);
-	} else {
-		tmp->timingfd = -1;
 	}
 
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe! Try increasing max file descriptors with ulimit -n\n");
-alertpipe_failed:
-			if (tmp->timer) {
-				ast_timer_close(tmp->timer);
-			}
-
-			sched_context_destroy(tmp->sched);
-			ast_string_field_free_memory(tmp);
-			ast_free(tmp->cid.cid_name);
-			ast_free(tmp->cid.cid_num);
-			ast_free(tmp);
-			return NULL;
+			return ast_channel_unref(tmp);
 		} else {
 			flags = fcntl(tmp->alertpipe[0], F_GETFL);
 			if (fcntl(tmp->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
 				ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-				close(tmp->alertpipe[0]);
-				close(tmp->alertpipe[1]);
-				goto alertpipe_failed;
+				return ast_channel_unref(tmp);
 			}
 			flags = fcntl(tmp->alertpipe[1], F_GETFL);
 			if (fcntl(tmp->alertpipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
 				ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-				close(tmp->alertpipe[0]);
-				close(tmp->alertpipe[1]);
-				goto alertpipe_failed;
+				return ast_channel_unref(tmp);
 			}
 		}
-	} else	/* Make sure we've got it done right if they don't */
-		tmp->alertpipe[0] = tmp->alertpipe[1] = -1;
+	}
+
+	/*
+	 * This is the last place the channel constructor can fail.
+	 *
+	 * The destructor takes advantage of this fact to ensure that the
+	 * AST_CEL_CHANNEL_END is not posted if we have not posted the
+	 * AST_CEL_CHANNEL_START yet.
+	 */
+	if ((ast_string_field_init(tmp, 128))) {
+		return ast_channel_unref(tmp);
+	}
 
 	/* Always watch the alertpipe */
 	ast_channel_set_fd(tmp, AST_ALERT_FD, tmp->alertpipe[0]);
 	/* And timing pipe */
 	ast_channel_set_fd(tmp, AST_TIMING_FD, tmp->timingfd);
-	ast_string_field_set(tmp, name, "**Unknown**");
 
 	/* Initial state */
 	tmp->_state = state;
@@ -964,16 +957,15 @@ alertpipe_failed:
 
 	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
 		ast_string_field_build(tmp, uniqueid, "%li.%d", (long) time(NULL), 
-				       ast_atomic_fetchadd_int(&uniqueint, 1));
+			ast_atomic_fetchadd_int(&uniqueint, 1));
 	} else {
 		ast_string_field_build(tmp, uniqueid, "%s-%li.%d", ast_config_AST_SYSTEM_NAME, 
-				       (long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
+			(long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
 	}
 
 	if (!ast_strlen_zero(linkedid)) {
 		ast_string_field_set(tmp, linkedid, linkedid);
-	}
-	else {
+	} else {
 		ast_string_field_set(tmp, linkedid, tmp->uniqueid);
 	}
 
@@ -991,6 +983,12 @@ alertpipe_failed:
 		if ((slash = strchr(tech, '/'))) {
 			*slash = '\0';
 		}
+	} else {
+		/*
+		 * Start the string with '-' so it becomes an empty string
+		 * in the destructor.
+		 */
+		ast_string_field_set(tmp, name, "-**Unknown**");
 	}
 
 	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
@@ -1037,8 +1035,8 @@ alertpipe_failed:
 
 	ao2_link(channels, tmp);
 
-	/*\!note
-	 * and now, since the channel structure is built, and has its name, let's
+	/*
+	 * And now, since the channel structure is built, and has its name, let's
 	 * call the manager event generator with this Newchannel event. This is the
 	 * proper and correct place to make this call, but you sure do have to pass
 	 * a lot of data into this func to do it here!
@@ -1100,22 +1098,21 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	struct varshead *headp;
 
 #if defined(REF_DEBUG)
-	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel", file, line, function, 1))) {
-		return NULL;
-	}
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel",
+		file, line, function, 1);
 #elif defined(__AST_DEBUG_MALLOC)
-	if (!(tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel", file, line, function, 0))) {
-		return NULL;
-	}
+	tmp = __ao2_alloc_debug(sizeof(*tmp), ast_dummy_channel_destructor, "dummy channel",
+		file, line, function, 0);
 #else
-	if (!(tmp = ao2_alloc(sizeof(*tmp), ast_dummy_channel_destructor))) {
+	tmp = ao2_alloc(sizeof(*tmp), ast_dummy_channel_destructor);
+#endif
+	if (!tmp) {
+		/* Dummy channel structure allocation failure. */
 		return NULL;
 	}
-#endif
 
 	if ((ast_string_field_init(tmp, 128))) {
-		ast_channel_unref(tmp);
-		return NULL;
+		return ast_channel_unref(tmp);
 	}
 
 	headp = &tmp->varshead;
@@ -1979,13 +1976,14 @@ static void ast_channel_destructor(void *obj)
 	struct ast_var_t *vardata;
 	struct ast_frame *f;
 	struct varshead *headp;
-	struct ast_datastore *datastore = NULL;
-	char name[AST_CHANNEL_NAME], *dashptr;
+	struct ast_datastore *datastore;
+	char device_name[AST_CHANNEL_NAME];
 
-	headp = &chan->varshead;
-
-	ast_cel_report_event(chan, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
-	ast_cel_check_retire_linkedid(chan);
+	if (chan->name) {
+		/* The string fields were initialized. */
+		ast_cel_report_event(chan, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
+		ast_cel_check_retire_linkedid(chan);
+	}
 
 	/* Get rid of each of the data stores on the channel */
 	ast_channel_lock(chan);
@@ -2007,9 +2005,16 @@ static void ast_channel_destructor(void *obj)
 	if (chan->sched)
 		sched_context_destroy(chan->sched);
 
-	ast_copy_string(name, chan->name, sizeof(name));
-	if ((dashptr = strrchr(name, '-'))) {
-		*dashptr = '\0';
+	if (chan->name) {
+		char *dashptr;
+
+		/* The string fields were initialized. */
+		ast_copy_string(device_name, chan->name, sizeof(device_name));
+		if ((dashptr = strrchr(device_name, '-'))) {
+			*dashptr = '\0';
+		}
+	} else {
+		device_name[0] = '\0';
 	}
 
 	/* Stop monitoring */
@@ -2052,7 +2057,7 @@ static void ast_channel_destructor(void *obj)
 	
 	/* loop over the variables list, freeing all data and deleting list items */
 	/* no need to lock the list, as the channel is already locked */
-	
+	headp = &chan->varshead;
 	while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries)))
 		ast_var_delete(vardata);
 
@@ -2072,10 +2077,16 @@ static void ast_channel_destructor(void *obj)
 
 	ast_string_field_free_memory(chan);
 
-	/* Queue an unknown state, because, while we know that this particular
-	 * instance is dead, we don't know the state of all other possible
-	 * instances. */
-	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, name);
+	if (device_name[0]) {
+		/*
+		 * We have a device name to notify of a new state.
+		 *
+		 * Queue an unknown state, because, while we know that this particular
+		 * instance is dead, we don't know the state of all other possible
+		 * instances.
+		 */
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, device_name);
+	}
 }
 
 /*! \brief Free a dummy channel structure */
