@@ -708,46 +708,44 @@ struct penalty_rule {
 #define ANNOUNCEPOSITION_LIMIT 4 /*!< We not announce position more than <limit> */
 
 struct call_queue {
-	AST_DECLARE_STRING_FIELDS(
-		/*! Queue name */
-		AST_STRING_FIELD(name);
-		/*! Music on Hold class */
-		AST_STRING_FIELD(moh);
-		/*! Announcement to play when call is answered */
-		AST_STRING_FIELD(announce);
-		/*! Exit context */
-		AST_STRING_FIELD(context);
-		/*! Macro to run upon member connection */
-		AST_STRING_FIELD(membermacro);
-		/*! Gosub to run upon member connection */
-		AST_STRING_FIELD(membergosub);
-		/*! Default rule to use if none specified in call to Queue() */
-		AST_STRING_FIELD(defaultrule);
-		/*! Sound file: "Your call is now first in line" (def. queue-youarenext) */
-		AST_STRING_FIELD(sound_next);
-		/*! Sound file: "There are currently" (def. queue-thereare) */
-		AST_STRING_FIELD(sound_thereare);
-		/*! Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting) */
-		AST_STRING_FIELD(sound_calls);
-		/*! Sound file: "Currently there are more than" (def. queue-quantity1) */
-		AST_STRING_FIELD(queue_quantity1);
-		/*! Sound file: "callers waiting to speak with a representative" (def. queue-quantity2) */
-		AST_STRING_FIELD(queue_quantity2);
-		/*! Sound file: "The current estimated total holdtime is" (def. queue-holdtime) */
-		AST_STRING_FIELD(sound_holdtime);
-		/*! Sound file: "minutes." (def. queue-minutes) */
-		AST_STRING_FIELD(sound_minutes);
-		/*! Sound file: "minute." (def. queue-minute) */
-		AST_STRING_FIELD(sound_minute);
-		/*! Sound file: "seconds." (def. queue-seconds) */
-		AST_STRING_FIELD(sound_seconds);
-		/*! Sound file: "Thank you for your patience." (def. queue-thankyou) */
-		AST_STRING_FIELD(sound_thanks);
-		/*! Sound file: Custom announce for caller, no default */
-		AST_STRING_FIELD(sound_callerannounce);
-		/*! Sound file: "Hold time" (def. queue-reporthold) */
-		AST_STRING_FIELD(sound_reporthold);
-	);
+	/*! Queue name */
+	char name[80];
+	/*! Music on Hold class */
+	char moh[80];
+	/*! Announcement to play when call is answered */
+	char announce[80];
+	/*! Exit context */
+	char context[AST_MAX_CONTEXT];
+	/*! Macro to run upon member connection */
+	char membermacro[AST_MAX_CONTEXT];
+	/*! Gosub to run upon member connection */
+	char membergosub[AST_MAX_CONTEXT];
+	/*! Default rule to use if none specified in call to Queue() */
+	char defaultrule[AST_MAX_CONTEXT];
+	/*! Sound file: "Your call is now first in line" (def. queue-youarenext) */
+	char sound_next[80];
+	/*! Sound file: "There are currently" (def. queue-thereare) */
+	char sound_thereare[80];
+	/*! Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting) */
+	char sound_calls[80];
+	/*! Sound file: "The current estimated total holdtime is" (def. queue-holdtime) */
+	char sound_holdtime[80];
+	/*! Sound file: "minutes." (def. queue-minutes) */
+	char sound_minutes[80];
+	/*! Sound file: "minute." (def. queue-minute) */
+	char sound_minute[80];
+	/*! Sound file: "seconds." (def. queue-seconds) */
+	char sound_seconds[80];
+	/*! Sound file: "Thank you for your patience." (def. queue-thankyou) */
+	char sound_thanks[80];
+	/*! Sound file: Custom announce for caller, no default */
+	char sound_callerannounce[80];
+	/*! Sound file: "Hold time" (def. queue-reporthold) */
+	char sound_reporthold[80];
+	/*! Sound file: "Currently there are more than" (def. queue-quantity1) */
+	char queue_quantity1[80];
+	/*! Sound file: "callers waiting to speak with a representative" (def. queue-quantity2) */
+	char queue_quantity2[80];
 	/*! Sound files: Custom announce, no default */
 	struct ast_str *sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS];
 	unsigned int dead:1;
@@ -1216,20 +1214,25 @@ static void init_queue(struct call_queue *q)
 	}
 	q->found = 1;
 
-	ast_string_field_set(q, sound_next, "queue-youarenext");
-	ast_string_field_set(q, sound_thereare, "queue-thereare");
-	ast_string_field_set(q, sound_calls, "queue-callswaiting");
-	ast_string_field_set(q, queue_quantity1, "queue-quantity1");
-	ast_string_field_set(q, queue_quantity2, "queue-quantity2");
-	ast_string_field_set(q, sound_holdtime, "queue-holdtime");
-	ast_string_field_set(q, sound_minutes, "queue-minutes");
-	ast_string_field_set(q, sound_minute, "queue-minute");
-	ast_string_field_set(q, sound_seconds, "queue-seconds");
-	ast_string_field_set(q, sound_thanks, "queue-thankyou");
-	ast_string_field_set(q, sound_reporthold, "queue-reporthold");
+	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
+	ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
+	ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
+	ast_copy_string(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime));
+	ast_copy_string(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes));
+	ast_copy_string(q->sound_minute, "queue-minute", sizeof(q->sound_minute));
+	ast_copy_string(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds));
+	ast_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
+	ast_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
+	ast_copy_string(q->queue_quantity1, "queue-quantity1", sizeof(q->queue_quantity1));
+	ast_copy_string(q->queue_quantity2, "queue-quantity2", sizeof(q->queue_quantity2));
 
-	if ((q->sound_periodicannounce[0] = ast_str_create(32)))
+	if (!q->sound_periodicannounce[0]) {
+		q->sound_periodicannounce[0] = ast_str_create(32);
+	}
+
+	if (q->sound_periodicannounce[0]) {
 		ast_str_set(&q->sound_periodicannounce[0], 0, "queue-periodic-announce");
+	}
 
 	for (i = 1; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
 		if (q->sound_periodicannounce[i])
@@ -1386,11 +1389,11 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 {
 	if (!strcasecmp(param, "musicclass") || 
 		!strcasecmp(param, "music") || !strcasecmp(param, "musiconhold")) {
-		ast_string_field_set(q, moh, val);
+		ast_copy_string(q->moh, val, sizeof(q->moh));
 	} else if (!strcasecmp(param, "announce")) {
-		ast_string_field_set(q, announce, val);
+		ast_copy_string(q->announce, val, sizeof(q->announce));
 	} else if (!strcasecmp(param, "context")) {
-		ast_string_field_set(q, context, val);
+		ast_copy_string(q->context, val, sizeof(q->context));
 	} else if (!strcasecmp(param, "timeout")) {
 		q->timeout = atoi(val);
 		if (q->timeout < 0)
@@ -1406,33 +1409,33 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "monitor-format")) {
 		ast_copy_string(q->monfmt, val, sizeof(q->monfmt));
 	} else if (!strcasecmp(param, "membermacro")) {
-		ast_string_field_set(q, membermacro, val);
+		ast_copy_string(q->membermacro, val, sizeof(q->membermacro));
 	} else if (!strcasecmp(param, "membergosub")) {
-		ast_string_field_set(q, membergosub, val);
+		ast_copy_string(q->membergosub, val, sizeof(q->membergosub));
 	} else if (!strcasecmp(param, "queue-youarenext")) {
-		ast_string_field_set(q, sound_next, val);
+		ast_copy_string(q->sound_next, val, sizeof(q->sound_next));
 	} else if (!strcasecmp(param, "queue-thereare")) {
-		ast_string_field_set(q, sound_thereare, val);
+		ast_copy_string(q->sound_thereare, val, sizeof(q->sound_thereare));
 	} else if (!strcasecmp(param, "queue-callswaiting")) {
-		ast_string_field_set(q, sound_calls, val);
+		ast_copy_string(q->sound_calls, val, sizeof(q->sound_calls));
 	} else if (!strcasecmp(param, "queue-quantity1")) {
-		ast_string_field_set(q, queue_quantity1, val);
+		ast_copy_string(q->queue_quantity1, val, sizeof(q->queue_quantity1));
 	} else if (!strcasecmp(param, "queue-quantity2")) {
-		ast_string_field_set(q, queue_quantity2, val);
+		ast_copy_string(q->queue_quantity2, val, sizeof(q->queue_quantity2));
 	} else if (!strcasecmp(param, "queue-holdtime")) {
-		ast_string_field_set(q, sound_holdtime, val);
+		ast_copy_string(q->sound_holdtime, val, sizeof(q->sound_holdtime));
 	} else if (!strcasecmp(param, "queue-minutes")) {
-		ast_string_field_set(q, sound_minutes, val);
+		ast_copy_string(q->sound_minutes, val, sizeof(q->sound_minutes));
 	} else if (!strcasecmp(param, "queue-minute")) {
-		ast_string_field_set(q, sound_minute, val);
+		ast_copy_string(q->sound_minute, val, sizeof(q->sound_minute));
 	} else if (!strcasecmp(param, "queue-seconds")) {
-		ast_string_field_set(q, sound_seconds, val);
+		ast_copy_string(q->sound_seconds, val, sizeof(q->sound_seconds));
 	} else if (!strcasecmp(param, "queue-thankyou")) {
-		ast_string_field_set(q, sound_thanks, val);
+		ast_copy_string(q->sound_thanks, val, sizeof(q->sound_thanks));
 	} else if (!strcasecmp(param, "queue-callerannounce")) {
-		ast_string_field_set(q, sound_callerannounce, val);
+		ast_copy_string(q->sound_callerannounce, val, sizeof(q->sound_callerannounce));
 	} else if (!strcasecmp(param, "queue-reporthold")) {
-		ast_string_field_set(q, sound_reporthold, val);
+		ast_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
 	} else if (!strcasecmp(param, "announce-frequency")) {
 		q->announcefrequency = atoi(val);
 	} else if (!strcasecmp(param, "min-announce-frequency")) {
@@ -1554,7 +1557,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "timeoutrestart")) {
 		q->timeoutrestart = ast_true(val);
 	} else if (!strcasecmp(param, "defaultrule")) {
-		ast_string_field_set(q, defaultrule, val);
+		ast_copy_string(q->defaultrule, val, sizeof(q->defaultrule));
 	} else if (!strcasecmp(param, "timeoutpriority")) {
 		if (!strcasecmp(val, "conf")) {
 			q->timeoutpriority = TIMEOUT_PRIORITY_CONF;
@@ -1661,7 +1664,6 @@ static void destroy_queue(void *obj)
 	int i;
 
 	free_members(q, 1);
-	ast_string_field_free_memory(q);
 	for (i = 0; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
 		if (q->sound_periodicannounce[i])
 			free(q->sound_periodicannounce[i]);
@@ -1674,11 +1676,7 @@ static struct call_queue *alloc_queue(const char *queuename)
 	struct call_queue *q;
 
 	if ((q = ao2_t_alloc(sizeof(*q), destroy_queue, "Allocate queue"))) {
-		if (ast_string_field_init(q, 64)) {
-			queue_t_unref(q, "String field allocation failed");
-			return NULL;
-		}
-		ast_string_field_set(q, name, queuename);
+		ast_copy_string(q->name, queuename, sizeof(q->name));
 	}
 	return q;
 }
@@ -1696,15 +1694,15 @@ static struct call_queue *alloc_queue(const char *queuename)
 static struct call_queue *find_queue_by_name_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
 {
 	struct ast_variable *v;
-	struct call_queue *q, tmpq = {
-		.name = queuename,	
-	};
+	struct call_queue *q, tmpq;
 	struct member *m;
 	struct ao2_iterator mem_iter;
 	char *interface = NULL;
 	const char *tmp_name;
 	char *tmp;
 	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
+
+	ast_copy_string(tmpq.name, queuename, sizeof(tmpq.name));
 
 	/* Static queues override realtime. */
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Check if static queue exists"))) {
@@ -1831,12 +1829,11 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 {
 	struct ast_variable *queue_vars;
 	struct ast_config *member_config = NULL;
-	struct call_queue *q = NULL, tmpq = {
-		.name = queuename,	
-	};
+	struct call_queue *q = NULL, tmpq;
 	int prev_weight = 0;
 
 	/* Find the queue in the in-core list first. */
+	ast_copy_string(tmpq.name, queuename, sizeof(tmpq.name));
 	q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Look for queue in memory first");
 
 	if (!q || q->realtime) {
@@ -4406,12 +4403,11 @@ static void dump_queue_members(struct call_queue *pm_queue)
 */
 static int remove_from_queue(const char *queuename, const char *interface)
 {
-	struct call_queue *q, tmpq = {
-		.name = queuename,	
-	};
+	struct call_queue *q, tmpq;
 	struct member *mem, tmpmem;
 	int res = RES_NOSUCHQUEUE;
 
+	ast_copy_string(tmpq.name, queuename, sizeof(tmpq.name));
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Temporary reference for interface removal"))) {
 		ao2_lock(queues);
@@ -4639,11 +4635,10 @@ static int set_member_penalty(char *queuename, char *interface, int penalty)
 static int get_member_penalty(char *queuename, char *interface)
 {
 	int foundqueue = 0, penalty;
-	struct call_queue *q, tmpq = {
-		.name = queuename,	
-	};
+	struct call_queue *q, tmpq;
 	struct member *mem;
 	
+	ast_copy_string(tmpq.name, queuename, sizeof(tmpq.name));
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Search for queue"))) {
 		foundqueue = 1;
 		ao2_lock(q);
@@ -4694,9 +4689,8 @@ static void reload_queue_members(void)
 		queue_name = entry->key + strlen(pm_family) + 2;
 
 		{
-			struct call_queue tmpq = {
-				.name = queue_name,
-			};
+			struct call_queue tmpq;
+			ast_copy_string(tmpq.name, queue_name, sizeof(tmpq.name));
 			cur_queue = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Reload queue members");
 		}	
 
@@ -5321,10 +5315,7 @@ stop:
 static int queue_function_var(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int res = -1;
-	struct call_queue *q, tmpq = {
-		.name = data,	
-	};
-
+	struct call_queue *q, tmpq;
 	char interfacevar[256] = "";
 	float sl = 0;
 
@@ -5333,6 +5324,7 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 		return -1;
 	}
 
+	ast_copy_string(tmpq.name, data, sizeof(tmpq.name));
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Find for QUEUE() function"))) {
 		ao2_lock(q);
 		if (q->setqueuevar) {
@@ -5465,9 +5457,7 @@ static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, cha
 static int queue_function_queuewaitingcount(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
-	struct call_queue *q, tmpq = {
-		.name = data,	
-	};
+	struct call_queue *q, tmpq;
 	struct ast_variable *var = NULL;
 
 	buf[0] = '\0';
@@ -5477,6 +5467,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 		return -1;
 	}
 
+	ast_copy_string(tmpq.name, data, sizeof(tmpq.name));
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Find for QUEUE_WAITING_COUNT()"))) {
 		ao2_lock(q);
 		count = q->count;
@@ -5500,9 +5491,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 /*! \brief Dialplan function QUEUE_MEMBER_LIST() Get list of members in a specific queue */
 static int queue_function_queuememberlist(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct call_queue *q, tmpq = {
-		.name = data,	
-	};
+	struct call_queue *q, tmpq;
 	struct member *m;
 
 	/* Ensure an otherwise empty list doesn't return garbage */
@@ -5513,6 +5502,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 		return -1;
 	}
 
+	ast_copy_string(tmpq.name, data, sizeof(tmpq.name));
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Find for QUEUE_MEMBER_LIST()"))) {
 		int buflen = 0, count = 0;
 		struct ao2_iterator mem_iter = ao2_iterator_init(q->members, 0);
@@ -5840,14 +5830,14 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 	int new;
 	struct call_queue *q = NULL;
 	/*We're defining a queue*/
-	struct call_queue tmpq = {
-		.name = queuename,
-	};
+	struct call_queue tmpq;
 	const char *tmpvar;
 	const int queue_reload = ast_test_flag(mask, QUEUE_RELOAD_PARAMETERS);
 	const int member_reload = ast_test_flag(mask, QUEUE_RELOAD_MEMBER);
 	int prev_weight = 0;
 	struct ast_variable *var;
+
+	ast_copy_string(tmpq.name, queuename, sizeof(tmpq.name));
 	if (!(q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Find queue for reload"))) {
 		if (queue_reload) {
 			/* Make one then */
