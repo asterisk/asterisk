@@ -1476,6 +1476,22 @@ int ast_indicate_data(struct ast_channel *chan, int condition, const void *data,
 int ast_waitfor(struct ast_channel *chan, int ms);
 
 /*!
+ * \brief Should we keep this frame for later?
+ *
+ * There are functions such as ast_safe_sleep which will
+ * service a channel to ensure that it does not have a
+ * have a large backlog of queued frames. When this happens,
+ * we want to hold on to specific frame types and just drop
+ * others. This function will tell if the frame we just
+ * read should be held onto.
+ *
+ * \param frame The frame we just read
+ * \retval 1 frame should be kept
+ * \retval 0 frame should be dropped
+ */
+int ast_is_deferrable_frame(const struct ast_frame *frame);
+
+/*!
  * \brief Wait for a specified amount of time, looking for hangups
  * \param chan channel to wait for
  * \param ms length of time in milliseconds to sleep
