@@ -256,4 +256,15 @@ unsigned int ast_fax_maxrate(void);
 /*! \brief convert an ast_fax_state to a string */
 const char *ast_fax_state_to_str(enum ast_fax_state state);
 
+/*!
+ * \brief Log message at FAX or recommended level
+ *
+ * The first four parameters can be represented with Asterisk's
+ * LOG_* levels. In other words, this function may be called
+ * like
+ *
+ * ast_fax_log(LOG_DEBUG, msg);
+ */
+void ast_fax_log(int level, const char *file, const int line, const char *function, const char *msg);
+
 #endif

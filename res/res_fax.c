@@ -101,6 +101,8 @@ struct ast_fax_debug_info {
 	struct ast_dsp *dsp;
 };
 
+static int fax_logger_level = -1;
+
 /*! \brief maximum buckets for res_fax ao2 containers */
 #define FAX_MAXBUCKETS 10
 
@@ -445,6 +447,15 @@ const char *ast_fax_state_to_str(enum ast_fax_state state)
 	default:
 		ast_log(LOG_WARNING, "unhandled FAX state: %d\n", state);
 		return "Unknown";
+	}
+}
+
+void ast_fax_log(int level, const char *file, const int line, const char *function, const char *msg)
+{
+	if (fax_logger_level != -1) {
+		ast_log_dynamic_level(fax_logger_level, "%s", msg);
+	} else {
+		ast_log(level, file, line, function, "%s", msg);
 	}
 }
 
@@ -2195,6 +2206,10 @@ static int unload_module(void)
 		ast_log(LOG_WARNING, "failed to unregister '%s'\n", app_receivefax);
 	}
 
+	if (fax_logger_level != -1) {
+		ast_logger_unregister_level("FAX");
+	}
+
 	ao2_ref(faxregistry.container, -1);
 
 	return 0;
@@ -2231,6 +2246,7 @@ static int load_module(void)
 	}
 	ast_cli_register_multiple(fax_cli, ARRAY_LEN(fax_cli));
 	res = ast_custom_function_register(&acf_faxopt);	
+	fax_logger_level = ast_logger_register_level("FAX");
 
 	return res;
 }

@@ -6,6 +6,7 @@
 		LINKER_SYMBOL_PREFIXast_fax_minrate;
 		LINKER_SYMBOL_PREFIXast_fax_maxrate;
 		LINKER_SYMBOL_PREFIXast_fax_state_to_str;
+		LINKER_SYMBOL_PREFIXast_fax_log;
 	local:
 		*;
 };

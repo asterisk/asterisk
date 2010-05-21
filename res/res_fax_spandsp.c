@@ -366,7 +366,7 @@ static void spandsp_log(int level, const char *msg)
 	} else if (level == SPAN_LOG_WARNING) {
 		ast_log(LOG_WARNING, "%s", msg);
 	} else {
-		ast_log(LOG_DEBUG, "%s", msg);
+		ast_fax_log(LOG_DEBUG, msg);
 	}
 }
 
