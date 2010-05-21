@@ -1480,7 +1480,7 @@ int ast_waitfor(struct ast_channel *chan, int ms);
  *
  * There are functions such as ast_safe_sleep which will
  * service a channel to ensure that it does not have a
- * have a large backlog of queued frames. When this happens,
+ * large backlog of queued frames. When this happens,
  * we want to hold on to specific frame types and just drop
  * others. This function will tell if the frame we just
  * read should be held onto.
