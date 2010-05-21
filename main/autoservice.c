@@ -133,32 +133,8 @@ static void *autoservice_run(void *ign)
 			 * thread in charge of this channel will know. */
 
 			defer_frame = &hangup_frame;
-		} else {
-
-			/* Do not add a default entry in this switch statement.  Each new
-			 * frame type should be addressed directly as to whether it should
-			 * be queued up or not. */
-
-			switch (f->frametype) {
-			/* Save these frames */
-			case AST_FRAME_DTMF_END:
-			case AST_FRAME_CONTROL:
-			case AST_FRAME_TEXT:
-			case AST_FRAME_IMAGE:
-			case AST_FRAME_HTML:
-				defer_frame = f;
-				break;
-
-			/* Throw these frames away */
-			case AST_FRAME_DTMF_BEGIN:
-			case AST_FRAME_VOICE:
-			case AST_FRAME_VIDEO:
-			case AST_FRAME_NULL:
-			case AST_FRAME_IAX:
-			case AST_FRAME_CNG:
-			case AST_FRAME_MODEM:
-				break;
-			}
+		} else if (ast_is_deferrable_frame(f)) {
+			defer_frame = f;
 		}
 
 		if (defer_frame) {
