@@ -1532,6 +1532,10 @@ static int play_file(struct ast_channel *chan, char *filename)
 		return 0;
 	}
 
+	if (!ast_fileexists(filename, NULL, chan->language)) {
+		return 0;
+	}
+
 	ast_stopstream(chan);
 
 	res = ast_streamfile(chan, filename, chan->language);
