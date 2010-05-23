@@ -1238,11 +1238,13 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 	case AST_CONTROL_SRCCHANGE:
 		ast_rtp_instance_change_source(p->rtp);
 		break;
-      case AST_CONTROL_CONNECTED_LINE:
-		if (gH323Debug)
-			ast_log(LOG_DEBUG, "Sending connected line info for %s (%s)\n",
+       	case AST_CONTROL_CONNECTED_LINE:
+		if (!ast_strlen_zero(ast->connected.id.name)) {
+			if (gH323Debug)
+				ast_log(LOG_DEBUG, "Sending connected line info for %s (%s)\n",
 				callToken, ast->connected.id.name);
-		ooSetANI(callToken, ast->connected.id.name);
+			ooSetANI(callToken, ast->connected.id.name);
+		}
 		break;
 
       case AST_CONTROL_T38_PARAMETERS:
