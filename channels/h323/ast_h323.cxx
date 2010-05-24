@@ -2257,6 +2257,7 @@ void h323_end_point_create(void)
 {
 	channelsOpen = 0;
 	logstream = new PAsteriskLog();
+	PTrace::SetStream(logstream); 
 	endPoint = new MyH323EndPoint();
 }
 
@@ -2672,6 +2673,7 @@ void h323_end_process(void)
 	close(_timerChangePipe[1]);
 #endif
 	if (logstream) {
+		PTrace::SetStream(NULL);
 		delete logstream;
 		logstream = NULL;
 	}
