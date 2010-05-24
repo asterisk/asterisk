@@ -4379,17 +4379,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	}
 
 	for (tmp = var; tmp; tmp = tmp->next) {
-		/* If this is type=user, then skip this object. */
-		if (!strcasecmp(tmp->name, "type") &&
-		    !strcasecmp(tmp->value, "user")) {
-			if(peerlist)
-				ast_config_destroy(peerlist);
-			else {
-				ast_variables_destroy(var);
-				ast_variables_destroy(varregs);
-			}
-			return NULL;
-		} else if (!newpeername && !strcasecmp(tmp->name, "name")) {
+		if (!newpeername && !strcasecmp(tmp->name, "name")) {
 			newpeername = tmp->value;
 		}
 	}
@@ -4510,6 +4500,24 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 
 	if (!p && (realtime || devstate_only)) {
 		p = realtime_peer(peer, sin, devstate_only);
+		if (p) {
+			switch (which_objects) {
+			case FINDUSERS:
+				if (!(p->type & SIP_TYPE_USER)) {
+					unref_peer(p, "Wrong type of realtime SIP endpoint");
+					return NULL;
+				}
+				break;
+			case FINDPEERS:
+				if (!(p->type & SIP_TYPE_PEER)) {
+					unref_peer(p, "Wrong type of realtime SIP endpoint");
+					return NULL;
+				}
+				break;
+			case FINDALLDEVICES:
+				break;
+			}
+		}
 	}
 
 	return p;
