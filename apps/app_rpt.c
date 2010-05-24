@@ -1735,7 +1735,7 @@ char	str[200];
 	sprintf(str,"I %s %04X",myrpt->name,unit);
 
 	wf.frametype = AST_FRAME_TEXT;
-	wf.subclass = 0;
+	wf.subclass.integer = 0;
 	wf.offset = 0;
 	wf.mallocd = 0;
 	wf.datalen = strlen(str) + 1;
@@ -1872,7 +1872,7 @@ static int send_usb_txt(struct rpt *myrpt, char *txt)
  
 	if (debug)ast_log(LOG_NOTICE, "send_usb_txt %s\n",txt);
 	wf.frametype = AST_FRAME_TEXT;
-	wf.subclass = 0;
+	wf.subclass.integer = 0;
 	wf.offset = 0;
 	wf.mallocd = 0;
 	wf.datalen = strlen(txt) + 1;
@@ -5547,7 +5547,7 @@ struct ast_channel *mychannel,*genchannel;
 		if (myrpt->mydtmf)
 		{
 			struct ast_frame wf = {AST_FRAME_DTMF, } ;
-			wf.subclass = myrpt->mydtmf;
+			wf.subclass.integer = myrpt->mydtmf;
 			rpt_mutex_unlock(&myrpt->lock);
 			ast_queue_frame(mychannel,&wf);
 #ifdef	NEW_ASTERISK
@@ -5594,7 +5594,7 @@ struct	rpt_link *l;
 
 	snprintf(str, sizeof(str), "D %s %s %d %c", myrpt->cmdnode, myrpt->name, ++(myrpt->dtmfidx), c);
 	wf.frametype = AST_FRAME_TEXT;
-	wf.subclass = 0;
+	wf.subclass.integer = 0;
 	wf.offset = 0;
 	wf.mallocd = 0;
 	wf.datalen = strlen(str) + 1;
@@ -5641,7 +5641,7 @@ struct	rpt_link *l;
 	rpt_mutex_unlock(&myrpt->lock);
 	snprintf(str, sizeof(str), "K? * %s 0 0", myrpt->name);
 	wf.frametype = AST_FRAME_TEXT;
-	wf.subclass = 0;
+	wf.subclass.integer = 0;
 	wf.offset = 0;
 	wf.mallocd = 0;
 	wf.datalen = strlen(str) + 1;
@@ -5947,7 +5947,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				l->disced = 1;
 				rpt_mutex_unlock(&myrpt->lock);
 				wf.frametype = AST_FRAME_TEXT;
-				wf.subclass = 0;
+				wf.subclass.integer = 0;
 				wf.offset = 0;
 				wf.mallocd = 0;
 				wf.datalen = strlen(discstr) + 1;
@@ -6062,7 +6062,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				/* ast_log(LOG_NOTICE,"dumping link %s\n",l->name); */
                                 
                                 wf.frametype = AST_FRAME_TEXT;
-                                wf.subclass = 0;
+                                wf.subclass.integer = 0;
                                 wf.offset = 0;
                                 wf.mallocd = 0;
                                 wf.datalen = strlen(discstr) + 1;
@@ -6688,7 +6688,7 @@ struct rpt_link *l;
 struct	ast_frame wf;
 
 	wf.frametype = AST_FRAME_TEXT;
-	wf.subclass = 0;
+	wf.subclass.integer = 0;
 	wf.offset = 0;
 	wf.mallocd = 0;
 	wf.datalen = strlen(str) + 1;
@@ -11697,7 +11697,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 
 				memset(&lf,0,sizeof(lf));
 				lf.frametype = AST_FRAME_TEXT;
-				lf.subclass = 0;
+				lf.subclass.integer = 0;
 				lf.offset = 0;
 				lf.mallocd = 0;
 				lf.samples = 0;
@@ -12146,7 +12146,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 #endif
 			else if (f->frametype == AST_FRAME_DTMF)
 			{
-				c = (char) f->subclass; /* get DTMF char */
+				c = (char) f->subclass.integer; /* get DTMF char */
 				ast_frfree(f);
 				if (myrpt->lastf1)
 					memset(myrpt->lastf1->data.ptr,0,myrpt->lastf1->datalen);
@@ -12160,14 +12160,14 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}						
 			else if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
 				/* if RX key */
-				if (f->subclass == AST_CONTROL_RADIO_KEY)
+				if (f->subclass.integer == AST_CONTROL_RADIO_KEY)
 				{
 					if ((!lasttx) || (myrpt->p.duplex > 1) || (myrpt->p.linktolink)) 
 					{
@@ -12225,7 +12225,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 					} else myrpt->lasttone[0] = 0;
 				}
 				/* if RX un-key */
-				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+				if (f->subclass.integer == AST_CONTROL_RADIO_UNKEY)
 				{
 					if ((!lasttx) || (myrpt->p.duplex > 1) || (myrpt->p.linktolink))
 					{
@@ -12260,7 +12260,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -12280,7 +12280,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -12346,7 +12346,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -12593,11 +12593,11 @@ char tmpstr[300],lstr[MAXLINKLIST];
 					if (l->lastf2)
 						memset(l->lastf2->data.ptr,0,l->lastf2->datalen);
 					l->dtmfed = 1;
-					handle_link_phone_dtmf(myrpt,l,f->subclass);
+					handle_link_phone_dtmf(myrpt,l,f->subclass.integer);
 				}
 				if (f->frametype == AST_FRAME_CONTROL)
 				{
-					if (f->subclass == AST_CONTROL_ANSWER)
+					if (f->subclass.integer == AST_CONTROL_ANSWER)
 					{
 						char lconnected = l->connected;
 
@@ -12626,7 +12626,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 							l->reconnects++;
 					}
 					/* if RX key */
-					if (f->subclass == AST_CONTROL_RADIO_KEY)
+					if (f->subclass.integer == AST_CONTROL_RADIO_KEY)
 					{
 						if (debug == 7 ) printf("@@@@ rx key\n");
 						l->lastrealrx = 1;
@@ -12644,7 +12644,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						}
 					}
 					/* if RX un-key */
-					if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+					if (f->subclass.integer == AST_CONTROL_RADIO_UNKEY)
 					{
 						if (debug == 7) printf("@@@@ rx un-key\n");
 						l->lastrealrx = 0;
@@ -12663,7 +12663,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 								rpt_telemetry(myrpt,LINKUNKEY,l);
 						}
 					}
-					if (f->subclass == AST_CONTROL_HANGUP)
+					if (f->subclass.integer == AST_CONTROL_HANGUP)
 					{
 						ast_frfree(f);
 						rpt_mutex_lock(&myrpt->lock);
@@ -12752,7 +12752,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				}
 				if (f->frametype == AST_FRAME_CONTROL)
 				{
-					if (f->subclass == AST_CONTROL_HANGUP)
+					if (f->subclass.integer == AST_CONTROL_HANGUP)
 					{
 						if (debug) printf("@@@@ rpt:Hung Up\n");
 						ast_frfree(f);
@@ -12784,7 +12784,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -12821,7 +12821,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -12853,7 +12853,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -12873,7 +12873,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -14401,7 +14401,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 				if (myrpt->lastf2)
 					memset(myrpt->lastf2->data.ptr,0,myrpt->lastf2->datalen);
 				dtmfed = 1;
-				if (handle_remote_phone_dtmf(myrpt,f->subclass,&keyed,phone_mode) == -1)
+				if (handle_remote_phone_dtmf(myrpt,f->subclass.integer,&keyed,phone_mode) == -1)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -14419,21 +14419,21 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
 				/* if RX key */
-				if (f->subclass == AST_CONTROL_RADIO_KEY)
+				if (f->subclass.integer == AST_CONTROL_RADIO_KEY)
 				{
 					if (debug == 7) printf("@@@@ rx key\n");
 					keyed = 1;
 					myrpt->rerxtimer = 0;
 				}
 				/* if RX un-key */
-				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+				if (f->subclass.integer == AST_CONTROL_RADIO_UNKEY)
 				{
 					myrpt->rerxtimer = 0;
 					if (debug == 7) printf("@@@@ rx un-key\n");
@@ -14467,14 +14467,14 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			}
 			else if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
 				/* if RX key */
-				if (f->subclass == AST_CONTROL_RADIO_KEY)
+				if (f->subclass.integer == AST_CONTROL_RADIO_KEY)
 				{
 					if (debug == 7) printf("@@@@ remote rx key\n");
 					if (!myrpt->remotetx)
@@ -14483,7 +14483,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 					}
 				}
 				/* if RX un-key */
-				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+				if (f->subclass.integer == AST_CONTROL_RADIO_UNKEY)
 				{
 					if (debug == 7) printf("@@@@ remote rx un-key\n");
 					if (!myrpt->remotetx) 
@@ -14509,7 +14509,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
@@ -14530,7 +14530,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
-				if (f->subclass == AST_CONTROL_HANGUP)
+				if (f->subclass.integer == AST_CONTROL_HANGUP)
 				{
 					if (debug) printf("@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
