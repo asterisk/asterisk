@@ -569,13 +569,14 @@ static int swapmode(int *used, int *total)
 /*! \brief Give an overview of system statistics */
 static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int64_t physmem, freeram;
-	int totalswap = 0, freeswap = 0, nprocs = 0;
+	uint64_t physmem, freeram;
+	uint64_t totalswap = 0, freeswap = 0;
+	int nprocs = 0;
 	long uptime = 0;
 #if defined(HAVE_SYSINFO)
 	struct sysinfo sys_info;
 	sysinfo(&sys_info);
-	uptime = sys_info.uptime/3600;
+	uptime = sys_info.uptime / 3600;
 	physmem = sys_info.totalram * sys_info.mem_unit;
 	freeram = (sys_info.freeram * sys_info.mem_unit) / 1024;
 	totalswap = (sys_info.totalswap * sys_info.mem_unit) / 1024;
@@ -624,7 +625,7 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	sysctl(mib, 2, &vmtotal, &len, NULL, 0);
 	freeram = (vmtotal.t_free << pageshift);
 	/* generate swap usage and totals */
-	swapmode(&usedswap, &totalswap); 
+	swapmode(&usedswap, &totalswap);
 	freeswap = (totalswap - usedswap);
 	/* grab number of processes */
 #if defined(__OpenBSD__)
@@ -648,14 +649,14 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	ast_cli(a->fd, "\nSystem Statistics\n");
 	ast_cli(a->fd, "-----------------\n");
-	ast_cli(a->fd, "  System Uptime:             %ld hours\n", uptime);
-	ast_cli(a->fd, "  Total RAM:                 %ld KiB\n", (long)physmem/1024);
-	ast_cli(a->fd, "  Free RAM:                  %ld KiB\n", (long)freeram);
+	ast_cli(a->fd, "  System Uptime:             %lu hours\n", uptime);
+	ast_cli(a->fd, "  Total RAM:                 %" PRIu64 " KiB\n", physmem / 1024);
+	ast_cli(a->fd, "  Free RAM:                  %" PRIu64 " KiB\n", freeram);
 #if defined(HAVE_SYSINFO)
-	ast_cli(a->fd, "  Buffer RAM:                %ld KiB\n", (sys_info.bufferram * sys_info.mem_unit)/1024);
+	ast_cli(a->fd, "  Buffer RAM:                %" PRIu64 " KiB\n", ((uint64_t) sys_info.bufferram * sys_info.mem_unit) / 1024);
 #endif
-	ast_cli(a->fd, "  Total Swap Space:          %ld KiB\n", (long)totalswap);
-	ast_cli(a->fd, "  Free Swap Space:           %ld KiB\n\n", (long)freeswap);
+	ast_cli(a->fd, "  Total Swap Space:          %" PRIu64 " KiB\n", totalswap);
+	ast_cli(a->fd, "  Free Swap Space:           %" PRIu64 " KiB\n\n", freeswap);
 	ast_cli(a->fd, "  Number of Processes:       %d \n\n", nprocs);
 	return CLI_SUCCESS;
 }
