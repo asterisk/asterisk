@@ -4154,6 +4154,12 @@ static void adjust_frame_for_plc(struct ast_channel *chan, struct ast_frame *fra
 	int num_new_samples = frame->samples;
 	struct plc_ds *plc = datastore->data;
 
+
+	/* If this audio frame has no samples to fill in ignore it */
+	if (!num_new_samples) {
+		return;
+	}
+
 	/* First, we need to be sure that our buffer is large enough to accomodate
 	 * the samples we need to fill in. This will likely only occur on the first
 	 * frame we write.
