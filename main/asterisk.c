@@ -433,6 +433,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  -------------\n");
 	ast_cli(a->fd, "  Manager (AMI):               %s\n", check_manager_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Web Manager (AMI/HTTP):      %s\n", check_webmanager_enabled() ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Send Manager FullyBooted:    %s\n", ast_opt_send_fullybooted ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Call data records:           %s\n", check_cdr_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Realtime Architecture (ARA): %s\n", ast_realtime_enabled() ? "Enabled" : "Disabled");
 
@@ -2824,6 +2825,8 @@ static void ast_readconfig(void)
 				option_minmemfree = 0;
 			}
 #endif
+		} else if (!strcasecmp(v->name, "sendfullybooted")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_SEND_FULLYBOOTED);
 		}
 	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
@@ -3501,6 +3504,9 @@ int main(int argc, char *argv[])
 		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
 
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
+	if (ast_opt_send_fullybooted) {
+		manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");
+	}
 
 	ast_process_pending_reloads();
 

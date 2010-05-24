@@ -689,6 +689,7 @@ samples: adsi
 		echo "                        ; to the device.  It is for this reason that this is optional, as it may result in requiring a" ; \
 		echo "                        ; temporary codec translation path for a channel that may not otherwise require one." ; \
 		echo ";transcode_via_sln = yes ; Build transcode paths via SLINEAR, instead of directly" ; \
+		echo ";sendfullybooted = yes  ; Send the FullyBooted AMI event on AMI login and when all modules are finished loading" ; \
 		echo ";runuser = asterisk ; The user to run as" ; \
 		echo ";rungroup = asterisk ; The group to run as" ; \
 		echo "" ; \
