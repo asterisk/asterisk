@@ -50,6 +50,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="duration_ms" required="false">
 				<para>Duration of each digit</para>
 			</parameter>
+                        <parameter name="channel" required="false">
+                                <para>Channel where digits will be played</para>
+                        </parameter>
 		</syntax>
 		<description>
 			<para>DTMF digits sent to a channel with half second pause</para>
@@ -84,16 +87,20 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 	int res = 0;
 	char *data;
 	int dinterval = 0, duration = 0;
+	struct ast_channel *dchan;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(digits);
 		AST_APP_ARG(dinterval);
 		AST_APP_ARG(duration);
+		AST_APP_ARG(channel);
 	);
 
 	if (ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 		return 0;
 	}
+
+	dchan = chan;
 
 	data = ast_strdupa(vdata);
 	AST_STANDARD_APP_ARGS(args, data);
@@ -104,8 +111,17 @@ static int senddtmf_exec(struct ast_channel *chan, const char *vdata)
 	if (!ast_strlen_zero(args.duration)) {
 		ast_app_parse_timelen(args.duration, &duration, TIMELEN_MILLISECONDS);
 	}
-
-	res = ast_dtmf_stream(chan, NULL, args.digits, dinterval <= 0 ? 250 : dinterval, duration);
+	if (!ast_strlen_zero(args.channel)) {
+		dchan = ast_channel_get_by_name(args.channel);
+	}
+	if (dchan != chan) {
+		ast_autoservice_start(chan);
+	}
+	res = ast_dtmf_stream(dchan, NULL, args.digits, dinterval <= 0 ? 250 : dinterval, duration);
+	if (dchan != chan) {
+		ast_autoservice_stop(chan);
+		ast_channel_unref(dchan);
+	}
 
 	return res;
 }
