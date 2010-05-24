@@ -204,6 +204,8 @@ Sean Bright - Snom call pickup, newt interface for menuselect, cdr_tds rewrite,
 	countless other improvements, fixes, and good ideas.
 	sean(AT)malleable.com
 
+Jan Kaláb - Calendaring support for Exchange Server 2007+ via Exchange Web Services.
+
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
 Michael Jerris - bug marshaling

@@ -386,8 +386,10 @@ Calendaring for Asterisk
  * A new set of modules were added supporing calendar integration with Asterisk.
    Dialplan functions for reading from and writing to calendars are included,
    as well as the ability to execute dialplan logic upon calendar event notifications.
-   iCalendar, CalDAV, and Exchange Server calendars are supported (Exchange support
-   only tested on Exchange Server 2003 with no support for forms-based authentication).
+   iCalendar, CalDAV, and Exchange Server calendars (via res_calendar_exchange for
+   Exchange Server 2003 with no write or attendee support, and res_calendar_ews for
+   Exchange Server 2007+ with full write and attendee support) are supported (Exchange
+   2003 support does not support forms-based authentication).
 
 Call Completion Supplementary Services for Asterisk
 ---------------------------------------------------

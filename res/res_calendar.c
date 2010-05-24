@@ -1260,6 +1260,7 @@ static int calendar_write_exec(struct ast_channel *chan, const char *cmd, char *
 	char *val_dup = NULL;
 	struct ast_calendar *cal = NULL;
 	struct ast_calendar_event *event = NULL;
+	struct timeval tv = ast_tvnow();
 	AST_DECLARE_APP_ARGS(fields,
 		AST_APP_ARG(field)[10];
 	);
@@ -1323,6 +1324,14 @@ static int calendar_write_exec(struct ast_channel *chan, const char *cmd, char *
 		} else {
 			ast_log(LOG_WARNING, "Unknown calendar event field '%s'\n", fields.field[i]);
 		}
+	}
+
+	if (!event->start) {
+		event->start = tv.tv_sec;
+	}
+
+	if (!event->end) {
+		event->end = tv.tv_sec;
 	}
 
 	if((ret = cal->tech->write_event(event))) {
