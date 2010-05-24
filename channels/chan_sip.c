@@ -20336,6 +20336,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_debug(3, "INVITE part of call transfer. Replaces [%s]\n", p_replaces);
 		/* Create a buffer we can manipulate */
 		replace_id = ast_strdupa(p_replaces);
+		ast_uri_decode(replace_id);
 
 		if (!p->refer && !sip_refer_allocate(p)) {
 			transmit_response_reliable(p, "500 Server Internal Error", req);
@@ -20367,10 +20368,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				fromtag = strsep(&fromtag, "&"); /* trim what ? */
 			}
 		}
-
-		ast_uri_decode(fromtag);
-		ast_uri_decode(totag);
-		ast_uri_decode(replace_id);
 
 		if (sipdebug)
 			ast_debug(4, "Invite/replaces: Will use Replace-Call-ID : %s Fromtag: %s Totag: %s\n",
