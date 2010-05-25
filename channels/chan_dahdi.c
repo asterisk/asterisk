@@ -3468,8 +3468,10 @@ static int parse_buffers_policy(const char *parse, int *num_buffers, int *policy
 		*policy = DAHDI_POLICY_WHEN_FULL;
 	} else if (!strcasecmp(policy_str, "immediate")) {
 		*policy = DAHDI_POLICY_IMMEDIATE;
+#ifdef DAHDI_POLICY_HALF_FULL
 	} else if (!strcasecmp(policy_str, "half")) {
 		*policy = DAHDI_POLICY_HALF_FULL;
+#endif
 	} else {
 		ast_log(LOG_WARNING, "Invalid policy name given '%s'.\n", policy_str);
 		return -1;
