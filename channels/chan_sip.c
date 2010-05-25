@@ -11574,23 +11574,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		if (p->do_history)
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
 
-		if (!ast_strlen_zero(r->peername)) {
-			if (!(peer = find_peer(r->peername, NULL, 1, FINDPEERS, FALSE, 0))) {
-				ast_log(LOG_WARNING, "Could not find peer %s in transmit_register\n", r->peername);
-			} else {
-				p->peerauth = peer->auth;
-			}
-		}
-		ref_proxy(p, obproxy_get(p, peer)); /* it is ok to pass a NULL peer into obproxy_get() */
-		if (peer) {
-			unref_peer(peer, "transmit_registration: from find_peer operation");
-		}
 		/* Use port number specified if no SRV record was found */
 		if (!r->us.sin_port && r->portno)
 			r->us.sin_port = htons(r->portno);
 
 		/* Find address to hostname */
-		if (create_addr(p, r->hostname, &r->us, 0, NULL)) {
+		if (create_addr(p, S_OR(r->peername, r->hostname), &r->us, 0, NULL)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
 			dialog_unlink_all(p, TRUE, TRUE);
@@ -26232,14 +26221,14 @@ static int reload_config(enum channelreloadreason reason)
 					if (!ast_strlen_zero(username) && !ast_strlen_zero(host)) {
 						if (!ast_strlen_zero(secret)) {
 							if (!ast_strlen_zero(authuser)) {
-								snprintf(tmp, sizeof(tmp), "%s:%s:%s@%s/%s", username, secret, authuser, host, contact);
+								snprintf(tmp, sizeof(tmp), "%s?%s:%s:%s@%s/%s", cat, username, secret, authuser, host, contact);
 							} else {
-								snprintf(tmp, sizeof(tmp), "%s:%s@%s/%s", username, secret, host, contact);
+								snprintf(tmp, sizeof(tmp), "%s?%s:%s@%s/%s", cat, username, secret, host, contact);
 							}
 						} else if (!ast_strlen_zero(authuser)) {
-							snprintf(tmp, sizeof(tmp), "%s::%s@%s/%s", username, authuser, host, contact);
+							snprintf(tmp, sizeof(tmp), "%s?%s::%s@%s/%s", cat, username, authuser, host, contact);
 						} else {
-							snprintf(tmp, sizeof(tmp), "%s@%s/%s", username, host, contact);
+							snprintf(tmp, sizeof(tmp), "%s?%s@%s/%s", cat, username, host, contact);
 						}
 						if (sip_register(tmp, 0) == 0)
 							registry_count++;
