@@ -3476,18 +3476,22 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_cel_report_event(chan, AST_CEL_ANSWER, NULL, NULL, NULL);
 				}
 			} else if (f->subclass.integer == AST_CONTROL_READ_ACTION) {
-				ast_party_connected_line_init(&connected);
 				read_action_payload = f->data.ptr;
 				switch (read_action_payload->action) {
 				case AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO:
+					ast_party_connected_line_init(&connected);
+					ast_party_connected_line_copy(&connected, &chan->connected);
 					if (ast_connected_line_parse_data(read_action_payload->payload,
-								read_action_payload->payload_size, &connected)) {
+						read_action_payload->payload_size, &connected)) {
+						ast_party_connected_line_free(&connected);
 						break;
 					}
 					if (ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
 						ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE,
-								read_action_payload->payload, read_action_payload->payload_size);
+							read_action_payload->payload,
+							read_action_payload->payload_size);
 					}
+					ast_party_connected_line_free(&connected);
 					break;
 				}
 				ast_frfree(f);
@@ -3717,24 +3721,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				* and synchronous generation of outgoing frames is necessary       */
 				ast_read_generator_actions(chan, f);
 			}
-			break;
-		case AST_CONTROL_READ_ACTION:
-			ast_log(LOG_NOTICE, "Read a read action frame\n");
-			read_action_payload = f->data.ptr;
-			switch (read_action_payload->action) {
-			case AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO:
-				if (ast_connected_line_parse_data(read_action_payload->payload,
-							read_action_payload->payload_size, &connected)) {
-					break;
-				}
-				if (ast_channel_connected_line_macro(NULL, chan, &connected, 1, 0)) {
-					ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE,
-							read_action_payload->payload, read_action_payload->payload_size);
-				}
-				break;
-			}
-			ast_frfree(f);
-			f = &ast_null_frame;
 			break;
 		default:
 			/* Just pass it on! */
@@ -7893,10 +7879,10 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 
 	ast_channel_lock(macro_chan);
 	macro = pbx_builtin_getvar_helper(macro_chan, is_caller
-			? "CONNECTED_LINE_CALLER_SEND_MACRO" : "CONNECTED_LINE_CALLEE_SEND_MACRO");
+		? "CONNECTED_LINE_CALLER_SEND_MACRO" : "CONNECTED_LINE_CALLEE_SEND_MACRO");
 	macro = ast_strdupa(S_OR(macro, ""));
 	macro_args = pbx_builtin_getvar_helper(macro_chan, is_caller
-			? "CONNECTED_LINE_CALLER_SEND_MACRO_ARSG" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS");
+		? "CONNECTED_LINE_CALLER_SEND_MACRO_ARSG" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS");
 	macro_args = ast_strdupa(S_OR(macro_args, ""));
 	ast_channel_unlock(macro_chan);
 
@@ -7906,9 +7892,11 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 
 	if (is_frame) {
 		const struct ast_frame *frame = connected_info;
+
 		ast_connected_line_parse_data(frame->data.ptr, frame->datalen, &macro_chan->connected);
 	} else {
 		const struct ast_party_connected_line *connected = connected_info;
+
 		ast_party_connected_line_copy(&macro_chan->connected, connected);
 	}
 
