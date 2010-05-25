@@ -4457,7 +4457,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				record_abandoned(qe);
-				ast_cdr_noanswer(qe->chan->cdr);
 				ast_hangup(peer);
 				ao2_ref(member, -1);
 				return -1;
@@ -5696,7 +5695,6 @@ check_turns:
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
-			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", 
@@ -5720,7 +5718,6 @@ check_turns:
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
-			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
@@ -5742,7 +5739,6 @@ check_turns:
 			int status = 0;
 			if ((status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty, qe.parent->leavewhenempty))) {
 				record_abandoned(&qe);
-				ast_cdr_noanswer(qe.chan->cdr);
 				reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
 				res = 0;
@@ -5755,7 +5751,6 @@ check_turns:
 			ast_verb(3, "Exiting on time-out cycle\n");
 			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 			record_abandoned(&qe);
-			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			break;
@@ -5765,7 +5760,6 @@ check_turns:
 		/* Leave if we have exceeded our queuetimeout */
 		if (qe.expire && (time(NULL) >= qe.expire)) {
 			record_abandoned(&qe);
-			ast_cdr_noanswer(qe.chan->cdr);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
 			ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
@@ -5794,7 +5788,6 @@ stop:
 		if (res < 0) {
 			if (!qe.handled) {
 				record_abandoned(&qe);
-				ast_cdr_noanswer(qe.chan->cdr);
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON",
 					"%d|%d|%ld", qe.pos, qe.opos,
 					(long) time(NULL) - qe.start);
