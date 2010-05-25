@@ -83,6 +83,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_MUTE = (1 << 22),
 	/*! Generic PLC */
 	AST_OPT_FLAG_GENERIC_PLC = (1 << 23),
+	/*! Send the FullyBooted AMI event when all modules are loaded */
+	AST_OPT_FLAG_SEND_FULLYBOOTED = (1 << 24),
 };
 
 /*! These are the options that set by default when Asterisk starts */
@@ -116,6 +118,7 @@ enum ast_option_flags {
 #define ast_opt_always_fork		ast_test_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK)
 #define ast_opt_mute			ast_test_flag(&ast_options, AST_OPT_FLAG_MUTE)
 #define ast_opt_generic_plc         ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
+#define ast_opt_send_fullybooted	ast_test_flag(&ast_options, AST_OPT_FLAG_SEND_FULLYBOOTED)
 
 extern struct ast_flags ast_options;
 

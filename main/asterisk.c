@@ -2666,6 +2666,8 @@ static void ast_readconfig(void)
 				_dahdi_chan_mode = CHAN_ZAP_MODE;
 			}
 #endif
+		} else if (!strcasecmp(v->name, "sendfullybooted")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_SEND_FULLYBOOTED);
 		}
 	}
 	ast_config_destroy(cfg);
@@ -3192,6 +3194,9 @@ int main(int argc, char *argv[])
 		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
 
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
+	if (ast_opt_send_fullybooted) {
+		manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");
+	}
 
 	ast_process_pending_reloads();
 

@@ -2300,6 +2300,9 @@ static int process_message(struct mansession *s, const struct message *m)
 				ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", 
 					(s->session->sessiontimeout ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
+				if (ast_opt_send_fullybooted && ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+					manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");
+				}
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
 			astman_send_ack(s, m, "See ya");
