@@ -134,7 +134,7 @@ int ooCreateH245Connection(OOH323CallData *call)
          call->pH245Channel->sock = channelSocket;
          call->h245SessionState = OO_H245SESSION_ACTIVE;
 
-         OOTRACEINFO3("H245 connection creation succesful (%s, %s)\n",
+         OOTRACEINFO3("H245 connection creation successful (%s, %s)\n",
                       call->callType, call->callToken);
 
          /*Start terminal capability exchange and master slave determination */
@@ -300,7 +300,7 @@ int ooCreateH225Connection(OOH323CallData *call)
       {
          call->pH225Channel->sock = channelSocket;
 
-         OOTRACEINFO3("H2250 transmiter channel creation - succesful "
+         OOTRACEINFO3("H2250 transmiter channel creation - successful "
                       "(%s, %s)\n", call->callType, call->callToken);
 
          /* If multihomed, get ip from socket */
