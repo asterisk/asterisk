@@ -13,6 +13,13 @@ dbname=asterisk
 dbuser=asterisk
 dbpass=password
 ;
+; dbsock is specified as the directory where the socket file may be found. The
+; actual socket is constructed as a combination of dbsock and dbport.  For
+; example, the values of '/tmp' and '5432', respectively, will specify a socket
+; file of '/tmp/.s.PGSQL.5432'.
+; 
+;dbsock=/tmp
+;
 ; requirements - At startup, each realtime family will make requirements
 ; on the backend.  There are several strategies for handling requirements:
 ; warn        - Warn if the required column does not exist.
