@@ -563,8 +563,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		}
 		ast_free(fieldnames);
 	} else {
-		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: Could not find any rows in table %s.\n", table);
+		ast_debug(1, "PostgreSQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
 	ast_mutex_unlock(&pgsql_lock);
@@ -637,7 +636,7 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 		newval = va_arg(ap, const char *);
 
 		if (!find_column(table, newparam)) {
-			ast_log(LOG_WARNING, "Attempted to update column '%s' in table '%s', but column does not exist!\n", newparam, tablename);
+			ast_log(LOG_NOTICE, "Attempted to update column '%s' in table '%s', but column does not exist!\n", newparam, tablename);
 			continue;
 		}
 
