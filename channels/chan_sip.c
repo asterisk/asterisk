@@ -20789,6 +20789,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 			/* Let the caller know we're giving it a shot */
 			transmit_response(p, "100 Trying", req);
+			p->invitestate = INV_PROCEEDING;
 			ast_setstate(c, AST_STATE_RING);
 
 			/* Do the pickup itself */
