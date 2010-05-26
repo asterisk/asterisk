@@ -719,6 +719,7 @@ static char default_language[MAX_LANGUAGE];      /*!< Default language setting f
 static char default_callerid[AST_MAX_EXTENSION]; /*!< Default caller ID for sip messages */
 static char default_mwi_from[80];                /*!< Default caller ID for MWI updates */
 static char default_fromdomain[AST_MAX_EXTENSION]; /*!< Default domain on outound messages */
+static int default_fromdomainport;                 /*!< Default domain port on outbound messages */
 static char default_notifymime[AST_MAX_EXTENSION]; /*!< Default MIME media type for MWI notify messages */
 static char default_vmexten[AST_MAX_EXTENSION];    /*!< Default From Username on MWI updates */
 static int default_qualify;                        /*!< Default Qualify= setting */
@@ -4813,8 +4814,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
 	if (!dialog->portinuri)
 		dialog->portinuri = peer->portinuri;
-	
 	dialog->chanvars = copy_vars(peer->chanvars);
+	if (peer->fromdomainport)
+		dialog->fromdomainport = peer->fromdomainport;
 
 	return 0;
 }
@@ -6280,11 +6282,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		if (title) {
 			my_name = title;
 		} else {
-			char *port = NULL;
 			my_name = ast_strdupa(i->fromdomain);
-			if ((port = strchr(i->fromdomain, ':'))) {
-				*port = '\0';
-			}
 		}
 
 		sip_pvt_unlock(i);
@@ -6911,8 +6909,10 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 		do_setnat(p);
 	}
 
-	if (p->method != SIP_REGISTER)
+	if (p->method != SIP_REGISTER) {
 		ast_string_field_set(p, fromdomain, default_fromdomain);
+		p->fromdomainport = default_fromdomainport;
+	}
 	build_via(p);
 	if (!callid)
 		build_callid_pvt(p);
@@ -9216,6 +9216,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	}
 
 	ast_string_field_set(p, fromdomain, default_fromdomain);
+	p->fromdomainport = default_fromdomainport;
 	build_via(p);
 	ast_string_field_set(p, callid, callid);
 
@@ -9487,7 +9488,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		return 0;
 	if (ast_strlen_zero(lid_name))
 		lid_name = lid_num;
-	fromdomain = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr));
+	fromdomain = S_OR(p->fromdomain, ast_strdupa(ast_inet_ntoa(p->ourip.sin_addr)));
 
 	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), 1);
 
@@ -10485,8 +10486,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = tmp_l;
 	}
 
-	ourport = ntohs(p->ourip.sin_port);
-	if (!sip_standard_port(p->socket.type, ourport) && ast_strlen_zero(p->fromdomain))
+	ourport = (p->fromdomainport) ? p->fromdomainport : ntohs(p->ourip.sin_port);
+	if (!sip_standard_port(p->socket.type, ourport))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, d, ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
@@ -11199,7 +11200,8 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 {
 	struct sip_request req;
 	struct ast_str *out = ast_str_alloca(500);
-	int ourport = ntohs(p->ourip.sin_port);
+	int ourport = (p->fromdomainport) ? p->fromdomainport : ntohs(p->ourip.sin_port);
+	const char *domain = S_OR(p->fromdomain,ast_inet_ntoa(p->ourip.sin_addr));
 	const char *exten = S_OR(vmexten, default_vmexten);
 
 	initreqprep(&req, p, SIP_NOTIFY, NULL);
@@ -11207,19 +11209,18 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Content-Type", default_notifymime);
 	ast_str_append(&out, 0, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 
-	if (!ast_strlen_zero(p->fromdomain)) {
-		ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n", exten, p->fromdomain);
-	} else if (!sip_standard_port(p->socket.type, ourport)) {
+
+	if (!sip_standard_port(p->socket.type, ourport)) {
 		if (p->socket.type == SIP_TRANSPORT_UDP) {
-			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr), ourport);
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d\r\n", exten, domain, ourport);
 		} else {
-			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d;transport=%s\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s:%d;transport=%s\r\n", exten, domain, ourport, get_transport(p->socket.type));
 		}
 	} else {
 		if (p->socket.type == SIP_TRANSPORT_UDP) {
-			ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr));
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n", exten, domain);
 		} else {
-			ast_str_append(&out, 0, "Message-Account: sip:%s@%s;transport=%s\r\n", exten, ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
+			ast_str_append(&out, 0, "Message-Account: sip:%s@%s;transport=%s\r\n", exten, domain, get_transport(p->socket.type));
 		}
 	}
 	/* Cisco has a bug in the SIP stack where it can't accept the
@@ -11530,8 +11531,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	struct sip_pvt *p;
 	struct sip_peer *peer = NULL;
 	int res;
-	char *fromdomain;
-	char *domainport = NULL;
+	int portno = 0;
 
 	/* exit if we are already in process with this registrar ?*/
 	if (r == NULL || ((auth == NULL) && (r->regstate == REG_STATE_REGSENT || r->regstate == REG_STATE_AUTHSENT))) {
@@ -11601,12 +11601,19 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 		/* Copy back Call-ID in case create_addr changed it */
 		ast_string_field_set(r, callid, p->callid);
+
 		if (!r->dnsmgr && r->portno) {
 			p->sa.sin_port = htons(r->portno);
  			p->recv.sin_port = htons(r->portno);
-		} else {	/* Set registry port to the port set from the peer definition/srv or default */
-			r->portno = ntohs(p->sa.sin_port);
 		}
+		if (!ast_strlen_zero(p->fromdomain)) {
+			portno = (p->fromdomainport) ? p->fromdomainport : STANDARD_SIP_PORT;
+		} else if (!ast_strlen_zero(r->regdomain)) {
+			portno = (r->regdomainport) ? r->regdomainport : STANDARD_SIP_PORT;
+		} else {
+			portno = ntohs(p->sa.sin_port);
+		}
+
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call = dialog_ref(p, "copying dialog into registry r->call");		/* Save pointer to SIP dialog */
 		p->registry = registry_addref(r, "transmit_register: addref to p->registry in transmit_register");	/* Add pointer to registry in packet */
@@ -11657,55 +11664,21 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_debug(1, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
 	}
 
-	if ((fromdomain = strchr(r->username, '@'))) {
-		/* the domain name is just behind '@' */
-		fromdomain++ ;
-		/* We have a domain in the username for registration */
-		snprintf(from, sizeof(from), "<sip:%s>;tag=%s", r->username, p->tag);
-		if (!ast_strlen_zero(p->theirtag))
-			snprintf(to, sizeof(to), "<sip:%s>;tag=%s", r->username, p->theirtag);
-		else
-			snprintf(to, sizeof(to), "<sip:%s>", r->username);
-
-		/* If the registration username contains '@', then the domain should be used as
-		   the equivalent of "fromdomain" for the registration */
-		if (ast_strlen_zero(p->fromdomain)) {
-			ast_string_field_set(p, fromdomain, fromdomain);
-		}
+	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, S_OR(r->regdomain,p->tohost), p->tag);
+	if (!ast_strlen_zero(p->theirtag)) {
+		snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, S_OR(r->regdomain,p->tohost), p->theirtag);
 	} else {
-		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->tag);
-		if (!ast_strlen_zero(p->theirtag))
-			snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->theirtag);
-		else
-			snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
+		snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, S_OR(r->regdomain,p->tohost));
 	}
 
 	/* Fromdomain is what we are registering to, regardless of actual
   	   host name from SRV */
-	if (!ast_strlen_zero(p->fromdomain)) {
-		domainport = strrchr(p->fromdomain, ':');
-		if (domainport) {
-			*domainport++ = '\0'; /* trim off domainport from p->fromdomain */
-			if (ast_strlen_zero(domainport))
-				domainport = NULL;
-		}
-		if (domainport) {
-			if (atoi(domainport) != STANDARD_SIP_PORT)
-				snprintf(addr, sizeof(addr), "sip:%s:%s", p->fromdomain, domainport);
-			else
-				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-		} else {
-			if (r->portno && r->portno != STANDARD_SIP_PORT)
-				snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
-			else
-				snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-		}
+	if (portno && portno != STANDARD_SIP_PORT) {
+		snprintf(addr, sizeof(addr), "sip:%s:%d", S_OR(p->fromdomain,S_OR(r->regdomain,r->hostname)), portno);
 	} else {
-		if (r->portno && r->portno != STANDARD_SIP_PORT)
-			snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
-		else
-			snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+		snprintf(addr, sizeof(addr), "sip:%s", S_OR(p->fromdomain,S_OR(r->regdomain,r->hostname)));
 	}
+
 	ast_string_field_set(p, uri, addr);
 
 	p->branch ^= ast_random();
@@ -11740,7 +11713,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_debug(1, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
 		ast_string_field_set(p, realm, r->realm);
 		ast_string_field_set(p, nonce, r->nonce);
-		ast_string_field_set(p, domain, r->domain);
+		ast_string_field_set(p, domain, r->authdomain);
 		ast_string_field_set(p, opaque, r->opaque);
 		ast_string_field_set(p, qop, r->qop);
 		p->noncecount = ++r->noncecount;
@@ -14631,11 +14604,21 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 			"Host: %s\r\n"
 			"Port: %d\r\n"
 			"Username: %s\r\n"
+			"Domain: %s\r\n"
+			"DomainPort: %d\r\n"
 			"Refresh: %d\r\n"
 			"State: %s\r\n"
 			"RegistrationTime: %ld\r\n"
-			"\r\n", idtext, iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT,
-					  iterator->username, iterator->refresh, regstate2str(iterator->regstate), (long) iterator->regtime.tv_sec);
+			"\r\n",
+			idtext,
+			iterator->hostname,
+			iterator->portno ? iterator->portno : STANDARD_SIP_PORT,
+			iterator->username,
+			S_OR(iterator->regdomain,iterator->hostname),
+			iterator->regdomainport ? iterator->regdomainport : STANDARD_SIP_PORT,
+			iterator->refresh,
+			regstate2str(iterator->regstate),
+			(long) iterator->regtime.tv_sec);
 		ASTOBJ_UNLOCK(iterator);
 		total++;
 	} while(0));
@@ -15454,7 +15437,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		if (!ast_strlen_zero(peer->fromuser))
 			ast_cli(fd, "  FromUser     : %s\n", peer->fromuser);
 		if (!ast_strlen_zero(peer->fromdomain))
-			ast_cli(fd, "  FromDomain   : %s\n", peer->fromdomain);
+			ast_cli(fd, "  FromDomain   : %s Port %d\n", peer->fromdomain, (peer->fromdomainport) ? peer->fromdomainport : STANDARD_SIP_PORT);
 		ast_cli(fd, "  Callgroup    : ");
 		print_group(fd, peer->callgroup, 0);
 		ast_cli(fd, "  Pickupgroup  : ");
@@ -15566,7 +15549,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		if (!ast_strlen_zero(peer->fromuser))
 			astman_append(s, "SIP-FromUser: %s\r\n", peer->fromuser);
 		if (!ast_strlen_zero(peer->fromdomain))
-			astman_append(s, "SIP-FromDomain: %s\r\n", peer->fromdomain);
+			astman_append(s, "SIP-FromDomain: %s\r\nSip-FromDomain-Port: %d\r\n", peer->fromdomain, (peer->fromdomainport) ? peer->fromdomainport : STANDARD_SIP_PORT);
 		astman_append(s, "Callgroup: ");
 		astman_append(s, "%s\r\n", ast_print_group(buffer, sizeof(buffer), peer->callgroup));
 		astman_append(s, "Pickupgroup: ");
@@ -15808,6 +15791,7 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 #define FORMAT2 "%-30.30s %-6.6s %-12.12s  %8.8s %-20.20s %-25.25s\n"
 #define FORMAT  "%-30.30s %-6.6s %-12.12s  %8d %-20.20s %-25.25s\n"
 	char host[80];
+	char user[80];
 	char tmpdat[256];
 	struct ast_tm tm;
 	int counter = 0;
@@ -15830,12 +15814,19 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
+		snprintf(user, sizeof(user), "%s", iterator->username);
+		if (!ast_strlen_zero(iterator->regdomain)) {
+			snprintf(tmpdat, sizeof(tmpdat), "%s", user);
+			snprintf(user, sizeof(user), "%s@%s", tmpdat, iterator->regdomain);}
+		if (iterator->regdomainport) {
+			snprintf(tmpdat, sizeof(tmpdat), "%s", user);
+			snprintf(user, sizeof(user), "%s:%d", tmpdat, iterator->regdomainport);}
 		if (iterator->regtime.tv_sec) {
 			ast_localtime(&iterator->regtime, &tm, NULL);
 			ast_strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
 		} else
 			tmpdat[0] = '\0';
-		ast_cli(a->fd, FORMAT, host, (iterator->dnsmgr) ? "Y" : "N", iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
+		ast_cli(a->fd, FORMAT, host, (iterator->dnsmgr) ? "Y" : "N", user, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
 		ASTOBJ_UNLOCK(iterator);
 		counter++;
 	} while(0));
@@ -16029,7 +16020,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Use domains as realms:  %s\n", AST_CLI_YESNO(sip_cfg.domainsasrealm));
 	ast_cli(a->fd, "  Call to non-local dom.: %s\n", AST_CLI_YESNO(sip_cfg.allow_external_domains));
 	ast_cli(a->fd, "  URI user is phone no:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_USEREQPHONE)));
- 	ast_cli(a->fd, "  Always auth rejects:    %s\n", AST_CLI_YESNO(sip_cfg.alwaysauthreject));
+	ast_cli(a->fd, "  Always auth rejects:    %s\n", AST_CLI_YESNO(sip_cfg.alwaysauthreject));
 	ast_cli(a->fd, "  Direct RTP setup:       %s\n", AST_CLI_YESNO(sip_cfg.directrtpsetup));
 	ast_cli(a->fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(a->fd, "  SDP Session Name:       %s\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
@@ -16037,7 +16028,11 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Reg. context:           %s\n", S_OR(sip_cfg.regcontext, "(not set)"));
 	ast_cli(a->fd, "  Regexten on Qualify:    %s\n", AST_CLI_YESNO(sip_cfg.regextenonqualify));
 	ast_cli(a->fd, "  Caller ID:              %s\n", default_callerid);
-	ast_cli(a->fd, "  From: Domain:           %s\n", default_fromdomain);
+	if ((default_fromdomainport) && (default_fromdomainport != STANDARD_SIP_PORT)) {
+		ast_cli(a->fd, "  From: Domain:           %s:%d\n", default_fromdomain, default_fromdomainport);
+	} else {
+		ast_cli(a->fd, "  From: Domain:           %s\n", default_fromdomain);
+	}
 	ast_cli(a->fd, "  Record SIP history:     %s\n", AST_CLI_ONOFF(recordhistory));
 	ast_cli(a->fd, "  Call Events:            %s\n", AST_CLI_ONOFF(sip_cfg.callevents));
 	ast_cli(a->fd, "  Auth. Failure Events:   %s\n", AST_CLI_ONOFF(global_authfailureevents));
@@ -17166,7 +17161,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 		if (strcmp(r->nonce, p->nonce)) {
 			ast_string_field_set(r, realm, p->realm);
 			ast_string_field_set(r, nonce, p->nonce);
-			ast_string_field_set(r, domain, p->domain);
+			ast_string_field_set(r, authdomain, p->domain);
 			ast_string_field_set(r, opaque, p->opaque);
 			ast_string_field_set(r, qop, p->qop);
 			r->noncecount = 0;
@@ -24999,7 +24994,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "subscribecontext")) {
 				ast_string_field_set(peer, subscribecontext, v->value);
 			} else if (!strcasecmp(v->name, "fromdomain")) {
+				char *fromdomainport;
 				ast_string_field_set(peer, fromdomain, v->value);
+				if ((fromdomainport = strchr(peer->fromdomain, ':'))) {
+					*fromdomainport++ = '\0';
+					if (!(peer->fromdomainport = port_str2int(fromdomainport, 0))) {
+						ast_log(LOG_NOTICE, "'%s' is not a valid port number for fromdomain.\n",fromdomainport);
+					}
+				} else {
+					peer->fromdomainport = STANDARD_SIP_PORT;
+				}
 			} else if (!strcasecmp(v->name, "usereqphone")) {
 				ast_set2_flag(&peer->flags[0], ast_true(v->value), SIP_USEREQPHONE);
 			} else if (!strcasecmp(v->name, "fromuser")) {
@@ -25663,6 +25667,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.default_subscribecontext[0] = '\0';
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
+	default_fromdomainport = 0;
 	default_qualify = DEFAULT_QUALIFY;
 	default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 	ast_copy_string(default_mohinterpret, DEFAULT_MOHINTERPRET, sizeof(default_mohinterpret));
@@ -25870,7 +25875,16 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "mwi_from")) {
 			ast_copy_string(default_mwi_from, v->value, sizeof(default_mwi_from));
 		} else if (!strcasecmp(v->name, "fromdomain")) {
+			char *fromdomainport;
 			ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
+			if ((fromdomainport = strchr(default_fromdomain, ':'))) {
+				*fromdomainport++ = '\0';
+				if (!(default_fromdomainport = port_str2int(fromdomainport, 0))) {
+					ast_log(LOG_NOTICE, "'%s' is not a valid port number for fromdomain.\n",fromdomainport);
+				}
+			} else {
+				default_fromdomainport = STANDARD_SIP_PORT;
+			}
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
 			int portnum;
 			char *tok, *proxyname;

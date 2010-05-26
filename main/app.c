@@ -1192,11 +1192,15 @@ unsigned int __ast_app_separate_args(char *buf, char delim, int remove_chars, ch
 	char *scan, *wasdelim = NULL;
 	int paren = 0, quote = 0;
 
-	if (!buf || !array || !arraylen) {
+	if (!array || !arraylen) {
 		return 0;
 	}
 
 	memset(array, 0, arraylen * sizeof(*array));
+
+	if (!buf) {
+		return 0;
+	}
 
 	scan = buf;
 

@@ -1074,6 +1074,7 @@ struct sip_pvt {
 	struct offered_media offered_media[OFFERED_MEDIA_COUNT];
 	struct ast_cc_config_params *cc_params;
 	struct sip_epa_entry *epa_entry;
+	int fromdomainport;                 /*!< Domain port to show in from field */
 };
 
 /*! \brief sip packet - raw format for outbound packets that are sent or scheduled for transmission
@@ -1203,6 +1204,7 @@ struct sip_peer {
 	struct sip_st_cfg stimer;       /*!<  SIP Session-Timers */
 	int timer_t1;                   /*!<  The maximum T1 value for the peer */
 	int timer_b;                    /*!<  The maximum timer B (transaction timeouts) */
+	int fromdomainport;             /*!<  The From: domain port */
 
 	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
@@ -1227,22 +1229,24 @@ struct sip_peer {
 struct sip_registry {
 	ASTOBJ_COMPONENTS_FULL(struct sip_registry,1,1);
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(callid);   /*!< Global Call-ID */
-		AST_STRING_FIELD(realm);    /*!< Authorization realm */
-		AST_STRING_FIELD(nonce);    /*!< Authorization nonce */
-		AST_STRING_FIELD(opaque);   /*!< Opaque nonsense */
-		AST_STRING_FIELD(qop);      /*!< Quality of Protection, since SIP wasn't complicated enough yet. */
-		AST_STRING_FIELD(domain);   /*!< Authorization domain */
-		AST_STRING_FIELD(username); /*!< Who we are registering as */
-		AST_STRING_FIELD(authuser); /*!< Who we *authenticate* as */
-		AST_STRING_FIELD(hostname); /*!< Domain or host we register to */
-		AST_STRING_FIELD(secret);   /*!< Password in clear text */
-		AST_STRING_FIELD(md5secret);/*!< Password in md5 */
-		AST_STRING_FIELD(callback); /*!< Contact extension */
-		AST_STRING_FIELD(peername); /*!< Peer registering to */
+		AST_STRING_FIELD(callid);     /*!< Global Call-ID */
+		AST_STRING_FIELD(realm);      /*!< Authorization realm */
+		AST_STRING_FIELD(nonce);      /*!< Authorization nonce */
+		AST_STRING_FIELD(opaque);     /*!< Opaque nonsense */
+		AST_STRING_FIELD(qop);        /*!< Quality of Protection, since SIP wasn't complicated enough yet. */
+		AST_STRING_FIELD(authdomain); /*!< Authorization domain */
+		AST_STRING_FIELD(regdomain);  /*!< Registration doamin */
+		AST_STRING_FIELD(username);   /*!< Who we are registering as */
+		AST_STRING_FIELD(authuser);   /*!< Who we *authenticate* as */
+		AST_STRING_FIELD(hostname);   /*!< Domain or host we register to */
+		AST_STRING_FIELD(secret);     /*!< Password in clear text */
+		AST_STRING_FIELD(md5secret);  /*!< Password in md5 */
+		AST_STRING_FIELD(callback);   /*!< Contact extension */
+		AST_STRING_FIELD(peername);   /*!< Peer registering to */
 	);
 	enum sip_transport transport;   /*!< Transport for this registration UDP, TCP or TLS */
-	int portno;                     /*!<  Optional port override */
+	int portno;                     /*!< Optional port override */
+	int regdomainport;              /*!< Port override for domainport */
 	int expire;                     /*!< Sched ID of expiration */
 	int configured_expiry;          /*!< Configured value to use for the Expires header */
 	int expiry;             /*!< Negotiated value used for the Expires header */
