@@ -1047,6 +1047,7 @@ static const struct ast_channel_tech zap_tech = {
 	.fixup = dahdi_fixup,
 	.setoption = dahdi_setoption,
 	.func_channel_read = dahdi_func_read,
+	.func_channel_write = dahdi_func_write,
 };
 
 static const struct ast_channel_tech *chan_tech;
