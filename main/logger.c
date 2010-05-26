@@ -738,7 +738,7 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	}
 	AST_RWLIST_UNLOCK(&logchannels);
 	ast_cli(a->fd, "\n");
- 		
+
 	return CLI_SUCCESS;
 }
 
@@ -756,12 +756,15 @@ static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_logger_set_level, "Enables/Disables a specific logging level for this console")
 };
 
-static int handle_SIGXFSZ(int sig) 
+static void _handle_SIGXFSZ(int sig)
 {
 	/* Indicate need to reload */
 	filesize_reload_needed = 1;
-	return 0;
 }
+
+static struct sigaction handle_SIGXFSZ = {
+	.sa_handler = _handle_SIGXFSZ,
+};
 
 static void ast_log_vsyslog(struct logmsg *msg)
 {
@@ -929,7 +932,7 @@ int init_logger(void)
 	int res = 0;
 
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
-	(void) signal(SIGXFSZ, (void *) handle_SIGXFSZ);
+	sigaction(SIGXFSZ, &handle_SIGXFSZ, NULL);
 
 	/* start logger thread */
 	ast_cond_init(&logcond, NULL);

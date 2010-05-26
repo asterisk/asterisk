@@ -1258,13 +1258,17 @@ static void CB_RESET(void )
 /*! \brief Keep track of how many threads are currently trying to wait*() on
  *  a child process */
 static unsigned int safe_system_level = 0;
-static void *safe_system_prev_handler;
+static struct sigaction safe_system_prev_handler;
 
 /*! \brief NULL handler so we can collect the child exit status */
-static void null_sig_handler(int sig)
+static void _null_sig_handler(int sig)
 {
 
 }
+
+static struct sigaction null_sig_handler = {
+	.sa_handler = _null_sig_handler,
+};
 
 void ast_replace_sigchld(void);
 
@@ -1275,9 +1279,9 @@ void ast_replace_sigchld(void)
 	level = safe_system_level++;
 
 	/* only replace the handler if it has not already been done */
-	if (level == 0)
-		safe_system_prev_handler = signal(SIGCHLD, null_sig_handler);
-
+	if (level == 0) {
+		sigaction(SIGCHLD, &null_sig_handler, &safe_system_prev_handler);
+	}
 }
 
 void ast_unreplace_sigchld(void);
@@ -1289,9 +1293,9 @@ void ast_unreplace_sigchld(void)
 	level = --safe_system_level;
 
 	/* only restore the handler if we are the last one */
-	if (level == 0)
-		signal(SIGCHLD, safe_system_prev_handler);
-
+	if (level == 0) {
+		sigaction(SIGCHLD, &safe_system_prev_handler, NULL);
+	}
 }
 
 int ast_safe_system(const char *s);

@@ -970,16 +970,24 @@ static int fdprint(int fd, const char *s)
 }
 
 /*! \brief NULL handler so we can collect the child exit status */
-static void null_sig_handler(int sig)
+static void _null_sig_handler(int sig)
 {
 
 }
+
+static struct sigaction null_sig_handler = {
+	.sa_handler = _null_sig_handler,
+};
+
+static struct sigaction ignore_sig_handler = {
+	.sa_handler = SIG_IGN,
+};
 
 AST_MUTEX_DEFINE_STATIC(safe_system_lock);
 /*! \brief Keep track of how many threads are currently trying to wait*() on
  *  a child process */
 static unsigned int safe_system_level = 0;
-static void *safe_system_prev_handler;
+static struct sigaction safe_system_prev_handler;
 
 void ast_replace_sigchld(void)
 {
@@ -989,8 +997,9 @@ void ast_replace_sigchld(void)
 	level = safe_system_level++;
 
 	/* only replace the handler if it has not already been done */
-	if (level == 0)
-		safe_system_prev_handler = signal(SIGCHLD, null_sig_handler);
+	if (level == 0) {
+		sigaction(SIGCHLD, &null_sig_handler, &safe_system_prev_handler);
+	}
 
 	ast_mutex_unlock(&safe_system_lock);
 }
@@ -1003,8 +1012,9 @@ void ast_unreplace_sigchld(void)
 	level = --safe_system_level;
 
 	/* only restore the handler if we are the last one */
-	if (level == 0)
-		signal(SIGCHLD, safe_system_prev_handler);
+	if (level == 0) {
+		sigaction(SIGCHLD, &safe_system_prev_handler, NULL);
+	}
 
 	ast_mutex_unlock(&safe_system_lock);
 }
@@ -1437,13 +1447,16 @@ static int ast_tryconnect(void)
  system call.  We don't actually need to do anything though.  
  Remember: Cannot EVER ast_log from within a signal handler 
  */
-static void urg_handler(int num)
+static void _urg_handler(int num)
 {
-	signal(num, urg_handler);
 	return;
 }
 
-static void hup_handler(int num)
+static struct sigaction urg_handler = {
+	.sa_handler = _urg_handler,
+};
+
+static void _hup_handler(int num)
 {
 	int a = 0;
 	if (option_verbose > 1) 
@@ -1456,10 +1469,13 @@ static void hup_handler(int num)
 			fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
 		}
 	}
-	signal(num, hup_handler);
 }
 
-static void child_handler(int sig)
+static struct sigaction hup_handler = {
+	.sa_handler = _hup_handler,
+};
+
+static void _child_handler(int sig)
 {
 	/* Must not ever ast_log or ast_verbose within signal handler */
 	int n, status;
@@ -1471,8 +1487,11 @@ static void child_handler(int sig)
 		;
 	if (n == 0 && option_debug)	
 		printf("Huh?  Child handler, but nobody there?\n");
-	signal(sig, child_handler);
 }
+
+static struct sigaction child_handler = {
+	.sa_handler = _child_handler,
+};
 
 /*! \brief Set maximum open files */
 static void set_ulimit(int value)
@@ -1672,7 +1691,7 @@ static void __quit_handler(int num)
 	sig_flags.need_quit = 1;
 	if (sig_alert_pipe[1] != -1) {
 		if (write(sig_alert_pipe[1], &a, sizeof(a)) < 0) {
-			fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
+			fprintf(stderr, "quit_handler: write() failed: %s\n", strerror(errno));
 		}
 	}
 	/* There is no need to restore the signal handler here, since the app
@@ -3322,7 +3341,7 @@ int main(int argc, char *argv[])
 	/* Must install this signal handler up here to ensure that if the canary
 	 * fails to execute that it doesn't kill the Asterisk process.
 	 */
-	signal(SIGCHLD, child_handler);
+	sigaction(SIGCHLD, &child_handler, NULL);
 
 	/* It's common on some platforms to clear /var/run at boot.  Create the
 	 * socket file directory before we drop privileges. */
@@ -3521,7 +3540,7 @@ int main(int argc, char *argv[])
 		snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
 
 		/* Don't let the canary child kill Asterisk, if it dies immediately */
-		signal(SIGPIPE, SIG_IGN);
+		sigaction(SIGPIPE, &ignore_sig_handler, NULL);
 
 		canary_pid = fork();
 		if (canary_pid == 0) {
@@ -3575,11 +3594,11 @@ int main(int argc, char *argv[])
 	sigaddset(&sigs, SIGPIPE);
 	sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_BLOCK, &sigs, NULL);
-	signal(SIGURG, urg_handler);
+	sigaction(SIGURG, &urg_handler, NULL);
 	signal(SIGINT, __quit_handler);
 	signal(SIGTERM, __quit_handler);
-	signal(SIGHUP, hup_handler);
-	signal(SIGPIPE, SIG_IGN);
+	sigaction(SIGHUP, &hup_handler, NULL);
+	sigaction(SIGPIPE, &ignore_sig_handler, NULL);
 
 	/* ensure that the random number generators are seeded with a different value every time
 	   Asterisk is started
