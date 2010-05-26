@@ -366,7 +366,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		}
 		ast_free(fieldnames);
 	} else {
-		ast_log(LOG_WARNING,
+		ast_log(LOG_DEBUG,
 				"Postgresql RealTime: Could not find any rows in table %s.\n", table);
 	}
 
