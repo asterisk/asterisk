@@ -3311,12 +3311,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 							"Queue: %s\r\n"
 							"Uniqueid: %s\r\n"
 							"Channel: %s\r\n"
+							"Member: %s\r\n"
 							"MemberName: %s\r\n"
 							"HoldTime: %ld\r\n"
 							"TalkTime: %ld\r\n"
 							"Reason: agent\r\n"
 							"%s",
-							queuename, qe->chan->uniqueid, peer->name, member->membername, (long)(callstart - qe->start),
+							queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername, (long)(callstart - qe->start),
 							(long)(time(NULL) - callstart),
 							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 			}
