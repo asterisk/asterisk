@@ -331,6 +331,7 @@ AST_EXT_LIB_SETUP([MYSQLCLIENT], [MySQL client], [mysqlclient])
 AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
 AST_EXT_LIB_SETUP([NEON], [neon], [neon])
+AST_EXT_LIB_SETUP([NEON29], [neon29], [neon29])
 AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
 AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
@@ -1510,6 +1511,12 @@ AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
 
 AST_EXT_TOOL_CHECK([NEON], [neon-config])
+
+AST_EXT_TOOL_CHECK([NEON29], [neon-config], , [--libs],
+[#include <ne_auth.h>],
+[#ifndef NE_AUTH_NTLM
+#error Need libneon >= 0.29.0
+#endif])
 
 AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 [#include <net-snmp/net-snmp-config.h>

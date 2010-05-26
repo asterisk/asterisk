@@ -21,7 +21,7 @@
  */
 
 /*** MODULEINFO
-	<depend>neon</depend>
+	<depend>neon29</depend>
 ***/
 #include "asterisk.h"
 
