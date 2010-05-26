@@ -7882,7 +7882,7 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 		? "CONNECTED_LINE_CALLER_SEND_MACRO" : "CONNECTED_LINE_CALLEE_SEND_MACRO");
 	macro = ast_strdupa(S_OR(macro, ""));
 	macro_args = pbx_builtin_getvar_helper(macro_chan, is_caller
-		? "CONNECTED_LINE_CALLER_SEND_MACRO_ARSG" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS");
+		? "CONNECTED_LINE_CALLER_SEND_MACRO_ARGS" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS");
 	macro_args = ast_strdupa(S_OR(macro_args, ""));
 	ast_channel_unlock(macro_chan);
 
