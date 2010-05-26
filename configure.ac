@@ -921,10 +921,13 @@ AST_EXT_LIB_CHECK([ICONV], [iconv], [iconv_open], [iconv.h])
 # Some versions of Linux package iconv in glibc
 AST_EXT_LIB_CHECK([ICONV], [c], [iconv_close], [iconv.h])
 
-AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_new], [ical.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
-
 # Some distributions (like RedHat) add a libical subdirectory for the headers
 AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_get_utc_timezone], [libical/ical.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
+if test x"${PBX_ICAL}" = x1; then
+	ICAL_INCLUDE+=-I/usr/include/libical
+fi
+
+AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_new], [ical.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
 
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
@@ -1662,7 +1665,11 @@ fi
 
 AST_EXT_LIB_CHECK([LUA], [lua5.1], [luaL_newstate], [lua5.1/lua.h], [-lm]) 
 if test "x${PBX_LUA}" = "x1" ; then
-	AC_DEFINE_UNQUOTED([LUA51_PREFIX], [1], [Define to 1 if lua is found with a lua5.1 prefix])
+	if test x"${LUA_DIR}" = x; then
+		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.1"
+	else
+		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.1"
+	fi
 fi
 	
 # Some distributions (like SuSE) remove the 5.1 suffix.

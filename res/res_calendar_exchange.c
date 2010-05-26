@@ -29,11 +29,11 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <libical/ical.h>
-#include <neon/ne_session.h>
-#include <neon/ne_uri.h>
-#include <neon/ne_request.h>
-#include <neon/ne_auth.h>
+#include <ical.h>
+#include <ne_session.h>
+#include <ne_uri.h>
+#include <ne_request.h>
+#include <ne_auth.h>
 #include <iksemel.h>
 
 #include "asterisk/module.h"

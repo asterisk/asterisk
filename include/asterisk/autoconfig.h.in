@@ -1020,9 +1020,6 @@
    slash. */
 #undef LSTAT_FOLLOWS_SLASHED_SYMLINK
 
-/* Define to 1 if lua is found with a lua5.1 prefix */
-#undef LUA51_PREFIX
-
 /* Build chan_misdn for mISDN 1.2 or later. */
 #undef MISDN_1_2
 

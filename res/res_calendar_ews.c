@@ -27,14 +27,14 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <neon/ne_request.h>
-#include <neon/ne_session.h>
-#include <neon/ne_uri.h>
-#include <neon/ne_socket.h>
-#include <neon/ne_auth.h>
-#include <neon/ne_xml.h>
-#include <neon/ne_xmlreq.h>
-#include <neon/ne_utils.h>
+#include <ne_request.h>
+#include <ne_session.h>
+#include <ne_uri.h>
+#include <ne_socket.h>
+#include <ne_auth.h>
+#include <ne_xml.h>
+#include <ne_xmlreq.h>
+#include <ne_utils.h>
 
 #include "asterisk/module.h"
 #include "asterisk/calendar.h"
