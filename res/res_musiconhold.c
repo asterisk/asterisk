@@ -1443,10 +1443,6 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		}
 	}
 
-	if (ast_test_flag(global_flags, MOH_CACHERTCLASSES)) {
-		mohclass = get_mohbyname(mohclass->name, 0);
-	}
-
 	if (!mohclass) {
 		return -1;
 	}
