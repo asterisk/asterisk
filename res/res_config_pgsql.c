@@ -1391,8 +1391,8 @@ static int parse_config(int is_reload)
 		/* No socket needed */
 	} else if (!(s = ast_variable_retrieve(config, "general", "dbsock"))) {
 		ast_log(LOG_WARNING,
-				"PostgreSQL RealTime: No database socket found, using '/tmp/pgsql.sock' as default.\n");
-		strcpy(dbsock, "/tmp/pgsql.sock");
+				"PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.%d' as default.\n", dbport);
+		strcpy(dbsock, "/tmp");
 	} else {
 		ast_copy_string(dbsock, s, sizeof(dbsock));
 	}
@@ -1453,7 +1453,7 @@ static int pgsql_reconnect(const char *database)
 		struct ast_str *connInfo = ast_str_create(32);
 
 		ast_str_set(&connInfo, 0, "host=%s port=%d dbname=%s user=%s",
-			dbhost, dbport, my_database, dbuser);
+			S_OR(dbhost, dbsock), dbport, my_database, dbuser);
 		if (!ast_strlen_zero(dbpass))
 			ast_str_append(&connInfo, 0, " password=%s", dbpass);
 
