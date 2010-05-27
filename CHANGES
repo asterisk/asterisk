@@ -446,6 +446,8 @@ Miscellaneous
    of dynamic parkinglots.
  * chan_dahdi now supports reporting alarms over AMI either by channel or span via
    the reportalarms config option.
+ * The Realtime dialplan switch now caches entries for 1 second.  This provides a
+   significant increase in performance (about 3X) for installations using this switchtype.
 
 CLI Changes
 -----------

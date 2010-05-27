@@ -27,6 +27,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <signal.h>
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -47,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/crypto.h"
 #include "asterisk/astdb.h"
 #include "asterisk/app.h"
+#include "asterisk/astobj2.h"
 
 #define MODE_MATCH 		0
 #define MODE_MATCHMORE 	1
@@ -61,6 +64,80 @@ enum option_flags {
 AST_APP_OPTIONS(switch_opts, {
 	AST_APP_OPTION('p', OPTION_PATTERNS_DISABLED),
 });
+
+struct cache_entry {
+	struct timeval when;
+	struct ast_variable *var;
+	int priority;
+	char *context;
+	char exten[2];
+};
+
+struct ao2_container *cache;
+pthread_t cleanup_thread = 0;
+
+static int cache_hash(const void *obj, const int flags)
+{
+	const struct cache_entry *e = obj;
+	return ast_str_case_hash(e->exten) + e->priority;
+}
+
+static int cache_cmp(void *obj, void *arg, int flags)
+{
+	struct cache_entry *e = obj, *f = arg;
+	return e->priority != f->priority ? 0 :
+		strcmp(e->exten, f->exten) ? 0 :
+		strcmp(e->context, f->context) ? 0 :
+		CMP_MATCH;
+}
+
+static struct ast_variable *dup_vars(struct ast_variable *v)
+{
+	struct ast_variable *new, *list = NULL;
+	for (; v; v = v->next) {
+		if (!(new = ast_variable_new(v->name, v->value, v->file))) {
+			ast_variables_destroy(list);
+			return NULL;
+		}
+		/* Reversed list in cache, but when we duplicate out of the cache,
+		 * it's back to correct order. */
+		new->next = list;
+		list = new;
+	}
+	return list;
+}
+
+static void free_entry(void *obj)
+{
+	struct cache_entry *e = obj;
+	ast_variables_destroy(e->var);
+}
+
+static int purge_old_fn(void *obj, void *arg, int flags)
+{
+	struct cache_entry *e = obj;
+	struct timeval *now = arg;
+	return ast_tvdiff_ms(*now, e->when) >= 1000 ? CMP_MATCH : 0;
+}
+
+static void *cleanup(void *unused)
+{
+	struct timespec forever = { 999999999, 0 }, one_second = { 1, 0 };
+	struct timeval now;
+
+	for (;;) {
+		pthread_testcancel();
+		if (ao2_container_count(cache) == 0) {
+			nanosleep(&forever, NULL);
+		}
+		pthread_testcancel();
+		now = ast_tvnow();
+		ao2_callback(cache, OBJ_MULTIPLE | OBJ_UNLINK | OBJ_NODATA, purge_old_fn, &now);
+		pthread_testcancel();
+		nanosleep(&one_second, NULL);
+	}
+}
+
 
 /* Realtime switch looks up extensions in the supplied realtime table.
 
@@ -141,6 +218,11 @@ static struct ast_variable *realtime_common(const char *context, const char *ext
 	char *table;
 	struct ast_variable *var=NULL;
 	struct ast_flags flags = { 0, };
+	struct cache_entry *ce;
+	struct {
+		struct cache_entry ce;
+		char exten[AST_MAX_EXTENSION];
+	} cache_search = { { .priority = priority, .context = (char *) context }, };
 	char *buf = ast_strdupa(data);
 	if (buf) {
 		/* "Realtime" prefix is stripped off in the parent engine.  The
@@ -158,7 +240,36 @@ static struct ast_variable *realtime_common(const char *context, const char *ext
 		if (!ast_strlen_zero(opts)) {
 			ast_app_parse_options(switch_opts, &flags, NULL, opts);
 		}
-		var = realtime_switch_common(table, ctx, exten, priority, mode, flags);
+		ast_copy_string(cache_search.exten, exten, sizeof(cache_search.exten));
+		if (mode == MODE_MATCH && (ce = ao2_find(cache, &cache_search, OBJ_POINTER))) {
+			var = dup_vars(ce->var);
+			ao2_ref(ce, -1);
+		} else {
+			var = realtime_switch_common(table, ctx, exten, priority, mode, flags);
+			do {
+				struct ast_variable *new;
+				/* Only cache matches */
+				if (mode != MODE_MATCH) {
+					break;
+				}
+				if (!(new = dup_vars(var))) {
+					break;
+				}
+				if (!(ce = ao2_alloc(sizeof(*ce) + strlen(exten) + strlen(context), free_entry))) {
+					ast_variables_destroy(new);
+					break;
+				}
+				ce->context = ce->exten + strlen(exten) + 1;
+				strcpy(ce->exten, exten); /* SAFE */
+				strcpy(ce->context, context); /* SAFE */
+				ce->priority = priority;
+				ce->var = new;
+				ce->when = ast_tvnow();
+				ao2_link(cache, ce);
+				pthread_kill(cleanup_thread, SIGURG);
+				ao2_ref(ce, -1);
+			} while (0);
+		}
 	}
 	return var;
 }
@@ -283,11 +394,24 @@ static struct ast_switch realtime_switch =
 static int unload_module(void)
 {
 	ast_unregister_switch(&realtime_switch);
+	pthread_cancel(cleanup_thread);
+	pthread_kill(cleanup_thread, SIGURG);
+	pthread_join(cleanup_thread, NULL);
+	/* Destroy all remaining entries */
+	ao2_ref(cache, -1);
 	return 0;
 }
 
 static int load_module(void)
 {
+	if (!(cache = ao2_container_alloc(573, cache_hash, cache_cmp))) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (ast_pthread_create(&cleanup_thread, NULL, cleanup, NULL)) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	if (ast_register_switch(&realtime_switch))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
