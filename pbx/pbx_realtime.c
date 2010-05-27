@@ -136,6 +136,8 @@ static void *cleanup(void *unused)
 		pthread_testcancel();
 		nanosleep(&one_second, NULL);
 	}
+
+	return NULL;
 }
 
 
