@@ -924,9 +924,6 @@ AST_EXT_LIB_CHECK([ICONV], [c], [iconv_close], [iconv.h])
 
 # Some distributions (like RedHat) add a libical subdirectory for the headers
 AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_get_utc_timezone], [libical/ical.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
-if test x"${PBX_ICAL}" = x1; then
-	ICAL_INCLUDE+=" -I/usr/include/libical"
-fi
 
 AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_new], [ical.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
 
