@@ -3128,6 +3128,18 @@ static void run_startup_commands(void)
 	ast_config_destroy(cfg);
 }
 
+static void env_init(void)
+{
+	setenv("AST_SYSTEMNAME", ast_config_AST_SYSTEM_NAME, 1);
+	setenv("AST_BUILD_HOST", ast_build_hostname, 1);
+	setenv("AST_BUILD_DATE", ast_build_date, 1);
+	setenv("AST_BUILD_KERNEL", ast_build_kernel, 1);
+	setenv("AST_BUILD_MACHINE", ast_build_machine, 1);
+	setenv("AST_BUILD_OS", ast_build_os, 1);
+	setenv("AST_BUILD_USER", ast_build_user, 1);
+	setenv("AST_VERSION", ast_get_version(), 1);
+}
+
 int main(int argc, char *argv[])
 {
 	int c;
@@ -3314,6 +3326,7 @@ int main(int argc, char *argv[])
 	}
 
 	ast_readconfig();
+	env_init();
 
 	if (ast_opt_remote && remotesock != NULL)
 		ast_copy_string((char *) cfg_paths.socket_path, remotesock, sizeof(cfg_paths.socket_path));

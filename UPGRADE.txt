@@ -82,6 +82,9 @@ From 1.6.2 to 1.8:
   of a Mailbox or Password, will, if it exists, jump to the 'a' extension in
   the current dialplan context.
 
+* Environment variables that start with "AST_" are reserved to the system and
+  may no longer be set from the dialplan.
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by

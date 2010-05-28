@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
+			Variables starting with <literal>AST_</literal> are reserved to the system and may not be set.
 		</description>
 	</function>
 	<function name="STAT" language="en_US">
@@ -106,7 +107,7 @@ static int env_read(struct ast_channel *chan, const char *cmd, char *data,
 static int env_write(struct ast_channel *chan, const char *cmd, char *data,
 		     const char *value)
 {
-	if (!ast_strlen_zero(data)) {
+	if (!ast_strlen_zero(data) && strncmp(data, "AST_", 4)) {
 		if (!ast_strlen_zero(value)) {
 			setenv(data, value, 1);
 		} else {
