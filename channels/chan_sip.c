@@ -4705,12 +4705,15 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->capability = peer->capability;
 	dialog->prefs = peer->prefs;
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT)) {
-		if (!dialog->udptl) {
-			/* t38pt_udptl was enabled in the peer and not in [general] */
-			dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
+		/* t38pt_udptl was enabled in the peer and not in [general] */
+		if (dialog->udptl || (!dialog->udptl && (dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr)))) {
+			dialog->t38_maxdatagram = peer->t38_maxdatagram;
+			set_t38_capabilities(dialog);
+		} else {
+			/* It is impossible to support T38 without udptl */
+			ast_debug(1, "UDPTL creation failed on dialog.\n");
+			ast_clear_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT);
 		}
-		dialog->t38_maxdatagram = peer->t38_maxdatagram;
-		set_t38_capabilities(dialog);
 	} else if (dialog->udptl) {
 		ast_udptl_destroy(dialog->udptl);
 		dialog->udptl = NULL;
@@ -6062,7 +6065,7 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 {
 	int res = 0;
 
-	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
+	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) || !p->udptl) {
 		return -1;
 	}
 	switch (parameters->request_response) {
@@ -6894,9 +6897,15 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 	p->allowed_methods = UINT_MAX;
 
 	if (sip_methods[intended_method].need_rtp) {
-		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && (p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
-			ast_udptl_setqos(p->udptl, global_tos_audio, global_cos_audio);
-			p->t38_maxdatagram = global_t38_maxdatagram;
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
+			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
+				ast_udptl_setqos(p->udptl, global_tos_audio, global_cos_audio);
+				p->t38_maxdatagram = global_t38_maxdatagram;
+			} else {
+				/* udptl creation failed, T38 can not be supported on this dialog */
+				ast_log(LOG_ERROR, "UDPTL creation failed\n");
+				ast_clear_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT);
+			}
 		}
 		p->maxcallbitrate = default_maxcallbitrate;
 		p->autoframing = global_autoframing;
@@ -20523,9 +20532,15 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 
 		/* If T38 is needed but not present, then make it magically appear */
-		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl && (p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
-			p->t38_maxdatagram = global_t38_maxdatagram;
-			set_t38_capabilities(p);
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl) {
+			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
+				p->t38_maxdatagram = global_t38_maxdatagram;
+				set_t38_capabilities(p);
+			} else {
+				/* udptl creation failed, T38 can not be supported on this dialog */
+				ast_debug(1, "UDPTL creation failed on dialog.\n");
+				ast_clear_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT);
+			}
 		}
 
 		/* We have a succesful authentication, process the SDP portion if there is one */
