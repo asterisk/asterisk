@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			Variables starting with <literal>AST_</literal> are reserved to the system and may not be set.
+			<para>Variables starting with <literal>AST_</literal> are reserved to the system and may not be set.</para>
 		</description>
 	</function>
 	<function name="STAT" language="en_US">
