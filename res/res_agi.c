@@ -344,7 +344,7 @@ static char *descrip =
 "AGISIGHUP channel variable to \"no\" before executing the AGI application.\n"
 "  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3.\n\n"
-"  Use the CLI command 'agi show commnands' to list available agi commands.\n"
+"  Use the CLI command 'agi show commands' to list available agi commands.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AGISTATUS      The status of the attempt to the run the AGI script\n"
 "                    text string, one of SUCCESS | FAILURE | NOTFOUND | HANGUP\n";
