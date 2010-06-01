@@ -29,7 +29,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <ical.h>
+#include <libical/ical.h>
 #include <ne_session.h>
 #include <ne_uri.h>
 #include <ne_request.h>
