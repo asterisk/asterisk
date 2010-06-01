@@ -881,6 +881,8 @@ static void do_forward(struct chanlist *o,
 			ast_string_field_set(c, accountcode, in->accountcode);
 		}
 		ast_party_connected_line_copy(&c->connected, &original->connected);
+		c->appl = "AppDial";
+		c->data = "(Outgoing Line)";
 		/*
 		 * We must unlock c before calling ast_channel_redirecting_macro, because
 		 * we put c into autoservice there. That is pretty much a guaranteed

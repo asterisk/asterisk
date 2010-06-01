@@ -85,6 +85,9 @@ From 1.6.2 to 1.8:
 * Environment variables that start with "AST_" are reserved to the system and
   may no longer be set from the dialplan.
 
+* When a call is redirected inside of a Dial, the app and appdata fields of the
+  CDR will now be set to "AppDial" and "(Outgoing Line)" instead of being blank.
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by
