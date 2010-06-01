@@ -899,9 +899,13 @@
 	  a result of the body being XML. (closes issue #17179) Reported
 	  by: khw ........
 
+2010-06-01  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.8 Released.
+
 2010-05-26  Leif Madsen <lmadsen@digium.com>
 
-	* 1.6.2.8-rc2 Released
+	* Asterisk 1.6.2.8-rc2 Released.
 
 2010-05-26 10:56 -0500 [r265891]  Matt Nicholson <mnicholson@digium.com>
 
