@@ -636,6 +636,7 @@ struct ast_vm_user {
 	char mailcmd[160];               /*!< Configurable mail command */
 	char language[MAX_LANGUAGE];     /*!< Config: Language setting */
 	char zonetag[80];                /*!< Time zone */
+	char locale[20];                 /*!< The locale (for presentation of date/time) */
 	char callback[80];
 	char dialout[80];
 	char uniqueid[80];               /*!< Unique integer identifier */
@@ -773,6 +774,7 @@ static char *sayname_app = "VMSayName";
 static AST_LIST_HEAD_STATIC(users, ast_vm_user);
 static AST_LIST_HEAD_STATIC(zones, vm_zone);
 static char zonetag[80];
+static char locale[20];
 static int maxsilence;
 static int maxmsg;
 static int maxdeletedmsg;
@@ -994,6 +996,7 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
 	ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
 	ast_copy_string(vmu->zonetag, zonetag, sizeof(vmu->zonetag));
+	ast_copy_string(vmu->locale, locale, sizeof(vmu->locale));
 	if (vmminsecs) {
 		vmu->minsecs = vmminsecs;
 	}
@@ -1035,6 +1038,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->language, value, sizeof(vmu->language));
 	} else if (!strcasecmp(var, "tz")) {
 		ast_copy_string(vmu->zonetag, value, sizeof(vmu->zonetag));
+	} else if (!strcasecmp(var, "locale")) {
+		ast_copy_string(vmu->locale, value, sizeof(vmu->locale));
 #ifdef IMAP_STORAGE
 	} else if (!strcasecmp(var, "imapuser")) {
 		ast_copy_string(vmu->imapuser, value, sizeof(vmu->imapuser));
@@ -4206,7 +4211,7 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 		struct timeval tv = { inttime, };
 		struct ast_tm tm;
 		ast_localtime(&tv, &tm, NULL);
-		ast_strftime(origdate, sizeof(origdate), emaildateformat, &tm);
+		ast_strftime_locale(origdate, sizeof(origdate), emaildateformat, &tm, S_OR(vmu->locale, NULL));
 		pbx_builtin_setvar_helper(ast, "ORIG_VM_DATE", origdate);
 	}
 	ast_config_destroy(msg_cfg);
@@ -4377,18 +4382,18 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	} else {
 		snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 	}
-	
+
 	greeting_attachment = strrchr(ast_strdupa(attach), '/');
 	if (greeting_attachment) {
 		*greeting_attachment++ = '\0';
 	}
 
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
-	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
+	ast_strftime_locale(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm), S_OR(vmu->locale, NULL));
 	fprintf(p, "Date: %s" ENDL, date);
 
 	/* Set date format for voicemail mail */
-	ast_strftime(date, sizeof(date), emaildateformat, &tm);
+	ast_strftime_locale(date, sizeof(date), emaildateformat, &tm, S_OR(vmu->locale, NULL));
 
 	if (!ast_strlen_zero(fromstring)) {
 		struct ast_channel *ast;
@@ -4571,7 +4576,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 					struct timeval tv = { inttime, };
 					struct ast_tm tm;
 					ast_localtime(&tv, &tm, NULL);
-					ast_strftime(origdate, sizeof(origdate), emaildateformat, &tm);
+					ast_strftime_locale(origdate, sizeof(origdate), emaildateformat, &tm, S_OR(vmu->locale, NULL));
 				}
 				fprintf(p, "Dear %s:" ENDL ENDL "\tJust wanted to let you know you were just forwarded"
 					" a %s long message (number %d)" ENDL "in mailbox %s from %s, on %s" ENDL
@@ -4733,11 +4738,11 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 	}
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
-	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
+	ast_strftime_locale(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm), S_OR(vmu->locale, NULL));
 	fprintf(p, "Date: %s\n", date);
 
 	/* Reformat for custom pager format */
-	ast_strftime(date, sizeof(date), pagerdateformat, vmu_tm(vmu, &tm));
+	ast_strftime_locale(date, sizeof(date), pagerdateformat, vmu_tm(vmu, &tm), S_OR(vmu->locale, NULL));
 
 	if (!ast_strlen_zero(pagerfromstring)) {
 		struct ast_channel *ast;
@@ -12004,6 +12009,9 @@ static int load_config(int reload)
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "tz"))) {
 			ast_copy_string(zonetag, val, sizeof(zonetag));
+		}
+		if ((val = ast_variable_retrieve(cfg, "general", "locale"))) {
+			ast_copy_string(locale, val, sizeof(locale));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject"))) {
 			emailsubject = ast_strdup(val);

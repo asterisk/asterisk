@@ -173,6 +173,12 @@ struct state {
 	AST_LIST_ENTRY(state) list;
 };
 
+struct locale_entry {
+	AST_LIST_ENTRY(locale_entry) list;
+	locale_t locale;
+	char name[0];
+};
+
 struct rule {
 	int		r_type;		/* type of rule--see below */
 	int		r_day;		/* day number of rule */
@@ -235,6 +241,7 @@ static int		tzparse P((const char * name, struct state * sp,
 				int lastditch));
 
 static AST_LIST_HEAD_STATIC(zonelist, state);
+static AST_LIST_HEAD_STATIC(localelist, locale_entry);
 
 #ifndef TZ_STRLEN_MAX
 #define TZ_STRLEN_MAX 255
@@ -2128,15 +2135,104 @@ struct timeval ast_mktime(struct ast_tm *tmp, const char *zone)
 	return time1(tmp, localsub, 0L, sp);
 }
 
-int ast_strftime(char *buf, size_t len, const char *tmp, const struct ast_tm *tm)
+#ifdef HAVE_NEWLOCALE
+static struct locale_entry *find_by_locale(locale_t locale)
+{
+	struct locale_entry *cur;
+	AST_LIST_TRAVERSE(&localelist, cur, list) {
+		if (locale == cur->locale) {
+			return cur;
+		}
+	}
+	return NULL;
+}
+
+static struct locale_entry *find_by_name(const char *name)
+{
+	struct locale_entry *cur;
+	AST_LIST_TRAVERSE(&localelist, cur, list) {
+		if (strcmp(name, cur->name) == 0) {
+			return cur;
+		}
+	}
+	return NULL;
+}
+
+static const char *store_by_locale(locale_t prevlocale)
+{
+	struct locale_entry *cur;
+	if (prevlocale == LC_GLOBAL_LOCALE) {
+		return NULL;
+	} else {
+		/* Get a handle for this entry, if any */
+		if ((cur = find_by_locale(prevlocale))) {
+			return cur->name;
+		} else {
+			/* Create an entry, so it can be restored later */
+			int x;
+			cur = NULL;
+			AST_LIST_LOCK(&localelist);
+			for (x = 0; x < 10000; x++) {
+				char name[5];
+				snprintf(name, sizeof(name), "%04d", x);
+				if (!find_by_name(name)) {
+					if ((cur = ast_calloc(1, sizeof(*cur) + strlen(name) + 1))) {
+						cur->locale = prevlocale;
+						strcpy(cur->name, name); /* SAFE */
+						AST_LIST_INSERT_TAIL(&localelist, cur, list);
+					}
+					break;
+				}
+			}
+			AST_LIST_UNLOCK(&localelist);
+			return cur ? cur->name : NULL;
+		}
+	}
+}
+
+const char *ast_setlocale(const char *locale)
+{
+	struct locale_entry *cur;
+	locale_t prevlocale = LC_GLOBAL_LOCALE;
+
+	if (locale == NULL) {
+		return store_by_locale(uselocale(LC_GLOBAL_LOCALE));
+	}
+
+	AST_LIST_LOCK(&localelist);
+	if ((cur = find_by_name(locale))) {
+		prevlocale = uselocale(cur->locale);
+	}
+
+	if (!cur) {
+		if ((cur = ast_calloc(1, sizeof(*cur) + strlen(locale) + 1))) {
+			cur->locale = newlocale(LC_ALL_MASK, locale, NULL);
+			strcpy(cur->name, locale); /* SAFE */
+			AST_LIST_INSERT_TAIL(&localelist, cur, list);
+			prevlocale = uselocale(cur->locale);
+		}
+	}
+	AST_LIST_UNLOCK(&localelist);
+	return store_by_locale(prevlocale);
+}
+#else
+const char *ast_setlocale(const char *unused)
+{
+	return NULL;
+}
+#endif
+
+int ast_strftime_locale(char *buf, size_t len, const char *tmp, const struct ast_tm *tm, const char *locale)
 {
 	size_t fmtlen = strlen(tmp) + 1;
 	char *format = ast_calloc(1, fmtlen), *fptr = format, *newfmt;
 	int decimals = -1, i, res;
 	long fraction;
+	const char *prevlocale;
 
-	if (!format)
+	if (!format) {
 		return -1;
+	}
 	for (; *tmp; tmp++) {
 		if (*tmp == '%') {
 			switch (tmp[1]) {
@@ -2146,14 +2242,16 @@ int ast_strftime(char *buf, size_t len, const char *tmp, const struct ast_tm *tm
 			case '4':
 			case '5':
 			case '6':
-				if (tmp[2] != 'q')
+				if (tmp[2] != 'q') {
 					goto defcase;
+				}
 				decimals = tmp[1] - '0';
 				tmp++;
 				/* Fall through */
 			case 'q': /* Milliseconds */
-				if (decimals == -1)
+				if (decimals == -1) {
 					decimals = 3;
+				}
 
 				/* Juggle some memory to fit the item */
 				newfmt = ast_realloc(format, fmtlen + decimals);
@@ -2166,8 +2264,9 @@ int ast_strftime(char *buf, size_t len, const char *tmp, const struct ast_tm *tm
 				fmtlen += decimals;
 
 				/* Reduce the fraction of time to the accuracy needed */
-				for (i = 6, fraction = tm->tm_usec; i > decimals; i--)
+				for (i = 6, fraction = tm->tm_usec; i > decimals; i--) {
 					fraction /= 10;
+				}
 				fptr += sprintf(fptr, "%0*ld", decimals, fraction);
 
 				/* Reset, in case more than one 'q' specifier exists */
@@ -2177,25 +2276,47 @@ int ast_strftime(char *buf, size_t len, const char *tmp, const struct ast_tm *tm
 			default:
 				goto defcase;
 			}
-		} else
+		} else {
 defcase:	*fptr++ = *tmp;
+		}
 	}
 	*fptr = '\0';
 #undef strftime
+	if (locale) {
+		prevlocale = ast_setlocale(locale);
+	}
 	res = (int)strftime(buf, len, format, (struct tm *)tm);
+	if (locale) {
+		ast_setlocale(prevlocale);
+	}
 	ast_free(format);
 	return res;
 }
 
-char *ast_strptime(const char *s, const char *format, struct ast_tm *tm)
+int ast_strftime(char *buf, size_t len, const char *tmp, const struct ast_tm *tm)
+{
+	return ast_strftime_locale(buf, len, tmp, tm, NULL);
+}
+
+char *ast_strptime_locale(const char *s, const char *format, struct ast_tm *tm, const char *locale)
 {
 	struct tm tm2 = { 0, };
-	char *res = strptime(s, format, &tm2);
+	char *res;
+	const char *prevlocale;
+
+	prevlocale = ast_setlocale(locale);
+	res = strptime(s, format, &tm2);
+	ast_setlocale(prevlocale);
 	memcpy(tm, &tm2, sizeof(*tm));
 	tm->tm_usec = 0;
 	/* strptime(3) doesn't set .tm_isdst correctly, so to force ast_mktime(3)
 	 * to deal with it correctly, we set it to -1. */
 	tm->tm_isdst = -1;
 	return res;
+}
+
+char *ast_strptime(const char *s, const char *format, struct ast_tm *tm)
+{
+	return ast_strptime_locale(s, format, tm, NULL);
 }
 

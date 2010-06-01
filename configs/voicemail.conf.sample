@@ -93,7 +93,8 @@ maxlogins=3
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
 ; The character set for voicemail messages can be specified here
-;charset=ISO-8859-1
+; default: ISO-8859-1
+;charset=UTF-8
 ; The ADSI feature descriptor number to download to
 ;adsifdn=0000000F
 ; The ADSI security lock code
@@ -226,6 +227,13 @@ pagerdateformat=%A, %B %d, %Y at %r
 ; overridden in the per-mailbox settings, unless listed otherwise.
 ;
 ; tz=central 		; Timezone from zonemessages below. Irrelevant if envelope=no.
+; locale=de_DE.UTF-8	; set the locale for generation of the date/time strings (make 
+			; sure the locales are installed in your operating system; e.g
+			; on Debian Linux you can use "dpkg-reconfigure locales").
+			; If you use UTF-8 locales, make sure to set the "charset" option
+			; to UTF-8 too. If you mix different locales for different users
+			; you should avoid words in the emaildateformat specification, e.g.:
+			; emaildateformat=%A, %d %B %Y, %H:%M:%S
 ; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email
 ; attachfmt=wav49	; Which format to attach to the email.  Normally this is the
 			; first format specified in the format parameter above, but this

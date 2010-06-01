@@ -149,6 +149,7 @@ Applications
  * Added custom device states to ConfBridge bridges.  Use 'confbridge:<name>' to
    retrieve state for a particular bridge, where <name> is the conference name
  * app_directory now allows exiting at any time using the operator or pound key.
+ * Voicemail now supports setting a locale per-mailbox.
 
 Dialplan Functions
 ------------------
