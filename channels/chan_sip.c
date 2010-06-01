@@ -13107,23 +13107,21 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 606: /* Not Acceptable */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (reinvite && p->udptl) {
-			/* If this is a T.38 call, we should go back to 
-			   audio. If this is an audio call - something went
-			   terribly wrong since we don't renegotiate codecs,
-			   only IP/port .
-			*/
 			p->t38.state = T38_DISABLED;
 			/* Try to reset RTP timers */
 			ast_rtp_set_rtptimers_onhold(p->rtp);
-			ast_log(LOG_ERROR, "Got error on T.38 re-invite. Bad configuration. Peer needs to have T.38 disabled.\n");
+			/* Trigger a reinvite back to audio */
+			transmit_reinvite_with_sdp(p);
 
-			/*! \bug Is there any way we can go back to the audio call on both
-			   sides here? 
-			*/
-			/* While figuring that out, hangup the call */
-			if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
-				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+			if (p->owner && (p->owner->_state == AST_STATE_UP) && (bridgepeer = ast_bridged_channel(p->owner))) { /* if this is a re-invite */
+				struct sip_pvt *bridgepvt = NULL;
+				if (bridgepeer->tech == &sip_tech || bridgepeer->tech == &sip_tech_info) {
+					bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
+					if (bridgepvt->udptl) {
+						sip_handle_t38_reinvite(bridgepeer, p, 0);
+					}
+				}
+			}
 		} else {
 			/* We can't set up this call, so give up */
 			if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
@@ -18980,7 +18978,7 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 		p->lastrtprx = p->lastrtptx = time(NULL);
 		ast_mutex_unlock(&p->lock);
 		return 0;
-	} else {	/* If we are handling sending 200 OK to the other side of the bridge */
+	} else if (pvt->t38.state != T38_DISABLED) {	/* If we are handling sending 200 OK to the other side of the bridge */
 		if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE) && ast_test_flag(&pvt->flags[0], SIP_CAN_REINVITE)) {
 			ast_udptl_get_peer(pvt->udptl, &p->udptlredirip);
 			flag = 1;
@@ -19003,6 +19001,20 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 		p->lastrtprx = p->lastrtptx = time(NULL);
 		ast_mutex_unlock(&p->lock);
 		return 0;
+	} else if (pvt->t38.state == T38_DISABLED) { /* The other side can not talk T.38 with us. We tell it to the the originating T.38 party with a 488 */
+		p->t38.state = T38_DISABLED;
+		if (option_debug > 1) {
+			ast_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38.state, pvt->owner ? pvt->owner->name : "<none>");
+			ast_log(LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38.state, chan ? chan->name : "<none>");
+		}
+		transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
+		p->lastrtprx = p->lastrtptx = time(NULL);
+		ast_mutex_unlock(&p->lock);
+		return 0;
+	} else {
+			ast_log(LOG_ERROR, "Something went wrong with T.38. State is:%d on channel %s and %d on channel %s\n", pvt->t38.state, pvt->owner ? pvt->owner->name : "<none>", p->t38.state, chan ? chan->name : "<none>");
+			ast_mutex_unlock(&p->lock);
+			return 0;
 	}
 }
 
