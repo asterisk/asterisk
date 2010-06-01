@@ -1,3 +1,20 @@
+2010-05-26  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.4.32-rc2 Released
+
+2010-05-26 10:56 -0500 [r265891]  Matt Nicholson <mnicholson@digium.com>
+
+	* Merged r265610 from 1.4:
+
+	  Don't mark the cdr records of unanswered queue calls with "NOANSWER".
+	  This restores the behavior prior to r258670.
+
+	  (closes issue #17334)
+	  Reported by: jvandal
+	  Patches:
+	        queue-cdr-fixes1.diff uploaded by mnicholson (license 96)
+	  Tested by: aragon, jvandal
+
 2010-05-06  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.4.32-rc1 Released
