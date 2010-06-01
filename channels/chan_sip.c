@@ -19012,12 +19012,11 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	} else {
-			ast_log(LOG_ERROR, "Something went wrong with T.38. State is:%d on channel %s and %d on channel %s\n", pvt->t38.state, pvt->owner ? pvt->owner->name : "<none>", p->t38.state, chan ? chan->name : "<none>");
-			ast_mutex_unlock(&p->lock);
-			return 0;
+		ast_log(LOG_ERROR, "Something went wrong with T.38. State is:%d on channel %s and %d on channel %s\n", pvt->t38.state, pvt->owner ? pvt->owner->name : "<none>", p->t38.state, chan ? chan->name : "<none>");
+		ast_mutex_unlock(&p->lock);
+		return 0;
 	}
 }
-
 
 /*! \brief Returns null if we can't reinvite audio (part of RTP interface) */
 static enum ast_rtp_get_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
