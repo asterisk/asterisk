@@ -734,11 +734,12 @@ struct eventqent {
 	int usecount;		/*!< # of clients who still need the event */
 	int category;
 	unsigned int seq;	/*!< sequence number */
-	AST_LIST_ENTRY(eventqent) eq_next;
+	struct timeval tv;  /*!< When event was allocated */
+	AST_RWLIST_ENTRY(eventqent) eq_next;
 	char eventdata[1];	/*!< really variable size, allocated by append_event() */
 };
 
-static AST_LIST_HEAD_STATIC(all_events, eventqent);
+static AST_RWLIST_HEAD_STATIC(all_events, eventqent);
 
 static int displayconnects = 1;
 static int allowmultiplelogin = 1;
@@ -863,8 +864,6 @@ struct manager_channel_variable {
 
 static AST_RWLIST_HEAD_STATIC(channelvars, manager_channel_variable);
 
-#define NEW_EVENT(m)	(AST_LIST_NEXT(m->session->last_ev, eq_next))
-
 /*! \brief user descriptor, as read from the config file.
  *
  * \note It is still missing some fields -- e.g. we can have multiple permit and deny
@@ -893,8 +892,6 @@ static AST_RWLIST_HEAD_STATIC(actions, manager_action);
 /*! \brief list of hooks registered */
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
-static struct eventqent *unref_event(struct eventqent *e);
-static void ref_event(struct eventqent *e);
 static void free_channelvars(void);
 
 /*! \brief Add a custom hook to be called when an event is fired */
@@ -931,15 +928,15 @@ static struct eventqent *grab_last(void)
 {
 	struct eventqent *ret;
 
-	AST_LIST_LOCK(&all_events);
-	ret = AST_LIST_LAST(&all_events);
+	AST_RWLIST_WRLOCK(&all_events);
+	ret = AST_RWLIST_LAST(&all_events);
 	/* the list is never empty now, but may become so when
 	 * we optimize it in the future, so be prepared.
 	 */
 	if (ret) {
 		ast_atomic_fetchadd_int(&ret->usecount, 1);
 	}
-	AST_LIST_UNLOCK(&all_events);
+	AST_RWLIST_UNLOCK(&all_events);
 	return ret;
 }
 
@@ -950,14 +947,24 @@ static struct eventqent *grab_last(void)
 static void purge_events(void)
 {
 	struct eventqent *ev;
+	struct timeval now = ast_tvnow();
 
-	AST_LIST_LOCK(&all_events);
-	while ( (ev = AST_LIST_FIRST(&all_events)) &&
-	    ev->usecount == 0 && AST_LIST_NEXT(ev, eq_next)) {
-		AST_LIST_REMOVE_HEAD(&all_events, eq_next);
+	AST_RWLIST_WRLOCK(&all_events);
+	while ( (ev = AST_RWLIST_FIRST(&all_events)) &&
+	    ev->usecount == 0 && AST_RWLIST_NEXT(ev, eq_next)) {
+		AST_RWLIST_REMOVE_HEAD(&all_events, eq_next);
 		ast_free(ev);
 	}
-	AST_LIST_UNLOCK(&all_events);
+
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&all_events, ev, eq_next) {
+		/* 2.5 times whatever the HTTP timeout is (maximum 2.5 hours) is the maximum time that we will definitely cache an event */
+		if (ev->usecount == 0 && ast_tvdiff_sec(now, ev->tv) > (httptimeout > 3600 ? 3600 : httptimeout) * 2.5) {
+			AST_RWLIST_REMOVE_CURRENT(eq_next);
+			ast_free(ev);
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&all_events);
 }
 
 /*!
@@ -1107,7 +1114,7 @@ static void session_destructor(void *obj)
 	if (session->f != NULL) {
 		fclose(session->f);
 	}
-	unref_event(eqe);
+	ast_atomic_fetchadd_int(&eqe->usecount, -1);
 }
 
 /*! \brief Allocate manager session structure and add it to the list of sessions */
@@ -1482,13 +1489,13 @@ static char *handle_showmaneventq(struct ast_cli_entry *e, int cmd, struct ast_c
 	case CLI_GENERATE:
 		return NULL;
 	}
-	AST_LIST_LOCK(&all_events);
-	AST_LIST_TRAVERSE(&all_events, s, eq_next) {
+	AST_RWLIST_RDLOCK(&all_events);
+	AST_RWLIST_TRAVERSE(&all_events, s, eq_next) {
 		ast_cli(a->fd, "Usecount: %d\n", s->usecount);
 		ast_cli(a->fd, "Category: %d\n", s->category);
 		ast_cli(a->fd, "Event:\n%s", s->eventdata);
 	}
-	AST_LIST_UNLOCK(&all_events);
+	AST_RWLIST_UNLOCK(&all_events);
 
 	return CLI_SUCCESS;
 }
@@ -1513,15 +1520,17 @@ static char *handle_manager_reload(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
-static struct eventqent *unref_event(struct eventqent *e)
+static struct eventqent *advance_event(struct eventqent *e)
 {
-	ast_atomic_fetchadd_int(&e->usecount, -1);
-	return AST_LIST_NEXT(e, eq_next);
-}
+	struct eventqent *next;
 
-static void ref_event(struct eventqent *e)
-{
-	ast_atomic_fetchadd_int(&e->usecount, 1);
+	AST_RWLIST_RDLOCK(&all_events);
+	if ((next = AST_RWLIST_NEXT(e, eq_next))) {
+		ast_atomic_fetchadd_int(&next->usecount, 1);
+		ast_atomic_fetchadd_int(&e->usecount, -1);
+	}
+	AST_RWLIST_UNLOCK(&all_events);
+	return next;
 }
 
 /*
@@ -2610,7 +2619,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 
 	for (x = 0; x < timeout || timeout < 0; x++) {
 		mansession_lock(s);
-		if (NEW_EVENT(s)) {
+		if (AST_RWLIST_NEXT(s->session->last_ev, eq_next)) {
 			needexit = 1;
 		}
 		/* We can have multiple HTTP session point to the same mansession entry.
@@ -2639,16 +2648,17 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 
 	mansession_lock(s);
 	if (s->session->waiting_thread == pthread_self()) {
-		struct eventqent *eqe;
+		struct eventqent *eqe = s->session->last_ev;
 		astman_send_response(s, m, "Success", "Waiting for Event completed.");
-		while ( (eqe = NEW_EVENT(s)) ) {
-			ref_event(eqe);
+		AST_RWLIST_RDLOCK(&all_events);
+		while ((eqe = advance_event(eqe))) {
 			if (((s->session->readperm & eqe->category) == eqe->category) &&
 			    ((s->session->send_events & eqe->category) == eqe->category)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
-			s->session->last_ev = unref_event(s->session->last_ev);
+			s->session->last_ev = eqe;
 		}
+		AST_RWLIST_UNLOCK(&all_events);
 		astman_append(s,
 			"Event: WaitEventComplete\r\n"
 			"%s"
@@ -3622,18 +3632,19 @@ static int process_events(struct mansession *s)
 
 	ao2_lock(s->session);
 	if (s->session->f != NULL) {
-		struct eventqent *eqe;
-
-		while ( (eqe = NEW_EVENT(s)) ) {
-			ref_event(eqe);
+		struct eventqent *eqe = s->session->last_ev;
+		AST_RWLIST_RDLOCK(&all_events);
+		while ((eqe = advance_event(eqe))) {
 			if (!ret && s->session->authenticated &&
 			    (s->session->readperm & eqe->category) == eqe->category &&
 			    (s->session->send_events & eqe->category) == eqe->category) {
-				if (send_string(s, eqe->eventdata) < 0)
+				if (send_string(s, eqe->eventdata) < 0) {
 					ret = -1;	/* don't send more */
+				}
 			}
-			s->session->last_ev = unref_event(s->session->last_ev);
+			s->session->last_ev = eqe;
 		}
+		AST_RWLIST_UNLOCK(&all_events);
 	}
 	ao2_unlock(s->session);
 	return ret;
@@ -4251,12 +4262,13 @@ static int append_event(const char *str, int category)
 	tmp->usecount = 0;
 	tmp->category = category;
 	tmp->seq = ast_atomic_fetchadd_int(&seq, 1);
-	AST_LIST_NEXT(tmp, eq_next) = NULL;
+	tmp->tv = ast_tvnow();
+	AST_RWLIST_NEXT(tmp, eq_next) = NULL;
 	strcpy(tmp->eventdata, str);
 
-	AST_LIST_LOCK(&all_events);
-	AST_LIST_INSERT_TAIL(&all_events, tmp, eq_next);
-	AST_LIST_UNLOCK(&all_events);
+	AST_RWLIST_WRLOCK(&all_events);
+	AST_RWLIST_INSERT_TAIL(&all_events, tmp, eq_next);
+	AST_RWLIST_UNLOCK(&all_events);
 
 	return 0;
 }
