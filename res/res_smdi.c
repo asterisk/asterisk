@@ -1389,37 +1389,37 @@ static struct ast_custom_function smdi_msg_function = {
 	.read = smdi_msg_read,
 };
 
-static int unload_module(void);
+static int _unload_module(int fromload);
 
 static int load_module(void)
 {
 	int res;
-	
+
 	/* initialize our containers */
 	memset(&smdi_ifaces, 0, sizeof(smdi_ifaces));
 	ASTOBJ_CONTAINER_INIT(&smdi_ifaces);
-	
+
 	ast_mutex_init(&mwi_monitor.lock);
 	ast_cond_init(&mwi_monitor.cond, NULL);
-
-	ast_custom_function_register(&smdi_msg_retrieve_function);
-	ast_custom_function_register(&smdi_msg_function);
 
 	/* load the config and start the listener threads*/
 	res = smdi_load(0);
 	if (res < 0) {
-		unload_module();
+		_unload_module(1);
 		return res;
 	} else if (res == 1) {
-		unload_module();
+		_unload_module(1);
 		ast_log(LOG_NOTICE, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	
+
+	ast_custom_function_register(&smdi_msg_retrieve_function);
+	ast_custom_function_register(&smdi_msg_function);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static int _unload_module(int fromload)
 {
 	/* this destructor stops any running smdi_read threads */
 	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
@@ -1436,10 +1436,17 @@ static int unload_module(void)
 		pthread_join(mwi_monitor.thread, NULL);
 	}
 
-	ast_custom_function_unregister(&smdi_msg_retrieve_function);
-	ast_custom_function_unregister(&smdi_msg_function);
+	if (!fromload) {
+		ast_custom_function_unregister(&smdi_msg_retrieve_function);
+		ast_custom_function_unregister(&smdi_msg_function);
+	}
 
 	return 0;
+}
+
+static int unload_module(void)
+{
+	return _unload_module(0);
 }
 
 static int reload(void)
