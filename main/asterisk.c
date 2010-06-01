@@ -2175,7 +2175,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 
 			/* Write over the CLI prompt */
 			if (!ast_opt_exec && !lastpos) {
-				if (write(STDOUT_FILENO, "\r", 1) < 0) {
+				if (write(STDOUT_FILENO, "\r[0K", 5) < 0) {
 				}
 			}
 			if (write(STDOUT_FILENO, buf, res) < 0) {
