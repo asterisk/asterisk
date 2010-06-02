@@ -635,11 +635,16 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 		if (new_technology->capabilities & AST_BRIDGE_CAPABILITY_THREAD) {
 			ast_debug(1, "Telling current bridge thread for bridge %p to refresh\n", bridge);
 			bridge->refresh = 1;
+			bridge_poke(bridge);
 		} else {
+			pthread_t bridge_thread = bridge->thread;
 			ast_debug(1, "Telling current bridge thread for bridge %p to stop\n", bridge);
 			bridge->stop = 1;
+			bridge_poke(bridge);
+			ao2_unlock(bridge);
+			pthread_join(bridge_thread, NULL);
+			ao2_lock(bridge);
 		}
-		bridge_poke(bridge);
 	}
 
 	/* Since we are soon going to pass this bridge to a new technology we need to NULL out the bridge_pvt pointer but don't worry as it still exists in temp_bridge, ditto for the old technology */
