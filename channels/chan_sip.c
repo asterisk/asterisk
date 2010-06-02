@@ -26537,7 +26537,7 @@ static int reload_config(enum channelreloadreason reason)
 
 static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
 {
-	struct sockaddr_in us, them;
+	struct sockaddr_in us = {0,}, them = {0,};
 	int res;
 
 	ast_rtp_instance_get_remote_address(p->rtp, &them);
