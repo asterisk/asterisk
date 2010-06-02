@@ -205,6 +205,11 @@ Dialplan Functions
    prefixing the name of the hash at assignment with the appropriate number of
    underscores, just like variables.
  * GROUP_MATCH_COUNT has been improved to allow regex matching on category
+ * For DAHDI/ISDN channels, the CHANNEL() dialplan function now supports the
+   "no_media_path" option.
+   Returns "0" if there is a B channel associated with the call.
+   Returns "1" if no B channel is associated with the call.  The call is either
+   on hold or is a call waiting call.
 
 Dialplan Variables
 ------------------
@@ -339,6 +344,8 @@ libpri channel driver (chan_dahdi) DAHDI changes
    back into the same interface.  Tromboned calls happen because of call routing,
    call deflection, call forwarding, and call transfer.
  * Added the ability to send and receive ETSI Advice-Of-Charge messages. 
+ * Added the ability to support call waiting calls.  (The SETUP has no B channel
+   assigned.)
 
 Asterisk Manager Interface
 --------------------------

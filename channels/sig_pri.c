@@ -814,6 +814,26 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 	return c;
 }
 
+/*!
+ * \internal
+ * \brief Open the PRI channel media path.
+ * \since 1.8
+ *
+ * \param p Channel private control structure.
+ *
+ * \return Nothing
+ */
+static void sig_pri_open_media(struct sig_pri_chan *p)
+{
+	if (p->no_b_channel) {
+		return;
+	}
+
+	if (p->calls->open_media) {
+		p->calls->open_media(p->chan_pvt);
+	}
+}
+
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability)
 {
 	struct ast_channel *ast;
@@ -982,15 +1002,17 @@ static int pri_find_principle(struct sig_pri_pri *pri, int channel, q931_call *c
 	int x;
 	int span;
 	int principle;
+	int prioffset;
 
 	if (channel < 0) {
 		/* Channel is not picked yet. */
 		return -1;
 	}
 
-	if (channel & PRI_HELD_CALL) {
+	prioffset = PRI_CHANNEL(channel);
+	if (!prioffset || (channel & PRI_HELD_CALL)) {
 		if (!call) {
-			/* Cannot find a held call without a call. */
+			/* Cannot find a call waiting call or held call without a call. */
 			return -1;
 		}
 		principle = -1;
@@ -1015,11 +1037,10 @@ static int pri_find_principle(struct sig_pri_pri *pri, int channel, q931_call *c
 		span = pri->dchan_logical_span[index];
 	}
 
-	channel = PRI_CHANNEL(channel);
 	principle = -1;
 	for (x = 0; x < pri->numchans; x++) {
 		if (pri->pvts[x]
-			&& pri->pvts[x]->prioffset == channel
+			&& pri->pvts[x]->prioffset == prioffset
 			&& pri->pvts[x]->logicalspan == span
 			&& !pri->pvts[x]->no_b_channel) {
 			principle = x;
@@ -1079,6 +1100,11 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 		old_chan->call = NULL;
 
 		/* Transfer flags from the old channel. */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		new_chan->aoc_s_request_invoke_id_valid = old_chan->aoc_s_request_invoke_id_valid;
+		new_chan->waiting_for_aoce = old_chan->waiting_for_aoce;
+		new_chan->holding_aoce = old_chan->holding_aoce;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		new_chan->alerting = old_chan->alerting;
 		new_chan->alreadyhungup = old_chan->alreadyhungup;
 		new_chan->isidlecall = old_chan->isidlecall;
@@ -1087,17 +1113,14 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 		new_chan->setup_ack = old_chan->setup_ack;
 		new_chan->outgoing = old_chan->outgoing;
 		new_chan->digital = old_chan->digital;
-#if defined(HAVE_PRI_AOC_EVENTS)
-		new_chan->aoc_s_request_invoke_id = old_chan->aoc_s_request_invoke_id;
-		new_chan->aoc_s_request_invoke_id_valid = old_chan->aoc_s_request_invoke_id_valid;
-		new_chan->holding_aoce = old_chan->holding_aoce;
-		new_chan->waiting_for_aoce = old_chan->waiting_for_aoce;
-		new_chan->aoc_e = old_chan->aoc_e;
+#if defined(HAVE_PRI_CALL_WAITING)
+		new_chan->is_call_waiting = old_chan->is_call_waiting;
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 
-		old_chan->holding_aoce = 0;
+#if defined(HAVE_PRI_AOC_EVENTS)
 		old_chan->aoc_s_request_invoke_id_valid = 0;
 		old_chan->waiting_for_aoce = 0;
-		memset(&old_chan->aoc_e, 0, sizeof(&old_chan->aoc_e));
+		old_chan->holding_aoce = 0;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		old_chan->alerting = 0;
 		old_chan->alreadyhungup = 0;
@@ -1107,6 +1130,9 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 		old_chan->setup_ack = 0;
 		old_chan->outgoing = 0;
 		old_chan->digital = 0;
+#if defined(HAVE_PRI_CALL_WAITING)
+		old_chan->is_call_waiting = 0;
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 
 		/* More stuff to transfer to the new channel. */
 #if defined(HAVE_PRI_REVERSE_CHARGE)
@@ -1115,6 +1141,10 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 #if defined(HAVE_PRI_SETUP_KEYPAD)
 		strcpy(new_chan->keypad_digits, old_chan->keypad_digits);
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		new_chan->aoc_s_request_invoke_id = old_chan->aoc_s_request_invoke_id;
+		new_chan->aoc_e = old_chan->aoc_e;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 		if (new_chan->no_b_channel) {
 			/* Copy the real channel configuration to the no B channel interface. */
@@ -1222,6 +1252,38 @@ tryanotherpos:
 	}
 	return 0;
 }
+
+#if defined(HAVE_PRI_CALL_WAITING)
+/*!
+ * \internal
+ * \brief Init the private channel configuration using the span controller.
+ * \since 1.8
+ *
+ * \param pvt Channel to init the configuration.
+ * \param pri sig_pri PRI control structure.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_init_config(struct sig_pri_chan *pvt, struct sig_pri_pri *pri)
+{
+	pvt->stripmsd = pri->ch_cfg.stripmsd;
+	pvt->hidecallerid = pri->ch_cfg.hidecallerid;
+	pvt->hidecalleridname = pri->ch_cfg.hidecalleridname;
+	pvt->immediate = pri->ch_cfg.immediate;
+	pvt->priexclusive = pri->ch_cfg.priexclusive;
+	pvt->priindication_oob = pri->ch_cfg.priindication_oob;
+	pvt->use_callerid = pri->ch_cfg.use_callerid;
+	pvt->use_callingpres = pri->ch_cfg.use_callingpres;
+	ast_copy_string(pvt->context, pri->ch_cfg.context, sizeof(pvt->context));
+	ast_copy_string(pvt->mohinterpret, pri->ch_cfg.mohinterpret, sizeof(pvt->mohinterpret));
+
+	if (pri->calls->init_config) {
+		pri->calls->init_config(pvt->chan_pvt, pri);
+	}
+}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 
 static int pri_find_empty_chan(struct sig_pri_pri *pri, int backwards)
 {
@@ -3519,7 +3581,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			sig_pri_lock_owner(pri, chanpos);
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
-				sig_pri_aoc_s_from_pri(&subcmd->u.aoc_s, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S));
+				sig_pri_aoc_s_from_pri(&subcmd->u.aoc_s, owner,
+					(pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S));
 				ast_channel_unlock(owner);
 			}
 			break;
@@ -3530,7 +3593,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
 				/* Queue AST_CONTROL_AOC frame on channel */
-				sig_pri_aoc_d_from_pri(&subcmd->u.aoc_d, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_D));
+				sig_pri_aoc_d_from_pri(&subcmd->u.aoc_d, owner,
+					(pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_D));
 				ast_channel_unlock(owner);
 			}
 			break;
@@ -3540,7 +3604,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			sig_pri_lock_owner(pri, chanpos);
 			owner = pri->pvts[chanpos]->owner;
 			/* Queue AST_CONTROL_AOC frame */
-			sig_pri_aoc_e_from_pri(&subcmd->u.aoc_e, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_E));
+			sig_pri_aoc_e_from_pri(&subcmd->u.aoc_e, owner,
+				(pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_E));
 			if (owner) {
 				ast_channel_unlock(owner);
 			}
@@ -3551,20 +3616,25 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			sig_pri_lock_owner(pri, chanpos);
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
-				sig_pri_aoc_request_from_pri(&subcmd->u.aoc_request, pri->pvts[chanpos], call_rsp);
+				sig_pri_aoc_request_from_pri(&subcmd->u.aoc_request, pri->pvts[chanpos],
+					call_rsp);
 				ast_channel_unlock(owner);
 			}
 			break;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 #if defined(HAVE_PRI_AOC_EVENTS)
 		case PRI_SUBCMD_AOC_CHARGING_REQ_RSP:
-			/* An AOC request response may contain an AOC-S rate list.  If this is the case handle this just like we
-			 * would an incoming AOC-S msg */
+			/*
+			 * An AOC request response may contain an AOC-S rate list.
+			 * If this is the case handle this just like we
+			 * would an incoming AOC-S msg.
+			 */
 			if (subcmd->u.aoc_request_response.valid_aoc_s) {
 				sig_pri_lock_owner(pri, chanpos);
 				owner = pri->pvts[chanpos]->owner;
 				if (owner) {
-					sig_pri_aoc_s_from_pri(&subcmd->u.aoc_request_response.aoc_s, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S));
+					sig_pri_aoc_s_from_pri(&subcmd->u.aoc_request_response.aoc_s, owner,
+						(pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S));
 					ast_channel_unlock(owner);
 				}
 			}
@@ -4175,10 +4245,33 @@ static void *pri_dchannel(void *vpri)
 						e->ring.call);
 					break;
 				}
-				if (e->ring.channel == -1 || PRI_CHANNEL(e->ring.channel) == 0xFF)
+				if (e->ring.channel == -1 || PRI_CHANNEL(e->ring.channel) == 0xFF) {
+					/* Any channel requested. */
 					chanpos = pri_find_empty_chan(pri, 1);
-				else
+				} else if (PRI_CHANNEL(e->ring.channel) == 0x00) {
+					/* No channel specified. */
+#if defined(HAVE_PRI_CALL_WAITING)
+					if (!pri->allow_call_waiting_calls)
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+					{
+						/* We will not accept incoming call waiting calls. */
+						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_INCOMPATIBLE_DESTINATION);
+						break;
+					}
+#if defined(HAVE_PRI_CALL_WAITING)
+					chanpos = pri_find_empty_nobch(pri);
+					if (chanpos < 0) {
+						/* We could not find/create a call interface. */
+						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+						break;
+					}
+					/* Setup the call interface to use. */
+					sig_pri_init_config(pri->pvts[chanpos], pri);
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+				} else {
+					/* A channel is specified. */
 					chanpos = pri_find_principle(pri, e->ring.channel, e->ring.call);
+				}
 				/* if no channel specified find one empty */
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d/%d span %d\n",
@@ -4571,43 +4664,33 @@ static void *pri_dchannel(void *vpri)
 					sig_pri_lock_private(pri->pvts[chanpos]);
 					sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
 						e->proceeding.subcmds, e->proceeding.call);
-					if ((!pri->pvts[chanpos]->progress)
-#ifdef PRI_PROGRESS_MASK
-						|| (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
-#else
-						|| (e->proceeding.progress == 8)
-#endif
-						) {
-						int subclass;
 
-						subclass = AST_CONTROL_PROGRESS;
-						if (e->proceeding.cause > -1) {
-							ast_verb(3, "PROGRESS with cause code %d received\n", e->proceeding.cause);
+					if (e->proceeding.cause > -1) {
+						ast_verb(3, "PROGRESS with cause code %d received\n", e->proceeding.cause);
 
-							/* Work around broken, out of spec USER_BUSY cause in a progress message */
-							if (e->proceeding.cause == AST_CAUSE_USER_BUSY) {
-								if (pri->pvts[chanpos]->owner) {
-									ast_verb(3, "PROGRESS with 'user busy' received, signaling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
+						/* Work around broken, out of spec USER_BUSY cause in a progress message */
+						if (e->proceeding.cause == AST_CAUSE_USER_BUSY) {
+							if (pri->pvts[chanpos]->owner) {
+								ast_verb(3, "PROGRESS with 'user busy' received, signaling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
 
-									pri->pvts[chanpos]->owner->hangupcause = e->proceeding.cause;
-									subclass = AST_CONTROL_BUSY;
-								}
+								pri->pvts[chanpos]->owner->hangupcause = e->proceeding.cause;
+								pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
 							}
 						}
+					}
 
+					if (!pri->pvts[chanpos]->progress
+						&& !pri->pvts[chanpos]->no_b_channel
+#ifdef PRI_PROGRESS_MASK
+						&& (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
+#else
+						&& e->proceeding.progress == 8
+#endif
+						) {
+						/* Bring voice path up */
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-						pri_queue_control(pri, chanpos, subclass);
-						if (
-#ifdef PRI_PROGRESS_MASK
-							e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE
-#else
-							e->proceeding.progress == 8
-#endif
-							) {
-							/* Bring voice path up */
-							pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
-						}
+						pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
 						pri->pvts[chanpos]->progress = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
 					}
@@ -4629,17 +4712,19 @@ static void *pri_dchannel(void *vpri)
 						ast_debug(1, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 							pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 						pri_queue_control(pri, chanpos, AST_CONTROL_PROCEEDING);
-						if (
-#ifdef PRI_PROGRESS_MASK
-							e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE
-#else
-							e->proceeding.progress == 8
-#endif
-							) {
-							/* Bring voice path up */
-							pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
-						}
 						pri->pvts[chanpos]->proceeding = 1;
+					}
+					if (!pri->pvts[chanpos]->progress
+						&& !pri->pvts[chanpos]->no_b_channel
+#ifdef PRI_PROGRESS_MASK
+						&& (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
+#else
+						&& e->proceeding.progress == 8
+#endif
+						) {
+						/* Bring voice path up */
+						pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
+						pri->pvts[chanpos]->progress = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
 					}
 					sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -4689,39 +4774,127 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Answer on unconfigured channel %d/%d span %d\n",
 						PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
-				} else {
-					chanpos = pri_fixup_principle(pri, chanpos, e->answer.call);
-					if (chanpos < 0) {
-						ast_log(LOG_WARNING, "Answer requested on channel %d/%d not in use on span %d\n",
-							PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
-					} else {
-						sig_pri_lock_private(pri->pvts[chanpos]);
+					break;
+				}
+				chanpos = pri_fixup_principle(pri, chanpos, e->answer.call);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "Answer requested on channel %d/%d not in use on span %d\n",
+						PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
+					break;
+				}
+#if defined(HAVE_PRI_CALL_WAITING)
+				if (pri->pvts[chanpos]->is_call_waiting) {
+					if (pri->pvts[chanpos]->no_b_channel) {
+						int new_chanpos;
 
-						sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
-							e->answer.subcmds, e->answer.call);
-						pri_queue_control(pri, chanpos, AST_CONTROL_ANSWER);
-						/* Enable echo cancellation if it's not on already */
-						sig_pri_set_dialing(pri->pvts[chanpos], 0);
-						sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
+						/*
+						 * Need to find a free channel now or
+						 * kill the call with PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION.
+						 */
+						new_chanpos = pri_find_empty_chan(pri, 1);
+						if (new_chanpos < 0) {
+							sig_pri_lock_private(pri->pvts[chanpos]);
+							sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
+								e->answer.subcmds, e->answer.call);
+							sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCBS);
+							if (pri->pvts[chanpos]->owner) {
+								pri->pvts[chanpos]->owner->hangupcause = PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION;
+								switch (pri->pvts[chanpos]->owner->_state) {
+								case AST_STATE_BUSY:
+								case AST_STATE_UP:
+									ast_softhangup_nolock(pri->pvts[chanpos]->owner, AST_SOFTHANGUP_DEV);
+									break;
+								default:
+									pri_queue_control(pri, chanpos, AST_CONTROL_CONGESTION);
+									break;
+								}
+							} else {
+								pri->pvts[chanpos]->is_call_waiting = 0;
+								ast_atomic_fetchadd_int(&pri->num_call_waiting_calls, -1);
+								pri_hangup(pri->pri, e->answer.call, PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+								pri->pvts[chanpos]->call = NULL;
+							}
+							sig_pri_unlock_private(pri->pvts[chanpos]);
+							break;
+						}
+						chanpos = pri_fixup_principle(pri, new_chanpos, e->answer.call);
+						if (chanpos < 0) {
+							ast_log(LOG_WARNING,
+								"Unable to move call waiting call channel on span %d\n",
+								pri->span);
+							break;
+						}
+					}
+					pri_connect_ack(pri->pri, e->answer.call, PVT_TO_CHANNEL(pri->pvts[chanpos]));
+				} else {
+					/* Call is normal so do normal CONNECT_ACKNOWLEDGE. */
+					pri_connect_ack(pri->pri, e->answer.call, 0);
+				}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+				sig_pri_lock_private(pri->pvts[chanpos]);
+
+#if defined(HAVE_PRI_CALL_WAITING)
+				if (pri->pvts[chanpos]->is_call_waiting) {
+					pri->pvts[chanpos]->is_call_waiting = 0;
+					ast_atomic_fetchadd_int(&pri->num_call_waiting_calls, -1);
+					sig_pri_span_devstate_changed(pri);
+				}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
+					e->answer.subcmds, e->answer.call);
+				sig_pri_open_media(pri->pvts[chanpos]);
+				pri_queue_control(pri, chanpos, AST_CONTROL_ANSWER);
+				/* Enable echo cancellation if it's not on already */
+				sig_pri_set_dialing(pri->pvts[chanpos], 0);
+				sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 
 #ifdef SUPPORT_USERUSER
-						if (!ast_strlen_zero(e->answer.useruserinfo)) {
-							struct ast_channel *owner;
+				if (!ast_strlen_zero(e->answer.useruserinfo)) {
+					struct ast_channel *owner;
 
-							sig_pri_lock_owner(pri, chanpos);
-							owner = pri->pvts[chanpos]->owner;
-							if (owner) {
-								pbx_builtin_setvar_helper(owner, "USERUSERINFO",
-									e->answer.useruserinfo);
-								ast_channel_unlock(owner);
-							}
-						}
-#endif
-
-						sig_pri_unlock_private(pri->pvts[chanpos]);
+					sig_pri_lock_owner(pri, chanpos);
+					owner = pri->pvts[chanpos]->owner;
+					if (owner) {
+						pbx_builtin_setvar_helper(owner, "USERUSERINFO",
+							e->answer.useruserinfo);
+						ast_channel_unlock(owner);
 					}
 				}
+#endif
+
+				sig_pri_unlock_private(pri->pvts[chanpos]);
 				break;
+#if defined(HAVE_PRI_CALL_WAITING)
+			case PRI_EVENT_CONNECT_ACK:
+				if (sig_pri_is_cis_call(e->connect_ack.channel)) {
+					sig_pri_handle_cis_subcmds(pri, e->e, e->connect_ack.subcmds,
+						e->connect_ack.call);
+					break;
+				}
+				chanpos = pri_find_principle(pri, e->connect_ack.channel,
+					e->connect_ack.call);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "Connect ACK on unconfigured channel %d/%d span %d\n",
+						PRI_SPAN(e->connect_ack.channel),
+						PRI_CHANNEL(e->connect_ack.channel), pri->span);
+					break;
+				}
+				chanpos = pri_fixup_principle(pri, chanpos, e->connect_ack.call);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "Connect ACK requested on channel %d/%d not in use on span %d\n",
+						PRI_SPAN(e->connect_ack.channel),
+						PRI_CHANNEL(e->connect_ack.channel), pri->span);
+					break;
+				}
+
+				sig_pri_lock_private(pri->pvts[chanpos]);
+				sig_pri_span_devstate_changed(pri);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->connect_ack.channel,
+					e->connect_ack.subcmds, e->connect_ack.call);
+				sig_pri_open_media(pri->pvts[chanpos]);
+				sig_pri_unlock_private(pri->pvts[chanpos]);
+				break;
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 			case PRI_EVENT_HANGUP:
 				if (sig_pri_is_cis_call(e->hangup.channel)) {
 					sig_pri_handle_cis_subcmds(pri, e->e, e->hangup.subcmds,
@@ -4880,7 +5053,6 @@ static void *pri_dchannel(void *vpri)
 							sig_pri_lock_private(pri->pvts[chanpos]);
 						}
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
-
 						switch (e->hangup.cause) {
 						case PRI_CAUSE_USER_BUSY:
 						case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
@@ -5207,6 +5379,12 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->owner = NULL;
 	p->outgoing = 0;
 	sig_pri_set_digital(p, 0);	/* push up to parent for EC*/
+#if defined(HAVE_PRI_CALL_WAITING)
+	if (p->is_call_waiting) {
+		p->is_call_waiting = 0;
+		ast_atomic_fetchadd_int(&p->pri->num_call_waiting_calls, -1);
+	}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 	p->proceeding = 0;
 	p->progress = 0;
 	p->alerting = 0;
@@ -5248,13 +5426,11 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 					if (atoi(cause))
 						icause = atoi(cause);
 				}
-
 #if defined(HAVE_PRI_AOC_EVENTS)
 				if (p->holding_aoce) {
 					pri_aoc_e_send(p->pri->pri, p->call, &p->aoc_e);
 				}
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
 				pri_hangup(p->pri->pri, p->call, icause);
 			}
 		}
@@ -5271,7 +5447,6 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->holding_aoce = 0;
 	p->waiting_for_aoce = 0;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
 	ast->tech_pvt = NULL;
 	return res;
 }
@@ -5356,6 +5531,7 @@ enum SIG_PRI_CALL_OPT_FLAGS {
 enum SIG_PRI_CALL_OPT_ARGS {
 	OPT_ARG_KEYPAD = 0,
 	OPT_ARG_AOC_REQUEST,
+
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -5482,14 +5658,25 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 
 	sig_pri_set_digital(p, IS_DIGITAL(ast->transfercapability));	/* push up to parent for EC */
 
-	/* Should the picked channel be used exclusively? */
-	if (p->priexclusive || p->pri->nodetype == PRI_NETWORK) {
-		exclusive = 1;
-	} else {
-		exclusive = 0;
+#if defined(HAVE_PRI_CALL_WAITING)
+	if (p->is_call_waiting) {
+		/*
+		 * Indicate that this is a call waiting call.
+		 * i.e., Normal call but with no B channel.
+		 */
+		pri_sr_set_channel(sr, 0, 0, 1);
+	} else
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+	{
+		/* Should the picked channel be used exclusively? */
+		if (p->priexclusive || p->pri->nodetype == PRI_NETWORK) {
+			exclusive = 1;
+		} else {
+			exclusive = 0;
+		}
+		pri_sr_set_channel(sr, PVT_TO_CHANNEL(p), exclusive, 1);
 	}
 
-	pri_sr_set_channel(sr, PVT_TO_CHANNEL(p), exclusive, 1);
 	pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : ast->transfercapability,
 		(p->digital ? -1 : layer1));
 
@@ -5567,9 +5754,9 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 		c++;
 	}
-
 #if defined(HAVE_PRI_AOC_EVENTS)
-	if (ast_test_flag(&opts, OPT_AOC_REQUEST) && !ast_strlen_zero(opt_args[OPT_ARG_AOC_REQUEST])) {
+	if (ast_test_flag(&opts, OPT_AOC_REQUEST)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_AOC_REQUEST])) {
 		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 's')) {
 			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_S);
 		}
@@ -5581,7 +5768,6 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 	}
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
 #if defined(HAVE_PRI_SETUP_KEYPAD)
 	if (ast_test_flag(&opts, OPT_KEYPAD)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_KEYPAD])) {
@@ -5762,7 +5948,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 
 	switch (condition) {
 	case AST_CONTROL_BUSY:
-		if (p->priindication_oob) {
+		if (p->priindication_oob || p->no_b_channel) {
 			chan->hangupcause = AST_CAUSE_USER_BUSY;
 			chan->_softhangup |= AST_SOFTHANGUP_DEV;
 			res = 0;
@@ -5787,7 +5973,8 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		if ((!p->alerting) && p->pri && !p->outgoing && (chan->_state != AST_STATE_UP)) {
 			if (p->pri->pri) {
 				if (!pri_grab(p, p->pri)) {
-					pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
+					pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p),
+						p->no_b_channel || p->digital ? 0 : 1);
 					pri_rel(p->pri);
 				} else {
 					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->pri->span);
@@ -5806,14 +5993,17 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		if (!p->proceeding && p->pri && !p->outgoing) {
 			if (p->pri->pri) {
 				if (!pri_grab(p, p->pri)) {
-					pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
+					pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p),
+						p->no_b_channel || p->digital ? 0 : 1);
+					p->proceeding = 1;
+					if (!p->no_b_channel && !p->digital) {
+						sig_pri_set_dialing(p, 0);
+					}
 					pri_rel(p->pri);
 				} else {
 					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->pri->span);
 				}
 			}
-			p->proceeding = 1;
-			sig_pri_set_dialing(p, 0);
 		}
 		/* don't continue in ast_indicate */
 		res = 0;
@@ -5821,7 +6011,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_PROGRESS:
 		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 		sig_pri_set_digital(p, 0);	/* Digital-only calls isn't allowing any inband progress messages */
-		if (!p->progress && p->pri && !p->outgoing) {
+		if (!p->progress && p->pri && !p->outgoing && !p->no_b_channel) {
 			if (p->pri->pri) {
 				if (!pri_grab(p, p->pri)) {
 #ifdef HAVE_PRI_PROG_W_CAUSE
@@ -5841,7 +6031,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		break;
 	case AST_CONTROL_CONGESTION:
 		chan->hangupcause = AST_CAUSE_CONGESTION;
-		if (p->priindication_oob) {
+		if (p->priindication_oob || p->no_b_channel) {
 			chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 			chan->_softhangup |= AST_SOFTHANGUP_DEV;
 			res = 0;
@@ -5910,7 +6100,8 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_AOC:
 #if defined(HAVE_PRI_AOC_EVENTS)
 		{
-			struct ast_aoc_decoded *decoded = ast_aoc_decode((struct ast_aoc_encoded *) data, datalen, chan);
+			struct ast_aoc_decoded *decoded
+				= ast_aoc_decode((struct ast_aoc_encoded *) data, datalen, chan);
 			ast_debug(1, "Received AST_CONTROL_AOC on %s\n", chan->name);
 			if (decoded && p->pri && !pri_grab(p, p->pri)) {
 				switch (ast_aoc_get_msg_type(decoded)) {
@@ -5934,7 +6125,9 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 					 * and initiate the softhangup since the delay is no longer necessary */
 					if (p->waiting_for_aoce) {
 						p->waiting_for_aoce = 0;
-						ast_log(LOG_DEBUG, "Received final AOC-E msg, continue with hangup on %s\n", chan->name);
+						ast_log(LOG_DEBUG,
+							"Received final AOC-E msg, continue with hangup on %s\n",
+							chan->name);
 						ast_softhangup_nolock(chan, AST_SOFTHANGUP_DEV);
 					}
 					break;
@@ -5969,12 +6162,14 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 			/* if AOC-S was requested and the invoke id is still present on answer.  That means
 			 * no AOC-S rate list was provided, so send a NULL response which will indicate that
 			 * AOC-S is not available */
-			pri_aoc_s_request_response_send(p->pri->pri, p->call, p->aoc_s_request_invoke_id, NULL);
+			pri_aoc_s_request_response_send(p->pri->pri, p->call,
+				p->aoc_s_request_invoke_id, NULL);
 			p->aoc_s_request_invoke_id_valid = 0;
 		}
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		p->proceeding = 1;
 		sig_pri_set_dialing(p, 0);
+		sig_pri_open_media(p);
 		res = pri_answer(p->pri->pri, p->call, 0, !p->digital);
 		pri_rel(p->pri);
 	} else {
@@ -5984,20 +6179,116 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 	return res;
 }
 
-int sig_pri_available(struct sig_pri_chan *p)
+/*!
+ * \internal
+ * \brief Simple check if the channel is available to use.
+ * \since 1.8
+ *
+ * \param pvt Private channel control structure.
+ *
+ * \retval 0 Interface not available.
+ * \retval 1 Interface is available.
+ */
+static int sig_pri_available_check(struct sig_pri_chan *pvt)
 {
-	/* If no owner and interface has a B channel then likely available */
-	if (!p->owner && !p->no_b_channel && p->pri) {
-		if (p->resetting || p->call
+	/*
+	 * If no owner, interface has a B channel, not resetting, not already with call,
+	 * not in alarm, and in-service then available.
+	 */
+	if (!pvt->owner && !pvt->no_b_channel && !pvt->resetting && !pvt->call
+		&& !pvt->inalarm) {
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
-			|| p->service_status
-#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
-			) {
+		if (pvt->service_status) {
 			return 0;
 		}
+#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
+		return 1;
+	}
+	return 0;
+}
+
+#if defined(HAVE_PRI_CALL_WAITING)
+/*!
+ * \internal
+ * \brief Get an available call waiting interface.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ *
+ * \retval cw Call waiting interface to use.
+ * \retval NULL if no call waiting interface available.
+ */
+static struct sig_pri_chan *sig_pri_cw_available(struct sig_pri_pri *pri)
+{
+	struct sig_pri_chan *cw;
+	int idx;
+
+	cw = NULL;
+	ast_mutex_lock(&pri->lock);
+	if (pri->num_call_waiting_calls < pri->max_call_waiting_calls) {
+		if (!pri->num_call_waiting_calls) {
+			/*
+			 * There are no outstanding call waiting calls.  Check to see
+			 * if the span is in a congested state for the first call
+			 * waiting call.
+			 */
+			for (idx = 0; idx < pri->numchans; ++idx) {
+				if (pri->pvts[idx] && sig_pri_available_check(pri->pvts[idx])) {
+					/* There is another channel that is available on this span. */
+					ast_mutex_unlock(&pri->lock);
+					return cw;
+				}
+			}
+		}
+		idx = pri_find_empty_nobch(pri);
+		if (0 <= idx) {
+			/* Setup the call waiting interface to use. */
+			cw = pri->pvts[idx];
+			cw->is_call_waiting = 1;
+			sig_pri_init_config(cw, pri);
+			ast_atomic_fetchadd_int(&pri->num_call_waiting_calls, 1);
+		}
+	}
+	ast_mutex_unlock(&pri->lock);
+	return cw;
+}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+
+int sig_pri_available(struct sig_pri_chan **pvt, int is_specific_channel)
+{
+	struct sig_pri_chan *p = *pvt;
+
+	if (!p->pri) {
+		/* Something is wrong here.  A PRI channel without the pri pointer? */
+		return 0;
+	}
+
+	if (
+#if defined(HAVE_PRI_CALL_WAITING)
+		/*
+		 * Only do call waiting calls if we have any
+		 * call waiting call outstanding.  We do not
+		 * want new calls to steal a B channel
+		 * freed for an earlier call waiting call.
+		 */
+		!p->pri->num_call_waiting_calls &&
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+		sig_pri_available_check(p)) {
 		return 1;
 	}
 
+#if defined(HAVE_PRI_CALL_WAITING)
+	if (!is_specific_channel) {
+		struct sig_pri_chan *cw;
+
+		cw = sig_pri_cw_available(p->pri);
+		if (cw) {
+			/* We have a call waiting interface to use instead. */
+			*pvt = cw;
+			return 1;
+		}
+	}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 	return 0;
 }
 
@@ -6025,12 +6316,64 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
 	return 1;
 }
 
+/*!
+ * \internal
+ * \brief qsort comparison function.
+ * \since 1.8
+ *
+ * \param left Ptr to sig_pri_chan ptr to compare.
+ * \param right Ptr to sig_pri_chan ptr to compare.
+ *
+ * \retval <0 if left < right.
+ * \retval =0 if left == right.
+ * \retval >0 if left > right.
+ */
+static int sig_pri_cmp_pri_chans(const void *left, const void *right)
+{
+	const struct sig_pri_chan *pvt_left;
+	const struct sig_pri_chan *pvt_right;
+
+	pvt_left = *(struct sig_pri_chan **) left;
+	pvt_right = *(struct sig_pri_chan **) right;
+	if (!pvt_left) {
+		if (!pvt_right) {
+			return 0;
+		}
+		return 1;
+	}
+	if (!pvt_right) {
+		return -1;
+	}
+
+	return pvt_left->channel - pvt_right->channel;
+}
+
+/*!
+ * \internal
+ * \brief Sort the PRI B channel private pointer array.
+ * \since 1.8
+ *
+ * \param pri PRI Span controlling structure.
+ *
+ * \details
+ * Since the chan_dahdi.conf file can declare channels in any order, we need to sort
+ * the private channel pointer array.
+ *
+ * \return Nothing
+ */
+static void sig_pri_sort_pri_chans(struct sig_pri_pri *pri)
+{
+	qsort(&pri->pvts, pri->numchans, sizeof(pri->pvts[0]), sig_pri_cmp_pri_chans);
+}
+
 int sig_pri_start_pri(struct sig_pri_pri *pri)
 {
 	int x;
 	int i;
 
 	ast_mutex_init(&pri->lock);
+
+	sig_pri_sort_pri_chans(pri);
 
 	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 		if (pri->fds[i] == -1) {
@@ -6105,6 +6448,9 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 #if defined(HAVE_PRI_AOC_EVENTS)
 	pri_aoc_events_enable(pri->pri, 1);
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+#if defined(HAVE_PRI_CALL_WAITING)
+	pri_connect_ack_enable(pri->pri, 1);
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {

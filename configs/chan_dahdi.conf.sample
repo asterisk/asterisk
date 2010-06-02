@@ -515,6 +515,17 @@ usecallerid=yes
 ;
 callwaiting=yes
 ;
+; Configure the number of outstanding call waiting calls for internal ISDN
+; endpoints before bouncing the calls as busy.  This option is equivalent to
+; the callwaiting option for analog ports.
+; A call waiting call is a SETUP message with no B channel selected.
+; The default is zero to disable call waiting for ISDN endpoints.
+;max_call_waiting_calls=0
+;
+; Allow incoming ISDN call waiting calls.
+; A call waiting call is a SETUP message with no B channel selected.
+;allow_call_waiting_calls=no
+;
 ; Whether or not restrict outgoing caller ID (will be sent as ANI only, not
 ; available for the user)
 ; Mostly use with FXS ports

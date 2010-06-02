@@ -31,10 +31,6 @@
 #include <libpri.h>
 #include <dahdi/user.h>
 
-#define SIG_PRI_AOC_GRANT_S    (1 << 0)
-#define SIG_PRI_AOC_GRANT_D    (1 << 1)
-#define SIG_PRI_AOC_GRANT_E    (1 << 2)
-
 #if defined(HAVE_PRI_CCSS)
 /*! PRI debug message flags when normal PRI debugging is turned on at the command line. */
 #define SIG_PRI_DEBUG_NORMAL	\
@@ -65,6 +61,10 @@
 /*! PRI debug message flags set on initial startup. */
 #define SIG_PRI_DEBUG_DEFAULT	0
 #endif
+
+#define SIG_PRI_AOC_GRANT_S    (1 << 0)
+#define SIG_PRI_AOC_GRANT_D    (1 << 1)
+#define SIG_PRI_AOC_GRANT_E    (1 << 2)
 
 enum sig_pri_tone {
 	SIG_PRI_TONE_RINGTONE = 0,
@@ -115,9 +115,12 @@ struct sig_pri_callback {
 	void (* const set_rdnis)(void *pvt, const char *rdnis);
 	void (* const queue_control)(void *pvt, int subclass);
 	int (* const new_nobch_intf)(struct sig_pri_pri *pri);
+	void (* const init_config)(void *pvt, struct sig_pri_pri *pri);
 	const char *(* const get_orig_dialstring)(void *pvt);
 	void (* const make_cc_dialstring)(void *pvt, char *buf, size_t buf_size);
 	void (* const update_span_devstate)(struct sig_pri_pri *pri);
+
+	void (* const open_media)(void *pvt);
 
 	/*! Reference the parent module. */
 	void (*module_ref)(void);
@@ -216,6 +219,10 @@ struct sig_pri_chan {
 	unsigned int digital:1;
 	/*! \brief TRUE if this interface has no B channel.  (call hold and call waiting) */
 	unsigned int no_b_channel:1;
+#if defined(HAVE_PRI_CALL_WAITING)
+	/*! \brief TRUE if this is a call waiting call */
+	unsigned int is_call_waiting:1;
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 
 	struct ast_channel *owner;
 
@@ -275,6 +282,10 @@ struct sig_pri_pri {
 	 * \note Support switch-side transfer (called 2BCT, RLT or other names)
 	 */
 	unsigned int transfer:1;
+#if defined(HAVE_PRI_CALL_WAITING)
+	/*! \brief TRUE if we will allow incoming ISDN call waiting calls. */
+	unsigned int allow_call_waiting_calls:1;
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 	int dialplan;							/*!< Dialing plan */
 	int localdialplan;						/*!< Local dialing plan */
 	char internationalprefix[10];			/*!< country access code ('00' for european dialplans) */
@@ -298,7 +309,32 @@ struct sig_pri_pri {
 	int cc_qsig_signaling_link_req;			/*!< CC Q.SIG signaling link retention (Party A) release(0), retain(1), do-not-care(2) */
 	int cc_qsig_signaling_link_rsp;			/*!< CC Q.SIG signaling link retention (Party B) release(0), retain(1) */
 #endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CALL_WAITING)
+	/*!
+	 * \brief Number of extra outgoing calls to allow on a span before
+	 * considering that span congested.
+	 */
+	int max_call_waiting_calls;
+	struct {
+		int stripmsd;
+		unsigned int hidecallerid:1;
+		unsigned int hidecalleridname:1;      /*!< Hide just the name not the number for legacy PBX use */
+		unsigned int immediate:1;			/*!< Answer before getting digits? */
+		unsigned int priexclusive:1;			/*!< Whether or not to override and use exculsive mode for channel selection */
+		unsigned int priindication_oob:1;
+		unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
+		unsigned int use_callingpres:1;			/*!< Whether to use the callingpres the calling switch sends */
+		char context[AST_MAX_CONTEXT];
+		char mohinterpret[MAX_MUSICCLASS];
+	} ch_cfg;
 
+	/*!
+	 * \brief Number of outstanding call waiting calls.
+	 * \note Must be zero to allow new calls from asterisk to
+	 * immediately allocate a B channel.
+	 */
+	int num_call_waiting_calls;
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 	int dchanavail[SIG_PRI_NUM_DCHANS];		/*!< Whether each channel is available */
 	int debug;								/*!< set to true if to dump PRI event info (tested but never set) */
 	int span;								/*!< span number put into user output messages */
@@ -368,7 +404,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 
 int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast);
 
-int sig_pri_available(struct sig_pri_chan *p);
+int sig_pri_available(struct sig_pri_chan **pvt, int is_specific_channel);
 
 void sig_pri_init_pri(struct sig_pri_pri *pri);
 

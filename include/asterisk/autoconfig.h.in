@@ -543,6 +543,10 @@
    library. */
 #undef HAVE_PRI_CALL_REROUTING
 
+/* Define to 1 if you have the ISDN PRI call waiting supplementary service
+   library. */
+#undef HAVE_PRI_CALL_WAITING
+
 /* Define to 1 if you have the ISDN PRI call completion supplementary service
    library. */
 #undef HAVE_PRI_CCSS

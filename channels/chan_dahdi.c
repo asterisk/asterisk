@@ -800,7 +800,10 @@ struct dahdi_pvt {
 	unsigned int didtdd:1;				/*!< flag to say its done it once */
 	/*! \brief TRUE if analog type line dialed no digits in Dial() */
 	unsigned int dialednone:1;
-	/*! \brief TRUE if in the process of dialing digits or sending something. */
+	/*!
+	 * \brief TRUE if in the process of dialing digits or sending something.
+	 * \note This is used as a receive squelch for ISDN until connected.
+	 */
 	unsigned int dialing:1;
 	/*! \brief TRUE if the transfer capability of the call is digital. */
 	unsigned int digital:1;
@@ -1075,6 +1078,8 @@ struct dahdi_pvt {
 	 * \note The "group" bitmapped group string read in from chan_dahdi.conf
 	 */
 	ast_group_t group;
+	/*! \brief Default call PCM encoding format: DAHDI_LAW_ALAW or DAHDI_LAW_MULAW. */
+	int law_default;
 	/*! \brief Active PCM encoding format: DAHDI_LAW_ALAW or DAHDI_LAW_MULAW */
 	int law;
 	int confno;					/*!< Our conference */
@@ -2232,7 +2237,8 @@ static void my_all_subchannels_hungup(void *pvt)
 		p->dsp = NULL;
 	}
 
-	law = DAHDI_LAW_DEFAULT;
+	p->law = p->law_default;
+	law = p->law_default;
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
 	if (res < 0)
 		ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n", p->channel, strerror(errno));
@@ -2391,10 +2397,22 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, int star
 	int audio;
 	int newlaw = -1;
 
-	/* Set to audio mode at this point */
-	audio = 1;
-	if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &audio) == -1)
-		ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d: %s\n", p->channel, audio, strerror(errno));
+	switch (p->sig) {
+	case SIG_PRI_LIB_HANDLE_CASES:
+		if (((struct sig_pri_chan *) p->sig_pvt)->no_b_channel) {
+			/* PRI nobch pseudo channel.  Does not handle ioctl(DAHDI_AUDIOMODE) */
+			break;
+		}
+		/* Fall through */
+	default:
+		/* Set to audio mode at this point */
+		audio = 1;
+		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &audio) == -1) {
+			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d: %s\n",
+				p->channel, audio, strerror(errno));
+		}
+		break;
+	}
 
 	if (law != SIG_PRI_DEFLAW) {
 		dahdi_setlaw(p->subs[SUB_REAL].dfd, (law == SIG_PRI_ULAW) ? DAHDI_LAW_MULAW : DAHDI_LAW_ALAW);
@@ -2414,6 +2432,54 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, int star
 			break;
 	}
 	return dahdi_new(p, state, startpbx, SUB_REAL, newlaw, transfercapability, requestor ? requestor->linkedid : "");
+}
+#endif	/* defined(HAVE_PRI) */
+
+static int set_actual_gain(int fd, float rxgain, float txgain, float rxdrc, float txdrc, int law);
+
+#if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Open the PRI channel media path.
+ * \since 1.8
+ *
+ * \param p Channel private control structure.
+ *
+ * \return Nothing
+ */
+static void my_pri_open_media(void *p)
+{
+	struct dahdi_pvt *pvt = p;
+	int res;
+	int dfd;
+	int set_val;
+
+	dfd = pvt->subs[SUB_REAL].dfd;
+
+	/* Open the media path. */
+	set_val = 1;
+	res = ioctl(dfd, DAHDI_AUDIOMODE, &set_val);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to enable audio mode on channel %d (%s)\n",
+			pvt->channel, strerror(errno));
+	}
+
+	/* Set correct companding law for this call. */
+	res = dahdi_setlaw(dfd, pvt->law);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set law on channel %d\n", pvt->channel);
+	}
+
+	/* Set correct gain for this call. */
+	if (pvt->digital) {
+		res = set_actual_gain(dfd, 0, 0, pvt->rxdrc, pvt->txdrc, pvt->law);
+	} else {
+		res = set_actual_gain(dfd, pvt->rxgain, pvt->txgain, pvt->rxdrc, pvt->txdrc,
+			pvt->law);
+	}
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pvt->channel);
+	}
 }
 #endif	/* defined(HAVE_PRI) */
 
@@ -2734,6 +2800,17 @@ static void my_pri_fixup_chans(void *chan_old, void *chan_new)
 	new_chan->dsp_features = old_chan->dsp_features;
 	old_chan->dsp = NULL;
 	old_chan->dsp_features = 0;
+
+	/* Transfer flags from the old channel. */
+	new_chan->dialing = old_chan->dialing;
+	new_chan->digital = old_chan->digital;
+	new_chan->outgoing = old_chan->outgoing;
+	old_chan->dialing = 0;
+	old_chan->digital = 0;
+	old_chan->outgoing = 0;
+
+	/* More stuff to transfer to the new channel. */
+	new_chan->law = old_chan->law;
 }
 
 static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)
@@ -2997,6 +3074,9 @@ static void my_module_unref(void)
 	ast_module_unref(ast_module_info->self);
 }
 
+#if defined(HAVE_PRI_CALL_WAITING)
+static void my_pri_init_config(void *priv, struct sig_pri_pri *pri);
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 static int dahdi_new_pri_nobch_channel(struct sig_pri_pri *pri);
 
 static struct sig_pri_callback dahdi_pri_callbacks =
@@ -3016,11 +3096,15 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.set_dnid = my_pri_set_dnid,
 	.set_rdnis = my_pri_set_rdnis,
 	.new_nobch_intf = dahdi_new_pri_nobch_channel,
+#if defined(HAVE_PRI_CALL_WAITING)
+	.init_config = my_pri_init_config,
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 	.get_orig_dialstring = my_get_orig_dialstring,
 	.make_cc_dialstring = my_pri_make_cc_dialstring,
 	.update_span_devstate = dahdi_pri_update_span_devstate,
 	.module_ref = my_module_ref,
 	.module_unref = my_module_unref,
+	.open_media = my_pri_open_media,
 };
 #endif	/* defined(HAVE_PRI) */
 
@@ -3155,6 +3239,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.set_needringing = my_set_needringing,
 };
 
+/*! Round robin search locations. */
 static struct dahdi_pvt *round_robin[32];
 
 #if defined(HAVE_SS7)
@@ -4179,7 +4264,7 @@ static int conf_add(struct dahdi_pvt *p, struct dahdi_subchannel *c, int idx, in
 	if (slavechannel < 1) {
 		p->confno = zi.confno;
 	}
-	memcpy(&c->curconf, &zi, sizeof(c->curconf));
+	c->curconf = zi;
 	ast_debug(1, "Added %d to conference %d/%d\n", c->dfd, c->curconf.confmode, c->curconf.confno);
 	return 0;
 }
@@ -4850,13 +4935,8 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 
 #ifdef HAVE_PRI
 	if (dahdi_sig_pri_lib_handles(p->sig)) {
-		struct dahdi_params ps;
-
-		memset(&ps, 0, sizeof(ps));
-		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps)) {
-			ast_log(LOG_ERROR, "Could not get params\n");
-		}
-		res = sig_pri_call(p->sig_pvt, ast, rdest, timeout, (ps.curlaw == DAHDI_LAW_MULAW) ? PRI_LAYER_1_ULAW : PRI_LAYER_1_ALAW);
+		res = sig_pri_call(p->sig_pvt, ast, rdest, timeout,
+			(p->law == DAHDI_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW);
 		ast_mutex_unlock(&p->lock);
 		return res;
 	}
@@ -5736,7 +5816,8 @@ static int dahdi_hangup(struct ast_channel *ast)
 		}
 		revert_fax_buffers(p, ast);
 		dahdi_setlinear(p->subs[SUB_REAL].dfd, 0);
-		law = DAHDI_LAW_DEFAULT;
+		p->law = p->law_default;
+		law = p->law_default;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
 		dahdi_disable_ec(p);
 		update_conf(p);
@@ -5907,7 +5988,8 @@ static int dahdi_hangup(struct ast_channel *ast)
 
 		revert_fax_buffers(p, ast);
 
-		law = DAHDI_LAW_DEFAULT;
+		p->law = p->law_default;
+		law = p->law_default;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
 		if (res < 0)
 			ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n", p->channel, strerror(errno));
@@ -6464,6 +6546,22 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 		}
 		ast_mutex_unlock(&p->lock);
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+	} else if (!strcasecmp(data, "no_media_path")) {
+		ast_mutex_lock(&p->lock);
+		switch (p->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
+			/*
+			 * TRUE if the call is on hold or is call waiting because
+			 * there is no media path available.
+			 */
+			snprintf(buf, len, "%d", ((struct sig_pri_chan *) p->sig_pvt)->no_b_channel);
+			break;
+		default:
+			*buf = '\0';
+			res = -1;
+			break;
+		}
+		ast_mutex_unlock(&p->lock);
 #endif	/* defined(HAVE_PRI) */
 	} else {
 		*buf = '\0';
@@ -8871,12 +8969,10 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 {
 	struct ast_channel *tmp;
 	format_t deflaw;
-	int res;
 	int x;
 	int features;
 	struct ast_str *chan_name;
 	struct ast_variable *v;
-	struct dahdi_params ps;
 
 	if (i->subs[idx].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[idx]);
@@ -8907,21 +9003,29 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	}
 #endif	/* defined(HAVE_PRI) */
 	ast_channel_cc_params_init(tmp, i->cc_params);
-	memset(&ps, 0, sizeof(ps));
-	res = ioctl(i->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps);
-	if (res) {
-		ast_log(LOG_WARNING, "Unable to get parameters, assuming MULAW: %s\n", strerror(errno));
-		ps.curlaw = DAHDI_LAW_MULAW;
-	}
-	if (ps.curlaw == DAHDI_LAW_ALAW)
-		deflaw = AST_FORMAT_ALAW;
-	else
-		deflaw = AST_FORMAT_ULAW;
 	if (law) {
-		if (law == DAHDI_LAW_ALAW)
+		i->law = law;
+		if (law == DAHDI_LAW_ALAW) {
 			deflaw = AST_FORMAT_ALAW;
-		else
+		} else {
 			deflaw = AST_FORMAT_ULAW;
+		}
+	} else {
+		switch (i->sig) {
+		case SIG_PRI_LIB_HANDLE_CASES:
+			/* Make sure companding law is known. */
+			i->law = (i->law_default == DAHDI_LAW_ALAW)
+				? DAHDI_LAW_ALAW : DAHDI_LAW_MULAW;
+			break;
+		default:
+			i->law = i->law_default;
+			break;
+		}
+		if (i->law_default == DAHDI_LAW_ALAW) {
+			deflaw = AST_FORMAT_ALAW;
+		} else {
+			deflaw = AST_FORMAT_ULAW;
+		}
 	}
 	ast_channel_set_fd(tmp, 0, i->subs[idx].dfd);
 	tmp->nativeformats = deflaw;
@@ -11538,6 +11642,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					destroy_dahdi_pvt(tmp);
 					return NULL;
 				}
+				tmp->law_default = p.curlaw;
 				tmp->law = p.curlaw;
 				tmp->span = p.spanno;
 				span = p.spanno - 1;
@@ -11777,6 +11882,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.cc_qsig_signaling_link_rsp =
 							conf->pri.pri.cc_qsig_signaling_link_rsp;
 #endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CALL_WAITING)
+						pris[span].pri.max_call_waiting_calls =
+							conf->pri.pri.max_call_waiting_calls;
+						pris[span].pri.allow_call_waiting_calls =
+							conf->pri.pri.allow_call_waiting_calls;
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 						pris[span].pri.transfer = conf->chan.transfer;
 						pris[span].pri.facilityenable = conf->pri.pri.facilityenable;
 #if defined(HAVE_PRI_AOC_EVENTS)
@@ -11796,6 +11907,20 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						for (x = 0; x < PRI_MAX_TIMERS; x++) {
 							pris[span].pri.pritimers[x] = conf->pri.pri.pritimers[x];
 						}
+
+#if defined(HAVE_PRI_CALL_WAITING)
+						/* Channel initial config parameters. */
+						pris[span].pri.ch_cfg.stripmsd = conf->chan.stripmsd;
+						pris[span].pri.ch_cfg.hidecallerid = conf->chan.hidecallerid;
+						pris[span].pri.ch_cfg.hidecalleridname = conf->chan.hidecalleridname;
+						pris[span].pri.ch_cfg.immediate = conf->chan.immediate;
+						pris[span].pri.ch_cfg.priexclusive = conf->chan.priexclusive;
+						pris[span].pri.ch_cfg.priindication_oob = conf->chan.priindication_oob;
+						pris[span].pri.ch_cfg.use_callerid = conf->chan.use_callerid;
+						pris[span].pri.ch_cfg.use_callingpres = conf->chan.use_callingpres;
+						ast_copy_string(pris[span].pri.ch_cfg.context, conf->chan.context, sizeof(pris[span].pri.ch_cfg.context));
+						ast_copy_string(pris[span].pri.ch_cfg.mohinterpret, conf->chan.mohinterpret, sizeof(pris[span].pri.ch_cfg.mohinterpret));
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 					} else {
 						ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", p.chanpos);
 						destroy_dahdi_pvt(tmp);
@@ -12266,8 +12391,10 @@ static int is_group_or_channel_match(struct dahdi_pvt *p, int span, ast_group_t 
 	return 1;
 }
 
-static int available(struct dahdi_pvt *p)
+static int available(struct dahdi_pvt **pvt, int is_specific_channel)
 {
+	struct dahdi_pvt *p = *pvt;
+
 	if (p->inalarm)
 		return 0;
 
@@ -12277,7 +12404,15 @@ static int available(struct dahdi_pvt *p)
 #ifdef HAVE_PRI
 	switch (p->sig) {
 	case SIG_PRI_LIB_HANDLE_CASES:
-		return sig_pri_available(p->sig_pvt);
+		{
+			struct sig_pri_chan *pvt_chan;
+			int res;
+
+			pvt_chan = p->sig_pvt;
+			res = sig_pri_available(&pvt_chan, is_specific_channel);
+			*pvt = pvt_chan->chan_pvt;
+			return res;
+		}
 	default:
 		break;
 	}
@@ -12314,6 +12449,38 @@ static int available(struct dahdi_pvt *p)
 
 	return 0;
 }
+
+#if defined(HAVE_PRI)
+#if defined(HAVE_PRI_CALL_WAITING)
+/*!
+ * \internal
+ * \brief Init the private channel configuration using the span controller.
+ * \since 1.8
+ *
+ * \param priv Channel to init the configuration.
+ * \param pri sig_pri PRI control structure.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void my_pri_init_config(void *priv, struct sig_pri_pri *pri)
+{
+	struct dahdi_pvt *pvt = priv;
+
+	pvt->stripmsd = pri->ch_cfg.stripmsd;
+	pvt->hidecallerid = pri->ch_cfg.hidecallerid;
+	pvt->hidecalleridname = pri->ch_cfg.hidecalleridname;
+	pvt->immediate = pri->ch_cfg.immediate;
+	pvt->priexclusive = pri->ch_cfg.priexclusive;
+	pvt->priindication_oob = pri->ch_cfg.priindication_oob;
+	pvt->use_callerid = pri->ch_cfg.use_callerid;
+	pvt->use_callingpres = pri->ch_cfg.use_callingpres;
+	ast_copy_string(pvt->context, pri->ch_cfg.context, sizeof(pvt->context));
+	ast_copy_string(pvt->mohinterpret, pri->ch_cfg.mohinterpret, sizeof(pvt->mohinterpret));
+}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
 /*!
@@ -12381,7 +12548,15 @@ static int dahdi_new_pri_nobch_channel(struct sig_pri_pri *pri)
 	}
 	chan->no_b_channel = 1;
 
+	/*
+	 * Pseudo channel companding law.
+	 * Needed for outgoing call waiting calls.
+	 * XXX May need to make this determined by switchtype or user option.
+	 */
+	pvt->law_default = DAHDI_LAW_ALAW;
+
 	pvt->sig = pri->sig;
+	pvt->outsigmod = -1;
 	pvt->pri = pri;
 	pvt->sig_pvt = chan;
 	pri->pvts[pvt_idx] = chan;
@@ -12577,13 +12752,18 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 			} else
 				p = iflist;
 		} else {
+			if (ARRAY_LEN(round_robin) <= x) {
+				ast_log(LOG_WARNING, "Round robin index %d out of range for data %s\n",
+					x, data);
+				return NULL;
+			}
 			if (args.group[0] == 'R') {
 				param->backwards = 1;
-				p = round_robin[x]?round_robin[x]->prev:ifend;
+				p = round_robin[x] ? round_robin[x]->prev : ifend;
 				if (!p)
 					p = ifend;
 			} else {
-				p = round_robin[x]?round_robin[x]->next:iflist;
+				p = round_robin[x] ? round_robin[x]->next : iflist;
 				if (!p)
 					p = iflist;
 			}
@@ -12643,7 +12823,7 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 			round_robin[start.rr_starting_point] = p;
 
 		if (is_group_or_channel_match(p, start.span, start.groupmatch, &groupmatched, start.channelmatch, &channelmatched)
-			&& available(p)) {
+			&& available(&p, channelmatched)) {
 			ast_debug(1, "Using channel %d\n", p->channel);
 
 			callwait = (p->owner != NULL);
@@ -12702,6 +12882,20 @@ static struct ast_channel *dahdi_request(const char *type, format_t format, cons
 			}
 			if (!tmp) {
 				p->outgoing = 0;
+#if defined(HAVE_PRI)
+#if defined(HAVE_PRI_CALL_WAITING)
+				switch (p->sig) {
+				case SIG_PRI_LIB_HANDLE_CASES:
+					if (((struct sig_pri_chan *) p->sig_pvt)->is_call_waiting) {
+						((struct sig_pri_chan *) p->sig_pvt)->is_call_waiting = 0;
+						ast_atomic_fetchadd_int(&p->pri->num_call_waiting_calls, -1);
+					}
+					break;
+				default:
+					break;
+				}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#endif	/* defined(HAVE_PRI) */
 			} else {
 				snprintf(p->dialstring, sizeof(p->dialstring), "DAHDI/%s", (char *) data);
 			}
@@ -15090,7 +15284,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, "TDD: %s\n", tmp->tdd ? "yes" : "no");
 			ast_cli(a->fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
 			ast_cli(a->fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);
-			ast_cli(a->fd, "Default law: %s\n", tmp->law == DAHDI_LAW_MULAW ? "ulaw" : tmp->law == DAHDI_LAW_ALAW ? "alaw" : "unknown");
+			ast_cli(a->fd, "Default law: %s\n", tmp->law_default == DAHDI_LAW_MULAW ? "ulaw" : tmp->law_default == DAHDI_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(a->fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(a->fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
 			ast_cli(a->fd, "Gains (RX/TX): %.2f/%.2f\n", tmp->rxgain, tmp->txgain);
@@ -17246,6 +17440,16 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					confp->pri.pri.cc_qsig_signaling_link_rsp = 1;/* retain */
 				}
 #endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_CALL_WAITING)
+			} else if (!strcasecmp(v->name, "max_call_waiting_calls")) {
+				confp->pri.pri.max_call_waiting_calls = atoi(v->value);
+				if (confp->pri.pri.max_call_waiting_calls < 0) {
+					/* Negative values are not allowed. */
+					confp->pri.pri.max_call_waiting_calls = 0;
+				}
+			} else if (!strcasecmp(v->name, "allow_call_waiting_calls")) {
+				confp->pri.pri.allow_call_waiting_calls = ast_true(v->value);
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 #endif /* HAVE_PRI */
 #ifdef HAVE_SS7
 			} else if (!strcasecmp(v->name, "ss7type")) {
