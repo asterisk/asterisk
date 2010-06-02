@@ -47,4 +47,3 @@ Makefile.ast:
 	@if [ -r $@ ] && cmp -s $@ $@.tmp; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
 
 clean::
-	rm -f $(TARGET) $(OBJS) Makefile.ast *.dep
