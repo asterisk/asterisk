@@ -3208,6 +3208,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				}
 				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
 				break;
+			case AST_CONTROL_AOC:
 			case AST_CONTROL_HOLD:
 			case AST_CONTROL_UNHOLD:
 				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);

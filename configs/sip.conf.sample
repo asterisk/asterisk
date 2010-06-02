@@ -886,6 +886,12 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; destinations which do not have a prior
                                 ; account relationship with your server.
 
+;------------------------------ Advice of Charge CONFIGURATION --------------------------
+; snom_aoc_enabled = yes;     ; This options turns on and off support for sending AOC-D and
+                              ; AOC-E to snom endpoints.  This option can be used both in the
+                              ; peer and global scope.  The default for this option is off.
+
+
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                               ; SIP channel. Defaults to "no". An enabled jitterbuffer will

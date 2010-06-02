@@ -3796,6 +3796,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case _XXX_AST_CONTROL_T38:
 	case AST_CONTROL_CC:
 	case AST_CONTROL_READ_ACTION:
+	case AST_CONTROL_AOC:
 		break;
 
 	case AST_CONTROL_CONGESTION:
@@ -3941,6 +3942,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_REDIRECTING:
 	case AST_CONTROL_CC:
 	case AST_CONTROL_READ_ACTION:
+	case AST_CONTROL_AOC:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
@@ -6003,6 +6005,9 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			int bridge_exit = 0;
 
 			switch (f->subclass.integer) {
+			case AST_CONTROL_AOC:
+				ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);
+				break;
 			case AST_CONTROL_REDIRECTING:
 				if (ast_channel_redirecting_macro(who, other, f, other == c0, 1)) {
 					ast_indicate_data(other, f->subclass.integer, f->data.ptr, f->datalen);

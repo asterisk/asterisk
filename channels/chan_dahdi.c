@@ -11779,6 +11779,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #endif	/* defined(HAVE_PRI_CCSS) */
 						pris[span].pri.transfer = conf->chan.transfer;
 						pris[span].pri.facilityenable = conf->pri.pri.facilityenable;
+#if defined(HAVE_PRI_AOC_EVENTS)
+						pris[span].pri.aoc_passthrough_flag = conf->pri.pri.aoc_passthrough_flag;
+						pris[span].pri.aoce_delayhangup = conf->pri.pri.aoce_delayhangup;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 						ast_copy_string(pris[span].pri.msn_list, conf->pri.pri.msn_list, sizeof(pris[span].pri.msn_list));
 						ast_copy_string(pris[span].pri.idledial, conf->pri.pri.idledial, sizeof(pris[span].pri.idledial));
 						ast_copy_string(pris[span].pri.idleext, conf->pri.pri.idleext, sizeof(pris[span].pri.idleext));
@@ -17195,6 +17199,21 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif /* PRI_GETSET_TIMERS */
 			} else if (!strcasecmp(v->name, "facilityenable")) {
 				confp->pri.pri.facilityenable = ast_true(v->value);
+#if defined(HAVE_PRI_AOC_EVENTS)
+			} else if (!strcasecmp(v->name, "aoc_enable")) {
+				confp->pri.pri.aoc_passthrough_flag = 0;
+				if (strchr(v->value, 's') || strchr(v->value, 'S')) {
+					confp->pri.pri.aoc_passthrough_flag |= SIG_PRI_AOC_GRANT_S;
+				}
+				if (strchr(v->value, 'd') || strchr(v->value, 'D')) {
+					confp->pri.pri.aoc_passthrough_flag |= SIG_PRI_AOC_GRANT_D;
+				}
+				if (strchr(v->value, 'e') || strchr(v->value, 'E')) {
+					confp->pri.pri.aoc_passthrough_flag |= SIG_PRI_AOC_GRANT_E;
+				}
+			} else if (!strcasecmp(v->name, "aoce_delayhangup")) {
+				confp->pri.pri.aoce_delayhangup = ast_true(v->value);
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 #if defined(HAVE_PRI_CALL_HOLD)
 			} else if (!strcasecmp(v->name, "hold_disconnect_transfer")) {
 				confp->pri.pri.hold_disconnect_transfer = ast_true(v->value);

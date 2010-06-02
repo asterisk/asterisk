@@ -1,0 +1,180 @@
+================
+Advice of Charge
+================
+
+Written by: David Vossel
+Initial version: 04-19-2010
+
+This document is designed to give an overview of how to configure and
+generate Advice of Charge along with a detailed explanation of how each
+option works.
+
+--------------------------------------
+|           Terminology              |
+--------------------------------------
+AOC: Advice of Charge
+
+AOC-S: Advice of Charge message sent at the beginning of a call during
+call setup.  This message contains a list of rates associated with the
+call.
+
+AOC-D: Advice of Charge message sent during the call.  This message
+is typically used to update the endpoint with the current call charge.
+
+AOC-E: Advice of Charge message sent at the end of a call.  This
+message is used to indicate to the endpoint the final call charge.
+
+AMI: Asterisk Manager Interface.  This interface is used to generate
+AOC messages and listen for AOC events.
+
+--------------------------------------
+|           AOC in chan_dahdi        |
+--------------------------------------
+----- LibPRI Support:
+ETSI, or euroisdn, is the only switchtype that LibPRI currently supports
+for AOC.
+
+----- Enable AOC Pass-through in chan_dahdi
+To enable AOC pass-through between the ISDN and Asterisk use the
+'aoc_enable' config option.  This option allows for any combination
+of AOC-S, AOC-D, and AOC-E to be enabled or disabled.
+
+For example:
+aoc_enable=s,d,e ; enables pass-through of AOC-S, AOC-D, and AOC-E
+
+aoc_enable=s,d   ; enables pass-through of AOC-S and AOC-D. Rejects
+                 ; AOC-E and AOC-E request messages
+
+Since AOC messages are often transported on facility messages, the
+'facilityenable' option must be enabled as well to fully support AOC
+pass-through.
+
+----- Handling AOC-E in chan_dahdi
+Whenever a dahdi channel receives an AOC-E message from Asterisk, it
+stores that message to deliver it at the appropriate time during call
+termination. This means that if two AOC-E messages are received on the
+same call, the last one will override the first one and only one AOC-E
+message will be sent during call termination.
+
+There are some tricky situations involving the final AOC-E message. During
+a bridged call, if the endpoint receiving the AOC messages terminates
+the call before the endpoint delivering the AOC does, the final AOC-E
+message sent by the sending side during termination will never make it to
+the receiving end because Asterisk will have already torn down that channel.
+This is where the chan_dahdi.conf 'aoce_delayhangup' option comes into play.
+
+By enabling 'aoce_delayhangup', anytime a hangup is initiated by the
+ISDN side of an Asterisk channel, instead of hanging up the channel,
+the channel sends a unique internal AOC-E termination request to its bridge
+channel. This indicates it is about to hangup and wishes to receive the
+final AOC-E message from the bridged channel before completely tearing
+down.  If the bridged channel knows what to do with this AOC-E termination
+request, it will do whatever is necessary to indicate to its endpoint that
+the call is being terminated without actually hanging up the Asterisk channel.
+This allows the final AOC-E message to come in and be sent across the bridge
+while both channels are still up.  If the channel delaying its hangup for
+the final AOC-E message times out, the call will be torn down just as it
+normally would.  In chan_dahdi the timeout period is 1/2 the T305 timer
+which by default is 15 seconds.
+
+'aoce_delayhangup' currently only works when both bridged channels are
+dahdi_channels. If a SIP channel receives an AOC-E termination request, it
+just responds by immediately hanging up the channel.  Using this option when
+bridged to any channel technology besides SIP or DAHDI will result in the
+15 second timeout period before tearing down the call completely.
+
+----- Requesting AOC services
+AOC can be requested on a call by call basis using the DAHDI dialstring
+option, A(). The A() option takes in 's', 'd', and 'e' parameters which
+represent the three types of AOC messages, AOC-S, AOC-D, and AOC-E.  By using
+this option Asterisk will indicate to the endpoint during call setup that it
+wishes to receive the specified forms of AOC during the call.
+
+Example Usage in extensions.conf
+exten => 1111,1,Dial(DAHDI/g1/1112/A(s,d,e) ; requests AOC-S, AOC-D, and AOC-E on
+                                          ; call setup
+exten => 1111,1,Dial(DAHDI/g1/1112/A(d,e)  ; requests only AOC-D, and AOC-E on
+                                          ; call setup
+
+--------------------------------------
+|          AOC in chan_sip           |
+--------------------------------------
+Asterisk supports a very basic way of sending AOC on a SIP channel to Snom
+phones using an AOC specification designed by Snom.  This support is limited
+to the sending of AOC-D and AOC-E pass-through messages.  No support for
+AOC-E on call termination is present, so if the Snom endpoint receiving the
+AOC messages from Asterisk terminates the call, the channel will be torn
+down before the phone can receive the final AOC-E message.
+
+To enable passthrough of AOC messages via the snom specification, use
+the 'snom_aoc_enabled' option in sip.conf.
+
+--------------------------------------
+|   Generate AOC Messages via AMI    |
+--------------------------------------
+Asterisk supports a way to generate AOC messages on a channel via
+the AMI action AOCMessage.  At the moment the AOCMessage action is limited
+to AOC-D and AOC-E message generation.  There are some limitations
+involved with delivering the final AOC-E message as well. The AOCMessage
+action has its own detailed parameter documentation so this discussion will
+focus on higher level use.  When generating AOC messages on a Dahdi channel
+first make sure the appropriate chan_dahdi.conf options are enabled.  Without
+enabling 'aoc_enable' correctly for pass-through the AOC messages will never
+make it out the pri.  The same goes with SIP, the 'snom_aoc_enabled' option
+must be configured before messages can successfully be set to the endpoint.
+
+----- AOC-D Message Generation
+AOC-D message generation can happen anytime throughout the call.  This
+message type is very straight forward.
+
+Example: AOCMessage action generating AOC-D currency message with Success
+response.
+
+Action: AOCMessage
+Channel: DAHDI/i1/1111-1
+MsgType: d
+ChargeType: Currency
+CurrencyAmount: 16
+CurrencyName: USD
+CurrencyMultiplier: OneThousandth
+AOCBillingId: Normal
+ActionID: 1234
+
+Response: Success
+ActionID: 1234
+Message: AOC Message successfully queued on channel
+
+----- AOC-E Message Generation
+AOC-E messages are sent during call termination and represent the final charge
+total for the call.  Since Asterisk call termination results in the channel
+being destroyed, it is currently not possible for the AOCMessage AMI action to
+be used to send the final AOC-E message on call hangup.  There is however a
+work around for this issue that can be used for Dahdi channels.  By default
+chan_dahdi saves any AOC-E message it receives from Asterisk during a call and
+waits to deliver that message during call termination. If multiple AOC-E messages
+are received from Asterisk on the same Dahdi channel, only the last message received
+is stored for delivery.  This means that each new AOC-E message received on the
+channel overrides the previous one.  Knowing this the final AOC-E message can be
+continually updated on a Dahdi channel until call termination occurs allowing
+the last update to be sent on hangup.  This method is only as accurate as the
+intervals in which it is updated, but allows some form of AOC-E to be generated.
+
+Example: AOCMessage action generating AOC-E unit message with Success response.
+
+Action: AOCMessage
+Channel: DAHDI/i1/1111-1
+MsgType: e
+ChargeType: Unit
+UnitAmount(0): 111
+UnitType(0): 6
+UnitAmount(1): 222
+UnitType(1): 5
+UnitAmount(2): 333
+UnitType(3): 4
+UnitAmount(4): 444
+AOCBillingId: Normal
+ActionID: 1234
+
+Response: Success
+ActionID: 1234
+Message: AOC Message successfully queued on channel

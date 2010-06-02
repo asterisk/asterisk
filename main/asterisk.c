@@ -142,6 +142,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/poll-compat.h"
 #include "asterisk/ccss.h"
 #include "asterisk/test.h"
+#include "asterisk/aoc.h"
 
 #include "../defaults.h"
 
@@ -3601,6 +3602,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 #endif
+
+	ast_aoc_cli_init();
 
 	ast_makesocket();
 	sigemptyset(&sigs);

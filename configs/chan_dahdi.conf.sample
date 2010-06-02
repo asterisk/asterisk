@@ -289,6 +289,24 @@
 ;
 ;facilityenable = yes
 ;
+
+; This option enables Advice of Charge pass-through between the ISDN PRI and
+; Asterisk.  This option can be set to any combination of 's', 'd', and 'e' which
+; represent the different variants of Advice of Charge, AOC-S, AOC-D, and AOC-E.
+; Advice of Charge pass-through is currently only supported for ETSI.  Since most
+; AOC messages are sent on facility messages, the 'facilityenable' option must
+; also be enabled to fully support AOC pass-through.
+;
+;aoc_enable=s,d,e
+;
+; When this option is enabled, a hangup initiated by the ISDN PRI side of the
+; asterisk channel will result in the channel delaying its hangup in an
+; attempt to receive the final AOC-E message from its bridge.  The delay
+; period is configured as one half the T305 timer length. If the channel
+; is not bridged the hangup will occur immediatly without delay.
+;
+;aoce_delayhangup=yes
+
 ; pritimer cannot be changed on a reload.
 ;
 ; Signalling method. The default is "auto". Valid values:

@@ -31,6 +31,10 @@
 #include <libpri.h>
 #include <dahdi/user.h>
 
+#define SIG_PRI_AOC_GRANT_S    (1 << 0)
+#define SIG_PRI_AOC_GRANT_D    (1 << 1)
+#define SIG_PRI_AOC_GRANT_E    (1 << 2)
+
 #if defined(HAVE_PRI_CCSS)
 /*! PRI debug message flags when normal PRI debugging is turned on at the command line. */
 #define SIG_PRI_DEBUG_NORMAL	\
@@ -192,6 +196,13 @@ struct sig_pri_chan {
 	char keypad_digits[AST_MAX_EXTENSION];
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
+#if defined(HAVE_PRI_AOC_EVENTS)
+	struct pri_subcmd_aoc_e aoc_e;
+	int aoc_s_request_invoke_id;     /*!< If an AOC-S request was present for the call, this is the invoke_id to use for the response */
+	unsigned int aoc_s_request_invoke_id_valid:1; /*!< This is set when the AOC-S invoke id is present */
+	unsigned int waiting_for_aoce:1; /*!< Delaying hangup for AOC-E msg. If this is set and AOC-E is recieved, continue with hangup before timeout period. */
+	unsigned int holding_aoce:1;     /*!< received AOC-E msg from asterisk. holding for disconnect/release */
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 	unsigned int inalarm:1;
 	unsigned int alerting:1;		/*!< TRUE if channel is alerting/ringing */
 	unsigned int alreadyhungup:1;	/*!< TRUE if the call has already gone/hungup */
@@ -243,6 +254,12 @@ struct sig_pri_pri {
 	int facilityenable;								/*!< Enable facility IEs */
 	int dchan_logical_span[SIG_PRI_NUM_DCHANS];		/*!< Logical offset the DCHAN sits in */
 	int fds[SIG_PRI_NUM_DCHANS];					/*!< FD's for d-channels */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+	int aoc_passthrough_flag;          /*!< Represents what AOC messages (S,D,E) are allowed to pass-through */
+	int aoce_delayhangup:1;            /*!< defines whether the aoce_delayhangup option is enabled or not */
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 	unsigned int enable_service_message_support:1;	/*!< enable SERVICE message support */
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */

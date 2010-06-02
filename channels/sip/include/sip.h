@@ -354,6 +354,12 @@
 	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP |\
 	SIP_PAGE2_Q850_REASON | SIP_PAGE2_HAVEPEERCONTEXT)
 
+
+#define SIP_PAGE3_SNOM_AOC               (1 << 0)  /*!< DPG: Allow snom aoc messages */
+
+#define SIP_PAGE3_FLAGS_TO_COPY \
+	(SIP_PAGE3_SNOM_AOC)
+
 /*@}*/
 
 /*----------------------------------------------------------*/
@@ -943,7 +949,7 @@ struct sip_pvt {
 	ast_group_t callgroup;                  /*!< Call group */
 	ast_group_t pickupgroup;                /*!< Pickup group */
 	int lastinvite;                         /*!< Last Cseq of invite */
-	struct ast_flags flags[2];              /*!< SIP_ flags */
+	struct ast_flags flags[3];              /*!< SIP_ flags */
 
 	/* boolean flags that don't belong in flags */
 	unsigned short do_history:1;          /*!< Set if we want to record history */
@@ -1172,7 +1178,7 @@ struct sip_peer {
 	struct ast_codec_pref prefs;    /*!<  codec prefs */
 	int lastmsgssent;
 	unsigned int sipoptions;        /*!<  Supported SIP options */
-	struct ast_flags flags[2];      /*!<  SIP_ flags */
+	struct ast_flags flags[3];      /*!<  SIP_ flags */
 
 	/*! Mailboxes that this peer cares about */
 	AST_LIST_HEAD_NOLOCK(, sip_mailbox) mailboxes;

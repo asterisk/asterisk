@@ -327,6 +327,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_CC = 25, /*!< Indication that Call completion service is possible */
 	AST_CONTROL_SRCCHANGE = 26,  /*!< Media source has changed and requires a new RTP SSRC */
 	AST_CONTROL_READ_ACTION = 27, /*!< Tell ast_read to take a specific action */
+	AST_CONTROL_AOC = 28,           /*!< Advice of Charge with encoded generic AOC payload */
 };
 
 enum ast_frame_read_action {

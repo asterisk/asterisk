@@ -46,6 +46,7 @@
 #include "asterisk/cli.h"
 #include "asterisk/transcap.h"
 #include "asterisk/features.h"
+#include "asterisk/aoc.h"
 
 #include "sig_pri.h"
 #ifndef PRI_EVENT_FACILITY
@@ -1086,6 +1087,18 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 		new_chan->setup_ack = old_chan->setup_ack;
 		new_chan->outgoing = old_chan->outgoing;
 		new_chan->digital = old_chan->digital;
+#if defined(HAVE_PRI_AOC_EVENTS)
+		new_chan->aoc_s_request_invoke_id = old_chan->aoc_s_request_invoke_id;
+		new_chan->aoc_s_request_invoke_id_valid = old_chan->aoc_s_request_invoke_id_valid;
+		new_chan->holding_aoce = old_chan->holding_aoce;
+		new_chan->waiting_for_aoce = old_chan->waiting_for_aoce;
+		new_chan->aoc_e = old_chan->aoc_e;
+
+		old_chan->holding_aoce = 0;
+		old_chan->aoc_s_request_invoke_id_valid = 0;
+		old_chan->waiting_for_aoce = 0;
+		memset(&old_chan->aoc_e, 0, sizeof(&old_chan->aoc_e));
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		old_chan->alerting = 0;
 		old_chan->alreadyhungup = 0;
 		old_chan->isidlecall = 0;
@@ -2057,645 +2070,934 @@ static void sig_pri_cc_link_canceled(struct sig_pri_pri *pri, long cc_id, int is
 #if defined(HAVE_PRI_AOC_EVENTS)
 /*!
  * \internal
- * \brief Convert PRI_AOC_CHARGED_ITEM to string.
+ * \brief Convert ast_aoc_charged_item to PRI_AOC_CHARGED_ITEM .
  * \since 1.8
  *
  * \param value Value to convert to string.
  *
- * \return String equivalent.
+ * \return PRI_AOC_CHARGED_ITEM
  */
-static const char *sig_pri_aoc_charged_item_str(enum PRI_AOC_CHARGED_ITEM value)
+static enum PRI_AOC_CHARGED_ITEM sig_pri_aoc_charged_item_to_pri(enum PRI_AOC_CHARGED_ITEM value)
 {
-	const char *str;
-
 	switch (value) {
-	default:
+	case AST_AOC_CHARGED_ITEM_NA:
+		return PRI_AOC_CHARGED_ITEM_NOT_AVAILABLE;
+	case AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT:
+		return PRI_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT;
+	case AST_AOC_CHARGED_ITEM_BASIC_COMMUNICATION:
+		return PRI_AOC_CHARGED_ITEM_BASIC_COMMUNICATION;
+	case AST_AOC_CHARGED_ITEM_CALL_ATTEMPT:
+		return PRI_AOC_CHARGED_ITEM_CALL_ATTEMPT;
+	case AST_AOC_CHARGED_ITEM_CALL_SETUP:
+		return PRI_AOC_CHARGED_ITEM_CALL_SETUP;
+	case AST_AOC_CHARGED_ITEM_USER_USER_INFO:
+		return PRI_AOC_CHARGED_ITEM_USER_USER_INFO;
+	case AST_AOC_CHARGED_ITEM_SUPPLEMENTARY_SERVICE:
+		return PRI_AOC_CHARGED_ITEM_SUPPLEMENTARY_SERVICE;
+	}
+	return PRI_AOC_CHARGED_ITEM_NOT_AVAILABLE;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_CHARGED_ITEM to ast_aoc_charged_item.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return ast_aoc_charged_item
+ */
+static enum ast_aoc_s_charged_item sig_pri_aoc_charged_item_to_ast(enum PRI_AOC_CHARGED_ITEM value)
+{
+	switch (value) {
 	case PRI_AOC_CHARGED_ITEM_NOT_AVAILABLE:
-		str = "NotAvailable";
-		break;
+		return AST_AOC_CHARGED_ITEM_NA;
 	case PRI_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT:
-		str = "SpecialArrangement";
-		break;
+		return AST_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT;
 	case PRI_AOC_CHARGED_ITEM_BASIC_COMMUNICATION:
-		str = "BasicCommunication";
-		break;
+		return AST_AOC_CHARGED_ITEM_BASIC_COMMUNICATION;
 	case PRI_AOC_CHARGED_ITEM_CALL_ATTEMPT:
-		str = "CallAttempt";
-		break;
+		return AST_AOC_CHARGED_ITEM_CALL_ATTEMPT;
 	case PRI_AOC_CHARGED_ITEM_CALL_SETUP:
-		str = "CallSetup";
-		break;
+		return AST_AOC_CHARGED_ITEM_CALL_SETUP;
 	case PRI_AOC_CHARGED_ITEM_USER_USER_INFO:
-		str = "UserUserInfo";
-		break;
+		return AST_AOC_CHARGED_ITEM_USER_USER_INFO;
 	case PRI_AOC_CHARGED_ITEM_SUPPLEMENTARY_SERVICE:
-		str = "SupplementaryService";
-		break;
+		return AST_AOC_CHARGED_ITEM_SUPPLEMENTARY_SERVICE;
 	}
-	return str;
+	return AST_AOC_CHARGED_ITEM_NA;
 }
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 /*!
  * \internal
- * \brief Convert PRI_AOC_RATE_TYPE to string.
+ * \brief Convert AST_AOC_MULTIPLER to PRI_AOC_MULTIPLIER.
  * \since 1.8
  *
- * \param value Value to convert to string.
- *
- * \return String equivalent.
+ * \return pri enum equivalent.
  */
-static const char *sig_pri_aoc_rate_type_str(enum PRI_AOC_RATE_TYPE value)
+static int sig_pri_aoc_multiplier_from_ast(enum ast_aoc_currency_multiplier mult)
 {
-	const char *str;
-
-	switch (value) {
+	switch (mult) {
+	case AST_AOC_MULT_ONETHOUSANDTH:
+		return PRI_AOC_MULTIPLIER_THOUSANDTH;
+	case AST_AOC_MULT_ONEHUNDREDTH:
+		return PRI_AOC_MULTIPLIER_HUNDREDTH;
+	case AST_AOC_MULT_ONETENTH:
+		return PRI_AOC_MULTIPLIER_TENTH;
+	case AST_AOC_MULT_ONE:
+		return PRI_AOC_MULTIPLIER_ONE;
+	case AST_AOC_MULT_TEN:
+		return PRI_AOC_MULTIPLIER_TEN;
+	case AST_AOC_MULT_HUNDRED:
+		return PRI_AOC_MULTIPLIER_HUNDRED;
+	case AST_AOC_MULT_THOUSAND:
+		return PRI_AOC_MULTIPLIER_THOUSAND;
 	default:
-	case PRI_AOC_RATE_TYPE_NOT_AVAILABLE:
-		str = "NotAvailable";
-		break;
-	case PRI_AOC_RATE_TYPE_FREE:
-		str = "Free";
-		break;
-	case PRI_AOC_RATE_TYPE_FREE_FROM_BEGINNING:
-		str = "FreeFromBeginning";
-		break;
-	case PRI_AOC_RATE_TYPE_DURATION:
-		str = "Duration";
-		break;
-	case PRI_AOC_RATE_TYPE_FLAT:
-		str = "Flat";
-		break;
-	case PRI_AOC_RATE_TYPE_VOLUME:
-		str = "Volume";
-		break;
-	case PRI_AOC_RATE_TYPE_SPECIAL_CODE:
-		str = "SpecialCode";
-		break;
+		return PRI_AOC_MULTIPLIER_ONE;
 	}
-	return str;
 }
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 /*!
  * \internal
- * \brief Convert PRI_AOC_VOLUME_UNIT to string.
+ * \brief Convert PRI_AOC_MULTIPLIER to AST_AOC_MULTIPLIER
  * \since 1.8
  *
- * \param value Value to convert to string.
- *
- * \return String equivalent.
+ * \return ast enum equivalent.
  */
-static const char *sig_pri_aoc_volume_unit_str(enum PRI_AOC_VOLUME_UNIT value)
+static int sig_pri_aoc_multiplier_from_pri(const int mult)
 {
-	const char *str;
-
-	switch (value) {
-	default:
-	case PRI_AOC_VOLUME_UNIT_OCTET:
-		str = "Octet";
-		break;
-	case PRI_AOC_VOLUME_UNIT_SEGMENT:
-		str = "Segment";
-		break;
-	case PRI_AOC_VOLUME_UNIT_MESSAGE:
-		str = "Message";
-		break;
-	}
-	return str;
-}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
-#if defined(HAVE_PRI_AOC_EVENTS)
-/*!
- * \internal
- * \brief Convert PRI_AOC_MULTIPLIER to string.
- * \since 1.8
- *
- * \param value Value to convert to string.
- *
- * \return String equivalent.
- */
-static const char *sig_pri_aoc_multiplier_str(enum PRI_AOC_MULTIPLIER value)
-{
-	const char *str;
-
-	switch (value) {
-	default:
+	switch (mult) {
 	case PRI_AOC_MULTIPLIER_THOUSANDTH:
-		str = "1/1000";
-		break;
+		return AST_AOC_MULT_ONETHOUSANDTH;
 	case PRI_AOC_MULTIPLIER_HUNDREDTH:
-		str = "1/100";
-		break;
+		return AST_AOC_MULT_ONEHUNDREDTH;
 	case PRI_AOC_MULTIPLIER_TENTH:
-		str = "1/10";
-		break;
+		return AST_AOC_MULT_ONETENTH;
 	case PRI_AOC_MULTIPLIER_ONE:
-		str = "1";
-		break;
+		return AST_AOC_MULT_ONE;
 	case PRI_AOC_MULTIPLIER_TEN:
-		str = "10";
-		break;
+		return AST_AOC_MULT_TEN;
 	case PRI_AOC_MULTIPLIER_HUNDRED:
-		str = "100";
-		break;
+		return AST_AOC_MULT_HUNDRED;
 	case PRI_AOC_MULTIPLIER_THOUSAND:
-		str = "1000";
-		break;
+		return AST_AOC_MULT_THOUSAND;
+	default:
+		return AST_AOC_MULT_ONE;
 	}
-	return str;
 }
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 /*!
  * \internal
- * \brief Convert PRI_AOC_TIME_SCALE to string.
+ * \brief Convert ast_aoc_time_scale representation to PRI_AOC_TIME_SCALE
  * \since 1.8
  *
- * \param value Value to convert to string.
+ * \param value Value to convert to ast representation
  *
- * \return String equivalent.
+ * \return PRI_AOC_TIME_SCALE
  */
-static const char *sig_pri_aoc_scale_str(enum PRI_AOC_TIME_SCALE value)
+static enum PRI_AOC_TIME_SCALE sig_pri_aoc_scale_to_pri(enum ast_aoc_time_scale value)
 {
-	const char *str;
+	switch (value) {
+	default:
+	case AST_AOC_TIME_SCALE_HUNDREDTH_SECOND:
+		return PRI_AOC_TIME_SCALE_HUNDREDTH_SECOND;
+	case AST_AOC_TIME_SCALE_TENTH_SECOND:
+		return PRI_AOC_TIME_SCALE_TENTH_SECOND;
+	case AST_AOC_TIME_SCALE_SECOND:
+		return PRI_AOC_TIME_SCALE_SECOND;
+	case AST_AOC_TIME_SCALE_TEN_SECOND:
+		return PRI_AOC_TIME_SCALE_TEN_SECOND;
+	case AST_AOC_TIME_SCALE_MINUTE:
+		return PRI_AOC_TIME_SCALE_MINUTE;
+	case AST_AOC_TIME_SCALE_HOUR:
+		return PRI_AOC_TIME_SCALE_HOUR;
+	case AST_AOC_TIME_SCALE_DAY:
+		return PRI_AOC_TIME_SCALE_DAY;
+	}
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_TIME_SCALE to ast aoc representation
+ * \since 1.8
+ *
+ * \param value Value to convert to ast representation
+ *
+ * \return ast aoc time scale
+ */
+static enum ast_aoc_time_scale sig_pri_aoc_scale_to_ast(enum PRI_AOC_TIME_SCALE value)
+{
 	switch (value) {
 	default:
 	case PRI_AOC_TIME_SCALE_HUNDREDTH_SECOND:
-		str = "OneHundredthSecond";
-		break;
+		return AST_AOC_TIME_SCALE_HUNDREDTH_SECOND;
 	case PRI_AOC_TIME_SCALE_TENTH_SECOND:
-		str = "OneTenthSecond";
-		break;
+		return AST_AOC_TIME_SCALE_TENTH_SECOND;
 	case PRI_AOC_TIME_SCALE_SECOND:
-		str = "Second";
-		break;
+		return AST_AOC_TIME_SCALE_SECOND;
 	case PRI_AOC_TIME_SCALE_TEN_SECOND:
-		str = "TenSeconds";
-		break;
+		return AST_AOC_TIME_SCALE_TEN_SECOND;
 	case PRI_AOC_TIME_SCALE_MINUTE:
-		str = "Minute";
-		break;
+		return AST_AOC_TIME_SCALE_MINUTE;
 	case PRI_AOC_TIME_SCALE_HOUR:
-		str = "Hour";
-		break;
+		return AST_AOC_TIME_SCALE_HOUR;
 	case PRI_AOC_TIME_SCALE_DAY:
-		str = "Day";
-		break;
+		return AST_AOC_TIME_SCALE_DAY;
 	}
-	return str;
+	return AST_AOC_TIME_SCALE_HUNDREDTH_SECOND;
 }
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 /*!
  * \internal
- * \brief Convert PRI_AOC_DE_CHARGE to string.
- * \since 1.8
- *
- * \param value Value to convert to string.
- *
- * \return String equivalent.
- */
-static const char *sig_pri_aoc_de_charge_str(enum PRI_AOC_DE_CHARGE value)
-{
-	const char *str;
-
-	switch (value) {
-	default:
-	case PRI_AOC_DE_CHARGE_NOT_AVAILABLE:
-		str = "NotAvailable";
-		break;
-	case PRI_AOC_DE_CHARGE_FREE:
-		str = "Free";
-		break;
-	case PRI_AOC_DE_CHARGE_CURRENCY:
-		str = "Currency";
-		break;
-	case PRI_AOC_DE_CHARGE_UNITS:
-		str = "Units";
-		break;
-	}
-	return str;
-}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
-#if defined(HAVE_PRI_AOC_EVENTS)
-/*!
- * \internal
- * \brief Convert PRI_AOC_D_BILLING_ID to string.
- * \since 1.8
- *
- * \param value Value to convert to string.
- *
- * \return String equivalent.
- */
-static const char *sig_pri_aoc_d_billing_id_str(enum PRI_AOC_D_BILLING_ID value)
-{
-	const char *str;
-
-	switch (value) {
-	default:
-	case PRI_AOC_D_BILLING_ID_NOT_AVAILABLE:
-		str = "NotAvailable";
-		break;
-	case PRI_AOC_D_BILLING_ID_NORMAL:
-		str = "Normal";
-		break;
-	case PRI_AOC_D_BILLING_ID_REVERSE:
-		str = "Reverse";
-		break;
-	case PRI_AOC_D_BILLING_ID_CREDIT_CARD:
-		str = "CreditCard";
-		break;
-	}
-	return str;
-}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
-#if defined(HAVE_PRI_AOC_EVENTS)
-/*!
- * \internal
- * \brief Convert PRI_AOC_E_BILLING_ID to string.
- * \since 1.8
- *
- * \param value Value to convert to string.
- *
- * \return String equivalent.
- */
-static const char *sig_pri_aoc_e_billing_id_str(enum PRI_AOC_E_BILLING_ID value)
-{
-	const char *str;
-
-	switch (value) {
-	default:
-	case PRI_AOC_E_BILLING_ID_NOT_AVAILABLE:
-		str = "NotAvailable";
-		break;
-	case PRI_AOC_E_BILLING_ID_NORMAL:
-		str = "Normal";
-		break;
-	case PRI_AOC_E_BILLING_ID_REVERSE:
-		str = "Reverse";
-		break;
-	case PRI_AOC_E_BILLING_ID_CREDIT_CARD:
-		str = "CreditCard";
-		break;
-	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_UNCONDITIONAL:
-		str = "CallForwardingUnconditional";
-		break;
-	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_BUSY:
-		str = "CallForwardingBusy";
-		break;
-	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_NO_REPLY:
-		str = "CallForwardingNoReply";
-		break;
-	case PRI_AOC_E_BILLING_ID_CALL_DEFLECTION:
-		str = "CallDeflection";
-		break;
-	case PRI_AOC_E_BILLING_ID_CALL_TRANSFER:
-		str = "CallTransfer";
-		break;
-	}
-	return str;
-}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
-#if defined(HAVE_PRI_AOC_EVENTS)
-/*!
- * \internal
- * \brief Append the amount structure to the event message string.
- * \since 1.8
- *
- * \param msg Event message string being built.
- * \param prefix Prefix to add to the amount lines.
- * \param amount Data to convert.
- *
- * \return Nothing
- */
-static void sig_pri_aoc_amount(struct ast_str **msg, const char *prefix, const struct pri_aoc_amount *amount)
-{
-	static const char name[] = "Amount";
-
-	ast_str_append(msg, 0, "%s/%s/Cost: %ld\r\n", prefix, name, amount->cost);
-	ast_str_append(msg, 0, "%s/%s/Multiplier: %s\r\n", prefix, name,
-		sig_pri_aoc_multiplier_str(amount->multiplier));
-}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
-#if defined(HAVE_PRI_AOC_EVENTS)
-/*!
- * \internal
- * \brief Append the time structure to the event message string.
- * \since 1.8
- *
- * \param msg Event message string being built.
- * \param prefix Prefix to add to the amount lines.
- * \param name Name of the time structure to convert.
- * \param time Data to convert.
- *
- * \return Nothing
- */
-static void sig_pri_aoc_time(struct ast_str **msg, const char *prefix, const char *name, const struct pri_aoc_time *time)
-{
-	ast_str_append(msg, 0, "%s/%s/Length: %ld\r\n", prefix, name, time->length);
-	ast_str_append(msg, 0, "%s/%s/Scale: %s\r\n", prefix, name,
-		sig_pri_aoc_scale_str(time->scale));
-}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
-
-#if defined(HAVE_PRI_AOC_EVENTS)
-/*!
- * \internal
- * \brief Handle the AOC-S event.
+ * \brief Handle AOC-S control frame
  * \since 1.8
  *
  * \param aoc_s AOC-S event parameters.
  * \param owner Asterisk channel associated with the call.
+ * \param passthrough indicating if this message should be queued on the ast channel
  *
  * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri private is locked
  * \note Assumes the owner channel lock is already obtained.
  *
  * \return Nothing
  */
-static void sig_pri_aoc_s_event(const struct pri_subcmd_aoc_s *aoc_s, struct ast_channel *owner)
+static void sig_pri_aoc_s_from_pri(const struct pri_subcmd_aoc_s *aoc_s, struct ast_channel *owner, int passthrough)
 {
-	struct ast_str *msg;
-	const char *rate_str;
-	char prefix[32];
+	struct ast_aoc_decoded *decoded = NULL;
+	struct ast_aoc_encoded *encoded = NULL;
+	size_t encoded_size = 0;
 	int idx;
 
-	msg = ast_str_create(4096);
-	if (!msg) {
+	if (!owner || !aoc_s) {
 		return;
 	}
 
-	ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
-	ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+	if (!(decoded = ast_aoc_create(AST_AOC_S, 0, 0))) {
+		return;
+	}
 
-	ast_str_append(&msg, 0, "NumberRates: %d\r\n", aoc_s->num_items);
 	for (idx = 0; idx < aoc_s->num_items; ++idx) {
-		snprintf(prefix, sizeof(prefix), "Rate(%d)", idx);
+		enum ast_aoc_s_charged_item charged_item;
 
-		ast_str_append(&msg, 0, "%s/Chargeable: %s\r\n", prefix,
-			sig_pri_aoc_charged_item_str(aoc_s->item[idx].chargeable));
-		if (aoc_s->item[idx].chargeable == PRI_AOC_CHARGED_ITEM_NOT_AVAILABLE) {
+		charged_item = sig_pri_aoc_charged_item_to_ast(aoc_s->item[idx].chargeable);
+		if (charged_item == AST_AOC_CHARGED_ITEM_NA) {
+			/* Delete the unknown charged item from the list. */
 			continue;
 		}
-		rate_str = sig_pri_aoc_rate_type_str(aoc_s->item[idx].rate_type);
-		ast_str_append(&msg, 0, "%s/Type: %s\r\n", prefix, rate_str);
 		switch (aoc_s->item[idx].rate_type) {
 		case PRI_AOC_RATE_TYPE_DURATION:
-			strcat(prefix, "/");
-			strcat(prefix, rate_str);
-			ast_str_append(&msg, 0, "%s/Currency: %s\r\n", prefix,
-				aoc_s->item[idx].rate.duration.currency);
-			sig_pri_aoc_amount(&msg, prefix, &aoc_s->item[idx].rate.duration.amount);
-			ast_str_append(&msg, 0, "%s/ChargingType: %s\r\n", prefix,
-				aoc_s->item[idx].rate.duration.charging_type
-				? "StepFunction" : "ContinuousCharging");
-			sig_pri_aoc_time(&msg, prefix, "Time", &aoc_s->item[idx].rate.duration.time);
-			if (aoc_s->item[idx].rate.duration.granularity.length) {
-				sig_pri_aoc_time(&msg, prefix, "Granularity",
-					&aoc_s->item[idx].rate.duration.granularity);
-			}
+			ast_aoc_s_add_rate_duration(decoded,
+				charged_item,
+				aoc_s->item[idx].rate.duration.amount.cost,
+				sig_pri_aoc_multiplier_from_pri(aoc_s->item[idx].rate.duration.amount.multiplier),
+				aoc_s->item[idx].rate.duration.currency,
+				aoc_s->item[idx].rate.duration.time.length,
+				sig_pri_aoc_scale_to_ast(aoc_s->item[idx].rate.duration.time.scale),
+				aoc_s->item[idx].rate.duration.granularity.length,
+				sig_pri_aoc_scale_to_ast(aoc_s->item[idx].rate.duration.granularity.scale),
+				aoc_s->item[idx].rate.duration.charging_type);
 			break;
 		case PRI_AOC_RATE_TYPE_FLAT:
-			strcat(prefix, "/");
-			strcat(prefix, rate_str);
-			ast_str_append(&msg, 0, "%s/Currency: %s\r\n", prefix,
+			ast_aoc_s_add_rate_flat(decoded,
+				charged_item,
+				aoc_s->item[idx].rate.flat.amount.cost,
+				sig_pri_aoc_multiplier_from_pri(aoc_s->item[idx].rate.flat.amount.multiplier),
 				aoc_s->item[idx].rate.flat.currency);
-			sig_pri_aoc_amount(&msg, prefix, &aoc_s->item[idx].rate.flat.amount);
 			break;
 		case PRI_AOC_RATE_TYPE_VOLUME:
-			strcat(prefix, "/");
-			strcat(prefix, rate_str);
-			ast_str_append(&msg, 0, "%s/Currency: %s\r\n", prefix,
+			ast_aoc_s_add_rate_volume(decoded,
+				charged_item,
+				aoc_s->item[idx].rate.volume.unit,
+				aoc_s->item[idx].rate.volume.amount.cost,
+				sig_pri_aoc_multiplier_from_pri(aoc_s->item[idx].rate.volume.amount.multiplier),
 				aoc_s->item[idx].rate.volume.currency);
-			sig_pri_aoc_amount(&msg, prefix, &aoc_s->item[idx].rate.volume.amount);
-			ast_str_append(&msg, 0, "%s/Unit: %s\r\n", prefix,
-				sig_pri_aoc_volume_unit_str(aoc_s->item[idx].rate.volume.unit));
 			break;
 		case PRI_AOC_RATE_TYPE_SPECIAL_CODE:
-			ast_str_append(&msg, 0, "%s/%s: %d\r\n", prefix, rate_str,
+			ast_aoc_s_add_rate_special_charge_code(decoded,
+				charged_item,
 				aoc_s->item[idx].rate.special);
 			break;
+		case PRI_AOC_RATE_TYPE_FREE:
+			ast_aoc_s_add_rate_free(decoded, charged_item, 0);
+			break;
+		case PRI_AOC_RATE_TYPE_FREE_FROM_BEGINNING:
+			ast_aoc_s_add_rate_free(decoded, charged_item, 1);
+			break;
 		default:
+			ast_aoc_s_add_rate_na(decoded, charged_item);
 			break;
 		}
 	}
 
-	ast_manager_event(owner, EVENT_FLAG_AOC, "AOC-S", "%s", ast_str_buffer(msg));
-	ast_free(msg);
+	if (passthrough && (encoded = ast_aoc_encode(decoded, &encoded_size, owner))) {
+		ast_queue_control_data(owner, AST_CONTROL_AOC, encoded, encoded_size);
+	}
+
+	ast_aoc_manager_event(decoded, owner);
+
+	ast_aoc_destroy_decoded(decoded);
+	ast_aoc_destroy_encoded(encoded);
 }
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 /*!
  * \internal
- * \brief Handle the AOC-D event.
+ * \brief Generate AOC Request Response
  * \since 1.8
  *
- * \param aoc_d AOC-D event parameters.
- * \param owner Asterisk channel associated with the call.
+ * \param aoc_request
  *
  * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri private is locked
  * \note Assumes the owner channel lock is already obtained.
  *
  * \return Nothing
  */
-static void sig_pri_aoc_d_event(const struct pri_subcmd_aoc_d *aoc_d, struct ast_channel *owner)
+static void sig_pri_aoc_request_from_pri(const struct pri_subcmd_aoc_request *aoc_request, struct sig_pri_chan *pvt, q931_call *call)
 {
-	struct ast_str *msg;
-	const char *charge_str;
-	int idx;
-	int num_items;
-	char prefix[32];
+	int request;
 
-	msg = ast_str_create(4096);
-	if (!msg) {
+	if (!aoc_request) {
 		return;
 	}
 
-	ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
-	ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+	request = aoc_request->charging_request;
 
-	charge_str = sig_pri_aoc_de_charge_str(aoc_d->charge);
-	ast_str_append(&msg, 0, "Type: %s\r\n", charge_str);
-	switch (aoc_d->charge) {
-	case PRI_AOC_DE_CHARGE_CURRENCY:
-	case PRI_AOC_DE_CHARGE_UNITS:
-		ast_str_append(&msg, 0, "BillingID: %s\r\n",
-			sig_pri_aoc_d_billing_id_str(aoc_d->billing_id));
-		ast_str_append(&msg, 0, "TypeOfCharging: %s\r\n",
-			aoc_d->billing_accumulation ? "Total" : "SubTotal");
-		break;
-	default:
-		break;
-	}
-	switch (aoc_d->charge) {
-	case PRI_AOC_DE_CHARGE_CURRENCY:
-		ast_str_append(&msg, 0, "%s: %s\r\n", charge_str,
-			aoc_d->recorded.money.currency);
-		sig_pri_aoc_amount(&msg, charge_str, &aoc_d->recorded.money.amount);
-		break;
-	case PRI_AOC_DE_CHARGE_UNITS:
-		num_items = 0;
-		for (idx = 0; idx < aoc_d->recorded.unit.num_items; ++idx) {
-			if (0 <= aoc_d->recorded.unit.item[idx].number
-				|| 0 <= aoc_d->recorded.unit.item[idx].type) {
-				/* Something is available at this index location so keep it. */
-				++num_items;
-			}
-		}
-		ast_str_append(&msg, 0, "%s/NumberItems: %d\r\n", charge_str, num_items);
-		num_items = 0;
-		for (idx = 0; idx < aoc_d->recorded.unit.num_items; ++idx) {
-			if (aoc_d->recorded.unit.item[idx].number < 0
-				&& aoc_d->recorded.unit.item[idx].type < 0) {
-				/* Nothing is available at this index location so skip it. */
-				continue;
-			}
-			snprintf(prefix, sizeof(prefix), "%s/Item(%d)", charge_str, num_items);
-			++num_items;
+	if (request & PRI_AOC_REQUEST_S) {
+		if (pvt->pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S) {
+			/* An AOC-S response must come from the other side, so save off this invoke_id
+			 * and see if an AOC-S message comes in before the call is answered. */
+			pvt->aoc_s_request_invoke_id = aoc_request->invoke_id;
+			pvt->aoc_s_request_invoke_id_valid = 1;
 
-			if (0 <= aoc_d->recorded.unit.item[idx].number) {
-				/* Number of units recorded is available */
-				ast_str_append(&msg, 0, "%s/NumberOf: %ld\r\n", prefix,
-					aoc_d->recorded.unit.item[idx].number);
-			}
-			if (0 <= aoc_d->recorded.unit.item[idx].type) {
-				/* Type of units recorded is available */
-				ast_str_append(&msg, 0, "%s/TypeOf: %d\r\n", prefix,
-					aoc_d->recorded.unit.item[idx].type);
-			}
+		} else {
+			pri_aoc_s_request_response_send(pvt->pri->pri,
+				call,
+				aoc_request->invoke_id,
+				NULL);
 		}
-		break;
-	default:
-		break;
 	}
 
-	ast_manager_event(owner, EVENT_FLAG_AOC, "AOC-D", "%s", ast_str_buffer(msg));
-	ast_free(msg);
+	if (request & PRI_AOC_REQUEST_D) {
+		if (pvt->pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_D) {
+			pri_aoc_de_request_response_send(pvt->pri->pri,
+				call,
+				PRI_AOC_REQ_RSP_CHARGING_INFO_FOLLOWS,
+				aoc_request->invoke_id);
+		} else {
+			pri_aoc_de_request_response_send(pvt->pri->pri,
+				call,
+				PRI_AOC_REQ_RSP_ERROR_NOT_AVAILABLE,
+				aoc_request->invoke_id);
+		}
+	}
+
+	if (request & PRI_AOC_REQUEST_E) {
+		if (pvt->pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_E) {
+			pri_aoc_de_request_response_send(pvt->pri->pri,
+				call,
+				PRI_AOC_REQ_RSP_CHARGING_INFO_FOLLOWS,
+				aoc_request->invoke_id);
+		} else {
+			pri_aoc_de_request_response_send(pvt->pri->pri,
+				call,
+				PRI_AOC_REQ_RSP_ERROR_NOT_AVAILABLE,
+				aoc_request->invoke_id);
+		}
+	}
 }
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 /*!
  * \internal
- * \brief Handle the AOC-E event.
+ * \brief Generate AOC-D AST_CONTROL_AOC frame
+ * \since 1.8
+ *
+ * \param aoc_e AOC-D event parameters.
+ * \param owner Asterisk channel associated with the call.
+ * \param passthrough indicating if this message should be queued on the ast channel
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri private is locked
+ * \note Assumes the owner channel lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_aoc_d_from_pri(const struct pri_subcmd_aoc_d *aoc_d, struct ast_channel *owner, int passthrough)
+{
+	struct ast_aoc_decoded *decoded = NULL;
+	struct ast_aoc_encoded *encoded = NULL;
+	size_t encoded_size = 0;
+	enum ast_aoc_charge_type type;
+
+	if (!owner || !aoc_d) {
+		return;
+	}
+
+	switch (aoc_d->charge) {
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+		type = AST_AOC_CHARGE_CURRENCY;
+		break;
+	case PRI_AOC_DE_CHARGE_UNITS:
+		type = AST_AOC_CHARGE_UNIT;
+		break;
+	case PRI_AOC_DE_CHARGE_FREE:
+		type = AST_AOC_CHARGE_FREE;
+		break;
+	default:
+		type = AST_AOC_CHARGE_NA;
+		break;
+	}
+
+	if (!(decoded = ast_aoc_create(AST_AOC_D, type, 0))) {
+		return;
+	}
+
+	switch (aoc_d->billing_accumulation) {
+	default:
+		ast_debug(1, "AOC-D billing accumulation has unknown value: %d\n",
+			aoc_d->billing_accumulation);
+		/* Fall through */
+	case 0:/* subTotal */
+		ast_aoc_set_total_type(decoded, AST_AOC_SUBTOTAL);
+		break;
+	case 1:/* total */
+		ast_aoc_set_total_type(decoded, AST_AOC_TOTAL);
+		break;
+	}
+
+	switch (aoc_d->billing_id) {
+	case PRI_AOC_D_BILLING_ID_NORMAL:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_NORMAL);
+		break;
+	case PRI_AOC_D_BILLING_ID_REVERSE:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_REVERSE_CHARGE);
+		break;
+	case PRI_AOC_D_BILLING_ID_CREDIT_CARD:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_CREDIT_CARD);
+		break;
+	case PRI_AOC_D_BILLING_ID_NOT_AVAILABLE:
+	default:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_NA);
+		break;
+	}
+
+	switch (aoc_d->charge) {
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+		ast_aoc_set_currency_info(decoded,
+			aoc_d->recorded.money.amount.cost,
+			sig_pri_aoc_multiplier_from_pri(aoc_d->recorded.money.amount.multiplier),
+			aoc_d->recorded.money.currency);
+		break;
+	case PRI_AOC_DE_CHARGE_UNITS:
+		{
+			int i;
+			for (i = 0; i < aoc_d->recorded.unit.num_items; ++i) {
+				/* if type or number are negative, then they are not present */
+				ast_aoc_add_unit_entry(decoded,
+					(aoc_d->recorded.unit.item[i].number >= 0 ? 1 : 0),
+					aoc_d->recorded.unit.item[i].number,
+					(aoc_d->recorded.unit.item[i].type >= 0 ? 1 : 0),
+					aoc_d->recorded.unit.item[i].type);
+			}
+		}
+		break;
+	}
+
+	if (passthrough && (encoded = ast_aoc_encode(decoded, &encoded_size, owner))) {
+		ast_queue_control_data(owner, AST_CONTROL_AOC, encoded, encoded_size);
+	}
+
+	ast_aoc_manager_event(decoded, owner);
+
+	ast_aoc_destroy_decoded(decoded);
+	ast_aoc_destroy_encoded(encoded);
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Generate AOC-E AST_CONTROL_AOC frame
  * \since 1.8
  *
  * \param aoc_e AOC-E event parameters.
  * \param owner Asterisk channel associated with the call.
- * NULL if the event is not associated with an existing call.
+ * \param passthrough indicating if this message should be queued on the ast channel
  *
  * \note Assumes the pri->lock is already obtained.
- * \note Assumes the owner channel lock is already obtained if associated.
+ * \note Assumes the sig_pri private is locked
+ * \note Assumes the owner channel lock is already obtained.
+ * \note owner channel may be NULL. In that case, generate event only
  *
  * \return Nothing
  */
-static void sig_pri_aoc_e_event(const struct pri_subcmd_aoc_e *aoc_e, struct ast_channel *owner)
+static void sig_pri_aoc_e_from_pri(const struct pri_subcmd_aoc_e *aoc_e, struct ast_channel *owner, int passthrough)
 {
-	struct ast_channel *chans[1];
-	struct ast_str *msg;
-	const char *charge_str;
-	int idx;
-	int num_items;
-	char prefix[32];
+	struct ast_aoc_decoded *decoded = NULL;
+	struct ast_aoc_encoded *encoded = NULL;
+	size_t encoded_size = 0;
+	enum ast_aoc_charge_type type;
 
-	msg = ast_str_create(4096);
-	if (!msg) {
+	if (!aoc_e) {
 		return;
 	}
 
-	if (owner) {
-		ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
-		ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+	switch (aoc_e->charge) {
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+		type = AST_AOC_CHARGE_CURRENCY;
+		break;
+	case PRI_AOC_DE_CHARGE_UNITS:
+		type = AST_AOC_CHARGE_UNIT;
+		break;
+	case PRI_AOC_DE_CHARGE_FREE:
+		type = AST_AOC_CHARGE_FREE;
+		break;
+	default:
+		type = AST_AOC_CHARGE_NA;
+		break;
 	}
 
-	/* If there is no owner then there should be a charging association. */
-	charge_str = "ChargingAssociation";
+	if (!(decoded = ast_aoc_create(AST_AOC_E, type, 0))) {
+		return;
+	}
+
 	switch (aoc_e->associated.charging_type) {
 	case PRI_AOC_E_CHARGING_ASSOCIATION_NUMBER:
 		if (!aoc_e->associated.charge.number.valid) {
 			break;
 		}
-		snprintf(prefix, sizeof(prefix), "%s/Number", charge_str);
-		ast_str_append(&msg, 0, "%s: %s\r\n", prefix,
-			aoc_e->associated.charge.number.str);
-		ast_str_append(&msg, 0, "%s/Plan: %d\r\n", prefix,
-			aoc_e->associated.charge.number.plan);
+		ast_aoc_set_association_number(decoded, aoc_e->associated.charge.number.str, aoc_e->associated.charge.number.plan);
 		break;
 	case PRI_AOC_E_CHARGING_ASSOCIATION_ID:
-		ast_str_append(&msg, 0, "%s/ID: %d\r\n", charge_str, aoc_e->associated.charge.id);
+		ast_aoc_set_association_id(decoded, aoc_e->associated.charge.id);
 		break;
 	default:
 		break;
 	}
 
-	charge_str = sig_pri_aoc_de_charge_str(aoc_e->charge);
-	ast_str_append(&msg, 0, "Type: %s\r\n", charge_str);
-	switch (aoc_e->charge) {
-	case PRI_AOC_DE_CHARGE_CURRENCY:
-	case PRI_AOC_DE_CHARGE_UNITS:
-		ast_str_append(&msg, 0, "BillingID: %s\r\n",
-			sig_pri_aoc_e_billing_id_str(aoc_e->billing_id));
+	switch (aoc_e->billing_id) {
+	case PRI_AOC_E_BILLING_ID_NORMAL:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_NORMAL);
 		break;
+	case PRI_AOC_E_BILLING_ID_REVERSE:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_REVERSE_CHARGE);
+		break;
+	case PRI_AOC_E_BILLING_ID_CREDIT_CARD:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_CREDIT_CARD);
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_UNCONDITIONAL:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_CALL_FWD_UNCONDITIONAL);
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_BUSY:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_CALL_FWD_BUSY);
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_NO_REPLY:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_CALL_FWD_NO_REPLY);
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_DEFLECTION:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_CALL_DEFLECTION);
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_TRANSFER:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_CALL_TRANSFER);
+		break;
+	case PRI_AOC_E_BILLING_ID_NOT_AVAILABLE:
 	default:
+		ast_aoc_set_billing_id(decoded, AST_AOC_BILLING_NA);
 		break;
 	}
+
 	switch (aoc_e->charge) {
 	case PRI_AOC_DE_CHARGE_CURRENCY:
-		ast_str_append(&msg, 0, "%s: %s\r\n", charge_str,
+		ast_aoc_set_currency_info(decoded,
+			aoc_e->recorded.money.amount.cost,
+			sig_pri_aoc_multiplier_from_pri(aoc_e->recorded.money.amount.multiplier),
 			aoc_e->recorded.money.currency);
-		sig_pri_aoc_amount(&msg, charge_str, &aoc_e->recorded.money.amount);
 		break;
 	case PRI_AOC_DE_CHARGE_UNITS:
-		num_items = 0;
-		for (idx = 0; idx < aoc_e->recorded.unit.num_items; ++idx) {
-			if (0 <= aoc_e->recorded.unit.item[idx].number
-				|| 0 <= aoc_e->recorded.unit.item[idx].type) {
-				/* Something is available at this index location so keep it. */
-				++num_items;
+		{
+			int i;
+			for (i = 0; i < aoc_e->recorded.unit.num_items; ++i) {
+				/* if type or number are negative, then they are not present */
+				ast_aoc_add_unit_entry(decoded,
+					(aoc_e->recorded.unit.item[i].number >= 0 ? 1 : 0),
+					aoc_e->recorded.unit.item[i].number,
+					(aoc_e->recorded.unit.item[i].type >= 0 ? 1 : 0),
+					aoc_e->recorded.unit.item[i].type);
 			}
 		}
-		ast_str_append(&msg, 0, "%s/NumberItems: %d\r\n", charge_str, num_items);
-		num_items = 0;
-		for (idx = 0; idx < aoc_e->recorded.unit.num_items; ++idx) {
-			if (aoc_e->recorded.unit.item[idx].number < 0
-				&& aoc_e->recorded.unit.item[idx].type < 0) {
-				/* Nothing is available at this index location so skip it. */
-				continue;
-			}
-			snprintf(prefix, sizeof(prefix), "%s/Item(%d)", charge_str, num_items);
-			++num_items;
+	}
 
-			if (0 <= aoc_e->recorded.unit.item[idx].number) {
-				/* Number of units recorded is available */
-				ast_str_append(&msg, 0, "%s/NumberOf: %ld\r\n", prefix,
-					aoc_e->recorded.unit.item[idx].number);
+	if (passthrough && owner && (encoded = ast_aoc_encode(decoded, &encoded_size, owner))) {
+		ast_queue_control_data(owner, AST_CONTROL_AOC, encoded, encoded_size);
+	}
+
+	ast_aoc_manager_event(decoded, owner);
+
+	ast_aoc_destroy_decoded(decoded);
+	ast_aoc_destroy_encoded(encoded);
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief send an AOC-S message on the current call
+ *
+ * \param pvt sig_pri private channel structure.
+ * \param generic decoded ast AOC message
+ *
+ * \return Nothing
+ *
+ * \note Assumes that the PRI lock is already obtained.
+ */
+static void sig_pri_aoc_s_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_decoded *decoded)
+{
+	struct pri_subcmd_aoc_s aoc_s = { 0, };
+	const struct ast_aoc_s_entry *entry;
+	int idx;
+
+	for (idx = 0; idx < ast_aoc_s_get_count(decoded); idx++) {
+		if (!(entry = ast_aoc_s_get_rate_info(decoded, idx))) {
+			break;
+		}
+
+		aoc_s.item[idx].chargeable = sig_pri_aoc_charged_item_to_pri(entry->charged_item);
+
+		switch (entry->rate_type) {
+		case AST_AOC_RATE_TYPE_DURATION:
+			aoc_s.item[idx].rate_type = PRI_AOC_RATE_TYPE_DURATION;
+			aoc_s.item[idx].rate.duration.amount.cost = entry->rate.duration.amount;
+			aoc_s.item[idx].rate.duration.amount.multiplier =
+				sig_pri_aoc_multiplier_from_ast(entry->rate.duration.multiplier);
+			aoc_s.item[idx].rate.duration.time.length = entry->rate.duration.time;
+			aoc_s.item[idx].rate.duration.time.scale =
+				sig_pri_aoc_scale_to_pri(entry->rate.duration.time_scale);
+			aoc_s.item[idx].rate.duration.granularity.length = entry->rate.duration.granularity_time;
+			aoc_s.item[idx].rate.duration.granularity.scale =
+				sig_pri_aoc_scale_to_pri(entry->rate.duration.granularity_time_scale);
+			aoc_s.item[idx].rate.duration.charging_type = entry->rate.duration.charging_type;
+
+			if (!ast_strlen_zero(entry->rate.duration.currency_name)) {
+				ast_copy_string(aoc_s.item[idx].rate.duration.currency,
+					entry->rate.duration.currency_name,
+					sizeof(aoc_s.item[idx].rate.duration.currency));
 			}
-			if (0 <= aoc_e->recorded.unit.item[idx].type) {
-				/* Type of units recorded is available */
-				ast_str_append(&msg, 0, "%s/TypeOf: %d\r\n", prefix,
-					aoc_e->recorded.unit.item[idx].type);
+			break;
+		case AST_AOC_RATE_TYPE_FLAT:
+			aoc_s.item[idx].rate_type = PRI_AOC_RATE_TYPE_FLAT;
+			aoc_s.item[idx].rate.flat.amount.cost = entry->rate.flat.amount;
+			aoc_s.item[idx].rate.flat.amount.multiplier =
+				sig_pri_aoc_multiplier_from_ast(entry->rate.flat.multiplier);
+
+			if (!ast_strlen_zero(entry->rate.flat.currency_name)) {
+				ast_copy_string(aoc_s.item[idx].rate.flat.currency,
+					entry->rate.flat.currency_name,
+					sizeof(aoc_s.item[idx].rate.flat.currency));
+			}
+			break;
+		case AST_AOC_RATE_TYPE_VOLUME:
+			aoc_s.item[idx].rate_type = PRI_AOC_RATE_TYPE_VOLUME;
+			aoc_s.item[idx].rate.volume.unit = entry->rate.volume.volume_unit;
+			aoc_s.item[idx].rate.volume.amount.cost = entry->rate.volume.amount;
+			aoc_s.item[idx].rate.volume.amount.multiplier =
+				sig_pri_aoc_multiplier_from_ast(entry->rate.volume.multiplier);
+
+			if (!ast_strlen_zero(entry->rate.volume.currency_name)) {
+				ast_copy_string(aoc_s.item[idx].rate.volume.currency,
+					entry->rate.volume.currency_name,
+					sizeof(aoc_s.item[idx].rate.volume.currency));
+			}
+			break;
+		case AST_AOC_RATE_TYPE_SPECIAL_CODE:
+			aoc_s.item[idx].rate_type = PRI_AOC_RATE_TYPE_SPECIAL_CODE;
+			aoc_s.item[idx].rate.special = entry->rate.special_code;
+			break;
+		case AST_AOC_RATE_TYPE_FREE:
+			aoc_s.item[idx].rate_type = PRI_AOC_RATE_TYPE_FREE;
+			break;
+		case AST_AOC_RATE_TYPE_FREE_FROM_BEGINNING:
+			aoc_s.item[idx].rate_type = PRI_AOC_RATE_TYPE_FREE_FROM_BEGINNING;
+			break;
+		default:
+		case AST_AOC_RATE_TYPE_NA:
+			aoc_s.item[idx].rate_type = PRI_AOC_RATE_TYPE_NOT_AVAILABLE;
+			break;
+		}
+	}
+	aoc_s.num_items = idx;
+
+	/* if this rate should be sent as a response to an AOC-S request we will
+	 * have an aoc_s_request_invoke_id associated with this pvt */
+	if (pvt->aoc_s_request_invoke_id_valid) {
+		pri_aoc_s_request_response_send(pvt->pri->pri, pvt->call, pvt->aoc_s_request_invoke_id, &aoc_s);
+		pvt->aoc_s_request_invoke_id_valid = 0;
+	} else {
+		pri_aoc_s_send(pvt->pri->pri, pvt->call, &aoc_s);
+	}
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief send an AOC-D message on the current call
+ *
+ * \param pvt sig_pri private channel structure.
+ * \param generic decoded ast AOC message
+ *
+ * \return Nothing
+ *
+ * \note Assumes that the PRI lock is already obtained.
+ */
+static void sig_pri_aoc_d_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_decoded *decoded)
+{
+	struct pri_subcmd_aoc_d aoc_d = { 0, };
+
+	aoc_d.billing_accumulation = (ast_aoc_get_total_type(decoded) == AST_AOC_TOTAL) ? 1 : 0;
+
+	switch (ast_aoc_get_billing_id(decoded)) {
+	case AST_AOC_BILLING_NORMAL:
+		aoc_d.billing_id = PRI_AOC_D_BILLING_ID_NORMAL;
+		break;
+	case AST_AOC_BILLING_REVERSE_CHARGE:
+		aoc_d.billing_id = PRI_AOC_D_BILLING_ID_REVERSE;
+		break;
+	case AST_AOC_BILLING_CREDIT_CARD:
+		aoc_d.billing_id = PRI_AOC_D_BILLING_ID_CREDIT_CARD;
+		break;
+	case AST_AOC_BILLING_NA:
+	default:
+		aoc_d.billing_id = PRI_AOC_D_BILLING_ID_NOT_AVAILABLE;
+		break;
+	}
+
+	switch (ast_aoc_get_charge_type(decoded)) {
+	case AST_AOC_CHARGE_FREE:
+		aoc_d.charge = PRI_AOC_DE_CHARGE_FREE;
+		break;
+	case AST_AOC_CHARGE_CURRENCY:
+		{
+			const char *currency_name = ast_aoc_get_currency_name(decoded);
+			aoc_d.charge = PRI_AOC_DE_CHARGE_CURRENCY;
+			aoc_d.recorded.money.amount.cost = ast_aoc_get_currency_amount(decoded);
+			aoc_d.recorded.money.amount.multiplier = sig_pri_aoc_multiplier_from_ast(ast_aoc_get_currency_multiplier(decoded));
+			if (!ast_strlen_zero(currency_name)) {
+				ast_copy_string(aoc_d.recorded.money.currency, currency_name, sizeof(aoc_d.recorded.money.currency));
 			}
 		}
 		break;
+	case AST_AOC_CHARGE_UNIT:
+		{
+			const struct ast_aoc_unit_entry *entry;
+			int i;
+			aoc_d.charge = PRI_AOC_DE_CHARGE_UNITS;
+			for (i = 0; i < ast_aoc_get_unit_count(decoded); i++) {
+				if ((entry = ast_aoc_get_unit_info(decoded, i)) && i < ARRAY_LEN(aoc_d.recorded.unit.item)) {
+					if (entry->valid_amount) {
+						aoc_d.recorded.unit.item[i].number = entry->amount;
+					} else {
+						aoc_d.recorded.unit.item[i].number = -1;
+					}
+					if (entry->valid_type) {
+						aoc_d.recorded.unit.item[i].type = entry->type;
+					} else {
+						aoc_d.recorded.unit.item[i].type = -1;
+					}
+					aoc_d.recorded.unit.num_items++;
+				} else {
+					break;
+				}
+			}
+		}
+		break;
+	case AST_AOC_CHARGE_NA:
+	default:
+		aoc_d.charge = PRI_AOC_DE_CHARGE_NOT_AVAILABLE;
+		break;
+	}
+
+	pri_aoc_d_send(pvt->pri->pri, pvt->call, &aoc_d);
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief send an AOC-E message on the current call
+ *
+ * \param pvt sig_pri private channel structure.
+ * \param generic decoded ast AOC message
+ *
+ * \return Nothing
+ *
+ * \note Assumes that the PRI lock is already obtained.
+ */
+static void sig_pri_aoc_e_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_decoded *decoded)
+{
+	struct pri_subcmd_aoc_e *aoc_e = &pvt->aoc_e;
+	const struct ast_aoc_charging_association *ca = ast_aoc_get_association_info(decoded);
+
+	memset(aoc_e, 0, sizeof(*aoc_e));
+	pvt->holding_aoce = 1;
+
+	switch (ca->charging_type) {
+	case AST_AOC_CHARGING_ASSOCIATION_NUMBER:
+		aoc_e->associated.charge.number.valid = 1;
+		ast_copy_string(aoc_e->associated.charge.number.str,
+			ca->charge.number.number,
+			sizeof(aoc_e->associated.charge.number.str));
+		aoc_e->associated.charge.number.plan = ca->charge.number.plan;
+		aoc_e->associated.charging_type = PRI_AOC_E_CHARGING_ASSOCIATION_NUMBER;
+		break;
+	case AST_AOC_CHARGING_ASSOCIATION_ID:
+		aoc_e->associated.charge.id = ca->charge.id;
+		aoc_e->associated.charging_type = PRI_AOC_E_CHARGING_ASSOCIATION_ID;
+		break;
+	case AST_AOC_CHARGING_ASSOCIATION_NA:
 	default:
 		break;
 	}
 
-	chans[0] = owner;
-	ast_manager_event_multichan(EVENT_FLAG_AOC, "AOC-E", owner ? 1 : 0, chans, "%s",
-		ast_str_buffer(msg));
-	ast_free(msg);
+	switch (ast_aoc_get_billing_id(decoded)) {
+	case AST_AOC_BILLING_NORMAL:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_NORMAL;
+		break;
+	case AST_AOC_BILLING_REVERSE_CHARGE:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_REVERSE;
+		break;
+	case AST_AOC_BILLING_CREDIT_CARD:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_CREDIT_CARD;
+		break;
+	case AST_AOC_BILLING_CALL_FWD_UNCONDITIONAL:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_CALL_FORWARDING_UNCONDITIONAL;
+		break;
+	case AST_AOC_BILLING_CALL_FWD_BUSY:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_CALL_FORWARDING_BUSY;
+		break;
+	case AST_AOC_BILLING_CALL_FWD_NO_REPLY:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_CALL_FORWARDING_NO_REPLY;
+		break;
+	case AST_AOC_BILLING_CALL_DEFLECTION:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_CALL_DEFLECTION;
+		break;
+	case AST_AOC_BILLING_CALL_TRANSFER:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_CALL_TRANSFER;
+		break;
+	case AST_AOC_BILLING_NA:
+	default:
+		aoc_e->billing_id = PRI_AOC_E_BILLING_ID_NOT_AVAILABLE;
+		break;
+	}
+
+	switch (ast_aoc_get_charge_type(decoded)) {
+	case AST_AOC_CHARGE_FREE:
+		aoc_e->charge = PRI_AOC_DE_CHARGE_FREE;
+		break;
+	case AST_AOC_CHARGE_CURRENCY:
+		{
+			const char *currency_name = ast_aoc_get_currency_name(decoded);
+			aoc_e->charge = PRI_AOC_DE_CHARGE_CURRENCY;
+			aoc_e->recorded.money.amount.cost = ast_aoc_get_currency_amount(decoded);
+			aoc_e->recorded.money.amount.multiplier = sig_pri_aoc_multiplier_from_ast(ast_aoc_get_currency_multiplier(decoded));
+			if (!ast_strlen_zero(currency_name)) {
+				ast_copy_string(aoc_e->recorded.money.currency, currency_name, sizeof(aoc_e->recorded.money.currency));
+			}
+		}
+		break;
+	case AST_AOC_CHARGE_UNIT:
+		{
+			const struct ast_aoc_unit_entry *entry;
+			int i;
+			aoc_e->charge = PRI_AOC_DE_CHARGE_UNITS;
+			for (i = 0; i < ast_aoc_get_unit_count(decoded); i++) {
+				if ((entry = ast_aoc_get_unit_info(decoded, i)) && i < ARRAY_LEN(aoc_e->recorded.unit.item)) {
+					if (entry->valid_amount) {
+						aoc_e->recorded.unit.item[i].number = entry->amount;
+					} else {
+						aoc_e->recorded.unit.item[i].number = -1;
+					}
+					if (entry->valid_type) {
+						aoc_e->recorded.unit.item[i].type = entry->type;
+					} else {
+						aoc_e->recorded.unit.item[i].type = -1;
+					}
+					aoc_e->recorded.unit.num_items++;
+				}
+			}
+		}
+		break;
+	case AST_AOC_CHARGE_NA:
+	default:
+		aoc_e->charge = PRI_AOC_DE_CHARGE_NOT_AVAILABLE;
+		break;
+	}
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief send an AOC-E termination request on ast_channel and set
+ * hangup delay.
+ *
+ * \param sig_pri_chan private
+ * \param ms to delay hangup
+ *
+ * \note assumes pvt is locked
+ *
+ * \return Nothing
+ */
+static void sig_pri_send_aoce_termination_request(struct sig_pri_chan *pvt, unsigned int ms)
+{
+	struct ast_aoc_decoded *decoded = NULL;
+	struct ast_aoc_encoded *encoded = NULL;
+	size_t encoded_size;
+	struct timeval whentohangup = { 0, };
+
+	if (!(decoded = ast_aoc_create(AST_AOC_REQUEST, 0, AST_AOC_REQUEST_E))) {
+		ast_softhangup_nolock(pvt->owner, AST_SOFTHANGUP_DEV);
+		goto cleanup_termination_request;
+	}
+
+	ast_aoc_set_termination_request(decoded);
+
+	if (!(encoded = ast_aoc_encode(decoded, &encoded_size, pvt->owner))) {
+		ast_softhangup_nolock(pvt->owner, AST_SOFTHANGUP_DEV);
+		goto cleanup_termination_request;
+	}
+
+	/* convert ms to timeval */
+	whentohangup.tv_usec = (ms % 1000) * 1000;
+	whentohangup.tv_sec = ms / 1000;
+
+	if (ast_queue_control_data(pvt->owner, AST_CONTROL_AOC, encoded, encoded_size)) {
+		ast_softhangup_nolock(pvt->owner, AST_SOFTHANGUP_DEV);
+		goto cleanup_termination_request;
+	}
+
+	pvt->waiting_for_aoce = 1;
+	ast_channel_setwhentohangup_tv(pvt->owner, whentohangup);
+	ast_log(LOG_DEBUG, "Delaying hangup on %s for aoc-e msg\n", pvt->owner->name);
+
+cleanup_termination_request:
+	ast_aoc_destroy_decoded(decoded);
+	ast_aoc_destroy_encoded(encoded);
 }
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
@@ -2916,7 +3218,8 @@ static void sig_pri_handle_cis_subcmds(struct sig_pri_pri *pri, int event_id,
 #endif	/* defined(HAVE_PRI_CCSS) */
 #if defined(HAVE_PRI_AOC_EVENTS)
 		case PRI_SUBCMD_AOC_E:
-			sig_pri_aoc_e_event(&subcmd->u.aoc_e, NULL);
+			/* Queue AST_CONTROL_AOC frame */
+			sig_pri_aoc_e_from_pri(&subcmd->u.aoc_e, NULL, 0);
 			break;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		default:
@@ -2927,6 +3230,43 @@ static void sig_pri_handle_cis_subcmds(struct sig_pri_pri *pri, int event_id,
 		}
 	}
 }
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief detect if AOC-S subcmd is present.
+ * \since 1.8
+ *
+ * \param subcmds Subcommands to process if any. (Could be NULL).
+ *
+ * \note Knowing whether or not an AOC-E subcmd is present on certain
+ * PRI hangup events is necessary to determine what method to use to hangup
+ * the ast_channel.  If an AOC-E subcmd just came in, then a new AOC-E was queued
+ * on the ast_channel.  If a soft hangup is used, the AOC-E msg will never make it
+ * across the bridge, but if a AST_CONTROL_HANGUP frame is queued behind it
+ * we can ensure the AOC-E frame makes it to it's destination before the hangup
+ * frame is read.
+ *
+ *
+ * \retval 0 AOC-E is not present in subcmd list
+ * \retval 1 AOC-E is present in subcmd list
+ */
+static int detect_aoc_e_subcmd(const struct pri_subcommands *subcmds)
+{
+	int i;
+
+	if (!subcmds) {
+		return 0;
+	}
+	for (i = 0; i < subcmds->counter_subcmd; ++i) {
+		const struct pri_subcommand *subcmd = &subcmds->subcmd[i];
+		if (subcmd->cmd == PRI_SUBCMD_AOC_E) {
+			return 1;
+		}
+	}
+	return 0;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 /*!
  * \internal
@@ -3179,7 +3519,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			sig_pri_lock_owner(pri, chanpos);
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
-				sig_pri_aoc_s_event(&subcmd->u.aoc_s, owner);
+				sig_pri_aoc_s_from_pri(&subcmd->u.aoc_s, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S));
 				ast_channel_unlock(owner);
 			}
 			break;
@@ -3189,7 +3529,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			sig_pri_lock_owner(pri, chanpos);
 			owner = pri->pvts[chanpos]->owner;
 			if (owner) {
-				sig_pri_aoc_d_event(&subcmd->u.aoc_d, owner);
+				/* Queue AST_CONTROL_AOC frame on channel */
+				sig_pri_aoc_d_from_pri(&subcmd->u.aoc_d, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_D));
 				ast_channel_unlock(owner);
 			}
 			break;
@@ -3198,9 +3539,34 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 		case PRI_SUBCMD_AOC_E:
 			sig_pri_lock_owner(pri, chanpos);
 			owner = pri->pvts[chanpos]->owner;
-			sig_pri_aoc_e_event(&subcmd->u.aoc_e, owner);
+			/* Queue AST_CONTROL_AOC frame */
+			sig_pri_aoc_e_from_pri(&subcmd->u.aoc_e, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_E));
 			if (owner) {
 				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		case PRI_SUBCMD_AOC_CHARGING_REQ:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				sig_pri_aoc_request_from_pri(&subcmd->u.aoc_request, pri->pvts[chanpos], call_rsp);
+				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		case PRI_SUBCMD_AOC_CHARGING_REQ_RSP:
+			/* An AOC request response may contain an AOC-S rate list.  If this is the case handle this just like we
+			 * would an incoming AOC-S msg */
+			if (subcmd->u.aoc_request_response.valid_aoc_s) {
+				sig_pri_lock_owner(pri, chanpos);
+				owner = pri->pvts[chanpos]->owner;
+				if (owner) {
+					sig_pri_aoc_s_from_pri(&subcmd->u.aoc_request_response.aoc_s, owner, (pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S));
+					ast_channel_unlock(owner);
+				}
 			}
 			break;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
@@ -4390,12 +4756,13 @@ static void *pri_dchannel(void *vpri)
 								break;
 							}
 							if (pri->pvts[chanpos]->owner) {
+								int do_hangup = 0;
 								/* Queue a BUSY instead of a hangup if our cause is appropriate */
 								pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 								switch (pri->pvts[chanpos]->owner->_state) {
 								case AST_STATE_BUSY:
 								case AST_STATE_UP:
-									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									do_hangup = 1;
 									break;
 								default:
 									switch (e->hangup.cause) {
@@ -4411,10 +4778,24 @@ static void *pri_dchannel(void *vpri)
 										pri_queue_control(pri, chanpos, AST_CONTROL_CONGESTION);
 										break;
 									default:
-										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+										do_hangup = 1;
 										break;
 									}
 									break;
+								}
+
+								if (do_hangup) {
+#if defined(HAVE_PRI_AOC_EVENTS)
+									if (detect_aoc_e_subcmd(e->hangup.subcmds)) {
+										/* If a AOC-E msg was sent during the release, we must use a
+										 * AST_CONTROL_HANGUP frame to guarantee that frame gets read before hangup */
+										ast_queue_control(pri->pvts[chanpos]->owner, AST_CONTROL_HANGUP);
+									} else {
+										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									}
+#else
+									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 								}
 							} else {
 								/*
@@ -4499,6 +4880,7 @@ static void *pri_dchannel(void *vpri)
 							sig_pri_lock_private(pri->pvts[chanpos]);
 						}
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
 						switch (e->hangup.cause) {
 						case PRI_CAUSE_USER_BUSY:
 						case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
@@ -4508,11 +4890,13 @@ static void *pri_dchannel(void *vpri)
 							break;
 						}
 						if (pri->pvts[chanpos]->owner) {
+							int do_hangup = 0;
+
 							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 							switch (pri->pvts[chanpos]->owner->_state) {
 							case AST_STATE_BUSY:
 							case AST_STATE_UP:
-								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								do_hangup = 1;
 								break;
 							default:
 								switch (e->hangup.cause) {
@@ -4528,15 +4912,29 @@ static void *pri_dchannel(void *vpri)
 									pri_queue_control(pri, chanpos, AST_CONTROL_CONGESTION);
 									break;
 								default:
-									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									do_hangup = 1;
 									break;
 								}
 								break;
 							}
-							ast_verb(3, "Channel %d/%d, span %d got hangup request, cause %d\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span, e->hangup.cause);
-							if (e->hangup.aoc_units > -1)
-								ast_verb(3, "Channel %d/%d, span %d received AOC-E charging %d unit%s\n",
-									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
+
+							if (do_hangup) {
+#if defined(HAVE_PRI_AOC_EVENTS)
+								if (!pri->pvts[chanpos]->holding_aoce && pri->aoce_delayhangup && ast_bridged_channel(pri->pvts[chanpos]->owner)) {
+									sig_pri_send_aoce_termination_request(pri->pvts[chanpos], pri_get_timer(pri->pri, PRI_TIMER_T305) / 2);
+								} else if (detect_aoc_e_subcmd(e->hangup.subcmds)) {
+									/* If a AOC-E msg was sent during the Disconnect, we must use a AST_CONTROL_HANGUP frame
+									 * to guarantee that frame gets read before hangup */
+									ast_queue_control(pri->pvts[chanpos]->owner, AST_CONTROL_HANGUP);
+								} else {
+									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								}
+#else
+								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+							}
+							ast_verb(3, "Channel %d/%d, span %d got hangup request, cause %d\n",
+								PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span, e->hangup.cause);
 						} else {
 							/*
 							 * Continue hanging up the call even though
@@ -4829,6 +5227,11 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 				pri_call_set_useruser(p->call, useruser);
 #endif
 
+#if defined(HAVE_PRI_AOC_EVENTS)
+				if (p->holding_aoce) {
+					pri_aoc_e_send(p->pri->pri, p->call, &p->aoc_e);
+				}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 				pri_hangup(p->pri->pri, p->call, -1);
 				p->call = NULL;
 			} else {
@@ -4845,6 +5248,13 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 					if (atoi(cause))
 						icause = atoi(cause);
 				}
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+				if (p->holding_aoce) {
+					pri_aoc_e_send(p->pri->pri, p->call, &p->aoc_e);
+				}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
 				pri_hangup(p->pri->pri, p->call, icause);
 			}
 		}
@@ -4855,6 +5265,12 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->pri->span);
 		res = -1;
 	}
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+	p->aoc_s_request_invoke_id_valid = 0;
+	p->holding_aoce = 0;
+	p->waiting_for_aoce = 0;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 	ast->tech_pvt = NULL;
 	return res;
@@ -4935,10 +5351,11 @@ void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdes
 enum SIG_PRI_CALL_OPT_FLAGS {
 	OPT_KEYPAD =         (1 << 0),
 	OPT_REVERSE_CHARGE = (1 << 1),	/* Collect call */
+	OPT_AOC_REQUEST =    (1 << 2),	/* AOC Request */
 };
 enum SIG_PRI_CALL_OPT_ARGS {
 	OPT_ARG_KEYPAD = 0,
-
+	OPT_ARG_AOC_REQUEST,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
 };
@@ -4946,6 +5363,7 @@ enum SIG_PRI_CALL_OPT_ARGS {
 AST_APP_OPTIONS(sig_pri_call_opts, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('K', OPT_KEYPAD, OPT_ARG_KEYPAD),
 	AST_APP_OPTION('R', OPT_REVERSE_CHARGE),
+	AST_APP_OPTION_ARG('A', OPT_AOC_REQUEST, OPT_ARG_AOC_REQUEST),
 END_OPTIONS);
 
 /*! \note Parsing must remain in sync with sig_pri_extract_called_num_subaddr(). */
@@ -5149,6 +5567,21 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 		c++;
 	}
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+	if (ast_test_flag(&opts, OPT_AOC_REQUEST) && !ast_strlen_zero(opt_args[OPT_ARG_AOC_REQUEST])) {
+		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 's')) {
+			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_S);
+		}
+		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 'd')) {
+			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_D);
+		}
+		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 'e')) {
+			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_E);
+		}
+	}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
 #if defined(HAVE_PRI_SETUP_KEYPAD)
 	if (ast_test_flag(&opts, OPT_KEYPAD)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_KEYPAD])) {
@@ -5474,6 +5907,53 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 			pri_rel(p->pri);
 		}
 		break;
+	case AST_CONTROL_AOC:
+#if defined(HAVE_PRI_AOC_EVENTS)
+		{
+			struct ast_aoc_decoded *decoded = ast_aoc_decode((struct ast_aoc_encoded *) data, datalen, chan);
+			ast_debug(1, "Received AST_CONTROL_AOC on %s\n", chan->name);
+			if (decoded && p->pri && !pri_grab(p, p->pri)) {
+				switch (ast_aoc_get_msg_type(decoded)) {
+				case AST_AOC_S:
+					if (p->pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_S) {
+						sig_pri_aoc_s_from_ast(p, decoded);
+					}
+					break;
+				case AST_AOC_D:
+					if (p->pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_D) {
+						sig_pri_aoc_d_from_ast(p, decoded);
+					}
+					break;
+				case AST_AOC_E:
+					if (p->pri->aoc_passthrough_flag & SIG_PRI_AOC_GRANT_E) {
+						sig_pri_aoc_e_from_ast(p, decoded);
+					}
+					/* if hangup was delayed for this AOC-E msg, waiting_for_aoc
+					 * will be set.  A hangup is already occuring via a timeout during
+					 * this delay.  Instead of waiting for that timeout to occur, go ahead
+					 * and initiate the softhangup since the delay is no longer necessary */
+					if (p->waiting_for_aoce) {
+						p->waiting_for_aoce = 0;
+						ast_log(LOG_DEBUG, "Received final AOC-E msg, continue with hangup on %s\n", chan->name);
+						ast_softhangup_nolock(chan, AST_SOFTHANGUP_DEV);
+					}
+					break;
+				case AST_AOC_REQUEST:
+					/* We do not pass through AOC requests, So unless this
+					 * is an AOC termination request it will be ignored */
+					if (ast_aoc_get_termination_request(decoded)) {
+						pri_hangup(p->pri->pri, p->call, -1);
+					}
+					break;
+				default:
+					break;
+				}
+				pri_rel(p->pri);
+			}
+			ast_aoc_destroy_decoded(decoded);
+		}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+		break;
 	}
 
 	return res;
@@ -5484,6 +5964,15 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast)
 	int res = 0;
 	/* Send a pri acknowledge */
 	if (!pri_grab(p, p->pri)) {
+#if defined(HAVE_PRI_AOC_EVENTS)
+		if (p->aoc_s_request_invoke_id_valid) {
+			/* if AOC-S was requested and the invoke id is still present on answer.  That means
+			 * no AOC-S rate list was provided, so send a NULL response which will indicate that
+			 * AOC-S is not available */
+			pri_aoc_s_request_response_send(p->pri->pri, p->call, p->aoc_s_request_invoke_id, NULL);
+			p->aoc_s_request_invoke_id_valid = 0;
+		}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		p->proceeding = 1;
 		sig_pri_set_dialing(p, 0);
 		res = pri_answer(p->pri->pri, p->call, 0, !p->digital);

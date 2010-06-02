@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/dsp.h"
 #include "asterisk/cel.h"
+#include "asterisk/aoc.h"
 #include "asterisk/ccss.h"
 #include "asterisk/indications.h"
 
@@ -638,6 +639,7 @@ struct chanlist {
 	struct ast_party_connected_line connected;
 	/*! TRUE if an AST_CONTROL_CONNECTED_LINE update was saved to the connected element. */
 	unsigned int pending_connected_update:1;
+	struct ast_aoc_decoded *aoc_s_rate_list;
 };
 
 static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str *featurecode);
@@ -645,6 +647,7 @@ static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str
 static void chanlist_free(struct chanlist *outgoing)
 {
 	ast_party_connected_line_free(&outgoing->connected);
+	ast_aoc_destroy_decoded(outgoing->aoc_s_rate_list);
 	ast_free(outgoing);
 }
 
@@ -1053,6 +1056,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							ast_party_connected_line_free(&connected_caller);
 						}
 					}
+					if (o->aoc_s_rate_list) {
+						size_t encoded_size;
+						struct ast_aoc_encoded *encoded;
+						if ((encoded = ast_aoc_encode(o->aoc_s_rate_list, &encoded_size, o->chan))) {
+							ast_indicate_data(in, AST_CONTROL_AOC, encoded, encoded_size);
+							ast_aoc_destroy_encoded(encoded);
+						}
+					}
 					peer = c;
 					ast_copy_flags64(peerflags, o,
 						OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
@@ -1113,6 +1124,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 								connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 								ast_channel_update_connected_line(in, &connected_caller);
 								ast_party_connected_line_free(&connected_caller);
+							}
+						}
+						if (o->aoc_s_rate_list) {
+							size_t encoded_size;
+							struct ast_aoc_encoded *encoded;
+							if ((encoded = ast_aoc_encode(o->aoc_s_rate_list, &encoded_size, o->chan))) {
+								ast_indicate_data(in, AST_CONTROL_AOC, encoded, encoded_size);
+								ast_aoc_destroy_encoded(encoded);
 							}
 						}
 						peer = c;
@@ -1227,6 +1246,17 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					} else {
 						if (ast_channel_connected_line_macro(c, in, f, 1, 1)) {
 							ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+						}
+					}
+					break;
+				case AST_CONTROL_AOC:
+					{
+						struct ast_aoc_decoded *decoded = ast_aoc_decode(f->data.ptr, f->datalen, o->chan);
+						if (decoded && (ast_aoc_get_msg_type(decoded) == AST_AOC_S)) {
+							ast_aoc_destroy_decoded(o->aoc_s_rate_list);
+							o->aoc_s_rate_list = decoded;
+						} else {
+							ast_aoc_destroy_decoded(decoded);
 						}
 					}
 					break;

@@ -74,6 +74,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 #include "asterisk/security_events.h"
+#include "asterisk/aoc.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -692,6 +693,112 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Checks if Asterisk module is loaded. Will return Success/Failure.
 			For success returns, the module revision number is included.</para>
+		</description>
+	</manager>
+	<manager name="AOCMessage" language="en_US">
+		<synopsis>
+			Generate an Advice of Charge message on a channel.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Channel name to generate the AOC message on.</para>
+			</parameter>
+			<parameter name="ChannelPrefix">
+				<para>Partial channel prefix.  By using this option one can match the beginning part
+				of a channel name without having to put the entire name in.  For example
+				if a channel name is SIP/snom-00000001 and this value is set to SIP/snom, then
+				that channel matches and the message will be sent.  Note however that only
+				the first matched channel has the message sent on it. </para>
+			</parameter>
+			<parameter name="MsgType" required="true">
+				<para>Defines what type of AOC message to create, AOC-D or AOC-E</para>
+				<enumlist>
+					<enum name="D" />
+					<enum name="E" />
+				</enumlist>
+			</parameter>
+			<parameter name="ChargeType" required="true">
+				<para>Defines what kind of charge this message represents.</para>
+				<enumlist>
+					<enum name="NA" />
+					<enum name="FREE" />
+					<enum name="Currency" />
+					<enum name="Unit" />
+				</enumlist>
+			</parameter>
+			<parameter name="UnitAmount(0)">
+				<para>This represents the amount of units charged. The ETSI AOC standard specifies that
+				this value along with the optional UnitType value are entries in a list.  To accommodate this
+				these values take an index value starting at 0 which can be used to generate this list of
+				unit entries.  For Example, If two unit entires were required this could be achieved by setting the
+				paramter UnitAmount(0)=1234 and UnitAmount(1)=5678.  Note that UnitAmount at index 0 is
+				required when ChargeType=Unit, all other entries in the list are optional.
+				</para>
+			</parameter>
+			<parameter name="UnitType(0)">
+				<para>Defines the type of unit.  ETSI AOC standard specifies this as an integer
+				value between 1 and 16, but this value is left open to accept any positive
+				integer.  Like the UnitAmount parameter, this value represents a list entry
+				and has an index parameter that starts at 0.
+				</para>
+			</parameter>
+			<parameter name="CurrencyName">
+				<para>Specifies the currency's name.  Note that this value is truncated after 10 characters.</para>
+			</parameter>
+			<parameter name="CurrencyAmount">
+				<para>Specifies the charge unit amount as a positive integer.  This value is required
+				when ChargeType==Currency.</para>
+			</parameter>
+			<parameter name="CurrencyMultiplier">
+				<para>Specifies the currency multiplier.  This value is required when ChargeType==Currency.</para>
+				<enumlist>
+					<enum name="OneThousandth" />
+					<enum name="OneHundredth" />
+					<enum name="OneTenth" />
+					<enum name="One" />
+					<enum name="Ten" />
+					<enum name="Hundred" />
+					<enum name="Thousand" />
+				</enumlist>
+			</parameter>
+			<parameter name="TotalType" default="Total">
+				<para>Defines what kind of AOC-D total is represented.</para>
+				<enumlist>
+					<enum name="Total" />
+					<enum name="SubTotal" />
+				</enumlist>
+			</parameter>
+			<parameter name="AOCBillingId">
+				<para>Represents a billing ID associated with an AOC-D or AOC-E message. Note
+				that only the first 3 items of the enum are valid AOC-D billing IDs</para>
+				<enumlist>
+					<enum name="Normal" />
+					<enum name="ReverseCharge" />
+					<enum name="CreditCard" />
+					<enum name="CallFwdUnconditional" />
+					<enum name="CallFwdBusy" />
+					<enum name="CallFwdNoReply" />
+					<enum name="CallDeflection" />
+					<enum name="CallTransfer" />
+				</enumlist>
+			</parameter>
+			<parameter name="ChargingAssociationId">
+				<para>Charging association identifier.  This is optional for AOC-E and can be
+				set to any value between -32768 and 32767</para>
+			</parameter>
+			<parameter name="ChargingAssociationNumber">
+				<para>Represents the charging association party number.  This value is optional
+				for AOC-E.</para>
+			</parameter>
+			<parameter name="ChargingAssociationPlan">
+				<para>Integer representing the charging plan associated with the ChargingAssociationNumber.
+				The value is bits 7 through 1 of the Q.931 octet containing the type-of-number and
+				numbering-plan-identification fields.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Generates an AOC-D or AOC-E message on a channel.</para>
 		</description>
 	</manager>
  ***/
@@ -3396,6 +3503,236 @@ static void *fast_originate(void *data)
 	return NULL;
 }
 
+static int aocmessage_get_unit_entry(const struct message *m, struct ast_aoc_unit_entry *entry, unsigned int entry_num)
+{
+	const char *unitamount;
+	const char *unittype;
+	struct ast_str *str = ast_str_alloca(32);
+
+	memset(entry, 0, sizeof(*entry));
+
+	ast_str_set(&str, 0, "UnitAmount(%u)", entry_num);
+	unitamount = astman_get_header(m, ast_str_buffer(str));
+
+	ast_str_set(&str, 0, "UnitType(%u)", entry_num);
+	unittype = astman_get_header(m, ast_str_buffer(str));
+
+	if (!ast_strlen_zero(unitamount) && (sscanf(unitamount, "%30u", &entry->amount) == 1)) {
+		entry->valid_amount = 1;
+	}
+
+	if (!ast_strlen_zero(unittype) && sscanf(unittype, "%30u", &entry->type) == 1) {
+		entry->valid_type = 1;
+	}
+
+	return 0;
+}
+
+static int action_aocmessage(struct mansession *s, const struct message *m)
+{
+	const char *channel = astman_get_header(m, "Channel");
+	const char *pchannel = astman_get_header(m, "ChannelPrefix");
+	const char *msgtype = astman_get_header(m, "MsgType");
+	const char *chargetype = astman_get_header(m, "ChargeType");
+	const char *currencyname = astman_get_header(m, "CurrencyName");
+	const char *currencyamount = astman_get_header(m, "CurrencyAmount");
+	const char *mult = astman_get_header(m, "CurrencyMultiplier");
+	const char *totaltype = astman_get_header(m, "TotalType");
+	const char *aocbillingid = astman_get_header(m, "AOCBillingId");
+	const char *association_id= astman_get_header(m, "ChargingAssociationId");
+	const char *association_num = astman_get_header(m, "ChargingAssociationNumber");
+	const char *association_plan = astman_get_header(m, "ChargingAssociationPlan");
+
+	enum ast_aoc_type _msgtype;
+	enum ast_aoc_charge_type _chargetype;
+	enum ast_aoc_currency_multiplier _mult = AST_AOC_MULT_ONE;
+	enum ast_aoc_total_type _totaltype = AST_AOC_TOTAL;
+	enum ast_aoc_billing_id _billingid = AST_AOC_BILLING_NA;
+	unsigned int _currencyamount = 0;
+	int _association_id = 0;
+	unsigned int _association_plan = 0;
+	struct ast_channel *chan = NULL;
+
+	struct ast_aoc_decoded *decoded = NULL;
+	struct ast_aoc_encoded *encoded = NULL;
+	size_t encoded_size = 0;
+
+	if (ast_strlen_zero(channel) && ast_strlen_zero(pchannel)) {
+		astman_send_error(s, m, "Channel and PartialChannel are not specified. Specify at least one of these.");
+		goto aocmessage_cleanup;
+	}
+
+	if (!(chan = ast_channel_get_by_name(channel)) && !ast_strlen_zero(pchannel)) {
+		chan = ast_channel_get_by_name_prefix(pchannel, strlen(pchannel));
+	}
+
+	if (!chan) {
+		astman_send_error(s, m, "No such channel");
+		goto aocmessage_cleanup;
+	}
+
+	if (ast_strlen_zero(msgtype) || (strcasecmp(msgtype, "d") && strcasecmp(msgtype, "e"))) {
+		astman_send_error(s, m, "Invalid MsgType");
+		goto aocmessage_cleanup;
+	}
+
+	if (ast_strlen_zero(chargetype)) {
+		astman_send_error(s, m, "ChargeType not specified");
+		goto aocmessage_cleanup;
+	}
+
+	_msgtype = strcasecmp(msgtype, "d") ? AST_AOC_E : AST_AOC_D;
+
+	if (!strcasecmp(chargetype, "NA")) {
+		_chargetype = AST_AOC_CHARGE_NA;
+	} else if (!strcasecmp(chargetype, "Free")) {
+		_chargetype = AST_AOC_CHARGE_FREE;
+	} else if (!strcasecmp(chargetype, "Currency")) {
+		_chargetype = AST_AOC_CHARGE_CURRENCY;
+	} else if (!strcasecmp(chargetype, "Unit")) {
+		_chargetype = AST_AOC_CHARGE_UNIT;
+	} else {
+		astman_send_error(s, m, "Invalid ChargeType");
+		goto aocmessage_cleanup;
+	}
+
+	if (_chargetype == AST_AOC_CHARGE_CURRENCY) {
+
+		if (ast_strlen_zero(currencyamount) || (sscanf(currencyamount, "%30u", &_currencyamount) != 1)) {
+			astman_send_error(s, m, "Invalid CurrencyAmount, CurrencyAmount is a required when ChargeType is Currency");
+			goto aocmessage_cleanup;
+		}
+
+		if (ast_strlen_zero(mult)) {
+			astman_send_error(s, m, "ChargeMultiplier unspecified, ChargeMultiplier is required when ChargeType is Currency.");
+			goto aocmessage_cleanup;
+		} else if (!strcasecmp(mult, "onethousandth")) {
+			_mult = AST_AOC_MULT_ONETHOUSANDTH;
+		} else if (!strcasecmp(mult, "onehundredth")) {
+			_mult = AST_AOC_MULT_ONEHUNDREDTH;
+		} else if (!strcasecmp(mult, "onetenth")) {
+			_mult = AST_AOC_MULT_ONETENTH;
+		} else if (!strcasecmp(mult, "one")) {
+			_mult = AST_AOC_MULT_ONE;
+		} else if (!strcasecmp(mult, "ten")) {
+			_mult = AST_AOC_MULT_TEN;
+		} else if (!strcasecmp(mult, "hundred")) {
+			_mult = AST_AOC_MULT_HUNDRED;
+		} else if (!strcasecmp(mult, "thousand")) {
+			_mult = AST_AOC_MULT_THOUSAND;
+		} else {
+			astman_send_error(s, m, "Invalid ChargeMultiplier");
+			goto aocmessage_cleanup;
+		}
+	}
+
+	/* create decoded object and start setting values */
+	if (!(decoded = ast_aoc_create(_msgtype, _chargetype, 0))) {
+			astman_send_error(s, m, "Message Creation Failed");
+			goto aocmessage_cleanup;
+	}
+
+	if (_msgtype == AST_AOC_D) {
+		if (!ast_strlen_zero(totaltype) && !strcasecmp(totaltype, "subtotal")) {
+			_totaltype = AST_AOC_SUBTOTAL;
+		}
+
+		if (ast_strlen_zero(aocbillingid)) {
+			/* ignore this is optional */
+		} else if (!strcasecmp(aocbillingid, "Normal")) {
+			_billingid = AST_AOC_BILLING_NORMAL;
+		} else if (!strcasecmp(aocbillingid, "ReverseCharge")) {
+			_billingid = AST_AOC_BILLING_REVERSE_CHARGE;
+		} else if (!strcasecmp(aocbillingid, "CreditCard")) {
+			_billingid = AST_AOC_BILLING_CREDIT_CARD;
+		} else {
+			astman_send_error(s, m, "Invalid AOC-D AOCBillingId");
+			goto aocmessage_cleanup;
+		}
+	} else {
+		if (ast_strlen_zero(aocbillingid)) {
+			/* ignore this is optional */
+		} else if (!strcasecmp(aocbillingid, "Normal")) {
+			_billingid = AST_AOC_BILLING_NORMAL;
+		} else if (!strcasecmp(aocbillingid, "ReverseCharge")) {
+			_billingid = AST_AOC_BILLING_REVERSE_CHARGE;
+		} else if (!strcasecmp(aocbillingid, "CreditCard")) {
+			_billingid = AST_AOC_BILLING_CREDIT_CARD;
+		} else if (!strcasecmp(aocbillingid, "CallFwdUnconditional")) {
+			_billingid = AST_AOC_BILLING_CALL_FWD_UNCONDITIONAL;
+		} else if (!strcasecmp(aocbillingid, "CallFwdBusy")) {
+			_billingid = AST_AOC_BILLING_CALL_FWD_BUSY;
+		} else if (!strcasecmp(aocbillingid, "CallFwdNoReply")) {
+			_billingid = AST_AOC_BILLING_CALL_FWD_NO_REPLY;
+		} else if (!strcasecmp(aocbillingid, "CallDeflection")) {
+			_billingid = AST_AOC_BILLING_CALL_DEFLECTION;
+		} else if (!strcasecmp(aocbillingid, "CallTransfer")) {
+			_billingid = AST_AOC_BILLING_CALL_TRANSFER;
+		} else {
+			astman_send_error(s, m, "Invalid AOC-E AOCBillingId");
+			goto aocmessage_cleanup;
+		}
+
+		if (!ast_strlen_zero(association_id) && (sscanf(association_id, "%30d", &_association_id) != 1)) {
+			astman_send_error(s, m, "Invalid ChargingAssociationId");
+			goto aocmessage_cleanup;
+		}
+		if (!ast_strlen_zero(association_plan) && (sscanf(association_plan, "%30u", &_association_plan) != 1)) {
+			astman_send_error(s, m, "Invalid ChargingAssociationPlan");
+			goto aocmessage_cleanup;
+		}
+
+		if (_association_id) {
+			ast_aoc_set_association_id(decoded, _association_id);
+		} else if (!ast_strlen_zero(association_num)) {
+			ast_aoc_set_association_number(decoded, association_num, _association_plan);
+		}
+	}
+
+	if (_chargetype == AST_AOC_CHARGE_CURRENCY) {
+		ast_aoc_set_currency_info(decoded, _currencyamount, _mult, ast_strlen_zero(currencyname) ? NULL : currencyname);
+	} else if (_chargetype == AST_AOC_CHARGE_UNIT) {
+		struct ast_aoc_unit_entry entry;
+		int i;
+
+		/* multiple unit entries are possible, lets get them all */
+		for (i = 0; i < 32; i++) {
+			if (aocmessage_get_unit_entry(m, &entry, i)) {
+				break; /* that's the end then */
+			}
+
+			ast_aoc_add_unit_entry(decoded, entry.valid_amount, entry.amount, entry.valid_type, entry.type);
+		}
+
+		/* at least one unit entry is required */
+		if (!i) {
+			astman_send_error(s, m, "Invalid UnitAmount(0), At least one valid unit entry is required when ChargeType is set to Unit");
+			goto aocmessage_cleanup;
+		}
+
+	}
+
+	ast_aoc_set_billing_id(decoded, _billingid);
+	ast_aoc_set_total_type(decoded, _totaltype);
+
+
+	if ((encoded = ast_aoc_encode(decoded, &encoded_size, NULL)) && !ast_indicate_data(chan, AST_CONTROL_AOC, encoded, encoded_size)) {
+		astman_send_ack(s, m, "AOC Message successfully queued on channel");
+	} else {
+		astman_send_error(s, m, "Error encoding AOC message, could not queue onto channel");
+	}
+
+aocmessage_cleanup:
+
+	ast_aoc_destroy_decoded(decoded);
+	ast_aoc_destroy_encoded(encoded);
+
+	if (chan) {
+		chan = ast_channel_unref(chan);
+	}
+	return 0;
+}
+
 static int action_originate(struct mansession *s, const struct message *m)
 {
 	const char *name = astman_get_header(m, "Channel");
@@ -5665,6 +6002,7 @@ static int __init_manager(int reload)
 		ast_manager_register_xml("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels);
 		ast_manager_register_xml("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
 		ast_manager_register_xml("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
+		ast_manager_register_xml("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);
 
 		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);

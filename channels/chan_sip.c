@@ -261,6 +261,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/stun.h"
 #include "asterisk/cel.h"
+#include "asterisk/aoc.h"
 #include "sip/include/sip.h"
 #include "sip/include/globals.h"
 #include "sip/include/config_parser.h"
@@ -804,7 +805,7 @@ static int apeerobjs = 0;     /*!< Autocreated peer objects */
 static int regobjs = 0;       /*!< Registry objects */
 /* }@ */
 
-static struct ast_flags global_flags[2] = {{0}};  /*!< global SIP_ flags */
+static struct ast_flags global_flags[3] = {{0}};  /*!< global SIP_ flags */
 static int global_t38_maxdatagram;                /*!< global T.38 FaxMaxDatagram override */
 
 static char used_context[AST_MAX_CONTEXT];        /*!< name of automatically created context for unloading */
@@ -1275,6 +1276,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_type publish_type, const char * const explicit_uri);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, const char * const explicit_uri);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int oldsdp);
+static int transmit_info_with_aoc(struct sip_pvt *p, struct ast_aoc_decoded *decoded);
 static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
@@ -4702,6 +4704,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 
 	ast_copy_flags(&dialog->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&dialog->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	ast_copy_flags(&dialog->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 	dialog->capability = peer->capability;
 	dialog->prefs = peer->prefs;
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT)) {
@@ -6249,6 +6252,41 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	case AST_CONTROL_REDIRECTING:
 		update_redirecting(p, data, datalen);
 		break;
+	case AST_CONTROL_AOC:
+		{
+			struct ast_aoc_decoded *decoded = ast_aoc_decode((struct ast_aoc_encoded *) data, datalen, ast);
+			if (!decoded) {
+				ast_log(LOG_ERROR, "Error decoding indicated AOC data\n");
+				res = -1;
+				break;
+			}
+			switch (ast_aoc_get_msg_type(decoded)) {
+			case AST_AOC_REQUEST:
+				if (ast_aoc_get_termination_request(decoded)) {
+					/* TODO, once there is a way to get AOC-E on hangup, attempt that here
+					 * before hanging up the channel.*/
+
+					/* The other side has already initiated the hangup. This frame
+					 * just says they are waiting to get AOC-E before completely tearing
+					 * the call down.  Since SIP does not support this at the moment go
+					 * ahead and terminate the call here to avoid an unnecessary timeout. */
+					ast_log(LOG_DEBUG, "AOC-E termination request received on %s. This is not yet supported on sip. Continue with hangup \n", p->owner->name);
+					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+				}
+				break;
+			case AST_AOC_D:
+			case AST_AOC_E:
+				if (ast_test_flag(&p->flags[2], SIP_PAGE3_SNOM_AOC)) {
+					transmit_info_with_aoc(p, decoded);
+				}
+				break;
+			case AST_AOC_S: /* S not supported yet */
+			default:
+				break;
+			}
+			ast_aoc_destroy_decoded(decoded);
+		}
+		break;
 	case -1:
 		res = -1;
 		break;
@@ -6888,6 +6926,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 	/* Copy global flags to this PVT at setup. */
 	ast_copy_flags(&p->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	ast_copy_flags(&p->flags[2], &global_flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 
 	p->do_history = recordhistory;
 
@@ -11856,6 +11895,53 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	*/
 }
 
+/*! \brief Send SIP INFO advice of charge message */
+static int transmit_info_with_aoc(struct sip_pvt *p, struct ast_aoc_decoded *decoded)
+{
+	struct sip_request req;
+	struct ast_str *str = ast_str_alloca(512);
+	const struct ast_aoc_unit_entry *unit_entry = ast_aoc_get_unit_info(decoded, 0);
+	enum ast_aoc_charge_type charging = ast_aoc_get_charge_type(decoded);
+
+	reqprep(&req, p, SIP_INFO, 0, 1);
+
+	if (ast_aoc_get_msg_type(decoded) == AST_AOC_D) {
+		ast_str_append(&str, 0, "type=active;");
+	} else if (ast_aoc_get_msg_type(decoded) == AST_AOC_E) {
+		ast_str_append(&str, 0, "type=terminated;");
+	} else {
+		/* unsupported message type */
+		return -1;
+	}
+
+	switch (charging) {
+	case AST_AOC_CHARGE_FREE:
+		ast_str_append(&str, 0, "free-of-charge;");
+		break;
+	case AST_AOC_CHARGE_CURRENCY:
+		ast_str_append(&str, 0, "charging;");
+		ast_str_append(&str, 0, "charging-info=currency;");
+		ast_str_append(&str, 0, "amount=%u;", ast_aoc_get_currency_amount(decoded));
+		ast_str_append(&str, 0, "multiplier=%s;", ast_aoc_get_currency_multiplier_decimal(decoded));
+		if (!ast_strlen_zero(ast_aoc_get_currency_name(decoded))) {
+			ast_str_append(&str, 0, "currency=%s;", ast_aoc_get_currency_name(decoded));
+		}
+		break;
+	case AST_AOC_CHARGE_UNIT:
+		ast_str_append(&str, 0, "charging;");
+		ast_str_append(&str, 0, "charging-info=pulse;");
+		if (unit_entry) {
+			ast_str_append(&str, 0, "recorded-units=%u;", unit_entry->amount);
+		}
+		break;
+	default:
+		ast_str_append(&str, 0, "not-available;");
+	};
+
+	add_header(&req, "AOC", ast_str_buffer(str));
+
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
+}
 
 /*! \brief Send SIP INFO dtmf message, see Cisco documentation on cisco.com */
 static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigned int duration)
@@ -14037,6 +14123,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	/* Take the peer */
 	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	ast_copy_flags(&p->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && p->udptl) {
 		p->t38_maxdatagram = peer->t38_maxdatagram;
@@ -14081,6 +14168,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, req->ignore))) {
 		ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 		ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+		ast_copy_flags(&p->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 		/* If we have a call limit, set flag */
 		if (peer->call_limit)
 			ast_set_flag(&p->flags[0], SIP_CALL_LIMIT);
@@ -24000,6 +24088,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	copy_socket_data(&p->socket, &peer->socket);
 	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	ast_copy_flags(&p->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 
 	/* Send OPTIONs to peer's fullcontact */
 	if (!ast_strlen_zero(peer->fullcontact))
@@ -24757,6 +24846,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->type = SIP_TYPE_PEER;
 	ast_copy_flags(&peer->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
+	ast_copy_flags(&peer->flags[2], &global_flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 	ast_string_field_set(peer, context, sip_cfg.default_context);
 	ast_string_field_set(peer, subscribecontext, sip_cfg.default_subscribecontext);
 	ast_string_field_set(peer, language, default_language);
@@ -24863,8 +24953,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	int format = 0;		/* Ama flags */
 	int timerb_set = 0, timert1_set = 0;
 	time_t regseconds = 0;
-	struct ast_flags peerflags[2] = {{(0)}};
-	struct ast_flags mask[2] = {{(0)}};
+	struct ast_flags peerflags[3] = {{(0)}};
+	struct ast_flags mask[3] = {{(0)}};
 	char callback[256] = "";
 	struct sip_peer tmp_peer;
 	const char *srvlookup = NULL;
@@ -25255,6 +25345,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_string_field_set(peer, unsolicited_mailbox, v->value);
 			} else if (!strcasecmp(v->name, "use_q850_reason")) {
 				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
+			} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
+				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
 			}
 		}
 
@@ -25424,6 +25516,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 	ast_copy_flags(&peer->flags[0], &peerflags[0], mask[0].flags);
 	ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
+	ast_copy_flags(&peer->flags[2], &peerflags[2], mask[2].flags);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
 		sip_cfg.allowsubscribe = TRUE;	/* No global ban any more */
 	}
@@ -26163,6 +26256,8 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "use_q850_reason")) {
 			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
+		} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
+				ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
 		}
 	}
 

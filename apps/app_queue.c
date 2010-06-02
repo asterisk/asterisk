@@ -94,6 +94,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/aoc.h"
 #include "asterisk/callerid.h"
 #include "asterisk/cel.h"
 #include "asterisk/data.h"
@@ -820,6 +821,7 @@ struct callattempt {
 	unsigned int pending_connected_update:1;
 	/*! TRUE if caller id is not available for connected line */
 	unsigned int dial_callerid_absent:1;
+	struct ast_aoc_decoded *aoc_s_rate_list;
 };
 
 
@@ -2654,6 +2656,7 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 		}
 		oo = outgoing;
 		outgoing = outgoing->q_next;
+		ast_aoc_destroy_decoded(oo->aoc_s_rate_list);
 		callattempt_free(oo);
 	}
 }
@@ -3335,6 +3338,14 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							ast_party_connected_line_free(&connected_caller);
 						}
 					}
+					if (o->aoc_s_rate_list) {
+						size_t encoded_size;
+						struct ast_aoc_encoded *encoded;
+						if ((encoded = ast_aoc_encode(o->aoc_s_rate_list, &encoded_size, o->chan))) {
+							ast_indicate_data(in, AST_CONTROL_AOC, encoded, encoded_size);
+							ast_aoc_destroy_encoded(encoded);
+						}
+					}
 					peer = o;
 				}
 			} else if (o->chan && (o->chan == winner)) {
@@ -3454,6 +3465,14 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 										ast_party_connected_line_free(&connected_caller);
 									}
 								}
+								if (o->aoc_s_rate_list) {
+									size_t encoded_size;
+									struct ast_aoc_encoded *encoded;
+									if ((encoded = ast_aoc_encode(o->aoc_s_rate_list, &encoded_size, o->chan))) {
+										ast_indicate_data(in, AST_CONTROL_AOC, encoded, encoded_size);
+										ast_aoc_destroy_encoded(encoded);
+									}
+								}
 								peer = o;
 							}
 							break;
@@ -3520,6 +3539,17 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							} else {
 								if (ast_channel_connected_line_macro(o->chan, in, f, 1, 1)) {
 									ast_indicate_data(in, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+								}
+							}
+							break;
+						case AST_CONTROL_AOC:
+							{
+								struct ast_aoc_decoded *decoded = ast_aoc_decode(f->data.ptr, f->datalen, o->chan);
+								if (decoded && (ast_aoc_get_msg_type(decoded) == AST_AOC_S)) {
+									ast_aoc_destroy_decoded(o->aoc_s_rate_list);
+									o->aoc_s_rate_list = decoded;
+								} else {
+									ast_aoc_destroy_decoded(decoded);
 								}
 							}
 							break;
