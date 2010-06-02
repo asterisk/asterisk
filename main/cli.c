@@ -1557,6 +1557,28 @@ static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT_STRING
 }
 
+static char *handle_cli_wait_fullybooted(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core waitfullybooted";
+		e->usage =
+			"Usage: core waitfullybooted\n"
+			"	Wait until Asterisk has fully booted.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	while (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+		usleep(100);
+	}
+
+	ast_cli(a->fd, "Asterisk has fully booted.\n");
+
+	return CLI_SUCCESS;
+}
+
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_cli[] = {
@@ -1600,6 +1622,8 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_cli_show_permissions, "Show CLI permissions"),
 
 	AST_CLI_DEFINE(handle_cli_check_permissions, "Try a permissions config for a user"),
+
+	AST_CLI_DEFINE(handle_cli_wait_fullybooted, "Wait for Asterisk to be fully booted"),
 };
 
 /*!
