@@ -364,6 +364,8 @@ Asterisk Manager Interface
    in a MixMonitor recording.
  * The 'iax2 show peers' output is now similar to the expected output of
    'sip show peers'.
+ * Added Advice-Of-Charge events (AOC-S, AOC-D, and AOC-E) in the new
+   aoc event class.
 
 Channel Event Logging
 ---------------------

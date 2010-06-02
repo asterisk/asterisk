@@ -2054,6 +2054,651 @@ static void sig_pri_cc_link_canceled(struct sig_pri_pri *pri, long cc_id, int is
 }
 #endif	/* defined(HAVE_PRI_CCSS) */
 
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_CHARGED_ITEM to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_charged_item_str(enum PRI_AOC_CHARGED_ITEM value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_CHARGED_ITEM_NOT_AVAILABLE:
+		str = "NotAvailable";
+		break;
+	case PRI_AOC_CHARGED_ITEM_SPECIAL_ARRANGEMENT:
+		str = "SpecialArrangement";
+		break;
+	case PRI_AOC_CHARGED_ITEM_BASIC_COMMUNICATION:
+		str = "BasicCommunication";
+		break;
+	case PRI_AOC_CHARGED_ITEM_CALL_ATTEMPT:
+		str = "CallAttempt";
+		break;
+	case PRI_AOC_CHARGED_ITEM_CALL_SETUP:
+		str = "CallSetup";
+		break;
+	case PRI_AOC_CHARGED_ITEM_USER_USER_INFO:
+		str = "UserUserInfo";
+		break;
+	case PRI_AOC_CHARGED_ITEM_SUPPLEMENTARY_SERVICE:
+		str = "SupplementaryService";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_RATE_TYPE to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_rate_type_str(enum PRI_AOC_RATE_TYPE value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_RATE_TYPE_NOT_AVAILABLE:
+		str = "NotAvailable";
+		break;
+	case PRI_AOC_RATE_TYPE_FREE:
+		str = "Free";
+		break;
+	case PRI_AOC_RATE_TYPE_FREE_FROM_BEGINNING:
+		str = "FreeFromBeginning";
+		break;
+	case PRI_AOC_RATE_TYPE_DURATION:
+		str = "Duration";
+		break;
+	case PRI_AOC_RATE_TYPE_FLAT:
+		str = "Flat";
+		break;
+	case PRI_AOC_RATE_TYPE_VOLUME:
+		str = "Volume";
+		break;
+	case PRI_AOC_RATE_TYPE_SPECIAL_CODE:
+		str = "SpecialCode";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_VOLUME_UNIT to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_volume_unit_str(enum PRI_AOC_VOLUME_UNIT value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_VOLUME_UNIT_OCTET:
+		str = "Octet";
+		break;
+	case PRI_AOC_VOLUME_UNIT_SEGMENT:
+		str = "Segment";
+		break;
+	case PRI_AOC_VOLUME_UNIT_MESSAGE:
+		str = "Message";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_MULTIPLIER to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_multiplier_str(enum PRI_AOC_MULTIPLIER value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_MULTIPLIER_THOUSANDTH:
+		str = "1/1000";
+		break;
+	case PRI_AOC_MULTIPLIER_HUNDREDTH:
+		str = "1/100";
+		break;
+	case PRI_AOC_MULTIPLIER_TENTH:
+		str = "1/10";
+		break;
+	case PRI_AOC_MULTIPLIER_ONE:
+		str = "1";
+		break;
+	case PRI_AOC_MULTIPLIER_TEN:
+		str = "10";
+		break;
+	case PRI_AOC_MULTIPLIER_HUNDRED:
+		str = "100";
+		break;
+	case PRI_AOC_MULTIPLIER_THOUSAND:
+		str = "1000";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_TIME_SCALE to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_scale_str(enum PRI_AOC_TIME_SCALE value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_TIME_SCALE_HUNDREDTH_SECOND:
+		str = "OneHundredthSecond";
+		break;
+	case PRI_AOC_TIME_SCALE_TENTH_SECOND:
+		str = "OneTenthSecond";
+		break;
+	case PRI_AOC_TIME_SCALE_SECOND:
+		str = "Second";
+		break;
+	case PRI_AOC_TIME_SCALE_TEN_SECOND:
+		str = "TenSeconds";
+		break;
+	case PRI_AOC_TIME_SCALE_MINUTE:
+		str = "Minute";
+		break;
+	case PRI_AOC_TIME_SCALE_HOUR:
+		str = "Hour";
+		break;
+	case PRI_AOC_TIME_SCALE_DAY:
+		str = "Day";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_DE_CHARGE to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_de_charge_str(enum PRI_AOC_DE_CHARGE value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_DE_CHARGE_NOT_AVAILABLE:
+		str = "NotAvailable";
+		break;
+	case PRI_AOC_DE_CHARGE_FREE:
+		str = "Free";
+		break;
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+		str = "Currency";
+		break;
+	case PRI_AOC_DE_CHARGE_UNITS:
+		str = "Units";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_D_BILLING_ID to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_d_billing_id_str(enum PRI_AOC_D_BILLING_ID value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_D_BILLING_ID_NOT_AVAILABLE:
+		str = "NotAvailable";
+		break;
+	case PRI_AOC_D_BILLING_ID_NORMAL:
+		str = "Normal";
+		break;
+	case PRI_AOC_D_BILLING_ID_REVERSE:
+		str = "Reverse";
+		break;
+	case PRI_AOC_D_BILLING_ID_CREDIT_CARD:
+		str = "CreditCard";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Convert PRI_AOC_E_BILLING_ID to string.
+ * \since 1.8
+ *
+ * \param value Value to convert to string.
+ *
+ * \return String equivalent.
+ */
+static const char *sig_pri_aoc_e_billing_id_str(enum PRI_AOC_E_BILLING_ID value)
+{
+	const char *str;
+
+	switch (value) {
+	default:
+	case PRI_AOC_E_BILLING_ID_NOT_AVAILABLE:
+		str = "NotAvailable";
+		break;
+	case PRI_AOC_E_BILLING_ID_NORMAL:
+		str = "Normal";
+		break;
+	case PRI_AOC_E_BILLING_ID_REVERSE:
+		str = "Reverse";
+		break;
+	case PRI_AOC_E_BILLING_ID_CREDIT_CARD:
+		str = "CreditCard";
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_UNCONDITIONAL:
+		str = "CallForwardingUnconditional";
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_BUSY:
+		str = "CallForwardingBusy";
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_FORWARDING_NO_REPLY:
+		str = "CallForwardingNoReply";
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_DEFLECTION:
+		str = "CallDeflection";
+		break;
+	case PRI_AOC_E_BILLING_ID_CALL_TRANSFER:
+		str = "CallTransfer";
+		break;
+	}
+	return str;
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Append the amount structure to the event message string.
+ * \since 1.8
+ *
+ * \param msg Event message string being built.
+ * \param prefix Prefix to add to the amount lines.
+ * \param amount Data to convert.
+ *
+ * \return Nothing
+ */
+static void sig_pri_aoc_amount(struct ast_str **msg, const char *prefix, const struct pri_aoc_amount *amount)
+{
+	static const char name[] = "Amount";
+
+	ast_str_append(msg, 0, "%s/%s/Cost: %ld\r\n", prefix, name, amount->cost);
+	ast_str_append(msg, 0, "%s/%s/Multiplier: %s\r\n", prefix, name,
+		sig_pri_aoc_multiplier_str(amount->multiplier));
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Append the time structure to the event message string.
+ * \since 1.8
+ *
+ * \param msg Event message string being built.
+ * \param prefix Prefix to add to the amount lines.
+ * \param name Name of the time structure to convert.
+ * \param time Data to convert.
+ *
+ * \return Nothing
+ */
+static void sig_pri_aoc_time(struct ast_str **msg, const char *prefix, const char *name, const struct pri_aoc_time *time)
+{
+	ast_str_append(msg, 0, "%s/%s/Length: %ld\r\n", prefix, name, time->length);
+	ast_str_append(msg, 0, "%s/%s/Scale: %s\r\n", prefix, name,
+		sig_pri_aoc_scale_str(time->scale));
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Handle the AOC-S event.
+ * \since 1.8
+ *
+ * \param aoc_s AOC-S event parameters.
+ * \param owner Asterisk channel associated with the call.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the owner channel lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_aoc_s_event(const struct pri_subcmd_aoc_s *aoc_s, struct ast_channel *owner)
+{
+	struct ast_str *msg;
+	const char *rate_str;
+	char prefix[32];
+	int idx;
+
+	msg = ast_str_create(4096);
+	if (!msg) {
+		return;
+	}
+
+	ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
+	ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+
+	ast_str_append(&msg, 0, "NumberRates: %d\r\n", aoc_s->num_items);
+	for (idx = 0; idx < aoc_s->num_items; ++idx) {
+		snprintf(prefix, sizeof(prefix), "Rate(%d)", idx);
+
+		ast_str_append(&msg, 0, "%s/Chargeable: %s\r\n", prefix,
+			sig_pri_aoc_charged_item_str(aoc_s->item[idx].chargeable));
+		if (aoc_s->item[idx].chargeable == PRI_AOC_CHARGED_ITEM_NOT_AVAILABLE) {
+			continue;
+		}
+		rate_str = sig_pri_aoc_rate_type_str(aoc_s->item[idx].rate_type);
+		ast_str_append(&msg, 0, "%s/Type: %s\r\n", prefix, rate_str);
+		switch (aoc_s->item[idx].rate_type) {
+		case PRI_AOC_RATE_TYPE_DURATION:
+			strcat(prefix, "/");
+			strcat(prefix, rate_str);
+			ast_str_append(&msg, 0, "%s/Currency: %s\r\n", prefix,
+				aoc_s->item[idx].rate.duration.currency);
+			sig_pri_aoc_amount(&msg, prefix, &aoc_s->item[idx].rate.duration.amount);
+			ast_str_append(&msg, 0, "%s/ChargingType: %s\r\n", prefix,
+				aoc_s->item[idx].rate.duration.charging_type
+				? "StepFunction" : "ContinuousCharging");
+			sig_pri_aoc_time(&msg, prefix, "Time", &aoc_s->item[idx].rate.duration.time);
+			if (aoc_s->item[idx].rate.duration.granularity.length) {
+				sig_pri_aoc_time(&msg, prefix, "Granularity",
+					&aoc_s->item[idx].rate.duration.granularity);
+			}
+			break;
+		case PRI_AOC_RATE_TYPE_FLAT:
+			strcat(prefix, "/");
+			strcat(prefix, rate_str);
+			ast_str_append(&msg, 0, "%s/Currency: %s\r\n", prefix,
+				aoc_s->item[idx].rate.flat.currency);
+			sig_pri_aoc_amount(&msg, prefix, &aoc_s->item[idx].rate.flat.amount);
+			break;
+		case PRI_AOC_RATE_TYPE_VOLUME:
+			strcat(prefix, "/");
+			strcat(prefix, rate_str);
+			ast_str_append(&msg, 0, "%s/Currency: %s\r\n", prefix,
+				aoc_s->item[idx].rate.volume.currency);
+			sig_pri_aoc_amount(&msg, prefix, &aoc_s->item[idx].rate.volume.amount);
+			ast_str_append(&msg, 0, "%s/Unit: %s\r\n", prefix,
+				sig_pri_aoc_volume_unit_str(aoc_s->item[idx].rate.volume.unit));
+			break;
+		case PRI_AOC_RATE_TYPE_SPECIAL_CODE:
+			ast_str_append(&msg, 0, "%s/%s: %d\r\n", prefix, rate_str,
+				aoc_s->item[idx].rate.special);
+			break;
+		default:
+			break;
+		}
+	}
+
+	ast_manager_event(owner, EVENT_FLAG_AOC, "AOC-S", "%s", ast_str_buffer(msg));
+	ast_free(msg);
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Handle the AOC-D event.
+ * \since 1.8
+ *
+ * \param aoc_d AOC-D event parameters.
+ * \param owner Asterisk channel associated with the call.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the owner channel lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_aoc_d_event(const struct pri_subcmd_aoc_d *aoc_d, struct ast_channel *owner)
+{
+	struct ast_str *msg;
+	const char *charge_str;
+	int idx;
+	int num_items;
+	char prefix[32];
+
+	msg = ast_str_create(4096);
+	if (!msg) {
+		return;
+	}
+
+	ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
+	ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+
+	charge_str = sig_pri_aoc_de_charge_str(aoc_d->charge);
+	ast_str_append(&msg, 0, "Type: %s\r\n", charge_str);
+	switch (aoc_d->charge) {
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+	case PRI_AOC_DE_CHARGE_UNITS:
+		ast_str_append(&msg, 0, "BillingID: %s\r\n",
+			sig_pri_aoc_d_billing_id_str(aoc_d->billing_id));
+		ast_str_append(&msg, 0, "TypeOfCharging: %s\r\n",
+			aoc_d->billing_accumulation ? "Total" : "SubTotal");
+		break;
+	default:
+		break;
+	}
+	switch (aoc_d->charge) {
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+		ast_str_append(&msg, 0, "%s: %s\r\n", charge_str,
+			aoc_d->recorded.money.currency);
+		sig_pri_aoc_amount(&msg, charge_str, &aoc_d->recorded.money.amount);
+		break;
+	case PRI_AOC_DE_CHARGE_UNITS:
+		num_items = 0;
+		for (idx = 0; idx < aoc_d->recorded.unit.num_items; ++idx) {
+			if (0 <= aoc_d->recorded.unit.item[idx].number
+				|| 0 <= aoc_d->recorded.unit.item[idx].type) {
+				/* Something is available at this index location so keep it. */
+				++num_items;
+			}
+		}
+		ast_str_append(&msg, 0, "%s/NumberItems: %d\r\n", charge_str, num_items);
+		num_items = 0;
+		for (idx = 0; idx < aoc_d->recorded.unit.num_items; ++idx) {
+			if (aoc_d->recorded.unit.item[idx].number < 0
+				&& aoc_d->recorded.unit.item[idx].type < 0) {
+				/* Nothing is available at this index location so skip it. */
+				continue;
+			}
+			snprintf(prefix, sizeof(prefix), "%s/Item(%d)", charge_str, num_items);
+			++num_items;
+
+			if (0 <= aoc_d->recorded.unit.item[idx].number) {
+				/* Number of units recorded is available */
+				ast_str_append(&msg, 0, "%s/NumberOf: %ld\r\n", prefix,
+					aoc_d->recorded.unit.item[idx].number);
+			}
+			if (0 <= aoc_d->recorded.unit.item[idx].type) {
+				/* Type of units recorded is available */
+				ast_str_append(&msg, 0, "%s/TypeOf: %d\r\n", prefix,
+					aoc_d->recorded.unit.item[idx].type);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	ast_manager_event(owner, EVENT_FLAG_AOC, "AOC-D", "%s", ast_str_buffer(msg));
+	ast_free(msg);
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+/*!
+ * \internal
+ * \brief Handle the AOC-E event.
+ * \since 1.8
+ *
+ * \param aoc_e AOC-E event parameters.
+ * \param owner Asterisk channel associated with the call.
+ * NULL if the event is not associated with an existing call.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the owner channel lock is already obtained if associated.
+ *
+ * \return Nothing
+ */
+static void sig_pri_aoc_e_event(const struct pri_subcmd_aoc_e *aoc_e, struct ast_channel *owner)
+{
+	struct ast_channel *chans[1];
+	struct ast_str *msg;
+	const char *charge_str;
+	int idx;
+	int num_items;
+	char prefix[32];
+
+	msg = ast_str_create(4096);
+	if (!msg) {
+		return;
+	}
+
+	if (owner) {
+		ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
+		ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+	}
+
+	/* If there is no owner then there should be a charging association. */
+	charge_str = "ChargingAssociation";
+	switch (aoc_e->associated.charging_type) {
+	case PRI_AOC_E_CHARGING_ASSOCIATION_NUMBER:
+		if (!aoc_e->associated.charge.number.valid) {
+			break;
+		}
+		snprintf(prefix, sizeof(prefix), "%s/Number", charge_str);
+		ast_str_append(&msg, 0, "%s: %s\r\n", prefix,
+			aoc_e->associated.charge.number.str);
+		ast_str_append(&msg, 0, "%s/Plan: %d\r\n", prefix,
+			aoc_e->associated.charge.number.plan);
+		break;
+	case PRI_AOC_E_CHARGING_ASSOCIATION_ID:
+		ast_str_append(&msg, 0, "%s/ID: %d\r\n", charge_str, aoc_e->associated.charge.id);
+		break;
+	default:
+		break;
+	}
+
+	charge_str = sig_pri_aoc_de_charge_str(aoc_e->charge);
+	ast_str_append(&msg, 0, "Type: %s\r\n", charge_str);
+	switch (aoc_e->charge) {
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+	case PRI_AOC_DE_CHARGE_UNITS:
+		ast_str_append(&msg, 0, "BillingID: %s\r\n",
+			sig_pri_aoc_e_billing_id_str(aoc_e->billing_id));
+		break;
+	default:
+		break;
+	}
+	switch (aoc_e->charge) {
+	case PRI_AOC_DE_CHARGE_CURRENCY:
+		ast_str_append(&msg, 0, "%s: %s\r\n", charge_str,
+			aoc_e->recorded.money.currency);
+		sig_pri_aoc_amount(&msg, charge_str, &aoc_e->recorded.money.amount);
+		break;
+	case PRI_AOC_DE_CHARGE_UNITS:
+		num_items = 0;
+		for (idx = 0; idx < aoc_e->recorded.unit.num_items; ++idx) {
+			if (0 <= aoc_e->recorded.unit.item[idx].number
+				|| 0 <= aoc_e->recorded.unit.item[idx].type) {
+				/* Something is available at this index location so keep it. */
+				++num_items;
+			}
+		}
+		ast_str_append(&msg, 0, "%s/NumberItems: %d\r\n", charge_str, num_items);
+		num_items = 0;
+		for (idx = 0; idx < aoc_e->recorded.unit.num_items; ++idx) {
+			if (aoc_e->recorded.unit.item[idx].number < 0
+				&& aoc_e->recorded.unit.item[idx].type < 0) {
+				/* Nothing is available at this index location so skip it. */
+				continue;
+			}
+			snprintf(prefix, sizeof(prefix), "%s/Item(%d)", charge_str, num_items);
+			++num_items;
+
+			if (0 <= aoc_e->recorded.unit.item[idx].number) {
+				/* Number of units recorded is available */
+				ast_str_append(&msg, 0, "%s/NumberOf: %ld\r\n", prefix,
+					aoc_e->recorded.unit.item[idx].number);
+			}
+			if (0 <= aoc_e->recorded.unit.item[idx].type) {
+				/* Type of units recorded is available */
+				ast_str_append(&msg, 0, "%s/TypeOf: %d\r\n", prefix,
+					aoc_e->recorded.unit.item[idx].type);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	chans[0] = owner;
+	ast_manager_event_multichan(EVENT_FLAG_AOC, "AOC-E", owner ? 1 : 0, chans, "%s",
+		ast_str_buffer(msg));
+	ast_free(msg);
+}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
 /*!
  * \internal
  * \brief TRUE if PRI event came in on a CIS call.
@@ -2269,6 +2914,11 @@ static void sig_pri_handle_cis_subcmds(struct sig_pri_pri *pri, int event_id,
 			ao2_ref(monitor, -1);
 			break;
 #endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		case PRI_SUBCMD_AOC_E:
+			sig_pri_aoc_e_event(&subcmd->u.aoc_e, NULL);
+			break;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		default:
 			ast_debug(2,
 				"Unknown CIS subcommand(%d) in %s event on span %d.\n",
@@ -2524,6 +3174,36 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			sig_pri_lock_private(pri->pvts[chanpos]);
 			break;
 #endif	/* defined(HAVE_PRI_TRANSFER) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		case PRI_SUBCMD_AOC_S:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				sig_pri_aoc_s_event(&subcmd->u.aoc_s, owner);
+				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		case PRI_SUBCMD_AOC_D:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			if (owner) {
+				sig_pri_aoc_d_event(&subcmd->u.aoc_d, owner);
+				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+		case PRI_SUBCMD_AOC_E:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			sig_pri_aoc_e_event(&subcmd->u.aoc_e, owner);
+			if (owner) {
+				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		default:
 			ast_debug(2,
 				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
@@ -4933,6 +5613,9 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 #if defined(HAVE_PRI_TRANSFER)
 	pri_transfer_enable(pri->pri, 1);
 #endif	/* defined(HAVE_PRI_TRANSFER) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+	pri_aoc_events_enable(pri->pri, 1);
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {

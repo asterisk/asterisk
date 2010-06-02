@@ -532,6 +532,10 @@
 /* Define to 1 if you have the ISDN PRI library. */
 #undef HAVE_PRI
 
+/* Define to 1 if you have the ISDN PRI advice of charge supplementary service
+   events library. */
+#undef HAVE_PRI_AOC_EVENTS
+
 /* Define to 1 if you have the ISDN PRI call hold library. */
 #undef HAVE_PRI_CALL_HOLD
 
