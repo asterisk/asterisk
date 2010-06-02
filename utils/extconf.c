@@ -49,6 +49,7 @@
 #include <pthread.h>
 #include <netdb.h>
 #include <sys/param.h>
+#include <signal.h>
 
 static void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 void ast_verbose(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
