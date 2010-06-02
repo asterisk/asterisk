@@ -1054,18 +1054,18 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				}
 				
 			} else {
-				ast_log(LOG_ERROR,"Error! '%s' doesn't appear to be an available function!", funcname->u.s);
+				ast_log(LOG_ERROR, "Error! '%s' doesn't appear to be an available function!\n", funcname->u.s);
 				return (make_number ((FP___TYPE)0.0));
 			}
 #else
-			ast_log(LOG_ERROR,"Error! '%s' is not available in the standalone version!", funcname->u.s);
+			ast_log(LOG_ERROR, "Error! '%s' is not available in the standalone version!\n", funcname->u.s);
 			return (make_number ((FP___TYPE)0.0));
 #endif
 		}
 	}
 	else
 	{
-		ast_log(LOG_ERROR,"Error! '%s' is not possibly a function name!", funcname->u.s);
+		ast_log(LOG_ERROR, "Error! '%s' is not possibly a function name!\n", funcname->u.s);
 		return (make_number ((FP___TYPE)0.0));
 	}
 	return (make_number ((FP___TYPE)0.0));
@@ -1549,7 +1549,7 @@ op_colon (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		ast_log(LOG_WARNING, "regcomp() error : %s\n", errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
@@ -1600,7 +1600,7 @@ op_eqtilde (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		ast_log(LOG_WARNING, "regcomp() error : %s\n", errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
