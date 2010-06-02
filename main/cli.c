@@ -138,6 +138,10 @@ static char group_show_channels_help[] =
 "       Optional regular expression pattern is matched to group names for each\n"
 "       channel.\n";
 
+static char core_wait_fullybooted_help[] =
+"Usage: core waitfullybooted\n"
+"	Wait until Asterisk has fully booted.\n";
+
 static int handle_load_deprecated(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -1336,6 +1340,17 @@ static int group_show_channels(int fd, int argc, char *argv[])
 #undef FORMAT_STRING
 }
 
+static int handle_cli_wait_fullybooted(int fd, int argc, char *argv[])
+{
+	while (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+		usleep(100);
+	}
+
+	ast_cli(fd, "Asterisk has fully booted.\n");
+
+	return RESULT_SUCCESS;
+}
+
 static int handle_help(int fd, int argc, char *argv[]);
 
 static char * complete_help(const char *text, const char *word, int pos, int state)
@@ -1500,6 +1515,10 @@ static struct ast_cli_entry cli_cli[] = {
 	{ { "soft", "hangup", NULL },
 	handle_softhangup, "Request a hangup on a given channel",
 	softhangup_help, complete_ch_3 },
+
+	{ { "core", "waitfullybooted", NULL },
+	handle_cli_wait_fullybooted, "Display active channels with group(s)",
+	core_wait_fullybooted_help },
 };
 
 /*! \brief initialize the _full_cmd string in * each of the builtins. */
