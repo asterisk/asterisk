@@ -4,10 +4,19 @@ Advice of Charge
 
 Written by: David Vossel
 Initial version: 04-19-2010
+Email: dvossel@digium.com
 
 This document is designed to give an overview of how to configure and
 generate Advice of Charge along with a detailed explanation of how each
 option works.
+
+--------------------------------------
+|          READ THIS FIRST           |
+--------------------------------------
+PLEASE REPORT ANY ISSUES ENCOUNTERED WHILE USING AOC.  This feature
+has had very little community feedback so far.  If you are using this
+feature please share with us any problems you are having and any
+improvements that could make this feature more useful.  Thank you!
 
 --------------------------------------
 |           Terminology              |

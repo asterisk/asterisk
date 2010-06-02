@@ -61,6 +61,8 @@ SIP Changes
    the particular peer. The dialstring format is SIP/peer/exten/host_or_IP.
  * Added directmediapermit/directmediadeny to limit which peers can send direct media
    to each other
+ * Added the 'snom_aoc_enabled' option to turn on support for sending Advice of
+   Charge messages to snom phones.
 
 IAX2 Changes
 -----------
@@ -336,6 +338,7 @@ libpri channel driver (chan_dahdi) DAHDI changes
    to eliminate tromboned calls.  A tromboned call goes out an interface and comes
    back into the same interface.  Tromboned calls happen because of call routing,
    call deflection, call forwarding, and call transfer.
+ * Added the ability to send and receive ETSI Advice-Of-Charge messages. 
 
 Asterisk Manager Interface
 --------------------------
@@ -366,6 +369,8 @@ Asterisk Manager Interface
    'sip show peers'.
  * Added Advice-Of-Charge events (AOC-S, AOC-D, and AOC-E) in the new
    aoc event class.
+ * Added Advice-Of-Charge manager action, AOCMessage, for generating AOC-D and
+   AOC-E messages on a channel.
 
 Channel Event Logging
 ---------------------
