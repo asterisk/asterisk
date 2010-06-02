@@ -2462,6 +2462,26 @@ void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct as
 void ast_party_subaddress_free(struct ast_party_subaddress *doomed);
 
 /*!
+ * \brief Initialize the given party id structure.
+ * \since 1.8
+ *
+ * \param init Party id structure to initialize.
+ *
+ * \return Nothing
+ */
+void ast_party_id_init(struct ast_party_id *init);
+
+/*!
+ * \brief Destroy the party id contents
+ * \since 1.8
+ *
+ * \param doomed The party id to destroy.
+ *
+ * \return Nothing
+ */
+void ast_party_id_free(struct ast_party_id *doomed);
+
+/*!
  * \since 1.8
  * \brief Initialize the given caller structure.
  *

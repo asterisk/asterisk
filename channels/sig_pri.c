@@ -1644,6 +1644,98 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
 	return 0;
 }
 
+#if defined(HAVE_PRI_MCID)
+/*!
+ * \internal
+ * \brief Append the given party id to the event string.
+ * \since 1.8
+ *
+ * \param msg Event message string being built.
+ * \param prefix Prefix to add to the party id lines.
+ * \param party Party information to encode.
+ *
+ * \return Nothing
+ */
+static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, struct ast_party_id *party)
+{
+	ast_str_append(msg, 0, "%sPres: %d (%s)\r\n", prefix,
+		party->number_presentation,
+		ast_describe_caller_presentation(party->number_presentation));
+	ast_str_append(msg, 0, "%sNum: %s\r\n", prefix, S_OR(party->number, ""));
+	ast_str_append(msg, 0, "%ston: %d\r\n", prefix, party->number_type);
+	ast_str_append(msg, 0, "%sName: %s\r\n", prefix, S_OR(party->name, ""));
+#if defined(HAVE_PRI_SUBADDR)
+	if (party->subaddress.valid) {
+		static const char subaddress[] = "Subaddr";
+
+		ast_str_append(msg, 0, "%s%s: %s\r\n", prefix, subaddress,
+			S_OR(party->subaddress.str, ""));
+		ast_str_append(msg, 0, "%s%sType: %d\r\n", prefix, subaddress,
+			party->subaddress.type);
+		ast_str_append(msg, 0, "%s%sOdd: %d\r\n", prefix, subaddress,
+			party->subaddress.odd_even_indicator);
+	}
+#endif	/* defined(HAVE_PRI_SUBADDR) */
+}
+#endif	/* defined(HAVE_PRI_MCID) */
+
+#if defined(HAVE_PRI_MCID)
+/*!
+ * \internal
+ * \brief Handle the MCID event.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param mcid MCID event parameters.
+ * \param owner Asterisk channel associated with the call.
+ * NULL if Asterisk no longer has the ast_channel struct.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the owner channel lock is already obtained if still present.
+ *
+ * \return Nothing
+ */
+static void sig_pri_mcid_event(struct sig_pri_pri *pri, const struct pri_subcmd_mcid_req *mcid, struct ast_channel *owner)
+{
+	struct ast_channel *chans[1];
+	struct ast_str *msg;
+	struct ast_party_id party;
+
+	msg = ast_str_create(4096);
+	if (!msg) {
+		return;
+	}
+
+	if (owner) {
+		/* The owner channel is present. */
+		ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
+		ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+
+		sig_pri_event_party_id(&msg, "CallerID", &owner->connected.id);
+	} else {
+		/*
+		 * Since we no longer have an owner channel,
+		 * we have to use the caller information supplied by libpri.
+		 */
+		ast_party_id_init(&party);
+		sig_pri_party_id_convert(&party, &mcid->originator, pri);
+		sig_pri_event_party_id(&msg, "CallerID", &party);
+		ast_party_id_free(&party);
+	}
+
+	/* Always use libpri's called party information. */
+	ast_party_id_init(&party);
+	sig_pri_party_id_convert(&party, &mcid->answerer, pri);
+	sig_pri_event_party_id(&msg, "ConnectedID", &party);
+	ast_party_id_free(&party);
+
+	chans[0] = owner;
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "MCID", owner ? 1 : 0, chans, "%s",
+		ast_str_buffer(msg));
+	ast_free(msg);
+}
+#endif	/* defined(HAVE_PRI_MCID) */
+
 #if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
@@ -3640,6 +3732,21 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			}
 			break;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+#if defined(HAVE_PRI_MCID)
+		case PRI_SUBCMD_MCID_REQ:
+			sig_pri_lock_owner(pri, chanpos);
+			owner = pri->pvts[chanpos]->owner;
+			sig_pri_mcid_event(pri, &subcmd->u.mcid_req, owner);
+			if (owner) {
+				ast_channel_unlock(owner);
+			}
+			break;
+#endif	/* defined(HAVE_PRI_MCID) */
+#if defined(HAVE_PRI_MCID)
+		case PRI_SUBCMD_MCID_RSP:
+			/* Ignore for now. */
+			break;
+#endif	/* defined(HAVE_PRI_MCID) */
 		default:
 			ast_debug(2,
 				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
@@ -6451,6 +6558,9 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 #if defined(HAVE_PRI_CALL_WAITING)
 	pri_connect_ack_enable(pri->pri, 1);
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#if defined(HAVE_PRI_MCID)
+	pri_mcid_enable(pri->pri, 1);
+#endif	/* defined(HAVE_PRI_MCID) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {

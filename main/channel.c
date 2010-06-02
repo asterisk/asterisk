@@ -1652,15 +1652,7 @@ void ast_party_subaddress_free(struct ast_party_subaddress *doomed)
 	}
 }
 
-/*!
- * \internal
- * \brief Initialize the given party id structure.
- *
- * \param init Party id structure to initialize.
- *
- * \return Nothing
- */
-static void ast_party_id_init(struct ast_party_id *init)
+void ast_party_id_init(struct ast_party_id *init)
 {
 	init->number = NULL;
 	init->name = NULL;
@@ -1775,15 +1767,7 @@ static void ast_party_id_set(struct ast_party_id *dest, const struct ast_party_i
 	ast_party_subaddress_set(&dest->subaddress, &src->subaddress);
 }
 
-/*!
- * \internal
- * \brief Destroy the party id contents
- *
- * \param doomed The party id to destroy.
- *
- * \return Nothing
- */
-static void ast_party_id_free(struct ast_party_id *doomed)
+void ast_party_id_free(struct ast_party_id *doomed)
 {
 	if (doomed->number) {
 		ast_free(doomed->number);

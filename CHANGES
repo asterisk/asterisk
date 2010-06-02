@@ -346,6 +346,7 @@ libpri channel driver (chan_dahdi) DAHDI changes
  * Added the ability to send and receive ETSI Advice-Of-Charge messages. 
  * Added the ability to support call waiting calls.  (The SETUP has no B channel
    assigned.)
+ * Added Malicious Call ID (MCID) event to the AMI call event class.
 
 Asterisk Manager Interface
 --------------------------

@@ -557,6 +557,9 @@
 /* Define to 1 if you have the ISDN PRI set_inbanddisconnect library. */
 #undef HAVE_PRI_INBANDDISCONNECT
 
+/* Define to 1 if you have the ISDN PRI Malicious Call ID library. */
+#undef HAVE_PRI_MCID
+
 /* Define to 1 if you have the ISDN progress with cause library. */
 #undef HAVE_PRI_PROG_W_CAUSE
 
