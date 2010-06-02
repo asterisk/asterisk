@@ -1569,6 +1569,106 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
 	return 0;
 }
 
+#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
+/*!
+ * \internal
+ * \brief Attempt to transfer the two calls to each other.
+ * \since 1.8
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param call_1 First call involved in the transfer.
+ * \param call_1_held TRUE if call_1 is on hold.
+ * \param call_2 Second call involved in the transfer.
+ * \param call_2_held TRUE if call_2 is on hold.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int sig_pri_attempt_transfer(struct sig_pri_pri *pri, q931_call *call_1, int call_1_held, q931_call *call_2, int call_2_held)
+{
+	int retval;
+	int call_1_chanpos;
+	int call_2_chanpos;
+	struct ast_channel *call_1_ast;
+	struct ast_channel *call_2_ast;
+	struct ast_channel *bridged;
+
+	call_1_chanpos = pri_find_pri_call(pri, call_1);
+	call_2_chanpos = pri_find_pri_call(pri, call_2);
+	if (call_1_chanpos < 0 || call_2_chanpos < 0) {
+		return -1;
+	}
+
+	/* Deadlock avoidance is attempted. */
+	sig_pri_lock_private(pri->pvts[call_1_chanpos]);
+	sig_pri_lock_owner(pri, call_1_chanpos);
+	sig_pri_lock_private(pri->pvts[call_2_chanpos]);
+	sig_pri_lock_owner(pri, call_2_chanpos);
+
+	call_1_ast = pri->pvts[call_1_chanpos]->owner;
+	call_2_ast = pri->pvts[call_2_chanpos]->owner;
+	if (!call_1_ast || !call_2_ast) {
+		if (call_1_ast) {
+			ast_channel_unlock(call_1_ast);
+		}
+		if (call_2_ast) {
+			ast_channel_unlock(call_2_ast);
+		}
+		sig_pri_unlock_private(pri->pvts[call_1_chanpos]);
+		sig_pri_unlock_private(pri->pvts[call_2_chanpos]);
+		return -1;
+	}
+
+	bridged = ast_bridged_channel(call_2_ast);
+	if (bridged) {
+		if (call_1_held) {
+			ast_queue_control(call_1_ast, AST_CONTROL_UNHOLD);
+		}
+		if (call_2_held) {
+			ast_queue_control(call_2_ast, AST_CONTROL_UNHOLD);
+		}
+
+		ast_verb(3, "TRANSFERRING %s to %s\n", call_2_ast->name, call_1_ast->name);
+		retval = ast_channel_masquerade(call_1_ast, bridged);
+	} else {
+		/* Try masquerading the other way. */
+		bridged = ast_bridged_channel(call_1_ast);
+		if (bridged) {
+			if (call_1_held) {
+				ast_queue_control(call_1_ast, AST_CONTROL_UNHOLD);
+			}
+			if (call_2_held) {
+				ast_queue_control(call_2_ast, AST_CONTROL_UNHOLD);
+			}
+
+			ast_verb(3, "TRANSFERRING %s to %s\n", call_1_ast->name, call_2_ast->name);
+			retval = ast_channel_masquerade(call_2_ast, bridged);
+		} else {
+			/* Could not transfer. */
+			retval = -1;
+		}
+	}
+	if (bridged && retval) {
+		/* Restore HOLD on held calls because masquerade failed. */
+		if (call_1_held) {
+			ast_queue_control(call_1_ast, AST_CONTROL_HOLD);
+		}
+		if (call_2_held) {
+			ast_queue_control(call_2_ast, AST_CONTROL_HOLD);
+		}
+	}
+
+	ast_channel_unlock(call_1_ast);
+	ast_channel_unlock(call_2_ast);
+	sig_pri_unlock_private(pri->pvts[call_1_chanpos]);
+	sig_pri_unlock_private(pri->pvts[call_2_chanpos]);
+
+	return retval;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
+
 #if defined(HAVE_PRI_CCSS)
 /*!
  * \internal
@@ -2406,6 +2506,24 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 				subcmd->u.cc_cancel.is_agent);
 			break;
 #endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_TRANSFER)
+		case PRI_SUBCMD_TRANSFER_CALL:
+			if (!call_rsp) {
+				/* Should never happen. */
+				ast_log(LOG_ERROR,
+					"Call transfer subcommand without call to send response!\n");
+				break;
+			}
+
+			sig_pri_unlock_private(pri->pvts[chanpos]);
+			pri_transfer_rsp(pri->pri, call_rsp, subcmd->u.transfer.invoke_id,
+				sig_pri_attempt_transfer(pri,
+					subcmd->u.transfer.call_1, subcmd->u.transfer.is_call_1_held,
+					subcmd->u.transfer.call_2, subcmd->u.transfer.is_call_2_held)
+				? 0 : 1);
+			sig_pri_lock_private(pri->pvts[chanpos]);
+			break;
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 		default:
 			ast_debug(2,
 				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
@@ -2415,78 +2533,6 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 		}
 	}
 }
-
-#if defined(HAVE_PRI_CALL_HOLD)
-/*!
- * \internal
- * \brief Attempt to transfer the active call to the held call.
- * \since 1.8
- *
- * \param pri sig_pri PRI control structure.
- * \param active_call Active call to transfer.
- * \param held_call Held call to transfer.
- *
- * \note Assumes the pri->lock is already obtained.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int sig_pri_attempt_transfer(struct sig_pri_pri *pri, q931_call *active_call, q931_call *held_call)
-{
-	int retval;
-	int active_chanpos;
-	int held_chanpos;
-	struct ast_channel *active_ast;
-	struct ast_channel *held_ast;
-	struct ast_channel *bridged;
-
-	active_chanpos = pri_find_pri_call(pri, active_call);
-	held_chanpos = pri_find_pri_call(pri, held_call);
-	if (active_chanpos < 0 || held_chanpos < 0) {
-		return -1;
-	}
-
-	sig_pri_lock_private(pri->pvts[active_chanpos]);
-	sig_pri_lock_private(pri->pvts[held_chanpos]);
-	sig_pri_lock_owner(pri, active_chanpos);
-	sig_pri_lock_owner(pri, held_chanpos);
-
-	active_ast = pri->pvts[active_chanpos]->owner;
-	held_ast = pri->pvts[held_chanpos]->owner;
-	if (!active_ast || !held_ast) {
-		if (active_ast) {
-			ast_channel_unlock(active_ast);
-		}
-		if (held_ast) {
-			ast_channel_unlock(held_ast);
-		}
-		sig_pri_unlock_private(pri->pvts[active_chanpos]);
-		sig_pri_unlock_private(pri->pvts[held_chanpos]);
-		return -1;
-	}
-
-	bridged = ast_bridged_channel(held_ast);
-	if (bridged) {
-		ast_queue_control(held_ast, AST_CONTROL_UNHOLD);
-
-		ast_verb(3, "TRANSFERRING %s to %s\n", held_ast->name, active_ast->name);
-		retval = ast_channel_masquerade(active_ast, bridged);
-	} else {
-		/*
-		 * Could not transfer.  Held channel is not bridged anymore.
-		 * Held party probably got tired of waiting and hung up.
-		 */
-		retval = -1;
-	}
-
-	ast_channel_unlock(active_ast);
-	ast_channel_unlock(held_ast);
-	sig_pri_unlock_private(pri->pvts[active_chanpos]);
-	sig_pri_unlock_private(pri->pvts[held_chanpos]);
-
-	return retval;
-}
-#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
 #if defined(HAVE_PRI_CALL_HOLD)
 /*!
@@ -3766,8 +3812,8 @@ static void *pri_dchannel(void *vpri)
 							&& pri->hold_disconnect_transfer) {
 							/* We are to transfer the call instead of simply hanging up. */
 							sig_pri_unlock_private(pri->pvts[chanpos]);
-							if (!sig_pri_attempt_transfer(pri, e->hangup.call_active,
-								e->hangup.call_held)) {
+							if (!sig_pri_attempt_transfer(pri, e->hangup.call_active, 0,
+								e->hangup.call_held, 1)) {
 								break;
 							}
 							sig_pri_lock_private(pri->pvts[chanpos]);
@@ -4884,6 +4930,9 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 	pri_cc_retain_signaling_req(pri->pri, pri->cc_qsig_signaling_link_req);
 	pri_cc_retain_signaling_rsp(pri->pri, pri->cc_qsig_signaling_link_rsp);
 #endif	/* defined(HAVE_PRI_CCSS) */
+#if defined(HAVE_PRI_TRANSFER)
+	pri_transfer_enable(pri->pri, 1);
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {

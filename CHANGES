@@ -332,6 +332,10 @@ libpri channel driver (chan_dahdi) DAHDI changes
    dialing option.  Dial(DAHDI/g1/[extension]/K(<keypad_digits>))
    Access any received keypad digits in SETUP message by: ${CHANNEL(keypad_digits)}
    (requires latest LibPRI)
+ * Added ability to send and receive ETSI Explicit Call Transfer (ECT) messages
+   to eliminate tromboned calls.  A tromboned call goes out an interface and comes
+   back into the same interface.  Tromboned calls happen because of call routing,
+   call deflection, call forwarding, and call transfer.
 
 Asterisk Manager Interface
 --------------------------

@@ -253,6 +253,11 @@ struct sig_pri_pri {
 	/*! \brief TRUE if held calls are transferred on disconnect. */
 	unsigned int hold_disconnect_transfer:1;
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
+	/*!
+	 * \brief TRUE if call transfer is enabled for the span.
+	 * \note Support switch-side transfer (called 2BCT, RLT or other names)
+	 */
+	unsigned int transfer:1;
 	int dialplan;							/*!< Dialing plan */
 	int localdialplan;						/*!< Local dialing plan */
 	char internationalprefix[10];			/*!< country access code ('00' for european dialplans) */

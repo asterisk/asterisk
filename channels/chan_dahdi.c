@@ -6904,7 +6904,7 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 #ifdef PRI_2BCT
 		if (!triedtopribridge) {
 			triedtopribridge = 1;
-			if (p0->pri && p0->pri == p1->pri && p0->transfer && p1->transfer) {
+			if (p0->pri && p0->pri == p1->pri && p0->pri->transfer) {
 				ast_mutex_lock(&p0->pri->lock);
 				switch (p0->sig) {
 				case SIG_PRI_LIB_HANDLE_CASES:
@@ -11777,6 +11777,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.cc_qsig_signaling_link_rsp =
 							conf->pri.pri.cc_qsig_signaling_link_rsp;
 #endif	/* defined(HAVE_PRI_CCSS) */
+						pris[span].pri.transfer = conf->chan.transfer;
 						pris[span].pri.facilityenable = conf->pri.pri.facilityenable;
 						ast_copy_string(pris[span].pri.msn_list, conf->pri.pri.msn_list, sizeof(pris[span].pri.msn_list));
 						ast_copy_string(pris[span].pri.idledial, conf->pri.pri.idledial, sizeof(pris[span].pri.idledial));

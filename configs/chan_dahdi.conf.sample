@@ -536,6 +536,8 @@ threewaycalling=yes
 ;   'facilityenable' setting must also be enabled to allow sending
 ;   the transfer to the ISDN switch, since it sent in a FACILITY
 ;   message.
+;   NOTE:  This should be disabled for NT PTMP mode.  Phones cannot
+;   have tromboned calls pushed down to them.
 ;
 transfer=yes
 ;
