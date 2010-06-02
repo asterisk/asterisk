@@ -12395,7 +12395,9 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	char attach[] = "/var/lib/asterisk/sounds/en/tt-weasels", attach2[] = "/var/lib/asterisk/sounds/en/tt-somethingwrong";
 	char buf[256] = ""; /* No line should actually be longer than 80 */
 	struct ast_channel *chan = NULL;
-	struct ast_vm_user *vmu, vmus;
+	struct ast_vm_user *vmu, vmus = {
+		.flags = 0,
+	};
 	FILE *file;
 	struct {
 		char *name;
