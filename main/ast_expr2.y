@@ -969,7 +969,7 @@ op_colon (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		ast_log(LOG_WARNING, "regcomp() error : %s\n", errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
@@ -1020,7 +1020,7 @@ op_eqtilde (struct val *a, struct val *b)
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
+		ast_log(LOG_WARNING, "regcomp() error : %s\n", errbuf);
 		free_value(a);
 		free_value(b);
 		return make_str("");		
