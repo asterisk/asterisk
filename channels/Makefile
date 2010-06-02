@@ -63,8 +63,8 @@ endif
 
 clean::
 	$(MAKE) -C misdn clean
-	if [ -f h323/Makefile ]; then $(MAKE) -C h323 clean; fi
 	rm -f sip/*.o sip/*.i
+	rm -f h323/libchanh323.a h323/Makefile.ast h323/*.o h323/*.dep
 
 dist-clean::
 	rm -f h323/Makefile
