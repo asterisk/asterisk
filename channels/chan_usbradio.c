@@ -1269,7 +1269,6 @@ static struct chan_usbradio_pvt *find_desc(char *dev)
 	if (!o)
 	{
 		ast_log(LOG_WARNING, "could not find <%s>\n", dev ? dev : "--no-device--");
-		pthread_exit(0);
 	}
 
 	return o;
