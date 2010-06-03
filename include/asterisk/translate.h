@@ -105,8 +105,6 @@ struct ast_translator {
 	int buf_size;
 
 	int desc_size;                         /*!< size of private descriptor in pvt->pvt, if any */
-	int plc_samples;                       /*!< set to the plc block size if used, 0 otherwise */
-	int useplc;                            /*!< current status of plc, changed at runtime */
 	int native_plc;                        /*!< true if the translator can do native plc */
 
 	struct ast_module *module;             /*!< opaque reference to the parent module */

@@ -88,22 +88,19 @@ static force_inline int powerof(format_t d)
 
 /*!
  * \brief Allocate the descriptor, required outbuf space,
- * and possibly also plc and desc.
+ * and possibly desc.
  */
 static void *newpvt(struct ast_translator *t)
 {
 	struct ast_trans_pvt *pvt;
 	int len;
-	int useplc = t->plc_samples > 0 && t->useplc;	/* cache, because it can change on the fly */
 	char *ofs;
 
 	/*
 	 * compute the required size adding private descriptor,
-	 * plc, buffer, AST_FRIENDLY_OFFSET.
+	 * buffer, AST_FRIENDLY_OFFSET.
 	 */
 	len = sizeof(*pvt) + t->desc_size;
-	if (useplc)
-		len += sizeof(plc_state_t);
 	if (t->buf_size)
 		len += AST_FRIENDLY_OFFSET + t->buf_size;
 	pvt = ast_calloc(1, len);
@@ -114,10 +111,6 @@ static void *newpvt(struct ast_translator *t)
 	if (t->desc_size) {		/* first comes the descriptor */
 		pvt->pvt = ofs;
 		ofs += t->desc_size;
-	}
-	if (useplc) {			/* then plc state */
-		pvt->plc = (plc_state_t *)ofs;
-		ofs += sizeof(plc_state_t);
 	}
 	if (t->buf_size)		/* finally buffer and header */
 		pvt->outbuf.c = ofs + AST_FRIENDLY_OFFSET;
@@ -140,10 +133,9 @@ static void destroy(struct ast_trans_pvt *pvt)
 	ast_module_unref(t->module);
 }
 
-/*! \brief framein wrapper, deals with plc and bound checks.  */
+/*! \brief framein wrapper, deals with bound checks.  */
 static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	int16_t *dst = pvt->outbuf.i16;
 	int ret;
 	int samples = pvt->samples;	/* initial value */
 	
@@ -157,18 +149,8 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		ast_log(LOG_WARNING, "no samples for %s\n", pvt->t->name);
 	}
 	if (pvt->t->buffer_samples) {	/* do not pass empty frames to callback */
-		if (f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
-			if (pvt->plc) {
-				int l = pvt->t->plc_samples;
-				if (pvt->samples + l > pvt->t->buffer_samples) {
-					ast_log(LOG_WARNING, "Out of buffer space\n");
-					return -1;
-				}
-				l = plc_fillin(pvt->plc, dst + pvt->samples, l);
-				pvt->samples += l;
-				pvt->datalen = pvt->samples * 2;	/* SLIN has 2bytes for 1sample */
-			}
-			/* We don't want generic PLC. If the codec has native PLC, then do that */
+		if (f->datalen == 0) { /* perform native PLC if available */
+			/* If the codec has native PLC, then do that */
 			if (!pvt->t->native_plc)
 				return 0;
 		}
@@ -181,13 +163,6 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	 * it otherwise.
 	 */
 	ret = pvt->t->framein(pvt, f);
-	/* possibly store data for plc */
-	if (!ret && pvt->plc) {
-		int l = pvt->t->plc_samples;
-		if (pvt->samples < l)
-			l = pvt->samples;
-		plc_rx(pvt->plc, dst + pvt->samples - l, l);
-	}
 	/* diagnostic ... */
 	if (pvt->samples == samples)
 		ast_log(LOG_WARNING, "%s did not update samples %d\n",
@@ -631,16 +606,6 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 	if (t->srcfmt == -1 || t->dstfmt == -1) {
 		ast_log(LOG_WARNING, "Invalid translator path: (%s codec is not valid)\n", t->srcfmt == -1 ? "starting" : "ending");
 		return -1;
-	}
-	if (t->plc_samples) {
-		if (t->buffer_samples < t->plc_samples) {
-			ast_log(LOG_WARNING, "plc_samples %d buffer_samples %d\n",
-				t->plc_samples, t->buffer_samples);
-			return -1;
-		}
-		if (t->dstfmt != powerof(AST_FORMAT_SLINEAR))
-			ast_log(LOG_WARNING, "plc_samples %d format %llx\n",
-				t->plc_samples, (unsigned long long) t->dstfmt);
 	}
 	if (t->srcfmt >= MAX_FORMAT) {
 		ast_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));

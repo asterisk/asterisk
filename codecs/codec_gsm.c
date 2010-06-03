@@ -177,7 +177,6 @@ static struct ast_translator gsmtolin = {
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
 	.desc_size = sizeof (struct gsm_translator_pvt ),
-	.plc_samples = GSM_SAMPLES,
 };
 
 static struct ast_translator lintogsm = {
@@ -193,30 +192,9 @@ static struct ast_translator lintogsm = {
 	.buf_size = (BUFFER_SAMPLES * GSM_FRAME_LEN + GSM_SAMPLES - 1)/GSM_SAMPLES,
 };
 
-
-static int parse_config(int reload)
-{
-	struct ast_variable *var;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
-		return 0;
-	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
-	       if (!strcasecmp(var->name, "genericplc")) {
-		       gsmtolin.useplc = ast_true(var->value) ? 1 : 0;
-			   ast_verb(3, "codec_gsm: %susing generic PLC\n", gsmtolin.useplc ? "" : "not ");
-	       }
-	}
-	ast_config_destroy(cfg);
-	return 0;
-}
-
 /*! \brief standard module glue */
 static int reload(void)
 {
-	if (parse_config(1)) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -235,8 +213,6 @@ static int load_module(void)
 {
 	int res;
 
-	if (parse_config(0))
-		return AST_MODULE_LOAD_DECLINE;
 	res = ast_register_translator(&gsmtolin);
 	if (!res) 
 		res=ast_register_translator(&lintogsm);

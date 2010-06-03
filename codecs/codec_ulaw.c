@@ -84,7 +84,6 @@ static struct ast_translator ulawtolin = {
 	.sample = ulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
-	.plc_samples = 160,
 };
 
 static struct ast_translator testlawtolin = {
@@ -95,7 +94,6 @@ static struct ast_translator testlawtolin = {
 	.sample = ulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
-	.plc_samples = 160,
 };
 
 /*!
@@ -122,27 +120,8 @@ static struct ast_translator lintotestlaw = {
 	.buffer_samples = BUFFER_SAMPLES,
 };
 
-static int parse_config(int reload)
-{
-	struct ast_variable *var;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
-		return 0;
-	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
-		if (!strcasecmp(var->name, "genericplc")) {
-			ulawtolin.useplc = ast_true(var->value) ? 1 : 0;
-			ast_verb(3, "codec_ulaw: %susing generic PLC\n", ulawtolin.useplc ? "" : "not ");
-		}
-	}
-	ast_config_destroy(cfg);
-	return 0;
-}
-
 static int reload(void)
 {
-	if (parse_config(1))
-		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -162,8 +141,6 @@ static int load_module(void)
 {
 	int res;
 
-	if (parse_config(0))
-		return AST_MODULE_LOAD_DECLINE;
 	res = ast_register_translator(&ulawtolin);
 	if (!res) {
 		res = ast_register_translator(&lintoulaw);
