@@ -3985,7 +3985,6 @@ static void initialize_cc_max_requests(void)
 
 	if (!(cc_max_requests_str = ast_variable_retrieve(cc_config, "general", "cc_max_requests"))) {
 		ast_config_destroy(cc_config);
-		ast_log(LOG_WARNING, "No cc_max_requests defined. Using default\n");
 		global_cc_max_requests = GLOBAL_CC_MAX_REQUESTS_DEFAULT;
 		return;
 	}
