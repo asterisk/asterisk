@@ -620,8 +620,6 @@ static int find_transcoders(void)
 
 static int reload(void)
 {
-	struct translator *cur;
-
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
