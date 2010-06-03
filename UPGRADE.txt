@@ -1,6 +1,6 @@
 ===========================================================
 ===
-=== Information for upgrading between Asterisk 1.6 versions
+=== Information for upgrading between Asterisk versions
 ===
 === These files document all the changes that MUST be taken
 === into account when upgrading between the Asterisk
@@ -179,6 +179,9 @@ From 1.6.1 to 1.6.2:
 * res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
   that would end up being interpreted as a bug once Asterisk started removing 
   the contacts from a user list.
+
+* The cdr.conf file must exist and be configured correctly in order for CDR
+  records to be written.
 
 From 1.6.0.1 to 1.6.1:
 

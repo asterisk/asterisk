@@ -637,6 +637,12 @@ Miscellaneous
    instead of the /var/run/asterisk.pid where it used to be. This will make
    installs as non-root easier to manage.
 
+CDR
+---
+
+* The cdr.conf file must exist and be correctly programmed in order for CDR records to
+  be written; they will no longer be explicitly written.
+
 Asterisk Manager Interface
 --------------------------
  * When using the AMI over HTTP, you can now include a 'SuppressEvents' header (with
