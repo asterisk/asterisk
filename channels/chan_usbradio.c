@@ -3977,12 +3977,12 @@ static int load_module(void)
 		ast_log(LOG_NOTICE, "radio active device %s not found\n", usbradio_active);
 		/* XXX we could default to 'dsp' perhaps ? */
 		/* XXX should cleanup allocated memory etc. */
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_channel_register(&usbradio_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'usb'\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_cli_register_multiple(cli_usbradio, ARRAY_LEN(cli_usbradio));
