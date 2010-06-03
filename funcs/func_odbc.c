@@ -221,7 +221,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	struct ast_str *insertbuf = ast_str_thread_get(&sql2_buf, 16);
 	const char *status = "FAILURE";
 
-	if (!buf) {
+	if (!buf || !insertbuf) {
 		return -1;
 	}
 
@@ -406,7 +406,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	const char *status = "FAILURE";
 
-	if (!sql) {
+	if (!sql || !colnames) {
 		if (chan) {
 			pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
 		}
@@ -566,6 +566,21 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			int i;
 			struct ast_str *coldata = ast_str_thread_get(&coldata_buf, 16);
 			char *ptrcoldata;
+
+			if (!coldata) {
+				ast_free(resultset);
+				SQLCloseCursor(stmt);
+				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+				ast_odbc_release_obj(obj);
+				obj = NULL;
+				pbx_builtin_setvar_helper(chan, "ODBCSTATUS", "MEMERROR");
+				if (chan)
+					ast_autoservice_stop(chan);
+				if (bogus_chan) {
+					ast_channel_release(chan);
+				}
+				return -1;
+			}
 
 			if (y == 0) {
 				char colname[256];
@@ -1125,6 +1140,11 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		struct ast_str *coldata = ast_str_thread_get(&coldata_buf, 16);
 		char colname[256];
 		SQLULEN maxcol;
+
+		if (!coldata) {
+			AST_RWLIST_UNLOCK(&queries);
+			return CLI_SUCCESS;
+		}
 
 		for (dsn = 0; dsn < 5; dsn++) {
 			if (ast_strlen_zero(query->readhandle[dsn])) {
