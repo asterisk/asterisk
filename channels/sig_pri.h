@@ -27,6 +27,7 @@
 
 #include "asterisk/channel.h"
 #include "asterisk/frame.h"
+#include "asterisk/event.h"
 #include "asterisk/ccss.h"
 #include <libpri.h>
 #include <dahdi/user.h>
@@ -251,6 +252,35 @@ struct sig_pri_chan {
 #endif
 };
 
+#if defined(HAVE_PRI_MWI)
+/*! Maximum number of mailboxes per span. */
+#define SIG_PRI_MAX_MWI_MAILBOXES			8
+/*! Typical maximum length of mwi mailbox number */
+#define SIG_PRI_MAX_MWI_MBOX_NUMBER_LEN		10	/* digits in number */
+/*! Typical maximum length of mwi mailbox context */
+#define SIG_PRI_MAX_MWI_CONTEXT_LEN			10
+/*!
+ * \brief Maximum mwi_mailbox string length.
+ * \details
+ * max_length = #mailboxes * (mbox_number + '@' + context + ',')
+ * The last ',' is a null terminator instead.
+ */
+#define SIG_PRI_MAX_MWI_MAILBOX_STR		(SIG_PRI_MAX_MWI_MAILBOXES	\
+	* (SIG_PRI_MAX_MWI_MBOX_NUMBER_LEN + 1 + SIG_PRI_MAX_MWI_CONTEXT_LEN + 1))
+
+struct sig_pri_mbox {
+	/*!
+	 * \brief MWI mailbox event subscription.
+	 * \note NULL if mailbox not configured.
+	 */
+	struct ast_event_sub *sub;
+	/*! \brief Mailbox number */
+	const char *number;
+	/*! \brief Mailbox context. */
+	const char *context;
+};
+#endif	/* defined(HAVE_PRI_MWI) */
+
 struct sig_pri_pri {
 	/* Should be set by user */
 	struct ast_cc_config_params *cc_params;			/*!< CC config parameters for each new call. */
@@ -294,6 +324,17 @@ struct sig_pri_pri {
 	char privateprefix[20];					/*!< for private dialplans */
 	char unknownprefix[20];					/*!< for unknown dialplans */
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
+#if defined(HAVE_PRI_MWI)
+	/*! \brief Active MWI mailboxes */
+	struct sig_pri_mbox mbox[SIG_PRI_MAX_MWI_MAILBOXES];
+	/*!
+	 * \brief Comma separated list of mailboxes to indicate MWI.
+	 * \note Empty if disabled.
+	 * \note Format: mailbox_number[@context]{,mailbox_number[@context]}
+	 * \note String is split apart when span is started.
+	 */
+	char mwi_mailboxes[SIG_PRI_MAX_MWI_MAILBOX_STR];
+#endif	/* defined(HAVE_PRI_MWI) */
 	char msn_list[AST_MAX_EXTENSION];		/*!< Comma separated list of MSNs to handle.  Empty if disabled. */
 	char idleext[AST_MAX_EXTENSION];		/*!< Where to idle extra calls */
 	char idlecontext[AST_MAX_CONTEXT];		/*!< What context to use for idle */
@@ -412,6 +453,7 @@ void sig_pri_init_pri(struct sig_pri_pri *pri);
  * functions should handle it normally (generate inband DTMF) */
 int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char digit);
 
+void sig_pri_stop_pri(struct sig_pri_pri *pri);
 int sig_pri_start_pri(struct sig_pri_pri *pri);
 
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm);

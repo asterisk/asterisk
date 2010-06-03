@@ -6423,6 +6423,130 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
 	return 1;
 }
 
+#if defined(HAVE_PRI_MWI)
+/*!
+ * \internal
+ * \brief Send a MWI indication to the given span.
+ * \since 1.8
+ *
+ * \param pri Asterisk D channel control structure.
+ * \param mbox_number Mailbox number
+ * \param mbox_context Mailbox context
+ * \param num_messages Number of messages waiting.
+ *
+ * \return Nothing
+ */
+static void sig_pri_send_mwi_indication(struct sig_pri_pri *pri, const char *mbox_number, const char *mbox_context, int num_messages)
+{
+	struct pri_party_id mailbox;
+
+	ast_debug(1, "Send MWI indication for %s@%s num_messages:%d\n", mbox_number,
+		mbox_context, num_messages);
+
+	memset(&mailbox, 0, sizeof(mailbox));
+	mailbox.number.valid = 1;
+	mailbox.number.presentation = PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	mailbox.number.plan = (PRI_TON_UNKNOWN << 4) | PRI_NPI_UNKNOWN;
+	ast_copy_string(mailbox.number.str, mbox_number, sizeof(mailbox.number.str));
+
+	ast_mutex_lock(&pri->lock);
+	pri_mwi_indicate(pri->pri, &mailbox, 1 /* speech */, num_messages, NULL, NULL, -1, 0);
+	ast_mutex_unlock(&pri->lock);
+}
+#endif	/* defined(HAVE_PRI_MWI) */
+
+#if defined(HAVE_PRI_MWI)
+/*!
+ * \internal
+ * \brief MWI subscription event callback.
+ * \since 1.8
+ *
+ * \param event the event being passed to the subscriber
+ * \param userdata the data provider in the call to ast_event_subscribe()
+ *
+ * \return Nothing
+ */
+static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
+{
+	struct sig_pri_pri *pri = userdata;
+	const char *mbox_context;
+	const char *mbox_number;
+	int num_messages;
+
+	mbox_number = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
+	if (ast_strlen_zero(mbox_number)) {
+		return;
+	}
+	mbox_context = ast_event_get_ie_str(event, AST_EVENT_IE_CONTEXT);
+	if (ast_strlen_zero(mbox_context)) {
+		return;
+	}
+	num_messages = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+	sig_pri_send_mwi_indication(pri, mbox_number, mbox_context, num_messages);
+}
+#endif	/* defined(HAVE_PRI_MWI) */
+
+#if defined(HAVE_PRI_MWI)
+/*!
+ * \internal
+ * \brief Send update MWI indications from the event cache.
+ * \since 1.8
+ *
+ * \param pri Asterisk D channel control structure.
+ *
+ * \return Nothing
+ */
+static void sig_pri_mwi_cache_update(struct sig_pri_pri *pri)
+{
+	int idx;
+	int num_messages;
+	struct ast_event *event;
+
+	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
+		if (!pri->mbox[idx].sub) {
+			/* There are no more mailboxes on this span. */
+			break;
+		}
+
+		event = ast_event_get_cached(AST_EVENT_MWI,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, pri->mbox[idx].number,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, pri->mbox[idx].context,
+			AST_EVENT_IE_END);
+		if (!event) {
+			/* No cached event for this mailbox. */
+			continue;
+		}
+		num_messages = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+		sig_pri_send_mwi_indication(pri, pri->mbox[idx].number, pri->mbox[idx].context,
+			num_messages);
+		ast_event_destroy(event);
+	}
+}
+#endif	/* defined(HAVE_PRI_MWI) */
+
+/*!
+ * \brief Stop PRI span.
+ * \since 1.8
+ *
+ * \param pri Asterisk D channel control structure.
+ *
+ * \return Nothing
+ */
+void sig_pri_stop_pri(struct sig_pri_pri *pri)
+{
+#if defined(HAVE_PRI_MWI)
+	int idx;
+#endif	/* defined(HAVE_PRI_MWI) */
+
+#if defined(HAVE_PRI_MWI)
+	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
+		if (pri->mbox[idx].sub) {
+			pri->mbox[idx].sub = ast_event_unsubscribe(pri->mbox[idx].sub);
+		}
+	}
+#endif	/* defined(HAVE_PRI_MWI) */
+}
+
 /*!
  * \internal
  * \brief qsort comparison function.
@@ -6477,10 +6601,71 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 {
 	int x;
 	int i;
+#if defined(HAVE_PRI_MWI)
+	char *saveptr;
+	char *mbox_number;
+	char *mbox_context;
+	struct ast_str *mwi_description = ast_str_alloca(64);
+#endif	/* defined(HAVE_PRI_MWI) */
+
+#if defined(HAVE_PRI_MWI)
+	/* Prepare the mbox[] for use. */
+	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
+		if (pri->mbox[i].sub) {
+			pri->mbox[i].sub = ast_event_unsubscribe(pri->mbox[i].sub);
+		}
+	}
+#endif	/* defined(HAVE_PRI_MWI) */
 
 	ast_mutex_init(&pri->lock);
-
 	sig_pri_sort_pri_chans(pri);
+
+#if defined(HAVE_PRI_MWI)
+	/*
+	 * Split the mwi_mailboxes configuration string into the mbox[]:
+	 * mailbox_number[@context]{,mailbox_number[@context]}
+	 */
+	i = 0;
+	saveptr = pri->mwi_mailboxes;
+	while (i < ARRAY_LEN(pri->mbox)) {
+		mbox_number = strsep(&saveptr, ",");
+		if (!mbox_number) {
+			break;
+		}
+		/* Split the mailbox_number and context */
+		mbox_context = strchr(mbox_number, '@');
+		if (mbox_context) {
+			*mbox_context++ = '\0';
+			mbox_context = ast_strip(mbox_context);
+		}
+		mbox_number = ast_strip(mbox_number);
+		if (ast_strlen_zero(mbox_number)) {
+			/* There is no mailbox number.  Skip it. */
+			continue;
+		}
+		if (ast_strlen_zero(mbox_context)) {
+			/* There was no context so use the default. */
+			mbox_context = "default";
+		}
+
+		/* Fill the mbox[] element. */
+		ast_str_set(&mwi_description, -1, "%s span %d[%d] MWI mailbox %s@%s",
+			sig_pri_cc_type_name, pri->span, i, mbox_number, mbox_context);
+		pri->mbox[i].sub = ast_event_subscribe(AST_EVENT_MWI, sig_pri_mwi_event_cb,
+			ast_str_buffer(mwi_description), pri,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mbox_number,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, mbox_context,
+			AST_EVENT_IE_END);
+		if (!pri->mbox[i].sub) {
+			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s@%s.",
+				sig_pri_cc_type_name, pri->span, mbox_number, mbox_context);
+			continue;
+		}
+		pri->mbox[i].number = mbox_number;
+		pri->mbox[i].context = mbox_context;
+		++i;
+	}
+#endif	/* defined(HAVE_PRI_MWI) */
 
 	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 		if (pri->fds[i] == -1) {
@@ -6574,6 +6759,19 @@ int sig_pri_start_pri(struct sig_pri_pri *pri)
 		ast_log(LOG_ERROR, "Unable to spawn D-channel: %s\n", strerror(errno));
 		return -1;
 	}
+
+#if defined(HAVE_PRI_MWI)
+	/*
+	 * Send the initial MWI indications from the event cache for this span.
+	 *
+	 * If we were loaded after app_voicemail the event would already be in
+	 * the cache.  If we were loaded before app_voicemail the event would not
+	 * be in the cache yet and app_voicemail will send the event when it
+	 * gets loaded.
+	 */
+	sig_pri_mwi_cache_update(pri);
+#endif	/* defined(HAVE_PRI_MWI) */
+
 	return 0;
 }
 

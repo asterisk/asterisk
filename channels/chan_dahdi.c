@@ -11895,6 +11895,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.aoce_delayhangup = conf->pri.pri.aoce_delayhangup;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 						ast_copy_string(pris[span].pri.msn_list, conf->pri.pri.msn_list, sizeof(pris[span].pri.msn_list));
+#if defined(HAVE_PRI_MWI)
+						ast_copy_string(pris[span].pri.mwi_mailboxes,
+							conf->pri.pri.mwi_mailboxes,
+							sizeof(pris[span].pri.mwi_mailboxes));
+#endif	/* defined(HAVE_PRI_MWI) */
 						ast_copy_string(pris[span].pri.idledial, conf->pri.pri.idledial, sizeof(pris[span].pri.idledial));
 						ast_copy_string(pris[span].pri.idleext, conf->pri.pri.idleext, sizeof(pris[span].pri.idleext));
 						ast_copy_string(pris[span].pri.internationalprefix, conf->pri.pri.internationalprefix, sizeof(pris[span].pri.internationalprefix));
@@ -16586,6 +16591,7 @@ static int __unload_module(void)
 		for (j = 0; j < SIG_PRI_NUM_DCHANS; j++) {
 			dahdi_close_pri_fd(&(pris[i]), j);
 		}
+		sig_pri_stop_pri(&pris[i].pri);
 	}
 #if defined(HAVE_PRI_CCSS)
 	ast_cc_agent_unregister(&dahdi_pri_cc_agent_callbacks);
@@ -17450,6 +17456,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "allow_call_waiting_calls")) {
 				confp->pri.pri.allow_call_waiting_calls = ast_true(v->value);
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#if defined(HAVE_PRI_MWI)
+			} else if (!strcasecmp(v->name, "mwi_mailboxes")) {
+				ast_copy_string(confp->pri.pri.mwi_mailboxes, v->value,
+					sizeof(confp->pri.pri.mwi_mailboxes));
+#endif	/* defined(HAVE_PRI_MWI) */
 #endif /* HAVE_PRI */
 #ifdef HAVE_SS7
 			} else if (!strcasecmp(v->name, "ss7type")) {

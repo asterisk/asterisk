@@ -526,6 +526,12 @@ callwaiting=yes
 ; A call waiting call is a SETUP message with no B channel selected.
 ;allow_call_waiting_calls=no
 ;
+; Configure the ISDN span to indicate MWI for the list of mailboxes.
+; You can give a comma separated list of up to 8 mailboxes per span.
+; An empty list disables MWI.
+; The default is an empty list.
+;mwi_mailboxes=mailbox_number[@context]{,mailbox_number[@context]}
+;
 ; Whether or not restrict outgoing caller ID (will be sent as ANI only, not
 ; available for the user)
 ; Mostly use with FXS ports
