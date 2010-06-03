@@ -65,8 +65,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define G723_SAMPLES 240
 #define G729_SAMPLES 160
 
-static unsigned int global_useplc = 0;
-
 static struct channel_usage {
 	int total;
 	int encoders;
@@ -513,29 +511,14 @@ static int register_translator(int dst, int src)
 	if (is_encoder(zt)) {
 		zt->t.framein = dahdi_encoder_framein;
 		zt->t.frameout = dahdi_encoder_frameout;
-#if 0
-		zt->t.buffer_samples = 0;
-#endif
 	} else {
 		zt->t.framein = dahdi_decoder_framein;
 		zt->t.frameout = dahdi_decoder_frameout;
-#if 0
-		if (AST_FORMAT_G723_1 == zt->t.srcfmt) {
-			zt->t.plc_samples = G723_SAMPLES;
-		} else {
-			zt->t.plc_samples = G729_SAMPLES;
-		}
-		zt->t.buffer_samples = zt->t.plc_samples * 8;
-#endif
 	}
 	zt->t.destroy = dahdi_destroy;
 	zt->t.buffer_samples = 0;
 	zt->t.newpvt = dahdi_new;
 	zt->t.sample = fakesrc_sample;
-#if 0
-	zt->t.useplc = global_useplc;
-#endif
-	zt->t.useplc = 0;
 	zt->t.native_plc = 0;
 
 	zt->t.desc_size = sizeof(struct codec_dahdi_pvt);
@@ -585,26 +568,6 @@ static void unregister_translators(void)
 		free(cur);
 	}
 	AST_LIST_UNLOCK(&translators);
-}
-
-static void parse_config(void)
-{
-	struct ast_variable *var;
-	struct ast_config *cfg = ast_config_load("codecs.conf");
-
-	if (!cfg)
-		return;
-
-	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
-	       if (!strcasecmp(var->name, "genericplc")) {
-		       global_useplc = ast_true(var->value);
-		       if (option_verbose > 2)
-			       ast_verbose(VERBOSE_PREFIX_3 "codec_zap: %susing generic PLC\n",
-					   global_useplc ? "" : "not ");
-	       }
-	}
-
-	ast_config_destroy(cfg);
 }
 
 static void build_translators(struct format_map *map, unsigned int dstfmts, unsigned int srcfmts)
@@ -681,15 +644,6 @@ static int find_transcoders(void)
 
 static int reload(void)
 {
-	struct translator *cur;
-
-	parse_config();
-
-	AST_LIST_LOCK(&translators);
-	AST_LIST_TRAVERSE(&translators, cur, entry)
-		cur->t.useplc = global_useplc;
-	AST_LIST_UNLOCK(&translators);
-
 	return 0;
 }
 
@@ -704,7 +658,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_ulaw_init();
-	parse_config();
 	find_transcoders();
 	ast_cli_register_multiple(cli, sizeof(cli) / sizeof(cli[0]));
 

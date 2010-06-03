@@ -243,7 +243,6 @@ static struct ast_translator lpc10tolin = {
 	.sample = lpc10tolin_sample,
 	.desc_size = sizeof(struct lpc10_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
-	.plc_samples = LPC10_SAMPLES_PER_FRAME,
 	.buf_size = BUFFER_SAMPLES * 2,
 };
 
@@ -261,27 +260,8 @@ static struct ast_translator lintolpc10 = {
 	.buf_size = LPC10_BYTES_IN_COMPRESSED_FRAME * (1 + BUFFER_SAMPLES / LPC10_SAMPLES_PER_FRAME),
 };
 
-static void parse_config(void)
-{
-        struct ast_variable *var;
-        struct ast_config *cfg = ast_config_load("codecs.conf");
-	if (!cfg)
-		return;
-	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
-	       if (!strcasecmp(var->name, "genericplc")) {
-			lpc10tolin.useplc = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-			       ast_verbose(VERBOSE_PREFIX_3 "codec_lpc10: %susing generic PLC\n",
-					lpc10tolin.useplc ? "" : "not ");
-		}
-        }
-	ast_config_destroy(cfg);
-}
-
 static int reload(void)
 {
-        parse_config();
-
         return 0;
 }
 
@@ -300,7 +280,6 @@ static int load_module(void)
 {
 	int res;
 
-	parse_config();
 	res=ast_register_translator(&lpc10tolin);
 	if (!res) 
 		res=ast_register_translator(&lintolpc10);

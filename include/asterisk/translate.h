@@ -60,10 +60,6 @@ struct ast_trans_pvt;	/* declared below */
  * or deallocation, nor any locking, because all of this is done in
  * the generic code.
  *
- * Translators using generic plc (packet loss concealment) should
- * supply a non-zero plc_samples indicating the size (in samples)
- * of artificially generated frames and incoming data.
- * Generic plc is only available for dstfmt = SLINEAR
  */
 struct ast_translator {
 	const char name[80];		/*!< Name of translator */
@@ -102,8 +98,8 @@ struct ast_translator {
 	int buf_size;
 
 	int desc_size;			/*!< size of private descriptor in pvt->pvt, if any */
-	int plc_samples;		/*!< set to the plc block size if used, 0 otherwise */
-	int useplc;			/*!< current status of plc, changed at runtime */
+	int plc_samples; /* Unused. Kept for ABI purposes */
+	int useplc; /* Unused. Kept for ABI purposes */
 	int native_plc;			/*!< true if the translator can do native plc */
 
 	struct ast_module *module;	/* opaque reference to the parent module */

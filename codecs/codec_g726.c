@@ -818,7 +818,6 @@ static struct ast_translator g726tolin = {
 	.desc_size = sizeof(struct g726_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
-	.plc_samples = 160,
 };
 
 static struct ast_translator lintog726 = {
@@ -843,7 +842,6 @@ static struct ast_translator g726aal2tolin = {
 	.desc_size = sizeof(struct g726_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
-	.plc_samples = 160,
 };
 
 static struct ast_translator lintog726aal2 = {
@@ -858,28 +856,8 @@ static struct ast_translator lintog726aal2 = {
 	.buf_size = BUFFER_SAMPLES / 2,
 };
 
-static void parse_config(void)
-{
-	struct ast_variable *var;
-	struct ast_config *cfg = ast_config_load("codecs.conf");
-
-	if (!cfg)
-		return;
-	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
-		if (!strcasecmp(var->name, "genericplc")) {
-			g726tolin.useplc = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "codec_g726: %susing generic PLC\n",
-					g726tolin.useplc ? "" : "not ");
-		}
-	}
-	ast_config_destroy(cfg);
-}
-
 static int reload(void)
 {
-	parse_config();
-
 	return 0;
 }
 
@@ -899,9 +877,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res = 0;
-
-
-	parse_config();
 
 	res |= ast_register_translator(&g726tolin);
 	res |= ast_register_translator(&lintog726);

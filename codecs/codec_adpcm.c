@@ -335,7 +335,6 @@ static struct ast_translator adpcmtolin = {
 	.desc_size = sizeof(struct adpcm_decoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES * 2,
-	.plc_samples = 160,
 };
 
 static struct ast_translator lintoadpcm = {
@@ -350,26 +349,9 @@ static struct ast_translator lintoadpcm = {
 	.buf_size = BUFFER_SAMPLES/ 2,	/* 2 samples per byte */
 };
 
-static void parse_config(void)
-{
-	struct ast_config *cfg = ast_config_load("codecs.conf");
-	struct ast_variable *var;
-	if (cfg == NULL)
-		return;
-	for (var = ast_variable_browse(cfg, "plc"); var ; var = var->next) {
-		if (!strcasecmp(var->name, "genericplc")) {
-			adpcmtolin.useplc = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "codec_adpcm: %susing generic PLC\n", adpcmtolin.useplc ? "" : "not ");
-		}
-	}
-	ast_config_destroy(cfg);
-}
-
 /*! \brief standard module glue */
 static int reload(void)
 {
-	parse_config();
 	return 0;
 }
 
@@ -387,7 +369,6 @@ static int load_module(void)
 {
 	int res;
 
-	parse_config();
 	res = ast_register_translator(&adpcmtolin);
 	if (!res)
 		res = ast_register_translator(&lintoadpcm);
