@@ -142,7 +142,6 @@ static struct ast_translator g722tolin = {
 	.desc_size = sizeof(struct g722_decoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES / sizeof(int16_t),
 	.buf_size = BUFFER_SAMPLES,
-	.plc_samples = 160,
 };
 
 static struct ast_translator lintog722 = {
@@ -167,7 +166,6 @@ static struct ast_translator g722tolin16 = {
 	.desc_size = sizeof(struct g722_decoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES / sizeof(int16_t),
 	.buf_size = BUFFER_SAMPLES,
-	.plc_samples = 160,
 };
 
 static struct ast_translator lin16tog722 = {
@@ -182,29 +180,8 @@ static struct ast_translator lin16tog722 = {
 	.buf_size = BUFFER_SAMPLES,
 };
 
-static int parse_config(int reload)
-{
-	struct ast_variable *var;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
-
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
-		return 0;
-	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
-		if (!strcasecmp(var->name, "genericplc")) {
-			g722tolin.useplc = ast_true(var->value) ? 1 : 0;
-			ast_verb(3, "codec_g722: %susing generic PLC\n",
-					g722tolin.useplc ? "" : "not ");
-		}
-	}
-	ast_config_destroy(cfg);
-	return 0;
-}
-
 static int reload(void)
 {
-	if (parse_config(1))
-		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -223,9 +200,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res = 0;
-
-	if (parse_config(0))
-		return AST_MODULE_LOAD_DECLINE;
 
 	res |= ast_register_translator(&g722tolin);
 	res |= ast_register_translator(&lintog722);
