@@ -37,8 +37,12 @@ $(SOURCES)::	Makefile ../../Makefile
 libchanh323.a:	$(OBJS)
 	ar crv $@ $(OBJS)
 
-cisco-h225.cxx::	cisco-h225.asn
-	asnparser -m CISCO_H225 -c $<
+# 
+# We have this file in svn, so this is commented out to ensure it doesn't try
+# to run implicitly.  However, it's still here for reference.
+#
+#cisco-h225.cxx::	cisco-h225.asn
+#	asnparser -m CISCO_H225 -c $<
 
 Makefile.ast:
 	@echo H323CFLAGS  = $(STDCCFLAGS) $(OPTCCFLAGS) $(CFLAGS) >$@.tmp
