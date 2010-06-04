@@ -18774,6 +18774,11 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		}
 
 		if (ack_res == FALSE) {
+			/* RFC 3261 13.2.2.4 and 17.1.1.2 - We must re-send ACKs to re-transmitted final responses */
+			if (sipmethod == SIP_INVITE && resp >= 200) {
+				transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, resp < 300 ? TRUE: FALSE);
+			}
+
 			append_history(p, "Ignore", "Ignoring this retransmit\n");
 			return;
 		}
