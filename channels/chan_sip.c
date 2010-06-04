@@ -3469,7 +3469,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	pkt->retransid = -1;
 	if (pkt->timer_t1)
-		siptimer_a = pkt->timer_t1 * 2;
+		siptimer_a = pkt->timer_t1;
 
 	/* Schedule retransmission */
 	AST_SCHED_REPLACE_VARIABLE(pkt->retransid, sched, siptimer_a, retrans_pkt, pkt, 1);
@@ -11528,7 +11528,6 @@ static int sip_reg_timeout(const void *data)
 		ast_dnsmgr_refresh(r->dnsmgr);
 	}
 
-	ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts);
 	/* If the initial tranmission failed, we may not have an existing dialog,
 	 * so it is possible that r->call == NULL.
 	 * Otherwise destroy it, as we have a timeout so we don't want it.
@@ -11551,15 +11550,16 @@ static int sip_reg_timeout(const void *data)
 	}
 	/* If we have a limit, stop registration and give up */
 	r->timeout = -1;
-	if (global_regattempts_max && r->regattempts > global_regattempts_max) {
+	if (global_regattempts_max && r->regattempts >= global_regattempts_max) {
 		/* Ok, enough is enough. Don't try any more */
 		/* We could add an external notification here...
 			steal it from app_voicemail :-) */
-		ast_log(LOG_NOTICE, "   -- Giving up forever trying to register '%s@%s'\n", r->username, r->hostname);
+		ast_log(LOG_NOTICE, "   -- Last Registration Attempt #%d failed, Giving up forever trying to register '%s@%s'\n", r->regattempts, r->username, r->hostname);
 		r->regstate = REG_STATE_FAILED;
 	} else {
 		r->regstate = REG_STATE_UNREGISTERED;
-		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
+		res = transmit_register(r, SIP_REGISTER, NULL, NULL);
+		ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts);
 	}
 	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 	registry_unref(r, "unreffing registry_unref r");
@@ -18768,7 +18768,10 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 
 		/* Acknowledge whatever it is destined for */
 		if ((resp >= 100) && (resp <= 199)) {
-			ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
+			/* NON-INVITE messages do not ack a 1XX response. RFC 3261 section 17.1.2.2 */
+			if (sipmethod == SIP_INVITE) {
+				ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
+			}
 		} else {
 			ack_res = __sip_ack(p, seqno, 0, sipmethod);
 		}
