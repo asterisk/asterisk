@@ -558,9 +558,6 @@
 /* Define if your system has the SDL libraries. */
 #undef HAVE_SDL
 
-/* Define to 1 if you have the Sdl Image library. */
-#undef HAVE_SDL_IMAGE
-
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
