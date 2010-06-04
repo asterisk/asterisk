@@ -10,9 +10,6 @@ AC_PREREQ(2.60)
 
 AC_INIT([asterisk], [trunk], [https://issues.asterisk.org])
 
-# Allow the --help=recursive option to function correctly
-AC_CONFIG_SUBDIRS([menuselect])
-
 # cross-compile macros
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
