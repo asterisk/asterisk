@@ -8,7 +8,7 @@
 
 AC_PREREQ(2.60)
 
-AC_INIT([asterisk], [trunk], [https://issues.asterisk.org])
+AC_INIT([asterisk], [1.6.2], [https://issues.asterisk.org])
 
 # Allow the --help=recursive option to function correctly
 AC_CONFIG_SUBDIRS([menuselect])
@@ -340,6 +340,7 @@ AST_EXT_LIB_SETUP_DEPENDENT([PRI_INBANDDISCONNECT], [ISDN PRI set_inbanddisconne
 AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([RESAMPLE], [LIBRESAMPLE], [resample])
+AST_OPTION_ONLY([sounds-cache], [SOUNDS_CACHE_DIR], [cached sound tarfiles], [${HOME}/.asterisk_sounds_cache])
 AST_EXT_LIB_SETUP([SPANDSP], [SPANDSP], [spandsp])
 AST_EXT_LIB_SETUP([SS7], [ISDN SS7], [ss7])
 AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
