@@ -55,6 +55,7 @@ AC_DEFUN([AST_LIBCURL_CHECK_CONFIG],
   AH_TEMPLATE([LIBCURL_PROTOCOL_LDAP],[Defined if libcurl supports LDAP])
   AH_TEMPLATE([LIBCURL_PROTOCOL_DICT],[Defined if libcurl supports DICT])
   AH_TEMPLATE([LIBCURL_PROTOCOL_TFTP],[Defined if libcurl supports TFTP])
+  AC_SUBST(PBX_CURL)
 
   AC_ARG_WITH(libcurl,
      AC_HELP_STRING([--with-libcurl=DIR],[look for the curl library in DIR]),
