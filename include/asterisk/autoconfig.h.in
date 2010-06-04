@@ -275,8 +275,14 @@
 /* Define to 1 if you have the OGG library. */
 #undef HAVE_OGG
 
+/* Define to 1 if you have the OpenAIS library. */
+#undef HAVE_OPENAIS
+
 /* Define if your system has the OpenH323 libraries. */
 #undef HAVE_OPENH323
+
+/* Define to 1 if you have the MFR2 library. */
+#undef HAVE_OPENR2
 
 /* Define to 1 if you have the OpenSSL library. */
 #undef HAVE_OPENSSL
