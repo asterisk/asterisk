@@ -189,7 +189,10 @@ static int make_components(const char *s, int lineno)
 	char *stringp = ast_strdupa(s);
 
 	while ((w = strsep(&stringp, ","))) {
-		w = ast_skip_blanks(w);
+		w = ast_strip(w);
+		if (ast_strlen_zero(w)) {
+			continue;
+		}
 		if (!strcasecmp(w, "error")) 
 			res |= (1 << __LOG_ERROR);
 		else if (!strcasecmp(w, "warning"))
