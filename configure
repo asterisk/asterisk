@@ -756,10 +756,6 @@ CAP_LIB
 CAP_INCLUDE
 CAP_DIR
 PBX_CAP
-CURL_LIB
-CURL_INCLUDE
-CURL_DIR
-PBX_CURL
 CURSES_LIB
 CURSES_INCLUDE
 CURSES_DIR
@@ -836,7 +832,10 @@ LDAP_LIB
 LDAP_INCLUDE
 LDAP_DIR
 PBX_LDAP
+PBX_CURL
 _libcurl_config
+CURL_INCLUDE
+CURL_LIB
 LIBXML2_LIB
 LIBXML2_INCLUDE
 LIBXML2_DIR
@@ -1742,7 +1741,6 @@ Optional Packages:
   --with-avcodec=PATH     use Ffmpeg and avcodec files in PATH
   --with-bluetooth=PATH   use Bluetooth files in PATH
   --with-cap=PATH         use POSIX 1.e capabilities files in PATH
-  --with-curl=PATH        use cURL files in PATH
   --with-curses=PATH      use curses files in PATH
   --with-crypto=PATH      use OpenSSL Cryptography files in PATH
   --with-dahdi=PATH       use DAHDI files in PATH
@@ -8753,39 +8751,6 @@ fi
 
 
 
-    CURL_DESCRIP="cURL"
-    CURL_OPTION="curl"
-    PBX_CURL=0
-
-# Check whether --with-curl was given.
-if test "${with_curl+set}" = set; then
-  withval=$with_curl;
-	case ${withval} in
-	n|no)
-	USE_CURL=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_CURL=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} CURL"
-	;;
-	*)
-	CURL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} CURL"
-	;;
-	esac
-
-fi
-
-
-
-
-
-
-
-
-
     CURSES_DESCRIP="curses"
     CURSES_OPTION="curses"
     PBX_CURSES=0
@@ -9407,6 +9372,7 @@ if test "${with_ldap+set}" = set; then
 	esac
 
 fi
+
 
 
 
@@ -52073,10 +52039,6 @@ CAP_LIB!$CAP_LIB$ac_delim
 CAP_INCLUDE!$CAP_INCLUDE$ac_delim
 CAP_DIR!$CAP_DIR$ac_delim
 PBX_CAP!$PBX_CAP$ac_delim
-CURL_LIB!$CURL_LIB$ac_delim
-CURL_INCLUDE!$CURL_INCLUDE$ac_delim
-CURL_DIR!$CURL_DIR$ac_delim
-PBX_CURL!$PBX_CURL$ac_delim
 CURSES_LIB!$CURSES_LIB$ac_delim
 CURSES_INCLUDE!$CURSES_INCLUDE$ac_delim
 CURSES_DIR!$CURSES_DIR$ac_delim
@@ -52133,6 +52095,10 @@ INOTIFY_LIB!$INOTIFY_LIB$ac_delim
 INOTIFY_INCLUDE!$INOTIFY_INCLUDE$ac_delim
 INOTIFY_DIR!$INOTIFY_DIR$ac_delim
 PBX_INOTIFY!$PBX_INOTIFY$ac_delim
+IODBC_LIB!$IODBC_LIB$ac_delim
+IODBC_INCLUDE!$IODBC_INCLUDE$ac_delim
+IODBC_DIR!$IODBC_DIR$ac_delim
+PBX_IODBC!$PBX_IODBC$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -52174,10 +52140,6 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
-IODBC_LIB!$IODBC_LIB$ac_delim
-IODBC_INCLUDE!$IODBC_INCLUDE$ac_delim
-IODBC_DIR!$IODBC_DIR$ac_delim
-PBX_IODBC!$PBX_IODBC$ac_delim
 ISDNNET_LIB!$ISDNNET_LIB$ac_delim
 ISDNNET_INCLUDE!$ISDNNET_INCLUDE$ac_delim
 ISDNNET_DIR!$ISDNNET_DIR$ac_delim
@@ -52194,7 +52156,10 @@ LDAP_LIB!$LDAP_LIB$ac_delim
 LDAP_INCLUDE!$LDAP_INCLUDE$ac_delim
 LDAP_DIR!$LDAP_DIR$ac_delim
 PBX_LDAP!$PBX_LDAP$ac_delim
+PBX_CURL!$PBX_CURL$ac_delim
 _libcurl_config!$_libcurl_config$ac_delim
+CURL_INCLUDE!$CURL_INCLUDE$ac_delim
+CURL_LIB!$CURL_LIB$ac_delim
 LIBXML2_LIB!$LIBXML2_LIB$ac_delim
 LIBXML2_INCLUDE!$LIBXML2_INCLUDE$ac_delim
 LIBXML2_DIR!$LIBXML2_DIR$ac_delim
@@ -52271,6 +52236,7 @@ PORTAUDIO_LIB!$PORTAUDIO_LIB$ac_delim
 PORTAUDIO_INCLUDE!$PORTAUDIO_INCLUDE$ac_delim
 PORTAUDIO_DIR!$PORTAUDIO_DIR$ac_delim
 PBX_PORTAUDIO!$PBX_PORTAUDIO$ac_delim
+PRI_LIB!$PRI_LIB$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -52312,7 +52278,6 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
-PRI_LIB!$PRI_LIB$ac_delim
 PRI_INCLUDE!$PRI_INCLUDE$ac_delim
 PRI_DIR!$PRI_DIR$ac_delim
 PBX_PRI!$PBX_PRI$ac_delim
@@ -52409,6 +52374,7 @@ SPEEX_LIB!$SPEEX_LIB$ac_delim
 SPEEX_INCLUDE!$SPEEX_INCLUDE$ac_delim
 SPEEX_DIR!$SPEEX_DIR$ac_delim
 PBX_SPEEX!$PBX_SPEEX$ac_delim
+SPEEX_PREPROCESS_LIB!$SPEEX_PREPROCESS_LIB$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -52450,7 +52416,6 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
-SPEEX_PREPROCESS_LIB!$SPEEX_PREPROCESS_LIB$ac_delim
 SPEEX_PREPROCESS_INCLUDE!$SPEEX_PREPROCESS_INCLUDE$ac_delim
 SPEEX_PREPROCESS_DIR!$SPEEX_PREPROCESS_DIR$ac_delim
 PBX_SPEEX_PREPROCESS!$PBX_SPEEX_PREPROCESS$ac_delim
@@ -52547,6 +52512,7 @@ PG_CONFIG!$PG_CONFIG$ac_delim
 PTLIB_CONFIG!$PTLIB_CONFIG$ac_delim
 PWLIBDIR!$PWLIBDIR$ac_delim
 PWLIB_INCDIR!$PWLIB_INCDIR$ac_delim
+PWLIB_LIBDIR!$PWLIB_LIBDIR$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -52588,7 +52554,6 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
-PWLIB_LIBDIR!$PWLIB_LIBDIR$ac_delim
 PWLIB_PLATFORM!$PWLIB_PLATFORM$ac_delim
 OPENH323DIR!$OPENH323DIR$ac_delim
 OPENH323_INCDIR!$OPENH323_INCDIR$ac_delim
@@ -52624,7 +52589,7 @@ PBX_SYSLOG!$PBX_SYSLOG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 34; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 33; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
