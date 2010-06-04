@@ -18764,7 +18764,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	}
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
-		int ack_res;
+		int ack_res = FALSE;
 
 		/* Acknowledge whatever it is destined for */
 		if ((resp >= 100) && (resp <= 199)) {
