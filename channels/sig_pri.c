@@ -1477,7 +1477,7 @@ static void *pri_ss_thread(void *data)
 			exten[len++] = res;
 			exten[len] = '\0';
 		} else
-			goto exit;
+			break;
 	}
 	/* if no extension was received ('unspecified') on overlap call, use the 's' extension */
 	if (ast_strlen_zero(exten)) {
@@ -1521,13 +1521,6 @@ static void *pri_ss_thread(void *data)
 		/* Since we send release complete here, we won't get one */
 		p->call = NULL;
 	}
-	return NULL;
-
-exit:
-	res = sig_pri_play_tone(p, SIG_PRI_TONE_CONGESTION);
-	if (res < 0)
-		ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
-	ast_hangup(chan);
 	return NULL;
 }
 
