@@ -853,7 +853,9 @@ static void free_session(struct mansession_session *session)
 		fclose(session->f);
 	ast_mutex_destroy(&session->__lock);
 	ast_free(session);
-	ast_atomic_fetchadd_int(&eqe->usecount, -1);
+	if (eqe) {
+		ast_atomic_fetchadd_int(&eqe->usecount, -1);
+	}
 }
 
 static void destroy_session(struct mansession_session *session)
