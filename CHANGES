@@ -395,7 +395,7 @@ CDR
 ---
  * 'linkedid' and 'peeraccount' are new CDR fields available to CDR aficionados.
    linkedid is based on uniqueID, but spreads to other channels as transfers, dials,
-   etc are performed. Thus the peices of CDR can be grouped into multilegged sets.
+   etc are performed. Thus the pieces of CDR can be grouped into multilegged sets.
  * Multiple files and formats can now be specified in cdr_custom.conf.
  * cdr_syslog has been added which allows CDRs to be written directly to syslog.
    See configs/cdr_syslog.conf.sample for more information.
