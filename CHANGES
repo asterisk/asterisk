@@ -81,7 +81,7 @@ Applications
 ------------
  * Added 'p' option to PickupChan() to allow for picking up channel by the first
    match to a partial channel name.
- * Added "ready" option to QUEUE_MEMBER counting to count free agents who's wrap-up
+ * Added "ready" option to QUEUE_MEMBER counting to count free agents whose wrap-up
    timeout has expired.
  * Added 'R' option to app_queue.  This option stops moh and indicates ringing
    to the caller when an Agent's phone is ringing.  This can be used to indicate
