@@ -1222,7 +1222,9 @@ static void session_destructor(void *obj)
 	if (session->f != NULL) {
 		fclose(session->f);
 	}
-	ast_atomic_fetchadd_int(&eqe->usecount, -1);
+	if (eqe) {
+		ast_atomic_fetchadd_int(&eqe->usecount, -1);
+	}
 }
 
 /*! \brief Allocate manager session structure and add it to the list of sessions */
