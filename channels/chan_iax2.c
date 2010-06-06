@@ -3281,7 +3281,16 @@ static void iax2_destroy(int callno)
 
 retry:
 	if ((pvt = iaxs[callno])) {
+#if 0
+		/* iax2_destroy_helper gets called from this function later on.  When
+		 * called twice, we get the (previously) familiar FRACK! errors in
+		 * devmode, from the scheduler.  An alternative to this approach is to
+		 * reset the scheduler entries to -1 when they're deleted in
+		 * iax2_destroy_helper().  That approach was previously decided to be
+		 * "wrong" because "the memory is going to be deallocated anyway.  Why
+		 * should we be resetting those values?" */
 		iax2_destroy_helper(pvt);
+#endif
 	}
 
 	owner = pvt ? pvt->owner : NULL;
