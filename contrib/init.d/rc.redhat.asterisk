@@ -6,7 +6,7 @@
 # chkconfig: 2345 90 60
 # description: Asterisk PBX and telephony daemon.
 # processname: asterisk
-# pidfile: /var/run/asterisk.pid
+# pidfile: __ASTERISK_VARRUN_DIR__/asterisk.pid
 #
 # Thu Nov 17 2005 Gregory Boehnlein <damin@nacs.net>
 # - Updated Version to 1.3
@@ -33,10 +33,10 @@
 ### END INIT INFO
 
 # Use this option to specify a different configuration directory
-#AST_CONFIG=/etc/asterisk
+#AST_CONFIG=__ASTERISK_ETC_DIR__
 
 # Installation directory
-AST_SBIN=/usr/sbin
+AST_SBIN=__ASTERISK_SBIN_DIR__
 
 # Source function library.
 . /etc/rc.d/init.d/functions
