@@ -152,8 +152,8 @@ OSPTK_LIB=@OSPTK_LIB@
 
 # ossaudio can optionally use ffmpeg, x11, sdl and sdl_image.
 # Because sdl_image in turn depends on sdl, we don't duplicate the include
-OSS_INCLUDE=@OSS_INCLUDE@ @FFMPEG_INCLUDE@ @X11_INCLUDE@
-OSS_LIB=@OSS_LIB@ @FFMPEG_LIB@ @X11_LIB@
+OSS_INCLUDE=@OSS_INCLUDE@ @FFMPEG_INCLUDE@ @SDL_INCLUDE@ @X11_INCLUDE@
+OSS_LIB=@OSS_LIB@ @FFMPEG_LIB@ @SDL_LIB@ @SDL_IMAGE_LIB@ @X11_LIB@
 
 PGSQL_INCLUDE=@PGSQL_INCLUDE@
 PGSQL_LIB=@PGSQL_LIB@
