@@ -1276,6 +1276,9 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				case AST_CONTROL_SRCCHANGE:
 				case AST_CONTROL_HOLD:
 				case AST_CONTROL_UNHOLD:
+				case AST_CONTROL_CONNECTED_LINE:
+				case AST_CONTROL_REDIRECTING:
+				case AST_CONTROL_AOC:
 				case -1:
 					/* Unimportant */
 					break;
