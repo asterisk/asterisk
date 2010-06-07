@@ -1808,6 +1808,7 @@ struct sip_pkt {
 struct sip_mailbox {
 	char *mailbox;
 	char *context;
+	unsigned int delme:1;
 	/*! Associated MWI subscription */
 	struct ast_event_sub *event_sub;
 	AST_LIST_ENTRY(sip_mailbox) entry;
@@ -23788,15 +23789,30 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 
 	while ((mbox = context = strsep(&next, ","))) {
 		struct sip_mailbox *mailbox;
-
-		if (!(mailbox = ast_calloc(1, sizeof(*mailbox))))
-			continue;
+		int duplicate = 0;
 
 		strsep(&context, "@");
+
 		if (ast_strlen_zero(mbox)) {
-			ast_free(mailbox);
 			continue;
 		}
+
+		/* Check whether the mailbox is already in the list */
+		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+			if (!strcmp(mailbox->mailbox, mbox) && !strcmp(S_OR(mailbox->context, ""), S_OR(context, ""))) {
+				duplicate = 1;
+				mailbox->delme = 1;
+				break;
+			}
+		}
+		if (duplicate) {
+			continue;
+		}
+
+		if (!(mailbox = ast_calloc(1, sizeof(*mailbox)))) {
+			continue;
+		}
+
 		mailbox->mailbox = ast_strdup(mbox);
 		mailbox->context = ast_strdup(context);
 
@@ -23880,6 +23896,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	peer->auth = NULL;
 	peer->default_outbound_transport = 0;
 	peer->transports = 0;
+
+	if (!devstate_only) {
+		struct sip_mailbox *mailbox;
+		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+			mailbox->delme = 1;
+		}
+	}
 
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (!devstate_only) {
@@ -24228,6 +24251,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->busy_level = 0;
 			}
 		}
+	}
+
+	if (!devstate_only) {
+		struct sip_mailbox *mailbox;
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&peer->mailboxes, mailbox, entry) {
+			if (mailbox->delme) {
+				AST_LIST_REMOVE_CURRENT(entry);
+				destroy_mailbox(mailbox);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 
 	if (!peer->default_outbound_transport) {
