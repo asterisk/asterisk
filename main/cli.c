@@ -1517,7 +1517,7 @@ static struct ast_cli_entry cli_cli[] = {
 	softhangup_help, complete_ch_3 },
 
 	{ { "core", "waitfullybooted", NULL },
-	handle_cli_wait_fullybooted, "Display active channels with group(s)",
+	handle_cli_wait_fullybooted, "Wait until Asterisk has fully booted.",
 	core_wait_fullybooted_help },
 };
 
