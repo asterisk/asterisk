@@ -213,6 +213,12 @@ enum gsamp_thresh {
 /* How many successive misses needed to consider end of a digit */
 #define DTMF_MISSES_TO_END	3
 
+/*!
+ * \brief The default silence threshold we will use if an alternate
+ * configured value is not present or is invalid.
+ */
+static const int DEFAULT_SILENCE_THRESHOLD = 256;
+
 #define CONFIG_FILE_NAME "dsp.conf"
 
 typedef struct {
@@ -1674,19 +1680,25 @@ static int _dsp_init(int reload)
 	struct ast_config *cfg;
 
 	cfg = ast_config_load2(CONFIG_FILE_NAME, "dsp", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_verb(5, "Can't find dsp config file %s. Assuming default silencethreshold of %d.\n", CONFIG_FILE_NAME, DEFAULT_SILENCE_THRESHOLD);
+		thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
 		return 0;
 	}
 
-	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED) {
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		return 0;
+	}
+
+	if (cfg) {
 		const char *value;
 
 		value = ast_variable_retrieve(cfg, "default", "silencethreshold");
 		if (value && sscanf(value, "%30d", &thresholds[THRESHOLD_SILENCE]) != 1) {
-			ast_log(LOG_WARNING, "%s: '%s' is not a valid silencethreshold value\n", CONFIG_FILE_NAME, value);
-			thresholds[THRESHOLD_SILENCE] = 256;
+			ast_verb(5, "%s: '%s' is not a valid silencethreshold value\n", CONFIG_FILE_NAME, value);
+			thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
 		} else if (!value) {
-			thresholds[THRESHOLD_SILENCE] = 256;
+			thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
 		}
 
 		ast_config_destroy(cfg);
