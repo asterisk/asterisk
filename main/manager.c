@@ -1064,6 +1064,11 @@ static void purge_events(void)
 	}
 
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&all_events, ev, eq_next) {
+		/* Never release the last event */
+		if (!AST_RWLIST_NEXT(ev, eq_next)) {
+			break;
+		}
+
 		/* 2.5 times whatever the HTTP timeout is (maximum 2.5 hours) is the maximum time that we will definitely cache an event */
 		if (ev->usecount == 0 && ast_tvdiff_sec(now, ev->tv) > (httptimeout > 3600 ? 3600 : httptimeout) * 2.5) {
 			AST_RWLIST_REMOVE_CURRENT(eq_next);
