@@ -152,6 +152,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 
 static const char config_file[] = "smdi.conf";
+static int smdi_loaded;
 
 /*! \brief SMDI message desk message queue. */
 struct ast_smdi_md_queue {
@@ -1394,6 +1395,7 @@ static int _unload_module(int fromload);
 static int load_module(void)
 {
 	int res;
+	smdi_loaded = 1;
 
 	/* initialize our containers */
 	memset(&smdi_ifaces, 0, sizeof(smdi_ifaces));
@@ -1421,6 +1423,10 @@ static int load_module(void)
 
 static int _unload_module(int fromload)
 {
+	if (!smdi_loaded) {
+		return 0;
+	}
+
 	/* this destructor stops any running smdi_read threads */
 	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&smdi_ifaces);
@@ -1441,6 +1447,7 @@ static int _unload_module(int fromload)
 		ast_custom_function_unregister(&smdi_msg_function);
 	}
 
+	smdi_loaded = 0;
 	return 0;
 }
 
