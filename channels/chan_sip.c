@@ -15977,7 +15977,7 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 {
 #define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (     %%) %-6.6s %-10.10s  %-10.10s (     %%) %-6.6s\n"
-#define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.6u %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.6u\n"
+#define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.4lf %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.4lf\n"
 	struct sip_pvt *cur = __cur;
 	struct ast_rtp_instance_stats stats;
 	char durbuf[10];

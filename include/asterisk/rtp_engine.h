@@ -235,9 +235,9 @@ struct ast_rtp_instance_stats {
 	/*! Number of packets received */
 	unsigned int rxcount;
 	/*! Jitter on transmitted packets */
-	unsigned int txjitter;
+	double txjitter;
 	/*! Jitter on received packets */
-	unsigned int rxjitter;
+	double rxjitter;
 	/*! Maximum jitter on remote side */
 	double remote_maxjitter;
 	/*! Minimum jitter on remote side */
@@ -275,7 +275,7 @@ struct ast_rtp_instance_stats {
 	/*! Standard deviation packets lost on local side */
 	double local_stdevrxploss;
 	/*! Total round trip time */
-	unsigned int rtt;
+	double rtt;
 	/*! Maximum round trip time */
 	double maxrtt;
 	/*! Minimum round trip time */
