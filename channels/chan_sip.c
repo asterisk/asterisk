@@ -4145,10 +4145,6 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 /*! Destroy mailbox subscriptions */
 static void destroy_mailbox(struct sip_mailbox *mailbox)
 {
-	if (mailbox->mailbox)
-		ast_free(mailbox->mailbox);
-	if (mailbox->context)
-		ast_free(mailbox->context);
 	if (mailbox->event_sub)
 		ast_event_unsubscribe(mailbox->event_sub);
 	ast_free(mailbox);
@@ -24933,17 +24929,35 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 
 	while ((mbox = context = strsep(&next, ","))) {
 		struct sip_mailbox *mailbox;
-
-		if (!(mailbox = ast_calloc(1, sizeof(*mailbox))))
-			continue;
+		int duplicate = 0;
 
 		strsep(&context, "@");
+
 		if (ast_strlen_zero(mbox)) {
-			ast_free(mailbox);
 			continue;
 		}
-		mailbox->mailbox = ast_strdup(mbox);
-		mailbox->context = ast_strdup(context);
+
+		/* Check whether the mailbox is already in the list */
+		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+			if (!strcmp(mailbox->mailbox, mbox) && !strcmp(S_OR(mailbox->context, ""), S_OR(context, ""))) {
+				duplicate = 1;
+				mailbox->delme = 0;
+				break;
+			}
+		}
+		if (duplicate) {
+			continue;
+		}
+
+		if (!(mailbox = ast_calloc(1, sizeof(*mailbox) + strlen(mbox) + strlen(S_OR(context, ""))))) {
+			continue;
+		}
+
+		if (!ast_strlen_zero(context)) {
+			mailbox->context = mailbox->mailbox + strlen(mbox) + 1;
+			strcpy(mailbox->context, context); /* SAFE */
+		}
+		strcpy(mailbox->mailbox, mbox); /* SAFE */
 
 		AST_LIST_INSERT_TAIL(&peer->mailboxes, mailbox, entry);
 	}
@@ -25034,6 +25048,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	peer->auth = NULL;
 	peer->default_outbound_transport = 0;
 	peer->transports = 0;
+
+	if (!devstate_only) {
+		struct sip_mailbox *mailbox;
+		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+			mailbox->delme = 1;
+		}
+	}
 
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (!devstate_only) {
@@ -25411,6 +25432,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (ast_cc_is_config_param(v->name)) {
 			ast_cc_set_param(peer->cc_params, v->name, v->value);
 		}
+	}
+
+	if (!devstate_only) {
+		struct sip_mailbox *mailbox;
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&peer->mailboxes, mailbox, entry) {
+			if (mailbox->delme) {
+				AST_LIST_REMOVE_CURRENT(entry);
+				ast_free(mailbox);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 
 	if (!can_parse_xml && (ast_get_cc_agent_policy(peer->cc_params) == AST_CC_AGENT_NATIVE)) {

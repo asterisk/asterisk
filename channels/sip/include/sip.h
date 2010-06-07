@@ -1112,11 +1112,12 @@ struct sip_pkt {
  * too much effort ...
  */
 struct sip_mailbox {
-	char *mailbox;
-	char *context;
 	/*! Associated MWI subscription */
 	struct ast_event_sub *event_sub;
 	AST_LIST_ENTRY(sip_mailbox) entry;
+	unsigned int delme:1;
+	char *context;
+	char mailbox[2];
 };
 
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host)
