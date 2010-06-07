@@ -5854,20 +5854,6 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 		c++;
 	}
-#if defined(HAVE_PRI_AOC_EVENTS)
-	if (ast_test_flag(&opts, OPT_AOC_REQUEST)
-		&& !ast_strlen_zero(opt_args[OPT_ARG_AOC_REQUEST])) {
-		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 's')) {
-			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_S);
-		}
-		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 'd')) {
-			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_D);
-		}
-		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 'e')) {
-			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_E);
-		}
-	}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 #if defined(HAVE_PRI_SETUP_KEYPAD)
 	if (ast_test_flag(&opts, OPT_KEYPAD)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_KEYPAD])) {
@@ -5892,12 +5878,25 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		pri_sr_set_called_subaddress(sr, &subaddress);
 	}
 #endif	/* defined(HAVE_PRI_SUBADDR) */
-
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 	if (ast_test_flag(&opts, OPT_REVERSE_CHARGE)) {
 		pri_sr_set_reversecharge(sr, PRI_REVERSECHARGE_REQUESTED);
 	}
 #endif	/* defined(HAVE_PRI_REVERSE_CHARGE) */
+#if defined(HAVE_PRI_AOC_EVENTS)
+	if (ast_test_flag(&opts, OPT_AOC_REQUEST)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_AOC_REQUEST])) {
+		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 's')) {
+			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_S);
+		}
+		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 'd')) {
+			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_D);
+		}
+		if (strchr(opt_args[OPT_ARG_AOC_REQUEST], 'e')) {
+			pri_sr_set_aoc_charging_request(sr, PRI_AOC_REQUEST_E);
+		}
+	}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 	ldp_strip = 0;
 	prilocaldialplan = p->pri->localdialplan - 1;
