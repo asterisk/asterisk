@@ -102,7 +102,7 @@ struct sig_pri_callback {
 	int (* const train_echocanceller)(void *pvt);
 	int (* const dsp_reset_and_flush_digits)(void *pvt);
 
-	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, int startpbx, enum sig_pri_law law, int transfercapability, char *exten, const struct ast_channel *chan);
+	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, enum sig_pri_law law, char *exten, const struct ast_channel *chan);
 
 	void (* const fixup_chans)(void *old_chan, void *new_chan);
 

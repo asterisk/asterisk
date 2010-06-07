@@ -786,12 +786,12 @@ static int sig_pri_play_tone(struct sig_pri_chan *p, enum sig_pri_tone tone)
 		return -1;
 }
 
-static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, int startpbx, int ulaw, int transfercapability, char *exten, const struct ast_channel *requestor)
+static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, int ulaw, int transfercapability, char *exten, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
 
 	if (p->calls->new_ast_channel)
-		c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, ulaw, transfercapability, exten, requestor);
+		c = p->calls->new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
 	else
 		return NULL;
 
@@ -799,9 +799,10 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 		p->owner = c;
 	p->isidlecall = 0;
 	p->alreadyhungup = 0;
+	c->transfercapability = transfercapability;
+	pbx_builtin_setvar_helper(c, "TRANSFERCAPABILITY",
+		ast_transfercapability2str(transfercapability));
 	if (transfercapability & AST_TRANS_CAP_DIGITAL) {
-		c->transfercapability = transfercapability;
-		pbx_builtin_setvar_helper(c, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
 		sig_pri_set_digital(p, 1);
 	}
 	if (p->pri && !pri_grab(p, p->pri)) {
@@ -841,7 +842,7 @@ struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 
 	p->outgoing = 1;
-	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, 0, law, transfercapability, p->exten, requestor);
+	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, law, transfercapability, p->exten, requestor);
 	if (!ast) {
 		p->outgoing = 0;
 	}
@@ -4504,7 +4505,7 @@ static void *pri_dchannel(void *vpri)
 							 */
 							ast_mutex_unlock(&pri->lock);
 							c = sig_pri_new_ast_channel(pri->pvts[chanpos],
-								AST_STATE_RESERVED, 0,
+								AST_STATE_RESERVED,
 								(e->ring.layer1 == PRI_LAYER_1_ALAW)
 									? SIG_PRI_ALAW : SIG_PRI_ULAW,
 								e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
@@ -4597,7 +4598,7 @@ static void *pri_dchannel(void *vpri)
 							 */
 							ast_mutex_unlock(&pri->lock);
 							c = sig_pri_new_ast_channel(pri->pvts[chanpos],
-								AST_STATE_RING, 0,
+								AST_STATE_RING,
 								(e->ring.layer1 == PRI_LAYER_1_ALAW)
 									? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype,
 								pri->pvts[chanpos]->exten, NULL);
