@@ -1,3 +1,24 @@
+2010-06-07  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.9-rc2 Released.
+
+2010-06-07  Tilghman Lesher <tlesher@digium.com>
+
+	* Fix crash in DTMF detection.
+
+	  What I did not originally see in my previous commit was that even 
+	  though the next digit could be detected before the previous was 
+	  considered ended, the detection of the next digit effectively ends 
+	  the detection of the previous. Therefore, the length moves in 
+	  lockstep with the digit, and no separate counter is needed for the 
+	  length alone.
+
+	  (closes issue 0017371)
+	   Reported by: alecdavis
+
+	  (closes issue 0017474)
+	   Reported by: kenner
+
 2010-06-01  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.9-rc1 Released.
