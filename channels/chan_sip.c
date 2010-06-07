@@ -25439,7 +25439,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&peer->mailboxes, mailbox, entry) {
 			if (mailbox->delme) {
 				AST_LIST_REMOVE_CURRENT(entry);
-				ast_free(mailbox);
+				destroy_mailbox(mailbox);
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
