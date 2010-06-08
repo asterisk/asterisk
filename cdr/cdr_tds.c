@@ -477,7 +477,7 @@ static int mssql_connect(void)
 		goto connect_fail;
 	}
 
-	snprintf(query, sizeof(query), "SELECT 1 FROM %s", table);
+	snprintf(query, sizeof(query), "SELECT 1 FROM %s WHERE 1 = 0", table);
 #ifdef FREETDS_PRE_0_62
 	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
 #else
