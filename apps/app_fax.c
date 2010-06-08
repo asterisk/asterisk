@@ -227,8 +227,8 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	
 	s->finished = 1; 
 	
-	local_ident = t30_get_tx_ident(f);
-	far_ident = t30_get_rx_ident(f);
+	local_ident = S_OR(t30_get_tx_ident(f), "");
+	far_ident = S_OR(t30_get_rx_ident(f), "");
 	pbx_builtin_setvar_helper(s->chan, "FAXSTATUS", "SUCCESS"); 
 	pbx_builtin_setvar_helper(s->chan, "FAXERROR", NULL); 
 	pbx_builtin_setvar_helper(s->chan, "REMOTESTATIONID", far_ident);
