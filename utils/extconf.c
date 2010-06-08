@@ -6255,3 +6255,13 @@ int localized_pbx_load_module(void)
 	return 0;
 }
 
+/* For platforms which don't have pthread_rwlock_timedrdlock() */
+struct timeval ast_tvnow(void);
+
+struct timeval ast_tvnow(void)
+{
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	return t;
+}
+
