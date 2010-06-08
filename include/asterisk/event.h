@@ -192,7 +192,8 @@ int ast_event_sub_append_ie_str(struct ast_event_sub *sub,
  *
  * \param sub the dynamic subscription allocated with ast_event_subscribe_new()
  * \param ie_type the information element type for the parameter
- * \param raw the data that must be present in the event to match this subscription
+ * \param data the data that must be present in the event to match this subscription
+ * \param raw_datalen length of data
  *
  * \retval 0 success
  * \retval non-zero failure
@@ -480,7 +481,7 @@ int ast_event_append_ie_uint(struct ast_event **event, enum ast_event_ie_type ie
  *
  * \param event the event that the IE will be appended to
  * \param ie_type the type of IE to append
- * \param flags the flags that are the payload of the IE
+ * \param bitflags the flags that are the payload of the IE
  *
  * \retval 0 success
  * \retval -1 failure

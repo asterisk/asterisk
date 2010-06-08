@@ -83,7 +83,7 @@ struct ast_bridge_technology {
 /*! \brief Register a bridge technology for use
  *
  * \param technology The bridge technology to register
- * \param module The module that is registering the bridge technology
+ * \param mod The module that is registering the bridge technology
  *
  * \retval 0 on success
  * \retval -1 on failure

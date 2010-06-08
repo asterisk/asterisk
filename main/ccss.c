@@ -1453,7 +1453,7 @@ struct extension_child_dialstring {
 	 * to find the dialstring that corresponds to that device, and we use the
 	 * stored device name as a way to find it.
 	 *
-	 * Note that there is one particular case where the device name stored here
+	 * \note There is one particular case where the device name stored here
 	 * will be empty. This is the case where we fail to request a channel, but we
 	 * still can make use of generic call completion. In such a case, since we never
 	 * were able to request the channel, we can't find what its device name is. In

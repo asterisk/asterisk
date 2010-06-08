@@ -345,7 +345,7 @@
 /*! 
  * \page Config_fea Call features configuration
  * \par See also
- * \arg \ref res_features.c : Call feature implementation
+ * \arg \ref features.c : Call feature implementation
  * \section featconf features.conf
  * \verbinclude features.conf.sample
  */

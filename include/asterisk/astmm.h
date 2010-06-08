@@ -19,7 +19,7 @@
 /*! \file
  * \brief Asterisk memory usage debugging
  * This file provides headers for MALLOC_DEBUG, a define used for tracking down
- * memory leaks.  It should never be #included directly; always use the
+ * memory leaks.  It should never be \#included directly; always use the
  * MALLOC_DEBUG definition in menuselect to activate those functions.
  */
 

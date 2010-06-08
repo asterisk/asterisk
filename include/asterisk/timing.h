@@ -84,7 +84,7 @@ struct ast_timing_interface {
 /*!
  * \brief Register a set of timing functions.
  *
- * \param funcs An instance of the \c ast_timing_interfaces structure with pointers
+ * \param i An instance of the \c ast_timing_interfaces structure with pointers
  *        to the functions provided by the timing implementation.
  *
  * \retval NULL failure 

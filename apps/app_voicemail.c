@@ -1569,6 +1569,9 @@ static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
  * \brief Creates a file system path expression for a folder within the voicemail data folder and the appropriate context.
  * \param dest The variable to hold the output generated path expression. This buffer should be of size PATH_MAX.
  * \param len The length of the path string that was written out.
+ * \param context
+ * \param ext 
+ * \param folder 
  * 
  * The path is constructed as 
  * 	VM_SPOOL_DIRcontext/ext/folder
@@ -1584,6 +1587,8 @@ static int make_dir(char *dest, int len, const char *context, const char *ext, c
  * \brief Creates a file system path expression for a folder within the voicemail data folder and the appropriate context.
  * \param dest The variable to hold the output generated path expression. This buffer should be of size PATH_MAX.
  * \param len The length of the path string that was written out.
+ * \param dir 
+ * \param num 
  * 
  * The path is constructed as 
  * 	VM_SPOOL_DIRcontext/ext/folder
@@ -4338,15 +4343,18 @@ static const char *ast_str_encode_mime(struct ast_str **end, ssize_t maxlen, con
  * \param msgnum The message index in the mailbox folder.
  * \param context 
  * \param mailbox The voicemail box to read the voicemail to be notified in this email.
+ * \param fromfolder
  * \param cidnum The caller ID number.
  * \param cidname The caller ID name.
  * \param attach the name of the sound file to be attached to the email, if attach_user_voicemail == 1.
+ * \param attach2 
  * \param format The message sound file format. i.e. .wav
  * \param duration The time of the message content, in seconds.
  * \param attach_user_voicemail if 1, the sound file is attached to the email.
  * \param chan
  * \param category
  * \param imap if == 1, indicates the target folder for the email notification to be sent to will be an IMAP mailstore. This causes additional mailbox headers to be set, which would facilitate searching for the email in the destination IMAP folder.
+ * \param flag
  *
  * The email body, and base 64 encoded attachement (if any) are stored to the file identified by *p. This method does not actually send the email.  That is done by invoking the configure 'mailcmd' and piping this generated file into it, or with the sendemail() function.
  */
@@ -5125,6 +5133,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
  * \param recip
  * \param fmt
  * \param dir
+ * \param flag
  *
  * This is only used by file storage based mailboxes.
  *
@@ -6547,11 +6556,12 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
  * \param vmu
  * \param curdir
  * \param curmsg
- * \param vmfmts
+ * \param vm_fmts
  * \param context
  * \param record_gain
  * \param duration
  * \param vms
+ * \param flag 
  *
  * Presents a prompt for 1 to prepend the current message, 2 to forward the message without prepending, or * to return to the main menu.
  *
@@ -6730,6 +6740,7 @@ static void queue_mwi_event(const char *box, int urgent, int new, int old)
  * \param fmt
  * \param cidnum The Caller ID phone number value.
  * \param cidname The Caller ID name value.
+ * \param flag
  *
  * \return zero on success, -1 on error.
  */
@@ -6807,7 +6818,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 /*!
  * \brief Sends a voicemail message to a mailbox recipient.
- * \param ast_channel
+ * \param chan
  * \param context
  * \param vms
  * \param sender
@@ -6816,6 +6827,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
  *             Will be 0 when called to forward an existing message (option 8)
  *             Will be 1 when called to leave a message (option 3->5)
  * \param record_gain 
+ * \param urgent
  *
  * Reads the destination mailbox(es) from keypad input for CID, or if use_directory feature is enabled, the Directory.
  * 

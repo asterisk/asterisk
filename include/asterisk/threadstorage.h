@@ -88,11 +88,11 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 /*!
  * \brief Define a thread storage variable, with custom initialization and cleanup
  *
- * \param name The name of the thread storage object
- * \param init This is a custom function that will be called after each thread specific
+ * \param a The name of the thread storage object
+ * \param b This is a custom function that will be called after each thread specific
  *           object is allocated, with the allocated block of memory passed
  *           as the argument.
- * \param cleanup This is a custom function that will be called instead of ast_free
+ * \param c This is a custom function that will be called instead of ast_free
  *              when the thread goes away.  Note that if this is used, it *MUST*
  *              call free on the allocated memory.
  *

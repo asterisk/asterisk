@@ -90,7 +90,7 @@ void ast_xml_close(struct ast_xml_doc *doc);
 
 /*! \brief Open an XML document that resides in memory.
  * \param buffer The address where the document is stored
- * \size The number of bytes in the document
+ * \param size The number of bytes in the document
  * \retval NULL on error.
  * \retval The ast_xml_doc reference to the open document.
  */
@@ -119,7 +119,7 @@ void ast_xml_free_node(struct ast_xml_node *node);
 
 /*!
  * \brief Free an attribute returned by ast_xml_get_attribute()
- * \param data pointer to be freed.
+ * \param attribute pointer to be freed.
  */
 void ast_xml_free_attr(const char *attribute);
 
@@ -157,11 +157,11 @@ int ast_xml_set_attribute(struct ast_xml_node *node, const char *name, const cha
 
 /*!
  * \brief Find a node element by name.
- * \param node This is the node starting point.
+ * \param root_node This is the node starting point.
  * \param name Node name to find.
  * \param attrname attribute name to match (if NULL it won't be matched).
  * \param attrvalue attribute value to match (if NULL it won't be matched).
- * \retval NULL if not found
+ * \retval NULL if not found.
  * \retval The node on success.
  */
 struct ast_xml_node *ast_xml_find_element(struct ast_xml_node *root_node, const char *name, const char *attrname, const char *attrvalue);

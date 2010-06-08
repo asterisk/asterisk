@@ -380,7 +380,7 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
 /*!
  * \brief Map devstate to an extension state.
  *
- * \param[in] device state
+ * \param[in] devstate device state
  *
  * \return the extension state mapping.
  */
@@ -725,8 +725,6 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw,
  * \param context context to remove extension from
  * \param extension which extension to remove
  * \param priority priority of extension to remove (0 to remove all)
- * \param callerid NULL to remove all; non-NULL to match a single record per priority
- * \param matchcid non-zero to match callerid element (if non-NULL); 0 to match default case
  * \param registrar registrar of the extension
  *
  * This function removes an extension from a given context.

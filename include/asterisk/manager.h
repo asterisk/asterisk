@@ -118,7 +118,7 @@ void ast_manager_register_hook(struct manager_custom_hook *hook);
 void ast_manager_unregister_hook(struct manager_custom_hook *hook);
 
 /*! \brief Registered hooks can call this function to invoke actions and they will receive responses through registered callback
- * \param hookid the file identifier specified in manager_custom_hook struct when registering a hook
+ * \param hook the file identifier specified in manager_custom_hook struct when registering a hook
  * \param msg ami action mesage string e.g. "Action: SipPeers\r\n"
 
  * \retval 0 on Success

@@ -371,8 +371,8 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 }
 
 /*! \brief Update audiohook's status
- * \param audiohook status enum
  * \param audiohook Audiohook structure
+ * \param status Audiohook status enum
  *
  * \note once status is updated to DONE, this function can not be used to set the
  * status back to any other setting.  Setting DONE effectively locks the status as such.

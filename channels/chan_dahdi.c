@@ -9169,7 +9169,7 @@ static int dahdi_wink(struct dahdi_pvt *p, int idx)
 
 /*! \brief enable or disable the chan_dahdi Do-Not-Disturb mode for a DAHDI channel
  * \param dahdichan "Physical" DAHDI channel (e.g: DAHDI/5)
- * \param on 1 to enable, 0 to disable, -1 return dnd value
+ * \param flag on 1 to enable, 0 to disable, -1 return dnd value
  *
  * chan_dahdi has a DND (Do Not Disturb) mode for each dahdichan (physical
  * DAHDI channel). Use this to enable or disable it.

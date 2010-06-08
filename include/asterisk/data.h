@@ -601,7 +601,7 @@ struct ast_data *ast_data_add_ptr(struct ast_data *root, const char *childname,
  * \brief Add a string node type.
  * \param[in] root The root of the ast_data to insert into.
  * \param[in] childname The name of the child element to be added.
- * \param[in] value The value for the new node.
+ * \param[in] string The value for the new node.
  * \retval NULL on error (memory exhaustion only).
  * \retval non-NULL a newly allocated node.
  */
@@ -612,7 +612,7 @@ struct ast_data *ast_data_add_str(struct ast_data *root, const char *childname,
  * \brief Add a boolean node type.
  * \param[in] root The root of the ast_data to insert into.
  * \param[in] childname The name of the child element to be added.
- * \param[in] value The value for the new node.
+ * \param[in] boolean The value for the new node.
  * \retval NULL on error (memory exhaustion only).
  * \retval non-NULL a newly allocated node.
  */

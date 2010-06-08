@@ -171,8 +171,8 @@ void ast_http_error(struct ast_tcptls_session_instance *ser, int status, const c
 
 /*!
  * \brief Return the current prefix
- * \param buf[out] destination buffer for previous
- * \param len[in] length of prefix to copy
+ * \param[out] buf destination buffer for previous
+ * \param[in] len length of prefix to copy
  * \since 1.6.1
  */
 void ast_http_prefix(char *buf, int len);

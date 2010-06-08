@@ -944,11 +944,12 @@ static struct {
  *  when in a conference */
 static int audio_buffers;
 
-/*!  \briefMap 'volume' levels from -5 through +5 into
- *  decibel (dB) settings for channel drivers
+/*! \brief Map 'volume' levels from -5 through +5 into decibel (dB) 
+ *    settings for channel drivers.
+ *
  *  \note these are not a straight linear-to-dB
  *  conversion... the numbers have been modified
- *  to give the user a better level of adjustability
+ *  to give the user a better level of adjustability.
  */
 static const char gain_map[] = {
 	-15,
@@ -5066,7 +5067,7 @@ static int sla_check_timed_out_station(const struct sla_ringing_trunk *ringing_t
 
 /*! \brief Choose the highest priority ringing trunk for a station
  * \param station the station
- * \param remove remove the ringing trunk once selected
+ * \param rm remove the ringing trunk once selected
  * \param trunk_ref a place to store the pointer to this stations reference to
  *        the selected trunk
  * \return a pointer to the selected ringing trunk, or NULL if none found

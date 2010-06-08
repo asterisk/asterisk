@@ -2484,6 +2484,7 @@ int ast_aji_send_groupchat(struct aji_client *client, const char *nick, const ch
 /*!
 * \brief sends messages.
 * \param client the configured XMPP client we use to connect to a XMPP server
+* \param groupchat 
 * \param nick the nickname we use in chatrooms
 * \param address
 * \param message

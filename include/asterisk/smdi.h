@@ -122,7 +122,7 @@ AST_OPTIONAL_API(struct ast_smdi_md_message *, ast_smdi_md_message_wait,
 /*!
  * \brief Put an SMDI message back in the front of the queue.
  * \param iface a pointer to the interface to use.
- * \param md_msg a pointer to the message to use.
+ * \param msg a pointer to the message to use.
  *
  * This function puts a message back in the front of the specified queue.  It
  * should be used if a message was popped but is not going to be processed for
@@ -169,7 +169,7 @@ AST_OPTIONAL_API(struct ast_smdi_mwi_message *, ast_smdi_mwi_message_wait_statio
 /*!
  * \brief Put an SMDI message back in the front of the queue.
  * \param iface a pointer to the interface to use.
- * \param mwi_msg a pointer to the message to use.
+ * \param msg a pointer to the message to use.
  *
  * This function puts a message back in the front of the specified queue.  It
  * should be used if a message was popped but is not going to be processed for

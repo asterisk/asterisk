@@ -603,6 +603,7 @@ void *ast_rtp_instance_get_data(struct ast_rtp_instance *instance);
  * \brief Send a frame out over RTP
  *
  * \param instance The RTP instance to send frame out on
+ * \param frame the frame to send out
  *
  * \retval 0 success
  * \retval -1 failure
@@ -872,7 +873,7 @@ void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_r
  * \brief Copy payload information from one RTP instance to another
  *
  * \param src The source codecs structure
- * \param dst The destination codecs structure that the values from src will be copied to
+ * \param dest The destination codecs structure that the values from src will be copied to
  * \param instance Optionally the instance that the dst codecs structure belongs to
  *
  * Example usage:
@@ -934,7 +935,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type(struct ast_rtp_codecs *codecs, struc
 /*!
  * \brief Set payload type to a known MIME media type for a codec with a specific sample rate
  *
- * \param rtp RTP structure to modify
+ * \param codecs RTP structure to modify
  * \param instance Optionally the instance that the codecs structure belongs to
  * \param pt Payload type entry to modify
  * \param mimetype top-level MIME type of media stream (typically "audio", "video", "text", etc.)
@@ -1012,7 +1013,7 @@ unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, format_t code);
  * \brief Retrieve all formats that were found
  *
  * \param codecs Codecs structure to look in
- * \param astFormats An integer to put the Asterisk formats in
+ * \param astformats An integer to put the Asterisk formats in
  * \param nonastformats An integer to put the non-Asterisk formats in
  *
  * Example usage:

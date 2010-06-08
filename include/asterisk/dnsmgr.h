@@ -42,7 +42,7 @@ struct ast_dnsmgr_entry;
  *
  * \param name the hostname
  * \param result where the DNS manager should store the IP address as it refreshes it.
- *      it.
+ * \param service
  *
  * This function allocates a new DNS manager entry object, and fills it with the
  * provided hostname and IP address.  This function does not force an initial lookup
@@ -69,6 +69,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
  * \param name the hostname
  * \param result where to store the IP address as the DNS manager refreshes it
  * \param dnsmgr Where to store the allocate DNS manager entry
+ * \param service
  *
  * This function allocates a new DNS manager entry object, and fills it with
  * the provided hostname and IP address.  This function _does_ force an initial

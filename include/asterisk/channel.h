@@ -1129,6 +1129,7 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  *
  * \param type type of channel to request
  * \param format requested channel format (codec)
+ * \param requestor channel asking for data
  * \param data data to pass to the channel requester
  * \param status status
  *
@@ -1147,6 +1148,7 @@ struct ast_channel *ast_request(const char *type, format_t format, const struct 
  *
  * \param type type of channel to request
  * \param format requested channel format
+ * \param requestor channel asking for data
  * \param data data to pass to the channel requester
  * \param timeout maximum amount of time to wait for an answer
  * \param reason why unsuccessful (if unsuccessful)
@@ -1164,6 +1166,7 @@ struct ast_channel *ast_request_and_dial(const char *type, format_t format, cons
  * by the low level module and attempt to place a call on it
  * \param type type of channel to request
  * \param format requested channel format
+ * \param requestor channel requesting data
  * \param data data to pass to the channel requester
  * \param timeout maximum amount of time to wait for an answer
  * \param reason why unsuccessful (if unsuccessful)
@@ -1282,6 +1285,7 @@ int ast_softhangup_nolock(struct ast_channel *chan, int reason);
  *
  * \param chan channel to set the field on
  * \param source a string describing the source of the hangup for this channel
+ * \param force
  *
  * \since 1.8
  *
@@ -1937,6 +1941,7 @@ int ast_autoservice_start(struct ast_channel *chan);
  * ast_autoservice_stop and the autoservice thread. It is important
  * that chan is not locked prior to this call
  *
+ * \param chan
  * \retval 0 success
  * \retval -1 error, or the channel has been hungup
  */
@@ -1945,7 +1950,10 @@ int ast_autoservice_stop(struct ast_channel *chan);
 /*!
  * \brief Enable or disable timer ticks for a channel
  *
+ * \param c channel
  * \param rate number of timer ticks per second
+ * \param func callback function
+ * \param data
  *
  * \details
  * If timers are supported, force a scheduled expiration on the
@@ -2912,7 +2920,7 @@ struct ast_cc_config_params *ast_channel_get_cc_config_params(struct ast_channel
  * name is used instead.
  *
  * \param chan The channel to retrieve the information from
- * \param device_name[out] The buffer to place the device's name into
+ * \param[out] device_name The buffer to place the device's name into
  * \param name_buffer_length The allocated space for the device_name
  * \return 0 always
  */

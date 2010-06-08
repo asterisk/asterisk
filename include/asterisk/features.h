@@ -120,26 +120,34 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct as
 /*! \brief Pickup a call */
 int ast_pickup_call(struct ast_channel *chan);
 
-/*! \brief register new feature into feature_set 
-   \param feature an ast_call_feature object which contains a keysequence
-   and a callback function which is called when this keysequence is pressed
-   during a call. */
+/*! 
+ * \brief register new feature into feature_set 
+ * \param feature an ast_call_feature object which contains a keysequence
+ * and a callback function which is called when this keysequence is pressed
+ * during a call. 
+*/
 void ast_register_feature(struct ast_call_feature *feature);
 
-/*! \brief unregister feature from feature_set
-    \param feature the ast_call_feature object which was registered before*/
+/*! 
+ * \brief unregister feature from feature_set
+ * \param feature the ast_call_feature object which was registered before
+*/
 void ast_unregister_feature(struct ast_call_feature *feature);
 
-/*! \brief detect a feature before bridging 
-    \param chan
-    \param ast_flags ptr
-    \param char ptr of input code
-    \retval ast_call_feature ptr to be set if found 
-    \return result, was feature found or not */
+/*! 
+ * \brief detect a feature before bridging 
+ * \param chan
+ * \param features an ast_flags ptr
+ * \param code ptr of input code
+ * \param feature
+ * \retval ast_call_feature ptr to be set if found 
+*/
 int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, const char *code, struct ast_call_feature *feature);
 
-/*! \brief look for a call feature entry by its sname
-	\param name a string ptr, should match "automon", "blindxfer", "atxfer", etc. */
+/*! 
+ * \brief look for a call feature entry by its sname
+ * \param name a string ptr, should match "automon", "blindxfer", "atxfer", etc. 
+*/
 struct ast_call_feature *ast_find_call_feature(const char *name);
 
 void ast_rdlock_call_features(void);
@@ -148,8 +156,9 @@ void ast_unlock_call_features(void);
 /*! \brief Reload call features from features.conf */
 int ast_features_reload(void);
 
-/* !\brief parse L option and read associated channel variables to set warning, warning frequency, and timelimit
-	\note caller must be aware of freeing memory for warning_sound, end_sound, and start_sound
+/*!
+ * \brief parse L option and read associated channel variables to set warning, warning frequency, and timelimit
+ * \note caller must be aware of freeing memory for warning_sound, end_sound, and start_sound
 */
 int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *config, char *parse, struct timeval *calldurationlimit);
 

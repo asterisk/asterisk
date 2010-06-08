@@ -4487,7 +4487,7 @@ static int find_by_name(void *obj, void *arg, void *data, int flags)
 
 /*!
  * \brief Locate device by name or ip address
- *
+ * \param peer, sin, realtime, devstate_only, transport
  * \param which_objects Define which objects should be matched when doing a lookup
  *        by name.  Valid options are FINDUSERS, FINDPEERS, or FINDALLDEVICES.
  *        Note that this option is not used at all when doing a lookup by IP.
@@ -10780,7 +10780,6 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
  *
  * \param req The request/response to which we will add the header
  * \param pvt The sip_pvt which represents the call-leg
- * \param apr Redirecting data used to make the diversion header
  */
 static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
 {
@@ -10844,12 +10843,14 @@ static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_ty
 	return 0;
 }
 
-/*! \brief Build REFER/INVITE/OPTIONS/SUBSCRIBE message and transmit it
-	\param init 0 = Prepare request within dialog, 1= prepare request, new branch, 2= prepare new request and new dialog. do_proxy_auth calls this with init!=2
- \param p sip_pvt structure
- \param sdp unknown
- \param sipmethod unknown
-
+/*! 
+ * \brief Build REFER/INVITE/OPTIONS/SUBSCRIBE message and transmit it
+ * \param p sip_pvt structure
+ * \param sipmethod
+ * \param sdp unknown
+ * \param init 0 = Prepare request within dialog, 1= prepare request, new branch,
+ *  2= prepare new request and new dialog. do_proxy_auth calls this with init!=2
+ * \param explicit_uri
 */
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, const char * const explicit_uri)
 {

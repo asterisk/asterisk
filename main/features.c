@@ -2415,7 +2415,7 @@ static int remap_feature(const char *name, const char *value)
 
 /*!
  * \brief Helper function for feature_interpret and ast_feature_detect
- * \param chan,peer,config,code,sense,dynamic_features char buf,feature flags,operation,feature
+ * \param chan,peer,config,code,sense,dynamic_features_buf,features,operation,feature
  *
  * Lock features list, browse for code, unlock list
  * If a feature is found and the operation variable is set, that feature's
@@ -2605,7 +2605,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 
 /*! 
  * \brief Get feature and dial
- * \param caller,transferee,type,format,data,timeout,outstate,cid_num,cid_name,igncallerstate
+ * \param caller,transferee,type,format,data,timeout,outstate,cid_num,cid_name,igncallerstate,language
  *
  * Request channel, set channel variables, initiate call,check if they want to disconnect
  * go into loop, check if timeout has elapsed, check if person to be transfered hung up,

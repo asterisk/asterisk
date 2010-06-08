@@ -1321,6 +1321,7 @@ int ast_cc_monitor_count(const char * const name, const char * const type);
  * up the ladder correctly.
  *
  * \param core_id The core ID of the corresponding CC transaction
+ * \param debug
  * \retval 0 Request successfully queued
  * \retval -1 Request could not be queued
  */
@@ -1377,7 +1378,7 @@ int ast_setup_cc_recall_datastore(struct ast_channel *chan, const int core_id);
  * sure that you have no potential lock order issues here.
  *
  * \param chan The channel to check
- * \param core_id[out] If this is a valid CC recall, the core_id of the failed call
+ * \param[out] core_id If this is a valid CC recall, the core_id of the failed call
  * will be placed in this output parameter
  * \param monitor_type Clarify which type of monitor type we are looking for if this
  * is happening on a called channel. For incoming channels, this parameter is not used.
@@ -1508,7 +1509,8 @@ void ast_cc_busy_interface(struct ast_channel *inbound, struct ast_cc_config_par
  * ready, and then based on set flags, creates the proper frame type. For chan_dahdi, we
  * provide this function. It provides us the data we need, and we'll make its frame for it.
  *
- * \param chan A channel involved in the call. What we want is on a datastore on both incoming and outgoing so either may be provided
+ * \param chan A channel involved in the call. What we want is on a datastore on both incoming 
+ * and outgoing so either may be provided
  * \param cc_params The CC configuration parameters for the outbound target
  * \param monitor_type The type of monitor to use when CC is requested
  * \param device_name The name of the outbound target device.
@@ -1518,8 +1520,8 @@ void ast_cc_busy_interface(struct ast_channel *inbound, struct ast_cc_config_par
  * data has been allocated, then this parameter should contain a pointer to that data. If using a generic
  * monitor, this parameter should remain NULL. Note that if this function should fail at some point,
  * it is the responsibility of the caller to free the private data upon return.
- * \param[out] frame. The frame we will be returning to the caller. It is vital that ast_frame_free be called on this frame since the
- * payload will be allocated on the heap.
+ * \param[out] frame The frame we will be returning to the caller. It is vital that ast_frame_free be 
+ * called on this frame since the payload will be allocated on the heap.
  * \retval -1 Failure. At some point there was a failure. Do not attempt to use the frame in this case.
  * \retval 0 Success
  */
@@ -1561,6 +1563,7 @@ typedef void (*ast_cc_callback_fn)(struct ast_channel *chan, struct ast_cc_confi
  * See the explanation in ast_channel_tech::cc_callback for more
  * details.
  *
+ * \param inbound
  * \param tech Channel technology to use
  * \param dest Channel/group/peer or whatever the specific technology uses
  * \param callback Function to call when a target is reached
