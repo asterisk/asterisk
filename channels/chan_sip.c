@@ -267,10 +267,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "sip/include/config_parser.h"
 #include "sip/include/reqresp_parser.h"
 #include "sip/include/sip_utils.h"
+#include "sip/include/srtp.h"
+#include "sip/include/sdp_crypto.h"
 #include "asterisk/ccss.h"
 #include "asterisk/xml.h"
 #include "sip/include/dialog.h"
 #include "sip/include/dialplan_functions.h"
+
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -1565,6 +1568,10 @@ static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest,
 static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static int handle_response_register(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static void handle_response(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
+
+/*------ SRTP Support -------- */
+static int setup_srtp(struct sip_srtp **srtp);
+static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp, const char *a);
 
 /*------ T38 Support --------- */
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
@@ -3910,7 +3917,16 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 			res = 0;
 		}
 		break;
+	case AST_OPTION_SECURE_SIGNALING:
+		p->req_secure_signaling = *(unsigned int *) data;
+		res = 0;
+		break;
+	case AST_OPTION_SECURE_MEDIA:
+		ast_set2_flag(&p->flags[1], *(unsigned int *) data, SIP_PAGE2_USE_SRTP);
+		res = 0;
+		break;
 	default:
+		ast_log(LOG_NOTICE, "Unknown option: %d\n", option);
 		break;
 	}
 
@@ -3960,6 +3976,14 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 		cp = (char *) data;
 		*cp = p->dsp ? 1 : 0;
 		ast_debug(1, "Reporting digit detection %sabled on %s\n", *cp ? "en" : "dis", chan->name);
+		break;
+	case AST_OPTION_SECURE_SIGNALING:
+		*((unsigned int *) data) = p->req_secure_signaling;
+		res = 0;
+		break;
+	case AST_OPTION_SECURE_MEDIA:
+		*((unsigned int *) data) = ast_test_flag(&p->flags[1], SIP_PAGE2_USE_SRTP) ? 1 : 0;
+		res = 0;
 		break;
 	case AST_OPTION_DEVICE_NAME:
 		if (p && p->outgoing_call) {
@@ -5004,6 +5028,35 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 	}
 
+	/* Check to see if we should try to force encryption */
+	if (p->req_secure_signaling && p->socket.type != SIP_TRANSPORT_TLS) {
+	   ast_log(LOG_WARNING, "Encrypted signaling is required\n");
+	   ast->hangupcause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+	   return -1;
+	}
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_USE_SRTP)) {
+		if (ast_test_flag(&p->flags[0], SIP_REINVITE)) {
+			ast_debug(1, "Direct media not possible when using SRTP, ignoring canreinvite setting\n");
+			ast_clear_flag(&p->flags[0], SIP_REINVITE);
+		}
+
+		if (p->rtp && !p->srtp && setup_srtp(&p->srtp) < 0) {
+			ast_log(LOG_WARNING, "SRTP audio setup failed\n");
+			return -1;
+		}
+
+		if (p->vrtp && !p->vsrtp && setup_srtp(&p->vsrtp) < 0) {
+			ast_log(LOG_WARNING, "SRTP video setup failed\n");
+			return -1;
+		}
+
+		if (p->trtp && !p->vsrtp && setup_srtp(&p->tsrtp) < 0) {
+			ast_log(LOG_WARNING, "SRTP text setup failed\n");
+			return -1;
+		}
+	}
+
 	res = 0;
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 
@@ -5209,6 +5262,21 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->chanvars) {
 		ast_variables_destroy(p->chanvars);
 		p->chanvars = NULL;
+	}
+
+	if (p->srtp) {
+		sip_srtp_destroy(p->srtp);
+		p->srtp = NULL;
+	}
+
+	if (p->vsrtp) {
+		sip_srtp_destroy(p->vsrtp);
+		p->vsrtp = NULL;
+	}
+
+	if (p->tsrtp) {
+		sip_srtp_destroy(p->tsrtp);
+		p->tsrtp = NULL;
 	}
 
 	if (p->directmediaha) {
@@ -7671,6 +7739,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	const char *codecs;
 	int codec;
 
+	/* SRTP */
+	int secure_audio = FALSE;
+	int secure_video = FALSE;
+
 	/* Others */
 	int sendonly = -1;
 	int vsendonly = -1;
@@ -7770,6 +7842,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int video = FALSE;
 		int image = FALSE;
 		int text = FALSE;
+		char protocol[5] = {0,};
 		int x;
 
 		numberofports = 1;
@@ -7780,8 +7853,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		nextm = get_sdp_iterate(&next, req, "m");
 
 		/* Search for audio media definition */
-		if ((sscanf(m, "audio %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-		    (sscanf(m, "audio %30u RTP/AVP %n", &x, &len) == 1 && len > 0)) {
+		if ((sscanf(m, "audio %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+		    (sscanf(m, "audio %30u RTP/%4s %n", &x, protocol, &len) == 2 && len > 0)) {
+			if (!strcmp(protocol, "SAVP")) {
+				secure_audio = 1;
+			} else if (strcmp(protocol, "AVP")) {
+				ast_log(LOG_WARNING, "unknown SDP media protocol in offer: %s\n", protocol);
+				continue;
+			}
 			audio = TRUE;
 			p->offered_media[SDP_AUDIO].offered = TRUE;
 			numberofmediastreams++;
@@ -7801,8 +7880,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_rtp_codecs_payloads_set_m_type(&newaudiortp, NULL, codec);
 			}
 		/* Search for video media definition */
-		} else if ((sscanf(m, "video %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0) ||
-			   (sscanf(m, "video %30u RTP/AVP %n", &x, &len) == 1 && len >= 0)) {
+		} else if ((sscanf(m, "video %30u/%30u RTP/%4s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
+			   (sscanf(m, "video %30u RTP/%4s %n", &x, protocol, &len) == 2 && len >= 0)) {
+			if (!strcmp(protocol, "SAVP")) {
+				secure_video = 1;
+			} else if (strcmp(protocol, "AVP")) {
+				ast_log(LOG_WARNING, "unknown SDP media protocol in offer: %s\n", protocol);
+				continue;
+			}
 			video = TRUE;
 			p->novideo = FALSE;
 			p->offered_media[SDP_VIDEO].offered = TRUE;
@@ -7864,8 +7949,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if (numberofports > 1)
 			ast_log(LOG_WARNING, "SDP offered %d ports for media, not supported by Asterisk. Will try anyway...\n", numberofports);
 		
-
-
 		/* Media stream specific parameters */
 		while ((type = get_sdp_line(&iterator, next - 1, req, &value)) != '\0') {
 			int processed = FALSE;
@@ -7899,6 +7982,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				if (audio) {
 					if (process_sdp_a_sendonly(value, &sendonly))
 						processed = TRUE;
+					else if (process_crypto(p, p->rtp, &p->srtp, value))
+						processed = TRUE;
 					else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec))
 						processed = TRUE;
 				}
@@ -7906,12 +7991,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				else if (video) {
 					if (process_sdp_a_sendonly(value, &vsendonly))
 						processed = TRUE;
+					else if (process_crypto(p, p->vrtp, &p->vsrtp, value))
+						processed = TRUE;
 					else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec))
 						processed = TRUE;
 				}
 				/* Text (T.140) specific scanning */
 				else if (text) {
 					if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec))
+						processed = TRUE;
+					else if (process_crypto(p, p->trtp, &p->tsrtp, value))
 						processed = TRUE;
 				}
 				/* Image (T.38 FAX) specific scanning */
@@ -7937,19 +8026,47 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		return -1;
 	}
 
-	if (portno == -1 && vportno == -1 && udptlportno == -1  && tportno == -1)
+	if (portno == -1 && vportno == -1 && udptlportno == -1  && tportno == -1) {
 		/* No acceptable offer found in SDP  - we have no ports */
 		/* Do not change RTP or VRTP if this is a re-invite */
+		ast_log(LOG_WARNING, "Failing due to no acceptable offer found\n");
 		return -2;
+	}
 
-	if (numberofmediastreams > 3)
+	if (numberofmediastreams > 3) {
 		/* We have too many fax, audio and/or video and/or text media streams, fail this offer */
+		ast_log(LOG_WARNING, "Faling due to too many media streams\n");
 		return -3;
+	}
+
+	if (secure_audio && !(p->srtp && (ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)))) {
+		ast_log(LOG_WARNING, "Can't provide secure audio requested in SDP offer\n");
+		return -4;
+	}
+
+	if (!secure_audio && p->srtp) {
+		ast_log(LOG_WARNING, "We are requesting SRTP, but they responded without it!\n");
+		return -4;
+	}
+
+	if (secure_video && !(p->vsrtp && (ast_test_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK)))) {
+		ast_log(LOG_WARNING, "Can't provide secure video requested in SDP offer\n");
+		return -4;
+	}
+
+	if (!p->novideo && !secure_video && p->vsrtp) {
+		ast_log(LOG_WARNING, "We are requesting SRTP, but they responded without it!\n");
+		return -4;
+	}
+
+	if (!(secure_audio || secure_video) && ast_test_flag(&p->flags[1], SIP_PAGE2_USE_SRTP)) {
+		ast_log(LOG_WARNING, "Matched device setup to use SRTP, but request was not!\n");
+		return -4;
+	}
 
 	if (udptlportno == -1) {
 		change_t38_state(p, T38_DISABLED);
 	}
-
 
 	/* Now gather all of the codecs that we are asked for: */
 	ast_rtp_codecs_payload_formats(&newaudiortp, &peercapability, &peernoncodeccapability);
@@ -9843,6 +9960,23 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 	}
 }
 
+static void get_crypto_attrib(struct sip_srtp *srtp, const char **a_crypto)
+{
+	/* Set encryption properties */
+	if (srtp) {
+		if (!srtp->crypto) {
+			srtp->crypto = sdp_crypto_setup();
+		}
+		if (srtp->crypto && (sdp_crypto_offer(srtp->crypto) >= 0)) {
+			*a_crypto = sdp_crypto_attrib(srtp->crypto);
+		}
+
+		if (!*a_crypto) {
+			ast_log(LOG_WARNING, "No SRTP key management enabled\n");
+		}
+	}
+}
+
 /*! \brief Add Session Description Protocol message
 
     If oldsdp is TRUE, then the SDP version number is not incremented. This mechanism
@@ -9879,6 +10013,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	struct ast_str *a_video = ast_str_alloca(1024); /* Attributes for video */
 	struct ast_str *a_text = ast_str_alloca(1024);  /* Attributes for text */
 	struct ast_str *a_modem = ast_str_alloca(1024); /* Attributes for modem */
+	const char *a_crypto = NULL;
+	const char *v_a_crypto = NULL;
+	const char *t_a_crypto = NULL;
 
 	format_t x;
 	format_t capability = 0;
@@ -9962,7 +10099,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Ok, we need video. Let's add what we need for video and set codecs.
 		   Video is handled differently than audio since we can not transcode. */
 		if (needvideo) {
-			ast_str_append(&m_video, 0, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+			get_crypto_attrib(p->vsrtp, &v_a_crypto);
+			ast_str_append(&m_video, 0, "m=video %d RTP/%s", ntohs(vdest.sin_port),
+				v_a_crypto ? "SAVP" : "AVP");
 
 			/* Build max bitrate string */
 			if (p->maxcallbitrate)
@@ -9976,7 +10115,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (needtext) {
 			if (sipdebug_text)
 				ast_verbose("Lets set up the text sdp\n");
-			ast_str_append(&m_text, 0, "m=text %d RTP/AVP", ntohs(tdest.sin_port));
+			get_crypto_attrib(p->tsrtp, &t_a_crypto);
+			ast_str_append(&m_text, 0, "m=text %d RTP/%s", ntohs(tdest.sin_port),
+				t_a_crypto ? "SAVP" : "AVP");
 			if (debug) /* XXX should I use tdest below ? */
 				ast_verbose("Text is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(tsin.sin_port));	
 
@@ -9987,7 +10128,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* We break with the "recommendation" and send our IP, in order that our
 		   peer doesn't have to ast_gethostbyname() us */
 
-		ast_str_append(&m_audio, 0, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+		get_crypto_attrib(p->srtp, &a_crypto);
+		ast_str_append(&m_audio, 0, "m=audio %d RTP/%s", ntohs(dest.sin_port),
+			a_crypto ? "SAVP" : "AVP");
 
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_ONEDIR)
 			hold = "a=recvonly\r\n";
@@ -10149,7 +10292,15 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
  		len += m_text->used + a_text->used + strlen(hold);
 	if (add_t38)
 		len += m_modem->used + a_modem->used;
-
+	if (a_crypto) {
+		len += strlen(a_crypto);
+	}
+	if (v_a_crypto) {
+		len += strlen(v_a_crypto);
+	}
+	if (t_a_crypto) {
+		len += strlen(t_a_crypto);
+	}
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
 	add_line(resp, version);
@@ -10163,6 +10314,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		add_line(resp, m_audio->str);
 		add_line(resp, a_audio->str);
 		add_line(resp, hold);
+		if (a_crypto) {
+			add_line(resp, a_crypto);
+		}
 	} else if (p->offered_media[SDP_AUDIO].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].codecs);
 		add_line(resp, dummy_answer);
@@ -10171,6 +10325,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		add_line(resp, m_video->str);
 		add_line(resp, a_video->str);
 		add_line(resp, hold);	/* Repeat hold for the video stream */
+		if (v_a_crypto) {
+			add_line(resp, v_a_crypto);
+		}
 	} else if (p->offered_media[SDP_VIDEO].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].codecs);
 		add_line(resp, dummy_answer);
@@ -10179,6 +10336,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		add_line(resp, m_text->str);
 		add_line(resp, a_text->str);
 		add_line(resp, hold);	/* Repeat hold for the text stream */
+		if (t_a_crypto) {
+			add_line(resp, t_a_crypto);
+		}
 	} else if (p->offered_media[SDP_TEXT].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=text 0 RTP/AVP %s\r\n", p->offered_media[SDP_TEXT].codecs);
 		add_line(resp, dummy_answer);
@@ -17482,6 +17642,8 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		ast_copy_string(buf, peer->cid_num, len);
 	} else  if (!strcasecmp(colname, "codecs")) {
 		ast_getformatname_multiple(buf, len -1, peer->capability);
+	} else if (!strcasecmp(colname, "encryption")) {
+		snprintf(buf, len, "%d", ast_test_flag(&peer->flags[1], SIP_PAGE2_USE_SRTP));
 	} else  if (!strncasecmp(colname, "chanvar[", 8)) {
 		char *chanvar=colname + 8;
 		struct ast_variable *v;
@@ -21015,8 +21177,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_with_t38_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)));
 			} else if (p->t38.state == T38_DISABLED) {
 				/* If this is not a re-invite or something to ignore - it's critical */
-				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
-				transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)), p->session_modify == TRUE ? FALSE : TRUE, FALSE);
+				if (p->srtp && !ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)) {
+					ast_log(LOG_WARNING, "Target does not support required crypto\n");
+					transmit_response_reliable(p, "488 Not Acceptable Here (crypto)", req);
+				} else {
+					ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+					transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)), p->session_modify == TRUE ? FALSE : TRUE, FALSE);
+				}
 			}
 
 			p->invitestate = INV_TERMINATED;
@@ -25374,6 +25541,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_string_field_set(peer, unsolicited_mailbox, v->value);
 			} else if (!strcasecmp(v->name, "use_q850_reason")) {
 				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
+			} else if (!strcasecmp(v->name, "encryption")) {
+				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_USE_SRTP);
 			} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
 			}
@@ -26666,6 +26835,10 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 		res = AST_RTP_GLUE_RESULT_FORBID;
 	}
 
+	if (p->srtp) {
+		res = AST_RTP_GLUE_RESULT_FORBID;
+	}
+
 	sip_pvt_unlock(p);
 
 	return res;
@@ -27082,6 +27255,50 @@ static void sip_send_all_mwi_subscriptions(void)
 		}
 		ASTOBJ_UNLOCK(iterator);
 	} while (0));
+}
+
+/* SRTP */
+static int setup_srtp(struct sip_srtp **srtp)
+{
+	if (!ast_rtp_engine_srtp_is_registered()) {
+		ast_log(LOG_ERROR, "No SRTP module loaded, can't setup SRTP session.\n");
+		return -1;
+	}
+
+	if (!(*srtp = sip_srtp_alloc())) { /* Allocate SRTP data structure */
+		return -1;
+	}
+
+	return 0;
+}
+
+static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp, const char *a)
+{
+	if (strncasecmp(a, "crypto:", 7)) {
+		return FALSE;
+	}
+	if (!*srtp) {
+		if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+			ast_log(LOG_WARNING, "Ignoring unexpected crypto attribute in SDP answer\n");
+			return FALSE;
+		}
+
+		if (setup_srtp(srtp) < 0) {
+			return FALSE;
+		}
+	}
+
+	if (!(*srtp)->crypto && !((*srtp)->crypto = sdp_crypto_setup())) {
+		return FALSE;
+	}
+
+	if (sdp_crypto_process((*srtp)->crypto, a, rtp) < 0) {
+		return FALSE;
+	}
+
+	ast_set_flag(*srtp, SRTP_CRYPTO_OFFER_OK);
+
+	return TRUE;
 }
 
 /*! \brief Reload module */

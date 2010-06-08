@@ -459,6 +459,10 @@ enum ast_control_transfer {
 /*! Get the CC agent type from the channel */
 #define AST_OPTION_CC_AGENT_TYPE    17
 
+/*! Get or set the security options on a channel */
+#define AST_OPTION_SECURE_SIGNALING        18
+#define AST_OPTION_SECURE_MEDIA            19
+
 struct oprmode {
 	struct ast_channel *peer;
 	int mode;

@@ -59,6 +59,10 @@ SIP Changes
  * When dialing SIP peers, a new component may be added to the end of the dialstring
    to indicate that a specific remote IP address or host should be used when dialing
    the particular peer. The dialstring format is SIP/peer/exten/host_or_IP.
+ * SRTP SDES support for encrypting calls to/from Asterisk over SIP. The
+   ability to selectively force bridged channels to also be encrypted is also
+   implemented. Branching in the dialplan can be done based on whether or not
+   a channel has secure media and/or signaling.
  * Added directmediapermit/directmediadeny to limit which peers can send direct media
    to each other
  * Added the 'snom_aoc_enabled' option to turn on support for sending Advice of
@@ -68,6 +72,10 @@ IAX2 Changes
 -----------
  * Added rtsavesysname option into iax.conf to allow the systname to be saved
    on realtime updates.
+ * Added the ability for chan_iax2 to inform the dialplan whether or not
+   encryption is being used. This interoperates with the SIP SRTP implementation
+   so that a secure SIP call can be bridged to a secure IAX call when the
+   dialplan requires bridged channels to be "secure".
 
 MGCP Changes
 ------------
@@ -205,6 +213,11 @@ Dialplan Functions
    prefixing the name of the hash at assignment with the appropriate number of
    underscores, just like variables.
  * GROUP_MATCH_COUNT has been improved to allow regex matching on category
+ * CHANNEL(secure_bridge_signaling) and CHANNEL(secure_bridge_media) to set/get
+   whether or not channels that are bridged to the current channel will be
+   required to have secure signaling and/or media.
+ * CHANNEL(secure_signaling) and CHANNEL(secure_media) to get whether or not
+   the current channel has secure signaling and/or media.
  * For DAHDI/ISDN channels, the CHANNEL() dialplan function now supports the
    "no_media_path" option.
    Returns "0" if there is a B channel associated with the call.

@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/indications.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/global_datastores.h"
 
 /*** DOCUMENTATION
 	<function name="CHANNELS" language="en_US">
@@ -101,6 +102,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</enum>
 					<enum name="rxgain">
 						<para>R/W set rxgain level on channel drivers that support it.</para>
+					</enum>
+					<enum name="secure_bridge_signaling">
+						<para>Whether or not channels bridged to this channel require secure signaling</para>
+					</enum>
+					<enum name="secure_bridge_media">
+						<para>Whether or not channels bridged to this channel require secure media</para>
 					</enum>
 					<enum name="state">
 						<para>R/O state for channel</para>
@@ -344,6 +351,18 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		char amabuf[256];
 		snprintf(amabuf,sizeof(amabuf), "%d", chan->amaflags);
 		locked_copy_string(chan, buf, amabuf, len);
+	} else if (!strncasecmp(data, "secure_bridge_", 14)) {
+		struct ast_datastore *ds;
+		ast_channel_lock(chan);
+		if ((ds = ast_channel_datastore_find(chan, &secure_call_info, NULL))) {
+			struct ast_secure_call_store *encrypt = ds->data;
+			if (!strcasecmp(data, "secure_bridge_signaling")) {
+				snprintf(buf, len, "%s", encrypt->signaling ? "1" : "");
+			} else if (!strcasecmp(data, "secure_bridge_media")) {
+				snprintf(buf, len, "%s", encrypt->media ? "1" : "");
+			}
+		}
+		ast_channel_unlock(chan);
 	} else if (!chan->tech || !chan->tech->func_channel_read || chan->tech->func_channel_read(chan, function, data, buf, len)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n", data);
 		ret = -1;
@@ -428,6 +447,37 @@ static int func_channel_write(struct ast_channel *chan, const char *function,
 				chan->transfercapability = i;
 				break;
 			}
+		}
+	} else if (!strncasecmp(data, "secure_bridge_", 14)) {
+		struct ast_datastore *ds;
+		struct ast_secure_call_store *store;
+
+		if (!chan || !value) {
+			return -1;
+		}
+
+		ast_channel_lock(chan);
+		if (!(ds = ast_channel_datastore_find(chan, &secure_call_info, NULL))) {
+			if (!(ds = ast_datastore_alloc(&secure_call_info, NULL))) {
+				ast_channel_unlock(chan);
+				return -1;
+			}
+			if (!(store = ast_calloc(1, sizeof(*store)))) {
+				ast_channel_unlock(chan);
+				ast_free(ds);
+				return -1;
+			}
+			ds->data = store;
+			ast_channel_datastore_add(chan, ds);
+		} else {
+			store = ds->data;
+		}
+		ast_channel_unlock(chan);
+
+		if (!strcasecmp(data, "secure_bridge_signaling")) {
+			store->signaling = ast_true(value) ? 1 : 0;
+		} else if (!strcasecmp(data, "secure_bridge_media")) {
+			store->media = ast_true(value) ? 1 : 0;
 		}
 	} else if (!chan->tech->func_channel_write
 		 || chan->tech->func_channel_write(chan, function, data, value)) {

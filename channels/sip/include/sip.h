@@ -307,10 +307,8 @@
 #define SIP_PAGE2_RTAUTOCLEAR			(1 <<  1)    /*!< GP: Should we clean memory from peers after expiry? */
 #define SIP_PAGE2_RPID_UPDATE			(1 <<  2)
 #define SIP_PAGE2_Q850_REASON			(1 <<  3)    /*!< DP: Get/send cause code via Reason header */
-
 #define SIP_PAGE2_SYMMETRICRTP			(1 <<  4)    /*!< GDP: Whether symmetric RTP is enabled or not */
 #define SIP_PAGE2_STATECHANGEQUEUE		(1 <<  5)    /*!< D: Unsent state pending change exists */
-
 #define SIP_PAGE2_CONNECTLINEUPDATE_PEND	(1 <<  6)
 #define SIP_PAGE2_RPID_IMMEDIATE		(1 <<  7)
 #define SIP_PAGE2_RPORT_PRESENT			(1 <<  8)   /*!< Was rport received in the Via header? */
@@ -345,6 +343,7 @@
 #define SIP_PAGE2_UDPTL_DESTINATION		(1 << 25)  /*!< DP: Use source IP of RTP as destination if NAT is enabled */
 #define SIP_PAGE2_VIDEOSUPPORT_ALWAYS		(1 << 26)  /*!< DP: Always set up video, even if endpoints don't support it */
 #define SIP_PAGE2_HAVEPEERCONTEXT	(1 << 27)	/*< Are we associated with a configured peer context? */
+#define SIP_PAGE2_USE_SRTP              (1 << 28)    /*!< DP: Whether we should offer (only)  SRTP */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
@@ -352,7 +351,7 @@
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
 	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | SIP_PAGE2_PREFERRED_CODEC | \
 	SIP_PAGE2_RPID_IMMEDIATE | SIP_PAGE2_RPID_UPDATE | SIP_PAGE2_SYMMETRICRTP |\
-	SIP_PAGE2_Q850_REASON | SIP_PAGE2_HAVEPEERCONTEXT)
+	SIP_PAGE2_Q850_REASON | SIP_PAGE2_HAVEPEERCONTEXT | SIP_PAGE2_USE_SRTP)
 
 
 #define SIP_PAGE3_SNOM_AOC               (1 << 0)  /*!< DPG: Allow snom aoc messages */
@@ -965,6 +964,7 @@ struct sip_pvt {
 	                                       *   or respect the other endpoint's request for frame sizes (on)
 	                                       *   for incoming calls
 	                                       */
+	unsigned short req_secure_signaling:1;/*!< Whether we are required to have secure signaling or not */
 	char tag[11];                     /*!< Our tag for this session */
 	int timer_t1;                     /*!< SIP timer T1, ms rtt */
 	int timer_b;                      /*!< SIP timer B, ms */
@@ -1048,6 +1048,9 @@ struct sip_pvt {
 	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
 	struct sip_invite_param *options;   /*!< Options for INVITE */
 	struct sip_st_dlg *stimer;          /*!< SIP Session-Timers */
+	struct sip_srtp *srtp;              /*!< Structure to hold Secure RTP session data for audio */
+	struct sip_srtp *vsrtp;             /*!< Structure to hold Secure RTP session data for video */
+	struct sip_srtp *tsrtp;             /*!< Structure to hold Secure RTP session data for text */
 
 	int red;                            /*!< T.140 RTP Redundancy */
 	int hangupcause;                    /*!< Storage of hangupcause copied from our owner before we disconnect from the AST channel (only used at hangup) */

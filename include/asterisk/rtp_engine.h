@@ -71,6 +71,9 @@ extern "C" {
 
 #include "asterisk/astobj2.h"
 #include "asterisk/frame.h"
+#include "asterisk/netsock.h"
+#include "asterisk/sched.h"
+#include "asterisk/res_srtp.h"
 
 /* Maximum number of payloads supported */
 #define AST_RTP_MAX_PT 256
@@ -457,6 +460,11 @@ int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *m
  * \since 1.8
  */
 int ast_rtp_engine_unregister(struct ast_rtp_engine *engine);
+
+int ast_rtp_engine_register_srtp(struct ast_srtp_res *srtp_res, struct ast_srtp_policy_res *policy_res);
+
+void ast_rtp_engine_unregister_srtp(void);
+int ast_rtp_engine_srtp_is_registered(void);
 
 #define ast_rtp_glue_register(glue) ast_rtp_glue_register2(glue, ast_module_info->self)
 
@@ -1723,6 +1731,9 @@ struct ast_rtp_glue *ast_rtp_instance_get_active_glue(struct ast_rtp_instance *i
  * \since 1.8
  */
 struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance);
+
+int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *policy);
+struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

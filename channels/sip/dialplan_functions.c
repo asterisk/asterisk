@@ -214,6 +214,10 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 			ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", preparse, funcname);
 			return -1;
 		}
+	} else if (!strcasecmp(args.param, "secure_signaling")) {
+		snprintf(buf, buflen, "%s", p->socket.type == SIP_TRANSPORT_TLS ? "1" : "");
+	} else if (!strcasecmp(args.param, "secure_media")) {
+		snprintf(buf, buflen, "%s", p->srtp ? "1" : "");
 	} else {
 		res = -1;
 	}

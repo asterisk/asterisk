@@ -1171,6 +1171,7 @@ static int iax2_sendhtml(struct ast_channel *c, int subclass, const char *data, 
 static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img);
 static int iax2_sendtext(struct ast_channel *c, const char *text);
 static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
+static int iax2_queryoption(struct ast_channel *c, int option, void *data, int *datalen);
 static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now);
@@ -1218,6 +1219,7 @@ static const struct ast_channel_tech iax2_tech = {
 	.write_video = iax2_write,
 	.indicate = iax2_indicate,
 	.setoption = iax2_setoption,
+	.queryoption = iax2_queryoption,
 	.bridge = iax2_bridge,
 	.transfer = iax2_transfer,
 	.fixup = iax2_fixup,
@@ -4903,6 +4905,11 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", pds.peer);
 		return -1;
 	}
+	if (ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT) && !cai.encmethods) {
+		ast_log(LOG_WARNING, "Encryption forced for call, but not enabled\n");
+		c->hangupcause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+		return -1;
+	}
 	if (ast_strlen_zero(cai.secret) && ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT)) {
 		ast_log(LOG_WARNING, "Call terminated. No secret given and force encrypt enabled\n");
 		return -1;
@@ -5144,6 +5151,19 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 	case AST_OPTION_OPRMODE:
 		errno = EINVAL;
 		return -1;
+	case AST_OPTION_SECURE_SIGNALING:
+	case AST_OPTION_SECURE_MEDIA:
+	{
+		unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
+		ast_mutex_lock(&iaxsl[callno]);
+		if ((*(int *) data)) {
+			ast_set_flag64(iaxs[callno], IAX_FORCE_ENCRYPT);
+		} else {
+			ast_clear_flag64(iaxs[callno], IAX_FORCE_ENCRYPT);
+		}
+		ast_mutex_unlock(&iaxsl[callno]);
+		return 0;
+	}
 	default:
 	{
 		unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
@@ -5172,6 +5192,23 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		ast_free(h);
 		return res;
 	}
+	}
+}
+
+static int iax2_queryoption(struct ast_channel *c, int option, void *data, int *datalen)
+{
+	switch (option) {
+	case AST_OPTION_SECURE_SIGNALING:
+	case AST_OPTION_SECURE_MEDIA:
+	{
+		unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
+		ast_mutex_lock(&iaxsl[callno]);
+		*((int *) data) = ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT) ? 1 : 0;
+		ast_mutex_unlock(&iaxsl[callno]);
+		return 0;
+	}
+	default:
+		return -1;
 	}
 }
 
@@ -13609,6 +13646,8 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		ast_copy_string(buf, pvt->addr.sin_addr.s_addr ? ast_inet_ntoa(pvt->addr.sin_addr) : "", buflen);
 	} else if (!strcasecmp(args, "peername")) {
 		ast_copy_string(buf, pvt->username, buflen);
+	} else if (!strcasecmp(args, "secure_signaling") || !strcasecmp(args, "secure_media")) {
+		snprintf(buf, buflen, "%s", IAX_CALLENCRYPTED(pvt) ? "1" : "");
 	} else {
 		res = -1;
 	}

@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/timing.h"
 #include "asterisk/autochan.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/global_datastores.h"
 #include "asterisk/data.h"
 
 #ifdef HAVE_EPOLL
@@ -4803,6 +4804,46 @@ struct ast_channel *ast_request_and_dial(const char *type, format_t format, cons
 	return __ast_request_and_dial(type, format, requestor, data, timeout, outstate, cidnum, cidname, NULL);
 }
 
+static int set_security_requirements(const struct ast_channel *requestor, struct ast_channel *out)
+{
+	int ops[2][2] = {
+		{AST_OPTION_SECURE_SIGNALING, 0},
+		{AST_OPTION_SECURE_MEDIA, 0},
+	};
+	int i;
+	struct ast_channel *r = (struct ast_channel *) requestor; /* UGLY */
+	struct ast_datastore *ds;
+
+	if (!requestor || !out) {
+		return 0;
+	}
+
+	ast_channel_lock(r);
+	if ((ds = ast_channel_datastore_find(r, &secure_call_info, NULL))) {
+		struct ast_secure_call_store *encrypt = ds->data;
+		ops[0][1] = encrypt->signaling;
+		ops[1][1] = encrypt->media;
+	} else {
+		ast_channel_unlock(r);
+		return 0;
+	}
+	ast_channel_unlock(r);
+
+	for (i = 0; i < 2; i++) {
+		if (ops[i][1]) {
+			if (ast_channel_setoption(out, ops[i][0], &ops[i][1], sizeof(ops[i][1]), 0)) {
+				/* We require a security feature, but the channel won't provide it */
+				return -1;
+			}
+		} else {
+			/* We don't care if we can't clear the option on a channel that doesn't support it */
+			ast_channel_setoption(out, ops[i][0], &ops[i][1], sizeof(ops[i][1]), 0);
+		}
+	}
+
+	return 0;
+}
+
 struct ast_channel *ast_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct chanlist *chan;
@@ -4850,6 +4891,13 @@ struct ast_channel *ast_request(const char *type, format_t format, const struct 
 
 		if (!(c = chan->tech->requester(type, capabilities | videoformat | textformat, requestor, data, cause)))
 			return NULL;
+
+		if (set_security_requirements(requestor, c)) {
+			ast_log(LOG_WARNING, "Setting security requirements failed\n");
+			c = ast_channel_release(c);
+			*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+			return NULL;
+		}
 
 		/* no need to generate a Newchannel event here; it is done in the channel_alloc call */
 		return c;

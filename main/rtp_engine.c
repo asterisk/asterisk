@@ -39,6 +39,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/translate.h"
 
+struct ast_srtp_res *res_srtp = NULL;
+struct ast_srtp_policy_res *res_srtp_policy = NULL;
+
 /*! Structure that represents an RTP session (instance) */
 struct ast_rtp_instance {
 	/*! Engine that is handling this RTP instance */
@@ -67,6 +70,8 @@ struct ast_rtp_instance {
 	struct ast_rtp_glue *glue;
 	/*! Channel associated with the instance */
 	struct ast_channel *chan;
+	/*! SRTP info associated with the instance */
+	struct ast_srtp *srtp;
 };
 
 /*! List of RTP engines that are currently registered */
@@ -1669,4 +1674,48 @@ struct ast_rtp_glue *ast_rtp_instance_get_active_glue(struct ast_rtp_instance *i
 struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance)
 {
 	return instance->chan;
+}
+
+int ast_rtp_engine_register_srtp(struct ast_srtp_res *srtp_res, struct ast_srtp_policy_res *policy_res)
+{
+	if (res_srtp || res_srtp_policy) {
+		return -1;
+	}
+	if (!srtp_res || !policy_res) {
+		return -1;
+	}
+
+	res_srtp = srtp_res;
+	res_srtp_policy = policy_res;
+
+	return 0;
+}
+
+void ast_rtp_engine_unregister_srtp(void)
+{
+	res_srtp = NULL;
+	res_srtp_policy = NULL;
+}
+
+int ast_rtp_engine_srtp_is_registered(void)
+{
+	return res_srtp && res_srtp_policy;
+}
+
+int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *policy)
+{
+	if (!res_srtp) {
+		return -1;
+	}
+
+	if (!instance->srtp) {
+		return res_srtp->create(&instance->srtp, instance, policy);
+	} else {
+		return res_srtp->add_stream(instance->srtp, policy);
+	}
+}
+
+struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance)
+{
+	return instance->srtp;
 }

@@ -1,0 +1,45 @@
+\section{Introduction}
+Asterisk supports a channel-agnostic method for handling secure call requirements. Since there is no single meaning of what constitutes a "secure call," Asterisk allows the administrator the control to define "secure" for themselves via the dialplan and channel-specific configuration files.
+
+\section{Channel-specific configuration}
+Currently the IAX2 and SIP channels support the call security features in Asterisk. Both channel-specific configuration files (\path{iax2.conf} and \path{sip.conf}) support the encryption=yes setting. For IAX2, this setting causes Asterisk to offer encryption when placing or receiving a call. To force encryption with IAX2, the forceencrypt=yes option is required. Due to limitations of SDP, encryption=yes in \path{sip.conf} results in a call with only a secure media offer, therefor forceencrypt=yes would be redundant in \path{sip.conf}.
+
+If a peer is defined as requiring encryption but the endpoint does not support it, the call will fail with a HANGUPCAUSE of 58 (bearer capability does not exist).
+
+
+\section{Security-based dialplan branching}
+Each channel that supports secure signaling or media can implement a CHANNEL read callback function that specifies whether or not that channel meets the specified criteria. Currently, chan\_iax2 and chan\_sip implement these callbacks. Channels that do not support secure media or signaling will return an empty string when queried. For example, to only allow an inbound call that has both secure signaling and media, see the following example.
+
+\begin{astlisting}
+\begin{verbatim}
+exten => 123,1,GotoIf("$[${CHANNEL(secure_signaling)}" = ""]?fail)
+exten => 123,n,GotoIf("$[${CHANNEL(seucre_media)}" = ""]?fail)
+exten => 123,n,Dial(SIP/123)
+exten => 123,n,Hangup
+exten => 123,n(fail),Playback(vm-goodbye)
+exten => 123,n,Hangup
+\end{verbatim}
+\end{astlisting}
+
+\section{Forcing bridged channels to be secure}
+Administrators can force outbound channels that are to be bridged to a calling channel to conform to secure media and signaling policies. For example, to first make a call attempt that has both secure signaling and media, but gracefully fall back to non-secure signaling and media see the following example:
+
+\begin{astlisting}
+\begin{verbatim}
+exten => 123,1,NoOp(We got a call)
+exten => 123,n,Set(CHANNEL(secure_bridge_signaling)=1)
+exten => 123,n,Set(CHANNEL(secure_bridge_media)=1)
+exten => 123,n,Dial(SIP/somebody)
+exten => 123,n,NoOp(HANGUPCAUSE=${HANGUPCAUSE})
+exten => 123,n,GotoIf($["${HANGUPCAUSE}"="58"]?encrypt_fail)
+exten => 123,n,Hangup
+
+; notify user that retrying via insecure channel (user-provided prompt)
+exten => 123,n(encrypt_fail),Playback(secure-call-fail-retry)
+exten => 123,n,Set(CHANNEL(secure_bridge_signaling)=0)
+exten => 123,n,Set(CHANNEL(secure_bridge_media)=0)
+exten => 123,n,Dial(SIP/somebody)
+exten => 123,n,Hangup
+\end{verbatim}
+\end{astlisting}
+

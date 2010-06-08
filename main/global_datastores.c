@@ -84,3 +84,29 @@ const struct ast_datastore_info dialed_interface_info = {
 	.destroy = dialed_interface_destroy,
 	.duplicate = dialed_interface_duplicate,
 };
+
+static void secure_call_store_destroy(void *data)
+{
+	struct ast_secure_call_store *store = data;
+
+	ast_free(store);
+}
+
+static void *secure_call_store_duplicate(void *data)
+{
+	struct ast_secure_call_store *old = data;
+	struct ast_secure_call_store *new;
+
+	if (!(new = ast_calloc(1, sizeof(*new)))) {
+		return NULL;
+	}
+	new->signaling = old->signaling;
+	new->media = old->media;
+
+	return new;
+}
+const struct ast_datastore_info secure_call_info = {
+	.type = "encrypt-call",
+	.destroy = secure_call_store_destroy,
+	.duplicate = secure_call_store_duplicate,
+};
