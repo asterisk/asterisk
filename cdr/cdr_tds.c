@@ -357,7 +357,7 @@ static int mssql_connect(void)
 		goto failed;
 	}
 
-	if (execute_and_consume(settings->dbproc, "SELECT 1 FROM [%s]", settings->table)) {
+	if (execute_and_consume(settings->dbproc, "SELECT 1 FROM [%s] WHERE 1 = 0", settings->table)) {
 		ast_log(LOG_ERROR, "Unable to find table '%s'\n", settings->table);
 		goto failed;
 	}
