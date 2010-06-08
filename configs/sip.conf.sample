@@ -707,10 +707,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; really need to use STUN.
 ;
 ; NOTE 2: when using "externip" or "externhost", the address part is
-; also used as the external address for media sessions.
-; If you use "stunaddr", STUN queries will be sent to the same server
-; also from media sockets, and this should permit a correct mapping of
-; the port numbers as well.
+; also used as the external address for media sessions. Even if you 
+; use "stunaddr", STUN queries will be sent only from the SIP port,
+; not from media sockets. Thus, the port information in the SDP may be wrong!
 ;
 ; In addition to the above, Asterisk has an additional "nat" parameter to
 ; address NAT-related issues in incoming SIP or media sessions.
