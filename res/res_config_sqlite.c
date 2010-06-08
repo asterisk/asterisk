@@ -686,12 +686,14 @@ static struct sqlite_cache_tables *find_table(const char *tablename)
 		ast_log(LOG_WARNING, "SQLite error %d: %s\n", err, errstr);
 		ast_free(errstr);
 		free_table(tblptr);
+		AST_RWLIST_UNLOCK(&sqlite_tables);
 		return NULL;
 	}
 	ast_mutex_unlock(&mutex);
 
 	if (AST_LIST_EMPTY(&(tblptr->columns))) {
 		free_table(tblptr);
+		AST_RWLIST_UNLOCK(&sqlite_tables);
 		return NULL;
 	}
 
