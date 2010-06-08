@@ -49,6 +49,10 @@ else
     _ASTCFLAGS+=-O0
 endif
 
+ifeq ($(findstring $(CONFIG_CFLAGS),$(_ASTCFLAGS)),)
+    _ASTCFLAGS+=$(CONFIG_CFLAGS)
+endif
+
 # shortcuts for common combinations of flags; these must be recursively expanded so that
 # per-target settings will be applied
 CC_CFLAGS=$(PTHREAD_CFLAGS) $(_ASTCFLAGS) $(ASTCFLAGS)
