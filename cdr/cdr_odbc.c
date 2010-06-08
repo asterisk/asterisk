@@ -53,6 +53,7 @@ enum {
 	CONFIG_LOGUNIQUEID =       1 << 0,
 	CONFIG_USEGMTIME =         1 << 1,
 	CONFIG_DISPOSITIONSTRING = 1 << 2,
+	CONFIG_HRTIME =            1 << 3,
 };
 
 static struct ast_flags config = { 0 };
@@ -96,8 +97,23 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dstchannel), 0, cdr->dstchannel, 0, NULL);
 	SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastapp), 0, cdr->lastapp, 0, NULL);
 	SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
-	SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
-	SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
+
+	if (ast_test_flag(&config, CONFIG_HRTIME)) {
+		double hrbillsec = 0.0;
+		double hrduration;
+
+		if (!ast_tvzero(cdr->answer)) {
+			hrbillsec = (double) ast_tvdiff_us(cdr->end, cdr->answer) / 1000000.0;
+		}
+		hrduration = (double) ast_tvdiff_us(cdr->end, cdr->start) / 1000000.0;
+
+		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_FLOAT, 0, 0, &hrbillsec, 0, NULL);
+		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_FLOAT, 0, 0, &hrduration, 0, NULL);
+	} else {
+		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
+		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
+	}
+
 	if (ast_test_flag(&config, CONFIG_DISPOSITIONSTRING))
 		SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ast_cdr_disp2str(cdr->disposition)) + 1, 0, ast_cdr_disp2str(cdr->disposition), 0, NULL);
 	else
@@ -201,6 +217,14 @@ static int odbc_load_module(int reload)
 		} else {
 			ast_clear_flag(&config, CONFIG_USEGMTIME);
 			ast_debug(1, "cdr_odbc: Logging in local time\n");
+		}
+
+		if (((tmp = ast_variable_retrieve(cfg, "global", "hrtime"))) && ast_true(tmp)) {
+			ast_set_flag(&config, CONFIG_HRTIME);
+			ast_debug(1, "cdr_odbc: Logging billsec and duration fields as floats\n");
+		} else {
+			ast_clear_flag(&config, CONFIG_HRTIME);
+			ast_debug(1, "cdr_odbc: Logging billsec and duration fields as integers\n");
 		}
 
 		if ((tmp = ast_variable_retrieve(cfg, "global", "table")) == NULL) {

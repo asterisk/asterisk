@@ -211,12 +211,12 @@ static int pgsql_log(struct ast_cdr *cdr)
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s%f", first ? "" : ",", (double)cdr->end.tv_sec - when->tv_sec + cdr->end.tv_usec / 1000000.0 - when->tv_usec / 1000000.0);
+					ast_str_append(&sql2, 0, "%s%f", first ? "" : ",", (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
 				} else {
 					/* Char field, probably */
 					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s'%f'", first ? "" : ",", (double)cdr->end.tv_sec - when->tv_sec + cdr->end.tv_usec / 1000000.0 - when->tv_usec / 1000000.0);
+					ast_str_append(&sql2, 0, "%s'%f'", first ? "" : ",", (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
 				}
 			} else if (strcmp(cur->name, "disposition") == 0 || strcmp(cur->name, "amaflags") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {

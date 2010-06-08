@@ -106,6 +106,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 			<parameter name="options" required="false">
 				<optionlist>
+					<option name="f">
+						<para>Returns billsec or duration fields as floating point values.</para>
+					</option>
 					<option name="l">
 						<para>Uses the most recent CDR on a channel with multiple records</para>
 					</option>
@@ -174,9 +177,11 @@ enum cdr_option_flags {
 	OPT_UNPARSED = (1 << 1),
 	OPT_LAST = (1 << 2),
 	OPT_SKIPLOCKED = (1 << 3),
+	OPT_FLOAT = (1 << 4),
 };
 
 AST_APP_OPTIONS(cdr_func_options, {
+	AST_APP_OPTION('f', OPT_FLOAT),
 	AST_APP_OPTION('l', OPT_LAST),
 	AST_APP_OPTION('r', OPT_RECURSIVE),
 	AST_APP_OPTION('s', OPT_SKIPLOCKED),
@@ -213,9 +218,38 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		while (ast_test_flag(cdr, AST_CDR_FLAG_LOCKED) && cdr->next)
 			cdr = cdr->next;
 
-	ast_cdr_getvar(cdr, args.variable, &ret, buf, len,
-		       ast_test_flag(&flags, OPT_RECURSIVE),
-			   ast_test_flag(&flags, OPT_UNPARSED));
+	if (!strcasecmp("billsec", args.variable) && ast_test_flag(&flags, OPT_FLOAT)) {
+		if (!ast_tvzero(cdr->answer)) {
+			double hrtime;
+
+			if(!ast_tvzero(cdr->end))
+				hrtime = (double)(ast_tvdiff_us(cdr->end, cdr->answer) / 1000000.0);
+			else
+				hrtime = (double)(ast_tvdiff_us(ast_tvnow(), cdr->answer) / 1000000.0);
+
+			snprintf(buf, len, "%lf", hrtime);
+		} else {
+			snprintf(buf, len, "%lf", 0.0);
+		}
+		ret = buf;
+	} else if (!strcasecmp("duration", args.variable) && ast_test_flag(&flags, OPT_FLOAT)) {
+			double hrtime;
+
+			if(!ast_tvzero(cdr->end))
+				hrtime = (double)(ast_tvdiff_us(cdr->end, cdr->start) / 1000000.0);
+			else
+				hrtime = (double)(ast_tvdiff_us(ast_tvnow(), cdr->start) / 1000000.0);
+
+			snprintf(buf, len, "%lf", hrtime);
+
+		if (!ast_strlen_zero(buf)) {
+			ret = buf;
+		}
+	} else {
+		ast_cdr_getvar(cdr, args.variable, &ret, buf, len,
+			       ast_test_flag(&flags, OPT_RECURSIVE),
+				   ast_test_flag(&flags, OPT_UNPARSED));
+	}
 
 	return ret ? 0 : -1;
 }

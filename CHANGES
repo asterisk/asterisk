@@ -223,6 +223,8 @@ Dialplan Functions
    Returns "0" if there is a B channel associated with the call.
    Returns "1" if no B channel is associated with the call.  The call is either
    on hold or is a call waiting call.
+ * Added option to dialplan function CDR(), the 'f' option
+   allows for high resolution times for billsec and duration fields.
 
 Dialplan Variables
 ------------------
@@ -414,6 +416,9 @@ CDR
    See configs/cdr_syslog.conf.sample for more information.
  * A 'sequence' field has been added to CDRs which can be combined with
    linkedid or uniqueid to uniquely identify a CDR.
+ * Handling of billsec and duration field has changed. If your table definition
+   specifies those fields as float,double or similar they will now be logged with
+   microsecond accuracy instead of a whole integer.
 
 Calendaring for Asterisk
 ------------------------

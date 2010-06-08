@@ -611,6 +611,23 @@ static int odbc_log(struct ast_cdr *cdr)
 						continue;
 					} else {
 						double number = 0.0;
+
+						if (!strcasecmp(entry->cdrname, "billsec")) {
+							if (!ast_tvzero(cdr->answer)) {
+								snprintf(colbuf, sizeof(colbuf), "%lf",
+											(double) (ast_tvdiff_us(cdr->end, cdr->answer) / 1000000.0));
+							} else {
+								ast_copy_string(colbuf, "0", sizeof(colbuf));
+							}
+						} else if (!strcasecmp(entry->cdrname, "duration")) {
+							snprintf(colbuf, sizeof(colbuf), "%lf",
+										(double) (ast_tvdiff_us(cdr->end, cdr->start) / 1000000.0));
+
+							if (!ast_strlen_zero(colbuf)) {
+								colptr = colbuf;
+							}
+						}
+
 						if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an numeric type.\n", entry->name);
 							continue;
@@ -628,6 +645,23 @@ static int odbc_log(struct ast_cdr *cdr)
 						continue;
 					} else {
 						double number = 0.0;
+
+						if (!strcasecmp(entry->cdrname, "billsec")) {
+							if (!ast_tvzero(cdr->answer)) {
+								snprintf(colbuf, sizeof(colbuf), "%lf",
+											(double) (ast_tvdiff_us(cdr->end, cdr->answer) / 1000000.0));
+							} else {
+								ast_copy_string(colbuf, "0", sizeof(colbuf));
+							}
+						} else if (!strcasecmp(entry->cdrname, "duration")) {
+							snprintf(colbuf, sizeof(colbuf), "%lf",
+										(double) (ast_tvdiff_us(cdr->end, cdr->start) / 1000000.0));
+
+							if (!ast_strlen_zero(colbuf)) {
+								colptr = colbuf;
+							}
+						}
+
 						if (sscanf(colptr, "%30lf", &number) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an numeric type.\n", entry->name);
 							continue;

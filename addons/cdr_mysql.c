@@ -288,6 +288,40 @@ db_reconnect:
 					ast_str_append(&sql2, 0, ",");
 				}
 
+				if (!strcasecmp(cdrname, "billsec") &&
+					(strstr(entry->type, "float") ||
+					strstr(entry->type, "double") ||
+					strstr(entry->type, "decimal") ||
+					strstr(entry->type, "numeric") ||
+					strstr(entry->type, "real"))) {
+
+					if (!ast_tvzero(cdr->answer)) {
+						snprintf(workspace, sizeof(workspace), "%lf",
+							(double) (ast_tvdiff_us(cdr->end, cdr->answer) / 1000000.0));
+					} else {
+						ast_copy_string(workspace, "0", sizeof(workspace));
+					}
+
+					if (!ast_strlen_zero(workspace)) {
+						value = workspace;
+					}
+				}
+
+				if (!strcasecmp(cdrname, "duration") &&
+					(strstr(entry->type, "float") ||
+					strstr(entry->type, "double") ||
+					strstr(entry->type, "decimal") ||
+					strstr(entry->type, "numeric") ||
+					strstr(entry->type, "real"))) {
+
+					snprintf(workspace, sizeof(workspace), "%lf",
+						(double) (ast_tvdiff_us(cdr->end, cdr->start) / 1000000.0));
+
+					if (!ast_strlen_zero(workspace)) {
+						value = workspace;
+					}
+				}
+
 				ast_str_make_space(&escape, (valsz = strlen(value)) * 2 + 1);
 				mysql_real_escape_string(&mysql, ast_str_buffer(escape), value, valsz);
 

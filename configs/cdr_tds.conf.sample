@@ -65,3 +65,14 @@
 ; Default value:  iso_1
 
 ;charset=BIG5
+
+; High Resolution Times
+;
+; The 'hrtime' setting is used to store high resolution (sub second) times for
+; billsec and duration fields.
+;
+; Accepted value: true or false
+; Default value: false
+
+;hrtime=false
+
