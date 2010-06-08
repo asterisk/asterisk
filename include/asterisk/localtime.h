@@ -24,8 +24,10 @@
 #ifndef _ASTERISK_LOCALTIME_H
 #define _ASTERISK_LOCALTIME_H
 
-#ifdef HAVE_NEWLOCALE
+#ifdef HAVE_LOCALE_T_IN_LOCALE_H
 #include <locale.h>
+#elif defined(HAVE_LOCALE_T_IN_XLOCALE_H)
+#include <xlocale.h>
 #else
 typedef void * locale_t;
 #endif

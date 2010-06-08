@@ -550,6 +550,21 @@ then
   AC_CHECK_FILE(/dev/urandom, AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define to 1 if your system has /dev/urandom.]))
 fi
 
+AC_MSG_CHECKING(for locale_t in locale.h)
+AC_LINK_IFELSE(
+AC_LANG_PROGRAM([#include <locale.h>], [locale_t lt = NULL]),
+AC_MSG_RESULT(yes)
+AC_DEFINE([HAVE_LOCALE_T_IN_LOCALE_H], 1, [Define to 1 if your system defines the locale_t type in locale.h]),
+AC_MSG_RESULT(no)
+  AC_MSG_CHECKING(for locale_t in xlocale.h)
+  AC_LINK_IFELSE(
+  AC_LANG_PROGRAM([#include <xlocale.h>], [locale_t lt = NULL]),
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([HAVE_LOCALE_T_IN_XLOCALE_H], 1, [Define to 1 if your system defines the locale_t type in xlocale.h]),
+  AC_MSG_RESULT(no)
+  )
+)
+
 AC_MSG_CHECKING(for O_EVTONLY in fcntl.h)
 AC_LINK_IFELSE(
 AC_LANG_PROGRAM([#include <fcntl.h>], [int a = O_EVTONLY;]),
