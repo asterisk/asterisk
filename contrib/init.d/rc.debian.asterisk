@@ -51,7 +51,7 @@ if ! [ -d /etc/asterisk ] ; then
         exit 0
 fi
 
-# Use the LSB standar functions for services management
+# Use the LSB standard functions for services management
 . /lib/lsb/init-functions
 
 case "$1" in
@@ -65,19 +65,17 @@ case "$1" in
 	fi
 
 	log_begin_msg "Starting $DESC: $NAME"
-        if [ $AST_USER ] ; then
-                ASTARGS="-U $AST_USER"
-        fi
-        if [ $AST_GROUP ] ; then
-                ASTARGS="$ASTARGS -G $AST_GROUP"
-        fi
-	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
-	if test "x$COLOR" = "xyes" ; then
-		export TERM=linux
-		start-stop-daemon --start --oknodo --background --exec $DAEMON -- $ASTARGS -c
-	else
-		start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
+	if [ $AST_USER ] ; then
+		ASTARGS="-U $AST_USER"
 	fi
+	if [ $AST_GROUP ] ; then
+		ASTARGS="$ASTARGS -G $AST_GROUP"
+	fi
+	if test "x$COLOR" = "xno" ; then
+		ASTARGS="$ASTARGS -n"
+	fi
+	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
+	start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
 	log_end_msg $?
 	;;
   stop)
