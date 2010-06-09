@@ -1458,7 +1458,7 @@ static int load_module(void)
 
 	if (ast_channel_register(&oss_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'OSS'\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_cli_register_multiple(cli_oss, ARRAY_LEN(cli_oss));
