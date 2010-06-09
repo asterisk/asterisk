@@ -7085,9 +7085,6 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 				dahdi_unlink(NULL, p, 0);
 			p->subs[x].owner = newchan;
 		}
-	if (newchan->_state == AST_STATE_RINGING)
-		dahdi_indicate(newchan, AST_CONTROL_RINGING, NULL, 0);
-
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		analog_fixup(oldchan, newchan, p->sig_pvt);
 	} 
@@ -7099,6 +7096,10 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 	update_conf(p);
 	ast_mutex_unlock(&p->lock);
+
+	if (newchan->_state == AST_STATE_RINGING) {
+		dahdi_indicate(newchan, AST_CONTROL_RINGING, NULL, 0);
+	}
 	return 0;
 }
 
