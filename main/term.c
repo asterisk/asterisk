@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2010, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -18,9 +18,9 @@
 
 /*! \file
  *
- * \brief Terminal Routines 
+ * \brief Terminal Routines
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include "asterisk.h"
@@ -87,12 +87,21 @@ int ast_term_init(void)
 	char buffer[512] = "";
 	int termfd = -1, parseokay = 0, i;
 
-	if (!term)
+	if (ast_opt_no_color) {
 		return 0;
-	if (!ast_opt_console || ast_opt_no_color || !ast_opt_no_fork)
-		return 0;
+	}
 
-	for (i=0 ;; i++) {
+	if (!ast_opt_console) {
+		/* If any remote console is not compatible, we'll strip the color codes at that point */
+		vt100compat = 1;
+		goto end;
+	}
+
+	if (!term) {
+		return 0;
+	}
+
+	for (i = 0;; i++) {
 		if (termpath[i] == NULL) {
 			break;
 		}
@@ -146,6 +155,7 @@ int ast_term_init(void)
 		}
 	}
 
+end:
 	if (vt100compat) {
 		/* Make commands show up in nice colors */
 		if (ast_opt_light_background) {
