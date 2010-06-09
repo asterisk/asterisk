@@ -663,9 +663,10 @@ size_t ast_event_get_size(const struct ast_event *event);
  * \param iterator The iterator instance to initialize
  * \param event The event that will be iterated through
  *
- * \return Nothing
+ * \retval 0 Success, there are IEs available to iterate
+ * \retval -1 Failure, there are no IEs in the event to iterate
  */
-void ast_event_iterator_init(struct ast_event_iterator *iterator, const struct ast_event *event);
+int ast_event_iterator_init(struct ast_event_iterator *iterator, const struct ast_event *event);
 
 /*!
  * \brief Move iterator instance to next IE

@@ -935,11 +935,20 @@ struct ast_event_sub *ast_event_unsubscribe(struct ast_event_sub *sub)
 	return NULL;
 }
 
-void ast_event_iterator_init(struct ast_event_iterator *iterator, const struct ast_event *event)
+int ast_event_iterator_init(struct ast_event_iterator *iterator, const struct ast_event *event)
 {
+	int res = 0;
+
 	iterator->event_len = ast_event_get_size(event);
 	iterator->event = event;
-	iterator->ie = (struct ast_event_ie *) ( ((char *) event) + sizeof(*event) );
+	if (iterator->event_len >= sizeof(*event) + sizeof(struct ast_event_ie)) {
+		iterator->ie = (struct ast_event_ie *) ( ((char *) event) + sizeof(*event) );
+	} else {
+		iterator->ie = NULL;
+		res = -1;
+	}
+
+	return res;
 }
 
 int ast_event_iterator_next(struct ast_event_iterator *iterator)
@@ -1021,9 +1030,9 @@ const char *ast_event_get_ie_str(const struct ast_event *event, enum ast_event_i
 const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_ie_type ie_type)
 {
 	struct ast_event_iterator iterator;
-	int res = 0;
+	int res;
 
-	for (ast_event_iterator_init(&iterator, event); !res; res = ast_event_iterator_next(&iterator)) {
+	for (res = ast_event_iterator_init(&iterator, event); !res; res = ast_event_iterator_next(&iterator)) {
 		if (ast_event_iterator_get_ie_type(&iterator) == ie_type) {
 			return ast_event_iterator_get_ie_raw(&iterator);
 		}
