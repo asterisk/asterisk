@@ -50,7 +50,7 @@ if ! [ -d $ASTETCDIR ] ; then
         exit 0
 fi
 
-# Use the LSB standar functions for services management
+# Use the LSB standard functions for services management
 . /lib/lsb/init-functions
 
 # Allow configuration overrides in /etc/default/asterisk
@@ -76,7 +76,6 @@ case "$1" in
 	if [ ! -d $ASTVARRUNDIR ]; then
 		mkdir -p $ASTVARRUNDIR
 	fi
-
 	if [ $AST_USER ] ; then
 		ASTARGS="-U $AST_USER"
 		chown $AST_USER $ASTVARRUNDIR
@@ -108,13 +107,11 @@ case "$1" in
 	if [ "x$TEMPRECORDINGLOCATION" = "xyes" -o "x$TMPRECORDINGLOCATION" = "xyes" ]; then
 		ASTARGS="$ASTARGS -t"
 	fi
-	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
-	if test "x$COLOR" = "xyes" ; then
-		export TERM=linux
-		start-stop-daemon --start --oknodo --background --exec $DAEMON -- $ASTARGS -c
-	else
-		start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
+	if test "x$COLOR" = "xno" ; then
+		ASTARGS="$ASTARGS -n"
 	fi
+	# "start-stop-daemon --oknodo" returns 0 even if Asterisk was already running (as LSB expects):
+	start-stop-daemon --start --oknodo --exec $DAEMON -- $ASTARGS
 	log_end_msg $?
 	;;
   stop)
