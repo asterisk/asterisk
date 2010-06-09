@@ -248,6 +248,7 @@ int sig_ss7_available(struct sig_ss7_chan *p);
 int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, char *rdest);
 int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast);
 int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast);
+void sig_ss7_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_ss7_chan *pchan);
 int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condition, const void *data, size_t datalen);
 struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law, const struct ast_channel *requestor, int transfercapability);
 void sig_ss7_chan_delete(struct sig_ss7_chan *doomed);

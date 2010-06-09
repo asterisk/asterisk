@@ -7074,27 +7074,34 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct dahdi_pvt *p = newchan->tech_pvt;
 	int x;
+
 	ast_mutex_lock(&p->lock);
+
 	ast_debug(1, "New owner for channel %d is %s\n", p->channel, newchan->name);
 	if (p->owner == oldchan) {
 		p->owner = newchan;
 	}
-	for (x = 0; x < 3; x++)
+	for (x = 0; x < 3; x++) {
 		if (p->subs[x].owner == oldchan) {
-			if (!x)
+			if (!x) {
 				dahdi_unlink(NULL, p, 0);
+			}
 			p->subs[x].owner = newchan;
 		}
+	}
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		analog_fixup(oldchan, newchan, p->sig_pvt);
-	} 
-#ifdef HAVE_PRI
-	else if (dahdi_sig_pri_lib_handles(p->sig)) {
+#if defined(HAVE_PRI)
+	} else if (dahdi_sig_pri_lib_handles(p->sig)) {
 		sig_pri_fixup(oldchan, newchan, p->sig_pvt);
+#endif	/* defined(HAVE_PRI) */
+#if defined(HAVE_SS7)
+	} else if (p->sig == SIG_SS7) {
+		sig_ss7_fixup(oldchan, newchan, p->sig_pvt);
+#endif	/* defined(HAVE_SS7) */
 	}
-#endif
-
 	update_conf(p);
+
 	ast_mutex_unlock(&p->lock);
 
 	if (newchan->_state == AST_STATE_RINGING) {

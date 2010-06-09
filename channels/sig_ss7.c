@@ -1435,6 +1435,23 @@ int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast)
 }
 
 /*!
+ * \brief Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links.
+ * \since 1.8
+ *
+ * \param oldchan Old channel pointer to replace.
+ * \param newchan New channel pointer to set.
+ * \param pchan Signaling private structure pointer.
+ *
+ * \return Nothing
+ */
+void sig_ss7_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_ss7_chan *pchan)
+{
+	if (pchan->owner == oldchan) {
+		pchan->owner = newchan;
+	}
+}
+
+/*!
  * \brief SS7 answer channel.
  * \since 1.8
  *
