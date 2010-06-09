@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #undef pthread_mutex_destroy
 #undef pthread_mutex_lock
 #undef pthread_mutex_trylock
+#undef pthread_mutex_t
 #undef pthread_mutex_unlock
 #undef pthread_cond_init
 #undef pthread_cond_signal
