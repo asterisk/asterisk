@@ -485,6 +485,13 @@ Miscellaneous
    of dynamic parkinglots.
  * chan_dahdi now supports reporting alarms over AMI either by channel or span via
    the reportalarms config option.
+ * chan_dahdi supports dialing configuring and dialing by device file name.
+   DAHDI/span-name!local!1 will use /dev/dahdi/span-name/local/1 . Likewise
+   it may appear in chan_dahdi.conf as 'channel => span-name!local!1'.
+ * A new options for chan_dahdi.conf: 'ignore_failed_channels'. Boolean.
+   False by default. If set, chan_dahdi will ignore failed 'channel' entries.
+   Handy for the above name-based syntax as it does not depend on
+   initialization order.
  * The Realtime dialplan switch now caches entries for 1 second.  This provides a
    significant increase in performance (about 3X) for installations using this switchtype.
 

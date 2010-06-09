@@ -1240,6 +1240,8 @@ struct dahdi_chan_conf {
 #endif
 	struct dahdi_params timing;
 	int is_sig_auto; /*!< Use channel signalling from DAHDI? */
+	/*! Continue configuration even if a channel is not there. */
+	int ignore_failed_channels;
 
 	/*!
 	 * \brief The serial port to listen for SMDI data on
@@ -2900,14 +2902,12 @@ static void my_set_rdnis(void *pvt, const char *rdnis)
  *
  * \details
  * original dialstring:
- * DAHDI/[i<span>-]<channel#>[c|r<cadance#>|d][/extension[/options]]
  * DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]]
  *
  * The modified dialstring will have prefixed the channel-group section
  * with the ISDN channel restriction.
  *
  * buf:
- * DAHDI/i<span>-<channel#>[c|r<cadance#>|d][/extension[/options]]
  * DAHDI/i<span>-(g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]]
  *
  * The routine will check to see if the ISDN channel restriction is already
@@ -2939,8 +2939,9 @@ static void my_pri_make_cc_dialstring(void *priv, char *buf, size_t buf_size)
 		snprintf(buf, buf_size, "%s/i%d-", args.tech, pvt->pri->span);
 		return;
 	}
-	if (args.group[0] == 'i') {
-		/* The ISDN span channel restriction is already in the dialstring. */
+	if (isdigit(args.group[0]) || args.group[0] == 'i' || strchr(args.group, '!')) {
+		/* The ISDN span channel restriction is not needed or already
+		 * in the dialstring. */
 		ast_copy_string(buf, pvt->dialstring, buf_size);
 		return;
 	}
@@ -11508,6 +11509,38 @@ static int sigtype_to_signalling(int sigtype)
 
 /*!
  * \internal
+ * \brief Get file name and channel number from (subdir,number)
+ *
+ * \param subdir name of the subdirectory under /dev/dahdi/
+ * \param channel name of device file under /dev/dahdi/<subdir>/
+ * \param path buffer to put file name in
+ * \param pathlen maximal length of path
+ *
+ * \retval minor number of dahdi channel.
+ * \retval -errno on error.
+ */
+static int device2chan(const char *subdir, int channel, char *path, int pathlen)
+{
+	struct stat	stbuf;
+	int		num;
+
+	snprintf(path, pathlen, "/dev/dahdi/%s/%d", subdir, channel);
+	if (stat(path, &stbuf) < 0) {
+		ast_log(LOG_ERROR, "stat(%s) failed: %s\n", path, strerror(errno));
+		return -errno;
+	}
+	if (!S_ISCHR(stbuf.st_mode)) {
+		ast_log(LOG_ERROR, "%s: Not a character device file\n", path);
+		return -EINVAL;
+	}
+	num = minor(stbuf.st_rdev);
+	ast_log(LOG_DEBUG, "%s -> %d\n", path, num);
+	return num;
+
+}
+
+/*!
+ * \internal
  * \brief Initialize/create a channel interface.
  *
  * \param channel Channel interface number to initialize/create.
@@ -12686,6 +12719,7 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	int x;
 	int res = 0;
 	struct dahdi_pvt *p;
+	char *subdir = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(group);	/* channel/group token */
 		//AST_APP_ARG(ext);	/* extension token */
@@ -12696,8 +12730,9 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	/*
 	 * data is ---v
 	 * Dial(DAHDI/pseudo[/extension[/options]])
-	 * Dial(DAHDI/[i<span>-]<channel#>[c|r<cadance#>|d][/extension[/options]])
+	 * Dial(DAHDI/<channel#>[c|r<cadance#>|d][/extension[/options]])
 	 * Dial(DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]])
+	 * Dial(DAHDI/<subdir>!<channel#>[c|r<cadance#>|d][/extension[/options]])
 	 *
 	 * i - ISDN span channel restriction.
 	 *     Used by CC to ensure that the CC recall goes out the same span.
@@ -12728,7 +12763,16 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	memset(param, 0, sizeof(*param));
 	param->channelmatch = -1;
 
-	if (args.group[0] == 'i') {
+	if (strchr(args.group, '!') != NULL) {
+		char *prev = args.group;
+		while ((s = strchr(prev, '!')) != NULL) {
+			*s++ = '/';
+			prev = s;
+		}
+		*(prev - 1) = '\0';
+		subdir = args.group;
+		args.group = prev;
+	} else if (args.group[0] == 'i') {
 		/* Extract the ISDN span channel restriction specifier. */
 		res = sscanf(args.group + 1, "%30d", &x);
 		if (res < 1) {
@@ -12795,6 +12839,24 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 			} else {
 				param->channelmatch = x;
 			}
+		}
+		if (subdir) {
+			char path[PATH_MAX];
+			struct stat stbuf;
+
+			snprintf(path, sizeof(path), "/dev/dahdi/%s/%d",
+					subdir, param->channelmatch);
+			if (stat(path, &stbuf) < 0) {
+				ast_log(LOG_WARNING, "stat(%s) failed: %s\n",
+						path, strerror(errno));
+				return NULL;
+			}
+			if (!S_ISCHR(stbuf.st_mode)) {
+				ast_log(LOG_ERROR, "%s: Not a character device file\n",
+						path);
+				return NULL;
+			}
+			param->channelmatch = minor(stbuf.st_rdev);
 		}
 
 		p = iflist;
@@ -15807,9 +15869,33 @@ static int unload_module(void)
 	return __unload_module();
 }
 
+static void string_replace(char *str, int char1, int char2)
+{
+	for (; *str; str++) {
+		if (*str == char1) {
+			*str = char2;
+		}
+	}
+}
+
+static char *parse_spanchan(char *chanstr, char **subdir)
+{
+	char *p;
+
+	if ((p = strrchr(chanstr, '!')) == NULL) {
+		*subdir = NULL;
+		return chanstr;
+	}
+	*p++ = '\0';
+	string_replace(chanstr, '!', '/');
+	*subdir = chanstr;
+	return p;
+}
+
 static int build_channels(struct dahdi_chan_conf *conf, const char *value, int reload, int lineno, int *found_pseudo)
 {
 	char *c, *chan;
+	char *subdir;
 	int x, start, finish;
 	struct dahdi_pvt *tmp;
 
@@ -15819,6 +15905,7 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 	}
 
 	c = ast_strdupa(value);
+	c = parse_spanchan(c, &subdir);
 
 	while ((chan = strsep(&c, ","))) {
 		if (sscanf(chan, "%30d-%30d", &start, &finish) == 2) {
@@ -15842,13 +15929,30 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 		}
 
 		for (x = start; x <= finish; x++) {
-			tmp = mkintf(x, conf, reload);
+			char fn[PATH_MAX];
+			int real_channel = x;
+
+			if (!ast_strlen_zero(subdir)) {
+				real_channel = device2chan(subdir, x, fn, sizeof(fn));
+				if (real_channel < 0) {
+					if (conf->ignore_failed_channels) {
+						ast_log(LOG_WARNING, "Failed configuring %s!%d, (got %d). But moving on to others.\n",
+								subdir, x, real_channel);
+						continue;
+					} else {
+						ast_log(LOG_ERROR, "Failed configuring %s!%d, (got %d).\n",
+								subdir, x, real_channel);
+						return -1;
+					}
+				}
+			}
+			tmp = mkintf(real_channel, conf, reload);
 
 			if (tmp) {
-				ast_verb(3, "%s channel %d, %s signalling\n", reload ? "Reconfigured" : "Registered", x, sig2str(tmp->sig));
+				ast_verb(3, "%s channel %d, %s signalling\n", reload ? "Reconfigured" : "Registered", real_channel, sig2str(tmp->sig));
 			} else {
 				ast_log(LOG_ERROR, "Unable to %s channel '%s'\n",
-					(reload == 1) ? "reconfigure" : "register", value);
+						(reload == 1) ? "reconfigure" : "register", value);
 				return -1;
 			}
 		}
@@ -15939,9 +16043,17 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				ast_log(LOG_WARNING, "Channel '%s' ignored.\n", v->value);
  				continue;
 			}
- 			if (build_channels(confp, v->value, reload, v->lineno, &found_pseudo))
+			if (build_channels(confp, v->value, reload, v->lineno, &found_pseudo)) {
+				if (confp->ignore_failed_channels) {
+					ast_log(LOG_WARNING, "Channel '%s' failure ignored: ignore_failed_channels.\n", v->value);
+					continue;
+				} else {
  					return -1;
+				}
+			}
 			ast_log(LOG_DEBUG, "Channel '%s' configured.\n", v->value);
+		} else if (!strcasecmp(v->name, "ignore_failed_channels")) {
+			confp->ignore_failed_channels = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "buffers")) {
 			if (parse_buffers_policy(v->value, &confp->chan.buf_no, &confp->chan.buf_policy)) {
 				ast_log(LOG_WARNING, "Using default buffer policy.\n");

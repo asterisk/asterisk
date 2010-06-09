@@ -915,6 +915,15 @@ pickupgroup=1
 ;minunused=2
 ;minidle=1
 ;
+;
+; ignore_failed_channels: Continue even if some channels failed to configure.
+; False by default, as if even a single channel failed to configure, it might
+; mean other channels are misplaced and having them work may not be a good
+; idea. If enabled (set to true), chan_dahdi will nevertheless attempt to
+; configure other channels rather than giving up. This normally makes sense
+; only if you use names (<subdir>!<number>) for DAHDI channels.
+;ignore_failed_channels = true
+;
 ; Configure jitter buffers in DAHDI (each one is 20ms, default is 4)
 ; This is set globally, rather than per-channel.
 ;
@@ -1027,8 +1036,24 @@ pickupgroup=1
 ; signalling = pri_cpe
 ; group = 2
 ; channel => 1-23
-
 ;
+; Alternatively, the number of the channel may be replaced with a relative
+; path to a device file under /dev/dahdi . The final element of that file
+; must be a number, though. The directory separator is '!', as we can't
+; use '/' in a dial string. So if we have
+;
+;   /dev/dahdi/span-name/pstn/00/1
+;   /dev/dahdi/span-name/pstn/00/2
+;   /dev/dahdi/span-name/pstn/00/3
+;   /dev/dahdi/span-name/pstn/00/4
+;
+; we could use:
+;channel => span-name!pstn!00!1-4
+;
+; or:
+;channel => span-name!pstn!00!1,2,3,4
+;
+; See also ignore_failed_channels above.
 
 ;  Used for distinctive ring support for x100p.
 ;  You can see the dringX patterns is to set any one of the dringXcontext fields
