@@ -1373,7 +1373,10 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 				 * has a pointer to a freed mohclass, so any operations involving the mohclass container would result in reading
 				 * invalid memory.
 				 */
-				moh_register(mohclass, 0, DONT_UNREF);
+				if (moh_register(mohclass, 0, DONT_UNREF) == -1) {
+					mohclass = mohclass_unref(mohclass, "unreffing mohclass failed to register");
+					return -1;
+				}
 			} else {
 				/* We don't register RT moh class, so let's init it manualy */
 
