@@ -1,3 +1,21 @@
+2010-06-09  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.9-rc3 Released.
+
+2010-06-09  Paul Belanger <paul.belanger@polybeacon.com>
+
+	* Fix Debian init script to not use -c.
+
+	  When using the init script as-is currently, it could cause issues on Debian
+	  such as high CPU usage. This fix has worked for several people so I'm
+	  implementing the change. We now handle color displays properly.
+
+	  (closes issue 0016784)
+	  Reported by: pabelanger
+	  Patches:
+	        20100530__issue16784__2.diff.txt uploaded by tilghman (license 14)
+	  Tested by: pabelanger, tilghman
+
 2010-06-07  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.9-rc2 Released.
