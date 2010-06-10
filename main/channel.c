@@ -3502,8 +3502,25 @@ static void adjust_frame_for_plc(struct ast_channel *chan, struct ast_frame *fra
 	int num_new_samples = frame->samples;
 	struct plc_ds *plc = datastore->data;
 
+	/* As a general note, let me explain the somewhat odd calculations used when taking
+	 * the frame offset into account here. According to documentation in frame.h, the frame's
+	 * offset field indicates the number of bytes that the audio is offset. The plc->samples_buf
+	 * is not an array of bytes, but rather an array of 16-bit integers since it holds SLIN
+	 * samples. So I had two choices to make here with the offset.
+	 * 
+	 * 1. Make the offset AST_FRIENDLY_OFFSET bytes. The main downside for this is that
+	 *    I can't just add AST_FRIENDLY_OFFSET to the plc->samples_buf and have the pointer
+	 *    arithmetic come out right. I would have to do some odd casting or division for this to
+	 *    work as I wanted.
+	 * 2. Make the offset AST_FRIENDLY_OFFSET * 2 bytes. This allows the pointer arithmetic
+	 *    to work out better with the plc->samples_buf. The downside here is that the buffer's
+	 *    allocation contains an extra 64 bytes of unused space.
+	 * 
+	 * I decided to go with option 2. This is why in the calloc statement and the statement that
+	 * sets the frame's offset, AST_FRIENDLY_OFFSET is multiplied by 2.
+	 */
 
-	/* If this audio frame has no samples to fill in ignore it */
+	/* If this audio frame has no samples to fill in, ignore it */
 	if (!num_new_samples) {
 		return;
 	}
@@ -3514,7 +3531,7 @@ static void adjust_frame_for_plc(struct ast_channel *chan, struct ast_frame *fra
 	 */
 	if (plc->num_samples < num_new_samples) {
 		ast_free(plc->samples_buf);
-		plc->samples_buf = ast_calloc(num_new_samples, sizeof(*plc->samples_buf));
+		plc->samples_buf = ast_calloc(1, (num_new_samples * sizeof(*plc->samples_buf)) + (AST_FRIENDLY_OFFSET * 2));
 		if (!plc->samples_buf) {
 			ast_channel_datastore_remove(chan, datastore);
 			ast_datastore_free(datastore);
@@ -3524,9 +3541,10 @@ static void adjust_frame_for_plc(struct ast_channel *chan, struct ast_frame *fra
 	}
 
 	if (frame->datalen == 0) {
-		plc_fillin(&plc->plc_state, plc->samples_buf, frame->samples);
-		frame->data.ptr = plc->samples_buf;
+		plc_fillin(&plc->plc_state, plc->samples_buf + AST_FRIENDLY_OFFSET, frame->samples);
+		frame->data.ptr = plc->samples_buf + AST_FRIENDLY_OFFSET;
 		frame->datalen = num_new_samples * 2;
+		frame->offset = AST_FRIENDLY_OFFSET * 2;
 	} else {
 		plc_rx(&plc->plc_state, frame->data.ptr, frame->samples);
 	}
