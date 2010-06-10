@@ -241,7 +241,7 @@ AST_TEST_DEFINE(heap_test_3)
 
 	i = test_size / 10;
 	while (i--) {
-		random_index = ast_random() % test_size - 1;
+		random_index = ast_random() % test_size;
 		node = ast_heap_remove(h, &nodes[random_index]);
 		if (nodes[random_index].val != node->val){
 			ast_test_status_update(test, "Failed to remove what we expected to\n");
