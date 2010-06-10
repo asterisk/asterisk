@@ -972,6 +972,7 @@ static void _null_sig_handler(int sig)
 
 static struct sigaction null_sig_handler = {
 	.sa_handler = _null_sig_handler,
+	.sa_flags = SA_RESTART,
 };
 
 static struct sigaction ignore_sig_handler = {
@@ -1449,6 +1450,7 @@ static void _urg_handler(int num)
 
 static struct sigaction urg_handler = {
 	.sa_handler = _urg_handler,
+	.sa_flags = SA_RESTART,
 };
 
 static void _hup_handler(int num)
@@ -1468,6 +1470,7 @@ static void _hup_handler(int num)
 
 static struct sigaction hup_handler = {
 	.sa_handler = _hup_handler,
+	.sa_flags = SA_RESTART,
 };
 
 static void _child_handler(int sig)
@@ -1486,6 +1489,7 @@ static void _child_handler(int sig)
 
 static struct sigaction child_handler = {
 	.sa_handler = _child_handler,
+	.sa_flags = SA_RESTART,
 };
 
 /*! \brief Set maximum open files */
