@@ -56,7 +56,6 @@ export ASTLOGDIR
 export ASTLIBDIR
 export ASTMANDIR
 export ASTHEADERDIR
-export ASTBINDIR
 export ASTSBINDIR
 export AGI_DIR
 export ASTCONFPATH
@@ -136,7 +135,6 @@ ifeq ($(OSARCH),SunOS)
   ASTSPOOLDIR=/var/spool/asterisk
   ASTLOGDIR=/var/log/asterisk
   ASTHEADERDIR=/opt/asterisk/include
-  ASTBINDIR=/opt/asterisk/bin
   ASTSBINDIR=/opt/asterisk/sbin
   ASTVARRUNDIR=/var/run/asterisk
   ASTMANDIR=/opt/asterisk/man
@@ -144,7 +142,6 @@ else
   ASTETCDIR=$(sysconfdir)/asterisk
   ASTLIBDIR=$(libdir)/asterisk
   ASTHEADERDIR=$(includedir)/asterisk
-  ASTBINDIR=$(bindir)
   ASTSBINDIR=$(sbindir)
   ASTSPOOLDIR=$(localstatedir)/spool/asterisk
   ASTLOGDIR=$(localstatedir)/log/asterisk
@@ -545,7 +542,6 @@ installdirs:
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
-	mkdir -p $(DESTDIR)$(ASTBINDIR)
 	mkdir -p $(DESTDIR)$(ASTVARRUNDIR)
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/dictate

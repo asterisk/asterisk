@@ -57,7 +57,6 @@ CONFIG_LDFLAGS=@CONFIG_LDFLAGS@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 
-bindir = @bindir@
 datarootdir = @datarootdir@
 datadir = @datadir@
 includedir = @includedir@
