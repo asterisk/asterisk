@@ -730,7 +730,7 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 			chan->disabled ? "Disabled" : "Enabled");
 		ast_cli(a->fd, " - ");
 		for (level = 0; level < ARRAY_LEN(levels); level++) {
-			if (chan->logmask & (1 << level)) {
+			if ((chan->logmask & (1 << level)) && levels[level]) {
 				ast_cli(a->fd, "%s ", levels[level]);
 			}
 		}
