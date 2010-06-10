@@ -1,6 +1,17 @@
-2010-06-09  Leif Madsen <lmadsen@digium.com>
+2010-06-10  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.9-rc3 Released.
+
+2010-06-10  Tilghman Lesher <tlesher@digium.com>
+
+        * Ensure signals are not blocked inside other signal handlers.
+
+          This eliminates the annoying <beep> on the console.
+
+          (closes issue 0017477)
+           Reported by: jvandal
+           Patches:
+                 20100610__issue17477.diff.txt uploaded by tilghman (license 14
 
 2010-06-09  Paul Belanger <paul.belanger@polybeacon.com>
 
