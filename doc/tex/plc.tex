@@ -1,0 +1,139 @@
+\section{What is PLC?}
+
+	PLC stands for Packet Loss Concealment. PLC describes any method of generating
+new audio data when packet loss is detected. In Asterisk, there are two main flavors
+of PLC, generic and native. Generic PLC is a method of generating audio data on
+signed linear audio streams. Signed linear audio, often abbreviated "slin," is required
+since it is a raw format that has no companding, compression, or other transformations
+applied. Native PLC is used by specific codec implementations, such as
+iLBC and Speex, which generates the new audio in the codec's native format. Native
+PLC happens automatically when using a codec that supports native PLC. Generic PLC
+requires specific configuration options to be used and will be the focus of this
+document.
+
+\section{How does Asterisk detect packet loss?}
+
+	Oddly, Asterisk does not detect packet loss when reading audio in. In order to
+detect packet loss, one must have a jitter buffer in use on the channel on which
+Asterisk is going to write missing audio using PLC. When a jitter buffer is in use,
+audio that is to be written to the channel is fed into the jitterbuffer. When the
+time comes to write audio to the channel, a bridge will request that the jitter
+buffer gives a frame of audio to the bridge so that the audio may be written. If
+audio is requested from the jitter buffer but the jitter buffer is unable to give
+enough audio to the bridge, then the jitter buffer will return an interpolation
+frame. This frame contains no actual audio data and indicates the number of samples
+of audio that should be inserted into the frame.
+
+\section{A bit of background on translation}
+
+	As stated in the introduction, generic PLC can only be used on slin audio.
+The majority of audio communication is not done in slin, but rather using lower
+bandwidth codecs. This means that for PLC to be used, there must be a translation
+step involving slin on the write path of a channel. This means that PLC cannot
+be used if the codecs on either side of the bridge are the same or do not require
+a translation to slin in order to translate between them. For instance, a
+ulaw $<$-$>$ ulaw call will not use PLC since no translation is required. In addition,
+a ulaw $<$-$>$ alaw call will also not use PLC since the translation path does not
+include any step involving slin.
+	One item of note is that slin must be present on the write path of a channel
+since that is the path where PLC is applied. Consider that Asterisk is bridging
+channels A and B. A uses ulaw for audio and B uses GSM. This translation involves
+slin, so things are shaping up well for PLC. Consider, however if Asterisk sets
+up the translation paths like so:
+\begin{verbatim}
+
+                    Fig. 1
+
+A                      +------------+       B
+<---ulaw<---slin<---GSM|            |GSM--->
+                       |  Asterisk  |
+ulaw--->slin--->GSM--->|            |<---GSM
+                       +------------+
+
+\end{verbatim}
+	The arrows indicate the direction of audio flow. Each channel has a write
+path (the top arrow) and a read path (the bottom arrow). In this setup, PLC
+can be used when sending audio to A, but it cannot be used when sending audio
+to B. The reason is simple, the write path to A's channel contains a slin
+step, but the write path to B contains no slin step. Such a translation setup
+is perfectly valid, and Asterisk can potentially set up such a path depending
+on circumstances. When we use PLC, however, we want slin audio to be present
+on the write paths of both A and B. A visual representation of what we want
+is the following:
+\begin{verbatim}
+
+                    Fig. 2
+
+A               +------------+               B
+<---ulaw<---slin|            |slin--->GSM--->
+                |  Asterisk  |
+ulaw--->slin--->|            |<---slin<---GSM
+                +------------+
+
+\end{verbatim}
+	In this scenario, the write paths for both A and B begin with slin,
+and so PLC may be applied to either channel. This translation behavior has,
+in the past been doable with the \texttt{transcode\_via\_sln} option in \path{asterisk.conf}.
+Recent changes to the PLC code have also made the \texttt{genericplc} option in
+\path{codecs.conf} imply the \texttt{transcode\_via\_sln} option. The result is that by
+enabling \texttt{genericplc} in \path{codecs.conf}, the translation path set up in
+Fig. 2 should automatically be used.
+
+\section{Additional restrictions and caveats}
+
+	One restriction that has not been spelled out so far but that has been
+hinted at is the presence of a bridge. The term bridge in this sense means
+two channels exchanging audio with one another. A bridge is required because
+use of a jitter buffer is a prerequisite for using PLC, and a jitter buffer
+is only used when bridging two channels. This means that one-legged calls,
+(e.g. calls to voicemail, to an IVR, to an extension that just plays back
+audio) will not use PLC. In addition, MeetMe and ConfBridge calls will not
+use PLC.
+	It should be obvious, but it bears mentioning, that PLC cannot be used
+when using a technology's native bridging functionality. For instance, if
+two SIP channels can exchange RTP directly, then Asterisk will never be
+able to process the audio in the first place. Since translation of audio
+is a requirement for using PLC, and translation will not allow for a
+native bridge to be created, this is something that is not likely to be
+an issue, though.
+	Since a jitter buffer is a requirement in order to use PLC, it should
+be noted that simply enabling the jitter buffer via the \texttt{jbenable} option
+may not be enough. For instance, if bridging two SIP channels together,
+the default behavior will not be to enable jitter buffers on either channel.
+The rationale is that the jitter will be handled at the endpoints to which
+Asterisk is sending the audio. In order to ensure that a jitter buffer is
+used in all cases, one must enable the \texttt{jbforce} option for channel types
+on which PLC is desired.
+
+\section{Summary}
+	The following are all required for PLC to be used:
+\begin{itemize}
+\item Enable \texttt{genericplc} in the \texttt{plc} section of \path{codecs.conf}
+\item Enable (and potentially force) jitter buffers on channels
+\item Two channels must be bridged together for PLC to be used
+(no Meetme or one-legged calls)
+\item The audio must be translated between the two channels
+and must have slin as a step in the translation process.
+\end{itemize}
+
+\section{Protip}
+
+	One of the restrictions mentioned is that PLC will only
+be used when two audio channels are bridged together. Through the
+use of Local channels, you can create a bridge even if the call
+is, for all intents and purposes, one-legged. By using a combination
+of the /n and /j suffixes for a Local channel, one can ensure
+that the Local channel is not optimized out of the talk path
+and that a jitter buffer is applied to the Local channel as well.
+Consider the following simple dialplan:
+\begin{verbatim}
+
+[example]
+exten => 1,1,Playback(tt-weasels)
+exten => 2,1,Dial(Local/1@example/nj)
+
+\end{verbatim}
+When dialing extension 1, PLC cannot be used because there
+will be only a single channel involved. When dialing extension
+2, however, Asterisk will create a bridge between the incoming
+channel and the Local channel, thus allowing PLC to be used.
