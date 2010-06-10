@@ -1269,6 +1269,7 @@ static void _null_sig_handler(int sig)
 
 static struct sigaction null_sig_handler = {
 	.sa_handler = _null_sig_handler,
+	.sa_flags = SA_RESTART,
 };
 
 void ast_replace_sigchld(void);

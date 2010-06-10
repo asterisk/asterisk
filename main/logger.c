@@ -764,6 +764,7 @@ static void _handle_SIGXFSZ(int sig)
 
 static struct sigaction handle_SIGXFSZ = {
 	.sa_handler = _handle_SIGXFSZ,
+	.sa_flags = SA_RESTART,
 };
 
 static void ast_log_vsyslog(struct logmsg *msg)
