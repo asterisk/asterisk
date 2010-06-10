@@ -209,7 +209,7 @@ static int test3(int fd)
 
 	i = test_size / 10;
 	while (i--) {
-		random_index = ast_random() % test_size - 1;
+		random_index = ast_random() % test_size;
 		node = ast_heap_remove(h, &nodes[random_index]);
 		if (nodes[random_index].val != node->val){
 			res = -4;
