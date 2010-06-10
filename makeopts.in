@@ -61,7 +61,6 @@ GNU_LD=@GNU_LD@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 
-bindir = @bindir@
 datarootdir = @datarootdir@
 datadir = @datadir@
 includedir = @includedir@
