@@ -584,6 +584,7 @@ static void _handle_SIGXFSZ(int sig)
 
 static struct sigaction handle_SIGXFSZ = {
 	.sa_handler = _handle_SIGXFSZ,
+	.sa_flags = SA_RESTART,
 };
 
 int init_logger(void)
