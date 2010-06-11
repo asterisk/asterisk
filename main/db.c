@@ -661,6 +661,10 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 				"%s"
 				"\r\n",
 				family, key, tmp, idText);
+		astman_append(s, "Event: DBGetComplete\r\n"
+				"%s"
+				"\r\n",
+				idText);
 	}
 	return 0;
 }

@@ -395,6 +395,8 @@ Asterisk Manager Interface
    aoc event class.
  * Added Advice-Of-Charge manager action, AOCMessage, for generating AOC-D and
    AOC-E messages on a channel.
+ * A DBGetComplete event now follows a DBGetResponse, to make the DBGet action
+   conform more closely to similar events.
 
 Channel Event Logging
 ---------------------
