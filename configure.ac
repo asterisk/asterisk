@@ -1766,7 +1766,20 @@ fi
 
 AST_EXT_LIB_CHECK([SRTP], [srtp], [srtp_init], [srtp/srtp.h])
 
-AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
+# will make it easy for someone to debug, if the replacement breaks their system 
+#AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
+
+PBX_GMIME=0
+AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
+if test ! "x${PKGCONFIG}" = xNo; then
+	GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.0 --cflags 2>/dev/null)
+	GMIME_LIB=$(${PKGCONFIG} gmime-2.0 --libs)
+	PBX_GMIME=1
+	AC_DEFINE([HAVE_GMIME], 1, [Define if your system has the GMIME libraries.])
+fi
+AC_SUBST(PBX_GMIME)
+AC_SUBST(GMIME_INCLUDE)
+AC_SUBST(GMIME_LIB)
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
 
