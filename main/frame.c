@@ -1406,7 +1406,9 @@ static int speex_samples(unsigned char *data, int len)
 		}
 		bit += off;
 
-		if ((len * 8 - bit) < 5) {
+		if ((len * 8 - bit) == 0) {
+			break;
+		} else if ((len * 8 - bit) < 5) {
 			ast_log(LOG_WARNING, "Not enough bits remaining after wide band for speex samples.\n");
 			break;
 		}
