@@ -68,7 +68,7 @@ on https://issues.asterisk.org
 
      SIP (1.4 or higher)
 
-        *ClI> sip set debug off
+        *CLI> sip set debug off
 
      IAX2 (1.4 or higher)
 
