@@ -2848,6 +2848,9 @@ static void my_set_callerid(void *pvt, const struct ast_party_caller *caller)
 	}
 	p->cid_ton = caller->id.number_type;
 	p->callingpres = caller->id.number_presentation;
+	if (caller->id.tag) {
+		ast_copy_string(p->cid_tag, caller->id.tag, sizeof(p->cid_tag));
+	}
 	ast_copy_string(p->cid_ani, S_OR(caller->ani, ""), sizeof(p->cid_ani));
 	p->cid_ani2 = caller->ani2;
 }
@@ -5805,6 +5808,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->subs[SUB_REAL].owner = NULL;
 		p->subs[SUB_REAL].needbusy = 0;
 		p->owner = NULL;
+		p->cid_tag[0] = '\0';
 		p->ringt = 0;/* Probably not used in this mode.  Reset anyway. */
 		p->distinctivering = 0;/* Probably not used in this mode. Reset anyway. */
 		p->confirmanswer = 0;/* Probably not used in this mode. Reset anyway. */
@@ -11913,6 +11917,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.aoc_passthrough_flag = conf->pri.pri.aoc_passthrough_flag;
 						pris[span].pri.aoce_delayhangup = conf->pri.pri.aoce_delayhangup;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+						pris[span].pri.append_msn_to_user_tag = conf->pri.pri.append_msn_to_user_tag;
+						ast_copy_string(pris[span].pri.initial_user_tag, conf->chan.cid_tag, sizeof(pris[span].pri.initial_user_tag));
 						ast_copy_string(pris[span].pri.msn_list, conf->pri.pri.msn_list, sizeof(pris[span].pri.msn_list));
 #if defined(HAVE_PRI_MWI)
 						ast_copy_string(pris[span].pri.mwi_mailboxes,
@@ -12156,7 +12162,14 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			tmp->cid_num[0] = '\0';
 			tmp->cid_name[0] = '\0';
 		}
-		ast_copy_string(tmp->cid_tag, conf->chan.cid_tag, sizeof(tmp->cid_tag));
+#if defined(HAVE_PRI)
+		if (dahdi_sig_pri_lib_handles(tmp->sig)) {
+			tmp->cid_tag[0] = '\0';
+		} else
+#endif	/* defined(HAVE_PRI) */
+		{
+			ast_copy_string(tmp->cid_tag, conf->chan.cid_tag, sizeof(tmp->cid_tag));
+		}
 		tmp->cid_subaddr[0] = '\0';
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
@@ -16760,6 +16773,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				ast_copy_string(confp->pri.pri.mwi_mailboxes, v->value,
 					sizeof(confp->pri.pri.mwi_mailboxes));
 #endif	/* defined(HAVE_PRI_MWI) */
+			} else if (!strcasecmp(v->name, "append_msn_to_cid_tag")) {
+				confp->pri.pri.append_msn_to_user_tag = ast_true(v->value);
 #endif /* HAVE_PRI */
 #if defined(HAVE_SS7)
 			} else if (!strcasecmp(v->name, "ss7type")) {

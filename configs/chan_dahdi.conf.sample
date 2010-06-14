@@ -727,7 +727,23 @@ pickupgroup=1
 ; return to the caller performing the transfer (default is yes).
 ;
 ;transfertobusy=no
+
+; Calls will have the party id user tag set to this string value.
 ;
+;cid_tag=
+
+; With this set, you can automatically append the MSN of a party
+; to the cid_tag.  An '_' is used to separate the tag from the MSN.
+; Applies to ISDN spans.
+; Default is no.
+;
+; Table of what number is appended:
+;      outgoing  incoming
+; net  dialed    caller
+; cpe  caller    dialed
+;
+;append_msn_to_cid_tag=no
+
 ; caller ID can be set to "asreceived" or a specific number if you want to
 ; override it.  Note that "asreceived" only applies to trunk interfaces.
 ; fullname sets just the

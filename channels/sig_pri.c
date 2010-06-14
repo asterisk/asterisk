@@ -216,6 +216,7 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 		}
 		caller.id.number_type = p->cid_ton;
 		caller.id.number_presentation = p->callingpres;
+		caller.id.tag = p->user_tag;
 		caller.ani = p->cid_ani;
 		caller.ani2 = p->cid_ani2;
 		p->calls->set_callerid(p->chan_pvt, &caller);
@@ -1146,6 +1147,7 @@ static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call
 		new_chan->aoc_s_request_invoke_id = old_chan->aoc_s_request_invoke_id;
 		new_chan->aoc_e = old_chan->aoc_e;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+		strcpy(new_chan->user_tag, old_chan->user_tag);
 
 		if (new_chan->no_b_channel) {
 			/* Copy the real channel configuration to the no B channel interface. */
@@ -1490,6 +1492,17 @@ static void *pri_ss_thread(void *data)
 			ast_free(chan->cid.cid_dnid);
 		}
 		chan->cid.cid_dnid = ast_strdup(exten);
+
+		if (p->pri->append_msn_to_user_tag && p->pri->nodetype != PRI_NETWORK) {
+			/*
+			 * Update the user tag for party id's from this device for this call
+			 * now that we have a complete MSN from the network.
+			 */
+			snprintf(p->user_tag, sizeof(p->user_tag), "%s_%s", p->pri->initial_user_tag,
+				exten);
+			ast_free(chan->cid.cid_tag);
+			chan->cid.cid_tag = ast_strdup(p->user_tag);
+		}
 	}
 	sig_pri_play_tone(p, -1);
 	if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
@@ -3461,6 +3474,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 				ast_party_connected_line_init(&ast_connected);
 				sig_pri_party_id_convert(&ast_connected.id, &subcmd->u.connected_line.id,
 					pri);
+				ast_connected.id.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 
 				caller_id_update = 0;
 				if (ast_connected.id.name) {
@@ -3517,6 +3531,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 			if (owner) {
 				sig_pri_redirecting_convert(&ast_redirecting, &subcmd->u.redirecting,
 					&owner->redirecting, pri);
+				ast_redirecting.from.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
+				ast_redirecting.to.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 
 /*! \todo XXX Original called data can be put in a channel data store that is inherited. */
 
@@ -3568,6 +3584,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 				}
 				sig_pri_redirecting_convert(&ast_redirecting, &pri_deflection,
 					&owner->redirecting, pri);
+				ast_redirecting.from.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
+				ast_redirecting.to.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_channel_set_redirecting(owner, &ast_redirecting);
 				ast_party_redirecting_free(&ast_redirecting);
 
@@ -4452,6 +4470,19 @@ static void *pri_dchannel(void *vpri)
 						pri->pvts[chanpos]->cid_ton = 0;
 						pri->pvts[chanpos]->callingpres = 0;
 					}
+
+					/* Setup the user tag for party id's from this device for this call. */
+					if (pri->append_msn_to_user_tag) {
+						snprintf(pri->pvts[chanpos]->user_tag,
+							sizeof(pri->pvts[chanpos]->user_tag), "%s_%s",
+							pri->initial_user_tag,
+							pri->nodetype == PRI_NETWORK
+								? plancallingnum : e->ring.callednum);
+					} else {
+						ast_copy_string(pri->pvts[chanpos]->user_tag,
+							pri->initial_user_tag, sizeof(pri->pvts[chanpos]->user_tag));
+					}
+
 					sig_pri_set_caller_id(pri->pvts[chanpos]);
 
 					/* Set DNID on all incoming calls -- even immediate */
@@ -5493,6 +5524,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->cid_num[0] = '\0';
 	p->cid_subaddr[0] = '\0';
 	p->cid_name[0] = '\0';
+	p->user_tag[0] = '\0';
 	p->exten[0] = '\0';
 	sig_pri_set_dialing(p, 0);
 
@@ -5898,6 +5930,23 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 	}
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
+	/* Setup the user tag for party id's from this device for this call. */
+	if (p->pri->append_msn_to_user_tag) {
+		snprintf(p->user_tag, sizeof(p->user_tag), "%s_%s", p->pri->initial_user_tag,
+			p->pri->nodetype == PRI_NETWORK
+				? c + p->stripmsd + dp_strip
+				: S_OR(ast->connected.id.number, ""));
+	} else {
+		ast_copy_string(p->user_tag, p->pri->initial_user_tag, sizeof(p->user_tag));
+	}
+
+	/*
+	 * Replace the caller id tag from the channel creation
+	 * with the actual tag value.
+	 */
+	ast_free(ast->cid.cid_tag);
+	ast->cid.cid_tag = ast_strdup(p->user_tag);
 
 	ldp_strip = 0;
 	prilocaldialplan = p->pri->localdialplan - 1;

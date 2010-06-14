@@ -190,6 +190,8 @@ struct sig_pri_chan {
 	char cid_subaddr[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
 	char cid_ani[AST_MAX_EXTENSION];
+	/*! \brief User tag for party id's sent from this device driver. */
+	char user_tag[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
 
 	/* Internal variables -- Don't touch */
@@ -316,6 +318,11 @@ struct sig_pri_pri {
 	/*! \brief TRUE if we will allow incoming ISDN call waiting calls. */
 	unsigned int allow_call_waiting_calls:1;
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+	/*!
+	 * TRUE if a new call's sig_pri_chan.user_tag[] has the MSN
+	 * appended to the initial_user_tag[].
+	 */
+	unsigned int append_msn_to_user_tag:1;
 	int dialplan;							/*!< Dialing plan */
 	int localdialplan;						/*!< Local dialing plan */
 	char internationalprefix[10];			/*!< country access code ('00' for european dialplans) */
@@ -335,6 +342,11 @@ struct sig_pri_pri {
 	 */
 	char mwi_mailboxes[SIG_PRI_MAX_MWI_MAILBOX_STR];
 #endif	/* defined(HAVE_PRI_MWI) */
+	/*!
+	 * \brief Initial user tag for party id's sent from this device driver.
+	 * \note String set by config file.
+	 */
+	char initial_user_tag[AST_MAX_EXTENSION];
 	char msn_list[AST_MAX_EXTENSION];		/*!< Comma separated list of MSNs to handle.  Empty if disabled. */
 	char idleext[AST_MAX_EXTENSION];		/*!< Where to idle extra calls */
 	char idlecontext[AST_MAX_CONTEXT];		/*!< What context to use for idle */
