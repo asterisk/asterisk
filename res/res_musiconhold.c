@@ -295,16 +295,20 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		return -1;
 	}
 
-	/* If a specific file has been saved confirm it still exists and that it is still valid */
-	if (state->save_pos >= 0 && state->save_pos < state->class->total_files && state->class->filearray[state->save_pos] == state->save_pos_filename) {
+	if (state->pos == 0 && state->save_pos_filename == NULL) {
+		/* First time so lets play the file. */
+		state->save_pos = -1;
+	} else if (state->save_pos >= 0 && state->save_pos < state->class->total_files && state->class->filearray[state->save_pos] == state->save_pos_filename) {
+		/* If a specific file has been saved confirm it still exists and that it is still valid */
 		state->pos = state->save_pos;
 		state->save_pos = -1;
 	} else if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
 		/* Get a random file and ensure we can open it */
 		for (tries = 0; tries < 20; tries++) {
 			state->pos = ast_random() % state->class->total_files;
-			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
+			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0) {
 				break;
+			}
 		}
 		state->save_pos = -1;
 		state->samples = 0;
@@ -328,8 +332,9 @@ static int ast_moh_files_next(struct ast_channel *chan)
 
 	ast_debug(1, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
 
-	if (state->samples)
+	if (state->samples) {
 		ast_seekstream(chan->stream, state->samples, SEEK_SET);
+	}
 
 	return 0;
 }
