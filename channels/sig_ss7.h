@@ -253,6 +253,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law, const struct ast_channel *requestor, int transfercapability);
 void sig_ss7_chan_delete(struct sig_ss7_chan *doomed);
 struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_callback *callback, struct sig_ss7_linkset *ss7);
+void sig_ss7_init_linkset(struct sig_ss7_linkset *ss7);
 
 
 /* ------------------------------------------------------------------- */

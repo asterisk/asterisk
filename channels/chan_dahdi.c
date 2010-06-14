@@ -14329,11 +14329,8 @@ static int dahdi_restart(void)
 
 	memset(pris, 0, sizeof(pris));
 	for (i = 0; i < NUM_SPANS; i++) {
-		ast_mutex_init(&pris[i].pri.lock);
-		pris[i].pri.master = AST_PTHREADT_NULL;
-		for (j = 0; j < SIG_PRI_NUM_DCHANS; j++)
-			pris[i].pri.fds[j] = -1;
-		}
+		sig_pri_init_pri(&pris[i].pri);
+	}
 	pri_set_error(dahdi_pri_error);
 	pri_set_message(dahdi_pri_message);
 #endif
@@ -14345,10 +14342,7 @@ static int dahdi_restart(void)
 
 	memset(linksets, 0, sizeof(linksets));
 	for (i = 0; i < NUM_SPANS; i++) {
-		ast_mutex_init(&linksets[i].ss7.lock);
-		linksets[i].ss7.master = AST_PTHREADT_NULL;
-		for (j = 0; j < SIG_SS7_NUM_DCHANS; j++)
-			linksets[i].ss7.fds[j] = -1;
+		sig_ss7_init_linkset(&linksets[i].ss7);
 	}
 	ss7_set_error(dahdi_ss7_error);
 	ss7_set_message(dahdi_ss7_message);
@@ -17407,9 +17401,7 @@ static int load_module(void)
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int y;
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
-#if defined(HAVE_SS7)
-	int i;
-#endif	/* defined(HAVE_SS7) */
+
 #ifdef HAVE_PRI
 	memset(pris, 0, sizeof(pris));
 	for (y = 0; y < NUM_SPANS; y++) {
@@ -17442,10 +17434,7 @@ static int load_module(void)
 #if defined(HAVE_SS7)
 	memset(linksets, 0, sizeof(linksets));
 	for (y = 0; y < NUM_SPANS; y++) {
-		ast_mutex_init(&linksets[y].ss7.lock);
-		linksets[y].ss7.master = AST_PTHREADT_NULL;
-		for (i = 0; i < SIG_SS7_NUM_DCHANS; i++)
-			linksets[y].ss7.fds[i] = -1;
+		sig_ss7_init_linkset(&linksets[y].ss7);
 	}
 	ss7_set_error(dahdi_ss7_error);
 	ss7_set_message(dahdi_ss7_message);

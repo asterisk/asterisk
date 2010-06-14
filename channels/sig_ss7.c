@@ -1609,6 +1609,28 @@ struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_callback *c
 	return pvt;
 }
 
+/*!
+ * \brief Initialize the SS7 linkset control.
+ * \since 1.8
+ *
+ * \param ss7 sig_ss7 SS7 control structure.
+ *
+ * \return Nothing
+ */
+void sig_ss7_init_linkset(struct sig_ss7_linkset *ss7)
+{
+	int idx;
+
+	memset(ss7, 0, sizeof(*ss7));
+
+	ast_mutex_init(&ss7->lock);
+
+	ss7->master = AST_PTHREADT_NULL;
+	for (idx = 0; idx < ARRAY_LEN(ss7->fds); ++idx) {
+		ss7->fds[idx] = -1;
+	}
+}
+
 /* ------------------------------------------------------------------- */
 
 #endif	/* defined(HAVE_SS7) */
