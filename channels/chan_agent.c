@@ -159,6 +159,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="channel">
 						<para>The name of the active channel for the Agent (AgentLogin)</para>
 					</enum>
+					<enum name="fullchannel">
+						<para>The untruncated name of the active channel for the Agent (AgentLogin)</para>
+					</enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -2290,6 +2293,10 @@ static int function_agent(struct ast_channel *chan, const char *cmd, char *data,
 			tmp = strrchr(buf, '-');
 			if (tmp)
 				*tmp = '\0';
+		} 
+	} else if (!strcasecmp(args.item, "fullchannel")) {
+		if (agent->chan) {
+			ast_copy_string(buf, agent->chan->name, len);
 		} 
 	} else if (!strcasecmp(args.item, "exten")) {
 		buf[0] = '\0';
