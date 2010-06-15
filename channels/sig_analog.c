@@ -410,7 +410,9 @@ static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int sta
 	}
 
 	c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, sub, requestor);
-	ast_string_field_set(c, call_forward, p->call_forward);
+	if (c) {
+		ast_string_field_set(c, call_forward, p->call_forward);
+	}
 	p->subs[sub].owner = c;
 	if (!p->owner) {
 		p->owner = c;
