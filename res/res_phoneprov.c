@@ -411,7 +411,6 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 	char *file = NULL;
 	int len;
 	int fd;
-	char buf[256];
 	struct ast_str *http_header;
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD) {
@@ -441,21 +440,11 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		}
 
 		http_header = ast_str_create(80);
-		ast_str_set(&http_header, 0, "Content-type: %s\r\n",
+		ast_str_set(&http_header, 0, "Content-type: %s",
 			route->file->mime_type);
 
-		while ((len = read(fd, buf, sizeof(buf))) > 0) {
-			if (fwrite(buf, 1, len, ser->f) != len) {
-				if (errno != EPIPE) {
-					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
-				} else {
-					ast_debug(3, "Requester closed the connection while downloading '%s'\n", path);
-				}
-				break;
-			}
-		}
-
 		ast_http_send(ser, method, 200, NULL, http_header, NULL, fd, 0);
+
 		close(fd);
 		route = unref_route(route);
 		return 0;
@@ -515,7 +504,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		}
 
 		http_header = ast_str_create(80);
-		ast_str_set(&http_header, 0, "Content-type: %s\r\n",
+		ast_str_set(&http_header, 0, "Content-type: %s",
 			route->file->mime_type);
 
 		if (!(result = ast_str_create(512))) {
