@@ -9466,7 +9466,7 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 	}
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
-		if (strcasecmp(ast_var_name(newvariable), nametail) == 0) {
+		if (strcmp(ast_var_name(newvariable), nametail) == 0) {
 			/* there is already such a variable, delete it */
 			AST_LIST_REMOVE_CURRENT(entries);
 			ast_var_delete(newvariable);
