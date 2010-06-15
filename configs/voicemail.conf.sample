@@ -182,38 +182,6 @@ pagerdateformat=%A, %B %d, %Y at %r
 ; NOT use INBOX as the parent. Default is to have no parent folder set.
 ;imapparentfolder=INBOX
 ;
-; Users may be located in different timezones, or may have different
-; message announcements for their introductory message when they enter
-; the voicemail system. Set the message and the timezone each user
-; hears here. Set the user into one of these zones with the tz= attribute
-; in the options field of the mailbox. Of course, language substitution
-; still applies here so you may have several directory trees that have
-; alternate language choices.
-;
-; Look in /usr/share/zoneinfo/ for names of timezones.
-; Look at the manual page for strftime for a quick tutorial on how the
-; variable substitution is done on the values below.
-;
-; Supported values:
-; 'filename'    filename of a soundfile (single ticks around the filename
-;               required)
-; ${VAR}        variable substitution
-; A or a        Day of week (Saturday, Sunday, ...)
-; B or b or h   Month name (January, February, ...)
-; d or e        numeric day of month (first, second, ..., thirty-first)
-; Y             Year
-; I or l        Hour, 12 hour clock
-; H             Hour, 24 hour clock (single digit hours preceded by "oh")
-; k             Hour, 24 hour clock (single digit hours NOT preceded by "oh")
-; M             Minute, with 00 pronounced as "o'clock"
-; N             Minute, with 00 pronounced as "hundred" (US military time)
-; P or p        AM or PM
-; Q             "today", "yesterday" or ABdY
-;               (*note: not standard strftime value)
-; q             "" (for today), "yesterday", weekday, or ABdY
-;               (*note: not standard strftime value)
-; R             24 hour time, including minute
-;
 ;
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
@@ -350,6 +318,38 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 
 
 [zonemessages]
+; Users may be located in different timezones, or may have different
+; message announcements for their introductory message when they enter
+; the voicemail system. Set the message and the timezone each user
+; hears here. Set the user into one of these zones with the tz= attribute
+; in the options field of the mailbox. Of course, language substitution
+; still applies here so you may have several directory trees that have
+; alternate language choices.
+;
+; Look in /usr/share/zoneinfo/ for names of timezones.
+; Look at the manual page for strftime for a quick tutorial on how the
+; variable substitution is done on the values below.
+;
+; Supported values:
+; 'filename'    filename of a soundfile (single ticks around the filename
+;               required)
+; ${VAR}        variable substitution
+; A or a        Day of week (Saturday, Sunday, ...)
+; B or b or h   Month name (January, February, ...)
+; d or e        numeric day of month (first, second, ..., thirty-first)
+; Y             Year
+; I or l        Hour, 12 hour clock
+; H             Hour, 24 hour clock (single digit hours preceded by "oh")
+; k             Hour, 24 hour clock (single digit hours NOT preceded by "oh")
+; M             Minute, with 00 pronounced as "o'clock"
+; N             Minute, with 00 pronounced as "hundred" (US military time)
+; P or p        AM or PM
+; Q             "today", "yesterday" or ABdY
+;               (*note: not standard strftime value)
+; q             "" (for today), "yesterday", weekday, or ABdY
+;               (*note: not standard strftime value)
+; R             24 hour time, including minute
+;
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp
 central=America/Chicago|'vm-received' Q 'digits/at' IMp
 central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
