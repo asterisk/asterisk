@@ -3137,6 +3137,7 @@ static void aji_mwi_cb(const struct ast_event *ast_event, void *data)
 	const char *context;
 	char oldmsgs[10];
 	char newmsgs[10];
+	struct aji_client *client;
 	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID)))
 	{
 		/* If the event didn't originate from this server, don't send it back out. */
@@ -3144,7 +3145,7 @@ static void aji_mwi_cb(const struct ast_event *ast_event, void *data)
 		return;
 	}
 
-	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
+	client = ASTOBJ_REF((struct aji_client *) data);
 	mailbox = ast_event_get_ie_str(ast_event, AST_EVENT_IE_MAILBOX);
 	context = ast_event_get_ie_str(ast_event, AST_EVENT_IE_CONTEXT);
 	snprintf(oldmsgs, sizeof(oldmsgs), "%d",
@@ -3164,6 +3165,7 @@ static void aji_devstate_cb(const struct ast_event *ast_event, void *data)
 {
 	const char *device;
 	const char *device_state;
+	struct aji_client *client;
 	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID)))
 	{
 		/* If the event didn't originate from this server, don't send it back out. */
@@ -3171,7 +3173,7 @@ static void aji_devstate_cb(const struct ast_event *ast_event, void *data)
 		return;
 	}
 
-	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
+	client = ASTOBJ_REF((struct aji_client *) data);
 	device = ast_event_get_ie_str(ast_event, AST_EVENT_IE_DEVICE);
 	device_state = ast_devstate_str(ast_event_get_ie_uint(ast_event, AST_EVENT_IE_STATE));
 	aji_publish_device_state(client, device, device_state);
@@ -3391,9 +3393,9 @@ static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
 {
 	char full_mailbox[AST_MAX_EXTENSION+AST_MAX_CONTEXT];
 	char eid_str[20];
-	iks *mailbox_node;
+	iks *mailbox_node, *request;
 	snprintf(full_mailbox, sizeof(full_mailbox), "%s@%s", mailbox, context);
-	iks *request = aji_build_publish_skeleton(client, full_mailbox, "message_waiting");
+	request = aji_build_publish_skeleton(client, full_mailbox, "message_waiting");
 	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
 	mailbox_node = iks_insert(request, "mailbox");
 	iks_insert_attrib(mailbox_node, "xmlns", "http://asterisk.org");
@@ -3450,6 +3452,7 @@ static int aji_handle_pubsub_error(void *data, ikspak *pak)
 	}
 
 	if (!strcasecmp(iks_name(orig_request), "publish")) {
+		iks *request;
 		if (ast_test_flag(&pubsubflags, AJI_XEP0248)) {
 			if (iks_find(iks_find(orig_request, "item"), "state")) {
 				aji_create_pubsub_leaf(client, "device_state", node_name);
@@ -3459,7 +3462,7 @@ static int aji_handle_pubsub_error(void *data, ikspak *pak)
 		} else {
 			aji_create_pubsub_node(client, NULL, node_name, NULL);
 		}
-		iks *request = aji_pubsub_iq_create(client, "set");
+		request = aji_pubsub_iq_create(client, "set");
 		iks_insert_node(request, orig_pubsub);
 		ast_aji_send(client, request);
 		iks_delete(request);
