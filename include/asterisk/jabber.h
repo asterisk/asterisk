@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2010, Digium, Inc.
  *
  * Matt O'Gorman <mogorman@digium.com>
  *
@@ -85,13 +85,19 @@ enum aji_state {
 enum {
 	AJI_AUTOPRUNE = (1 << 0),
 	AJI_AUTOREGISTER = (1 << 1),
-	AJI_AUTOACCEPT = (1 << 2)
+	AJI_AUTOACCEPT = (1 << 2),
+};
+
+enum {
+	AJI_XEP0248 = (1 << 0),
+	AJI_PUBSUB = (1 << 1),
+	AJI_PUBSUB_AUTOCREATE = (1 << 2),
 };
 
 enum aji_btype {
-	AJI_USER=0,
-	AJI_TRANS=1,
-	AJI_UTRANS=2
+	AJI_USER = 0,
+	AJI_TRANS = 1,
+	AJI_UTRANS = 2,
 };
 
 struct aji_version {
@@ -145,6 +151,7 @@ struct aji_client {
 	char password[160];
 	char user[AJI_MAX_JIDLEN];
 	char serverhost[AJI_MAX_RESJIDLEN];
+	char pubsub_node[AJI_MAX_RESJIDLEN];
 	char statusmessage[256];
 	char name_space[256];
 	char sid[10]; /* Session ID */
@@ -170,6 +177,7 @@ struct aji_client {
 	int timeout;
 	int message_timeout;
 	int authorized;
+	int distribute_events;
 	struct ast_flags flags;
 	int component; /* 0 client,  1 component */
 	struct aji_buddy_container buddies;
