@@ -8743,25 +8743,17 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 	oldsin = peer->addr;
 
-	/* Check that they're allowed to register at this IP */
-	/* XXX This could block for a long time XXX */
-	hp = ast_gethostbyname(n, &ahp);
-	if (!hp)  {
-		ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
-		*peer->fullcontact = '\0';
-		ast_string_field_set(pvt, our_contact, "");
-		return PARSE_REGISTER_FAILED;
-	}
-	memcpy(&testsin.sin_addr, hp->h_addr, sizeof(testsin.sin_addr));
-	if (	ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
-			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
-		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL (violating IP %s)\n", n, ast_inet_ntoa(testsin.sin_addr));
-		*peer->fullcontact = '\0';
-		ast_string_field_set(pvt, our_contact, "");
-		return PARSE_REGISTER_DENIED;
-	}
-
 	if (!ast_test_flag(&peer->flags[0], SIP_NAT_ROUTE)) {
+		/* use the data provided in the Contact header for call routing */
+		/* XXX This could block for a long time XXX */
+		hp = ast_gethostbyname(n, &ahp);
+		if (!hp)  {
+			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
+			*peer->fullcontact = '\0';
+			ast_string_field_set(pvt, our_contact, "");
+			return PARSE_REGISTER_FAILED;
+		}
+
 		peer->addr.sin_family = AF_INET;
 		memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
 		peer->addr.sin_port = htons(port);
@@ -8769,6 +8761,16 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		/* Don't trust the contact field.  Just use what they came to us
 		   with */
 		peer->addr = pvt->recv;
+	}
+
+	/* Check that they're allowed to register at this IP */
+	memcpy(&testsin.sin_addr, &peer->addr.sin_addr, sizeof(testsin.sin_addr));
+	if (ast_apply_ha(global_contact_ha, &testsin) != AST_SENSE_ALLOW ||
+			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
+		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL (violating IP %s)\n", n, ast_inet_ntoa(testsin.sin_addr));
+		*peer->fullcontact = '\0';
+		ast_string_field_set(pvt, our_contact, "");
+		return PARSE_REGISTER_DENIED;
 	}
 
 	/* Save SIP options profile */
