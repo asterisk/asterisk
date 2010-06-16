@@ -387,6 +387,7 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
 		}
 	}
 	if ((hp = ast_gethostbyname(value, &ahp))) {
+		sin->sin_family = hp->h_addrtype;
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 	} else {
 		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", value);

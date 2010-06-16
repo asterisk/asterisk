@@ -52,8 +52,6 @@ static pthread_t refresh_thread = AST_PTHREADT_NULL;
 struct ast_dnsmgr_entry {
 	/*! where we will store the resulting IP address and port number */
 	struct sockaddr_in *result;
-	/*! the last result, used to check if address/port has changed */
-	struct sockaddr_in last;
 	/*! SRV record to lookup, if provided. Composed of service, protocol, and domain name: _Service._Proto.Name */
 	char *service;
 	/*! Set to 1 if the entry changes */
@@ -96,7 +94,6 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct sockaddr_in *re
 	entry->result = result;
 	ast_mutex_init(&entry->lock);
 	strcpy(entry->name, name);
-	memcpy(&entry->last, result, sizeof(entry->last));
 	if (service) {
 		entry->service = ((char *) entry) + sizeof(*entry) + strlen(name);
 		strcpy(entry->service, service);
@@ -123,6 +120,9 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 	ast_free(entry);
 }
 
+/* 
+ * Allocate a new DNS manager entry and perform the initial lookup before returning
+ */
 int ast_dnsmgr_lookup(const char *name, struct sockaddr_in *result, struct ast_dnsmgr_entry **dnsmgr, const char *service)
 {
 	if (ast_strlen_zero(name) || !result || !dnsmgr)
@@ -133,8 +133,10 @@ int ast_dnsmgr_lookup(const char *name, struct sockaddr_in *result, struct ast_d
 
 	/* if it's actually an IP address and not a name,
 	   there's no need for a managed lookup */
-	if (inet_aton(name, &result->sin_addr))
+	if (inet_aton(name, &result->sin_addr)) {
+		result->sin_family = AF_INET;
 		return 0;
+		}
 
 	ast_verb(4, "doing dnsmgr_lookup for '%s'\n", name);
 
@@ -164,15 +166,15 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 	if (verbose)
 		ast_verb(3, "refreshing '%s'\n", entry->name);
 
-	tmp.sin_port = entry->last.sin_port;
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.sin_port = entry->result->sin_port;
 	
-	if (!ast_get_ip_or_srv(&tmp, entry->name, entry->service) && inaddrcmp(&tmp, &entry->last)) {
-		ast_copy_string(iabuf, ast_inet_ntoa(entry->last.sin_addr), sizeof(iabuf));
+	if (!ast_get_ip_or_srv(&tmp, entry->name, entry->service) && inaddrcmp(&tmp, entry->result)) {
+		ast_copy_string(iabuf, ast_inet_ntoa(entry->result->sin_addr), sizeof(iabuf));
 		ast_copy_string(iabuf2, ast_inet_ntoa(tmp.sin_addr), sizeof(iabuf2));
 		ast_log(LOG_NOTICE, "dnssrv: host '%s' changed from %s:%d to %s:%d\n", 
-			entry->name, iabuf, ntohs(entry->last.sin_port), iabuf2, ntohs(tmp.sin_port));
+			entry->name, iabuf, ntohs(entry->result->sin_port), iabuf2, ntohs(tmp.sin_port));
 		*entry->result = tmp;
-		entry->last = tmp;
 		changed = entry->changed = 1;
 	}
 
