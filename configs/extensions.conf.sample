@@ -541,7 +541,7 @@ exten => a,n,Return
 ;   ${ARG1} - Device to page
 
 exten => s,1,ChanIsAvail(${ARG1},s)			; s is for ANY call
-exten => s,n,GoToIf([${AVAILSTATUS} = "1"]?autoanswer:fail)
+exten => s,n,GoToIf($[${AVAILSTATUS} = "1"]?autoanswer:fail)
 exten => s,n(autoanswer),Set(_ALERT_INFO="RA")			; This is for the PolyComs
 exten => s,n,SIPAddHeader(Call-Info: Answer-After=0)	; This is for the Grandstream, Snoms, and Others
 exten => s,n,NoOp()					; Add others here and Post on the Wiki!!!!
