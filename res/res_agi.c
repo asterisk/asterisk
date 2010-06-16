@@ -814,9 +814,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			signals a desire to stop (either by exiting or, in the case of a net script, by
 			closing the connection). A locally executed AGI script will receive SIGHUP on
 			hangup from the channel except when using DeadAGI. A fast AGI server will
-			correspondingly receive a HANGUP in OOB data. Both of these signals may be disabled
-			by setting the <variable>AGISIGHUP</variable> channel variable to <literal>no</literal>
-			before executing the AGI application.</para>
+			correspondingly receive a HANGUP inline with the command dialog. Both of theses
+			signals may be disabled by setting the <variable>AGISIGHUP</variable> channel
+			variable to <literal>no</literal> before executing the AGI application.</para>
 			<para>Use the CLI command <literal>agi show commands</literal> to list available agi
 			commands.</para>
 			<para>This application sets the following channel variable upon completion:</para>
@@ -3345,7 +3345,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				if (pid > -1) {
 					kill(pid, SIGHUP);
 				} else if (agi->fast) {
-					send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
+					send(agi->ctrl, "HANGUP\n", 7, 0);
 				}
 			}
 		}
@@ -3443,7 +3443,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			}
 			waitpid(pid, status, WNOHANG);
 		} else if (agi->fast) {
-			send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
+			send(agi->ctrl, "HANGUP\n", 7, 0);
 		}
 	}
 	fclose(readf);

@@ -1468,7 +1468,7 @@ Language Support Changes
 AGI Changes
 -----------
   * Added SPEECH commands for speech recognition. A complete listing can be found
-     using agi show.
+    using agi show.
   * If app_stack is loaded, GOSUB is a native AGI command that may be used to
     invoke subroutines in the dialplan.  Note that calling EXEC with Gosub
     does not behave as expected; the native command needs to be used, instead.
@@ -1477,6 +1477,7 @@ AGI Changes
     of the URI parameter to the AGI function call in your dial plan. Also note
     that specifying a port number in the AGI URI will disable SRV lookups,
     even if you use the hagi: protocol.
+  * No longer support MSG_OOB flag on HANGUP.
 
 Logger changes
 --------------
