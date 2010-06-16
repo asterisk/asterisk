@@ -792,6 +792,7 @@ format_t ast_best_codec(format_t fmts)
 		AST_FORMAT_ULAW,
 		/*! Unless of course, you're a silly European, so then prefer ALAW */
 		AST_FORMAT_ALAW,
+		AST_FORMAT_G719,
 		AST_FORMAT_SIREN14,
 		AST_FORMAT_SIREN7,
 		AST_FORMAT_TESTLAW,

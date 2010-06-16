@@ -1231,6 +1231,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		case AST_FORMAT_G723_1:
 		case AST_FORMAT_SIREN7:
 		case AST_FORMAT_SIREN14:
+		case AST_FORMAT_G719:
 			/* these are all frame-based codecs and cannot be safely run through
 			   a smoother */
 			break;

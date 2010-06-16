@@ -122,6 +122,7 @@ static const struct ast_rtp_mime_type {
 	{{1, AST_FORMAT_T140}, "text", "T140", 1000},
 	{{1, AST_FORMAT_SIREN7}, "audio", "G7221", 16000},
 	{{1, AST_FORMAT_SIREN14}, "audio", "G7221", 32000},
+	{{1, AST_FORMAT_G719}, "audio", "G719", 48000},
 };
 
 /*!
@@ -169,6 +170,7 @@ static const struct ast_rtp_payload_type static_RTP_PT[AST_RTP_MAX_PT] = {
 	[111] = {1, AST_FORMAT_G726},
 	[112] = {1, AST_FORMAT_G726_AAL2},
 	[115] = {1, AST_FORMAT_SIREN14},
+	[116] = {1, AST_FORMAT_G719},
 	[121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 

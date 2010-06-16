@@ -316,6 +316,7 @@ static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
                      ~AST_FORMAT_SLINEAR16 &    \
                      ~AST_FORMAT_SIREN7 &       \
                      ~AST_FORMAT_SIREN14 &      \
+                     ~AST_FORMAT_G719 &         \
                      ~AST_FORMAT_ULAW &         \
                      ~AST_FORMAT_ALAW &         \
                      ~AST_FORMAT_G722)

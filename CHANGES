@@ -67,6 +67,7 @@ SIP Changes
    to each other
  * Added the 'snom_aoc_enabled' option to turn on support for sending Advice of
    Charge messages to snom phones.
+ * Added support for G.719 media streams.
 
 IAX2 Changes
 -----------
@@ -498,6 +499,8 @@ Miscellaneous
    significant increase in performance (about 3X) for installations using this switchtype.
  * Distributed devicestate now supports the use of the XMPP protocol, in addition to
    AIS.  For more information, please see doc/distributed_devstate-XMPP.txt
+ * The addition of G.719 pass-through support.
+
 
 CLI Changes
 -----------

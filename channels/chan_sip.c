@@ -8520,6 +8520,15 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 					}
 				}
 				break;
+			case AST_FORMAT_G719:
+				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
+					if (bit_rate != 64000) {
+						ast_log(LOG_WARNING, "Got G.719 offer at %d bps, but only 64000 bps supported; ignoring.\n", bit_rate);
+						ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
+					} else {
+						found = TRUE;
+					}
+				}
 			}
 		}
 	}
@@ -9770,6 +9779,10 @@ static void add_codec_to_sdp(const struct sip_pvt *p, format_t codec,
 	case AST_FORMAT_SIREN14:
 		/* Indicate that we only expect 48Kbps */
 		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=48000\r\n", rtp_code);
+		break;
+	case AST_FORMAT_G719:
+		/* Indicate that we only expect 64Kbps */
+		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=64000\r\n", rtp_code);
 		break;
 	}
 

@@ -294,6 +294,8 @@ extern struct ast_frame ast_null_frame;
 /*! Maximum text mask */
 #define AST_FORMAT_MAX_TEXT   (1ULL << 28)
 #define AST_FORMAT_TEXT_MASK  (((1ULL << 30)-1) & ~(AST_FORMAT_AUDIO_MASK) & ~(AST_FORMAT_VIDEO_MASK))
+/*! G.719 (64 kbps assumed) */
+#define AST_FORMAT_G719	      (1ULL << 32)
 /*! Raw mu-law data (G.711) */
 #define AST_FORMAT_TESTLAW       (1ULL << 47)
 /*! Reserved bit - do not use */
@@ -746,6 +748,8 @@ static force_inline int ast_format_rate(format_t format)
 		return 16000;
 	case AST_FORMAT_SIREN14:
 		return 32000;
+	case AST_FORMAT_G719:
+		return 48000;
 	default:
 		return 8000;
 	}

@@ -120,6 +120,7 @@ static const struct ast_format_list AST_FORMAT_LIST[] = {
 	{ AST_FORMAT_SIREN7, "siren7", 16000, "ITU G.722.1 (Siren7, licensed from Polycom)", 80, 20, 80, 20, 20 },			/*!< Binary commercial distribution */
 	{ AST_FORMAT_SIREN14, "siren14", 32000, "ITU G.722.1 Annex C, (Siren14, licensed from Polycom)", 120, 20, 80, 20, 20 },	/*!< Binary commercial distribution */
 	{ AST_FORMAT_TESTLAW, "testlaw", 8000, "G.711 test-law", 80, 10, 150, 10, 20 },                                 /*!< codec_ulaw.c */
+	{ AST_FORMAT_G719, "g719", 48000, "ITU G.719", 160, 20, 80, 20, 20 },
 };
 
 struct ast_frame ast_null_frame = { AST_FRAME_NULL, };
@@ -1491,6 +1492,10 @@ int ast_codec_get_samples(struct ast_frame *f)
 		/* 32,000 samples per second at 48kbps is 6,000 bytes per second */
 		samples = (int) f->datalen * ((float) 32000 / 6000);
 		break;
+	case AST_FORMAT_G719:
+		/* 48,000 samples per second at 64kbps is 8,000 bytes per second */
+		samples = (int) f->datalen * ((float) 48000 / 8000);
+		break;
 	default:
 		ast_log(LOG_WARNING, "Unable to calculate samples for format %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), f->subclass.codec));
 	}
@@ -1537,6 +1542,10 @@ int ast_codec_get_len(format_t format, int samples)
 	case AST_FORMAT_SIREN14:
 		/* 32,000 samples per second at 48kbps is 6,000 bytes per second */
 		len = (int) samples / ((float) 32000 / 6000);
+		break;
+	case AST_FORMAT_G719:
+		/* 48,000 samples per second at 64kbps is 8,000 bytes per second */
+		len = (int) samples / ((float) 48000 / 8000);
 		break;
 	default:
 		ast_log(LOG_WARNING, "Unable to calculate sample length for format %s\n", ast_getformatname(format));
