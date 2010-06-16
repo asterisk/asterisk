@@ -340,8 +340,9 @@ static char *descrip =
 "or, in the case of a net script, by closing the connection).\n"
 "  A locally executed AGI script will receive SIGHUP on hangup from the channel\n"
 "except when using DeadAGI. A fast AGI server will correspondingly receive a\n"
-"HANGUP in OOB data. Both of these signals may be disabled by setting the\n"
-"AGISIGHUP channel variable to \"no\" before executing the AGI application.\n"
+"HANGUP inline with the command dialog. Both of these signals may be disabled\n"
+"by setting the AGISIGHUP channel variable to \"no\" before executing the AGI\n"
+"application.\n"
 "  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3.\n\n"
 "  Use the CLI command 'agi show commands' to list available agi commands.\n"
@@ -2888,7 +2889,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				if (pid > -1) {
 					kill(pid, SIGHUP);
 				} else if (agi->fast) {
-					send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
+					send(agi->ctrl, "HANGUP\n", 7, 0);
 				}
 			}
 		}
@@ -2986,7 +2987,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			}
 			waitpid(pid, status, WNOHANG);
 		} else if (agi->fast) {
-			send(agi->ctrl, "HANGUP\n", 7, MSG_OOB);
+			send(agi->ctrl, "HANGUP\n", 7, 0);
 		}
 	}
 	fclose(readf);
