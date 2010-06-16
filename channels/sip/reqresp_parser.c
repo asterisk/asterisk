@@ -516,6 +516,10 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 	/* test 5 is for NULL input */
 	char uri6[] = "sip:name:secret@host:port;transport=tcp?headers=%40%40testblah&headers2=blah%20blah";
 	char uri7[] = "sip:name:secret@host:port;transport=tcp?headers=%40%40testblah&headers2=blah%20blah";
+	char uri8[] = "sip:host";
+	char uri9[] = "sip:host:port;transport=tcp?headers=%40%40testblah&headers2=blah%20blah";
+	char uri10[] = "host:port;transport=tcp?headers=%40%40testblah&headers2=blah%20blah";
+	char uri11[] = "host";
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -601,6 +605,56 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 		ast_test_status_update(test, "Test 7: providing no port and secret output parameters failed.\n");
 		res = AST_TEST_FAIL;
 	}
+
+	/* Test 8, verify parse_uri can handle a domain only uri */
+	name = pass = domain = port = transport = NULL;
+	if (parse_uri(uri8, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
+			strcmp(domain, "host") ||
+			!ast_strlen_zero(name)) {
+		ast_test_status_update(test, "Test 8: add port and unparsed header field failed.\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 9, add port and unparsed header field with domain only uri*/
+	name = pass = domain = port = transport = NULL;
+	if (parse_uri(uri9, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
+			!ast_strlen_zero(name)        ||
+			!ast_strlen_zero(pass)      ||
+			strcmp(domain, "host")    ||
+			strcmp(port, "port")      ||
+			strcmp(transport, "tcp")) {
+		ast_test_status_update(test, "Test 9: domain only uri failed \n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 10, handle invalid/missing "sip:,sips:" scheme
+	 * we expect parse_uri to return an error, but still parse
+	 * the results correctly here */
+	name = pass = domain = port = transport = NULL;
+	if (!parse_uri(uri10, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
+			!ast_strlen_zero(name)        ||
+			!ast_strlen_zero(pass)      ||
+			strcmp(domain, "host")    ||
+			strcmp(port, "port")      ||
+			strcmp(transport, "tcp")) {
+		ast_test_status_update(test, "Test 10: missing \"sip:sips:\" scheme failed\n");
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 11, simple domain only URI with missing scheme
+	 * we expect parse_uri to return an error, but still parse
+	 * the results correctly here */
+	name = pass = domain = port = transport = NULL;
+	if (!parse_uri(uri11, "sip:,sips:", &name, &pass, &domain, &port, &transport) ||
+			!ast_strlen_zero(name)      ||
+			!ast_strlen_zero(pass)      ||
+			strcmp(domain, "host")      ||
+			!ast_strlen_zero(port)      ||
+			!ast_strlen_zero(transport)) {
+		ast_test_status_update(test, "Test 11: simple uri with missing scheme failed. \n");
+		res = AST_TEST_FAIL;
+	}
+
 	return res;
 }
 
