@@ -2790,7 +2790,9 @@ static int function_agent(struct ast_channel *chan, char *cmd, char *data, char 
 		ast_copy_string(buf, agent->moh, len);
 	else if (!strcasecmp(args.item, "channel")) {
 		if (agent->chan) {
+			ast_channel_lock(agent->chan);
 			ast_copy_string(buf, agent->chan->name, len);
+			ast_channel_unlock(agent->chan);
 			tmp = strrchr(buf, '-');
 			if (tmp)
 				*tmp = '\0';
