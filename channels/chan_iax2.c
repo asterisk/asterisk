@@ -9394,6 +9394,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			memcpy(&thread->ffinfo.sin, &thread->iosin, sizeof(thread->ffinfo.sin));
 			thread->ffinfo.type = fh->type;
 			thread->ffinfo.csub = fh->csub;
+			AST_LIST_INSERT_HEAD(&active_list, thread, list);
 		}
 		AST_LIST_UNLOCK(&active_list);
 	}
@@ -11447,11 +11448,6 @@ static void *iax2_process_thread(void *data)
 		if (thread->iostate == IAX_IOSTATE_IDLE)
 			continue;
 
-		/* Add ourselves to the active list now */
-		AST_LIST_LOCK(&active_list);
-		AST_LIST_INSERT_HEAD(&active_list, thread, list);
-		AST_LIST_UNLOCK(&active_list);
-
 		/* See what we need to do */
 		switch(thread->iostate) {
 		case IAX_IOSTATE_READY:
@@ -11475,7 +11471,9 @@ static void *iax2_process_thread(void *data)
 		thread->curfunc[0]='\0';
 #endif		
 
-		/* Now... remove ourselves from the active list, and return to the idle list */
+		/* The network thread added us to the active_thread list when we were given
+		 * frames to process, Now that we are done, we must remove ourselves from
+		 * the active list, and return to the idle list */
 		AST_LIST_LOCK(&active_list);
 		AST_LIST_REMOVE(&active_list, thread, list);
 		AST_LIST_UNLOCK(&active_list);
