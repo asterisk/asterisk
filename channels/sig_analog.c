@@ -951,7 +951,6 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 		}
 
 		if (p->use_callerid) {
-			p->callwaitcas = 0;
 			p->cid.cid_name = p->lastcid_name;
 			p->cid.cid_num = p->lastcid_num;
 		}
