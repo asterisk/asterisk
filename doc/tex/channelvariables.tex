@@ -288,7 +288,7 @@ with equal precedence are grouped within \{ \} symbols.
        Exactly the same as the ':' operator, except that the match is
        not anchored to the beginning of the string. Pardon any similarity
        to seemingly similar operators in other programming languages!
-       The ":" and "=\~" operators share the same precedence.
+       The ":" and "=\verb!~!" operators share the same precedence.
 
    \item \verb!expr1 ? expr2 :: expr3!
 
@@ -649,11 +649,11 @@ of possible concern with "legacy" extension.conf files:
     Basically, if the string or number is null, empty, or '0',
     a '1' is returned. Otherwise a '0' is returned.
 
-\item  Added the '=~' operator, just in case someone is just looking for
+\item  Added the '=\verb!~!' operator, just in case someone is just looking for
     match anywhere in the string. The only diff with the ':' is that
     match doesn't have to be anchored to the beginning of the string.
 
-\item  Added the conditional operator  'expr1 ? true\_expr : false\_expr'
+\item  Added the conditional operator  'expr1 ? true\_expr :: false\_expr'
     First, all 3 exprs are evaluated, and if expr1 is false, the 'false\_expr'
     is returned as the result. See above for details.
 
