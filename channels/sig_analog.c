@@ -1407,7 +1407,7 @@ void analog_handle_dtmfup(struct analog_pvt *p, struct ast_channel *ast, enum an
 	}
 	if (p->callwaitcas) {
 		if ((f->subclass.integer == 'A') || (f->subclass.integer == 'D')) {
-			ast_log(LOG_ERROR, "Got some DTMF, but it's for the CAS\n");
+			ast_debug(1, "Got some DTMF, but it's for the CAS\n");
 			p->cid.cid_name = p->callwait_name;
 			p->cid.cid_num = p->callwait_num;
 			analog_send_callerid(p, 1, &p->cid);
