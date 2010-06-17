@@ -97,12 +97,11 @@ struct speex_coder_pvt {
 #endif
 };
 
-
-static int lintospeex_new(struct ast_trans_pvt *pvt)
+static int speex_encoder_construct(struct ast_trans_pvt *pvt, const SpeexMode *profile, int sampling_rate)
 {
 	struct speex_coder_pvt *tmp = pvt->pvt;
 
-	if (!(tmp->speex = speex_encoder_init(&speex_nb_mode)))
+	if (!(tmp->speex = speex_encoder_init(profile)))
 		return -1;
 
 	speex_bits_init(&tmp->bits);
@@ -111,7 +110,7 @@ static int lintospeex_new(struct ast_trans_pvt *pvt)
 	speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
 #ifdef _SPEEX_TYPES_H
 	if (preproc) {
-		tmp->pp = speex_preprocess_state_init(tmp->framesize, 8000); /* XXX what is this 8000 ? */
+		tmp->pp = speex_preprocess_state_init(tmp->framesize, sampling_rate);
 		speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_VAD, &pp_vad);
 		speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC, &pp_agc);
 		speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC_LEVEL, &pp_agc_level);
@@ -139,11 +138,21 @@ static int lintospeex_new(struct ast_trans_pvt *pvt)
 	return 0;
 }
 
-static int speextolin_new(struct ast_trans_pvt *pvt)
+static int lintospeex_new(struct ast_trans_pvt *pvt)
+{
+	return speex_encoder_construct(pvt, &speex_nb_mode, 8000);
+}
+
+static int lin16tospeexwb_new(struct ast_trans_pvt *pvt)
+{
+	return speex_encoder_construct(pvt, &speex_wb_mode, 16000);
+}
+
+static int speex_decoder_construct(struct ast_trans_pvt *pvt, const SpeexMode *profile)
 {
 	struct speex_coder_pvt *tmp = pvt->pvt;
 	
-	if (!(tmp->speex = speex_decoder_init(&speex_nb_mode)))
+	if (!(tmp->speex = speex_decoder_init(profile)))
 		return -1;
 
 	speex_bits_init(&tmp->bits);
@@ -152,6 +161,16 @@ static int speextolin_new(struct ast_trans_pvt *pvt)
 		speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
 
 	return 0;
+}
+
+static int speextolin_new(struct ast_trans_pvt *pvt)
+{
+	return speex_decoder_construct(pvt, &speex_nb_mode);
+}
+
+static int speexwbtolin16_new(struct ast_trans_pvt *pvt)
+{
+	return speex_decoder_construct(pvt, &speex_wb_mode);
 }
 
 /*! \brief convert and store into outbuf */
@@ -337,6 +356,34 @@ static struct ast_translator lintospeex = {
 	.buf_size = BUFFER_SAMPLES * 2, /* XXX maybe a lot less ? */
 };
 
+static struct ast_translator speexwbtolin16 = {
+	.name = "speexwbtolin16", 
+	.srcfmt = AST_FORMAT_SPEEX16,
+	.dstfmt =  AST_FORMAT_SLINEAR16,
+	.newpvt = speexwbtolin16_new,
+	.framein = speextolin_framein,
+	.destroy = speextolin_destroy,
+	.sample = speex_sample,
+	.desc_size = sizeof(struct speex_coder_pvt),
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES * 2,
+	.native_plc = 1,
+};
+
+static struct ast_translator lin16tospeexwb = {
+	.name = "lin16tospeexwb", 
+	.srcfmt = AST_FORMAT_SLINEAR16,
+	.dstfmt = AST_FORMAT_SPEEX16,
+	.newpvt = lin16tospeexwb_new,
+	.framein = lintospeex_framein,
+	.frameout = lintospeex_frameout,
+	.destroy = lintospeex_destroy,
+	.sample = slin8_sample,
+	.desc_size = sizeof(struct speex_coder_pvt),
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES * 2, /* XXX maybe a lot less ? */
+};
+
 static int parse_config(int reload) 
 {
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
@@ -441,28 +488,29 @@ static int reload(void)
 
 static int unload_module(void)
 {
-	int res;
+	int res = 0;
 
-	res = ast_unregister_translator(&lintospeex);
 	res |= ast_unregister_translator(&speextolin);
+	res |= ast_unregister_translator(&lintospeex);
+	res |= ast_unregister_translator(&speexwbtolin16);
+	res |= ast_unregister_translator(&lin16tospeexwb);
 
 	return res;
 }
 
 static int load_module(void)
 {
-	int res;
+	int res = 0;
 
 	if (parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
-	res=ast_register_translator(&speextolin);
-	if (!res) 
-		res=ast_register_translator(&lintospeex);
-	else
-		ast_unregister_translator(&speextolin);
-	if (res)
-		return AST_MODULE_LOAD_FAILURE;
-	return AST_MODULE_LOAD_SUCCESS;
+
+	res |= ast_register_translator(&speextolin);
+	res |= ast_register_translator(&lintospeex);
+	res |= ast_register_translator(&speexwbtolin16);
+	res |= ast_register_translator(&lin16tospeexwb);
+
+	return res;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Speex Coder/Decoder",

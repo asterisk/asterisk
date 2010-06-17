@@ -500,6 +500,8 @@ Miscellaneous
  * Distributed devicestate now supports the use of the XMPP protocol, in addition to
    AIS.  For more information, please see doc/distributed_devstate-XMPP.txt
  * The addition of G.719 pass-through support.
+ * Added support for 16khz Speex audio.  This can be enabled by using 'allow=speex16'
+   during device configuration.
 
 
 CLI Changes

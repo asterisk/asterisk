@@ -102,6 +102,7 @@ static const struct ast_rtp_mime_type {
 	{{1, AST_FORMAT_G729A}, "audio", "G729A", 8000},
 	{{1, AST_FORMAT_G729A}, "audio", "G.729", 8000},
 	{{1, AST_FORMAT_SPEEX}, "audio", "speex", 8000},
+	{{1, AST_FORMAT_SPEEX16}, "audio", "speex", 16000},
 	{{1, AST_FORMAT_ILBC}, "audio", "iLBC", 8000},
 	/* this is the sample rate listed in the RTP profile for the G.722
 	              codec, *NOT* the actual sample rate of the media stream
@@ -171,6 +172,7 @@ static const struct ast_rtp_payload_type static_RTP_PT[AST_RTP_MAX_PT] = {
 	[112] = {1, AST_FORMAT_G726_AAL2},
 	[115] = {1, AST_FORMAT_SIREN14},
 	[116] = {1, AST_FORMAT_G719},
+	[117] = {1, AST_FORMAT_SPEEX16},
 	[121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 

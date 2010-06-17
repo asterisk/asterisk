@@ -296,8 +296,10 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_TEXT_MASK  (((1ULL << 30)-1) & ~(AST_FORMAT_AUDIO_MASK) & ~(AST_FORMAT_VIDEO_MASK))
 /*! G.719 (64 kbps assumed) */
 #define AST_FORMAT_G719	      (1ULL << 32)
+/*! SpeeX Wideband (16kHz) Free Compression */
+#define AST_FORMAT_SPEEX16    (1ULL << 33)
 /*! Raw mu-law data (G.711) */
-#define AST_FORMAT_TESTLAW       (1ULL << 47)
+#define AST_FORMAT_TESTLAW    (1ULL << 47)
 /*! Reserved bit - do not use */
 #define AST_FORMAT_RESERVED   (1ULL << 63)
 
@@ -745,6 +747,7 @@ static force_inline int ast_format_rate(format_t format)
 	case AST_FORMAT_G722:
 	case AST_FORMAT_SLINEAR16:
 	case AST_FORMAT_SIREN7:
+	case AST_FORMAT_SPEEX16:
 		return 16000;
 	case AST_FORMAT_SIREN14:
 		return 32000;

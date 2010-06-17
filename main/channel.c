@@ -813,6 +813,7 @@ format_t ast_best_codec(format_t fmts)
 		/*! iLBC is not too bad */
 		AST_FORMAT_ILBC,
 		/*! Speex is free, but computationally more expensive than GSM */
+		AST_FORMAT_SPEEX16,
 		AST_FORMAT_SPEEX,
 		/*! Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
 		    to use it */
