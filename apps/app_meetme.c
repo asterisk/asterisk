@@ -166,7 +166,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="T">
 						<para>Set talker detection (sent to manager interface and meetme list).</para>
 					</option>
-					<option name="W" hasparams="optional">
+					<option name="w" hasparams="optional">
 						<para>Wait until the marked user enters the conference.</para>
 						<argument name="secs" required="true" />
 					</option>
