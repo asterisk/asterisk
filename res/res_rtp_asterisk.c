@@ -2230,7 +2230,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	if (rtp->f.subclass.codec & AST_FORMAT_AUDIO_MASK) {
 		rtp->f.samples = ast_codec_get_samples(&rtp->f);
-		if (rtp->f.subclass.codec == AST_FORMAT_SLINEAR)
+		if (rtp->f.subclass.codec == AST_FORMAT_SLINEAR || AST_FORMAT_SLINEAR16)
 			ast_frame_byteswap_be(&rtp->f);
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
 		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */

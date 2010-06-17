@@ -68,6 +68,7 @@ SIP Changes
  * Added the 'snom_aoc_enabled' option to turn on support for sending Advice of
    Charge messages to snom phones.
  * Added support for G.719 media streams.
+ * Added support for 16khz signed linear media streams.
 
 IAX2 Changes
 -----------

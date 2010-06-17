@@ -97,6 +97,7 @@ static const struct ast_rtp_mime_type {
 	{{1, AST_FORMAT_G726}, "audio", "G726-32", 8000},
 	{{1, AST_FORMAT_ADPCM}, "audio", "DVI4", 8000},
 	{{1, AST_FORMAT_SLINEAR}, "audio", "L16", 8000},
+	{{1, AST_FORMAT_SLINEAR16}, "audio", "L16", 16000},
 	{{1, AST_FORMAT_LPC10}, "audio", "LPC", 8000},
 	{{1, AST_FORMAT_G729A}, "audio", "G729", 8000},
 	{{1, AST_FORMAT_G729A}, "audio", "G729A", 8000},
@@ -165,15 +166,16 @@ static const struct ast_rtp_payload_type static_RTP_PT[AST_RTP_MAX_PT] = {
 	[102] = {1, AST_FORMAT_SIREN7},
 	[103] = {1, AST_FORMAT_H263_PLUS},
 	[104] = {1, AST_FORMAT_MP4_VIDEO},
-	[105] = {1, AST_FORMAT_T140RED},        /* Real time text chat (with redundancy encoding) */
-	[106] = {1, AST_FORMAT_T140},   /* Real time text chat */
+	[105] = {1, AST_FORMAT_T140RED},   /* Real time text chat (with redundancy encoding) */
+	[106] = {1, AST_FORMAT_T140},      /* Real time text chat */
 	[110] = {1, AST_FORMAT_SPEEX},
 	[111] = {1, AST_FORMAT_G726},
 	[112] = {1, AST_FORMAT_G726_AAL2},
 	[115] = {1, AST_FORMAT_SIREN14},
 	[116] = {1, AST_FORMAT_G719},
 	[117] = {1, AST_FORMAT_SPEEX16},
-	[121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
+	[118] = {1, AST_FORMAT_SLINEAR16}, /* 16 Khz signed linear */
+	[121] = {0, AST_RTP_CISCO_DTMF},   /* Must be type 121 */
 };
 
 int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *module)
