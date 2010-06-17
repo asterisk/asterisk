@@ -991,7 +991,6 @@ int get_in_brackets_full(char *tmp,char **out,char **residue)
 		*residue = "";
 	}
 
-
 	if (ast_strlen_zero(tmp)) {
 		return 1;
 	}
@@ -1043,17 +1042,18 @@ int get_in_brackets_full(char *tmp,char **out,char **residue)
 	if (out) {
 		*out = tmp;
 	}
+
 	return 1;
 }
 
 char *get_in_brackets(char *tmp)
 {
 	char *out;
-	if((get_in_brackets_full(tmp, &out, NULL))) {
-	return tmp;
-	} else {
-		return out;
-}
+
+	if ((get_in_brackets_full(tmp, &out, NULL))) {
+		return tmp;
+	}
+	return out;
 }
 
 AST_TEST_DEFINE(get_in_brackets_test)
