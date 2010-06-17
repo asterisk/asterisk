@@ -2816,6 +2816,9 @@ static const char *referstatus2str(enum referstatus rstatus)
 
 static inline void pvt_set_needdestroy(struct sip_pvt *pvt, const char *reason)
 {
+	if (pvt->final_destruction_scheduled) {
+		return; /* This is already scheduled for final destruction, let the scheduler take care of it. */
+	}
 	append_history(pvt, "NeedDestroy", "Setting needdestroy because %s", reason);
 	pvt->needdestroy = 1;
 }
@@ -3564,9 +3567,28 @@ static int __sip_autodestruct(const void *data)
 	return 0;
 }
 
+/*! \brief Schedule final destruction of SIP dialog.  This can not be canceled.
+ *  This function is used to keep a dialog around for a period of time in order
+ *  to properly respond to any retransmits. */
+void sip_scheddestroy_final(struct sip_pvt *p, int ms)
+{
+	if (p->final_destruction_scheduled) {
+		return; /* already set final destruction */
+	}
+
+	sip_scheddestroy(p, ms);
+	if (p->autokillid != -1) {
+		p->final_destruction_scheduled = 1;
+	}
+}
+
 /*! \brief Schedule destruction of SIP dialog */
 void sip_scheddestroy(struct sip_pvt *p, int ms)
 {
+	if (p->final_destruction_scheduled) {
+		return; /* already set final destruction */
+	}
+
 	if (ms < 0) {
 		if (p->timer_t1 == 0) {
 			p->timer_t1 = global_t1;	/* Set timer T1 if not set (RFC 3261) */
@@ -3596,6 +3618,11 @@ void sip_scheddestroy(struct sip_pvt *p, int ms)
 int sip_cancel_destroy(struct sip_pvt *p)
 {
 	int res = 0;
+
+	if (p->final_destruction_scheduled) {
+		return res;
+	}
+
 	if (p->autokillid > -1) {
 		int res3;
 
@@ -5675,8 +5702,6 @@ static int sip_hangup(struct ast_channel *ast)
 			update_call_counter(p, DEC_CALL_LIMIT);
 		}
 		ast_debug(4, "SIP Transfer: Not hanging up right now... Rescheduling hangup for %s.\n", p->callid);
-		if (p->autokillid > -1 && sip_cancel_destroy(p))
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		p->needdestroy = 0;
@@ -13006,8 +13031,6 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	switch(state) {
 	case AST_EXTENSION_DEACTIVATED:	/* Retry after a while */
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
-		if (p->autokillid > -1 && sip_cancel_destroy(p))	/* Remove subscription expiry for renewals */
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);	/* Delete subscription in 32 secs */
 		ast_verb(2, "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
@@ -21976,9 +21999,10 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	} else if (p->owner) {
 		ast_set_hangupsource(p->owner, p->owner->name, 0);
 		ast_queue_hangup(p->owner);
+		sip_scheddestroy_final(p, DEFAULT_TRANS_TIMEOUT);
 		ast_debug(3, "Received bye, issuing owner hangup\n");
 	} else {
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		sip_scheddestroy_final(p, DEFAULT_TRANS_TIMEOUT);
 		ast_debug(3, "Received bye, no owner, selfdestruct soon.\n");
 	}
 	ast_clear_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);

@@ -952,8 +952,10 @@ struct sip_pvt {
 
 	/* boolean flags that don't belong in flags */
 	unsigned short do_history:1;          /*!< Set if we want to record history */
-	unsigned short alreadygone:1;         /*!< already destroyed by our peer */
-	unsigned short needdestroy:1;         /*!< need to be destroyed by the monitor thread */
+	unsigned short alreadygone:1;         /*!< the peer has sent a message indicating termination of the dialog */
+	unsigned short needdestroy:1;         /*!< this dialog needs to be destroyed by the monitor thread */
+	unsigned short final_destruction_scheduled:1; /*!< final dialog destruction is scheduled. Keep dialog
+	                                               *   around until then to handle retransmits. */
 	unsigned short outgoing_call:1;       /*!< this is an outgoing call */
 	unsigned short answered_elsewhere:1;  /*!< This call is cancelled due to answer on another channel */
 	unsigned short novideo:1;             /*!< Didn't get video in invite, don't offer */
