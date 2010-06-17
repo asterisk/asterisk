@@ -55,8 +55,6 @@ static pthread_t refresh_thread = AST_PTHREADT_NULL;
 struct ast_dnsmgr_entry {
 	/*! where we will store the resulting address */
 	struct in_addr *result;
-	/*! the last result, used to check if address has changed */
-	struct in_addr last;
 	/*! Set to 1 if the entry changes */
 	int changed:1;
 	ast_mutex_t lock;
@@ -96,7 +94,6 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result
 	entry->result = result;
 	ast_mutex_init(&entry->lock);
 	strcpy(entry->name, name);
-	memcpy(&entry->last, result, sizeof(entry->last));
 
 	AST_LIST_LOCK(&entry_list);
 	AST_LIST_INSERT_HEAD(&entry_list, entry, list);
@@ -172,13 +169,12 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 	if ((hp = ast_gethostbyname(entry->name, &ahp))) {
 		/* check to see if it has changed, do callback if requested (where de callback is defined ????) */
 		memcpy(&tmp, hp->h_addr, sizeof(tmp));
-		if (tmp.s_addr != entry->last.s_addr) {
-			ast_copy_string(iabuf, ast_inet_ntoa(entry->last), sizeof(iabuf));
+		if (tmp.s_addr != entry->result->s_addr) {
+			ast_copy_string(iabuf, ast_inet_ntoa(*entry->result), sizeof(iabuf));
 			ast_copy_string(iabuf2, ast_inet_ntoa(tmp), sizeof(iabuf2));
 			ast_log(LOG_NOTICE, "host '%s' changed from %s to %s\n", 
 				entry->name, iabuf, iabuf2);
 			memcpy(entry->result, hp->h_addr, sizeof(entry->result));
-			memcpy(&entry->last, hp->h_addr, sizeof(entry->last));
 			changed = entry->changed = 1;
 		} 
 		
