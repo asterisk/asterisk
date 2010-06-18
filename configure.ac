@@ -422,6 +422,20 @@ if test "${ac_cv_pthread_once_needsbraces}" = "yes"; then
   AC_DEFINE([PTHREAD_ONCE_INIT_NEEDS_BRACES], 1, [Define if your system needs braces around PTHREAD_ONCE_INIT])
 fi
 
+# Can we compare a mutex to its initial value?
+# Generally yes on OpenBSD/FreeBSD and no on Mac OS X.
+AC_MSG_CHECKING(whether we can compare a mutex to its initial value)
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([#include <pthread.h>], [pthread_mutex_t lock;
+	if ((lock) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+		return 0;
+	}
+	return 0]),
+	AC_MSG_RESULT(yes)
+	AC_DEFINE([CAN_COMPARE_MUTEX_TO_INIT_VALUE], 1, [Define to 1 if the implementation of mutexes supports comparison of a mutex to its initializer.]),
+	AC_MSG_RESULT(no)
+)
+
 AC_MSG_CHECKING(for compiler atomic operations)
 AC_LINK_IFELSE(
 AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),
