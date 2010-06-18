@@ -332,10 +332,6 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	if ((res = pthread_mutex_destroy(&t->mutex)))
 		__ast_mutex_logger("%s line %d (%s): Error destroying mutex %s: %s\n",
 				   filename, lineno, func, mutex_name, strerror(res));
-#ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-	else
-		t->mutex = PTHREAD_MUTEX_INIT_VALUE;
-#endif
 	ast_reentrancy_lock(t);
 	t->file[0] = filename;
 	t->lineno[0] = lineno;
