@@ -95,7 +95,7 @@ struct ael_extension *new_exten(void);
 void destroy_extensions(struct ael_extension *exten);
 void set_priorities(struct ael_extension *exten);
 void add_extensions(struct ael_extension *exten);
-void ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *local_table, struct pval *root);
+int ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *local_table, struct pval *root);
 void destroy_pval(pval *item);
 void destroy_pval_item(pval *item);
 int is_float(char *arg );
@@ -137,7 +137,11 @@ static int pbx_load_module(void)
 	if (errs == 0 && sem_err == 0) {
 		ast_log(LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
 		local_table = ast_hashtab_create(11, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
-		ast_compile_ael2(&local_contexts, local_table, parse_tree);
+		if (ast_compile_ael2(&local_contexts, local_table, parse_tree)) {
+			ast_log(LOG_ERROR, "AEL compile failed! Aborting.\n");
+			destroy_pval(parse_tree); /* free up the memory */
+			return AST_MODULE_LOAD_DECLINE;
+		}
 		ast_log(LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
 		
 		ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
