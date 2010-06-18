@@ -406,10 +406,10 @@ enum file_action {
  * if fmt is NULL, OPEN will return the first matching entry,
  * whereas other functions will run on all matching entries.
  */
-static int ast_filehelper(const char *filename, const void *arg2, const char *fmt, const enum file_action action)
+static format_t ast_filehelper(const char *filename, const void *arg2, const char *fmt, const enum file_action action)
 {
 	struct ast_format *f;
-	int res = (action == ACTION_EXISTS) ? 0 : -1;
+	format_t res = (action == ACTION_EXISTS) ? 0 : -1;
 
 	AST_RWLIST_RDLOCK(&formats);
 	/* Check for a specific format */
@@ -529,7 +529,7 @@ static int is_absolute_path(const char *filename)
 	return filename[0] == '/';
 }
 
-static int fileexists_test(const char *filename, const char *fmt, const char *lang,
+static format_t fileexists_test(const char *filename, const char *fmt, const char *lang,
 			   char *buf, int buflen)
 {
 	if (buf == NULL) {
@@ -563,10 +563,10 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
  * The last parameter(s) point to a buffer of sufficient size,
  * which on success is filled with the matching filename.
  */
-static int fileexists_core(const char *filename, const char *fmt, const char *preflang,
+static format_t fileexists_core(const char *filename, const char *fmt, const char *preflang,
 			   char *buf, int buflen)
 {
-	int res = -1;
+	format_t res = -1;
 	char *lang;
 
 	if (buf == NULL) {
@@ -625,7 +625,8 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	 * language and format, set up a suitable translator,
 	 * and open the stream.
 	 */
-	int fmts, res, buflen;
+	format_t fmts, res;
+	int buflen;
 	char *buf;
 
 	if (!asis) {
