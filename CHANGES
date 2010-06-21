@@ -162,6 +162,9 @@ Applications
    retrieve state for a particular bridge, where <name> is the conference name
  * app_directory now allows exiting at any time using the operator or pound key.
  * Voicemail now supports setting a locale per-mailbox.
+ * Two new applications are provided for declining counting phrases in multiple
+   languages.  See the application notes for SayCountedNoun and SayCountedAdj for
+   more information.
 
 Dialplan Functions
 ------------------
