@@ -14445,8 +14445,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      struct sockaddr_in *sin, struct sip_peer **authpeer)
 {
 	char from[256] = { 0, };
-	char *dummy;	/* dummy return value for parse_uri */
-	char *domain;	/* dummy return value for parse_uri */
+	char *dummy = NULL;	/* dummy return value for parse_uri */
+	char *domain = NULL;	/* dummy return value for parse_uri */
 	char *of;
 	enum check_auth_result res = AUTH_DONT_KNOW;
 	char calleridname[50];

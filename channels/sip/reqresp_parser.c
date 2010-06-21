@@ -759,6 +759,11 @@ const char *get_calleridname(const char *input, char *output, size_t outputsize)
 			}
 		}
 
+		if (*input != '<') {   /* if we never found the start of addr-spec then this is invalid */
+			*orig_output = '\0';
+			return orig_input;
+		}
+
 		/* set NULL while trimming trailing whitespace */
 		do {
 			*output-- = '\0';
@@ -776,6 +781,7 @@ AST_TEST_DEFINE(get_calleridname_test)
 	const char *overflow1 = " \"quoted-text overflow 1234567890123456789012345678901234567890\" <stuff>";
 	const char *noendquote = " \"quoted-text no end <stuff>";
 	const char *addrspec = " \"sip:blah@blah <stuff>";
+	const char *no_quotes_no_brackets = "blah@blah";
 	const char *after_dname;
 	char dname[40];
 
@@ -829,6 +835,15 @@ AST_TEST_DEFINE(get_calleridname_test)
 		ast_test_status_update(test, "detection of addr-spec failed\n");
 		res = AST_TEST_FAIL;
 	}
+
+	/* no quotes, no brackets */
+	after_dname = get_calleridname(no_quotes_no_brackets, dname, sizeof(dname));
+	ast_test_status_update(test, "no_quotes_no_brackets display-name1: %s\nafter: %s\n", dname, after_dname);
+	if (*dname != '\0' && after_dname != no_quotes_no_brackets) {
+		ast_test_status_update(test, "detection of addr-spec failed\n");
+		res = AST_TEST_FAIL;
+	}
+
 
 	return res;
 }
@@ -1065,6 +1080,7 @@ AST_TEST_DEFINE(get_in_brackets_test)
 	char missing_end_quote[] = "\"I'm a quote string <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
 	char name_no_quotes[] = "name not in quotes <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
 	char no_end_bracket[] = "name not in quotes <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah";
+	char no_name_no_brackets[] = "sip:name@host";
 	char *uri = NULL;
 
 	switch (cmd) {
@@ -1122,6 +1138,12 @@ AST_TEST_DEFINE(get_in_brackets_test)
 		res = AST_TEST_FAIL;
 	}
 
+	/* Test 7, no name, and no brackets. */
+	if (!(uri = get_in_brackets(no_name_no_brackets)) || (strcmp(uri, "sip:name@host"))) {
+
+		ast_test_status_update(test, "Test 7 failed. %s\n", uri);
+		res = AST_TEST_FAIL;
+	}
 
 	return res;
 }
