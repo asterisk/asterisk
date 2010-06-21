@@ -25,6 +25,7 @@
 
 /*** MODULEINFO
 	<depend>kqueue</depend>
+	<conflict>launchd</conflict>
  ***/
 
 #include "asterisk.h"
