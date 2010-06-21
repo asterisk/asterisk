@@ -37,7 +37,7 @@ syn match       asteriskFunction        "\${_\{0,2}[[:alpha:]][[:alnum:]_]*(.*)}
 syn match       asteriskFunction        "(\zs[[:alpha:]][[:alnum:]_]*(.\{-})\ze=" contains=asteriskVar,asteriskFunction,asteriskExp
 syn region      asteriskExp             matchgroup=asteriskExpStart start="\$\[" end="]" contains=asteriskVar,asteriskFunction,asteriskExp
 syn match       asteriskCodecsPermit    "^\s*\(allow\|disallow\)\s*=\s*.*$" contains=asteriskCodecs
-syn match       asteriskCodecs          "\(g723\|gsm\|ulaw\|alaw\|g726\|adpcm\|slin\|lpc10\|g729\|speex\|ilbc\|all\s*$\)"
+syn match       asteriskCodecs          "\(g723\|gsm\|ulaw\|alaw\|g726\|adpcm\|slin\|lpc10\|g729\|speex\|speex16\|ilbc\|all\s*$\)"
 syn match       asteriskError           "^\(type\|auth\|permit\|deny\|bindaddr\|host\)\s*=.*$"
 syn match       asteriskType            "^\zstype=\ze\<\(peer\|user\|friend\)\>$" contains=asteriskTypeType
 syn match       asteriskTypeType        "\<\(peer\|user\|friend\)\>" contained
