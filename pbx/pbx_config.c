@@ -455,7 +455,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 	} else if (a->pos == 4) { /* 'dialplan remove extension EXT _X_' (priority) */
 		char *exten = NULL, *context, *cid, *p;
 		struct ast_context *c;
-		int le, lc, lcid, len;
+		int le, lc, len;
 		const char *s = skip_words(a->line, 3); /* skip 'dialplan' 'remove' 'extension' */
 		int i = split_ec(s, &exten, &context, &cid);	/* parse ext@context */
 
@@ -467,7 +467,6 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 			*p = '\0';
 		le = strlen(exten);
 		lc = strlen(context);
-		lcid = strlen(cid);
 		len = strlen(a->word);
 		if (le == 0 || lc == 0)
 			goto error3;
