@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \author Russell Bryant <russell@digium.com>
  *
@@ -24,7 +24,7 @@
  *
  * \arg http://www.openais.org/
  *
- * This file contains the code specific to the use of the EVT 
+ * This file contains the code specific to the use of the EVT
  * (Event) Service.
  */
 
@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #endif
 
 SaEvtHandleT evt_handle;
+static SaAisErrorT evt_init_res;
 
 void evt_channel_open_cb(SaInvocationT invocation, SaEvtChannelHandleT channel_handle,
 	SaAisErrorT error);
@@ -63,7 +64,7 @@ void evt_event_deliver_cb(SaEvtSubscriptionIdT subscription_id,
 
 static const SaEvtCallbacksT evt_callbacks = {
 	.saEvtChannelOpenCallback  = evt_channel_open_cb,
-	.saEvtEventDeliverCallback = evt_event_deliver_cb, 
+	.saEvtEventDeliverCallback = evt_event_deliver_cb,
 };
 
 static const struct {
@@ -136,7 +137,7 @@ void evt_event_deliver_cb(SaEvtSubscriptionIdT sub_id,
 
 	ais_res = saEvtEventDataGet(event_handle, event, &len);
 	if (ais_res != SA_AIS_OK) {
-		ast_log(LOG_ERROR, "Error retrieving event payload: %s\n", 
+		ast_log(LOG_ERROR, "Error retrieving event payload: %s\n",
 			ais_err2str(ais_res));
 		return;
 	}
@@ -148,7 +149,7 @@ void evt_event_deliver_cb(SaEvtSubscriptionIdT sub_id,
 
 	if (!(event_dup = ast_malloc(len)))
 		return;
-	
+
 	memcpy(event_dup, event, len);
 
 	queue_event(event_dup);
@@ -195,8 +196,8 @@ static void ast_event_cb(const struct ast_event *ast_event, void *data)
 		ast_log(LOG_DEBUG, "Returning here\n");
 		return;
 	}
-	
-	ais_res = saClmClusterNodeGet(clm_handle, SA_CLM_LOCAL_NODE_ID, 
+
+	ais_res = saClmClusterNodeGet(clm_handle, SA_CLM_LOCAL_NODE_ID,
 		SA_TIME_ONE_SECOND, &local_node);
 	if (ais_res != SA_AIS_OK) {
 		ast_log(LOG_ERROR, "Error getting local node name: %s\n", ais_err2str(ais_res));
@@ -213,8 +214,8 @@ static void ast_event_cb(const struct ast_event *ast_event, void *data)
 	pattern_array.patternsNumber = 1;
 	pattern_array.patterns = &pattern;
 
-	/*! 
-	 * /todo Make retention time configurable 
+	/*!
+	 * /todo Make retention time configurable
 	 * /todo Make event priorities configurable
 	 */
 	ais_res = saEvtEventAttributesSet(event_handle, &pattern_array,
@@ -224,7 +225,7 @@ static void ast_event_cb(const struct ast_event *ast_event, void *data)
 		goto return_event_free;
 	}
 
-	ais_res = saEvtEventPublish(event_handle, 
+	ais_res = saEvtEventPublish(event_handle,
 		ast_event, ast_event_get_size(ast_event), &event_id);
 	if (ais_res != SA_AIS_OK) {
 		ast_log(LOG_ERROR, "Error publishing event: %s\n", ais_err2str(ais_res));
@@ -273,12 +274,12 @@ static char *ais_evt_show_event_channels(struct ast_cli_entry *e, int cmd, struc
 		               "=== Event Channel Name: %s\n", event_channel->name);
 
 		AST_LIST_TRAVERSE(&event_channel->publish_events, publish_event, entry) {
-			ast_cli(a->fd, "=== ==> Publishing Event Type: %s\n", 
+			ast_cli(a->fd, "=== ==> Publishing Event Type: %s\n",
 				type_to_filter_str(publish_event->type));
 		}
-		
+
 		AST_LIST_TRAVERSE(&event_channel->subscribe_events, subscribe_event, entry) {
-			ast_cli(a->fd, "=== ==> Subscribing to Event Type: %s\n", 
+			ast_cli(a->fd, "=== ==> Subscribing to Event Type: %s\n",
 				type_to_filter_str(subscribe_event->type));
 		}
 
@@ -353,7 +354,7 @@ static SaAisErrorT set_egress_subscription(struct event_channel *event_channel,
 	filter_array.filtersNumber = 1;
 	filter_array.filters = &filter;
 
-	ais_res = saEvtEventSubscribe(event_channel->handle, &filter_array, 
+	ais_res = saEvtEventSubscribe(event_channel->handle, &filter_array,
 		subscribe_event->id);
 
 	return ais_res;
@@ -425,7 +426,7 @@ static void build_event_channel(struct ast_config *cfg, const char *cat)
 	strcpy(event_channel->name, cat);
 	ast_copy_string((char *) sa_name.value, cat, sizeof(sa_name.value));
 	sa_name.length = strlen((char *) sa_name.value);
-	ais_res = saEvtChannelOpen(evt_handle, &sa_name, 
+	ais_res = saEvtChannelOpen(evt_handle, &sa_name,
 		SA_EVT_CHANNEL_PUBLISHER | SA_EVT_CHANNEL_SUBSCRIBER | SA_EVT_CHANNEL_CREATE,
 		SA_TIME_MAX, &event_channel->handle);
 	if (ais_res != SA_AIS_OK) {
@@ -477,7 +478,7 @@ static void load_config(void)
 		if (!strcasecmp(type, "event_channel")) {
 			build_event_channel(cfg, cat);
 		} else {
-			ast_log(LOG_WARNING, "Entry in %s defined with invalid type '%s'\n", 
+			ast_log(LOG_WARNING, "Entry in %s defined with invalid type '%s'\n",
 				filename, type);
 		}
 	}
@@ -532,22 +533,21 @@ static void destroy_event_channels(void)
 	struct event_channel *event_channel;
 
 	AST_RWLIST_WRLOCK(&event_channels);
-	while ((event_channel = AST_RWLIST_REMOVE_HEAD(&event_channels, entry)))
+	while ((event_channel = AST_RWLIST_REMOVE_HEAD(&event_channels, entry))) {
 		event_channel_destroy(event_channel);
+	}
 	AST_RWLIST_UNLOCK(&event_channels);
 }
 
 int ast_ais_evt_load_module(void)
 {
-	SaAisErrorT ais_res;
-
-	ais_res = saEvtInitialize(&evt_handle, &evt_callbacks, &ais_version);
-	if (ais_res != SA_AIS_OK) {
+	evt_init_res = saEvtInitialize(&evt_handle, &evt_callbacks, &ais_version);
+	if (evt_init_res != SA_AIS_OK) {
 		ast_log(LOG_ERROR, "Could not initialize eventing service: %s\n",
-			ais_err2str(ais_res));
+			ais_err2str(evt_init_res));
 		return -1;
 	}
-	
+
 	load_config();
 
 	ast_cli_register_multiple(ais_cli, ARRAY_LEN(ais_cli));
@@ -559,14 +559,18 @@ int ast_ais_evt_unload_module(void)
 {
 	SaAisErrorT ais_res;
 
+	if (evt_init_res != SA_AIS_OK) {
+		return 0;
+	}
+
 	destroy_event_channels();
 
 	ais_res = saEvtFinalize(evt_handle);
 	if (ais_res != SA_AIS_OK) {
-		ast_log(LOG_ERROR, "Problem stopping eventing service: %s\n", 
+		ast_log(LOG_ERROR, "Problem stopping eventing service: %s\n",
 			ais_err2str(ais_res));
 		return -1;
 	}
 
-	return 0;	
+	return 0;
 }

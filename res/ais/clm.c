@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \author Russell Bryant <russell@digium.com>
  *
@@ -24,7 +24,7 @@
  *
  * \arg http://www.openais.org/
  *
- * This file contains the code specific to the use of the CLM 
+ * This file contains the code specific to the use of the CLM
  * (Cluster Membership) Service.
  */
 
@@ -46,8 +46,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/logger.h"
 
 SaClmHandleT clm_handle;
+static SaAisErrorT clm_init_res;
 
-static void clm_node_get_cb(SaInvocationT invocation, 
+static void clm_node_get_cb(SaInvocationT invocation,
 	const SaClmClusterNodeT *cluster_node, SaAisErrorT error);
 static void clm_track_cb(const SaClmClusterNotificationBufferT *notif_buffer,
 	SaUint32T num_members, SaAisErrorT error);
@@ -57,7 +58,7 @@ static const SaClmCallbacksT clm_callbacks = {
 	.saClmClusterTrackCallback   = clm_track_cb,
 };
 
-static void clm_node_get_cb(SaInvocationT invocation, 
+static void clm_node_get_cb(SaInvocationT invocation,
 	const SaClmClusterNodeT *cluster_node, SaAisErrorT error)
 {
 
@@ -114,7 +115,7 @@ static char *ais_clm_show_members(struct ast_cli_entry *e, int cmd, struct ast_c
 		               "=== ==> ID: 0x%x\n"
 		               "=== ==> Address: %s\n"
 		               "=== ==> Member: %s\n",
-		               (char *) node->nodeName.value, (int) node->nodeId, 
+		               (char *) node->nodeName.value, (int) node->nodeId,
 		               (char *) node->nodeAddress.value,
 		               node->member ? "Yes" : "No");
 
@@ -134,12 +135,10 @@ static struct ast_cli_entry ais_cli[] = {
 
 int ast_ais_clm_load_module(void)
 {
-	SaAisErrorT ais_res;
-
-	ais_res = saClmInitialize(&clm_handle, &clm_callbacks, &ais_version);
-	if (ais_res != SA_AIS_OK) {
+	clm_init_res = saClmInitialize(&clm_handle, &clm_callbacks, &ais_version);
+	if (clm_init_res != SA_AIS_OK) {
 		ast_log(LOG_ERROR, "Could not initialize cluster membership service: %s\n",
-			ais_err2str(ais_res));
+			ais_err2str(clm_init_res));
 		return -1;
 	}
 
@@ -152,11 +151,15 @@ int ast_ais_clm_unload_module(void)
 {
 	SaAisErrorT ais_res;
 
+	if (clm_init_res != SA_AIS_OK) {
+		return 0;
+	}
+
 	ast_cli_unregister_multiple(ais_cli, ARRAY_LEN(ais_cli));
 
 	ais_res = saClmFinalize(clm_handle);
 	if (ais_res != SA_AIS_OK) {
-		ast_log(LOG_ERROR, "Problem stopping cluster membership service: %s\n", 
+		ast_log(LOG_ERROR, "Problem stopping cluster membership service: %s\n",
 			ais_err2str(ais_res));
 		return -1;
 	}
