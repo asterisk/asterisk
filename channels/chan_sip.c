@@ -635,6 +635,7 @@ struct sip_request {
 	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
+	char content[SIP_MAX_PACKET];
 	unsigned int sdp_start; /*!< the line number where the SDP begins */
 	unsigned int sdp_count; /*!< the number of lines of SDP */
 	AST_LIST_ENTRY(sip_request) next;
@@ -1561,8 +1562,8 @@ static void build_callid_pvt(struct sip_pvt *pvt);
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
 static void make_our_tag(char *tagbuf, size_t len);
 static int add_header(struct sip_request *req, const char *var, const char *value);
-static int add_header_contentLength(struct sip_request *req, int len);
-static int add_line(struct sip_request *req, const char *line);
+static int add_content(struct sip_request *req, const char *line);
+static int finalize_content(struct sip_request *req);
 static int add_text(struct sip_request *req, const char *text);
 static int add_digit(struct sip_request *req, char digit, unsigned int duration);
 static int add_vidupdate(struct sip_request *req);
@@ -2378,6 +2379,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 {
 	int res;
 
+	finalize_content(req);
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		const struct sockaddr_in *dst = sip_real_dst(p);
@@ -2412,6 +2414,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 {
 	int res;
 
+	finalize_content(req);
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
@@ -6034,7 +6037,7 @@ static void ts_ast_rtp_destroy(void *data)
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
 {
-	int maxlen = sizeof(req->data) - 4 - req->len; /* 4 bytes are for two \r\n ? */
+	int maxlen = sizeof(req->data) - 4 - req->len - strlen(req->content); /* 4 bytes are for two \r\n ? */
 
 	if (req->headers == SIP_MAX_HEADERS) {
 		ast_log(LOG_WARNING, "Out of SIP header space\n");
@@ -6064,35 +6067,42 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 }
 
 /*! \brief Add 'Content-Length' header to SIP message */
-static int add_header_contentLength(struct sip_request *req, int len)
+static int finalize_content(struct sip_request *req)
 {
 	char clen[10];
 
-	snprintf(clen, sizeof(clen), "%d", len);
-	return add_header(req, "Content-Length", clen);
+	if (req->lines) {
+		ast_log(LOG_WARNING, "finalize_content() called on a message that has already been finalized\n");
+		return -1;
+	}
+
+	snprintf(clen, sizeof(clen), "%zd", strlen(req->content));
+	add_header(req, "Content-Length", clen);
+
+	if (!ast_strlen_zero(req->content)) {
+		snprintf(req->data + req->len, sizeof(req->data) - req->len, "\r\n%s", req->content);
+		req->len += strlen(req->data + req->len);
+	}
+
+	req->lines = !ast_strlen_zero(req->content);
+	return 0;
 }
 
 /*! \brief Add content (not header) to SIP message */
-static int add_line(struct sip_request *req, const char *line)
+static int add_content(struct sip_request *req, const char *line)
 {
-	if (req->lines == SIP_MAX_LINES)  {
-		ast_log(LOG_WARNING, "Out of SIP line space\n");
+	if (req->lines) {
+		ast_log(LOG_WARNING, "Can't add more content when the content has been finalized\n");
 		return -1;
 	}
-	if (!req->lines) {
-		/* Add extra empty return */
-		snprintf(req->data + req->len, sizeof(req->data) - req->len, "\r\n");
-		req->len += strlen(req->data + req->len);
-	}
-	if (req->len >= sizeof(req->data) - 4) {
+
+	if (req->len + strlen(req->content) + strlen(line) >= sizeof(req->data) - 4) {
 		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
 		return -1;
 	}
-	req->line[req->lines] = req->data + req->len;
-	snprintf(req->line[req->lines], sizeof(req->data) - req->len, "%s", line);
-	req->len += strlen(req->line[req->lines]);
-	req->lines++;
-	return 0;	
+
+	snprintf(req->content + strlen(req->content), sizeof(req->content) - strlen(req->content), "%s", line);
+	return 0;
 }
 
 /*! \brief Copy one header field from one request to another */
@@ -6545,7 +6555,6 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 		return -1;
 	}
 	respprep(&resp, p, msg, req);
-	add_header_contentLength(&resp, 0);
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
 	if (p->method == SIP_INVITE && msg[0] != '1' && p->owner && p->owner->hangupcause) {
@@ -6631,7 +6640,6 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
 	add_header(&resp, "Unsupported", unsupported);
-	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
@@ -6661,7 +6669,6 @@ static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
-	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
@@ -6671,7 +6678,6 @@ static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, cons
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Accept", "application/sdp");
-	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, reliable, 0);
 }
 
@@ -6691,7 +6697,6 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 	snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
-	add_header_contentLength(&resp, 0);
 	append_history(p, "AuthChal", "Auth challenge sent for %s - nc %d", p->username, p->noncecount);
 	return send_response(p, &resp, reliable, seqno);
 }
@@ -6714,8 +6719,7 @@ static int add_text(struct sip_request *req, const char *text)
 {
 	/* XXX Convert \n's to \r\n's XXX */
 	add_header(req, "Content-Type", "text/plain");
-	add_header_contentLength(req, strlen(text));
-	add_line(req, text);
+	add_content(req, text);
 	return 0;
 }
 
@@ -6727,8 +6731,7 @@ static int add_digit(struct sip_request *req, char digit, unsigned int duration)
 
 	snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=%u\r\n", digit, duration);
 	add_header(req, "Content-Type", "application/dtmf-relay");
-	add_header_contentLength(req, strlen(tmp));
-	add_line(req, tmp);
+	add_content(req, tmp);
 	return 0;
 }
 
@@ -6747,8 +6750,7 @@ static int add_vidupdate(struct sip_request *req)
 		"  </vc_primitive>\r\n"
 		" </media_control>\r\n";
 	add_header(req, "Content-Type", "application/media_control+xml");
-	add_header_contentLength(req, strlen(xml_is_a_huge_waste_of_space));
-	add_line(req, xml_is_a_huge_waste_of_space);
+	add_content(req, xml_is_a_huge_waste_of_space);
 	return 0;
 }
 
@@ -6862,7 +6864,6 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 /*! \brief Add Session Description Protocol message */
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int add_audio, int add_t38)
 {
-	int len = 0;
 	int alreadysent = 0;
 
 	struct sockaddr_in sin;
@@ -7131,45 +7132,35 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxUdpEC:%s\r\n", (p->t38.jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
 	}
 
-	len = strlen(version) + strlen(subject) + strlen(owner) + strlen(connection) + strlen(stime);
-	if (add_audio)
-		len += strlen(m_audio) + strlen(a_audio) + strlen(hold);
-	if (needvideo) /* only if video response is appropriate */
-		len += strlen(m_video) + strlen(a_video) + strlen(bandwidth) + strlen(hold);
-	if (add_t38) {
-		len += strlen(m_modem) + strlen(a_modem);
-	}
-
 	add_header(resp, "Content-Type", "application/sdp");
-	add_header_contentLength(resp, len);
-	add_line(resp, version);
-	add_line(resp, owner);
-	add_line(resp, subject);
-	add_line(resp, connection);
+	add_content(resp, version);
+	add_content(resp, owner);
+	add_content(resp, subject);
+	add_content(resp, connection);
 	if (needvideo)	 	/* only if video response is appropriate */
-		add_line(resp, bandwidth);
-	add_line(resp, stime);
+		add_content(resp, bandwidth);
+	add_content(resp, stime);
 	if (add_audio) {
-		add_line(resp, m_audio);
-		add_line(resp, a_audio);
-		add_line(resp, hold);
+		add_content(resp, m_audio);
+		add_content(resp, a_audio);
+		add_content(resp, hold);
 	} else if (p->offered_media[SDP_AUDIO].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].text);
-		add_line(resp, dummy_answer);
+		add_content(resp, dummy_answer);
 	}
 	if (needvideo) { /* only if video response is appropriate */
-		add_line(resp, m_video);
-		add_line(resp, a_video);
-		add_line(resp, hold);	/* Repeat hold for the video stream */
+		add_content(resp, m_video);
+		add_content(resp, a_video);
+		add_content(resp, hold);	/* Repeat hold for the video stream */
 	} else if (p->offered_media[SDP_VIDEO].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].text);
-		add_line(resp, dummy_answer);
+		add_content(resp, dummy_answer);
 	}
 	if (add_t38) {
-		add_line(resp, m_modem);
-		add_line(resp, a_modem);
+		add_content(resp, m_modem);
+		add_content(resp, a_modem);
 	} else if (p->offered_media[SDP_IMAGE].offered) {
-		add_line(resp, "m=image 0 udptl t38\r\n");
+		add_content(resp, "m=image 0 udptl t38\r\n");
 	}
 
 	/* Update lastrtprx when we send our SDP */
@@ -7675,8 +7666,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			add_sdp(&req, p, 0, 1);
 		} else if (p->rtp) 
 			add_sdp(&req, p, 1, 0);
-	} else {
-		add_header_contentLength(&req, 0);
 	}
 
 	if (!p->initreq.headers || init > 2)
@@ -7861,8 +7850,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 	if (t > tmp + sizeof(tmp))
 		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
-	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_content(&req, tmp);
 	p->pendinginvite = p->ocseq;	/* Remember that we have a pending NOTIFY in order not to confuse the NOTIFY subsystem */
 
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
@@ -7911,8 +7899,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	if (t > tmp + sizeof(tmp))
 		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
-	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_content(&req, tmp);
 
 	if (!p->initreq.headers) 
 		initialize_initreq(p, &req);
@@ -7942,8 +7929,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 
 	snprintf(tmp, sizeof(tmp), "SIP/2.0 %s\r\n", message);
-	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_content(&req, tmp);
 
 	if (!p->initreq.headers)
 		initialize_initreq(p, &req);
@@ -8249,7 +8235,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Contact", p->our_contact);
 	add_header(&req, "Event", "registration");
-	add_header_contentLength(&req, 0);
 
 	initialize_initreq(p, &req);
 	if (sip_debug_test_pvt(p))
@@ -8383,7 +8368,6 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 		p->invitestate = INV_CONFIRMED;
 
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
-	add_header_contentLength(&resp, 0);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
 
@@ -8417,7 +8401,6 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
 
-	add_header_contentLength(&resp, 0);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
 
@@ -12147,8 +12130,15 @@ static int sip_notify(int fd, int argc, char *argv[])
 
 		initreqprep(&req, p, SIP_NOTIFY);
 
-		for (var = varlist; var; var = var->next)
+		for (var = varlist; var; var = var->next) {
+			if (!strcasecmp(var->name, "Content-Length")) {
+				if (option_debug >= 2) {
+					ast_log(LOG_DEBUG, "Ignoring pair %s=%s\n", var->name, var->value);
+				}
+				continue; /* ignore content-length, it is calculated automatically */
+			}
 			add_header(&req, var->name, ast_unescape_semicolon(var->value));
+		}
 
 		/* Recalculate our side, and recalculate Call ID */
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
