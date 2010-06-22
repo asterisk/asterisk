@@ -57,8 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/dsp.h"
 #include "asterisk/indications.h"
-
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 
 static const char app_receivefax[] = "ReceiveFAX";
 static const char synopsis_receivefax[] = "Receive a FAX and save as a TIFF/F file.";
@@ -1770,7 +1769,7 @@ static char *cli_fax_show_version(struct ast_cli_entry *e, int cmd, struct ast_c
 	}
 
 	ast_cli(a->fd, "FAX For Asterisk Components:\n");
-	ast_cli(a->fd, "\tApplications: " ASTERISK_VERSION "\n");
+	ast_cli(a->fd, "\tApplications: %s\n", ast_get_version());
 	AST_RWLIST_RDLOCK(&faxmodules);
 	AST_RWLIST_TRAVERSE(&faxmodules, fax, list) {
 		ast_cli(a->fd, "\t%s: %s\n", fax->tech->description, fax->tech->version);
