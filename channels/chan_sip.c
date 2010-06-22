@@ -1195,7 +1195,7 @@ struct sip_socket {
  *
  * For outgoing packets, we initialize the fields with init_req() or init_resp()
  * (which fills the first line to "METHOD uri SIP/2.0" or "SIP/2.0 code text"),
- * and then fill the rest with add_header() and add_line().
+ * and then fill the rest with add_header() and add_content().
  * The \r\n at the end of the line are still there, so the get_header()
  * and similar functions don't work on these packets. 
  * \endverbatim
@@ -1217,6 +1217,7 @@ struct sip_request {
 	/* Array of offsets into the request string of each SDP line*/
 	ptrdiff_t line[SIP_MAX_LINES];
 	struct ast_str *data;	
+	struct ast_str *content;
 	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;	/*!< The socket used for this request */
 	AST_LIST_ENTRY(sip_request) next;
@@ -2570,6 +2571,7 @@ static void *sip_tcp_worker_fn(void *);
 /*--- Constructing requests and responses */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req);
 static int init_req(struct sip_request *req, int sipmethod, const char *recip);
+static void deinit_req(struct sip_request *req);
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch);
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod);
 static int init_resp(struct sip_request *resp, const char *msg);
@@ -2584,8 +2586,8 @@ static void build_callid_pvt(struct sip_pvt *pvt);
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
 static void make_our_tag(char *tagbuf, size_t len);
 static int add_header(struct sip_request *req, const char *var, const char *value);
-static int add_header_contentLength(struct sip_request *req, int len);
-static int add_line(struct sip_request *req, const char *line);
+static int add_content(struct sip_request *req, const char *line);
+static int finalize_content(struct sip_request *req);
 static int add_text(struct sip_request *req, const char *text);
 static int add_digit(struct sip_request *req, char digit, unsigned int duration, int mode);
 static int add_vidupdate(struct sip_request *req);
@@ -3079,14 +3081,8 @@ cleanup:
 		ao2_t_unlink(threadt, me, "Removing tcptls helper thread, thread is closing");
 		ao2_t_ref(me, -1, "Removing tcp_helper_threads threadinfo ref");
 	}
-	if (reqcpy.data) {
-		ast_free(reqcpy.data);
-	}
-
-	if (req.data) {
-		ast_free(req.data);
-		req.data = NULL;
-	}
+	deinit_req(&reqcpy);
+	deinit_req(&req);
 
 	/* if client, we own the parent session arguments and must decrement ref */
 	if (ca) {
@@ -4204,6 +4200,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 {
 	int res;
 
+	finalize_content(req);
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		const struct sockaddr_in *dst = sip_real_dst(p);
@@ -4218,7 +4215,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxRespRel" : "TxResp", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), 
 			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? REQ_OFFSET_TO_STR(&tmp, rlPart2) : sip_methods[tmp.method].text);
-		ast_free(tmp.data);
+		deinit_req(&tmp);
 	}
 
 	/* If we are sending a final response to an INVITE, stop retransmitting provisional responses */
@@ -4229,8 +4226,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	res = (reliable) ?
 		 __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
-	ast_free(req->data);
-	req->data = NULL;
+	deinit_req(req);
 	if (res > 0)
 		return 0;
 	return res;
@@ -4248,6 +4244,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 		p->sa = p->outboundproxy->ip;
 	}
 
+	finalize_content(req);
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		if (ast_test_flag(&p->flags[0], SIP_NAT_ROUTE))
@@ -4259,15 +4256,12 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 		struct sip_request tmp = { .rlPart1 = 0, };
 		parse_copy(&tmp, req);
 		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data->str, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
-		ast_free(tmp.data);
+		deinit_req(&tmp);
 	}
 	res = (reliable) ?
 		__sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
-	if (req->data) {
-		ast_free(req->data);
-		req->data = NULL;
-	}
+	deinit_req(req);
 	return res;
 }
 
@@ -5591,8 +5585,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		free_old_route(p->route);
 		p->route = NULL;
 	}
-	if (p->initreq.data)
-		ast_free(p->initreq.data);
+	deinit_req(&p->initreq);
 
 	/* Destroy Session-Timers if allocated */
 	if (p->stimer) {
@@ -9100,30 +9093,37 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	return 0;	
 }
 
-/*! \brief Add 'Content-Length' header to SIP message */
-static int add_header_contentLength(struct sip_request *req, int len)
+/*! \brief Add 'Content-Length' header and content to SIP message */
+static int finalize_content(struct sip_request *req)
 {
 	char clen[10];
 
-	snprintf(clen, sizeof(clen), "%d", len);
-	return add_header(req, "Content-Length", clen);
+	if (req->lines) {
+		ast_log(LOG_WARNING, "finalize_content() called on a message that has already been finalized\n");
+		return -1;
+	}
+
+	snprintf(clen, sizeof(clen), "%zd", ast_str_strlen(req->content));
+	add_header(req, "Content-Length", clen);
+
+	if (ast_str_strlen(req->content)) {
+		ast_str_append(&req->data, 0, "\r\n%s", ast_str_buffer(req->content));
+		req->len = ast_str_strlen(req->data);
+	}
+	req->lines = ast_str_strlen(req->content) ? 1 : 0;
+	return 0;
 }
 
 /*! \brief Add content (not header) to SIP message */
-static int add_line(struct sip_request *req, const char *line)
+static int add_content(struct sip_request *req, const char *line)
 {
-	if (req->lines == SIP_MAX_LINES)  {
-		ast_log(LOG_WARNING, "Out of SIP line space\n");
+	if (req->lines) {
+		ast_log(LOG_WARNING, "Can't add more content when the content has been finalized\n");
 		return -1;
 	}
-	if (!req->lines)
-		/* Add extra empty return */
-		req->len += ast_str_append(&req->data, 0, "\r\n");
-	req->line[req->lines] = req->len;
-	ast_str_append(&req->data, 0, "%s", line);
-	req->len = ast_str_strlen(req->data);
-	req->lines++;
-	return 0;	
+
+	ast_str_append(&req->content, 0, "%s", line);
+	return 0;
 }
 
 /*! \brief Copy one header field from one request to another */
@@ -9336,12 +9336,20 @@ static int init_resp(struct sip_request *resp, const char *msg)
 	memset(resp, 0, sizeof(*resp));
 	resp->method = SIP_RESPONSE;
 	if (!(resp->data = ast_str_create(SIP_MIN_PACKET)))
-		return -1;
+		goto e_return;
+	if (!(resp->content = ast_str_create(SIP_MIN_PACKET)))
+		goto e_free_data;
 	resp->header[0] = 0;
 	ast_str_set(&resp->data, 0, "SIP/2.0 %s\r\n", msg);
 	resp->len = resp->data->used;
 	resp->headers++;
 	return 0;
+
+e_free_data:
+	ast_free(resp->data);
+	resp->data = NULL;
+e_return:
+	return -1;
 }
 
 /*! \brief Initialize SIP request */
@@ -9350,14 +9358,36 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 	/* Initialize a request */
 	memset(req, 0, sizeof(*req));
 	if (!(req->data = ast_str_create(SIP_MIN_PACKET)))
-		return -1;
+		goto e_return;
+	if (!(req->content = ast_str_create(SIP_MIN_PACKET)))
+		goto e_free_data;
 	req->method = sipmethod;
 	req->header[0] = 0;
 	ast_str_set(&req->data, 0, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
 	req->len = ast_str_strlen(req->data);
 	req->headers++;
 	return 0;
+
+e_free_data:
+	ast_free(req->data);
+	req->data = NULL;
+e_return:
+	return -1;
 }
+
+/*! \brief Deinitialize SIP response/request */
+static void deinit_req(struct sip_request *req)
+{
+	if (req->data) {
+		ast_free(req->data);
+		req->data = NULL;
+	}
+	if (req->content) {
+		ast_free(req->content);
+		req->content = NULL;
+	}
+}
+
 
 /*! \brief Test if this response needs a contact header */
 static inline int resp_needs_contact(const char *msg, enum sipmethod method) {
@@ -9632,7 +9662,6 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 		return -1;
 	}
 	respprep(&resp, p, msg, req);
-	add_header_contentLength(&resp, 0);
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
 	if (p->method == SIP_INVITE && msg[0] != '1' && p->owner && p->owner->hangupcause) {
@@ -9727,7 +9756,6 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
 	add_header(&resp, "Unsupported", unsupported);
-	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
@@ -9742,8 +9770,6 @@ static int transmit_response_with_minse(struct sip_pvt *p, const char *msg, cons
 
 	snprintf(minse_str, sizeof(minse_str), "%d", minse_int);
 	add_header(&resp, "Min-SE", minse_str);
-
-	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
@@ -9774,7 +9800,6 @@ static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
-	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
@@ -9784,7 +9809,6 @@ static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, cons
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Accept", "application/sdp");
-	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, reliable, 0);
 }
 
@@ -9804,7 +9828,6 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 	snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", sip_cfg.realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
-	add_header_contentLength(&resp, 0);
 	append_history(p, "AuthChal", "Auth challenge sent for %s - nc %d", p->username, p->noncecount);
 	return send_response(p, &resp, reliable, seqno);
 }
@@ -9827,8 +9850,7 @@ static int add_text(struct sip_request *req, const char *text)
 {
 	/* XXX Convert \n's to \r\n's XXX */
 	add_header(req, "Content-Type", "text/plain;charset=UTF-8");
-	add_header_contentLength(req, strlen(text));
-	add_line(req, text);
+	add_content(req, text);
 	return 0;
 }
 
@@ -9852,14 +9874,12 @@ static int add_digit(struct sip_request *req, char digit, unsigned int duration,
 			event = atoi(&digit);
 		snprintf(tmp, sizeof(tmp), "%d\r\n", event);
 		add_header(req, "Content-Type", "application/dtmf");
-		add_header_contentLength(req, strlen(tmp));
-		add_line(req, tmp);
+		add_content(req, tmp);
 	} else {
 		/* Application/dtmf-relay as documented by Cisco */
 		snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=%u\r\n", digit, duration);
 		add_header(req, "Content-Type", "application/dtmf-relay");
-		add_header_contentLength(req, strlen(tmp));
-		add_line(req, tmp);
+		add_content(req, tmp);
 	}
 	return 0;
 }
@@ -9879,8 +9899,7 @@ static int add_vidupdate(struct sip_request *req)
 		"  </vc_primitive>\r\n"
 		" </media_control>\r\n";
 	add_header(req, "Content-Type", "application/media_control+xml");
-	add_header_contentLength(req, strlen(xml_is_a_huge_waste_of_space));
-	add_line(req, xml_is_a_huge_waste_of_space);
+	add_content(req, xml_is_a_huge_waste_of_space);
 	return 0;
 }
 
@@ -10081,7 +10100,6 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 */
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int oldsdp, int add_audio, int add_t38)
 {
-	int len = 0;
 	int alreadysent = 0;
 
 	struct sockaddr_in sin;
@@ -10372,55 +10390,43 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
  	if (needtext)
  		ast_str_append(&m_text, 0, "\r\n");
 
- 	len = strlen(version) + strlen(subject) + strlen(owner) +
-		strlen(connection) + strlen(session_time);
-	if (needaudio)
-		len += m_audio->used + a_audio->used + strlen(hold);
- 	if (needvideo) /* only if video response is appropriate */
- 		len += m_video->used + a_video->used + strlen(bandwidth) + strlen(hold);
- 	if (needtext) /* only if text response is appropriate */
- 		len += m_text->used + a_text->used + strlen(hold);
-	if (add_t38)
-		len += m_modem->used + a_modem->used;
-
 	add_header(resp, "Content-Type", "application/sdp");
-	add_header_contentLength(resp, len);
-	add_line(resp, version);
-	add_line(resp, owner);
-	add_line(resp, subject);
-	add_line(resp, connection);
+	add_content(resp, version);
+	add_content(resp, owner);
+	add_content(resp, subject);
+	add_content(resp, connection);
 	if (needvideo)	 	/* only if video response is appropriate */
-		add_line(resp, bandwidth);
-	add_line(resp, session_time);
+		add_content(resp, bandwidth);
+	add_content(resp, session_time);
 	if (needaudio) {
-		add_line(resp, m_audio->str);
-		add_line(resp, a_audio->str);
-		add_line(resp, hold);
+		add_content(resp, m_audio->str);
+		add_content(resp, a_audio->str);
+		add_content(resp, hold);
 	} else if (p->offered_media[SDP_AUDIO].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].text);
-		add_line(resp, dummy_answer);
+		add_content(resp, dummy_answer);
 	}
 	if (needvideo) { /* only if video response is appropriate */
-		add_line(resp, m_video->str);
-		add_line(resp, a_video->str);
-		add_line(resp, hold);	/* Repeat hold for the video stream */
+		add_content(resp, m_video->str);
+		add_content(resp, a_video->str);
+		add_content(resp, hold);	/* Repeat hold for the video stream */
 	} else if (p->offered_media[SDP_VIDEO].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].text);
-		add_line(resp, dummy_answer);
+		add_content(resp, dummy_answer);
 	}
 	if (needtext) { /* only if text response is appropriate */
-		add_line(resp, m_text->str);
-		add_line(resp, a_text->str);
-		add_line(resp, hold);	/* Repeat hold for the text stream */
+		add_content(resp, m_text->str);
+		add_content(resp, a_text->str);
+		add_content(resp, hold);	/* Repeat hold for the text stream */
 	} else if (p->offered_media[SDP_TEXT].offered) {
 		snprintf(dummy_answer, sizeof(dummy_answer), "m=text 0 RTP/AVP %s\r\n", p->offered_media[SDP_TEXT].text);
-		add_line(resp, dummy_answer);
+		add_content(resp, dummy_answer);
 	}
 	if (add_t38) {
-		add_line(resp, m_modem->str);
-		add_line(resp, a_modem->str);
+		add_content(resp, m_modem->str);
+		add_content(resp, a_modem->str);
 	} else if (p->offered_media[SDP_IMAGE].offered) {
-		add_line(resp, "m=image 0 udptl t38\r\n");
+		add_content(resp, "m=image 0 udptl t38\r\n");
 	}
 
 	/* Update lastrtprx when we send our SDP */
@@ -10454,25 +10460,29 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 /*! \brief copy SIP request (mostly used to save request for responses) */
 static void copy_request(struct sip_request *dst, const struct sip_request *src)
 {
-	struct ast_str *duplicate = dst->data;
+	/* XXX this function can encounter memory allocation errors, perhaps it
+	 * should return a value */
 
-	/* First copy stuff */
+	struct ast_str *duplicate = dst->data;
+	struct ast_str *duplicate_content = dst->content;
+
+	/* copy the entire request then restore the original data and content
+	 * members from the dst request */
 	memcpy(dst, src, sizeof(*dst));
 	dst->data = duplicate;
+	dst->content = duplicate_content;
 
-	/* All these + 1's are to account for the need to include the NULL terminator
-	 * Using typical string functions like ast_copy_string or ast_str_set will not
-	 * work in this case because the src's data string is riddled with \0's all over
-	 * the place and so a memcpy is the only way to accurately copy the string
-	 */
-
-	if (!dst->data && !(dst->data = ast_str_create(src->data->used + 1)))
+	/* copy the data into the dst request */
+	if (!dst->data && !(dst->data = ast_str_create(ast_str_strlen(src->data) + 1)))
 		return;
-	else if (dst->data->len < src->data->used + 1)
-		ast_str_make_space(&dst->data, src->data->used + 1);
-		
-	memcpy(dst->data->str, src->data->str, src->data->used + 1);
-	dst->data->used = src->data->used;
+	ast_str_copy_string(&dst->data, src->data);
+
+	/* copy the content into the dst request (if it exists) */
+	if (src->content) {
+		if (!dst->content && !(dst->content = ast_str_create(ast_str_strlen(src->content) + 1)))
+			return;
+		ast_str_copy_string(&dst->content, src->content);
+	}
 }
 
 /*! \brief Used for 200 OK and 183 early media 
@@ -11000,10 +11010,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			add_sdp(&req, p, FALSE, FALSE, TRUE);
 		} else if (p->rtp) 
 			add_sdp(&req, p, FALSE, TRUE, FALSE);
-	} else {
-		if (!p->notify_headers) {
-			add_header_contentLength(&req, 0);
-		}
 	}
 
 	if (!p->initreq.headers || init > 2)
@@ -11317,8 +11323,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		break;
 	}
 
-	add_header_contentLength(&req, tmp->used);
-	add_line(&req, tmp->str);
+	add_content(&req, tmp->str);
 
 	p->pendinginvite = p->ocseq;	/* Remember that we have a pending NOTIFY in order not to confuse the NOTIFY subsystem */
 
@@ -11371,8 +11376,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 			add_header(&req, "Subscription-State", "terminated;reason=timeout");
 	}
 
-	add_header_contentLength(&req, out->used);
-	add_line(&req, out->str);
+	add_content(&req, out->str);
 
 	if (!p->initreq.headers) 
 		initialize_initreq(p, &req);
@@ -11394,8 +11398,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 
 	snprintf(tmp, sizeof(tmp), "SIP/2.0 %s\r\n", message);
-	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_content(&req, tmp);
 
 	if (!p->initreq.headers)
 		initialize_initreq(p, &req);
@@ -11415,6 +11418,12 @@ static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars) 
 	add_header(&req, newvar->name, newvar->value);
 	for (var = vars; var; var = var->next) {
 		char buf[512];
+
+		if (!strcasecmp(var->name, "Content-Length")) {
+			ast_debug(2, "Ignoring pair %s=%s\n", var->name, var->value);
+			continue; /* ignore content-length, it is calculated automatically */
+		}
+
 		ast_debug(2, "  Adding pair %s=%s\n", var->name, var->value);
 		ast_copy_string(buf, var->value, sizeof(buf));
 		add_header(&req, var->name, ast_unescape_semicolon(buf));
@@ -11845,7 +11854,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	snprintf(tmp, sizeof(tmp), "%d", r->expiry);
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Contact", p->our_contact);
-	add_header_contentLength(&req, 0);
 
 	initialize_initreq(p, &req);
 	if (sip_debug_test_pvt(p)) {
@@ -11990,7 +11998,6 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 	if (sipmethod == SIP_CANCEL && p->answered_elsewhere) 
 		add_header(&resp, "Reason", "SIP;cause=200;text=\"Call completed elsewhere\"");
 
-	add_header_contentLength(&resp, 0);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
 
@@ -12037,7 +12044,6 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
 	}
 
-	add_header_contentLength(&resp, 0);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
 
@@ -18806,8 +18812,7 @@ static void *sip_park_thread(void *stuff)
 
 	if (!transferee || !transferer) {
 		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
-		if (d->req.data)
-			ast_free(d->req.data);
+		deinit_req(&d->req);
 		free(d);
 		return NULL;
 	}
@@ -18818,8 +18823,7 @@ static void *sip_park_thread(void *stuff)
 		ast_log(LOG_WARNING, "Masquerade failed.\n");
 		transmit_response(transferer->tech_pvt, "503 Internal error", &req);
 		ast_channel_unlock(transferee);
-		if (d->req.data)
-			ast_free(d->req.data);
+		deinit_req(&d->req);
 		free(d);
 		return NULL;
 	} 
@@ -18854,8 +18858,7 @@ static void *sip_park_thread(void *stuff)
 		ast_debug(1, "SIP Call parked failed \n");
 		/* Do not hangup call */
 	}
-	if (d->req.data)
-		ast_free(d->req.data);
+	deinit_req(&d->req);
 	free(d);
 	return NULL;
 }
@@ -18949,8 +18952,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		d->seqno = seqno;
 		if (ast_pthread_create_detached_background(&th, NULL, sip_park_thread, d) < 0) {
 			/* Could not start thread */
-			if (d->req.data)
-				ast_free(d->req.data);
+			deinit_req(&d->req);
 			ast_free(d);	/* We don't need it anymore. If thread is created, d will be free'd
 					   by sip_park_thread() */
 			return 0;
@@ -22009,10 +22011,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.socket.port = bindaddr.sin_port;
 
 	handle_request_do(&req, &sin);
-	if (req.data) {
-		ast_free(req.data);
-		req.data = NULL;
-	}
+	deinit_req(&req);
 
 	return 1;
 }
