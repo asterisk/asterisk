@@ -1220,6 +1220,7 @@ DUNDi changes
   * Added two new dialplan functions, DUNDIQUERY and DUNDIRESULT.  These
      functions will allow you to initiate a DUNDi query from the dialplan,
      find out how many results there are, and access each one.
+  * Added the ability to specifiy a port for a dundi peer.
 
 ENUM changes
 ------------
