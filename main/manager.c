@@ -1243,10 +1243,15 @@ static void session_destructor(void *obj)
 		ast_atomic_fetchadd_int(&eqe->usecount, -1);
 	}
 
-	ao2_t_callback(session->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
-	ao2_t_callback(session->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
-	ao2_t_ref(session->whitefilters, -1 , "decrement ref for white container, should be last one");
-	ao2_t_ref(session->blackfilters, -1 , "decrement ref for black container, should be last one");
+	if (session->whitefilters) {
+		ao2_t_callback(session->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
+		ao2_t_ref(session->whitefilters, -1 , "decrement ref for white container, should be last one");
+	}
+
+	if (session->blackfilters) {
+		ao2_t_callback(session->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
+		ao2_t_ref(session->blackfilters, -1 , "decrement ref for black container, should be last one");
+	}
 }
 
 /*! \brief Allocate manager session structure and add it to the list of sessions */
@@ -1257,6 +1262,17 @@ static struct mansession_session *build_mansession(struct sockaddr_in sin)
 	if (!(newsession = ao2_alloc(sizeof(*newsession), session_destructor))) {
 		return NULL;
 	}
+
+	if (!(newsession->whitefilters = ao2_container_alloc(1, NULL, NULL))) {
+		ao2_ref(newsession, -1);
+		return NULL;
+	}
+
+	if (!(newsession->blackfilters = ao2_container_alloc(1, NULL, NULL))) {
+		ao2_ref(newsession, -1); /* session_destructor will cleanup the other filter */
+		return NULL;
+	}
+
 	newsession->fd = -1;
 	newsession->waiting_thread = AST_PTHREADT_NULL;
 	newsession->writetimeout = 100;
@@ -2270,23 +2286,21 @@ static int authenticate(struct mansession *s, const struct message *m)
 	s->session->readperm = user->readperm;
 	s->session->writeperm = user->writeperm;
 	s->session->writetimeout = user->writetimeout;
-	s->session->whitefilters = ao2_container_alloc(1, NULL, NULL);
-	s->session->blackfilters = ao2_container_alloc(1, NULL, NULL);
-	if (s->session->whitefilters && s->session->blackfilters) {
-		filter_iter = ao2_iterator_init(user->whitefilters, 0);
-		while ((regex_filter = ao2_iterator_next(&filter_iter))) {
-			ao2_t_link(s->session->whitefilters, regex_filter, "add white user filter to session");
-		}
-		ao2_iterator_destroy(&filter_iter);
 
-		filter_iter = ao2_iterator_init(user->blackfilters, 0);
-		while ((regex_filter = ao2_iterator_next(&filter_iter))) {
-			ao2_t_link(s->session->blackfilters, regex_filter, "add black user filter to session");
-		}
-		ao2_iterator_destroy(&filter_iter);
-	} else {
-		ast_log(LOG_WARNING, "Allocation for filters failed, no filtering will occur.\n");
+	filter_iter = ao2_iterator_init(user->whitefilters, 0);
+	while ((regex_filter = ao2_iterator_next(&filter_iter))) {
+		ao2_t_link(s->session->whitefilters, regex_filter, "add white user filter to session");
+		ao2_t_ref(regex_filter, -1, "remove iterator ref");
 	}
+	ao2_iterator_destroy(&filter_iter);
+
+	filter_iter = ao2_iterator_init(user->blackfilters, 0);
+	while ((regex_filter = ao2_iterator_next(&filter_iter))) {
+		ao2_t_link(s->session->blackfilters, regex_filter, "add black user filter to session");
+		ao2_t_ref(regex_filter, -1, "remove iterator ref");
+	}
+	ao2_iterator_destroy(&filter_iter);
+
 	s->session->sessionstart = time(NULL);
 	s->session->sessionstart_tv = ast_tvnow();
 	set_eventmask(s, astman_get_header(m, "Events"));
