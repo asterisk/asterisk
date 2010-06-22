@@ -402,6 +402,8 @@ Asterisk Manager Interface
    AOC-E messages on a channel.
  * A DBGetComplete event now follows a DBGetResponse, to make the DBGet action
    conform more closely to similar events.
+ * Added a new eventfilter option per user to allow whitelisting and blacklisting
+   of events.
 
 Channel Event Logging
 ---------------------

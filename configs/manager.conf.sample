@@ -74,6 +74,22 @@ bindaddr = 0.0.0.0
 ;deny=0.0.0.0/0.0.0.0
 ;permit=209.16.236.73/255.255.255.0
 ;
+;eventfilter=Event: Newchannel
+;eventfilter=!Channel: DAHDI*
+; The eventfilter option is used to whitelist or blacklist events per user to be
+; reported with regular expressions and are allowed if both the regex matches
+; and the user has read access set below. Filters are assumed to be for whitelisting
+; unless preceeded by an exclamation point, which marks it as being black.
+; Evaluation of the filters is as follows:
+; - If no filters are configured all events are reported as normal.
+; - If there are white filters only: implied black all filter processed first,
+; then white filters.
+; - If there are black filters only: implied white all filter processed first,
+; then black filters.
+; - If there are both white and black filters: implied black all filter processed
+; first, then white filters, and lastly black filters.
+
+;
 ; If the device connected via this user accepts input slowly,
 ; the timeout for writes to it can be increased to keep it
 ; from being disconnected (value is in milliseconds)

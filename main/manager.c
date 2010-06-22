@@ -51,6 +51,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <regex.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/file.h"
@@ -941,6 +943,8 @@ struct mansession_session {
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
 	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
 	time_t noncetime;	/*!< Timer for nonce value expiration */
+	struct ao2_container *whitefilters;
+	struct ao2_container *blackfilters;
 	unsigned long oldnonce;	/*!< Stale nonce value */
 	unsigned long nc;	/*!< incremental  nonce counter */
 	AST_LIST_HEAD_NOLOCK(mansession_datastores, ast_datastore) datastores; /*!< Data stores on the session */
@@ -986,6 +990,8 @@ struct ast_manager_user {
 	int writetimeout;		/*! Per user Timeout for ast_carefulwrite() */
 	int displayconnects;		/*!< XXX unused */
 	int keep;			/*!< mark entries created on a reload */
+	struct ao2_container *whitefilters;
+	struct ao2_container *blackfilters;
 	char *a1_hash;			/*!< precalculated A1 for Digest auth */
 	AST_RWLIST_ENTRY(ast_manager_user) list;
 };
@@ -1212,6 +1218,12 @@ static struct mansession_session *unref_mansession(struct mansession_session *s)
 	return s;
 }
 
+static void event_filter_destructor(void *obj)
+{
+	regex_t *regex_filter = obj;
+	regfree(regex_filter);
+}
+
 static void session_destructor(void *obj)
 {
 	struct mansession_session *session = obj;
@@ -1230,6 +1242,11 @@ static void session_destructor(void *obj)
 	if (eqe) {
 		ast_atomic_fetchadd_int(&eqe->usecount, -1);
 	}
+
+	ao2_t_callback(session->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
+	ao2_t_callback(session->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
+	ao2_t_ref(session->whitefilters, -1 , "decrement ref for white container, should be last one");
+	ao2_t_ref(session->blackfilters, -1 , "decrement ref for black container, should be last one");
 }
 
 /*! \brief Allocate manager session structure and add it to the list of sessions */
@@ -2190,6 +2207,8 @@ static int authenticate(struct mansession *s, const struct message *m)
 	const char *password = astman_get_header(m, "Secret");
 	int error = -1;
 	struct ast_manager_user *user = NULL;
+	regex_t *regex_filter;
+	struct ao2_iterator filter_iter;
 
 	if (ast_strlen_zero(username)) {	/* missing username */
 		return -1;
@@ -2244,10 +2263,30 @@ static int authenticate(struct mansession *s, const struct message *m)
 
 	/* auth complete */
 
+	/* All of the user parameters are copied to the session so that in the event
+     * of a reload and a configuration change, the session parameters are not
+     * changed. */
 	ast_copy_string(s->session->username, username, sizeof(s->session->username));
 	s->session->readperm = user->readperm;
 	s->session->writeperm = user->writeperm;
 	s->session->writetimeout = user->writetimeout;
+	s->session->whitefilters = ao2_container_alloc(1, NULL, NULL);
+	s->session->blackfilters = ao2_container_alloc(1, NULL, NULL);
+	if (s->session->whitefilters && s->session->blackfilters) {
+		filter_iter = ao2_iterator_init(user->whitefilters, 0);
+		while ((regex_filter = ao2_iterator_next(&filter_iter))) {
+			ao2_t_link(s->session->whitefilters, regex_filter, "add white user filter to session");
+		}
+		ao2_iterator_destroy(&filter_iter);
+
+		filter_iter = ao2_iterator_init(user->blackfilters, 0);
+		while ((regex_filter = ao2_iterator_next(&filter_iter))) {
+			ao2_t_link(s->session->blackfilters, regex_filter, "add black user filter to session");
+		}
+		ao2_iterator_destroy(&filter_iter);
+	} else {
+		ast_log(LOG_WARNING, "Allocation for filters failed, no filtering will occur.\n");
+	}
 	s->session->sessionstart = time(NULL);
 	s->session->sessionstart_tv = ast_tvnow();
 	set_eventmask(s, astman_get_header(m, "Events"));
@@ -3966,6 +4005,59 @@ static int action_timeout(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int whitefilter_cmp_fn(void *obj, void *arg, void *data, int flags)
+{
+	regex_t *regex_filter = obj;
+	const char *eventdata = arg;
+	int *result = data;
+
+	if (!regexec(regex_filter, eventdata, 0, NULL, 0)) {
+		*result = 1;
+		return (CMP_MATCH | CMP_STOP);
+	}
+
+	return 0;
+}
+
+static int blackfilter_cmp_fn(void *obj, void *arg, void *data, int flags)
+{
+	regex_t *regex_filter = obj;
+	const char *eventdata = arg;
+	int *result = data;
+
+	if (regexec(regex_filter, eventdata, 0, NULL, 0)) {
+		*result = 1;
+		return (CMP_MATCH | CMP_STOP);
+	}
+
+	return 0;
+}
+
+static int match_filter(struct mansession *s, char *eventdata)
+{
+	int result = 0;
+
+	ast_debug(3, "Examining event:\n%s\n", eventdata);
+	if (!ao2_container_count(s->session->whitefilters) && !ao2_container_count(s->session->blackfilters)) {
+		return 1; /* no filtering means match all */
+	} else if (ao2_container_count(s->session->whitefilters) && !ao2_container_count(s->session->blackfilters)) {
+		/* white filters only: implied black all filter processed first, then white filters */
+		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+	} else if (!ao2_container_count(s->session->whitefilters) && ao2_container_count(s->session->blackfilters)) {
+		/* black filters only: implied white all filter processed first, then black filters */
+		ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+	} else {
+		/* white and black filters: implied black all filter processed first, then white filters, and lastly black filters */
+		ao2_t_callback_data(s->session->whitefilters, OBJ_NODATA, whitefilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+		if (result) {
+			result = 0;
+			ao2_t_callback_data(s->session->blackfilters, OBJ_NODATA, blackfilter_cmp_fn, eventdata, &result, "find filter in session filter container"); 
+		}
+	}
+
+	return result;
+}
+
 /*!
  * Send any applicable events to the client listening on this socket.
  * Wait only for a finite time on each event, and drop all events whether
@@ -3983,9 +4075,10 @@ static int process_events(struct mansession *s)
 			if (!ret && s->session->authenticated &&
 			    (s->session->readperm & eqe->category) == eqe->category &&
 			    (s->session->send_events & eqe->category) == eqe->category) {
-				if (send_string(s, eqe->eventdata) < 0) {
-					ret = -1;	/* don't send more */
-				}
+					if (match_filter(s, eqe->eventdata)) {
+						if (send_string(s, eqe->eventdata) < 0)
+							ret = -1;	/* don't send more */
+					}
 			}
 			s->session->last_ev = eqe;
 		}
@@ -6227,9 +6320,14 @@ static int __init_manager(int reload)
 			/* Default displayconnect from [general] */
 			user->displayconnects = displayconnects;
 			user->writetimeout = 100;
+			user->whitefilters = ao2_container_alloc(1, NULL, NULL);
+			user->blackfilters = ao2_container_alloc(1, NULL, NULL);
 
 			/* Insert into list */
 			AST_RWLIST_INSERT_TAIL(&users, user, list);
+		} else {
+			ao2_t_callback(user->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
+			ao2_t_callback(user->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
 		}
 
 		/* Make sure we keep this user and don't destroy it during cleanup */
@@ -6260,6 +6358,27 @@ static int __init_manager(int reload)
 				} else {
 					user->writetimeout = value;
 				}
+			} else if (!strcasecmp(var->name, "eventfilter")) {
+				const char *value = var->value;
+				regex_t *new_filter = ao2_t_alloc(sizeof(*new_filter), event_filter_destructor, "event_filter allocation");
+				if (new_filter) {
+					int is_blackfilter;
+					if (value[0] == '!') {
+						is_blackfilter = 1;
+						value++;
+					} else {
+						is_blackfilter = 0;
+					}
+					if (regcomp(new_filter, value, 0)) {
+						ao2_t_ref(new_filter, -1, "failed to make regx");
+					} else {
+						if (is_blackfilter) {
+							ao2_t_link(user->blackfilters, new_filter, "link new filter into black user container");
+						} else {
+							ao2_t_link(user->whitefilters, new_filter, "link new filter into white user container");
+						}
+					}
+				}
 			} else {
 				ast_debug(1, "%s is an unknown option.\n", var->name);
 			}
@@ -6284,6 +6403,7 @@ static int __init_manager(int reload)
 		}
 		/* We do not need to keep this user so take them out of the list */
 		AST_RWLIST_REMOVE_CURRENT(list);
+		ast_debug(4, "Pruning user '%s'\n", user->username);
 		/* Free their memory now */
 		if (user->a1_hash) {
 			ast_free(user->a1_hash);
@@ -6291,6 +6411,10 @@ static int __init_manager(int reload)
 		if (user->secret) {
 			ast_free(user->secret);
 		}
+		ao2_t_callback(user->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
+		ao2_t_callback(user->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
+		ao2_t_ref(user->whitefilters, -1, "decrement ref for white container, should be last one");
+		ao2_t_ref(user->blackfilters, -1, "decrement ref for black container, should be last one");
 		ast_free_ha(user->ha);
 		ast_free(user);
 	}
