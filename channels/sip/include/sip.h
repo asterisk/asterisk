@@ -742,6 +742,7 @@ struct sip_request {
 	ptrdiff_t header[SIP_MAX_HEADERS]; /*!< Array of offsets into the request string of each SIP header*/
 	ptrdiff_t line[SIP_MAX_LINES];     /*!< Array of offsets into the request string of each SDP line*/
 	struct ast_str *data;	
+	struct ast_str *content;
 	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;          /*!< The socket used for this request */
 	AST_LIST_ENTRY(sip_request) next;

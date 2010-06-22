@@ -582,6 +582,23 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 )
 #endif
 
+AST_INLINE_API(
+int ast_str_copy_string(struct ast_str **dst, struct ast_str *src),
+{
+
+	/* make sure our destination is large enough */
+	if (src->__AST_STR_USED + 1 > (*dst)->__AST_STR_LEN) {
+		if (ast_str_make_space(dst, src->__AST_STR_USED + 1)) {
+			return -1;
+		}
+	}
+
+	memcpy((*dst)->__AST_STR_STR, src->__AST_STR_STR, src->__AST_STR_USED + 1);
+	(*dst)->__AST_STR_USED = src->__AST_STR_USED;
+	return 0;
+}
+)
+
 #define ast_str_alloca(init_len)			\
 	({						\
 		struct ast_str *__ast_str_buf;			\
