@@ -2605,6 +2605,7 @@ static char *dundi_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_cli(a->fd, "Peer:    %s\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		ast_cli(a->fd, "Model:   %s\n", model2str(peer->model));
 		ast_cli(a->fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "<Unspecified>");
+		ast_cli(a->fd, "Port:    %d\n", ntohs(peer->addr.sin_port));
 		ast_cli(a->fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");
 		ast_cli(a->fd, "Reg:     %s\n", peer->registerid < 0 ? "No" : "Yes");
 		ast_cli(a->fd, "In Key:  %s\n", ast_strlen_zero(peer->inkey) ? "<None>" : peer->inkey);
@@ -2636,8 +2637,8 @@ static char *dundi_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT2 "%-20.20s %-15.15s     %-10.10s %-8.8s %-15.15s\n"
-#define FORMAT "%-20.20s %-15.15s %s %-10.10s %-8.8s %-15.15s\n"
+#define FORMAT2 "%-20.20s %-15.15s     %-6.6s %-10.10s %-8.8s %-15.15s\n"
+#define FORMAT "%-20.20s %-15.15s %s %-6d %-10.10s %-8.8s %-15.15s\n"
 	struct dundi_peer *peer;
 	int registeredonly=0;
 	char avgms[20];
@@ -2667,7 +2668,7 @@ static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			return CLI_SHOWUSAGE;
  	}
 	AST_LIST_LOCK(&peers);
-	ast_cli(a->fd, FORMAT2, "EID", "Host", "Model", "AvgTime", "Status");
+	ast_cli(a->fd, FORMAT2, "EID", "Host", "Port", "Model", "AvgTime", "Status");
 	AST_LIST_TRAVERSE(&peers, peer, list) {
 		char status[20];
 		int print_line = -1;
@@ -2702,7 +2703,7 @@ static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			strcpy(avgms, "Unavail");
 		snprintf(srch, sizeof(srch), FORMAT, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid),
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
-					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
+					peer->dynamic ? "(D)" : "(S)", ntohs(peer->addr.sin_port), model2str(peer->model), avgms, status);
 
                 if (a->argc == 5) {
                   if (!strcasecmp(a->argv[3],"include") && strstr(srch,a->argv[4])) {
@@ -2719,7 +2720,7 @@ static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_a
         if (print_line) {
 			ast_cli(a->fd, FORMAT, ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid),
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
-					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
+					peer->dynamic ? "(D)" : "(S)", ntohs(peer->addr.sin_port), model2str(peer->model), avgms, status);
 		}
 	}
 	ast_cli(a->fd, "%d dundi peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
@@ -4409,6 +4410,8 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 			ast_copy_string(peer->inkey, v->value, sizeof(peer->inkey));
 		} else if (!strcasecmp(v->name, "outkey")) {
 			ast_copy_string(peer->outkey, v->value, sizeof(peer->outkey));
+		} else if (!strcasecmp(v->name, "port")) {
+			peer->addr.sin_port = htons(atoi(v->value));
 		} else if (!strcasecmp(v->name, "host")) {
 			if (!strcasecmp(v->value, "dynamic")) {
 				peer->dynamic = 1;

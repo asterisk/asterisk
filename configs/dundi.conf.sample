@@ -163,6 +163,8 @@ autokill=yes
 ;
 ; host - What their host is
 ;
+; port - The port where their host is listening (default: 4520)
+;
 ; order - What search order to use.  May be 'primary', 'secondary',
 ;         'tertiary' or 'quartiary'.  In large systems, it is beneficial
 ;         to only query one up-stream host in order to maximize caching
