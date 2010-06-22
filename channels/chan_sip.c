@@ -23079,7 +23079,14 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		req->ignore = 1;
 		ast_debug(3, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
 	}
-		
+
+	/* RFC 3261 section 9. "CANCEL has no effect on a request to which a UAS has
+	 * already given a final response." */
+	if (!p->pendinginvite && (req->method == SIP_CANCEL)) {
+		transmit_response(p, "481 Call/Transaction Does Not Exist", req);
+		return res;
+	}
+
 	if (seqno >= p->icseq)
 		/* Next should follow monotonically (but not necessarily
 		   incrementally -- thanks again to the genius authors of SIP --
