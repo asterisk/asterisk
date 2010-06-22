@@ -1,3 +1,16 @@
+2010-06-22  Russell Bryant <russell@digium.com>
+
+	* Asterisk 1.4.33.1 Released.
+
+	* channels/chan_dahdi.c: Merge revision 270404 from the 1.4 branch.
+
+	  fixes FXS port still ringing when answered, as reported by Tzafrir
+	  on dev-list.
+
+	  (issue #17067)
+	  Reported by: tzafrir
+	  Tested by: alecdavis
+
 2010-06-17  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.4.33 Released.
