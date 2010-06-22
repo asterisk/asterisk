@@ -5484,6 +5484,9 @@ static void destroy_all_channels(void)
 #if defined(HAVE_PRI)
 	/* Destroy all of the no B channel interface lists */
 	for (span = 0; span < NUM_SPANS; ++span) {
+		if (!pris[span].dchannels[0]) {
+			break;
+		}
 		pri = &pris[span].pri;
 		ast_mutex_lock(&pri->lock);
 		while (pri->no_b_chan_iflist) {
