@@ -5701,6 +5701,7 @@ static int sip_hangup(struct ast_channel *ast)
 		sip_pvt_lock(p);
 		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
 		sip_pvt_unlock(p);
+		ast_module_unref(ast_module_info->self);
 		return 0;
 	}
 
