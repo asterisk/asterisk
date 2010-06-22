@@ -3695,6 +3695,7 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_clear_flag(&p->flags[0], SIP_NEEDDESTROY);
 		p->owner->tech_pvt = NULL;
 		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
+		ast_module_unref(ast_module_info->self);
 		return 0;
 	}
 	if (option_debug) {
