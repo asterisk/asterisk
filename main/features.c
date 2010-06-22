@@ -2117,6 +2117,11 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	} else {
 		/* Transferee hung up */
 		finishup(transferee);
+		/* At this point both the transferer transferee have hungup,
+		 * so if newchan is up, hang it up as it has no one to talk to */
+		if (newchan) {
+			ast_hangup(newchan);
+		}
 		return -1;
 	}
 }
