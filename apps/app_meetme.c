@@ -5675,6 +5675,19 @@ static void sla_check_reload(void)
 		return;
 	}
 
+	/* We need to actually delete the previous versions of trunks and stations now */
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&sla_stations, station, entry) {
+		AST_RWLIST_REMOVE_CURRENT(entry);
+		ast_free(station);
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&sla_trunks, trunk, entry) {
+		AST_RWLIST_REMOVE_CURRENT(entry);
+		ast_free(trunk);
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
 	/* yay */
 	sla_load_config(1);
 	sla.reload = 0;
@@ -5727,8 +5740,9 @@ static void *sla_thread(void *data)
 			ast_mutex_lock(&sla.lock);
 		}
 
-		if (sla.reload)
+		if (sla.reload) {
 			sla_check_reload();
+		}
 	}
 
 	ast_mutex_unlock(&sla.lock);
@@ -6599,8 +6613,11 @@ static int sla_load_config(int reload)
 
 	ast_config_destroy(cfg);
 
-	if (!reload && (!AST_LIST_EMPTY(&sla_stations) || !AST_LIST_EMPTY(&sla_stations)))
+	/* Even if we don't have any stations, we may after a reload and we need to
+	 * be able to process the SLA_EVENT_RELOAD event in that case */
+	if (!reload) {
 		ast_pthread_create(&sla.thread, NULL, sla_thread, NULL);
+	}
 
 	return res;
 }
