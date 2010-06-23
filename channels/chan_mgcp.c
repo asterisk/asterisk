@@ -1654,7 +1654,6 @@ static struct mgcp_gateway *find_realtime_gw(char *name, char *at, struct sockad
 	struct mgcp_endpoint *e;
 	char *c = NULL, *line;
 	char lines[256];
-	char tmp[4096];
 	int i, j;
 
 	ast_debug(1, "*** find Realtime MGCPGW\n");
@@ -1672,6 +1671,19 @@ static struct mgcp_gateway *find_realtime_gw(char *name, char *at, struct sockad
 		return NULL;
 	}
 
+	/*!
+	 * \note This is a fairly odd way of instantiating lines.  Instead of each
+	 * line created by virtue of being in the database (and loaded via
+	 * ast_load_realtime_multientry), this code forces a specific order with a
+	 * "lines" entry in the "mgcpgw" record.  This has benefits, because as with
+	 * chan_dahdi, values are inherited across definitions.  The downside is
+	 * that it's not as clear what the values will be simply by looking at a
+	 * single row in the database, and it's probable that the sanest configuration
+	 * should have the first column in the "mgcpep" table be "clearvars", with a
+	 * static value of "all", if any variables are set at all.  It may be worth
+	 * making this assumption explicit in the code in the future, and then just
+	 * using ast_load_realtime_multientry for the "mgcpep" records.
+	 */
 	lines[0] = '\0';
 	for (gwv = mgcpgwconfig; gwv; gwv = gwv->next) {
 		if (!strcasecmp(gwv->name, "lines")) {
@@ -1679,33 +1691,30 @@ static struct mgcp_gateway *find_realtime_gw(char *name, char *at, struct sockad
 			break;
 		}
 	}
+	/* Position gwv at the end of the list */
 	for (gwv = gwv && gwv->next ? gwv : mgcpgwconfig; gwv->next; gwv = gwv->next);
-	if (!ast_strlen_zero(lines)) {
-		for (c = lines, line = tmp; *c; c++) {
-			*line = *c;
-			if (*c == ',') {
-					*(line) = 0;
-					mgcpepconfig = ast_load_realtime("mgcpep", "name", at, "line", tmp, NULL);
-					gwv->next = mgcpepconfig;
 
-					while (gwv->next) {
-						if (!strcasecmp(gwv->next->name, "line")) {
-							epname = gwv->next;
-							gwv->next = gwv->next->next;
-						} else {
-							gwv = gwv->next;
-						}
-					}
-						/* moving the line var to the end */
-					if (epname) {
-						gwv->next = epname;
-						epname->next = NULL;
-						gwv = gwv->next;
-					}
-					mgcpepconfig = NULL;
-					line = tmp;
-			} else {
-				line++;
+	if (!ast_strlen_zero(lines)) {
+		AST_DECLARE_APP_ARGS(args,
+			AST_APP_ARG(line)[100];
+		);
+		AST_STANDARD_APP_ARGS(args, lines);
+		for (i = 0; i < args.argc; i++) {
+			gwv->next = ast_load_realtime("mgcpep", "name", at, "line", args.line[i], NULL);
+
+			/* Remove "line" AND position gwv at the end of the list. */
+			for (epname = NULL; gwv->next; gwv = gwv->next) {
+				if (!strcasecmp(gwv->next->name, "line")) {
+					/* Remove it from the list */
+					epname = gwv->next;
+					gwv->next = gwv->next->next;
+				}
+			}
+			/* Since "line" instantiates the configuration, we have to move it to the end. */
+			if (epname) {
+				gwv->next = epname;
+				epname->next = NULL;
+				gwv = gwv->next;
 			}
 		}
 	}
