@@ -6615,7 +6615,7 @@ static int sla_load_config(int reload)
 
 	/* Even if we don't have any stations, we may after a reload and we need to
 	 * be able to process the SLA_EVENT_RELOAD event in that case */
-	if (!reload) {
+	if (sla.thread == AST_PTHREADT_NULL && (!AST_LIST_EMPTY(&sla_stations) || !AST_LIST_EMPTY(&sla_trunks))) {
 		ast_pthread_create(&sla.thread, NULL, sla_thread, NULL);
 	}
 
@@ -6701,7 +6701,7 @@ static int load_config(int reload)
 {
 	load_config_meetme();
 
-	if (reload) {
+	if (reload && sla.thread != AST_PTHREADT_NULL) {
 		sla_queue_event(SLA_EVENT_RELOAD);
 		ast_log(LOG_NOTICE, "A reload of the SLA configuration has been requested "
 			"and will be completed when the system is idle.\n");
