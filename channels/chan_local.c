@@ -49,6 +49,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/devicestate.h"
 
+/*** DOCUMENTATION
+	<manager name="LocalOptimizeAway" language="en_US">
+		<synopsis>
+			Optimize away a local channel when possible.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The channel name to optimize away.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>A local channel created with "/n" will not automatically optimize away.
+			Calling this command on the local channel will clear that flag and allow
+			it to optimize away if it's bridged or when it becomes bridged.</para>
+		</description>
+	</manager>
+ ***/
+
 static const char tdesc[] = "Local Proxy Channel Driver";
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
@@ -927,6 +946,57 @@ static struct ast_cli_entry cli_local[] = {
 	AST_CLI_DEFINE(locals_show, "List status of local channels"),
 };
 
+static int manager_optimize_away(struct mansession *s, const struct message *m)
+{
+	const char *channel;
+	struct local_pvt *p, *tmp = NULL;
+	struct ast_channel *c;
+	int found = 0;
+
+	channel = astman_get_header(m, "Channel");
+
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "'Channel' not specified.");
+		return 0;
+	}
+
+	c = ast_channel_get_by_name(channel);
+	if (!c) {
+		astman_send_error(s, m, "Channel does not exist.");
+		return 0;
+	}
+
+	p = c->tech_pvt;
+	ast_channel_unref(c);
+	c = NULL;
+
+	if (AST_LIST_LOCK(&locals)) {
+		astman_send_error(s, m, "Unable to lock the monitor");
+		return 0;
+	}
+
+
+	AST_LIST_TRAVERSE(&locals, tmp, list) {
+		if (tmp == p) {
+			ast_mutex_lock(&tmp->lock);
+			found = 1;
+			ast_clear_flag(tmp, LOCAL_NO_OPTIMIZATION);
+			ast_mutex_unlock(&tmp->lock);
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&locals);
+
+	if (found) {
+		astman_send_ack(s, m, "Queued channel to be optimized away");
+	} else {
+		astman_send_error(s, m, "Unable to find channel");
+	}
+
+	return 0;
+}
+
+
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
@@ -936,6 +1006,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_cli_register_multiple(cli_local, sizeof(cli_local) / sizeof(struct ast_cli_entry));
+	ast_manager_register_xml("LocalOptimizeAway", EVENT_FLAG_SYSTEM|EVENT_FLAG_CALL, manager_optimize_away);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -946,6 +1018,7 @@ static int unload_module(void)
 
 	/* First, take us out of the channel loop */
 	ast_cli_unregister_multiple(cli_local, sizeof(cli_local) / sizeof(struct ast_cli_entry));
+	ast_manager_unregister("LocalOptimizeAway");
 	ast_channel_unregister(&local_tech);
 	if (!AST_LIST_LOCK(&locals)) {
 		/* Hangup all interfaces if they have an owner */
