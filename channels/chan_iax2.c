@@ -981,6 +981,7 @@ struct iax2_thread {
 	 *  a call which this thread is already processing a full frame for, they
 	 *  are queued up here. */
 	AST_LIST_HEAD_NOLOCK(, iax2_pkt_buf) full_frames;
+	unsigned char stop;
 };
 
 /* Thread lists */
@@ -1304,7 +1305,7 @@ static struct iax2_thread *find_idle_thread(void)
 	ast_mutex_lock(&thread->init_lock);
 
 	/* Create thread and send it on it's way */
-	if (ast_pthread_create_detached_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
+	if (ast_pthread_create_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 		ast_cond_destroy(&thread->cond);
 		ast_mutex_destroy(&thread->lock);
 		ast_free(thread);
@@ -11150,12 +11151,21 @@ static void *iax2_process_thread(void *data)
 	struct timespec ts;
 	int put_into_idle = 0;
 	int first_time = 1;
+	int old_state;
 
-	ast_atomic_fetchadd_int(&iaxactivethreadcount,1);
+	ast_atomic_fetchadd_int(&iaxactivethreadcount, 1);
+
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old_state);
 	pthread_cleanup_push(iax2_process_thread_cleanup, data);
-	for(;;) {
+
+	for (;;) {
 		/* Wait for something to signal us to be awake */
 		ast_mutex_lock(&thread->lock);
+
+		if (thread->stop) {
+			ast_mutex_unlock(&thread->lock);
+			break;
+		}
 
 		/* Flag that we're ready to accept signals */
 		if (first_time) {
@@ -11164,8 +11174,9 @@ static void *iax2_process_thread(void *data)
 		}
 
 		/* Put into idle list if applicable */
-		if (put_into_idle)
+		if (put_into_idle) {
 			insert_idle_thread(thread);
+		}
 
 		if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
 			struct iax2_thread *t = NULL;
@@ -11176,7 +11187,7 @@ static void *iax2_process_thread(void *data)
 			if (ast_cond_timedwait(&thread->cond, &thread->lock, &ts) == ETIMEDOUT) {
 				/* This thread was never put back into the available dynamic
 				 * thread list, so just go away. */
-				if (!put_into_idle) {
+				if (!put_into_idle || thread->stop) {
 					ast_mutex_unlock(&thread->lock);
 					break;
 				}
@@ -11198,8 +11209,7 @@ static void *iax2_process_thread(void *data)
 				wait = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
 				ts.tv_sec = wait.tv_sec;
 				ts.tv_nsec = wait.tv_usec * 1000;
-				if (ast_cond_timedwait(&thread->cond, &thread->lock, &ts) == ETIMEDOUT)
-				{
+				if (ast_cond_timedwait(&thread->cond, &thread->lock, &ts) == ETIMEDOUT) {
 					ast_mutex_unlock(&thread->lock);
 					break;
 				}
@@ -11213,11 +11223,15 @@ static void *iax2_process_thread(void *data)
 
 		ast_mutex_unlock(&thread->lock);
 
+		if (thread->stop) {
+			break;
+		}
+
 		if (thread->iostate == IAX_IOSTATE_IDLE)
 			continue;
 
 		/* See what we need to do */
-		switch(thread->iostate) {
+		switch (thread->iostate) {
 		case IAX_IOSTATE_READY:
 			thread->actions++;
 			thread->iostate = IAX_IOSTATE_PROCESSING;
@@ -11721,7 +11735,7 @@ static int start_network_thread(void)
 			thread->threadnum = ++threadcount;
 			ast_mutex_init(&thread->lock);
 			ast_cond_init(&thread->cond, NULL);
-			if (ast_pthread_create_detached(&thread->threadid, NULL, iax2_process_thread, thread)) {
+			if (ast_pthread_create_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 				ast_log(LOG_WARNING, "Failed to create new thread!\n");
 				ast_free(thread);
 				thread = NULL;
@@ -13615,16 +13629,40 @@ static struct ast_cli_entry cli_iax2[] = {
 #endif /* IAXTESTS */
 };
 
+static void cleanup_thread_list(void *head)
+{
+	AST_LIST_HEAD(iax2_thread_list, iax2_thread);
+	struct iax2_thread_list *list_head = head;
+	struct iax2_thread *thread;
+
+	AST_LIST_LOCK(list_head);
+	while ((thread = AST_LIST_REMOVE_HEAD(&idle_list, list))) {
+		pthread_t thread_id = thread->threadid;
+
+		thread->stop = 1;
+		signal_condition(&thread->lock, &thread->cond);
+
+		AST_LIST_UNLOCK(list_head);
+		pthread_join(thread_id, NULL);
+		AST_LIST_LOCK(list_head);
+	}
+	AST_LIST_UNLOCK(list_head);
+}
+
 static int __unload_module(void)
 {
-	struct iax2_thread *thread = NULL;
 	struct ast_context *con;
 	int x;
 
-	/* Make sure threads do not hold shared resources when they are canceled */
-	
-	/* Grab the sched lock resource to keep it away from threads about to die */
-	/* Cancel the network thread, close the net socket */
+	ast_manager_unregister("IAXpeers");
+	ast_manager_unregister("IAXpeerlist");
+	ast_manager_unregister("IAXnetstats");
+	ast_manager_unregister("IAXregistry");
+	ast_unregister_application(papp);
+	ast_cli_unregister_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
+	ast_unregister_switch(&iax2_switch);
+	ast_channel_unregister(&iax2_tech);
+
 	if (netthreadid != AST_PTHREADT_NULL) {
 		AST_LIST_LOCK(&frame_queue);
 		pthread_cancel(netthreadid);
@@ -13632,43 +13670,22 @@ static int __unload_module(void)
 		pthread_join(netthreadid, NULL);
 	}
 
-	sched = ast_sched_thread_destroy(sched);
-	
-	/* Call for all threads to halt */
-	AST_LIST_LOCK(&idle_list);
-	while ((thread = AST_LIST_REMOVE_HEAD(&idle_list, list)))
-		pthread_cancel(thread->threadid);
-	AST_LIST_UNLOCK(&idle_list);
-
-	AST_LIST_LOCK(&active_list);
-	while ((thread = AST_LIST_REMOVE_HEAD(&active_list, list)))
-		pthread_cancel(thread->threadid);
-	AST_LIST_UNLOCK(&active_list);
-
-	AST_LIST_LOCK(&dynamic_list);
-	while ((thread = AST_LIST_REMOVE_HEAD(&dynamic_list, list)))
-		pthread_cancel(thread->threadid);
-	AST_LIST_UNLOCK(&dynamic_list);
-	
-	/* Wait for threads to exit */
-	while(0 < iaxactivethreadcount)
-		usleep(10000);
-	
-	ast_netsock_release(netsock);
-	ast_netsock_release(outsock);
 	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		if (iaxs[x]) {
 			iax2_destroy(x);
 		}
 	}
-	ast_manager_unregister( "IAXpeers" );
-	ast_manager_unregister( "IAXpeerlist" );
-	ast_manager_unregister( "IAXnetstats" );
-	ast_manager_unregister( "IAXregistry" );
-	ast_unregister_application(papp);
-	ast_cli_unregister_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
-	ast_unregister_switch(&iax2_switch);
-	ast_channel_unregister(&iax2_tech);
+	
+	/* Call for all threads to halt */
+	cleanup_thread_list(&idle_list);
+	cleanup_thread_list(&active_list);
+	cleanup_thread_list(&dynamic_list);
+
+	sched = ast_sched_thread_destroy(sched);
+
+	ast_netsock_release(netsock);
+	ast_netsock_release(outsock);
+
 	delete_users();
 	iax_provision_unload();
 	reload_firmware(1);
