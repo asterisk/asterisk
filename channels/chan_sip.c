@@ -20508,7 +20508,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	p->reqsipoptions = required_profile;
 
 	/* Check if this is a loop */
-	if (ast_test_flag(&p->flags[0], SIP_OUTGOING) && p->owner && (p->invitestate != INV_TERMINATED && p->invitestate != INV_CONFIRMED)) {
+	if (ast_test_flag(&p->flags[0], SIP_OUTGOING) && p->owner && (p->invitestate != INV_TERMINATED && p->invitestate != INV_CONFIRMED) && p->owner->_state != AST_STATE_UP) {
 		/* This is a call to ourself.  Send ourselves an error code and stop
 	   	processing immediately, as SIP really has no good mechanism for
 	   	being able to call yourself */
