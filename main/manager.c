@@ -1910,7 +1910,7 @@ static void astman_send_response_full(struct mansession *s, const struct message
 		astman_append(s, "ActionID: %s\r\n", id);
 	}
 	if (listflag) {
-		astman_append(s, "Eventlist: %s\r\n", listflag);	/* Start, complete, cancelled */
+		astman_append(s, "EventList: %s\r\n", listflag);	/* Start, complete, cancelled */
 	}
 	if (msg == MSG_MOREDATA) {
 		return;
