@@ -4816,7 +4816,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
 
 		/* If the queue member did an attended transfer, then the TRANSFER already was logged in the queue_log
-		 * when the masquerade occurred. These other "ending" queue_log messages are unnecessary
+		 * when the masquerade occurred. These other "ending" queue_log messages are unnecessary, except for
+		 * the AgentComplete manager event
 		 */
 		ast_channel_lock(qe->chan);
 		if (!attended_transfer_occurred(qe->chan)) {
@@ -4841,6 +4842,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_channel_datastore_remove(qe->chan, tds);
 			}
 			update_queue(qe->parent, member, callcompletedinsl, (time(NULL) - callstart));
+		} else {
+			/* We already logged the TRANSFER on the queue_log, but we still need to send the AgentComplete event */
+			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 		}
 
 		if (transfer_ds) {
