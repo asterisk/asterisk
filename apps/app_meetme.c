@@ -4140,10 +4140,11 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 					res = -1;
 				}
 			} else {
-				if ((!ast_strlen_zero(cnf->pin) &&
-				     !ast_test_flag64(&confflags, CONFFLAG_ADMIN)) ||
+				if (((!ast_strlen_zero(cnf->pin) &&
+				    !ast_test_flag(&confflags, CONFFLAG_ADMIN)) ||
 				    (!ast_strlen_zero(cnf->pinadmin) &&
-				     ast_test_flag64(&confflags, CONFFLAG_ADMIN))) {
+				    ast_test_flag(&confflags, CONFFLAG_ADMIN))) &&
+				    (!(cnf->users == 0 && cnf->isdynamic))) {
 					char pin[MAX_PIN] = "";
 					int j;
 
