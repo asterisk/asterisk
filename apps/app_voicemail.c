@@ -1193,9 +1193,10 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const struct as
 
 	fprintf(text_file_ptr, "%s\n", "[message]");
 
-	cid_num = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:");
 	cid_name = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Name:");
-	fprintf(text_file_ptr, "callerid=\"%s\" <%s>\n", S_OR(cid_name, ""), S_OR(cid_num, ""));
+	fprintf(text_file_ptr, "callerid=\"%s\" ", S_OR(cid_name, ""));
+	cid_num = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:");
+	fprintf(text_file_ptr, "<%s>\n", S_OR(cid_num, ""));
 	context = get_header_by_tag(header_content, "X-Asterisk-VM-Context:");
 	fprintf(text_file_ptr, "context=%s\n", S_OR(context, ""));
 	origtime = get_header_by_tag(header_content, "X-Asterisk-VM-Orig-time:");
