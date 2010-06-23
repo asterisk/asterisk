@@ -3286,6 +3286,20 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
 					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
 					(long) (time(NULL) - callstart));
+				if (qe->parent->eventwhencalled)
+					manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+							"Queue: %s\r\n"
+							"Uniqueid: %s\r\n"
+							"Channel: %s\r\n"
+							"Member: %s\r\n"
+							"MemberName: %s\r\n"
+							"HoldTime: %ld\r\n"
+							"TalkTime: %ld\r\n"
+							"Reason: transfer\r\n"
+							"%s",
+							queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
+							(long)(callstart - qe->start), (long)(time(NULL) - callstart),
+							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 			} else if (qe->chan->_softhangup) {
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
 					(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
@@ -3325,6 +3339,21 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_channel_datastore_remove(qe->chan, tds);
 			}
 			update_queue(qe->parent, member, callcompletedinsl);
+		} else {
+			if (qe->parent->eventwhencalled)
+				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+						"Queue: %s\r\n"
+						"Uniqueid: %s\r\n"
+						"Channel: %s\r\n"
+						"Member: %s\r\n"
+						"MemberName: %s\r\n"
+						"HoldTime: %ld\r\n"
+						"TalkTime: %ld\r\n"
+						"Reason: transfer\r\n"
+						"%s",
+						queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername, (long)(callstart - qe->start),
+						(long)(time(NULL) - callstart),
+						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		}
 
 		if (transfer_ds) {
