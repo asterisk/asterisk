@@ -1649,10 +1649,8 @@ static struct mgcp_gateway *find_realtime_gw(char *name, char *at, struct sockad
 {
 	struct mgcp_gateway *g = NULL;
 	struct ast_variable *mgcpgwconfig = NULL;
-	struct ast_variable *mgcpepconfig = NULL;
 	struct ast_variable *gwv, *epname = NULL;
 	struct mgcp_endpoint *e;
-	char *c = NULL, *line;
 	char lines[256];
 	int i, j;
 
