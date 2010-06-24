@@ -6048,6 +6048,7 @@ static void *ss_thread(void *data)
 				ast_dsp_digitreset(p->dsp);
 			}
 			if (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) {
+				ast_mutex_lock(&p->lock);
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_proceeding(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 0);
@@ -6057,6 +6058,7 @@ static void *ss_thread(void *data)
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 					}
 				}
+				ast_mutex_unlock(&p->lock);
 			}
 			dahdi_enable_ec(p);
 			ast_setstate(chan, AST_STATE_RING);
