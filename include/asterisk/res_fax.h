@@ -33,13 +33,15 @@
 /*! \brief capabilities for res_fax to locate a fax technology module */
 enum ast_fax_capabilities {
 	/*! SendFax is supported */
-	AST_FAX_TECH_SEND    = (1 << 0),
+	AST_FAX_TECH_SEND      = (1 << 0),
 	/*! ReceiveFax is supported */
-	AST_FAX_TECH_RECEIVE = (1 << 1),
+	AST_FAX_TECH_RECEIVE   = (1 << 1),
 	/*! Audio FAX session supported */
-	AST_FAX_TECH_AUDIO   = (1 << 2),
+	AST_FAX_TECH_AUDIO     = (1 << 2),
 	/*! T.38 FAX session supported */
-	AST_FAX_TECH_T38     = (1 << 3),
+	AST_FAX_TECH_T38       = (1 << 3),
+	/*! sending mulitple documents supported */
+	AST_FAX_TECH_MULTI_DOC = (1 << 4),
 };
 
 /*! \brief fax modem capabilities */

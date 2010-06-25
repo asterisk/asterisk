@@ -75,8 +75,8 @@ static const char descrip_receivefax[] = "ReceiveFAX(filename[,options]):\n"
 
 static const char app_sendfax[] = "SendFAX";
 static const char synopsis_sendfax[] = "Sends a specified TIFF/F file as a FAX.";
-static const char descrip_sendfax[] = "SendFAX(filename[,options]):\n"
- " The SendFAX() application sends the specified TIFF/F file as a FAX.\n"
+static const char descrip_sendfax[] = "SendFAX(filename[&filename[&filename]][,options]):\n"
+ " The SendFAX() application sends the specified TIFF/F file(s) as a FAX.\n"
  " The application arguments are:\n"
  "    'd' - enables FAX debugging\n"
  "    'f' - allow audio fallback FAX transfer on T.38 capable channels\n"
@@ -600,9 +600,62 @@ static void get_manager_event_info(struct ast_channel *chan, struct manager_even
 	pbx_substitute_variables_helper(chan, "${CALLERID(num)}", info->cid, sizeof(info->cid));
 }
 
+
+/* \brief Generate a string of filenames using the given prefix and separator.
+ * \param details the fax session details
+ * \param prefix the prefix to each filename
+ * \param separator the separator between filenames
+ *
+ * This function generates a string of filenames from the given details
+ * structure and using the given prefix and separator.
+ *
+ * \retval NULL there was an error generating the string
+ * \return the string generated string
+ */
+static char *generate_filenames_string(struct ast_fax_session_details *details, char *prefix, char *separator)
+{
+	char *filenames, *c;
+	size_t size = 0;
+	int first = 1;
+	struct ast_fax_document *doc;
+
+	/* don't process empty lists */
+	if (AST_LIST_EMPTY(&details->documents)) {
+		return NULL;
+	}
+
+	/* Calculate the total length of all of the file names */
+	AST_LIST_TRAVERSE(&details->documents, doc, next) {
+		size += strlen(separator) + strlen(prefix) + strlen(doc->filename);
+	}
+	size += 1; /* add space for the terminating null */
+
+	if (!(filenames = ast_malloc(size))) {
+		return NULL;
+	}
+	c = filenames;
+
+	ast_build_string(&c, &size, "%s%s", prefix, AST_LIST_FIRST(&details->documents)->filename);
+	AST_LIST_TRAVERSE(&details->documents, doc, next) {
+		if (first) {
+			first = 0;
+			continue;
+		}
+
+		ast_build_string(&c, &size, "%s%s%s", separator, prefix, doc->filename);
+	}
+
+	return filenames;
+}
+
 /*! \brief send a FAX status manager event */
 static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_details *details, const char *status)
 {
+	char *filenames = generate_filenames_string(details, "FileName: ", "\r\n");
+	if (!filenames) {
+		return 1;
+	}
+
 	ast_channel_lock(chan);
 	pbx_builtin_setvar_helper(chan, "FAXSTATUSSTRING", status);
 	if (details->option.statusevents) {
@@ -617,16 +670,17 @@ static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_de
 			      "Exten: %s\r\n"
 			      "CallerID: %s\r\n"
 			      "LocalStationID: %s\r\n"
-			      "FileName: %s\r\n",
+			      "%s\r\n",
 			      status,
 			      chan->name,
 			      info.context,
 			      info.exten,
 			      info.cid,
 			      details->localstationid,
-			      AST_LIST_FIRST(&details->documents)->filename);
+			      filenames);
 	}
 	ast_channel_unlock(chan);
+	ast_free(filenames);
 
 	return 0;
 }
@@ -1545,19 +1599,19 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 /*! \brief initiate a send FAX session */
 static int sendfax_exec(struct ast_channel *chan, const char *data)
 {
-	char *parse;
-	int channel_alive;
+	char *parse, *filenames, *c;
+	int channel_alive, file_count;
 	struct ast_fax_session_details *details;
 	struct ast_fax_document *doc;
 	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(filename);
+		AST_APP_ARG(filenames);
 		AST_APP_ARG(options);
 	);
 	struct ast_flags opts = { 0, };
 	struct manager_event_info info;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "%s requires an argument (filename[,options])\n", app_sendfax);
+		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]][,options])\n", app_sendfax);
 		return -1;
 	}
 	parse = ast_strdupa(data);
@@ -1576,8 +1630,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	    ast_app_parse_options(fax_exec_options, &opts, NULL, args.options)) {
 		return -1;
 	}
-	if (ast_strlen_zero(args.filename)) {
-		ast_log(LOG_WARNING, "%s requires an argument (filename[,options])\n", app_sendfax);
+	if (ast_strlen_zero(args.filenames)) {
+		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]],options])\n", app_sendfax);
 		return -1;
 	}
 	
@@ -1587,11 +1641,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (access(args.filename, (F_OK | R_OK)) < 0) {
-		ast_log(LOG_ERROR, "access failure.  Verify '%s' exists and check permissions.\n", args.filename);
-		return -1;
-	}
-	
 	/* make sure the channel is up */
 	if (chan->_state != AST_STATE_UP) {
 		if (ast_answer(chan)) {
@@ -1612,17 +1661,35 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (!(doc = ast_calloc(1, sizeof(*doc) + strlen(args.filename) + 1))) {
-		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
-		ao2_ref(details, -1);
-		return -1;
+	file_count = 0;
+	filenames = args.filenames;
+	while ((c = strsep(&filenames, "&"))) {
+		if (access(c, (F_OK | R_OK)) < 0) {
+			ast_log(LOG_ERROR, "access failure.  Verify '%s' exists and check permissions.\n", args.filenames);
+			ao2_ref(details, -1);
+			return -1;
+		}
+
+		if (!(doc = ast_calloc(1, sizeof(*doc) + strlen(c) + 1))) {
+			ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
+			ao2_ref(details, -1);
+			return -1;
+		}
+
+		strcpy(doc->filename, c);
+		AST_LIST_INSERT_TAIL(&details->documents, doc, next);
+		file_count++;
 	}
 
-	strcpy(doc->filename, args.filename);
-	AST_LIST_INSERT_TAIL(&details->documents, doc, next);
+	if (file_count > 1) {
+		details->caps |= AST_FAX_TECH_MULTI_DOC;
+	}
 
-	ast_verb(3, "Channel '%s' sending FAX '%s'\n", chan->name, args.filename);
-	
+	ast_verb(3, "Channel '%s' sending FAX:\n", chan->name);
+	AST_LIST_TRAVERSE(&details->documents, doc, next) {
+		ast_verb(3, "   %s\n", doc->filename);
+	}
+
 	details->caps = AST_FAX_TECH_SEND;
 
 	/* check for debug */
@@ -1669,6 +1736,12 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
+	if (!(filenames = generate_filenames_string(details, "FileName: ", "\r\n"))) {
+		ast_log(LOG_ERROR, "Error generating SendFAX manager event\n");
+		ao2_ref(details, -1);
+		return (!channel_alive) ? -1 : 0;
+	}
+
 	/* send out the AMI completion event */
 	ast_channel_lock(chan);
 	get_manager_event_info(chan, &info);
@@ -1683,7 +1756,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		      "PagesTransferred: %s\r\n"
 		      "Resolution: %s\r\n"
 		      "TransferRate: %s\r\n"
-		      "FileName: %s\r\n",
+		      "%s\r\n",
 		      chan->name,
 		      info.context,
 		      info.exten,
@@ -1693,8 +1766,10 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		      pbx_builtin_getvar_helper(chan, "FAXPAGES"),
 		      pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"),
 		      pbx_builtin_getvar_helper(chan, "FAXBITRATE"),
-		      args.filename);
+		      filenames);
 	ast_channel_unlock(chan);
+
+	ast_free(filenames);
 
 	ao2_ref(details, -1);
 
@@ -1954,6 +2029,7 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 	struct ast_fax_session *s;
 	struct ao2_iterator i;
 	int session_count;
+	char *filenames;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1968,15 +2044,28 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 
 	ast_cli(a->fd, "\nCurrent FAX Sessions:\n\n");
 	ast_cli(a->fd, "%-20.20s %-10.10s %-10.10s %-5.5s %-10.10s %-15.15s %-30.30s\n",
-		"Channel", "Tech", "FAXID", "Type", "Operation", "State", "File");
+		"Channel", "Tech", "FAXID", "Type", "Operation", "State", "File(s)");
 	i = ao2_iterator_init(faxregistry.container, 0);
 	while ((s = ao2_iterator_next(&i))) {
 		ao2_lock(s);
-		ast_cli(a->fd, "%-20.20s %-10.10s %-10d %-5.5s %-10.10s %-15.15s %-30.30s\n",
+
+		if (!(filenames = generate_filenames_string(s->details, "", ", "))) {
+			ast_log(LOG_ERROR, "error printing filenames for 'fax show sessions' command");
+			ao2_unlock(s);
+			ao2_ref(s, -1);
+			if (ao2_iterator_destroy != NULL) {
+				ao2_iterator_destroy(&i);
+			}
+			return CLI_FAILURE;
+		}
+
+		ast_cli(a->fd, "%-20.20s %-10.10s %-10d %-5.5s %-10.10s %-15.15s %-30s\n",
 			s->channame, s->tech->type, s->id,
 			(s->details->caps & AST_FAX_TECH_AUDIO) ? "G.711" : "T.38",
 			(s->details->caps & AST_FAX_TECH_SEND) ? "send" : "receive",
-			ast_fax_state_to_str(s->state), AST_LIST_FIRST(&s->details->documents)->filename);
+			ast_fax_state_to_str(s->state), filenames);
+
+		ast_free(filenames);
 		ao2_unlock(s);
 		ao2_ref(s, -1);
 	}
@@ -2063,6 +2152,7 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 {
 	struct ast_fax_session_details *details = find_details(chan);
 	int res = 0;
+	char *filenames;
 
 	if (!details) {
 		ast_log(LOG_ERROR, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", chan->name, data);
@@ -2078,6 +2168,17 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 			res = -1;
 		} else {
 			ast_copy_string(buf, AST_LIST_FIRST(&details->documents)->filename, len);
+		}
+	} else if (!strcasecmp(data, "filenames")) {
+		if (AST_LIST_EMPTY(&details->documents)) {
+			ast_log(LOG_ERROR, "channel '%s' can't read FAXOPT(%s) because it has never been written.\n", chan->name, data);
+			res = -1;
+		} else if ((filenames = generate_filenames_string(details, "", ","))) {
+			ast_copy_string(buf, filenames, len);
+			ast_free(filenames);
+		} else {
+			ast_log(LOG_ERROR, "channel '%s' can't read FAXOPT(%s), there was an error generating the filenames list.\n", chan->name, data);
+			res = -1;
 		}
 	} else if (!strcasecmp(data, "headerinfo")) {
 		ast_copy_string(buf, details->headerinfo, len);
@@ -2169,7 +2270,8 @@ struct ast_custom_function acf_faxopt = {
 "  ------             ----     -----------\n"
 "  ecm                 RW      Specify Error Correction Mode (ECM) with 'yes', disable with 'no'.\n"
 "  error               RO      Read the FAX transmission error upon failure.\n"
-"  filename            RO      Read the filename of the FAX transmission.\n"
+"  filename            RO      Read the filename of the first file of the FAX transmission.\n"
+"  filenames           RO      Read the filenames of all of the files in the FAX transmission (comma separated).\n"
 "  headerinfo          RW      Specify or read the FAX header.\n"
 "  localstationid      RW      Specify or read the local station identification\n"
 "  maxrate             RW      Specify or read the maximum transfer rate before transmission\n"
