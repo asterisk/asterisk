@@ -253,7 +253,7 @@ CREATE TRIGGER vm_cleanup AFTER DELETE OR UPDATE ON voicemessages FOR EACH ROW E
 11) Just as a sanity check, make sure you check the voicemessages table via the
 isql utility.
 
-[jsmith2@localhost ODBC]$ echo "SELECT id, msgnum, dir, duration FROM voicemessages WHERE msgnum = 1" | isql testing
+[jsmith2@localhost ODBC]$ echo "SELECT uniqueid, msgnum, dir, duration FROM voicemessages WHERE msgnum = 1" | isql testing
 +---------------------------------------+
 | Connected!                            |
 |                                       |
@@ -263,7 +263,7 @@ isql utility.
 |                                       |
 +---------------------------------------+
 SQL> +------------+------------+---------------------------------------------------------------------------------+---------------------+
-| id         | msgnum     | dir                                                                             | duration            |
+| uniqueid   | msgnum     | dir                                                                             | duration            |
 +------------+------------+---------------------------------------------------------------------------------+---------------------+
 +------------+------------+---------------------------------------------------------------------------------+---------------------+
 SQLRowCount returns 0
@@ -371,9 +371,9 @@ Type:  \copyright for distribution terms
        \q to quit
 
 asterisk=# SELECT * FROM voicemessages;
- id | msgnum |                       dir                        | context | macrocontext |       callerid        |  origtime  | duration | mailboxuser | mailboxcontext | recording | label | read | sip_id | pabx_id | iax_id 
-----+--------+--------------------------------------------------+---------+--------------+-----------------------+------------+----------+-------------+----------------+-----------+-------+------+--------+---------+--------
- 26 |      0 | /var/spool/asterisk/voicemail/odbctest/101/INBOX | odbc    |              | "linksys" <linksys> | 1167794179 | 7        | 101         | odbctest       | 16599     |       | f    |        |         |       
+ uniqueid | msgnum |                       dir                        | context | macrocontext |       callerid        |  origtime  | duration | mailboxuser | mailboxcontext | recording | label | read | sip_id | pabx_id | iax_id 
+----------+--------+--------------------------------------------------+---------+--------------+-----------------------+------------+----------+-------------+----------------+-----------+-------+------+--------+---------+--------
+       26 |      0 | /var/spool/asterisk/voicemail/odbctest/101/INBOX | odbc    |              | "linksys" <linksys> | 1167794179 | 7        | 101         | odbctest       | 16599     |       | f    |        |         |       
 (1 row)
 
 Did you notice the the recording column is just a number?  When a recording
