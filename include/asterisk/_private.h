@@ -42,6 +42,7 @@ int ast_timing_init(void);		/*!< Provided by timing.c */
 int ast_indications_init(void); /*!< Provided by indications.c */
 int ast_indications_reload(void);/*!< Provided by indications.c */
 int ast_ssl_init(void);                 /*!< Porvided by ssl.c */
+int ast_test_init(void);                /*!< Provided by test.c */
 
 /*!
  * \brief Reload asterisk modules.
