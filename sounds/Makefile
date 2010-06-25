@@ -83,7 +83,7 @@ $$($(1))/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
 	       && $$(SHA1SUM) -c --status $$$${PACKAGE}.sha1) || $(BS)
 	     (echo "Bad checksum: $$$${PACKAGE}" 1>&2; exit 1)); $(BS)
 	  fi; $(BS)
-	  cp -p $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} .; $(BS)
+	  $(LN) -sf $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} .; $(BS)
 	fi; $(BS)
 $(if $($(4)_VERSION),\
 $(EMPTY)	rm -f $$(subst -$$($(4)_VERSION),,$$@)-* && $(BS)
@@ -100,7 +100,7 @@ asterisk-$(1)-%.tar.gz: have_download
 	       && $$(SHA1SUM) -c --status $$@.sha1) || $(BS)
 	     (echo "Bad checksum: $$@" 1>&2; exit 1)); $(BS)
 	  fi; $(BS)
-	  cp -p $$(SOUNDS_CACHE_DIR)/$$@ .; $(BS)
+	  $(LN) -sf $$(SOUNDS_CACHE_DIR)/$$@ .; $(BS)
 	fi
 endef
 
