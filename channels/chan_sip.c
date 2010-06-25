@@ -3493,6 +3493,11 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		ast_free(pkt);
 		return AST_FAILURE;
 	} else {
+		/* This is odd, but since the retrans timer starts at 500ms and the do_monitor thread
+		 * only wakes up every 1000ms by default, we have to poke the thread here to make
+		 * sure it successfully detects this must be retransmitted in less time than
+		 * it usually sleeps for. Otherwise it might not retransmit this packet for 1000ms. */
+		pthread_kill(monitor_thread, SIGURG);
 		return AST_SUCCESS;
 	}
 }
