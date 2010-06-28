@@ -293,6 +293,7 @@ ifeq ($(OSARCH),SunOS)
   SOLINK=-shared -fpic -L/usr/local/ssl/lib -lrt
 endif
 
+SILENTMAKE:=$(MAKE) --quiet --no-print-directory
 ifneq ($(PRINT_DIR)$(NOISY_BUILD),)
 SUBMAKE:=$(MAKE)
 else
@@ -334,13 +335,13 @@ ifeq ($(filter %menuselect,$(MAKECMDGOALS)),)
 endif
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
-	+@echo "EMBED_LDSCRIPTS+="`$(SUBMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
+	+@echo "EMBED_LDSCRIPTS+="`$(SILENTMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LDFLAGS):
-	+@echo "EMBED_LDFLAGS+="`$(SUBMAKE) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
+	+@echo "EMBED_LDFLAGS+="`$(SILENTMAKE) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_EMBED_LIBS):
-	+@echo "EMBED_LIBS+="`$(SUBMAKE) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
+	+@echo "EMBED_LIBS+="`$(SILENTMAKE) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
 
 $(MOD_SUBDIRS_MENUSELECT_TREE):
 	+@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) moduleinfo
@@ -810,8 +811,8 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	@echo "<?xml version=\"1.0\"?>" > $@
 	@echo >> $@
 	@echo "<menu name=\"Asterisk Module and Build Option Selection\">" >> $@
-	+@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SUBMAKE) -C $${dir} SUBDIR=$${dir} moduleinfo >> $@; done
-	+@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SUBMAKE) -C $${dir} SUBDIR=$${dir} makeopts >> $@; done
+	+@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SILENTMAKE) -C $${dir} SUBDIR=$${dir} moduleinfo >> $@; done
+	+@for dir in $(sort $(filter-out main,$(MOD_SUBDIRS))); do $(SILENTMAKE) -C $${dir} SUBDIR=$${dir} makeopts >> $@; done
 	@cat build_tools/cflags.xml >> $@
 	@if [ "${AST_DEVMODE}" = "yes" ]; then \
 		cat build_tools/cflags-devmode.xml >> $@; \
