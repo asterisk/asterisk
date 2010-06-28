@@ -1,0 +1,262 @@
+\subsection{Introduction}
+
+Asterisk Channel Driver to allow Bluetooth Cell/Mobile Phones to be used as FXO devices, and Headsets as FXS devices.
+
+
+\subsection{Features}
+
+\begin{itemize}
+\item Multiple Bluetooth Adapters supported.
+\item Multiple phones can be connected.
+\item Multiple headsets can be connected.
+\item Asterisk automatically connects to each configured mobile phone / headset when it comes in range.
+\item CLI command to discover bluetooth devices.
+\item Inbound calls on the mobile network to the mobile phones are handled by Asterisk, just like inbound calls on a Zap channel.
+\item CLI passed through on inbound calls.
+\item Dial outbound on a mobile phone using Dial(Mobile/device/nnnnnnn) in the dialplan.
+\item Dial a headset using Dial(Mobile/device) in the dialplan.
+\item Application MobileStatus can be used in the dialplan to see if a mobile phone / headset is connected.
+\item Supports devicestate for dialplan hinting.
+\item Supports Inbound and Outbound SMS.
+\item Supports 'channel' groups for implementing 'GSM Gateways'
+\end{itemize}
+
+
+\subsection{Requirements}
+
+In order to use chan\_mobile, you must have a working bluetooth subsystem on your Asterisk box.
+This means one or more working bluetooth adapters, and the BlueZ packages.
+
+Any bluetooth adapter supported by the Linux kernel will do, including usb bluetooth dongles.
+
+The BlueZ package you need is bluez-utils. If you are using a GUI then you might want to install bluez-pin also.
+You also need libbluetooth, and libbluetooth-dev if you are compiling Asterisk from source.
+
+You need to get bluetooth working with your phone before attempting to use chan\_mobile.
+This means 'pairing' your phone or headset with your Asterisk box. I dont describe how to do this here as the process
+differs from distro to distro. You only need to pair once per adapter.
+
+See www.bluez.org for details about setting up Bluetooth under Linux.
+
+
+\subsection{Concepts}
+
+chan\_mobile deals with both bluetooth adapters and bluetooth devices. This means you need to tell chan\_mobile about the
+bluetooth adapters installed in your server as well as the devices (phones / headsets) you wish to use.
+
+chan\_mobile currently only allows one device (phone or headset) to be connected to an adapter at a time. This means you need
+one adapter for each device you wish to use simultaneously. Much effort has gone into trying to make multiple devices per adapter
+work, but in short it doesnt.
+
+Periodically chan\_mobile looks at each configured adapter, and if it is not in use (i.e. no device connected) will initiate a
+search for devices configured to use this adapater that may be in range. If it finds one it will connect the device and it
+will be available for Asterisk to use. When the device goes out of range, chan\_mobile will disconnect the device and the adapter
+will become available for other devices.
+
+
+\subsection{Configuring chan\_mobile}
+
+The configuration file for chan\_mobile is /etc/asterisk/mobile.conf. It is a normal Asterisk config file consisting of sections and key=value pairs.
+
+See configs/mobile.conf.sample for an example and an explanation of the configuration.
+
+
+\subsection{Using chan\_mobile}
+
+chan\_mobile.so must be loaded either by loading it using the Asterisk CLI, or by adding it to /etc/asterisk/modules.conf
+
+Search for your bluetooth devices using the CLI command 'mobile search'. Be patient with this command as
+it will take 8 - 10 seconds to do the discovery. This requires a free adapter.
+
+Headsets will generally have to be put into 'pairing' mode before they will show up here.
+
+This will return something like the following :-
+
+\begin{verbatim}
+*CLI> mobile search
+Address           Name                           Usable Type    Port
+00:12:56:90:6E:00 LG TU500                       Yes    Phone   4
+00:80:C8:35:52:78 Toaster                        No     Headset 0
+00:0B:9E:11:74:A5 Hello II Plus                  Yes    Headset 1
+00:0F:86:0E:AE:42 Daves Blackberry               Yes    Phone   7
+\end{verbatim}
+
+This is a list of all bluetooth devices seen and whether or not they are usable with chan\_mobile.
+The Address field contains the 'bd address' of the device. This is like an ethernet mac address.
+The Name field is whatever is configured into the device as its name.
+The Usable field tells you whether or not the device supports the Bluetooth Handsfree Profile or Headset profile.
+The Type field tells you whether the device is usable as a Phone line (FXO) or a headset (FXS)
+The Port field is the number to put in the configuration file.
+
+Choose which device(s) you want to use and edit /etc/asterisk/mobile.conf. There is a sample included
+with the Asterisk-addons source under configs/mobile.conf.sample.
+
+Be sure to configure the right bd address and port number from the search. If you want inbound
+calls on a device to go to a specific context, add a context= line, otherwise the default will
+be used. The 'id' of the device [bitinbrackets] can be anything you like, just make it unique.
+
+If you are configuring a Headset be sure to include the type=headset line, if left out it defaults
+to phone.
+
+The CLI command 'mobile show devices' can be used at any time to show the status of configured devices,
+and whether or not the device is capable of sending / receiving SMS via bluetooth.
+
+\begin{verbatim}
+*CLI> mobile show devices 
+ID              Address           Group Adapter         Connected State SMS
+headset         00:0B:9E:11:AE:C6 0     blue            No        Init  No 
+LGTU550         00:E0:91:7F:46:44 1     dlink           No        Init  No 
+\end{verbatim}
+
+As each phone is connected you will see a message on the Asterisk console :-
+
+\begin{verbatim}
+ Loaded chan_mobile.so => (Bluetooth Mobile Device Channel Driver)
+    -- Bluetooth Device blackberry has connected.
+    -- Bluetooth Device dave has connected.
+\end{verbatim}
+
+To make outbound calls, add something to you Dialplan like the following :- (modify to suit)
+
+; Calls via LGTU5500
+\begin{verbatim}
+exten => _9X.,1,Dial(Mobile/LGTU550/${EXTEN:1},45)
+exten => _9X.,n,Hangup
+\end{verbatim}
+
+To use channel groups, add an entry to each phones definition in mobile.conf like group=n
+where n is a number.
+
+Then if you do something like Dial(Mobile/g1/123456) Asterisk will dial 123456 on the first
+connected free phone in group 1.
+
+Phones which do not have a specific 'group=n' will be in group 0.
+
+
+To dial out on a headset, you need to use some other mechanism, because the headset is not likely
+to have all the needed buttons on it. res\_clioriginate is good for this :-
+
+\begin{verbatim}
+*CLI> originate Mobile/headset extension NNNNN@context
+\end{verbatim}
+
+This will call your headset, once you answer, Asterisk will call NNNNN at context context
+
+\subsection{Dialplan hints}
+
+chan\_mobile supports 'device status' so you can do somthing like
+
+\begin{verbatim}
+exten => 1234,hint,SIP/30&Mobile/dave&Mobile/blackberry
+\end{verbatim}
+
+
+\subsection{MobileStatus Application}
+
+chan\_mobile also registers an application named MobileStatus. You can use this in your Dialplan
+to determine the 'state' of a device.
+
+For example, suppose you wanted to call dave's extension, but only if he was in the office. You could
+test to see if his mobile phone was attached to Asterisk, if it is dial his extension, otherwise dial his
+mobile phone.
+
+\begin{verbatim}
+exten => 40,1,MobileStatus(dave,DAVECELL)
+exten => 40,2,GotoIf($["${DAVECELL}" = "1"]?3:5)
+exten => 40,3,Dial(ZAP/g1/0427466412,45,tT)
+exten => 40,4,Hangup
+exten => 40,5,Dial(SIP/40,45,tT)
+exten => 40,6,Hangup
+\end{verbatim}
+
+MobileStatus sets the value of the given variable to :-
+
+\begin{verbatim}
+1 = Disconnected. i.e. Device not in range of Asterisk, or turned off etc etc
+2 = Connected and Not on a call. i.e. Free
+3 = Connected and on a call. i.e. Busy
+\end{verbatim}
+
+
+\subsection{SMS Sending / Receiving}
+
+If Asterisk has detected your mobile phone is capable of SMS via bluetooth, you will be able to send and
+receive SMS.
+
+Incoming SMS's cause Asterisk to create an inbound call to the context you defined in mobile.conf or the default
+context if you did not define one. The call will start at extension 'sms'. Two channel variables will be available,
+SMSSRC = the number of the originator of the SMS and SMSTXT which is the text of the SMS.
+This is not a voice call, so grab the values of the variables and hang the call up.
+
+So, to handle incoming SMS's, do something like the following in your dialplan
+
+\begin{astlisting}
+\begin{verbatim}
+[incoming-mobile]
+exten => sms,1,Verbose(Incoming SMS from ${SMSSRC} ${SMSTXT})
+exten => sms,n,Hangup()
+\end{verbatim}
+\end{astlisting}
+
+The above will just print the message on the console.
+
+If you use res\_jabber, you could do something like this :-
+
+\begin{astlisting}
+\begin{verbatim}
+[incoming-mobile]
+exten => sms,1,JabberSend(transport,user@jabber.somewhere.com,SMS from ${SMSRC} ${SMSTXT})
+exten => sms,2,Hangup()
+\end{verbatim}
+\end{astlisting}
+
+To send an SMS, use the application MobileSendSMS like the following :-
+
+\begin{verbatim}
+exten => 99,1,MobileSendSMS(dave,0427123456,Hello World)
+\end{verbatim}
+
+This will send 'Hello World' via device 'dave' to '0427123456'
+
+
+\subsection{DTMF Debouncing}
+
+DTMF detection varies from phone to phone. There is a configuration variable that allows you to tune
+this to your needs. e.g. in mobile.conf
+
+\begin{verbatim}
+[LGTU550]
+address=00:12:56:90:6E:00
+port=4
+context=incoming-mobile
+dtmfskip=50
+\end{verbatim}
+
+change dtmfskip to suit your phone. The default is 200. The larger the number, the more chance of missed DTMF.
+The smaller the number the more chance of multiple digits being detected.
+
+
+\subsection{Debugging}
+
+Different phone manufacturers have different interpretations of the Bluetooth Handsfree Profile Spec.
+This means that not all phones work the same way, particularly in the connection setup / initialisation
+sequence. I've tried to make chan\_mobile as general as possible, but it may need modification to
+support some phone i've never tested.
+
+Some phones, most notably Sony Ericsson 'T' series, dont quite conform to the Bluetooth HFP spec.
+chan\_mobile will detect these and adapt accordingly. The T-610 and T-630 have been tested and
+work fine.
+
+If your phone doesnt behave has expected, turn on Asterisk debugging with 'core set debug 1'.
+
+This will log a bunch of debug messages indicating what the phone is doing, importantly the rfcomm
+conversation between Asterisk and the phone. This can be used to sort out what your phone is doing
+and make chan\_mobile support it.
+
+Be aware also, that just about all mobile phones behave differently. For example my LG TU500 wont dial unless
+the phone is a the 'idle' screen. i.e. if the phone is showing a 'menu' on the display, when you dial via
+Asterisk, the call will not work. chan\_mobile handles this, but there may be other phones that do
+other things too...
+
+Important: Watch what your mobile phone is doing the first few times. Asterisk wont make random calls but
+if chan\_mobile fails to hangup for some reason and you get a huge bill from your telco, dont blame me ;)
