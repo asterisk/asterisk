@@ -3,16 +3,16 @@
 \subsection{Microsoft SQL Server}
 
 	Asterisk can currently store CDRs into an MSSQL database in
-	two different ways:  cdr\_odbc or cdr\_tds
+	two different ways:  cdr_odbc or cdr_tds
 
 	Call Data Records can be stored using unixODBC (which requires
-	the FreeTDS package) [cdr\_odbc] or directly by using just the
-	FreeTDS package [cdr\_tds]  The following provide some
+	the FreeTDS package) [cdr_odbc] or directly by using just the
+	FreeTDS package [cdr_tds]  The following provide some
 	examples known to get asterisk working with mssql.
 
 	NOTE:  Only choose one db connector.
 
-\subsubsection{ODBC using cdr\_odbc}
+\subsubsection{ODBC using cdr_odbc}
 	Compile, configure, and install the latest unixODBC package:
 \begin{astlisting}
 \begin{verbatim}
@@ -36,7 +36,7 @@
 \end{astlisting}
 
 	Compile, or recompile, asterisk so that it will now add support
-	for cdr\_odbc.
+	for cdr_odbc.
 \begin{astlisting}
 \begin{verbatim}
 	make clean && ./configure --with-odbc &&
@@ -71,8 +71,8 @@
 \end{astlisting}
 
 		Only install one database connector.  Do not confuse asterisk
-		by using both ODBC (cdr\_odbc) and FreeTDS (cdr\_tds).
-		This command will erase the contents of cdr\_tds.conf
+		by using both ODBC (cdr_odbc) and FreeTDS (cdr_tds).
+		This command will erase the contents of cdr_tds.conf
 \begin{astlisting}
 \begin{verbatim}
 		[ -f /etc/asterisk/cdr_tds.conf ] > /etc/asterisk/cdr_tds.conf
@@ -81,7 +81,7 @@
 		NOTE:  unixODBC requires the freeTDS package, but asterisk does
 		not call freeTDS directly.
 
-		Now set up cdr\_odbc configuration files.  These are working samples
+		Now set up cdr_odbc configuration files.  These are working samples
 		from my system.  You will need to modify for your setup. Define
 		your usernames and passwords here, secure file as well.
 \begin{astlisting}
@@ -121,7 +121,7 @@
 		logs a connection to the database and will now record every
 		call to the database when it's complete.
 
-\subsubsection{TDS, using cdr\_tds}
+\subsubsection{TDS, using cdr_tds}
 		Compile, configure, and install the latest FreeTDS package:
 \begin{astlisting}
 \begin{verbatim}
@@ -133,7 +133,7 @@
 \end{verbatim}
 \end{astlisting}
                 Compile, or recompile, asterisk so that it will now add support
-                for cdr\_tds.
+                for cdr_tds.
 \begin{astlisting}
 \begin{verbatim}
                    make clean && ./configure --with-tds &&
@@ -143,14 +143,14 @@
 \end{verbatim}
 \end{astlisting}
                 Only install one database connector.  Do not confuse asterisk
-                by using both ODBC (cdr\_odbc) and FreeTDS (cdr\_tds).
-                This command will erase the contents of cdr\_odbc.conf
+                by using both ODBC (cdr_odbc) and FreeTDS (cdr_tds).
+                This command will erase the contents of cdr_odbc.conf
 \begin{astlisting}
 \begin{verbatim}
 		[ -f /etc/asterisk/cdr_odbc.conf ] > /etc/asterisk/cdr_odbc.conf
 \end{verbatim}
 \end{astlisting}
-                Setup cdr\_tds configuration files.  These are working samples
+                Setup cdr_tds configuration files.  These are working samples
                 from my system.  You will need to modify for your setup. Define
                 your usernames and passwords here, secure file as well.
 \begin{astlisting}
@@ -199,13 +199,13 @@
 
 \subsubsection{ODBC}
 
-Using MySQL for CDR records is supported by using ODBC and the cdr\_odbc module.
+Using MySQL for CDR records is supported by using ODBC and the cdr_odbc module.
 
 \subsubsection{Native}
 
 Alternatively, there is a native MySQL CDR module.
 
-To use it, configure the module in cdr\_mysql.conf.  Create a table called cdr under the database name you will be using the following schema.
+To use it, configure the module in cdr_mysql.conf.  Create a table called cdr under the database name you will be using the following schema.
 
 \begin{astlisting}
 \begin{verbatim}
@@ -232,13 +232,13 @@ CREATE TABLE cdr (
 
 
 \subsection{PostgreSQL}
-        If you want to go directly to postgresql database, and have the cdr\_pgsql.so
+        If you want to go directly to postgresql database, and have the cdr_pgsql.so
         compiled you can use the following sample setup.
         On Debian, before compiling asterisk, just install libpqxx-dev.
         Other distros will likely have a similiar package.
 
         Once you have the compile done,
-        copy the sample cdr\_pgsql.conf file or create your own.
+        copy the sample cdr_pgsql.conf file or create your own.
 
         Here is a sample:
 \begin{astlisting}
@@ -280,11 +280,11 @@ CREATE TABLE cdr (
 
 \subsection{SQLite 2}
 
-SQLite version 2 is supported in cdr\_sqlite.
+SQLite version 2 is supported in cdr_sqlite.
 
 \subsection{SQLite 3}
 
-SQLite version 3 is supported in cdr\_sqlite3\_custom.
+SQLite version 3 is supported in cdr_sqlite3\_custom.
 
 \subsection{RADIUS}
 
@@ -475,7 +475,7 @@ SQLite version 3 is supported in cdr\_sqlite3\_custom.
 	for all the fields which are recorded. By default, records in comma
 	separated values will be created in \path{/var/log/asterisk/cdr-csv}.
 
-	The configuration file for cdr\_radius.so module is \path{/etc/asterisk/cdr.conf}
+	The configuration file for cdr_radius.so module is \path{/etc/asterisk/cdr.conf}
 
 	This is where you can set CDR related parameters as well as the path to
 	the radiusclient-ng library configuration file.

@@ -7,16 +7,16 @@ for how to use these back ends.
 \subsection{Microsoft SQL Server}
 
 	Asterisk can currently store Channel Events into an MSSQL database in
-	two different ways:  cel\_odbc or cel\_tds
+	two different ways:  cel_odbc or cel_tds
 
 	Channel Event Records can be stored using unixODBC (which requires
-	the FreeTDS package) [cel\_odbc] or directly by using just the
-	FreeTDS package [cel\_tds]  The following provide some
+	the FreeTDS package) [cel_odbc] or directly by using just the
+	FreeTDS package [cel_tds]  The following provide some
 	examples known to get asterisk working with mssql.
 
 	NOTE:  Only choose one db connector.
 
-\subsubsection{ODBC using cel\_odbc}
+\subsubsection{ODBC using cel_odbc}
 	Compile, configure, and install the latest unixODBC package:
 \begin{verbatim}
 	tar -zxvf unixODBC-2.2.9.tar.gz &&
@@ -36,7 +36,7 @@ for how to use these back ends.
 \end{verbatim}
 
 	Compile, or recompile, asterisk so that it will now add support
-	for cel\_odbc.
+	for cel_odbc.
 \begin{verbatim}
 	make clean && ./configure --with-odbc &&
 	make update &&
@@ -68,15 +68,15 @@ for how to use these back ends.
 \end{verbatim}
 
 		Only install one database connector.  Do not confuse asterisk
-		by using both ODBC (cel\_odbc) and FreeTDS (cel\_tds).
-		This command will erase the contents of cel\_tds.conf 
+		by using both ODBC (cel_odbc) and FreeTDS (cel_tds).
+		This command will erase the contents of cel_tds.conf 
 \begin{verbatim}
 		[ -f /etc/asterisk/cel_tds.conf ] > /etc/asterisk/cel_tds.conf
 \end{verbatim}
 		NOTE:  unixODBC requires the freeTDS package, but asterisk does
 		not call freeTDS directly.
 
-		Now set up cel\_odbc configuration files.  These are working samples
+		Now set up cel_odbc configuration files.  These are working samples
 		from my system.  You will need to modify for your setup. Define
 		your usernames and passwords here, secure file as well.
 \begin{verbatim}
@@ -113,7 +113,7 @@ for how to use these back ends.
 		logs a connection to the database and will now record every
 		desired channel event at the moment it occurs.
 
-\subsubsection{FreeTDS, using cel\_tds}
+\subsubsection{FreeTDS, using cel_tds}
 		Compile, configure, and install the latest FreeTDS package:
 \begin{verbatim}
 		   tar -zxvf freetds-0.62.4.tar.gz &&
@@ -123,7 +123,7 @@ for how to use these back ends.
 		   make install
 \end{verbatim}
                 Compile, or recompile, asterisk so that it will now add support
-                for cel\_tds.
+                for cel_tds.
 \begin{verbatim}
                    make clean && ./configure --with-tds &&
                    make update &&
@@ -131,12 +131,12 @@ for how to use these back ends.
                    make install
 \end{verbatim}
                 Only install one database connector.  Do not confuse asterisk
-                by using both ODBC (cel\_odbc) and FreeTDS (cel\_tds).
-                This command will erase the contents of cel\_odbc.conf
+                by using both ODBC (cel_odbc) and FreeTDS (cel_tds).
+                This command will erase the contents of cel_odbc.conf
 \begin{verbatim}
 		[ -f /etc/asterisk/cel_odbc.conf ] > /etc/asterisk/cel_odbc.conf
 \end{verbatim}
-                Setup cel\_tds configuration files.  These are working samples
+                Setup cel_tds configuration files.  These are working samples
                 from my system.  You will need to modify for your setup. Define
                 your usernames and passwords here, secure file as well.
 \begin{verbatim}
@@ -178,16 +178,16 @@ for how to use these back ends.
 
 \subsection{MySQL}
 
-Using MySQL for Channel Event records is supported by using ODBC and the cel\_odbc module.
+Using MySQL for Channel Event records is supported by using ODBC and the cel_odbc module.
 
 \subsection{PostreSQL}
-        If you want to go directly to postgresql database, and have the cel\_pgsql.so
+        If you want to go directly to postgresql database, and have the cel_pgsql.so
         compiled you can use the following sample setup.
         On Debian, before compiling asterisk, just install libpqxx-dev.
         Other distros will likely have a similiar package.
 
         Once you have the compile done,
-        copy the sample cel\_pgsql.conf file or create your own.
+        copy the sample cel_pgsql.conf file or create your own.
 
         Here is a sample:
 \begin{verbatim}
@@ -227,7 +227,7 @@ Using MySQL for Channel Event records is supported by using ODBC and the cel\_od
 
 \subsection{SQLite 3}
 
-SQLite version 3 is supported in cel\_sqlite3\_custom.
+SQLite version 3 is supported in cel_sqlite3_custom.
 
 \subsection{RADIUS}
 
@@ -416,7 +416,7 @@ SQLite version 3 is supported in cel\_sqlite3\_custom.
 	for all the fields which are recorded. By default, records in comma 
 	separated values will be created in /var/log/asterisk/cel-csv. 
 
-	The configuration file for cel\_radius.so module is :
+	The configuration file for cel_radius.so module is :
 
         /etc/asterisk/cel.conf 
 	This is where you can set CEL related parameters as well as the path to
