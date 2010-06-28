@@ -708,7 +708,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		if (*c) {
 			*c = '\0';
 			/* Find real argument */
-			c = ast_skip_blanks(c + 1);
+			c = ast_strip(c + 1);
 			if (!(*c))
 				c = NULL;
 		} else 
