@@ -1698,5 +1698,57 @@ struct contact {
 
 AST_LIST_HEAD_NOLOCK(contactliststruct, contact);
 
+/*! \brief List of well-known SIP options. If we get this in a require,
+   we should check the list and answer accordingly. */
+static const struct cfsip_options {
+	int id;             /*!< Bitmap ID */
+	int supported;      /*!< Supported by Asterisk ? */
+	char * const text;  /*!< Text id, as in standard */
+} sip_options[] = {	/* XXX used in 3 places */
+	/* RFC3262: PRACK 100% reliability */
+	{ SIP_OPT_100REL,	NOT_SUPPORTED,	"100rel" },
+	/* RFC3959: SIP Early session support */
+	{ SIP_OPT_EARLY_SESSION, NOT_SUPPORTED,	"early-session" },
+	/* SIMPLE events:  RFC4662 */
+	{ SIP_OPT_EVENTLIST,	NOT_SUPPORTED,	"eventlist" },
+	/* RFC 4916- Connected line ID updates */
+	{ SIP_OPT_FROMCHANGE,	NOT_SUPPORTED,	"from-change" },
+	/* GRUU: Globally Routable User Agent URI's */
+	{ SIP_OPT_GRUU,		NOT_SUPPORTED,	"gruu" },
+	/* RFC4244 History info */
+	{ SIP_OPT_HISTINFO,	NOT_SUPPORTED,	"histinfo" },
+	/* RFC3911: SIP Join header support */
+	{ SIP_OPT_JOIN,		NOT_SUPPORTED,	"join" },
+	/* Disable the REFER subscription, RFC 4488 */
+	{ SIP_OPT_NOREFERSUB,	NOT_SUPPORTED,	"norefersub" },
+	/* SIP outbound - the final NAT battle - draft-sip-outbound */
+	{ SIP_OPT_OUTBOUND,	NOT_SUPPORTED,	"outbound" },
+	/* RFC3327: Path support */
+	{ SIP_OPT_PATH,		NOT_SUPPORTED,	"path" },
+	/* RFC3840: Callee preferences */
+	{ SIP_OPT_PREF,		NOT_SUPPORTED,	"pref" },
+	/* RFC3312: Precondition support */
+	{ SIP_OPT_PRECONDITION,	NOT_SUPPORTED,	"precondition" },
+	/* RFC3323: Privacy with proxies*/
+	{ SIP_OPT_PRIVACY,	NOT_SUPPORTED,	"privacy" },
+	/* RFC-ietf-sip-uri-list-conferencing-02.txt conference invite lists */
+	{ SIP_OPT_RECLISTINV,	NOT_SUPPORTED,	"recipient-list-invite" },
+	/* RFC-ietf-sip-uri-list-subscribe-02.txt - subscription lists */
+	{ SIP_OPT_RECLISTSUB,	NOT_SUPPORTED,	"recipient-list-subscribe" },
+	/* RFC3891: Replaces: header for transfer */
+	{ SIP_OPT_REPLACES,	SUPPORTED,	"replaces" },
+	/* One version of Polycom firmware has the wrong label */
+	{ SIP_OPT_REPLACES,	SUPPORTED,	"replace" },
+	/* RFC4412 Resource priorities */
+	{ SIP_OPT_RESPRIORITY,	NOT_SUPPORTED,	"resource-priority" },
+	/* RFC3329: Security agreement mechanism */
+	{ SIP_OPT_SEC_AGREE,	NOT_SUPPORTED,	"sec_agree" },
+	/* RFC4092: Usage of the SDP ANAT Semantics in the SIP */
+	{ SIP_OPT_SDP_ANAT,	NOT_SUPPORTED,	"sdp-anat" },
+	/* RFC4028: SIP Session-Timers */
+	{ SIP_OPT_TIMER,	SUPPORTED,	"timer" },
+	/* RFC4538: Target-dialog */
+	{ SIP_OPT_TARGET_DIALOG,NOT_SUPPORTED,	"tdialog" },
+};
 
 #endif

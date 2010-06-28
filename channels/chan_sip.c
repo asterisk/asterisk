@@ -635,59 +635,6 @@ static const struct  cfsip_methods {
 	{ SIP_PING,      NO_RTP, "PING",     CAN_CREATE_DIALOG_UNSUPPORTED_METHOD }
 };
 
-/*! \brief List of well-known SIP options. If we get this in a require,
-   we should check the list and answer accordingly. */
-static const struct cfsip_options {
-	int id;             /*!< Bitmap ID */
-	int supported;      /*!< Supported by Asterisk ? */
-	char * const text;  /*!< Text id, as in standard */
-} sip_options[] = {	/* XXX used in 3 places */
-	/* RFC3262: PRACK 100% reliability */
-	{ SIP_OPT_100REL,	NOT_SUPPORTED,	"100rel" },
-	/* RFC3959: SIP Early session support */
-	{ SIP_OPT_EARLY_SESSION, NOT_SUPPORTED,	"early-session" },
-	/* SIMPLE events:  RFC4662 */
-	{ SIP_OPT_EVENTLIST,	NOT_SUPPORTED,	"eventlist" },
-	/* RFC 4916- Connected line ID updates */
-	{ SIP_OPT_FROMCHANGE,	NOT_SUPPORTED,	"from-change" },
-	/* GRUU: Globally Routable User Agent URI's */
-	{ SIP_OPT_GRUU,		NOT_SUPPORTED,	"gruu" },
-	/* RFC4244 History info */
-	{ SIP_OPT_HISTINFO,	NOT_SUPPORTED,	"histinfo" },
-	/* RFC3911: SIP Join header support */
-	{ SIP_OPT_JOIN,		NOT_SUPPORTED,	"join" },
-	/* Disable the REFER subscription, RFC 4488 */
-	{ SIP_OPT_NOREFERSUB,	NOT_SUPPORTED,	"norefersub" },
-	/* SIP outbound - the final NAT battle - draft-sip-outbound */
-	{ SIP_OPT_OUTBOUND,	NOT_SUPPORTED,	"outbound" },
-	/* RFC3327: Path support */
-	{ SIP_OPT_PATH,		NOT_SUPPORTED,	"path" },
-	/* RFC3840: Callee preferences */
-	{ SIP_OPT_PREF,		NOT_SUPPORTED,	"pref" },
-	/* RFC3312: Precondition support */
-	{ SIP_OPT_PRECONDITION,	NOT_SUPPORTED,	"precondition" },
-	/* RFC3323: Privacy with proxies*/
-	{ SIP_OPT_PRIVACY,	NOT_SUPPORTED,	"privacy" },
-	/* RFC-ietf-sip-uri-list-conferencing-02.txt conference invite lists */
-	{ SIP_OPT_RECLISTINV,	NOT_SUPPORTED,	"recipient-list-invite" },
-	/* RFC-ietf-sip-uri-list-subscribe-02.txt - subscription lists */
-	{ SIP_OPT_RECLISTSUB,	NOT_SUPPORTED,	"recipient-list-subscribe" },
-	/* RFC3891: Replaces: header for transfer */
-	{ SIP_OPT_REPLACES,	SUPPORTED,	"replaces" },
-	/* One version of Polycom firmware has the wrong label */
-	{ SIP_OPT_REPLACES,	SUPPORTED,	"replace" },
-	/* RFC4412 Resource priorities */
-	{ SIP_OPT_RESPRIORITY,	NOT_SUPPORTED,	"resource-priority" },
-	/* RFC3329: Security agreement mechanism */
-	{ SIP_OPT_SEC_AGREE,	NOT_SUPPORTED,	"sec_agree" },
-	/* RFC4092: Usage of the SDP ANAT Semantics in the SIP */
-	{ SIP_OPT_SDP_ANAT,	NOT_SUPPORTED,	"sdp-anat" },
-	/* RFC4028: SIP Session-Timers */
-	{ SIP_OPT_TIMER,	SUPPORTED,	"timer" },
-	/* RFC4538: Target-dialog */
-	{ SIP_OPT_TARGET_DIALOG,NOT_SUPPORTED,	"tdialog" },
-};
-
 /*! \brief Diversion header reasons
  *
  * The core defines a bunch of constants used to define
@@ -1480,7 +1427,6 @@ static int determine_firstline_parts(struct sip_request *req);
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize);
 static int find_sip_method(const char *msg);
-static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static unsigned int parse_allowed_methods(struct sip_request *req);
 static unsigned int set_pvt_allowed_methods(struct sip_pvt *pvt, struct sip_request *req);
 static int parse_request(struct sip_request *req);
@@ -2939,58 +2885,6 @@ static int find_sip_method(const char *msg)
 			res = sip_methods[i].id;
 	}
 	return res;
-}
-
-/*! \brief Parse supported header in incoming packet */
-static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported)
-{
-	char *next, *sep;
-	char *temp;
-	unsigned int profile = 0;
-	int i, found;
-
-	if (ast_strlen_zero(supported) )
-		return 0;
-	temp = ast_strdupa(supported);
-
-	if (sipdebug)
-		ast_debug(3, "Begin: parsing SIP \"Supported: %s\"\n", supported);
-
-	for (next = temp; next; next = sep) {
-		found = FALSE;
-		if ( (sep = strchr(next, ',')) != NULL)
-			*sep++ = '\0';
-		next = ast_skip_blanks(next);
-		if (sipdebug)
-			ast_debug(3, "Found SIP option: -%s-\n", next);
-		for (i = 0; i < ARRAY_LEN(sip_options); i++) {
-			if (!strcasecmp(next, sip_options[i].text)) {
-				profile |= sip_options[i].id;
-				found = TRUE;
-				if (sipdebug)
-					ast_debug(3, "Matched SIP option: %s\n", next);
-				break;
-			}
-		}
-
-		/* This function is used to parse both Suported: and Require: headers.
-		Let the caller of this function know that an unknown option tag was
-		encountered, so that if the UAC requires it then the request can be
-		rejected with a 420 response. */
-		if (!found)
-			profile |= SIP_OPT_UNKNOWN;
-
-		if (!found && sipdebug) {
-			if (!strncasecmp(next, "x-", 2))
-				ast_debug(3, "Found private SIP option, not supported: %s\n", next);
-			else
-				ast_debug(3, "Found no match for SIP option: %s (Please file bug report!)\n", next);
-		}
-	}
-
-	if (pvt)
-		pvt->sipoptions = profile;
-	return profile;
 }
 
 /*! \brief See if we pass debug IP filter */
@@ -20497,18 +20391,22 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	/* Find out what they support */
 	if (!p->sipoptions) {
 		const char *supported = get_header(req, "Supported");
-		if (!ast_strlen_zero(supported))
-			parse_sip_options(p, supported);
+		if (!ast_strlen_zero(supported)) {
+			p->sipoptions = parse_sip_options(supported, NULL, 0);
+		}
 	}
 
 	/* Find out what they require */
 	required = get_header(req, "Require");
 	if (!ast_strlen_zero(required)) {
-		required_profile = parse_sip_options(NULL, required);
-		if (required_profile && !(required_profile & (SIP_OPT_REPLACES | SIP_OPT_TIMER))) {
-			/* At this point we only support REPLACES and Session-Timer */
-			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, required);
-			ast_log(LOG_WARNING, "Received SIP INVITE with unsupported required extension: %s\n", required);
+		char unsupported[256] = { 0, };
+		required_profile = parse_sip_options(required, unsupported, ARRAY_LEN(unsupported));
+
+		/* If there are any options required that we do not support,
+		 * then send a 420 with only those unsupported options listed */
+		if (!ast_strlen_zero(unsupported)) {
+			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, unsupported);
+			ast_log(LOG_WARNING, "Received SIP INVITE with unsupported required extension: required:%s unsupported:%s\n", required, unsupported);
 			p->invitestate = INV_COMPLETED;
 			if (!p->lastinvite)
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);

@@ -122,4 +122,18 @@ void sip_request_parser_register_tests(void);
  */
 void sip_request_parser_unregister_tests(void);
 
+/*!
+ * \brief Parse supported header in incoming packet
+ *
+ * \details This function parses through the options parameters and
+ * builds a bit field representing all the SIP options in that field. When an
+ * item is found that is not supported, it is copied to the unsupported
+ * out buffer.
+ *
+ * \param option list
+ * \param unsupported out buffer (optional)
+ * \param unsupported out buffer length (optional)
+ */
+unsigned int parse_sip_options(const char *options, char *unsupported, size_t unsupported_len);
+
 #endif

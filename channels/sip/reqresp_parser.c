@@ -1575,6 +1575,235 @@ AST_TEST_DEFINE(parse_contact_header_test)
 	return res;
 }
 
+/*!
+ * \brief Parse supported header in incoming packet
+ *
+ * \details This function parses through the options parameters and
+ * builds a bit field representing all the SIP options in that field. When an
+ * item is found that is not supported, it is copied to the unsupported
+ * out buffer.
+ *
+ * \param option list
+ * \param unsupported out buffer (optional)
+ * \param unsupported out buffer length (optional)
+ */
+unsigned int parse_sip_options(const char *options, char *unsupported, size_t unsupported_len)
+{
+	char *next, *sep;
+	char *temp;
+	int i, found, supported;
+	unsigned int profile = 0;
+
+	char *out = unsupported;
+	size_t outlen = unsupported_len;
+	char *cur_out = out;
+
+	if (out && (outlen > 0)) {
+		memset(out, 0, outlen);
+	}
+
+	if (ast_strlen_zero(options) )
+		return 0;
+
+	temp = ast_strdupa(options);
+
+	ast_debug(3, "Begin: parsing SIP \"Supported: %s\"\n", options);
+
+	for (next = temp; next; next = sep) {
+		found = FALSE;
+		supported = FALSE;
+		if ((sep = strchr(next, ',')) != NULL) {
+			*sep++ = '\0';
+		}
+
+		/* trim leading and trailing whitespace */
+		next = ast_strip(next);
+
+		if (ast_strlen_zero(next)) {
+			continue; /* if there is a blank argument in there just skip it */
+		}
+
+		ast_debug(3, "Found SIP option: -%s-\n", next);
+		for (i = 0; i < ARRAY_LEN(sip_options); i++) {
+			if (!strcasecmp(next, sip_options[i].text)) {
+				profile |= sip_options[i].id;
+				if (sip_options[i].supported == SUPPORTED) {
+					supported = TRUE;
+				}
+				found = TRUE;
+				ast_debug(3, "Matched SIP option: %s\n", next);
+				break;
+			}
+		}
+
+		/* If option is not supported, add to unsupported out buffer */
+		if (!supported && out && outlen) {
+			size_t copylen = strlen(next);
+			size_t cur_outlen = strlen(out);
+			/* Check to see if there is enough room to store this option.
+			 * Copy length is string length plus 2 for the ',' and '\0' */
+			if ((cur_outlen + copylen + 2) < outlen) {
+				/* if this isn't the first item, add the ',' */
+				if (cur_outlen) {
+					*cur_out = ',';
+					cur_out++;
+					cur_outlen++;
+				}
+				ast_copy_string(cur_out, next, (outlen - cur_outlen));
+				cur_out += copylen;
+			}
+		}
+
+		if (!found) {
+			profile |= SIP_OPT_UNKNOWN;
+			if (!strncasecmp(next, "x-", 2))
+				ast_debug(3, "Found private SIP option, not supported: %s\n", next);
+			else
+				ast_debug(3, "Found no match for SIP option: %s (Please file bug report!)\n", next);
+		}
+	}
+
+	return profile;
+}
+
+AST_TEST_DEFINE(sip_parse_options_test)
+{
+	int res = AST_TEST_PASS;
+	char unsupported[64];
+	unsigned int option_profile = 0;
+	struct testdata {
+		char *name;
+		char *input_options;
+		char *expected_unsupported;
+		unsigned int expected_profile;
+		AST_LIST_ENTRY(testdata) list;
+	};
+
+	struct testdata *testdataptr;
+	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
+
+	struct testdata test1 = {
+		.name = "test_all_unsupported",
+		.input_options = "unsupported1,,, ,unsupported2,unsupported3,unsupported4",
+		.expected_unsupported = "unsupported1,unsupported2,unsupported3,unsupported4",
+		.expected_profile = SIP_OPT_UNKNOWN,
+	};
+	struct testdata test2 = {
+		.name = "test_all_unsupported_one_supported",
+		.input_options = "  unsupported1, replaces,   unsupported3  , , , ,unsupported4",
+		.expected_unsupported = "unsupported1,unsupported3,unsupported4",
+		.expected_profile = SIP_OPT_UNKNOWN | SIP_OPT_REPLACES
+	};
+	struct testdata test3 = {
+		.name = "test_two_supported_two_unsupported",
+		.input_options = ",,  timer  ,replaces     ,unsupported3,unsupported4",
+		.expected_unsupported = "unsupported3,unsupported4",
+		.expected_profile = SIP_OPT_UNKNOWN | SIP_OPT_REPLACES | SIP_OPT_TIMER,
+	};
+
+	struct testdata test4 = {
+		.name = "test_all_supported",
+		.input_options = "timer,replaces",
+		.expected_unsupported = "",
+		.expected_profile = SIP_OPT_REPLACES | SIP_OPT_TIMER,
+	};
+
+	struct testdata test5 = {
+		.name = "test_all_supported_redundant",
+		.input_options = "timer,replaces,timer,replace,timer,replaces",
+		.expected_unsupported = "",
+		.expected_profile = SIP_OPT_REPLACES | SIP_OPT_TIMER,
+	};
+	struct testdata test6 = {
+		.name = "test_buffer_overflow",
+		.input_options = "unsupported1,replaces,timer,unsupported4,unsupported_huge____"
+		"____________________________________,__________________________________________"
+		"________________________________________________",
+		.expected_unsupported = "unsupported1,unsupported4",
+		.expected_profile = SIP_OPT_UNKNOWN | SIP_OPT_REPLACES | SIP_OPT_TIMER,
+	};
+	struct testdata test7 = {
+		.name = "test_null_input",
+		.input_options = NULL,
+		.expected_unsupported = "",
+		.expected_profile = 0,
+	};
+	struct testdata test8 = {
+		.name = "test_whitespace_input",
+		.input_options = "         ",
+		.expected_unsupported = "",
+		.expected_profile = 0,
+	};
+	struct testdata test9 = {
+		.name = "test_whitespace_plus_option_input",
+		.input_options = " , , ,timer , ,  , ,        ,    ",
+		.expected_unsupported = "",
+		.expected_profile = SIP_OPT_TIMER,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_parse_options_test";
+		info->category = "channels/chan_sip/";
+		info->summary = "Tests parsing of sip options";
+		info->description =
+							"Tests parsing of SIP options from supported and required "
+							"header fields.  Verifies when unsupported options are encountered "
+							"that they are appended to the unsupported out buffer and that the "
+							"correct bit field representnig the option profile is returned.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	AST_LIST_HEAD_SET_NOLOCK(&testdatalist, &test1);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test2, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test3, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test4, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test5, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test6, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test7, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test8, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &test9, list);
+
+	/* Test with unsupported char buffer */
+	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
+		option_profile = parse_sip_options(testdataptr->input_options, unsupported, ARRAY_LEN(unsupported));
+		if (option_profile != testdataptr->expected_profile ||
+			strcmp(unsupported, testdataptr->expected_unsupported)) {
+			ast_test_status_update(test, "Test with output buffer \"%s\", expected unsupported: %s actual unsupported:"
+				"%s expected bit profile: %x actual bit profile: %x\n",
+				testdataptr->name,
+				testdataptr->expected_unsupported,
+				unsupported,
+				testdataptr->expected_profile,
+				option_profile);
+			res = AST_TEST_FAIL;
+		} else {
+			ast_test_status_update(test, "\"%s\" passed got expected unsupported: %s and bit profile: %x\n",
+				testdataptr->name,
+				unsupported,
+				option_profile);
+		}
+
+		option_profile = parse_sip_options(testdataptr->input_options, NULL, 0);
+		if (option_profile != testdataptr->expected_profile) {
+			ast_test_status_update(test, "NULL output test \"%s\", expected bit profile: %x actual bit profile: %x\n",
+				testdataptr->name,
+				testdataptr->expected_profile,
+				option_profile);
+			res = AST_TEST_FAIL;
+		} else {
+			ast_test_status_update(test, "\"%s\" with NULL output buf passed, bit profile: %x\n",
+				testdataptr->name,
+				option_profile);
+		}
+	}
+
+	return res;
+}
+
+
 void sip_request_parser_register_tests(void)
 {
 	AST_TEST_REGISTER(get_calleridname_test);
@@ -1584,6 +1813,7 @@ void sip_request_parser_register_tests(void)
 	AST_TEST_REGISTER(sip_parse_uri_fully_test);
 	AST_TEST_REGISTER(parse_name_andor_addr_test);
 	AST_TEST_REGISTER(parse_contact_header_test);
+	AST_TEST_REGISTER(sip_parse_options_test);
 }
 void sip_request_parser_unregister_tests(void)
 {
@@ -1594,4 +1824,5 @@ void sip_request_parser_unregister_tests(void)
 	AST_TEST_UNREGISTER(sip_parse_uri_fully_test);
 	AST_TEST_UNREGISTER(parse_name_andor_addr_test);
 	AST_TEST_UNREGISTER(parse_contact_header_test);
+	AST_TEST_UNREGISTER(sip_parse_options_test);
 }
