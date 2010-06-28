@@ -108,6 +108,7 @@ void threadstorage_init(void);			/*!< Provided by threadstorage.c */
 int astobj2_init(void);				/*! Provided by astobj2.c */
 void ast_autoservice_init(void);    /*!< Provided by autoservice.c */
 int ast_fd_init(void);				/*!< Provided by astfd.c */
+int ast_test_init(void);                        /*!< Provided by test.c */
 
 /* Many headers need 'ast_channel' to be defined */
 struct ast_channel;

@@ -449,6 +449,7 @@ struct {								\
   \li AST_LIST_INSERT_AFTER()
   \li AST_LIST_INSERT_HEAD()
   \li AST_LIST_INSERT_TAIL()
+  \li AST_LIST_INSERT_SORTALPHA()
 */
 #define AST_LIST_TRAVERSE(head,var,field) 				\
 	for((var) = (head)->first; (var); (var) = (var)->field.next)
@@ -679,6 +680,35 @@ struct {								\
 } while (0)
 
 #define AST_RWLIST_INSERT_TAIL AST_LIST_INSERT_TAIL
+
+/*!
+ * \brief Inserts a list entry into a alphabetically sorted list
+ * \param head Pointer to the list head structure
+ * \param elm Pointer to the entry to be inserted
+ * \param field Name of the list entry field (declared using AST_LIST_ENTRY())
+ * \param sortfield Name of the field on which the list is sorted
+ */
+#define AST_LIST_INSERT_SORTALPHA(head, elm, field, sortfield) do { \
+	if (!(head)->first) {                                           \
+		(head)->first = (elm);                                      \
+		(head)->last = (elm);                                       \
+	} else {                                                        \
+		typeof((head)->first) cur = (head)->first, prev = NULL;     \
+		while (cur && strcmp(cur->sortfield, elm->sortfield) < 0) { \
+			prev = cur;                                             \
+			cur = cur->field.next;                                  \
+		}                                                           \
+		if (!prev) {                                                \
+			AST_LIST_INSERT_HEAD(head, elm, field);                 \
+		} else if (!cur) {                                          \
+			AST_LIST_INSERT_TAIL(head, elm, field);                 \
+		} else {                                                    \
+			AST_LIST_INSERT_AFTER(head, prev, elm, field);          \
+		}                                                           \
+	}                                                               \
+} while (0)
+
+#define AST_RWLIST_INSERT_SORTALPHA	AST_LIST_INSERT_SORTALPHA
 
 /*!
   \brief Appends a whole list to the tail of a list.

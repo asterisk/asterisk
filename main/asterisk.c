@@ -3056,6 +3056,13 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+#ifdef TEST_FRAMEWORK
+	if (ast_test_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+#endif
+
 	ast_makesocket();
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);

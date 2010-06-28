@@ -265,7 +265,7 @@ endif
 
 _ASTCFLAGS+=$(BUSYDETECT)$(OPTIONS)
 
-MOD_SUBDIRS:=res channels pbx apps codecs formats cdr funcs main
+MOD_SUBDIRS:=res channels pbx apps codecs formats cdr funcs tests main
 OTHER_SUBDIRS:=utils agi
 SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)

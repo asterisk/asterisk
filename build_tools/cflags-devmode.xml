@@ -12,4 +12,6 @@
 		</member>
 		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
 		</member>
+		<member name="TEST_FRAMEWORK" displayname="Enable Test Framework API">
+		</member>
 	</category>
