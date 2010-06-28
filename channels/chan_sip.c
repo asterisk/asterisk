@@ -3302,34 +3302,38 @@ static int retrans_pkt(const void *data)
 	struct sip_pkt *pkt = (struct sip_pkt *)data, *prev, *cur = NULL;
 	int reschedule = DEFAULT_RETRANS;
 	int xmitres = 0;
-	
+
 	/* Lock channel PVT */
 	sip_pvt_lock(pkt->owner);
 
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
- 		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
-			if (sipdebug)
- 				ast_debug(4, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
+		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
+			if (sipdebug) {
+				ast_debug(4, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
+			}
 		} else {
- 			int siptimer_a;
+			int siptimer_a;
 
- 			if (sipdebug)
- 				ast_debug(4, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
- 			if (!pkt->timer_a)
- 				pkt->timer_a = 2 ;
- 			else
- 				pkt->timer_a = 2 * pkt->timer_a;
+			if (sipdebug) {
+				ast_debug(4, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
+			}
+			if (!pkt->timer_a) {
+				pkt->timer_a = 2 ;
+			} else {
+				pkt->timer_a = 2 * pkt->timer_a;
+			}
 
- 			/* For non-invites, a maximum of 4 secs */
- 			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
- 			if (pkt->method != SIP_INVITE && siptimer_a > 4000)
- 				siptimer_a = 4000;
- 		
- 			/* Reschedule re-transmit */
+			/* For non-invites, a maximum of 4 secs */
+			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
+			if (pkt->method != SIP_INVITE && siptimer_a > 4000) {
+				siptimer_a = 4000;
+			}
+
+			/* Reschedule re-transmit */
 			reschedule = siptimer_a;
- 			ast_debug(4, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
- 		}
+			ast_debug(4, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
+		}
 
 		if (sip_debug_test_pvt(pkt->owner)) {
 			const struct sockaddr_in *dst = sip_real_dst(pkt->owner);
@@ -3342,27 +3346,31 @@ static int retrans_pkt(const void *data)
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data->str);
 		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		sip_pvt_unlock(pkt->owner);
-		if (xmitres == XMIT_ERROR)
+		if (xmitres == XMIT_ERROR) {
 			ast_log(LOG_WARNING, "Network error on retransmit in dialog %s\n", pkt->owner->callid);
-		else
+		} else {
 			return  reschedule;
+		}
 	}
+
 	/* Too many retries */
 	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
-		if (pkt->is_fatal || sipdebug)	/* Tell us if it's critical or if we're debugging */
+		if (pkt->is_fatal || sipdebug) {/* Tell us if it's critical or if we're debugging */
 			ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s) -- See doc/sip-retransmit.txt.\n",
 				pkt->owner->callid, pkt->seqno,
 				pkt->is_fatal ? "Critical" : "Non-critical", pkt->is_resp ? "Response" : "Request");
+		}
 	} else if (pkt->method == SIP_OPTIONS && sipdebug) {
-			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s)  -- See doc/sip-retransmit.txt.\n", pkt->owner->callid);
-
+		ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s)  -- See doc/sip-retransmit.txt.\n", pkt->owner->callid);
 	}
+
 	if (xmitres == XMIT_ERROR) {
 		ast_log(LOG_WARNING, "Transmit error :: Cancelling transmission on Call ID %s\n", pkt->owner->callid);
 		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
-	} else
+	} else {
 		append_history(pkt->owner, "MaxRetries", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
- 		
+	}
+
 	pkt->retransid = -1;
 
 	if (pkt->is_fatal) {
@@ -3371,10 +3379,9 @@ static int retrans_pkt(const void *data)
 			usleep(1);
 			sip_pvt_lock(pkt->owner);
 		}
-
-		if (pkt->owner->owner && !pkt->owner->owner->hangupcause)
+		if (pkt->owner->owner && !pkt->owner->owner->hangupcause) {
 			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
-		
+		}
 		if (pkt->owner->owner) {
 			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet (see doc/sip-retransmit.txt).\n", pkt->owner->callid);
@@ -3405,10 +3412,12 @@ static int retrans_pkt(const void *data)
 		if (cur == pkt) {
 			UNLINK(cur, pkt->owner->packets, prev);
 			sip_pvt_unlock(pkt->owner);
-			if (pkt->owner)
+			if (pkt->owner) {
 				pkt->owner = dialog_unref(pkt->owner,"pkt is being freed, its dialog ref is dead now");
-			if (pkt->data)
+			}
+			if (pkt->data) {
 				ast_free(pkt->data);
+			}
 			pkt->data = NULL;
 			ast_free(pkt);
 			return 0;
