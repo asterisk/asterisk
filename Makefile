@@ -293,7 +293,11 @@ ifeq ($(OSARCH),SunOS)
   SOLINK=-shared -fpic -L/usr/local/ssl/lib -lrt
 endif
 
-SUBMAKE=$(MAKE) --quiet --no-print-directory
+ifneq ($(PRINT_DIR)$(NOISY_BUILD),)
+SUBMAKE:=$(MAKE)
+else
+SUBMAKE:=$(MAKE) --quiet --no-print-directory
+endif
 
 # This is used when generating the doxygen documentation
 ifneq ($(DOT),:)
