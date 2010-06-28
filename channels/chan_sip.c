@@ -17604,6 +17604,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		e = strchr(s, ';');	/* And username ; parameters? */
 		if (e)
 			*e = '\0';	
+		ast_uri_decode(s);
 		ast_debug(2, "Received 302 Redirect to extension '%s' (domain %s)\n", s, domain);
 		if (p->owner) {
 			pbx_builtin_setvar_helper(p->owner, "SIPDOMAIN", domain);
