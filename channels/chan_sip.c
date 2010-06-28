@@ -17947,6 +17947,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 		separator = strchr(contact_number, ';');	/* And username ; parameters? */
 		if (separator)
 			*separator = '\0';
+		ast_uri_decode(contact_number);
 		if (set_call_forward) {
 			ast_debug(2, "Received 302 Redirect to extension '%s' (domain %s)\n", contact_number, domain);
 			if (p->owner) {
