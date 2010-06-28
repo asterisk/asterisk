@@ -12781,6 +12781,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
+		ast_uri_decode(s);
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG, "Received 302 Redirect to extension '%s' (domain %s)\n", s, domain);
 		if (p->owner) {
