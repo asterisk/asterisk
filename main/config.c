@@ -1031,12 +1031,13 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		if (*c) {
 			*c = '\0';
 			/* Find real argument */
-			c = ast_skip_blanks(c + 1);
+			c = ast_strip(c + 1);
 			if (!(*c)) {
 				c = NULL;
 			}
-		} else 
+		} else {
 			c = NULL;
+		}
 		if (!strcasecmp(cur, "include")) {
 			do_include = 1;
 		} else if (!strcasecmp(cur, "exec")) {
@@ -1060,20 +1061,14 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 
 		cur = c;
 		/* Strip off leading and trailing "'s and <>'s */
-		if (*c == '"') {
-			/* Dequote */
-			while (*c) {
-				if (*c == '"') {
-					strcpy(c, c + 1); /* SAFE */
-					c--;
-				} else if (*c == '\\') {
-					strcpy(c, c + 1); /* SAFE */
-				}
-				c++;
+		/* Dequote */
+		if ((*c == '"') || (*c == '<')) {
+			char quote_char = *c;
+			if (quote_char == '<') {
+				quote_char = '>';
 			}
-		} else if (*c == '<') {
-			/* C-style include */
-			if (*(c + strlen(c) - 1) == '>') {
+
+			if (*(c + strlen(c) - 1) == quote_char) {
 				cur++;
 				*(c + strlen(c) - 1) = '\0';
 			}
