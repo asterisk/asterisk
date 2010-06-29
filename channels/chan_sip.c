@@ -7002,8 +7002,14 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	/* Call-ID, to, from and Cseq are required by RFC 3261. (Max-forwards and via too - ignored now) */
 	/* get_header always returns non-NULL so we must use ast_strlen_zero() */
 	if (ast_strlen_zero(callid) || ast_strlen_zero(to) ||
-			ast_strlen_zero(from) || ast_strlen_zero(cseq))
+			ast_strlen_zero(from) || ast_strlen_zero(cseq)) {
+
+		/* RFC 3261 section 24.4.1.   Send a 400 Bad Request if the request is malformed. */
+		if (intended_method != SIP_RESPONSE && intended_method != SIP_ACK) {
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "400 Bad Request");
+		}
 		return NULL;	/* Invalid packet */
+	}
 
 	if (sip_cfg.pedanticsipchecking) {
 		/* In principle Call-ID's uniquely identify a call, but with a forking SIP proxy
