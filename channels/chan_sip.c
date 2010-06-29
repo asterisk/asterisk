@@ -17979,9 +17979,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			}
 			if (realtime && !strcasecmp(v->name, "regseconds")) {
 				ast_get_time_t(v->value, &regseconds, 0, NULL);
-			} else if (realtime && !strcasecmp(v->name, "name"))
+			} else if (realtime && !strcasecmp(v->name, "name")) {
 				ast_copy_string(peer->name, v->value, sizeof(peer->name));
-			else if (realtime && !strcasecmp(v->name, "fullcontact")) {
+			} else if (realtime && !strcasecmp(v->name, "useragent")) {
+				ast_copy_string(peer->useragent, v->value, sizeof(peer->useragent));
+			} else if (realtime && !strcasecmp(v->name, "fullcontact")) {
 				if (alt_fullcontact && !alt) {
 					/* Reset, because the alternate also has a fullcontact and we
 					 * do NOT want the field value to be doubled. It might be
@@ -17999,13 +18001,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_copy_string(fullcontact, v->value, sizeof(fullcontact));
 					ast_set_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT);
 				}
-			} else if (!strcasecmp(v->name, "secret")) 
+			} else if (!strcasecmp(v->name, "secret")) {
 				ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
-			else if (!strcasecmp(v->name, "md5secret")) 
+			} else if (!strcasecmp(v->name, "md5secret")) {
 				ast_copy_string(peer->md5secret, v->value, sizeof(peer->md5secret));
-			else if (!strcasecmp(v->name, "auth"))
+			} else if (!strcasecmp(v->name, "auth")) {
 				peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
-			else if (!strcasecmp(v->name, "callerid")) {
+			} else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
 			} else if (!strcasecmp(v->name, "fullname")) {
 				ast_copy_string(peer->cid_name, v->value, sizeof(peer->cid_name));
