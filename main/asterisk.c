@@ -2684,7 +2684,7 @@ static void ast_remotecontrol(char *data)
 		fds.fd = ast_consock;
 		fds.events = POLLIN;
 		fds.revents = 0;
-		while (ast_poll(&fds, 1, 500) > 0) {
+		while (ast_poll(&fds, 1, 60000) > 0) {
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
 
@@ -2713,7 +2713,7 @@ static void ast_remotecontrol(char *data)
 				curline = nextline;
 			} while (!ast_strlen_zero(curline));
 
-			/* No non-verbose output in 500ms */
+			/* No non-verbose output in 60s */
 			if (not_written) {
 				break;
 			}
