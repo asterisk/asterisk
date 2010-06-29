@@ -943,10 +943,8 @@ AST_EXT_LIB_CHECK([ICONV], [iconv], [iconv_open], [iconv.h])
 # Some versions of Linux package iconv in glibc
 AST_EXT_LIB_CHECK([ICONV], [c], [iconv_close], [iconv.h])
 
-# Some distributions (like RedHat) add a libical subdirectory for the headers
+# If ical.h is NOT in the libical directory, then it is of a version insufficient for us.
 AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_get_utc_timezone], [libical/ical.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
-
-AST_EXT_LIB_CHECK([ICAL], [ical], [icaltimezone_new], [ical.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
 
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
