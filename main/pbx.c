@@ -6479,7 +6479,7 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	manager_event(EVENT_FLAG_CONFIG, "ShowDialPlanComplete",
+	astman_append(s, "Event: ShowDialPlanComplete\r\n"
 		"EventList: Complete\r\n"
 		"ListItems: %d\r\n"
 		"ListExtensions: %d\r\n"
