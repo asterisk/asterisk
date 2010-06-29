@@ -25205,6 +25205,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_get_time_t(v->value, &regseconds, 0, NULL);
 			} else if (realtime && !strcasecmp(v->name, "name")) {
 				ast_copy_string(peer->name, v->value, sizeof(peer->name));
+			} else if (realtime && !strcasecmp(v->name, "useragent")) {
+				ast_string_field_set(peer, useragent, v->value);
 			} else if (!strcasecmp(v->name, "type")) {
 				if (!strcasecmp(v->value, "peer")) {
 					peer->type |= SIP_TYPE_PEER;
