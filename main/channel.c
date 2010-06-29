@@ -1255,7 +1255,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 				 * as there can be no more matches.
 				 */
 				if (!(name && !namelen)) {
-					prev = c;
+					_prev = c;
 					retries = -1;
 				}
 			}
