@@ -3893,7 +3893,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 		/* To run the System application (or anything else that goes to shell), you must have the additional System privilege */
 		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
 			&& (
-				strcasestr(app, "system") == 0 || /* System(rm -rf /)
+				strcasestr(app, "system") ||      /* System(rm -rf /)
 				                                     TrySystem(rm -rf /)       */
 				strcasestr(app, "exec") ||        /* Exec(System(rm -rf /))
 				                                     TryExec(System(rm -rf /)) */
