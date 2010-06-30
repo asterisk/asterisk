@@ -3210,9 +3210,24 @@ static void *session_do(void *data)
 	struct mansession s = {.session = NULL, };
 	int flags;
 	int res;
+ 	struct protoent *p;
 
 	if (session == NULL)
 		goto done;
+
+	/* XXX here we set TCP_NODELAY on the socket to disable Nagle's
+	 * algorithm.  A better solution might be to buffer outgoing messages
+	 * until they are complete then write them to the socket in one burst
+	 * rather than sending them in bits and pieces. */
+ 	p = getprotobyname("tcp");
+ 	if (p) {
+ 		int arg = 1;
+ 		if( setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
+ 			ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\nSome manager actions may be slow to respond.\n", strerror(errno));
+ 		}
+ 	} else {
+ 		ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY, getprotobyname(\"tcp\") failed\nSome manager actions may be slow to respond.\n");
+ 	}
 
 	session->writetimeout = 100;
 	session->waiting_thread = AST_PTHREADT_NULL;
