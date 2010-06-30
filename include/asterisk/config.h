@@ -696,7 +696,7 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 #define	CV_BOOL(__x, __dst)	CV_F(__x, (__dst) = ast_true(__val) )
 #define CV_UINT(__x, __dst)	CV_F(__x, (__dst) = strtoul(__val, NULL, 0) )
 #define CV_STR(__x, __dst)	CV_F(__x, ast_copy_string(__dst, __val, sizeof(__dst)))
-#define CV_DSTR(__x, __dst)	CV_F(__x, if (__dst) ast_free(__dst); __dst = ast_strdup(__val))
+#define CV_DSTR(__x, __dst)	CV_F(__x, ast_free(__dst); __dst = ast_strdup(__val))
 #define CV_STRFIELD(__x, __obj, __field) CV_F(__x, ast_string_field_set(__obj, __field, __val))
 
 /*! \brief Check if require type is an integer type */
