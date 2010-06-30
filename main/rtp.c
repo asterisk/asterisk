@@ -4601,7 +4601,7 @@ static char *rtp_do_debug_ip(struct ast_cli_args *a)
 	int port = 0;
 	char *p, *arg;
 
-	arg = a->argv[3];
+	arg = a->argv[4];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -4616,10 +4616,11 @@ static char *rtp_do_debug_ip(struct ast_cli_args *a)
 	rtpdebugaddr.sin_family = AF_INET;
 	memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
 	rtpdebugaddr.sin_port = htons(port);
-	if (port == 0)
+	if (port == 0) {
 		ast_cli(a->fd, "RTP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtpdebugaddr.sin_addr));
-	else
+	 } else {
 		ast_cli(a->fd, "RTP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtpdebugaddr.sin_addr), port);
+	}
 	rtpdebug = 1;
 	return CLI_SUCCESS;
 }
@@ -4631,7 +4632,7 @@ static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 	int port = 0;
 	char *p, *arg;
 
-	arg = a->argv[3];
+	arg = a->argv[4];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -4646,10 +4647,11 @@ static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 	rtcpdebugaddr.sin_family = AF_INET;
 	memcpy(&rtcpdebugaddr.sin_addr, hp->h_addr, sizeof(rtcpdebugaddr.sin_addr));
 	rtcpdebugaddr.sin_port = htons(port);
-	if (port == 0)
+	if (port == 0) {
 		ast_cli(a->fd, "RTCP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr));
-	else
+	 } else {
 		ast_cli(a->fd, "RTCP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr), port);
+	}
 	rtcpdebug = 1;
 	return CLI_SUCCESS;
 }
