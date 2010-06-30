@@ -1902,7 +1902,9 @@ int read_config_maps(void)
 	configtmp = ast_config_new();
 	configtmp->max_include_level = 1;
 	config = ast_config_internal_load(extconfig_conf, configtmp, flags, "", "extconfig");
-	if (!config) {
+	if (config == CONFIG_STATUS_FILEINVALID) {
+		return -1;
+	} else if (!config) {
 		ast_config_destroy(configtmp);
 		return 0;
 	}
