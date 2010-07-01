@@ -4610,10 +4610,9 @@ static void *session_do(void *data)
 		goto done;
 	}
 
- 	/* XXX here we set TCP_NODELAY on the socket to disable Nagle's
- 	 * algorithm.  A better solution might be to buffer outgoing messages
- 	 * until they are complete then write them to the socket in one burst
- 	 * rather than sending them in bits and pieces. */
+	/* here we set TCP_NODELAY on the socket to disable Nagle's algorithm.
+	 * This is necessary to prevent delays (caused by buffering) as we
+	 * write to the socket in bits and peices. */
   	p = getprotobyname("tcp");
   	if (p) {
   		int arg = 1;
