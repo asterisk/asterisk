@@ -901,7 +901,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 
 	/* handle frames for the session */
 	ms = 1000;
-	while ((ms > -1) && (timeout > 0)) {
+	while ((res > -1) && (ms > -1) && (timeout > 0)) {
 		struct ast_channel *ready_chan;
 		int ofd, exception;
 
