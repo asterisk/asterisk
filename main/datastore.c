@@ -50,7 +50,10 @@ struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *inf
 
 	datastore->info = info;
 
-	datastore->uid = ast_strdup(uid);
+	if (!ast_strlen_zero(uid) && !(datastore->uid = ast_strdup(uid))) {
+		ast_free(datastore);
+		datastore = NULL;
+	}
 
 	return datastore;
 }
