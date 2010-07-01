@@ -1154,7 +1154,6 @@ static int mbl_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	while ((f = ast_smoother_read(pvt->smoother))) {
 		sco_write(pvt->sco_socket, f->data.ptr, f->datalen);
-		ast_frfree(f);
 	}
 
 	ast_mutex_unlock(&pvt->lock);
