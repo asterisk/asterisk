@@ -1446,7 +1446,7 @@ static int set_address_from_contact(struct sip_pvt *pvt);
 static void check_via(struct sip_pvt *p, struct sip_request *req);
 static int get_rpid(struct sip_pvt *p, struct sip_request *oreq);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason);
-static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id);
+static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id);
 static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewline);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 static void update_connectedline(struct sip_pvt *p, const void *data, size_t datalen);
@@ -13622,15 +13622,13 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 	We use the request uri as a destination.
 	This code assumes authentication has been done, so that the
 	device (peer/user) context is already set.
-	\return 0 on success (found a matching extension),
-	1 for pickup extension or overlap dialling support (if we support it),
-	-1 on error.
+	\return 0 on success (found a matching extension), non-zero on failure
 
   \note If the incoming uri is a SIPS: uri, we are required to carry this across
 	the dialplan, so that the outbound call also is a sips: call or encrypted
 	IAX2 call. If that's not available, the call should FAIL.
 */
-static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id)
+static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id)
 {
 	char tmp[256] = "", *uri, *domain, *dummy = NULL;
 	char tmpf[256] = "", *from = NULL;
@@ -13649,7 +13647,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 
 	if (parse_uri(uri, "sip:,sips:", &uri, &dummy, &domain, &dummy, NULL)) {
 		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
-		return -1;
+		return SIP_GET_DEST_INVALID_URI;
 	}
 
 	SIP_PEDANTIC_DECODE(domain);
@@ -13666,7 +13664,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 		from = get_in_brackets(tmpf);
 		if (parse_uri(from, "sip:,sips:", &from, NULL, &domain, NULL, NULL)) {
 			ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", from);
-			return -1;
+			return SIP_GET_DEST_INVALID_URI;
 		}
 
 		SIP_PEDANTIC_DECODE(from);
@@ -13682,7 +13680,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 		if (!check_sip_domain(p->domain, domain_context, sizeof(domain_context))) {
 			if (!sip_cfg.allow_external_domains && (req->method == SIP_INVITE || req->method == SIP_REFER)) {
 				ast_debug(1, "Got SIP %s to non-local domain '%s'; refusing request.\n", sip_methods[req->method].text, p->domain);
-				return -2;
+				return SIP_GET_DEST_REFUSED;
 			}
 		}
 		/* If we don't have a peer (i.e. we're a guest call),
@@ -13701,7 +13699,9 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 	/* If this is a subscription we actually just need to see if a hint exists for the extension */
 	if (req->method == SIP_SUBSCRIBE) {
 		char hint[AST_MAX_EXTENSION];
-		return (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten) ? 0 : -1);
+		return (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten) ?
+			SIP_GET_DEST_EXTEN_FOUND :
+			SIP_GET_DEST_EXTEN_NOT_FOUND);
 	} else {
 		struct ast_cc_agent *agent;
 		decoded_uri = ast_strdupa(uri);
@@ -13711,11 +13711,12 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 		   Since extensions.conf can have unescaped characters, try matching a decoded
 		   uri in addition to the non-decoded uri
 		   Return 0 if we have a matching extension */
-		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) || ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from)) ||
+		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) ||
+			ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from)) ||
 		    !strcmp(decoded_uri, ast_pickup_ext())) {
 			if (!oreq)
 				ast_string_field_set(p, exten, decoded_uri);
-			return 0;
+			return SIP_GET_DEST_EXTEN_FOUND;
 		} else if ((agent = find_sip_cc_agent_by_notify_uri(tmp))) {
 			struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
 			/* This is a CC recall. We can set p's extension to the exten from
@@ -13731,7 +13732,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 				*cc_recall_core_id = agent->core_id;
 			}
 			ao2_ref(agent, -1);
-			return 0;
+			return SIP_GET_DEST_EXTEN_FOUND;
 		}
 	}
 
@@ -13739,10 +13740,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_
 	if((ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP) &&
  	    ast_canmatch_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from))) ||
 	    !strncmp(decoded_uri, ast_pickup_ext(), strlen(decoded_uri))) {
-		return 1;
+		return SIP_GET_DEST_PICKUP_EXTEN_FOUND;
 	}
-	
-	return -1;
+
+	return SIP_GET_DEST_EXTEN_NOT_FOUND;
 }
 
 /*! \brief Lock dialog lock and find matching pvt lock
@@ -19844,7 +19845,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 		return 0;
 	}
 
-	res = get_destination(p, req, NULL);
+	res = (get_destination(p, req, NULL) == SIP_GET_DEST_EXTEN_FOUND ? 0 : -1);
 	build_contact(p);
 
 	if (ast_strlen_zero(p->context))
@@ -20789,18 +20790,30 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_DTMF_COMPENSATE, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 		}
 
-		if (!replace_id && gotdest) {	/* No matching extension found */
-			if (gotdest == 1 && ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP))
-				transmit_response_reliable(p, "484 Address Incomplete", req);
-			else {
-				char *decoded_exten = ast_strdupa(p->exten);
+		if (!replace_id && (gotdest != SIP_GET_DEST_EXTEN_FOUND)) {	/* No matching extension found */
+			switch(gotdest) {
+			case SIP_GET_DEST_INVALID_URI:
+				transmit_response_reliable(p, "416 Unsupported URI scheme", req);
+				break;
+			case SIP_GET_DEST_PICKUP_EXTEN_FOUND:
+				if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+					transmit_response_reliable(p, "484 Address Incomplete", req);
+					break;
+				}
+			/* INTENTIONAL FALL THROUGH */
+			case SIP_GET_DEST_EXTEN_NOT_FOUND:
+			case SIP_GET_DEST_REFUSED:
+			default:
+				{
+					char *decoded_exten = ast_strdupa(p->exten);
+					transmit_response_reliable(p, "404 Not Found", req);
+					ast_uri_decode(decoded_exten);
+					ast_log(LOG_NOTICE, "Call from '%s' to extension"
+						" '%s' rejected because extension not found in context '%s'.\n",
+						S_OR(p->username, p->peername), decoded_exten, p->context);
+				}
+			} /* end switch */
 
-				transmit_response_reliable(p, "404 Not Found", req);
-				ast_uri_decode(decoded_exten);
-				ast_log(LOG_NOTICE, "Call from '%s' to extension"
-					" '%s' rejected because extension not found in context '%s'.\n",
-					S_OR(p->username, p->peername), decoded_exten, p->context);
-			}
 			p->invitestate = INV_COMPLETED;
 			update_call_counter(p, DEC_CALL_LIMIT);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -22609,8 +22622,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	parse_ok_contact(p, req);
 
 	build_contact(p);
-	if (gotdest) {
-		transmit_response(p, "404 Not Found", req);
+	if (gotdest != SIP_GET_DEST_EXTEN_FOUND) {
+		if (gotdest == SIP_GET_DEST_INVALID_URI) {
+			transmit_response(p, "416 Unsupported URI scheme", req);
+		} else {
+			transmit_response(p, "404 Not Found", req);
+		}
 		pvt_set_needdestroy(p, "subscription target not found");
 		if (authpeer)
 			unref_peer(authpeer, "unref_peer, from handle_request_subscribe (authpeer 2)");

@@ -449,6 +449,15 @@ enum sip_auth_type {
 	WWW_AUTH = 401,
 };
 
+/*! \brief Result from get_destination function */
+enum sip_get_dest_result {
+	SIP_GET_DEST_PICKUP_EXTEN_FOUND = 1,
+	SIP_GET_DEST_EXTEN_FOUND = 0,
+	SIP_GET_DEST_EXTEN_NOT_FOUND = -1,
+	SIP_GET_DEST_REFUSED = -2,
+	SIP_GET_DEST_INVALID_URI = -3,
+};
+
 /*! \brief Authentication result from check_auth* functions */
 enum check_auth_result {
 	AUTH_DONT_KNOW = -100,	/*!< no result, need to check further */
