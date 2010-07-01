@@ -4604,7 +4604,7 @@ static void *session_do(void *data)
 	};
 	int flags;
 	int res;
-  	struct protoent *p;
+	struct protoent *p;
 
 	if (session == NULL) {
 		goto done;
@@ -4613,15 +4613,15 @@ static void *session_do(void *data)
 	/* here we set TCP_NODELAY on the socket to disable Nagle's algorithm.
 	 * This is necessary to prevent delays (caused by buffering) as we
 	 * write to the socket in bits and peices. */
-  	p = getprotobyname("tcp");
-  	if (p) {
-  		int arg = 1;
-  		if( setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
-  			ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\nSome manager actions may be slow to respond.\n", strerror(errno));
-  		}
-  	} else {
-  		ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY, getprotobyname(\"tcp\") failed\nSome manager actions may be slow to respond.\n");
-  	}
+	p = getprotobyname("tcp");
+	if (p) {
+		int arg = 1;
+		if( setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
+			ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\nSome manager actions may be slow to respond.\n", strerror(errno));
+		}
+	} else {
+		ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY, getprotobyname(\"tcp\") failed\nSome manager actions may be slow to respond.\n");
+	}
 
 	flags = fcntl(ser->fd, F_GETFL);
 	if (!block_sockets) { /* make sure socket is non-blocking */
