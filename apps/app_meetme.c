@@ -3881,8 +3881,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			} else {
 				if (((!ast_strlen_zero(cnf->pin) &&
 				    !ast_test_flag(&confflags, CONFFLAG_ADMIN)) ||
-				    (!ast_strlen_zero(cnf->pinadmin) &&
-				    ast_test_flag(&confflags, CONFFLAG_ADMIN))) &&
+				    !ast_strlen_zero(cnf->pinadmin)) &&
 				    (!(cnf->users == 0 && cnf->isdynamic))) {
 					char pin[MAX_PIN] = "";
 					int j;
