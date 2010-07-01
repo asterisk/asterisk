@@ -3170,6 +3170,18 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					}
 				} else if (f->frametype == AST_FRAME_NULL) {
 					/* Ignore NULL frames. It is perfectly normal to get these if the person is muted. */
+				} else if (f->frametype == AST_FRAME_CONTROL) {
+					switch (f->subclass) {
+					case AST_CONTROL_BUSY:
+					case AST_CONTROL_CONGESTION:
+						ast_frfree(f);
+						goto outrun;
+						break;
+					default:
+						ast_debug(1, 
+							"Got ignored control frame on channel %s, f->frametype=%d,f->subclass=%d\n",
+							chan->name, f->frametype, f->subclass);
+					}
 				} else {
 					ast_debug(1, 
 						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
