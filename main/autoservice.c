@@ -110,6 +110,11 @@ static void *autoservice_run(void *ign)
 		AST_LIST_UNLOCK(&aslist);
 
 		if (!x) {
+			/* If we don't sleep, this becomes a busy loop, which causes
+			 * problems when Asterisk runs at a different priority than other
+			 * user processes.  As long as we check for new channels at least
+			 * once every 10ms, we should be fine. */
+			usleep(10000);
 			continue;
 		}
 
