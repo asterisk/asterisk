@@ -283,7 +283,7 @@ int ast_base64decode(unsigned char *dst, const char *src, int max)
 			cnt++;
 		}
 	}
-	/* Dont worry about left over bits, they're extra anyway */
+	/* Don't worry about left over bits, they're extra anyway */
 	return cnt;
 }
 

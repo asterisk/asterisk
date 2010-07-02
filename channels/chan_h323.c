@@ -137,7 +137,7 @@ static char gatekeeper[100];
 static int gatekeeper_disable = 1;
 static int gatekeeper_discover = 0;
 static int gkroute = 0;
-/* Find user by alias (h.323 id) is default, alternative is the incomming call's source IP address*/
+/* Find user by alias (h.323 id) is default, alternative is the incoming call's source IP address*/
 static int userbyalias = 1;
 static int acceptAnonymous = 1;
 static unsigned int tos = 0;

@@ -2524,7 +2524,7 @@ static int transmit_modify_request(struct mgcp_subchannel *sub)
 				snprintf(tmp, sizeof(tmp), ", dq-gi:%x", sub->gate->gateid);
 				strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 			} else {
-					/* we still dont have gateid wait */
+					/* we still don't have gateid wait */
 				return 0;
 			}
 		}
@@ -3337,7 +3337,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				mgcp_queue_hangup(sub);
 			}
 			transmit_response(sub, "200", req, "OK");
-			/* We dont send NTFY or AUEP to wildcard ep */
+			/* We don't send NTFY or AUEP to wildcard ep */
 			if (strcmp(p->name, p->parent->wcardep) != 0) {
 				transmit_notify_request(sub, "");
 				/* Audit endpoint.

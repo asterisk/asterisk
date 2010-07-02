@@ -204,7 +204,7 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 	}
 
 #if 0
-	/* dont want run away loops if the chan isn't even up
+	/* don't want run away loops if the chan isn't even up
 	   this is up for debate since it slows things down a tad ......
 
 	   Debate is over... this prevents While/EndWhile from working

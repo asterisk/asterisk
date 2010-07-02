@@ -1534,7 +1534,7 @@ struct        rpt_link *l;
                        l = l->next;
                        continue;
                }
-               /* dont send to self */
+               /* don't send to self */
                if (mylink && (l == mylink))
                {
                        l = l->next;
@@ -1895,7 +1895,7 @@ int	i,spos;
 	{
 		/* if is not a real link, ignore it */
 		if (l->name[0] == '0') continue;
-		/* dont count our stuff */
+		/* don't count our stuff */
 		if (l == mylink) continue;
 		if (mylink && (!strcmp(l->name,mylink->name))) continue;
 		/* figure out mode to report */
@@ -4375,7 +4375,7 @@ struct dahdi_params par;
 		wait_interval(myrpt, DLY_TELEM, mychannel);
 		l = myrpt->links.next;
 		haslink = 0;
-		/* dont report if a link for this one still on system */
+		/* don't report if a link for this one still on system */
 		if (l != &myrpt->links)
 		{
 			rpt_mutex_lock(&myrpt->lock);
@@ -5223,7 +5223,7 @@ char *v1, *v2;
 	{
 	    case UNKEY:
 		/* if any of the following are defined, go ahead and do it,
-		   otherwise, dont bother */
+		   otherwise, don't bother */
 		v1 = (char *) ast_variable_retrieve(myrpt->cfg, myrpt->name, 
 			"unlinkedct");
 		v2 = (char *) ast_variable_retrieve(myrpt->cfg, myrpt->name, 
@@ -6741,7 +6741,7 @@ struct	ast_frame wf;
 					l = l->next;
 					continue;
 				}
-				/* dont send back from where it came */
+				/* don't send back from where it came */
 				if ((l == mylink) || (!strcmp(l->name,mylink->name)))
 				{
 					l = l->next;
@@ -6772,7 +6772,7 @@ struct	ast_frame wf;
 					l = l->next;
 					continue;
 				}
-				/* dont send back from where it came */
+				/* don't send back from where it came */
 				if ((l == mylink) || (!strcmp(l->name,mylink->name)))
 				{
 					l = l->next;
@@ -6870,7 +6870,7 @@ struct	ast_frame wf;
 				l = l->next;
 				continue;
 			}
-			/* dont send back from where it came */
+			/* don't send back from where it came */
 			if ((l == mylink) || (!strcmp(l->name,mylink->name)))
 			{
 				l = l->next;
@@ -6897,7 +6897,7 @@ struct	ast_frame wf;
 				l = l->next;
 				continue;
 			}
-			/* dont send back from where it came */
+			/* don't send back from where it came */
 			if ((l == mylink) || (!strcmp(l->name,mylink->name)))
 			{
 				l = l->next;
@@ -10147,7 +10147,7 @@ int	ret,res = 0,src;
 	/* if decode not active */
 	if (myrpt->dtmfidx == -1)
 	{
-		/* if not lead-in digit, dont worry */
+		/* if not lead-in digit, don't worry */
 		if (c != myrpt->p.funcchar)
 		{
 			if (!myrpt->p.propagate_dtmf)
@@ -12990,7 +12990,7 @@ char *this,*val;
 	{
 		load_rpt_vars(i,1);
 
-		/* if is a remote, dont start one for it */
+		/* if is a remote, don't start one for it */
 		if (rpt_vars[i].remote)
 		{
 			if(retreive_memory(&rpt_vars[i],"init")){ /* Try to retreive initial memory channel */
@@ -14337,7 +14337,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			if (handle_remote_dtmf_digit(myrpt,c,&keyed,0) == -1) break;
 			continue;
 		} else rpt_mutex_unlock(&myrpt->lock);
-		if (who == chan) /* if it was a read from incomming */
+		if (who == chan) /* if it was a read from incoming */
 		{
 			f = ast_read(chan);
 			if (!f)

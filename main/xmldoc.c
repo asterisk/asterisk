@@ -449,7 +449,7 @@ static void xmldoc_string_cleanup(const char *text, struct ast_str **output, int
 		}
 	}
 
-	/* remove last spaces (we dont want always to remove the trailing spaces). */
+	/* remove last spaces (we don't want always to remove the trailing spaces). */
 	if (lastspaces) {
 		ast_str_trim_blanks(*output);
 	}

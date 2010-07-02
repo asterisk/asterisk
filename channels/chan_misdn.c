@@ -2363,7 +2363,7 @@ static void misdn_PartyNumber_fill(struct FacPartyNumber *party, const struct mi
 		party->TypeOfNumber = misdn_to_PartyNumber_ton_private(id->number_type);
 		break;
 	default:
-		party->TypeOfNumber = 0;/* Dont't care */
+		party->TypeOfNumber = 0;/* Don't care */
 		break;
 	}
 }
@@ -10903,9 +10903,9 @@ static int load_module(void)
 		"    a - Have Asterisk detect DTMF tones on called channel\n"
 		"    c - Make crypted outgoing call, optarg is keyindex\n"
 		"    d - Send display text to called phone, text is the optarg\n"
-		"    e - Perform echo cancelation on this channel,\n"
+		"    e - Perform echo cancellation on this channel,\n"
 		"        takes taps as optarg (32,64,128,256)\n"
-		"   e! - Disable echo cancelation on this channel\n"
+		"   e! - Disable echo cancellation on this channel\n"
 		"    f - Enable fax detection\n"
 		"    h - Make digital outgoing call\n"
 		"   h1 - Make HDLC mode digital outgoing call\n"

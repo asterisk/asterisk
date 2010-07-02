@@ -668,7 +668,7 @@ static int ast_say_number_full_cs(struct ast_channel *chan, int num, const char 
 					default : options = "m"; /* others are male */
 				}
 			}
-			if ( left > 1 )	{ /* we dont say "one thousand" but only thousand */
+			if ( left > 1 )	{ /* we don't say "one thousand" but only thousand */
 				res = ast_say_number_full_cs(chan, left, ints, language, options, audiofd, ctrlfd);
 				if (res) 
 					return res;
@@ -3997,7 +3997,7 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t t, const char *
 				}
 				break;
 			case 'H':
-				/* 24-Hour, single digit hours preceeded by "oh" (0) */
+				/* 24-Hour, single digit hours preceded by "oh" (0) */
 				if (tm.tm_hour < 10 && tm.tm_hour > 0) {
 					res = wait_file(chan, ints, "digits/0", lang);
 				}

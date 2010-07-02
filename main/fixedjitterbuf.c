@@ -105,7 +105,7 @@ struct fixed_jb *fixed_jb_new(struct fixed_jb_conf *conf)
 	/* First copy our config */
 	memcpy(&jb->conf, conf, sizeof(struct fixed_jb_conf));
 
-	/* we dont need the passed config anymore - continue working with the saved one */
+	/* we don't need the passed config anymore - continue working with the saved one */
 	conf = &jb->conf;
 	
 	/* validate the configuration */

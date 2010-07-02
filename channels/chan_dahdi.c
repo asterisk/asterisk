@@ -1676,7 +1676,7 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 	/* We must have a ring by now, so, if configured, lets try to listen for
 	 * distinctive ringing */
 	if ((checkaftercid && distinctiveringaftercid) || !checkaftercid) {
-		/* Clear the current ring data array so we dont have old data in it. */
+		/* Clear the current ring data array so we don't have old data in it. */
 		for (receivedRingT = 0; receivedRingT < ARRAY_LEN(ringdata); receivedRingT++)
 			ringdata[receivedRingT] = 0;
 		receivedRingT = 0;
@@ -6408,7 +6408,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 			p->mate = 1;
 			break;
 		}
-		if (!p->tdd) { /* if we dont have one yet */
+		if (!p->tdd) { /* if we don't have one yet */
 			p->tdd = tdd_new(); /* allocate one */
 		}
 		break;
@@ -6467,10 +6467,10 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 	case AST_OPTION_ECHOCAN:
 		cp = (char *) data;
 		if (*cp) {
-			ast_debug(1, "Enabling echo cancelation on %s\n", chan->name);
+			ast_debug(1, "Enabling echo cancellation on %s\n", chan->name);
 			dahdi_enable_ec(p);
 		} else {
-			ast_debug(1, "Disabling echo cancelation on %s\n", chan->name);
+			ast_debug(1, "Disabling echo cancellation on %s\n", chan->name);
 			dahdi_disable_ec(p);
 		}
 		break;
@@ -8364,7 +8364,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 
 	/* Hang up if we don't really exist */
 	if (idx < 0)	{
-		ast_log(LOG_WARNING, "We dont exist?\n");
+		ast_log(LOG_WARNING, "We don't exist?\n");
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
@@ -9962,7 +9962,7 @@ static void *analog_ss_thread(void *data)
 					if (p->usedistinctiveringdetection) {
 						len = 0;
 						distMatches = 0;
-						/* Clear the current ring data array so we dont have old data in it. */
+						/* Clear the current ring data array so we don't have old data in it. */
 						for (receivedRingT = 0; receivedRingT < ARRAY_LEN(curRingData); receivedRingT++)
 							curRingData[receivedRingT] = 0;
 						receivedRingT = 0;
@@ -10112,7 +10112,7 @@ static void *analog_ss_thread(void *data)
 					samples = 0;
 					len = 0;
 					distMatches = 0;
-					/* Clear the current ring data array so we dont have old data in it. */
+					/* Clear the current ring data array so we don't have old data in it. */
 					for (receivedRingT = 0; receivedRingT < ARRAY_LEN(curRingData); receivedRingT++)
 						curRingData[receivedRingT] = 0;
 					receivedRingT = 0;
@@ -10198,7 +10198,7 @@ static void *analog_ss_thread(void *data)
 						ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
 					}
 					if (distinctiveringaftercid == 1) {
-						/* Clear the current ring data array so we dont have old data in it. */
+						/* Clear the current ring data array so we don't have old data in it. */
 						for (receivedRingT = 0; receivedRingT < 3; receivedRingT++) {
 							curRingData[receivedRingT] = 0;
 						}
@@ -12022,7 +12022,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				p.debouncetime = conf->timing.debouncetime;
 		}
 
-		/* dont set parms on a pseudo-channel */
+		/* don't set parms on a pseudo-channel */
 		if (tmp->subs[SUB_REAL].dfd >= 0)
 		{
 			res = ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_SET_PARAMS, &p);
@@ -17502,7 +17502,7 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 		ast_log(LOG_WARNING, "Huh?  I don't exist?\n");
 		return -1;
 	}
-	if (!text[0]) return(0); /* if nothing to send, dont */
+	if (!text[0]) return(0); /* if nothing to send, don't */
 	if ((!p->tdd) && (!p->mate)) return(0);  /* if not in TDD mode, just return */
 	if (p->mate)
 		buf = ast_malloc(((strlen(text) + 1) * ASCII_BYTES_PER_CHAR) + END_SILENCE_LEN + HEADER_LEN);

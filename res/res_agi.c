@@ -371,7 +371,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			to the offset without exceeding the end of the file. <replaceable>silence</replaceable> is
 			the number of seconds of silence allowed before the function returns despite the
 			lack of dtmf digits or reaching <replaceable>timeout</replaceable>. <replaceable>silence</replaceable>
-			value must be preceeded by <literal>s=</literal> and is also optional.</para>
+			value must be preceded by <literal>s=</literal> and is also optional.</para>
 		</description>
 	</agi>
 	<agi name="say alpha" language="en_US">

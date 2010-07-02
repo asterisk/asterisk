@@ -7125,7 +7125,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	/* We do not respond to responses for dialogs that we don't know about, we just drop
 	   the session quickly */
 	if (intended_method == SIP_RESPONSE)
-		ast_debug(2, "That's odd...  Got a response on a call we dont know about. Callid %s\n", callid ? callid : "<unknown>");
+		ast_debug(2, "That's odd...  Got a response on a call we don't know about. Callid %s\n", callid ? callid : "<unknown>");
 
 	return NULL;
 }
@@ -9709,7 +9709,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, format_t codec,
 	if (p->rtp) {
 		struct ast_codec_pref *pref = &ast_rtp_instance_get_codecs(p->rtp)->pref;
 		fmt = ast_codec_pref_getsize(pref, codec);
-	} else /* I dont see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
+	} else /* I don't see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
 		return;
 	ast_str_append(m_buf, 0, " %d", rtp_code);
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
@@ -12882,7 +12882,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		return AUTH_CHALLENGE_SENT;
 	}
 	if (good_response) {
-		append_history(p, "AuthOK", "Auth challenge succesful for %s", username);
+		append_history(p, "AuthOK", "Auth challenge successful for %s", username);
 		return AUTH_SUCCESSFUL;
 	}
 
@@ -18689,7 +18689,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		}
 		
 		r->regstate = REG_STATE_REGISTERED;
-		r->regtime = ast_tvnow();		/* Reset time of last succesful registration */
+		r->regtime = ast_tvnow();		/* Reset time of last successful registration */
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_debug(1, "Registration successful\n");
@@ -19187,7 +19187,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 					}
 				}
 			} else
-				ast_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
+				ast_log(LOG_NOTICE, "Don't know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
 		}
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls
@@ -20742,7 +20742,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 		}
 
-		/* We have a succesful authentication, process the SDP portion if there is one */
+		/* We have a successful authentication, process the SDP portion if there is one */
 		if (find_sdp(req)) {
 			if (process_sdp(p, req, SDP_T38_INITIATE)) {
 				/* Unacceptable codecs */
