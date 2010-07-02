@@ -7547,7 +7547,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		user = user_unref(user);
 	}
 	if (ast_test_flag(p, IAX_FORCE_ENCRYPT) && !p->encmethods) { 
-		ast_log(LOG_NOTICE, "Call Terminated, Incomming call is unencrypted while force encrypt is enabled.");
+		ast_log(LOG_NOTICE, "Call Terminated, Incoming call is unencrypted while force encrypt is enabled.");
 		return res;
 	}
 	if (!ast_test_flag(&p->state, IAX_STATE_AUTHENTICATED))

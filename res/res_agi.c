@@ -441,7 +441,7 @@ static const char mandescr_asyncagi[] =
 "Variables:\n"
 "  *Channel: Channel that is currently in Async AGI\n"
 "  *Command: Application to execute\n"
-"   CommandID: comand id. This will be sent back in CommandID header of AsyncAGI exec event notification\n"
+"   CommandID: command id. This will be sent back in CommandID header of AsyncAGI exec event notification\n"
 "\n";
 
 static struct agi_cmd *get_agi_cmd(struct ast_channel *chan)
@@ -2434,7 +2434,7 @@ static char usage_recordfile[] =
 " to the offset without exceeding the end of the file.  \"silence\" is the number\n"
 " of seconds of silence allowed before the function returns despite the\n"
 " lack of dtmf digits or reaching timeout.  Silence value must be\n"
-" preceeded by \"s=\" and is also optional.\n";
+" preceded by \"s=\" and is also optional.\n";
 
 static char usage_autohangup[] =
 " Usage: SET AUTOHANGUP <time>\n"

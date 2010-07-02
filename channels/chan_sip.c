@@ -7504,7 +7504,7 @@ restartsearch:
 	/* We do not respond to responses for dialogs that we don't know about, we just drop
 	   the session quickly */
 	if (intended_method == SIP_RESPONSE)
-		ast_debug(2, "That's odd...  Got a response on a call we dont know about. Callid %s\n", callid ? callid : "<unknown>");
+		ast_debug(2, "That's odd...  Got a response on a call we don't know about. Callid %s\n", callid ? callid : "<unknown>");
 
 	return NULL;
 }
@@ -12798,7 +12798,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		return AUTH_CHALLENGE_SENT;
 	} 
 	if (good_response) {
-		append_history(p, "AuthOK", "Auth challenge succesful for %s", username);
+		append_history(p, "AuthOK", "Auth challenge successful for %s", username);
 		return AUTH_SUCCESSFUL;
 	}
 
@@ -18673,7 +18673,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else
-				ast_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
+				ast_log(LOG_NOTICE, "Don't know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
 		}
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls 

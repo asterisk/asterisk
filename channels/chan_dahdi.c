@@ -6807,7 +6807,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 
 	/* Hang up if we don't really exist */
 	if (idx < 0)	{
-		ast_log(LOG_WARNING, "We dont exist?\n");
+		ast_log(LOG_WARNING, "We don't exist?\n");
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
