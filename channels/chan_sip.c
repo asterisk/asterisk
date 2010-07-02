@@ -1212,7 +1212,7 @@ struct sip_registry {
 	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration dialog" in progress */
 	enum sipregistrystate regstate;	/*!< Registration state (see above) */
 	unsigned int needdns:1; /*!< Set if we need a new dns lookup before we try to transmit */
-	time_t regtime;		/*!< Last succesful registration time */
+	time_t regtime;		/*!< Last successful registration time */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;		/*!< Who the server thinks we are */
@@ -9117,7 +9117,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		return AUTH_CHALLENGE_SENT;
 	} 
 	if (good_response) {
-		append_history(p, "AuthOK", "Auth challenge succesful for %s", username);
+		append_history(p, "AuthOK", "Auth challenge successful for %s", username);
 		return AUTH_SUCCESSFUL;
 	}
 
@@ -13753,7 +13753,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else
-				ast_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
+				ast_log(LOG_NOTICE, "Don't know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
 		}
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls 
@@ -16463,7 +16463,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 		if (!p->initreq.headers) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
+				ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we don't know about. Cseq %d Cmd %s\n", seqno, cmd);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 			return 0;
 		}

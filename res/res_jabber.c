@@ -676,16 +676,16 @@ static int aji_act_hook(void *data, int type, iks *node)
 	case IKS_PAK_S10N:
 		aji_handle_subscribe(client, pak);
 		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Dont know S10N subscribe!!\n");
+			ast_log(LOG_DEBUG, "JABBER: I Don't know S10N subscribe!!\n");
 		break;
 	case IKS_PAK_IQ:
 		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Dont have an IQ!!!\n");
+			ast_log(LOG_DEBUG, "JABBER: I Don't have an IQ!!!\n");
 		aji_handle_iq(client, node);
 		break;
 	default:
 		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Dont know %i\n", pak->type);
+			ast_log(LOG_DEBUG, "JABBER: I Don't know %i\n", pak->type);
 		break;
 	}
 	

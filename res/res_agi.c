@@ -1651,7 +1651,7 @@ static char usage_recordfile[] =
 " to the offset without exceeding the end of the file.  \"silence\" is the number\n"
 " of seconds of silence allowed before the function returns despite the\n"
 " lack of dtmf digits or reaching timeout.  Silence value must be\n"
-" preceeded by \"s=\" and is also optional.\n";
+" preceded by \"s=\" and is also optional.\n";
 
 static char usage_autohangup[] =
 " Usage: SET AUTOHANGUP <time>\n"

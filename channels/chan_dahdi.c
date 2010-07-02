@@ -3416,10 +3416,10 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 	case AST_OPTION_ECHOCAN:
 		cp = (char *) data;
 		if (*cp) {
-			ast_log(LOG_DEBUG, "Enabling echo cancelation on %s\n", chan->name);
+			ast_log(LOG_DEBUG, "Enabling echo cancellation on %s\n", chan->name);
 			dahdi_enable_ec(p);
 		} else {
-			ast_log(LOG_DEBUG, "Disabling echo cancelation on %s\n", chan->name);
+			ast_log(LOG_DEBUG, "Disabling echo cancellation on %s\n", chan->name);
 			dahdi_disable_ec(p);
 		}
 		break;
@@ -5167,7 +5167,7 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 	
 	/* Hang up if we don't really exist */
 	if (index < 0)	{
-		ast_log(LOG_WARNING, "We dont exist?\n");
+		ast_log(LOG_WARNING, "We don't exist?\n");
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
