@@ -1188,22 +1188,27 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 				ast_debug(4, "%s is unavailable because his device state is 'invalid'\n", member->membername);
 				break;
 			}
+			goto default_case;
 		case AST_DEVICE_UNAVAILABLE:
 			if (conditions & QUEUE_EMPTY_UNAVAILABLE) {
 				ast_debug(4, "%s is unavailable because his device state is 'unavailable'\n", member->membername);
 				break;
 			}
+			goto default_case;
 		case AST_DEVICE_INUSE:
 			if (conditions & QUEUE_EMPTY_INUSE) {
 				ast_debug(4, "%s is unavailable because his device state is 'inuse'\n", member->membername);
 				break;
 			}
+			goto default_case;
 		case AST_DEVICE_UNKNOWN:
 			if (conditions & QUEUE_EMPTY_UNKNOWN) {
 				ast_debug(4, "%s is unavailable because his device state is 'unknown'\n", member->membername);
 				break;
 			}
+			/* Fall-through */
 		default:
+		default_case:
 			if (member->paused && (conditions & QUEUE_EMPTY_PAUSED)) {
 				ast_debug(4, "%s is unavailable because he is paused'\n", member->membername);
 				break;
