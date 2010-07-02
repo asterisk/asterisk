@@ -4399,8 +4399,12 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						/* Here we have to retain the lock on both the main channel, the 3-way channel, and
 						   the private structure -- not especially easy or clean */
 						while (p->subs[SUB_THREEWAY].owner && ast_mutex_trylock(&p->subs[SUB_THREEWAY].owner->lock)) {
+							int res;
 							/* Yuck, didn't get the lock on the 3-way, gotta release everything and re-grab! */
-							ast_mutex_unlock(&p->lock);
+							if ((res = ast_mutex_unlock(&p->lock))) {
+								ast_log(LOG_ERROR, "chan_dahdi bug! '&p->lock' was not locked upon entry to 'dahdi_handle_dtmfup': %s\n", strerror(res));
+								return NULL;
+							}
 							DEADLOCK_AVOIDANCE(&ast->lock);
 							/* We can grab ast and p in that order, without worry.  We should make sure
 							   nothing seriously bad has happened though like some sort of bizarre double
