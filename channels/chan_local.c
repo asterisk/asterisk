@@ -250,7 +250,11 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 
 	/* Ensure that we have both channels locked */
 	while (other && ast_channel_trylock(other)) {
-		ast_mutex_unlock(&p->lock);
+		int res;
+		if ((res = ast_mutex_unlock(&p->lock))) {
+			ast_log(LOG_ERROR, "chan_local bug! '&p->lock' was not locked when entering local_queue_frame! (%s)\n", strerror(res));
+			return -1;
+		}
 		if (us && us_locked) {
 			do {
 				CHANNEL_DEADLOCK_AVOIDANCE(us);

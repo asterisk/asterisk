@@ -60,6 +60,7 @@
 #endif
 
 #include "asterisk/logger.h"
+#include "asterisk/compiler.h"
 
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
@@ -339,12 +340,20 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 		char __filename[80], __func[80], __mutex_name[80]; \
 		int __lineno; \
 		int __res = ast_find_lock_info(ao2_object_get_lockaddr(chan), __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
-		ast_channel_unlock(chan); \
+		int __res2 = ast_channel_unlock(chan); \
 		usleep(1); \
 		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
-			ast_channel_lock(chan); \
+			if (__res2) { \
+				ast_log(LOG_WARNING, "Could not unlock channel '%s': %s and no lock info found!  I will NOT try to relock.\n", #chan, strerror(__res2)); \
+			} else { \
+				ast_channel_lock(chan); \
+			} \
 		} else { \
-			__ao2_lock(chan, __filename, __func, __lineno, __mutex_name); \
+			if (__res2) { \
+				ast_log(LOG_WARNING, "Could not unlock channel '%s': %s.  {{{Originally locked at %s line %d: (%s) '%s'}}}  I will NOT try to relock.\n", #chan, strerror(__res2), __filename, __lineno, __func, __mutex_name); \
+			} else { \
+				__ao2_lock(chan, __filename, __func, __lineno, __mutex_name); \
+			} \
 		} \
 	} while (0)
 
@@ -353,12 +362,20 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 		char __filename[80], __func[80], __mutex_name[80]; \
 		int __lineno; \
 		int __res = ast_find_lock_info(lock, __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
-		ast_mutex_unlock(lock); \
+		int __res2 = ast_mutex_unlock(lock); \
 		usleep(1); \
 		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
-			ast_mutex_lock(lock); \
+			if (__res2 == 0) { \
+				ast_mutex_lock(lock); \
+			} else { \
+				ast_log(LOG_WARNING, "Could not unlock mutex '%s': %s and no lock info found!  I will NOT try to relock.\n", #lock, strerror(__res2)); \
+			} \
 		} else { \
-			__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, lock); \
+			if (__res2 == 0) { \
+				__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, lock); \
+			} else { \
+				ast_log(LOG_WARNING, "Could not unlock mutex '%s': %s.  {{{Originally locked at %s line %d: (%s) '%s'}}}  I will NOT try to relock.\n", #lock, strerror(__res2), __filename, __lineno, __func, __mutex_name); \
+			} \
 		} \
 	} while (0)
 
@@ -379,7 +396,7 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 		char __filename[80], __func[80], __mutex_name[80]; \
 		int __lineno; \
 		int __res = ast_find_lock_info(lock, __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
-		ast_mutex_unlock(lock);
+		int __res2 = ast_mutex_unlock(lock);
 
 /*!
  * \brief Deadlock avoidance lock
@@ -395,9 +412,17 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
  */
 #define DLA_LOCK(lock) \
 		if (__res < 0) { /* Shouldn't ever happen, but just in case... */ \
-			ast_mutex_lock(lock); \
+			if (__res2) { \
+				ast_log(LOG_WARNING, "Could not unlock mutex '%s': %s and no lock info found!  I will NOT try to relock.\n", #lock, strerror(__res2)); \
+			} else { \
+				ast_mutex_lock(lock); \
+			} \
 		} else { \
-			__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, lock); \
+			if (__res2) { \
+				ast_log(LOG_WARNING, "Could not unlock mutex '%s': %s.  {{{Originally locked at %s line %d: (%s) '%s'}}}  I will NOT try to relock.\n", #lock, strerror(__res2), __filename, __lineno, __func, __mutex_name); \
+			} else { \
+				__ast_pthread_mutex_lock(__filename, __lineno, __func, __mutex_name, lock); \
+			} \
 		} \
 	} while (0)
 
@@ -447,9 +472,15 @@ static inline void delete_reentrancy_cs(struct ast_lock_track *lt)
 	ast_channel_lock(chan);
 
 #define	DEADLOCK_AVOIDANCE(lock) \
-	ast_mutex_unlock(lock); \
-	usleep(1); \
-	ast_mutex_lock(lock);
+	do { \
+		int __res; \
+		if (!(__res = ast_mutex_unlock(lock))) { \
+			usleep(1); \
+			ast_mutex_lock(lock); \
+		} else { \
+			ast_log(LOG_WARNING, "Failed to unlock mutex '%s' (%s).  I will NOT try to relock. {{{ THIS IS A BUG. }}}\n", #lock, strerror(__res)); \
+		} \
+	} while (0)
 
 #define DLA_UNLOCK(lock) ast_mutex_unlock(lock)
 
