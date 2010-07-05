@@ -1484,16 +1484,14 @@ static int config_command(int fd, int argc, char **argv)
 	
 	ast_mutex_lock(&config_lock);
 
-	ast_cli(fd, "\n\n");
 	for (eng = config_engine_list; eng; eng = eng->next) {
-		ast_cli(fd, "\nConfig Engine: %s\n", eng->name);
+		ast_cli(fd, "Config Engine: %s\n", eng->name);
 		for (map = config_maps; map; map = map->next)
 			if (!strcasecmp(map->driver, eng->name)) {
 				ast_cli(fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
 					map->table ? map->table : map->name);
 			}
 	}
-	ast_cli(fd,"\n\n");
 	
 	ast_mutex_unlock(&config_lock);
 
