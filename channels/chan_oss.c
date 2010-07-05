@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <signal.h>      /* for pthread_kill(3) */
 
 #ifdef __linux
 #include <linux/soundcard.h>
@@ -606,6 +607,8 @@ static void *sound_thread(void *arg)
 		fd_set rfds, wfds;
 		int maxfd, res;
 
+		pthread_testcancel();
+
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		FD_SET(o->sndcmd[0], &rfds);
@@ -626,6 +629,7 @@ static void *sound_thread(void *arg)
 		}
 		/* ast_select emulates linux behaviour in terms of timeout handling */
 		res = ast_select(maxfd + 1, &rfds, &wfds, NULL, NULL);
+		pthread_testcancel();
 		if (res < 1) {
 			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
 			sleep(1);
@@ -636,6 +640,7 @@ static void *sound_thread(void *arg)
 			int i, what = -1;
 
 			if (read(o->sndcmd[0], &what, sizeof(what)) != sizeof(what)) {
+				pthread_testcancel();
 				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
 				continue;
 			}
@@ -1880,17 +1885,28 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
 
 	for (o = oss_default.next; o; o = o->next) {
+		if (o->owner) {
+			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
+			/* Give the channel a chance to go away */
+			sched_yield();
+		}
+		if (o->owner) {
+			return -1;
+		}
+		oss_default.next = o->next;
+		if (o->sthread > 0) {
+			pthread_cancel(o->sthread);
+			pthread_kill(o->sthread, SIGURG);
+			pthread_join(o->sthread, NULL);
+		}
 		close(o->sounddev);
 		if (o->sndcmd[0] > 0) {
 			close(o->sndcmd[0]);
 			close(o->sndcmd[1]);
 		}
-		if (o->owner)
-			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
-		if (o->owner)
-			return -1;
-		/* XXX what about the thread ? */
-		/* XXX what about the memory allocated ? */
+		if (o->sthread > 0) {
+			free(o);
+		}
 	}
 	return 0;
 }
