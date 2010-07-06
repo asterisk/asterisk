@@ -745,7 +745,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
 	<manager name="ShowDialPlan" language="en_US">
 		<synopsis>
-			La merde se produit.
+			Show dialplan contexts and extensions
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
