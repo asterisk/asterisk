@@ -19132,16 +19132,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
 					}
 					break;
-				case 482: /*!
-					\note SIP is incapable of performing a hairpin call, which
-					is yet another failure of not having a layer 2 (again, YAY
-					 IETF for thinking ahead).  So we treat this as a call
-					 forward and hope we end up at the right place... */
-					ast_debug(1, "Hairpin detected, setting up call forward for what it's worth\n");
-					if (p->owner)
-						ast_string_field_build(p->owner, call_forward,
-								       "Local/%s@%s", p->username, p->context);
-					/* Fall through */
+				case 482: /* Loop Detected */
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */

@@ -92,6 +92,10 @@ From 1.6.2 to 1.8:
   definition specifies those fields as float,double or similar they will now
   be logged with microsecond accuracy instead of a whole integer.
 
+* chan_sip will no longer set up a local call forward when receiving a
+  482 Loop Detected response. The dialplan will just continue from where it
+  left off.
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by
