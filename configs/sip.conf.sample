@@ -301,6 +301,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;contactdeny=0.0.0.0/0.0.0.0           ; Use contactpermit and contactdeny to
 ;contactpermit=172.16.0.0/255.255.0.0  ; restrict at what IPs your users may
                                        ; register their phones.
+;forwardloopdetected=no         ; Attempt to forward a call locally if the
+                                ; destination replies with 482 Loop Detected
+                                ; default = yes
 
 ; The shrinkcallerid function removes '(', ' ', ')', non-trailing '.', and '-' not
 ; in square brackets.  For example, the caller id value 555.5555 becomes 5555555

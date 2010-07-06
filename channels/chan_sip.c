@@ -1375,6 +1375,7 @@ struct sip_auth {
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
 #define SIP_PAGE2_HAVEPEERCONTEXT	(1 << 3)	/*< Are we associated with a configured peer context? */
 /* Space for addition of other realtime flags in the future */
+#define SIP_PAGE2_FORWARD_LOOP_DETECTED (1 << 8)/*!< 31: Do call forward when receiving 482 Loop Detected */
 #define SIP_PAGE2_STATECHANGEQUEUE	(1 << 9)	/*!< D: Unsent state pending change exists */
 
 #define SIP_PAGE2_RPORT_PRESENT         (1 << 10)       /*!< Was rport received in the Via header? */
@@ -1411,7 +1412,7 @@ struct sip_auth {
 	SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | \
 	SIP_PAGE2_BUGGY_MWI | SIP_PAGE2_TEXTSUPPORT | SIP_PAGE2_FAX_DETECT | \
 	SIP_PAGE2_UDPTL_DESTINATION | SIP_PAGE2_VIDEOSUPPORT_ALWAYS | \
-	SIP_PAGE2_HAVEPEERCONTEXT)
+	SIP_PAGE2_HAVEPEERCONTEXT | SIP_PAGE2_FORWARD_LOOP_DETECTED)
 
 /*@}*/ 
 
@@ -15531,6 +15532,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Send RPID    : %s\n", cli_yesno(ast_test_flag(&peer->flags[0], SIP_SENDRPID)));
 		ast_cli(fd, "  Subscriptions: %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
 		ast_cli(fd, "  Overlap dial : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP)));
+		ast_cli(fd, "  Forward Loop : %s\n", cli_yesno(ast_test_flag(&peer->flags[1], SIP_PAGE2_FORWARD_LOOP_DETECTED)));
 		if (peer->outboundproxy)
 			ast_cli(fd, "  Outb. proxy  : %s %s\n", ast_strlen_zero(peer->outboundproxy->name) ? "<not set>" : peer->outboundproxy->name,
 							peer->outboundproxy->force ? "(forced)" : "");
@@ -16195,7 +16197,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  MOH Interpret:          %s\n", default_mohinterpret);
 	ast_cli(a->fd, "  MOH Suggest:            %s\n", default_mohsuggest);
 	ast_cli(a->fd, "  Voice Mail Extension:   %s\n", default_vmexten);
-
+	ast_cli(a->fd, "  Forward Detected Loops: %s\n", cli_yesno(ast_test_flag(&global_flags[1], SIP_PAGE2_FORWARD_LOOP_DETECTED)));
 	
 	if (realtimepeers || realtimeregs) {
 		ast_cli(a->fd, "\nRealtime SIP Settings:\n");
@@ -18618,15 +18620,17 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
 					break;
-				case 482: /*!
-					\note SIP is incapable of performing a hairpin call, which
-					is yet another failure of not having a layer 2 (again, YAY
-					 IETF for thinking ahead).  So we treat this as a call
-					 forward and hope we end up at the right place... */
-					ast_debug(1, "Hairpin detected, setting up call forward for what it's worth\n");
-					if (p->owner)
-						ast_string_field_build(p->owner, call_forward,
-								       "Local/%s@%s", p->username, p->context);
+				case 482: /* Loop Detected */
+					/*
+						\note Asterisk has historically tried to do a call forward when it
+						gets a 482, but that behavior isn't necessarily the best course of
+						action. Go ahead and do it anyway by default, but allow the option
+						to immediately pass to the next line in the dialplan. */
+					if (p->owner && ast_test_flag(&p->flags[1], SIP_PAGE2_FORWARD_LOOP_DETECTED)) {
+							ast_debug(1, "Hairpin detected, setting up call forward for what it's worth\n");
+							ast_string_field_build(p->owner, call_forward,
+									"Local/%s@%s", p->username, p->context);
+					}
 					/* Fall through */
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
@@ -23390,6 +23394,9 @@ static int handle_t38_options(struct ast_flags *flags, struct ast_flags *mask, s
 	} else if (!strcasecmp(v->name, "t38pt_usertpsource")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_UDPTL_DESTINATION);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_UDPTL_DESTINATION);
+	} else if (!strcasecmp(v->name, "forwardloopdetected")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_FORWARD_LOOP_DETECTED);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_FORWARD_LOOP_DETECTED);
 	} else {
 		res = 0;
 	}
@@ -24614,6 +24621,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
 	ast_set_flag(&global_flags[0], SIP_NAT_RFC3581);			/*!< NAT support if requested by device with rport */
 	ast_set_flag(&global_flags[0], SIP_DIRECT_MEDIA);			/*!< Allow re-invites */
+	ast_set_flag(&global_flags[1], SIP_PAGE2_FORWARD_LOOP_DETECTED); /*!< Set up call forward on 482 Loop Detected */
 
 	/* Debugging settings, always default to off */
 	dumphistory = FALSE;
