@@ -264,15 +264,17 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; transmit such UPDATE messages to it, then you must enable this option.
                                 ; Otherwise, we will have to wait until we can send a reinvite to
                                 ; transmit the information.
-;prematuremedia=no		; Some ISDN links send empty media frames before 
-				; the call is in ringing or progress state. The SIP 
-				; channel will then send 183 indicating early media
-				; which will be empty - thus users get no ring signal.
-				; Setting this to "no" will stop any media before we have
-				; call progress. Default is "yes".
-				;
-				; In order for "noanswer" applications to work, you need to run
-				; the progress() application in the priority before the app.
+;prematuremedia=no              ; Some ISDN links send empty media frames before 
+                                ; the call is in ringing or progress state. The SIP 
+                                ; channel will then send 183 indicating early media
+                                ; which will be empty - thus users get no ring signal.
+                                ; Setting this to "yes" will stop any media before we have
+                                ; call progress (meaning the SIP channel will not send 183 Session
+                                ; Progress for early media). Default is "yes". Also make sure that
+                                ; the SIP peer is configured with progressinband=never. 
+                                ;
+                                ; In order for "noanswer" applications to work, you need to run
+                                ; the progress() application in the priority before the app.
 
 ;progressinband=never           ; If we should generate in-band ringing always
                                 ; use 'never' to never use in-band signalling, even in cases
