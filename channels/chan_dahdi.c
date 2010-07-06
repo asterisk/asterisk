@@ -14769,7 +14769,8 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			s.lineconfig & DAHDI_CONFIG_AMI ? "AMI" :
 			"Unk",
 			s.lineconfig & DAHDI_CONFIG_CRC4 ?
-			s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "CRC4/YEL" : "CRC4" : "YEL",
+				s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "CRC4/YEL" : "CRC4" :
+				s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "YEL" : "",
 			lbostr[s.lbo]
 			);
 	}
