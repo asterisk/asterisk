@@ -459,13 +459,13 @@ void ast_fax_log(int level, const char *file, const int line, const char *functi
 }
 
 /*! \brief convert a rate string to a rate */
-static int fax_rate_str_to_int(const char *ratestr)
+static unsigned int fax_rate_str_to_int(const char *ratestr)
 {
 	int rate;
 
 	if (sscanf(ratestr, "%d", &rate) != 1) {
 		ast_log(LOG_ERROR, "failed to sscanf '%s' to rate\n", ratestr);
-		return -1;
+		return 0;
 	}
 	switch (rate) {
 	case 2400:
@@ -479,7 +479,7 @@ static int fax_rate_str_to_int(const char *ratestr)
 		return rate;
 	default:
 		ast_log(LOG_WARNING, "ignoring invalid rate '%s'.  Valid options are {2400 | 4800 | 7200 | 9600 | 12000 | 14400 | 28800 | 33600}\n", ratestr);
-		return -1;
+		return 0;
 	}
 }
 
@@ -2118,14 +2118,14 @@ static int set_config(const char *config_file)
 
 		if (!strcasecmp(v->name, "minrate")) {
 			ast_debug(3, "reading minrate '%s' from configuration file\n", v->value);
-			if ((rate = fax_rate_str_to_int(v->value)) == -1) {
+			if ((rate = fax_rate_str_to_int(v->value)) == 0) {
 				ast_config_destroy(cfg);
 				return -1;
 			}
 			general_options.minrate = rate;
 		} else if (!strcasecmp(v->name, "maxrate")) {
 			ast_debug(3, "reading maxrate '%s' from configuration file\n", v->value);
-			if ((rate = fax_rate_str_to_int(v->value)) == -1) {
+			if ((rate = fax_rate_str_to_int(v->value)) == 0) {
 				ast_config_destroy(cfg);
 				return -1;
 			}
@@ -2240,8 +2240,14 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		ast_string_field_set(details, localstationid, value);
 	} else if (!strcasecmp(data, "maxrate")) {
 		details->maxrate = fax_rate_str_to_int(value);
+		if (!details->maxrate) {
+			details->maxrate = ast_fax_maxrate();
+		}
 	} else if (!strcasecmp(data, "minrate")) {
 		details->minrate = fax_rate_str_to_int(value);
+		if (!details->minrate) {
+			details->minrate = ast_fax_minrate();
+		}
 	} else if ((!strcasecmp(data, "modem")) || (!strcasecmp(data, "modems"))) {
 		update_modem_bits(&details->modems, value);
 	} else {
