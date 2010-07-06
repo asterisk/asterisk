@@ -1072,8 +1072,11 @@ static void process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, u
 		if (last_duration > 64000 && samples < last_duration)
 			new_duration += 0xFFFF + 1;
 		new_duration = (new_duration & ~0xFFFF) | samples;
-
-		if (rtp->lastevent > seqno) {
+		/* The second portion of this check is to not mistakenly
+		 * stop accepting DTMF if the seqno rolls over beyond
+		 * 65535.
+		 */
+		if (rtp->lastevent > seqno && rtp->lastevent - seqno < 50) {
 			/* Out of order frame. Processing this can cause us to
 			 * improperly duplicate incoming DTMF, so just drop
 			 * this.
