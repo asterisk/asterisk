@@ -103,6 +103,7 @@ mode=old	; method for playing numbers and dates
     _[n]um:1X => digits/${SAY}
     _[n]um:[2-9]0 =>  digits/${SAY}
     _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:X00 => num:${SAY:0:1}, digits/hundred
     _[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
     _[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
@@ -124,13 +125,18 @@ mode=old	; method for playing numbers and dates
     _e[n]um:[2-9][1-9] => num:${SAY:0:1}0, digits/h-${SAY:1}
     _e[n]um:[1-9]XX => num:${SAY:0:1}, digits/hundred, enum:${SAY:1}
 
+[en_GB](date-base,digit-base,en-base)
+    _[n]um:XXX => num:${SAY:0:1}, digits/hundred, vm-and, num:${SAY:1}
+
 [it](digit-base,date-base)
     _[n]um:0. => num:${SAY:1}
     _[n]um:X => digits/${SAY}
     _[n]um:1X => digits/${SAY}
     _[n]um:[2-9]0 =>  digits/${SAY}
     _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:100 => digits/hundred
     _[n]um:1XX => digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => num:${SAY:0:1}, digits/hundred
     _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
     _[n]um:1XXX => digits/thousand, num:${SAY:1}
@@ -158,7 +164,9 @@ mode=old	; method for playing numbers and dates
     _[n]um:1X => digits/${SAY}
     _[n]um:[2-9]0 => digits/${SAY}
     _[n]um:[2-9][1-9] => digits/${SAY:1}-and, digits/${SAY:0:1}0
+    _[n]um:100 => digits/ein, digits/hundred
     _[n]um:1XX => digits/ein, digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => digits/${SAY:0:1}, digits/hundred
     _[n]um:[2-9]XX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
     _[n]um:1XXX => digits/ein, digits/thousand, num:${SAY:1}
     _[n]um:[2-9]XXX => digits/${SAY:0:1}, digits/thousand, num:${SAY:1}
@@ -211,6 +219,7 @@ mode=old	; method for playing numbers and dates
     _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
     _[n]um:100 => digits/hundred
     _[n]um:1XX => digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => num:${SAY:0:1}, digits/hundred
     _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
     
     _[n]um:1XXX => digits/thousand, num:${SAY:1}
