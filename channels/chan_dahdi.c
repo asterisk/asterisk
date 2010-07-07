@@ -16891,8 +16891,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->mfcr2.forced_release = ast_true(v->value) ? 1 : 0;
 			} else if (!strcasecmp(v->name, "mfcr2_immediate_accept")) {
 				confp->mfcr2.immediate_accept = ast_true(v->value) ? 1 : 0;
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 1
 			} else if (!strcasecmp(v->name, "mfcr2_skip_category")) {
 				confp->mfcr2.skip_category_request = ast_true(v->value) ? 1 : 0;
+#endif
 			} else if (!strcasecmp(v->name, "mfcr2_call_files")) {
 				confp->mfcr2.call_files = ast_true(v->value) ? 1 : 0;
 			} else if (!strcasecmp(v->name, "mfcr2_max_ani")) {
