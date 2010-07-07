@@ -278,6 +278,9 @@ static struct ast_fax_session_details *session_details_new(void)
 	d->modems = general_options.modems;
 	d->minrate = general_options.minrate;
 	d->maxrate = general_options.maxrate;
+	ast_string_field_set(d, result, "FAILED");
+	ast_string_field_set(d, resultstr, "error starting fax session");
+	ast_string_field_set(d, error, "INIT_ERROR");
 
 	return d;
 }
@@ -685,11 +688,13 @@ static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_de
 	return 0;
 }
 
-#define GENERIC_FAX_EXEC_ERROR(fax, chan, reason)	\
+#define GENERIC_FAX_EXEC_ERROR(fax, chan, errorstr, reason)	\
 	do {	\
-		ast_log(LOG_ERROR, "channel '%s' FAX session '%d' failure, reason: '%s'\n", chan->name, fax->id, reason); \
+		ast_log(LOG_ERROR, "channel '%s' FAX session '%d' failure, reason: '%s' (%s)\n", chan->name, fax->id, reason, errorstr); \
 		pbx_builtin_setvar_helper(chan, "FAXSTATUSSTRING", reason); \
 		if (ast_strlen_zero(fax->details->result)) ast_string_field_set(fax->details, result, "FAILED"); \
+		if (ast_strlen_zero(fax->details->resultstr)) ast_string_field_set(fax->details, resultstr, reason); \
+		if (ast_strlen_zero(fax->details->error)) ast_string_field_set(fax->details, error, errorstr); \
 		res = ms = -1; \
 	} while (0)
 
@@ -889,8 +894,15 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	if (fax->debug_info) {
 		fax->debug_info->base_tv = ast_tvnow();
 	}
+
+	/* reset our result fields just in case the fax tech driver wants to
+	 * set custom error messages */
+	ast_string_field_set(details, result, "");
+	ast_string_field_set(details, resultstr, "");
+	ast_string_field_set(details, error, "");
+
 	if (fax->tech->start_session(fax) < 0) {
-		GENERIC_FAX_EXEC_ERROR(fax, chan, "failed to start FAX session");
+		GENERIC_FAX_EXEC_ERROR(fax, chan, "INIT_ERROR", "failed to start FAX session");
 	}
 
 	pbx_builtin_setvar_helper(chan, "FAXSTATUS", NULL);
@@ -968,7 +980,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 				if (fax->smoother) {
 					/* push the frame into a smoother */
 					if (ast_smoother_feed(fax->smoother, frame) < 0) {
-						GENERIC_FAX_EXEC_ERROR(fax, chan, "Failed to feed the smoother");
+						GENERIC_FAX_EXEC_ERROR(fax, chan, "UNKNOWN", "Failed to feed the smoother");
 					}
 					while ((f = ast_smoother_read(fax->smoother)) && (f->data.ptr)) {
 						if (fax->debug_info) {
@@ -1021,7 +1033,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 					continue;
 				} else {
 					ast_log(LOG_WARNING, "channel '%s' timed-out during the FAX transmission.\n", chan->name);
-					GENERIC_FAX_EXEC_ERROR(fax, chan, "fax session timed-out");
+					GENERIC_FAX_EXEC_ERROR(fax, chan, "TIMEOUT", "fax session timed-out");
 					break;
 				}
 			}
@@ -1233,7 +1245,17 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	struct ast_flags opts = { 0, };
 	struct manager_event_info info;
 
+	/* Get a FAX session details structure from the channel's FAX datastore and create one if
+	 * it does not already exist. */
+	if (!(details = find_or_create_details(chan))) {
+		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
+		return -1;
+	}
+
+
 	if (ast_strlen_zero(data)) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "invalid arguments");
 		ast_log(LOG_WARNING, "%s requires an argument (filename[,options])\n", app_receivefax);
 		return -1;
 	}
@@ -1254,12 +1276,16 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	if (ast_strlen_zero(args.filename)) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "invalid arguments");
 		ast_log(LOG_WARNING, "%s requires an argument (filename[,options])\n", app_receivefax);
 		return -1;
 	}
 
 	/* check for unsupported FAX application options */
 	if (ast_test_flag(&opts, OPT_CALLERMODE) || ast_test_flag(&opts, OPT_CALLEDMODE)) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "invalid arguments");
 		ast_log(LOG_WARNING, "%s does not support polling\n", app_receivefax);
 		return -1;
 	}
@@ -1277,14 +1303,9 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	pbx_builtin_setvar_helper(chan, "FAXERROR", "Channel Problems");
 	pbx_builtin_setvar_helper(chan, "FAXSTATUSSTRING", "Error before FAX transmission started.");
 
-	/* Get a FAX session details structure from the channel's FAX datastore and create one if
- 	 * it does not already exist. */
-	if (!(details = find_or_create_details(chan))) {
-		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
-		return -1;
-	}
-
 	if (!(doc = ast_calloc(1, sizeof(*doc) + strlen(args.filename) + 1))) {
+		ast_string_field_set(details, error, "MEMORY_ERROR");
+		ast_string_field_set(details, resultstr, "error allocating memory");
 		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
 		ao2_ref(details, -1);
 		return -1;
@@ -1313,12 +1334,16 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (set_fax_t38_caps(chan, details)) {
+		ast_string_field_set(details, error, "T38_NEG_ERROR");
+		ast_string_field_set(details, resultstr, "error negotiating T.38");
 		ao2_ref(details, -1);
 		return -1;
 	}
 
 	if (details->caps & AST_FAX_TECH_T38) {
 		if (receivefax_t38_init(chan, details)) {
+			ast_string_field_set(details, error, "T38_NEG_ERROR");
+			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			ao2_ref(details, -1);
 			ast_log(LOG_ERROR, "error initializing channel '%s' in T.38 mode\n", chan->name);
 			return -1;
@@ -1610,7 +1635,16 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	struct ast_flags opts = { 0, };
 	struct manager_event_info info;
 
+	/* Get a requirement structure and set it.  This structure is used
+	 * to tell the FAX technology module about the higher level FAX session */
+	if (!(details = find_or_create_details(chan))) {
+		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
+		return -1;
+	}
+
 	if (ast_strlen_zero(data)) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "invalid arguments");
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]][,options])\n", app_sendfax);
 		return -1;
 	}
@@ -1631,12 +1665,16 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	if (ast_strlen_zero(args.filenames)) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "invalid arguments");
 		ast_log(LOG_WARNING, "%s requires an argument (filename[&filename[&filename]],options])\n", app_sendfax);
 		return -1;
 	}
 	
 	/* check for unsupported FAX application options */
 	if (ast_test_flag(&opts, OPT_CALLERMODE) || ast_test_flag(&opts, OPT_CALLEDMODE)) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "invalid arguments");
 		ast_log(LOG_WARNING, "%s does not support polling\n", app_sendfax);
 		return -1;
 	}
@@ -1654,23 +1692,20 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	pbx_builtin_setvar_helper(chan, "FAXERROR", "Channel Problems");
 	pbx_builtin_setvar_helper(chan, "FAXSTATUSSTRING", "Error before FAX transmission started.");
 
-	/* Get a requirement structure and set it.  This structure is used
-	 * to tell the FAX technology module about the higher level FAX session */
-	if (!(details = find_or_create_details(chan))) {
-		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
-		return -1;
-	}
-
 	file_count = 0;
 	filenames = args.filenames;
 	while ((c = strsep(&filenames, "&"))) {
 		if (access(c, (F_OK | R_OK)) < 0) {
+			ast_string_field_set(details, error, "FILE_ERROR");
+			ast_string_field_set(details, resultstr, "error reading file");
 			ast_log(LOG_ERROR, "access failure.  Verify '%s' exists and check permissions.\n", args.filenames);
 			ao2_ref(details, -1);
 			return -1;
 		}
 
 		if (!(doc = ast_calloc(1, sizeof(*doc) + strlen(c) + 1))) {
+			ast_string_field_set(details, error, "MEMORY_ERROR");
+			ast_string_field_set(details, resultstr, "error allocating memory");
 			ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
 			ao2_ref(details, -1);
 			return -1;
@@ -1712,12 +1747,16 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (set_fax_t38_caps(chan, details)) {
+		ast_string_field_set(details, error, "T38_NEG_ERROR");
+		ast_string_field_set(details, resultstr, "error negotiating T.38");
 		ao2_ref(details, -1);
 		return -1;
 	}
 
 	if (details->caps & AST_FAX_TECH_T38) {
 		if (sendfax_t38_init(chan, details)) {
+			ast_string_field_set(details, error, "T38_NEG_ERROR");
+			ast_string_field_set(details, resultstr, "error negotiating T.38");
 			ao2_ref(details, -1);
 			ast_log(LOG_ERROR, "error initializing channel '%s' in T.38 mode\n", chan->name);
 			return -1;
