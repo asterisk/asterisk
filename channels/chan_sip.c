@@ -3441,10 +3441,8 @@ static int __sip_autodestruct(const void *data)
 		}
 	}
 
-	if (p->subscribed == MWI_NOTIFICATION) {
-		if (p->relatedpeer) {
-			p->relatedpeer = unref_peer(p->relatedpeer, "__sip_autodestruct: unref peer p->relatedpeer");	/* Remove link to peer. If it's realtime, make sure it's gone from memory) */
-		}
+	if (p->relatedpeer) {
+		p->relatedpeer = unref_peer(p->relatedpeer, "__sip_autodestruct: unref peer p->relatedpeer");	/* Remove link to peer. If it's realtime, make sure it's gone from memory) */
 	}
 
 	/* Reset schedule ID */
@@ -4650,6 +4648,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	} else
 		return -1;
 
+	/* XXX TODO: get flags directly from peer only as they are needed using dialog->relatedpeer */
 	ast_copy_flags(&dialog->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&dialog->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	ast_copy_flags(&dialog->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
@@ -4694,6 +4693,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_instance_set_hold_timeout(dialog->trtp, peer->rtpholdtimeout);
 	}
 
+	/* XXX TODO: get fields directly from peer only as they are needed using dialog->relatedpeer */
 	ast_string_field_set(dialog, peername, peer->name);
 	ast_string_field_set(dialog, authname, peer->username);
 	ast_string_field_set(dialog, username, peer->username);
@@ -4813,6 +4813,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 				dialog->sa.sin_port = dialog->recv.sin_port = htons(portno);
 			}
 		}
+		dialog->relatedpeer = ref_peer(peer, "create_addr: setting dialog's relatedpeer pointer");
 		unref_peer(peer, "create_addr: unref peer from find_peer hashtab lookup");
 		return res;
 	}
@@ -5258,7 +5259,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	ast_copy_string(name, fup->username, sizeof(name));
 
 	/* Check the list of devices */
-	if ((p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, TRUE, FINDALLDEVICES, FALSE, 0))) {
+	if ((p = fup->relatedpeer)) {
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
@@ -12897,17 +12898,14 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 /*! \brief Change onhold state of a peer using a pvt structure */
 static void sip_peer_hold(struct sip_pvt *p, int hold)
 {
-	struct sip_peer *peer = find_peer(p->peername, NULL, 1, FINDALLDEVICES, FALSE, 0);
-
-	if (!peer)
+	if (!p->relatedpeer)
 		return;
 
 	/* If they put someone on hold, increment the value... otherwise decrement it */
-	ast_atomic_fetchadd_int(&peer->onHold, (hold ? +1 : -1));
+	ast_atomic_fetchadd_int(&p->relatedpeer->onHold, (hold ? +1 : -1));
 
 	/* Request device state update */
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
-	unref_peer(peer, "sip_peer_hold: from find_peer operation");
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", p->relatedpeer->name);
 	
 	return;
 }
@@ -16429,8 +16427,8 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 
 #define FORMAT4 "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s %-6.6d\n"
 #define FORMAT3 "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s %-6.6s\n"
-#define FORMAT2 "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-7.7s  %-15.15s %-6.6s\n"
-#define FORMAT  "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
+#define FORMAT2 "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-7.7s  %-15.15s %-10.10s %-10.10s\n"
+#define FORMAT  "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-3.3s %-3.3s  %-15.15s %-10.10s %-10.10s\n"
 
 /*! \brief callback for show channel|subscription */
 static int show_channels_cb(void *__cur, void *__arg, int flags)
@@ -16452,7 +16450,8 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 				AST_CLI_YESNO(ast_test_flag(&cur->flags[1], SIP_PAGE2_CALL_ONHOLD)),
 				cur->needdestroy ? "(d)" : "",
 				cur->lastmsg ,
-				referstatus
+				referstatus,
+				cur->relatedpeer ? cur->relatedpeer->name : "<guest>"
 			);
 		arg->numchans++;
 	}
@@ -16500,7 +16499,7 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	arg.subscriptions = !strcasecmp(a->argv[e->args - 1], "subscriptions");
 	if (!arg.subscriptions)
-		ast_cli(arg.fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Format", "Hold", "Last Message", "Expiry");
+		ast_cli(arg.fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Format", "Hold", "Last Message", "Expiry", "Peer");
 	else
 		ast_cli(arg.fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox", "Expiry");
 
@@ -18838,7 +18837,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	char *c_copy = ast_strdupa(c);
 	/* Skip the Cseq and its subsequent spaces */
 	const char *msg = ast_skip_blanks(ast_skip_nonblanks(c_copy));
-	struct sip_peer *peer;
 
 	if (!msg)
 		msg = "";
@@ -19085,9 +19083,8 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		case 405:
 		case 501: /* Not Implemented */
 			mark_method_unallowed(&p->allowed_methods, sipmethod);
-			if ((peer = find_peer(p->peername, 0, 1, FINDPEERS, FALSE, 0))) {
-				mark_method_allowed(&peer->disallowed_methods, sipmethod);
-				unref_peer(peer, "handle_response: marking a specific method as unallowed");
+			if (p->relatedpeer) {
+				mark_method_allowed(&p->relatedpeer->disallowed_methods, sipmethod);
 			}
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
@@ -20367,6 +20364,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	const char *required;
 	unsigned int required_profile = 0;
 	struct ast_channel *c = NULL;		/* New channel */
+	struct sip_peer *authpeer = NULL;	/* Matching Peer */
 	int reinvite = 0;
 	int rtn;
 
@@ -20700,7 +20698,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* Handle authentication if this is our first invite */
 		int cc_recall_core_id = -1;
 		set_pvt_allowed_methods(p, req);
-		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
+		res = check_user_full(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin, &authpeer);
 		if (res == AUTH_CHALLENGE_SENT) {
 			p->invitestate = INV_COMPLETED;		/* Needs to restart in another INVITE transaction */
 			res = 0;
@@ -20720,6 +20718,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			res = 0;
 			goto request_invite_cleanup;
 		}
+
+		/* Successful authentication and peer matching so record the peer related to this pvt (for easy access to peer settings) */
+		p->relatedpeer = ref_peer(authpeer, "setting dialog's relatedpeer pointer");
 
 		/* If T38 is needed but not present, then make it magically appear */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl) {
@@ -24060,14 +24061,11 @@ int st_get_se(struct sip_pvt *p, int max)
 {
 	if (max == TRUE) {
 		if (p->stimer->st_cached_max_se) {
-			return p->stimer->st_cached_max_se;
-		} else if (p->peername) {
-			struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDPEERS, FALSE, 0);
-			if (pp) {
-				p->stimer->st_cached_max_se = pp->stimer.st_max_se;
-				unref_peer(pp, "unref peer pointer from find_peer call in st_get_se");
-				return (p->stimer->st_cached_max_se);
-			}
+			return  p->stimer->st_cached_max_se;
+		}
+		if (p->relatedpeer) {
+			p->stimer->st_cached_max_se = p->relatedpeer->stimer.st_max_se;
+			return (p->stimer->st_cached_max_se);
 		}
 		p->stimer->st_cached_max_se = global_max_se;
 		return (p->stimer->st_cached_max_se);
@@ -24076,13 +24074,9 @@ int st_get_se(struct sip_pvt *p, int max)
 	if (p->stimer->st_cached_min_se) {
 		return p->stimer->st_cached_min_se;
 	} 
-	if (p->peername) {
-		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDPEERS, FALSE, 0);
-		if (pp) {
-			p->stimer->st_cached_min_se = pp->stimer.st_min_se;
-			unref_peer(pp, "unref peer pointer from find_peer call in st_get_se (2)");
-			return (p->stimer->st_cached_min_se);
-		}
+	if (p->relatedpeer) {
+		p->stimer->st_cached_min_se = p->relatedpeer->stimer.st_min_se;
+		return (p->stimer->st_cached_min_se);
 	}
 	p->stimer->st_cached_min_se = global_min_se;
 	return (p->stimer->st_cached_min_se);
@@ -24097,13 +24091,9 @@ enum st_refresher st_get_refresher(struct sip_pvt *p)
 	if (p->stimer->st_cached_ref != SESSION_TIMER_REFRESHER_AUTO)
 		return p->stimer->st_cached_ref;
 
-	if (p->peername) {
-		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDPEERS, FALSE, 0);
-		if (pp) {
-			p->stimer->st_cached_ref = pp->stimer.st_ref;
-			unref_peer(pp, "unref peer pointer from find_peer call in st_get_refresher");
-			return pp->stimer.st_ref;
-		}
+	if (p->relatedpeer) {
+		p->stimer->st_cached_ref = p->relatedpeer->stimer.st_ref;
+		return p->stimer->st_cached_ref;
 	}
 	
 	p->stimer->st_cached_ref = global_st_refresher;
@@ -24122,13 +24112,9 @@ enum st_mode st_get_mode(struct sip_pvt *p)
 	if (p->stimer->st_cached_mode != SESSION_TIMER_MODE_INVALID)
 		return p->stimer->st_cached_mode;
 
-	if (p->peername) {
-		struct sip_peer *pp = find_peer(p->peername, NULL, TRUE, FINDPEERS, FALSE, 0);
-		if (pp) {
-			p->stimer->st_cached_mode = pp->stimer.st_mode_oper;
-			unref_peer(pp, "unref peer pointer from find_peer call in st_get_mode");
-			return pp->stimer.st_mode_oper;
-		}
+	if (p->relatedpeer) {
+		p->stimer->st_cached_mode = p->relatedpeer->stimer.st_mode_oper;
+		return p->stimer->st_cached_mode;
 	}
 
 	p->stimer->st_cached_mode = global_st_mode;
