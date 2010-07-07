@@ -11022,6 +11022,7 @@ static void poll_subscribed_mailbox(struct mwi_sub *mwi_sub)
 		mwi_sub->old_new = new;
 		mwi_sub->old_old = old;
 		queue_mwi_event(mwi_sub->mailbox, urgent, new, old);
+		run_externnotify(NULL, mwi_sub->mailbox, NULL);
 	}
 }
 

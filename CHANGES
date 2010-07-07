@@ -165,6 +165,8 @@ Applications
  * Two new applications are provided for declining counting phrases in multiple
    languages.  See the application notes for SayCountedNoun and SayCountedAdj for
    more information.
+ * Voicemail now runs the externnotify script when pollmailboxes is activated and
+   notices a change.
 
 Dialplan Functions
 ------------------
