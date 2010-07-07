@@ -35,9 +35,9 @@
 ;[default]
 ;
 ; List all service points (OSP servers) for this provider.
-; Use either domain name or IP address.  Most OSP servers use port 1080.
+; Use either domain name or IP address.  Most OSP servers use port 5045.
 ;
-;servicepoint=http://osptestserver.transnexus.com:1080/osp
+;servicepoint=http://osptestserver.transnexus.com:5045/osp
 ;
 ; Define the "source" device for requesting OSP authorization.
 ; This value is usually the domain name or IP address of the the Asterisk server.
