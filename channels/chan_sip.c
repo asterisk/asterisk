@@ -5259,7 +5259,8 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	ast_copy_string(name, fup->username, sizeof(name));
 
 	/* Check the list of devices */
-	if ((p = fup->relatedpeer)) {
+	if (fup->relatedpeer) {
+		p = ref_peer(fup->relatedpeer, "ref related peer for update_call_counter");
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
@@ -20720,8 +20721,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 
 		/* Successful authentication and peer matching so record the peer related to this pvt (for easy access to peer settings) */
+		if (p->relatedpeer) {
+			p->relatedpeer = unref_peer(p->relatedpeer,"unsetting the relatedpeer field in the dialog, before it is set to something else.");
+		}
 		p->relatedpeer = ref_peer(authpeer, "setting dialog's relatedpeer pointer");
-
 		/* If T38 is needed but not present, then make it magically appear */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl) {
 			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
@@ -21165,6 +21168,9 @@ request_invite_cleanup:
 		if (p->refer->refer_call->owner) {
 			ast_channel_unlock(p->refer->refer_call->owner);
 		}
+	}
+	if (authpeer) {
+		authpeer = unref_peer(authpeer, "unref_peer, from handle_request_invite authpeer");
 	}
 
 	return res;
