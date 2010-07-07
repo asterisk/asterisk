@@ -1,3 +1,22 @@
+2010-07-07  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.6.2.10-rc2
+
+	* Fix problem with RFC 2833 DTMF not being accepted.
+  
+	  A recent check was added to ensure that we did not erroneously
+	  detect duplicate DTMF when we received packets out of order.
+	  The problem was that the check did not account for the fact that
+	  the seqno of an RTP stream will roll over back to 0 after hitting
+	  65535. Now, we have a secondary check that will ensure that the
+	  seqno rolling over will not cause us to stop accepting DTMF.
+  
+	    (closes issue 0017571)
+	    Reported by: mdeneen
+	    Patches:
+	          rtp_seqno_rollover.patch uploaded by mmichelson (license 60)
+	    Tested by: richardf, maxochoa, JJCinAZ
+
 2010-06-29  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.2.10-rc1
