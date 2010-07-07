@@ -17043,6 +17043,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					res = ioctl(ctlfd, DAHDI_SET_DIALPARAMS, &dps);
 					if (res < 0) {
 						ast_log(LOG_ERROR, "Invalid tone duration: %d ms at line %d: %s\n", toneduration, v->lineno, strerror(errno));
+						close(ctlfd);
 						return -1;
 					}
 				}
