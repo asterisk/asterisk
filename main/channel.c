@@ -72,9 +72,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/epoll.h>
 #endif
 
-#ifdef HAVE_PRI
-#include "sig_pri.h"
-#endif
+#if defined(HAVE_PRI)
+#include "libpri.h"
+#endif	/* defined(HAVE_PRI) */
 
 struct ast_epoll_data {
 	struct ast_channel *chan;
@@ -285,7 +285,7 @@ static void channel_data_add_flags(struct ast_data *tree,
 
 static const char *callerid_ton2str(int ton)
 {
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 	switch (ton) {
 	case PRI_TON_INTERNATIONAL:
 		return "International Number";
@@ -303,7 +303,7 @@ static const char *callerid_ton2str(int ton)
 	default:
 		return "Unknown Number Type";
 	}
-#endif
+#endif	/* defined(HAVE_PRI) */
 	return "";
 }
 
