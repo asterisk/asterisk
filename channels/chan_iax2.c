@@ -90,6 +90,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/timing.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/test.h"
+#include "asterisk/data.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"
@@ -13852,6 +13854,125 @@ static struct ast_cli_entry cli_iax2[] = {
 #endif /* IAXTESTS */
 };
 
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_iax2_peers_get)
+{
+	struct ast_data_query query = {
+		.path = "/asterisk/channel/iax2/peers",
+		.search = "peers/peer/name=test_peer_data_provider"
+	};
+	struct ast_data *node;
+	struct iax2_peer *peer;
+
+	switch (cmd) {
+		case TEST_INIT:
+			info->name = "iax2_peers_get_data_test";
+			info->category = "main/data/iax2/peers";
+			info->summary = "IAX2 peers data providers unit test";
+			info->description =
+				"Tests whether the IAX2 peers data provider implementation works as expected.";
+			return AST_TEST_NOT_RUN;
+		case TEST_EXECUTE:
+			break;
+	}
+
+	/* build a test peer */
+	peer = build_peer("test_peer_data_provider", NULL, NULL, 0);
+	if (!peer) {
+		return AST_TEST_FAIL;
+	}
+	peer->expiry= 1010;
+	ao2_link(peers, peer);
+
+	node = ast_data_get(&query);
+	if (!node) {
+		ao2_unlink(peers, peer);
+		peer_unref(peer);
+		return AST_TEST_FAIL;
+	}
+
+	/* check returned data node. */
+	if (strcmp(ast_data_retrieve_string(node, "peer/name"), "test_peer_data_provider")) {
+		ao2_unlink(peers, peer);
+		peer_unref(peer);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_data_retrieve_int(node, "peer/expiry") != 1010) {
+		ao2_unlink(peers, peer);
+		peer_unref(peer);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	/* release resources */
+	ast_data_free(node);
+
+	ao2_unlink(peers, peer);
+	peer_unref(peer);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(test_iax2_users_get)
+{
+	struct ast_data_query query = {
+		.path = "/asterisk/channel/iax2/users",
+		.search = "users/user/name=test_user_data_provider"
+	};
+	struct ast_data *node;
+	struct iax2_user *user;
+
+	switch (cmd) {
+		case TEST_INIT:
+			info->name = "iax2_users_get_data_test";
+			info->category = "main/data/iax2/users";
+			info->summary = "IAX2 users data providers unit test";
+			info->description =
+				"Tests whether the IAX2 users data provider implementation works as expected.";
+			return AST_TEST_NOT_RUN;
+		case TEST_EXECUTE:
+			break;
+	}
+
+	user = build_user("test_user_data_provider", NULL, NULL, 0);
+	if (!user) {
+		return AST_TEST_FAIL;
+	}
+	user->amaflags = 1010;
+	ao2_link(users, user);
+
+	node = ast_data_get(&query);
+	if (!node) {
+		ao2_unlink(users, user);
+		user_unref(user);
+		return AST_TEST_FAIL;
+	}
+
+	if (strcmp(ast_data_retrieve_string(node, "user/name"), "test_user_data_provider")) {
+		ao2_unlink(users, user);
+		user_unref(user);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_data_retrieve_int(node, "user/amaflags") != 1010) {
+		ao2_unlink(users, user);
+		user_unref(user);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	ast_data_free(node);
+
+	ao2_unlink(users, user);
+	user_unref(user);
+
+	return AST_TEST_PASS;
+}
+#endif
+
 static void cleanup_thread_list(void *head)
 {
 	AST_LIST_HEAD(iax2_thread_list, iax2_thread);
@@ -13907,7 +14028,24 @@ static int __unload_module(void)
 
 	ast_netsock_release(netsock);
 	ast_netsock_release(outsock);
-
+	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
+		if (iaxs[x]) {
+			iax2_destroy(x);
+		}
+	}
+	ast_manager_unregister( "IAXpeers" );
+	ast_manager_unregister( "IAXpeerlist" );
+	ast_manager_unregister( "IAXnetstats" );
+	ast_manager_unregister( "IAXregistry" );
+	ast_unregister_application(papp);
+#ifdef TEST_FRAMEWORK
+	AST_TEST_UNREGISTER(test_iax2_peers_get);
+	AST_TEST_UNREGISTER(test_iax2_users_get);
+#endif
+	ast_data_unregister(NULL);
+	ast_cli_unregister_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
+	ast_unregister_switch(&iax2_switch);
+	ast_channel_unregister(&iax2_tech);
 	delete_users();
 	iax_provision_unload();
 	reload_firmware(1);
@@ -14048,6 +14186,188 @@ container_fail:
 	return AST_MODULE_LOAD_FAILURE;
 }
 
+
+#define DATA_EXPORT_IAX2_PEER(MEMBER)				\
+	MEMBER(iax2_peer, name, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, username, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, secret, AST_DATA_PASSWORD)		\
+	MEMBER(iax2_peer, dbsecret, AST_DATA_PASSWORD)		\
+	MEMBER(iax2_peer, outkey, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, regexten, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, context, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, peercontext, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, mailbox, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, mohinterpret, AST_DATA_STRING)	\
+	MEMBER(iax2_peer, mohsuggest, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, inkeys, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, cid_num, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, cid_name, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, zonetag, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, parkinglot, AST_DATA_STRING)		\
+	MEMBER(iax2_peer, expiry, AST_DATA_SECONDS)		\
+	MEMBER(iax2_peer, callno, AST_DATA_INTEGER)		\
+	MEMBER(iax2_peer, lastms, AST_DATA_MILLISECONDS)	\
+	MEMBER(iax2_peer, maxms, AST_DATA_MILLISECONDS)		\
+	MEMBER(iax2_peer, pokefreqok, AST_DATA_MILLISECONDS)	\
+	MEMBER(iax2_peer, pokefreqnotok, AST_DATA_MILLISECONDS)	\
+	MEMBER(iax2_peer, historicms, AST_DATA_INTEGER)		\
+	MEMBER(iax2_peer, smoothing, AST_DATA_BOOLEAN)		\
+        MEMBER(iax2_peer, maxcallno, AST_DATA_INTEGER)
+
+AST_DATA_STRUCTURE(iax2_peer, DATA_EXPORT_IAX2_PEER);
+
+static int peers_data_provider_get(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct ast_data *data_peer;
+	struct iax2_peer *peer;
+	struct ao2_iterator i;
+	char status[20];
+	struct ast_str *encmethods = ast_str_alloca(256);
+
+	i = ao2_iterator_init(peers, 0);
+	while ((peer = ao2_iterator_next(&i))) {
+		data_peer = ast_data_add_node(data_root, "peer");
+		if (!data_peer) {
+			peer_unref(peer);
+			continue;
+		}
+
+		ast_data_add_structure(iax2_peer, data_peer, peer);
+
+		ast_data_add_codecs(data_peer, "codecs", peer->capability);
+
+		peer_status(peer, status, sizeof(status));
+		ast_data_add_str(data_peer, "status", status);
+
+		ast_data_add_str(data_peer, "host", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "");
+
+		ast_data_add_str(data_peer, "mask", ast_inet_ntoa(peer->mask));
+
+		ast_data_add_int(data_peer, "port", ntohs(peer->addr.sin_port));
+
+		ast_data_add_bool(data_peer, "trunk", ast_test_flag64(peer, IAX_TRUNK));
+
+		ast_data_add_bool(data_peer, "dynamic", ast_test_flag64(peer, IAX_DYNAMIC));
+
+		encmethods_to_str(peer->encmethods, encmethods);
+		ast_data_add_str(data_peer, "encryption", peer->encmethods ? ast_str_buffer(encmethods) : "no");
+
+		peer_unref(peer);
+
+		if (!ast_data_search_match(search, data_peer)) {
+			ast_data_remove_node(data_root, data_peer);
+		}
+	}
+	ao2_iterator_destroy(&i);
+
+	return 0;
+}
+
+#define DATA_EXPORT_IAX2_USER(MEMBER)					\
+        MEMBER(iax2_user, name, AST_DATA_STRING)			\
+        MEMBER(iax2_user, dbsecret, AST_DATA_PASSWORD)			\
+        MEMBER(iax2_user, accountcode, AST_DATA_STRING)			\
+        MEMBER(iax2_user, mohinterpret, AST_DATA_STRING)		\
+        MEMBER(iax2_user, mohsuggest, AST_DATA_STRING)			\
+        MEMBER(iax2_user, inkeys, AST_DATA_STRING)			\
+        MEMBER(iax2_user, language, AST_DATA_STRING)			\
+        MEMBER(iax2_user, cid_num, AST_DATA_STRING)			\
+        MEMBER(iax2_user, cid_name, AST_DATA_STRING)			\
+        MEMBER(iax2_user, parkinglot, AST_DATA_STRING)			\
+        MEMBER(iax2_user, maxauthreq, AST_DATA_INTEGER)			\
+        MEMBER(iax2_user, curauthreq, AST_DATA_INTEGER)
+
+AST_DATA_STRUCTURE(iax2_user, DATA_EXPORT_IAX2_USER);
+
+static int users_data_provider_get(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct ast_data *data_user, *data_authmethods, *data_enum_node;
+	struct iax2_user *user;
+	struct ao2_iterator i;
+	char auth[90];
+	char *pstr = "";
+
+	i = ao2_iterator_init(users, 0);
+	while ((user = ao2_iterator_next(&i))) {
+		data_user = ast_data_add_node(data_root, "user");
+		if (!data_user) {
+			user_unref(user);
+			continue;
+		}
+
+		ast_data_add_structure(iax2_user, data_user, user);
+
+		ast_data_add_codecs(data_user, "codecs", user->capability);
+
+		if (!ast_strlen_zero(user->secret)) {
+			ast_copy_string(auth, user->secret, sizeof(auth));
+		} else if (!ast_strlen_zero(user->inkeys)) {
+			snprintf(auth, sizeof(auth), "Key: %s", user->inkeys);
+		} else {
+			ast_copy_string(auth, "no secret", sizeof(auth));
+		}
+		ast_data_add_password(data_user, "secret", auth);
+
+		ast_data_add_str(data_user, "context", user->contexts ? user->contexts->context : DEFAULT_CONTEXT);
+
+		/* authmethods */
+		data_authmethods = ast_data_add_node(data_user, "authmethods");
+		if (!data_authmethods) {
+			ast_data_remove_node(data_root, data_user);
+			continue;
+		}
+		ast_data_add_bool(data_authmethods, "rsa", user->authmethods & IAX_AUTH_RSA);
+		ast_data_add_bool(data_authmethods, "md5", user->authmethods & IAX_AUTH_MD5);
+		ast_data_add_bool(data_authmethods, "plaintext", user->authmethods & IAX_AUTH_PLAINTEXT);
+
+		/* amaflags */
+		data_enum_node = ast_data_add_node(data_user, "amaflags");
+		if (!data_enum_node) {
+			ast_data_remove_node(data_root, data_user);
+			continue;
+		}
+		ast_data_add_int(data_enum_node, "value", user->amaflags);
+		ast_data_add_str(data_enum_node, "text", ast_cdr_flags2str(user->amaflags));
+
+		ast_data_add_bool(data_user, "access-control", user->ha ? 1 : 0);
+
+		if (ast_test_flag64(user, IAX_CODEC_NOCAP)) {
+			pstr = "REQ only";
+		} else if (ast_test_flag64(user, IAX_CODEC_NOPREFS)) {
+			pstr = "disabled";
+		} else {
+			pstr = ast_test_flag64(user, IAX_CODEC_USER_FIRST) ? "caller" : "host";
+		}
+		ast_data_add_str(data_user, "codec-preferences", pstr);
+
+		user_unref(user);
+
+		if (!ast_data_search_match(search, data_user)) {
+			ast_data_remove_node(data_root, data_user);
+		}
+	}
+	ao2_iterator_destroy(&i);
+
+	return 0;
+}
+
+static const struct ast_data_handler peers_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = peers_data_provider_get
+};
+
+static const struct ast_data_handler users_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = users_data_provider_get
+};
+
+static const struct ast_data_entry iax2_data_providers[] = {
+	AST_DATA_ENTRY("asterisk/channel/iax2/peers", &peers_data_provider),
+	AST_DATA_ENTRY("asterisk/channel/iax2/users", &users_data_provider),
+};
+
 /*! \brief Load IAX2 module, load configuraiton ---*/
 static int load_module(void)
 {
@@ -14100,6 +14420,13 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_netsock_init(outsock);
+
+#ifdef TEST_FRAMEWORK
+	AST_TEST_REGISTER(test_iax2_peers_get);
+	AST_TEST_REGISTER(test_iax2_users_get);
+#endif
+	/* Register AstData providers */
+	ast_data_register_multiple(iax2_data_providers, ARRAY_LEN(iax2_data_providers));
 
 	ast_cli_register_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
 

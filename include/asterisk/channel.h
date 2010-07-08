@@ -2821,10 +2821,11 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
  * \brief Insert into an astdata tree, the channel structure.
  * \param[in] tree The ast data tree.
  * \param[in] chan The channel structure to add to tree.
+ * \param[in] add_bridged Add the bridged channel to the structure.
  * \retval <0 on error.
  * \retval 0 on success.
  */
-int ast_channel_data_add_structure(struct ast_data *tree, struct ast_channel *chan);
+int ast_channel_data_add_structure(struct ast_data *tree, struct ast_channel *chan, int add_bridged);
 
 /*!
  * \brief Compare to channel structures using the data api.

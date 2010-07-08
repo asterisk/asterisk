@@ -59,6 +59,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dial.h"
 #include "asterisk/causes.h"
 #include "asterisk/paths.h"
+#include "asterisk/data.h"
+#include "asterisk/test.h"
 
 #include "enter.h"
 #include "leave.h"
@@ -1775,6 +1777,7 @@ static int conf_free(struct ast_conference *conf)
 		}
 		ast_mutex_destroy(&conf->announcelistlock);
 	}
+
 	if (conf->origframe)
 		ast_frfree(conf->origframe);
 	if (conf->lchan)
@@ -1786,6 +1789,7 @@ static int conf_free(struct ast_conference *conf)
 	if (conf->recordingfilename) {
 		ast_free(conf->recordingfilename);
 	}
+
 	if (conf->recordingformat) {
 		ast_free(conf->recordingformat);
 	}
@@ -6723,6 +6727,170 @@ static int load_config(int reload)
 	return sla_load_config(0);
 }
 
+#define MEETME_DATA_EXPORT(MEMBER)					\
+	MEMBER(ast_conference, confno, AST_DATA_STRING)			\
+	MEMBER(ast_conference, dahdiconf, AST_DATA_INTEGER)		\
+	MEMBER(ast_conference, users, AST_DATA_INTEGER)			\
+	MEMBER(ast_conference, markedusers, AST_DATA_INTEGER)		\
+	MEMBER(ast_conference, maxusers, AST_DATA_INTEGER)		\
+	MEMBER(ast_conference, isdynamic, AST_DATA_BOOLEAN)		\
+	MEMBER(ast_conference, locked, AST_DATA_BOOLEAN)		\
+	MEMBER(ast_conference, recordingfilename, AST_DATA_STRING)	\
+	MEMBER(ast_conference, recordingformat, AST_DATA_STRING)	\
+	MEMBER(ast_conference, pin, AST_DATA_PASSWORD)			\
+	MEMBER(ast_conference, pinadmin, AST_DATA_PASSWORD)		\
+	MEMBER(ast_conference, start, AST_DATA_TIMESTAMP)		\
+	MEMBER(ast_conference, endtime, AST_DATA_TIMESTAMP)
+
+AST_DATA_STRUCTURE(ast_conference, MEETME_DATA_EXPORT);
+
+#define MEETME_USER_DATA_EXPORT(MEMBER)					\
+	MEMBER(ast_conf_user, user_no, AST_DATA_INTEGER)		\
+	MEMBER(ast_conf_user, talking, AST_DATA_BOOLEAN)		\
+	MEMBER(ast_conf_user, dahdichannel, AST_DATA_BOOLEAN)		\
+	MEMBER(ast_conf_user, jointime, AST_DATA_TIMESTAMP)		\
+	MEMBER(ast_conf_user, kicktime, AST_DATA_TIMESTAMP)		\
+	MEMBER(ast_conf_user, timelimit, AST_DATA_MILLISECONDS)		\
+	MEMBER(ast_conf_user, play_warning, AST_DATA_MILLISECONDS)	\
+	MEMBER(ast_conf_user, warning_freq, AST_DATA_MILLISECONDS)
+
+AST_DATA_STRUCTURE(ast_conf_user, MEETME_USER_DATA_EXPORT);
+
+/*!
+ * \internal
+ * \brief Implements the meetme data provider.
+ */
+static int meetme_data_provider_get(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct ast_conference *cnf;
+	struct ast_conf_user *user;
+	struct ast_data *data_meetme, *data_meetme_users, *data_meetme_user;
+	struct ast_data *data_meetme_user_channel, *data_meetme_user_volume;
+
+	AST_LIST_LOCK(&confs);
+	AST_LIST_TRAVERSE(&confs, cnf, list) {
+		data_meetme = ast_data_add_node(data_root, "meetme");
+		if (!data_meetme) {
+			continue;
+		}
+
+		ast_data_add_structure(ast_conference, data_meetme, cnf);
+
+		if (!AST_LIST_EMPTY(&cnf->userlist)) {
+			data_meetme_users = ast_data_add_node(data_meetme, "users");
+			if (!data_meetme_users) {
+				ast_data_remove_node(data_root, data_meetme);
+				continue;
+			}
+
+			AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+				data_meetme_user = ast_data_add_node(data_meetme_users, "user");
+				if (!data_meetme_user) {
+					continue;
+				}
+				/* user structure. */
+				ast_data_add_structure(ast_conf_user, data_meetme_user, user);
+
+				/* user's channel */
+				data_meetme_user_channel = ast_data_add_node(data_meetme_user, "channel");
+				if (!data_meetme_user_channel) {
+					continue;
+				}
+
+				ast_channel_data_add_structure(data_meetme_user_channel, user->chan, 1);
+
+				/* volume structure */
+				data_meetme_user_volume = ast_data_add_node(data_meetme_user, "listen-volume");
+				if (!data_meetme_user_volume) {
+					continue;
+				}
+				ast_data_add_int(data_meetme_user_volume, "desired", user->listen.desired);
+				ast_data_add_int(data_meetme_user_volume, "actual", user->listen.actual);
+
+				data_meetme_user_volume = ast_data_add_node(data_meetme_user, "talk-volume");
+				if (!data_meetme_user_volume) {
+					continue;
+				}
+				ast_data_add_int(data_meetme_user_volume, "desired", user->talk.desired);
+				ast_data_add_int(data_meetme_user_volume, "actual", user->talk.actual);
+			}
+		}
+
+		if (!ast_data_search_match(search, data_meetme)) {
+			ast_data_remove_node(data_root, data_meetme);
+		}
+	}
+	AST_LIST_UNLOCK(&confs);
+
+	return 0;
+}
+
+static const struct ast_data_handler meetme_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = meetme_data_provider_get
+};
+
+static const struct ast_data_entry meetme_data_providers[] = {
+	AST_DATA_ENTRY("asterisk/application/meetme/list", &meetme_data_provider),
+};
+
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_meetme_data_provider)
+{
+	struct ast_channel *chan;
+	struct ast_conference *cnf;
+	struct ast_data *node;
+	struct ast_data_query query = {
+		.path = "/asterisk/application/meetme/list",
+		.search = "list/meetme/confno=9898"
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "meetme_get_data_test";
+		info->category = "main/data/app_meetme/list";
+		info->summary = "Meetme data provider unit test";
+		info->description =
+			"Tests whether the Meetme data provider implementation works as expected.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, 0, 0, "MeetMeTest");
+	if (!chan) {
+		return AST_TEST_FAIL;
+	}
+
+	cnf = build_conf("9898", "", "1234", 1, 1, 1, chan);
+	if (!cnf) {
+		ast_hangup(chan);
+		return AST_TEST_FAIL;
+	}
+
+	node = ast_data_get(&query);
+	if (!node) {
+		dispose_conf(cnf);
+		ast_hangup(chan);
+		return AST_TEST_FAIL;
+	}
+
+	if (strcmp(ast_data_retrieve_string(node, "meetme/confno"), "9898")) {
+		dispose_conf(cnf);
+		ast_hangup(chan);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	ast_data_free(node);
+	dispose_conf(cnf);
+	ast_hangup(chan);
+
+	return AST_TEST_PASS;
+}
+#endif
+
 static int unload_module(void)
 {
 	int res = 0;
@@ -6738,6 +6906,11 @@ static int unload_module(void)
 	res |= ast_unregister_application(slastation_app);
 	res |= ast_unregister_application(slatrunk_app);
 
+#ifdef TEST_FRAMEWORK
+	AST_TEST_UNREGISTER(test_meetme_data_provider);
+#endif
+	ast_data_unregister(NULL);
+
 	ast_devstate_prov_del("Meetme");
 	ast_devstate_prov_del("SLA");
 	
@@ -6748,6 +6921,8 @@ static int unload_module(void)
 
 	return res;
 }
+
+
 
 static int load_module(void)
 {
@@ -6765,6 +6940,11 @@ static int load_module(void)
 	res |= ast_register_application_xml(app, conf_exec);
 	res |= ast_register_application_xml(slastation_app, sla_station_exec);
 	res |= ast_register_application_xml(slatrunk_app, sla_trunk_exec);
+
+#ifdef TEST_FRAMEWORK
+	AST_TEST_REGISTER(test_meetme_data_provider);
+#endif
+	ast_data_register_multiple(meetme_data_providers, ARRAY_LEN(meetme_data_providers));
 
 	res |= ast_devstate_prov_add("Meetme", meetmestate);
 	res |= ast_devstate_prov_add("SLA", sla_state);

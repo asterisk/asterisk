@@ -261,6 +261,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/event.h"
 #include "asterisk/stun.h"
 #include "asterisk/cel.h"
+#include "asterisk/data.h"
 #include "asterisk/aoc.h"
 #include "sip/include/sip.h"
 #include "sip/include/globals.h"
@@ -27475,6 +27476,234 @@ static void sip_unregister_tests(void)
 	sip_dialplan_function_unregister_tests();
 }
 
+#ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_sip_peers_get)
+{
+	struct sip_peer *peer;
+	struct ast_data *node;
+	struct ast_data_query query = {
+		.path = "/asterisk/channel/sip/peers",
+		.search = "peers/peer/name=test_peer_data_provider"
+	};
+
+	switch (cmd) {
+		case TEST_INIT:
+			info->name = "sip_peers_get_data_test";
+			info->category = "main/data/sip/peers";
+			info->summary = "SIP peers data providers unit test";
+			info->description =
+				"Tests whether the SIP peers data provider implementation works as expected.";
+			return AST_TEST_NOT_RUN;
+		case TEST_EXECUTE:
+			break;
+	}
+
+	/* Create the peer that we will retrieve. */
+	peer = build_peer("test_peer_data_provider", NULL, NULL, 0, 0);
+	if (!peer) {
+		return AST_TEST_FAIL;
+	}
+	peer->type = SIP_TYPE_USER;
+	peer->call_limit = 10;
+	ao2_link(peers, peer);
+
+	/* retrieve the chan_sip/peers tree and check the created peer. */
+	node = ast_data_get(&query);
+	if (!node) {
+		ao2_unlink(peers, peer);
+		ao2_ref(peer, -1);
+		return AST_TEST_FAIL;
+	}
+
+	/* compare item. */
+	if (strcmp(ast_data_retrieve_string(node, "peer/name"), "test_peer_data_provider")) {
+		ao2_unlink(peers, peer);
+		ao2_ref(peer, -1);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	if (strcmp(ast_data_retrieve_string(node, "peer/type"), "user")) {
+		ao2_unlink(peers, peer);
+		ao2_ref(peer, -1);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_data_retrieve_int(node, "peer/call_limit") != 10) {
+		ao2_unlink(peers, peer);
+		ao2_ref(peer, -1);
+		ast_data_free(node);
+		return AST_TEST_FAIL;
+	}
+
+	/* release resources */
+	ast_data_free(node);
+
+	ao2_unlink(peers, peer);
+	ao2_ref(peer, -1);
+
+	return AST_TEST_PASS;
+}
+
+#endif
+
+#define DATA_EXPORT_SIP_PEER(MEMBER)				\
+	MEMBER(sip_peer, name, AST_DATA_STRING)			\
+	MEMBER(sip_peer, secret, AST_DATA_PASSWORD)		\
+	MEMBER(sip_peer, md5secret, AST_DATA_PASSWORD)		\
+	MEMBER(sip_peer, remotesecret, AST_DATA_PASSWORD)	\
+	MEMBER(sip_peer, context, AST_DATA_STRING)		\
+	MEMBER(sip_peer, subscribecontext, AST_DATA_STRING)	\
+	MEMBER(sip_peer, username, AST_DATA_STRING)		\
+	MEMBER(sip_peer, accountcode, AST_DATA_STRING)		\
+	MEMBER(sip_peer, tohost, AST_DATA_STRING)		\
+	MEMBER(sip_peer, regexten, AST_DATA_STRING)		\
+	MEMBER(sip_peer, fromuser, AST_DATA_STRING)		\
+	MEMBER(sip_peer, fromdomain, AST_DATA_STRING)		\
+	MEMBER(sip_peer, fullcontact, AST_DATA_STRING)		\
+	MEMBER(sip_peer, cid_num, AST_DATA_STRING)		\
+	MEMBER(sip_peer, cid_name, AST_DATA_STRING)		\
+	MEMBER(sip_peer, vmexten, AST_DATA_STRING)		\
+	MEMBER(sip_peer, language, AST_DATA_STRING)		\
+	MEMBER(sip_peer, mohinterpret, AST_DATA_STRING)		\
+	MEMBER(sip_peer, mohsuggest, AST_DATA_STRING)		\
+	MEMBER(sip_peer, parkinglot, AST_DATA_STRING)		\
+	MEMBER(sip_peer, useragent, AST_DATA_STRING)		\
+	MEMBER(sip_peer, mwi_from, AST_DATA_STRING)		\
+	MEMBER(sip_peer, engine, AST_DATA_STRING)		\
+	MEMBER(sip_peer, unsolicited_mailbox, AST_DATA_STRING)	\
+	MEMBER(sip_peer, is_realtime, AST_DATA_BOOLEAN)		\
+	MEMBER(sip_peer, host_dynamic, AST_DATA_BOOLEAN)	\
+	MEMBER(sip_peer, autoframing, AST_DATA_BOOLEAN)		\
+	MEMBER(sip_peer, inUse, AST_DATA_INTEGER)		\
+	MEMBER(sip_peer, inRinging, AST_DATA_INTEGER)		\
+	MEMBER(sip_peer, onHold, AST_DATA_INTEGER)		\
+	MEMBER(sip_peer, call_limit, AST_DATA_INTEGER)		\
+	MEMBER(sip_peer, t38_maxdatagram, AST_DATA_INTEGER)	\
+	MEMBER(sip_peer, maxcallbitrate, AST_DATA_INTEGER)	\
+	MEMBER(sip_peer, rtptimeout, AST_DATA_SECONDS)		\
+	MEMBER(sip_peer, rtpholdtimeout, AST_DATA_SECONDS)	\
+	MEMBER(sip_peer, rtpkeepalive, AST_DATA_SECONDS)	\
+	MEMBER(sip_peer, lastms, AST_DATA_MILLISECONDS)		\
+	MEMBER(sip_peer, maxms, AST_DATA_MILLISECONDS)		\
+	MEMBER(sip_peer, qualifyfreq, AST_DATA_MILLISECONDS)	\
+	MEMBER(sip_peer, timer_t1, AST_DATA_MILLISECONDS)	\
+	MEMBER(sip_peer, timer_b, AST_DATA_MILLISECONDS)
+
+AST_DATA_STRUCTURE(sip_peer, DATA_EXPORT_SIP_PEER);
+
+static int peers_data_provider_get(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct sip_peer *peer;
+	struct ao2_iterator i;
+	struct ast_data *data_peer, *data_peer_mailboxes = NULL, *data_peer_mailbox, *enum_node;
+	struct ast_data *data_sip_options;
+	int total_mailboxes, x;
+	struct sip_mailbox *mailbox;
+
+	i = ao2_iterator_init(peers, 0);
+	while ((peer = ao2_iterator_next(&i))) {
+		ao2_lock(peer);
+
+		data_peer = ast_data_add_node(data_root, "peer");
+		if (!data_peer) {
+			ao2_unlock(peer);
+			ao2_ref(peer, -1);
+			continue;
+		}
+
+		ast_data_add_structure(sip_peer, data_peer, peer);
+
+		/* transfer mode */
+		enum_node = ast_data_add_node(data_peer, "allowtransfer");
+		if (!enum_node) {
+			continue;
+		}
+		ast_data_add_str(enum_node, "text", transfermode2str(peer->allowtransfer));
+		ast_data_add_int(enum_node, "value", peer->allowtransfer);
+
+		/* transports */
+		ast_data_add_str(data_peer, "transports", get_transport_list(peer->transports));
+
+		/* peer type */
+		if ((peer->type & SIP_TYPE_USER) && (peer->type & SIP_TYPE_PEER)) {
+			ast_data_add_str(data_peer, "type", "friend");
+		} else if (peer->type & SIP_TYPE_PEER) {
+			ast_data_add_str(data_peer, "type", "peer");
+		} else if (peer->type & SIP_TYPE_USER) {
+			ast_data_add_str(data_peer, "type", "user");
+		}
+
+		/* mailboxes */
+		total_mailboxes = 0;
+		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+			if (!total_mailboxes) {
+				data_peer_mailboxes = ast_data_add_node(data_peer, "mailboxes");
+				if (!data_peer_mailboxes) {
+					break;
+				}
+				total_mailboxes++;
+			}
+
+			data_peer_mailbox = ast_data_add_node(data_peer_mailboxes, "mailbox");
+			if (!data_peer_mailbox) {
+				continue;
+			}
+			ast_data_add_str(data_peer_mailbox, "mailbox", mailbox->mailbox);
+			ast_data_add_str(data_peer_mailbox, "context", mailbox->context);
+		}
+
+		/* amaflags */
+		enum_node = ast_data_add_node(data_peer, "amaflags");
+		if (!enum_node) {
+			continue;
+		}
+		ast_data_add_int(enum_node, "value", peer->amaflags);
+		ast_data_add_str(enum_node, "text", ast_cdr_flags2str(peer->amaflags));
+
+		/* sip options */
+		data_sip_options = ast_data_add_node(data_peer, "sipoptions");
+		if (!data_sip_options) {
+			continue;
+		}
+		for (x = 0 ; x < ARRAY_LEN(sip_options); x++) {
+			ast_data_add_bool(data_sip_options, sip_options[x].text, peer->sipoptions & sip_options[x].id);
+		}
+
+		/* callingpres */
+		enum_node = ast_data_add_node(data_peer, "callingpres");
+		if (!enum_node) {
+			continue;
+		}
+		ast_data_add_int(enum_node, "value", peer->callingpres);
+		ast_data_add_str(enum_node, "text", ast_describe_caller_presentation(peer->callingpres));
+
+		/* codecs */
+		ast_data_add_codecs(data_peer, "codecs", peer->capability);
+
+		if (!ast_data_search_match(search, data_peer)) {
+			ast_data_remove_node(data_root, data_peer);
+		}
+
+		ao2_unlock(peer);
+		ao2_ref(peer, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	return 0;
+}
+
+static const struct ast_data_handler peers_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = peers_data_provider_get
+};
+
+static const struct ast_data_entry sip_data_providers[] = {
+	AST_DATA_ENTRY("asterisk/channel/sip/peers", &peers_data_provider),
+};
+
 /*! \brief PBX load module - initialization */
 static int load_module(void)
 {
@@ -27520,6 +27749,13 @@ static int load_module(void)
 		sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
+
+#ifdef TEST_FRAMEWORK
+	AST_TEST_REGISTER(test_sip_peers_get);
+#endif
+
+	/* Register AstData providers */
+	ast_data_register_multiple(sip_data_providers, ARRAY_LEN(sip_data_providers));
 
 	/* Register all CLI functions for SIP */
 	ast_cli_register_multiple(cli_sip, ARRAY_LEN(cli_sip));
@@ -27613,6 +27849,12 @@ static int unload_module(void)
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
 	ast_unregister_application(app_sipremoveheader);
+
+#ifdef TEST_FRAMEWORK
+	AST_TEST_UNREGISTER(test_sip_peers_get);
+#endif
+	/* Unregister all the AstData providers */
+	ast_data_unregister(NULL);
 
 	/* Unregister CLI commands */
 	ast_cli_unregister_multiple(cli_sip, ARRAY_LEN(cli_sip));

@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/manager.h"
 #include "asterisk/test.h"
+#include "asterisk/frame.h"
 
 /*** DOCUMENTATION
 	<manager name="DataGet" language="en_US">
@@ -85,8 +86,9 @@ struct ast_data {
 		int32_t sint;
 		uint32_t uint;
 		double dbl;
-		unsigned int boolean:1;
+		unsigned int boolean;
 		char *str;
+		char character;
 		struct in_addr ipaddr;
 		void *ptr;
 	} payload;
@@ -981,7 +983,19 @@ static struct ast_data_search *data_search_get_node(const struct ast_data_search
 	return current;
 }
 
-int ast_data_search_cmp_string(const struct ast_data_search *root, const char *name,
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current string value.
+ *        .search = "somename=somestring"
+ *        name = "somename"
+ *        value is the current value of something and will be evaluated against "somestring".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] value The value to compare.
+ * \returns The strcmp return value.
+ */
+static int data_search_cmp_string(const struct ast_data_search *root, const char *name,
 	char *value)
 {
 	struct ast_data_search *child;
@@ -1001,7 +1015,19 @@ int ast_data_search_cmp_string(const struct ast_data_search *root, const char *n
 	return data_search_comparison_result(ret, cmp_type);
 }
 
-int ast_data_search_cmp_ptr(const struct ast_data_search *root, const char *name,
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current pointer address value.
+ *        .search = "something=0x32323232"
+ *        name = "something"
+ *        value is the current value of something and will be evaluated against "0x32323232".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] ptr The pointer address to compare.
+ * \returns The (value - current_value) result.
+ */
+static int data_search_cmp_ptr(const struct ast_data_search *root, const char *name,
 	void *ptr)
 {
 	struct ast_data_search *child;
@@ -1024,7 +1050,19 @@ int ast_data_search_cmp_ptr(const struct ast_data_search *root, const char *name
 	return data_search_comparison_result((node_ptr - ptr), cmp_type);
 }
 
-int ast_data_search_cmp_ipaddr(const struct ast_data_search *root, const char *name,
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current ipv4 address value.
+ *        .search = "something=192.168.2.2"
+ *        name = "something"
+ *        value is the current value of something and will be evaluated against "192.168.2.2".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] addr The ipv4 address value to compare.
+ * \returns The (value - current_value) result.
+ */
+static int data_search_cmp_ipaddr(const struct ast_data_search *root, const char *name,
 	struct in_addr addr)
 {
 	struct ast_data_search *child;
@@ -1044,7 +1082,19 @@ int ast_data_search_cmp_ipaddr(const struct ast_data_search *root, const char *n
 	return data_search_comparison_result((node_addr.s_addr - addr.s_addr), cmp_type);
 }
 
-int ast_data_search_cmp_bool(const struct ast_data_search *root, const char *name,
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current boolean value.
+ *        .search = "something=true"
+ *        name = "something"
+ *        value is the current value of something and will be evaluated against "true".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] value The boolean value to compare.
+ * \returns The (value - current_value) result.
+ */
+static int data_search_cmp_bool(const struct ast_data_search *root, const char *name,
 	unsigned int value)
 {
 	struct ast_data_search *child;
@@ -1064,7 +1114,19 @@ int ast_data_search_cmp_bool(const struct ast_data_search *root, const char *nam
 	return data_search_comparison_result(value - node_value, cmp_type);
 }
 
-int ast_data_search_cmp_dbl(const struct ast_data_search *root, const char *name,
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current double value.
+ *        .search = "something=222"
+ *        name = "something"
+ *        value is the current value of something and will be evaluated against "222".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] value The double value to compare.
+ * \returns The (value - current_value) result.
+ */
+static int data_search_cmp_dbl(const struct ast_data_search *root, const char *name,
 	double value)
 {
 	struct ast_data_search *child;
@@ -1084,7 +1146,19 @@ int ast_data_search_cmp_dbl(const struct ast_data_search *root, const char *name
 	return data_search_comparison_result(value - node_value, cmp_type);
 }
 
-int ast_data_search_cmp_uint(const struct ast_data_search *root, const char *name,
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current unsigned integer value.
+ *        .search = "something=10"
+ *        name = "something"
+ *        value is the current value of something and will be evaluated against "10".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] value The unsigned value to compare.
+ * \returns The strcmp return value.
+ */
+static int data_search_cmp_uint(const struct ast_data_search *root, const char *name,
 	unsigned int value)
 {
 	struct ast_data_search *child;
@@ -1104,7 +1178,19 @@ int ast_data_search_cmp_uint(const struct ast_data_search *root, const char *nam
 	return data_search_comparison_result(value - node_value, cmp_type);
 }
 
-int ast_data_search_cmp_int(const struct ast_data_search *root, const char *name,
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current signed integer value.
+ *        .search = "something=10"
+ *        name = "something"
+ *        value is the current value of something and will be evaluated against "10".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] value The value to compare.
+ * \returns The strcmp return value.
+ */
+static int data_search_cmp_int(const struct ast_data_search *root, const char *name,
 	int value)
 {
 	struct ast_data_search *child;
@@ -1117,6 +1203,38 @@ int ast_data_search_cmp_int(const struct ast_data_search *root, const char *name
 	}
 
 	node_value = atoi(child->value);
+	cmp_type = child->cmp_type;
+
+	ao2_ref(child, -1);
+
+	return data_search_comparison_result(value - node_value, cmp_type);
+}
+
+/*!
+ * \internal
+ * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
+ *        current character value.
+ *        .search = "something=c"
+ *        name = "something"
+ *        value is the current value of something and will be evaluated against "c".
+ * \param[in] root The root node pointer of the search tree.
+ * \param[in] name The name of the specific.
+ * \param[in] value The boolean value to compare.
+ * \returns The (value - current_value) result.
+ */
+static int data_search_cmp_char(const struct ast_data_search *root, const char *name,
+	char value)
+{
+	struct ast_data_search *child;
+	char node_value;
+	enum data_search_comparison cmp_type;
+
+	child = data_search_get_node(root, name);
+	if (!child) {
+		return 0;
+	}
+
+	node_value = *(child->value);
 	cmp_type = child->cmp_type;
 
 	ao2_ref(child, -1);
@@ -1144,21 +1262,6 @@ static inline int data_search_mapping_find(const struct ast_data_mapping_structu
 	}
 
 	return -1;
-}
-
-int ast_data_search_has_condition(const struct ast_data_search *search,
-	const char *compare_condition)
-{
-	struct ast_data_search *child;
-
-	child = data_search_get_node(search, compare_condition);
-	if (!child) {
-		return 0;
-	}
-
-	ao2_ref(child, -1);
-
-	return 1;
 }
 
 int __ast_data_search_cmp_structure(const struct ast_data_search *search,
@@ -1191,38 +1294,63 @@ int __ast_data_search_cmp_structure(const struct ast_data_search *search,
 
 		notmatch = 0;
 		switch (mapping[member].type) {
+		case AST_DATA_PASSWORD:
+			notmatch = data_search_cmp_string(struct_children,
+				node->name,
+				mapping[member].get.AST_DATA_PASSWORD(structure));
+			break;
+		case AST_DATA_TIMESTAMP:
+			notmatch = data_search_cmp_uint(struct_children,
+				node->name,
+				mapping[member].get.AST_DATA_TIMESTAMP(structure));
+			break;
+		case AST_DATA_SECONDS:
+			notmatch = data_search_cmp_uint(struct_children,
+				node->name,
+				mapping[member].get.AST_DATA_SECONDS(structure));
+			break;
+		case AST_DATA_MILLISECONDS:
+			notmatch = data_search_cmp_uint(struct_children,
+				node->name,
+				mapping[member].get.AST_DATA_MILLISECONDS(structure));
+			break;
 		case AST_DATA_STRING:
-			notmatch = ast_data_search_cmp_string(struct_children,
+			notmatch = data_search_cmp_string(struct_children,
 				node->name,
 				mapping[member].get.AST_DATA_STRING(structure));
 			break;
+		case AST_DATA_CHARACTER:
+			notmatch = data_search_cmp_char(struct_children,
+				node->name,
+				mapping[member].get.AST_DATA_CHARACTER(structure));
+			break;
 		case AST_DATA_INTEGER:
-			notmatch = ast_data_search_cmp_int(struct_children,
+			notmatch = data_search_cmp_int(struct_children,
 				node->name,
 				mapping[member].get.AST_DATA_INTEGER(structure));
 			break;
 		case AST_DATA_BOOLEAN:
-			notmatch = ast_data_search_cmp_bool(struct_children,
+			notmatch = data_search_cmp_bool(struct_children,
 				node->name,
 				mapping[member].get.AST_DATA_BOOLEAN(structure));
 			break;
 		case AST_DATA_UNSIGNED_INTEGER:
-			notmatch = ast_data_search_cmp_uint(struct_children,
+			notmatch = data_search_cmp_uint(struct_children,
 				node->name,
 				mapping[member].get.AST_DATA_UNSIGNED_INTEGER(structure));
 			break;
 		case AST_DATA_DOUBLE:
-			notmatch = ast_data_search_cmp_dbl(struct_children,
+			notmatch = data_search_cmp_dbl(struct_children,
 				node->name,
 				mapping[member].get.AST_DATA_DOUBLE(structure));
 			break;
 		case AST_DATA_IPADDR:
-			notmatch = ast_data_search_cmp_ipaddr(struct_children,
+			notmatch = data_search_cmp_ipaddr(struct_children,
 				node->name,
 				mapping[member].get.AST_DATA_IPADDR(structure));
 			break;
 		case AST_DATA_POINTER:
-			notmatch = ast_data_search_cmp_ptr(struct_children,
+			notmatch = data_search_cmp_ptr(struct_children,
 				node->name,
 				mapping[member].get.AST_DATA_POINTER(structure));
 			break;
@@ -1248,11 +1376,18 @@ static void data_result_destructor(void *obj)
 	struct ast_data *root = obj;
 
 	switch (root->type) {
-	case AST_DATA_POINTER:
+	case AST_DATA_PASSWORD:
 	case AST_DATA_STRING:
-		ast_free(root->payload.ptr);
+		ast_free(root->payload.str);
+		ao2_ref(root->children, -1);
+		break;
+	case AST_DATA_POINTER:
+	case AST_DATA_CHARACTER:
 	case AST_DATA_CONTAINER:
 	case AST_DATA_INTEGER:
+	case AST_DATA_TIMESTAMP:
+	case AST_DATA_SECONDS:
+	case AST_DATA_MILLISECONDS:
 	case AST_DATA_UNSIGNED_INTEGER:
 	case AST_DATA_DOUBLE:
 	case AST_DATA_BOOLEAN:
@@ -1313,6 +1448,105 @@ static struct ast_data *data_result_find_child(struct ast_data *root, const char
 	ao2_ref(find_node, -1);
 
 	return found;
+}
+
+int ast_data_search_match(const struct ast_data_search *search, struct ast_data *data)
+{
+	struct ao2_iterator i, ii;
+	struct ast_data_search *s, *s_child;
+	struct ast_data *d_child;
+	int notmatch = 1;
+
+	if (!search) {
+		return 1;
+	}
+
+	s_child = data_search_find(search->children, data->name);
+	if (!s_child) {
+		/* nothing to compare */
+		ao2_ref(s_child, -1);
+		return 1;
+	}
+
+	i = ao2_iterator_init(s_child->children, 0);
+	while ((s = ao2_iterator_next(&i))) {
+		if (!ao2_container_count(s->children)) {
+			/* compare this search node with every data node */
+			d_child = data_result_find_child(data, s->name);
+			if (!d_child) {
+				ao2_ref(s, -1);
+				notmatch = 1;
+				continue;
+			}
+
+			switch (d_child->type) {
+			case AST_DATA_PASSWORD:
+			case AST_DATA_STRING:
+				notmatch = data_search_cmp_string(s_child, d_child->name,
+					d_child->payload.str);
+				break;
+			case AST_DATA_CHARACTER:
+				notmatch = data_search_cmp_char(s_child, d_child->name,
+					d_child->payload.character);
+				break;
+			case AST_DATA_INTEGER:
+				notmatch = data_search_cmp_int(s_child, d_child->name,
+					d_child->payload.sint);
+				break;
+			case AST_DATA_BOOLEAN:
+				notmatch = data_search_cmp_bool(s_child, d_child->name,
+					d_child->payload.boolean);
+				break;
+			case AST_DATA_UNSIGNED_INTEGER:
+				notmatch = data_search_cmp_uint(s_child, d_child->name,
+					d_child->payload.uint);
+				break;
+			case AST_DATA_TIMESTAMP:
+			case AST_DATA_SECONDS:
+			case AST_DATA_MILLISECONDS:
+			case AST_DATA_DOUBLE:
+				notmatch = data_search_cmp_uint(s_child, d_child->name,
+					d_child->payload.dbl);
+				break;
+			case AST_DATA_IPADDR:
+				notmatch = data_search_cmp_ipaddr(s_child, d_child->name,
+					d_child->payload.ipaddr);
+				break;
+			case AST_DATA_POINTER:
+				notmatch = data_search_cmp_ptr(s_child, d_child->name,
+					d_child->payload.ptr);
+				break;
+			case AST_DATA_CONTAINER:
+				break;
+			}
+			ao2_ref(d_child, -1);
+		} else {
+			ii = ao2_iterator_init(data->children, 0);
+			while ((d_child = ao2_iterator_next(&ii))) {
+				if (strcmp(d_child->name, s->name)) {
+					ao2_ref(d_child, -1);
+					continue;
+				}
+				if (!(notmatch = !ast_data_search_match(s_child, d_child))) {
+					/* do not continue if we have a match. */
+					ao2_ref(d_child, -1);
+					break;
+				}
+				ao2_ref(d_child, -1);
+			}
+			ao2_iterator_destroy(&ii);
+		}
+		ao2_ref(s, -1);
+		if (notmatch) {
+			/* do not continue if we don't have a match. */
+			break;
+		}
+	}
+	ao2_iterator_destroy(&i);
+
+	ao2_ref(s_child, -1);
+
+	return !notmatch;
 }
 
 /*!
@@ -1872,8 +2106,31 @@ static void data_get_xml_add_child(struct ast_data *parent_data,
 		case AST_DATA_CONTAINER:
 			data_get_xml_add_child(node, child_xml);
 			break;
+		case AST_DATA_PASSWORD:
+			ast_xml_set_text(child_xml, node->payload.str);
+			break;
+		case AST_DATA_TIMESTAMP:
+			snprintf(node_content, sizeof(node_content), "%d",
+				node->payload.uint);
+			ast_xml_set_text(child_xml, node_content);
+			break;
+		case AST_DATA_SECONDS:
+			snprintf(node_content, sizeof(node_content), "%d",
+				node->payload.uint);
+			ast_xml_set_text(child_xml, node_content);
+			break;
+		case AST_DATA_MILLISECONDS:
+			snprintf(node_content, sizeof(node_content), "%d",
+				node->payload.uint);
+			ast_xml_set_text(child_xml, node_content);
+			break;
 		case AST_DATA_STRING:
 			ast_xml_set_text(child_xml, node->payload.str);
+			break;
+		case AST_DATA_CHARACTER:
+			snprintf(node_content, sizeof(node_content), "%c",
+				node->payload.character);
+			ast_xml_set_text(child_xml, node_content);
 			break;
 		case AST_DATA_INTEGER:
 			snprintf(node_content, sizeof(node_content), "%d",
@@ -2006,15 +2263,24 @@ static struct ast_data *__ast_data_add(struct ast_data *root, const char *name,
 		node->payload.boolean = *(unsigned int *) ptr;
 		break;
 	case AST_DATA_INTEGER:
-		node->payload.sint = *(unsigned int *) ptr;
+		node->payload.sint = *(int *) ptr;
 		break;
+	case AST_DATA_TIMESTAMP:
+	case AST_DATA_SECONDS:
+	case AST_DATA_MILLISECONDS:
 	case AST_DATA_UNSIGNED_INTEGER:
-		node->payload.sint = *(unsigned int *) ptr;
+		node->payload.uint = *(unsigned int *) ptr;
 		break;
 	case AST_DATA_DOUBLE:
 		node->payload.dbl = *(double *) ptr;
 		break;
+	case AST_DATA_PASSWORD:
 	case AST_DATA_STRING:
+		node->payload.str = (char *) ptr;
+		break;
+	case AST_DATA_CHARACTER:
+		node->payload.character = *(char *) ptr;
+		break;
 	case AST_DATA_POINTER:
 		node->payload.ptr = ptr;
 		break;
@@ -2052,6 +2318,11 @@ struct ast_data *ast_data_add_int(struct ast_data *root, const char *name, int v
 	return __ast_data_add(root, name, AST_DATA_INTEGER, &value);
 }
 
+struct ast_data *ast_data_add_char(struct ast_data *root, const char *name, char value)
+{
+	return __ast_data_add(root, name, AST_DATA_CHARACTER, &value);
+}
+
 struct ast_data *ast_data_add_uint(struct ast_data *root, const char *name,
 	unsigned int value)
 {
@@ -2080,6 +2351,45 @@ struct ast_data *ast_data_add_ptr(struct ast_data *root, const char *childname,
 	void *ptr)
 {
 	return __ast_data_add(root, childname, AST_DATA_POINTER, ptr);
+}
+
+struct ast_data *ast_data_add_timestamp(struct ast_data *root, const char *childname,
+	unsigned int timestamp)
+{
+	return __ast_data_add(root, childname, AST_DATA_TIMESTAMP, &timestamp);
+}
+
+struct ast_data *ast_data_add_seconds(struct ast_data *root, const char *childname,
+	unsigned int seconds)
+{
+	return __ast_data_add(root, childname, AST_DATA_SECONDS, &seconds);
+}
+
+struct ast_data *ast_data_add_milliseconds(struct ast_data *root, const char *childname,
+	unsigned int milliseconds)
+{
+	return __ast_data_add(root, childname, AST_DATA_MILLISECONDS, &milliseconds);
+}
+
+struct ast_data *ast_data_add_password(struct ast_data *root, const char *childname,
+	const char *value)
+{
+	char *name;
+	size_t namelen = 1 + (ast_strlen_zero(value) ? 0 : strlen(value));
+	struct ast_data *res;
+
+	if (!(name = ast_malloc(namelen))) {
+		return NULL;
+	}
+
+	strcpy(name, (ast_strlen_zero(value) ? "" : value));
+
+	res = __ast_data_add(root, childname, AST_DATA_PASSWORD, name);
+	if (!res) {
+		ast_free(name);
+	}
+
+	return res;
 }
 
 struct ast_data *ast_data_add_str(struct ast_data *root, const char *childname,
@@ -2127,9 +2437,29 @@ int __ast_data_add_structure(struct ast_data *root,
 			ast_data_add_bool(root, mapping[i].name,
 				mapping[i].get.AST_DATA_BOOLEAN(structure));
 			break;
+		case AST_DATA_PASSWORD:
+			ast_data_add_password(root, mapping[i].name,
+				mapping[i].get.AST_DATA_PASSWORD(structure));
+			break;
+		case AST_DATA_TIMESTAMP:
+			ast_data_add_timestamp(root, mapping[i].name,
+				mapping[i].get.AST_DATA_TIMESTAMP(structure));
+			break;
+		case AST_DATA_SECONDS:
+			ast_data_add_seconds(root, mapping[i].name,
+				mapping[i].get.AST_DATA_SECONDS(structure));
+			break;
+		case AST_DATA_MILLISECONDS:
+			ast_data_add_milliseconds(root, mapping[i].name,
+				mapping[i].get.AST_DATA_MILLISECONDS(structure));
+			break;
 		case AST_DATA_STRING:
 			ast_data_add_str(root, mapping[i].name,
 				mapping[i].get.AST_DATA_STRING(structure));
+			break;
+		case AST_DATA_CHARACTER:
+			ast_data_add_char(root, mapping[i].name,
+				mapping[i].get.AST_DATA_CHARACTER(structure));
 			break;
 		case AST_DATA_CONTAINER:
 			break;
@@ -2277,6 +2607,21 @@ int ast_data_retrieve(struct ast_data *tree, const char *path,
 	case AST_DATA_STRING:
 		content->value.AST_DATA_STRING = node->payload.str;
 		break;
+	case AST_DATA_PASSWORD:
+		content->value.AST_DATA_PASSWORD = node->payload.str;
+		break;
+	case AST_DATA_TIMESTAMP:
+		content->value.AST_DATA_TIMESTAMP = node->payload.uint;
+		break;
+	case AST_DATA_SECONDS:
+		content->value.AST_DATA_SECONDS = node->payload.uint;
+		break;
+	case AST_DATA_MILLISECONDS:
+		content->value.AST_DATA_MILLISECONDS = node->payload.uint;
+		break;
+	case AST_DATA_CHARACTER:
+		content->value.AST_DATA_CHARACTER = node->payload.character;
+		break;
 	case AST_DATA_INTEGER:
 		content->value.AST_DATA_INTEGER = node->payload.sint;
 		break;
@@ -2310,7 +2655,12 @@ static const struct {
 	enum ast_data_type type;
 	int color;
 } data_result_color[] = {
-	{ AST_DATA_STRING, COLOR_CYAN },
+	{ AST_DATA_STRING, COLOR_BLUE },
+	{ AST_DATA_PASSWORD, COLOR_BRBLUE },
+	{ AST_DATA_TIMESTAMP, COLOR_CYAN },
+	{ AST_DATA_SECONDS, COLOR_MAGENTA },
+	{ AST_DATA_MILLISECONDS, COLOR_BRMAGENTA },
+	{ AST_DATA_CHARACTER, COLOR_GRAY },
 	{ AST_DATA_INTEGER, COLOR_RED },
 	{ AST_DATA_UNSIGNED_INTEGER, COLOR_RED },
 	{ AST_DATA_DOUBLE, COLOR_RED },
@@ -2373,15 +2723,42 @@ static void data_result_print_cli_node(int fd, const struct ast_data *node, uint
 		ast_str_append(&output, 0, "%s%s: %p\n", ast_str_buffer(tabs),
 				node->name, node->payload.ptr);
 		break;
+	case AST_DATA_PASSWORD:
+		ast_str_append(&output, 0, "%s%s: \"%s\"\n",
+				ast_str_buffer(tabs),
+				node->name,
+				node->payload.str);
+		break;
 	case AST_DATA_STRING:
 		ast_str_append(&output, 0, "%s%s: \"%s\"\n",
 				ast_str_buffer(tabs),
 				node->name,
 				node->payload.str);
 		break;
+	case AST_DATA_CHARACTER:
+		ast_str_append(&output, 0, "%s%s: \'%c\'\n",
+				ast_str_buffer(tabs),
+				node->name,
+				node->payload.character);
+		break;
 	case AST_DATA_CONTAINER:
 		ast_str_append(&output, 0, "%s%s\n", ast_str_buffer(tabs),
 				node->name);
+		break;
+	case AST_DATA_TIMESTAMP:
+		ast_str_append(&output, 0, "%s%s: %d\n", ast_str_buffer(tabs),
+				node->name,
+				node->payload.uint);
+		break;
+	case AST_DATA_SECONDS:
+		ast_str_append(&output, 0, "%s%s: %d\n", ast_str_buffer(tabs),
+				node->name,
+				node->payload.uint);
+		break;
+	case AST_DATA_MILLISECONDS:
+		ast_str_append(&output, 0, "%s%s: %d\n", ast_str_buffer(tabs),
+				node->name,
+				node->payload.uint);
 		break;
 	case AST_DATA_INTEGER:
 		ast_str_append(&output, 0, "%s%s: %d\n", ast_str_buffer(tabs),
@@ -2470,6 +2847,8 @@ static void data_result_print_cli(int fd, const struct ast_data *root)
 	ast_free(output);
 
 	__data_result_print_cli(fd, root, 0);
+
+	ast_cli(fd, "\n");
 }
 
 /*!
@@ -2644,11 +3023,20 @@ static void data_result_manager_output(struct mansession *s, const char *name,
 		case AST_DATA_INTEGER:
 			astman_append(s, ": %d\r\n", node->payload.sint);
 			break;
+		case AST_DATA_TIMESTAMP:
+		case AST_DATA_SECONDS:
+		case AST_DATA_MILLISECONDS:
 		case AST_DATA_UNSIGNED_INTEGER:
 			astman_append(s, ": %u\r\n", node->payload.uint);
 			break;
+		case AST_DATA_PASSWORD:
+			astman_append(s, ": %s\r\n", node->payload.str);
+			break;
 		case AST_DATA_STRING:
 			astman_append(s, ": %s\r\n", node->payload.str);
+			break;
+		case AST_DATA_CHARACTER:
+			astman_append(s, ": %c\r\n", node->payload.character);
 			break;
 		case AST_DATA_IPADDR:
 			astman_append(s, ": %s\r\n", ast_inet_ntoa(node->payload.ipaddr));
@@ -2712,6 +3100,34 @@ static int manager_data_get(struct mansession *s, const struct message *m)
 	return RESULT_SUCCESS;
 }
 
+int ast_data_add_codecs(struct ast_data *root, const char *node_name, format_t capability)
+{
+	struct ast_data *codecs, *codec;
+	size_t fmlist_size;
+	const struct ast_format_list *fmlist;
+	int x;
+
+	codecs = ast_data_add_node(root, node_name);
+	if (!codecs) {
+		return -1;
+	}
+	fmlist = ast_get_format_list(&fmlist_size);
+	for (x = 0; x < fmlist_size; x++) {
+		if (fmlist[x].bits & capability) {
+			codec = ast_data_add_node(codecs, "codec");
+			if (!codec) {
+				return -1;
+			}
+			ast_data_add_str(codec, "name", fmlist[x].name);
+			ast_data_add_int(codec, "samplespersecond", fmlist[x].samplespersecond);
+			ast_data_add_str(codec, "description", fmlist[x].desc);
+			ast_data_add_int(codec, "frame_length", fmlist[x].fr_len);
+		}
+	}
+
+	return 0;
+}
+
 #ifdef TEST_FRAMEWORK
 
 /*!
@@ -2753,10 +3169,6 @@ static int test_data_full_provider(const struct ast_data_search *search,
 		.a_uint = 20
 	};
 
-	if (ast_data_search_cmp_structure(search, test_structure, &local_test_structure, "test_structure")) {
-		return 0;
-	}
-
 	test_structure = ast_data_add_node(root, "test_structure");
 	if (!test_structure) {
 		ast_debug(1, "Internal data api error\n");
@@ -2765,6 +3177,10 @@ static int test_data_full_provider(const struct ast_data_search *search,
 
 	/* add the complete structure. */
 	ast_data_add_structure(test_structure, test_structure, &local_test_structure);
+
+	if (!ast_data_search_match(search, test_structure)) {
+		ast_data_remove_node(root, test_structure);
+	}
 
 	return 0;
 }

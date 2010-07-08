@@ -117,6 +117,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/paths.h"
 #include "asterisk/ccss.h"
+#include "asterisk/data.h"
 
 /*** DOCUMENTATION
 	<application name="DAHDISendKeypadFacility" language="en_US">
@@ -1203,6 +1204,77 @@ struct dahdi_pvt {
 	 */
 	char dialstring[AST_CHANNEL_NAME];
 };
+
+#define DATA_EXPORT_DAHDI_PVT(MEMBER)					\
+	MEMBER(dahdi_pvt, cid_rxgain, AST_DATA_DOUBLE)			\
+	MEMBER(dahdi_pvt, rxgain, AST_DATA_DOUBLE)			\
+	MEMBER(dahdi_pvt, txgain, AST_DATA_DOUBLE)			\
+	MEMBER(dahdi_pvt, txdrc, AST_DATA_DOUBLE)			\
+	MEMBER(dahdi_pvt, rxdrc, AST_DATA_DOUBLE)			\
+	MEMBER(dahdi_pvt, adsi, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, answeronpolarityswitch, AST_DATA_BOOLEAN)	\
+	MEMBER(dahdi_pvt, busydetect, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, callreturn, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, callwaiting, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, callwaitingcallerid, AST_DATA_BOOLEAN)	\
+	MEMBER(dahdi_pvt, cancallforward, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, canpark, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, confirmanswer, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, destroy, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, didtdd, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, dialednone, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, dialing, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, digital, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, dnd, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, echobreak, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, echocanbridged, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, echocanon, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, faxhandled, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, usefaxbuffers, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, bufferoverrideinuse, AST_DATA_BOOLEAN)	\
+	MEMBER(dahdi_pvt, firstradio, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, hanguponpolarityswitch, AST_DATA_BOOLEAN)	\
+	MEMBER(dahdi_pvt, hardwaredtmf, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, hidecallerid, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, hidecalleridname, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, ignoredtmf, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, immediate, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, inalarm, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, mate, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, outgoing, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, permcallwaiting, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, priindication_oob, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, priexclusive, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, pulse, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, pulsedial, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, restartpending, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, restrictcid, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, threewaycalling, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, transfer, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, use_callerid, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, use_callingpres, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, usedistinctiveringdetection, AST_DATA_BOOLEAN)	\
+	MEMBER(dahdi_pvt, dahditrcallerid, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, transfertobusy, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, mwimonitor_neon, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, mwimonitor_fsk, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, mwimonitor_rpas, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, mwimonitoractive, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, mwisendactive, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, inservice, AST_DATA_BOOLEAN)				\
+	MEMBER(dahdi_pvt, locallyblocked, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, remotelyblocked, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, manages_span_alarms, AST_DATA_BOOLEAN)		\
+	MEMBER(dahdi_pvt, use_smdi, AST_DATA_BOOLEAN)				\
+	MEMBER(dahdi_pvt, context, AST_DATA_STRING)				\
+	MEMBER(dahdi_pvt, defcontext, AST_DATA_STRING)				\
+	MEMBER(dahdi_pvt, exten, AST_DATA_STRING)				\
+	MEMBER(dahdi_pvt, language, AST_DATA_STRING)				\
+	MEMBER(dahdi_pvt, mohinterpret, AST_DATA_STRING)			\
+	MEMBER(dahdi_pvt, mohsuggest, AST_DATA_STRING)				\
+	MEMBER(dahdi_pvt, parkinglot, AST_DATA_STRING)
+
+AST_DATA_STRUCTURE(dahdi_pvt, DATA_EXPORT_DAHDI_PVT);
 
 static struct dahdi_pvt *iflist = NULL;	/*!< Main interface list start */
 static struct dahdi_pvt *ifend = NULL;	/*!< Main interface list end */
@@ -15823,6 +15895,7 @@ static int __unload_module(void)
 	ast_manager_unregister("DAHDIDNDon");
 	ast_manager_unregister("DAHDIShowChannels");
 	ast_manager_unregister("DAHDIRestart");
+	ast_data_unregister(NULL);
 	ast_channel_unregister(&dahdi_tech);
 
 	/* Hangup all interfaces if they have an owner */
@@ -17402,6 +17475,163 @@ static int setup_dahdi(int reload)
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief Callback used to generate the dahdi status tree.
+ * \param[in] search The search pattern tree.
+ * \retval NULL on error.
+ * \retval non-NULL The generated tree.
+ */
+static int dahdi_status_data_provider_get(const struct ast_data_search *search,
+		struct ast_data *data_root)
+{
+	int ctl, res, span;
+	struct ast_data *data_span, *data_alarms;
+	struct dahdi_spaninfo s;
+
+	ctl = open("/dev/dahdi/ctl", O_RDWR);
+	if (ctl < 0) {
+		ast_log(LOG_ERROR, "No DAHDI found. Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
+		return -1;
+	}
+	for (span = 1; span < DAHDI_MAX_SPANS; ++span) {
+		s.spanno = span;
+		res = ioctl(ctl, DAHDI_SPANSTAT, &s);
+		if (res) {
+			continue;
+		}
+
+		data_span = ast_data_add_node(data_root, "span");
+		if (!data_span) {
+			continue;
+		}
+		ast_data_add_str(data_span, "description", s.desc);
+
+		/* insert the alarms status */
+		data_alarms = ast_data_add_node(data_span, "alarms");
+		if (!data_alarms) {
+			continue;
+		}
+
+		ast_data_add_bool(data_alarms, "BLUE", s.alarms & DAHDI_ALARM_BLUE);
+		ast_data_add_bool(data_alarms, "YELLOW", s.alarms & DAHDI_ALARM_YELLOW);
+		ast_data_add_bool(data_alarms, "RED", s.alarms & DAHDI_ALARM_RED);
+		ast_data_add_bool(data_alarms, "LOOPBACK", s.alarms & DAHDI_ALARM_LOOPBACK);
+		ast_data_add_bool(data_alarms, "RECOVER", s.alarms & DAHDI_ALARM_RECOVER);
+		ast_data_add_bool(data_alarms, "NOTOPEN", s.alarms & DAHDI_ALARM_NOTOPEN);
+
+		ast_data_add_int(data_span, "irqmisses", s.irqmisses);
+		ast_data_add_int(data_span, "bpviol", s.bpvcount);
+		ast_data_add_int(data_span, "crc4", s.crc4count);
+		ast_data_add_str(data_span, "framing",	s.lineconfig & DAHDI_CONFIG_D4 ? "D4" :
+							s.lineconfig & DAHDI_CONFIG_ESF ? "ESF" :
+							s.lineconfig & DAHDI_CONFIG_CCS ? "CCS" :
+							"CAS");
+		ast_data_add_str(data_span, "coding",	s.lineconfig & DAHDI_CONFIG_B8ZS ? "B8ZS" :
+							s.lineconfig & DAHDI_CONFIG_HDB3 ? "HDB3" :
+							s.lineconfig & DAHDI_CONFIG_AMI ? "AMI" :
+							"Unknown");
+		ast_data_add_str(data_span, "options",	s.lineconfig & DAHDI_CONFIG_CRC4 ?
+							s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "CRC4/YEL" : "CRC4" :
+							s.lineconfig & DAHDI_CONFIG_NOTOPEN ? "YEL" : "");
+		ast_data_add_str(data_span, "lbo", lbostr[s.lbo]);
+
+		/* if this span doesn't match remove it. */
+		if (!ast_data_search_match(search, data_span)) {
+			ast_data_remove_node(data_root, data_span);
+		}
+	}
+	close(ctl);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Callback used to generate the dahdi channels tree.
+ * \param[in] search The search pattern tree.
+ * \retval NULL on error.
+ * \retval non-NULL The generated tree.
+ */
+static int dahdi_channels_data_provider_get(const struct ast_data_search *search,
+		struct ast_data *data_root)
+{
+	struct dahdi_pvt *tmp;
+	struct ast_data *data_channel;
+
+	ast_mutex_lock(&iflock);
+	for (tmp = iflist; tmp; tmp = tmp->next) {
+		data_channel = ast_data_add_node(data_root, "channel");
+		if (!data_channel) {
+			continue;
+		}
+
+		ast_data_add_structure(dahdi_pvt, data_channel, tmp);
+
+		/* if this channel doesn't match remove it. */
+		if (!ast_data_search_match(search, data_channel)) {
+			ast_data_remove_node(data_root, data_channel);
+		}
+	}
+	ast_mutex_unlock(&iflock);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Callback used to generate the dahdi channels tree.
+ * \param[in] search The search pattern tree.
+ * \retval NULL on error.
+ * \retval non-NULL The generated tree.
+ */
+static int dahdi_version_data_provider_get(const struct ast_data_search *search,
+		struct ast_data *data_root)
+{
+	int pseudo_fd = -1;
+	struct dahdi_versioninfo vi = {
+		.version = "Unknown",
+		.echo_canceller = "Unknown"
+	};
+
+	if ((pseudo_fd = open("/dev/dahdi/ctl", O_RDONLY)) < 0) {
+		ast_log(LOG_ERROR, "Failed to open control file to get version.\n");
+		return -1;
+	}
+
+	if (ioctl(pseudo_fd, DAHDI_GETVERSION, &vi)) {
+		ast_log(LOG_ERROR, "Failed to get DAHDI version: %s\n", strerror(errno));
+	}
+
+	close(pseudo_fd);
+
+	ast_data_add_str(data_root, "value", vi.version);
+	ast_data_add_str(data_root, "echocanceller", vi.echo_canceller);
+
+	return 0;
+}
+
+static const struct ast_data_handler dahdi_status_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = dahdi_status_data_provider_get
+};
+
+static const struct ast_data_handler dahdi_channels_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = dahdi_channels_data_provider_get
+};
+
+static const struct ast_data_handler dahdi_version_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = dahdi_version_data_provider_get
+};
+
+static const struct ast_data_entry dahdi_data_providers[] = {
+	AST_DATA_ENTRY("asterisk/channel/dahdi/status", &dahdi_status_data_provider),
+	AST_DATA_ENTRY("asterisk/channel/dahdi/channels", &dahdi_channels_data_provider),
+	AST_DATA_ENTRY("asterisk/channel/dahdi/version", &dahdi_version_data_provider)
+};
+
 static int load_module(void)
 {
 	int res;
@@ -17467,7 +17697,8 @@ static int load_module(void)
 #endif
 
 	ast_cli_register_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
-
+	/* register all the data providers */
+	ast_data_register_multiple(dahdi_data_providers, ARRAY_LEN(dahdi_data_providers));
 	memset(round_robin, 0, sizeof(round_robin));
 	ast_manager_register_xml("DAHDITransfer", 0, action_transfer);
 	ast_manager_register_xml("DAHDIHangup", 0, action_transferhangup);

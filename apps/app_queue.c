@@ -7762,7 +7762,7 @@ static struct ast_cli_entry cli_queue[] = {
 	MEMBER(call_queue, sound_reporthold, AST_DATA_STRING)		\
 	MEMBER(call_queue, dead, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, eventwhencalled, AST_DATA_BOOLEAN)		\
-	MEMBER(call_queue, ringinuse, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, ringinuse, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, setinterfacevar, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, setqueuevar, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, setqueueentryvar, AST_DATA_BOOLEAN)		\
@@ -7770,20 +7770,18 @@ static struct ast_cli_entry cli_queue[] = {
 	MEMBER(call_queue, wrapped, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, timeoutrestart, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, announceholdtime, AST_DATA_INTEGER)		\
-	MEMBER(call_queue, announceposition, AST_DATA_INTEGER)		\
-	MEMBER(call_queue, strategy, AST_DATA_INTEGER)			\
 	MEMBER(call_queue, maskmemberstatus, AST_DATA_BOOLEAN)		\
 	MEMBER(call_queue, realtime, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, found, AST_DATA_BOOLEAN)			\
 	MEMBER(call_queue, announcepositionlimit, AST_DATA_INTEGER)	\
-	MEMBER(call_queue, announcefrequency, AST_DATA_INTEGER)		\
-	MEMBER(call_queue, minannouncefrequency, AST_DATA_INTEGER)	\
-	MEMBER(call_queue, periodicannouncefrequency, AST_DATA_INTEGER)	\
+	MEMBER(call_queue, announcefrequency, AST_DATA_SECONDS)		\
+	MEMBER(call_queue, minannouncefrequency, AST_DATA_SECONDS)	\
+	MEMBER(call_queue, periodicannouncefrequency, AST_DATA_SECONDS)	\
 	MEMBER(call_queue, numperiodicannounce, AST_DATA_INTEGER)	\
 	MEMBER(call_queue, randomperiodicannounce, AST_DATA_INTEGER)	\
-	MEMBER(call_queue, roundingseconds, AST_DATA_INTEGER)		\
-	MEMBER(call_queue, holdtime, AST_DATA_INTEGER)			\
-	MEMBER(call_queue, talktime, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, roundingseconds, AST_DATA_SECONDS)		\
+	MEMBER(call_queue, holdtime, AST_DATA_SECONDS)			\
+	MEMBER(call_queue, talktime, AST_DATA_SECONDS)			\
 	MEMBER(call_queue, callscompleted, AST_DATA_INTEGER)		\
 	MEMBER(call_queue, callsabandoned, AST_DATA_INTEGER)		\
 	MEMBER(call_queue, servicelevel, AST_DATA_INTEGER)		\
@@ -7792,9 +7790,9 @@ static struct ast_cli_entry cli_queue[] = {
 	MEMBER(call_queue, montype, AST_DATA_INTEGER)			\
 	MEMBER(call_queue, count, AST_DATA_INTEGER)			\
 	MEMBER(call_queue, maxlen, AST_DATA_INTEGER)			\
-	MEMBER(call_queue, wrapuptime, AST_DATA_INTEGER)		\
-	MEMBER(call_queue, retry, AST_DATA_INTEGER)			\
-	MEMBER(call_queue, timeout, AST_DATA_INTEGER)			\
+	MEMBER(call_queue, wrapuptime, AST_DATA_SECONDS)		\
+	MEMBER(call_queue, retry, AST_DATA_SECONDS)			\
+	MEMBER(call_queue, timeout, AST_DATA_SECONDS)			\
 	MEMBER(call_queue, weight, AST_DATA_INTEGER)			\
 	MEMBER(call_queue, autopause, AST_DATA_INTEGER)			\
 	MEMBER(call_queue, timeoutpriority, AST_DATA_INTEGER)		\
@@ -7856,18 +7854,11 @@ AST_DATA_STRUCTURE(queue_ent, DATA_EXPORT_QUEUE_ENT);
 static void queues_data_provider_get_helper(const struct ast_data_search *search,
 	struct ast_data *data_root, struct call_queue *queue)
 {
-	int member_notmatch, caller_notmatch, caller_channel_notmatch;
 	struct ao2_iterator im;
 	struct member *member;
 	struct queue_ent *qe;
-	struct ast_data *data_queue, *data_members = NULL;
+	struct ast_data *data_queue, *data_members = NULL, *enum_node;
 	struct ast_data *data_member, *data_callers = NULL, *data_caller, *data_caller_channel;
-
-	/* compare the search pattern. */
-	if (ast_data_search_cmp_structure(search, call_queue, queue, "queue")) {
-		/* this doesn't match! continue! */
-		return;
-	}
 
 	data_queue = ast_data_add_node(data_root, "queue");
 	if (!data_queue) {
@@ -7876,16 +7867,35 @@ static void queues_data_provider_get_helper(const struct ast_data_search *search
 
 	ast_data_add_structure(call_queue, data_queue, queue);
 
-	member_notmatch = ast_data_search_has_condition(search, "queue/members/member");
+	ast_data_add_str(data_queue, "strategy", int2strat(queue->strategy));
+
+	/* announce position */
+	enum_node = ast_data_add_node(data_queue, "announceposition");
+	if (!enum_node) {
+		return;
+	}
+	switch (queue->announceposition) {
+	case ANNOUNCEPOSITION_LIMIT:
+		ast_data_add_str(enum_node, "text", "limit");
+		break;
+	case ANNOUNCEPOSITION_MORE_THAN:
+		ast_data_add_str(enum_node, "text", "more");
+		break;
+	case ANNOUNCEPOSITION_YES:
+		ast_data_add_str(enum_node, "text", "yes");
+		break;
+	case ANNOUNCEPOSITION_NO:
+		ast_data_add_str(enum_node, "text", "no");
+		break;
+	default:
+		ast_data_add_str(enum_node, "text", "unknown");
+		break;
+	}
+	ast_data_add_int(enum_node, "value", queue->announceposition);
+
 	/* add queue members */
 	im = ao2_iterator_init(queue->members, 0);
 	while ((member = ao2_iterator_next(&im))) {
-		/* compare the member structure. */
-		if (!ast_data_search_cmp_structure(search, member, member,
-					"queue/members/member")) {
-			member_notmatch = 0;
-		}
-
 		if (!data_members) {
 			data_members = ast_data_add_node(data_queue, "members");
 			if (!data_members) {
@@ -7905,28 +7915,9 @@ static void queues_data_provider_get_helper(const struct ast_data_search *search
 		ao2_ref(member, -1);
 	}
 
-	if (member_notmatch) {
-		ast_data_remove_node(data_root, data_queue);
-		return;
-	}
-
-	caller_notmatch = ast_data_search_has_condition(search, "queue/callers/caller");
-	caller_channel_notmatch = ast_data_search_has_condition(search,
-		"queue/callers/caller/channel");
 	/* include the callers inside the result. */
 	if (queue->head) {
 		for (qe = queue->head; qe; qe = qe->next) {
-			/* compare the member structure. */
-			if (!ast_data_search_cmp_structure(search, queue_ent, qe,
-						"queue/callers/caller")) {
-				caller_notmatch = 0;
-			}
-
-			if (!ast_channel_data_cmp_structure(search, qe->chan,
-				"queue/callers/caller/channel")) {
-				caller_channel_notmatch = 0;
-			}
-
 			if (!data_callers) {
 				data_callers = ast_data_add_node(data_queue, "callers");
 				if (!data_callers) {
@@ -7947,12 +7938,12 @@ static void queues_data_provider_get_helper(const struct ast_data_search *search
 				continue;
 			}
 
-			ast_channel_data_add_structure(data_caller_channel, qe->chan);
+			ast_channel_data_add_structure(data_caller_channel, qe->chan, 1);
 		}
 	}
 
 	/* if this queue doesn't match remove the added queue. */
-	if (caller_notmatch || caller_channel_notmatch) {
+	if (!ast_data_search_match(search, data_queue)) {
 		ast_data_remove_node(data_root, data_queue);
 	}
 }
@@ -8011,7 +8002,7 @@ static const struct ast_data_handler queues_data_provider = {
 };
 
 static const struct ast_data_entry queue_data_providers[] = {
-	AST_DATA_ENTRY("asterisk/application/app_queue/queues", &queues_data_provider),
+	AST_DATA_ENTRY("asterisk/application/queue/list", &queues_data_provider),
 };
 
 static int unload_module(void)

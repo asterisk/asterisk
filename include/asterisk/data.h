@@ -25,6 +25,8 @@
 #ifndef ASTERISK_DATA_H
 #define ASTERISK_DATA_H
 
+#include "asterisk/frame.h"
+
 /*!
  * \page AstDataRetrieval The Asterisk DATA retrieval API.
  *
@@ -106,16 +108,16 @@
  *			.b = 20
  *		};
  *
- *		if (ast_data_search_cmp_structure(search, test_structure, "test_node")) {
- *			return 0;
- *		}
- *
  *		internal_node = ast_data_add_node(root_node, "test_node");
  *		if (!internal_node) {
  *			return -1;
  *		}
  *
  *		ast_data_add_structure(test_structure, internal_node, ts);
+ *
+ *		if (!ast_data_search_match(search, internal_node)) {
+ *			ast_data_remove_node(root_node, internal_node);
+ *		}
  *
  *		return 0;
  *	}
@@ -189,7 +191,12 @@ enum ast_data_type {
 	AST_DATA_DOUBLE,
 	AST_DATA_BOOLEAN,
 	AST_DATA_STRING,
+	AST_DATA_CHARACTER,
+	AST_DATA_PASSWORD,
 	AST_DATA_IPADDR,
+	AST_DATA_TIMESTAMP,
+	AST_DATA_SECONDS,
+	AST_DATA_MILLISECONDS,
 	AST_DATA_POINTER
 };
 
@@ -212,8 +219,13 @@ struct ast_data_retrieve {
 	enum ast_data_type type;
 
 	union {
+		char AST_DATA_CHARACTER;
 		char *AST_DATA_STRING;
+		char *AST_DATA_PASSWORD;
 		int AST_DATA_INTEGER;
+		unsigned int AST_DATA_TIMESTAMP;
+		unsigned int AST_DATA_SECONDS;
+		unsigned int AST_DATA_MILLISECONDS;
 		double AST_DATA_DOUBLE;
 		unsigned int AST_DATA_UNSIGNED_INTEGER;
 		unsigned int AST_DATA_BOOLEAN;
@@ -268,8 +280,13 @@ struct ast_data_mapping_structure {
 	enum ast_data_type type;
 	/*! \brief member getter. */
 	union {
+		char (*AST_DATA_CHARACTER)(void *ptr);
 		char *(*AST_DATA_STRING)(void *ptr);
+		char *(*AST_DATA_PASSWORD)(void *ptr);
 		int (*AST_DATA_INTEGER)(void *ptr);
+		int (*AST_DATA_TIMESTAMP)(void *ptr);
+		int (*AST_DATA_SECONDS)(void *ptr);
+		int (*AST_DATA_MILLISECONDS)(void *ptr);
 		double (*AST_DATA_DOUBLE)(void *ptr);
 		unsigned int (*AST_DATA_UNSIGNED_INTEGER)(void *ptr);
 		unsigned int (*AST_DATA_BOOLEAN)(void *ptr);
@@ -292,9 +309,19 @@ struct ast_data_mapping_structure {
 	.type = __type },
 
 /* based on the data type, specifify the type of return value for the getter function. */
+#define __AST_DATA_MAPPING_FUNCTION_AST_DATA_PASSWORD(__structure, __member)				\
+	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_PASSWORD, char *)
 #define __AST_DATA_MAPPING_FUNCTION_AST_DATA_STRING(__structure, __member)				\
 	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_STRING, char *)
+#define __AST_DATA_MAPPING_FUNCTION_AST_DATA_CHARACTER(__structure, __member)				\
+	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_CHARACTER, char)
 #define __AST_DATA_MAPPING_FUNCTION_AST_DATA_INTEGER(__structure, __member)				\
+	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_INTEGER, int)
+#define __AST_DATA_MAPPING_FUNCTION_AST_DATA_TIMESTAMP(__structure, __member)				\
+	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_INTEGER, int)
+#define __AST_DATA_MAPPING_FUNCTION_AST_DATA_SECONDS(__structure, __member)				\
+	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_INTEGER, int)
+#define __AST_DATA_MAPPING_FUNCTION_AST_DATA_MILLISECONDS(__structure, __member)			\
 	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_INTEGER, int)
 #define __AST_DATA_MAPPING_FUNCTION_AST_DATA_UNSIGNED_INTEGER(__structure, __member)			\
 	__AST_DATA_MAPPING_FUNCTION_TYPE(__structure, __member, AST_DATA_UNSIGNED_INTEGER, unsigned int)
@@ -367,100 +394,15 @@ int __ast_data_unregister(const char *path, const char *registrar);
 #define ast_data_unregister(path) __ast_data_unregister(path, __FILE__)
 
 /*!
- * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
- *        current string value.
- *        .search = "somename=somestring"
- *        name = "somename"
- *        value is the current value of something and will be evaluated against "somestring".
- * \param[in] root The root node pointer of the search tree.
- * \param[in] name The name of the specific.
- * \param[in] value The value to compare.
- * \returns The strcmp return value.
+ * \brief Check the current generated node to know if it matches the search
+ *        condition.
+ * \param[in] search The search condition.
+ * \param[in] data The AstData node generated.
+ * \return 1 If the "data" node matches the search condition.
+ * \return 0 If the "data" node does not matches the search condition.
+ * \see ast_data_remove_node
  */
-int ast_data_search_cmp_string(const struct ast_data_search *root, const char *name, char *value);
-
-/*!
- * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
- *        current pointer address value.
- *        .search = "something=0x32323232"
- *        name = "something"
- *        value is the current value of something and will be evaluated against "0x32323232".
- * \param[in] root The root node pointer of the search tree.
- * \param[in] name The name of the specific.
- * \param[in] ptr The pointer address to compare.
- * \returns The (value - current_value) result.
- */
-int ast_data_search_cmp_ptr(const struct ast_data_search *root, const char *name,
-	void *ptr);
-
-/*!
- * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
- *        current ipv4 address value.
- *        .search = "something=192.168.2.2"
- *        name = "something"
- *        value is the current value of something and will be evaluated against "192.168.2.2".
- * \param[in] root The root node pointer of the search tree.
- * \param[in] name The name of the specific.
- * \param[in] addr The ipv4 address value to compare.
- * \returns The (value - current_value) result.
- */
-int ast_data_search_cmp_ipaddr(const struct ast_data_search *root, const char *name,
-	struct in_addr addr);
-
-/*!
- * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
- *        current double value.
- *        .search = "something=222"
- *        name = "something"
- *        value is the current value of something and will be evaluated against "222".
- * \param[in] root The root node pointer of the search tree.
- * \param[in] name The name of the specific.
- * \param[in] value The double value to compare.
- * \returns The (value - current_value) result.
- */
-int ast_data_search_cmp_dbl(const struct ast_data_search *root, const char *name,
-	double value);
-
-/*!
- * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
- *        current boolean value.
- *        .search = "something=true"
- *        name = "something"
- *        value is the current value of something and will be evaluated against "true".
- * \param[in] root The root node pointer of the search tree.
- * \param[in] name The name of the specific.
- * \param[in] value The boolean value to compare.
- * \returns The (value - current_value) result.
- */
-int ast_data_search_cmp_bool(const struct ast_data_search *root, const char *name,
-	unsigned int value);
-
-/*!
- * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
- *        current unsigned integer value.
- *        .search = "something=10"
- *        name = "something"
- *        value is the current value of something and will be evaluated against "10".
- * \param[in] root The root node pointer of the search tree.
- * \param[in] name The name of the specific.
- * \param[in] value The unsigned value to compare.
- * \returns The strcmp return value.
- */
-int ast_data_search_cmp_uint(const struct ast_data_search *root, const char *name,
-	unsigned int value);
-
-/*!
- * \brief Based on a search tree, evaluate the specified 'name' inside the tree with the
- *        current signed integer value.
- *        .search = "something=10"
- *        name = "something"
- *        value is the current value of something and will be evaluated against "10".
- * \param[in] root The root node pointer of the search tree.
- * \param[in] name The name of the specific.
- * \param[in] value The value to compare.
- * \returns The strcmp return value.
- */
-int ast_data_search_cmp_int(const struct ast_data_search *root, const char *name, int value);
+int ast_data_search_match(const struct ast_data_search *search, struct ast_data *data);
 
 /*!
  * \brief Based on a search tree, evaluate every member of a structure against it.
@@ -478,17 +420,6 @@ int __ast_data_search_cmp_structure(const struct ast_data_search *search,
 #define ast_data_search_cmp_structure(search, structure_name, structure, structure_name_cmp)		\
 	__ast_data_search_cmp_structure(search, __data_mapping_structure_##structure_name,		\
 	ARRAY_LEN(__data_mapping_structure_##structure_name), structure, structure_name_cmp)
-
-/*!
- * \brief Check if there is a compare condition inside the search tree with the
- *	  passed 'compare_condition' node names.
- * \param[in] search The search tree.
- * \param[in] compare_condition The path of the compare condition.
- * \retval 0 There is no compare condition.
- * \retval 1 There is a compare condition.
- */
-int ast_data_search_has_condition(const struct ast_data_search *search,
-	const char *compare_condition);
 
 /*!
  * \brief Retrieve a subtree from the asterisk data API.
@@ -555,6 +486,17 @@ struct ast_data *ast_data_add_int(struct ast_data *root, const char *childname,
 	int value);
 
 /*!
+ * \brief Add a char node type.
+ * \param[in] root The root of the ast_data to insert into.
+ * \param[in] childname The name of the child element to be added.
+ * \param[in] value The value for the new node.
+ * \retval NULL on error (memory exhaustion only).
+ * \retval non-NULL a newly allocated node.
+ */
+struct ast_data *ast_data_add_char(struct ast_data *root, const char *childname,
+	char value);
+
+/*!
  * \brief Add an unsigned integer node type.
  * \param[in] root The root of the ast_data to insert into.
  * \param[in] childname The name of the child element to be added.
@@ -596,6 +538,50 @@ struct ast_data *ast_data_add_ipaddr(struct ast_data *root, const char *childnam
  */
 struct ast_data *ast_data_add_ptr(struct ast_data *root, const char *childname,
 	void *ptr);
+
+/*!
+ * \brief Add a password node type.
+ * \param[in] root The root of the ast_data to insert into.
+ * \param[in] childname The name of the child element to be added.
+ * \param[in] string The value for the new node.
+ * \retval NULL on error (memory exhaustion only).
+ * \retval non-NULL a newly allocated node.
+ */
+struct ast_data *ast_data_add_password(struct ast_data *root, const char *childname,
+	const char *string);
+
+/*!
+ * \brief Add a timestamp node type.
+ * \param[in] root The root of the ast_data to insert into.
+ * \param[in] childname The name of the child element to be added.
+ * \param[in] timestamp The value for the new node.
+ * \retval NULL on error (memory exhaustion only).
+ * \retval non-NULL a newly allocated node.
+ */
+struct ast_data *ast_data_add_timestamp(struct ast_data *root, const char *childname,
+	unsigned int timestamp);
+
+/*!
+ * \brief Add a seconds node type.
+ * \param[in] root The root of the ast_data to insert into.
+ * \param[in] childname The name of the child element to be added.
+ * \param[in] seconds The value for the new node.
+ * \retval NULL on error (memory exhaustion only).
+ * \retval non-NULL a newly allocated node.
+ */
+struct ast_data *ast_data_add_seconds(struct ast_data *root, const char *childname,
+	unsigned int seconds);
+
+/*!
+ * \brief Add a milliseconds node type.
+ * \param[in] root The root of the ast_data to insert into.
+ * \param[in] childname The name of the child element to be added.
+ * \param[in] milliseconds The value for the new node.
+ * \retval NULL on error (memory exhaustion only).
+ * \retval non-NULL a newly allocated node.
+ */
+struct ast_data *ast_data_add_milliseconds(struct ast_data *root, const char *childname,
+	unsigned int milliseconds);
 
 /*!
  * \brief Add a string node type.
@@ -694,6 +680,21 @@ static inline int ast_data_retrieve_int(struct ast_data *tree, const char *path)
 }
 
 /*!
+ * \brief Retrieve the character value of a node.
+ * \param[in] tree The tree from where to get the value.
+ * \param[in] path The node name or path.
+ * \returns The value of the node.
+ */
+static inline char ast_data_retrieve_char(struct ast_data *tree, const char *path)
+{
+	struct ast_data_retrieve ret;
+
+	ast_data_retrieve(tree, path, &ret);
+
+	return ret.value.AST_DATA_CHARACTER;
+}
+
+/*!
  * \brief Retrieve the boolean value of a node.
  * \param[in] tree The tree from where to get the value.
  * \param[in] path The node name or path.
@@ -721,6 +722,21 @@ static inline unsigned int ast_data_retrieve_uint(struct ast_data *tree, const c
 	ast_data_retrieve(tree, path, &ret);
 
 	return ret.value.AST_DATA_UNSIGNED_INTEGER;
+}
+
+/*!
+ * \brief Retrieve the password value of a node.
+ * \param[in] tree The tree from where to get the value.
+ * \param[in] path The node name or path.
+ * \returns The value of the node.
+ */
+static inline const char *ast_data_retrieve_password(struct ast_data *tree, const char *path)
+{
+	struct ast_data_retrieve ret;
+
+	ast_data_retrieve(tree, path, &ret);
+
+	return ret.value.AST_DATA_PASSWORD;
 }
 
 /*!
@@ -782,6 +798,17 @@ static inline struct in_addr ast_data_retrieve_ipaddr(struct ast_data *tree, con
 
 	return ret.value.AST_DATA_IPADDR;
 }
+
+/*!
+ * \brief Add the list of codecs in the root node based on the capability parameter.
+ * \param[in] root The astdata root node where to add the codecs node.
+ * \param[in] node_name The name of the node where we are going to add the list of
+ *                      codecs.
+ * \param[in] capability The codecs allowed.
+ * \return < 0 on error.
+ * \return 0 on success.
+ */
+int ast_data_add_codecs(struct ast_data *root, const char *node_name, format_t capability);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

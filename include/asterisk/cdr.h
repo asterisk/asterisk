@@ -28,6 +28,8 @@
 
 #include <sys/time.h>
 
+#include "asterisk/data.h"
+
 /*!
  * \brief CDR Flags
  */
@@ -434,5 +436,15 @@ int ast_cdr_engine_init(void);
 
 /*! Submit any remaining CDRs and prepare for shutdown */
 void ast_cdr_engine_term(void);
+
+/*!
+ * \brief
+ * \param[in] tree Where to insert the cdr.
+ * \param[in] cdr The cdr structure to insert in 'tree'.
+ * \param[in] recur Go throw all the cdr levels.
+ * \retval <0 on error.
+ * \retval 0 on success.
+ */
+int ast_cdr_data_add_structure(struct ast_data *tree, struct ast_cdr *cdr, int recur);
 
 #endif /* _ASTERISK_CDR_H */

@@ -9717,6 +9717,57 @@ static void device_state_cb(const struct ast_event *event, void *unused)
 	}
 }
 
+/*!
+ * \internal
+ * \brief Implements the hints data provider.
+ */
+static int hints_data_provider_get(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct ast_data *data_hint;
+	struct ast_hint *hint;
+	int watchers;
+	struct ast_state_cb *watcher;
+
+	AST_RWLIST_RDLOCK(&hints);
+	if (AST_RWLIST_EMPTY(&hints)) {
+		AST_RWLIST_UNLOCK(&hints);
+		return 0;
+	}
+
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
+		watchers = 0;
+		AST_LIST_TRAVERSE(&hint->callbacks, watcher, entry) {
+			watchers++;
+		}
+		data_hint = ast_data_add_node(data_root, "hint");
+		if (!data_hint) {
+			continue;
+		}
+		ast_data_add_str(data_hint, "extension", ast_get_extension_name(hint->exten));
+		ast_data_add_str(data_hint, "context", ast_get_context_name(ast_get_extension_context(hint->exten)));
+		ast_data_add_str(data_hint, "application", ast_get_extension_app(hint->exten));
+		ast_data_add_str(data_hint, "state", ast_extension_state2str(hint->laststate));
+		ast_data_add_int(data_hint, "watchers", watchers);
+
+		if (!ast_data_search_match(search, data_hint)) {
+			ast_data_remove_node(data_root, data_hint);
+		}
+	}
+	AST_RWLIST_UNLOCK(&hints);
+
+	return 0;
+}
+
+static const struct ast_data_handler hints_data_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = hints_data_provider_get
+};
+
+static const struct ast_data_entry pbx_data_providers[] = {
+	AST_DATA_ENTRY("asterisk/core/hints", &hints_data_provider),
+};
+
 int load_pbx(void)
 {
 	int x;
@@ -9729,6 +9780,7 @@ int load_pbx(void)
 
 	ast_verb(1, "Registering builtin applications:\n");
 	ast_cli_register_multiple(pbx_cli, ARRAY_LEN(pbx_cli));
+	ast_data_register_multiple_core(pbx_data_providers, ARRAY_LEN(pbx_data_providers));
 	__ast_custom_function_register(&exception_function, NULL);
 	__ast_custom_function_register(&testtime_function, NULL);
 

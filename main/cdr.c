@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/data.h"
 
 /*! Default AMA flag for billing records (CDR's) */
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
@@ -1633,5 +1634,52 @@ void ast_cdr_engine_term(void)
 int ast_cdr_engine_reload(void)
 {
 	return do_reload(1);
+}
+
+int ast_cdr_data_add_structure(struct ast_data *tree, struct ast_cdr *cdr, int recur)
+{
+	struct ast_cdr *tmpcdr;
+	struct ast_data *level;
+	struct ast_var_t *variables;
+	const char *var, *val;
+	int x = 1, i;
+	char workspace[256];
+	char *tmp;
+
+	if (!cdr) {
+		return -1;
+	}
+
+	for (tmpcdr = cdr; tmpcdr; tmpcdr = (recur ? tmpcdr->next : NULL)) {
+		level = ast_data_add_node(tree, "level");
+		if (!level) {
+			continue;
+		}
+
+		ast_data_add_int(level, "level_number", x);
+
+		AST_LIST_TRAVERSE(&tmpcdr->varshead, variables, entries) {
+			if (variables && (var = ast_var_name(variables)) &&
+					(val = ast_var_value(variables)) && !ast_strlen_zero(var)
+					&& !ast_strlen_zero(val)) {
+				ast_data_add_str(level, var, val);
+			} else {
+				break;
+			}
+		}
+
+		for (i = 0; cdr_readonly_vars[i]; i++) {
+			workspace[0] = 0; /* null out the workspace, because the cdr_get_tv() won't write anything if time is NULL, so you get old vals */
+			ast_cdr_getvar(tmpcdr, cdr_readonly_vars[i], &tmp, workspace, sizeof(workspace), 0, 0);
+			if (!tmp) {
+				continue;
+			}
+			ast_data_add_str(level, cdr_readonly_vars[i], tmp);
+		}
+
+		x++;
+	}
+
+	return 0;
 }
 

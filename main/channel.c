@@ -72,6 +72,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/epoll.h>
 #endif
 
+#ifdef HAVE_PRI
+#include "sig_pri.h"
+#endif
+
 struct ast_epoll_data {
 	struct ast_channel *chan;
 	int which;
@@ -135,6 +139,17 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 #define NUM_CHANNEL_BUCKETS 1567
 #endif
 
+#define DATA_EXPORT_CALLERID(MEMBER)				\
+	MEMBER(ast_callerid, cid_dnid, AST_DATA_STRING)		\
+	MEMBER(ast_callerid, cid_num, AST_DATA_STRING)		\
+	MEMBER(ast_callerid, cid_name, AST_DATA_STRING)		\
+	MEMBER(ast_callerid, cid_ani, AST_DATA_STRING)		\
+	MEMBER(ast_callerid, cid_pres, AST_DATA_INTEGER)	\
+	MEMBER(ast_callerid, cid_ani2, AST_DATA_INTEGER)	\
+	MEMBER(ast_callerid, cid_tag, AST_DATA_STRING)
+
+AST_DATA_STRUCTURE(ast_callerid, DATA_EXPORT_CALLERID);
+
 #define DATA_EXPORT_CHANNEL(MEMBER)						\
 	MEMBER(ast_channel, blockproc, AST_DATA_STRING)				\
 	MEMBER(ast_channel, appl, AST_DATA_STRING)				\
@@ -151,28 +166,14 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 	MEMBER(ast_channel, parkinglot, AST_DATA_STRING)			\
 	MEMBER(ast_channel, hangupsource, AST_DATA_STRING)			\
 	MEMBER(ast_channel, dialcontext, AST_DATA_STRING)			\
-	MEMBER(ast_channel, _softhangup, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, streamid, AST_DATA_INTEGER)				\
-	MEMBER(ast_channel, vstreamid, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, oldwriteformat, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, _state, AST_DATA_INTEGER)				\
 	MEMBER(ast_channel, rings, AST_DATA_INTEGER)				\
 	MEMBER(ast_channel, priority, AST_DATA_INTEGER)				\
 	MEMBER(ast_channel, macropriority, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, amaflags, AST_DATA_INTEGER)				\
 	MEMBER(ast_channel, adsicpe, AST_DATA_INTEGER)				\
 	MEMBER(ast_channel, fin, AST_DATA_UNSIGNED_INTEGER)			\
 	MEMBER(ast_channel, fout, AST_DATA_UNSIGNED_INTEGER)			\
-	MEMBER(ast_channel, hangupcause, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, flags, AST_DATA_UNSIGNED_INTEGER)			\
-	MEMBER(ast_channel, nativeformats, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, readformat, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, writeformat, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, rawreadformat, AST_DATA_INTEGER)			\
-	MEMBER(ast_channel, rawwriteformat, AST_DATA_INTEGER)			\
 	MEMBER(ast_channel, emulate_dtmf_duration, AST_DATA_UNSIGNED_INTEGER)	\
 	MEMBER(ast_channel, visible_indication, AST_DATA_INTEGER)		\
-	MEMBER(ast_channel, transfercapability, AST_DATA_INTEGER)		\
 	MEMBER(ast_channel, context, AST_DATA_STRING)				\
 	MEMBER(ast_channel, exten, AST_DATA_STRING)				\
 	MEMBER(ast_channel, macrocontext, AST_DATA_STRING)			\
@@ -259,9 +260,170 @@ struct ast_variable *ast_channeltype_list(void)
 	return var;
 }
 
-int ast_channel_data_add_structure(struct ast_data *tree, struct ast_channel *chan)
+static void channel_data_add_flags(struct ast_data *tree,
+	struct ast_channel *chan)
 {
-	return ast_data_add_structure(ast_channel, tree, chan);
+	ast_data_add_bool(tree, "DEFER_DTMF", ast_test_flag(chan, AST_FLAG_DEFER_DTMF));
+	ast_data_add_bool(tree, "WRITE_INT", ast_test_flag(chan, AST_FLAG_WRITE_INT));
+	ast_data_add_bool(tree, "BLOCKING", ast_test_flag(chan, AST_FLAG_BLOCKING));
+	ast_data_add_bool(tree, "ZOMBIE", ast_test_flag(chan, AST_FLAG_ZOMBIE));
+	ast_data_add_bool(tree, "EXCEPTION", ast_test_flag(chan, AST_FLAG_EXCEPTION));
+	ast_data_add_bool(tree, "MOH", ast_test_flag(chan, AST_FLAG_MOH));
+	ast_data_add_bool(tree, "SPYING", ast_test_flag(chan, AST_FLAG_SPYING));
+	ast_data_add_bool(tree, "NBRIDGE", ast_test_flag(chan, AST_FLAG_NBRIDGE));
+	ast_data_add_bool(tree, "IN_AUTOLOOP", ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP));
+	ast_data_add_bool(tree, "OUTGOING", ast_test_flag(chan, AST_FLAG_OUTGOING));
+	ast_data_add_bool(tree, "IN_DTMF", ast_test_flag(chan, AST_FLAG_IN_DTMF));
+	ast_data_add_bool(tree, "EMULATE_DTMF", ast_test_flag(chan, AST_FLAG_EMULATE_DTMF));
+	ast_data_add_bool(tree, "END_DTMF_ONLY", ast_test_flag(chan, AST_FLAG_END_DTMF_ONLY));
+	ast_data_add_bool(tree, "ANSWERED_ELSEWHERE", ast_test_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE));
+	ast_data_add_bool(tree, "MASQ_NOSTREAM", ast_test_flag(chan, AST_FLAG_MASQ_NOSTREAM));
+	ast_data_add_bool(tree, "BRIDGE_HANGUP_RUN", ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN));
+	ast_data_add_bool(tree, "BRIDGE_HANGUP_DONT", ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT));
+	ast_data_add_bool(tree, "DISABLE_WORKAROUNDS", ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS));
+}
+
+static const char *callerid_ton2str(int ton)
+{
+#ifdef HAVE_PRI
+	switch (ton) {
+	case PRI_TON_INTERNATIONAL:
+		return "International Number";
+	case PRI_TON_NATIONAL:
+		return "National Number";
+	case PRI_TON_NET_SPECIFIC:
+		return "Network Specific Number";
+	case PRI_TON_SUBSCRIBER:
+		return "Subscriber Number";
+	case PRI_TON_ABBREVIATED:
+		return "Abbreviated number";
+	case PRI_TON_RESERVED:
+		return "Reserved Number";
+	case PRI_TON_UNKNOWN:
+	default:
+		return "Unknown Number Type";
+	}
+#endif
+	return "";
+}
+
+int ast_channel_data_add_structure(struct ast_data *tree,
+	struct ast_channel *chan, int add_bridged)
+{
+	struct ast_channel *bc;
+	struct ast_data *data_bridged, *data_cdr, *data_flags, *data_zones;
+	struct ast_data *data_callerid, *enum_node, *data_softhangup;
+
+	if (!tree) {
+		return -1;
+	}
+
+	ast_data_add_structure(ast_channel, tree, chan);
+
+	if (add_bridged) {
+		bc = ast_bridged_channel(chan);
+		if (bc) {
+			data_bridged = ast_data_add_node(tree, "bridged");
+			if (!data_bridged) {
+				return -1;
+			}
+			ast_channel_data_add_structure(data_bridged, bc, 0);
+		}
+	}
+
+	ast_data_add_codecs(tree, "oldwriteformat", chan->oldwriteformat);
+	ast_data_add_codecs(tree, "nativeformats", chan->nativeformats);
+	ast_data_add_codecs(tree, "readformat", chan->readformat);
+	ast_data_add_codecs(tree, "writeformat", chan->writeformat);
+	ast_data_add_codecs(tree, "rawreadformat", chan->rawreadformat);
+	ast_data_add_codecs(tree, "rawwriteformat", chan->rawwriteformat);
+
+	/* state */
+	enum_node = ast_data_add_node(tree, "state");
+	if (!enum_node) {
+		return -1;
+	}
+	ast_data_add_str(enum_node, "text", ast_state2str(chan->_state));
+	ast_data_add_int(enum_node, "value", chan->_state);
+
+	/* hangupcause */
+	enum_node = ast_data_add_node(tree, "hangupcause");
+	if (!enum_node) {
+		return -1;
+	}
+	ast_data_add_str(enum_node, "text", ast_cause2str(chan->hangupcause));
+	ast_data_add_int(enum_node, "value", chan->hangupcause);
+
+	/* amaflags */
+	enum_node = ast_data_add_node(tree, "amaflags");
+	if (!enum_node) {
+		return -1;
+	}
+	ast_data_add_str(enum_node, "text", ast_cdr_flags2str(chan->amaflags));
+	ast_data_add_int(enum_node, "value", chan->amaflags);
+
+	/* transfercapability */
+	enum_node = ast_data_add_node(tree, "transfercapability");
+	if (!enum_node) {
+		return -1;
+	}
+	ast_data_add_str(enum_node, "text", ast_transfercapability2str(chan->transfercapability));
+	ast_data_add_int(enum_node, "value", chan->transfercapability);
+
+	/* _softphangup */
+	data_softhangup = ast_data_add_node(tree, "softhangup");
+	if (!data_softhangup) {
+		return -1;
+	}
+	ast_data_add_bool(data_softhangup, "dev", chan->_softhangup & AST_SOFTHANGUP_DEV);
+	ast_data_add_bool(data_softhangup, "asyncgoto", chan->_softhangup & AST_SOFTHANGUP_ASYNCGOTO);
+	ast_data_add_bool(data_softhangup, "shutdown", chan->_softhangup & AST_SOFTHANGUP_SHUTDOWN);
+	ast_data_add_bool(data_softhangup, "timeout", chan->_softhangup & AST_SOFTHANGUP_TIMEOUT);
+	ast_data_add_bool(data_softhangup, "appunload", chan->_softhangup & AST_SOFTHANGUP_APPUNLOAD);
+	ast_data_add_bool(data_softhangup, "explicit", chan->_softhangup & AST_SOFTHANGUP_EXPLICIT);
+	ast_data_add_bool(data_softhangup, "unbridge", chan->_softhangup & AST_SOFTHANGUP_UNBRIDGE);
+
+	/* channel flags */
+	data_flags = ast_data_add_node(tree, "flags");
+	if (!data_flags) {
+		return -1;
+	}
+	channel_data_add_flags(data_flags, chan);
+
+	ast_data_add_uint(tree, "timetohangup", chan->whentohangup.tv_sec);
+
+	/* callerid */
+	data_callerid = ast_data_add_node(tree, "callerid");
+	if (!data_callerid) {
+		return -1;
+	}
+	ast_data_add_structure(ast_callerid, data_callerid, &(chan->cid));
+	/* insert the callerid ton */
+	enum_node = ast_data_add_node(data_callerid, "cid_ton");
+	if (!enum_node) {
+		return -1;
+	}
+	ast_data_add_int(enum_node, "value", chan->cid.cid_ton);
+	ast_data_add_str(enum_node, "text", callerid_ton2str(chan->cid.cid_ton));
+
+	/* tone zone */
+	if (chan->zone) {
+		data_zones = ast_data_add_node(tree, "zone");
+		if (!data_zones) {
+			return -1;
+		}
+		ast_tone_zone_data_add_structure(data_zones, chan->zone);
+	}
+
+	/* insert cdr */
+	data_cdr = ast_data_add_node(tree, "cdr");
+	if (!data_cdr) {
+		return -1;
+	}
+
+	ast_cdr_data_add_structure(data_cdr, chan->cdr, 1);
+
+	return 0;
 }
 
 int ast_channel_data_cmp_structure(const struct ast_data_search *tree,
@@ -6790,33 +6952,13 @@ int ast_plc_reload(void)
 static int data_channels_provider_handler(const struct ast_data_search *search,
 	struct ast_data *root)
 {
-	struct ast_channel *c, *bc;
+	struct ast_channel *c;
 	struct ast_channel_iterator *iter = NULL;
-	struct ast_data *data_channel, *data_bridged;
-	int channel_match, bridged_match;
-
-	channel_match = ast_data_search_has_condition(search,
-			"channel");
-	bridged_match = ast_data_search_has_condition(search,
-			"channel/bridged");
+	struct ast_data *data_channel;
 
 	for (iter = ast_channel_iterator_all_new();
 		iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
 		ast_channel_lock(c);
-
-		if (channel_match &&
-			ast_channel_data_cmp_structure(search, c, "channel")) {
-			ast_channel_unlock(c);
-			continue;
-		}
-
-		bc = ast_bridged_channel(c);
-
-		if (bridged_match && bc &&
-			ast_channel_data_cmp_structure(search, bc, "channel/bridged")) {
-			ast_channel_unlock(c);
-			continue;
-		}
 
 		data_channel = ast_data_add_node(root, "channel");
 		if (!data_channel) {
@@ -6824,22 +6966,77 @@ static int data_channels_provider_handler(const struct ast_data_search *search,
 			continue;
 		}
 
-		ast_channel_data_add_structure(data_channel, c);
-
-		if (bc) {
-			data_bridged = ast_data_add_node(data_channel, "bridged");
-			if (!data_bridged) {
-				ast_channel_unlock(c);
-				continue;
-			}
-			ast_channel_data_add_structure(data_bridged, bc);
+		if (ast_channel_data_add_structure(data_channel, c, 1) < 0) {
+			ast_log(LOG_ERROR, "Unable to add channel structure for channel: %s\n", c->name);
 		}
 
 		ast_channel_unlock(c);
+
+		if (!ast_data_search_match(search, data_channel)) {
+			ast_data_remove_node(root, data_channel);
+		}
 	}
 	if (iter) {
 		ast_channel_iterator_destroy(iter);
 	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Implements the channeltypes provider.
+ */
+static int data_channeltypes_provider_handler(const struct ast_data_search *search,
+	struct ast_data *data_root)
+{
+	struct chanlist *cl;
+	struct ast_data *data_type;
+
+	AST_RWLIST_RDLOCK(&backends);
+	AST_RWLIST_TRAVERSE(&backends, cl, list) {
+		data_type = ast_data_add_node(data_root, "type");
+		if (!data_type) {
+			continue;
+		}
+		ast_data_add_str(data_type, "name", cl->tech->type);
+		ast_data_add_str(data_type, "description", cl->tech->description);
+		ast_data_add_bool(data_type, "devicestate", cl->tech->devicestate ? 1 : 0);
+		ast_data_add_bool(data_type, "indications", cl->tech->indicate ? 1 : 0);
+		ast_data_add_bool(data_type, "transfer", cl->tech->transfer ? 1 : 0);
+		ast_data_add_bool(data_type, "send_digit_begin", cl->tech->send_digit_begin ? 1 : 0);
+		ast_data_add_bool(data_type, "send_digit_end", cl->tech->send_digit_end ? 1 : 0);
+		ast_data_add_bool(data_type, "call", cl->tech->call ? 1 : 0);
+		ast_data_add_bool(data_type, "hangup", cl->tech->hangup ? 1 : 0);
+		ast_data_add_bool(data_type, "answer", cl->tech->answer ? 1 : 0);
+		ast_data_add_bool(data_type, "read", cl->tech->read ? 1 : 0);
+		ast_data_add_bool(data_type, "write", cl->tech->write ? 1 : 0);
+		ast_data_add_bool(data_type, "send_text", cl->tech->send_text ? 1 : 0);
+		ast_data_add_bool(data_type, "send_image", cl->tech->send_image ? 1 : 0);
+		ast_data_add_bool(data_type, "send_html", cl->tech->send_html ? 1 : 0);
+		ast_data_add_bool(data_type, "exception", cl->tech->exception ? 1 : 0);
+		ast_data_add_bool(data_type, "bridge", cl->tech->bridge ? 1 : 0);
+		ast_data_add_bool(data_type, "early_bridge", cl->tech->early_bridge ? 1 : 0);
+		ast_data_add_bool(data_type, "fixup", cl->tech->fixup ? 1 : 0);
+		ast_data_add_bool(data_type, "setoption", cl->tech->setoption ? 1 : 0);
+		ast_data_add_bool(data_type, "queryoption", cl->tech->queryoption ? 1 : 0);
+		ast_data_add_bool(data_type, "write_video", cl->tech->write_video ? 1 : 0);
+		ast_data_add_bool(data_type, "write_text", cl->tech->write_text ? 1 : 0);
+		ast_data_add_bool(data_type, "bridged_channel", cl->tech->bridged_channel ? 1 : 0);
+		ast_data_add_bool(data_type, "func_channel_read", cl->tech->func_channel_read ? 1 : 0);
+		ast_data_add_bool(data_type, "func_channel_write", cl->tech->func_channel_write ? 1 : 0);
+		ast_data_add_bool(data_type, "get_base_channel", cl->tech->get_base_channel ? 1 : 0);
+		ast_data_add_bool(data_type, "set_base_channel", cl->tech->set_base_channel ? 1 : 0);
+		ast_data_add_bool(data_type, "get_pvt_uniqueid", cl->tech->get_pvt_uniqueid ? 1 : 0);
+		ast_data_add_bool(data_type, "cc_callback", cl->tech->cc_callback ? 1 : 0);
+
+		ast_data_add_codecs(data_type, "capabilities", cl->tech->capabilities);
+
+		if (!ast_data_search_match(search, data_type)) {
+			ast_data_remove_node(data_root, data_type);
+		}
+	}
+	AST_RWLIST_UNLOCK(&backends);
 
 	return 0;
 }
@@ -6853,8 +7050,18 @@ static const struct ast_data_handler channels_provider = {
 	.get = data_channels_provider_handler
 };
 
+/*!
+ * \internal
+ * \brief /asterisk/core/channeltypes provider.
+ */
+static const struct ast_data_handler channeltypes_provider = {
+	.version = AST_DATA_HANDLER_VERSION,
+	.get = data_channeltypes_provider_handler
+};
+
 static const struct ast_data_entry channel_providers[] = {
 	AST_DATA_ENTRY("/asterisk/core/channels", &channels_provider),
+	AST_DATA_ENTRY("/asterisk/core/channeltypes", &channeltypes_provider),
 };
 
 void ast_channels_init(void)
