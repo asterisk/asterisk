@@ -283,28 +283,52 @@ static void channel_data_add_flags(struct ast_data *tree,
 	ast_data_add_bool(tree, "DISABLE_WORKAROUNDS", ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS));
 }
 
-static const char *callerid_ton2str(int ton)
+static const char *party_number_ton2str(int ton)
 {
 #if defined(HAVE_PRI)
-	switch (ton) {
+	switch ((ton >> 4) & 0x07) {
 	case PRI_TON_INTERNATIONAL:
-		return "International Number";
+		return "International";
 	case PRI_TON_NATIONAL:
-		return "National Number";
+		return "National";
 	case PRI_TON_NET_SPECIFIC:
-		return "Network Specific Number";
+		return "Network Specific";
 	case PRI_TON_SUBSCRIBER:
-		return "Subscriber Number";
+		return "Subscriber";
 	case PRI_TON_ABBREVIATED:
-		return "Abbreviated number";
+		return "Abbreviated";
 	case PRI_TON_RESERVED:
-		return "Reserved Number";
+		return "Reserved";
 	case PRI_TON_UNKNOWN:
 	default:
-		return "Unknown Number Type";
+		break;
 	}
 #endif	/* defined(HAVE_PRI) */
-	return "";
+	return "Unknown";
+}
+
+static const char *party_number_plan2str(int plan)
+{
+#if defined(HAVE_PRI)
+	switch (plan & 0x0F) {
+	default:
+	case PRI_NPI_UNKNOWN:
+		break;
+	case PRI_NPI_E163_E164:
+		return "Public";
+	case PRI_NPI_X121:
+		return "Data";
+	case PRI_NPI_F69:
+		return "Telex";
+	case PRI_NPI_NATIONAL:
+		return "National Standard";
+	case PRI_NPI_PRIVATE:
+		return "Private";
+	case PRI_NPI_RESERVED:
+		return "Reserved";
+	}
+#endif	/* defined(HAVE_PRI) */
+	return "Unknown";
 }
 
 int ast_channel_data_add_structure(struct ast_data *tree,
@@ -313,6 +337,7 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 	struct ast_channel *bc;
 	struct ast_data *data_bridged, *data_cdr, *data_flags, *data_zones;
 	struct ast_data *data_callerid, *enum_node, *data_softhangup;
+	char value_str[100];
 
 	if (!tree) {
 		return -1;
@@ -404,7 +429,10 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 		return -1;
 	}
 	ast_data_add_int(enum_node, "value", chan->cid.cid_ton);
-	ast_data_add_str(enum_node, "text", callerid_ton2str(chan->cid.cid_ton));
+	snprintf(value_str, sizeof(value_str), "TON: %s/Plan: %s",
+		party_number_ton2str(chan->cid.cid_ton),
+		party_number_plan2str(chan->cid.cid_ton));
+	ast_data_add_str(enum_node, "text", value_str);
 
 	/* tone zone */
 	if (chan->zone) {
