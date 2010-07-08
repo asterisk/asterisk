@@ -813,7 +813,7 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 
 	ast_rtp_instance_get_local_address(p->rtp, &sin_tmp);
 	ast_sockaddr_to_sin(&sin_tmp, &sin);
-	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	ast_find_ourip(&us, &bindaddr_tmp);
 	if (!strcmp(ast_sockaddr_stringify_addr(&us), "127.0.0.1")) {
 		ast_log(LOG_WARNING, "Found a loopback IP on the system, check your network configuration or set the bindaddr attribute.");
@@ -956,7 +956,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		tmp->initiator = 1;
 	}
 	/* clear codecs */
-	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	if (!(tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr_tmp, NULL))) {
 	  ast_log(LOG_ERROR, "Failed to create a new RTP instance (possibly an invalid bindaddr?)\n");
 	  ast_free(tmp);
@@ -2096,7 +2096,7 @@ static int load_module(void)
 	if (!io) 
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 
-	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, Gtalk disabled\n");
 		return 0;

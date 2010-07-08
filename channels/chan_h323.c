@@ -962,7 +962,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 	{
 		struct ast_sockaddr tmp;
 
-		tmp = ast_sockaddr_from_sin(bindaddr);
+		ast_sockaddr_from_sin(&tmp, &bindaddr);
 		if (ast_find_ourip(&our_addr, &tmp)) {
 			ast_mutex_unlock(&pvt->lock);
 			ast_log(LOG_ERROR, "Unable to locate local IP address for RTP stream\n");
@@ -1994,7 +1994,7 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 		{
 			struct ast_sockaddr tmp;
 
-			tmp = ast_sockaddr_from_sin(them);
+			ast_sockaddr_from_sin(&tmp, &them);
 			ast_rtp_instance_set_remote_address(pvt->rtp, &tmp);
 		}
 		if (pvt->recvonly) {

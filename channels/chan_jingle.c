@@ -622,7 +622,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 
 	ast_rtp_instance_get_local_address(p->rtp, &sin_tmp);
 	ast_sockaddr_to_sin(&sin_tmp, &sin);
-	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	ast_find_ourip(&us_tmp, &bindaddr_tmp);
 	us.s_addr = htonl(ast_sockaddr_ipv4(&us_tmp));
 
@@ -782,7 +782,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 		ast_copy_string(tmp->them, idroster, sizeof(tmp->them));
 		tmp->initiator = 1;
 	}
-	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr_tmp, NULL);
 	tmp->parent = client;
 	if (!tmp->rtp) {
@@ -1084,7 +1084,7 @@ static int jingle_update_stun(struct jingle *client, struct jingle_pvt *p)
 		sin.sin_port = htons(tmp->port);
 		snprintf(username, sizeof(username), "%s:%s", tmp->ufrag, p->ourcandidates->ufrag);
 
-		sin_tmp = ast_sockaddr_from_sin(sin);
+		ast_sockaddr_from_sin(&sin_tmp, &sin);
 		ast_rtp_instance_stun_request(p->rtp, &sin_tmp, username);
 		tmp = tmp->next;
 	}
@@ -1906,7 +1906,7 @@ static int load_module(void)
 	if (!io) 
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 
-	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, Jingle disabled\n");
 		return 0;
