@@ -484,7 +484,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 
 	ouraddr.sin_family = AF_INET;
 	ouraddr.sin_addr = ipAddr;
-	tmp = ast_sockaddr_from_sin(ouraddr);
+	ast_sockaddr_from_sin(&tmp, &ouraddr);
 	if (!(pvt->rtp = ast_rtp_instance_new("asterisk", sched, &tmp, NULL))) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", 
 				  strerror(errno));
@@ -3937,7 +3937,7 @@ void setup_rtp_connection(ooCallData *call, const char *remoteIp,
 	them.sin_family = AF_INET;
 	them.sin_addr.s_addr = inet_addr(remoteIp); /* only works for IPv4 */
 	them.sin_port = htons(remotePort);
-	tmp = ast_sockaddr_from_sin(&them);
+	ast_sockaddr_from_sin(&tmp, &them);
 	ast_rtp_instance_set_remote_address(p->rtp, &tmp);
 
 	if (p->writeformat & AST_FORMAT_G726_AAL2) 
