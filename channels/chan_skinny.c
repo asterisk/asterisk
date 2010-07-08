@@ -2804,6 +2804,8 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 	struct ast_format_list fmt;
 	struct sockaddr_in us = { 0, };
 	struct sockaddr_in them = { 0, };
+	struct ast_sockaddr them_tmp;
+	struct ast_sockaddr us_tmp;
 	
 	sub = c->tech_pvt;
 
@@ -2818,7 +2820,8 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 	d = l->device;
 
 	if (rtp){
-		ast_rtp_instance_get_remote_address(rtp, &them);
+		ast_rtp_instance_get_remote_address(rtp, &them_tmp);
+		ast_sockaddr_to_sin(&them_tmp, &them);
 
 		/* Shutdown any early-media or previous media on re-invite */
 		transmit_stopmediatransmission(d, sub);
@@ -2832,7 +2835,8 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 			ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(fmt.bits), fmt.cur_ms);
 
 		if (!(l->directmedia) || (l->nat)){
-			ast_rtp_instance_get_local_address(rtp, &us);
+			ast_rtp_instance_get_local_address(rtp, &us_tmp);
+			ast_sockaddr_to_sin(&us_tmp, &us);
 			us.sin_addr.s_addr = us.sin_addr.s_addr ? us.sin_addr.s_addr : d->ourip.s_addr;
 			transmit_startmediatransmission(d, sub, us, fmt);
 		} else {
@@ -3702,12 +3706,14 @@ static void start_rtp(struct skinny_subchannel *sub)
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 	int hasvideo = 0;
+	struct ast_sockaddr bindaddr_tmp;
 
 	ast_mutex_lock(&sub->lock);
 	/* Allocate the RTP */
-	sub->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL);
+	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
+	sub->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr_tmp, NULL);
 	if (hasvideo)
-		sub->vrtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL);
+		sub->vrtp = ast_rtp_instance_new("asterisk", sched, &bindaddr_tmp, NULL);
 
 	if (sub->rtp) {
 		ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_RTCP, 1);
@@ -5603,6 +5609,8 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	struct ast_format_list fmt;
 	struct sockaddr_in sin = { 0, };
 	struct sockaddr_in us = { 0, };
+	struct ast_sockaddr sin_tmp;
+	struct ast_sockaddr us_tmp;
 	uint32_t addr;
 	int port;
 	int status;
@@ -5629,8 +5637,10 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	l = sub->parent;
 
 	if (sub->rtp) {
-		ast_rtp_instance_set_remote_address(sub->rtp, &sin);
-		ast_rtp_instance_get_local_address(sub->rtp, &us);
+		ast_sockaddr_from_sin(&sin_tmp, &sin);
+		ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
+		ast_rtp_instance_get_local_address(sub->rtp, &us_tmp);
+		ast_sockaddr_to_sin(&us_tmp, &us);
 		us.sin_addr.s_addr = us.sin_addr.s_addr ? us.sin_addr.s_addr : d->ourip.s_addr;
 	} else {
 		ast_log(LOG_ERROR, "No RTP structure, this is very bad\n");
@@ -6802,9 +6812,13 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
  			}
  		} else if (!strcasecmp(v->name, "host")) {
  			if (type & (TYPE_DEVICE)) {
- 				if (ast_get_ip(&CDEV->addr, v->value)) {
+				struct ast_sockaddr CDEV_addr_tmp;
+
+				if (ast_get_ip(&CDEV_addr_tmp, v->value)) {
  					ast_log(LOG_WARNING, "Bad IP '%s' at line %d.\n", v->value, v->lineno);
  				}
+				ast_sockaddr_to_sin(&CDEV_addr_tmp,
+						    &CDEV->addr);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "port")) {

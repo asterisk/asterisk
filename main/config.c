@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"	/* for the ast_str_*() API */
+#include "asterisk/netsock2.h"
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"
@@ -2386,7 +2387,20 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 			result ? *result : x, error);
 		break;
 	    }
-	case PARSE_INADDR:
+	case PARSE_ADDR:
+	    {
+		struct ast_sockaddr *addr = (struct ast_sockaddr *)p_result;
+
+		if (!ast_sockaddr_parse(addr, arg, flags & PARSE_PORT_MASK)) {
+			error = 1;
+		}
+
+		ast_debug(3, "extract addr from %s gives %s(%d)\n",
+			  arg, ast_sockaddr_stringify(addr), error);
+
+		break;
+	    }
+	case PARSE_INADDR:	/* TODO Remove this (use PARSE_ADDR instead). */
 	    {
 		char *port, *buf;
 		struct sockaddr_in _sa_buf;	/* buffer for the result */

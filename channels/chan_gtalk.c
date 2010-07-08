@@ -774,8 +774,10 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	struct aji_client *c = client->connection;
 	struct gtalk_candidate *ours1 = NULL, *ours2 = NULL;
 	struct sockaddr_in sin = { 0, };
+	struct ast_sockaddr sin_tmp;
+	struct ast_sockaddr bindaddr_tmp;
 	struct sockaddr_in dest;
-	struct in_addr us;
+	struct ast_sockaddr us;
 	iks *iq, *gtalk, *candidate, *transport;
 	char user[17], pass[17], preference[5], port[7];
 	char *lowerfrom = NULL;
@@ -809,9 +811,11 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 		goto safeout;
 	}
 
-	ast_rtp_instance_get_local_address(p->rtp, &sin);
-	ast_find_ourip(&us, bindaddr);
-	if (!strcmp(ast_inet_ntoa(us), "127.0.0.1")) {
+	ast_rtp_instance_get_local_address(p->rtp, &sin_tmp);
+	ast_sockaddr_to_sin(&sin_tmp, &sin);
+	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_find_ourip(&us, &bindaddr_tmp);
+	if (!strcmp(ast_sockaddr_stringify_addr(&us), "127.0.0.1")) {
 		ast_log(LOG_WARNING, "Found a loopback IP on the system, check your network configuration or set the bindaddr attribute.");
 	}
 
@@ -823,7 +827,8 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
 	ast_copy_string(ours1->username, user, sizeof(ours1->username));
 	ast_copy_string(ours1->password, pass, sizeof(ours1->password));
-	ast_copy_string(ours1->ip, ast_inet_ntoa(us), sizeof(ours1->ip));
+	ast_copy_string(ours1->ip, ast_sockaddr_stringify_addr(&us),
+			sizeof(ours1->ip));
 	ours1->protocol = AJI_PROTOCOL_UDP;
 	ours1->type = AJI_CONNECT_LOCAL;
 	ours1->generation = 0;
@@ -911,6 +916,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	struct aji_buddy *buddy;
 	char idroster[200];
 	char *data, *exten = NULL;
+	struct ast_sockaddr bindaddr_tmp;
 
 	ast_debug(1, "The client is %s for alloc\n", client->name);
 	if (!sid && !strchr(them, '/')) {	/* I started call! */
@@ -950,7 +956,8 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		tmp->initiator = 1;
 	}
 	/* clear codecs */
-	if (!(tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL))) {
+	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	if (!(tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr_tmp, NULL))) {
 	  ast_log(LOG_ERROR, "Failed to create a new RTP instance (possibly an invalid bindaddr?)\n");
 	  ast_free(tmp);
 	  return NULL;
@@ -1263,6 +1270,8 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 	struct ast_hostent ahp;
 	struct sockaddr_in sin = { 0, };
 	struct sockaddr_in aux = { 0, };
+	struct ast_sockaddr sin_tmp;
+	struct ast_sockaddr aux_tmp;
 
 	if (time(NULL) == p->laststun)
 		return 0;
@@ -1281,16 +1290,17 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 			 p->ourcandidates->username);
 		
 		/* Find out the result of the STUN */
-		ast_rtp_instance_get_remote_address(p->rtp, &aux);
+		ast_rtp_instance_get_remote_address(p->rtp, &aux_tmp);
+		ast_sockaddr_to_sin(&aux_tmp, &aux);
 
 		/* If the STUN result is different from the IP of the hostname,
 			lock on the stun IP of the hostname advertised by the
 			remote client */
 		if (aux.sin_addr.s_addr && 
 		    aux.sin_addr.s_addr != sin.sin_addr.s_addr)
-			ast_rtp_instance_stun_request(p->rtp, &aux, username);
+			ast_rtp_instance_stun_request(p->rtp, &aux_tmp, username);
 		else 
-			ast_rtp_instance_stun_request(p->rtp, &sin, username);
+			ast_rtp_instance_stun_request(p->rtp, &sin_tmp, username);
 		
 		if (aux.sin_addr.s_addr) {
 			ast_debug(4, "Receiving RTP traffic from IP %s, matches with remote candidate's IP %s\n", ast_inet_ntoa(aux.sin_addr), tmp->ip);
@@ -2057,6 +2067,9 @@ static int gtalk_load_config(void)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
+	struct ast_sockaddr bindaddr_tmp;
+	struct ast_sockaddr ourip_tmp;
+
 	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
 	free(jabber_loaded);
 	if (!jabber_loaded) {
@@ -2083,10 +2096,12 @@ static int load_module(void)
 	if (!io) 
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 
-	if (ast_find_ourip(&__ourip, bindaddr)) {
+	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, Gtalk disabled\n");
 		return 0;
 	}
+	__ourip.s_addr = htonl(ast_sockaddr_ipv4(&ourip_tmp));
 
 	ast_rtp_glue_register(&gtalk_rtp_glue);
 	ast_cli_register_multiple(gtalk_cli, ARRAY_LEN(gtalk_cli));

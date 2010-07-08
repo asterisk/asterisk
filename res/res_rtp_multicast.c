@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
-#include "asterisk/netsock.h"
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
 #include "asterisk/unaligned.h"
@@ -90,7 +89,7 @@ struct multicast_rtp {
 };
 
 /* Forward Declarations */
-static int multicast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct sockaddr_in *sin, void *data);
+static int multicast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data);
 static int multicast_rtp_activate(struct ast_rtp_instance *instance);
 static int multicast_rtp_destroy(struct ast_rtp_instance *instance);
 static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame);
@@ -107,7 +106,7 @@ static struct ast_rtp_engine multicast_rtp_engine = {
 };
 
 /*! \brief Function called to create a new multicast instance */
-static int multicast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct sockaddr_in *sin, void *data)
+static int multicast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data)
 {
 	struct multicast_rtp *multicast;
 	const char *type = data;
@@ -143,22 +142,30 @@ static int multicast_send_control_packet(struct ast_rtp_instance *instance, stru
 	struct multicast_control_packet control_packet = { .unique_id = htonl((u_long)time(NULL)),
 							   .command = htonl(command),
 	};
-	struct sockaddr_in control_address, remote_address;
+	struct ast_sockaddr control_address, remote_address;
 
 	ast_rtp_instance_get_local_address(instance, &control_address);
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	/* Ensure the user of us have given us both the control address and destination address */
-	if (!control_address.sin_addr.s_addr || !remote_address.sin_addr.s_addr) {
+	if (ast_sockaddr_isnull(&control_address) ||
+	    ast_sockaddr_isnull(&remote_address)) {
 		return -1;
 	}
 
-	control_packet.ip = remote_address.sin_addr.s_addr;
-	control_packet.port = htonl(ntohs(remote_address.sin_port));
+	/* The protocol only supports IPv4. */
+	if (ast_sockaddr_is_ipv6(&remote_address)) {
+		ast_log(LOG_WARNING, "Cannot send control packet for IPv6 "
+			"remote address.\n");
+		return -1;
+	}
+
+	control_packet.ip = htonl(ast_sockaddr_ipv4(&remote_address));
+	control_packet.port = htonl(ast_sockaddr_port(&remote_address));
 
 	/* Based on a recommendation by Brian West who did the FreeSWITCH implementation we send control packets twice */
-	sendto(multicast->socket, &control_packet, sizeof(control_packet), 0, (struct sockaddr *)&control_address, sizeof(control_address));
-	sendto(multicast->socket, &control_packet, sizeof(control_packet), 0, (struct sockaddr *)&control_address, sizeof(control_address));
+	ast_sendto(multicast->socket, &control_packet, sizeof(control_packet), 0, &control_address);
+	ast_sendto(multicast->socket, &control_packet, sizeof(control_packet), 0, &control_address);
 
 	return 0;
 }
@@ -196,7 +203,7 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 {
 	struct multicast_rtp *multicast = ast_rtp_instance_get_data(instance);
 	struct ast_frame *f = frame;
-	struct sockaddr_in remote_address;
+	struct ast_sockaddr remote_address;
 	int hdrlen = 12, res, codec;
 	unsigned char *rtpheader;
 
@@ -223,11 +230,12 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 
 	/* Finally send it out to the eager phones listening for us */
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
-	res = sendto(multicast->socket, (void *) rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *) &remote_address, sizeof(remote_address));
+	res = ast_sendto(multicast->socket, (void *) rtpheader, f->datalen + hdrlen, 0, &remote_address);
 
 	if (res < 0) {
-		ast_log(LOG_ERROR, "Multicast RTP Transmission error to %s:%u: %s\n",
-			ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port), strerror(errno));
+		ast_log(LOG_ERROR, "Multicast RTP Transmission error to %s: %s\n",
+			ast_sockaddr_stringify(&remote_address),
+			strerror(errno));
 	}
 
 	/* If we were forced to duplicate the frame free the new one */

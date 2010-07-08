@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 #include "asterisk/network.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/io.h"
 
 #define AST_SENSE_DENY                  0
@@ -124,12 +125,12 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
  * of getting an entire hostent structure, you instead are given
  * only the IP address inserted into a sockaddr_in structure.
  *
- * \param[out] sin The IP address is written into sin->sin_addr
+ * \param[out] addr The IP address is written into sin->sin_addr
  * \param value The hostname to look up
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_get_ip(struct sockaddr_in *sin, const char *value);
+int ast_get_ip(struct ast_sockaddr *addr, const char *value);
 
 /*!
  * \brief Get the IP address given a hostname and optional service
@@ -141,14 +142,17 @@ int ast_get_ip(struct sockaddr_in *sin, const char *value);
  * an SRV lookup will be done for "_sip._udp.example.com". If service is NULL,
  * then this function acts exactly like a call to ast_get_ip.
  *
- * \param[out] sin The IP address is written into sin->sin_addr
+ * \param addr The IP address found.  The address family is used as an input parameter to
+ * filter the returned adresses. if it is 0, both IPv4 and IPv6 addresses
+ * can be returned.
+ *
  * \param value The hostname to look up
  * \param service A specific service provided by the host. A NULL service results
  * in an A-record lookup instead of an SRV lookup
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
+int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *value, const char *service);
 
 /*!
  * \brief Get our local IP address when contacting a remote host
@@ -164,7 +168,7 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
  * \retval -1 Failure
  * \retval 0 Success
  */
-int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
+int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us);
 
 /*!
  * \brief Find an IP address associated with a specific interface
@@ -219,7 +223,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
+int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindaddr);
 
 /*!
  * \brief Convert a string to the appropriate COS value

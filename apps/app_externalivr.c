@@ -492,6 +492,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			.name = "IVR",
 		};
 		struct ast_hostent hp;
+		struct sockaddr_in remote_address_tmp;
 
 		/*communicate through socket to server*/
 		ast_debug(1, "Parsing hostname:port for socket connect from \"%s\"\n", app_args[0]);
@@ -506,9 +507,10 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		}
 
 		ast_gethostbyname(hostname, &hp);
-		ivr_desc.remote_address.sin_family = AF_INET;
-		ivr_desc.remote_address.sin_port = htons(port);
-		memcpy(&ivr_desc.remote_address.sin_addr.s_addr, hp.hp.h_addr, sizeof(hp.hp.h_addr));
+		remote_address_tmp.sin_family = AF_INET;
+		remote_address_tmp.sin_port = htons(port);
+		memcpy(&remote_address_tmp.sin_addr.s_addr, hp.hp.h_addr, sizeof(hp.hp.h_addr));
+		ast_sockaddr_from_sin(&ivr_desc.remote_address, &remote_address_tmp);
 		if (!(ser = ast_tcptls_client_create(&ivr_desc)) || !(ser = ast_tcptls_client_start(ser))) {
 			goto exit;
 		}

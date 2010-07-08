@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#include "asterisk/network.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/srv.h"
 
 /*!
@@ -51,8 +51,9 @@ struct ast_dnsmgr_entry;
  *
  * \return a DNS manager entry
  * \version 1.6.1 result changed from struct in_addr to struct sockaddr_in to store port number
+ * \version 1.8.0 result changed from struct ast_sockaddr_in to ast_sockaddr for IPv6 support
  */
-struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct sockaddr_in *result, const char *service);
+struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct ast_sockaddr *result, const char *service);
 
 /*!
  * \brief Free a DNS manager entry
@@ -67,7 +68,8 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
  * \brief Allocate and initialize a DNS manager entry
  *
  * \param name the hostname
- * \param result where to store the IP address as the DNS manager refreshes it
+ * \param result where to store the IP address as the DNS manager refreshes it. The address family
+ * is used as an input parameter to filter the returned adresses. if it is 0, both IPv4 * and IPv6 addresses can be returned.
  * \param dnsmgr Where to store the allocate DNS manager entry
  * \param service
  *
@@ -79,7 +81,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
  * \retval non-zero failure
  * \version 1.6.1 result changed from struct in_addr to struct aockaddr_in to store port number
  */
-int ast_dnsmgr_lookup(const char *name, struct sockaddr_in *result, struct ast_dnsmgr_entry **dnsmgr, const char *service);
+int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service);
 
 /*!
  * \brief Force a refresh of a dnsmgr entry

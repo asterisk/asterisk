@@ -4441,11 +4441,15 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	sin->sin_family = AF_INET;
 
 	if (!(peer = find_peer(peername, 1))) {
+		struct ast_sockaddr sin_tmp;
+
 		cai->found = 0;
-		if (ast_get_ip_or_srv(sin, peername, srvlookup ? "_iax._udp" : NULL)) {
+		sin_tmp.ss.ss_family = AF_INET;
+		if (ast_get_ip_or_srv(&sin_tmp, peername, srvlookup ? "_iax._udp" : NULL)) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
 			return -1;
 		}
+		ast_sockaddr_to_sin(&sin_tmp, sin);
 		sin->sin_port = htons(IAX_DEFAULT_PORTNO);
 		/* use global iax prefs for unknown peer/user */
 		/* But move the calling channel's native codec to the top of the preference list */
@@ -8312,14 +8316,18 @@ static int iax2_append_register(const char *hostname, const char *username,
 	const char *secret, const char *porta)
 {
 	struct iax2_registry *reg;
+	struct ast_sockaddr reg_addr_tmp;
 
 	if (!(reg = ast_calloc(1, sizeof(*reg))))
 		return -1;
 
-	if (ast_dnsmgr_lookup(hostname, &reg->addr, &reg->dnsmgr, srvlookup ? "_iax._udp" : NULL) < 0) {
+	reg->addr.sin_family = AF_INET;
+	ast_sockaddr_from_sin(&reg_addr_tmp, &reg->addr);
+	if (ast_dnsmgr_lookup(hostname, &reg_addr_tmp, &reg->dnsmgr, srvlookup ? "_iax._udp" : NULL) < 0) {
 		ast_free(reg);
 		return -1;
 	}
+	ast_sockaddr_to_sin(&reg_addr_tmp, &reg->addr);
 
 	ast_copy_string(reg->username, username, sizeof(reg->username));
 
@@ -11991,6 +11999,7 @@ static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
 static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 {
 	struct sockaddr_in sin;
+	struct ast_sockaddr sin_tmp;
 	int nonlocal = 1;
 	int port = IAX_DEFAULT_PORTNO;
 	int sockfd = defaultsockfd;
@@ -12010,10 +12019,11 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 			port = IAX_DEFAULT_PORTNO;
 	}
 	
-	if (!ast_get_ip(&sin, addr)) {
+	if (!ast_get_ip(&sin_tmp, addr)) {
 		struct ast_netsock *sock;
 		int res;
 
+		ast_sockaddr_to_sin(&sin_tmp, &sin);
 		sin.sin_port = 0;
 		sin.sin_family = AF_INET;
 		res = check_srcaddr((struct sockaddr *) &sin, sizeof(sin));
@@ -12212,19 +12222,29 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 						}
 					}
 				} else {
+					struct ast_sockaddr peer_addr_tmp;
+
 					/* Non-dynamic.  Make sure we become that way if we're not */
 					ast_sched_thread_del(sched, peer->expire);
 					ast_clear_flag64(peer, IAX_DYNAMIC);
-					if (ast_dnsmgr_lookup(v->value, &peer->addr, &peer->dnsmgr, srvlookup ? "_iax._udp" : NULL))
+					peer_addr_tmp.ss.ss_family = AF_INET;
+					if (ast_dnsmgr_lookup(v->value, &peer_addr_tmp, &peer->dnsmgr, srvlookup ? "_iax._udp" : NULL))
 						return peer_unref(peer);
+					ast_sockaddr_to_sin(&peer_addr_tmp,
+							    &peer->addr);
 					if (!peer->addr.sin_port)
 						peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
 				}
 				if (!maskfound)
 					inet_aton("255.255.255.255", &peer->mask);
 			} else if (!strcasecmp(v->name, "defaultip")) {
-				if (ast_get_ip(&peer->defaddr, v->value))
+				struct ast_sockaddr peer_defaddr_tmp;
+
+				if (ast_get_ip(&peer_defaddr_tmp, v->value)) {
 					return peer_unref(peer);
+				}
+				ast_sockaddr_to_sin(&peer_defaddr_tmp,
+						    &peer->defaddr);
 			} else if (!strcasecmp(v->name, "sourceaddress")) {
 				peer_set_srcaddr(peer, v->value);
 			} else if (!strcasecmp(v->name, "permit") ||

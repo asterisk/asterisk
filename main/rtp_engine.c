@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/pbx.h"
 #include "asterisk/translate.h"
+#include "asterisk/netsock2.h"
 
 struct ast_srtp_res *res_srtp = NULL;
 struct ast_srtp_policy_res *res_srtp_policy = NULL;
@@ -51,11 +52,11 @@ struct ast_rtp_instance {
 	/*! RTP properties that have been set and their value */
 	int properties[AST_RTP_PROPERTY_MAX];
 	/*! Address that we are expecting RTP to come in to */
-	struct sockaddr_in local_address;
+	struct ast_sockaddr local_address;
 	/*! Address that we are sending RTP to */
-	struct sockaddr_in remote_address;
+	struct ast_sockaddr remote_address;
 	/*! Alternate address that we are receiving RTP from */
-	struct sockaddr_in alt_remote_address;
+	struct ast_sockaddr alt_remote_address;
 	/*! Instance that we are bridged to if doing remote or local bridging */
 	struct ast_rtp_instance *bridged;
 	/*! Payload and packetization information */
@@ -294,9 +295,11 @@ int ast_rtp_instance_destroy(struct ast_rtp_instance *instance)
 	return 0;
 }
 
-struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sched_context *sched, struct sockaddr_in *sin, void *data)
+struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
+		struct sched_context *sched, const struct ast_sockaddr *sa,
+		void *data)
 {
-	struct sockaddr_in address = { 0, };
+	struct ast_sockaddr address = {{0,}};
 	struct ast_rtp_instance *instance = NULL;
 	struct ast_rtp_engine *engine = NULL;
 
@@ -331,11 +334,8 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sc
 		return NULL;
 	}
 	instance->engine = engine;
-	instance->local_address.sin_family = AF_INET;
-	instance->local_address.sin_addr = sin->sin_addr;
-	instance->remote_address.sin_family = AF_INET;
-	address.sin_family = AF_INET;
-	address.sin_addr = sin->sin_addr;
+	ast_sockaddr_copy(&instance->local_address, sa);
+	ast_sockaddr_copy(&address, sa);
 
 	ast_debug(1, "Using engine '%s' for RTP instance '%p'\n", engine->name, instance);
 
@@ -371,17 +371,17 @@ struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int r
 	return instance->engine->read(instance, rtcp);
 }
 
-int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance, struct sockaddr_in *address)
+int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance,
+		const struct ast_sockaddr *address)
 {
-	instance->local_address.sin_addr = address->sin_addr;
-	instance->local_address.sin_port = address->sin_port;
+	ast_sockaddr_copy(&instance->local_address, address);
 	return 0;
 }
 
-int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address)
+int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance,
+		const struct ast_sockaddr *address)
 {
-	instance->remote_address.sin_addr = address->sin_addr;
-	instance->remote_address.sin_port = address->sin_port;
+	ast_sockaddr_copy(&instance->remote_address, address);
 
 	/* moo */
 
@@ -392,10 +392,10 @@ int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struc
 	return 0;
 }
 
-int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address)
+int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance,
+		const struct ast_sockaddr *address)
 {
-	instance->alt_remote_address.sin_addr = address->sin_addr;
-	instance->alt_remote_address.sin_port = address->sin_port;
+	ast_sockaddr_copy(&instance->alt_remote_address, address);
 
 	/* oink */
 
@@ -406,24 +406,22 @@ int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, s
 	return 0;
 }
 
-int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct sockaddr_in *address)
+int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance,
+		struct ast_sockaddr *address)
 {
-	if ((address->sin_family != AF_INET) ||
-	    (address->sin_port != instance->local_address.sin_port) ||
-	    (address->sin_addr.s_addr != instance->local_address.sin_addr.s_addr)) {
-		memcpy(address, &instance->local_address, sizeof(*address));
+	if (ast_sockaddr_cmp(address, &instance->local_address) != 0) {
+		ast_sockaddr_copy(address, &instance->local_address);
 		return 1;
 	}
 
 	return 0;
 }
 
-int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address)
+int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance,
+		struct ast_sockaddr *address)
 {
-	if ((address->sin_family != AF_INET) ||
-	    (address->sin_port != instance->remote_address.sin_port) ||
-	    (address->sin_addr.s_addr != instance->remote_address.sin_addr.s_addr)) {
-		memcpy(address, &instance->remote_address, sizeof(*address));
+	if (ast_sockaddr_cmp(address, &instance->remote_address) != 0) {
+		ast_sockaddr_copy(address, &instance->remote_address);
 		return 1;
 	}
 
@@ -959,8 +957,8 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = { NULL, };
 	format_t oldcodec0 = codec0, oldcodec1 = codec1;
-	struct sockaddr_in ac1 = {0,}, vac1 = {0,}, tac1 = {0,}, ac0 = {0,}, vac0 = {0,}, tac0 = {0,};
-	struct sockaddr_in t1 = {0,}, vt1 = {0,}, tt1 = {0,}, t0 = {0,}, vt0 = {0,}, tt0 = {0,};
+	struct ast_sockaddr ac1 = {{0,}}, vac1 = {{0,}}, tac1 = {{0,}}, ac0 = {{0,}}, vac0 = {{0,}}, tac0 = {{0,}};
+	struct ast_sockaddr t1 = {{0,}}, vt1 = {{0,}}, tt1 = {{0,}}, t0 = {{0,}}, vt0 = {{0,}}, tt0 = {{0,}};
 	struct ast_frame *fr = NULL;
 
 	/* Test the first channel */
@@ -1035,44 +1033,59 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 			codec0 = glue0->get_codec(c0);
 		}
 
-		if ((inaddrcmp(&t1, &ac1)) ||
-		    (vinstance1 && inaddrcmp(&vt1, &vac1)) ||
-		    (tinstance1 && inaddrcmp(&tt1, &tac1)) ||
+		if ((ast_sockaddr_cmp(&t1, &ac1)) ||
+		    (vinstance1 && ast_sockaddr_cmp(&vt1, &vac1)) ||
+		    (tinstance1 && ast_sockaddr_cmp(&tt1, &tac1)) ||
 		    (codec1 != oldcodec1)) {
-			ast_debug(1, "Oooh, '%s' changed end address to %s:%d (format %s)\n",
-				  c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), ast_getformatname(codec1));
-			ast_debug(1, "Oooh, '%s' changed end vaddress to %s:%d (format %s)\n",
-				  c1->name, ast_inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), ast_getformatname(codec1));
-			ast_debug(1, "Oooh, '%s' changed end taddress to %s:%d (format %s)\n",
-				  c1->name, ast_inet_ntoa(tt1.sin_addr), ntohs(tt1.sin_port), ast_getformatname(codec1));
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
-				  c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), ast_getformatname(oldcodec1));
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
-				  c1->name, ast_inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), ast_getformatname(oldcodec1));
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
-				  c1->name, ast_inet_ntoa(tac1.sin_addr), ntohs(tac1.sin_port), ast_getformatname(oldcodec1));
-			if (glue0->update_peer(c0, t1.sin_addr.s_addr ? instance1 : NULL, vt1.sin_addr.s_addr ? vinstance1 : NULL, tt1.sin_addr.s_addr ? tinstance1 : NULL, codec1, 0)) {
+			ast_debug(1, "Oooh, '%s' changed end address to %s (format %s)\n",
+				  c1->name, ast_sockaddr_stringify(&t1),
+				  ast_getformatname(codec1));
+			ast_debug(1, "Oooh, '%s' changed end vaddress to %s (format %s)\n",
+				  c1->name, ast_sockaddr_stringify(&vt1),
+				  ast_getformatname(codec1));
+			ast_debug(1, "Oooh, '%s' changed end taddress to %s (format %s)\n",
+				  c1->name, ast_sockaddr_stringify(&tt1),
+				  ast_getformatname(codec1));
+			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
+				  c1->name, ast_sockaddr_stringify(&ac1),
+				  ast_getformatname(oldcodec1));
+			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
+				  c1->name, ast_sockaddr_stringify(&vac1),
+				  ast_getformatname(oldcodec1));
+			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
+				  c1->name, ast_sockaddr_stringify(&tac1),
+				  ast_getformatname(oldcodec1));
+			if (glue0->update_peer(c0,
+					       ast_sockaddr_isnull(&t1)  ? NULL : instance1,
+					       ast_sockaddr_isnull(&vt1) ? NULL : vinstance1,
+					       ast_sockaddr_isnull(&tt1) ? NULL : tinstance1,
+					       codec1, 0)) {
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			}
-			memcpy(&ac1, &t1, sizeof(ac1));
-			memcpy(&vac1, &vt1, sizeof(vac1));
-			memcpy(&tac1, &tt1, sizeof(tac1));
+			ast_sockaddr_copy(&ac1, &t1);
+			ast_sockaddr_copy(&vac1, &vt1);
+			ast_sockaddr_copy(&tac1, &tt1);
 			oldcodec1 = codec1;
 		}
-		if ((inaddrcmp(&t0, &ac0)) ||
-		    (vinstance0 && inaddrcmp(&vt0, &vac0)) ||
-		    (tinstance0 && inaddrcmp(&tt0, &tac0)) ||
+		if ((ast_sockaddr_cmp(&t0, &ac0)) ||
+		    (vinstance0 && ast_sockaddr_cmp(&vt0, &vac0)) ||
+		    (tinstance0 && ast_sockaddr_cmp(&tt0, &tac0)) ||
 		    (codec0 != oldcodec0)) {
-			ast_debug(1, "Oooh, '%s' changed end address to %s:%d (format %s)\n",
-				  c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), ast_getformatname(codec0));
-			ast_debug(1, "Oooh, '%s' was %s:%d/(format %s)\n",
-				  c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), ast_getformatname(oldcodec0));
-			if (glue1->update_peer(c1, t0.sin_addr.s_addr ? instance0 : NULL, vt0.sin_addr.s_addr ? vinstance0 : NULL, tt0.sin_addr.s_addr ? tinstance0 : NULL, codec0, 0)) {
+			ast_debug(1, "Oooh, '%s' changed end address to %s (format %s)\n",
+				  c0->name, ast_sockaddr_stringify(&t0),
+				  ast_getformatname(codec0));
+			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
+				  c0->name, ast_sockaddr_stringify(&ac0),
+				  ast_getformatname(oldcodec0));
+			if (glue1->update_peer(c1, t0.len ? instance0 : NULL,
+						vt0.len ? vinstance0 : NULL,
+						tt0.len ? tinstance0 : NULL,
+						codec0, 0)) {
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			}
-			memcpy(&ac0, &t0, sizeof(ac0));
-			memcpy(&vac0, &vt0, sizeof(vac0));
-			memcpy(&tac0, &tt0, sizeof(tac0));
+			ast_sockaddr_copy(&ac0, &t0);
+			ast_sockaddr_copy(&vac0, &vt0);
+			ast_sockaddr_copy(&tac0, &tt0);
 			oldcodec0 = codec0;
 		}
 
@@ -1122,9 +1135,9 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 				}
 				/* Update local address information */
 				ast_rtp_instance_get_remote_address(instance0, &t0);
-				memcpy(&ac0, &t0, sizeof(ac0));
+				ast_sockaddr_copy(&ac0, &t0);
 				ast_rtp_instance_get_remote_address(instance1, &t1);
-				memcpy(&ac1, &t1, sizeof(ac1));
+				ast_sockaddr_copy(&ac1, &t1);
 				/* Update codec information */
 				if (glue0->get_codec && c0->tech_pvt) {
 					oldcodec0 = codec0 = glue0->get_codec(c0);
@@ -1201,6 +1214,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 			*vinstance0 = NULL, *vinstance1 = NULL,
 			*tinstance0 = NULL, *tinstance1 = NULL;
 	struct ast_rtp_glue *glue0, *glue1;
+	struct ast_sockaddr addr1, addr2;
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID, text_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID, text_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
@@ -1247,6 +1261,17 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	if (audio_glue0_res == AST_RTP_GLUE_RESULT_FORBID || audio_glue1_res == AST_RTP_GLUE_RESULT_FORBID) {
 		res = AST_BRIDGE_FAILED_NOWARN;
 		goto done;
+	}
+
+
+	/* If address families differ, force a local bridge */
+	ast_rtp_instance_get_remote_address(instance0, &addr1);
+	ast_rtp_instance_get_remote_address(instance1, &addr2);
+
+	if (addr1.ss.ss_family != addr2.ss.ss_family ||
+	   (ast_sockaddr_is_ipv4_mapped(&addr1) != ast_sockaddr_is_ipv4_mapped(&addr2))) {
+		audio_glue0_res = AST_RTP_GLUE_RESULT_LOCAL;
+		audio_glue1_res = AST_RTP_GLUE_RESULT_LOCAL;
 	}
 
 	/* If we need to get DTMF see if we can do it outside of the RTP stream itself */
@@ -1640,7 +1665,9 @@ int ast_rtp_instance_activate(struct ast_rtp_instance *instance)
 	return instance->engine->activate ? instance->engine->activate(instance) : 0;
 }
 
-void ast_rtp_instance_stun_request(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username)
+void ast_rtp_instance_stun_request(struct ast_rtp_instance *instance,
+				   struct ast_sockaddr *suggestion,
+				   const char *username)
 {
 	if (instance->engine->stun_request) {
 		instance->engine->stun_request(instance, suggestion, username);

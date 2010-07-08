@@ -235,8 +235,7 @@ void *ast_tcptls_server_root(void *data)
 {
 	struct ast_tcptls_session_args *desc = data;
 	int fd;
-	struct sockaddr_in sin;
-	socklen_t sinlen;
+	struct ast_sockaddr addr;
 	struct ast_tcptls_session_instance *tcptls_session;
 	pthread_t launched;
 
@@ -248,8 +247,7 @@ void *ast_tcptls_server_root(void *data)
 		i = ast_wait_for_input(desc->accept_fd, desc->poll_timeout);
 		if (i <= 0)
 			continue;
-		sinlen = sizeof(sin);
-		fd = accept(desc->accept_fd, (struct sockaddr *) &sin, &sinlen);
+		fd = ast_accept(desc->accept_fd, &addr);
 		if (fd < 0) {
 			if ((errno != EAGAIN) && (errno != EINTR))
 				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
@@ -268,7 +266,7 @@ void *ast_tcptls_server_root(void *data)
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 		tcptls_session->fd = fd;
 		tcptls_session->parent = desc;
-		memcpy(&tcptls_session->remote_address, &sin, sizeof(tcptls_session->remote_address));
+		ast_sockaddr_copy(&tcptls_session->remote_address, &addr);
 
 		tcptls_session->client = 0;
 
@@ -373,10 +371,10 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_se
 		goto client_start_error;
 	}
 
-	if (connect(desc->accept_fd, (const struct sockaddr *) &desc->remote_address, sizeof(desc->remote_address))) {
-		ast_log(LOG_ERROR, "Unable to connect %s to %s:%d: %s\n",
+	if (ast_connect(desc->accept_fd, &desc->remote_address)) {
+		ast_log(LOG_ERROR, "Unable to connect %s to %s: %s\n",
 			desc->name,
-			ast_inet_ntoa(desc->remote_address.sin_addr), ntohs(desc->remote_address.sin_port),
+			ast_sockaddr_stringify(&desc->remote_address),
 			strerror(errno));
 		goto client_start_error;
 	}
@@ -407,17 +405,18 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	struct ast_tcptls_session_instance *tcptls_session = NULL;
 
 	/* Do nothing if nothing has changed */
-	if (!memcmp(&desc->old_address, &desc->remote_address, sizeof(desc->old_address))) {
+	if (!ast_sockaddr_cmp(&desc->old_address, &desc->remote_address)) {
 		ast_debug(1, "Nothing changed in %s\n", desc->name);
 		return NULL;
 	}
 
-	desc->old_address = desc->remote_address;
+	ast_sockaddr_copy(&desc->old_address, &desc->remote_address);
 
 	if (desc->accept_fd != -1)
 		close(desc->accept_fd);
 
-	desc->accept_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	desc->accept_fd = socket(ast_sockaddr_is_ipv6(&desc->remote_address) ?
+				 AF_INET6 : AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (desc->accept_fd < 0) {
 		ast_log(LOG_WARNING, "Unable to allocate socket for %s: %s\n",
 			desc->name, strerror(errno));
@@ -426,12 +425,12 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 
 	/* if a local address was specified, bind to it so the connection will
 	   originate from the desired address */
-	if (desc->local_address.sin_family != 0) {
+	if (!ast_sockaddr_isnull(&desc->local_address)) {
 		setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-		if (bind(desc->accept_fd, (struct sockaddr *) &desc->local_address, sizeof(desc->local_address))) {
-			ast_log(LOG_ERROR, "Unable to bind %s to %s:%d: %s\n",
-			desc->name,
-				ast_inet_ntoa(desc->local_address.sin_addr), ntohs(desc->local_address.sin_port),
+		if (ast_bind(desc->accept_fd, &desc->local_address)) {
+			ast_log(LOG_ERROR, "Unable to bind %s to %s: %s\n",
+				desc->name,
+				ast_sockaddr_stringify(&desc->local_address),
 				strerror(errno));
 			goto error;
 		}
@@ -445,7 +444,8 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	tcptls_session->fd = desc->accept_fd;
 	tcptls_session->parent = desc;
 	tcptls_session->parent->worker_fn = NULL;
-	memcpy(&tcptls_session->remote_address, &desc->remote_address, sizeof(tcptls_session->remote_address));
+	ast_sockaddr_copy(&tcptls_session->remote_address,
+			  &desc->remote_address);
 
 	return tcptls_session;
 
@@ -463,12 +463,12 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 	int x = 1;
 
 	/* Do nothing if nothing has changed */
-	if (!memcmp(&desc->old_address, &desc->local_address, sizeof(desc->old_address))) {
+	if (!ast_sockaddr_cmp(&desc->old_address, &desc->local_address)) {
 		ast_debug(1, "Nothing changed in %s\n", desc->name);
 		return;
 	}
 
-	desc->old_address = desc->local_address;
+	ast_sockaddr_copy(&desc->old_address, &desc->local_address);
 
 	/* Shutdown a running server if there is one */
 	if (desc->master != AST_PTHREADT_NULL) {
@@ -481,22 +481,23 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 		close(desc->accept_fd);
 
 	/* If there's no new server, stop here */
-	if (desc->local_address.sin_family == 0) {
+	if (ast_sockaddr_isnull(&desc->local_address)) {
 		ast_debug(2, "Server disabled:  %s\n", desc->name);
 		return;
 	}
 
-	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
+	desc->accept_fd = socket(ast_sockaddr_is_ipv6(&desc->local_address) ?
+				 AF_INET6 : AF_INET, SOCK_STREAM, 0);
 	if (desc->accept_fd < 0) {
 		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n", desc->name, strerror(errno));
 		return;
 	}
 
 	setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-	if (bind(desc->accept_fd, (struct sockaddr *) &desc->local_address, sizeof(desc->local_address))) {
-		ast_log(LOG_ERROR, "Unable to bind %s to %s:%d: %s\n",
+	if (ast_bind(desc->accept_fd, &desc->local_address)) {
+		ast_log(LOG_ERROR, "Unable to bind %s to %s: %s\n",
 			desc->name,
-			ast_inet_ntoa(desc->local_address.sin_addr), ntohs(desc->local_address.sin_port),
+			ast_sockaddr_stringify(&desc->local_address),
 			strerror(errno));
 		goto error;
 	}
@@ -507,9 +508,9 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 	flags = fcntl(desc->accept_fd, F_GETFL);
 	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
 	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {
-		ast_log(LOG_ERROR, "Unable to launch thread for %s on %s:%d: %s\n",
+		ast_log(LOG_ERROR, "Unable to launch thread for %s on %s: %s\n",
 			desc->name,
-			ast_inet_ntoa(desc->local_address.sin_addr), ntohs(desc->local_address.sin_port),
+			ast_sockaddr_stringify(&desc->local_address),
 			strerror(errno));
 		goto error;
 	}
@@ -537,7 +538,6 @@ int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_
 {
 	if (!strcasecmp(varname, "tlsenable") || !strcasecmp(varname, "sslenable")) {
 		tls_cfg->enabled = ast_true(value) ? 1 : 0;
-		tls_desc->local_address.sin_family = AF_INET;
 	} else if (!strcasecmp(varname, "tlscertfile") || !strcasecmp(varname, "sslcert") || !strcasecmp(varname, "tlscert")) {
 		ast_free(tls_cfg->certfile);
 		tls_cfg->certfile = ast_strdup(value);
@@ -558,10 +558,8 @@ int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_
 	} else if (!strcasecmp(varname, "tlsdontverifyserver")) {
 		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_DONT_VERIFY_SERVER);
 	} else if (!strcasecmp(varname, "tlsbindaddr") || !strcasecmp(varname, "sslbindaddr")) {
-		if (ast_parse_arg(value, PARSE_INADDR, &tls_desc->local_address))
+		if (ast_parse_arg(value, PARSE_ADDR, &tls_desc->local_address))
 			ast_log(LOG_WARNING, "Invalid %s '%s'\n", varname, value);
-	} else if (!strcasecmp(varname, "tlsbindport") || !strcasecmp(varname, "sslbindport")) {
-		tls_desc->local_address.sin_port = htons(atoi(value));
 	} else if (!strcasecmp(varname, "tlsclientmethod") || !strcasecmp(varname, "sslclientmethod")) {
 		if (!strcasecmp(value, "tlsv1")) {
 			ast_set_flag(&tls_cfg->flags, AST_SSL_TLSV1_CLIENT);

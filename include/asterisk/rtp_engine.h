@@ -71,7 +71,7 @@ extern "C" {
 
 #include "asterisk/astobj2.h"
 #include "asterisk/frame.h"
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/sched.h"
 #include "asterisk/res_srtp.h"
 
@@ -313,7 +313,7 @@ struct ast_rtp_engine {
 	/*! Module this RTP engine came from, used for reference counting */
 	struct ast_module *mod;
 	/*! Callback for setting up a new RTP instance */
-	int (*new)(struct ast_rtp_instance *instance, struct sched_context *sched, struct sockaddr_in *sin, void *data);
+	int (*new)(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *sa, void *data);
 	/*! Callback for destroying an RTP instance */
 	int (*destroy)(struct ast_rtp_instance *instance);
 	/*! Callback for writing out a frame */
@@ -339,9 +339,9 @@ struct ast_rtp_engine {
 	/*! Callback for setting packetization preferences */
 	void (*packetization_set)(struct ast_rtp_instance *instance, struct ast_codec_pref *pref);
 	/*! Callback for setting the remote address that RTP is to be sent to */
-	void (*remote_address_set)(struct ast_rtp_instance *instance, struct sockaddr_in *sin);
+	void (*remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
 	/*! Callback for setting an alternate remote address */
-	void (*alt_remote_address_set)(struct ast_rtp_instance *instance, struct sockaddr_in *sin);
+	void (*alt_remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
 	/*! Callback for changing DTMF mode */
 	int (*dtmf_mode_set)(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode);
 	/*! Callback for retrieving statistics */
@@ -369,7 +369,7 @@ struct ast_rtp_engine {
 	/*! Callback to indicate that packets will now flow */
 	int (*activate)(struct ast_rtp_instance *instance);
 	/*! Callback to request that the RTP engine send a STUN BIND request */
-	void (*stun_request)(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username);
+	void (*stun_request)(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username);
 	/*! Callback to get the transcodeable formats supported */
 	int (*available_formats)(struct ast_rtp_instance *instance, format_t to_endpoint, format_t to_asterisk);
 	/*! Linked list information */
@@ -519,7 +519,7 @@ int ast_rtp_glue_unregister(struct ast_rtp_glue *glue);
  *
  * \param engine_name Name of the engine to use for the RTP instance
  * \param sched Scheduler context that the RTP engine may want to use
- * \param sin Address we want to bind to
+ * \param sa Address we want to bind to
  * \param data Unique data for the engine
  *
  * \retval non-NULL success
@@ -533,14 +533,16 @@ int ast_rtp_glue_unregister(struct ast_rtp_glue *glue);
  * \endcode
  *
  * This creates a new RTP instance using the default engine and asks the RTP engine to bind to the address given
- * in the sin structure.
+ * in the address structure.
  *
  * \note The RTP engine does not have to use the address provided when creating an RTP instance. It may choose to use
  *       another depending on it's own configuration.
  *
  * \since 1.8
  */
-struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name, struct sched_context *sched, struct sockaddr_in *sin, void *data);
+struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
+                struct sched_context *sched, const struct ast_sockaddr *sa,
+                void *data);
 
 /*!
  * \brief Destroy an RTP instance
@@ -663,7 +665,8 @@ struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int r
  *
  * \since 1.8
  */
-int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
+int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, const struct ast_sockaddr *address);
+
 
 /*!
  * \brief Set the address of an an alternate RTP address to receive from
@@ -677,7 +680,7 @@ int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struc
  * Example usage:
  *
  * \code
- * ast_rtp_instance_set_alt_remote_address(instance, &sin);
+ * ast_rtp_instance_set_alt_remote_address(instance, &address);
  * \endcode
  *
  * This changes the alternate remote address that RTP will be sent to on instance to the address given in the sin
@@ -685,7 +688,7 @@ int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, struc
  *
  * \since 1.8
  */
-int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
+int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, const struct ast_sockaddr *address);
 
 /*!
  * \brief Set the address that we are expecting to receive RTP on
@@ -707,7 +710,8 @@ int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance, s
  *
  * \since 1.8
  */
-int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
+int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance,
+                const struct ast_sockaddr *address);
 
 /*!
  * \brief Get the local address that we are expecting RTP on
@@ -721,15 +725,15 @@ int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance, struct
  * Example usage:
  *
  * \code
- * struct sockaddr_in sin;
- * ast_rtp_instance_get_local_address(instance, &sin);
+ * struct ast_sockaddr address;
+ * ast_rtp_instance_get_local_address(instance, &address);
  * \endcode
  *
- * This gets the local address that we are expecting RTP on and stores it in the 'sin' structure.
+ * This gets the local address that we are expecting RTP on and stores it in the 'address' structure.
  *
  * \since 1.8
  */
-int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
+int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
 
 /*!
  * \brief Get the address of the remote endpoint that we are sending RTP to
@@ -743,16 +747,16 @@ int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct
  * Example usage:
  *
  * \code
- * struct sockaddr_in sin;
- * ast_rtp_instance_get_remote_address(instance, &sin);
+ * struct ast_sockaddr address;
+ * ast_rtp_instance_get_remote_address(instance, &address);
  * \endcode
  *
  * This retrieves the current remote address set on the instance pointed to by instance and puts the value
- * into the sin structure.
+ * into the address structure.
  *
  * \since 1.8
  */
-int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struct sockaddr_in *address);
+int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
 
 /*!
  * \brief Set the value of an RTP instance extended property
@@ -1598,7 +1602,7 @@ int ast_rtp_instance_activate(struct ast_rtp_instance *instance);
  *
  * \since 1.8
  */
-void ast_rtp_instance_stun_request(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username);
+void ast_rtp_instance_stun_request(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username);
 
 /*!
  * \brief Set the RTP timeout value

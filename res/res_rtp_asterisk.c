@@ -35,7 +35,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <math.h>
 
 #include "asterisk/stun.h"
 #include "asterisk/pbx.h"
@@ -45,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
-#include "asterisk/netsock.h"
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
 #include "asterisk/unaligned.h"
@@ -87,8 +85,8 @@ static int rtpdebug;			/*!< Are we debugging? */
 static int rtcpdebug;			/*!< Are we debugging RTCP? */
 static int rtcpstats;			/*!< Are we debugging RTCP? */
 static int rtcpinterval = RTCP_DEFAULT_INTERVALMS; /*!< Time between rtcp reports in millisecs */
-static struct sockaddr_in rtpdebugaddr;	/*!< Debug packets to/from this host */
-static struct sockaddr_in rtcpdebugaddr;	/*!< Debug RTCP packets to/from this host */
+static struct ast_sockaddr rtpdebugaddr;	/*!< Debug packets to/from this host */
+static struct ast_sockaddr rtcpdebugaddr;	/*!< Debug RTCP packets to/from this host */
 #ifdef SO_NO_CHECK
 static int nochecksums;
 #endif
@@ -168,8 +166,8 @@ struct ast_rtp {
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
 
 	enum strict_rtp_state strict_rtp_state; /*!< Current state that strict RTP protection is in */
-	struct sockaddr_in strict_rtp_address;  /*!< Remote address information for strict RTP purposes */
-	struct sockaddr_in alt_rtp_address; /*!<Alternate remote address information */
+	struct ast_sockaddr strict_rtp_address;  /*!< Remote address information for strict RTP purposes */
+	struct ast_sockaddr alt_rtp_address; /*!<Alternate remote address information */
 
 	struct rtp_red *red;
 };
@@ -187,8 +185,8 @@ struct ast_rtp {
 struct ast_rtcp {
 	int rtcp_info;
 	int s;				/*!< Socket */
-	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
-	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
+	struct ast_sockaddr us;		/*!< Socket representation of the local endpoint. */
+	struct ast_sockaddr them;	/*!< Socket representation of the remote endpoint. */
 	unsigned int soc;		/*!< What they told us */
 	unsigned int spc;		/*!< What they told us */
 	unsigned int themrxlsr;		/*!< The middle 32 bits of the NTP timestamp in the last received SR*/
@@ -253,7 +251,7 @@ struct rtp_red {
 AST_LIST_HEAD_NOLOCK(frame_list, ast_frame);
 
 /* Forward Declarations */
-static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct sockaddr_in *sin, void *data);
+static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data);
 static int ast_rtp_destroy(struct ast_rtp_instance *instance);
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit);
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit);
@@ -263,14 +261,14 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtcp);
 static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
 static int ast_rtp_fd(struct ast_rtp_instance *instance, int rtcp);
-static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct sockaddr_in *sin);
-static void ast_rtp_alt_remote_address_set(struct ast_rtp_instance *instance, struct sockaddr_in *sin);
+static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr);
+static void ast_rtp_alt_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr);
 static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations);
 static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *frame);
 static int ast_rtp_local_bridge(struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1);
 static int ast_rtp_get_stat(struct ast_rtp_instance *instance, struct ast_rtp_instance_stats *stats, enum ast_rtp_instance_stat stat);
 static int ast_rtp_dtmf_compatible(struct ast_channel *chan0, struct ast_rtp_instance *instance0, struct ast_channel *chan1, struct ast_rtp_instance *instance1);
-static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username);
+static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username);
 static void ast_rtp_stop(struct ast_rtp_instance *instance);
 
 /* RTP Engine Declaration */
@@ -297,45 +295,31 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.stop = ast_rtp_stop,
 };
 
-static inline int rtp_debug_test_addr(struct sockaddr_in *addr)
+static inline int rtp_debug_test_addr(struct ast_sockaddr *addr)
 {
 	if (!rtpdebug) {
 		return 0;
 	}
 
-	if (rtpdebugaddr.sin_addr.s_addr) {
-		if (((ntohs(rtpdebugaddr.sin_port) != 0)
-		     && (rtpdebugaddr.sin_port != addr->sin_port))
-		    || (rtpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-			return 0;
-	}
-
-	return 1;
+	return ast_sockaddr_cmp(&rtpdebugaddr, addr) == 0;
 }
 
-static inline int rtcp_debug_test_addr(struct sockaddr_in *addr)
+static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 {
 	if (!rtcpdebug) {
 		return 0;
 	}
 
-	if (rtcpdebugaddr.sin_addr.s_addr) {
-		if (((ntohs(rtcpdebugaddr.sin_port) != 0)
-		     && (rtcpdebugaddr.sin_port != addr->sin_port))
-		    || (rtcpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-			return 0;
-	}
-
-	return 1;
+	return ast_sockaddr_cmp(&rtcpdebugaddr, addr) == 0;
 }
 
-static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct sockaddr *sa, socklen_t *salen, int rtcp)
+static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp)
 {
 	int len;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
 
-	if ((len = recvfrom(rtcp ? rtp->rtcp->s : rtp->s, buf, size, flags, sa, salen)) < 0) {
+	if ((len = ast_recvfrom(rtcp ? rtp->rtcp->s : rtp->s, buf, size, flags, sa)) < 0) {
 	   return len;
 	}
 
@@ -346,17 +330,17 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	return len;
 }
 
-static int rtcp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct sockaddr *sa, socklen_t *salen)
+static int rtcp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa)
 {
-	return __rtp_recvfrom(instance, buf, size, flags, sa, salen, 1);
+	return __rtp_recvfrom(instance, buf, size, flags, sa, 1);
 }
 
-static int rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct sockaddr *sa, socklen_t *salen)
+static int rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa)
 {
-	return __rtp_recvfrom(instance, buf, size, flags, sa, salen, 0);
+	return __rtp_recvfrom(instance, buf, size, flags, sa, 0);
 }
 
-static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct sockaddr *sa, socklen_t salen, int rtcp)
+static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp)
 {
 	int len = size;
 	void *temp = buf;
@@ -367,17 +351,17 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	   return -1;
 	}
 
-	return sendto(rtcp ? rtp->rtcp->s : rtp->s, temp, len, flags, sa, salen);
+	return ast_sendto(rtcp ? rtp->rtcp->s : rtp->s, temp, len, flags, sa);
 }
 
-static int rtcp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct sockaddr *sa, socklen_t salen)
+static int rtcp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa)
 {
-	return __rtp_sendto(instance, buf, size, flags, sa, salen, 1);
+	return __rtp_sendto(instance, buf, size, flags, sa, 1);
 }
 
-static int rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct sockaddr *sa, socklen_t salen)
+static int rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa)
 {
-	return __rtp_sendto(instance, buf, size, flags, sa, salen, 0);
+	return __rtp_sendto(instance, buf, size, flags, sa, 0);
 }
 
 static int rtp_get_rate(format_t subclass)
@@ -423,9 +407,9 @@ static double stddev_compute(double stddev, double sample, double normdev, doubl
 #undef SQUARE
 }
 
-static int create_new_socket(const char *type)
+static int create_new_socket(const char *type, int af)
 {
-	int sock = socket(AF_INET, SOCK_DGRAM, 0);
+	int sock = socket(af, SOCK_DGRAM, 0);
 
 	if (sock < 0) {
 		if (!type) {
@@ -445,7 +429,9 @@ static int create_new_socket(const char *type)
 	return sock;
 }
 
-static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct sockaddr_in *sin, void *data)
+static int ast_rtp_new(struct ast_rtp_instance *instance,
+		       struct sched_context *sched, struct ast_sockaddr *addr,
+		       void *data)
 {
 	struct ast_rtp *rtp = NULL;
 	int x, startplace;
@@ -461,7 +447,10 @@ static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_LEARN : STRICT_RTP_OPEN);
 
 	/* Create a new socket for us to listen on and use */
-	if ((rtp->s = create_new_socket("RTP")) < 0) {
+	if ((rtp->s =
+	     create_new_socket("RTP",
+			       ast_sockaddr_is_ipv4(addr) ? AF_INET  :
+			       ast_sockaddr_is_ipv6(addr) ? AF_INET6 : -1)) < 0) {
 		ast_debug(1, "Failed to create a new socket for RTP instance '%p'\n", instance);
 		ast_free(rtp);
 		return -1;
@@ -473,11 +462,11 @@ static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *
 	startplace = x;
 
 	for (;;) {
-		sin->sin_port = htons(x);
+		ast_sockaddr_set_port(addr, x);
 		/* Try to bind, this will tell us whether the port is available or not */
-		if (!bind(rtp->s, (struct sockaddr *)sin, sizeof(*sin))) {
+		if (!ast_bind(rtp->s, addr)) {
 			ast_debug(1, "Allocated port %d for RTP instance '%p'\n", x, instance);
-			ast_rtp_instance_set_local_address(instance, sin);
+			ast_rtp_instance_set_local_address(instance, addr);
 			break;
 		}
 
@@ -538,7 +527,7 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 	int hdrlen = 12, res = 0, i = 0, payload = 101;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
@@ -546,7 +535,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	/* If we have no remote address information bail out now */
-	if (!remote_address.sin_addr.s_addr || !remote_address.sin_port) {
+	if (ast_sockaddr_isnull(&remote_address)) {
 		return -1;
 	}
 
@@ -581,15 +570,16 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	/* Actually send the packet */
 	for (i = 0; i < 2; i++) {
 		rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (rtp->send_duration));
-		res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &remote_address, sizeof(remote_address));
+		res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, &remote_address);
 		if (res < 0) {
-			ast_log(LOG_ERROR, "RTP Transmission error to %s:%u: %s\n",
-				ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port), strerror(errno));
+			ast_log(LOG_ERROR, "RTP Transmission error to %s: %s\n",
+				ast_sockaddr_stringify(&remote_address),
+				strerror(errno));
 		}
 		if (rtp_debug_test_addr(&remote_address)) {
-			ast_verbose("Sent RTP DTMF packet to %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
-				    ast_inet_ntoa(remote_address.sin_addr),
-				    ntohs(remote_address.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+			ast_verbose("Sent RTP DTMF packet to %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+				    ast_sockaddr_stringify(&remote_address),
+				    payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
 		rtp->seqno++;
 		rtp->send_duration += 160;
@@ -607,7 +597,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 	int hdrlen = 12, res = 0;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
@@ -615,7 +605,7 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	/* Make sure we know where the other side is so we can send them the packet */
-	if (!remote_address.sin_addr.s_addr || !remote_address.sin_port) {
+	if (ast_sockaddr_isnull(&remote_address)) {
 		return -1;
 	}
 
@@ -627,17 +617,17 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	rtpheader[0] = htonl((2 << 30) | (rtp->send_payload << 16) | (rtp->seqno));
 
 	/* Boom, send it on out */
-	res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &remote_address, sizeof(remote_address));
+	res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, &remote_address);
 	if (res < 0) {
-		ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
-			ast_inet_ntoa(remote_address.sin_addr),
-			ntohs(remote_address.sin_port), strerror(errno));
+		ast_log(LOG_ERROR, "RTP Transmission error to %s: %s\n",
+			ast_sockaddr_stringify(&remote_address),
+			strerror(errno));
 	}
 
 	if (rtp_debug_test_addr(&remote_address)) {
-		ast_verbose("Sent RTP DTMF packet to %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
-			    ast_inet_ntoa(remote_address.sin_addr),
-			    ntohs(remote_address.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+		ast_verbose("Sent RTP DTMF packet to %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+			    ast_sockaddr_stringify(&remote_address),
+			    rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 	}
 
 	/* And now we increment some values for the next time we swing by */
@@ -650,7 +640,7 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 	int hdrlen = 12, res = 0, i = 0;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
@@ -658,7 +648,7 @@ static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	/* Make sure we know where the remote side is so we can send them the packet we construct */
-	if (!remote_address.sin_addr.s_addr || !remote_address.sin_port) {
+	if (ast_sockaddr_isnull(&remote_address)) {
 		return -1;
 	}
 
@@ -690,16 +680,16 @@ static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 
 	/* Send it 3 times, that's the magical number */
 	for (i = 0; i < 3; i++) {
-		res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &remote_address, sizeof(remote_address));
+		res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 4, 0, &remote_address);
 		if (res < 0) {
-			ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
-				ast_inet_ntoa(remote_address.sin_addr),
-				ntohs(remote_address.sin_port), strerror(errno));
+			ast_log(LOG_ERROR, "RTP Transmission error to %s: %s\n",
+				ast_sockaddr_stringify(&remote_address),
+				strerror(errno));
 		}
 		if (rtp_debug_test_addr(&remote_address)) {
-			ast_verbose("Sent RTP DTMF packet to %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
-				    ast_inet_ntoa(remote_address.sin_addr),
-				    ntohs(remote_address.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
+			ast_verbose("Sent RTP DTMF packet to %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+				    ast_sockaddr_stringify(&remote_address),
+				    rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
 	}
 
@@ -785,10 +775,10 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 
 	double rxlost_current;
 
-	if (!rtp || !rtp->rtcp || (&rtp->rtcp->them.sin_addr == 0))
+	if (!rtp || !rtp->rtcp)
 		return 0;
 
-	if (!rtp->rtcp->them.sin_addr.s_addr) {
+	if (ast_sockaddr_isnull(&rtp->rtcp->them)) {
 		ast_log(LOG_ERROR, "RTCP RR transmission error, rtcp halted\n");
 		AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
 		return 0;
@@ -841,7 +831,7 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 	rtcpheader[(len/4)+2] = htonl(0x01 << 24);              /* Empty for the moment */
 	len += 12;
 
-	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, (struct sockaddr *)&rtp->rtcp->them, sizeof(rtp->rtcp->them));
+	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, &rtp->rtcp->them);
 
 	if (res < 0) {
 		ast_log(LOG_ERROR, "RTCP RR transmission error, rtcp halted: %s\n",strerror(errno));
@@ -852,13 +842,12 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 
 	rtp->rtcp->rr_count++;
 	if (rtcp_debug_test_addr(&rtp->rtcp->them)) {
-		ast_verbose("\n* Sending RTCP RR to %s:%d\n"
+		ast_verbose("\n* Sending RTCP RR to %s\n"
 			"  Our SSRC: %u\nTheir SSRC: %u\niFraction lost: %d\nCumulative loss: %u\n"
 			"  IA jitter: %.4f\n"
 			"  Their last SR: %u\n"
 			    "  DLSR: %4.4f (sec)\n\n",
-			    ast_inet_ntoa(rtp->rtcp->them.sin_addr),
-			    ntohs(rtp->rtcp->them.sin_port),
+			    ast_sockaddr_stringify(&rtp->rtcp->them),
 			    rtp->ssrc, rtp->themssrc, fraction, lost,
 			    rtp->rxjitter,
 			    rtp->rtcp->themrxlsr,
@@ -888,11 +877,10 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 	struct timeval dlsr;
 	char bdata[512];
 
-	/* Commented condition is always not NULL if rtp->rtcp is not NULL */
-	if (!rtp || !rtp->rtcp/* || (&rtp->rtcp->them.sin_addr == 0)*/)
+	if (!rtp || !rtp->rtcp)
 		return 0;
 
-	if (!rtp->rtcp->them.sin_addr.s_addr) {  /* This'll stop rtcp for this rtp session */
+	if (ast_sockaddr_isnull(&rtp->rtcp->them)) {  /* This'll stop rtcp for this rtp session */
 		ast_verbose("RTCP SR transmission error, rtcp halted\n");
 		AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
 		return 0;
@@ -941,9 +929,11 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 	rtcpheader[(len/4)+2] = htonl(0x01 << 24);                    /* Empty for the moment */
 	len += 12;
 
-	res =rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, (struct sockaddr *)&rtp->rtcp->them, sizeof(rtp->rtcp->them));
+	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, &rtp->rtcp->them);
 	if (res < 0) {
-		ast_log(LOG_ERROR, "RTCP SR transmission error to %s:%d, rtcp halted %s\n",ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port), strerror(errno));
+		ast_log(LOG_ERROR, "RTCP SR transmission error to %s, rtcp halted %s\n",
+			ast_sockaddr_stringify(&rtp->rtcp->them),
+			strerror(errno));
 		AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
 		return 0;
 	}
@@ -955,7 +945,7 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 	rtp->rtcp->lastsrtxcount = rtp->txcount;
 
 	if (rtcp_debug_test_addr(&rtp->rtcp->them)) {
-		ast_verbose("* Sent RTCP SR to %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+		ast_verbose("* Sent RTCP SR to %s\n", ast_sockaddr_stringify(&rtp->rtcp->them));
 		ast_verbose("  Our SSRC: %u\n", rtp->ssrc);
 		ast_verbose("  Sent(NTP): %u.%010u\n", (unsigned int)now.tv_sec, (unsigned int)now.tv_usec*4096);
 		ast_verbose("  Sent(RTP): %u\n", rtp->lastts);
@@ -968,7 +958,7 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 		ast_verbose("  Their last SR: %u\n", rtp->rtcp->themrxlsr);
 		ast_verbose("  DLSR: %4.4f (sec)\n\n", (double)(ntohl(rtcpheader[12])/65536.0));
 	}
-	manager_event(EVENT_FLAG_REPORTING, "RTCPSent", "To %s:%d\r\n"
+	manager_event(EVENT_FLAG_REPORTING, "RTCPSent", "To %s\r\n"
 					    "OurSSRC: %u\r\n"
 					    "SentNTP: %u.%010u\r\n"
 					    "SentRTP: %u\r\n"
@@ -980,7 +970,7 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 					    "IAJitter: %.4f\r\n"
 					    "TheirLastSR: %u\r\n"
 		      "DLSR: %4.4f (sec)\r\n",
-		      ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port),
+		      ast_sockaddr_stringify(&rtp->rtcp->them),
 		      rtp->ssrc,
 		      (unsigned int)now.tv_sec, (unsigned int)now.tv_usec*4096,
 		      rtp->lastts,
@@ -1019,7 +1009,7 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int pred, mark = 0;
 	unsigned int ms = calc_txstamp(rtp, &frame->delivery);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 	int rate = rtp_get_rate(frame->subclass.codec) / 1000;
 
 	if (frame->subclass.codec == AST_FORMAT_G722) {
@@ -1094,7 +1084,7 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	/* If we know the remote address construct a packet and send it out */
-	if (remote_address.sin_port && remote_address.sin_addr.s_addr) {
+	if (!ast_sockaddr_isnull(&remote_address)) {
 		int hdrlen = 12, res;
 		unsigned char *rtpheader = (unsigned char *)(frame->data.ptr - hdrlen);
 
@@ -1102,13 +1092,17 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
 		put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc));
 
-		if ((res = rtp_sendto(instance, (void *)rtpheader, frame->datalen + hdrlen, 0, (struct sockaddr *)&remote_address, sizeof(remote_address))) < 0) {
+		if ((res = rtp_sendto(instance, (void *)rtpheader, frame->datalen + hdrlen, 0, &remote_address)) < 0) {
 			if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT) || (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT) && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				ast_debug(1, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port), strerror(errno));
+				ast_debug(1, "RTP Transmission error of packet %d to %s: %s\n",
+					  rtp->seqno,
+					  ast_sockaddr_stringify(&remote_address),
+					  strerror(errno));
 			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)
-					ast_debug(0, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port));
+					ast_debug(0, "RTP NAT: Can't write RTP to private address %s, waiting for other end to send audio...\n",
+						  ast_sockaddr_stringify(&remote_address));
 				ast_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
 			}
 		} else {
@@ -1122,8 +1116,9 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		}
 
 		if (rtp_debug_test_addr(&remote_address)) {
-			ast_verbose("Sent RTP packet to      %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
-				    ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port), codec, rtp->seqno, rtp->lastts, res - hdrlen);
+			ast_verbose("Sent RTP packet to      %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+				    ast_sockaddr_stringify(&remote_address),
+				    codec, rtp->seqno, rtp->lastts, res - hdrlen);
 		}
 	}
 
@@ -1172,13 +1167,13 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
 static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 	format_t codec, subclass;
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	/* If we don't actually know the remote address don't even bother doing anything */
-	if (!remote_address.sin_addr.s_addr) {
+	if (ast_sockaddr_isnull(&remote_address)) {
 		ast_debug(1, "No remote address on RTP instance '%p' so dropping frame\n", instance);
 		return 0;
 	}
@@ -1341,17 +1336,19 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 static struct ast_frame *create_dtmf_frame(struct ast_rtp_instance *instance, enum ast_frame_type type, int compensate)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	if (((compensate && type == AST_FRAME_DTMF_END) || (type == AST_FRAME_DTMF_BEGIN)) && ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
-		ast_debug(1, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(remote_address.sin_addr));
+		ast_debug(1, "Ignore potential DTMF echo from '%s'\n",
+			  ast_sockaddr_stringify(&remote_address));
 		rtp->resp = 0;
 		rtp->dtmfsamples = 0;
 		return &ast_null_frame;
 	}
-	ast_debug(1, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(remote_address.sin_addr));
+	ast_debug(1, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp,
+		  ast_sockaddr_stringify(&remote_address));
 	if (rtp->resp == 'X') {
 		rtp->f.frametype = AST_FRAME_CONTROL;
 		rtp->f.subclass.integer = AST_CONTROL_FLASH;
@@ -1368,10 +1365,10 @@ static struct ast_frame *create_dtmf_frame(struct ast_rtp_instance *instance, en
 	return &rtp->f;
 }
 
-static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct sockaddr_in *sin, int payloadtype, int mark, struct frame_list *frames)
+static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct ast_sockaddr *addr, int payloadtype, int mark, struct frame_list *frames)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 	unsigned int event, event_end, samples;
 	char resp = 0;
 	struct ast_frame *f = NULL;
@@ -1388,8 +1385,9 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 	samples &= 0xFFFF;
 
 	if (rtp_debug_test_addr(&remote_address)) {
-		ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(remote_address.sin_addr),
-			    ntohs(remote_address.sin_port), payloadtype, seqno, timestamp, len, (mark?1:0), event, ((event_end & 0x80)?1:0), samples);
+		ast_verbose("Got  RTP RFC2833 from   %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n",
+			    ast_sockaddr_stringify(&remote_address),
+			    payloadtype, seqno, timestamp, len, (mark?1:0), event, ((event_end & 0x80)?1:0), samples);
 	}
 
 	/* Print out debug if turned on */
@@ -1492,7 +1490,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 	return;
 }
 
-static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct sockaddr_in *sin, int payloadtype, int mark)
+static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct ast_sockaddr *addr, int payloadtype, int mark)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	unsigned int event, flags, power;
@@ -1571,7 +1569,7 @@ static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, u
 	return f;
 }
 
-static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct sockaddr_in *sin, int payloadtype, int mark)
+static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp, struct ast_sockaddr *addr, int payloadtype, int mark)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
@@ -1582,12 +1580,12 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 		ast_debug(0, "- RTP 3389 Comfort noise event: Level %" PRId64 " (len = %d)\n", rtp->lastrxformat, len);
 
 	if (ast_test_flag(rtp, FLAG_3389_WARNING)) {
-		struct sockaddr_in remote_address = { 0, };
+		struct ast_sockaddr remote_address = { {0,} };
 
 		ast_rtp_instance_get_remote_address(instance, &remote_address);
 
-		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
-			ast_inet_ntoa(remote_address.sin_addr));
+		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389). Please turn off on client if possible. Client address: %s\n",
+			ast_sockaddr_stringify(&remote_address));
 		ast_set_flag(rtp, FLAG_3389_WARNING);
 	}
 
@@ -1615,15 +1613,16 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in sin;
-	socklen_t len = sizeof(sin);
+	struct ast_sockaddr addr;
 	unsigned int rtcpdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int *rtcpheader = (unsigned int *)(rtcpdata + AST_FRIENDLY_OFFSET);
 	int res, packetwords, position = 0;
 	struct ast_frame *f = &ast_null_frame;
 
 	/* Read in RTCP data from the socket */
-	if ((res = rtcp_recvfrom(instance, rtcpdata + AST_FRIENDLY_OFFSET, sizeof(rtcpdata) - sizeof(unsigned int) * AST_FRIENDLY_OFFSET, 0, (struct sockaddr *)&sin, &len)) < 0) {
+	if ((res = rtcp_recvfrom(instance, rtcpdata + AST_FRIENDLY_OFFSET,
+				sizeof(rtcpdata) - sizeof(unsigned int) * AST_FRIENDLY_OFFSET,
+				0, &addr)) < 0) {
 		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
 			ast_log(LOG_WARNING, "RTCP Read error: %s.  Hanging up.\n", strerror(errno));
@@ -1636,11 +1635,11 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 
 	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT)) {
 		/* Send to whoever sent to us */
-		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
-			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
+		if (ast_sockaddr_cmp(&rtp->rtcp->them, &addr)) {
+			ast_sockaddr_copy(&rtp->rtcp->them, &addr);
 			if (option_debug || rtpdebug)
-				ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+				ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s\n",
+					  ast_sockaddr_stringify(&rtp->rtcp->them));
 		}
 	}
 
@@ -1665,8 +1664,9 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			return &ast_null_frame;
 		}
 
-		if (rtcp_debug_test_addr(&sin)) {
-			ast_verbose("\n\nGot RTCP from %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		if (rtcp_debug_test_addr(&addr)) {
+			ast_verbose("\n\nGot RTCP from %s\n",
+				    ast_sockaddr_stringify(&addr));
 			ast_verbose("PT: %d(%s)\n", pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown");
 			ast_verbose("Reception reports: %d\n", rc);
 			ast_verbose("SSRC of sender: %u\n", rtcpheader[i + 1]);
@@ -1685,7 +1685,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			rtp->rtcp->soc = ntohl(rtcpheader[i + 4]);
 			rtp->rtcp->themrxlsr = ((ntohl(rtcpheader[i]) & 0x0000ffff) << 16) | ((ntohl(rtcpheader[i + 1]) & 0xffff0000) >> 16); /* Going to LSR in RR*/
 
-			if (rtcp_debug_test_addr(&sin)) {
+			if (rtcp_debug_test_addr(&addr)) {
 				ast_verbose("NTP timestamp: %lu.%010lu\n", (unsigned long) ntohl(rtcpheader[i]), (unsigned long) ntohl(rtcpheader[i + 1]) * 4096);
 				ast_verbose("RTP timestamp: %lu\n", (unsigned long) ntohl(rtcpheader[i + 2]));
 				ast_verbose("SPC: %lu\tSOC: %lu\n", (unsigned long) ntohl(rtcpheader[i + 3]), (unsigned long) ntohl(rtcpheader[i + 4]));
@@ -1735,7 +1735,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 					rtp->rtcp->normdevrtt = normdevrtt_current;
 
 					rtp->rtcp->rtt_count++;
-				} else if (rtcp_debug_test_addr(&sin)) {
+				} else if (rtcp_debug_test_addr(&addr)) {
 					ast_verbose("Internal RTCP NTP clock skew detected: "
 							   "lsr=%u, now=%u, dlsr=%u (%d:%03dms), "
 						    "diff=%d\n",
@@ -1784,7 +1784,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 
 			rtp->rtcp->reported_jitter_count++;
 
-			if (rtcp_debug_test_addr(&sin)) {
+			if (rtcp_debug_test_addr(&addr)) {
 				ast_verbose("  Fraction lost: %ld\n", (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24));
 				ast_verbose("  Packets lost so far: %d\n", rtp->rtcp->reported_lost);
 				ast_verbose("  Highest sequence number: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff));
@@ -1796,7 +1796,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 					ast_verbose("  RTT: %lu(sec)\n", (unsigned long) rtt);
 			}
 			if (rtt) {
-				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s:%d\r\n"
+				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s\r\n"
 								    "PT: %d(%s)\r\n"
 								    "ReceptionReports: %d\r\n"
 								    "SenderSSRC: %u\r\n"
@@ -1808,7 +1808,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 								    "LastSR: %lu.%010lu\r\n"
 								    "DLSR: %4.4f(sec)\r\n"
 					      "RTT: %llu(sec)\r\n",
-					      ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port),
+					      ast_sockaddr_stringify(&addr),
 					      pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
 					      rc,
 					      rtcpheader[i + 1],
@@ -1821,7 +1821,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 					      ntohl(rtcpheader[i + 5])/65536.0,
 					      (unsigned long long)rtt);
 			} else {
-				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s:%d\r\n"
+				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s\r\n"
 								    "PT: %d(%s)\r\n"
 								    "ReceptionReports: %d\r\n"
 								    "SenderSSRC: %u\r\n"
@@ -1832,7 +1832,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 								    "IAJitter: %u\r\n"
 								    "LastSR: %lu.%010lu\r\n"
 					      "DLSR: %4.4f(sec)\r\n",
-					      ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port),
+					      ast_sockaddr_stringify(&addr),
 					      pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
 					      rc,
 					      rtcpheader[i + 1],
@@ -1847,7 +1847,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			}
 			break;
 		case RTCP_PT_FUR:
-			if (rtcp_debug_test_addr(&sin))
+			if (rtcp_debug_test_addr(&addr))
 				ast_verbose("Received an RTCP Fast Update Request\n");
 			rtp->f.frametype = AST_FRAME_CONTROL;
 			rtp->f.subclass.integer = AST_CONTROL_VIDUPDATE;
@@ -1858,15 +1858,18 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			f = &rtp->f;
 			break;
 		case RTCP_PT_SDES:
-			if (rtcp_debug_test_addr(&sin))
-				ast_verbose("Received an SDES from %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			if (rtcp_debug_test_addr(&addr))
+				ast_verbose("Received an SDES from %s\n",
+					    ast_sockaddr_stringify(&rtp->rtcp->them));
 			break;
 		case RTCP_PT_BYE:
-			if (rtcp_debug_test_addr(&sin))
-				ast_verbose("Received a BYE from %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			if (rtcp_debug_test_addr(&addr))
+				ast_verbose("Received a BYE from %s\n",
+					    ast_sockaddr_stringify(&rtp->rtcp->them));
 			break;
 		default:
-			ast_debug(1, "Unknown RTCP packet (pt=%d) received from %s:%d\n", pt, ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			ast_debug(1, "Unknown RTCP packet (pt=%d) received from %s\n",
+				  pt, ast_sockaddr_stringify(&rtp->rtcp->them));
 			break;
 		}
 		position += (length + 1);
@@ -1884,7 +1887,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	int res = 0, payload = 0, bridged_payload = 0, mark;
 	struct ast_rtp_payload_type payload_type;
 	int reconstruct = ntohl(rtpheader[0]);
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 
 	/* Get fields from packet */
 	payload = (reconstruct & 0x7f0000) >> 16;
@@ -1916,18 +1919,27 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	ast_rtp_instance_get_remote_address(instance1, &remote_address);
 
 	/* Send the packet back out */
-	res = rtp_sendto(instance1, (void *)rtpheader, len, 0, (struct sockaddr *)&remote_address, sizeof(remote_address));
+	res = rtp_sendto(instance1, (void *)rtpheader, len, 0, &remote_address);
 	if (res < 0) {
 		if (!ast_rtp_instance_get_prop(instance1, AST_RTP_PROPERTY_NAT) || (ast_rtp_instance_get_prop(instance1, AST_RTP_PROPERTY_NAT) && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-			ast_debug(1, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port), strerror(errno));
+			ast_log(LOG_WARNING,
+				"RTP Transmission error of packet to %s: %s\n",
+				ast_sockaddr_stringify(&remote_address),
+				strerror(errno));
 		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
 			if (option_debug || rtpdebug)
-				ast_debug(0, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port));
+				ast_log(LOG_WARNING,
+					"RTP NAT: Can't write RTP to private "
+					"address %s, waiting for other end to "
+					"send audio...\n",
+					ast_sockaddr_stringify(&remote_address));
 			ast_set_flag(bridged, FLAG_NAT_INACTIVE_NOWARN);
 		}
 		return 0;
 	} else if (rtp_debug_test_addr(&remote_address)) {
-		ast_verbose("Sent RTP P2P packet to %s:%u (type %-2.2d, len %-6.6u)\n", ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port), bridged_payload, len - hdrlen);
+		ast_verbose("Sent RTP P2P packet to %s (type %-2.2d, len %-6.6u)\n",
+			    ast_sockaddr_stringify(&remote_address),
+			    bridged_payload, len - hdrlen);
 	}
 
 	return 0;
@@ -1936,12 +1948,11 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtcp)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in sin;
-	socklen_t len = sizeof(sin);
+	struct ast_sockaddr addr;
 	int res, hdrlen = 12, version, payloadtype, padding, mark, ext, cc, prev_seqno;
 	unsigned int *rtpheader = (unsigned int*)(rtp->rawdata + AST_FRIENDLY_OFFSET), seqno, ssrc, timestamp;
 	struct ast_rtp_payload_type payload;
-	struct sockaddr_in remote_address = { 0, };
+	struct ast_sockaddr remote_address = { {0,} };
 	struct frame_list frames;
 
 	/* If this is actually RTCP let's hop on over and handle it */
@@ -1958,7 +1969,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	}
 
 	/* Actually read in the data from the socket */
-	if ((res = rtp_recvfrom(instance, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET, 0, (struct sockaddr*)&sin, &len)) < 0) {
+	if ((res = rtp_recvfrom(instance, rtp->rawdata + AST_FRIENDLY_OFFSET,
+				sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET, 0,
+				&addr)) < 0) {
 		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
 			ast_log(LOG_WARNING, "RTP Read error: %s. Hanging up.\n", strerror(errno));
@@ -1975,16 +1988,19 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	/* If strict RTP protection is enabled see if we need to learn the remote address or if we need to drop the packet */
 	if (rtp->strict_rtp_state == STRICT_RTP_LEARN) {
-		memcpy(&rtp->strict_rtp_address, &sin, sizeof(rtp->strict_rtp_address));
+		ast_sockaddr_copy(&rtp->strict_rtp_address, &addr);
 		rtp->strict_rtp_state = STRICT_RTP_CLOSED;
 	} else if (rtp->strict_rtp_state == STRICT_RTP_CLOSED) {
-		if ((rtp->strict_rtp_address.sin_addr.s_addr != sin.sin_addr.s_addr) || (rtp->strict_rtp_address.sin_port != sin.sin_port)) {
+		if (ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
 			/* Hmm, not the strict addres. Perhaps we're getting audio from the alternate? */
-			if ((rtp->alt_rtp_address.sin_addr.s_addr == sin.sin_addr.s_addr) && (rtp->alt_rtp_address.sin_port == sin.sin_port)) {
+			if (!ast_sockaddr_cmp(&rtp->alt_rtp_address, &addr)) {
 				/* ooh, we did! You're now the new expected address, son! */
-				rtp->strict_rtp_address = sin;
+				ast_sockaddr_copy(&rtp->strict_rtp_address,
+						  &addr);
 			} else  {
-				ast_debug(1, "Received RTP packet from %s:%d, dropping due to strict RTP protection. Expected it to be from %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), ast_inet_ntoa(rtp->strict_rtp_address.sin_addr), ntohs(rtp->strict_rtp_address.sin_port));
+				ast_debug(1, "Received RTP packet from %s, dropping due to strict RTP protection. Expected it to be from %s\n",
+					  ast_sockaddr_stringify(&addr),
+					  ast_sockaddr_stringify(&rtp->strict_rtp_address));
 				return &ast_null_frame;
 			}
 		}
@@ -1996,27 +2012,30 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	if (!(version = (seqno & 0xC0000000) >> 30)) {
-		if ((ast_stun_handle_packet(rtp->s, &sin, rtp->rawdata + AST_FRIENDLY_OFFSET, res, NULL, NULL) == AST_STUN_ACCEPT) &&
-		    (!remote_address.sin_port && !remote_address.sin_addr.s_addr)) {
-			ast_rtp_instance_set_remote_address(instance, &sin);
+		struct sockaddr_in addr_tmp;
+		ast_sockaddr_to_sin(&addr, &addr_tmp);
+		if ((ast_stun_handle_packet(rtp->s, &addr_tmp, rtp->rawdata + AST_FRIENDLY_OFFSET, res, NULL, NULL) == AST_STUN_ACCEPT) &&
+		    ast_sockaddr_isnull(&remote_address)) {
+			ast_sockaddr_from_sin(&addr, &addr_tmp);
+			ast_rtp_instance_set_remote_address(instance, &addr);
 		}
 		return &ast_null_frame;
 	}
 
 	/* If symmetric RTP is enabled see if the remote side is not what we expected and change where we are sending audio */
 	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT)) {
-		if ((remote_address.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-		    (remote_address.sin_port != sin.sin_port)) {
-			ast_rtp_instance_set_remote_address(instance, &sin);
-			memcpy(&remote_address, &sin, sizeof(remote_address));
+		if (ast_sockaddr_cmp(&remote_address, &addr)) {
+			ast_rtp_instance_set_remote_address(instance, &addr);
+			ast_sockaddr_copy(&remote_address, &addr);
 			if (rtp->rtcp) {
-				memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
-				rtp->rtcp->them.sin_port = htons(ntohs(sin.sin_port)+1);
+				ast_sockaddr_copy(&rtp->rtcp->them, &addr);
+				ast_sockaddr_set_port(&rtp->rtcp->them, ast_sockaddr_port(&addr) + 1);
 			}
 			rtp->rxseqno = 0;
 			ast_set_flag(rtp, FLAG_NAT_ACTIVE);
 			if (option_debug || rtpdebug)
-				ast_debug(0, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(remote_address.sin_addr), ntohs(remote_address.sin_port));
+				ast_debug(0, "RTP NAT: Got audio from other end. Now sending to address %s\n",
+					  ast_sockaddr_stringify(&remote_address));
 		}
 	}
 
@@ -2097,7 +2116,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	}
 
 	/* Do not schedule RR if RTCP isn't run */
-	if (rtp->rtcp && rtp->rtcp->them.sin_addr.s_addr && rtp->rtcp->schedid < 1) {
+	if (rtp->rtcp && !ast_sockaddr_isnull(&rtp->rtcp->them) && rtp->rtcp->schedid < 1) {
 		/* Schedule transmission of Receiver Report */
 		rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, instance);
 	}
@@ -2111,9 +2130,10 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->themssrc = ntohl(rtpheader[2]); /* Record their SSRC to put in future RR */
 	}
 
-	if (rtp_debug_test_addr(&sin)) {
-		ast_verbose("Got  RTP packet from    %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
-			    ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
+	if (rtp_debug_test_addr(&addr)) {
+		ast_verbose("Got  RTP packet from    %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+			    ast_sockaddr_stringify(&addr),
+			    payloadtype, seqno, timestamp,res - hdrlen);
 	}
 
 	payload = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(instance), payloadtype);
@@ -2126,13 +2146,15 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			 * by passing the pointer to the frame list to it so that the method
 			 * can append frames to the list as needed.
 			 */
-			process_dtmf_rfc2833(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &sin, payloadtype, mark, &frames);
+			process_dtmf_rfc2833(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &addr, payloadtype, mark, &frames);
 		} else if (payload.code == AST_RTP_CISCO_DTMF) {
-			f = process_dtmf_cisco(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &sin, payloadtype, mark);
+			f = process_dtmf_cisco(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &addr, payloadtype, mark);
 		} else if (payload.code == AST_RTP_CN) {
-			f = process_cn_rfc3389(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &sin, payloadtype, mark);
+			f = process_cn_rfc3389(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &addr, payloadtype, mark);
 		} else {
-			ast_log(LOG_NOTICE, "Unknown RTP codec %d received from '%s'\n", payloadtype, ast_inet_ntoa(remote_address.sin_addr));
+			ast_log(LOG_NOTICE, "Unknown RTP codec %d received from '%s'\n",
+				payloadtype,
+				ast_sockaddr_stringify(&remote_address));
 		}
 
 		if (f) {
@@ -2283,19 +2305,26 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 		if (!(rtp->rtcp = ast_calloc(1, sizeof(*rtp->rtcp)))) {
 			return;
 		}
-		if ((rtp->rtcp->s = create_new_socket("RTCP")) < 0) {
+
+		/* Grab the IP address and port we are going to use */
+		ast_rtp_instance_get_local_address(instance, &rtp->rtcp->us);
+		ast_sockaddr_set_port(&rtp->rtcp->us,
+				      ast_sockaddr_port(&rtp->rtcp->us) + 1);
+
+		if ((rtp->rtcp->s =
+		     create_new_socket("RTCP",
+				       ast_sockaddr_is_ipv4(&rtp->rtcp->us) ?
+				       AF_INET :
+				       ast_sockaddr_is_ipv6(&rtp->rtcp->us) ?
+				       AF_INET6 : -1)) < 0) {
 			ast_debug(1, "Failed to create a new socket for RTCP on instance '%p'\n", instance);
 			ast_free(rtp->rtcp);
 			rtp->rtcp = NULL;
 			return;
 		}
 
-		/* Grab the IP address and port we are going to use */
-		ast_rtp_instance_get_local_address(instance, &rtp->rtcp->us);
-		rtp->rtcp->us.sin_port = htons(ntohs(rtp->rtcp->us.sin_port) + 1);
-
 		/* Try to actually bind to the IP address and port we are going to use for RTCP, if this fails we have to bail out */
-		if (bind(rtp->rtcp->s, (struct sockaddr*)&rtp->rtcp->us, sizeof(rtp->rtcp->us))) {
+		if (ast_bind(rtp->rtcp->s, &rtp->rtcp->us)) {
 			ast_debug(1, "Failed to setup RTCP on RTP instance '%p'\n", instance);
 			close(rtp->rtcp->s);
 			ast_free(rtp->rtcp);
@@ -2319,14 +2348,17 @@ static int ast_rtp_fd(struct ast_rtp_instance *instance, int rtcp)
 	return rtcp ? (rtp->rtcp ? rtp->rtcp->s : -1) : rtp->s;
 }
 
-static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct sockaddr_in *sin)
+static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	if (rtp->rtcp) {
 		ast_debug(1, "Setting RTCP address on RTP instance '%p'\n", instance);
-		memcpy(&rtp->rtcp->them, sin, sizeof(rtp->rtcp->them));
-		rtp->rtcp->them.sin_port = htons(ntohs(sin->sin_port) + 1);
+		ast_sockaddr_copy(&rtp->rtcp->them, addr);
+		if (!ast_sockaddr_isnull(addr)) {
+			ast_sockaddr_set_port(&rtp->rtcp->them,
+					      ast_sockaddr_port(addr) + 1);
+		}
 	}
 
 	rtp->rxseqno = 0;
@@ -2338,14 +2370,14 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 	return;
 }
 
-static void ast_rtp_alt_remote_address_set(struct ast_rtp_instance *instance, struct sockaddr_in *sin)
+static void ast_rtp_alt_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	/* No need to futz with rtp->rtcp here because ast_rtcp_read is already able to adjust if receiving
 	 * RTCP from an "unexpected" source
 	 */
-	rtp->alt_rtp_address = *sin;
+	ast_sockaddr_copy(&rtp->alt_rtp_address, addr);
 
 	return;
 }
@@ -2485,17 +2517,20 @@ static int ast_rtp_dtmf_compatible(struct ast_channel *chan0, struct ast_rtp_ins
 		 (!chan0->tech->send_digit_begin != !chan1->tech->send_digit_begin)) ? 0 : 1);
 }
 
-static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct sockaddr_in *suggestion, const char *username)
+static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct sockaddr_in suggestion_tmp;
 
-	ast_stun_request(rtp->s, suggestion, username, NULL);
+	ast_sockaddr_to_sin(suggestion, &suggestion_tmp);
+	ast_stun_request(rtp->s, &suggestion_tmp, username, NULL);
+	ast_sockaddr_from_sin(suggestion, &suggestion_tmp);
 }
 
 static void ast_rtp_stop(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct sockaddr_in sin = { 0, };
+	struct ast_sockaddr addr = { {0,} };
 
 	if (rtp->rtcp) {
 		AST_SCHED_DEL(rtp->sched, rtp->rtcp->schedid);
@@ -2506,10 +2541,9 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 		rtp->red = NULL;
 	}
 
-	ast_rtp_instance_set_remote_address(instance, &sin);
+	ast_rtp_instance_set_remote_address(instance, &addr);
 	if (rtp->rtcp) {
-		memset(&rtp->rtcp->them.sin_addr, 0, sizeof(rtp->rtcp->them.sin_addr));
-		memset(&rtp->rtcp->them.sin_port, 0, sizeof(rtp->rtcp->them.sin_port));
+		ast_sockaddr_setnull(&rtp->rtcp->them);
 	}
 
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
@@ -2517,60 +2551,28 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 
 static char *rtp_do_debug_ip(struct ast_cli_args *a)
 {
-	struct hostent *hp;
-	struct ast_hostent ahp;
-	int port = 0;
-	char *p, *arg = ast_strdupa(a->argv[4]);
+	char *arg = ast_strdupa(a->argv[4]);
 
-	p = strstr(arg, ":");
-	if (p) {
-		*p = '\0';
-		p++;
-		port = atoi(p);
-	}
-	hp = ast_gethostbyname(arg, &ahp);
-	if (hp == NULL) {
+	if (!ast_sockaddr_parse(&rtpdebugaddr, arg, 0)) {
 		ast_cli(a->fd, "Lookup failed for '%s'\n", arg);
 		return CLI_FAILURE;
 	}
-	rtpdebugaddr.sin_family = AF_INET;
-	memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
-	rtpdebugaddr.sin_port = htons(port);
-	if (port == 0) {
-		ast_cli(a->fd, "RTP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtpdebugaddr.sin_addr));
-	} else {
-		ast_cli(a->fd, "RTP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtpdebugaddr.sin_addr), port);
-	}
+	ast_cli(a->fd, "RTP Debugging Enabled for address: %s\n",
+		ast_sockaddr_stringify(&rtpdebugaddr));
 	rtpdebug = 1;
 	return CLI_SUCCESS;
 }
 
 static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 {
-	struct hostent *hp;
-	struct ast_hostent ahp;
-	int port = 0;
-	char *p, *arg = ast_strdupa(a->argv[4]);
+	char *arg = ast_strdupa(a->argv[4]);
 
-	p = strstr(arg, ":");
-	if (p) {
-		*p = '\0';
-		p++;
-		port = atoi(p);
-	}
-	hp = ast_gethostbyname(arg, &ahp);
-	if (hp == NULL) {
+	if (!ast_sockaddr_parse(&rtcpdebugaddr, arg, 0)) {
 		ast_cli(a->fd, "Lookup failed for '%s'\n", arg);
 		return CLI_FAILURE;
 	}
-	rtcpdebugaddr.sin_family = AF_INET;
-	memcpy(&rtcpdebugaddr.sin_addr, hp->h_addr, sizeof(rtcpdebugaddr.sin_addr));
-	rtcpdebugaddr.sin_port = htons(port);
-	if (port == 0) {
-		ast_cli(a->fd, "RTCP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr));
-	} else {
-		ast_cli(a->fd, "RTCP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr), port);
-	}
+	ast_cli(a->fd, "RTCP Debugging Enabled for address: %s\n",
+		ast_sockaddr_stringify(&rtcpdebugaddr));
 	rtcpdebug = 1;
 	return CLI_SUCCESS;
 }

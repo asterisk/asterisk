@@ -62,9 +62,9 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 	}
 
 	if (!strcasecmp(args.param, "peerip")) {
-		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(p->sa.sin_addr) : "", buflen);
+		ast_copy_string(buf, ast_sockaddr_isnull(&p->sa) ? "" : ast_sockaddr_stringify_addr(&p->sa), buflen);
 	} else if (!strcasecmp(args.param, "recvip")) {
-		ast_copy_string(buf, p->recv.sin_addr.s_addr ? ast_inet_ntoa(p->recv.sin_addr) : "", buflen);
+		ast_copy_string(buf, ast_sockaddr_isnull(&p->recv) ? "" : ast_sockaddr_stringify_addr(&p->recv), buflen);
 	} else if (!strcasecmp(args.param, "from")) {
 		ast_copy_string(buf, p->from, buflen);
 	} else if (!strcasecmp(args.param, "uri")) {
@@ -76,7 +76,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 	} else if (!strcasecmp(args.param, "t38passthrough")) {
 		ast_copy_string(buf, (p->t38.state == T38_DISABLED) ? "0" : "1", buflen);
 	} else if (!strcasecmp(args.param, "rtpdest")) {
-		struct sockaddr_in sin;
+		struct ast_sockaddr addr;
 		struct ast_rtp_instance *stream;
 
 		if (ast_strlen_zero(args.type))
@@ -96,10 +96,10 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 			return 0;
 		}
 
-		ast_rtp_instance_get_remote_address(stream, &sin);
-		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		ast_rtp_instance_get_remote_address(stream, &addr);
+		snprintf(buf, buflen, "%s", ast_sockaddr_stringify(&addr));
 	} else if (!strcasecmp(args.param, "rtpsource")) {
-		struct sockaddr_in sin;
+		struct ast_sockaddr sa;
 		struct ast_rtp_instance *stream;
 
 		if (ast_strlen_zero(args.type))
@@ -119,15 +119,15 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 			return 0;
 		}
 
-		ast_rtp_instance_get_local_address(stream, &sin);
+		ast_rtp_instance_get_local_address(stream, &sa);
 
-		if (!sin.sin_addr.s_addr) {
-			struct sockaddr_in dest_sin;
-			ast_rtp_instance_get_remote_address(stream, &dest_sin);
-			ast_ouraddrfor(&dest_sin.sin_addr, &sin.sin_addr);
+		if (ast_sockaddr_isnull(&sa)) {
+			struct ast_sockaddr dest_sa;
+			ast_rtp_instance_get_remote_address(stream, &dest_sa);
+			ast_ouraddrfor(&dest_sa, &sa);
 		}
 
-		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		snprintf(buf, buflen, "%s", ast_sockaddr_stringify(&sa));
 	} else if (!strcasecmp(args.param, "rtpqos")) {
 		struct ast_rtp_instance *rtp = NULL;
 
@@ -225,7 +225,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 }
 
 #ifdef TEST_FRAMEWORK
-static int test_sip_rtpqos_1_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct sockaddr_in *sin, void *data)
+static int test_sip_rtpqos_1_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data)
 {
 	/* Needed to pass sanity checks */
 	ast_rtp_instance_set_data(instance, data);
@@ -268,7 +268,7 @@ AST_TEST_DEFINE(test_sip_rtpqos_1)
 		.write = test_sip_rtpqos_1_write,
 		.get_stat = test_sip_rtpqos_1_get_stat,
 	};
-	struct sockaddr_in sin = { .sin_port = 31337, .sin_addr = { .s_addr = 4 * 16777216 + 3 * 65536 + 2 * 256 + 1 } };
+	struct ast_sockaddr sa = { {0, } };
 	struct ast_rtp_instance_stats mine = { 0, };
 	struct sip_pvt *p = NULL;
 	struct ast_channel *chan = NULL;
@@ -331,11 +331,12 @@ AST_TEST_DEFINE(test_sip_rtpqos_1)
 		res = AST_TEST_NOT_RUN;
 		goto done;
 	}
+
 	if (!(p->rtp = ast_rtp_instance_new("test", sched, &bindaddr, &mine))) {
 		res = AST_TEST_NOT_RUN;
 		goto done;
 	}
-	ast_rtp_instance_set_remote_address(p->rtp, &sin);
+	ast_rtp_instance_set_remote_address(p->rtp, &sa);
 	if (!(chan = ast_dummy_channel_alloc())) {
 		res = AST_TEST_NOT_RUN;
 		goto done;

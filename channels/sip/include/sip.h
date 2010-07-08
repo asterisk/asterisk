@@ -646,7 +646,8 @@ enum sip_tcptls_alert {
  */
 struct sip_proxy {
 	char name[MAXHOSTNAMELEN];      /*!< DNS name of domain/host or IP */
-	struct sockaddr_in ip;          /*!< Currently used IP address and port */
+	struct ast_sockaddr ip;          /*!< Currently used IP address and port */
+	int port;
 	time_t last_dnsupdate;          /*!< When this was resolved */
 	enum sip_transport transport;
 	int force;                      /*!< If it's an outbound proxy, Force use of this outbound proxy for all outbound requests */
@@ -702,6 +703,7 @@ struct sip_settings {
 	char default_subscribecontext[AST_MAX_CONTEXT];
 	struct ast_ha *contact_ha;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
 	format_t capability;        /*!< Supported codecs */
+	int tcp_enabled;
 };
 
 /*! \brief The SIP socket definition */
@@ -1008,16 +1010,16 @@ struct sip_pvt {
 	long invite_branch;                 /*!< The branch used when we sent the initial INVITE */
 	int64_t sessionversion_remote;      /*!< Remote UA's SDP Session Version */
 	unsigned int portinuri:1;           /*!< Non zero if a port has been specified, will also disable srv lookups */
-	struct sockaddr_in sa;              /*!< Our peer */
-	struct sockaddr_in redirip;         /*!< Where our RTP should be going if not to us */
-	struct sockaddr_in vredirip;        /*!< Where our Video RTP should be going if not to us */
-	struct sockaddr_in tredirip;        /*!< Where our Text RTP should be going if not to us */
+	struct ast_sockaddr sa;              /*!< Our peer */
+	struct ast_sockaddr redirip;         /*!< Where our RTP should be going if not to us */
+	struct ast_sockaddr vredirip;        /*!< Where our Video RTP should be going if not to us */
+	struct ast_sockaddr tredirip;        /*!< Where our Text RTP should be going if not to us */
 	time_t lastrtprx;                   /*!< Last RTP received */
 	time_t lastrtptx;                   /*!< Last RTP sent */
 	int rtptimeout;                     /*!< RTP timeout time */
 	struct ast_ha *directmediaha;		/*!< Which IPs are allowed to interchange direct media with this peer - copied from sip_peer */
-	struct sockaddr_in recv;            /*!< Received as */
-	struct sockaddr_in ourip;           /*!< Our IP (as seen from the outside) */
+	struct ast_sockaddr recv;            /*!< Received as */
+	struct ast_sockaddr ourip;           /*!< Our IP (as seen from the outside) */
 	enum transfermodes allowtransfer;   /*!< REFER: restriction scheme */
 	struct ast_channel *owner;          /*!< Who owns us (if we have an owner) */
 	struct sip_route *route;            /*!< Head of linked list of routing steps (fm Record-Route) */
@@ -1209,7 +1211,7 @@ struct sip_peer {
 	ast_group_t pickupgroup;        /*!<  Pickup group */
 	struct sip_proxy *outboundproxy;/*!< Outbound proxy for this peer */
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
-	struct sockaddr_in addr;        /*!<  IP address of peer */
+	struct ast_sockaddr addr;        /*!<  IP address of peer */
 	unsigned int portinuri:1;       /*!< Whether the port should be included in the URI */
 	struct sip_pvt *call;           /*!<  Call pointer */
 	int pokeexpire;                 /*!<  Qualification: When to expire poke (qualify= checking) */
@@ -1217,7 +1219,7 @@ struct sip_peer {
 	int maxms;                      /*!<  Qualification: Max ms we will accept for the host to be up, 0 to not monitor */
 	int qualifyfreq;                /*!<  Qualification: Qualification: How often to check for the host to be up */
 	struct timeval ps;              /*!<  Qualification: Time for sending SIP OPTION in sip_pke_peer() */
-	struct sockaddr_in defaddr;     /*!<  Default IP address, used until registration */
+	struct ast_sockaddr defaddr;     /*!<  Default IP address, used until registration */
 	struct ast_ha *ha;              /*!<  Access control list */
 	struct ast_ha *contactha;       /*!<  Restrict what IPs are allowed in the Contact header (for registration) */
 	struct ast_ha *directmediaha;   /*!<  Restrict what IPs are allowed to interchange direct media with */
@@ -1281,7 +1283,7 @@ struct sip_registry {
 	int callid_valid;       /*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;     /*!< Sequence number we got to for REGISTERs for this registry */
 	struct ast_dnsmgr_entry *dnsmgr;  /*!<  DNS refresh manager for register */
-	struct sockaddr_in us;  /*!< Who the server thinks we are */
+	struct ast_sockaddr us;  /*!< Who the server thinks we are */
 	int noncecount;         /*!< Nonce-count */
 	char lastmsg[256];      /*!< Last Message sent/received */
 };
@@ -1321,7 +1323,7 @@ struct sip_subscription_mwi {
 	unsigned int subscribed:1;       /*!< Whether we are currently subscribed or not */
 	struct sip_pvt *call;            /*!< Outbound subscription dialog */
 	struct ast_dnsmgr_entry *dnsmgr; /*!< DNS refresh manager for subscription */
-	struct sockaddr_in us;           /*!< Who the server thinks we are */
+	struct ast_sockaddr us;           /*!< Who the server thinks we are */
 };
 
 /*!
@@ -1697,8 +1699,7 @@ struct contact {
 	char *name;
 	char *user;
 	char *pass;
-	char *host;
-	char *port;
+	char *domain;
 	struct uriparams params;
 	char *headers;
 	char *expires;

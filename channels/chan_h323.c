@@ -954,15 +954,20 @@ static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int __oh323_rtp_create(struct oh323_pvt *pvt)
 {
-	struct sockaddr_in our_addr;
+	struct ast_sockaddr our_addr;
 
 	if (pvt->rtp)
 		return 0;
 
-	if (ast_find_ourip(&our_addr.sin_addr, bindaddr)) {
-		ast_mutex_unlock(&pvt->lock);
-		ast_log(LOG_ERROR, "Unable to locate local IP address for RTP stream\n");
-		return -1;
+	{
+		struct ast_sockaddr tmp;
+
+		tmp = ast_sockaddr_from_sin(bindaddr);
+		if (ast_find_ourip(&our_addr, &tmp)) {
+			ast_mutex_unlock(&pvt->lock);
+			ast_log(LOG_ERROR, "Unable to locate local IP address for RTP stream\n");
+			return -1;
+		}
 	}
 	pvt->rtp = ast_rtp_instance_new("asterisk", sched, &our_addr, NULL);
 	if (!pvt->rtp) {
@@ -1408,9 +1413,14 @@ static struct oh323_user *build_user(const char *name, struct ast_variable *v, s
 				ast_log(LOG_ERROR, "A dynamic host on a type=user does not make any sense\n");
 				ASTOBJ_UNREF(user, oh323_destroy_user);
 				return NULL;
-			} else if (ast_get_ip(&user->addr, v->value)) {
-				ASTOBJ_UNREF(user, oh323_destroy_user);
-				return NULL;
+			} else {
+				struct ast_sockaddr tmp;
+
+				if (ast_get_ip(&tmp, v->value)) {
+					ASTOBJ_UNREF(user, oh323_destroy_user);
+					return NULL;
+				}
+				ast_sockaddr_to_sin(&tmp, &user->addr);
 			}
 			/* Let us know we need to use ip authentication */
 			user->host = 1;
@@ -1522,10 +1532,15 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 				ASTOBJ_UNREF(peer, oh323_destroy_peer);
 				return NULL;
 			}
-			if (ast_get_ip(&peer->addr, v->value)) {
-				ast_log(LOG_ERROR, "Could not determine IP for %s\n", v->value);
-				ASTOBJ_UNREF(peer, oh323_destroy_peer);
-				return NULL;
+			{
+				struct ast_sockaddr tmp;
+
+				if (ast_get_ip(&tmp, v->value)) {
+					ast_log(LOG_ERROR, "Could not determine IP for %s\n", v->value);
+					ASTOBJ_UNREF(peer, oh323_destroy_peer);
+					return NULL;
+				}
+				ast_sockaddr_to_sin(&tmp, &peer->addr);
 			}
 		} else if (!strcasecmp(v->name, "port")) {
 			peer->addr.sin_port = htons(atoi(v->value));
@@ -1922,7 +1937,12 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 		return NULL;
 	}
 	/* figure out our local RTP port and tell the H.323 stack about it */
-	ast_rtp_instance_get_local_address(pvt->rtp, &us);
+	{
+		struct ast_sockaddr tmp;
+
+		ast_rtp_instance_get_local_address(pvt->rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &us);
+	}
 	ast_mutex_unlock(&pvt->lock);
 
 	ast_copy_string(info->addr, ast_inet_ntoa(us.sin_addr), sizeof(info->addr));
@@ -1971,7 +1991,12 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 	them.sin_port = htons(remotePort);
 
 	if (them.sin_addr.s_addr) {
-		ast_rtp_instance_set_remote_address(pvt->rtp, &them);
+		{
+			struct ast_sockaddr tmp;
+
+			tmp = ast_sockaddr_from_sin(them);
+			ast_rtp_instance_set_remote_address(pvt->rtp, &tmp);
+		}
 		if (pvt->recvonly) {
 			pvt->recvonly = 0;
 			rtp_change = NEED_UNHOLD;
@@ -3204,8 +3229,14 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance 
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
 		return -1;
 	}
-	ast_rtp_instance_get_remote_address(rtp, &them);
-	ast_rtp_instance_get_local_address(rtp, &us);
+	{
+		struct ast_sockaddr tmp;
+
+		ast_rtp_instance_get_remote_address(rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &them);
+		ast_rtp_instance_get_local_address(rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &us);
+	}
 #if 0	/* Native bridge still isn't ready */
 	h323_native_bridge(pvt->cd.call_token, ast_inet_ntoa(them.sin_addr), mode);
 #endif

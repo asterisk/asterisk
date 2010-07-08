@@ -252,7 +252,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/monitor.h"
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 #include "asterisk/localtime.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/threadstorage.h"
@@ -1117,7 +1117,7 @@ static struct sip_auth *authl = NULL;
  */
 static int sipsock  = -1;
 
-struct sockaddr_in bindaddr;	/*!< UDP: The address we bind to */
+struct ast_sockaddr bindaddr;	/*!< UDP: The address we bind to */
 
 /*! \brief our (internal) default address/port to put in SIP/SDP messages
  *  internip is initialized picking a suitable address from one of the
@@ -1125,7 +1125,7 @@ struct sockaddr_in bindaddr;	/*!< UDP: The address we bind to */
  * default address/port in SIP messages, and as the default address
  * (but not port) in SDP messages.
  */
-static struct sockaddr_in internip;
+static struct ast_sockaddr internip;
 
 /*! \brief our external IP address/port for SIP sessions.
  * externip.sin_addr is only set when we know we might be behind
@@ -1145,8 +1145,8 @@ static struct sockaddr_in internip;
  * Other variables (externhost, externexpire, externrefresh) are used
  * to support the above functions.
  */
-static struct sockaddr_in externip;       /*!< External IP address if we are behind NAT */
-static struct sockaddr_in media_address;  /*!< External RTP IP address if we are behind NAT */
+static struct ast_sockaddr externip;      /*!< External IP address if we are behind NAT */
+static struct ast_sockaddr media_address; /*!< External RTP IP address if we are behind NAT */
 
 static char externhost[MAXHOSTNAMELEN];   /*!< External host name */
 static time_t externexpire;             /*!< Expiration counter for re-resolving external host name in dynamic DNS */
@@ -1165,7 +1165,7 @@ static struct ast_ha *localaddr;    /*!< List of local networks, on the same sid
 
 static int ourport_tcp;             /*!< The port used for TCP connections */
 static int ourport_tls;             /*!< The port used for TCP/TLS connections */
-static struct sockaddr_in debugaddr;
+static struct ast_sockaddr debugaddr;
 
 static struct ast_config *notify_types = NULL;    /*!< The list of manual NOTIFY types we know how to send */
 
@@ -1201,9 +1201,10 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 static int sip_queryoption(struct ast_channel *chan, int option, void *data, int *datalen);
 static const char *sip_get_callid(struct ast_channel *chan);
 
-static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin);
+static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr);
 static int sip_standard_port(enum sip_transport type, int port);
 static int sip_prepare_socket(struct sip_pvt *p);
+static int get_address_family_filter(const struct ast_sockaddr *addr);
 
 /*--- Transmitting responses and requests */
 static int sipsock_read(int *id, int fd, short events, void *ignore);
@@ -1212,7 +1213,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, struct as
 static void add_cc_call_info_to_response(struct sip_pvt *p, struct sip_request *resp);
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
 static int retrans_pkt(const void *data);
-static int transmit_response_using_temp(ast_string_field callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg);
+static int transmit_response_using_temp(ast_string_field callid, struct ast_sockaddr *addr, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg);
 static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_reliable(struct sip_pvt *p, const char *msg, const struct sip_request *req);
 static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const struct sip_request *req);
@@ -1248,11 +1249,11 @@ static int __sip_autodestruct(const void *data);
 static void *registry_unref(struct sip_registry *reg, char *tag);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static int auto_congest(const void *arg);
-static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method);
+static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method);
 static void free_old_route(struct sip_route *route);
 static void list_route(struct sip_route *route);
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards);
-static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr_in *sin,
+static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sockaddr *addr,
 					      struct sip_request *req, const char *uri);
 static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag);
 static void check_pendings(struct sip_pvt *p);
@@ -1268,7 +1269,7 @@ static char get_sdp_line(int *start, int stop, struct sip_request *req, const ch
 static int find_sdp(struct sip_request *req);
 static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action);
 static int process_sdp_o(const char *o, struct sip_pvt *p);
-static int process_sdp_c(const char *c, struct ast_hostent *hp);
+static int process_sdp_c(const char *c, struct ast_sockaddr *addr);
 static int process_sdp_a_sendonly(const char *a, int *sendonly);
 static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newaudiortp, int *last_rtpmap_codec);
 static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newvideortp, int *last_rtpmap_codec);
@@ -1292,8 +1293,8 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 					 const char *uri, enum xmittype reliable, int ignore);
 static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_request *req,
 					      int sipmethod, const char *uri, enum xmittype reliable,
-					      struct sockaddr_in *sin, struct sip_peer **authpeer);
-static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, const char *uri, enum xmittype reliable, struct sockaddr_in *sin);
+					      struct ast_sockaddr *addr, struct sip_peer **authpeer);
+static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, const char *uri, enum xmittype reliable, struct ast_sockaddr *addr);
 
 /*--- Domain handling */
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
@@ -1375,13 +1376,17 @@ static int sip_dtmfmode(struct ast_channel *chan, const char *data);
 static int sip_addheader(struct ast_channel *chan, const char *data);
 static int sip_do_reload(enum channelreloadreason reason);
 static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
+				      const char *name, int flag, int family);
+static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
+				      const char *name, int flag);
 
 /*--- Debugging
 	Functions for enabling debug per IP or fully, or enabling history logging for
 	a SIP dialog
 */
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to debuglog at end of dialog, before destroying data */
-static inline int sip_debug_test_addr(const struct sockaddr_in *addr);
+static inline int sip_debug_test_addr(const struct ast_sockaddr *addr);
 static inline int sip_debug_test_pvt(struct sip_pvt *p);
 static void append_history_full(struct sip_pvt *p, const char *fmt, ...);
 static void sip_dump_history(struct sip_pvt *dialog);
@@ -1394,7 +1399,7 @@ static void sip_destroy_peer_fn(void *peer);
 static void set_peer_defaults(struct sip_peer *peer);
 static struct sip_peer *temp_peer(const char *name);
 static void register_peer_exten(struct sip_peer *peer, int onoff);
-static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int forcenamematch, int devstate_only, int transport);
+static struct sip_peer *find_peer(const char *peer, struct ast_sockaddr *addr, int realtime, int forcenamematch, int devstate_only, int transport);
 static int sip_poke_peer_s(const void *data);
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req);
 static void reg_source_db(struct sip_peer *peer);
@@ -1404,15 +1409,15 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 static void set_socket_transport(struct sip_socket *socket, int transport);
 
 /* Realtime device support */
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms);
+static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr, const char *username, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms);
 static void update_peer(struct sip_peer *p, int expire);
 static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config);
 static const char *get_name_from_variable(struct ast_variable *var, const char *newpeername);
-static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin, int devstate_only);
+static struct sip_peer *realtime_peer(const char *peername, struct ast_sockaddr *sin, int devstate_only);
 static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*--- Internal UA client handling (outbound registrations) */
-static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us, struct sip_pvt *p);
+static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us, struct sip_pvt *p);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(const char *value, int lineno);
 static const char *regstate2str(enum sipregistrystate regstate) attribute_const;
@@ -1469,13 +1474,13 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 static int init_resp(struct sip_request *resp, const char *msg);
 static inline int resp_needs_contact(const char *msg, enum sipmethod method);
 static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, const struct sip_request *req);
-static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p);
+static const struct ast_sockaddr *sip_real_dst(const struct sip_pvt *p);
 static void build_via(struct sip_pvt *p);
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin, int newdialog, struct sockaddr_in *remote_address);
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_sockaddr *addr, int newdialog, struct ast_sockaddr *remote_address);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
-static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain);
+static void build_callid_registry(struct sip_registry *reg, const struct ast_sockaddr *ourip, const char *fromdomain);
 static void make_our_tag(char *tagbuf, size_t len);
 static int add_header(struct sip_request *req, const char *var, const char *value);
 static int add_content(struct sip_request *req, const char *line);
@@ -1493,19 +1498,19 @@ static void append_date(struct sip_request *req);
 static void build_contact(struct sip_pvt *p);
 
 /*------Request handling functions */
-static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock);
+static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *recount, int *nounlock);
 static int handle_request_update(struct sip_pvt *p, struct sip_request *req);
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, const char *e, int *nounlock);
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct ast_sockaddr *addr, int *recount, const char *e, int *nounlock);
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, int *nounlock);
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req);
-static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, const char *e);
+static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *sin, const char *e);
 static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_message(struct sip_pvt *p, struct sip_request *req);
-static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, const char *e);
+static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int seqno, const char *e);
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *nounlock);
-static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, const char *e);
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct ast_sockaddr *addr, int *nounlock);
+static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int seqno, const char *e);
 static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno, int *nounlock);
 
 /*------Response handling functions */
@@ -1877,7 +1882,7 @@ static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *availa
 
 	sip_pvt_lock(monitor_instance->subscription_pvt);
 	create_addr(monitor_instance->subscription_pvt, monitor_instance->peername, 0, 1, NULL);
-	ast_sip_ouraddrfor(&monitor_instance->subscription_pvt->sa.sin_addr, &monitor_instance->subscription_pvt->ourip, monitor_instance->subscription_pvt);
+	ast_sip_ouraddrfor(&monitor_instance->subscription_pvt->sa, &monitor_instance->subscription_pvt->ourip, monitor_instance->subscription_pvt);
 	monitor_instance->subscription_pvt->subscribed = CALL_COMPLETION;
 	monitor_instance->subscription_pvt->expiry = when;
 
@@ -2793,14 +2798,19 @@ static int proxy_update(struct sip_proxy *proxy)
 {
 	/* if it's actually an IP address and not a name,
            there's no need for a managed lookup */
-	if (!inet_aton(proxy->name, &proxy->ip.sin_addr)) {
+	if (!ast_sockaddr_parse(&proxy->ip, proxy->name, 0)) {
 		/* Ok, not an IP address, then let's check if it's a domain or host */
 		/* XXX Todo - if we have proxy port, don't do SRV */
+		proxy->ip.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
 		if (ast_get_ip_or_srv(&proxy->ip, proxy->name, sip_cfg.srvlookup ? "_sip._udp" : NULL) < 0) {
-			ast_log(LOG_WARNING, "Unable to locate host '%s'\n", proxy->name);
-			return FALSE;
+				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", proxy->name);
+				return FALSE;
 		}
+
 	}
+
+	ast_sockaddr_set_port(&proxy->ip, proxy->port);
+
 	proxy->last_dnsupdate = time(NULL);
 	return TRUE;
 }
@@ -2817,26 +2827,6 @@ unsigned int port_str2int(const char *pt, unsigned int standard)
 	}
 
 	return port;
-}
-
-/*! \brief Allocate and initialize sip proxy */
-static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
-{
-	struct sip_proxy *proxy;
-
-	if (ast_strlen_zero(name)) {
-		return NULL;
-	}
-
-	proxy = ao2_alloc(sizeof(*proxy), NULL);
-	if (!proxy)
-		return NULL;
-	proxy->force = force;
-	ast_copy_string(proxy->name, name, sizeof(proxy->name));
-	proxy->ip.sin_port = htons(port_str2int(port, STANDARD_SIP_PORT));
-	proxy->ip.sin_family = AF_INET;
-	proxy_update(proxy);
-	return proxy;
 }
 
 /*! \brief Get default outbound proxy or global proxy */
@@ -2889,21 +2879,13 @@ static int find_sip_method(const char *msg)
 }
 
 /*! \brief See if we pass debug IP filter */
-static inline int sip_debug_test_addr(const struct sockaddr_in *addr)
+static inline int sip_debug_test_addr(const struct ast_sockaddr *addr)
 {
-	if (!sipdebug)
-		return 0;
-	if (debugaddr.sin_addr.s_addr) {
-		if (((ntohs(debugaddr.sin_port) != 0)
-			&& (debugaddr.sin_port != addr->sin_port))
-			|| (debugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-			return 0;
-	}
-	return 1;
+	return sipdebug && !ast_sockaddr_isnull(addr) && !ast_sockaddr_cmp_addr(&debugaddr, addr);
 }
 
 /*! \brief The real destination address for a write */
-static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p)
+static const struct ast_sockaddr *sip_real_dst(const struct sip_pvt *p)
 {
 	if (p->outboundproxy)
 		return &p->outboundproxy->ip;
@@ -3007,15 +2989,15 @@ static inline const char *get_transport_pvt(struct sip_pvt *p)
 static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 {
 	int res = 0;
-	const struct sockaddr_in *dst = sip_real_dst(p);
+	const struct ast_sockaddr *dst = sip_real_dst(p);
 
-	ast_debug(2, "Trying to put '%.11s' onto %s socket destined for %s:%d\n", data->str, get_transport_pvt(p), ast_inet_ntoa(dst->sin_addr), htons(dst->sin_port));
+	ast_debug(2, "Trying to put '%.11s' onto %s socket destined for %s\n", data->str, get_transport_pvt(p), ast_sockaddr_stringify(dst));
 
 	if (sip_prepare_socket(p) < 0)
 		return XMIT_ERROR;
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
-		res = sendto(p->socket.fd, data->str, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
+		res = ast_sendto(p->socket.fd, data->str, len, 0, dst);
 	} else if (p->socket.tcptls_session) {
 		res = sip_tcptls_write(p->socket.tcptls_session, data->str, len);
 	} else {
@@ -3034,7 +3016,7 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 		}
 	}
 	if (res != len)
-		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(dst->sin_addr), ntohs(dst->sin_port), res, strerror(errno));
+		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s returned %d: %s\n", data, len, ast_sockaddr_stringify(dst), res, strerror(errno));
 
 	return res;
 }
@@ -3046,10 +3028,10 @@ static void build_via(struct sip_pvt *p)
 	const char *rport = (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT) || ast_test_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT)) ? ";rport" : "";
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/%s %s:%d;branch=z9hG4bK%08x%s",
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/%s %s;branch=z9hG4bK%08x%s",
 		 get_transport_pvt(p),
-		 ast_inet_ntoa(p->ourip.sin_addr),
-		 ntohs(p->ourip.sin_port), (int) p->branch, rport);
+		 ast_sockaddr_stringify(&p->ourip),
+		 (int) p->branch, rport);
 }
 
 /*! \brief NAT fix - decide which IP address to use for Asterisk server?
@@ -3059,9 +3041,11 @@ static void build_via(struct sip_pvt *p)
  * externip or can get away with our internal bindaddr
  * 'us' is always overwritten.
  */
-static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us, struct sip_pvt *p)
+static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us, struct sip_pvt *p)
 {
-	struct sockaddr_in theirs;
+	struct ast_sockaddr theirs;
+	struct sockaddr_in theirs_sin, externip_sin, us_sin;
+
 	/* Set want_remap to non-zero if we want to remap 'us' to an externally
 	 * reachable IP address and port. This is done if:
 	 * 1. we have a localaddr list (containing 'internal' addresses marked
@@ -3074,76 +3058,100 @@ static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us, str
 	 *    when passed to ast_apply_ha() so it does need to be remapped.
 	 *    This fourth condition is checked later.
 	 */
-	int want_remap;
+	int want_remap = 0;
 
-	*us = internip;		/* starting guess for the internal address */
+	ast_sockaddr_copy(us, &internip); /* starting guess for the internal address */
 	/* now ask the system what would it use to talk to 'them' */
-	ast_ouraddrfor(them, &us->sin_addr);
-	theirs.sin_addr = *them;
+	ast_ouraddrfor(them, us);
+	ast_sockaddr_copy(&theirs, them);
 
-	want_remap = localaddr &&
-		(externip.sin_addr.s_addr || stunaddr.sin_addr.s_addr) &&
-		ast_apply_ha(localaddr, &theirs) == AST_SENSE_ALLOW ;
+	if (ast_sockaddr_is_ipv6(&theirs)) {
+		if (localaddr && !ast_sockaddr_isnull(&externip)) {
+			ast_log(LOG_WARNING, "Address remapping activated in sip.conf "
+				"but we're using IPv6, which doesn't need it. Please "
+				"remove \"localnet\" and/or \"externip\" settings.\n");
+		}
+	} else {
+		ast_sockaddr_to_sin(&theirs, &theirs_sin);
+		ast_sockaddr_to_sin(us, &us_sin);
+
+		want_remap = localaddr &&
+			!(ast_sockaddr_isnull(&externip) && stunaddr.sin_addr.s_addr) &&
+			ast_apply_ha(localaddr, &theirs_sin) == AST_SENSE_ALLOW ;
+	}
 
 	if (want_remap &&
-	    (!sip_cfg.matchexterniplocally || !ast_apply_ha(localaddr, us)) ) {
+	    (!sip_cfg.matchexterniplocally || !ast_apply_ha(localaddr, &us_sin)) ) {
 		/* if we used externhost or stun, see if it is time to refresh the info */
 		if (externexpire && time(NULL) >= externexpire) {
 			if (stunaddr.sin_addr.s_addr) {
-				ast_stun_request(sipsock, &stunaddr, NULL, &externip);
+				ast_sockaddr_to_sin(&externip, &externip_sin);
+				ast_stun_request(sipsock, &stunaddr, NULL, &externip_sin);
 			} else {
-				if (ast_parse_arg(externhost, PARSE_INADDR, &externip))
+				if (ast_sockaddr_resolve_first(&externip, externhost, 0)) {
 					ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
+				}
+				externexpire = time(NULL);
 			}
 			externexpire = time(NULL) + externrefresh;
 		}
-		if (externip.sin_addr.s_addr) {
-			*us = externip;
+		if (ast_sockaddr_isnull(&externip)) {
+			ast_sockaddr_copy(us, &externip);
 			switch (p->socket.type) {
 			case SIP_TRANSPORT_TCP:
-				us->sin_port = htons(externtcpport);
+				if (!externtcpport && ast_sockaddr_port(&externip)) {
+					/* for consistency, default to the externip port */
+					externtcpport = ast_sockaddr_port(&externip);
+				}
+				ast_sockaddr_set_port(us, externtcpport);
 				break;
 			case SIP_TRANSPORT_TLS:
-				us->sin_port = htons(externtlsport);
+				ast_sockaddr_set_port(us, externtlsport);
 				break;
 			case SIP_TRANSPORT_UDP:
 				break; /* fall through */
 			default:
-				us->sin_port = htons(STANDARD_SIP_PORT); /* we should never get here */
+				/* we should never get here */
+				ast_sockaddr_set_port(us, STANDARD_SIP_PORT);
 			}
 		}
-		else
+		else {
 			ast_log(LOG_WARNING, "stun failed\n");
+		}
 		ast_debug(1, "Target address %s is not local, substituting externip\n",
-			ast_inet_ntoa(*(struct in_addr *)&them->s_addr));
+			  ast_sockaddr_stringify(them));
 	} else if (p) {
 		/* no remapping, but we bind to a specific address, so use it. */
 		switch (p->socket.type) {
 		case SIP_TRANSPORT_TCP:
-			if (sip_tcp_desc.local_address.sin_addr.s_addr) {
-				*us = sip_tcp_desc.local_address;
+			if (!ast_sockaddr_is_any(&sip_tcp_desc.local_address)) {
+				ast_sockaddr_copy(us,
+						  &sip_tcp_desc.local_address);
 			} else {
-				us->sin_port = sip_tcp_desc.local_address.sin_port;
+				ast_sockaddr_set_port(us,
+						      ast_sockaddr_port(&sip_tcp_desc.local_address));
 			}
 			break;
 		case SIP_TRANSPORT_TLS:
-			if (sip_tls_desc.local_address.sin_addr.s_addr) {
-				*us = sip_tls_desc.local_address;
+			if (!ast_sockaddr_is_any(&sip_tls_desc.local_address)) {
+				ast_sockaddr_copy(us,
+						  &sip_tls_desc.local_address);
 			} else {
-				us->sin_port = sip_tls_desc.local_address.sin_port;
+				ast_sockaddr_set_port(us,
+						      ast_sockaddr_port(&sip_tls_desc.local_address));
 			}
-				break;
+			break;
 		case SIP_TRANSPORT_UDP:
 			/* fall through on purpose */
 		default:
-			if (bindaddr.sin_addr.s_addr) {
-				*us = bindaddr;
+			if (!ast_sockaddr_is_any(&bindaddr)) {
+				ast_sockaddr_copy(us, &bindaddr);
 			}
 		}
-	} else if (bindaddr.sin_addr.s_addr) {
-		*us = bindaddr;
+	} else if (!ast_sockaddr_is_any(&bindaddr)) {
+		ast_sockaddr_copy(us, &bindaddr);
 	}
-	ast_debug(3, "Setting SIP_TRANSPORT_%s with address %s:%d\n", get_transport(p->socket.type), ast_inet_ntoa(us->sin_addr), ntohs(us->sin_port));
+	ast_debug(3, "Setting SIP_TRANSPORT_%s with address %s\n", get_transport(p->socket.type), ast_sockaddr_stringify(us));
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -3231,11 +3239,11 @@ static int retrans_pkt(const void *data)
 		}
 
 		if (sip_debug_test_pvt(pkt->owner)) {
-			const struct sockaddr_in *dst = sip_real_dst(pkt->owner);
-			ast_verbose("Retransmitting #%d (%s) to %s:%d:\n%s\n---\n",
+			const struct ast_sockaddr *dst = sip_real_dst(pkt->owner);
+			ast_verbose("Retransmitting #%d (%s) to %s:\n%s\n---\n",
 				pkt->retrans, sip_nat_mode(pkt->owner),
-				ast_inet_ntoa(dst->sin_addr),
-				ntohs(dst->sin_port), pkt->data->str);
+				ast_sockaddr_stringify(dst),
+				pkt->data->str);
 		}
 
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data->str);
@@ -3709,12 +3717,12 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	finalize_content(req);
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
-		const struct sockaddr_in *dst = sip_real_dst(p);
+		const struct ast_sockaddr *dst = sip_real_dst(p);
 
-		ast_verbose("\n<--- %sTransmitting (%s) to %s:%d --->\n%s\n<------------>\n",
+		ast_verbose("\n<--- %sTransmitting (%s) to %s --->\n%s\n<------------>\n",
 			reliable ? "Reliably " : "", sip_nat_mode(p),
-			ast_inet_ntoa(dst->sin_addr),
-			ntohs(dst->sin_port), req->data->str);
+			ast_sockaddr_stringify(dst),
+			req->data->str);
 	}
 	if (p->do_history) {
 		struct sip_request tmp = { .rlPart1 = 0, };
@@ -3755,10 +3763,11 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	finalize_content(req);
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
-		if (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT))
-			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port), req->data->str);
-		else
-			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port), req->data->str);
+		if (ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT)) {
+			ast_verbose("%sTransmitting (NAT) to %s:\n%s\n---\n", reliable ? "Reliably " : "", ast_sockaddr_stringify(&p->recv), req->data->str);
+		} else {
+			ast_verbose("%sTransmitting (no NAT) to %s:\n%s\n---\n", reliable ? "Reliably " : "", ast_sockaddr_stringify(&p->sa), req->data->str);
+		}
 	}
 	if (p->do_history) {
 		struct sip_request tmp = { .rlPart1 = 0, };
@@ -4012,7 +4021,7 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 	that name and store that in the "regserver" field in the sippeers
 	table to facilitate multi-server setups.
 */
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *defaultuser, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms)
+static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr, const char *defaultuser, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms)
 {
 	char port[10];
 	char ipaddr[INET_ADDRSTRLEN];
@@ -4033,9 +4042,9 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 
 	snprintf(str_lastms, sizeof(str_lastms), "%d", lastms);
 	snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
-	ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
-	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
-	
+	ast_copy_string(ipaddr, ast_sockaddr_stringify_addr(addr), sizeof(ipaddr));
+	ast_copy_string(port, ast_sockaddr_stringify_port(addr), sizeof(port));
+
 	if (ast_strlen_zero(sysname))	/* No system name, disable this */
 		sysname = NULL;
 	else if (sip_cfg.rtsave_sysname)
@@ -4209,7 +4218,7 @@ static const char *get_name_from_variable(struct ast_variable *var, const char *
  * This returns a pointer to a peer and because we use build_peer, we can rest
  * assured that the refcount is bumped.
 */
-static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_in *sin, int devstate_only)
+static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockaddr *addr, int devstate_only)
 {
 	struct sip_peer *peer;
 	struct ast_variable *var = NULL;
@@ -4219,7 +4228,6 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	char ipaddr[INET_ADDRSTRLEN];
 	char portstring[6]; /*up to 5 digits plus null terminator*/
 	char *cat = NULL;
-	unsigned short portnum;
 	int realtimeregs = ast_check_realtime("sipregs");
 
 	/* First check on peer name */
@@ -4228,8 +4236,9 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			varregs = ast_load_realtime("sipregs", "name", newpeername, SENTINEL);
 
 		var = ast_load_realtime("sippeers", "name", newpeername, "host", "dynamic", SENTINEL);
-		if (!var && sin)
-			var = ast_load_realtime("sippeers", "name", newpeername, "host", ast_inet_ntoa(sin->sin_addr), SENTINEL);
+		if (!var && addr) {
+			var = ast_load_realtime("sippeers", "name", newpeername, "host", ast_sockaddr_stringify_addr(addr), SENTINEL);
+		}
 		if (!var) {
 			var = ast_load_realtime("sippeers", "name", newpeername, SENTINEL);
 			/*!\note
@@ -4238,16 +4247,21 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			 * is because we only have the IP address and the host field might be
 			 * set as a name (and the reverse PTR might not match).
 			 */
-			if (var && sin) {
+			if (var && addr) {
 				for (tmp = var; tmp; tmp = tmp->next) {
 					if (!strcasecmp(tmp->name, "host")) {
-						struct hostent *hp;
-						struct ast_hostent ahp;
-						if (!(hp = ast_gethostbyname(tmp->value, &ahp)) || (memcmp(hp->h_addr, &sin->sin_addr, sizeof(hp->h_addr)))) {
+						struct ast_sockaddr *addrs = NULL;
+
+						if (ast_sockaddr_resolve(&addrs,
+									 tmp->value,
+									 PARSE_PORT_FORBID,
+									 get_address_family_filter(&bindaddr)) <= 0 ||
+						    ast_sockaddr_cmp(&addrs[0], addr)) {
 							/* No match */
 							ast_variables_destroy(var);
 							var = NULL;
 						}
+						ast_free(addrs);
 						break;
 					}
 				}
@@ -4255,10 +4269,9 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		}
 	}
 
-	if (!var && sin) {	/* Then check on IP address for dynamic peers */
-		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
-		portnum = ntohs(sin->sin_port);
-		sprintf(portstring, "%u", portnum);
+	if (!var && addr) {	/* Then check on IP address for dynamic peers */
+		ast_copy_string(ipaddr, ast_sockaddr_stringify_addr(addr), sizeof(ipaddr));
+		ast_copy_string(portstring, ast_sockaddr_stringify_port(addr), sizeof(portstring));
 		var = ast_load_realtime("sippeers", "host", ipaddr, "port", portstring, SENTINEL);	/* First check for fixed IP hosts */
 		if (var) {
 			if (realtimeregs) {
@@ -4368,7 +4381,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 					ref_peer(peer, "add registration ref"));
 		}
 		ao2_t_link(peers, peer, "link peer into peers table");
-		if (peer->addr.sin_addr.s_addr) {
+		if (!ast_sockaddr_isnull(&peer->addr)) {
 			ao2_t_link(peers_by_ip, peer, "link peer into peers_by_ip table");
 		}
 	}
@@ -4425,7 +4438,7 @@ static int find_by_name(void *obj, void *arg, void *data, int flags)
  * \note Avoid using this function in new functions if there is a way to avoid it,
  * since it might cause a database lookup.
  */
-static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime, int which_objects, int devstate_only, int transport)
+static struct sip_peer *find_peer(const char *peer, struct ast_sockaddr *addr, int realtime, int which_objects, int devstate_only, int transport)
 {
 	struct sip_peer *p = NULL;
 	struct sip_peer tmp_peer;
@@ -4433,9 +4446,8 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 	if (peer) {
 		ast_copy_string(tmp_peer.name, peer, sizeof(tmp_peer.name));
 		p = ao2_t_callback_data(peers, OBJ_POINTER, find_by_name, &tmp_peer, &which_objects, "ao2_find in peers table");
-	} else if (sin) { /* search by addr? */
-		tmp_peer.addr.sin_addr.s_addr = sin->sin_addr.s_addr;
-		tmp_peer.addr.sin_port = sin->sin_port;
+	} else if (addr) { /* search by addr? */
+		ast_sockaddr_copy(&tmp_peer.addr, addr);
 		tmp_peer.flags[0].flags = 0;
 		tmp_peer.transports = transport;
 		p = ao2_t_find(peers_by_ip, &tmp_peer, OBJ_POINTER, "ao2_find in peers_by_ip table"); /* WAS:  p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp); */
@@ -4449,7 +4461,7 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 	}
 
 	if (!p && (realtime || devstate_only)) {
-		p = realtime_peer(peer, sin, devstate_only);
+		p = realtime_peer(peer, addr, devstate_only);
 		if (p) {
 			switch (which_objects) {
 			case FINDUSERS:
@@ -4582,17 +4594,20 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
  */
 static int dialog_initialize_rtp(struct sip_pvt *dialog)
 {
+	struct ast_sockaddr bindaddr_tmp;
+
 	if (!sip_methods[dialog->method].need_rtp) {
 		return 0;
 	}
 
-	if (!(dialog->rtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr, NULL))) {
+	ast_sockaddr_copy(&bindaddr_tmp, &bindaddr);
+	if (!(dialog->rtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 		return -1;
 	}
 
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT_ALWAYS) ||
 			(ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT) && (dialog->capability & AST_FORMAT_VIDEO_MASK))) {
-		if (!(dialog->vrtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr, NULL))) {
+		if (!(dialog->vrtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 			return -1;
 		}
 		ast_rtp_instance_set_timeout(dialog->vrtp, global_rtptimeout);
@@ -4602,7 +4617,7 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 	}
 
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_TEXTSUPPORT)) {
-		if (!(dialog->trtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr, NULL))) {
+		if (!(dialog->trtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 			return -1;
 		}
 		ast_rtp_instance_set_timeout(dialog->trtp, global_rtptimeout);
@@ -4634,7 +4649,6 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
  */
 static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 {
-
 	/* this checks that the dialog is contacting the peer on a valid
 	 * transport type based on the peers transport configuration,
 	 * otherwise, this function bails out */
@@ -4642,9 +4656,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		return -1;
 	copy_socket_data(&dialog->socket, &peer->socket);
 
-	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
+	if (!(ast_sockaddr_isnull(&peer->addr) && ast_sockaddr_isnull(&peer->defaddr)) &&
 	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
-		dialog->sa = (peer->addr.sin_addr.s_addr) ? peer->addr : peer->defaddr;
+		dialog->sa = ast_sockaddr_isnull(&peer->addr) ? peer->defaddr : peer->addr;
 		dialog->recv = dialog->sa;
 	} else
 		return -1;
@@ -4656,8 +4670,11 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->capability = peer->capability;
 	dialog->prefs = peer->prefs;
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT)) {
+		struct sockaddr_in bindaddr_tmp;
+
 		/* t38pt_udptl was enabled in the peer and not in [general] */
-		if (dialog->udptl || (!dialog->udptl && (dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr)))) {
+		ast_sockaddr_to_sin(&bindaddr, &bindaddr_tmp);
+		if (dialog->udptl || (!dialog->udptl && (dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr_tmp.sin_addr)))) {
 			dialog->t38_maxdatagram = peer->t38_maxdatagram;
 			set_t38_capabilities(dialog);
 		} else {
@@ -4723,7 +4740,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->disallowed_methods = peer->disallowed_methods;
 	ast_cc_copy_config_params(dialog->cc_params, peer->cc_params);
 	if (ast_strlen_zero(dialog->tohost))
-		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
+		ast_string_field_set(dialog, tohost, ast_sockaddr_stringify_host(&dialog->sa));
 	if (!ast_strlen_zero(peer->fromdomain)) {
 		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
 		if (!dialog->initreq.headers) {
@@ -4779,24 +4796,27 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 /*! \brief create address structure from device name
  *      Or, if peer not found, find it in the global DNS
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockaddr_in *sin, int newdialog, struct sockaddr_in *remote_address)
+static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_sockaddr *addr, int newdialog, struct ast_sockaddr *remote_address)
 {
-	struct hostent *hp;
-	struct ast_hostent ahp;
 	struct sip_peer *peer;
-	char *port;
-	int portno = 0;
-	char host[MAXHOSTNAMELEN], *hostn;
-	char peername[256];
+	char *peername, *peername2, *hostn;
+	char host[MAXHOSTNAMELEN];
+	char service[MAXHOSTNAMELEN];
 	int srv_ret = 0;
+	int tportno;
 
-	ast_copy_string(peername, opeer, sizeof(peername));
-	port = strchr(peername, ':');
-	if (port) {
-		*port++ = '\0';
+	AST_DECLARE_APP_ARGS(hostport,
+		AST_APP_ARG(host);
+		AST_APP_ARG(port);
+	);
+
+	peername = ast_strdupa(opeer);
+	peername2 = ast_strdupa(opeer);
+	AST_NONSTANDARD_RAW_ARGS(hostport, peername2, ':');
+
+	if (hostport.port)
 		dialog->portinuri = 1;
-	}
-	dialog->sa.sin_family = AF_INET;
+
 	dialog->timer_t1 = global_t1; /* Default SIP retransmission timer T1 (RFC 3261) */
 	dialog->timer_b = global_timer_b; /* Default SIP transaction timer B (RFC 3261) */
 	peer = find_peer(peername, NULL, TRUE, FINDPEERS, FALSE, 0);
@@ -4807,12 +4827,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 			set_socket_transport(&dialog->socket, 0);
 		}
 		res = create_addr_from_peer(dialog, peer);
-		if (remote_address && remote_address->sin_addr.s_addr) {
-			dialog->sa = dialog->recv = *remote_address;
-		} else if (!ast_strlen_zero(port)) {
-			if ((portno = atoi(port))) {
-				dialog->sa.sin_port = dialog->recv.sin_port = htons(portno);
-			}
+		if (!ast_sockaddr_isnull(remote_address)) {
+			ast_sockaddr_copy(&dialog->sa, remote_address);
 		}
 		dialog->relatedpeer = ref_peer(peer, "create_addr: setting dialog's relatedpeer pointer");
 		unref_peer(peer, "create_addr: unref peer from find_peer hashtab lookup");
@@ -4823,20 +4839,15 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
 		return -1;
 	}
 
-	ast_string_field_set(dialog, tohost, peername);
+	ast_string_field_set(dialog, tohost, hostport.host);
 	dialog->allowed_methods &= ~sip_cfg.disallowed_methods;
 
 	/* Get the outbound proxy information */
 	ref_proxy(dialog, obproxy_get(dialog, NULL));
 
-	if (sin) {
+	if (addr) {
 		/* This address should be updated using dnsmgr */
-		memcpy(&dialog->sa.sin_addr, &sin->sin_addr, sizeof(dialog->sa.sin_addr));
-		if (!sin->sin_port) {
-			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
-		} else {
-			portno = ntohs(sin->sin_port);
-		}
+		ast_sockaddr_copy(&dialog->sa, addr);
 	} else {
 
 		/* Let's see if we can find the host in DNS. First try DNS SRV records,
@@ -4848,33 +4859,35 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct sockadd
  		/* Section 4.2 of RFC 3263 specifies that if a port number is specified, then
 		 * an A record lookup should be used instead of SRV.
 		 */
-		if (!port && sip_cfg.srvlookup) {
-			char service[MAXHOSTNAMELEN];
-			int tportno;
-	
+		if (!hostport.port && sip_cfg.srvlookup) {
 			snprintf(service, sizeof(service), "_sip._%s.%s", get_transport(dialog->socket.type), peername);
-			srv_ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
-			if (srv_ret > 0) {
+			if ((srv_ret = ast_get_srv(NULL, host, sizeof(host), &tportno,
+						   service)) > 0) {
 				hostn = host;
-				portno = tportno;
 			}
 		}
-	 	if (!portno)
-			portno = port_str2int(port, (dialog->socket.type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
-		hp = ast_gethostbyname(hostn, &ahp);
-		if (!hp) {
+
+		if (ast_sockaddr_resolve_first(&dialog->sa, hostn, 0)) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
-			return -1;
 		}
-		memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
+
+		if (srv_ret > 0) {
+			ast_sockaddr_set_port(&dialog->sa, tportno);
+		}
 	}
 
 	if (!dialog->socket.type)
 		set_socket_transport(&dialog->socket, SIP_TRANSPORT_UDP);
-	if (!dialog->socket.port)
-		dialog->socket.port = bindaddr.sin_port;
-	dialog->sa.sin_port = htons(portno);
-	dialog->recv = dialog->sa;
+	if (!dialog->socket.port) {
+		dialog->socket.port = htons(ast_sockaddr_port(&bindaddr));
+	}
+
+	if (!ast_sockaddr_port(&dialog->sa)) {
+		ast_sockaddr_set_port(&dialog->sa,
+				      (dialog->socket.type == SIP_TRANSPORT_TLS) ?
+				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+	}
+	ast_sockaddr_copy(&dialog->recv, &dialog->sa);
 	return 0;
 }
 
@@ -6800,16 +6813,12 @@ static char *generate_random_string(char *buf, size_t size)
 static char *generate_uri(struct sip_pvt *pvt, char *buf, size_t size)
 {
 	struct ast_str *uri = ast_str_alloca(size);
-	int ourport = ntohs(pvt->ourip.sin_port);
 	ast_str_set(&uri, 0, "%s", pvt->socket.type == SIP_TRANSPORT_TLS ? "sips:" : "sip:");
 	/* Here would be a great place to generate a UUID, but for now we'll
 	 * use the handy random string generation function we already have
 	 */
 	ast_str_append(&uri, 0, "%s", generate_random_string(buf, size));
-	ast_str_append(&uri, 0, "@%s", ast_inet_ntoa(pvt->ourip.sin_addr));
-	if (!sip_standard_port(pvt->socket.type, ourport)) {
-		ast_str_append(&uri, 0, ":%d", ourport);
-	}
+	ast_str_append(&uri, 0, "@%s", ast_sockaddr_stringify(&pvt->ourip));
 	ast_copy_string(buf, ast_str_buffer(uri), size);
 	return buf;
 }
@@ -6819,18 +6828,18 @@ static void build_callid_pvt(struct sip_pvt *pvt)
 {
 	char buf[33];
 
-	const char *host = S_OR(pvt->fromdomain, ast_inet_ntoa(pvt->ourip.sin_addr));
+	const char *host = S_OR(pvt->fromdomain, ast_sockaddr_stringify(&pvt->ourip));
 	
 	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 
 }
 
 /*! \brief Build SIP Call-ID value for a REGISTER transaction */
-static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain)
+static void build_callid_registry(struct sip_registry *reg, const struct ast_sockaddr *ourip, const char *fromdomain)
 {
 	char buf[33];
 
-	const char *host = S_OR(fromdomain, ast_inet_ntoa(ourip));
+	const char *host = S_OR(fromdomain, ast_sockaddr_stringify_host(ourip));
 
 	ast_string_field_build(reg, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 }
@@ -6865,7 +6874,7 @@ static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p)
  * Returns a reference to the object so whoever uses it later must
  * remember to release the reference.
  */
-struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
+struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 				 int useglobal_nat, const int intended_method, struct sip_request *req)
 {
 	struct sip_pvt *p;
@@ -6909,11 +6918,11 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 		p->timer_b = global_timer_b;	/* Default SIP transaction timer B (RFC 3261) */
 	}
 
-	if (!sin)
+	if (!addr) {
 		p->ourip = internip;
-	else {
-		p->sa = *sin;
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
+	} else {
+		ast_sockaddr_copy(&p->sa, addr);
+		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 	}
 
 	/* Copy global flags to this PVT at setup. */
@@ -6930,7 +6939,10 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 
 	if (sip_methods[intended_method].need_rtp) {
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
-			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
+			struct sockaddr_in bindaddr_tmp;
+
+			ast_sockaddr_to_sin(&bindaddr, &bindaddr_tmp);
+			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr_tmp.sin_addr))) {
 				ast_udptl_setqos(p->udptl, global_tos_audio, global_cos_audio);
 				p->t38_maxdatagram = global_t38_maxdatagram;
 			} else {
@@ -6943,10 +6955,11 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 		p->autoframing = global_autoframing;
 	}
 
-	if (useglobal_nat && sin) {
+	if (useglobal_nat && addr) {
 		/* Setup NAT structure according to global settings if we have an address */
 		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT_FORCE_RPORT);
-		p->recv = *sin;
+		ast_sockaddr_copy(&p->recv, addr);
+
 		do_setnat(p);
 	}
 
@@ -6990,7 +7003,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
  * Returns a reference to the sip_pvt object, remember to give it back once done.
  *     Called by handle_incoming(), sipsock_read
  */
-static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
+static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method)
 {
 	struct sip_pvt *p = NULL;
 	char *tag = "";	/* note, tag is never NULL */
@@ -7009,7 +7022,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 
 		/* RFC 3261 section 24.4.1.   Send a 400 Bad Request if the request is malformed. */
 		if (intended_method != SIP_RESPONSE && intended_method != SIP_ACK) {
-			transmit_response_using_temp(callid, sin, 1, intended_method, req, "400 Bad Request");
+			transmit_response_using_temp(callid, addr, 1, intended_method,
+						     req, "400 Bad Request");
 		}
 		return NULL;	/* Invalid packet */
 	}
@@ -7096,10 +7110,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	if (sip_methods[intended_method].can_create == CAN_CREATE_DIALOG) {
 		if (intended_method == SIP_REFER) {
 			/* We do support REFER, but not outside of a dialog yet */
-			transmit_response_using_temp(callid, sin, 1, intended_method, req, "603 Declined (no dialog)");
+			transmit_response_using_temp(callid, addr, 1, intended_method, req, "603 Declined (no dialog)");
 		} else {
 			/* Ok, time to create a new SIP dialog object, a pvt */
-			if ((p = sip_alloc(callid, sin, 1, intended_method, req)))  {
+			if ((p = sip_alloc(callid, addr, 1, intended_method, req)))  {
 				/* Ok, we've created a dialog, let's go and process it */
 				sip_pvt_lock(p);
 			} else {
@@ -7111,18 +7125,18 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	
 					Sorry, we apologize for the inconvienience
 				*/
-				transmit_response_using_temp(callid, sin, 1, intended_method, req, "500 Server internal error");
+				transmit_response_using_temp(callid, addr, 1, intended_method, req, "500 Server internal error");
 				ast_debug(4, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
 			}
 		}
 		return p; /* can be NULL */
 	} else if( sip_methods[intended_method].can_create == CAN_CREATE_DIALOG_UNSUPPORTED_METHOD) {
 		/* A method we do not support, let's take it on the volley */
-		transmit_response_using_temp(callid, sin, 1, intended_method, req, "501 Method Not Implemented");
+		transmit_response_using_temp(callid, addr, 1, intended_method, req, "501 Method Not Implemented");
 		ast_debug(2, "Got a request with unsupported SIP method.\n");
 	} else if (intended_method != SIP_RESPONSE && intended_method != SIP_ACK) {
 		/* This is a request outside of a dialog that we don't know about */
-		transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
+		transmit_response_using_temp(callid, addr, 1, intended_method, req, "481 Call leg/transaction does not exist");
 		ast_debug(2, "That's odd...  Got a request in unknown dialog. Callid %s\n", callid ? callid : "<unknown>");
 	}
 	/* We do not respond to responses for dialogs that we don't know about, we just drop
@@ -7572,7 +7586,7 @@ static int find_sdp(struct sip_request *req)
 }
 
 
-static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_type media, struct sockaddr_in *sin)
+static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_type media, struct ast_sockaddr *addr)
 {
 	const char *m;
 	const char *c;
@@ -7581,14 +7595,13 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 	int x = 0;
 	int numberofports;
 	int len;
-	char host[258] = ""; /*Initialize to empty so we will know if we have any input */
-	struct ast_hostent audiohp;
-	struct hostent *hp;
+	int af;
+	char proto[4], host[258] = ""; /*Initialize to empty so we will know if we have any input */
 
 	c = get_sdp_iterate(&citerator, req, "c");
-	if (sscanf(c, "IN IP4 %256s", host) != 1) {
-		ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
-		/* Continue since there may be a valid host in a c= line specific to the audio stream */
+	if (sscanf(c, "IN %3s %256s", proto, host) != 2) {
+			ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+			/* Continue since there may be a valid host in a c= line specific to the audio stream */
 	}
 	/* We only want the m and c lines for audio */
 	for (m = get_sdp_iterate(&miterator, req, "m"); !ast_strlen_zero(m); m = get_sdp_iterate(&miterator, req, "m")) {
@@ -7602,10 +7615,19 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 			 */
 			c = get_sdp_iterate(&citerator, req, "c");
 			if (!ast_strlen_zero(c)) {
-				sscanf(c, "IN IP4 %256s", host);
+				sscanf(c, "IN %3s %256s", proto, host);
 			}
 			break;
 		}
+	}
+
+	if (!strcmp("IP4", proto)) {
+		af = AF_INET;
+	} else if (!strcmp("IP6", proto)) {
+		af = AF_INET6;
+	} else {
+		ast_log(LOG_WARNING, "Unknown protocol '%s'.\n", proto);
+		return -1;
 	}
 
 	if (ast_strlen_zero(host) || x == 0) {
@@ -7613,14 +7635,11 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 		return -1;
 	}
 
-	hp = ast_gethostbyname(host, &audiohp);
-	if (!hp) {
+	if (ast_sockaddr_resolve_first_af(addr, host, 0, af)) {
 		ast_log(LOG_WARNING, "Could not look up IP address of alternate hostname. Expect %s problems\n", media == SDP_AUDIO? "audio" : "video");
 		return -1;
 	}
 
-	memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
-	sin->sin_port = htons(x);
 	return 0;
 }
 
@@ -7644,23 +7663,20 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int len = -1;
 
 	/* Host information */
-	struct ast_hostent sessionhp;
-	struct ast_hostent audiohp;
-	struct ast_hostent videohp;
-	struct ast_hostent texthp;
-	struct ast_hostent imagehp;
-	struct hostent *hp = NULL;	/*!< RTP Audio host IP */
-	struct hostent *vhp = NULL;	/*!< RTP video host IP */
-	struct hostent *thp = NULL;	/*!< RTP text host IP */
-	struct hostent *ihp = NULL;     /*!< UDPTL host ip */
+	struct ast_sockaddr sessionsa;
+	struct ast_sockaddr audiosa;
+	struct ast_sockaddr videosa;
+	struct ast_sockaddr textsa;
+	struct ast_sockaddr imagesa;
+	struct ast_sockaddr *sa = NULL;	/*!< RTP Audio host IP */
+	struct ast_sockaddr *vsa = NULL;	/*!< RTP video host IP */
+	struct ast_sockaddr *tsa = NULL;	/*!< RTP text host IP */
+	struct ast_sockaddr *isa = NULL;     /*!< UDPTL host ip */
  	int portno = -1;		/*!< RTP Audio port number */
  	int vportno = -1;		/*!< RTP Video port number */
 	int tportno = -1;		/*!< RTP Text port number */
 	int udptlportno = -1;		/*!< UDPTL Image port number */
-	struct sockaddr_in sin;		/*!< media socket address */
-	struct sockaddr_in vsin;	/*!< video socket address */
 	struct sockaddr_in isin;	/*!< image socket address */
-	struct sockaddr_in tsin;	/*!< text socket address */
 
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
 	format_t peercapability = 0, vpeercapability = 0, tpeercapability = 0;
@@ -7741,12 +7757,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				return (p->session_modify == FALSE) ? 0 : -1;
 			break;
 		case 'c':
-			if (process_sdp_c(value, &sessionhp)) {
+			if (process_sdp_c(value, &sessionsa)) {
 				processed = TRUE;
-				hp = &sessionhp.hp;
-				vhp = hp;
-				thp = hp;
-				ihp = hp;
+				sa = &sessionsa;
+				vsa = sa;
+				tsa = sa;
+				isa = sa;
 			}
 			break;
 		case 'a':
@@ -7891,24 +7907,24 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			switch (type) {
 			case 'c':
 				if (audio) {
-					if (process_sdp_c(value, &audiohp)) {
+					if (process_sdp_c(value, &audiosa)) {
 						processed = TRUE;
-						hp = &audiohp.hp;
+						sa = &audiosa;
 					}
 				} else if (video) {
-					if (process_sdp_c(value, &videohp)) {
+					if (process_sdp_c(value, &videosa)) {
 						processed = TRUE;
-						vhp = &videohp.hp;
+						vsa = &videosa;
 					}
 				} else if (text) {
-					if (process_sdp_c(value, &texthp)) {
+					if (process_sdp_c(value, &textsa)) {
 						processed = TRUE;
-						thp = &texthp.hp;
+						tsa = &textsa;
 					}
 				} else if (image) {
-					if (process_sdp_c(value, &imagehp)) {
+					if (process_sdp_c(value, &imagesa)) {
 						processed = TRUE;
-						ihp = &imagehp.hp;
+						isa = &imagesa;
 					}
 				}
 				break;
@@ -7956,7 +7972,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 
 	/* Sanity checks */
-	if (!hp && !vhp && !thp && !ihp) {
+	if (!sa && !vsa && !tsa && !isa) {
 		ast_log(LOG_WARNING, "Insufficient information in SDP (c=)...\n");
 		return -1;
 	}
@@ -8042,13 +8058,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup audio address and port */
 	if (p->rtp) {
 		if (portno > 0) {
-			sin.sin_family = AF_INET;
-			sin.sin_port = htons(portno);
-			memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-			ast_rtp_instance_set_remote_address(p->rtp, &sin);
-			if (debug)
-				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-			/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since                                                                                                    
+			ast_sockaddr_set_port(sa, portno);
+			ast_rtp_instance_set_remote_address(p->rtp, sa);
+			if (debug) {
+				ast_verbose("Peer audio RTP is at port %s\n",
+					    ast_sockaddr_stringify(sa));
+			}
+			/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
 			   they are acceptable */
 			p->jointcapability = newjointcapability;                /* Our joint codec profile for this call */
 			p->peercapability = newpeercapability;                  /* The other sides capability in latest offer */
@@ -8085,12 +8101,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup video address and port */
 	if (p->vrtp) {
 		if (vportno > 0) {
-			vsin.sin_family = AF_INET;
-			vsin.sin_port = htons(vportno);
-			memcpy(&vsin.sin_addr, vhp->h_addr, sizeof(vsin.sin_addr));
-			ast_rtp_instance_set_remote_address(p->vrtp, &vsin);
-			if (debug) 
-				ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
+			ast_sockaddr_set_port(vsa, vportno);
+			ast_rtp_instance_set_remote_address(p->vrtp, vsa);
+			if (debug) {
+				ast_verbose("Peer video RTP is at port %s\n",
+					    ast_sockaddr_stringify(vsa));
+			}
 			ast_rtp_codecs_payloads_copy(&newvideortp, ast_rtp_instance_get_codecs(p->vrtp), p->vrtp);
 		} else {
 			ast_rtp_instance_stop(p->vrtp);
@@ -8102,12 +8118,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup text address and port */
 	if (p->trtp) {
 		if (tportno > 0) {
-			tsin.sin_family = AF_INET;
-			tsin.sin_port = htons(tportno);
-			memcpy(&tsin.sin_addr, thp->h_addr, sizeof(tsin.sin_addr));
-			ast_rtp_instance_set_remote_address(p->trtp, &tsin);
-			if (debug) 
-				ast_verbose("Peer T.140 RTP is at port %s:%d\n", ast_inet_ntoa(tsin.sin_addr), ntohs(tsin.sin_port));
+			ast_sockaddr_set_port(tsa, tportno);
+			ast_rtp_instance_set_remote_address(p->trtp, tsa);
+			if (debug) {
+				ast_verbose("Peer T.140 RTP is at port %s\n",
+					    ast_sockaddr_stringify(tsa));
+			}
 			if ((p->jointcapability & AST_FORMAT_T140RED)) {
 				p->red = 1;
 				ast_rtp_red_init(p->trtp, 300, red_data_pt, 2);
@@ -8128,7 +8144,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			isin.sin_port = htons(udptlportno);
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
 				struct sockaddr_in remote_address = { 0, };
-				ast_rtp_instance_get_remote_address(p->rtp, &remote_address);
+				struct ast_sockaddr remote_address_tmp;
+
+				ast_rtp_instance_get_remote_address(p->rtp,
+								    &remote_address_tmp);
+				ast_sockaddr_to_sin(&remote_address_tmp,
+						    &remote_address);
 				if (remote_address.sin_addr.s_addr) {
 					memcpy(&isin, &remote_address, sizeof(isin));
 					if (debug) {
@@ -8136,7 +8157,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					}
 				}
 			} else {
-				memcpy(&isin.sin_addr, ihp->h_addr, sizeof(isin.sin_addr));
+				ast_sockaddr_to_sin(isa, &isin);
 			}
 			ast_udptl_set_peer(p->udptl, &isin);
 			if (debug)
@@ -8207,7 +8228,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
 	
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && sin.sin_addr.s_addr && (!sendonly || sendonly == -1)) {
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && !ast_sockaddr_isnull(sa) && (!sendonly || sendonly == -1)) {
 		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
@@ -8223,7 +8244,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if (sip_cfg.notifyhold)
 			sip_peer_hold(p, FALSE);
 		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD); /* Clear both flags */
-	} else if (!sin.sin_addr.s_addr || (sendonly && sendonly != -1)) {
+	} else if (ast_sockaddr_isnull(sa) || (sendonly && sendonly != -1)) {
 		int already_on_hold = ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD,
 				       S_OR(p->mohsuggest, NULL),
@@ -8335,21 +8356,29 @@ static int process_sdp_o(const char *o, struct sip_pvt *p)
 	return TRUE;
 }
 
-static int process_sdp_c(const char *c, struct ast_hostent *ast_hp)
+static int process_sdp_c(const char *c, struct ast_sockaddr *addr)
 {
-	char host[258];
-	struct hostent *hp;
+	char proto[4], host[258];
+	int af;
 
 	/* Check for Media-description-level-address */
-	if (sscanf(c, "IN IP4 %255s", host) != 1) {
-		ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
-		return FALSE;
-	} else {
-		if (!(hp = ast_gethostbyname(host, ast_hp))) {
+	if (sscanf(c, "IN %3s %255s", proto, host) == 2) {
+		if (!strcmp("IP4", proto)) {
+			af = AF_INET;
+		} else if (!strcmp("IP6", proto)) {
+			af = AF_INET6;
+		} else {
+			ast_log(LOG_WARNING, "Unknown protocol '%s'.\n", proto);
+			return FALSE;
+		}
+		if (ast_sockaddr_resolve_first_af(addr, host, 0, af)) {
 			ast_log(LOG_WARNING, "Unable to lookup RTP Audio host in c= line, '%s'\n", c);
 			return FALSE;
 		}
 		return TRUE;
+	} else {
+		ast_log(LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+		return FALSE;
 	}
 	return FALSE;
 }
@@ -8791,13 +8820,13 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 
 				/* Add rport to first VIA header if requested */
 				snprintf(new, sizeof(new), "%s;received=%s;rport=%d%s%s",
-					leftmost, ast_inet_ntoa(p->recv.sin_addr),
-					ntohs(p->recv.sin_port),
+					leftmost, ast_sockaddr_stringify_addr(&p->recv),
+					ast_sockaddr_port(&p->recv),
 					others ? "," : "", others ? others : "");
 			} else {
 				/* We should *always* add a received to the topmost via */
 				snprintf(new, sizeof(new), "%s;received=%s%s%s",
-					leftmost, ast_inet_ntoa(p->recv.sin_addr),
+					leftmost, ast_sockaddr_stringify_addr(&p->recv),
 					others ? "," : "", others ? others : "");
 			}
 			oh = new;	/* the header to copy */
@@ -8852,12 +8881,9 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 static void set_destination(struct sip_pvt *p, char *uri)
 {
 	char *h, *maddr, hostname[256];
-	int port, hn;
-	struct hostent *hp;
-	struct ast_hostent ahp;
+	int hn;
 	int debug=sip_debug_test_pvt(p);
 	int tls_on = FALSE;
-	int use_dns = sip_cfg.srvlookup;
 
 	if (debug)
 		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
@@ -8875,44 +8901,53 @@ static void set_destination(struct sip_pvt *p, char *uri)
 			tls_on = TRUE;
 		}
 	}
-	hn = strcspn(h, ":;>") + 1;
+	hn = strcspn(h, ";>") + 1;
 	if (hn > sizeof(hostname))
 		hn = sizeof(hostname);
 	ast_copy_string(hostname, h, hn);
 	/* XXX bug here if string has been trimmed to sizeof(hostname) */
 	h += hn - 1;
 
-	/* Is "port" present? if not default to STANDARD_SIP_PORT */
-	if (*h == ':') {
-		/* Parse port */
-		++h;
-		port = strtol(h, &h, 10);
-		use_dns = FALSE;
-	} else
-		port = tls_on ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-
-	/* Got the hostname:port - but maybe there's a "maddr=" to override address? */
-	maddr = strstr(h, "maddr=");
-	if (maddr) {
-		maddr += 6;
-		hn = strspn(maddr, "0123456789.") + 1;
-		if (hn > sizeof(hostname))
-			hn = sizeof(hostname);
-		ast_copy_string(hostname, maddr, hn);
-	}
-
-	/*! \todo XXX If we have use_dns on, then look for NAPTR/SRV, otherwise, just look for A records */
-	
-	hp = ast_gethostbyname(hostname, &ahp);
-	if (hp == NULL)  {
+	/*! \todo XXX If we have sip_cfg.srvlookup on, then look for NAPTR/SRV,
+	 * otherwise, just look for A records */
+	if (ast_sockaddr_resolve_first(&p->sa, hostname, 0)) {
 		ast_log(LOG_WARNING, "Can't find address for host '%s'\n", hostname);
 		return;
 	}
-	p->sa.sin_family = AF_INET;
-	memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
-	p->sa.sin_port = htons(port);
-	if (debug)
-		ast_verbose("set_destination: set destination to %s, port %d\n", ast_inet_ntoa(p->sa.sin_addr), port);
+
+	/* Got the hostname - but maybe there's a "maddr=" to override address? */
+	maddr = strstr(h, "maddr=");
+	if (maddr) {
+		int port;
+
+		maddr += 6;
+		hn = strspn(maddr, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			           "0123456789-.:[]") + 1;
+		if (hn > sizeof(hostname))
+			hn = sizeof(hostname);
+		ast_copy_string(hostname, maddr, hn);
+
+		port = ast_sockaddr_port(&p->sa);
+
+		/*! \todo XXX If we have sip_cfg.srvlookup on, then look for
+		 * NAPTR/SRV, otherwise, just look for A records */
+		if (ast_sockaddr_resolve_first(&p->sa, hostname, PARSE_PORT_FORBID)) {
+			ast_log(LOG_WARNING, "Can't find address for host '%s'\n", hostname);
+			return;
+		}
+
+		ast_sockaddr_set_port(&p->sa, port);
+	}
+
+	if (!ast_sockaddr_port(&p->sa)) {
+		ast_sockaddr_set_port(&p->sa, tls_on ?
+				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+	}
+
+	if (debug) {
+		ast_verbose("set_destination: set destination to %s\n",
+			    ast_sockaddr_stringify(&p->sa));
+	}
 }
 
 /*! \brief Initialize SIP response, based on SIP request */
@@ -9320,7 +9355,7 @@ static void temp_pvt_cleanup(void *data)
 }
 
 /*! \brief Transmit response, no retransmits, using a temporary pvt structure */
-static int transmit_response_using_temp(ast_string_field callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg)
+static int transmit_response_using_temp(ast_string_field callid, struct ast_sockaddr *addr, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg)
 {
 	struct sip_pvt *p = NULL;
 
@@ -9339,20 +9374,20 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	/* Initialize the bare minimum */
 	p->method = intended_method;
 
-	if (!sin)
-		p->ourip = internip;
-	else {
-		p->sa = *sin;
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
+	if (!addr) {
+		ast_sockaddr_copy(&p->ourip, &internip);
+	} else {
+		ast_sockaddr_copy(&p->sa, addr);
+		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 	}
 
 	p->branch = ast_random();
 	make_our_tag(p->tag, sizeof(p->tag));
 	p->ocseq = INITIAL_CSEQ;
 
-	if (useglobal_nat && sin) {
+	if (useglobal_nat && addr) {
 		ast_copy_flags(&p->flags[0], &global_flags[0], SIP_NAT_FORCE_RPORT);
-		p->recv = *sin;
+		ast_sockaddr_copy(&p->recv, addr);
 		do_setnat(p);
 	}
 
@@ -9620,7 +9655,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		return 0;
 	if (ast_strlen_zero(lid_name))
 		lid_name = lid_num;
-	fromdomain = S_OR(p->fromdomain, ast_strdupa(ast_inet_ntoa(p->ourip.sin_addr)));
+	fromdomain = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
 
 	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), 1);
 
@@ -9857,21 +9892,23 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 	\note called from add_sdp()
 */
 static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext,
-				  struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *tsin,
-				  struct sockaddr_in *dest, struct sockaddr_in *vdest, struct sockaddr_in *tdest)
+				  struct ast_sockaddr *addr, struct ast_sockaddr *vaddr,
+				  struct ast_sockaddr *taddr, struct ast_sockaddr *dest,
+				  struct ast_sockaddr *vdest, struct ast_sockaddr *tdest)
 {
 	/* First, get our address */
-	ast_rtp_instance_get_local_address(p->rtp, sin);
-	if (p->vrtp)
-		ast_rtp_instance_get_local_address(p->vrtp, vsin);
-	if (p->trtp)
-		ast_rtp_instance_get_local_address(p->trtp, tsin);
+	ast_rtp_instance_get_local_address(p->rtp, addr);
+	if (p->vrtp) {
+		ast_rtp_instance_get_local_address(p->vrtp, vaddr);
+	}
+	if (p->trtp) {
+		ast_rtp_instance_get_local_address(p->trtp, taddr);
+	}
 
 	/* Now, try to figure out where we want them to send data */
 	/* Is this a re-invite to move the media out, then use the original offer from caller  */
-	if (p->redirip.sin_addr.s_addr) {	/* If we have a redirection IP, use it */
-		dest->sin_port = p->redirip.sin_port;
-		dest->sin_addr = p->redirip.sin_addr;
+	if (!ast_sockaddr_isnull(&p->redirip)) {	/* If we have a redirection IP, use it */
+		ast_sockaddr_copy(dest, &p->redirip);
 	} else {
 		/*
 		 * Audio Destination IP:
@@ -9884,15 +9921,17 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 		 *
 		 * 1. Provided by the RTP engine.
 		 */
-		dest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr :
-					(sin->sin_addr.s_addr ? sin->sin_addr : p->ourip.sin_addr);
-		dest->sin_port = sin->sin_port;
+		ast_sockaddr_copy(dest,
+				  !ast_sockaddr_isnull(&media_address) ? &media_address :
+				  !ast_sockaddr_is_any(addr)           ? addr           :
+				  &p->ourip);
+		ast_sockaddr_set_port(dest, ast_sockaddr_port(addr));
 	}
+
 	if (needvideo) {
 		/* Determine video destination */
-		if (p->vredirip.sin_addr.s_addr) {
-			vdest->sin_addr = p->vredirip.sin_addr;
-			vdest->sin_port = p->vredirip.sin_port;
+		if (!ast_sockaddr_isnull(&p->vredirip)) {
+			ast_sockaddr_copy(vdest, &p->vredirip);
 		} else {
 			/*
 			 * Video Destination IP:
@@ -9905,16 +9944,18 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 			 *
 			 * 1. Provided by the RTP engine.
 			 */
-			vdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr :
-						(vsin->sin_addr.s_addr ? vsin->sin_addr : p->ourip.sin_addr);
-			vdest->sin_port = vsin->sin_port;
+			ast_sockaddr_copy(vdest,
+					  !ast_sockaddr_isnull(&media_address) ? &media_address :
+					  !ast_sockaddr_is_any(vaddr)          ? vaddr          :
+					  &p->ourip);
+			ast_sockaddr_set_port(vdest, ast_sockaddr_port(vaddr));
 		}
 	}
+
 	if (needtext) {
 		/* Determine text destination */
-		if (p->tredirip.sin_addr.s_addr) {
-			tdest->sin_addr = p->tredirip.sin_addr;
-			tdest->sin_port = p->tredirip.sin_port;
+		if (!ast_sockaddr_isnull(&p->tredirip)) {
+			ast_sockaddr_copy(tdest, &p->tredirip);
 		} else {
 			/*
 			 * Text Destination IP:
@@ -9927,9 +9968,11 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 			 *
 			 * 1. Provided by the RTP engine.
 			 */
-			tdest->sin_addr = media_address.sin_addr.s_addr ? media_address.sin_addr :
-						(tsin->sin_addr.s_addr ? tsin->sin_addr : p->ourip.sin_addr);
-			tdest->sin_port = tsin->sin_port;
+			ast_sockaddr_copy(tdest,
+					  !ast_sockaddr_isnull(&media_address) ? &media_address  :
+					  !ast_sockaddr_is_any(taddr)          ? taddr           :
+					  &p->ourip);
+			ast_sockaddr_set_port(tdest, ast_sockaddr_port(taddr));
 		}
 	}
 }
@@ -9961,13 +10004,14 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 {
 	format_t alreadysent = 0;
 
-	struct sockaddr_in sin = { 0, };
-	struct sockaddr_in vsin = { 0, };
-	struct sockaddr_in tsin = { 0, };
-	struct sockaddr_in dest = { 0, };
+	struct ast_sockaddr addr = { {0,} };
+	struct ast_sockaddr vaddr = { {0,} };
+	struct ast_sockaddr taddr = { {0,} };
+	struct ast_sockaddr dest = { {0,} };
+	struct ast_sockaddr vdest = { {0,} };
+	struct ast_sockaddr tdest = { {0,} };
+	struct sockaddr_in dest_tmp;
 	struct sockaddr_in udptlsin = { 0, };
-	struct sockaddr_in vdest = { 0, };
-	struct sockaddr_in tdest = { 0, };
 	struct sockaddr_in udptldest = { 0, };
 
 	/* SDP fields */
@@ -10048,11 +10092,19 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		}
 	}
 
-	get_our_media_address(p, needvideo, needtext, &sin, &vsin, &tsin, &dest, &vdest, &tdest);
+	get_our_media_address(p, needvideo, needtext, &addr, &vaddr, &taddr, &dest, &vdest, &tdest);
 
-	snprintf(owner, sizeof(owner), "o=%s %d %d IN IP4 %s\r\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner, p->sessionid, p->sessionversion, ast_inet_ntoa(dest.sin_addr));
+	snprintf(owner, sizeof(owner), "o=%s %d %d IN %s %s\r\n",
+		 ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner,
+		 p->sessionid, p->sessionversion,
+		 (ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
+			"IP6" : "IP4",
+		 ast_sockaddr_stringify_addr(&dest));
 
-	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
+	snprintf(connection, sizeof(connection), "c=IN %s %s\r\n",
+		 (ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
+			"IP6" : "IP4",
+		 ast_sockaddr_stringify_addr(&dest));
 
 	if (add_audio) {
 		capability = p->jointcapability;
@@ -10066,21 +10118,23 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (capability & AST_FORMAT_AUDIO_MASK)
 			needaudio = TRUE;
 
-		if (debug)
-			ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(sin.sin_port));	
+		if (debug) {
+			ast_verbose("Audio is at %s\n", ast_sockaddr_stringify_port(&p->ourip));
+		}
 
 		/* Ok, we need video. Let's add what we need for video and set codecs.
 		   Video is handled differently than audio since we can not transcode. */
 		if (needvideo) {
 			get_crypto_attrib(p->vsrtp, &v_a_crypto);
-			ast_str_append(&m_video, 0, "m=video %d RTP/%s", ntohs(vdest.sin_port),
+			ast_str_append(&m_video, 0, "m=video %d RTP/%s", ast_sockaddr_port(&vdest),
 				v_a_crypto ? "SAVP" : "AVP");
 
 			/* Build max bitrate string */
 			if (p->maxcallbitrate)
 				snprintf(bandwidth, sizeof(bandwidth), "b=CT:%d\r\n", p->maxcallbitrate);
-			if (debug)
-				ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(vdest.sin_port));	
+			if (debug) {
+				ast_verbose("Video is at %s\n", ast_sockaddr_stringify(&p->ourip));
+			}
 		}
 
 		/* Ok, we need text. Let's add what we need for text and set codecs.
@@ -10089,11 +10143,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			if (sipdebug_text)
 				ast_verbose("Lets set up the text sdp\n");
 			get_crypto_attrib(p->tsrtp, &t_a_crypto);
-			ast_str_append(&m_text, 0, "m=text %d RTP/%s", ntohs(tdest.sin_port),
+			ast_str_append(&m_text, 0, "m=text %d RTP/%s", ast_sockaddr_port(&tdest),
 				t_a_crypto ? "SAVP" : "AVP");
-			if (debug) /* XXX should I use tdest below ? */
-				ast_verbose("Text is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(tsin.sin_port));	
-
+			if (debug) {  /* XXX should I use tdest below ? */
+				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&p->ourip));
+			}
 		}
 
 		/* Start building generic SDP headers */
@@ -10102,7 +10156,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		   peer doesn't have to ast_gethostbyname() us */
 
 		get_crypto_attrib(p->srtp, &a_crypto);
-		ast_str_append(&m_audio, 0, "m=audio %d RTP/%s", ntohs(dest.sin_port),
+		ast_str_append(&m_audio, 0, "m=audio %d RTP/%s", ast_sockaddr_port(&dest),
 			a_crypto ? "SAVP" : "AVP");
 
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_ONEDIR)
@@ -10200,19 +10254,21 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			udptldest.sin_port = p->udptlredirip.sin_port;
 			udptldest.sin_addr = p->udptlredirip.sin_addr;
 		} else {
-			udptldest.sin_addr = p->ourip.sin_addr;
+			ast_sockaddr_to_sin(&p->ourip, &udptldest);
 			udptldest.sin_port = udptlsin.sin_port;
 		}
 
-		if (debug)
-			ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(udptlsin.sin_port));
+		if (debug) {
+			ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_sockaddr_stringify_addr(&p->ourip), ntohs(udptlsin.sin_port));
+		}
 
 		/* We break with the "recommendation" and send our IP, in order that our
 		   peer doesn't have to ast_gethostbyname() us */
 
 		ast_str_append(&m_modem, 0, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
 
-		if (udptldest.sin_addr.s_addr != dest.sin_addr.s_addr) {
+		ast_sockaddr_to_sin(&dest, &dest_tmp);
+		if (udptldest.sin_addr.s_addr != dest_tmp.sin_addr.s_addr) {
 			ast_str_append(&m_modem, 0, "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
 		}
 
@@ -10551,19 +10607,13 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Build contact header - the contact header we send out */
 static void build_contact(struct sip_pvt *p)
 {
-
-	int ourport = ntohs(p->ourip.sin_port);
-	/* only add port if it's non-standard for the transport type */
-	if (!sip_standard_port(p->socket.type, ourport)) {
-		if (p->socket.type == SIP_TRANSPORT_UDP)
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport);
-		else
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
+	if (p->socket.type == SIP_TRANSPORT_UDP) {
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten,
+			ast_strlen_zero(p->exten) ? "" : "@", ast_sockaddr_stringify(&p->ourip));
 	} else {
-		if (p->socket.type == SIP_TRANSPORT_UDP)
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
-		else
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", p->exten,
+			ast_strlen_zero(p->exten) ? "" : "@", ast_sockaddr_stringify(&p->ourip),
+			get_transport(p->socket.type));
 	}
 }
 
@@ -10603,7 +10653,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", sip_methods[sipmethod].text);
 
-	d = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr));
+	d = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
 	if (p->owner && (p->owner->connected.id.number_presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 		l = p->owner->connected.id.number;
 		n = p->owner->connected.id.name;
@@ -10647,12 +10697,11 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = tmp_l;
 	}
 
-	ourport = (p->fromdomainport) ? p->fromdomainport : ntohs(p->ourip.sin_port);
+	ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
 	if (!sip_standard_port(p->socket.type, ourport))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, d, ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
-
 
 	if (!ast_strlen_zero(explicit_uri)) {
 		ast_str_set(&invite, 0, "%s", explicit_uri);
@@ -10673,8 +10722,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 				ast_str_append(&invite, 0, "%s@", n);
 			}
 			ast_str_append(&invite, 0, "%s", p->tohost);
-			if (p->portinuri)
-				ast_str_append(&invite, 0, ":%d", ntohs(p->sa.sin_port));
+			if (p->portinuri) {
+				ast_str_append(&invite, 0, ":%d", ast_sockaddr_port(&p->sa));
+			}
 			ast_str_append(&invite, 0, "%s", urioptions);
 		}
 	}
@@ -10759,9 +10809,12 @@ static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
 
 	/* We at least have a number to place in the Diversion header, which is enough */
 	if (ast_strlen_zero(diverting_name)) {
-		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_number, ast_inet_ntoa(pvt->ourip.sin_addr), reason);
+		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_number,
+				ast_sockaddr_stringify_host(&pvt->ourip), reason);
 	} else {
-		snprintf(header_text, sizeof(header_text), "\"%s\" <sip:%s@%s>;reason=%s", diverting_name, diverting_number, ast_inet_ntoa(pvt->ourip.sin_addr), reason);
+		snprintf(header_text, sizeof(header_text), "\"%s\" <sip:%s@%s>;reason=%s",
+				diverting_name, diverting_number,
+				ast_sockaddr_stringify_host(&pvt->ourip), reason);
 	}
 
 	add_header(req, "Diversion", header_text);
@@ -10784,7 +10837,7 @@ static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_ty
 		dialog_unlink_all(pvt, TRUE, TRUE);
 		dialog_unref(pvt, "create_addr failed in transmit_publish. Unref dialog");
 	}
-	ast_sip_ouraddrfor(&pvt->sa.sin_addr, &pvt->ourip, pvt);
+	ast_sip_ouraddrfor(&pvt->sa, &pvt->ourip, pvt);
 	ast_set_flag(&pvt->flags[0], SIP_OUTGOING);
 	expires = (publish_type == SIP_PUBLISH_REMOVE) ? 0 : DEFAULT_PUBLISH_EXPIRES;
 	pvt->expiry = expires;
@@ -10986,6 +11039,8 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	if (!mwi->dnsmgr) {
 		char transport[MAXHOSTNAMELEN];
 		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(mwi->transport));
+
+		mwi->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
 		ast_dnsmgr_lookup(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
 	}
 
@@ -11002,8 +11057,8 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 
 	ref_proxy(mwi->call, obproxy_get(mwi->call, NULL));
 
-	if (!mwi->us.sin_port && mwi->portno) {
-		mwi->us.sin_port = htons(mwi->portno);
+	if (!ast_sockaddr_port(&mwi->us) && mwi->portno) {
+		ast_sockaddr_set_port(&mwi->us, mwi->portno);
 	}
 	
 	/* Setup the destination of our subscription */
@@ -11016,10 +11071,10 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	mwi->call->expiry = mwi_expiry;
 	
 	if (!mwi->dnsmgr && mwi->portno) {
-		mwi->call->sa.sin_port = htons(mwi->portno);
-		mwi->call->recv.sin_port = htons(mwi->portno);
+		ast_sockaddr_set_port(&mwi->call->sa, mwi->portno);
+		ast_sockaddr_set_port(&mwi->call->recv, mwi->portno);
 	} else {
-		mwi->portno = ntohs(mwi->call->sa.sin_port);
+		mwi->portno = ast_sockaddr_port(&mwi->call->sa);
 	}
 	
 	/* Set various other information */
@@ -11038,7 +11093,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	}
 	set_socket_transport(&mwi->call->socket, mwi->transport);
 	mwi->call->socket.port = htons(mwi->portno);
-	ast_sip_ouraddrfor(&mwi->call->sa.sin_addr, &mwi->call->ourip, mwi->call);
+	ast_sip_ouraddrfor(&mwi->call->sa, &mwi->call->ourip, mwi->call);
 	build_contact(mwi->call);
 	build_via(mwi->call);
 	build_callid_pvt(mwi->call);
@@ -11353,8 +11408,8 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 {
 	struct sip_request req;
 	struct ast_str *out = ast_str_alloca(500);
-	int ourport = (p->fromdomainport) ? p->fromdomainport : ntohs(p->ourip.sin_port);
-	const char *domain = S_OR(p->fromdomain,ast_inet_ntoa(p->ourip.sin_addr));
+	int ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
+	const char *domain = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
 	const char *exten = S_OR(vmexten, default_vmexten);
 
 	initreqprep(&req, p, SIP_NOTIFY, NULL);
@@ -11697,6 +11752,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		char transport[MAXHOSTNAMELEN];
 		peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE, 0);
 		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(r->transport)); /* have to use static get_transport function */
+		r->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
 		ast_dnsmgr_lookup(peer ? peer->tohost : r->hostname, &r->us, &r->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
 		if (peer) {
 			peer = unref_peer(peer, "removing peer ref for dnsmgr_lookup");
@@ -11715,7 +11771,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	} else {
 		/* Build callid for registration if we haven't registered before */
 		if (!r->callid_valid) {
-			build_callid_registry(r, internip.sin_addr, default_fromdomain);
+			build_callid_registry(r, &internip, default_fromdomain);
 			r->callid_valid = TRUE;
 		}
 		/* Allocate SIP dialog for registration */
@@ -11728,8 +11784,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
 
 		/* Use port number specified if no SRV record was found */
-		if (!r->us.sin_port && r->portno)
-			r->us.sin_port = htons(r->portno);
+		if (!ast_sockaddr_port(&r->us) && r->portno) {
+			ast_sockaddr_set_port(&r->us, r->portno);
+		}
 
 		/* Find address to hostname */
 		if (create_addr(p, S_OR(r->peername, r->hostname), &r->us, 0, NULL)) {
@@ -11755,15 +11812,15 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_string_field_set(r, callid, p->callid);
 
 		if (!r->dnsmgr && r->portno) {
-			p->sa.sin_port = htons(r->portno);
- 			p->recv.sin_port = htons(r->portno);
+			ast_sockaddr_set_port(&p->sa, r->portno);
+			ast_sockaddr_set_port(&p->recv, r->portno);
 		}
 		if (!ast_strlen_zero(p->fromdomain)) {
 			portno = (p->fromdomainport) ? p->fromdomainport : STANDARD_SIP_PORT;
 		} else if (!ast_strlen_zero(r->regdomain)) {
 			portno = (r->regdomainport) ? r->regdomainport : STANDARD_SIP_PORT;
 		} else {
-			portno = ntohs(p->sa.sin_port);
+			portno = ast_sockaddr_port(&p->sa);
 		}
 
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
@@ -11793,7 +11850,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		/* Set transport and port so the correct contact is built */
 		set_socket_transport(&p->socket, r->transport);
 		if (r->transport == SIP_TRANSPORT_TLS || r->transport == SIP_TRANSPORT_TCP) {
-			p->socket.port = sip_tcp_desc.local_address.sin_port;
+			p->socket.port =
+			    htons(ast_sockaddr_port(&sip_tcp_desc.local_address));
 		}
 
 		/*
@@ -11801,7 +11859,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		  based on whether the remote host is on the external or
 		  internal network so we can register through nat
 		 */
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
+		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 		build_contact(p);
 	}
 
@@ -12196,7 +12254,7 @@ static int expire_register(const void *data)
 	if (peer->selfdestruct ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
 		ao2_t_unlink(peers, peer, "ao2_unlink of peer from peers table");
-		if (peer->addr.sin_addr.s_addr) {
+		if (!ast_sockaddr_isnull(&peer->addr)) {
 			ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 		}
 	}
@@ -12224,30 +12282,28 @@ static int sip_poke_peer_s(const void *data)
 static void reg_source_db(struct sip_peer *peer)
 {
 	char data[256];
-	struct in_addr in;
+	struct ast_sockaddr sa;
 	int expire;
-	int port;
-	char *scan, *addr, *port_str, *expiry_str, *username, *contact;
+	char *scan, *addr, *expiry_str, *username, *contact;
 
 	if (peer->rt_fromcontact)
 		return;
 	if (ast_db_get("SIP/Registry", peer->name, data, sizeof(data)))
 		return;
 
-	scan = data;
-	addr = strsep(&scan, ":");
-	port_str = strsep(&scan, ":");
+	addr = scan = data;
+	if ('[' == scan[0]) {
+		/* It must be a bracket enclosed IPv6 address */
+		scan = strchr(scan, ']') + 1;
+	}
+	scan = strchr(scan, ':') + 1;
 	expiry_str = strsep(&scan, ":");
 	username = strsep(&scan, ":");
 	contact = scan;	/* Contact include sip: and has to be the last part of the database entry as long as we use : as a separator */
 
-	if (!inet_aton(addr, &in))
+	if (!ast_sockaddr_parse(&sa, addr, 0)) {
 		return;
-
-	if (port_str)
-		port = atoi(port_str);
-	else
-		return;
+	}
 
 	if (expiry_str)
 		expire = atoi(expiry_str);
@@ -12259,13 +12315,10 @@ static void reg_source_db(struct sip_peer *peer)
 	if (contact)
 		ast_string_field_set(peer, fullcontact, contact);
 
-	ast_debug(2, "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
-	    peer->name, peer->username, ast_inet_ntoa(in), port, expire);
+	ast_debug(2, "SIP Seeding peer from astdb: '%s' at %s@%s for %d\n",
+	    peer->name, peer->username, ast_sockaddr_stringify_host(&sa), expire);
 
-	memset(&peer->addr, 0, sizeof(peer->addr));
-	peer->addr.sin_family = AF_INET;
-	peer->addr.sin_addr = in;
-	peer->addr.sin_port = htons(port);
+	ast_sockaddr_copy(&peer->addr, &sa);
 	if (sipsock < 0) {
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
 		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer,
@@ -12303,12 +12356,9 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	return TRUE;		
 }
 
-static int __set_address_from_contact(const char *fullcontact, struct sockaddr_in *sin, int tcp)
+static int __set_address_from_contact(const char *fullcontact, struct ast_sockaddr *addr, int tcp)
 {
-	struct hostent *hp;
-	struct ast_hostent ahp;
-	int port = STANDARD_SIP_PORT;
-	char *host, *pt, *transport;
+	char *domain, *transport;
 	char contact_buf[256];
 	char *contact;
 
@@ -12323,17 +12373,10 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 	 * We still need to be able to send to the remote agent through the proxy.
 	 */
 
-	if (parse_uri(contact, "sip:,sips:", &contact, NULL, &host, &pt, &transport)) {
+	if (parse_uri(contact, "sip:,sips:", &contact, NULL, &domain,
+		      &transport)) {
 		ast_log(LOG_WARNING, "Invalid contact uri %s (missing sip: or sips:), attempting to use anyway\n", fullcontact);
 	}
-
-	/* set port */
-	if (((get_transport_str2enum(transport) == SIP_TRANSPORT_TLS)) || !(strncasecmp(fullcontact, "sips", 4))) {
-		port = port_str2int(pt, STANDARD_TLS_PORT);
-	} else {
-		port = port_str2int(pt, STANDARD_SIP_PORT);
-	}
-
 
 	/* XXX This could block for a long time XXX */
 	/* We should only do this if it's a name, not an IP */
@@ -12341,14 +12384,21 @@ static int __set_address_from_contact(const char *fullcontact, struct sockaddr_i
 		to find transport, port address and hostname. If there's a port number, we have to
 		assume that the domain part is a host name and only look for an A/AAAA record in DNS.
 	*/
-	hp = ast_gethostbyname(host, &ahp);
-	if (!hp)  {
-		ast_log(LOG_WARNING, "Invalid host name in Contact: (can't resolve in DNS) : '%s'\n", host);
+
+	if (ast_sockaddr_resolve_first(addr, domain, 0)) {
+		ast_log(LOG_WARNING, "Invalid host name in Contact: (can't "
+			"resolve in DNS) : '%s'\n", domain);
 		return -1;
 	}
-	sin->sin_family = AF_INET;
-	memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
-	sin->sin_port = htons(port);
+
+	/* set port */
+	if (!ast_sockaddr_port(addr)) {
+		ast_sockaddr_set_port(addr,
+				      (get_transport_str2enum(transport) ==
+				       SIP_TRANSPORT_TLS ||
+				       !strncasecmp(fullcontact, "sips", 4)) ?
+				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+	}
 
 	return 0;
 }
@@ -12374,14 +12424,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	char data[SIPBUFSIZE];
 	const char *expires = get_header(req, "Expires");
 	int expire = atoi(expires);
-	char *curi, *host, *pt, *transport;
-	int port;
+	char *curi, *domain, *transport;
 	int transport_type;
 	const char *useragent;
-	struct hostent *hp;
-	struct ast_hostent ahp;
-	struct sockaddr_in oldsin, testsin;
-
+	struct ast_sockaddr oldsin, testsa;
+	struct sockaddr_in testsin;
 
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
 
@@ -12445,23 +12492,12 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	if (parse_uri(curi, "sip:,sips:", &curi, NULL, &host, &pt, &transport)) {
+	if (parse_uri(curi, "sip:,sips:", &curi, NULL, &domain, &transport)) {
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:) trying to use anyway\n");
 	}
 
-	/* If we have a port number in the given URI, make sure we do remember to not check for NAPTR/SRV records. 
-	   The domain part is actually a host. */
-	peer->portinuri = !ast_strlen_zero(pt) ? TRUE : FALSE;
-
 	/* handle the transport type specified in Contact header. */
-	if ((transport_type = get_transport_str2enum(transport))) {
-		/* if the port is not specified but the transport is, make sure to set the
-		 * default port to match the specified transport.  This may or may not be the
-		 * same transport used by the pvt struct for the Register dialog. */
-		
-		port = port_str2int(pt, (transport_type == SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT);
-	} else {
-		port = port_str2int(pt, STANDARD_SIP_PORT);
+	if (!(transport_type = get_transport_str2enum(transport))) {
 		transport_type = pvt->socket.type;
 	}
 
@@ -12475,25 +12511,32 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	oldsin = peer->addr;
 
 	/* If we were already linked into the peers_by_ip container unlink ourselves so nobody can find us */
-	if (peer->addr.sin_addr.s_addr) {
+	if (!ast_sockaddr_isnull(&peer->addr)) {
 		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 	}
 
 	if (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) && !ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT)) {
-		/* use the data provided in the Contact header for call routing */
+		 /* use the data provided in the Contact header for call routing */
 		ast_debug(1, "Store REGISTER's Contact header for call routing.\n");
 		/* XXX This could block for a long time XXX */
 		/*! \todo Check NAPTR/SRV if we have not got a port in the URI */
-		hp = ast_gethostbyname(host, &ahp);
-		if (!hp)  {
-			ast_log(LOG_WARNING, "Invalid host '%s'\n", host);
+		if (ast_sockaddr_resolve_first(&testsa, domain, 0)) {
+			ast_log(LOG_WARNING, "Invalid domain '%s'\n", domain);
 			ast_string_field_set(peer, fullcontact, "");
 			ast_string_field_set(pvt, our_contact, "");
 			return PARSE_REGISTER_FAILED;
 		}
-		peer->addr.sin_family = AF_INET;
-		memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
-		peer->addr.sin_port = htons(port);
+		ast_sockaddr_copy(&peer->addr, &testsa);
+
+		/* If we have a port number in the given URI, make sure we do remember to not check for NAPTR/SRV records.
+		   The domain part is actually a host. */
+		peer->portinuri = ast_sockaddr_port(&testsa) ? TRUE : FALSE;
+
+		if (!ast_sockaddr_port(&testsa)) {
+			ast_sockaddr_set_port(&testsa,
+						  transport_type == SIP_TRANSPORT_TLS ?
+						  STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+		}
 	} else {
 		/* Don't trust the contact field.  Just use what they came to us
 		   with */
@@ -12502,22 +12545,23 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 
 	/* Check that they're allowed to register at this IP */
-	memcpy(&testsin.sin_addr, &peer->addr.sin_addr, sizeof(testsin.sin_addr));
-	if (ast_apply_ha(sip_cfg.contact_ha, &testsin) != AST_SENSE_ALLOW ||
-			ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
-		ast_log(LOG_WARNING, "Host '%s' disallowed by contact ACL (violating IP %s)\n", host, ast_inet_ntoa(testsin.sin_addr));
-		ast_string_field_set(peer, fullcontact, "");
-		ast_string_field_set(pvt, our_contact, "");
-		return PARSE_REGISTER_DENIED;
+	if (!ast_sockaddr_is_ipv6(&peer->addr)) {
+		ast_sockaddr_to_sin(&peer->addr, &testsin);
+		if (ast_apply_ha(sip_cfg.contact_ha, &testsin) != AST_SENSE_ALLOW ||
+				ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
+			ast_log(LOG_WARNING, "Domain '%s' disallowed by contact ACL (violating IP %s)\n", domain,
+				ast_sockaddr_stringify_addr(&testsa));
+			ast_string_field_set(peer, fullcontact, "");
+			ast_string_field_set(pvt, our_contact, "");
+			return PARSE_REGISTER_DENIED;
+		}
 	}
 
 	/* if the Contact header information copied into peer->addr matches the
 	 * received address, and the transport types are the same, then copy socket
 	 * data into the peer struct */
 	if ((peer->socket.type == pvt->socket.type) &&
-		(peer->addr.sin_addr.s_addr == pvt->recv.sin_addr.s_addr) &&
-		(peer->addr.sin_port == pvt->recv.sin_port)){
-
+		!ast_sockaddr_cmp(&peer->addr, &pvt->recv)) {
 		copy_socket_data(&peer->socket, &pvt->socket);
 	}
 
@@ -12547,18 +12591,20 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		}
 	}
 	pvt->expiry = expire;
-	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expire, peer->username, peer->fullcontact);
+	snprintf(data, sizeof(data), "%s:%d:%s:%s", ast_sockaddr_stringify(&peer->addr),
+		 expire, peer->username, peer->fullcontact);
 	/* Saving TCP connections is useless, we won't be able to reconnect
 		XXX WHY???? XXX
 		\todo Fix this immediately.
 	*/
 	if (!peer->rt_fromcontact && (peer->socket.type & SIP_TRANSPORT_UDP))
 		ast_db_put("SIP/Registry", peer->name, data);
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPort: %d\r\n", peer->name,  ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port));
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name,  ast_sockaddr_stringify(&peer->addr));
 
 	/* Is this a new IP address for us? */
-	if (VERBOSITY_ATLEAST(2) && inaddrcmp(&peer->addr, &oldsin)) {
-		ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port));
+	if (VERBOSITY_ATLEAST(2) && ast_sockaddr_cmp(&peer->addr, &oldsin)) {
+		ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s\n", peer->name,
+				ast_sockaddr_stringify(&peer->addr));
 	}
 	sip_poke_peer(peer, 0);
 	register_peer_exten(peer, 1);
@@ -13084,7 +13130,7 @@ static char *terminate_uri(char *uri)
 	  to get a challenge (nonce) then a second one with auth
 	- Registration requests are only matched with peers that are marked as "dynamic"
  */
-static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr_in *sin,
+static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sockaddr *addr,
 					      struct sip_request *req, const char *uri)
 {
 	enum check_auth_result res = AUTH_NOT_FOUND;
@@ -13100,8 +13146,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	c = get_in_brackets(tmp);
 	c = remove_uri_parameters(c);
 
-	if (parse_uri(c, "sip:,sips:", &name, &dummy, &domain, &dummy, NULL)) {
-		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(sin->sin_addr));
+	if (parse_uri(c, "sip:,sips:", &name, &dummy, &domain, NULL)) {
+		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_sockaddr_stringify_addr(addr));
 		return -1;
 	}
 
@@ -13136,14 +13182,20 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		}
 	}
 	peer = find_peer(name, NULL, TRUE, FINDPEERS, FALSE, 0);
-	if (!(peer && ast_apply_ha(peer->ha, sin))) {
-		/* Peer fails ACL check */
-		if (peer) {
-			unref_peer(peer, "register_verify: unref_peer: from find_peer operation");
-			peer = NULL;
-			res = AUTH_ACL_FAILED;
-		} else
-			res = AUTH_NOT_FOUND;
+
+	if (!ast_sockaddr_is_ipv6(addr)) {
+		struct sockaddr_in sin_tmp;
+
+		ast_sockaddr_to_sin(addr, &sin_tmp);
+		if (!(peer && ast_apply_ha(peer->ha, &sin_tmp))) {
+			/* Peer fails ACL check */
+			if (peer) {
+				unref_peer(peer, "register_verify: unref_peer: from find_peer operation");
+				peer = NULL;
+				res = AUTH_ACL_FAILED;
+			} else
+				res = AUTH_NOT_FOUND;
+		}
 	}
 
 	if (peer) {
@@ -13207,7 +13259,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		peer = temp_peer(name);
 		if (peer) {
 			ao2_t_link(peers, peer, "link peer into peer table");
-			if (peer->addr.sin_addr.s_addr) {
+			if (!ast_sockaddr_isnull(&peer->addr)) {
 				ao2_t_link(peers_by_ip, peer, "link peer into peers-by-ip table");
 			}
 			ao2_lock(peer);
@@ -13236,7 +13288,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				ast_string_field_set(p, fullcontact, peer->fullcontact);
 				/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\nPort: %d\r\n", peer->name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name, ast_sockaddr_stringify(addr));
 				peer->lastmsgssent = -1;
 				res = 0;
 				break;
@@ -13260,9 +13312,17 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		case AUTH_SECRET_FAILED:
 			/* Wrong password in authentication. Go away, don't try again until you fixed it */
 			transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
-			if (global_authfailureevents)
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: AUTH_SECRET_FAILED\r\nAddress: %s\r\nPort: %d\r\n",
-					name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			if (global_authfailureevents) {
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+					      "ChannelType: SIP\r\n"
+					      "Peer: SIP/%s\r\n"
+					      "PeerStatus: Rejected\r\n"
+					      "Cause: AUTH_SECRET_FAILED\r\n"
+					      "Address: %s\r\n"
+					      "Port: %s\r\n",
+					      name, ast_sockaddr_stringify_addr(addr),
+					      ast_sockaddr_stringify_port(addr));
+			}
 			break;
 		case AUTH_USERNAME_MISMATCH:
 			/* Username and digest username does not match.
@@ -13275,9 +13335,17 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			if (sip_cfg.alwaysauthreject) {
 				transmit_fake_auth_response(p, SIP_REGISTER, &p->initreq, XMIT_UNRELIABLE);
 				if (global_authfailureevents) {
-					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Rejected\r\nCause: %s\r\nAddress: %s\r\nPort: %d\r\n",
-						name, res == AUTH_PEER_NOT_DYNAMIC ? "AUTH_PEER_NOT_DYNAMIC" : "URI_NOT_FOUND",
-						ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+						      "ChannelType: SIP\r\n"
+						      "Peer: SIP/%s\r\n"
+						      "PeerStatus: Rejected\r\n"
+						      "Cause: %s\r\n"
+						      "Address: %s\r\n"
+						      "Port: %s\r\n",
+						      name,
+						      res == AUTH_PEER_NOT_DYNAMIC ? "AUTH_PEER_NOT_DYNAMIC" : "URI_NOT_FOUND",
+						      ast_sockaddr_stringify_addr(addr),
+						      ast_sockaddr_stringify_port(addr));
 				}
 			} else {
 				/* URI not found */
@@ -13290,8 +13358,10 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 							"PeerStatus: Rejected\r\n"
 							"Cause: AUTH_PEER_NOT_DYNAMIC\r\n"
 							"Address: %s\r\n"
-							"Port: %d\r\n",
-							name, ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+							"Port: %s\r\n",
+							name,
+							ast_sockaddr_stringify_addr(addr),
+							ast_sockaddr_stringify_port(addr));
 					}
 				} else {
 					transmit_response(p, "404 Not found", &p->initreq);
@@ -13302,9 +13372,11 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 							"PeerStatus: Rejected\r\n"
 							"Cause: %s\r\n"
 							"Address: %s\r\n"
-							"Port: %d\r\n",
-							name, (res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND",
-							ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+							"Port: %s\r\n",
+							name,
+							(res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND",
+							ast_sockaddr_stringify_addr(addr),
+							ast_sockaddr_stringify_port(addr));
 					}
 				}
 			}
@@ -13645,7 +13717,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	
 	uri = ast_strdupa(get_in_brackets(tmp));
 
-	if (parse_uri(uri, "sip:,sips:", &uri, &dummy, &domain, &dummy, NULL)) {
+	if (parse_uri(uri, "sip:,sips:", &uri, &dummy, &domain, NULL)) {
 		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
 		return SIP_GET_DEST_INVALID_URI;
 	}
@@ -13662,7 +13734,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
 	if (!ast_strlen_zero(tmpf)) {
 		from = get_in_brackets(tmpf);
-		if (parse_uri(from, "sip:,sips:", &from, NULL, &domain, NULL, NULL)) {
+		if (parse_uri(from, "sip:,sips:", &from, NULL, &domain, NULL)) {
 			ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", from);
 			return SIP_GET_DEST_INVALID_URI;
 		}
@@ -14033,7 +14105,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
 	c = get_in_brackets(tmp);
 
-	if (parse_uri(c, "sip:,sips:", &c, NULL, &a, NULL, NULL)) {
+	if (parse_uri(c, "sip:,sips:", &c, NULL, &a, NULL)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header in Also: transfer (%s)?\n", c);
 		return -1;
 	}
@@ -14104,9 +14176,9 @@ static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_re
 		if (!strncmp(cur, "rport=", 6)) {
 			int port = strtol(cur+6, NULL, 10);
 			/* XXX add error checking */
-			p->ourip.sin_port = ntohs(port);
+			ast_sockaddr_set_port(&p->ourip, port);
 		} else if (!strncmp(cur, "received=", 9)) {
-			if (ast_parse_arg(cur+9, PARSE_INADDR, &p->ourip))
+			if (ast_parse_arg(cur + 9, PARSE_ADDR, &p->ourip))
 				;	/* XXX add error checking */
 		}
 	}
@@ -14127,14 +14199,17 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 
 	/* Check for rport */
 	c = strstr(via, ";rport");
-	if (c && (c[6] != '='))	/* rport query, not answer */
+	if (c && (c[6] != '='))	{ /* rport query, not answer */
 		ast_set_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT);
+		ast_set_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT);
+	}
 
 	/* Check for maddr */
 	maddr = strstr(via, "maddr=");
 	if (maddr) {
 		maddr += 6;
-		c = maddr + strspn(maddr, "0123456789.");
+		c = maddr + strspn(maddr, "abcdefghijklmnopqrstuvwxyz"
+				          "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.:[]");
 		*c = '\0';
 	}
 
@@ -14144,9 +14219,6 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 
 	c = strchr(via, ' ');
 	if (c) {
-		struct hostent *hp;
-		struct ast_hostent ahp;
-
 		*c = '\0';
 		c = ast_skip_blanks(c+1);
 		if (strcasecmp(via, "SIP/2.0/UDP") && strcasecmp(via, "SIP/2.0/TCP") && strcasecmp(via, "SIP/2.0/TLS")) {
@@ -14157,28 +14229,28 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 		if (pt)
 			*pt++ = '\0';	/* remember port pointer */
 
-		if (maddr && (hp = ast_gethostbyname(maddr, &ahp))) {
-			memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
-		} else {
+		if (maddr && ast_sockaddr_resolve_first(&p->sa, maddr, 0)) {
 			p->sa = p->recv;
 		}
-		p->sa.sin_port = htons(port_str2int(pt, STANDARD_SIP_PORT));
+
+		ast_sockaddr_set_port(&p->sa, port_str2int(pt, STANDARD_SIP_PORT));
 
 		if (sip_debug_test_pvt(p)) {
-			const struct sockaddr_in *dst = sip_real_dst(p);
-			ast_verbose("Sending to %s : %d (%s)\n", ast_inet_ntoa(dst->sin_addr), ntohs(dst->sin_port), sip_nat_mode(p));
+			ast_verbose("Sending to %s (%s)\n",
+				    ast_sockaddr_stringify(sip_real_dst(p)),
+				    sip_nat_mode(p));
 		}
 	}
 }
 
 /*! \brief Validate device authentication */
 static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
-	struct sip_request *req, int sipmethod, struct sockaddr_in *sin,
+	struct sip_request *req, int sipmethod, struct ast_sockaddr *addr,
 	struct sip_peer **authpeer,
 	enum xmittype reliable, char *calleridname, char *uri2)
 {
 	enum check_auth_result res;
-	int debug=sip_debug_test_addr(sin);
+	int debug = sip_debug_test_addr(addr);
 	struct sip_peer *peer;
 
 	if (sipmethod == SIP_SUBSCRIBE) {
@@ -14197,19 +14269,25 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	}
 
 	if (!peer) {
-		if (debug)
-			ast_verbose("No matching peer for '%s' from '%s:%d'\n",
-				of, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+		if (debug) {
+			ast_verbose("No matching peer for '%s' from '%s'\n",
+				of, ast_sockaddr_stringify(&p->recv));
+		}
 		return AUTH_DONT_KNOW;
 	}
-	if (!ast_apply_ha(peer->ha, sin)) {
-		ast_debug(2, "Found peer '%s' for '%s', but fails host access\n", peer->name, of);
-		unref_peer(peer, "unref_peer: check_peer_ok: from find_peer call, early return of AUTH_ACL_FAILED");
-		return AUTH_ACL_FAILED;
+	if (!ast_sockaddr_is_ipv6(addr)) {
+		struct sockaddr_in sin_tmp;
+
+		ast_sockaddr_to_sin(addr, &sin_tmp);
+		if (!ast_apply_ha(peer->ha, &sin_tmp)) {
+			ast_debug(2, "Found peer '%s' for '%s', but fails host access\n", peer->name, of);
+			unref_peer(peer, "unref_peer: check_peer_ok: from find_peer call, early return of AUTH_ACL_FAILED");
+			return AUTH_ACL_FAILED;
+		}
 	}
 	if (debug)
-		ast_verbose("Found peer '%s' for '%s' from %s:%d\n",
-			peer->name, of, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+		ast_verbose("Found peer '%s' for '%s' from %s\n",
+			peer->name, of, ast_sockaddr_stringify(&p->recv));
 
 	/* XXX what about p->prefs = peer->prefs; ? */
 	/* Set Frame packetization */
@@ -14346,7 +14424,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 */
 static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_request *req,
 					      int sipmethod, const char *uri, enum xmittype reliable,
-					      struct sockaddr_in *sin, struct sip_peer **authpeer)
+					      struct ast_sockaddr *addr, struct sip_peer **authpeer)
 {
 	char from[256] = { 0, };
 	char *dummy = NULL;	/* dummy return value for parse_uri */
@@ -14392,7 +14470,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	ast_string_field_set(p, from, of);
 
 	/* ignore all fields but name */
-	if (parse_uri(of, "sip:,sips:", &of, &dummy, &domain, &dummy, NULL)) {
+	if (parse_uri(of, "sip:,sips:", &of, &dummy, &domain, NULL)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
 
@@ -14438,7 +14516,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		}
 	}
 
-	res = check_peer_ok(p, of, req, sipmethod, sin,
+	res = check_peer_ok(p, of, req, sipmethod, addr,
 			authpeer, reliable, calleridname, uri2);
 	if (res != AUTH_DONT_KNOW)
 		return res;
@@ -14467,9 +14545,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 /*! \brief  Find user
 	If we get a match, this will add a reference pointer to the user object in ASTOBJ, that needs to be unreferenced
 */
-static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, const char *uri, enum xmittype reliable, struct sockaddr_in *sin)
+static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, const char *uri, enum xmittype reliable, struct ast_sockaddr *addr)
 {
-	return check_user_full(p, req, sipmethod, uri, reliable, sin, NULL);
+	return check_user_full(p, req, sipmethod, uri, reliable, addr, NULL);
 }
 
 /*! \brief  Get text out of a SIP MESSAGE packet */
@@ -14674,8 +14752,8 @@ static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	struct sip_threadinfo *th;
 	struct ao2_iterator i;
 
-#define FORMAT2 "%-30.30s %3.6s %9.9s %6.6s\n"
-#define FORMAT  "%-30.30s %-6d %-9.9s %-6.6s\n"
+#define FORMAT2 "%-47.47s %9.9s %6.6s\n"
+#define FORMAT  "%-47.47s %-9.9s %-6.6s\n"
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -14691,12 +14769,12 @@ static char *sip_show_tcp(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, FORMAT2, "Host", "Port", "Transport", "Type");
+	ast_cli(a->fd, FORMAT2, "Address", "Transport", "Type");
 
 	i = ao2_iterator_init(threadt, 0);
 	while ((th = ao2_t_iterator_next(&i, "iterate through tcp threads for 'sip show tcp'"))) {
-		ast_cli(a->fd, FORMAT, ast_inet_ntoa(th->tcptls_session->remote_address.sin_addr),
-			ntohs(th->tcptls_session->remote_address.sin_port),
+		ast_cli(a->fd, FORMAT,
+			ast_sockaddr_stringify(&th->tcptls_session->remote_address),
 			get_transport(th->type),
 			(th->tcptls_session->client ? "Client" : "Server"));
 		ao2_t_ref(th, -1, "decrement ref from iterator");
@@ -14890,8 +14968,8 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	struct ao2_iterator i;
 	
 /* the last argument is left-aligned, so we don't need a size anyways */
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-10.10s %-3.3s %-8s %-10s %s\n"
-#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s %s\n"
+#define FORMAT2 "%-25.25s  %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-10s %s\n"
+#define FORMAT  "%-25.25s  %-39.39s %-3.3s %-3.3s %-3.3s %-8d %-10s %s\n"
 
 	char name[256];
 	int total_peers = 0;
@@ -14982,28 +15060,29 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 		else if (pstatus == 0)
 			peers_mon_offline++;
 		else {
-			if (peer->addr.sin_port == 0)
+			if (ast_sockaddr_isnull(&peer->addr) ||
+			    !ast_sockaddr_port(&peer->addr)) {
 				peers_unmon_offline++;
-			else
+			} else {
 				peers_unmon_online++;
+			}
 		}
 
 		snprintf(srch, sizeof(srch), FORMAT, name,
-			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+			ast_sockaddr_isnull(&peer->addr) ? "(Unspecified)" : ast_sockaddr_stringify_addr(&peer->addr),
 			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ", 	/* permit/deny */
-			ntohs(peer->addr.sin_port), status,
+			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr), status,
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 
 		if (!s)  {/* Normal CLI list */
 			ast_cli(fd, FORMAT, name,
-			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+			ast_sockaddr_isnull(&peer->addr) ? "(Unspecified)" : ast_sockaddr_stringify_addr(&peer->addr),
 			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ",       /* permit/deny */
-			
-			ntohs(peer->addr.sin_port), status,
+			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr), status,
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
@@ -15023,8 +15102,8 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			"RealtimeDevice: %s\r\n\r\n",
 			idtext,
 			peer->name,
-			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "-none-",
-			ntohs(peer->addr.sin_port),
+			ast_sockaddr_isnull(&peer->addr) ? "-none-" : ast_sockaddr_stringify(&peer->addr),
+			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr),
 			peer->host_dynamic ? "yes" : "no", 	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",	/* NAT=yes? */
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
@@ -15361,17 +15440,16 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 			struct sip_peer tmp;
 			ast_copy_string(tmp.name, name, sizeof(tmp.name));
 			if ((peer = ao2_t_find(peers, &tmp, OBJ_POINTER | OBJ_UNLINK, "finding to unlink from peers"))) {
-				if (peer->addr.sin_addr.s_addr) {
+				if (!ast_sockaddr_isnull(&peer->addr)) {
 					ao2_t_unlink(peers_by_ip, peer, "unlinking peer from peers_by_ip also");
 				}
 				if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 					ast_cli(a->fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", name);
 					/* put it back! */
 					ao2_t_link(peers, peer, "link peer into peer table");
-					if (peer->addr.sin_addr.s_addr) {
+					if (!ast_sockaddr_isnull(&peer->addr)) {
 						ao2_t_link(peers_by_ip, peer, "link peer into peers_by_ip table");
 					}
-					
 				} else
 					ast_cli(a->fd, "Peer '%s' pruned.\n", name);
 				unref_peer(peer, "sip_prune_realtime: unref_peer: tossing temp peer ptr");
@@ -15675,8 +15753,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Timer T1     : %d\n", peer->timer_t1);
 		ast_cli(fd, "  Timer B      : %d\n", peer->timer_b);
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
-		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
-		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		ast_cli(fd, "  Addr->IP     : %s\n", ast_sockaddr_stringify(&peer->addr));
+		ast_cli(fd, "  Defaddr->IP  : %s\n", ast_sockaddr_stringify(&peer->defaddr));
 		ast_cli(fd, "  Prim.Transp. : %s\n", get_transport(peer->socket.type));
 		ast_cli(fd, "  Allowed.Trsp : %s\n", get_transport_list(peer->transports));
 		if (!ast_strlen_zero(sip_cfg.regcontext))
@@ -15781,8 +15859,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		/* - is enumerated */
 		astman_append(s, "SIP-DTMFmode: %s\r\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
 		astman_append(s, "ToHost: %s\r\n", peer->tohost);
-		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
-		astman_append(s, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n", ast_sockaddr_stringify_addr(&peer->addr), ast_sockaddr_port(&peer->addr));
+		astman_append(s, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_sockaddr_stringify_addr(&peer->defaddr), ast_sockaddr_port(&peer->defaddr));
 		astman_append(s, "Default-Username: %s\r\n", peer->username);
 		if (!ast_strlen_zero(sip_cfg.regcontext))
 			astman_append(s, "RegExtension: %s\r\n", peer->regexten);
@@ -15983,8 +16061,8 @@ static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 /*! \brief  Show SIP Registry (registrations with other SIP proxies */
 static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT2 "%-30.30s %-6.6s %-12.12s  %8.8s %-20.20s %-25.25s\n"
-#define FORMAT  "%-30.30s %-6.6s %-12.12s  %8d %-20.20s %-25.25s\n"
+#define FORMAT2 "%-39.39s %-6.6s %-12.12s  %8.8s %-20.20s %-25.25s\n"
+#define FORMAT  "%-39.39s %-6.6s %-12.12s  %8d %-20.20s %-25.25s\n"
 	char host[80];
 	char user[80];
 	char tmpdat[256];
@@ -16090,8 +16168,12 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 		return 0;	/* don't care, we scan all channels */
 
 	if (!cur->rtp) {
-		if (sipdebug)
-			ast_cli(fd, "%-15.15s  %-11.11s (inv state: %s) -- %s\n", ast_inet_ntoa(cur->sa.sin_addr), cur->callid, invitestate2string[cur->invitestate].desc, "-- No RTP active");
+		if (sipdebug) {
+			ast_cli(fd, "%-15.15s  %-11.11s (inv state: %s) -- %s\n",
+				ast_sockaddr_stringify_addr(&cur->sa), cur->callid,
+				invitestate2string[cur->invitestate].desc,
+				"-- No RTP active");
+		}
 		return 0;	/* don't care, we scan all channels */
 	}
 
@@ -16108,7 +16190,7 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 	}
 
 	ast_cli(fd, FORMAT,
-		ast_inet_ntoa(cur->sa.sin_addr),
+		ast_sockaddr_stringify_addr(&cur->sa),
 		cur->callid,
 		durbuf,
 		stats.rxcount > (unsigned int) 100000 ? (unsigned int) (stats.rxcount)/(unsigned int) 1000 : stats.rxcount,
@@ -16183,22 +16265,15 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "\n\nGlobal Settings:\n");
 	ast_cli(a->fd, "----------------\n");
-	ast_cli(a->fd, "  UDP SIP Port:           %d\n", ntohs(bindaddr.sin_port));
-	ast_cli(a->fd, "  UDP Bindaddress:        %s\n", ast_inet_ntoa(bindaddr.sin_addr));
-	ast_cli(a->fd, "  TCP SIP Port:           ");
-	if (sip_tcp_desc.local_address.sin_family == AF_INET) {
-		ast_cli(a->fd, "%d\n", ntohs(sip_tcp_desc.local_address.sin_port));
-		ast_cli(a->fd, "  TCP Bindaddress:        %s\n", ast_inet_ntoa(sip_tcp_desc.local_address.sin_addr));
-	} else {
-		ast_cli(a->fd, "Disabled\n");
-	}
-	ast_cli(a->fd, "  TLS SIP Port:           ");
-	if (default_tls_cfg.enabled != FALSE) {
-		ast_cli(a->fd, "%d\n", ntohs(sip_tls_desc.local_address.sin_port));
-		ast_cli(a->fd, "  TLS Bindaddress:        %s\n", ast_inet_ntoa(sip_tls_desc.local_address.sin_addr));
-	} else {
-		ast_cli(a->fd, "Disabled\n");
-	}
+	ast_cli(a->fd, "  UDP Bindaddress:        %s\n", ast_sockaddr_stringify(&bindaddr));
+	ast_cli(a->fd, "  TCP SIP Bindaddress:    %s\n",
+		sip_cfg.tcp_enabled != FALSE ?
+				ast_sockaddr_stringify(&sip_tcp_desc.local_address) :
+				"Disabled");
+	ast_cli(a->fd, "  TLS SIP Bindaddress:    %s\n",
+		default_tls_cfg.enabled != FALSE ?
+				ast_sockaddr_stringify(&sip_tls_desc.local_address) :
+				"Disabled");
 	ast_cli(a->fd, "  Videosupport:           %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 	ast_cli(a->fd, "  Textsupport:            %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
 	ast_cli(a->fd, "  Ignore SDP sess. ver.:  %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION)));
@@ -16263,8 +16338,8 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	/* determine if/how SIP address can be remapped */
 	if (localaddr == NULL)
 		msg = "Disabled, no localnet list";
-	else if (externip.sin_addr.s_addr == 0)
-		msg = "Disabled, externip is 0.0.0.0";
+	else if (ast_sockaddr_isnull(&externip))
+		msg = "Disabled";
 	else if (stunaddr.sin_addr.s_addr != 0)
 		msg = "Enabled using STUN";
 	else if (!ast_strlen_zero(externhost))
@@ -16273,9 +16348,9 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		msg = "Enabled using externip";
 	ast_cli(a->fd, "  SIP address remapping:  %s\n", msg);
 	ast_cli(a->fd, "  Externhost:             %s\n", S_OR(externhost, "<none>"));
-	ast_cli(a->fd, "  Externip:               %s:%d\n", ast_inet_ntoa(externip.sin_addr), ntohs(externip.sin_port));
+	ast_cli(a->fd, "  Externip:               %s\n", ast_sockaddr_stringify(&externip));
 	ast_cli(a->fd, "  Externrefresh:          %d\n", externrefresh);
-	ast_cli(a->fd, "  Internal IP:            %s:%d\n", ast_inet_ntoa(internip.sin_addr), ntohs(internip.sin_port));
+	ast_cli(a->fd, "  Internal IP:            %s\n", ast_sockaddr_stringify(&internip));
 	{
 		struct ast_ha *d;
 		const char *prefix = "Localnet:";
@@ -16437,7 +16512,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 {
 	struct sip_pvt *cur = __cur;
 	struct __show_chan_arg *arg = __arg;
-	const struct sockaddr_in *dst = sip_real_dst(cur);
+	const struct ast_sockaddr *dst = sip_real_dst(cur);
 	
 	/* XXX indentation preserved to reduce diff. Will be fixed later */
 	if (cur->subscribed == NONE && !arg->subscriptions) {
@@ -16445,7 +16520,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 		const char *referstatus = cur->refer ? referstatus2str(cur->refer->status) : "";
 		char formatbuf[SIPBUFSIZE/2];
 		
-		ast_cli(arg->fd, FORMAT, ast_inet_ntoa(dst->sin_addr),
+		ast_cli(arg->fd, FORMAT, ast_sockaddr_stringify_addr(dst),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid,
 				ast_getformatname_multiple(formatbuf, sizeof(formatbuf), cur->owner ? cur->owner->nativeformats : 0),
@@ -16461,7 +16536,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		if (cur->subscribed == MWI_NOTIFICATION && cur->relatedpeer)
 			peer_mailboxes_to_str(&mailbox_str, cur->relatedpeer);
-		ast_cli(arg->fd, FORMAT4, ast_inet_ntoa(dst->sin_addr),
+		ast_cli(arg->fd, FORMAT4, ast_sockaddr_stringify_addr(dst),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 			   	cur->callid,
 				/* the 'complete' exten/context is hidden in the refer_to field for subscriptions */
@@ -16704,11 +16779,19 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "  T.38 support            %s\n", AST_CLI_YESNO(cur->udptl != NULL));
 			ast_cli(a->fd, "  Video support           %s\n", AST_CLI_YESNO(cur->vrtp != NULL));
 			ast_cli(a->fd, "  MaxCallBR:              %d kbps\n", cur->maxcallbitrate);
-			ast_cli(a->fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
-			ast_cli(a->fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
+			ast_cli(a->fd, "  Theoretical Address:    %s\n", ast_sockaddr_stringify(&cur->sa));
+			ast_cli(a->fd, "  Received Address:       %s\n", ast_sockaddr_stringify(&cur->recv));
 			ast_cli(a->fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
 			ast_cli(a->fd, "  Force rport:            %s\n", AST_CLI_YESNO(ast_test_flag(&cur->flags[0], SIP_NAT_FORCE_RPORT)));
-			ast_cli(a->fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip.sin_addr), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
+			if (ast_sockaddr_isnull(&cur->redirip)) {
+				ast_cli(a->fd,
+					"  Audio IP:               %s (local)\n",
+					ast_sockaddr_stringify_addr(&cur->ourip));
+			} else {
+				ast_cli(a->fd,
+					"  Audio IP:               %s (Outside bridge)\n",
+					ast_sockaddr_stringify_addr(&cur->redirip));
+			}
 			ast_cli(a->fd, "  Our Tag:                %s\n", cur->tag);
 			ast_cli(a->fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(a->fd, "  SIP User agent:         %s\n", cur->useragent);
@@ -17045,27 +17128,11 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Enable SIP Debugging for a single IP */
 static char *sip_do_debug_ip(int fd, const char *arg)
 {
-	struct hostent *hp;
-	struct ast_hostent ahp;
-	int port = 0;
-	char *p;
-
-	p = ast_strdupa(arg);
-	strsep(&p, ":");
-	if (p)
-		port = atoi(p);
-	hp = ast_gethostbyname(arg, &ahp);
-	if (hp == NULL)
+	if (ast_sockaddr_resolve_first(&debugaddr, arg, 0)) {
 		return CLI_SHOWUSAGE;
+	}
 
-	debugaddr.sin_family = AF_INET;
-	memcpy(&debugaddr.sin_addr, hp->h_addr, sizeof(debugaddr.sin_addr));
-	debugaddr.sin_port = htons(port);
-	if (port == 0)
-		ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", ast_inet_ntoa(debugaddr.sin_addr));
-	else
-		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(debugaddr.sin_addr), port);
-
+	ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", ast_sockaddr_stringify_addr(&debugaddr));
 	sipdebug |= sip_debug_console;
 
 	return CLI_SUCCESS;
@@ -17077,14 +17144,11 @@ static char *sip_do_debug_peer(int fd, const char *arg)
 	struct sip_peer *peer = find_peer(arg, NULL, TRUE, FINDPEERS, FALSE, 0);
 	if (!peer)
 		ast_cli(fd, "No such peer '%s'\n", arg);
-	else if (peer->addr.sin_addr.s_addr == 0)
+	else if (ast_sockaddr_isnull(&peer->addr))
 		ast_cli(fd, "Unable to get IP address of peer '%s'\n", arg);
 	else {
-		debugaddr.sin_family = AF_INET;
-		debugaddr.sin_addr = peer->addr.sin_addr;
-		debugaddr.sin_port = peer->addr.sin_port;
-		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n",
-			ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
+		ast_sockaddr_copy(&debugaddr, &peer->addr);
+		ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", ast_sockaddr_stringify_addr(&debugaddr));
 		sipdebug |= sip_debug_console;
 	}
 	if (peer)
@@ -17394,7 +17458,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else if (!ast_strlen_zero(p->uri))
 		ast_copy_string(uri, p->uri, sizeof(uri));
 	else
-		snprintf(uri, sizeof(uri), "sip:%s@%s", p->username, ast_inet_ntoa(p->sa.sin_addr));
+		snprintf(uri, sizeof(uri), "sip:%s@%s", p->username, ast_sockaddr_stringify_host(&p->sa));
 
 	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
@@ -17548,9 +17612,9 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		return -1;
 
 	if (!strcasecmp(colname, "ip")) {
-		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", len);
+		ast_copy_string(buf, ast_sockaddr_stringify_addr(&peer->addr), len);
 	} else  if (!strcasecmp(colname, "port")) {
-		snprintf(buf, len, "%d", ntohs(peer->addr.sin_port));
+		snprintf(buf, len, "%d", ast_sockaddr_port(&peer->addr));
 	} else  if (!strcasecmp(colname, "status")) {
 		peer_status(peer, buf, len);
 	} else  if (!strcasecmp(colname, "language")) {
@@ -17659,9 +17723,9 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 	}
 
 	if (!strcasecmp(data, "peerip")) {
-		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(p->sa.sin_addr) : "", len);
+		ast_copy_string(buf, ast_sockaddr_stringify_addr(&p->sa), len);
 	} else  if (!strcasecmp(data, "recvip")) {
-		ast_copy_string(buf, p->recv.sin_addr.s_addr ? ast_inet_ntoa(p->recv.sin_addr) : "", len);
+		ast_copy_string(buf, ast_sockaddr_stringify_addr(&p->recv), len);
 	} else  if (!strcasecmp(data, "from")) {
 		ast_copy_string(buf, p->from, len);
 	} else  if (!strcasecmp(data, "uri")) {
@@ -18458,7 +18522,7 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 		}
 		ast_string_field_set(p, theirtag, NULL);
 		if (ast_strlen_zero(p->authname)) {
-			ast_log(LOG_WARNING, "Asked to authenticate NOTIFY to %s:%d but we have no matching peer or realm auth!\n", ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+			ast_log(LOG_WARNING, "Asked to authenticate NOTIFY to %s but we have no matching peer or realm auth!\n", ast_sockaddr_stringify(&p->recv));
 			pvt_set_needdestroy(p, "unable to authenticate NOTIFY");
 		}
 		if (p->authtries > 1 || do_proxy_auth(p, req, resp, SIP_NOTIFY, 0)) {
@@ -18553,8 +18617,8 @@ static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest,
 	case 401:   /* Not www-authorized on SIP method */
 	case 407:   /* Proxy auth */
 		if (ast_strlen_zero(p->authname)) {
-			ast_log(LOG_WARNING, "Asked to authenticate REFER to %s:%d but we have no matching peer or realm auth!\n",
-				ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+			ast_log(LOG_WARNING, "Asked to authenticate REFER to %s but we have no matching peer or realm auth!\n",
+				ast_sockaddr_stringify(&p->recv));
 			if (p->owner) {
 				ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
 			}
@@ -18985,8 +19049,8 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				if (p->options)
 					p->options->auth_type = resp;
 				if (ast_strlen_zero(p->authname)) {
-					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
-							msg, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s but we have no matching peer!\n",
+							msg, ast_sockaddr_stringify(&p->recv));
 					pvt_set_needdestroy(p, "unable to authenticate BYE");
 				} else if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, resp,  sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
@@ -19093,7 +19157,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			else if (sipmethod == SIP_REFER)
 				handle_response_refer(p, resp, rest, req, seqno);
 			else
-				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_inet_ntoa(p->sa.sin_addr), msg);
+				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_sockaddr_stringify(&p->sa), msg);
 			break;
 		case 603:	/* Declined transfer */
 			if (sipmethod == SIP_REFER) {
@@ -19105,7 +19169,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			if ((resp >= 300) && (resp < 700)) {
 				/* Fatal response */
 				if ((resp != 487))
-					ast_verb(3, "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
+					ast_verb(3, "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_sockaddr_stringify(&p->sa));
 	
 				if (sipmethod == SIP_INVITE)
 					stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
@@ -19177,7 +19241,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 					}
 				}
 			} else
-				ast_log(LOG_NOTICE, "Don't know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(p->sa.sin_addr));
+				ast_log(LOG_NOTICE, "Don't know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_sockaddr_stringify(&p->sa));
 		}
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls
@@ -19286,7 +19350,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			}
 			if ((resp >= 300) && (resp < 700)) {
 				if ((resp != 487))
-					ast_verb(3, "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
+					ast_verb(3, "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_sockaddr_stringify(&p->sa));
 				switch(resp) {
 				case 415: /* Unsupported media type */
 				case 488: /* Not acceptable here - codec error */
@@ -19637,7 +19701,7 @@ static int handle_cc_notify(struct sip_pvt *pvt, struct sip_request *req)
 }
 
 /*! \brief Handle incoming notifications */
-static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, const char *e)
+static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int seqno, const char *e)
 {
 	/* This is mostly a skeleton for future improvements */
 	/* Mostly created to return proper answers on notifications on outbound REFER's */
@@ -19867,7 +19931,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 	handle_request_do(), we unlock p->owner before the masq.  By setting nounlock
 	we are indicating to handle_request_do() that we have already unlocked the owner.
  */
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *nounlock)
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct ast_sockaddr *addr, int *nounlock)
 {
 	int earlyreplace = 0;
 	int oneleggedreplace = 0;		/* Call with no bridge, propably IVR or voice message */
@@ -20356,7 +20420,7 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
  *	plan but try to find the active call and masquerade
  *	into it
  */
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, const char *e, int *nounlock)
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct ast_sockaddr *addr, int *recount, const char *e, int *nounlock)
 {
 	int res = 1;
 	int gotdest;
@@ -20382,7 +20446,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		char exten[AST_MAX_EXTENSION];
 		char context[AST_MAX_CONTEXT];
 	} pickup = {
-		.exten = "",
+			.exten = "",
 	};
 	st_ref = SESSION_TIMER_REFRESHER_AUTO;
 
@@ -20485,17 +20549,17 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* We already have a pending invite. Sorry. You are on hold. */
 			p->glareinvite = seqno;
 			if (p->rtp && find_sdp(req)) {
-				struct sockaddr_in sin;
-				if (get_ip_and_port_from_sdp(req, SDP_AUDIO, &sin)) {
+				struct ast_sockaddr addr;
+				if (get_ip_and_port_from_sdp(req, SDP_AUDIO, &addr)) {
 					ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Audio may not work properly on this call.\n");
 				} else {
-					ast_rtp_instance_set_alt_remote_address(p->rtp, &sin);
+					ast_rtp_instance_set_alt_remote_address(p->rtp, &addr);
 				}
 				if (p->vrtp) {
-					if (get_ip_and_port_from_sdp(req, SDP_VIDEO, &sin)) {
+					if (get_ip_and_port_from_sdp(req, SDP_VIDEO, &addr)) {
 						ast_log(LOG_WARNING, "Failed to set an alternate media source on glared reinvite. Video may not work properly on this call.\n");
 					} else {
-						ast_rtp_instance_set_alt_remote_address(p->vrtp, &sin);
+						ast_rtp_instance_set_alt_remote_address(p->vrtp, &addr);
 					}
 				}
 			}
@@ -20700,7 +20764,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* Handle authentication if this is our first invite */
 		int cc_recall_core_id = -1;
 		set_pvt_allowed_methods(p, req);
-		res = check_user_full(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin, &authpeer);
+		res = check_user_full(p, req, SIP_INVITE, e, XMIT_RELIABLE, addr, &authpeer);
 		if (res == AUTH_CHALLENGE_SENT) {
 			p->invitestate = INV_COMPLETED;		/* Needs to restart in another INVITE transaction */
 			res = 0;
@@ -20728,7 +20792,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		p->relatedpeer = ref_peer(authpeer, "setting dialog's relatedpeer pointer");
 		/* If T38 is needed but not present, then make it magically appear */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl) {
-			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr))) {
+			struct sockaddr_in bindaddr_sin_tmp;
+
+			ast_sockaddr_to_sin(&bindaddr, &bindaddr_sin_tmp);
+			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr_sin_tmp.sin_addr))) {
 				p->t38_maxdatagram = global_t38_maxdatagram;
 				set_t38_capabilities(p);
 			} else {
@@ -21030,7 +21097,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Go and take over the target call */
 			if (sipdebug)
 				ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
-			res = handle_invite_replaces(p, req, debug, seqno, sin, nounlock);
+			res = handle_invite_replaces(p, req, debug, seqno, addr, nounlock);
 			refer_locked = 0;
 			goto request_invite_cleanup;
 		}
@@ -21892,7 +21959,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 
 	if (!ast_strlen_zero(get_header(req, "Also"))) {
 		ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
-			ast_inet_ntoa(p->recv.sin_addr));
+			ast_sockaddr_stringify(&p->recv));
 		if (ast_strlen_zero(p->context))
 			ast_string_field_set(p, context, sip_cfg.default_context);
 		res = get_also_info(p, req);
@@ -21910,7 +21977,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 					ast_queue_hangup(p->owner);
 			}
 		} else {
-			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_inet_ntoa(p->recv.sin_addr));
+			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_sockaddr_stringify(&p->recv));
 			if (p->owner)
 				ast_queue_hangup_with_cause(p->owner, AST_CAUSE_PROTOCOL_ERROR);
 		}
@@ -22361,7 +22428,7 @@ static int handle_sip_publish_remove(struct sip_pvt *p, struct sip_request *req,
 	return res;
 }
 
-static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, const int seqno, const char *uri)
+static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const int seqno, const char *uri)
 {
 	const char *etag = get_header(req, "SIP-If-Match");
 	const char *event = get_header(req, "Event");
@@ -22382,7 +22449,7 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 		return -1;
 	}
 
-	auth_result = check_user(p, req, SIP_PUBLISH, uri, XMIT_RELIABLE, sin);
+	auth_result = check_user(p, req, SIP_PUBLISH, uri, XMIT_RELIABLE, addr);
 	if (auth_result == AUTH_CHALLENGE_SENT) {
 		p->lastinvite = seqno;
 		return 0;
@@ -22501,7 +22568,7 @@ static int handle_cc_subscribe(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*! \brief  Handle incoming SUBSCRIBE request */
-static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, const char *e)
+static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int seqno, const char *e)
 {
 	int gotdest = 0;
 	int res = 0;
@@ -22582,7 +22649,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		event = (char *) eventheader;		/* XXX is this legal ? */
 
 	/* Handle authentication */
-	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
+	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, addr, &authpeer);
 	/* if an authentication response was sent, we are done here */
 	if (res == AUTH_CHALLENGE_SENT)	/* authpeer = NULL here */
 		return 0;
@@ -22782,7 +22849,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
 
-				ast_log(LOG_NOTICE, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension.\n", p->exten, p->context, ast_inet_ntoa(p->sa.sin_addr));
+				ast_log(LOG_NOTICE, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension.\n", p->exten, p->context, ast_sockaddr_stringify(&p->sa));
 				transmit_response(p, "404 Not found", req);
 				pvt_set_needdestroy(p, "no extension for SUBSCRIBE");
 				return 0;
@@ -22836,7 +22903,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 }
 
 /*! \brief Handle incoming REGISTER request */
-static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, const char *e)
+static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const char *e)
 {
 	enum check_auth_result res;
 
@@ -22845,7 +22912,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 	if (sipdebug)
 		ast_debug(4, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 	check_via(p, req);
-	if ((res = register_verify(p, sin, req, e)) < 0) {
+	if ((res = register_verify(p, addr, req, e)) < 0) {
 		const char *reason;
 
 		switch (res) {
@@ -22875,7 +22942,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 			break;
 		}
 		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n",
-			get_header(req, "To"), ast_inet_ntoa(sin->sin_addr),
+			get_header(req, "To"), ast_sockaddr_stringify(addr),
 			reason);
 		append_history(p, "RegRequest", "Failed : Account %s : %s", get_header(req, "To"), reason);
 	} else
@@ -22892,7 +22959,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 /*! \brief Handle incoming SIP requests (methods)
 \note	This is where all incoming requests go first   */
 /* called with p and p->owner locked */
-static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock)
+static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *recount, int *nounlock)
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
@@ -23069,7 +23136,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		res = handle_request_options(p, req);
 		break;
 	case SIP_INVITE:
-		res = handle_request_invite(p, req, debug, seqno, sin, recount, e, nounlock);
+		res = handle_request_invite(p, req, debug, seqno, addr, recount, e, nounlock);
 		break;
 	case SIP_REFER:
 		res = handle_request_refer(p, req, debug, seqno, nounlock);
@@ -23084,13 +23151,13 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 		res = handle_request_message(p, req);
 		break;
 	case SIP_PUBLISH:
-		res = handle_request_publish(p, req, sin, seqno, e);
+		res = handle_request_publish(p, req, addr, seqno, e);
 		break;
 	case SIP_SUBSCRIBE:
-		res = handle_request_subscribe(p, req, sin, seqno, e);
+		res = handle_request_subscribe(p, req, addr, seqno, e);
 		break;
 	case SIP_REGISTER:
-		res = handle_request_register(p, req, sin, e);
+		res = handle_request_register(p, req, addr, e);
 		break;
 	case SIP_INFO:
 		if (req->debug)
@@ -23101,7 +23168,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 			transmit_response(p, "200 OK", req);
 		break;
 	case SIP_NOTIFY:
-		res = handle_request_notify(p, req, sin, seqno, e);
+		res = handle_request_notify(p, req, addr, seqno, e);
 		break;
 	case SIP_UPDATE:
 		res = handle_request_update(p, req);
@@ -23134,7 +23201,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct so
 	default:
 		transmit_response_with_allow(p, "501 Method Not Implemented", req, 0);
 		ast_log(LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n",
-			cmd, ast_inet_ntoa(p->sa.sin_addr));
+			cmd, ast_sockaddr_stringify(&p->sa));
 		/* If this is some new method, and we don't have a call, destroy it now */
 		if (!p->initreq.headers) {
 			pvt_set_needdestroy(p, "unimplemented method");
@@ -23241,13 +23308,12 @@ static int queue_request(struct sip_pvt *p, const struct sip_request *req)
 static int sipsock_read(int *id, int fd, short events, void *ignore)
 {
 	struct sip_request req;
-	struct sockaddr_in sin = { 0, };
+	struct ast_sockaddr addr;
 	int res;
-	socklen_t len = sizeof(sin);
 	static char readbuf[65535];
 
 	memset(&req, 0, sizeof(req));
-	res = recvfrom(fd, readbuf, sizeof(readbuf) - 1, 0, (struct sockaddr *)&sin, &len);
+	res = ast_recvfrom(fd, readbuf, sizeof(readbuf) - 1, 0, &addr);
 	if (res < 0) {
 #if !defined(__FreeBSD__)
 		if (errno == EAGAIN)
@@ -23273,9 +23339,9 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.socket.fd = sipsock;
 	set_socket_transport(&req.socket, SIP_TRANSPORT_UDP);
 	req.socket.tcptls_session	= NULL;
-	req.socket.port = bindaddr.sin_port;
+	req.socket.port = htons(ast_sockaddr_port(&bindaddr));
 
-	handle_request_do(&req, &sin);
+	handle_request_do(&req, &addr);
 	deinit_req(&req);
 
 	return 1;
@@ -23285,21 +23351,20 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 
  	This is used for all transports (udp, tcp and tcp/tls)
 */
-static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
+static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 {
 	struct sip_pvt *p;
 	int recount = 0;
 	int nounlock = 0;
 	int lockretry;
 
-	if (sip_debug_test_addr(sin))	/* Set the debug flag early on packet level */
+	if (sip_debug_test_addr(addr))	/* Set the debug flag early on packet level */
 		req->debug = 1;
 	if (sip_cfg.pedanticsipchecking)
 		req->len = lws2sws(req->data->str, req->len);	/* Fix multiline headers */
 	if (req->debug) {
-		ast_verbose("\n<--- SIP read from %s:%s:%d --->\n%s\n<------------->\n",
-			get_transport(req->socket.type), ast_inet_ntoa(sin->sin_addr),
-			ntohs(sin->sin_port), req->data->str);
+		ast_verbose("\n<--- SIP read from %s:%s --->\n%s\n<------------->\n",
+			get_transport(req->socket.type), ast_sockaddr_stringify(addr), req->data->str);
 	}
 
 	if (parse_request(req) == -1) { /* Bad packet, can't parse */
@@ -23321,7 +23386,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		ast_mutex_lock(&netlock);
 
 		/* Find the active SIP dialog or create a new one */
-		p = find_call(req, sin, req->method);	/* returns p locked */
+		p = find_call(req, addr, req->method);	/* returns p locked */
 		if (p == NULL) {
 			ast_debug(1, "Invalid SIP message - rejected , no callid, len %d\n", req->len);
 			ast_mutex_unlock(&netlock);
@@ -23343,7 +23408,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 			usleep(1);
 		}
 	}
-	p->recv = *sin;
+	ast_sockaddr_copy(&p->recv, addr);
 
 	if (p->do_history) /* This is a request or response, note what it was for */
 		append_history(p, "Rx", "%s / %s / %s", req->data->str, get_header(req, "CSeq"), REQ_OFFSET_TO_STR(req, rlPart2));
@@ -23378,7 +23443,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		process_request_queue(p, &recount, &nounlock);
 	}
 
-	if (handle_incoming(p, req, sin, &recount, &nounlock) == -1) {
+	if (handle_incoming(p, req, addr, &recount, &nounlock) == -1) {
 		/* Request failed */
 		ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 	}
@@ -23411,9 +23476,9 @@ static int sip_standard_port(enum sip_transport type, int port)
 static int threadinfo_locate_cb(void *obj, void *arg, int flags)
 {
 	struct sip_threadinfo *th = obj;
-	struct sockaddr_in *s = arg;
+	struct ast_sockaddr *s = arg;
 
-	if (!inaddrcmp(&th->tcptls_session->remote_address, s)) {
+	if (!ast_sockaddr_cmp(s, &th->tcptls_session->remote_address)) {
 		return CMP_MATCH | CMP_STOP;
 	}
 
@@ -23425,7 +23490,7 @@ static int threadinfo_locate_cb(void *obj, void *arg, int flags)
  *
  * \note This function returns an astobj2 reference
  */
-static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
+static struct ast_tcptls_session_instance *sip_tcp_locate(struct ast_sockaddr *s)
 {
 	struct sip_threadinfo *th;
 	struct ast_tcptls_session_instance *tcptls_instance = NULL;
@@ -23438,6 +23503,20 @@ static struct ast_tcptls_session_instance *sip_tcp_locate(struct sockaddr_in *s)
 	return tcptls_instance;
 }
 
+/*!
+ * \brief Helper for dns resolution to filter by address family.
+ *
+ * \note return 0 if addr is [::] else it returns addr's family.
+ */
+int get_address_family_filter(const struct ast_sockaddr *addr)
+{
+	if (ast_sockaddr_is_ipv6(addr) && ast_sockaddr_is_any(addr)) {
+		return 0;
+	}
+
+	return addr->ss.ss_family;
+}
+
 /*! \todo Get socket for dialog, prepare if needed, and return file handle  */
 static int sip_prepare_socket(struct sip_pvt *p)
 {
@@ -23445,11 +23524,8 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	static const char name[] = "SIP socket";
 	struct sip_threadinfo *th = NULL;
 	struct ast_tcptls_session_instance *tcptls_session;
-	struct ast_tcptls_session_args tmp_ca = {
-		.name = name,
-		.accept_fd = -1,
-	};
 	struct ast_tcptls_session_args *ca;
+	struct ast_sockaddr sa_tmp;
 
 	/* check to see if a socket is already active */
 	if ((s->fd != -1) && (s->type == SIP_TRANSPORT_UDP)) {
@@ -23483,8 +23559,8 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	 */
 
 	/* 1.  check for existing threads */
-	tmp_ca.remote_address = *(sip_real_dst(p));
-	if ((tcptls_session = sip_tcp_locate(&tmp_ca.remote_address))) {
+	ast_sockaddr_copy(&sa_tmp, sip_real_dst(p));
+	if ((tcptls_session = sip_tcp_locate(&sa_tmp))) {
 		s->fd = tcptls_session->fd;
 		if (s->tcptls_session) {
 			ao2_ref(s->tcptls_session, -1);
@@ -23504,7 +23580,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		goto create_tcptls_session_fail;
 	}
 	ca->accept_fd = -1;
-	ca->remote_address = *(sip_real_dst(p));
+	ast_sockaddr_copy(&ca->remote_address,sip_real_dst(p));
 	/* if type is TLS, we need to create a tls cfg for this session arg */
 	if (s->type == SIP_TRANSPORT_TLS) {
 		if (!(ca->tls_cfg = ast_calloc(1, sizeof(*ca->tls_cfg)))) {
@@ -23606,7 +23682,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 		return 0;
 
 	/* Do we have an IP address? If not, skip this peer */
-	if (!peer->addr.sin_addr.s_addr && !peer->defaddr.sin_addr.s_addr)
+	if (ast_sockaddr_isnull(&peer->addr) || ast_sockaddr_isnull(&peer->defaddr))
 		return 0;
 
 	if (event) {
@@ -23642,7 +23718,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 			return 0;
 		}
 		/* Recalculate our side, and recalculate Call ID */
-		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
+		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 		build_via(p);
 		ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 		build_callid_pvt(p);
@@ -23672,7 +23748,7 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		return;
 	/* If the call is not in UP state or redirected outside Asterisk, no need to check timers */
 
-	if (dialog->owner->_state != AST_STATE_UP || dialog->redirip.sin_addr.s_addr)
+	if (dialog->owner->_state != AST_STATE_UP || !ast_sockaddr_isnull(&dialog->redirip))
 		return;
 
 	/* If the call is involved in a T38 fax session do not check RTP timeout */
@@ -24179,7 +24255,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	struct sip_pvt *p;
 	int xmitres = 0;
 	
-	if ((!peer->maxms && !force) || !peer->addr.sin_addr.s_addr) {
+	if ((!peer->maxms && !force) || ast_sockaddr_isnull(&peer->addr)) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  immediately after clearing things out */
 		AST_SCHED_DEL_UNREF(sched, peer->pokeexpire,
@@ -24218,10 +24294,10 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	if (!ast_strlen_zero(peer->tohost))
 		ast_string_field_set(p, tohost, peer->tohost);
 	else
-		ast_string_field_set(p, tohost, ast_inet_ntoa(peer->addr.sin_addr));
+		ast_string_field_set(p, tohost, ast_sockaddr_stringify_host(&peer->addr));
 
 	/* Recalculate our side, and recalculate Call ID */
-	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
+	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 	build_via(p);
 	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 	build_callid_pvt(p);
@@ -24309,7 +24385,7 @@ static int sip_devicestate(void *data)
 	 * hosts out of memory.
 	 */
 	if ((p = find_peer(host, NULL, FALSE, FINDALLDEVICES, TRUE, 0))) {
-		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
+		if (!(ast_sockaddr_isnull(&p->addr) && ast_sockaddr_isnull(&p->defaddr))) {
 			/* we have an address for the peer */
 		
 			/* Check status in this order
@@ -24380,7 +24456,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	char dialstring[256];
 	char *remote_address;
 	enum sip_transport transport = 0;
-	struct sockaddr_in remote_address_sin = { .sin_family = AF_INET };
+	struct ast_sockaddr remote_address_sa = { {0,} };
 	format_t oldformat = format;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(peerorhost);
@@ -24482,25 +24558,15 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	}
 
 	if (!ast_strlen_zero(remote_address)) {
-		struct hostent *hp;
-		struct ast_hostent ahp;
-		char *port;
-		unsigned short port_num = transport & SIP_TRANSPORT_TLS ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
-
-		port = strchr(remote_address, ':');
-		if (port) {
-			*port++ = '\0';
-			if (sscanf(port, "%hu", &port_num) != 1) {
-				ast_log(LOG_WARNING, "Invalid port number provided in remote address. Using %hu\n", port_num);
-			}
-		}
-
-		hp = ast_gethostbyname(remote_address, &ahp);
-		if (!hp) {
+		if (ast_sockaddr_resolve_first(&remote_address_sa, remote_address, 0)) {
 			ast_log(LOG_WARNING, "Unable to find IP address for host %s. We will not use this remote IP address\n", remote_address);
 		} else {
-			memcpy(&remote_address_sin.sin_addr, hp->h_addr, sizeof(remote_address_sin.sin_addr));
-			remote_address_sin.sin_port = htons(port_num);
+			if (!ast_sockaddr_port(&remote_address_sa)) {
+				ast_sockaddr_set_port(&remote_address_sa,
+						      transport & SIP_TRANSPORT_TLS ?
+						      STANDARD_TLS_PORT :
+						      STANDARD_SIP_PORT);
+			}
 		}
 	}
 
@@ -24511,7 +24577,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 		ext = extension (user part of URI)
 		dnid = destination of the call (applies to the To: header)
 	*/
-	if (create_addr(p, host, NULL, 1, &remote_address_sin)) {
+	if (create_addr(p, host, NULL, 1, &remote_address_sa)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		ast_debug(3, "Cant create SIP call - target device not registered\n");
 		dialog_unlink_all(p, TRUE, TRUE);
@@ -24522,7 +24588,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	if (ast_strlen_zero(p->peername) && ext)
 		ast_string_field_set(p, peername, ext);
 	/* Recalculate our side, and recalculate Call ID */
-	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip, p);
+	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 	build_via(p);
 	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
 	build_callid_pvt(p);
@@ -24961,7 +25027,6 @@ static void set_peer_defaults(struct sip_peer *peer)
 		*/
 		peer->expire = -1;
 		peer->pokeexpire = -1;
-		peer->addr.sin_port = htons(STANDARD_SIP_PORT);
 		set_socket_transport(&peer->socket, SIP_TRANSPORT_UDP);
 	}
 	peer->type = SIP_TYPE_PEER;
@@ -24974,8 +25039,8 @@ static void set_peer_defaults(struct sip_peer *peer)
 	ast_string_field_set(peer, mohinterpret, default_mohinterpret);
 	ast_string_field_set(peer, mohsuggest, default_mohsuggest);
 	ast_string_field_set(peer, engine, default_engine);
-	peer->addr.sin_family = AF_INET;
-	peer->defaddr.sin_family = AF_INET;
+	ast_sockaddr_setnull(&peer->addr);
+	ast_sockaddr_setnull(&peer->defaddr);
 	peer->capability = sip_cfg.capability;
 	peer->maxcallbitrate = default_maxcallbitrate;
 	peer->rtptimeout = global_rtptimeout;
@@ -25262,41 +25327,58 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "fromuser")) {
 				ast_string_field_set(peer, fromuser, v->value);
 			} else if (!strcasecmp(v->name, "outboundproxy")) {
-				char *port, *next, *force, *proxyname;
-				int forceopt = FALSE;
-				/* Set peer channel variable */
-				next = proxyname = ast_strdupa(v->value);
-				if ((port = strchr(proxyname, ':'))) {
-					*port++ = '\0';
-					next = port;
+				char *tok, *proxyname;
+
+				if (ast_strlen_zero(v->value)) {
+					ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf.", v->lineno);
+					continue;
 				}
-				if ((force = strchr(next, ','))) {
-					*force++ = '\0';
-					forceopt = strcmp(force, "force");
+
+				peer->outboundproxy =
+				    ao2_alloc(sizeof(*peer->outboundproxy), NULL);
+
+				tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
+
+				sip_parse_host(tok, v->lineno, &proxyname,
+					       &peer->outboundproxy->port,
+					       &peer->outboundproxy->transport);
+
+				tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
+
+				if ((tok = strtok(NULL, ","))) {
+					peer->outboundproxy->force = !strncasecmp(ast_skip_blanks(tok), "force", 5);
+				} else {
+					peer->outboundproxy->force = FALSE;
 				}
-				/* Allocate proxy object */
-				peer->outboundproxy = proxy_allocate(proxyname, port, forceopt);
+
+				if (ast_strlen_zero(proxyname)) {
+					ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf.", v->lineno);
+					sip_cfg.outboundproxy.name[0] = '\0';
+					continue;
+				}
+
+				ast_copy_string(peer->outboundproxy->name, proxyname, sizeof(peer->outboundproxy->name));
+
+				proxy_update(peer->outboundproxy);
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
 					if (!found || !peer->host_dynamic) {
 						/* Initialize stuff if this is a new peer, or if it used to
 						 * not be dynamic before the reload. */
-						memset(&peer->addr.sin_addr, 0, 4);
-						peer->addr.sin_port = 0;
+						ast_sockaddr_setnull(&peer->addr);
 					}
 					peer->host_dynamic = TRUE;
 				} else {
 					/* Non-dynamic.  Make sure we become that way if we're not */
 					AST_SCHED_DEL_UNREF(sched, peer->expire,
 							unref_peer(peer, "removing register expire ref"));
-					/* the port will either be set to a default value or a config specified value once all option parsing is complete */
-					peer->addr.sin_port = 0;
 					peer->host_dynamic = FALSE;
 					srvlookup = v->value;
 					if (global_dynamic_exclude_static) {
 						int err = 0;
-						sip_cfg.contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), sip_cfg.contact_ha, &err);
+						sip_cfg.contact_ha = ast_append_ha("deny", ast_sockaddr_stringify(&peer->addr), 
+										sip_cfg.contact_ha, &err);
 						if (err) {
 							ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 						}
@@ -25504,7 +25586,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (realtime && !strcasecmp(v->name, "lastms")) {
 			sscanf(v->value, "%30d", &peer->lastms);
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
-			inet_aton(v->value, &(peer->addr.sin_addr));
+			ast_sockaddr_parse(&peer->addr, v->value, PARSE_PORT_FORBID);
 		} else if (realtime && !strcasecmp(v->name, "fullcontact")) {
 			if (alt_fullcontact && !alt) {
 				/* Reset, because the alternate also has a fullcontact and we
@@ -25605,12 +25687,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		set_socket_transport(&peer->socket, peer->default_outbound_transport);
 	}
 
-	if (port && !realtime && peer->host_dynamic) {
-		peer->defaddr.sin_port = htons(port);
-	} else if (port) {
-		peer->addr.sin_port = htons(port);
-	}
-
 	if (ast_str_strlen(fullcontact)) {
 		ast_string_field_set(peer, fullcontact, ast_str_buffer(fullcontact));
 		peer->rt_fromcontact = TRUE;
@@ -25622,7 +25698,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		 * specified, use that address instead. */
 		/* XXX May need to revisit the final argument; does the realtime DB store whether
 		 * the original contact was over TLS or not? XXX */
-		if (!ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT) || !peer->addr.sin_addr.s_addr) {
+		if (!ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT) || ast_sockaddr_isnull(&peer->addr)) {
 			__set_address_from_contact(fullcontact->str, &peer->addr, 0);
 		}
 	}
@@ -25639,20 +25715,32 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
 
+		peer->addr.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
 		if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup && !peer->portinuri ? transport : NULL)) {
 			ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", _srvlookup, peer->name);
 			unref_peer(peer, "getting rid of a peer pointer");
 			return NULL;
 		}
 
-		ast_string_field_set(peer, tohost, srvlookup);
+		ast_string_field_set(peer, tohost, peer->dnsmgr ? srvlookup :
+				     ast_sockaddr_stringify_host(&peer->addr));
 	}
 
-	if (!peer->addr.sin_port) {
-		peer->addr.sin_port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
+	if (port && !realtime && peer->host_dynamic) {
+		ast_sockaddr_set_port(&peer->defaddr, port);
+	} else if (port) {
+		ast_sockaddr_set_port(&peer->addr, port);
 	}
-	if (!peer->defaddr.sin_port) {
-		peer->defaddr.sin_port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
+
+	if (ast_sockaddr_port(&peer->addr) == 0) {
+		ast_sockaddr_set_port(&peer->addr,
+				      (peer->socket.type & SIP_TRANSPORT_TLS) ?
+				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+	}
+	if (ast_sockaddr_port(&peer->defaddr) == 0) {
+		ast_sockaddr_set_port(&peer->defaddr,
+				      (peer->socket.type & SIP_TRANSPORT_TLS) ?
+				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 	}
 	if (!peer->socket.port) {
 		peer->socket.port = htons(((peer->socket.type & SIP_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
@@ -25735,12 +25823,14 @@ static int reload_config(enum channelreloadreason reason)
 	struct ast_flags dummy[2];
 	struct ast_flags config_flags = { reason == CHANNEL_MODULE_LOAD ? 0 : ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
-	struct sockaddr_in old_bindaddr = bindaddr;
+	struct ast_sockaddr old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, timerb_set = 0, timert1_set = 0;
 	time_t run_start, run_end;
-	
+	struct sockaddr_in externip_sin;
+	int bindport = 0;
+
 	run_start = time(0);
-	ast_unload_realtime("sipregs");		
+	ast_unload_realtime("sipregs");
 	ast_unload_realtime("sippeers");
 	cfg = ast_config_load(config, config_flags);
 
@@ -25775,17 +25865,10 @@ static int reload_config(enum channelreloadreason reason)
 		}
 	}
 
-	/* Initialize tcp sockets */
-	memset(&sip_tcp_desc.local_address, 0, sizeof(sip_tcp_desc.local_address));
-	memset(&sip_tls_desc.local_address, 0, sizeof(sip_tls_desc.local_address));
-
 	ast_free_ha(sip_cfg.contact_ha);
 	sip_cfg.contact_ha = NULL;
 
 	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
-
-	sip_tcp_desc.local_address.sin_port = htons(STANDARD_SIP_PORT);
-	sip_tls_desc.local_address.sin_port = htons(STANDARD_TLS_PORT);
 
 	if (reason != CHANNEL_MODULE_LOAD) {
 		ast_debug(4, "--------------- SIP reload started\n");
@@ -25845,7 +25928,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags[1], AST_FLAGS_ALL);
 
 	/* Reset IP addresses  */
-	memset(&bindaddr, 0, sizeof(bindaddr));
+	ast_sockaddr_parse(&bindaddr, "0.0.0.0:0", 0);
 	memset(&stunaddr, 0, sizeof(stunaddr));
 	memset(&internip, 0, sizeof(internip));
 
@@ -25856,16 +25939,13 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&media_address, 0, sizeof(media_address));
 	memset(&default_prefs, 0 , sizeof(default_prefs));
 	memset(&sip_cfg.outboundproxy, 0, sizeof(struct sip_proxy));
-	sip_cfg.outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
-	sip_cfg.outboundproxy.ip.sin_family = AF_INET;	/*!< Type of address: IPv4 */
 	sip_cfg.outboundproxy.force = FALSE;		/*!< Don't force proxy usage, use route: headers */
 	default_transports = 0;				/*!< Reset default transport to zero here, default value later on */
 	default_primary_transport = 0;			/*!< Reset default primary transport to zero here, default value later on */
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
-	externtcpport = 0;
-	externtlsport = 0;
-	bindaddr.sin_port = htons(STANDARD_SIP_PORT);
+	externtcpport = STANDARD_SIP_PORT;
+	externtlsport = STANDARD_TLS_PORT;
 	sip_cfg.srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
@@ -25920,6 +26000,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for all devices: TRUE */
 	sip_cfg.peer_rtupdate = TRUE;
 	global_dynamic_exclude_static = 0;	/* Exclude static peers */
+	sip_cfg.tcp_enabled = FALSE;
 
 	/* Session-Timers */
 	global_st_mode = SESSION_TIMER_MODE_ACCEPT;
@@ -26056,14 +26137,18 @@ static int reload_config(enum channelreloadreason reason)
 				}
 			}
 		} else if (!strcasecmp(v->name, "tcpenable")) {
-			sip_tcp_desc.local_address.sin_family = ast_false(v->value) ? 0 : AF_INET;
-			ast_debug(2, "Enabling TCP socket for listening\n");
+			if (!ast_false(v->value)) {
+				ast_debug(2, "Enabling TCP socket for listening\n");
+				sip_cfg.tcp_enabled = TRUE;
+			}
 		} else if (!strcasecmp(v->name, "tcpbindaddr")) {
-			int family = sip_tcp_desc.local_address.sin_family;
-			if (ast_parse_arg(v->value, PARSE_INADDR, &sip_tcp_desc.local_address))
-				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n", v->name, v->value, v->lineno, config);
-			sip_tcp_desc.local_address.sin_family = family;
-			ast_debug(2, "Setting TCP socket address to %s\n", v->value);
+			if (ast_parse_arg(v->value, PARSE_ADDR,
+					  &sip_tcp_desc.local_address)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
+					v->name, v->value, v->lineno, config);
+			}
+			ast_debug(2, "Setting TCP socket address to %s\n",
+				  ast_sockaddr_stringify(&sip_tcp_desc.local_address));
 		} else if (!strcasecmp(v->name, "dynamic_exclude_static") || !strcasecmp(v->name, "dynamic_excludes_static")) {
 			global_dynamic_exclude_static = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
@@ -26155,7 +26240,6 @@ static int reload_config(enum channelreloadreason reason)
 				default_fromdomainport = STANDARD_SIP_PORT;
 			}
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			int portnum;
 			char *tok, *proxyname;
 
 			if (ast_strlen_zero(v->value)) {
@@ -26165,10 +26249,10 @@ static int reload_config(enum channelreloadreason reason)
 
 			tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
 
-			sip_parse_host(tok, v->lineno, &proxyname, &portnum, &sip_cfg.outboundproxy.transport);
+			sip_parse_host(tok, v->lineno, &proxyname,
+				       &sip_cfg.outboundproxy.port,
+				       &sip_cfg.outboundproxy.transport);
 
-			sip_cfg.outboundproxy.ip.sin_port = htons(portnum);
-	
 			if ((tok = strtok(NULL, ","))) {
 				sip_cfg.outboundproxy.force = !strncasecmp(ast_skip_blanks(tok), "force", 5);
 			} else {
@@ -26227,8 +26311,9 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", v->value);
 			externexpire = time(NULL);
 		} else if (!strcasecmp(v->name, "bindaddr") || !strcasecmp(v->name, "udpbindaddr")) {
-			if (ast_parse_arg(v->value, PARSE_INADDR, &bindaddr))
+			if (ast_parse_arg(v->value, PARSE_ADDR, &bindaddr)) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
+			}
 		} else if (!strcasecmp(v->name, "localnet")) {
 			struct ast_ha *na;
 			int ha_error = 0;
@@ -26240,23 +26325,21 @@ static int reload_config(enum channelreloadreason reason)
 			if (ha_error)
 				ast_log(LOG_ERROR, "Bad localnet configuration value line %d : %s\n", v->lineno, v->value);
 		} else if (!strcasecmp(v->name, "media_address")) {
-			if (ast_parse_arg(v->value, PARSE_INADDR, &media_address))
+			if (ast_parse_arg(v->value, PARSE_ADDR, &media_address))
 				ast_log(LOG_WARNING, "Invalid address for media_address keyword: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "externip")) {
-			if (ast_parse_arg(v->value, PARSE_INADDR, &externip))
-				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
+			if (ast_parse_arg(v->value, PARSE_ADDR, &externip)) {
+				ast_log(LOG_WARNING,
+					"Invalid address for externip keyword: %s\n",
+					v->value);
+			}
 			externexpire = 0;
-			/* If no port was specified use the value of bindport */
-			if (!externip.sin_port)
-				externip.sin_port = bindaddr.sin_port;
 		} else if (!strcasecmp(v->name, "externhost")) {
 			ast_copy_string(externhost, v->value, sizeof(externhost));
-			if (ast_parse_arg(externhost, PARSE_INADDR, &externip))
+			if (ast_sockaddr_resolve_first(&externip, externhost, 0)) {
 				ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
+			}
 			externexpire = time(NULL);
-			/* If no port was specified use the value of bindport */
-			if (!externip.sin_port)
-				externip.sin_port = bindaddr.sin_port;
 		} else if (!strcasecmp(v->name, "externrefresh")) {
 			if (sscanf(v->value, "%30d", &externrefresh) != 1) {
 				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
@@ -26264,13 +26347,12 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "externtcpport")) {
 			if (!(externtcpport = port_str2int(v->value, 0))) {
-				ast_log(LOG_WARNING, "Invalid externtcpport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);	
-				externtcpport = ntohs(sip_tcp_desc.local_address.sin_port);
+				ast_log(LOG_WARNING, "Invalid externtcpport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
+				externtcpport = 0;
 			}
 		} else if (!strcasecmp(v->name, "externtlsport")) {
-			if (!(externtlsport = port_str2int(v->value, 0))) {
+			if (!(externtlsport = port_str2int(v->value, STANDARD_TLS_PORT))) {
 				ast_log(LOG_WARNING, "Invalid externtlsport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
-				externtlsport = ntohs(sip_tls_desc.local_address.sin_port);
 			}
 		} else if (!strcasecmp(v->name, "allow")) {
 			int error =  ast_parse_allow_disallow(&default_prefs, &sip_cfg.capability, v->value, TRUE);
@@ -26331,12 +26413,8 @@ static int reload_config(enum channelreloadreason reason)
 			if (ast_str2cos(v->value, &global_cos_text))
 				ast_log(LOG_WARNING, "Invalid cos_text value at line %d, refer to QoS documentation\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
-			int i;
-			if (sscanf(v->value, "%5d", &i) == 1) {
-				bindaddr.sin_port = htons(i);
-			} else {
+			if (sscanf(v->value, "%5d", &bindport) != 1)
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
-			}
 		} else if (!strcasecmp(v->name, "qualify")) {
 			if (!strcasecmp(v->value, "no")) {
 				default_qualify = 0;
@@ -26449,13 +26527,6 @@ static int reload_config(enum channelreloadreason reason)
 		default_transports = default_primary_transport = SIP_TRANSPORT_UDP;
 	}
 
-	/* if not configured, set the defaults for externtcpport and externtlsport */
-	if (!externtcpport) {
-		externtcpport = ntohs(externip.sin_port); /* for consistency, default to the externip port */
-	}
-	if (!externtlsport) {
-		externtlsport = STANDARD_TLS_PORT;
-	}
 	/* Build list of authentication to various SIP realms, i.e. service providers */
  	for (v = ast_variable_browse(cfg, "authentication"); v ; v = v->next) {
  		/* Format for authentication is auth = username:password@realm */
@@ -26482,7 +26553,7 @@ static int reload_config(enum channelreloadreason reason)
 						/* user.conf entries are always of type friend */
 						peer->type = SIP_TYPE_USER | SIP_TYPE_PEER;
 						ao2_t_link(peers, peer, "link peer into peer table");
-						if ((peer->type & SIP_TYPE_PEER) && peer->addr.sin_addr.s_addr) {
+						if ((peer->type & SIP_TYPE_PEER) && !ast_sockaddr_isnull(&peer->addr)) {
 							ao2_t_link(peers_by_ip, peer, "link peer into peers_by_ip table");
 						}
 						
@@ -26552,7 +26623,7 @@ static int reload_config(enum channelreloadreason reason)
 			peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0, 0);
 			if (peer) {
 				ao2_t_link(peers, peer, "link peer into peers table");
-				if ((peer->type & SIP_TYPE_PEER) && peer->addr.sin_addr.s_addr) {
+				if ((peer->type & SIP_TYPE_PEER) && !ast_sockaddr_isnull(&peer->addr)) {
 					ao2_t_link(peers_by_ip, peer, "link peer into peers_by_ip table");
 				}
 				unref_peer(peer, "unref the result of the build_peer call. Now, the links from the tables are the only ones left.");
@@ -26560,22 +26631,34 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		}
 	}
-	
+
+	if (bindport) {
+		if (ast_sockaddr_port(&bindaddr)) {
+			ast_log(LOG_WARNING, "bindport is also specified in bindaddr. "
+				"Using %d.\n", bindport);
+		}
+		ast_sockaddr_set_port(&bindaddr, bindport);
+	}
+
+	if (!ast_sockaddr_port(&bindaddr)) {
+		ast_sockaddr_set_port(&bindaddr, STANDARD_SIP_PORT);
+	}
+
 	/* Set UDP address and open socket */
-	bindaddr.sin_family = AF_INET;
-	internip = bindaddr;
-	if (ast_find_ourip(&internip.sin_addr, bindaddr)) {
+	ast_sockaddr_copy(&internip, &bindaddr);
+	if (ast_find_ourip(&internip, &bindaddr)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
 		ast_config_destroy(cfg);
 		return 0;
 	}
 	ast_mutex_lock(&netlock);
-	if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in)))) {
+	if ((sipsock > -1) && (ast_sockaddr_cmp(&old_bindaddr, &bindaddr))) {
 		close(sipsock);
 		sipsock = -1;
 	}
 	if (sipsock < 0) {
-		sipsock = socket(AF_INET, SOCK_DGRAM, 0);
+		sipsock = socket(ast_sockaddr_is_ipv6(&bindaddr) ?
+				 AF_INET6 : AF_INET, SOCK_DGRAM, 0);
 		if (sipsock < 0) {
 			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
 			ast_config_destroy(cfg);
@@ -26590,35 +26673,43 @@ static int reload_config(enum channelreloadreason reason)
 
 			ast_enable_packet_fragmentation(sipsock);
 
-			if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
-				ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
-				ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
-				strerror(errno));
+			if (ast_bind(sipsock, &bindaddr) < 0) {
+				ast_log(LOG_WARNING, "Failed to bind to %s: %s\n",
+					ast_sockaddr_stringify(&bindaddr), strerror(errno));
 				close(sipsock);
 				sipsock = -1;
 			} else {
-				ast_verb(2, "SIP Listening on %s:%d\n",
-						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
+				ast_verb(2, "SIP Listening on %s\n", ast_sockaddr_stringify(&bindaddr));
+				ast_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
 			}
 		}
 	}
 	if (stunaddr.sin_addr.s_addr != 0) {
 		ast_debug(1, "stun to %s:%d\n",
 			ast_inet_ntoa(stunaddr.sin_addr) , ntohs(stunaddr.sin_port));
+		ast_sockaddr_to_sin(&externip, &externip_sin);
 		ast_stun_request(sipsock, &stunaddr,
-			NULL, &externip);
-		ast_debug(1, "STUN sees us at %s:%d\n",
-			ast_inet_ntoa(externip.sin_addr) , ntohs(externip.sin_port));
+			NULL, &externip_sin);
+		ast_debug(1, "STUN sees us at %s\n",
+			ast_sockaddr_stringify(&externip));
 	}
 	ast_mutex_unlock(&netlock);
 
 	/* Start TCP server */
+	if (sip_cfg.tcp_enabled) {
+		if (ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
+			ast_sockaddr_copy(&sip_tcp_desc.local_address, &bindaddr);
+		}
+		if (!ast_sockaddr_port(&sip_tcp_desc.local_address)) {
+			ast_sockaddr_set_port(&sip_tcp_desc.local_address, STANDARD_SIP_PORT);
+		}
+	} else {
+		ast_sockaddr_setnull(&sip_tcp_desc.local_address);
+	}
 	ast_tcptls_server_start(&sip_tcp_desc);
- 	if (sip_tcp_desc.accept_fd == -1 &&  sip_tcp_desc.local_address.sin_family == AF_INET) {
+	if (sip_cfg.tcp_enabled && sip_tcp_desc.accept_fd == -1) {
 		/* TCP server start failed. Tell the admin */
 		ast_log(LOG_ERROR, "SIP TCP Server start failed. Not listening on TCP socket.\n");
-		sip_tcp_desc.local_address.sin_family = 0;
 	} else {
 		ast_debug(2, "SIP TCP server started\n");
 	}
@@ -26627,6 +26718,15 @@ static int reload_config(enum channelreloadreason reason)
 	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
 
 	if (ast_ssl_setup(sip_tls_desc.tls_cfg)) {
+		if (ast_sockaddr_isnull(&sip_tls_desc.local_address)) {
+			ast_sockaddr_copy(&sip_tls_desc.local_address, &bindaddr);
+			ast_sockaddr_set_port(&sip_tls_desc.local_address,
+					      STANDARD_TLS_PORT);
+		}
+		if (!ast_sockaddr_port(&sip_tls_desc.local_address)) {
+			ast_sockaddr_set_port(&sip_tls_desc.local_address,
+					      STANDARD_TLS_PORT);
+		}
 		ast_tcptls_server_start(&sip_tls_desc);
  		if (default_tls_cfg.enabled && sip_tls_desc.accept_fd == -1) {
 			ast_log(LOG_ERROR, "TLS Server start failed. Not listening on TLS socket.\n");
@@ -26647,26 +26747,36 @@ static int reload_config(enum channelreloadreason reason)
 		char temp[MAXHOSTNAMELEN];
 
 		/* First our default IP address */
-		if (bindaddr.sin_addr.s_addr) {
-			add_sip_domain(ast_inet_ntoa(bindaddr.sin_addr), SIP_DOMAIN_AUTO, NULL);
-		} else if (internip.sin_addr.s_addr) {
+		if (!ast_sockaddr_isnull(&bindaddr)) {
+			add_sip_domain(ast_sockaddr_stringify(&bindaddr), SIP_DOMAIN_AUTO, NULL);
+		} else if (!ast_sockaddr_isnull(&internip)) {
 		/* Our internal IP address, if configured */
-			add_sip_domain(ast_inet_ntoa(internip.sin_addr), SIP_DOMAIN_AUTO, NULL);
+			add_sip_domain(ast_sockaddr_stringify(&internip), SIP_DOMAIN_AUTO, NULL);
 		} else {
 			ast_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
 		}
 
 		/* If TCP is running on a different IP than UDP, then add it too */
-		if (sip_tcp_desc.local_address.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tcp_desc.local_address))
-			add_sip_domain(ast_inet_ntoa(sip_tcp_desc.local_address.sin_addr), SIP_DOMAIN_AUTO, NULL);
+		if (!ast_sockaddr_isnull(&sip_tcp_desc.local_address) &&
+		    !ast_sockaddr_cmp(&bindaddr, &sip_tcp_desc.local_address)) {
+			add_sip_domain(ast_sockaddr_stringify(&sip_tcp_desc.local_address),
+				       SIP_DOMAIN_AUTO, NULL);
+		}
 
-		/* If TLS is running on a differen IP than UDP and TCP, then add that too */
-		if (sip_tls_desc.local_address.sin_addr.s_addr && !inaddrcmp(&bindaddr, &sip_tls_desc.local_address) && inaddrcmp(&sip_tcp_desc.local_address, &sip_tls_desc.local_address))
-			add_sip_domain(ast_inet_ntoa(sip_tls_desc.local_address.sin_addr), SIP_DOMAIN_AUTO, NULL);
+		/* If TLS is running on a different IP than UDP and TCP, then add that too */
+		if (!ast_sockaddr_isnull(&sip_tls_desc.local_address) &&
+		    !ast_sockaddr_cmp(&bindaddr, &sip_tls_desc.local_address) &&
+		    !ast_sockaddr_cmp(&sip_tcp_desc.local_address,
+				      &sip_tls_desc.local_address)) {
+			add_sip_domain(ast_sockaddr_stringify(&sip_tcp_desc.local_address),
+				       SIP_DOMAIN_AUTO, NULL);
+		}
 
 		/* Our extern IP address, if configured */
-		if (externip.sin_addr.s_addr)
-			add_sip_domain(ast_inet_ntoa(externip.sin_addr), SIP_DOMAIN_AUTO, NULL);
+		if (!ast_sockaddr_isnull(&externip)) {
+			add_sip_domain(ast_sockaddr_stringify(&externip), SIP_DOMAIN_AUTO,
+				       NULL);
+		}
 
 		/* Extern host name (NAT traversal support) */
 		if (!ast_strlen_zero(externhost))
@@ -26698,15 +26808,23 @@ static int reload_config(enum channelreloadreason reason)
 
 static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
 {
-	struct sockaddr_in us = {0,}, them = {0,};
-	int res;
+	struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
+	struct sockaddr_in them_sin;
+	int res = AST_SENSE_ALLOW;
 
 	ast_rtp_instance_get_remote_address(p->rtp, &them);
 	ast_rtp_instance_get_local_address(p->rtp, &us);
 
-	if (!(res = ast_apply_ha(p->directmediaha, &them))) {
+	/* Currently ast_apply_ha doesn't support IPv6 */
+	if (ast_sockaddr_is_ipv6(&them)) {
+		return res;
+	}
+
+	ast_sockaddr_to_sin(&them, &them_sin);
+
+	if ((res = ast_apply_ha(p->directmediaha, &them_sin)) == AST_SENSE_DENY) {
 		ast_debug(3, "Reinvite %s to %s denied by directmedia ACL on %s\n",
-			op, ast_inet_ntoa(them.sin_addr), ast_inet_ntoa(us.sin_addr));
+			op, ast_sockaddr_stringify(&them), ast_sockaddr_stringify(&us));
 	}
 
 	return res;
@@ -26744,11 +26862,14 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	else
 		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
 	if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
+		struct sockaddr_in ourip_sin;
+		ast_sockaddr_to_sin(&p->ourip, &ourip_sin);
 		if (!p->pendinginvite) {
-			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : ourip_sin.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+
 			transmit_reinvite_with_sdp(p, TRUE, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : ourip_sin.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
 	}
@@ -26886,19 +27007,19 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 
 	if (instance) {
 		changed |= ast_rtp_instance_get_remote_address(instance, &p->redirip);
-	} else if (p->redirip.sin_addr.s_addr || ntohs(p->redirip.sin_port) != 0) {
+	} else if (!ast_sockaddr_isnull(&p->redirip)) {
 		memset(&p->redirip, 0, sizeof(p->redirip));
 		changed = 1;
 	}
 	if (vinstance) {
 		changed |= ast_rtp_instance_get_remote_address(vinstance, &p->vredirip);
-	} else if (p->vredirip.sin_addr.s_addr || ntohs(p->vredirip.sin_port) != 0) {
+	} else if (!ast_sockaddr_isnull(&p->vredirip)) {
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
 		changed = 1;
 	}
 	if (tinstance) {
 		changed |= ast_rtp_instance_get_remote_address(tinstance, &p->tredirip);
-	} else if (p->tredirip.sin_addr.s_addr || ntohs(p->tredirip.sin_port) != 0) {
+	} else if (!ast_sockaddr_isnull(&p->tredirip)) {
 		memset(&p->tredirip, 0, sizeof(p->tredirip));
 		changed = 1;
 	}
@@ -26910,12 +27031,12 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 		if (chan->_state != AST_STATE_UP) {     /* We are in early state */
 			if (p->do_history)
 				append_history(p, "ExtInv", "Initial invite sent with remote bridge proposal.");
-			ast_debug(1, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
+			ast_debug(1, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_sockaddr_stringify(instance ? &p->redirip : &p->ourip));
 		} else if (!p->pendinginvite) {	 /* We are up, and have no outstanding invite */
-			ast_debug(3, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
+			ast_debug(3, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_sockaddr_stringify(instance ? &p->redirip : &p->ourip));
 			transmit_reinvite_with_sdp(p, FALSE, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			ast_debug(3, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(instance ? p->redirip.sin_addr : p->ourip.sin_addr));
+			ast_debug(3, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_sockaddr_stringify(instance ? &p->redirip : &p->ourip));
 			/* We have a pending Invite. Send re-invite when we're done with the invite */
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
@@ -27321,6 +27442,40 @@ static int reload(void)
 	return 1;
 }
 
+/*! \brief  Return the first entry from ast_sockaddr_resolve filtered by address family
+ *
+ * \warn Using this function probably means you have a faulty design.
+ */
+static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
+				      const char* name, int flag, int family)
+{
+	struct ast_sockaddr *addrs;
+	int addrs_cnt;
+
+	addrs_cnt = ast_sockaddr_resolve(&addrs, name, flag, family);
+	if (addrs_cnt <= 0) {
+		return 1;
+	}
+	if (addrs_cnt > 1) {
+		ast_log(LOG_DEBUG, "Multiple addresses, using the first one only\n");
+	}
+
+	ast_sockaddr_copy(addr, &addrs[0]);
+
+	ast_free(addrs);
+	return 0;
+}
+
+/*! \brief  Return the first entry from ast_sockaddr_resolve filtered by family of binddaddr
+ *
+ * \warn Using this function probably means you have a faulty design.
+ */
+static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
+				      const char* name, int flag)
+{
+	return ast_sockaddr_resolve_first_af(addr, name, flag, get_address_family_filter(&bindaddr));
+}
+
 /*! \brief
  * \note The only member of the peer used here is the name field
  */
@@ -27342,16 +27497,26 @@ static int peer_cmp_cb(void *obj, void *arg, int flags)
 }
 
 /*!
- * \note the peer's ip address field is used to create key.
+ * Hash function based on the the peer's ip address.  For IPv6, we use the end
+ * of the address.
+ * \todo Find a better hashing function
  */
 static int peer_iphash_cb(const void *obj, const int flags)
 {
 	const struct sip_peer *peer = obj;
-	int ret1 = peer->addr.sin_addr.s_addr;
-	if (ret1 < 0)
-		ret1 = -ret1;
+	int ret = 0;
 
-	return ret1;
+	if (ast_sockaddr_isnull(&peer->addr)) {
+		ast_log(LOG_ERROR, "Empty address\n");
+	}
+
+	ret = ast_sockaddr_hash(&peer->addr);
+
+	if (ret < 0) {
+		ret = -ret;
+	}
+
+	return ret;
 }
 
 /*!
@@ -27376,7 +27541,7 @@ static int peer_ipcmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_peer *peer = obj, *peer2 = arg;
 
-	if (peer->addr.sin_addr.s_addr != peer2->addr.sin_addr.s_addr) {
+	if (ast_sockaddr_cmp_addr(&peer->addr, &peer2->addr)) {
 		/* IP doesn't match */
 		return 0;
 	}
@@ -27393,7 +27558,8 @@ static int peer_ipcmp_cb(void *obj, void *arg, int flags)
 	}
 
 	/* Now only return a match if the port matches, as well. */
-	return peer->addr.sin_port == peer2->addr.sin_port ? (CMP_MATCH | CMP_STOP) : 0;
+	return ast_sockaddr_port(&peer->addr) == ast_sockaddr_port(&peer2->addr) ?
+			(CMP_MATCH | CMP_STOP) : 0;
 }
 
 
@@ -27401,7 +27567,7 @@ static int threadt_hash_cb(const void *obj, const int flags)
 {
 	const struct sip_threadinfo *th = obj;
 
-	return (int) th->tcptls_session->remote_address.sin_addr.s_addr;
+	return ast_sockaddr_hash(&th->tcptls_session->remote_address);
 }
 
 static int threadt_cmp_cb(void *obj, void *arg, int flags)

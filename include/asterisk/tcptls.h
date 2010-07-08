@@ -48,6 +48,7 @@
 #ifndef _ASTERISK_TCPTLS_H
 #define _ASTERISK_TCPTLS_H
 
+#include "asterisk/netsock2.h"
 #include "asterisk/utils.h"
 
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
@@ -120,9 +121,9 @@ struct ast_tls_config {
  * arguments for the accepting thread
  */
 struct ast_tcptls_session_args {
-	struct sockaddr_in local_address;
-	struct sockaddr_in old_address; /*!< copy of the local or remote address depending on if its a client or server session */
-	struct sockaddr_in remote_address;
+	struct ast_sockaddr local_address;
+	struct ast_sockaddr old_address; /*!< copy of the local or remote address depending on if its a client or server session */
+	struct ast_sockaddr remote_address;
 	char hostname[MAXHOSTNAMELEN]; /*!< only necessary for SSL clients so we can compare to common name */
 	struct ast_tls_config *tls_cfg; /*!< points to the SSL configuration if any */
 	int accept_fd;
@@ -143,7 +144,7 @@ struct ast_tcptls_session_instance {
 	SSL *ssl;   /* ssl state */
 /*	iint (*ssl_setup)(SSL *); */
 	int client;
-	struct sockaddr_in remote_address;
+	struct ast_sockaddr remote_address;
 	struct ast_tcptls_session_args *parent;
 	ast_mutex_t lock;
 };

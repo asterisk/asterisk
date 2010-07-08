@@ -28,7 +28,7 @@
  * \note
  * - Multiple scheme's can be specified ',' delimited. ex: "sip:,sips:"
  * - If a component is not requested, do not split around it. This means
- *   that if we don't have domain, we cannot split name:pass and domain:port.
+ *   that if we don't have domain, we cannot split name:pass.
  * - It is safe to call with ret_name, pass, domain, port pointing all to
  *   the same place.
  * - If no secret parameter is provided, ret_name will return with both parts, user:secret
@@ -42,7 +42,8 @@
  * general form we are expecting is sip:user:password;user-parameters@host:port;uri-parameters?headers
  * \endverbatim
  */
-int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char **domain, char **port, char **transport);
+int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass,
+	      char **domain, char **transport);
 
 /*!
  * \brief parses a URI in to all of its components and any trailing residue
@@ -51,7 +52,9 @@ int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass, char 
  * \retval -1 on error.
  *
  */
-int parse_uri_full(char *uri, const char *scheme, char **user, char **pass, char **host, char **port, struct uriparams *params, char **headers, char **residue);
+int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
+		   char **domain, struct uriparams *params, char **headers,
+		   char **residue);
 
 /*!
  * \brief  Get caller id name from SIP headers, copy into output buffer
@@ -100,7 +103,10 @@ int get_in_brackets_full(char *tmp, char **out, char **residue);
  * \retval 0 success
  * \retval -1 failure
  */
-int parse_name_andor_addr(char *uri, const char *scheme, char **name, char **user, char **pass, char **host, char **port, struct uriparams *params, char **headers, char **remander);
+int parse_name_andor_addr(char *uri, const char *scheme, char **name,
+			  char **user, char **pass, char **domain,
+			  struct uriparams *params, char **headers,
+			  char **remander);
 
 /*! \brief Parse all contact header contacts
  * \retval 0 success

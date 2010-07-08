@@ -592,6 +592,14 @@ enum ast_parse_flags {
 	PARSE_INT16	= 	0x0004,
 	PARSE_UINT16	= 	0x0005,
 #endif
+
+	/* Returns a struct ast_sockaddr, with optional default value
+	 * (passed by reference) and port handling (accept, ignore,
+	 * require, forbid). The format is 'ipaddress[:port]'. IPv6 address
+	 * literals need square brackets around them if a port is specified.
+	 */
+	PARSE_ADDR	=	0x000e,
+
 	/* Returns a struct sockaddr_in, with optional default value
 	 * (passed by reference) and port handling (accept, ignore,
 	 * require, forbid). The format is 'host.name[:port]'
@@ -614,7 +622,7 @@ enum ast_parse_flags {
 	PARSE_IN_RANGE =	0x0020,	/* accept values inside a range */
 	PARSE_OUT_RANGE =	0x0040,	/* accept values outside a range */
 
-	/* Port handling, for sockaddr_in. accept/ignore/require/forbid
+	/* Port handling, for ast_sockaddr. accept/ignore/require/forbid
 	 * port number after the hostname or address.
 	 */
 	PARSE_PORT_MASK =	0x0300, /* 0x000: accept port if present */

@@ -581,6 +581,9 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	struct aji_client *c = client->connection;
 	struct jingle_candidate *ours1 = NULL, *ours2 = NULL;
 	struct sockaddr_in sin = { 0, };
+	struct ast_sockaddr sin_tmp;
+	struct ast_sockaddr us_tmp;
+	struct ast_sockaddr bindaddr_tmp;
 	struct sockaddr_in dest;
 	struct in_addr us;
 	struct in_addr externaddr;
@@ -617,8 +620,11 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 		goto safeout;
 	}
 
-	ast_rtp_instance_get_local_address(p->rtp, &sin);
-	ast_find_ourip(&us, bindaddr);
+	ast_rtp_instance_get_local_address(p->rtp, &sin_tmp);
+	ast_sockaddr_to_sin(&sin_tmp, &sin);
+	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	ast_find_ourip(&us_tmp, &bindaddr_tmp);
+	us.s_addr = htonl(ast_sockaddr_ipv4(&us_tmp));
 
 	/* Setup our first jingle candidate */
 	ours1->component = 1;
@@ -739,6 +745,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 	struct aji_resource *resources = NULL;
 	struct aji_buddy *buddy;
 	char idroster[200];
+	struct ast_sockaddr bindaddr_tmp;
 
 	ast_debug(1, "The client is %s for alloc\n", client->name);
 	if (!sid && !strchr(from, '/')) {	/* I started call! */
@@ -775,7 +782,8 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 		ast_copy_string(tmp->them, idroster, sizeof(tmp->them));
 		tmp->initiator = 1;
 	}
-	tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr, NULL);
+	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	tmp->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr_tmp, NULL);
 	tmp->parent = client;
 	if (!tmp->rtp) {
 		ast_log(LOG_WARNING, "Out of RTP sessions?\n");
@@ -1061,6 +1069,7 @@ static int jingle_update_stun(struct jingle *client, struct jingle_pvt *p)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in sin;
+	struct ast_sockaddr sin_tmp;
 
 	if (time(NULL) == p->laststun)
 		return 0;
@@ -1075,7 +1084,8 @@ static int jingle_update_stun(struct jingle *client, struct jingle_pvt *p)
 		sin.sin_port = htons(tmp->port);
 		snprintf(username, sizeof(username), "%s:%s", tmp->ufrag, p->ourcandidates->ufrag);
 
-		ast_rtp_instance_stun_request(p->rtp, &sin, username);
+		sin_tmp = ast_sockaddr_from_sin(sin);
+		ast_rtp_instance_stun_request(p->rtp, &sin_tmp, username);
 		tmp = tmp->next;
 	}
 	return 1;
@@ -1867,6 +1877,9 @@ static int jingle_load_config(void)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
+	struct ast_sockaddr ourip_tmp;
+	struct ast_sockaddr bindaddr_tmp;
+
 	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
 	free(jabber_loaded);
 	if (!jabber_loaded) {
@@ -1893,10 +1906,12 @@ static int load_module(void)
 	if (!io) 
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 
-	if (ast_find_ourip(&__ourip, bindaddr)) {
+	bindaddr_tmp = ast_sockaddr_from_sin(bindaddr);
+	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, Jingle disabled\n");
 		return 0;
 	}
+	__ourip.s_addr = htonl(ast_sockaddr_ipv4(&ourip_tmp));
 
 	ast_rtp_glue_register(&jingle_rtp_glue);
 	ast_cli_register_multiple(jingle_cli, ARRAY_LEN(jingle_cli));

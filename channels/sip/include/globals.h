@@ -24,7 +24,7 @@
 #ifndef _SIP_GLOBALS_H
 #define _SIP_GLOBALS_H
 
-extern struct sockaddr_in bindaddr;     /*!< UDP: The address we bind to */
+extern struct ast_sockaddr bindaddr;     /*!< UDP: The address we bind to */
 extern struct sched_context *sched;     /*!< The scheduling context */
 
 /*! \brief Definition of this channel for PBX channel registration */

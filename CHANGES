@@ -69,6 +69,8 @@ SIP Changes
    Charge messages to snom phones.
  * Added support for G.719 media streams.
  * Added support for 16khz signed linear media streams.
+ * SIP is now able to bind to and communicate with IPv6 addresses. In addition,
+   RTP has been outfitted with the same abilities.
 
 IAX2 Changes
 -----------

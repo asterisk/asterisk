@@ -460,6 +460,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 {
 	struct ooh323_pvt *pvt = NULL;
 	struct sockaddr_in ouraddr;
+	struct ast_sockaddr tmp;
 	struct in_addr ipAddr;
 	if (gH323Debug)
 		ast_verbose("---   ooh323_alloc\n");
@@ -481,8 +482,10 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 		return NULL;
 	}
 
+	ouraddr.sin_family = AF_INET;
 	ouraddr.sin_addr = ipAddr;
-	if (!(pvt->rtp = ast_rtp_instance_new("asterisk", sched, &ouraddr, NULL))) {
+	tmp = ast_sockaddr_from_sin(ouraddr);
+	if (!(pvt->rtp = ast_rtp_instance_new("asterisk", sched, &tmp, NULL))) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", 
 				  strerror(errno));
 		ast_mutex_unlock(&pvt->lock);
@@ -3803,6 +3806,7 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 	struct ooh323_pvt *p;
 	struct sockaddr_in them;
 	struct sockaddr_in us;
+	struct ast_sockaddr tmp;
 	int mode;
 
 	if (gH323Debug)
@@ -3818,8 +3822,10 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
 		return -1;
 	}
-	ast_rtp_instance_get_remote_address(rtp, &them);
-	ast_rtp_instance_get_local_address(rtp, &us);
+	ast_rtp_instance_get_remote_address(rtp, &tmp);
+	ast_sockaddr_to_sin(&tmp, &them);
+	ast_rtp_instance_get_local_address(rtp, &tmp);
+	ast_sockaddr_to_sin(&tmp, &us);
 	return 0;
 }
 
@@ -3829,6 +3835,7 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 {
 	struct sockaddr_in us;
+	struct ast_sockaddr tmp;
 	ooMediaInfo mediaInfo;
 	int x;
 	format_t format = 0;
@@ -3849,7 +3856,8 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 				 p->rtp, p->dtmfcodec, "audio", "cisco-telephone-event", 0);
 		}
 		/* figure out our local RTP port and tell the H.323 stack about it*/
-		ast_rtp_instance_get_local_address(p->rtp, &us);
+		ast_rtp_instance_get_local_address(p->rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &us);
 
 		if (p->rtptimeout) {
 			ast_rtp_instance_set_timeout(p->rtp, p->rtptimeout);
@@ -3913,6 +3921,7 @@ void setup_rtp_connection(ooCallData *call, const char *remoteIp,
 {
 	struct ooh323_pvt *p = NULL;
 	struct sockaddr_in them;
+	struct ast_sockaddr tmp;
 
 	if (gH323Debug)
 		ast_verbose("---   setup_rtp_connection %s:%d\n", remoteIp, remotePort);
@@ -3928,7 +3937,8 @@ void setup_rtp_connection(ooCallData *call, const char *remoteIp,
 	them.sin_family = AF_INET;
 	them.sin_addr.s_addr = inet_addr(remoteIp); /* only works for IPv4 */
 	them.sin_port = htons(remotePort);
-	ast_rtp_instance_set_remote_address(p->rtp, &them);
+	tmp = ast_sockaddr_from_sin(&them);
+	ast_rtp_instance_set_remote_address(p->rtp, &tmp);
 
 	if (p->writeformat & AST_FORMAT_G726_AAL2) 
                 ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(p->rtp), p->rtp, 2,

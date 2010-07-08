@@ -48,7 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/srv.h"
 
 #if (!defined(SOLARIS) && !defined(HAVE_GETIFADDRS))
-static int get_local_address(struct in_addr *ourip)
+static int get_local_address(struct ast_sockaddr *ourip)
 {
 	return -1;
 }
@@ -112,7 +112,7 @@ static void score_address(const struct sockaddr_in *sin, struct in_addr *best_ad
 	}
 }
 
-static int get_local_address(struct in_addr *ourip)
+static int get_local_address(struct ast_sockaddr *ourip)
 {
 	int s, res = -1;
 #ifdef SOLARIS
@@ -207,7 +207,9 @@ static int get_local_address(struct in_addr *ourip)
 #endif /* BSD_OR_LINUX */
 
 	if (res == 0 && ourip) {
-		memcpy(ourip, &best_addr, sizeof(*ourip));
+		ast_sockaddr_setnull(ourip);
+		ourip->ss.ss_family = AF_INET;
+		((struct sockaddr_in *)&ourip->ss)->sin_addr = best_addr;
 	}
 	return res;
 }
@@ -372,27 +374,49 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 	return res;
 }
 
-int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service)
+static int resolve_first(struct ast_sockaddr *addr, const char *name, int flag,
+			 int family)
 {
-	struct hostent *hp;
-	struct ast_hostent ahp;
+	struct ast_sockaddr *addrs;
+	int addrs_cnt;
+
+	addrs_cnt = ast_sockaddr_resolve(&addrs, name, flag, family);
+	if (addrs_cnt > 0) {
+		if (addrs_cnt > 1) {
+			ast_debug(1, "Multiple addresses. Using the first only\n");
+		}
+		ast_sockaddr_copy(addr, &addrs[0]);
+		ast_free(addrs);
+	} else {
+		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", name);
+		return -1;
+	}
+
+	return 0;
+}
+
+int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *value, const char *service)
+{
 	char srv[256];
 	char host[256];
-	int tportno = ntohs(sin->sin_port);
+	int srv_ret = 0;
+	int tportno;
+
 	if (service) {
 		snprintf(srv, sizeof(srv), "%s.%s", service, value);
-		if (ast_get_srv(NULL, host, sizeof(host), &tportno, srv) > 0) {
-			sin->sin_port = htons(tportno);
+		if ((srv_ret = ast_get_srv(NULL, host, sizeof(host), &tportno, srv)) > 0) {
 			value = host;
 		}
 	}
-	if ((hp = ast_gethostbyname(value, &ahp))) {
-		sin->sin_family = hp->h_addrtype;
-		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
-	} else {
-		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", value);
+
+	if (resolve_first(addr, value, PARSE_PORT_FORBID, addr->ss.ss_family) != 0) {
 		return -1;
 	}
+
+	if (srv_ret > 0) {
+		ast_sockaddr_set_port(addr, tportno);
+	}
+
 	return 0;
 }
 
@@ -474,51 +498,53 @@ const char *ast_tos2str(unsigned int tos)
 	return "unknown";
 }
 
-int ast_get_ip(struct sockaddr_in *sin, const char *value)
+int ast_get_ip(struct ast_sockaddr *addr, const char *value)
 {
-	return ast_get_ip_or_srv(sin, value, NULL);
+	return ast_get_ip_or_srv(addr, value, NULL);
 }
 
-int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
+int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us)
 {
+	int port;
 	int s;
-	struct sockaddr_in sin;
-	socklen_t slen;
 
-	if ((s = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
+	port = ast_sockaddr_port(us);
+
+	if ((s = socket(ast_sockaddr_is_ipv6(them) ? AF_INET6 : AF_INET,
+			SOCK_DGRAM, 0)) < 0) {
 		ast_log(LOG_ERROR, "Cannot create socket\n");
 		return -1;
 	}
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(5060);
-	sin.sin_addr = *them;
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin))) {
+
+	if (ast_connect(s, them)) {
 		ast_log(LOG_WARNING, "Cannot connect\n");
 		close(s);
 		return -1;
 	}
-	slen = sizeof(sin);
-	if (getsockname(s, (struct sockaddr *)&sin, &slen)) {
+	if (ast_getsockname(s, us)) {
+
 		ast_log(LOG_WARNING, "Cannot get socket name\n");
 		close(s);
 		return -1;
 	}
 	close(s);
-	ast_debug(3, "Found IP address for this socket\n");
-	*us = sin.sin_addr;
+	ast_debug(3, "For destination '%s', our source address is '%s'.\n",
+		  ast_sockaddr_stringify_addr(them),
+		  ast_sockaddr_stringify_addr(us));
+
+	ast_sockaddr_set_port(us, port);
+
 	return 0;
 }
 
-int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
+int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindaddr)
 {
 	char ourhost[MAXHOSTNAMELEN] = "";
-	struct ast_hostent ahp;
-	struct hostent *hp;
-	struct in_addr saddr;
+	struct ast_sockaddr root;
 
 	/* just use the bind address if it is nonzero */
-	if (ntohl(bindaddr.sin_addr.s_addr)) {
-		memcpy(ourip, &bindaddr.sin_addr, sizeof(*ourip));
+	if (!ast_sockaddr_is_any(bindaddr)) {
+		ast_sockaddr_copy(ourip, bindaddr);
 		ast_debug(3, "Attached to given IP address\n");
 		return 0;
 	}
@@ -526,15 +552,14 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 	if (gethostname(ourhost, sizeof(ourhost) - 1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname\n");
 	} else {
-		if ((hp = ast_gethostbyname(ourhost, &ahp))) {
-			memcpy(ourip, hp->h_addr, sizeof(*ourip));
-			ast_debug(3, "Found one IP address based on local hostname %s.\n", ourhost);
+		if (resolve_first(ourip, ourhost, PARSE_PORT_FORBID, 0) == 0) {
 			return 0;
 		}
 	}
 	ast_debug(3, "Trying to check A.ROOT-SERVERS.NET and get our IP address for that connection\n");
 	/* A.ROOT-SERVERS.NET. */
-	if (inet_aton("198.41.0.4", &saddr) && !ast_ouraddrfor(&saddr, ourip)) {
+	if (!resolve_first(&root, "A.ROOT-SERVERS.NET", PARSE_PORT_FORBID, 0) &&
+	    !ast_ouraddrfor(&root, ourip)) {
 		return 0;
 	}
 	return get_local_address(ourip);

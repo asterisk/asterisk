@@ -1984,7 +1984,8 @@ static enum ast_security_event_transport_type mansession_get_transport(const str
 static struct sockaddr_in *mansession_encode_sin_local(const struct mansession *s,
 		struct sockaddr_in *sin_local)
 {
-	*sin_local = s->tcptls_session->parent->local_address;
+	ast_sockaddr_to_sin(&s->tcptls_session->parent->local_address,
+			    sin_local);
 
 	return sin_local;
 }
@@ -4598,13 +4599,17 @@ static int do_message(struct mansession *s)
 static void *session_do(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
-	struct mansession_session *session = build_mansession(ser->remote_address);
+	struct mansession_session *session;
 	struct mansession s = {
 		.tcptls_session = data,
 	};
 	int flags;
 	int res;
+	struct sockaddr_in ser_remote_address_tmp;
 	struct protoent *p;
+
+	ast_sockaddr_to_sin(&ser->remote_address, &ser_remote_address_tmp);
+	session = build_mansession(ser_remote_address_tmp);
 
 	if (session == NULL) {
 		goto done;
@@ -4640,7 +4645,7 @@ static void *session_do(void *data)
 	/* these fields duplicate those in the 'ser' structure */
 	session->fd = s.fd = ser->fd;
 	session->f = s.f = ser->f;
-	session->sin = ser->remote_address;
+	session->sin = ser_remote_address_tmp;
 	s.session = session;
 
 	AST_LIST_HEAD_INIT_NOLOCK(&session->datastores);
@@ -5912,17 +5917,35 @@ out_401:
 
 static int manager_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params,  struct ast_variable *headers)
 {
-	return generic_http_callback(ser, method, FORMAT_HTML, &ser->remote_address, uri, get_params, headers);
+	int retval;
+	struct sockaddr_in ser_remote_address_tmp;
+
+	ast_sockaddr_to_sin(&ser->remote_address, &ser_remote_address_tmp);
+	retval = generic_http_callback(ser, method, FORMAT_HTML, &ser_remote_address_tmp, uri, get_params, headers);
+	ast_sockaddr_from_sin(&ser->remote_address, &ser_remote_address_tmp);
+	return retval;
 }
 
 static int mxml_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params, struct ast_variable *headers)
 {
-	return generic_http_callback(ser, method, FORMAT_XML, &ser->remote_address, uri, get_params, headers);
+	int retval;
+	struct sockaddr_in ser_remote_address_tmp;
+
+	ast_sockaddr_to_sin(&ser->remote_address, &ser_remote_address_tmp);
+	retval = generic_http_callback(ser, method, FORMAT_XML, &ser_remote_address_tmp, uri, get_params, headers);
+	ast_sockaddr_from_sin(&ser->remote_address, &ser_remote_address_tmp);
+	return retval;
 }
 
 static int rawman_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params, struct ast_variable *headers)
 {
-	return generic_http_callback(ser, method, FORMAT_RAW, &ser->remote_address, uri, get_params, headers);
+	int retval;
+	struct sockaddr_in ser_remote_address_tmp;
+
+	ast_sockaddr_to_sin(&ser->remote_address, &ser_remote_address_tmp);
+	retval = generic_http_callback(ser, method, FORMAT_RAW, &ser_remote_address_tmp, uri, get_params, headers);
+	ast_sockaddr_from_sin(&ser->remote_address, &ser_remote_address_tmp);
+	return retval;
 }
 
 static struct ast_http_uri rawmanuri = {
@@ -5953,17 +5976,35 @@ static struct ast_http_uri managerxmluri = {
 /* Callback with Digest authentication */
 static int auth_manager_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params,  struct ast_variable *headers)
 {
-	return auth_http_callback(ser, method, FORMAT_HTML, &ser->remote_address, uri, get_params, headers);
+	int retval;
+	struct sockaddr_in ser_remote_address_tmp;
+
+	ast_sockaddr_to_sin(&ser->remote_address, &ser_remote_address_tmp);
+	retval = auth_http_callback(ser, method, FORMAT_HTML, &ser_remote_address_tmp, uri, get_params, headers);
+	ast_sockaddr_from_sin(&ser->remote_address, &ser_remote_address_tmp);
+	return retval;
 }
 
 static int auth_mxml_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params, struct ast_variable *headers)
 {
-	return auth_http_callback(ser, method, FORMAT_XML, &ser->remote_address, uri, get_params, headers);
+	int retval;
+	struct sockaddr_in ser_remote_address_tmp;
+
+	ast_sockaddr_to_sin(&ser->remote_address, &ser_remote_address_tmp);
+	retval = auth_http_callback(ser, method, FORMAT_XML, &ser_remote_address_tmp, uri, get_params, headers);
+	ast_sockaddr_from_sin(&ser->remote_address, &ser_remote_address_tmp);
+	return retval;
 }
 
 static int auth_rawman_http_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params, struct ast_variable *headers)
 {
-	return auth_http_callback(ser, method, FORMAT_RAW, &ser->remote_address, uri, get_params, headers);
+	int retval;
+	struct sockaddr_in ser_remote_address_tmp;
+
+	ast_sockaddr_to_sin(&ser->remote_address, &ser_remote_address_tmp);
+	retval = auth_http_callback(ser, method, FORMAT_RAW, &ser_remote_address_tmp, uri, get_params, headers);
+	ast_sockaddr_from_sin(&ser->remote_address, &ser_remote_address_tmp);
+	return retval;
 }
 
 static struct ast_http_uri arawmanuri = {
@@ -6049,12 +6090,10 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, "----------------\n");
 	ast_cli(a->fd, FORMAT, "Manager (AMI):", AST_CLI_YESNO(manager_enabled));
 	ast_cli(a->fd, FORMAT, "Web Manager (AMI/HTTP):", AST_CLI_YESNO(webmanager_enabled));
-	ast_cli(a->fd, FORMAT, "TCP Bindaddress:", ast_inet_ntoa(ami_desc.local_address.sin_addr));
-	ast_cli(a->fd, FORMAT2, "TCP Port:", ntohs(ami_desc.local_address.sin_port));
+	ast_cli(a->fd, FORMAT, "TCP Bindaddress:", ast_sockaddr_stringify(&ami_desc.local_address));
 	ast_cli(a->fd, FORMAT2, "HTTP Timeout (minutes):", httptimeout);
 	ast_cli(a->fd, FORMAT, "TLS Enable:", AST_CLI_YESNO(ami_tls_cfg.enabled));
-	ast_cli(a->fd, FORMAT, "TLS Bindaddress:", ast_inet_ntoa(amis_desc.local_address.sin_addr));
-	ast_cli(a->fd, FORMAT2, "TLS Port:", ntohs(amis_desc.local_address.sin_port));
+	ast_cli(a->fd, FORMAT, "TLS Bindaddress:", ast_sockaddr_stringify(&amis_desc.local_address));
 	ast_cli(a->fd, FORMAT, "TLS Certfile:", ami_tls_cfg.certfile);
 	ast_cli(a->fd, FORMAT, "TLS Privatekey:", ami_tls_cfg.pvtfile);
 	ast_cli(a->fd, FORMAT, "TLS Cipher:", ami_tls_cfg.cipher);
@@ -6093,6 +6132,8 @@ static int __init_manager(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	char a1[256];
 	char a1_hash[256];
+	struct sockaddr_in ami_desc_local_address_tmp = { 0, };
+	struct sockaddr_in amis_desc_local_address_tmp = { 0, };
 
 	manager_enabled = 0;
 
@@ -6151,10 +6192,8 @@ static int __init_manager(int reload)
 
 	/* default values */
 	ast_copy_string(global_realm, S_OR(ast_config_AST_SYSTEM_NAME, DEFAULT_REALM), sizeof(global_realm));
-	memset(&ami_desc.local_address, 0, sizeof(struct sockaddr_in));
-	memset(&amis_desc.local_address, 0, sizeof(amis_desc.local_address));
-	amis_desc.local_address.sin_port = htons(5039);
-	ami_desc.local_address.sin_port = htons(DEFAULT_MANAGER_PORT);
+	amis_desc_local_address_tmp.sin_port = htons(5039);
+	ami_desc_local_address_tmp.sin_port = htons(DEFAULT_MANAGER_PORT);
 
 	ami_tls_cfg.enabled = 0;
 	if (ami_tls_cfg.certfile) {
@@ -6186,11 +6225,12 @@ static int __init_manager(int reload)
 		} else if (!strcasecmp(var->name, "webenabled")) {
 			webmanager_enabled = ast_true(val);
 		} else if (!strcasecmp(var->name, "port")) {
-			ami_desc.local_address.sin_port = htons(atoi(val));
+			ami_desc_local_address_tmp.sin_port = htons(atoi(val));
 		} else if (!strcasecmp(var->name, "bindaddr")) {
-			if (!inet_aton(val, &ami_desc.local_address.sin_addr)) {
+			if (!inet_aton(val, &ami_desc_local_address_tmp.sin_addr)) {
 				ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
-				memset(&ami_desc.local_address.sin_addr, 0, sizeof(ami_desc.local_address.sin_addr));
+				memset(&ami_desc_local_address_tmp.sin_addr, 0,
+				       sizeof(ami_desc_local_address_tmp.sin_addr));
 			}
 		} else if (!strcasecmp(var->name, "brokeneventsaction")) {
 			broken_events_action = ast_true(val);
@@ -6228,15 +6268,18 @@ static int __init_manager(int reload)
 	}
 
 	if (manager_enabled) {
-		ami_desc.local_address.sin_family = AF_INET;
+		ami_desc_local_address_tmp.sin_family = AF_INET;
 	}
 	/* if the amis address has not been set, default is the same as non secure ami */
-	if (!amis_desc.local_address.sin_addr.s_addr) {
-		amis_desc.local_address.sin_addr = ami_desc.local_address.sin_addr;
+	if (!amis_desc_local_address_tmp.sin_addr.s_addr) {
+		amis_desc_local_address_tmp.sin_addr =
+		    ami_desc_local_address_tmp.sin_addr;
 	}
 	if (ami_tls_cfg.enabled) {
-		amis_desc.local_address.sin_family = AF_INET;
+		amis_desc_local_address_tmp.sin_family = AF_INET;
 	}
+	ast_sockaddr_from_sin(&ami_desc.local_address, &ami_desc_local_address_tmp);
+	ast_sockaddr_from_sin(&amis_desc.local_address, &amis_desc_local_address_tmp);
 
 	AST_RWLIST_WRLOCK(&users);
 

@@ -2038,6 +2038,9 @@ static void start_rtp(struct unistim_subchannel *sub)
 	struct sockaddr_in sin = { 0, };
 	format_t codec;
 	struct sockaddr_in sout = { 0, };
+	struct ast_sockaddr us_tmp;
+	struct ast_sockaddr sin_tmp;
+	struct ast_sockaddr sout_tmp;
 
 	/* Sanity checks */
 	if (!sub) {
@@ -2062,7 +2065,8 @@ static void start_rtp(struct unistim_subchannel *sub)
 	/* Allocate the RTP */
 	if (unistimdebug)
 		ast_verb(0, "Starting RTP. Bind on %s\n", ast_inet_ntoa(sout.sin_addr));
-	sub->rtp = ast_rtp_instance_new("asterisk", sched, &sout, NULL);
+	ast_sockaddr_from_sin(&sout_tmp, &sout);
+	sub->rtp = ast_rtp_instance_new("asterisk", sched, &sout_tmp, NULL);
 	if (!sub->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s binaddr=%s\n",
 				strerror(errno), ast_inet_ntoa(sout.sin_addr));
@@ -2078,13 +2082,15 @@ static void start_rtp(struct unistim_subchannel *sub)
 	ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_NAT, sub->parent->parent->nat);
 
 	/* Create the RTP connection */
-	ast_rtp_instance_get_local_address(sub->rtp, &us);
+	ast_rtp_instance_get_local_address(sub->rtp, &us_tmp);
+	ast_sockaddr_to_sin(&us_tmp, &us);
 	sin.sin_family = AF_INET;
 	/* Setting up RTP for our side */
 	memcpy(&sin.sin_addr, &sub->parent->parent->session->sin.sin_addr,
 		   sizeof(sin.sin_addr));
 	sin.sin_port = htons(sub->parent->parent->rtp_port);
-	ast_rtp_instance_set_remote_address(sub->rtp, &sin);
+	ast_sockaddr_from_sin(&sin_tmp, &sin);
+	ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
 	if (!(sub->owner->nativeformats & sub->owner->readformat)) {
 		format_t fmt;
 		char tmp[256];

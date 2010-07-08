@@ -665,8 +665,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;   a. "externip = hostname[:port]" specifies a static address[:port] to
 ;      be used in SIP and SDP messages.
 ;      The hostname is looked up only once, when [re]loading sip.conf .
-;      If a port number is not present, use the "bindport" value (which is
-;      not guaranteed to work correctly, because a NAT box might remap the
+;      If a port number is not present, use the port specified in the "udpbindaddr"
+;      (which is not guaranteed to work correctly, because a NAT box might remap the
 ;      port number as well as the address).
 ;      This approach can be useful if you have a NAT device where you can
 ;      configure the mapping statically. Examples:
