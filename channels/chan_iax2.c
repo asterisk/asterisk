@@ -13994,6 +13994,7 @@ AST_TEST_DEFINE(test_iax2_users_get)
 	ao2_unlink(users, user);
 	user_unref(user);
 
+	ast_test_status_update(test, "If this message prints and a failure is still recorded, then something is really wrong with the test framework\n");
 	return AST_TEST_PASS;
 }
 #endif

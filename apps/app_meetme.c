@@ -6891,6 +6891,7 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 	dispose_conf(cnf);
 	ast_hangup(chan);
 
+	ast_test_status_update(test, "If this message prints and a failure is still recorded, then something is really wrong with the test framework\n");
 	return AST_TEST_PASS;
 }
 #endif
