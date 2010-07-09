@@ -753,10 +753,10 @@ struct ast_channel {
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
 	int alertpipe[2];
 	format_t nativeformats;         /*!< Kinds of data this channel can natively handle */
-	format_t readformat;            /*!< Requested read format */
-	format_t writeformat;           /*!< Requested write format */
-	format_t rawreadformat;         /*!< Raw read format */
-	format_t rawwriteformat;        /*!< Raw write format */
+	format_t readformat;            /*!< Requested read format (after translation) */
+	format_t writeformat;           /*!< Requested write format (after translation) */
+	format_t rawreadformat;         /*!< Raw read format (before translation) */
+	format_t rawwriteformat;        /*!< Raw write format (before translation) */
 	unsigned int emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
 #ifdef HAVE_EPOLL
 	int epfd;

@@ -58,7 +58,7 @@ AST_TEST_DEFINE(test_timezone_watch)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "timezone_watch";
-		info->category = "main/stdtime/";
+		info->category = "/main/stdtime/";
 		info->summary = "Verify deleting timezone file purges cache";
 		info->description =
 			"Verifies that the caching engine properly destroys a timezone entry when its file is deleted.";

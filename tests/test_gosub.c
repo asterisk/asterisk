@@ -85,7 +85,7 @@ AST_TEST_DEFINE(test_gosub)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "gosub application";
-		info->category = "apps/app_gosub/";
+		info->category = "/apps/app_gosub/";
 		info->summary = "Verify functionality of gosub application";
 		info->description =
 			"Verify functionality of gosub application";

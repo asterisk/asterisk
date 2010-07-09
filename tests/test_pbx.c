@@ -242,7 +242,7 @@ AST_TEST_DEFINE(pattern_match_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "pattern_match_test";
-		info->category = "main/pbx/";
+		info->category = "/main/pbx/";
 		info->summary = "Test pattern matching";
 		info->description = "Create a context with a bunch of extensions within. Then attempt\n"
 			"to match some strings to the extensions.";

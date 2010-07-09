@@ -134,7 +134,7 @@ AST_TEST_DEFINE(event_new_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "ast_event_new_test";
-		info->category = "main/event/";
+		info->category = "/main/event/";
 		info->summary = "Test event creation";
 		info->description =
 			"This test exercises the API calls that allow allocation "
@@ -272,7 +272,7 @@ AST_TEST_DEFINE(event_sub_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "ast_event_subscribe_test";
-		info->category = "main/event/";
+		info->category = "/main/event/";
 		info->summary = "Test event subscriptions";
 		info->description =
 			"This test exercises the API calls that allow subscriptions "

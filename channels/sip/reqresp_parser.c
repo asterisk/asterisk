@@ -428,7 +428,7 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_uri_full_parse_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "tests sip full uri parsing";
 		info->description =
 			"Tests full parsing of various URIs "
@@ -501,7 +501,7 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_uri_parse_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "tests sip uri parsing";
 		info->description =
 							"Tests parsing of various URIs "
@@ -758,7 +758,7 @@ AST_TEST_DEFINE(get_calleridname_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_get_calleridname_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "decodes callerid name from sip header";
 		info->description = "Decodes display-name field of sip header.  Checks for valid output and expected failure cases.";
 		return AST_TEST_NOT_RUN;
@@ -872,7 +872,7 @@ AST_TEST_DEFINE(get_name_and_number_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_get_name_and_number_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "Tests getting name and number from sip header";
 		info->description =
 				"Runs through various test situations in which a name and "
@@ -1056,7 +1056,7 @@ AST_TEST_DEFINE(get_in_brackets_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_get_in_brackets_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "Tests getting a sip uri in <> brackets within a sip header.";
 		info->description =
 				"Runs through various test situations in which a sip uri "
@@ -1266,7 +1266,7 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "parse_name_andor_addr_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "tests parsing of name_andor_addr abnf structure";
 		info->description =
 			"Tests parsing of abnf name-andor-addr = name-addr / addr-spec "
@@ -1496,7 +1496,7 @@ AST_TEST_DEFINE(parse_contact_header_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "parse_contact_header_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "tests parsing of sip contact header";
 		info->description =
 			"Tests parsing of a contact header including those with multiple contacts "
@@ -1714,7 +1714,7 @@ AST_TEST_DEFINE(sip_parse_options_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_parse_options_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "Tests parsing of sip options";
 		info->description =
 							"Tests parsing of SIP options from supported and required "

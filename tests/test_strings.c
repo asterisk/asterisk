@@ -58,7 +58,7 @@ AST_TEST_DEFINE(str_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "str_test";
-		info->category = "main/strings/";
+		info->category = "/main/strings/";
 		info->summary = "Test dynamic string operations";
 		info->description = "Test setting and appending stack and heap-allocated strings";
 		return AST_TEST_NOT_RUN;

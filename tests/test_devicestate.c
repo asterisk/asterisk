@@ -220,7 +220,7 @@ AST_TEST_DEFINE(device2extenstate_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "device2extenstate_test";
-		info->category = "main/devicestate/";
+		info->category = "/main/devicestate/";
 		info->summary = "Tests combined devstate mapping and device to extension state mapping.";
 		info->description =
 			"Verifies device state aggregate results match the expected combined "

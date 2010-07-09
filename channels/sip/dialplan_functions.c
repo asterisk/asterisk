@@ -316,7 +316,7 @@ AST_TEST_DEFINE(test_sip_rtpqos_1)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "test_sip_rtpqos";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "Test retrieval of SIP RTP QOS stats";
 		info->description =
 			"Verify values in the RTP instance structure can be accessed through the dialplan.";

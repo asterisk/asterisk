@@ -53,7 +53,7 @@ AST_TEST_DEFINE(sched_test_order)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sched_test_order";
-		info->category = "main/sched/";
+		info->category = "/main/sched/";
 		info->summary = "Test ordering of events in the scheduler API";
 		info->description =
 			"This test ensures that events are properly ordered by the "

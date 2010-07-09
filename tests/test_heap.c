@@ -68,7 +68,7 @@ AST_TEST_DEFINE(heap_test_1)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "heap_test_1";
-		info->category = "main/heap/";
+		info->category = "/main/heap/";
 		info->summary = "push and pop elements";
 		info->description = "Push a few elements onto a heap and make sure that they come back off in the right order.";
 		return AST_TEST_NOT_RUN;
@@ -129,7 +129,7 @@ AST_TEST_DEFINE(heap_test_2)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "heap_test_2";
-		info->category = "main/heap/";
+		info->category = "/main/heap/";
 		info->summary = "load test";
 		info->description =
 				"Push one hundred thousand random elements on to a heap, "
@@ -204,7 +204,7 @@ AST_TEST_DEFINE(heap_test_3)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "heap_test_3";
-		info->category = "main/heap/";
+		info->category = "/main/heap/";
 		info->summary = "random element removal test";
 		info->description =
 			"Push a hundred thousand random elements on to a heap, "

@@ -64,7 +64,7 @@ AST_TEST_DEFINE(string_field_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "string_field_test";
-		info->category = "main/utils/";
+		info->category = "/main/utils/";
 		info->summary = "Test stringfield operations";
 		info->description =
 			"This tests the stringfield API";

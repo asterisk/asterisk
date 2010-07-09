@@ -75,7 +75,7 @@ AST_TEST_DEFINE(options_parsing)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "options_parsing";
-		info->category = "main/app/";
+		info->category = "/main/app/";
 		info->summary = "App options unit test";
 		info->description =
 			"This tests the options parsing code to ensure that it behaves as expected";
@@ -161,7 +161,7 @@ AST_TEST_DEFINE(app_group)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "app_group";
-		info->category = "main/app/";
+		info->category = "/main/app/";
 		info->summary = "App group unit test";
 		info->description =
 			"This tests various app group functionality";

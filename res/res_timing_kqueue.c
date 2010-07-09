@@ -284,7 +284,7 @@ AST_TEST_DEFINE(test_kqueue_timing)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "test_kqueue_timing";
-		info->category = "res/res_timing_kqueue";
+		info->category = "/res/res_timing_kqueue/";
 		info->summary = "Test KQueue timing interface";
 		info->description = "Verify that the KQueue timing interface correctly generates timing events";
 		return AST_TEST_NOT_RUN;

@@ -83,7 +83,7 @@ AST_TEST_DEFINE(ast_format_str_reduce_test_1)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "ast_format_str_reduce_test_1";
-		info->category = "main/file/";
+		info->category = "/main/file/";
 		info->summary = "reduce format strings";
 		info->description = "Reduce some format strings and make sure the results match what we expect.";
 		return AST_TEST_NOT_RUN;

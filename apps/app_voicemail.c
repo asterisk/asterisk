@@ -10359,7 +10359,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "vmuser";
-		info->category = "apps/app_voicemail/";
+		info->category = "/apps/app_voicemail/";
 		info->summary = "Vmuser unit test";
 		info->description =
 			"This tests passing all supported parameters to apply_options, the voicemail user config parser";
@@ -12110,7 +12110,7 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "vmsayname_exec";
-		info->category = "apps/app_voicemail/";
+		info->category = "/apps/app_voicemail/";
 		info->summary = "Vmsayname unit test";
 		info->description =
 			"This tests passing various parameters to vmsayname";
@@ -12207,7 +12207,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "test_voicemail_msgcount";
-		info->category = "apps/app_voicemail/";
+		info->category = "/apps/app_voicemail/";
 		info->summary = "Test Voicemail status checks";
 		info->description =
 			"Verify that message counts are correct when retrieved through the public API";
@@ -12375,7 +12375,7 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "test_voicemail_notify_endl";
-		info->category = "apps/app_voicemail/";
+		info->category = "/apps/app_voicemail/";
 		info->summary = "Test Voicemail notification end-of-line";
 		info->description =
 			"Verify that notification emails use a consistent end-of-line character";

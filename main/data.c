@@ -3216,7 +3216,7 @@ AST_TEST_DEFINE(test_data_get)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "data_test";
-		info->category = "main/data/";
+		info->category = "/main/data/";
 		info->summary = "Data API unit test";
 		info->description =
 			"Tests whether data API get implementation works as expected.";

@@ -48,7 +48,7 @@ AST_TEST_DEFINE(aoc_event_generation_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "aoc_event_test";
-		info->category = "main/aoc/";
+		info->category = "/main/aoc/";
 		info->summary = "Advice of Charge event generation test";
 		info->description =
 			"Creates AOC messages, verify event string matches expected results";
@@ -315,7 +315,7 @@ AST_TEST_DEFINE(aoc_encode_decode_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "aoc_encode_decode_test";
-		info->category = "main/aoc/";
+		info->category = "/main/aoc/";
 		info->summary = "Advice of Charge encode and decode test";
 		info->description =
 			"This tests the Advice of Charge encode and decode routines.";

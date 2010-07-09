@@ -328,7 +328,7 @@ int ast_sockaddr_cmp_addr(const struct ast_sockaddr *a, const struct ast_sockadd
 	return ret;
 }
 
-uint16_t ast_sockaddr_port(const struct ast_sockaddr *addr)
+uint16_t _ast_sockaddr_port(const struct ast_sockaddr *addr, const char *file, int line, const char *func)
 {
 	if (addr->ss.ss_family == AF_INET &&
 	    addr->len == sizeof(struct sockaddr_in)) {
@@ -337,11 +337,11 @@ uint16_t ast_sockaddr_port(const struct ast_sockaddr *addr)
 		 addr->len == sizeof(struct sockaddr_in6)) {
 		return ntohs(((struct sockaddr_in6 *)&addr->ss)->sin6_port);
 	}
-	ast_log(LOG_ERROR, "Not an IPv4 nor IPv6 address, cannot get port.\n");
+	ast_log(__LOG_DEBUG, file, line, func, "Not an IPv4 nor IPv6 address, cannot get port.\n");
 	return 0;
 }
 
-void ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port)
+void _ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port, const char *file, int line, const char *func)
 {
 	if (addr->ss.ss_family == AF_INET &&
 	    addr->len == sizeof(struct sockaddr_in)) {
@@ -350,7 +350,7 @@ void ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port)
 		 addr->len == sizeof(struct sockaddr_in6)) {
 		((struct sockaddr_in6 *)&addr->ss)->sin6_port = htons(port);
 	} else {
-		ast_log(LOG_ERROR,
+		ast_log(__LOG_DEBUG, file, line, func,
 			"Not an IPv4 nor IPv6 address, cannot set port.\n");
 	}
 }
@@ -466,8 +466,8 @@ int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 	return res;
 }
 
-int ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
-			struct sockaddr_in *sin)
+int _ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
+			struct sockaddr_in *sin, const char *file, int line, const char *func)
 {
 	if (ast_sockaddr_isnull(addr)) {
 		memset(sin, 0, sizeof(*sin));
@@ -475,24 +475,25 @@ int ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
 	}
 
 	if (addr->len != sizeof(*sin)) {
-		ast_log(LOG_ERROR, "Bad address cast to IPv4\n");
+		ast_log(__LOG_ERROR, file, line, func, "Bad address cast to IPv4\n");
 		return 0;
 	}
 
 	if (addr->ss.ss_family != AF_INET) {
-		ast_log(LOG_DEBUG, "Address family is not AF_INET\n");
+		ast_log(__LOG_DEBUG, file, line, func, "Address family is not AF_INET\n");
 	}
 
 	*sin = *(struct sockaddr_in *)&addr->ss;
 	return 1;
 }
 
-void ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in *sin)
+void _ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in *sin,
+		const char *file, int line, const char *func)
 {
 	memcpy(&addr->ss, sin, sizeof(*sin));
 
 	if (addr->ss.ss_family != AF_INET) {
-		ast_log(LOG_DEBUG, "Address family is not AF_INET\n");
+		ast_log(__LOG_DEBUG, file, line, func, "Address family is not AF_INET\n");
 	}
 
 	addr->len = sizeof(*sin);

@@ -205,7 +205,7 @@ AST_TEST_DEFINE(test_substitution)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "test_substitution";
-		info->category = "main/pbx/";
+		info->category = "/main/pbx/";
 		info->summary = "Test variable and function substitution";
 		info->description =
 			"This test executes a variety of variable and function substitutions "

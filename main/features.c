@@ -1169,7 +1169,7 @@ AST_TEST_DEFINE(features_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "features_test";
-		info->category = "main/features/";
+		info->category = "/main/features/";
 		info->summary = "Features unit test";
 		info->description =
 			"Tests whether parking respects PARKINGLOT settings";

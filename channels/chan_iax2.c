@@ -13887,7 +13887,7 @@ AST_TEST_DEFINE(test_iax2_peers_get)
 	switch (cmd) {
 		case TEST_INIT:
 			info->name = "iax2_peers_get_data_test";
-			info->category = "main/data/iax2/peers";
+			info->category = "/main/data/iax2/peers/";
 			info->summary = "IAX2 peers data providers unit test";
 			info->description =
 				"Tests whether the IAX2 peers data provider implementation works as expected.";
@@ -13947,7 +13947,7 @@ AST_TEST_DEFINE(test_iax2_users_get)
 	switch (cmd) {
 		case TEST_INIT:
 			info->name = "iax2_users_get_data_test";
-			info->category = "main/data/iax2/users";
+			info->category = "/main/data/iax2/users/";
 			info->summary = "IAX2 users data providers unit test";
 			info->description =
 				"Tests whether the IAX2 users data provider implementation works as expected.";

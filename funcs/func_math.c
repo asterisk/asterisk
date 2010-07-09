@@ -464,7 +464,7 @@ AST_TEST_DEFINE(test_MATH_function)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "test_MATH_function";
-		info->category = "main/pbx/";
+		info->category = "/main/pbx/";
 		info->summary = "Test MATH function substitution";
 		info->description =
 			"Executes a series of variable substitutions using the MATH function and ensures that the expected results are received.";

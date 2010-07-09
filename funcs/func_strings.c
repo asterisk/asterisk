@@ -1454,7 +1454,7 @@ AST_TEST_DEFINE(test_FILTER)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "func_FILTER_test";
-		info->category = "funcs/func_strings/";
+		info->category = "/funcs/func_strings/";
 		info->summary = "Test FILTER function";
 		info->description = "Verify FILTER behavior";
 		return AST_TEST_NOT_RUN;

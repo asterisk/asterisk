@@ -27673,7 +27673,7 @@ AST_TEST_DEFINE(test_sip_peers_get)
 	switch (cmd) {
 		case TEST_INIT:
 			info->name = "sip_peers_get_data_test";
-			info->category = "main/data/sip/peers";
+			info->category = "/main/data/sip/peers/";
 			info->summary = "SIP peers data providers unit test";
 			info->description =
 				"Tests whether the SIP peers data provider implementation works as expected.";

@@ -325,7 +325,7 @@ AST_TEST_DEFINE(astobj2_test_1)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "astobj2_test1";
-		info->category = "main/astobj2/";
+		info->category = "/main/astobj2/";
 		info->summary = "astobj2 test using ao2 objects, containers, callbacks, and iterators";
 		info->description =
 			"Builds ao2_containers with various item numbers, bucket sizes, cmp and hash "

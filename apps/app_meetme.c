@@ -6849,7 +6849,7 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "meetme_get_data_test";
-		info->category = "main/data/app_meetme/list";
+		info->category = "/main/data/app_meetme/list/";
 		info->summary = "Meetme data provider unit test";
 		info->description =
 			"Tests whether the Meetme data provider implementation works as expected.";

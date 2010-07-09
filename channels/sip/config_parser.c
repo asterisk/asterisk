@@ -288,7 +288,7 @@ AST_TEST_DEFINE(sip_parse_register_line_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_parse_register_line_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "tests sip register line parsing";
 		info->description =
 							"Tests parsing of various register line configurations. "
@@ -696,7 +696,7 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sip_parse_host_line_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "tests sip.conf host line parsing";
 		info->description =
 							"Tests parsing of various host line configurations. "

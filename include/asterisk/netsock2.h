@@ -293,7 +293,8 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
  * \retval 0 Address is null
  * \retval non-zero The port number of the ast_sockaddr
  */
-uint16_t ast_sockaddr_port(const struct ast_sockaddr *addr);
+#define ast_sockaddr_port(addr)	_ast_sockaddr_port(addr, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+uint16_t _ast_sockaddr_port(const struct ast_sockaddr *addr, const char *file, int line, const char *func);
 
 /*!
  * \since 1.8
@@ -308,7 +309,8 @@ uint16_t ast_sockaddr_port(const struct ast_sockaddr *addr);
  * \param port The port you wish to set the address to use
  * \retval void
  */
-void ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port);
+#define ast_sockaddr_set_port(addr,port)	_ast_sockaddr_set_port(addr,port,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+void _ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port, const char *file, int line, const char *func);
 
 /*!
  * \since 1.8
@@ -500,8 +502,9 @@ int ast_set_qos(int sockfd, int tos, int cos, const char *desc);
  * \retval nonzero Success
  * \retval zero Failure
  */
-int ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
-			struct sockaddr_in *sin);
+#define ast_sockaddr_to_sin(addr,sin)	_ast_sockaddr_to_sin(addr,sin, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int _ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
+			struct sockaddr_in *sin, const char *file, int line, const char *func);
 
 /*!
  * \since 1.8
@@ -512,7 +515,9 @@ int ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
  * \param sin The sockaddr_in to convert
  * \return an ast_sockaddr structure
  */
-void ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in *sin);
+#define ast_sockaddr_from_sin(addr,sin)	_ast_sockaddr_from_sin(addr,sin, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+void _ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in *sin,
+		const char *file, int line, const char *func);
 
 /*@}*/
 

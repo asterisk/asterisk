@@ -59,7 +59,7 @@ AST_TEST_DEFINE(invalid_acl)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "invalid_acl";
-		info->category = "main/acl/";
+		info->category = "/main/acl/";
 		info->summary = "Invalid ACL unit test";
 		info->description =
 			"Ensures that garbage ACL values are not accepted";
@@ -129,7 +129,7 @@ AST_TEST_DEFINE(acl)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "acl";
-		info->category = "main/acl/";
+		info->category = "/main/acl/";
 		info->summary = "ACL unit test";
 		info->description =
 			"Tests that hosts are properly permitted or denied";

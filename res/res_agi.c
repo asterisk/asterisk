@@ -3787,7 +3787,7 @@ AST_TEST_DEFINE(test_agi_null_docs)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "null_agi_docs";
-		info->category = "res/agi/";
+		info->category = "/res/agi/";
 		info->summary = "AGI command with no documentation";
 		info->description = "Test whether an AGI command with no documentation will crash Asterisk";
 		return AST_TEST_NOT_RUN;

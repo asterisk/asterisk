@@ -48,7 +48,7 @@ AST_TEST_DEFINE(uri_encode_decode_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "uri_encode_decode_test";
-		info->category = "main/utils/";
+		info->category = "/main/utils/";
 		info->summary = "encode and decode a hex escaped string";
 		info->description = "encode a string, verify encoded string matches what we expect.  Decode the encoded string, verify decoded string matches the original string.";
 		return AST_TEST_NOT_RUN;
@@ -114,7 +114,7 @@ AST_TEST_DEFINE(md5_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "md5_test";
-		info->category = "main/utils/";
+		info->category = "/main/utils/";
 		info->summary = "MD5 test";
 		info->description =
 			"This test exercises MD5 calculations."
@@ -159,7 +159,7 @@ AST_TEST_DEFINE(sha1_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "sha1_test";
-		info->category = "main/utils/";
+		info->category = "/main/utils/";
 		info->summary = "SHA1 test";
 		info->description =
 			"This test exercises SHA1 calculations."
@@ -204,7 +204,7 @@ AST_TEST_DEFINE(base64_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "base64_test";
-		info->category = "main/utils/";
+		info->category = "/main/utils/";
 		info->summary = "base64 test";
 		info->description = "This test exercises the base64 conversions.";
 		return AST_TEST_NOT_RUN;
