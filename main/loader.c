@@ -467,7 +467,7 @@ void ast_module_shutdown(void)
 				continue;
 			}
 			AST_LIST_REMOVE_CURRENT(entry);
-			if (mod->info->unload) {
+			if (mod->flags.running && !mod->flags.declined && mod->info->unload) {
 				mod->info->unload();
 			}
 			AST_LIST_HEAD_DESTROY(&mod->users);
@@ -494,7 +494,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 		return -1;
 	}
 
-	if (!(mod->flags.running || mod->flags.declined))
+	if (!mod->flags.running || mod->flags.declined)
 		error = 1;
 
 	if (!error && (mod->usecount > 0)) {
