@@ -6860,23 +6860,27 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 
 	chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, 0, 0, "MeetMeTest");
 	if (!chan) {
+		ast_test_status_update(test, "Channel allocation failed\n");
 		return AST_TEST_FAIL;
 	}
 
 	cnf = build_conf("9898", "", "1234", 1, 1, 1, chan);
 	if (!cnf) {
+		ast_test_status_update(test, "Build of test conference 9898 failed\n");
 		ast_hangup(chan);
 		return AST_TEST_FAIL;
 	}
 
 	node = ast_data_get(&query);
 	if (!node) {
+		ast_test_status_update(test, "Data query for test conference 9898 failed\n");
 		dispose_conf(cnf);
 		ast_hangup(chan);
 		return AST_TEST_FAIL;
 	}
 
 	if (strcmp(ast_data_retrieve_string(node, "meetme/confno"), "9898")) {
+		ast_test_status_update(test, "Query returned the wrong conference\n");
 		dispose_conf(cnf);
 		ast_hangup(chan);
 		ast_data_free(node);

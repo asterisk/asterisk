@@ -1959,6 +1959,7 @@ static int make_trunk(unsigned short callno, int locked)
 	 */
 	ast_sched_thread_del(sched, iaxs[callno]->pingid);
 	ast_sched_thread_del(sched, iaxs[callno]->lagid);
+	iaxs[callno]->lagid = iaxs[callno]->pingid = -1;
 	iaxs[x] = iaxs[callno];
 	iaxs[x]->callno = x;
 
@@ -13958,6 +13959,7 @@ AST_TEST_DEFINE(test_iax2_users_get)
 
 	user = build_user("test_user_data_provider", NULL, NULL, 0);
 	if (!user) {
+		ast_test_status_update(test, "Failed to build a test user\n");
 		return AST_TEST_FAIL;
 	}
 	user->amaflags = 1010;
@@ -13965,12 +13967,14 @@ AST_TEST_DEFINE(test_iax2_users_get)
 
 	node = ast_data_get(&query);
 	if (!node) {
+		ast_test_status_update(test, "The data query to find our test user failed\n");
 		ao2_unlink(users, user);
 		user_unref(user);
 		return AST_TEST_FAIL;
 	}
 
 	if (strcmp(ast_data_retrieve_string(node, "user/name"), "test_user_data_provider")) {
+		ast_test_status_update(test, "Our data results did not return the test user created in the previous step.\n");
 		ao2_unlink(users, user);
 		user_unref(user);
 		ast_data_free(node);
@@ -13978,6 +13982,7 @@ AST_TEST_DEFINE(test_iax2_users_get)
 	}
 
 	if (ast_data_retrieve_int(node, "user/amaflags") != 1010) {
+		ast_test_status_update(test, "The amaflags field in our test user was not the expected value\n");
 		ao2_unlink(users, user);
 		user_unref(user);
 		ast_data_free(node);
