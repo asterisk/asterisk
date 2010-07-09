@@ -3164,6 +3164,9 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 			if (!ast_sockaddr_is_any(&bindaddr)) {
 				ast_sockaddr_copy(us, &bindaddr);
 			}
+			if (!ast_sockaddr_port(us)) {
+				ast_sockaddr_set_port(us, ast_sockaddr_port(&bindaddr));
+			}
 		}
 	} else if (!ast_sockaddr_is_any(&bindaddr)) {
 		ast_sockaddr_copy(us, &bindaddr);
