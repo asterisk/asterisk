@@ -72,7 +72,7 @@ struct ast_tone_zone_sound {
  */
 struct ast_tone_zone {
 	/*! \brief Country code that this set of tones is for */
-	char country[5];
+	char country[16];
 	/*! 
 	 * \brief Text description of the given country.
 	 *
