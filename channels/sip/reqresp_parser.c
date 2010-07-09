@@ -593,7 +593,7 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 	if (parse_uri(uri9, "sip:,sips:", &name, &pass, &domain, &transport) ||
 			!ast_strlen_zero(name)        ||
 			!ast_strlen_zero(pass)      ||
-			strcmp(domain, "host")    ||
+			strcmp(domain, "host:port")    ||
 			strcmp(transport, "tcp")) {
 		ast_test_status_update(test, "Test 9: domain only uri failed \n");
 		res = AST_TEST_FAIL;
@@ -606,7 +606,7 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 	if (!parse_uri(uri10, "sip:,sips:", &name, &pass, &domain, &transport) ||
 			!ast_strlen_zero(name)        ||
 			!ast_strlen_zero(pass)      ||
-			strcmp(domain, "host")    ||
+			strcmp(domain, "host:port")    ||
 			strcmp(transport, "tcp")) {
 		ast_test_status_update(test, "Test 10: missing \"sip:sips:\" scheme failed\n");
 		res = AST_TEST_FAIL;
