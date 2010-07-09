@@ -2350,6 +2350,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 
 		if (chan && peer && ast_test_flag64(&opts, OPT_GOTO) && !ast_strlen_zero(opt_args[OPT_ARG_GOTO])) {
+			/* chan and peer are going into the PBX, they both
+			 * should probably get CDR records. */
+			ast_clear_flag(chan->cdr, AST_CDR_FLAG_DIALED);
+			ast_clear_flag(peer->cdr, AST_CDR_FLAG_DIALED);
+
 			replace_macro_delimiter(opt_args[OPT_ARG_GOTO]);
 			ast_parseable_goto(chan, opt_args[OPT_ARG_GOTO]);
 			/* peer goes to the same context and extension as chan, so just copy info from chan*/
