@@ -494,8 +494,10 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 		return -1;
 	}
 
-	if (!mod->flags.running || mod->flags.declined)
+	if (!mod->flags.running || mod->flags.declined) {
+		ast_log(LOG_WARNING, "Unload failed, '%s' is not loaded.\n", resource_name);
 		error = 1;
+	}
 
 	if (!error && (mod->usecount > 0)) {
 		if (force)
