@@ -93,6 +93,7 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,<AppArguments>[,MOH_Class]]
 ;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>[,"<AppArguments>"[,MOH_Class]]
 ;<FeatureName> => <DTMF_sequence>,<ActivateOn>[/<ActivatedBy>],<Application>([<AppArguments>])[,MOH_Class]
+
 ;
 ;  FeatureName   -> This is the name of the feature used in when setting the
 ;                   DYNAMIC_FEATURES variable to enable usage of this feature.
@@ -140,11 +141,13 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
 ;                                                  ;on their channel
 
-; GROUPS
-;   Groups are groupings of features defined in [applicationmap]
-;   that can have their own key mappings.
+; Dynamic Feature Groups:
+;   Dynamic feature groups are groupings of features defined in [applicationmap]
+;   that can have their own custom key mappings.  To give a channel access to a dynamic
+;   feature group, add the group name to the value of the DYNAMIC_FEATURES variable.
 ;
 ; example:
 ; [myGroupName]        ; defines the group named myGroupName
-; testfeature => #9    ; associates testfeature with the group and the keycode #9
-; pauseMonitor         ; associates pauseMonitor with the group and the keycode
+; testfeature => #9    ; associates testfeature with the group and the keycode '#9'.
+; pauseMonitor =>      ; associates pauseMonitor with the group and uses the keycode specified
+;                      ; in the [applicationmap].

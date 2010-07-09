@@ -2165,7 +2165,7 @@ void ast_register_feature(struct ast_call_feature *feature)
  * Add new feature group to the feature group list insert at head of list.
  * \note This function MUST be called while feature_groups is locked.
 */
-static struct feature_group* register_group(const char *fgname)
+static struct feature_group *register_group(const char *fgname)
 {
 	struct feature_group *fg;
 
@@ -2174,8 +2174,9 @@ static struct feature_group* register_group(const char *fgname)
 		return NULL;
 	}
 
-	if (!(fg = ast_calloc_with_stringfields(1, struct feature_group, 128)))
+	if (!(fg = ast_calloc_with_stringfields(1, struct feature_group, 128))) {
 		return NULL;
+	}
 
 	ast_string_field_set(fg, gname, fgname);
 
@@ -2195,7 +2196,7 @@ static struct feature_group* register_group(const char *fgname)
  * Check fg and feature specified, add feature to list
  * \note This function MUST be called while feature_groups is locked. 
 */
-static void register_group_feature(struct feature_group *fg, const char *exten, struct ast_call_feature *feature) 
+static void register_group_feature(struct feature_group *fg, const char *exten, struct ast_call_feature *feature)
 {
 	struct feature_group_exten *fge;
 
@@ -2209,17 +2210,18 @@ static void register_group_feature(struct feature_group *fg, const char *exten, 
 		return;
 	}
 
-	if (!(fge = ast_calloc_with_stringfields(1, struct feature_group_exten, 128)))
+	if (!(fge = ast_calloc_with_stringfields(1, struct feature_group_exten, 128))) {
 		return;
+	}
 
 	ast_string_field_set(fge, exten, S_OR(exten, feature->exten));
 
 	fge->feature = feature;
 
-	AST_LIST_INSERT_HEAD(&fg->features, fge, entry);		
+	AST_LIST_INSERT_HEAD(&fg->features, fge, entry);
 
 	ast_verb(2, "Registered feature '%s' for group '%s' at exten '%s'\n",
-					feature->sname, fg->gname, exten);
+					feature->sname, fg->gname, fge->exten);
 }
 
 void ast_unregister_feature(struct ast_call_feature *feature)
@@ -2286,7 +2288,8 @@ static void ast_unregister_groups(void)
  * \retval feature group on success.
  * \retval NULL on failure.
 */
-static struct feature_group *find_group(const char *name) {
+static struct feature_group *find_group(const char *name)
+{
 	struct feature_group *fg = NULL;
 
 	AST_LIST_TRAVERSE(&feature_groups, fg, entry) {
@@ -2478,20 +2481,23 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
 
 		if (fg) {
 			AST_LIST_TRAVERSE(&fg->features, fge, entry) {
-				if (strcasecmp(fge->exten, code))
-					continue;
-				if (operation) {
-					res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
+				if (!strcmp(fge->exten, code)) {
+					if (operation) {
+						res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
+					}
+					memcpy(feature, fge->feature, sizeof(feature));
+					if (res != AST_FEATURE_RETURN_KEEPTRYING) {
+						AST_RWLIST_UNLOCK(&feature_groups);
+						break;
+					}
+					res = AST_FEATURE_RETURN_PASSDIGITS;
+				} else if (!strncmp(fge->exten, code, strlen(code))) {
+					res = AST_FEATURE_RETURN_STOREDIGITS;
 				}
-				memcpy(feature, fge->feature, sizeof(feature));
-				if (res != AST_FEATURE_RETURN_KEEPTRYING) {
-					AST_RWLIST_UNLOCK(&feature_groups);
-					break;
-				}
-				res = AST_FEATURE_RETURN_PASSDIGITS;
 			}
-			if (fge)
+			if (fge) {
 				break;
+			}
 		}
 
 		AST_RWLIST_UNLOCK(&feature_groups);
@@ -2595,12 +2601,31 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 
 			/* while we have a feature */
 			while ((tok = strsep(&tmp, "#"))) {
+				struct feature_group *fg;
+
+				AST_RWLIST_RDLOCK(&feature_groups);
+				AST_RWLIST_TRAVERSE(&feature_groups, fg, entry) {
+					struct feature_group_exten *fge;
+
+					AST_LIST_TRAVERSE(&fg->features, fge, entry) {
+						if (ast_test_flag(fge->feature, AST_FEATURE_FLAG_BYCALLER)) {
+							ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
+						}
+						if (ast_test_flag(fge->feature, AST_FEATURE_FLAG_BYCALLEE)) {
+							ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
+						}
+					}
+				}
+				AST_RWLIST_UNLOCK(&feature_groups);
+
 				AST_RWLIST_RDLOCK(&feature_list);
 				if ((feature = find_dynamic_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
-					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
+					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER)) {
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
-					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
+					}
+					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE)) {
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
+					}
 				}
 				AST_RWLIST_UNLOCK(&feature_list);
 			}
@@ -4649,6 +4674,24 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 			ast_cli(a->fd, HFS_FORMAT, feature->sname, "no def", feature->exten);
 		}
 		AST_RWLIST_UNLOCK(&feature_list);
+	}
+
+	ast_cli(a->fd, "\nFeature Groups:\n");
+	ast_cli(a->fd, "---------------\n");
+	if (AST_RWLIST_EMPTY(&feature_groups)) {
+		ast_cli(a->fd, "(none)\n");
+	} else {
+		struct feature_group *fg;
+		struct feature_group_exten *fge;
+
+		AST_RWLIST_RDLOCK(&feature_groups);
+		AST_RWLIST_TRAVERSE(&feature_groups, fg, entry) {
+			ast_cli(a->fd, "===> Group: %s\n", fg->gname);
+			AST_LIST_TRAVERSE(&fg->features, fge, entry) {
+				ast_cli(a->fd, "===> --> %s (%s)\n", fge->feature->sname, fge->exten);
+			}
+		}
+		AST_RWLIST_UNLOCK(&feature_groups);
 	}
 
 	iter = ao2_iterator_init(parkinglots, 0);
