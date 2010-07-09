@@ -12304,36 +12304,40 @@ static void reg_source_db(struct sip_peer *peer)
 	char data[256];
 	struct ast_sockaddr sa;
 	int expire;
-	char *scan, *addr, *expiry_str, *username, *contact;
+	char full_addr[128];
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(addr);
+		AST_APP_ARG(port);
+		AST_APP_ARG(expiry_str);
+		AST_APP_ARG(username);
+		AST_APP_ARG(contact);
+	);
 
 	if (peer->rt_fromcontact)
 		return;
 	if (ast_db_get("SIP/Registry", peer->name, data, sizeof(data)))
 		return;
 
-	addr = scan = data;
-	if ('[' == scan[0]) {
-		/* It must be a bracket enclosed IPv6 address */
-		scan = strchr(scan, ']') + 1;
-	}
-	scan = strchr(scan, ':') + 1;
-	expiry_str = strsep(&scan, ":");
-	username = strsep(&scan, ":");
-	contact = scan;	/* Contact include sip: and has to be the last part of the database entry as long as we use : as a separator */
+	AST_NONSTANDARD_RAW_ARGS(args, data, ':');
 
-	if (!ast_sockaddr_parse(&sa, addr, 0)) {
+	snprintf(full_addr, sizeof(full_addr), "%s:%s", args.addr, args.port);
+
+	if (!ast_sockaddr_parse(&sa, full_addr, 0)) {
 		return;
 	}
 
-	if (expiry_str)
-		expire = atoi(expiry_str);
-	else
+	if (args.expiry_str) {
+		expire = atoi(args.expiry_str);
+	} else {
 		return;
+	}
 
-	if (username)
-		ast_string_field_set(peer, username, username);
-	if (contact)
-		ast_string_field_set(peer, fullcontact, contact);
+	if (args.username) {
+		ast_string_field_set(peer, username, args.username);
+	}
+	if (args.contact) {
+		ast_string_field_set(peer, fullcontact, args.contact);
+	}
 
 	ast_debug(2, "SIP Seeding peer from astdb: '%s' at %s@%s for %d\n",
 	    peer->name, peer->username, ast_sockaddr_stringify_host(&sa), expire);
