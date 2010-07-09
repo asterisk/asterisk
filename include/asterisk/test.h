@@ -154,7 +154,12 @@ struct ast_test;
 struct ast_test_info {
 	/*! \brief name of test, unique to category */
 	const char *name;
-	/*! \brief test category */
+	/*!
+	 * \brief test category
+	 *
+	 * Tests are categorized in a directory tree style hierarchy.  It is expected that
+	 * this string have both a leading and trailing forward slash ('/').
+	 */
 	const char *category;
 	/*! \brief optional short summary of test */
 	const char *summary;
