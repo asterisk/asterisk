@@ -4651,9 +4651,7 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		AST_RWLIST_UNLOCK(&feature_list);
 	}
 
-	// loop through all the parking lots
 	iter = ao2_iterator_init(parkinglots, 0);
-
 	while ((curlot = ao2_iterator_next(&iter))) {
 		ast_cli(a->fd, "\nCall parking (Parking lot: %s)\n", curlot->name);
 		ast_cli(a->fd, "------------\n");
@@ -4663,7 +4661,7 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ast_cli(a->fd,"\n");
 		ao2_ref(curlot, -1);
 	}
-
+	ao2_iterator_destroy(&iter);
 
 	return CLI_SUCCESS;
 }
