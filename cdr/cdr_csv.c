@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DATE_FORMAT "%Y-%m-%d %T"
 
 static int usegmtime = 0;
+static int accountlogs;
 static int loguniqueid = 0;
 static int loguserfield = 0;
 static int loaded = 0;
@@ -100,6 +101,7 @@ static int load_config(int reload)
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 1;
 
+	accountlogs = 1;
 	usegmtime = 0;
 	loguniqueid = 0;
 	loguserfield = 0;
@@ -114,6 +116,14 @@ static int load_config(int reload)
 		if (usegmtime)
 			ast_debug(1, "logging time in GMT\n");
 	}
+
+	/* Turn on/off separate files per accountcode. Default is on (as before) */
+	if ((tmp = ast_variable_retrieve(cfg, "csv", "accountlogs"))) {
+ 		accountlogs = ast_true(tmp);
+ 		if (accountlogs) {
+			ast_debug(1, "logging in separate files per accountcode\n");
+ 		}
+ 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, "csv", "loguniqueid"))) {
 		loguniqueid = ast_true(tmp);
@@ -304,7 +314,7 @@ static int csv_log(struct ast_cdr *cdr)
 		ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
 	}
 
-	if (!ast_strlen_zero(cdr->accountcode)) {
+	if (accountlogs && !ast_strlen_zero(cdr->accountcode)) {
 		if (writefile(buf, cdr->accountcode))
 			ast_log(LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
 	}
