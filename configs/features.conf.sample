@@ -53,6 +53,17 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;atxfercallbackretries = 2  ; Number of times to attempt to send the call back to the transferer.
                             ; By default, this is 2.
 
+;
+;*** Define another parking lot
+;
+; You can set parkinglot with the CHANNEL dialplan function
+; or by setting 'parkinglot' directly in the channel configuration file.
+;
+;[parkinglot_edvina]
+;context => edvinapark
+;parkpos => 800-850
+;findslot => next
+
 ; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
 ; They can not be used while the remote party is ringing or in progress. If you require this feature you can use
 ; chan_local in combination with Answer to accomplish it.
@@ -128,16 +139,6 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;                                                  ;on their channel
 ;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
 ;                                                  ;on their channel
-;
-;*** Define another parking lot
-;
-; You can set parkinglot with the CHANNEL dialplan function
-; or by setting 'parkinglot' directly in the channel configuration file.
-;
-;[parkinglot_edvina]
-;context => edvinapark
-;parkpos => 800-850
-;findslot => next
 
 ; GROUPS
 ;   Groups are groupings of features defined in [applicationmap]
