@@ -5737,6 +5737,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				"context=%s\n"
 				"macrocontext=%s\n"
 				"exten=%s\n"
+				"rdnis=%s\n"
 				"priority=%d\n"
 				"callerchan=%s\n"
 				"callerid=%s\n"
@@ -5747,6 +5748,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				chan->context,
 				chan->macrocontext, 
 				chan->exten,
+				S_OR(chan->cid.cid_rdnis, "unknown"),
 				chan->priority,
 				chan->name,
 				ast_callerid_merge(callerid, sizeof(callerid), S_OR(chan->cid.cid_name, NULL), S_OR(chan->cid.cid_num, NULL), "Unknown"),

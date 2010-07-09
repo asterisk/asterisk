@@ -169,6 +169,7 @@ Applications
    more information.
  * Voicemail now runs the externnotify script when pollmailboxes is activated and
    notices a change.
+ * Voicemail now includes rdnis within msgXXXX.txt file.
 
 Dialplan Functions
 ------------------
