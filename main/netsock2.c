@@ -489,7 +489,7 @@ int ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
 
 void ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in *sin)
 {
-	*((struct sockaddr_in *)&addr->ss) = *sin;
+	memcpy(&addr->ss, sin, sizeof(*sin));
 
 	if (addr->ss.ss_family != AF_INET) {
 		ast_log(LOG_DEBUG, "Address family is not AF_INET\n");
