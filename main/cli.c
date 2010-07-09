@@ -1235,6 +1235,11 @@ static char *complete_mod_2(const char *line, const char *word, int pos, int sta
 	return ast_module_helper(line, word, pos, state, 1, 1);
 }
 
+static char *complete_mod_2_nr(const char *line, const char *word, int pos, int state)
+{
+        return ast_module_helper(line, word, pos, state, 1, 0);
+}
+
 static char *complete_mod_3_nr(const char *line, const char *word, int pos, int state)
 {
 	return ast_module_helper(line, word, pos, state, 2, 0);
@@ -1439,7 +1444,7 @@ static struct ast_cli_entry cli_module_reload_deprecated = {
 static struct ast_cli_entry cli_module_unload_deprecated = {
 	{ "unload", NULL },
 	handle_unload_deprecated, NULL,
-	NULL, complete_mod_2 };
+	NULL, complete_mod_2_nr };
 
 static struct ast_cli_entry cli_show_uptime_deprecated = {
 	{ "show", "uptime", NULL },
