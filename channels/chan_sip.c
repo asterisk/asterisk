@@ -14209,7 +14209,9 @@ static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_re
 static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[512];
-	char *c, *pt, *maddr;
+	char *c, *maddr;
+	struct ast_sockaddr tmp;
+	uint16_t port;
 
 	ast_copy_string(via, get_header(req, "Via"), sizeof(via));
 
@@ -14246,15 +14248,15 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 			ast_log(LOG_WARNING, "Don't know how to respond via '%s'\n", via);
 			return;
 		}
-		pt = strchr(c, ':');
-		if (pt)
-			*pt++ = '\0';	/* remember port pointer */
 
 		if (maddr && ast_sockaddr_resolve_first(&p->sa, maddr, 0)) {
 			p->sa = p->recv;
 		}
 
-		ast_sockaddr_set_port(&p->sa, port_str2int(pt, STANDARD_SIP_PORT));
+		ast_sockaddr_resolve_first(&tmp, c, 0);
+		port = ast_sockaddr_port(&tmp);
+		ast_sockaddr_set_port(&p->sa,
+				      port != 0 ? port : STANDARD_SIP_PORT);
 
 		if (sip_debug_test_pvt(p)) {
 			ast_verbose("Sending to %s (%s)\n",
