@@ -1149,7 +1149,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
  */
 static struct ast_conference *build_conf(const char *confno, const char *pin,
 	const char *pinadmin, int make, int dynamic, int refcount,
-	const struct ast_channel *chan)
+	const struct ast_channel *chan, struct ast_test *test)
 {
 	struct ast_conference *cnf;
 	struct dahdi_confinfo dahdic = { 0, };
@@ -1185,6 +1185,9 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 	dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
 	cnf->fd = open("/dev/dahdi/pseudo", O_RDWR);
 	if (cnf->fd < 0 || ioctl(cnf->fd, DAHDI_SETCONF, &dahdic)) {
+		if (test) {
+			ast_test_status_update(test, "Unable to open pseudo device\n");
+		}
 		ast_log(LOG_WARNING, "Unable to open pseudo device\n");
 		if (cnf->fd >= 0)
 			close(cnf->fd);
@@ -1204,6 +1207,9 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 		dahdic.confno = cnf->dahdiconf;
 		dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
 		if (ioctl(cnf->chan->fds[0], DAHDI_SETCONF, &dahdic)) {
+			if (test) {
+				ast_test_status_update(test, "Error setting conference on pseudo channel\n");
+			}
 			ast_log(LOG_WARNING, "Error setting conference\n");
 			if (cnf->chan)
 				ast_hangup(cnf->chan);
@@ -3772,7 +3778,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 
 		ast_variables_destroy(origvar);
 
-		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount, chan);
+		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount, chan, NULL);
 
 		if (cnf) {
 			cnf->maxusers = maxusers;
@@ -3871,9 +3877,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					if (ast_app_getdata(chan, "conf-getpin", dynamic_pin, pin_buf_len - 1, 0) < 0)
 						return NULL;
 				}
-				cnf = build_conf(confno, dynamic_pin, "", make, dynamic, refcount, chan);
+				cnf = build_conf(confno, dynamic_pin, "", make, dynamic, refcount, chan, NULL);
 			} else {
-				cnf = build_conf(confno, "", "", make, dynamic, refcount, chan);
+				cnf = build_conf(confno, "", "", make, dynamic, refcount, chan, NULL);
 			}
 		} else {
 			/* Check the config */
@@ -3901,7 +3907,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					cnf = build_conf(args.confno,
 							S_OR(args.pin, ""),
 							S_OR(args.pinadmin, ""),
-							make, dynamic, refcount, chan);
+							make, dynamic, refcount, chan, NULL);
 					break;
 				}
 			}
@@ -4987,7 +4993,7 @@ static void *run_station(void *data)
 	ast_set_flag64(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
 	answer_trunk_chan(trunk_ref->chan);
-	conf = build_conf(ast_str_buffer(conf_name), "", "", 0, 0, 1, trunk_ref->chan);
+	conf = build_conf(ast_str_buffer(conf_name), "", "", 0, 0, 1, trunk_ref->chan, NULL);
 	if (conf) {
 		conf_run(trunk_ref->chan, conf, &conf_flags, NULL);
 		dispose_conf(conf);
@@ -5868,7 +5874,7 @@ static void *dial_trunk(void *data)
 	ast_set_flag64(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | 
 		CONFFLAG_PASS_DTMF | CONFFLAG_SLA_TRUNK);
-	conf = build_conf(conf_name, "", "", 1, 1, 1, trunk_ref->trunk->chan);
+	conf = build_conf(conf_name, "", "", 1, 1, 1, trunk_ref->trunk->chan, NULL);
 
 	ast_mutex_lock(args->cond_lock);
 	ast_cond_signal(args->cond);
@@ -6044,7 +6050,7 @@ static int sla_station_exec(struct ast_channel *chan, const char *data)
 	ast_set_flag64(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
 	ast_answer(chan);
-	conf = build_conf(conf_name, "", "", 0, 0, 1, chan);
+	conf = build_conf(conf_name, "", "", 0, 0, 1, chan, NULL);
 	if (conf) {
 		conf_run(chan, conf, &conf_flags, NULL);
 		dispose_conf(conf);
@@ -6175,7 +6181,7 @@ static int sla_trunk_exec(struct ast_channel *chan, const char *data)
 	}
 
 	snprintf(conf_name, sizeof(conf_name), "SLA_%s", args.trunk_name);
-	conf = build_conf(conf_name, "", "", 1, 1, 1, chan);
+	conf = build_conf(conf_name, "", "", 1, 1, 1, chan, NULL);
 	if (!conf) {
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
 		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
@@ -6864,7 +6870,7 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 		return AST_TEST_FAIL;
 	}
 
-	cnf = build_conf("9898", "", "1234", 1, 1, 1, chan);
+	cnf = build_conf("9898", "", "1234", 1, 1, 1, chan, test);
 	if (!cnf) {
 		ast_test_status_update(test, "Build of test conference 9898 failed\n");
 		ast_hangup(chan);
@@ -6891,7 +6897,6 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 	dispose_conf(cnf);
 	ast_hangup(chan);
 
-	ast_test_status_update(test, "If this message prints and a failure is still recorded, then something is really wrong with the test framework\n");
 	return AST_TEST_PASS;
 }
 #endif

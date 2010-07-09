@@ -13981,8 +13981,8 @@ AST_TEST_DEFINE(test_iax2_users_get)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_data_retrieve_int(node, "user/amaflags") != 1010) {
-		ast_test_status_update(test, "The amaflags field in our test user was not the expected value\n");
+	if (ast_data_retrieve_int(node, "user/amaflags/value") != 1010) {
+		ast_test_status_update(test, "The amaflags field in our test user was '%d' not the expected value '1010'\n", ast_data_retrieve_int(node, "user/amaflags/value"));
 		ao2_unlink(users, user);
 		user_unref(user);
 		ast_data_free(node);
@@ -13994,7 +13994,6 @@ AST_TEST_DEFINE(test_iax2_users_get)
 	ao2_unlink(users, user);
 	user_unref(user);
 
-	ast_test_status_update(test, "If this message prints and a failure is still recorded, then something is really wrong with the test framework\n");
 	return AST_TEST_PASS;
 }
 #endif
