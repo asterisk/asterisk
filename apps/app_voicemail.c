@@ -5748,7 +5748,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				chan->context,
 				chan->macrocontext, 
 				chan->exten,
-				S_OR(chan->cid.cid_rdnis, "unknown"),
+				S_OR(chan->redirecting.from.number, "unknown"),
 				chan->priority,
 				chan->name,
 				ast_callerid_merge(callerid, sizeof(callerid), S_OR(chan->cid.cid_name, NULL), S_OR(chan->cid.cid_num, NULL), "Unknown"),
