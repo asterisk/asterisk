@@ -12526,7 +12526,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 			ast_string_field_set(pvt, our_contact, "");
 			return PARSE_REGISTER_FAILED;
 		}
-		ast_sockaddr_copy(&peer->addr, &testsa);
 
 		/* If we have a port number in the given URI, make sure we do remember to not check for NAPTR/SRV records.
 		   The domain part is actually a host. */
@@ -12537,6 +12536,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 						  transport_type == SIP_TRANSPORT_TLS ?
 						  STANDARD_TLS_PORT : STANDARD_SIP_PORT);
 		}
+
+		ast_sockaddr_copy(&peer->addr, &testsa);
 	} else {
 		/* Don't trust the contact field.  Just use what they came to us
 		   with */
