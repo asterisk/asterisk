@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULTCONTEXT	  "default"
 #define DEFAULTCALLERID	 "Unknown"
 #define DEFAULTCALLERNAME       " "
+#define DEFAULTHEIGHT	 3
 #define USTM_LOG_DIR	    "unistimHistory"
 
 /*! Size of the transmit buffer */
@@ -433,6 +434,7 @@ static struct unistim_device {
 	char softkeyicon[6];	    /*!< icon number */
 	char softkeydevice[6][16];      /*!< name of the device monitored */
 	struct unistim_device *sp[6];   /*!< pointer to the device monitored by this soft key */
+	int height;							/*!< The number of lines the phone can display */
 	char maintext0[25];		     /*!< when the phone is idle, display this string on line 0 */
 	char maintext1[25];		     /*!< when the phone is idle, display this string on line 1 */
 	char maintext2[25];		     /*!< when the phone is idle, display this string on line 2 */
@@ -2280,11 +2282,21 @@ static void handle_dial_page(struct unistimsession *pte)
 				pte->device->size_phone_number = 15;
 			strcpy(tmp, "Number : ...............");
 			memcpy(tmp + 9, pte->device->phone_number, pte->device->size_phone_number);
-			send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmp);
-			send_blink_cursor(pte);
-			send_cursor_pos(pte,
+
+			if (pte->device->height == 1) {
+				send_text(TEXT_LINE0, TEXT_NORMAL, pte, tmp);
+				send_blink_cursor(pte);
+				send_cursor_pos(pte,
+						  (unsigned char) (TEXT_LINE0 + 0x09 +
+										   pte->device->size_phone_number));
+			} else {
+				send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmp);
+				send_blink_cursor(pte);
+				send_cursor_pos(pte,
 						  (unsigned char) (TEXT_LINE2 + 0x09 +
 										   pte->device->size_phone_number));
+			}
+
 			send_led_update(pte, 0);
 			return;
 		}
@@ -2295,13 +2307,24 @@ static void handle_dial_page(struct unistimsession *pte)
 		else
 			send_select_output(pte, pte->device->output, pte->device->volume, MUTE_OFF);
 		SendDialTone(pte);
-		send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Enter the number to dial");
-		send_text(TEXT_LINE1, TEXT_NORMAL, pte, "and press Call");
+
+		if (pte->device->height > 1) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Enter the number to dial");
+			send_text(TEXT_LINE1, TEXT_NORMAL, pte, "and press Call");
+		}
 		send_text_status(pte, "Call   Redial BackSpcErase");
+
 	}
-	send_text(TEXT_LINE2, TEXT_NORMAL, pte, "Number : ...............");
-	send_blink_cursor(pte);
-	send_cursor_pos(pte, TEXT_LINE2 + 0x09);
+
+	if (pte->device->height == 1) {
+		send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Number : ...............");
+		send_blink_cursor(pte);
+		send_cursor_pos(pte, TEXT_LINE0 + 0x09);
+	} else {
+		send_text(TEXT_LINE2, TEXT_NORMAL, pte, "Number : ...............");
+		send_blink_cursor(pte);
+		send_cursor_pos(pte, TEXT_LINE2 + 0x09);
+	}
 	pte->device->size_phone_number = 0;
 	pte->device->phone_number[0] = 0;
 	change_favorite_icon(pte, FAV_ICON_PHONE_BLACK);
@@ -2376,10 +2399,16 @@ static void HandleCallOutgoing(struct unistimsession *s)
 			if (!sub->rtp)
 				start_rtp(sub);
 			send_select_output(s, s->device->output, s->device->volume, MUTE_OFF);
-			send_text(TEXT_LINE0, TEXT_NORMAL, s, "Calling :");
-			send_text(TEXT_LINE1, TEXT_NORMAL, s, s->device->phone_number);
-			send_text(TEXT_LINE2, TEXT_NORMAL, s, "Dialing...");
+
+			if (s->device->height == 1) {
+				send_text(TEXT_LINE0, TEXT_NORMAL, s, s->device->phone_number);
+			} else {
+				send_text(TEXT_LINE0, TEXT_NORMAL, s, "Calling :");
+				send_text(TEXT_LINE1, TEXT_NORMAL, s, s->device->phone_number);
+				send_text(TEXT_LINE2, TEXT_NORMAL, s, "Dialing...");
+			}
 			send_text_status(s, "Hangup");
+
 			/* start switch */
 			if (ast_pthread_create(&t, NULL, unistim_ss, c)) {
 				display_last_error("Unable to create switch thread");
@@ -2426,9 +2455,14 @@ static void HandleCallOutgoing(struct unistimsession *s)
 			/* Swap things around between the three-way and real call */
 			swap_subs(p, SUB_THREEWAY, SUB_REAL);
 			send_select_output(s, s->device->output, s->device->volume, MUTE_OFF);
-			send_text(TEXT_LINE0, TEXT_NORMAL, s, "Calling (pre-transfer)");
-			send_text(TEXT_LINE1, TEXT_NORMAL, s, s->device->phone_number);
-			send_text(TEXT_LINE2, TEXT_NORMAL, s, "Dialing...");
+
+			if (s->device->height == 1) {
+				send_text(TEXT_LINE0, TEXT_NORMAL, s, s->device->phone_number);
+			} else {
+				send_text(TEXT_LINE0, TEXT_NORMAL, s, "Calling (pre-transfer)");
+				send_text(TEXT_LINE1, TEXT_NORMAL, s, s->device->phone_number);
+				send_text(TEXT_LINE2, TEXT_NORMAL, s, "Dialing...");
+			}
 			send_text_status(s, "TransfrCancel");
 
 			if (ast_pthread_create(&t, NULL, unistim_ss, p->subs[SUB_THREEWAY]->owner)) {
@@ -2691,7 +2725,11 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 		pte->device->phone_number[i] = keycode;
 		pte->device->size_phone_number++;
 		pte->device->phone_number[i + 1] = 0;
-		send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmpbuf);
+		if (pte->device->height == 1) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, pte, tmpbuf);
+		} else {
+			send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmpbuf);
+		}
 		send_blink_cursor(pte);
 		send_cursor_pos(pte, (unsigned char) (TEXT_LINE2 + 0x0a + i));
 		return;
@@ -2699,9 +2737,15 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 	if (keycode == KEY_FUNC4) {
 
 		pte->device->size_phone_number = 0;
-		send_text(TEXT_LINE2, TEXT_NORMAL, pte, "Number : ...............");
-		send_blink_cursor(pte);
-		send_cursor_pos(pte, TEXT_LINE2 + 0x09);
+		if (pte->device->height == 1) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Number : ...............");
+			send_blink_cursor(pte);
+			send_cursor_pos(pte, TEXT_LINE0 + 0x09);
+		} else {
+			send_text(TEXT_LINE2, TEXT_NORMAL, pte, "Number : ...............");
+			send_blink_cursor(pte);
+			send_cursor_pos(pte, TEXT_LINE2 + 0x09);
+		}
 		return;
 	}
 
@@ -2739,10 +2783,16 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 			ast_moh_stop(ast_bridged_channel(pte->device->lines->subs[SUB_REAL]->owner));
 			pte->device->moh = 0;
 			pte->state = STATE_CALL;
-			send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Dialing canceled,");
-			send_text(TEXT_LINE1, TEXT_NORMAL, pte, "switching back to");
-			send_text(TEXT_LINE2, TEXT_NORMAL, pte, "previous call.");
+
+			if (pte->device->height == 1) {
+				send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Dial Cancel,back to priv. call.");
+			} else {
+				send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Dialing canceled,");
+				send_text(TEXT_LINE1, TEXT_NORMAL, pte, "switching back to");
+				send_text(TEXT_LINE2, TEXT_NORMAL, pte, "previous call.");
+			}
 			send_text_status(pte, "Hangup Transf");
+
 		} else
 			show_main_page(pte);
 		break;
@@ -3099,8 +3149,12 @@ static void show_main_page(struct unistimsession *pte)
 	send_favorite(pte->device->softkeylinepos, FAV_ICON_ONHOOK_BLACK, pte,
 				 pte->device->softkeylabel[pte->device->softkeylinepos]);
 	if (!ast_strlen_zero(pte->device->call_forward)) {
-		send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Call forwarded to :");
-		send_text(TEXT_LINE1, TEXT_NORMAL, pte, pte->device->call_forward);
+		if (pte->device->height == 1) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Forwarding ON");
+		} else {
+			send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Call forwarded to :");
+			send_text(TEXT_LINE1, TEXT_NORMAL, pte, pte->device->call_forward);
+		}
 		Sendicon(TEXT_LINE0, FAV_ICON_REFLECT + FAV_BLINK_SLOW, pte);
 		send_text_status(pte, "Dial   Redial NoForwd");
 	} else {
@@ -3683,10 +3737,18 @@ static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
 
 	if (sub->owner) {
 		if (sub->owner->connected.id.number) {
-			send_text(TEXT_LINE1, TEXT_NORMAL, session, sub->owner->connected.id.number);
+			if (session->device->height == 1) {
+				send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.number);
+			} else {
+				send_text(TEXT_LINE1, TEXT_NORMAL, session, sub->owner->connected.id.number);
+			}
 			change_callerid(session, 0, sub->owner->connected.id.number);
 		} else {
-			send_text(TEXT_LINE1, TEXT_NORMAL, session, DEFAULTCALLERID);
+			if (session->device->height == 1) {
+				send_text(TEXT_LINE0, TEXT_NORMAL, session, DEFAULTCALLERID);
+			} else {
+				send_text(TEXT_LINE1, TEXT_NORMAL, session, DEFAULTCALLERID);
+			}
 			change_callerid(session, 0, DEFAULTCALLERID);
 		}
 		if (sub->owner->connected.id.name) {
@@ -3697,8 +3759,9 @@ static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
 			change_callerid(session, 1, DEFAULTCALLERNAME);
 		}
 	}
+
 	send_text(TEXT_LINE2, TEXT_NORMAL, session, "is calling you.");
-	send_text_status(session, "Accept	       Ignore");
+	send_text_status(session, "Accept              Ignore");
 
 	if (sub->ringstyle == -1)
 		send_ring(session, session->device->ringvolume, session->device->ringstyle);
@@ -4364,8 +4427,12 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 	}
 
 	if (size <= TEXT_LENGTH_MAX * 2) {
-		send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Message :");
-		send_text(TEXT_LINE1, TEXT_NORMAL, pte, text);
+		if (pte->device->height == 1) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, pte, text);
+		} else {
+			send_text(TEXT_LINE0, TEXT_NORMAL, pte, "Message :");
+			send_text(TEXT_LINE1, TEXT_NORMAL, pte, text);
+		}
 		if (size <= TEXT_LENGTH_MAX) {
 			send_text(TEXT_LINE2, TEXT_NORMAL, pte, "");
 			return 0;
@@ -5057,6 +5124,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 	d->previous_output = OUTPUT_HANDSET;
 	d->volume = VOLUME_LOW;
 	d->mute = MUTE_OFF;
+	d->height = DEFAULTHEIGHT;
 	linelabel[0] = '\0';
 	dateformat = 1;
 	timeformat = 1;
@@ -5219,6 +5287,10 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 				l->next = d->lines;
 				d->lines = l;
 			}
+		} else if (!strcasecmp(v->name, "height")) {
+			/* Allow the user to lower the expected display lines on the phone
+			 * For example the Nortal I2001 and I2002 only have one ! */
+			d->height = atoi(v->value);
 		} else
 			ast_log(LOG_WARNING, "Don't know keyword '%s' at line %d\n", v->name,
 					v->lineno);

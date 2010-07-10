@@ -48,6 +48,8 @@ port=5000                    ; UDP port
 ;rtp_method=0                ; If you don't have sound, you can try 1, 2 or 3, default = 0
 ;status_method=0             ; If you don't see status text, try 1, default = 0
 ;titledefault=Asterisk       ; default = "TimeZone (your time zone)". 12 characters max
+;height=3                    ; default = 3, the number of display lines the device can show
+                             ; For example on a Nortel I2001 or I2002, set this to 1
 ;maintext0="you can insert"  ; default = "Welcome", 24 characters max
 ;maintext1="a custom text"   ; default = the name of the device, 24 characters max
 ;maintext2="(main page)"     ; default = the public IP of the phone, 24 characters max
