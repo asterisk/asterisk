@@ -93,12 +93,6 @@ Applications
 ------------
  * Added 'p' option to PickupChan() to allow for picking up channel by the first
    match to a partial channel name.
- * Added "ready" option to QUEUE_MEMBER counting to count free agents whose wrap-up
-   timeout has expired.
- * Added 'R' option to app_queue.  This option stops moh and indicates ringing
-   to the caller when an Agent's phone is ringing.  This can be used to indicate
-   to the caller that their call is about to be picked up, which is nice when
-   one has been on hold for an extened period of time.
  * Added .m3u support for Mp3Player application.
  * Added progress option to the app_dial D() option.  When progress DTMF is
    present, those values are sent immediately upon receiving a PROGRESS message
@@ -253,57 +247,63 @@ Dialplan Variables
 
 Queue changes
 -------------
-  * A new config option, penaltymemberslimit, has been added to queues.conf.
-    When set this option will disregard penalty settings when a queue has too
-    few members.
-  * A new option, 'I' has been added to both app_queue and app_dial.
-    By setting this option, Asterisk will not update the caller with
-    connected line changes or redirecting party changes when they occur.
-  * A 'relative-peroidic-announce' option has been added to queues.conf.  When
-    enabled, this option will cause periodic announce times to be calculated
-    from the end of announcements rather than from the beginning.
-  * The autopause option in queues.conf can be passed a new value, "all." The
-    result is that if a member becomes auto-paused, he will be paused in all
-	queues for which he is a member, not just the queue that failed to reach
-	the member.
+ * Added "ready" option to QUEUE_MEMBER counting to count free agents whose wrap-up
+   timeout has expired.
+ * Added 'R' option to app_queue.  This option stops moh and indicates ringing
+   to the caller when an Agent's phone is ringing.  This can be used to indicate
+   to the caller that their call is about to be picked up, which is nice when
+   one has been on hold for an extened period of time.
+ * A new config option, penaltymemberslimit, has been added to queues.conf.
+   When set this option will disregard penalty settings when a queue has too
+   few members.
+ * A new option, 'I' has been added to both app_queue and app_dial.
+   By setting this option, Asterisk will not update the caller with
+   connected line changes or redirecting party changes when they occur.
+ * A 'relative-peroidic-announce' option has been added to queues.conf.  When
+   enabled, this option will cause periodic announce times to be calculated
+   from the end of announcements rather than from the beginning.
+ * The autopause option in queues.conf can be passed a new value, "all." The
+   result is that if a member becomes auto-paused, he will be paused in all
+   queues for which he is a member, not just the queue that failed to reach
+   the member.
 
 mISDN channel driver (chan_misdn) changes
 ----------------------------------------
-  * Added display_connected parameter to misdn.conf to put a display string
-    in the CONNECT message containing the connected name and/or number if
-    the presentation setting permits it.
-  * Added display_setup parameter to misdn.conf to put a display string
-    in the SETUP message containing the caller name and/or number if the
-    presentation setting permits it.
-  * Made misdn.conf parameters localdialplan and cpndialplan take a -1 to
-    indicate the dialplan settings are to be obtained from the asterisk
-    channel.
-  * Made misdn.conf parameter callerid accept the "name" <number> format
-    used by the rest of the system.
-  * Made use the nationalprefix and internationalprefix misdn.conf
-    parameters to prefix any received number from the ISDN link if that
-    number has the corresponding Type-Of-Number.  NOTE:  This includes
-    comparing the incoming call's dialed number against the MSN list.
-  * Added the following new parameters: unknownprefix, netspecificprefix,
-    subscriberprefix, and abbreviatedprefix in misdn.conf to prefix any
-    received number from the ISDN link if that number has the corresponding
-    Type-Of-Number.
-  * Added new dialplan application misdn_command which permits controlling
-    the CCBS/CCNR functionality.
-  * Added new dialplan function mISDN_CC which permits retrieval of various
-    values from an active call completion record.
-  * For PTP, you should manually send the COLR of the redirected-to party
-    for an incomming redirected call if the incoming call could experience
-    further redirects.  Just set the REDIRECTING(to-num,i) = ${EXTEN} and
-    set the REDIRECTING(to-pres) to the COLR.  A call has been redirected
-    if the REDIRECTING(from-num) is not empty.
-  * For outgoing PTP redirected calls, you now need to use the inhibit(i)
-    option on all of the REDIRECTING statements before dialing the
-    redirected-to party.  You still have to set the REDIRECTING(to-xxx,i)
-    and the REDIRECTING(from-xxx,i) values.  The PTP call will update the
-    redirecting-to presentation (COLR) when it becomes available.
-  * Added outgoing_colp parameter to misdn.conf to filter outgoing COLP
-    information.
+ * Added display_connected parameter to misdn.conf to put a display string
+   in the CONNECT message containing the connected name and/or number if
+   the presentation setting permits it.
+ * Added display_setup parameter to misdn.conf to put a display string
+   in the SETUP message containing the caller name and/or number if the
+   presentation setting permits it.
+ * Made misdn.conf parameters localdialplan and cpndialplan take a -1 to
+   indicate the dialplan settings are to be obtained from the asterisk
+   channel.
+ * Made misdn.conf parameter callerid accept the "name" <number> format
+   used by the rest of the system.
+ * Made use the nationalprefix and internationalprefix misdn.conf
+   parameters to prefix any received number from the ISDN link if that
+   number has the corresponding Type-Of-Number.  NOTE:  This includes
+   comparing the incoming call's dialed number against the MSN list.
+ * Added the following new parameters: unknownprefix, netspecificprefix,
+   subscriberprefix, and abbreviatedprefix in misdn.conf to prefix any
+   received number from the ISDN link if that number has the corresponding
+   Type-Of-Number.
+ * Added new dialplan application misdn_command which permits controlling
+   the CCBS/CCNR functionality.
+ * Added new dialplan function mISDN_CC which permits retrieval of various
+   values from an active call completion record.
+ * For PTP, you should manually send the COLR of the redirected-to party
+   for an incomming redirected call if the incoming call could experience
+   further redirects.  Just set the REDIRECTING(to-num,i) = ${EXTEN} and
+   set the REDIRECTING(to-pres) to the COLR.  A call has been redirected
+   if the REDIRECTING(from-num) is not empty.
+ * For outgoing PTP redirected calls, you now need to use the inhibit(i)
+   option on all of the REDIRECTING statements before dialing the
+   redirected-to party.  You still have to set the REDIRECTING(to-xxx,i)
+   and the REDIRECTING(from-xxx,i) values.  The PTP call will update the
+   redirecting-to presentation (COLR) when it becomes available.
+ * Added outgoing_colp parameter to misdn.conf to filter outgoing COLP
+   information.
 
 thirdparty mISDN enhancements
 -----------------------------
