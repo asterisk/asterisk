@@ -195,7 +195,11 @@ int ast_sockaddr_parse(struct ast_sockaddr *addr, const char *str, int flags)
 	/* Hint to get only one entry from getaddrinfo */
 	hints.ai_socktype = SOCK_DGRAM;
 
+#ifdef AI_NUMERICSERV
 	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+#else
+	hints.ai_flags = AI_NUMERICHOST;
+#endif
 	if ((e = getaddrinfo(host, port, &hints, &res))) {
 		ast_log(LOG_ERROR, "getaddrinfo(\"%s\", \"%s\", ...): %s\n",
 			host, S_OR(port, "(null)"), gai_strerror(e));
