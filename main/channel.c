@@ -4271,7 +4271,7 @@ int ast_prod(struct ast_channel *chan)
 		ast_debug(1, "Prodding channel '%s'\n", chan->name);
 		a.subclass.codec = chan->rawwriteformat;
 		a.data.ptr = nothing + AST_FRIENDLY_OFFSET;
-		a.src = "ast_prod";
+		a.src = "ast_prod"; /* this better match check in ast_write */
 		if (ast_write(chan, &a))
 			ast_log(LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
 	}
@@ -4425,10 +4425,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		res = 0;	/* XXX explain, why 0 ? */
 		goto done;
 	}
-	if (chan->generatordata) {
-		if (ast_test_flag(chan, AST_FLAG_WRITE_INT))
-			ast_deactivate_generator(chan);
-		else {
+	if (chan->generatordata && strcasecmp(fr->src, "ast_prod")) {
+		if (ast_test_flag(chan, AST_FLAG_WRITE_INT)) {
+				ast_deactivate_generator(chan);
+		} else {
 			if (fr->frametype == AST_FRAME_DTMF_END) {
 				/* There is a generator running while we're in the middle of a digit.
 				 * It's probably inband DTMF, so go ahead and pass it so it can
