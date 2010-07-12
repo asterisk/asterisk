@@ -315,11 +315,11 @@ static const char *party_number_plan2str(int plan)
 	case PRI_NPI_UNKNOWN:
 		break;
 	case PRI_NPI_E163_E164:
-		return "Public";
+		return "Public (E.163/E.164)";
 	case PRI_NPI_X121:
-		return "Data";
+		return "Data (X.121)";
 	case PRI_NPI_F69:
-		return "Telex";
+		return "Telex (F.69)";
 	case PRI_NPI_NATIONAL:
 		return "National Standard";
 	case PRI_NPI_PRIVATE:
