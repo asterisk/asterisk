@@ -526,6 +526,13 @@ static int config_module(int reload)
 		}
 
 		rows = PQntuples(result);
+		if (rows == 0) {
+			ast_log(LOG_ERROR, "cdr_pgsql: Failed to query database columns. No columns found, does the table exist?\n");
+			PQclear(result);
+			unload_module();
+			return AST_MODULE_LOAD_DECLINE;
+		}
+
 		for (i = 0; i < rows; i++) {
 			fname = PQgetvalue(result, i, 0);
 			ftype = PQgetvalue(result, i, 1);
