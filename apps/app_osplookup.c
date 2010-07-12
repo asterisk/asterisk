@@ -131,6 +131,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Looks up destination via OSP.</para>
 			<para>Input variables:</para>
 			<variablelist>
+				<variable name="OSPINACTUALSRC">
+					<para>The actual source device IP address in indirect mode.</para>
+				</variable>
 				<variable name="OSPINPEERIP">
 					<para>The last hop IP address.</para>
 				</variable>
@@ -461,6 +464,12 @@ enum osp_authpolicy {
 	OSP_AUTH_EXC		/* Only accept call with valid OSP token */
 };
 
+/* OSP Work Mode */
+enum osp_workmode {
+	OSP_MODE_DIRECT= 0,	/* Direct */
+	OSP_MODE_INDIRECT	/* Indirect */
+};
+
 /* OSP Service Type */
 enum osp_srvtype {
 	OSP_SRV_VOICE = 0,	/* Normal voice service */
@@ -501,6 +510,7 @@ enum osp_srvtype {
 #define OSP_DEF_MAXDESTS		((unsigned int)5)			/* OSP default max number of destinations */
 #define OSP_DEF_TIMELIMIT		((unsigned int)0)			/* OSP default duration limit, no limit */
 #define OSP_DEF_PROTOCOL		OSP_PROT_SIP				/* OSP default destination protocol, SIP */
+#define OSP_DEF_WORKMODE		OSP_MODE_DIRECT				/* OSP default work mode, direct */
 #define OSP_DEF_SRVTYPE			OSP_SRV_VOICE				/* OSP default service type, voice */
 #define OSP_MAX_CUSTOMINFO		((unsigned int)8)			/* OSP max number of custom info */
 #define OSP_DEF_INTSTATS		((int)-1)					/* OSP default int statistic */
@@ -523,7 +533,8 @@ struct osp_provider {
 	char source[OSP_SIZE_NORSTR];					/* IP of self */
 	enum osp_authpolicy authpolicy;					/* OSP authentication policy */
 	const char* defprotocol;						/* OSP default destination protocol */
-	enum osp_srvtype srvtype;						/* OSP default service type */
+	enum osp_workmode workmode;						/* OSP work mode */
+	enum osp_srvtype srvtype;						/* OSP service type */
 	struct osp_provider* next;						/* Pointer to next OSP provider */
 };
 
@@ -645,6 +656,7 @@ static int osp_create_provider(
 	provider->timeout = OSP_DEF_TIMEOUT;
 	provider->authpolicy = OSP_DEF_AUTHPOLICY;
 	provider->defprotocol = OSP_DEF_PROTOCOL;
+	provider->workmode = OSP_DEF_WORKMODE;
 	provider->srvtype = OSP_DEF_SRVTYPE;
 
 	for (var = ast_variable_browse(cfg, name); var != NULL; var = var->next) {
@@ -747,6 +759,14 @@ static int osp_create_provider(
 			} else {
 				ast_log(LOG_WARNING, "OSP: default protocol should be %s, %s, %s or %s not '%s' at line %d\n",
 					OSP_PROT_SIP, OSP_PROT_H323, OSP_PROT_IAX, OSP_PROT_SKYPE, var->value, var->lineno);
+			}
+		} else if (!strcasecmp(var->name, "workmode")) {
+			if ((sscanf(var->value, "%30d", &num) == 1) && ((num == OSP_MODE_DIRECT) || (num == OSP_MODE_INDIRECT))) {
+				provider->workmode = num;
+				ast_debug(1, "OSP: workmode '%d'\n", num);
+			} else {
+				ast_log(LOG_WARNING, "OSP: workmode should be %d or %d, not '%s' at line %d\n",
+					OSP_MODE_DIRECT, OSP_MODE_INDIRECT, var->value, var->lineno);
 			}
 		} else if (!strcasecmp(var->name, "servicetype")) {
 			if ((sscanf(var->value, "%30d", &num) == 1) && ((num == OSP_SRV_VOICE) || (num == OSP_SRV_NPQUERY))) {
@@ -879,7 +899,7 @@ static int osp_get_provider(
 	int res = OSP_FAILED;
 	struct osp_provider* p;
 
-    *provider = NULL;
+	*provider = NULL;
 
 	ast_mutex_lock(&osp_lock);
 	for (p = osp_providers; p != NULL; p = p->next) {
@@ -1186,7 +1206,7 @@ static int osp_check_destination(
 		if (error != OSPC_ERR_NO_ERROR) {
 			ast_debug(1, "OSP: Unable to get operator name of type '%d', error '%d'\n", type, error);
 			results->opname[type][0] = '\0';
-		} 
+		}
 	}
 
 	if ((error = OSPPTransactionGetDestProtocol(results->outhandle, &protocol)) != OSPC_ERR_NO_ERROR) {
@@ -1443,6 +1463,7 @@ static int osp_create_callid(
  * \brief OSP Lookup function
  * \param name OSP provider context name
  * \param callidtypes Call ID types
+ * \param actualsrc Actual source device in indirect mode
  * \param srcdev Source device of outbound call
  * \param calling Calling number
  * \param called Called number
@@ -1456,6 +1477,7 @@ static int osp_create_callid(
 static int osp_lookup(
 	const char* name,
 	unsigned int callidtypes,
+	const char* actualsrc,
 	const char* srcdev,
 	const char* calling,
 	const char* called,
@@ -1556,8 +1578,18 @@ static int osp_lookup(
 		}
 	}
 
-	osp_convert_inout(source, src, sizeof(src));
-	osp_convert_inout(srcdev, dev, sizeof(dev));
+	if (provider->workmode == OSP_MODE_INDIRECT) {
+		osp_convert_inout(srcdev, src, sizeof(src));
+		if (ast_strlen_zero(actualsrc)) {
+			osp_convert_inout(srcdev, dev, sizeof(dev));
+		} else {
+			osp_convert_inout(actualsrc, dev, sizeof(dev));
+		}
+	} else {
+		osp_convert_inout(source, src, sizeof(src));
+		osp_convert_inout(srcdev, dev, sizeof(dev));
+	}
+
 	if (provider->srvtype == OSP_SRV_NPQUERY) {
 		OSPPTransactionSetServiceType(results->outhandle, OSPC_SERVICE_NPQUERY);
 		if (!ast_strlen_zero(dest)) {
@@ -2269,6 +2301,7 @@ static int osplookup_exec(
 	unsigned int callidtypes = OSP_CALLID_UNDEF;
 	struct varshead* headp;
 	struct ast_var_t* current;
+	const char* actualsrc = "";
 	const char* srcdev = "";
 	const char* snetid = "";
 	struct osp_npdata np;
@@ -2335,7 +2368,9 @@ static int osplookup_exec(
 
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
-		if (!strcasecmp(ast_var_name(current), "OSPINPEERIP")) {
+		if (!strcasecmp(ast_var_name(current), "OSPINACTUALSRC")) {
+			actualsrc = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPINPEERIP")) {
 			srcdev = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
 			if (sscanf(ast_var_value(current), "%30d", &results.inhandle) != 1) {
@@ -2391,6 +2426,7 @@ static int osplookup_exec(
 			cinfo[7] = ast_var_value(current);
 		}
 	}
+	ast_debug(1, "OSPLookup: actual source device '%s'\n", actualsrc);
 	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
 	ast_debug(1, "OSPLookup: OSPINHANDLE '%d'\n", results.inhandle);
 	ast_debug(1, "OSPLookup: OSPINTIMELIMIT '%d'\n", results.intimelimit);
@@ -2417,7 +2453,7 @@ static int osplookup_exec(
 		return OSP_AST_ERROR;
 	}
 
-	if ((res = osp_lookup(provider, callidtypes, srcdev, chan->cid.cid_num, args.exten, snetid, &np, &div, cinfo, &results)) > 0) {
+	if ((res = osp_lookup(provider, callidtypes, actualsrc, srcdev, chan->cid.cid_num, args.exten, snetid, &np, &div, cinfo, &results)) > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
 		results.tech[0] = '\0';
@@ -2902,7 +2938,7 @@ static int osp_load(int reload)
 			osp_security = 1;
 		}
 		ast_debug(1, "OSP: osp_security '%d'\n", osp_security);
-		
+
 		if ((cvar = ast_variable_retrieve(cfg, OSP_GENERAL_CAT, "tokenformat"))) {
 			if ((sscanf(cvar, "%30d", &ivar) == 1) &&
 				((ivar == TOKEN_ALGO_SIGNED) || (ivar == TOKEN_ALGO_UNSIGNED) || (ivar == TOKEN_ALGO_BOTH)))
@@ -3004,6 +3040,7 @@ static char *handle_cli_osp_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 			ast_cli(a->fd, "Source:            %s\n", strlen(provider->source) ? provider->source : "<unspecified>");
 			ast_cli(a->fd, "Auth Policy        %d\n", provider->authpolicy);
 			ast_cli(a->fd, "Default protocol   %s\n", provider->defprotocol);
+			ast_cli(a->fd, "Work mode          %d\n", provider->workmode);
 			ast_cli(a->fd, "Service type       %d\n", provider->srvtype);
 			ast_cli(a->fd, "OSP Handle:        %d\n", provider->handle);
 			found++;

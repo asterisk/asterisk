@@ -102,6 +102,13 @@
 ;
 ;defaultprotocol=SIP
 ;
+; Set the work mode.
+; 0 - Direct
+; 1 - Indirect
+; Default is 0,
+;
+;workmode=0
+;
 ; Set the service type.
 ; 0 - Normal voice service
 ; 1 - Ported number query service
