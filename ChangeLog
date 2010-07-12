@@ -11,11 +11,20 @@
 	  65535. Now, we have a secondary check that will ensure that the
 	  seqno rolling over will not cause us to stop accepting DTMF.
   
-	    (closes issue 0017571)
-	    Reported by: mdeneen
-	    Patches:
-	          rtp_seqno_rollover.patch uploaded by mmichelson (license 60)
-	    Tested by: richardf, maxochoa, JJCinAZ
+	  (closes issue 0017571)
+	  Reported by: mdeneen
+	  Patches:
+	        rtp_seqno_rollover.patch uploaded by mmichelson (license 60)
+	  Tested by: richardf, maxochoa, JJCinAZ
+
+	* Clear the AST_CDR_FLAG_DIALED flag for channels going into the pbx
+	  via the G option in app_dial
+  
+	  (closes issue 0017592)
+	  Reported by: jamicque
+	  Patches:
+	        G-flag-cdr-fix1.diff uploaded by mnicholson (license 96)
+	  Tested by: jamicque, mnicholson
 
 2010-06-29  Leif Madsen <lmadsen@digium.com>
 
