@@ -20816,7 +20816,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (p->relatedpeer) {
 			p->relatedpeer = unref_peer(p->relatedpeer,"unsetting the relatedpeer field in the dialog, before it is set to something else.");
 		}
-		p->relatedpeer = ref_peer(authpeer, "setting dialog's relatedpeer pointer");
+		if (authpeer) {
+			p->relatedpeer = ref_peer(authpeer, "setting dialog's relatedpeer pointer");
+		}
 		/* If T38 is needed but not present, then make it magically appear */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl) {
 			struct sockaddr_in bindaddr_sin_tmp;
