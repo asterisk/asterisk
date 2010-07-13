@@ -724,7 +724,7 @@ struct ast_conference {
 	struct ast_frame *transframe[32];
 	struct ast_frame *origframe;
 	struct ast_trans_pvt *transpath[32];
-	AST_LIST_HEAD_NOLOCK(, ast_conf_user) userlist;
+	struct ao2_container *usercontainer;
 	AST_LIST_ENTRY(ast_conference) list;
 	/* announce_thread related data */
 	pthread_t announcethread;
@@ -1133,6 +1133,30 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 		ast_autoservice_stop(chan);
 }
 
+static int user_no_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_conf_user *user = obj;
+	int *user_no = arg;
+
+	if (user->user_no == *user_no) {
+		return (CMP_MATCH | CMP_STOP);
+	}
+
+	return 0;
+}
+
+static int user_max_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_conf_user *user = obj;
+	int *max_no = arg;
+
+	if (user->user_no > *max_no) {
+		*max_no = user->user_no;
+	}
+
+	return 0;
+}
+
 /*!
  * \brief Find or create a conference
  *
@@ -1166,8 +1190,10 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 		goto cnfout;
 
 	/* Make a new one */
-	if (!(cnf = ast_calloc(1, sizeof(*cnf))))
+	if (!(cnf = ast_calloc(1, sizeof(*cnf))) ||
+		!(cnf->usercontainer = ao2_container_alloc(1, NULL, user_no_cmp))) {
 		goto cnfout;
+	}
 
 	ast_mutex_init(&cnf->playlock);
 	ast_mutex_init(&cnf->listenlock);
@@ -1292,15 +1318,21 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 			}
 
 			if (cnf) {
-				/* Search for the user */
-				AST_LIST_TRAVERSE(&cnf->userlist, usr, list) {
+				struct ao2_iterator user_iter;
+				user_iter = ao2_iterator_init(cnf->usercontainer, 0);
+
+				while((usr = ao2_iterator_next(&user_iter))) {
 					snprintf(usrno, sizeof(usrno), "%d", usr->user_no);
-					if (!strncasecmp(word, usrno, len) && ++which > state)
+					if (!strncasecmp(word, usrno, len) && ++which > state) {
+						ao2_ref(usr, -1);
 						break;
+					}
+					ao2_ref(usr, -1);
 				}
+				ao2_iterator_destroy(&user_iter);
+				AST_LIST_UNLOCK(&confs);
+				return usr ? ast_strdup(usrno) : NULL;
 			}
-			AST_LIST_UNLOCK(&confs);
-			return usr ? ast_strdup(usrno) : NULL;
 		}
 	}
 
@@ -1387,6 +1419,7 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_free(cmdline);
 		return CLI_SUCCESS;
 	} else if (strcmp(a->argv[1], "list") == 0) {
+		struct ao2_iterator user_iter;
 		int concise = (a->argc == 4 && (!strcasecmp(a->argv[3], "concise")));
 		/* List all the users in a conference */
 		if (AST_LIST_EMPTY(&confs)) {
@@ -1412,7 +1445,8 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		}
 		/* Show all the users */
 		time(&now);
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+		user_iter = ao2_iterator_init(cnf->usercontainer, 0);
+		while((user = ao2_iterator_next(&user_iter))) {
 			hr = (now - user->jointime) / 3600;
 			min = ((now - user->jointime) % 3600) / 60;
 			sec = (now - user->jointime) % 60;
@@ -1439,7 +1473,9 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					user->adminflags & ADMINFLAG_T_REQUEST ? "1" : "",
 					user->talking, hr, min, sec);
 			}
+			ao2_ref(user, -1);
 		}
+		ao2_iterator_destroy(&user_iter);
 		if (!concise) {
 			ast_cli(a->fd, "%d users in that conference.\n", cnf->users);
 		}
@@ -1799,7 +1835,9 @@ static int conf_free(struct ast_conference *conf)
 	if (conf->recordingfilename) {
 		ast_free(conf->recordingfilename);
 	}
-
+	if (conf->usercontainer) {
+		ao2_ref(conf->usercontainer, -1);
+	}
 	if (conf->recordingformat) {
 		ast_free(conf->recordingformat);
 	}
@@ -1816,13 +1854,19 @@ static void conf_queue_dtmf(const struct ast_conference *conf,
 	const struct ast_conf_user *sender, struct ast_frame *f)
 {
 	struct ast_conf_user *user;
+	struct ao2_iterator user_iter;
 
-	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
-		if (user == sender)
+	user_iter = ao2_iterator_init(conf->usercontainer, 0);
+	while ((user = ao2_iterator_next(&user_iter))) {
+		if (user == sender) {
+			ao2_ref(user, -1);
 			continue;
+		}
 		if (ast_write(user->chan, f) < 0)
 			ast_log(LOG_WARNING, "Error writing frame to channel %s\n", user->chan->name);
+		ao2_ref(user, -1);
 	}
+	ao2_iterator_destroy(&user_iter);
 }
 
 static void sla_queue_event_full(enum sla_event_type type, 
@@ -2099,6 +2143,39 @@ static void set_user_talking(struct ast_channel *chan, struct ast_conference *co
 	}
 }
 
+static int user_set_kickme_cb(void *obj, void *check_admin_arg, int flags)
+{
+	struct ast_conf_user *user = obj;
+	/* actual pointer contents of check_admin_arg is irrelevant */
+
+	if (!check_admin_arg || (check_admin_arg && !ast_test_flag64(&user->userflags, CONFFLAG_ADMIN))) {
+		user->adminflags |= ADMINFLAG_KICKME;
+	}
+	return 0;
+}
+
+static int user_set_unmuted_cb(void *obj, void *check_admin_arg, int flags)
+{
+	struct ast_conf_user *user = obj;
+	/* actual pointer contents of check_admin_arg is irrelevant */
+
+	if (!check_admin_arg || !ast_test_flag64(&user->userflags, CONFFLAG_ADMIN)) {
+		user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);
+	}
+	return 0;
+}
+
+static int user_set_muted_cb(void *obj, void *check_admin_arg, int flags)
+{
+	struct ast_conf_user *user = obj;
+	/* actual pointer contents of check_admin_arg is irrelevant */
+
+	if (!check_admin_arg || !ast_test_flag64(&user->userflags, CONFFLAG_ADMIN)) {
+		user->adminflags |= ADMINFLAG_MUTED;
+	}
+	return 0;
+}
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struct ast_flags64 *confflags, char *optargs[])
 {
 	struct ast_conf_user *user = NULL;
@@ -2157,8 +2234,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	int setusercount = 0;
 	int confsilence = 0, totalsilence = 0;
 
-	if (!(user = ast_calloc(1, sizeof(*user))))
+	if (!(user = ao2_alloc(sizeof(*user), NULL))) {
 		return ret;
+	}
 
 	/* Possible timeout waiting for marked user */
 	if (ast_test_flag64(confflags, CONFFLAG_WAITMARKED) &&
@@ -2323,22 +2401,21 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 
    	ast_mutex_lock(&conf->playlock);
 
-	if (AST_LIST_EMPTY(&conf->userlist))
-		user->user_no = 1;
-	else
-		user->user_no = AST_LIST_LAST(&conf->userlist)->user_no + 1;
-
-	if (rt_schedule && conf->maxusers)
+	if (rt_schedule && conf->maxusers) {
 		if (conf->users >= conf->maxusers) {
 			/* Sorry, but this confernce has reached the participant limit! */	
 			if (!ast_streamfile(chan, "conf-full", chan->language))
 				ast_waitstream(chan, "");
 			ast_mutex_unlock(&conf->playlock);
-			user->user_no = 0;
 			goto outrun;
 		}
+	}
 
-	AST_LIST_INSERT_TAIL(&conf->userlist, user, list);
+	ao2_lock(conf->usercontainer);
+	ao2_callback(conf->usercontainer, OBJ_NODATA, user_max_cmp, &user->user_no);
+	user->user_no++;
+	ao2_link(conf->usercontainer, user);
+	ao2_unlock(conf->usercontainer);
 
 	user->chan = chan;
 	user->userflags = *confflags;
@@ -3081,6 +3158,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						if (dtmf) {
 							int keepplaying;
 							int playednamerec;
+							struct ao2_iterator user_iter;
 							switch(dtmf) {
 							case '1': /* *81 Roll call */
 								keepplaying = 1;
@@ -3118,7 +3196,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 											keepplaying = 0;
 									}
 								}
-								AST_LIST_TRAVERSE(&conf->userlist, usr, list) {
+								user_iter = ao2_iterator_init(conf->usercontainer, 0);
+								while((user = ao2_iterator_next(&user_iter))) {
 									if (ast_fileexists(usr->namerecloc, NULL, NULL)) {
 										if (keepplaying && !ast_streamfile(chan, usr->namerecloc, chan->language)) {
 											res = ast_waitstream(chan, AST_DIGIT_ANY);
@@ -3128,7 +3207,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 										}
 										playednamerec = 1;
 									}
+									ao2_ref(user, -1);
 								}
+								ao2_iterator_destroy(&user_iter);
 								if (keepplaying && playednamerec && !ast_streamfile(chan, "conf-roll-callcomplete", chan->language)) {
 									res = ast_waitstream(chan, AST_DIGIT_ANY);
 									ast_stopstream(chan);
@@ -3141,28 +3222,19 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 									if(!ast_streamfile(chan, "conf-errormenu", chan->language))
 										ast_waitstream(chan, "");
 								} else {
-									AST_LIST_TRAVERSE(&conf->userlist, usr, list) {
-										if (!ast_test_flag64(&usr->userflags, CONFFLAG_ADMIN))
-											usr->adminflags |= ADMINFLAG_KICKME;
-									}
+									ao2_callback(conf->usercontainer, OBJ_NODATA, user_set_kickme_cb, &conf);
 								}
 								ast_stopstream(chan);
 								break;
 							case '3': /* *83 (Admin) mute/unmute all non-admins */
 								if(conf->gmuted) {
 									conf->gmuted = 0;
-									AST_LIST_TRAVERSE(&conf->userlist, usr, list) {
-										if (!ast_test_flag64(&usr->userflags, CONFFLAG_ADMIN))
-											usr->adminflags &= ~ADMINFLAG_MUTED;
-									}
+									ao2_callback(conf->usercontainer, OBJ_NODATA, user_set_unmuted_cb, &conf);
 									if (!ast_streamfile(chan, "conf-now-unmuted", chan->language))
 										ast_waitstream(chan, "");
 								} else {
 									conf->gmuted = 1;
-									AST_LIST_TRAVERSE(&conf->userlist, usr, list) {
-										if (!ast_test_flag64(&usr->userflags, CONFFLAG_ADMIN))
-											usr->adminflags |= ADMINFLAG_MUTED;
-									}
+									ao2_callback(conf->usercontainer, OBJ_NODATA, user_set_muted_cb, &conf);
 									if (!ast_streamfile(chan, "conf-now-muted", chan->language))
 										ast_waitstream(chan, "");
 								}
@@ -3278,8 +3350,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 								}
 								break;
 							case '3': /* Eject last user */
+							{
+								int max_no = 0;
+								ao2_callback(conf->usercontainer, OBJ_NODATA, user_max_cmp, &max_no);
 								menu_active = 0;
-								usr = AST_LIST_LAST(&conf->userlist);
+								usr = ao2_find(conf->usercontainer, &max_no, 0);
 								if ((usr->chan->name == chan->name) || ast_test_flag64(&usr->userflags, CONFFLAG_ADMIN)) {
 									if (!ast_streamfile(chan, "conf-errormenu", chan->language)) {
 										ast_waitstream(chan, "");
@@ -3287,8 +3362,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 								} else {
 									usr->adminflags |= ADMINFLAG_KICKME;
 								}
+								ao2_ref(user, -1);
 								ast_stopstream(chan);
 								break;	
+							}
 							case '4':
 								tweak_listen_volume(user, VOL_DOWN);
 								break;
@@ -3610,7 +3687,9 @@ bailoutandtrynormal:
 		ast_dsp_free(dsp);
 	}
 	
-	if (user->user_no) { /* Only cleanup users who really joined! */
+	if (!user->user_no) {
+		ao2_ref(user, -1);
+	} else { /* Only cleanup users who really joined! */
 		now = ast_tvnow();
 		hr = (now.tv_sec - user->jointime) / 3600;
 		min = ((now.tv_sec - user->jointime) % 3600) / 60;
@@ -3647,8 +3726,8 @@ bailoutandtrynormal:
 				conf->markedusers--;
 			}
 		}
-		/* Remove ourselves from the list */
-		AST_LIST_REMOVE(&conf->userlist, user, list);
+		/* Remove ourselves from the container */
+		ao2_unlink(conf->usercontainer, user); 
 
 		/* Change any states */
 		if (!conf->users) {
@@ -3664,7 +3743,6 @@ bailoutandtrynormal:
 			pbx_builtin_setvar_helper(chan, "MEETMEBOOKID", conf->bookid);
 		}
 	}
-	ast_free(user);
 	AST_LIST_UNLOCK(&confs);
 
 	return ret;
@@ -4267,12 +4345,58 @@ static struct ast_conf_user *find_user(struct ast_conference *conf, const char *
 	
 	sscanf(callerident, "%30i", &cid);
 	if (conf && callerident) {
-		AST_LIST_TRAVERSE(&conf->userlist, user, list) {
-			if (cid == user->user_no)
-				return user;
-		}
+		user = ao2_find(conf->usercontainer, &cid, 0);
+		/* reference decremented later in admin_exec */
+		return user;
 	}
 	return NULL;
+}
+
+static int user_listen_volup_cb(void *obj, void *unused, int flags)
+{
+	struct ast_conf_user *user = obj;
+	tweak_listen_volume(user, VOL_UP);
+	return 0;
+}
+
+static int user_listen_voldown_cb(void *obj, void *unused, int flags)
+{
+	struct ast_conf_user *user = obj;
+	tweak_listen_volume(user, VOL_DOWN);
+	return 0;
+}
+
+static int user_talk_volup_cb(void *obj, void *unused, int flags)
+{
+	struct ast_conf_user *user = obj;
+	tweak_talk_volume(user, VOL_UP);
+	return 0;
+}
+
+static int user_talk_voldown_cb(void *obj, void *unused, int flags)
+{
+	struct ast_conf_user *user = obj;
+	tweak_talk_volume(user, VOL_DOWN);
+	return 0;
+}
+
+static int user_reset_vol_cb(void *obj, void *unused, int flags)
+{
+	struct ast_conf_user *user = obj;
+	reset_volumes(user);
+	return 0;
+}
+
+static int user_chan_cb(void *obj, void *args, int flags)
+{
+	struct ast_conf_user *user = obj;
+	const char *channel = args;
+
+	if (!strcmp(user->chan->name, channel)) {
+		return (CMP_MATCH | CMP_STOP);
+	}
+
+	return 0;
 }
 
 /*! \brief The MeetMeadmin application 
@@ -4319,8 +4443,14 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 
 	ast_atomic_fetchadd_int(&cnf->refcount, 1);
 
-	if (args.user)
+	if (args.user) {
 		user = find_user(cnf, args.user);
+		if (!user) {
+			ast_log(LOG_NOTICE, "Specified User not found!\n");
+			res = -2;
+			goto usernotfound;
+		}
+	}
 
 	switch (*args.command) {
 	case 76: /* L: Lock */ 
@@ -4330,118 +4460,66 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 		cnf->locked = 0;
 		break;
 	case 75: /* K: kick all users */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-			user->adminflags |= ADMINFLAG_KICKME;
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_set_kickme_cb, NULL);
 		break;
 	case 101: /* e: Eject last user*/
-		user = AST_LIST_LAST(&cnf->userlist);
+	{
+		int max_no = 0;
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_max_cmp, &max_no);
+		user = ao2_find(cnf->usercontainer, &max_no, 0);
 		if (!ast_test_flag64(&user->userflags, CONFFLAG_ADMIN))
 			user->adminflags |= ADMINFLAG_KICKME;
 		else {
 			res = -1;
 			ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
 		}
+		ao2_ref(user, -1);
 		break;
+	}
 	case 77: /* M: Mute */ 
-		if (user) {
-			user->adminflags |= ADMINFLAG_MUTED;
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		user->adminflags |= ADMINFLAG_MUTED;
 		break;
 	case 78: /* N: Mute all (non-admin) users */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			if (!ast_test_flag64(&user->userflags, CONFFLAG_ADMIN)) {
-				user->adminflags |= ADMINFLAG_MUTED;
-			}
-		}
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_set_muted_cb, NULL);
 		break;					
 	case 109: /* m: Unmute */ 
-		if (user) {
-			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);
 		break;
 	case 110: /* n: Unmute all users */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);
-		}
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_set_unmuted_cb, NULL);
 		break;
 	case 107: /* k: Kick user */ 
-		if (user) {
-			user->adminflags |= ADMINFLAG_KICKME;
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		user->adminflags |= ADMINFLAG_KICKME;
 		break;
 	case 118: /* v: Lower all users listen volume */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			tweak_listen_volume(user, VOL_DOWN);
-		}
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_listen_voldown_cb, NULL);
 		break;
 	case 86: /* V: Raise all users listen volume */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			tweak_listen_volume(user, VOL_UP);
-		}
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_listen_volup_cb, NULL);
 		break;
 	case 115: /* s: Lower all users speaking volume */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			tweak_talk_volume(user, VOL_DOWN);
-		}
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_talk_voldown_cb, NULL);
 		break;
 	case 83: /* S: Raise all users speaking volume */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			tweak_talk_volume(user, VOL_UP);
-		}
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_talk_volup_cb, NULL);
 		break;
 	case 82: /* R: Reset all volume levels */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			reset_volumes(user);
-		}
+		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_reset_vol_cb, NULL);
 		break;
 	case 114: /* r: Reset user's volume level */
-		if (user) {
-			reset_volumes(user);
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		reset_volumes(user);
 		break;
 	case 85: /* U: Raise user's listen volume */
-		if (user) {
-			tweak_listen_volume(user, VOL_UP);
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		tweak_listen_volume(user, VOL_UP);
 		break;
 	case 117: /* u: Lower user's listen volume */
-		if (user) {
-			tweak_listen_volume(user, VOL_DOWN);
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		tweak_listen_volume(user, VOL_DOWN);
 		break;
 	case 84: /* T: Raise user's talk volume */
-		if (user) {
-			tweak_talk_volume(user, VOL_UP);
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		tweak_talk_volume(user, VOL_UP);
 		break;
 	case 116: /* t: Lower user's talk volume */
-		if (user) {
-			tweak_talk_volume(user, VOL_DOWN);
-		} else {
-			res = -2;
-			ast_log(LOG_NOTICE, "Specified User not found!\n");
-		}
+		tweak_talk_volume(user, VOL_DOWN);
 		break;
 	case 'E': /* E: Extend conference */
 		if (rt_extend_conf(args.confno)) {
@@ -4450,6 +4528,11 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 		break;
 	}
 
+	if (args.user) {
+		/* decrement reference from find_user */
+		ao2_ref(user, -1);
+	}
+usernotfound:
 	AST_LIST_UNLOCK(&confs);
 
 	dispose_conf(cnf);
@@ -4489,9 +4572,8 @@ static int channel_admin_exec(struct ast_channel *chan, const char *data) {
 
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, conf, list) {
-		AST_LIST_TRAVERSE(&conf->userlist, user, list) {
-			if (!strcmp(user->chan->name, args.channel))
-				break;
+		if ((user = ao2_callback(conf->usercontainer, 0, user_chan_cb, args.channel))) {
+			break;
 		}
 	}
 	
@@ -4516,7 +4598,7 @@ static int channel_admin_exec(struct ast_channel *chan, const char *data) {
 			ast_log(LOG_WARNING, "Unknown MeetMeChannelAdmin command '%s'\n", args.command);
 			break;
 	}
-
+	ao2_ref(user, -1);
 	AST_LIST_UNLOCK(&confs);
 	
 	return 0;
@@ -4560,9 +4642,7 @@ static int meetmemute(struct mansession *s, const struct message *m, int mute)
 		return 0;
 	}
 
-	AST_LIST_TRAVERSE(&conf->userlist, user, list)
-		if (user->user_no == userno)
-			break;
+	user = ao2_find(conf->usercontainer, &userno, 0);
 
 	if (!user) {
 		AST_LIST_UNLOCK(&confs);
@@ -4579,6 +4659,7 @@ static int meetmemute(struct mansession *s, const struct message *m, int mute)
 
 	ast_log(LOG_NOTICE, "Requested to %smute conf %s user %d userchan %s uniqueid %s\n", mute ? "" : "un", conf->confno, user->user_no, user->chan->name, user->chan->uniqueid);
 
+	ao2_ref(user, -1);
 	astman_send_ack(s, m, mute ? "User muted" : "User unmuted");
 	return 0;
 }
@@ -4600,6 +4681,7 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 	char idText[80] = "";
 	struct ast_conference *cnf;
 	struct ast_conf_user *user;
+	struct ao2_iterator user_iter;
 	int total = 0;
 
 	if (!ast_strlen_zero(actionid))
@@ -4615,12 +4697,13 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 	/* Find the right conference */
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
+		user_iter = ao2_iterator_init(cnf->usercontainer, 0);
 		/* If we ask for one particular, and this isn't it, skip it */
 		if (!ast_strlen_zero(conference) && strcmp(cnf->confno, conference))
 			continue;
 
 		/* Show all the users */
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+		while ((user = ao2_iterator_next(&user_iter))) {
 			total++;
 			astman_append(s,
 			"Event: MeetmeList\r\n"
@@ -4647,7 +4730,9 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 			ast_test_flag64(&user->userflags, CONFFLAG_MARKEDUSER) ? "Yes" : "No",
 			user->adminflags & ADMINFLAG_MUTED ? "By admin" : user->adminflags & ADMINFLAG_SELFMUTED ? "By self" : "No",
 			user->talking > 0 ? "Yes" : user->talking == 0 ? "No" : "Not monitored"); 
+			ao2_ref(user, -1);
 		}
+		ao2_iterator_destroy(&user_iter);
 	}
 	AST_LIST_UNLOCK(&confs);
 	/* Send final confirmation */
@@ -6766,6 +6851,48 @@ AST_DATA_STRUCTURE(ast_conference, MEETME_DATA_EXPORT);
 
 AST_DATA_STRUCTURE(ast_conf_user, MEETME_USER_DATA_EXPORT);
 
+static int user_add_provider_cb(void *obj, void *arg, int flags)
+{
+	struct ast_data *data_meetme_user;
+	struct ast_data *data_meetme_user_channel;
+	struct ast_data *data_meetme_user_volume;
+
+	struct ast_conf_user *user = obj;
+	struct ast_data *data_meetme_users = arg;
+
+	data_meetme_user = ast_data_add_node(data_meetme_users, "user");
+	if (!data_meetme_user) {
+		return 0;
+	}
+	/* user structure */
+	ast_data_add_structure(ast_conf_user, data_meetme_user, user);
+
+	/* user's channel */
+	data_meetme_user_channel = ast_data_add_node(data_meetme_user, "channel");
+	if (!data_meetme_user_channel) {
+		return 0;
+	}
+
+	ast_channel_data_add_structure(data_meetme_user_channel, user->chan, 1);
+
+	/* volume structure */
+	data_meetme_user_volume = ast_data_add_node(data_meetme_user, "listen-volume");
+	if (!data_meetme_user_volume) {
+		return 0;
+	}
+	ast_data_add_int(data_meetme_user_volume, "desired", user->listen.desired);
+	ast_data_add_int(data_meetme_user_volume, "actual", user->listen.actual);
+
+	data_meetme_user_volume = ast_data_add_node(data_meetme_user, "talk-volume");
+	if (!data_meetme_user_volume) {
+		return 0;
+	}
+	ast_data_add_int(data_meetme_user_volume, "desired", user->talk.desired);
+	ast_data_add_int(data_meetme_user_volume, "actual", user->talk.actual);
+
+	return 0;
+}
+
 /*!
  * \internal
  * \brief Implements the meetme data provider.
@@ -6774,9 +6901,7 @@ static int meetme_data_provider_get(const struct ast_data_search *search,
 	struct ast_data *data_root)
 {
 	struct ast_conference *cnf;
-	struct ast_conf_user *user;
-	struct ast_data *data_meetme, *data_meetme_users, *data_meetme_user;
-	struct ast_data *data_meetme_user_channel, *data_meetme_user_volume;
+	struct ast_data *data_meetme, *data_meetme_users;
 
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
@@ -6787,44 +6912,14 @@ static int meetme_data_provider_get(const struct ast_data_search *search,
 
 		ast_data_add_structure(ast_conference, data_meetme, cnf);
 
-		if (!AST_LIST_EMPTY(&cnf->userlist)) {
+		if (ao2_container_count(cnf->usercontainer)) {
 			data_meetme_users = ast_data_add_node(data_meetme, "users");
 			if (!data_meetme_users) {
 				ast_data_remove_node(data_root, data_meetme);
 				continue;
 			}
 
-			AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-				data_meetme_user = ast_data_add_node(data_meetme_users, "user");
-				if (!data_meetme_user) {
-					continue;
-				}
-				/* user structure. */
-				ast_data_add_structure(ast_conf_user, data_meetme_user, user);
-
-				/* user's channel */
-				data_meetme_user_channel = ast_data_add_node(data_meetme_user, "channel");
-				if (!data_meetme_user_channel) {
-					continue;
-				}
-
-				ast_channel_data_add_structure(data_meetme_user_channel, user->chan, 1);
-
-				/* volume structure */
-				data_meetme_user_volume = ast_data_add_node(data_meetme_user, "listen-volume");
-				if (!data_meetme_user_volume) {
-					continue;
-				}
-				ast_data_add_int(data_meetme_user_volume, "desired", user->listen.desired);
-				ast_data_add_int(data_meetme_user_volume, "actual", user->listen.actual);
-
-				data_meetme_user_volume = ast_data_add_node(data_meetme_user, "talk-volume");
-				if (!data_meetme_user_volume) {
-					continue;
-				}
-				ast_data_add_int(data_meetme_user_volume, "desired", user->talk.desired);
-				ast_data_add_int(data_meetme_user_volume, "actual", user->talk.actual);
-			}
+			ao2_callback(cnf->usercontainer, OBJ_NODATA, user_add_provider_cb, data_meetme_users); 
 		}
 
 		if (!ast_data_search_match(search, data_meetme)) {
