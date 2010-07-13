@@ -229,6 +229,7 @@ Dialplan Functions
    on hold or is a call waiting call.
  * Added option to dialplan function CDR(), the 'f' option
    allows for high resolution times for billsec and duration fields.
+ * FILE() now supports line-mode and writing.
 
 Dialplan Variables
 ------------------
