@@ -84,11 +84,25 @@ maxlogins=3
 ;externpass=/usr/bin/myapp
 ;externpassnotify=/usr/bin/myapp
 
-; If you need to have an external program, i.e. /usr/bin/myapp
-; called when a user changes her voicemail password, uncomment this:
-;externpasscheck=/usr/bin/myapp
-; Arguments for this script are:
-; mailbox context oldpass newpass
+; If you would like to have an external program called when a user changes the
+; voicemail password for the purpose of doing validation on the new password,
+; then use this option.  The script can decide whether or not the new password
+; meets minimum password strength requirements before the Voicemail application
+; accepts the password.  If the script decides that the password is not acceptable,
+; the user will be informed that the new password does not meet minimum password
+; requirements, and they will be asked to enter another password.
+;
+; The arguments passed to this script are <mailbox> <context> <old pw> <new pw>.
+;
+; The script should print "VALID" to stdout to indicate that the new password
+; is acceptable.  If the password is considered too weak, the script should print
+; "INVALID" to stdout.
+;
+; There is an example script in the contrib/scripts/ directory, voicemailpwcheck.py,
+; which implements some basic password checking, and can be used as a starting point
+; for use with this option.
+;
+;externpasscheck=/usr/local/bin/voicemailpwcheck.py
 
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
