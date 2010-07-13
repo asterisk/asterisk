@@ -40,10 +40,6 @@ void sip_scheddestroy_final(struct sip_pvt *p, int ms);
 void sip_scheddestroy(struct sip_pvt *p, int ms);
 int sip_cancel_destroy(struct sip_pvt *p);
 
-/*! \brief Destroy the RTP instances associated with a dialog
- */
-void sip_destroy_rtp(struct sip_pvt *p);
-
 /*! \brief Destroy SIP call structure.
  * Make it return NULL so the caller can do things like
  *	foo = sip_destroy(foo);
