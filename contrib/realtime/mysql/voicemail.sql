@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS voicemail;
 CREATE TABLE voicemail (
-	-- "uniqueid" is a required column prior to 1.6.2.  As of that version, it may be omitted.
+	-- All of these column names are very specific, including "uniqueid".  Do not change them if you wish voicemail to work.
 	uniqueid INT(5) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	-- Mailbox context.
 	context CHAR(80) NOT NULL DEFAULT 'default',
@@ -52,8 +52,6 @@ CREATE TABLE voicemail (
 	dialout CHAR(80),
 	-- Context in which to execute 0 or * escape during greeting
 	exitcontext CHAR(80),
-	-- Maximum length of message (in seconds)
-	maxmessage INT(5),
 	-- Maximum messages in a folder (100 if not specified)
 	maxmsg INT(5),
 	-- Increase DB gain on recorded message by this amount (0.0 means none)

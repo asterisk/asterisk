@@ -25,7 +25,7 @@ billsec bigint DEFAULT 0::bigint NOT NULL,
 disposition character varying(45) DEFAULT '' NOT NULL,
 amaflags bigint DEFAULT 0::bigint NOT NULL,
 accountcode character varying(20) DEFAULT '' NOT NULL,
-uniqueid character varying(150) DEFAULT '' NOT NULL,
+uniqueid character varying(32) DEFAULT '' NOT NULL,
 userfield character varying(255) DEFAULT '' NOT NULL
 );
 
@@ -37,7 +37,7 @@ accountcode character varying(20),
 amaflags character varying(7),
 callgroup character varying(10),
 callerid character varying(80),
-directmedia character varying(3) DEFAULT 'yes',
+canreinvite character varying(3) DEFAULT 'yes',
 context character varying(80),
 defaultip character varying(15),
 dtmfmode character varying(7),
@@ -119,7 +119,6 @@ memberdelay int8,
 weight int8,
 timeoutrestart bool,
 setinterfacevar bool,
-autopause varchar(128),
 PRIMARY KEY (name)
 ) WITHOUT OIDS;
 ALTER TABLE queue_table OWNER TO asterisk;
@@ -127,11 +126,9 @@ ALTER TABLE queue_table OWNER TO asterisk;
 drop table queue_member_table;
 CREATE TABLE queue_member_table
 (
-uniqueid serial,
 queue_name varchar(128),
 interface varchar(128),
 penalty int8,
-paused int8,
 PRIMARY KEY (queue_name, interface)
 ) WITHOUT OIDS;
 
