@@ -498,7 +498,10 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 			return 0;
 		}
 
-		fseeko(ff, 0, SEEK_END);
+		if (fseeko(ff, 0, SEEK_END) < 0) {
+			ast_log(LOG_ERROR, "Cannot seek to end of '%s': %s\n", args.filename, strerror(errno));
+			return -1;
+		}
 		flength = ftello(ff);
 
 		if (offset < 0) {
@@ -573,6 +576,7 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 		fclose(ff);
 		return -1;
 	}
+
 	flength = ftello(ff);
 
 	if (length == LLONG_MAX) {
@@ -876,8 +880,12 @@ static int file_write(struct ast_channel *chan, const char *cmd, char *data, con
 			/* Write out the value, then write just up until where we last moved some data */
 			if (fwrite(value, 1, vlength, ff) < vlength) {
 				ast_log(LOG_ERROR, "Short write?!!\n");
-			} else if (fwrite(fbuf, 1, (foplen = lastwritten - ftello(ff)), ff) < foplen) {
-				ast_log(LOG_ERROR, "Short write?!!\n");
+			} else {
+				off_t curpos = ftello(ff);
+				foplen = lastwritten - curpos;
+				if (fwrite(fbuf, 1, foplen, ff) < foplen) {
+					ast_log(LOG_ERROR, "Short write?!!\n");
+				}
 			}
 			fclose(ff);
 		}
@@ -1153,8 +1161,12 @@ static int file_write(struct ast_channel *chan, const char *cmd, char *data, con
 					ast_log(LOG_ERROR, "Short write?!!\n");
 					fclose(ff);
 					return -1;
-				} else if (fwrite(fbuf, 1, (foplen = lastwritten - ftello(ff)), ff) < foplen) {
-					ast_log(LOG_ERROR, "Short write?!!\n");
+				} else {
+					off_t curpos = ftello(ff);
+					foplen = lastwritten - curpos;
+					if (fwrite(fbuf, 1, foplen, ff) < foplen) {
+						ast_log(LOG_ERROR, "Short write?!!\n");
+					}
 				}
 				fclose(ff);
 			}
