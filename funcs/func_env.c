@@ -719,7 +719,7 @@ static int file_write(struct ast_channel *chan, const char *cmd, char *data, con
 	);
 	int64_t offset = 0, length = LLONG_MAX;
 	off_t flength, vlength;
-	size_t foplen;
+	size_t foplen = 0;
 	FILE *ff;
 
 	AST_STANDARD_APP_ARGS(args, data);
