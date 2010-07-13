@@ -75,7 +75,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="filename" required="true" />
-			</parameter>
 			<parameter name="offset">
 				<para>Maybe specified as any number. If negative, <replaceable>offset</replaceable> specifies the number
 				of bytes back from the end of the file.</para>
