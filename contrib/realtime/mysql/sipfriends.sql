@@ -5,7 +5,7 @@
 CREATE TABLE `sipfriends` (
   `name` varchar(40) NOT NULL default '',
   `type` varchar(10) NOT NULL default '',
-  `defaultuser` varchar(40),
+  `username` varchar(40),
   `fromuser` varchar(40),
   `fromdomain` varchar(40),
   `secret` varchar(40),
@@ -49,8 +49,7 @@ CREATE TABLE `sipfriends` (
   `rtpkeepalive` varchar(15),
   `lastms` int(11) NOT NULL default '-1',
   `setvar` varchar(200),
-  `useragent` varchar(50),
   PRIMARY KEY  (`name`),
   INDEX host (host, port),
-  INDEX ipaddr (ipaddr, port)
+  INDEX ipaddr (ipaddr, port),
 ) TYPE=MyISAM;
