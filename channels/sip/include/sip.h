@@ -83,7 +83,6 @@
 #define DEFAULT_FREQ_NOTOK        10 * 1000   /*!< Qualification: How often to check, if the host is down... */
 
 #define DEFAULT_RETRANS           1000        /*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
-#define MAX_RETRANS               6           /*!< Try only 6 times for retransmissions, a total of 7 transmissions */
 #define DEFAULT_TIMER_T1          500         /*!< SIP timer T1 (according to RFC 3261) */
 #define SIP_TRANS_TIMEOUT         64 * DEFAULT_TIMER_T1 /*!< SIP request timeout (rfc 3261) 64*T1
                                                          *  \todo Use known T1 for timeout (peerpoke)
@@ -1118,6 +1117,9 @@ struct sip_pkt {
 	int retransid;            /*!< Retransmission ID */
 	int timer_a;              /*!< SIP timer A, retransmission timer */
 	int timer_t1;             /*!< SIP Timer T1, estimated RTT or 500 ms */
+	struct timeval time_sent;  /*!< When pkt was sent */
+	int64_t retrans_stop_time; /*!< Time in ms after 'now' that retransmission must stop */
+	int retrans_stop;         /*!< Timeout is reached, stop retransmission  */
 	int packetlen;            /*!< Length of packet */
 	struct ast_str *data;
 };

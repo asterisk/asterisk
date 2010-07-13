@@ -3225,11 +3225,20 @@ static int retrans_pkt(const void *data)
 	struct sip_pkt *pkt = (struct sip_pkt *)data, *prev, *cur = NULL;
 	int reschedule = DEFAULT_RETRANS;
 	int xmitres = 0;
+	/* how many ms until retrans timeout is reached */
+	int64_t diff = pkt->retrans_stop_time - ast_tvdiff_ms(ast_tvnow(), pkt->time_sent);
+
+	/* Do not retransmit if time out is reached. This will be negative if the time between
+	 * the first transmission and now is larger than our timeout period. This is a fail safe
+	 * check in case the scheduler gets behind or the clock is changed. */
+	if ((diff <= 0) || (diff > pkt->retrans_stop_time)) {
+		pkt->retrans_stop = 1;
+	}
 
 	/* Lock channel PVT */
 	sip_pvt_lock(pkt->owner);
 
-	if (pkt->retrans < MAX_RETRANS) {
+	if (!pkt->retrans_stop) {
 		pkt->retrans++;
 		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
 			if (sipdebug) {
@@ -3269,19 +3278,35 @@ static int retrans_pkt(const void *data)
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data->str);
 		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		sip_pvt_unlock(pkt->owner);
-		if (xmitres == XMIT_ERROR) {
-			ast_log(LOG_WARNING, "Network error on retransmit in dialog %s\n", pkt->owner->callid);
-		} else {
+
+		/* If there was no error during the network transmission, schedule the next retransmission,
+		 * but if the next retransmission is going to be beyond our timeout period, mark the packet's
+		 * stop_retrans value and set the next retransmit to be the exact time of timeout.  This will
+		 * allow any responses to the packet to be processed before the packet is destroyed on the next
+		 * call to this function by the scheduler. */
+		if (xmitres != XMIT_ERROR) {
+			if (reschedule >= diff) {
+				pkt->retrans_stop = 1;
+				reschedule = diff;
+			}
 			return  reschedule;
 		}
 	}
 
-	/* Too many retries */
+	/* At this point, either the packet's retransmission timed out, or there was a
+	 * transmission error, either way destroy the scheduler item and this packet. */
+
+	pkt->retransid = -1; /* Kill this scheduler item */
+
 	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
-		if (pkt->is_fatal || sipdebug) {/* Tell us if it's critical or if we're debugging */
-			ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s) -- See doc/sip-retransmit.txt.\n",
-				pkt->owner->callid, pkt->seqno,
-				pkt->is_fatal ? "Critical" : "Non-critical", pkt->is_resp ? "Response" : "Request");
+		if (pkt->is_fatal || sipdebug) { /* Tell us if it's critical or if we're debugging */
+			ast_log(LOG_WARNING, "Retransmission timeout reached on transmission %s for seqno %d (%s %s) -- See doc/sip-retransmit.txt.\n"
+				"Packet timed out after %dms with no response\n",
+				pkt->owner->callid,
+				pkt->seqno,
+				pkt->is_fatal ? "Critical" : "Non-critical",
+				pkt->is_resp ? "Response" : "Request",
+				(int) ast_tvdiff_ms(ast_tvnow(), pkt->time_sent));
 		}
 	} else if (pkt->method == SIP_OPTIONS && sipdebug) {
 		ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s)  -- See doc/sip-retransmit.txt.\n", pkt->owner->callid);
@@ -3293,8 +3318,6 @@ static int retrans_pkt(const void *data)
 	} else {
 		append_history(pkt->owner, "MaxRetries", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
 	}
-
-	pkt->retransid = -1;
 
 	if (pkt->is_fatal) {
 		while(pkt->owner->owner && ast_channel_trylock(pkt->owner->owner)) {
@@ -3407,6 +3430,9 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->retransid = -1;
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1;
+
+	pkt->time_sent = ast_tvnow(); /* time packet was sent */
+	pkt->retrans_stop_time = 64 * (pkt->timer_t1 ? pkt->timer_t1 : DEFAULT_TIMER_T1); /* time in ms after pkt->time_sent to stop retransmission */
 
 	/* Schedule retransmission */
 	AST_SCHED_REPLACE_VARIABLE(pkt->retransid, sched, siptimer_a, retrans_pkt, pkt, 1);
