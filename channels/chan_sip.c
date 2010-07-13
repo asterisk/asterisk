@@ -3497,6 +3497,23 @@ static int __sip_autodestruct(const void *data)
 	return 0;
 }
 
+/*! \brief Destroy all RTP instances allocated for a dialog */
+void sip_destroy_rtp(struct sip_pvt *p)
+{
+	if (p->rtp) {
+		ast_rtp_instance_destroy(p->rtp);
+		p->rtp = NULL;
+	}
+	if (p->vrtp) {
+		ast_rtp_instance_destroy(p->vrtp);
+		p->vrtp = NULL;
+	}
+	if (p->trtp) {
+		ast_rtp_instance_destroy(p->trtp);
+		p->trtp = NULL;
+	}
+}
+
 /*! \brief Schedule final destruction of SIP dialog.  This can not be canceled.
  *  This function is used to keep a dialog around for a period of time in order
  *  to properly respond to any retransmits. */
@@ -3510,6 +3527,8 @@ void sip_scheddestroy_final(struct sip_pvt *p, int ms)
 	if (p->autokillid != -1) {
 		p->final_destruction_scheduled = 1;
 	}
+
+	sip_destroy_rtp(p);
 }
 
 /*! \brief Schedule destruction of SIP dialog */
@@ -5176,15 +5195,9 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_free(p->notify->content);
 		ast_free(p->notify);
 	}
-	if (p->rtp) {
-		ast_rtp_instance_destroy(p->rtp);
-	}
-	if (p->vrtp) {
-		ast_rtp_instance_destroy(p->vrtp);
-	}
-	if (p->trtp) {
-		ast_rtp_instance_destroy(p->trtp);
-	}
+
+	sip_destroy_rtp(p);
+
 	if (p->udptl)
 		ast_udptl_destroy(p->udptl);
 	if (p->refer)
