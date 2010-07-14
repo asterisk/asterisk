@@ -67,7 +67,8 @@ maxlogins=3
 ;smdiport=/dev/ttyS0
 
 ; If you need to have an external program, i.e. /usr/bin/myapp
-; called when a voicemail password is changed, uncomment this:
+; called when a voicemail password is changed, uncomment this. The
+; arguments passed to the application are: <context> <mailbox> <newpassword>
 ;externpass=/usr/bin/myapp
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
