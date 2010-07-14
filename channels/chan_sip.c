@@ -3339,8 +3339,26 @@ static int retrans_pkt(const void *data)
 			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
 		}
 		if (pkt->owner->owner) {
-			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet (see doc/sip-retransmit.txt).\n", pkt->owner->callid);
+
+			if (pkt->is_resp &&
+				(pkt->response_code >= 200) &&
+				(pkt->response_code < 300) &&
+				pkt->owner->pendinginvite &&
+				ast_test_flag(&pkt->owner->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
+				/* This is a timeout of the 2XX response to a pending INVITE.  In this case terminate the INVITE
+				 * transaction just as if we received the ACK, but immediately hangup with a BYE (sip_hangup
+				 * will send the BYE as long as the dialog is not set as "alreadygone")
+				 * RFC 3261 section 13.3.1.4.
+				 * "If the server retransmits the 2xx response for 64*T1 seconds without receiving
+				 * an ACK, the dialog is confirmed, but the session SHOULD be terminated.  This is
+				 * accomplished with a BYE, as described in Section 15." */
+				pkt->owner->invitestate = INV_TERMINATED;
+				pkt->owner->pendinginvite = 0;
+			} else {
+				/* there is nothing left to do, mark the dialog as gone */
+				sip_alreadygone(pkt->owner);
+			}
 			ast_queue_hangup_with_cause(pkt->owner->owner, AST_CAUSE_PROTOCOL_ERROR);
 			ast_channel_unlock(pkt->owner->owner);
 		} else {
