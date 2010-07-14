@@ -1999,8 +1999,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 						  &addr);
 			} else  {
 				ast_debug(1, "Received RTP packet from %s, dropping due to strict RTP protection. Expected it to be from %s\n",
-					  ast_sockaddr_stringify(&addr),
-					  ast_sockaddr_stringify(&rtp->strict_rtp_address));
+					  ast_strdupa(ast_sockaddr_stringify(&addr)),
+					  ast_strdupa(ast_sockaddr_stringify(&rtp->strict_rtp_address)));
 				return &ast_null_frame;
 			}
 		}

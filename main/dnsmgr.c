@@ -161,8 +161,8 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 			ast_sockaddr_set_port(&tmp, ast_sockaddr_port(entry->result));
 		if (ast_sockaddr_cmp(&tmp, entry->result)) {
 			ast_log(LOG_NOTICE, "dnssrv: host '%s' changed from %s to %s\n",
-					entry->name, ast_sockaddr_stringify(entry->result),
-					ast_sockaddr_stringify(&tmp));
+					entry->name, ast_strdupa(ast_sockaddr_stringify(entry->result)),
+					ast_strdupa(ast_sockaddr_stringify(&tmp)));
 
 			ast_sockaddr_copy(entry->result, &tmp);
 			changed = entry->changed = 1;

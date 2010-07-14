@@ -529,8 +529,8 @@ int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us)
 	}
 	close(s);
 	ast_debug(3, "For destination '%s', our source address is '%s'.\n",
-		  ast_sockaddr_stringify_addr(them),
-		  ast_sockaddr_stringify_addr(us));
+		  ast_strdupa(ast_sockaddr_stringify_addr(them)),
+		  ast_strdupa(ast_sockaddr_stringify_addr(us)));
 
 	ast_sockaddr_set_port(us, port);
 

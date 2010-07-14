@@ -13427,8 +13427,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 					      "Cause: AUTH_SECRET_FAILED\r\n"
 					      "Address: %s\r\n"
 					      "Port: %s\r\n",
-					      name, ast_sockaddr_stringify_addr(addr),
-					      ast_sockaddr_stringify_port(addr));
+					      name, ast_strdupa(ast_sockaddr_stringify_addr(addr)),
+					      ast_strdupa(ast_sockaddr_stringify_port(addr)));
 			}
 			break;
 		case AUTH_USERNAME_MISMATCH:
@@ -13451,8 +13451,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 						      "Port: %s\r\n",
 						      name,
 						      res == AUTH_PEER_NOT_DYNAMIC ? "AUTH_PEER_NOT_DYNAMIC" : "URI_NOT_FOUND",
-						      ast_sockaddr_stringify_addr(addr),
-						      ast_sockaddr_stringify_port(addr));
+						      ast_strdupa(ast_sockaddr_stringify_addr(addr)),
+						      ast_strdupa(ast_sockaddr_stringify_port(addr)));
 				}
 			} else {
 				/* URI not found */
@@ -13467,8 +13467,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 							"Address: %s\r\n"
 							"Port: %s\r\n",
 							name,
-							ast_sockaddr_stringify_addr(addr),
-							ast_sockaddr_stringify_port(addr));
+							ast_strdupa(ast_sockaddr_stringify_addr(addr)),
+							ast_strdupa(ast_sockaddr_stringify_port(addr)));
 					}
 				} else {
 					transmit_response(p, "404 Not found", &p->initreq);
@@ -13482,8 +13482,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 							"Port: %s\r\n",
 							name,
 							(res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND",
-							ast_sockaddr_stringify_addr(addr),
-							ast_sockaddr_stringify_port(addr));
+							ast_strdupa(ast_sockaddr_stringify_addr(addr)),
+							ast_strdupa(ast_sockaddr_stringify_port(addr)));
 					}
 				}
 			}
@@ -27009,7 +27009,7 @@ static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
 
 	if ((res = ast_apply_ha(p->directmediaha, &them_sin)) == AST_SENSE_DENY) {
 		ast_debug(3, "Reinvite %s to %s denied by directmedia ACL on %s\n",
-			op, ast_sockaddr_stringify(&them), ast_sockaddr_stringify(&us));
+			op, ast_strdupa(ast_sockaddr_stringify(&them)), ast_strdupa(ast_sockaddr_stringify(&us)));
 	}
 
 	return res;
