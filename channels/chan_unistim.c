@@ -2313,7 +2313,6 @@ static void handle_dial_page(struct unistimsession *pte)
 			send_text(TEXT_LINE1, TEXT_NORMAL, pte, "and press Call");
 		}
 		send_text_status(pte, "Call   Redial BackSpcErase");
-
 	}
 
 	if (pte->device->height == 1) {
@@ -2792,7 +2791,6 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 				send_text(TEXT_LINE2, TEXT_NORMAL, pte, "previous call.");
 			}
 			send_text_status(pte, "Hangup Transf");
-
 		} else
 			show_main_page(pte);
 		break;
@@ -3736,13 +3734,14 @@ static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
 	Sendicon(TEXT_LINE0, FAV_ICON_NONE, session);
 
 	if (sub->owner) {
-		if (sub->owner->connected.id.number) {
+		if (sub->owner->connected.id.number.valid
+			&& sub->owner->connected.id.number.str) {
 			if (session->device->height == 1) {
-				send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.number);
+				send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.number.str);
 			} else {
-				send_text(TEXT_LINE1, TEXT_NORMAL, session, sub->owner->connected.id.number);
+				send_text(TEXT_LINE1, TEXT_NORMAL, session, sub->owner->connected.id.number.str);
 			}
-			change_callerid(session, 0, sub->owner->connected.id.number);
+			change_callerid(session, 0, sub->owner->connected.id.number.str);
 		} else {
 			if (session->device->height == 1) {
 				send_text(TEXT_LINE0, TEXT_NORMAL, session, DEFAULTCALLERID);
@@ -3751,15 +3750,15 @@ static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
 			}
 			change_callerid(session, 0, DEFAULTCALLERID);
 		}
-		if (sub->owner->connected.id.name) {
-			send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.name);
-			change_callerid(session, 1, sub->owner->connected.id.name);
+		if (sub->owner->connected.id.name.valid
+			&& sub->owner->connected.id.name.str) {
+			send_text(TEXT_LINE0, TEXT_NORMAL, session, sub->owner->connected.id.name.str);
+			change_callerid(session, 1, sub->owner->connected.id.name.str);
 		} else {
 			send_text(TEXT_LINE0, TEXT_NORMAL, session, DEFAULTCALLERNAME);
 			change_callerid(session, 1, DEFAULTCALLERNAME);
 		}
 	}
-
 	send_text(TEXT_LINE2, TEXT_NORMAL, session, "is calling you.");
 	send_text_status(session, "Accept              Ignore");
 
@@ -4567,8 +4566,12 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		instr = ast_strdup(l->cid_num);
 		if (instr) {
 			ast_callerid_parse(instr, &name, &loc);
-			tmp->cid.cid_num = ast_strdup(loc);
-			tmp->cid.cid_name = ast_strdup(name);
+			tmp->caller.id.number.valid = 1;
+			ast_free(tmp->caller.id.number.str);
+			tmp->caller.id.number.str = ast_strdup(loc);
+			tmp->caller.id.name.valid = 1;
+			ast_free(tmp->caller.id.name.str);
+			tmp->caller.id.name.str = ast_strdup(name);
 			ast_free(instr);
 		}
 	}

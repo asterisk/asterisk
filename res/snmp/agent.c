@@ -419,59 +419,59 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDDNID:
-		if (chan->cid.cid_dnid) {
-			strncpy(string_ret, chan->cid.cid_dnid, sizeof(string_ret));
+		if (chan->dialed.number.str) {
+			strncpy(string_ret, chan->dialed.number.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDNUM:
-		if (chan->cid.cid_num) {
-			strncpy(string_ret, chan->cid.cid_num, sizeof(string_ret));
+		if (chan->caller.id.number.valid && chan->caller.id.number.str) {
+			strncpy(string_ret, chan->caller.id.number.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDNAME:
-		if (chan->cid.cid_name) {
-			strncpy(string_ret, chan->cid.cid_name, sizeof(string_ret));
+		if (chan->caller.id.name.valid && chan->caller.id.name.str) {
+			strncpy(string_ret, chan->caller.id.name.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDANI:
-		if (chan->cid.cid_ani) {
-			strncpy(string_ret, chan->cid.cid_ani, sizeof(string_ret));
+		if (chan->caller.ani) {
+			strncpy(string_ret, chan->caller.ani, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDRDNIS:
-		if (chan->redirecting.from.number) {
-			strncpy(string_ret, chan->redirecting.from.number, sizeof(string_ret));
+		if (chan->redirecting.from.number.valid && chan->redirecting.from.number.str) {
+			strncpy(string_ret, chan->redirecting.from.number.str, sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCIDPRES:
-		long_ret = chan->cid.cid_pres;
+		long_ret = ast_party_id_presentation(chan->caller.id);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDANI2:
-		long_ret = chan->cid.cid_ani2;
+		long_ret = chan->caller.ani2;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDTON:
-		long_ret = chan->cid.cid_ton;
+		long_ret = chan->caller.id.number.plan;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDTNS:
-		long_ret = chan->cid.cid_tns;
+		long_ret = chan->dialed.transit_network_select;
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANAMAFLAGS:

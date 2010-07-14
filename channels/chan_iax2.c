@@ -4938,8 +4938,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	if (pds.port)
 		sin.sin_port = htons(atoi(pds.port));
 
-	l = c->connected.id.number;
-	n = c->connected.id.name;
+	l = c->connected.id.number.valid ? c->connected.id.number.str : NULL;
+	n = c->connected.id.name.valid ? c->connected.id.name.str : NULL;
 
 	/* Now build request */	
 	memset(&ied, 0, sizeof(ied));
@@ -4957,16 +4957,17 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 	if (l) {
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, l);
-		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->connected.id.number_presentation);
+		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES,
+			ast_party_id_presentation(&c->connected.id));
+	} else if (n) {
+		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES,
+			ast_party_id_presentation(&c->connected.id));
 	} else {
-		if (n)
-			iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->connected.id.number_presentation);
-		else
-			iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
+		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
 	}
 
-	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->connected.id.number_type);
-	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, c->cid.cid_tns);
+	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->connected.id.number.plan);
+	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, c->dialed.transit_network_select);
 
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
@@ -4975,10 +4976,13 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 	if (!ast_strlen_zero(c->language))
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
-	if (!ast_strlen_zero(c->cid.cid_dnid))
-		iax_ie_append_str(&ied, IAX_IE_DNID, c->cid.cid_dnid);
-	if (!ast_strlen_zero(c->redirecting.from.number))
-		iax_ie_append_str(&ied, IAX_IE_RDNIS, c->redirecting.from.number);
+	if (!ast_strlen_zero(c->dialed.number.str)) {
+		iax_ie_append_str(&ied, IAX_IE_DNID, c->dialed.number.str);
+	}
+	if (c->redirecting.from.number.valid
+		&& !ast_strlen_zero(c->redirecting.from.number.str)) {
+		iax_ie_append_str(&ied, IAX_IE_RDNIS, c->redirecting.from.number.str);
+	}
 
 	if (pds.context)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, pds.context);
@@ -5599,15 +5603,18 @@ static struct ast_channel *ast_iax2_new(int callno, int state, format_t capabili
 		ast_string_field_set(tmp, parkinglot, i->parkinglot);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a NewCallerID event before the NewChannel event */
-	if (!ast_strlen_zero(i->ani))
-		tmp->cid.cid_ani = ast_strdup(i->ani);
-	else
-		tmp->cid.cid_ani = ast_strdup(i->cid_num);
-	tmp->cid.cid_dnid = ast_strdup(i->dnid);
-	tmp->redirecting.from.number = ast_strdup(i->rdnis);
-	tmp->cid.cid_pres = i->calling_pres;
-	tmp->cid.cid_ton = i->calling_ton;
-	tmp->cid.cid_tns = i->calling_tns;
+	if (!ast_strlen_zero(i->ani)) {
+		tmp->caller.ani = ast_strdup(i->ani);
+	} else {
+		tmp->caller.ani = ast_strdup(i->cid_num);
+	}
+	tmp->dialed.number.str = ast_strdup(i->dnid);
+	tmp->redirecting.from.number.valid = 1;
+	tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
+	tmp->caller.id.name.presentation = i->calling_pres;
+	tmp->caller.id.number.presentation = i->calling_pres;
+	tmp->caller.id.number.plan = i->calling_ton;
+	tmp->dialed.transit_network_select = i->calling_tns;
 	if (!ast_strlen_zero(i->language))
 		ast_string_field_set(tmp, language, i->language);
 	if (!ast_strlen_zero(i->accountcode))
@@ -11321,16 +11328,21 @@ immediatedial:
 
 		/* Initialize defaults */
 		ast_party_connected_line_init(&connected);
-		connected.id.number_presentation = iaxs[fr->callno]->calling_pres;
+		connected.id.number.presentation = iaxs[fr->callno]->calling_pres;
+		connected.id.name.presentation = iaxs[fr->callno]->calling_pres;
 
 		if (!ast_connected_line_parse_data(f.data.ptr, f.datalen, &connected)) {
-			ast_string_field_set(iaxs[fr->callno], cid_num, connected.id.number);
-			ast_string_field_set(iaxs[fr->callno], cid_name, connected.id.name);
-			iaxs[fr->callno]->calling_pres = connected.id.number_presentation;
+			ast_string_field_set(iaxs[fr->callno], cid_num, connected.id.number.str);
+			ast_string_field_set(iaxs[fr->callno], cid_name, connected.id.name.str);
+			iaxs[fr->callno]->calling_pres = ast_party_id_presentation(&connected.id);
 
 			if (iaxs[fr->callno]->owner) {
-				ast_set_callerid(iaxs[fr->callno]->owner, S_OR(connected.id.number, ""), S_OR(connected.id.name, ""), NULL);
-				iaxs[fr->callno]->owner->cid.cid_pres = connected.id.number_presentation;
+				ast_set_callerid(iaxs[fr->callno]->owner,
+					S_COR(connected.id.number.valid, connected.id.number.str, ""),
+					S_COR(connected.id.name.valid, connected.id.name.str, ""),
+					NULL);
+				iaxs[fr->callno]->owner->caller.id.number.presentation = connected.id.number.presentation;
+				iaxs[fr->callno]->owner->caller.id.name.presentation = connected.id.name.presentation;
 			}
 		}
 		ast_party_connected_line_free(&connected);

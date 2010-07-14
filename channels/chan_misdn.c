@@ -4121,8 +4121,10 @@ static void print_bc_info(int fd, struct chan_list *help, struct misdn_bchannel 
 		bc->nt ? "NT" : "TE",
 		help->originator == ORG_AST ? "*" : "I",
 		ast ? ast->exten : "",
-		(ast && ast->cid.cid_name) ? ast->cid.cid_name : "",
-		(ast && ast->cid.cid_num) ? ast->cid.cid_num : "",
+		(ast && ast->caller.id.name.valid && ast->caller.id.name.str)
+			? ast->caller.id.name.str : "",
+		(ast && ast->caller.id.number.valid && ast->caller.id.number.str)
+			? ast->caller.id.number.str : "",
 		bc->redirecting.from.name,
 		bc->redirecting.from.number,
 		bc->redirecting.to.name,
@@ -4216,13 +4218,15 @@ static char *handle_cli_misdn_show_channels(struct ast_cli_entry *e, int cmd, st
 					" --> hold_channel: %d\n",
 					help->l3id,
 					ast->exten,
-					ast->cid.cid_name ? ast->cid.cid_name : "",
-					ast->cid.cid_num ? ast->cid.cid_num : "",
+					S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
+					S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""),
 					help->hold.port,
 					help->hold.channel
 					);
 			} else {
-				ast_cli(a->fd, "* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", ast->exten, ast->cid.cid_num);
+				ast_cli(a->fd, "* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n",
+					ast->exten,
+					S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""));
 			}
 		}
 	}
@@ -5706,12 +5710,12 @@ static void update_config(struct chan_list *ch)
 	chan_misdn_log(2, port, " --> pres: %d screen: %d\n", pres, screen);
 
 	if (pres < 0 || screen < 0) {
-		chan_misdn_log(2, port, " --> pres: %x\n", ast->connected.id.number_presentation);
+		chan_misdn_log(2, port, " --> pres: %x\n", ast->connected.id.number.presentation);
 
-		bc->caller.presentation = ast_to_misdn_pres(ast->connected.id.number_presentation);
+		bc->caller.presentation = ast_to_misdn_pres(ast->connected.id.number.presentation);
 		chan_misdn_log(2, port, " --> PRES: %s(%d)\n", misdn_to_str_pres(bc->caller.presentation), bc->caller.presentation);
 
-		bc->caller.screening = ast_to_misdn_screen(ast->connected.id.number_presentation);
+		bc->caller.screening = ast_to_misdn_screen(ast->connected.id.number.presentation);
 		chan_misdn_log(2, port, " --> SCREEN: %s(%d)\n", misdn_to_str_screen(bc->caller.screening), bc->caller.screening);
 	} else {
 		bc->caller.screening = screen;
@@ -6014,16 +6018,20 @@ static int read_config(struct chan_list *ch)
 static void misdn_queue_connected_line_update(struct ast_channel *ast, const struct misdn_party_id *id, enum AST_CONNECTED_LINE_UPDATE_SOURCE source, char *cid_tag)
 {
 	struct ast_party_connected_line connected;
+	struct ast_set_party_connected_line update_connected;
 
 	ast_party_connected_line_init(&connected);
-	connected.id.number = (char *) id->number;
-	connected.id.number_type = misdn_to_ast_ton(id->number_type)
+	memset(&update_connected, 0, sizeof(update_connected));
+	update_connected.id.number = 1;
+	connected.id.number.valid = 1;
+	connected.id.number.str = (char *) id->number;
+	connected.id.number.plan = misdn_to_ast_ton(id->number_type)
 		| misdn_to_ast_plan(id->number_plan);
-	connected.id.number_presentation = misdn_to_ast_pres(id->presentation)
+	connected.id.number.presentation = misdn_to_ast_pres(id->presentation)
 		| misdn_to_ast_screen(id->screening);
 	connected.id.tag = cid_tag;
 	connected.source = source;
-	ast_channel_queue_connected_line_update(ast, &connected);
+	ast_channel_queue_connected_line_update(ast, &connected, &update_connected);
 }
 
 /*!
@@ -6043,16 +6051,26 @@ static void misdn_get_connected_line(struct ast_channel *ast, struct misdn_bchan
 	if (originator == ORG_MISDN) {
 		/* ORIGINATOR MISDN (incoming call) */
 
-		ast_copy_string(bc->connected.name, S_OR(ast->connected.id.name, ""), sizeof(bc->connected.name));
-		ast_copy_string(bc->connected.number, S_OR(ast->connected.id.number, ""), sizeof(bc->connected.number));
-		bc->connected.presentation = ast_to_misdn_pres(ast->connected.id.number_presentation);
-		bc->connected.screening = ast_to_misdn_screen(ast->connected.id.number_presentation);
+		ast_copy_string(bc->connected.name,
+			S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
+			sizeof(bc->connected.name));
+		if (ast->connected.id.number.valid) {
+			ast_copy_string(bc->connected.number, S_OR(ast->connected.id.number.str, ""),
+				sizeof(bc->connected.number));
+			bc->connected.presentation = ast_to_misdn_pres(ast->connected.id.number.presentation);
+			bc->connected.screening = ast_to_misdn_screen(ast->connected.id.number.presentation);
+			bc->connected.number_type = ast_to_misdn_ton(ast->connected.id.number.plan);
+			bc->connected.number_plan = ast_to_misdn_plan(ast->connected.id.number.plan);
+		} else {
+			bc->connected.number[0] = '\0';
+			bc->connected.presentation = 0;/* Allowed */
+			bc->connected.screening = 0;/* Unscreened */
+			bc->connected.number_type = NUMTYPE_UNKNOWN;
+			bc->connected.number_plan = NUMPLAN_UNKNOWN;
+		}
 
 		misdn_cfg_get(bc->port, MISDN_CFG_CPNDIALPLAN, &number_type, sizeof(number_type));
-		if (number_type < 0) {
-			bc->connected.number_type = ast_to_misdn_ton(ast->connected.id.number_type);
-			bc->connected.number_plan = ast_to_misdn_plan(ast->connected.id.number_type);
-		} else {
+		if (0 <= number_type) {
 			/* Force us to send in CONNECT message */
 			bc->connected.number_type = number_type;
 			bc->connected.number_plan = NUMPLAN_ISDN;
@@ -6061,16 +6079,26 @@ static void misdn_get_connected_line(struct ast_channel *ast, struct misdn_bchan
 	} else {
 		/* ORIGINATOR Asterisk (outgoing call) */
 
-		ast_copy_string(bc->caller.name, S_OR(ast->connected.id.name, ""), sizeof(bc->caller.name));
-		ast_copy_string(bc->caller.number, S_OR(ast->connected.id.number, ""), sizeof(bc->caller.number));
-		bc->caller.presentation = ast_to_misdn_pres(ast->connected.id.number_presentation);
-		bc->caller.screening = ast_to_misdn_screen(ast->connected.id.number_presentation);
+		ast_copy_string(bc->caller.name,
+			S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
+			sizeof(bc->caller.name));
+		if (ast->connected.id.number.valid) {
+			ast_copy_string(bc->caller.number, S_OR(ast->connected.id.number.str, ""),
+				sizeof(bc->caller.number));
+			bc->caller.presentation = ast_to_misdn_pres(ast->connected.id.number.presentation);
+			bc->caller.screening = ast_to_misdn_screen(ast->connected.id.number.presentation);
+			bc->caller.number_type = ast_to_misdn_ton(ast->connected.id.number.plan);
+			bc->caller.number_plan = ast_to_misdn_plan(ast->connected.id.number.plan);
+		} else {
+			bc->caller.number[0] = '\0';
+			bc->caller.presentation = 0;/* Allowed */
+			bc->caller.screening = 0;/* Unscreened */
+			bc->caller.number_type = NUMTYPE_UNKNOWN;
+			bc->caller.number_plan = NUMPLAN_UNKNOWN;
+		}
 
 		misdn_cfg_get(bc->port, MISDN_CFG_LOCALDIALPLAN, &number_type, sizeof(number_type));
-		if (number_type < 0) {
-			bc->caller.number_type = ast_to_misdn_ton(ast->connected.id.number_type);
-			bc->caller.number_plan = ast_to_misdn_plan(ast->connected.id.number_type);
-		} else {
+		if (0 <= number_type) {
 			/* Force us to send in SETUP message */
 			bc->caller.number_type = number_type;
 			bc->caller.number_plan = NUMPLAN_ISDN;
@@ -6150,19 +6178,41 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
  */
 static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct ast_channel *ast)
 {
-	ast_copy_string(bc->redirecting.from.name, S_OR(ast->redirecting.from.name, ""), sizeof(bc->redirecting.from.name));
-	ast_copy_string(bc->redirecting.from.number, S_OR(ast->redirecting.from.number, ""), sizeof(bc->redirecting.from.number));
-	bc->redirecting.from.presentation = ast_to_misdn_pres(ast->redirecting.from.number_presentation);
-	bc->redirecting.from.screening = ast_to_misdn_screen(ast->redirecting.from.number_presentation);
-	bc->redirecting.from.number_type = ast_to_misdn_ton(ast->redirecting.from.number_type);
-	bc->redirecting.from.number_plan = ast_to_misdn_plan(ast->redirecting.from.number_type);
+	ast_copy_string(bc->redirecting.from.name,
+		S_COR(ast->redirecting.from.name.valid, ast->redirecting.from.name.str, ""),
+		sizeof(bc->redirecting.from.name));
+	if (ast->redirecting.from.number.valid) {
+		ast_copy_string(bc->redirecting.from.number, S_OR(ast->redirecting.from.number.str, ""),
+			sizeof(bc->redirecting.from.number));
+		bc->redirecting.from.presentation = ast_to_misdn_pres(ast->redirecting.from.number.presentation);
+		bc->redirecting.from.screening = ast_to_misdn_screen(ast->redirecting.from.number.presentation);
+		bc->redirecting.from.number_type = ast_to_misdn_ton(ast->redirecting.from.number.plan);
+		bc->redirecting.from.number_plan = ast_to_misdn_plan(ast->redirecting.from.number.plan);
+	} else {
+		bc->redirecting.from.number[0] = '\0';
+		bc->redirecting.from.presentation = 0;/* Allowed */
+		bc->redirecting.from.screening = 0;/* Unscreened */
+		bc->redirecting.from.number_type = NUMTYPE_UNKNOWN;
+		bc->redirecting.from.number_plan = NUMPLAN_UNKNOWN;
+	}
 
-	ast_copy_string(bc->redirecting.to.name, S_OR(ast->redirecting.to.name, ""), sizeof(bc->redirecting.to.name));
-	ast_copy_string(bc->redirecting.to.number, S_OR(ast->redirecting.to.number, ""), sizeof(bc->redirecting.to.number));
-	bc->redirecting.to.presentation = ast_to_misdn_pres(ast->redirecting.to.number_presentation);
-	bc->redirecting.to.screening = ast_to_misdn_screen(ast->redirecting.to.number_presentation);
-	bc->redirecting.to.number_type = ast_to_misdn_ton(ast->redirecting.to.number_type);
-	bc->redirecting.to.number_plan = ast_to_misdn_plan(ast->redirecting.to.number_type);
+	ast_copy_string(bc->redirecting.to.name,
+		S_COR(ast->redirecting.to.name.valid, ast->redirecting.to.name.str, ""),
+		sizeof(bc->redirecting.to.name));
+	if (ast->redirecting.to.number.valid) {
+		ast_copy_string(bc->redirecting.to.number, S_OR(ast->redirecting.to.number.str, ""),
+			sizeof(bc->redirecting.to.number));
+		bc->redirecting.to.presentation = ast_to_misdn_pres(ast->redirecting.to.number.presentation);
+		bc->redirecting.to.screening = ast_to_misdn_screen(ast->redirecting.to.number.presentation);
+		bc->redirecting.to.number_type = ast_to_misdn_ton(ast->redirecting.to.number.plan);
+		bc->redirecting.to.number_plan = ast_to_misdn_plan(ast->redirecting.to.number.plan);
+	} else {
+		bc->redirecting.to.number[0] = '\0';
+		bc->redirecting.to.presentation = 0;/* Allowed */
+		bc->redirecting.to.screening = 0;/* Unscreened */
+		bc->redirecting.to.number_type = NUMTYPE_UNKNOWN;
+		bc->redirecting.to.number_plan = NUMPLAN_UNKNOWN;
+	}
 
 	bc->redirecting.reason = ast_to_misdn_reason(ast->redirecting.reason);
 	bc->redirecting.count = ast->redirecting.count;
@@ -6181,23 +6231,29 @@ static void misdn_copy_redirecting_from_ast(struct misdn_bchannel *bc, struct as
 static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct misdn_party_redirecting *redirect, char *tag)
 {
 	struct ast_party_redirecting redirecting;
+	struct ast_set_party_redirecting update_redirecting;
 
 	ast_party_redirecting_set_init(&redirecting, &ast->redirecting);
+	memset(&update_redirecting, 0, sizeof(update_redirecting));
 
-	redirecting.from.number = (char *) redirect->from.number;
-	redirecting.from.number_type =
+	update_redirecting.from.number = 1;
+	redirecting.from.number.valid = 1;
+	redirecting.from.number.str = (char *) redirect->from.number;
+	redirecting.from.number.plan =
 		misdn_to_ast_ton(redirect->from.number_type)
 		| misdn_to_ast_plan(redirect->from.number_plan);
-	redirecting.from.number_presentation =
+	redirecting.from.number.presentation =
 		misdn_to_ast_pres(redirect->from.presentation)
 		| misdn_to_ast_screen(redirect->from.screening);
 	redirecting.from.tag = tag;
 
-	redirecting.to.number = (char *) redirect->to.number;
-	redirecting.to.number_type =
+	update_redirecting.to.number = 1;
+	redirecting.to.number.valid = 1;
+	redirecting.to.number.str = (char *) redirect->to.number;
+	redirecting.to.number.plan =
 		misdn_to_ast_ton(redirect->to.number_type)
 		| misdn_to_ast_plan(redirect->to.number_plan);
-	redirecting.to.number_presentation =
+	redirecting.to.number.presentation =
 		misdn_to_ast_pres(redirect->to.presentation)
 		| misdn_to_ast_screen(redirect->to.screening);
 	redirecting.to.tag = tag;
@@ -6205,7 +6261,7 @@ static void misdn_copy_redirecting_to_ast(struct ast_channel *ast, const struct 
 	redirecting.reason = misdn_to_ast_reason(redirect->reason);
 	redirecting.count = redirect->count;
 
-	ast_channel_set_redirecting(ast, &redirecting);
+	ast_channel_set_redirecting(ast, &redirecting, &update_redirecting);
 }
 
 /*!
@@ -6393,12 +6449,16 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_copy_string(ast->exten, args.ext, sizeof(ast->exten));
 		ast_copy_string(newbc->dialed.number, args.ext, sizeof(newbc->dialed.number));
 
-		if (ast_strlen_zero(newbc->caller.name)	&& !ast_strlen_zero(ast->connected.id.name)) {
-			ast_copy_string(newbc->caller.name, ast->connected.id.name, sizeof(newbc->caller.name));
+		if (ast_strlen_zero(newbc->caller.name)
+			&& ast->connected.id.name.valid
+			&& !ast_strlen_zero(ast->connected.id.name.str)) {
+			ast_copy_string(newbc->caller.name, ast->connected.id.name.str, sizeof(newbc->caller.name));
 			chan_misdn_log(3, port, " --> * set caller:\"%s\" <%s>\n", newbc->caller.name, newbc->caller.number);
 		}
-		if (ast_strlen_zero(newbc->caller.number) && !ast_strlen_zero(ast->connected.id.number)) {
-			ast_copy_string(newbc->caller.number, ast->connected.id.number, sizeof(newbc->caller.number));
+		if (ast_strlen_zero(newbc->caller.number)
+			&& ast->connected.id.number.valid
+			&& !ast_strlen_zero(ast->connected.id.number.str)) {
+			ast_copy_string(newbc->caller.number, ast->connected.id.number.str, sizeof(newbc->caller.number));
 			chan_misdn_log(3, port, " --> * set caller:\"%s\" <%s>\n", newbc->caller.name, newbc->caller.number);
 		}
 
@@ -6408,12 +6468,17 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			strncat(newbc->incoming_cid_tag, newbc->caller.number, sizeof(newbc->incoming_cid_tag) - strlen(newbc->incoming_cid_tag) - 1);
 		}
 
-		ast->cid.cid_tag = ast_strdup(newbc->incoming_cid_tag);
+		ast->caller.id.tag = ast_strdup(newbc->incoming_cid_tag);
 
 		misdn_cfg_get(port, MISDN_CFG_LOCALDIALPLAN, &number_type, sizeof(number_type));
 		if (number_type < 0) {
-			newbc->caller.number_type = ast_to_misdn_ton(ast->connected.id.number_type);
-			newbc->caller.number_plan = ast_to_misdn_plan(ast->connected.id.number_type);
+			if (ast->connected.id.number.valid) {
+				newbc->caller.number_type = ast_to_misdn_ton(ast->connected.id.number.plan);
+				newbc->caller.number_plan = ast_to_misdn_plan(ast->connected.id.number.plan);
+			} else {
+				newbc->caller.number_type = NUMTYPE_UNKNOWN;
+				newbc->caller.number_plan = NUMPLAN_ISDN;
+			}
 		} else {
 			/* Force us to send in SETUP message */
 			newbc->caller.number_type = number_type;
@@ -6921,8 +6986,10 @@ static int misdn_hangup(struct ast_channel *ast)
 		bc->pid,
 		ast->context,
 		ast->exten,
-		ast->cid.cid_name ? ast->cid.cid_name : "",
-		ast->cid.cid_num ? ast->cid.cid_num : "",
+		(ast->caller.id.name.valid && ast->caller.id.name.str)
+			? ast->caller.id.name.str : "",
+		(ast->caller.id.number.valid && ast->caller.id.number.str)
+			? ast->caller.id.number.str : "",
 		misdn_get_ch_state(p));
 	chan_misdn_log(3, bc->port, " --> l3id:%x\n", p->l3id);
 	chan_misdn_log(3, bc->port, " --> cause:%d\n", bc->cause);
@@ -7056,7 +7123,8 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  					char context_tmp[BUFFERSIZE];
  					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
  					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
- 					if (ast_exists_extension(ast, context, "fax", 1, ast->cid.cid_num)) {
+					if (ast_exists_extension(ast, context, "fax", 1,
+						S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
  						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
   						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
   						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
@@ -7256,7 +7324,9 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (!ch->dropped_frame_cnt) {
 			chan_misdn_log(5, ch->bc->port,
 				"BC not active (nor bridged) dropping: %d frames addr:%x exten:%s cid:%s ch->state:%s bc_state:%d l3id:%x\n",
-				frame->samples, ch->bc->addr, ast->exten, ast->cid.cid_num, misdn_get_ch_state(ch), ch->bc->bc_state, ch->bc->l3_id);
+				frame->samples, ch->bc->addr, ast->exten,
+				S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""),
+				misdn_get_ch_state(ch), ch->bc->bc_state, ch->bc->l3_id);
 		}
 
 		if (++ch->dropped_frame_cnt > 100) {
@@ -7871,7 +7941,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		if (callerid) {
 			/* Don't use ast_set_callerid() here because it will
 			 * generate a needless NewCallerID event */
-			tmp->cid.cid_ani = ast_strdup(cid_num);
+			tmp->caller.ani = ast_strdup(cid_num);
 		}
 
 		if (pipe(chlist->pipe) < 0) {
@@ -8162,8 +8232,10 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 			bc->pid,
 			ast->context,
 			ast->exten,
-			ast->cid.cid_name ? ast->cid.cid_name : "",
-			ast->cid.cid_num ? ast->cid.cid_num : "");
+			(ast->caller.id.name.valid && ast->caller.id.name.str)
+				? ast->caller.id.name.str : "",
+			(ast->caller.id.number.valid && ast->caller.id.number.str)
+				? ast->caller.id.number.str : "");
 
 		if (ast->_state != AST_STATE_RESERVED) {
 			chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
@@ -8313,8 +8385,10 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 		"* Starting Ast context:%s dialed:%s caller:\"%s\" <%s> with 's' extension\n",
 		ast->context,
 		ast->exten,
-		ast->cid.cid_name ? ast->cid.cid_name : "",
-		ast->cid.cid_num ? ast->cid.cid_num : "");
+		(ast->caller.id.name.valid && ast->caller.id.name.str)
+			? ast->caller.id.name.str : "",
+		(ast->caller.id.number.valid && ast->caller.id.number.str)
+			? ast->caller.id.number.str : "");
 
 	strcpy(ast->exten, "s");
 
@@ -8596,10 +8670,8 @@ static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *no
 		return;
 	}
 	chan->priority = notify->priority;
-	if (chan->cid.cid_dnid) {
-		ast_free(chan->cid.cid_dnid);
-	}
-	chan->cid.cid_dnid = ast_strdup(notify->exten);
+	ast_free(chan->dialed.number.str);
+	chan->dialed.number.str = ast_strdup(notify->exten);
 
 	if (ast_pbx_start(chan)) {
 		ast_log(LOG_WARNING, "Unable to start pbx channel %s!\n", chan->name);
@@ -8933,11 +9005,11 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 			bc->div_leg_3_rx_wanted = 0;
 
 			if (ch && ch->ast) {
-				ch->ast->redirecting.to.number_presentation =
+				ch->ast->redirecting.to.number.presentation =
 					bc->fac_in.u.DivertingLegInformation3.PresentationAllowedIndicator
 					? AST_PRES_ALLOWED | AST_PRES_USER_NUMBER_UNSCREENED
 					: AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED;
-				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
+				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting, NULL);
 			}
 		}
 		break;
@@ -9790,12 +9862,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		/* Update asterisk channel caller information */
 		chan_misdn_log(2, bc->port, " --> TON: %s(%d)\n", misdn_to_str_ton(bc->caller.number_type), bc->caller.number_type);
 		chan_misdn_log(2, bc->port, " --> PLAN: %s(%d)\n", misdn_to_str_plan(bc->caller.number_plan), bc->caller.number_plan);
-		chan->cid.cid_ton = misdn_to_ast_ton(bc->caller.number_type)
+		chan->caller.id.number.plan = misdn_to_ast_ton(bc->caller.number_type)
 			| misdn_to_ast_plan(bc->caller.number_plan);
 
 		chan_misdn_log(2, bc->port, " --> PRES: %s(%d)\n", misdn_to_str_pres(bc->caller.presentation), bc->caller.presentation);
 		chan_misdn_log(2, bc->port, " --> SCREEN: %s(%d)\n", misdn_to_str_screen(bc->caller.screening), bc->caller.screening);
-		chan->cid.cid_pres = misdn_to_ast_pres(bc->caller.presentation)
+		chan->caller.id.number.presentation = misdn_to_ast_pres(bc->caller.presentation)
 			| misdn_to_ast_screen(bc->caller.screening);
 
 		ast_set_callerid(chan, bc->caller.number, NULL, bc->caller.number);
@@ -9807,7 +9879,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		ast_channel_lock(chan);
-		chan->cid.cid_tag = ast_strdup(bc->incoming_cid_tag);
+		chan->caller.id.tag = ast_strdup(bc->incoming_cid_tag);
 		ast_channel_unlock(chan);
 
 		if (!ast_strlen_zero(bc->redirecting.from.number)) {
@@ -10108,9 +10180,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			bc->div_leg_3_rx_wanted = 0;
 
 			if (ch->ast) {
-				ch->ast->redirecting.to.number_presentation =
+				ch->ast->redirecting.to.number.presentation =
 					AST_PRES_RESTRICTED | AST_PRES_USER_NUMBER_UNSCREENED;
-				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
+				ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting, NULL);
 			}
 		}
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
@@ -10544,7 +10616,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 						break;
 					}
 					misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
-					ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting);
+					ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting,
+						NULL);
 				}
 			}
 			break;

@@ -1457,7 +1457,6 @@ static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewl
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 static void update_connectedline(struct sip_pvt *p, const void *data, size_t datalen);
 static void update_redirecting(struct sip_pvt *p, const void *data, size_t datalen);
-static void change_redirecting_information(struct sip_pvt *p, struct sip_request *req, struct ast_party_redirecting *redirecting, int set_call_forward);
 static int get_domain(const char *str, char *domain, int len);
 static void get_realm(struct sip_pvt *p, const struct sip_request *req);
 
@@ -5073,7 +5072,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		ast->hangupcause = AST_CAUSE_USER_BUSY;
 		return res;
 	}
-	p->callingpres = ast->cid.cid_pres;
+	p->callingpres = ast_party_id_presentation(&ast->caller.id);
 	p->jointcapability = ast_rtp_instance_available_formats(p->rtp, p->capability, p->prefcodec);
 	p->jointnoncodeccapability = p->noncodeccapability;
 
@@ -6390,7 +6389,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
 	ast_channel_cc_params_init(tmp, i->cc_params);
-	tmp->cid.cid_tag = ast_strdup(i->cid_tag);
+	tmp->caller.id.tag = ast_strdup(i->cid_tag);
 	ast_channel_unlock(tmp);
 
 	tmp->tech = ( ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO || ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_SHORTINFO) ?  &sip_tech_info : &sip_tech;
@@ -6491,7 +6490,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	tmp->callgroup = i->callgroup;
 	tmp->pickupgroup = i->pickupgroup;
-	tmp->cid.cid_pres = i->callingpres;
+	tmp->caller.id.name.presentation = i->callingpres;
+	tmp->caller.id.number.presentation = i->callingpres;
 	if (!ast_strlen_zero(i->parkinglot))
 		ast_string_field_set(tmp, parkinglot, i->parkinglot);
 	if (!ast_strlen_zero(i->accountcode))
@@ -6513,12 +6513,15 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
-	tmp->cid.cid_ani = ast_strdup(i->cid_num);
-	if (!ast_strlen_zero(i->rdnis))
-		tmp->redirecting.from.number = ast_strdup(i->rdnis);
-	
-	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
-		tmp->cid.cid_dnid = ast_strdup(i->exten);
+	tmp->caller.ani = ast_strdup(i->cid_num);
+	if (!ast_strlen_zero(i->rdnis)) {
+		tmp->redirecting.from.number.valid = 1;
+		tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
+	}
+
+	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s")) {
+		tmp->dialed.number.str = ast_strdup(i->exten);
+	}
 
 	tmp->priority = 1;
 	if (!ast_strlen_zero(i->uri))
@@ -6817,7 +6820,8 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 		if (strcmp(ast->exten, "fax")) {
 			const char *target_context = S_OR(ast->macrocontext, ast->context);
 			ast_channel_unlock(ast);
-			if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
+			if (ast_exists_extension(ast, target_context, "fax", 1,
+				S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
 				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to CNG detection\n", ast->name);
 				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
 				if (ast_async_goto(ast, target_context, "fax", 1)) {
@@ -6826,11 +6830,11 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 				fr = &ast_null_frame;
 			} else {
 				ast_log(LOG_NOTICE, "FAX CNG detected but no fax extension\n");
-                        }
+			}
 		} else {
 			ast_channel_unlock(ast);
-                }
-        }
+		}
+	}
 
 	/* Only allow audio through if they sent progress with SDP, or if the channel is actually answered */
 	if (fr && fr->frametype == AST_FRAME_VOICE && p->invitestate != INV_EARLY_MEDIA && ast->_state != AST_STATE_UP) {
@@ -8228,7 +8232,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					if (strcmp(p->owner->exten, "fax")) {
 						const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
 						ast_channel_unlock(p->owner);
-						if (ast_exists_extension(p->owner, target_context, "fax", 1, p->owner->cid.cid_num)) {
+						if (ast_exists_extension(p->owner, target_context, "fax", 1,
+							S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
 							ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to peer T.38 re-INVITE\n", p->owner->name);
 							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
 							if (ast_async_goto(p->owner, target_context, "fax", 1)) {
@@ -9691,11 +9696,15 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		return 0;
 	}
 
-	if (p->owner && p->owner->connected.id.number)
-		lid_num = p->owner->connected.id.number;
-	if (p->owner && p->owner->connected.id.name)
-		lid_name = p->owner->connected.id.name;
-	lid_pres = (p->owner) ? p->owner->connected.id.number_presentation : AST_PRES_NUMBER_NOT_AVAILABLE;
+	if (p->owner && p->owner->connected.id.number.valid
+		&& p->owner->connected.id.number.str) {
+		lid_num = p->owner->connected.id.number.str;
+	}
+	if (p->owner && p->owner->connected.id.name.valid
+		&& p->owner->connected.id.name.str) {
+		lid_name = p->owner->connected.id.name.str;
+	}
+	lid_pres = (p->owner) ? ast_party_id_presentation(&p->owner->connected.id) : AST_PRES_NUMBER_NOT_AVAILABLE;
 
 	if (ast_strlen_zero(lid_num))
 		return 0;
@@ -10700,14 +10709,16 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", sip_methods[sipmethod].text);
 
 	d = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
-	if (p->owner && (p->owner->connected.id.number_presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
-		l = p->owner->connected.id.number;
-		n = p->owner->connected.id.name;
-	} else if (p->owner && (p->owner->connected.id.number_presentation & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED && (!ast_test_flag(&p->flags[0], SIP_SENDRPID))) {
-		/* if we are not sending RPID and user wants his callerid restricted */		
-		l = CALLERID_UNKNOWN;
-		n = l;
-		d = FROMDOMAIN_INVALID;
+	if (p->owner) {
+		if ((ast_party_id_presentation(&p->owner->connected.id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			l = p->owner->connected.id.number.valid ? p->owner->connected.id.number.str : NULL;
+			n = p->owner->connected.id.name.valid ? p->owner->connected.id.name.str : NULL;
+		} else if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
+			/* if we are not sending RPID and user wants his callerid restricted */		
+			l = CALLERID_UNKNOWN;
+			n = l;
+			d = FROMDOMAIN_INVALID;
+		}
 	}
 
 	/* Hey, it's a NOTIFY! See if they've configured a mwi_from.
@@ -10845,16 +10856,18 @@ static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
 		return;
 	}
 
-	diverting_number = pvt->owner->redirecting.from.number;
-	diverting_name = pvt->owner->redirecting.from.name;
-	reason = sip_reason_code_to_str(pvt->owner->redirecting.reason);
-
-	if (ast_strlen_zero(diverting_number)) {
+	diverting_number = pvt->owner->redirecting.from.number.str;
+	if (!pvt->owner->redirecting.from.number.valid
+		|| ast_strlen_zero(diverting_number)) {
 		return;
 	}
 
+	reason = sip_reason_code_to_str(pvt->owner->redirecting.reason);
+
 	/* We at least have a number to place in the Diversion header, which is enough */
-	if (ast_strlen_zero(diverting_name)) {
+	diverting_name = pvt->owner->redirecting.from.name.str;
+	if (!pvt->owner->redirecting.from.name.valid
+		|| ast_strlen_zero(diverting_name)) {
 		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_number,
 				ast_sockaddr_stringify_host(&pvt->ourip), reason);
 	} else {
@@ -11291,11 +11304,17 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 				struct ast_channel *caller;
 
 				if ((caller = ast_channel_callback(find_calling_channel, NULL, p, 0))) {
-					int need = strlen(caller->cid.cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
-					local_target = alloca(need);
+					char *cid_num;
+					int need;
+
 					ast_channel_lock(caller);
-					snprintf(local_target, need, "sip:%s@%s", caller->cid.cid_num, p->fromdomain);
-					local_display = ast_strdupa(caller->cid.cid_name);
+					cid_num = S_COR(caller->caller.id.number.valid,
+						caller->caller.id.number.str, "");
+					need = strlen(cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
+					local_target = alloca(need);
+					snprintf(local_target, need, "sip:%s@%s", cid_num, p->fromdomain);
+					local_display = ast_strdupa(S_COR(caller->caller.id.name.valid,
+						caller->caller.id.name.str, ""));
 					ast_channel_unlock(caller);
 					caller = ast_channel_unref(caller);
 				}
@@ -11599,10 +11618,15 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 
 	if (!ast_test_flag(&p->flags[0], SIP_SENDRPID))
 		return;
-	if (ast_strlen_zero(p->owner->connected.id.number))
+	if (!p->owner->connected.id.number.valid
+		|| ast_strlen_zero(p->owner->connected.id.number.str)) {
 		return;
+	}
 
-	append_history(p, "ConnectedLine", "%s party is now %s <%s>", ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "Calling" : "Called", p->owner->connected.id.name, p->owner->connected.id.number);
+	append_history(p, "ConnectedLine", "%s party is now %s <%s>",
+		ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "Calling" : "Called",
+		S_COR(p->owner->connected.id.name.valid, p->owner->connected.id.name.str, ""),
+		S_COR(p->owner->connected.id.number.valid, p->owner->connected.id.number.str, ""));
 
 	if (p->owner->_state == AST_STATE_UP || ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		struct sip_request req;
@@ -13551,7 +13575,8 @@ static int get_pai(struct sip_pvt *p, struct sip_request *req)
 
 	if (p->owner) {
 		ast_set_callerid(p->owner, cid_num, cid_name, NULL);
-		p->owner->cid.cid_pres = callingpres;
+		p->owner->caller.id.name.presentation = callingpres;
+		p->owner->caller.id.number.presentation = callingpres;
 	}
 
 	return 1;
@@ -13650,7 +13675,8 @@ static int get_rpid(struct sip_pvt *p, struct sip_request *oreq)
 
 	if (p->owner) {
 		ast_set_callerid(p->owner, cid_num, cid_name, NULL);
-		p->owner->cid.cid_pres = callingpres;
+		p->owner->caller.id.name.presentation = callingpres;
+		p->owner->caller.id.number.presentation = callingpres;
 	}
 
 	return 1;
@@ -17811,7 +17837,9 @@ static struct ast_custom_function sipchaninfo_function = {
 /*! \brief update redirecting information for a channel based on headers
  *
  */
-static void change_redirecting_information(struct sip_pvt *p, struct sip_request *req, struct ast_party_redirecting *redirecting, int set_call_forward)
+static void change_redirecting_information(struct sip_pvt *p, struct sip_request *req,
+	struct ast_party_redirecting *redirecting,
+	struct ast_set_party_redirecting *update_redirecting, int set_call_forward)
 {
 	char *redirecting_from_name = NULL;
 	char *redirecting_from_number = NULL;
@@ -17841,42 +17869,38 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 	}
 
 	if (!ast_strlen_zero(redirecting_from_number)) {
-		if (redirecting->from.number) {
-			ast_free(redirecting->from.number);
-		}
 		ast_debug(3, "Got redirecting from number %s\n", redirecting_from_number);
-		redirecting->from.number = redirecting_from_number;
+		update_redirecting->from.number = 1;
+		redirecting->from.number.valid = 1;
+		ast_free(redirecting->from.number.str);
+		redirecting->from.number.str = redirecting_from_number;
 	}
 	if (!ast_strlen_zero(redirecting_from_name)) {
-		if (redirecting->from.name) {
-			ast_free(redirecting->from.name);
-		}
 		ast_debug(3, "Got redirecting from name %s\n", redirecting_from_name);
-		redirecting->from.name = redirecting_from_name;
+		update_redirecting->from.name = 1;
+		redirecting->from.name.valid = 1;
+		ast_free(redirecting->from.name.str);
+		redirecting->from.name.str = redirecting_from_name;
 	}
 	if (!ast_strlen_zero(p->cid_tag)) {
-		if (redirecting->from.tag) {
-			ast_free(redirecting->from.tag);
-		}
+		ast_free(redirecting->from.tag);
 		redirecting->from.tag = ast_strdup(p->cid_tag);
-		if (redirecting->to.tag) {
-			ast_free(redirecting->to.tag);
-		}
+		ast_free(redirecting->to.tag);
 		redirecting->to.tag = ast_strdup(p->cid_tag);
 	}
 	if (!ast_strlen_zero(redirecting_to_number)) {
-		if (redirecting->to.number) {
-			ast_free(redirecting->to.number);
-		}
 		ast_debug(3, "Got redirecting to number %s\n", redirecting_to_number);
-		redirecting->to.number = redirecting_to_number;
+		update_redirecting->to.number = 1;
+		redirecting->to.number.valid = 1;
+		ast_free(redirecting->to.number.str);
+		redirecting->to.number.str = redirecting_to_number;
 	}
 	if (!ast_strlen_zero(redirecting_to_name)) {
-		if (redirecting->to.name) {
-			ast_free(redirecting->to.name);
-		}
 		ast_debug(3, "Got redirecting to name %s\n", redirecting_from_number);
-		redirecting->to.name = redirecting_to_name;
+		update_redirecting->to.name = 1;
+		redirecting->to.name.valid = 1;
+		ast_free(redirecting->to.name.str);
+		redirecting->to.name.str = redirecting_to_name;
 	}
 	redirecting->reason = reason;
 }
@@ -18169,6 +18193,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	char *p_hdrval;
 	int rtn;
 	struct ast_party_connected_line connected;
+	struct ast_set_party_connected_line update_connected;
 
 	if (reinvite)
 		ast_debug(4, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
@@ -18224,12 +18249,23 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
 				ast_party_connected_line_init(&connected);
-				connected.id.number = (char *) p->cid_num;
-				connected.id.name = (char *) p->cid_name;
+				memset(&update_connected, 0, sizeof(update_connected));
+				if (p->cid_num) {
+					update_connected.id.number = 1;
+					connected.id.number.valid = 1;
+					connected.id.number.str = (char *) p->cid_num;
+					connected.id.number.presentation = p->callingpres;
+				}
+				if (p->cid_name) {
+					update_connected.id.name = 1;
+					connected.id.name.valid = 1;
+					connected.id.name.str = (char *) p->cid_name;
+					connected.id.name.presentation = p->callingpres;
+				}
 				connected.id.tag = (char *) p->cid_tag;
-				connected.id.number_presentation = p->callingpres;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-				ast_channel_queue_connected_line_update(p->owner, &connected);
+				ast_channel_queue_connected_line_update(p->owner, &connected,
+					&update_connected);
 			}
 			sip_handle_cc(p, req, AST_CC_CCNR);
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
@@ -18254,9 +18290,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		if (!req->ignore && p->owner) {
-			struct ast_party_redirecting redirecting = {{0,},};
-			change_redirecting_information(p, req, &redirecting, FALSE);
-			ast_channel_queue_redirecting_update(p->owner, &redirecting);
+			struct ast_party_redirecting redirecting;
+			struct ast_set_party_redirecting update_redirecting;
+
+			ast_party_redirecting_init(&redirecting);
+			memset(&update_redirecting, 0, sizeof(update_redirecting));
+			change_redirecting_information(p, req, &redirecting, &update_redirecting,
+				FALSE);
+			ast_channel_queue_redirecting_update(p->owner, &redirecting,
+				&update_redirecting);
 			ast_party_redirecting_free(&redirecting);
 			sip_handle_cc(p, req, AST_CC_CCNR);
 		}
@@ -18270,12 +18312,23 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			if (get_rpid(p, req)) {
 				/* Queue a connected line update */
 				ast_party_connected_line_init(&connected);
-				connected.id.number = (char *) p->cid_num;
-				connected.id.name = (char *) p->cid_name;
+				memset(&update_connected, 0, sizeof(update_connected));
+				if (p->cid_num) {
+					update_connected.id.number = 1;
+					connected.id.number.valid = 1;
+					connected.id.number.str = (char *) p->cid_num;
+					connected.id.number.presentation = p->callingpres;
+				}
+				if (p->cid_name) {
+					update_connected.id.name = 1;
+					connected.id.name.valid = 1;
+					connected.id.name.str = (char *) p->cid_name;
+					connected.id.name.presentation = p->callingpres;
+				}
 				connected.id.tag = (char *) p->cid_tag;
-				connected.id.number_presentation = p->callingpres;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-				ast_channel_queue_connected_line_update(p->owner, &connected);
+				ast_channel_queue_connected_line_update(p->owner, &connected,
+					&update_connected);
 			}
 			sip_handle_cc(p, req, AST_CC_CCNR);
 		}
@@ -18316,12 +18369,23 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (!req->ignore && p->owner && (get_rpid(p, req) || !reinvite)) {
 			/* Queue a connected line update */
 			ast_party_connected_line_init(&connected);
-			connected.id.number = (char *) p->cid_num;
-			connected.id.name = (char *) p->cid_name;
+			memset(&update_connected, 0, sizeof(update_connected));
+			if (p->cid_num) {
+				update_connected.id.number = 1;
+				connected.id.number.valid = 1;
+				connected.id.number.str = (char *) p->cid_num;
+				connected.id.number.presentation = p->callingpres;
+			}
+			if (p->cid_name) {
+				update_connected.id.name = 1;
+				connected.id.name.valid = 1;
+				connected.id.name.str = (char *) p->cid_name;
+				connected.id.name.presentation = p->callingpres;
+			}
 			connected.id.tag = (char *) p->cid_tag;
-			connected.id.number_presentation = p->callingpres;
 			connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-			ast_channel_queue_connected_line_update(p->owner, &connected);
+			ast_channel_queue_connected_line_update(p->owner, &connected,
+				&update_connected);
 		}
 
 		/* Parse contact header for continued conversation */
@@ -19234,9 +19298,14 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				case 302: /* Moved temporarily */
 				case 305: /* Use Proxy */
 				if (p->owner) {
-					struct ast_party_redirecting redirecting = {{0,},};
-					change_redirecting_information(p, req, &redirecting, TRUE);
-					ast_channel_set_redirecting(p->owner, &redirecting);
+					struct ast_party_redirecting redirecting;
+					struct ast_set_party_redirecting update_redirecting;
+
+					ast_party_redirecting_init(&redirecting);
+					change_redirecting_information(p, req, &redirecting,
+						&update_redirecting, TRUE);
+					ast_channel_set_redirecting(p->owner, &redirecting,
+						&update_redirecting);
 					ast_party_redirecting_free(&redirecting);
 				}
 					/* Fall through */
@@ -20454,13 +20523,24 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
 	}
 	if (get_rpid(p, req)) {
 		struct ast_party_connected_line connected;
+		struct ast_set_party_connected_line update_connected;
 		ast_party_connected_line_init(&connected);
-		connected.id.number = (char *) p->cid_num;
-		connected.id.name = (char *) p->cid_name;
+		memset(&update_connected, 0, sizeof(update_connected));
+		if (p->cid_num) {
+			update_connected.id.number = 1;
+			connected.id.number.valid = 1;
+			connected.id.number.str = (char *) p->cid_num;
+			connected.id.number.presentation = p->callingpres;
+		}
+		if (p->cid_name) {
+			update_connected.id.name = 1;
+			connected.id.name.valid = 1;
+			connected.id.name.str = (char *) p->cid_name;
+			connected.id.name.presentation = p->callingpres;
+		}
 		connected.id.tag = (char *) p->cid_tag;
-		connected.id.number_presentation = p->callingpres;
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-		ast_channel_queue_connected_line_update(p->owner, &connected);
+		ast_channel_queue_connected_line_update(p->owner, &connected, &update_connected);
 	}
 	transmit_response(p, "200 OK", req);
 	return 0;
@@ -20486,6 +20566,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	struct sip_peer *authpeer = NULL;	/* Matching Peer */
 	int reinvite = 0;
 	int rtn;
+	struct ast_party_redirecting redirecting;
+	struct ast_set_party_redirecting update_redirecting;
 
 	const char *p_uac_se_hdr;       /* UAC's Session-Expires header string                      */
 	const char *p_uac_min_se;       /* UAC's requested Min-SE interval (char string)            */
@@ -20783,14 +20865,26 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_clear_flag(&p->flags[0], SIP_OUTGOING);	/* This is now an inbound dialog */
 			if (get_rpid(p, req)) {
 				struct ast_party_connected_line connected;
+				struct ast_set_party_connected_line update_connected;
 
 				ast_party_connected_line_init(&connected);
-				connected.id.number = (char *) p->cid_num;
-				connected.id.name = (char *) p->cid_name;
+				memset(&update_connected, 0, sizeof(update_connected));
+				if (p->cid_num) {
+					update_connected.id.number = 1;
+					connected.id.number.valid = 1;
+					connected.id.number.str = (char *) p->cid_num;
+					connected.id.number.presentation = p->callingpres;
+				}
+				if (p->cid_name) {
+					update_connected.id.name = 1;
+					connected.id.name.valid = 1;
+					connected.id.name.str = (char *) p->cid_name;
+					connected.id.name.presentation = p->callingpres;
+				}
 				connected.id.tag = (char *) p->cid_tag;
-				connected.id.number_presentation = p->callingpres;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-				ast_channel_queue_connected_line_update(p->owner, &connected);
+				ast_channel_queue_connected_line_update(p->owner, &connected,
+					&update_connected);
 			}
 			/* Handle SDP here if we already have an owner */
 			if (find_sdp(req)) {
@@ -20958,16 +21052,19 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			build_route(p, req, 0);
 
 			if (c) {
-				struct ast_party_redirecting redirecting = { { 0, }, };
+				ast_party_redirecting_init(&redirecting);
+				memset(&update_redirecting, 0, sizeof(update_redirecting));
 				/* Pre-lock the call */
 				ast_channel_lock(c);
-				change_redirecting_information(p, req, &redirecting, FALSE); /*Will return immediately if no Diversion header is present */
-				ast_channel_set_redirecting(c, &redirecting);
+				change_redirecting_information(p, req, &redirecting, &update_redirecting,
+					FALSE); /*Will return immediately if no Diversion header is present */
+				ast_channel_set_redirecting(c, &redirecting, &update_redirecting);
 				ast_party_redirecting_free(&redirecting);
 			}
 		}
 	} else {
-		struct ast_party_redirecting redirecting = {{0,},};
+		ast_party_redirecting_init(&redirecting);
+		memset(&update_redirecting, 0, sizeof(update_redirecting));
 		if (sipdebug) {
 			if (!req->ignore)
 				ast_debug(2, "Got a SIP re-invite for call %s\n", p->callid);
@@ -20977,9 +21074,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (!req->ignore)
 			reinvite = 1;
 		c = p->owner;
-		change_redirecting_information(p, req, &redirecting, FALSE); /*Will return immediately if no Diversion header is present */
+		change_redirecting_information(p, req, &redirecting, &update_redirecting, FALSE); /*Will return immediately if no Diversion header is present */
 		if (c) {
-			ast_channel_set_redirecting(c, &redirecting);
+			ast_channel_set_redirecting(c, &redirecting, &update_redirecting);
 		}
 		ast_party_redirecting_free(&redirecting);
 	}
@@ -21448,8 +21545,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		ast_indicate(target.chan1, AST_CONTROL_UNHOLD);
 
 		if (target.chan2) {
-			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee);
-			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target);
+			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee, NULL);
+			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target, NULL);
 		} else {
 			/* Since target.chan1 isn't actually connected to another channel, there is no way for us
 			 * to queue a frame so that its connected line status will be updated.
@@ -21462,7 +21559,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			int payload_size;
 			int frame_size;
 			unsigned char connected_line_data[1024];
-			payload_size = ast_connected_line_build_data(connected_line_data, sizeof(connected_line_data), &connected_to_target);
+			payload_size = ast_connected_line_build_data(connected_line_data,
+				sizeof(connected_line_data), &connected_to_target, NULL);
 			frame_size = payload_size + sizeof(*frame_payload);
 			if (payload_size != -1 && (frame_payload = alloca(frame_size))) {
 				frame_payload->payload_size = payload_size;
@@ -21474,7 +21572,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 			 * will be updated, we also are going to queue a plain old connected line update on target.chan1. This
 			 * way, either Dial or Queue can apply this connected line update to the outgoing ringing channel.
 			 */
-			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee);
+			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee, NULL);
 
 		}
 		ast_channel_unref(current->chan1);

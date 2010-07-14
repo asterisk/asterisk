@@ -2674,21 +2674,33 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 
-	if (ast_strlen_zero(c->cid.cid_num) || ast_strlen_zero(c->connected.id.number))
+	if (!c->caller.id.number.valid
+		|| ast_strlen_zero(c->caller.id.number.str)
+		|| !c->connected.id.number.valid
+		|| ast_strlen_zero(c->connected.id.number.str))
 		return;
 
 	if (sub->owner->_state == AST_STATE_UP) {
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
 		transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
 		if (sub->outgoing)
-			transmit_callinfo(d, c->connected.id.name, c->connected.id.number, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
+			transmit_callinfo(d,
+				S_COR(c->connected.id.name.valid, c->connected.id.name.str, ""),
+				c->connected.id.number.str,
+				l->cid_name, l->cid_num, l->instance, sub->callid, 1);
 		else
-			transmit_callinfo(d, l->cid_name, l->cid_num, c->connected.id.name, c->connected.id.number, l->instance, sub->callid, 2);
+			transmit_callinfo(d, l->cid_name, l->cid_num,
+				S_COR(c->connected.id.name.valid, c->connected.id.name.str, ""),
+				c->connected.id.number.str,
+				l->instance, sub->callid, 2);
 	} else {
 		if (sub->outgoing) {
 			transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 			transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
-			transmit_callinfo(d, c->connected.id.name, c->connected.id.number, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
+			transmit_callinfo(d,
+				S_COR(c->connected.id.name.valid, c->connected.id.name.str, ""),
+				c->connected.id.number.str,
+				l->cid_name, l->cid_num, l->instance, sub->callid, 1);
 		} else {
 			if (!sub->ringing) {
 				transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGOUT);
@@ -2700,7 +2712,10 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 				sub->progress = 1;
 			}
 
-			transmit_callinfo(d, l->cid_name, l->cid_num, c->connected.id.name, c->connected.id.number, l->instance, sub->callid, 2);
+			transmit_callinfo(d, l->cid_name, l->cid_num,
+				S_COR(c->connected.id.name.valid, c->connected.id.name.str, ""),
+				c->connected.id.number.str,
+				l->instance, sub->callid, 2);
 		}
 	}
 }
@@ -3759,9 +3774,15 @@ static void *skinny_newcall(void *data)
 	ast_set_callerid(c,
 		l->hidecallerid ? "" : l->cid_num,
 		l->hidecallerid ? "" : l->cid_name,
-		c->cid.cid_ani ? NULL : l->cid_num);
-	c->connected.id.number = ast_strdup(c->exten);
-	c->connected.id.name = NULL;
+		c->caller.ani ? NULL : l->cid_num);
+#if 1	/* XXX This code is probably not necessary */
+	ast_party_number_free(&c->connected.id.number);
+	ast_party_number_init(&c->connected.id.number);
+	c->connected.id.number.valid = 1;
+	c->connected.id.number.str = ast_strdup(c->exten);
+	ast_party_name_free(&c->connected.id.name);
+	ast_party_name_init(&c->connected.id.name);
+#endif
 	ast_setstate(c, AST_STATE_RING);
 	if (!sub->rtp) {
 		start_rtp(sub);
@@ -3852,9 +3873,12 @@ static void *skinny_ss(void *data)
 				ast_hangup(c);
 			}
 			return NULL;
-		} else if (!ast_canmatch_extension(c, c->context, d->exten, 1, c->cid.cid_num) &&
-			   ((d->exten[0] != '*') || (!ast_strlen_zero(d->exten) > 2))) {
-			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", d->exten, c->cid.cid_num ? c->cid.cid_num : "<Unknown Caller>", c->context);
+		} else if (!ast_canmatch_extension(c, c->context, d->exten, 1,
+			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))
+			&& ((d->exten[0] != '*') || (!ast_strlen_zero(d->exten) > 2))) {
+			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", d->exten,
+				S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<Unknown Caller>"),
+				c->context);
 			memset(d->exten, 0, sizeof(d->exten));
 			if (l->hookstate == SKINNY_OFFHOOK) {
 				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
@@ -3925,7 +3949,10 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_RINGIN);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
 	transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
-	transmit_callinfo(d, ast->connected.id.name, ast->connected.id.number, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
+	transmit_callinfo(d,
+		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
+		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""),
+		l->cid_name, l->cid_num, l->instance, sub->callid, 1);
 	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 	transmit_ringer_mode(d, SKINNY_RING_INSIDE);
 
@@ -4058,7 +4085,10 @@ static int skinny_answer(struct ast_channel *ast)
 	/* order matters here...
 	   for some reason, transmit_callinfo must be before transmit_callstate,
 	   or you won't get keypad messages in some situations. */
-	transmit_callinfo(d, ast->connected.id.name, ast->connected.id.number, l->lastnumberdialed, l->lastnumberdialed, l->instance, sub->callid, 2);
+	transmit_callinfo(d,
+		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
+		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""),
+		l->lastnumberdialed, l->lastnumberdialed, l->instance, sub->callid, 2);
 	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
 	transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
@@ -4368,7 +4398,12 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 				transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_RINGOUT);
 				transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
 				transmit_displaypromptstatus(d, "Ring Out", 0, l->instance, sub->callid);
-				transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, S_OR(ast->connected.id.name, l->lastnumberdialed), S_OR(ast->connected.id.number, l->lastnumberdialed), l->instance, sub->callid, 2); /* 2 = outgoing from phone */
+				transmit_callinfo(d,
+					S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
+					S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""),
+					S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, l->lastnumberdialed),
+					S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, l->lastnumberdialed),
+					l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 				sub->ringing = 1;
 				if (!d->earlyrtp) {
 					break;
@@ -4409,7 +4444,12 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			}
 			transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_PROGRESS);
 			transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
-			transmit_callinfo(d, ast->cid.cid_name, ast->cid.cid_num, S_OR(ast->connected.id.name, l->lastnumberdialed), S_OR(ast->connected.id.number, l->lastnumberdialed), l->instance, sub->callid, 2); /* 2 = outgoing from phone */
+			transmit_callinfo(d,
+				S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
+				S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""),
+				S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, l->lastnumberdialed),
+				S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, l->lastnumberdialed),
+				l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 			sub->progress = 1;
 			if (!d->earlyrtp) {
 				break;
@@ -4533,7 +4573,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		tmp->cid.cid_ani = ast_strdup(l->cid_num);
+		tmp->caller.ani = ast_strdup(l->cid_num);
 
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;

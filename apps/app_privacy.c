@@ -96,8 +96,9 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(checkcontext);
 	);
 
-	if (!ast_strlen_zero(chan->cid.cid_num)) {
-		ast_verb(3, "CallerID Present: Skipping\n");
+	if (chan->caller.id.number.valid
+		&& !ast_strlen_zero(chan->caller.id.number.str)) {
+		ast_verb(3, "CallerID number present: Skipping\n");
 	} else {
 		/*Answer the channel if it is not already*/
 		if (chan->_state != AST_STATE_UP) {
@@ -181,14 +182,19 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 				res = ast_waitstream(chan, "");
 			}
 
+			/*
+			 * This is a caller entered number that is going to be used locally.
+			 * Therefore, the given number presentation is allowed and should
+			 * be passed out to other channels.  This is the point of the
+			 * privacy application.
+			 */
+			chan->caller.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+			chan->caller.id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+			chan->caller.id.number.plan = 0;/* Unknown */
+
 			ast_set_callerid(chan, phone, "Privacy Manager", NULL);
 
-			/* Clear the unavailable presence bit so if it came in on PRI
-			 * the caller id will now be passed out to other channels
-			 */
-			chan->cid.cid_pres &= (AST_PRES_UNAVAILABLE ^ 0xFF);
-
-			ast_verb(3, "Changed Caller*ID to '%s', callerpres to %d\n", phone, chan->cid.cid_pres);
+			ast_verb(3, "Changed Caller*ID number to '%s'\n", phone);
 
 			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "SUCCESS");
 		} else {

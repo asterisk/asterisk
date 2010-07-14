@@ -298,18 +298,22 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 	int res = 0;
 	struct timeval t;
 	struct ast_tm now;
-	char *cl,*cn;
+	char *cl;
+	char *cn;
 	char workstring[80];
 	char timestamp[80];
 	
 	/* Extract the caller ID location */
-	if (chan->cid.cid_num)
-		ast_copy_string(workstring, chan->cid.cid_num, sizeof(workstring));
-	workstring[sizeof(workstring) - 1] = '\0';
-
-	ast_callerid_parse(workstring, &cn, &cl);
-	if (cl)
-		ast_shrink_phone_number(cl);
+	ast_copy_string(workstring,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+		sizeof(workstring));
+	ast_shrink_phone_number(workstring);
+	if (ast_strlen_zero(workstring)) {
+		cl = "<unknown>";
+	} else {
+		cl = workstring;
+	}
+	cn = S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>");
 
 	/* Get the current time */
 	t = ast_tvnow();
@@ -319,27 +323,27 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 	ast_strftime(timestamp, sizeof(timestamp), time_stamp_format, &now);
 
 	res = fprintf(logfile, "\n\n[metadata]\n\n");
-
-	if (res >= 0)
+	if (res >= 0) {
 		res = fprintf(logfile, "PROTOCOL=%s\n", signalling_type);
-
-	if (res >= 0)
-		res = fprintf(logfile, "CALLINGFROM=%s\n", (!cl) ? "<unknown>" : cl);
-
-	if (res >- 0)
-		res = fprintf(logfile, "CALLERNAME=%s\n", (!cn) ? "<unknown>" : cn);
-
-	if (res >= 0)
+	}
+	if (res >= 0) {
+		res = fprintf(logfile, "CALLINGFROM=%s\n", cl);
+	}
+	if (res >= 0) {
+		res = fprintf(logfile, "CALLERNAME=%s\n", cn);
+	}
+	if (res >= 0) {
 		res = fprintf(logfile, "TIMESTAMP=%s\n\n", timestamp);
-
-	if (res >= 0)
+	}
+	if (res >= 0) {
 		res = fprintf(logfile, "[events]\n\n");
-
+	}
 	if (res < 0) {
 		ast_verb(3, "AlarmReceiver: can't write metadata\n");
 		ast_debug(1,"AlarmReceiver: can't write metadata\n");
-	} else
+	} else {
 		res = 0;
+	}
 
 	return res;
 }

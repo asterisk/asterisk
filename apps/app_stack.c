@@ -413,7 +413,9 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (!ast_exists_extension(chan, chan->context, chan->exten, ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority, chan->cid.cid_num)) {
+	if (!ast_exists_extension(chan, chan->context, chan->exten,
+		ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for gosub: (Context:%s, Extension:%s, Priority:%d)\n",
 				chan->context, chan->exten, ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority);
 		ast_copy_string(chan->context, newframe->context, sizeof(chan->context));
@@ -588,12 +590,15 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 
 	if (sscanf(argv[3], "%30d", &priority) != 1 || priority < 1) {
 		/* Lookup the priority label */
-		if ((priority = ast_findlabel_extension(chan, argv[1], argv[2], argv[3], chan->cid.cid_num)) < 0) {
+		priority = ast_findlabel_extension(chan, argv[1], argv[2], argv[3],
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
+		if (priority < 0) {
 			ast_log(LOG_ERROR, "Priority '%s' not found in '%s@%s'\n", argv[3], argv[2], argv[1]);
 			ast_agi_send(agi->fd, chan, "200 result=-1 Gosub label not found\n");
 			return RESULT_FAILURE;
 		}
-	} else if (!ast_exists_extension(chan, argv[1], argv[2], priority, chan->cid.cid_num)) {
+	} else if (!ast_exists_extension(chan, argv[1], argv[2], priority,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		ast_agi_send(agi->fd, chan, "200 result=-1 Gosub label not found\n");
 		return RESULT_FAILURE;
 	}

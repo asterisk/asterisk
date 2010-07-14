@@ -240,8 +240,11 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 			}
 
 			exten[x] = res;
-			if (!ast_matchmore_extension(chan, arglist.context, exten, 1 /* priority */, chan->cid.cid_num)) {
-				if (!ast_exists_extension(chan, arglist.context, exten, 1, chan->cid.cid_num) && res == '#') {
+			if (!ast_matchmore_extension(chan, arglist.context, exten, 1 /* priority */,
+				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				if (!ast_exists_extension(chan, arglist.context, exten, 1,
+					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
+					&& res == '#') {
 					exten[x] = '\0';
 				}
 				break;
@@ -251,7 +254,8 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 		if (!ast_strlen_zero(status))
 			break;
 
-		if (ast_exists_extension(chan, arglist.context, exten, 1, chan->cid.cid_num)) {
+		if (ast_exists_extension(chan, arglist.context, exten, 1,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_debug(3, "User entered valid extension '%s'\n", exten);
 			pbx_builtin_setvar_helper(chan, arglist.variable, exten);
 			status = "OK";
@@ -296,10 +300,12 @@ static int acf_isexten_exec(struct ast_channel *chan, const char *cmd, char *par
 	else
 		priority_int = atoi(args.priority);
 
-	if (ast_exists_extension(chan, args.context, args.extension, priority_int, chan->cid.cid_num))
+	if (ast_exists_extension(chan, args.context, args.extension, priority_int,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 	    ast_copy_string(buffer, "1", buflen);
-	else
+	} else {
 	    ast_copy_string(buffer, "0", buflen);
+	}
 
 	return 0;
 }

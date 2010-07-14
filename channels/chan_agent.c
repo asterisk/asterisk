@@ -1510,16 +1510,17 @@ static int action_agents(struct mansession *s, const struct message *m)
 		if (p->chan) {
 			loginChan = ast_strdupa(p->chan->name);
 			if (p->owner && p->owner->_bridge) {
-				talkingto = p->chan->cid.cid_num;
+				talkingto = S_COR(p->chan->caller.id.number.valid,
+					p->chan->caller.id.number.str, "n/a");
 				if (ast_bridged_channel(p->owner))
 					talkingtoChan = ast_strdupa(ast_bridged_channel(p->owner)->name);
 				else
 					talkingtoChan = "n/a";
-        			status = "AGENT_ONCALL";
+				status = "AGENT_ONCALL";
 			} else {
 				talkingto = "n/a";
 				talkingtoChan = "n/a";
-        			status = "AGENT_IDLE";
+				status = "AGENT_IDLE";
 			}
 		} else {
 			loginChan = "n/a";
@@ -2169,10 +2170,12 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, const char *data)
 		if (strchr(data, 'c'))
 			changeoutgoing = 1;
 	}
-	if (chan->cid.cid_num) {
+	if (chan->caller.id.number.valid
+		&& !ast_strlen_zero(chan->caller.id.number.str)) {
 		const char *tmp;
 		char agentvar[AST_MAX_BUF];
-		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID, chan->cid.cid_num);
+		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID,
+			chan->caller.id.number.str);
 		if ((tmp = pbx_builtin_getvar_helper(NULL, agentvar))) {
 			struct agent_pvt *p;
 			ast_copy_string(agent, tmp, sizeof(agent));

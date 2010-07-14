@@ -722,13 +722,6 @@ static void handle_cause(int cause, struct cause_args *num)
 	}
 }
 
-/*! \brief free the buffer if allocated, and set the pointer to the second arg */
-#define S_REPLACE(s, new_val) \
-	do {                      \
-		ast_free(s);          \
-		s = (new_val);        \
-	} while (0)
-
 static int onedigit_goto(struct ast_channel *chan, const char *context, char exten, int pri)
 {
 	char rexten[2] = { exten, '\0' };
@@ -773,9 +766,11 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst, cons
 		"UniqueID: %s\r\n"
 		"DestUniqueID: %s\r\n"
 		"Dialstring: %s\r\n",
-		src->name, dst->name, S_OR(src->cid.cid_num, "<unknown>"),
-		S_OR(src->cid.cid_name, "<unknown>"), src->uniqueid,
-		dst->uniqueid, dialstring ? dialstring : "");
+		src->name, dst->name,
+		S_COR(src->caller.id.number.valid, src->caller.id.number.str, "<unknown>"),
+		S_COR(src->caller.id.name.valid, src->caller.id.name.str, "<unknown>"),
+		src->uniqueid, dst->uniqueid,
+		dialstring ? dialstring : "");
 }
 
 static void senddialendevent(struct ast_channel *src, const char *dialstatus)
@@ -859,28 +854,34 @@ static void do_forward(struct chanlist *o,
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
 
-		ast_channel_set_redirecting(c, &original->redirecting);
+		ast_channel_set_redirecting(c, &original->redirecting, NULL);
 		ast_channel_lock(c);
 		while (ast_channel_trylock(in)) {
 			CHANNEL_DEADLOCK_AVOIDANCE(c);
 		}
-		if (ast_strlen_zero(c->redirecting.from.number)) {
+		if (!c->redirecting.from.number.valid
+			|| ast_strlen_zero(c->redirecting.from.number.str)) {
 			/*
 			 * The call was not previously redirected so it is
 			 * now redirected from this number.
 			 */
-			S_REPLACE(c->redirecting.from.number,
-				ast_strdup(S_OR(in->macroexten, in->exten)));
+			ast_party_number_free(&c->redirecting.from.number);
+			ast_party_number_init(&c->redirecting.from.number);
+			c->redirecting.from.number.valid = 1;
+			c->redirecting.from.number.str =
+				ast_strdup(S_OR(in->macroexten, in->exten));
 		}
 
-		c->cid.cid_tns = in->cid.cid_tns;
+		c->dialed.transit_network_select = in->dialed.transit_network_select;
 
 		if (ast_test_flag64(o, OPT_FORCECLID)) {
-			S_REPLACE(c->cid.cid_num, ast_strdup(S_OR(in->macroexten, in->exten)));
-			S_REPLACE(c->cid.cid_name, NULL);
+			ast_party_id_free(&c->caller.id);
+			ast_party_id_init(&c->caller.id);
+			c->caller.id.number.valid = 1;
+			c->caller.id.number.str = ast_strdup(S_OR(in->macroexten, in->exten));
 			ast_string_field_set(c, accountcode, c->accountcode);
 		} else {
-			ast_party_caller_copy(&c->cid, &in->cid);
+			ast_party_caller_copy(&c->caller, &in->caller);
 			ast_string_field_set(c, accountcode, in->accountcode);
 		}
 		ast_party_connected_line_copy(&c->connected, &original->connected);
@@ -897,7 +898,7 @@ static void do_forward(struct chanlist *o,
 			while (ast_channel_trylock(c)) {
 				CHANNEL_DEADLOCK_AVOIDANCE(in);
 			}
-			ast_channel_update_redirecting(in, &c->redirecting);
+			ast_channel_update_redirecting(in, &c->redirecting, NULL);
 			ast_channel_unlock(c);
 		}
 
@@ -985,10 +986,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 
 		if (!ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE) && !ast_test_flag64(outgoing, DIAL_CALLERID_ABSENT)) {
 			ast_channel_lock(outgoing->chan);
-			ast_connected_line_copy_from_caller(&connected_caller, &outgoing->chan->cid);
+			ast_connected_line_copy_from_caller(&connected_caller, &outgoing->chan->caller);
 			ast_channel_unlock(outgoing->chan);
 			connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-			ast_channel_update_connected_line(in, &connected_caller);
+			ast_channel_update_connected_line(in, &connected_caller, NULL);
 			ast_party_connected_line_free(&connected_caller);
 		}
 	}
@@ -1045,14 +1046,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
 						if (o->pending_connected_update) {
 							if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
-								ast_channel_update_connected_line(in, &o->connected);
+								ast_channel_update_connected_line(in, &o->connected, NULL);
 							}
 						} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
 							ast_channel_lock(c);
-							ast_connected_line_copy_from_caller(&connected_caller, &c->cid);
+							ast_connected_line_copy_from_caller(&connected_caller, &c->caller);
 							ast_channel_unlock(c);
 							connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-							ast_channel_update_connected_line(in, &connected_caller);
+							ast_channel_update_connected_line(in, &connected_caller, NULL);
 							ast_party_connected_line_free(&connected_caller);
 						}
 					}
@@ -1115,14 +1116,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						if (!single && !ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
 							if (o->pending_connected_update) {
 								if (ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
-									ast_channel_update_connected_line(in, &o->connected);
+									ast_channel_update_connected_line(in, &o->connected, NULL);
 								}
 							} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
 								ast_channel_lock(c);
-								ast_connected_line_copy_from_caller(&connected_caller, &c->cid);
+								ast_connected_line_copy_from_caller(&connected_caller, &c->caller);
 								ast_channel_unlock(c);
 								connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-								ast_channel_update_connected_line(in, &connected_caller);
+								ast_channel_update_connected_line(in, &connected_caller, NULL);
 								ast_party_connected_line_free(&connected_caller);
 							}
 						}
@@ -1240,7 +1241,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_verb(3, "%s connected line has changed. Saving it until answer for %s\n", c->name, in->name);
 						ast_party_connected_line_set_init(&connected, &o->connected);
 						ast_connected_line_parse_data(f->data.ptr, f->datalen, &connected);
-						ast_party_connected_line_set(&o->connected, &connected);
+						ast_party_connected_line_set(&o->connected, &connected, NULL);
 						ast_party_connected_line_free(&connected);
 						o->pending_connected_update = 1;
 					} else {
@@ -1617,8 +1618,9 @@ static int setup_privacy_args(struct privacy_args *pa,
 	char *l;
 	int silencethreshold;
 
-	if (!ast_strlen_zero(chan->cid.cid_num)) {
-		l = ast_strdupa(chan->cid.cid_num);
+	if (chan->caller.id.number.valid
+		&& !ast_strlen_zero(chan->caller.id.number.str)) {
+		l = ast_strdupa(chan->caller.id.number.str);
 		ast_shrink_phone_number(l);
 		if (ast_test_flag64(opts, OPT_PRIVACY) ) {
 			ast_verb(3, "Privacy DB is '%s', clid is '%s'\n", opt_args[OPT_ARG_PRIVACY], l);
@@ -2060,11 +2062,16 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		memset(&tc->whentohangup, 0, sizeof(tc->whentohangup));
 
 		/* If the new channel has no callerid, try to guess what it should be */
-		if (ast_strlen_zero(tc->cid.cid_num)) {
-			if (!ast_strlen_zero(chan->connected.id.number)) {
-				ast_set_callerid(tc, chan->connected.id.number, chan->connected.id.name, chan->connected.ani);
-			} else if (!ast_strlen_zero(chan->cid.cid_dnid)) {
-				ast_set_callerid(tc, chan->cid.cid_dnid, NULL, NULL);
+		if (!tc->caller.id.number.valid) {
+			if (chan->connected.id.number.valid) {
+				struct ast_party_caller caller;
+
+				ast_party_caller_set_init(&caller, &tc->caller);
+				caller.id = chan->connected.id;
+				caller.ani = chan->connected.ani;
+				ast_channel_set_caller_event(tc, &caller, NULL);
+			} else if (!ast_strlen_zero(chan->dialed.number.str)) {
+				ast_set_callerid(tc, chan->dialed.number.str, NULL, NULL);
 			} else if (!ast_strlen_zero(S_OR(chan->macroexten, chan->exten))) {
 				ast_set_callerid(tc, S_OR(chan->macroexten, chan->exten), NULL, NULL);
 			}
@@ -2076,25 +2083,33 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			int pres;
 
 			ast_party_connected_line_set_init(&connected, &tmp->chan->connected);
-			connected.id.number = cid_num;
-			connected.id.name = cid_name;
-			connected.id.tag = cid_tag;
 			if (cid_pres) {
 				pres = ast_parse_caller_presentation(cid_pres);
-				if (pres >= 0) {
-					connected.id.number_presentation = pres;
+				if (pres < 0) {
+					pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 				}
 			} else {
-				connected.id.number_presentation = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+				pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 			}
-			ast_channel_set_connected_line(tmp->chan, &connected);
+			if (cid_num) {
+				connected.id.number.valid = 1;
+				connected.id.number.str = cid_num;
+				connected.id.number.presentation = pres;
+			}
+			if (cid_name) {
+				connected.id.name.valid = 1;
+				connected.id.name.str = cid_name;
+				connected.id.name.presentation = pres;
+			}
+			connected.id.tag = cid_tag;
+			ast_channel_set_connected_line(tmp->chan, &connected, NULL);
 		} else {
-			ast_connected_line_copy_from_caller(&tc->connected, &chan->cid);
+			ast_connected_line_copy_from_caller(&tc->connected, &chan->caller);
 		}
 
 		ast_party_redirecting_copy(&tc->redirecting, &chan->redirecting);
 
-		tc->cid.cid_tns = chan->cid.cid_tns;
+		tc->dialed.transit_network_select = chan->dialed.transit_network_select;
 
 		if (!ast_strlen_zero(chan->accountcode)) {
 			ast_string_field_set(tc, peeraccount, chan->accountcode);
@@ -2616,7 +2631,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		strcpy(peer->context, chan->context);
 
-		if (ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
+		if (ast_test_flag64(&opts, OPT_PEER_H)
+			&& ast_exists_extension(peer, peer->context, "h", 1,
+				S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL))) {
 			int autoloopflag;
 			int found;
 			int res9;
@@ -2626,8 +2643,12 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			autoloopflag = ast_test_flag(peer, AST_FLAG_IN_AUTOLOOP); /* save value to restore at the end */
 			ast_set_flag(peer, AST_FLAG_IN_AUTOLOOP);
 
-			while ((res9 = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num, &found, 1)) == 0)
+			while ((res9 = ast_spawn_extension(peer, peer->context, peer->exten,
+				peer->priority,
+				S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL),
+				&found, 1)) == 0) {
 				peer->priority++;
+			}
 
 			if (found && res9) {
 				/* Something bad happened, or a hangup has been requested. */

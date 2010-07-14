@@ -457,11 +457,11 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			unsigned char frame_data[1024];
 			if (condition == AST_CONTROL_CONNECTED_LINE) {
 				if (isoutbound) {
-					ast_connected_line_copy_to_caller(&the_other_channel->cid, &this_channel->connected);
+					ast_connected_line_copy_to_caller(&the_other_channel->caller, &this_channel->connected);
 				}
-				f.datalen = ast_connected_line_build_data(frame_data, sizeof(frame_data), &this_channel->connected);
+				f.datalen = ast_connected_line_build_data(frame_data, sizeof(frame_data), &this_channel->connected, NULL);
 			} else {
-				f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data), &this_channel->redirecting);
+				f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data), &this_channel->redirecting, NULL);
 			}
 			f.subclass.integer = condition;
 			f.data.ptr = frame_data;
@@ -604,18 +604,10 @@ start_over:
 	 */
 	ast_party_redirecting_copy(&p->chan->redirecting, &p->owner->redirecting);
 
-	ast_free(p->chan->cid.cid_dnid);
-	p->chan->cid.cid_dnid = ast_strdup(p->owner->cid.cid_dnid);
-	if (!p->chan->cid.cid_dnid && p->owner->cid.cid_dnid) {
-		/* Allocation failure */
-		ast_mutex_unlock(&p->lock);
-		ast_channel_unlock(p->chan);
-		return -1;
-	}
-	p->chan->cid.cid_tns = p->owner->cid.cid_tns;
+	ast_party_dialed_copy(&p->chan->dialed, &p->owner->dialed);
 
-	ast_connected_line_copy_to_caller(&p->chan->cid, &p->owner->connected);
-	ast_connected_line_copy_from_caller(&p->chan->connected, &p->owner->cid);
+	ast_connected_line_copy_to_caller(&p->chan->caller, &p->owner->connected);
+	ast_connected_line_copy_from_caller(&p->chan->connected, &p->owner->caller);
 
 	ast_string_field_set(p->chan, language, p->owner->language);
 	ast_string_field_set(p->chan, accountcode, p->owner->accountcode);
@@ -624,7 +616,8 @@ start_over:
 
 	ast_channel_cc_params_init(p->chan, ast_channel_get_cc_config_params(p->owner));
 
-	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
+	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1,
+		S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
 		ast_mutex_unlock(&p->lock);
 		ast_channel_unlock(p->chan);

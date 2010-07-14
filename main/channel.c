@@ -72,9 +72,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/epoll.h>
 #endif
 
+#if defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED)
 #if defined(HAVE_PRI)
 #include "libpri.h"
 #endif	/* defined(HAVE_PRI) */
+#endif	/* defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED) */
 
 struct ast_epoll_data {
 	struct ast_channel *chan;
@@ -139,6 +141,7 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 #define NUM_CHANNEL_BUCKETS 1567
 #endif
 
+#if 0	/* XXX AstData: ast_callerid no longer exists. (Equivalent code not readily apparent.) */
 #define DATA_EXPORT_CALLERID(MEMBER)				\
 	MEMBER(ast_callerid, cid_dnid, AST_DATA_STRING)		\
 	MEMBER(ast_callerid, cid_num, AST_DATA_STRING)		\
@@ -149,6 +152,7 @@ static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 	MEMBER(ast_callerid, cid_tag, AST_DATA_STRING)
 
 AST_DATA_STRUCTURE(ast_callerid, DATA_EXPORT_CALLERID);
+#endif
 
 #define DATA_EXPORT_CHANNEL(MEMBER)						\
 	MEMBER(ast_channel, blockproc, AST_DATA_STRING)				\
@@ -283,6 +287,7 @@ static void channel_data_add_flags(struct ast_data *tree,
 	ast_data_add_bool(tree, "DISABLE_WORKAROUNDS", ast_test_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS));
 }
 
+#if defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED)
 static const char *party_number_ton2str(int ton)
 {
 #if defined(HAVE_PRI)
@@ -306,7 +311,9 @@ static const char *party_number_ton2str(int ton)
 #endif	/* defined(HAVE_PRI) */
 	return "Unknown";
 }
+#endif	/* defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED) */
 
+#if defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED)
 static const char *party_number_plan2str(int plan)
 {
 #if defined(HAVE_PRI)
@@ -330,14 +337,22 @@ static const char *party_number_plan2str(int plan)
 #endif	/* defined(HAVE_PRI) */
 	return "Unknown";
 }
+#endif	/* defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED) */
 
 int ast_channel_data_add_structure(struct ast_data *tree,
 	struct ast_channel *chan, int add_bridged)
 {
 	struct ast_channel *bc;
-	struct ast_data *data_bridged, *data_cdr, *data_flags, *data_zones;
-	struct ast_data *data_callerid, *enum_node, *data_softhangup;
+	struct ast_data *data_bridged;
+	struct ast_data *data_cdr;
+	struct ast_data *data_flags;
+	struct ast_data *data_zones;
+	struct ast_data *enum_node;
+	struct ast_data *data_softhangup;
+#if 0	/* XXX AstData: ast_callerid no longer exists. (Equivalent code not readily apparent.) */
+	struct ast_data *data_callerid;
 	char value_str[100];
+#endif
 
 	if (!tree) {
 		return -1;
@@ -417,6 +432,7 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 
 	ast_data_add_uint(tree, "timetohangup", chan->whentohangup.tv_sec);
 
+#if 0	/* XXX AstData: ast_callerid no longer exists. (Equivalent code not readily apparent.) */
 	/* callerid */
 	data_callerid = ast_data_add_node(tree, "callerid");
 	if (!data_callerid) {
@@ -433,6 +449,7 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 		party_number_ton2str(chan->cid.cid_ton),
 		party_number_plan2str(chan->cid.cid_ton));
 	ast_data_add_str(enum_node, "text", value_str);
+#endif
 
 	/* tone zone */
 	if (chan->zone) {
@@ -1090,13 +1107,22 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return ast_channel_unref(tmp);
 	}
 	
+	ast_party_dialed_init(&tmp->dialed);
+	ast_party_caller_init(&tmp->caller);
+	ast_party_connected_line_init(&tmp->connected);
+	ast_party_redirecting_init(&tmp->redirecting);
+
 	if (cid_name) {
-		if (!(tmp->cid.cid_name = ast_strdup(cid_name))) {
+		tmp->caller.id.name.valid = 1;
+		tmp->caller.id.name.str = ast_strdup(cid_name);
+		if (!tmp->caller.id.name.str) {
 			return ast_channel_unref(tmp);
 		}
 	}
 	if (cid_num) {
-		if (!(tmp->cid.cid_num = ast_strdup(cid_num))) {
+		tmp->caller.id.number.valid = 1;
+		tmp->caller.id.number.str = ast_strdup(cid_num);
+		if (!tmp->caller.id.number.str) {
 			return ast_channel_unref(tmp);
 		}
 	}
@@ -1762,28 +1788,117 @@ int ast_safe_sleep(struct ast_channel *chan, int ms)
 	return ast_safe_sleep_conditional(chan, ms, NULL, NULL);
 }
 
-static void free_cid(struct ast_callerid *cid)
-{
-	if (cid->cid_dnid)
-		ast_free(cid->cid_dnid);
-	if (cid->cid_num)
-		ast_free(cid->cid_num);	
-	if (cid->cid_name)
-		ast_free(cid->cid_name);	
-	if (cid->cid_ani)
-		ast_free(cid->cid_ani);
-	if (cid->cid_tag)
-		ast_free(cid->cid_tag);
-	cid->cid_dnid = cid->cid_num = cid->cid_name = cid->cid_ani = NULL;
-	ast_party_subaddress_free(&cid->subaddress);
-	ast_party_subaddress_free(&cid->dialed_subaddress);
-}
-
 struct ast_channel *ast_channel_release(struct ast_channel *chan)
 {
 	/* Safe, even if already unlinked. */
 	ao2_unlink(channels, chan);
 	return ast_channel_unref(chan);
+}
+
+void ast_party_name_init(struct ast_party_name *init)
+{
+	init->str = NULL;
+	init->char_set = AST_PARTY_CHAR_SET_ISO8859_1;
+	init->presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	init->valid = 0;
+}
+
+void ast_party_name_copy(struct ast_party_name *dest, const struct ast_party_name *src)
+{
+	if (dest == src) {
+		/* Don't copy to self */
+		return;
+	}
+
+	ast_free(dest->str);
+	dest->str = ast_strdup(src->str);
+	dest->char_set = src->char_set;
+	dest->presentation = src->presentation;
+	dest->valid = src->valid;
+}
+
+void ast_party_name_set_init(struct ast_party_name *init, const struct ast_party_name *guide)
+{
+	init->str = NULL;
+	init->char_set = guide->char_set;
+	init->presentation = guide->presentation;
+	init->valid = guide->valid;
+}
+
+void ast_party_name_set(struct ast_party_name *dest, const struct ast_party_name *src)
+{
+	if (dest == src) {
+		/* Don't set to self */
+		return;
+	}
+
+	if (src->str && src->str != dest->str) {
+		ast_free(dest->str);
+		dest->str = ast_strdup(src->str);
+	}
+
+	dest->char_set = src->char_set;
+	dest->presentation = src->presentation;
+	dest->valid = src->valid;
+}
+
+void ast_party_name_free(struct ast_party_name *doomed)
+{
+	ast_free(doomed->str);
+	doomed->str = NULL;
+}
+
+void ast_party_number_init(struct ast_party_number *init)
+{
+	init->str = NULL;
+	init->plan = 0;/* Unknown */
+	init->presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	init->valid = 0;
+}
+
+void ast_party_number_copy(struct ast_party_number *dest, const struct ast_party_number *src)
+{
+	if (dest == src) {
+		/* Don't copy to self */
+		return;
+	}
+
+	ast_free(dest->str);
+	dest->str = ast_strdup(src->str);
+	dest->plan = src->plan;
+	dest->presentation = src->presentation;
+	dest->valid = src->valid;
+}
+
+void ast_party_number_set_init(struct ast_party_number *init, const struct ast_party_number *guide)
+{
+	init->str = NULL;
+	init->plan = guide->plan;
+	init->presentation = guide->presentation;
+	init->valid = guide->valid;
+}
+
+void ast_party_number_set(struct ast_party_number *dest, const struct ast_party_number *src)
+{
+	if (dest == src) {
+		/* Don't set to self */
+		return;
+	}
+
+	if (src->str && src->str != dest->str) {
+		ast_free(dest->str);
+		dest->str = ast_strdup(src->str);
+	}
+
+	dest->plan = src->plan;
+	dest->presentation = src->presentation;
+	dest->valid = src->valid;
+}
+
+void ast_party_number_free(struct ast_party_number *doomed)
+{
+	ast_free(doomed->str);
+	doomed->str = NULL;
 }
 
 void ast_party_subaddress_init(struct ast_party_subaddress *init)
@@ -1801,9 +1916,7 @@ void ast_party_subaddress_copy(struct ast_party_subaddress *dest, const struct a
 		return;
 	}
 
-	if (dest->str) {
-		ast_free(dest->str);
-	}
+	ast_free(dest->str);
 	dest->str = ast_strdup(src->str);
 	dest->type = src->type;
 	dest->odd_even_indicator = src->odd_even_indicator;
@@ -1826,9 +1939,7 @@ void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct as
 	}
 
 	if (src->str && src->str != dest->str) {
-		if (dest->str) {
-			ast_free(dest->str);
-		}
+		ast_free(dest->str);
 		dest->str = ast_strdup(src->str);
 	}
 
@@ -1839,143 +1950,186 @@ void ast_party_subaddress_set(struct ast_party_subaddress *dest, const struct as
 
 void ast_party_subaddress_free(struct ast_party_subaddress *doomed)
 {
-	if (doomed->str) {
-		ast_free(doomed->str);
-		doomed->str = NULL;
-	}
+	ast_free(doomed->str);
+	doomed->str = NULL;
 }
 
 void ast_party_id_init(struct ast_party_id *init)
 {
-	init->number = NULL;
-	init->name = NULL;
-	init->tag = NULL;
-	init->number_type = 0;	/* Unknown */
-	init->number_presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	ast_party_name_init(&init->name);
+	ast_party_number_init(&init->number);
 	ast_party_subaddress_init(&init->subaddress);
+	init->tag = NULL;
 }
 
-/*!
- * \internal
- * \brief Copy the source party id information to the destination party id.
- *
- * \param dest Destination party id
- * \param src Source party id
- *
- * \return Nothing
- */
-static void ast_party_id_copy(struct ast_party_id *dest, const struct ast_party_id *src)
+void ast_party_id_copy(struct ast_party_id *dest, const struct ast_party_id *src)
 {
 	if (dest == src) {
 		/* Don't copy to self */
 		return;
 	}
 
-	if (dest->number) {
-		ast_free(dest->number);
-	}
-	dest->number = ast_strdup(src->number);
-
-	if (dest->name) {
-		ast_free(dest->name);
-	}
-	dest->name = ast_strdup(src->name);
-
-	if (dest->tag) {
-		ast_free(dest->tag);
-	}
-	dest->tag = ast_strdup(src->tag);
-
-	dest->number_type = src->number_type;
-	dest->number_presentation = src->number_presentation;
+	ast_party_name_copy(&dest->name, &src->name);
+	ast_party_number_copy(&dest->number, &src->number);
 	ast_party_subaddress_copy(&dest->subaddress, &src->subaddress);
+
+	ast_free(dest->tag);
+	dest->tag = ast_strdup(src->tag);
 }
 
-/*!
- * \internal
- * \brief Initialize the given party id structure using the given guide
- * for a set update operation.
- *
- * \details
- * The initialization is needed to allow a set operation to know if a
- * value needs to be updated.  Simple integers need the guide's original
- * value in case the set operation is not trying to set a new value.
- * String values are simply set to NULL pointers if they are not going
- * to be updated.
- *
- * \param init Party id structure to initialize.
- * \param guide Source party id to use as a guide in initializing.
- *
- * \return Nothing
- */
-static void ast_party_id_set_init(struct ast_party_id *init, const struct ast_party_id *guide)
+void ast_party_id_set_init(struct ast_party_id *init, const struct ast_party_id *guide)
 {
-	init->number = NULL;
-	init->name = NULL;
-	init->tag = NULL;
-	init->number_type = guide->number_type;
-	init->number_presentation = guide->number_presentation;
+	ast_party_name_set_init(&init->name, &guide->name);
+	ast_party_number_set_init(&init->number, &guide->number);
 	ast_party_subaddress_set_init(&init->subaddress, &guide->subaddress);
+	init->tag = NULL;
 }
 
-/*!
- * \internal
- * \brief Set the source party id information into the destination party id.
- *
- * \param dest Destination party id
- * \param src Source party id
- *
- * \return Nothing
- */
-static void ast_party_id_set(struct ast_party_id *dest, const struct ast_party_id *src)
+void ast_party_id_set(struct ast_party_id *dest, const struct ast_party_id *src, const struct ast_set_party_id *update)
 {
 	if (dest == src) {
 		/* Don't set to self */
 		return;
 	}
 
-	if (src->name && src->name != dest->name) {
-		if (dest->name) {
-			ast_free(dest->name);
-		}
-		dest->name = ast_strdup(src->name);
+	if (!update || update->name) {
+		ast_party_name_set(&dest->name, &src->name);
 	}
-
-	if (src->number && src->number != dest->number) {
-		if (dest->number) {
-			ast_free(dest->number);
-		}
-		dest->number = ast_strdup(src->number);
+	if (!update || update->number) {
+		ast_party_number_set(&dest->number, &src->number);
+	}
+	if (!update || update->subaddress) {
+		ast_party_subaddress_set(&dest->subaddress, &src->subaddress);
 	}
 
 	if (src->tag && src->tag != dest->tag) {
-		if (dest->tag) {
-			ast_free(dest->tag);
-		}
+		ast_free(dest->tag);
 		dest->tag = ast_strdup(src->tag);
 	}
-
-	dest->number_type = src->number_type;
-	dest->number_presentation = src->number_presentation;
-	ast_party_subaddress_set(&dest->subaddress, &src->subaddress);
 }
 
 void ast_party_id_free(struct ast_party_id *doomed)
 {
-	if (doomed->number) {
-		ast_free(doomed->number);
-		doomed->number = NULL;
+	ast_party_name_free(&doomed->name);
+	ast_party_number_free(&doomed->number);
+	ast_party_subaddress_free(&doomed->subaddress);
+
+	ast_free(doomed->tag);
+	doomed->tag = NULL;
+}
+
+int ast_party_id_presentation(const struct ast_party_id *id)
+{
+	int number_priority;
+	int number_value;
+	int number_screening;
+	int name_priority;
+	int name_value;
+
+	/* Determine name presentation priority. */
+	if (!id->name.valid) {
+		name_value = AST_PRES_UNAVAILABLE;
+		name_priority = 3;
+	} else {
+		name_value = id->name.presentation & AST_PRES_RESTRICTION;
+		switch (name_value) {
+		case AST_PRES_RESTRICTED:
+			name_priority = 0;
+			break;
+		case AST_PRES_ALLOWED:
+			name_priority = 1;
+			break;
+		case AST_PRES_UNAVAILABLE:
+			name_priority = 2;
+			break;
+		default:
+			name_value = AST_PRES_UNAVAILABLE;
+			name_priority = 3;
+			break;
+		}
 	}
 
-	if (doomed->name) {
-		ast_free(doomed->name);
-		doomed->name = NULL;
+	/* Determine number presentation priority. */
+	if (!id->number.valid) {
+		number_screening = AST_PRES_USER_NUMBER_UNSCREENED;
+		number_value = AST_PRES_UNAVAILABLE;
+		number_priority = 3;
+	} else {
+		number_screening = id->number.presentation & AST_PRES_NUMBER_TYPE;
+		number_value = id->number.presentation & AST_PRES_RESTRICTION;
+		switch (number_value) {
+		case AST_PRES_RESTRICTED:
+			number_priority = 0;
+			break;
+		case AST_PRES_ALLOWED:
+			number_priority = 1;
+			break;
+		case AST_PRES_UNAVAILABLE:
+			number_priority = 2;
+			break;
+		default:
+			number_screening = AST_PRES_USER_NUMBER_UNSCREENED;
+			number_value = AST_PRES_UNAVAILABLE;
+			number_priority = 3;
+			break;
+		}
 	}
 
-	if (doomed->tag) {
-		ast_free(doomed->tag);
-		doomed->tag = NULL;
+	/* Select the wining presentation value. */
+	if (name_priority < number_priority) {
+		number_value = name_value;
 	}
+
+	return number_value | number_screening;
+}
+
+void ast_party_dialed_init(struct ast_party_dialed *init)
+{
+	init->number.str = NULL;
+	init->number.plan = 0;/* Unknown */
+	ast_party_subaddress_init(&init->subaddress);
+	init->transit_network_select = 0;
+}
+
+void ast_party_dialed_copy(struct ast_party_dialed *dest, const struct ast_party_dialed *src)
+{
+	if (dest == src) {
+		/* Don't copy to self */
+		return;
+	}
+
+	ast_free(dest->number.str);
+	dest->number.str = ast_strdup(src->number.str);
+	dest->number.plan = src->number.plan;
+	ast_party_subaddress_copy(&dest->subaddress, &src->subaddress);
+	dest->transit_network_select = src->transit_network_select;
+}
+
+void ast_party_dialed_set_init(struct ast_party_dialed *init, const struct ast_party_dialed *guide)
+{
+	init->number.str = NULL;
+	init->number.plan = guide->number.plan;
+	ast_party_subaddress_set_init(&init->subaddress, &guide->subaddress);
+	init->transit_network_select = guide->transit_network_select;
+}
+
+void ast_party_dialed_set(struct ast_party_dialed *dest, const struct ast_party_dialed *src)
+{
+	if (src->number.str && src->number.str != dest->number.str) {
+		ast_free(dest->number.str);
+		dest->number.str = ast_strdup(src->number.str);
+	}
+	dest->number.plan = src->number.plan;
+
+	ast_party_subaddress_set(&dest->subaddress, &src->subaddress);
+
+	dest->transit_network_select = src->transit_network_select;
+}
+
+void ast_party_dialed_free(struct ast_party_dialed *doomed)
+{
+	ast_free(doomed->number.str);
+	doomed->number.str = NULL;
 	ast_party_subaddress_free(&doomed->subaddress);
 }
 
@@ -1986,60 +2140,46 @@ void ast_party_caller_init(struct ast_party_caller *init)
 	init->ani2 = 0;
 }
 
-void ast_party_caller_copy(struct ast_callerid *dest, const struct ast_callerid *src)
+void ast_party_caller_copy(struct ast_party_caller *dest, const struct ast_party_caller *src)
 {
 	if (dest == src) {
 		/* Don't copy to self */
 		return;
 	}
 
-#if 1
-	/* Copy caller-id specific information ONLY from struct ast_callerid */
-	if (dest->cid_num)
-	{
-		ast_free(dest->cid_num);
-	}
-	dest->cid_num = ast_strdup(src->cid_num);
-
-	if (dest->cid_name)
-	{
-		ast_free(dest->cid_name);
-	}
-	dest->cid_name = ast_strdup(src->cid_name);
-
-	if (dest->cid_tag) {
-		ast_free(dest->cid_tag);
-	}
-	dest->cid_tag = ast_strdup(src->cid_tag);
-
-	dest->cid_ton = src->cid_ton;
-	dest->cid_pres = src->cid_pres;
-
-
-	if (dest->cid_ani)
-	{
-		ast_free(dest->cid_ani);
-	}
-	dest->cid_ani = ast_strdup(src->cid_ani);
-
-	dest->cid_ani2 = src->cid_ani2;
-
-	ast_party_subaddress_copy(&dest->subaddress, &src->subaddress);
-
-#else
-
-	/* The src and dest parameter types will become struct ast_party_caller ptrs. */
-	/* This is future code */
-
 	ast_party_id_copy(&dest->id, &src->id);
 
-	if (dest->ani) {
-		ast_free(dest->ani);
-	}
+	ast_free(dest->ani);
 	dest->ani = ast_strdup(src->ani);
 
 	dest->ani2 = src->ani2;
-#endif
+}
+
+void ast_party_caller_set_init(struct ast_party_caller *init, const struct ast_party_caller *guide)
+{
+	ast_party_id_set_init(&init->id, &guide->id);
+	init->ani = NULL;
+	init->ani2 = guide->ani2;
+}
+
+void ast_party_caller_set(struct ast_party_caller *dest, const struct ast_party_caller *src, const struct ast_set_party_caller *update)
+{
+	ast_party_id_set(&dest->id, &src->id, update ? &update->id : NULL);
+
+	if (src->ani && src->ani != dest->ani) {
+		ast_free(dest->ani);
+		dest->ani = ast_strdup(src->ani);
+	}
+
+	dest->ani2 = src->ani2;
+}
+
+void ast_party_caller_free(struct ast_party_caller *doomed)
+{
+	ast_party_id_free(&doomed->id);
+
+	ast_free(doomed->ani);
+	doomed->ani = NULL;
 }
 
 void ast_party_connected_line_init(struct ast_party_connected_line *init)
@@ -2059,9 +2199,7 @@ void ast_party_connected_line_copy(struct ast_party_connected_line *dest, const 
 
 	ast_party_id_copy(&dest->id, &src->id);
 
-	if (dest->ani) {
-		ast_free(dest->ani);
-	}
+	ast_free(dest->ani);
 	dest->ani = ast_strdup(src->ani);
 
 	dest->ani2 = src->ani2;
@@ -2076,14 +2214,12 @@ void ast_party_connected_line_set_init(struct ast_party_connected_line *init, co
 	init->source = guide->source;
 }
 
-void ast_party_connected_line_set(struct ast_party_connected_line *dest, const struct ast_party_connected_line *src)
+void ast_party_connected_line_set(struct ast_party_connected_line *dest, const struct ast_party_connected_line *src, const struct ast_set_party_connected_line *update)
 {
-	ast_party_id_set(&dest->id, &src->id);
+	ast_party_id_set(&dest->id, &src->id, update ? &update->id : NULL);
 
 	if (src->ani && src->ani != dest->ani) {
-		if (dest->ani) {
-			ast_free(dest->ani);
-		}
+		ast_free(dest->ani);
 		dest->ani = ast_strdup(src->ani);
 	}
 
@@ -2091,17 +2227,11 @@ void ast_party_connected_line_set(struct ast_party_connected_line *dest, const s
 	dest->source = src->source;
 }
 
-void ast_party_connected_line_collect_caller(struct ast_party_connected_line *connected, struct ast_callerid *cid)
+void ast_party_connected_line_collect_caller(struct ast_party_connected_line *connected, struct ast_party_caller *caller)
 {
-	connected->id.number = cid->cid_num;
-	connected->id.name = cid->cid_name;
-	connected->id.number_type = cid->cid_ton;
-	connected->id.number_presentation = cid->cid_pres;
-	connected->id.tag = cid->cid_tag;
-	connected->id.subaddress = cid->subaddress;
-
-	connected->ani = cid->cid_ani;
-	connected->ani2 = cid->cid_ani2;
+	connected->id = caller->id;
+	connected->ani = caller->ani;
+	connected->ani2 = caller->ani2;
 	connected->source = AST_CONNECTED_LINE_UPDATE_SOURCE_UNKNOWN;
 }
 
@@ -2109,10 +2239,16 @@ void ast_party_connected_line_free(struct ast_party_connected_line *doomed)
 {
 	ast_party_id_free(&doomed->id);
 
-	if (doomed->ani) {
-		ast_free(doomed->ani);
-		doomed->ani = NULL;
-	}
+	ast_free(doomed->ani);
+	doomed->ani = NULL;
+}
+
+void ast_party_redirecting_init(struct ast_party_redirecting *init)
+{
+	ast_party_id_init(&init->from);
+	ast_party_id_init(&init->to);
+	init->count = 0;
+	init->reason = AST_REDIRECTING_REASON_UNKNOWN;
 }
 
 void ast_party_redirecting_copy(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src)
@@ -2134,6 +2270,14 @@ void ast_party_redirecting_set_init(struct ast_party_redirecting *init, const st
 	ast_party_id_set_init(&init->to, &guide->to);
 	init->count = guide->count;
 	init->reason = guide->reason;
+}
+
+void ast_party_redirecting_set(struct ast_party_redirecting *dest, const struct ast_party_redirecting *src, const struct ast_set_party_redirecting *update)
+{
+	ast_party_id_set(&dest->from, &src->from, update ? &update->from : NULL);
+	ast_party_id_set(&dest->to, &src->to, update ? &update->to : NULL);
+	dest->reason = src->reason;
+	dest->count = src->count;
 }
 
 void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
@@ -2210,7 +2354,8 @@ static void ast_channel_destructor(void *obj)
 	if (chan->pbx)
 		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
 
-	free_cid(&chan->cid);
+	ast_party_dialed_free(&chan->dialed);
+	ast_party_caller_free(&chan->caller);
 	ast_party_connected_line_free(&chan->connected);
 	ast_party_redirecting_free(&chan->redirecting);
 
@@ -2275,7 +2420,10 @@ static void ast_dummy_channel_destructor(void *obj)
 
 	headp = &chan->varshead;
 
-	free_cid(&chan->cid);
+	ast_party_dialed_free(&chan->dialed);
+	ast_party_caller_free(&chan->caller);
+	ast_party_connected_line_free(&chan->connected);
+	ast_party_redirecting_free(&chan->redirecting);
 
 	/* loop over the variables list, freeing all data and deleting list items */
 	/* no need to lock the list, as the channel is already locked */
@@ -2574,19 +2722,19 @@ int ast_hangup(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 	ast_cc_offer(chan);
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Hangup",
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Cause: %d\r\n"
-			"Cause-txt: %s\r\n",
-			chan->name,
-			chan->uniqueid,
-			S_OR(chan->cid.cid_num, "<unknown>"),
-			S_OR(chan->cid.cid_name, "<unknown>"),
-			chan->hangupcause,
-			ast_cause2str(chan->hangupcause)
-			);
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"CallerIDNum: %s\r\n"
+		"CallerIDName: %s\r\n"
+		"Cause: %d\r\n"
+		"Cause-txt: %s\r\n",
+		chan->name,
+		chan->uniqueid,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
+		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>"),
+		chan->hangupcause,
+		ast_cause2str(chan->hangupcause)
+		);
 
 	if (chan->cdr && !ast_test_flag(chan->cdr, AST_CDR_FLAG_BRIDGED) && 
 		!ast_test_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED) && 
@@ -4012,7 +4160,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 			ast_party_connected_line_set_init(&connected, &chan->connected);
 			res = ast_connected_line_parse_data(data, datalen, &connected);
 			if (!res) {
-				ast_channel_set_connected_line(chan, &connected);
+				ast_channel_set_connected_line(chan, &connected, NULL);
 			}
 			ast_party_connected_line_free(&connected);
 		}
@@ -4025,7 +4173,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 			ast_party_redirecting_set_init(&redirecting, &chan->redirecting);
 			res = ast_redirecting_parse_data(data, datalen, &redirecting);
 			if (!res) {
-				ast_channel_set_redirecting(chan, &redirecting);
+				ast_channel_set_redirecting(chan, &redirecting, NULL);
 			}
 			ast_party_redirecting_free(&redirecting);
 		}
@@ -4810,7 +4958,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 		return NULL;
 	}
 
-	ast_channel_set_redirecting(new, apr);
+	ast_channel_set_redirecting(new, apr, NULL);
 
 	/* Copy/inherit important information into new channel */
 	if (oh) {
@@ -4821,7 +4969,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 			ast_set_callerid(new, oh->cid_num, oh->cid_name, oh->cid_num);
 		}
 		if (oh->parent_channel) {
-			ast_channel_update_redirecting(oh->parent_channel, apr);
+			ast_channel_update_redirecting(oh->parent_channel, apr, NULL);
 			ast_channel_inherit_variables(oh->parent_channel, new);
 			ast_channel_datastore_inherit(oh->parent_channel, new);
 		}
@@ -4829,7 +4977,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 			ast_cdr_setaccount(new, oh->account);
 		}
 	} else if (caller) { /* no outgoing helper so use caller if avaliable */
-		ast_channel_update_redirecting(caller, apr);
+		ast_channel_update_redirecting(caller, apr, NULL);
 		ast_channel_inherit_variables(caller, new);
 		ast_channel_datastore_inherit(caller, new);
 	}
@@ -4840,7 +4988,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	}
 	ast_copy_flags(new->cdr, orig->cdr, AST_CDR_FLAG_ORIGINATED);
 	ast_string_field_set(new, accountcode, orig->accountcode);
-	ast_party_caller_copy(&new->cid, &orig->cid);
+	ast_party_caller_copy(&new->caller, &orig->caller);
 	ast_party_connected_line_copy(&new->connected, &orig->connected);
 	ast_channel_unlock(new);
 	ast_channel_unlock(orig);
@@ -4895,10 +5043,17 @@ struct ast_channel *__ast_request_and_dial(const char *type, format_t format, co
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
 	ast_set_flag(chan->cdr, AST_CDR_FLAG_ORIGINATED);
 	ast_party_connected_line_set_init(&connected, &chan->connected);
-	connected.id.number = (char *) cid_num;
-	connected.id.name = (char *) cid_name;
-	connected.id.number_presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-	ast_channel_set_connected_line(chan, &connected);
+	if (cid_num) {
+		connected.id.number.valid = 1;
+		connected.id.number.str = (char *) cid_num;
+		connected.id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	}
+	if (cid_name) {
+		connected.id.name.valid = 1;
+		connected.id.name.str = (char *) cid_name;
+		connected.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	}
+	ast_channel_set_connected_line(chan, &connected, NULL);
 
 	if (ast_call(chan, data, 0)) {	/* ast_call failed... */
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
@@ -5658,19 +5813,22 @@ static void ast_set_owners_and_peers(struct ast_channel *chan1,
  */
 static void report_new_callerid(struct ast_channel *chan)
 {
+	int pres;
+
+	pres = ast_party_id_presentation(&chan->caller.id);
 	ast_manager_event(chan, EVENT_FLAG_CALL, "NewCallerid",
-				"Channel: %s\r\n"
-				"CallerIDNum: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"Uniqueid: %s\r\n"
-				"CID-CallingPres: %d (%s)\r\n",
-				chan->name,
-				S_OR(chan->cid.cid_num, ""),
-				S_OR(chan->cid.cid_name, ""),
-				chan->uniqueid,
-				chan->cid.cid_pres,
-				ast_describe_caller_presentation(chan->cid.cid_pres)
-				);
+		"Channel: %s\r\n"
+		"CallerIDNum: %s\r\n"
+		"CallerIDName: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"CID-CallingPres: %d (%s)\r\n",
+		chan->name,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, ""),
+		chan->uniqueid,
+		pres,
+		ast_describe_caller_presentation(pres)
+		);
 }
 
 /*!
@@ -5690,7 +5848,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	const struct ast_channel_tech *t;
 	void *t_pvt;
 	union {
-		struct ast_callerid cid;
+		struct ast_party_dialed dialed;
+		struct ast_party_caller caller;
 		struct ast_party_connected_line connected;
 		struct ast_party_redirecting redirecting;
 	} exchange;
@@ -5917,17 +6076,23 @@ int ast_do_masquerade(struct ast_channel *original)
 	 * Just swap the whole structures, nevermind the allocations,
 	 * they'll work themselves out.
 	 */
-	exchange.cid = original->cid;
-	original->cid = clonechan->cid;
-	clonechan->cid = exchange.cid;
-	report_new_callerid(original);
+	exchange.dialed = original->dialed;
+	original->dialed = clonechan->dialed;
+	clonechan->dialed = exchange.dialed;
+
+	exchange.caller = original->caller;
+	original->caller = clonechan->caller;
+	clonechan->caller = exchange.caller;
 
 	exchange.connected = original->connected;
 	original->connected = clonechan->connected;
 	clonechan->connected = exchange.connected;
+
 	exchange.redirecting = original->redirecting;
 	original->redirecting = clonechan->redirecting;
 	clonechan->redirecting = exchange.redirecting;
+
+	report_new_callerid(original);
 
 	/* Restore original timing file descriptor */
 	ast_channel_set_fd(original, AST_TIMING_FD, original->timingfd);
@@ -6030,23 +6195,56 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
 	ast_channel_lock(chan);
 
 	if (cid_num) {
-		if (chan->cid.cid_num)
-			ast_free(chan->cid.cid_num);
-		chan->cid.cid_num = ast_strdup(cid_num);
+		chan->caller.id.number.valid = 1;
+		ast_free(chan->caller.id.number.str);
+		chan->caller.id.number.str = ast_strdup(cid_num);
 	}
 	if (cid_name) {
-		if (chan->cid.cid_name)
-			ast_free(chan->cid.cid_name);
-		chan->cid.cid_name = ast_strdup(cid_name);
+		chan->caller.id.name.valid = 1;
+		ast_free(chan->caller.id.name.str);
+		chan->caller.id.name.str = ast_strdup(cid_name);
 	}
 	if (cid_ani) {
-		if (chan->cid.cid_ani)
-			ast_free(chan->cid.cid_ani);
-		chan->cid.cid_ani = ast_strdup(cid_ani);
+		ast_free(chan->caller.ani);
+		chan->caller.ani = ast_strdup(cid_ani);
 	}
 
 	report_new_callerid(chan);
 
+	ast_channel_unlock(chan);
+}
+
+void ast_channel_set_caller(struct ast_channel *chan, const struct ast_party_caller *caller, const struct ast_set_party_caller *update)
+{
+	if (&chan->caller == caller) {
+		/* Don't set to self */
+		return;
+	}
+
+	ast_channel_lock(chan);
+	ast_party_caller_set(&chan->caller, caller, update);
+	ast_channel_unlock(chan);
+}
+
+void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_party_caller *caller, const struct ast_set_party_caller *update)
+{
+	struct ast_party_caller pre_set;
+
+	if (&chan->caller == caller) {
+		/* Don't set to self */
+		return;
+	}
+
+	ast_channel_lock(chan);
+	pre_set = chan->caller;
+	ast_party_caller_set(&chan->caller, caller, update);
+	if (S_COR(pre_set.id.number.valid, pre_set.id.number.str, NULL)
+			!= S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL)
+		|| S_COR(pre_set.id.name.valid, pre_set.id.name.str, NULL)
+			!= S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL)) {
+		/* The caller id name or number changed. */
+		report_new_callerid(chan);
+	}
 	ast_channel_unlock(chan);
 }
 
@@ -6072,16 +6270,16 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 
 	/* setstate used to conditionally report Newchannel; this is no more */
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Newstate",
-		      "Channel: %s\r\n"
-		      "ChannelState: %d\r\n"
-		      "ChannelStateDesc: %s\r\n"
-		      "CallerIDNum: %s\r\n"
-		      "CallerIDName: %s\r\n"
-		      "Uniqueid: %s\r\n",
-		      chan->name, chan->_state, ast_state2str(chan->_state),
-		      S_OR(chan->cid.cid_num, ""),
-		      S_OR(chan->cid.cid_name, ""),
-		      chan->uniqueid);
+		"Channel: %s\r\n"
+		"ChannelState: %d\r\n"
+		"ChannelStateDesc: %s\r\n"
+		"CallerIDNum: %s\r\n"
+		"CallerIDName: %s\r\n"
+		"Uniqueid: %s\r\n",
+		chan->name, chan->_state, ast_state2str(chan->_state),
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, ""),
+		chan->uniqueid);
 
 	return 0;
 }
@@ -6346,19 +6544,20 @@ static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, st
 {
 	struct ast_channel *chans[2] = { c0, c1 };
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Bridge", 2, chans,
-			"Bridgestate: %s\r\n"
-			"Bridgetype: %s\r\n"
-			"Channel1: %s\r\n"
-			"Channel2: %s\r\n"
-			"Uniqueid1: %s\r\n"
-			"Uniqueid2: %s\r\n"
-			"CallerID1: %s\r\n"
-			"CallerID2: %s\r\n",
-			onoff ? "Link" : "Unlink",
-			type == 1 ? "core" : "native",
-			c0->name, c1->name, c0->uniqueid, c1->uniqueid, 
-			S_OR(c0->cid.cid_num, ""), 
-			S_OR(c1->cid.cid_num, ""));
+		"Bridgestate: %s\r\n"
+		"Bridgetype: %s\r\n"
+		"Channel1: %s\r\n"
+		"Channel2: %s\r\n"
+		"Uniqueid1: %s\r\n"
+		"Uniqueid2: %s\r\n"
+		"CallerID1: %s\r\n"
+		"CallerID2: %s\r\n",
+		onoff ? "Link" : "Unlink",
+		type == 1 ? "core" : "native",
+		c0->name, c1->name,
+		c0->uniqueid, c1->uniqueid,
+		S_COR(c0->caller.id.number.valid, c0->caller.id.number.str, ""),
+		S_COR(c1->caller.id.number.valid, c1->caller.id.number.str, ""));
 }
 
 static void update_bridge_vars(struct ast_channel *c0, struct ast_channel *c1)
@@ -6606,13 +6805,16 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, timeoutms)) == AST_BRIDGE_COMPLETE) {
 				ast_manager_event_multichan(EVENT_FLAG_CALL, "Unlink", 2, chans,
-					      "Channel1: %s\r\n"
-					      "Channel2: %s\r\n"
-					      "Uniqueid1: %s\r\n"
-					      "Uniqueid2: %s\r\n"
-					      "CallerID1: %s\r\n"
-					      "CallerID2: %s\r\n",
-					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, S_OR(c0->cid.cid_num, "<unknown>"), S_OR(c1->cid.cid_num, "<unknown>"));
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n"
+					"Uniqueid1: %s\r\n"
+					"Uniqueid2: %s\r\n"
+					"CallerID1: %s\r\n"
+					"CallerID2: %s\r\n",
+					c0->name, c1->name,
+					c0->uniqueid, c1->uniqueid,
+					S_COR(c0->caller.id.number.valid, c0->caller.id.number.str, "<unknown>"),
+					S_COR(c1->caller.id.number.valid, c1->caller.id.number.str, "<unknown>"));
 
 				ast_debug(1, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
 
@@ -6677,13 +6879,16 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	c1->_bridge = NULL;
 
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Unlink", 2, chans,
-		      "Channel1: %s\r\n"
-		      "Channel2: %s\r\n"
-		      "Uniqueid1: %s\r\n"
-		      "Uniqueid2: %s\r\n"
-		      "CallerID1: %s\r\n"
-		      "CallerID2: %s\r\n",
-		      c0->name, c1->name, c0->uniqueid, c1->uniqueid, S_OR(c0->cid.cid_num, "<unknown>"), S_OR(c1->cid.cid_num, "<unknown>"));
+		"Channel1: %s\r\n"
+		"Channel2: %s\r\n"
+		"Uniqueid1: %s\r\n"
+		"Uniqueid2: %s\r\n"
+		"CallerID1: %s\r\n"
+		"CallerID2: %s\r\n",
+		c0->name, c1->name,
+		c0->uniqueid, c1->uniqueid,
+		S_COR(c0->caller.id.number.valid, c0->caller.id.number.str, "<unknown>"),
+		S_COR(c1->caller.id.number.valid, c1->caller.id.number.str, "<unknown>"));
 	ast_debug(1, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
 
 	return res;
@@ -7289,101 +7494,27 @@ int ast_say_digits_full(struct ast_channel *chan, int num,
 	return ast_say_digit_str_full(chan, buf, ints, lang, audiofd, ctrlfd);
 }
 
-void ast_connected_line_copy_from_caller(struct ast_party_connected_line *dest, const struct ast_callerid *src)
+void ast_connected_line_copy_from_caller(struct ast_party_connected_line *dest, const struct ast_party_caller *src)
 {
-#if 1
-	/* Must manually fill in struct ast_party_id until struct ast_callerid goes away */
-	if (dest->id.number) {
-		ast_free(dest->id.number);
-	}
-	dest->id.number = ast_strdup(src->cid_num);
-
-	if (dest->id.name) {
-		ast_free(dest->id.name);
-	}
-	dest->id.name = ast_strdup(src->cid_name);
-
-	if (dest->id.tag) {
-		ast_free(dest->id.tag);
-	}
-	dest->id.tag = ast_strdup(src->cid_tag);
-
-	dest->id.number_type = src->cid_ton;
-	dest->id.number_presentation = src->cid_pres;
-
-
-	if (dest->ani) {
-		ast_free(dest->ani);
-	}
-	dest->ani = ast_strdup(src->cid_ani);
-
-	dest->ani2 = src->cid_ani2;
-	ast_party_subaddress_copy(&dest->id.subaddress, &src->subaddress);
-
-#else
-
-	/* The src parameter type will become a struct ast_party_caller ptr. */
-	/* This is future code */
-
 	ast_party_id_copy(&dest->id, &src->id);
 
-	if (dest->ani) {
-		ast_free(dest->ani);
-	}
+	ast_free(dest->ani);
 	dest->ani = ast_strdup(src->ani);
 
 	dest->ani2 = src->ani2;
-#endif
 }
 
-void ast_connected_line_copy_to_caller(struct ast_callerid *dest, const struct ast_party_connected_line *src)
+void ast_connected_line_copy_to_caller(struct ast_party_caller *dest, const struct ast_party_connected_line *src)
 {
-#if 1
-	/* Must manually extract from struct ast_party_id until struct ast_callerid goes away */
-	if (dest->cid_num) {
-		ast_free(dest->cid_num);
-	}
-	dest->cid_num = ast_strdup(src->id.number);
-
-	if (dest->cid_name) {
-		ast_free(dest->cid_name);
-	}
-	dest->cid_name = ast_strdup(src->id.name);
-
-	if (dest->cid_tag) {
-		ast_free(dest->cid_tag);
-	}
-	dest->cid_tag = ast_strdup(src->id.tag);
-
-	dest->cid_ton = src->id.number_type;
-	dest->cid_pres = src->id.number_presentation;
-
-
-	if (dest->cid_ani) {
-		ast_free(dest->cid_ani);
-	}
-	dest->cid_ani = ast_strdup(src->ani);
-
-	dest->cid_ani2 = src->ani2;
-	ast_party_subaddress_copy(&dest->subaddress, &src->id.subaddress);
-
-#else
-
-	/* The dest parameter type will become a struct ast_party_caller ptr. */
-	/* This is future code */
-
 	ast_party_id_copy(&dest->id, &src->id);
 
-	if (dest->ani) {
-		ast_free(dest->ani);
-	}
+	ast_free(dest->ani);
 	dest->ani = ast_strdup(src->ani);
 
 	dest->ani2 = src->ani2;
-#endif
 }
 
-void ast_channel_set_connected_line(struct ast_channel *chan, const struct ast_party_connected_line *connected)
+void ast_channel_set_connected_line(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update)
 {
 	if (&chan->connected == connected) {
 		/* Don't set to self */
@@ -7391,8 +7522,340 @@ void ast_channel_set_connected_line(struct ast_channel *chan, const struct ast_p
 	}
 
 	ast_channel_lock(chan);
-	ast_party_connected_line_set(&chan->connected, connected);
+	ast_party_connected_line_set(&chan->connected, connected, update);
 	ast_channel_unlock(chan);
+}
+
+/*! \note Should follow struct ast_party_name */
+struct ast_party_name_ies {
+	/*! \brief Subscriber name ie */
+	int str;
+	/*! \brief Character set ie. */
+	int char_set;
+	/*! \brief presentation-indicator ie */
+	int presentation;
+	/*! \brief valid/present ie */
+	int valid;
+};
+
+/*!
+ * \internal
+ * \since 1.8
+ * \brief Build a party name information data frame component.
+ *
+ * \param data Buffer to fill with the frame data
+ * \param datalen Size of the buffer to fill
+ * \param name Party name information
+ * \param label Name of particular party name
+ * \param ies Data frame ie values for the party name components
+ *
+ * \retval -1 if error
+ * \retval Amount of data buffer used
+ */
+static int party_name_build_data(unsigned char *data, size_t datalen, const struct ast_party_name *name, const char *label, const struct ast_party_name_ies *ies)
+{
+	size_t length;
+	size_t pos = 0;
+
+	/*
+	 * The size of integer values must be fixed in case the frame is
+	 * shipped to another machine.
+	 */
+	if (name->str) {
+		length = strlen(name->str);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for %s name\n", label);
+			return -1;
+		}
+		data[pos++] = ies->str;
+		data[pos++] = length;
+		memcpy(data + pos, name->str, length);
+		pos += length;
+	}
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s name char set\n", label);
+		return -1;
+	}
+	data[pos++] = ies->char_set;
+	data[pos++] = 1;
+	data[pos++] = name->char_set;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s name presentation\n", label);
+		return -1;
+	}
+	data[pos++] = ies->presentation;
+	data[pos++] = 1;
+	data[pos++] = name->presentation;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s name valid\n", label);
+		return -1;
+	}
+	data[pos++] = ies->valid;
+	data[pos++] = 1;
+	data[pos++] = name->valid;
+
+	return pos;
+}
+
+/*! \note Should follow struct ast_party_number */
+struct ast_party_number_ies {
+	/*! \brief Subscriber phone number ie */
+	int str;
+	/*! \brief Type-Of-Number and Numbering-Plan ie */
+	int plan;
+	/*! \brief presentation-indicator ie */
+	int presentation;
+	/*! \brief valid/present ie */
+	int valid;
+};
+
+/*!
+ * \internal
+ * \since 1.8
+ * \brief Build a party number information data frame component.
+ *
+ * \param data Buffer to fill with the frame data
+ * \param datalen Size of the buffer to fill
+ * \param number Party number information
+ * \param label Name of particular party number
+ * \param ies Data frame ie values for the party number components
+ *
+ * \retval -1 if error
+ * \retval Amount of data buffer used
+ */
+static int party_number_build_data(unsigned char *data, size_t datalen, const struct ast_party_number *number, const char *label, const struct ast_party_number_ies *ies)
+{
+	size_t length;
+	size_t pos = 0;
+
+	/*
+	 * The size of integer values must be fixed in case the frame is
+	 * shipped to another machine.
+	 */
+	if (number->str) {
+		length = strlen(number->str);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for %s number\n", label);
+			return -1;
+		}
+		data[pos++] = ies->str;
+		data[pos++] = length;
+		memcpy(data + pos, number->str, length);
+		pos += length;
+	}
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s numbering plan\n", label);
+		return -1;
+	}
+	data[pos++] = ies->plan;
+	data[pos++] = 1;
+	data[pos++] = number->plan;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s number presentation\n", label);
+		return -1;
+	}
+	data[pos++] = ies->presentation;
+	data[pos++] = 1;
+	data[pos++] = number->presentation;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s number valid\n", label);
+		return -1;
+	}
+	data[pos++] = ies->valid;
+	data[pos++] = 1;
+	data[pos++] = number->valid;
+
+	return pos;
+}
+
+/*! \note Should follow struct ast_party_subaddress */
+struct ast_party_subaddress_ies {
+	/*! \brief subaddress ie. */
+	int str;
+	/*! \brief subaddress type ie */
+	int type;
+	/*! \brief odd/even indicator ie */
+	int odd_even_indicator;
+	/*! \brief valid/present ie */
+	int valid;
+};
+
+/*!
+ * \internal
+ * \since 1.8
+ * \brief Build a party subaddress information data frame component.
+ *
+ * \param data Buffer to fill with the frame data
+ * \param datalen Size of the buffer to fill
+ * \param subaddress Party subaddress information
+ * \param label Name of particular party subaddress
+ * \param ies Data frame ie values for the party subaddress components
+ *
+ * \retval -1 if error
+ * \retval Amount of data buffer used
+ */
+static int party_subaddress_build_data(unsigned char *data, size_t datalen, const struct ast_party_subaddress *subaddress, const char *label, const struct ast_party_subaddress_ies *ies)
+{
+	size_t length;
+	size_t pos = 0;
+
+	/*
+	 * The size of integer values must be fixed in case the frame is
+	 * shipped to another machine.
+	 */
+	if (subaddress->str) {
+		length = strlen(subaddress->str);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for %s subaddress\n", label);
+			return -1;
+		}
+		data[pos++] = ies->str;
+		data[pos++] = length;
+		memcpy(data + pos, subaddress->str, length);
+		pos += length;
+	}
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s type of subaddress\n", label);
+		return -1;
+	}
+	data[pos++] = ies->type;
+	data[pos++] = 1;
+	data[pos++] = subaddress->type;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING,
+			"No space left for %s subaddress odd-even indicator\n", label);
+		return -1;
+	}
+	data[pos++] = ies->odd_even_indicator;
+	data[pos++] = 1;
+	data[pos++] = subaddress->odd_even_indicator;
+
+	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+		ast_log(LOG_WARNING, "No space left for %s subaddress valid\n", label);
+		return -1;
+	}
+	data[pos++] = ies->valid;
+	data[pos++] = 1;
+	data[pos++] = subaddress->valid;
+
+	return pos;
+}
+
+/*! \note Should follow struct ast_party_id */
+struct ast_party_id_ies {
+	/*! \brief Subscriber name ies */
+	struct ast_party_name_ies name;
+	/*! \brief Subscriber phone number ies */
+	struct ast_party_number_ies number;
+	/*! \brief Subscriber subaddress ies. */
+	struct ast_party_subaddress_ies subaddress;
+	/*! \brief User party id tag ie. */
+	int tag;
+	/*! \brief Combined name and number presentation ie. */
+	int combined_presentation;
+};
+
+/*!
+ * \internal
+ * \since 1.8
+ * \brief Build a party id information data frame component.
+ *
+ * \param data Buffer to fill with the frame data
+ * \param datalen Size of the buffer to fill
+ * \param id Party id information
+ * \param label Name of particular party id
+ * \param ies Data frame ie values for the party id components
+ * \param update What id information to build.  NULL if all.
+ *
+ * \retval -1 if error
+ * \retval Amount of data buffer used
+ */
+static int party_id_build_data(unsigned char *data, size_t datalen,
+	const struct ast_party_id *id, const char *label, const struct ast_party_id_ies *ies,
+	const struct ast_set_party_id *update)
+{
+	size_t length;
+	size_t pos = 0;
+	int res;
+
+	/*
+	 * The size of integer values must be fixed in case the frame is
+	 * shipped to another machine.
+	 */
+
+	if (!update || update->name) {
+		res = party_name_build_data(data + pos, datalen - pos, &id->name, label,
+			&ies->name);
+		if (res < 0) {
+			return -1;
+		}
+		pos += res;
+	}
+
+	if (!update || update->number) {
+		res = party_number_build_data(data + pos, datalen - pos, &id->number, label,
+			&ies->number);
+		if (res < 0) {
+			return -1;
+		}
+		pos += res;
+	}
+
+	if (!update || update->subaddress) {
+		res = party_subaddress_build_data(data + pos, datalen - pos, &id->subaddress,
+			label, &ies->subaddress);
+		if (res < 0) {
+			return -1;
+		}
+		pos += res;
+	}
+
+	/* *************** Party id user tag **************************** */
+	if (id->tag) {
+		length = strlen(id->tag);
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
+			ast_log(LOG_WARNING, "No space left for %s tag\n", label);
+			return -1;
+		}
+		data[pos++] = ies->tag;
+		data[pos++] = length;
+		memcpy(data + pos, id->tag, length);
+		pos += length;
+	}
+
+	/* *************** Party id combined presentation *************** */
+	if (!update || update->number) {
+		int presentation;
+
+		if (!update || update->name) {
+			presentation = ast_party_id_presentation(id);
+		} else {
+			/*
+			 * We must compromise because not all the information is available
+			 * to determine a combined presentation value.
+			 * We will only send the number presentation instead.
+			 */
+			presentation = id->number.presentation;
+		}
+
+		if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
+			ast_log(LOG_WARNING, "No space left for %s combined presentation\n", label);
+			return -1;
+		}
+		data[pos++] = ies->combined_presentation;
+		data[pos++] = 1;
+		data[pos++] = presentation;
+	}
+
+	return pos;
 }
 
 /*!
@@ -7402,79 +7865,68 @@ void ast_channel_set_connected_line(struct ast_channel *chan, const struct ast_p
 enum {
 	AST_CONNECTED_LINE_NUMBER,
 	AST_CONNECTED_LINE_NAME,
-	AST_CONNECTED_LINE_NUMBER_TYPE,
-	AST_CONNECTED_LINE_NUMBER_PRESENTATION,
+	AST_CONNECTED_LINE_NUMBER_PLAN,
+	AST_CONNECTED_LINE_ID_PRESENTATION,/* Combined number and name presentation. */
 	AST_CONNECTED_LINE_SOURCE,
 	AST_CONNECTED_LINE_SUBADDRESS,
 	AST_CONNECTED_LINE_SUBADDRESS_TYPE,
 	AST_CONNECTED_LINE_SUBADDRESS_ODD_EVEN,
 	AST_CONNECTED_LINE_SUBADDRESS_VALID,
 	AST_CONNECTED_LINE_TAG,
+	AST_CONNECTED_LINE_VERSION,
+	AST_CONNECTED_LINE_NAME_VALID,
+	AST_CONNECTED_LINE_NAME_CHAR_SET,
+	AST_CONNECTED_LINE_NAME_PRESENTATION,
+	AST_CONNECTED_LINE_NUMBER_VALID,
+	AST_CONNECTED_LINE_NUMBER_PRESENTATION,
 };
 
-int ast_connected_line_build_data(unsigned char *data, size_t datalen, const struct ast_party_connected_line *connected)
+int ast_connected_line_build_data(unsigned char *data, size_t datalen, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update)
 {
 	int32_t value;
-	size_t length;
 	size_t pos = 0;
+	int res;
+
+	static const struct ast_party_id_ies ies = {
+		.name.str = AST_CONNECTED_LINE_NAME,
+		.name.char_set = AST_CONNECTED_LINE_NAME_CHAR_SET,
+		.name.presentation = AST_CONNECTED_LINE_NAME_PRESENTATION,
+		.name.valid = AST_CONNECTED_LINE_NAME_VALID,
+
+		.number.str = AST_CONNECTED_LINE_NUMBER,
+		.number.plan = AST_CONNECTED_LINE_NUMBER_PLAN,
+		.number.presentation = AST_CONNECTED_LINE_NUMBER_PRESENTATION,
+		.number.valid = AST_CONNECTED_LINE_NUMBER_VALID,
+
+		.subaddress.str = AST_CONNECTED_LINE_SUBADDRESS,
+		.subaddress.type = AST_CONNECTED_LINE_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_CONNECTED_LINE_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_CONNECTED_LINE_SUBADDRESS_VALID,
+
+		.tag = AST_CONNECTED_LINE_TAG,
+		.combined_presentation = AST_CONNECTED_LINE_ID_PRESENTATION,
+	};
 
 	/*
 	 * The size of integer values must be fixed in case the frame is
 	 * shipped to another machine.
 	 */
 
-	/* *************** Connected line party id *************** */
-	if (connected->id.number) {
-		length = strlen(connected->id.number);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for connected line number\n");
-			return -1;
-		}
-		data[pos++] = AST_CONNECTED_LINE_NUMBER;
-		data[pos++] = length;
-		memcpy(data + pos, connected->id.number, length);
-		pos += length;
-	}
-
-	if (connected->id.name) {
-		length = strlen(connected->id.name);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for connected line name\n");
-			return -1;
-		}
-		data[pos++] = AST_CONNECTED_LINE_NAME;
-		data[pos++] = length;
-		memcpy(data + pos, connected->id.name, length);
-		pos += length;
-	}
-
-	if (connected->id.tag) {
-		length = strlen(connected->id.tag);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for connected line tag\n");
-			return -1;
-		}
-		data[pos++] = AST_CONNECTED_LINE_TAG;
-		data[pos++] = length;
-		memcpy(data + pos, connected->id.tag, length);
-		pos += length;
-	}
-
+	/* Connected line frame version */
 	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for connected line type of number\n");
+		ast_log(LOG_WARNING, "No space left for connected line frame version\n");
 		return -1;
 	}
-	data[pos++] = AST_CONNECTED_LINE_NUMBER_TYPE;
+	data[pos++] = AST_CONNECTED_LINE_VERSION;
 	data[pos++] = 1;
-	data[pos++] = connected->id.number_type;
+	data[pos++] = 2;/* Version 1 did not have a version ie */
 
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for connected line presentation\n");
+	res = party_id_build_data(data + pos, datalen - pos, &connected->id,
+		"connected line", &ies, update ? &update->id : NULL);
+	if (res < 0) {
 		return -1;
 	}
-	data[pos++] = AST_CONNECTED_LINE_NUMBER_PRESENTATION;
-	data[pos++] = 1;
-	data[pos++] = connected->id.number_presentation;
+	pos += res;
 
 	/* Connected line source */
 	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
@@ -7487,46 +7939,6 @@ int ast_connected_line_build_data(unsigned char *data, size_t datalen, const str
 	memcpy(data + pos, &value, sizeof(value));
 	pos += sizeof(value);
 
-	/* Connected line Subaddress */
-	if (connected->id.subaddress.str) {
-		length = strlen(connected->id.subaddress.str);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for connected line subaddress\n");
-			return -1;
-		}
-		data[pos++] = AST_CONNECTED_LINE_SUBADDRESS;
-		data[pos++] = length;
-		memcpy(data + pos, connected->id.subaddress.str, length);
-		pos += length;
-	}
-	/* Connected line Subaddress Type */
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for connected line type of subaddress\n");
-		return -1;
-	}
-	data[pos++] = AST_CONNECTED_LINE_SUBADDRESS_TYPE;
-	data[pos++] = 1;
-	data[pos++] = connected->id.subaddress.type;
-
-	/* Connected line Subaddress Odd/Even indicator */
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING,
-			"No space left for connected line subaddress odd-even indicator\n");
-		return -1;
-	}
-	data[pos++] = AST_CONNECTED_LINE_SUBADDRESS_ODD_EVEN;
-	data[pos++] = 1;
-	data[pos++] = connected->id.subaddress.odd_even_indicator;
-
-	/* Connected line Subaddress Valid */
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for connected line subaddress valid\n");
-		return -1;
-	}
-	data[pos++] = AST_CONNECTED_LINE_SUBADDRESS_VALID;
-	data[pos++] = 1;
-	data[pos++] = connected->id.subaddress.valid;
-
 	return pos;
 }
 
@@ -7536,6 +7948,9 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 	unsigned char ie_len;
 	unsigned char ie_id;
 	int32_t value;
+	int frame_version = 1;
+	int combined_presentation = 0;
+	int got_combined_presentation = 0;/* TRUE if got a combined name and number presentation value. */
 
 	for (pos = 0; pos < datalen; pos += ie_len) {
 		if (datalen < pos + sizeof(ie_id) + sizeof(ie_len)) {
@@ -7550,62 +7965,94 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 		}
 
 		switch (ie_id) {
-		case AST_CONNECTED_LINE_NUMBER:
-			if (connected->id.number) {
-				ast_free(connected->id.number);
-			}
-			connected->id.number = ast_malloc(ie_len + 1);
-			if (connected->id.number) {
-				memcpy(connected->id.number, data + pos, ie_len);
-				connected->id.number[ie_len] = 0;
-			}
-			break;
-		case AST_CONNECTED_LINE_NAME:
-			if (connected->id.name) {
-				ast_free(connected->id.name);
-			}
-			connected->id.name = ast_malloc(ie_len + 1);
-			if (connected->id.name) {
-				memcpy(connected->id.name, data + pos, ie_len);
-				connected->id.name[ie_len] = 0;
-			}
-			break;
-		case AST_CONNECTED_LINE_TAG:
-			if (connected->id.tag) {
-				ast_free(connected->id.tag);
-			}
-			connected->id.tag = ast_malloc(ie_len + 1);
-			if (connected->id.tag) {
-				memcpy(connected->id.tag, data + pos, ie_len);
-				connected->id.tag[ie_len] = 0;
-			}
-			break;
-		case AST_CONNECTED_LINE_NUMBER_TYPE:
+/* Connected line party frame version */
+		case AST_CONNECTED_LINE_VERSION:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid connected line type of number (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid connected line frame version (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
-			connected->id.number_type = data[pos];
+			frame_version = data[pos];
+			break;
+/* Connected line party id name */
+		case AST_CONNECTED_LINE_NAME:
+			ast_free(connected->id.name.str);
+			connected->id.name.str = ast_malloc(ie_len + 1);
+			if (connected->id.name.str) {
+				memcpy(connected->id.name.str, data + pos, ie_len);
+				connected->id.name.str[ie_len] = 0;
+			}
+			break;
+		case AST_CONNECTED_LINE_NAME_CHAR_SET:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line name char set (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->id.name.char_set = data[pos];
+			break;
+		case AST_CONNECTED_LINE_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->id.name.presentation = data[pos];
+			break;
+		case AST_CONNECTED_LINE_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->id.name.valid = data[pos];
+			break;
+/* Connected line party id number */
+		case AST_CONNECTED_LINE_NUMBER:
+			ast_free(connected->id.number.str);
+			connected->id.number.str = ast_malloc(ie_len + 1);
+			if (connected->id.number.str) {
+				memcpy(connected->id.number.str, data + pos, ie_len);
+				connected->id.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_CONNECTED_LINE_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			connected->id.number.plan = data[pos];
 			break;
 		case AST_CONNECTED_LINE_NUMBER_PRESENTATION:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid connected line presentation (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid connected line number presentation (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
-			connected->id.number_presentation = data[pos];
+			connected->id.number.presentation = data[pos];
 			break;
-		case AST_CONNECTED_LINE_SOURCE:
-			if (ie_len != sizeof(value)) {
-				ast_log(LOG_WARNING, "Invalid connected line source (%u)\n", (unsigned) ie_len);
+		case AST_CONNECTED_LINE_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line number valid (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
-			memcpy(&value, data + pos, sizeof(value));
-			connected->source = ntohl(value);
+			connected->id.number.valid = data[pos];
 			break;
+/* Connected line party id combined presentation */
+		case AST_CONNECTED_LINE_ID_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid connected line combined presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			combined_presentation = data[pos];
+			got_combined_presentation = 1;
+			break;
+/* Connected line party id subaddress */
 		case AST_CONNECTED_LINE_SUBADDRESS:
-			if (connected->id.subaddress.str) {
-				ast_free(connected->id.subaddress.str);
-			}
+			ast_free(connected->id.subaddress.str);
 			connected->id.subaddress.str = ast_malloc(ie_len + 1);
 			if (connected->id.subaddress.str) {
 				memcpy(connected->id.subaddress.str, data + pos, ie_len);
@@ -7637,21 +8084,69 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 			}
 			connected->id.subaddress.valid = data[pos];
 			break;
+/* Connected line party tag */
+		case AST_CONNECTED_LINE_TAG:
+			ast_free(connected->id.tag);
+			connected->id.tag = ast_malloc(ie_len + 1);
+			if (connected->id.tag) {
+				memcpy(connected->id.tag, data + pos, ie_len);
+				connected->id.tag[ie_len] = 0;
+			}
+			break;
+/* Connected line party source */
+		case AST_CONNECTED_LINE_SOURCE:
+			if (ie_len != sizeof(value)) {
+				ast_log(LOG_WARNING, "Invalid connected line source (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			memcpy(&value, data + pos, sizeof(value));
+			connected->source = ntohl(value);
+			break;
+/* Connected line party unknown element */
 		default:
-			ast_log(LOG_DEBUG, "Unknown connected line element: %u (%u)\n", (unsigned) ie_id, (unsigned) ie_len);
+			ast_log(LOG_DEBUG, "Unknown connected line element: %u (%u)\n",
+				(unsigned) ie_id, (unsigned) ie_len);
 			break;
 		}
+	}
+
+	switch (frame_version) {
+	case 1:
+		/*
+		 * The other end is an earlier version that we need to adjust
+		 * for compatibility.
+		 */
+		connected->id.name.valid = 1;
+		connected->id.name.char_set = AST_PARTY_CHAR_SET_ISO8859_1;
+		connected->id.number.valid = 1;
+		if (got_combined_presentation) {
+			connected->id.name.presentation = combined_presentation;
+			connected->id.number.presentation = combined_presentation;
+		}
+		break;
+	case 2:
+		/* The other end is at the same level as we are. */
+		break;
+	default:
+		/*
+		 * The other end is newer than we are.
+		 * We need to assume that they are compatible with us.
+		 */
+		ast_log(LOG_DEBUG, "Connected line frame has newer version: %u\n",
+			(unsigned) frame_version);
+		break;
 	}
 
 	return 0;
 }
 
-void ast_channel_update_connected_line(struct ast_channel *chan, const struct ast_party_connected_line *connected)
+void ast_channel_update_connected_line(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update)
 {
 	unsigned char data[1024];	/* This should be large enough */
 	size_t datalen;
 
-	datalen = ast_connected_line_build_data(data, sizeof(data), connected);
+	datalen = ast_connected_line_build_data(data, sizeof(data), connected, update);
 	if (datalen == (size_t) -1) {
 		return;
 	}
@@ -7659,12 +8154,12 @@ void ast_channel_update_connected_line(struct ast_channel *chan, const struct as
 	ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE, data, datalen);
 }
 
-void ast_channel_queue_connected_line_update(struct ast_channel *chan, const struct ast_party_connected_line *connected)
+void ast_channel_queue_connected_line_update(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update)
 {
 	unsigned char data[1024];	/* This should be large enough */
 	size_t datalen;
 
-	datalen = ast_connected_line_build_data(data, sizeof(data), connected);
+	datalen = ast_connected_line_build_data(data, sizeof(data), connected, update);
 	if (datalen == (size_t) -1) {
 		return;
 	}
@@ -7672,7 +8167,7 @@ void ast_channel_queue_connected_line_update(struct ast_channel *chan, const str
 	ast_queue_control_data(chan, AST_CONTROL_CONNECTED_LINE, data, datalen);
 }
 
-void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_party_redirecting *redirecting)
+void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update)
 {
 	if (&chan->redirecting == redirecting) {
 		/* Don't set to self */
@@ -7680,12 +8175,7 @@ void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_part
 	}
 
 	ast_channel_lock(chan);
-
-	ast_party_id_set(&chan->redirecting.from, &redirecting->from);
-	ast_party_id_set(&chan->redirecting.to, &redirecting->to);
-	chan->redirecting.reason = redirecting->reason;
-	chan->redirecting.count = redirecting->count;
-
+	ast_party_redirecting_set(&chan->redirecting, redirecting, update);
 	ast_channel_unlock(chan);
 }
 
@@ -7696,12 +8186,12 @@ void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_part
 enum {
 	AST_REDIRECTING_FROM_NUMBER,
 	AST_REDIRECTING_FROM_NAME,
-	AST_REDIRECTING_FROM_NUMBER_TYPE,
-	AST_REDIRECTING_FROM_NUMBER_PRESENTATION,
+	AST_REDIRECTING_FROM_NUMBER_PLAN,
+	AST_REDIRECTING_FROM_ID_PRESENTATION,
 	AST_REDIRECTING_TO_NUMBER,
 	AST_REDIRECTING_TO_NAME,
-	AST_REDIRECTING_TO_NUMBER_TYPE,
-	AST_REDIRECTING_TO_NUMBER_PRESENTATION,
+	AST_REDIRECTING_TO_NUMBER_PLAN,
+	AST_REDIRECTING_TO_ID_PRESENTATION,
 	AST_REDIRECTING_REASON,
 	AST_REDIRECTING_COUNT,
 	AST_REDIRECTING_FROM_SUBADDRESS,
@@ -7714,200 +8204,86 @@ enum {
 	AST_REDIRECTING_TO_SUBADDRESS_VALID,
 	AST_REDIRECTING_FROM_TAG,
 	AST_REDIRECTING_TO_TAG,
+	AST_REDIRECTING_VERSION,
+	AST_REDIRECTING_FROM_NAME_VALID,
+	AST_REDIRECTING_FROM_NAME_CHAR_SET,
+	AST_REDIRECTING_FROM_NAME_PRESENTATION,
+	AST_REDIRECTING_FROM_NUMBER_VALID,
+	AST_REDIRECTING_FROM_NUMBER_PRESENTATION,
+	AST_REDIRECTING_TO_NAME_VALID,
+	AST_REDIRECTING_TO_NAME_CHAR_SET,
+	AST_REDIRECTING_TO_NAME_PRESENTATION,
+	AST_REDIRECTING_TO_NUMBER_VALID,
+	AST_REDIRECTING_TO_NUMBER_PRESENTATION,
 };
 
-int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct ast_party_redirecting *redirecting)
+int ast_redirecting_build_data(unsigned char *data, size_t datalen, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update)
 {
 	int32_t value;
-	size_t length;
 	size_t pos = 0;
+	int res;
 
-	/*
-	 * The size of integer values must be fixed in case the frame is
-	 * shipped to another machine.
-	 */
+	static const struct ast_party_id_ies from_ies = {
+		.name.str = AST_REDIRECTING_FROM_NAME,
+		.name.char_set = AST_REDIRECTING_FROM_NAME_CHAR_SET,
+		.name.presentation = AST_REDIRECTING_FROM_NAME_PRESENTATION,
+		.name.valid = AST_REDIRECTING_FROM_NAME_VALID,
 
-	/* *************** Redirecting from party id *************** */
-	if (redirecting->from.number) {
-		length = strlen(redirecting->from.number);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting from number\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_FROM_NUMBER;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->from.number, length);
-		pos += length;
-	}
+		.number.str = AST_REDIRECTING_FROM_NUMBER,
+		.number.plan = AST_REDIRECTING_FROM_NUMBER_PLAN,
+		.number.presentation = AST_REDIRECTING_FROM_NUMBER_PRESENTATION,
+		.number.valid = AST_REDIRECTING_FROM_NUMBER_VALID,
 
-	if (redirecting->from.name) {
-		length = strlen(redirecting->from.name);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting from name\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_FROM_NAME;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->from.name, length);
-		pos += length;
-	}
+		.subaddress.str = AST_REDIRECTING_FROM_SUBADDRESS,
+		.subaddress.type = AST_REDIRECTING_FROM_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_REDIRECTING_FROM_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_REDIRECTING_FROM_SUBADDRESS_VALID,
 
-	if (redirecting->from.tag) {
-		length = strlen(redirecting->from.tag);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting from name\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_FROM_TAG;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->from.tag, length);
-		pos += length;
-	}
+		.tag = AST_REDIRECTING_FROM_TAG,
+		.combined_presentation = AST_REDIRECTING_FROM_ID_PRESENTATION,
+	};
+	static const struct ast_party_id_ies to_ies = {
+		.name.str = AST_REDIRECTING_TO_NAME,
+		.name.char_set = AST_REDIRECTING_TO_NAME_CHAR_SET,
+		.name.presentation = AST_REDIRECTING_TO_NAME_PRESENTATION,
+		.name.valid = AST_REDIRECTING_TO_NAME_VALID,
 
+		.number.str = AST_REDIRECTING_TO_NUMBER,
+		.number.plan = AST_REDIRECTING_TO_NUMBER_PLAN,
+		.number.presentation = AST_REDIRECTING_TO_NUMBER_PRESENTATION,
+		.number.valid = AST_REDIRECTING_TO_NUMBER_VALID,
+
+		.subaddress.str = AST_REDIRECTING_TO_SUBADDRESS,
+		.subaddress.type = AST_REDIRECTING_TO_SUBADDRESS_TYPE,
+		.subaddress.odd_even_indicator = AST_REDIRECTING_TO_SUBADDRESS_ODD_EVEN,
+		.subaddress.valid = AST_REDIRECTING_TO_SUBADDRESS_VALID,
+
+		.tag = AST_REDIRECTING_TO_TAG,
+		.combined_presentation = AST_REDIRECTING_TO_ID_PRESENTATION,
+	};
+
+	/* Redirecting frame version */
 	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting from type of number\n");
+		ast_log(LOG_WARNING, "No space left for redirecting frame version\n");
 		return -1;
 	}
-	data[pos++] = AST_REDIRECTING_FROM_NUMBER_TYPE;
+	data[pos++] = AST_REDIRECTING_VERSION;
 	data[pos++] = 1;
-	data[pos++] = redirecting->from.number_type;
+	data[pos++] = 2;/* Version 1 did not have a version ie */
 
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting from presentation\n");
+	res = party_id_build_data(data + pos, datalen - pos, &redirecting->from,
+		"redirecting-from", &from_ies, update ? &update->from : NULL);
+	if (res < 0) {
 		return -1;
 	}
-	data[pos++] = AST_REDIRECTING_FROM_NUMBER_PRESENTATION;
-	data[pos++] = 1;
-	data[pos++] = redirecting->from.number_presentation;
+	pos += res;
 
-	/* subaddress */
-	if (redirecting->from.subaddress.str) {
-		length = strlen(redirecting->from.subaddress.str);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting-from subaddress\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->from.subaddress.str, length);
-		pos += length;
-	}
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting-from type of subaddress\n");
+	res = party_id_build_data(data + pos, datalen - pos, &redirecting->to,
+		"redirecting-to", &to_ies, update ? &update->to : NULL);
+	if (res < 0) {
 		return -1;
 	}
-	data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS_TYPE;
-	data[pos++] = 1;
-	data[pos++] = redirecting->from.subaddress.type;
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING,
-			"No space left for redirecting-from subaddress odd-even indicator\n");
-		return -1;
-	}
-	data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS_ODD_EVEN;
-	data[pos++] = 1;
-	data[pos++] = redirecting->from.subaddress.odd_even_indicator;
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting-from subaddress valid\n");
-		return -1;
-	}
-	data[pos++] = AST_REDIRECTING_FROM_SUBADDRESS_VALID;
-	data[pos++] = 1;
-	data[pos++] = redirecting->from.subaddress.valid;
-
-	/* *************** Redirecting to party id *************** */
-	if (redirecting->to.number) {
-		length = strlen(redirecting->to.number);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting to number\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_TO_NUMBER;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->to.number, length);
-		pos += length;
-	}
-
-	if (redirecting->to.name) {
-		length = strlen(redirecting->to.name);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting to name\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_TO_NAME;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->to.name, length);
-		pos += length;
-	}
-
-	if (redirecting->to.tag) {
-		length = strlen(redirecting->to.tag);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting to name\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_TO_TAG;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->to.tag, length);
-		pos += length;
-	}
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting to type of number\n");
-		return -1;
-	}
-	data[pos++] = AST_REDIRECTING_TO_NUMBER_TYPE;
-	data[pos++] = 1;
-	data[pos++] = redirecting->to.number_type;
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting to presentation\n");
-		return -1;
-	}
-	data[pos++] = AST_REDIRECTING_TO_NUMBER_PRESENTATION;
-	data[pos++] = 1;
-	data[pos++] = redirecting->to.number_presentation;
-
-	/* subaddress */
-	if (redirecting->to.subaddress.str) {
-		length = strlen(redirecting->to.subaddress.str);
-		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
-			ast_log(LOG_WARNING, "No space left for redirecting-to subaddress\n");
-			return -1;
-		}
-		data[pos++] = AST_REDIRECTING_TO_SUBADDRESS;
-		data[pos++] = length;
-		memcpy(data + pos, redirecting->to.subaddress.str, length);
-		pos += length;
-	}
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting-to type of subaddress\n");
-		return -1;
-	}
-	data[pos++] = AST_REDIRECTING_TO_SUBADDRESS_TYPE;
-	data[pos++] = 1;
-	data[pos++] = redirecting->to.subaddress.type;
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING,
-			"No space left for redirecting-to subaddress odd-even indicator\n");
-		return -1;
-	}
-	data[pos++] = AST_REDIRECTING_TO_SUBADDRESS_ODD_EVEN;
-	data[pos++] = 1;
-	data[pos++] = redirecting->to.subaddress.odd_even_indicator;
-
-	if (datalen < pos + (sizeof(data[0]) * 2) + 1) {
-		ast_log(LOG_WARNING, "No space left for redirecting-to subaddress valid\n");
-		return -1;
-	}
-	data[pos++] = AST_REDIRECTING_TO_SUBADDRESS_VALID;
-	data[pos++] = 1;
-	data[pos++] = redirecting->to.subaddress.valid;
+	pos += res;
 
 	/* Redirecting reason */
 	if (datalen < pos + (sizeof(data[0]) * 2) + sizeof(value)) {
@@ -7940,6 +8316,11 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 	unsigned char ie_len;
 	unsigned char ie_id;
 	int32_t value;
+	int frame_version = 1;
+	int from_combined_presentation = 0;
+	int got_from_combined_presentation = 0;/* TRUE if got a combined name and number presentation value. */
+	int to_combined_presentation = 0;
+	int got_to_combined_presentation = 0;/* TRUE if got a combined name and number presentation value. */
 
 	for (pos = 0; pos < datalen; pos += ie_len) {
 		if (datalen < pos + sizeof(ie_id) + sizeof(ie_len)) {
@@ -7954,54 +8335,94 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 		}
 
 		switch (ie_id) {
-		case AST_REDIRECTING_FROM_NUMBER:
-			if (redirecting->from.number) {
-				ast_free(redirecting->from.number);
-			}
-			redirecting->from.number = ast_malloc(ie_len + 1);
-			if (redirecting->from.number) {
-				memcpy(redirecting->from.number, data + pos, ie_len);
-				redirecting->from.number[ie_len] = 0;
-			}
-			break;
-		case AST_REDIRECTING_FROM_NAME:
-			if (redirecting->from.name) {
-				ast_free(redirecting->from.name);
-			}
-			redirecting->from.name = ast_malloc(ie_len + 1);
-			if (redirecting->from.name) {
-				memcpy(redirecting->from.name, data + pos, ie_len);
-				redirecting->from.name[ie_len] = 0;
-			}
-			break;
-		case AST_REDIRECTING_FROM_TAG:
-			if (redirecting->from.tag) {
-				ast_free(redirecting->from.tag);
-			}
-			redirecting->from.tag = ast_malloc(ie_len + 1);
-			if (redirecting->from.tag) {
-				memcpy(redirecting->from.tag, data + pos, ie_len);
-				redirecting->from.tag[ie_len] = 0;
-			}
-			break;
-		case AST_REDIRECTING_FROM_NUMBER_TYPE:
+/* Redirecting frame version */
+		case AST_REDIRECTING_VERSION:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting from type of number (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid redirecting frame version (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
-			redirecting->from.number_type = data[pos];
+			frame_version = data[pos];
+			break;
+/* Redirecting-from party id name */
+		case AST_REDIRECTING_FROM_NAME:
+			ast_free(redirecting->from.name.str);
+			redirecting->from.name.str = ast_malloc(ie_len + 1);
+			if (redirecting->from.name.str) {
+				memcpy(redirecting->from.name.str, data + pos, ie_len);
+				redirecting->from.name.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_FROM_NAME_CHAR_SET:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-from name char set (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->from.name.char_set = data[pos];
+			break;
+		case AST_REDIRECTING_FROM_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-from name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->from.name.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_FROM_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-from name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->from.name.valid = data[pos];
+			break;
+/* Redirecting-from party id number */
+		case AST_REDIRECTING_FROM_NUMBER:
+			ast_free(redirecting->from.number.str);
+			redirecting->from.number.str = ast_malloc(ie_len + 1);
+			if (redirecting->from.number.str) {
+				memcpy(redirecting->from.number.str, data + pos, ie_len);
+				redirecting->from.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_FROM_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-from numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->from.number.plan = data[pos];
 			break;
 		case AST_REDIRECTING_FROM_NUMBER_PRESENTATION:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting from presentation (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid redirecting-from number presentation (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
-			redirecting->from.number_presentation = data[pos];
+			redirecting->from.number.presentation = data[pos];
 			break;
-		case AST_REDIRECTING_FROM_SUBADDRESS:
-			if (redirecting->from.subaddress.str) {
-				ast_free(redirecting->from.subaddress.str);
+		case AST_REDIRECTING_FROM_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-from number valid (%u)\n",
+					(unsigned) ie_len);
+				break;
 			}
+			redirecting->from.number.valid = data[pos];
+			break;
+/* Redirecting-from party id combined presentation */
+		case AST_REDIRECTING_FROM_ID_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-from combined presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			from_combined_presentation = data[pos];
+			got_from_combined_presentation = 1;
+			break;
+/* Redirecting-from party id subaddress */
+		case AST_REDIRECTING_FROM_SUBADDRESS:
+			ast_free(redirecting->from.subaddress.str);
 			redirecting->from.subaddress.str = ast_malloc(ie_len + 1);
 			if (redirecting->from.subaddress.str) {
 				memcpy(redirecting->from.subaddress.str, data + pos, ie_len);
@@ -8010,7 +8431,7 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			break;
 		case AST_REDIRECTING_FROM_SUBADDRESS_TYPE:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting from type of subaddress (%u)\n",
+				ast_log(LOG_WARNING, "Invalid redirecting-from type of subaddress (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
@@ -8019,7 +8440,7 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 		case AST_REDIRECTING_FROM_SUBADDRESS_ODD_EVEN:
 			if (ie_len != 1) {
 				ast_log(LOG_WARNING,
-					"Invalid redirecting from subaddress odd-even indicator (%u)\n",
+					"Invalid redirecting-from subaddress odd-even indicator (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
@@ -8027,60 +8448,100 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			break;
 		case AST_REDIRECTING_FROM_SUBADDRESS_VALID:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting from subaddress valid (%u)\n",
+				ast_log(LOG_WARNING, "Invalid redirecting-from subaddress valid (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
 			redirecting->from.subaddress.valid = data[pos];
 			break;
-		case AST_REDIRECTING_TO_NUMBER:
-			if (redirecting->to.number) {
-				ast_free(redirecting->to.number);
-			}
-			redirecting->to.number = ast_malloc(ie_len + 1);
-			if (redirecting->to.number) {
-				memcpy(redirecting->to.number, data + pos, ie_len);
-				redirecting->to.number[ie_len] = 0;
+/* Redirecting-from party id tag */
+		case AST_REDIRECTING_FROM_TAG:
+			ast_free(redirecting->from.tag);
+			redirecting->from.tag = ast_malloc(ie_len + 1);
+			if (redirecting->from.tag) {
+				memcpy(redirecting->from.tag, data + pos, ie_len);
+				redirecting->from.tag[ie_len] = 0;
 			}
 			break;
+/* Redirecting-to party id name */
 		case AST_REDIRECTING_TO_NAME:
-			if (redirecting->to.name) {
-				ast_free(redirecting->to.name);
-			}
-			redirecting->to.name = ast_malloc(ie_len + 1);
-			if (redirecting->to.name) {
-				memcpy(redirecting->to.name, data + pos, ie_len);
-				redirecting->to.name[ie_len] = 0;
+			ast_free(redirecting->to.name.str);
+			redirecting->to.name.str = ast_malloc(ie_len + 1);
+			if (redirecting->to.name.str) {
+				memcpy(redirecting->to.name.str, data + pos, ie_len);
+				redirecting->to.name.str[ie_len] = 0;
 			}
 			break;
-		case AST_REDIRECTING_TO_TAG:
-			if (redirecting->to.tag) {
-				ast_free(redirecting->to.tag);
-			}
-			redirecting->to.tag = ast_malloc(ie_len + 1);
-			if (redirecting->to.tag) {
-				memcpy(redirecting->to.tag, data + pos, ie_len);
-				redirecting->to.tag[ie_len] = 0;
-			}
-			break;
-		case AST_REDIRECTING_TO_NUMBER_TYPE:
+		case AST_REDIRECTING_TO_NAME_CHAR_SET:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting to type of number (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid redirecting-to name char set (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
-			redirecting->to.number_type = data[pos];
+			redirecting->to.name.char_set = data[pos];
+			break;
+		case AST_REDIRECTING_TO_NAME_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-to name presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->to.name.presentation = data[pos];
+			break;
+		case AST_REDIRECTING_TO_NAME_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-to name valid (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->to.name.valid = data[pos];
+			break;
+/* Redirecting-to party id number */
+		case AST_REDIRECTING_TO_NUMBER:
+			ast_free(redirecting->to.number.str);
+			redirecting->to.number.str = ast_malloc(ie_len + 1);
+			if (redirecting->to.number.str) {
+				memcpy(redirecting->to.number.str, data + pos, ie_len);
+				redirecting->to.number.str[ie_len] = 0;
+			}
+			break;
+		case AST_REDIRECTING_TO_NUMBER_PLAN:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-to numbering plan (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			redirecting->to.number.plan = data[pos];
 			break;
 		case AST_REDIRECTING_TO_NUMBER_PRESENTATION:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting to presentation (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid redirecting-to number presentation (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
-			redirecting->to.number_presentation = data[pos];
+			redirecting->to.number.presentation = data[pos];
 			break;
-		case AST_REDIRECTING_TO_SUBADDRESS:
-			if (redirecting->to.subaddress.str) {
-				ast_free(redirecting->to.subaddress.str);
+		case AST_REDIRECTING_TO_NUMBER_VALID:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-to number valid (%u)\n",
+					(unsigned) ie_len);
+				break;
 			}
+			redirecting->to.number.valid = data[pos];
+			break;
+/* Redirecting-to party id combined presentation */
+		case AST_REDIRECTING_TO_ID_PRESENTATION:
+			if (ie_len != 1) {
+				ast_log(LOG_WARNING, "Invalid redirecting-to combined presentation (%u)\n",
+					(unsigned) ie_len);
+				break;
+			}
+			to_combined_presentation = data[pos];
+			got_to_combined_presentation = 1;
+			break;
+/* Redirecting-to party id subaddress */
+		case AST_REDIRECTING_TO_SUBADDRESS:
+			ast_free(redirecting->to.subaddress.str);
 			redirecting->to.subaddress.str = ast_malloc(ie_len + 1);
 			if (redirecting->to.subaddress.str) {
 				memcpy(redirecting->to.subaddress.str, data + pos, ie_len);
@@ -8089,7 +8550,7 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			break;
 		case AST_REDIRECTING_TO_SUBADDRESS_TYPE:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting to type of subaddress (%u)\n",
+				ast_log(LOG_WARNING, "Invalid redirecting-to type of subaddress (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
@@ -8098,7 +8559,7 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 		case AST_REDIRECTING_TO_SUBADDRESS_ODD_EVEN:
 			if (ie_len != 1) {
 				ast_log(LOG_WARNING,
-					"Invalid redirecting to subaddress odd-even indicator (%u)\n",
+					"Invalid redirecting-to subaddress odd-even indicator (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
@@ -8106,43 +8567,93 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			break;
 		case AST_REDIRECTING_TO_SUBADDRESS_VALID:
 			if (ie_len != 1) {
-				ast_log(LOG_WARNING, "Invalid redirecting to subaddress valid (%u)\n",
+				ast_log(LOG_WARNING, "Invalid redirecting-to subaddress valid (%u)\n",
 					(unsigned) ie_len);
 				break;
 			}
 			redirecting->to.subaddress.valid = data[pos];
 			break;
+/* Redirecting-to party id tag */
+		case AST_REDIRECTING_TO_TAG:
+			ast_free(redirecting->to.tag);
+			redirecting->to.tag = ast_malloc(ie_len + 1);
+			if (redirecting->to.tag) {
+				memcpy(redirecting->to.tag, data + pos, ie_len);
+				redirecting->to.tag[ie_len] = 0;
+			}
+			break;
+/* Redirecting reason */
 		case AST_REDIRECTING_REASON:
 			if (ie_len != sizeof(value)) {
-				ast_log(LOG_WARNING, "Invalid redirecting reason (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid redirecting reason (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
 			memcpy(&value, data + pos, sizeof(value));
 			redirecting->reason = ntohl(value);
 			break;
+/* Redirecting count */
 		case AST_REDIRECTING_COUNT:
 			if (ie_len != sizeof(value)) {
-				ast_log(LOG_WARNING, "Invalid redirecting count (%u)\n", (unsigned) ie_len);
+				ast_log(LOG_WARNING, "Invalid redirecting count (%u)\n",
+					(unsigned) ie_len);
 				break;
 			}
 			memcpy(&value, data + pos, sizeof(value));
 			redirecting->count = ntohl(value);
 			break;
+/* Redirecting unknown element */
 		default:
-			ast_log(LOG_DEBUG, "Unknown redirecting element: %u (%u)\n", (unsigned) ie_id, (unsigned) ie_len);
+			ast_log(LOG_DEBUG, "Unknown redirecting element: %u (%u)\n",
+				(unsigned) ie_id, (unsigned) ie_len);
 			break;
 		}
+	}
+
+	switch (frame_version) {
+	case 1:
+		/*
+		 * The other end is an earlier version that we need to adjust
+		 * for compatibility.
+		 */
+		redirecting->from.name.valid = 1;
+		redirecting->from.name.char_set = AST_PARTY_CHAR_SET_ISO8859_1;
+		redirecting->from.number.valid = 1;
+		if (got_from_combined_presentation) {
+			redirecting->from.name.presentation = from_combined_presentation;
+			redirecting->from.number.presentation = from_combined_presentation;
+		}
+
+		redirecting->to.name.valid = 1;
+		redirecting->to.name.char_set = AST_PARTY_CHAR_SET_ISO8859_1;
+		redirecting->to.number.valid = 1;
+		if (got_to_combined_presentation) {
+			redirecting->to.name.presentation = to_combined_presentation;
+			redirecting->to.number.presentation = to_combined_presentation;
+		}
+		break;
+	case 2:
+		/* The other end is at the same level as we are. */
+		break;
+	default:
+		/*
+		 * The other end is newer than we are.
+		 * We need to assume that they are compatible with us.
+		 */
+		ast_log(LOG_DEBUG, "Redirecting frame has newer version: %u\n",
+			(unsigned) frame_version);
+		break;
 	}
 
 	return 0;
 }
 
-void ast_channel_update_redirecting(struct ast_channel *chan, const struct ast_party_redirecting *redirecting)
+void ast_channel_update_redirecting(struct ast_channel *chan, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update)
 {
 	unsigned char data[1024];	/* This should be large enough */
 	size_t datalen;
 
-	datalen = ast_redirecting_build_data(data, sizeof(data), redirecting);
+	datalen = ast_redirecting_build_data(data, sizeof(data), redirecting, update);
 	if (datalen == (size_t) -1) {
 		return;
 	}
@@ -8150,12 +8661,12 @@ void ast_channel_update_redirecting(struct ast_channel *chan, const struct ast_p
 	ast_indicate_data(chan, AST_CONTROL_REDIRECTING, data, datalen);
 }
 
-void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct ast_party_redirecting *redirecting)
+void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update)
 {
 	unsigned char data[1024];	/* This should be large enough */
 	size_t datalen;
 
-	datalen = ast_redirecting_build_data(data, sizeof(data), redirecting);
+	datalen = ast_redirecting_build_data(data, sizeof(data), redirecting, update);
 	if (datalen == (size_t) -1) {
 		return;
 	}
@@ -8193,7 +8704,7 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 	}
 
 	if (!(retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args))) {
-		ast_channel_update_connected_line(macro_chan, &macro_chan->connected);
+		ast_channel_update_connected_line(macro_chan, &macro_chan->connected, NULL);
 	}
 
 	return retval;
@@ -8230,7 +8741,7 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
 	if (!retval) {
-		ast_channel_update_redirecting(macro_chan, &macro_chan->redirecting);
+		ast_channel_update_redirecting(macro_chan, &macro_chan->redirecting, NULL);
 	}
 
 	return retval;

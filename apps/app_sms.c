@@ -1890,8 +1890,9 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 	h.ipc0 = h.ipc1 = 20;                   /* phase for cosine */
 	h.dcs = 0xF1;                           /* default */
 
-	if (chan->cid.cid_num)
-		ast_copy_string(h.cli, chan->cid.cid_num, sizeof(h.cli));
+	ast_copy_string(h.cli,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
+		sizeof(h.cli));
 
 	if (ast_strlen_zero(sms_args.queue)) {
 		ast_log(LOG_ERROR, "Requires queue name\n");

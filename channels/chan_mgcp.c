@@ -898,7 +898,9 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 			transmit_modify_request(sub->next);
 		}
 
-		transmit_notify_request_with_callerid(sub, tone, ast->connected.id.number, ast->connected.id.name);
+		transmit_notify_request_with_callerid(sub, tone,
+			S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""),
+			S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""));
 		ast_setstate(ast, AST_STATE_RINGING);
 
 		if (sub->next->owner && !ast_strlen_zero(sub->next->cxident) && !ast_strlen_zero(sub->next->callid)) {
@@ -918,6 +920,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;
+	struct ast_channel *bridged;
 
 	ast_debug(1, "mgcp_hangup(%s)\n", ast->name);
 	if (!ast->tech_pvt) {
@@ -967,7 +970,10 @@ static int mgcp_hangup(struct ast_channel *ast)
 		if (p->hookstate == MGCP_OFFHOOK) {
 			if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
 				/* ncs fix! */
-				transmit_notify_request_with_callerid(p->sub, (p->ncs ? "L/wt1" : "L/wt"), ast_bridged_channel(sub->next->owner)->cid.cid_num, ast_bridged_channel(sub->next->owner)->cid.cid_name);
+				bridged = ast_bridged_channel(sub->next->owner);
+				transmit_notify_request_with_callerid(p->sub, (p->ncs ? "L/wt1" : "L/wt"),
+					S_COR(bridged->caller.id.number.valid, bridged->caller.id.number.str, ""),
+					S_COR(bridged->caller.id.name.valid, bridged->caller.id.name.str, ""));
 			}
 		} else {
 			/* set our other connection as the primary and swith over to it */
@@ -975,7 +981,10 @@ static int mgcp_hangup(struct ast_channel *ast)
 			p->sub->cxmode = MGCP_CX_RECVONLY;
 			transmit_modify_request(p->sub);
 			if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
-				transmit_notify_request_with_callerid(p->sub, "L/rg", ast_bridged_channel(sub->next->owner)->cid.cid_num, ast_bridged_channel(sub->next->owner)->cid.cid_name);
+				bridged = ast_bridged_channel(sub->next->owner);
+				transmit_notify_request_with_callerid(p->sub, "L/rg",
+					S_COR(bridged->caller.id.number.valid, bridged->caller.id.number.str, ""),
+					S_COR(bridged->caller.id.name.valid, bridged->caller.id.name.str, ""));
 			}
 		}
 
@@ -1524,7 +1533,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		tmp->cid.cid_ani = ast_strdup(i->cid_num);
+		tmp->caller.ani = ast_strdup(i->cid_num);
 
 		if (!i->adsi) {
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
@@ -2988,12 +2997,12 @@ static void *mgcp_ss(void *data)
 					/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 					ast_indicate(chan, -1);
 					ast_copy_string(chan->exten, p->dtmf_buf, sizeof(chan->exten));
-					chan->cid.cid_dnid = ast_strdup(p->dtmf_buf);
+					chan->dialed.number.str = ast_strdup(p->dtmf_buf);
 					memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 					ast_set_callerid(chan,
 						p->hidecallerid ? "" : p->cid_num,
 						p->hidecallerid ? "" : p->cid_name,
-						chan->cid.cid_ani ? NULL : p->cid_num);
+						chan->caller.ani ? NULL : p->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
 					/*dahdi_enable_ec(p);*/
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {
@@ -3121,9 +3130,12 @@ static void *mgcp_ss(void *data)
 			len = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			timeout = firstdigittimeout;
-		} else if (!ast_canmatch_extension(chan, chan->context, p->dtmf_buf, 1, chan->cid.cid_num) &&
-				((p->dtmf_buf[0] != '*') || (strlen(p->dtmf_buf) > 2))) {
-			ast_debug(1, "Can't match %s from '%s' in context %s\n", p->dtmf_buf, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
+		} else if (!ast_canmatch_extension(chan, chan->context, p->dtmf_buf, 1,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
+			&& ((p->dtmf_buf[0] != '*') || (strlen(p->dtmf_buf) > 2))) {
+			ast_debug(1, "Can't match %s from '%s' in context %s\n", p->dtmf_buf,
+				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<Unknown Caller>"),
+				chan->context);
 			break;
 		}
 		if (!timeout)

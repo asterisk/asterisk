@@ -124,16 +124,22 @@ static void sig_ss7_set_caller_id(struct sig_ss7_chan *p)
 
 	if (p->calls->set_callerid) {
 		ast_party_caller_init(&caller);
-		caller.id.number = p->cid_num;
-		caller.id.name = p->cid_name;
+
+		caller.id.name.str = p->cid_name;
+		caller.id.name.presentation = p->callingpres;
+		caller.id.name.valid = 1;
+
+		caller.id.number.str = p->cid_num;
+		caller.id.number.plan = p->cid_ton;
+		caller.id.number.presentation = p->callingpres;
+		caller.id.number.valid = 1;
+
 		if (!ast_strlen_zero(p->cid_subaddr)) {
 			caller.id.subaddress.valid = 1;
 			//caller.id.subaddress.type = 0;/* nsap */
 			//caller.id.subaddress.odd_even_indicator = 0;
 			caller.id.subaddress.str = p->cid_subaddr;
 		}
-		caller.id.number_type = p->cid_ton;
-		caller.id.number_presentation = p->callingpres;
 		caller.ani = p->cid_ani;
 		caller.ani2 = p->cid_ani2;
 		p->calls->set_callerid(p->chan_pvt, &caller);
@@ -1255,7 +1261,7 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, char *rdest)
 	}
 
 	if (!p->hidecallerid) {
-		l = ast->connected.id.number;
+		l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
 	} else {
 		l = NULL;
 	}
@@ -1301,8 +1307,8 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, char *rdest)
 		}
 	}
 	isup_set_calling(p->ss7call, l ? (l + calling_nai_strip) : NULL, ss7_calling_nai,
-		p->use_callingpres ? cid_pres2ss7pres(ast->connected.id.number_presentation) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
-		p->use_callingpres ? cid_pres2ss7screen(ast->connected.id.number_presentation) : SS7_SCREENING_USER_PROVIDED );
+		p->use_callingpres ? cid_pres2ss7pres(ast->connected.id.number.presentation) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
+		p->use_callingpres ? cid_pres2ss7screen(ast->connected.id.number.presentation) : SS7_SCREENING_USER_PROVIDED);
 
 	isup_set_oli(p->ss7call, ast->connected.ani2);
 	isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);

@@ -105,7 +105,9 @@ static int setcallerid_pres_exec(struct ast_channel *chan, const char *data)
 		return 0;
 	}
 	
-	chan->cid.cid_pres = pres;
+	/* Set the combined caller id presentation. */
+	chan->caller.id.name.presentation = pres;
+	chan->caller.id.number.presentation = pres;
 	return 0;
 }
 

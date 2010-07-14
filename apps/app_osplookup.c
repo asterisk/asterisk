@@ -2257,7 +2257,10 @@ static int ospauth_exec(
 	ast_debug(1, "OSPAuth: source '%s'\n", source);
 	ast_debug(1, "OSPAuth: token size '%zd'\n", strlen(token));
 
-	if ((res = osp_auth(provider, &handle, source, chan->cid.cid_num, chan->exten, token, &timelimit)) > 0) {
+	res = osp_auth(provider, &handle, source,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+		chan->exten, token, &timelimit);
+	if (res > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
 		timelimit = OSP_DEF_TIMELIMIT;
@@ -2453,7 +2456,10 @@ static int osplookup_exec(
 		return OSP_AST_ERROR;
 	}
 
-	if ((res = osp_lookup(provider, callidtypes, actualsrc, srcdev, chan->cid.cid_num, args.exten, snetid, &np, &div, cinfo, &results)) > 0) {
+	res = osp_lookup(provider, callidtypes, actualsrc, srcdev,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+		args.exten, snetid, &np, &div, cinfo, &results);
+	if (res > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
 		results.tech[0] = '\0';

@@ -268,9 +268,9 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		/* Copy over callerid information */
 		ast_party_redirecting_copy(&channel->owner->redirecting, &chan->redirecting);
 
-		channel->owner->cid.cid_tns = chan->cid.cid_tns;
+		channel->owner->dialed.transit_network_select = chan->dialed.transit_network_select;
 
-		ast_connected_line_copy_from_caller(&channel->owner->connected, &chan->cid);
+		ast_connected_line_copy_from_caller(&channel->owner->connected, &chan->caller);
 
 		ast_string_field_set(channel->owner, language, chan->language);
 		ast_string_field_set(channel->owner, accountcode, chan->accountcode);

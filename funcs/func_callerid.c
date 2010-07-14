@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999-2006, Digium, Inc.
+ * Copyright (C) 1999-2010, Digium, Inc.
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -16,9 +16,12 @@
 
 /*! \file
  *
- * \brief Caller ID related dialplan functions
+ * \brief Party ID related dialplan functions (Caller-ID, Connected-line, Redirecting)
  *
  * \ingroup functions
+ *
+ * See Also:
+ * \arg \ref AstCREDITS
  */
 
 #include "asterisk.h"
@@ -32,6 +35,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/callerid.h"
 
+/*
+ * Do not document the CALLERID(pres) datatype.
+ * The name and number now have their own presentation value.  The pres
+ * option will simply live on as a historical relic with as best
+ * as can be managed backward compatible meaning.
+ *
+ * Do not document the CALLERID(ton) datatype.
+ * It is an alias for num-plan.
+ *
+ * Do not document the CONNECTEDLINE(source) datatype.
+ * It has turned out to not be needed.  The source value is really
+ * only useful as a possible tracing aid.
+ *
+ * Do not document the CONNECTEDLINE(pres) datatype.
+ * The name and number now have their own presentation value.  The pres
+ * option will simply live on as a historical relic with as best
+ * as can be managed backward compatible meaning.
+ *
+ * Do not document the CONNECTEDLINE(ton) datatype.
+ * It is an alias for num-plan.
+ *
+ * Do not document the REDIRECTING(pres) datatype.
+ * It has turned out that the from-pres and to-pres values must be kept
+ * separate.  They represent two different parties and there is a case when
+ * they are active at the same time.  The plain pres option will simply
+ * live on as a historical relic.
+ *
+ * Do not document the REDIRECTING(from-pres) or REDIRECTING(to-pres) datatypes.
+ * The name and number now have their own presentation value.  The from-pres
+ * and to-pres options will simply live on as a historical relic with as best
+ * as can be managed backward compatible meaning.
+ *
+ * Do not document the REDIRECTING(from-ton) or REDIRECTING(to-ton) datatypes.
+ * They are aliases for from-num-plan and to-num-plan respectively.
+ */
 /*** DOCUMENTATION
 	<function name="CALLERID" language="en_US">
 		<synopsis>
@@ -41,21 +79,28 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="datatype" required="true">
 				<para>The allowable datatypes are:</para>
 				<enumlist>
-					<enum name="all" />
-					<enum name="num" />
-					<enum name="name" />
-					<enum name="tag" />
-					<enum name="ANI" />
-					<enum name="DNID" />
-					<enum name="RDNIS" />
-					<enum name="pres" />
-					<enum name="ton" />
-					<enum name="subaddr[-valid]|[-type]|[-odd]">
-						<para>ISDN Calling Subaddress</para>
-					</enum>
-					<enum name="dnid-subaddr[-valid]|[-type]|[-odd]">
-						<para>ISDN Called Subaddress</para>
-					</enum>
+					<enum name = "all" />
+					<enum name = "name" />
+					<enum name = "name-valid" />
+					<enum name = "name-charset" />
+					<enum name = "name-pres" />
+					<enum name = "num" />
+					<enum name = "num-valid" />
+					<enum name = "num-plan" />
+					<enum name = "num-pres" />
+					<enum name = "subaddr" />
+					<enum name = "subaddr-valid" />
+					<enum name = "subaddr-type" />
+					<enum name = "subaddr-odd" />
+					<enum name = "tag" />
+					<enum name = "ANI" />
+					<enum name = "RDNIS" />
+					<enum name = "DNID" />
+					<enum name = "dnid-num-plan" />
+					<enum name = "dnid-subaddr" />
+					<enum name = "dnid-subaddr-valid" />
+					<enum name = "dnid-subaddr-type" />
+					<enum name = "dnid-subaddr-odd" />
 				</enumlist>
 			</parameter>
 			<parameter name="CID">
@@ -63,8 +108,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>Gets or sets Caller*ID data on the channel. Uses channel callerid by default or optional
-			callerid, if specified.</para>
+			<para>Gets or sets Caller*ID data on the channel. Uses channel callerid by
+			default or optional callerid, if specified.</para>
+			<para>The allowable values for the <replaceable>name-charset</replaceable>
+			field are the following:</para>
+			<enumlist>
+				<enum name = "unknown"><para>Unknown</para></enum>
+				<enum name = "iso8859-1"><para>ISO8859-1</para></enum>
+				<enum name = "withdrawn"><para>Withdrawn</para></enum>
+				<enum name = "iso8859-2"><para>ISO8859-2</para></enum>
+				<enum name = "iso8859-3"><para>ISO8859-3</para></enum>
+				<enum name = "iso8859-4"><para>ISO8859-4</para></enum>
+				<enum name = "iso8859-5"><para>ISO8859-5</para></enum>
+				<enum name = "iso8859-7"><para>ISO8859-7</para></enum>
+				<enum name = "bmp"><para>ISO10646 Bmp String</para></enum>
+				<enum name = "utf8"><para>ISO10646 UTF-8 String</para></enum>
+			</enumlist>
 		</description>
 	</function>
 	<function name="CALLERPRES" language="en_US">
@@ -73,8 +132,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax />
 		<description>
-			<para>Gets or sets Caller*ID presentation on the channel. The following values
-			are valid:</para>
+			<para>Gets or sets Caller*ID presentation on the channel.
+			This function is deprecated in favor of CALLERID(num-pres)
+			and CALLERID(name-pres).
+			The following values are valid:</para>
 			<enumlist>
 				<enum name="allowed_not_screened">
 					<para>Presentation Allowed, Not Screened.</para>
@@ -106,47 +167,731 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</enumlist>
 		</description>
 	</function>
+	<function name="CONNECTEDLINE" language="en_US">
+		<synopsis>
+			Gets or sets Connected Line data on the channel.
+		</synopsis>
+		<syntax>
+			<parameter name="datatype" required="true">
+				<para>The allowable datatypes are:</para>
+				<enumlist>
+					<enum name = "all" />
+					<enum name = "name" />
+					<enum name = "name-valid" />
+					<enum name = "name-charset" />
+					<enum name = "name-pres" />
+					<enum name = "num" />
+					<enum name = "num-valid" />
+					<enum name = "num-plan" />
+					<enum name = "num-pres" />
+					<enum name = "subaddr" />
+					<enum name = "subaddr-valid" />
+					<enum name = "subaddr-type" />
+					<enum name = "subaddr-odd" />
+					<enum name = "tag" />
+				</enumlist>
+			</parameter>
+			<parameter name="i">
+				<para>If set, this will prevent the channel from sending out protocol
+				messages because of the value being set</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Gets or sets Connected Line data on the channel.</para>
+			<para>The allowable values for the <replaceable>name-charset</replaceable>
+			field are the following:</para>
+			<enumlist>
+				<enum name = "unknown"><para>Unknown</para></enum>
+				<enum name = "iso8859-1"><para>ISO8859-1</para></enum>
+				<enum name = "withdrawn"><para>Withdrawn</para></enum>
+				<enum name = "iso8859-2"><para>ISO8859-2</para></enum>
+				<enum name = "iso8859-3"><para>ISO8859-3</para></enum>
+				<enum name = "iso8859-4"><para>ISO8859-4</para></enum>
+				<enum name = "iso8859-5"><para>ISO8859-5</para></enum>
+				<enum name = "iso8859-7"><para>ISO8859-7</para></enum>
+				<enum name = "bmp"><para>ISO10646 Bmp String</para></enum>
+				<enum name = "utf8"><para>ISO10646 UTF-8 String</para></enum>
+			</enumlist>
+		</description>
+	</function>
+	<function name="REDIRECTING" language="en_US">
+		<synopsis>
+			Gets or sets Redirecting data on the channel.
+		</synopsis>
+		<syntax>
+			<parameter name="datatype" required="true">
+				<para>The allowable datatypes are:</para>
+				<enumlist>
+					<enum name = "from-all" />
+					<enum name = "from-name" />
+					<enum name = "from-name-valid" />
+					<enum name = "from-name-charset" />
+					<enum name = "from-name-pres" />
+					<enum name = "from-num" />
+					<enum name = "from-num-valid" />
+					<enum name = "from-num-plan" />
+					<enum name = "from-num-pres" />
+					<enum name = "from-subaddr" />
+					<enum name = "from-subaddr-valid" />
+					<enum name = "from-subaddr-type" />
+					<enum name = "from-subaddr-odd" />
+					<enum name = "from-tag" />
+					<enum name = "to-all" />
+					<enum name = "to-name" />
+					<enum name = "to-name-valid" />
+					<enum name = "to-name-charset" />
+					<enum name = "to-name-pres" />
+					<enum name = "to-num" />
+					<enum name = "to-num-valid" />
+					<enum name = "to-num-plan" />
+					<enum name = "to-num-pres" />
+					<enum name = "to-subaddr" />
+					<enum name = "to-subaddr-valid" />
+					<enum name = "to-subaddr-type" />
+					<enum name = "to-subaddr-odd" />
+					<enum name = "to-tag" />
+					<enum name = "reason" />
+					<enum name = "count" />
+				</enumlist>
+			</parameter>
+			<parameter name="i">
+				<para>If set, this will prevent the channel from sending out protocol
+				messages because of the value being set</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Gets or sets Redirecting data on the channel.</para>
+			<para>The allowable values for the <replaceable>reason</replaceable>
+			field are the following:</para>
+			<enumlist>
+				<enum name = "unknown"><para>Unknown</para></enum>
+				<enum name = "cfb"><para>Call Forwarding Busy</para></enum>
+				<enum name = "cfnr"><para>Call Forwarding No Reply</para></enum>
+				<enum name = "unavailable"><para>Callee is Unavailable</para></enum>
+				<enum name = "time_of_day"><para>Time of Day</para></enum>
+				<enum name = "dnd"><para>Do Not Disturb</para></enum>
+				<enum name = "deflection"><para>Call Deflection</para></enum>
+				<enum name = "follow_me"><para>Follow Me</para></enum>
+				<enum name = "out_of_order"><para>Called DTE Out-Of-Order</para></enum>
+				<enum name = "away"><para>Callee is Away</para></enum>
+				<enum name = "cf_dte"><para>Call Forwarding By The Called DTE</para></enum>
+				<enum name = "cfu"><para>Call Forwarding Unconditional</para></enum>
+			</enumlist>
+			<para>The allowable values for the <replaceable>xxx-name-charset</replaceable>
+			field are the following:</para>
+			<enumlist>
+				<enum name = "unknown"><para>Unknown</para></enum>
+				<enum name = "iso8859-1"><para>ISO8859-1</para></enum>
+				<enum name = "withdrawn"><para>Withdrawn</para></enum>
+				<enum name = "iso8859-2"><para>ISO8859-2</para></enum>
+				<enum name = "iso8859-3"><para>ISO8859-3</para></enum>
+				<enum name = "iso8859-4"><para>ISO8859-4</para></enum>
+				<enum name = "iso8859-5"><para>ISO8859-5</para></enum>
+				<enum name = "iso8859-7"><para>ISO8859-7</para></enum>
+				<enum name = "bmp"><para>ISO10646 Bmp String</para></enum>
+				<enum name = "utf8"><para>ISO10646 UTF-8 String</para></enum>
+			</enumlist>
+		</description>
+	</function>
  ***/
 
+enum ID_FIELD_STATUS {
+	ID_FIELD_VALID,
+	ID_FIELD_INVALID,
+	ID_FIELD_UNKNOWN
+};
+
+AST_DEFINE_APP_ARGS_TYPE(ast_party_func_args,
+	AST_APP_ARG(member);	/*!< Member name */
+	AST_APP_ARG(opts);		/*!< Options token */
+	AST_APP_ARG(other);		/*!< Any remining unused arguments */
+	);
+
+AST_DEFINE_APP_ARGS_TYPE(ast_party_members,
+	AST_APP_ARG(subnames[10]);	/*!< Option member subnames */
+	);
+
+enum CONNECTED_LINE_OPT_FLAGS {
+	CONNECTED_LINE_OPT_INHIBIT = (1 << 0),
+};
+enum CONNECTED_LINE_OPT_ARGS {
+	CONNECTED_LINE_OPT_DUMMY,	/*!< Delete this if CONNECTED_LINE ever gets an option with parameters. */
+
+	/*! \note This entry _MUST_ be the last one in the enum */
+	CONNECTED_LINE_OPT_ARG_ARRAY_SIZE
+};
+
+AST_APP_OPTIONS(connectedline_opts, BEGIN_OPTIONS
+	AST_APP_OPTION('i', CONNECTED_LINE_OPT_INHIBIT),
+END_OPTIONS);
+
+enum REDIRECTING_OPT_FLAGS {
+	REDIRECTING_OPT_INHIBIT = (1 << 0),
+};
+enum REDIRECTING_OPT_ARGS {
+	REDIRECTING_OPT_DUMMY,	/*!< Delete this if REDIRECTING ever gets an option with parameters. */
+
+	/*! \note This entry _MUST_ be the last one in the enum */
+	REDIRECTING_OPT_ARG_ARRAY_SIZE
+};
+
+AST_APP_OPTIONS(redirecting_opts, BEGIN_OPTIONS
+	AST_APP_OPTION('i', REDIRECTING_OPT_INHIBIT),
+END_OPTIONS);
+
+/*!
+ * \internal
+ * \brief Read values from the party name struct.
+ * \since 1.8
+ *
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer.
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param name Party name to get values from.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_name_read(char *buf, size_t len, int argc, char *argv[], const struct ast_party_name *name)
+{
+	enum ID_FIELD_STATUS status;
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 0) {
+		/* We want the name string */
+		if (name->valid && name->str) {
+			ast_copy_string(buf, name->str, len);
+		}
+	} else if (argc == 1 && !strcasecmp("valid", argv[0])) {
+		snprintf(buf, len, "%d", name->valid);
+	} else if (argc == 1 && !strcasecmp("charset", argv[0])) {
+		ast_copy_string(buf, ast_party_name_charset_str(name->char_set), len);
+	} else if (argc == 1 && !strncasecmp("pres", argv[0], 4)) {
+		/* Accept pres[entation] */
+		ast_copy_string(buf, ast_named_caller_presentation(name->presentation), len);
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*!
+ * \internal
+ * \brief Read values from the party number struct.
+ * \since 1.8
+ *
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer.
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param number Party number to get values from.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_number_read(char *buf, size_t len, int argc, char *argv[], const struct ast_party_number *number)
+{
+	enum ID_FIELD_STATUS status;
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 0) {
+		/* We want the number string */
+		if (number->valid && number->str) {
+			ast_copy_string(buf, number->str, len);
+		}
+	} else if (argc == 1 && !strcasecmp("valid", argv[0])) {
+		snprintf(buf, len, "%d", number->valid);
+	} else if (argc == 1 && !strcasecmp("plan", argv[0])) {
+		snprintf(buf, len, "%d", number->plan);
+	} else if (argc == 1 && !strncasecmp("pres", argv[0], 4)) {
+		/* Accept pres[entation] */
+		ast_copy_string(buf, ast_named_caller_presentation(number->presentation), len);
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*!
+ * \internal
+ * \brief Read values from the party subaddress struct.
+ * \since 1.8
+ *
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer.
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param subaddress Party subaddress to get values from.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_subaddress_read(char *buf, size_t len, int argc, char *argv[], const struct ast_party_subaddress *subaddress)
+{
+	enum ID_FIELD_STATUS status;
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 0) {
+		/* We want the subaddress string */
+		if (subaddress->str) {
+			ast_copy_string(buf, subaddress->str, len);
+		}
+	} else if (argc == 1 && !strcasecmp("valid", argv[0])) {
+		snprintf(buf, len, "%d", subaddress->valid);
+	} else if (argc == 1 && !strcasecmp("type", argv[0])) {
+		snprintf(buf, len, "%d", subaddress->type);
+	} else if (argc == 1 && !strcasecmp("odd", argv[0])) {
+		snprintf(buf, len, "%d", subaddress->odd_even_indicator);
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*!
+ * \internal
+ * \brief Read values from the party id struct.
+ * \since 1.8
+ *
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer.
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param id Party id to get values from.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_id_read(char *buf, size_t len, int argc, char *argv[], const struct ast_party_id *id)
+{
+	enum ID_FIELD_STATUS status;
+
+	if (argc == 0) {
+		/* Must have at least one subname. */
+		return ID_FIELD_UNKNOWN;
+	}
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 1 && !strcasecmp("all", argv[0])) {
+		snprintf(buf, len, "\"%s\" <%s>",
+			 S_COR(id->name.valid, id->name.str, ""),
+			 S_COR(id->number.valid, id->number.str, ""));
+	} else if (!strcasecmp("name", argv[0])) {
+		status = party_name_read(buf, len, argc - 1, argv + 1, &id->name);
+	} else if (!strncasecmp("num", argv[0], 3)) {
+		/* Accept num[ber] */
+		status = party_number_read(buf, len, argc - 1, argv + 1, &id->number);
+	} else if (!strncasecmp("subaddr", argv[0], 7)) {
+		/* Accept subaddr[ess] */
+		status = party_subaddress_read(buf, len, argc - 1, argv + 1, &id->subaddress);
+	} else if (argc == 1 && !strcasecmp("tag", argv[0])) {
+		if (id->tag) {
+			ast_copy_string(buf, id->tag, len);
+		}
+	} else if (argc == 1 && !strcasecmp("ton", argv[0])) {
+		/* ton is an alias for num-plan */
+		snprintf(buf, len, "%d", id->number.plan);
+	} else if (argc == 1 && !strncasecmp("pres", argv[0], 4)) {
+		/*
+		 * Accept pres[entation]
+		 * This is the combined name/number presentation.
+		 */
+		ast_copy_string(buf,
+			ast_named_caller_presentation(ast_party_id_presentation(id)), len);
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*!
+ * \internal
+ * \brief Write new values to the party name struct
+ * \since 1.8
+ *
+ * \param name Party name struct to write values
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param value Value to assign to the party name.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_INVALID on error with field value.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_name_write(struct ast_party_name *name, int argc, char *argv[], const char *value)
+{
+	char *val;
+	enum ID_FIELD_STATUS status;
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 0) {
+		/* We are setting the name string */
+		name->valid = 1;
+		name->str = ast_strdup(value);
+		ast_trim_blanks(name->str);
+	} else if (argc == 1 && !strcasecmp("valid", argv[0])) {
+		name->valid = atoi(value) ? 1 : 0;
+	} else if (argc == 1 && !strcasecmp("charset", argv[0])) {
+		int char_set;
+
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			char_set = atoi(val);
+		} else {
+			char_set = ast_party_name_charset_parse(val);
+		}
+
+		if (char_set < 0) {
+			ast_log(LOG_ERROR,
+				"Unknown name char-set '%s', value unchanged\n", val);
+			status = ID_FIELD_INVALID;
+		} else {
+			name->char_set = char_set;
+		}
+	} else if (argc == 1 && !strncasecmp("pres", argv[0], 4)) {
+		int pres;
+
+		/* Accept pres[entation] */
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			pres = atoi(val);
+		} else {
+			pres = ast_parse_caller_presentation(val);
+		}
+
+		if (pres < 0) {
+			ast_log(LOG_ERROR,
+				"Unknown name presentation '%s', value unchanged\n", val);
+			status = ID_FIELD_INVALID;
+		} else {
+			name->presentation = pres;
+		}
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*!
+ * \internal
+ * \brief Write new values to the party number struct
+ * \since 1.8
+ *
+ * \param number Party number struct to write values
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param value Value to assign to the party number.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_INVALID on error with field value.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_number_write(struct ast_party_number *number, int argc, char *argv[], const char *value)
+{
+	char *val;
+	enum ID_FIELD_STATUS status;
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 0) {
+		/* We are setting the number string */
+		number->valid = 1;
+		number->str = ast_strdup(value);
+		ast_trim_blanks(number->str);
+	} else if (argc == 1 && !strcasecmp("valid", argv[0])) {
+		number->valid = atoi(value) ? 1 : 0;
+	} else if (argc == 1 && !strcasecmp("plan", argv[0])) {
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			number->plan = atoi(val);
+		} else {
+			ast_log(LOG_ERROR,
+				"Unknown type-of-number/numbering-plan '%s', value unchanged\n", val);
+			status = ID_FIELD_INVALID;
+		}
+	} else if (argc == 1 && !strncasecmp("pres", argv[0], 4)) {
+		int pres;
+
+		/* Accept pres[entation] */
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			pres = atoi(val);
+		} else {
+			pres = ast_parse_caller_presentation(val);
+		}
+
+		if (pres < 0) {
+			ast_log(LOG_ERROR,
+				"Unknown number presentation '%s', value unchanged\n", val);
+			status = ID_FIELD_INVALID;
+		} else {
+			number->presentation = pres;
+		}
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*!
+ * \internal
+ * \brief Write new values to the party subaddress struct
+ * \since 1.8
+ *
+ * \param subaddress Party subaddress struct to write values
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param value Value to assign to the party subaddress.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_INVALID on error with field value.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_subaddress_write(struct ast_party_subaddress *subaddress, int argc, char *argv[], const char *value)
+{
+	enum ID_FIELD_STATUS status;
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 0) {
+		/* We are setting the subaddress string */
+		subaddress->str = ast_strdup(value);
+		ast_trim_blanks(subaddress->str);
+	} else if (argc == 1 && !strcasecmp("valid", argv[0])) {
+		subaddress->valid = atoi(value) ? 1 : 0;
+	} else if (argc == 1 && !strcasecmp("type", argv[0])) {
+		subaddress->type = atoi(value) ? 2 : 0;
+	} else if (argc == 1 && !strcasecmp("odd", argv[0])) {
+		subaddress->odd_even_indicator = atoi(value) ? 1 : 0;
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*!
+ * \internal
+ * \brief Write new values to the party id struct
+ * \since 1.8
+ *
+ * \param id Party ID struct to write values
+ * \param argc Number of party member subnames.
+ * \param argv Party member subnames given.
+ * \param value Value to assign to the party id.
+ *
+ * \retval ID_FIELD_VALID on success.
+ * \retval ID_FIELD_INVALID on error with field value.
+ * \retval ID_FIELD_UNKNOWN on unknown field name.
+ */
+static enum ID_FIELD_STATUS party_id_write(struct ast_party_id *id, int argc, char *argv[], const char *value)
+{
+	char *val;
+	enum ID_FIELD_STATUS status;
+
+	if (argc == 0) {
+		/* Must have at least one subname. */
+		return ID_FIELD_UNKNOWN;
+	}
+
+	status = ID_FIELD_VALID;
+
+	if (argc == 1 && !strcasecmp("all", argv[0])) {
+		char name[256];
+		char num[256];
+
+		ast_callerid_split(value, name, sizeof(name), num, sizeof(num));
+		id->name.valid = 1;
+		id->name.str = ast_strdup(name);
+		if (!id->name.str) {
+			return ID_FIELD_INVALID;
+		}
+		id->number.valid = 1;
+		id->number.str = ast_strdup(num);
+		if (!id->number.str) {
+			return ID_FIELD_INVALID;
+		}
+	} else if (!strcasecmp("name", argv[0])) {
+		status = party_name_write(&id->name, argc - 1, argv + 1, value);
+	} else if (!strncasecmp("num", argv[0], 3)) {
+		/* Accept num[ber] */
+		status = party_number_write(&id->number, argc - 1, argv + 1, value);
+	} else if (!strncasecmp("subaddr", argv[0], 7)) {
+		/* Accept subaddr[ess] */
+		status = party_subaddress_write(&id->subaddress, argc - 1, argv + 1, value);
+	} else if (argc == 1 && !strcasecmp("tag", argv[0])) {
+		id->tag = ast_strdup(value);
+		ast_trim_blanks(id->tag);
+	} else if (argc == 1 && !strcasecmp("ton", argv[0])) {
+		/* ton is an alias for num-plan */
+		argv[0] = "plan";
+		status = party_number_write(&id->number, argc, argv, value);
+	} else if (argc == 1 && !strncasecmp("pres", argv[0], 4)) {
+		int pres;
+
+		/*
+		 * Accept pres[entation]
+		 * This is the combined name/number presentation.
+		 */
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			pres = atoi(val);
+		} else {
+			pres = ast_parse_caller_presentation(val);
+		}
+
+		if (pres < 0) {
+			ast_log(LOG_ERROR,
+				"Unknown combined presentation '%s', value unchanged\n", val);
+			status = ID_FIELD_INVALID;
+		} else {
+			id->name.presentation = pres;
+			id->number.presentation = pres;
+		}
+	} else {
+		status = ID_FIELD_UNKNOWN;
+	}
+
+	return status;
+}
+
+/*! TRUE if we have already notified about CALLERPRES being deprecated. */
+static int callerpres_deprecate_notify;
+
+/*!
+ * \internal
+ * \brief Read values from the caller-id presentation information struct.
+ *
+ * \param chan Asterisk channel to read
+ * \param cmd Not used
+ * \param data Caller-id presentation function datatype string
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
 static int callerpres_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	ast_copy_string(buf, ast_named_caller_presentation(chan->cid.cid_pres), len);
+	if (!callerpres_deprecate_notify) {
+		callerpres_deprecate_notify = 1;
+		ast_log(LOG_WARNING, "CALLERPRES is deprecated."
+			"  Use CALLERID(name-pres) or CALLERID(num-pres) instead.\n");
+	}
+	ast_copy_string(buf,
+		ast_named_caller_presentation(ast_party_id_presentation(&chan->caller.id)), len);
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Write new values to the caller-id presentation information struct.
+ *
+ * \param chan Asterisk channel to update
+ * \param cmd Not used
+ * \param data Caller-id presentation function datatype string
+ * \param value Value to assign to the caller-id presentation information struct.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
 static int callerpres_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	int pres = ast_parse_caller_presentation(value);
-	if (pres < 0)
+	int pres;
+
+	if (!callerpres_deprecate_notify) {
+		callerpres_deprecate_notify = 1;
+		ast_log(LOG_WARNING, "CALLERPRES is deprecated."
+			"  Use CALLERID(name-pres) or CALLERID(num-pres) instead.\n");
+	}
+
+	pres = ast_parse_caller_presentation(value);
+	if (pres < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show function CALLERPRES')\n", value);
-	else
-		chan->cid.cid_pres = pres;
+	} else {
+		chan->caller.id.name.presentation = pres;
+		chan->caller.id.number.presentation = pres;
+	}
 	return 0;
 }
 
-static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
-			 char *buf, size_t len)
+/*!
+ * \internal
+ * \brief Read values from the caller-id information struct.
+ *
+ * \param chan Asterisk channel to read
+ * \param cmd Not used
+ * \param data Caller-id function datatype string
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int callerid_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	char *opt = data;
+	enum ID_FIELD_STATUS status;
+	char *parms;
+	struct ast_party_members member;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(member);	/*!< Member name */
+		AST_APP_ARG(cid);		/*!< Optional caller id to parse instead of from the channel. */
+		);
 
 	/* Ensure that the buffer is empty */
 	*buf = 0;
 
-	if (!chan)
+	if (!chan) {
 		return -1;
+	}
 
-	if (strchr(opt, ',')) {
-		char name[80], num[80];
+	parms = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parms);
+	if (args.argc == 0) {
+		/* Must have at least one argument. */
+		return -1;
+	}
 
-		data = strsep(&opt, ",");
-		ast_callerid_split(opt, name, sizeof(name), num, sizeof(num));
+	AST_NONSTANDARD_APP_ARGS(member, args.member, '-');
+	if (member.argc == 0 || ARRAY_LEN(member.subnames) <= member.argc) {
+		/* Too few or too many subnames */
+		return -1;
+	}
 
-		if (!strncasecmp("all", data, 3)) {
+	if (args.argc == 2) {
+		char name[80];
+		char num[80];
+
+		ast_callerid_split(args.cid, name, sizeof(name), num, sizeof(num));
+
+		if (member.argc == 1 && !strcasecmp("all", member.argv[0])) {
 			snprintf(buf, len, "\"%s\" <%s>", name, num);
-		} else if (!strncasecmp("name", data, 4)) {
+		} else if (member.argc == 1 && !strcasecmp("name", member.argv[0])) {
 			ast_copy_string(buf, name, len);
-		} else if (!strncasecmp("num", data, 3)) {
-			/* also matches "number" */
+		} else if (member.argc == 1 && !strncasecmp("num", member.argv[0], 3)) {
+			/* Accept num[ber] */
 			ast_copy_string(buf, num, len);
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
@@ -154,75 +899,67 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 	} else {
 		ast_channel_lock(chan);
 
-		if (!strncasecmp("all", data, 3)) {
-			snprintf(buf, len, "\"%s\" <%s>",
-				S_OR(chan->cid.cid_name, ""),
-				S_OR(chan->cid.cid_num, ""));
-		} else if (!strncasecmp("name", data, 4)) {
-			if (chan->cid.cid_name) {
-				ast_copy_string(buf, chan->cid.cid_name, len);
+		if (member.argc == 1 && !strcasecmp("rdnis", member.argv[0])) {
+			if (chan->redirecting.from.number.valid
+				&& chan->redirecting.from.number.str) {
+				ast_copy_string(buf, chan->redirecting.from.number.str, len);
 			}
-		} else if (!strncasecmp("tag", data, 3)) {
-			if (chan->cid.cid_tag) {
-				ast_copy_string(buf, chan->cid.cid_tag, len);
+		} else if (!strcasecmp("dnid", member.argv[0])) {
+			if (member.argc == 1) {
+				/* Setup as if user had given dnid-num instead. */
+				member.argc = 2;
+				member.argv[1] = "num";
 			}
-		} else if (!strncasecmp("num", data, 3)) {
-			/* also matches "number" */
-			if (chan->cid.cid_num) {
-				ast_copy_string(buf, chan->cid.cid_num, len);
-			}
-		} else if (!strncasecmp("ani", data, 3)) {
-			if (!strncasecmp(data + 3, "2", 1)) {
-				snprintf(buf, len, "%d", chan->cid.cid_ani2);
-			} else if (chan->cid.cid_ani) {
-				ast_copy_string(buf, chan->cid.cid_ani, len);
-			}
-		} else if (!strncasecmp("dnid", data, 4)) {
-			/* Called parties info */
-
-			/* also matches dnid-subaddr-valid, dnid-subaddr-type, dnid-subaddr-odd, dnid-subaddr */
-			if (!strncasecmp(data + 4 ,"-subaddr", 8)) {
-				if (!strncasecmp(data + 12 ,"-valid", 6)) {		/* dnid-subaddr-valid */
-					snprintf(buf, len, "%d", chan->cid.dialed_subaddress.valid);
-				} else if (!strncasecmp(data + 12 ,"-type", 5)) {	/* dnid-subaddr-type */
-					snprintf(buf, len, "%d", chan->cid.dialed_subaddress.type);
-				} else if (!strncasecmp(data + 12 ,"-odd", 4)) {	/* dnid-subaddr-odd */
-					snprintf(buf, len, "%d", chan->cid.dialed_subaddress.odd_even_indicator);
-				} else {						/* dnid-subaddr */
-					if (chan->cid.dialed_subaddress.str) {
-						ast_copy_string(buf, chan->cid.dialed_subaddress.str, len);
+			if (!strncasecmp("num", member.argv[1], 3)) {
+				/*
+				 * Accept num[ber]
+				 * dnid-num...
+				 */
+				if (member.argc == 2) {
+					/* dnid-num */
+					if (chan->dialed.number.str) {
+						ast_copy_string(buf, chan->dialed.number.str, len);
 					}
+				} else if (member.argc == 3 && !strcasecmp("plan", member.argv[2])) {
+					/* dnid-num-plan */
+					snprintf(buf, len, "%d", chan->dialed.number.plan);
+				} else {
+					ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 				}
-			} else {							/* dnid */
-				if (chan->cid.cid_dnid) {
-					ast_copy_string(buf, chan->cid.cid_dnid, len);
+			} else if (!strncasecmp("subaddr", member.argv[1], 7)) {
+				/*
+				 * Accept subaddr[ess]
+				 * dnid-subaddr...
+				 */
+				status = party_subaddress_read(buf, len, member.argc - 2, member.argv + 2,
+					&chan->dialed.subaddress);
+				switch (status) {
+				case ID_FIELD_VALID:
+				case ID_FIELD_INVALID:
+					break;
+				default:
+					ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+					break;
 				}
+			} else {
+				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 			}
-		} else if (!strncasecmp("subaddr", data, 7)) {
-			/* Calling parties info */
-
-			/* also matches subaddr-valid, subaddr-type, subaddr-odd, subaddr */
-			if (!strncasecmp(data + 7 ,"-valid", 6)) {		/* subaddr-valid */
-				snprintf(buf, len, "%d", chan->cid.subaddress.valid);
-			} else if (!strncasecmp(data + 7 ,"-type", 5)) {	/* subaddr-type */
-				snprintf(buf, len, "%d", chan->cid.subaddress.type);
-			} else if (!strncasecmp(data + 7 ,"-odd", 4)) {		/* subaddr-odd */
-				snprintf(buf, len, "%d", chan->cid.subaddress.odd_even_indicator);
-			} else {						/* subaddr */
-				if (chan->cid.subaddress.str) {
-					ast_copy_string(buf, chan->cid.subaddress.str, len);
-				}
+		} else if (member.argc == 1 && !strcasecmp("ani2", member.argv[0])) {
+			snprintf(buf, len, "%d", chan->caller.ani2);
+		} else if (member.argc == 1 && !strcasecmp("ani", member.argv[0])) {
+			if (chan->caller.ani) {
+				ast_copy_string(buf, chan->caller.ani, len);
 			}
-		} else if (!strncasecmp("rdnis", data, 5)) {
-			if (chan->redirecting.from.number) {
-				ast_copy_string(buf, chan->redirecting.from.number, len);
-			}
-		} else if (!strncasecmp("pres", data, 4)) {
-			ast_copy_string(buf, ast_named_caller_presentation(chan->cid.cid_pres), len);
-		} else if (!strncasecmp("ton", data, 3)) {
-			snprintf(buf, len, "%d", chan->cid.cid_ton);
 		} else {
-			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+			status = party_id_read(buf, len, member.argc, member.argv, &chan->caller.id);
+			switch (status) {
+			case ID_FIELD_VALID:
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+				break;
+			}
 		}
 
 		ast_channel_unlock(chan);
@@ -231,126 +968,525 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
-static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
-			  const char *value)
+/*!
+ * \internal
+ * \brief Write new values to the caller-id information struct.
+ *
+ * \param chan Asterisk channel to update
+ * \param cmd Not used
+ * \param data Caller-id function datatype string
+ * \param value Value to assign to the caller-id information struct.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int callerid_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	if (!value || !chan)
+	struct ast_party_caller caller;
+	struct ast_party_dialed dialed;
+	enum ID_FIELD_STATUS status;
+	char *val;
+	char *parms;
+	struct ast_party_func_args args;
+	struct ast_party_members member;
+
+	if (!value || !chan) {
 		return -1;
+	}
+
+	parms = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parms);
+	if (args.argc == 0) {
+		/* Must have at least one argument. */
+		return -1;
+	}
+
+	AST_NONSTANDARD_APP_ARGS(member, args.member, '-');
+	if (member.argc == 0 || ARRAY_LEN(member.subnames) <= member.argc) {
+		/* Too few or too many subnames */
+		return -1;
+	}
 
 	value = ast_skip_blanks(value);
 
-	if (!strncasecmp("all", data, 3)) {
-		char name[256];
-		char num[256];
-
-		ast_callerid_split(value, name, sizeof(name), num, sizeof(num));
-		ast_set_callerid(chan, num, name, num);
+	ast_channel_lock(chan);
+	if (member.argc == 1 && !strcasecmp("rdnis", member.argv[0])) {
+		chan->redirecting.from.number.valid = 1;
+		ast_free(chan->redirecting.from.number.str);
+		chan->redirecting.from.number.str = ast_strdup(value);
 		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
 		}
-	} else if (!strncasecmp("name", data, 4)) {
-		ast_set_callerid(chan, NULL, value, NULL);
-		if (chan->cdr) {
-			ast_cdr_setcid(chan->cdr, chan);
+	} else if (!strcasecmp("dnid", member.argv[0])) {
+		ast_party_dialed_set_init(&dialed, &chan->dialed);
+		if (member.argc == 1) {
+			/* Setup as if user had given dnid-num instead. */
+			member.argc = 2;
+			member.argv[1] = "num";
 		}
-	} else if (!strncasecmp("num", data, 3)) {
-		/* also matches "number" */
-		ast_set_callerid(chan, value, NULL, NULL);
-		if (chan->cdr) {
-			ast_cdr_setcid(chan->cdr, chan);
-		}
-	} else if (!strncasecmp("tag", data, 3)) {
-		ast_channel_lock(chan);
-		if (chan->cid.cid_tag) {
-			ast_free(chan->cid.cid_tag);
-		}
-		chan->cid.cid_tag = ast_strdup(value);
-		ast_channel_unlock(chan);
-	} else if (!strncasecmp("ani", data, 3)) {
-		if (!strncasecmp(data + 3, "2", 1)) {
-			chan->cid.cid_ani2 = atoi(value);
-		} else {
-			ast_set_callerid(chan, NULL, NULL, value);
-		}
-		if (chan->cdr) {
-			ast_cdr_setcid(chan->cdr, chan);
-		}
-	} else if (!strncasecmp("dnid", data, 4)) {
-		ast_channel_lock(chan);
-		/* also matches dnid-subaddr-valid, dnid-subaddr-type, dnid-subaddr-odd, dnid-subaddr */
-		if (!strncasecmp(data + 4 ,"-subaddr", 8)) {
-			if (!strncasecmp(data + 12 ,"-valid", 6)) {		/* dnid-subaddr-valid */
-				chan->cid.dialed_subaddress.valid = atoi(value) ? 1 : 0;
-			} else if (!strncasecmp(data + 12 ,"-type", 5)) {	/* dnid-subaddr-type */
-				chan->cid.dialed_subaddress.type = atoi(value) ? 2 : 0;
-			} else if (!strncasecmp(data + 12 ,"-odd", 4)) {	/* dnid-subaddr-odd */
-				chan->cid.dialed_subaddress.odd_even_indicator = atoi(value) ? 1 : 0;
-			} else {						/* dnid-subaddr */
-				if (chan->cid.dialed_subaddress.str) {
-					ast_free(chan->cid.dialed_subaddress.str);
+		if (!strncasecmp("num", member.argv[1], 3)) {
+			/*
+			 * Accept num[ber]
+			 * dnid-num...
+			 */
+			if (member.argc == 2) {
+				/* dnid-num */
+				dialed.number.str = ast_strdup(value);
+				ast_trim_blanks(dialed.number.str);
+				ast_party_dialed_set(&chan->dialed, &dialed);
+				if (chan->cdr) {
+					ast_cdr_setcid(chan->cdr, chan);
 				}
-				chan->cid.dialed_subaddress.str = ast_strdup(value);
-			}
-		} else {							/* dnid */
-			if (chan->cid.cid_dnid) {
-				ast_free(chan->cid.cid_dnid);
-			}
-			chan->cid.cid_dnid = ast_strdup(value);
-		}
+			} else if (member.argc == 3 && !strcasecmp("plan", member.argv[2])) {
+				/* dnid-num-plan */
+				val = ast_strdupa(value);
+				ast_trim_blanks(val);
 
-		if (chan->cdr) {
-			ast_cdr_setcid(chan->cdr, chan);
-		}
-		ast_channel_unlock(chan);
-	} else if (!strncasecmp("subaddr", data, 7)) {
-		ast_channel_lock(chan);
-		/* also matches subaddr-valid, subaddr-type, subaddr-odd, subaddr */
-		if (!strncasecmp(data + 7 ,"-valid", 6)) {		/* subaddr-valid */
-			chan->cid.subaddress.valid = atoi(value) ? 1 : 0;
-		} else if (!strncasecmp(data + 7 ,"-type", 5)) {	/* subaddr-type */
-			chan->cid.subaddress.type = atoi(value) ? 2 : 0;
-		} else if (!strncasecmp(data + 7 ,"-odd", 4)) {		/* subaddr-odd */
-			chan->cid.subaddress.odd_even_indicator = atoi(value) ? 1 : 0;
-		} else {						/* subaddr */
-			if (chan->cid.subaddress.str) {
-				ast_free(chan->cid.subaddress.str);
+				if (('0' <= val[0]) && (val[0] <= '9')) {
+					chan->dialed.number.plan = atoi(val);
+					if (chan->cdr) {
+						ast_cdr_setcid(chan->cdr, chan);
+					}
+				} else {
+					ast_log(LOG_ERROR,
+						"Unknown type-of-number/numbering-plan '%s', value unchanged\n", val);
+				}
+			} else {
+				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 			}
-			chan->cid.subaddress.str = ast_strdup(value);
+		} else if (!strncasecmp("subaddr", member.argv[1], 7)) {
+			/*
+			 * Accept subaddr[ess]
+			 * dnid-subaddr...
+			 */
+			status = party_subaddress_write(&dialed.subaddress, member.argc - 2,
+				member.argv + 2, value);
+			switch (status) {
+			case ID_FIELD_VALID:
+				ast_party_dialed_set(&chan->dialed, &dialed);
+				if (chan->cdr) {
+					ast_cdr_setcid(chan->cdr, chan);
+				}
+				break;
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+				break;
+			}
+		} else {
+			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
+		ast_party_dialed_free(&dialed);
+	} else if (member.argc == 1 && !strcasecmp("ani2", member.argv[0])) {
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			chan->caller.ani2 = atoi(val);
+			if (chan->cdr) {
+				ast_cdr_setcid(chan->cdr, chan);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Unknown callerid ani2 '%s', value unchanged\n", val);
+		}
+	} else if (member.argc == 1 && !strcasecmp("ani", member.argv[0])) {
+		ast_party_caller_set_init(&caller, &chan->caller);
+		caller.ani = ast_strdup(value);
+		ast_trim_blanks(caller.ani);
+		ast_party_caller_set(&chan->caller, &caller, NULL);
 		if (chan->cdr) {
 			ast_cdr_setcid(chan->cdr, chan);
 		}
-		ast_channel_unlock(chan);
-	} else if (!strncasecmp("rdnis", data, 5)) {
-		ast_channel_lock(chan);
-		ast_free(chan->redirecting.from.number);
-		chan->redirecting.from.number = ast_strdup(value);
-		if (chan->cdr) {
-			ast_cdr_setcid(chan->cdr, chan);
+		ast_party_caller_free(&caller);
+	} else {
+		ast_party_caller_set_init(&caller, &chan->caller);
+		status = party_id_write(&caller.id, member.argc, member.argv, value);
+		switch (status) {
+		case ID_FIELD_VALID:
+			ast_channel_set_caller_event(chan, &caller, NULL);
+			if (chan->cdr) {
+				ast_cdr_setcid(chan->cdr, chan);
+			}
+			break;
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+			break;
 		}
-		ast_channel_unlock(chan);
-	} else if (!strncasecmp("pres", data, 4)) {
-		int i;
-		char *val;
+		ast_party_caller_free(&caller);
+	}
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Read values from the connected line information struct.
+ *
+ * \param chan Asterisk channel to read
+ * \param cmd Not used
+ * \param data Connected line function datatype string
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int connectedline_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_party_members member;
+	char *read_what;
+	enum ID_FIELD_STATUS status;
+
+	/* Ensure that the buffer is empty */
+	*buf = 0;
+
+	if (!chan) {
+		return -1;
+	}
+
+	read_what = ast_strdupa(data);
+	AST_NONSTANDARD_APP_ARGS(member, read_what, '-');
+	if (member.argc == 0 || ARRAY_LEN(member.subnames) <= member.argc) {
+		/* Too few or too many subnames */
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+
+	if (member.argc == 1 && !strcasecmp("source", member.argv[0])) {
+		ast_copy_string(buf, ast_connected_line_source_name(chan->connected.source), len);
+	} else {
+		status = party_id_read(buf, len, member.argc, member.argv, &chan->connected.id);
+		switch (status) {
+		case ID_FIELD_VALID:
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown connectedline data type '%s'.\n", data);
+			break;
+		}
+	}
+
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Write new values to the connected line information struct.
+ *
+ * \param chan Asterisk channel to update
+ * \param cmd Not used
+ * \param data Connected line function datatype string
+ * \param value Value to assign to the connected line information struct.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int connectedline_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct ast_party_connected_line connected;
+	enum ID_FIELD_STATUS status;
+	char *val;
+	char *parms;
+	void (*set_it)(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update);
+	struct ast_party_func_args args;
+	struct ast_party_members member;
+	struct ast_flags opts;
+	char *opt_args[CONNECTED_LINE_OPT_ARG_ARRAY_SIZE];
+
+	if (!value || !chan) {
+		return -1;
+	}
+
+	parms = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parms);
+	if (args.argc == 0) {
+		/* Must have at least one argument. */
+		return -1;
+	}
+
+	AST_NONSTANDARD_APP_ARGS(member, args.member, '-');
+	if (member.argc == 0 || ARRAY_LEN(member.subnames) <= member.argc) {
+		/* Too few or too many subnames */
+		return -1;
+	}
+
+	if (ast_app_parse_options(connectedline_opts, &opts, opt_args, args.opts)) {
+		/* General invalid option syntax. */
+		return -1;
+	}
+
+	/* Determine if the update indication inhibit option is present */
+	if (ast_test_flag(&opts, CONNECTED_LINE_OPT_INHIBIT)) {
+		set_it = ast_channel_set_connected_line;
+	} else {
+		set_it = ast_channel_update_connected_line;
+	}
+
+	ast_channel_lock(chan);
+	ast_party_connected_line_set_init(&connected, &chan->connected);
+	ast_channel_unlock(chan);
+
+	value = ast_skip_blanks(value);
+
+	if (member.argc == 1 && !strcasecmp("source", member.argv[0])) {
+		int source;
 
 		val = ast_strdupa(value);
 		ast_trim_blanks(val);
 
-		if ((val[0] >= '0') && (val[0] <= '9')) {
-			i = atoi(val);
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			source = atoi(val);
 		} else {
-			i = ast_parse_caller_presentation(val);
+			source = ast_connected_line_source_parse(val);
 		}
 
-		if (i < 0) {
-			ast_log(LOG_ERROR, "Unknown calling number presentation '%s', value unchanged\n", val);
+		if (source < 0) {
+			ast_log(LOG_ERROR, "Unknown connectedline source '%s', value unchanged\n", val);
 		} else {
-			chan->cid.cid_pres = i;
+			connected.source = source;
+			set_it(chan, &connected, NULL);
 		}
-	} else if (!strncasecmp("ton", data, 3)) {
-		chan->cid.cid_ton = atoi(value);
 	} else {
-		ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+		status = party_id_write(&connected.id, member.argc, member.argv, value);
+		switch (status) {
+		case ID_FIELD_VALID:
+			set_it(chan, &connected, NULL);
+			break;
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown connectedline data type '%s'.\n", data);
+			break;
+		}
+		ast_party_connected_line_free(&connected);
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Read values from the redirecting information struct.
+ *
+ * \param chan Asterisk channel to read
+ * \param cmd Not used
+ * \param data Redirecting function datatype string
+ * \param buf Buffer to fill with read value.
+ * \param len Length of the buffer
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int redirecting_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_party_members member;
+	char *read_what;
+	enum ID_FIELD_STATUS status;
+
+	/* Ensure that the buffer is empty */
+	*buf = 0;
+
+	if (!chan) {
+		return -1;
+	}
+
+	read_what = ast_strdupa(data);
+	AST_NONSTANDARD_APP_ARGS(member, read_what, '-');
+	if (member.argc == 0 || ARRAY_LEN(member.subnames) <= member.argc) {
+		/* Too few or too many subnames */
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+
+	if (!strcasecmp("from", member.argv[0])) {
+		status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
+			&chan->redirecting.from);
+		switch (status) {
+		case ID_FIELD_VALID:
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+			break;
+		}
+	} else if (!strcasecmp("to", member.argv[0])) {
+		status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
+			&chan->redirecting.to);
+		switch (status) {
+		case ID_FIELD_VALID:
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+			break;
+		}
+	} else if (member.argc == 1 && !strncasecmp("pres", member.argv[0], 4)) {
+		/*
+		 * Accept pres[entation]
+		 * This is the combined from name/number presentation.
+		 */
+		ast_copy_string(buf,
+			ast_named_caller_presentation(
+				ast_party_id_presentation(&chan->redirecting.from)), len);
+	} else if (member.argc == 1 && !strcasecmp("reason", member.argv[0])) {
+		ast_copy_string(buf, ast_redirecting_reason_name(chan->redirecting.reason), len);
+	} else if (member.argc == 1 && !strcasecmp("count", member.argv[0])) {
+		snprintf(buf, len, "%d", chan->redirecting.count);
+	} else {
+		ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+	}
+
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Write new values to the redirecting information struct.
+ *
+ * \param chan Asterisk channel to update
+ * \param cmd Not used
+ * \param data Redirecting function datatype string
+ * \param value Value to assign to the redirecting information struct.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int redirecting_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct ast_party_redirecting redirecting;
+	enum ID_FIELD_STATUS status;
+	char *val;
+	char *parms;
+	void (*set_it)(struct ast_channel *chan, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update);
+	struct ast_party_func_args args;
+	struct ast_party_members member;
+	struct ast_flags opts;
+	char *opt_args[REDIRECTING_OPT_ARG_ARRAY_SIZE];
+
+	if (!value || !chan) {
+		return -1;
+	}
+
+	parms = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parms);
+	if (args.argc == 0) {
+		/* Must have at least one argument. */
+		return -1;
+	}
+
+	AST_NONSTANDARD_APP_ARGS(member, args.member, '-');
+	if (member.argc == 0 || ARRAY_LEN(member.subnames) <= member.argc) {
+		/* Too few or too many subnames */
+		return -1;
+	}
+
+	if (ast_app_parse_options(redirecting_opts, &opts, opt_args, args.opts)) {
+		/* General invalid option syntax. */
+		return -1;
+	}
+
+	/* Determine if the update indication inhibit option is present */
+	if (ast_test_flag(&opts, REDIRECTING_OPT_INHIBIT)) {
+		set_it = ast_channel_set_redirecting;
+	} else {
+		set_it = ast_channel_update_redirecting;
+	}
+
+	ast_channel_lock(chan);
+	ast_party_redirecting_set_init(&redirecting, &chan->redirecting);
+	ast_channel_unlock(chan);
+
+	value = ast_skip_blanks(value);
+
+	if (!strcasecmp("from", member.argv[0])) {
+		status = party_id_write(&redirecting.from, member.argc - 1, member.argv + 1,
+			value);
+		switch (status) {
+		case ID_FIELD_VALID:
+			set_it(chan, &redirecting, NULL);
+			break;
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+			break;
+		}
+		ast_party_redirecting_free(&redirecting);
+	} else if (!strcasecmp("to", member.argv[0])) {
+		status = party_id_write(&redirecting.to, member.argc - 1, member.argv + 1, value);
+		switch (status) {
+		case ID_FIELD_VALID:
+			set_it(chan, &redirecting, NULL);
+			break;
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
+			break;
+		}
+		ast_party_redirecting_free(&redirecting);
+	} else if (member.argc == 1 && !strncasecmp("pres", member.argv[0], 4)) {
+		int pres;
+
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			pres = atoi(val);
+		} else {
+			pres = ast_parse_caller_presentation(val);
+		}
+
+		if (pres < 0) {
+			ast_log(LOG_ERROR,
+				"Unknown redirecting combined presentation '%s', value unchanged\n", val);
+		} else {
+			redirecting.from.name.presentation = pres;
+			redirecting.from.number.presentation = pres;
+			redirecting.to.name.presentation = pres;
+			redirecting.to.number.presentation = pres;
+			set_it(chan, &redirecting, NULL);
+		}
+	} else if (member.argc == 1 && !strcasecmp("reason", member.argv[0])) {
+		int reason;
+
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			reason = atoi(val);
+		} else {
+			reason = ast_redirecting_reason_parse(val);
+		}
+
+		if (reason < 0) {
+			ast_log(LOG_ERROR, "Unknown redirecting reason '%s', value unchanged\n", val);
+		} else {
+			redirecting.reason = reason;
+			set_it(chan, &redirecting, NULL);
+		}
+	} else if (member.argc == 1 && !strcasecmp("count", member.argv[0])) {
+		val = ast_strdupa(value);
+		ast_trim_blanks(val);
+
+		if (('0' <= val[0]) && (val[0] <= '9')) {
+			redirecting.count = atoi(val);
+			set_it(chan, &redirecting, NULL);
+		} else {
+			ast_log(LOG_ERROR, "Unknown redirecting count '%s', value unchanged\n", val);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Unknown redirecting data type '%s'.\n", data);
 	}
 
 	return 0;
@@ -370,18 +1506,53 @@ static struct ast_custom_function callerpres_function = {
 	.write = callerpres_write,
 };
 
+static struct ast_custom_function connectedline_function = {
+	.name = "CONNECTEDLINE",
+	.read = connectedline_read,
+	.write = connectedline_write,
+};
+
+static struct ast_custom_function redirecting_function = {
+	.name = "REDIRECTING",
+	.read = redirecting_read,
+	.write = redirecting_write,
+};
+
+/*!
+ * \internal
+ * \brief Unload the function module
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
 static int unload_module(void)
 {
-	int res = ast_custom_function_unregister(&callerpres_function);
+	int res;
+
+	res = ast_custom_function_unregister(&callerpres_function);
 	res |= ast_custom_function_unregister(&callerid_function);
+	res |= ast_custom_function_unregister(&connectedline_function);
+	res |= ast_custom_function_unregister(&redirecting_function);
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief Load and initialize the function module.
+ *
+ * \retval AST_MODULE_LOAD_SUCCESS on success.
+ * \retval AST_MODULE_LOAD_DECLINE on error.
+ */
 static int load_module(void)
 {
-	int res = ast_custom_function_register(&callerpres_function);
+	int res;
+
+	res = ast_custom_function_register(&callerpres_function);
 	res |= ast_custom_function_register(&callerid_function);
-	return res;
+	res |= ast_custom_function_register(&connectedline_function);
+	res |= ast_custom_function_register(&redirecting_function);
+	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Caller ID related dialplan functions");
+/* Do not wrap the following line. */
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Party ID related dialplan functions (Caller-ID, Connected-line, Redirecting)");

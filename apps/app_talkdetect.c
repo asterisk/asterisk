@@ -175,7 +175,8 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 					char t[2];
 					t[0] = fr->subclass.integer;
 					t[1] = '\0';
-					if (ast_canmatch_extension(chan, chan->context, t, 1, chan->cid.cid_num)) {
+					if (ast_canmatch_extension(chan, chan->context, t, 1,
+						S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 						/* They entered a valid  extension, or might be anyhow */
 						res = fr->subclass.integer;
 						ast_frfree(fr);

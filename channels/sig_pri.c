@@ -206,16 +206,22 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 
 	if (p->calls->set_callerid) {
 		ast_party_caller_init(&caller);
-		caller.id.number = p->cid_num;
-		caller.id.name = p->cid_name;
+
+		caller.id.name.str = p->cid_name;
+		caller.id.name.presentation = p->callingpres;
+		caller.id.name.valid = 1;
+
+		caller.id.number.str = p->cid_num;
+		caller.id.number.plan = p->cid_ton;
+		caller.id.number.presentation = p->callingpres;
+		caller.id.number.valid = 1;
+
 		if (!ast_strlen_zero(p->cid_subaddr)) {
 			caller.id.subaddress.valid = 1;
 			//caller.id.subaddress.type = 0;/* nsap */
 			//caller.id.subaddress.odd_even_indicator = 0;
 			caller.id.subaddress.str = p->cid_subaddr;
 		}
-		caller.id.number_type = p->cid_ton;
-		caller.id.number_presentation = p->callingpres;
 		caller.id.tag = p->user_tag;
 		caller.ani = p->cid_ani;
 		caller.ani2 = p->cid_ani2;
@@ -454,76 +460,102 @@ static int ast_to_pri_presentation(int ast_presentation)
 
 /*!
  * \internal
- * \brief Determine the overall presentation value for the given party.
+ * \brief Convert PRI name char_set to asterisk version.
  * \since 1.8
  *
- * \param id Party to determine the overall presentation value.
+ * \param pri_char_set PRI name char_set.
  *
- * \return Overall presentation value for the given party converted to ast values.
+ * \return Equivalent asterisk name char_set value.
  */
-static int overall_ast_presentation(const struct pri_party_id *id)
+static enum AST_PARTY_CHAR_SET pri_to_ast_char_set(int pri_char_set)
 {
-	int number_priority;
-	int number_value;
-	int number_screening;
-	int name_priority;
-	int name_value;
+	enum AST_PARTY_CHAR_SET ast_char_set;
 
-	/* Determine name presentation priority. */
-	if (!id->name.valid) {
-		name_value = PRI_PRES_UNAVAILABLE;
-		name_priority = 3;
-	} else {
-		name_value = id->name.presentation & PRI_PRES_RESTRICTION;
-		switch (name_value) {
-		case PRI_PRES_RESTRICTED:
-			name_priority = 0;
-			break;
-		case PRI_PRES_ALLOWED:
-			name_priority = 1;
-			break;
-		case PRI_PRES_UNAVAILABLE:
-			name_priority = 2;
-			break;
-		default:
-			name_value = PRI_PRES_UNAVAILABLE;
-			name_priority = 3;
-			break;
-		}
+	switch (pri_char_set) {
+	default:
+	case PRI_CHAR_SET_UNKNOWN:
+		ast_char_set = AST_PARTY_CHAR_SET_UNKNOWN;
+		break;
+	case PRI_CHAR_SET_ISO8859_1:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO8859_1;
+		break;
+	case PRI_CHAR_SET_WITHDRAWN:
+		ast_char_set = AST_PARTY_CHAR_SET_WITHDRAWN;
+		break;
+	case PRI_CHAR_SET_ISO8859_2:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO8859_2;
+		break;
+	case PRI_CHAR_SET_ISO8859_3:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO8859_3;
+		break;
+	case PRI_CHAR_SET_ISO8859_4:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO8859_4;
+		break;
+	case PRI_CHAR_SET_ISO8859_5:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO8859_5;
+		break;
+	case PRI_CHAR_SET_ISO8859_7:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO8859_7;
+		break;
+	case PRI_CHAR_SET_ISO10646_BMPSTRING:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO10646_BMPSTRING;
+		break;
+	case PRI_CHAR_SET_ISO10646_UTF_8STRING:
+		ast_char_set = AST_PARTY_CHAR_SET_ISO10646_UTF_8STRING;
+		break;
 	}
 
-	/* Determine number presentation priority. */
-	if (!id->number.valid) {
-		number_screening = PRI_PRES_USER_NUMBER_UNSCREENED;
-		number_value = PRI_PRES_UNAVAILABLE;
-		number_priority = 3;
-	} else {
-		number_screening = id->number.presentation & PRI_PRES_NUMBER_TYPE;
-		number_value = id->number.presentation & PRI_PRES_RESTRICTION;
-		switch (number_value) {
-		case PRI_PRES_RESTRICTED:
-			number_priority = 0;
-			break;
-		case PRI_PRES_ALLOWED:
-			number_priority = 1;
-			break;
-		case PRI_PRES_UNAVAILABLE:
-			number_priority = 2;
-			break;
-		default:
-			number_screening = PRI_PRES_USER_NUMBER_UNSCREENED;
-			number_value = PRI_PRES_UNAVAILABLE;
-			number_priority = 3;
-			break;
-		}
+	return ast_char_set;
+}
+
+/*!
+ * \internal
+ * \brief Convert asterisk name char_set to PRI version.
+ * \since 1.8
+ *
+ * \param ast_char_set Asterisk name char_set.
+ *
+ * \return Equivalent PRI name char_set value.
+ */
+static int ast_to_pri_char_set(enum AST_PARTY_CHAR_SET ast_char_set)
+{
+	int pri_char_set;
+
+	switch (ast_char_set) {
+	default:
+	case AST_PARTY_CHAR_SET_UNKNOWN:
+		pri_char_set = PRI_CHAR_SET_UNKNOWN;
+		break;
+	case AST_PARTY_CHAR_SET_ISO8859_1:
+		pri_char_set = PRI_CHAR_SET_ISO8859_1;
+		break;
+	case AST_PARTY_CHAR_SET_WITHDRAWN:
+		pri_char_set = PRI_CHAR_SET_WITHDRAWN;
+		break;
+	case AST_PARTY_CHAR_SET_ISO8859_2:
+		pri_char_set = PRI_CHAR_SET_ISO8859_2;
+		break;
+	case AST_PARTY_CHAR_SET_ISO8859_3:
+		pri_char_set = PRI_CHAR_SET_ISO8859_3;
+		break;
+	case AST_PARTY_CHAR_SET_ISO8859_4:
+		pri_char_set = PRI_CHAR_SET_ISO8859_4;
+		break;
+	case AST_PARTY_CHAR_SET_ISO8859_5:
+		pri_char_set = PRI_CHAR_SET_ISO8859_5;
+		break;
+	case AST_PARTY_CHAR_SET_ISO8859_7:
+		pri_char_set = PRI_CHAR_SET_ISO8859_7;
+		break;
+	case AST_PARTY_CHAR_SET_ISO10646_BMPSTRING:
+		pri_char_set = PRI_CHAR_SET_ISO10646_BMPSTRING;
+		break;
+	case AST_PARTY_CHAR_SET_ISO10646_UTF_8STRING:
+		pri_char_set = PRI_CHAR_SET_ISO10646_UTF_8STRING;
+		break;
 	}
 
-	/* Select the wining presentation value. */
-	if (name_priority < number_priority) {
-		number_value = name_value;
-	}
-
-	return pri_to_ast_presentation(number_value | number_screening);
+	return pri_char_set;
 }
 
 #if defined(HAVE_PRI_SUBADDR)
@@ -690,6 +722,56 @@ static void sig_pri_party_subaddress_from_ast(struct pri_party_subaddress *pri_s
 
 /*!
  * \internal
+ * \brief Fill in the PRI party name from the given asterisk party name.
+ * \since 1.8
+ *
+ * \param pri_name PRI party name structure.
+ * \param ast_name Asterisk party name structure.
+ *
+ * \return Nothing
+ *
+ * \note Assumes that pri_name has been previously memset to zero.
+ */
+static void sig_pri_party_name_from_ast(struct pri_party_name *pri_name, const struct ast_party_name *ast_name)
+{
+	if (!ast_name->valid) {
+		return;
+	}
+	pri_name->valid = 1;
+	pri_name->presentation = ast_to_pri_presentation(ast_name->presentation);
+	pri_name->char_set = ast_to_pri_char_set(ast_name->char_set);
+	if (!ast_strlen_zero(ast_name->str)) {
+		ast_copy_string(pri_name->str, ast_name->str, sizeof(pri_name->str));
+	}
+}
+
+/*!
+ * \internal
+ * \brief Fill in the PRI party number from the given asterisk party number.
+ * \since 1.8
+ *
+ * \param pri_number PRI party number structure.
+ * \param ast_number Asterisk party number structure.
+ *
+ * \return Nothing
+ *
+ * \note Assumes that pri_number has been previously memset to zero.
+ */
+static void sig_pri_party_number_from_ast(struct pri_party_number *pri_number, const struct ast_party_number *ast_number)
+{
+	if (!ast_number->valid) {
+		return;
+	}
+	pri_number->valid = 1;
+	pri_number->presentation = ast_to_pri_presentation(ast_number->presentation);
+	pri_number->plan = ast_number->plan;
+	if (!ast_strlen_zero(ast_number->str)) {
+		ast_copy_string(pri_number->str, ast_number->str, sizeof(pri_number->str));
+	}
+}
+
+/*!
+ * \internal
  * \brief Fill in the PRI party id from the given asterisk party id.
  * \since 1.8
  *
@@ -702,21 +784,8 @@ static void sig_pri_party_subaddress_from_ast(struct pri_party_subaddress *pri_s
  */
 static void sig_pri_party_id_from_ast(struct pri_party_id *pri_id, const struct ast_party_id *ast_id)
 {
-	int presentation;
-
-	presentation = ast_to_pri_presentation(ast_id->number_presentation);
-	if (!ast_strlen_zero(ast_id->name)) {
-		pri_id->name.valid = 1;
-		pri_id->name.presentation = presentation;
-		pri_id->name.char_set = PRI_CHAR_SET_ISO8859_1;
-		ast_copy_string(pri_id->name.str, ast_id->name, sizeof(pri_id->name.str));
-	}
-	if (!ast_strlen_zero(ast_id->number)) {
-		pri_id->number.valid = 1;
-		pri_id->number.presentation = presentation;
-		pri_id->number.plan = ast_id->number_type;
-		ast_copy_string(pri_id->number.str, ast_id->number, sizeof(pri_id->number.str));
-	}
+	sig_pri_party_name_from_ast(&pri_id->name, &ast_id->name);
+	sig_pri_party_number_from_ast(&pri_id->number, &ast_id->number);
 #if defined(HAVE_PRI_SUBADDR)
 	sig_pri_party_subaddress_from_ast(&pri_id->subaddress, &ast_id->subaddress);
 #endif	/* defined(HAVE_PRI_SUBADDR) */
@@ -1488,10 +1557,8 @@ static void *pri_ss_thread(void *data)
 		exten[0] = 's';
 		exten[1] = '\0';
 	} else {
-		if (chan->cid.cid_dnid) {
-			ast_free(chan->cid.cid_dnid);
-		}
-		chan->cid.cid_dnid = ast_strdup(exten);
+		ast_free(chan->dialed.number.str);
+		chan->dialed.number.str = ast_strdup(exten);
 
 		if (p->pri->append_msn_to_user_tag && p->pri->nodetype != PRI_NETWORK) {
 			/*
@@ -1500,8 +1567,8 @@ static void *pri_ss_thread(void *data)
 			 */
 			snprintf(p->user_tag, sizeof(p->user_tag), "%s_%s", p->pri->initial_user_tag,
 				exten);
-			ast_free(chan->cid.cid_tag);
-			chan->cid.cid_tag = ast_strdup(p->user_tag);
+			ast_free(chan->caller.id.tag);
+			chan->caller.id.tag = ast_strdup(p->user_tag);
 		}
 	}
 	sig_pri_play_tone(p, -1);
@@ -1556,6 +1623,52 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
 
 /*!
  * \internal
+ * \brief Convert libpri party name into asterisk party name.
+ * \since 1.8
+ *
+ * \param ast_name Asterisk party name structure to fill.  Must already be set initialized.
+ * \param pri_name libpri party name structure containing source information.
+ *
+ * \note The filled in ast_name structure needs to be destroyed by
+ * ast_party_name_free() when it is no longer needed.
+ *
+ * \return Nothing
+ */
+static void sig_pri_party_name_convert(struct ast_party_name *ast_name, const struct pri_party_name *pri_name)
+{
+	ast_name->str = ast_strdup(pri_name->str);
+	ast_name->char_set = pri_to_ast_char_set(pri_name->char_set);
+	ast_name->presentation = pri_to_ast_presentation(pri_name->presentation);
+	ast_name->valid = 1;
+}
+
+/*!
+ * \internal
+ * \brief Convert libpri party number into asterisk party number.
+ * \since 1.8
+ *
+ * \param ast_number Asterisk party number structure to fill.  Must already be set initialized.
+ * \param pri_number libpri party number structure containing source information.
+ * \param pri Span controlling structure.
+ *
+ * \note The filled in ast_number structure needs to be destroyed by
+ * ast_party_number_free() when it is no longer needed.
+ *
+ * \return Nothing
+ */
+static void sig_pri_party_number_convert(struct ast_party_number *ast_number, const struct pri_party_number *pri_number, struct sig_pri_pri *pri)
+{
+	char number[AST_MAX_EXTENSION];
+
+	apply_plan_to_number(number, sizeof(number), pri, pri_number->str, pri_number->plan);
+	ast_number->str = ast_strdup(number);
+	ast_number->plan = pri_number->plan;
+	ast_number->presentation = pri_to_ast_presentation(pri_number->presentation);
+	ast_number->valid = 1;
+}
+
+/*!
+ * \internal
  * \brief Convert libpri party id into asterisk party id.
  * \since 1.8
  *
@@ -1568,22 +1681,13 @@ void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
  *
  * \return Nothing
  */
-static void sig_pri_party_id_convert(struct ast_party_id *ast_id,
-	const struct pri_party_id *pri_id, struct sig_pri_pri *pri)
+static void sig_pri_party_id_convert(struct ast_party_id *ast_id, const struct pri_party_id *pri_id, struct sig_pri_pri *pri)
 {
-	char number[AST_MAX_EXTENSION];
-
 	if (pri_id->name.valid) {
-		ast_id->name = ast_strdup(pri_id->name.str);
+		sig_pri_party_name_convert(&ast_id->name, &pri_id->name);
 	}
 	if (pri_id->number.valid) {
-		apply_plan_to_number(number, sizeof(number), pri, pri_id->number.str,
-			pri_id->number.plan);
-		ast_id->number = ast_strdup(number);
-		ast_id->number_type = pri_id->number.plan;
-	}
-	if (pri_id->name.valid || pri_id->number.valid) {
-		ast_id->number_presentation = overall_ast_presentation(pri_id);
+		sig_pri_party_number_convert(&ast_id->number, &pri_id->number, pri);
 	}
 #if defined(HAVE_PRI_SUBADDR)
 	if (pri_id->subaddress.valid) {
@@ -1667,13 +1771,41 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
  */
 static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, struct ast_party_id *party)
 {
-	ast_str_append(msg, 0, "%sPres: %d (%s)\r\n", prefix,
-		party->number_presentation,
-		ast_describe_caller_presentation(party->number_presentation));
-	ast_str_append(msg, 0, "%sNum: %s\r\n", prefix, S_OR(party->number, ""));
-	ast_str_append(msg, 0, "%ston: %d\r\n", prefix, party->number_type);
-	ast_str_append(msg, 0, "%sName: %s\r\n", prefix, S_OR(party->name, ""));
+	int pres;
+
+	/* Combined party presentation */
+	pres = ast_party_id_presentation(party);
+	ast_str_append(msg, 0, "%sPres: %d (%s)\r\n", prefix, pres,
+		ast_describe_caller_presentation(pres));
+
+	/* Party number */
+	ast_str_append(msg, 0, "%sNumValid: %d\r\n", prefix,
+		(unsigned) party->number.valid);
+	ast_str_append(msg, 0, "%sNum: %s\r\n", prefix,
+		S_COR(party->number.valid, party->number.str, ""));
+	ast_str_append(msg, 0, "%ston: %d\r\n", prefix, party->number.plan);
+	if (party->number.valid) {
+		ast_str_append(msg, 0, "%sNumPlan: %d\r\n", prefix, party->number.plan);
+		ast_str_append(msg, 0, "%sNumPres: %d (%s)\r\n", prefix,
+			party->number.presentation,
+			ast_describe_caller_presentation(party->number.presentation));
+	}
+
+	/* Party name */
+	ast_str_append(msg, 0, "%sNameValid: %d\r\n", prefix,
+		(unsigned) party->name.valid);
+	ast_str_append(msg, 0, "%sName: %s\r\n", prefix,
+		S_COR(party->name.valid, party->name.str, ""));
+	if (party->name.valid) {
+		ast_str_append(msg, 0, "%sNameCharSet: %s\r\n", prefix,
+			ast_party_name_charset_describe(party->name.char_set));
+		ast_str_append(msg, 0, "%sNamePres: %d (%s)\r\n", prefix,
+			party->name.presentation,
+			ast_describe_caller_presentation(party->name.presentation));
+	}
+
 #if defined(HAVE_PRI_SUBADDR)
+	/* Party subaddress */
 	if (party->subaddress.valid) {
 		static const char subaddress[] = "Subaddr";
 
@@ -3479,27 +3611,28 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 				ast_connected.id.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 
 				caller_id_update = 0;
-				if (ast_connected.id.name) {
+				if (ast_connected.id.name.str) {
 					/* Save name for Caller-ID update */
 					ast_copy_string(pri->pvts[chanpos]->cid_name,
-						ast_connected.id.name, sizeof(pri->pvts[chanpos]->cid_name));
+						ast_connected.id.name.str, sizeof(pri->pvts[chanpos]->cid_name));
 					caller_id_update = 1;
 				}
-				if (ast_connected.id.number) {
+				if (ast_connected.id.number.str) {
 					/* Save number for Caller-ID update */
-					ast_copy_string(pri->pvts[chanpos]->cid_num, ast_connected.id.number,
-						sizeof(pri->pvts[chanpos]->cid_num));
-					pri->pvts[chanpos]->cid_ton = ast_connected.id.number_type;
+					ast_copy_string(pri->pvts[chanpos]->cid_num,
+						ast_connected.id.number.str, sizeof(pri->pvts[chanpos]->cid_num));
+					pri->pvts[chanpos]->cid_ton = ast_connected.id.number.plan;
 					caller_id_update = 1;
 				} else {
-					ast_connected.id.number = ast_strdup("");
+					ast_connected.id.number.valid = 1;
+					ast_connected.id.number.str = ast_strdup("");
 				}
 				ast_connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 
 				pri->pvts[chanpos]->cid_subaddr[0] = '\0';
 #if defined(HAVE_PRI_SUBADDR)
 				if (ast_connected.id.subaddress.valid) {
-					ast_party_subaddress_set(&owner->cid.subaddress,
+					ast_party_subaddress_set(&owner->caller.id.subaddress,
 						&ast_connected.id.subaddress);
 					if (ast_connected.id.subaddress.str) {
 						ast_copy_string(pri->pvts[chanpos]->cid_subaddr,
@@ -3510,17 +3643,17 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 #endif	/* defined(HAVE_PRI_SUBADDR) */
 				if (caller_id_update) {
 					pri->pvts[chanpos]->callingpres =
-						ast_connected.id.number_presentation;
+						ast_party_id_presentation(&ast_connected.id);
 					sig_pri_set_caller_id(pri->pvts[chanpos]);
-					ast_set_callerid(owner, S_OR(ast_connected.id.number, NULL),
-						S_OR(ast_connected.id.name, NULL),
-						S_OR(ast_connected.id.number, NULL));
+					ast_set_callerid(owner, S_OR(ast_connected.id.number.str, NULL),
+						S_OR(ast_connected.id.name.str, NULL),
+						S_OR(ast_connected.id.number.str, NULL));
 				}
 
 				/* Update the connected line information on the other channel */
 				if (event_id != PRI_EVENT_RING) {
 					/* This connected_line update was not from a SETUP message. */
-					ast_channel_queue_connected_line_update(owner, &ast_connected);
+					ast_channel_queue_connected_line_update(owner, &ast_connected, NULL);
 				}
 
 				ast_party_connected_line_free(&ast_connected);
@@ -3538,10 +3671,10 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 
 /*! \todo XXX Original called data can be put in a channel data store that is inherited. */
 
-				ast_channel_set_redirecting(owner, &ast_redirecting);
+				ast_channel_set_redirecting(owner, &ast_redirecting, NULL);
 				if (event_id != PRI_EVENT_RING) {
 					/* This redirection was not from a SETUP message. */
-					ast_channel_queue_redirecting_update(owner, &ast_redirecting);
+					ast_channel_queue_redirecting_update(owner, &ast_redirecting, NULL);
 				}
 				ast_party_redirecting_free(&ast_redirecting);
 
@@ -3588,7 +3721,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
 					&owner->redirecting, pri);
 				ast_redirecting.from.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
 				ast_redirecting.to.tag = ast_strdup(pri->pvts[chanpos]->user_tag);
-				ast_channel_set_redirecting(owner, &ast_redirecting);
+				ast_channel_set_redirecting(owner, &ast_redirecting, NULL);
 				ast_party_redirecting_free(&ast_redirecting);
 
 				/*
@@ -4549,7 +4682,7 @@ static void *pri_dchannel(void *vpri)
 									/* Set Calling Subaddress */
 									sig_pri_lock_owner(pri, chanpos);
 									sig_pri_set_subaddress(
-										&pri->pvts[chanpos]->owner->cid.subaddress,
+										&pri->pvts[chanpos]->owner->caller.id.subaddress,
 										&e->ring.calling.subaddress);
 									if (!e->ring.calling.subaddress.type
 										&& !ast_strlen_zero(
@@ -4564,7 +4697,7 @@ static void *pri_dchannel(void *vpri)
 									/* Set Called Subaddress */
 									sig_pri_lock_owner(pri, chanpos);
 									sig_pri_set_subaddress(
-										&pri->pvts[chanpos]->owner->cid.dialed_subaddress,
+										&pri->pvts[chanpos]->owner->dialed.subaddress,
 										&e->ring.called_subaddress);
 									if (!e->ring.called_subaddress.type
 										&& !ast_strlen_zero(
@@ -4650,7 +4783,7 @@ static void *pri_dchannel(void *vpri)
 									/* Set Calling Subaddress */
 									sig_pri_lock_owner(pri, chanpos);
 									sig_pri_set_subaddress(
-										&pri->pvts[chanpos]->owner->cid.subaddress,
+										&pri->pvts[chanpos]->owner->caller.id.subaddress,
 										&e->ring.calling.subaddress);
 									if (!e->ring.calling.subaddress.type
 										&& !ast_strlen_zero(
@@ -4665,7 +4798,7 @@ static void *pri_dchannel(void *vpri)
 									/* Set Called Subaddress */
 									sig_pri_lock_owner(pri, chanpos);
 									sig_pri_set_subaddress(
-										&pri->pvts[chanpos]->owner->cid.dialed_subaddress,
+										&pri->pvts[chanpos]->owner->dialed.subaddress,
 										&e->ring.called_subaddress);
 									if (!e->ring.called_subaddress.type
 										&& !ast_strlen_zero(
@@ -5705,7 +5838,9 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	struct ast_flags opts;
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 
-	ast_log(LOG_DEBUG, "CALLING CID_NAME: %s CID_NUM:: %s\n", ast->cid.cid_name, ast->cid.cid_num);
+	ast_log(LOG_DEBUG, "CALLER NAME: %s NUM: %s\n",
+		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
+		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""));
 
 	if (!p->pri) {
 		ast_log(LOG_ERROR, "Could not find pri on channel %d\n", p->channel);
@@ -5764,9 +5899,9 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	l = NULL;
 	n = NULL;
 	if (!p->hidecallerid) {
-		l = ast->connected.id.number;
+		l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
 		if (!p->hidecalleridname) {
-			n = ast->connected.id.name;
+			n = ast->connected.id.name.valid ? ast->connected.id.name.str : NULL;
 		}
 	}
 
@@ -5938,7 +6073,8 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		snprintf(p->user_tag, sizeof(p->user_tag), "%s_%s", p->pri->initial_user_tag,
 			p->pri->nodetype == PRI_NETWORK
 				? c + p->stripmsd + dp_strip
-				: S_OR(ast->connected.id.number, ""));
+				: S_COR(ast->connected.id.number.valid,
+					ast->connected.id.number.str, ""));
 	} else {
 		ast_copy_string(p->user_tag, p->pri->initial_user_tag, sizeof(p->user_tag));
 	}
@@ -5947,8 +6083,8 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	 * Replace the caller id tag from the channel creation
 	 * with the actual tag value.
 	 */
-	ast_free(ast->cid.cid_tag);
-	ast->cid.cid_tag = ast_strdup(p->user_tag);
+	ast_free(ast->caller.id.tag);
+	ast->caller.id.tag = ast_strdup(p->user_tag);
 
 	ldp_strip = 0;
 	prilocaldialplan = p->pri->localdialplan - 1;
@@ -6024,7 +6160,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 	}
 	pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,
-		p->use_callingpres ? ast->connected.id.number_presentation : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
+		p->use_callingpres ? ast->connected.id.number.presentation : (l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE));
 
 #if defined(HAVE_PRI_SUBADDR)
 	if (ast->connected.id.subaddress.valid) {

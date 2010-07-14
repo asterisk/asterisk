@@ -251,25 +251,25 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	ast_debug(1, "  Transfer Rate:     %d\n", stat.bit_rate);
 	
 	ast_manager_event(s->chan, EVENT_FLAG_CALL,
-		      s->direction ? "FaxSent" : "FaxReceived", 
-		      "Channel: %s\r\n"
-		      "Exten: %s\r\n"
-		      "CallerID: %s\r\n"
-		      "RemoteStationID: %s\r\n"
-		      "LocalStationID: %s\r\n"
-		      "PagesTransferred: %d\r\n"
-		      "Resolution: %d\r\n"
-		      "TransferRate: %d\r\n"
-		      "FileName: %s\r\n",
-		      s->chan->name,
-		      s->chan->exten,
-		      S_OR(s->chan->cid.cid_num, ""),
-		      far_ident,
-		      local_ident,
-		      pages_transferred,
-		      stat.y_resolution,
-		      stat.bit_rate,
-		      s->file_name);
+		s->direction ? "FaxSent" : "FaxReceived",
+		"Channel: %s\r\n"
+		"Exten: %s\r\n"
+		"CallerID: %s\r\n"
+		"RemoteStationID: %s\r\n"
+		"LocalStationID: %s\r\n"
+		"PagesTransferred: %d\r\n"
+		"Resolution: %d\r\n"
+		"TransferRate: %d\r\n"
+		"FileName: %s\r\n",
+		s->chan->name,
+		s->chan->exten,
+		S_COR(s->chan->caller.id.number.valid, s->chan->caller.id.number.str, ""),
+		far_ident,
+		local_ident,
+		pages_transferred,
+		stat.y_resolution,
+		stat.bit_rate,
+		s->file_name);
 }
 
 /* === Helper functions to configure fax === */

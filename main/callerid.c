@@ -1282,3 +1282,58 @@ const char *ast_connected_line_source_name(int data)
 
 	return "not-known";
 }
+
+/*! \brief Translation table for ast_party_name char-set settings */
+static const struct ast_value_translation party_name_charset_tbl[] = {
+/* *INDENT-OFF* */
+	{ AST_PARTY_CHAR_SET_UNKNOWN,               "unknown",      "Unknown" },
+	{ AST_PARTY_CHAR_SET_ISO8859_1,             "iso8859-1",    "ISO8859-1" },
+	{ AST_PARTY_CHAR_SET_WITHDRAWN,             "withdrawn",    "Withdrawn" },
+	{ AST_PARTY_CHAR_SET_ISO8859_2,             "iso8859-2",    "ISO8859-2" },
+	{ AST_PARTY_CHAR_SET_ISO8859_3,             "iso8859-3",    "ISO8859-3" },
+	{ AST_PARTY_CHAR_SET_ISO8859_4,             "iso8859-4",    "ISO8859-4" },
+	{ AST_PARTY_CHAR_SET_ISO8859_5,             "iso8859-5",    "ISO8859-5" },
+	{ AST_PARTY_CHAR_SET_ISO8859_7,             "iso8859-7",    "ISO8859-7" },
+	{ AST_PARTY_CHAR_SET_ISO10646_BMPSTRING,    "bmp",          "ISO10646 Bmp String" },
+	{ AST_PARTY_CHAR_SET_ISO10646_UTF_8STRING,  "utf8",         "ISO10646 UTF-8 String" },
+/* *INDENT-ON* */
+};
+
+int ast_party_name_charset_parse(const char *data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(party_name_charset_tbl); ++index) {
+		if (!strcasecmp(party_name_charset_tbl[index].name, data)) {
+			return party_name_charset_tbl[index].value;
+		}
+	}
+
+	return -1;
+}
+
+const char *ast_party_name_charset_describe(int data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(party_name_charset_tbl); ++index) {
+		if (party_name_charset_tbl[index].value == data) {
+			return party_name_charset_tbl[index].description;
+		}
+	}
+
+	return "not-known";
+}
+
+const char *ast_party_name_charset_str(int data)
+{
+	int index;
+
+	for (index = 0; index < ARRAY_LEN(party_name_charset_tbl); ++index) {
+		if (party_name_charset_tbl[index].value == data) {
+			return party_name_charset_tbl[index].name;
+		}
+	}
+
+	return "not-known";
+}

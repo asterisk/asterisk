@@ -609,18 +609,20 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	/* make sure null terminated */
 	called_addr[sizeof(called_addr) - 1] = '\0';
 
-	if (c->connected.id.number)
-		ast_copy_string(pvt->options.cid_num, c->connected.id.number, sizeof(pvt->options.cid_num));
-
-	if (c->connected.id.name)
-		ast_copy_string(pvt->options.cid_name, c->connected.id.name, sizeof(pvt->options.cid_name));
-
-	if (c->redirecting.from.number) {
-		ast_copy_string(pvt->options.cid_rdnis, c->redirecting.from.number, sizeof(pvt->options.cid_rdnis));
+	if (c->connected.id.number.valid && c->connected.id.number.str) {
+		ast_copy_string(pvt->options.cid_num, c->connected.id.number.str, sizeof(pvt->options.cid_num));
 	}
 
-	pvt->options.presentation = c->connected.id.number_presentation;
-	pvt->options.type_of_number = c->connected.id.number_type;
+	if (c->connected.id.name.valid && c->connected.id.name.str) {
+		ast_copy_string(pvt->options.cid_name, c->connected.id.name.str, sizeof(pvt->options.cid_name));
+	}
+
+	if (c->redirecting.from.number.valid && c->redirecting.from.number.str) {
+		ast_copy_string(pvt->options.cid_rdnis, c->redirecting.from.number.str, sizeof(pvt->options.cid_rdnis));
+	}
+
+	pvt->options.presentation = ast_party_id_presentation(c->connected.id);
+	pvt->options.type_of_number = c->connected.id.number.plan;
 
 	if ((addr = pbx_builtin_getvar_helper(c, "PRIREDIRECTREASON"))) {
 		if (!strcasecmp(addr, "UNKNOWN"))
@@ -1080,17 +1082,19 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		ch->cid.cid_ani = ast_strdup(cid_num);
+		ch->caller.ani = ast_strdup(cid_num);
 
 		if (pvt->cd.redirect_reason >= 0) {
-			ch->redirecting.from.number = ast_strdup(pvt->cd.redirect_number);
+			ch->redirecting.from.number.valid = 1;
+			ch->redirecting.from.number.str = ast_strdup(pvt->cd.redirect_number);
 			pbx_builtin_setvar_helper(ch, "PRIREDIRECTREASON", redirectingreason2str(pvt->cd.redirect_reason));
 		}
-		ch->cid.cid_pres = pvt->cd.presentation;
-		ch->cid.cid_ton = pvt->cd.type_of_number;
+		ch->caller.id.name.presentation = pvt->cd.presentation;
+		ch->caller.id.number.presentation = pvt->cd.presentation;
+		ch->caller.id.number.plan = pvt->cd.type_of_number;
 
 		if (!ast_strlen_zero(pvt->exten) && strcmp(pvt->exten, "s")) {
-			ch->cid.cid_dnid = ast_strdup(pvt->exten);
+			ch->dialed.number.str = ast_strdup(pvt->exten);
 		}
 		if (pvt->cd.transfer_capability >= 0)
 			ch->transfercapability = pvt->cd.transfer_capability;

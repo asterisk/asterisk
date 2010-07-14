@@ -1731,7 +1731,10 @@ static void run_externnotify(struct ast_channel *chan, struct minivm_account *vm
 	snprintf(arguments, sizeof(arguments), "%s %s@%s %s %s&", 
 		ast_strlen_zero(vmu->externnotify) ? global_externnotify : vmu->externnotify, 
 		vmu->username, vmu->domain,
-		chan->cid.cid_name, chan->cid.cid_num);
+		(chan->caller.id.name.valid && chan->caller.id.name.str)
+			? chan->caller.id.name.str : "",
+		(chan->caller.id.number.valid && chan->caller.id.number.str)
+			? chan->caller.id.number.str : "");
 
 	ast_debug(1, "Executing: %s\n", arguments);
 	ast_safe_system(arguments);
@@ -1917,6 +1920,10 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 		ast_localtime(&now, &tm, NULL);
 		ast_strftime(timebuf, sizeof(timebuf), "%H:%M:%S", &tm);
 
+		ast_callerid_merge(callerid, sizeof(callerid),
+			S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+			"Unknown");
 		snprintf(logbuf, sizeof(logbuf),
 			/* "Mailbox:domain:macrocontext:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode" */
 			"%s:%s:%s:%s:%d:%s:%s:%s:%s:%d:%s:%s\n",
@@ -1926,7 +1933,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 			chan->exten,
 			chan->priority,
 			chan->name,
-			ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
+			callerid,
 			date, 
 			timebuf,
 			duration,
@@ -2118,7 +2125,10 @@ static int minivm_notify_exec(struct ast_channel *chan, const char *data)
 			duration_string = ast_strdupa(duration_string);
 		}
 		ast_channel_unlock(chan);
-		res = notify_new_message(chan, template, vmu, filename, atoi(duration_string), format, chan->cid.cid_num, chan->cid.cid_name);
+		res = notify_new_message(chan, template, vmu, filename, atoi(duration_string),
+			format,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+			S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL));
 	}
 
 	pbx_builtin_setvar_helper(chan, "MVM_NOTIFY_STATUS", res == 0 ? "SUCCESS" : "FAILED");
@@ -2279,26 +2289,35 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	/* Check current or macro-calling context for special extensions */
 	if (ast_test_flag(vmu, MVM_OPERATOR)) {
 		if (!ast_strlen_zero(vmu->exit)) {
-			if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->cid.cid_num)) {
+			if (ast_exists_extension(chan, vmu->exit, "o", 1,
+				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 				ouseexten = 1;
 			}
-		} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->cid.cid_num)) {
+		} else if (ast_exists_extension(chan, chan->context, "o", 1,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ouseexten = 1;
 		}
-		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num)) {
+		else if (!ast_strlen_zero(chan->macrocontext)
+			&& ast_exists_extension(chan, chan->macrocontext, "o", 1,
+				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ousemacro = 1;
 		}
 	}
 
 	if (!ast_strlen_zero(vmu->exit)) {
-		if (ast_exists_extension(chan, vmu->exit, "a", 1, chan->cid.cid_num))
+		if (ast_exists_extension(chan, vmu->exit, "a", 1,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-	} else if (ast_exists_extension(chan, chan->context, "a", 1, chan->cid.cid_num))
+		}
+	} else if (ast_exists_extension(chan, chan->context, "a", 1,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-	else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num)) {
+	} else if (!ast_strlen_zero(chan->macrocontext)
+		&& ast_exists_extension(chan, chan->macrocontext, "a", 1,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 		ausemacro = 1;
 	}

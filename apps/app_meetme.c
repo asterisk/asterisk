@@ -1453,8 +1453,8 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			if (!concise) {
 				ast_cli(a->fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %s %02d:%02d:%02d\n",
 					user->user_no,
-					S_OR(user->chan->cid.cid_num, "<unknown>"),
-					S_OR(user->chan->cid.cid_name, "<no name>"),
+					S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
+					S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<no name>"),
 					user->chan->name,
 					ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "(Admin)" : "",
 					ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "(Listen only)" : "",
@@ -1464,8 +1464,8 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			} else {
 				ast_cli(a->fd, "%d!%s!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
 					user->user_no,
-					S_OR(user->chan->cid.cid_num, ""),
-					S_OR(user->chan->cid.cid_name, ""),
+					S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, ""),
+					S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, ""),
 					user->chan->name,
 					ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "1" : "",
 					ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "1" : "",
@@ -2660,17 +2660,17 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 
 	if (!sent_event) {
 		ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeJoin",
-			        "Channel: %s\r\n"
-			        "Uniqueid: %s\r\n"
-				"Meetme: %s\r\n"
-				"Usernum: %d\r\n"
-				"CallerIDnum: %s\r\n"
-			      	"CallerIDname: %s\r\n",
-			      	chan->name, chan->uniqueid, conf->confno, 
-				user->user_no,
-				S_OR(user->chan->cid.cid_num, "<unknown>"),
-				S_OR(user->chan->cid.cid_name, "<unknown>")
-				);
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Meetme: %s\r\n"
+			"Usernum: %d\r\n"
+			"CallerIDnum: %s\r\n"
+			"CallerIDname: %s\r\n",
+			chan->name, chan->uniqueid, conf->confno,
+			user->user_no,
+			S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
+			S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>")
+			);
 		sent_event = 1;
 	}
 
@@ -3697,18 +3697,18 @@ bailoutandtrynormal:
 
 		if (sent_event) {
 			ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeLeave",
-				      "Channel: %s\r\n"
-				      "Uniqueid: %s\r\n"
-				      "Meetme: %s\r\n"
-				      "Usernum: %d\r\n"
-				      "CallerIDNum: %s\r\n"
-				      "CallerIDName: %s\r\n"
-				      "Duration: %ld\r\n",
-				      chan->name, chan->uniqueid, conf->confno, 
-				      user->user_no,
-				      S_OR(user->chan->cid.cid_num, "<unknown>"),
-				      S_OR(user->chan->cid.cid_name, "<unknown>"),
-				      (long)(now.tv_sec - user->jointime));
+				"Channel: %s\r\n"
+				"Uniqueid: %s\r\n"
+				"Meetme: %s\r\n"
+				"Usernum: %d\r\n"
+				"CallerIDNum: %s\r\n"
+				"CallerIDName: %s\r\n"
+				"Duration: %ld\r\n",
+				chan->name, chan->uniqueid, conf->confno,
+				user->user_no,
+				S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
+				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>"),
+				(long)(now.tv_sec - user->jointime));
 		}
 
 		if (setusercount) {
@@ -4706,30 +4706,30 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 		while ((user = ao2_iterator_next(&user_iter))) {
 			total++;
 			astman_append(s,
-			"Event: MeetmeList\r\n"
-			"%s"
-			"Conference: %s\r\n"
-			"UserNumber: %d\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Channel: %s\r\n"
-			"Admin: %s\r\n"
-			"Role: %s\r\n"
-			"MarkedUser: %s\r\n"
-			"Muted: %s\r\n"
-			"Talking: %s\r\n"
-			"\r\n",
-			idText,
-			cnf->confno,
-			user->user_no,
-			S_OR(user->chan->cid.cid_num, "<unknown>"),
-			S_OR(user->chan->cid.cid_name, "<no name>"),
-			user->chan->name,
-			ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "Yes" : "No",
-			ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "Listen only" : ast_test_flag64(&user->userflags, CONFFLAG_TALKER) ? "Talk only" : "Talk and listen",
-			ast_test_flag64(&user->userflags, CONFFLAG_MARKEDUSER) ? "Yes" : "No",
-			user->adminflags & ADMINFLAG_MUTED ? "By admin" : user->adminflags & ADMINFLAG_SELFMUTED ? "By self" : "No",
-			user->talking > 0 ? "Yes" : user->talking == 0 ? "No" : "Not monitored"); 
+				"Event: MeetmeList\r\n"
+				"%s"
+				"Conference: %s\r\n"
+				"UserNumber: %d\r\n"
+				"CallerIDNum: %s\r\n"
+				"CallerIDName: %s\r\n"
+				"Channel: %s\r\n"
+				"Admin: %s\r\n"
+				"Role: %s\r\n"
+				"MarkedUser: %s\r\n"
+				"Muted: %s\r\n"
+				"Talking: %s\r\n"
+				"\r\n",
+				idText,
+				cnf->confno,
+				user->user_no,
+				S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
+				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<no name>"),
+				user->chan->name,
+				ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "Yes" : "No",
+				ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "Listen only" : ast_test_flag64(&user->userflags, CONFFLAG_TALKER) ? "Talk only" : "Talk and listen",
+				ast_test_flag64(&user->userflags, CONFFLAG_MARKEDUSER) ? "Yes" : "No",
+				user->adminflags & ADMINFLAG_MUTED ? "By admin" : user->adminflags & ADMINFLAG_SELFMUTED ? "By self" : "No",
+				user->talking > 0 ? "Yes" : user->talking == 0 ? "No" : "Not monitored");
 			ao2_ref(user, -1);
 		}
 		ao2_iterator_destroy(&user_iter);
@@ -5335,8 +5335,9 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 	char *tech, *tech_data;
 	struct ast_dial *dial;
 	struct sla_ringing_station *ringing_station;
-	const char *cid_name = NULL, *cid_num = NULL;
 	enum ast_dial_result res;
+	int caller_is_saved;
+	struct ast_party_caller caller;
 
 	if (!(dial = ast_dial_create()))
 		return -1;
@@ -5350,23 +5351,21 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 		return -1;
 	}
 
-	if (!sla.attempt_callerid && !ast_strlen_zero(ringing_trunk->trunk->chan->cid.cid_name)) {
-		cid_name = ast_strdupa(ringing_trunk->trunk->chan->cid.cid_name);
-		ast_free(ringing_trunk->trunk->chan->cid.cid_name);
-		ringing_trunk->trunk->chan->cid.cid_name = NULL;
-	}
-	if (!sla.attempt_callerid && !ast_strlen_zero(ringing_trunk->trunk->chan->cid.cid_num)) {
-		cid_num = ast_strdupa(ringing_trunk->trunk->chan->cid.cid_num);
-		ast_free(ringing_trunk->trunk->chan->cid.cid_num);
-		ringing_trunk->trunk->chan->cid.cid_num = NULL;
+	/* Do we need to save off the caller ID data? */
+	caller_is_saved = 0;
+	if (!sla.attempt_callerid) {
+		caller_is_saved = 1;
+		caller = ringing_trunk->trunk->chan->caller;
+		ast_party_caller_init(&ringing_trunk->trunk->chan->caller);
 	}
 
 	res = ast_dial_run(dial, ringing_trunk->trunk->chan, 1);
 	
-	if (cid_name)
-		ringing_trunk->trunk->chan->cid.cid_name = ast_strdup(cid_name);
-	if (cid_num)
-		ringing_trunk->trunk->chan->cid.cid_num = ast_strdup(cid_num);
+	/* Restore saved caller ID */
+	if (caller_is_saved) {
+		ast_party_caller_free(&ringing_trunk->trunk->chan->caller);
+		ringing_trunk->trunk->chan->caller = caller;
+	}
 	
 	if (res != AST_DIAL_RESULT_TRYING) {
 		struct sla_failed_station *failed_station;
@@ -5884,7 +5883,8 @@ static void *dial_trunk(void *data)
 	struct ast_conference *conf;
 	struct ast_flags64 conf_flags = { 0 };
 	struct sla_trunk_ref *trunk_ref = args->trunk_ref;
-	const char *cid_name = NULL, *cid_num = NULL;
+	int caller_is_saved;
+	struct ast_party_caller caller;
 
 	if (!(dial = ast_dial_create())) {
 		ast_mutex_lock(args->cond_lock);
@@ -5903,23 +5903,21 @@ static void *dial_trunk(void *data)
 		return NULL;
 	}
 
-	if (!sla.attempt_callerid && !ast_strlen_zero(trunk_ref->chan->cid.cid_name)) {
-		cid_name = ast_strdupa(trunk_ref->chan->cid.cid_name);
-		ast_free(trunk_ref->chan->cid.cid_name);
-		trunk_ref->chan->cid.cid_name = NULL;
-	}
-	if (!sla.attempt_callerid && !ast_strlen_zero(trunk_ref->chan->cid.cid_num)) {
-		cid_num = ast_strdupa(trunk_ref->chan->cid.cid_num);
-		ast_free(trunk_ref->chan->cid.cid_num);
-		trunk_ref->chan->cid.cid_num = NULL;
+	/* Do we need to save of the caller ID data? */
+	caller_is_saved = 0;
+	if (!sla.attempt_callerid) {
+		caller_is_saved = 1;
+		caller = trunk_ref->chan->caller;
+		ast_party_caller_init(&trunk_ref->chan->caller);
 	}
 
 	dial_res = ast_dial_run(dial, trunk_ref->chan, 1);
 
-	if (cid_name)
-		trunk_ref->chan->cid.cid_name = ast_strdup(cid_name);
-	if (cid_num)
-		trunk_ref->chan->cid.cid_num = ast_strdup(cid_num);
+	/* Restore saved caller ID */
+	if (caller_is_saved) {
+		ast_party_caller_free(&trunk_ref->chan->caller);
+		trunk_ref->chan->caller = caller;
+	}
 
 	if (dial_res != AST_DIAL_RESULT_TRYING) {
 		ast_mutex_lock(args->cond_lock);

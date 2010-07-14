@@ -693,7 +693,9 @@ static void get_callerid(struct vpb_pvt *p)
 					strcpy(p->cid_num, cli_struct->cldn);
 					strcpy(p->cid_name, cli_struct->cn);
 				}
-				ast_verb(4, "CID record - got [%s] [%s]\n", owner->cid.cid_num, owner->cid.cid_name);
+				ast_verb(4, "CID record - got [%s] [%s]\n",
+					S_COR(owner->caller.id.number.valid, owner->caller.id.number.str, ""),
+					S_COR(owner->caller.id.name.valid, owner->caller.id.name.str, ""));
 				snprintf(p->callerid, sizeof(p->callerid), "%s %s", cli_struct->cldn, cli_struct->cn);
 			} else {
 				ast_log(LOG_ERROR, "CID record - No caller id avalable on %s \n", p->dev);
@@ -778,19 +780,15 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	} else {
 		ast_log(LOG_ERROR, "%s: Failed to create Caller ID struct\n", p->dev);
 	}
-	if (owner->cid.cid_num) {
-		ast_free(owner->cid.cid_num);
-		owner->cid.cid_num = NULL;
-	}
-	if (owner->cid.cid_name) {
-		ast_free(owner->cid.cid_name);
-		owner->cid.cid_name = NULL;
-	}
+	ast_party_number_free(&owner->caller.id.number);
+	ast_party_number_init(&owner->caller.id.number);
+	ast_party_name_free(&owner->caller.id.name);
+	ast_party_name_init(&owner->caller.id.name);
 	if (number)
 		ast_shrink_phone_number(number);
 	ast_set_callerid(owner,
 		number, name,
-		owner->cid.cid_ani ? NULL : number);
+		owner->caller.ani ? NULL : number);
 	if (!ast_strlen_zero(name)){
 		snprintf(p->callerid, sizeof(p->callerid), "%s %s", number, name);
 	} else {
@@ -901,7 +899,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				if (strcmp(p->owner->exten, "fax")) {
 					const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
 
-					if (ast_exists_extension(p->owner, target_context, "fax", 1, p->owner->cid.cid_num)) {
+					if (ast_exists_extension(p->owner, target_context, "fax", 1,
+						S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
 						ast_verb(3, "Redirecting %s to fax extension\n", p->owner->name);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);

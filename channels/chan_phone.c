@@ -303,13 +303,16 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		snprintf(cid.min, sizeof(cid.min),     "%02d", tm.tm_min);
 	}
 	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
-	if (ast_strlen_zero(ast->connected.id.name))
+	if (!ast->connected.id.name.valid
+		|| ast_strlen_zero(ast->connected.id.name.str)) {
 		strcpy(cid.name, DEFAULT_CALLER_ID);
-	else
-		ast_copy_string(cid.name, ast->connected.id.name, sizeof(cid.name));
+	} else {
+		ast_copy_string(cid.name, ast->connected.id.name.str, sizeof(cid.name));
+	}
 
-	if (ast->connected.id.number) 
-		ast_copy_string(cid.number, ast->connected.id.number, sizeof(cid.number));
+	if (ast->connected.id.number.valid && ast->connected.id.number.str) {
+		ast_copy_string(cid.number, ast->connected.id.number.str, sizeof(cid.number));
+	}
 
 	p = ast->tech_pvt;
 
@@ -885,7 +888,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a NewCallerID event before the NewChannel event */
-		tmp->cid.cid_ani = ast_strdup(i->cid_num);
+		tmp->caller.ani = ast_strdup(i->cid_num);
 
 		i->owner = tmp;
 		ast_module_ref(ast_module_info->self);

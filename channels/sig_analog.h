@@ -156,7 +156,7 @@ struct analog_callback {
 	int (* const train_echocanceller)(void *pvt);
 	int (* const dsp_set_digitmode)(void *pvt, enum analog_dsp_digitmode mode);
 	int (* const dsp_reset_and_flush_digits)(void *pvt);
-	int (* const send_callerid)(void *pvt, int cwcid, struct ast_callerid *cid);
+	int (* const send_callerid)(void *pvt, int cwcid, struct ast_party_caller *caller);
 	/* Returns 0 if CID received.  Returns 1 if event received, and -1 if error.  name and num are size ANALOG_MAX_CID */
 	int (* const get_callerid)(void *pvt, char *name, char *num, enum analog_event *ev, size_t timeout);
 	/* Start CID detection */
@@ -298,7 +298,7 @@ struct analog_pvt {
 	char callwait_name[AST_MAX_EXTENSION];
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
-	struct ast_callerid cid;
+	struct ast_party_caller caller;
 	int cidrings;					/*!< Which ring to deliver CID on */
 	char echorest[20];
 	int polarity;

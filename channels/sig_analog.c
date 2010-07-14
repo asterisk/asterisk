@@ -351,16 +351,18 @@ static int analog_unalloc_sub(struct analog_pvt *p, enum analog_sub x)
 	return 0;
 }
 
-static int analog_send_callerid(struct analog_pvt *p, int cwcid, struct ast_callerid *cid)
+static int analog_send_callerid(struct analog_pvt *p, int cwcid, struct ast_party_caller *caller)
 {
-	ast_debug(1, "Sending callerid.  CID_NAME: '%s' CID_NUM: '%s'\n", cid->cid_name, cid->cid_num);
+	ast_debug(1, "Sending callerid.  CID_NAME: '%s' CID_NUM: '%s'\n",
+		caller->id.name.str,
+		caller->id.number.str);
 
 	if (cwcid) {
 		p->callwaitcas = 0;
 	}
 
 	if (p->calls->send_callerid) {
-		return p->calls->send_callerid(p->chan_pvt, cwcid, cid);
+		return p->calls->send_callerid(p->chan_pvt, cwcid, caller);
 	}
 	return 0;
 }
@@ -860,7 +862,9 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 	char *c, *n, *l;
 	char dest[256]; /* must be same length as p->dialdest */
 
-	ast_log(LOG_DEBUG, "CALLING CID_NAME: %s CID_NUM:: %s\n", ast->connected.id.name, ast->connected.id.number);
+	ast_log(LOG_DEBUG, "CALLING CID_NAME: %s CID_NUM:: %s\n",
+		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
+		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""));
 
 	ast_copy_string(dest, rdest, sizeof(dest));
 	ast_copy_string(p->dialdest, rdest, sizeof(p->dialdest));
@@ -916,13 +920,13 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 			}
 			analog_set_dialing(p, 1);
 		} else {
-			if (ast->connected.id.number) {
-				ast_copy_string(p->callwait_num, ast->connected.id.number, sizeof(p->callwait_num));
+			if (ast->connected.id.number.valid && ast->connected.id.number.str) {
+				ast_copy_string(p->callwait_num, ast->connected.id.number.str, sizeof(p->callwait_num));
 			} else {
 				p->callwait_num[0] = '\0';
 			}
-			if (ast->connected.id.name) {
-				ast_copy_string(p->callwait_name, ast->connected.id.name, sizeof(p->callwait_name));
+			if (ast->connected.id.name.valid && ast->connected.id.name.str) {
+				ast_copy_string(p->callwait_name, ast->connected.id.name.str, sizeof(p->callwait_name));
 			} else {
 				p->callwait_name[0] = '\0';
 			}
@@ -937,8 +941,8 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 			}
 
 		}
-		n = ast->connected.id.name;
-		l = ast->connected.id.number;
+		n = ast->connected.id.name.valid ? ast->connected.id.name.str : NULL;
+		l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
 		if (l) {
 			ast_copy_string(p->lastcid_num, l, sizeof(p->lastcid_num));
 		} else {
@@ -951,8 +955,8 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 		}
 
 		if (p->use_callerid) {
-			p->cid.cid_name = p->lastcid_name;
-			p->cid.cid_num = p->lastcid_num;
+			p->caller.id.name.str = p->lastcid_name;
+			p->caller.id.number.str = p->lastcid_num;
 		}
 
 		ast_setstate(ast, AST_STATE_RINGING);
@@ -1025,7 +1029,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 
 		switch (mysig) {
 		case ANALOG_SIG_FEATD:
-			l = ast->connected.id.number;
+			l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
 			if (l) {
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c);
 			} else {
@@ -1033,7 +1037,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 			}
 			break;
 		case ANALOG_SIG_FEATDMF:
-			l = ast->connected.id.number;
+			l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
 			if (l) {
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c);
 			} else {
@@ -1408,9 +1412,9 @@ void analog_handle_dtmfup(struct analog_pvt *p, struct ast_channel *ast, enum an
 	if (p->callwaitcas) {
 		if ((f->subclass.integer == 'A') || (f->subclass.integer == 'D')) {
 			ast_debug(1, "Got some DTMF, but it's for the CAS\n");
-			p->cid.cid_name = p->callwait_name;
-			p->cid.cid_num = p->callwait_num;
-			analog_send_callerid(p, 1, &p->cid);
+			p->caller.id.name.str = p->callwait_name;
+			p->caller.id.number.str = p->callwait_num;
+			analog_send_callerid(p, 1, &p->caller);
 		}
 		if (analog_handles_digit(f))
 			p->callwaitcas = 0;
@@ -1820,7 +1824,8 @@ static void *__analog_ss_thread(void *data)
 
 		analog_dsp_set_digitmode(p, ANALOG_DIGITMODE_DTMF);
 
-		if (ast_exists_extension(chan, chan->context, exten, 1, chan->cid.cid_num)) {
+		if (ast_exists_extension(chan, chan->context, exten, 1,
+			chan->caller.id.number.valid ? chan->caller.id.number.str : NULL)) {
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 			analog_dsp_reset_and_flush_digits(p);
 			res = ast_pbx_run(chan);
@@ -1976,14 +1981,10 @@ static void *__analog_ss_thread(void *data)
 				ast_verb(3, "Disabling Caller*ID on %s\n", chan->name);
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
-				if (chan->cid.cid_num) {
-					free(chan->cid.cid_num);
-				}
-				chan->cid.cid_num = NULL;
-				if (chan->cid.cid_name) {
-					free(chan->cid.cid_name);
-				}
-				chan->cid.cid_name = NULL;
+				ast_party_number_free(&chan->caller.id.number);
+				ast_party_number_init(&chan->caller.id.number);
+				ast_party_name_free(&chan->caller.id.name);
+				ast_party_name_init(&chan->caller.id.name);
 				res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
@@ -2055,14 +2056,6 @@ static void *__analog_ss_thread(void *data)
 				ast_verb(3, "Enabling Caller*ID on %s\n", chan->name);
 				/* Enable Caller*ID if enabled */
 				p->hidecallerid = 0;
-				if (chan->cid.cid_num) {
-					free(chan->cid.cid_num);
-				}
-				chan->cid.cid_num = NULL;
-				if (chan->cid.cid_name) {
-					free(chan->cid.cid_name);
-				}
-				chan->cid.cid_name = NULL;
 				ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
 				res = analog_play_tone(p, index, ANALOG_TONE_DIALRECALL);
 				if (res) {
@@ -2108,9 +2101,13 @@ static void *__analog_ss_thread(void *data)
 					ast_hangup(chan);
 					goto quit;
 				}
-			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
-							((exten[0] != '*') || (strlen(exten) > 2))) {
-				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
+			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1,
+				chan->caller.id.number.valid ? chan->caller.id.number.str : NULL)
+				&& ((exten[0] != '*') || (strlen(exten) > 2))) {
+				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
+					chan->caller.id.number.valid && chan->caller.id.number.str
+						? chan->caller.id.number.str : "<Unknown Caller>",
+					chan->context);
 				break;
 			}
 			if (!timeout) {
@@ -2799,7 +2796,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		if (p->inalarm) break;
 		ast->rings++;
 		if (ast->rings == p->cidrings) {
-			analog_send_callerid(p, 0, &p->cid);
+			analog_send_callerid(p, 0, &p->caller);
 		}
 
 		if (ast->rings > p->cidrings) {
@@ -2869,20 +2866,26 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				}
 				ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
 			} else if (!p->subs[ANALOG_SUB_THREEWAY].owner) {
-				char cid_num[256];
-				char cid_name[256];
-
 				if (!p->threewaycalling) {
 					/* Just send a flash if no 3-way calling */
 					ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_FLASH);
 					goto winkflashdone;
 				} else if (!analog_check_for_conference(p)) {
+					char cid_num[256];
+					char cid_name[256];
+
+					cid_num[0] = '\0';
+					cid_name[0] = '\0';
 					if (p->dahditrcallerid && p->owner) {
-						if (p->owner->cid.cid_num) {
-							ast_copy_string(cid_num, p->owner->cid.cid_num, sizeof(cid_num));
+						if (p->owner->caller.id.number.valid
+							&& p->owner->caller.id.number.str) {
+							ast_copy_string(cid_num, p->owner->caller.id.number.str,
+								sizeof(cid_num));
 						}
-						if (p->owner->cid.cid_name) {
-							ast_copy_string(cid_name, p->owner->cid.cid_name, sizeof(cid_name));
+						if (p->owner->caller.id.name.valid
+							&& p->owner->caller.id.name.str) {
+							ast_copy_string(cid_name, p->owner->caller.id.name.str,
+								sizeof(cid_name));
 						}
 					}
 					/* XXX This section needs much more error checking!!! XXX */
@@ -3035,8 +3038,11 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FEATDMF_TA:
 			switch (p->whichwink) {
 			case 0:
-				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", p->owner->cid.cid_ani2, p->owner->cid.cid_ani);
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%d%s#", p->owner->cid.cid_ani2, p->owner->cid.cid_ani);
+				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", p->owner->caller.ani2,
+					S_OR(p->owner->caller.ani, ""));
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%d%s#",
+					p->owner->caller.ani2,
+					S_OR(p->owner->caller.ani, ""));
 				break;
 			case 1:
 				ast_copy_string(p->dop.dialstr, p->finaldial, sizeof(p->dop.dialstr));

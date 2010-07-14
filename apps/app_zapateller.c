@@ -103,8 +103,12 @@ static int zapateller_exec(struct ast_channel *chan, const char *data)
 			res = ast_safe_sleep(chan, 500);
 	}
 
-	if (!ast_strlen_zero(chan->cid.cid_num) && nocallerid)
+	if (nocallerid	/* Zap caller if no caller id. */
+		&& chan->caller.id.number.valid
+		&& !ast_strlen_zero(chan->caller.id.number.str)) {
+		/* We have caller id. */
 		return res;
+	}
 
 	if (!res) 
 		res = ast_tonepair(chan, 950, 0, 330, 0);

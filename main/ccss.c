@@ -2339,11 +2339,11 @@ static int cc_generic_agent_init(struct ast_cc_agent *agent, struct ast_channel 
 	}
 
 	generic_pvt->offer_timer_id = -1;
-	if (chan->cid.cid_num) {
-		ast_copy_string(generic_pvt->cid_num, chan->cid.cid_num, sizeof(generic_pvt->cid_num));
+	if (chan->caller.id.number.valid && chan->caller.id.number.str) {
+		ast_copy_string(generic_pvt->cid_num, chan->caller.id.number.str, sizeof(generic_pvt->cid_num));
 	}
-	if (chan->cid.cid_name) {
-		ast_copy_string(generic_pvt->cid_name, chan->cid.cid_name, sizeof(generic_pvt->cid_name));
+	if (chan->caller.id.name.valid && chan->caller.id.name.str) {
+		ast_copy_string(generic_pvt->cid_name, chan->caller.id.name.str, sizeof(generic_pvt->cid_name));
 	}
 	ast_copy_string(generic_pvt->exten, S_OR(chan->macroexten, chan->exten), sizeof(generic_pvt->exten));
 	ast_copy_string(generic_pvt->context, S_OR(chan->macrocontext, chan->context), sizeof(generic_pvt->context));

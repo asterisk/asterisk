@@ -480,5 +480,36 @@ const char *ast_connected_line_source_describe(int data);
  */
 const char *ast_connected_line_source_name(int data);
 
+/*!
+ * \since 1.8
+ * \brief Convert ast_party_name.char_set text code to value (used in config file parsing)
+ *
+ * \param data text string from config file
+ *
+ * \retval AST_PARTY_CHAR_SET from channel.h
+ * \retval -1 if not in table
+ */
+int ast_party_name_charset_parse(const char *data);
+
+/*!
+ * \since 1.8
+ * \brief Convert ast_party_name.char_set value to explanatory string
+ *
+ * \param data AST_PARTY_CHAR_SET from channel.h
+ *
+ * \return string for human presentation
+ */
+const char *ast_party_name_charset_describe(int data);
+
+/*!
+ * \since 1.8
+ * \brief Convert ast_party_name.char_set value to text code
+ *
+ * \param data AST_PARTY_CHAR_SET from channel.h
+ *
+ * \return string for config file
+ */
+const char *ast_party_name_charset_str(int data);
+
 
 #endif /* _ASTERISK_CALLERID_H */

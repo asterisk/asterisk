@@ -838,7 +838,10 @@ static void findmeexec(struct fm_args *tpargs)
 
 			outbound = ast_request("Local", ast_best_codec(caller->nativeformats), caller, dialarg, &dg);
 			if (outbound) {
-				ast_set_callerid(outbound, caller->cid.cid_num, caller->cid.cid_name, caller->cid.cid_num);
+				ast_set_callerid(outbound,
+					S_COR(caller->caller.id.number.valid, caller->caller.id.number.str, NULL),
+					S_COR(caller->caller.id.name.valid, caller->caller.id.name.str, NULL),
+					S_COR(caller->caller.id.number.valid, caller->caller.id.number.str, NULL));
 				ast_channel_inherit_variables(tpargs->chan, outbound);
 				ast_channel_datastore_inherit(tpargs->chan, outbound);
 				ast_string_field_set(outbound, language, tpargs->chan->language);

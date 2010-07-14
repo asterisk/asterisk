@@ -2201,11 +2201,10 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 		ast_string_field_set(c, language, o->language);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
-	c->cid.cid_num = ast_strdup(o->cid_num);
-	c->cid.cid_ani = ast_strdup(o->cid_num);
-	c->cid.cid_name = ast_strdup(o->cid_name);
-	if (!ast_strlen_zero(ext))
-		c->cid.cid_dnid = ast_strdup(ext);
+	c->caller.ani = ast_strdup(o->cid_num);
+	if (!ast_strlen_zero(ext)) {
+		c->dialed.number.str = ast_strdup(ext);
+	}
 
 	o->owner = c;
 	ast_module_ref(ast_module_info->self);

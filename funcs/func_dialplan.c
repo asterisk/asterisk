@@ -75,20 +75,20 @@ static int isexten_function_read(struct ast_channel *chan, const char *cmd, char
 		if (sscanf(args.priority, "%30d", &priority_num) == 1 && priority_num > 0) {
 			int res;
 			res = ast_exists_extension(chan, args.context, args.exten, priority_num, 
-				chan->cid.cid_num);
+				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
 			if (res)
 				strcpy(buf, "1");
 		} else {
 			int res;
-			res = ast_findlabel_extension(chan, args.context, args.exten, 
-				args.priority, chan->cid.cid_num);
+			res = ast_findlabel_extension(chan, args.context, args.exten, args.priority,
+				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
 			if (res > 0)
 				strcpy(buf, "1");
 		}
 	} else if (!ast_strlen_zero(args.exten)) {
 		int res;
 		res = ast_exists_extension(chan, args.context, args.exten, 1, 
-			chan->cid.cid_num);
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
 		if (res)
 			strcpy(buf, "1");
 	} else if (!ast_strlen_zero(args.context)) {

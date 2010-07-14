@@ -922,24 +922,23 @@ static int ooh323_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	ast_mutex_lock(&p->lock);
 	ast_set_flag(p, H323_OUTGOING);
-	if (ast->connected.id.number) {
-     		if(p->callerid_num)   free(p->callerid_num);
-		p->callerid_num = strdup(ast->connected.id.number);
+	if (ast->connected.id.number.valid && ast->connected.id.number.str) {
+		free(p->callerid_num);
+		p->callerid_num = strdup(ast->connected.id.number.str);
 	}
 
-	if (ast->connected.id.name) {
-      		if(p->callerid_name)
-			free(p->callerid_name);
-		p->callerid_name = strdup(ast->connected.id.name);
-	} else if (ast->connected.id.number) {
-      		if(p->callerid_name)
-			free(p->callerid_name);
-		p->callerid_name = strdup(ast->connected.id.number);
+	if (ast->connected.id.name.valid && ast->connected.id.name.str) {
+		free(p->callerid_name);
+		p->callerid_name = strdup(ast->connected.id.name.str);
+	} else if (ast->connected.id.number.valid && ast->connected.id.number.str) {
+		free(p->callerid_name);
+		p->callerid_name = strdup(ast->connected.id.number.str);
 	} else {
-		ast->connected.id.name = strdup(gCallerID);
-      		if(p->callerid_name)
-			free(p->callerid_name);
-		p->callerid_name = strdup(ast->connected.id.name);
+		ast->connected.id.name.valid = 1;
+		free(ast->connected.id.name.str);
+		ast->connected.id.name.str = strdup(gCallerID);
+		free(p->callerid_name);
+		p->callerid_name = strdup(ast->connected.id.name.str);
 	}
 
 	/* Retrieve vars */
@@ -1241,13 +1240,15 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 	case AST_CONTROL_SRCCHANGE:
 		ast_rtp_instance_change_source(p->rtp);
 		break;
-       	case AST_CONTROL_CONNECTED_LINE:
-		if (!ast_strlen_zero(ast->connected.id.name)) {
-			if (gH323Debug)
-				ast_log(LOG_DEBUG, "Sending connected line info for %s (%s)\n",
-				callToken, ast->connected.id.name);
-			ooSetANI(callToken, ast->connected.id.name);
+	case AST_CONTROL_CONNECTED_LINE:
+		if (!ast->connected.id.name.valid
+			|| ast_strlen_zero(ast->connected.id.name.str)) {
+			break;
 		}
+		if (gH323Debug)
+			ast_log(LOG_DEBUG, "Sending connected line info for %s (%s)\n",
+				callToken, ast->connected.id.name.str);
+		ooSetANI(callToken, ast->connected.id.name.str);
 		break;
 
       case AST_CONTROL_T38_PARAMETERS:
@@ -1539,10 +1540,15 @@ int onAlerting(ooCallData *call)
 
 	if (call->remoteDisplayName) {
 		struct ast_party_connected_line connected;
+		struct ast_set_party_connected_line update_connected;
+
+		memset(&update_connected, 0, sizeof(update_connected));
+		update_connected.id.name = 1;
 		ast_party_connected_line_init(&connected);
-		connected.id.name = (char *) call->remoteDisplayName;
+		connected.id.name.valid = 1;
+		connected.id.name.str = (char *) call->remoteDisplayName;
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-		ast_channel_queue_connected_line_update(c, &connected);
+		ast_channel_queue_connected_line_update(c, &connected, &update_connected);
 	}
 	if (c->_state != AST_STATE_UP)
 		ast_setstate(c, AST_STATE_RINGING);
@@ -1590,10 +1596,15 @@ int onProgress(ooCallData *call)
 
 	if (call->remoteDisplayName) {
 		struct ast_party_connected_line connected;
+		struct ast_set_party_connected_line update_connected;
+
+		memset(&update_connected, 0, sizeof(update_connected));
+		update_connected.id.name = 1;
 		ast_party_connected_line_init(&connected);
-		connected.id.name = (char *) call->remoteDisplayName;
+		connected.id.name.valid = 1;
+		connected.id.name.str = (char *) call->remoteDisplayName;
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-		ast_channel_queue_connected_line_update(c, &connected);
+		ast_channel_queue_connected_line_update(c, &connected, &update_connected);
 	}
 	if (c->_state != AST_STATE_UP)
 		ast_setstate(c, AST_STATE_RINGING);
@@ -1983,10 +1994,15 @@ int onCallEstablished(ooCallData *call)
 
 			if (call->remoteDisplayName) {
 				struct ast_party_connected_line connected;
+				struct ast_set_party_connected_line update_connected;
+
+				memset(&update_connected, 0, sizeof(update_connected));
+				update_connected.id.name = 1;
 				ast_party_connected_line_init(&connected);
-				connected.id.name = (char *) call->remoteDisplayName;
+				connected.id.name.valid = 1;
+				connected.id.name.str = (char *) call->remoteDisplayName;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-				ast_channel_queue_connected_line_update(c, &connected);
+				ast_channel_queue_connected_line_update(c, &connected, &update_connected);
 			}
 
 			ast_queue_control(c, AST_CONTROL_ANSWER);

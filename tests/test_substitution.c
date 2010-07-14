@@ -220,10 +220,17 @@ AST_TEST_DEFINE(test_substitution)
 	c = ast_channel_alloc(0, 0, "", "", "", "", "", "", 0, "Test/substitution");
 
 #define TEST(t) if (t == AST_TEST_FAIL) { res = AST_TEST_FAIL; }
-	TEST(test_chan_integer(test, c, &c->cid.cid_pres, "${CALLINGPRES}"));
-	TEST(test_chan_integer(test, c, &c->cid.cid_ani2, "${CALLINGANI2}"));
-	TEST(test_chan_integer(test, c, &c->cid.cid_ton, "${CALLINGTON}"));
-	TEST(test_chan_integer(test, c, &c->cid.cid_tns, "${CALLINGTNS}"));
+#if 0
+	/*
+	 * We can no longer test the CALLINGPRES value this way because it is now
+	 * a calculated value from the name and number presentation information to
+	 * get a combined presentation value.
+	 */
+	TEST(test_chan_integer(test, c, &c->caller.id.number.presentation, "${CALLINGPRES}"));
+#endif
+	TEST(test_chan_integer(test, c, &c->caller.ani2, "${CALLINGANI2}"));
+	TEST(test_chan_integer(test, c, &c->caller.id.number.plan, "${CALLINGTON}"));
+	TEST(test_chan_integer(test, c, &c->dialed.transit_network_select, "${CALLINGTNS}"));
 	TEST(test_chan_integer(test, c, &c->hangupcause, "${HANGUPCAUSE}"));
 	TEST(test_chan_integer(test, c, &c->priority, "${PRIORITY}"));
 	TEST(test_chan_string(test, c, c->context, sizeof(c->context), "${CONTEXT}"));

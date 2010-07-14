@@ -961,8 +961,8 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		"Uniqueid: %s\r\n",
 		pu->parkingexten, pu->chan->name, pu->parkinglot->name, event_from ? event_from : "",
 		(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL),
-		S_OR(pu->chan->cid.cid_num, "<unknown>"),
-		S_OR(pu->chan->cid.cid_name, "<unknown>"),
+		S_COR(pu->chan->caller.id.number.valid, pu->chan->caller.id.number.str, "<unknown>"),
+		S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
 		pu->chan->uniqueid
 		);
 
@@ -1417,8 +1417,10 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			snprintf(touch_filename, len, "%s-%ld-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor);
 			snprintf(args, len, "%s,%s,m", S_OR(touch_format, "wav"), touch_filename);
 		} else {
-			caller_chan_id = ast_strdupa(S_OR(caller_chan->cid.cid_num, caller_chan->name));
-			callee_chan_id = ast_strdupa(S_OR(callee_chan->cid.cid_num, callee_chan->name));
+			caller_chan_id = ast_strdupa(S_COR(caller_chan->caller.id.number.valid,
+				caller_chan->caller.id.number.str, caller_chan->name));
+			callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
+				callee_chan->caller.id.number.str, callee_chan->name));
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
 			touch_filename = alloca(len);
@@ -1530,8 +1532,10 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 			snprintf(touch_filename, len, "auto-%ld-%s", (long)time(NULL), touch_monitor);
 			snprintf(args, len, "%s.%s,b", touch_filename, (touch_format) ? touch_format : "wav");
 		} else {
-			caller_chan_id = ast_strdupa(S_OR(caller_chan->cid.cid_num, caller_chan->name));
-			callee_chan_id = ast_strdupa(S_OR(callee_chan->cid.cid_num, callee_chan->name));
+			caller_chan_id = ast_strdupa(S_COR(caller_chan->caller.id.number.valid,
+				caller_chan->caller.id.number.str, caller_chan->name));
+			callee_chan_id = ast_strdupa(S_COR(callee_chan->caller.id.number.valid,
+				callee_chan->caller.id.number.str, callee_chan->name));
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
 			touch_filename = alloca(len);
@@ -1653,7 +1657,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_log(LOG_WARNING, "Unable to park call %s, parkstatus = %d\n", transferee->name, parkstatus);
 		}
 		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
-	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
+	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1,
+		S_COR(transferer->caller.id.number.valid, transferer->caller.id.number.str, NULL))) {
 		ast_cel_report_event(transferer, AST_CEL_BLINDTRANSFER, NULL, xferto, transferee);
 		pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", transferee->name);
 		pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", transferer->name);
@@ -1688,7 +1693,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_set_flag(transferee, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 			ast_log(LOG_DEBUG,"ABOUT TO AST_ASYNC_GOTO, have a pbx... set HANGUP_DONT on chan=%s\n", transferee->name);
 			if (ast_channel_connected_line_macro(transferee, transferer, &transferer->connected, 1, 0)) {
-				ast_channel_update_connected_line(transferee, &transferer->connected);
+				ast_channel_update_connected_line(transferee, &transferer->connected, NULL);
 			}
 			set_c_e_p(transferee, transferer_real_context, xferto, 0);
 		}
@@ -1792,7 +1797,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 
 	/* valid extension, res == 1 */
-	if (!ast_exists_extension(transferer, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
+	if (!ast_exists_extension(transferer, transferer_real_context, xferto, 1,
+		S_COR(transferer->caller.id.number.valid, transferer->caller.id.number.str, NULL))) {
 		ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
 		finishup(transferee);
 		if (ast_stream_and_wait(transferer, "beeperr", ""))
@@ -1824,8 +1830,12 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		}
 	}
 
-	newchan = feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
-		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
+	newchan = feature_request_and_dial(transferer, transferee, "Local",
+		ast_best_codec(transferer->nativeformats),
+		xferto, atxfernoanswertimeout, &outstate,
+		transferer->caller.id.number.valid ? transferer->caller.id.number.str : NULL,
+		transferer->caller.id.name.valid ? transferer->caller.id.name.str : NULL,
+		1, transferer->language);
 
 	ast_party_connected_line_init(&connected_line);
 	if (!ast_check_hangup(transferer)) {
@@ -1979,14 +1989,14 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		 */
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 		if (ast_channel_connected_line_macro(newchan, xferchan, &connected_line, 1, 0)) {
-			ast_channel_update_connected_line(xferchan, &connected_line);
+			ast_channel_update_connected_line(xferchan, &connected_line, NULL);
 		}
 		ast_channel_lock(xferchan);
-		ast_connected_line_copy_from_caller(&connected_line, &xferchan->cid);
+		ast_connected_line_copy_from_caller(&connected_line, &xferchan->caller);
 		ast_channel_unlock(xferchan);
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 		if (ast_channel_connected_line_macro(xferchan, newchan, &connected_line, 0, 0)) {
-			ast_channel_update_connected_line(newchan, &connected_line);
+			ast_channel_update_connected_line(newchan, &connected_line, NULL);
 		}
 		ast_party_connected_line_free(&connected_line);
 
@@ -2016,15 +2026,23 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			}
 
 			ast_log(LOG_NOTICE, "We're trying to call %s/%s\n", transferer_tech, transferer_name);
-			newchan = feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
-				transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
+			newchan = feature_request_and_dial(transferee, NULL, transferer_tech,
+				ast_best_codec(transferee->nativeformats),
+				transferer_name, atxfernoanswertimeout, &outstate,
+				transferee->caller.id.number.valid ? transferee->caller.id.number.str : NULL,
+				transferee->caller.id.name.valid ? transferee->caller.id.name.str : NULL,
+				0, transferer->language);
 			while (!newchan && !atxferdropcall && tries < atxfercallbackretries) {
 				/* Trying to transfer again */
 				ast_autoservice_start(transferee);
 				ast_indicate(transferee, AST_CONTROL_HOLD);
 
-				newchan = feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
-					xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
+				newchan = feature_request_and_dial(transferer, transferee, "Local",
+					ast_best_codec(transferer->nativeformats),
+					xferto, atxfernoanswertimeout, &outstate,
+					transferer->caller.id.number.valid ? transferer->caller.id.number.str : NULL,
+					transferer->caller.id.name.valid ? transferer->caller.id.name.str : NULL,
+					1, transferer->language);
 				if (ast_autoservice_stop(transferee) < 0) {
 					if (newchan)
 						ast_hangup(newchan);
@@ -2035,8 +2053,12 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					ast_debug(1, "Sleeping for %d ms before callback.\n", atxferloopdelay);
 					ast_safe_sleep(transferee, atxferloopdelay);
 					ast_debug(1, "Trying to callback...\n");
-					newchan = feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
-						transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
+					newchan = feature_request_and_dial(transferee, NULL, transferer_tech,
+						ast_best_codec(transferee->nativeformats),
+						transferer_name, atxfernoanswertimeout, &outstate,
+						transferee->caller.id.number.valid ? transferee->caller.id.number.str : NULL,
+						transferee->caller.id.name.valid ? transferee->caller.id.name.str : NULL,
+						0, transferer->language);
 				}
 				tries++;
 			}
@@ -2094,18 +2116,18 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		}
 
 		ast_channel_lock(newchan);
-		ast_connected_line_copy_from_caller(&connected_line, &newchan->cid);
+		ast_connected_line_copy_from_caller(&connected_line, &newchan->caller);
 		ast_channel_unlock(newchan);
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 		if (ast_channel_connected_line_macro(newchan, xferchan, &connected_line, 1, 0)) {
-			ast_channel_update_connected_line(xferchan, &connected_line);
+			ast_channel_update_connected_line(xferchan, &connected_line, NULL);
 		}
 		ast_channel_lock(xferchan);
-		ast_connected_line_copy_from_caller(&connected_line, &xferchan->cid);
+		ast_connected_line_copy_from_caller(&connected_line, &xferchan->caller);
 		ast_channel_unlock(xferchan);
 		connected_line.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 		if (ast_channel_connected_line_macro(xferchan, newchan, &connected_line, 0, 0)) {
-			ast_channel_update_connected_line(newchan, &connected_line);
+			ast_channel_update_connected_line(newchan, &connected_line, NULL);
 		}
 
 		ast_party_connected_line_free(&connected_line);
@@ -2676,7 +2698,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
 		
 	ast_channel_lock(chan);
-	ast_connected_line_copy_from_caller(&chan->connected, &caller->cid);
+	ast_connected_line_copy_from_caller(&chan->connected, &caller->caller);
 	ast_channel_unlock(chan);
 	
 	if (ast_call(chan, data, timeout)) {
@@ -3328,8 +3350,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	 * if it were, then chan belongs to a different thread now, and might have been hung up long
      * ago.
 	 */
-	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN) &&
-		ast_exists_extension(chan, chan->context, "h", 1, chan->cid.cid_num)) {
+	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN)
+		&& ast_exists_extension(chan, chan->context, "h", 1,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		struct ast_cdr *swapper = NULL;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
@@ -3357,10 +3380,16 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
 		chan->priority = 1;
 		ast_channel_unlock(chan);
-		while ((spawn_error = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num, &found, 1)) == 0) {
+		while ((spawn_error = ast_spawn_extension(chan, chan->context, chan->exten,
+			chan->priority,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
+			&found, 1)) == 0) {
 			chan->priority++;
 		}
-		if (spawn_error && (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num) || ast_check_hangup(chan))) {
+		if (spawn_error
+			&& (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority,
+				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
+				|| ast_check_hangup(chan))) {
 			/* if the extension doesn't exist or a hangup occurred, this isn't really a spawn error */
 			spawn_error = 0;
 		}
@@ -3503,8 +3532,8 @@ static void post_manager_event(const char *s, struct parkeduser *pu)
 		pu->parkingexten, 
 		pu->chan->name,
 		pu->parkinglot->name,
-		S_OR(pu->chan->cid.cid_num, "<unknown>"),
-		S_OR(pu->chan->cid.cid_name, "<unknown>"),
+		S_COR(pu->chan->caller.id.number.valid, pu->chan->caller.id.number.str, "<unknown>"),
+		S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
 		pu->chan->uniqueid
 		);
 }
@@ -3952,8 +3981,8 @@ static int park_exec_full(struct ast_channel *chan, const char *data, struct ast
 			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n",
 			pu->parkingexten, pu->chan->name, chan->name,
-			S_OR(pu->chan->cid.cid_num, "<unknown>"),
-			S_OR(pu->chan->cid.cid_name, "<unknown>")
+			S_COR(pu->chan->caller.id.number.valid, pu->chan->caller.id.number.str, "<unknown>"),
+			S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>")
 			);
 
 		ast_free(pu);
@@ -4998,8 +5027,8 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 				"\r\n",
 				cur->parkingnum, cur->chan->name, cur->peername,
 				(long) cur->start.tv_sec + (long) (cur->parkingtime / 1000) - (long) time(NULL),
-				S_OR(cur->chan->cid.cid_num, ""),	/* XXX in other places it is <unknown> */
-				S_OR(cur->chan->cid.cid_name, ""),
+				S_COR(cur->chan->caller.id.number.valid, cur->chan->caller.id.number.str, ""),	/* XXX in other places it is <unknown> */
+				S_COR(cur->chan->caller.id.name.valid, cur->chan->caller.id.name.str, ""),
 				idText);
 		}
 		AST_LIST_UNLOCK(&curlot->parkings);
@@ -5135,12 +5164,12 @@ int ast_pickup_call(struct ast_channel *chan)
 	connected_caller = cur->connected;
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
-		ast_channel_update_connected_line(chan, &connected_caller);
+		ast_channel_update_connected_line(chan, &connected_caller, NULL);
 	}
 
-	ast_party_connected_line_collect_caller(&connected_caller, &chan->cid);
+	ast_party_connected_line_collect_caller(&connected_caller, &chan->caller);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	ast_channel_queue_connected_line_update(chan, &connected_caller);
+	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);
 
 	ast_channel_unlock(cur);
 	ast_channel_unlock(chan);

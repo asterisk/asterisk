@@ -57,12 +57,12 @@ static int blacklist_read(struct ast_channel *chan, const char *cmd, char *data,
 	char blacklist[1];
 	int bl = 0;
 
-	if (chan->cid.cid_num) {
-		if (!ast_db_get("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
+	if (chan->caller.id.number.valid && chan->caller.id.number.str) {
+		if (!ast_db_get("blacklist", chan->caller.id.number.str, blacklist, sizeof (blacklist)))
 			bl = 1;
 	}
-	if (chan->cid.cid_name) {
-		if (!ast_db_get("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist)))
+	if (chan->caller.id.name.valid && chan->caller.id.name.str) {
+		if (!ast_db_get("blacklist", chan->caller.id.name.str, blacklist, sizeof (blacklist)))
 			bl = 1;
 	}
 

@@ -3165,8 +3165,8 @@ static int action_status(struct mansession *s, const struct message *m)
 			"%s"
 			"\r\n",
 			c->name,
-			S_OR(c->cid.cid_num, ""),
-			S_OR(c->cid.cid_name, ""),
+			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
+			S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
 			c->accountcode,
 			c->_state,
 			ast_state2str(c->_state), c->context,
@@ -3186,8 +3186,8 @@ static int action_status(struct mansession *s, const struct message *m)
 				"%s"
 				"\r\n",
 				c->name,
-				S_OR(c->cid.cid_num, "<unknown>"),
-				S_OR(c->cid.cid_name, "<unknown>"),
+				S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<unknown>"),
+				S_COR(c->caller.id.name.valid, c->caller.id.name.str, "<unknown>"),
 				c->accountcode,
 				ast_state2str(c->_state), bridge, c->uniqueid,
 				ast_str_buffer(str), idText);
@@ -4276,7 +4276,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"BridgedUniqueID: %s\r\n"
 			"\r\n", idText, c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state,
 			ast_state2str(c->_state), c->appl ? c->appl : "", c->data ? S_OR(c->data, "") : "",
-			S_OR(c->cid.cid_num, ""), durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "");
+			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
+			durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "");
 
 		ast_channel_unlock(c);
 
