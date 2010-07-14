@@ -3483,7 +3483,9 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		 * only wakes up every 1000ms by default, we have to poke the thread here to make
 		 * sure it successfully detects this must be retransmitted in less time than
 		 * it usually sleeps for. Otherwise it might not retransmit this packet for 1000ms. */
-		pthread_kill(monitor_thread, SIGURG);
+		if (monitor_thread != AST_PTHREADT_NULL) {
+			pthread_kill(monitor_thread, SIGURG);
+		}
 		return AST_SUCCESS;
 	}
 }
@@ -23873,14 +23875,12 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	if (event) {
 		newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 		oldmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
-	} else if (!get_cached_mwi(peer, &newmsgs, &oldmsgs)) {
-		/* got it!  Don't keep looking. */
-	} else if (cache_only) {
-		return 0;
-	} else { /* Fall back to manually checking the mailbox */
+	} else if (!cache_only) { /* Fall back to manually checking the mailbox */
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
+	} else {
+		get_cached_mwi(peer, &newmsgs, &oldmsgs);
 	}
 	
 	if (peer->mwipvt) {
@@ -25954,7 +25954,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
 		sip_cfg.allowsubscribe = TRUE;	/* No global ban any more */
 	}
-	if (!found && peer->host_dynamic && !peer->is_realtime) {
+	if (peer->host_dynamic && !peer->is_realtime) {
 		reg_source_db(peer);
 	}
 
@@ -26718,7 +26718,51 @@ static int reload_config(enum channelreloadreason reason)
  		if (!strcasecmp(v->name, "auth"))
  			authl = add_realm_authentication(authl, v->value, v->lineno);
  	}
-	
+
+	ast_mutex_lock(&netlock);
+	if ((sipsock > -1) && (ast_sockaddr_cmp(&old_bindaddr, &bindaddr))) {
+		close(sipsock);
+		sipsock = -1;
+	}
+	if (sipsock < 0) {
+		sipsock = socket(ast_sockaddr_is_ipv6(&bindaddr) ?
+				 AF_INET6 : AF_INET, SOCK_DGRAM, 0);
+		if (sipsock < 0) {
+			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
+			ast_config_destroy(cfg);
+			return -1;
+		} else {
+			/* Allow SIP clients on the same host to access us: */
+			const int reuseFlag = 1;
+
+			setsockopt(sipsock, SOL_SOCKET, SO_REUSEADDR,
+				   (const char*)&reuseFlag,
+				   sizeof reuseFlag);
+
+			ast_enable_packet_fragmentation(sipsock);
+
+			if (ast_bind(sipsock, &bindaddr) < 0) {
+				ast_log(LOG_WARNING, "Failed to bind to %s: %s\n",
+					ast_sockaddr_stringify(&bindaddr), strerror(errno));
+				close(sipsock);
+				sipsock = -1;
+			} else {
+				ast_verb(2, "SIP Listening on %s\n", ast_sockaddr_stringify(&bindaddr));
+				ast_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
+			}
+		}
+	}
+	if (stunaddr.sin_addr.s_addr != 0) {
+		ast_debug(1, "stun to %s:%d\n",
+			ast_inet_ntoa(stunaddr.sin_addr) , ntohs(stunaddr.sin_port));
+		ast_sockaddr_to_sin(&externip, &externip_sin);
+		ast_stun_request(sipsock, &stunaddr,
+			NULL, &externip_sin);
+		ast_debug(1, "STUN sees us at %s\n",
+			ast_sockaddr_stringify(&externip));
+	}
+	ast_mutex_unlock(&netlock);
+
 	if (ucfg) {
 		struct ast_variable *gen;
 		int genhassip, genregistersip;
@@ -26836,49 +26880,6 @@ static int reload_config(enum channelreloadreason reason)
 		ast_config_destroy(cfg);
 		return 0;
 	}
-	ast_mutex_lock(&netlock);
-	if ((sipsock > -1) && (ast_sockaddr_cmp(&old_bindaddr, &bindaddr))) {
-		close(sipsock);
-		sipsock = -1;
-	}
-	if (sipsock < 0) {
-		sipsock = socket(ast_sockaddr_is_ipv6(&bindaddr) ?
-				 AF_INET6 : AF_INET, SOCK_DGRAM, 0);
-		if (sipsock < 0) {
-			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
-			ast_config_destroy(cfg);
-			return -1;
-		} else {
-			/* Allow SIP clients on the same host to access us: */
-			const int reuseFlag = 1;
-
-			setsockopt(sipsock, SOL_SOCKET, SO_REUSEADDR,
-				   (const char*)&reuseFlag,
-				   sizeof reuseFlag);
-
-			ast_enable_packet_fragmentation(sipsock);
-
-			if (ast_bind(sipsock, &bindaddr) < 0) {
-				ast_log(LOG_WARNING, "Failed to bind to %s: %s\n",
-					ast_sockaddr_stringify(&bindaddr), strerror(errno));
-				close(sipsock);
-				sipsock = -1;
-			} else {
-				ast_verb(2, "SIP Listening on %s\n", ast_sockaddr_stringify(&bindaddr));
-				ast_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
-			}
-		}
-	}
-	if (stunaddr.sin_addr.s_addr != 0) {
-		ast_debug(1, "stun to %s:%d\n",
-			ast_inet_ntoa(stunaddr.sin_addr) , ntohs(stunaddr.sin_port));
-		ast_sockaddr_to_sin(&externip, &externip_sin);
-		ast_stun_request(sipsock, &stunaddr,
-			NULL, &externip_sin);
-		ast_debug(1, "STUN sees us at %s\n",
-			ast_sockaddr_stringify(&externip));
-	}
-	ast_mutex_unlock(&netlock);
 
 	/* Start TCP server */
 	if (sip_cfg.tcp_enabled) {
