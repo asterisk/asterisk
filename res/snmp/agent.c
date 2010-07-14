@@ -459,7 +459,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANCIDPRES:
-		long_ret = ast_party_id_presentation(chan->caller.id);
+		long_ret = ast_party_id_presentation(&chan->caller.id);
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANCIDANI2:
