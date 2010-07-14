@@ -80,6 +80,13 @@
  * definition; this means that any consumers of the API functions so
  * defined will require that the provider of the API functions be
  * loaded before they can reference the symbols.
+ *
+ * WARNING WARNING WARNING WARNING WARNING
+ *
+ * You MUST add the AST_MODFLAG_GLOBAL_SYMBOLS to the module for which you
+ * are enabling optional_api functionality, or it will fail to work.
+ *
+ * WARNING WARNING WARNING WARNING WARNING
  */
 
 #define __stringify_1(x)	#x
@@ -174,11 +181,11 @@
 
 #define AST_OPTIONAL_API(result, name, proto, stub) \
 	result AST_OPTIONAL_API_NAME(name) proto; \
-	__attribute__((alias(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(AST_OPTIONAL_API_NAME(name)) name;
+	static __attribute__((alias(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(AST_OPTIONAL_API_NAME(name)) name;
 
 #define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)	\
 	result __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto; \
-	__attribute__((alias(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(AST_OPTIONAL_API_NAME(name)) name;
+	static __attribute__((alias(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(AST_OPTIONAL_API_NAME(name)) name;
 
 #else
 

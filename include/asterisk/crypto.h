@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2010, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -27,12 +27,14 @@
 extern "C" {
 #endif
 
+#include "asterisk/optional_api.h"
+
 #define AST_KEY_PUBLIC	(1 << 0)
 #define AST_KEY_PRIVATE	(1 << 1)
 
 struct ast_key;
 
-/*! 
+/*!
  * \brief Retrieve a key
  * \param name of the key we are retrieving
  * \param int type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
@@ -40,9 +42,9 @@ struct ast_key;
  * \retval the key on success.
  * \retval NULL on failure.
  */
-extern struct ast_key *(*ast_key_get)(const char *key, int type);
+AST_OPTIONAL_API(struct ast_key *, ast_key_get, (const char *key, int type), { return NULL; });
 
-/*! 
+/*!
  * \brief Check the authenticity of a message signature using a given public key
  * \param key a public key to use to verify
  * \param msg the message that has been signed
@@ -52,9 +54,9 @@ extern struct ast_key *(*ast_key_get)(const char *key, int type);
  * \retval -1 otherwise.
  *
  */
-extern int (*ast_check_signature)(struct ast_key *key, const char *msg, const char *sig);
+AST_OPTIONAL_API(int, ast_check_signature, (struct ast_key *key, const char *msg, const char *sig), { return -1; });
 
-/*! 
+/*!
  * \brief Check the authenticity of a message signature using a given public key
  * \param key a public key to use to verify
  * \param msg the message that has been signed
@@ -64,7 +66,7 @@ extern int (*ast_check_signature)(struct ast_key *key, const char *msg, const ch
  * \retval -1 otherwise.
  *
  */
-extern int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int msglen, const unsigned char *sig);
+AST_OPTIONAL_API(int, ast_check_signature_bin, (struct ast_key *key, const char *msg, int msglen, const unsigned char *sig), { return -1; });
 
 /*!
  * \brief Sign a message signature using a given private key
@@ -77,7 +79,7 @@ extern int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int 
  * \retval -1 on failure.
  *
  */
-extern int (*ast_sign)(struct ast_key *key, char *msg, char *sig);
+AST_OPTIONAL_API(int, ast_sign, (struct ast_key *key, char *msg, char *sig), { return -1; });
 
 /*!
  * \brief Sign a message signature using a given private key
@@ -90,7 +92,7 @@ extern int (*ast_sign)(struct ast_key *key, char *msg, char *sig);
  * \retval -1 on failure.
  *
  */
-extern int (*ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, unsigned char *sig);
+AST_OPTIONAL_API(int, ast_sign_bin, (struct ast_key *key, const char *msg, int msglen, unsigned char *sig), { return -1; });
 
 /*!
  * \brief Encrypt a message using a given private key
@@ -104,7 +106,7 @@ extern int (*ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, uns
  * \retval -1 on failure.
  *
  */
-extern int (*ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+AST_OPTIONAL_API(int, ast_encrypt_bin, (unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key), { return -1; });
 
 /*!
  * \brief Decrypt a message using a given private key
@@ -118,7 +120,10 @@ extern int (*ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int 
  * \retval -1 on failure.
  *
  */
-extern int (*ast_decrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+AST_OPTIONAL_API(int, ast_decrypt_bin, (unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key), { return -1; });
+
+AST_OPTIONAL_API(int, ast_crypto_loaded, (void), { return 0; });
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

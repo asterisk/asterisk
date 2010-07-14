@@ -92,7 +92,7 @@ ifneq ($(findstring USE_HOARD_ALLOCATOR,$(MENUSELECT_CFLAGS)),)
 endif
 
 ifeq ($(GNU_LD),1)
-ASTLINK+=-Wl,--version-script,asterisk.exports
+ASTLINK+=-Wl,--version-script,asterisk.exports,--dynamic-list,asterisk.dynamics
 endif
 
 CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/

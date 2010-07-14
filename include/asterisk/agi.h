@@ -69,8 +69,9 @@ typedef struct agi_command {
  *
  * \param mod Pointer to the module_info structure for the module that is registering the command
  * \param cmd Pointer to the descriptor for the command
- * \return 1 on success, 0 if the command is already registered
- *
+ * \retval 1 on success
+ * \retval 0 the command is already registered
+ * \retval AST_OPTIONAL_API_UNAVAILABLE the module is not loaded.
  */
 AST_OPTIONAL_API(int, ast_agi_register,
 		 (struct ast_module *mod, agi_command *cmd),

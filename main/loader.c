@@ -836,7 +836,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (!mod->lib && mod->info->backup_globals && mod->info->backup_globals()) {
+	if (!mod->lib && mod->info->backup_globals()) {
 		ast_log(LOG_WARNING, "Module '%s' was unable to backup its global data.\n", resource_name);
 		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 	}
