@@ -77,7 +77,8 @@ maxlogins=3
 ;smdiport=/dev/ttyS0
 
 ; If you need to have an external program, i.e. /usr/bin/myapp
-; called when a voicemail password is changed, uncomment this:
+; called when a voicemail password is changed, uncomment this. The
+; arguments passed to the application are: <context> <mailbox> <newpassword>
 ; Note: If this is set, the password will NOT be changed in voicemail.conf
 ; If you would like to also change the password in voicemail.conf, use
 ; the externpassnotify option below instead.
