@@ -868,7 +868,10 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
-	tmp->caller.ani = ast_strdup(i->cid_num);
+	if (!ast_strlen_zero(i->cid_num)) {
+		tmp->caller.ani.number.valid = 1;
+		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+	}
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s")) {
 		tmp->dialed.number.str = ast_strdup(i->exten);
 	}

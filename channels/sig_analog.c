@@ -3039,10 +3039,12 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 			switch (p->whichwink) {
 			case 0:
 				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", p->owner->caller.ani2,
-					S_OR(p->owner->caller.ani, ""));
+					S_COR(p->owner->caller.ani.number.valid,
+						p->owner->caller.ani.number.str, ""));
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%d%s#",
 					p->owner->caller.ani2,
-					S_OR(p->owner->caller.ani, ""));
+					S_COR(p->owner->caller.ani.number.valid,
+						p->owner->caller.ani.number.str, ""));
 				break;
 			case 1:
 				ast_copy_string(p->dop.dialstr, p->finaldial, sizeof(p->dop.dialstr));

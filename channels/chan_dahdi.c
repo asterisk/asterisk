@@ -2923,18 +2923,17 @@ static void my_set_callerid(void *pvt, const struct ast_party_caller *caller)
 	ast_copy_string(p->cid_name,
 		S_COR(caller->id.name.valid, caller->id.name.str, ""),
 		sizeof(p->cid_name));
-	if (caller->id.subaddress.valid) {
-		ast_copy_string(p->cid_subaddr, S_OR(caller->id.subaddress.str, ""),
-			sizeof(p->cid_subaddr));
-	} else {
-		p->cid_subaddr[0] = '\0';
-	}
+	ast_copy_string(p->cid_subaddr,
+		S_COR(caller->id.subaddress.valid, caller->id.subaddress.str, ""),
+		sizeof(p->cid_subaddr));
 	p->cid_ton = caller->id.number.plan;
 	p->callingpres = ast_party_id_presentation(&caller->id);
 	if (caller->id.tag) {
 		ast_copy_string(p->cid_tag, caller->id.tag, sizeof(p->cid_tag));
 	}
-	ast_copy_string(p->cid_ani, S_OR(caller->ani, ""), sizeof(p->cid_ani));
+	ast_copy_string(p->cid_ani,
+		S_COR(caller->ani.number.valid, caller->ani.number.str, ""),
+		sizeof(p->cid_ani));
 	p->cid_ani2 = caller->ani2;
 }
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
@@ -8187,10 +8186,12 @@ winkflashdone:
 			switch (p->whichwink) {
 			case 0:
 				ast_debug(1, "ANI2 set to '%d' and ANI is '%s'\n", p->owner->caller.ani2,
-					S_OR(p->owner->caller.ani, ""));
+					S_COR(p->owner->caller.ani.number.valid,
+						p->owner->caller.ani.number.str, ""));
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%d%s#",
 					p->owner->caller.ani2,
-					S_OR(p->owner->caller.ani, ""));
+					S_COR(p->owner->caller.ani.number.valid,
+						p->owner->caller.ani.number.str, ""));
 				break;
 			case 1:
 				ast_copy_string(p->dop.dialstr, p->finaldial, sizeof(p->dop.dialstr));
@@ -9201,12 +9202,18 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
-	if (!ast_strlen_zero(i->cid_ani))
-		tmp->caller.ani = ast_strdup(i->cid_ani);
-	else
-		tmp->caller.ani = ast_strdup(i->cid_num);
+	if (!ast_strlen_zero(i->cid_ani)) {
+		tmp->caller.ani.number.valid = 1;
+		tmp->caller.ani.number.str = ast_strdup(i->cid_ani);
+	} else if (!ast_strlen_zero(i->cid_num)) {
+		tmp->caller.ani.number.valid = 1;
+		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+	}
 #else
-	tmp->caller.ani = ast_strdup(i->cid_num);
+	if (!ast_strlen_zero(i->cid_num)) {
+		tmp->caller.ani.number.valid = 1;
+		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+	}
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 	tmp->caller.id.name.presentation = i->callingpres;
 	tmp->caller.id.number.presentation = i->callingpres;

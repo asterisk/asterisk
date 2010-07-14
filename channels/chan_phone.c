@@ -888,7 +888,10 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a NewCallerID event before the NewChannel event */
-		tmp->caller.ani = ast_strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_num)) {
+			tmp->caller.ani.number.valid = 1;
+			tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+		}
 
 		i->owner = tmp;
 		ast_module_ref(ast_module_info->self);

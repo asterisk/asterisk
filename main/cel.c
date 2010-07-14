@@ -441,7 +441,8 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	tchan->caller.id.name.str = ast_strdup(record.caller_id_name);
 	tchan->caller.id.number.valid = 1;
 	tchan->caller.id.number.str = ast_strdup(record.caller_id_num);
-	tchan->caller.ani = ast_strdup(record.caller_id_ani);
+	tchan->caller.ani.number.valid = 1;
+	tchan->caller.ani.number.str = ast_strdup(record.caller_id_ani);
 	tchan->redirecting.from.number.valid = 1;
 	tchan->redirecting.from.number.str = ast_strdup(record.caller_id_rdnis);
 	tchan->dialed.number.str = ast_strdup(record.caller_id_dnid);
@@ -538,7 +539,7 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
 		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR,
-			S_OR(chan->caller.ani, ""),
+			S_COR(chan->caller.ani.number.valid, chan->caller.ani.number.str, ""),
 		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR,
 			S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, ""),
 		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR,

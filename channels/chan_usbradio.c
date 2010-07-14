@@ -2201,7 +2201,10 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 		ast_string_field_set(c, language, o->language);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
-	c->caller.ani = ast_strdup(o->cid_num);
+	if (!ast_strlen_zero(o->cid_num)) {
+		c->caller.ani.number.valid = 1;
+		c->caller.ani.number.str = ast_strdup(o->cid_num);
+	}
 	if (!ast_strlen_zero(ext)) {
 		c->dialed.number.str = ast_strdup(ext);
 	}

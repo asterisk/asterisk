@@ -1533,7 +1533,10 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		tmp->caller.ani = ast_strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_num)) {
+			tmp->caller.ani.number.valid = 1;
+			tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+		}
 
 		if (!i->adsi) {
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
@@ -3002,7 +3005,7 @@ static void *mgcp_ss(void *data)
 					ast_set_callerid(chan,
 						p->hidecallerid ? "" : p->cid_num,
 						p->hidecallerid ? "" : p->cid_name,
-						chan->caller.ani ? NULL : p->cid_num);
+						chan->caller.ani.number.valid ? NULL : p->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
 					/*dahdi_enable_ec(p);*/
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {

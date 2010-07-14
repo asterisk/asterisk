@@ -3774,7 +3774,7 @@ static void *skinny_newcall(void *data)
 	ast_set_callerid(c,
 		l->hidecallerid ? "" : l->cid_num,
 		l->hidecallerid ? "" : l->cid_name,
-		c->caller.ani ? NULL : l->cid_num);
+		c->caller.ani.number.valid ? NULL : l->cid_num);
 #if 1	/* XXX This code is probably not necessary */
 	ast_party_number_free(&c->connected.id.number);
 	ast_party_number_init(&c->connected.id.number);
@@ -4573,7 +4573,10 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		tmp->caller.ani = ast_strdup(l->cid_num);
+		if (!ast_strlen_zero(l->cid_num)) {
+			tmp->caller.ani.number.valid = 1;
+			tmp->caller.ani.number.str = ast_strdup(l->cid_num);
+		}
 
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;

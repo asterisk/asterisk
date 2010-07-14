@@ -44,6 +44,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * Do not document the CALLERID(ton) datatype.
  * It is an alias for num-plan.
  *
+ * Do not document the CALLERID(ANI-subaddr-...) datatype.
+ * This is not used.
+ *
  * Do not document the CONNECTEDLINE(source) datatype.
  * It has turned out to not be needed.  The source value is really
  * only useful as a possible tracing aid.
@@ -93,7 +96,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name = "subaddr-type" />
 					<enum name = "subaddr-odd" />
 					<enum name = "tag" />
-					<enum name = "ANI" />
+					<enum name = "ANI-all" />
+					<enum name = "ANI-name" />
+					<enum name = "ANI-name-valid" />
+					<enum name = "ANI-name-charset" />
+					<enum name = "ANI-name-pres" />
+					<enum name = "ANI-num" />
+					<enum name = "ANI-num-valid" />
+					<enum name = "ANI-num-plan" />
+					<enum name = "ANI-num-pres" />
+					<enum name = "ANI-tag" />
 					<enum name = "RDNIS" />
 					<enum name = "DNID" />
 					<enum name = "dnid-num-plan" />
@@ -946,9 +958,21 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data, 
 			}
 		} else if (member.argc == 1 && !strcasecmp("ani2", member.argv[0])) {
 			snprintf(buf, len, "%d", chan->caller.ani2);
-		} else if (member.argc == 1 && !strcasecmp("ani", member.argv[0])) {
-			if (chan->caller.ani) {
-				ast_copy_string(buf, chan->caller.ani, len);
+		} else if (!strcasecmp("ani", member.argv[0])) {
+			if (member.argc == 1) {
+				/* Setup as if user had given ani-num instead. */
+				member.argc = 2;
+				member.argv[1] = "num";
+			}
+			status = party_id_read(buf, len, member.argc - 1, member.argv + 1,
+				&chan->caller.ani);
+			switch (status) {
+			case ID_FIELD_VALID:
+			case ID_FIELD_INVALID:
+				break;
+			default:
+				ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+				break;
 			}
 		} else {
 			status = party_id_read(buf, len, member.argc, member.argv, &chan->caller.id);
@@ -1090,13 +1114,26 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid ani2 '%s', value unchanged\n", val);
 		}
-	} else if (member.argc == 1 && !strcasecmp("ani", member.argv[0])) {
+	} else if (!strcasecmp("ani", member.argv[0])) {
 		ast_party_caller_set_init(&caller, &chan->caller);
-		caller.ani = ast_strdup(value);
-		ast_trim_blanks(caller.ani);
-		ast_party_caller_set(&chan->caller, &caller, NULL);
-		if (chan->cdr) {
-			ast_cdr_setcid(chan->cdr, chan);
+		if (member.argc == 1) {
+			/* Setup as if user had given ani-num instead. */
+			member.argc = 2;
+			member.argv[1] = "num";
+		}
+		status = party_id_write(&caller.ani, member.argc - 1, member.argv + 1, value);
+		switch (status) {
+		case ID_FIELD_VALID:
+			ast_party_caller_set(&chan->caller, &caller, NULL);
+			if (chan->cdr) {
+				ast_cdr_setcid(chan->cdr, chan);
+			}
+			break;
+		case ID_FIELD_INVALID:
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+			break;
 		}
 		ast_party_caller_free(&caller);
 	} else {

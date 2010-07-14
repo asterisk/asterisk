@@ -6524,7 +6524,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
-	tmp->caller.ani = ast_strdup(i->cid_num);
+	if (!ast_strlen_zero(i->cid_num)) {
+		tmp->caller.ani.number.valid = 1;
+		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
+	}
 	if (!ast_strlen_zero(i->rdnis)) {
 		tmp->redirecting.from.number.valid = 1;
 		tmp->redirecting.from.number.str = ast_strdup(i->rdnis);

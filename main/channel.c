@@ -2136,7 +2136,7 @@ void ast_party_dialed_free(struct ast_party_dialed *doomed)
 void ast_party_caller_init(struct ast_party_caller *init)
 {
 	ast_party_id_init(&init->id);
-	init->ani = NULL;
+	ast_party_id_init(&init->ani);
 	init->ani2 = 0;
 }
 
@@ -2148,44 +2148,34 @@ void ast_party_caller_copy(struct ast_party_caller *dest, const struct ast_party
 	}
 
 	ast_party_id_copy(&dest->id, &src->id);
-
-	ast_free(dest->ani);
-	dest->ani = ast_strdup(src->ani);
-
+	ast_party_id_copy(&dest->ani, &src->ani);
 	dest->ani2 = src->ani2;
 }
 
 void ast_party_caller_set_init(struct ast_party_caller *init, const struct ast_party_caller *guide)
 {
 	ast_party_id_set_init(&init->id, &guide->id);
-	init->ani = NULL;
+	ast_party_id_set_init(&init->ani, &guide->ani);
 	init->ani2 = guide->ani2;
 }
 
 void ast_party_caller_set(struct ast_party_caller *dest, const struct ast_party_caller *src, const struct ast_set_party_caller *update)
 {
 	ast_party_id_set(&dest->id, &src->id, update ? &update->id : NULL);
-
-	if (src->ani && src->ani != dest->ani) {
-		ast_free(dest->ani);
-		dest->ani = ast_strdup(src->ani);
-	}
-
+	ast_party_id_set(&dest->ani, &src->ani, update ? &update->ani : NULL);
 	dest->ani2 = src->ani2;
 }
 
 void ast_party_caller_free(struct ast_party_caller *doomed)
 {
 	ast_party_id_free(&doomed->id);
-
-	ast_free(doomed->ani);
-	doomed->ani = NULL;
+	ast_party_id_free(&doomed->ani);
 }
 
 void ast_party_connected_line_init(struct ast_party_connected_line *init)
 {
 	ast_party_id_init(&init->id);
-	init->ani = NULL;
+	ast_party_id_init(&init->ani);
 	init->ani2 = 0;
 	init->source = AST_CONNECTED_LINE_UPDATE_SOURCE_UNKNOWN;
 }
@@ -2198,10 +2188,7 @@ void ast_party_connected_line_copy(struct ast_party_connected_line *dest, const 
 	}
 
 	ast_party_id_copy(&dest->id, &src->id);
-
-	ast_free(dest->ani);
-	dest->ani = ast_strdup(src->ani);
-
+	ast_party_id_copy(&dest->ani, &src->ani);
 	dest->ani2 = src->ani2;
 	dest->source = src->source;
 }
@@ -2209,7 +2196,7 @@ void ast_party_connected_line_copy(struct ast_party_connected_line *dest, const 
 void ast_party_connected_line_set_init(struct ast_party_connected_line *init, const struct ast_party_connected_line *guide)
 {
 	ast_party_id_set_init(&init->id, &guide->id);
-	init->ani = NULL;
+	ast_party_id_set_init(&init->ani, &guide->ani);
 	init->ani2 = guide->ani2;
 	init->source = guide->source;
 }
@@ -2217,12 +2204,7 @@ void ast_party_connected_line_set_init(struct ast_party_connected_line *init, co
 void ast_party_connected_line_set(struct ast_party_connected_line *dest, const struct ast_party_connected_line *src, const struct ast_set_party_connected_line *update)
 {
 	ast_party_id_set(&dest->id, &src->id, update ? &update->id : NULL);
-
-	if (src->ani && src->ani != dest->ani) {
-		ast_free(dest->ani);
-		dest->ani = ast_strdup(src->ani);
-	}
-
+	ast_party_id_set(&dest->ani, &src->ani, update ? &update->ani : NULL);
 	dest->ani2 = src->ani2;
 	dest->source = src->source;
 }
@@ -2238,9 +2220,7 @@ void ast_party_connected_line_collect_caller(struct ast_party_connected_line *co
 void ast_party_connected_line_free(struct ast_party_connected_line *doomed)
 {
 	ast_party_id_free(&doomed->id);
-
-	ast_free(doomed->ani);
-	doomed->ani = NULL;
+	ast_party_id_free(&doomed->ani);
 }
 
 void ast_party_redirecting_init(struct ast_party_redirecting *init)
@@ -6205,8 +6185,9 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
 		chan->caller.id.name.str = ast_strdup(cid_name);
 	}
 	if (cid_ani) {
-		ast_free(chan->caller.ani);
-		chan->caller.ani = ast_strdup(cid_ani);
+		chan->caller.ani.number.valid = 1;
+		ast_free(chan->caller.ani.number.str);
+		chan->caller.ani.number.str = ast_strdup(cid_ani);
 	}
 
 	report_new_callerid(chan);
@@ -7497,19 +7478,14 @@ int ast_say_digits_full(struct ast_channel *chan, int num,
 void ast_connected_line_copy_from_caller(struct ast_party_connected_line *dest, const struct ast_party_caller *src)
 {
 	ast_party_id_copy(&dest->id, &src->id);
-
-	ast_free(dest->ani);
-	dest->ani = ast_strdup(src->ani);
-
+	ast_party_id_copy(&dest->ani, &src->ani);
 	dest->ani2 = src->ani2;
 }
 
 void ast_connected_line_copy_to_caller(struct ast_party_caller *dest, const struct ast_party_connected_line *src)
 {
 	ast_party_id_copy(&dest->id, &src->id);
-
-	ast_free(dest->ani);
-	dest->ani = ast_strdup(src->ani);
+	ast_party_id_copy(&dest->ani, &src->ani);
 
 	dest->ani2 = src->ani2;
 }

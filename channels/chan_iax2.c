@@ -4971,8 +4971,11 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
-	if (ast_test_flag64(iaxs[callno], IAX_SENDANI) && c->connected.ani)
-		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->connected.ani);
+	if (ast_test_flag64(iaxs[callno], IAX_SENDANI)
+		&& c->connected.ani.number.valid
+		&& c->connected.ani.number.str) {
+		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->connected.ani.number.str);
+	}
 
 	if (!ast_strlen_zero(c->language))
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
@@ -5604,9 +5607,11 @@ static struct ast_channel *ast_iax2_new(int callno, int state, format_t capabili
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a NewCallerID event before the NewChannel event */
 	if (!ast_strlen_zero(i->ani)) {
-		tmp->caller.ani = ast_strdup(i->ani);
-	} else {
-		tmp->caller.ani = ast_strdup(i->cid_num);
+		tmp->caller.ani.number.valid = 1;
+		tmp->caller.ani.number.str = ast_strdup(i->ani);
+	} else if (!ast_strlen_zero(i->cid_num)) {
+		tmp->caller.ani.number.valid = 1;
+		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
 	}
 	tmp->dialed.number.str = ast_strdup(i->dnid);
 	tmp->redirecting.from.number.valid = 1;

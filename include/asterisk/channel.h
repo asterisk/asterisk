@@ -369,10 +369,11 @@ struct ast_party_caller {
 	struct ast_party_id id;
 
 	/*!
-	 * \brief Automatic Number Identification (ANI) (Malloced)
-	 * \todo BUGBUG This should be made an ast_party_id.
+	 * \brief Automatic Number Identification (ANI)
+	 * \note The name subcomponent is only likely to be used by SIP.
+	 * \note The subaddress subcomponent is not likely to be used.
 	 */
-	char *ani;
+	struct ast_party_id ani;
 
 	/*! \brief Automatic Number Identification 2 (Info Digits) */
 	int ani2;
@@ -385,6 +386,8 @@ struct ast_party_caller {
 struct ast_set_party_caller {
 	/*! What caller id information to set. */
 	struct ast_set_party_id id;
+	/*! What ANI id information to set. */
+	struct ast_set_party_id ani;
 };
 
 /*!
@@ -399,12 +402,11 @@ struct ast_party_connected_line {
 	struct ast_party_id id;
 
 	/*!
-	 * \brief Automatic Number Identification (ANI) (Malloced)
+	 * \brief Automatic Number Identification (ANI)
 	 * \note Not really part of connected line data but needed to
 	 * save the corresponding caller id value.
-	 * \todo BUGBUG This should be made an ast_party_id.
 	 */
-	char *ani;
+	struct ast_party_id ani;
 
 	/*!
 	 * \brief Automatic Number Identification 2 (Info Digits)
@@ -428,6 +430,8 @@ struct ast_party_connected_line {
 struct ast_set_party_connected_line {
 	/*! What connected line id information to set. */
 	struct ast_set_party_id id;
+	/*! What ANI id information to set. */
+	struct ast_set_party_id ani;
 };
 
 /*!

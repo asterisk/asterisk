@@ -223,7 +223,12 @@ static void sig_pri_set_caller_id(struct sig_pri_chan *p)
 			caller.id.subaddress.str = p->cid_subaddr;
 		}
 		caller.id.tag = p->user_tag;
-		caller.ani = p->cid_ani;
+
+		caller.ani.number.str = p->cid_ani;
+		//caller.ani.number.plan = p->xxx;
+		//caller.ani.number.presentation = p->xxx;
+		caller.ani.number.valid = 1;
+
 		caller.ani2 = p->cid_ani2;
 		p->calls->set_callerid(p->chan_pvt, &caller);
 	}

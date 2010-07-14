@@ -189,7 +189,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	);
 
 	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", chan->name,
-		S_OR(chan->caller.ani, "(N/A)"),
+		S_COR(chan->caller.ani.number.valid, chan->caller.ani.number.str, "(N/A)"),
 		S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, "(N/A)"),
 		ast_getformatname(chan->readformat));
 

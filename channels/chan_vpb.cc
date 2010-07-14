@@ -788,7 +788,7 @@ static void get_callerid_ast(struct vpb_pvt *p)
 		ast_shrink_phone_number(number);
 	ast_set_callerid(owner,
 		number, name,
-		owner->caller.ani ? NULL : number);
+		owner->caller.ani.number.valid ? NULL : number);
 	if (!ast_strlen_zero(name)){
 		snprintf(p->callerid, sizeof(p->callerid), "%s %s", number, name);
 	} else {

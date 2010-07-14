@@ -7893,7 +7893,8 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, const char *linkedid, int port, int c)
 {
 	struct ast_channel *tmp;
-	char *cid_name = 0, *cid_num = 0;
+	char *cid_name = NULL;
+	char *cid_num = NULL;
 	int chan_offset = 0;
 	int tmp_port = misdn_cfg_get_next_port(0);
 	int bridging;
@@ -7938,10 +7939,11 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 			chan_misdn_log(1, 0, "misdn_new: no exten given.\n");
 		}
 
-		if (callerid) {
+		if (!ast_strlen_zero(cid_num)) {
 			/* Don't use ast_set_callerid() here because it will
 			 * generate a needless NewCallerID event */
-			tmp->caller.ani = ast_strdup(cid_num);
+			tmp->caller.ani.number.valid = 1;
+			tmp->caller.ani.number.str = ast_strdup(cid_num);
 		}
 
 		if (pipe(chlist->pipe) < 0) {

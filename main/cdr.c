@@ -853,7 +853,7 @@ static void set_one_cid(struct ast_cdr *cdr, struct ast_channel *c)
 	}
 
 	/* Grab source from ANI or normal Caller*ID */
-	num = S_OR(c->caller.ani,
+	num = S_COR(c->caller.ani.number.valid, c->caller.ani.number.str,
 		S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL));
 	ast_callerid_merge(cdr->clid, sizeof(cdr->clid),
 		S_COR(c->caller.id.name.valid, c->caller.id.name.str, NULL), num, "");
