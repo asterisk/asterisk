@@ -55,7 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk.h"
 
-#define DATE_FORMAT "%Y-%m-%d %T"
+#define DATE_FORMAT "%Y-%m-%d %T.%6q"
 
 static char *config = "cel_pgsql.conf";
 static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL;
@@ -240,9 +240,12 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 				} else if (strcmp(cur->name, "peer") == 0) {
 					value = record.peer;
 				} else {
-					value = "";
+					value = NULL;
 				}
-				if (strncmp(cur->type, "int", 3) == 0) {
+
+				if (value == NULL) {
+					ast_str_append(&sql2, 0, "%sDEFAULT", SEP);
+				} else if (strncmp(cur->type, "int", 3) == 0) {
 					long long whatever;
 					if (value && sscanf(value, "%30lld", &whatever) == 1) {
 						LENGTHEN_BUF2(26);

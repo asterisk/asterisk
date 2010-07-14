@@ -205,13 +205,15 @@ Using MySQL for Channel Event records is supported by using ODBC and the cel_odb
 
 \begin{verbatim}
         CREATE TABLE cel (
+                id            serial ,
                 eventtype     varchar (30)          NOT NULL ,
-                eventtime     time                  NOT NULL ,
-                cidname       varchar (80)          NOT NULL ,
-                cidnum        varchar (80)          NOT NULL ,
-                cidani        varchar (80)          NOT NULL ,
-                cidrdnis      varchar (80)          NOT NULL ,
-                ciddnis       varchar (80)          NOT NULL ,
+                eventtime     timestamp             NOT NULL ,
+                userdeftype   varchar(255)          NOT NULL ,
+                cid_name      varchar (80)          NOT NULL ,
+                cid_num       varchar (80)          NOT NULL ,
+                cid_ani       varchar (80)          NOT NULL ,
+                cid_rdnis     varchar (80)          NOT NULL ,
+                cid_dnid      varchar (80)          NOT NULL ,
                 exten         varchar (80)          NOT NULL ,
                 context       varchar (80)          NOT NULL ,
                 channame      varchar (80)          NOT NULL ,
@@ -219,7 +221,9 @@ Using MySQL for Channel Event records is supported by using ODBC and the cel_odb
                 appdata       varchar (80)          NOT NULL ,
                 amaflags      int                   NOT NULL ,
                 accountcode   varchar (20)          NOT NULL ,
-                uniqueid      varchar (32)          NOT NULL ,
+                peeraccount   varchar (20)          NOT NULL ,
+                uniqueid      varchar (150)         NOT NULL ,
+                linkedid      varchar (150)         NOT NULL ,
                 userfield     varchar (255)         NOT NULL ,
                 peer          varchar (80)          NOT NULL
         );
