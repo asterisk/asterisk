@@ -3241,13 +3241,20 @@ static int retrans_pkt(const void *data)
 		pkt->retrans++;
 		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
 			if (sipdebug) {
-				ast_debug(4, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
+				ast_debug(4, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n",
+					pkt->retransid,
+					sip_methods[pkt->method].text,
+					pkt->method);
 			}
 		} else {
 			int siptimer_a;
 
 			if (sipdebug) {
-				ast_debug(4, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
+				ast_debug(4, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n",
+					pkt->retransid,
+					pkt->retrans,
+					sip_methods[pkt->method].text,
+					pkt->method);
 			}
 			if (!pkt->timer_a) {
 				pkt->timer_a = 2 ;
@@ -3263,7 +3270,11 @@ static int retrans_pkt(const void *data)
 
 			/* Reschedule re-transmit */
 			reschedule = siptimer_a;
-			ast_debug(4, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
+			ast_debug(4, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n",
+				pkt->retrans + 1,
+				siptimer_a,
+				pkt->timer_t1,
+				pkt->retransid);
 		}
 
 		if (sip_debug_test_pvt(pkt->owner)) {
