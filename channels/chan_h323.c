@@ -621,7 +621,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 		ast_copy_string(pvt->options.cid_rdnis, c->redirecting.from.number.str, sizeof(pvt->options.cid_rdnis));
 	}
 
-	pvt->options.presentation = ast_party_id_presentation(c->connected.id);
+	pvt->options.presentation = ast_party_id_presentation(&c->connected.id);
 	pvt->options.type_of_number = c->connected.id.number.plan;
 
 	if ((addr = pbx_builtin_getvar_helper(c, "PRIREDIRECTREASON"))) {
