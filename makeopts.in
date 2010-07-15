@@ -57,6 +57,7 @@ CONFIG_CFLAGS=@CONFIG_CFLAGS@
 CONFIG_LDFLAGS=@CONFIG_LDFLAGS@
 
 GNU_LD=@GNU_LD@
+WEAKREF=@PBX_WEAKREF@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
