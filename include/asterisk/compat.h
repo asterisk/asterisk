@@ -73,6 +73,10 @@
 #include "asterisk/poll-compat.h"
 #endif
 
+#ifndef HAVE_LLONG_MAX
+#define	LLONG_MAX	9223372036854775807LL
+#endif
+
 #ifndef HAVE_CLOSEFROM
 void closefrom(int lowfd);
 #endif

@@ -462,6 +462,15 @@ if test "x${ac_cv_type_long_double_wider}" = "xyes" ; then
 	AC_CHECK_FUNCS([exp2l log2l exp10l log10l sinl cosl tanl asinl acosl atanl atan2l powl sqrtl rintl expl logl remainderl fmodl roundl truncl floorl ceill])
 fi
 
+AC_MSG_CHECKING(for LLONG_MAX in limits.h)
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([#include <limits.h>],
+		[long long foo = LLONG_MAX]),
+	AC_MSG_RESULT(yes)
+	AC_DEFINE([HAVE_LLONG_MAX], 1, [Define to 1 if limits.h includes a LLONG_MAX definition.]),
+	AC_MSG_RESULT(no)
+)
+
 AC_MSG_CHECKING(for timersub in time.h)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <sys/time.h>],
