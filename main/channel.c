@@ -4553,7 +4553,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		res = 0;	/* XXX explain, why 0 ? */
 		goto done;
 	}
-	if (chan->generatordata && strcasecmp(fr->src, "ast_prod")) {
+	if (chan->generatordata && (!fr->src || strcasecmp(fr->src, "ast_prod"))) {
 		if (ast_test_flag(chan, AST_FLAG_WRITE_INT)) {
 				ast_deactivate_generator(chan);
 		} else {
