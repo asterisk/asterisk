@@ -29,7 +29,7 @@ AC_COMPILE_IFELSE(
 )
 fi
 
-m4_ifval([$4],AC_SUBST($4))
+m4_ifval([$4],[AC_SUBST($4)])
 CFLAGS="$saved_CFLAGS"
 ]
 )
