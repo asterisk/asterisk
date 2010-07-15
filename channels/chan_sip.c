@@ -26719,6 +26719,26 @@ static int reload_config(enum channelreloadreason reason)
  			authl = add_realm_authentication(authl, v->value, v->lineno);
  	}
 
+	if (bindport) {
+		if (ast_sockaddr_port(&bindaddr)) {
+			ast_log(LOG_WARNING, "bindport is also specified in bindaddr. "
+				"Using %d.\n", bindport);
+		}
+		ast_sockaddr_set_port(&bindaddr, bindport);
+	}
+
+	if (!ast_sockaddr_port(&bindaddr)) {
+		ast_sockaddr_set_port(&bindaddr, STANDARD_SIP_PORT);
+	}
+
+	/* Set UDP address and open socket */
+	ast_sockaddr_copy(&internip, &bindaddr);
+	if (ast_find_ourip(&internip, &bindaddr)) {
+		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
+		ast_config_destroy(cfg);
+		return 0;
+	}
+
 	ast_mutex_lock(&netlock);
 	if ((sipsock > -1) && (ast_sockaddr_cmp(&old_bindaddr, &bindaddr))) {
 		close(sipsock);
@@ -26762,6 +26782,48 @@ static int reload_config(enum channelreloadreason reason)
 			ast_sockaddr_stringify(&externip));
 	}
 	ast_mutex_unlock(&netlock);
+
+	/* Start TCP server */
+	if (sip_cfg.tcp_enabled) {
+		if (ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
+			ast_sockaddr_copy(&sip_tcp_desc.local_address, &bindaddr);
+		}
+		if (!ast_sockaddr_port(&sip_tcp_desc.local_address)) {
+			ast_sockaddr_set_port(&sip_tcp_desc.local_address, STANDARD_SIP_PORT);
+		}
+	} else {
+		ast_sockaddr_setnull(&sip_tcp_desc.local_address);
+	}
+	ast_tcptls_server_start(&sip_tcp_desc);
+	if (sip_cfg.tcp_enabled && sip_tcp_desc.accept_fd == -1) {
+		/* TCP server start failed. Tell the admin */
+		ast_log(LOG_ERROR, "SIP TCP Server start failed. Not listening on TCP socket.\n");
+	} else {
+		ast_debug(2, "SIP TCP server started\n");
+	}
+
+	/* Start TLS server if needed */
+	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
+
+	if (ast_ssl_setup(sip_tls_desc.tls_cfg)) {
+		if (ast_sockaddr_isnull(&sip_tls_desc.local_address)) {
+			ast_sockaddr_copy(&sip_tls_desc.local_address, &bindaddr);
+			ast_sockaddr_set_port(&sip_tls_desc.local_address,
+					      STANDARD_TLS_PORT);
+		}
+		if (!ast_sockaddr_port(&sip_tls_desc.local_address)) {
+			ast_sockaddr_set_port(&sip_tls_desc.local_address,
+					      STANDARD_TLS_PORT);
+		}
+		ast_tcptls_server_start(&sip_tls_desc);
+ 		if (default_tls_cfg.enabled && sip_tls_desc.accept_fd == -1) {
+			ast_log(LOG_ERROR, "TLS Server start failed. Not listening on TLS socket.\n");
+			sip_tls_desc.tls_cfg = NULL;
+		}
+	} else if (sip_tls_desc.tls_cfg->enabled) {
+		sip_tls_desc.tls_cfg = NULL;
+		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
+	}
 
 	if (ucfg) {
 		struct ast_variable *gen;
@@ -26826,7 +26888,6 @@ static int reload_config(enum channelreloadreason reason)
 		}
 		ast_config_destroy(ucfg);
 	}
-	
 
 	/* Load peers, users and friends */
 	cat = NULL;
@@ -26860,69 +26921,6 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		}
 	}
-
-	if (bindport) {
-		if (ast_sockaddr_port(&bindaddr)) {
-			ast_log(LOG_WARNING, "bindport is also specified in bindaddr. "
-				"Using %d.\n", bindport);
-		}
-		ast_sockaddr_set_port(&bindaddr, bindport);
-	}
-
-	if (!ast_sockaddr_port(&bindaddr)) {
-		ast_sockaddr_set_port(&bindaddr, STANDARD_SIP_PORT);
-	}
-
-	/* Set UDP address and open socket */
-	ast_sockaddr_copy(&internip, &bindaddr);
-	if (ast_find_ourip(&internip, &bindaddr)) {
-		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
-		ast_config_destroy(cfg);
-		return 0;
-	}
-
-	/* Start TCP server */
-	if (sip_cfg.tcp_enabled) {
-		if (ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
-			ast_sockaddr_copy(&sip_tcp_desc.local_address, &bindaddr);
-		}
-		if (!ast_sockaddr_port(&sip_tcp_desc.local_address)) {
-			ast_sockaddr_set_port(&sip_tcp_desc.local_address, STANDARD_SIP_PORT);
-		}
-	} else {
-		ast_sockaddr_setnull(&sip_tcp_desc.local_address);
-	}
-	ast_tcptls_server_start(&sip_tcp_desc);
-	if (sip_cfg.tcp_enabled && sip_tcp_desc.accept_fd == -1) {
-		/* TCP server start failed. Tell the admin */
-		ast_log(LOG_ERROR, "SIP TCP Server start failed. Not listening on TCP socket.\n");
-	} else {
-		ast_debug(2, "SIP TCP server started\n");
-	}
-
-	/* Start TLS server if needed */
-	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
-
-	if (ast_ssl_setup(sip_tls_desc.tls_cfg)) {
-		if (ast_sockaddr_isnull(&sip_tls_desc.local_address)) {
-			ast_sockaddr_copy(&sip_tls_desc.local_address, &bindaddr);
-			ast_sockaddr_set_port(&sip_tls_desc.local_address,
-					      STANDARD_TLS_PORT);
-		}
-		if (!ast_sockaddr_port(&sip_tls_desc.local_address)) {
-			ast_sockaddr_set_port(&sip_tls_desc.local_address,
-					      STANDARD_TLS_PORT);
-		}
-		ast_tcptls_server_start(&sip_tls_desc);
- 		if (default_tls_cfg.enabled && sip_tls_desc.accept_fd == -1) {
-			ast_log(LOG_ERROR, "TLS Server start failed. Not listening on TLS socket.\n");
-			sip_tls_desc.tls_cfg = NULL;
-		}
-	} else if (sip_tls_desc.tls_cfg->enabled) {
-		sip_tls_desc.tls_cfg = NULL;
-		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
-	}
-
 
 	/* Add default domains - host name, IP address and IP:port
 	 * Only do this if user added any sip domain with "localdomains"
