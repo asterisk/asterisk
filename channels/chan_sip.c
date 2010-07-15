@@ -25085,6 +25085,15 @@ static int reload_config(enum channelreloadreason reason)
  			authl = add_realm_authentication(authl, v->value, v->lineno);
  	}
 
+	/* Set UDP address and open socket */
+	bindaddr.sin_family = AF_INET;
+	internip = bindaddr;
+	if (ast_find_ourip(&internip.sin_addr, bindaddr)) {
+		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
+		ast_config_destroy(cfg);
+		return 0;
+	}
+
 	ast_mutex_lock(&netlock);
 	if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in)))) {
 		close(sipsock);
@@ -25128,6 +25137,30 @@ static int reload_config(enum channelreloadreason reason)
 			ast_inet_ntoa(externip.sin_addr) , ntohs(externip.sin_port));
 	}
 	ast_mutex_unlock(&netlock);
+
+	/* Start TCP server */
+	ast_tcptls_server_start(&sip_tcp_desc);
+ 	if (sip_tcp_desc.accept_fd == -1 &&  sip_tcp_desc.local_address.sin_family == AF_INET) {
+		/* TCP server start failed. Tell the admin */
+		ast_log(LOG_ERROR, "SIP TCP Server start failed. Not listening on TCP socket.\n");
+		sip_tcp_desc.local_address.sin_family = 0;
+	} else {
+		ast_debug(2, "SIP TCP server started\n");
+	}
+
+	/* Start TLS server if needed */
+	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
+
+	if (ast_ssl_setup(sip_tls_desc.tls_cfg)) {
+		ast_tcptls_server_start(&sip_tls_desc);
+ 		if (default_tls_cfg.enabled && sip_tls_desc.accept_fd == -1) {
+			ast_log(LOG_ERROR, "TLS Server start failed. Not listening on TLS socket.\n");
+			sip_tls_desc.tls_cfg = NULL;
+		}
+	} else if (sip_tls_desc.tls_cfg->enabled) {
+		sip_tls_desc.tls_cfg = NULL;
+		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
+	}
 
 	if (ucfg) {
 		struct ast_variable *gen;
@@ -25192,7 +25225,6 @@ static int reload_config(enum channelreloadreason reason)
 		}
 		ast_config_destroy(ucfg);
 	}
-	
 
 	/* Load peers, users and friends */
 	cat = NULL;
@@ -25226,40 +25258,6 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		}
 	}
-	
-	/* Set UDP address and open socket */
-	bindaddr.sin_family = AF_INET;
-	internip = bindaddr;
-	if (ast_find_ourip(&internip.sin_addr, bindaddr)) {
-		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
-		ast_config_destroy(cfg);
-		return 0;
-	}
-
-	/* Start TCP server */
-	ast_tcptls_server_start(&sip_tcp_desc);
- 	if (sip_tcp_desc.accept_fd == -1 &&  sip_tcp_desc.local_address.sin_family == AF_INET) {
-		/* TCP server start failed. Tell the admin */
-		ast_log(LOG_ERROR, "SIP TCP Server start failed. Not listening on TCP socket.\n");
-		sip_tcp_desc.local_address.sin_family = 0;
-	} else {
-		ast_debug(2, "SIP TCP server started\n");
-	}
-
-	/* Start TLS server if needed */
-	memcpy(sip_tls_desc.tls_cfg, &default_tls_cfg, sizeof(default_tls_cfg));
-
-	if (ast_ssl_setup(sip_tls_desc.tls_cfg)) {
-		ast_tcptls_server_start(&sip_tls_desc);
- 		if (default_tls_cfg.enabled && sip_tls_desc.accept_fd == -1) {
-			ast_log(LOG_ERROR, "TLS Server start failed. Not listening on TLS socket.\n");
-			sip_tls_desc.tls_cfg = NULL;
-		}
-	} else if (sip_tls_desc.tls_cfg->enabled) {
-		sip_tls_desc.tls_cfg = NULL;
-		ast_log(LOG_WARNING, "SIP TLS server did not load because of errors.\n");
-	}
-
 
 	/* Add default domains - host name, IP address and IP:port
 	 * Only do this if user added any sip domain with "localdomains" 
