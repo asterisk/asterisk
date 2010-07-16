@@ -5515,6 +5515,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (option_debug > 1)
 					ast_log(LOG_DEBUG, "T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 			}
+
+			/* default EC to none, the remote end should respond
+			 * with the EC they want to use */
+			p->t38.peercapability &= ~T38FAX_UDP_EC_NONE;
+			ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 		} else {
 			ast_log(LOG_WARNING, "Unsupported SDP media type in offer: %s\n", m);
 			continue;
