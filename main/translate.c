@@ -652,6 +652,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		    (u->cost > t->cost)) {
 			AST_RWLIST_INSERT_BEFORE_CURRENT(t, list);
 			t = NULL;
+			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
