@@ -270,10 +270,11 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 
 		if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_NULL || f->frametype == AST_FRAME_CNG) {
 			/* If the total time exceeds the analysis time then give up as we are not too sure */
-			if (f->frametype == AST_FRAME_VOICE)
+			if (f->frametype == AST_FRAME_VOICE) {
 				framelength = (ast_codec_get_samples(f) / DEFAULT_SAMPLES_PER_MS);
-			else
-				framelength += 2 * maxWaitTimeForFrame;
+			} else {
+				framelength = 2 * maxWaitTimeForFrame;
+			}
 
 			iTotalTime += framelength;
 			if (iTotalTime >= totalAnalysisTime) {
