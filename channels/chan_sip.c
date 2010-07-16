@@ -3111,7 +3111,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 			}
 			externexpire = time(NULL) + externrefresh;
 		}
-		if (ast_sockaddr_isnull(&externip)) {
+		if (!ast_sockaddr_isnull(&externip)) {
 			ast_sockaddr_copy(us, &externip);
 			switch (p->socket.type) {
 			case SIP_TRANSPORT_TCP:
