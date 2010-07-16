@@ -75,7 +75,7 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 			/* domain-only URI, according to the SIP RFC. */
 			dom = uri;
 			userinfo = "";
-			}
+		}
 
 		*domain = dom;
 	}
@@ -94,7 +94,7 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 	parameters = uri;
 	/* strip [?headers] from end of uri  - even if no header pointer exists*/
 	if ((c = strrchr(uri, '?'))) {
-			*c++ = '\0';
+		*c++ = '\0';
 		uri = c;
 		if (headers) {
 			*headers = c;
@@ -114,11 +114,11 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 	/* parse parameters */
 	endparams = strchr(parameters,'\0');
 	if ((c = strchr(parameters, ';'))) {
-			*c++ = '\0';
+		*c++ = '\0';
 		parameters = c;
 	} else {
 		parameters = endparams;
-		}
+	}
 
 	if (params) {
 		char *rem = parameters; /* unparsed or unrecognised remainder */
@@ -144,11 +144,11 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 			}
 			label = parameters;
 			if ((c = strchr(value, ';'))) {
-			*c++ = '\0';
+				*c++ = '\0';
 				parameters = c;
 			} else {
 				parameters = endparams;
-		}
+			}
 
 			if (!strcmp(label, "transport")) {
 				if (params) {params->transport=value;}
@@ -172,10 +172,10 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 			} else {
 				value--;
 				*value = '=';
-				if(c) {
-				c--;
-				*c = ';';
-	}
+				if (c) {
+					c--;
+					*c = ';';
+				}
 			}
 		}
 		if (rem > uri) { /* no headers */
