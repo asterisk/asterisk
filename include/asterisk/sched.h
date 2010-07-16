@@ -53,7 +53,7 @@ extern "C" {
 		int _count = 0; \
 		int _sched_res = -1; \
 		while (id > -1 && (_sched_res = ast_sched_del(sched, id)) && ++_count < 10) \
-			usleep(1); \
+			usleep(1000); \
 		if (_count == 10 && option_debug > 2) { \
 			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.\n", id); \
 		} \
@@ -70,7 +70,7 @@ extern "C" {
 	do { \
 		int _count = 0; \
 		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) { \
-			usleep(1); \
+			usleep(1000); \
 		} \
 		if (_count == 10) \
 			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
@@ -89,7 +89,7 @@ extern "C" {
 		int _sched_res = -1; \
 		while (id > -1 && (_sched_res = ast_sched_del(sched, id)) && ++_count < 10) { \
 			ast_mutex_unlock(lock); \
-			usleep(1); \
+			usleep(1000); \
 			ast_mutex_lock(lock); \
 		} \
 		if (_count == 10 && option_debug > 2) { \
@@ -103,7 +103,7 @@ extern "C" {
 	do { \
 		int _count = 0; \
 		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) { \
-			usleep(1); \
+			usleep(1000); \
 		} \
 		if (_count == 10) \
 			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
@@ -122,7 +122,7 @@ extern "C" {
 		int _count = 0, _res=1;											 \
 		void *_data = (void *)ast_sched_find_data(sched, id);			\
 		while (id > -1 && (_res = ast_sched_del(sched, id) && _count++ < 10)) { \
-			usleep(1); \
+			usleep(1000); \
 		} \
 		if (!_res && _data)							\
 			unrefcall;	/* should ref _data! */		\
