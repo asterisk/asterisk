@@ -11768,6 +11768,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				chan_sig = 0;
 			}
 			tmp->sig = chan_sig;
+			tmp->outsigmod = conf->chan.outsigmod;
 
 			if (analog_lib_handles(chan_sig, tmp->radio, tmp->oprmode)) {
 				analog_p = analog_new(dahdisig_to_analogsig(chan_sig), &dahdi_analog_callbacks, tmp);
@@ -11968,6 +11969,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						tmp->sig_pvt = pri_chan;
 						tmp->pri = &pris[span].pri;
 
+						tmp->priexclusive = conf->chan.priexclusive;
+
 						if (!tmp->pri->cc_params) {
 							tmp->pri->cc_params = ast_cc_config_params_init();
 							if (!tmp->pri->cc_params) {
@@ -12166,7 +12169,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			tmp->mwimonitor_neon = conf->chan.mwimonitor_neon;
 			tmp->mwimonitor_rpas = conf->chan.mwimonitor_rpas;
 		}
-		tmp->outsigmod = conf->chan.outsigmod;
 		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;
 		if ((chan_sig == SIG_FXOKS) || (chan_sig == SIG_FXOLS) || (chan_sig == SIG_FXOGS))
@@ -12221,7 +12223,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->dahditrcallerid = conf->chan.dahditrcallerid;
 		tmp->restrictcid = conf->chan.restrictcid;
 		tmp->use_callingpres = conf->chan.use_callingpres;
-		tmp->priexclusive = conf->chan.priexclusive;
 		if (tmp->usedistinctiveringdetection) {
 			if (!tmp->use_callerid) {
 				ast_log(LOG_NOTICE, "Distinctive Ring detect requires 'usecallerid' be on\n");
