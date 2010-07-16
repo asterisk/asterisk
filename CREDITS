@@ -114,6 +114,8 @@ Simon Lockhart - Porting to Solaris (based on work of Logan ???)
 Olle E. Johansson - SIP RFC compliance, documentation and testing, testing,
 	SIP outbound proxy support, Manager 1.1 update, SIP transfer support,
 	SIP presence support, SIP call state updates (dialog-info), 
+	QUEUE_EXISTS function, device state provider architecture,
+	multiparking (together with mvanbaak), meetme and parking device states,
 	MiniVM - the small voicemail system, many documentation
 	updates/corrections, and many bug fixes.
 	oej(AT)edvina.net, http://edvina.net
@@ -207,6 +209,10 @@ Sean Bright - Snom call pickup, newt interface for menuselect, cdr_tds rewrite,
 	sean(AT)malleable.com
 
 Jan Kaláb - Calendaring support for Exchange Server 2007+ via Exchange Web Services.
+
+University of Oslo (uio.no), Norway - SIP Max-Forwards setting support (developed by oej)
+
+FCCN, Lissabon, Portugal - SIP show channels CLI command (developed by oej)
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
