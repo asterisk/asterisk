@@ -1097,9 +1097,12 @@ static int init_files_class(struct mohclass *class)
 		return -1;
 	}
 
+#if 0
+	/* XXX This isn't correct.  Args is an application for custom mode. XXX */
 	if (strchr(class->args, 'r')) {
 		ast_set_flag(class, MOH_RANDOMIZE);
 	}
+#endif
 
 	return 0;
 }
