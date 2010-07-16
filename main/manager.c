@@ -1592,7 +1592,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	if (c)
 		ast_channel_unlock(c);
 	astman_append(s, "Response: Success\r\n"
-		"Variable: %s\r\nValue: %s\r\n", varname, varval);
+		"Variable: %s\r\nValue: %s\r\n", varname, S_OR(varval, ""));
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n",id);
 	astman_append(s, "\r\n");
