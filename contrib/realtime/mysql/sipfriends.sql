@@ -35,7 +35,7 @@ CREATE TABLE `sipfriends` (
   `maxcallbitrate` varchar(15),
   `host` varchar(40) default 'dynamic',
   `outboundproxy` varchar(40),
-  `ipaddr` varchar(20) NOT NULL default '',
+  `ipaddr` varchar(40) NOT NULL default '',
   `defaultip` varchar(20),
   `port` int(6) NOT NULL default '0',
   `fullcontact` varchar(40),

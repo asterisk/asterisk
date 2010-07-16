@@ -65,7 +65,7 @@ disallow character varying(100) DEFAULT 'all',
 allow character varying(100) DEFAULT 'g729;ilbc;gsm;ulaw;alaw',
 musiconhold character varying(100),
 regseconds bigint DEFAULT 0::bigint NOT NULL,
-ipaddr character varying(15) DEFAULT '' NOT NULL,
+ipaddr character varying(40) DEFAULT '' NOT NULL,
 regexten character varying(80) DEFAULT '' NOT NULL,
 cancallforward character varying(3) DEFAULT 'yes',
 lastms integer DEFAULT -1 NOT NULL

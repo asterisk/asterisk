@@ -12,7 +12,7 @@ CREATE TABLE `iaxfriends` (
   `context` varchar(40) NULL,
   `regcontext` varchar(40) NULL,
   `host` varchar(40) NULL default 'dynamic',
-  `ipaddr` varchar(20) NULL, -- Must be updateable by Asterisk user
+  `ipaddr` varchar(40) NULL, -- Must be updateable by Asterisk user
   `port` int(5) NULL, -- Must be updateable by Asterisk user
   `defaultip` varchar(20) NULL,
   `sourceaddress` varchar(20) NULL,
