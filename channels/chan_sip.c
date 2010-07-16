@@ -8013,6 +8013,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 			if (p->t38.state != T38_ENABLED) {
 				memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
+
+				/* default EC to none, the remote end should
+				 * respond with the EC they want to use */
+				ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 			}
 		} else {
 			ast_log(LOG_WARNING, "Unsupported SDP media type in offer: %s\n", m);
