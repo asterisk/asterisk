@@ -1,8 +1,8 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 1999-2005, Digium, Inc.
- * 
+ * Copyright (C) 1999-2010, Digium, Inc.
+ *
  * Manuel Guesdon <mguesdon@oxymium.net> - Postgresql RealTime Driver Author/Adaptor
  * Mark Spencer <markster@digium.com>  - Asterisk Author
  * Matthew Boehm <mboehm@cytelcom.com> - MySQL RealTime Driver Author
@@ -76,11 +76,42 @@ static struct ast_cli_entry cli_realtime[] = {
 	cli_realtime_pgsql_status_usage },
 };
 
+static char *encode_chunk(const char *chunk, char *buf, size_t len)
+{
+	char *cptr = buf;
+	for (; *chunk && cptr < buf + len; chunk++) {
+		if (strchr(";^", *chunk)) {
+			snprintf(cptr, buf + len - cptr, "^%02hhX", *chunk);
+			cptr += 3;
+		} else {
+			*cptr++ = *chunk;
+		}
+	}
+	if (cptr < buf + len) {
+		*cptr = '\0';
+	} else {
+		buf[len - 1] = '\0';
+	}
+	return buf;
+}
+
+static char *decode_chunk(char *chunk)
+{
+	char *orig = chunk;
+	for (; *chunk; chunk++) {
+		if (*chunk == '^' && strchr("0123456789ABCDEFabcdef", chunk[1]) && strchr("0123456789ABCDEFabcdef", chunk[2])) {
+			sscanf(chunk + 1, "%02hhd", chunk);
+			memmove(chunk + 1, chunk + 3, strlen(chunk + 3) + 1);
+		}
+	}
+	return orig;
+}
+
 static struct ast_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
 {
 	PGresult *result = NULL;
 	int num_rows = 0, pgerror;
-	char sql[256], escapebuf[513];
+	char sql[256], escapebuf[2049], semibuf[1024];
 	char *stringp;
 	char *chunk;
 	char *op;
@@ -109,7 +140,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 	op = strchr(newparam, ' ') ? "" : " =";
 
-	PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+	PQescapeStringConn(pgsqlConn, escapebuf, encode_chunk(newval, semibuf, sizeof(semibuf)), (sizeof(escapebuf) - 1) / 2, &pgerror);
 	if (pgerror) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 		va_end(ap);
@@ -125,7 +156,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		else
 			op = "";
 
-		PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+		PQescapeStringConn(pgsqlConn, escapebuf, encode_chunk(newval, semibuf, sizeof(semibuf)), (sizeof(escapebuf) - 1) / 2, &pgerror);
 		if (pgerror) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 			va_end(ap);
@@ -167,7 +198,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		}
 	}
 
-	ast_log(LOG_DEBUG, "1Postgresql RealTime: Result=%p Query: %s\n", result, sql);
+	ast_log(LOG_DEBUG, "Postgresql RealTime: Result=%p Query: %s\n", result, sql);
 
 	if ((num_rows = PQntuples(result)) > 0) {
 		int i = 0;
@@ -189,7 +220,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (chunk && !ast_strlen_zero(decode_chunk(ast_strip(chunk)))) {
 						if (prev) {
 							prev->next = ast_variable_new(fieldnames[i], chunk);
 							if (prev->next) {
@@ -217,7 +248,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 {
 	PGresult *result = NULL;
 	int num_rows = 0, pgerror;
-	char sql[256], escapebuf[513];
+	char sql[256], escapebuf[2049], semibuf[1024];
 	const char *initfield = NULL;
 	char *stringp;
 	char *chunk;
@@ -264,7 +295,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	else
 		op = "";
 
-	PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+	PQescapeStringConn(pgsqlConn, escapebuf, encode_chunk(newval, semibuf, sizeof(semibuf)), (sizeof(escapebuf) - 1) / 2, &pgerror);
 	if (pgerror) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 		va_end(ap);
@@ -280,7 +311,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		else
 			op = "";
 
-		PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+		PQescapeStringConn(pgsqlConn, escapebuf, encode_chunk(newval, semibuf, sizeof(semibuf)), (sizeof(escapebuf) - 1) / 2, &pgerror);
 		if (pgerror) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 			va_end(ap);
@@ -353,7 +384,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (chunk && !ast_strlen_zero(decode_chunk(ast_strip(chunk)))) {
 						if (initfield && !strcmp(initfield, fieldnames[i])) {
 							ast_category_rename(cat, chunk);
 						}
@@ -381,7 +412,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 {
 	PGresult *result = NULL;
 	int numrows = 0, pgerror;
-	char sql[256], escapebuf[513];
+	char sql[256], escapebuf[2049], semibuf[1024];
 	const char *newparam, *newval;
 
 	if (!table) {
@@ -405,7 +436,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 
-	PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+	PQescapeStringConn(pgsqlConn, escapebuf, encode_chunk(newval, semibuf, sizeof(semibuf)), (sizeof(escapebuf) - 1) / 2, &pgerror);
 	if (pgerror) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 		va_end(ap);
@@ -416,7 +447,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
 
-		PQescapeStringConn(pgsqlConn, escapebuf, newval, (sizeof(escapebuf) - 1) / 2, &pgerror);
+		PQescapeStringConn(pgsqlConn, escapebuf, encode_chunk(newval, semibuf, sizeof(semibuf)), (sizeof(escapebuf) - 1) / 2, &pgerror);
 		if (pgerror) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 			va_end(ap);
