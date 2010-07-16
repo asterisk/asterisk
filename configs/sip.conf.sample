@@ -7,6 +7,7 @@
 ;	IP address connected to the Internet, you will want to learn
 ;	about the various security settings BEFORE you start
 ;	Asterisk. 
+;
 ;	Especially note the following settings:
 ;		- allowguest (default enabled)
 ;		- permit/deny - IP address filters
@@ -21,6 +22,8 @@
 ;        SIP/username@domain   (SIP uri)
 ;        SIP/username[:password[:md5secret[:authname[:transport]]]]@host[:port]
 ;        SIP/devicename/extension
+;        SIP/devicename/extension/IPorHost
+;        SIP/username@domain//IPorHost
 ;
 ;
 ; Devicename
@@ -45,6 +48,9 @@
 ;        SIP/sales:topsecret::account02@domain.com:5062
 ;        SIP/12345678::bc53f0ba8ceb1ded2b70e05c3f91de4f:myname@192.168.0.1
 ;
+; IPorHost
+;        The next server for this call regardless of domain/peer
+;
 ; All of these dial strings specify the SIP request URI.
 ; In addition, you can specify a specific To: header by adding an
 ; exclamation mark after the dial string, like
@@ -67,7 +73,8 @@
 ;
 ;   sip set debug on             Show all SIP messages
 ;
-;   module reload chan_sip.so    Reload configuration file
+;   sip reload                   Reload configuration file
+;   sip show settings            Show the current channel configuration
 ;
 ;------- Naming devices ------------------------------------------------------
 ;
