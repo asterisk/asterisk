@@ -970,6 +970,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 
 	if (!ast_check_hangup(transferer)) {
+		int hangup_dont = 0;
+
 		if (check_compat(transferer, newchan)) {
 			/* we do mean transferee here, NOT transferer */
 			finishup(transferee);
@@ -978,7 +980,18 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		memset(&bconfig,0,sizeof(struct ast_bridge_config));
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
+
+		/* ast_bridge_call clears AST_FLAG_BRIDGE_HANGUP_DONT, but we don't
+		   want that to happen here because we're also in another bridge already
+		 */
+		if (ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT)) {
+			hangup_dont = 1;
+		}
 		res = ast_bridge_call(transferer, newchan, &bconfig);
+		if (hangup_dont) {
+			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
+		}
+
 		if (newchan->_softhangup || !transferer->_softhangup) {
 			ast_hangup(newchan);
 			if (ast_stream_and_wait(transferer, xfersound, transferer->language, ""))
