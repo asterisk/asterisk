@@ -1839,6 +1839,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	ast_party_connected_line_init(&connected_line);
 	if (!ast_check_hangup(transferer)) {
+		int hangup_dont = 0;
+
 		/* Transferer is up - old behaviour */
 		ast_indicate(transferer, -1);
 		if (!newchan) {
@@ -1871,7 +1873,18 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_channel_lock(transferer);
 		ast_party_connected_line_copy(&connected_line, &transferer->connected);
 		ast_channel_unlock(transferer);
+
+		/* ast_bridge_call clears AST_FLAG_BRIDGE_HANGUP_DONT, but we don't
+		   want that to happen here because we're also in another bridge already
+		 */
+		if (ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT)) {
+			hangup_dont = 1;
+		}
 		res = ast_bridge_call(transferer, newchan, &bconfig);
+		if (hangup_dont) {
+			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
+		}
+
 		if (ast_check_hangup(newchan) || !ast_check_hangup(transferer)) {
 			ast_hangup(newchan);
 			if (ast_stream_and_wait(transferer, xfersound, ""))
