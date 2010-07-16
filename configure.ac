@@ -482,7 +482,12 @@ AC_LINK_IFELSE(
 
 AC_MSG_CHECKING(for a version of GNU ld that supports the --dynamic-list flag)
 old_LDFLAGS=${LDFLAGS}
-LDFLAGS+="-Wl,--dynamic-list,main/asterisk.dynamics"
+cat >conftest.dynamics <<_ACEOF
+{
+	*ast_*;
+};
+_ACEOF
+LDFLAGS="${LDFLAGS} -Wl,--dynamic-list,conftest.dynamics"
 PBX_DYNAMIC_LIST=0
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([], []),
@@ -492,6 +497,7 @@ AC_LINK_IFELSE(
 )
 AC_SUBST(PBX_DYNAMIC_LIST)
 LDFLAGS=${old_LDFLAGS}
+rm -f conftest.dynamics
 
 AC_CHECK_HEADER([sys/poll.h], 
    [HAS_POLL=1]
