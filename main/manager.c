@@ -1922,7 +1922,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	if (c)
 		ast_channel_unlock(c);
 	astman_start_ack(s, m);
-	astman_append(s, "Variable: %s\r\nValue: %s\r\n\r\n", varname, varval);
+	astman_append(s, "Variable: %s\r\nValue: %s\r\n\r\n", varname, S_OR(varval, ""));
 
 	return 0;
 }
