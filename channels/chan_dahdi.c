@@ -7856,6 +7856,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					return NULL;
 				}
 			}
+			tmp->outsigmod = conf->chan.outsigmod;
+
 #ifdef HAVE_PRI
 			if ((chan_sig == SIG_PRI) || (chan_sig == SIG_GR303FXOKS) || (chan_sig == SIG_GR303FXSKS)) {
 				int offset;
@@ -7970,6 +7972,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						tmp->pri = &pris[span];
 						tmp->prioffset = offset;
 						tmp->call = NULL;
+
+						tmp->priexclusive = conf->chan.priexclusive;
 					} else {
 						ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
 						destroy_dahdi_pvt(&tmp);
@@ -8076,7 +8080,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->immediate = conf->chan.immediate;
 		tmp->transfertobusy = conf->chan.transfertobusy;
 		tmp->sig = chan_sig;
-		tmp->outsigmod = conf->chan.outsigmod;
 		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;
 		if ((chan_sig == SIG_FXOKS) || (chan_sig == SIG_FXOLS) || (chan_sig == SIG_FXOGS))
@@ -8121,7 +8124,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->dahditrcallerid = conf->chan.dahditrcallerid;
 		tmp->restrictcid = conf->chan.restrictcid;
 		tmp->use_callingpres = conf->chan.use_callingpres;
-		tmp->priexclusive = conf->chan.priexclusive;
 		if (tmp->usedistinctiveringdetection) {
 			if (!tmp->use_callerid) {
 				ast_log(LOG_NOTICE, "Distinctive Ring detect requires 'usecallerid' be on\n");
