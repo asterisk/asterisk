@@ -214,6 +214,11 @@ University of Oslo (uio.no), Norway - SIP Max-Forwards setting support (develope
 
 FCCN, Lissabon, Portugal - SIP show channels CLI command (developed by oej)
 
+Viagenie, Canada - IPv6 support in socket layers and SIP implementation
+	Developers: Marc Blanchet, Simon Perreault and Jean-Philippe Dionne
+
+ClearIT AB, Sweden - res_mutestream, queue_exists and various other patches (developed by oej)
+
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
 Michael Jerris - bug marshaling
