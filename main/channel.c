@@ -3860,7 +3860,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					 */
 					if (ast_tvdiff_ms(now, chan->dtmf_tv) < AST_MIN_DTMF_DURATION) {
 						f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
-						ast_log(LOG_DTMF, "DTMF end '%c' detected to have actual duration %ld on the wire, emulation will be triggered on %s\n", f->subclass, f->len, chan->name);
+						ast_log(LOG_DTMF, "DTMF end '%c' detected to have actual duration %ld on the wire, emulation will be triggered on %s\n", f->subclass.integer, f->len, chan->name);
 					}
 				} else if (!f->len) {
 					ast_log(LOG_DTMF, "DTMF end accepted without begin '%c' on %s\n", f->subclass.integer, chan->name);
