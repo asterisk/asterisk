@@ -2468,10 +2468,12 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	fds[1].fd = me->alert_pipe[0];
 	fds[0].events = fds[1].events = POLLIN | POLLPRI;
 
-	if (!(req.data = ast_str_create(SIP_MIN_PACKET)))
+	if (!(req.data = ast_str_create(SIP_MIN_PACKET))) {
 		goto cleanup;
-	if (!(reqcpy.data = ast_str_create(SIP_MIN_PACKET)))
+	}
+	if (!(reqcpy.data = ast_str_create(SIP_MIN_PACKET))) {
 		goto cleanup;
+	}
 
 	for (;;) {
 		struct ast_str *str_save;
@@ -2518,8 +2520,9 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 					goto cleanup;
 				}
 				ast_mutex_unlock(&tcptls_session->lock);
-				if (me->stop)
+				if (me->stop) {
 					 goto cleanup;
+				}
 				ast_str_append(&req.data, 0, "%s", buf);
 				req.len = req.data->used;
 			}
@@ -2536,8 +2539,9 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 					}
 					buf[bytes_read] = '\0';
 					ast_mutex_unlock(&tcptls_session->lock);
-					if (me->stop)
+					if (me->stop) {
 						goto cleanup;
+					}
 					cl -= strlen(buf);
 					ast_str_append(&req.data, 0, "%s", buf);
 					req.len = req.data->used;
@@ -2682,12 +2686,14 @@ void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglis
 			ast_channel_lock(dialog->owner);
 		ast_debug(1, "Detaching from channel %s\n", dialog->owner->name);
 		dialog->owner->tech_pvt = dialog_unref(dialog->owner->tech_pvt, "resetting channel dialog ptr in unlink_all");
-		if (lockowner)
+		if (lockowner) {
 			ast_channel_unlock(dialog->owner);
+		}
 	}
 	if (dialog->registry) {
-		if (dialog->registry->call == dialog)
+		if (dialog->registry->call == dialog) {
 			dialog->registry->call = dialog_unref(dialog->registry->call, "nulling out the registry's call dialog field in unlink_all");
+		}
 		dialog->registry = registry_unref(dialog->registry, "delete dialog->registry");
 	}
 	if (dialog->stateid > -1) {
@@ -2696,10 +2702,12 @@ void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglis
 		dialog->stateid = -1; /* shouldn't we 'zero' this out? */
 	}
 	/* Remove link from peer to subscription of MWI */
-	if (dialog->relatedpeer && dialog->relatedpeer->mwipvt == dialog)
+	if (dialog->relatedpeer && dialog->relatedpeer->mwipvt == dialog) {
 		dialog->relatedpeer->mwipvt = dialog_unref(dialog->relatedpeer->mwipvt, "delete ->relatedpeer->mwipvt");
-	if (dialog->relatedpeer && dialog->relatedpeer->call == dialog)
+	}
+	if (dialog->relatedpeer && dialog->relatedpeer->call == dialog) {
 		dialog->relatedpeer->call = dialog_unref(dialog->relatedpeer->call, "unset the relatedpeer->call field in tandem with relatedpeer field itself");
+	}
 
 	/* remove all current packets in this dialog */
 	while((cp = dialog->packets)) {
@@ -2716,8 +2724,9 @@ void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglis
 
 	AST_SCHED_DEL_UNREF(sched, dialog->initid, dialog_unref(dialog, "when you delete the initid sched, you should dec the refcount for the stored dialog ptr"));
 	
-	if (dialog->autokillid > -1)
+	if (dialog->autokillid > -1) {
 		AST_SCHED_DEL_UNREF(sched, dialog->autokillid, dialog_unref(dialog, "when you delete the autokillid sched, you should dec the refcount for the stored dialog ptr"));
+	}
 
 	if (dialog->request_queue_sched_id > -1) {
 		AST_SCHED_DEL_UNREF(sched, dialog->request_queue_sched_id, dialog_unref(dialog, "when you delete the request_queue_sched_id sched, you should dec the refcount for the stored dialog ptr"));
@@ -2778,15 +2787,17 @@ static inline void pvt_set_needdestroy(struct sip_pvt *pvt, const char *reason)
 	a dialog */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 {
-	if (p->initreq.headers)
+	if (p->initreq.headers) {
 		ast_debug(1, "Initializing already initialized SIP dialog %s (presumably reinvite)\n", p->callid);
-	else
+	} else {
 		ast_debug(1, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
+	}
 	/* Use this as the basis */
 	copy_request(&p->initreq, req);
 	parse_request(&p->initreq);
-	if (req->debug)
+	if (req->debug) {
 		ast_verbose("Initreq: %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+	}
 }
 
 /*! \brief Encapsulate setting of SIP_ALREADYGONE to be able to trace it with debugging */
@@ -2836,19 +2847,22 @@ unsigned int port_str2int(const char *pt, unsigned int standard)
 static struct sip_proxy *obproxy_get(struct sip_pvt *dialog, struct sip_peer *peer)
 {
 	if (peer && peer->outboundproxy) {
-		if (sipdebug)
+		if (sipdebug) {
 			ast_debug(1, "OBPROXY: Applying peer OBproxy to this call\n");
+		}
 		append_history(dialog, "OBproxy", "Using peer obproxy %s", peer->outboundproxy->name);
 		return peer->outboundproxy;
 	}
 	if (sip_cfg.outboundproxy.name[0]) {
-		if (sipdebug)
+		if (sipdebug) {
 			ast_debug(1, "OBPROXY: Applying global OBproxy to this call\n");
+		}
 		append_history(dialog, "OBproxy", "Using global obproxy %s", sip_cfg.outboundproxy.name);
 		return &sip_cfg.outboundproxy;
 	}
-	if (sipdebug)
+	if (sipdebug) {
 		ast_debug(1, "OBPROXY: Not applying OBproxy to this call\n");
+	}
 	return NULL;
 }
 
@@ -2872,11 +2886,13 @@ static int find_sip_method(const char *msg)
 {
 	int i, res = 0;
 	
-	if (ast_strlen_zero(msg))
+	if (ast_strlen_zero(msg)) {
 		return 0;
+	}
 	for (i = 1; i < ARRAY_LEN(sip_methods) && !res; i++) {
-		if (method_match(i, msg))
+		if (method_match(i, msg)) {
 			res = sip_methods[i].id;
+		}
 	}
 	return res;
 }
@@ -2907,8 +2923,9 @@ static inline int sip_debug_test_addr(const struct ast_sockaddr *addr)
 /*! \brief The real destination address for a write */
 static const struct ast_sockaddr *sip_real_dst(const struct sip_pvt *p)
 {
-	if (p->outboundproxy)
+	if (p->outboundproxy) {
 		return &p->outboundproxy->ip;
+	}
 
 	return ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT) || ast_test_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT) ? &p->recv : &p->sa;
 }
@@ -2922,8 +2939,9 @@ static const char *sip_nat_mode(const struct sip_pvt *p)
 /*! \brief Test PVT for debugging output */
 static inline int sip_debug_test_pvt(struct sip_pvt *p)
 {
-	if (!sipdebug)
+	if (!sipdebug) {
 		return 0;
+	}
 	return sip_debug_test_addr(sip_real_dst(p));
 }
 
@@ -3013,8 +3031,9 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 
 	ast_debug(2, "Trying to put '%.11s' onto %s socket destined for %s\n", data->str, get_transport_pvt(p), ast_sockaddr_stringify(dst));
 
-	if (sip_prepare_socket(p) < 0)
+	if (sip_prepare_socket(p) < 0) {
 		return XMIT_ERROR;
+	}
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
 		res = ast_sendto(p->socket.fd, data->str, len, 0, dst);
@@ -3035,8 +3054,9 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 			res = XMIT_ERROR;	/* Don't bother with trying to transmit again */
 		}
 	}
-	if (res != len)
+	if (res != len) {
 		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s returned %d: %s\n", data, len, ast_sockaddr_stringify(dst), res, strerror(errno));
+	}
 
 	return res;
 }
@@ -3187,8 +3207,9 @@ static __attribute__((format(printf, 2, 0))) void append_history_va(struct sip_p
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	strsep(&c, "\r\n"); /* Trim up everything after \r or \n */
 	l = strlen(buf) + 1;
-	if (!(hist = ast_calloc(1, sizeof(*hist) + l)))
+	if (!(hist = ast_calloc(1, sizeof(*hist) + l))) {
 		return;
+	}
 	if (!p->history && !(p->history = ast_calloc(1, sizeof(*p->history)))) {
 		ast_free(hist);
 		return;
@@ -3209,11 +3230,13 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 {
 	va_list ap;
 
-	if (!p)
+	if (!p) {
 		return;
+	}
 
-	if (!p->do_history && !recordhistory && !dumphistory)
+	if (!p->do_history && !recordhistory && !dumphistory) {
 		return;
+	}
 
 	va_start(ap, fmt);
 	append_history_va(p, fmt, ap);
@@ -3379,8 +3402,9 @@ static int retrans_pkt(const void *data)
 
 	if (pkt->method == SIP_BYE) {
 		/* We're not getting answers on SIP BYE's.  Tear down the call anyway. */
-		if (pkt->owner->owner)
+		if (pkt->owner->owner) {
 			ast_channel_unlock(pkt->owner->owner);
+		}
 		append_history(pkt->owner, "ByeFailure", "Remote peer doesn't respond to bye. Destroying call anyway.");
 		pvt_set_needdestroy(pkt->owner, "no response to BYE");
 	}
@@ -3435,8 +3459,9 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		}
 	}
 
-	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1)))
+	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1))) {
 		return AST_FAILURE;
+	}
 	/* copy data, add a terminator and save length */
 	if (!(pkt->data = ast_str_create(len))) {
 		ast_free(pkt);
@@ -3460,16 +3485,18 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	}
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	pkt->retransid = -1;
-	if (pkt->timer_t1)
+	if (pkt->timer_t1) {
 		siptimer_a = pkt->timer_t1;
+	}
 
 	pkt->time_sent = ast_tvnow(); /* time packet was sent */
 	pkt->retrans_stop_time = 64 * (pkt->timer_t1 ? pkt->timer_t1 : DEFAULT_TIMER_T1); /* time in ms after pkt->time_sent to stop retransmission */
 
 	/* Schedule retransmission */
 	AST_SCHED_REPLACE_VARIABLE(pkt->retransid, sched, siptimer_a, retrans_pkt, pkt, 1);
-	if (sipdebug)
+	if (sipdebug) {
 		ast_debug(4, "*** SIP TIMER: Initializing retransmit timer on packet: Id  #%d\n", pkt->retransid);
+	}
 
 	xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);	/* Send packet */
 
@@ -3588,17 +3615,21 @@ void sip_scheddestroy(struct sip_pvt *p, int ms)
 		}
 		ms = p->timer_t1 * 64;
 	}
-	if (sip_debug_test_pvt(p))
+	if (sip_debug_test_pvt(p)) {
 		ast_verbose("Scheduling destruction of SIP dialog '%s' in %d ms (Method: %s)\n", p->callid, ms, sip_methods[p->method].text);
-	if (sip_cancel_destroy(p))
+	}
+	if (sip_cancel_destroy(p)) {
 		ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+	}
 
-	if (p->do_history)
+	if (p->do_history) {
 		append_history(p, "SchedDestroy", "%d ms", ms);
+	}
 	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, dialog_ref(p, "setting ref as passing into ast_sched_add for __sip_autodestruct"));
 
-	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_schedid > 0)
+	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_schedid > 0) {
 		stop_session_timer(p);
+	}
 }
 
 /*! \brief Cancel destruction of SIP dialog.
@@ -3643,8 +3674,9 @@ int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	}
 
 	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
-		if (cur->seqno != seqno || cur->is_resp != resp)
+		if (cur->seqno != seqno || cur->is_resp != resp) {
 			continue;
+		}
 		if (cur->is_resp || cur->method == sipmethod) {
 			res = TRUE;
 			msg = "Found";
@@ -3679,8 +3711,9 @@ int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			}
 			UNLINK(cur, p->packets, prev);
 			dialog_unref(cur->owner, "unref pkt cur->owner dialog from sip ack before freeing pkt");
-			if (cur->data)
+			if (cur->data) {
 				ast_free(cur->data);
+			}
 			ast_free(cur);
 			break;
 		}
@@ -3821,8 +3854,9 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 		 __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
 	deinit_req(req);
-	if (res > 0)
+	if (res > 0) {
 		return 0;
+	}
 	return res;
 }
 
