@@ -256,9 +256,11 @@ AST_TEST_DEFINE(crypto_loaded_test)
 	ast_test_status_update(test,
 			       "address of __stub__ast_crypto_loaded is %p\n",
 			       __stub__ast_crypto_loaded);
+#ifndef HAVE_ATTRIBUTE_weak_import
 	ast_test_status_update(test,
 			       "address of __ref__ast_crypto_loaded is %p\n",
 			       __ref__ast_crypto_loaded);
+#endif
 	ast_test_status_update(test,
 			       "pointer to ast_crypto_loaded is %p\n",
 			       ast_crypto_loaded);
@@ -309,9 +311,11 @@ AST_TEST_DEFINE(agi_loaded_test)
 	ast_test_status_update(test,
 			       "address of __stub__ast_agi_register is %p\n",
 			       __stub__ast_agi_register);
+#ifndef HAVE_ATTRIBUTE_weak_import
 	ast_test_status_update(test,
 			       "address of __ref__ast_agi_register is %p\n",
 			       __ref__ast_agi_register);
+#endif
 	ast_test_status_update(test,
 			       "pointer to ast_agi_register is %p\n",
 			       ast_agi_register);
