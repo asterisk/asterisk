@@ -88,8 +88,9 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct ast_sockaddr *r
 	struct ast_dnsmgr_entry *entry;
 	int total_size = sizeof(*entry) + strlen(name) + (service ? strlen(service) + 1 : 0);
 
-	if (!result || ast_strlen_zero(name) || !(entry = ast_calloc(1, total_size)))
+	if (!result || ast_strlen_zero(name) || !(entry = ast_calloc(1, total_size))) {
 		return NULL;
+	}
 
 	entry->result = result;
 	ast_mutex_init(&entry->lock);
@@ -122,11 +123,13 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 
 int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service)
 {
-	if (ast_strlen_zero(name) || !result || !dnsmgr)
+	if (ast_strlen_zero(name) || !result || !dnsmgr) {
 		return -1;
+	}
 
-	if (*dnsmgr && !strcasecmp((*dnsmgr)->name, name))
+	if (*dnsmgr && !strcasecmp((*dnsmgr)->name, name)) {
 		return 0;
+	}
 
 	ast_verb(4, "doing dnsmgr_lookup for '%s'\n", name);
 
@@ -134,8 +137,9 @@ int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_
 	ast_get_ip_or_srv(result, name, service);
 	
 	/* if dnsmgr is not enable don't bother adding an entry */
-	if (!enabled)
+	if (!enabled) {
 		return 0;
+	}
 	
 	ast_verb(3, "adding dns manager for '%s'\n", name);
 	*dnsmgr = ast_dnsmgr_get(name, result, service);

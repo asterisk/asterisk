@@ -248,6 +248,7 @@ void ast_srv_cleanup(struct srv_context **context)
 {
 	const char *host;
 	unsigned short port;
+
 	while (!(ast_srv_lookup(context, NULL, &host, &port)));
 }
 
@@ -257,16 +258,19 @@ int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, co
 	struct srv_entry *current;
 	int ret;
 
-	if (chan && ast_autoservice_start(chan) < 0)
+	if (chan && ast_autoservice_start(chan) < 0) {
 		return -1;
+	}
 
 	ret = ast_search_dns(&context, service, C_IN, T_SRV, srv_callback);
 
-	if (context.have_weights)
+	if (context.have_weights) {
 		process_weights(&context);
+	}
 
-	if (chan)
+	if (chan) {
 		ret |= ast_autoservice_stop(chan);
+	}
 
 	/* TODO: there could be a "." entry in the returned list of
 	   answers... if so, this requires special handling */
@@ -285,8 +289,9 @@ int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, co
 		*port = -1;
 	}
 
-	while ((current = AST_LIST_REMOVE_HEAD(&context.entries, list)))
+	while ((current = AST_LIST_REMOVE_HEAD(&context.entries, list))) {
 		ast_free(current);
+	}
 
 	return ret;
 }
