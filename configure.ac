@@ -480,6 +480,19 @@ AC_LINK_IFELSE(
 	AC_MSG_RESULT(no)
 )
 
+AC_MSG_CHECKING(for a version of GNU ld that supports the --dynamic-list flag)
+old_LDFLAGS=${LDFLAGS}
+LDFLAGS+="-Wl,--dynamic-list,main/asterisk.dynamics"
+PBX_DYNAMIC_LIST=0
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([], []),
+	PBX_DYNAMIC_LIST=1
+	AC_MSG_RESULT(yes),
+	AC_MSG_RESULT(no)
+)
+AC_SUBST(PBX_DYNAMIC_LIST)
+LDFLAGS=${old_LDFLAGS}
+
 AC_CHECK_HEADER([sys/poll.h], 
    [HAS_POLL=1]
    AC_DEFINE([HAVE_SYS_POLL_H], 1, [Define to 1 if your system has working sys/poll.h]),

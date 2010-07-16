@@ -1084,6 +1084,7 @@ ALLOCA
 LIBOBJS
 PBX_WORKING_FORK
 POW_LIB
+PBX_DYNAMIC_LIST
 HAS_POLL
 PBX_PTHREAD_RWLOCK_INITIALIZER
 PBX_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
@@ -18194,6 +18195,61 @@ fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
+
+{ echo "$as_me:$LINENO: checking for a version of GNU ld that supports the --dynamic-list flag" >&5
+echo $ECHO_N "checking for a version of GNU ld that supports the --dynamic-list flag... $ECHO_C" >&6; }
+old_LDFLAGS=${LDFLAGS}
+LDFLAGS+="-Wl,--dynamic-list,main/asterisk.dynamics"
+PBX_DYNAMIC_LIST=0
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  PBX_DYNAMIC_LIST=1
+	{ echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+
+LDFLAGS=${old_LDFLAGS}
 
 if test "${ac_cv_header_sys_poll_h+set}" = set; then
   { echo "$as_me:$LINENO: checking for sys/poll.h" >&5
@@ -52785,6 +52841,7 @@ ALLOCA!$ALLOCA$ac_delim
 LIBOBJS!$LIBOBJS$ac_delim
 PBX_WORKING_FORK!$PBX_WORKING_FORK$ac_delim
 POW_LIB!$POW_LIB$ac_delim
+PBX_DYNAMIC_LIST!$PBX_DYNAMIC_LIST$ac_delim
 HAS_POLL!$HAS_POLL$ac_delim
 PBX_PTHREAD_RWLOCK_INITIALIZER!$PBX_PTHREAD_RWLOCK_INITIALIZER$ac_delim
 PBX_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP!$PBX_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP$ac_delim
@@ -52807,7 +52864,6 @@ CONFIG_MYSQLCLIENT!$CONFIG_MYSQLCLIENT$ac_delim
 CONFIG_NEON!$CONFIG_NEON$ac_delim
 CONFIG_NEON29!$CONFIG_NEON29$ac_delim
 CONFIG_NETSNMP!$CONFIG_NETSNMP$ac_delim
-PG_CONFIG!$PG_CONFIG$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -52849,6 +52905,7 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+PG_CONFIG!$PG_CONFIG$ac_delim
 PTLIB_CONFIG!$PTLIB_CONFIG$ac_delim
 PWLIBDIR!$PWLIBDIR$ac_delim
 PWLIB_INCDIR!$PWLIB_INCDIR$ac_delim
@@ -52889,7 +52946,7 @@ PBX_SYSLOG!$PBX_SYSLOG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 38; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 39; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

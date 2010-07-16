@@ -58,6 +58,7 @@ CONFIG_LDFLAGS=@CONFIG_LDFLAGS@
 
 GNU_LD=@GNU_LD@
 WEAKREF=@PBX_WEAKREF@
+HAVE_DYNAMIC_LIST=@PBX_DYNAMIC_LIST@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
