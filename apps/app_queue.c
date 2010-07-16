@@ -469,6 +469,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 		</see-also>
 	</function>
+	<function name="QUEUE_EXISTS" language="en_US">
+		<synopsis>
+			Check if a named queue exists on this server
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" />
+		</syntax>
+		<description>
+			<para>Returns 1 if the specified queue exists, 0 if it does not</para>
+		</description>
+	</function>
 	<function name="QUEUE_WAITING_COUNT" language="en_US">
 		<synopsis>
 			Count number of calls currently waiting in a queue.
@@ -5926,6 +5937,29 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 	return 0;
 }
 
+/*!
+ * \brief Check if a given queue exists
+ *
+ */
+static int queue_function_exists(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct call_queue *q;
+
+	buf[0] = '\0';
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
+		return -1;
+	}
+	q = load_realtime_queue(data);
+	snprintf(buf, len, "%d", q != NULL? 1 : 0);
+	if (q) {
+		queue_t_unref(q, "Done with temporary reference in QUEUE_EXISTS()");
+	}
+
+	return 0;
+}
+
 /*! 
  * \brief Get number either busy / free / ready or total members of a specific queue
  * \retval number of members (busy / free / ready / total)
@@ -6191,6 +6225,11 @@ static int queue_function_memberpenalty_write(struct ast_channel *chan, const ch
 
 	return 0;
 }
+
+static struct ast_custom_function queueexists_function = {
+	.name = "QUEUE_EXISTS",
+	.read = queue_function_exists,
+};
 
 static struct ast_custom_function queuevar_function = {
 	.name = "QUEUE_VARIABLES",
@@ -8038,6 +8077,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_upqm);
 	res |= ast_unregister_application(app_ql);
 	res |= ast_unregister_application(app);
+	res |= ast_custom_function_unregister(&queueexists_function);
 	res |= ast_custom_function_unregister(&queuevar_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuemembercount_dep);
@@ -8112,6 +8152,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("QueueReload", 0, manager_queue_reload);
 	res |= ast_manager_register_xml("QueueReset", 0, manager_queue_reset);
 	res |= ast_custom_function_register(&queuevar_function);
+	res |= ast_custom_function_register(&queueexists_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuemembercount_dep);
 	res |= ast_custom_function_register(&queuememberlist_function);

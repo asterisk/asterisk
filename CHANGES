@@ -267,6 +267,7 @@ Queue changes
    result is that if a member becomes auto-paused, he will be paused in all
    queues for which he is a member, not just the queue that failed to reach
    the member.
+ * Added dialplan function QUEUE_EXISTS to check if a queue exists
 
 mISDN channel driver (chan_misdn) changes
 ----------------------------------------
