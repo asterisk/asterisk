@@ -3525,7 +3525,7 @@ static int aji_receive_node_list(void *data, ikspak* pak)
 {
 
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	iks *item;
+	iks *item = NULL;
 	if (iks_has_children(pak->query)) {
 		item = iks_first_tag(pak->query);
 		ast_verbose("Connection: %s\nNode name: %s\n", client->jid->partial,
@@ -3534,7 +3534,9 @@ static int aji_receive_node_list(void *data, ikspak* pak)
 			ast_verbose("Node name: %s\n", iks_find_attrib(item, "node"));
 		}
 	}
-	iks_delete(item);
+	if (item) {
+		iks_delete(item);
+	}
 	return IKS_FILTER_EAT;
 }
 
