@@ -1,8 +1,8 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 1999-2005, Digium, Inc.
- * 
+ * Copyright (C) 1999-2010, Digium, Inc.
+ *
  * Manuel Guesdon <mguesdon@oxymium.net> - PostgreSQL RealTime Driver Author/Adaptor
  * Mark Spencer <markster@digium.com>  - Asterisk Author
  * Matthew Boehm <mboehm@cytelcom.com> - MySQL RealTime Driver Author
@@ -46,6 +46,7 @@ AST_THREADSTORAGE(sql_buf);
 AST_THREADSTORAGE(findtable_buf);
 AST_THREADSTORAGE(where_buf);
 AST_THREADSTORAGE(escapebuf_buf);
+AST_THREADSTORAGE(semibuf_buf);
 
 #define RES_CONFIG_PGSQL_CONF "res_pgsql.conf"
 
@@ -95,11 +96,21 @@ static struct ast_cli_entry cli_realtime[] = {
 
 #define ESCAPE_STRING(buffer, stringname) \
 	do { \
-		int len; \
-		if ((len = strlen(stringname)) > (ast_str_size(buffer) - 1) / 2) { \
-			ast_str_make_space(&buffer, len * 2 + 1); \
+		int len = strlen(stringname); \
+		struct ast_str *semi = ast_str_thread_get(&semibuf_buf, len * 3 + 1); \
+		const char *chunk = stringname; \
+		ast_str_reset(semi); \
+		for (; *chunk; chunk++) { \
+			if (strchr(";^", *chunk)) { \
+				ast_str_append(&semi, 0, "^%02hhX", *chunk); \
+			} else { \
+				ast_str_append(&semi, 0, "%c", *chunk); \
+			} \
 		} \
-		PQescapeStringConn(pgsqlConn, ast_str_buffer(buffer), stringname, len, &pgresult); \
+		if (ast_str_strlen(semi) > (ast_str_size(buffer) - 1) / 2) { \
+			ast_str_make_space(&buffer, ast_str_strlen(semi) * 2 + 1); \
+		} \
+		PQescapeStringConn(pgsqlConn, ast_str_buffer(buffer), ast_str_buffer(semi), ast_str_size(buffer), &pgresult); \
 	} while (0)
 
 static void destroy_table(struct tables *table)
@@ -391,7 +402,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (!ast_strlen_zero(ast_strip(chunk))) {
+					if (chunk && !ast_strlen_zero(ast_realtime_decode_chunk(ast_strip(chunk)))) {
 						if (prev) {
 							prev->next = ast_variable_new(fieldnames[i], chunk, "");
 							if (prev->next) {
@@ -550,7 +561,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (!ast_strlen_zero(ast_strip(chunk))) {
+					if (chunk && !ast_strlen_zero(ast_realtime_decode_chunk(ast_strip(chunk)))) {
 						if (initfield && !strcmp(initfield, fieldnames[i])) {
 							ast_category_rename(cat, chunk);
 						}
@@ -744,7 +755,7 @@ static int update2_pgsql(const char *database, const char *tablename, va_list ap
 			release_table(table);
 			return -1;
 		}
-			
+
 		newval = va_arg(ap, const char *);
 		ESCAPE_STRING(escapebuf, newval);
 		if (pgresult) {
