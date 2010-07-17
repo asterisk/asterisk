@@ -59,34 +59,143 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/ast_version.h"
 
-static const char app_receivefax[] = "ReceiveFAX";
-static const char synopsis_receivefax[] = "Receive a FAX and save as a TIFF/F file.";
-static const char descrip_receivefax[] = "ReceiveFAX(filename[,options]):\n"
- " The ReceiveFAX() application receives a FAX as a TIFF/F file with specified filename.\n"
- " The application arguments are:\n"
- "    'd' - enables FAX debugging\n"
- "    'f' - allow audio fallback FAX transfer on T.38 capable channels\n"
- "    's' - send progress Manager events (overrides statusevents setting in res_fax.conf)\n"
- "\n"
- " Use the FAXOPT function to specify session arguments prior to calling ReceiveFAX()\n"
- " and use FAXOPT after ReceiveFAX completes to query result status for the session.\n"
- " The ReceiveFAX() is provided by res_fax, which is a FAX technology agnostic module\n"
- " that utilizes FAX technology resource modules to complete a FAX transmission.\n";
+/*** DOCUMENTATION
+	<application name="ReceiveFax" language="en_US">
+		<synopsis>
+			Receive a FAX and save as a TIFF/F file.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" />
+			<parameter name="options">
+				<optionlist>
+					<option name="d">
+						<para>Enable FAX debugging.</para>
+					</option>
+					<option name="f">
+						<para>Allow audio fallback FAX transfer on T.38 capable channels.</para>
+					</option>
+					<option name="s">
+						<para>Send progress Manager events (overrides statusevents setting in res_fax.conf).</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+ 			<para>This application is provided by res_fax, which is a FAX technology agnostic module
+ 			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
+ 			<para>Session arguments can be set by the FAXOPT function and to check results of the ReceiveFax() application.</para>
+		</description>
+		<see-also>
+			<ref type="function">FAXOPT</ref>
+		</see-also>
+	</application>
+	<application name="SendeFax" language="en_US">
+		<synopsis>
+			Sends a specified TIFF/F file as a FAX.
+		</synopsis>
+		<syntax>
+			<parameter name="filename" required="true" argsep="&amp;">
+				<argument name="filename2" multiple="true">
+					<para>TIFF file to send as a FAX.</para>
+				</argument>
+			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="d">
+						<para>Enable FAX debugging.</para>
+					</option>
+					<option name="f">
+						<para>Allow audio fallback FAX transfer on T.38 capable channels.</para>
+					</option>
+					<option name="s">
+						<para>Send progress Manager events (overrides statusevents setting in res_fax.conf).</para>
+					</option>
+					<option name="z">
+						<para>Initiate a T.38 reinvite on the channel if the remote end does not.</para>
+					</option>
+				</optionlist>
+			</parameter>
+		</syntax>
+		<description>
+ 			<para>This application is provided by res_fax, which is a FAX technology agnostic module
+ 			that utilizes FAX technology resource modules to complete a FAX transmission.</para>
+ 			<para>Session arguments can be set by the FAXOPT function and to check results of the SendFax() application.</para>
+		</description>
+		<see-also>
+			<ref type="function">FAXOPT</ref>
+		</see-also>
+	</application>
+	<function name="FAXOPT" language="en_US">
+		<synopsis>
+			Gets/sets various pieces of information about a fax session.
+		</synopsis>
+		<syntax>
+			<parameter name="item" required="true">
+				<enumlist>
+					<enum name="ecm">
+						<para>R/W Error Correction Mode (ECM) enable with 'yes', disable with 'no'.</para>
+					</enum>
+					<enum name="error">
+						<para>R/O FAX transmission error code upon failure.</para>
+					</enum>
+					<enum name="filename">
+						<para>R/O Filename of the first file of the FAX transmission.</para>
+					</enum>
+					<enum name="filenames">
+						<para>R/O Filenames of all of the files in the FAX transmission (comma separated).</para>
+					</enum>
+					<enum name="headerinfo">
+						<para>R/W FAX header information.</para>
+					</enum>
+					<enum name="localstationid">
+						<para>R/W Local Station Identification.</para>
+					</enum>
+					<enum name="minrate">
+						<para>R/W Minimum transfer rate set before transmission.</para>
+					</enum>
+					<enum name="maxrate">
+						<para>R/W Maximum transfer rate set before transmission.</para>
+					</enum>
+					<enum name="modem">
+						<para>R/W Modem type (v17/v27/v29).</para>
+					</enum>
+					<enum name="pages">
+						<para>R/O Number of pages transferred.</para>
+					</enum>
+					<enum name="rate">
+						<para>R/O Negotiated transmission rate.</para>
+					</enum>
+					<enum name="remotestationid">
+						<para>R/O Remote Station Identification after transmission.</para>
+					</enum>
+					<enum name="resolution">
+						<para>R/O Negotiated image resolution after transmission.</para>
+					</enum>
+					<enum name="sessionid">
+						<para>R/O Session ID of the FAX transmission.</para>
+					</enum>
+					<enum name="status">
+						<para>R/O Result Status of the FAX transmission.</para>
+					</enum>
+					<enum name="statusstr">
+						<para>R/O Verbose Result Status of the FAX transmission.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>FAXOPT can be used to override the settings for a FAX session listed in <filename>res_fax.conf</filename>,
+		   	it can also be used to retreive information about a FAX session that has finished eg. pages/status.</para>
+		</description>
+		<see-also>
+			<ref type="application">ReceiveFax</ref>
+			<ref type="application">SendFax</ref>
+		</see-also>
+	</function>
+***/
 
+static const char app_receivefax[] = "ReceiveFAX";
 static const char app_sendfax[] = "SendFAX";
-static const char synopsis_sendfax[] = "Sends a specified TIFF/F file as a FAX.";
-static const char descrip_sendfax[] = "SendFAX(filename[&filename[&filename]][,options]):\n"
- " The SendFAX() application sends the specified TIFF/F file(s) as a FAX.\n"
- " The application arguments are:\n"
- "    'd' - enables FAX debugging\n"
- "    'f' - allow audio fallback FAX transfer on T.38 capable channels\n"
- "    'z' - initiate a T.38 reinvite on the channel if the remote end does not\n"
- "    's' - send progress Manager events (overrides statusevents setting in res_fax.conf)\n"
- "\n"
- " Use the FAXOPT function to specify session arguments prior to calling SendFAX()\n"
- " and use FAXOPT after SendFAX completes to query result status for the session.\n"
- " The SendFAX() application is provided by res_fax, which is a FAX technology agnostic module\n"
- " that utilizes FAX technology resource modules to complete a FAX transmission.\n";
 
 struct debug_info_history {
 	unsigned int consec_frames;
@@ -2302,35 +2411,6 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 /*! \brief FAXOPT dialplan function */
 struct ast_custom_function acf_faxopt = {
 	.name = "FAXOPT",
-	.synopsis = "Set options for use with the SendFAX and ReceiveFAX functions, or read options after a FAX transmission completes",
-	.syntax = 
-"FAXOPT(<option>)\n"
-"  To write an option:\n"
-"     exten => blah,n,Set(FAXOPT(minrate)=4800)\n"
-"  To read an option:\n"
-"     exten => blah,n,NoOp(result: ${FAXOPT(status)})",
-	.desc =
-"The following table outlines the <options> that can be used with FAXOPT\n\n"
-"  OPTION             TYPE     DESCRIPTION\n"
-"  ------             ----     -----------\n"
-"  ecm                 RW      Specify Error Correction Mode (ECM) with 'yes', disable with 'no'.\n"
-"  error               RO      Read the FAX transmission error upon failure.\n"
-"  filename            RO      Read the filename of the first file of the FAX transmission.\n"
-"  filenames           RO      Read the filenames of all of the files in the FAX transmission (comma separated).\n"
-"  headerinfo          RW      Specify or read the FAX header.\n"
-"  localstationid      RW      Specify or read the local station identification\n"
-"  maxrate             RW      Specify or read the maximum transfer rate before transmission\n"
-"  minrate             RW      Specify or read the minimum transfer rate before transmission\n"
-"  modem               RW      Specify or read the FAX modem\n"
-"  pages               RO      Read the number of pages transferred\n"
-"  rate                RO      Read the negotiated transmission rate\n"
-"  remotestationid     RO      Read the remote station identification after the transmission\n"
-"  resolution          RO      Read the negotiated image resolution after the transmission\n"
-"  sessionid           RO      Read the session ID of the FAX transmission\n"
-"  status              RO      Read the result status of the FAX transmission\n"
-"  statusstr           RO      Read a verbose result status of the FAX transmission\n"
-"\n  RO : Read Only\n  RW : Read/Write\n  WO : Write Only\n"
-"",
 	.read = acf_faxopt_read,
 	.write = acf_faxopt_write,
 };
@@ -2379,12 +2459,12 @@ static int load_module(void)
 	}
 
 	/* register CLI operations and applications */
-	if (ast_register_application(app_sendfax, sendfax_exec, synopsis_sendfax, descrip_sendfax) < 0) {
+	if (ast_register_application_xml(app_sendfax, sendfax_exec) < 0) {
 		ast_log(LOG_WARNING, "failed to register '%s'.\n", app_sendfax);
 		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (ast_register_application(app_receivefax, receivefax_exec, synopsis_receivefax, descrip_receivefax) < 0) {
+	if (ast_register_application_xml(app_receivefax, receivefax_exec) < 0) {
 		ast_log(LOG_WARNING, "failed to register '%s'.\n", app_receivefax);
 		ast_unregister_application(app_sendfax);
 		ao2_ref(faxregistry.container, -1);
