@@ -527,12 +527,16 @@ doc/core-en_US.xml: $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"
 	@echo "</docs>" >> $@
 
 validate-docs: doc/core-en_US.xml
-ifeq ($(XMLSTARLET),:)
-	@echo "---------------------------------------------------------------"
-	@echo "--- Please install xmlstarlet to validate the documentation ---"
-	@echo "---------------------------------------------------------------"
+ifeq ($(XMLSTARLET)$(XMLLINT),::)
+	@echo "--------------------------------------------------------------------------"
+	@echo "--- Please install xmllint or xmlstarlet to validate the documentation ---"
+	@echo "--------------------------------------------------------------------------"
 else
+  ifneq ($(XMLLINT),:)
+	$(XMLLINT) --dtdvalid doc/appdocsxml.dtd --noout $<
+  else
 	$(XMLSTARLET) val -d doc/appdocsxml.dtd $<
+  endif
 endif
 
 update: 

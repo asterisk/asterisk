@@ -202,6 +202,7 @@ AC_PATH_PROG([CURL], [curl], :)
 AC_PATH_PROG([RUBBER], [rubber], :)
 AC_PATH_PROG([CATDVI], [catdvi], :)
 AC_PATH_PROG([KPATHSEA], [kpsewhich], :)
+AC_PATH_PROG([XMLLINT], [xmllint], :)
 AC_PATH_PROG([XMLSTARLET], [xmlstarlet], :)
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
