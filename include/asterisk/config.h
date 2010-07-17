@@ -729,6 +729,27 @@ int ast_rq_is_int(require_type type),
 }
 )
 
+/*!
+ * \brief Remove standard encoding from realtime values, which ensures
+ * that a semicolon embedded within a single value is not treated upon
+ * retrieval as multiple values.
+ * \param chunk Data to be decoded
+ * \return The decoded data, in the original buffer
+ * \since 1.8
+ * \warn This function modifies the original buffer
+ */
+char *ast_realtime_decode_chunk(char *chunk);
+
+/*!
+ * \brief Encodes a chunk of data for realtime
+ * \param dest Destination buffer
+ * \param maxlen Length passed through to ast_str_* functions
+ * \param chunk Source data to be encoded
+ * \return Buffer within dest
+ * \since 1.8
+ */
+char *ast_realtime_encode_chunk(struct ast_str **dest, ssize_t maxlen, const char *chunk);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

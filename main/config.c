@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2010, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -2295,6 +2295,35 @@ int ast_destroy_realtime(const char *family, const char *keyfield, const char *l
 	va_end(ap);
 
 	return res;
+}
+
+char *ast_realtime_decode_chunk(char *chunk)
+{
+	char *orig = chunk;
+	for (; *chunk; chunk++) {
+		if (*chunk == '^' && strchr("0123456789ABCDEFabcdef", chunk[1]) && strchr("0123456789ABCDEFabcdef", chunk[2])) {
+			sscanf(chunk + 1, "%02hhd", chunk);
+			memmove(chunk + 1, chunk + 3, strlen(chunk + 3) + 1);
+		}
+	}
+	return orig;
+}
+
+char *ast_realtime_encode_chunk(struct ast_str **dest, ssize_t maxlen, const char *chunk)
+{
+	if (!strchr(chunk, ';') && !strchr(chunk, '^')) {
+		ast_str_set(dest, maxlen, "%s", chunk);
+	} else {
+		ast_str_reset(*dest);
+		for (; *chunk; chunk++) {
+			if (strchr(";^", *chunk)) {
+				ast_str_append(dest, maxlen, "^%02hhX", *chunk);
+			} else {
+				ast_str_append(dest, maxlen, "%c", *chunk);
+			}
+		}
+	}
+	return ast_str_buffer(*dest);
 }
 
 /*! \brief Helper function to parse arguments

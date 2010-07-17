@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/strings.h"
 
 #define RES_CONFIG_MYSQL_CONF "res_config_mysql.conf"
 #define RES_CONFIG_MYSQL_CONF_OLD "res_mysql.conf"
@@ -54,16 +55,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define ESCAPE_STRING(buf, var) \
 	do { \
-		if ((valsz = strlen(var)) * 2 + 1 > ast_str_size(buf)) { \
-			ast_str_make_space(&(buf), valsz * 2 + 1); \
+		struct ast_str *semi = ast_str_thread_get(&scratch2_buf, strlen(var) * 3 + 1); \
+		const char *chunk = var; \
+		ast_str_reset(semi); \
+		for (; *chunk; chunk++) { \
+			if (strchr(";^", *chunk)) { \
+				ast_str_append(&semi, 0, "^%02hhX", *chunk); \
+			} else { \
+				ast_str_append(&semi, 0, "%c", *chunk); \
+			} \
 		} \
-		mysql_real_escape_string(&dbh->handle, ast_str_buffer(buf), var, valsz); \
+		if (ast_str_strlen(semi) * 2 + 1 > ast_str_size(buf)) { \
+			ast_str_make_space(&(buf), ast_str_strlen(semi) * 2 + 1); \
+		} \
+		mysql_real_escape_string(&dbh->handle, ast_str_buffer(buf), ast_str_buffer(semi), ast_str_strlen(semi)); \
 	} while (0)
 
 AST_THREADSTORAGE(sql_buf);
 AST_THREADSTORAGE(sql2_buf);
 AST_THREADSTORAGE(find_buf);
 AST_THREADSTORAGE(scratch_buf);
+AST_THREADSTORAGE(scratch2_buf);
 AST_THREADSTORAGE(modify_buf);
 AST_THREADSTORAGE(modify2_buf);
 AST_THREADSTORAGE(modify3_buf);
@@ -290,13 +302,25 @@ static struct columns *find_column(struct tables *table, const char *colname)
 	return column;
 }
 
+static char *decode_chunk(char *chunk)
+{
+	char *orig = chunk;
+	for (; *chunk; chunk++) {
+		if (*chunk == '^' && strchr("0123456789ABCDEFabcdef", chunk[1]) && strchr("0123456789ABCDEFabcdef", chunk[2])) {
+			sscanf(chunk + 1, "%02hhd", chunk);
+			memmove(chunk + 1, chunk + 3, strlen(chunk + 3) + 1);
+		}
+	}
+	return orig;
+}
+
 static struct ast_variable *realtime_mysql(const char *database, const char *table, va_list ap)
 {
 	struct mysql_conn *dbh;
 	MYSQL_RES *result;
 	MYSQL_ROW row;
 	MYSQL_FIELD *fields;
-	int numFields, i, valsz;
+	int numFields, i;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
 	char *stringp;
@@ -375,11 +399,11 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 				}
 				for (stringp = ast_strdupa(row[i]), chunk = strsep(&stringp, ";"); chunk; chunk = strsep(&stringp, ";")) {
 					if (prev) {
-						if ((prev->next = ast_variable_new(fields[i].name, chunk, ""))) {
+						if ((prev->next = ast_variable_new(fields[i].name, decode_chunk(chunk), ""))) {
 							prev = prev->next;
 						}
 					} else {
-						prev = var = ast_variable_new(fields[i].name, chunk, "");
+						prev = var = ast_variable_new(fields[i].name, decode_chunk(chunk), "");
 					}
 				}
 			}
@@ -400,7 +424,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	MYSQL_RES *result;
 	MYSQL_ROW row;
 	MYSQL_FIELD *fields;
-	int numFields, i, valsz;
+	int numFields, i;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
 	const char *initfield = NULL;
@@ -500,7 +524,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 				if (ast_strlen_zero(row[i]))
 					continue;
 				for (stringp = ast_strdupa(row[i]), chunk = strsep(&stringp, ";"); chunk; chunk = strsep(&stringp, ";")) {
-					if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (chunk && !ast_strlen_zero(decode_chunk(ast_strip(chunk)))) {
 						if (initfield && !strcmp(initfield, fields[i].name)) {
 							ast_category_rename(cat, chunk);
 						}
@@ -525,7 +549,6 @@ static int update_mysql(const char *database, const char *tablename, const char 
 {
 	struct mysql_conn *dbh;
 	my_ulonglong numrows;
-	int valsz;
 	const char *newparam, *newval;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100), *buf = ast_str_thread_get(&scratch_buf, 100);
 	struct tables *table;
@@ -535,7 +558,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
 		return -1;
 	}
-		
+
 	if (!tablename) {
 		ast_log(LOG_WARNING, "MySQL RealTime: No table specified.\n");
 		release_database(dbh);
@@ -588,7 +611,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 
 	/* If the column length isn't long enough, give a chance to lengthen it. */
 	if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-		internal_require(database, tablename, newparam, RQ_CHAR, valsz, SENTINEL);
+		internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 	}
 
 	while ((newparam = va_arg(ap, const char *))) {
@@ -605,7 +628,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
 		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-			internal_require(database, tablename, newparam, RQ_CHAR, valsz, SENTINEL);
+			internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 		}
 	}
 	va_end(ap);
@@ -644,7 +667,6 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 	my_ulonglong numrows;
 	int first = 1;
 	const char *newparam, *newval;
-	size_t valsz;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100), *buf = ast_str_thread_get(&scratch_buf, 100);
 	struct ast_str *where = ast_str_thread_get(&sql2_buf, 100);
 	struct tables *table;
@@ -701,7 +723,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
 		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-			internal_require(database, tablename, newparam, RQ_CHAR, valsz, SENTINEL);
+			internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 		}
 	}
 
@@ -725,7 +747,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
 		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-			internal_require(database, tablename, newparam, RQ_CHAR, valsz, SENTINEL);
+			internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 		}
 	}
 	va_end(ap);
@@ -764,7 +786,6 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *sql2 = ast_str_thread_get(&sql2_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
-	int valsz;
 	const char *newparam, *newval;
 
 	if (!(dbh = find_database(database, 1))) {
@@ -796,16 +817,15 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 	ast_str_set(&sql, 0, "INSERT INTO %s (%s", table, newparam);
 	ast_str_set(&sql2, 0, ") VALUES ('%s'", ast_str_buffer(buf));
 
-	internal_require(database, table, newparam, RQ_CHAR, valsz, SENTINEL);
+	internal_require(database, table, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 
 	while ((newparam = va_arg(ap, const char *))) {
 		if ((newval = va_arg(ap, const char *))) {
 			ESCAPE_STRING(buf, newval);
 		} else {
-			valsz = 0;
 			ast_str_reset(buf);
 		}
-		if (internal_require(database, table, newparam, RQ_CHAR, valsz, SENTINEL) == 0) {
+		if (internal_require(database, table, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL) == 0) {
 			ast_str_append(&sql, 0, ", %s", newparam);
 			ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
 		}
@@ -841,7 +861,6 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 	my_ulonglong numrows;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
-	int valsz;
 	const char *newparam, *newval;
 
 	if (!(dbh = find_database(database, 1))) {
@@ -1059,7 +1078,6 @@ static int modify_mysql(const char *database, const char *tablename, struct colu
 			ast_str_append(&sql, 0, " NOT NULL");
 		}
 		if (!ast_strlen_zero(column->dflt)) {
-			size_t valsz;
 			ESCAPE_STRING(escbuf, column->dflt);
 			ast_str_append(&sql, 0, " DEFAULT '%s'", ast_str_buffer(escbuf));
 		}
