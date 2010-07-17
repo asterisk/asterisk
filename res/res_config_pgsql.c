@@ -291,6 +291,18 @@ static struct columns *find_column(struct tables *t, const char *colname)
 	return NULL;
 }
 
+static char *decode_chunk(char *chunk)
+{
+	char *orig = chunk;
+	for (; *chunk; chunk++) {
+		if (*chunk == '^' && strchr("0123456789ABCDEFabcdef", chunk[1]) && strchr("0123456789ABCDEFabcdef", chunk[2])) {
+			sscanf(chunk + 1, "%02hhd", chunk);
+			memmove(chunk + 1, chunk + 3, strlen(chunk + 3) + 1);
+		}
+	}
+	return orig;
+}
+
 static struct ast_variable *realtime_pgsql(const char *database, const char *tablename, va_list ap)
 {
 	PGresult *result = NULL;
@@ -402,7 +414,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !ast_strlen_zero(ast_realtime_decode_chunk(ast_strip(chunk)))) {
+					if (chunk && !ast_strlen_zero(decode_chunk(ast_strip(chunk)))) {
 						if (prev) {
 							prev->next = ast_variable_new(fieldnames[i], chunk, "");
 							if (prev->next) {
@@ -561,7 +573,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !ast_strlen_zero(ast_realtime_decode_chunk(ast_strip(chunk)))) {
+					if (chunk && !ast_strlen_zero(decode_chunk(ast_strip(chunk)))) {
 						if (initfield && !strcmp(initfield, fieldnames[i])) {
 							ast_category_rename(cat, chunk);
 						}
