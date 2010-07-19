@@ -229,8 +229,8 @@ void ast_free_ha(struct ast_ha *ha)
 /* Copy HA structure */
 void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to)
 {
-	memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
-	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));
+	ast_sockaddr_copy(&to->addr, &from->addr);
+	ast_sockaddr_copy(&to->netmask, &from->netmask);
 	to->sense = from->sense;
 }
 
@@ -271,14 +271,135 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 	return ret;                             /* Return start of list */
 }
 
+/*!
+ * \brief
+ * Isolate a 32-bit section of an IPv6 address
+ *
+ * An IPv6 address can be divided into 4 32-bit chunks. This gives
+ * easy access to one of these chunks.
+ *
+ * \param sin6 A pointer to a struct sockaddr_in6
+ * \param index Which 32-bit chunk to operate on. Must be in the range 0-3.
+ */
+#define V6_WORD(sin6, index) ((uint32_t *)&((sin6)->sin6_addr))[(index)]
+
+/*!
+ * \brief
+ * Apply a netmask to an address and store the result in a separate structure.
+ *
+ * When dealing with IPv6 addresses, one cannot apply a netmask with a simple
+ * logical and operation. Furthermore, the incoming address may be an IPv4 address
+ * and need to be mapped properly before attempting to apply a rule.
+ *
+ * \param addr The IP address to apply the mask to.
+ * \param netmask The netmask configured in the host access rule.
+ * \param result The resultant address after applying the netmask to the given address
+ * \retval 0 Successfully applied netmask
+ * \reval -1 Failed to apply netmask
+ */
+static int apply_netmask(const struct ast_sockaddr *addr, const struct ast_sockaddr *netmask,
+		struct ast_sockaddr *result)
+{
+	int res = 0;
+
+	if (ast_sockaddr_is_ipv4(addr)) {
+		struct sockaddr_in result4 = { 0, };
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) &addr->ss;
+		struct sockaddr_in *mask4 = (struct sockaddr_in *) &netmask->ss;
+		result4.sin_family = AF_INET;
+		result4.sin_addr.s_addr = addr4->sin_addr.s_addr & mask4->sin_addr.s_addr;
+		ast_sockaddr_from_sin(result, &result4);
+	} else if (ast_sockaddr_is_ipv6(addr)) {
+		struct sockaddr_in6 result6 = { 0, };
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) &addr->ss;
+		struct sockaddr_in6 *mask6 = (struct sockaddr_in6 *) &netmask->ss;
+		int i;
+		result6.sin6_family = AF_INET6;
+		for (i = 0; i < 4; ++i) {
+			V6_WORD(&result6, i) = V6_WORD(addr6, i) & V6_WORD(mask6, i);
+		}
+		memcpy(&result->ss, &result6, sizeof(result6));
+		result->len = sizeof(result6);
+	} else {
+		/* Unsupported address scheme */
+		res = -1;
+	}
+
+	return res;
+}
+
+/*!
+ * \brief
+ * Parse a netmask in CIDR notation
+ *
+ * \details
+ * For a mask of an IPv4 address, this should be a number between 0 and 32. For
+ * a mask of an IPv6 address, this should be a number between 0 and 128. This
+ * function creates an IPv6 ast_sockaddr from the given netmask. For masks of
+ * IPv4 addresses, this is accomplished by adding 96 to the original netmask.
+ *
+ * \param[out] addr The ast_sockaddr produced from the CIDR netmask
+ * \param is_v4 Tells if the address we are masking is IPv4.
+ * \param mask_str The CIDR mask to convert
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+static int parse_cidr_mask(struct ast_sockaddr *addr, int is_v4, const char *mask_str)
+{
+	int mask;
+
+	if (sscanf(mask_str, "%30d", &mask) != 1) {
+		return -1;
+	}
+
+	if (is_v4) {
+		struct sockaddr_in sin;
+		if (mask < 0 || mask > 32) {
+			return -1;
+		}
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		/* If mask is 0, then we already have the
+		 * appropriate all 0s address in sin from
+		 * the above memset.
+		 */
+		if (mask != 0) {
+			sin.sin_addr.s_addr = htonl(0xFFFFFFFF << (32 - mask));
+		}
+		ast_sockaddr_from_sin(addr, &sin);
+	} else {
+		struct sockaddr_in6 sin6;
+		int i;
+		if (mask < 0 || mask > 128) {
+			return -1;
+		}
+		memset(&sin6, 0, sizeof(sin6));
+		sin6.sin6_family = AF_INET6;
+		for (i = 0; i < 4; ++i) {
+			/* Once mask reaches 0, we don't have
+			 * to explicitly set anything anymore
+			 * since sin6 was zeroed out already
+			 */
+			if (mask > 0) {
+				V6_WORD(&sin6, i) = htonl(0xFFFFFFFF << (mask < 32 ? (32 - mask) : 0));
+				mask -= mask < 32 ? mask : 32;
+			}
+		}
+		memcpy(&addr->ss, &sin6, sizeof(sin6));
+		addr->len = sizeof(sin6);
+	}
+
+	return 0;
+}
+
 struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error)
 {
 	struct ast_ha *ha;
-	char *nm;
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
-	int x;
 	char *tmp = ast_strdupa(stuff);
+	char *address = NULL, *mask = NULL;
+	int addr_is_v4;
 
 	ret = path;
 	while (path) {
@@ -290,52 +411,73 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		return ret;
 	}
 
-	if (!(nm = strchr(tmp, '/'))) {
-		/* assume /32. Yes, htonl does not do anything for this particular mask
-		   but we better use it to show we remember about byte order */
-		ha->netmask.s_addr = htonl(0xFFFFFFFF);
+	address = strsep(&tmp, "/");
+	if (!address) {
+		address = tmp;
 	} else {
-		*nm = '\0';
-		nm++;
-
-		if (!strchr(nm, '.')) {
-			if ((sscanf(nm, "%30d", &x) == 1) && (x >= 0) && (x <= 32)) {
-				if (x == 0) {
-					/* This is special-cased to prevent unpredictable
-					 * behavior of shifting left 32 bits
-					 */
-					ha->netmask.s_addr = 0;
-				} else {
-					ha->netmask.s_addr = htonl(0xFFFFFFFF << (32 - x));
-				}
-			} else {
-				ast_log(LOG_WARNING, "Invalid CIDR in %s\n", stuff);
-				ast_free(ha);
-				if (error) {
-					*error = 1;
-				}
-				return ret;
-			}
-		} else if (!inet_aton(nm, &ha->netmask)) {
-			ast_log(LOG_WARNING, "Invalid mask in %s\n", stuff);
-			ast_free(ha);
-			if (error) {
-				*error = 1;
-			}
-			return ret;
-		}
+		mask = tmp;
 	}
 
-	if (!inet_aton(tmp, &ha->netaddr)) {
-		ast_log(LOG_WARNING, "Invalid IP address in %s\n", stuff);
-		ast_free(ha);
-		if (error) {
-			*error = 1;
-		}
+	if (!ast_sockaddr_parse(&ha->addr, address, PARSE_PORT_FORBID)) {
+		ast_log(LOG_WARNING, "Invalid IP address: %s\n", address);
+		ast_free_ha(ha);
+		*error = 1;
 		return ret;
 	}
 
-	ha->netaddr.s_addr &= ha->netmask.s_addr;
+	/* If someone specifies an IPv4-mapped IPv6 address,
+	 * we just convert this to an IPv4 ACL
+	 */
+	if (ast_sockaddr_ipv4_mapped(&ha->addr, &ha->addr)) {
+		ast_log(LOG_NOTICE, "IPv4-mapped ACL network address specified. "
+				"Converting to an IPv4 ACL network address.\n");
+	}
+
+	addr_is_v4 = ast_sockaddr_is_ipv4(&ha->addr);
+
+	if (!mask) {
+		parse_cidr_mask(&ha->netmask, addr_is_v4, addr_is_v4 ? "32" : "128");
+	} else if (strchr(mask, ':') || strchr(mask, '.')) {
+		int mask_is_v4;
+		/* Mask is of x.x.x.x or x:x:x:x:x:x:x:x variety */
+		if (!ast_sockaddr_parse(&ha->netmask, mask, PARSE_PORT_FORBID)) {
+			ast_log(LOG_WARNING, "Invalid netmask: %s\n", mask);
+			ast_free_ha(ha);
+			*error = 1;
+			return ret;
+		}
+		/* If someone specifies an IPv4-mapped IPv6 netmask,
+		 * we just convert this to an IPv4 ACL
+		 */
+		if (ast_sockaddr_ipv4_mapped(&ha->netmask, &ha->netmask)) {
+			ast_log(LOG_NOTICE, "IPv4-mapped ACL netmask specified. "
+					"Converting to an IPv4 ACL netmask.\n");
+		}
+		mask_is_v4 = ast_sockaddr_is_ipv4(&ha->netmask);
+		if (addr_is_v4 ^ mask_is_v4) {
+			ast_log(LOG_WARNING, "Address and mask are not using same address scheme.\n");
+			ast_free_ha(ha);
+			*error = 1;
+			return ret;
+		}
+	} else if (parse_cidr_mask(&ha->netmask, addr_is_v4, mask)) {
+		ast_log(LOG_WARNING, "Invalid CIDR netmask: %s\n", mask);
+		ast_free_ha(ha);
+		*error = 1;
+		return ret;
+	}
+
+	if (apply_netmask(&ha->addr, &ha->netmask, &ha->addr)) {
+		/* This shouldn't happen because ast_sockaddr_parse would
+		 * have failed much earlier on an unsupported address scheme
+		 */
+		char *failmask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
+		char *failaddr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
+		ast_log(LOG_WARNING, "Unable to apply netmask %s to address %s\n", failmask, failaddr);
+		ast_free_ha(ha);
+		*error = 1;
+		return ret;
+	}
 
 	ha->sense = strncasecmp(sense, "p", 1) ? AST_SENSE_DENY : AST_SENSE_ALLOW;
 
@@ -346,16 +488,21 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		ret = ha;
 	}
 
-	ast_debug(1, "%s/%s sense %d appended to acl for peer\n", ast_strdupa(ast_inet_ntoa(ha->netaddr)), ast_strdupa(ast_inet_ntoa(ha->netmask)), ha->sense);
+	ast_debug(1, "%s/%s sense %d appended to acl for peer\n", ast_strdupa(ast_sockaddr_stringify(&ha->addr)), ast_strdupa(ast_sockaddr_stringify(&ha->netmask)), ha->sense);
 
 	return ret;
 }
 
-int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
+int ast_apply_ha(const struct ast_ha *ha, const struct ast_sockaddr *addr)
 {
 	/* Start optimistic */
 	int res = AST_SENSE_ALLOW;
-	while (ha) {
+	const struct ast_ha *current_ha;
+
+	for (current_ha = ha; current_ha; current_ha = current_ha->next) {
+		struct ast_sockaddr result;
+		struct ast_sockaddr mapped_addr;
+		const struct ast_sockaddr *addr_to_use;
 #if 0	/* debugging code */
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
@@ -364,12 +511,38 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 		ast_copy_string(iabuf2, ast_inet_ntoa(ha->netaddr), sizeof(iabuf2));
 		ast_debug(1, "##### Testing %s with %s\n", iabuf, iabuf2);
 #endif
+		if (ast_sockaddr_is_ipv4(&ha->addr)) {
+			if (ast_sockaddr_is_ipv6(addr)) {
+				if (ast_sockaddr_is_ipv4_mapped(addr)) {
+					/* IPv4 ACLs apply to IPv4-mapped addresses */
+					ast_sockaddr_ipv4_mapped(addr, &mapped_addr);
+					addr_to_use = &mapped_addr;
+				} else {
+					/* An IPv4 ACL does not apply to an IPv6 address */
+					continue;
+				}
+			} else {
+				/* Address is IPv4 and ACL is IPv4. No biggie */
+				addr_to_use = addr;
+			}
+		} else {
+			if (ast_sockaddr_is_ipv6(addr) && !ast_sockaddr_is_ipv4_mapped(addr)) {
+				addr_to_use = addr;
+			} else {
+				/* Address is IPv4 or IPv4 mapped but ACL is IPv6. Skip */
+				continue;
+			}
+		}
+
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
-		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr) {
-			res = ha->sense;
+		if (apply_netmask(addr_to_use, &current_ha->netmask, &result)) {
+			/* Unlikely to happen since we know the address to be IPv4 or IPv6 */
+			continue;
 		}
-		ha = ha->next;
+		if (!ast_sockaddr_cmp_addr(&result, &current_ha->addr)) {
+			res = current_ha->sense;
+		}
 	}
 	return res;
 }

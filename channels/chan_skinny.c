@@ -1877,8 +1877,10 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 
 	AST_LIST_LOCK(&devices);
 	AST_LIST_TRAVERSE(&devices, d, list){
+		struct ast_sockaddr addr;
+		ast_sockaddr_from_sin(&addr, &s->sin);
 		if (!strcasecmp(req->data.reg.name, d->id)
-				&& ast_apply_ha(d->ha, &(s->sin))) {
+				&& ast_apply_ha(d->ha, &addr)) {
 			s->device = d;
 			d->type = letohl(req->data.reg.type);
 			if (ast_strlen_zero(d->version_id)) {

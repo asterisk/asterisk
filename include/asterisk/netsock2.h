@@ -56,6 +56,20 @@ struct ast_sockaddr {
 };
 
 /*!
+ * \brief
+ * Convert an IPv4-mapped IPv6 address into an IPv4 address.
+ *
+ * \warning You should rarely need this function. Only call this
+ * if you know what you're doing.
+ *
+ * \param addr The IPv4-mapped address to convert
+ * \param mapped_addr The resulting IPv4 address
+ * \retval 0 Unable to make the conversion
+ * \retval 1 Successful conversion
+ */
+int ast_sockaddr_ipv4_mapped(const struct ast_sockaddr *addr, struct ast_sockaddr *ast_mapped);
+
+/*!
  * \since 1.8
  *
  * \brief

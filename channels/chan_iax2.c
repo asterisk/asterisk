@@ -2039,15 +2039,17 @@ static int addr_range_delme_cb(void *obj, void *arg, int flags)
 static int addr_range_hash_cb(const void *obj, const int flags)
 {
 	const struct addr_range *lim = obj;
-	return abs((int) lim->ha.netaddr.s_addr);
+	struct sockaddr_in sin;
+	ast_sockaddr_to_sin(&lim->ha.addr, &sin);
+	return abs((int) sin.sin_addr.s_addr);
 }
 
 static int addr_range_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct addr_range *lim1 = obj, *lim2 = arg;
-	return ((lim1->ha.netaddr.s_addr == lim2->ha.netaddr.s_addr) &&
-		(lim1->ha.netmask.s_addr == lim2->ha.netmask.s_addr)) ?
-		CMP_MATCH | CMP_STOP : 0;
+	return (!(ast_sockaddr_cmp_addr(&lim1->ha.addr, &lim2->ha.addr)) &&
+			!(ast_sockaddr_cmp_addr(&lim1->ha.netmask, &lim2->ha.netmask))) ?
+			CMP_MATCH | CMP_STOP : 0;
 }
 
 static int peercnt_hash_cb(const void *obj, const int flags)
@@ -2066,8 +2068,13 @@ static int addr_range_match_address_cb(void *obj, void *arg, int flags)
 {
 	struct addr_range *addr_range = obj;
 	struct sockaddr_in *sin = arg;
+	struct sockaddr_in ha_netmask_sin;
+	struct sockaddr_in ha_addr_sin;
 
-	if ((sin->sin_addr.s_addr & addr_range->ha.netmask.s_addr) == addr_range->ha.netaddr.s_addr) {
+	ast_sockaddr_to_sin(&addr_range->ha.netmask, &ha_netmask_sin);
+	ast_sockaddr_to_sin(&addr_range->ha.addr, &ha_addr_sin);
+
+	if ((sin->sin_addr.s_addr & ha_netmask_sin.sin_addr.s_addr) == ha_addr_sin.sin_addr.s_addr) {
 		return CMP_MATCH | CMP_STOP;
 	}
 	return 0;
@@ -7385,6 +7392,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	int gotcapability = 0;
 	struct ast_variable *v = NULL, *tmpvar = NULL;
 	struct ao2_iterator i;
+	struct ast_sockaddr addr;
 
 	if (!iaxs[callno])
 		return res;
@@ -7442,10 +7450,11 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	}
 	/* Search the userlist for a compatible entry, and fill in the rest */
 	i = ao2_iterator_init(users, 0);
+	ast_sockaddr_from_sin(&addr, sin);
 	while ((user = ao2_iterator_next(&i))) {
 		if ((ast_strlen_zero(iaxs[callno]->username) ||				/* No username specified */
 			!strcmp(iaxs[callno]->username, user->name))	/* Or this username specified */
-			&& ast_apply_ha(user->ha, sin) 	/* Access is permitted from this IP */
+			&& ast_apply_ha(user->ha, &addr) 	/* Access is permitted from this IP */
 			&& (ast_strlen_zero(iaxs[callno]->context) ||			/* No context specified */
 			     apply_context(user->contexts, iaxs[callno]->context))) {			/* Context is permitted */
 			if (!ast_strlen_zero(iaxs[callno]->username)) {
@@ -7787,6 +7796,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	int x;
 	int expire = 0;
 	int res = -1;
+	struct ast_sockaddr addr;
 
 	ast_clear_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 	/* iaxs[callno]->peer[0] = '\0'; not necc. any more-- stringfield is pre-inited to null string */
@@ -7841,7 +7851,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		goto return_unref;
 	}
 
-	if (!ast_apply_ha(p->ha, sin)) {
+	ast_sockaddr_from_sin(&addr, sin);
+	if (!ast_apply_ha(p->ha, &addr)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", ast_inet_ntoa(sin->sin_addr), p->name);
 		goto return_unref;

@@ -3084,7 +3084,7 @@ static void build_via(struct sip_pvt *p)
 static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us, struct sip_pvt *p)
 {
 	struct ast_sockaddr theirs;
-	struct sockaddr_in theirs_sin, externip_sin, us_sin;
+	struct sockaddr_in externip_sin;
 
 	/* Set want_remap to non-zero if we want to remap 'us' to an externally
 	 * reachable IP address and port. This is done if:
@@ -3112,16 +3112,13 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 				"remove \"localnet\" and/or \"externip\" settings.\n");
 		}
 	} else {
-		ast_sockaddr_to_sin(&theirs, &theirs_sin);
-		ast_sockaddr_to_sin(us, &us_sin);
-
 		want_remap = localaddr &&
 			!(ast_sockaddr_isnull(&externip) && stunaddr.sin_addr.s_addr) &&
-			ast_apply_ha(localaddr, &theirs_sin) == AST_SENSE_ALLOW ;
+			ast_apply_ha(localaddr, &theirs) == AST_SENSE_ALLOW ;
 	}
 
 	if (want_remap &&
-	    (!sip_cfg.matchexterniplocally || !ast_apply_ha(localaddr, &us_sin)) ) {
+	    (!sip_cfg.matchexterniplocally || !ast_apply_ha(localaddr, us)) ) {
 		/* if we used externhost or stun, see if it is time to refresh the info */
 		if (externexpire && time(NULL) >= externexpire) {
 			if (stunaddr.sin_addr.s_addr) {
@@ -12643,7 +12640,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	int transport_type;
 	const char *useragent;
 	struct ast_sockaddr oldsin, testsa;
-	struct sockaddr_in testsin;
 
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
 
@@ -12763,16 +12759,13 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 
 	/* Check that they're allowed to register at this IP */
-	if (!ast_sockaddr_is_ipv6(&peer->addr)) {
-		ast_sockaddr_to_sin(&peer->addr, &testsin);
-		if (ast_apply_ha(sip_cfg.contact_ha, &testsin) != AST_SENSE_ALLOW ||
-				ast_apply_ha(peer->contactha, &testsin) != AST_SENSE_ALLOW) {
-			ast_log(LOG_WARNING, "Domain '%s' disallowed by contact ACL (violating IP %s)\n", domain,
-				ast_sockaddr_stringify_addr(&testsa));
-			ast_string_field_set(peer, fullcontact, "");
-			ast_string_field_set(pvt, our_contact, "");
-			return PARSE_REGISTER_DENIED;
-		}
+	if (ast_apply_ha(sip_cfg.contact_ha, &peer->addr) != AST_SENSE_ALLOW ||
+			ast_apply_ha(peer->contactha, &peer->addr) != AST_SENSE_ALLOW) {
+		ast_log(LOG_WARNING, "Domain '%s' disallowed by contact ACL (violating IP %s)\n", domain,
+			ast_sockaddr_stringify_addr(&testsa));
+		ast_string_field_set(peer, fullcontact, "");
+		ast_string_field_set(pvt, our_contact, "");
+		return PARSE_REGISTER_DENIED;
 	}
 
 	/* if the Contact header information copied into peer->addr matches the
@@ -13418,19 +13411,14 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	}
 	peer = find_peer(name, NULL, TRUE, FINDPEERS, FALSE, 0);
 
-	if (!ast_sockaddr_is_ipv6(addr)) {
-		struct sockaddr_in sin_tmp;
-
-		ast_sockaddr_to_sin(addr, &sin_tmp);
-		if (!(peer && ast_apply_ha(peer->ha, &sin_tmp))) {
-			/* Peer fails ACL check */
-			if (peer) {
-				unref_peer(peer, "register_verify: unref_peer: from find_peer operation");
-				peer = NULL;
-				res = AUTH_ACL_FAILED;
-			} else {
-				res = AUTH_NOT_FOUND;
-			}
+	if (!(peer && ast_apply_ha(peer->ha, addr))) {
+		/* Peer fails ACL check */
+		if (peer) {
+			unref_peer(peer, "register_verify: unref_peer: from find_peer operation");
+			peer = NULL;
+			res = AUTH_ACL_FAILED;
+		} else {
+			res = AUTH_NOT_FOUND;
 		}
 	}
 
@@ -14533,15 +14521,11 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		}
 		return AUTH_DONT_KNOW;
 	}
-	if (!ast_sockaddr_is_ipv6(addr)) {
-		struct sockaddr_in sin_tmp;
 
-		ast_sockaddr_to_sin(addr, &sin_tmp);
-		if (!ast_apply_ha(peer->ha, &sin_tmp)) {
-			ast_debug(2, "Found peer '%s' for '%s', but fails host access\n", peer->name, of);
-			unref_peer(peer, "unref_peer: check_peer_ok: from find_peer call, early return of AUTH_ACL_FAILED");
-			return AUTH_ACL_FAILED;
-		}
+	if (!ast_apply_ha(peer->ha, addr)) {
+		ast_debug(2, "Found peer '%s' for '%s', but fails host access\n", peer->name, of);
+		unref_peer(peer, "unref_peer: check_peer_ok: from find_peer call, early return of AUTH_ACL_FAILED");
+		return AUTH_ACL_FAILED;
 	}
 	if (debug)
 		ast_verbose("Found peer '%s' for '%s' from %s\n",
@@ -16618,12 +16602,11 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	{
 		struct ast_ha *d;
 		const char *prefix = "Localnet:";
-		char buf[INET_ADDRSTRLEN]; /* need to print two addresses */
 
 		for (d = localaddr; d ; prefix = "", d = d->next) {
 			ast_cli(a->fd, "  %-24s%s/%s\n",
-			    prefix, ast_inet_ntoa(d->netaddr),
-			    inet_ntop(AF_INET, &d->netmask, buf, sizeof(buf)) );
+			    prefix, ast_strdupa(ast_sockaddr_stringify_addr(&d->addr)),
+			    ast_strdupa(ast_sockaddr_stringify_addr(&d->netmask)));
 		}
 	}
 	ast_cli(a->fd, "  STUN server:            %s:%d\n", ast_inet_ntoa(stunaddr.sin_addr), ntohs(stunaddr.sin_port));
@@ -27195,20 +27178,12 @@ static int reload_config(enum channelreloadreason reason)
 static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
 {
 	struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
-	struct sockaddr_in them_sin;
 	int res = AST_SENSE_ALLOW;
 
 	ast_rtp_instance_get_remote_address(p->rtp, &them);
 	ast_rtp_instance_get_local_address(p->rtp, &us);
 
-	/* Currently ast_apply_ha doesn't support IPv6 */
-	if (ast_sockaddr_is_ipv6(&them)) {
-		return res;
-	}
-
-	ast_sockaddr_to_sin(&them, &them_sin);
-
-	if ((res = ast_apply_ha(p->directmediaha, &them_sin)) == AST_SENSE_DENY) {
+	if ((res = ast_apply_ha(p->directmediaha, &them)) == AST_SENSE_DENY) {
 		ast_debug(3, "Reinvite %s to %s denied by directmedia ACL on %s\n",
 			op, ast_strdupa(ast_sockaddr_stringify(&them)), ast_strdupa(ast_sockaddr_stringify(&us)));
 	}

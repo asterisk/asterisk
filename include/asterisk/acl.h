@@ -46,11 +46,11 @@ extern "C" {
  * thing public and let users play with them.
  */
 struct ast_ha {
-        /* Host access rule */
-        struct in_addr netaddr;  
-        struct in_addr netmask;
-        int sense;
-        struct ast_ha *next;
+	/* Host access rule */
+	struct ast_sockaddr addr;
+	struct ast_sockaddr netmask;
+	int sense;
+	struct ast_ha *next;
 };
 
 /*!
@@ -111,11 +111,11 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
  * the one whose sense will be returned.
  *
  * \param ha The head of the list of host access rules to follow
- * \param sin A sockaddr_in whose address is considered when matching rules
+ * \param addr An ast_sockaddr whose address is considered when matching rules
  * \retval AST_SENSE_ALLOW The IP address passes our ACL
  * \retval AST_SENSE_DENY The IP address fails our ACL
  */
-int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
+int ast_apply_ha(const struct ast_ha *ha, const struct ast_sockaddr *addr);
 
 /*!
  * \brief Get the IP address given a hostname
@@ -186,7 +186,7 @@ int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us);
  * \retval -1 Failure. address is filled with 0s
  * \retval 0 Success
  */
-int ast_lookup_iface(char *iface, struct in_addr *address);
+int ast_lookup_iface(char *iface, struct ast_sockaddr *address);
 
 /*!
  * \brief Duplicate the contents of a list of host access rules

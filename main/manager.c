@@ -2226,6 +2226,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	struct ast_manager_user *user = NULL;
 	regex_t *regex_filter;
 	struct ao2_iterator filter_iter;
+	struct ast_sockaddr addr;
 
 	if (ast_strlen_zero(username)) {	/* missing username */
 		return -1;
@@ -2234,10 +2235,12 @@ static int authenticate(struct mansession *s, const struct message *m)
 	/* locate user in locked state */
 	AST_RWLIST_WRLOCK(&users);
 
+	ast_sockaddr_from_sin(&addr, &s->session->sin);
+
 	if (!(user = get_manager_by_name_locked(username))) {
 		report_invalid_user(s, username);
 		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), username);
-	} else if (user->ha && !ast_apply_ha(user->ha, &(s->session->sin))) {
+	} else if (user->ha && !ast_apply_ha(user->ha, &addr)) {
 		report_failed_acl(s, username);
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(s->session->sin.sin_addr), username);
 	} else if (!strcasecmp(astman_get_header(m, "AuthType"), "MD5")) {
@@ -5625,6 +5628,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	int u_writeperm;
 	int u_writetimeout;
 	int u_displayconnects;
+	struct ast_sockaddr addr;
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD && method != AST_HTTP_POST) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
@@ -5668,8 +5672,9 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		goto out_401;
 	}
 
+	ast_sockaddr_from_sin(&addr, remote_address);
 	/* --- We have User for this auth, now check ACL */
-	if (user->ha && !ast_apply_ha(user->ha, remote_address)) {
+	if (user->ha && !ast_apply_ha(user->ha, &addr)) {
 		AST_RWLIST_UNLOCK(&users);
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(remote_address->sin_addr), d.username);
 		ast_http_error(ser, 403, "Permission denied", "Permission denied\n");
