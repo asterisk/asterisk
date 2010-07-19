@@ -1728,7 +1728,7 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 {
 	unsigned char buf[256];
 	int distMatches;
-	int curRingData[3];
+	int curRingData[RING_PATTERNS];
 	int receivedRingT;
 	int counter1;
 	int counter;
@@ -1749,7 +1749,7 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 	 * distinctive ringing */
 	if ((checkaftercid && distinctiveringaftercid) || !checkaftercid) {
 		/* Clear the current ring data array so we don't have old data in it. */
-		for (receivedRingT = 0; receivedRingT < ARRAY_LEN(ringdata); receivedRingT++)
+		for (receivedRingT = 0; receivedRingT < RING_PATTERNS; receivedRingT++)
 			ringdata[receivedRingT] = 0;
 		receivedRingT = 0;
 		if (checkaftercid && distinctiveringaftercid)
@@ -1783,7 +1783,7 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 					break;
 				/* Increment the ringT counter so we can match it against
 				   values in chan_dahdi.conf for distinctive ring */
-				if (++receivedRingT == ARRAY_LEN(ringdata))
+				if (++receivedRingT == RING_PATTERNS)
 					break;
 			} else if (i & DAHDI_IOMUX_READ) {
 				res = read(p->subs[idx].dfd, buf, sizeof(buf));

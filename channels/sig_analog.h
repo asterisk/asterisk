@@ -28,6 +28,10 @@
 #include "asterisk/channel.h"
 #include "asterisk/frame.h"
 
+#define ANALOG_MAX_CID 300
+#define READ_SIZE 160
+#define RING_PATTERNS 3
+
 /* Signalling types supported */
 enum analog_sigtype {
 	ANALOG_SIG_NONE = -1,
@@ -109,8 +113,6 @@ enum analog_cid_start {
 	ANALOG_CID_START_RING,
 	ANALOG_CID_START_DTMF_NOALERT,
 };
-
-#define ANALOG_MAX_CID 300
 
 enum dialop {
 	ANALOG_DIAL_OP_REPLACE = 2,
@@ -220,8 +222,6 @@ struct analog_callback {
 };
 
 
-
-#define READ_SIZE 160
 
 struct analog_subchannel {
 	struct ast_channel *owner;

@@ -2281,7 +2281,7 @@ static void *__analog_ss_thread(void *data)
 			int timeout = 10000;  /* Ten seconds */
 			struct timeval start = ast_tvnow();
 			enum analog_event ev;
-			int curRingData[3] = { 0 };
+			int curRingData[RING_PATTERNS] = { 0 };
 			int receivedRingT = 0;
 
 			namebuf[0] = 0;
@@ -2315,7 +2315,7 @@ static void *__analog_ss_thread(void *data)
 							}
 							/* Increment the ringT counter so we can match it against
 							   values in chan_dahdi.conf for distinctive ring */
-							if (++receivedRingT == ARRAY_LEN(curRingData)) {
+							if (++receivedRingT == RING_PATTERNS) {
 								break;
 							}
 						}
