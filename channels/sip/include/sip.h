@@ -211,7 +211,7 @@
 #define DEFAULT_NOTIFYCID      DISABLED	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC       FALSE    /*!< Avoid following SIP standards for dialog matching */
 #define DEFAULT_AUTOCREATEPEER FALSE    /*!< Don't create peers automagically */
-#define	DEFAULT_MATCHEXTERNIPLOCALLY FALSE /*!< Match extern IP locally default setting */
+#define	DEFAULT_MATCHEXTERNADDRLOCALLY FALSE /*!< Match extern IP locally default setting */
 #define DEFAULT_QUALIFY        FALSE    /*!< Don't monitor devices */
 #define DEFAULT_CALLEVENTS     FALSE    /*!< Extra manager SIP call events */
 #define DEFAULT_ALWAYSAUTHREJECT  FALSE /*!< Don't reject authentication requests always */
@@ -686,7 +686,7 @@ struct sip_settings {
 	int allow_external_domains; /*!< Accept calls to external SIP domains? */
 	int callevents;             /*!< Whether we send manager events or not */
 	int regextenonqualify;      /*!< Whether to add/remove regexten when qualifying peers */
-	int matchexterniplocally;   /*!< Match externip/externhost setting against localnet setting */
+	int matchexternaddrlocally;   /*!< Match externaddr/externhost setting against localnet setting */
 	char regcontext[AST_MAX_CONTEXT];  /*!< Context for auto-extensions */
 	unsigned int disallowed_methods;   /*!< methods that we should never try to use */
 	int notifyringing;          /*!< Send notifications on ringing */
