@@ -3403,7 +3403,7 @@ static int park_exec_full(struct ast_channel *chan, void *data, struct ast_parki
 
 	AST_LIST_LOCK(&parkinglot->parkings);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&parkinglot->parkings, pu, list) {
-		if (!data || pu->parkingnum == park) {
+		if (!pu->notquiteyet && (!data || pu->parkingnum == park)) {
 			if (pu->chan->pbx) { /* do not allow call to be picked up until the PBX thread is finished */
 				AST_LIST_UNLOCK(&parkinglot->parkings);
 				return -1;
