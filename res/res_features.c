@@ -2535,7 +2535,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 	ast_mutex_lock(&parking_lock);
 	pu = parkinglot;
 	while(pu) {
-		if (pu->parkingnum == park) {
+		if (pu->parkingnum == park && !pu->notquiteyet) {
 			if (pu->chan->pbx) { /* do not allow call to be picked up until the PBX thread is finished */
 				ast_mutex_unlock(&parking_lock);
 				ast_module_user_remove(u);
