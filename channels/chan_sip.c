@@ -5342,9 +5342,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int portno = -1;		/*!< RTP Audio port number */
 	int vportno = -1;		/*!< RTP Video port number */
 	int udptlportno = -1;		/*!< UDPTL Image port number */
-	struct sockaddr_in sin;		/*!< media socket address */
-	struct sockaddr_in vsin;	/*!< video socket address */
-	struct sockaddr_in isin;	/*!< image socket address */
+	struct sockaddr_in sin = { 0, };	/*!< media socket address */
+	struct sockaddr_in vsin = { 0, };	/*!< video socket address */
+	struct sockaddr_in isin = { 0, };	/*!< image socket address */
 
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
 	int peercapability = 0, peernoncodeccapability = 0;
@@ -5754,11 +5754,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* sendonly processing */
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && sin.sin_addr.s_addr && (!sendonly || sendonly == -1)) {
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && (sin.sin_addr.s_addr || vsin.sin_addr.s_addr || isin.sin_addr.s_addr) && (!sendonly || sendonly == -1)) {
 		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
-	} else if (!sin.sin_addr.s_addr || (sendonly && sendonly != -1)) {
+	} else if (!(sin.sin_addr.s_addr || vsin.sin_addr.s_addr || isin.sin_addr.s_addr) || (sendonly && sendonly != -1)) {
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
 				       S_OR(p->mohsuggest, NULL),
 				       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
@@ -5770,9 +5770,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Manager Hold and Unhold events must be generated, if necessary */
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && sin.sin_addr.s_addr && (!sendonly || sendonly == -1))
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && (sin.sin_addr.s_addr || vsin.sin_addr.s_addr || isin.sin_addr.s_addr) && (!sendonly || sendonly == -1))
 		change_hold_state(p, req, FALSE, sendonly);
-	else if (!sin.sin_addr.s_addr || (sendonly && sendonly != -1))
+	else if (!(sin.sin_addr.s_addr || vsin.sin_addr.s_addr || isin.sin_addr.s_addr) || (sendonly && sendonly != -1))
 		change_hold_state(p, req, TRUE, sendonly);
 
 	return 0;
