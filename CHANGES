@@ -270,6 +270,11 @@ Queue changes
    queues for which he is a member, not just the queue that failed to reach
    the member.
  * Added dialplan function QUEUE_EXISTS to check if a queue exists
+ * The queue logger now allows events to optionally propagate to a file,
+   even when realtime logging is turned on.  Additionally, realtime logging
+   supports sending the event arguments to 5 individual fields, although it
+   will fallback to the previous data definition, if the new table layout is
+   not found.
 
 mISDN channel driver (chan_misdn) changes
 ----------------------------------------

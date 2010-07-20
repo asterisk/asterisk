@@ -26,18 +26,27 @@
 ; (defaults to yes).
 ;queue_log = no
 ;
+; Determines whether the queue_log always goes to a file, even
+; when a realtime backend is present (defaults to no).
+;queue_log_to_file = yes
+;
 ; Set the queue_log filename
 ; (defaults to queue_log)
 ;queue_log_name = queue_log
 ;
 ; Log rotation strategy:
 ; sequential:  Rename archived logs in order, such that the newest
-;              has the highest sequence number [default].
+;              has the highest sequence number [default].  When
+;              exec_after_rotate is set, ${filename} will specify
+;              the new archived logfile.
 ; rotate:  Rotate all the old files, such that the oldest has the
 ;          highest sequence number [this is the expected behavior
-;          for Unix administrators].
+;          for Unix administrators].  When exec_after_rotate is
+;          set, ${filename} will specify the original root filename.
 ; timestamp:  Rename the logfiles using a timestamp instead of a
 ;             sequence number when "logger rotate" is executed.
+;             When exec_after_rotate is set, ${filename} will
+;             specify the new archived logfile.
 ;rotatestrategy = rotate
 ;
 ; Run a system command after rotating the files.  This is mainly

@@ -74,6 +74,7 @@ static char exec_after_rotate[256] = "";
 
 static int filesize_reload_needed;
 static unsigned int global_logmask = 0xFFFF;
+static int queuelog_init;
 
 static enum rotatestrategy {
 	SEQUENTIAL = 1 << 0,     /* Original method - create a new file, in order */
@@ -83,6 +84,8 @@ static enum rotatestrategy {
 
 static struct {
 	unsigned int queue_log:1;
+	unsigned int queue_log_to_file:1;
+	unsigned int queue_adaptive_realtime:1;
 } logfiles = { 1 };
 
 static char hostname[MAXHOSTNAMELEN];
@@ -206,6 +209,8 @@ AST_THREADSTORAGE(verbose_buf);
 AST_THREADSTORAGE(log_buf);
 #define LOG_BUF_INIT_SIZE       256
 
+static void logger_queue_init(void);
+
 static unsigned int make_components(const char *s, int lineno)
 {
 	char *w;
@@ -291,41 +296,49 @@ static void init_logger_chain(int locked)
 	const char *s;
 	struct ast_flags config_flags = { 0 };
 
-	if (!(cfg = ast_config_load2("logger.conf", "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID)
+	if (!(cfg = ast_config_load2("logger.conf", "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		return;
+	}
 
 	/* delete our list of log channels */
-	if (!locked)
+	if (!locked) {
 		AST_RWLIST_WRLOCK(&logchannels);
-	while ((chan = AST_RWLIST_REMOVE_HEAD(&logchannels, list)))
+	}
+	while ((chan = AST_RWLIST_REMOVE_HEAD(&logchannels, list))) {
 		ast_free(chan);
+	}
 	global_logmask = 0;
-	if (!locked)
+	if (!locked) {
 		AST_RWLIST_UNLOCK(&logchannels);
-	
+	}
+
 	errno = 0;
 	/* close syslog */
 	closelog();
-	
+
 	/* If no config file, we're fine, set default options. */
 	if (!cfg) {
-		if (errno)
+		if (errno) {
 			fprintf(stderr, "Unable to open logger.conf: %s; default settings will be used.\n", strerror(errno));
-		else
+		} else {
 			fprintf(stderr, "Errors detected in logger.conf: see above; default settings will be used.\n");
-		if (!(chan = ast_calloc(1, sizeof(*chan))))
+		}
+		if (!(chan = ast_calloc(1, sizeof(*chan)))) {
 			return;
+		}
 		chan->type = LOGTYPE_CONSOLE;
 		chan->logmask = __LOG_WARNING | __LOG_NOTICE | __LOG_ERROR;
-		if (!locked)
+		if (!locked) {
 			AST_RWLIST_WRLOCK(&logchannels);
+		}
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
 		global_logmask |= chan->logmask;
-		if (!locked)
+		if (!locked) {
 			AST_RWLIST_UNLOCK(&logchannels);
+		}
 		return;
 	}
-	
+
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
 		if (ast_true(s)) {
 			if (gethostname(hostname, sizeof(hostname) - 1)) {
@@ -340,21 +353,28 @@ static void init_logger_chain(int locked)
 		ast_copy_string(dateformat, s, sizeof(dateformat));
 	else
 		ast_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
-	if ((s = ast_variable_retrieve(cfg, "general", "queue_log")))
+	if ((s = ast_variable_retrieve(cfg, "general", "queue_log"))) {
 		logfiles.queue_log = ast_true(s);
-	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_name")))
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_to_file"))) {
+		logfiles.queue_log_to_file = ast_true(s);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_name"))) {
 		ast_copy_string(queue_log_name, s, sizeof(queue_log_name));
-	if ((s = ast_variable_retrieve(cfg, "general", "exec_after_rotate")))
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "exec_after_rotate"))) {
 		ast_copy_string(exec_after_rotate, s, sizeof(exec_after_rotate));
+	}
 	if ((s = ast_variable_retrieve(cfg, "general", "rotatestrategy"))) {
-		if (strcasecmp(s, "timestamp") == 0)
+		if (strcasecmp(s, "timestamp") == 0) {
 			rotatestrategy = TIMESTAMP;
-		else if (strcasecmp(s, "rotate") == 0)
+		} else if (strcasecmp(s, "rotate") == 0) {
 			rotatestrategy = ROTATE;
-		else if (strcasecmp(s, "sequential") == 0)
+		} else if (strcasecmp(s, "sequential") == 0) {
 			rotatestrategy = SEQUENTIAL;
-		else
+		} else {
 			fprintf(stderr, "Unknown rotatestrategy: %s\n", s);
+		}
 	} else {
 		if ((s = ast_variable_retrieve(cfg, "general", "rotatetimestamp"))) {
 			rotatestrategy = ast_true(s) ? TIMESTAMP : SEQUENTIAL;
@@ -362,17 +382,27 @@ static void init_logger_chain(int locked)
 		}
 	}
 
-	if (!locked)
+	if (!locked) {
 		AST_RWLIST_WRLOCK(&logchannels);
+	}
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
-		if (!(chan = make_logchannel(var->name, var->value, var->lineno)))
+		if (!(chan = make_logchannel(var->name, var->value, var->lineno))) {
 			continue;
+		}
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
 		global_logmask |= chan->logmask;
 	}
-	if (!locked)
+	if (qlog) {
+		char tmp[4096];
+		fclose(qlog);
+		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
+		qlog = fopen(tmp, "a");
+	}
+
+	if (!locked) {
 		AST_RWLIST_UNLOCK(&logchannels);
+	}
 
 	ast_config_destroy(cfg);
 }
@@ -429,29 +459,69 @@ void ast_child_verbose(int level, const char *fmt, ...)
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 {
 	va_list ap;
+	struct timeval tv;
+	struct ast_tm tm;
 	char qlog_msg[8192];
 	int qlog_len;
-	char time_str[16];
+	char time_str[30];
+
+	if (!queuelog_init) {
+		queuelog_init = 1;
+		logger_queue_init();
+	}
 
 	if (ast_check_realtime("queue_log")) {
+		tv = ast_tvnow();
+		ast_localtime(&tv, &tm, NULL);
+		ast_strftime(time_str, sizeof(time_str), "%F %T.%6q", &tm);
 		va_start(ap, fmt);
 		vsnprintf(qlog_msg, sizeof(qlog_msg), fmt, ap);
 		va_end(ap);
-		snprintf(time_str, sizeof(time_str), "%ld", (long)time(NULL));
-		ast_store_realtime("queue_log", "time", time_str, 
-						"callid", callid, 
-						"queuename", queuename, 
-						"agent", agent, 
-						"event", event,
-						"data", qlog_msg,
-						SENTINEL);
-	} else {
-		if (qlog) {
-			va_start(ap, fmt);
-			qlog_len = snprintf(qlog_msg, sizeof(qlog_msg), "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
-			vsnprintf(qlog_msg + qlog_len, sizeof(qlog_msg) - qlog_len, fmt, ap);
-			va_end(ap);
+		if (logfiles.queue_adaptive_realtime) {
+			AST_DECLARE_APP_ARGS(args,
+				AST_APP_ARG(data)[5];
+			);
+			AST_NONSTANDARD_APP_ARGS(args, qlog_msg, '|');
+			/* Ensure fields are large enough to receive data */
+			ast_realtime_require_field("queue_log", "data1", RQ_CHAR, strlen(S_OR(args.data[0], "")),
+				"data2", RQ_CHAR, strlen(S_OR(args.data[1], "")),
+				"data3", RQ_CHAR, strlen(S_OR(args.data[2], "")),
+				"data4", RQ_CHAR, strlen(S_OR(args.data[3], "")),
+				"data5", RQ_CHAR, strlen(S_OR(args.data[4], "")),
+				SENTINEL);
+
+			/* Store the log */
+			ast_store_realtime("queue_log", "time", time_str,
+				"callid", callid,
+				"queuename", queuename,
+				"agent", agent,
+				"event", event,
+				"data1", S_OR(args.data[0], ""),
+				"data2", S_OR(args.data[1], ""),
+				"data3", S_OR(args.data[2], ""),
+				"data4", S_OR(args.data[3], ""),
+				"data5", S_OR(args.data[4], ""),
+				SENTINEL);
+		} else {
+			ast_store_realtime("queue_log", "time", time_str,
+				"callid", callid,
+				"queuename", queuename,
+				"agent", agent,
+				"event", event,
+				"data", qlog_msg,
+				SENTINEL);
 		}
+
+		if (!logfiles.queue_log_to_file) {
+			return;
+		}
+	}
+
+	if (qlog) {
+		va_start(ap, fmt);
+		qlog_len = snprintf(qlog_msg, sizeof(qlog_msg), "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
+		vsnprintf(qlog_msg + qlog_len, sizeof(qlog_msg) - qlog_len, fmt, ap);
+		va_end(ap);
 		AST_RWLIST_RDLOCK(&logchannels);
 		if (qlog) {
 			fprintf(qlog, "%s\n", qlog_msg);
@@ -481,6 +551,8 @@ static int rotate_file(const char *filename)
 		if (rename(filename, new)) {
 			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", filename, new);
 			res = -1;
+		} else {
+			filename = new;
 		}
 		break;
 	case TIMESTAMP:
@@ -488,6 +560,8 @@ static int rotate_file(const char *filename)
 		if (rename(filename, new)) {
 			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", filename, new);
 			res = -1;
+		} else {
+			filename = new;
 		}
 		break;
 	case ROTATE:
@@ -553,25 +627,25 @@ static int reload_logger(int rotate)
 	int queue_rotate = rotate;
 	struct logchannel *f;
 	int res = 0;
-	struct stat st;
 
 	AST_RWLIST_WRLOCK(&logchannels);
 
 	if (qlog) {
 		if (rotate < 0) {
 			/* Check filesize - this one typically doesn't need an auto-rotate */
-			snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
-			if (stat(old, &st) != 0 || st.st_size > 0x40000000) { /* Arbitrarily, 1 GB */
+			if (ftello(qlog) > 0x40000000) { /* Arbitrarily, 1 GB */
 				fclose(qlog);
 				qlog = NULL;
-			} else
+			} else {
 				queue_rotate = 0;
+			}
 		} else {
 			fclose(qlog);
 			qlog = NULL;
 		}
-	} else 
+	} else {
 		queue_rotate = 0;
+	}
 
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
@@ -581,10 +655,16 @@ static int reload_logger(int rotate)
 			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
 		}
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
+			int rotate_this = 0;
+			if (ftello(f->fileptr) > 0x40000000) { /* Arbitrarily, 1 GB */
+				/* Be more proactive about rotating massive log files */
+				rotate_this = 1;
+			}
 			fclose(f->fileptr);	/* Close file */
 			f->fileptr = NULL;
-			if (rotate)
+			if (rotate || rotate_this) {
 				rotate_file(f->filename);
+			}
 		}
 	}
 
@@ -593,20 +673,42 @@ static int reload_logger(int rotate)
 	init_logger_chain(1 /* locked */);
 
 	if (logfiles.queue_log) {
-		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
-		if (queue_rotate)
-			rotate_file(old);
+		do {
+			ast_unload_realtime("queue_log");
+			if (ast_check_realtime("queue_log")) {
+				if (!ast_realtime_require_field("queue_log",
+						"time", RQ_DATETIME, 26, "data1", RQ_CHAR, 20,
+						"data2", RQ_CHAR, 20, "data3", RQ_CHAR, 20,
+						"data4", RQ_CHAR, 20, "data5", RQ_CHAR, 20, SENTINEL)) {
+					logfiles.queue_adaptive_realtime = 1;
+				} else {
+					logfiles.queue_adaptive_realtime = 0;
+				}
 
-		qlog = fopen(old, "a");
-		if (qlog) {
-			AST_RWLIST_UNLOCK(&logchannels);
-			ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
-			AST_RWLIST_WRLOCK(&logchannels);
-			ast_verb(1, "Asterisk Queue Logger restarted\n");
-		} else {
-			ast_log(LOG_ERROR, "Unable to create queue log: %s\n", strerror(errno));
-			res = -1;
-		}
+				if (!logfiles.queue_log_to_file) {
+					/* Skip the following section */
+					break;
+				}
+			}
+
+			fclose(qlog);
+			qlog = NULL;
+			snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
+			if (queue_rotate) {
+				rotate_file(old);
+			}
+
+			qlog = fopen(old, "a");
+			if (qlog) {
+				AST_RWLIST_UNLOCK(&logchannels);
+				ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
+				AST_RWLIST_WRLOCK(&logchannels);
+				ast_verb(1, "Asterisk Queue Logger restarted\n");
+			} else {
+				ast_log(LOG_ERROR, "Unable to create queue log: %s\n", strerror(errno));
+				res = -1;
+			}
+		} while (0);
 	}
 
 	AST_RWLIST_UNLOCK(&logchannels);
@@ -927,11 +1029,26 @@ static void *logger_thread(void *data)
 	return NULL;
 }
 
+static void logger_queue_init(void)
+{
+	/* Preloaded modules are up. */
+	ast_unload_realtime("queue_log");
+	if (logfiles.queue_log && ast_check_realtime("queue_log")) {
+		if (!ast_realtime_require_field("queue_log",
+				"time", RQ_DATETIME, 26, "data1", RQ_CHAR, 20,
+				"data2", RQ_CHAR, 20, "data3", RQ_CHAR, 20,
+				"data4", RQ_CHAR, 20, "data5", RQ_CHAR, 20, SENTINEL)) {
+			logfiles.queue_adaptive_realtime = 1;
+		} else {
+			logfiles.queue_adaptive_realtime = 0;
+		}
+	}
+
+	ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
+}
+
 int init_logger(void)
 {
-	char tmp[256];
-	int res = 0;
-
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
 	sigaction(SIGXFSZ, &handle_SIGXFSZ, NULL);
 
@@ -946,16 +1063,11 @@ int init_logger(void)
 	ast_cli_register_multiple(cli_logger, ARRAY_LEN(cli_logger));
 
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
-  
+
 	/* create log channels */
 	init_logger_chain(0 /* locked */);
 
-	if (logfiles.queue_log) {
-		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
-		qlog = fopen(tmp, "a");
-		ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
-	}
-	return res;
+	return 0;
 }
 
 void close_logger(void)
