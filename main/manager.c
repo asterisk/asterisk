@@ -2917,14 +2917,12 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 			char *buf;
 			size_t l;
 
-			/* Ensure buffer is NULL-terminated */
-			fprintf(ss.f, "%c", 0);
-
 			if ((l = lseek(ss.fd, 0, SEEK_END)) > 0) {
-				if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, ss.fd, 0))) {
+				if (MAP_FAILED == (buf = mmap(NULL, l + 1, PROT_READ | PROT_WRITE, MAP_SHARED, ss.fd, 0))) {
 					ast_log(LOG_WARNING, "mmap failed.  Manager request output was not processed\n");
 				} else {
 					char *tmpbuf;
+					buf[l] = '\0';
 					if (format == FORMAT_XML)
 						tmpbuf = xml_translate(buf, params);
 					else if (format == FORMAT_HTML)
@@ -2945,7 +2943,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 						free(tmpbuf);
 					free(s->outputstr);
 					s->outputstr = NULL;
-					munmap(buf, l);
+					munmap(buf, l + 1);
 				}
 			}
 			fclose(ss.f);
