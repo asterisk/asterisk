@@ -608,6 +608,38 @@ static struct ast_config_engine curl_engine = {
 	.require_func = require_curl,
 };
 
+static int reload_module(void)
+{
+	struct ast_flags flags = { CONFIG_FLAG_NOREALTIME };
+	struct ast_config *cfg;
+	struct ast_variable *var;
+
+	if (!(cfg = ast_config_load("res_curl.conf", flags))) {
+		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_WARNING, "res_curl.conf could not be parsed!\n");
+		return 0;
+	}
+
+	if (!(var = ast_variable_browse(cfg, "globals")) && !(var = ast_variable_browse(cfg, "global")) && !(var = ast_variable_browse(cfg, "general"))) {
+		ast_log(LOG_WARNING, "[globals] not found in res_curl.conf\n");
+		ast_config_destroy(cfg);
+		return 0;
+	}
+
+	for (; var; var = var->next) {
+		if (strncmp(var->name, "CURLOPT(", 8)) {
+			char name[256];
+			snprintf(name, sizeof(name), "CURLOPT(%s)", var->name);
+			pbx_builtin_setvar_helper(NULL, name, var->value);
+		} else {
+			pbx_builtin_setvar_helper(NULL, var->name, var->value);
+		}
+	}
+	ast_config_destroy(cfg);
+	return 0;
+}
+
 static int unload_module(void)
 {
 	ast_config_engine_deregister(&curl_engine);
@@ -624,9 +656,23 @@ static int load_module(void)
 		}
 	}
 
+	if (!ast_module_check("func_curl.so")) {
+		if (ast_load_resource("func_curl.so") != AST_MODULE_LOAD_SUCCESS) {
+			ast_log(LOG_ERROR, "Cannot load func_curl, so res_config_curl cannot be loaded\n");
+			return AST_MODULE_LOAD_DECLINE;
+		}
+	}
+
+	reload_module();
+
 	ast_config_engine_register(&curl_engine);
 	ast_verb(1, "res_config_curl loaded.\n");
 	return 0;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Realtime Curl configuration");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime Curl configuration",
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload_module,
+		.load_pri = AST_MODPRI_REALTIME_DRIVER,
+	);

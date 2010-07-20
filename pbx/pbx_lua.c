@@ -84,7 +84,7 @@ static void lua_create_application_metatable(lua_State *L);
 static void lua_create_autoservice_functions(lua_State *L);
 static void lua_create_hangup_function(lua_State *L);
 
-void lua_state_destroy(void *data);
+static void lua_state_destroy(void *data);
 static lua_State *lua_get_state(struct ast_channel *chan);
 
 static int exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
@@ -108,7 +108,7 @@ static const struct ast_datastore_info lua_datastore = {
 /*!
  * \brief The destructor for lua_datastore
  */
-void lua_state_destroy(void *data)
+static void lua_state_destroy(void *data)
 {
 	if (data)
 		lua_close(data);
@@ -1467,7 +1467,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Lua PBX Switch",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Lua PBX Switch",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,

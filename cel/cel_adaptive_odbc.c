@@ -783,9 +783,10 @@ static int reload(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Adaptive ODBC CEL backend",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Adaptive ODBC CEL backend",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
+	.load_pri = AST_MODPRI_CDR_DRIVER,
 );
 

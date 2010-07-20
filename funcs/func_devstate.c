@@ -349,4 +349,8 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Gets or sets a device state in the dialplan");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Gets or sets a device state in the dialplan",
+	.load = load_module,
+	.unload = unload_module,
+	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
+);

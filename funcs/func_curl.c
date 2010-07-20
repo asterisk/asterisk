@@ -638,5 +638,9 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Load external URL");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Load external URL",
+		.load = load_module,
+		.unload = unload_module,
+		.load_pri = AST_MODPRI_REALTIME_DEPEND2,
+	);
 

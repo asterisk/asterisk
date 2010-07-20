@@ -193,6 +193,20 @@ enum ast_module_flags {
 	AST_MODFLAG_LOAD_ORDER = (1 << 1),
 };
 
+enum ast_module_load_priority {
+	AST_MODPRI_REALTIME_DEPEND =    10,  /*!< Dependency for a realtime driver */
+	AST_MODPRI_REALTIME_DEPEND2 =   20,  /*!< Second level dependency for a realtime driver (func_curl needs res_curl, but is needed by res_config_curl) */
+	AST_MODPRI_REALTIME_DRIVER =    30,  /*!< A realtime driver, which provides configuration services for other modules */
+	AST_MODPRI_CHANNEL_DEPEND =     50,  /*!< Channel driver dependency (may depend upon realtime, e.g. MOH) */
+	AST_MODPRI_CHANNEL_DRIVER =     60,  /*!< Channel drivers (provide devicestate) */
+	AST_MODPRI_APP_DEPEND =         70,  /*!< Dependency for an application */
+	AST_MODPRI_DEVSTATE_PROVIDER =  80,  /*!< Applications and other modules that _provide_ devicestate (e.g. meetme) */
+	AST_MODPRI_DEVSTATE_PLUGIN =    90,  /*!< Plugin for a module that provides devstate (e.g. res_calendar_*) */
+	AST_MODPRI_CDR_DRIVER =        100,  /*!< CDR or CEL backend */
+	AST_MODPRI_DEFAULT =           128,  /*!< Modules not otherwise defined (such as most apps) will load here */
+	AST_MODPRI_DEVSTATE_CONSUMER = 150,  /*!< Certain modules, which consume devstate, need to load after all others (e.g. app_queue) */
+};
+
 struct ast_module_info {
 
 	/*!
@@ -245,7 +259,7 @@ struct ast_module *ast_module_ref(struct ast_module *);
 void ast_module_unref(struct ast_module *);
 
 #if defined(__cplusplus) || defined(c_plusplus)
-#define AST_MODULE_INFO(keystr, flags_to_set, desc, load_func, unload_func, reload_func)	\
+#define AST_MODULE_INFO(keystr, flags_to_set, desc, load_func, unload_func, reload_func, load_pri)	\
 	static struct ast_module_info __mod_info = {	\
 		NULL,					\
 		load_func,				\
@@ -258,6 +272,7 @@ void ast_module_unref(struct ast_module *);
 		keystr,					\
 		flags_to_set,				\
 		AST_BUILDOPT_SUM,			\
+		load_pri,           \
 	};						\
 	static void  __attribute__((constructor)) __reg_module(void) \
 	{ \
@@ -270,10 +285,11 @@ void ast_module_unref(struct ast_module *);
 	static const __attribute__((unused)) struct ast_module_info *ast_module_info = &__mod_info
 
 #define AST_MODULE_INFO_STANDARD(keystr, desc)		\
-	AST_MODULE_INFO(keystr, AST_MODFLAG_DEFAULT, desc,	\
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,	\
 			load_module,			\
 			unload_module,		\
-			NULL			\
+			NULL,			\
+			AST_MODPRI_DEFAULT \
 		       )
 #else /* plain C */
 
@@ -364,9 +380,10 @@ static void __restore_globals(void)
 	static const struct ast_module_info *ast_module_info = &__mod_info
 
 #define AST_MODULE_INFO_STANDARD(keystr, desc)		\
-	AST_MODULE_INFO(keystr, AST_MODFLAG_DEFAULT, desc,	\
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,	\
 			.load = load_module,			\
 			.unload = unload_module,		\
+			.load_pri = AST_MODPRI_DEFAULT, \
 		       )
 #endif	/* plain C */
 

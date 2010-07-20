@@ -899,9 +899,9 @@ static int mod_load_cmp(void *a, void *b)
 	struct ast_module *a_mod = (struct ast_module *) a;
 	struct ast_module *b_mod = (struct ast_module *) b;
 	int res = -1;
-	/* if load_pri is not set, default is 255.  Lower is better*/
-	unsigned char a_pri = ast_test_flag(a_mod->info, AST_MODFLAG_LOAD_ORDER) ? a_mod->info->load_pri : 255;
-	unsigned char b_pri = ast_test_flag(b_mod->info, AST_MODFLAG_LOAD_ORDER) ? b_mod->info->load_pri : 255;
+	/* if load_pri is not set, default is 128.  Lower is better*/
+	unsigned char a_pri = ast_test_flag(a_mod->info, AST_MODFLAG_LOAD_ORDER) ? a_mod->info->load_pri : 128;
+	unsigned char b_pri = ast_test_flag(b_mod->info, AST_MODFLAG_LOAD_ORDER) ? b_mod->info->load_pri : 128;
 	if (a_pri == b_pri) {
 		res = 0;
 	} else if (a_pri < b_pri) {

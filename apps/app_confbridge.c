@@ -819,4 +819,8 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Conference Bridge Application");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Conference Bridge Application",
+	.load = load_module,
+	.unload = unload_module,
+	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
+);

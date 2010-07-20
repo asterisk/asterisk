@@ -1773,9 +1773,10 @@ static char *handle_cli_realtime_mysql_status(struct ast_cli_entry *e, int cmd, 
 	return CLI_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "MySQL RealTime Configuration Driver",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "MySQL RealTime Configuration Driver",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
+		.load_pri = AST_MODPRI_REALTIME_DRIVER,
 		);
 

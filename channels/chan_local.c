@@ -1031,4 +1031,8 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Local Proxy Channel (Note: used internally by other modules)");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Local Proxy Channel (Note: used internally by other modules)",
+		.load = load_module,
+		.unload = unload_module,
+		.load_pri = AST_MODPRI_CHANNEL_DRIVER,
+	);

@@ -690,7 +690,8 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk CalDAV Calendar Integration",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Asterisk CalDAV Calendar Integration",
 		.load = load_module,
 		.unload = unload_module,
+		.load_pri = AST_MODPRI_DEVSTATE_PLUGIN,
 	);

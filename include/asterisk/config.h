@@ -43,6 +43,8 @@ enum {
 	CONFIG_FLAG_FILEUNCHANGED = (1 << 1),
 	/*! Don't attempt to cache mtime on this config file. */
 	CONFIG_FLAG_NOCACHE       = (1 << 2),
+	/*! Don't attempt to load from realtime (typically called from a realtime driver dependency) */
+	CONFIG_FLAG_NOREALTIME    = (1 << 3),
 };
 
 #define	CONFIG_STATUS_FILEMISSING	(void *)0

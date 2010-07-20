@@ -561,8 +561,9 @@ static int reload(void)
 	return my_load_module(1);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "PostgreSQL CEL Backend",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PostgreSQL CEL Backend",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
+	.load_pri = AST_MODPRI_CDR_DRIVER,
 );

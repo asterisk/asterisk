@@ -2826,7 +2826,7 @@ static void ast_readconfig(void)
 	struct ast_variable *v;
 	char *config = DEFAULT_CONFIG_FILE;
 	char hostname[MAXHOSTNAMELEN] = "";
-	struct ast_flags config_flags = { 0 };
+	struct ast_flags config_flags = { CONFIG_FLAG_NOREALTIME };
 	struct {
 		unsigned int dbdir:1;
 		unsigned int keydir:1;

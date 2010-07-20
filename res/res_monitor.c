@@ -930,7 +930,8 @@ static int unload_module(void)
 }
 
 /* usecount semantics need to be defined */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Call Monitoring Resource",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Call Monitoring Resource",
 		.load = load_module,
 		.unload = unload_module,
+		.load_pri = AST_MODPRI_CHANNEL_DEPEND,
 		);

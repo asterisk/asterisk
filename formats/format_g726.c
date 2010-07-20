@@ -256,10 +256,6 @@ static int unload_module(void)
 			ast_log(LOG_WARNING, "Failed to unregister format %s.\n", f[i].name);
 	}
 	return(0);
-}	
+}
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw G.726 (16/24/32/40kbps) data",
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = 10,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw G.726 (16/24/32/40kbps) data");

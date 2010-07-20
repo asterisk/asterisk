@@ -339,7 +339,8 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Generic Speech Recognition API",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Generic Speech Recognition API",
 		.load = load_module,
 		.unload = unload_module,
+		.load_pri = AST_MODPRI_APP_DEPEND,
 		);

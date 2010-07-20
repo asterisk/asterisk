@@ -1896,7 +1896,7 @@ int read_config_maps(void)
 	struct ast_config *config, *configtmp;
 	struct ast_variable *v;
 	char *driver, *table, *database, *stringp, *tmp;
-	struct ast_flags flags = { 0 };
+	struct ast_flags flags = { CONFIG_FLAG_NOREALTIME };
 
 	clear_config_maps();
 
@@ -2060,7 +2060,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 
 	cfg->include_level++;
 
-	if (strcmp(filename, extconfig_conf) && strcmp(filename, "asterisk.conf") && config_engine_list) {
+	if (!ast_test_flag(&flags, CONFIG_FLAG_NOREALTIME) && config_engine_list) {
 		struct ast_config_engine *eng;
 
 		eng = find_engine(filename, db, sizeof(db), table, sizeof(table));

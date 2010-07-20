@@ -65,9 +65,13 @@ static int load_module(void)
 	if (curl_global_init(CURL_GLOBAL_ALL)) {
 		ast_log(LOG_ERROR, "Unable to initialize the CURL library. Cannot load res_curl\n");
 		return AST_MODULE_LOAD_DECLINE;
-	}	
+	}
 
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "cURL Resource Module");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "cURL Resource Module",
+		.load = load_module,
+		.unload = unload_module,
+		.load_pri = AST_MODPRI_REALTIME_DEPEND,
+	);
