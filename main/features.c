@@ -1321,6 +1321,7 @@ static int play_message_in_bridged_call(struct ast_channel *caller_chan, struct 
 	/* First play for caller, put other channel on auto service */
 	if (ast_autoservice_start(callee_chan))
 		return -1;
+	ast_autoservice_ignore(callee_chan, AST_FRAME_DTMF_END);
 	if (ast_stream_and_wait(caller_chan, audiofile, "")) {
 		ast_log(LOG_WARNING, "Failed to play automon message!\n");
 		ast_autoservice_stop(callee_chan);
@@ -1331,6 +1332,7 @@ static int play_message_in_bridged_call(struct ast_channel *caller_chan, struct 
 	/* Then play for callee, put other channel on auto service */
 	if (ast_autoservice_start(caller_chan))
 		return -1;
+	ast_autoservice_ignore(caller_chan, AST_FRAME_DTMF_END);
 	if (ast_stream_and_wait(callee_chan, audiofile, "")) {
 		ast_log(LOG_WARNING, "Failed to play automon message !\n");
 		ast_autoservice_stop(caller_chan);
@@ -1475,6 +1477,7 @@ static int builtin_automixmonitor(struct ast_channel *chan, struct ast_channel *
 	if (!ast_strlen_zero(courtesytone)) {
 		if (ast_autoservice_start(callee_chan))
 			return -1;
+		ast_autoservice_ignore(callee_chan, AST_FRAME_DTMF_END);
 		if (ast_stream_and_wait(caller_chan, courtesytone, "")) {
 			ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
 			ast_autoservice_stop(callee_chan);
@@ -1624,6 +1627,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
 	ast_autoservice_start(transferee);
+	ast_autoservice_ignore(transferee, AST_FRAME_DTMF_END);
 	ast_indicate(transferee, AST_CONTROL_HOLD);
 
 	memset(xferto, 0, sizeof(xferto));
@@ -1771,6 +1775,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
 	ast_autoservice_start(transferee);
+	ast_autoservice_ignore(transferee, AST_FRAME_DTMF_END);
 	ast_indicate(transferee, AST_CONTROL_HOLD);
 	
 	/* Transfer */
@@ -2048,6 +2053,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			while (!newchan && !atxferdropcall && tries < atxfercallbackretries) {
 				/* Trying to transfer again */
 				ast_autoservice_start(transferee);
+				ast_autoservice_ignore(transferee, AST_FRAME_DTMF_END);
 				ast_indicate(transferee, AST_CONTROL_HOLD);
 
 				newchan = feature_request_and_dial(transferer, transferee, "Local",
@@ -2404,6 +2410,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 	}
 
 	ast_autoservice_start(idle);
+	ast_autoservice_ignore(idle, AST_FRAME_DTMF_END);
 	
 	if(work && idle) {
 		pbx_builtin_setvar_helper(work, "DYNAMIC_PEERNAME", idle->name);
