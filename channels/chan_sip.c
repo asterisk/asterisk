@@ -22131,26 +22131,27 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 /*! \brief Handle incoming CANCEL request */
 static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 {
-		
+
 	check_via(p, req);
 	sip_alreadygone(p);
 
-	/* At this point, we could have cancelled the invite at the same time
-	   as the other side sends a CANCEL. Our final reply with error code
-	   might not have been received by the other side before the CANCEL
-	   was sent, so let's just give up retransmissions and waiting for
-	   ACK on our error code. The call is hanging up any way. */
-	if (p->invitestate == INV_TERMINATED)
-		__sip_pretend_ack(p);
-	else
-		p->invitestate = INV_CANCELLED;
-	
 	if (p->owner && p->owner->_state == AST_STATE_UP) {
 		/* This call is up, cancel is ignored, we need a bye */
 		transmit_response(p, "200 OK", req);
 		ast_debug(1, "Got CANCEL on an answered call. Ignoring... \n");
 		return 0;
 	}
+
+	/* At this point, we could have cancelled the invite at the same time
+	   as the other side sends a CANCEL. Our final reply with error code
+	   might not have been received by the other side before the CANCEL
+	   was sent, so let's just give up retransmissions and waiting for
+	   ACK on our error code. The call is hanging up any way. */
+	if (p->invitestate == INV_TERMINATED || p->invitestate == INV_COMPLETED) {
+		__sip_pretend_ack(p);
+	}
+	if (p->invitestate != INV_TERMINATED)
+		p->invitestate = INV_CANCELLED;
 
 	if (ast_test_flag(&p->flags[0], SIP_INC_COUNT) || ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD))
 		update_call_counter(p, DEC_CALL_LIMIT);
