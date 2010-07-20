@@ -28,7 +28,7 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libsqlit
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev libvpb-dev libgtk2.0-dev libmysqlclient-dev libbluetooth-dev libradiusclient-ng-dev freetds-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libopenais-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev libjack-dev"
 
-PACKAGES_RH="gcc gcc-c++ ncurses-devel openssl-devel"
+PACKAGES_RH="gcc gcc-c++ ncurses-devel openssl-devel mysql-devel"
 
 PACKAGES_OBSD="popt gmake wget libxml libogg libvorbis curl iksemel spandsp speex iodbc freetds-0.63p1-msdblib mysql-client gmime sqlite sqlite3 jack"
 
