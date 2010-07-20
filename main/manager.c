@@ -5523,19 +5523,17 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		char *buf;
 		size_t l;
 
-		/* Ensure buffer is NULL-terminated */
-		fprintf(s.f, "%c", 0);
-
 		if ((l = ftell(s.f))) {
-			if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, s.fd, 0))) {
+			if (MAP_FAILED == (buf = mmap(NULL, l + 1, PROT_READ | PROT_WRITE, MAP_PRIVATE, s.fd, 0))) {
 				ast_log(LOG_WARNING, "mmap failed.  Manager output was not processed\n");
 			} else {
+				buf[l] = '\0';
 				if (format == FORMAT_XML || format == FORMAT_HTML) {
 					xml_translate(&out, buf, params, format);
 				} else {
 					ast_str_append(&out, 0, "%s", buf);
 				}
-				munmap(buf, l);
+				munmap(buf, l + 1);
 			}
 		} else if (format == FORMAT_XML || format == FORMAT_HTML) {
 			xml_translate(&out, "", params, format);
