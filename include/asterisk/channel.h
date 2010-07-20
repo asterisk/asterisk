@@ -1246,6 +1246,18 @@ int ast_autoservice_start(struct ast_channel *chan);
  */
 int ast_autoservice_stop(struct ast_channel *chan);
 
+/*!
+ * \brief Ignore certain frame types
+ * \note Normally, we cache DTMF, IMAGE, HTML, TEXT, and CONTROL frames
+ * while a channel is in autoservice and queue them up when taken out of
+ * autoservice.  When this is not desireable, this API may be used to
+ * cause the channel to ignore those frametypes after the channel is put
+ * into autoservice, but before autoservice is stopped.
+ * \retval 0 success
+ * \retval -1 channel is not in autoservice
+ */
+int ast_autoservice_ignore(struct ast_channel *chan, enum ast_frame_type ftype);
+
 /* If built with DAHDI optimizations, force a scheduled expiration on the
    timer fd, at which point we call the callback function / data */
 int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data);
