@@ -7556,11 +7556,10 @@ static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 	int i;
 	BODY* body;
 
-	
 	file = strrchr(ast_strdupa(dir), '/');
-	if (file)
+	if (file) {
 		*file++ = '\0';
-	else {
+	} else {
 		ast_log(AST_LOG_ERROR, "Failed to procure file name from directory passed. You should never see this.\n");
 		return -1;
 	}
@@ -7587,27 +7586,27 @@ static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 	return 0;
 }
 
-#else
-#ifndef IMAP_STORAGE
+#elif !defined(IMAP_STORAGE)
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 {
 	int count_msg, last_msg;
 
 	ast_copy_string(vms->curbox, mbox(vmu, box), sizeof(vms->curbox));
-	
+
 	/* Rename the member vmbox HERE so that we don't try to return before
 	 * we know what's going on.
 	 */
 	snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
-	
+
 	/* Faster to make the directory than to check if it exists. */
 	create_dirpath(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
 
 	count_msg = count_messages(vmu, vms->curdir);
-	if (count_msg < 0)
+	if (count_msg < 0) {
 		return count_msg;
-	else
+	} else {
 		vms->lastmsg = count_msg - 1;
+	}
 
 	/*
 	The following test is needed in case sequencing gets messed up.
@@ -7624,12 +7623,12 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	last_msg = last_message_index(vmu, vms->curdir);
 	ast_unlock_path(vms->curdir);
 
-	if (last_msg < 0) 
+	if (last_msg < 0) {
 		return last_msg;
+	}
 
 	return 0;
 }
-#endif
 #endif
 
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
@@ -7640,28 +7639,31 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	char fn2[PATH_MAX];
 #endif
 
-	if (vms->lastmsg <= -1)
+	if (vms->lastmsg <= -1) {
 		goto done;
+	}
 
-	vms->curmsg = -1; 
+	vms->curmsg = -1;
 #ifndef IMAP_STORAGE
-	/* Get the deleted messages fixed */ 
-	if (vm_lock_path(vms->curdir))
+	/* Get the deleted messages fixed */
+	if (vm_lock_path(vms->curdir)) {
 		return ERROR_LOCK_PATH;
+	}
 
-	for (x = 0; x < vmu->maxmsg; x++) { 
-		if (!vms->deleted[x] && ((strcasecmp(vms->curbox, "INBOX") && strcasecmp(vms->curbox, "Urgent")) || !vms->heard[x] || (vms->heard[x] && !ast_test_flag(vmu, VM_MOVEHEARD)))) { 
-			/* Save this message.  It's not in INBOX or hasn't been heard */ 
-			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
-			if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
+	for (x = 0; x < vmu->maxmsg; x++) {
+		if (!vms->deleted[x] && ((strcasecmp(vms->curbox, "INBOX") && strcasecmp(vms->curbox, "Urgent")) || !vms->heard[x] || (vms->heard[x] && !ast_test_flag(vmu, VM_MOVEHEARD)))) {
+			/* Save this message.  It's not in INBOX or hasn't been heard */
+			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
+			if (!EXISTS(vms->curdir, x, vms->fn, NULL)) {
 				break;
-			vms->curmsg++; 
-			make_file(fn2, sizeof(fn2), vms->curdir, vms->curmsg); 
-			if (strcmp(vms->fn, fn2)) { 
+			}
+			vms->curmsg++;
+			make_file(fn2, sizeof(fn2), vms->curdir, vms->curmsg);
+			if (strcmp(vms->fn, fn2)) {
 				RENAME(vms->curdir, x, vmu->mailbox, vmu->context, vms->curdir, vms->curmsg, vms->fn, fn2);
-			} 
-		} else if ((!strcasecmp(vms->curbox, "INBOX") || !strcasecmp(vms->curbox, "Urgent")) && vms->heard[x] && ast_test_flag(vmu, VM_MOVEHEARD) && !vms->deleted[x]) { 
-			/* Move to old folder before deleting */ 
+			}
+		} else if ((!strcasecmp(vms->curbox, "INBOX") || !strcasecmp(vms->curbox, "Urgent")) && vms->heard[x] && ast_test_flag(vmu, VM_MOVEHEARD) && !vms->deleted[x]) {
+			/* Move to old folder before deleting */
 			res = save_to_folder(vmu, vms, x, 1);
 			if (res == ERROR_LOCK_PATH) {
 				/* If save failed do not delete the message */
@@ -7671,7 +7673,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 				--x;
 			}
 		} else if (vms->deleted[x] && vmu->maxdeletedmsg) {
-			/* Move to deleted folder */ 
+			/* Move to deleted folder */
 			res = save_to_folder(vmu, vms, x, 10);
 			if (res == ERROR_LOCK_PATH) {
 				/* If save failed do not delete the message */
@@ -7683,23 +7685,27 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			/* If realtime storage enabled - we should explicitly delete this message,
 			cause RENAME() will overwrite files, but will keep duplicate records in RT-storage */
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
-			if (EXISTS(vms->curdir, x, vms->fn, NULL))
+			if (EXISTS(vms->curdir, x, vms->fn, NULL)) {
 				DELETE(vms->curdir, x, vms->fn, vmu);
+			}
 		}
-	} 
+	}
 
 	/* Delete ALL remaining messages */
 	nummsg = x - 1;
 	for (x = vms->curmsg + 1; x <= nummsg; x++) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
-		if (EXISTS(vms->curdir, x, vms->fn, NULL))
+		if (EXISTS(vms->curdir, x, vms->fn, NULL)) {
 			DELETE(vms->curdir, x, vms->fn, vmu);
+		}
 	}
 	ast_unlock_path(vms->curdir);
-#else
+#else /* defined(IMAP_STORAGE) */
 	if (vms->deleted) {
-		for (x = 0; x < vmu->maxmsg; x++) { 
-			if (vms->deleted[x]) { 
+		/* Since we now expunge after each delete, deleting in reverse order
+		 * ensures that no reordering occurs between each step. */
+		for (x = vmu->maxmsg - 1; x >= 0; x--) {
+			if (vms->deleted[x]) {
 				ast_debug(3, "IMAP delete of %d\n", x);
 				DELETE(vms->curdir, x, vms->fn, vmu);
 			}
@@ -7709,10 +7715,10 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 
 done:
 	if (vms->deleted && vmu->maxmsg) {
-		memset(vms->deleted, 0, vmu->maxmsg * sizeof(int)); 
+		memset(vms->deleted, 0, vmu->maxmsg * sizeof(int));
 	}
 	if (vms->heard && vmu->maxmsg) {
-		memset(vms->heard, 0, vmu->maxmsg * sizeof(int)); 
+		memset(vms->heard, 0, vmu->maxmsg * sizeof(int));
 	}
 
 	return 0;
@@ -7720,8 +7726,8 @@ done:
 
 /* In Greek even though we CAN use a syntax like "friends messages"
  * ("filika mynhmata") it is not elegant. This also goes for "work/family messages"
- * ("ergasiaka/oikogeniaka mynhmata"). Therefore it is better to use a reversed 
- * syntax for the above three categories which is more elegant. 
+ * ("ergasiaka/oikogeniaka mynhmata"). Therefore it is better to use a reversed
+ * syntax for the above three categories which is more elegant.
  */
 
 static int vm_play_folder_name_gr(struct ast_channel *chan, char *box)
@@ -7729,7 +7735,7 @@ static int vm_play_folder_name_gr(struct ast_channel *chan, char *box)
 	int cmd;
 	char *buf;
 
-	buf = alloca(strlen(box)+2); 
+	buf = alloca(strlen(box) + 2);
 	strcpy(buf, box);
 	strcat(buf, "s");
 
