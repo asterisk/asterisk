@@ -5955,12 +5955,15 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			DELETE(vms->curdir, x, vms->fn, vmu);
 	}
 	ast_unlock_path(vms->curdir);
-#else
+#else /* defined(IMAP_STORAGE) */
 	if (vms->deleted) {
-		for (x=0;x < vmu->maxmsg;x++) { 
-			if (vms->deleted[x]) { 
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG,"IMAP delete of %d\n",x);
+		/* Since we now expunge after each delete, deleting in reverse order
+		 * ensures that no reordering occurs between each step. */
+		for (x = vmu->maxmsg - 1; x >= 0; x--) {
+			if (vms->deleted[x]) {
+				if (option_debug > 2) {
+					ast_log(LOG_DEBUG, "IMAP delete of %d\n", x);
+				}
 				DELETE(vms->curdir, x, vms->fn, vmu);
 			}
 		}
