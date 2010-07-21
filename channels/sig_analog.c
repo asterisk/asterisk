@@ -42,6 +42,13 @@
 
 #include "sig_analog.h"
 
+/*! \note
+ * Define if you want to check the hook state for an FXO (FXS signalled) interface
+ * before dialing on it.  Certain FXO interfaces always think they're out of
+ * service with this method however.
+ */
+/* #define DAHDI_CHECK_HOOKSTATE */
+
 #define POLARITY_IDLE 0
 #define POLARITY_REV    1
 #define MIN_MS_SINCE_FLASH			( (2000) )	/*!< 2000 ms */
@@ -684,23 +691,19 @@ int analog_available(struct analog_pvt *p)
 
 	/* If no owner definitely available */
 	if (!p->owner) {
-		if (p->sig == ANALOG_SIG_FXSLS) {
-			return 1;
-		}
-
 		offhook = analog_is_off_hook(p);
 
-		if ((p->sig == ANALOG_SIG_FXSKS) || (p->sig == ANALOG_SIG_FXSGS)) {
-			/* When "onhook" that means no battery on the line, and thus
-			  it is out of service..., if it's on a TDM card... If it's a channel
-			  bank, there is no telling... */
+		/* TDM FXO card, "onhook" means out of service (no battery on the line) */
+		if ((p->sig == ANALOG_SIG_FXSLS) || (p->sig == ANALOG_SIG_FXSKS) || (p->sig == ANALOG_SIG_FXSGS)) {
+#ifdef DAHDI_CHECK_HOOKSTATE
 			if (offhook) {
 				return 1;
 			}
 			return 0;
+#endif
+		/* TDM FXS card, "offhook" means someone took the hook off so it's unavailable! */
 		} else if (offhook) {
 			ast_debug(1, "Channel %d off hook, can't use\n", p->channel);
-			/* Not available when the other end is off hook */
 			return 0;
 		}
 		return 1;
