@@ -8266,8 +8266,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup image address and port */
 	if (p->udptl) {
 		if (udptlportno > 0) {
-			isin.sin_family = AF_INET;
-			isin.sin_port = htons(udptlportno);
+			ast_sockaddr_set_port(isa, udptlportno);
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
 				struct sockaddr_in remote_address = { 0, };
 				struct ast_sockaddr remote_address_tmp;
