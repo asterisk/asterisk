@@ -9619,6 +9619,18 @@ static int transmit_response_with_allow(struct sip_pvt *p, const char *msg, cons
 	return send_response(p, &resp, reliable, 0);
 }
 
+/*! \brief Append Min-Expires header, content length before transmitting response */
+static int transmit_response_with_minexpires(struct sip_pvt *p, const char *msg, const struct sip_request *req)
+{
+	struct sip_request resp;
+	char tmp[32];
+
+	snprintf(tmp, sizeof(tmp), "%d", min_expiry);
+	respprep(&resp, p, msg, req);
+	add_header(&resp, "Min-Expires", tmp);
+	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
+}
+
 /*! \brief Respond with authorization request */
 static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *randdata, enum xmittype reliable, const char *header, int stale)
 {
@@ -23145,10 +23157,15 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		p->expiry = atoi(get_header(req, "Expires"));
 
 		/* check if the requested expiry-time is within the approved limits from sip.conf */
-		if (p->expiry > max_expiry)
+		if (p->expiry > max_expiry) {
 			p->expiry = max_expiry;
-		if (p->expiry < min_expiry && p->expiry > 0)
+		} else if (p->expiry < min_expiry && p->expiry > 0) {
 			p->expiry = min_expiry;
+			transmit_response_with_minexpires(p, "423 Interval too small", req);
+			ast_debug(2, "Received SIP subscribe with Expire header less that our minexpires limit.\n");
+			pvt_set_needdestroy(p, "Expires is less that the min expires allowed. ");
+			return 0;
+		}
 
 		if (sipdebug) {
 			if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer) {
