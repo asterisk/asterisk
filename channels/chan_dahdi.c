@@ -53,11 +53,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 #include <pthread.h>
 #include <signal.h>
-#include <sys/stat.h>
 #else
 #include <sys/signal.h>
 #endif
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <math.h>
 #include <ctype.h>
 
