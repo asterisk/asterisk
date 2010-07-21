@@ -811,14 +811,19 @@ static void set_channel_variables(struct ast_channel *chan, struct ast_fax_sessi
 	pbx_builtin_setvar_helper(chan, "FAXPAGES", buf);
 }
 
-#define GENERIC_FAX_EXEC_ERROR(fax, chan, errorstr, reason)	\
+#define GENERIC_FAX_EXEC_ERROR_QUIET(fax, chan, errorstr, reason) \
 	do {	\
-		ast_log(LOG_ERROR, "channel '%s' FAX session '%d' failure, reason: '%s' (%s)\n", chan->name, fax->id, reason, errorstr); \
 		ast_string_field_set(fax->details, result, S_OR(fax->details->result, "FAILED")); \
 		ast_string_field_set(fax->details, resultstr, S_OR(fax->details->resultstr, reason)); \
 		ast_string_field_set(fax->details, error, S_OR(fax->details->error, errorstr)); \
 		set_channel_variables(chan, fax->details); \
 		res = ms = -1; \
+	} while (0)
+
+#define GENERIC_FAX_EXEC_ERROR(fax, chan, errorstr, reason)	\
+	do {	\
+		ast_log(LOG_ERROR, "channel '%s' FAX session '%d' failure, reason: '%s' (%s)\n", chan->name, fax->id, reason, errorstr); \
+		GENERIC_FAX_EXEC_ERROR_QUIET(fax, chan, errorstr, reason); \
 	} while (0)
 
 static void t38_parameters_ast_to_fax(struct ast_fax_t38_parameters *dst, const struct ast_control_t38_parameters *src)
@@ -1048,7 +1053,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
  				 * send the FAX stack silence so the modems can finish their session without
  				 * any problems */
 				ast_log(LOG_NOTICE, "Channel '%s' did not return a frame; probably hung up.\n", chan->name);
-				GENERIC_FAX_EXEC_ERROR(fax, chan, "HANGUP", "remote end hungup");
+				GENERIC_FAX_EXEC_ERROR_QUIET(fax, chan, "HANGUP", "remote end hungup");
 				c = NULL;
 				chancount = 0;
 				timeout -= (1000 - ms);
