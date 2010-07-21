@@ -20,6 +20,13 @@
 
 From 1.6.2 to 1.8:
 
+* The behavior of the 'parkedcallstimeout' has changed slightly.  The formulation
+  of the extension name that a timed out parked call is delivered to when this
+  option is set to 'no' was modified such that instead of converting '/' to '0',
+  the '/' is converted to an underscore '_'.  See the updated documentation in
+  features.conf.sample for more information on the behavior of the
+  'parkedcallstimeout' option.
+
 * Asterisk-addons no longer exists as an independent package.  Those modules
   now live in the addons directory of the main Asterisk source tree.  They
   are not enabled by default.  For more information about why modules live in

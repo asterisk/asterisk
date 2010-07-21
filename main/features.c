@@ -3629,21 +3629,24 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 			if (pu->peername[0]) {
 				char *peername = ast_strdupa(pu->peername);
 				char *cp = strrchr(peername, '-');
-				char peername_flat[AST_MAX_EXTENSION]; /* using something like DAHDI/52 for an extension name is NOT a good idea */
+				char *peername_flat; /* using something like DAHDI/52 for an extension name is NOT a good idea */
 				int i;
 
-				if (cp) 
+				if (cp) {
 					*cp = 0;
-				ast_copy_string(peername_flat,peername,sizeof(peername_flat));
-				for(i=0; peername_flat[i] && i < AST_MAX_EXTENSION; i++) {
-					if (peername_flat[i] == '/') 
-						peername_flat[i]= '0';
 				}
+
+				peername_flat = ast_strdupa(peername);
+				for (i = 0; peername_flat[i]; i++) {
+					if (peername_flat[i] == '/') {
+						peername_flat[i]= '_';
+					}
+				}
+
 				con = ast_context_find_or_create(NULL, NULL, pu->parkinglot->parking_con_dial, registrar);
 				if (!con) {
 					ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", pu->parkinglot->parking_con_dial);
-				}
-				if (con) {
+				} else {
 					char returnexten[AST_MAX_EXTENSION];
 					struct ast_datastore *features_datastore;
 					struct ast_dial_features *dialfeatures = NULL;
@@ -3663,7 +3666,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 						char buf[MAX_DIAL_FEATURE_OPTIONS] = {0,};
 						snprintf(returnexten, sizeof(returnexten), "%s,30,%s", peername, callback_dialoptions(&(dialfeatures->features_callee), &(dialfeatures->features_caller), buf, sizeof(buf)));
 					} else { /* Existing default */
-						ast_log(LOG_WARNING, "Dialfeatures not found on %s, using default!\n", chan->name);
+						ast_log(LOG_NOTICE, "Dial features not found on %s, using default!\n", chan->name);
 						snprintf(returnexten, sizeof(returnexten), "%s,30,t", peername);
 					}
 
@@ -3676,7 +3679,6 @@ int manage_parkinglot(struct ast_parkinglot *curlot, fd_set *rfds, fd_set *efds,
 					if (comebacktoorigin) {
 						set_c_e_p(chan, pu->parkinglot->parking_con_dial, peername_flat, 1);
 					} else {
-						ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
 						snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
 						pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
 						set_c_e_p(chan, "parkedcallstimeout", peername_flat, 1);
