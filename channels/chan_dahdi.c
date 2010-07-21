@@ -10812,10 +10812,10 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 				return 1;
 		}
 #endif
-		if (!(p->radio || (p->oprmode < 0)))
+
+		/* Trust hook state */
+		if (p->sig && !(p->radio || (p->oprmode < 0)))
 		{
-			if (!p->sig || (p->sig == SIG_FXSLS))
-				return 1;
 			/* Check hook state */
 			if (p->subs[SUB_REAL].dfd > -1) {
 				memset(&par, 0, sizeof(par));
@@ -10825,28 +10825,30 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, ast_group_t g
 				res = 0;
 				par.rxisoffhook = 0;
 			}
+
 			if (res) {
 				ast_log(LOG_WARNING, "Unable to check hook state on channel %d: %s\n", p->channel, strerror(errno));
-			} else if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSGS)) {
-				/* When "onhook" that means no battery on the line, and thus
-				  it is out of service..., if it's on a TDM card... If it's a channel
-				  bank, there is no telling... */
+			}
+			else if ((p->sig != SIG_FXSKS) && (p->sig != SIG_FXSGS) && (p->sig != SIG_FXSLS)) {
+				if (par.rxisoffhook) {
+					ast_debug(1, "Channel %d off hook, can't use\n", p->channel);
+					/* Not available when the other end is off hook */
+					return 0;
+				}
+			}
+#ifdef DAHDI_CHECK_HOOKSTATE
+			} else { /* FXO channel case (SIG_FXS--) */
+				/* Channel bank (using CAS), "onhook" does not necessarily means out of service, so return 1 */
 				if (par.rxbits > -1)
 					return 1;
+				/* TDM FXO card, "onhook" means out of service (no battery on the line) */
 				if (par.rxisoffhook)
 					return 1;
 				else
 					return 0;
-			} else if (par.rxisoffhook) {
-				ast_debug(1, "Channel %d off hook, can't use\n", p->channel);
-				/* Not available when the other end is off hook */
-#ifdef DAHDI_CHECK_HOOKSTATE
-				return 0;
-#else
-				return 1;
 #endif
-			}
 		}
+
 		return 1;
 	}
 
