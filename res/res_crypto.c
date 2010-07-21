@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"	/* use ast_config_AST_KEY_DIR */
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/aes.h>
 #include <dirent.h>
 
 #include "asterisk/module.h"
@@ -451,6 +452,26 @@ int AST_OPTIONAL_API_NAME(ast_check_signature)(struct ast_key *key, const char *
 int AST_OPTIONAL_API_NAME(ast_crypto_loaded)(void)
 {
 	return 1;
+}
+
+int AST_OPTIONAL_API_NAME(ast_aes_set_encrypt_key)(const unsigned char *key, ast_aes_encrypt_key *ctx)
+{
+	return AES_set_encrypt_key(key, 128, ctx);
+}
+
+int AST_OPTIONAL_API_NAME(ast_aes_set_decrypt_key)(const unsigned char *key, ast_aes_decrypt_key *ctx)
+{
+	return AES_set_decrypt_key(key, 128, ctx);
+}
+
+void AST_OPTIONAL_API_NAME(ast_aes_encrypt)(const unsigned char *in, unsigned char *out, const ast_aes_encrypt_key *ctx)
+{
+	return AES_encrypt(in, out, ctx);
+}
+
+void AST_OPTIONAL_API_NAME(ast_aes_decrypt)(const unsigned char *in, unsigned char *out, const ast_aes_decrypt_key *ctx)
+{
+	return AES_decrypt(in, out, ctx);
 }
 
 /*!

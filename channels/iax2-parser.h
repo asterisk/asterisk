@@ -19,7 +19,7 @@
 #define _IAX2_PARSER_H
 
 #include "asterisk/linkedlists.h"
-#include "asterisk/aes.h"
+#include "asterisk/crypto.h"
 #include "asterisk/frame_defs.h"
 
 struct iax_ies {

@@ -61,7 +61,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/crypto.h"
 #include "asterisk/astdb.h"
 #include "asterisk/acl.h"
-#include "asterisk/aes.h"
 #include "asterisk/app.h"
 
 #include "dundi-parser.h"
@@ -1313,8 +1312,8 @@ static int update_key(struct dundi_peer *peer)
 	int res;
 	if (!peer->keyexpire || (peer->keyexpire < time(NULL))) {
 		build_iv(key);
-		ast_aes_encrypt_key(key, &peer->us_ecx);
-		ast_aes_decrypt_key(key, &peer->us_dcx);
+		ast_aes_set_encrypt_key(key, &peer->us_ecx);
+		ast_aes_set_decrypt_key(key, &peer->us_dcx);
 		ekey = ast_key_get(peer->inkey, AST_KEY_PUBLIC);
 		if (!ekey) {
 			ast_log(LOG_NOTICE, "No such key '%s' for creating RSA encrypted shared key for '%s'!\n",
@@ -1516,8 +1515,8 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	memcpy(peer->rxenckey, newkey, 128);
 	memcpy(peer->rxenckey + 128, newsig, 128);
 	peer->them_keycrc32 = crc32(0L, peer->rxenckey, 128);
-	ast_aes_decrypt_key(dst, &peer->them_dcx);
-	ast_aes_encrypt_key(dst, &peer->them_ecx);
+	ast_aes_set_decrypt_key(dst, &peer->them_dcx);
+	ast_aes_set_encrypt_key(dst, &peer->them_ecx);
 	return 1;
 }
 

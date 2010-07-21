@@ -13,7 +13,7 @@
 #define _DUNDI_PARSER_H
 
 #include "asterisk/dundi.h"
-#include "asterisk/aes.h"
+#include "asterisk/crypto.h"
 
 #define DUNDI_MAX_STACK 512
 #define DUNDI_MAX_ANSWERS	100

@@ -8,6 +8,10 @@
 		LINKER_SYMBOL_PREFIX*ast_key_get;
 		LINKER_SYMBOL_PREFIX*ast_sign;
 		LINKER_SYMBOL_PREFIX*ast_sign_bin;
+		LINKER_SYMBOL_PREFIX*ast_aes_encrypt;
+		LINKER_SYMBOL_PREFIX*ast_aes_decrypt;
+		LINKER_SYMBOL_PREFIX*ast_aes_set_encrypt_key;
+		LINKER_SYMBOL_PREFIX*ast_aes_set_decrypt_key;
 	local:
 		*;
 };

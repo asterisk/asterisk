@@ -80,7 +80,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/localtime.h"
-#include "asterisk/aes.h"
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/netsock.h"
@@ -6035,7 +6034,7 @@ static void build_rand_pad(unsigned char *buf, ssize_t len)
 static void build_encryption_keys(const unsigned char *digest, struct chan_iax2_pvt *pvt)
 {
 	build_ecx_key(digest, pvt);
-	ast_aes_decrypt_key(digest, &pvt->dcx);
+	ast_aes_set_decrypt_key(digest, &pvt->dcx);
 }
 
 static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt)
@@ -6044,8 +6043,8 @@ static void build_ecx_key(const unsigned char *digest, struct chan_iax2_pvt *pvt
 	 * in the pvt struct because queued frames occasionally need to be decrypted and
 	 * re-encrypted when updated for a retransmission */
 	build_rand_pad(pvt->semirand, sizeof(pvt->semirand));
-	ast_aes_encrypt_key(digest, &pvt->ecx);
-	ast_aes_decrypt_key(digest, &pvt->mydcx);
+	ast_aes_set_encrypt_key(digest, &pvt->ecx);
+	ast_aes_set_decrypt_key(digest, &pvt->mydcx);
 }
 
 static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len, ast_aes_decrypt_key *dcx)
@@ -11214,7 +11213,7 @@ immediatedial:
 
 				IAX_DEBUGDIGEST("Receiving", ies.challenge);
 
-				ast_aes_decrypt_key((unsigned char *) ies.challenge, &iaxs[fr->callno]->dcx);
+				ast_aes_set_decrypt_key((unsigned char *) ies.challenge, &iaxs[fr->callno]->dcx);
 				break;
 			case IAX_COMMAND_DPREP:
 				complete_dpreply(iaxs[fr->callno], &ies);
