@@ -3749,7 +3749,7 @@ bailoutandtrynormal:
 }
 
 static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic,
-				char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags64 *confflags, int *too_early)
+				char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags64 *confflags, int *too_early, char **optargs)
 {
 	struct ast_variable *var, *origvar;
 	struct ast_conference *cnf;
@@ -3759,8 +3759,9 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 	/* Check first in the conference list */
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
-		if (!strcmp(confno, cnf->confno)) 
+		if (!strcmp(confno, cnf->confno)) {
 			break;
+		}
 	}
 	if (cnf) {
 		cnf->refcount += refcount;
@@ -3823,13 +3824,15 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			 var = ast_load_realtime("meetme", "confno", confno, NULL);
 		}
 
-		if (!var)
+		if (!var) {
 			return NULL;
+		}
 
 		if (rt_schedule && *too_early) {
 			/* Announce that the caller is early and exit */
-			if (!ast_streamfile(chan, "conf-has-not-started", chan->language))
+			if (!ast_streamfile(chan, "conf-has-not-started", chan->language)) {
 				ast_waitstream(chan, "");
+			}
 			ast_variables_destroy(var);
 			return NULL;
 		}
@@ -3863,6 +3866,8 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount, chan, NULL);
 
 		if (cnf) {
+			struct ast_flags64 tmp_flags;
+
 			cnf->maxusers = maxusers;
 			cnf->endalert = endalert;
 			cnf->endtime = endtime.tv_sec;
@@ -3871,6 +3876,11 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			cnf->bookid = ast_strdup(bookid);
 			cnf->recordingfilename = ast_strdup(recordingfilename);
 			cnf->recordingformat = ast_strdup(recordingformat);
+
+			/* Parse the other options into confflags -- need to do this in two
+			 * steps, because the parse_options routine zeroes the buffer. */
+			ast_app_parse_options64(meetme_opts, &tmp_flags, optargs, useropts);
+			ast_copy_flags64(confflags, &tmp_flags, tmp_flags.flags);
 
 			if (strchr(cnf->useropts, 'r')) {
 				if (ast_strlen_zero(recordingfilename)) { /* If the recordingfilename in the database is empty, use the channel definition or use the default. */
@@ -3910,7 +3920,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			ast_log(LOG_WARNING, "No DAHDI channel available for conference, user introduction disabled (is chan_dahdi loaded?)\n");
 			ast_clear_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW);
 		}
-		
+
 		if (confflags && !cnf->chan &&
 		    ast_test_flag64(confflags, CONFFLAG_RECORDCONF)) {
 			ast_log(LOG_WARNING, "No DAHDI channel available for conference, conference recording disabled (is chan_dahdi loaded?)\n");
@@ -4168,12 +4178,47 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 										 */
 										ast_copy_string(confno, confno_tmp, sizeof(confno));
 										break;
-										/* XXX the map is not complete (but we do have a confno) */
 									}
 								}
 							}
 						}
 						var = var->next;
+					}
+					ast_config_destroy(cfg);
+				}
+
+				if (ast_strlen_zero(confno) && (cfg = ast_load_realtime_multientry("meetme", "confno LIKE", "%", SENTINEL))) {
+					const char *catg;
+					for (catg = ast_category_browse(cfg, NULL); catg; catg = ast_category_browse(cfg, catg)) {
+						const char *confno_tmp = ast_variable_retrieve(cfg, catg, "confno");
+						const char *pin_tmp = ast_variable_retrieve(cfg, catg, "pin");
+						if (ast_strlen_zero(confno_tmp)) {
+							continue;
+						}
+						if (!dynamic) {
+							int found = 0;
+							/* For static:  run through the list and see if this conference is empty */
+							AST_LIST_LOCK(&confs);
+							AST_LIST_TRAVERSE(&confs, cnf, list) {
+								if (!strcmp(confno_tmp, cnf->confno)) {
+									/* The conference exists, therefore it's not empty */
+									found = 1;
+									break;
+								}
+							}
+							AST_LIST_UNLOCK(&confs);
+							if (!found) {
+								/* At this point, we have a confno_tmp (realtime conference) that is empty */
+								if ((empty_no_pin && ast_strlen_zero(pin_tmp)) || (!empty_no_pin)) {
+									/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
+									 * Case 2:  empty_no_pin and pin is blank (but not NULL)
+									 * Case 3:  not empty_no_pin
+									 */
+									ast_copy_string(confno, confno_tmp, sizeof(confno));
+									break;
+								}
+							}
+						}
 					}
 					ast_config_destroy(cfg);
 				}
@@ -4230,7 +4275,7 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 				int too_early = 0;
 
 				cnf = find_conf_realtime(chan, confno, 1, dynamic, 
-					the_pin, sizeof(the_pin), 1, &confflags,&too_early);
+					the_pin, sizeof(the_pin), 1, &confflags, &too_early, optargs);
 				if (rt_schedule && too_early)
 					allowretry = 0;
 			}
