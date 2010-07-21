@@ -6583,8 +6583,8 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 			astman_append(s,
 				"Event: PeerEntry\r\n%s"
 				"Channeltype: IAX2\r\n"
-				"ChanObjectType: peer\r\n"
 				"ObjectName: %s\r\n"
+				"ChanObjectType: peer\r\n"
 				"IPaddress: %s\r\n"
 				"IPport: %d\r\n"
 				"Dynamic: %s\r\n"
