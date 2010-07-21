@@ -675,9 +675,9 @@ static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd)
 		ast_cli(fd, "%-22s : %d\n", "Data Rate", stats.bit_rate);
 		ast_cli(fd, "%-22s : %dx%d\n", "Image Resolution", stats.x_resolution, stats.y_resolution);
 #if SPANDSP_RELEASE_DATE >= 20090220
-		ast_cli(fd, "%-22s : %d\n", "Page Number", (s->details->caps & AST_FAX_TECH_RECEIVE) ? stats.pages_rx : stats.pages_tx);
+		ast_cli(fd, "%-22s : %d\n", "Page Number", ((s->details->caps & AST_FAX_TECH_RECEIVE) ? stats.pages_rx : stats.pages_tx) + 1);
 #else
-		ast_cli(fd, "%-22s : %d\n", "Page Number", stats.pages_transferred);
+		ast_cli(fd, "%-22s : %d\n", "Page Number", stats.pages_transferred + 1);
 #endif
 		ast_cli(fd, "%-22s : %s\n", "File Name", s->details->caps & AST_FAX_TECH_RECEIVE ? p->t30_state->rx_file : p->t30_state->tx_file);
 
