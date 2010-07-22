@@ -1,0 +1,450 @@
+                                Release Summary
+
+                                asterisk-1.4.34
+
+                                Date: 2010-07-22
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.33.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   12 tilghman              2 klaus3000              3 klaus3000              
+   11 russell               2 pabelanger             2 diLLec                 
+   7 lmadsen                2 tilghman               2 pabelanger             
+   6 pabelanger             1 jpeeler                1 aragon                 
+   5 jpeeler                1 kenner                 1 cmaj                   
+   4 mmichelson             1 kkwong                 1 DennisD                
+   2 klaus3000              1 lmadsen                1 elbriga                
+   2 qwell                  1 mnicholson             1 jvandal                
+   1 alecdavis              1 nblasgen               1 kenner                 
+   1 chappell               1 nivan                  1 kkwong                 
+   1 dvossel                1 rain                   1 mneuhauser             
+   1 elbriga                1 stuarth                1 nblasgen               
+   1 mnicholson                                      1 pdf                    
+   1 nivan                                           1 pprindeville           
+   1 rain                                            1 rain                   
+   1 seanbright                                      1 seandarcy              
+   1 Silmaril                                        1 shawkris               
+                                                     1 Silmaril               
+                                                     1 stuarth                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_meetme
+
+   #15878: [patch] First caller to dynamic conference has to enter pin number
+   twice
+   Revision: 272255
+   Reporter: shawkris
+   Testers: pabelanger
+   Coders: pabelanger
+
+  Category: Applications/app_queue
+
+   #16819: [patch] Manager event AgentComplete should alway be sent
+   Revision: 272367
+   Reporter: elbriga
+   Coders: elbriga
+
+  Category: Applications/app_voicemail/IMAP
+
+   #16945: [patch] fix getting callerid name in imap_retrieve_file() (broken
+   callerid number announcement/reply/...)
+   Revision: 272147
+   Reporter: mneuhauser
+   Coders: tilghman
+
+  Category: CDR/cdr_tds
+
+   #17380: [patch] long waiting (over 2 min) for cdr_tds running "SELECT 1
+   FROM cdr" when asterisk starting with aournd 3mil cdr in table
+   Revision: 269006
+   Reporter: kkwong
+   Testers: kkwong
+   Coders: seanbright
+
+  Category: Channels/chan_dahdi
+
+   #17261: 1.4.31rc1 Deadlock: Tried and failed to get Lock #1
+   (chan_dahdi.c): MUTEX 1063 pri_grab &pri->lock 0xe09684
+   Revision: 271335
+   Reporter: aragon
+   Coders: jpeeler
+
+   #17414: [patch] ss_thread calls pri_grab without lock during overlap dial
+   Revision: 272446
+   Reporter: pdf
+   Coders: jpeeler
+
+  Category: Channels/chan_sip/General
+
+   #16815: [patch] chan_sip does not decrease module refcount on deferred BYE
+   Revision: 271902
+   Reporter: rain
+   Testers: rain
+   Coders: rain
+
+  Category: Channels/chan_sip/Interoperability
+
+   #17326: [patch] Computation of Content-Length is wrong under some
+   circumstances
+   Revision: 271689
+   Reporter: kenner
+   Testers: mnicholson, kenner
+   Coders: mnicholson
+
+  Category: Channels/chan_sip/Registration
+
+   #17276: [patch] bypass "contactdeny" with nat=yes
+   Revision: 270724
+   Reporter: klaus3000
+   Testers: klaus3000
+   Coders: klaus3000
+
+  Category: Core/BuildSystem
+
+   #17464: When cross-compiling, menuselect is built for target, not host
+   architecture
+   Revision: 268050
+   Reporter: pprindeville
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: Core/General
+
+   #16784: [patch] 99.9 cpu when asterisk started with init.d script
+   Revision: 269334
+   Reporter: pabelanger
+   Testers: pabelanger, tilghman
+   Coders: tilghman
+
+   #17076: [patch] [regression] fix for #16802 forces change of astrundir
+   ownership, breaking socket perms
+   Revision: 272925
+   Reporter: stuarth
+   Testers: stuarth
+   Coders: tilghman
+
+   #17472: [patch] parser mangles #include
+   Revision: 272921
+   Reporter: seandarcy
+   Testers: nivan
+   Coders: nivan
+
+  Category: Core/Netsock
+
+   #15827: [patch] dnsmgr: problem handling A and SRV record changes/problem
+   with multiple A/SRV records returned
+   Revision: 271123
+   Reporter: DennisD
+   Coders: chappell
+
+  Category: Documentation
+
+   #17557: [patch] voicemail_odbc_postgresql step 11 typo
+   Revision: 272562
+   Reporter: cmaj
+   Coders: tilghman
+
+  Category: General
+
+   #15762: [patch] Frame.c adjustment for Speex
+   Revision: 269960
+   Reporter: nblasgen
+   Testers: nblasgen
+   Coders: pabelanger
+
+   #17013: ./configure -help describes wrong default behavior
+   Revision: 267759
+   Reporter: klaus3000
+   Coders: tilghman
+
+   #17477: [patch] [regression] Constantly heard "beep" on PC speaker and
+   Asterisk use maybe 10 time more CPU when CONSOLE=yes
+   Revision: 269635
+   Reporter: jvandal
+   Coders: tilghman
+
+  Category: PBX/pbx_ael
+
+   #16053: [patch] Crash on deeply nested while/if statements in AEL
+   Revision: 271399
+   Reporter: diLLec
+   Testers: jpeeler
+   Coders: jpeeler
+
+   #16053: [patch] Crash on deeply nested while/if statements in AEL
+   Revision: 271552
+   Reporter: diLLec
+   Coders: jpeeler
+
+   #16684: [patch] AEL2 parser messages missing a final \n
+   Revision: 267009
+   Reporter: Silmaril
+   Coders: Silmaril
+
+  Category: PBX/pbx_dundi
+
+   #17056: [patch] peer section does not allow to configure a port
+   Revision: 271761
+   Reporter: klaus3000
+   Testers: klaus3000
+   Coders: klaus3000
+
+  Category: Resources/res_musiconhold
+
+   #17470: [patch] sort=alpha does not start at position 0
+   Revision: 270331
+   Reporter: pabelanger
+   Testers: lmadsen
+   Coders: pabelanger
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 266924   | pabelanger | Backport live_ast script from     |            |
+   |          |            | 1.6.2 branch                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 267183   | russell    | Add CLI command that blocks until |            |
+   |          |            | Asterisk has fully booted.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 267539   | mmichelson | 1.4 version of the dead PLC code  |            |
+   |          |            | fix.                              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 267971   | tilghman   | As-fixiate the build process      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Comment out a rule that likes to  |            |
+   | 268053   | russell    | break the chan_h323 build         |            |
+   |          |            | randomly.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 268126   | tilghman   | AC_CONFIG_SUBDIRS has a bad       |            |
+   |          |            | side-effect on cross-compiles.    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Get rid of a warning that gets    |            |
+   | 268203   | russell    | printed out when the console is   |            |
+   |          |            | configured without any logger     |            |
+   |          |            | levels                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 268320   | tilghman   | Rest In Peace                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix summary for "core             |            |
+   | 268579   | russell    | waitfullybooted" CLI command.     |            |
+   |          |            | Thanks, mnicholson.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 269426   | qwell      | Let systems without a working     |            |
+   |          |            | fork() use res_musiconhold.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Don't stop Asterisk if chan_oss   |            |
+   | 269495   | russell    | fails to register 'Console' (due  |            |
+   |          |            | to another channel driver already |            |
+   |          |            | claiming it).                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 269784   | mmichelson | Add text version of PLC doc to    |            |
+   |          |            | 1.4                               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix potential crash when writing  |            |
+   | 269821   | mmichelson | raw SLIN audio on a PLC-enabled   |            |
+   |          |            | channel.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 270078   | pabelanger | Fix typo in example               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | fixes FXS port still ringing when |            |
+   | 270404   | alecdavis  | answered, as reported by Tzafrir  | #17067     |
+   |          |            | on dev-list.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Move information about            |            |
+   | 270442   | lmadsen    | zonemessages into the             |            |
+   |          |            | [zonemessages] section.           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Variables have always been        |            |
+   | 270583   | tilghman   | case-sensitive, so we should not  |            |
+   |          |            | be removing case-insensitive      |            |
+   |          |            | matches.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 270866   | dvossel    | fixes chan_iax2 race condition    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 270979   | pabelanger | Fixed typo in macro-page          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 270980   | qwell      | Need to lock the agent chan       |            |
+   |          |            | before access its internal bits.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 271339   | russell    | Fix a build problem on Mac OS X   |            |
+   |          |            | with DEBUG_THREADS enabled.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove an unnecessary assignment  |            |
+   | 271340   | russell    | that causes a DEBUG_THREADS build |            |
+   |          |            | failure on mac os x.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Check for newly added memory      |            |
+   | 271444   | jpeeler    | allocation failures gracefully    |            |
+   |          |            | during AEL2 parsing.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 272688   | russell    | Backport method of setting        |            |
+   |          |            | SUBMAKE from trunk.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 272763   | russell    | Force SILENTMAKE where it is      |            |
+   |          |            | needed.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 272804   | mmichelson | Decode URI in contact header of   |            |
+   |          |            | 302 response.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 272878   | russell    | Backport unit test API to 1.4.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 272881   | russell    | Backport applicable parts of      |            |
+   |          |            | test_astobj2.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 272922   | tilghman   | Also trim trailing blanks on      |            |
+   |          |            | #includes                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 274532   | lmadsen    | Create 1.4.34-rc2 from            |            |
+   |          |            | 1.4.34-rc1.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Merge changes from revision       |            |
+   | 274535   | lmadsen    | 274157, update ChangeLog and      |            |
+   |          |            | .version files.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 275765   | lmadsen    | Merge changes from issue 17592.   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 275766   | lmadsen    | Importing release summary for     |            |
+   |          |            | 1.4.34-rc2 release.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 275770   | lmadsen    | Remove incorrect summary files    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 276345   | lmadsen    | Importing release summary for     |            |
+   |          |            | 1.4.34-rc2 release.               |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                                |    2
+ ChangeLog                               |   28
+ Makefile                                |   22
+ apps/app_dial.c                         |    5
+ apps/app_meetme.c                       |    7
+ apps/app_queue.c                        |   29 +
+ apps/app_voicemail.c                    |    5
+ asterisk-1.4.34-rc2-summary.html        |   62 ++
+ asterisk-1.4.34-rc2-summary.txt         |   99 +++
+ autoconf/libcurl.m4                     |    1
+ build_tools/cflags-devmode.xml          |    2
+ cdr/cdr_tds.c                           |    2
+ channels/chan_agent.c                   |    2
+ channels/chan_dahdi.c                   |    7
+ channels/chan_iax2.c                    |   10
+ channels/chan_oss.c                     |    2
+ channels/chan_sip.c                     |  172 ++----
+ channels/h323/Makefile.in               |    8
+ codecs/codec_adpcm.c                    |   19
+ codecs/codec_alaw.c                     |   19
+ codecs/codec_dahdi.c                    |   47 -
+ codecs/codec_g726.c                     |   25
+ codecs/codec_gsm.c                      |   20
+ codecs/codec_lpc10.c                    |   21
+ codecs/codec_ulaw.c                     |   20
+ configs/extensions.conf.sample          |    2
+ configs/sip_notify.conf.sample          |    4
+ configs/voicemail.conf.sample           |   67 +-
+ configure.ac                            |   31 -
+ contrib/init.d/rc.debian.asterisk       |   24
+ contrib/scripts/live_ast                |  261 +++++++++
+ doc/HOWTO_collect_debug_information.txt |    2
+ doc/plc.txt                             |  131 ++++
+ doc/voicemail_odbc_postgresql.txt       |   10
+ include/asterisk.h                      |    1
+ include/asterisk/autoconfig.h.in        |   61 +-
+ include/asterisk/linkedlists.h          |   30 +
+ include/asterisk/lock.h                 |   36 -
+ include/asterisk/test.h                 |  215 +++++++
+ include/asterisk/translate.h            |    8
+ main/Makefile                           |    2
+ main/acl.c                              |    1
+ main/ast_expr2.y                        |    4
+ main/asterisk.c                         |   23
+ main/channel.c                          |   25
+ main/cli.c                              |   19
+ main/config.c                           |   21
+ main/dnsmgr.c                           |    8
+ main/frame.c                            |    4
+ main/logger.c                           |    6
+ main/pbx.c                              |    2
+ main/rtp.c                              |    6
+ main/term.c                             |   22
+ main/test.c                             |  899 ++++++++++++++++++++++++++++++++
+ main/translate.c                        |   46 -
+ makeopts.in                             |    1
+ pbx/pbx_ael.c                           |  213 ++++---
+ pbx/pbx_dundi.c                         |   13
+ res/res_musiconhold.c                   |   24
+ tests/Makefile                          |   32 +
+ tests/test_astobj2.c                    |  329 +++++++++++
+ tests/test_skel.c                       |   82 ++
+ 62 files changed, 2721 insertions(+), 580 deletions(-)
+
+     ----------------------------------------------------------------------
