@@ -5846,6 +5846,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 	}
 
 	ast_mutex_lock(&p->lock);
+	p->exten[0] = '\0';
 	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		dahdi_confmute(p, 0);
 		restore_gains(p);
@@ -5975,7 +5976,6 @@ static int dahdi_hangup(struct ast_channel *ast)
 	}
 	if (p->dsp)
 		ast_dsp_set_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);
-	p->exten[0] = '\0';
 
 	ast_debug(1, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
 		p->channel, idx, p->subs[SUB_REAL].dfd, p->subs[SUB_CALLWAIT].dfd, p->subs[SUB_THREEWAY].dfd);
