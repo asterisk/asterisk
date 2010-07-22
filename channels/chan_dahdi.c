@@ -2737,6 +2737,52 @@ static void my_set_needringing(void *pvt, int value)
 	p->subs[SUB_REAL].needringing = value;
 }
 
+static void my_set_polarity(void *pvt, int value)
+{
+	struct dahdi_pvt *p = pvt;
+
+	if (p->channel == CHAN_PSEUDO) {
+		return;
+	}
+	p->polarity = value;
+	ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETPOLARITY, &value);
+}
+
+static void my_start_polarityswitch(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+
+	if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
+		my_set_polarity(pvt, 0);
+	}
+}
+
+static void my_answer_polarityswitch(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+
+	if (!p->answeronpolarityswitch) {
+		return;
+	}
+
+	my_set_polarity(pvt, 1);
+}
+
+static void my_hangup_polarityswitch(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+
+	if (!p->hanguponpolarityswitch) {
+		return;
+	}
+
+	if (p->answeronpolarityswitch) {
+		my_set_polarity(pvt, 0);
+	} else {
+		my_set_polarity(pvt, 1);
+	}
+}
+
 static int my_start(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
@@ -3454,6 +3500,10 @@ static struct analog_callback dahdi_analog_callbacks =
 	.set_pulsedial = my_set_pulsedial,
 	.get_orig_dialstring = my_get_orig_dialstring,
 	.set_needringing = my_set_needringing,
+	.set_polarity = my_set_polarity,
+	.start_polarityswitch = my_start_polarityswitch,
+	.answer_polarityswitch = my_answer_polarityswitch,
+	.hangup_polarityswitch = my_hangup_polarityswitch,
 };
 
 /*! Round robin search locations. */

@@ -537,6 +537,35 @@ static void analog_set_needringing(struct analog_pvt *p, int value)
 	}
 }
 
+#if 0
+static void analog_set_polarity(struct analog_pvt *p, int value)
+{
+	if (p->calls->set_polarity) {
+		return p->calls->set_polarity(p->chan_pvt, value);
+	}
+}
+#endif
+
+static void analog_start_polarityswitch(struct analog_pvt *p)
+{
+	if (p->calls->start_polarityswitch) {
+		return p->calls->start_polarityswitch(p->chan_pvt);
+	}
+}
+static void analog_answer_polarityswitch(struct analog_pvt *p)
+{
+	if (p->calls->answer_polarityswitch) {
+		return p->calls->answer_polarityswitch(p->chan_pvt);
+	}
+}
+
+static void analog_hangup_polarityswitch(struct analog_pvt *p)
+{
+	if (p->calls->hangup_polarityswitch) {
+		return p->calls->hangup_polarityswitch(p->chan_pvt);
+	}
+}
+
 static int analog_dsp_set_digitmode(struct analog_pvt *p, enum analog_dsp_digitmode mode)
 {
 	if (p->calls->dsp_set_digitmode) {
@@ -1269,6 +1298,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 		case ANALOG_SIG_FXOKS:
 			/* If they're off hook, try playing congestion */
 			if (analog_is_off_hook(p)) {
+				analog_hangup_polarityswitch(p);
 				analog_play_tone(p, ANALOG_SUB_REAL, ANALOG_TONE_CONGESTION);
 			} else {
 				analog_play_tone(p, ANALOG_SUB_REAL, -1);
@@ -1360,9 +1390,21 @@ int analog_answer(struct analog_pvt *p, struct ast_channel *ast)
 				p->owner = p->subs[ANALOG_SUB_REAL].owner;
 			}
 		}
-		if ((p->sig == ANALOG_SIG_FXSLS) || (p->sig == ANALOG_SIG_FXSKS) || (p->sig == ANALOG_SIG_FXSGS)) {
+
+		switch (p->sig) {
+		case ANALOG_SIG_FXSLS:
+		case ANALOG_SIG_FXSKS:
+		case ANALOG_SIG_FXSGS:
 			analog_set_echocanceller(p, 1);
 			analog_train_echocanceller(p);
+			break;
+		case ANALOG_SIG_FXOLS:
+		case ANALOG_SIG_FXOKS:
+		case ANALOG_SIG_FXOGS:
+			analog_answer_polarityswitch(p);
+			break;
+		default:
+			break;
 		}
 		break;
 	default:
@@ -2524,6 +2566,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
 		case ANALOG_SIG_FXOKS:
+			analog_start_polarityswitch(p);
 			p->fxsoffhookstate = 0;
 			p->onhooktime = time(NULL);
 			p->msgstate = -1;
@@ -2705,6 +2748,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					ast_setstate(ast, AST_STATE_DIALING);
 				} else {
 					ast_setstate(ast, AST_STATE_UP);
+					analog_answer_polarityswitch(p);
 				}
 				return &p->subs[index].f;
 			case AST_STATE_DOWN:
@@ -3443,6 +3487,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
 			i->fxsoffhookstate = 0;
+			analog_start_polarityswitch(i);
 		case ANALOG_SIG_FEATD:
 		case ANALOG_SIG_FEATDMF:
 		case ANALOG_SIG_FEATDMF_TA:

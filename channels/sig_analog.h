@@ -147,6 +147,14 @@ struct analog_callback {
 	/*! \brief Set channel off hook */
 	int (* const off_hook)(void *pvt);
 	void (* const set_needringing)(void *pvt, int value);
+	/*! \brief Set FXS line polarity to 0=IDLE NZ=REVERSED */
+	void (* const set_polarity)(void *pvt, int value);
+	/*! \brief Reset FXS line polarity to IDLE, based on answeronpolarityswitch and hanguponpolarityswitch */
+	void (* const start_polarityswitch)(void *pvt);
+	/*! \brief Switch FXS line polarity, based on answeronpolarityswitch=yes */
+	void (* const answer_polarityswitch)(void *pvt);
+	/*! \brief Switch FXS line polarity, based on answeronpolarityswitch and hanguponpolarityswitch */
+	void (* const hangup_polarityswitch)(void *pvt);
 	/* We're assuming that we're going to only wink on ANALOG_SUB_REAL - even though in the code there's an argument to the index
 	 * function */
 	int (* const wink)(void *pvt, enum analog_sub sub);
