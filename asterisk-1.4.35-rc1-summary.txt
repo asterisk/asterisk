@@ -1,0 +1,436 @@
+                                Release Summary
+
+                              asterisk-1.4.35-rc1
+
+                                Date: 2010-07-22
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.34.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   11 tilghman              2 lmadsen                2 ramonpeek              
+   6 mnicholson             2 ramonpeek              1 bklang                 
+   6 russell                1 agx                    1 Delvar                 
+   5 jpeeler                1 c0rnoTa                1 festr                  
+   2 mmichelson             1 ebroad                 1 francesco_r            
+   2 pabelanger             1 francesco_r            1 gkservice              
+   2 rmudgett               1 Guggemand              1 Guggemand              
+   1 Delvar                 1 jamicque               1 Ivan                   
+   1 ebroad                 1 JJCinAZ                1 jamicque               
+   1 festr                  1 lawbar                 1 juls                   
+   1 Guggemand              1 maxochoa               1 junky                  
+   1 Ivan                   1 mnicholson             1 kenner                 
+   1 jeang                  1 pabelanger             1 mdeneen                
+   1 junky                  1 richardf               1 modelnine              
+   1 kenner                 1 rmudgett               1 mpiazzatnetbug         
+   1 lmadsen                1 samdell3               1 mtryfoss               
+   1 ramonpeek              1 tilghman               1 nik600                 
+   1 tringenbach            1 vrban                  1 noahisaac              
+   1 twilson                                         1 pabelanger             
+   1 tzafrir                                         1 pdf                    
+   1 viniciusfontes                                  1 pprindeville           
+                                                     1 tech_admin             
+                                                     1 Vince                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_amd
+
+   #17656: app_amd total analysis time error with SIP and silence suppression
+   on
+   Revision: 277182
+   Reporter: juls
+   Coders: pabelanger
+
+  Category: Applications/app_meetme
+
+   #15704: [patch] MeetMe privilege escalation in password query
+   Revision: 273474
+   Reporter: modelnine
+   Coders: jpeeler
+
+   #15871: [patch] Channels that was placed in "meetme" in dialing state do
+   not leave application in CONGESTION case
+   Revision: 273354
+   Reporter: Ivan
+   Coders: Ivan
+
+   #17390: [patch] Race conditition in app_meetme leads to crash
+   Revision: 275773
+   Reporter: Vince
+   Coders: jpeeler
+
+  Category: Applications/app_playback
+
+   #16102: [patch] default say.conf for new number method doesnt handle all
+   numbers
+   Revision: 274417
+   Reporter: Delvar
+   Coders: Delvar
+
+  Category: Applications/app_queue
+
+   #17576: [patch] Cannot join a queue when all members are paused and
+   "joinempty=no".
+   Revision: 273639
+   Reporter: ramonpeek
+   Testers: ramonpeek
+   Coders: ramonpeek
+
+  Category: Applications/app_voicemail/IMAP
+
+   #16350: [patch] Deleting Multiple IMAP voicemails does not work reliably
+   Revision: 278261
+   Reporter: noahisaac
+   Coders: tilghman
+
+  Category: CDR/General
+
+   #17592: [patch] [regression] No CDR after originate from manager
+   Revision: 275027
+   Reporter: jamicque
+   Testers: jamicque, mnicholson
+   Coders: mnicholson
+
+  Category: Channels/chan_dahdi
+
+   #17441: [patch] priexclusive in chan_dahdi.conf ignored when reloading
+   dahdi module
+   Revision: 277419
+   Reporter: mtryfoss
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/General
+
+   #17372: [patch] [regression] Progress in band error (don't send RTP
+   packets)
+   Revision: 275665
+   Reporter: tech_admin
+   Coders: jpeeler
+
+   #17513: [patch] prematuremedia and progress inband
+   Revision: 274283
+   Reporter: festr
+   Coders: festr
+
+   #17582: [patch] Message on stale nonce give 'to' instead of 'from'
+   Revision: 275241
+   Reporter: kenner
+   Testers: lmadsen
+   Coders: kenner
+
+  Category: Channels/chan_sip/T.38
+
+   #16705: [patch] [regression] T.38 negotiation Broken
+   Revision: 277944
+   Reporter: mpiazzatnetbug
+   Testers: vrban, ebroad, c0rnoTa, samdell3
+   Coders: ebroad
+
+  Category: Core/BuildSystem
+
+   #17616: [patch] Configure sets ac_cv_fork_works=no incorrectly for uclibc
+   Revision: 277738
+   Reporter: pprindeville
+   Coders: tilghman
+
+  Category: Core/Configuration
+
+   #17583: [patch] remove extra line breaks from 'core show config mappings'
+   Revision: 273884
+   Reporter: pabelanger
+   Testers: lmadsen
+   Coders: pabelanger
+
+  Category: Core/General
+
+   #17407: [patch] DEADLOCK_AVOIDANCE can actually generate dealocks
+   Revision: 273793
+   Reporter: pdf
+   Coders: tilghman
+
+   #17536: [patch] unload mod is not complete
+   Revision: 275290
+   Reporter: junky
+   Testers: pabelanger
+   Coders: junky
+
+  Category: Core/ManagerInterface
+
+   #16506: [patch] Segmentation fault using manager http MXML
+   Revision: 278023
+   Reporter: nik600
+   Coders: tilghman
+
+   #17636: Manager GetVar on unset variable causes segfault
+   Revision: 277261
+   Reporter: bklang
+   Coders: tilghman
+
+  Category: Core/PBX
+
+   #16035: [patch] Status of dahdi/zap channels incorrectly reported
+   unavailable instead of idle
+   Revision: 277327
+   Reporter: francesco_r
+   Testers: francesco_r, agx, lawbar
+   Coders: viniciusfontes
+
+  Category: Core/RTP
+
+   #17571: [patch] [regression] RFC 2833 frame out of order detection does
+   not properly handle numeric overflow
+   Revision: 274157
+   Reporter: mdeneen
+   Testers: richardf, maxochoa, JJCinAZ
+   Coders: mmichelson
+
+  Category: Functions/func_realtime
+
+   #16029: [patch] sip peers loaded with realtime doesnt load useragent
+   Revision: 273060
+   Reporter: Guggemand
+   Testers: Guggemand
+   Coders: Guggemand
+
+   #17369: [patch] realtime shows 2x fullcontact if delimited by ';'
+   Revision: 277568
+   Reporter: gkservice
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: Resources/General
+
+   #17564: [patch] Asterisk "locks up" the system when an external process is
+   called from the 'h' extension with a lower priority than Aste
+   Revision: 273717
+   Reporter: ramonpeek
+   Testers: ramonpeek
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author      | Summary                          | Issues     |
+   |          |             |                                  | Referenced |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Remove properties that were      |            |
+   | 273017   | russell     | erroneously merged to 1.4 from   |            |
+   |          |             | one of my branches.              |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | _Really_ skip the channel...     |            |
+   | 273057   | tilghman    | don't just retry for another 200 |            |
+   |          |             | cycles.                          |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273565   | russell     | Don't return a partially         |            |
+   |          |             | initialized datastore.           |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273640   | tzafrir     | Fix various typos, reported by   |            |
+   |          |             | Lintian                          |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273981   | tilghman    | Command 'stop gracefully'        |            |
+   |          |             | doesn't.                         |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Make get_member_status return    |            |
+   |          |             | QUEUE_NO_MEMBERS instead of      |            |
+   |          |             | QUEUE_NO_REACHABLE_MEMBERS to    |            |
+   | 274093   | mnicholson  | make joinempty=no work again.    |            |
+   |          |             | This regression was introduced   |            |
+   |          |             | in 273639. Also fixed            |            |
+   |          |             | whitespace.                      |            |
+   |----------+-------------+----------------------------------+------------|
+   | 274280   | twilson     | Add option to not do a call      |            |
+   |          |             | forward on 482 Loop Detected     |            |
+   |----------+-------------+----------------------------------+------------|
+   | 274359   | jpeeler     | Ensure file.o is built           | #15250     |
+   |          |             | correctly.                       |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Close the DAHDI FD on error when |            |
+   | 274579   | rmudgett    | processing chan_dahdi            |            |
+   |          |             | toneduration config parameter.   |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Document that a leading and      |            |
+   | 275021   | russell     | trailing slash is expected for   |            |
+   |          |             | test categories.                 |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | don't unload modules that        |            |
+   | 275143   | mnicholson  | returned AST_MODULE_LOAD_DECLINE |            |
+   |          |             | when they were loaded            |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | give a better error message when |            |
+   | 275182   | mnicholson  | attempting to unload a module    |            |
+   |          |             | that is not loaded               |            |
+   |----------+-------------+----------------------------------+------------|
+   | 275909   | tilghman    | Move SQL scripts into their own  |            |
+   |          |             | database-specific directories.   |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Access peer->cdr directly        |            |
+   | 275994   | russell     | instead of through a saved off   |            |
+   |          |             | reference.                       |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Use chan->cdr instead of         |            |
+   | 276123   | russell     | chan_cdr (just like peer->cdr    |            |
+   |          |             | instead of peer_cdr in the last  |            |
+   |          |             | commit).                         |            |
+   |----------+-------------+----------------------------------+------------|
+   | 276126   | russell     | Only reset a CDR that exists.    |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Update documentation for         |            |
+   | 276267   | lmadsen     | voicemail.conf externpass        |            |
+   |          |             | option.                          |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | In a perfect world, the frame    |            |
+   | 276652   | jpeeler     | source would never be NULL. In   |            |
+   |          |             | the meantime, don't crash when   |            |
+   |          |             | it is.                           |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | For pass through DTMF tones,     |            |
+   |          |             | measure the actual duration      |            |
+   |          |             | between the begin and end        |            |
+   | 277247   | mnicholson  | packets on the wire. If it is    |            |
+   |          |             | detected to be less than         |            |
+   |          |             | AST_MIN_DTMF_DURATION, trigger   |            |
+   |          |             | dtmf emulation.                  |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Default to no udptl error        |            |
+   |          |             | correction so that error         |            |
+   |          |             | correction will be disabled in   |            |
+   | 277497   | mnicholson  | the event that the remote end    |            |
+   |          |             | indicates that they do not       |            |
+   |          |             | support the error correction     |            |
+   |          |             | mode we requested.               |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Save and restore                 |            |
+   | 277625   | tringenbach | AST_FLAG_BRIDGE_HANGUP_DONT on   |            |
+   |          |             | attended transfer.               |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Avoid trying to pickup a parked  |            |
+   | 277906   | jeang       | extension before the park        |            |
+   |          |             | operation is completed.          |            |
+   |----------+-------------+----------------------------------+------------|
+   | 278167   | tilghman    | Do not queue up DTMF frames      |            |
+   |          |             | while a call is on hold.         |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Allow PLC to function properly   |            |
+   | 278618   | mmichelson  | when channels use SLIN for       |            |
+   |          |             | audio.                           |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_amd.c                           |    7
+ apps/app_dial.c                          |    5
+ apps/app_meetme.c                        |  275 +++++++++++++++++++++----------
+ apps/app_queue.c                         |    9 +
+ apps/app_voicemail.c                     |   15 +
+ autoconf/ast_func_fork.m4                |    2
+ channels/chan_agent.c                    |    7
+ channels/chan_dahdi.c                    |   19 +-
+ channels/chan_h323.c                     |    6
+ channels/chan_iax2.c                     |   32 ++-
+ channels/chan_local.c                    |   12 +
+ channels/chan_misdn.c                    |    4
+ channels/chan_oss.c                      |   28 ++-
+ channels/chan_sip.c                      |   72 ++++----
+ configs/say.conf.sample                  |    9 +
+ configs/sip.conf.sample                  |   17 +
+ configs/voicemail.conf.sample            |    3
+ configure.ac                             |    1
+ contrib/realtime/mysql/iaxfriends.sql    |   57 ++++++
+ contrib/realtime/mysql/meetme.sql        |   12 +
+ contrib/realtime/mysql/sipfriends.sql    |   55 ++++++
+ contrib/realtime/mysql/voicemail.sql     |   64 +++++++
+ contrib/realtime/postgresql/realtime.sql |  143 ++++++++++++++++
+ contrib/scripts/iax-friends.sql          |   57 ------
+ contrib/scripts/meetme.sql               |   12 -
+ contrib/scripts/realtime_pgsql.sql       |  143 ----------------
+ contrib/scripts/sip-friends.sql          |   55 ------
+ contrib/scripts/vmdb.sql                 |   64 -------
+ include/asterisk/autoconfig.h.in         |   55 +++---
+ include/asterisk/channel.h               |   12 +
+ include/asterisk/compiler.h              |    6
+ include/asterisk/lock.h                  |   35 ++-
+ include/asterisk/test.h                  |    7
+ main/Makefile                            |    2
+ main/autoservice.c                       |   27 ++-
+ main/channel.c                           |   34 ++-
+ main/cli.c                               |    7
+ main/config.c                            |    4
+ main/loader.c                            |    6
+ main/manager.c                           |   10 -
+ main/pbx.c                               |    3
+ main/rtp.c                               |    6
+ main/test.c                              |    5
+ res/res_agi.c                            |    2
+ res/res_config_odbc.c                    |  105 +++++++++--
+ res/res_config_pgsql.c                   |   59 +++++-
+ res/res_features.c                       |   27 ++-
+ res/res_jabber.c                         |    6
+ 48 files changed, 1015 insertions(+), 588 deletions(-)
+
+     ----------------------------------------------------------------------
