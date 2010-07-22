@@ -1,3 +1,16 @@
+2010-07-22  Leif Madsen <lmadsen@digium.com>
+
+	* Release Asterisk 1.6.2.10
+
+	* Included a fix for res_timing_pthread per the description below:
+
+	  r278465 | russell | 2010-07-21 11:15:00 -0500 (Wed, 21 Jul 2010) | 41 lines
+
+	  Use poll() instead of select() in res_timing_pthread to avoid stack corruption.
+	  This code did not properly check FD_SETSIZE to ensure that it did not try to
+	  select() on fds that were too large.  Switching to poll() removes the limitation
+	  on the maximum fd value.
+
 2010-07-07  Leif Madsen <lmadsen@digium.com>
 
 	* Release Asterisk 1.6.2.10-rc2
