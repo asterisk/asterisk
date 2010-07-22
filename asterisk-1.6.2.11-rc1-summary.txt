@@ -1,0 +1,623 @@
+                                Release Summary
+
+                             asterisk-1.6.2.11-rc1
+
+                                Date: 2010-07-22
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.2.10.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   21 russell               4 lmadsen                2 kenner                 
+   16 tilghman              3 russell                1 aleksey2000            
+   8 mnicholson             1 agx                    1 bklang                 
+   6 jpeeler                1 francesco_r            1 corruptor              
+   4 pabelanger             1 frawd                  1 dcabot                 
+   3 rmudgett               1 Guggemand              1 Delvar                 
+   2 kenner                 1 jamicque               1 Eddie Edwards          
+   2 mmichelson             1 JJCinAZ                1 erikje                 
+   1 corruptor              1 kenji                  1 falves11               
+   1 Delvar                 1 kenner                 1 festr                  
+   1 festr                  1 kobaz                  1 flop                   
+   1 frawd                  1 lawbar                 1 francesco_r            
+   1 Guggemand              1 maxochoa               1 gkservice              
+   1 Ivan                   1 mnicholson             1 glwgoes                
+   1 jazzy                  1 moy                    1 Guggemand              
+   1 jeang                  1 pabelanger             1 Hubguru                
+   1 kobaz                  1 ramonpeek              1 ip-rob                 
+   1 kpfleming              1 richardf               1 Ivan                   
+   1 lmadsen                1 rmudgett               1 jamicque               
+   1 moy                    1 rrb3942                1 jazzy                  
+   1 rrb3942                1 tilghman               1 jkroon                 
+   1 tringenbach            1 wdoekes                1 juls                   
+   1 twilson                                         1 keiron                 
+   1 tzafrir                                         1 kenji                  
+   1 viniciusfontes                                  1 kobaz                  
+   1 wdoekes                                         1 kowalma                
+                                                     1 lmadsen                
+                                                     1 mdeneen                
+                                                     1 modelnine              
+                                                     1 moy                    
+                                                     1 mtryfoss               
+                                                     1 Nick_Lewis             
+                                                     1 nik600                 
+                                                     1 noahisaac              
+                                                     1 pabelanger             
+                                                     1 pdf                    
+                                                     1 pprindeville           
+                                                     1 ramonpeek              
+                                                     1 rrb3942                
+                                                     1 russell                
+                                                     1 tech_admin             
+                                                     1 Vince                  
+                                                     1 vrban                  
+                                                     1 wdoekes                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/General
+
+   #17502: [patch] [regression] MusicOnHold don't play if MeetMe Room is
+   stored in mysql db (realtime)
+   Revision: 278464
+   Reporter: kenji
+   Testers: kenji
+   Coders: tilghman
+
+  Category: Applications/app_amd
+
+   #17656: app_amd total analysis time error with SIP and silence suppression
+   on
+   Revision: 277188
+   Reporter: juls
+   Coders: pabelanger
+
+  Category: Applications/app_meetme
+
+   #15704: [patch] MeetMe privilege escalation in password query
+   Revision: 273529
+   Reporter: modelnine
+   Coders: jpeeler
+
+   #15871: [patch] Channels that was placed in "meetme" in dialing state do
+   not leave application in CONGESTION case
+   Revision: 273356
+   Reporter: Ivan
+   Coders: Ivan
+
+   #17390: [patch] Race conditition in app_meetme leads to crash
+   Revision: 276121
+   Reporter: Vince
+   Coders: jpeeler
+
+  Category: Applications/app_playback
+
+   #16102: [patch] default say.conf for new number method doesnt handle all
+   numbers
+   Revision: 274419
+   Reporter: Delvar
+   Coders: Delvar
+
+  Category: Applications/app_queue
+
+   #17471: [patch] "joinempty = ringing" doesn't work
+   Revision: 277377
+   Reporter: jazzy
+   Coders: jazzy
+
+   #17498: [patch] Bug in reporting queue hold time
+   Revision: 277489
+   Reporter: corruptor
+   Coders: corruptor
+
+  Category: Applications/app_voicemail/IMAP
+
+   #16350: [patch] Deleting Multiple IMAP voicemails does not work reliably
+   Revision: 278276
+   Reporter: noahisaac
+   Coders: tilghman
+
+  Category: CDR/General
+
+   #17592: [patch] [regression] No CDR after originate from manager
+   Revision: 275029
+   Reporter: jamicque
+   Testers: jamicque, mnicholson
+   Coders: mnicholson
+
+  Category: CDR/cdr_pgsql
+
+   #17478: [patch] cdr_pgsql does not detect when a table is not found
+   Revision: 275627
+   Reporter: kobaz
+   Testers: kobaz, russell, lmadsen
+   Coders: kobaz
+
+  Category: Channels/chan_dahdi
+
+   #14577: [patch] FXO channels "hookstate" incorrect on startup
+   Revision: 278524
+   Reporter: jkroon
+   Testers: frawd
+   Coders: frawd
+
+   #17441: [patch] priexclusive in chan_dahdi.conf ignored when reloading
+   dahdi module
+   Revision: 277485
+   Reporter: mtryfoss
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/General
+
+   #15731: Remote crash on Asterisk 1.6.1.4
+   Revision: 278479
+   Reporter: flop
+   Coders: russell
+
+   #17372: [patch] [regression] Progress in band error (don't send RTP
+   packets)
+   Revision: 275706
+   Reporter: tech_admin
+   Coders: jpeeler
+
+   #17513: [patch] prematuremedia and progress inband
+   Revision: 274347
+   Reporter: festr
+   Coders: festr
+
+   #17582: [patch] Message on stale nonce give 'to' instead of 'from'
+   Revision: 275260
+   Reporter: kenner
+   Testers: lmadsen
+   Coders: kenner
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #17398: MWI NOTIFY is not being sent to phones subscribed to events
+   Revision: 276572
+   Reporter: ip-rob
+   Coders: jpeeler
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   #14920: Segmentation fault after almost exactly ~ 500 finished SIP over
+   TCP calls.
+   Revision: 278479
+   Reporter: vrban
+   Coders: russell
+
+  Category: Codecs/General
+
+   #17092: [patch] Segmentation fault when using two codec modules that
+   register the same src and dst format
+   Revision: 277144
+   Reporter: moy
+   Testers: moy
+   Coders: moy
+
+  Category: Core/BuildSystem
+
+   #17616: [patch] Configure sets ac_cv_fork_works=no incorrectly for uclibc
+   Revision: 277776
+   Reporter: pprindeville
+   Coders: tilghman
+
+  Category: Core/Configuration
+
+   #17583: [patch] remove extra line breaks from 'core show config mappings'
+   Revision: 273888
+   Reporter: pabelanger
+   Testers: lmadsen
+   Coders: pabelanger
+
+  Category: Core/General
+
+   #12917: It crashses every 4 minutes
+   Revision: 278479
+   Reporter: falves11
+   Coders: russell
+
+   #16494: 1.6.1.12-rc1 crash around 100 SIP call setup with media
+   Revision: 278479
+   Reporter: Hubguru
+   Coders: russell
+
+   #17049: [patch] CLI commands via asterisk -rx may not return all output
+   Revision: 272972
+   Reporter: russell
+   Testers: russell
+   Coders: russell
+
+   #17199: Core dumped
+   Revision: 278479
+   Reporter: aleksey2000
+   Coders: russell
+
+   #17325: Asterisk 1.6.2.6 randomly crashes
+   Revision: 278479
+   Reporter: glwgoes
+   Coders: russell
+
+   #17407: [patch] DEADLOCK_AVOIDANCE can actually generate dealocks
+   Revision: 273831
+   Reporter: pdf
+   Coders: tilghman
+
+   #17438: Asterisk cores @ 110 calls
+   Revision: 278479
+   Reporter: dcabot
+   Coders: russell
+
+  Category: Core/ManagerInterface
+
+   #16506: [patch] Segmentation fault using manager http MXML
+   Revision: 278025
+   Reporter: nik600
+   Coders: tilghman
+
+   #17504: [patch] ShowDialPlan does not end with ShowDialPlanComplete Event
+   if manager events are off
+   Revision: 273056
+   Reporter: rrb3942
+   Testers: rrb3942
+   Coders: rrb3942
+
+   #17550: [patch] Wrong check for privilege in Originate action
+   Revision: 273145
+   Reporter: kenner
+   Testers: kenner
+   Coders: kenner
+
+   #17636: Manager GetVar on unset variable causes segfault
+   Revision: 277264
+   Reporter: bklang
+   Coders: tilghman
+
+  Category: Core/PBX
+
+   #16035: [patch] Status of dahdi/zap channels incorrectly reported
+   unavailable instead of idle
+   Revision: 277338
+   Reporter: francesco_r
+   Testers: francesco_r, agx, lawbar
+   Coders: viniciusfontes
+
+  Category: Core/RTP
+
+   #17469: [patch] rt(c)p set debug ip takes wrong argument
+   Revision: 273234
+   Reporter: wdoekes
+   Testers: wdoekes, pabelanger
+   Coders: wdoekes
+
+   #17571: [patch] [regression] RFC 2833 frame out of order detection does
+   not properly handle numeric overflow
+   Revision: 274168
+   Reporter: mdeneen
+   Testers: richardf, maxochoa, JJCinAZ
+   Coders: mmichelson
+
+  Category: Features
+
+   #17589: [patch] applicationmap groups do not work (either lack of
+   documentation, or feature incomplete)
+   Revision: 275425
+   Reporter: lmadsen
+   Testers: russell, lmadsen
+   Coders: russell
+
+  Category: Functions/func_realtime
+
+   #16029: [patch] sip peers loaded with realtime doesnt load useragent
+   Revision: 273087
+   Reporter: Guggemand
+   Testers: Guggemand
+   Coders: Guggemand
+
+   #17369: [patch] realtime shows 2x fullcontact if delimited by ';'
+   Revision: 277774
+   Reporter: gkservice
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: Resources/General
+
+   #17564: [patch] Asterisk "locks up" the system when an external process is
+   called from the 'h' extension with a lower priority than Aste
+   Revision: 273719
+   Reporter: ramonpeek
+   Testers: ramonpeek
+   Coders: tilghman
+
+  Category: Resources/res_realtime
+
+   #17560: Parsing error in extconfig.conf results in seg fault
+   Revision: 273143
+   Reporter: Nick_Lewis
+   Coders: tilghman
+
+  Category: Resources/res_timing_pthread
+
+   #15406: Asterisk crashes at approx 70-80 calls per second
+   Revision: 278479
+   Reporter: kowalma
+   Coders: russell
+
+   #15915: crash when calling ao2_unlock inside
+   pthread_timer_disable_continuous
+   Revision: 278479
+   Reporter: keiron
+   Coders: russell
+
+   #17118: Random crashes
+   Revision: 278479
+   Reporter: erikje
+   Coders: russell
+
+   #17187: crash when calling ao2_unlock inside
+   pthread_timer_disable_continuous - NOT FIXED PLEASE RE-OPEN
+   Revision: 278479
+   Reporter: Eddie Edwards
+   Coders: russell
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author      | Summary                          | Issues     |
+   |          |             |                                  | Referenced |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | _Really_ skip the channel...     |            |
+   | 273059   | tilghman    | don't just retry for another 200 |            |
+   |          |             | cycles.                          |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273193   | pabelanger  | Unblock revisions 218107         |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Revert previous commit;          |            |
+   | 273194   | pabelanger  | res_rtp_asterisk.c does not      |            |
+   |          |             | exist.                           |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Set TCP_NODELAY on manager TCP   |            |
+   |          |             | sockets to prevent delays on     |            |
+   | 273271   | mnicholson  | outgoing packets. This           |            |
+   |          |             | regression was introduced in     |            |
+   |          |             | r48338.                          |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273351   | mnicholson  | Altered my comment about         |            |
+   |          |             | TCP_NODELAY                      |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273353   | mnicholson  | Fixed whitespace problems        |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273571   | russell     | Don't return a partially         |            |
+   |          |             | initialized datastore.           |            |
+   |----------+-------------+----------------------------------+------------|
+   | 273642   | tzafrir     | Fix typos reported by Lintian    |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | The switch fallthrough could     |            |
+   | 273716   | tilghman    | create some errorneous           |            |
+   |          |             | situations, so best to force     |            |
+   |          |             | directly to the default case.    |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Status shows all non-CRC4 lines  |            |
+   | 274282   | tilghman    | as "yellow", even if "yellow"    |            |
+   |          |             | was not in the bitfield.         |            |
+   |----------+-------------+----------------------------------+------------|
+   | 274360   | twilson     | Add option to not do a call      |            |
+   |          |             | forward on 482 Loop Detected     |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Close the DAHDI FD on error when |            |
+   | 274627   | rmudgett    | processing chan_dahdi            |            |
+   |          |             | toneduration config parameter.   |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Add missing conditional around   |            |
+   | 274640   | rmudgett    | chan_dahdi mfcr2_skip_category   |            |
+   |          |             | config parameter.                |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Document that a leading and      |            |
+   | 275023   | russell     | trailing slash is expected for   |            |
+   |          |             | test categories.                 |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | don't unload modules that        |            |
+   | 275145   | mnicholson  | returned AST_MODULE_LOAD_DECLINE |            |
+   |          |             | when they were loaded            |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Move parking lot sample config   |            |
+   | 275148   | russell     | out from the middle of dynamic   |            |
+   |          |             | features sample config.          |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | give a better error message when |            |
+   | 275191   | mnicholson  | attempting to unload a module    |            |
+   |          |             | that is not loaded               |            |
+   |----------+-------------+----------------------------------+------------|
+   | 275311   | russell     | Add missing                      |            |
+   |          |             | ao2_iterator_destroy().          |            |
+   |----------+-------------+----------------------------------+------------|
+   | 275468   | russell     | unblock a rev                    |            |
+   |----------+-------------+----------------------------------+------------|
+   | 275469   | russell     | Remove useless sip options       | #17553     |
+   |          |             | related to hash table size.      |            |
+   |----------+-------------+----------------------------------+------------|
+   | 275911   | tilghman    | Move SQL scripts into their own  |            |
+   |          |             | database-specific directories.   |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Access peer->cdr directly        |            |
+   | 275996   | russell     | instead of through a saved off   |            |
+   |          |             | reference.                       |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Use chan->cdr instead of         |            |
+   | 276125   | russell     | chan_cdr (just like peer->cdr    |            |
+   |          |             | instead of peer_cdr in the last  |            |
+   |          |             | commit).                         |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Update documentation for         |            |
+   | 276269   | lmadsen     | voicemail.conf externpass        |            |
+   |          |             | option.                          |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Don't try to call an embedded    |            |
+   | 276442   | kpfleming   | module's backup_globals()        |            |
+   |          |             | function until                   |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | In a perfect world, the frame    |            |
+   | 276654   | jpeeler     | source would never be NULL. In   |            |
+   |          |             | the meantime, don't crash when   |            |
+   |          |             | it is.                           |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Correct not setting the bindport |            |
+   | 276809   | jpeeler     | before attempting to open the    |            |
+   |          |             | socket.                          |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | For pass through DTMF tones,     |            |
+   |          |             | measure the actual duration      |            |
+   |          |             | between the begin and end        |            |
+   | 277256   | mnicholson  | packets on the wire. If it is    |            |
+   |          |             | detected to be less than         |            |
+   |          |             | AST_MIN_DTMF_DURATION, trigger   |            |
+   |          |             | dtmf emulation.                  |            |
+   |----------+-------------+----------------------------------+------------|
+   | 277478   | tilghman    | Add documentation for MOH        |            |
+   |          |             | realtime fields                  |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Default to no udptl error        |            |
+   |          |             | correction so that error         |            |
+   |          |             | correction will be disabled in   |            |
+   | 277563   | mnicholson  | the event that the remote end    |            |
+   |          |             | indicates that they do not       |            |
+   |          |             | support the error correction     |            |
+   |          |             | mode we requested.               |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Save and restore                 |            |
+   | 277666   | tringenbach | AST_FLAG_BRIDGE_HANGUP_DONT on   |            |
+   |          |             | attended transfer.               |            |
+   |----------+-------------+----------------------------------+------------|
+   | 277777   | tilghman    | Merge issues...                  |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Avoid trying to pickup a parked  |            |
+   | 277966   | jeang       | extension before the park        |            |
+   |          |             | operation is completed.          |            |
+   |----------+-------------+----------------------------------+------------|
+   | 278273   | tilghman    | Do not queue up DTMF frames      |            |
+   |          |             | while a call is on hold.         |            |
+   |----------+-------------+----------------------------------+------------|
+   |          |             | Allow PLC to function properly   |            |
+   | 278621   | mmichelson  | when channels use SLIN for       |            |
+   |          |             | audio.                           |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_amd.c                           |    7
+ apps/app_dial.c                          |    5
+ apps/app_meetme.c                        |  377 +++++++++++++++++++++----------
+ apps/app_queue.c                         |   12
+ apps/app_voicemail.c                     |   92 ++++---
+ autoconf/ast_func_fork.m4                |    2
+ cdr/cdr_pgsql.c                          |    7
+ channels/chan_agent.c                    |    7
+ channels/chan_dahdi.c                    |   46 ++-
+ channels/chan_h323.c                     |    2
+ channels/chan_iax2.c                     |    2
+ channels/chan_local.c                    |    6
+ channels/chan_sip.c                      |  253 +++++++++-----------
+ configs/features.conf.sample             |   34 +-
+ configs/say.conf.sample                  |    9
+ configs/sip.conf.sample                  |   31 --
+ configs/voicemail.conf.sample            |    3
+ contrib/realtime/mysql/iaxfriends.sql    |   57 ++++
+ contrib/realtime/mysql/meetme.sql        |   12
+ contrib/realtime/mysql/musiconhold.sql   |   19 +
+ contrib/realtime/mysql/sipfriends.sql    |   55 ++++
+ contrib/realtime/mysql/voicemail.sql     |   64 +++++
+ contrib/realtime/postgresql/realtime.sql |  143 +++++++++++
+ contrib/scripts/iax-friends.sql          |   57 ----
+ contrib/scripts/meetme.sql               |   30 --
+ contrib/scripts/realtime_pgsql.sql       |  146 ------------
+ contrib/scripts/sip-friends.sql          |   56 ----
+ contrib/scripts/vmdb.sql                 |   66 -----
+ include/asterisk/autoconfig.h.in         |   51 ++--
+ include/asterisk/channel.h               |   12
+ include/asterisk/lock.h                  |   55 +++-
+ include/asterisk/test.h                  |    7
+ main/asterisk.c                          |    4
+ main/autoservice.c                       |   27 ++
+ main/channel.c                           |   29 +-
+ main/config.c                            |    8
+ main/datastore.c                         |    5
+ main/features.c                          |  111 +++++++--
+ main/loader.c                            |    8
+ main/manager.c                           |   33 +-
+ main/pbx.c                               |    5
+ main/rtp.c                               |   21 +
+ main/test.c                              |    5
+ main/translate.c                         |    1
+ res/res_agi.c                            |    4
+ res/res_config_odbc.c                    |  110 +++++++--
+ res/res_config_pgsql.c                   |   41 ++-
+ res/res_musiconhold.c                    |    3
+ res/res_timing_pthread.c                 |   13 -
+ 49 files changed, 1307 insertions(+), 846 deletions(-)
+
+     ----------------------------------------------------------------------
