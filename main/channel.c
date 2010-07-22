@@ -3768,6 +3768,7 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 {
 	int src;
 	int dst;
+	int use_slin;
 
 	if (chan->readformat == peer->writeformat && chan->writeformat == peer->readformat) {
 		/* Already compatible!  Moving on ... */
@@ -3812,8 +3813,9 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	 * no direct conversion available. If generic PLC is
 	 * desired, then transcoding via SLINEAR is a requirement
 	 */
+	use_slin = (src == AST_FORMAT_SLINEAR || dst == AST_FORMAT_SLINEAR);
 	if ((src != dst) && (ast_opt_generic_plc || ast_opt_transcode_via_slin) &&
-	    (ast_translate_path_steps(dst, src) != 1))
+	    (ast_translate_path_steps(dst, src) != 1 || use_slin))
 		dst = AST_FORMAT_SLINEAR;
 	if (ast_set_read_format(peer, dst) < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, dst);
