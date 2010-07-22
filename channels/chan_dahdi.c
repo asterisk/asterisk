@@ -9485,6 +9485,10 @@ static void *pri_dchannel(void *vpri)
 					}
 					apply_plan_to_number(pri->pvts[chanpos]->rdnis, sizeof(pri->pvts[chanpos]->rdnis), pri,
 							     e->ring.redirectingnum, e->ring.callingplanrdnis);
+
+					/* Set DNID on all incoming calls -- even immediate */
+					ast_copy_string(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
+
 					/* If immediate=yes go to s|1 */
 					if (pri->pvts[chanpos]->immediate) {
 						if (option_verbose > 2)
@@ -9495,7 +9499,6 @@ static void *pri_dchannel(void *vpri)
 					/* Get called number */
 					else if (!ast_strlen_zero(e->ring.callednum)) {
 						ast_copy_string(pri->pvts[chanpos]->exten, e->ring.callednum, sizeof(pri->pvts[chanpos]->exten));
-						ast_copy_string(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
 					} else if (pri->overlapdial)
 						pri->pvts[chanpos]->exten[0] = '\0';
 					else {
@@ -9503,9 +9506,6 @@ static void *pri_dchannel(void *vpri)
 						pri->pvts[chanpos]->exten[0] = 's';
 						pri->pvts[chanpos]->exten[1] = '\0';
 					}
-					/* Set DNID on all incoming calls -- even immediate */
-					if (!ast_strlen_zero(e->ring.callednum))
-						ast_copy_string(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
 					/* No number yet, but received "sending complete"? */
 					if (e->ring.complete && (ast_strlen_zero(e->ring.callednum))) {
 						if (option_verbose > 2)
