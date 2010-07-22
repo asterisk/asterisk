@@ -309,11 +309,16 @@
  * \arg \link Config_followme Followme configuration  \endlink
  * \section cdrconf CDR configuration files
  * \arg \link Config_cdr CDR configuration  \endlink
+ * \arg \link cdr_csv Default CDR driver configuration \endlink
  * \arg \link cdr_custom Custom CDR driver configuration \endlink
  * \arg \link cdr_ami Manager CDR driver configuration \endlink
  * \arg \link cdr_odbc ODBC CDR driver configuration \endlink
+ * \arg \link cdr_adaptive_odbc Adaptive ODBC CDR driver configuration \endlink
  * \arg \link cdr_pgsql PostgreSQL CDR driver configuration \endlink
- * \arg \link cdr_sqlite SQLite CDR driver configuration \endlink
+ * \arg \link cdr_radius RADIUS CDR driver configuration \endlink
+ * \arg \link cdr_sqlite SQLite 2 CDR driver configuration \endlink
+ * \arg \link cdr_sqlite3_custom SQLite 3 CDR driver configuration \endlink
+ * \arg \link cdr_syslog Syslog CDR driver configuration \endlink
  * \arg \link cdr_tds FreeTDS CDR driver configuration (Microsoft SQL Server) \endlink
  * \section miscconf Miscellenaous configuration files
  * \arg \link Config_adsi ADSI configuration  \endlink
@@ -484,11 +489,19 @@
  * \verbinclude enum.conf.sample
  */
 
+/*!
+ * \page cdr_csv Default CDR driver configuration
+ * \par See also
+ * \arg \ref cdrconf
+ * \arg Implemented in \ref cdr_csv.c
+ * \verbinclude cdr_csv.conf.sample
+ */
+
 /*! 
  * \page cdr_custom Custom CDR Configuration
  * \par See also 
  * \arg \ref cdrconf
- * \arg \ref cdr_custom.c
+ * \arg Implemented in \ref cdr_custom.c
  * \verbinclude cdr_custom.conf.sample
  */
 
@@ -497,15 +510,24 @@
  * \par See also 
  * \arg \ref cdrconf
  * \arg \ref AstAMI
- * \arg \ref cdr_manager.c
+ * \arg Implemented in \ref cdr_manager.c
  * \verbinclude cdr_manager.conf.sample
  */
 
 /*! 
  * \page cdr_odbc ODBC CDR driver configuration
  * \arg See also \ref cdrconf
- * \arg \ref cdr_odbc.c
+ * \arg Implemented in \ref cdr_odbc.c
  * \verbinclude cdr_odbc.conf.sample
+ * See also:
+ * \arg http://www.unixodbc.org
+ */
+
+/*! 
+ * \page cdr_odbc Adaptive ODBC CDR driver configuration
+ * \arg See also \ref cdrconf
+ * \arg Implemented in \ref cdr_adaptive_odbc.c
+ * \verbinclude cdr_adaptive_odbc.conf.sample
  * See also:
  * \arg http://www.unixodbc.org
  */
@@ -513,18 +535,41 @@
 /*! 
  * \page cdr_pgsql PostgreSQL CDR driver configuration
  * \arg See also \ref cdrconf
- * \arg \ref cdr_pgsql.c
+ * \arg Implemented in \ref cdr_pgsql.c
  * See also:
  * \arg http://www.postgresql.org
  * \verbinclude cdr_pgsql.conf.sample
  */
 
-/*! 
- * \page cdr_sqlite SQLite CDR driver configuration
+/*!
+ * \page cdr_radius RADIUS CDR driver configuration
  * \arg See also \ref cdrconf
- * \arg \ref cdr_sqlite.c
+ * \arg Implemented in \ref cdr_radius.c
+ * \verbinclude cdr_radius.conf.sample
+ */
+
+/*! 
+ * \page cdr_sqlite SQLite 2 CDR driver configuration
+ * \arg See also \ref cdrconf
+ * \arg Implemented in \ref cdr_sqlite.c
  * See also:
  * \arg http://www.sqlite.org
+ */
+
+/*!
+ * \page cdr_sqlite3_custom SQLite 3 CDR driver configuration
+ * \arg See also \ref cdrconf
+ * \arg Implemented in \ref cdr_sqlite3_custom.c
+ * See also:
+ * \arg http://www.sqlite.org
+ * \verbinclude cdr_sqlite3_custom.conf.sample
+ */
+
+/*!
+ * \page cdr_syslog Syslog CDR driver configuration
+ * \arg See also \ref cdrconf
+ * \arg \ref cdr_syslog.c
+ * \verbinclude cdr_syslog.conf.sample
  */
 
 /*! 
@@ -540,11 +585,16 @@
  * \par See also
  * \arg \ref cdr_drivers
  * \arg \link Config_cdr CDR configuration  \endlink  
+ * \arg \link cdr_csv Default CDR driver configuration \endlink
  * \arg \link cdr_custom Custom CDR driver configuration \endlink
  * \arg \link cdr_ami Manager CDR driver configuration \endlink
  * \arg \link cdr_odbc ODBC CDR driver configuration \endlink
+ * \arg \link cdr_adaptive_odbc Adaptive ODBC CDR driver configuration \endlink
  * \arg \link cdr_pgsql PostgreSQL CDR driver configuration \endlink
- * \arg \link cdr_sqlite SQLite CDR driver configuration \endlink
+ * \arg \link cdr_radius RADIUS CDR driver configuration \endlink
+ * \arg \link cdr_sqlite SQLite 2 CDR driver configuration \endlink
+ * \arg \link cdr_sqlite3_custom SQLite 3 CDR driver configuration \endlink
+ * \arg \link cdr_syslog Syslog CDR driver configuration \endlink
  * \arg \link cdr_tds FreeTDS CDR driver configuration (Microsoft SQL Server) \endlink
  * \verbinclude cdr.conf.sample
  */
