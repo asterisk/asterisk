@@ -23160,9 +23160,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (p->expiry > max_expiry) {
 			p->expiry = max_expiry;
 		} else if (p->expiry < min_expiry && p->expiry > 0) {
-			p->expiry = min_expiry;
 			transmit_response_with_minexpires(p, "423 Interval too small", req);
-			ast_debug(2, "Received SIP subscribe with Expire header less that our minexpires limit.\n");
+			ast_log(LOG_WARNING, "Received subscription for extension \"%s\" context \"%s\" "
+				"with Expire header less that 'minexpire' limit. Received \"Expire: %d\" min is %d\n",
+				p->exten, p->context, p->expiry, min_expiry);
+			p->expiry = min_expiry;
 			pvt_set_needdestroy(p, "Expires is less that the min expires allowed. ");
 			return 0;
 		}
