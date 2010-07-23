@@ -14482,7 +14482,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	return 0;
 }
 
-/*! \brief helper routine for sip_uri_cmp
+/*! \brief helper routine for sip_uri_cmp to compare URI parameters
  *
  * This takes the parameters from two SIP URIs and determines
  * if the URIs match. The rules for parameters *suck*. Here's a breakdown
@@ -14496,9 +14496,10 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
  *
  * \param input1 Parameters from URI 1
  * \param input2 Parameters from URI 2
- * \return Return 0 if the URIs' parameters match, 1 if they do not
+ * \retval 0 URIs' parameters match
+ * \retval nonzero URIs' parameters do not match
  */
-static int sip_uri_params_cmp(const char *input1, const char *input2) 
+static int sip_uri_params_cmp(const char *input1, const char *input2)
 {
 	char *params1 = NULL;
 	char *params2 = NULL;
@@ -14522,43 +14523,36 @@ static int sip_uri_params_cmp(const char *input1, const char *input2)
 		params2 = ast_strdupa(input2);
 	}
 
-	/*Quick optimization. If both params are zero-length, then
+	/* Quick optimization. If both params are zero-length, then
 	 * they match
 	 */
 	if (zerolength1 && zerolength2) {
 		return 0;
 	}
 
-	pos1 = params1;
-	while (!ast_strlen_zero(pos1)) {
-		char *name1 = pos1;
-		char *value1 = strchr(pos1, '=');
-		char *semicolon1 = strchr(pos1, ';');
+	for (pos1 = strsep(&params1, ";"); pos1; pos1 = strsep(&params1, ";")) {
+		char *value1 = pos1;
+		char *name1 = strsep(&value1, "=");
+		char *params2dup = NULL;
 		int matched = 0;
-		if (semicolon1) {
-			*semicolon1++ = '\0';
-		}
 		if (!value1) {
-			goto fail;
+			value1 = "";
 		}
-		*value1++ = '\0';
-		/* Checkpoint reached. We have the name and value parsed for param1 
-		 * We have to duplicate params2 each time through the second loop
-		 * or else we can't search and replace the semicolons with \0 each
-		 * time
+		/* Checkpoint reached. We have the name and value parsed for param1
+		 * We have to duplicate params2 each time through this loop
+		 * or else the inner loop below will not work properly.
 		 */
-		pos2 = ast_strdupa(params2);
-		while (!ast_strlen_zero(pos2)) {
+		if (!zerolength2) {
+			params2dup = ast_strdupa(params2);
+		}
+		for (pos2 = strsep(&params2dup, ";"); pos2; pos2 = strsep(&params2dup, ";")) {
 			char *name2 = pos2;
 			char *value2 = strchr(pos2, '=');
-			char *semicolon2 = strchr(pos2, ';');
-			if (semicolon2) {
-				*semicolon2++ = '\0';
-			}
 			if (!value2) {
-				goto fail;
+				value2 = "";
+			} else {
+				*value2++ = '\0';
 			}
-			*value2++ = '\0';
 			if (!strcasecmp(name1, name2)) {
 				if (strcasecmp(value1, value2)) {
 					goto fail;
@@ -14567,9 +14561,8 @@ static int sip_uri_params_cmp(const char *input1, const char *input2)
 					break;
 				}
 			}
-			pos2 = semicolon2;
 		}
-		/* Need to see if the parameter we're looking at is one of the 'must-match' parameters */
+		/* Check to see if the parameter is one of the 'must-match' parameters */
 		if (!strcasecmp(name1, "maddr")) {
 			if (matched) {
 				maddrmatch = 1;
@@ -14595,25 +14588,18 @@ static int sip_uri_params_cmp(const char *input1, const char *input2)
 				goto fail;
 			}
 		}
-		pos1 = semicolon1;
 	}
 
 	/* We've made it out of that horrible O(m*n) construct and there are no
 	 * failures yet. We're not done yet, though, because params2 could have
 	 * an maddr, ttl, user, or method header and params1 did not.
 	 */
-	pos2 = params2;
-	while (!ast_strlen_zero(pos2)) {
-		char *name2 = pos2;
-		char *value2 = strchr(pos2, '=');
-		char *semicolon2 = strchr(pos2, ';');
-		if (semicolon2) {
-			*semicolon2++ = '\0';
-		}
+	for (pos2 = strsep(&params2, ";"); pos2; pos2 = strsep(&params2, ";")) {
+		char *value2 = pos2;
+		char *name2 = strsep(&value2, "=");
 		if (!value2) {
-			goto fail;
+			value2 = "";
 		}
-		*value2++ = '\0';
 		if ((!strcasecmp(name2, "maddr") && !maddrmatch) ||
 				(!strcasecmp(name2, "ttl") && !ttlmatch) ||
 				(!strcasecmp(name2, "user") && !usermatch) ||
