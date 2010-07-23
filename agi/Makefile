@@ -40,7 +40,7 @@ eagi-test: eagi-test.o strcompat.o
 eagi-sphinx-test: eagi-sphinx-test.o
 
 install: all
-	mkdir -p $(DESTDIR)$(AGI_DIR)
+	$(INSTALL) -d $(DESTDIR)$(AGI_DIR)
 	for x in $(AGIS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(AGI_DIR) ; done
 
 uninstall:

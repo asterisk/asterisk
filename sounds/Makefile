@@ -169,7 +169,7 @@ dist-clean:
 	rm -f *.tar.gz
 
 $(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_CACHE_DIR):
-	mkdir -p $@
+	$(INSTALL) -d $@
 
 install: ${SOUNDS_CACHE_DIR} $(SOUNDS_DIR)/en $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
