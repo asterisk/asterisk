@@ -843,7 +843,9 @@ static void do_forward(struct chanlist *o,
 			ast_ignore_cc(o->chan);
 			ast_log(LOG_NOTICE, "Not accepting call completion offers from call-forward recipient %s\n", o->chan->name);
 		} else
-			ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+			ast_log(LOG_NOTICE,
+				"Forwarding failed to create channel to dial '%s/%s' (cause = %d)\n",
+				tech, stuff, cause);
 	}
 	if (!c) {
 		ast_clear_flag64(o, DIAL_STILLGOING);
@@ -909,8 +911,9 @@ static void do_forward(struct chanlist *o,
 
 		ast_channel_unlock(in);
 
-		if (ast_call(c, tmpchan, 0)) {
-			ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+		if (ast_call(c, stuff, 0)) {
+			ast_log(LOG_NOTICE, "Forwarding failed to dial '%s/%s'\n",
+				tech, stuff);
 			ast_clear_flag64(o, DIAL_STILLGOING);
 			ast_hangup(original);
 			ast_hangup(c);
