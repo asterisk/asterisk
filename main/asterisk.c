@@ -1635,14 +1635,21 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 			ast_module_shutdown();
 	}
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
-		if (getenv("HOME")) 
+		if (getenv("HOME")) {
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
-		if (!ast_strlen_zero(filename))
+		}
+		if (!ast_strlen_zero(filename)) {
 			ast_el_write_history(filename);
-		if (el != NULL)
-			el_end(el);
-		if (el_hist != NULL)
-			history_end(el_hist);
+		}
+		if (consolethread == AST_PTHREADT_NULL || consolethread == pthread_self()) {
+			/* Only end if we are the consolethread, otherwise there's a race with that thread. */
+			if (el != NULL) {
+				el_end(el);
+			}
+			if (el_hist != NULL) {
+				history_end(el_hist);
+			}
+		}
 	}
 	if (option_verbose)
 		ast_verbose("Executing last minute cleanups\n");
