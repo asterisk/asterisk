@@ -2962,7 +2962,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					/* Setup parameters */
 					o->chan = ast_request(tech, in->nativeformats, stuff, &status);
 					if (!o->chan) {
-						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
+						ast_log(LOG_NOTICE,
+							"Forwarding failed to create channel to dial '%s/%s'\n",
+							tech, stuff);
 						o->stillgoing = 0;
 						numnochan++;
 					} else {
@@ -2987,8 +2989,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						if (o->chan->cid.cid_rdnis)
 							ast_free(o->chan->cid.cid_rdnis);
 						o->chan->cid.cid_rdnis = ast_strdup(S_OR(in->macroexten, in->exten));
-						if (ast_call(o->chan, tmpchan, 0)) {
-							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+						if (ast_call(o->chan, stuff, 0)) {
+							ast_log(LOG_NOTICE, "Forwarding failed to dial '%s/%s'\n",
+								tech, stuff);
 							do_hang(o);
 							numnochan++;
 						}
