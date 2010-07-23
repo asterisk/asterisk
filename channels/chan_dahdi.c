@@ -5099,11 +5099,41 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
 	int x, res, mysig;
-	char dest[256]; /* must be same length as p->dialdest */
+	char *dest;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(group);	/* channel/group token */
+		AST_APP_ARG(ext);	/* extension token */
+		//AST_APP_ARG(opts);	/* options token */
+		AST_APP_ARG(other);	/* Any remining unused arguments */
+	);
 
 	ast_mutex_lock(&p->lock);
-	ast_copy_string(dest, rdest, sizeof(dest));
 	ast_copy_string(p->dialdest, rdest, sizeof(p->dialdest));
+
+	/* Split the dialstring */
+	dest = ast_strdupa(rdest);
+	AST_NONSTANDARD_APP_ARGS(args, dest, '/');
+	if (!args.ext) {
+		args.ext = "";
+	}
+
+#if defined(HAVE_PRI)
+	if (dahdi_sig_pri_lib_handles(p->sig)) {
+		char *subaddr;
+
+		sig_pri_extract_called_num_subaddr(p->sig_pvt, rdest, p->exten, sizeof(p->exten));
+
+		/* Remove any subaddress for uniformity with incoming calls. */
+		subaddr = strchr(p->exten, ':');
+		if (subaddr) {
+			*subaddr = '\0';
+		}
+	} else
+#endif	/* defined(HAVE_PRI) */
+	{
+		ast_copy_string(p->exten, args.ext, sizeof(p->exten));
+	}
+
 	if ((ast->_state == AST_STATE_BUSY)) {
 		p->subs[SUB_REAL].needbusy = 1;
 		ast_mutex_unlock(&p->lock);
@@ -5183,12 +5213,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
 		p->dialdest[0] = '\0';
 
-		c = strchr(dest, '/');
-		if (c) {
-			c++;
-		} else {
-			c = "";
-		}
+		c = args.ext;
 		if (!p->hidecallerid) {
 			l = ast->caller.id.number.valid ? ast->caller.id.number.str : NULL;
 		} else {
