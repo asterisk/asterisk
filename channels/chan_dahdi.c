@@ -5018,10 +5018,10 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 	case AST_OPTION_ECHOCAN:
 		cp = (char *) data;
 		if (*cp) {
-			ast_debug(1, "Enabling echo cancelation on %s\n", chan->name);
+			ast_debug(1, "Enabling echo cancellation on %s\n", chan->name);
 			dahdi_enable_ec(p);
 		} else {
-			ast_debug(1, "Disabling echo cancelation on %s\n", chan->name);
+			ast_debug(1, "Disabling echo cancellation on %s\n", chan->name);
 			dahdi_disable_ec(p);
 		}
 		break;
