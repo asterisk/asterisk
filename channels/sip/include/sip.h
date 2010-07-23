@@ -1001,7 +1001,7 @@ struct sip_pvt {
 	int authtries;                        /*!< Times we've tried to authenticate */
 	struct sip_proxy *outboundproxy;      /*!< Outbound proxy for this dialog. Use ref_proxy to set this instead of setting it directly*/
 	struct t38properties t38;             /*!< T38 settings */
-	struct sockaddr_in udptlredirip;      /*!< Where our T.38 UDPTL should be going if not to us */
+	struct ast_sockaddr udptlredirip;     /*!< Where our T.38 UDPTL should be going if not to us */
 	struct ast_udptl *udptl;              /*!< T.38 UDPTL session */
 	int callingpres;                      /*!< Calling presentation */
 	int expiry;                         /*!< How long we take to expire */

@@ -31,6 +31,7 @@
 #include "asterisk/io.h"
 #include "asterisk/sched.h"
 #include "asterisk/channel.h"
+#include "asterisk/netsock2.h"
 
 
 enum ast_t38_ec_modes {
@@ -56,9 +57,7 @@ struct ast_udptl;
 
 typedef int (*ast_udptl_callback)(struct ast_udptl *udptl, struct ast_frame *f, void *data);
 
-struct ast_udptl *ast_udptl_new(struct sched_context *sched, struct io_context *io, int callbackmode);
-
-struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct in_addr in);
+struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct ast_sockaddr *in);
 
 /*!
  * \brief Associates a character string 'tag' with a UDPTL session.
@@ -75,11 +74,11 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
  */
 void __attribute__((format(printf, 2, 3))) ast_udptl_set_tag(struct ast_udptl *udptl, const char *format, ...);
 
-void ast_udptl_set_peer(struct ast_udptl *udptl, const struct sockaddr_in *them);
+void ast_udptl_set_peer(struct ast_udptl *udptl, const struct ast_sockaddr *them);
 
-void ast_udptl_get_peer(const struct ast_udptl *udptl, struct sockaddr_in *them);
+void ast_udptl_get_peer(const struct ast_udptl *udptl, struct ast_sockaddr *them);
 
-void ast_udptl_get_us(const struct ast_udptl *udptl, struct sockaddr_in *us);
+void ast_udptl_get_us(const struct ast_udptl *udptl, struct ast_sockaddr *us);
 
 void ast_udptl_destroy(struct ast_udptl *udptl);
 

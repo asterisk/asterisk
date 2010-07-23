@@ -4783,11 +4783,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->capability = peer->capability;
 	dialog->prefs = peer->prefs;
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT)) {
-		struct sockaddr_in bindaddr_tmp;
-
 		/* t38pt_udptl was enabled in the peer and not in [general] */
-		ast_sockaddr_to_sin(&bindaddr, &bindaddr_tmp);
-		if (dialog->udptl || (!dialog->udptl && (dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr_tmp.sin_addr)))) {
+		if (dialog->udptl || (!dialog->udptl && (dialog->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, &bindaddr)))) {
 			dialog->t38_maxdatagram = peer->t38_maxdatagram;
 			set_t38_capabilities(dialog);
 		} else {
@@ -7061,10 +7058,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 
 	if (sip_methods[intended_method].need_rtp) {
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
-			struct sockaddr_in bindaddr_tmp;
-
-			ast_sockaddr_to_sin(&bindaddr, &bindaddr_tmp);
-			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr_tmp.sin_addr))) {
+			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, &bindaddr))) {
 				ast_udptl_setqos(p->udptl, global_tos_audio, global_cos_audio);
 				p->t38_maxdatagram = global_t38_maxdatagram;
 			} else {
@@ -7798,7 +7792,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
  	int vportno = -1;		/*!< RTP Video port number */
 	int tportno = -1;		/*!< RTP Text port number */
 	int udptlportno = -1;		/*!< UDPTL Image port number */
-	struct sockaddr_in isin;	/*!< image socket address */
 
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
 	format_t peercapability = 0, vpeercapability = 0, tpeercapability = 0;
@@ -8266,27 +8259,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup image address and port */
 	if (p->udptl) {
 		if (udptlportno > 0) {
-			ast_sockaddr_set_port(isa, udptlportno);
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
-				struct sockaddr_in remote_address = { 0, };
-				struct ast_sockaddr remote_address_tmp;
-
-				ast_rtp_instance_get_remote_address(p->rtp,
-								    &remote_address_tmp);
-				ast_sockaddr_to_sin(&remote_address_tmp,
-						    &remote_address);
-				if (remote_address.sin_addr.s_addr) {
-					memcpy(&isin, &remote_address, sizeof(isin));
+				ast_rtp_instance_get_remote_address(p->rtp, isa);
+				if (!ast_sockaddr_isnull(isa)) {
 					if (debug) {
-						ast_log(LOG_DEBUG, "Peer T.38 UDPTL is set behind NAT and with destination, destination address now %s\n", ast_inet_ntoa(isin.sin_addr));
+						ast_log(LOG_DEBUG, "Peer T.38 UDPTL is set behind NAT and with destination, destination address now %s\n", ast_sockaddr_stringify(isa));
 					}
 				}
-			} else {
-				ast_sockaddr_to_sin(isa, &isin);
 			}
-			ast_udptl_set_peer(p->udptl, &isin);
+			ast_sockaddr_set_port(isa, udptlportno);
+			ast_udptl_set_peer(p->udptl, isa);
 			if (debug)
-				ast_debug(1,"Peer T.38 UDPTL is at port %s:%d\n", ast_inet_ntoa(isin.sin_addr), ntohs(isin.sin_port));
+				ast_debug(1,"Peer T.38 UDPTL is at port %s\n", ast_sockaddr_stringify(isa));
 
 			/* verify the far max ifp can be calculated. this requires far max datagram to be set. */
 			if (!ast_udptl_get_far_max_datagram(p->udptl)) {
@@ -10166,12 +10150,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	struct ast_sockaddr addr = { {0,} };
 	struct ast_sockaddr vaddr = { {0,} };
 	struct ast_sockaddr taddr = { {0,} };
+	struct ast_sockaddr udptladdr = { {0,} };
 	struct ast_sockaddr dest = { {0,} };
 	struct ast_sockaddr vdest = { {0,} };
 	struct ast_sockaddr tdest = { {0,} };
-	struct sockaddr_in dest_tmp;
-	struct sockaddr_in udptlsin = { 0, };
-	struct sockaddr_in udptldest = { 0, };
+	struct ast_sockaddr udptldest = { {0,} };
 
 	/* SDP fields */
 	char *version = 	"v=0\r\n";		/* Protocol version */
@@ -10406,29 +10389,29 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 	if (add_t38) {
 		/* Our T.38 end is */
-		ast_udptl_get_us(p->udptl, &udptlsin);
+		ast_udptl_get_us(p->udptl, &udptladdr);
 
 		/* Determine T.38 UDPTL destination */
-		if (p->udptlredirip.sin_addr.s_addr) {
-			udptldest.sin_port = p->udptlredirip.sin_port;
-			udptldest.sin_addr = p->udptlredirip.sin_addr;
+		if (!ast_sockaddr_isnull(&p->udptlredirip)) {
+			ast_sockaddr_copy(&udptldest, &p->udptlredirip);
 		} else {
-			ast_sockaddr_to_sin(&p->ourip, &udptldest);
-			udptldest.sin_port = udptlsin.sin_port;
+			ast_sockaddr_copy(&udptldest, &p->ourip);
+			ast_sockaddr_set_port(&udptldest, ast_sockaddr_port(&udptladdr));
 		}
 
 		if (debug) {
-			ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_sockaddr_stringify_addr(&p->ourip), ntohs(udptlsin.sin_port));
+			ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_sockaddr_stringify_addr(&p->ourip), ast_sockaddr_port(&udptladdr));
 		}
 
 		/* We break with the "recommendation" and send our IP, in order that our
 		   peer doesn't have to ast_gethostbyname() us */
 
-		ast_str_append(&m_modem, 0, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
+		ast_str_append(&m_modem, 0, "m=image %d udptl t38\r\n", ast_sockaddr_port(&udptldest));
 
-		ast_sockaddr_to_sin(&dest, &dest_tmp);
-		if (udptldest.sin_addr.s_addr != dest_tmp.sin_addr.s_addr) {
-			ast_str_append(&m_modem, 0, "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
+		if (!ast_sockaddr_cmp(&udptldest, &dest)) {
+			ast_str_append(&m_modem, 0, "c=IN %s %s\r\n",
+					(ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
+					"IP6" : "IP4", ast_sockaddr_stringify_addr(&udptldest));
 		}
 
 		ast_str_append(&a_modem, 0, "a=T38FaxVersion:%d\r\n", p->t38.our_parms.version);
@@ -21127,10 +21110,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 		/* If T38 is needed but not present, then make it magically appear */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) && !p->udptl) {
-			struct sockaddr_in bindaddr_sin_tmp;
-
-			ast_sockaddr_to_sin(&bindaddr, &bindaddr_sin_tmp);
-			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr_sin_tmp.sin_addr))) {
+			if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, &bindaddr))) {
 				p->t38_maxdatagram = global_t38_maxdatagram;
 				set_t38_capabilities(p);
 			} else {
@@ -27247,14 +27227,13 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
 	}
 	if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
-		struct sockaddr_in ourip_sin;
-		ast_sockaddr_to_sin(&p->ourip, &ourip_sin);
 		if (!p->pendinginvite) {
-			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : ourip_sin.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
-
+			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s\n",
+					p->callid, ast_sockaddr_stringify(udptl ? &p->udptlredirip : &p->ourip));
 			transmit_reinvite_with_sdp(p, TRUE, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : ourip_sin.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s\n",
+					p->callid, ast_sockaddr_stringify(udptl ? &p->udptlredirip : &p->ourip));
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
 	}
