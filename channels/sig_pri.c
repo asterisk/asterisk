@@ -59,7 +59,7 @@
 #if defined(HAVE_PRI_CCSS)
 struct sig_pri_cc_agent_prv {
 	/*! Asterisk span D channel control structure. */
-	struct sig_pri_pri *pri;
+	struct sig_pri_span *pri;
 	/*! CC id value to use with libpri. -1 if invalid. */
 	long cc_id;
 	/*! TRUE if CC has been requested and we are waiting for the response. */
@@ -68,7 +68,7 @@ struct sig_pri_cc_agent_prv {
 
 struct sig_pri_cc_monitor_instance {
 	/*! \brief Asterisk span D channel control structure. */
-	struct sig_pri_pri *pri;
+	struct sig_pri_span *pri;
 	/*! CC id value to use with libpri. (-1 if already canceled). */
 	long cc_id;
 	/*! CC core id value. */
@@ -107,9 +107,9 @@ static int pri_gendigittimeout = 8000;
 		sig_pri_lock_private(p); \
 	} while (0)
 
-static int pri_active_dchan_index(struct sig_pri_pri *pri);
+static int pri_active_dchan_index(struct sig_pri_span *pri);
 
-static inline void pri_rel(struct sig_pri_pri *pri)
+static inline void pri_rel(struct sig_pri_span *pri)
 {
 	ast_mutex_unlock(&pri->lock);
 }
@@ -123,7 +123,7 @@ static unsigned int PVT_TO_CHANNEL(struct sig_pri_chan *p)
 	return res;
 }
 
-static void sig_pri_handle_dchan_exception(struct sig_pri_pri *pri, int index)
+static void sig_pri_handle_dchan_exception(struct sig_pri_span *pri, int index)
 {
 	if (pri->calls->handle_dchan_exception)
 		pri->calls->handle_dchan_exception(pri, index);
@@ -184,7 +184,7 @@ static void sig_pri_make_cc_dialstring(struct sig_pri_chan *p, char *buf, size_t
  *
  * \note Assumes the pri->lock is already obtained.
  */
-static void sig_pri_span_devstate_changed(struct sig_pri_pri *pri)
+static void sig_pri_span_devstate_changed(struct sig_pri_span *pri)
 {
 	if (pri->calls->update_span_devstate) {
 		pri->calls->update_span_devstate(pri);
@@ -280,7 +280,7 @@ static void sig_pri_lock_private(struct sig_pri_chan *p)
 		p->calls->lock_private(p->chan_pvt);
 }
 
-static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_pri *pri)
+static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_span *pri)
 {
 	int res;
 	/* Grab the lock first */
@@ -924,7 +924,7 @@ struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law
 	return ast;
 }
 
-int pri_is_up(struct sig_pri_pri *pri)
+int pri_is_up(struct sig_pri_span *pri)
 {
 	int x;
 	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
@@ -951,7 +951,7 @@ static char *pri_order(int level)
 }
 
 /* Returns index of the active dchan */
-static int pri_active_dchan_index(struct sig_pri_pri *pri)
+static int pri_active_dchan_index(struct sig_pri_span *pri)
 {
 	int x;
 
@@ -964,7 +964,7 @@ static int pri_active_dchan_index(struct sig_pri_pri *pri)
 	return -1;
 }
 
-static int pri_find_dchan(struct sig_pri_pri *pri)
+static int pri_find_dchan(struct sig_pri_span *pri)
 {
 	int oldslot = -1;
 	struct pri *old;
@@ -1005,7 +1005,7 @@ static int pri_find_dchan(struct sig_pri_pri *pri)
  *
  * \return Nothing
  */
-static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
+static void sig_pri_lock_owner(struct sig_pri_span *pri, int chanpos)
 {
 	for (;;) {
 		if (!pri->pvts[chanpos]->owner) {
@@ -1037,7 +1037,7 @@ static void sig_pri_lock_owner(struct sig_pri_pri *pri, int chanpos)
  *
  * \return Nothing
  */
-static void pri_queue_frame(struct sig_pri_pri *pri, int chanpos, struct ast_frame *frame)
+static void pri_queue_frame(struct sig_pri_span *pri, int chanpos, struct ast_frame *frame)
 {
 	sig_pri_lock_owner(pri, chanpos);
 	if (pri->pvts[chanpos]->owner) {
@@ -1060,7 +1060,7 @@ static void pri_queue_frame(struct sig_pri_pri *pri, int chanpos, struct ast_fra
  *
  * \return Nothing
  */
-static void pri_queue_control(struct sig_pri_pri *pri, int chanpos, int subclass)
+static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclass)
 {
 	struct ast_frame f = {AST_FRAME_CONTROL, };
 	struct sig_pri_chan *p = pri->pvts[chanpos];
@@ -1073,7 +1073,7 @@ static void pri_queue_control(struct sig_pri_pri *pri, int chanpos, int subclass
 	pri_queue_frame(pri, chanpos, &f);
 }
 
-static int pri_find_principle(struct sig_pri_pri *pri, int channel, q931_call *call)
+static int pri_find_principle(struct sig_pri_span *pri, int channel, q931_call *call)
 {
 	int x;
 	int span;
@@ -1127,7 +1127,7 @@ static int pri_find_principle(struct sig_pri_pri *pri, int channel, q931_call *c
 	return principle;
 }
 
-static int pri_fixup_principle(struct sig_pri_pri *pri, int principle, q931_call *call)
+static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_call *call)
 {
 	int x;
 
@@ -1271,7 +1271,7 @@ static char *dialplan2str(int dialplan)
 	return (pri_plan2str(dialplan));
 }
 
-static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_pri *pri, const char *number, const int plan)
+static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_span *pri, const char *number, const int plan)
 {
 	switch (plan) {
 	case PRI_INTERNATIONAL_ISDN:		/* Q.931 dialplan == 0x11 international dialplan => prepend international prefix digits */
@@ -1296,7 +1296,7 @@ static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_pr
 }
 
 /*! \note Assumes the pri->lock is already obtained. */
-static int pri_check_restart(struct sig_pri_pri *pri)
+static int pri_check_restart(struct sig_pri_span *pri)
 {
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 tryanotherpos:
@@ -1343,7 +1343,7 @@ tryanotherpos:
  *
  * \return Nothing
  */
-static void sig_pri_init_config(struct sig_pri_chan *pvt, struct sig_pri_pri *pri)
+static void sig_pri_init_config(struct sig_pri_chan *pvt, struct sig_pri_span *pri)
 {
 	pvt->stripmsd = pri->ch_cfg.stripmsd;
 	pvt->hidecallerid = pri->ch_cfg.hidecallerid;
@@ -1362,7 +1362,7 @@ static void sig_pri_init_config(struct sig_pri_chan *pvt, struct sig_pri_pri *pr
 }
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 
-static int pri_find_empty_chan(struct sig_pri_pri *pri, int backwards)
+static int pri_find_empty_chan(struct sig_pri_span *pri, int backwards)
 {
 	int x;
 	if (backwards)
@@ -1403,7 +1403,7 @@ static int pri_find_empty_chan(struct sig_pri_pri *pri, int backwards)
  * \retval array-index into private pointer array on success.
  * \retval -1 on error.
  */
-static int pri_find_empty_nobch(struct sig_pri_pri *pri)
+static int pri_find_empty_nobch(struct sig_pri_span *pri)
 {
 	int idx;
 
@@ -1441,7 +1441,7 @@ static int pri_find_empty_nobch(struct sig_pri_pri *pri)
  * \retval array-index into private pointer array on success.
  * \retval -1 on error.
  */
-static int pri_find_pri_call(struct sig_pri_pri *pri, q931_call *call)
+static int pri_find_pri_call(struct sig_pri_span *pri, q931_call *call)
 {
 	int idx;
 
@@ -1612,14 +1612,14 @@ static void *pri_ss_thread(void *data)
 	return NULL;
 }
 
-void pri_event_alarm(struct sig_pri_pri *pri, int index, int before_start_pri)
+void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri)
 {
 	pri->dchanavail[index] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
 	if (!before_start_pri)
 		pri_find_dchan(pri);
 }
 
-void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri)
+void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri)
 {
 	pri->dchanavail[index] |= DCHAN_NOTINALARM;
 	if (!before_start_pri)
@@ -1661,7 +1661,7 @@ static void sig_pri_party_name_convert(struct ast_party_name *ast_name, const st
  *
  * \return Nothing
  */
-static void sig_pri_party_number_convert(struct ast_party_number *ast_number, const struct pri_party_number *pri_number, struct sig_pri_pri *pri)
+static void sig_pri_party_number_convert(struct ast_party_number *ast_number, const struct pri_party_number *pri_number, struct sig_pri_span *pri)
 {
 	char number[AST_MAX_EXTENSION];
 
@@ -1686,7 +1686,7 @@ static void sig_pri_party_number_convert(struct ast_party_number *ast_number, co
  *
  * \return Nothing
  */
-static void sig_pri_party_id_convert(struct ast_party_id *ast_id, const struct pri_party_id *pri_id, struct sig_pri_pri *pri)
+static void sig_pri_party_id_convert(struct ast_party_id *ast_id, const struct pri_party_id *pri_id, struct sig_pri_span *pri)
 {
 	if (pri_id->name.valid) {
 		sig_pri_party_name_convert(&ast_id->name, &pri_id->name);
@@ -1719,7 +1719,7 @@ static void sig_pri_party_id_convert(struct ast_party_id *ast_id, const struct p
 static void sig_pri_redirecting_convert(struct ast_party_redirecting *ast_redirecting,
 	const struct pri_party_redirecting *pri_redirecting,
 	const struct ast_party_redirecting *ast_guide,
-	struct sig_pri_pri *pri)
+	struct sig_pri_span *pri)
 {
 	ast_party_redirecting_set_init(ast_redirecting, ast_guide);
 
@@ -1841,7 +1841,7 @@ static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, str
  *
  * \return Nothing
  */
-static void sig_pri_mcid_event(struct sig_pri_pri *pri, const struct pri_subcmd_mcid_req *mcid, struct ast_channel *owner)
+static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd_mcid_req *mcid, struct ast_channel *owner)
 {
 	struct ast_channel *chans[1];
 	struct ast_str *msg;
@@ -1899,7 +1899,7 @@ static void sig_pri_mcid_event(struct sig_pri_pri *pri, const struct pri_subcmd_
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int sig_pri_attempt_transfer(struct sig_pri_pri *pri, q931_call *call_1, int call_1_held, q931_call *call_2, int call_2_held)
+static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1, int call_1_held, q931_call *call_2, int call_2_held)
 {
 	int retval;
 	int call_1_chanpos;
@@ -2022,7 +2022,7 @@ static int sig_pri_cc_agent_cmp_cc_id(void *obj, void *arg, int flags)
  * \retval agent on success.
  * \retval NULL not found.
  */
-static struct ast_cc_agent *sig_pri_find_cc_agent_by_cc_id(struct sig_pri_pri *pri, long cc_id)
+static struct ast_cc_agent *sig_pri_find_cc_agent_by_cc_id(struct sig_pri_span *pri, long cc_id)
 {
 	struct sig_pri_cc_agent_prv finder = {
 		.pri = pri,
@@ -2073,7 +2073,7 @@ static int sig_pri_cc_monitor_cmp_cc_id(void *obj, void *arg, int flags)
  * \retval monitor_instance on success.
  * \retval NULL not found.
  */
-static struct sig_pri_cc_monitor_instance *sig_pri_find_cc_monitor_by_cc_id(struct sig_pri_pri *pri, long cc_id)
+static struct sig_pri_cc_monitor_instance *sig_pri_find_cc_monitor_by_cc_id(struct sig_pri_span *pri, long cc_id)
 {
 	struct sig_pri_cc_monitor_instance finder = {
 		.pri = pri,
@@ -2126,7 +2126,7 @@ static void sig_pri_cc_monitor_instance_destroy(void *data)
  * \retval monitor_instance on success.
  * \retval NULL on error.
  */
-static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int core_id, struct sig_pri_pri *pri, long cc_id, const char *device_name)
+static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int core_id, struct sig_pri_span *pri, long cc_id, const char *device_name)
 {
 	struct sig_pri_cc_monitor_instance *monitor_instance;
 
@@ -2170,7 +2170,7 @@ static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int 
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int sig_pri_cc_available(struct sig_pri_pri *pri, int chanpos, long cc_id, enum ast_cc_service_type service)
+static int sig_pri_cc_available(struct sig_pri_span *pri, int chanpos, long cc_id, enum ast_cc_service_type service)
 {
 	struct sig_pri_chan *pvt;
 	struct ast_cc_config_params *cc_params;
@@ -2243,7 +2243,7 @@ static int sig_pri_cc_available(struct sig_pri_pri *pri, int chanpos, long cc_id
  *
  * \return Nothing
  */
-static void sig_pri_cc_generic_check(struct sig_pri_pri *pri, int chanpos, enum ast_cc_service_type service)
+static void sig_pri_cc_generic_check(struct sig_pri_span *pri, int chanpos, enum ast_cc_service_type service)
 {
 	struct ast_channel *owner;
 	struct ast_cc_config_params *cc_params;
@@ -2340,7 +2340,7 @@ done:
  *
  * \return Nothing
  */
-static void sig_pri_cc_link_canceled(struct sig_pri_pri *pri, long cc_id, int is_agent)
+static void sig_pri_cc_link_canceled(struct sig_pri_span *pri, long cc_id, int is_agent)
 {
 	if (is_agent) {
 		struct ast_cc_agent *agent;
@@ -3332,7 +3332,7 @@ static int sig_pri_is_cis_call(int channel)
  *
  * \return Nothing
  */
-static void sig_pri_handle_cis_subcmds(struct sig_pri_pri *pri, int event_id,
+static void sig_pri_handle_cis_subcmds(struct sig_pri_span *pri, int event_id,
 	const struct pri_subcommands *subcmds, q931_call *call_rsp)
 {
 	int index;
@@ -3588,7 +3588,7 @@ static int detect_aoc_e_subcmd(const struct pri_subcommands *subcmds)
  *
  * \return Nothing
  */
-static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int event_id,
+static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int event_id,
 	int channel, const struct pri_subcommands *subcmds, q931_call *call_rsp)
 {
 	int index;
@@ -3923,7 +3923,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_pri *pri, int chanpos, int eve
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int sig_pri_handle_hold(struct sig_pri_pri *pri, pri_event *ev)
+static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 {
 	int retval;
 	int chanpos_old;
@@ -4004,7 +4004,7 @@ done_with_private:;
  *
  * \return Nothing
  */
-static void sig_pri_handle_retrieve(struct sig_pri_pri *pri, pri_event *ev)
+static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 {
 	int chanpos;
 
@@ -4055,7 +4055,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_pri *pri, pri_event *ev)
 
 static void *pri_dchannel(void *vpri)
 {
-	struct sig_pri_pri *pri = vpri;
+	struct sig_pri_span *pri = vpri;
 	pri_event *e;
 	struct pollfd fds[SIG_PRI_NUM_DCHANS];
 	int res;
@@ -5622,7 +5622,7 @@ static void *pri_dchannel(void *vpri)
 	return NULL;
 }
 
-void sig_pri_init_pri(struct sig_pri_pri *pri)
+void sig_pri_init_pri(struct sig_pri_span *pri)
 {
 	int i;
 
@@ -6510,7 +6510,7 @@ static int sig_pri_available_check(struct sig_pri_chan *pvt)
  * \retval cw Call waiting interface to use.
  * \retval NULL if no call waiting interface available.
  */
-static struct sig_pri_chan *sig_pri_cw_available(struct sig_pri_pri *pri)
+static struct sig_pri_chan *sig_pri_cw_available(struct sig_pri_span *pri)
 {
 	struct sig_pri_chan *cw;
 	int idx;
@@ -6621,7 +6621,7 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
  *
  * \return Nothing
  */
-static void sig_pri_send_mwi_indication(struct sig_pri_pri *pri, const char *mbox_number, const char *mbox_context, int num_messages)
+static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *mbox_number, const char *mbox_context, int num_messages)
 {
 	struct pri_party_id mailbox;
 
@@ -6653,7 +6653,7 @@ static void sig_pri_send_mwi_indication(struct sig_pri_pri *pri, const char *mbo
  */
 static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
 {
-	struct sig_pri_pri *pri = userdata;
+	struct sig_pri_span *pri = userdata;
 	const char *mbox_context;
 	const char *mbox_number;
 	int num_messages;
@@ -6681,7 +6681,7 @@ static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
  *
  * \return Nothing
  */
-static void sig_pri_mwi_cache_update(struct sig_pri_pri *pri)
+static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 {
 	int idx;
 	int num_messages;
@@ -6717,7 +6717,7 @@ static void sig_pri_mwi_cache_update(struct sig_pri_pri *pri)
  *
  * \return Nothing
  */
-void sig_pri_stop_pri(struct sig_pri_pri *pri)
+void sig_pri_stop_pri(struct sig_pri_span *pri)
 {
 #if defined(HAVE_PRI_MWI)
 	int idx;
@@ -6777,12 +6777,12 @@ static int sig_pri_cmp_pri_chans(const void *left, const void *right)
  *
  * \return Nothing
  */
-static void sig_pri_sort_pri_chans(struct sig_pri_pri *pri)
+static void sig_pri_sort_pri_chans(struct sig_pri_span *pri)
 {
 	qsort(&pri->pvts, pri->numchans, sizeof(pri->pvts[0]), sig_pri_cmp_pri_chans);
 }
 
-int sig_pri_start_pri(struct sig_pri_pri *pri)
+int sig_pri_start_pri(struct sig_pri_span *pri)
 {
 	int x;
 	int i;
@@ -6984,7 +6984,7 @@ void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 	}
 }
 
-struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo, int trunkgroup)
+struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup)
 {
 	struct sig_pri_chan *p;
 
@@ -7036,7 +7036,7 @@ static void build_status(char *s, size_t len, int status, int active)
 	s[len - 1] = '\0';
 }
 
-void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_pri *pri)
+void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_span *pri)
 {
 	char status[256];
 	int x;
@@ -7048,7 +7048,7 @@ void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_pri *pri)
 	}
 }
 
-void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_pri *pri)
+void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_span *pri)
 {
 	int x;
 	char status[256];

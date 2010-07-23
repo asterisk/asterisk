@@ -568,7 +568,7 @@ struct dahdi_pri {
 	int dchannels[SIG_PRI_NUM_DCHANS];		/*!< What channel are the dchannels on */
 	int mastertrunkgroup;					/*!< What trunk group is our master */
 	int prilogicalspan;						/*!< Logical span number within trunk group */
-	struct sig_pri_pri pri;
+	struct sig_pri_span pri;
 };
 
 static struct dahdi_pri pris[NUM_SPANS];
@@ -946,7 +946,7 @@ struct dahdi_pvt {
 	unsigned int manages_span_alarms:1;
 
 #if defined(HAVE_PRI)
-	struct sig_pri_pri *pri;
+	struct sig_pri_span *pri;
 	int logicalspan;
 #endif
 	/*!
@@ -2910,7 +2910,7 @@ static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
-static void my_handle_dchan_exception(struct sig_pri_pri *pri, int index)
+static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 {
 	int x, res;
 
@@ -3087,7 +3087,7 @@ static void my_pri_make_cc_dialstring(void *priv, char *buf, size_t buf_size)
  *
  * \note Assumes the pri->lock is already obtained.
  */
-static void dahdi_pri_update_span_devstate(struct sig_pri_pri *pri)
+static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
 {
 	unsigned idx;
 	unsigned num_b_chans;	/* Number of B channels provisioned on the span. */
@@ -3178,9 +3178,9 @@ static void my_module_unref(void)
 
 #if defined(HAVE_PRI)
 #if defined(HAVE_PRI_CALL_WAITING)
-static void my_pri_init_config(void *priv, struct sig_pri_pri *pri);
+static void my_pri_init_config(void *priv, struct sig_pri_span *pri);
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
-static int dahdi_new_pri_nobch_channel(struct sig_pri_pri *pri);
+static int dahdi_new_pri_nobch_channel(struct sig_pri_span *pri);
 
 static struct sig_pri_callback dahdi_pri_callbacks =
 {
@@ -5320,7 +5320,7 @@ static void dahdi_iflist_extract(struct dahdi_pvt *pvt)
  *
  * \return Nothing
  */
-static void dahdi_nobch_insert(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
+static void dahdi_nobch_insert(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
 {
 	struct dahdi_pvt *cur;
 
@@ -5373,7 +5373,7 @@ static void dahdi_nobch_insert(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
  *
  * \return Nothing
  */
-static void dahdi_nobch_extract(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
+static void dahdi_nobch_extract(struct sig_pri_span *pri, struct dahdi_pvt *pvt)
 {
 	/* Extract from the forward chain. */
 	if (pvt->prev) {
@@ -5411,7 +5411,7 @@ static void dahdi_nobch_extract(struct sig_pri_pri *pri, struct dahdi_pvt *pvt)
 static void dahdi_unlink_pri_pvt(struct dahdi_pvt *pvt)
 {
 	unsigned idx;
-	struct sig_pri_pri *pri;
+	struct sig_pri_span *pri;
 
 	pri = pvt->pri;
 	if (!pri) {
@@ -5568,7 +5568,7 @@ static void destroy_all_channels(void)
 	int chan;
 #if defined(HAVE_PRI)
 	unsigned span;
-	struct sig_pri_pri *pri;
+	struct sig_pri_span *pri;
 #endif	/* defined(HAVE_PRI) */
 	struct dahdi_pvt *p;
 
@@ -12677,7 +12677,7 @@ static int available(struct dahdi_pvt **pvt, int is_specific_channel)
  *
  * \return Nothing
  */
-static void my_pri_init_config(void *priv, struct sig_pri_pri *pri)
+static void my_pri_init_config(void *priv, struct sig_pri_span *pri)
 {
 	struct dahdi_pvt *pvt = priv;
 
@@ -12708,7 +12708,7 @@ static void my_pri_init_config(void *priv, struct sig_pri_pri *pri)
  * \retval array-index into private pointer array on success.
  * \retval -1 on error.
  */
-static int dahdi_new_pri_nobch_channel(struct sig_pri_pri *pri)
+static int dahdi_new_pri_nobch_channel(struct sig_pri_span *pri)
 {
 	int pvt_idx;
 	int res;

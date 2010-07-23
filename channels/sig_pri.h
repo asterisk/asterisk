@@ -83,7 +83,7 @@ enum sig_pri_law {
 	SIG_PRI_ALAW
 };
 
-struct sig_pri_pri;
+struct sig_pri_span;
 
 struct sig_pri_callback {
 	/* Unlock the private in the signalling private structure.  This is used for three way calling madness. */
@@ -107,7 +107,7 @@ struct sig_pri_callback {
 	void (* const fixup_chans)(void *old_chan, void *new_chan);
 
 	/* Note: Called with PRI lock held */
-	void (* const handle_dchan_exception)(struct sig_pri_pri *pri, int index);
+	void (* const handle_dchan_exception)(struct sig_pri_span *pri, int index);
 	void (* const set_alarm)(void *pvt, int in_alarm);
 	void (* const set_dialing)(void *pvt, int is_dialing);
 	void (* const set_digital)(void *pvt, int is_digital);
@@ -115,11 +115,11 @@ struct sig_pri_callback {
 	void (* const set_dnid)(void *pvt, const char *dnid);
 	void (* const set_rdnis)(void *pvt, const char *rdnis);
 	void (* const queue_control)(void *pvt, int subclass);
-	int (* const new_nobch_intf)(struct sig_pri_pri *pri);
-	void (* const init_config)(void *pvt, struct sig_pri_pri *pri);
+	int (* const new_nobch_intf)(struct sig_pri_span *pri);
+	void (* const init_config)(void *pvt, struct sig_pri_span *pri);
 	const char *(* const get_orig_dialstring)(void *pvt);
 	void (* const make_cc_dialstring)(void *pvt, char *buf, size_t buf_size);
-	void (* const update_span_devstate)(struct sig_pri_pri *pri);
+	void (* const update_span_devstate)(struct sig_pri_span *pri);
 
 	void (* const open_media)(void *pvt);
 
@@ -229,7 +229,7 @@ struct sig_pri_chan {
 
 	struct ast_channel *owner;
 
-	struct sig_pri_pri *pri;
+	struct sig_pri_span *pri;
 	q931_call *call;				/*!< opaque libpri call control structure */
 
 	int prioffset;					/*!< channel number in span */
@@ -283,7 +283,7 @@ struct sig_pri_mbox {
 };
 #endif	/* defined(HAVE_PRI_MWI) */
 
-struct sig_pri_pri {
+struct sig_pri_span {
 	/* Should be set by user */
 	struct ast_cc_config_params *cc_params;			/*!< CC config parameters for each new call. */
 	int	pritimers[PRI_MAX_TIMERS];
@@ -459,31 +459,31 @@ int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast);
 
 int sig_pri_available(struct sig_pri_chan **pvt, int is_specific_channel);
 
-void sig_pri_init_pri(struct sig_pri_pri *pri);
+void sig_pri_init_pri(struct sig_pri_span *pri);
 
 /* If return 0, it means this function was able to handle it (pre setup digits).  If non zero, the user of this
  * functions should handle it normally (generate inband DTMF) */
 int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char digit);
 
-void sig_pri_stop_pri(struct sig_pri_pri *pri);
-int sig_pri_start_pri(struct sig_pri_pri *pri);
+void sig_pri_stop_pri(struct sig_pri_span *pri);
+int sig_pri_start_pri(struct sig_pri_span *pri);
 
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm);
 
-void pri_event_alarm(struct sig_pri_pri *pri, int index, int before_start_pri);
+void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri);
 
-void pri_event_noalarm(struct sig_pri_pri *pri, int index, int before_start_pri);
+void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri);
 
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability);
 
-struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_pri *pri, int logicalspan, int channo, int trunkgroup);
+struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_callback *callback, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup);
 void sig_pri_chan_delete(struct sig_pri_chan *doomed);
 
-int pri_is_up(struct sig_pri_pri *pri);
+int pri_is_up(struct sig_pri_span *pri);
 
-void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_pri *pri);
+void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_span *pri);
 
-void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_pri *pri);
+void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_span *pri);
 
 int pri_send_keypad_facility_exec(struct sig_pri_chan *p, const char *digits);
 int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channel_state chanstate, const char *destination, const char *original, const char *reason);
