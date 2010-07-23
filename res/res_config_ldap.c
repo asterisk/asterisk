@@ -67,7 +67,7 @@ static char url[512];
 static char user[512];
 static char pass[50];
 static char base_distinguished_name[512];
-static int version = 3;
+static int version;
 static time_t connect_time;
 
 static int parse_config(void);
@@ -571,7 +571,7 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 			result = ldap_search_ext_s(ldapConn, dn, LDAP_SCOPE_BASE,
 					   "(objectclass=*)", NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &ldap_result_msg);
 			if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
-				ast_log(LOG_WARNING, "Failed to query database. Try %d/3\n", tries + 1);
+				ast_log(LOG_WARNING, "Failed to query directory. Try %d/3\n", tries + 1);
 				tries++;
 				if (tries < 3) {
 					usleep(500000L * tries);
@@ -587,7 +587,7 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 		} while (result != LDAP_SUCCESS && tries < 3 && is_ldap_connect_error(result));
 
 		if (result != LDAP_SUCCESS) {
-			ast_log(LOG_WARNING, "Failed to query database. Error: %s.\n", ldap_err2string(result));
+			ast_log(LOG_WARNING, "Failed to query directory. Error: %s.\n", ldap_err2string(result));
 			ast_debug(2, "dn=%s\n", dn);
 			ast_mutex_unlock(&ldap_lock);
 			return NULL;
@@ -807,7 +807,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 				  LDAP_SCOPE_SUBTREE, ast_str_buffer(filter), NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
 				  &ldap_result_msg);
 		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
-			ast_log(LOG_DEBUG, "Failed to query database. Try %d/10\n", tries + 1);
+			ast_log(LOG_DEBUG, "Failed to query directory. Try %d/10\n", tries + 1);
 			if (++tries < 10) {
 				usleep(1);
 				if (ldapConn) {
@@ -822,7 +822,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 	} while (result != LDAP_SUCCESS && tries < 10 && is_ldap_connect_error(result));
 
 	if (result != LDAP_SUCCESS) {
-		ast_log(LOG_WARNING, "Failed to query database. Error: %s.\n", ldap_err2string(result));
+		ast_log(LOG_WARNING, "Failed to query directory. Error: %s.\n", ldap_err2string(result));
 		ast_log(LOG_WARNING, "Query: %s\n", ast_str_buffer(filter));
 	} else {
 		/* this is where we create the variables from the search result 
@@ -1049,7 +1049,7 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 	vars = realtime_ldap_base(&vars_count, basedn, table_name, "filename", file, "commented", "FALSE", NULL);
 
 	if (!vars) {
-		ast_log(LOG_WARNING, "Could not find config '%s' in database.\n", file);
+		ast_log(LOG_WARNING, "Could not find config '%s' in directory.\n", file);
 		return NULL;
 	}
 
@@ -1267,7 +1267,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 				  LDAP_SCOPE_SUBTREE, ast_str_buffer(filter), NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
 				  &ldap_result_msg);
 		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
-			ast_log(LOG_WARNING, "Failed to query database. Try %d/3\n", tries + 1);
+			ast_log(LOG_WARNING, "Failed to query directory. Try %d/3\n", tries + 1);
 			tries++;
 			if (tries < 3) {
 				usleep(500000L * tries);
@@ -1452,7 +1452,7 @@ static int update2_ldap(const char *basedn, const char *table_name, va_list ap)
 				  LDAP_SCOPE_SUBTREE, ast_str_buffer(filter), NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
 				  &ldap_result_msg);
 		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
-			ast_log(LOG_WARNING, "Failed to query database. Try %d/3\n", tries + 1);
+			ast_log(LOG_WARNING, "Failed to query directory. Try %d/3\n", tries + 1);
 			tries++;
 			if (tries < 3) {
 				usleep(500000L * tries);
@@ -1597,6 +1597,13 @@ static int parse_config(void)
 	int port;
 	char *category_name = NULL;
 
+	/* Make sure that global variables are reset */
+	url[0] = '\0';
+	user[0] = '\0';
+	pass[0] = '\0';
+	base_distinguished_name[0] = '\0';
+	version = 3;
+
 	config = ast_config_load(RES_CONFIG_LDAP_CONF, config_flags);
 	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Cannot load configuration file: %s\n", RES_CONFIG_LDAP_CONF);
@@ -1643,7 +1650,6 @@ static int parse_config(void)
 
 	if (!(s = ast_variable_retrieve(config, "_general", "version")) && !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
 		ast_log(LOG_NOTICE, "No explicit LDAP version found, using 3 as default.\n");
-		version = 3;
 	} else if (sscanf(s, "%30d", &version) != 1 || version < 1 || version > 6) {
 		ast_log(LOG_WARNING, "Invalid LDAP version '%s', using 3 as default.\n", s);
 		version = 3;
@@ -1694,7 +1700,7 @@ static int ldap_reconnect(void)
 	}
 
 	if (ast_strlen_zero(url)) {
-		ast_log(LOG_ERROR, "Not enough parameters to connect to ldap database\n");
+		ast_log(LOG_ERROR, "Not enough parameters to connect to ldap directory\n");
 		return 0;
 	}
 
@@ -1719,7 +1725,7 @@ static int ldap_reconnect(void)
 		bind_result = ldap_sasl_bind_s(ldapConn, NULL, LDAP_SASL_SIMPLE, &cred, NULL, NULL, NULL);
 	}
 	if (bind_result == LDAP_SUCCESS) {
-		ast_debug(2, "Successfully connected to database.\n");
+		ast_debug(2, "Successfully connected to directory.\n");
 		connect_time = time(NULL);
 		return 1;
 	} else {
