@@ -162,7 +162,8 @@
  */
 
 /*** MODULEINFO
-        <depend>chan_local</depend>
+	<depend>chan_local</depend>
+	<defaultenabled>no></defaultenabled>
  ***/
 
 /*!  \page sip_session_timers SIP Session Timers in Asterisk Chan_sip
