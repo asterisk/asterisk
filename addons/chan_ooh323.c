@@ -496,7 +496,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
  
 	ast_rtp_instance_set_qos(pvt->rtp, gTOS, 0, "ooh323-rtp");
 
-	if (!(pvt->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, ipAddr))) {
+	if (!(pvt->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, &tmp))) {
 		ast_log(LOG_WARNING, "Unable to create UDPTL session: %s\n",
 				strerror(errno));
 		ast_mutex_unlock(&pvt->lock);
@@ -3915,7 +3915,10 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 	}
 
 	if (p->udptl) {
-		ast_udptl_get_us(p->udptl, &us);
+		struct ast_sockaddr us_tmp;
+		ast_sockaddr_from_sin(&us_tmp, &us);
+		ast_udptl_get_us(p->udptl, &us_tmp);
+		ast_sockaddr_to_sin(&us_tmp, &us);
 	}
 	ast_copy_string(mediaInfo.lMediaIP, ast_inet_ntoa(us.sin_addr), sizeof(mediaInfo.lMediaIP));
 	mediaInfo.lMediaPort = ntohs(us.sin_port);
@@ -4019,9 +4022,11 @@ static int ooh323_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udp
 	if (!p)
 		return -1;
 	ast_mutex_lock(&p->lock);
-	if (udptl)
-		ast_udptl_get_peer(udptl, &p->udptlredirip);
-	else
+	if (udptl) {
+		struct ast_sockaddr udptl_addr;
+		ast_udptl_get_peer(udptl, &udptl_addr);
+		ast_sockaddr_to_sin(&udptl_addr, &p->udptlredirip);
+	} else
 		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
 
 	ast_mutex_unlock(&p->lock);
@@ -4033,6 +4038,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 {
 	struct ooh323_pvt *p = NULL;
 	struct sockaddr_in them;
+	struct ast_sockaddr them_addr;
 
 	if (gH323Debug)
 		ast_verbose("---   setup_udptl_connection\n");
@@ -4065,7 +4071,8 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 	them.sin_family = AF_INET;
 	them.sin_addr.s_addr = inet_addr(remoteIp); /* only works for IPv4 */
 	them.sin_port = htons(remotePort);
-	ast_udptl_set_peer(p->udptl, &them);
+	ast_sockaddr_from_sin(&them_addr, &them);
+	ast_udptl_set_peer(p->udptl, &them_addr);
 	p->t38_tx_enable = 1;
 	p->lastTxT38 = time(NULL);
 	if (p->t38support == T38_ENABLED) {
