@@ -534,7 +534,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						ast_channel_inherit_variables(in, o->chan);
 						ast_channel_datastore_inherit(in, o->chan);
 					} else
-						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+						ast_log(LOG_NOTICE,
+							"Forwarding failed to create channel to dial '%s/%s' (cause = %d)\n",
+							tech, stuff, cause);
 				}
 				if (!c) {
 					ast_clear_flag(o, DIAL_STILLGOING);	
@@ -569,8 +571,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					if (c->cid.cid_rdnis) 
 						free(c->cid.cid_rdnis);
 					c->cid.cid_rdnis = ast_strdup(S_OR(in->macroexten, in->exten));
-					if (ast_call(c, tmpchan, 0)) {
-						ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+					if (ast_call(c, stuff, 0)) {
+						ast_log(LOG_NOTICE, "Forwarding failed to dial '%s/%s'\n",
+							tech, stuff);
 						ast_clear_flag(o, DIAL_STILLGOING);	
 						ast_hangup(c);
 						c = o->chan = NULL;
