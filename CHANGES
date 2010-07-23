@@ -524,6 +524,7 @@ Miscellaneous
    during device configuration.
  * The UNISTIM channel driver (chan_unistim) has been updated to support devices that
    have less than 3 lines on the LCD.
+ * Realtime now supports database failover.  See the sample extconfig.conf for details.
 
 CLI Changes
 -----------

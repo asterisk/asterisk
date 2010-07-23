@@ -167,6 +167,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	SQLLEN indicator;
 	va_list aq;
 	struct custom_prepare_struct cps = { .sql = sql };
+	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	if (ast_string_field_init(&cps, 256)) {
 		return NULL;
@@ -179,7 +180,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		return NULL;
 	}
 
-	obj = ast_odbc_request_obj(database, 0);
+	obj = ast_odbc_request_obj2(database, connected_flag);
 
 	if (!obj) {
 		ast_log(LOG_ERROR, "No database handle available with the name of '%s' (check res_odbc.conf)\n", database);
@@ -325,6 +326,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	struct ast_variable *var=NULL;
 	struct ast_config *cfg=NULL;
 	struct ast_category *cat=NULL;
+	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 	SQLULEN colsize;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
@@ -341,7 +343,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	va_copy(aq, ap);
 
 
-	obj = ast_odbc_request_obj(database, 0);
+	obj = ast_odbc_request_obj2(database, connected_flag);
 	if (!obj) {
 		ast_string_field_free_memory(&cps);
 		return NULL;
@@ -479,6 +481,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
 	struct odbc_cache_tables *tableptr;
 	struct odbc_cache_columns *column;
+	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	if (!table) {
 		return -1;
@@ -492,7 +495,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	}
 
 	tableptr = ast_odbc_find_table(database, table);
-	if (!(obj = ast_odbc_request_obj(database, 0))) {
+	if (!(obj = ast_odbc_request_obj2(database, connected_flag))) {
 		ast_odbc_release_table(tableptr);
 		ast_string_field_free_memory(&cps);
 		return -1;
@@ -716,6 +719,7 @@ static int store_odbc(const char *database, const char *table, va_list ap)
 	int res;
 	va_list aq;
 	struct custom_prepare_struct cps = { .sql = sql, .extra = NULL };
+	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	va_copy(cps.ap, ap);
 	va_copy(aq, ap);
@@ -723,7 +727,7 @@ static int store_odbc(const char *database, const char *table, va_list ap)
 	if (!table)
 		return -1;
 
-	obj = ast_odbc_request_obj(database, 0);
+	obj = ast_odbc_request_obj2(database, connected_flag);
 	if (!obj)
 		return -1;
 
@@ -790,6 +794,7 @@ static int destroy_odbc(const char *database, const char *table, const char *key
 	int res;
 	va_list aq;
 	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
+	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	va_copy(cps.ap, ap);
 	va_copy(aq, ap);
@@ -797,7 +802,7 @@ static int destroy_odbc(const char *database, const char *table, const char *key
 	if (!table)
 		return -1;
 
-	obj = ast_odbc_request_obj(database, 0);
+	obj = ast_odbc_request_obj2(database, connected_flag);
 	if (!obj)
 		return -1;
 
@@ -883,13 +888,14 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	char last[128] = "";
 	struct config_odbc_obj q;
 	struct ast_flags loader_flags = { 0 };
+	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	memset(&q, 0, sizeof(q));
 
 	if (!file || !strcmp (file, "res_config_odbc.conf"))
 		return NULL;		/* cant configure myself with myself ! */
 
-	obj = ast_odbc_request_obj(database, 0);
+	obj = ast_odbc_request_obj2(database, connected_flag);
 	if (!obj)
 		return NULL;
 

@@ -10,18 +10,69 @@
 
 ; All other sections are arbitrary names for database connections.
 
+;
+; The context name is what will be used in other configuration files, such
+; as extconfig.conf and func_odbc.conf, to reference this connection.
 [asterisk]
+;
+; Permit disabling sections without needing to comment them out.
+; If not specified, it is assumed the section is enabled.
 enabled => no
+;
+; This value should match an entry in /etc/odbc.ini
+; (or /usr/local/etc/odbc.ini, on FreeBSD and similar systems).
 dsn => asterisk
+;
+; Username for connecting to the database.  The default user is "root".
 ;username => myuser
+;
+; Password for authenticating the user to the database.  The default
+; password is blank.
 ;password => mypass
+;
+; Build a connection at startup?
 pre-connect => yes
 ;
 ; What should we execute to ensure that our connection is still alive?  The
 ; statement should return a non-zero value in the first field of its first
 ; record.  The default is "select 1".
 ;sanitysql => select 1
-
+;
+; On some databases, the connection times out and a reconnection will be
+; necessary.  This setting configures the amount of time a connection
+; may sit idle (in seconds) before a reconnection will be attempted.
+;idlecheck => 3600
+;
+; Should we use a single connection for all queries?  Most databases will
+; allow sharing the connection, though Sybase and MS SQL Server will not.
+;share_connections => yes
+;
+; If we aren't sharing connections, what is the maximum number of connections
+; that we should attempt?
+;limit => 5
+;
+; When the channel is destroyed, should any uncommitted open transactions
+; automatically be committed?
+;forcecommit => no
+;
+; How should we perceive data in other transactions within the database?
+; Possible values are read_uncommitted, read_committed, repeatable_read,
+; and serializable.  The default is read_committed.
+;isolation => repeatable_read
+;
+; Is the backslash a native escape character?  The default is yes, but for
+; MS SQL Server, the answer is no.
+;backslash_is_escape => yes
+;
+; How long (in seconds) should we attempt to connect before considering the
+; connection dead?  The default is 10 seconds, but you may wish to reduce it,
+; to increase responsiveness.
+;connect_timeout => 10
+;
+; When a connection fails, how long (in seconds) should we cache that
+; information before we attempt another connection?  This increases
+; responsiveness, when a database resource is not working.
+;negative_connection_cache => 300
 
 [mysql2]
 enabled => no
@@ -29,11 +80,6 @@ dsn => MySQL-asterisk
 username => myuser
 password => mypass
 pre-connect => yes
-;
-; On some databases, the connection times out and a reconnection will be
-; necessary.  This setting configures the amount of time a connection
-; may sit idle (in seconds) before a reconnection will be attempted.
-;idlecheck => 3600
 
 ; Certain servers, such as MS SQL Server and Sybase use the TDS protocol, which
 ; limits the number of active queries per connection to 1.  By telling res_odbc
@@ -64,5 +110,12 @@ sanitysql => select count(*) from systables
 ; Server does not.
 backslash_is_escape => no
 
-
-
+;
+; If you are having problems with concurrency, please read this note from the
+; mailing lists, regarding UnixODBC:
+;
+; http://lists.digium.com/pipermail/asterisk-dev/2009-February/036539.html
+;
+; In summary, try setting "Threading=2" in the relevant section within your
+; odbcinst.ini.
+;

@@ -131,6 +131,12 @@ struct odbc_class
 	unsigned int limit;                  /*!< Maximum number of database handles we will allow */
 	int count;                           /*!< Running count of pooled connections */
 	unsigned int idlecheck;              /*!< Recheck the connection if it is idle for this long (in seconds) */
+	unsigned int conntimeout;            /*!< Maximum time the connection process should take */
+	/*! When a connection fails, cache that failure for how long? */
+	struct timeval negative_connection_cache;
+	/*! When a connection fails, when did that last occur? */
+	struct timeval last_negative_connect;
+	/*! List of handles associated with this class */
 	struct ao2_container *obj_container;
 };
 
@@ -661,7 +667,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 	return stmt;
 }
 
-int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) 
+int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 {
 	int res = 0, i;
 	SQLINTEGER nativeerror=0, numfields=0;
@@ -681,9 +687,10 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 				}
 			}
 		}
-	} else
+	} else {
 		obj->last_used = ast_tvnow();
-	
+	}
+
 	return res;
 }
 
@@ -746,7 +753,8 @@ static int load_odbc_config(void)
 	struct ast_variable *v;
 	char *cat;
 	const char *dsn, *username, *password, *sanitysql;
-	int enabled, pooling, limit, bse, forcecommit, isolation;
+	int enabled, pooling, limit, bse, conntimeout, forcecommit, isolation;
+	struct timeval ncache = { 0, 0 };
 	unsigned int idlecheck;
 	int preconnect = 0, res = 0;
 	struct ast_flags config_flags = { 0 };
@@ -808,6 +816,22 @@ static int load_odbc_config(void)
 					sanitysql = v->value;
 				} else if (!strcasecmp(v->name, "backslash_is_escape")) {
 					bse = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "connect_timeout")) {
+					if (sscanf(v->value, "%d", &conntimeout) != 1 || conntimeout < 1) {
+						ast_log(LOG_WARNING, "connect_timeout must be a positive integer\n");
+						conntimeout = 10;
+					}
+				} else if (!strcasecmp(v->name, "negative_connection_cache")) {
+					double dncache;
+					if (sscanf(v->value, "%lf", &dncache) != 1 || dncache < 0) {
+						ast_log(LOG_WARNING, "negative_connection_cache must be a non-negative integer\n");
+						/* 5 minutes sounds like a reasonable default */
+						ncache.tv_sec = 300;
+						ncache.tv_usec = 0;
+					} else {
+						ncache.tv_sec = (int)dncache;
+						ncache.tv_usec = (dncache - ncache.tv_sec) * 1000000;
+					}
 				} else if (!strcasecmp(v->name, "forcecommit")) {
 					forcecommit = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "isolation")) {
@@ -851,6 +875,8 @@ static int load_odbc_config(void)
 				new->forcecommit = forcecommit ? 1 : 0;
 				new->isolation = isolation;
 				new->idlecheck = idlecheck;
+				new->conntimeout = conntimeout;
+				new->negative_connection_cache = ncache;
 
 				if (cat)
 					ast_copy_string(new->name, cat, sizeof(new->name));
@@ -923,7 +949,13 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 	while ((class = ao2_iterator_next(&aoi))) {
 		if ((a->argc == 2) || (a->argc == 3 && !strcmp(a->argv[2], "all")) || (!strcmp(a->argv[2], class->name))) {
 			int count = 0;
+			char timestr[80];
+			struct ast_tm tm;
+
+			ast_localtime(&class->last_negative_connect, &tm, NULL);
+			ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %T", &tm);
 			ast_cli(a->fd, "  Name:   %s\n  DSN:    %s\n", class->name, class->dsn);
+			ast_cli(a->fd, "    Last connection attempt: %s\n", timestr);
 
 			if (class->haspool) {
 				struct ao2_iterator aoi2 = ao2_iterator_init(class->obj_container, 0);
@@ -1171,6 +1203,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 	unsigned char state[10], diagnostic[256];
 
 	if (!(class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name))) {
+		ast_debug(1, "Class not found!\n");
 		return NULL;
 	}
 
@@ -1183,11 +1216,13 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		if (obj) {
 			ast_assert(ao2_ref(obj, 0) > 1);
 		}
-
-		if (!obj && (class->count < class->limit)) {
+		if (!obj && (class->count < class->limit) &&
+				(time(NULL) > class->last_negative_connect.tv_sec + class->negative_connection_cache.tv_sec)) {
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 			if (!obj) {
+				class->count--;
 				ao2_ref(class, -1);
+				ast_debug(3, "Unable to allocate object\n");
 				return NULL;
 			}
 			ast_assert(ao2_ref(obj, 0) == 1);
@@ -1228,9 +1263,11 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 	} else if (ast_test_flag(&flags, RES_ODBC_INDEPENDENT_CONNECTION)) {
 		/* Non-pooled connections -- but must use a separate connection handle */
 		if (!(obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, USE_TX))) {
+			ast_debug(1, "Object not found\n");
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 			if (!obj) {
 				ao2_ref(class, -1);
+				ast_debug(3, "Unable to allocate object\n");
 				return NULL;
 			}
 			ast_mutex_init(&obj->lock);
@@ -1271,6 +1308,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			if (!(obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor))) {
 				ast_assert(ao2_ref(class, 0) > 1);
 				ao2_ref(class, -1);
+				ast_debug(3, "Unable to allocate object\n");
 				return NULL;
 			}
 			ast_mutex_init(&obj->lock);
@@ -1313,10 +1351,16 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		}
 	}
 
-	if (obj && ast_test_flag(&flags, RES_ODBC_SANITY_CHECK)) {
+	if (obj && ast_test_flag(&flags, RES_ODBC_CONNECTED) && !obj->up) {
+		/* Check if this connection qualifies for reconnection, with negative connection cache time */
+		if (time(NULL) > class->last_negative_connect.tv_sec + class->negative_connection_cache.tv_sec) {
+			odbc_obj_connect(obj);
+		}
+	} else if (obj && ast_test_flag(&flags, RES_ODBC_SANITY_CHECK)) {
 		ast_odbc_sanity_check(obj);
-	} else if (obj && obj->parent->idlecheck > 0 && ast_tvdiff_sec(ast_tvnow(), obj->last_used) > obj->parent->idlecheck)
+	} else if (obj && obj->parent->idlecheck > 0 && ast_tvdiff_sec(ast_tvnow(), obj->last_used) > obj->parent->idlecheck) {
 		odbc_obj_connect(obj);
+	}
 
 #ifdef DEBUG_THREADS
 	if (obj) {
@@ -1431,11 +1475,12 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
+		obj->parent->last_negative_connect = ast_tvnow();
 		ast_mutex_unlock(&obj->lock);
 		return ODBC_FAIL;
 	}
-	SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *) 10, 0);
-	SQLSetConnectAttr(obj->con, SQL_ATTR_CONNECTION_TIMEOUT, (SQLPOINTER *) 10, 0);
+	SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *) obj->parent->conntimeout, 0);
+	SQLSetConnectAttr(obj->con, SQL_ATTR_CONNECTION_TIMEOUT, (SQLPOINTER *) obj->parent->conntimeout, 0);
 #ifdef NEEDTRACE
 	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACE, &enable, SQL_IS_INTEGER);
 	SQLSetConnectAttr(obj->con, SQL_ATTR_TRACEFILE, tracefile, strlen(tracefile));
@@ -1448,6 +1493,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, state, &err, msg, 100, &mlen);
+		obj->parent->last_negative_connect = ast_tvnow();
 		ast_mutex_unlock(&obj->lock);
 		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
 		return ODBC_FAIL;

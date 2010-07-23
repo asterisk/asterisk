@@ -39,6 +39,7 @@ typedef enum { ODBC_SUCCESS=0, ODBC_FAIL=-1} odbc_status;
 enum {
 	RES_ODBC_SANITY_CHECK = (1 << 0),
 	RES_ODBC_INDEPENDENT_CONNECTION = (1 << 1),
+	RES_ODBC_CONNECTED = (1 << 2),
 };
 
 /*! \brief ODBC container */
@@ -59,6 +60,7 @@ struct odbc_obj {
 	AST_LIST_ENTRY(odbc_obj) list;
 };
 
+/*!\brief These structures are used for adaptive capabilities */
 struct odbc_cache_columns {
 	char *name;
 	SQLSMALLINT type;
@@ -99,17 +101,20 @@ struct odbc_cache_tables {
  */
 int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt) __attribute__((deprecated));
 
-/*! 
+/*!
  * \brief Retrieves a connected ODBC object
  * \param name The name of the ODBC class for which a connection is needed.
- * \param flags Set of flags used to control which connection is returned.
- * \retval ODBC object 
- * \retval  NULL if there is no connection available with the requested name.
+ * \param flags One or more of the following flags:
+ * \li RES_ODBC_SANITY_CHECK Whether to ensure that a connection is valid before returning the handle.  Usually unnecessary.
+ * \li RES_ODBC_INDEPENDENT_CONNECTION Return a handle which is independent from all others.  Usually used when starting a transaction.
+ * \li RES_ODBC_CONNECTED Only return a connected handle.  Intended for use with peers which use idlecheck, which are checked periodically for reachability.
+ * \return ODBC object
+ * \retval NULL if there is no connection available with the requested name.
  *
  * Connection classes may, in fact, contain multiple connection handles.  If
  * the connection is pooled, then each connection will be dedicated to the
  * thread which requests it.  Note that all connections should be released
- * when the thread is done by calling odbc_release_obj(), below.
+ * when the thread is done by calling ast_odbc_release_obj(), below.
  */
 struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags, const char *file, const char *function, int lineno);
 struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *file, const char *function, int lineno);
@@ -130,7 +135,7 @@ struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *
 struct odbc_obj *ast_odbc_retrieve_transaction_obj(struct ast_channel *chan, const char *objname);
 
 /*! 
- * \brief Releases an ODBC object previously allocated by odbc_request_obj()
+ * \brief Releases an ODBC object previously allocated by ast_odbc_request_obj()
  * \param obj The ODBC object
  */
 void ast_odbc_release_obj(struct odbc_obj *obj);
@@ -175,7 +180,9 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
  * \param tablename Tablename to describe
  * \retval A structure describing the table layout, or NULL, if the table is not found or another error occurs.
  * When a structure is returned, the contained columns list will be
- * rdlock'ed, to ensure that it will be retained in memory.
+ * rdlock'ed, to ensure that it will be retained in memory.  The information
+ * will be cached until a reload event or when ast_odbc_clear_cache() is called
+ * with the relevant parameters.
  * \since 1.6.1
  */
 struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *tablename);
@@ -191,6 +198,8 @@ struct odbc_cache_columns *ast_odbc_find_column(struct odbc_cache_tables *table,
 
 /*!
  * \brief Remove a cache entry from memory
+ * This function may be called to clear entries created and cached by the
+ * ast_odbc_find_table() API call.
  * \param database Name of an ODBC class (used to ensure like-named tables in different databases are not confused)
  * \param tablename Tablename for which a cached record should be removed
  * \retval 0 if the cache entry was removed, or -1 if no matching entry was found.
