@@ -142,4 +142,27 @@ void sip_request_parser_unregister_tests(void);
  */
 unsigned int parse_sip_options(const char *options, char *unsupported, size_t unsupported_len);
 
+/*!
+ * \brief Compare two URIs as described in RFC 3261 Section 19.1.4
+ *
+ * \param input1 First URI
+ * \param input2 Second URI
+ * \retval 0 URIs match
+ * \retval nonzero URIs do not match or one or both is malformed
+ */
+int sip_uri_cmp(const char *input1, const char *input2);
+
+/*!
+ * \brief initialize request and response parser data
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int sip_reqresp_parser_init(void);
+
+/*!
+ * \brief Free resources used by request and response parser
+ */
+void sip_reqresp_parser_exit(void);
+
 #endif

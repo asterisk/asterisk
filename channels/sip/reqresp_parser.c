@@ -27,6 +27,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "include/sip_utils.h"
 #include "include/reqresp_parser.h"
 
+locale_t c_locale;
+
 /*! \brief * parses a URI in its components.*/
 int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 		   char **domain, struct uriparams *params, char **headers,
@@ -635,7 +637,7 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 const char *get_calleridname(const char *input, char *output, size_t outputsize)
 {
 	/* From RFC3261:
-	 * 
+	 *
 	 * From           =  ( "From" / "f" ) HCOLON from-spec
 	 * from-spec      =  ( name-addr / addr-spec ) *( SEMI from-param )
 	 * name-addr      =  [ display-name ] LAQUOT addr-spec RAQUOT
@@ -1773,6 +1775,467 @@ AST_TEST_DEFINE(sip_parse_options_test)
 	return res;
 }
 
+/*! \brief helper routine for sip_uri_cmp to compare URI parameters
+ *
+ * This takes the parameters from two SIP URIs and determines
+ * if the URIs match. The rules for parameters *suck*. Here's a breakdown
+ * 1. If a parameter appears in both URIs, then they must have the same value
+ *    in order for the URIs to match
+ * 2. If one URI has a user, maddr, ttl, or method parameter, then the other
+ *    URI must also have that parameter and must have the same value
+ *    in order for the URIs to match
+ * 3. All other headers appearing in only one URI are not considered when
+ *    determining if URIs match
+ *
+ * \param input1 Parameters from URI 1
+ * \param input2 Parameters from URI 2
+ * \retval 0 URIs' parameters match
+ * \retval nonzero URIs' parameters do not match
+ */
+static int sip_uri_params_cmp(const char *input1, const char *input2)
+{
+	char *params1 = NULL;
+	char *params2 = NULL;
+	char *pos1;
+	char *pos2;
+	int zerolength1 = 0;
+	int zerolength2 = 0;
+	int maddrmatch = 0;
+	int ttlmatch = 0;
+	int usermatch = 0;
+	int methodmatch = 0;
+
+	if (ast_strlen_zero(input1)) {
+		zerolength1 = 1;
+	} else {
+		params1 = ast_strdupa(input1);
+	}
+	if (ast_strlen_zero(input2)) {
+		zerolength2 = 1;
+	} else {
+		params2 = ast_strdupa(input2);
+	}
+
+	/* Quick optimization. If both params are zero-length, then
+	 * they match
+	 */
+	if (zerolength1 && zerolength2) {
+		return 0;
+	}
+
+	for (pos1 = strsep(&params1, ";"); pos1; pos1 = strsep(&params1, ";")) {
+		char *value1 = pos1;
+		char *name1 = strsep(&value1, "=");
+		char *params2dup = NULL;
+		int matched = 0;
+		if (!value1) {
+			value1 = "";
+		}
+		/* Checkpoint reached. We have the name and value parsed for param1
+		 * We have to duplicate params2 each time through this loop
+		 * or else the inner loop below will not work properly.
+		 */
+		if (!zerolength2) {
+			params2dup = ast_strdupa(params2);
+		}
+		for (pos2 = strsep(&params2dup, ";"); pos2; pos2 = strsep(&params2dup, ";")) {
+			char *name2 = pos2;
+			char *value2 = strchr(pos2, '=');
+			if (!value2) {
+				value2 = "";
+			} else {
+				*value2++ = '\0';
+			}
+			if (!strcasecmp(name1, name2)) {
+				if (strcasecmp(value1, value2)) {
+					goto fail;
+				} else {
+					matched = 1;
+					break;
+				}
+			}
+		}
+		/* Check to see if the parameter is one of the 'must-match' parameters */
+		if (!strcasecmp(name1, "maddr")) {
+			if (matched) {
+				maddrmatch = 1;
+			} else {
+				goto fail;
+			}
+		} else if (!strcasecmp(name1, "ttl")) {
+			if (matched) {
+				ttlmatch = 1;
+			} else {
+				goto fail;
+			}
+		} else if (!strcasecmp(name1, "user")) {
+			if (matched) {
+				usermatch = 1;
+			} else {
+				goto fail;
+			}
+		} else if (!strcasecmp(name1, "method")) {
+			if (matched) {
+				methodmatch = 1;
+			} else {
+				goto fail;
+			}
+		}
+	}
+
+	/* We've made it out of that horrible O(m*n) construct and there are no
+	 * failures yet. We're not done yet, though, because params2 could have
+	 * an maddr, ttl, user, or method header and params1 did not.
+	 */
+	for (pos2 = strsep(&params2, ";"); pos2; pos2 = strsep(&params2, ";")) {
+		char *value2 = pos2;
+		char *name2 = strsep(&value2, "=");
+		if (!value2) {
+			value2 = "";
+		}
+		if ((!strcasecmp(name2, "maddr") && !maddrmatch) ||
+				(!strcasecmp(name2, "ttl") && !ttlmatch) ||
+				(!strcasecmp(name2, "user") && !usermatch) ||
+				(!strcasecmp(name2, "method") && !methodmatch)) {
+			goto fail;
+		}
+	}
+	return 0;
+
+fail:
+	return 1;
+}
+
+/*! \brief helper routine for sip_uri_cmp to compare URI headers
+ *
+ * This takes the headers from two SIP URIs and determines
+ * if the URIs match. The rules for headers is simple. If a header
+ * appears in one URI, then it must also appear in the other URI. The
+ * order in which the headers appear does not matter.
+ *
+ * \param input1 Headers from URI 1
+ * \param input2 Headers from URI 2
+ * \retval 0 URI headers match
+ * \retval nonzero URI headers do not match
+ */
+static int sip_uri_headers_cmp(const char *input1, const char *input2)
+{
+	char *headers1 = NULL;
+	char *headers2 = NULL;
+	int zerolength1 = 0;
+	int zerolength2 = 0;
+	int different = 0;
+	char *header1;
+
+	if (ast_strlen_zero(input1)) {
+		zerolength1 = 1;
+	} else {
+		headers1 = ast_strdupa(input1);
+	}
+
+	if (ast_strlen_zero(input2)) {
+		zerolength2 = 1;
+	} else {
+		headers2 = ast_strdupa(input2);
+	}
+
+	/* If one URI contains no headers and the other
+	 * does, then they cannot possibly match
+	 */
+	if (zerolength1 != zerolength2) {
+		return 1;
+	}
+
+	if (zerolength1 && zerolength2)
+		return 0;
+
+	/* At this point, we can definitively state that both inputs are
+	 * not zero-length. First, one more optimization. If the length
+	 * of the headers is not equal, then we definitely have no match
+	 */
+	if (strlen(headers1) != strlen(headers2)) {
+		return 1;
+	}
+
+	for (header1 = strsep(&headers1, "&"); header1; header1 = strsep(&headers1, "&")) {
+		if (!strcasestr(headers2, header1)) {
+			different = 1;
+			break;
+		}
+	}
+
+	return different;
+}
+
+/*!
+ * \brief Compare domain sections of SIP URIs
+ *
+ * For hostnames, a case insensitive string comparison is
+ * used. For IP addresses, a binary comparison is used. This
+ * is mainly because IPv6 addresses have many ways of writing
+ * the same address.
+ *
+ * For specifics about IP address comparison, see the following
+ * document: http://tools.ietf.org/html/draft-ietf-sip-ipv6-abnf-fix-05
+ *
+ * \param host1 The domain from the first URI
+ * \param host2 THe domain from the second URI
+ * \retval 0 The domains match
+ * \retval nonzero The domains do not match
+ */
+static int sip_uri_domain_cmp(const char *host1, const char *host2)
+{
+	struct ast_sockaddr addr1;
+	struct ast_sockaddr addr2;
+	int addr1_parsed;
+	int addr2_parsed;
+
+	addr1_parsed = ast_sockaddr_parse(&addr1, host1, 0);
+	addr2_parsed = ast_sockaddr_parse(&addr2, host2, 0);
+
+	if (addr1_parsed != addr2_parsed) {
+		/* One domain was an IP address and the other had
+		 * a host name. FAIL!
+		 */
+		return 1;
+	}
+
+	/* Both are host names. A string comparison will work
+	 * perfectly here. Specifying the "C" locale ensures that
+	 * The LC_CTYPE conventions use those defined in ANSI C,
+	 * i.e. ASCII.
+	 */
+	if (!addr1_parsed) {
+		return strcasecmp_l(host1, host2, c_locale);
+	}
+
+	/* Both contain IP addresses */
+	return ast_sockaddr_cmp(&addr1, &addr2);
+}
+
+int sip_uri_cmp(const char *input1, const char *input2)
+{
+	char *uri1;
+	char *uri2;
+	char *uri_scheme1;
+	char *uri_scheme2;
+	char *host1;
+	char *host2;
+	char *params1;
+	char *params2;
+	char *headers1;
+	char *headers2;
+
+	/* XXX It would be really nice if we could just use parse_uri_full() here
+	 * to separate the components of the URI, but unfortunately it is written
+	 * in a way that can cause URI parameters to be discarded.
+	 */
+
+	if (!input1 || !input2) {
+		return 1;
+	}
+
+	uri1 = ast_strdupa(input1);
+	uri2 = ast_strdupa(input2);
+
+	ast_uri_decode(uri1);
+	ast_uri_decode(uri2);
+
+	uri_scheme1 = strsep(&uri1, ":");
+	uri_scheme2 = strsep(&uri2, ":");
+
+	if (strcmp(uri_scheme1, uri_scheme2)) {
+		return 1;
+	}
+
+	/* This function is tailored for SIP and SIPS URIs. There's no
+	 * need to check uri_scheme2 since we have determined uri_scheme1
+	 * and uri_scheme2 are equivalent already.
+	 */
+	if (strcmp(uri_scheme1, "sip") && strcmp(uri_scheme1, "sips")) {
+		return 1;
+	}
+
+	if (ast_strlen_zero(uri1) || ast_strlen_zero(uri2)) {
+		return 1;
+	}
+
+	if ((host1 = strchr(uri1, '@'))) {
+		*host1++ = '\0';
+	}
+	if ((host2 = strchr(uri2, '@'))) {
+		*host2++ = '\0';
+	}
+
+	/* Check for mismatched username and passwords. This is the
+	 * only case-sensitive comparison of a SIP URI
+	 */
+	if ((host1 && !host2) ||
+			(host2 && !host1) ||
+			(host1 && host2 && strcmp(uri1, uri2))) {
+		return 1;
+	}
+
+	if (!host1) {
+		host1 = uri1;
+	}
+	if (!host2) {
+		host2 = uri2;
+	}
+
+	/* Strip off the parameters and headers so we can compare
+	 * host and port
+	 */
+
+	if ((params1 = strchr(host1, ';'))) {
+		*params1++ = '\0';
+	}
+	if ((params2 = strchr(host2, ';'))) {
+		*params2++ = '\0';
+	}
+
+	/* Headers come after parameters, but there may be headers without
+	 * parameters, thus the S_OR
+	 */
+	if ((headers1 = strchr(S_OR(params1, host1), '?'))) {
+		*headers1++ = '\0';
+	}
+	if ((headers2 = strchr(S_OR(params2, host2), '?'))) {
+		*headers2++ = '\0';
+	}
+
+	if (sip_uri_domain_cmp(host1, host2)) {
+		return 1;
+	}
+
+	/* Headers have easier rules to follow, so do those first */
+	if (sip_uri_headers_cmp(headers1, headers2)) {
+		return 1;
+	}
+
+	/* And now the parameters. Ugh */
+	return sip_uri_params_cmp(params1, params2);
+}
+
+#define URI_CMP_MATCH 0
+#define URI_CMP_NOMATCH 1
+
+AST_TEST_DEFINE(sip_uri_cmp_test)
+{
+	static const struct {
+		const char *uri1;
+		const char *uri2;
+		int expected_result;
+	} uri_cmp_tests [] = {
+		/* These are identical, so they match */
+		{ "sip:bob@example.com", "sip:bob@example.com", URI_CMP_MATCH },
+		/* Different usernames. No match */
+		{ "sip:alice@example.com", "sip:bob@example.com", URI_CMP_NOMATCH },
+		/* Different hosts. No match */
+		{ "sip:bob@example.com", "sip:bob@examplez.com", URI_CMP_NOMATCH },
+		/* Now start using IP addresses. Identical, so they match */
+		{ "sip:bob@1.2.3.4", "sip:bob@1.2.3.4", URI_CMP_MATCH },
+		/* Two identical IPv4 addresses represented differently. Match */
+		{ "sip:bob@1.2.3.4", "sip:bob@001.002.003.004", URI_CMP_MATCH },
+		/* Logically equivalent IPv4 Address and hostname. No Match */
+		{ "sip:bob@127.0.0.1", "sip:bob@localhost", URI_CMP_NOMATCH },
+		/* Logically equivalent IPv6 address and hostname. No Match */
+		{ "sip:bob@[::1]", "sip:bob@localhost", URI_CMP_NOMATCH },
+		/* Try an IPv6 one as well */
+		{ "sip:bob@[2001:db8::1234]", "sip:bob@[2001:db8::1234]", URI_CMP_MATCH },
+		/* Two identical IPv6 addresses represented differently. Match */
+		{ "sip:bob@[2001:db8::1234]", "sip:bob@[2001:0db8::1234]", URI_CMP_MATCH },
+		/* Different ports. No match */
+		{ "sip:bob@1.2.3.4:5060", "sip:bob@1.2.3.4:5061", URI_CMP_NOMATCH },
+		/* Same port logically, but only one address specifies it. No match */
+		{ "sip:bob@1.2.3.4:5060", "sip:bob@1.2.3.4", URI_CMP_NOMATCH },
+		/* And for safety, try with IPv6 */
+		{ "sip:bob@[2001:db8:1234]:5060", "sip:bob@[2001:db8:1234]", URI_CMP_NOMATCH },
+		/* User comparison is case sensitive. No match */
+		{ "sip:bob@example.com", "sip:BOB@example.com", URI_CMP_NOMATCH },
+		/* Host comparison is case insensitive. Match */
+		{ "sip:bob@example.com", "sip:bob@EXAMPLE.COM", URI_CMP_MATCH },
+		/* Add headers to the URI. Identical, so they match */
+		{ "sip:bob@example.com?header1=value1&header2=value2", "sip:bob@example.com?header1=value1&header2=value2", URI_CMP_MATCH },
+		/* Headers in URI 1 are not in URI 2. No Match */
+		{ "sip:bob@example.com?header1=value1&header2=value2", "sip:bob@example.com", URI_CMP_NOMATCH },
+		/* Header present in both URIs does not have matching values. No match */
+		{ "sip:bob@example.com?header1=value1&header2=value2", "sip:bob@example.com?header1=value1&header2=value3", URI_CMP_NOMATCH },
+		/* Add parameters to the URI. Identical so they match */
+		{ "sip:bob@example.com;param1=value1;param2=value2", "sip:bob@example.com;param1=value1;param2=value2", URI_CMP_MATCH },
+		/* Same parameters in both URIs but appear in different order. Match */
+		{ "sip:bob@example.com;param2=value2;param1=value1", "sip:bob@example.com;param1=value1;param2=value2", URI_CMP_MATCH },
+		/* params in URI 1 are not in URI 2. Match */
+		{ "sip:bob@example.com;param1=value1;param2=value2", "sip:bob@example.com", URI_CMP_MATCH },
+		/* param present in both URIs does not have matching values. No match */
+		{ "sip:bob@example.com;param1=value1;param2=value2", "sip:bob@example.com;param1=value1;param2=value3", URI_CMP_NOMATCH },
+		/* URI 1 has a maddr param but URI 2 does not. No match */
+		{ "sip:bob@example.com;param1=value1;maddr=192.168.0.1", "sip:bob@example.com;param1=value1", URI_CMP_NOMATCH },
+		/* URI 1 and URI 2 both have identical maddr params. Match */
+		{ "sip:bob@example.com;param1=value1;maddr=192.168.0.1", "sip:bob@example.com;param1=value1;maddr=192.168.0.1", URI_CMP_MATCH },
+		/* URI 1 is a SIPS URI and URI 2 is a SIP URI. No Match */
+		{ "sips:bob@example.com", "sip:bob@example.com", URI_CMP_NOMATCH },
+		/* No URI schemes. No match */
+		{ "bob@example.com", "bob@example.com", URI_CMP_NOMATCH },
+		/* Crashiness tests. Just an address scheme. No match */
+		{ "sip", "sips", URI_CMP_NOMATCH },
+		/* Still just an address scheme. Even though they're the same, No match */
+		{ "sip", "sip", URI_CMP_NOMATCH },
+		/* Empty strings. No match */
+		{ "", "", URI_CMP_NOMATCH },
+		/* An empty string and a NULL. No match */
+		{ "", NULL, URI_CMP_NOMATCH },
+	};
+	int i;
+	int test_res = AST_TEST_PASS;
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_uri_cmp_test";
+		info->category = "/channels/chan_sip/";
+		info->summary = "Tests comparison of SIP URIs";
+		info->description = "Several would-be tricky URI comparisons are performed";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(uri_cmp_tests); ++i) {
+		int cmp_res1;
+		int cmp_res2;
+		if ((cmp_res1 = sip_uri_cmp(uri_cmp_tests[i].uri1, uri_cmp_tests[i].uri2))) {
+			/* URI comparison may return -1 or +1 depending on the failure. Standardize
+			 * the return value to be URI_CMP_NOMATCH on any failure
+			 */
+			cmp_res1 = URI_CMP_NOMATCH;
+		}
+		if (cmp_res1 != uri_cmp_tests[i].expected_result) {
+			ast_test_status_update(test, "Unexpected comparison result for URIs %s and %s. "
+					"Expected %s but got %s\n", uri_cmp_tests[i].uri1, uri_cmp_tests[i].uri2,
+					uri_cmp_tests[i].expected_result == URI_CMP_MATCH ? "Match" : "No Match",
+					cmp_res1 == URI_CMP_MATCH ? "Match" : "No Match");
+			test_res = AST_TEST_FAIL;
+		}
+
+		/* All URI comparisons are commutative, so for the sake of being thorough, we'll
+		 * rerun the comparison with the parameters reversed
+		 */
+		if ((cmp_res2 = sip_uri_cmp(uri_cmp_tests[i].uri2, uri_cmp_tests[i].uri1))) {
+			/* URI comparison may return -1 or +1 depending on the failure. Standardize
+			 * the return value to be URI_CMP_NOMATCH on any failure
+			 */
+			cmp_res2 = URI_CMP_NOMATCH;
+		}
+		if (cmp_res2 != uri_cmp_tests[i].expected_result) {
+			ast_test_status_update(test, "Unexpected comparison result for URIs %s and %s. "
+					"Expected %s but got %s\n", uri_cmp_tests[i].uri2, uri_cmp_tests[i].uri1,
+					uri_cmp_tests[i].expected_result == URI_CMP_MATCH ? "Match" : "No Match",
+					cmp_res2 == URI_CMP_MATCH ? "Match" : "No Match");
+			test_res = AST_TEST_FAIL;
+		}
+	}
+
+	return test_res;
+}
 
 void sip_request_parser_register_tests(void)
 {
@@ -1784,6 +2247,7 @@ void sip_request_parser_register_tests(void)
 	AST_TEST_REGISTER(parse_name_andor_addr_test);
 	AST_TEST_REGISTER(parse_contact_header_test);
 	AST_TEST_REGISTER(sip_parse_options_test);
+	AST_TEST_REGISTER(sip_uri_cmp_test);
 }
 void sip_request_parser_unregister_tests(void)
 {
@@ -1795,4 +2259,22 @@ void sip_request_parser_unregister_tests(void)
 	AST_TEST_UNREGISTER(parse_name_andor_addr_test);
 	AST_TEST_UNREGISTER(parse_contact_header_test);
 	AST_TEST_UNREGISTER(sip_parse_options_test);
+	AST_TEST_UNREGISTER(sip_uri_cmp_test);
+}
+
+int sip_reqresp_parser_init(void)
+{
+	c_locale = newlocale(LC_CTYPE_MASK, "C", NULL);
+	if (!c_locale) {
+		return -1;
+	}
+	return 0;
+}
+
+void sip_reqresp_parser_exit(void)
+{
+	if (c_locale) {
+		freelocale(c_locale);
+		c_locale = NULL;
+	}
 }
