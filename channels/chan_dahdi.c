@@ -10654,7 +10654,7 @@ quit_no_clean:
 /*
 * The following three functions (mwi_send_init, mwi_send_process_buffer,
 * mwi_send_process_event) work with the do_monitor thread to generate mwi spills
-* that are sent out via FXA port on voicemail state change.  The execution of
+* that are sent out via FXS port on voicemail state change.  The execution of
 * the mwi send is state driven and can either generate a ring pulse prior to
 * sending the fsk spill or simply send an fsk spill.
 */

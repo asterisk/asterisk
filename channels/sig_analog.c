@@ -3512,6 +3512,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 			break;
 		case ANALOG_SIG_FXOKS:
 			i->fxsoffhookstate = 0;
+			analog_start_polarityswitch(i);
 			analog_set_echocanceller(i, 0);
 			/* Diddle the battery for the zhone */
 #ifdef ZHONE_HACK
