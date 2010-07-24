@@ -3,7 +3,7 @@
 # 
 # Top level Makefile
 #
-# Copyright (C) 1999-2006, Digium, Inc.
+# Copyright (C) 1999-2010, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -594,7 +594,7 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL)
 	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk -a ! -f /sbin/launchd ]; then \
 		cat contrib/scripts/safe_asterisk | sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/scripts/safe.tmp ; \
-		$(INSTALL) -c -m 755 contrib/scripts/safe.tmp $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ; \
+		$(INSTALL) -m 755 contrib/scripts/safe.tmp $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ; \
 		rm -f contrib/scripts/safe.tmp ; \
 	fi
 	$(INSTALL) -m 644 include/asterisk.h $(DESTDIR)$(includedir)
@@ -724,7 +724,7 @@ samples: adsi
 			-e 's|^astrundir.*$$|astrundir => $(ASTVARRUNDIR)|' \
 			-e 's|^astlogdir.*$$|astlogdir => $(ASTLOGDIR)|' \
 			$(DESTDIR)$(ASTCONFPATH) > $(DESTDIR)$(ASTCONFPATH).tmp ; \
-		$(INSTALL) -c -m 644 $(DESTDIR)$(ASTCONFPATH).tmp $(DESTDIR)$(ASTCONFPATH) ; \
+		$(INSTALL) -m 644 $(DESTDIR)$(ASTCONFPATH).tmp $(DESTDIR)$(ASTCONFPATH) ; \
 		rm -f $(DESTDIR)$(ASTCONFPATH).tmp ; \
 	fi ; \
 	$(INSTALL) -d $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
@@ -790,57 +790,57 @@ config:
 	@if [ "${OSARCH}" = "linux-gnu" ]; then \
 		if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
 			cat contrib/init.d/rc.redhat.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -c -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/init.d/asterisk ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ ! -f $(DESTDIR)/etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -c -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/chkconfig --add asterisk ; \
 			fi ; \
 		elif [ -f /etc/debian_version ] ; then \
 			cat contrib/init.d/rc.debian.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -c -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ ! -f $(DESTDIR)/etc/default/asterisk ] ; then \
-				$(INSTALL) -c -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/default/asterisk ; \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/default/asterisk ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/usr/sbin/update-rc.d asterisk defaults 50 91 ; \
 			fi ; \
 		elif [ -f /etc/gentoo-release ] ; then \
 			cat contrib/init.d/rc.gentoo.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -c -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/rc-update add asterisk default ; \
 			fi ; \
 		elif [ -f /etc/mandrake-release -o -f /etc/mandriva-release ] ; then \
 			cat contrib/init.d/rc.mandriva.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -c -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/init.d/asterisk ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ ! -f /etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -c -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/chkconfig --add asterisk ; \
 			fi ; \
 		elif [ -f /etc/SuSE-release -o -f /etc/novell-release ] ; then \
 			cat contrib/init.d/rc.suse.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -c -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ;\
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ;\
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ ! -f /etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -c -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/chkconfig --add asterisk ; \
 			fi ; \
 		elif [ -f /etc/arch-release -o -f /etc/arch-release ] ; then \
 			cat contrib/init.d/rc.archlinux.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -c -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/asterisk ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 		elif [ -d $(DESTDIR)/Library/LaunchDaemons -a ! -f $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist ] ; then \
-			$(INSTALL) -c -m 644 contrib/init.d/org.asterisk.asterisk.plist $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist; \
+			$(INSTALL) -m 644 contrib/init.d/org.asterisk.asterisk.plist $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist; \
 		elif [ -f /etc/slackware-version ]; then \
 			echo "Slackware is not currently supported, although an init script does exist for it."; \
 		else \
