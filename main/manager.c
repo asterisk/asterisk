@@ -6271,17 +6271,15 @@ static int __init_manager(int reload)
 		}
 	}
 
-	if (manager_enabled) {
-		ami_desc_local_address_tmp.sin_family = AF_INET;
-	}
+	ami_desc_local_address_tmp.sin_family = AF_INET;
+	amis_desc_local_address_tmp.sin_family = AF_INET;
+
 	/* if the amis address has not been set, default is the same as non secure ami */
 	if (!amis_desc_local_address_tmp.sin_addr.s_addr) {
 		amis_desc_local_address_tmp.sin_addr =
 		    ami_desc_local_address_tmp.sin_addr;
 	}
-	if (ami_tls_cfg.enabled) {
-		amis_desc_local_address_tmp.sin_family = AF_INET;
-	}
+
 	ast_sockaddr_from_sin(&ami_desc.local_address, &ami_desc_local_address_tmp);
 	ast_sockaddr_from_sin(&amis_desc.local_address, &amis_desc_local_address_tmp);
 
