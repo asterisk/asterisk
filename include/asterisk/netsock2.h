@@ -82,7 +82,7 @@ int ast_sockaddr_ipv4_mapped(const struct ast_sockaddr *addr, struct ast_sockadd
  */
 static inline int ast_sockaddr_isnull(const struct ast_sockaddr *addr)
 {
-	return addr->len == 0;
+	return !addr || addr->len == 0;
 }
 
 /*!
