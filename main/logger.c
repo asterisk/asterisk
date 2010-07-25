@@ -690,9 +690,10 @@ static int reload_logger(int rotate)
 					break;
 				}
 			}
-
-			fclose(qlog);
-			qlog = NULL;
+			if (qlog) {
+				fclose(qlog);
+				qlog = NULL;
+			}
 			snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
 			if (queue_rotate) {
 				rotate_file(old);
@@ -720,8 +721,9 @@ static int reload_logger(int rotate)
 	a full Asterisk reload) */
 int logger_reload(void)
 {
-	if(reload_logger(0))
+	if (reload_logger(0)) {
 		return RESULT_FAILURE;
+	}
 	return RESULT_SUCCESS;
 }
 
