@@ -54,6 +54,7 @@ enum {
 	CONFIG_USEGMTIME =         1 << 1,
 	CONFIG_DISPOSITIONSTRING = 1 << 2,
 	CONFIG_HRTIME =            1 << 3,
+	CONFIG_REGISTERED =        1 << 4,
 };
 
 static struct ast_flags config = { 0 };
@@ -242,14 +243,24 @@ static int odbc_load_module(int reload)
 		ast_verb(3, "cdr_odbc: dsn is %s\n", dsn);
 		ast_verb(3, "cdr_odbc: table is %s\n", table);
 
-		res = ast_cdr_register(name, ast_module_info->description, odbc_log);
-		if (res) {
-			ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
+		if (!ast_test_flag(&config, CONFIG_REGISTERED)) {
+			res = ast_cdr_register(name, ast_module_info->description, odbc_log);
+			if (res) {
+				ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
+			} else {
+				ast_set_flag(&config, CONFIG_REGISTERED);
+			}
 		}
 	} while (0);
 
-	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID)
+	if (ast_test_flag(&config, CONFIG_REGISTERED) && (!cfg || dsn == NULL || table == NULL)) {
+		ast_cdr_unregister(name);
+		ast_clear_flag(&config, CONFIG_REGISTERED);
+	}
+
+	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID) {
 		ast_config_destroy(cfg);
+	}
 	return res;
 }
 
