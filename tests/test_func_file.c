@@ -253,7 +253,7 @@ AST_TEST_DEFINE(test_func_file)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "func_file";
-		info->category = "/funcs/func_env";
+		info->category = "/funcs/func_env/";
 		info->summary = "Verify behavior of the FILE() dialplan function";
 		info->description =
 			"Verifies that the examples of the FILE() dialplan function documentation work as described.";
