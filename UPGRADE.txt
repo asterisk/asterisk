@@ -106,6 +106,9 @@ From 1.6.2 to 1.8:
   482 Loop Detected response. The dialplan will just continue from where it
   left off.
 
+* All fax-related messages from spandsp, that previously went to DEBUG logger
+  level, will now be logged to a FAX logger if possible.
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by
