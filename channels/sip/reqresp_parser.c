@@ -27,7 +27,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "include/sip_utils.h"
 #include "include/reqresp_parser.h"
 
+#ifdef HAVE_XLOCALE_H
 locale_t c_locale;
+#endif
 
 /*! \brief * parses a URI in its components.*/
 int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
@@ -2006,7 +2008,11 @@ static int sip_uri_domain_cmp(const char *host1, const char *host2)
 	 * i.e. ASCII.
 	 */
 	if (!addr1_parsed) {
+#ifdef HAVE_XLOCALE_H
 		return strcasecmp_l(host1, host2, c_locale);
+#else
+		return strcasecmp(host1, host2);
+#endif
 	}
 
 	/* Both contain IP addresses */
@@ -2264,17 +2270,21 @@ void sip_request_parser_unregister_tests(void)
 
 int sip_reqresp_parser_init(void)
 {
+#ifdef HAVE_XLOCALE_H
 	c_locale = newlocale(LC_CTYPE_MASK, "C", NULL);
 	if (!c_locale) {
 		return -1;
 	}
+#endif
 	return 0;
 }
 
 void sip_reqresp_parser_exit(void)
 {
+#ifdef HAVE_XLOCALE_H
 	if (c_locale) {
 		freelocale(c_locale);
 		c_locale = NULL;
 	}
+#endif
 }

@@ -402,6 +402,9 @@ AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/event.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h arpa/nameser.h sys/io.h])
 
+# some embedded systems omit internationalization (locale) support
+AC_CHECK_HEADERS([xlocale.h])
+
 AC_CHECK_HEADERS([winsock.h winsock2.h])
 
 AC_CHECK_HEADER([sys/poll.h],
