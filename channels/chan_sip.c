@@ -1318,6 +1318,7 @@ static void *do_monitor(void *data);
 static int restart_monitor(void);
 static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer *peer);
 static struct ast_variable *copy_vars(struct ast_variable *src);
+static int dialog_find_multiple(void *obj, void *arg, int flags);
 /* static int sip_addrcmp(char *name, struct sockaddr_in *sin);	Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
 static int sip_notify_allocate(struct sip_pvt *p);
@@ -7010,7 +7011,26 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		return NULL;
 	}
 
+	/* If this dialog is created as the result of an incoming Request. Lets store
+	 * some information about that request */
 	if (req) {
+		char *sent_by, *branch;
+		const char *cseq = get_header(req, "Cseq");
+		unsigned int seqno;
+		/* get branch parameter from initial Request that started this dialog */
+		get_viabranch(ast_strdupa(get_header(req, "Via")), &sent_by, &branch);
+		/* only store the branch if it begins with the magic prefix "z9hG4bK", otherwise
+		 * it is not useful to us to have it */
+		if (!ast_strlen_zero(branch) && !strncasecmp(branch, "z9hG4bK", 7)) {
+			ast_string_field_set(p, initviabranch, branch);
+			ast_string_field_set(p, initviasentby, sent_by);
+		}
+
+		/* Store initial incoming cseq. An error in sscanf here is ignored.  There is no approperiate
+		 * except not storing the number.  CSeq validation must take place before dialog creation in find_call */
+		if (!ast_strlen_zero(cseq) && (sscanf(cseq, "%30u", &seqno) == 1)) {
+			p->init_icseq = seqno;
+		}
 		set_socket_transport(&p->socket, req->socket.type); /* Later in ast_sip_ouraddrfor we need this to choose the right ip and port for the specific transport */
 	} else {
 		set_socket_transport(&p->socket, SIP_TRANSPORT_UDP);
@@ -7114,6 +7134,156 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	return p;
 }
 
+/* \brief arguments used for Request/Response to matching */
+struct match_req_args {
+	int method;
+	const char *callid;
+	const char *totag;
+	const char *fromtag;
+	unsigned int seqno;
+
+	/* Set if the method is a Request */
+	const char *ruri;
+	const char *viabranch;
+	const char *viasentby;
+
+	/* Set this if the Authentication header is present in the Request. */
+	int authentication_present;
+};
+
+enum match_req_res {
+	SIP_REQ_MATCH,
+	SIP_REQ_NOT_MATCH,
+	SIP_REQ_LOOP_DETECTED,
+};
+
+/*
+ * \brief Match a incoming Request/Response to a dialog
+ *
+ * \retval enum match_req_res indicating if the dialog matches the arg
+ */
+static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struct match_req_args *arg)
+{
+	const char *init_ruri = REQ_OFFSET_TO_STR(&sip_pvt_ptr->initreq, rlPart2);
+
+	/*
+	 * Match Tags and call-id to Dialog
+	 */
+	if (!ast_strlen_zero(arg->callid) && strcmp(sip_pvt_ptr->callid, arg->callid)) {
+		/* call-id does not match. */
+		return SIP_REQ_NOT_MATCH;
+	}
+	if (arg->method == SIP_RESPONSE) {
+		/* Verify totag if we have one stored for this dialog, but never be strict about this for
+		 * a response until the dialog is established */
+		if (!ast_strlen_zero(sip_pvt_ptr->theirtag) && ast_test_flag(&sip_pvt_ptr->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
+			if (ast_strlen_zero(arg->totag)) {
+				/* missing totag when they already gave us one earlier */
+				return SIP_REQ_NOT_MATCH;
+			}
+			if (strcmp(arg->totag, sip_pvt_ptr->theirtag)) {
+				/* The totag of the response does not match the one we have stored */
+				return SIP_REQ_NOT_MATCH;
+			}
+		}
+		/* Verify fromtag of response matches the tag we gave them. */
+		if (strcmp(arg->fromtag, sip_pvt_ptr->tag)) {
+			/* fromtag from response does not match our tag */
+			return SIP_REQ_NOT_MATCH;
+		}
+	} else {
+		/* Verify the fromtag of Request matches the tag they provided earlier. */
+		if (strcmp(arg->fromtag, sip_pvt_ptr->theirtag)) {
+			/* their tag does not match the one was have stored for them */
+			return SIP_REQ_NOT_MATCH;
+		}
+		/* Verify if totag is present in Request, that it matches what we gave them as our tag earlier */
+		if (!ast_strlen_zero(arg->totag) && (strcmp(arg->totag, sip_pvt_ptr->tag))) {
+			/* totag from Request does not match our tag */
+			return SIP_REQ_NOT_MATCH;
+		}
+	}
+
+	/*
+	 * Compare incoming request against initial transaction.
+	 * 
+	 * This is a best effort attempt at distinguishing forked requests from
+	 * our initial transaction.  If all the elements are NOT in place to evaluate
+	 * this, this block is ignored and the dialog match is made regardless.
+	 * Once the totag is established after the dialog is confirmed, this is not necessary.
+	 *
+	 * CRITERIA required for initial transaction matching.
+	 * 
+	 * 1. Is a Request
+	 * 2. Callid and theirtag match (this is done in the dialog matching block)
+	 * 3. totag is NOT present
+	 * 4. CSeq matchs our initial transaction's cseq number
+	 * 5. pvt has init via branch parameter stored
+	 */
+	if ((arg->method != SIP_RESPONSE) &&                 /* must be a Request */
+		ast_strlen_zero(arg->totag) &&                   /* must not have a totag */
+		(sip_pvt_ptr->init_icseq == arg->seqno) &&       /* the cseq must be the same as this dialogs initial cseq */
+		!ast_strlen_zero(sip_pvt_ptr->initviabranch)) {  /* The dialog must have started with a RFC3261 compliant branch tag */
+
+		/* This Request matches all the criteria required for Loop/Merge detection.
+		 * Now we must go down the path of comparing VIA's and RURIs. */
+		if (ast_strlen_zero(arg->viabranch) ||
+			strcmp(arg->viabranch, sip_pvt_ptr->initviabranch) ||
+			ast_strlen_zero(arg->viasentby) ||
+			strcmp(arg->viasentby, sip_pvt_ptr->initviasentby)) {
+			/* At this point, this request does not match this Dialog.*/
+
+			/* if methods are different this is just a mismatch */
+			if ((sip_pvt_ptr->method != arg->method)) {
+				return SIP_REQ_NOT_MATCH;
+			}
+
+			/* If RUIs are different, this is a forked request to a separate URI.
+			 * Returning a mismatch allows this Request to be processed separately. */
+			if (sip_uri_cmp(init_ruri, arg->ruri)) {
+				/* not a match, request uris are different */
+				return SIP_REQ_NOT_MATCH;
+			}
+
+			/* Loop/Merge Detected
+			 *
+			 * ---Current Matches to Initial Request---
+			 * request uri
+			 * Call-id
+			 * their-tag
+			 * no totag present
+			 * method
+			 * cseq
+			 *
+			 * --- Does not Match Initial Request ---
+			 * Top Via
+			 *
+			 * Without the same Via, this can not match our initial transaction for this dialog,
+			 * but given that this Request matches everything else associated with that initial
+			 * Request this is most certainly a Forked request in which we have already received
+			 * part of the fork.
+			 */
+			return SIP_REQ_LOOP_DETECTED;
+		}
+	} /* end of Request Via check */
+
+	/* Match Authentication Request.
+	 *
+	 * A Request with an Authentication header must come back with the
+	 * same Request URI.  Otherwise it is not a match.
+	 */
+	if ((arg->method != SIP_RESPONSE) &&      /* Must be a Request type to even begin checking this */
+		ast_strlen_zero(arg->totag) &&        /* no totag is present to match */
+		arg->authentication_present &&        /* Authentication header is present in Request */
+		sip_uri_cmp(init_ruri, arg->ruri)) {  /* Compare the Request URI of both the last Request and this new one */
+
+		/* Authentication was provided, but the Request URI did not match the last one on this dialog. */
+		return SIP_REQ_NOT_MATCH;
+	}
+
+	return SIP_REQ_MATCH;
+}
+
 /*! \brief find or create a dialog structure for an incoming SIP message.
  * Connect incoming SIP message to current dialog or create new dialog structure
  * Returns a reference to the sip_pvt object, remember to give it back once done.
@@ -7122,7 +7292,6 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method)
 {
 	struct sip_pvt *p = NULL;
-	char *tag = "";	/* note, tag is never NULL */
 	char totag[128];
 	char fromtag[128];
 	const char *callid = get_header(req, "Call-ID");
@@ -7130,11 +7299,12 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 	const char *to = get_header(req, "To");
 	const char *cseq = get_header(req, "Cseq");
 	struct sip_pvt *sip_pvt_ptr;
-
+	unsigned int seqno;
 	/* Call-ID, to, from and Cseq are required by RFC 3261. (Max-forwards and via too - ignored now) */
 	/* get_header always returns non-NULL so we must use ast_strlen_zero() */
 	if (ast_strlen_zero(callid) || ast_strlen_zero(to) ||
-			ast_strlen_zero(from) || ast_strlen_zero(cseq)) {
+			ast_strlen_zero(from) || ast_strlen_zero(cseq) ||
+			(sscanf(cseq, "%30u", &seqno) != 1)) {
 
 		/* RFC 3261 section 24.4.1.   Send a 400 Bad Request if the request is malformed. */
 		if (intended_method != SIP_RESPONSE && intended_method != SIP_ACK) {
@@ -7154,8 +7324,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		if (gettag(req, "To", totag, sizeof(totag)))
 			req->has_to_tag = 1;	/* Used in handle_request/response */
 		gettag(req, "From", fromtag, sizeof(fromtag));
-
-		tag = (req->method == SIP_RESPONSE) ? totag : fromtag;
 
 		ast_debug(5, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
 
@@ -7181,46 +7349,60 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 			sip_pvt_lock(sip_pvt_ptr);
 			return sip_pvt_ptr;
 		}
-	} else { /* in pedantic mode! -- do the fancy linear search */
+	} else { /* in pedantic mode! -- do the fancy search */
 		struct sip_pvt tmp_dialog = {
 			.callid = callid,
 		};
-		struct ao2_iterator *iterator = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER | OBJ_MULTIPLE,
-							   "pedantic ao2_find in dialogs");
-		if (iterator) {
-			int found = TRUE;
+		struct match_req_args args = { 0, };
+		int found;
+		struct ao2_iterator *iterator = ao2_t_callback(dialogs,
+			OBJ_POINTER | OBJ_MULTIPLE,
+			dialog_find_multiple,
+			&tmp_dialog,
+			"pedantic ao2_find in dialogs");
 
-			while ((sip_pvt_ptr = ao2_iterator_next(iterator))) {
-				if (req->method != SIP_REGISTER) {
-					found = ast_strlen_zero(tag) || ast_strlen_zero(sip_pvt_ptr->theirtag) ||
-						!ast_test_flag(&sip_pvt_ptr->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED) ||
-						!strcmp(sip_pvt_ptr->theirtag, tag);
-				}
-				ast_debug(5, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match",
-					  sip_pvt_ptr->callid, sip_pvt_ptr->theirtag, sip_pvt_ptr->tag);
-				/* If we get a new request within an existing to-tag - check the to tag as well */
-				if (found && req->method != SIP_RESPONSE) { /* SIP Request */
-					if (sip_pvt_ptr->tag[0] == '\0' && totag[0]) {
-						/* We have no to tag, but they have. Wrong dialog */
-						found = FALSE;
-					} else if (totag[0]) { /* Both have tags, compare them */
-						if (strcmp(totag, sip_pvt_ptr->tag)) {
-							found = FALSE; /* This is not our packet */
-						}
-					}
-					if (!found)
-						ast_debug(5, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n",
-							  sip_pvt_ptr->callid, totag, sip_methods[req->method].text);
-				}
-				if (found) {
-					sip_pvt_lock(sip_pvt_ptr);
-					ao2_iterator_destroy(iterator);
-					return sip_pvt_ptr;
-				}
+		args.method = req->method;
+		args.callid = NULL; /* we already matched this. */
+		args.totag = totag;
+		args.fromtag = fromtag;
+		args.seqno = seqno;
+
+		/* If this is a Request, set the Via and Authorization header arguments */
+		if (req->method != SIP_RESPONSE) {
+			const char *auth_header;
+			args.ruri = REQ_OFFSET_TO_STR(req, rlPart2);
+			get_viabranch(ast_strdupa(get_header(req, "Via")), (char **) &args.viasentby, (char **) &args.viabranch);
+			auth_header = get_header(req, "WWW-Authenticate");
+			if (!ast_strlen_zero(auth_header)) {
+				args.authentication_present = 1;
 			}
+		}
+
+		/* Iterate a list of dialogs already matched by Call-id */
+		while (iterator && (sip_pvt_ptr = ao2_iterator_next(iterator))) {
+			found = match_req_to_dialog(sip_pvt_ptr, &args);
+
+			switch (found) {
+			case SIP_REQ_MATCH:
+				sip_pvt_lock(sip_pvt_ptr);
+				ao2_iterator_destroy(iterator);
+				return sip_pvt_ptr; /* return pvt with ref */
+			case SIP_REQ_LOOP_DETECTED:
+				/* This is likely a forked Request that somehow resulted in us receiving multiple parts of the fork.
+			 	* RFC 3261 section 8.2.2.2, Indicate that we want to merge requests by sending a 482 response. */
+				transmit_response_using_temp(callid, addr, 1, intended_method, req, "482 (Loop Detected)");
+				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search.");
+				ao2_iterator_destroy(iterator);
+				return NULL;
+			case SIP_REQ_NOT_MATCH:
+			default:
+				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search");
+			}
+		}
+		if (iterator) {
 			ao2_iterator_destroy(iterator);
 		}
-	}
+	} /* end of pedantic mode Request/Reponse to Dialog matching */
 
 	/* See if the method is capable of creating a dialog */
 	if (sip_methods[intended_method].can_create == CAN_CREATE_DIALOG) {
@@ -27670,16 +27852,24 @@ static int dialog_hash_cb(const void *obj, const int flags)
 }
 
 /*!
+ * \note Same as dialog_cmp_cb, except without the CMP_STOP on match
+ */
+static int dialog_find_multiple(void *obj, void *arg, int flags)
+{
+	struct sip_pvt *pvt = obj, *pvt2 = arg;
+
+	return !strcasecmp(pvt->callid, pvt2->callid) ? CMP_MATCH : 0;
+}
+
+/*!
  * \note The only member of the dialog used here callid string
  */
 static int dialog_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct sip_pvt *pvt = obj, *pvt2 = arg;
-	
+
 	return !strcasecmp(pvt->callid, pvt2->callid) ? CMP_MATCH | CMP_STOP : 0;
 }
-
-
 
 /*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {

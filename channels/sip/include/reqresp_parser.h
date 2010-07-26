@@ -165,4 +165,10 @@ int sip_reqresp_parser_init(void);
  */
 void sip_reqresp_parser_exit(void);
 
+/*!
+ * \brief Parse the VIA header into it's parts.
+ *
+ * \note This will modify the string
+ */
+void get_viabranch(char *via, char **sent_by, char **branch);
 #endif

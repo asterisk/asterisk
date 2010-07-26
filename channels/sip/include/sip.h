@@ -910,6 +910,8 @@ struct sip_pvt {
 	int method;                             /*!< SIP method that opened this dialog */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(callid);       /*!< Global CallID */
+		AST_STRING_FIELD(initviabranch); /*!< The branch ID from the topmost Via header in the initial request */
+		AST_STRING_FIELD(initviasentby); /*!< The sent-by from the topmost Via header in the initial request */
 		AST_STRING_FIELD(randdata);     /*!< Random data */
 		AST_STRING_FIELD(accountcode);  /*!< Account code */
 		AST_STRING_FIELD(realm);        /*!< Authorization realm */
@@ -958,6 +960,7 @@ struct sip_pvt {
 	struct sip_socket socket;               /*!< The socket used for this dialog */
 	unsigned int ocseq;                     /*!< Current outgoing seqno */
 	unsigned int icseq;                     /*!< Current incoming seqno */
+	unsigned int init_icseq;                /*!< Initial incoming seqno from first request */
 	ast_group_t callgroup;                  /*!< Call group */
 	ast_group_t pickupgroup;                /*!< Pickup group */
 	int lastinvite;                         /*!< Last Cseq of invite */
