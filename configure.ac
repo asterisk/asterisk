@@ -177,9 +177,9 @@ AC_PROG_RANLIB
 AST_CHECK_GNU_MAKE
 
 if test ${ac_cv_GNU_MAKE_VERSION_MAJOR} -gt 2 -a ${ac_cv_GNU_MAKE_VERSION_MINOR} -gt 80; then
-	$LN_S -f sounds/Makefile.381 sounds/Makefile
+	$LN_S -f Makefile.381 sounds/Makefile
 else
-	$LN_S -f sounds/Makefile.380 sounds/Makefile
+	$LN_S -f Makefile.380 sounds/Makefile
 fi
 
 AC_CHECK_TOOLS([STRIP], [strip gstrip], :)
