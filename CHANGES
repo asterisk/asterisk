@@ -490,6 +490,8 @@ Fax
  * A spandsp based fax backend (res_fax_spandsp) has been added.
  * The app_fax module has been deprecated in favor of the res_fax module and
    the new res_fax_spandsp backend.
+ * A new FAX logger level has been created for spandsp replacing the DEBUG logger
+   level. The logger.conf.sample file has been update to include an example. 
 
 Miscellaneous
 -------------

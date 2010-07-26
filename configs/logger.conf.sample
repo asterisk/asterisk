@@ -75,6 +75,7 @@
 ;    error
 ;    verbose
 ;    dtmf
+;    fax
 ;
 ; Special filename "console" represents the system console
 ;
@@ -106,7 +107,7 @@
 console => notice,warning,error
 ;console => notice,warning,error,debug
 messages => notice,warning,error
-;full => notice,warning,error,debug,verbose
+;full => notice,warning,error,debug,verbose,dtmf,fax
 
 ;syslog keyword : This special keyword logs to syslog facility
 ;
