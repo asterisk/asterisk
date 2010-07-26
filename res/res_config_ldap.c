@@ -65,7 +65,7 @@ AST_MUTEX_DEFINE_STATIC(ldap_lock);
 static LDAP *ldapConn;
 static char url[512];
 static char user[512];
-static char pass[50];
+static char pass[512];
 static char base_distinguished_name[512];
 static int version;
 static time_t connect_time;
@@ -84,8 +84,8 @@ struct category_and_metric {
 
 /*! \brief Table configuration */
 struct ldap_table_config {
-	char *table_name;                 /*!< table name */
-	char *additional_filter;          /*!< additional filter        */
+	char *table_name;		 /*!< table name */
+	char *additional_filter;	  /*!< additional filter	*/
 	struct ast_variable *attributes;  /*!< attribute names conversion */
 	struct ast_variable *delimiters;  /*!< the current delimiter is semicolon, so we are not using this variable */
 	AST_LIST_ENTRY(ldap_table_config) entry;
@@ -955,8 +955,23 @@ static struct ast_variable *realtime_ldap(const char *basedn,
 static struct ast_config *realtime_multi_ldap(const char *basedn,
       const char *table_name, va_list ap)
 {
-	struct ast_variable **vars = realtime_ldap_base_ap(NULL, basedn, table_name, ap);
+	char *op;
+	const char *initfield = NULL;
+	const char *newparam, *newval;
+	struct ast_variable **vars =
+		realtime_ldap_base_ap(NULL, basedn, table_name, ap);
 	struct ast_config *cfg = NULL;
+
+	newparam = va_arg(ap, const char *);
+	newval = va_arg(ap, const char *);
+	if (!newparam || !newval) {
+	    ast_log(LOG_WARNING, "realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+	    return NULL;
+	}
+	initfield = ast_strdupa(newparam);
+	if ((op = strchr(initfield, ' '))) {
+		*op = '\0';
+	}
 
 	if (vars) {
 		cfg = ast_config_new();
@@ -975,6 +990,9 @@ static struct ast_config *realtime_multi_ldap(const char *basedn,
 					struct ast_variable *var = *p;
 					while (var) {
 						struct ast_variable *next = var->next;
+						if (initfield && !strcmp(initfield, var->name)) {
+							ast_category_rename(cat, var->value);
+						}
 						var->next = NULL;
 						ast_variable_append(cat, var);
 						var = next;
@@ -1746,7 +1764,7 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 		e->command = "realtime show ldap status";
 		e->usage =
 			"Usage: realtime show ldap status\n"
-			"               Shows connection information for the LDAP RealTime driver\n";
+			"	       Shows connection information for the LDAP RealTime driver\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
