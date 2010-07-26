@@ -46,7 +46,7 @@ AC_ARG_WITH([$1], AC_HELP_STRING([--with-$1=PATH], [use $3 in PATH]),
 		unset $2
 		;;
 	*)
-		if test "x${$2}" = "x"; then
+		if test "x${withval}" = "x"; then
 			m4_ifval($4, [$2="$4"], [:])
 		else
 			$2="${withval}"
