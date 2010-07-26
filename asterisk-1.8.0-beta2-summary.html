@@ -1,0 +1,184 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.8.0-beta2</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.8.0-beta2</h3>
+<h3 align="center">Date: 2010-07-26</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.8.0-beta1.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+7 pabelanger<br/>
+5 tilghman<br/>
+1 bencer<br/>
+1 dvossel<br/>
+1 ghenry<br/>
+1 navkumar<br/>
+1 pprindeville<br/>
+1 qwell<br/>
+1 rmudgett<br/>
+1 russell<br/>
+1 seanbright<br/>
+1 snuffy<br/>
+</td>
+<td>
+2 vrban<br/>
+1 elguero<br/>
+1 jnemeth<br/>
+1 mmichelson<br/>
+1 suretec<br/>
+</td>
+<td>
+2 vrban<br/>
+1 jnemeth<br/>
+1 navkumar<br/>
+1 outcast<br/>
+1 pabelanger<br/>
+1 pprindeville<br/>
+1 stuarth<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: CDR/cdr_odbc</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17304">#17304</a>: [patch] module reload cdr_odbc.so produces an error about not being able to register ODBC method with CDR.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279410">279410</a><br/>
+Reporter: jnemeth<br/>
+Testers: jnemeth<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17677">#17677</a>: [regression][patch] Core dump when loading sip peers<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279280">279280</a><br/>
+Reporter: outcast<br/>
+Testers: elguero<br/>
+Coders: pabelanger<br/>
+<br/>
+<h3>Category: Core/BuildSystem</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17695">#17695</a>: [patch] Additional Makefile cleanup<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279314">279314</a><br/>
+Reporter: pabelanger<br/>
+Coders: pabelanger<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17697">#17697</a>: [patch] Workaround required for environments not supporting locale<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279504">279504</a><br/>
+Reporter: pprindeville<br/>
+Testers: mmichelson<br/>
+Coders: pprindeville<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17703">#17703</a>: AST_OPTION_ONLY tests wrong variable<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279502">279502</a><br/>
+Reporter: stuarth<br/>
+Coders: seanbright<br/>
+<br/>
+<h3>Category: General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17704">#17704</a>: [patch] Asterisk 1.8-beta1 crash on "logger reoad"<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279390">279390</a><br/>
+Reporter: vrban<br/>
+Testers: vrban<br/>
+Coders: pabelanger<br/>
+<br/>
+<h3>Category: Resources/res_config_ldap</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=13573">#13573</a>: [Patch] Allow realtime_multi_ldap to behave like other realtime_multi functions<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279601">279601</a><br/>
+Reporter: navkumar<br/>
+Testers: suretec<br/>
+Coders: navkumar, bencer<br/>
+<br/>
+<h3>Category: Resources/res_fax_spandsp</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17715">#17715</a>: [patch] cli cmd 'fax set debug on' has no effect. Dont get any spandsp debug<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279566">279566</a><br/>
+Reporter: vrban<br/>
+Testers: vrban<br/>
+Coders: pabelanger<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279227">279227</a></td><td>rmudgett</td><td>SIP promiscuous redirect could fail to dial the redirect.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279273">279273</a></td><td>pabelanger</td><td>Default sin_family to AF_INET for TCP / TLS Bindaddress.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279348">279348</a></td><td>snuffy</td><td>Minor update to man page</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279442">279442</a></td><td>pabelanger</td><td>Add trailing backslash to silence warning message.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279472">279472</a></td><td>tilghman</td><td>Formats need to load before apps, because some apps call ast_format_str_reduce() at load time.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279562">279562</a></td><td>tilghman</td><td>Use a special Makefile for noobs who still have GNU Make 3.80.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279568">279568</a></td><td>dvossel</td><td>transaction matching using top most Via header</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279598">279598</a></td><td>ghenry</td><td>Apply all patches in:</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279599">279599</a></td><td>tilghman</td><td>Reverting property remove</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279619">279619</a></td><td>tilghman</td><td>Dunno why this worked on my machine, but it works better this way.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279636">279636</a></td><td>russell</td><td>Ignore a control subclass of -1 in ast_waitfordigit_full().</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279658">279658</a></td><td>qwell</td><td>Really fix sounds Makefile (and make it readableish).</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=279689">279689</a></td><td>pabelanger</td><td>Updated documentation for FAX logger level.</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+CHANGES                               |    9 +
+Makefile                              |   28 +--
+apps/app_dial.c                       |    9 -
+apps/app_queue.c                      |    9 -
+autoconf/ast_ext_lib.m4               |    2
+cdr/cdr_odbc.c                        |   19 +-
+channels/chan_sip.c                   |  272 ++++++++++++++++++++++++++++------
+channels/sip/include/reqresp_parser.h |    6
+channels/sip/include/sip.h            |    3
+channels/sip/reqresp_parser.c         |  157 +++++++++++++++++++
+configs/logger.conf.sample            |    3
+configure.ac                          |    3
+doc/asterisk.8                        |    4
+formats/format_g719.c                 |    6
+formats/format_g723.c                 |    6
+formats/format_g726.c                 |    6
+formats/format_g729.c                 |    6
+formats/format_gsm.c                  |    6
+formats/format_h263.c                 |    6
+formats/format_h264.c                 |    6
+formats/format_ilbc.c                 |    6
+formats/format_jpeg.c                 |    6
+formats/format_ogg_vorbis.c           |    6
+formats/format_pcm.c                  |    6
+formats/format_siren14.c              |    6
+formats/format_siren7.c               |    6
+formats/format_sln.c                  |    6
+formats/format_sln16.c                |    6
+formats/format_vox.c                  |    6
+formats/format_wav.c                  |    6
+formats/format_wav_gsm.c              |    6
+include/asterisk/autoconfig.h.in      |   54 +++---
+include/asterisk/netsock2.h           |    2
+main/channel.c                        |    1
+main/logger.c                         |   10 -
+main/manager.c                        |   10 -
+res/res_config_ldap.c                 |   28 ++-
+sounds/Makefile                       |   71 ++++----
+tests/test_func_file.c                |    2
+39 files changed, 640 insertions(+), 170 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>

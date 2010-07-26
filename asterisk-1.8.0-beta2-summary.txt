@@ -1,0 +1,240 @@
+                                Release Summary
+
+                              asterisk-1.8.0-beta2
+
+                                Date: 2010-07-26
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.0-beta1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   7 pabelanger             2 vrban                  2 vrban                  
+   5 tilghman               1 elguero                1 jnemeth                
+   1 bencer                 1 jnemeth                1 navkumar               
+   1 dvossel                1 mmichelson             1 outcast                
+   1 ghenry                 1 suretec                1 pabelanger             
+   1 navkumar                                        1 pprindeville           
+   1 pprindeville                                    1 stuarth                
+   1 qwell                  
+   1 rmudgett               
+   1 russell                
+   1 seanbright             
+   1 snuffy                 
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: CDR/cdr_odbc
+
+   #17304: [patch] module reload cdr_odbc.so produces an error about not
+   being able to register ODBC method with CDR.
+   Revision: 279410
+   Reporter: jnemeth
+   Testers: jnemeth
+   Coders: tilghman
+
+  Category: Channels/chan_sip/General
+
+   #17677: [regression][patch] Core dump when loading sip peers
+   Revision: 279280
+   Reporter: outcast
+   Testers: elguero
+   Coders: pabelanger
+
+  Category: Core/BuildSystem
+
+   #17695: [patch] Additional Makefile cleanup
+   Revision: 279314
+   Reporter: pabelanger
+   Coders: pabelanger
+
+   #17697: [patch] Workaround required for environments not supporting locale
+   Revision: 279504
+   Reporter: pprindeville
+   Testers: mmichelson
+   Coders: pprindeville
+
+   #17703: AST_OPTION_ONLY tests wrong variable
+   Revision: 279502
+   Reporter: stuarth
+   Coders: seanbright
+
+  Category: General
+
+   #17704: [patch] Asterisk 1.8-beta1 crash on "logger reoad"
+   Revision: 279390
+   Reporter: vrban
+   Testers: vrban
+   Coders: pabelanger
+
+  Category: Resources/res_config_ldap
+
+   #13573: [Patch] Allow realtime_multi_ldap to behave like other
+   realtime_multi functions
+   Revision: 279601
+   Reporter: navkumar
+   Testers: suretec
+   Coders: navkumar, bencer
+
+  Category: Resources/res_fax_spandsp
+
+   #17715: [patch] cli cmd 'fax set debug on' has no effect. Dont get any
+   spandsp debug
+   Revision: 279566
+   Reporter: vrban
+   Testers: vrban
+   Coders: pabelanger
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 279227   | rmudgett   | SIP promiscuous redirect could    |            |
+   |          |            | fail to dial the redirect.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279273   | pabelanger | Default sin_family to AF_INET for |            |
+   |          |            | TCP / TLS Bindaddress.            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279348   | snuffy     | Minor update to man page          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279442   | pabelanger | Add trailing backslash to silence |            |
+   |          |            | warning message.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Formats need to load before apps, |            |
+   | 279472   | tilghman   | because some apps call            |            |
+   |          |            | ast_format_str_reduce() at load   |            |
+   |          |            | time.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279562   | tilghman   | Use a special Makefile for noobs  |            |
+   |          |            | who still have GNU Make 3.80.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279568   | dvossel    | transaction matching using top    |            |
+   |          |            | most Via header                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279598   | ghenry     | Apply all patches in:             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279599   | tilghman   | Reverting property remove         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Dunno why this worked on my       |            |
+   | 279619   | tilghman   | machine, but it works better this |            |
+   |          |            | way.                              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279636   | russell    | Ignore a control subclass of -1   |            |
+   |          |            | in ast_waitfordigit_full().       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279658   | qwell      | Really fix sounds Makefile (and   |            |
+   |          |            | make it readableish).             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279689   | pabelanger | Updated documentation for FAX     |            |
+   |          |            | logger level.                     |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                               |    9 +
+ Makefile                              |   28 +--
+ apps/app_dial.c                       |    9 -
+ apps/app_queue.c                      |    9 -
+ autoconf/ast_ext_lib.m4               |    2
+ cdr/cdr_odbc.c                        |   19 +-
+ channels/chan_sip.c                   |  272 ++++++++++++++++++++++++++++------
+ channels/sip/include/reqresp_parser.h |    6
+ channels/sip/include/sip.h            |    3
+ channels/sip/reqresp_parser.c         |  157 +++++++++++++++++++
+ configs/logger.conf.sample            |    3
+ configure.ac                          |    3
+ doc/asterisk.8                        |    4
+ formats/format_g719.c                 |    6
+ formats/format_g723.c                 |    6
+ formats/format_g726.c                 |    6
+ formats/format_g729.c                 |    6
+ formats/format_gsm.c                  |    6
+ formats/format_h263.c                 |    6
+ formats/format_h264.c                 |    6
+ formats/format_ilbc.c                 |    6
+ formats/format_jpeg.c                 |    6
+ formats/format_ogg_vorbis.c           |    6
+ formats/format_pcm.c                  |    6
+ formats/format_siren14.c              |    6
+ formats/format_siren7.c               |    6
+ formats/format_sln.c                  |    6
+ formats/format_sln16.c                |    6
+ formats/format_vox.c                  |    6
+ formats/format_wav.c                  |    6
+ formats/format_wav_gsm.c              |    6
+ include/asterisk/autoconfig.h.in      |   54 +++---
+ include/asterisk/netsock2.h           |    2
+ main/channel.c                        |    1
+ main/logger.c                         |   10 -
+ main/manager.c                        |   10 -
+ res/res_config_ldap.c                 |   28 ++-
+ sounds/Makefile                       |   71 ++++----
+ tests/test_func_file.c                |    2
+ 39 files changed, 640 insertions(+), 170 deletions(-)
+
+     ----------------------------------------------------------------------
