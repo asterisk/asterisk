@@ -1825,8 +1825,8 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 
 			if (distMatches == 3) {
 				/* The ring matches, set the context to whatever is for distinctive ring.. */
-				ast_copy_string(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context));
-				ast_copy_string(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context));
+				ast_copy_string(p->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(p->context));
+				ast_copy_string(chan->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(chan->context));
 				ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
 				break;
 			}
@@ -10209,8 +10209,8 @@ static void *analog_ss_thread(void *data)
 
 							if (distMatches == 3) {
 								/* The ring matches, set the context to whatever is for distinctive ring.. */
-								ast_copy_string(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context));
-								ast_copy_string(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context));
+								ast_copy_string(p->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(p->context));
+								ast_copy_string(chan->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(chan->context));
 								ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
 								break;
 							}
@@ -10447,8 +10447,8 @@ static void *analog_ss_thread(void *data)
 							}
 							if (distMatches == 3) {
 								/* The ring matches, set the context to whatever is for distinctive ring.. */
-								ast_copy_string(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context));
-								ast_copy_string(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context));
+								ast_copy_string(p->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(p->context));
+								ast_copy_string(chan->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(chan->context));
 								ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
 								break;
 							}
