@@ -4907,6 +4907,17 @@ static void *pri_dchannel(void *vpri)
 						pri_queue_control(pri, chanpos, AST_CONTROL_RINGING);
 						pri->pvts[chanpos]->alerting = 1;
 
+						if (
+#ifdef PRI_PROGRESS_MASK
+							e->ringing.progressmask & PRI_PROG_INBAND_AVAILABLE
+#else
+							e->ringing.progress == 8
+#endif
+							) {
+							sig_pri_open_media(pri->pvts[chanpos]);
+						}
+
+
 #ifdef SUPPORT_USERUSER
 						if (!ast_strlen_zero(e->ringing.useruserinfo)) {
 							struct ast_channel *owner;
@@ -4965,6 +4976,7 @@ static void *pri_dchannel(void *vpri)
 						pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
 						pri->pvts[chanpos]->progress = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
+						sig_pri_open_media(pri->pvts[chanpos]);
 					}
 					sig_pri_unlock_private(pri->pvts[chanpos]);
 				}
@@ -4998,6 +5010,7 @@ static void *pri_dchannel(void *vpri)
 						pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
 						pri->pvts[chanpos]->progress = 1;
 						sig_pri_set_dialing(pri->pvts[chanpos], 0);
+						sig_pri_open_media(pri->pvts[chanpos]);
 					}
 					sig_pri_unlock_private(pri->pvts[chanpos]);
 				}

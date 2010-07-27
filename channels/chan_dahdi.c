@@ -2505,6 +2505,11 @@ static void my_pri_open_media(void *p)
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pvt->channel);
 	}
+
+	if (pvt->dsp_features && pvt->dsp) {
+		ast_dsp_set_features(pvt->dsp, pvt->dsp_features);
+		pvt->dsp_features = 0;
+	}
 }
 #endif	/* defined(HAVE_PRI) */
 
