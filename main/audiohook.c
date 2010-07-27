@@ -735,6 +735,17 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	return end_frame;
 }
 
+int ast_audiohook_write_list_empty(struct ast_audiohook_list *audiohook_list)
+{
+	if (AST_LIST_EMPTY(&audiohook_list->spy_list) &&
+		AST_LIST_EMPTY(&audiohook_list->whisper_list) &&
+		AST_LIST_EMPTY(&audiohook_list->manipulate_list)) {
+
+		return 1;
+	}
+	return 0;
+}
+
 /*! \brief Pass a frame off to be handled by the audiohook core
  * \param chan Channel that the list is coming off of
  * \param audiohook_list List of audiohooks
@@ -752,7 +763,6 @@ struct ast_frame *ast_audiohook_write_list(struct ast_channel *chan, struct ast_
 	else
 		return frame;
 }
-			
 
 /*! \brief Wait for audiohook trigger to be triggered
  * \param audiohook Audiohook to wait on

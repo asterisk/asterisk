@@ -202,6 +202,13 @@ int ast_audiohook_detach_source(struct ast_channel *chan, const char *source);
  */
 int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audiohook);
 
+/*!
+ * \brief determines if a audiohook_list is empty or not.
+ *
+ * retval 0 false, 1 true
+ */
+int ast_audiohook_write_list_empty(struct ast_audiohook_list *audiohook_list);
+
 /*! \brief Pass a frame off to be handled by the audiohook core
  * \param chan Channel that the list is coming off of
  * \param audiohook_list List of audiohooks

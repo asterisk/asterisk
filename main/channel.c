@@ -4064,6 +4064,11 @@ done:
 	if (chan->music_state && chan->generator && chan->generator->digit && f && f->frametype == AST_FRAME_DTMF_END)
 		chan->generator->digit(chan, f->subclass.integer);
 
+	if (chan->audiohooks && ast_audiohook_write_list_empty(chan->audiohooks)) {
+		/* The list gets recreated if audiohooks are added again later */
+		ast_audiohook_detach_list(chan->audiohooks);
+		chan->audiohooks = NULL;
+	}
 	ast_channel_unlock(chan);
 	return f;
 }
@@ -4801,6 +4806,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		chan->fout = FRAMECOUNT_INC(chan->fout);
 	}
 done:
+	if (chan->audiohooks && ast_audiohook_write_list_empty(chan->audiohooks)) {
+		/* The list gets recreated if audiohooks are added again later */
+		ast_audiohook_detach_list(chan->audiohooks);
+		chan->audiohooks = NULL;
+	}
 	ast_channel_unlock(chan);
 	return res;
 }
