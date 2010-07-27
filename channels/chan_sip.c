@@ -7369,11 +7369,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 
 		/* If this is a Request, set the Via and Authorization header arguments */
 		if (req->method != SIP_RESPONSE) {
-			const char *auth_header;
 			args.ruri = REQ_OFFSET_TO_STR(req, rlPart2);
 			get_viabranch(ast_strdupa(get_header(req, "Via")), (char **) &args.viasentby, (char **) &args.viabranch);
-			auth_header = get_header(req, "WWW-Authenticate");
-			if (!ast_strlen_zero(auth_header)) {
+			if (!ast_strlen_zero(get_header(req, "Authorization")) ||
+				!ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
 				args.authentication_present = 1;
 			}
 		}
