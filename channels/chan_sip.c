@@ -24004,13 +24004,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					peer->addr.sin_port = 0;
 					peer->host_dynamic = FALSE;
 					srvlookup = v->value;
-					if (global_dynamic_exclude_static) {
-						int err = 0;
-						global_contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), global_contact_ha, &err);
-						if (err) {
-							ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
-						}
-					}
 				}
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (!ast_strlen_zero(v->value) && ast_get_ip(&peer->defaddr, v->value)) {
@@ -24316,6 +24309,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		}
 
 		ast_string_field_set(peer, tohost, srvlookup);
+		if (global_dynamic_exclude_static) {
+			int err = 0;
+			global_contact_ha = ast_append_ha("deny", (char *)ast_inet_ntoa(peer->addr.sin_addr), global_contact_ha, &err);
+			if (err) {
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+			}
+		}
 	}
 
 	if (!peer->addr.sin_port) {
