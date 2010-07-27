@@ -68,9 +68,6 @@ ifneq ($(findstring wget,$(WGET)),)
 WGET_ARGS:=--continue $(WGET_EXTRA_ARGS)
 endif
 
-EMPTY:=
-BS:=$(EMPTY)\$(EMPTY)
-
 ifneq ($(SOUNDS_CACHE_DIR),)
 
 define sound_format_lang_rule
