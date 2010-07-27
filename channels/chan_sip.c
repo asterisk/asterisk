@@ -25596,14 +25596,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 							unref_peer(peer, "removing register expire ref"));
 					peer->host_dynamic = FALSE;
 					srvlookup = v->value;
-					if (global_dynamic_exclude_static) {
-						int err = 0;
-						sip_cfg.contact_ha = ast_append_ha("deny", ast_sockaddr_stringify(&peer->addr), 
-										sip_cfg.contact_ha, &err);
-						if (err) {
-							ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
-						}
-					}
 				}
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (!ast_strlen_zero(v->value) && ast_get_ip(&peer->defaddr, v->value)) {
@@ -25950,6 +25942,15 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		ast_string_field_set(peer, tohost, peer->dnsmgr ? srvlookup :
 				     ast_sockaddr_stringify_host(&peer->addr));
+		
+		if (global_dynamic_exclude_static) {
+			int err = 0;
+			sip_cfg.contact_ha = ast_append_ha("deny", ast_sockaddr_stringify_addr(&peer->addr), 
+							sip_cfg.contact_ha, &err);
+			if (err) {
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+			}
+		}
 	}
 
 	if (port && !realtime && peer->host_dynamic) {
