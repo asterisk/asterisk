@@ -16228,7 +16228,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		}
 
 		/* Create the interface list */
-		if (!strcasecmp(v->name, "channel")) {
+		if (!strcasecmp(v->name, "channel") || !strcasecmp(v->name, "channels")) {
  			if (options & PROC_DAHDI_OPT_NOCHAN) {
 				ast_log(LOG_WARNING, "Channel '%s' ignored.\n", v->value);
  				continue;
