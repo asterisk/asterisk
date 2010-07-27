@@ -71,8 +71,8 @@ endif
 ifneq ($(SOUNDS_CACHE_DIR),)
 
 define sound_format_lang_rule
-$$($(1))/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
-	$(CMD_PREFIX)PACKAGE=$$(subst $$($(1))/.asterisk,asterisk,$$@).tar.gz; \
+$(1)/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
+	$(CMD_PREFIX)PACKAGE=$$(subst $(1)/.asterisk,asterisk,$$@).tar.gz; \
 	if test ! -f $$$${PACKAGE}; then \
 	  if test ! -f $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}; then \
 	    (cd $$(SOUNDS_CACHE_DIR); \
@@ -86,8 +86,8 @@ $$($(1))/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
 	  fi; \
 	  $(LN) -sf $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} .; \
 	fi; \
-	$(if $($(4)_VERSION),rm -f $$(subst -$$($(4)_VERSION),,$$@)-*,); \
-	(cd $$($(1))$(if $(3),/$(3),); cat $$(CURDIR)/$$$${PACKAGE} | gzip -d | tar xof -) && touch $$@
+	rm -f $$(subst -$(4),,$$@)-*; \
+	(cd $(1)$(if $(3),/$(3),); cat $$(CURDIR)/$$$${PACKAGE} | gzip -d | tar xof -) && touch $$@
 endef
 
 define sound_download_rule
@@ -110,13 +110,13 @@ endef
 else
 
 define sound_format_lang_rule
-$$($(1))/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
-	$(CMD_PREFIX)PACKAGE=$$(subst $$($(1))/.asterisk,asterisk,$$@).tar.gz; \
+$(1)/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
+	$(CMD_PREFIX)PACKAGE=$$(subst $(1)/.asterisk,asterisk,$$@).tar.gz; \
 	if test ! -f $$$${PACKAGE}; then \
 	  ($$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE} || exit 1); \
 	fi; \
-	$(if $($(4)_VERSION),rm -f $$(subst -$$($(4)_VERSION),,$$@)-*,); \
-	(cd $$($(1))$(if $(3),/$(3),); cat $$(CURDIR)/$$$${PACKAGE} | gzip -d | tar xof -) && touch $$@
+	rm -f $$(subst -$(4),,$$@)-*; \
+	(cd $(1)$(if $(3),/$(3),); cat $$(CURDIR)/$$$${PACKAGE} | gzip -d | tar xof -) && touch $$@
 endef
 
 define sound_download_rule
@@ -146,19 +146,19 @@ have_download:
 		exit 1; \
 	fi
 
-$(eval $(call sound_format_lang_rule,SOUNDS_DIR,core-sounds,en,CORE_SOUNDS))
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,en,$(CORE_SOUNDS_VERSION)))
 
-$(eval $(call sound_format_lang_rule,SOUNDS_DIR,core-sounds,es,CORE_SOUNDS))
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,es,$(CORE_SOUNDS_VERSION)))
 
-$(eval $(call sound_format_lang_rule,SOUNDS_DIR,core-sounds,fr,CORE_SOUNDS))
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,fr,$(CORE_SOUNDS_VERSION)))
 
-$(eval $(call sound_format_lang_rule,SOUNDS_DIR,extra-sounds,en,EXTRA_SOUNDS))
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,en,$(EXTRA_SOUNDS_VERSION)))
 
-$(eval $(call sound_format_lang_rule,SOUNDS_DIR,extra-sounds,es,EXTRA_SOUNDS))
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,es,$(EXTRA_SOUNDS_VERSION)))
 
-$(eval $(call sound_format_lang_rule,SOUNDS_DIR,extra-sounds,fr,EXTRA_SOUNDS))
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,fr,$(EXTRA_SOUNDS_VERSION)))
 
-$(eval $(call sound_format_lang_rule,MOH_DIR,moh,,MOH))
+$(eval $(call sound_format_lang_rule,$(MOH_DIR),moh,,$(MOH_VERSION)))
 
 $(eval $(call sound_download_rule,core))
 
@@ -172,7 +172,7 @@ dist-clean:
 $(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_CACHE_DIR):
 	$(INSTALL) -d $@
 
-install: ${SOUNDS_CACHE_DIR} $(SOUNDS_DIR)/en $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
+install: $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
 uninstall:
 	rm -rf $(SOUNDS_DIR)
