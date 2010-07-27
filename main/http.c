@@ -1078,8 +1078,8 @@ static int __ast_http_load(int reload)
 		ast_sockaddr_from_sin(&https_desc.local_address, &tmp2);
 	}
 	if (!enabled) {
-		http_desc.local_address.ss.ss_family = 0;
-		https_desc.local_address.ss.ss_family = 0;
+		ast_sockaddr_setnull(&http_desc.local_address);
+		ast_sockaddr_setnull(&https_desc.local_address);
 	}
 	if (strcmp(prefix, newprefix)) {
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
