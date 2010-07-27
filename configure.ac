@@ -288,6 +288,17 @@ AC_ARG_ENABLE([dev-mode],
 AC_SUBST(NOISY_BUILD)
 AC_SUBST(AST_DEVMODE)
 
+AST_CODE_COVERAGE=no
+AC_ARG_ENABLE([coverage],
+	[AS_HELP_STRING([--enable-coverage],
+		[Turn on code coverage tracking (for gcov)])],
+	[case "${enableval}" in
+	      y|ye|yes) AST_CODE_COVERAGE=yes ;;
+	      n|no) AST_CODE_COVERAGE=no ;;
+	      *) AC_MSG_ERROR(bad value ${enableval} for --enable-coverage)  ;;
+	esac])
+AC_SUBST(AST_CODE_COVERAGE)
+
 # AST_EXT_LIB_SETUP is used to tell configure to handle variables for
 # various packages.
 # $1 is the prefix for the variables in makeopts and autoconfig.h
