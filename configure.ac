@@ -178,6 +178,7 @@ AST_CHECK_GNU_MAKE
 
 AC_CHECK_TOOLS([STRIP], [strip gstrip], :)
 AC_CHECK_TOOLS([AR], [ar gar], :)
+AC_CHECK_TOOLS([SHA1SUM], [sha1sum], $ac_aux_dir/build_tools/sha1sum-sh)
 
 GNU_LD=0
 if test "x$with_gnu_ld" = "xyes" ; then
