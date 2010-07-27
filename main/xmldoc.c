@@ -398,7 +398,7 @@ char *ast_xmldoc_printable(const char *bwinput, int withcolors)
 	}
 
 	if (withcolors) {
-		ast_str_append(&colorized, 0, "%s", ast_term_end());
+		ast_str_append(&colorized, 0, "%s", term_end());
 		if (!colorized) {
 			return NULL;
 		}

@@ -351,17 +351,17 @@ void term_filter_escapes(char *line)
 	}
 }
 
-char *ast_term_prep(void)
+char *term_prep(void)
 {
 	return prepdata;
 }
 
-char *ast_term_end(void)
+char *term_end(void)
 {
 	return enddata;
 }
 
-char *ast_term_quit(void)
+char *term_quit(void)
 {
 	return quitdata;
 }

@@ -107,8 +107,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #endif /* HAVE_CAP */
 #endif /* linux */
 
-#include <histedit.h>
-
 #include "asterisk/paths.h"	/* we define here the variables so better agree on the prototype */
 #include "asterisk/network.h"
 #include "asterisk/cli.h"
@@ -132,6 +130,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
 #include "asterisk/io.h"
+#include "editline/histedit.h"
 #include "asterisk/config.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/linkedlists.h"
@@ -1670,7 +1669,7 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 		close(ast_consock);
 	if (!ast_opt_remote)
 		unlink(ast_config_AST_PID);
-	printf("%s", ast_term_quit());
+	printf("%s", term_quit());
 	if (restart) {
 		if (option_verbose || ast_opt_console)
 			ast_verbose("Preparing for Asterisk restart...\n");
@@ -1773,7 +1772,7 @@ static int ast_all_zeros(char *s)
 
 static void consolehandler(char *s)
 {
-	printf("%s", ast_term_end());
+	printf("%s", term_end());
 	fflush(stdout);
 
 	/* Called when readline data is available */
@@ -2158,7 +2157,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 					for (tries = 0; tries < 30 * reconnects_per_second; tries++) {
 						if (ast_tryconnect()) {
 							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
-							printf("%s", ast_term_quit());
+							printf("%s", term_quit());
 							WELCOME_MESSAGE;
 							if (!ast_opt_mute)
 								fdsend(ast_consock, "logger mute silent");
@@ -2474,7 +2473,7 @@ static char *cli_complete(EditLine *editline, int ch)
 			int mlen = 0, maxmbuf = 2048;
 			/* Start with a 2048 byte buffer */			
 			if (!(mbuf = ast_malloc(maxmbuf))) {
-				((char *) lf->cursor)[0] = savechr;
+				lf->cursor[0] = savechr;
 				return (char *)(CC_ERROR);
 			}
 			snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
@@ -2486,7 +2485,7 @@ static char *cli_complete(EditLine *editline, int ch)
 					/* Every step increment buffer 1024 bytes */
 					maxmbuf += 1024;					
 					if (!(mbuf = ast_realloc(mbuf, maxmbuf))) {
-						((char *) lf->cursor)[0] = savechr;
+						lf->cursor[0] = savechr;
 						return (char *)(CC_ERROR);
 					}
 				}
@@ -2548,7 +2547,7 @@ static char *cli_complete(EditLine *editline, int ch)
 		ast_free(matches);
 	}
 
-	((char *) lf->cursor)[0] = savechr;
+	lf->cursor[0] = savechr;
 
 	return (char *)(long)retval;
 }
@@ -2556,7 +2555,7 @@ static char *cli_complete(EditLine *editline, int ch)
 static int ast_el_initialize(void)
 {
 	HistEvent ev;
-	char *editor = getenv("AST_EDITMODE");
+	char *editor = getenv("AST_EDITOR");
 
 	if (el != NULL)
 		el_end(el);
@@ -2584,17 +2583,6 @@ static int ast_el_initialize(void)
 	el_set(el, EL_BIND, "?", "ed-complete", NULL);
 	/* Bind ^D to redisplay */
 	el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
-	/* Bind Delete to delete char left */
-	el_set(el, EL_BIND, "\\e[3~", "ed-delete-next-char", NULL);
-	/* Bind Home and End to move to line start and end */
-	el_set(el, EL_BIND, "\\e[1~", "ed-move-to-beg", NULL);
-	el_set(el, EL_BIND, "\\e[4~", "ed-move-to-end", NULL);
-	/* Bind C-left and C-right to move by word (not all terminals) */
-	el_set(el, EL_BIND, "\\eOC", "vi-next-word", NULL);
-	el_set(el, EL_BIND, "\\eOD", "vi-prev-word", NULL);
-
-	/* Allow ~/.editrc or a file specified by EDITRC env to override */
-	el_source(el, NULL);
 
 	return 0;
 }
@@ -2624,12 +2612,29 @@ static int ast_el_write_history(char *filename)
 
 static int ast_el_read_history(char *filename)
 {
-	HistEvent ev;
+	char buf[MAX_HISTORY_COMMAND_LENGTH];
+	FILE *f;
+	int ret = -1;
 
 	if (el_hist == NULL || el == NULL)
 		ast_el_initialize();
 
-	return history(el_hist, &ev, H_LOAD, filename);
+	if ((f = fopen(filename, "r")) == NULL)
+		return ret;
+
+	while (!feof(f)) {
+		if (!fgets(buf, sizeof(buf), f))
+			break;
+		if (!strcmp(buf, "_HiStOrY_V2_\n"))
+			continue;
+		if (ast_all_zeros(buf))
+			continue;
+		if ((ret = ast_el_add_history(buf)) == -1)
+			break;
+	}
+	fclose(f);
+
+	return ret;
 }
 
 static void ast_remotecontrol(char *data)
@@ -3493,7 +3498,7 @@ int main(int argc, char *argv[])
 	}
 
 	ast_term_init();
-	printf("%s", ast_term_end());
+	printf("%s", term_end());
 	fflush(stdout);
 
 	if (ast_opt_console && !option_verbose) 
@@ -3518,18 +3523,18 @@ int main(int argc, char *argv[])
 				quit_handler(0, 0, 0, 0);
 				exit(0);
 			}
-			printf("%s", ast_term_quit());
+			printf("%s", term_quit());
 			ast_remotecontrol(NULL);
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
 			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", ast_config_AST_SOCKET);
-			printf("%s", ast_term_quit());
+			printf("%s", term_quit());
 			exit(1);
 		}
 	} else if (ast_opt_remote || ast_opt_exec) {
 		ast_log(LOG_ERROR, "Unable to connect to remote asterisk (does %s exist?)\n", ast_config_AST_SOCKET);
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 	/* Blindly write pid file since we couldn't connect */
@@ -3602,13 +3607,13 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_event_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 #ifdef TEST_FRAMEWORK
 	if (ast_test_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 #endif
@@ -3636,7 +3641,7 @@ int main(int argc, char *argv[])
 	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
 
 	if (init_logger()) {		/* Start logging subsystem */
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
@@ -3647,12 +3652,12 @@ int main(int argc, char *argv[])
 	ast_autoservice_init();
 
 	if (ast_timing_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_ssl_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
@@ -3663,41 +3668,41 @@ int main(int argc, char *argv[])
 
 	/* initialize the data retrieval API */
 	if (ast_data_init()) {
-		printf ("%s", ast_term_quit());
+		printf ("%s", term_quit());
 		exit(1);
 	}
 
 	ast_channels_init();
 
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	ast_http_init();		/* Start the HTTP server, if needed */
 
 	if (init_manager()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_cdr_engine_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_cel_engine_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_device_state_engine_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
@@ -3705,49 +3710,49 @@ int main(int argc, char *argv[])
 	ast_udptl_init();
 
 	if (ast_image_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_file_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (load_pbx()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_indications_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	ast_features_init();
 
 	if (init_framer()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (astdb_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_enum_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_cc_init()) {
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(1);
 	}
 
 	if ((moduleresult = load_modules(0))) {		/* Load modules */
-		printf("%s", ast_term_quit());
+		printf("%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);
 	}
 

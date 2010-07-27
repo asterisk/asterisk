@@ -336,7 +336,6 @@ AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
 AST_EXT_LIB_SETUP([KQUEUE], [kqueue support], [kqueue])
 AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
 AST_LIBCURL_CHECK_CONFIG([], [7.10.1])
-AST_EXT_LIB_SETUP([LIBEDIT], [NetBSD Editline library], [libedit])
 AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
 AST_EXT_LIB_SETUP([LTDL], [libtool], [ltdl])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
@@ -1959,51 +1958,6 @@ fi
 AC_SUBST(PBX_GTK2)
 AC_SUBST(GTK2_INCLUDE)
 AC_SUBST(GTK2_LIB)
-
-PBX_LIBEDIT=0
-LIBEDIT_INCLUDE="-Ieditline -Ieditline/readline"
-LIBEDIT_LIB=
-LIBEDIT_EXTRA_LIB=
-LIBEDIT_OBJ=editline/libedit.a
-if test "${USE_LIBEDIT}" != "no"; then
-   AC_CHECK_TOOL(PKGCONFIG, pkg-config, no)
-   if test "${PKGCONFIG}" != "no"; then
-      if ${PKGCONFIG} --exists libedit; then
-         LIBEDIT_INCLUDE=$(${PKGCONFIG} libedit --cflags)
-         LIBEDIT_LIB=$(${PKGCONFIG} libedit --libs)
-         LIBEDIT_OBJ=
-         PBX_LIBEDIT=1
-         AC_DEFINE([HAVE_LIBEDIT], 1, [Define if your system has the NetBSD Editline libraries.])
-      fi
-   fi
-fi
-if test "${PBX_LIBEDIT}" != "1"; then
-   AC_CHECK_HEADER([vis.h], [HAS_VIS_H=yes], [HAS_VIS_H=no])
-   if test "${HAS_VIS_H}" = "yes"; then
-      # We may need -lbsd
-      old_LIBS=${LIBS}
-      LIBS=""
-      AC_LINK_IFELSE(
-         AC_LANG_PROGRAM(
-            [#include <stdlib.h>
-             #include <vis.h>], [vis(NULL,0,0,0)]),
-         ,
-         LIBS="-lbsd"
-         AC_LINK_IFELSE(
-            AC_LANG_PROGRAM(
-               [#include <stdlib.h>
-                #include <vis.h>], [vis(NULL,0,0,0)]),
-            LIBEDIT_EXTRA_LIB=$LIBS
-         )
-      )
-      LIBS=${old_LIBS}
-   fi
-fi
-AC_SUBST(PBX_LIBEDIT)
-AC_SUBST(LIBEDIT_INCLUDE)
-AC_SUBST(LIBEDIT_LIB)
-AC_SUBST(LIBEDIT_EXTRA_LIB)
-AC_SUBST(LIBEDIT_OBJ)
 
 # build a GENERIC_ODBC result based on the presence of either UnixODBC (preferred)
 # or iODBC
