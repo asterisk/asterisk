@@ -27462,49 +27462,44 @@ static int sip_removeheader(struct ast_channel *chan, const char *data)
 static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 {
 	char *cdest;
-	char *extension, *host, *port;
-	char tmp[80];
+	char *extension, *domain;
 
 	cdest = ast_strdupa(dest);
 	
 	extension = strsep(&cdest, "@");
-	host = strsep(&cdest, ":");
-	port = strsep(&cdest, ":");
+	domain = strsep(&cdest, ":");
 	if (ast_strlen_zero(extension)) {
 		ast_log(LOG_ERROR, "Missing mandatory argument: extension\n");
 		return 0;
 	}
 
 	/* we'll issue the redirect message here */
-	if (!host) {
-		char *localtmp;
+	if (!domain) {
+		char *local_to_header;
+		char to_header[256];
 
-		ast_copy_string(tmp, get_header(&p->initreq, "To"), sizeof(tmp));
-		if (ast_strlen_zero(tmp)) {
+		ast_copy_string(to_header, get_header(&p->initreq, "To"), sizeof(to_header));
+		if (ast_strlen_zero(to_header)) {
 			ast_log(LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
 			return 0;
 		}
-		if ( ( (localtmp = strcasestr(tmp, "sip:")) || (localtmp = strcasestr(tmp, "sips:")) )
-			&& (localtmp = strchr(localtmp, '@'))) {
-			char lhost[80], lport[80];
+		if (((local_to_header = strcasestr(to_header, "sip:")) || (local_to_header = strcasestr(to_header, "sips:")))
+			&& (local_to_header = strchr(local_to_header, '@'))) {
+			char ldomain[256];
 
-			memset(lhost, 0, sizeof(lhost));
-			memset(lport, 0, sizeof(lport));
-			localtmp++;
+			memset(ldomain, 0, sizeof(ldomain));
+			local_to_header++;
 			/* This is okey because lhost and lport are as big as tmp */
-			sscanf(localtmp, "%80[^<>:; ]:%80[^<>:; ]", lhost, lport);
-			if (ast_strlen_zero(lhost)) {
+			sscanf(local_to_header, "%256[^<>; ]", ldomain);
+			if (ast_strlen_zero(ldomain)) {
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;
 			}
-			host = ast_strdupa(lhost);
-			if (!ast_strlen_zero(lport)) {
-				port = ast_strdupa(lport);
-			}
+			domain = ast_strdupa(ldomain);
 		}
 	}
 
-	ast_string_field_build(p, our_contact, "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
+	ast_string_field_build(p, our_contact, "Transfer <sip:%s@%s>", extension, domain);
 	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq);
 
 	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);	/* Make sure we stop send this reply. */
