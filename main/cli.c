@@ -35,6 +35,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 #include <pwd.h>
 #include <grp.h>
+#if defined(HAVE_LIBEDIT)
+#include <editline/readline.h>
+#else
+#include <readline.h>
+#endif
 
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
@@ -44,7 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/lock.h"
-#include "editline/readline/readline.h"
 #include "asterisk/threadstorage.h"
 
 /*!

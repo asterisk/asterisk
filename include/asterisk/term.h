@@ -98,11 +98,11 @@ void term_filter_escapes(char *line);
 
 char *term_prompt(char *outbuf, const char *inbuf, int maxout);
 
-char *term_prep(void);
+char *ast_term_prep(void);
 
-char *term_end(void);
+char *ast_term_end(void);
 
-char *term_quit(void);
+char *ast_term_quit(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
