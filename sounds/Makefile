@@ -73,38 +73,41 @@ ifneq ($(SOUNDS_CACHE_DIR),)
 define sound_format_lang_rule
 $(1)/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
 	$(CMD_PREFIX)PACKAGE=$$(subst $(1)/.asterisk,asterisk,$$@).tar.gz; \
-	if test ! -f $$$${PACKAGE}; then \
-	  if test ! -f $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}; then \
-	    (cd $$(SOUNDS_CACHE_DIR); \
-	      ( \
-	        $$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE} && \
-	        $$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE}.sha1 && \
-	        $$(SHA1SUM) -c --status $$$${PACKAGE}.sha1 \
-	      ) || \
-	      (echo "Bad checksum: $$$${PACKAGE}" 1>&2; exit 1) \
-	    ); \
-	  fi; \
-	  $(LN) -sf $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} .; \
+	if test ! -f $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}; then \
+	  (cd $$(SOUNDS_CACHE_DIR); $$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE}); \
 	fi; \
+	if test ! -f $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}.sha1; then \
+	  (cd $$(SOUNDS_CACHE_DIR); $$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE}.sha1); \
+	fi; \
+	$(LN) -sf $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} .; \
+	$(LN) -sf $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}.sha1 .; \
+	$$(SHA1SUM) -c --status $$$${PACKAGE}.sha1 || \
+	  ( \
+	    rm -f $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}.sha1 $$$${PACKAGE} $$$${PACKAGE}.sha1; \
+	    echo "Bad checksum: $$$${PACKAGE}" 1>&2; \
+	    exit 1; \
+	  ); \
 	rm -f $$(subst -$(4),,$$@)-*; \
 	(cd $(1)$(if $(3),/$(3),); cat $$(CURDIR)/$$$${PACKAGE} | gzip -d | tar xof -) && touch $$@
 endef
 
 define sound_download_rule
 asterisk-$(1)-%.tar.gz: have_download
-	$(CMD_PREFIX)if test ! -f $$@ && test ! -f $$(SOUNDS_DIR)/.$$(subst .tar.gz,,$/$@); then \
-	  if test ! -f $$(SOUNDS_CACHE_DIR)/$$@; then \
-	    (cd $$(SOUNDS_CACHE_DIR); \
-	      ( \
-	        $$(DOWNLOAD) $$(SOUNDS_URL)/$$@ && \
-		$$(DOWNLOAD) $$(SOUNDS_URL)/$$@.sha1 && \
-	        $$(SHA1SUM) -c --status $$@.sha1 \
-	      ) || \
-	      (echo "Bad checksum: $$@" 1>&2; exit 1) \
-	    ); \
-	  fi; \
-	  $(LN) -sf $$(SOUNDS_CACHE_DIR)/$$@ .; \
-	fi
+	$(CMD_PREFIX) \
+	if test ! -f $$(SOUNDS_CACHE_DIR)/$$@; then \
+	  (cd $$(SOUNDS_CACHE_DIR); $$(DOWNLOAD) $$(SOUNDS_URL)/$$@); \
+	fi; \
+	if test ! -f $$(SOUNDS_CACHE_DIR)/$$@.sha1; then \
+	  (cd $$(SOUNDS_CACHE_DIR); $$(DOWNLOAD) $$(SOUNDS_URL)/$$@.sha1); \
+	fi; \
+	$(LN) -sf $$(SOUNDS_CACHE_DIR)/$$@ .; \
+	$(LN) -sf $$(SOUNDS_CACHE_DIR)/$$@.sha1 .; \
+	$$(SHA1SUM) -c --status $$@.sha1 || \
+	  ( \
+	    rm -f $$(SOUNDS_CACHE_DIR)/$$@ $$(SOUNDS_CACHE_DIR)/$$@.sha1 $$@ $$@.sha1; \
+	    echo "Bad checksum: $$@" 1>&2; \
+	    exit 1; \
+	  )
 endef
 
 else
@@ -113,7 +116,7 @@ define sound_format_lang_rule
 $(1)/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
 	$(CMD_PREFIX)PACKAGE=$$(subst $(1)/.asterisk,asterisk,$$@).tar.gz; \
 	if test ! -f $$$${PACKAGE}; then \
-	  ($$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE} || exit 1); \
+	  $$(DOWNLOAD) $$(SOUNDS_URL)/$$$${PACKAGE} || exit 1; \
 	fi; \
 	rm -f $$(subst -$(4),,$$@)-*; \
 	(cd $(1)$(if $(3),/$(3),); cat $$(CURDIR)/$$$${PACKAGE} | gzip -d | tar xof -) && touch $$@
@@ -160,9 +163,9 @@ $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,fr,$(EXTRA_SOUND
 
 $(eval $(call sound_format_lang_rule,$(MOH_DIR),moh,,$(MOH_VERSION)))
 
-$(eval $(call sound_download_rule,core))
+$(eval $(call sound_download_rule,core-sounds))
 
-$(eval $(call sound_download_rule,extra))
+$(eval $(call sound_download_rule,extra-sounds))
 
 $(eval $(call sound_download_rule,moh))
 
