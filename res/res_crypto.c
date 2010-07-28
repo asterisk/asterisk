@@ -276,7 +276,7 @@ static struct ast_key *try_load_key(const char *dir, const char *fname, int ifd,
 		}
 		/* Keep it anyway */
 		key->delme = 0;
-		/* Print final notice about "init keys" when done */
+		/* Print final notice about "keys init" when done */
 		*not2 = 1;
 	}
 
@@ -505,7 +505,7 @@ static void crypto_load(int ifd, int ofd)
 	}
 
 	if (note) {
-		ast_log(LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
+		ast_log(LOG_NOTICE, "Please run the command 'keys init' to enter the passcodes for the keys\n");
 	}
 
 	/* Delete any keys that are no longer present */
