@@ -17189,10 +17189,11 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		if (!strncasecmp(cur->callid, a->argv[3], len)) {
 			char formatbuf[SIPBUFSIZE/2];
 			ast_cli(a->fd, "\n");
-			if (cur->subscribed != NONE)
+			if (cur->subscribed != NONE) {
 				ast_cli(a->fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
-			else
+			} else {
 				ast_cli(a->fd, "  * SIP Call\n");
+			}
 			ast_cli(a->fd, "  Curr. trans. direction:  %s\n", ast_test_flag(&cur->flags[0], SIP_OUTGOING) ? "Outgoing" : "Incoming");
 			ast_cli(a->fd, "  Call-ID:                %s\n", cur->callid);
 			ast_cli(a->fd, "  Owner channel ID:       %s\n", cur->owner ? cur->owner->name : "<none>");
@@ -17220,14 +17221,18 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "  Our Tag:                %s\n", cur->tag);
 			ast_cli(a->fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(a->fd, "  SIP User agent:         %s\n", cur->useragent);
-			if (!ast_strlen_zero(cur->username))
+			if (!ast_strlen_zero(cur->username)) {
 				ast_cli(a->fd, "  Username:               %s\n", cur->username);
-			if (!ast_strlen_zero(cur->peername))
+			}
+			if (!ast_strlen_zero(cur->peername)) {
 				ast_cli(a->fd, "  Peername:               %s\n", cur->peername);
-			if (!ast_strlen_zero(cur->uri))
+			}
+			if (!ast_strlen_zero(cur->uri)) {
 				ast_cli(a->fd, "  Original uri:           %s\n", cur->uri);
-			if (!ast_strlen_zero(cur->cid_num))
+			}
+			if (!ast_strlen_zero(cur->cid_num)) {
 				ast_cli(a->fd, "  Caller-ID:              %s\n", cur->cid_num);
+			}
 			ast_cli(a->fd, "  Need Destroy:           %s\n", AST_CLI_YESNO(cur->needdestroy));
 			ast_cli(a->fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(a->fd, "  Promiscuous Redir:      %s\n", AST_CLI_YESNO(ast_test_flag(&cur->flags[0], SIP_PROMISCREDIR)));
@@ -17241,12 +17246,13 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 						ast_cli(a->fd, "%s ", sip_options[x].text);
 				}
 				ast_cli(a->fd, "\n");
-			} else
+			} else {
 				ast_cli(a->fd, "(none)\n");
+			}
 
-			if (!cur->stimer)
+			if (!cur->stimer) {
  				ast_cli(a->fd, "  Session-Timer:          Uninitiallized\n");
-			else {
+			} else {
  				ast_cli(a->fd, "  Session-Timer:          %s\n", cur->stimer->st_active ? "Active" : "Inactive");
  				if (cur->stimer->st_active == TRUE) {
  					ast_cli(a->fd, "  S-Timer Interval:       %d\n", cur->stimer->st_interval);
@@ -17272,8 +17278,9 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	ao2_iterator_destroy(&i);
 
-	if (!found)
+	if (!found) {
 		ast_cli(a->fd, "No such SIP Call ID starting with '%s'\n", a->argv[3]);
+	}
 
 	return CLI_SUCCESS;
 }
@@ -17297,11 +17304,13 @@ static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return complete_sip_show_history(a->line, a->word, a->pos, a->n);
 	}
 
-	if (a->argc != 4)
+	if (a->argc != 4) {
 		return CLI_SHOWUSAGE;
+	}
 
-	if (!recordhistory)
+	if (!recordhistory) {
 		ast_cli(a->fd, "\n***Note: History recording is currently DISABLED.  Use 'sip set history on' to ENABLE.\n");
+	}
 
 	len = strlen(a->argv[3]);
 
@@ -17313,15 +17322,18 @@ static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			int x = 0;
 
 			ast_cli(a->fd, "\n");
-			if (cur->subscribed != NONE)
+			if (cur->subscribed != NONE) {
 				ast_cli(a->fd, "  * Subscription\n");
-			else
+			} else {
 				ast_cli(a->fd, "  * SIP Call\n");
-			if (cur->history)
+			}
+			if (cur->history) {
 				AST_LIST_TRAVERSE(cur->history, hist, list)
 					ast_cli(a->fd, "%d. %s\n", ++x, hist->event);
-			if (x == 0)
+			}
+			if (x == 0) {
 				ast_cli(a->fd, "Call '%s' has no history\n", cur->callid);
+			}
 			found++;
 		}
 		sip_pvt_unlock(cur);
@@ -17329,8 +17341,9 @@ static char *sip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	ao2_iterator_destroy(&i);
 
-	if (!found)
+	if (!found) {
 		ast_cli(a->fd, "No such SIP Call ID starting with '%s'\n", a->argv[3]);
+	}
 
 	return CLI_SUCCESS;
 }
@@ -17342,8 +17355,9 @@ static void sip_dump_history(struct sip_pvt *dialog)
 	struct sip_history *hist;
 	static int errmsg = 0;
 
-	if (!dialog)
+	if (!dialog) {
 		return;
+	}
 
 	if (!option_debug && !sipdebug) {
 		if (!errmsg) {
@@ -17354,15 +17368,18 @@ static void sip_dump_history(struct sip_pvt *dialog)
 	}
 
 	ast_debug(1, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
-	if (dialog->subscribed)
+	if (dialog->subscribed) {
 		ast_debug(1, "  * Subscription\n");
-	else
+	} else {
 		ast_debug(1, "  * SIP Call\n");
-	if (dialog->history)
+	}
+	if (dialog->history) {
 		AST_LIST_TRAVERSE(dialog->history, hist, list)
 			ast_debug(1, "  %-3.3d. %s\n", ++x, hist->event);
-	if (!x)
+	}
+	if (!x) {
 		ast_debug(1, "Call '%s' has no history\n", dialog->callid);
+	}
 	ast_debug(1, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
 }
 
@@ -17394,10 +17411,12 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			ast_copy_string(buf, c, sizeof(buf));
 		}
 
-		if (!ast_strlen_zero((c = get_body(req, "Duration", '='))))
+		if (!ast_strlen_zero((c = get_body(req, "Duration", '=')))) {
 			duration = atoi(c);
-		if (!duration)
+		}
+		if (!duration) {
 			duration = 100; /* 100 ms */
+		}
 
 
 		if (ast_strlen_zero(buf)) {
@@ -17405,22 +17424,24 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			return;
 		}
 
-		if (buf[0] == '*')
+		if (buf[0] == '*') {
 			event = 10;
-		else if (buf[0] == '#')
+		} else if (buf[0] == '#') {
 			event = 11;
-		else if ((buf[0] >= 'A') && (buf[0] <= 'D'))
+		} else if ((buf[0] >= 'A') && (buf[0] <= 'D')) {
 			event = 12 + buf[0] - 'A';
-		else if (buf[0] == '!')
+		} else if (buf[0] == '!') {
 			event = 16;
-		else
+		} else {
 			event = atoi(buf);
+		}
 		if (event == 16) {
 			/* send a FLASH event */
 			struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_FLASH, } };
 			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
+			if (sipdebug) {
 				ast_verbose("* DTMF-relay event received: FLASH\n");
+			}
 		} else {
 			/* send a DTMF event */
 			struct ast_frame f = { AST_FRAME_DTMF, };
@@ -17435,8 +17456,9 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			}
 			f.len = duration;
 			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
+			if (sipdebug) {
 				ast_verbose("* DTMF-relay event received: %c\n", (int) f.subclass.integer);
+			}
 		}
 		transmit_response(p, "200 OK", req);
 		return;
@@ -17462,8 +17484,9 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			/* send a FLASH event */
 			struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_FLASH }, };
 			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
+			if (sipdebug) {
 				ast_verbose("* DTMF-relay event received: FLASH\n");
+			}
 		} else {
 			/* send a DTMF event */
 			struct ast_frame f = { AST_FRAME_DTMF, };
@@ -17478,25 +17501,29 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			}
 			f.len = duration;
 			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
+			if (sipdebug) {
 				ast_verbose("* DTMF-relay event received: %c\n", (int) f.subclass.integer);
+			}
 		}
 		transmit_response(p, "200 OK", req);
 		return;
 
 	} else if (!strcasecmp(c, "application/media_control+xml")) {
 		/* Eh, we'll just assume it's a fast picture update for now */
-		if (p->owner)
+		if (p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_VIDUPDATE);
+		}
 		transmit_response(p, "200 OK", req);
 		return;
 	} else if (!ast_strlen_zero(c = get_header(req, "X-ClientCode"))) {
 		/* Client code (from SNOM phone) */
 		if (ast_test_flag(&p->flags[0], SIP_USECLIENTCODE)) {
-			if (p->owner && p->owner->cdr)
+			if (p->owner && p->owner->cdr) {
 				ast_cdr_setuserfield(p->owner, c);
-			if (p->owner && ast_bridged_channel(p->owner) && ast_bridged_channel(p->owner)->cdr)
+			}
+			if (p->owner && ast_bridged_channel(p->owner) && ast_bridged_channel(p->owner)->cdr) {
 				ast_cdr_setuserfield(ast_bridged_channel(p->owner), c);
+			}
 			transmit_response(p, "200 OK", req);
 		} else {
 			transmit_response(p, "403 Forbidden", req);
@@ -17528,8 +17555,9 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		for (j=0; j < strlen(feat->exten); j++) {
 			f.subclass.integer = feat->exten[j];
 			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
+			if (sipdebug) {
 				ast_verbose("* DTMF-relay event faked: %c\n", f.subclass.integer);
+			}
 		}
 		ast_unlock_call_features();
 
@@ -17567,17 +17595,18 @@ static char *sip_do_debug_ip(int fd, const char *arg)
 static char *sip_do_debug_peer(int fd, const char *arg)
 {
 	struct sip_peer *peer = find_peer(arg, NULL, TRUE, FINDPEERS, FALSE, 0);
-	if (!peer)
+	if (!peer) {
 		ast_cli(fd, "No such peer '%s'\n", arg);
-	else if (ast_sockaddr_isnull(&peer->addr))
+	} else if (ast_sockaddr_isnull(&peer->addr)) {
 		ast_cli(fd, "Unable to get IP address of peer '%s'\n", arg);
-	else {
+	} else {
 		ast_sockaddr_copy(&debugaddr, &peer->addr);
 		ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", ast_sockaddr_stringify_addr(&debugaddr));
 		sipdebug |= sip_debug_console;
 	}
-	if (peer)
+	if (peer) {
 		unref_peer(peer, "sip_do_debug_peer: unref_peer, from find_peer call");
+	}
 	return CLI_SUCCESS;
 }
 
