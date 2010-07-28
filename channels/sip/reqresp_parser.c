@@ -2355,7 +2355,7 @@ AST_TEST_DEFINE(get_viabranch_test)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "get_viabranch_test";
-		info->category = "channels/chan_sip/";
+		info->category = "/channels/chan_sip/";
 		info->summary = "Tests getting sent-by and branch parameter from via";
 		info->description =
 				"Runs through various test situations in which a sent-by and"
