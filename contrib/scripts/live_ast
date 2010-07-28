@@ -264,7 +264,7 @@ gdb)
   echo "$0 gdb                  gdb asterisk"
   echo "$0 rsync [user@]host dir  copy files over to [user@]host:dir"
   echo "$0 gen-live-asterisk    regenerate the wrapper ./live/asterisk"
-  echo "$0 conf-file            create live.conf if it does exist"
+  echo "$0 conf-file            create live.conf if it does not exist"
   exit 1
   ;;
 esac
