@@ -86,7 +86,7 @@ $(1)/.asterisk-$(2)$(if $(3),-$(3),)-%: have_download
 	    rm -f $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE} $$(SOUNDS_CACHE_DIR)/$$$${PACKAGE}.sha1 $$$${PACKAGE} $$$${PACKAGE}.sha1; \
 	    echo "Bad checksum: $$$${PACKAGE}" 1>&2; \
 	    exit 1; \
-	  ); \
+	  ) || exit 1; \
 	rm -f $$(subst -$(4),,$$@)-*; \
 	(cd $(1)$(if $(3),/$(3),); cat $$(CURDIR)/$$$${PACKAGE} | gzip -d | tar xof -) && touch $$@
 endef
@@ -107,7 +107,7 @@ asterisk-$(1)-%.tar.gz: have_download
 	    rm -f $$(SOUNDS_CACHE_DIR)/$$@ $$(SOUNDS_CACHE_DIR)/$$@.sha1 $$@ $$@.sha1; \
 	    echo "Bad checksum: $$@" 1>&2; \
 	    exit 1; \
-	  )
+	  ) || exit 1
 endef
 
 else
