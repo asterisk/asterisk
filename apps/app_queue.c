@@ -5080,6 +5080,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	}
 	ao2_unlock(q);
 	ao2_unlock(queues);
+	queue_t_unref(q, "Expiring temporary reference");
 
 	return res;
 }
