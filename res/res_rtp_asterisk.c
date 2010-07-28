@@ -301,7 +301,7 @@ static inline int rtp_debug_test_addr(struct ast_sockaddr *addr)
 		return 0;
 	}
 
-	return ast_sockaddr_cmp(&rtpdebugaddr, addr) == 0;
+	return ast_sockaddr_isnull(&rtpdebugaddr) ? 1 : ast_sockaddr_cmp(&rtpdebugaddr, addr) == 0;
 }
 
 static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
@@ -310,7 +310,7 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 		return 0;
 	}
 
-	return ast_sockaddr_cmp(&rtcpdebugaddr, addr) == 0;
+	return ast_sockaddr_isnull(&rtcpdebugaddr) ? 1 : ast_sockaddr_cmp(&rtcpdebugaddr, addr) == 0;
 }
 
 static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp)
