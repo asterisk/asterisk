@@ -16993,6 +16993,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					confp->ss7.ss7.called_nai = SS7_NAI_INTERNATIONAL;
 				} else if (!strcasecmp(v->value, "subscriber")) {
 					confp->ss7.ss7.called_nai = SS7_NAI_SUBSCRIBER;
+				} else if (!strcasecmp(v->value, "unknown")) {
+					confp->ss7.ss7.called_nai = SS7_NAI_UNKNOWN;
 				} else if (!strcasecmp(v->value, "dynamic")) {
 					confp->ss7.ss7.called_nai = SS7_NAI_DYNAMIC;
 				} else {
@@ -17005,6 +17007,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					confp->ss7.ss7.calling_nai = SS7_NAI_INTERNATIONAL;
 				} else if (!strcasecmp(v->value, "subscriber")) {
 					confp->ss7.ss7.calling_nai = SS7_NAI_SUBSCRIBER;
+				} else if (!strcasecmp(v->value, "unknown")) {
+					confp->ss7.ss7.calling_nai = SS7_NAI_UNKNOWN;
 				} else if (!strcasecmp(v->value, "dynamic")) {
 					confp->ss7.ss7.calling_nai = SS7_NAI_DYNAMIC;
 				} else {
