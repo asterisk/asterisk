@@ -255,7 +255,7 @@ gdb)
   echo "$0 samples              make samples"
   echo "$0 run [params]         asterisk [params]"
   echo "$0 gdb                  gdb asterisk"
-  echo "$0 conf-file            create live.conf if it does exist"
+  echo "$0 conf-file            create live.conf if it does not exist"
   exit 1
   ;;
 esac
