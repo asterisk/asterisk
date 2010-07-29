@@ -1746,7 +1746,7 @@ static int sig_pri_msn_match(const char *msn_patterns, const char *exten)
 	char *msn_list;
 	char *list_tail;
 
-	msn_list = strdupa(msn_patterns);
+	msn_list = ast_strdupa(msn_patterns);
 
 	list_tail = NULL;
 	pattern = strtok_r(msn_list, ",", &list_tail);
