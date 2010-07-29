@@ -2686,6 +2686,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 
 	conf_flush(fd, chan);
 
+	if (dsp)
+		ast_dsp_free(dsp);
+
 	if (!(dsp = ast_dsp_new())) {
 		ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
 		res = -1;
