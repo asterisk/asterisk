@@ -4701,6 +4701,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 							AST_LIST_NEXT(cur, frame_list) = NULL;
 							ast_frfree(cur);
 						}
+						if (new_frame != dup) {
+							ast_frfree(new_frame);
+						}
 						cur = dup;
 					}
 				}
