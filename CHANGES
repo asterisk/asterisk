@@ -12,7 +12,9 @@
 --- Functionality changes from Asterisk 1.8 to Asterisk 1.10 -----------------
 ------------------------------------------------------------------------------
 
-
+Asterisk Manager Interface
+--------------------------
+ * PeerStatus now includes Address and Port.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
