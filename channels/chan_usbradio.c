@@ -2243,7 +2243,7 @@ static struct ast_channel *usbradio_request(const char *type, format_t format, c
 		return NULL;
 	}
 	if ((format & AST_FORMAT_SLINEAR) == 0) {
-		ast_log(LOG_NOTICE, "Format 0x%llx unsupported\n", (unsigned long long) format);
+		ast_log(LOG_NOTICE, "Format 0x%" PRId64 "x unsupported\n", format);
 		return NULL;
 	}
 	if (o->owner) {
