@@ -1383,10 +1383,10 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 	if (video_glue1_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue1_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue1_res != AST_RTP_GLUE_RESULT_REMOTE)) {
 		audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	}
-	if (audio_glue0_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue0_res == AST_RTP_GLUE_RESULT_FORBID || video_glue0_res == AST_RTP_GLUE_RESULT_REMOTE) && glue0->get_codec(c0)) {
+	if (audio_glue0_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue0_res == AST_RTP_GLUE_RESULT_FORBID || video_glue0_res == AST_RTP_GLUE_RESULT_REMOTE) && glue0->get_codec) {
 		codec0 = glue0->get_codec(c0);
 	}
-	if (audio_glue1_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue1_res == AST_RTP_GLUE_RESULT_FORBID || video_glue1_res == AST_RTP_GLUE_RESULT_REMOTE) && glue1->get_codec(c1)) {
+	if (audio_glue1_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue1_res == AST_RTP_GLUE_RESULT_FORBID || video_glue1_res == AST_RTP_GLUE_RESULT_REMOTE) && glue1->get_codec) {
 		codec1 = glue1->get_codec(c1);
 	}
 
