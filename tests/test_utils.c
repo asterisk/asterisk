@@ -27,7 +27,6 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>res_crypto</depend>
  ***/
 
 #include "asterisk.h"
