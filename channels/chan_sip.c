@@ -3004,6 +3004,33 @@ static inline const char *get_transport(enum sip_transport t)
 	return "UNKNOWN";
 }
 
+/*! \brief Return protocol string for srv dns query */
+static inline const char *get_srv_protocol(enum sip_transport t)
+{
+	switch (t) {
+	case SIP_TRANSPORT_UDP:
+		return "udp";
+	case SIP_TRANSPORT_TLS:
+	case SIP_TRANSPORT_TCP:
+		return "tcp";
+	}
+
+	return "udp";
+}
+
+/*! \brief Return service string for srv dns query */
+static inline const char *get_srv_service(enum sip_transport t)
+{
+	switch (t) {
+	case SIP_TRANSPORT_TCP:
+	case SIP_TRANSPORT_UDP:
+		return "sip";
+	case SIP_TRANSPORT_TLS:
+		return "sips";
+	}
+	return "sip";
+}
+
 /*! \brief Return transport of dialog.
 	\note this is based on a false assumption. We don't always use the
 	outbound proxy for all requests in a dialog. It depends on the
@@ -4971,7 +4998,9 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 		 * an A record lookup should be used instead of SRV.
 		 */
 		if (!hostport.port && sip_cfg.srvlookup) {
-			snprintf(service, sizeof(service), "_sip._%s.%s", get_transport(dialog->socket.type), peername);
+			snprintf(service, sizeof(service), "_%s._%s.%s", 
+				 get_srv_service(dialog->socket.type),
+				 get_srv_protocol(dialog->socket.type), peername);
 			if ((srv_ret = ast_get_srv(NULL, host, sizeof(host), &tportno,
 						   service)) > 0) {
 				hostn = host;
@@ -11385,7 +11414,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	/* If we have no DNS manager let's do a lookup */
 	if (!mwi->dnsmgr) {
 		char transport[MAXHOSTNAMELEN];
-		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(mwi->transport));
+		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(mwi->transport), get_srv_protocol(mwi->transport));
 
 		mwi->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
 		ast_dnsmgr_lookup(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
@@ -12119,7 +12148,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	if (r->dnsmgr == NULL) {
 		char transport[MAXHOSTNAMELEN];
 		peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE, 0);
-		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(r->transport)); /* have to use static get_transport function */
+		snprintf(transport, sizeof(transport), "_%s._%s",get_srv_service(r->transport), get_srv_protocol(r->transport)); /* have to use static get_transport function */
 		r->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
 		ast_dnsmgr_lookup(peer ? peer->tohost : r->hostname, &r->us, &r->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
 		if (peer) {
@@ -25960,7 +25989,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			*params++ = '\0';
 		}
 
-		snprintf(transport, sizeof(transport), "_sip._%s", get_transport(peer->socket.type));
+		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(peer->socket.type), get_srv_protocol(peer->socket.type));
 
 		peer->addr.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
 		if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup && !peer->portinuri ? transport : NULL)) {
