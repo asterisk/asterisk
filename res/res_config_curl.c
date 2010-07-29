@@ -88,7 +88,7 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, v
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize);
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize - 1);
 
 	/* Remove any trailing newline characters */
 	if ((stringp = strchr(buffer, '\r')) || (stringp = strchr(buffer, '\n')))
@@ -170,7 +170,7 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 	ast_str_append(&query, 0, ")}");
 
 	/* Do the CURL query */
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize);
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize - 1);
 
 	if (!(cfg = ast_config_new()))
 		goto exit_multi;
@@ -258,7 +258,7 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize);
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize - 1);
 
 	/* Line oriented output */
 	stringp = buffer;
@@ -321,7 +321,7 @@ static int update2_curl(const char *url, const char *unused, va_list ap)
 
 	ast_str_append(&query, 0, ")}");
 	/* TODO: Make proxies work */
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize);
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize - 1);
 
 	/* Line oriented output */
 	stringp = buffer;
@@ -385,7 +385,7 @@ static int store_curl(const char *url, const char *unused, va_list ap)
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize);
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize - 1);
 
 	stringp = buffer;
 	while (*stringp <= ' ')
@@ -452,7 +452,7 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize);
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize - 1);
 
 	/* Line oriented output */
 	stringp = buffer;
@@ -511,7 +511,7 @@ static int require_curl(const char *url, const char *unused, va_list ap)
 	va_end(ap);
 
 	ast_str_append(&query, 0, ")}");
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, sizeof(buffer));
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, sizeof(buffer) - 1);
 	return atoi(buffer);
 }
 
@@ -544,7 +544,7 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 	ast_str_set(&query, 0, "${CURL(%s/static?file=%s)}", url, buf1);
 
 	/* Do the CURL query */
-	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize);
+	pbx_substitute_variables_helper(NULL, ast_str_buffer(query), buffer, bufsize - 1);
 
 	/* Line oriented output */
 	stringp = buffer;
