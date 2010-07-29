@@ -1,3 +1,10 @@
+;
+; --- Call Completion Supplementary Services ---
+;
+; For more information about CCSS, see the CCSS user documentation included
+; in the HTML and PDF documentation generated from the doc/tex/ directory.
+;
+
 [general]
 ; There is only a single option that may be defined in this file.
 ; The cc_max_requests option is a global limit on the number of
