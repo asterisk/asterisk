@@ -94,6 +94,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 static int local_sendtext(struct ast_channel *ast, const char *text);
 static int local_devicestate(void *data);
 static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
+static int local_queryoption(struct ast_channel *ast, int option, void *data, int *datalen);
 
 /* PBX interface structure for channel registration */
 static const struct ast_channel_tech local_tech = {
@@ -116,6 +117,7 @@ static const struct ast_channel_tech local_tech = {
 	.send_text = local_sendtext,
 	.devicestate = local_devicestate,
 	.bridged_channel = local_bridgedchannel,
+	.queryoption = local_queryoption,
 };
 
 /*! \brief the local pvt structure for all channels
@@ -226,6 +228,58 @@ static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct
 	ast_mutex_unlock(&p->lock);
 
 	return bridged;
+}
+
+static int local_queryoption(struct ast_channel *ast, int option, void *data, int *datalen)
+{
+	struct local_pvt *p = ast->tech_pvt;
+	struct ast_channel *chan, *bridged;
+	int res;
+
+	if (!p) {
+		return -1;
+	}
+
+	if (option != AST_OPTION_T38_STATE) {
+		/* AST_OPTION_T38_STATE is the only supported option at this time */
+		return -1;
+	}
+
+	ast_mutex_lock(&p->lock);
+	chan = IS_OUTBOUND(ast, p) ? p->owner : p->chan;
+
+try_again:
+	if (!chan) {
+		ast_mutex_unlock(&p->lock);
+		return -1;
+	}
+
+	if (ast_channel_trylock(chan)) {
+		DEADLOCK_AVOIDANCE(&p->lock);
+		chan = IS_OUTBOUND(ast, p) ? p->owner : p->chan;
+		goto try_again;
+	}
+
+	bridged = ast_bridged_channel(chan);
+	if (!bridged) {
+		/* can't query channel unless we are bridged */
+		ast_mutex_unlock(&p->lock);
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	if (ast_channel_trylock(bridged)) {
+		ast_channel_unlock(chan);
+		DEADLOCK_AVOIDANCE(&p->lock);
+		chan = IS_OUTBOUND(ast, p) ? p->owner : p->chan;
+		goto try_again;
+	}
+
+	res = ast_channel_queryoption(bridged, option, data, datalen, 0);
+	ast_mutex_unlock(&p->lock);
+	ast_channel_unlock(chan);
+	ast_channel_unlock(bridged);
+	return res;
 }
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, 
