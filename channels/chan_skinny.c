@@ -2101,9 +2101,8 @@ static char *message2str(int type)
 }
 #endif
 
-static int transmit_response(struct skinny_device *d, struct skinny_req *req)
+static int transmit_response_bysession(struct skinnysession *s, struct skinny_req *req)
 {
-	struct skinnysession *s = d->session;
 	int res = 0;
 
 	if (!s) {
@@ -2113,7 +2112,7 @@ static int transmit_response(struct skinny_device *d, struct skinny_req *req)
 
 	ast_mutex_lock(&s->lock);
 
-	SKINNY_DEVONLY(if (skinnydebug>1) ast_verb(4, "Transmitting %s to %s\n", message2str(req->e), d->name);)
+	SKINNY_DEVONLY(if (skinnydebug>1) ast_verb(4, "Transmitting %s to %s\n", message2str(req->e), s->device->name);)
 
 	if ((letohl(req->len) > SKINNY_MAX_PACKET) || (letohl(req->len) < 0)) {
 		ast_log(LOG_WARNING, "transmit_response: the length of the request (%d) is out of bounds (%d)\n", letohl(req->len), SKINNY_MAX_PACKET);
@@ -2141,6 +2140,25 @@ static int transmit_response(struct skinny_device *d, struct skinny_req *req)
 	ast_mutex_unlock(&s->lock);
 	return 1;
 }
+
+static void transmit_response(struct skinny_device *d, struct skinny_req *req)
+{
+	transmit_response_bysession(d->session, req);
+}
+
+static void transmit_registerrej(struct skinnysession *s)
+{
+	struct skinny_req *req;
+	char name[16];
+
+	if (!(req = req_alloc(sizeof(struct register_rej_message), REGISTER_REJ_MESSAGE)))
+		return;
+
+	memcpy(&name, req->data.reg.name, sizeof(name));
+	snprintf(req->data.regrej.errMsg, sizeof(req->data.regrej.errMsg), "No Authority: %s", name);
+
+	transmit_response_bysession(s, req);
+}	
 
 static void transmit_speaker_mode(struct skinny_device *d, int mode)
 {
@@ -2621,6 +2639,62 @@ static void transmit_softkeytemplateres(struct skinny_device *d)
 	transmit_response(d, req);
 }
 
+static void transmit_reset(struct skinny_device *d, int fullrestart)
+{
+	struct skinny_req *req;
+  
+	if (!(req = req_alloc(sizeof(struct reset_message), RESET_MESSAGE)))
+		return;
+  
+	if (fullrestart)
+		req->data.reset.resetType = 2;
+	else
+		req->data.reset.resetType = 1;
+
+	ast_verb(3, "%s device %s.\n", (fullrestart) ? "Restarting" : "Resetting", d->id);
+	transmit_response(d, req);
+}
+
+static void transmit_keepaliveack(struct skinny_device *d)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(0, KEEP_ALIVE_ACK_MESSAGE)))
+		return;
+
+	transmit_response(d, req);
+}
+
+static void transmit_registerack(struct skinny_device *d)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(sizeof(struct register_ack_message), REGISTER_ACK_MESSAGE)))
+		return;
+
+	req->data.regack.res[0] = '0';
+	req->data.regack.res[1] = '\0';
+	req->data.regack.keepAlive = htolel(keep_alive);
+	memcpy(req->data.regack.dateTemplate, date_format, sizeof(req->data.regack.dateTemplate));
+	req->data.regack.res2[0] = '0';
+	req->data.regack.res2[1] = '\0';
+	req->data.regack.secondaryKeepAlive = htolel(keep_alive);
+
+	transmit_response(d, req);
+}
+
+static void transmit_capabilitiesreq(struct skinny_device *d)
+{
+	struct skinny_req *req;
+
+	if (!(req = req_alloc(0, CAPABILITIES_REQ_MESSAGE)))
+		return;
+
+	if (skinnydebug)
+		ast_verb(1, "Requesting capabilities\n");
+
+	transmit_response(d, req);
+}
 
 static int skinny_extensionstate_cb(char *context, char *exten, int state, void *data)
 {
@@ -2983,7 +3057,6 @@ static char *complete_skinny_show_line(const char *line, const char *word, int p
 static char *handle_skinny_reset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct skinny_device *d;
-	struct skinny_req *req;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -3006,19 +3079,10 @@ static char *handle_skinny_reset(struct ast_cli_entry *e, int cmd, struct ast_cl
 			if (!(d->session))
 				continue;
 
-			if (!(req = req_alloc(sizeof(struct reset_message), RESET_MESSAGE)))
-				continue;
-
 			if (a->argc == 4 && !strcasecmp(a->argv[3], "restart"))
 				fullrestart = 1;
-
-			if (fullrestart)
-				req->data.reset.resetType = 2;
-			else
-				req->data.reset.resetType = 1;
-
-			ast_verb(3, "%s device %s.\n", (fullrestart) ? "Restarting" : "Resetting", d->id);
-			transmit_response(d, req);
+			
+			transmit_reset(d, fullrestart);
 		}
 	}
 	AST_LIST_UNLOCK(&devices);
@@ -4737,80 +4801,6 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 	return 0;
 }
 
-static int handle_keep_alive_message(struct skinny_req *req, struct skinnysession *s)
-{
-	if (!(req = req_alloc(0, KEEP_ALIVE_ACK_MESSAGE)))
-		return -1;
-
-	transmit_response(s->device, req);
-	return 1;
-}
-
-static int handle_register_message(struct skinny_req *req, struct skinnysession *s)
-{
-	struct skinny_device *d = NULL;
-	char name[16];
-	int res;
-
-	memcpy(&name, req->data.reg.name, sizeof(name));
-
-	res = skinny_register(req, s);
-	if (!res) {
-		ast_log(LOG_ERROR, "Rejecting Device %s: Device not found\n", name);
-		if (!(req = req_alloc(sizeof(struct register_rej_message), REGISTER_REJ_MESSAGE)))
-			return -1;
-
-		snprintf(req->data.regrej.errMsg, sizeof(req->data.regrej.errMsg), "No Authority: %s", name);
-
-		/* transmit_respons in line as we don't have a valid d */
-		ast_mutex_lock(&s->lock);
-
-		if (letohl(req->len) > SKINNY_MAX_PACKET || letohl(req->len) < 0) {
-			ast_log(LOG_WARNING, "transmit_response: the length (%d) of the request is out of bounds (%d) \n",  letohl(req->len), SKINNY_MAX_PACKET);
-			ast_mutex_unlock(&s->lock);
-			return -1;
-		}
-
-		memset(s->outbuf, 0, sizeof(s->outbuf));
-		memcpy(s->outbuf, req, skinny_header_size);
-		memcpy(s->outbuf+skinny_header_size, &req->data, letohl(req->len));
-
-		res = write(s->fd, s->outbuf, letohl(req->len)+8);
-
-		if (res != letohl(req->len)+8) {
-			ast_log(LOG_WARNING, "Transmit: write only sent %d out of %d bytes: %s\n", res, letohl(req->len)+8, strerror(errno));
-		}
-	
-		ast_mutex_unlock(&s->lock);
-
-		return 0;
-	}
-	ast_verb(3, "Device '%s' successfully registered\n", name);
-
-	d = s->device;
-	
-	if (!(req = req_alloc(sizeof(struct register_ack_message), REGISTER_ACK_MESSAGE)))
-		return -1;
-
-	req->data.regack.res[0] = '0';
-	req->data.regack.res[1] = '\0';
-	req->data.regack.keepAlive = htolel(keep_alive);
-	memcpy(req->data.regack.dateTemplate, date_format, sizeof(req->data.regack.dateTemplate));
-	req->data.regack.res2[0] = '0';
-	req->data.regack.res2[1] = '\0';
-	req->data.regack.secondaryKeepAlive = htolel(keep_alive);
-	transmit_response(d, req);
-	if (skinnydebug)
-		ast_verb(1, "Requesting capabilities\n");
-
-	if (!(req = req_alloc(0, CAPABILITIES_REQ_MESSAGE)))
-		return -1;
-
-	transmit_response(d, req);
-
-	return res;
-}
-
 static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype)
 {
 	struct skinny_line *l = sub->parent;
@@ -6145,14 +6135,16 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 
 	switch(letohl(req->e)) {
 	case KEEP_ALIVE_MESSAGE:
-		res = handle_keep_alive_message(req, s);
+		transmit_keepaliveack(s->device);
 		break;
 	case REGISTER_MESSAGE:
-		if (skinnydebug)
-			ast_verb(1, "Device %s is attempting to register\n", req->data.reg.name);
-
-		res = handle_register_message(req, s);
-		break;
+		if (skinny_register(req, s)) {
+			ast_verb(3, "Device '%s' successfully registered\n", s->device->name);
+			transmit_registerack(s->device);
+			transmit_capabilitiesreq(s->device);
+		} else {
+			transmit_registerrej(s);
+		}
 	case IP_PORT_MESSAGE:
 		res = handle_ip_port_message(req, s);
 		break;
