@@ -11464,7 +11464,7 @@ static int transmit_notify_custom(struct sip_pvt *p, struct ast_variable *vars) 
 		initialize_initreq(p, &req);
 	}
 
-	return send_request(p, &req, XMIT_UNRELIABLE, p->ocseq);
+	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
 static int manager_sipnotify(struct mansession *s, const struct message *m)
