@@ -11954,7 +11954,7 @@ static int load_config(int reload)
 						if ((z = ast_malloc(sizeof(*z)))) {
 							char *msg_format, *tzone;
 							msg_format = ast_strdupa(var->value);
-							tzone = strsep(&msg_format, "|");
+							tzone = strsep(&msg_format, "|,");
 							if (msg_format) {
 								ast_copy_string(z->name, var->name, sizeof(z->name));
 								ast_copy_string(z->timezone, tzone, sizeof(z->timezone));
