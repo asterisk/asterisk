@@ -26,7 +26,7 @@ OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 # otherwise modules will not have them available if none of the static
 # objects use it.
 OBJS+=stdtime/localtime.o
-ifneq ($(WEAKREF),1:1)
+ifneq ($(findstring 1,$(WEAKREF)),1)
 OBJS+=../res/res_adsi.o
 endif
 
