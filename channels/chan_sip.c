@@ -7363,7 +7363,9 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		}
 		/* reject requests that must always have a To: tag */
 		if (ast_strlen_zero(totag) && (req->method == SIP_ACK || req->method == SIP_BYE || req->method == SIP_INFO )) {
-			transmit_response_using_temp(callid, addr, 1, intended_method, req, "481 Call leg/transaction does not exist");
+			if (req->method != SIP_ACK) {
+				transmit_response_using_temp(callid, addr, 1, intended_method, req, "481 Call leg/transaction does not exist");
+			}
 			ast_debug(5, "%s must have a to tag. dropping callid: %s from: %s\n", sip_methods[req->method].text , callid, from );
 			return NULL;
 		}
