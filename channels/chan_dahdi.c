@@ -6892,7 +6892,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		return &p->subs[idx].f;
 	}
 
-	if (p->subs[idx].needcallerid) {
+	if (p->subs[idx].needcallerid && !ast->cid.cid_tns) {
 		ast_set_callerid(ast, S_OR(p->lastcid_num, NULL),
 							S_OR(p->lastcid_name, NULL),
 							S_OR(p->lastcid_num, NULL)
@@ -13296,12 +13296,12 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos < 0) {
 						ast_log(LOG_WARNING, "Facility Name requested on channel %d/%d not in use on span %d\n",
 							PRI_SPAN(e->facname.channel), PRI_CHANNEL(e->facname.channel), pri->span);
-					} else {
+					} else if (pri->pvts[chanpos]->use_callerid) {
 						/* Re-use *69 field for PRI */
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						ast_copy_string(pri->pvts[chanpos]->lastcid_num, e->facname.callingnum, sizeof(pri->pvts[chanpos]->lastcid_num));
 						ast_copy_string(pri->pvts[chanpos]->lastcid_name, e->facname.callingname, sizeof(pri->pvts[chanpos]->lastcid_name));
-						pri->pvts[chanpos]->subs[SUB_REAL].needcallerid =1;
+						pri->pvts[chanpos]->subs[SUB_REAL].needcallerid = 1;
 						dahdi_enable_ec(pri->pvts[chanpos]);
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
