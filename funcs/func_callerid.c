@@ -114,6 +114,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 			  const char *value)
 {
+	int valid = 1;
 	if (!value || !chan)
 		return -1;
 
@@ -157,6 +158,11 @@ static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 		ast_channel_unlock(chan);
 	} else {
 		ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
+		valid = 0;
+	}
+
+	if (valid) {
+		chan->cid.cid_tns = 1;
 	}
 
 	return 0;
