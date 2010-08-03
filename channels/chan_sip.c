@@ -9875,22 +9875,12 @@ static int get_domain(const char *str, char *domain, int len)
 		from = NULL;
 
 	if (from) {
-		int bracket = 0;
-
 		/* Strip any params or options from user */
 		if ((a = strchr(from, ';')))
 			*a = '\0';
 		/* Strip port from domain if present */
-		for (a = from; *a != '\0'; ++a) {
-			if (*a == ':' && bracket == 0) {
-				*a = '\0';
-				break;
-			} else if (*a == '[') {
-				++bracket;
-			} else if (*a == ']') {
-				--bracket;
-			}
-		}
+		if ((a = strchr(from, ':')))
+			*a = '\0';
 		if ((a = strchr(from, '@'))) {
 			*a = '\0';
 			ast_copy_string(domain, a + 1, len);
@@ -14486,27 +14476,17 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	
 	if ((ptr = strchr(refer_to, '@'))) {	/* Separate domain */
 		char *urioption = NULL, *domain;
-		int bracket = 0;
 		*ptr++ = '\0';
 
 		if ((urioption = strchr(ptr, ';'))) { /* Separate urioptions */
 			*urioption++ = '\0';
 		}
-
+		
 		domain = ptr;
-
-		/* Remove :port */
-		for (; *ptr != '\0'; ++ptr) {
-			if (*ptr == ':' && bracket == 0) {
-				*ptr = '\0';
-				break;
-			} else if (*ptr == '[') {
-				++bracket;
-			} else if (*ptr == ']') {
-				--bracket;
-			}
+		if ((ptr = strchr(domain, ':'))) {	/* Remove :port */
+			*ptr = '\0';
 		}
-
+		
 		SIP_PEDANTIC_DECODE(domain);
 		SIP_PEDANTIC_DECODE(urioption);
 
@@ -27093,12 +27073,10 @@ static int reload_config(enum channelreloadreason reason)
 
 		/* First our default IP address */
 		if (!ast_sockaddr_isnull(&bindaddr)) {
-			add_sip_domain(ast_sockaddr_stringify_addr(&bindaddr),
-				       SIP_DOMAIN_AUTO, NULL);
+			add_sip_domain(ast_sockaddr_stringify(&bindaddr), SIP_DOMAIN_AUTO, NULL);
 		} else if (!ast_sockaddr_isnull(&internip)) {
 		/* Our internal IP address, if configured */
-			add_sip_domain(ast_sockaddr_stringify_addr(&internip),
-				       SIP_DOMAIN_AUTO, NULL);
+			add_sip_domain(ast_sockaddr_stringify(&internip), SIP_DOMAIN_AUTO, NULL);
 		} else {
 			ast_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
 		}
@@ -27106,7 +27084,7 @@ static int reload_config(enum channelreloadreason reason)
 		/* If TCP is running on a different IP than UDP, then add it too */
 		if (!ast_sockaddr_isnull(&sip_tcp_desc.local_address) &&
 		    !ast_sockaddr_cmp(&bindaddr, &sip_tcp_desc.local_address)) {
-			add_sip_domain(ast_sockaddr_stringify_addr(&sip_tcp_desc.local_address),
+			add_sip_domain(ast_sockaddr_stringify(&sip_tcp_desc.local_address),
 				       SIP_DOMAIN_AUTO, NULL);
 		}
 
@@ -27115,14 +27093,14 @@ static int reload_config(enum channelreloadreason reason)
 		    !ast_sockaddr_cmp(&bindaddr, &sip_tls_desc.local_address) &&
 		    !ast_sockaddr_cmp(&sip_tcp_desc.local_address,
 				      &sip_tls_desc.local_address)) {
-			add_sip_domain(ast_sockaddr_stringify_addr(&sip_tcp_desc.local_address),
+			add_sip_domain(ast_sockaddr_stringify(&sip_tcp_desc.local_address),
 				       SIP_DOMAIN_AUTO, NULL);
 		}
 
 		/* Our extern IP address, if configured */
 		if (!ast_sockaddr_isnull(&externaddr)) {
-			add_sip_domain(ast_sockaddr_stringify_addr(&externaddr),
-				       SIP_DOMAIN_AUTO, NULL);
+			add_sip_domain(ast_sockaddr_stringify(&externaddr), SIP_DOMAIN_AUTO,
+				       NULL);
 		}
 
 		/* Extern host name (NAT traversal support) */
