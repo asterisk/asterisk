@@ -1,7 +1,6 @@
-<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <refentry>
 <refentryinfo>
-	<date>2005-10-18</date>
+	<date>2010-08-03</date>
 </refentryinfo>
 <refmeta>
 	<refentrytitle>
@@ -21,13 +20,15 @@
 <refsynopsisdiv>
 	<cmdsynopsis>
 	<command>asterisk</command>
-<arg><option>-tThfdvVqpRgciIns</option></arg>
+<arg><option>-BcdfFghiImnpqRtTvVW</option></arg>
 <arg><option>-C </option><replaceable class="parameter">file</replaceable></arg>
-<arg><option>-U </option><replaceable class="parameter">user</replaceable></arg>
+<arg><option>-e </option><replaceable class="parameter">memory</replaceable></arg>
 <arg><option>-G </option><replaceable class="parameter">group</replaceable></arg>
-<arg><option>-x </option><replaceable class="parameter">command</replaceable></arg>
-<arg><option>-M </option><replaceable class="parameter">value</replaceable></arg>
 <arg><option>-L </option><replaceable class="parameter">loadaverage</replaceable></arg>
+<arg><option>-M </option><replaceable class="parameter">value</replaceable></arg>
+<arg><option>-U </option><replaceable class="parameter">user</replaceable></arg>
+<arg><option>-s </option><replaceable class="parameter">socket-file</replaceable></arg>
+<arg><option>-x </option><replaceable class="parameter">command</replaceable></arg>
 	</cmdsynopsis>
 	<cmdsynopsis>
 
@@ -38,7 +39,7 @@
 </refsynopsisdiv>
 <refsect1>
 	<refsect1info>
-		<date>2007-12-19</date>
+		<date>2010-08-03</date>
 	</refsect1info>
 	<title>DESCRIPTION</title>
 	<para>
@@ -74,6 +75,15 @@
 	<title>OPTIONS</title>
 	<variablelist>
 	<varlistentry>
+		<term>-B</term>
+		<listitem>
+			<para>
+			Force the background of the terminal to be black, in order for
+			terminal colors to show up properly.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
 		<term>-C <replaceable class="parameter">file</replaceable></term>
 		<listitem>
 			<para>
@@ -100,8 +110,16 @@
 			</para>
 			<para>
 			Note: This always sets the debug level in the asterisk process,
-			even if it is running in the background. This will affect the size
-			of your log files.
+			even if it is running in the background. This may affect the size
+			of your log files, if the debug level is specified in logger.conf.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-e <replaceable class="parameter">memory</replaceable></term>
+		<listitem>
+			<para>
+			Limit the generation of new channels when the amount of free memory has decreased to under <replaceable>memory</replaceable> megabytes.
 			</para>
 		</listitem>
 	</varlistentry>
@@ -109,7 +127,15 @@
 		<term>-f</term>
 		<listitem>
 			<para>
-			Do not fork or detach from controlling terminal.
+			Do not fork or detach from controlling terminal.  Overrides any preceding specification of <command>-F</command> on the command line.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-F</term>
+		<listitem>
+			<para>
+			Always fork and detach from controlling terminal.  Overrides any preceding specification of <command>-f</command> on the command line.
 			</para>
 		</listitem>
 	</varlistentry>
@@ -175,6 +201,15 @@
 		</listitem>
 	</varlistentry>
 	<varlistentry>
+		<term>-m</term>
+		<listitem>
+			<para>
+			Temporarily mutes output to the console and logs.  To return to normal,
+			use <command>logger mute</command>.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
 		<term>-M <replaceable class="parameter">value</replaceable></term>
 		<listitem>
 			<para>
@@ -200,6 +235,12 @@
 			attempt to run with realtime priority for increased performance and
 			responsiveness within the Asterisk process, at the expense of other
 			programs running on the same machine.
+			</para>
+			<para>
+			Note: <command>astcanary</command> will run concurrently with
+			<command>asterisk</command>. If <command>astcanary</command> stops
+			running or is killed, <command>asterisk</command> will slow down to
+			normal process priority, to avoid locking up the machine.
 			</para>
 		</listitem>
 	</varlistentry>
@@ -299,6 +340,16 @@
 		</listitem>
 	</varlistentry>
 	<varlistentry>
+		<term>-W</term>
+		<listitem>
+			<para>
+			Display colored terminal text as if the background were white
+			or otherwise light in color.  Normally, terminal text is displayed
+			as if the background were black or otherwise dark in color.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
 		<term>-x <replaceable class="parameter">command</replaceable></term>
 		<listitem>
 			<para>
@@ -331,7 +382,7 @@
 	<command>asterisk -vvvgc</command> - Run on controlling terminal
 	</para>
 	<para>
-	<command>asterisk -rx "show channels"</command> - Display channels on running server
+	<command>asterisk -rx "core show channels"</command> - Display channels on running server
 	</para>
 </refsect1>
 <refsect1>
@@ -346,10 +397,13 @@
 	*CLI&gt; <command>help</command> - Help on Asterisk CLI
 	</para>
 	<para>
-	*CLI&gt; <command>show applications</command> - Show loaded dialplan applications
+	*CLI&gt; <command>core show applications</command> - Show loaded dialplan applications
 	</para>
 	<para>
-	*CLI&gt; <command>show functions</command> - Show loaded dialplan functions
+	*CLI&gt; <command>core show functions</command> - Show loaded dialplan functions
+	</para>
+	<para>
+	*CLI&gt; <command>dialplan show</command> - Show current dialplan
 	</para>
 	<para>
 	http://www.asterisk.org - The Asterisk Home Page
@@ -363,9 +417,6 @@
 	<para>
 	http://www.digium.com/ - Asterisk sponsor and hardware supplier
 	</para>
-	<para>
-	http://www.markocam.com/ - Asterisk author's web cam
-	</para>
 </refsect1>
 <refsect1>
 	<title>AUTHOR</title>
@@ -376,7 +427,7 @@
 	</para>
 	<para>
 	<author>
-		<firstname>Countless other contributers, see CREDITS with distribution for more information</firstname> 
+		<firstname>Countless other contributors, see CREDITS with distribution for more information.</firstname> 
 	</author>
 	</para>
 </refsect1>
