@@ -61,6 +61,27 @@ AST_THREADSTORAGE(tmp_buf);
 			<para>Example: If ${example} contains <literal>ex-amp-le</literal>, then ${FIELDQTY(example,-)} returns 3.</para>
 		</description>
 	</function>
+	<function name="FIELDNUM" language="en_US">
+		<synopsis>
+			Return the 1-based offset of a field in a list
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="delim" required="true" />
+			<parameter name="value" required="true" />
+		</syntax>
+		<description>
+			<para>Search the variable named <replaceable>varname</replaceable> for the string <replaceable>value</replaceable>
+			delimited by <replaceable>delim</replaceable> and return a 1-based offset as to its location. If not found
+			or an error occured, return <literal>0</literal>.</para>
+			<para>The delimiter may be specified as a special or extended ASCII character, by encoding it.  The characters
+			<literal>\n</literal>, <literal>\r</literal>, and <literal>\t</literal> are all recognized as the newline,
+			carriage return, and tab characters, respectively.  Also, octal and hexadecimal specifications are recognized
+			by the patterns <literal>\0nnn</literal> and <literal>\xHH</literal>, respectively.  For example, if you wanted
+			to encode a comma as the delimiter, you could use either <literal>\054</literal> or <literal>\x2C</literal>.</para>
+		        <para>Example: If ${example} contains <literal>ex-amp-le</literal>, then ${FIELDNUM(example,-,amp)} returns 2.</para>
+		</description>
+	</function>
 	<function name="LISTFILTER" language="en_US">
 		<synopsis>Remove an item from a list, by name.</synopsis>
 		<syntax>
@@ -453,6 +474,85 @@ static struct ast_custom_function fieldqty_function = {
 	.name = "FIELDQTY",
 	.read = function_fieldqty,
 	.read2 = function_fieldqty_str,
+};
+
+static int function_fieldnum_helper(struct ast_channel *chan, const char *cmd,
+				char *parse, char *buf, struct ast_str **sbuf, ssize_t len)
+{
+	char *varsubst, *field;
+	struct ast_str *str = ast_str_thread_get(&result_buf, 16);
+	int fieldindex = 0, res = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(varname);
+		AST_APP_ARG(delim);
+		AST_APP_ARG(field);
+	);
+	char delim[2] = "";
+	size_t delim_used;
+
+	if (!str) {
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (args.argc < 3) {
+		ast_log(LOG_ERROR, "Usage: FIELDNUM(<listname>,<delimiter>,<fieldvalue>)\n");
+		res = -1;
+	} else {
+		varsubst = alloca(strlen(args.varname) + 4);
+		sprintf(varsubst, "${%s}", args.varname);
+
+		ast_str_substitute_variables(&str, 0, chan, varsubst);
+
+		if (ast_str_strlen(str) == 0 || ast_strlen_zero(args.delim)) {
+			fieldindex = 0;
+		} else if (ast_get_encoded_char(args.delim, delim, &delim_used) == -1) {
+			res = -1;
+		} else {
+			char *varval = ast_str_buffer(str);
+
+			while ((field = strsep(&varval, delim)) != NULL) {
+				fieldindex++;
+
+				if (!strcasecmp(field, args.field)) {
+					break;
+				}
+			}
+
+			if (!field) {
+				fieldindex = 0;
+			}
+
+			res = 0;
+		}
+	}
+
+	if (sbuf) {
+		ast_str_set(sbuf, len, "%d", fieldindex);
+	} else {
+		snprintf(buf, len, "%d", fieldindex);
+	}
+
+	return res;
+}
+
+static int function_fieldnum(struct ast_channel *chan, const char *cmd,
+			     char *parse, char *buf, size_t len)
+{
+	return function_fieldnum_helper(chan, cmd, parse, buf, NULL, len);
+}
+
+static int function_fieldnum_str(struct ast_channel *chan, const char *cmd,
+				 char *parse, struct ast_str **buf, ssize_t len)
+{
+	return function_fieldnum_helper(chan, cmd, parse, NULL, buf, len);
+}
+
+static struct ast_custom_function fieldnum_function = {
+	.name = "FIELDNUM",
+	.read = function_fieldnum,
+	.read2 = function_fieldnum_str,
 };
 
 static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, char *buf, struct ast_str **bufstr, ssize_t len)
@@ -1439,6 +1539,72 @@ static struct ast_custom_function passthru_function = {
 };
 
 #ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_FIELDNUM)
+{
+	int i, res = AST_TEST_PASS;
+	struct ast_channel *chan;
+	struct ast_str *str;
+	char expression[256];
+	struct {
+		const char *fields;
+		const char *delim;
+		const char *field;
+		const char *expected;
+	} test_args[] = {
+		{"abc,def,ghi,jkl", "\\,",     "ghi", "3"},
+		{"abc def ghi jkl", " ",       "abc", "1"},
+		{"abc/def/ghi/jkl", "\\\\x2f", "def", "2"},
+		{"abc$def$ghi$jkl", "",        "ghi", "0"},
+		{"abc,def,ghi,jkl", "-",       "",    "0"},
+		{"abc-def-ghi-jkl", "-",       "mno", "0"}
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "func_FIELDNUM_test";
+		info->category = "/funcs/func_strings/";
+		info->summary = "Test FIELDNUM function";
+		info->description = "Verify FIELDNUM behavior";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(chan = ast_dummy_channel_alloc())) {
+		ast_test_status_update(test, "Unable to allocate dummy channel\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(str = ast_str_create(16))) {
+		ast_test_status_update(test, "Unable to allocate dynamic string buffer\n");
+		ast_channel_release(chan);
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(test_args); i++) {
+		struct ast_var_t *var = ast_var_assign("FIELDS", test_args[i].fields);
+		AST_LIST_INSERT_HEAD(&chan->varshead, var, entries);
+
+		snprintf(expression, sizeof(expression), "${FIELDNUM(%s,%s,%s)}", var->name, test_args[i].delim, test_args[i].field);
+		ast_str_substitute_variables(&str, 0, chan, expression);
+
+		AST_LIST_REMOVE(&chan->varshead, var, entries);
+		ast_var_delete(var);
+
+		if (strcasecmp(ast_str_buffer(str), test_args[i].expected)) {
+			ast_test_status_update(test, "Evaluation of '%s' returned '%s' instead of the expected value '%s'\n",
+				expression, ast_str_buffer(str), test_args[i].expected);
+			res = AST_TEST_FAIL;
+			break;
+		}
+	}
+
+	ast_free(str);
+	ast_channel_release(chan);
+
+	return res;
+}
+
 AST_TEST_DEFINE(test_FILTER)
 {
 	int i, res = AST_TEST_PASS;
@@ -1479,8 +1645,10 @@ static int unload_module(void)
 {
 	int res = 0;
 
+	AST_TEST_UNREGISTER(test_FIELDNUM);
 	AST_TEST_UNREGISTER(test_FILTER);
 	res |= ast_custom_function_unregister(&fieldqty_function);
+	res |= ast_custom_function_unregister(&fieldnum_function);
 	res |= ast_custom_function_unregister(&filter_function);
 	res |= ast_custom_function_unregister(&replace_function);
 	res |= ast_custom_function_unregister(&listfilter_function);
@@ -1511,8 +1679,10 @@ static int load_module(void)
 {
 	int res = 0;
 
+	AST_TEST_REGISTER(test_FIELDNUM);
 	AST_TEST_REGISTER(test_FILTER);
 	res |= ast_custom_function_register(&fieldqty_function);
+	res |= ast_custom_function_register(&fieldnum_function);
 	res |= ast_custom_function_register(&filter_function);
 	res |= ast_custom_function_register(&replace_function);
 	res |= ast_custom_function_register(&listfilter_function);
