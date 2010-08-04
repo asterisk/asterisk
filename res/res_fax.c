@@ -387,9 +387,6 @@ static struct ast_fax_session_details *session_details_new(void)
 	d->modems = general_options.modems;
 	d->minrate = general_options.minrate;
 	d->maxrate = general_options.maxrate;
-	ast_string_field_set(d, result, "FAILED");
-	ast_string_field_set(d, resultstr, "error starting fax session");
-	ast_string_field_set(d, error, "INIT_ERROR");
 
 	return d;
 }
@@ -1390,6 +1387,10 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	ast_string_field_set(details, result, "FAILED");
+	ast_string_field_set(details, resultstr, "error starting fax session");
+	ast_string_field_set(details, error, "INIT_ERROR");
+
 	set_channel_variables(chan, details);
 
 	if (ast_strlen_zero(data)) {
@@ -1795,6 +1796,9 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	ast_string_field_set(details, result, "FAILED");
+	ast_string_field_set(details, resultstr, "error starting fax session");
+	ast_string_field_set(details, error, "INIT_ERROR");
 	set_channel_variables(chan, details);
 
 	if (ast_strlen_zero(data)) {
