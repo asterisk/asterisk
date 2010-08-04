@@ -1,0 +1,167 @@
+#!/usr/bin/perl -w
+
+use strict;
+use IO::Socket;
+use Getopt::Long;
+
+# Created by: David Van Ginneken
+# Bird's the Word Technologies
+# davevg@btwtech.com
+#
+# And distributed under the terms of the GPL
+#
+my ($user, $pw, $host, $port, $interactive, $save) = (undef, undef, 'localhost', 5038, 0, 0);
+my $EOL = "\r\n"; # Standard End of Line
+my @commands;
+process_credentials('/etc/astcli.conf');
+process_credentials("$ENV{HOME}/.astcli") if defined $ENV{HOME};
+GetOptions("username=s" => \$user, "secret=s" => \$pw, "host=s" => \$host, "port=s" => \$port, "readline" => \$interactive, "write" => \$save);
+
+$|++; # Auto Flush Output
+my $action = join(" ", @ARGV);
+
+&usage if (!defined $user || !defined $pw);
+my $tc = new IO::Socket::INET(
+		PeerAddr => $host,
+		PeerPort => $port,
+		Timeout => 30,
+		Proto => 'tcp'
+) or die "Could not connect to Host: $host on port $port\n";
+if (my $error = login()) {
+	print STDERR $error;
+	exit 1;
+};
+
+if ($save) {
+	if (-d $ENV{HOME}) {
+		open DEFAULT, ">$ENV{HOME}/.astcli";
+		print DEFAULT "username=$user\n" if $user;
+		print DEFAULT "password=$pw\n" if $pw;
+		print DEFAULT "hostname=$host\n" if $host;
+		print DEFAULT "portno=$port\n" if $port;
+		close DEFAULT;
+	}
+}
+
+# Send a single command to the manager connection handle (global $tc).
+# Assumes things always work well :-)
+sub send_command($) {
+	my $command = shift;
+	$tc->send('Action: Command' . $EOL);
+	$tc->send("Command: $command" . $EOL);
+	$tc->send($EOL);
+	my $response = '';
+	while (<$tc>) {
+		if ($_ =~ /--END COMMAND--/) {
+			$_ =~ s/--END COMMAND--\s*//;
+			$response .= $_;
+			last;
+		}
+		$response .= $_;
+	}
+	$response =~ s/Privilege: Command$EOL//;
+	$response =~ s/Response: Follows$EOL//;
+	return $response;
+}
+
+sub login {
+	my ($response, $message);
+	$tc->send("Action: Login" . $EOL);
+	$tc->send("Username: $user" . $EOL);
+	$tc->send("Secret: $pw" . $EOL);
+	$tc->send("Events: off" . $EOL);
+	$tc->send($EOL);
+	while (<$tc>) {
+		last if $_ eq $EOL;
+		$_ =~ s/$EOL//g;
+		($response) = $_ =~ /^Response: (.*?)$/ if $_ =~ /^Response:/;
+		($message) = $_ =~ /^Message: (.*?)$/ if $_ =~ /^Message:/;
+	}
+	return 0 if $response eq 'Success';
+	return $message;
+}
+
+sub logoff {
+	my ($response, $message);
+	$tc->send("Action: Logoff" . $EOL . $EOL);
+	return 1;
+}
+
+# If the user asked to send commands from standard input:
+if ($action eq '-' || !defined $action || $action eq '') {
+	if ($interactive) {
+		eval { require Term::ReadLine;};
+		$interactive = scalar($@) ? 0 : 1;
+		print STDERR "Falling back to standard mode, Unable to load Term::Readline for readline mode\n" unless $interactive;
+	}
+	if ($interactive) {
+		my $term = new Term::ReadLine 'Command Line Interface';
+		my $prompt = "$host*CLI> ";
+		my $attribs = $term->Attribs;
+		$attribs->{completion_function} = \&tab_completion;
+		while (defined($_ = $term->readline($prompt))) {
+			(logoff() and exit) if $_ =~ /exit|quit/; # Give them a way to exit the "terminal"
+			print send_command($_) if $_ !~ m/^\s*$/;
+		}	
+	} else {
+		while (<>) {
+			chomp;
+			(logoff() and exit) if $_ =~ /exit|quit/; # If someone accidentally ends up here, let them exit
+			print send_command($_);
+		}
+	}
+	exit 0;
+}
+
+# Otherwise just send the command:
+print send_command($action);
+
+# parses a configuration file into the global $user and $pw.
+sub process_credentials {
+	# Process the credentials found..
+	my $file = shift;
+	# silently fail if we can't read the file:
+	return unless (-r $file);
+	open (my $fh, "<$file") or return;
+	while (<$fh>) {
+		chomp;
+		(undef,$user) = split(/[,=]/, $_) if $_ =~ /user(name)?[,=]/i;
+		(undef,$pw) = split(/[,=]/, $_) if $_ =~ /(secret|passw(or)?d|pwd?)[,=]/i;
+		(undef,$host) = split(/[,=]/, $_) if $_ =~ /host(name)?[,=]/i;
+		(undef,$port) = split(/[,=]/, $_) if $_ =~ /port(num|no)?[,=]/i;
+	}
+	close ($fh);
+}
+
+sub usage {
+	print STDERR "astcli [<options>] [<cli-command>|-]\n";
+	print STDERR "       -u <name> - Connect as username <name>\n";
+	print STDERR "       -s <pw>   - Connect with secret <pw>\n";
+	print STDERR "       -h <host> - Connect to host <host> [localhost]\n";
+	print STDERR "       -p <port> - Connect on TCP port <port> [5038]\n";
+	print STDERR "       -r        - Start a readline session for interactivity\n";
+	print STDERR "       -w        - Save connection options in a configuration file\n";
+	print STDERR "   You may specify the command as '-' to take commands from stdin.\n";
+	exit;
+}
+
+sub tab_completion {
+    my ($word, $buffer, $offset) = @_;
+	my %items;
+	my $lastword = '';
+	if ($word eq '') {
+		$buffer =~ m/(\S+)\s?$/;
+		$lastword = $1;
+		#print STDERR "\n\nlastword=\"$lastword\"\n";
+	}
+
+	my $res = send_command("_command matchesarray \"$buffer\" \"$word\"");
+	foreach my $item (split /\s+/, $res) {
+		$items{$item}++ unless ($item eq '_EOF_' or $item eq '' or $item eq $lastword);
+	}
+		
+	#print STDERR "\nword=\"$word\" buffer=\"$buffer\" offset=\"$offset\" res=\"$res\"\n";
+
+	return sort keys %items;
+}
+
