@@ -3580,7 +3580,7 @@ static int find_and_retrans(struct mgcp_subchannel *sub, struct mgcp_request *re
 	if (sscanf(req->identifier, "%30d", &seqno) != 1) {
 		seqno = 0;
 	}
-	for (cur = sub->parent->parent->responses, next = cur->next; cur; cur = next, next = cur->next) {
+	for (cur = sub->parent->parent->responses, next = cur ? cur->next : NULL; cur; cur = next, next = cur ? cur->next : NULL) {
 		if (now - cur->whensent > RESPONSE_TIMEOUT) {
 			/* Delete this entry */
 			if (prev)
