@@ -492,7 +492,11 @@ static struct pbx_builtin {
 };
 
 static struct ast_context *contexts;
-AST_RWLOCK_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
+/*!\brief Lock for the ast_context list
+ * This lock MUST be recursive, or a deadlock on reload may result.  See
+ * https://issues.asterisk.org/view.php?id=17643
+ */
+AST_MUTEX_DEFINE_STATIC(conlock);
 
 static AST_LIST_HEAD_STATIC(apps, ast_app);
 
@@ -6193,22 +6197,22 @@ int load_pbx(void)
  */
 int ast_lock_contexts()
 {
-	return ast_rwlock_wrlock(&conlock);
+	return ast_mutex_lock(&conlock);
 }
 
 int ast_rdlock_contexts(void)
 {
-	return ast_rwlock_rdlock(&conlock);
+	return ast_mutex_lock(&conlock);
 }
 
 int ast_wrlock_contexts(void)
 {
-	return ast_rwlock_wrlock(&conlock);
+	return ast_mutex_lock(&conlock);
 }
 
 int ast_unlock_contexts()
 {
-	return ast_rwlock_unlock(&conlock);
+	return ast_mutex_unlock(&conlock);
 }
 
 /*
