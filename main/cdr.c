@@ -84,18 +84,26 @@ static struct sched_context *sched;
 static int cdr_sched = -1;
 static pthread_t cdr_thread = AST_PTHREADT_NULL;
 
-#define BATCH_SIZE_DEFAULT 100
-#define BATCH_TIME_DEFAULT 300
-#define BATCH_SCHEDULER_ONLY_DEFAULT 0
-#define BATCH_SAFE_SHUTDOWN_DEFAULT 1
+static int enabled;
+static const int ENABLED_DEFAULT = 1;
 
-static int enabled;		/*! Is the CDR subsystem enabled ? */
-static int unanswered;
 static int batchmode;
+static const int BATCHMODE_DEFAULT = 0;
+
+static int unanswered;
+static const int UNANSWERED_DEFAULT = 0;
+
 static int batchsize;
+static const int BATCH_SIZE_DEFAULT = 100;
+
 static int batchtime;
+static const int BATCH_TIME_DEFAULT = 300;
+
 static int batchscheduleronly;
+static const int BATCH_SCHEDULER_ONLY_DEFAULT = 0;
+
 static int batchsafeshutdown;
+static const int BATCH_SAFE_SHUTDOWN_DEFAULT = 1;
 
 AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 
@@ -1492,22 +1500,27 @@ static int do_reload(int reload)
 	int res=0;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if ((config = ast_config_load2("cdr.conf", "cdr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
-		return 0;
-	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEUNCHANGED || config == CONFIG_STATUS_FILEINVALID) {
+	if ((config = ast_config_load2("cdr.conf", "cdr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
 	}
 
 	ast_mutex_lock(&cdr_batch_lock);
 
+	was_enabled = enabled;
+	was_batchmode = batchmode;
+
 	batchsize = BATCH_SIZE_DEFAULT;
 	batchtime = BATCH_TIME_DEFAULT;
 	batchscheduleronly = BATCH_SCHEDULER_ONLY_DEFAULT;
 	batchsafeshutdown = BATCH_SAFE_SHUTDOWN_DEFAULT;
-	was_enabled = enabled;
-	was_batchmode = batchmode;
-	enabled = 1;
-	batchmode = 0;
+	enabled = ENABLED_DEFAULT;
+	batchmode = BATCHMODE_DEFAULT;
+	unanswered = UNANSWERED_DEFAULT;
+
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
+		ast_mutex_unlock(&cdr_batch_lock);
+		return 0;
+	}
 
 	/* don't run the next scheduled CDR posting while reloading */
 	AST_SCHED_DEL(sched, cdr_sched);
