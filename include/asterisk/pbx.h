@@ -1109,19 +1109,11 @@ struct pbx_find_info {
 	const char *data;               /* set on return */
 	const char *foundcontext;       /* set on return */
 };
- 
+
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 struct ast_context *bypass, struct pbx_find_info *q,
 									 const char *context, const char *exten, int priority,
 									 const char *label, const char *callerid, enum ext_match_t action);
-
-
-/* every time a write lock is obtained for contexts,
-   a counter is incremented. You can check this via the
-   following func */
-
-int ast_wrlock_contexts_version(void);
-	
 
 /*!\brief hashtable functions for contexts */
 /*! @{ */
