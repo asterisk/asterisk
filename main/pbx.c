@@ -1164,7 +1164,11 @@ static struct pbx_builtin {
 static struct ast_context *contexts;
 static struct ast_hashtab *contexts_table = NULL;
 
-AST_RWLOCK_DEFINE_STATIC(conlock);		/*!< Lock for the ast_context list */
+/*!\brief Lock for the ast_context list
+ * This lock MUST be recursive, or a deadlock on reload may result.  See
+ * https://issues.asterisk.org/view.php?id=17643
+ */
+AST_MUTEX_DEFINE_STATIC(conlock);
 
 static AST_RWLIST_HEAD_STATIC(apps, ast_app);
 
@@ -7016,7 +7020,6 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	*/
 
 	struct timeval begintime, writelocktime, endlocktime, enddeltime;
-	int wrlock_ver;
 
 	begintime = ast_tvnow();
 	ast_rdlock_contexts();
@@ -7025,15 +7028,6 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		context_merge(extcontexts, exttable, tmp, registrar);
 	}
 	ast_hashtab_end_traversal(iter);
-	wrlock_ver = ast_wrlock_contexts_version();
-
-	ast_unlock_contexts(); /* this feels real retarded, but you must do
-							  what you must do If this isn't done, the following 
-						      wrlock is a guraranteed deadlock */
-	ast_wrlock_contexts();
-	if (ast_wrlock_contexts_version() > wrlock_ver+1) {
-		ast_log(LOG_WARNING,"==================!!!!!!!!!!!!!!!Something changed the contexts in the middle of merging contexts!\n");
-	}
 
 	AST_RWLIST_WRLOCK(&hints);
 	writelocktime = ast_tvnow();
@@ -9836,32 +9830,23 @@ int load_pbx(void)
 
 	return 0;
 }
-static int conlock_wrlock_version = 0;
-
-int ast_wrlock_contexts_version(void)
-{
-	return conlock_wrlock_version;
-}
 
 /*
  * Lock context list functions ...
  */
 int ast_wrlock_contexts()
 {
-	int res = ast_rwlock_wrlock(&conlock);
-	if (!res)
-		ast_atomic_fetchadd_int(&conlock_wrlock_version, 1);
-	return res;
+	return ast_mutex_lock(&conlock);
 }
 
 int ast_rdlock_contexts()
 {
-	return ast_rwlock_rdlock(&conlock);
+	return ast_mutex_lock(&conlock);
 }
 
 int ast_unlock_contexts()
 {
-	return ast_rwlock_unlock(&conlock);
+	return ast_mutex_unlock(&conlock);
 }
 
 /*

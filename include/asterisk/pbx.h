@@ -1220,14 +1220,6 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 const char *context, const char *exten, int priority,
 									 const char *label, const char *callerid, enum ext_match_t action);
 
-
-/* every time a write lock is obtained for contexts,
-   a counter is incremented. You can check this via the
-   following func */
-
-int ast_wrlock_contexts_version(void);
-
-
 /*! \brief hashtable functions for contexts */
 /*! @{ */
 int ast_hashtab_compare_contexts(const void *ah_a, const void *ah_b);
