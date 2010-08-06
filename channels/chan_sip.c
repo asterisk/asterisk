@@ -149,6 +149,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/compiler.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
+#include "asterisk/astobj2.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -855,6 +856,12 @@ static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_
 #define sipdebug_config		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG)
 #define sipdebug_console	ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE)
 
+/*! \brief provisional keep alive scheduler item data */
+struct provisional_keepalive_data {
+	struct sip_pvt *pvt;
+	int sched_id;
+};
+
 /*! \brief T38 States for a call */
 enum t38state {
         T38_DISABLED = 0,                /*!< Not enabled */
@@ -1044,7 +1051,7 @@ static struct sip_pvt {
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
 	int request_queue_sched_id;		/*!< Scheduler ID of any scheduled action to process queued requests */
-	int provisional_keepalive_sched_id; /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
+	struct provisional_keepalive_data *provisional_keepalive_data; /*!< Scheduler data for provisional responses that need to be sent out to avoid cancellation */
 	const char *last_provisional;   /*!< The last successfully transmitted provisonal response message */
 	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
@@ -2335,44 +2342,124 @@ static void add_blank(struct sip_request *req)
 	}
 }
 
-static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
+/*! \brief This is called by the scheduler to resend the last provisional message in a dialog */
+static int send_provisional_keepalive_full(struct provisional_keepalive_data *data, int with_sdp)
 {
 	const char *msg = NULL;
+	int res = 0;
+	struct sip_pvt *pvt = data->pvt;
+
+	if (!pvt) {
+		ao2_ref(data, -1); /* not rescheduling so drop ref. in this case the dialog has already dropped this ref */
+		return res;
+	}
+
+	ast_mutex_lock(&pvt->lock);
+	while (pvt->owner && ast_channel_trylock(pvt->owner)) {
+		ast_mutex_unlock(&pvt->lock);
+		sched_yield();
+		if ((pvt = data->pvt)) {
+			ast_mutex_lock(&pvt->lock);
+		} else {
+			ao2_ref(data, -1);
+			return res;
+		}
+	}
+
+	if (data->sched_id == -1 || pvt->invitestate >= INV_COMPLETED) {
+		goto provisional_keepalive_cleanup;
+	}
 
 	if (!pvt->last_provisional || !strncasecmp(pvt->last_provisional, "100", 3)) {
 		msg = "183 Session Progress";
 	}
 
-	if (pvt->invitestate < INV_COMPLETED) {
-		if (with_sdp) {
-			transmit_response_with_sdp(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq, XMIT_UNRELIABLE);
-		} else {
-			transmit_response(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq);
-		}
-		return PROVIS_KEEPALIVE_TIMEOUT;
+	if (with_sdp) {
+		transmit_response_with_sdp(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq, XMIT_UNRELIABLE);
+	} else {
+		transmit_response(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq);
 	}
 
-	return 0;
+	res = PROVIS_KEEPALIVE_TIMEOUT; /* reschedule the keepalive event */
+
+provisional_keepalive_cleanup:
+	if (!res) { /* not rescheduling, so drop ref */
+		data->sched_id = -1; /* if we don't re-schedule, make sure to remove the sched id */
+		ao2_ref(data, -1); /* release the scheduler's reference to this data */
+	}
+
+	if (pvt->owner) {
+		ast_channel_unlock(pvt->owner);
+	}
+	ast_mutex_unlock(&pvt->lock);
+
+	return res;
 }
 
-static int send_provisional_keepalive(const void *data) {
-	struct sip_pvt *pvt = (struct sip_pvt *) data;
+static int send_provisional_keepalive(const void *data)
+{
+	struct provisional_keepalive_data *d = (struct provisional_keepalive_data *) data;
 
-	return send_provisional_keepalive_full(pvt, 0);
+	return send_provisional_keepalive_full(d, 0);
 }
 
-static int send_provisional_keepalive_with_sdp(const void *data) {
-	struct sip_pvt *pvt = (void *)data;
+static int send_provisional_keepalive_with_sdp(const void *data)
+{
+	struct provisional_keepalive_data *d = (struct provisional_keepalive_data *) data;
 
-	return send_provisional_keepalive_full(pvt, 1);
+	return send_provisional_keepalive_full(d, 1);
+}
+
+static void *unref_provisional_keepalive(struct provisional_keepalive_data *data)
+{
+	if (data) {
+		data->sched_id = -1;
+		data->pvt = NULL;
+		ao2_ref(data, -1);
+	}
+	return NULL;
+}
+
+static void remove_provisional_keepalive_sched(struct sip_pvt *pvt)
+{
+	int res;
+	if (!pvt->provisional_keepalive_data) {
+		return;
+	}
+	res = AST_SCHED_DEL(sched, pvt->provisional_keepalive_data->sched_id);
+	/* If we could not remove this item. remove pvt's reference this data and mark it for removal
+	 * for the next time the scheduler uses it. The scheduler has it's own ref to this data
+	 * and will detect it should not reschedule the event since the sched_id is -1 and pvt == NULL */
+	if (res == -1) {
+		pvt->provisional_keepalive_data = unref_provisional_keepalive(pvt->provisional_keepalive_data);
+	}
 }
 
 static void update_provisional_keepalive(struct sip_pvt *pvt, int with_sdp)
 {
-	AST_SCHED_DEL(sched, pvt->provisional_keepalive_sched_id);
+	remove_provisional_keepalive_sched(pvt);
 
-	pvt->provisional_keepalive_sched_id = ast_sched_add(sched, PROVIS_KEEPALIVE_TIMEOUT,
-		with_sdp ? send_provisional_keepalive_with_sdp : send_provisional_keepalive, pvt);
+	if (!pvt->provisional_keepalive_data) {
+		if (!(pvt->provisional_keepalive_data = ao2_alloc(sizeof(*pvt->provisional_keepalive_data), NULL))) {
+			return; /* alloc error, can not recover */
+		}
+		pvt->provisional_keepalive_data->sched_id = -1;
+		pvt->provisional_keepalive_data->pvt = pvt;
+	}
+
+	/* give the scheduler a ref */
+	ao2_ref(pvt->provisional_keepalive_data, +1);
+
+	/* schedule the provisional keepalive */
+	pvt->provisional_keepalive_data->sched_id = ast_sched_add(sched,
+		PROVIS_KEEPALIVE_TIMEOUT,
+		with_sdp ? send_provisional_keepalive_with_sdp : send_provisional_keepalive,
+		pvt->provisional_keepalive_data);
+
+	/* if schedule was unsuccessful, remove the scheduler's ref */
+	if (pvt->provisional_keepalive_data->sched_id == -1) {
+		ao2_ref(pvt->provisional_keepalive_data, -1);
+	}
 }
 
 /*! \brief Transmit response on SIP request*/
@@ -2399,7 +2486,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 
 	/* If we are sending a final response to an INVITE, stop retransmitting provisional responses */
 	if (p->initreq.method == SIP_INVITE && reliable == XMIT_CRITICAL) {
-		AST_SCHED_DEL(sched, p->provisional_keepalive_sched_id);
+		remove_provisional_keepalive_sched(p);
 	}
 
 	res = (reliable) ?
@@ -3297,7 +3384,13 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner)
 	AST_SCHED_DEL(sched, p->waitid);
 	AST_SCHED_DEL(sched, p->autokillid);
 	AST_SCHED_DEL(sched, p->request_queue_sched_id);
-	AST_SCHED_DEL(sched, p->provisional_keepalive_sched_id);
+
+	remove_provisional_keepalive_sched(p);
+	if (p->provisional_keepalive_data) {
+		ast_mutex_lock(&p->lock);
+		p->provisional_keepalive_data = unref_provisional_keepalive(p->provisional_keepalive_data);
+		ast_mutex_unlock(&p->lock);
+	}
 
 	if (p->rtp) {
 		ast_rtp_destroy(p->rtp);
@@ -3783,7 +3876,7 @@ static int sip_hangup(struct ast_channel *ast)
 				}
 			} else {	/* Incoming call, not up */
 				const char *res;
-				AST_SCHED_DEL(sched, p->provisional_keepalive_sched_id);
+				remove_provisional_keepalive_sched(p);
 				if (p->hangupcause && (res = hangup_cause2sip(p->hangupcause)))
 					transmit_response_reliable(p, res, &p->initreq);
 				else 
@@ -4681,7 +4774,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->waitid = -1;
 	p->autokillid = -1;
 	p->request_queue_sched_id = -1;
-	p->provisional_keepalive_sched_id = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
 	p->prefs = default_prefs;		/* Set default codecs for this call */
