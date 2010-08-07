@@ -5225,7 +5225,6 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 
 		if (sub && sub->outgoing) {
 			/* We're answering a ringing call */
-			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 			transmit_activatecallplane(d, l);
 			transmit_stop_tone(d, l->instance, sub->callid);
@@ -5233,6 +5232,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
 			start_rtp(sub);
+			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 			ast_setstate(sub->owner, AST_STATE_UP);
 		} else {
 			if (sub && sub->owner) {
@@ -5327,13 +5327,13 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 
 	if (sub && sub->outgoing) {
 		/* We're answering a ringing call */
-		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 		transmit_activatecallplane(d, l);
 		transmit_stop_tone(d, l->instance, sub->callid);
 		transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
 		start_rtp(sub);
+		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 		ast_setstate(sub->owner, AST_STATE_UP);
 	} else {
 		if (sub && sub->owner) {
@@ -6050,13 +6050,13 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 		if (sub && sub->outgoing) {
 			/* We're answering a ringing call */
-			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 			transmit_activatecallplane(d, l);
 			transmit_stop_tone(d, l->instance, sub->callid);
 			transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
 			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
 			start_rtp(sub);
+			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 			ast_setstate(sub->owner, AST_STATE_UP);
 		}
 		break;
