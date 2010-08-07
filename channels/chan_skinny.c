@@ -1166,6 +1166,12 @@ static int gendigittimeout = 8000;
 /* How long to wait for an extra digit, if there is an ambiguous match */
 static int matchdigittimeout = 3000;
 
+#define SUBSTATE_OFFHOOK 1
+#define SUBSTATE_ONHOOK 2
+#define SUBSTATE_RINGOUT 3
+#define SUBSTATE_RINGIN 4
+#define SUBSTATE_CONNECTED 5
+
 struct skinny_subchannel {
 	ast_mutex_t lock;
 	struct ast_channel *owner;
@@ -1183,6 +1189,7 @@ struct skinny_subchannel {
 	int alreadygone;
 	int blindxfer;
 	int xferor;
+	int substate;
 
 
 	AST_LIST_ENTRY(skinny_subchannel) list;
@@ -4665,6 +4672,23 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 	return tmp;
 }
 
+static void setsubstate_connected(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+
+	transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
+	transmit_activatecallplane(d, l);
+	transmit_stop_tone(d, l->instance, sub->callid);
+	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
+	transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
+	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
+	start_rtp(sub);
+	sub->substate = SUBSTATE_CONNECTED;
+	ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
+	ast_setstate(sub->owner, AST_STATE_UP);
+}
+
 static int skinny_hold(struct skinny_subchannel *sub)
 {
 	struct skinny_line *l = sub->parent;
@@ -5225,15 +5249,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 
 		if (sub && sub->outgoing) {
 			/* We're answering a ringing call */
-			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-			transmit_activatecallplane(d, l);
-			transmit_stop_tone(d, l->instance, sub->callid);
-			transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
-			transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
-			start_rtp(sub);
-			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
-			ast_setstate(sub->owner, AST_STATE_UP);
+			setsubstate_connected(sub);
 		} else {
 			if (sub && sub->owner) {
 				ast_debug(1, "Current subchannel [%s] already has owner\n", sub->owner->name);
@@ -5327,14 +5343,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 
 	if (sub && sub->outgoing) {
 		/* We're answering a ringing call */
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-		transmit_activatecallplane(d, l);
-		transmit_stop_tone(d, l->instance, sub->callid);
-		transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
-		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
-		start_rtp(sub);
-		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
-		ast_setstate(sub->owner, AST_STATE_UP);
+		setsubstate_connected(sub);
 	} else {
 		if (sub && sub->owner) {
 			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
@@ -6050,14 +6059,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 		if (sub && sub->outgoing) {
 			/* We're answering a ringing call */
-			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-			transmit_activatecallplane(d, l);
-			transmit_stop_tone(d, l->instance, sub->callid);
-			transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
-			start_rtp(sub);
-			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
-			ast_setstate(sub->owner, AST_STATE_UP);
+			setsubstate_connected(sub);
 		}
 		break;
 	case SOFTKEY_INFO:
