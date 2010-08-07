@@ -4075,12 +4075,15 @@ static int skinny_hangup(struct ast_channel *ast)
 						l->activesub = AST_LIST_FIRST(&l->sub);
 					}
 				}
-				//transmit_callstate(d, l->instance, SKINNY_ONHOOK, sub->callid);
-				transmit_activatecallplane(d, l);
+				if (l->activesub) {
+					transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOLD);
+				}
 				transmit_closereceivechannel(d, sub);
 				transmit_stopmediatransmission(d, sub);
 				transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 				transmit_stop_tone(d, l->instance, sub->callid);
+				transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
+				transmit_activatecallplane(d, l);
 			} else {    /* we are killing a background sub on the line with other subs*/
 				ast_verb(4,"Killing inactive sub %d\n", sub->callid);
 				if (AST_LIST_NEXT(sub, list)) {
@@ -4088,6 +4091,8 @@ static int skinny_hangup(struct ast_channel *ast)
 				} else {
 					transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
 				}
+				transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
+				transmit_activatecallplane(d, l);
 			}
 		} else {                                                /* no more subs on line so make idle */
 			ast_verb(4,"Killing only sub %d\n", sub->callid);
@@ -4790,7 +4795,7 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 			sub->related = newsub;
 			newsub->xferor = 1;
 			l->activesub = newsub;
-			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
+			transmit_callstate(d, l->instance, newsub->callid, SKINNY_OFFHOOK);
 			transmit_activatecallplane(d, l);
 			transmit_clear_display_message(d, l->instance, newsub->callid);
 			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, newsub->callid);
