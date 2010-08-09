@@ -144,6 +144,8 @@ allowoverlap=no                 ; Disable overlap dialing support. (Default is y
 ;  d) Listen on the IPv4 and IPv6 wildcards.  Example: bindaddr=::
 ; (You can choose independently for UDP, TCP, and TLS, by specifying different values for
 ; "udpbindaddr", "tcpbindaddr", and "tlsbindaddr".)
+; (Note that using bindaddr=:: will show only a single IPv6 socket in netstat.
+;  IPv4 is supported at the same time using IPv4-mapped IPv6 addresses.)
 ;
 ; You may optionally add a port number. (The default is port 5060 for UDP and TCP, 5061
 ; for TLS).
