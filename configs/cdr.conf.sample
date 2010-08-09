@@ -32,7 +32,7 @@
 ; Normally, CDR's are not closed out until after all extensions are finished
 ; executing.  By enabling this option, the CDR will be ended before executing
 ; the "h" extension so that CDR values such as "end" and "billsec" may be
-; retrieved inside of of this extension.
+; retrieved inside of of this extension.  The default value is "no".
 ;endbeforehexten=no
 
 ; Normally, the 'billsec' field logged to the backends (text files or databases)
@@ -42,6 +42,7 @@
 ; that were initiated (a sort of round up method). Technically, this is
 ; when the microsecond part of the end time is greater than the microsecond
 ; part of the answer time, then the billsec time is incremented one second.
+; The default value is "no".
 ;initiatedseconds=no
 
 ; Define the CDR batch mode, where instead of posting the CDR at the end of
