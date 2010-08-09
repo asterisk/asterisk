@@ -12655,7 +12655,6 @@ static int expire_register(const void *data)
 
 	peer->expire = -1;
 	peer->portinuri = 0;
-	memset(&peer->addr, 0, sizeof(peer->addr));
 
 	destroy_association(peer);	/* remove registration data from storage */
 	set_socket_transport(&peer->socket, peer->default_outbound_transport);
@@ -12683,6 +12682,10 @@ static int expire_register(const void *data)
 			ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 		}
 	}
+
+	/* Only clear the addr after we check for destruction.  The addr must remain
+	 * in order to unlink from the peers_by_ip container correctly */
+	memset(&peer->addr, 0, sizeof(peer->addr));
 
 	unref_peer(peer, "removing peer ref for expire_register");
 
