@@ -497,6 +497,45 @@ static int ast_fax_modem_to_str(enum ast_fax_modems bits, char *tbuf, size_t buf
 	return 0;
 }
 
+static int check_modem_rate(enum ast_fax_modems modems, unsigned int rate)
+{
+	switch (rate) {
+	case 2400:
+		if (!(modems & (AST_FAX_MODEM_V27 | AST_FAX_MODEM_V34))) {
+			return 1;
+		}
+		break;
+	case 4800:
+		if (!(modems & (AST_FAX_MODEM_V27 | AST_FAX_MODEM_V34))) {
+			return 1;
+		}
+		break;
+	case 7200:
+	case 9600:
+		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
+			return 1;
+		}
+		break;
+	case 12000:
+	case 14400:
+		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V34))) {
+			return 1;
+		}
+		break;
+	case 28800:
+	case 33600:
+		if (!(modems & AST_FAX_MODEM_V34)) {
+			return 1;
+		}
+		break;
+	default:
+		/* this should never happen */
+		return 1;
+	}
+
+	return 0;
+}
+
 /*! \brief register a FAX technology module */
 int ast_fax_tech_register(struct ast_fax_tech *tech)
 {
@@ -1360,7 +1399,7 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 /*! \brief initiate a receive FAX session */
 static int receivefax_exec(struct ast_channel *chan, const char *data)
 {
-	char *parse;
+	char *parse, modems[128] = "";
 	int channel_alive;
 	struct ast_fax_session_details *details;
 	struct ast_fax_document *doc;
@@ -1390,8 +1429,36 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	ast_string_field_set(details, result, "FAILED");
 	ast_string_field_set(details, resultstr, "error starting fax session");
 	ast_string_field_set(details, error, "INIT_ERROR");
-
 	set_channel_variables(chan, details);
+
+	if (details->maxrate < details->minrate) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
+		set_channel_variables(chan, details);
+		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
+		ao2_ref(details, -1);
+		return -1;
+	}
+
+	if (check_modem_rate(details->modems, details->minrate)) {
+		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, details->minrate);
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
+		set_channel_variables(chan, details);
+		ao2_ref(details, -1);
+		return -1;
+	}
+
+	if (check_modem_rate(details->modems, details->maxrate)) {
+		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, details->maxrate);
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
+		set_channel_variables(chan, details);
+		ao2_ref(details, -1);
+		return -1;
+	}
 
 	if (ast_strlen_zero(data)) {
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
@@ -1769,7 +1836,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 /*! \brief initiate a send FAX session */
 static int sendfax_exec(struct ast_channel *chan, const char *data)
 {
-	char *parse, *filenames, *c;
+	char *parse, *filenames, *c, modems[128] = "";
 	int channel_alive, file_count;
 	struct ast_fax_session_details *details;
 	struct ast_fax_document *doc;
@@ -1800,6 +1867,35 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	ast_string_field_set(details, resultstr, "error starting fax session");
 	ast_string_field_set(details, error, "INIT_ERROR");
 	set_channel_variables(chan, details);
+
+	if (details->maxrate < details->minrate) {
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
+		set_channel_variables(chan, details);
+		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
+		ao2_ref(details, -1);
+		return -1;
+	}
+
+	if (check_modem_rate(details->modems, details->minrate)) {
+		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, details->minrate);
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
+		set_channel_variables(chan, details);
+		ao2_ref(details, -1);
+		return -1;
+	}
+
+	if (check_modem_rate(details->modems, details->maxrate)) {
+		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, details->maxrate);
+		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
+		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
+		set_channel_variables(chan, details);
+		ao2_ref(details, -1);
+		return -1;
+	}
 
 	if (ast_strlen_zero(data)) {
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
@@ -2296,6 +2392,7 @@ static int set_config(const char *config_file)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { 0 };
+	char modems[128] = "";
 
 	/* set defaults */	
 	general_options.minrate = RES_FAX_MINRATE;
@@ -2345,6 +2442,23 @@ static int set_config(const char *config_file)
 	}
 
 	ast_config_destroy(cfg);
+
+	if (general_options.maxrate < general_options.minrate) {
+		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", general_options.maxrate, general_options.minrate);
+		return -1;
+	}
+
+	if (check_modem_rate(general_options.modems, general_options.minrate)) {
+		ast_fax_modem_to_str(general_options.modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, general_options.minrate);
+		return -1;
+	}
+
+	if (check_modem_rate(general_options.modems, general_options.maxrate)) {
+		ast_fax_modem_to_str(general_options.modems, modems, sizeof(modems));
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, general_options.maxrate);
+		return -1;
+	}
 
 	return 0;
 }
