@@ -409,6 +409,23 @@ static void check_bridge(struct local_pvt *p)
 							p->chan->audiohooks = p->owner->audiohooks;
 							p->owner->audiohooks = audiohooks_swapper;
 						}
+
+						/* If any Caller ID was set, preserve it after masquerade like above. We must check
+						 * to see if Caller ID was set because otherwise we'll mistakingly copy info not
+						 * set from the dialplan and will overwrite the real channel Caller ID. The reason
+						 * for this whole preswapping action is because the Caller ID is set on the channel
+						 * thread (which is the to be masqueraded away local channel) before both local
+						 * channels are optimized away.
+						 */
+						if (p->owner->caller.id.name.valid || p->owner->caller.id.number.valid ||
+							p->owner->caller.id.subaddress.valid) {
+
+							struct ast_party_caller tmp;
+							tmp = p->owner->caller;
+							p->owner->caller = p->chan->_bridge->caller;
+							p->chan->_bridge->caller = tmp;
+						}
+
 						ast_app_group_update(p->chan, p->owner);
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
