@@ -417,14 +417,29 @@ static void check_bridge(struct local_pvt *p)
 						 * thread (which is the to be masqueraded away local channel) before both local
 						 * channels are optimized away.
 						 */
-						if (p->owner->caller.id.name.valid || p->owner->caller.id.number.valid ||
-							p->owner->caller.id.subaddress.valid) {
-
+						if (p->owner->caller.id.name.valid || p->owner->caller.id.number.valid
+							|| p->owner->caller.id.subaddress.valid || p->owner->caller.ani.name.valid
+							|| p->owner->caller.ani.number.valid || p->owner->caller.ani.subaddress.valid) {
 							struct ast_party_caller tmp;
 							tmp = p->owner->caller;
 							p->owner->caller = p->chan->_bridge->caller;
 							p->chan->_bridge->caller = tmp;
 						}
+						if (p->owner->redirecting.from.name.valid || p->owner->redirecting.from.number.valid
+							|| p->owner->redirecting.from.subaddress.valid || p->owner->redirecting.to.name.valid
+							|| p->owner->redirecting.to.number.valid || p->owner->redirecting.to.subaddress.valid) {
+							struct ast_party_redirecting tmp;
+							tmp = p->owner->redirecting;
+							p->owner->redirecting = p->chan->_bridge->redirecting;
+							p->chan->_bridge->redirecting = tmp;
+						}
+						if (p->owner->dialed.number.str || p->owner->dialed.subaddress.valid) {
+							struct ast_party_dialed tmp;
+							tmp = p->owner->dialed;
+							p->owner->dialed = p->chan->_bridge->dialed;
+							p->chan->_bridge->dialed = tmp;
+						}
+
 
 						ast_app_group_update(p->chan, p->owner);
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
