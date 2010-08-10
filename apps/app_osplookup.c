@@ -1493,6 +1493,7 @@ static int osp_lookup(
 	char callingnum[OSP_SIZE_NORSTR];
 	char callednum[OSP_SIZE_NORSTR];
 	char destination[OSP_SIZE_NORSTR];
+	char* tmp;
 	unsigned int tokenlen;
 	char token[OSP_SIZE_TOKSTR];
 	char src[OSP_SIZE_NORSTR];
@@ -1565,6 +1566,11 @@ static int osp_lookup(
 		}
 	}
 
+	ast_copy_string(callednum, called, sizeof(callednum));
+	if((tmp = strchr(callednum, ';')) != NULL) {
+		*tmp = '\0';
+	}
+
 	callidnum = 0;
 	callids[0] = NULL;
 	for (i = 0; i < OSP_CALLID_MAXNUM; i++) {
@@ -1605,7 +1611,7 @@ static int osp_lookup(
 		dev,
 		calling ? calling : "",
 		OSPC_NFORMAT_E164,
-		called,
+		callednum,
 		OSPC_NFORMAT_E164,
 		NULL,
 		callidnum,
