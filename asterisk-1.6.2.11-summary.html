@@ -1,0 +1,509 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.6.2.11</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.6.2.11</h3>
+<h3 align="center">Date: 2010-08-10</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.6.2.10.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+21 russell<br/>
+16 tilghman<br/>
+8 mnicholson<br/>
+6 jpeeler<br/>
+4 lmadsen<br/>
+4 pabelanger<br/>
+3 rmudgett<br/>
+2 kenner<br/>
+2 mmichelson<br/>
+1 corruptor<br/>
+1 Delvar<br/>
+1 festr<br/>
+1 frawd<br/>
+1 Guggemand<br/>
+1 Ivan<br/>
+1 jazzy<br/>
+1 jeang<br/>
+1 kobaz<br/>
+1 kpfleming<br/>
+1 moy<br/>
+1 qwell<br/>
+1 rrb3942<br/>
+1 tringenbach<br/>
+1 twilson<br/>
+1 tzafrir<br/>
+1 viniciusfontes<br/>
+1 wdoekes<br/>
+</td>
+<td>
+4 lmadsen<br/>
+3 russell<br/>
+1 agx<br/>
+1 francesco_r<br/>
+1 frawd<br/>
+1 Guggemand<br/>
+1 jamicque<br/>
+1 JJCinAZ<br/>
+1 kenji<br/>
+1 kenner<br/>
+1 kobaz<br/>
+1 lawbar<br/>
+1 maxochoa<br/>
+1 mnicholson<br/>
+1 moy<br/>
+1 pabelanger<br/>
+1 ramonpeek<br/>
+1 richardf<br/>
+1 rmudgett<br/>
+1 rrb3942<br/>
+1 tilghman<br/>
+1 wdoekes<br/>
+</td>
+<td>
+2 kenner<br/>
+1 aleksey2000<br/>
+1 bklang<br/>
+1 corruptor<br/>
+1 dcabot<br/>
+1 Delvar<br/>
+1 Eddie Edwards<br/>
+1 erikje<br/>
+1 falves11<br/>
+1 festr<br/>
+1 flop<br/>
+1 francesco_r<br/>
+1 gkservice<br/>
+1 glwgoes<br/>
+1 Guggemand<br/>
+1 Hubguru<br/>
+1 ip-rob<br/>
+1 Ivan<br/>
+1 jamicque<br/>
+1 jazzy<br/>
+1 jkroon<br/>
+1 juls<br/>
+1 keiron<br/>
+1 kenji<br/>
+1 kobaz<br/>
+1 kowalma<br/>
+1 lmadsen<br/>
+1 mdeneen<br/>
+1 modelnine<br/>
+1 moy<br/>
+1 mtryfoss<br/>
+1 Nick_Lewis<br/>
+1 nik600<br/>
+1 noahisaac<br/>
+1 pabelanger<br/>
+1 pdf<br/>
+1 pprindeville<br/>
+1 ramonpeek<br/>
+1 rrb3942<br/>
+1 russell<br/>
+1 tech_admin<br/>
+1 Vince<br/>
+1 vrban<br/>
+1 wdoekes<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Addons/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17502">#17502</a>: [patch] [regression] MusicOnHold don't play if MeetMe Room is stored in mysql db (realtime)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278464">278464</a><br/>
+Reporter: kenji<br/>
+Testers: kenji<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Applications/app_amd</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17656">#17656</a>: app_amd total analysis time error with SIP and silence suppression on<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277188">277188</a><br/>
+Reporter: juls<br/>
+Coders: pabelanger<br/>
+<br/>
+<h3>Category: Applications/app_meetme</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=15704">#15704</a>: [patch] MeetMe privilege escalation in password query<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273529">273529</a><br/>
+Reporter: modelnine<br/>
+Coders: jpeeler<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=15871">#15871</a>: [patch] Channels that was placed in "meetme" in dialing state do not leave application in CONGESTION case<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273356">273356</a><br/>
+Reporter: Ivan<br/>
+Coders: Ivan<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17390">#17390</a>: [patch] Race conditition in app_meetme leads to crash<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=276121">276121</a><br/>
+Reporter: Vince<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: Applications/app_playback</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16102">#16102</a>: [patch] default say.conf for new number method doesnt handle all numbers<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=274419">274419</a><br/>
+Reporter: Delvar<br/>
+Coders: Delvar<br/>
+<br/>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17471">#17471</a>: [patch] "joinempty = ringing" doesn't work<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277377">277377</a><br/>
+Reporter: jazzy<br/>
+Coders: jazzy<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17498">#17498</a>: [patch] Bug in reporting queue hold time<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277489">277489</a><br/>
+Reporter: corruptor<br/>
+Coders: corruptor<br/>
+<br/>
+<h3>Category: Applications/app_voicemail/IMAP</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16350">#16350</a>: [patch] Deleting Multiple IMAP voicemails does not work reliably<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278276">278276</a><br/>
+Reporter: noahisaac<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: CDR/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17592">#17592</a>: [patch] [regression] No CDR after originate from manager<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275029">275029</a><br/>
+Reporter: jamicque<br/>
+Testers: jamicque, mnicholson<br/>
+Coders: mnicholson<br/>
+<br/>
+<h3>Category: CDR/cdr_pgsql</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17478">#17478</a>: [patch] cdr_pgsql does not detect when a table is not found<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275627">275627</a><br/>
+Reporter: kobaz<br/>
+Testers: kobaz, russell, lmadsen<br/>
+Coders: kobaz<br/>
+<br/>
+<h3>Category: Channels/chan_dahdi</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=14577">#14577</a>: [patch] FXO channels "hookstate" incorrect on startup<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278524">278524</a><br/>
+Reporter: jkroon<br/>
+Testers: frawd<br/>
+Coders: frawd<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17441">#17441</a>: [patch] priexclusive in chan_dahdi.conf ignored when reloading dahdi module<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277485">277485</a><br/>
+Reporter: mtryfoss<br/>
+Testers: rmudgett<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=15731">#15731</a>: Remote crash on Asterisk 1.6.1.4<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: flop<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17372">#17372</a>: [patch] [regression] Progress in band error (don't send RTP packets)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275706">275706</a><br/>
+Reporter: tech_admin<br/>
+Coders: jpeeler<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17513">#17513</a>: [patch] prematuremedia and progress inband<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=274347">274347</a><br/>
+Reporter: festr<br/>
+Coders: festr<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17582">#17582</a>: [patch] Message on stale nonce give 'to' instead of 'from'<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275260">275260</a><br/>
+Reporter: kenner<br/>
+Testers: lmadsen<br/>
+Coders: kenner<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Subscriptions</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17398">#17398</a>: MWI NOTIFY is not being sent to phones subscribed to events<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=276572">276572</a><br/>
+Reporter: ip-rob<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: Channels/chan_sip/TCP-TLS</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=14920">#14920</a>: Segmentation fault after almost exactly ~ 500 finished SIP over TCP calls.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: vrban<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: Codecs/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17092">#17092</a>: [patch] Segmentation fault when using two codec modules that register the same src and dst format<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277144">277144</a><br/>
+Reporter: moy<br/>
+Testers: moy<br/>
+Coders: moy<br/>
+<br/>
+<h3>Category: Core/BuildSystem</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17616">#17616</a>: [patch] Configure sets ac_cv_fork_works=no incorrectly for uclibc<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277776">277776</a><br/>
+Reporter: pprindeville<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Core/Configuration</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17583">#17583</a>: [patch] remove extra line breaks from 'core show config mappings'<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273888">273888</a><br/>
+Reporter: pabelanger<br/>
+Testers: lmadsen<br/>
+Coders: pabelanger<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=12917">#12917</a>: It crashses every 4 minutes<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: falves11<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=16494">#16494</a>: 1.6.1.12-rc1 crash around 100 SIP call setup with media<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: Hubguru<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17049">#17049</a>: [patch] CLI commands via asterisk -rx may not return all output<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=272972">272972</a><br/>
+Reporter: russell<br/>
+Testers: russell<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17199">#17199</a>: Core dumped<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: aleksey2000<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17325">#17325</a>: Asterisk 1.6.2.6 randomly crashes<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: glwgoes<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17407">#17407</a>: [patch] DEADLOCK_AVOIDANCE can actually generate dealocks<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273831">273831</a><br/>
+Reporter: pdf<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17438">#17438</a>: Asterisk cores @ 110 calls<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: dcabot<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16506">#16506</a>: [patch] Segmentation fault using manager http MXML<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278025">278025</a><br/>
+Reporter: nik600<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17504">#17504</a>: [patch] ShowDialPlan does not end with ShowDialPlanComplete Event if manager events are off<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273056">273056</a><br/>
+Reporter: rrb3942<br/>
+Testers: rrb3942<br/>
+Coders: rrb3942<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17550">#17550</a>: [patch] Wrong check for privilege in Originate action<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273145">273145</a><br/>
+Reporter: kenner<br/>
+Testers: kenner<br/>
+Coders: kenner<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17636">#17636</a>: Manager GetVar on unset variable causes segfault<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277264">277264</a><br/>
+Reporter: bklang<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Core/PBX</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16035">#16035</a>: [patch] Status of dahdi/zap channels incorrectly reported unavailable instead of idle<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277338">277338</a><br/>
+Reporter: francesco_r<br/>
+Testers: francesco_r, agx, lawbar<br/>
+Coders: viniciusfontes<br/>
+<br/>
+<h3>Category: Core/RTP</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17469">#17469</a>: [patch] rt(c)p set debug ip takes wrong argument<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273234">273234</a><br/>
+Reporter: wdoekes<br/>
+Testers: wdoekes, pabelanger<br/>
+Coders: wdoekes<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17571">#17571</a>: [patch] [regression] RFC 2833 frame out of order detection does not properly handle numeric overflow<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=274168">274168</a><br/>
+Reporter: mdeneen<br/>
+Testers: richardf, maxochoa, JJCinAZ<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Features</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17589">#17589</a>: [patch] applicationmap groups do not work (either lack of documentation, or feature incomplete)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275425">275425</a><br/>
+Reporter: lmadsen<br/>
+Testers: russell, lmadsen<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: Functions/func_realtime</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16029">#16029</a>: [patch] sip peers loaded with realtime doesnt load useragent<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273087">273087</a><br/>
+Reporter: Guggemand<br/>
+Testers: Guggemand<br/>
+Coders: Guggemand<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17369">#17369</a>: [patch] realtime shows 2x fullcontact if delimited by ';'<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277774">277774</a><br/>
+Reporter: gkservice<br/>
+Testers: tilghman<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Resources/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17564">#17564</a>: [patch] Asterisk "locks up" the system when an external process is called from the 'h' extension with a lower priority than Aste<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273719">273719</a><br/>
+Reporter: ramonpeek<br/>
+Testers: ramonpeek<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Resources/res_realtime</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17560">#17560</a>: Parsing error in extconfig.conf results in seg fault<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273143">273143</a><br/>
+Reporter: Nick_Lewis<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Resources/res_timing_pthread</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=15406">#15406</a>: Asterisk crashes at approx 70-80 calls per second<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: kowalma<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=15915">#15915</a>: crash when calling ao2_unlock inside pthread_timer_disable_continuous<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: keiron<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17118">#17118</a>: Random crashes<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: erikje<br/>
+Coders: russell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17187">#17187</a>: crash when calling ao2_unlock inside pthread_timer_disable_continuous - NOT FIXED PLEASE RE-OPEN<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278479">278479</a><br/>
+Reporter: Eddie Edwards<br/>
+Coders: russell<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273059">273059</a></td><td>tilghman</td><td>_Really_ skip the channel... don't just retry for another 200 cycles.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273193">273193</a></td><td>pabelanger</td><td>Unblock revisions 218107</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273194">273194</a></td><td>pabelanger</td><td>Revert previous commit; res_rtp_asterisk.c does not exist.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273271">273271</a></td><td>mnicholson</td><td>Set TCP_NODELAY on manager TCP sockets to prevent delays on outgoing packets.  This regression was introduced in r48338.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273351">273351</a></td><td>mnicholson</td><td>Altered my comment about TCP_NODELAY</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273353">273353</a></td><td>mnicholson</td><td>Fixed whitespace problems</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273571">273571</a></td><td>russell</td><td>Don't return a partially initialized datastore.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273642">273642</a></td><td>tzafrir</td><td>Fix typos reported by Lintian</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=273716">273716</a></td><td>tilghman</td><td>The switch fallthrough could create some errorneous situations, so best to force directly to the default case.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=274282">274282</a></td><td>tilghman</td><td>Status shows all non-CRC4 lines as "yellow", even if "yellow" was not in the bitfield.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=274360">274360</a></td><td>twilson</td><td>Add option to not do a call forward on 482 Loop Detected</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=274627">274627</a></td><td>rmudgett</td><td>Close the DAHDI FD on error when processing chan_dahdi toneduration config parameter.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=274640">274640</a></td><td>rmudgett</td><td>Add missing conditional around chan_dahdi mfcr2_skip_category config parameter.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275023">275023</a></td><td>russell</td><td>Document that a leading and trailing slash is expected for test categories.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275145">275145</a></td><td>mnicholson</td><td>don't unload modules that returned AST_MODULE_LOAD_DECLINE when they were loaded</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275148">275148</a></td><td>russell</td><td>Move parking lot sample config out from the middle of dynamic features sample config.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275191">275191</a></td><td>mnicholson</td><td>give a better error message when attempting to unload a module that is not loaded</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275311">275311</a></td><td>russell</td><td>Add missing ao2_iterator_destroy().</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275468">275468</a></td><td>russell</td><td>unblock a rev</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275469">275469</a></td><td>russell</td><td>Remove useless sip options related to hash table size.</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17553">#17553</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275911">275911</a></td><td>tilghman</td><td>Move SQL scripts into their own database-specific directories.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=275996">275996</a></td><td>russell</td><td>Access peer->cdr directly instead of through a saved off reference.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=276125">276125</a></td><td>russell</td><td>Use chan->cdr instead of chan_cdr (just like peer->cdr instead of peer_cdr in the last commit).</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=276269">276269</a></td><td>lmadsen</td><td>Update documentation for voicemail.conf externpass option.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=276442">276442</a></td><td>kpfleming</td><td>Don't try to call an embedded module's backup_globals() function until</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=276654">276654</a></td><td>jpeeler</td><td>In a perfect world, the frame source would never be NULL. In the meantime, don't crash when it is.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=276809">276809</a></td><td>jpeeler</td><td>Correct not setting the bindport before attempting to open the socket.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277256">277256</a></td><td>mnicholson</td><td>For pass through DTMF tones, measure the actual duration between the begin and end packets on the wire.  If it is detected to be less than AST_MIN_DTMF_DURATION, trigger dtmf emulation.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277478">277478</a></td><td>tilghman</td><td>Add documentation for MOH realtime fields</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277563">277563</a></td><td>mnicholson</td><td>Default to no udptl error correction so that error correction will be disabled in the event that the remote end indicates that they do not support the error correction mode we requested.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277666">277666</a></td><td>tringenbach</td><td>Save and restore AST_FLAG_BRIDGE_HANGUP_DONT on attended transfer.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277777">277777</a></td><td>tilghman</td><td>Merge issues...</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=277966">277966</a></td><td>jeang</td><td>Avoid trying to pickup a parked extension before the park operation is completed.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278273">278273</a></td><td>tilghman</td><td>Do not queue up DTMF frames while a call is on hold.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=278621">278621</a></td><td>mmichelson</td><td>Allow PLC to function properly when channels use SLIN for audio.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=279565">279565</a></td><td>lmadsen</td><td>Create Asterisk 1.6.2.11-rc2 from 1.6.2.11-rc1.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=279686">279686</a></td><td>qwell</td><td>Merge equiv of revision 279657 to solve sounds/Makefile issue</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=279690">279690</a></td><td>lmadsen</td><td>Update .version and ChangeLog.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.6.2?view=revision&revision=279691">279691</a></td><td>lmadsen</td><td>Importing release summary for 1.6.2.11-rc2 release.</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.version                                 |    2
+ChangeLog                                |   14 +
+apps/app_amd.c                           |    7
+apps/app_dial.c                          |    5
+apps/app_meetme.c                        |  377 +++++++++++++++++++++----------
+apps/app_queue.c                         |   12
+apps/app_voicemail.c                     |   92 ++++---
+asterisk-1.6.2.11-rc2-summary.html       |   60 ++++
+asterisk-1.6.2.11-rc2-summary.txt        |   93 +++++++
+autoconf/ast_func_fork.m4                |    2
+cdr/cdr_pgsql.c                          |    7
+channels/chan_agent.c                    |    7
+channels/chan_dahdi.c                    |   46 ++-
+channels/chan_h323.c                     |    2
+channels/chan_iax2.c                     |    2
+channels/chan_local.c                    |    6
+channels/chan_sip.c                      |  253 +++++++++-----------
+configs/features.conf.sample             |   34 +-
+configs/say.conf.sample                  |    9
+configs/sip.conf.sample                  |   31 --
+configs/voicemail.conf.sample            |    3
+contrib/realtime/mysql/iaxfriends.sql    |   57 ++++
+contrib/realtime/mysql/meetme.sql        |   12
+contrib/realtime/mysql/musiconhold.sql   |   19 +
+contrib/realtime/mysql/sipfriends.sql    |   55 ++++
+contrib/realtime/mysql/voicemail.sql     |   64 +++++
+contrib/realtime/postgresql/realtime.sql |  143 +++++++++++
+contrib/scripts/iax-friends.sql          |   57 ----
+contrib/scripts/meetme.sql               |   30 --
+contrib/scripts/realtime_pgsql.sql       |  146 ------------
+contrib/scripts/sip-friends.sql          |   56 ----
+contrib/scripts/vmdb.sql                 |   66 -----
+include/asterisk/autoconfig.h.in         |   51 ++--
+include/asterisk/channel.h               |   12
+include/asterisk/lock.h                  |   55 +++-
+include/asterisk/test.h                  |    7
+main/asterisk.c                          |    4
+main/autoservice.c                       |   27 ++
+main/channel.c                           |   29 +-
+main/config.c                            |    8
+main/datastore.c                         |    5
+main/features.c                          |  111 +++++++--
+main/loader.c                            |    8
+main/manager.c                           |   33 +-
+main/pbx.c                               |    5
+main/rtp.c                               |   21 +
+main/test.c                              |    5
+main/translate.c                         |    1
+res/res_agi.c                            |    4
+res/res_config_odbc.c                    |  110 +++++++--
+res/res_config_pgsql.c                   |   41 ++-
+res/res_musiconhold.c                    |    3
+res/res_timing_pthread.c                 |   13 -
+sounds/Makefile                          |   66 ++---
+54 files changed, 1511 insertions(+), 877 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
