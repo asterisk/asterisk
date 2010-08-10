@@ -356,6 +356,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; instead of letting the requester know whether there was
                                 ; a matching user or peer for their request.  This reduces
                                 ; the ability of an attacker to scan for valid SIP usernames.
+                                ; This option is set to "yes" by default.
 
 ;g726nonstandard = yes          ; If the peer negotiates G726-32 audio, use AAL2 packing
                                 ; order instead of RFC3551 packing order (this is required
