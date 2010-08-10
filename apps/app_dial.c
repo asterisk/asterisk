@@ -2247,8 +2247,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				sentringing = 0;
 				ast_indicate(chan, -1);
 			}
-			/* Be sure no generators are left on it */
+			/* Be sure no generators are left on it and reset the visible indication */
 			ast_deactivate_generator(chan);
+			chan->visible_indication = 0;
 			/* Make sure channels are compatible */
 			res = ast_channel_make_compatible(chan, peer);
 			if (res < 0) {
