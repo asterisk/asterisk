@@ -1485,7 +1485,13 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 		return NULL;
 	}
 
-	if (!(iter = ast_channel_iterator_by_name_new(word, strlen(word)))) {
+	if (ast_strlen_zero(word)) {
+		iter = ast_channel_iterator_all_new();
+	} else {
+		iter = ast_channel_iterator_by_name_new(word, strlen(word));
+	}
+
+	if (!iter) {
 		return NULL;
 	}
 
