@@ -1,0 +1,461 @@
+                                Release Summary
+
+                              asterisk-1.8.0-beta3
+
+                                Date: 2010-08-10
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.0-beta2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   12 russell               2 svinson                4 oej                    
+   8 tilghman               2 tgruenberg             2 kkm                    
+   6 pabelanger             1 bobwienholt            2 manvirr                
+   5 mnicholson             1 DennisD                2 pabelanger             
+   3 dvossel                1 dvossel                1 b11d                   
+   3 jpeeler                1 ebroad                 1 bjm                    
+   3 kkm                    1 gareth                 1 bobwienholt            
+   3 qwell                  1 Ian_Mason              1 ebroad                 
+   2 mmichelson             1 iasgoscouk             1 gareth                 
+   2 sperreault             1 manvirr                1 Ian Mason              
+   2 tzafrir                1 marcelloceschia        1 iasgoscouk             
+   1 bobwienholt            1 mmichelson             1 klaus3000              
+   1 gareth                 1 pabelanger             1 kobaz                  
+   1 jeang                  1 schmidts               1 marcelloceschia        
+   1 klaus3000              1 seanbright             1 mmichelson             
+   1 lmadsen                1 st                     1 svinson                
+   1 malcolmd               1 tilghman               1 tgruenberg             
+   1 marcelloceschia        1 zerohalo               1 tzafrir                
+   1 rmudgett                                        1 zerohalo               
+   1 seanbright             
+   1 simon.perreault        
+   1 st                     
+   1 transnexus             
+   1 twilson                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_chanspy
+
+   #17630: [patch] Chanspy Keeps using G729 Encoder licenses even after the
+   spying channel hangs up.
+   Revision: 279949
+   Reporter: manvirr
+   Coders: dvossel
+
+   #17630: [patch] Chanspy Keeps using G729 Encoder licenses even after the
+   spying channel hangs up.
+   Revision: 280450
+   Reporter: manvirr
+   Testers: manvirr, dvossel
+   Coders: dvossel
+
+  Category: Applications/app_dial
+
+   #17641: [patch] reset visible_indication after call answering
+   Revision: 281568
+   Reporter: klaus3000
+   Testers: schmidts
+   Coders: klaus3000
+
+  Category: Applications/app_queue
+
+   #17738: [patch] reference leak when adding dynamic queue members
+   Revision: 280161
+   Reporter: bobwienholt
+   Testers: bobwienholt, seanbright
+   Coders: bobwienholt
+
+  Category: Channels/General
+
+   #17732: [patch] chan_usbradio.c fails to build with --enable-dev-mode
+   Revision: 280023
+   Reporter: pabelanger
+   Coders: pabelanger
+
+   #17751: [patch] Error in sig_pri.c issues compiler warning and causes
+   chan_dahdi to be unloadable - 1.8.0-beta2
+   Revision: 280519
+   Reporter: b11d
+   Coders: malcolmd
+
+  Category: Channels/chan_dahdi
+
+   #17693: [patch] [regression]context value from chan_dahdi.conf not used.
+   Revision: 279755
+   Reporter: iasgoscouk
+   Testers: iasgoscouk
+   Coders: pabelanger
+
+  Category: Channels/chan_iax2
+
+   #17138: [patch] CallerID not properly set when using Originate and AGI
+   Revision: 281429
+   Reporter: kobaz
+   Coders: jpeeler
+
+  Category: Channels/chan_mgcp
+
+   #17743: [patch] Asterisk 1.8 beta2 crash with configured MGCP/NCS when
+   option wcardep = aaln/* is used
+   Revision: 280879
+   Reporter: tgruenberg
+   Testers: svinson, tgruenberg
+   Coders: tilghman
+
+   #17775: [patch] chan_mgcp crash Adtran 624 asterisk 1.8.0 Beta 2
+   Revision: 280879
+   Reporter: svinson
+   Testers: svinson, tgruenberg
+   Coders: tilghman
+
+  Category: Channels/chan_sip/General
+
+   #17044: [regression][patch] SDP c and o lines contain the wrong IP address
+   when using an externally mapped IP(extern{ip,host})
+   Revision: 281532
+   Reporter: ebroad
+   Testers: ebroad
+   Coders: russell
+
+   #17643: [patch] dialplan reload deadlocks in ast_rdlock_contexts when
+   calling ast_hint_state_changed
+   Revision: 280984
+   Reporter: zerohalo
+   Testers: zerohalo
+   Coders: tilghman
+
+   #17717: [patch] dynamic_exclude_static option results in ACL errors
+   Revision: 279785
+   Reporter: mmichelson
+   Testers: DennisD
+   Coders: mmichelson
+
+   #17774: [patch] SIP peers memory leak
+   Revision: 281432
+   Reporter: kkm
+   Coders: kkm
+
+  Category: Channels/chan_sip/IPv6
+
+   #17661: [patch] redirecting to IPv6 URIs
+   Revision: 279887
+   Reporter: oej
+   Coders: mmichelson
+
+   #17663: [patch] IPv6: get_refer_info
+   Revision: 280778
+   Reporter: oej
+   Coders: sperreault
+
+   #17737: [patch] sip.conf lacks documentation for IPv6
+   Revision: 280777
+   Reporter: oej
+   Testers: mmichelson
+   Coders: sperreault
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   #17612: [patch] wrong SRV query for TLS connection
+   Revision: 280552
+   Reporter: marcelloceschia
+   Testers: marcelloceschia, st, pabelanger
+   Coders: marcelloceschia, st
+
+  Category: Core/BuildSystem
+
+   #17039: [patch] allow using system copy of libedit
+   Revision: 280019
+   Reporter: tzafrir
+   Coders: kkm, tzafrir
+
+   #17621: [patch] sounds/Makefile ignores checksum errors
+   Revision: 280233
+   Reporter: bjm
+   Coders: qwell
+
+  Category: Core/General
+
+   #17789: [patch] Asterisk crashes at startup on Solaris SPARC
+   Revision: 281085
+   Reporter: Ian Mason
+   Testers: Ian_Mason
+   Coders: tilghman
+
+  Category: Core/HTTP
+
+   #17708: [patch] HTTP always enabled, regardless of http.conf settings.
+   Revision: 279726
+   Reporter: pabelanger
+   Coders: pabelanger
+
+  Category: Documentation
+
+   #17755: What is ccss.conf ?
+   Revision: 280549
+   Reporter: oej
+   Coders: russell
+
+  Category: Functions/NewFeature
+
+   #17713: [patch] Add FIELDNUM() function, returns position of a field in a
+   list
+   Revision: 280809
+   Reporter: gareth
+   Testers: gareth, tilghman
+   Coders: gareth
+
+  Category: General
+
+   #15929: [patch] CLI to honor user's ~/.editrc file
+   Revision: 280019
+   Reporter: kkm
+   Coders: kkm, tzafrir
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author          | Summary                      | Issues     |
+   |          |                 |                              | Referenced |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Support "channels" in        |            |
+   | 279815   | russell         | addition to "channel" in     |            |
+   |          |                 | chan_dahdi.conf.             |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | fix sip transaction match    |            |
+   | 279817   | dvossel         | with authentication, fix     |            |
+   |          |                 | confusing log message when   |            |
+   |          |                 | using getaddrinfo            |            |
+   |----------+-----------------+------------------------------+------------|
+   | 279850   | qwell           | Simply sounds/Makefile some  |            |
+   |          |                 | more.                        |            |
+   |----------+-----------------+------------------------------+------------|
+   | 279916   | russell         | Fix inband DTMF detection on |            |
+   |          |                 | outgoing ISDN calls.         |            |
+   |----------+-----------------+------------------------------+------------|
+   | 279953   | russell         | Add --enable-coverage option |            |
+   |          |                 | to configure script.         |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280020   | seanbright      | Revert r280019 for now -     |            |
+   |          |                 | This was poorly executed.    |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280058   | russell         | s/init keys/keys init/       |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280090   | lmadsen         | Update help text to be less  |            |
+   |          |                 | confusing.                   |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Remove unnecessary           |            |
+   | 280195   | qwell           | subshells. Attempt to make   | #17621     |
+   |          |                 | checksumming work.           |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Do rtp/rtcp debugging when   |            |
+   | 280225   | twilson         | it is turned on w/o          |            |
+   |          |                 | filtering                    |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Add missing enum value       |            |
+   | 280235   | rmudgett        | "unknown" to the SS7         |            |
+   |          |                 | called_nai and calling_nai   |            |
+   |          |                 | config options.              |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280269   | jpeeler         | Give test category missing   |            |
+   |          |                 | leading slash                |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280302   | pabelanger      | Use PRId64 with format_t     |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Implement support for        |            |
+   |          |                 | ast_channel_queryoption on   |            |
+   | 280307   | mnicholson      | local channels. Currently    |            |
+   |          |                 | only AST_OPTION_T38_STATE is |            |
+   |          |                 | supported.                   |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280343   | mnicholson      | Use PRIx64 instead of PRId64 |            |
+   |          |                 | in format string.            |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Fix a dsp structure leak     |            |
+   | 280346   | jeang           | occuring when a local        |            |
+   |          |                 | channel is put into a meetme |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Don't blow up if get_codec() |            |
+   | 280391   | russell         | was not provided in the RTP  |            |
+   |          |                 | glue.                        |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | crypto_loaded_test depends   |            |
+   | 280414   | pabelanger      | on res_crypto, else test     |            |
+   |          |                 | will fail.                   |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280446   | pabelanger      | Remove res_crypto            |            |
+   |          |                 | dependency.                  |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Fix regression introduced in |            |
+   |          |                 | r1664. Give the fax stack    |            |
+   | 280557   | mnicholson      | time to shutdown and         |            |
+   |          |                 | populate the FAXOPT output   |            |
+   |          |                 | variables.                   |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Apparently, the values in    |            |
+   | 280624   | tilghman        | makeopts are sometimes 1:1   |            |
+   |          |                 | and sometimes 1. Compensate  |            |
+   |          |                 | for this.                    |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Make this a little more      |            |
+   | 280628   | tilghman        | deterministic... we want the |            |
+   |          |                 | latest value, not just a 1   |            |
+   |          |                 | somewhere.                   |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280672   | tilghman        | Allow the pipe, but also     |            |
+   |          |                 | allow the comma              |            |
+   |----------+-----------------+------------------------------+------------|
+   | 280740   | tilghman        | Document -B and -W flags and |            |
+   |          |                 | regenerate manpage from sgml |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Remove the MP3 decoder       |            |
+   | 280742   | russell         | source code and replace it   |            |
+   |          |                 | with a small shell script.   |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Initialize FAXOPT() status   |            |
+   |          |                 | variables in sendfax and     |            |
+   | 280909   | mnicholson      | receivefax instead of when   |            |
+   |          |                 | the details structure is     |            |
+   |          |                 | created.                     |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Cleanup default option value |            |
+   | 281052   | russell         | handling for cdr.conf        |            |
+   |          |                 | [general].                   |            |
+   |----------+-----------------+------------------------------+------------|
+   | 281294   | russell         | Reorder some options in      |            |
+   |          |                 | cdr.conf.sample.             |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Add a couple of default      |            |
+   | 281325   | russell         | values to the documentation  |            |
+   |          |                 | of cdr.conf.                 |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Added comment about          |            |
+   | 281356   | simon.perreault | IPv4-mapped IPv6 addresses   |            |
+   |          |                 | and the output of netstat.   |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Validate minrate, maxrate,   |            |
+   | 281358   | mnicholson      | and modem settings before    |            |
+   |          |                 | attempting a fax session.    |            |
+   |----------+-----------------+------------------------------+------------|
+   | 281466   | jpeeler         | Add some more stuff to copy  |            |
+   |          |                 | from 281429.                 |            |
+   |----------+-----------------+------------------------------+------------|
+   |          |                 | Fixed the issue caused by    |            |
+   | 281497   | transnexus      | EXTEN including user         |            |
+   |          |                 | parameters.                  |            |
+   |----------+-----------------+------------------------------+------------|
+   | 281529   | russell         | Resolve a problem with       |            |
+   |          |                 | channel name tab completion. |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                           |    1
+ Makefile.rules                    |    7
+ addons/Makefile                   |   26 +++
+ apps/app_dial.c                   |    3
+ apps/app_meetme.c                 |    3
+ apps/app_osplookup.c              |    8 -
+ apps/app_queue.c                  |    1
+ apps/app_voicemail.c              |    2
+ channels/chan_dahdi.c             |   23 ++-
+ channels/chan_local.c             |   86 +++++++++++
+ channels/chan_mgcp.c              |    2
+ channels/chan_sip.c               |  160 +++++++++++++++-------
+ channels/chan_usbradio.c          |    2
+ channels/sig_pri.c                |   15 +-
+ channels/sip/reqresp_parser.c     |    2
+ configs/ccss.conf.sample          |    7
+ configs/cdr.conf.sample           |   31 ++--
+ configs/sip.conf.sample           |   26 +++
+ configure.ac                      |   11 +
+ contrib/scripts/get_mp3_source.sh |   14 +
+ contrib/scripts/live_ast          |    2
+ doc/Makefile                      |    6
+ doc/asterisk.8                    |  273 +++++++++++++++++++++-----------------
+ doc/asterisk.sgml                 |   85 +++++++++--
+ funcs/func_strings.c              |  170 +++++++++++++++++++++++
+ include/asterisk/audiohook.h      |    7
+ include/asterisk/pbx.h            |    8 -
+ main/Makefile                     |    2
+ main/audiohook.c                  |   12 +
+ main/cdr.c                        |   39 +++--
+ main/channel.c                    |   14 +
+ main/cli.c                        |    8 -
+ main/http.c                       |    4
+ main/netsock2.c                   |    6
+ main/pbx.c                        |   31 +---
+ main/rtp_engine.c                 |    4
+ main/utils.c                      |   16 ++
+ makeopts.in                       |    2
+ res/res_crypto.c                  |    4
+ res/res_fax.c                     |  137 ++++++++++++++++++-
+ res/res_rtp_asterisk.c            |    4
+ sounds/Makefile                   |   91 ++++++------
+ 42 files changed, 1024 insertions(+), 331 deletions(-)
+
+     ----------------------------------------------------------------------
