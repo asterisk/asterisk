@@ -604,13 +604,13 @@ int ast_sched_runq(struct sched_context *con)
 		
 	ast_mutex_lock(&con->lock);
 
+	when = ast_tvadd(ast_tvnow(), ast_tv(0, 1000));
 	for (numevents = 0; (current = ast_heap_peek(con->sched_heap, 1)); numevents++) {
 		/* schedule all events which are going to expire within 1ms.
 		 * We only care about millisecond accuracy anyway, so this will
 		 * help us get more than one event at one time if they are very
 		 * close together.
 		 */
-		when = ast_tvadd(ast_tvnow(), ast_tv(0, 1000));
 		if (ast_tvcmp(current->when, when) != -1) {
 			break;
 		}
