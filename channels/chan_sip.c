@@ -10262,6 +10262,8 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 				  struct ast_sockaddr *taddr, struct ast_sockaddr *dest,
 				  struct ast_sockaddr *vdest, struct ast_sockaddr *tdest)
 {
+	int use_externip = 0;
+
 	/* First, get our address */
 	ast_rtp_instance_get_local_address(p->rtp, addr);
 	if (p->vrtp) {
@@ -10270,6 +10272,11 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 	if (p->trtp) {
 		ast_rtp_instance_get_local_address(p->trtp, taddr);
 	}
+
+	/* If our real IP differs from the local address returned by the RTP engine, use it. */
+	/* The premise is that if we are already using that IP to communicate with the client, */
+	/* we should be using it for RTP too. */
+        use_externip = ast_sockaddr_cmp_addr(&p->ourip, addr);
 
 	/* Now, try to figure out where we want them to send data */
 	/* Is this a re-invite to move the media out, then use the original offer from caller  */
@@ -10289,7 +10296,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 		 */
 		ast_sockaddr_copy(dest,
 				  !ast_sockaddr_isnull(&media_address) ? &media_address :
-				  !ast_sockaddr_is_any(addr)           ? addr           :
+				  !ast_sockaddr_is_any(addr) && !use_externip ? addr    :
 				  &p->ourip);
 		ast_sockaddr_set_port(dest, ast_sockaddr_port(addr));
 	}
@@ -10312,7 +10319,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 			 */
 			ast_sockaddr_copy(vdest,
 					  !ast_sockaddr_isnull(&media_address) ? &media_address :
-					  !ast_sockaddr_is_any(vaddr)          ? vaddr          :
+					  !ast_sockaddr_is_any(vaddr) && !use_externip ? vaddr  :
 					  &p->ourip);
 			ast_sockaddr_set_port(vdest, ast_sockaddr_port(vaddr));
 		}
@@ -10336,7 +10343,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 			 */
 			ast_sockaddr_copy(tdest,
 					  !ast_sockaddr_isnull(&media_address) ? &media_address  :
-					  !ast_sockaddr_is_any(taddr)          ? taddr           :
+					  !ast_sockaddr_is_any(taddr) && !use_externip ? taddr   :
 					  &p->ourip);
 			ast_sockaddr_set_port(tdest, ast_sockaddr_port(taddr));
 		}
