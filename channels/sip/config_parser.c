@@ -661,16 +661,18 @@ int sip_parse_host(char *line, int lineno, char **hostname, int *portnum, enum s
 	else
 		line = *hostname;
 
-	if ((port = strrchr(line, ':'))) {
-		*port++ = '\0';
+	if (ast_sockaddr_split_hostport(line, hostname, &port, 0) == 0) {
+		ast_log(LOG_WARNING, "Cannot parse host '%s' on line %d of sip.conf.\n",
+			line, lineno);
+		return -1;
+	}
 
+	if (port) {
 		if (!sscanf(port, "%5u", portnum)) {
 			ast_log(LOG_NOTICE, "'%s' is not a valid port number on line %d of sip.conf. using default.\n", port, lineno);
 			port = NULL;
 		}
-	}
-
-	if (!port) {
+	} else {
 		if (*transport & SIP_TRANSPORT_TLS) {
 			*portnum = STANDARD_TLS_PORT;
 		} else {

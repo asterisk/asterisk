@@ -367,6 +367,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;outboundproxy=proxy.provider.domain:8080       ; send outbound signaling to this proxy, not directly to the devices
 ;outboundproxy=proxy.provider.domain,force      ; Send ALL outbound signalling to proxy, ignoring route: headers
 ;outboundproxy=tls://proxy.provider.domain      ; same as '=proxy.provider.domain' except we try to connect with tls
+;outboundproxy=192.0.2.1                        ; IPv4 address literal (default port is 5060)
+;outboundproxy=2001:db8::1                      ; IPv6 address literal (default port is 5060)
+;outboundproxy=192.168.0.2.1:5062               ; IPv4 address literal with explicit port
+;outboundproxy=[2001:db8::1]:5062               ; IPv6 address literal with explicit port
 ;                                               ; (could also be tcp,udp) - defining transports on the proxy line only
 ;                                               ; applies for the global proxy, otherwise use the transport= option
 ;matchexternaddrlocally = yes     ; Only substitute the externaddr or externhost setting if it matches

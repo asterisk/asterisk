@@ -118,7 +118,7 @@ char *ast_sockaddr_stringify_fmt(const struct ast_sockaddr *sa, int format)
 	return ast_str_buffer(str);
 }
 
-int static _ast_sockaddr_parse(char *str, char **host, char **port, int flags)
+int ast_sockaddr_split_hostport(char *str, char **host, char **port, int flags)
 {
 	char *s = str;
 
@@ -187,7 +187,7 @@ int ast_sockaddr_parse(struct ast_sockaddr *addr, const char *str, int flags)
 	int	e;
 
 	s = ast_strdupa(str);
-	if (!_ast_sockaddr_parse(s, &host, &port, flags)) {
+	if (!ast_sockaddr_split_hostport(s, &host, &port, flags)) {
 		return 0;
 	}
 
@@ -233,7 +233,7 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	int	e, i, res_cnt;
 
 	s = ast_strdupa(str);
-	if (!_ast_sockaddr_parse(s, &host, &port, flags)) {
+	if (!ast_sockaddr_split_hostport(s, &host, &port, flags)) {
 		return 0;
 	}
 

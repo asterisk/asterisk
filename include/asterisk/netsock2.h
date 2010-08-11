@@ -233,6 +233,26 @@ static inline char *ast_sockaddr_stringify_port(const struct ast_sockaddr *addr)
  * \since 1.8
  *
  * \brief
+ * Splits a string into its host and port components
+ *
+ * \param str[in]   The string to parse. May be modified by writing a NUL at the end of
+ *                  the host part.
+ * \param host[out] Pointer to the host component within \a str.
+ * \param port[out] Pointer to the port component within \a str.
+ * \param flags     If set to zero, a port MAY be present. If set to PARSE_PORT_IGNORE, a
+ *                  port MAY be present but will be ignored. If set to PARSE_PORT_REQUIRE,
+ *                  a port MUST be present. If set to PARSE_PORT_FORBID, a port MUST NOT
+ *                  be present.
+ *
+ * \retval 1 Success
+ * \retval 0 Failure
+ */
+int ast_sockaddr_split_hostport(char *str, char **host, char **port, int flags);
+
+/*!
+ * \since 1.8
+ *
+ * \brief
  * Parse an IPv4 or IPv6 address string.
  *
  * \details
