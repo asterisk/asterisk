@@ -2471,7 +2471,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	ast_debug(1, "Got event %s(%d) on channel %d (index %d)\n", analog_event2str(res), res, p->channel, index);
 
 	if (res & (ANALOG_EVENT_PULSEDIGIT | ANALOG_EVENT_DTMFUP)) {
-		analog_set_pulsedial(p, (res & ANALOG_EVENT_PULSEDIGIT));
+		analog_set_pulsedial(p, (res & ANALOG_EVENT_PULSEDIGIT) ? 1 : 0);
 		ast_debug(1, "Detected %sdigit '%c'\n", (res & ANALOG_EVENT_PULSEDIGIT) ? "pulse ": "", res & 0xff);
 		analog_confmute(p, 0);
 		p->subs[index].f.frametype = AST_FRAME_DTMF_END;
@@ -3581,11 +3581,9 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 		}
 		break;
 	case ANALOG_EVENT_REMOVED: /* destroy channel, will actually do so in do_monitor */
-        ast_log(LOG_NOTICE,
-                "Got DAHDI_EVENT_REMOVED. Destroying channel %d\n",
-                i->channel);
-        return i->chan_pvt;
-        break;
+		ast_log(LOG_NOTICE, "Got DAHDI_EVENT_REMOVED. Destroying channel %d\n",
+			i->channel);
+		return i->chan_pvt;
 	case ANALOG_EVENT_NEONMWI_ACTIVE:
 		analog_handle_notify_message(NULL, i, -1, ANALOG_EVENT_NEONMWI_ACTIVE);
 		break;
