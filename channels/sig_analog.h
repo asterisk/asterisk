@@ -271,6 +271,7 @@ struct analog_pvt {
 	unsigned int transfer:1;
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
+	unsigned int callwaitingcallerid:1;
 	const struct ast_channel_tech *chan_tech;
 	/*!
      * \brief TRUE if distinctive rings are to be detected.
@@ -287,7 +288,6 @@ struct analog_pvt {
 	int polarityonanswerdelay;
 	int stripmsd;
 	enum analog_cid_start cid_start;
-	int callwaitingcallerid;
 	char mohsuggest[MAX_MUSICCLASS];
 	char cid_num[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
