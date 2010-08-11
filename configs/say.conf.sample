@@ -106,16 +106,25 @@ mode=old	; method for playing numbers and dates
     _[n]um:X00 => num:${SAY:0:1}, digits/hundred
     _[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
+    _[n]um:X000 => num:${SAY:0:1}, digits/thousand
     _[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
     _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
     _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
 
+    _[n]um:X000000 => num:${SAY:0:1}, digits/million
     _[n]um:XXXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/million
     _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/million
     _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
 
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
     _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
     _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
     _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
 
     ; enumeration
@@ -123,7 +132,8 @@ mode=old	; method for playing numbers and dates
     _e[n]um:1X => digits/h-${SAY}
     _e[n]um:[2-9]0 => digits/h-${SAY}
     _e[n]um:[2-9][1-9] => num:${SAY:0:1}0, digits/h-${SAY:1}
-    _e[n]um:[1-9]XX => num:${SAY:0:1}, digits/hundred, enum:${SAY:1}
+    _e[n]um:[1-9]00 => num:${SAY:0:1}, digits/h-hundred
+    _e[n]um:[1-9]XX => num:${SAY:0:1}, digits/h-hundred, enum:${SAY:1}
 
 [en_GB](date-base,digit-base,en-base)
     _[n]um:XXX => num:${SAY:0:1}, digits/hundred, vm-and, num:${SAY:1}
@@ -139,15 +149,30 @@ mode=old	; method for playing numbers and dates
     _[n]um:[2-9]00 => num:${SAY:0:1}, digits/hundred
     _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
+    _[n]um:1000 => digits/thousand
     _[n]um:1XXX => digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => num:${SAY:0:1}, digits/thousands
     _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousands, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousands
     _[n]um:XXXXX => num:${SAY:0:2}, digits/thousands, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousands
     _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousands, num:${SAY:3}
 
+    _[n]um:1000000 => num:${SAY:0:1}, digits/million
     _[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:[2-9]000000 => num:${SAY:0:1}, digits/millions
     _[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/millions, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/millions
     _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/millions
     _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
+
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
 
     _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
     _date::. => date:AdBY:${SAY}
@@ -168,14 +193,23 @@ mode=old	; method for playing numbers and dates
     _[n]um:1XX => digits/ein, digits/hundred, num:${SAY:1}
     _[n]um:[2-9]00 => digits/${SAY:0:1}, digits/hundred
     _[n]um:[2-9]XX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:1000 => digits/ein, digits/thousand
     _[n]um:1XXX => digits/ein, digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => digits/${SAY:0:1}, digits/thousand
     _[n]um:[2-9]XXX => digits/${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
     _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
-    _[n]um:X00XXX => digits/${SAY:0:1}, digits/hundred, digits/thousand, num:${SAY:3}
-    _[n]um:XXXXXX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:1}
+
+    _[n]um:1000000 => digits/eine, digits/million
     _[n]um:1XXXXXX => digits/eine, digits/million, num:${SAY:1}
+    _[n]um:[2-9]000000 => digits/${SAY:0:1}, digits/millions
     _[n]um:[2-9]XXXXXX => digits/${SAY:0:1}, digits/millions, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/millions
     _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/millions
     _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
 
     _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
@@ -191,16 +225,25 @@ mode=old	; method for playing numbers and dates
     _[n]um:[3-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
     _[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
+    _[n]um:X000 => num:${SAY:0:1}, digits/thousand
     _[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
     _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
     _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
 
+    _[n]um:X000000 => num:${SAY:0:1}, digits/million
     _[n]um:XXXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/million
     _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/million
     _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
 
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
     _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
     _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
     _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
 
     _datetime::. => date:YBdA k 'ora' M 'perc':${SAY}
@@ -222,14 +265,22 @@ mode=old	; method for playing numbers and dates
     _[n]um:[2-9]00 => num:${SAY:0:1}, digits/hundred
     _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
     
+    _[n]um:1000 => digits/thousand
     _[n]um:1XXX => digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => num:${SAY:0:1}, digits/thousand
     _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
     _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
     _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
     
+    _[n]um:1000000 => num:${SAY:0:1}, digits/million
     _[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:[2-9]000000 => num:${SAY:0:1}, digits/million
     _[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/million
     _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/million
     _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
     
     _datetime::. => date:AdBY 'digits/at' H 'hours' M 'perc':${SAY}  
