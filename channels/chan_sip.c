@@ -19207,6 +19207,23 @@ static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest,
 			ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
 		}
 		break;
+	default:
+		/* We should treat unrecognized 9xx as 900.  400 is actually
+		   specified as a possible response, but any 4-6xx is 
+		   theoretically possible. */
+
+		if (resp < 299) { /* 1xx cases don't get here */
+			ast_log(LOG_WARNING, "SIP transfer to %s had unxpected 2xx response (%d), confusion is possible. \n", p->refer->refer_to, resp);
+		} else {
+			ast_log(LOG_WARNING, "SIP transfer to %s with response (%d). \n", p->refer->refer_to, resp);
+		}
+
+		p->refer->status = REFER_FAILED;
+		pvt_set_needdestroy(p, "received failure response");
+		if (p->owner) {
+			ast_queue_control_data(p->owner, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		}
+		break;
 	}
 }
 
@@ -19523,6 +19540,8 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		   need to hang around for something more "definitive" */
 		if (resp != 100)
 			handle_response_peerpoke(p, resp, req);
+	} else if (sipmethod == SIP_REFER && resp >= 200) {
+		handle_response_refer(p, resp, rest, req, seqno);
 	} else if (sipmethod == SIP_PUBLISH) {
 		/* SIP PUBLISH transcends this morass of doodoo and instead
 		 * we just always call the response handler. Good gravy!
@@ -19559,18 +19578,12 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				ast_clear_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 			}
 			break;
-		case 202:   /* Transfer accepted */
-			if (sipmethod == SIP_REFER)
-				handle_response_refer(p, resp, rest, req, seqno);
-			break;
 		case 401: /* Not www-authorized on SIP method */
 		case 407: /* Proxy auth required */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_NOTIFY)
 				handle_response_notify(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_REFER)
-				handle_response_refer(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_SUBSCRIBE)
 				handle_response_subscribe(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
@@ -19643,8 +19656,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		case 481: /* Call leg does not exist */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, seqno);
-			} else if (sipmethod == SIP_REFER) {
-				handle_response_refer(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_SUBSCRIBE) {
 				handle_response_subscribe(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_BYE) {
@@ -19686,16 +19697,9 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			}
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_REFER)
-				handle_response_refer(p, resp, rest, req, seqno);
 			else
 				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_sockaddr_stringify(&p->sa), msg);
 			break;
-		case 603:	/* Declined transfer */
-			if (sipmethod == SIP_REFER) {
-				handle_response_refer(p, resp, rest, req, seqno);
-				break;
-			}
 			/* Fallthrough */
 		default:
 			if ((resp >= 300) && (resp < 700)) {
@@ -19738,10 +19742,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				case 410: /* Gone */
 				case 400: /* Bad Request */
 				case 500: /* Server error */
-					if (sipmethod == SIP_REFER) {
-						handle_response_refer(p, resp, rest, req, seqno);
-						break;
-					} else if (sipmethod == SIP_SUBSCRIBE) {
+					if (sipmethod == SIP_SUBSCRIBE) {
 						handle_response_subscribe(p, resp, rest, req, seqno);
 						break;
 					}
@@ -19839,15 +19840,9 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				;
 			}
 			break;
-		case 202:   /* Transfer accepted */
-			if (sipmethod == SIP_REFER)
-				handle_response_refer(p, resp, rest, req, seqno);
-			break;
 		case 401:	/* www-auth */
 		case 407:
-			if (sipmethod == SIP_REFER)
-				handle_response_refer(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_INVITE)
+			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE) {
 				if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, resp, sipmethod, 0)) {
@@ -19869,15 +19864,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		case 501: /* Not Implemented */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_REFER)
-				handle_response_refer(p, resp, rest, req, seqno);
 			break;
-		case 603:	/* Declined transfer */
-			if (sipmethod == SIP_REFER) {
-				handle_response_refer(p, resp, rest, req, seqno);
-				break;
-			}
-			/* Fallthrough */
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) { 	/* re-invite */
