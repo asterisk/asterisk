@@ -232,7 +232,7 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 			if (res < 1) {		/* timeout expired or hangup */
 				if (ast_check_hangup(chan)) {
 					status = "HANGUP";
-				} else {
+				} else if (x == 0) {
 					pbx_builtin_setvar_helper(chan, arglist.variable, "t");
 					status = "TIMEOUT";
 				}
