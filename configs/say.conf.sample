@@ -327,3 +327,50 @@ mode=old	; method for playing numbers and dates
     _date::. => date:Ad 'letters/d' B 'letters/d' Y:${SAY}
     _time::. => date:HMp:${SAY}
 
+[da](date-base,digit-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 => digits/${SAY}
+    _[n]um:[2-9][1-9] => digits/${SAY:1}-and, digits/${SAY:0:1}0
+    _[n]um:100 => digits/1N, digits/hundred
+    _[n]um:1XX => digits/1N, digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => digits/${SAY:0:1}, digits/hundred
+    _[n]um:[2-9]XX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:1000 => digits/1N, digits/thousand
+    _[n]um:1XXX => digits/1N, digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => digits/${SAY:0:1}, digits/thousand
+    _[n]um:[2-9]XXX => digits/${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+
+    _[n]um:X000000 => digits/${SAY:0:1}, digits/million
+    _[n]um:XXXXXXX => digits/${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/millions
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/millions
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
+
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
+
+    _datetime::. => date:AdBY 'digits/at' kM:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:HM:${SAY}
+
+    ; enumeration
+    _e[n]um:X => digits/h-${SAY}
+    _e[n]um:1X => digits/h-${SAY}
+    _e[n]um:[2-9]0 => digits/h-${SAY}
+    _e[n]um:[2-9][1-9] => digits/${SAY:1}-and, digits/h-${SAY:0:1}0
+    _e[n]um:100 => digits/1N, digits/h-hundred
+    _e[n]um:1XX => digits/1N, digits/h-hundred, enum:${SAY:1}
+    _e[n]um:[2-9]00 => num:${SAY:0:1}, digits/h-hundred
+    _e[n]um:[2-9]XX => num:${SAY:0:1}, digits/h-hundred, enum:${SAY:1}
