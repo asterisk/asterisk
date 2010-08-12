@@ -560,6 +560,7 @@ CLI Changes
    manager.conf. 
  * Added 'all' keyword to the CLI command "channel request hangup" so that you can send
    the channel hangup request to all channels.
+ * Added a "core reload" CLI command that executes a global reload of Asterisk.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.1 to Asterisk 1.6.2  -------------
