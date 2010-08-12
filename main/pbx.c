@@ -6853,16 +6853,16 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		*local_contexts = tmp;
 		ast_hashtab_insert_safe(contexts_table, tmp); /*put this context into the tree */
 		ast_unlock_contexts();
-		ast_debug(1, "Registered context '%s' ; registrar: %s\n", tmp->name, registrar);
-		ast_verb(3, "Registered extension context '%s' ; registrar: %s\n", tmp->name, registrar);
+		ast_debug(1, "Registered context '%s'(%p) in table %p registrar: %s\n", tmp->name, tmp, contexts_table, registrar);
+		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	} else {
 		tmp->next = *local_contexts;
 		if (exttable)
 			ast_hashtab_insert_immediate(exttable, tmp); /*put this context into the tree */
 
 		*local_contexts = tmp;
-		ast_debug(1, "Registered context '%s' ; registrar: %s\n", tmp->name, registrar);
-		ast_verb(3, "Registered extension context '%s' ; registrar: %s\n", tmp->name, registrar);
+		ast_debug(1, "Registered context '%s'(%p) in local table %p; registrar: %s\n", tmp->name, tmp, exttable, registrar);
+		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	}
 	return tmp;
 }
@@ -8194,11 +8194,11 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	}
 	if (option_debug) {
 		if (tmp->matchcid) {
-			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s\n",
-					  tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s (%p)\n",
+					  tmp->exten, tmp->priority, tmp->cidmatch, con->name, con);
 		} else {
-			ast_debug(1, "Added extension '%s' priority %d to %s\n",
-					  tmp->exten, tmp->priority, con->name);
+			ast_debug(1, "Added extension '%s' priority %d to %s (%p)\n",
+					  tmp->exten, tmp->priority, con->name, con);
 		}
 	}
 
