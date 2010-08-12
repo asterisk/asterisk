@@ -6716,8 +6716,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	manager_bridge_event(1, 1, c0, c1);
 
 	/* Before we enter in and bridge these two together tell them both the source of audio has changed */
-	ast_indicate(c0, AST_CONTROL_SRCUPDATE);
-	ast_indicate(c1, AST_CONTROL_SRCUPDATE);
+	ast_indicate(c0, AST_CONTROL_SRCCHANGE);
+	ast_indicate(c1, AST_CONTROL_SRCCHANGE);
 
 	for (/* ever */;;) {
 		struct timeval now = { 0, };
