@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "editline/readline/readline.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/translate.h"
 
 /*!
  * \brief List of restrictions per user.
@@ -1343,6 +1344,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	struct ast_str *out = ast_str_thread_get(&ast_str_thread_global_buf, 16);
 	char cdrtime[256];
 	char nf[256], wf[256], rf[256];
+	struct ast_str *write_transpath = ast_str_alloca(256);
+	struct ast_str *read_transpath = ast_str_alloca(256);
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 #ifdef CHANNEL_TRACE
@@ -1398,8 +1401,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"  NativeFormats: %s\n"
 		"    WriteFormat: %s\n"
 		"     ReadFormat: %s\n"
-		" WriteTranscode: %s\n"
-		"  ReadTranscode: %s\n"
+		" WriteTranscode: %s %s\n"
+		"  ReadTranscode: %s %s\n"
 		"1st File Descriptor: %d\n"
 		"      Frames in: %d%s\n"
 		"     Frames out: %d%s\n"
@@ -1426,7 +1429,9 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat), 
 		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
 		c->writetrans ? "Yes" : "No",
+		ast_translate_path_to_str(c->writetrans, &write_transpath),
 		c->readtrans ? "Yes" : "No",
+		ast_translate_path_to_str(c->readtrans, &read_transpath),
 		c->fds[0],
 		c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
