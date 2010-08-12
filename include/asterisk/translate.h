@@ -254,6 +254,14 @@ unsigned int ast_translate_path_steps(format_t dest, format_t src);
  */
 format_t ast_translate_available_formats(format_t dest, format_t src);
 
+/*!
+ * \brief Puts a string representation of the translation path into outbuf
+ * \param translator structure containing the translation path
+ * \param ast_str output buffer
+ * \retval on success pointer to beginning of outbuf. on failure "".
+ */
+const char *ast_translate_path_to_str(struct ast_trans_pvt *t, struct ast_str **str);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

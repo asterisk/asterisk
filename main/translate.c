@@ -45,10 +45,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief the list of translators */
 static AST_RWLIST_HEAD_STATIC(translators, ast_translator);
 
+
+/*! \brief these values indicate how a translation path will affect the sample rate
+ *
+ *  \note These must stay in this order.  They are ordered by most optimal selection first.
+ */
+enum path_samp_change {
+	RATE_CHANGE_NONE = 0, /*!< path uses the same sample rate consistently */
+	RATE_CHANGE_UPSAMP = 1, /*!< path will up the sample rate during a translation */
+	RATE_CHANGE_DOWNSAMP = 2, /*!< path will have to down the sample rate during a translation. */
+	RATE_CHANGE_UPSAMP_DOWNSAMP = 3, /*!< path will both up and down the sample rate during translation */
+};
+
 struct translator_path {
 	struct ast_translator *step;	/*!< Next step translator */
 	unsigned int cost;		/*!< Complete cost to destination */
 	unsigned int multistep;		/*!< Multiple conversions required for this translation */
+	enum path_samp_change rate_change; /*!< does this path require a sample rate change, if so what kind. */
 };
 
 /*! \brief a matrix that, for any pair of supported formats,
@@ -402,6 +415,24 @@ static void calc_cost(struct ast_translator *t, int seconds)
 		t->cost = 1;
 }
 
+static enum path_samp_change get_rate_change_result(format_t src, format_t dst)
+{
+	int src_rate = ast_format_rate(src);
+	int dst_rate = ast_format_rate(dst);
+
+	/* if src rate is less than dst rate, a sample upgrade is required */
+	if (src_rate < dst_rate) {
+		return RATE_CHANGE_UPSAMP;
+	}
+
+	/* if src rate is larger than dst rate, a downgrade is required */
+	if (src_rate > dst_rate) {
+		return RATE_CHANGE_DOWNSAMP;
+	}
+
+	return RATE_CHANGE_NONE;
+}
+
 /*!
  * \brief rebuild a translation matrix.
  * \note This function expects the list of translators to be locked
@@ -409,6 +440,8 @@ static void calc_cost(struct ast_translator *t, int seconds)
 static void rebuild_matrix(int samples)
 {
 	struct ast_translator *t;
+	int new_rate_change;
+	int newcost;
 	int x;      /* source format index */
 	int y;      /* intermediate format index */
 	int z;      /* destination format index */
@@ -427,10 +460,21 @@ static void rebuild_matrix(int samples)
 
 		if (samples)
 			calc_cost(t, samples);
-	  
-		if (!tr_matrix[x][z].step || t->cost < tr_matrix[x][z].cost) {
+
+		new_rate_change = get_rate_change_result(1LL << t->srcfmt, 1LL << t->dstfmt);
+
+		/* this translator is the best choice if any of the below are true.
+		 * 1. no translation path is set between x and z yet.
+		 * 2. the new translation costs less and sample rate is no worse than old one. 
+		 * 3. the new translation has a better sample rate conversion than the old one.
+		 */
+		if (!tr_matrix[x][z].step ||
+			((t->cost < tr_matrix[x][z].cost) && (new_rate_change <= tr_matrix[x][z].rate_change)) ||
+			(new_rate_change < tr_matrix[x][z].rate_change)) {
+
 			tr_matrix[x][z].step = t;
 			tr_matrix[x][z].cost = t->cost;
+			tr_matrix[x][z].rate_change = new_rate_change;
 		}
 	}
 
@@ -442,31 +486,73 @@ static void rebuild_matrix(int samples)
 	 */
 	for (;;) {
 		int changed = 0;
+		int better_choice = 0;
 		for (x = 0; x < MAX_FORMAT; x++) {      /* source format */
 			for (y = 0; y < MAX_FORMAT; y++) {    /* intermediate format */
 				if (x == y)                     /* skip ourselves */
 					continue;
-
-				for (z = 0; z<MAX_FORMAT; z++) {  /* dst format */
-					int newcost;
-
+				for (z = 0; z < MAX_FORMAT; z++) {  /* dst format */
 					if (z == x || z == y)       /* skip null conversions */
 						continue;
 					if (!tr_matrix[x][y].step)  /* no path from x to y */
 						continue;
 					if (!tr_matrix[y][z].step)  /* no path from y to z */
 						continue;
+
+					/* Does x->y->z result in a less optimal sample rate change?
+					 * Never downgrade the sample rate conversion quality regardless
+					 * of any cost improvements */
+					if (tr_matrix[x][z].step &&
+						((tr_matrix[x][z].rate_change < tr_matrix[x][y].rate_change) ||
+						(tr_matrix[x][z].rate_change < tr_matrix[y][z].rate_change))) {
+						continue;
+					}
+
+					/* is x->y->z a better sample rate confersion that the current x->z? */
+					new_rate_change = tr_matrix[x][y].rate_change + tr_matrix[y][z].rate_change;
+
+					/* calculate cost from x->y->z */
 					newcost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
-					if (tr_matrix[x][z].step && newcost >= tr_matrix[x][z].cost)
-						continue;               /* x->y->z is more expensive than
-						                         * the existing path */
+
+					/* Is x->y->z a better choice than x->z?
+					 * There are three conditions for x->y->z to be a better choice than x->z
+					 * 1. if there is no step directly between x->z then x->y->z is the best and only current option.
+					 * 2. if x->y->z costs less and the sample rate conversion is no less optimal.
+					 * 3. if x->y->z results in a more optimal sample rate conversion. */
+					if (!tr_matrix[x][z].step) {
+						better_choice = 1;
+					} else if ((newcost < tr_matrix[x][z].cost) && (new_rate_change <= tr_matrix[x][z].rate_change)) {
+						better_choice = 1;
+					} else if (new_rate_change < tr_matrix[x][z].rate_change) {
+						better_choice = 1;
+					} else {
+						better_choice = 0;
+					}
+
+					if (!better_choice) {
+						continue;
+					}
 					/* ok, we can get from x to z via y with a cost that
-					   is the sum of the transition from x to y and
-					   from y to z */
-						 
+					   is the sum of the transition from x to y and from y to z */
 					tr_matrix[x][z].step = tr_matrix[x][y].step;
 					tr_matrix[x][z].cost = newcost;
 					tr_matrix[x][z].multistep = 1;
+
+					/* now calculate what kind of sample rate change is required for this multi-step path
+					 * 
+					 * if both paths require a change in rate, and they are not in the same direction
+					 * then this is a up sample down sample conversion scenario. */
+					if ((tr_matrix[x][y].rate_change > RATE_CHANGE_NONE) &&
+						(tr_matrix[y][z].rate_change > RATE_CHANGE_NONE) &&
+						(tr_matrix[x][y].rate_change != tr_matrix[y][z].rate_change)) {
+
+						tr_matrix[x][z].rate_change = RATE_CHANGE_UPSAMP_DOWNSAMP;
+					} else {
+						/* else just set the rate change to whichever is worse */
+						tr_matrix[x][z].rate_change = tr_matrix[x][y].rate_change > tr_matrix[y][z].rate_change
+							? tr_matrix[x][y].rate_change : tr_matrix[y][z].rate_change;
+					}
+
 					ast_debug(3, "Discovered %d cost path from %s to %s, via %s\n", tr_matrix[x][z].cost,
 						  ast_getformatname(1LL << x), ast_getformatname(1LL << z), ast_getformatname(1LL << y));
 					changed++;
@@ -478,30 +564,134 @@ static void rebuild_matrix(int samples)
 	}
 }
 
+const char *ast_translate_path_to_str(struct ast_trans_pvt *p, struct ast_str **str)
+{
+	struct ast_trans_pvt *pn = p;
+
+	if (!p || !p->t) {
+		return "";
+	}
+
+	ast_str_set(str, 0, "%s", ast_getformatname(1LL << p->t->srcfmt));
+
+	while ( (p = pn) ) {
+		pn = p->next;
+		ast_str_append(str, 0, "->%s", ast_getformatname(1LL << p->t->dstfmt));
+	}
+
+	return ast_str_buffer(*str);
+}
+
+static char *complete_trans_path_choice(const char *line, const char *word, int pos, int state)
+{
+	int which = 0;
+	int wordlen = strlen(word);
+	int i;
+	char *ret = NULL;
+	size_t len = 0;
+	const struct ast_format_list *format_list = ast_get_format_list(&len);
+
+	for (i = 0; i < len; i++) {
+		if (!(format_list[i].bits & AST_FORMAT_AUDIO_MASK)) {
+			continue;
+		}
+		if (!strncasecmp(word, format_list[i].name, wordlen) && ++which > state) {
+			ret = ast_strdup(format_list[i].name);
+			break;
+		}
+	}
+	return ret;
+}
+
 static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define SHOW_TRANS 16
+#define SHOW_TRANS 64
+	static const char * const option1[] = { "recalc", "paths", NULL };
 	int x, y, z;
 	int curlen = 0, longest = 0, magnitude[SHOW_TRANS] = { 0, };
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core show translation [recalc]";
+		e->command = "core show translation";
 		e->usage =
-			"Usage: core show translation [recalc [<recalc seconds>]]\n"
-			"       Displays known codec translators and the cost associated\n"
-			"       with each conversion.  If the argument 'recalc' is supplied along\n"
-			"       with optional number of seconds to test a new test will be performed\n"
-			"       as the chart is being displayed.\n";
+			"Usage: 'core show translation' can be used in two ways.\n"
+			"       1. 'core show translation [recalc [<recalc seconds>]]\n"
+			"          Displays known codec translators and the cost associated\n"
+			"          with each conversion.  If the argument 'recalc' is supplied along\n"
+			"          with optional number of seconds to test a new test will be performed\n"
+			"          as the chart is being displayed.\n"
+			"       2. 'core show translation paths [codec]'\n"
+			"           This will display all the translation paths associated with a codec\n";
 		return NULL;
 	case CLI_GENERATE:
+		if (a->pos == 3) {
+			return ast_cli_complete(a->word, option1, a->n);
+		}
+		if (a->pos == 4 && !strcasecmp(a->argv[3], option1[1])) {
+			return complete_trans_path_choice(a->line, a->word, a->pos, a->n);
+		}
 		return NULL;
 	}
 
 	if (a->argc > 5)
 		return CLI_SHOWUSAGE;
 
-	if (a->argv[3] && !strcasecmp(a->argv[3], "recalc")) {
+	if (a->argv[3] && !strcasecmp(a->argv[3], option1[1]) && a->argc == 5) {
+		format_t input_src = 0;
+		format_t src = 0;
+		size_t len = 0;
+		int dst;
+		int i;
+		const struct ast_format_list *format_list = ast_get_format_list(&len);
+		struct ast_str *str = ast_str_alloca(256);
+		struct ast_translator *step;
+
+		for (i = 0; i < len; i++) {
+			if (!(format_list[i].bits & AST_FORMAT_AUDIO_MASK)) {
+				continue;
+			}
+			if (!strncasecmp(format_list[i].name, a->argv[4], strlen(format_list[i].name))) {
+				input_src = format_list[i].bits;
+			}
+		}
+
+		if (!input_src) {
+			ast_cli(a->fd, "Source codec \"%s\" is not found.\n", a->argv[4]);
+			return CLI_FAILURE;
+		}
+
+		AST_RWLIST_RDLOCK(&translators);
+		ast_cli(a->fd, "--- Translation paths SRC Codec \"%s\" sample rate %d ---\n", a->argv[4], ast_format_rate(input_src));
+		for (i = 0; i < len; i++) {
+			if (!(format_list[i].bits & AST_FORMAT_AUDIO_MASK) || (format_list[i].bits == input_src)) {
+				continue;
+			}
+			dst = powerof(format_list[i].bits);
+			src = powerof(input_src);
+			ast_str_reset(str);
+			if (tr_matrix[src][dst].step) {
+				ast_str_append(&str, 0, "%s", ast_getformatname(1LL << tr_matrix[src][dst].step->srcfmt));
+				while (src != dst) {
+					step = tr_matrix[src][dst].step;
+					if (!step) {
+						ast_str_reset(str);
+						break;
+					}
+					ast_str_append(&str, 0, "->%s", ast_getformatname(1LL << step->dstfmt));
+					src = step->dstfmt;
+				}
+			}
+
+			if (ast_strlen_zero(ast_str_buffer(str))) {
+				ast_str_set(&str, 0, "No Translation Path");
+			}
+
+			ast_cli(a->fd, "\t%-10.10s To %-10.10s: %-60.60s\n", a->argv[4], format_list[i].name, ast_str_buffer(str));
+		}
+		AST_RWLIST_UNLOCK(&translators);
+
+		return CLI_SUCCESS;
+	} else if (a->argv[3] && !strcasecmp(a->argv[3], "recalc")) {
 		z = a->argv[4] ? atoi(a->argv[4]) : 1;
 
 		if (z <= 0) {
@@ -526,22 +716,33 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
 	for (x = 0; x < SHOW_TRANS; x++) {
+		/* translation only applies to audio right now. */
+		if (!(AST_FORMAT_AUDIO_MASK & (1LL << (x))))
+			continue;
 		curlen = strlen(ast_getformatname(1LL << (x)));
 		if (curlen > longest)
 			longest = curlen;
 		for (y = 0; y < SHOW_TRANS; y++) {
+			if (!(AST_FORMAT_AUDIO_MASK & (1LL << (y))))
+				continue;
 			if (tr_matrix[x][y].cost > pow(10, magnitude[x])) {
 				magnitude[y] = floor(log10(tr_matrix[x][y].cost));
 			}
 		}
 	}
 	for (x = -1; x < SHOW_TRANS; x++) {
-		struct ast_str *out = ast_str_alloca(125);
+		struct ast_str *out = ast_str_alloca(256);
+		/* translation only applies to audio right now. */
+		if (x >= 0 && !(AST_FORMAT_AUDIO_MASK & (1LL << (x))))
+			continue;
 		/*Go ahead and move to next iteration if dealing with an unknown codec*/
 		if(x >= 0 && !strcmp(ast_getformatname(1LL << (x)), "unknown"))
 			continue;
 		ast_str_set(&out, -1, " ");
 		for (y = -1; y < SHOW_TRANS; y++) {
+			/* translation only applies to audio right now. */
+			if (y >= 0 && !(AST_FORMAT_AUDIO_MASK & (1LL << (y))))
+				continue;
 			/*Go ahead and move to next iteration if dealing with an unknown codec*/
 			if (y >= 0 && !strcmp(ast_getformatname(1LL << (y)), "unknown"))
 				continue;
@@ -715,37 +916,65 @@ void ast_translator_deactivate(struct ast_translator *t)
 format_t ast_translator_best_choice(format_t *dst, format_t *srcs)
 {
 	int x,y;
+	int better = 0;
+	int besttime = INT_MAX;
+	int beststeps = INT_MAX;
+	unsigned int best_rate_change = INT_MAX;
 	format_t best = -1;
 	format_t bestdst = 0;
 	format_t cur, cursrc;
-	int besttime = INT_MAX;
-	int beststeps = INT_MAX;
 	format_t common = ((*dst) & (*srcs)) & AST_FORMAT_AUDIO_MASK;	/* are there common formats ? */
 
 	if (common) { /* yes, pick one and return */
 		for (cur = 1, y = 0; y <= MAX_AUDIO_FORMAT; cur <<= 1, y++) {
-			if (cur & common)	/* guaranteed to find one */
-				break;
+			if (!(cur & common)) {
+				continue;
+			}
+
+			/* We are guaranteed to find one common format. */
+			if (best == -1) {
+				best = cur;
+				continue;
+			}
+			/* If there are multiple common formats, pick the one with the highest sample rate */
+			if (ast_format_rate(best) < ast_format_rate(cur)) {
+				best = cur;
+				continue;
+			}
 		}
 		/* We are done, this is a common format to both. */
-		*srcs = *dst = cur;
+		*srcs = *dst = best;
 		return 0;
-	} else {	/* No, we will need to translate */
+	} else {      /* No, we will need to translate */
 		AST_RWLIST_RDLOCK(&translators);
 		for (cur = 1, y = 0; y <= MAX_AUDIO_FORMAT; cur <<= 1, y++) {
-			if (! (cur & *dst))
+			if (! (cur & *dst)) {
 				continue;
+			}
 			for (cursrc = 1, x = 0; x <= MAX_AUDIO_FORMAT; cursrc <<= 1, x++) {
-				if (!(*srcs & cursrc) || !tr_matrix[x][y].step ||
-				    tr_matrix[x][y].cost >  besttime)
-					continue;	/* not existing or no better */
-				if (tr_matrix[x][y].cost < besttime ||
-				    tr_matrix[x][y].multistep < beststeps) {
+				if (!(*srcs & cursrc) || !tr_matrix[x][y].step) {
+					continue;
+				}
+
+				/* This is a better choice if any of the following are true.
+				 * 1. The sample rate conversion is better than the current pick.
+				 * 2. the sample rate conversion is no worse than the current pick and the cost or multistep is better
+				 */
+				better = 0;
+				if (tr_matrix[x][y].rate_change < best_rate_change) {
+					better = 1; /* this match has a better rate conversion */
+				}
+				if ((tr_matrix[x][y].rate_change <= best_rate_change) &&
+					(tr_matrix[x][y].cost < besttime || tr_matrix[x][y].multistep < beststeps)) {
+					better = 1; /* this match has no worse rate conversion and the conversion cost is less */
+				}
+				if (better) {
 					/* better than what we have so far */
 					best = cursrc;
 					bestdst = cur;
 					besttime = tr_matrix[x][y].cost;
 					beststeps = tr_matrix[x][y].multistep;
+					best_rate_change = tr_matrix[x][y].rate_change;
 				}
 			}
 		}
