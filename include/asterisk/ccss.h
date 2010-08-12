@@ -189,6 +189,21 @@ int ast_cc_is_config_param(const char * const name);
 
 /*!
  * \since 1.8
+ * \brief Set the specified CC config params to default values.
+ *
+ * \details
+ * This is just like ast_cc_copy_config_params() and could be used in place
+ * of it if you need to set the config params to defaults instead.
+ * You are simply "copying" defaults into the destination.
+ *
+ * \param params CC config params to set to default values.
+ *
+ * \return Nothing
+ */
+void ast_cc_default_config_params(struct ast_cc_config_params *params);
+
+/*!
+ * \since 1.8
  * \brief copy CCSS configuration parameters from one structure to another
  *
  * \details
@@ -199,8 +214,8 @@ int ast_cc_is_config_param(const char * const name);
  *
  * \param src The structure from which data is copied
  * \param dest The structure to which data is copied
- * \retval -1 Copy failed (no way for this to happen yet)
- * \retval 0 Copy succeeded
+ *
+ * \return Nothing
  */
 void ast_cc_copy_config_params(struct ast_cc_config_params *dest, const struct ast_cc_config_params *src);
 
