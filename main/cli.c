@@ -303,6 +303,28 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return CLI_SUCCESS;
 }
 
+static char *handle_core_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core reload";
+		e->usage =
+			"Usage: core reload\n"
+			"       Execute a global reload.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_module_reload(NULL);
+
+	return CLI_SUCCESS;
+}
 /*! 
  * \brief Find the debug or verbose file setting 
  * \arg debug 1 for debug, 0 for verbose
@@ -1620,7 +1642,9 @@ static struct ast_cli_entry cli_cli[] = {
 
 	AST_CLI_DEFINE(handle_load, "Load a module by name"),
 
-	AST_CLI_DEFINE(handle_reload, "Reload configuration"),
+	AST_CLI_DEFINE(handle_reload, "Reload configuration for a module"),
+
+	AST_CLI_DEFINE(handle_core_reload, "Global reload"),
 
 	AST_CLI_DEFINE(handle_unload, "Unload a module by name"),
 
