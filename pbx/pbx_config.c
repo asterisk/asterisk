@@ -1737,12 +1737,12 @@ static int pbx_load_module(void)
 
 static int load_module(void)
 {
-	if (pbx_load_module())
-		return AST_MODULE_LOAD_DECLINE;
- 
 	if (static_config && !write_protect_config)
 		ast_cli_register(&cli_dialplan_save);
 	ast_cli_register_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
+
+	if (pbx_load_module())
+		return AST_MODULE_LOAD_DECLINE;
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
