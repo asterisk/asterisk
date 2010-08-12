@@ -501,38 +501,45 @@ static int count_agents_cb(void *obj, void *arg, void *data, int flags)
 	return 0;
 }
 
-static const unsigned int CC_OFFER_TIMER_DEFAULT = 20u;
-static const unsigned int CCNR_AVAILABLE_TIMER_DEFAULT = 7200u;
-static const unsigned int CCBS_AVAILABLE_TIMER_DEFAULT = 4800u;
-static const unsigned int CC_RECALL_TIMER_DEFAULT = 20u;
-static const unsigned int CC_MAX_AGENTS_DEFAULT = 5u;
-static const unsigned int CC_MAX_MONITORS_DEFAULT = 5u;
-static const unsigned int GLOBAL_CC_MAX_REQUESTS_DEFAULT = 20u;
+#define CC_OFFER_TIMER_DEFAULT			20		/* Seconds */
+#define CCNR_AVAILABLE_TIMER_DEFAULT	7200	/* Seconds */
+#define CCBS_AVAILABLE_TIMER_DEFAULT	4800	/* Seconds */
+#define CC_RECALL_TIMER_DEFAULT			20		/* Seconds */
+#define CC_MAX_AGENTS_DEFAULT			5
+#define CC_MAX_MONITORS_DEFAULT			5
+#define GLOBAL_CC_MAX_REQUESTS_DEFAULT	20
+
+static const struct ast_cc_config_params cc_default_params = {
+	.cc_agent_policy = AST_CC_AGENT_NEVER,
+	.cc_monitor_policy = AST_CC_MONITOR_NEVER,
+	.cc_offer_timer = CC_OFFER_TIMER_DEFAULT,
+	.ccnr_available_timer = CCNR_AVAILABLE_TIMER_DEFAULT,
+	.ccbs_available_timer = CCBS_AVAILABLE_TIMER_DEFAULT,
+	.cc_recall_timer = CC_RECALL_TIMER_DEFAULT,
+	.cc_max_agents = CC_MAX_AGENTS_DEFAULT,
+	.cc_max_monitors = CC_MAX_MONITORS_DEFAULT,
+	.cc_callback_macro = "",
+	.cc_agent_dialstring = "",
+};
+
+void ast_cc_default_config_params(struct ast_cc_config_params *params)
+{
+	*params = cc_default_params;
+}
 
 struct ast_cc_config_params *__ast_cc_config_params_init(const char *file, int line, const char *function)
 {
 #if defined(__AST_DEBUG_MALLOC)
-	struct ast_cc_config_params *params = __ast_calloc(1, sizeof(*params), file, line, function);
+	struct ast_cc_config_params *params = __ast_malloc(sizeof(*params), file, line, function);
 #else
-	struct ast_cc_config_params *params = ast_calloc(1, sizeof(*params));
+	struct ast_cc_config_params *params = ast_malloc(sizeof(*params));
 #endif
 
 	if (!params) {
 		return NULL;
 	}
 
-	/* Yeah, I could use the get/set functions, but what's the point since
-	 * I have direct access to the structure fields in this file.
-	 */
-	params->cc_agent_policy = AST_CC_AGENT_NEVER;
-	params->cc_monitor_policy = AST_CC_MONITOR_NEVER;
-	params->cc_offer_timer = CC_OFFER_TIMER_DEFAULT;
-	params->ccnr_available_timer = CCNR_AVAILABLE_TIMER_DEFAULT;
-	params->ccbs_available_timer = CCBS_AVAILABLE_TIMER_DEFAULT;
-	params->cc_recall_timer = CC_RECALL_TIMER_DEFAULT;
-	params->cc_max_agents = CC_MAX_AGENTS_DEFAULT;
-	params->cc_max_monitors = CC_MAX_MONITORS_DEFAULT;
-	/* No need to set cc_callback_macro since calloc will 0 it out anyway */
+	ast_cc_default_config_params(params);
 	return params;
 }
 
