@@ -11663,23 +11663,26 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 					ast_channel_unlock(caller);
 					caller = ast_channel_unref(caller);
 				}
+
+				/* We create a fake call-id which the phone will send back in an INVITE
+				   Replaces header which we can grab and do some magic with. */
+				ast_str_append(tmp, 0,
+						"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
+						"<remote>\n"
+						/* See the limitations of this above.  Luckily the phone seems to still be
+						   happy when these values are not correct. */
+						"<identity display=\"%s\">%s</identity>\n"
+						"<target uri=\"%s\"/>\n"
+						"</remote>\n"
+						"<local>\n"
+						"<identity>%s</identity>\n"
+						"<target uri=\"%s\"/>\n"
+						"</local>\n",
+						exten, p->callid, local_display, local_target, local_target, mto, mto);
+			} else {
+				ast_str_append(tmp, 0, "<dialog id=\"%s\" direction=\"recipient\">\n", exten);
 			}
 
-			/* We create a fake call-id which the phone will send back in an INVITE
-			   Replaces header which we can grab and do some magic with. */
-			ast_str_append(tmp, 0,
-					"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
-					"<remote>\n"
-					/* See the limitations of this above.  Luckily the phone seems to still be
-					   happy when these values are not correct. */
-					"<identity display=\"%s\">%s</identity>\n"
-					"<target uri=\"%s\"/>\n"
-					"</remote>\n"
-					"<local>\n"
-					"<identity>%s</identity>\n"
-					"<target uri=\"%s\"/>\n"
-					"</local>\n",
-					exten, p->callid, local_display, local_target, local_target, mto, mto);
 		} else {
 			ast_str_append(tmp, 0, "<dialog id=\"%s\">", exten);
 		}
