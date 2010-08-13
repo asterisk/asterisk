@@ -1807,6 +1807,38 @@ fi
 
 AST_EXT_LIB_CHECK([SRTP], [srtp], [srtp_init], [srtp/srtp.h])
 
+if test "$PBX_SRTP" = "1";
+then
+    saved_libs="${LIBS}"
+    saved_ldflags="${LDFLAGS}"
+    LIBS="${LIBS} -lsrtp"
+    LDFLAGS="${LDFLAGS} -shared -fPIC"
+    AC_MSG_CHECKING(for the ability of -lsrtp to be linked in a shared object)
+    AC_LINK_IFELSE(
+    [
+        AC_LANG_PROGRAM(
+            [#include <srtp/srtp.h>],
+            [srtp_init();]
+        )
+    ],
+    [ AC_MSG_RESULT(yes) ],
+    [
+        AC_MSG_RESULT(no)
+        AC_MSG_NOTICE(***)
+        AC_MSG_NOTICE(*** libsrtp could not be linked as a shared object)
+        AC_MSG_NOTICE(*** try compiling libsrtp manually and configuring with)
+        AC_MSG_NOTICE(*** ./configure CFLAGS=-fPIC --prefix=/usr)
+        AC_MSG_NOTICE(*** replacing /usr with the prefix of your choice)
+        AC_MSG_NOTICE(***)
+        AC_MSG_NOTICE(*** If you do not need SRTP support re-run configure)
+        AC_MSG_NOTICE(*** with the --without-srtp option.)
+        exit 1
+    ]
+    )
+    LIBS="${saved_libs}"
+    LDFLAGS="${saved_ldflags}"
+fi
+
 AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
