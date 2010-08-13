@@ -1829,9 +1829,9 @@ then
         AC_MSG_NOTICE(*** try compiling libsrtp manually and configuring with)
         AC_MSG_NOTICE(*** ./configure CFLAGS=-fPIC --prefix=/usr)
         AC_MSG_NOTICE(*** replacing /usr with the prefix of your choice)
-		AC_MSG_NOTICE(***)
-		AC_MSG_NOTICE(*** If you do not need SRTP support re-run configure)
-		AC_MSG_NOTICE(*** with the --without-srtp option.)
+        AC_MSG_NOTICE(***)
+        AC_MSG_NOTICE(*** If you do not need SRTP support re-run configure)
+        AC_MSG_NOTICE(*** with the --without-srtp option.)
         exit 1
     ]
     )
