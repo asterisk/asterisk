@@ -259,7 +259,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/event.h"
-#include "asterisk/stun.h"
 #include "asterisk/cel.h"
 #include "asterisk/data.h"
 #include "asterisk/aoc.h"
@@ -1145,9 +1144,6 @@ static struct ast_sockaddr internip;
  *   hostname is stored in externhost, and the hostname->IP mapping
  *   is refreshed every 'externrefresh' seconds;
  *
- * + with "stunaddr = host[:port]" we run queries every externrefresh seconds
- *   to the specified server, and store the result in externaddr.
- *
  * Other variables (externhost, externexpire, externrefresh) are used
  * to support the above functions.
  */
@@ -1157,7 +1153,6 @@ static struct ast_sockaddr media_address; /*!< External RTP IP address if we are
 static char externhost[MAXHOSTNAMELEN];   /*!< External host name */
 static time_t externexpire;             /*!< Expiration counter for re-resolving external host name in dynamic DNS */
 static int externrefresh = 10;          /*!< Refresh timer for DNS-based external address (dyndns) */
-static struct sockaddr_in stunaddr;     /*!< stun server address */
 static uint16_t externtcpport;          /*!< external tcp port */ 
 static uint16_t externtlsport;          /*!< external tls port */
 
@@ -3116,14 +3111,13 @@ static void build_via(struct sip_pvt *p)
 static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us, struct sip_pvt *p)
 {
 	struct ast_sockaddr theirs;
-	struct sockaddr_in externaddr_sin;
 
 	/* Set want_remap to non-zero if we want to remap 'us' to an externally
 	 * reachable IP address and port. This is done if:
 	 * 1. we have a localaddr list (containing 'internal' addresses marked
 	 *    as 'deny', so ast_apply_ha() will return AST_SENSE_DENY on them,
 	 *    and AST_SENSE_ALLOW on 'external' ones);
-	 * 2. either stunaddr or externaddr is set, so we know what to use as the
+	 * 2. externaddr is set, so we know what to use as the
 	 *    externally visible address;
 	 * 3. the remote address, 'them', is external;
 	 * 4. the address returned by ast_ouraddrfor() is 'internal' (AST_SENSE_DENY
@@ -3145,22 +3139,16 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 		}
 	} else {
 		want_remap = localaddr &&
-			!(ast_sockaddr_isnull(&externaddr) && stunaddr.sin_addr.s_addr) &&
+			!ast_sockaddr_isnull(&externaddr) &&
 			ast_apply_ha(localaddr, &theirs) == AST_SENSE_ALLOW ;
 	}
 
 	if (want_remap &&
 	    (!sip_cfg.matchexternaddrlocally || !ast_apply_ha(localaddr, us)) ) {
-		/* if we used externhost or stun, see if it is time to refresh the info */
+		/* if we used externhost, see if it is time to refresh the info */
 		if (externexpire && time(NULL) >= externexpire) {
-			if (stunaddr.sin_addr.s_addr) {
-				ast_sockaddr_to_sin(&externaddr, &externaddr_sin);
-				ast_stun_request(sipsock, &stunaddr, NULL, &externaddr_sin);
-			} else {
-				if (ast_sockaddr_resolve_first(&externaddr, externhost, 0)) {
-					ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
-				}
-				externexpire = time(NULL);
+			if (ast_sockaddr_resolve_first(&externaddr, externhost, 0)) {
+				ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
 			}
 			externexpire = time(NULL) + externrefresh;
 		}
@@ -3185,9 +3173,6 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 			default:
 				break;
 			}
-		}
-		else {
-			ast_log(LOG_WARNING, "stun failed\n");
 		}
 		ast_debug(1, "Target address %s is not local, substituting externaddr\n",
 			  ast_sockaddr_stringify(them));
@@ -14684,7 +14669,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
  * address and port in the SIP headers without the need for STUN.
  * The address part is also reused for the media sessions.
  * Note that ast_sip_ouraddrfor() still rewrites p->ourip
- * if you specify externaddr/seternaddr/stunaddr.
+ * if you specify externaddr/seternaddr/.
  */
 static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_request *req)
 {
@@ -16875,8 +16860,6 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		msg = "Disabled, no localnet list";
 	else if (ast_sockaddr_isnull(&externaddr))
 		msg = "Disabled";
-	else if (stunaddr.sin_addr.s_addr != 0)
-		msg = "Enabled using STUN";
 	else if (!ast_strlen_zero(externhost))
 		msg = "Enabled using externhost";
 	else
@@ -16896,8 +16879,6 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			    ast_strdupa(ast_sockaddr_stringify_addr(&d->netmask)));
 		}
 	}
-	ast_cli(a->fd, "  STUN server:            %s:%d\n", ast_inet_ntoa(stunaddr.sin_addr), ntohs(stunaddr.sin_port));
-
 	ast_cli(a->fd, "\nGlobal Signalling Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
 	ast_cli(a->fd, "  Codecs:                 ");
@@ -26179,7 +26160,6 @@ static int reload_config(enum channelreloadreason reason)
 	int registry_count = 0, peer_count = 0, timerb_set = 0, timert1_set = 0;
 	int subscribe_network_change = 1;
 	time_t run_start, run_end;
-	struct sockaddr_in externaddr_sin;
 	int bindport = 0;
 
 	run_start = time(0);
@@ -26282,7 +26262,6 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Reset IP addresses  */
 	ast_sockaddr_parse(&bindaddr, "0.0.0.0:0", 0);
-	memset(&stunaddr, 0, sizeof(stunaddr));
 	memset(&internip, 0, sizeof(internip));
 
 	/* Free memory for local network address mask */
@@ -26668,12 +26647,6 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "registerattempts")) {
 			global_regattempts_max = atoi(v->value);
-		} else if (!strcasecmp(v->name, "stunaddr")) {
-			stunaddr.sin_port = htons(3478);
-			if (ast_parse_arg(v->value, PARSE_INADDR, &stunaddr)) {
-				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", v->value);
-			}
-			externexpire = time(NULL);
 		} else if (!strcasecmp(v->name, "bindaddr") || !strcasecmp(v->name, "udpbindaddr")) {
 			if (ast_parse_arg(v->value, PARSE_ADDR, &bindaddr)) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
@@ -26987,15 +26960,6 @@ static int reload_config(enum channelreloadreason reason)
 				ast_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
 			}
 		}
-	}
-	if (stunaddr.sin_addr.s_addr != 0) {
-		ast_debug(1, "stun to %s:%d\n",
-			ast_inet_ntoa(stunaddr.sin_addr) , ntohs(stunaddr.sin_port));
-		ast_sockaddr_to_sin(&externaddr, &externaddr_sin);
-		ast_stun_request(sipsock, &stunaddr,
-			NULL, &externaddr_sin);
-		ast_debug(1, "STUN sees us at %s\n",
-			ast_sockaddr_stringify(&externaddr));
 	}
 	ast_mutex_unlock(&netlock);
 

@@ -727,31 +727,18 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;        externhost=foo.dyndns.net       ; refreshed periodically
 ;        externrefresh=180               ; change the refresh interval
 ;
-;   c. "stunaddr = stun.server[:port]" queries the STUN server specified
-;      as an argument to obtain the external address/port.
-;      Queries are also sent periodically every "externrefresh" seconds
-;      (as a side effect, sending the query also acts as a keepalive for
-;      the state entry on the nat box):
-;
-;        stunaddr = foo.stun.com:3478
-;        externrefresh = 15
-;
-;      NOTE: STUN is only implemented for IPv4.
-;
 ;   Note that at the moment all these mechanism work only for the SIP socket.
-;   The IP address discovered with externaddr/externhost/STUN is reused for
+;   The IP address discovered with externaddr/externhost is reused for
 ;   media sessions as well, but the port numbers are not remapped so you
 ;   may still experience problems.
 ;
 ; NOTE 1: in some cases, NAT boxes will use different port numbers in
 ; the internal<->external mapping. In these cases, the "externaddr" and
-; "externhost" might not help you configure addresses properly, and you
-; really need to use STUN.
+; "externhost" might not help you configure addresses properly.
 ;
 ; NOTE 2: when using "externaddr" or "externhost", the address part is
-; also used as the external address for media sessions. Even if you 
-; use "stunaddr", STUN queries will be sent only from the SIP port,
-; not from media sockets. Thus, the port information in the SDP may be wrong!
+; also used as the external address for media sessions. Thus, the port
+; information in the SDP may be wrong!
 ;
 ; In addition to the above, Asterisk has an additional "nat" parameter to
 ; address NAT-related issues in incoming SIP or media sessions.

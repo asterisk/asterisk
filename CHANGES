@@ -1109,10 +1109,6 @@ SIP changes
     option is enabled, Asterisk will watch for a CNG tone in the incoming audio
     for a received call.  If it is detected, the channel will jump to the 
     'fax' extension in the dialplan.
-  * Improved NAT and STUN support.
-     chan_sip now can use port numbers in bindaddr, externip and externhost
-     options, as well as contact a STUN server to detect its external address
-     for the SIP socket. See sip.conf.sample, 'NAT' section.
   * The default SIP useragent= identifier now includes the Asterisk version
   * A new option, match_auth_username in sip.conf changes the matching of incoming requests.
      If set, and the incoming request carries authentication info,
