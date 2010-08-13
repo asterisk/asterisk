@@ -81,6 +81,8 @@ SIP Changes
    RTP has been outfitted with the same abilities.
  * Added support for setting the Max-Forwards: header in SIP requests. Setting is
    available in device configurations as well as in the dial plan.
+ * Addition of the 'subscribe_network_change' option for turning on and off
+   res_stun_monitor module support in chan_sip.
 
 IAX2 Changes
 -----------
@@ -90,6 +92,9 @@ IAX2 Changes
    encryption is being used. This interoperates with the SIP SRTP implementation
    so that a secure SIP call can be bridged to a secure IAX call when the
    dialplan requires bridged channels to be "secure".
+ * Addition of the 'subscribe_network_change' option for turning on and off
+   res_stun_monitor module support in chan_iax.
+
 
 MGCP Changes
 ------------
@@ -545,6 +550,8 @@ Miscellaneous
  * Realtime now supports database failover.  See the sample extconfig.conf for details.
  * The addition of improved translation path building for wideband codecs.  Sample
    rate changes during translation are now avoided unless absolutely necessary.
+ * The addition of the res_stun_monitor module for monitoring and reacting to network
+   changes while behind a NAT.
 
 CLI Changes
 -----------
