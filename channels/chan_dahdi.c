@@ -2887,6 +2887,7 @@ static void my_pri_fixup_chans(void *chan_old, void *chan_new)
 
 	/* More stuff to transfer to the new channel. */
 	new_chan->law = old_chan->law;
+	strcpy(new_chan->dialstring, old_chan->dialstring);
 }
 #endif	/* defined(HAVE_PRI) */
 
