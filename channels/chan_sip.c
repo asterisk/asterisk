@@ -762,6 +762,9 @@ static int regobjs = 0;       /*!< Registry objects */
 static struct ast_flags global_flags[3] = {{0}};  /*!< global SIP_ flags */
 static int global_t38_maxdatagram;                /*!< global T.38 FaxMaxDatagram override */
 
+static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
+static int network_change_event_sched_id = -1;
+
 static char used_context[AST_MAX_CONTEXT];        /*!< name of automatically created context for unloading */
 
 AST_MUTEX_DEFINE_STATIC(netlock);
@@ -1334,6 +1337,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force);
 static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
 static void mwi_event_cb(const struct ast_event *, void *);
+static void network_change_event_cb(const struct ast_event *, void *);
 
 /*--- Applications, functions, CLI and manager command helpers */
 static const char *sip_nat_mode(const struct sip_pvt *p);
@@ -13433,6 +13437,39 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 	ao2_lock(peer);
 	sip_send_mwi_to_peer(peer, event, 0);
 	ao2_unlock(peer);
+}
+
+static void network_change_event_subscribe(void)
+{
+	if (!network_change_event_subscription) {
+		network_change_event_subscription = ast_event_subscribe(AST_EVENT_NETWORK_CHANGE,
+			network_change_event_cb,
+			"SIP Network Change ",
+			NULL, AST_EVENT_IE_END);
+	}
+}
+
+static void network_change_event_unsubscribe(void)
+{
+	if (network_change_event_subscription) {
+		network_change_event_subscription = ast_event_unsubscribe(network_change_event_subscription);
+	}
+}
+
+static int network_change_event_sched_cb(const void *data)
+{
+	network_change_event_sched_id = -1;
+	sip_send_all_registers();
+	sip_send_all_mwi_subscriptions();
+	return 0;
+}
+
+static void network_change_event_cb(const struct ast_event *event, void *userdata)
+{
+	ast_debug(1, "SIP, got a network change event, renewing all SIP registrations.\n");
+	if (network_change_event_sched_id == -1) {
+		network_change_event_sched_id = ast_sched_add(sched, 1000, network_change_event_sched_cb, NULL);
+	}
 }
 
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
@@ -26140,6 +26177,7 @@ static int reload_config(enum channelreloadreason reason)
 	int auto_sip_domains = FALSE;
 	struct ast_sockaddr old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, timerb_set = 0, timert1_set = 0;
+	int subscribe_network_change = 1;
 	time_t run_start, run_end;
 	struct sockaddr_in externaddr_sin;
 	int bindport = 0;
@@ -26843,9 +26881,23 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "'%s' is not a valid maxforwards value at line %d.  Using default.\n", v->value, v->lineno);
 				sip_cfg.default_max_forwards = DEFAULT_MAX_FORWARDS;
 			}
+		} else if (!strcasecmp(v->name, "subscribe_network_change_event")) {
+			if (ast_true(v->value)) {
+				subscribe_network_change = 1;
+			} else if (ast_false(v->value)) {
+				subscribe_network_change = 0;
+			} else {
+				ast_log(LOG_WARNING, "subscribe_network_change_event value %s is not valid at line %d.\n", v->value, v->lineno);
+			}
 		} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
 				ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
 		}
+	}
+
+	if (subscribe_network_change) {
+		network_change_event_subscribe();
+	} else {
+		network_change_event_unsubscribe();
 	}
 
 	if (global_t1 < global_t1min) {
@@ -28354,6 +28406,7 @@ static int load_module(void)
 
 
 	sip_register_tests();
+	network_change_event_subscribe();
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -28365,6 +28418,8 @@ static int unload_module(void)
 	struct sip_threadinfo *th;
 	struct ast_context *con;
 	struct ao2_iterator i;
+
+	network_change_event_unsubscribe();
 
 	ast_sched_dump(sched);
 	

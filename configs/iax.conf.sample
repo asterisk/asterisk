@@ -244,6 +244,15 @@ forcejitterbuffer=no
 ;
 ;register => FWDNumber:passwd@iax.fwdnet.net
 ;
+; Through the use of the res_stun_monitor module, Asterisk has the ability to detect when the
+; perceived external network address has changed.  When the stun_monitor is installed and
+; configured, chan_iax will renew all outbound registrations when the monitor detects any sort
+; of network change has occurred. By default this option is enabled, but only takes effect once
+; res_stun_monitor is configured.  If res_stun_monitor is enabled and you wish to not
+; generate all outbound registrations on a network change, use the option below to disable
+; this feature.
+;
+; subscribe_network_change_event = yes ; on by default
 ;
 ; You can disable authentication debugging to reduce the amount of
 ; debugging traffic.
