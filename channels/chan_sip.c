@@ -11319,23 +11319,24 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 					ast_channel_unlock(caller);
 					caller = NULL;
 				}
+				/* We create a fake call-id which the phone will send back in an INVITE
+				 * Replaces header which we can grab and do some magic with. */
+				ast_str_append(&tmp, 0, 
+						"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
+						"<remote>\n"
+						/* See the limitations of this above.  Luckily the phone seems to still be
+						   happy when these values are not correct. */
+						"<identity display=\"%s\">%s</identity>\n"
+						"<target uri=\"%s\"/>\n"
+						"</remote>\n"
+						"<local>\n"
+						"<identity>%s</identity>\n"
+						"<target uri=\"%s\"/>\n"
+						"</local>\n",
+						p->exten, p->callid, local_display, local_target, local_target, mto, mto);
+			} else {
+				ast_str_append(&tmp, 0, "<dialog id=\"%s\" direction=\"recipient\">\n", p->exten);
 			}
-
-			/* We create a fake call-id which the phone will send back in an INVITE
-			   Replaces header which we can grab and do some magic with. */
-			ast_str_append(&tmp, 0, 
-					"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
-					"<remote>\n"
-					/* See the limitations of this above.  Luckily the phone seems to still be
-					   happy when these values are not correct. */
-					"<identity display=\"%s\">%s</identity>\n"
-					"<target uri=\"%s\"/>\n"
-					"</remote>\n"
-					"<local>\n"
-					"<identity>%s</identity>\n"
-					"<target uri=\"%s\"/>\n"
-					"</local>\n",
-					p->exten, p->callid, local_display, local_target, local_target, mto, mto);
 		} else {
 			ast_str_append(&tmp, 0, "<dialog id=\"%s\">\n", p->exten);
 		}
