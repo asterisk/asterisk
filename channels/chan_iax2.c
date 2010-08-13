@@ -268,6 +268,9 @@ static char default_parkinglot[AST_MAX_CONTEXT];
 static char language[MAX_LANGUAGE] = "";
 static char regcontext[AST_MAX_CONTEXT] = "";
 
+static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
+static int network_change_event_sched_id = -1;
+
 static int maxauthreq = 3;
 static int max_retries = 4;
 static int ping_time = 21;
@@ -1177,6 +1180,8 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 static int iax2_queryoption(struct ast_channel *c, int option, void *data, int *datalen);
 static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
+static int iax2_sched_add(struct ast_sched_thread *st, int when, ast_sched_cb callback, const void *data);
+
 static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now);
 static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
@@ -1201,6 +1206,7 @@ static void build_rand_pad(unsigned char *buf, ssize_t len);
 static struct callno_entry *get_unused_callno(int trunk, int validated);
 static int replace_callno(const void *obj);
 static void sched_delay_remove(struct sockaddr_in *sin, struct callno_entry *callno_entry);
+static void network_change_event_cb(const struct ast_event *, void *);
 
 static const struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
@@ -1236,6 +1242,47 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 	 * is time to send MWI, since it is only sent with a REGACK. */
 }
 
+static void network_change_event_subscribe(void)
+{
+	if (!network_change_event_subscription) {
+		network_change_event_subscription = ast_event_subscribe(AST_EVENT_NETWORK_CHANGE,
+			network_change_event_cb,
+			"SIP Network Change ",
+			NULL,
+			AST_EVENT_IE_END);
+	}
+}
+
+static void network_change_event_unsubscribe(void)
+{
+	if (network_change_event_subscription) {
+		network_change_event_subscription = ast_event_unsubscribe(network_change_event_subscription);
+	}
+}
+
+static int network_change_event_sched_cb(const void *data)
+{
+	struct iax2_registry *reg;
+	network_change_event_sched_id = -1;
+	AST_LIST_LOCK(&registrations);
+	AST_LIST_TRAVERSE(&registrations, reg, entry) {
+		iax2_do_register(reg);
+	}
+	AST_LIST_UNLOCK(&registrations);
+
+	return 0;
+}
+
+static void network_change_event_cb(const struct ast_event *event, void *userdata)
+{
+	ast_debug(1, "IAX, got a network change event, renewing all IAX registrations.\n");
+	if (network_change_event_sched_id == -1) {
+		network_change_event_sched_id = iax2_sched_add(sched, 1000, network_change_event_sched_cb, NULL);
+	}
+
+}
+
+
 /*! \brief Send manager event at call setup to link between Asterisk channel name
 	and IAX2 call identifiers */
 static void iax2_ami_channelupdate(struct chan_iax2_pvt *pvt) 
@@ -1245,7 +1292,6 @@ static void iax2_ami_channelupdate(struct chan_iax2_pvt *pvt)
 		pvt->owner ? pvt->owner->name : "",
 		pvt->callno, pvt->peercallno, pvt->peer ? pvt->peer : "");
 }
-
 
 static struct ast_datastore_info iax2_variable_datastore_info = {
 	.type = "IAX2_VARIABLE",
@@ -12779,7 +12825,8 @@ static int set_config(const char *config_file, int reload)
 	int format;
 	int portno = IAX_DEFAULT_PORTNO;
 	int  x;
-	int mtuv; 
+	int mtuv;
+	int subscribe_network_change = 1;
 	struct iax2_user *user;
 	struct iax2_peer *peer;
 	struct ast_netsock *ns;
@@ -13097,6 +13144,14 @@ static int set_config(const char *config_file, int reload)
 			if (add_calltoken_ignore(v->value)) {
 				ast_log(LOG_WARNING, "Invalid calltokenoptional address range - '%s' line %d\n", v->value, v->lineno);
 			}
+		} else if (!strcasecmp(v->name, "subscribe_network_change_event")) {
+			if (ast_true(v->value)) {
+				subscribe_network_change = 1;
+			} else if (ast_false(v->value)) {
+				subscribe_network_change = 0;
+			} else {
+				ast_log(LOG_WARNING, "subscribe_network_change_event value %s is not valid at line %d.\n", v->value, v->lineno);
+			}
 		} else if (!strcasecmp(v->name, "shrinkcallerid")) {
 			if (ast_true(v->value)) {
 				ast_set_flag64((&globalflags), IAX_SHRINKCALLERID);
@@ -13109,7 +13164,13 @@ static int set_config(const char *config_file, int reload)
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
 	}
-	
+
+	if (subscribe_network_change) {
+		network_change_event_subscribe();
+	} else {
+		network_change_event_unsubscribe();
+	}
+
 	if (defaultsockfd < 0) {
 		if (!(ns = ast_netsock_bind(netsock, io, "0.0.0.0", portno, qos.tos, qos.cos, socket_read, NULL))) {
 			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
@@ -14050,6 +14111,8 @@ static int __unload_module(void)
 	struct ast_context *con;
 	int x;
 
+	network_change_event_unsubscribe();
+
 	ast_manager_unregister("IAXpeers");
 	ast_manager_unregister("IAXpeerlist");
 	ast_manager_unregister("IAXnetstats");
@@ -14529,6 +14592,8 @@ static int load_module(void)
 	iax_provision_reload(0);
 
 	ast_realtime_require_field("iaxpeers", "name", RQ_CHAR, 10, "ipaddr", RQ_CHAR, 15, "port", RQ_UINTEGER2, 5, "regseconds", RQ_UINTEGER2, 6, SENTINEL);
+
+	network_change_event_subscribe();
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

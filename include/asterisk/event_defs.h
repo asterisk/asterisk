@@ -52,8 +52,10 @@ enum ast_event_type {
 	AST_EVENT_CEL                 = 0x07,
 	/*! A report of a security related event (see security_events.h) */
 	AST_EVENT_SECURITY            = 0x08,
+	/*! Used by res_stun_monitor to alert listeners to an exernal network address change. */
+	AST_EVENT_NETWORK_CHANGE      = 0x09,
 	/*! Number of event types.  This should be the last event type + 1 */
-	AST_EVENT_TOTAL               = 0x09,
+	AST_EVENT_TOTAL               = 0x0a,
 };
 
 /*! \brief Event Information Element types */
