@@ -358,6 +358,8 @@ static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 static	struct io_context *io;
 static	struct ast_sched_thread *sched;
 
+#define DONT_RESCHEDULE -2
+
 static format_t iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
 static int iaxdebug = 0;
@@ -1473,10 +1475,9 @@ static void __send_ping(const void *data)
 	if (iaxs[callno]) {
 		if (iaxs[callno]->peercallno) {
 			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
-			iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
-		} else {
-			/* I am the schedule, so I'm allowed to do this */
-			iaxs[callno]->pingid = -1;
+			if (iaxs[callno]->pingid != DONT_RESCHEDULE) {
+				iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
+			}
 		}
 	} else {
 		ast_debug(1, "I was supposed to send a PING with callno %d, but no such call exists.\n", callno);
@@ -1487,9 +1488,16 @@ static void __send_ping(const void *data)
 
 static int send_ping(const void *data)
 {
+	int callno = (long) data;
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno] && iaxs[callno]->pingid != DONT_RESCHEDULE) {
+		iaxs[callno]->pingid = -1;
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
+
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_ping, data))
-#endif		
+#endif
 		__send_ping(data);
 
 	return 0;
@@ -1534,10 +1542,9 @@ static void __send_lagrq(const void *data)
 	if (iaxs[callno]) {
 		if (iaxs[callno]->peercallno) {
 			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
-			iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
-		} else {
-			/* I am the schedule, so I'm allowed to do this */
-			iaxs[callno]->lagid = -1;
+			if (iaxs[callno]->lagid != DONT_RESCHEDULE) {
+				iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
+			}
 		}
 	} else {
 		ast_debug(1, "I was supposed to send a LAGRQ with callno %d, but no such call exists.\n", callno);
@@ -1548,11 +1555,17 @@ static void __send_lagrq(const void *data)
 
 static int send_lagrq(const void *data)
 {
+	int callno = (long) data;
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno] && iaxs[callno]->lagid != DONT_RESCHEDULE) {
+		iaxs[callno]->lagid = -1;
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
+
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_lagrq, data))
-#endif		
+#endif
 		__send_lagrq(data);
-	
 	return 0;
 }
 
@@ -1734,7 +1747,9 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 	}
 	/* No more pings or lagrq's */
 	AST_SCHED_DEL_SPINLOCK(ast_sched_thread_get_context(sched), pvt->pingid, &iaxsl[pvt->callno]);
+	pvt->pingid = DONT_RESCHEDULE;
 	AST_SCHED_DEL_SPINLOCK(ast_sched_thread_get_context(sched), pvt->lagid, &iaxsl[pvt->callno]);
+	pvt->lagid = DONT_RESCHEDULE;
 	ast_sched_thread_del(sched, pvt->autoid);
 	ast_sched_thread_del(sched, pvt->authid);
 	ast_sched_thread_del(sched, pvt->initid);
