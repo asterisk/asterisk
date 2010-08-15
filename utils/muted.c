@@ -39,7 +39,7 @@
 
 #ifdef __Darwin__
 #include <CoreAudio/AudioHardware.h> 
-#elif defined(__linux__) || defined(__FreeBSD__)
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__GLIBC__)
 #include <sys/soundcard.h>
 #endif
 #include <stdio.h>

@@ -34,7 +34,7 @@ AST_LIBS += $(OPENSSL_LIB)
 AST_LIBS += $(BKTR_LIB)
 AST_LIBS += $(LIBXML2_LIB) 
 
-ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi ),)
+ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-gnueabi kfreebsd-gnu),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
   AST_LIBS+=-ldl
   endif

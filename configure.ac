@@ -126,6 +126,9 @@ case "${host_os}" in
      linux-gnueabi)
      OSARCH=linux-gnu
      ;;
+     kfreebsd*-gnu)
+     OSARCH=kfreebsd-gnu
+     ;;
      *)
      OSARCH=${host_os}
      ;;

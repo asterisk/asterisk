@@ -123,7 +123,7 @@ static int get_local_address(struct ast_sockaddr *ourip)
 	char *buf = NULL;
 	int bufsz, x;
 #endif /* SOLARIS */
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__) || defined(__GLIBC__)
 	struct ifaddrs *ifap, *ifaphead;
 	int rtnerr;
 	const struct sockaddr_in *sin;
@@ -132,7 +132,7 @@ static int get_local_address(struct ast_sockaddr *ourip)
 	int best_score = -100;
 	memset(&best_addr, 0, sizeof(best_addr));
 
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__) || defined(__GLIBC__)
 	rtnerr = getifaddrs(&ifaphead);
 	if (rtnerr) {
 		perror(NULL);
@@ -143,7 +143,7 @@ static int get_local_address(struct ast_sockaddr *ourip)
 	s = socket(AF_INET, SOCK_STREAM, 0);
 
 	if (s > 0) {
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__) || defined(__GLIBC__)
 		for (ifap = ifaphead; ifap; ifap = ifap->ifa_next) {
 
 			if (ifap->ifa_addr && ifap->ifa_addr->sa_family == AF_INET) {
