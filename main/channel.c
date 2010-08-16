@@ -5863,6 +5863,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		struct ast_party_redirecting redirecting;
 	} exchange;
 	struct ast_channel *clonechan, *chans[2];
+	struct ast_channel *bridged;
 	struct ast_cdr *cdr;
 	format_t rformat = original->readformat;
 	format_t wformat = original->writeformat;
@@ -6185,6 +6186,14 @@ int ast_do_masquerade(struct ast_channel *original)
 		pthread_kill(original->blocker, SIGURG);
 	ast_debug(1, "Done Masquerading %s (%d)\n", original->name, original->_state);
 
+	if ((bridged = ast_bridged_channel(original))) {
+		ast_channel_lock(bridged);
+		ast_indicate(bridged, AST_CONTROL_SRCCHANGE);
+		ast_channel_unlock(bridged);
+	}
+
+	ast_indicate(original, AST_CONTROL_SRCCHANGE);
+
 done:
 	/* it is possible for the clone channel to disappear during this */
 	if (clonechan) {
@@ -6196,6 +6205,7 @@ done:
 		ast_channel_unlock(original);
 		ao2_link(channels, original);
 	}
+
 	return 0;
 }
 
