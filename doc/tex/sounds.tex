@@ -1,0 +1,80 @@
+\section{Introduction}
+Asterisk utilizes a variety of sound prompts that are available in several file
+formats and languages. Multiple languages and formats can be installed on the 
+same system, and Asterisk will utilize prompts from languages installed, and 
+will automatically pick the least CPU intensive format that is available on the
+system (based on codecs in use, in additional to the codec and format modules
+installed and available).
+
+In addition to the prompts available with Asterisk, you can create your own sets
+of prompts and utilize them as well. This document will tell you how the prompts
+available for Asterisk are created so that the prompts you create can be as close
+and consistent in the quality and volume levels as those shipped with Asterisk.
+
+\section{Getting The Sounds Tools}
+The sounds tools are available in the publicly accessible repotools repository.
+You can check these tools out with Subversion via the following command:
+
+\begin{astlisting}
+\begin{verbatim}
+# svn co http://svn.asterisk.org/svn/repotools
+\end{verbatim}
+\end{astlisting}
+
+The sound tools are available in the subdirectory sound_tools/ which contains the
+following directories:
+
+\begin{itemize}
+\item audiofilter
+\item makeg722
+\item scripts
+\end{itemize}
+
+\section{About The Sounds Tools}
+The following sections will describe the sound tools in more detail and explain what
+they are used for in the sounds package creation process.
+
+\subsection{audiofilter}
+The audiofilter application is used to "tune" the sound files in such a way that
+they sound good when being used while in a compressed format. The values in the
+scripts for creating the sound files supplied in repotools is essentially a
+high-pass filter that drops out audio below 100Hz (or so).
+
+(There is an ITU specification that states for 8KHz audio that is being compressed
+frequencies below a certain threshold should be removed because they make the
+resulting compressed audio sound worse than it should.)
+
+The audiofilter application is used by the 'converter' script located in the
+scripts subdirectory of repotools/sound_tools. The values being passed to the
+audiofilter application is as follows:
+
+\begin{astlisting}
+\begin{verbatim}
+audiofilter -n 0.86916 -1.73829 0.86916 -d 1.00000 -1.74152 0.77536
+\end{verbatim}
+\end{astlisting}
+
+
+The two options -n and -d are 'numerator' and 'denominator'. Per the author,
+Jean-Marc Valin, "These values are filter coefficients (-n means numerator, -d is 
+denominator) expressed in the z-transform domain. There represent an elliptic filter
+that I designed with Octave such that 'the result sounds good'."
+
+\subsection{makeg722}
+The makeg722 application is used by the 'converters' script to generate the G.722
+sound files that are shipped with Asterisk. It starts with the RAW sound files and
+then converts them to G.722.
+
+\subsection{scripts}
+The scripts folder is where all the magic happens. These are the scripts that the
+Asterisk open source team use to build the packaged audio files for the various
+formats that are distributed with Asterisk.
+
+\begin{itemize}
+\item chkcore - used to check that the contents of core-sounds-$<$lang$>$.txt are in sync
+\item chkextra - same as above, but checks the extra sound files
+\item mkcore - script used to generate the core sounds packages
+\item mkextra - script used to generate the extra sounds packages
+\item mkmoh - script used to generate the music on hold packages
+\item converters - script used to convert the master files to various formats
+\end{itemize}
