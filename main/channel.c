@@ -4613,6 +4613,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	void *t_pvt;
 	struct ast_callerid tmpcid;
 	struct ast_channel *clonechan = original->masq;
+	struct ast_channel *bridged;
 	struct ast_cdr *cdr;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
@@ -4877,6 +4878,15 @@ int ast_do_masquerade(struct ast_channel *original)
 	if (ast_test_flag(original, AST_FLAG_BLOCKING))
 		pthread_kill(original->blocker, SIGURG);
 	ast_debug(1, "Done Masquerading %s (%d)\n", original->name, original->_state);
+
+	if ((bridged = ast_bridged_channel(original))) {
+		ast_channel_lock(bridged);
+		ast_indicate(bridged, AST_CONTROL_SRCCHANGE);
+		ast_channel_unlock(bridged);
+	}
+
+	ast_indicate(original, AST_CONTROL_SRCCHANGE);
+
 	return 0;
 }
 
