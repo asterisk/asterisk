@@ -23776,6 +23776,8 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->timer_t1 = global_t1;
 	peer->timer_b = global_timer_b;
 	clear_peer_mailboxes(peer);
+	peer->transports = default_transports;
+	peer->default_outbound_transport = default_primary_transport;
 }
 
 /*! \brief Create temporary peer (used in autocreatepeer mode) */
@@ -23918,6 +23920,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	/* If we have realm authentication information, remove them (reload) */
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
+	/* clear the transport information.  We will detect if a default value is required after parsing the config */
 	peer->default_outbound_transport = 0;
 	peer->transports = 0;
 
