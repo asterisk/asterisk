@@ -50,7 +50,7 @@ static inline unsigned short get_unaligned_uint16(const void *p)
 
 static inline void put_unaligned_uint64(void *p, uint64_t datum)
 {
-	struct { unsigned int d; } __attribute__((packed,may_alias)) *pp = p;
+	struct { uint64_t d; } __attribute__((packed,may_alias)) *pp = p;
 
 	pp->d = datum;
 }
