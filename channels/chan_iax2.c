@@ -10489,6 +10489,7 @@ retryowner:
 							/* No authentication required, let them in */
 							memset(&ied1, 0, sizeof(ied1));
 							iax_ie_append_int(&ied1, IAX_IE_FORMAT, format);
+							iax_ie_append_versioned_uint64(&ied1, IAX_IE_FORMAT2, 0, format);
 							send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
 							if (strcmp(iaxs[fr->callno]->exten, "TBD")) {
 								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
@@ -10954,6 +10955,7 @@ retryowner2:
 						/* Authentication received */
 						memset(&ied1, 0, sizeof(ied1));
 						iax_ie_append_int(&ied1, IAX_IE_FORMAT, format);
+						iax_ie_append_versioned_uint64(&ied1, IAX_IE_FORMAT2, 0, format);
 						send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
 						if (strcmp(iaxs[fr->callno]->exten, "TBD")) {
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
