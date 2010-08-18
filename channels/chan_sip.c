@@ -11315,7 +11315,9 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 					int need = strlen(caller->cid.cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
 					local_target = alloca(need);
 					snprintf(local_target, need, "sip:%s@%s", caller->cid.cid_num, p->fromdomain);
-					local_display = ast_strdupa(caller->cid.cid_name);
+					if (!(ast_strlen_zero(caller->cid.cid_name))) {
+						local_display = ast_strdupa(caller->cid.cid_name);
+					}
 					ast_channel_unlock(caller);
 					caller = NULL;
 				}
