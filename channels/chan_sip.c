@@ -20365,18 +20365,8 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		*sep++ = '\0';			/* Response string */
 		respcode = atoi(code);
 		switch (respcode) {
-		case 100:	/* Trying: */
-		case 101:	/* dialog establishment */
-			/* Don't do anything yet */
-			success = -1;	/* Wait */
-			break;
-		case 183:	/* Ringing: */
-			/* Don't do anything yet */
-			success = -1;	/* Wait */
-			break;
 		case 200:	/* OK: The new call is up, hangup this call */
 			/* Hangup the call that we are replacing */
-			success = -1;	/* Wait */
 			break;
 		case 301: /* Moved permenantly */
 		case 302: /* Moved temporarily */
@@ -20384,12 +20374,23 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 			success = FALSE;
 			break;
 		case 503:	/* Service Unavailable: The new call failed */
-				/* Cancel transfer, continue the call */
-			success = FALSE;
-			break;
 		case 603:	/* Declined: Not accepted */
 				/* Cancel transfer, continue the current call */
 			success = FALSE;
+			break;
+		case 0:		/* Parse error */
+				/* Cancel transfer, continue the current call */
+			ast_log(LOG_NOTICE, "Error parsing sipfrag in NOTIFY in response to REFER.\n");
+			success = FALSE;
+			break;
+		default:
+			if (respcode < 200) {
+				/* ignore provisional responses */
+				success = -1;
+			} else {
+				ast_log(LOG_NOTICE, "Got unknown code '%d' in NOTIFY in response to REFER.\n", respcode);
+				success = FALSE;
+			}
 			break;
 		}
 		if (success == FALSE) {
