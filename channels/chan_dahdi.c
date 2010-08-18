@@ -3112,7 +3112,7 @@ static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
 			if (pri->pvts[idx]->owner
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 				/* Out-of-service B channels are "in-use". */
-				&& pri->pvts[idx]->service_status
+				|| pri->pvts[idx]->service_status
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 				) {
 				++in_use;
