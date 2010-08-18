@@ -3601,7 +3601,16 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		l = NULL;
 		n = NULL;
 		if (!p->hidecallerid) {
-			l = ast->cid.cid_num;
+			/* If we get to the end of this loop without breaking, there's no
+			 * numeric calleridnum. This is done instead of testing for
+			 * "unknown" or the thousands of other ways that the calleridnum
+			 * could be invalid. */
+			for (l = ast->cid.cid_num; l && *l; l++) {
+				if (strchr("0123456789", *l)) {
+					l = ast->cid.cid_num;
+					break;
+				}
+			}
 			if (!p->hidecalleridname) {
 				n = ast->cid.cid_name;
 			}
