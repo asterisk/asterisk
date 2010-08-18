@@ -295,8 +295,8 @@ struct sig_pri_span {
 	int fds[SIG_PRI_NUM_DCHANS];					/*!< FD's for d-channels */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
-	int aoc_passthrough_flag;          /*!< Represents what AOC messages (S,D,E) are allowed to pass-through */
-	int aoce_delayhangup:1;            /*!< defines whether the aoce_delayhangup option is enabled or not */
+	int aoc_passthrough_flag;						/*!< Represents what AOC messages (S,D,E) are allowed to pass-through */
+	unsigned int aoce_delayhangup:1;				/*!< defines whether the aoce_delayhangup option is enabled or not */
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
