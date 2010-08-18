@@ -126,17 +126,17 @@ static struct ast_channel *multicast_rtp_request(const char *type, format_t form
 	}
 	*destination++ = '\0';
 
-	if (!ast_sockaddr_parse(&destination_address, destination,
-				PARSE_PORT_REQUIRE)) {
-		goto failure;
-	}
-
 	if ((control = strchr(destination, '/'))) {
 		*control++ = '\0';
 		if (!ast_sockaddr_parse(&control_address, control,
 					PARSE_PORT_REQUIRE)) {
 			goto failure;
 		}
+	}
+
+	if (!ast_sockaddr_parse(&destination_address, destination,
+				PARSE_PORT_REQUIRE)) {
+		goto failure;
 	}
 
 	if (!(instance = ast_rtp_instance_new("multicast", NULL, &control_address, multicast_type))) {
