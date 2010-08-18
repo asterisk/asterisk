@@ -4677,6 +4677,31 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 	return tmp;
 }
 
+static void setsubstate_offhook(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+	pthread_t t;
+
+	ast_verb(1, "Call-id: %d\n", sub->callid);
+	l->activesub = sub;
+	if (l->hookstate == SKINNY_ONHOOK) {
+		l->hookstate = SKINNY_OFFHOOK;
+		transmit_speaker_mode(d, SKINNY_SPEAKERON);
+	}
+	transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
+	transmit_activatecallplane(d, l);
+	transmit_clear_display_message(d, l->instance, sub->callid);
+	transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
+	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
+
+	/* start the switch thread */
+	if (ast_pthread_create(&t, NULL, skinny_ss, sub->owner)) {
+		ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
+		ast_hangup(sub->owner);
+	}
+}
+
 static void setsubstate_connected(struct skinny_subchannel *sub)
 {
 	struct skinny_line *l = sub->parent;
@@ -4772,7 +4797,6 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 	struct skinny_device *d;
 	struct skinny_subchannel *newsub;
 	struct ast_channel *c;
-	pthread_t t;
 
 	if (!sub) {
 		ast_verbose("Transfer: No subchannel to transfer\n");
@@ -4794,17 +4818,7 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 			newsub->related = sub;
 			sub->related = newsub;
 			newsub->xferor = 1;
-			l->activesub = newsub;
-			transmit_callstate(d, l->instance, newsub->callid, SKINNY_OFFHOOK);
-			transmit_activatecallplane(d, l);
-			transmit_clear_display_message(d, l->instance, newsub->callid);
-			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, newsub->callid);
-			transmit_selectsoftkeys(d, l->instance, newsub->callid, KEYDEF_OFFHOOKWITHFEAT);
-			/* start the switch thread */
-			if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
-				ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-				ast_hangup(c);
-			}
+			setsubstate_offhook(newsub);
 		} else {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		}
@@ -4835,7 +4849,6 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 	struct ast_channel *c = sub->owner;
-	pthread_t t;
 
 	if (l->hookstate == SKINNY_ONHOOK) {
 		l->hookstate = SKINNY_OFFHOOK;
@@ -4864,12 +4877,7 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 		transmit_cfwdstate(d, l);
 	} else {
 		l->getforward = cfwdtype;
-		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
-		if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
-			ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-			ast_hangup(c);
-		}
+		setsubstate_offhook(sub);
 	}
 	return 0;
 }
@@ -5261,19 +5269,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			} else {
 				c = skinny_new(l, AST_STATE_DOWN, NULL);
 				if (c) {
-					sub = c->tech_pvt;
-					l->activesub = sub;
-					transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-					transmit_activatecallplane(d, l);
-					transmit_clear_display_message(d, l->instance, sub->callid);
-					transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-					transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
-
-					/* start the switch thread */
-					if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
-						ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-						ast_hangup(c);
-					}
+					setsubstate_offhook(c->tech_pvt);
 				} else {
 					ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 				}
@@ -5297,7 +5293,6 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	struct skinny_subchannel *sub;
 	struct ast_channel *c;
 	struct skinny_line *tmp;
-	pthread_t t;
 	int instance;
 	int reference;
 
@@ -5355,19 +5350,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		} else {
 			c = skinny_new(l, AST_STATE_DOWN, NULL);
 			if (c) {
-				sub = c->tech_pvt;
-				l->activesub = sub;
-				transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-				transmit_activatecallplane(d, l);
-				transmit_clear_display_message(d, l->instance, sub->callid);
-				transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-				transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
-
-				/* start the switch thread */
-				if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
-					ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-					ast_hangup(c);
-				}
+				setsubstate_offhook(c->tech_pvt);
 			} else {
 				ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 			}
@@ -5848,34 +5831,10 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		c = skinny_new(l, AST_STATE_DOWN, NULL);
 		sub = c->tech_pvt;
 	
-		/* transmit_ringer_mode(d, SKINNY_RING_OFF);
-		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON); */
-
-		/* l->hookstate = SKINNY_OFFHOOK; */
-
 		if (!c) {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
-			sub = c->tech_pvt;
-			l->activesub = sub;
-			if (l->hookstate == SKINNY_ONHOOK) {
-				l->hookstate = SKINNY_OFFHOOK;
-				transmit_speaker_mode(d, SKINNY_SPEAKERON);
-			}
-			ast_verb(1, "Call-id: %d\n", sub->callid);
-
-			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-			transmit_activatecallplane(d, l);
-
-			transmit_clear_display_message(d, l->instance, sub->callid);
-			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
-
-			/* start the switch thread */
-			if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
-				ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-				ast_hangup(c);
-			}
+			setsubstate_offhook(sub);
 		}
 		break;
 	case SOFTKEY_HOLD:
