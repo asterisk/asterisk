@@ -5917,7 +5917,20 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	l = NULL;
 	n = NULL;
 	if (!p->hidecallerid) {
-		l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
+		if (ast->connected.id.number.valid) {
+			/* If we get to the end of this loop without breaking, there's no
+			 * calleridnum.  This is done instead of testing for "unknown" or
+			 * the thousands of other ways that the calleridnum could be
+			 * invalid. */
+			for (l = ast->connected.id.number.str; l && *l; l++) {
+				if (strchr("0123456789", *l)) {
+					l = ast->connected.id.number.str;
+					break;
+				}
+			}
+		} else {
+			l = NULL;
+		}
 		if (!p->hidecalleridname) {
 			n = ast->connected.id.name.valid ? ast->connected.id.name.str : NULL;
 		}
