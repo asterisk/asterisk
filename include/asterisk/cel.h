@@ -17,6 +17,13 @@
 /*! 
  * \file
  * \brief Call Event Logging API 
+ *
+ * \todo TODO: There some event types that have been defined here, but are not
+ *       yet used anywhere in the code. It would be really awesome if someone
+ *       went through and had Asterisk generate these events where it is
+ *       appropriate to do so. The defined, but unused events are:
+ *       CONF_ENTER, CONF_EXIT, CONF_START, CONF_END, 3WAY_START, 3WAY_END,
+ *       TRANSFER, and HOOKFLASH.
  */
 
 #ifndef __AST_CEL_H__
