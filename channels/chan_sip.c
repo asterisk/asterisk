@@ -18916,6 +18916,8 @@ static int reload_config(enum channelreloadreason reason)
 					ast_log(LOG_WARNING, "Unable to set SIP TOS to %s\n", ast_tos2str(global_tos_sip));
 			}
 		}
+	} else if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &global_tos_sip, sizeof(global_tos_sip))) {
+		ast_log(LOG_WARNING, "Unable to set SIP TOS to %s\n", ast_tos2str(global_tos_sip));
 	}
 	ast_mutex_unlock(&netlock);
 
