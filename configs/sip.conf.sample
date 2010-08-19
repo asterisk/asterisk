@@ -255,6 +255,18 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; Message-Account in the MWI notify message
                                 ; defaults to "asterisk"
 
+; Codec negotiation
+;
+; When Asterisk is receiving a call, the codec will initially be set to the
+; first codec in the allowed codecs defined for the user receiving the call
+; that the caller also indicates that it supports. But, after the caller
+; starts sending RTP, Asterisk will switch to using whatever codec the caller
+; is sending.
+;
+; When Asterisk is placing a call, the codec used will be the first codec in
+; the allowed codecs that the callee indicates that it supports. Asterisk will
+; *not* switch to whatever codec the callee is sending.
+;
 ;preferred_codec_only=yes       ; Respond to a SIP invite with the single most preferred codec
                                 ; rather than advertising all joint codec capabilities. This
                                 ; limits the other side's codec choice to exactly what we prefer.
