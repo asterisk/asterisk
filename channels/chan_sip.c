@@ -25173,6 +25173,8 @@ static int reload_config(enum channelreloadreason reason)
 				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
 			}
 		}
+	} else {
+		ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
 	}
 	if (stunaddr.sin_addr.s_addr != 0) {
 		ast_debug(1, "stun to %s:%d\n",
