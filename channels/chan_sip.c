@@ -3104,6 +3104,32 @@ cleanup:
 	return NULL;
 }
 
+/* this func is used with ao2_callback to unlink/delete all marked
+   peers */
+static int peer_is_marked(void *peerobj, void *arg, int flags)
+{
+	struct sip_peer *peer = peerobj;
+	return peer->the_mark ? CMP_MATCH : 0;
+}
+
+
+/* \brief Unlink all marked peers from ao2 containers */
+static void unlink_marked_peers_from_tables(void)
+{
+	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
+						"initiating callback to remove marked peers");
+	ao2_t_callback(peers_by_ip, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
+						"initiating callback to remove marked peers");
+}
+
+/* \brief Unlink single peer from all ao2 containers */
+static void unlink_peer_from_tables(struct sip_peer *peer)
+{
+	ao2_t_unlink(peers, peer, "ao2_unlink of peer from peers table");
+	if (peer->addr.sin_addr.s_addr) {
+		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
+	}
+}
 
 /*!
  * helper functions to unreference various types of objects.
@@ -12143,10 +12169,7 @@ static int expire_register(const void *data)
 
 	if (peer->selfdestruct ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-		ao2_t_unlink(peers, peer, "ao2_unlink of peer from peers table");
-		if (peer->addr.sin_addr.s_addr) {
-			ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
-		}
+		unlink_peer_from_tables(peer);
 	}
 
 	/* Only clear the addr after we check for destruction.  The addr must remain
@@ -15142,14 +15165,6 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 	return 0;
 }
 
-/* this func is used with ao2_callback to unlink/delete all marked
-   peers */
-static int peer_is_marked(void *peerobj, void *arg, int flags)
-{
-	struct sip_peer *peer = peerobj;
-	return peer->the_mark ? CMP_MATCH : 0;
-}
-
 /*! \brief Remove temporary realtime objects from memory (CLI) */
 /*! \todo XXXX Propably needs an overhaul after removal of the devices */
 static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -15252,8 +15267,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 			}
 			ao2_iterator_destroy(&i);
 			if (pruned) {
-				ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
-						"initiating callback to remove marked peers");
+				unlink_marked_peers_from_tables();
 				ast_cli(a->fd, "%d peers pruned.\n", pruned);
 			} else
 				ast_cli(a->fd, "No peers found to prune.\n");
@@ -25817,9 +25831,8 @@ static int sip_do_reload(enum channelreloadreason reason)
 
 	start_poke = time(0);
 	/* Prune peers who still are supposed to be deleted */
-	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
-			"callback to remove marked peers");
-	
+	unlink_marked_peers_from_tables();
+
 	ast_debug(4, "--------------- Done destroying pruned peers\n");
 
 	/* Send qualify (OPTIONS) to all peers */
