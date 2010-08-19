@@ -26978,6 +26978,8 @@ static int reload_config(enum channelreloadreason reason)
 				ast_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
 			}
 		}
+	} else {
+		ast_set_qos(sipsock, global_tos_sip, global_cos_sip, "SIP");
 	}
 	ast_mutex_unlock(&netlock);
 
