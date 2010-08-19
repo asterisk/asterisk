@@ -8130,10 +8130,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
  	int vportno = -1;		/*!< RTP Video port number */
 	int tportno = -1;		/*!< RTP Text port number */
 	int udptlportno = -1;		/*!< UDPTL Image port number */
-	struct sockaddr_in sin;		/*!< media socket address */
-	struct sockaddr_in vsin;	/*!< video socket address */
-	struct sockaddr_in isin;	/*!< image socket address */
-	struct sockaddr_in tsin;	/*!< text socket address */
+	struct sockaddr_in sin = { 0, };	/*!< media socket address */
+	struct sockaddr_in vsin = { 0, };	/*!< video socket address */
+	struct sockaddr_in isin = { 0, };	/*!< image socket address */
+	struct sockaddr_in tsin = { 0, };	/*!< text socket address */
 
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
 	int peercapability = 0, peernoncodeccapability = 0;
@@ -8648,7 +8648,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
 	
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && sin.sin_addr.s_addr && (!sendonly || sendonly == -1)) {
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)
+			&& (sin.sin_addr.s_addr || vsin.sin_addr.s_addr ||
+			isin.sin_addr.s_addr || tsin.sin_addr.s_addr)
+			&& (!sendonly || sendonly == -1)) {
 		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
@@ -8664,7 +8667,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if (sip_cfg.notifyhold)
 			sip_peer_hold(p, FALSE);
 		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD); /* Clear both flags */
-	} else if (!sin.sin_addr.s_addr || (sendonly && sendonly != -1)) {
+	} else if (!(sin.sin_addr.s_addr || vsin.sin_addr.s_addr ||
+			isin.sin_addr.s_addr || tsin.sin_addr.s_addr)
+			|| (sendonly && sendonly != -1)) {
 		int already_on_hold = ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
 				       S_OR(p->mohsuggest, NULL),
