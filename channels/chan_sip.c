@@ -8540,7 +8540,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
 	
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && !ast_sockaddr_isnull(sa) && (!sendonly || sendonly == -1)) {
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && (!ast_sockaddr_isnull(sa) || !ast_sockaddr_isnull(vsa) || !ast_sockaddr_isnull(tsa) || !ast_sockaddr_isnull(isa)) && (!sendonly || sendonly == -1)) {
 		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
@@ -8556,7 +8556,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if (sip_cfg.notifyhold)
 			sip_peer_hold(p, FALSE);
 		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD); /* Clear both flags */
-	} else if (ast_sockaddr_isnull(sa) || (sendonly && sendonly != -1)) {
+	} else if ((ast_sockaddr_isnull(sa) && ast_sockaddr_isnull(vsa) && ast_sockaddr_isnull(tsa) && ast_sockaddr_isnull(isa)) || (sendonly && sendonly != -1)) {
 		int already_on_hold = ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD,
 				       S_OR(p->mohsuggest, NULL),
