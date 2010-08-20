@@ -7381,7 +7381,7 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 			ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef HAVE_PRI
 			p->digital = 0;	/* Digital-only calls isn't allows any inband progress messages */
-			if (!p->progress && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP))
+			if (!p->progress && !p->alerting && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP))
 					&& p->pri && !p->outgoing) {
 				if (p->pri->pri) {
 					if (!pri_grab(p, p->pri)) {
