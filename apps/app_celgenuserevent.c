@@ -41,6 +41,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="event-name" required="true">
 				<argument name="event-name" required="true">
 				</argument>
+				<argument name="extra" required="false">
+					<para>Extra text to be included with the event.</para>
+				</argument>
 			</parameter>
 		</syntax>
 		<description>
