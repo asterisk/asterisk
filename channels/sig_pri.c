@@ -6329,7 +6329,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_PROGRESS:
 		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 		sig_pri_set_digital(p, 0);	/* Digital-only calls isn't allowing any inband progress messages */
-		if (!p->progress && p->pri && !p->outgoing && !p->no_b_channel) {
+		if (!p->progress && !p->alerting && p->pri && !p->outgoing && !p->no_b_channel) {
 			if (p->pri->pri) {
 				if (!pri_grab(p, p->pri)) {
 #ifdef HAVE_PRI_PROG_W_CAUSE
