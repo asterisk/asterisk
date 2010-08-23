@@ -35,8 +35,13 @@ extern "C" {
 
 #include "asterisk/event.h"
 
-/*! \brief AMA Flags */
+/*!
+ * \brief AMA Flags
+ *
+ * \note This must much up with the AST_CDR_* defines for AMA flags.
+ */
 enum ast_cel_ama_flag {
+	AST_CEL_AMA_FLAG_NONE,
 	AST_CEL_AMA_FLAG_OMIT,
 	AST_CEL_AMA_FLAG_BILLING,
 	AST_CEL_AMA_FLAG_DOCUMENTATION,
