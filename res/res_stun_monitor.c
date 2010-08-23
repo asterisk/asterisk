@@ -297,7 +297,7 @@ static int load_module(void)
 	if (__reload(1)) {
 		stun_stop_monitor();
 		ast_mutex_destroy(&args.lock);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
