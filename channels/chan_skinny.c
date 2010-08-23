@@ -4365,12 +4365,22 @@ static char *control2str(int ind) {
 		return "Hold";
 	case AST_CONTROL_UNHOLD:
 		return "Unhold";
+	case AST_CONTROL_VIDUPDATE:
+		return "VidUpdate";
 	case AST_CONTROL_SRCUPDATE:
 		return "Media Source Update";
+	case AST_CONTROL_TRANSFER:
+		return "Transfer";
 	case AST_CONTROL_CONNECTED_LINE:
 		return "Connected Line";
 	case AST_CONTROL_REDIRECTING:
 		return "Redirecting";
+	case AST_CONTROL_T38_PARAMETERS:
+		return "T38_Parameters";
+	case AST_CONTROL_CC:
+		return "CC Not Possible";
+	case AST_CONTROL_SRCCHANGE:
+		return "Media Source Change";
 	case -1:
 		return "Stop tone";
 	default:
