@@ -1,0 +1,472 @@
+                                Release Summary
+
+                             asterisk-1.6.2.12-rc1
+
+                                Date: 2010-08-23
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.2.11.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   10 tilghman              2 dvossel                2 manvirr                
+   8 qwell                  1 addix                  2 RoadKill               
+   7 dvossel                1 alecdavis              1 addix                  
+   4 rmudgett               1 bobwienholt            1 atis                   
+   4 russell                1 c0rnoTa                1 bjm                    
+   3 jpeeler                1 DennisD                1 bobwienholt            
+   2 lmadsen                1 ebroad                 1 falves11               
+   2 mmichelson             1 falves11               1 farisraouf             
+   2 RoadKill               1 francesco_r            1 francesco_r            
+   2 snuffy                 1 jamicque               1 jamicque               
+   2 twilson                1 jstapleton             1 jcovert                
+   1 addix                  1 manvirr                1 jstapleton             
+   1 bencer                 1 marcelloceschia        1 kkm                    
+   1 bobwienholt            1 okrief                 1 klaus3000              
+   1 ebroad                 1 pabelanger             1 kobaz                  
+   1 jcovert                1 samdell3               1 marcelloceschia        
+   1 jeang                  1 schmidts               1 mmichelson             
+   1 kkm                    1 sdolloff               1 mpiazzatnetbug         
+   1 klaus3000              1 seanbright             1 navkumar               
+   1 marcelloceschia        1 st                     1 nic_bellamy            
+   1 mnicholson             1 suretec                1 nickb                  
+   1 navkumar               1 sybasesql              1 schmidts               
+   1 nic                    1 twilson                1 sdolloff               
+   1 schmidts               1 urosh                  1 snuffy                 
+   1 seanbright             1 vrban                  1 stuarth                
+   1 st                     1 zerohalo               1 sybasesql              
+   1 tzafrir                                         1 urosh                  
+   1 urosh                                           1 wuwu                   
+                                                     1 zerohalo               
+                                                     1 zktech                 
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/General
+
+   #17080: [patch] Asterisk crashes while core restart (#0 0x000000000050683c
+   in term_beep (el=0x16cdd9b0) at term.c:865)
+   Revision: 278983
+   Reporter: sybasesql
+   Testers: sybasesql
+   Coders: tilghman
+
+  Category: Applications/app_chanspy
+
+   #17630: [patch] Chanspy Keeps using G729 Encoder licenses even after the
+   spying channel hangs up.
+   Revision: 279946
+   Reporter: manvirr
+   Coders: dvossel
+
+   #17630: [patch] Chanspy Keeps using G729 Encoder licenses even after the
+   spying channel hangs up.
+   Revision: 280449
+   Reporter: manvirr
+   Testers: manvirr, dvossel
+   Coders: dvossel
+
+  Category: Applications/app_dial
+
+   #17641: [patch] reset visible_indication after call answering
+   Revision: 281567
+   Reporter: klaus3000
+   Testers: schmidts
+   Coders: klaus3000
+
+  Category: Applications/app_disa
+
+   #16661: [patch] DISA doesn't honor caller ID on the channel
+   Revision: 280812
+   Reporter: jstapleton
+   Testers: jstapleton
+   Coders: tilghman
+
+  Category: Applications/app_queue
+
+   #17738: [patch] reference leak when adding dynamic queue members
+   Revision: 280160
+   Reporter: bobwienholt
+   Testers: bobwienholt, seanbright
+   Coders: bobwienholt
+
+  Category: Applications/app_readexten
+
+   #15188: [patch] ReadExten returns TIMEOUT in cases where it should return
+   OK or INVALID
+   Revision: 281722
+   Reporter: jcovert
+   Coders: jcovert
+
+  Category: Channels/chan_dahdi
+
+   #16770: [patch] Unrecognized prilocaldialplan NPI modifier
+   Revision: 282607
+   Reporter: jamicque
+   Testers: jamicque
+   Coders: tilghman
+
+   #17874: [patch] Q931 - Sending PROGRESS after sending ALERTING is a
+   protocol error
+   Revision: 283049
+   Reporter: nic_bellamy
+   Coders: nic
+
+  Category: Channels/chan_iax2
+
+   #17138: [patch] CallerID not properly set when using Originate and AGI
+   Revision: 281391
+   Reporter: kobaz
+   Coders: jpeeler
+
+  Category: Channels/chan_sip/General
+
+   #17633: [patch] (Regression) Pickup from Grandstream BLF button ignores
+   the context specified in Pickup command
+   Revision: 282235
+   Reporter: urosh
+   Testers: dvossel, urosh, okrief, alecdavis
+   Coders: urosh, dvossel
+
+   #17643: [patch] dialplan reload deadlocks in ast_rdlock_contexts when
+   calling ast_hint_state_changed
+   Revision: 280983
+   Reporter: zerohalo
+   Testers: zerohalo
+   Coders: tilghman
+
+   #17712: TOS_SIP does not get set
+   Revision: 282894
+   Reporter: nickb
+   Coders: dvossel
+
+   #17717: [patch] dynamic_exclude_static option results in ACL errors
+   Revision: 279784
+   Reporter: mmichelson
+   Testers: DennisD
+   Coders: mmichelson
+
+   #17774: [patch] SIP peers memory leak
+   Revision: 281430
+   Reporter: kkm
+   Coders: kkm
+
+   #17868: [patch] If "notifycid=ignore-context" is set in sip.conf Asterisk
+   core dump.
+   Revision: 282668
+   Reporter: francesco_r
+   Testers: francesco_r
+   Coders: dvossel
+
+  Category: Channels/chan_sip/Interoperability
+
+   #14255: [regression] Authentication seems to be broken again for SIP
+   NOTIFY requests
+   Revision: 280669
+   Reporter: zktech
+   Coders: jpeeler
+
+   #17829: [patch] Registration of SIP phone denied on transport=unknown
+   Revision: 282576
+   Reporter: falves11
+   Testers: falves11
+   Coders: russell, dvossel
+
+  Category: Channels/chan_sip/T.38
+
+   #16705: [patch] [regression] T.38 negotiation Broken
+   Revision: 282859
+   Reporter: mpiazzatnetbug
+   Testers: vrban, ebroad, c0rnoTa, samdell3
+   Coders: ebroad
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   #17612: [patch] wrong SRV query for TLS connection
+   Revision: 280551
+   Reporter: marcelloceschia
+   Testers: marcelloceschia, st, pabelanger
+   Coders: marcelloceschia, st
+
+  Category: Channels/chan_sip/Transfers
+
+   #17007: [patch] RTP Timestamp changes after transfer, but SSRC not and the
+   markerbit ist not set.
+   Revision: 282467
+   Reporter: addix
+   Testers: addix, twilson
+   Coders: addix, twilson
+
+  Category: Core/BuildSystem
+
+   #17621: [patch] sounds/Makefile ignores checksum errors
+   Revision: 280231
+   Reporter: bjm
+   Coders: qwell
+
+   #17703: AST_OPTION_ONLY tests wrong variable
+   Revision: 279501
+   Reporter: stuarth
+   Coders: seanbright
+
+  Category: Core/Configuration
+
+   #17833: [patch] say.conf has problem with large numbers
+   Revision: 281763
+   Reporter: RoadKill
+   Coders: RoadKill
+
+   #17836: [patch] say.conf added support for Danish
+   Revision: 281873
+   Reporter: RoadKill
+   Coders: RoadKill
+
+  Category: Core/General
+
+   #17742: [patch] ast_sched_runq runs to much events if one event runs too
+   long
+   Revision: 281574
+   Reporter: schmidts
+   Coders: schmidts
+
+  Category: Core/Portability
+
+   #15402: [patch] Cannot find XML documentation under non linux platforms
+   Revision: 278709
+   Reporter: snuffy
+   Coders: snuffy
+
+  Category: Core/RTP
+
+   #17404: [patch] [regression] audio delay when bridging calls related to
+   timestamp mismatch
+   Revision: 281912
+   Reporter: sdolloff
+   Testers: sdolloff
+   Coders: jpeeler
+
+  Category: General
+
+   #17568: [patch] DNID does not get cleard on new call
+   Revision: 278703
+   Reporter: wuwu
+   Coders: rmudgett
+
+   #17716: [patch] [regression] 1.6.2.10 sounds Makefile error prevents
+   install in Centos 4.8 (x86) with GNU Make 3.80
+   Revision: 279561
+   Reporter: farisraouf
+   Coders: tilghman
+
+  Category: Resources/res_config_curl
+
+   #17590: [patch] Crash when freeing buffer in update_curl
+   Revision: 280556
+   Reporter: atis
+   Coders: tilghman
+
+  Category: Resources/res_config_ldap
+
+   #13573: [Patch] Allow realtime_multi_ldap to behave like other
+   realtime_multi functions
+   Revision: 279597
+   Reporter: navkumar
+   Testers: suretec
+   Coders: navkumar, bencer
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 278934   | tzafrir    | Two more typos to cancell.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Establish a maximum version for   |            |
+   | 278986   | tilghman   | openh323 (i.e. not opal), because | #17679     |
+   |          |            | chan_h323 will fail to load, even |            |
+   |          |            | if it links.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add branch-1.4-merged and         |            |
+   | 279072   | russell    | branch-1.4-blocked properties to  |            |
+   |          |            | 1.6.2 branch.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279088   | russell    | remove old properties             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279112   | mmichelson | Backport sip_uri_params_cmp() fix |            |
+   |          |            | from trunk to 1.6.2.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279207   | rmudgett   | SIP promiscuous redirect could    |            |
+   |          |            | fail to dial the redirect.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279347   | snuffy     | Minor update to man page          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Dunno why this worked on my       |            |
+   | 279609   | tilghman   | machine, but it works better this |            |
+   |          |            | way.                              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279657   | qwell      | Really fix sounds Makefile (and   |            |
+   |          |            | make it readableish).             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279849   | qwell      | Simply sounds/Makefile some more. |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove aptly-named EMPTY and BS   |            |
+   | 279852   | qwell      | vars, since they aren't used      |            |
+   |          |            | anymore.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 279883   | qwell      | Add SHA1SUM to configure, since   |            |
+   |          |            | we require it for sounds/         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 280089   | lmadsen    | Update help text to be less       |            |
+   |          |            | confusing.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove unnecessary subshells.     |            |
+   | 280193   | qwell      | Attempt to make checksumming      | #17621     |
+   |          |            | work.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 280227   | qwell      | Add sha1sum-sh in case there is   |            |
+   |          |            | no util on the system.            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add missing enum value "unknown"  |            |
+   | 280229   | rmudgett   | to the SS7 called_nai and         |            |
+   |          |            | calling_nai config options.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Implement support for             |            |
+   |          |            | ast_channel_queryoption on local  |            |
+   | 280306   | mnicholson | channels. Currently only          |            |
+   |          |            | AST_OPTION_T38_STATE is           |            |
+   |          |            | supported.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix a dsp structure leak occuring |            |
+   | 280345   | jeang      | when a local channel is put into  |            |
+   |          |            | a meetme                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 280671   | tilghman   | Allow the pipe, but also allow    |            |
+   |          |            | the comma                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 280739   | tilghman   | Document -B and -W flags and      |            |
+   |          |            | regenerate manpage from sgml      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 281051   | russell    | Cleanup default option value      |            |
+   |          |            | handling for cdr.conf [general].  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Register CLI commands before      |            |
+   | 282130   | qwell      | parsing config, in case there is  |            |
+   |          |            | a config error.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282469   | lmadsen    | Add information about creating    |            |
+   |          |            | sounds files using                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282730   | twilson    | Add some documentation about      |            |
+   |          |            | codec negotiation to sip.conf     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282890   | dvossel    | fixes sip peer memory leaks in    | #17798     |
+   |          |            | the peer_by_ip table              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283124   | rmudgett   | Merged revision 278274 from       |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_dial.c                  |   12 +-
+ apps/app_meetme.c                |    3
+ apps/app_queue.c                 |   10 +
+ apps/app_readexten.c             |    2
+ apps/app_voicemail.c             |    2
+ autoconf/ast_check_pwlib.m4      |   12 +-
+ autoconf/ast_ext_lib.m4          |    2
+ build_tools/sha1sum-sh           |   71 +++++++++++
+ channels/chan_dahdi.c            |   37 ++++--
+ channels/chan_local.c            |   74 ++++++++++++
+ channels/chan_sip.c              |  229 ++++++++++++++++++++++----------------
+ configs/say.conf.sample          |  105 +++++++++++++++++
+ configs/sip.conf.sample          |   13 ++
+ configure.ac                     |    3
+ contrib/scripts/live_ast         |    2
+ doc/Makefile                     |    6 +
+ doc/asterisk.8                   |  232 +++++++++++++++++++++------------------
+ doc/asterisk.sgml                |   87 +++++++++++---
+ doc/tex/asterisk.tex             |    3
+ doc/tex/sounds.tex               |   80 +++++++++++++
+ funcs/func_callerid.c            |    6 +
+ include/asterisk/audiohook.h     |    7 +
+ include/asterisk/autoconfig.h.in |   51 +++-----
+ include/asterisk/pbx.h           |   10 -
+ main/asterisk.c                  |   19 ++-
+ main/audiohook.c                 |   12 +-
+ main/cdr.c                       |   39 ++++--
+ main/channel.c                   |   27 ++++
+ main/pbx.c                       |   31 +----
+ main/sched.c                     |    2
+ main/xmldoc.c                    |   67 ++++++++++-
+ makeopts.in                      |    1
+ pbx/pbx_config.c                 |    6 -
+ res/res_config_curl.c            |   16 +-
+ res/res_config_ldap.c            |   19 +++
+ sounds/Makefile                  |   98 ++++++++--------
+ 36 files changed, 1006 insertions(+), 390 deletions(-)
+
+     ----------------------------------------------------------------------
