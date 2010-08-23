@@ -122,6 +122,7 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
  * \brief Map of ast_cel_ama_flags to strings
  */
 static const char * const cel_ama_flags[AST_CEL_AMA_FLAG_TOTAL] = {
+	[AST_CEL_AMA_FLAG_NONE]          = "NONE",
 	[AST_CEL_AMA_FLAG_OMIT]          = "OMIT",
 	[AST_CEL_AMA_FLAG_BILLING]       = "BILLING",
 	[AST_CEL_AMA_FLAG_DOCUMENTATION] = "DOCUMENTATION",
