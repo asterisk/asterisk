@@ -128,6 +128,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</manager>
  ***/
 
+/* Hack to allow for easy debugging in trunk.
+    This block should be removed in branches. */
+#ifndef SKINNY_DEVMODE
+#define SKINNY_DEVMODE
+#endif
+/* end hack */
+
 #ifdef SKINNY_DEVMODE
 #define SKINNY_DEVONLY(code)	\
 	code
