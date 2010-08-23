@@ -4164,9 +4164,11 @@ static int skinny_answer(struct ast_channel *ast)
 	   for some reason, transmit_callinfo must be before transmit_callstate,
 	   or you won't get keypad messages in some situations. */
 	transmit_callinfo(d,
-		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
-		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""),
-		l->lastnumberdialed, l->lastnumberdialed, l->instance, sub->callid, 2);
+		S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
+		S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""),
+		l->lastnumberdialed,
+		l->lastnumberdialed, 
+		l->instance, sub->callid, 2);
 	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
 	transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
@@ -4707,7 +4709,6 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 	transmit_activatecallplane(d, l);
 	transmit_stop_tone(d, l->instance, sub->callid);
 	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
@@ -5327,9 +5328,6 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		sub = l->activesub;
 	}
 
-	/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
-	transmit_definetimedate(d);
-	
 	transmit_ringer_mode(d, SKINNY_RING_OFF);
 	l->hookstate = SKINNY_OFFHOOK;
 
@@ -5345,6 +5343,9 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		/* We're answering a ringing call */
 		setsubstate_connected(sub);
 	} else {
+		/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
+		transmit_definetimedate(d);
+		
 		if (sub && sub->owner) {
 			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
 		} else {
@@ -5387,6 +5388,8 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 
 	if (l->hookstate == SKINNY_ONHOOK) {
 		/* Something else already put us back on hook */
+		/* Not ideal, but let's send updated time anyway, as it clears the display */
+		transmit_definetimedate(d);
 		return 0;
 	}
 
