@@ -1,0 +1,298 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.8.0-beta4</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.8.0-beta4</h3>
+<h3 align="center">Date: 2010-08-23</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.8.0-beta3.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+14 russell<br/>
+10 dvossel<br/>
+6 rmudgett<br/>
+4 tilghman<br/>
+4 twilson<br/>
+2 mnicholson<br/>
+2 RoadKill<br/>
+1 addix<br/>
+1 davidw<br/>
+1 ebroad<br/>
+1 jcovert<br/>
+1 jpeeler<br/>
+1 klaus3000<br/>
+1 lmadsen<br/>
+1 nic<br/>
+1 qwell<br/>
+1 schmidts<br/>
+1 sperreault<br/>
+1 urosh<br/>
+</td>
+<td>
+1 addix<br/>
+1 alecdavis<br/>
+1 c0rnoTa<br/>
+1 davidw<br/>
+1 dvossel<br/>
+1 ebroad<br/>
+1 falves11<br/>
+1 jamicque<br/>
+1 oej<br/>
+1 okrief<br/>
+1 samdell3<br/>
+1 schmidts<br/>
+1 sdolloff<br/>
+1 twilson<br/>
+1 urosh<br/>
+1 vrban<br/>
+</td>
+<td>
+2 oej<br/>
+2 RoadKill<br/>
+1 addix<br/>
+1 davidw<br/>
+1 dvossel<br/>
+1 falves11<br/>
+1 jamicque<br/>
+1 jcovert<br/>
+1 klaus3000<br/>
+1 mpiazzatnetbug<br/>
+1 nic_bellamy<br/>
+1 nickb<br/>
+1 philipp2<br/>
+1 schmidts<br/>
+1 sdolloff<br/>
+1 tpanton<br/>
+1 urosh<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_dial</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17641">#17641</a>: [patch] reset visible_indication after call answering<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281568">281568</a><br/>
+Reporter: klaus3000<br/>
+Testers: schmidts<br/>
+Coders: klaus3000<br/>
+<br/>
+<h3>Category: Applications/app_readexten</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=15188">#15188</a>: [patch] ReadExten returns TIMEOUT in cases where it should return OK or INVALID<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281723">281723</a><br/>
+Reporter: jcovert<br/>
+Coders: jcovert<br/>
+<br/>
+<h3>Category: Channels/chan_dahdi</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16770">#16770</a>: [patch] Unrecognized prilocaldialplan NPI modifier<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282608">282608</a><br/>
+Reporter: jamicque<br/>
+Testers: jamicque<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17874">#17874</a>: [patch] Q931 - Sending PROGRESS after sending ALERTING is a protocol error<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283050">283050</a><br/>
+Reporter: nic_bellamy<br/>
+Coders: nic<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17804">#17804</a>: ACCEPT message should contain an FORMAT2 ie as well as a FORMAT ie<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282545">282545</a><br/>
+Reporter: tpanton<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17622">#17622</a>: [patch] STUN support not reliable<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282302">282302</a><br/>
+Reporter: philipp2<br/>
+Coders: dvossel<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17633">#17633</a>: [patch] (Regression) Pickup from Grandstream BLF button ignores the context specified in Pickup command<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282236">282236</a><br/>
+Reporter: urosh<br/>
+Testers: dvossel, urosh, okrief, alecdavis<br/>
+Coders: urosh, dvossel<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17712">#17712</a>: TOS_SIP does not get set<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282895">282895</a><br/>
+Reporter: nickb<br/>
+Coders: dvossel<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17756">#17756</a>: Turn on ALWAYSAUTHREJECT by default<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281650">281650</a><br/>
+Reporter: oej<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: Channels/chan_sip/IPv6</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17757">#17757</a>: [patch] Outbound proxy set to IPv6 address in square brackets doesn't work<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281687">281687</a><br/>
+Reporter: oej<br/>
+Testers: oej<br/>
+Coders: sperreault<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Interoperability</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17829">#17829</a>: [patch] Registration of SIP phone denied on transport=unknown<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282577">282577</a><br/>
+Reporter: falves11<br/>
+Testers: falves11<br/>
+Coders: russell, dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/T.38</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16705">#16705</a>: [patch] [regression] T.38 negotiation Broken<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282860">282860</a><br/>
+Reporter: mpiazzatnetbug<br/>
+Testers: vrban, ebroad, c0rnoTa, samdell3<br/>
+Coders: ebroad<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Transfers</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17007">#17007</a>: [patch] RTP Timestamp changes after transfer, but SSRC not and the markerbit ist not set.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282468">282468</a><br/>
+Reporter: addix<br/>
+Testers: addix, twilson<br/>
+Coders: addix, twilson<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17486">#17486</a>: [patch] response_refer() does not have a default case, so a 400 final response stalls in the Transfer() application<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281874">281874</a><br/>
+Reporter: davidw<br/>
+Testers: davidw<br/>
+Coders: davidw<br/>
+<br/>
+<h3>Category: Core/CodecInterface</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16841">#16841</a>: Codec translation path builder does not produce expected results with 16khz and 32khz audio<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282047">282047</a><br/>
+Reporter: dvossel<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Core/Configuration</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17833">#17833</a>: [patch] say.conf has problem with large numbers<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281764">281764</a><br/>
+Reporter: RoadKill<br/>
+Coders: RoadKill<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17836">#17836</a>: [patch] say.conf added support for Danish<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281875">281875</a><br/>
+Reporter: RoadKill<br/>
+Coders: RoadKill<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17742">#17742</a>: [patch] ast_sched_runq runs to much events if one event runs too long<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281575">281575</a><br/>
+Reporter: schmidts<br/>
+Coders: schmidts<br/>
+<br/>
+<h3>Category: Core/RTP</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17404">#17404</a>: [patch] [regression] audio delay when bridging calls related to timestamp mismatch<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281913">281913</a><br/>
+Reporter: sdolloff<br/>
+Testers: sdolloff<br/>
+Coders: jpeeler<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281760">281760</a></td><td>mnicholson</td><td>Avoid a deadlock in add_header_max_forwards().</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281870">281870</a></td><td>rmudgett</td><td>Fix a call to analog_set_pulsedial() not setting 0 or 1 only.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=281982">281982</a></td><td>russell</td><td>Remove debugging output from verbose messages.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282015">282015</a></td><td>russell</td><td>Put back pointer value output for ast_debug(), such that it is only removed for verbose output.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282066">282066</a></td><td>russell</td><td>Add a "core reload" CLI command.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282098">282098</a></td><td>rmudgett</td><td>Separate call completion config parameter allocation and default initialization.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282131">282131</a></td><td>qwell</td><td>Register CLI commands before parsing config, in case there is a config error.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282200">282200</a></td><td>twilson</td><td>Detect when libsrtp cannot be linked in a shared library</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282201">282201</a></td><td>twilson</td><td>Whitespace fix :-/</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282269">282269</a></td><td>dvossel</td><td>res_stun_monitor for monitoring network changes behind a NAT device</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282271">282271</a></td><td>dvossel</td><td>res_stun_monitor and corresponding options CHANGES documentation</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282334">282334</a></td><td>rmudgett</td><td>PRI CCSS may use a stale dial string for the recall dial string.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282366">282366</a></td><td>tilghman</td><td>Fix our FRACKing issue with chan_iax2 a different way.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282470">282470</a></td><td>lmadsen</td><td>Add information about creating sounds files using</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282543">282543</a></td><td>dvossel</td><td>fixes truncated uint64_t value in put_unaligned_uint64_t() function</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17804">#17804</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282638">282638</a></td><td>russell</td><td>Split _all_ arguments before parsing them.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282639">282639</a></td><td>mnicholson</td><td>Properly handle 200 and unknown responses conatined in NOTIFY requests received in response to REFER requests.</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17486">#17486</a>, <a href="https://issues.asterisk.org/view.php?id=12713">#12713</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282671">282671</a></td><td>rmudgett</td><td>Use the correct operator when calculating the PRI span devstate.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282672">282672</a></td><td>rmudgett</td><td>Use the correct type for aoce_delayhangup bit field.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282740">282740</a></td><td>twilson</td><td>Add some documentation about codec negotiation to sip.conf</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282826">282826</a></td><td>tilghman</td><td>Only output debugging if the debug level is on.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282891">282891</a></td><td>dvossel</td><td>fixes sip peer memory leaks in the peer_by_ip table</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17798">#17798</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=282979">282979</a></td><td>russell</td><td>Add an argument missing from the CELGenUserEvent documentation.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283013">283013</a></td><td>russell</td><td>Fix a typo in a column name.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283125">283125</a></td><td>rmudgett</td><td>Merged revision 278274 from</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283173">283173</a></td><td>russell</td><td>Expand cel_custom.conf.sample.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283175">283175</a></td><td>tilghman</td><td>Don't fail to start if the config file is missing.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283177">283177</a></td><td>russell</td><td>Cut down on excessive quotation.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283207">283207</a></td><td>russell</td><td>Tack on ${eventextra} to the sample cel_custom.conf.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283209">283209</a></td><td>russell</td><td>Don't blow up on an invalid AMA flag.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283230">283230</a></td><td>russell</td><td>Make the AST_CEL_AMA enum match up with the AST_CDR_ ama flag values.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283241">283241</a></td><td>russell</td><td>Add sample configuration for cel_radius.</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+CHANGES                               |   14 +
+UPGRADE.txt                           |    8
+apps/app_celgenuserevent.c            |    3
+apps/app_readexten.c                  |    2
+channels/chan_dahdi.c                 |    3
+channels/chan_iax2.c                  |  110 ++++++++++--
+channels/chan_multicast_rtp.c         |   10 -
+channels/chan_sip.c                   |  280 +++++++++++++++++-------------
+channels/sig_analog.c                 |   10 -
+channels/sig_analog.h                 |    2
+channels/sig_pri.c                    |   17 +
+channels/sig_pri.h                    |    4
+channels/sip/config_parser.c          |   12 -
+channels/sip/include/sip.h            |    2
+configs/cel.conf.sample               |   15 +
+configs/cel_adaptive_odbc.conf.sample |    2
+configs/cel_custom.conf.sample        |   12 +
+configs/iax.conf.sample               |    9
+configs/res_stun_monitor.conf.sample  |   22 ++
+configs/say.conf.sample               |  104 +++++++++++
+configs/sip.conf.sample               |   48 +++--
+configure.ac                          |   32 +++
+doc/tex/asterisk.tex                  |    3
+doc/tex/sounds.tex                    |   80 ++++++++
+include/asterisk/ccss.h               |   19 +-
+include/asterisk/cel.h                |    7
+include/asterisk/event_defs.h         |    4
+include/asterisk/netsock2.h           |   20 ++
+include/asterisk/sched.h              |   10 -
+include/asterisk/translate.h          |    8
+include/asterisk/unaligned.h          |    2
+main/ccss.c                           |   49 +++--
+main/cel.c                            |    6
+main/channel.c                        |   14 +
+main/cli.c                            |   35 +++
+main/netsock2.c                       |   16 -
+main/pbx.c                            |   12 -
+main/sched.c                          |    2
+main/translate.c                      |  295 ++++++++++++++++++++++++++++----
+pbx/pbx_config.c                      |    6
+res/res_stun_monitor.c                |  311 ++++++++++++++++++++++++++++++++++
+41 files changed, 1346 insertions(+), 274 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>

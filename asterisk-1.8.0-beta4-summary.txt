@@ -1,0 +1,389 @@
+                                Release Summary
+
+                              asterisk-1.8.0-beta4
+
+                                Date: 2010-08-23
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.0-beta3.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   14 russell               1 addix                  2 oej                    
+   10 dvossel               1 alecdavis              2 RoadKill               
+   6 rmudgett               1 c0rnoTa                1 addix                  
+   4 tilghman               1 davidw                 1 davidw                 
+   4 twilson                1 dvossel                1 dvossel                
+   2 mnicholson             1 ebroad                 1 falves11               
+   2 RoadKill               1 falves11               1 jamicque               
+   1 addix                  1 jamicque               1 jcovert                
+   1 davidw                 1 oej                    1 klaus3000              
+   1 ebroad                 1 okrief                 1 mpiazzatnetbug         
+   1 jcovert                1 samdell3               1 nic_bellamy            
+   1 jpeeler                1 schmidts               1 nickb                  
+   1 klaus3000              1 sdolloff               1 philipp2               
+   1 lmadsen                1 twilson                1 schmidts               
+   1 nic                    1 urosh                  1 sdolloff               
+   1 qwell                  1 vrban                  1 tpanton                
+   1 schmidts                                        1 urosh                  
+   1 sperreault             
+   1 urosh                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_dial
+
+   #17641: [patch] reset visible_indication after call answering
+   Revision: 281568
+   Reporter: klaus3000
+   Testers: schmidts
+   Coders: klaus3000
+
+  Category: Applications/app_readexten
+
+   #15188: [patch] ReadExten returns TIMEOUT in cases where it should return
+   OK or INVALID
+   Revision: 281723
+   Reporter: jcovert
+   Coders: jcovert
+
+  Category: Channels/chan_dahdi
+
+   #16770: [patch] Unrecognized prilocaldialplan NPI modifier
+   Revision: 282608
+   Reporter: jamicque
+   Testers: jamicque
+   Coders: tilghman
+
+   #17874: [patch] Q931 - Sending PROGRESS after sending ALERTING is a
+   protocol error
+   Revision: 283050
+   Reporter: nic_bellamy
+   Coders: nic
+
+  Category: Channels/chan_iax2
+
+   #17804: ACCEPT message should contain an FORMAT2 ie as well as a FORMAT ie
+   Revision: 282545
+   Reporter: tpanton
+   Coders: dvossel
+
+  Category: Channels/chan_sip/General
+
+   #17622: [patch] STUN support not reliable
+   Revision: 282302
+   Reporter: philipp2
+   Coders: dvossel
+
+   #17633: [patch] (Regression) Pickup from Grandstream BLF button ignores
+   the context specified in Pickup command
+   Revision: 282236
+   Reporter: urosh
+   Testers: dvossel, urosh, okrief, alecdavis
+   Coders: urosh, dvossel
+
+   #17712: TOS_SIP does not get set
+   Revision: 282895
+   Reporter: nickb
+   Coders: dvossel
+
+   #17756: Turn on ALWAYSAUTHREJECT by default
+   Revision: 281650
+   Reporter: oej
+   Coders: russell
+
+  Category: Channels/chan_sip/IPv6
+
+   #17757: [patch] Outbound proxy set to IPv6 address in square brackets
+   doesn't work
+   Revision: 281687
+   Reporter: oej
+   Testers: oej
+   Coders: sperreault
+
+  Category: Channels/chan_sip/Interoperability
+
+   #17829: [patch] Registration of SIP phone denied on transport=unknown
+   Revision: 282577
+   Reporter: falves11
+   Testers: falves11
+   Coders: russell, dvossel
+
+  Category: Channels/chan_sip/T.38
+
+   #16705: [patch] [regression] T.38 negotiation Broken
+   Revision: 282860
+   Reporter: mpiazzatnetbug
+   Testers: vrban, ebroad, c0rnoTa, samdell3
+   Coders: ebroad
+
+  Category: Channels/chan_sip/Transfers
+
+   #17007: [patch] RTP Timestamp changes after transfer, but SSRC not and the
+   markerbit ist not set.
+   Revision: 282468
+   Reporter: addix
+   Testers: addix, twilson
+   Coders: addix, twilson
+
+   #17486: [patch] response_refer() does not have a default case, so a 400
+   final response stalls in the Transfer() application
+   Revision: 281874
+   Reporter: davidw
+   Testers: davidw
+   Coders: davidw
+
+  Category: Core/CodecInterface
+
+   #16841: Codec translation path builder does not produce expected results
+   with 16khz and 32khz audio
+   Revision: 282047
+   Reporter: dvossel
+   Coders: dvossel
+
+  Category: Core/Configuration
+
+   #17833: [patch] say.conf has problem with large numbers
+   Revision: 281764
+   Reporter: RoadKill
+   Coders: RoadKill
+
+   #17836: [patch] say.conf added support for Danish
+   Revision: 281875
+   Reporter: RoadKill
+   Coders: RoadKill
+
+  Category: Core/General
+
+   #17742: [patch] ast_sched_runq runs to much events if one event runs too
+   long
+   Revision: 281575
+   Reporter: schmidts
+   Coders: schmidts
+
+  Category: Core/RTP
+
+   #17404: [patch] [regression] audio delay when bridging calls related to
+   timestamp mismatch
+   Revision: 281913
+   Reporter: sdolloff
+   Testers: sdolloff
+   Coders: jpeeler
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 281760   | mnicholson | Avoid a deadlock in               |            |
+   |          |            | add_header_max_forwards().        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix a call to                     |            |
+   | 281870   | rmudgett   | analog_set_pulsedial() not        |            |
+   |          |            | setting 0 or 1 only.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 281982   | russell    | Remove debugging output from      |            |
+   |          |            | verbose messages.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Put back pointer value output for |            |
+   | 282015   | russell    | ast_debug(), such that it is only |            |
+   |          |            | removed for verbose output.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282066   | russell    | Add a "core reload" CLI command.  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Separate call completion config   |            |
+   | 282098   | rmudgett   | parameter allocation and default  |            |
+   |          |            | initialization.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Register CLI commands before      |            |
+   | 282131   | qwell      | parsing config, in case there is  |            |
+   |          |            | a config error.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282200   | twilson    | Detect when libsrtp cannot be     |            |
+   |          |            | linked in a shared library        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282201   | twilson    | Whitespace fix :-/                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | res_stun_monitor for monitoring   |            |
+   | 282269   | dvossel    | network changes behind a NAT      |            |
+   |          |            | device                            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | res_stun_monitor and              |            |
+   | 282271   | dvossel    | corresponding options CHANGES     |            |
+   |          |            | documentation                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | PRI CCSS may use a stale dial     |            |
+   | 282334   | rmudgett   | string for the recall dial        |            |
+   |          |            | string.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282366   | tilghman   | Fix our FRACKing issue with       |            |
+   |          |            | chan_iax2 a different way.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282470   | lmadsen    | Add information about creating    |            |
+   |          |            | sounds files using                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282543   | dvossel    | fixes truncated uint64_t value in | #17804     |
+   |          |            | put_unaligned_uint64_t() function |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282638   | russell    | Split _all_ arguments before      |            |
+   |          |            | parsing them.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Properly handle 200 and unknown   |            |
+   | 282639   | mnicholson | responses conatined in NOTIFY     | #17486,    |
+   |          |            | requests received in response to  | #12713     |
+   |          |            | REFER requests.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Use the correct operator when     |            |
+   | 282671   | rmudgett   | calculating the PRI span          |            |
+   |          |            | devstate.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282672   | rmudgett   | Use the correct type for          |            |
+   |          |            | aoce_delayhangup bit field.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282740   | twilson    | Add some documentation about      |            |
+   |          |            | codec negotiation to sip.conf     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282826   | tilghman   | Only output debugging if the      |            |
+   |          |            | debug level is on.                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282891   | dvossel    | fixes sip peer memory leaks in    | #17798     |
+   |          |            | the peer_by_ip table              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 282979   | russell    | Add an argument missing from the  |            |
+   |          |            | CELGenUserEvent documentation.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283013   | russell    | Fix a typo in a column name.      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283125   | rmudgett   | Merged revision 278274 from       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283173   | russell    | Expand cel_custom.conf.sample.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283175   | tilghman   | Don't fail to start if the config |            |
+   |          |            | file is missing.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283177   | russell    | Cut down on excessive quotation.  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283207   | russell    | Tack on ${eventextra} to the      |            |
+   |          |            | sample cel_custom.conf.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283209   | russell    | Don't blow up on an invalid AMA   |            |
+   |          |            | flag.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Make the AST_CEL_AMA enum match   |            |
+   | 283230   | russell    | up with the AST_CDR_ ama flag     |            |
+   |          |            | values.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283241   | russell    | Add sample configuration for      |            |
+   |          |            | cel_radius.                       |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                               |   14 +
+ UPGRADE.txt                           |    8
+ apps/app_celgenuserevent.c            |    3
+ apps/app_readexten.c                  |    2
+ channels/chan_dahdi.c                 |    3
+ channels/chan_iax2.c                  |  110 ++++++++++--
+ channels/chan_multicast_rtp.c         |   10 -
+ channels/chan_sip.c                   |  280 +++++++++++++++++-------------
+ channels/sig_analog.c                 |   10 -
+ channels/sig_analog.h                 |    2
+ channels/sig_pri.c                    |   17 +
+ channels/sig_pri.h                    |    4
+ channels/sip/config_parser.c          |   12 -
+ channels/sip/include/sip.h            |    2
+ configs/cel.conf.sample               |   15 +
+ configs/cel_adaptive_odbc.conf.sample |    2
+ configs/cel_custom.conf.sample        |   12 +
+ configs/iax.conf.sample               |    9
+ configs/res_stun_monitor.conf.sample  |   22 ++
+ configs/say.conf.sample               |  104 +++++++++++
+ configs/sip.conf.sample               |   48 +++--
+ configure.ac                          |   32 +++
+ doc/tex/asterisk.tex                  |    3
+ doc/tex/sounds.tex                    |   80 ++++++++
+ include/asterisk/ccss.h               |   19 +-
+ include/asterisk/cel.h                |    7
+ include/asterisk/event_defs.h         |    4
+ include/asterisk/netsock2.h           |   20 ++
+ include/asterisk/sched.h              |   10 -
+ include/asterisk/translate.h          |    8
+ include/asterisk/unaligned.h          |    2
+ main/ccss.c                           |   49 +++--
+ main/cel.c                            |    6
+ main/channel.c                        |   14 +
+ main/cli.c                            |   35 +++
+ main/netsock2.c                       |   16 -
+ main/pbx.c                            |   12 -
+ main/sched.c                          |    2
+ main/translate.c                      |  295 ++++++++++++++++++++++++++++----
+ pbx/pbx_config.c                      |    6
+ res/res_stun_monitor.c                |  311 ++++++++++++++++++++++++++++++++++
+ 41 files changed, 1346 insertions(+), 274 deletions(-)
+
+     ----------------------------------------------------------------------
