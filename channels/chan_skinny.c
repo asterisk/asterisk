@@ -5014,16 +5014,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verb(1, "Received Stimulus: Redial(%d/%d)\n", instance, callreference);
 
 		if (ast_strlen_zero(l->lastnumberdialed)) {
-			ast_log(LOG_WARNING, "Attempted redial, but no previously dialed number found.\n");
-			l->hookstate = SKINNY_ONHOOK;
-			transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
-			transmit_closereceivechannel(d, sub);
-			transmit_stopmediatransmission(d, sub);
-			transmit_speaker_mode(d, SKINNY_SPEAKEROFF);
-			transmit_clearpromptmessage(d, l->instance, sub->callid);
-			transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
-			transmit_selectsoftkeys(d, 0, 0, KEYDEF_ONHOOK);
-			transmit_activatecallplane(d, l);
+			ast_log(LOG_WARNING, "Attempted redial, but no previously dialed number found. Ignoring button.\n");
 			break;
 		}
 
