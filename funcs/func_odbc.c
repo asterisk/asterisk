@@ -502,8 +502,10 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (stmt) {
 			break;
 		}
-		ast_odbc_release_obj(obj);
-		obj = NULL;
+		if (obj) {
+			ast_odbc_release_obj(obj);
+			obj = NULL;
+		}
 	}
 
 	if (!stmt) {
