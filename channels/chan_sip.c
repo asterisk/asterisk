@@ -4789,7 +4789,7 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 	ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF, ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 	ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF_COMPENSATE, ast_test_flag(&dialog->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 
-	ast_rtp_instance_set_qos(dialog->rtp, global_tos_audio, 0, "SIP RTP");
+	ast_rtp_instance_set_qos(dialog->rtp, global_tos_audio, global_cos_audio, "SIP RTP");
 
 	do_setnat(dialog);
 
