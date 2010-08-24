@@ -18500,7 +18500,11 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 	}
 }
 
-/*! \brief Check pending actions on SIP call */
+/*! \brief Check pending actions on SIP call 
+ *
+ * \note both sip_pvt and sip_pvt's owner channel (if present)
+ *  must be locked for this function.
+ */
 static void check_pendings(struct sip_pvt *p)
 {
 	if (ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
@@ -18515,6 +18519,9 @@ static void check_pendings(struct sip_pvt *p)
 			if (p->pendinginvite)
 				return;
 
+			if (p->owner) {
+				ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+			}
 			/* Perhaps there is an SD change INVITE outstanding */
 			transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
 		}
@@ -18540,12 +18547,21 @@ static void check_pendings(struct sip_pvt *p)
 static int sip_reinvite_retry(const void *data)
 {
 	struct sip_pvt *p = (struct sip_pvt *) data;
+	struct ast_channel *owner;
 
 	sip_pvt_lock(p); /* called from schedule thread which requires a lock */
+	while ((owner = p->owner) && ast_channel_trylock(owner)) {
+		sip_pvt_unlock(p);
+		usleep(1);
+		sip_pvt_lock(p);
+	}
 	ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 	p->waitid = -1;
 	check_pendings(p);
 	sip_pvt_unlock(p);
+	if (owner) {
+		ast_channel_unlock(owner);
+	}
 	dialog_unref(p, "unref the dialog ptr from sip_reinvite_retry, because it held a dialog ptr");
 	return 0;
 }
