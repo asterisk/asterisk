@@ -209,7 +209,7 @@
 #define DEFAULT_DOMAINSASREALM FALSE    /*!< Use the domain option to guess the realm for registration and invite requests */
 #define DEFAULT_NOTIFYRINGING  TRUE     /*!< Notify devicestate system on ringing state */
 #define DEFAULT_NOTIFYCID      DISABLED	/*!< Include CID with ringing notifications */
-#define DEFAULT_PEDANTIC       FALSE    /*!< Avoid following SIP standards for dialog matching */
+#define DEFAULT_PEDANTIC       TRUE     /*!< Follow SIP standards for dialog matching */
 #define DEFAULT_AUTOCREATEPEER FALSE    /*!< Don't create peers automagically */
 #define	DEFAULT_MATCHEXTERNADDRLOCALLY FALSE /*!< Match extern IP locally default setting */
 #define DEFAULT_QUALIFY        FALSE    /*!< Don't monitor devices */
