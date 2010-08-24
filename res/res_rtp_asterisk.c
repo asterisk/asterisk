@@ -270,6 +270,7 @@ static int ast_rtp_get_stat(struct ast_rtp_instance *instance, struct ast_rtp_in
 static int ast_rtp_dtmf_compatible(struct ast_channel *chan0, struct ast_rtp_instance *instance0, struct ast_channel *chan1, struct ast_rtp_instance *instance1);
 static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username);
 static void ast_rtp_stop(struct ast_rtp_instance *instance);
+static int ast_rtp_qos_set(struct ast_rtp_instance *instance, int tos, int cos, const char* desc);
 
 /* RTP Engine Declaration */
 static struct ast_rtp_engine asterisk_rtp_engine = {
@@ -293,6 +294,7 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.dtmf_compatible = ast_rtp_dtmf_compatible,
 	.stun_request = ast_rtp_stun_request,
 	.stop = ast_rtp_stop,
+	.qos = ast_rtp_qos_set,
 };
 
 static inline int rtp_debug_test_addr(struct ast_sockaddr *addr)
@@ -2547,6 +2549,13 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 	}
 
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
+}
+
+static int ast_rtp_qos_set(struct ast_rtp_instance *instance, int tos, int cos, const char *desc)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	return ast_set_qos(rtp->s, tos, cos, desc);
 }
 
 static char *rtp_do_debug_ip(struct ast_cli_args *a)
