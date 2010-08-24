@@ -114,6 +114,9 @@ From 1.6.2 to 1.8:
   removal of this feature will hopefully be followed by a correct RFC compliant
   STUN implementation in chan_sip in the future.
 
+* The default value for the pedantic option in sip.conf has been changed
+  from "no" to "yes".
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by
