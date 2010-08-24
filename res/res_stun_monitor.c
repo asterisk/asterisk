@@ -218,7 +218,7 @@ static int load_config(int startup)
 
 	if (!(cfg = ast_config_load2(stun_conf_file, "res_stun_monitor", config_flags)) ||
 		cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "Unable to load config %s\n", stun_conf_file);
+		ast_log(LOG_WARNING, "Unable to load config %s\n", stun_conf_file);
 		return -1;
 	}
 
