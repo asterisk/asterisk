@@ -5270,8 +5270,7 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->owner) {
 		if (lockowner)
 			ast_channel_lock(p->owner);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
+		ast_debug(1, "Detaching from %s\n", p->owner->name);
 		p->owner->tech_pvt = NULL;
 		/* Make sure that the channel knows its backend is going away */
 		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -6431,7 +6430,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 					 * just says they are waiting to get AOC-E before completely tearing
 					 * the call down.  Since SIP does not support this at the moment go
 					 * ahead and terminate the call here to avoid an unnecessary timeout. */
-					ast_log(LOG_DEBUG, "AOC-E termination request received on %s. This is not yet supported on sip. Continue with hangup \n", p->owner->name);
+					ast_debug(1, "AOC-E termination request received on %s. This is not yet supported on sip. Continue with hangup \n", p->owner->name);
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 				}
 				break;
@@ -6897,8 +6896,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 		f = ast_dsp_process(p->owner, p->dsp, f);
 		if (f && f->frametype == AST_FRAME_DTMF) {
 			if (f->subclass.integer == 'f') {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Fax CNG detected on %s\n", ast->name);
+				ast_debug(1, "Fax CNG detected on %s\n", ast->name);
 				*faxdetect = 1;
 				/* If we only needed this DSP for fax detection purposes we can just drop it now */
 				if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) {
@@ -8124,8 +8122,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			break;
 		}
 
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Processing session-level SDP %c=%s... %s\n", type, value, (processed == TRUE)? "OK." : "UNSUPPORTED.");
+		ast_debug(3, "Processing session-level SDP %c=%s... %s\n", type, value, (processed == TRUE)? "OK." : "UNSUPPORTED.");
  	}
 
 
@@ -8309,11 +8306,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				break;
 			}
 
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "Processing media-level (%s) SDP %c=%s... %s\n",
-						(audio == TRUE)? "audio" : (video == TRUE)? "video" : "image",
-						type, value,
-						(processed == TRUE)? "OK." : "UNSUPPORTED.");
+			ast_debug(3, "Processing media-level (%s) SDP %c=%s... %s\n",
+					(audio == TRUE)? "audio" : (video == TRUE)? "video" : "image",
+					type, value,
+					(processed == TRUE)? "OK." : "UNSUPPORTED.");
 		}
 	}
 
@@ -8489,10 +8485,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		if (udptlportno > 0) {
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
 				ast_rtp_instance_get_remote_address(p->rtp, isa);
-				if (!ast_sockaddr_isnull(isa)) {
-					if (debug) {
-						ast_log(LOG_DEBUG, "Peer T.38 UDPTL is set behind NAT and with destination, destination address now %s\n", ast_sockaddr_stringify(isa));
-					}
+				if (!ast_sockaddr_isnull(isa) && debug) {
+					ast_debug(1, "Peer T.38 UDPTL is set behind NAT and with destination, destination address now %s\n", ast_sockaddr_stringify(isa));
 				}
 			}
 			ast_sockaddr_set_port(isa, udptlportno);
@@ -8768,8 +8762,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 				struct ast_rtp_payload_type format = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(p->rtp), codec_n);
 				if (!format.asterisk_format || !format.code)	/* non-codec or not found */
 					continue;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Setting framing for %s to %ld\n", ast_getformatname(format.code), framing);
+				ast_debug(1, "Setting framing for %s to %ld\n", ast_getformatname(format.code), framing);
 				ast_codec_pref_setsize(pref, format.code, framing);
 			}
 			ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, pref);
@@ -12035,7 +12028,7 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 				send_response(p, &resp, XMIT_UNRELIABLE, 0);
 				ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 			} else {
-				ast_log(LOG_DEBUG, "Unable able to send update to '%s' in state '%s'\n", p->owner->name, ast_state2str(p->owner->_state));
+				ast_debug(1, "Unable able to send update to '%s' in state '%s'\n", p->owner->name, ast_state2str(p->owner->_state));
 			}
 		} else {
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CONNECTLINEUPDATE_PEND);
@@ -23385,8 +23378,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 			return 0;
 		}
 		if (p->ocseq && (p->ocseq < seqno)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
+			ast_debug(1, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
 			return -1;
 		} else {
 			char causevar[256], causeval[256];
@@ -23578,9 +23570,7 @@ static void process_request_queue(struct sip_pvt *p, int *recount, int *nounlock
 	while ((req = AST_LIST_REMOVE_HEAD(&p->request_queue, next))) {
 		if (handle_incoming(p, req, &p->recv, recount, nounlock) == -1) {
 			/* Request failed */
-			if (option_debug) {
-				ast_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
-			}
+			ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 		}
 		ast_free(req);
 	}
@@ -27582,7 +27572,7 @@ static int sip_removeheader(struct ast_channel *chan, const char *data)
 		if (strncasecmp(ast_var_name(newvariable), "SIPADDHEADER", strlen("SIPADDHEADER")) == 0) {
 			if (removeall || (!strncasecmp(ast_var_value(newvariable),inbuf,strlen(inbuf)))) {
 				if (sipdebug)
-					ast_log(LOG_DEBUG,"removing SIP Header \"%s\" as %s\n",
+					ast_debug(1,"removing SIP Header \"%s\" as %s\n",
 						ast_var_value(newvariable),
 						ast_var_name(newvariable));
 				AST_LIST_REMOVE_CURRENT(entries);
@@ -27858,7 +27848,7 @@ static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
 		return 1;
 	}
 	if (addrs_cnt > 1) {
-		ast_log(LOG_DEBUG, "Multiple addresses, using the first one only\n");
+		ast_debug(1, "Multiple addresses, using the first one only\n");
 	}
 
 	ast_sockaddr_copy(addr, &addrs[0]);
