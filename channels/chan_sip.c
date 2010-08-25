@@ -11688,8 +11688,14 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 
 				/* We create a fake call-id which the phone will send back in an INVITE
 				   Replaces header which we can grab and do some magic with. */
+				if (sip_cfg.pedanticsipchecking) {
+					ast_str_append(tmp, 0, "<dialog id=\"%s\" call-id=\"pickup-%s\" local-tag=\"%s\" remote-tag=\"%s\" direction=\"recipient\">\n",
+						exten, p->callid, p->theirtag, p->tag);
+				} else {
+					ast_str_append(tmp, 0, "<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n",
+						exten, p->callid);
+				}
 				ast_str_append(tmp, 0,
-						"<dialog id=\"%s\" call-id=\"pickup-%s\" direction=\"recipient\">\n"
 						"<remote>\n"
 						/* See the limitations of this above.  Luckily the phone seems to still be
 						   happy when these values are not correct. */
@@ -11700,7 +11706,7 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 						"<identity>%s</identity>\n"
 						"<target uri=\"%s\"/>\n"
 						"</local>\n",
-						exten, p->callid, local_display, local_target, local_target, mto, mto);
+						local_display, local_target, local_target, mto, mto);
 			} else {
 				ast_str_append(tmp, 0, "<dialog id=\"%s\" direction=\"recipient\">\n", exten);
 			}
@@ -20983,7 +20989,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			struct sip_pvt *subscription = NULL;
 			replace_id += 7; /* Worst case we are looking at \0 */
 
-			if ((subscription = get_sip_pvt_byid_locked(replace_id, NULL, NULL)) == NULL) {
+			if ((subscription = get_sip_pvt_byid_locked(replace_id, totag, fromtag)) == NULL) {
 				ast_log(LOG_NOTICE, "Unable to find subscription with call-id: %s\n", replace_id);
 				transmit_response_reliable(p, "481 Call Leg Does Not Exist (Replaces)", req);
 				error = 1;
