@@ -948,13 +948,6 @@ static const struct cfsip_options {
 */
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY, INFO"
 
-/*! \brief SIP Extensions we support 
-	\note This should be generated based on the previous array
-		in combination with settings.
-	\todo We should not have "timer" if it's disabled in the configuration file.
-*/
-#define SUPPORTED_EXTENSIONS "replaces, timer" 
-
 /*! \brief Standard SIP unsecure port for UDP and TCP from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_SIP_PORT	5060
 /*! \brief Standard SIP TLS port from RFC 3261. DO NOT CHANGE THIS */
@@ -9127,6 +9120,20 @@ static void ts_ast_rtp_destroy(void *data)
 }
 #endif
 
+/*! \brief Add "Supported" header to sip message.  Since some options may
+ *  be disabled in the config, the sip_pvt must be inspected to determine what
+ *  is supported for this dialog. */
+static int add_supported_header(struct sip_pvt *pvt, struct sip_request *req)
+{
+	int res;
+	if (st_get_mode(pvt) != SESSION_TIMER_MODE_REFUSE) {
+		res = add_header(req, "Supported", "replaces, timer");
+	} else {
+		res = add_header(req, "Supported", "replaces");
+	}
+	return res;
+}
+
 /*! \brief Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
 {
@@ -9538,7 +9545,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	if (!ast_strlen_zero(global_useragent))
 		add_header(resp, "Server", global_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
-	add_header(resp, "Supported", SUPPORTED_EXTENSIONS);
+	add_supported_header(p, resp);
 
 	/* If this is an invite, add Session-Timers related headers if the feature is active for this session */
 	if (p->method == SIP_INVITE && p->stimer && p->stimer->st_active == TRUE && p->stimer->st_active_peer_ua == TRUE) {
@@ -10638,7 +10645,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 	reqprep(&req, p, ast_test_flag(&p->flags[0], SIP_REINVITE_UPDATE) ?  SIP_UPDATE : SIP_INVITE, 0, 1);
 
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
+	add_supported_header(p, &req);
 	if (sipdebug) {
 		if (oldsdp == TRUE)
 			add_header(&req, "X-asterisk-Info", "SIP re-invite (Session-Timers)");
@@ -11014,7 +11021,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	}
 
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
+	add_supported_header(p, &req);
 
 	if(p->notify_headers) {
 		char buf[512];
@@ -11458,7 +11465,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	add_header(&req, "Subscription-state", terminate ? "terminated;reason=noresource" : "active");
 	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
+	add_supported_header(p, &req);
 
 	snprintf(tmp, sizeof(tmp), "SIP/2.0 %s\r\n", message);
 	add_content(&req, tmp);
@@ -12010,7 +12017,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 
 	add_header(&req, "Refer-To", referto);
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
+	add_supported_header(p, &req);
 	if (!ast_strlen_zero(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
 
