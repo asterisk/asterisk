@@ -154,14 +154,6 @@
  */
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, SUBSCRIBE, NOTIFY, INFO, PUBLISH"
 
-/*! \brief SIP Extensions we support
- *  \note This should be generated based on the previous array
- *  in combination with settings.
- *
- *  \todo We should not have "timer" if it's disabled in the configuration file.
- */
-#define SUPPORTED_EXTENSIONS "replaces, timer"
-
 /*! \brief Standard SIP unsecure port for UDP and TCP from RFC 3261. DO NOT CHANGE THIS */
 #define STANDARD_SIP_PORT	5060
 /*! \brief Standard SIP TLS port from RFC 3261. DO NOT CHANGE THIS */
