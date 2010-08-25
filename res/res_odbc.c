@@ -780,6 +780,7 @@ static int load_odbc_config(void)
 			pooling = 0;
 			limit = 0;
 			bse = 1;
+			conntimeout = 10;
 			forcecommit = 0;
 			isolation = SQL_TXN_READ_COMMITTED;
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
