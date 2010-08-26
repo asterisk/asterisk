@@ -5837,12 +5837,10 @@ static int sip_hangup(struct ast_channel *ast)
 	if (!p->alreadygone && p->initreq.data && !ast_strlen_zero(p->initreq.data->str)) {
 		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-				/* stop retransmitting an INVITE that has not received a response */
 				/* if we can't send right now, mark it pending */
 				if (p->invitestate == INV_CALLING) {
 					/* We can't send anything in CALLING state */
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
-					__sip_pretend_ack(p);
 					/* Do we need a timer here if we don't hear from them at all? Yes we do or else we will get hung dialogs and those are no fun. */
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					append_history(p, "DELAY", "Not sending cancel, waiting for timeout");
