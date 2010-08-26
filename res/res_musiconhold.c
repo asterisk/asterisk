@@ -41,14 +41,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include <sys/ioctl.h>
 
 #ifdef SOLARIS
 #include <thread.h>
-#endif
-
-#ifdef HAVE_DAHDI
-#include <dahdi/user.h>
 #endif
 
 #include "asterisk/lock.h"
@@ -68,6 +63,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/paths.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/timing.h"
+#include "asterisk/time.h"
+#include "asterisk/poll-compat.h"
 
 #define INITIAL_NUM_FILES   8
 #define HANDLE_REF	1
@@ -198,10 +196,10 @@ struct mohclass {
 	pthread_t thread;
 	/*! Source of audio */
 	int srcfd;
-	/*! FD for timing source */
-	int pseudofd;
+	/*! Generic timer */
+	struct ast_timer *timer;
 	/*! Created on the fly, from RT engine */
-	int realtime;
+	unsigned int realtime:1;
 	unsigned int delete:1;
 	AST_LIST_HEAD_NOLOCK(, mohdata) members;
 	AST_LIST_ENTRY(mohclass) list;
@@ -607,9 +605,8 @@ static void *monmp3thread(void *data)
 
 	struct mohclass *class = data;
 	struct mohdata *moh;
-	char buf[8192];
 	short sbuf[8192];
-	int res, res2;
+	int res = 0, res2;
 	int len;
 	struct timeval deadline, tv_tmp;
 
@@ -626,12 +623,22 @@ static void *monmp3thread(void *data)
 				pthread_testcancel();
 			}
 		}
-		if (class->pseudofd > -1) {
+		if (class->timer) {
+			struct pollfd pfd = { .fd = ast_timer_fd(class->timer), .events = POLLIN, };
+			struct timeval tv;
+
 #ifdef SOLARIS
 			thr_yield();
 #endif
 			/* Pause some amount of time */
-			res = read(class->pseudofd, buf, sizeof(buf));
+			tv = ast_tvnow();
+			if (ast_poll(&pfd, 1, -1) > 0) {
+				ast_timer_ack(class->timer, 1);
+				res = 320;
+			} else {
+				ast_log(LOG_ERROR, "poll() failed: %s\n", strerror(errno));
+				res = 0;
+			}
 			pthread_testcancel();
 		} else {
 			long delta;
@@ -1129,10 +1136,6 @@ static int moh_diff(struct mohclass *old, struct mohclass *new)
 
 static int init_app_class(struct mohclass *class)
 {
-#ifdef HAVE_DAHDI
-	int x;
-#endif
-
 	if (!strcasecmp(class->mode, "custom")) {
 		ast_set_flag(class, MOH_CUSTOM);
 	} else if (!strcasecmp(class->mode, "mp3nb")) {
@@ -1142,27 +1145,23 @@ static int init_app_class(struct mohclass *class)
 	} else if (!strcasecmp(class->mode, "quietmp3")) {
 		ast_set_flag(class, MOH_QUIET);
 	}
-		
-	class->srcfd = -1;
-	class->pseudofd = -1;
 
-#ifdef HAVE_DAHDI
-	/* Open /dev/zap/pseudo for timing...  Is
-	   there a better, yet reliable way to do this? */
-	class->pseudofd = open("/dev/dahdi/pseudo", O_RDONLY);
-	if (class->pseudofd < 0) {
-		ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
-	} else {
-		x = 320;
-		ioctl(class->pseudofd, DAHDI_SET_BLOCKSIZE, &x);
+	class->srcfd = -1;
+
+	if (!(class->timer = ast_timer_open())) {
+		ast_log(LOG_WARNING, "Unable to create timer: %s\n", strerror(errno));
 	}
-#endif
+	if (class->timer && ast_timer_set_rate(class->timer, 25)) {
+		ast_log(LOG_WARNING, "Unable to set 40ms frame rate: %s\n", strerror(errno));
+		ast_timer_close(class->timer);
+		class->timer = NULL;
+	}
 
 	if (ast_pthread_create_background(&class->thread, NULL, monmp3thread, class)) {
 		ast_log(LOG_WARNING, "Unable to create moh thread...\n");
-		if (class->pseudofd > -1) {
-			close(class->pseudofd);
-			class->pseudofd = -1;
+		if (class->timer) {
+			ast_timer_close(class->timer);
+			class->timer = NULL;
 		}
 		return -1;
 	}
@@ -1192,7 +1191,7 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 
 	time(&moh->start);
 	moh->start -= respawn_time;
-	
+
 	if (!strcasecmp(moh->mode, "files")) {
 		if (init_files_class(moh)) {
 			if (unref) {
@@ -1222,7 +1221,7 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 	if (unref) {
 		moh = mohclass_unref(moh, "Unreffing new moh class because we just added it to the container");
 	}
-	
+
 	return 0;
 }
 
@@ -1390,7 +1389,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 				time(&mohclass->start);
 				mohclass->start -= respawn_time;
-	
+
 				if (!strcasecmp(mohclass->mode, "files")) {
 					if (!moh_scan_files(mohclass)) {
 						mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (moh_scan_files failed)");
@@ -1408,21 +1407,17 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 						ast_set_flag(mohclass, MOH_SINGLE | MOH_QUIET);
 					else if (!strcasecmp(mohclass->mode, "quietmp3"))
 						ast_set_flag(mohclass, MOH_QUIET);
-			
+
 					mohclass->srcfd = -1;
-#ifdef HAVE_DAHDI
-					/* Open /dev/dahdi/pseudo for timing...  Is
-					   there a better, yet reliable way to do this? */
-					mohclass->pseudofd = open("/dev/dahdi/pseudo", O_RDONLY);
-					if (mohclass->pseudofd < 0) {
-						ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
-					} else {
-						int x = 320;
-						ioctl(mohclass->pseudofd, DAHDI_SET_BLOCKSIZE, &x);
+					if (!(mohclass->timer = ast_timer_open())) {
+						ast_log(LOG_WARNING, "Unable to create timer: %s\n", strerror(errno));
 					}
-#else
-					mohclass->pseudofd = -1;
-#endif
+					if (mohclass->timer && ast_timer_set_rate(mohclass->timer, 25)) {
+						ast_log(LOG_WARNING, "Unable to set 40ms frame rate: %s\n", strerror(errno));
+						ast_timer_close(mohclass->timer);
+						mohclass->timer = NULL;
+					}
+
 					/* Let's check if this channel already had a moh class before */
 					if (state && state->class) {
 						/* Class already exist for this channel */
@@ -1435,9 +1430,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					} else {
 						if (ast_pthread_create_background(&mohclass->thread, NULL, monmp3thread, mohclass)) {
 							ast_log(LOG_WARNING, "Unable to create moh...\n");
-							if (mohclass->pseudofd > -1) {
-								close(mohclass->pseudofd);
-								mohclass->pseudofd = -1;
+							if (mohclass->timer) {
+								ast_timer_close(mohclass->timer);
+								mohclass->timer = NULL;
 							}
 							mohclass = mohclass_unref(mohclass, "Unreffing potential mohclass (failed to create background thread)");
 							return -1;
@@ -1618,7 +1613,7 @@ static int load_moh_classes(int reload)
 	if (reload) {
 		ao2_t_callback(mohclasses, OBJ_NODATA, moh_class_mark, NULL, "Mark deleted classes");
 	}
-	
+
 	ast_clear_flag(global_flags, AST_FLAGS_ALL);
 
 	cat = ast_category_browse(cfg, NULL);
