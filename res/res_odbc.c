@@ -1204,7 +1204,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 	unsigned char state[10], diagnostic[256];
 
 	if (!(class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name))) {
-		ast_debug(1, "Class not found!\n");
+		ast_debug(1, "Class '%s' not found!\n", name);
 		return NULL;
 	}
 
