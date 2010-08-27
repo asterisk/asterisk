@@ -919,7 +919,7 @@ static const struct {
  */
 struct mansession_session {
 	pthread_t ms_t;		/*!< Execution thread, basically useless */
-				/* XXX need to document which fields it is protecting */
+				/*! \todo XXX need to document which fields it is protecting */
 	struct sockaddr_in sin;	/*!< address we are connecting from */
 	FILE *f;		/*!< fdopen() on the underlying fd */
 	int fd;			/*!< descriptor used for output. Either the socket (AMI) or a temporary file (HTTP) */
@@ -935,24 +935,23 @@ struct mansession_session {
 	int authenticated;	/*!< Authentication status */
 	int readperm;		/*!< Authorization for reading */
 	int writeperm;		/*!< Authorization for writing */
-	char inbuf[1025];	/*!< Buffer */
-				/* we use the extra byte to add a '\0' and simplify parsing */
+	char inbuf[1025];	/*!< Buffer -  we use the extra byte to add a '\0' and simplify parsing */
 	int inlen;		/*!< number of buffered bytes */
+	struct ao2_container *whitefilters;	/*!< Manager event filters - white list */
+	struct ao2_container *blackfilters;	/*!< Manager event filters - black list */
 	int send_events;	/*!<  XXX what ? */
 	struct eventqent *last_ev;	/*!< last event processed. */
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
 	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
 	time_t noncetime;	/*!< Timer for nonce value expiration */
-	struct ao2_container *whitefilters;
-	struct ao2_container *blackfilters;
 	unsigned long oldnonce;	/*!< Stale nonce value */
 	unsigned long nc;	/*!< incremental  nonce counter */
 	AST_LIST_HEAD_NOLOCK(mansession_datastores, ast_datastore) datastores; /*!< Data stores on the session */
 	AST_LIST_ENTRY(mansession_session) list;
 };
 
-/* In case you didn't read that giant block of text above the mansession_session struct, the
- * 'mansession' struct is named this solely to keep the API the same in Asterisk. This structure really
+/*! \brief In case you didn't read that giant block of text above the mansession_session struct, the
+ * \ref struct mansession is named this solely to keep the API the same in Asterisk. This structure really
  * represents data that is different from Manager action to Manager action. The mansession_session pointer
  * contained within points to session-specific data.
  */
@@ -983,15 +982,15 @@ static AST_RWLIST_HEAD_STATIC(channelvars, manager_channel_variable);
  */
 struct ast_manager_user {
 	char username[80];
-	char *secret;
+	char *secret;			/*!< Secret for logging in */
 	struct ast_ha *ha;		/*!< ACL setting */
-	int readperm;			/*! Authorization for reading */
-	int writeperm;			/*! Authorization for writing */
-	int writetimeout;		/*! Per user Timeout for ast_carefulwrite() */
+	int readperm;			/*!< Authorization for reading */
+	int writeperm;			/*!< Authorization for writing */
+	int writetimeout;		/*!< Per user Timeout for ast_carefulwrite() */
 	int displayconnects;		/*!< XXX unused */
 	int keep;			/*!< mark entries created on a reload */
-	struct ao2_container *whitefilters;
-	struct ao2_container *blackfilters;
+	struct ao2_container *whitefilters; /*!< Manager event filters - white list */
+	struct ao2_container *blackfilters; /*!< Manager event filters - black list */
 	char *a1_hash;			/*!< precalculated A1 for Digest auth */
 	AST_RWLIST_ENTRY(ast_manager_user) list;
 };
@@ -1681,15 +1680,16 @@ static struct eventqent *advance_event(struct eventqent *e)
 	return next;
 }
 
-/*
+#define	GET_HEADER_FIRST_MATCH	0
+#define	GET_HEADER_LAST_MATCH	1
+#define	GET_HEADER_SKIP_EMPTY	2
+
+/*! \brief
  * Generic function to return either the first or the last matching header
  * from a list of variables, possibly skipping empty strings.
  * At the moment there is only one use of this function in this file,
  * so we make it static.
  */
-#define	GET_HEADER_FIRST_MATCH	0
-#define	GET_HEADER_LAST_MATCH	1
-#define	GET_HEADER_SKIP_EMPTY	2
 static const char *__astman_get_header(const struct message *m, char *var, int mode)
 {
 	int x, l = strlen(var);
@@ -1712,7 +1712,7 @@ static const char *__astman_get_header(const struct message *m, char *var, int m
 	return "";
 }
 
-/*
+/*! \brief
  * Return the first matching variable from an array.
  * This is the legacy function and is implemented in therms of
  * __astman_get_header().
@@ -1764,8 +1764,7 @@ struct ast_variable *astman_get_variables(const struct message *m)
 	return head;
 }
 
-/* access for hooks to send action messages to ami */
-
+/*! \brief access for hooks to send action messages to ami */
 int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 {
 	const char *action;
@@ -1856,6 +1855,7 @@ static int send_string(struct mansession *s, char *string)
  *       initialize the thread local storage key.
  */
 AST_THREADSTORAGE(astman_append_buf);
+
 AST_THREADSTORAGE(userevent_buf);
 
 /*! \brief initial allocated size for the astman_append_buf */
@@ -1893,6 +1893,9 @@ void astman_append(struct mansession *s, const char *fmt, ...)
    lock.
  */
 
+/*! \todo XXX MSG_MOREDATA should go to a header file. */
+#define MSG_MOREDATA	((char *)astman_send_response)
+
 /*! \brief send a response with an optional message,
  * and terminate it with an empty line.
  * m is used only to grab the 'ActionID' field.
@@ -1900,7 +1903,6 @@ void astman_append(struct mansession *s, const char *fmt, ...)
  * Use the explicit constant MSG_MOREDATA to remove the empty line.
  * XXX MSG_MOREDATA should go to a header file.
  */
-#define MSG_MOREDATA	((char *)astman_send_response)
 static void astman_send_response_full(struct mansession *s, const struct message *m, char *resp, char *msg, char *listflag)
 {
 	const char *id = astman_get_header(m, "ActionID");
@@ -2284,8 +2286,8 @@ static int authenticate(struct mansession *s, const struct message *m)
 	/* auth complete */
 
 	/* All of the user parameters are copied to the session so that in the event
-     * of a reload and a configuration change, the session parameters are not
-     * changed. */
+	* of a reload and a configuration change, the session parameters are not
+	* changed. */
 	ast_copy_string(s->session->username, username, sizeof(s->session->username));
 	s->session->readperm = user->readperm;
 	s->session->writeperm = user->writeperm;
@@ -2494,7 +2496,7 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-/* helper function for action_updateconfig */
+/*! \brief helper function for action_updateconfig */
 static enum error_type handle_updates(struct mansession *s, const struct message *m, struct ast_config *cfg, const char *dfn)
 {
 	int x;
@@ -4299,7 +4301,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	return 0;
 }
 
-/* Manager function to check if module is loaded */
+/*! \brief Manager function to check if module is loaded */
 static int manager_modulecheck(struct mansession *s, const struct message *m)
 {
 	int res;
@@ -4398,7 +4400,7 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
  * the appropriate handler.
  */
 
-/*
+/*! \brief
  * Process an AMI message, performing desired action.
  * Return 0 on success, -1 on error that require the session to be destroyed.
  */
@@ -4720,7 +4722,7 @@ static void purge_sessions(int n_max)
 	ao2_iterator_destroy(&i);
 }
 
-/*
+/*! \brief
  * events are appended to a queue from where they
  * can be dispatched to clients.
  */
@@ -4858,7 +4860,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	return 0;
 }
 
-/*
+/*! \brief
  * support functions to register/unregister AMI action handlers,
  */
 int ast_manager_unregister(char *action)
