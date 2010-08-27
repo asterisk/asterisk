@@ -222,7 +222,7 @@ void ast_variables_destroy(struct ast_variable *v)
 		v = v->next;
 		ast_destroy_comment(&vn->precomments);
 		ast_destroy_comment(&vn->sameline);
-		free(vn);
+		ast_free(vn);
 	}
 }
 
