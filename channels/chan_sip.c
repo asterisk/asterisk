@@ -22939,7 +22939,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	int firststate = AST_EXTENSION_REMOVED;
 	struct sip_peer *authpeer = NULL;
 	const char *eventheader = get_header(req, "Event");	/* Get Event package name */
-	const char *acceptheader = get_header(req, "Accept");
 	int resubscribe = (p->subscribed != NONE);
 	char *temp, *event;
 	struct ao2_iterator i;
@@ -23070,51 +23069,93 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 		unsigned int pidf_xml;
+		const char *accept;
+		int start = 0;
+		enum subscriptiontype subscribed = NONE;
+		const char *unknown_acceptheader = NULL;
 
 		if (authpeer)	/* We do not need the authpeer any more */
 			unref_peer(authpeer, "unref_peer, from handle_request_subscribe (authpeer 2)");
 
 		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
+		accept = __get_header(req, "Accept", &start);
+		while ((subscribed == NONE) && !ast_strlen_zero(accept)) {
+			pidf_xml = strstr(accept, "application/pidf+xml") ? 1 : 0;
 
-		pidf_xml = strstr(acceptheader, "application/pidf+xml") ? 1 : 0;
+			/* Older versions of Polycom firmware will claim pidf+xml, but really
+			 * they only support xpidf+xml. */
+			if (pidf_xml && strstr(p->useragent, "Polycom")) {
+				subscribed = XPIDF_XML;
+			} else if (pidf_xml) {
+				subscribed = PIDF_XML;         /* RFC 3863 format */
+			} else if (strstr(accept, "application/dialog-info+xml")) {
+				subscribed = DIALOG_INFO_XML;
+				/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
+			} else if (strstr(accept, "application/cpim-pidf+xml")) {
+				subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
+			} else if (strstr(accept, "application/xpidf+xml")) {
+				subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
+			} else {
+				unknown_acceptheader = accept;
+			}
+			/* check to see if there is another Accept header present */
+			accept = __get_header(req, "Accept", &start);
+		}
 
-		/* Older versions of Polycom firmware will claim pidf+xml, but really
-		 * they only support xpidf+xml. */
-		if (pidf_xml && strstr(p->useragent, "Polycom")) {
-			p->subscribed = XPIDF_XML;
-		} else if (pidf_xml) {
-			p->subscribed = PIDF_XML;         /* RFC 3863 format */
-		} else if (strstr(acceptheader, "application/dialog-info+xml")) {
-			p->subscribed = DIALOG_INFO_XML;
-			/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
-		} else if (strstr(acceptheader, "application/cpim-pidf+xml")) {
-			p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
-		} else if (strstr(acceptheader, "application/xpidf+xml")) {
-			p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
-		} else if (ast_strlen_zero(acceptheader)) {
+		if (!start) {
 			if (p->subscribed == NONE) { /* if the subscribed field is not already set, and there is no accept header... */
 				transmit_response(p, "489 Bad Event", req);
-
-				ast_log(LOG_WARNING, "SUBSCRIBE failure: no Accept header: pvt: stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s', subscribeuri: '%s'\n",
-					p->stateid, p->laststate, p->dialogver, p->subscribecontext, p->subscribeuri);
+				ast_log(LOG_WARNING,"SUBSCRIBE failure: no Accept header: pvt: "
+					"stateid: %d, laststate: %d, dialogver: %d, subscribecont: "
+					"'%s', subscribeuri: '%s'\n",
+					p->stateid,
+					p->laststate,
+					p->dialogver,
+					p->subscribecontext,
+					p->subscribeuri);
 				pvt_set_needdestroy(p, "no Accept header");
 				return 0;
 			}
 			/* if p->subscribed is non-zero, then accept is not obligatory; according to rfc 3265 section 3.1.3, at least.
 			   so, we'll just let it ride, keeping the value from a previous subscription, and not abort the subscription */
-		} else {
+		} else if (subscribed == NONE) {
 			/* Can't find a format for events that we know about */
 			char mybuf[200];
-			snprintf(mybuf, sizeof(mybuf), "489 Bad Event (format %s)", acceptheader);
+			if (!ast_strlen_zero(unknown_acceptheader)) {
+				snprintf(mybuf, sizeof(mybuf), "489 Bad Event (format %s)", unknown_acceptheader);
+			} else {
+				snprintf(mybuf, sizeof(mybuf), "489 Bad Event");
+			}
 			transmit_response(p, mybuf, req);
-
-			ast_log(LOG_WARNING, "SUBSCRIBE failure: unrecognized format: '%s' pvt: subscribed: %d, stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s', subscribeuri: '%s'\n",
-				acceptheader, (int)p->subscribed, p->stateid, p->laststate, p->dialogver, p->subscribecontext, p->subscribeuri);
+			ast_log(LOG_WARNING,"SUBSCRIBE failure: unrecognized format:"
+				"'%s' pvt: subscribed: %d, stateid: %d, laststate: %d,"
+				"dialogver: %d, subscribecont: '%s', subscribeuri: '%s'\n",
+				unknown_acceptheader,
+				(int)p->subscribed,
+				p->stateid,
+				p->laststate,
+				p->dialogver,
+				p->subscribecontext,
+				p->subscribeuri);
 			pvt_set_needdestroy(p, "unrecognized format");
 			return 0;
+		} else {
+			p->subscribed = subscribed;
 		}
 	} else if (!strcmp(event, "message-summary")) {
-		if (!ast_strlen_zero(acceptheader) && strcmp(acceptheader, "application/simple-message-summary")) {
+		int start = 0;
+		int found_supported = 0;
+		const char *acceptheader;
+
+		acceptheader = __get_header(req, "Accept", &start);
+		while (!found_supported && !ast_strlen_zero(acceptheader)) {
+			found_supported = strcmp(acceptheader, "application/simple-message-summary") ? 0 : 1;
+			if (!found_supported && (option_debug > 2)) {
+				ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", acceptheader);
+			}
+			acceptheader = __get_header(req, "Accept", &start);
+		}
+		if (start && !found_supported) {
 			/* Format requested that we do not support */
 			transmit_response(p, "406 Not Acceptable", req);
 			ast_debug(2, "Received SIP mailbox subscription for unknown format: %s\n", acceptheader);
