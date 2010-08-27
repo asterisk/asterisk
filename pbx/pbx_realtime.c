@@ -349,7 +349,8 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				appdata[0] = 0; /* just in case the substitute var func isn't called */
 				if(!ast_strlen_zero(tmp))
 					pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
-				ast_verb(3, "Executing %s(\"%s\", \"%s\")\n",
+				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
+						chan->exten, chan->context, chan->priority,
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
 						 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
