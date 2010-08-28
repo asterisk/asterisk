@@ -1697,8 +1697,9 @@ static const char *__astman_get_header(const struct message *m, char *var, int m
 
 	for (x = 0; x < m->hdrcount; x++) {
 		const char *h = m->headers[x];
-		if (!strncasecmp(var, h, l) && h[l] == ':' && h[l+1] == ' ') {
-			const char *value = h + l + 2;
+		if (!strncasecmp(var, h, l) && h[l] == ':') {
+			const char *value = h + l + 1;
+			value = ast_skip_blanks(value); /* ignore leading spaces in the value */
 			/* found a potential candidate */
 			if (mode & GET_HEADER_SKIP_EMPTY && ast_strlen_zero(value))
 				continue;	/* not interesting */
