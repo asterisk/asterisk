@@ -4,7 +4,7 @@
  * Copyright (C) 2008 Digium
  *
  * Adapted from cdr_adaptive_odbc:
- * Tilghman Lesher <cdr_adaptive_odbc__v1@the-tilghman.com>
+ * Tilghman Lesher <tlesher AT digium DOT com>
  * by Steve Murphy
  *
  * See http://www.asterisk.org for more information about
@@ -20,9 +20,9 @@
 
 /*! \file
  *
- * \brief Adaptive ODBC CEL backend
+ * \brief ODBC CEL backend
  *
- * \author Tilghman Lesher <cdr_adaptive_odbc__v1@the-tilghman.com>
+ * \author Tilghman Lesher <tlesher AT digium DOT com>
  * \ingroup cel_drivers
  */
 
@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cel.h"
 #include "asterisk/module.h"
 
-#define	CONFIG	"cel_adaptive_odbc.conf"
+#define	CONFIG	"cel_odbc.conf"
 static struct ast_event_sub *event_sub = NULL;
 
 /* Optimization to reduce number of memory allocations */
@@ -98,7 +98,7 @@ static int load_config(void)
 
 	cfg = ast_config_load(CONFIG, config_flags);
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_WARNING, "Unable to load " CONFIG ".  No adaptive ODBC CEL records!\n");
+		ast_log(LOG_WARNING, "Unable to load " CONFIG ".  No ODBC CEL records!\n");
 		return -1;
 	}
 
@@ -160,7 +160,7 @@ static int load_config(void)
 		ast_copy_string(tableptr->connection, connection, lenconnection + 1);
 		ast_copy_string(tableptr->table, table, lentable + 1);
 
-		ast_verb(3, "Found adaptive CEL table %s@%s.\n", tableptr->table, tableptr->connection);
+		ast_verb(3, "Found CEL table %s@%s.\n", tableptr->table, tableptr->connection);
 
 		/* Check for filters first */
 		for (var = ast_variable_browse(cfg, catg); var; var = var->next) {
@@ -381,7 +381,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 
 		/* No need to check the connection now; we'll handle any failure in prepare_and_execute */
 		if (!(obj = ast_odbc_request_obj(tableptr->connection, 0))) {
-			ast_log(LOG_WARNING, "cel_adaptive_odbc: Unable to retrieve database handle for '%s:%s'.  CEL failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
+			ast_log(LOG_WARNING, "Unable to retrieve database handle for '%s:%s'.  CEL failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
 			continue;
 		}
 
@@ -571,7 +571,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_INTEGER:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						int integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (int) record.event_type;
@@ -588,7 +590,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_BIGINT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						long long integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (long long) record.event_type;
@@ -605,7 +609,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_SMALLINT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						short integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (short) record.event_type;
@@ -622,7 +628,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_TINYINT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
@@ -639,7 +647,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_BIT:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
@@ -659,7 +669,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					break;
 				case SQL_NUMERIC:
 				case SQL_DECIMAL:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double)record.event_type;
@@ -678,7 +690,9 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_FLOAT:
 				case SQL_REAL:
 				case SQL_DOUBLE:
-					{
+					if (ast_strlen_zero(colptr)) {
+						continue;
+					} else {
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double) record.event_type;
@@ -716,7 +730,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		}
 		if (rows == 0) {
-			ast_log(LOG_WARNING, "cel_adaptive_odbc: Insert failed on '%s:%s'.  CEL failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
+			ast_log(LOG_WARNING, "Insert failed on '%s:%s'.  CEL failed: %s\n", tableptr->connection, tableptr->table, ast_str_buffer(sql));
 		}
 early_release:
 		ast_odbc_release_obj(obj);
@@ -741,9 +755,9 @@ static int unload_module(void)
 		event_sub = ast_event_unsubscribe(event_sub);
 	}
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
-		event_sub = ast_event_subscribe(AST_EVENT_CEL, odbc_log, "Adaptive ODBC CEL backend", NULL, AST_EVENT_IE_END);
+		event_sub = ast_event_subscribe(AST_EVENT_CEL, odbc_log, "ODBC CEL backend", NULL, AST_EVENT_IE_END);
 		if (!event_sub) {
-			ast_log(LOG_ERROR, "cel_adaptive_odbc: Unable to subscribe to CEL events\n");
+			ast_log(LOG_ERROR, "Unable to subscribe to CEL events\n");
 		}
 		ast_log(LOG_ERROR, "Unable to lock column list.  Unload failed.\n");
 		return -1;
@@ -762,9 +776,9 @@ static int load_module(void)
 	}
 	load_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, odbc_log, "Adaptive ODBC CEL backend", NULL, AST_EVENT_IE_END);
+	event_sub = ast_event_subscribe(AST_EVENT_CEL, odbc_log, "ODBC CEL backend", NULL, AST_EVENT_IE_END);
 	if (!event_sub) {
-		ast_log(LOG_ERROR, "cel_odbc: Unable to subscribe to CEL events\n");
+		ast_log(LOG_ERROR, "Unable to subscribe to CEL events\n");
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -782,7 +796,7 @@ static int reload(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Adaptive ODBC CEL backend",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "ODBC CEL backend",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
