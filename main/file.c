@@ -47,13 +47,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/test.h"
 
-/*
+/*! \brief
  * The following variable controls the layout of localized sound files.
  * If 0, use the historical layout with prefix just before the filename
  * (i.e. digits/en/1.gsm , digits/it/1.gsm or default to digits/1.gsm),
  * if 1 put the prefix at the beginning of the filename
  * (i.e. en/digits/1.gsm, it/digits/1.gsm or default to digits/1.gsm).
  * The latter permits a language to be entirely in one directory.
+ *
+ * This is settable in asterisk.conf.
  */
 int ast_language_is_prefix = 1;
 
