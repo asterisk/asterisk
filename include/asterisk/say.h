@@ -82,7 +82,7 @@ static int say_stub(struct ast_channel *chan, ...)
 int ast_say_number(struct ast_channel *chan, int num,
 	const char *ints, const char *lang, const char *options);
 
-/* Same as above with audiofd for received audio and returns 1 on ctrlfd being readable */
+/*! \brief Same as \ref ast_say_number() with audiofd for received audio and returns 1 on ctrlfd being readable */
 SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_number_full);
 
 /*!
@@ -102,6 +102,7 @@ SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const 
 int ast_say_enumeration(struct ast_channel *chan, int num,
 	const char *ints, const char *lang, const char *options);
 
+/*! \brief Same as \ref ast_say_enumeration() with audiofd for received audio and returns 1 on ctrlfd being readable */
 SAY_EXTERN int (* ast_say_enumeration_full)(struct ast_channel *chan, int num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_enumeration_full);
 
 /*!
@@ -119,6 +120,7 @@ SAY_EXTERN int (* ast_say_enumeration_full)(struct ast_channel *chan, int num, c
 int ast_say_digits(struct ast_channel *chan, int num,
 	const char *ints, const char *lang);
 
+/*! \brief Same as \ref ast_say_digits() with audiofd for received audio and returns 1 on ctrlfd being readable */
 int ast_say_digits_full(struct ast_channel *chan, int num,
 	const char *ints, const char *lang, int audiofd, int ctrlfd);
 
@@ -137,16 +139,17 @@ int ast_say_digits_full(struct ast_channel *chan, int num,
 int ast_say_digit_str(struct ast_channel *chan, const char *num,
 	const char *ints, const char *lang);
 
+/*! \brief Same as \ref ast_say_digit_str() with audiofd for received audio and returns 1 on ctrlfd being readable */
 SAY_EXTERN int (* ast_say_digit_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_digit_str_full);
 
-/*
+/*! \brief
  * the generic 'say' routine, with the first chars in the string
  * defining the format to use
  */
 SAY_EXTERN int (* ast_say_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_full);
 
-/*
- * other function to pronounce character and phonetic strings
+/*! \brief
+ * function to pronounce character and phonetic strings
  */
 int ast_say_character_str(struct ast_channel *chan, const char *num,
 	const char *ints, const char *lang);
