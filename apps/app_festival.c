@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
+#include "asterisk/endian.h"
 
 #define FESTIVAL_CONFIG "festival.conf"
 #define MAXLEN 180
@@ -127,7 +128,7 @@ static char *socket_receive_file_to_buff(int fd, int *size)
 static int send_waveform_to_fd(char *waveform, int length, int fd)
 {
 	int res;
-#ifdef __PPC__ 
+#if __BYTE_ORDER == __BIG_ENDIAN
 	int x;
 	char c;
 #endif
@@ -142,20 +143,20 @@ static int send_waveform_to_fd(char *waveform, int length, int fd)
 	ast_close_fds_above_n(0);
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
-#ifdef __PPC__  
+#if __BYTE_ORDER == __BIG_ENDIAN
 	for (x = 0; x < length; x += 2) {
 		c = *(waveform + x + 1);
 		*(waveform + x + 1) = *(waveform + x);
 		*(waveform + x) = c;
 	}
 #endif
-	
-	if (write(fd, waveform, length) < 0) {
-		ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+
+	if (write(0, waveform, length) < 0) {
+		/* Cannot log -- all FDs are already closed */
 	}
 
 	close(fd);
-	exit(0);
+	_exit(0);
 }
 
 static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, int length, char *intkeys)
