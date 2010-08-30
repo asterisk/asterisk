@@ -36,7 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* This file provides config-file based 'say' functions, and implenents
  * some CLI commands.
  */
-#include "asterisk/say.h"	/* provides config-file based 'say' functions */
+#include "asterisk/say.h"	/*!< provides config-file based 'say' functions */
 #include "asterisk/cli.h"
 
 /*** DOCUMENTATION
@@ -84,7 +84,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app = "Playback";
 
 static struct ast_config *say_cfg = NULL;
-/* save the say' api calls.
+
+/*! \brief save the say' api calls.
  * The first entry is NULL if we have the standard source,
  * otherwise we are sourcing from here.
  * 'say load [new|old]' will enable the new or old method, or report status
@@ -127,7 +128,7 @@ static void restore_say_mode(void *arg)
 	ast_say_date_with_format = say_api_buf[i++];
 }
 
-/* 
+/*! \brief
  * Typical 'say' arguments in addition to the date or number or string
  * to say. We do not include 'options' because they may be different
  * in recursive calls, and so they are better left as an external
@@ -155,7 +156,7 @@ static int s_streamwait3(const say_args_t *a, const char *fn)
 	return res;  
 }
 
-/*
+/*! \brief
  * the string is 'prefix:data' or prefix:fmt:data'
  * with ':' being invalid in strings.
  */
@@ -343,7 +344,7 @@ static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, co
 	return say_date_generic(chan, t, ints, lang, "", NULL, "datetime");
 }
 
-/*
+/*! \brief
  * remap the 'say' functions to use those in this file
  */
 static int say_init_mode(const char *mode) {
@@ -357,6 +358,10 @@ static int say_init_mode(const char *mode) {
 
 		ast_say_enumeration_full = say_enumeration_full;
 #if 0
+		/*! \todo XXX 
+		   These functions doesn't exist.
+		   say.conf.sample indicates this is working... 
+		*/
 		ast_say_digits_full = say_digits_full;
 		ast_say_digit_str_full = say_digit_str_full;
 		ast_say_character_str_full = say_character_str_full;
@@ -507,7 +512,7 @@ static int reload(void)
 		}
 	}
 	
-	/*
+	/*! \todo
 	 * XXX here we should sort rules according to the same order
 	 * we have in pbx.c so we have the same matching behaviour.
 	 */
