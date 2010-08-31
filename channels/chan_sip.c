@@ -24618,7 +24618,7 @@ enum st_mode st_get_mode(struct sip_pvt *p)
 static int sip_poke_noanswer(const void *data)
 {
 	struct sip_peer *peer = (struct sip_peer *)data;
-	
+
 	peer->pokeexpire = -1;
 
 	if (peer->lastms > -1) {
@@ -24637,9 +24637,12 @@ static int sip_poke_noanswer(const void *data)
 		peer->call = dialog_unref(peer->call, "unref dialog peer->call");
 		/* peer->call = sip_destroy(peer->call);*/
 	}
-	
-	peer->lastms = -1;
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
+
+	/* Don't send a devstate change if nothing changed. */
+	if (peer->lastms > -1) {
+		peer->lastms = -1;
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
+	}
 
 	/* Try again quickly */
 	AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched,
