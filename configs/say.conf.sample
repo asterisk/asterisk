@@ -86,16 +86,23 @@ mode=old	; method for playing numbers and dates
     ; the 'SAY' variable contains YYYYMMDDHHmm.ss-dow-doy
     ; these rule map the strftime attributes.
     _date:Y:. => num:${SAY:0:4}	; year, 19xx
-    _date:[Bb]:. => digits/mon-$[${SAY:4:2}-1]	; month name, 0..11
+    _date:[Bbh]:. => digits/mon-$[${SAY:4:2}-1]			; month name, 0..11
     _date:[Aa]:. => digits/day-${SAY:16:1}	; day of week
     _date:[de]:. => num:${SAY:6:2}		; day of month
-    _date:[hH]:. => num:${SAY:8:2}		; hour
+    _date:[H]:. => digits/oh, num:${SAY:8:2}			; hour (oh one, oh two, ..., oh nine, ten, eleven, ..., twenty-three)
     _date:[I]:. => num:$[${SAY:8:2} % 12]	; hour 0-12
     _date:[M]:. => num:${SAY:10:2}		; minute
     ; XXX too bad the '?' function does not remove the quotes
     ; _date:[pP]:. => digits/$[ ${SAY:10:2} > 12 ? "p-m" :: "a-m"]	; am pm
     _date:[pP]:. => digits/p-m	; am pm
     _date:[S]:. => num:${SAY:13:2}		; seconds
+    _date:[Ii]:. => num:$[${SAY:8:2} % 12]			; hour 0-12
+    _date:[k]:. => num:${SAY:8:2}				; hour (one, two. three, ...,twenty three
+    _date:[m]:. => num:${SAY:4:2}				; month number
+    _date:[Q]:. => date:dby ;incompleat				; "today", "yesterday" or ABdY
+    _date:[q]:. => date:dby ;incompleat				; "" (for today), "yesterday", weekday, or ABdY
+    _date:[R]:. => date:HM${SAY}				; 24 hour time, including minute
+    _date:[T]:. => date:HMS${SAY}				; 24 hour, minure, seconds
 
 [en-base](!)
     _[n]um:0. => num:${SAY:1}
