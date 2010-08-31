@@ -17249,7 +17249,7 @@ static int restart_monitor(void)
 static int sip_poke_noanswer(const void *data)
 {
 	struct sip_peer *peer = (struct sip_peer *)data;
-	
+
 	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
@@ -17261,8 +17261,12 @@ static int sip_poke_noanswer(const void *data)
 	if (peer->call)
 		sip_destroy(peer->call);
 	peer->call = NULL;
-	peer->lastms = -1;
-	ast_device_state_changed("SIP/%s", peer->name);
+
+	/* Don't send a devstate change if nothing changed. */
+	if (peer->lastms > -1) {
+		peer->lastms = -1;
+		ast_device_state_changed("SIP/%s", peer->name);
+	}
 
 	/* This function gets called one place outside of the scheduler ... */
 	if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
