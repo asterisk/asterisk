@@ -717,12 +717,24 @@ static void ast_rtp_update_source(struct ast_rtp_instance *instance)
 static void ast_rtp_change_source(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
 	unsigned int ssrc = ast_random();
+
+	if (!rtp->lastts) {
+		ast_debug(3, "Not changing SSRC since we haven't sent any RTP yet\n");
+		return;
+	}
 
 	/* We simply set this bit so that the next packet sent will have the marker bit turned on */
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
 
 	ast_debug(3, "Changing ssrc from %u to %u due to a source change\n", rtp->ssrc, ssrc);
+
+	if (srtp) {
+		ast_debug(3, "Changing ssrc for SRTP from %u to %u\n", rtp->ssrc, ssrc);
+		res_srtp->change_source(srtp, rtp->ssrc, ssrc);
+	}
+
 	rtp->ssrc = ssrc;
 
 	return;

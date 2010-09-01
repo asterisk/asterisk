@@ -282,6 +282,10 @@ static void instance_destructor(void *obj)
 		return;
 	}
 
+	if (instance->srtp) {
+		res_srtp->destroy(instance->srtp);
+	}
+
 	/* Drop our engine reference */
 	ast_module_unref(instance->engine->mod);
 
