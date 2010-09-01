@@ -14,3 +14,4 @@ int ast_cli_register_multiple(struct ast_cli_entry *e, int len)
 {
 	return 0;
 }
+

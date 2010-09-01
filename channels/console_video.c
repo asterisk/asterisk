@@ -234,34 +234,34 @@ struct video_out_desc {
  * and contain all configurtion info.
  */
 struct video_desc {
-	char			codec_name[64];	/* the codec we use */
+	char codec_name[64];        /* the codec we use */
 
-	int			stayopen;	/* set if gui starts manually */
-	pthread_t		vthread;	/* video thread */
-	ast_mutex_t		dec_lock;	/* sync decoder and video thread */
-	int			shutdown;	/* set to shutdown vthread */
-	struct ast_channel	*owner;		/* owner channel */
+	int stayopen;               /* set if gui starts manually */
+	pthread_t vthread;          /* video thread */
+	ast_mutex_t dec_lock;       /* sync decoder and video thread */
+	int shutdown;               /* set to shutdown vthread */
+	struct ast_channel	*owner; /* owner channel */
 
 
-	struct fbuf_t	enc_in;		/* encoder input buffer, allocated in video_out_init() */
+	struct fbuf_t enc_in;       /* encoder input buffer, allocated in video_out_init() */
 
-	char			keypad_file[256];	/* image for the keypad */
-	char                    keypad_font[256];       /* font for the keypad */
+	char keypad_file[256];      /* image for the keypad */
+	char keypad_font[256];      /* font for the keypad */
 
-	char			sdl_videodriver[256];
+	char sdl_videodriver[256];
 
-	struct fbuf_t		rem_dpy;	/* display remote video, no buffer (it is in win[WIN_REMOTE].bmp) */
-	struct fbuf_t		loc_dpy;	/* display local source, no buffer (managed by SDL in bmp[1]) */
+	struct fbuf_t rem_dpy;      /* display remote video, no buffer (it is in win[WIN_REMOTE].bmp) */
+	struct fbuf_t loc_dpy;      /* display local source, no buffer (managed by SDL in bmp[1]) */
 
 	/* geometry of the thumbnails for all video sources. */
-	struct fbuf_t		src_dpy[MAX_VIDEO_SOURCES]; /* no buffer allocated here */
+	struct fbuf_t src_dpy[MAX_VIDEO_SOURCES]; /* no buffer allocated here */
 
-	int frame_freeze;	/* flag to freeze the incoming frame */
+	int frame_freeze;           /* flag to freeze the incoming frame */
 
 	/* local information for grabbers, codecs, gui */
-	struct gui_info		*gui;
-	struct video_dec_desc	*in;		/* remote video descriptor */
-	struct video_out_desc	out;		/* local video descriptor */
+	struct gui_info *gui;
+	struct video_dec_desc *in;  /* remote video descriptor */
+	struct video_out_desc out;  /* local video descriptor */
 };
 
 static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p);
@@ -387,8 +387,9 @@ static struct fbuf_t *grabber_read(struct video_device *dev, int fps)
  */
 static void grabber_move(struct video_device *dev, int dx, int dy)
 {
-	if (dev->grabber && dev->grabber->move)
-                dev->grabber->move(dev->grabber_data, dx, dy);
+	if (dev->grabber && dev->grabber->move) {
+		dev->grabber->move(dev->grabber_data, dx, dy);
+	}
 }
 
 /*
@@ -508,33 +509,32 @@ static int video_out_init(struct video_desc *env)
 	/* now setup the parameters for the encoder.
 	 * XXX should be codec-specific
 	 */
-    {
-	AVCodecContext *enc_ctx = avcodec_alloc_context();
-	v->enc_ctx = enc_ctx;
-	enc_ctx->pix_fmt = enc_in->pix_fmt;
-	enc_ctx->width = enc_in->w;
-	enc_ctx->height = enc_in->h;
-	/* XXX rtp_callback ?
-	 * rtp_mode so ffmpeg inserts as many start codes as possible.
-	 */
-	enc_ctx->rtp_mode = 1;
-	enc_ctx->rtp_payload_size = v->mtu / 2; // mtu/2
-	enc_ctx->bit_rate = v->bitrate;
-	enc_ctx->bit_rate_tolerance = enc_ctx->bit_rate/2;
-	enc_ctx->qmin = v->qmin;	/* should be configured */
-	enc_ctx->time_base = (AVRational){1, v->fps};
-	enc_ctx->gop_size = v->fps*5; // emit I frame every 5 seconds
+	{
+		AVCodecContext *enc_ctx = avcodec_alloc_context();
+		v->enc_ctx = enc_ctx;
+		enc_ctx->pix_fmt = enc_in->pix_fmt;
+		enc_ctx->width = enc_in->w;
+		enc_ctx->height = enc_in->h;
+		/* XXX rtp_callback ?
+		 * rtp_mode so ffmpeg inserts as many start codes as possible.
+		 */
+		enc_ctx->rtp_mode = 1;
+		enc_ctx->rtp_payload_size = v->mtu / 2; // mtu/2
+		enc_ctx->bit_rate = v->bitrate;
+		enc_ctx->bit_rate_tolerance = enc_ctx->bit_rate/2;
+		enc_ctx->qmin = v->qmin;	/* should be configured */
+		enc_ctx->time_base = (AVRational){1, v->fps};
+		enc_ctx->gop_size = v->fps*5; // emit I frame every 5 seconds
 
-	v->enc->enc_init(v->enc_ctx);
- 
-	if (avcodec_open(enc_ctx, v->codec) < 0) {
-		ast_log(LOG_WARNING, "Unable to initialize the encoder %d\n",
-			codec);
-		av_free(enc_ctx);
-		v->enc_ctx = NULL;
-		return video_out_uninit(env);
+		v->enc->enc_init(v->enc_ctx);
+
+		if (avcodec_open(enc_ctx, v->codec) < 0) {
+			ast_log(LOG_WARNING, "Unable to initialize the encoder %d\n", codec);
+			av_free(enc_ctx);
+			v->enc_ctx = NULL;
+			return video_out_uninit(env);
+		}
 	}
-    }
 	/*
 	 * Allocate enough for the encoded bitstream. As we are compressing,
 	 * we hope that the output is never larger than the input size.
@@ -637,9 +637,9 @@ static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 		p_in = fill_pict(in, &my_p_in);
 	if (p_out == NULL)
 		p_out = fill_pict(out, &my_p_out);
-	
-	/*if win_w is different from zero then we must change 
-	the size of the scaled buffer (the position is already 
+
+	/*if win_w is different from zero then we must change
+	the size of the scaled buffer (the position is already
 	encoded into the out parameter)*/
 	if (out->win_w) { /* picture in picture enabled */
 		eff_w=out->win_w;
@@ -650,26 +650,26 @@ static void my_scale(struct fbuf_t *in, AVPicture *p_in,
 	img_convert(p_out, out->pix_fmt,
 		p_in, in->pix_fmt, in->w, in->h);
 #else /* XXX replacement */
-    {
-	struct SwsContext *convert_ctx;
-	
-	convert_ctx = sws_getContext(in->w, in->h, in->pix_fmt,
-		eff_w, eff_h, out->pix_fmt,
-		SWS_BICUBIC, NULL, NULL, NULL);
-	if (convert_ctx == NULL) {
-		ast_log(LOG_ERROR, "FFMPEG::convert_cmodel : swscale context initialization failed");
-		return;
-	}
-	if (0)
-		ast_log(LOG_WARNING, "in %d %dx%d out %d %dx%d\n",
-			in->pix_fmt, in->w, in->h, out->pix_fmt, eff_w, eff_h);
-	sws_scale(convert_ctx,
-		p_in->data, p_in->linesize,
-		in->w, in->h, /* src slice */
-		p_out->data, p_out->linesize);
+	{
+		struct SwsContext *convert_ctx;
 
-	sws_freeContext(convert_ctx);
-    }
+		convert_ctx = sws_getContext(in->w, in->h, in->pix_fmt,
+			eff_w, eff_h, out->pix_fmt,
+			SWS_BICUBIC, NULL, NULL, NULL);
+		if (convert_ctx == NULL) {
+			ast_log(LOG_ERROR, "FFMPEG::convert_cmodel : swscale context initialization failed");
+			return;
+		}
+		if (0)
+			ast_log(LOG_WARNING, "in %d %dx%d out %d %dx%d\n",
+				in->pix_fmt, in->w, in->h, out->pix_fmt, eff_w, eff_h);
+		sws_scale(convert_ctx,
+			p_in->data, p_in->linesize,
+			in->w, in->h, /* src slice */
+			p_out->data, p_out->linesize);
+
+		sws_freeContext(convert_ctx);
+	}
 #endif /* XXX replacement */
 }
 
@@ -873,18 +873,20 @@ static void *video_thread(void *arg)
 		}
 	}
 	sdl_setup(env);
-	if (!ast_strlen_zero(save_display))
+	if (!ast_strlen_zero(save_display)) {
 		setenv("DISPLAY", save_display, 1);
+	}
 
 	ast_mutex_init(&env->dec_lock);	/* used to sync decoder and renderer */
 
 	if (grabber_open(&env->out)) {
 		ast_log(LOG_WARNING, "cannot open local video source\n");
-	} 
+	}
 
-	if (env->out.device_num)
+	if (env->out.device_num) {
 		env->out.devices[env->out.device_primary].status_index |= IS_PRIMARY | IS_SECONDARY;
-	
+	}
+
 	/* even if no device is connected, we must call video_out_init,
 	 * as some of the data structures it initializes are
 	 * used in get_video_frames()
@@ -893,14 +895,14 @@ static void *video_thread(void *arg)
 
 	/* Writes intial status of the sources. */
 	if (env->gui) {
-	    for (i = 0; i < env->out.device_num; i++) {
-		print_message(env->gui->thumb_bd_array[i].board,
-		 src_msgs[env->out.devices[i].status_index]);
-	    }
+		for (i = 0; i < env->out.device_num; i++) {
+			print_message(env->gui->thumb_bd_array[i].board,
+				src_msgs[env->out.devices[i].status_index]);
+		}
 	}
 
 	for (;;) {
-		struct timeval t = { 0, 50000 };	/* XXX 20 times/sec */
+		struct timespec t = { 0, 50000000 };	/* XXX 20 times/sec */
 		struct ast_frame *p, *f;
 		struct ast_channel *chan;
 		int fd;
@@ -908,13 +910,14 @@ static void *video_thread(void *arg)
 
 		/* determine if video format changed */
 		if (count++ % 10 == 0) {
-			if (env->out.sendvideo && env->out.devices)
-			    sprintf(buf, "%s %s %dx%d @@ %dfps %dkbps",
+			if (env->out.sendvideo && env->out.devices) {
+				snprintf(buf, sizeof(buf), "%s %s %dx%d @@ %dfps %dkbps",
 				env->out.devices[env->out.device_primary].name, env->codec_name,
 				env->enc_in.w, env->enc_in.h,
-				env->out.fps, env->out.bitrate/1000);
-			else
-			    sprintf(buf, "hold");
+				env->out.fps, env->out.bitrate / 1000);
+			} else {
+				sprintf(buf, "hold");
+			}
 			caption = buf;
 		}
 
@@ -923,36 +926,36 @@ static void *video_thread(void *arg)
 		* otherwise the drag will not work */ 
 		if (env->gui)
 			eventhandler(env, caption);
- 
+
 		/* sleep for a while */
-		ast_select(0, NULL, NULL, NULL, &t);
+		nanosleep(&t, NULL);
 
 	    if (env->in) {
-		struct video_dec_desc *v = env->in;
-		
-		/*
-		 * While there is something to display, call the decoder and free
-		 * the buffer, possibly enabling the receiver to store new data.
-		 */
-		while (v->dec_in_dpy) {
-			struct fbuf_t *tmp = v->dec_in_dpy;	/* store current pointer */
+			struct video_dec_desc *v = env->in;
 
-			/* decode the frame, but show it only if not frozen */
-			if (v->d_callbacks->dec_run(v, tmp) && !env->frame_freeze)
-				show_frame(env, WIN_REMOTE);
-			tmp->used = 0;	/* mark buffer as free */
-			tmp->ebit = 0;
-			ast_mutex_lock(&env->dec_lock);
-			if (++v->dec_in_dpy == &v->dec_in[N_DEC_IN])	/* advance to next, circular */
-				v->dec_in_dpy = &v->dec_in[0];
+			/*
+			 * While there is something to display, call the decoder and free
+			 * the buffer, possibly enabling the receiver to store new data.
+			 */
+			while (v->dec_in_dpy) {
+				struct fbuf_t *tmp = v->dec_in_dpy;	/* store current pointer */
 
-			if (v->dec_in_cur == NULL)	/* receiver was idle, enable it... */
-				v->dec_in_cur = tmp;	/* using the slot just freed */
-			else if (v->dec_in_dpy == v->dec_in_cur) /* this was the last slot */
-				v->dec_in_dpy = NULL;	/* nothing more to display */
-			ast_mutex_unlock(&env->dec_lock);
+				/* decode the frame, but show it only if not frozen */
+				if (v->d_callbacks->dec_run(v, tmp) && !env->frame_freeze)
+					show_frame(env, WIN_REMOTE);
+				tmp->used = 0;	/* mark buffer as free */
+				tmp->ebit = 0;
+				ast_mutex_lock(&env->dec_lock);
+				if (++v->dec_in_dpy == &v->dec_in[N_DEC_IN])	/* advance to next, circular */
+					v->dec_in_dpy = &v->dec_in[0];
+
+				if (v->dec_in_cur == NULL)	/* receiver was idle, enable it... */
+					v->dec_in_cur = tmp;	/* using the slot just freed */
+				else if (v->dec_in_dpy == v->dec_in_cur) /* this was the last slot */
+					v->dec_in_dpy = NULL;	/* nothing more to display */
+				ast_mutex_unlock(&env->dec_lock);
+			}
 		}
-	    }
 
 		if (env->shutdown)
 			break;
@@ -988,7 +991,7 @@ static void *video_thread(void *arg)
 			for (p = f; p; p = AST_LIST_NEXT(p, frame_list)) {
 				if (write(fd, &blah, l) != l)
 					ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d: %s!\n",
-					    chan->name, f->frametype, f->subclass, strerror(errno));
+						chan->name, f->frametype, f->subclass, strerror(errno));
 			}
 		}
 		ast_channel_unlock(chan);
@@ -1194,13 +1197,13 @@ int console_video_cli(struct video_desc *env, const char *var, int fd)
 	if (env == NULL)
 		return 1;	/* unrecognised */
 
-        if (!strcasecmp(var, "videodevice")) {
+	if (!strcasecmp(var, "videodevice")) {
 		ast_cli(fd, "videodevice is [%s]\n", env->out.devices[env->out.device_primary].name);
-        } else if (!strcasecmp(var, "videocodec")) {
+	} else if (!strcasecmp(var, "videocodec")) {
 		ast_cli(fd, "videocodec is [%s]\n", env->codec_name);
-        } else if (!strcasecmp(var, "sendvideo")) {
+	} else if (!strcasecmp(var, "sendvideo")) {
 		ast_cli(fd, "sendvideo is [%s]\n", env->out.sendvideo ? "on" : "off");
-        } else if (!strcasecmp(var, "video_size")) {
+	} else if (!strcasecmp(var, "video_size")) {
 		int in_w = 0, in_h = 0;
 		if (env->in) {
 			in_w = env->in->dec_out.w;
@@ -1212,22 +1215,22 @@ int console_video_cli(struct video_desc *env, const char *var, int fd)
 			env->loc_dpy.w, env->loc_dpy.h,
 			env->rem_dpy.w, env->rem_dpy.h,
 			in_w, in_h);
-        } else if (!strcasecmp(var, "bitrate")) {
+	} else if (!strcasecmp(var, "bitrate")) {
 		ast_cli(fd, "bitrate is [%d]\n", env->out.bitrate);
-        } else if (!strcasecmp(var, "qmin")) {
+	} else if (!strcasecmp(var, "qmin")) {
 		ast_cli(fd, "qmin is [%d]\n", env->out.qmin);
-        } else if (!strcasecmp(var, "fps")) {
+	} else if (!strcasecmp(var, "fps")) {
 		ast_cli(fd, "fps is [%d]\n", env->out.fps);
-        } else if (!strcasecmp(var, "startgui")) {
+	} else if (!strcasecmp(var, "startgui")) {
 		env->stayopen = 1;
 		console_video_start(env, NULL);
-        } else if (!strcasecmp(var, "stopgui") && env->stayopen != 0) {
+	} else if (!strcasecmp(var, "stopgui") && env->stayopen != 0) {
 		env->stayopen = 0;
 		if (env->gui && env->owner)
 			ast_cli_command(-1, "console hangup");
 		else /* not in a call */
 			console_video_uninit(env);
-        } else {
+	} else {
 		return 1;	/* unrecognised */
 	}
 	return 0;	/* recognised */
