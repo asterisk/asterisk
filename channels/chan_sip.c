@@ -7204,7 +7204,10 @@ enum match_req_res {
  */
 static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struct match_req_args *arg)
 {
-	const char *init_ruri = REQ_OFFSET_TO_STR(&sip_pvt_ptr->initreq, rlPart2);
+	const char *init_ruri = NULL;
+	if (sip_pvt_ptr->initreq.headers) {
+		init_ruri = REQ_OFFSET_TO_STR(&sip_pvt_ptr->initreq, rlPart2);
+	}
 
 	/*
 	 * Match Tags and call-id to Dialog
@@ -7263,8 +7266,8 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
 	if ((arg->method != SIP_RESPONSE) &&                 /* must be a Request */
 		ast_strlen_zero(arg->totag) &&                   /* must not have a totag */
 		(sip_pvt_ptr->init_icseq == arg->seqno) &&       /* the cseq must be the same as this dialogs initial cseq */
-		!ast_strlen_zero(sip_pvt_ptr->initviabranch)) {  /* The dialog must have started with a RFC3261 compliant branch tag */
-
+		!ast_strlen_zero(sip_pvt_ptr->initviabranch) &&  /* The dialog must have started with a RFC3261 compliant branch tag */
+		init_ruri) {                                     /* the dialog must have an initial request uri associated with it */
 		/* This Request matches all the criteria required for Loop/Merge detection.
 		 * Now we must go down the path of comparing VIA's and RURIs. */
 		if (ast_strlen_zero(arg->viabranch) ||
