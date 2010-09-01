@@ -277,34 +277,25 @@ static int send_sound(void)
 
 static void *sound_thread(void *unused)
 {
-	fd_set rfds;
-	fd_set wfds;
-	int max, res;
+	struct pollfd pfd[3] = { { .fd = sndcmd[0], .events = POLLIN }, { .fd = writedev }, { .fd = readdev } };
+	int res, x;
 
 	for (;;) {
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		max = sndcmd[0];
-		FD_SET(sndcmd[0], &rfds);
-		if (cursound > -1) {
-			FD_SET(writedev, &wfds);
-			if (writedev > max)
-				max = writedev;
+		for (x = 0; x < 3; x++) {
+			pfd[x].revents = 0;
 		}
+
+		pfd[1].events = cursound > -1 ? POLLOUT : 0;
 #ifdef ALSA_MONITOR
-		if (!alsa.owner) {
-			FD_SET(readdev, &rfds);
-			if (readdev > max)
-				max = readdev;
-		}
+		pfd[2].events = !alsa.owner ? POLLIN : 0;
 #endif
-		res = ast_select(max + 1, &rfds, &wfds, NULL, NULL);
+		res = ast_poll(pfd, 3, -1);
 		if (res < 1) {
-			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "poll() failed: %s\n", strerror(errno));
 			continue;
 		}
 #ifdef ALSA_MONITOR
-		if (FD_ISSET(readdev, &rfds)) {
+		if (pfd[2].revents & POLLIN) {
 			/* Keep the pipe going with read audio */
 			snd_pcm_state_t state;
 			short buf[FRAME_SIZE];
@@ -329,7 +320,7 @@ static void *sound_thread(void *unused)
 				alsa_monitor_read((char *) buf, r * 2);
 		}
 #endif
-		if (FD_ISSET(sndcmd[0], &rfds)) {
+		if (pfd[0].revents & POLLIN) {
 			if (read(sndcmd[0], &cursound, sizeof(cursound)) < 0) {
 				ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
 			}
@@ -337,9 +328,11 @@ static void *sound_thread(void *unused)
 			offset = 0;
 			sampsent = 0;
 		}
-		if (FD_ISSET(writedev, &wfds))
-			if (send_sound())
+		if (pfd[1].revents & POLLOUT) {
+			if (send_sound()) {
 				ast_log(LOG_WARNING, "Failed to write sound\n");
+			}
+		}
 	}
 	/* Never reached */
 	return NULL;

@@ -604,38 +604,32 @@ static void *sound_thread(void *arg)
 	if (read(o->sounddev, ign, sizeof(ign)) < 0) {
 	}
 	for (;;) {
-		fd_set rfds, wfds;
-		int maxfd, res;
+		int res;
+		struct pollfd pfd[2] = { { .fd = o->sndcmd[0], .events = POLLIN }, { .fd = o->sounddev, .events = 0 } };
 
 		pthread_testcancel();
 
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		FD_SET(o->sndcmd[0], &rfds);
-		maxfd = o->sndcmd[0];	/* pipe from the main process */
-		if (o->cursound > -1 && o->sounddev < 0)
+		if (o->cursound > -1 && o->sounddev < 0) {
 			setformat(o, O_RDWR);	/* need the channel, try to reopen */
-		else if (o->cursound == -1 && o->owner == NULL)
+		} else if (o->cursound == -1 && o->owner == NULL) {
 			setformat(o, O_CLOSE);	/* can close */
+		}
 		if (o->sounddev > -1) {
 			if (!o->owner) {	/* no one owns the audio, so we must drain it */
-				FD_SET(o->sounddev, &rfds);
-				maxfd = MAX(o->sounddev, maxfd);
+				pfd[1].events |= POLLIN;
 			}
 			if (o->cursound > -1) {
-				FD_SET(o->sounddev, &wfds);
-				maxfd = MAX(o->sounddev, maxfd);
+				pfd[1].events |= POLLOUT;
 			}
 		}
-		/* ast_select emulates linux behaviour in terms of timeout handling */
-		res = ast_select(maxfd + 1, &rfds, &wfds, NULL, NULL);
+		res = ast_poll(pfd, 2, -1);
 		pthread_testcancel();
 		if (res < 1) {
-			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "poll() failed: %s\n", strerror(errno));
 			sleep(1);
 			continue;
 		}
-		if (FD_ISSET(o->sndcmd[0], &rfds)) {
+		if (pfd[0].revents & POLLIN) {
 			/* read which sound to play from the pipe */
 			int i, what = -1;
 
@@ -656,11 +650,13 @@ static void *sound_thread(void *arg)
 				ast_log(LOG_WARNING, "invalid sound index: %d\n", what);
 		}
 		if (o->sounddev > -1) {
-			if (FD_ISSET(o->sounddev, &rfds))	/* read and ignore errors */
+			if (pfd[1].revents & POLLIN) {	/* read and ignore errors */
 				if (read(o->sounddev, ign, sizeof(ign)) < 0) {
 				}
-			if (FD_ISSET(o->sounddev, &wfds))
+			}
+			if (pfd[1].revents & POLLOUT) {
 				send_sound(o);
+			}
 		}
 	}
 	return NULL;				/* Never reached */

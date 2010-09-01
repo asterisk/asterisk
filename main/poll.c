@@ -10,9 +10,9 @@
 
 	struct pollfd
 	{
-	    int     fd;
-	    short   events;
-	    short   revents;
+		int	 fd;
+		short   events;
+		short   revents;
 	}
 
 	int poll (struct pollfd *pArray, unsigned long n_fds, int timeout)
@@ -73,15 +73,14 @@
 
 #include "asterisk.h"
 
-#include <unistd.h>			     /* standard Unix definitions */
-#include <sys/types.h>                       /* system types */
-#include <sys/time.h>                        /* time definitions */
-#include <assert.h>                          /* assertion macros */
-#include <string.h>                          /* string functions */
+#include <unistd.h>				 /* standard Unix definitions */
+#include <sys/types.h>					   /* system types */
+#include <sys/time.h>						/* time definitions */
+#include <assert.h>						  /* assertion macros */
+#include <string.h>						  /* string functions */
+#include <errno.h>
 
-#include "asterisk/poll-compat.h"                            /* this package */
-
-#ifdef AST_POLL_COMPAT
+#include "asterisk/poll-compat.h"							/* this package */
 
 /*---------------------------------------------------------------------------*\
 				  Macros
@@ -92,210 +91,214 @@
 #endif
 
 /*---------------------------------------------------------------------------*\
-			     Private Functions
+				 Private Functions
 \*---------------------------------------------------------------------------*/
 
-static int map_poll_spec
-#if __STDC__ > 0
-			(struct pollfd *pArray,
-			  unsigned long  n_fds,
-			  fd_set        *pReadSet,
-			  fd_set        *pWriteSet,
-			  fd_set        *pExceptSet)
-#else
-			 (pArray, n_fds, pReadSet, pWriteSet, pExceptSet)
-			  struct pollfd *pArray;
-			  unsigned long  n_fds;
-			  fd_set        *pReadSet;
-			  fd_set        *pWriteSet;
-			  fd_set        *pExceptSet;
-#endif
+#if defined(AST_POLL_COMPAT) || !defined(HAVE_PPOLL)
+static int map_poll_spec(struct pollfd *pArray, unsigned long n_fds,
+		ast_fdset *pReadSet, ast_fdset *pWriteSet, ast_fdset *pExceptSet)
 {
-    register unsigned long  i;                   /* loop control */
-    register struct	    pollfd *pCur;        /* current array element */
-    register int	    max_fd = -1;         /* return value */
+	register unsigned long  i;     /* loop control */
+	register struct pollfd *pCur;  /* current array element */
+	register int max_fd = -1;      /* return value */
 
-    /*
-       Map the poll() structures into the file descriptor sets required
-       by select().
-    */
-    for (i = 0, pCur = pArray; i < n_fds; i++, pCur++)
-    {
-        /* Skip any bad FDs in the array. */
+	/*
+	 * Map the poll() structures into the file descriptor sets required
+	 * by select().
+	 */
+	for (i = 0, pCur = pArray; i < n_fds; i++, pCur++) {
+		/* Skip any bad FDs in the array. */
 
-        if (pCur->fd < 0)
-            continue;
+		if (pCur->fd < 0) {
+			continue;
+		}
 
-	if (pCur->events & POLLIN)
-	{
-	    /* "Input Ready" notification desired. */
-	    FD_SET (pCur->fd, pReadSet);
+		if (pCur->events & POLLIN) {
+			/* "Input Ready" notification desired. */
+			FD_SET(pCur->fd, pReadSet);
+		}
+
+		if (pCur->events & POLLOUT) {
+			/* "Output Possible" notification desired. */
+			FD_SET(pCur->fd, pWriteSet);
+		}
+
+		if (pCur->events & POLLPRI) {
+			/*
+			 * "Exception Occurred" notification desired.  (Exceptions
+			 * include out of band data.
+			 */
+			FD_SET(pCur->fd, pExceptSet);
+		}
+
+		max_fd = MAX(max_fd, pCur->fd);
 	}
 
-	if (pCur->events & POLLOUT)
-	{
-	    /* "Output Possible" notification desired. */
-	    FD_SET (pCur->fd, pWriteSet);
-	}
-
-	if (pCur->events & POLLPRI)
-	{
-	    /*
-	       "Exception Occurred" notification desired.  (Exceptions
-	       include out of band data.
-	    */
-	    FD_SET (pCur->fd, pExceptSet);
-	}
-
-	max_fd = MAX (max_fd, pCur->fd);
-    }
-
-    return max_fd;
+	return max_fd;
 }
-
-static struct timeval *map_timeout
-#if __STDC__ > 0
-			(int poll_timeout, struct timeval *pSelTimeout)
-#else
-			(poll_timeout, pSelTimeout)
-			 int             poll_timeout;
-			 struct timeval *pSelTimeout;
-#endif
+
+#ifdef AST_POLL_COMPAT
+static struct timeval *map_timeout(int poll_timeout, struct timeval *pSelTimeout)
 {
-    struct timeval *pResult;
+	struct timeval *pResult;
 
-    /*
-       Map the poll() timeout value into a select() timeout.  The possible
-       values of the poll() timeout value, and their meanings, are:
+	/*
+	   Map the poll() timeout value into a select() timeout.  The possible
+	   values of the poll() timeout value, and their meanings, are:
 
-       VALUE	MEANING
+	   VALUE	MEANING
 
-       -1	wait indefinitely (until signal occurs)
-        0	return immediately, don't block
-       >0	wait specified number of milliseconds
+	   -1	wait indefinitely (until signal occurs)
+		0	return immediately, don't block
+	   >0	wait specified number of milliseconds
 
-       select() uses a "struct timeval", which specifies the timeout in
-       seconds and microseconds, so the milliseconds value has to be mapped
-       accordingly.
-    */
+	   select() uses a "struct timeval", which specifies the timeout in
+	   seconds and microseconds, so the milliseconds value has to be mapped
+	   accordingly.
+	*/
 
-    assert (pSelTimeout != (struct timeval *) NULL);
+	assert(pSelTimeout != NULL);
 
-    switch (poll_timeout)
-    {
+	switch (poll_timeout) {
 	case -1:
-	    /*
-	       A NULL timeout structure tells select() to wait indefinitely.
-	    */
-	    pResult = (struct timeval *) NULL;
-	    break;
+		/*
+		 * A NULL timeout structure tells select() to wait indefinitely.
+		 */
+		pResult = (struct timeval *) NULL;
+		break;
 
 	case 0:
-	    /*
-	       "Return immediately" (test) is specified by all zeros in
-	       a timeval structure.
-	    */
-	    pSelTimeout->tv_sec  = 0;
-	    pSelTimeout->tv_usec = 0;
-	    pResult = pSelTimeout;
-	    break;
+		/*
+		 * "Return immediately" (test) is specified by all zeros in
+		 * a timeval structure.
+		 */
+		pSelTimeout->tv_sec  = 0;
+		pSelTimeout->tv_usec = 0;
+		pResult = pSelTimeout;
+		break;
 
 	default:
-	    /* Wait the specified number of milliseconds. */
-	    pSelTimeout->tv_sec  = poll_timeout / 1000; /* get seconds */
-	    poll_timeout        %= 1000;                /* remove seconds */
-	    pSelTimeout->tv_usec = poll_timeout * 1000; /* get microseconds */
-	    pResult = pSelTimeout;
-	    break;
-    }
+		/* Wait the specified number of milliseconds. */
+		pSelTimeout->tv_sec  = poll_timeout / 1000; /* get seconds */
+		poll_timeout        %= 1000;                /* remove seconds */
+		pSelTimeout->tv_usec = poll_timeout * 1000; /* get microseconds */
+		pResult = pSelTimeout;
+		break;
+	}
 
-
-    return pResult;
+	return pResult;
 }
+#endif /* AST_POLL_COMPAT */
 
-static void map_select_results
-#if __STDC__ > 0
-			 (struct pollfd *pArray,
-			  unsigned long  n_fds,
-			  fd_set        *pReadSet,
-			  fd_set        *pWriteSet,
-			  fd_set        *pExceptSet)
-#else
-			 (pArray, n_fds, pReadSet, pWriteSet, pExceptSet)
-			  struct pollfd *pArray;
-			  unsigned long  n_fds;
-			  fd_set        *pReadSet;
-			  fd_set        *pWriteSet;
-			  fd_set        *pExceptSet;
-#endif
+static void map_select_results(struct pollfd *pArray, unsigned long n_fds,
+			  ast_fdset *pReadSet, ast_fdset *pWriteSet, ast_fdset *pExceptSet)
 {
-    register unsigned long  i;                   /* loop control */
-    register struct	    pollfd *pCur;        /* current array element */
+	register unsigned long  i;    /* loop control */
+	register struct pollfd *pCur; /* current array element */
 
-    for (i = 0, pCur = pArray; i < n_fds; i++, pCur++)
-    {
-        /* Skip any bad FDs in the array. */
+	for (i = 0, pCur = pArray; i < n_fds; i++, pCur++) {
+		/* Skip any bad FDs in the array. */
 
-        if (pCur->fd < 0)
-            continue;
+		if (pCur->fd < 0) {
+			continue;
+		}
 
-	/* Exception events take priority over input events. */
+		/* Exception events take priority over input events. */
+		pCur->revents = 0;
+		if (FD_ISSET(pCur->fd, (fd_set *) pExceptSet)) {
+			pCur->revents |= POLLPRI;
+		} else if (FD_ISSET(pCur->fd, (fd_set *) pReadSet)) {
+			pCur->revents |= POLLIN;
+		}
 
-	pCur->revents = 0;
-	if (FD_ISSET (pCur->fd, pExceptSet))
-	    pCur->revents |= POLLPRI;
+		if (FD_ISSET(pCur->fd, (fd_set *) pWriteSet)) {
+			pCur->revents |= POLLOUT;
+		}
+	}
 
-	else if (FD_ISSET (pCur->fd, pReadSet))
-	    pCur->revents |= POLLIN;
-
-	if (FD_ISSET (pCur->fd, pWriteSet))
-	    pCur->revents |= POLLOUT;
-    }
-
-    return;
+	return;
 }
+#endif /* defined(AST_POLL_COMPAT) || !defined(HAVE_PPOLL) */
 
 /*---------------------------------------------------------------------------*\
-			     Public Functions
+				 Public Functions
 \*---------------------------------------------------------------------------*/
-
+#ifdef AST_POLL_COMPAT
 int ast_internal_poll(struct pollfd *pArray, unsigned long n_fds, int timeout)
 {
-    fd_set  read_descs;                          /* input file descs */
-    fd_set  write_descs;                         /* output file descs */
-    fd_set  except_descs;                        /* exception descs */
-    struct  timeval stime;                       /* select() timeout value */
-    int	    ready_descriptors;                   /* function result */
-    int	    max_fd = 0;                          /* maximum fd value */
-    struct  timeval *pTimeout;                   /* actually passed */
+	ast_fdset  read_descs;                       /* input file descs */
+	ast_fdset  write_descs;                      /* output file descs */
+	ast_fdset  except_descs;                     /* exception descs */
+	struct  timeval stime;                       /* select() timeout value */
+	int     ready_descriptors;                   /* function result */
+	int     max_fd = 0;                          /* maximum fd value */
+	struct  timeval *pTimeout;                   /* actually passed */
+	int save_errno;
 
-    FD_ZERO (&read_descs);
-    FD_ZERO (&write_descs);
-    FD_ZERO (&except_descs);
+	FD_ZERO(&read_descs);
+	FD_ZERO(&write_descs);
+	FD_ZERO(&except_descs);
 
-    /* Map the poll() file descriptor list in the select() data structures. */
+	/* Map the poll() file descriptor list in the select() data structures. */
 
 	if (pArray) {
-    	max_fd = map_poll_spec (pArray, n_fds,
+		max_fd = map_poll_spec (pArray, n_fds,
 				&read_descs, &write_descs, &except_descs);
 	}
 
-    /* Map the poll() timeout value in the select() timeout structure. */
+	/* Map the poll() timeout value in the select() timeout structure. */
 
-    pTimeout = map_timeout (timeout, &stime);
+	pTimeout = map_timeout (timeout, &stime);
 
-    /* Make the select() call. */
+	/* Make the select() call. */
 
-    ready_descriptors = select (max_fd + 1, &read_descs, &write_descs,
+	ready_descriptors = ast_select(max_fd + 1, &read_descs, &write_descs,
 				&except_descs, pTimeout);
+	save_errno = errno;
 
-    if (ready_descriptors >= 0)
-    {
-	map_select_results (pArray, n_fds,
-			    &read_descs, &write_descs, &except_descs);
-    }
+	if (ready_descriptors >= 0) {
+		map_select_results (pArray, n_fds,
+				&read_descs, &write_descs, &except_descs);
+	}
 
-    return ready_descriptors;
+	errno = save_errno;
+	return ready_descriptors;
+}
+#endif /* AST_POLL_COMPAT */
+
+int ast_poll2(struct pollfd *pArray, unsigned long n_fds, struct timeval *tv)
+{
+#ifdef HAVE_PPOLL
+	struct timeval start = ast_tvnow();
+	struct timespec ts = { tv ? tv->tv_sec : 0, tv ? tv->tv_usec * 1000 : 0 };
+	int res = ppoll(pArray, n_fds, tv ? &ts : NULL, NULL);
+	struct timeval after = ast_tvnow();
+	if (res > 0 && tv && ast_tvdiff_ms(ast_tvadd(*tv, start), after) > 0) {
+		*tv = ast_tvsub(*tv, ast_tvsub(after, start));
+	} else if (res > 0 && tv) {
+		*tv = ast_tv(0, 0);
+	}
+	return res;
+#else
+	ast_fdset read_descs, write_descs, except_descs;
+	int ready_descriptors, max_fd = 0;
+
+	FD_ZERO(&read_descs);
+	FD_ZERO(&write_descs);
+	FD_ZERO(&except_descs);
+
+	if (pArray) {
+		max_fd = map_poll_spec(pArray, n_fds, &read_descs, &write_descs, &except_descs);
+	}
+
+	ready_descriptors = ast_select(max_fd + 1, &read_descs, &write_descs, &except_descs, tv);
+
+	if (ready_descriptors >= 0) {
+		map_select_results(pArray, n_fds, &read_descs, &write_descs, &except_descs);
+	}
+
+	return ready_descriptors;
+#endif
 }
 
-#endif /* AST_POLL_COMPAT */
+

@@ -525,7 +525,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, in
 		}
 	}
 
-	/* Wake up the (presumably select()ing) thread */
+	/* Wake up the (presumably poll()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
 
 	/* Only say number if it's a number and the channel hasn't been masqueraded away */
@@ -2282,17 +2282,16 @@ static char *callback_dialoptions(struct ast_flags *features_callee, struct ast_
 /*! \brief Take care of parked calls and unpark them if needed */
 static void *do_parking_thread(void *ignore)
 {
-	fd_set rfds, efds;	/* results from previous select, to be preserved across loops. */
-	FD_ZERO(&rfds);
-	FD_ZERO(&efds);
+	/* results from previous poll, to be preserved across loops. */
+	struct pollfd *fds = NULL;
+	int nfds = 0;
+	struct timeval tv;
 
 	for (;;) {
 		struct parkeduser *pu, *pl, *pt = NULL;
-		int ms = -1;	/* select timeout, uninitialized */
-		int max = -1;	/* max fd, none there yet */
-		fd_set nrfds, nefds;	/* args for the next select */
-		FD_ZERO(&nrfds);
-		FD_ZERO(&nefds);
+		int ms = -1;	/* poll2 timeout, uninitialized */
+		struct pollfd *new_fds = NULL;
+		int new_nfds = 0;
 
 		ast_mutex_lock(&parking_lock);
 		pl = NULL;
@@ -2314,25 +2313,29 @@ static void *do_parking_thread(void *ignore)
 				ast_indicate(chan, AST_CONTROL_UNHOLD);
 				/* Get chan, exten from derived kludge */
 				if (pu->peername[0]) {
-					char *peername = ast_strdupa(pu->peername);
-					char *cp = strrchr(peername, '-');
-					if (cp) 
-						*cp = 0;
-					con = ast_context_find(parking_con_dial);
-					if (!con) {
-						con = ast_context_create(NULL, parking_con_dial, registrar);
-						if (!con)
-							ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
+					/* Don't use ast_strdupa() inside an infinite loop */
+					char *dash, *peername = ast_strdup(pu->peername);
+					if (!peername) {
+						/* Skip for the time being. */
+						pl = pu;
+						pu = pu->next;
+						continue;
 					}
-					if (con) {
+					if ((dash = strrchr(peername, '-'))) {
+						*dash = '\0';
+					}
+					if (!(con = ast_context_find_or_create(NULL, parking_con_dial, registrar))) {
+						ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
+					} else {
 						char returnexten[AST_MAX_EXTENSION];
 						struct ast_datastore *features_datastore;
 						struct ast_dial_features *dialfeatures = NULL;
 
 						ast_channel_lock(chan);
 
-						if ((features_datastore = ast_channel_datastore_find(chan, &dial_features_info, NULL)))
+						if ((features_datastore = ast_channel_datastore_find(chan, &dial_features_info, NULL))) {
 							dialfeatures = features_datastore->data;
+						}
 
 						ast_channel_unlock(chan);
 
@@ -2341,7 +2344,7 @@ static void *do_parking_thread(void *ignore)
 						}
 
 						if (dialfeatures) {
-							char buf[MAX_DIAL_FEATURE_OPTIONS] = {0,};
+							char buf[MAX_DIAL_FEATURE_OPTIONS] = "";
 							snprintf(returnexten, sizeof(returnexten), "%s|30|%s", peername, callback_dialoptions(&(dialfeatures->features_callee), &(dialfeatures->features_caller), buf, sizeof(buf)));
 						} else { /* Existing default */
 							ast_log(LOG_WARNING, "Dialfeatures not found on %s, using default!\n", chan->name);
@@ -2351,6 +2354,7 @@ static void *do_parking_thread(void *ignore)
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), ast_free_ptr, registrar);
 					}
 					set_c_e_p(chan, parking_con_dial, peername, 1);
+					ast_free(peername);
 				} else {
 					/* They've been waiting too long, send them back to where they came.  Theoretically they
 					   should have their original extensions and such, but we copy to be on the safe side */
@@ -2359,78 +2363,107 @@ static void *do_parking_thread(void *ignore)
 
 				post_manager_event("ParkedCallTimeOut", pu->parkingexten, chan);
 
-				if (option_verbose > 1) 
+				if (option_verbose > 1) {
 					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", chan->name, pu->parkingnum, chan->context, chan->exten, chan->priority);
+				}
 				/* Start up the PBX, or hang them up */
 				if (ast_pbx_start(chan))  {
 					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", chan->name);
 					ast_hangup(chan);
 				}
 				/* And take them out of the parking lot */
-				if (pl) 
+				if (pl) {
 					pl->next = pu->next;
-				else
+				} else {
 					parkinglot = pu->next;
+				}
 				pt = pu;
 				pu = pu->next;
 				con = ast_context_find(parking_con);
 				if (con) {
-					if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
+					if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL)) {
 						ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
-					else
+					} else {
 						notify_metermaids(pt->parkingexten, parking_con);
-				} else
+					}
+				} else {
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
+				}
 				free(pt);
 			} else {	/* still within parking time, process descriptors */
 				for (x = 0; x < AST_MAX_FDS; x++) {
 					struct ast_frame *f;
+					int y;
 
-					if (chan->fds[x] == -1 || (!FD_ISSET(chan->fds[x], &rfds) && !FD_ISSET(chan->fds[x], &efds)))
+					if (chan->fds[x] == -1) {
 						continue;	/* nothing on this descriptor */
+					}
 
-					if (FD_ISSET(chan->fds[x], &efds))
+					for (y = 0; y < nfds; y++) {
+						if (fds[y].fd == chan->fds[x]) {
+							/* Found poll record! */
+							break;
+						}
+					}
+					if (y == nfds) {
+						/* Not found */
+						continue;
+					}
+
+					if (!(fds[y].revents & (POLLIN | POLLERR))) {
+						/* Next x */
+						continue;
+					}
+
+					if (fds[y].revents & POLLERR) {
 						ast_set_flag(chan, AST_FLAG_EXCEPTION);
-					else
+					} else {
 						ast_clear_flag(chan, AST_FLAG_EXCEPTION);
+					}
 					chan->fdno = x;
 
 					/* See if they need servicing */
 					f = ast_read(chan);
 					if (!f || (f->frametype == AST_FRAME_CONTROL && f->subclass ==  AST_CONTROL_HANGUP)) {
-						if (f)
+						if (f) {
 							ast_frfree(f);
+						}
 						post_manager_event("ParkedCallGiveUp", pu->parkingexten, chan);
 
 						/* There's a problem, hang them up*/
-						if (option_verbose > 1) 
+						if (option_verbose > 1) {
 							ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", chan->name);
-						ast_hangup(chan);
+						}
 						/* And take them out of the parking lot */
-						if (pl) 
+						if (pl) {
 							pl->next = pu->next;
-						else
+						} else {
 							parkinglot = pu->next;
+						}
 						pt = pu;
 						pu = pu->next;
+
+						ast_hangup(chan);
 						con = ast_context_find(parking_con);
 						if (con) {
-							if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
+							if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL)) {
 								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
-							else {
+							} else {
 								notify_metermaids(pt->parkingexten, parking_con);
 							}
-						} else
+						} else {
 							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
+						}
 						free(pt);
 						break;
 					} else {
 						/*! \todo XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 						ast_frfree(f);
 						if (pu->moh_trys < 3 && !chan->generatordata) {
-							if (option_debug)
+							if (option_debug) {
 								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
-							ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+							}
+							ast_indicate_data(pu->chan, AST_CONTROL_HOLD,
 								S_OR(parkmohclass, NULL),
 								!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
 							pu->moh_trys++;
@@ -2440,30 +2473,39 @@ static void *do_parking_thread(void *ignore)
 
 				} /* end for */
 				if (x >= AST_MAX_FDS) {
-std:					for (x=0; x<AST_MAX_FDS; x++) {	/* mark fds for next round */
+std:				for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 						if (chan->fds[x] > -1) {
-							FD_SET(chan->fds[x], &nrfds);
-							FD_SET(chan->fds[x], &nefds);
-							if (chan->fds[x] > max)
-								max = chan->fds[x];
+							void *tmp = ast_realloc(new_fds, (new_nfds + 1) * sizeof(*new_fds));
+							if (!tmp) {
+								continue;
+							}
+							new_fds = tmp;
+							new_fds[new_nfds].fd = chan->fds[x];
+							new_fds[new_nfds].events = POLLIN | POLLERR;
+							new_fds[new_nfds].revents = 0;
+							new_nfds++;
 						}
 					}
 					/* Keep track of our shortest wait */
-					if (tms < ms || ms < 0)
+					if (tms < ms || ms < 0) {
 						ms = tms;
+					}
 					pl = pu;
 					pu = pu->next;
 				}
 			}
 		} /* end while */
 		ast_mutex_unlock(&parking_lock);
-		rfds = nrfds;
-		efds = nefds;
-		{
-			struct timeval tv = ast_samp2tv(ms, 1000);
-			/* Wait for something to happen */
-			ast_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
-		}
+		ast_free(fds);
+		fds = new_fds;
+		nfds = new_nfds;
+		new_fds = NULL;
+		new_nfds = 0;
+
+		tv = ast_samp2tv(ms, 1000);
+		/* Wait for something to happen */
+		ast_poll2(fds, nfds, (ms > -1) ? &tv : NULL);
+
 		pthread_testcancel();
 	}
 	return NULL;	/* Never reached */
