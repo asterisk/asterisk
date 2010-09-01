@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.8.0-beta5</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.8.0-beta5</h3>
+<h3 align="center">Date: 2010-09-01</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.8.0-beta4.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+7 tilghman<br/>
+6 dvossel<br/>
+6 russell<br/>
+1 cmoye<br/>
+1 elguero<br/>
+1 modelnine<br/>
+1 qwell<br/>
+1 RoadKill<br/>
+1 schmidts<br/>
+1 twilson<br/>
+</td>
+<td>
+1 cmoye<br/>
+1 denzs<br/>
+1 gmartinez<br/>
+1 qwell<br/>
+1 RoadKill<br/>
+1 tilghman<br/>
+1 twilson<br/>
+</td>
+<td>
+1 Alexcr<br/>
+1 cmoye<br/>
+1 coolmig<br/>
+1 denzs<br/>
+1 elguero<br/>
+1 ibc<br/>
+1 lmadsen<br/>
+1 modelnine<br/>
+1 RoadKill<br/>
+1 schmidts<br/>
+1 wurstsalat<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_festival</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=15706">#15706</a>: [patch] app_festival hangs on reading from spawned subprocess<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284281">284281</a><br/>
+Reporter: modelnine<br/>
+Testers: gmartinez<br/>
+Coders: modelnine<br/>
+<br/>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17082">#17082</a>: [patch] Improve realtime queue logging<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284473">284473</a><br/>
+Reporter: coolmig<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17741">#17741</a>: [patch] sip_poke_noanswer launch ast_devstate_changed everytime even a peer is still unreachable<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284415">284415</a><br/>
+Reporter: schmidts<br/>
+Coders: schmidts<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17758">#17758</a>: [patch] Asterisk just reads the first "Accept" header<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284032">284032</a><br/>
+Reporter: ibc<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Subscriptions</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17790">#17790</a>: [patch] Missing semicolon in SIP-Notify<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283882">283882</a><br/>
+Reporter: denzs<br/>
+Testers: qwell, denzs<br/>
+Coders: qwell<br/>
+<br/>
+<h3>Category: Core/Configuration</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17835">#17835</a>: [patch] say.conf dont have the same amount of rule's as say.c<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284318">284318</a><br/>
+Reporter: RoadKill<br/>
+Testers: RoadKill<br/>
+Coders: RoadKill<br/>
+<br/>
+<h3>Category: Core/ManagerInterface/NewFeature</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17862">#17862</a>: [patch] Manager interface requires a space after the :<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284065">284065</a><br/>
+Reporter: cmoye<br/>
+Testers: cmoye<br/>
+Coders: cmoye<br/>
+<br/>
+<h3>Category: Resources/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17890">#17890</a>: [regression][patch] RTP Packets Not Set With QOS<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283457">283457</a><br/>
+Reporter: elguero<br/>
+Coders: elguero<br/>
+<br/>
+<h3>Category: Resources/res_musiconhold</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17726">#17726</a>: [patch] res_musiconhold does not use generic timing interfaces<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283770">283770</a><br/>
+Reporter: lmadsen<br/>
+Testers: tilghman<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Resources/res_odbc</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17911">#17911</a>: ODBC connection to mssql does not work<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283561">283561</a><br/>
+Reporter: wurstsalat<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Resources/res_srtp</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17563">#17563</a>: [patch] SRTP (SRTP unprotect: authentication failure)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284477">284477</a><br/>
+Reporter: Alexcr<br/>
+Testers: twilson<br/>
+Coders: twilson<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283319">283319</a></td><td>tilghman</td><td>CDR drivers depend upon res_odbc, not directly on the ODBC libraries</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283350">283350</a></td><td>russell</td><td>Don't attempt to release a NULL ODBC handle.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283382">283382</a></td><td>dvossel</td><td>This fix makes sure the ast_channel hangs up correctly when the dialog's PENDING_BYE flag is set.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283493">283493</a></td><td>dvossel</td><td>Changes the default behavior for sip.conf's pedantic option from "no" to "yes".</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283527">283527</a></td><td>russell</td><td>Convert ast_log(LOG_DEBUG, ...) to ast_debug(...)</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283559">283559</a></td><td>dvossel</td><td>Asterisk will not advertise session timers are supported when 'session-timers=refuse' is used.</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17005">#17005</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283595">283595</a></td><td>dvossel</td><td>Add to and from tags to NOTIFY dialog-info xml body so pickup can occur.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283627">283627</a></td><td>russell</td><td>Move httptimeout out from in between port and bindaddr.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283629">283629</a></td><td>russell</td><td>Remove public keys that are no longer useful.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283659">283659</a></td><td>russell</td><td>Slight improvement to a debug message.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283692">283692</a></td><td>dvossel</td><td>Fixed how Asterisk destroys a dialog on channel hangup before invite receives a response.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=283951">283951</a></td><td>russell</td><td>Print exten@context:priority in verbose messages from pbx_realtime.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284096">284096</a></td><td>tilghman</td><td>Rename CEL adaptive driver to plain driver, since there isn't another ODBC driver</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284127">284127</a></td><td>tilghman</td><td>Also ignore the checksums</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=284158">284158</a></td><td>tilghman</td><td>Missed adding this file</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+Makefile                              |    2
+UPGRADE.txt                           |    3
+addons/res_config_mysql.c             |    2
+apps/app_festival.c                   |   13
+cdr/cdr_adaptive_odbc.c               |    3
+cdr/cdr_odbc.c                        |    3
+cel/cel_adaptive_odbc.c               |  792 ---------------------------------
+cel/cel_odbc.c                        |  805 ++++++++++++++++++++++++++++++++++
+channels/chan_sip.c                   |  210 +++++---
+channels/sip/include/sip.h            |   10
+configs/cel_adaptive_odbc.conf.sample |   99 ----
+configs/cel_odbc.conf.sample          |   99 ++++
+configs/manager.conf.sample           |   18
+configs/res_curl.conf.sample          |    8
+configs/say.conf.sample               |   11
+configs/sip.conf.sample               |    2
+funcs/func_odbc.c                     |    6
+include/asterisk/res_srtp.h           |    1
+keys/freeworlddialup.pub              |    6
+keys/iaxtel.pub                       |    6
+main/config.c                         |    2
+main/manager.c                        |    5
+main/rtp_engine.c                     |    4
+pbx/pbx_realtime.c                    |    3
+res/res_config_odbc.c                 |    2
+res/res_config_pgsql.c                |   16
+res/res_musiconhold.c                 |   97 +---
+res/res_odbc.c                        |    3
+res/res_rtp_asterisk.c                |   21
+res/res_srtp.c                        |   96 +++-
+30 files changed, 1270 insertions(+), 1078 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>

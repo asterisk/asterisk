@@ -1,0 +1,261 @@
+                                Release Summary
+
+                              asterisk-1.8.0-beta5
+
+                                Date: 2010-09-01
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.0-beta4.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   7 tilghman               1 cmoye                  1 Alexcr                 
+   6 dvossel                1 denzs                  1 cmoye                  
+   6 russell                1 gmartinez              1 coolmig                
+   1 cmoye                  1 qwell                  1 denzs                  
+   1 elguero                1 RoadKill               1 elguero                
+   1 modelnine              1 tilghman               1 ibc                    
+   1 qwell                  1 twilson                1 lmadsen                
+   1 RoadKill                                        1 modelnine              
+   1 schmidts                                        1 RoadKill               
+   1 twilson                                         1 schmidts               
+                                                     1 wurstsalat             
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_festival
+
+   #15706: [patch] app_festival hangs on reading from spawned subprocess
+   Revision: 284281
+   Reporter: modelnine
+   Testers: gmartinez
+   Coders: modelnine
+
+  Category: Applications/app_queue
+
+   #17082: [patch] Improve realtime queue logging
+   Revision: 284473
+   Reporter: coolmig
+   Coders: tilghman
+
+  Category: Channels/chan_sip/General
+
+   #17741: [patch] sip_poke_noanswer launch ast_devstate_changed everytime
+   even a peer is still unreachable
+   Revision: 284415
+   Reporter: schmidts
+   Coders: schmidts
+
+   #17758: [patch] Asterisk just reads the first "Accept" header
+   Revision: 284032
+   Reporter: ibc
+   Coders: dvossel
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #17790: [patch] Missing semicolon in SIP-Notify
+   Revision: 283882
+   Reporter: denzs
+   Testers: qwell, denzs
+   Coders: qwell
+
+  Category: Core/Configuration
+
+   #17835: [patch] say.conf dont have the same amount of rule's as say.c
+   Revision: 284318
+   Reporter: RoadKill
+   Testers: RoadKill
+   Coders: RoadKill
+
+  Category: Core/ManagerInterface/NewFeature
+
+   #17862: [patch] Manager interface requires a space after the :
+   Revision: 284065
+   Reporter: cmoye
+   Testers: cmoye
+   Coders: cmoye
+
+  Category: Resources/General
+
+   #17890: [regression][patch] RTP Packets Not Set With QOS
+   Revision: 283457
+   Reporter: elguero
+   Coders: elguero
+
+  Category: Resources/res_musiconhold
+
+   #17726: [patch] res_musiconhold does not use generic timing interfaces
+   Revision: 283770
+   Reporter: lmadsen
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: Resources/res_odbc
+
+   #17911: ODBC connection to mssql does not work
+   Revision: 283561
+   Reporter: wurstsalat
+   Coders: tilghman
+
+  Category: Resources/res_srtp
+
+   #17563: [patch] SRTP (SRTP unprotect: authentication failure)
+   Revision: 284477
+   Reporter: Alexcr
+   Testers: twilson
+   Coders: twilson
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author   | Summary                             | Issues     |
+   |          |          |                                     | Referenced |
+   |----------+----------+-------------------------------------+------------|
+   | 283319   | tilghman | CDR drivers depend upon res_odbc,   |            |
+   |          |          | not directly on the ODBC libraries  |            |
+   |----------+----------+-------------------------------------+------------|
+   | 283350   | russell  | Don't attempt to release a NULL     |            |
+   |          |          | ODBC handle.                        |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | This fix makes sure the ast_channel |            |
+   | 283382   | dvossel  | hangs up correctly when the         |            |
+   |          |          | dialog's PENDING_BYE flag is set.   |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | Changes the default behavior for    |            |
+   | 283493   | dvossel  | sip.conf's pedantic option from     |            |
+   |          |          | "no" to "yes".                      |            |
+   |----------+----------+-------------------------------------+------------|
+   | 283527   | russell  | Convert ast_log(LOG_DEBUG, ...) to  |            |
+   |          |          | ast_debug(...)                      |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | Asterisk will not advertise session |            |
+   | 283559   | dvossel  | timers are supported when           | #17005     |
+   |          |          | 'session-timers=refuse' is used.    |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | Add to and from tags to NOTIFY      |            |
+   | 283595   | dvossel  | dialog-info xml body so pickup can  |            |
+   |          |          | occur.                              |            |
+   |----------+----------+-------------------------------------+------------|
+   | 283627   | russell  | Move httptimeout out from in        |            |
+   |          |          | between port and bindaddr.          |            |
+   |----------+----------+-------------------------------------+------------|
+   | 283629   | russell  | Remove public keys that are no      |            |
+   |          |          | longer useful.                      |            |
+   |----------+----------+-------------------------------------+------------|
+   | 283659   | russell  | Slight improvement to a debug       |            |
+   |          |          | message.                            |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | Fixed how Asterisk destroys a       |            |
+   | 283692   | dvossel  | dialog on channel hangup before     |            |
+   |          |          | invite receives a response.         |            |
+   |----------+----------+-------------------------------------+------------|
+   | 283951   | russell  | Print exten@context:priority in     |            |
+   |          |          | verbose messages from pbx_realtime. |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | Rename CEL adaptive driver to plain |            |
+   | 284096   | tilghman | driver, since there isn't another   |            |
+   |          |          | ODBC driver                         |            |
+   |----------+----------+-------------------------------------+------------|
+   | 284127   | tilghman | Also ignore the checksums           |            |
+   |----------+----------+-------------------------------------+------------|
+   | 284158   | tilghman | Missed adding this file             |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ Makefile                              |    2
+ UPGRADE.txt                           |    3
+ addons/res_config_mysql.c             |    2
+ apps/app_festival.c                   |   13
+ cdr/cdr_adaptive_odbc.c               |    3
+ cdr/cdr_odbc.c                        |    3
+ cel/cel_adaptive_odbc.c               |  792 ---------------------------------
+ cel/cel_odbc.c                        |  805 ++++++++++++++++++++++++++++++++++
+ channels/chan_sip.c                   |  210 +++++---
+ channels/sip/include/sip.h            |   10
+ configs/cel_adaptive_odbc.conf.sample |   99 ----
+ configs/cel_odbc.conf.sample          |   99 ++++
+ configs/manager.conf.sample           |   18
+ configs/res_curl.conf.sample          |    8
+ configs/say.conf.sample               |   11
+ configs/sip.conf.sample               |    2
+ funcs/func_odbc.c                     |    6
+ include/asterisk/res_srtp.h           |    1
+ keys/freeworlddialup.pub              |    6
+ keys/iaxtel.pub                       |    6
+ main/config.c                         |    2
+ main/manager.c                        |    5
+ main/rtp_engine.c                     |    4
+ pbx/pbx_realtime.c                    |    3
+ res/res_config_odbc.c                 |    2
+ res/res_config_pgsql.c                |   16
+ res/res_musiconhold.c                 |   97 +---
+ res/res_odbc.c                        |    3
+ res/res_rtp_asterisk.c                |   21
+ res/res_srtp.c                        |   96 +++-
+ 30 files changed, 1270 insertions(+), 1078 deletions(-)
+
+     ----------------------------------------------------------------------
