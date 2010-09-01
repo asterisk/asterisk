@@ -1179,12 +1179,16 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 							size, column->type);
 						res = -1;
 					}
-				} else if (strncmp(column->type, "float", 5) == 0 && !ast_rq_is_int(type) && type != RQ_FLOAT) {
-					ast_log(LOG_WARNING, "Column %s cannot be a %s\n", column->name, column->type);
-					res = -1;
-				} else if (strncmp(column->type, "timestamp", 9) == 0 && type != RQ_DATETIME) {
-					ast_log(LOG_WARNING, "Column %s cannot be a %s\n", column->name, column->type);
-					res = -1;
+				} else if (strncmp(column->type, "float", 5) == 0) {
+					if (!ast_rq_is_int(type) && type != RQ_FLOAT) {
+						ast_log(LOG_WARNING, "Column %s cannot be a %s\n", column->name, column->type);
+						res = -1;
+					}
+				} else if (strncmp(column->type, "timestamp", 9) == 0) {
+					if (type != RQ_DATETIME && type != RQ_DATE) {
+						ast_log(LOG_WARNING, "Column %s cannot be a %s\n", column->name, column->type);
+						res = -1;
+					}
 				} else { /* There are other types that no module implements yet */
 					ast_log(LOG_WARNING, "Possibly unsupported column type '%s' on column '%s'\n", column->type, column->name);
 					res = -1;
