@@ -53,14 +53,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/astobj2.h"
 
 struct ast_srtp {
 	struct ast_rtp_instance *rtp;
+	struct ao2_container *policies;
 	srtp_t session;
 	const struct ast_srtp_cb *cb;
 	void *data;
 	unsigned char buf[8192 + AST_FRIENDLY_OFFSET];
-	unsigned int has_stream:1;
 };
 
 struct ast_srtp_policy {
@@ -73,6 +74,7 @@ static int g_initialized = 0;
 static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy);
 static void ast_srtp_destroy(struct ast_srtp *srtp);
 static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *policy);
+static int ast_srtp_change_source(struct ast_srtp *srtp, unsigned int from_ssrc, unsigned int to_ssrc);
 
 static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int rtcp);
 static int ast_srtp_protect(struct ast_srtp *srtp, void **buf, int *len, int rtcp);
@@ -90,6 +92,7 @@ static struct ast_srtp_res srtp_res = {
 	.create = ast_srtp_create,
 	.destroy = ast_srtp_destroy,
 	.add_stream = ast_srtp_add_stream,
+	.change_source = ast_srtp_change_source,
 	.set_cb = ast_srtp_set_cb,
 	.unprotect = ast_srtp_unprotect,
 	.protect = ast_srtp_protect,
@@ -144,12 +147,43 @@ static const char *srtp_errstr(int err)
 	}
 }
 
+static int policy_hash_fn(const void *obj, const int flags)
+{
+	const struct ast_srtp_policy *policy = obj;
+
+	return policy->sp.ssrc.type == ssrc_specific ? policy->sp.ssrc.value : policy->sp.ssrc.type;
+}
+
+static int policy_cmp_fn(void *obj, void *arg, int flags)
+{
+	const struct ast_srtp_policy *one = obj, *two = arg;
+
+	return one->sp.ssrc.type == two->sp.ssrc.type && one->sp.ssrc.value == two->sp.ssrc.value;
+}
+
+static struct ast_srtp_policy *find_policy(struct ast_srtp *srtp, const srtp_policy_t *policy, int flags)
+{
+	struct ast_srtp_policy tmp = {
+		.sp = {
+			.ssrc.type = policy->ssrc.type,
+			.ssrc.value = policy->ssrc.value,
+		},
+	};
+
+	return ao2_t_find(srtp->policies, &tmp, flags, "Looking for policy");
+}
+
 static struct ast_srtp *res_srtp_new(void)
 {
 	struct ast_srtp *srtp;
 
 	if (!(srtp = ast_calloc(1, sizeof(*srtp)))) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for srtp\n");
+		return NULL;
+	}
+
+	if (!(srtp->policies = ao2_t_container_alloc(5, policy_hash_fn, policy_cmp_fn, "SRTP policy container"))) {
+		ast_free(srtp);
 		return NULL;
 	}
 
@@ -188,11 +222,21 @@ static void ast_srtp_policy_set_ssrc(struct ast_srtp_policy *policy,
 	}
 }
 
+static void policy_destructor(void *obj)
+{
+	struct ast_srtp_policy *policy = obj;
+
+	if (policy->sp.key) {
+		ast_free(policy->sp.key);
+		policy->sp.key = NULL;
+	}
+}
+
 static struct ast_srtp_policy *ast_srtp_policy_alloc()
 {
 	struct ast_srtp_policy *tmp;
 
-	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
+	if (!(tmp = ao2_t_alloc(sizeof(*tmp), policy_destructor, "Allocating policy"))) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for srtp_policy\n");
 	}
 
@@ -201,11 +245,7 @@ static struct ast_srtp_policy *ast_srtp_policy_alloc()
 
 static void ast_srtp_policy_destroy(struct ast_srtp_policy *policy)
 {
-	if (policy->sp.key) {
-		ast_free(policy->sp.key);
-		policy->sp.key = NULL;
-	}
-	ast_free(policy);
+	ao2_t_ref(policy, -1, "Destroying policy");
 }
 
 static int policy_set_suite(crypto_policy_t *p, enum ast_srtp_suite suite)
@@ -344,6 +384,8 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 	temp->rtp = rtp;
 	*srtp = temp;
 
+	ao2_t_link((*srtp)->policies, policy, "Created initial policy");
+
 	return 0;
 }
 
@@ -353,16 +395,52 @@ static void ast_srtp_destroy(struct ast_srtp *srtp)
 		srtp_dealloc(srtp->session);
 	}
 
+	ao2_t_callback(srtp->policies, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "Unallocate policy");
+	ao2_t_ref(srtp->policies, -1, "Destroying container");
+
 	ast_free(srtp);
 }
 
 static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *policy)
 {
-	if (!srtp->has_stream && srtp_add_stream(srtp->session, &policy->sp) != err_status_ok) {
+	struct ast_srtp_policy *match;
+
+	if ((match = find_policy(srtp, &policy->sp, OBJ_POINTER))) {
+		ast_debug(3, "Policy already exists, not re-adding\n");
+		ao2_t_ref(match, -1, "Unreffing already existing policy");
 		return -1;
 	}
 
-	srtp->has_stream = 1;
+	if (srtp_add_stream(srtp->session, &policy->sp) != err_status_ok) {
+		return -1;
+	}
+
+	ao2_t_link(srtp->policies, policy, "Added additional stream");
+
+	return 0;
+}
+
+static int ast_srtp_change_source(struct ast_srtp *srtp, unsigned int from_ssrc, unsigned int to_ssrc)
+{
+	struct ast_srtp_policy *match;
+	struct srtp_policy_t sp = {
+		.ssrc.type = ssrc_specific,
+		.ssrc.value = from_ssrc,
+	};
+	err_status_t status;
+
+	/* If we find a mach, return and unlink it from the container so we
+	 * can change the SSRC (which is part of the hash) and then have
+	 * ast_srtp_add_stream link it back in if all is well */
+	if ((match = find_policy(srtp, &sp, OBJ_POINTER | OBJ_UNLINK))) {
+		match->sp.ssrc.value = to_ssrc;
+		if (ast_srtp_add_stream(srtp, match)) {
+			ast_log(LOG_WARNING, "Couldn't add stream\n");
+		} else if ((status = srtp_remove_stream(srtp->session, from_ssrc))) {
+			ast_debug(3, "Couldn't remove stream (%d)\n", status);
+		}
+		ao2_t_ref(match, -1, "Unreffing found policy in change_source");
+	}
 
 	return 0;
 }

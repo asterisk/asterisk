@@ -33,6 +33,7 @@ struct ast_srtp_res {
 	int (*create)(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy);
 	void (*destroy)(struct ast_srtp *srtp);
 	int (*add_stream)(struct ast_srtp *srtp, struct ast_srtp_policy *policy);
+	int (*change_source)(struct ast_srtp *srtp, unsigned int from_ssrc, unsigned int to_ssrc);
 	void (*set_cb)(struct ast_srtp *srtp, const struct ast_srtp_cb *cb, void *data);
 	int (*unprotect)(struct ast_srtp *srtp, void *buf, int *size, int rtcp);
 	int (*protect)(struct ast_srtp *srtp, void **buf, int *size, int rtcp);

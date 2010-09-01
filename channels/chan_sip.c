@@ -27817,6 +27817,12 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 		}
 	}
 
+	/* For now, when we receive an INVITE just take the first successful crypto line */
+	if ((*srtp)->crypto && !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+		ast_debug(3, "We've already processed a crypto attribute, skipping '%s'\n", a);
+		return FALSE;
+	}
+
 	if (!(*srtp)->crypto && !((*srtp)->crypto = sdp_crypto_setup())) {
 		return FALSE;
 	}
