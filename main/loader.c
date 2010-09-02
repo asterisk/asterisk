@@ -414,6 +414,26 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 		return NULL;
 	}
 
+	/* This section is a workaround for a gcc 4.1 bug that has already been
+	 * fixed in later versions.  Unfortunately, some distributions, such as
+	 * RHEL/CentOS 5, distribute gcc 4.1, so we're stuck with having to deal
+	 * with this issue.  This basically ensures that optional_api modules are
+	 * loaded before any module which requires their functionality. */
+#if !defined(HAVE_ATTRIBUTE_weak_import) && !defined(HAVE_ATTRIBUTE_weakref)
+	if (!ast_strlen_zero(mod->info->nonoptreq)) {
+		/* Force any required dependencies to load */
+		char *each, *required_resource = ast_strdupa(mod->info->nonoptreq);
+		while ((each = strsep(&required_resource, ","))) {
+			each = ast_strip(each);
+
+			/* Is it already loaded? */
+			if (!find_resource(each, 0)) {
+				load_dynamic_module(each, global_symbols_only);
+			}
+		}
+	}
+#endif
+
 	while (!dlclose(lib));
 	resource_being_loaded = NULL;
 

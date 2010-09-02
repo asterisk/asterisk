@@ -955,4 +955,8 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dialplan Speech Applications");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Dialplan Speech Applications",
+		.load = load_module,
+		.unload = unload_module,
+		.nonoptreq = "res_speech",
+		);
