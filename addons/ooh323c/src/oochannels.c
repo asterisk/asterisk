@@ -1994,9 +1994,8 @@ OOBOOL ooChannelsIsConnectionOK(OOH323CallData *call, OOSOCKET sock)
       return FALSE;
    }
 
-   if(FD_ISSET(sock, &readfds))
-   {
-      char buf[2];      
+   if (pfds.events & POLLIN) {
+      char buf[2];
       if(ooSocketRecvPeek(sock, (ASN1OCTET*) buf, 2) == 0)
       {
          OOTRACEWARN3("Broken pipe detected. (%s, %s)", call->callType, 
