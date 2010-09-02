@@ -1283,38 +1283,27 @@ static int aji_tls_handshake(struct aji_client *client)
  */
 static int aji_io_recv(struct aji_client *client, char *buffer, size_t buf_len, int timeout)
 {
-	int sock;
-	fd_set fds;
-	struct timeval tv, *tvptr = NULL;
+	struct pollfd pfd = { .events = POLLIN };
 	int len, res;
 
 #ifdef HAVE_OPENSSL
 	if (aji_is_secure(client)) {
-		sock = SSL_get_fd(client->ssl_session);
-		if (sock < 0) {
+		pfd.fd = SSL_get_fd(client->ssl_session);
+		if (pfd.fd < 0) {
 			return -1;
 		}
 	} else
 #endif /* HAVE_OPENSSL */
-		sock = iks_fd(client->p);
+		pfd.fd = iks_fd(client->p);
 
-	memset(&tv, 0, sizeof(struct timeval));
-	FD_ZERO(&fds);
-	FD_SET(sock, &fds);
-	tv.tv_sec = timeout;
-
-	/* NULL value for tvptr makes ast_select wait indefinitely */
-	tvptr = (timeout != -1) ? &tv : NULL;
-
-	/* ast_select emulates linux behaviour in terms of timeout handling */
-	res = ast_select(sock + 1, &fds, NULL, NULL, tvptr);
+	res = ast_poll(&pfd, 1, timeout > 0 ? timeout * 1000 : -1);
 	if (res > 0) {
 #ifdef HAVE_OPENSSL
 		if (aji_is_secure(client)) {
 			len = SSL_read(client->ssl_session, buffer, buf_len);
 		} else
 #endif /* HAVE_OPENSSL */
-			len = recv(sock, buffer, buf_len, 0);
+			len = recv(pfd.fd, buffer, buf_len, 0);
 
 		if (len > 0) {
 			return len;

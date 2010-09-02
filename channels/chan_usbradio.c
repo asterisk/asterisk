@@ -1119,8 +1119,7 @@ static void *hidthread(void *arg)
 	struct usb_device *usb_dev;
 	struct usb_dev_handle *usb_handle;
 	struct chan_usbradio_pvt *o = (struct chan_usbradio_pvt *) arg;
-	struct timeval to;
-	fd_set rfds;
+	struct pollfd pfd = { .events = POLLIN };
 
 	usb_dev = hid_device_init(o->devstr);
 	if (usb_dev == NULL) {
@@ -1156,63 +1155,49 @@ static void *hidthread(void *arg)
 	traceusb1(("hidthread: Starting normally on %s!!\n",o->name));
 	lastrx = 0;
 	// popen 
-	while(!o->stophid)
-	{
-		to.tv_sec = 0;
-		to.tv_usec = 50000;   // maw sph
+	while (!o->stophid) {
+		pfd.fd = o->pttkick;
+		pfd.revents = 0;
 
-		FD_ZERO(&rfds);
-		FD_SET(o->pttkick[0],&rfds);
-		/* ast_select emulates linux behaviour in terms of timeout handling */
-		res = ast_select(o->pttkick[0] + 1, &rfds, NULL, NULL, &to);
+		res = ast_poll2(&pfd, 1, 50);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "poll() failed: %s\n", strerror(errno));
 			usleep(10000);
 			continue;
 		}
-		if (FD_ISSET(o->pttkick[0],&rfds))
-		{
+		if (pfd.revents & POLLIN) { {
 			char c;
 
-			if (read(o->pttkick[0],&c,1) < 0) {
+			if (read(o->pttkick[0], &c, 1) < 0) {
 				ast_log(LOG_ERROR, "read() failed: %s\n", strerror(errno));
 			}
 		}
-		if(o->wanteeprom)
-		{
+		if (o->wanteeprom) {
 			ast_mutex_lock(&o->eepromlock);
-			if (o->eepromctl == 1)  /* to read */
-			{
+			if (o->eepromctl == 1) { /* to read */
 				/* if CS okay */
-				if (!get_eeprom(usb_handle,o->eeprom))
-				{
-					if (o->eeprom[EEPROM_MAGIC_ADDR] != EEPROM_MAGIC)
-					{
-						ast_log(LOG_NOTICE,"UNSUCCESSFUL: EEPROM MAGIC NUMBER BAD on channel %s\n",o->name);
-					}
-					else
-					{
+				if (!get_eeprom(usb_handle, o->eeprom)) {
+					if (o->eeprom[EEPROM_MAGIC_ADDR] != EEPROM_MAGIC) {
+						ast_log(LOG_NOTICE, "UNSUCCESSFUL: EEPROM MAGIC NUMBER BAD on channel %s\n", o->name);
+					} else {
 						o->rxmixerset = o->eeprom[EEPROM_RXMIXERSET];
-						o->txmixaset = 	o->eeprom[EEPROM_TXMIXASET];
+						o->txmixaset = o->eeprom[EEPROM_TXMIXASET];
 						o->txmixbset = o->eeprom[EEPROM_TXMIXBSET];
-						memcpy(&o->rxvoiceadj,&o->eeprom[EEPROM_RXVOICEADJ],sizeof(float));
-						memcpy(&o->rxctcssadj,&o->eeprom[EEPROM_RXCTCSSADJ],sizeof(float));
+						memcpy(&o->rxvoiceadj, &o->eeprom[EEPROM_RXVOICEADJ], sizeof(float));
+						memcpy(&o->rxctcssadj, &o->eeprom[EEPROM_RXCTCSSADJ], sizeof(float));
 						o->txctcssadj = o->eeprom[EEPROM_TXCTCSSADJ];
 						o->rxsquelchadj = o->eeprom[EEPROM_RXSQUELCHADJ];
 						ast_log(LOG_NOTICE,"EEPROM Loaded on channel %s\n",o->name);
 					}
-				}
-				else
-				{
-					ast_log(LOG_NOTICE,"USB Adapter has no EEPROM installed or Checksum BAD on channel %s\n",o->name);
+				} else {
+					ast_log(LOG_NOTICE, "USB Adapter has no EEPROM installed or Checksum BAD on channel %s\n", o->name);
 				}
 				hid_set_outputs(usb_handle,bufsave);
-			} 
-			if (o->eepromctl == 2) /* to write */
-			{
+			}
+			if (o->eepromctl == 2) { /* to write */
 				put_eeprom(usb_handle,o->eeprom);
 				hid_set_outputs(usb_handle,bufsave);
-				ast_log(LOG_NOTICE,"USB Parameters written to EEPROM on %s\n",o->name);
+				ast_log(LOG_NOTICE, "USB Parameters written to EEPROM on %s\n", o->name);
 			}
 			o->eepromctl = 0;
 			ast_mutex_unlock(&o->eepromlock);
@@ -1220,38 +1205,43 @@ static void *hidthread(void *arg)
 		buf[o->hid_gpio_ctl_loc] = o->hid_gpio_ctl;
 		hid_get_inputs(usb_handle,buf);
 		keyed = !(buf[o->hid_io_cor_loc] & o->hid_io_cor);
-		if (keyed != o->rxhidsq)
-		{
-			if(o->debuglevel)printf("chan_usbradio() hidthread: update rxhidsq = %d\n",keyed);
+		if (keyed != o->rxhidsq) {
+			if (o->debuglevel) {
+				printf("chan_usbradio() hidthread: update rxhidsq = %d\n", keyed);
+			}
 			o->rxhidsq=keyed;
 		}
 
 		/* if change in tx state as controlled by xpmr */
-		txtmp=o->pmrChan->txPttOut;
-				
-		if (o->lasttx != txtmp)
-		{
-			o->pmrChan->txPttHid=o->lasttx = txtmp;
-			if(o->debuglevel)printf("hidthread: tx set to %d\n",txtmp);
-			buf[o->hid_gpio_loc] = 0;
-			if (!o->invertptt)
-			{
-				if (txtmp) buf[o->hid_gpio_loc] = o->hid_io_ptt;
+		txtmp = o->pmrChan->txPttOut;
+
+		if (o->lasttx != txtmp) {
+			o->pmrChan->txPttHid = o->lasttx = txtmp;
+			if (o->debuglevel) {
+				ast_debug(0, "hidthread: tx set to %d\n", txtmp);
 			}
-			else
-			{
-				if (!txtmp) buf[o->hid_gpio_loc] = o->hid_io_ptt;
+			buf[o->hid_gpio_loc] = 0;
+			if (!o->invertptt) {
+				if (txtmp) {
+					buf[o->hid_gpio_loc] = o->hid_io_ptt;
+				}
+			} else {
+				if (!txtmp) {
+					buf[o->hid_gpio_loc] = o->hid_io_ptt;
+				}
 			}
 			buf[o->hid_gpio_ctl_loc] = o->hid_gpio_ctl;
-			memcpy(bufsave,buf,sizeof(buf));
-			hid_set_outputs(usb_handle,buf);
+			memcpy(bufsave, buf, sizeof(buf));
+			hid_set_outputs(usb_handle, buf);
 		}
 		time(&o->lasthidtime);
 	}
 	buf[o->hid_gpio_loc] = 0;
-	if (o->invertptt) buf[o->hid_gpio_loc] = o->hid_io_ptt;
+	if (o->invertptt) {
+		buf[o->hid_gpio_loc] = o->hid_io_ptt;
+	}
 	buf[o->hid_gpio_ctl_loc] = o->hid_gpio_ctl;
-	hid_set_outputs(usb_handle,buf);
+	hid_set_outputs(usb_handle, buf);
 	pthread_exit(0);
 }
 
@@ -1452,37 +1442,29 @@ static void *sound_thread(void *arg)
 	 */
 	read(o->sounddev, ign, sizeof(ign));
 	for (;;) {
-		fd_set rfds, wfds;
-		int maxfd, res;
+		struct pollfd pfd[2] = { { .fd = o->sndcmd[0], .events = POLLIN }, { .fd = o->sounddev } };
+		int res;
 
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		FD_SET(o->sndcmd[0], &rfds);
-		maxfd = o->sndcmd[0];	/* pipe from the main process */
-		if (o->cursound > -1 && o->sounddev < 0)
+		if (o->cursound > -1 && o->sounddev < 0) {
 			setformat(o, O_RDWR);	/* need the channel, try to reopen */
-		else if (o->cursound == -1 && o->owner == NULL)
-		{
+		} else if (o->cursound == -1 && o->owner == NULL) {
 			setformat(o, O_CLOSE);	/* can close */
 		}
 		if (o->sounddev > -1) {
 			if (!o->owner) {	/* no one owns the audio, so we must drain it */
-				FD_SET(o->sounddev, &rfds);
-				maxfd = MAX(o->sounddev, maxfd);
+				pfd[1].events = POLLIN;
 			}
 			if (o->cursound > -1) {
-				FD_SET(o->sounddev, &wfds);
-				maxfd = MAX(o->sounddev, maxfd);
+				pfd[1].events |= POLLOUT;
 			}
 		}
-		/* ast_select emulates linux behaviour in terms of timeout handling */
-		res = ast_select(maxfd + 1, &rfds, &wfds, NULL, NULL);
+		res = ast_poll(pfd, o->sounddev > -1 ? 2 : 1, -1);
 		if (res < 1) {
-			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "poll failed: %s\n", strerror(errno));
 			sleep(1);
 			continue;
 		}
-		if (FD_ISSET(o->sndcmd[0], &rfds)) {
+		if (pfd[0].revents & POLLIN) {
 			/* read which sound to play from the pipe */
 			int i, what = -1;
 
@@ -1495,14 +1477,17 @@ static void *sound_thread(void *arg)
 					break;
 				}
 			}
-			if (sounds[i].ind == -1)
+			if (sounds[i].ind == -1) {
 				ast_log(LOG_WARNING, "invalid sound index: %d\n", what);
+			}
 		}
 		if (o->sounddev > -1) {
-			if (FD_ISSET(o->sounddev, &rfds))	/* read and ignore errors */
+			if (pfd[1].revents & POLLIN) { /* read and ignore errors */
 				read(o->sounddev, ign, sizeof(ign)); 
-			if (FD_ISSET(o->sounddev, &wfds))
+			}
+			if (pfd[1].revents & POLLOUT) {
 				send_sound(o);
+			}
 		}
 	}
 	return NULL;				/* Never reached */

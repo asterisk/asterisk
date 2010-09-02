@@ -15,6 +15,7 @@
  *****************************************************************************/
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/poll-compat.h"
 
 #include "ooports.h" 
 #include "oochannels.h"
@@ -1980,22 +1981,12 @@ int ooStopMonitorCalls()
 
 OOBOOL ooChannelsIsConnectionOK(OOH323CallData *call, OOSOCKET sock)
 {
-   struct timeval to;
-   fd_set readfds;
-   int ret = 0, nfds=0; 
+   struct timeval to = { .tv_usec = 500 };
+   struct pollfd pfds = { .fd = sock, .events = POLLIN };
+   int ret = 0;
 
-   to.tv_sec = 0;
-   to.tv_usec = 500;
-   FD_ZERO(&readfds);
+   ret = ast_poll2(&pfds, 1, &to);
 
-   FD_SET(sock, &readfds);
-   if(nfds < (int)sock)
-      nfds = (int)sock;
-
-   nfds++;
-
-   ret = ooSocketSelect(nfds, &readfds, NULL, NULL, &to);
-      
    if(ret == -1)
    {
       OOTRACEERR3("Error in select ...broken pipe check(%s, %s)\n",

@@ -397,8 +397,7 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 	for (retry = 0; retry < 3; retry++) {	/* XXX make retries configurable */
 		/* send request, possibly wait for reply */
 		unsigned char reply_buf[1024];
-		fd_set rfds;
-		struct timeval to = { 3, 0 };	/* timeout, make it configurable */
+		struct pollfd pfds = { .fd = s, .events = POLLIN };
 		struct sockaddr_in src;
 		socklen_t srclen;
 
@@ -410,9 +409,7 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 		}
 		if (answer == NULL)
 			break;
-		FD_ZERO(&rfds);
-		FD_SET(s, &rfds);
-		res = ast_select(s + 1, &rfds, NULL, NULL, &to);
+		res = ast_poll(&pfds, 1, 3000);
 		if (res <= 0)	/* timeout or error */
 			continue;
 		memset(&src, 0, sizeof(src));

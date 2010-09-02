@@ -703,9 +703,8 @@ static void *do_pktccops(void *data)
 	int res, nfds, len;
 	struct copsmsg *recmsg, *sendmsg;
 	struct copsmsg recmsgb, sendmsgb;
-	fd_set rfds;
-	struct timeval tv;
-	struct pktcobj *pobject;	
+	struct pollfd *pfds = NULL, *tmp;
+	struct pktcobj *pobject;
 	struct cops_cmts *cmts;
 	struct cops_gate *gate;
 	char *sobjp;
@@ -719,9 +718,8 @@ static void *do_pktccops(void *data)
 	ast_debug(3, "COPS: thread started\n");
 
 	for (;;) {
-		tv.tv_sec = 1;
-		tv.tv_usec = 0;
-		FD_ZERO(&rfds);
+		ast_free(pfds);
+		pfds = NULL;
 		nfds = 0;
 		AST_LIST_LOCK(&cmts_list);
 		AST_LIST_TRAVERSE(&cmts_list, cmts, list) {
@@ -735,15 +733,27 @@ static void *do_pktccops(void *data)
 				}
 			}
 			if (cmts->sfd > 0) {
-				FD_SET(cmts->sfd, &rfds);
-				if (cmts->sfd > nfds) nfds = cmts->sfd;
+				if (!(tmp = ast_realloc(pfds, (nfds + 1) * sizeof(*pfds)))) {
+					continue;
+				}
+				pfds = tmp;
+				pfds[nfds].fd = cmts->sfd;
+				pfds[nfds].events = POLLIN;
+				pfds[nfds].revents = 0;
+				nfds++;
 			} else {
 				cmts->sfd = cops_connect(cmts->host, cmts->port);
 				if (cmts->sfd > 0) {
 					cmts->state = 1;
 					if (cmts->sfd > 0) {
-						FD_SET(cmts->sfd, &rfds);
-						if (cmts->sfd > nfds) nfds = cmts->sfd;
+						if (!(tmp = ast_realloc(pfds, (nfds + 1) * sizeof(*pfds)))) {
+							continue;
+						}
+						pfds = tmp;
+						pfds[nfds].fd = cmts->sfd;
+						pfds[nfds].events = POLLIN;
+						pfds[nfds].revents = 0;
+						nfds++;
 					}
 				}
 			}
@@ -781,10 +791,11 @@ static void *do_pktccops(void *data)
 		if (pktcreload == 2) {
 			pktcreload = 0;
 		}
-		if ((res = select(nfds + 1, &rfds, NULL, NULL, &tv))) {
+		if ((res = ast_poll(pfds, nfds, 1000))) {
 			AST_LIST_LOCK(&cmts_list);
 			AST_LIST_TRAVERSE(&cmts_list, cmts, list) {
-				if (FD_ISSET(cmts->sfd, &rfds)) {
+				int idx;
+				if ((idx = ast_poll_fd_index(pfds, nfds, cmts->sfd)) > -1 && (pfds[idx].revents & POLLIN)) {
 					len = cops_getmsg(cmts->sfd, recmsg);
 					if (len > 0) {
 						ast_debug(3, "COPS: got from %s:\n Header: versflag=0x%.2x opcode=%i clienttype=0x%.4x msglength=%i\n",

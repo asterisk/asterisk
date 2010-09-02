@@ -2232,44 +2232,6 @@ static inline void timersub(struct timeval *tvend, struct timeval *tvstart, stru
 }
 #endif
 
-/*!
- * \brief Waits for activity on a group of channels
- * \param nfds the maximum number of file descriptors in the sets
- * \param rfds file descriptors to check for read availability
- * \param wfds file descriptors to check for write availability
- * \param efds file descriptors to check for exceptions (OOB data)
- * \param tvp timeout while waiting for events
- * \details
- * This is the same as a standard select(), except it guarantees the
- * behaviour where the passed struct timeval is updated with how much
- * time was not slept while waiting for the specified events
- */
-static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *tvp)
-{
-#ifdef __linux__
-	return select(nfds, rfds, wfds, efds, tvp);
-#else
-	if (tvp) {
-		struct timeval tv, tvstart, tvend, tvlen;
-		int res;
-
-		tv = *tvp;
-		gettimeofday(&tvstart, NULL);
-		res = select(nfds, rfds, wfds, efds, tvp);
-		gettimeofday(&tvend, NULL);
-		timersub(&tvend, &tvstart, &tvlen);
-		timersub(&tv, &tvlen, tvp);
-		if (tvp->tv_sec < 0 || (tvp->tv_sec == 0 && tvp->tv_usec < 0)) {
-			tvp->tv_sec = 0;
-			tvp->tv_usec = 0;
-		}
-		return res;
-	}
-	else
-		return select(nfds, rfds, wfds, efds, NULL);
-#endif
-}
-
 /*! \brief Retrieves the current T38 state of a channel */
 static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *chan)
 {

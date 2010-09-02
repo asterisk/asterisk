@@ -23,6 +23,7 @@
 #define _OOSOCKET_H_
 
 #include "asterisk/poll-compat.h"
+#include "asterisk/compiler.h"
 
 #ifdef _WIN32_WCE
 #include <winsock.h>
@@ -329,9 +330,9 @@ EXTERN int ooSocketSendTo(OOSOCKET socket, const ASN1OCTET* pdata,
  *                     returns. 
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
- */                                                       
+ */
 EXTERN int ooSocketSelect(int nfds, fd_set *readfds, fd_set *writefds, 
-                            fd_set *exceptfds, struct timeval * timeout);
+                            fd_set *exceptfds, struct timeval * timeout) __attribute_deprecated__;
 
 EXTERN int ooSocketPoll(struct pollfd *pfds, int nfds, int timeout);
 
