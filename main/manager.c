@@ -850,11 +850,19 @@ struct eventqent {
 
 static AST_RWLIST_HEAD_STATIC(all_events, eventqent);
 
-static int displayconnects = 1;
+static const int DEFAULT_ENABLED			= 0;	/*!< Default setting for manager to be enabled */
+static const int DEFAULT_WEBENABLED			= 0;	/*!< Default setting for the web interface to be enabled */
+static const int DEFAULT_BLOCKSOCKETS		= 0;	/*!< Default setting for block-sockets */
+static const int DEFAULT_DISPLAYCONNECTS	= 1;	/*!< Default setting for displaying manager connections */
+static const int DEFAULT_TIMESTAMPEVENTS	= 0;	/*!< Default setting for timestampevents */	
+static const int DEFAULT_HTTPTIMEOUT 		= 60;	/*!< Default manager http timeout */
+static const int DEFAULT_BROKENEVENTSACTION	= 0;	/*!< Default setting for brokeneventsaction */
+
+static int displayconnects;
 static int allowmultiplelogin = 1;
 static int timestampevents;
-static int httptimeout = 60;
-static int broken_events_action = 0;
+static int httptimeout;
+static int broken_events_action;
 static int manager_enabled = 0;
 static int webmanager_enabled = 0;
 static char *manager_channelvars;
@@ -6131,7 +6139,7 @@ static int __init_manager(int reload)
 	struct ast_config *ucfg = NULL, *cfg = NULL;
 	const char *val;
 	char *cat = NULL;
-	int newhttptimeout = 60;
+	int newhttptimeout = DEFAULT_HTTPTIMEOUT;
 	struct ast_manager_user *user = NULL;
 	struct ast_variable *var;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
@@ -6139,8 +6147,6 @@ static int __init_manager(int reload)
 	char a1_hash[256];
 	struct sockaddr_in ami_desc_local_address_tmp = { 0, };
 	struct sockaddr_in amis_desc_local_address_tmp = { 0, };
-
-	manager_enabled = 0;
 
 	if (!registered) {
 		/* Register default actions */
@@ -6188,8 +6194,14 @@ static int __init_manager(int reload)
 		return 0;
 	}
 
-	displayconnects = 1;
-	broken_events_action = 0;
+	manager_enabled = DEFAULT_ENABLED;
+	webmanager_enabled = DEFAULT_WEBENABLED;
+	displayconnects = DEFAULT_DISPLAYCONNECTS;
+	broken_events_action = DEFAULT_BROKENEVENTSACTION;
+	block_sockets = DEFAULT_BLOCKSOCKETS;
+	timestampevents = DEFAULT_TIMESTAMPEVENTS;
+	httptimeout = DEFAULT_HTTPTIMEOUT;
+
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_NOTICE, "Unable to open AMI configuration manager.conf, or configuration is invalid. Asterisk management interface (AMI) disabled.\n");
 		return 0;
