@@ -2173,10 +2173,6 @@ static int __sip_autodestruct(const void *data)
 		return 10000;
 	}
 
-	/* If we're destroying a subscription, dereference peer object too */
-	if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer)
-		ASTOBJ_UNREF(p->relatedpeer,sip_destroy_peer);
-
 	/* Reset schedule ID */
 	p->autokillid = -1;
 
