@@ -242,6 +242,11 @@ struct ast_module_info {
 	 *  this value will never be read and the module will be given the lowest possible priority
 	 *  on load. */
 	unsigned char load_pri;
+
+	/*! Modules which should be loaded first, in comma-separated string format.
+	 * These are only required for loading, when the optional_api header file
+	 * detects that the compiler does not support the optional API featureset. */
+	const char *nonoptreq;
 };
 
 void ast_module_register(const struct ast_module_info *);

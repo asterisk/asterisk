@@ -30,7 +30,7 @@
  */
 
 /*** MODULEINFO
-        <depend>res_pktccops</depend>
+        <use>res_pktccops</use>
  ***/
 
 #include "asterisk.h"
@@ -4915,4 +4915,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Media Gateway Control
 		.unload = unload_module,
 		.reload = reload,
 		.load_pri = AST_MODPRI_CHANNEL_DRIVER,
+		.nonoptreq = "res_pktccops",
 	       );
