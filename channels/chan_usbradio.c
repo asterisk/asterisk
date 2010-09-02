@@ -644,7 +644,7 @@ static struct chan_usbradio_pvt usbradio_default = {
 
 /*	DECLARE FUNCTION PROTOTYPES	*/
 
-static void store_txtoctype(struct chan_usbradio_pvt *o, char *s);
+static void store_txtoctype(struct chan_usbradio_pvt *o, const char *s);
 static int	hidhdwconfig(struct chan_usbradio_pvt *o);
 static int set_txctcss_level(struct chan_usbradio_pvt *o);
 static void pmrdump(struct chan_usbradio_pvt *o);
@@ -1156,16 +1156,16 @@ static void *hidthread(void *arg)
 	lastrx = 0;
 	// popen 
 	while (!o->stophid) {
-		pfd.fd = o->pttkick;
+		pfd.fd = o->pttkick[0];
 		pfd.revents = 0;
 
-		res = ast_poll2(&pfd, 1, 50);
+		res = ast_poll(&pfd, 1, 50);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "poll() failed: %s\n", strerror(errno));
 			usleep(10000);
 			continue;
 		}
-		if (pfd.revents & POLLIN) { {
+		if (pfd.revents & POLLIN) {
 			char c;
 
 			if (read(o->pttkick[0], &c, 1) < 0) {
@@ -2682,7 +2682,7 @@ static void store_callerid(struct chan_usbradio_pvt *o, char *s)
 }
 #endif
 
-static void store_rxdemod(struct chan_usbradio_pvt *o, char *s)
+static void store_rxdemod(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->rxdemod = RX_AUDIO_NONE;
@@ -2701,7 +2701,7 @@ static void store_rxdemod(struct chan_usbradio_pvt *o, char *s)
 }
 
 					   
-static void store_txmixa(struct chan_usbradio_pvt *o, char *s)
+static void store_txmixa(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->txmixa = TX_OUT_OFF;
@@ -2725,7 +2725,7 @@ static void store_txmixa(struct chan_usbradio_pvt *o, char *s)
 	//ast_log(LOG_WARNING, "set txmixa = %s\n", s);
 }
 
-static void store_txmixb(struct chan_usbradio_pvt *o, char *s)
+static void store_txmixb(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->txmixb = TX_OUT_OFF;
@@ -2750,7 +2750,7 @@ static void store_txmixb(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxcdtype(struct chan_usbradio_pvt *o, char *s)
+static void store_rxcdtype(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no")){
 		o->rxcdtype = CD_IGNORE;
@@ -2775,7 +2775,7 @@ static void store_rxcdtype(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxsdtype(struct chan_usbradio_pvt *o, char *s)
+static void store_rxsdtype(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no") || !strcasecmp(s,"SD_IGNORE")){
 		o->rxsdtype = SD_IGNORE;
@@ -2797,7 +2797,7 @@ static void store_rxsdtype(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxgain(struct chan_usbradio_pvt *o, char *s)
+static void store_rxgain(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s, "%30f", &f); 
@@ -2806,7 +2806,7 @@ static void store_rxgain(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxvoiceadj(struct chan_usbradio_pvt *o, char *s)
+static void store_rxvoiceadj(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s, "%30f", &f);
@@ -2815,7 +2815,7 @@ static void store_rxvoiceadj(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_rxctcssadj(struct chan_usbradio_pvt *o, char *s)
+static void store_rxctcssadj(struct chan_usbradio_pvt *o, const char *s)
 {
 	float f;
 	sscanf(s, "%30f", &f);
@@ -2824,7 +2824,7 @@ static void store_rxctcssadj(struct chan_usbradio_pvt *o, char *s)
 }
 /*
 */
-static void store_txtoctype(struct chan_usbradio_pvt *o, char *s)
+static void store_txtoctype(struct chan_usbradio_pvt *o, const char *s)
 {
 	if (!strcasecmp(s,"no") || !strcasecmp(s,"TOC_NONE")){
 		o->txtoctype = TOC_NONE;
