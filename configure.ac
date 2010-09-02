@@ -60,6 +60,7 @@ case "${host_os}" in
      ;;
      darwin*)
      AC_DEFINE([AST_POLL_COMPAT], 1, [Define to 1 if internal poll should be used.])
+     AC_DEFINE([_DARWIN_UNLIMITED_SELECT], 1, [Define to 1 if running on Darwin.])
      ;;
      *)
      AC_PREFIX_DEFAULT([/usr])
@@ -466,7 +467,7 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob htonll ioperm inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap ntohll newlocale putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv utime vasprintf getpeereid sysctl swapctl])
+AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob htonll ioperm inet_ntoa isascii memchr memmove memset mkdir munmap ntohll newlocale ppoll putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv utime vasprintf getpeereid sysctl swapctl])
 
 # NOTE: we use AC_CHECK_LIB to get -lm into the arguments for later checks,
 # so that AC_CHECK_FUNCS can detect functions in that library.
@@ -740,6 +741,48 @@ AC_RUN_IFELSE(
 	# It's unlikely an embedded system will have this.
 	AC_MSG_RESULT(unknown)
 )
+
+AC_MSG_CHECKING(if we can increase the maximum select-able file descriptor)
+AC_RUN_IFELSE(
+AC_LANG_PROGRAM([
+#include <stdio.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <string.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+], [[
+	struct rlimit rlim = { FD_SETSIZE * 2, FD_SETSIZE * 2 };
+	int fd0, fd1;
+	struct timeval tv = { 0, };
+	struct ast_fdset { long fds_bits[[1024]]; } fds = { { 0, } };
+	if (setrlimit(RLIMIT_NOFILE, &rlim)) { exit(1); }
+	if ((fd0 = open("/dev/null", O_RDONLY)) < 0) { exit(1); }
+	if (dup2(fd0, (fd1 = FD_SETSIZE + 1)) < 0) { exit(1); }
+	FD_SET(fd0, (fd_set *) &fds);
+	FD_SET(fd1, (fd_set *) &fds);
+	if (select(FD_SETSIZE + 2, (fd_set *) &fds, NULL, NULL, &tv) < 0) { exit(1); }
+	exit(0)]]),
+	AC_MSG_RESULT(yes)
+	AC_DEFINE([HAVE_VARIABLE_FDSET], 1, [Define to 1 if your system can support larger than default select bitmasks.]),
+	AC_MSG_RESULT(no),
+	AC_MSG_RESULT(cross-compile)
+)
+
+if test "${ac_cv_have_variable_fdset}x" = "0x"; then
+	AC_RUN_IFELSE(
+		AC_LANG_PROGRAM([
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdlib.h>
+], [if (getuid() != 0) { exit(1); }]),
+		AC_DEFINE([CONFIGURE_RAN_AS_ROOT], 1, [Some configure tests will unexpectedly fail if configure is run by a non-root user.  These may be able to be tested at runtime.]))
+fi
 
 AST_GCC_ATTRIBUTE(pure)
 AST_GCC_ATTRIBUTE(malloc)

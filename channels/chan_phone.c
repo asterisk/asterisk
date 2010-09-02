@@ -1017,12 +1017,12 @@ static void phone_check_exception(struct phone_pvt *i)
 
 static void *do_monitor(void *data)
 {
-	fd_set rfds, efds;
-	int n, res;
+	struct pollfd *fds = NULL;
+	int nfds = 0, inuse_fds = 0, res;
 	struct phone_pvt *i;
 	int tonepos = 0;
 	/* The tone we're playing this round */
-	struct timeval wait = {0,0};
+	struct timeval tv = { 0, 0 };
 	int dotone;
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
@@ -1036,33 +1036,38 @@ static void *do_monitor(void *data)
 		}
 		/* Build the stuff we're going to select on, that is the socket of every
 		   phone_pvt that does not have an associated owner channel */
-		n = -1;
-		FD_ZERO(&rfds);
-		FD_ZERO(&efds);
 		i = iflist;
 		dotone = 0;
-		while (i) {
-			if (FD_ISSET(i->fd, &rfds)) 
-				ast_log(LOG_WARNING, "Descriptor %d appears twice (%s)?\n", i->fd, i->dev);
+		inuse_fds = 0;
+		for (i = iflist; i; i = i->next) {
 			if (!i->owner) {
 				/* This needs to be watched, as it lacks an owner */
-				FD_SET(i->fd, &rfds);
-				FD_SET(i->fd, &efds);
-				if (i->fd > n)
-					n = i->fd;
+				if (inuse_fds == nfds) {
+					void *tmp = ast_realloc(fds, (nfds + 1) * sizeof(*fds));
+					if (!tmp) {
+						/* Avoid leaking */
+						continue;
+					}
+					fds = tmp;
+					nfds++;
+				}
+				fds[inuse_fds].fd = i->fd;
+				fds[inuse_fds].events = POLLIN | POLLERR;
+				fds[inuse_fds].revents = 0;
+				inuse_fds++;
+
 				if (i->dialtone && i->mode != MODE_SIGMA) {
 					/* Remember we're going to have to come back and play
 					   more dialtones */
-					if (ast_tvzero(wait)) {
+					if (ast_tvzero(tv)) {
 						/* If we're due for a dialtone, play one */
-						if (write(i->fd, DialTone + tonepos, 240) != 240)
+						if (write(i->fd, DialTone + tonepos, 240) != 240) {
 							ast_log(LOG_WARNING, "Dial tone write error\n");
+						}
 					}
 					dotone++;
 				}
 			}
-			
-			i = i->next;
 		}
 		/* Okay, now that we know what to do, release the interface lock */
 		ast_mutex_unlock(&iflock);
@@ -1071,26 +1076,28 @@ static void *do_monitor(void *data)
 		if (dotone && i && i->mode != MODE_SIGMA) {
 			/* If we're ready to recycle the time, set it to 30 ms */
 			tonepos += 240;
-			if (tonepos >= sizeof(DialTone))
-					tonepos = 0;
-			if (ast_tvzero(wait)) {
-				wait = ast_tv(30000, 0);
+			if (tonepos >= sizeof(DialTone)) {
+				tonepos = 0;
 			}
-			res = ast_select(n + 1, &rfds, NULL, &efds, &wait);
+			if (ast_tvzero(tv)) {
+				tv = ast_tv(0, 30000);
+			}
+			res = ast_poll2(fds, inuse_fds, &tv);
 		} else {
-			res = ast_select(n + 1, &rfds, NULL, &efds, NULL);
-			wait = ast_tv(0,0);
+			res = ast_poll(fds, inuse_fds, -1);
+			tv = ast_tv(0, 0);
 			tonepos = 0;
 		}
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 0) {
-			ast_debug(1, "select return %d: %s\n", res, strerror(errno));
+			ast_debug(1, "poll returned %d: %s\n", res, strerror(errno));
 			continue;
 		}
 		/* If there are no fd's changed, just continue, it's probably time
 		   to play some more dialtones */
-		if (!res)
+		if (!res) {
 			continue;
+		}
 		/* Alright, lock the interface list again, and let's look and see what has
 		   happened */
 		if (ast_mutex_lock(&iflock)) {
@@ -1098,15 +1105,27 @@ static void *do_monitor(void *data)
 			continue;
 		}
 
-		i = iflist;
-		for(; i; i=i->next) {
-			if (FD_ISSET(i->fd, &rfds)) {
+		for (i = iflist; i; i = i->next) {
+			int j;
+			/* Find the record */
+			for (j = 0; j < inuse_fds; j++) {
+				if (fds[j].fd == i->fd) {
+					break;
+				}
+			}
+
+			/* Not found? */
+			if (j == inuse_fds) {
+				continue;
+			}
+
+			if (fds[j].revents & POLLIN) {
 				if (i->owner) {
 					continue;
 				}
 				phone_mini_packet(i);
 			}
-			if (FD_ISSET(i->fd, &efds)) {
+			if (fds[j].revents & POLLERR) {
 				if (i->owner) {
 					continue;
 				}
@@ -1116,7 +1135,6 @@ static void *do_monitor(void *data)
 		ast_mutex_unlock(&iflock);
 	}
 	return NULL;
-	
 }
 
 static int restart_monitor()

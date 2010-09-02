@@ -113,9 +113,9 @@ const char *ais_err2str(SaAisErrorT error)
 
 static void *dispatch_thread_handler(void *data)
 {
-	SaSelectionObjectT clm_fd, evt_fd, max_fd;
+	SaSelectionObjectT clm_fd, evt_fd;
 	int res;
-	fd_set read_fds;
+	struct pollfd pfd[2] = { { .events = POLLIN, }, { .events = POLLIN, } };
 	SaAisErrorT ais_res;
 
 	ais_res = saClmSelectionObjectGet(clm_handle, &clm_fd);
@@ -132,24 +132,26 @@ static void *dispatch_thread_handler(void *data)
 		return NULL;
 	}
 
-	max_fd = clm_fd > evt_fd ? clm_fd : evt_fd;
+	pfd[0].fd = clm_fd;
+	pfd[1].fd = evt_fd;
 
 	while (!dispatch_thread.stop) {
-		FD_ZERO(&read_fds);
-		FD_SET(clm_fd,  &read_fds);
-		FD_SET(evt_fd,  &read_fds);
+		pfd[0].revents = 0;
+		pfd[1].revents = 0;
 
-		res = ast_select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+		res = ast_poll(pfd, 2, -1);
 		if (res == -1 && errno != EINTR && errno != EAGAIN) {
 			ast_log(LOG_ERROR, "Select error (%s) dispatch thread going away now, "
 				"and the module will no longer operate.\n", strerror(errno));
 			break;
 		}
 
-		if (FD_ISSET(clm_fd,  &read_fds))
+		if (pfd[0].revents & POLLIN) {
 			saClmDispatch(clm_handle,   SA_DISPATCH_ALL);
-		if (FD_ISSET(evt_fd,  &read_fds))
+		}
+		if (pfd[1].revents & POLLIN) {
 			saEvtDispatch(evt_handle,   SA_DISPATCH_ALL);
+		}
 	}
 
 	return NULL;

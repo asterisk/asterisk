@@ -7160,15 +7160,14 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 static struct ast_frame *misdn_read(struct ast_channel *ast)
 {
 	struct chan_list *tmp;
-	fd_set rrfs;
-	struct timeval tv = { 0, 20000 };
 	int len, t;
+	struct pollfd pfd = { .fd = -1, .events = POLLIN };
 
 	if (!ast) {
 		chan_misdn_log(1, 0, "misdn_read called without ast\n");
 		return NULL;
 	}
- 	if (!(tmp = MISDN_ASTERISK_TECH_PVT(ast))) {
+	if (!(tmp = MISDN_ASTERISK_TECH_PVT(ast))) {
 		chan_misdn_log(1, 0, "misdn_read called without ast->pvt\n");
 		return NULL;
 	}
@@ -7178,21 +7177,18 @@ static struct ast_frame *misdn_read(struct ast_channel *ast)
 		return NULL;
 	}
 
-	FD_ZERO(&rrfs);
-	FD_SET(tmp->pipe[0], &rrfs);
-
-	t = select(FD_SETSIZE, &rrfs, NULL, NULL, &tv);
-	if (!t) {
-		chan_misdn_log(3, tmp->bc->port, "read Select Timed out\n");
-		len = 160;
-	}
+	pfd.fd = tmp->pipe[0];
+	t = ast_poll(&pfd, 1, 20);
 
 	if (t < 0) {
-		chan_misdn_log(-1, tmp->bc->port, "Select Error (err=%s)\n", strerror(errno));
+		chan_misdn_log(-1, tmp->bc->port, "poll() error (err=%s)\n", strerror(errno));
 		return NULL;
 	}
 
-	if (FD_ISSET(tmp->pipe[0], &rrfs)) {
+	if (!t) {
+		chan_misdn_log(3, tmp->bc->port, "poll() timed out\n");
+		len = 160;
+	} else if (pfd.revents & POLLIN) {
 		len = read(tmp->pipe[0], tmp->ast_rd_buf, sizeof(tmp->ast_rd_buf));
 
 		if (len <= 0) {
@@ -10456,25 +10452,21 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				ast_queue_frame(ch->ast, &frame);
 			}
 		} else {
-			fd_set wrfs;
-			struct timeval tv = { 0, 0 };
+			struct pollfd pfd = { .fd = ch->pipe[1], .events = POLLOUT };
 			int t;
 
-			FD_ZERO(&wrfs);
-			FD_SET(ch->pipe[1], &wrfs);
-
-			t = select(FD_SETSIZE, NULL, &wrfs, NULL, &tv);
-			if (!t) {
-				chan_misdn_log(9, bc->port, "Select Timed out\n");
-				break;
-			}
+			t = ast_poll(&pfd, 1, 0);
 
 			if (t < 0) {
-				chan_misdn_log(-1, bc->port, "Select Error (err=%s)\n", strerror(errno));
+				chan_misdn_log(-1, bc->port, "poll() error (err=%s)\n", strerror(errno));
+				break;
+			}
+			if (!t) {
+				chan_misdn_log(9, bc->port, "poll() timed out\n");
 				break;
 			}
 
-			if (FD_ISSET(ch->pipe[1], &wrfs)) {
+			if (pfd.revents & POLLOUT) {
 				chan_misdn_log(9, bc->port, "writing %d bytes to asterisk\n", bc->bframe_len);
 				if (write(ch->pipe[1], bc->bframe, bc->bframe_len) <= 0) {
 					chan_misdn_log(0, bc->port, "Write returned <=0 (err=%s) --> hanging up channel\n", strerror(errno));
