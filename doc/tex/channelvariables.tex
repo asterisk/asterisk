@@ -1044,10 +1044,23 @@ ${OSPINAUDIOQOS}        The inbound call leg audio QoS string.
 ${OSPOUTAUDIOQOS}       The outbound call leg audio QoS string.
 \end{verbatim}
 
-\subsection{Connected line digit manipulation}
+\subsection{Digit manipulation}
 \begin{verbatim}
-${CONNECTED_LINE_SEND_CALLEE_MACRO}        Macro to call before sending a connected line update to the callee
-${CONNECTED_LINE_SEND_CALLEE_MACRO_ARGS}   Arguments to pass to ${CONNECTED_LINE_SEND_CALLEE_MACRO}
-${CONNECTED_LINE_SEND_CALLER_MACRO}        Macro to call before sending a connected line update to the caller
-${CONNECTED_LINE_SEND_CALLER_MACRO_ARGS}   Arguments to pass to ${CONNECTED_LINE_SEND_CALLER_MACRO}
+${REDIRECTING_SEND_CALLEE_MACRO}
+  Macro to call before sending a redirecting update to the callee
+${REDIRECTING_SEND_CALLEE_MACRO_ARGS}
+  Arguments to pass to ${REDIRECTING_SEND_CALLEE_MACRO}
+${REDIRECTING_SEND_CALLER_MACRO}
+  Macro to call before sending a redirecting update to the caller
+${REDIRECTING_SEND_CALLER_MACRO_ARGS}
+  Arguments to pass to ${REDIRECTING_SEND_CALLER_MACRO}
+
+${CONNECTED_LINE_SEND_CALLEE_MACRO}
+  Macro to call before sending a connected line update to the callee
+${CONNECTED_LINE_SEND_CALLEE_MACRO_ARGS}
+  Arguments to pass to ${CONNECTED_LINE_SEND_CALLEE_MACRO}
+${CONNECTED_LINE_SEND_CALLER_MACRO}
+  Macro to call before sending a connected line update to the caller
+${CONNECTED_LINE_SEND_CALLER_MACRO_ARGS}
+  Arguments to pass to ${CONNECTED_LINE_SEND_CALLER_MACRO}
 \end{verbatim}
