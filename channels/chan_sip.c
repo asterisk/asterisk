@@ -3600,10 +3600,6 @@ static int __sip_autodestruct(const void *data)
 		}
 	}
 
-	if (p->relatedpeer) {
-		p->relatedpeer = unref_peer(p->relatedpeer, "__sip_autodestruct: unref peer p->relatedpeer");	/* Remove link to peer. If it's realtime, make sure it's gone from memory) */
-	}
-
 	/* Reset schedule ID */
 	p->autokillid = -1;
 
