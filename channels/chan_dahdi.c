@@ -13734,25 +13734,36 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		ast_cli(a->fd, "No PRI running on span %d\n", span);
 		return CLI_SUCCESS;
 	}
+
+	/* Set debug level in libpri */
 	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
-		if (pris[span-1].pri.dchans[x]) {
-			if (level == 1) {
-				pri_set_debug(pris[span-1].pri.dchans[x], SIG_PRI_DEBUG_NORMAL);
-				ast_cli(a->fd, "Enabled debugging on span %d\n", span);
-			} else if (level == 0) {
-				pri_set_debug(pris[span-1].pri.dchans[x], 0);
-				/* close the file if it's set */
-				ast_mutex_lock(&pridebugfdlock);
-				close(pridebugfd);
-				pridebugfd = -1;
-				ast_cli(a->fd, "PRI debug output to file disabled\n");
-				ast_mutex_unlock(&pridebugfdlock);
-			} else {
-				pri_set_debug(pris[span-1].pri.dchans[x], SIG_PRI_DEBUG_INTENSE);
-				ast_cli(a->fd, "Enabled debugging on span %d\n", span);
+		if (pris[span - 1].pri.dchans[x]) {
+			switch (level) {
+			case 0:
+				pri_set_debug(pris[span - 1].pri.dchans[x], 0);
+				break;
+			case 1:
+				pri_set_debug(pris[span - 1].pri.dchans[x], SIG_PRI_DEBUG_NORMAL);
+				break;
+			default:
+				pri_set_debug(pris[span - 1].pri.dchans[x], SIG_PRI_DEBUG_INTENSE);
+				break;
 			}
 		}
 	}
+	if (level == 0) {
+		/* Close the debugging file if it's set */
+		ast_mutex_lock(&pridebugfdlock);
+		if (0 <= pridebugfd) {
+			close(pridebugfd);
+			pridebugfd = -1;
+			ast_cli(a->fd, "Disabled PRI debug output to file '%s'\n",
+				pridebugfilename);
+		}
+		ast_mutex_unlock(&pridebugfdlock);
+	}
+	pris[span - 1].pri.debug = (level) ? 1 : 0;
+	ast_cli(a->fd, "%s debugging on span %d\n", (level) ? "Enabled" : "Disabled", span);
 	return CLI_SUCCESS;
 }
 #endif	/* defined(HAVE_PRI) */
@@ -13969,7 +13980,7 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 	int x;
 	int span;
 	int count=0;
-	int debug=0;
+	int debug;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -13985,7 +13996,6 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 	for (span = 0; span < NUM_SPANS; span++) {
 		if (pris[span].pri.pri) {
 			for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
-				debug = 0;
 				if (pris[span].pri.dchans[x]) {
 					debug = pri_get_debug(pris[span].pri.dchans[x]);
 					ast_cli(a->fd, "Span %d: Debug: %s\tIntense: %s\n", span+1, (debug&PRI_DEBUG_Q931_STATE)? "Yes" : "No" ,(debug&PRI_DEBUG_Q921_RAW)? "Yes" : "No" );
@@ -14001,7 +14011,7 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 	ast_mutex_unlock(&pridebugfdlock);
 
 	if (!count)
-		ast_cli(a->fd, "No debug set or no PRI running\n");
+		ast_cli(a->fd, "No PRI running\n");
 	return CLI_SUCCESS;
 }
 #endif	/* defined(HAVE_PRI) */

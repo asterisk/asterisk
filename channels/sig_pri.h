@@ -389,7 +389,7 @@ struct sig_pri_span {
 	int num_call_waiting_calls;
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 	int dchanavail[SIG_PRI_NUM_DCHANS];		/*!< Whether each channel is available */
-	int debug;								/*!< set to true if to dump PRI event info (tested but never set) */
+	int debug;								/*!< set to true if to dump PRI event info */
 	int span;								/*!< span number put into user output messages */
 	int resetting;							/*!< true if span is being reset/restarted */
 	int resetpos;							/*!< current position during a reset (-1 if not started) */

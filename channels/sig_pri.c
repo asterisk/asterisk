@@ -4176,36 +4176,36 @@ static void *pri_dchannel(void *vpri)
 			}
 		}
 		/* Start with reasonable max */
-		lowest = ast_tv(60, 0);
+		if (doidling || pri->resetting) {
+			/*
+			 * Make sure we stop at least once per second if we're
+			 * monitoring idle channels
+			 */
+			lowest = ast_tv(1, 0);
+		} else {
+			/* Don't poll for more than 60 seconds */
+			lowest = ast_tv(60, 0);
+		}
 		for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
-			/* Find lowest available d-channel */
-			if (!pri->dchans[i])
+			if (!pri->dchans[i]) {
+				/* We scanned all D channels on this span. */
 				break;
-			if ((next = pri_schedule_next(pri->dchans[i]))) {
+			}
+			next = pri_schedule_next(pri->dchans[i]);
+			if (next) {
 				/* We need relative time here */
 				tv = ast_tvsub(*next, ast_tvnow());
 				if (tv.tv_sec < 0) {
-					tv = ast_tv(0,0);
+					/*
+					 * A timer has already expired.
+					 * By definition zero time is the lowest so we can quit early.
+					 */
+					lowest = ast_tv(0, 0);
+					break;
 				}
-				if (doidling || pri->resetting) {
-					if (tv.tv_sec > 1) {
-						tv = ast_tv(1, 0);
-					}
-				} else {
-					if (tv.tv_sec > 60) {
-						tv = ast_tv(60, 0);
-					}
+				if (ast_tvcmp(tv, lowest) < 0) {
+					lowest = tv;
 				}
-			} else if (doidling || pri->resetting) {
-				/* Make sure we stop at least once per second if we're
-				   monitoring idle channels */
-				tv = ast_tv(1,0);
-			} else {
-				/* Don't poll for more than 60 seconds */
-				tv = ast_tv(60, 0);
-			}
-			if (!i || ast_tvcmp(tv, lowest) < 0) {
-				lowest = tv;
 			}
 		}
 		ast_mutex_unlock(&pri->lock);
@@ -4243,8 +4243,10 @@ static void *pri_dchannel(void *vpri)
 			ast_log(LOG_WARNING, "pri_event returned error %d (%s)\n", errno, strerror(errno));
 
 		if (e) {
-			if (pri->debug)
-				pri_dump_event(pri->dchans[which], e);
+			if (pri->debug) {
+				ast_verbose("Span: %d Processing event: %s\n",
+					pri->span, pri_event2str(e->e));
+			}
 
 			if (e->e != PRI_EVENT_DCHAN_DOWN) {
 				if (!(pri->dchanavail[which] & DCHAN_UP)) {
