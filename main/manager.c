@@ -97,13 +97,22 @@ struct eventqent {
 	char eventdata[1];
 };
 
+static const int DEFAULT_ENABLED			= 0;	/*!< Default setting for manager to be enabled */
+static const int DEFAULT_WEBENABLED			= 0;	/*!< Default setting for the web interface to be enabled */
+static const int DEFAULT_BLOCKSOCKETS		= 0;	/*!< Default setting for block-sockets */
+static const int DEFAULT_DISPLAYCONNECTS	= 1;	/*!< Default setting for displaying manager connections */
+static const int DEFAULT_TIMESTAMPEVENTS	= 0;	/*!< Default setting for timestampevents */	
+static const int DEFAULT_HTTPTIMEOUT 		= 60;	/*!< Default manager http timeout */
+static const int DEFAULT_BROKENEVENTSACTION	= 0;	/*!< Default setting for brokeneventsaction */
+
+
 static int enabled;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
-static int displayconnects = 1;
+static int displayconnects;
 static int timestampevents;
-static int httptimeout = 60;
-static int broken_events_action = 0;
+static int httptimeout;
+static int broken_events_action;
 
 static pthread_t t;
 static int block_sockets;
@@ -3053,8 +3062,8 @@ int init_manager(void)
 	static struct sockaddr_in ba;
 	int x = 1;
 	int flags;
-	int webenabled = 0;
-	int newhttptimeout = 60;
+	int webenabled = DEFAULT_WEBENABLED;
+	int newhttptimeout = DEFAULT_HTTPTIMEOUT;
 	struct ast_manager_user *user = NULL;
 
 	if (!registered) {
@@ -3085,9 +3094,14 @@ int init_manager(void)
 		/* Append placeholder event so master_eventq never runs dry */
 		append_event("Event: Placeholder\r\n\r\n", 0);
 	}
+
 	portno = DEFAULT_MANAGER_PORT;
-	displayconnects = 1;
-	broken_events_action = 0;
+	displayconnects = DEFAULT_DISPLAYCONNECTS;
+	broken_events_action = DEFAULT_BROKENEVENTSACTION;
+	block_sockets = DEFAULT_BLOCKSOCKETS;
+	timestampevents = DEFAULT_TIMESTAMPEVENTS;
+	httptimeout = DEFAULT_HTTPTIMEOUT;
+
 	cfg = ast_config_load("manager.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
