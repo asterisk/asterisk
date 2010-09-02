@@ -4243,8 +4243,10 @@ static void *pri_dchannel(void *vpri)
 			ast_log(LOG_WARNING, "pri_event returned error %d (%s)\n", errno, strerror(errno));
 
 		if (e) {
-			if (pri->debug)
-				pri_dump_event(pri->dchans[which], e);
+			if (pri->debug) {
+				ast_verbose("Span: %d Processing event: %s\n",
+					pri->span, pri_event2str(e->e));
+			}
 
 			if (e->e != PRI_EVENT_DCHAN_DOWN) {
 				if (!(pri->dchanavail[which] & DCHAN_UP)) {
