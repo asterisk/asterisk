@@ -87,6 +87,9 @@ enum {
 	XML_EVENT_ATTENDEE,
 	XML_EVENT_MAILBOX,
 	XML_EVENT_EMAIL_ADDRESS,
+	XML_EVENT_CATEGORIES,
+	XML_EVENT_CATEGORY,
+	XML_EVENT_IMPORTANCE,
 };
 
 struct ewscal_pvt {
@@ -271,6 +274,23 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 		}
 		ast_str_reset(ctx->cdata);
 		return XML_EVENT_LOCATION;
+	} else if (!strcmp(name, "Categories")) {
+		/* Event categories */
+		if (!ctx->cdata) {
+			return NE_XML_ABORT;
+		}
+		ast_str_reset(ctx->cdata);
+		return XML_EVENT_CATEGORIES;
+	} else if (parent == XML_EVENT_CATEGORIES && !strcmp(name, "String")) {
+		/* Event category */
+		return XML_EVENT_CATEGORY;
+	} else if (!strcmp(name, "Importance")) {
+		/* Event importance (priority) */
+		if (!ctx->cdata) {
+			return NE_XML_ABORT;
+		}
+		ast_str_reset(ctx->cdata);
+		return XML_EVENT_IMPORTANCE;
 	} else if (!strcmp(name, "RequiredAttendees") || !strcmp(name, "OptionalAttendees")) {
 		return XML_EVENT_ATTENDEE_LIST;
 	} else if (!strcmp(name, "Attendee") && parent == XML_EVENT_ATTENDEE_LIST) {
@@ -331,6 +351,13 @@ static int cdata(void *userdata, int state, const char *cdata, size_t len)
 			ctx->event->busy_state = AST_CALENDAR_BS_FREE;
 		}
 		break;
+	case XML_EVENT_CATEGORY:
+		if (ast_str_strlen(ctx->cdata) == 0) {
+			ast_str_set(&ctx->cdata, 0, "%s", data);
+		} else {
+			ast_str_append(&ctx->cdata, 0, ",%s", data);
+		}
+		break;
 	default:
 		ast_str_append(&ctx->cdata, 0, "%s", data);
 	}
@@ -363,6 +390,22 @@ static int endelm(void *userdata, int state, const char *nspace, const char *nam
 		/* Event location end */
 		ast_string_field_set(ctx->event, location, ast_str_buffer(ctx->cdata));
 		ast_debug(3, "EWS: XML: Location: %s\n", ctx->event->location);
+		ast_str_reset(ctx->cdata);
+	} else if (!strcmp(name, "Categories")) {
+		/* Event categories end */
+		ast_string_field_set(ctx->event, categories, ast_str_buffer(ctx->cdata));
+		ast_debug(3, "EWS: XML: Categories: %s\n", ctx->event->categories);
+		ast_str_reset(ctx->cdata);
+	} else if (!strcmp(name, "Importance")) {
+		/* Event importance end */
+		if (!strcmp(ast_str_buffer(ctx->cdata), "Low")) {
+			ctx->event->priority = 9;
+		} else if (!strcmp(ast_str_buffer(ctx->cdata), "Normal")) {
+			ctx->event->priority = 5;
+		} else if (!strcmp(ast_str_buffer(ctx->cdata), "High")) {
+			ctx->event->priority = 1;
+		}
+		ast_debug(3, "EWS: XML: Importance: %s (%d)\n", ast_str_buffer(ctx->cdata), ctx->event->priority);
 		ast_str_reset(ctx->cdata);
 	} else if (state == XML_EVENT_EMAIL_ADDRESS) {
 		struct ast_calendar_attendee *attendee;
@@ -501,6 +544,7 @@ static int ewscal_write_event(struct ast_calendar_event *event)
 		.pvt = pvt,
 	};
 	int ret;
+	char *category, *categories;
 
 	if (!pvt) {
 		return -1;
@@ -531,12 +575,7 @@ static int ewscal_write_event(struct ast_calendar_event *event)
 						"<End>%s</End>"
 						"<IsAllDayEvent>false</IsAllDayEvent>"
 						"<LegacyFreeBusyStatus>%s</LegacyFreeBusyStatus>"
-						"<Location>%s</Location>"
-					"</t:CalendarItem>"
-				"</Items>"
-			"</CreateItem>"
-		"</soap:Body>"
-		"</soap:Envelope>",
+						"<Location>%s</Location>",
 		event->summary,
 		event->description,
 		mstime(event->start, start, sizeof(start)),
@@ -544,6 +583,37 @@ static int ewscal_write_event(struct ast_calendar_event *event)
 		msstatus(event->busy_state),
 		event->location
 	);
+	/* Event priority */
+	switch (event->priority) {
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		ast_str_append(&request, 0, "<Importance>High</Importance>");
+		break;
+	case 5:
+		ast_str_append(&request, 0, "<Importance>Normal</Importance>");
+		break;
+	case 6:
+	case 7:
+	case 8:
+	case 9:
+		ast_str_append(&request, 0, "<Importance>Low</Importance>");
+		break;
+	}
+	/* Event categories*/
+	if (strlen(event->categories) > 0) {
+		ast_str_append(&request, 0, "<Categories>");
+		categories = strdupa(event->categories);	/* Duplicate string, since strsep() is destructive */
+		category = strsep(&categories, ",");
+		while (category != NULL) {
+			ast_str_append(&request, 0, "<String>%s</String>", category);
+			category = strsep(&categories, ",");
+		}
+		ast_str_append(&request, 0, "</Categories>");
+	}
+	/* Finish request */
+	ast_str_append(&request, 0, "</t:CalendarItem></Items></CreateItem></soap:Body></soap:Envelope>");
 
 	ret = send_ews_request_and_parse(request, &ctx);
 

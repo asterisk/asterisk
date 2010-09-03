@@ -216,6 +216,12 @@ static int caldav_write_event(struct ast_calendar_event *event)
 	if (!ast_strlen_zero(event->location)) {
 		icalcomponent_add_property(icalevent, icalproperty_new_location(event->location));
 	}
+	if (!ast_strlen_zero(event->categories)) {
+		icalcomponent_add_property(icalevent, icalproperty_new_categories(event->categories));
+	}
+	if (event->priority > 0) {
+		icalcomponent_add_property(icalevent, icalproperty_new_priority(event->priority));
+	}
 
 	switch (event->busy_state) {
 	case AST_CALENDAR_BS_BUSY:
@@ -363,6 +369,14 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 
 	if ((prop = icalcomponent_get_first_property(comp, ICAL_LOCATION_PROPERTY))) {
 		ast_string_field_set(event, location, icalproperty_get_value_as_string(prop));
+	}
+
+	if ((prop = icalcomponent_get_first_property(comp, ICAL_CATEGORIES_PROPERTY))) {
+		ast_string_field_set(event, categories, icalproperty_get_value_as_string(prop));
+	}
+
+	if ((prop = icalcomponent_get_first_property(comp, ICAL_PRIORITY_PROPERTY))) {
+		event->priority = icalvalue_get_integer(icalproperty_get_value(prop));
 	}
 
 	if ((prop = icalcomponent_get_first_property(comp, ICAL_UID_PROPERTY))) {
