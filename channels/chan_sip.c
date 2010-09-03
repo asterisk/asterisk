@@ -20505,7 +20505,6 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const char *e)
 {
 	int res;
-	struct sip_peer *authpeer = NULL;	/* Matching Peer */
 
 	if (p->lastinvite) {
 		/* if this is a request in an active dialog, just confirm that the dialog exists. */
@@ -20517,7 +20516,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 		/* Do authentication if this OPTIONS request began the dialog */
 		copy_request(&p->initreq, req);
 		set_pvt_allowed_methods(p, req);
-		res = check_user_full(p, req, SIP_OPTIONS, e, XMIT_UNRELIABLE, addr, &authpeer);
+		res = check_user(p, req, SIP_OPTIONS, e, XMIT_UNRELIABLE, addr);
 		if (res == AUTH_CHALLENGE_SENT) {
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return 0;
