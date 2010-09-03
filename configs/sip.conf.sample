@@ -370,13 +370,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; the ability of an attacker to scan for valid SIP usernames.
                                 ; This option is set to "yes" by default.
 
-;auth_options_requests = no     ; sip OPTIONS requests should be treated the exact same as
-                                ; an INVITE, this includes performing authentication.  By default
-                                ; OPTIONS requests are authenticated, however this option allows
-                                ; OPTION requests to proceed unauthenticated in order to increase
-                                ; performance. This may be desirable if OPTIONS are only used to
-                                ; qualify the availabilty of the endpoint/extension.  Disabling
-                                ; this option is not recommended.
+;auth_options_requests = yes    ; Enabling this option will authenticate OPTIONS requests just like
+                                ; INVITE requests are.  By default this option is disabled.
 
 ;g726nonstandard = yes          ; If the peer negotiates G726-32 audio, use AAL2 packing
                                 ; order instead of RFC3551 packing order (this is required
