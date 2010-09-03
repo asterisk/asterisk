@@ -224,6 +224,14 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 		ast_string_field_set(event, location, icalproperty_get_value_as_string(prop));
 	}
 
+	if ((prop = icalcomponent_get_first_property(comp, ICAL_CATEGORIES_PROPERTY))) {
+		ast_string_field_set(event, categories, icalproperty_get_value_as_string(prop));
+	}
+
+	if ((prop = icalcomponent_get_first_property(comp, ICAL_PRIORITY_PROPERTY))) {
+		event->priority = icalvalue_get_integer(icalproperty_get_value(prop));
+	}
+
 	if ((prop = icalcomponent_get_first_property(comp, ICAL_UID_PROPERTY))) {
 		ast_string_field_set(event, uid, icalproperty_get_value_as_string(prop));
 	} else {
