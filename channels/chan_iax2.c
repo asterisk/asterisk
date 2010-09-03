@@ -7047,13 +7047,14 @@ static int manager_iax2_show_registry(struct mansession *s, const struct message
 		
 		astman_append(s,
 			"Event: RegistryEntry\r\n"
+			"%s"
 			"Host: %s\r\n"
 			"DNSmanager: %s\r\n"
 			"Username: %s\r\n"
 			"Perceived: %s\r\n"
 			"Refresh: %d\r\n"
 			"State: %s\r\n"
-			"\r\n", host, (reg->dnsmgr) ? "Y" : "N", reg->username, perceived, 
+			"\r\n", idtext, host, (reg->dnsmgr) ? "Y" : "N", reg->username, perceived, 
 			reg->refresh, regstate2str(reg->regstate));
 
 		total++;
