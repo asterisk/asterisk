@@ -544,6 +544,7 @@ static int ewscal_write_event(struct ast_calendar_event *event)
 		.pvt = pvt,
 	};
 	int ret;
+	char *category, *categories;
 
 	if (!pvt) {
 		return -1;
@@ -603,8 +604,8 @@ static int ewscal_write_event(struct ast_calendar_event *event)
 	/* Event categories*/
 	if (strlen(event->categories) > 0) {
 		ast_str_append(&request, 0, "<Categories>");
-		char *categories = strdupa(event->categories);	/* Duplicate string, since strsep() is destructive */
-		char *category = strsep(&categories, ",");
+		categories = strdupa(event->categories);	/* Duplicate string, since strsep() is destructive */
+		category = strsep(&categories, ",");
 		while (category != NULL) {
 			ast_str_append(&request, 0, "<String>%s</String>", category);
 			category = strsep(&categories, ",");
