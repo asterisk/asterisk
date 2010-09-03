@@ -26405,7 +26405,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.notifyhold = FALSE;		/*!< Keep track of hold status for a peer */
 	sip_cfg.directrtpsetup = FALSE;		/* Experimental feature, disabled by default */
 	sip_cfg.alwaysauthreject = DEFAULT_ALWAYSAUTHREJECT;
-	sip_cfg.auth_options_requests = 1;
+	sip_cfg.auth_options_requests = DEFAULT_AUTH_OPTIONS;
 	sip_cfg.allowsubscribe = FALSE;
 	sip_cfg.disallowed_methods = SIP_UNKNOWN;
 	sip_cfg.contact_ha = NULL;		/* Reset the contact ACL */
@@ -26647,8 +26647,8 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			sip_cfg.alwaysauthreject = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "auth_options_requests")) {
-			if (ast_false(v->value)) {
-				sip_cfg.auth_options_requests = 0;
+			if (ast_true(v->value)) {
+				sip_cfg.auth_options_requests = 1;
 			}
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
 			ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
