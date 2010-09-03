@@ -83,6 +83,9 @@ SIP Changes
    available in device configurations as well as in the dial plan.
  * Addition of the 'subscribe_network_change' option for turning on and off
    res_stun_monitor module support in chan_sip.
+ * Addition of the 'auth_options_requests' option for turning on and off
+   authentication for OPTIONS requests in chan_sip.
+
 
 IAX2 Changes
 -----------

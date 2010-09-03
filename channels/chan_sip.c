@@ -1512,7 +1512,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_message(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int seqno, const char *e);
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
-static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
+static int handle_request_options(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const char *e);
 static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct ast_sockaddr *addr, int *nounlock);
 static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int seqno, const char *e);
 static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno, int *nounlock);
@@ -7054,6 +7054,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		char *sent_by, *branch;
 		const char *cseq = get_header(req, "Cseq");
 		unsigned int seqno;
+
 		/* get branch parameter from initial Request that started this dialog */
 		get_viabranch(ast_strdupa(get_header(req, "Via")), &sent_by, &branch);
 		/* only store the branch if it begins with the magic prefix "z9hG4bK", otherwise
@@ -7068,7 +7069,8 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		if (!ast_strlen_zero(cseq) && (sscanf(cseq, "%30u", &seqno) == 1)) {
 			p->init_icseq = seqno;
 		}
-		set_socket_transport(&p->socket, req->socket.type); /* Later in ast_sip_ouraddrfor we need this to choose the right ip and port for the specific transport */
+		/* Later in ast_sip_ouraddrfor we need this to choose the right ip and port for the specific transport */
+		set_socket_transport(&p->socket, req->socket.type);
 	} else {
 		set_socket_transport(&p->socket, SIP_TRANSPORT_UDP);
 	}
@@ -20500,19 +20502,10 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 /*! \brief Handle incoming OPTIONS request
 	An OPTIONS request should be answered like an INVITE from the same UA, including SDP
 */
-static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
+static int handle_request_options(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const char *e)
 {
 	int res;
-
-	/*! XXX get_destination assumes we're already authenticated. This means that a request from
-		a known device (peer) will end up in the wrong context if this is out-of-dialog.
-		However, we want to handle OPTIONS as light as possible, so we might want to have
-		a configuration option whether we care or not. Some devices use this for testing
-		capabilities, which means that we need to match device to answer with proper
-		capabilities (including SDP).
-		\todo Fix handle_request_options device handling with optional authentication
-			(this needs to be fixed in 1.4 as well)
-	*/
+	struct sip_peer *authpeer = NULL;	/* Matching Peer */
 
 	if (p->lastinvite) {
 		/* if this is a request in an active dialog, just confirm that the dialog exists. */
@@ -20520,6 +20513,29 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 		return 0;
 	}
 
+	if (sip_cfg.auth_options_requests) {
+		/* Do authentication if this OPTIONS request began the dialog */
+		copy_request(&p->initreq, req);
+		set_pvt_allowed_methods(p, req);
+		res = check_user_full(p, req, SIP_OPTIONS, e, XMIT_UNRELIABLE, addr, &authpeer);
+		if (res == AUTH_CHALLENGE_SENT) {
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			return 0;
+		}
+		if (res < 0) { /* Something failed in authentication */
+			if (res == AUTH_FAKE_AUTH) {
+				ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", get_header(req, "From"));
+				transmit_fake_auth_response(p, SIP_OPTIONS, req, XMIT_UNRELIABLE);
+			} else {
+				ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", get_header(req, "From"));
+				transmit_response(p, "403 Forbidden", req);
+			}
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			return 0;
+		}
+	}
+
+	/* must go through authentication before getting here */
 	res = (get_destination(p, req, NULL) == SIP_GET_DEST_EXTEN_FOUND ? 0 : -1);
 	build_contact(p);
 
@@ -23546,7 +23562,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 	/* Handle various incoming SIP methods in requests */
 	switch (p->method) {
 	case SIP_OPTIONS:
-		res = handle_request_options(p, req);
+		res = handle_request_options(p, req, addr, e);
 		break;
 	case SIP_INVITE:
 		res = handle_request_invite(p, req, debug, seqno, addr, recount, e, nounlock);
@@ -26390,6 +26406,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.notifyhold = FALSE;		/*!< Keep track of hold status for a peer */
 	sip_cfg.directrtpsetup = FALSE;		/* Experimental feature, disabled by default */
 	sip_cfg.alwaysauthreject = DEFAULT_ALWAYSAUTHREJECT;
+	sip_cfg.auth_options_requests = 1;
 	sip_cfg.allowsubscribe = FALSE;
 	sip_cfg.disallowed_methods = SIP_UNKNOWN;
 	sip_cfg.contact_ha = NULL;		/* Reset the contact ACL */
@@ -26630,6 +26647,10 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			sip_cfg.alwaysauthreject = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "auth_options_requests")) {
+			if (ast_false(v->value)) {
+				sip_cfg.auth_options_requests = 0;
+			}
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
 			ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {

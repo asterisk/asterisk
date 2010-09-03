@@ -674,6 +674,7 @@ struct sip_settings {
 	int srvlookup;              /*!< SRV Lookup on or off. Default is on */
 	int allowguest;             /*!< allow unauthenticated peers to connect? */
 	int alwaysauthreject;       /*!< Send 401 Unauthorized for all failing requests */
+	int auth_options_requests;  /*!< Authenticate OPTIONS requests */
 	int compactheaders;         /*!< send compact sip headers */
 	int allow_external_domains; /*!< Accept calls to external SIP domains? */
 	int callevents;             /*!< Whether we send manager events or not */
