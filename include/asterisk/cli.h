@@ -183,9 +183,13 @@ struct ast_cli_entry {
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };
 
+#if defined(__cplusplus) || defined(c_plusplus)
+#define AST_CLI_DEFINE(fn, txt) { { "" }, txt, NULL, 0, NULL, NULL, 0, 0, NULL, fn }
+#else
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space
  * between the last arg before VA_ARGS and the comma */
 #define AST_CLI_DEFINE(fn, txt , ... )	{ .handler = fn, .summary = txt, ## __VA_ARGS__ }
+#endif
 
 /*!
  * Helper function to generate cli entries from a NULL-terminated array.
