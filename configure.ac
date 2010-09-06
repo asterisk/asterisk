@@ -1857,8 +1857,10 @@ if test "$PBX_SRTP" = "1";
 then
     saved_libs="${LIBS}"
     saved_ldflags="${LDFLAGS}"
-    LIBS="${LIBS} -lsrtp"
+    saved_cflags="${CFLAGS}"
+    LIBS="${LIBS} ${SRTP_LIB}"
     LDFLAGS="${LDFLAGS} -shared -fPIC"
+    CFLAGS="${CFLAGS} ${SRTP_INCLUDE}"
     AC_MSG_CHECKING(for the ability of -lsrtp to be linked in a shared object)
     AC_LINK_IFELSE(
     [
@@ -1883,6 +1885,7 @@ then
     )
     LIBS="${saved_libs}"
     LDFLAGS="${saved_ldflags}"
+    CFLAGS="${saved_cflags}"
 fi
 
 AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
