@@ -88,6 +88,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="channeltype">
 						<para>R/O technology used for channel.</para>
 					</enum>
+					<enum name="checkhangup">
+						<para>1/0 whether the channel is hanging up</para>
+					</enum>
 					<enum name="language">
 						<para>R/W language for sounds played.</para>
 					</enum>
@@ -298,7 +301,11 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, chan->tech->type, len);
 	else if (!strcasecmp(data, "accountcode"))
 		locked_copy_string(chan, buf, chan->accountcode, len);
-	else if (!strcasecmp(data, "peeraccount"))
+	else if (!strcasecmp(data, "checkhangup")) {
+		ast_channel_lock(chan);
+		ast_copy_string(buf, ast_check_hangup(chan) ? "1" : "0", len);
+		ast_channel_unlock(chan);
+	} else if (!strcasecmp(data, "peeraccount"))
 		locked_copy_string(chan, buf, chan->peeraccount, len);
 	else if (!strcasecmp(data, "hangupsource"))
 		locked_copy_string(chan, buf, chan->hangupsource, len);
