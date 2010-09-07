@@ -1493,11 +1493,12 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					}
 					value = strstr(tmp, ",");
 					if (!value) {
-						ast_log(AST_LOG_WARNING, "variable has bad format.\n");
-						break;
+						new = alloca(strlen(newpassword)+1);
+						sprintf(new, "%s", newpassword);
+					} else {
+						new = alloca((strlen(value) + strlen(newpassword) + 1));
+						sprintf(new, "%s%s", newpassword, value);
 					}
-					new = alloca((strlen(value) + strlen(newpassword) + 1));
-					sprintf(new, "%s%s", newpassword, value);
 					if (!(cat = ast_category_get(cfg, category))) {
 						ast_log(AST_LOG_WARNING, "Failed to get category structure.\n");
 						break;
