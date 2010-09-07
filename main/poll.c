@@ -93,7 +93,7 @@ unsigned int ast_FD_SETSIZE = FD_SETSIZE;
 				 Private Functions
 \*---------------------------------------------------------------------------*/
 
-#if defined(AST_POLL_COMPAT) || !defined(HAVE_PPOLL)
+#if defined(AST_POLL_COMPAT)
 static int map_poll_spec(struct pollfd *pArray, unsigned long n_fds,
 		ast_fdset *pReadSet, ast_fdset *pWriteSet, ast_fdset *pExceptSet)
 {
@@ -267,10 +267,14 @@ int ast_internal_poll(struct pollfd *pArray, unsigned long n_fds, int timeout)
 
 int ast_poll2(struct pollfd *pArray, unsigned long n_fds, struct timeval *tv)
 {
-#ifdef HAVE_PPOLL
+#if !defined(AST_POLL_COMPAT)
 	struct timeval start = ast_tvnow();
+#if defined(HAVE_PPOLL)
 	struct timespec ts = { tv ? tv->tv_sec : 0, tv ? tv->tv_usec * 1000 : 0 };
 	int res = ppoll(pArray, n_fds, tv ? &ts : NULL, NULL);
+#else
+	int res = poll(pArray, n_fds, tv ? tv->tv_sec * 1000 + tv->tv_usec / 1000 : -1);
+#endif
 	struct timeval after = ast_tvnow();
 	if (res > 0 && tv && ast_tvdiff_ms(ast_tvadd(*tv, start), after) > 0) {
 		*tv = ast_tvsub(*tv, ast_tvsub(after, start));
