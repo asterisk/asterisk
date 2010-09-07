@@ -6011,7 +6011,7 @@ static int read_config(struct chan_list *ch)
  * \param ast Current Asterisk channel
  * \param id Party id information to send to the other side
  * \param source Why are we sending this update
- * \param cid_tag Caller ID tag to set in the connected line
+ * \param cid_tag User tag to apply to the party id.
  *
  * \return Nothing
  */
@@ -6032,6 +6032,61 @@ static void misdn_queue_connected_line_update(struct ast_channel *ast, const str
 	connected.id.tag = cid_tag;
 	connected.source = source;
 	ast_channel_queue_connected_line_update(ast, &connected, &update_connected);
+}
+
+/*!
+ * \internal
+ * \brief Update the caller id party on this channel.
+ *
+ * \param ast Current Asterisk channel
+ * \param id Remote party id information to update.
+ * \param cid_tag User tag to apply to the party id.
+ *
+ * \return Nothing
+ */
+static void misdn_update_caller_id(struct ast_channel *ast, const struct misdn_party_id *id, char *cid_tag)
+{
+	struct ast_party_caller caller;
+	struct ast_set_party_caller update_caller;
+
+	memset(&update_caller, 0, sizeof(update_caller));
+	update_caller.id.number = 1;
+	update_caller.ani.number = 1;
+
+	ast_channel_lock(ast);
+	ast_party_caller_set_init(&caller, &ast->caller);
+
+	caller.id.number.valid = 1;
+	caller.id.number.str = (char *) id->number;
+	caller.id.number.plan = misdn_to_ast_ton(id->number_type)
+		| misdn_to_ast_plan(id->number_plan);
+	caller.id.number.presentation = misdn_to_ast_pres(id->presentation)
+		| misdn_to_ast_screen(id->screening);
+
+	caller.ani.number = caller.id.number;
+
+	caller.id.tag = cid_tag;
+	caller.ani.tag = cid_tag;
+
+	ast_channel_set_caller_event(ast, &caller, &update_caller);
+	ast_channel_unlock(ast);
+}
+
+/*!
+ * \internal
+ * \brief Update the remote party id information.
+ *
+ * \param ast Current Asterisk channel
+ * \param id Remote party id information to update.
+ * \param source Why are we sending this update
+ * \param cid_tag User tag to apply to the party id.
+ *
+ * \return Nothing
+ */
+static void misdn_update_remote_party(struct ast_channel *ast, const struct misdn_party_id *id, enum AST_CONNECTED_LINE_UPDATE_SOURCE source, char *cid_tag)
+{
+	misdn_update_caller_id(ast, id, cid_tag);
+	misdn_queue_connected_line_update(ast, id, source, cid_tag);
 }
 
 /*!
@@ -9157,7 +9212,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 			 * The consequences if we wind up sending two updates is benign.
 			 * The other end will think that it got transferred twice.
 			 */
-			misdn_queue_connected_line_update(ch->ast, &party_id,
+			misdn_update_remote_party(ch->ast, &party_id,
 				(bc->fac_in.u.EctInform.Status == 0 /* alerting */)
 					? AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING
 					: AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER,
@@ -10229,7 +10284,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			misdn_add_number_prefix(bc->port, bc->connected.number_type, bc->connected.number, sizeof(bc->connected.number));
 
 			/* Update the connected line information on the other channel */
-			misdn_queue_connected_line_update(ch->ast, &bc->connected, AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER, bc->incoming_cid_tag);
+			misdn_update_remote_party(ch->ast, &bc->connected, AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER, bc->incoming_cid_tag);
 		}
 
 		ch->l3id = bc->l3_id;
@@ -10628,7 +10683,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if (bc->redirecting.to_changed) {
 				bc->redirecting.to_changed = 0;
 				if (ch && ch->ast) {
-					misdn_queue_connected_line_update(ch->ast, &bc->redirecting.to,
+					misdn_update_remote_party(ch->ast, &bc->redirecting.to,
 						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING, bc->incoming_cid_tag);
 				}
 			}
@@ -10637,7 +10692,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if (bc->redirecting.to_changed) {
 				bc->redirecting.to_changed = 0;
 				if (ch && ch->ast) {
-					misdn_queue_connected_line_update(ch->ast, &bc->redirecting.to,
+					misdn_update_remote_party(ch->ast, &bc->redirecting.to,
 						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER, bc->incoming_cid_tag);
 				}
 			}
