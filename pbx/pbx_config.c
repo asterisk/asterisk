@@ -2211,8 +2211,11 @@ static int pbx_load_config(const char *config_file)
 					char *pri, *appl, *data, *cidmatch;
 					char *stringp = tc;
 					char *ext = strsep(&stringp, ",");
-					if (!ext)
-						ext="";
+					if (!ext) {
+						ast_log(LOG_WARNING, "Bogus extension at line %d\n", v->lineno);
+						ast_free(tc);
+						continue;
+					}
 					pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 					cidmatch = strchr(realext, '/');
 					if (cidmatch) {
@@ -2220,8 +2223,11 @@ static int pbx_load_config(const char *config_file)
 						ast_shrink_phone_number(cidmatch);
 					}
 					pri = strsep(&stringp, ",");
-					if (!pri)
-						pri="";
+					if (!pri) {
+						ast_log(LOG_WARNING, "Bogus extension at line %d\n", v->lineno);
+						ast_free(tc);
+						continue;
+					}
 					pri = ast_skip_blanks(pri);
 					pri = ast_trim_blanks(pri);
 					label = strchr(pri, '(');
@@ -2234,26 +2240,39 @@ static int pbx_load_config(const char *config_file)
 							ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
 					}
 					plus = strchr(pri, '+');
-					if (plus)
+					if (plus) {
 						*plus++ = '\0';
-					if (!strcmp(pri,"hint"))
-						ipri=PRIORITY_HINT;
-					else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
-						if (lastpri > -2)
+					}
+					if (!strcmp(pri, "hint")) {
+						ipri = PRIORITY_HINT;
+					} else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
+						if (lastpri > -2) {
 							ipri = lastpri + 1;
-						else
-							ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+						} else {
+							ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry at line %d!\n", v->lineno);
+							ast_free(tc);
+							continue;
+						}
 					} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
-						if (lastpri > -2)
+						if (lastpri > -2) {
 							ipri = lastpri;
-						else
-							ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+						} else {
+							ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry at line %d!\n", v->lineno);
+							ast_free(tc);
+							continue;
+						}
 					} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					    (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 						ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 						ipri = 0;
+						ast_free(tc);
+						continue;
 					}
-					appl = S_OR(stringp, "");
+					if (ast_strlen_zero(appl = S_OR(stringp, ""))) {
+						ast_log(LOG_WARNING, "Bogus extension at line %d\n", v->lineno);
+						ast_free(tc);
+						continue;
+					}
 					/* Find the first occurrence of either '(' or ',' */
 					firstc = strchr(appl, ',');
 					firstp = strchr(appl, '(');
