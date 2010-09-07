@@ -16813,6 +16813,10 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "\n\nGlobal Settings:\n");
 	ast_cli(a->fd, "----------------\n");
 	ast_cli(a->fd, "  UDP Bindaddress:        %s\n", ast_sockaddr_stringify(&bindaddr));
+	if (ast_sockaddr_is_ipv6(&bindaddr) && ast_sockaddr_is_any(&bindaddr)) {
+		ast_cli(a->fd, "  ** Additional Info:\n");
+		ast_cli(a->fd, "     [::] may include IPv4 in addition to IPv6, if such a feature is enabled in the OS.\n");
+	}
 	ast_cli(a->fd, "  TCP SIP Bindaddress:    %s\n",
 		sip_cfg.tcp_enabled != FALSE ?
 				ast_sockaddr_stringify(&sip_tcp_desc.local_address) :
