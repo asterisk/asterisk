@@ -1456,15 +1456,15 @@ process_extension:
 					*cidmatch++ = '\0';
 					ast_shrink_phone_number(cidmatch);
 				}
-				pri = S_OR(strsep(&stringp, ","), "");
-				pri = ast_skip_blanks(pri);
-				pri = ast_trim_blanks(pri);
+				pri = ast_strip(S_OR(strsep(&stringp, ","), ""));
 				if ((label = strchr(pri, '('))) {
 					*label++ = '\0';
 					if ((end = strchr(label, ')'))) {
 						*end = '\0';
 					} else {
 						ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+						ast_free(tc);
+						continue;
 					}
 				}
 				if ((plus = strchr(pri, '+'))) {
@@ -1477,17 +1477,27 @@ process_extension:
 						ipri = lastpri + 1;
 					} else {
 						ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry at line %d!\n", v->lineno);
+						ast_free(tc);
+						continue;
 					}
 				} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
 					if (lastpri > -2) {
 						ipri = lastpri;
 					} else {
 						ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry at line %d!\n", v->lineno);
+						ast_free(tc);
+						continue;
 					}
 				} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					   (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 					ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 					ipri = 0;
+					ast_free(tc);
+					continue;
+				} else if (ipri < 1) {
+					ast_log(LOG_WARNING, "Invalid priority '%s' at line %d\n", pri, v->lineno);
+					ast_free(tc);
+					continue;
 				}
 				appl = S_OR(stringp, "");
 				/* Find the first occurrence of '(' */
@@ -1497,9 +1507,11 @@ process_extension:
 				} else {
 					char *orig_appl = ast_strdup(appl);
 
-					if (!orig_appl)
-						return -1;
-					
+					if (!orig_appl) {
+						ast_free(tc);
+						continue;
+					}
+
 					appl = strsep(&stringp, "(");
 
 					/* check if there are variables or expressions without an application, like: exten => 100,hint,DAHDI/g0/${GLOBAL(var)}  */
@@ -1526,8 +1538,8 @@ process_extension:
 						ipri += atoi(plus);
 					}
 					lastpri = ipri;
-					if (!ast_opt_dont_warn && !strcmp(realext, "_.")) {
-						ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
+					if (!ast_opt_dont_warn && (!strcmp(realext, "_.") || !strcmp(realext, "_!"))) {
+						ast_log(LOG_WARNING, "The use of '%s' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X%c' instead at line %d\n", realext, realext[1], v->lineno);
 					}
 					if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free_ptr, registrar)) {
 						ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
