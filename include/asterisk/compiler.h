@@ -41,6 +41,12 @@
 #define attribute_const
 #endif
 
+#ifdef HAVE_ATTRIBUTE_deprecated
+#define attribute_deprecated __attribute__((deprecated))
+#else
+#define attribute_deprecated
+#endif
+
 #ifdef HAVE_ATTRIBUTE_unused
 #define attribute_unused __attribute__((unused))
 #else

@@ -332,7 +332,7 @@ EXTERN int ooSocketSendTo(OOSOCKET socket, const ASN1OCTET* pdata,
  *                     negative return value is error.
  */
 EXTERN int ooSocketSelect(int nfds, fd_set *readfds, fd_set *writefds, 
-                            fd_set *exceptfds, struct timeval * timeout) __attribute_deprecated__;
+                            fd_set *exceptfds, struct timeval * timeout) attribute_deprecated;
 
 EXTERN int ooSocketPoll(struct pollfd *pfds, int nfds, int timeout);
 
