@@ -2802,7 +2802,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 					}
 				} else if (f->subclass.integer == AST_CONTROL_REDIRECTING) {
 					if (ast_channel_redirecting_macro(chan, caller, f, 1, 1)) {
-						ast_indicate_data(caller, AST_CONTROL_CONNECTED_LINE, f->data.ptr, f->datalen);
+						ast_indicate_data(caller, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
 					}
 				} else if (f->subclass.integer != -1 && f->subclass.integer != AST_CONTROL_PROGRESS) {
 					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass.integer);
