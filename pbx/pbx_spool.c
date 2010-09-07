@@ -372,6 +372,7 @@ static void launch_service(struct outgoing *o)
 	}
 }
 
+/* Called from scan_thread or queue_file */
 static int scan_service(const char *fn, time_t now)
 {
 	struct outgoing *o = NULL;
@@ -551,7 +552,7 @@ static void *scan_thread(void *unused)
 	}
 
 #ifdef HAVE_INOTIFY
-	inotify_add_watch(inotify_fd, qdir, IN_CREATE | IN_ATTRIB | IN_MOVED_TO);
+	inotify_add_watch(inotify_fd, qdir, IN_CREATE | IN_MOVED_TO);
 #endif
 
 	/* First, run through the directory and clear existing entries */
@@ -590,8 +591,16 @@ static void *scan_thread(void *unused)
 			/* When a file arrives, add it to the queue, in mtime order. */
 			if ((res = poll(&pfd, 1, waittime)) > 0 && (stage = 1) &&
 				(res = read(inotify_fd, &buf, sizeof(buf))) >= sizeof(buf.iev)) {
-				/* File added to directory, add it to my list */
-				queue_file(buf.iev.name, 0);
+				/* File(s) added to directory, add them to my list */
+				do {
+					queue_file(buf.iev.name, 0);
+					res -= sizeof(buf.iev) + buf.iev.len;
+					if (res >= sizeof(buf.iev)) {
+						memmove(&buf.iev, &buf.iev.name[buf.iev.len], res);
+						continue;
+					}
+					break;
+				} while (1);
 			} else if (res < 0 && errno != EINTR && errno != EAGAIN) {
 				ast_debug(1, "Got an error back from %s(2): %s\n", stage ? "read" : "poll", strerror(errno));
 			}
