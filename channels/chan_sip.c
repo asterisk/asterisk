@@ -27230,10 +27230,10 @@ static int reload_config(enum channelreloadreason reason)
 		char temp[MAXHOSTNAMELEN];
 
 		/* First our default IP address */
-		if (!ast_sockaddr_isnull(&bindaddr)) {
+		if (!ast_sockaddr_isnull(&bindaddr) && !ast_sockaddr_is_any(&bindaddr)) {
 			add_sip_domain(ast_sockaddr_stringify_addr(&bindaddr),
 				       SIP_DOMAIN_AUTO, NULL);
-		} else if (!ast_sockaddr_isnull(&internip)) {
+		} else if (!ast_sockaddr_isnull(&internip) && !ast_sockaddr_is_any(&internip)) {
 		/* Our internal IP address, if configured */
 			add_sip_domain(ast_sockaddr_stringify_addr(&internip),
 				       SIP_DOMAIN_AUTO, NULL);
