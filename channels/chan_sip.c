@@ -1976,29 +1976,29 @@ static int retrans_pkt(const void *data)
 
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
- 		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
+		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
 			if (sipdebug && option_debug > 3)
- 				ast_log(LOG_DEBUG, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
+				ast_log(LOG_DEBUG, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
 		} else {
- 			int siptimer_a;
+			int siptimer_a;
 
- 			if (sipdebug && option_debug > 3)
- 				ast_log(LOG_DEBUG, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
- 			if (!pkt->timer_a)
- 				pkt->timer_a = 2 ;
- 			else
- 				pkt->timer_a = 2 * pkt->timer_a;
- 
- 			/* For non-invites, a maximum of 4 secs */
- 			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
- 			if (pkt->method != SIP_INVITE && siptimer_a > 4000)
- 				siptimer_a = 4000;
- 		
- 			/* Reschedule re-transmit */
+			if (sipdebug && option_debug > 3)
+				ast_log(LOG_DEBUG, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
+			if (!pkt->timer_a)
+				pkt->timer_a = 2 ;
+			else
+				pkt->timer_a = 2 * pkt->timer_a;
+
+			/* For non-invites, a maximum of 4 secs */
+			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
+			if (pkt->method != SIP_INVITE && siptimer_a > 4000)
+				siptimer_a = 4000;
+
+			/* Reschedule re-transmit */
 			reschedule = siptimer_a;
- 			if (option_debug > 3)
- 				ast_log(LOG_DEBUG, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
- 		} 
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
+		}
 
 		if (sip_debug_test_pvt(pkt->owner)) {
 			const struct sockaddr_in *dst = sip_real_dst(pkt->owner);
@@ -2010,12 +2010,13 @@ static int retrans_pkt(const void *data)
 
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data);
 		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-		ast_mutex_unlock(&pkt->owner->lock);
-		if (xmitres == XMIT_ERROR)
+		if (xmitres == XMIT_ERROR) {
 			ast_log(LOG_WARNING, "Network error on retransmit in dialog %s\n", pkt->owner->callid);
-		else
+		} else {
+			ast_mutex_unlock(&pkt->owner->lock);
 			return  reschedule;
-	} 
+		}
+	}
 	/* Too many retries */
 	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
 		if (ast_test_flag(pkt, FLAG_FATAL) || sipdebug)	/* Tell us if it's critical or if we're debugging */
@@ -2028,7 +2029,7 @@ static int retrans_pkt(const void *data)
 		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
 	} else
 		append_history(pkt->owner, "MaxRetries", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
- 		
+
 	pkt->retransid = -1;
 
 	if (ast_test_flag(pkt, FLAG_FATAL)) {
@@ -2036,9 +2037,9 @@ static int retrans_pkt(const void *data)
 			DEADLOCK_AVOIDANCE(&pkt->owner->lock);	/* SIP_PVT, not channel */
 		}
 
-		if (pkt->owner->owner && !pkt->owner->owner->hangupcause) 
+		if (pkt->owner->owner && !pkt->owner->owner->hangupcause)
 			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
-		
+
 		if (pkt->owner->owner) {
 			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet (see doc/sip-retransmit.txt).\n", pkt->owner->callid);
@@ -2049,7 +2050,7 @@ static int retrans_pkt(const void *data)
 
 			/* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
 			if (pkt->method != SIP_OPTIONS) {
-				ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
+				ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);
 				sip_alreadygone(pkt->owner);
 				if (option_debug)
 					append_history(pkt->owner, "DialogKill", "Killing this failed dialog immediately");
@@ -2059,7 +2060,7 @@ static int retrans_pkt(const void *data)
 
 	if (pkt->method == SIP_BYE) {
 		/* We're not getting answers on SIP BYE's.  Tear down the call anyway. */
-		if (pkt->owner->owner) 
+		if (pkt->owner->owner)
 			ast_channel_unlock(pkt->owner->owner);
 		append_history(pkt->owner, "ByeFailure", "Remote peer doesn't respond to bye. Destroying call anyway.");
 		ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);
