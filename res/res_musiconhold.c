@@ -1114,6 +1114,19 @@ static int init_files_class(struct mohclass *class)
 	return 0;
 }
 
+static void moh_rescan_files(void) {
+	struct ao2_iterator i;
+	struct mohclass *c;
+
+	i = ao2_iterator_init(mohclasses, 0);
+
+	while ( (c = ao2_iterator_next(&i)) ) {
+		moh_scan_files(c);
+		ao2_ref(c, -1);
+	}
+
+	ao2_iterator_destroy(&i);
+}
 
 static int moh_diff(struct mohclass *old, struct mohclass *new)
 {
@@ -1606,6 +1619,9 @@ static int load_moh_classes(int reload)
 		if (ast_check_realtime("musiconhold") && reload) {
 			ao2_t_callback(mohclasses, OBJ_NODATA, moh_class_mark, NULL, "Mark deleted classes");
 			ao2_t_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, moh_classes_delete_marked, NULL, "Purge marked classes");
+		}
+		if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+			moh_rescan_files();
 		}
 		return 0;
 	}
