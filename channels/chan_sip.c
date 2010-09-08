@@ -3357,7 +3357,6 @@ static int retrans_pkt(const void *data)
 
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data->str);
 		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-		sip_pvt_unlock(pkt->owner);
 
 		/* If there was no error during the network transmission, schedule the next retransmission,
 		 * but if the next retransmission is going to be beyond our timeout period, mark the packet's
@@ -3369,6 +3368,7 @@ static int retrans_pkt(const void *data)
 				pkt->retrans_stop = 1;
 				reschedule = diff;
 			}
+			sip_pvt_unlock(pkt->owner);
 			return  reschedule;
 		}
 	}
