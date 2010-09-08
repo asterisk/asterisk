@@ -591,7 +591,7 @@ Operations on container include:
 
 	    i = ao2_iterator_init(c, flags);
 
-	    while ( (o = ao2_iterator_next(&i)) ) {
+	    while ((o = ao2_iterator_next(&i))) {
 		... do something on o ...
 		ao2_ref(o, -1);
 	    }
@@ -1013,7 +1013,7 @@ void *_ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
  *
  *  i = ao2_iterator_init(c, flags);
  *
- *  while ( (o = ao2_iterator_next(&i)) ) {
+ *  while ((o = ao2_iterator_next(&i))) {
  *     ... do something on o ...
  *     ao2_ref(o, -1);
  *  }
