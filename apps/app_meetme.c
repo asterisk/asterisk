@@ -2782,6 +2782,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 								ast_say_digits(chan, (conf->endtime - now.tv_sec) / 60, "", chan->language);
 								if (!ast_streamfile(chan, "minutes", chan->language))
 									ast_waitstream(chan, "");
+								if (musiconhold) {
+									conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
+								}
 								announcement_played = 1;
 							}
 						}
@@ -2853,6 +2856,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
  								res = ast_streamfile(chan, user->warning_sound, chan->language);
  								res = ast_waitstream(chan, "");
  							}
+							if (musiconhold) {
+								conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
+							}
  						}
  					}
  					if (user->warning_freq) {
