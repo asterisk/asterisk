@@ -9476,7 +9476,6 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval,
 			strefresher2str(p->stimer->st_ref));
-		add_header(resp, "Require", "timer");
 		add_header(resp, "Session-Expires", se_hdr);
 	}
 
@@ -18945,7 +18944,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		/* Check for Session-Timers related headers */
 		if (st_get_mode(p) != SESSION_TIMER_MODE_REFUSE && p->outgoing_call == TRUE && !reinvite) {
 			p_hdrval = (char*)get_header(req, "Session-Expires");
-        		if (!ast_strlen_zero(p_hdrval)) {
+			if (!ast_strlen_zero(p_hdrval)) {
 				/* UAS supports Session-Timers */
 				enum st_refresher tmp_st_ref = SESSION_TIMER_REFRESHER_AUTO;
 				int tmp_st_interval = 0;
@@ -21313,10 +21312,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	}
 
 	/* Session-Timers */
-	if (p->sipoptions & SIP_OPT_TIMER) {
+	if ((p->sipoptions & SIP_OPT_TIMER) && !ast_strlen_zero(get_header(req, "Session-Expires"))) {
 		/* The UAC has requested session-timers for this session. Negotiate
 		the session refresh interval and who will be the refresher */
-		ast_debug(2, "Incoming INVITE with 'timer' option enabled\n");
+		ast_debug(2, "Incoming INVITE with 'timer' option supported and \"Session-Expires\" header.\n");
 
 		/* Allocate Session-Timers struct w/in the dialog */
 		if (!p->stimer)
@@ -21324,17 +21323,15 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		/* Parse the Session-Expires header */
 		p_uac_se_hdr = get_header(req, "Session-Expires");
-		if (!ast_strlen_zero(p_uac_se_hdr)) {
-			rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref);
-			if (rtn != 0) {
-				transmit_response_reliable(p, "400 Session-Expires Invalid Syntax", req);
-				p->invitestate = INV_COMPLETED;
-				if (!p->lastinvite) {
-					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-				}
-				res = -1;
-				goto request_invite_cleanup;
+		rtn = parse_session_expires(p_uac_se_hdr, &uac_max_se, &st_ref);
+		if (rtn != 0) {
+			transmit_response_reliable(p, "400 Session-Expires Invalid Syntax", req);
+			p->invitestate = INV_COMPLETED;
+			if (!p->lastinvite) {
+				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			}
+			res = -1;
+			goto request_invite_cleanup;
 		}
 
 		/* Parse the Min-SE header */
