@@ -89,7 +89,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>R/O technology used for channel.</para>
 					</enum>
 					<enum name="checkhangup">
-						<para>1/0 whether the channel is hanging up</para>
+						<para>R/O Whether the channel is hanging up (1/0)</para>
 					</enum>
 					<enum name="language">
 						<para>R/W language for sounds played.</para>
