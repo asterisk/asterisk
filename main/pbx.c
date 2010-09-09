@@ -1908,15 +1908,15 @@ static struct match_char *add_pattern_node(struct ast_context *con, struct match
 	   pattern matcher. */
 	m->is_pattern = is_pattern;
 	if (specificity == 1 && is_pattern && pattern[0] == 'N')
-		m->specificity = 0x0802;
+		m->specificity = 0x0832;
 	else if (specificity == 1 && is_pattern && pattern[0] == 'Z')
-		m->specificity = 0x0901;
+		m->specificity = 0x0931;
 	else if (specificity == 1 && is_pattern && pattern[0] == 'X')
-		m->specificity = 0x0a00;
+		m->specificity = 0x0a30;
 	else if (specificity == 1 && is_pattern && pattern[0] == '.')
-		m->specificity = 0x10000;
+		m->specificity = 0x18000;
 	else if (specificity == 1 && is_pattern && pattern[0] == '!')
-		m->specificity = 0x20000;
+		m->specificity = 0x28000;
 	else
 		m->specificity = specificity;
 
@@ -2193,10 +2193,10 @@ static int ext_cmp1(const char **p, unsigned char *bitwise)
 		return 0x0900 | '1';
 
 	case '.':	/* wildcard */
-		return 0x10000;
+		return 0x18000;
 
 	case '!':	/* earlymatch */
-		return 0x20000;	/* less specific than NULL */
+		return 0x28000;	/* less specific than NULL */
 
 	case '\0':	/* empty string */
 		*p = NULL;
