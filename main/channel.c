@@ -3722,6 +3722,8 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 	int pos = 0;	/* index in the buffer where we accumulate digits */
 	int to = ftimeout;
 
+	struct ast_silence_generator *silgen = NULL;
+
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
 		return -1;
@@ -3732,26 +3734,35 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 		if (c->stream) {
 			d = ast_waitstream_full(c, AST_DIGIT_ANY, audiofd, ctrlfd);
 			ast_stopstream(c);
+			if (!silgen && ast_opt_transmit_silence)
+				silgen = ast_channel_start_silence_generator(c);
 			usleep(1000);
 			if (!d)
 				d = ast_waitfordigit_full(c, to, audiofd, ctrlfd);
 		} else {
+			if (!silgen && ast_opt_transmit_silence)
+				silgen = ast_channel_start_silence_generator(c);
 			d = ast_waitfordigit_full(c, to, audiofd, ctrlfd);
 		}
-		if (d < 0)
+		if (d < 0) {
+			ast_channel_stop_silence_generator(c, silgen);
 			return -1;
+		}
 		if (d == 0) {
 			s[pos]='\0';
+			ast_channel_stop_silence_generator(c, silgen);
 			return 1;
 		}
 		if (d == 1) {
 			s[pos]='\0';
+			ast_channel_stop_silence_generator(c, silgen);
 			return 2;
 		}
 		if (!strchr(enders, d))
 			s[pos++] = d;
 		if (strchr(enders, d) || (pos >= len)) {
 			s[pos]='\0';
+			ast_channel_stop_silence_generator(c, silgen);
 			return 0;
 		}
 		to = timeout;
