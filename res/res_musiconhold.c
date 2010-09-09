@@ -318,10 +318,17 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		state->samples = 0;
 	}
 
-	if (!ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
+	for (tries = 0; tries < state->class->total_files; ++tries) {
+		if (ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
+			break;
+		}
+
 		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
 		state->pos++;
 		state->pos %= state->class->total_files;
+	}
+
+	if (tries == state->class->total_files) {
 		return -1;
 	}
 
