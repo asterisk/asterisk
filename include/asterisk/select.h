@@ -23,6 +23,7 @@
 #ifndef __AST_SELECT_H
 #define __AST_SELECT_H
 
+#include "asterisk/autoconfig.h"
 #include <sys/select.h>
 #include <errno.h>
 #include "asterisk/utils.h"
@@ -37,24 +38,24 @@ extern unsigned int ast_FD_SETSIZE;
 #define ast_fdset fd_set
 #else
 typedef struct {
-	long fds_bits[4096 / sizeof(long)]; /* 32768 bits */
+	TYPEOF_FD_SET_FDS_BITS fds_bits[4096 / SIZEOF_FD_SET_FDS_BITS]; /* 32768 bits */
 } ast_fdset;
 
 #undef FD_ZERO
 #define FD_ZERO(a) \
 	do { \
-		long *bytes = (long *) a; \
+		TYPEOF_FD_SET_FDS_BITS *bytes = (TYPEOF_FD_SET_FDS_BITS *) a; \
 		int i; \
-		for (i = 0; i < sizeof(*(a)) / sizeof(long); i++) { \
+		for (i = 0; i < sizeof(*(a)) / SIZEOF_FD_SET_FDS_BITS; i++) { \
 			bytes[i] = 0; \
 		} \
 	} while (0)
 #undef FD_SET
 #define FD_SET(fd, fds) \
 	do { \
-		long *bytes = (long *) fds; \
+		TYPEOF_FD_SET_FDS_BITS *bytes = (TYPEOF_FD_SET_FDS_BITS *) fds; \
 		if (fd / sizeof(*bytes) + ((fd + 1) % sizeof(*bytes) ? 1 : 0) < sizeof(*(fds))) { \
-			bytes[fd / (sizeof(*bytes))] |= 1L << (fd % sizeof(*bytes)); \
+			bytes[fd / (sizeof(*bytes) * 8)] |= ((TYPEOF_FD_SET_FDS_BITS) 1) << (fd % (sizeof(*bytes) * 8)); \
 		} else { \
 			ast_log(LOG_ERROR, "FD %d exceeds the maximum size of ast_fdset!\n", fd); \
 		} \
