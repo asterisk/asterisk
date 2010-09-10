@@ -117,6 +117,7 @@ S,filename
 A,filename
 H,message
 E,message
+D,dtmf[,interval][,duration]
 O,option
 V,name=value[,name=value[,name=value]]
 G,name[,name[,name]]
@@ -138,13 +139,18 @@ The 'A' command checks to see if there is a playable audio file with
 the specified name, and if so, appends it to the generator's playlist.
 The same playability and exception rules apply as for the 'S' command.
 
+The 'H' command logs the supplied message to the Asterisk log, stops
+the generator, hangs up the channel and terminates the ExternalIVR
+application.
+
 The 'E' command logs the supplied message to the Asterisk log, stops
 the generator and terminates the ExternalIVR application, but continues
 execution in the dialplan.
 
-The 'H' command logs the supplied message to the Asterisk log, stops
-the generator, hangs up the channel and terminates the ExternalIVR
-application.
+The 'D' command generates DTMF on the channel, dtmf is a string of one or
+more valid DTMF digits, w can be used for a half second pause. Interval
+is optional, defaults to 250 milliseconds and is the time between digits.
+Duration is optional and is the duration of each digit.
 
 The 'O' command allows the child to set/clear options in the
 ExternalIVR() application.
@@ -170,7 +176,7 @@ the options to ExternalIVR() itself:
                 ExternalIVR(/usr/bin/foo(arg1,arg2),n)
         The response to the 'P' command would be:
                 P,TIMESTAMP,/usr/bin/foo,arg1,arg2
-NOTE: This is the only way for a TCP/IP server to be able to get retrieve
+NOTE: This is the only way for a TCP/IP server to be able to retrieve
 the arguments.
 
 The 'L' command puts a message into the Asterisk log. NOTE: This is

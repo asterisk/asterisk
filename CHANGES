@@ -182,6 +182,7 @@ Applications
  * Voicemail now runs the externnotify script when pollmailboxes is activated and
    notices a change.
  * Voicemail now includes rdnis within msgXXXX.txt file.
+ * Added 'D' command to ExternalIVR full details in doc/externalivr.txt
 
 Dialplan Functions
 ------------------
