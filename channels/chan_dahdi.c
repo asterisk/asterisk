@@ -13402,6 +13402,14 @@ static void *pri_dchannel(void *vpri)
 									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 									break;
 								default:
+									if (!pri->pvts[chanpos]->outgoing) {
+										/*
+										 * The incoming call leg hung up before getting
+										 * connected so just hangup the call.
+										 */
+										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+										break;
+									}
 									switch (e->hangup.cause) {
 									case PRI_CAUSE_USER_BUSY:
 										pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
@@ -13474,6 +13482,14 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								break;
 							default:
+								if (!pri->pvts[chanpos]->outgoing) {
+									/*
+									 * The incoming call leg hung up before getting
+									 * connected so just hangup the call.
+									 */
+									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									break;
+								}
 								switch (e->hangup.cause) {
 								case PRI_CAUSE_USER_BUSY:
 									pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
