@@ -1258,6 +1258,39 @@ AST_THREADSTORAGE_CUSTOM(ts_audio_rtp, ts_audio_rtp_init, ts_ast_rtp_destroy);
 AST_THREADSTORAGE_CUSTOM(ts_video_rtp, ts_video_rtp_init, ts_ast_rtp_destroy);
 #endif
 
+struct sip_extenstate_update {
+	struct sip_pvt *pvt;
+	int state;
+	int marked;
+	AST_LIST_ENTRY(sip_extenstate_update) list;	/*!< Pointer to next update in list */
+	char *context;
+	char exten[0];
+};
+
+
+/*!
+ * \brief list of extension state updates for the dialog list.
+ *
+ * \note This list deserves a detailed explanation as to why it was
+ * created and why it is necessary...  So here it is.
+ *
+ * When an endpoint SUBSCRIBES to the state of a hint a callback function
+ * is registered with the Asterisk core.  That callback is used to notify
+ * chan_sip every time that hint's state changes and what endpoint we need
+ * to update.  The problem occurs with the locking order used during that
+ * callback function.  When the function is used by the Asterisk core, the
+ * global contexts lock is held.  Then within the callback the sip_pvt lock
+ * is held.  That completely invalidates the locking order used everywhere
+ * else in chan_sip regarding these two locks.  Typically the pvt lock is
+ * held while we ask the Asterisk core about an extension and context which
+ * results in the context being locked.  In order to avoid the possible deadlock
+ * that could occur in the callback function due to improper locking, this
+ * list was created to queue those state changes for the sip_pvt to read outside
+ * of that thread.  This way the context lock never has to be held before the
+ * pvt lock is held.
+ */
+static AST_LIST_HEAD_STATIC(sip_extenstate_updates, sip_extenstate_update);
+
 /*! \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */
 
@@ -1412,7 +1445,8 @@ static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
 
 /*--- Device monitoring and Device/extension state handling */
-static int cb_extensionstate(char *context, char* exten, int state, void *data);
+static int notify_extenstate_update(char *context, char* exten, int state, void *data);
+static void clear_extenstate_updates(struct sip_pvt *pvt);
 static int sip_devicestate(void *data);
 static int sip_poke_noanswer(const void *data);
 static int sip_poke_peer(struct sip_peer *peer);
@@ -3377,6 +3411,11 @@ static int __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
+
+	/* remove any pending extension notify that could be left in
+	 * the extension update queue relating to this dialog. */
+	clear_extenstate_updates(p);
+
 	AST_SCHED_DEL(sched, p->initid);
 	AST_SCHED_DEL(sched, p->waitid);
 	AST_SCHED_DEL(sched, p->autokillid);
@@ -9243,10 +9282,166 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 	return;
 }
 
+static int add_extensionstate_update(char *context, char *exten, int state, void *data)
+{
+	struct sip_extenstate_update *update;
+	size_t exten_len = strlen(exten);
+	size_t context_len = strlen(context);
+
+	if (!(update = ast_calloc(1, sizeof(*update) + exten_len + context_len + 2))) {
+		return -1;
+	}
+
+	strcpy(update->exten, exten);
+
+	update->context = (char *) (update->exten + exten_len + 1);
+	strcpy(update->context, context);
+
+	update->state = state;
+	update->pvt = data;
+
+	AST_LIST_LOCK(&sip_extenstate_updates);
+	AST_LIST_INSERT_TAIL(&sip_extenstate_updates, update, list);
+	AST_LIST_UNLOCK(&sip_extenstate_updates);
+
+	/* Tell the do_monitor thread it has to do stuff! That thread is so lazy :( */
+	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
+		pthread_kill(monitor_thread, SIGURG);
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal 
+ * \brief Check to see if there are any extension state updates
+ * for this pvt.  If so send them and remove from queue */
+static void check_extenstate_updates(struct sip_pvt *pvt)
+{
+	struct sip_extenstate_update *update = NULL;
+
+	if (AST_LIST_EMPTY(&sip_extenstate_updates)) {
+		/* avoid holding the lock if possible */
+		return;
+	}
+
+	do {
+		if (update) {
+			/* The notify can not happen while the list lock is held. */
+			notify_extenstate_update(update->context, update->exten, update->state, pvt);
+			ast_free(update);
+		}
+
+		AST_LIST_LOCK(&sip_extenstate_updates);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&sip_extenstate_updates, update, list) {
+			if (update->pvt == pvt) {
+				AST_LIST_REMOVE_CURRENT(&sip_extenstate_updates, list);
+				break;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_UNLOCK(&sip_extenstate_updates);
+	} while (update);
+}
+
+/*!
+ * \internal 
+ * \brief clear all marked extenstate updates left in the queue.
+ */
+static void clearmarked_extenstate_updates(void)
+{
+	struct sip_extenstate_update *update = NULL;
+
+	if (AST_LIST_EMPTY(&sip_extenstate_updates)) {
+		/* avoid holding the lock if possible */
+		return;
+	}
+
+	AST_LIST_LOCK(&sip_extenstate_updates);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sip_extenstate_updates, update, list) {
+		if (update->marked) {
+			AST_LIST_REMOVE_CURRENT(&sip_extenstate_updates, list);
+			ast_free(update);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&sip_extenstate_updates);
+
+}
+
+/*!
+ * \internal 
+ * \brief unmark for destruction all the extension updates for a specific dialog.
+ *
+ * \note this is used to remove updates pertaining to a dialog from destruction because
+ * they need to be sent out at a later time.
+ */
+static void unmark_extenstate_update(struct sip_pvt *pvt)
+{
+	struct sip_extenstate_update *update = NULL;
+
+	if (AST_LIST_EMPTY(&sip_extenstate_updates)) {
+		/* avoid holding the lock if possible */
+		return;
+	}
+
+	AST_LIST_LOCK(&sip_extenstate_updates);
+	AST_LIST_TRAVERSE(&sip_extenstate_updates, update, list) {
+		if (update->pvt == pvt) {
+			update->marked = 0;
+		}
+	}
+	AST_LIST_UNLOCK(&sip_extenstate_updates);
+}
+
+/*!
+ * \internal 
+ * \brief mark all the current extenstate updates for removal.
+ */
+static void markall_extenstate_updates(void)
+{
+	struct sip_extenstate_update *update = NULL;
+
+	if (AST_LIST_EMPTY(&sip_extenstate_updates)) {
+		/* avoid holding the lock if possible */
+		return;
+	}
+
+	AST_LIST_LOCK(&sip_extenstate_updates);
+	AST_LIST_TRAVERSE(&sip_extenstate_updates, update, list) {
+		update->marked = 1;
+	}
+	AST_LIST_UNLOCK(&sip_extenstate_updates);
+}
+
+/*!
+ * \internal 
+ * \brief clear out all extension state updates for a pvt.
+ */
+static void clear_extenstate_updates(struct sip_pvt *pvt)
+{
+	struct sip_extenstate_update *update = NULL;
+
+	if (AST_LIST_EMPTY(&sip_extenstate_updates)) {
+		/* avoid holding the lock if possible */
+		return;
+	}
+
+	AST_LIST_LOCK(&sip_extenstate_updates);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sip_extenstate_updates, update, list) {
+		if (update->pvt == pvt) {
+			AST_LIST_REMOVE_CURRENT(&sip_extenstate_updates, list);
+			ast_free(update);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&sip_extenstate_updates);
+}
+
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
 \note	If you add an "hint" priority to the extension in the dial plan,
 	you will get notifications on device state changes */
-static int cb_extensionstate(char *context, char* exten, int state, void *data)
+static int notify_extenstate_update(char *context, char* exten, int state, void *data)
 {
 	struct sip_pvt *p = data;
 
@@ -13649,7 +13844,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
 						/* Ready to send the next state we have on queue */
 						ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
-						cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
+						notify_extenstate_update((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
 					}
 				}
 			} else if (sipmethod == SIP_REGISTER) 
@@ -13909,7 +14104,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
 						/* Ready to send the next state we have on queue */
 						ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
-						cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
+						notify_extenstate_update((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
 					}
 				}
 			} else if (sipmethod == SIP_BYE)
@@ -16404,8 +16599,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	if (p->subscribed != MWI_NOTIFICATION && !resubscribe) {
 		if (p->stateid > -1)
-			ast_extension_state_del(p->stateid, cb_extensionstate);
-		p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+			ast_extension_state_del(p->stateid, add_extensionstate_update);
+		p->stateid = ast_extension_state_add(p->context, p->exten, add_extensionstate_update, p);
 	}
 
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p)
@@ -17082,8 +17277,15 @@ static void *do_monitor(void *data)
 				sipsock_read_id = NULL;
 			}
 		}
-restartsearch:		
-		/* Check for interfaces needing to be killed */
+
+		/* we only want to mark the extenstate updates for destruction
+		 * if the dialog list is being traversed */
+		if (!fastrestart) {
+			markall_extenstate_updates();
+		}
+
+restartsearch:
+		/* Check for interfaces needing to be killed and for pending extension state notifications. */
 		ast_mutex_lock(&iflock);
 		t = time(NULL);
 		/* don't scan the interface list if it hasn't been a reasonable period
@@ -17096,8 +17298,16 @@ restartsearch:
 			 * sip_hangup otherwise, because sip_hangup is called with the channel
 			 * locked first, and the iface lock is attempted second.
 			 */
-			if (ast_mutex_trylock(&sip->lock))
+			if (ast_mutex_trylock(&sip->lock)) {
+				/* make sure to unmark any extension state updates for this pvt so
+				 * they can be sent out when we come back to it. */
+				unmark_extenstate_update(sip);
 				continue;
+			}
+
+			/* since we are iterating through all the sip_pvts here, this is a good place
+			 * to send out extension state updates. */
+			check_extenstate_updates(sip);
 
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			if (sip->rtp && sip->owner &&
@@ -17160,6 +17370,11 @@ restartsearch:
 			ast_mutex_unlock(&sip->lock);
 		}
 		ast_mutex_unlock(&iflock);
+
+		/* we only want to clear the extension state updates if the dialog list was traversed */
+		if (!fastrestart) {
+			clearmarked_extenstate_updates();
+		}
 
 		/* XXX TODO The scheduler usage in this module does not have sufficient 
 		 * synchronization being done between running the scheduler and places 
@@ -19733,7 +19948,8 @@ static int load_module(void)
 static int unload_module(void)
 {
 	struct sip_pvt *p, *pl;
-	
+	struct sip_extenstate_update *update;
+
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
 
@@ -19804,6 +20020,14 @@ restartdestroy:
 	ASTOBJ_CONTAINER_DESTROY(&peerl);
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&regl);
+
+	AST_LIST_LOCK(&sip_extenstate_updates);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sip_extenstate_updates, update, list) {
+		AST_LIST_REMOVE_CURRENT(&sip_extenstate_updates, list);
+		ast_free(update);
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&sip_extenstate_updates);
 
 	clear_realm_authentication(authl);
 	clear_sip_domains();
