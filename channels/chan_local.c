@@ -136,7 +136,7 @@ static int local_setoption(struct ast_channel *chan, int option, void * data, in
 	ast_chan_write_info_t *write_info;
 
 	if (option != AST_OPTION_CHANNEL_WRITE) {
-		return 0;
+		return -1;
 	}
 
 	write_info = data;
