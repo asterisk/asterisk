@@ -14512,14 +14512,6 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	randomcalltokendata = ast_random();
-	ast_custom_function_register(&iaxpeer_function);
-	ast_custom_function_register(&iaxvar_function);
-
-	iax_set_output(iax_debug_output);
-	iax_set_error(iax_error_output);
-	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-
 	memset(iaxs, 0, sizeof(iaxs));
 
 	for (x = 0; x < ARRAY_LEN(iaxsl); x++) {
@@ -14554,17 +14546,33 @@ static int load_module(void)
 	}
 	ast_netsock_init(outsock);
 
+	randomcalltokendata = ast_random();
+
+	iax_set_output(iax_debug_output);
+	iax_set_error(iax_error_output);
+	jb_setoutput(jb_error_output, jb_warning_output, NULL);
+
+	if (set_config(config, 0) == -1) {
+		if (timer) {
+			ast_timer_close(timer);
+		}
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_iax2_peers_get);
 	AST_TEST_REGISTER(test_iax2_users_get);
 #endif
+
 	/* Register AstData providers */
 	ast_data_register_multiple(iax2_data_providers, ARRAY_LEN(iax2_data_providers));
-
 	ast_cli_register_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
 
 	ast_register_application_xml(papp, iax2_prov_app);
-	
+
+	ast_custom_function_register(&iaxpeer_function);
+	ast_custom_function_register(&iaxvar_function);
+
 	ast_manager_register_xml("IAXpeers", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peers);
 	ast_manager_register_xml("IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list);
 	ast_manager_register_xml("IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats);
@@ -14574,28 +14582,23 @@ static int load_module(void)
 		ast_timer_set_rate(timer, trunkfreq);
 	}
 
-	if (set_config(config, 0) == -1) {
-		if (timer) {
-			ast_timer_close(timer);
-		}
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
  	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");
 		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (ast_register_switch(&iax2_switch)) 
+	if (ast_register_switch(&iax2_switch)) {
 		ast_log(LOG_ERROR, "Unable to register IAX switch\n");
+	}
 
 	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
-	} else
+	} else {
 		ast_verb(2, "IAX Ready and Listening\n");
+	}
 
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_TRAVERSE(&registrations, reg, entry)
