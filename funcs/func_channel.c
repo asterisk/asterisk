@@ -378,7 +378,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	return ret;
 }
 
-static int func_channel_write(struct ast_channel *chan, const char *function,
+static int func_channel_write_real(struct ast_channel *chan, const char *function,
 			      char *data, const char *value)
 {
 	int ret = 0;
@@ -494,6 +494,24 @@ static int func_channel_write(struct ast_channel *chan, const char *function,
 	}
 
 	return ret;
+}
+
+static int func_channel_write(struct ast_channel *chan, const char *function, char *data, const char *value)
+{
+	int res;
+	ast_chan_write_info_t write_info = {
+		.version = AST_CHAN_WRITE_INFO_T_VERSION,
+		.write_fn = func_channel_write_real,
+		.chan = chan,
+		.function = function,
+		.data = data,
+		.value = value,
+	};
+
+	res = func_channel_write_real(chan, function, data, value);
+	ast_channel_setoption(chan, AST_OPTION_CHANNEL_WRITE, &write_info, sizeof(write_info), 0);
+
+	return res;
 }
 
 static struct ast_custom_function channel_function = {

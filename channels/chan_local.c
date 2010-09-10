@@ -95,6 +95,7 @@ static int local_sendtext(struct ast_channel *ast, const char *text);
 static int local_devicestate(void *data);
 static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 static int local_queryoption(struct ast_channel *ast, int option, void *data, int *datalen);
+static int local_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 
 /* PBX interface structure for channel registration */
 static const struct ast_channel_tech local_tech = {
@@ -118,6 +119,7 @@ static const struct ast_channel_tech local_tech = {
 	.devicestate = local_devicestate,
 	.bridged_channel = local_bridgedchannel,
 	.queryoption = local_queryoption,
+	.setoption = local_setoption,
 };
 
 /*! \brief the local pvt structure for all channels
@@ -150,6 +152,71 @@ struct local_pvt {
 #define LOCAL_MOH_PASSTHRU    (1 << 6) /*!< Pass through music on hold start/stop frames */
 
 static AST_LIST_HEAD_STATIC(locals, local_pvt);
+
+static int local_setoption(struct ast_channel *chan, int option, void * data, int datalen)
+{
+	int res;
+	struct local_pvt *p;
+	struct ast_channel *otherchan;
+	ast_chan_write_info_t *write_info;
+
+	if (option != AST_OPTION_CHANNEL_WRITE) {
+		return -1;
+	}
+
+	write_info = data;
+
+	if (write_info->version != AST_CHAN_WRITE_INFO_T_VERSION) {
+		ast_log(LOG_ERROR, "The chan_write_info_t type has changed, and this channel hasn't been updated!\n");
+		return -1;
+	}
+
+
+startover:
+	ast_channel_lock(chan);
+
+	p = chan->tech_pvt;
+	if (!p) {
+		ast_channel_unlock(chan);
+		ast_log(LOG_WARNING, "Could not update other side of %s, local_pvt went away.\n", chan->name);
+		return -1;
+	}
+
+	while (ast_mutex_trylock(&p->lock)) {
+		ast_channel_unlock(chan);
+		sched_yield();
+		ast_channel_lock(chan);
+		p = chan->tech_pvt;
+		if (!p) {
+			ast_channel_unlock(chan);
+			ast_log(LOG_WARNING, "Could not update other side of %s, local_pvt went away.\n", chan->name);
+			return -1;
+		}
+	}
+
+	otherchan = (write_info->chan == p->owner) ? p->chan : p->owner;
+
+	if (!otherchan || otherchan == write_info->chan) {
+		ast_mutex_unlock(&p->lock);
+		ast_channel_unlock(chan);
+		ast_log(LOG_WARNING, "Could not update other side of %s, other side went away.\n", chan->name);
+		return 0;
+	}
+
+	if (ast_channel_trylock(otherchan)) {
+		ast_mutex_unlock(&p->lock);
+		ast_channel_unlock(chan);
+		goto startover;
+	}
+
+	res = write_info->write_fn(otherchan, write_info->function, write_info->data, write_info->value);
+
+	ast_channel_unlock(otherchan);
+	ast_mutex_unlock(&p->lock);
+	ast_channel_unlock(chan);
+
+	return res;
+}
 
 /*! \brief Adds devicestate to local channels */
 static int local_devicestate(void *data)
