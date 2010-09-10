@@ -23,6 +23,7 @@
 #ifndef _ASTERISK_PBX_H
 #define _ASTERISK_PBX_H
 
+#include "asterisk/channel.h"
 #include "asterisk/sched.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/chanvars.h"
@@ -89,7 +90,7 @@ struct ast_custom_function {
 	);
 	enum ast_doc_src docsrc;		/*!< Where the documentation come from */
 	/*! Read function, if read is supported */
-	int (*read)(struct ast_channel *, const char *, char *, char *, size_t);
+	ast_acf_read_fn_t read;		/*!< Read function, if read is supported */
 	/*! Read function, if read is supported.  Note: only one of read or read2
 	 * needs to be implemented.  In new code, read2 should be implemented as
 	 * the way forward, but they should return identical results, within the
@@ -97,11 +98,11 @@ struct ast_custom_function {
 	 * read function is handed a 16-byte buffer, and the result is 17 bytes
 	 * long, then the first 15 bytes (remember NULL terminator) should be
 	 * the same for both the read and the read2 methods. */
-	int (*read2)(struct ast_channel *, const char *, char *, struct ast_str **, ssize_t);
+	ast_acf_read2_fn_t read2;
 	/*! If no read2 function is provided, what maximum size? */
 	size_t read_max;
 	/*! Write function, if write is supported */
-	int (*write)(struct ast_channel *, const char *, char *, const char *);
+	ast_acf_write_fn_t write;	/*!< Write function, if write is supported */
 	struct ast_module *mod;         /*!< Module this custom function belongs to */
 	AST_RWLIST_ENTRY(ast_custom_function) acflist;
 };
