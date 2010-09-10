@@ -23,10 +23,11 @@
 #ifndef __AST_SELECT_H
 #define __AST_SELECT_H
 
-#include "asterisk/autoconfig.h"
+#include <sys/time.h>
 #include <sys/select.h>
 #include <errno.h>
-#include "asterisk/utils.h"
+
+#include "asterisk/compat.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,7 +58,7 @@ typedef struct {
 		if (fd / sizeof(*bytes) + ((fd + 1) % sizeof(*bytes) ? 1 : 0) < sizeof(*(fds))) { \
 			bytes[fd / (sizeof(*bytes) * 8)] |= ((TYPEOF_FD_SET_FDS_BITS) 1) << (fd % (sizeof(*bytes) * 8)); \
 		} else { \
-			ast_log(LOG_ERROR, "FD %d exceeds the maximum size of ast_fdset!\n", fd); \
+			fprintf(stderr, "FD %d exceeds the maximum size of ast_fdset!\n", fd); \
 		} \
 	} while (0)
 #endif /* HAVE_VARIABLE_FDSET */
@@ -75,12 +76,9 @@ typedef struct {
 static inline int ast_select(int nfds, ast_fdset *rfds, ast_fdset *wfds, ast_fdset *efds, struct timeval *tvp)
 {
 #ifdef __linux__
-	ast_assert((unsigned int) nfds <= ast_FD_SETSIZE);
 	return select(nfds, (fd_set *) rfds, (fd_set *) wfds, (fd_set *) efds, tvp);
 #else
 	int save_errno = 0;
-
-	ast_assert((unsigned int) nfds <= ast_FD_SETSIZE);
 	if (tvp) {
 		struct timeval tv, tvstart, tvend, tvlen;
 		int res;
