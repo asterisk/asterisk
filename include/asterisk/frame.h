@@ -340,6 +340,13 @@ enum ast_control_frame_type {
 /*! Explicitly enable or disable echo cancelation for the given channel */
 #define	AST_OPTION_ECHOCAN		8
 
+/*! \brief Handle channel write data
+ * If a channel needs to process the data from a func_channel write operation
+ * after func_channel_write executes, it can define the setoption callback
+ * and process this option. A pointer to an ast_chan_write_info_t will be passed.
+ * */
+#define AST_OPTION_CHANNEL_WRITE 9
+
 struct oprmode {
 	struct ast_channel *peer;
 	int mode;

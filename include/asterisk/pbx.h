@@ -71,8 +71,8 @@ struct ast_custom_function {
 	const char *synopsis;		/*!< Short description for "show functions" */
 	const char *desc;		/*!< Help text that explains it all */
 	const char *syntax;		/*!< Syntax description */
-	int (*read)(struct ast_channel *, char *, char *, char *, size_t);	/*!< Read function, if read is supported */
-	int (*write)(struct ast_channel *, char *, char *, const char *);	/*!< Write function, if write is supported */
+	ast_acf_read_fn_t read;		/*!< Read function, if read is supported */
+	ast_acf_write_fn_t write;	/*!< Write function, if write is supported */
 	AST_LIST_ENTRY(ast_custom_function) acflist;
 };
 
