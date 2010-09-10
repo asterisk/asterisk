@@ -5225,6 +5225,14 @@ static void *pri_dchannel(void *vpri)
 									do_hangup = 1;
 									break;
 								default:
+									if (!pri->pvts[chanpos]->outgoing) {
+										/*
+										 * The incoming call leg hung up before getting
+										 * connected so just hangup the call.
+										 */
+										do_hangup = 1;
+										break;
+									}
 									switch (e->hangup.cause) {
 									case PRI_CAUSE_USER_BUSY:
 										pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
@@ -5358,6 +5366,14 @@ static void *pri_dchannel(void *vpri)
 								do_hangup = 1;
 								break;
 							default:
+								if (!pri->pvts[chanpos]->outgoing) {
+									/*
+									 * The incoming call leg hung up before getting
+									 * connected so just hangup the call.
+									 */
+									do_hangup = 1;
+									break;
+								}
 								switch (e->hangup.cause) {
 								case PRI_CAUSE_USER_BUSY:
 									pri_queue_control(pri, chanpos, AST_CONTROL_BUSY);
