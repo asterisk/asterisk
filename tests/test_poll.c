@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/poll-compat.h"
 
-#ifndef HAVE_SBIN_LAUNCHD
 static void *failsafe_cancel(void *vparent)
 {
 	pthread_t parent = (pthread_t) (long) vparent;
@@ -232,21 +231,16 @@ AST_TEST_DEFINE(poll_test)
 #endif
 	return res;
 }
-#endif
 
 static int unload_module(void)
 {
-#ifndef HAVE_SBIN_LAUNCHD
 	AST_TEST_UNREGISTER(poll_test);
-#endif
 	return 0;
 }
 
 static int load_module(void)
 {
-#ifndef HAVE_SBIN_LAUNCHD
 	AST_TEST_REGISTER(poll_test);
-#endif
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
