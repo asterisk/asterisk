@@ -548,7 +548,7 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 	}
 
 	if (test->info.category[0] != '/' || test->info.category[strlen(test->info.category) - 1] != '/') {
-		ast_log(LOG_WARNING, "Test category is missing a leading or trailing backslash for test %s%s",
+		ast_log(LOG_WARNING, "Test category is missing a leading or trailing backslash for test %s%s\n",
 				test->info.category, test->info.name);
 	}
 
