@@ -210,6 +210,24 @@ struct ast_callerid {
 	int cid_tns;		/*!< Callerid Transit Network Select */
 };
 
+/*! \brief Typedef for a custom read function */
+typedef int (*ast_acf_read_fn_t)(struct ast_channel *, const char *, char *, char *, size_t);
+
+/*! \brief Typedef for a custom write function */
+typedef int (*ast_acf_write_fn_t)(struct ast_channel *, const char *, char *, const char *);
+
+/*! \brief Structure to handle passing func_channel_write info to channels via setoption */
+typedef struct {
+	/*! \brief ast_chan_write_info_t version. Must be incremented if structure is changed */
+	#define AST_CHAN_WRITE_INFO_T_VERSION 1
+	uint32_t version;
+	ast_acf_write_fn_t write_fn;
+	struct ast_channel *chan;
+	const char *function;
+	char *data;
+	const char *value;
+} ast_chan_write_info_t;
+
 /*! \brief
 	Structure to describe a channel "technology", ie a channel driver
 	See for examples:

@@ -90,8 +90,8 @@ struct ast_custom_function {
 		AST_STRING_FIELD(seealso);      /*!< See also */
 	);
 	enum ast_doc_src docsrc;		/*!< Where the documentation come from */
-	int (*read)(struct ast_channel *, const char *, char *, char *, size_t);	/*!< Read function, if read is supported */
-	int (*write)(struct ast_channel *, const char *, char *, const char *);		/*!< Write function, if write is supported */
+	ast_acf_read_fn_t read;		/*!< Read function, if read is supported */
+	ast_acf_write_fn_t write;	/*!< Write function, if write is supported */
 	struct ast_module *mod;         /*!< Module this custom function belongs to */
 	AST_RWLIST_ENTRY(ast_custom_function) acflist;
 };
