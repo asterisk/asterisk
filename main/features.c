@@ -783,14 +783,14 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct as
 		 * limitation here.  If extout was not numeric, we could permit
 		 * arbitrary non-numeric extensions.
 		 */
-        if (sscanf(parkingexten, "%30d", &parking_space) != 1 || parking_space < 0) {
+	if (sscanf(parkingexten, "%30d", &parking_space) != 1 || parking_space < 0) {
 			AST_LIST_UNLOCK(&parkinglot->parkings);
 			parkinglot_unref(parkinglot);
-            free(pu);
-            ast_log(LOG_WARNING, "PARKINGEXTEN does not indicate a valid parking slot: '%s'.\n", parkingexten);
-            return NULL;
-        }
-        snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", parking_space);
+	    free(pu);
+	    ast_log(LOG_WARNING, "PARKINGEXTEN does not indicate a valid parking slot: '%s'.\n", parkingexten);
+	    return NULL;
+	}
+	snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", parking_space);
 
 		if (ast_exists_extension(NULL, parkinglot->parking_con, pu->parkingexten, 1, NULL)) {
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parkinglot->parking_con);
@@ -1097,7 +1097,7 @@ static struct ast_channel *create_test_channel(const struct ast_channel_tech *fa
 {
 	struct ast_channel *test_channel1;
 	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
-        NULL, NULL, 0, 0, "TestChannel1"))) {
+	NULL, NULL, 0, 0, "TestChannel1"))) {
 		return NULL;
 	}
 
@@ -2880,17 +2880,17 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
 {
        ast_log(LOG_NOTICE, "______ %s (%lx)______\n", title, (unsigned long)chan);
        ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
-                       chan->name, chan->appl, chan->data, chan->context, chan->exten, chan->priority);
+		       chan->name, chan->appl, chan->data, chan->context, chan->exten, chan->priority);
        ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
-                       chan->accountcode, chan->dialcontext, chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
+		       chan->accountcode, chan->dialcontext, chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
        ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
-                       chan->masq, chan->masqr,
-                       chan->_bridge, chan->uniqueid, chan->linkedid);
+		       chan->masq, chan->masqr,
+		       chan->_bridge, chan->uniqueid, chan->linkedid);
        if (chan->masqr)
-               ast_log(LOG_NOTICE, "CHAN: masquerading as: %s;  cdr: %p;\n",
-                               chan->masqr->name, chan->masqr->cdr);
+	       ast_log(LOG_NOTICE, "CHAN: masquerading as: %s;  cdr: %p;\n",
+		               chan->masqr->name, chan->masqr->cdr);
        if (chan->_bridge)
-               ast_log(LOG_NOTICE, "CHAN: Bridged to %s\n", chan->_bridge->name);
+	       ast_log(LOG_NOTICE, "CHAN: Bridged to %s\n", chan->_bridge->name);
 
 	ast_log(LOG_NOTICE, "===== done ====\n");
 }
@@ -4239,38 +4239,42 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 		} else if (!strcasecmp(confvar->name, "findslot")) {
 			parkinglot->parkfindnext = (!strcasecmp(confvar->value, "next"));
 		} else if (!strcasecmp(confvar->name, "parkedcalltransfers")) {
-                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
-                        if (!strcasecmp(confvar->value, "both"))
-                                parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
-                        else if (!strcasecmp(confvar->value, "caller"))
-                                parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLER;
-                        else if (!strcasecmp(confvar->value, "callee"))
-                                parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
-                } else if (!strcasecmp(confvar->name, "parkedcallreparking")) {
-                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
-                        if (!strcasecmp(confvar->value, "both"))
-                                parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYBOTH;
-                        else if (!strcasecmp(confvar->value, "caller"))
-                                parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLER;
-                        else if (!strcasecmp(confvar->value, "callee"))
-                                parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLEE;
-                } else if (!strcasecmp(confvar->name, "parkedcallhangup")) {
-                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
-                        if (!strcasecmp(confvar->value, "both"))
-                                parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYBOTH;
-                        else if (!strcasecmp(confvar->value, "caller"))
-                                parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLER;
-                        else if (!strcasecmp(confvar->value, "callee"))
-                                parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLEE;
-                } else if (!strcasecmp(confvar->name, "parkedcallrecording")) {
-                        ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
-                        if (!strcasecmp(confvar->value, "both"))
-                                parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYBOTH;
-                        else if (!strcasecmp(confvar->value, "caller"))
-                                parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLER;
-                        else if (!strcasecmp(confvar->value, "callee"))
-                                parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLEE;
-                }
+			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			if (!strcasecmp(confvar->value, "both")) {
+				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
+			} else if (!strcasecmp(confvar->value, "caller")) {
+				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLER;
+		        } else if (!strcasecmp(confvar->value, "callee")) {
+				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
+			}
+		} else if (!strcasecmp(confvar->name, "parkedcallreparking")) {
+			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			if (!strcasecmp(confvar->value, "both")) {
+				parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYBOTH;
+			} else if (!strcasecmp(confvar->value, "caller")) {
+				parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLER;
+			} else if (!strcasecmp(confvar->value, "callee")) {
+				parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLEE;
+			}
+		} else if (!strcasecmp(confvar->name, "parkedcallhangup")) {
+			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			if (!strcasecmp(confvar->value, "both")) {
+				parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYBOTH;
+			} else if (!strcasecmp(confvar->value, "caller")) {
+				parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLER; 
+			} else if (!strcasecmp(confvar->value, "callee")) {
+				parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLEE;
+			}
+		} else if (!strcasecmp(confvar->name, "parkedcallrecording")) {
+			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			if (!strcasecmp(confvar->value, "both")) {
+				parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYBOTH;
+			} else if (!strcasecmp(confvar->value, "caller")) {
+				parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLER;
+			} else if (!strcasecmp(confvar->value, "callee")) {
+				parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLEE;
+			}
+		}
 		confvar = confvar->next;
 	}
 	/* make sure parkingtime is set if not specified */
