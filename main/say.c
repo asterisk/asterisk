@@ -3725,7 +3725,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t t, const char *
 			case 'Y':
 				/* Year */
 				if (tm.tm_year > 99) {
-				        res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+					res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
 				} else if (tm.tm_year < 1) {
 					/* I'm not going to handle 1900 and prior */
 					/* We'll just be silent on the year, instead of bombing out. */
@@ -4559,13 +4559,13 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t t, const char *
 				break;
 			case 'd':
 			case 'e': /* Day of the month */
-                                /* I'm not sure exactly what the parameters 
-                                 * audiofd and ctrlfd to 
-                                 * ast_say_number_full_he mean, but it seems
-                                 * safe to pass -1 there. 
-                                 *
-                                 * At least in one of the pathes :-( 
-                                 */
+				/* I'm not sure exactly what the parameters 
+ 				* audiofd and ctrlfd to 
+ 				* ast_say_number_full_he mean, but it seems
+ 				* safe to pass -1 there. 
+ 				*
+ 				* At least in one of the pathes :-( 
+ 				*/
 				res = ast_say_number_full_he(chan, tm.tm_mday, ints, lang, "m", -1, -1);
 				break;
 			case 'Y': /* Year */
@@ -5225,7 +5225,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t t, const char *
 				break;
 			case 'R':
 				res = ast_say_date_with_format_it(chan, t, ints, lang, "HM", tzone);
-	        	break;
+				break;
 			case 'S':
 				/* Seconds */
 				if (tm.tm_sec == 0) {
@@ -5254,7 +5254,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t t, const char *
 						}
 					}
 				}
-		        break;
+				break;
 			case 'T':
 				res = ast_say_date_with_format_it(chan, t, ints, lang, "HMS", tzone);
 				break;
@@ -7703,7 +7703,7 @@ int ast_say_date_with_format_vi(struct ast_channel *chan, time_t t, const char *
 			case 'Y':
 				/* Year */
 				if (tm.tm_year > 99) {
-				        res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+					res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
 				} else if (tm.tm_year < 1) {
 					/* I'm not going to handle 1900 and prior */
 					/* We'll just be silent on the year, instead of bombing out. */
@@ -8263,7 +8263,7 @@ static const char *counted_noun_ending_en(int num)
  */
 static const char *counted_noun_ending_slavic(int num)
 {
-    	if (num < 0) {
+	if (num < 0) {
 	    num *= -1;
 	}
 	num %= 100;			/* never pay attention to more than two digits */

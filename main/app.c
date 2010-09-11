@@ -914,8 +914,9 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			totalsilence += dspsilence;
 		}
 
-        	if (totalsilence > 0)
+		if (totalsilence > 0) {
 			*duration -= (totalsilence - 200) / 1000;
+		}
 		if (*duration < 0) {
 			*duration = 0;
 		}
@@ -929,7 +930,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			 * to trim ANY part of the recording.
 			 */
 			if (res > 0 && dspsilence) {
-                                /* rewind only the trailing silence */
+				/* rewind only the trailing silence */
 				ast_stream_rewind(others[x], dspsilence - 200);
 			}
 			ast_truncstream(others[x]);
