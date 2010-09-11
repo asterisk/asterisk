@@ -653,7 +653,10 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	chan->oldwriteformat = chan->writeformat;
 	/* Set the channel to a format we can work with */
 	res = ast_set_write_format(chan, fmts);
- 	res = ast_filehelper(buf, chan, NULL, ACTION_OPEN);
+	if (res == -1) {	/* No format available that works with this channel */
+		return NULL;
+	}
+	res = ast_filehelper(buf, chan, NULL, ACTION_OPEN);
 	if (res >= 0)
 		return chan->stream;
 	return NULL;
