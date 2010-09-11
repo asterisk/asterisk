@@ -6520,8 +6520,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	ast_debug(3, "*** Joint capabilities are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, i->jointcapability));
 	ast_debug(3, "*** Our capabilities are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, i->capability));
 	ast_debug(3, "*** AST_CODEC_CHOOSE formats are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, ast_codec_choose(&i->prefs, what, 1)));
-	if (i->prefcodec)
+	if (i->prefcodec) {
 		ast_debug(3, "*** Our preferred formats from the incoming channel are %s \n", ast_getformatname_multiple(buf, SIPBUFSIZE, i->prefcodec));
+	}
 
 	/* XXX Why are we choosing a codec from the native formats?? */
 	fmt = ast_best_codec(tmp->nativeformats);
@@ -6546,10 +6547,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 			needtext = i->jointcapability & AST_FORMAT_TEXT_MASK;	/* Inbound call */
 	}
 
-	if (needvideo)
+	if (needvideo) {
 		ast_debug(3, "This channel can handle video! HOLLYWOOD next!\n");
-	else
+	} else {
 		ast_debug(3, "This channel will not be able to handle video.\n");
+	}
 
 	enable_dsp_detect(i);
 
@@ -6573,13 +6575,16 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		ast_channel_set_fd(tmp, 2, ast_rtp_instance_fd(i->vrtp, 0));
 		ast_channel_set_fd(tmp, 3, ast_rtp_instance_fd(i->vrtp, 1));
 	}
-	if (needtext && i->trtp)
+	if (needtext && i->trtp) {
 		ast_channel_set_fd(tmp, 4, ast_rtp_instance_fd(i->trtp, 0));
-	if (i->udptl)
+	}
+	if (i->udptl) {
 		ast_channel_set_fd(tmp, 5, ast_udptl_fd(i->udptl));
+	}
 
-	if (state == AST_STATE_RING)
+	if (state == AST_STATE_RING) {
 		tmp->rings = 1;
+	}
 	tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 
 	tmp->writeformat = fmt;
@@ -6596,14 +6601,18 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	tmp->pickupgroup = i->pickupgroup;
 	tmp->caller.id.name.presentation = i->callingpres;
 	tmp->caller.id.number.presentation = i->callingpres;
-	if (!ast_strlen_zero(i->parkinglot))
+	if (!ast_strlen_zero(i->parkinglot)) {
 		ast_string_field_set(tmp, parkinglot, i->parkinglot);
-	if (!ast_strlen_zero(i->accountcode))
+	}
+	if (!ast_strlen_zero(i->accountcode)) {
 		ast_string_field_set(tmp, accountcode, i->accountcode);
-	if (i->amaflags)
+	}
+	if (i->amaflags) {
 		tmp->amaflags = i->amaflags;
-	if (!ast_strlen_zero(i->language))
+	}
+	if (!ast_strlen_zero(i->language)) {
 		ast_string_field_set(tmp, language, i->language);
+	}
 	i->owner = tmp;
 	ast_module_ref(ast_module_info->self);
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
@@ -6631,14 +6640,18 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 
 	tmp->priority = 1;
-	if (!ast_strlen_zero(i->uri))
+	if (!ast_strlen_zero(i->uri)) {
 		pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
-	if (!ast_strlen_zero(i->domain))
+	}
+	if (!ast_strlen_zero(i->domain)) {
 		pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
-	if (!ast_strlen_zero(i->callid))
+	}
+	if (!ast_strlen_zero(i->callid)) {
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
-	if (i->rtp)
+	}
+	if (i->rtp) {
 		ast_jb_configure(tmp, &global_jbconf);
+	}
 
 	/* Set channel variables for this call from configuration */
 	for (v = i->chanvars ; v ; v = v->next) {
@@ -6653,14 +6666,16 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		tmp = NULL;
 	}
 
-	if (i->do_history)
+	if (i->do_history) {
 		append_history(i, "NewChan", "Channel %s - from %s", tmp->name, i->callid);
+	}
 
 	/* Inform manager user about new channel and their SIP call ID */
-	if (sip_cfg.callevents)
+	if (sip_cfg.callevents) {
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 			"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
 			tmp->name, tmp->uniqueid, "SIP", i->callid, i->fullcontact);
+	}
 
 	return tmp;
 }
@@ -6668,8 +6683,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 /*! \brief Reads one line of SIP message body */
 static char *get_body_by_line(const char *line, const char *name, int nameLen, char delimiter)
 {
-	if (!strncasecmp(line, name, nameLen) && line[nameLen] == delimiter)
+	if (!strncasecmp(line, name, nameLen) && line[nameLen] == delimiter) {
 		return ast_skip_blanks(line + nameLen + 1);
+	}
 
 	return "";
 }
@@ -6729,8 +6745,9 @@ static char *get_body(struct sip_request *req, char *name, char delimiter)
 
 	for (x = 0; x < req->lines; x++) {
 		r = get_body_by_line(REQ_OFFSET_TO_STR(req, line[x]), name, len, delimiter);
-		if (r[0] != '\0')
+		if (r[0] != '\0') {
 			return r;
+		}
 	}
 
 	return "";
@@ -6794,8 +6811,9 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 			const char *header = REQ_OFFSET_TO_STR(req, header[x]);
 			if (!strncasecmp(header, name, len)) {
 				const char *r = header + len;	/* skip name */
-				if (sip_cfg.pedanticsipchecking)
+				if (sip_cfg.pedanticsipchecking) {
 					r = ast_skip_blanks(r);
+				}
 
 				if (*r == ':') {
 					*start = x+1;
@@ -6803,8 +6821,9 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 				}
 			}
 		}
-		if (pass == 0) /* Try aliases */
+		if (pass == 0) { /* Try aliases */
 			name = find_alias(name, NULL);
+		}
 	}
 
 	/* Don't return NULL, so get_header is always a valid pointer */
@@ -6849,11 +6868,13 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 		if (sipdebug_text) {
 			int i;
 			unsigned char* arr = f->data.ptr;
-			for (i=0; i < f->datalen; i++)
+			for (i=0; i < f->datalen; i++) {
 				ast_verbose("%c", (arr[i] > ' ' && arr[i] < '}') ? arr[i] : '.');
+			}
 			ast_verbose(" -> ");
-			for (i=0; i < f->datalen; i++)
+			for (i=0; i < f->datalen; i++) {
 				ast_verbose("%02X ", arr[i]);
+			}
 			ast_verbose("\n");
 		}
 		break;
@@ -6871,8 +6892,9 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	}
 
 	/* We already hold the channel lock */
-	if (!p->owner || (f && f->frametype != AST_FRAME_VOICE))
+	if (!p->owner || (f && f->frametype != AST_FRAME_VOICE)) {
 		return f;
+	}
 
 	if (f && f->subclass.codec != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
 		if (!(f->subclass.codec & p->jointcapability)) {
