@@ -438,7 +438,7 @@ static const struct ast_datastore_info dial_features_info = {
 static struct ast_parkinglot *parkinglot_addref(struct ast_parkinglot *parkinglot);
 static void parkinglot_unref(struct ast_parkinglot *parkinglot);
 static void parkinglot_destroy(void *obj);
-int manage_parkinglot(struct ast_parkinglot *curlot, struct pollfd **pfds, int *nfds, int *fs);
+int manage_parkinglot(struct ast_parkinglot *curlot, const struct pollfd *pfds, const int nfds, struct pollfd **new_pfds, int *new_nfds, int *fs);
 struct ast_parkinglot *find_parkinglot(const char *name);
 static struct ast_parkinglot *create_parkinglot(const char *name);
 static struct ast_parkinglot *copy_parkinglot(const char *name, const struct ast_parkinglot *parkinglot);
@@ -3603,10 +3603,8 @@ static char *callback_dialoptions(struct ast_flags *features_callee, struct ast_
 }
 
 /*! \brief Run management on parkinglots, called once per parkinglot */
-int manage_parkinglot(struct ast_parkinglot *curlot, struct pollfd **pfds, int *nfds, int *ms)
+int manage_parkinglot(struct ast_parkinglot *curlot, const struct pollfd *pfds, const int nfds, struct pollfd **new_pfds, int *new_nfds, int *ms)
 {
-	struct pollfd *new_fds = NULL;
-	int new_nfds = 0;
 	struct parkeduser *pu;
 	int res = 0;
 	char parkingslot[AST_MAX_EXTENSION];
@@ -3719,23 +3717,23 @@ int manage_parkinglot(struct ast_parkinglot *curlot, struct pollfd **pfds, int *
 					continue;	/* nothing on this descriptor */
 				}
 
-				for (y = 0; y < *nfds; y++) {
-					if ((*pfds[y]).fd == chan->fds[x]) {
+				for (y = 0; y < nfds; y++) {
+					if (pfds[y].fd == chan->fds[x]) {
 						/* Found poll record! */
 						break;
 					}
 				}
-				if (y == *nfds) {
+				if (y == nfds) {
 					/* Not found */
 					continue;
 				}
 
-				if (!((*pfds[y]).revents & (POLLIN | POLLERR))) {
+				if (!(pfds[y].revents & (POLLIN | POLLERR))) {
 					/* Next x */
 					continue;
 				}
 
-				if ((*pfds[y]).revents & POLLERR) {
+				if (pfds[y].revents & POLLERR) {
 					ast_set_flag(chan, AST_FLAG_EXCEPTION);
 				} else {
 					ast_clear_flag(chan, AST_FLAG_EXCEPTION);
@@ -3782,15 +3780,15 @@ int manage_parkinglot(struct ast_parkinglot *curlot, struct pollfd **pfds, int *
 			if (x >= AST_MAX_FDS) {
 std:			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 					if (chan->fds[x] > -1) {
-						void *tmp = ast_realloc(new_fds, (new_nfds + 1) * sizeof(*new_fds));
+						void *tmp = ast_realloc(*new_pfds, (*new_nfds + 1) * sizeof(struct pollfd));
 						if (!tmp) {
 							continue;
 						}
-						new_fds = tmp;
-						new_fds[new_nfds].fd = chan->fds[x];
-						new_fds[new_nfds].events = POLLIN | POLLERR;
-						new_fds[new_nfds].revents = 0;
-						new_nfds++;
+						*new_pfds = tmp;
+						new_pfds[*new_nfds]->fd = chan->fds[x];
+						new_pfds[*new_nfds]->events = POLLIN | POLLERR;
+						new_pfds[*new_nfds]->revents = 0;
+						(*new_nfds)++;
 					}
 				}
 				/* Keep track of our shortest wait */
@@ -3803,9 +3801,6 @@ std:			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&curlot->parkings);
 
-	ast_free(*pfds);
-	*pfds = new_fds;
-	*nfds = new_nfds;
 	return res;
 }
 
@@ -3819,8 +3814,8 @@ std:			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 */
 static void *do_parking_thread(void *ignore)
 {
-	struct pollfd *pfds = NULL;
-	int nfds = 0;
+	struct pollfd *pfds = NULL, *new_pfds = NULL;
+	int nfds = 0, new_nfds = 0;
 
 	for (;;) {
 		struct ao2_iterator iter;
@@ -3829,10 +3824,17 @@ static void *do_parking_thread(void *ignore)
 		iter = ao2_iterator_init(parkinglots, 0);
 
 		while ((curlot = ao2_iterator_next(&iter))) {
-			manage_parkinglot(curlot, &pfds, &nfds, &ms);
+			manage_parkinglot(curlot, pfds, nfds, &new_pfds, &new_nfds, &ms);
 			ao2_ref(curlot, -1);
 		}
 		ao2_iterator_destroy(&iter);
+
+		/* Recycle */
+		ast_free(pfds);
+		pfds = new_pfds;
+		nfds = new_nfds;
+		new_pfds = NULL;
+		new_nfds = 0;
 
 		/* Wait for something to happen */
 		ast_poll(pfds, nfds, ms);
