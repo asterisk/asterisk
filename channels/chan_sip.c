@@ -16922,7 +16922,6 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Externhost:             %s\n", S_OR(externhost, "<none>"));
 	ast_cli(a->fd, "  externaddr:               %s\n", ast_sockaddr_stringify(&externaddr));
 	ast_cli(a->fd, "  Externrefresh:          %d\n", externrefresh);
-	ast_cli(a->fd, "  Internal IP:            %s\n", ast_sockaddr_stringify(&internip));
 	{
 		struct ast_ha *d;
 		const char *prefix = "Localnet:";
