@@ -3785,9 +3785,9 @@ std:			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 							continue;
 						}
 						*new_pfds = tmp;
-						new_pfds[*new_nfds]->fd = chan->fds[x];
-						new_pfds[*new_nfds]->events = POLLIN | POLLERR;
-						new_pfds[*new_nfds]->revents = 0;
+						(*new_pfds)[*new_nfds].fd = chan->fds[x];
+						(*new_pfds)[*new_nfds].events = POLLIN | POLLERR;
+						(*new_pfds)[*new_nfds].revents = 0;
 						(*new_nfds)++;
 					}
 				}
