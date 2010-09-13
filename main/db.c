@@ -102,6 +102,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static DB *astdb;
 AST_MUTEX_DEFINE_STATIC(dblock);
+static ast_cond_t dbcond;
+
+static void db_sync(void);
 
 static int dbinit(void) 
 {
@@ -182,7 +185,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 			counter++;
 		}
 	}
-	astdb->sync(astdb, 0);
+	db_sync();
 	ast_mutex_unlock(&dblock);
 	return counter;
 }
@@ -207,7 +210,7 @@ int ast_db_put(const char *family, const char *keys, const char *value)
 	data.data = (char *) value;
 	data.size = strlen(value) + 1;
 	res = astdb->put(astdb, &key, &data, 0);
-	astdb->sync(astdb, 0);
+	db_sync();
 	ast_mutex_unlock(&dblock);
 	if (res)
 		ast_log(LOG_WARNING, "Unable to put value '%s' for key '%s' in family '%s'\n", value, keys, family);
@@ -276,7 +279,7 @@ int ast_db_del(const char *family, const char *keys)
 	key.size = fullkeylen + 1;
 	
 	res = astdb->del(astdb, &key, 0);
-	astdb->sync(astdb, 0);
+	db_sync();
 	
 	ast_mutex_unlock(&dblock);
 
@@ -718,8 +721,50 @@ static int manager_dbdeltree(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Signal the astdb sync thread to do its thing.
+ *
+ * \note dblock is assumed to be held when calling this function.
+ */
+static void db_sync(void)
+{
+	ast_cond_signal(&dbcond);
+}
+
+/*!
+ * \internal
+ * \brief astdb sync thread
+ *
+ * This thread is in charge of syncing astdb to disk after a change.
+ * By pushing it off to this thread to take care of, this I/O bound operation
+ * will not block other threads from performing other critical processing.
+ * If changes happen rapidly, this thread will also ensure that the sync
+ * operations are rate limited.
+ */
+static void *db_sync_thread(void *data)
+{
+	ast_mutex_lock(&dblock);
+	for (;;) {
+		ast_cond_wait(&dbcond, &dblock);
+		ast_mutex_unlock(&dblock);
+		sleep(1);
+		ast_mutex_lock(&dblock);
+		astdb->sync(astdb, 0);
+	}
+
+	return NULL;
+}
+
 int astdb_init(void)
 {
+	pthread_t dont_care;
+
+	ast_cond_init(&dbcond, NULL);
+	if (ast_pthread_create_background(&dont_care, NULL, db_sync_thread, NULL)) {
+		return -1;
+	}
+
 	dbinit();
 	ast_cli_register_multiple(cli_database, ARRAY_LEN(cli_database));
 	ast_manager_register_xml("DBGet", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_dbget);
