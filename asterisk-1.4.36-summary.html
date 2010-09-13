@@ -1,0 +1,218 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.4.36</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.4.36</h3>
+<h3 align="center">Date: 2010-09-13</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.4.35.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+4 dvossel<br/>
+4 tilghman<br/>
+3 jpeeler<br/>
+3 rmudgett<br/>
+2 RoadKill<br/>
+2 twilson<br/>
+1 addix<br/>
+1 jeang<br/>
+1 klaus3000<br/>
+1 lmadsen<br/>
+1 mmichelson<br/>
+1 nic<br/>
+1 qwell<br/>
+1 russell<br/>
+1 snuffy<br/>
+</td>
+<td>
+1 addix<br/>
+1 dvossel<br/>
+1 jstapleton<br/>
+1 manvirr<br/>
+1 schmidts<br/>
+1 sdolloff<br/>
+1 sybasesql<br/>
+1 twilson<br/>
+1 zerohalo<br/>
+</td>
+<td>
+2 manvirr<br/>
+2 RoadKill<br/>
+1 addix<br/>
+1 anonymouz666<br/>
+1 jstapleton<br/>
+1 klaus3000<br/>
+1 kobaz<br/>
+1 nic_bellamy<br/>
+1 nickb<br/>
+1 sdolloff<br/>
+1 sybasesql<br/>
+1 wuwu<br/>
+1 zerohalo<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17080">#17080</a>: [patch] Asterisk crashes while core restart (#0  0x000000000050683c in term_beep (el=0x16cdd9b0) at term.c:865)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=278981">278981</a><br/>
+Reporter: sybasesql<br/>
+Testers: sybasesql<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Applications/app_chanspy</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17630">#17630</a>: [patch] Chanspy Keeps using G729 Encoder licenses even after the spying channel hangs up.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=279945">279945</a><br/>
+Reporter: manvirr<br/>
+Coders: dvossel<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17630">#17630</a>: [patch] Chanspy Keeps using G729 Encoder licenses even after the spying channel hangs up.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=280448">280448</a><br/>
+Reporter: manvirr<br/>
+Testers: manvirr, dvossel<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Applications/app_dial</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17641">#17641</a>: [patch] reset visible_indication after call answering<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=281566">281566</a><br/>
+Reporter: klaus3000<br/>
+Testers: schmidts<br/>
+Coders: klaus3000<br/>
+<br/>
+<h3>Category: Applications/app_disa</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16661">#16661</a>: [patch] DISA doesn't honor caller ID on the channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=280811">280811</a><br/>
+Reporter: jstapleton<br/>
+Testers: jstapleton<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Channels/chan_dahdi</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17874">#17874</a>: [patch] Q931 - Sending PROGRESS after sending ALERTING is a protocol error<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=283048">283048</a><br/>
+Reporter: nic_bellamy<br/>
+Coders: nic<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17138">#17138</a>: [patch] CallerID not properly set when using Originate and AGI<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=281390">281390</a><br/>
+Reporter: kobaz<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17497">#17497</a>: [patch] [regression] Segmentation fault in scheduled event<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=281185">281185</a><br/>
+Reporter: anonymouz666<br/>
+Coders: dvossel<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17643">#17643</a>: [patch] dialplan reload deadlocks in ast_rdlock_contexts when calling ast_hint_state_changed<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=280982">280982</a><br/>
+Reporter: zerohalo<br/>
+Testers: zerohalo<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17712">#17712</a>: TOS_SIP does not get set<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=282893">282893</a><br/>
+Reporter: nickb<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Transfers</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17007">#17007</a>: [patch] RTP Timestamp changes after transfer, but SSRC not and the markerbit ist not set.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=282430">282430</a><br/>
+Reporter: addix<br/>
+Testers: addix, twilson<br/>
+Coders: addix, twilson<br/>
+<br/>
+<h3>Category: Core/Configuration</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17833">#17833</a>: [patch] say.conf has problem with large numbers<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=281762">281762</a><br/>
+Reporter: RoadKill<br/>
+Coders: RoadKill<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17836">#17836</a>: [patch] say.conf added support for Danish<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=281819">281819</a><br/>
+Reporter: RoadKill<br/>
+Coders: RoadKill<br/>
+<br/>
+<h3>Category: Core/RTP</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17404">#17404</a>: [patch] [regression] audio delay when bridging calls related to timestamp mismatch<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=281911">281911</a><br/>
+Reporter: sdolloff<br/>
+Testers: sdolloff<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17568">#17568</a>: [patch] DNID does not get cleard on new call<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=278701">278701</a><br/>
+Reporter: wuwu<br/>
+Coders: rmudgett<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=278984">278984</a></td><td>tilghman</td><td>Establish a maximum version for openh323 (i.e. not opal), because chan_h323 will fail to load, even if it links.</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17679">#17679</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=279053">279053</a></td><td>mmichelson</td><td>Backport fixes for sip_uri_params_cmp() from trunk.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=279206">279206</a></td><td>rmudgett</td><td>SIP promiscuous redirect could fail to dial the redirect.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=279344">279344</a></td><td>jpeeler</td><td>Provide a default value for DAHDI_TRANSCODE so when DAHDI is not installed</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=279346">279346</a></td><td>snuffy</td><td>Minor update to man page</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=280088">280088</a></td><td>lmadsen</td><td>Update help text to be less confusing.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=280341">280341</a></td><td>jeang</td><td>Fix a dsp structure leak occuring when a local channel is put into a meetme</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=280944">280944</a></td><td>russell</td><td>Copy astcli back to 1.4 so it's available for automated testing purposes.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=282129">282129</a></td><td>qwell</td><td>Register CLI commands before parsing config, in case there is a config error.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=282729">282729</a></td><td>twilson</td><td>Add some documentation about codec negotiation to sip.conf</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=283123">283123</a></td><td>rmudgett</td><td>Merged revision 278274 from</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+apps/app_dial.c                  |   12 +-
+apps/app_meetme.c                |    3
+apps/app_queue.c                 |    9 +
+autoconf/ast_check_pwlib.m4      |   12 ++
+channels/chan_dahdi.c            |   18 +--
+channels/chan_local.c            |   20 +++
+channels/chan_sip.c              |  204 +++++++++++++++++++++++++++------------
+configs/say.conf.sample          |   96 +++++++++++++++++-
+configs/sip.conf.sample          |   13 ++
+configure.ac                     |    3
+contrib/scripts/astcli           |  167 +++++++++++++++++++++++++++++++
+contrib/scripts/live_ast         |    2
+doc/asterisk.8                   |    4
+funcs/func_callerid.c            |    6 +
+include/asterisk/audiohook.h     |    7 +
+include/asterisk/autoconfig.h.in |   51 ++++-----
+main/asterisk.c                  |   19 ++-
+main/audiohook.c                 |   12 ++
+main/channel.c                   |   27 ++++-
+main/pbx.c                       |   14 +-
+pbx/pbx_config.c                 |    7 -
+21 files changed, 572 insertions(+), 134 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
