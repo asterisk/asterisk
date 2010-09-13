@@ -16186,7 +16186,6 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Externhost:             %s\n", S_OR(externhost, "<none>"));
 	ast_cli(a->fd, "  Externip:               %s:%d\n", ast_inet_ntoa(externip.sin_addr), ntohs(externip.sin_port));
 	ast_cli(a->fd, "  Externrefresh:          %d\n", externrefresh);
-	ast_cli(a->fd, "  Internal IP:            %s:%d\n", ast_inet_ntoa(internip.sin_addr), ntohs(internip.sin_port));
 	{
 		struct ast_ha *d;
 		const char *prefix = "Localnet:";
