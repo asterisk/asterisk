@@ -164,28 +164,28 @@ useful for the interception macros to provide some information about where
 the information originally came from.
 
 \begin{verbatim}
-${REDIRECTING_SEND_CALLEE_MACRO}
+${REDIRECTING_CALLEE_SEND_MACRO}
   Macro to call before sending a redirecting update to the callee.
   This macro may never be needed since the redirecting updates
   should only go from the callee to the caller direction.  It is
   available for completeness.
-${REDIRECTING_SEND_CALLEE_MACRO_ARGS}
-  Arguments to pass to ${REDIRECTING_SEND_CALLEE_MACRO}.
+${REDIRECTING_CALLEE_SEND_MACRO_ARGS}
+  Arguments to pass to ${REDIRECTING_CALLEE_SEND_MACRO}.
 
-${REDIRECTING_SEND_CALLER_MACRO}
+${REDIRECTING_CALLER_SEND_MACRO}
   Macro to call before sending a redirecting update to the caller.
-${REDIRECTING_SEND_CALLER_MACRO_ARGS}
-  Arguments to pass to ${REDIRECTING_SEND_CALLER_MACRO}.
+${REDIRECTING_CALLER_SEND_MACRO_ARGS}
+  Arguments to pass to ${REDIRECTING_CALLER_SEND_MACRO}.
 
-${CONNECTED_LINE_SEND_CALLEE_MACRO}
+${CONNECTED_LINE_CALLEE_SEND_MACRO}
   Macro to call before sending a connected line update to the callee.
-${CONNECTED_LINE_SEND_CALLEE_MACRO_ARGS}
-  Arguments to pass to ${CONNECTED_LINE_SEND_CALLEE_MACRO}.
+${CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS}
+  Arguments to pass to ${CONNECTED_LINE_CALLEE_SEND_MACRO}.
 
-${CONNECTED_LINE_SEND_CALLER_MACRO}
+${CONNECTED_LINE_CALLER_SEND_MACRO}
   Macro to call before sending a connected line update to the caller.
-${CONNECTED_LINE_SEND_CALLER_MACRO_ARGS}
-  Arguments to pass to ${CONNECTED_LINE_SEND_CALLER_MACRO}.
+${CONNECTED_LINE_CALLER_SEND_MACRO_ARGS}
+  Arguments to pass to ${CONNECTED_LINE_CALLER_SEND_MACRO}.
 \end{verbatim}
 
 \section{Manipulation examples}
