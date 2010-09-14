@@ -102,6 +102,7 @@ struct ewscal_pvt {
 	ne_uri uri;
 	ne_session *session;
 	struct ao2_container *events;
+	unsigned int items;
 };
 
 static void ewscal_destructor(void *obj)
@@ -169,7 +170,7 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 {
 	struct xml_context *ctx = userdata;
 
-	ast_debug(3, "EWS: XML: Start: %s\n", name);
+	ast_debug(5, "EWS: XML: Start: %s\n", name);
 	if (ctx->op == XML_OP_CREATE) {
 		return NE_XML_DECLINE;
 	}
@@ -187,16 +188,17 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 		return 1;
 	} else if (!strcmp(name, "RootFolder")) {
 		/* Get number of events */
-		int items;
+		unsigned int items;
 
 		ast_debug(3, "EWS: XML: <RootFolder>\n");
-		if (sscanf(ne_xml_get_attr(ctx->parser, atts, NULL, "TotalItemsInView"), "%d", &items) != 1) {
+		if (sscanf(ne_xml_get_attr(ctx->parser, atts, NULL, "TotalItemsInView"), "%u", &items) != 1) {
 			/* Couldn't read enything */
 			ne_xml_set_error(ctx->parser, "Could't read number of events.");
 			return NE_XML_ABORT;
 		}
 
 		ast_debug(3, "EWS: %d calendar items to load\n", items);
+		ctx->pvt->items = items;
 		if (items < 1) {
 			/* Stop processing XML if there are no events */
 			return NE_XML_DECLINE;
@@ -434,8 +436,11 @@ static int endelm(void *userdata, int state, const char *nspace, const char *nam
 		}
 	} else if (!strcmp(name, "Envelope")) {
 		/* Events end */
-		ast_debug(3, "EWS: XML: All events has been parsed, merging…\n");
-		ast_calendar_merge_events(ctx->pvt->owner, ctx->pvt->events);
+		ast_debug(3, "EWS: XML: %d of %d event(s) has been parsed…\n", ao2_container_count(ctx->pvt->events), ctx->pvt->items);
+		if (ao2_container_count(ctx->pvt->events) >= ctx->pvt->items) {
+			ast_debug(3, "EWS: XML: All events has been parsed, merging…\n");
+			ast_calendar_merge_events(ctx->pvt->owner, ctx->pvt->events);
+		}
 	}
 
 	return 0;
