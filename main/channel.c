@@ -2352,7 +2352,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						ast_log(LOG_DEBUG, "Ignoring answer on an inbound call!\n");
 					ast_frfree(f);
 					f = &ast_null_frame;
-				} else if (prestate == AST_STATE_UP) {
+				} else if (prestate == AST_STATE_UP && ast_bridged_channel(chan)) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
 					ast_frfree(f);
