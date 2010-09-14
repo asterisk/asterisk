@@ -8543,7 +8543,7 @@ static void destroy_association(struct sip_peer *peer)
 {
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE)) {
 		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT) && ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE)) {
-			ast_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
+			ast_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "regserver", "", NULL);
 			ast_update_realtime("sippeers", "name", peer->name, "lastms", "", NULL);
 		} else 
 			ast_db_del("SIP/Registry", peer->name);
