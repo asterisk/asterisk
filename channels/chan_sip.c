@@ -11547,7 +11547,9 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	
 	/* Associate the call with us */
 	mwi->call->mwi = ASTOBJ_REF(mwi);
-	
+
+	mwi->call->subscribed = MWI_NOTIFICATION;
+
 	/* Actually send the packet */
 	transmit_invite(mwi->call, SIP_SUBSCRIBE, 0, 2, NULL);
 
