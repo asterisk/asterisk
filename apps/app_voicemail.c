@@ -5401,7 +5401,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					valid_extensions = 0;
 					break;
 				}
- 				capacity = receiver->maxmsg - inprocess_count(receiver->mailbox, receiver->context, +1);
+				capacity = receiver->maxmsg - inprocess_count(receiver->mailbox, receiver->context, +1);
 				if ((newmsgs + oldmsgs) >= capacity) {
 					ast_log(LOG_NOTICE, "Mailbox '%s' is full with capacity of %d, prompting for another extension.\n", s, capacity);
 					res = ast_play_and_wait(chan, "vm-mailboxfull");
