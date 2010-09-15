@@ -343,7 +343,8 @@ static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int rt
 	}
 
 	if (res != err_status_ok && res != err_status_replay_fail ) {
-		ast_debug(1, "SRTP unprotect: %s\n", srtp_errstr(res));
+		ast_log(LOG_WARNING, "SRTP unprotect: %s\n", srtp_errstr(res));
+		errno = EAGAIN;
 		return -1;
 	}
 
@@ -361,7 +362,7 @@ static int ast_srtp_protect(struct ast_srtp *srtp, void **buf, int *len, int rtc
 	memcpy(srtp->buf, *buf, *len);
 
 	if ((res = rtcp ? srtp_protect_rtcp(srtp->session, srtp->buf, len) : srtp_protect(srtp->session, srtp->buf, len)) != err_status_ok && res != err_status_replay_fail) {
-		ast_debug(1, "SRTP protect: %s\n", srtp_errstr(res));
+		ast_log(LOG_WARNING, "SRTP protect: %s\n", srtp_errstr(res));
 		return -1;
 	}
 
