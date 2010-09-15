@@ -6632,7 +6632,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	AST_LIST_HEAD_NOLOCK_STATIC(extensions, ast_vm_user);
 	char *stringp;
 	const char *s;
-	int saved_messages = 0, found = 0;
+	int saved_messages = 0;
 	int valid_extensions = 0;
 	char *dir;
 	int curmsg;
@@ -6740,8 +6740,29 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		valid_extensions = 1;
 		while (s) {
 			if ((is_new_message == 1 || strcmp(s, sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
+				int oldmsgs;
+				int newmsgs;
+				int capacity;
+				if (inboxcount(s, &newmsgs, &oldmsgs)) {
+					ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", s);
+					/* Shouldn't happen, but allow trying another extension if it does */
+					res = ast_play_and_wait(chan, "pbx-invalid");
+					valid_extensions = 0;
+					break;
+				}
+				capacity = receiver->maxmsg - inprocess_count(receiver->mailbox, receiver->context, +1);
+				if ((newmsgs + oldmsgs) >= capacity) {
+					ast_log(LOG_NOTICE, "Mailbox '%s' is full with capacity of %d, prompting for another extension.\n", s, capacity);
+					res = ast_play_and_wait(chan, "vm-mailboxfull");
+					valid_extensions = 0;
+					while ((vmtmp = AST_LIST_REMOVE_HEAD(&extensions, list))) {
+						inprocess_count(vmtmp->mailbox, vmtmp->context, -1);
+						free_user(vmtmp);
+					}
+					inprocess_count(receiver->mailbox, receiver->context, -1);
+					break;
+				}
 				AST_LIST_INSERT_HEAD(&extensions, receiver, list);
-				found++;
 			} else {
 				/* XXX Optimization for the future.  When we encounter a single bad extension,
 				 * bailing out on all of the extensions may not be the way to go.  We should
@@ -6752,6 +6773,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					free_user(receiver);
 				}
 				ast_log(LOG_NOTICE, "'%s' is not a valid mailbox\n", s);
+				/* "I am sorry, that's not a valid extension.  Please try again." */
+				res = ast_play_and_wait(chan, "pbx-invalid");
 				valid_extensions = 0;
 				break;
 			}
@@ -6775,8 +6798,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* break from the loop of reading the extensions */
 		if (valid_extensions)
 			break;
-		/* "I am sorry, that's not a valid extension.  Please try again." */
-		res = ast_play_and_wait(chan, "pbx-invalid");
 	}
 	/* check if we're clear to proceed */
 	if (AST_LIST_EMPTY(&extensions) || !valid_extensions)
@@ -6832,6 +6853,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 #endif
 				saved_messages++;
 				AST_LIST_REMOVE_CURRENT(list);
+				inprocess_count(vmtmp->mailbox, vmtmp->context, -1);
 				free_user(vmtmp);
 				if (res)
 					break;
@@ -6875,8 +6897,10 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	}
 
 	/* If anything failed above, we still have this list to free */
-	while ((vmtmp = AST_LIST_REMOVE_HEAD(&extensions, list)))
+	while ((vmtmp = AST_LIST_REMOVE_HEAD(&extensions, list))) {
+		inprocess_count(vmtmp->mailbox, vmtmp->context, -1);
 		free_user(vmtmp);
+	}
 	return res ? res : cmd;
 }
 
