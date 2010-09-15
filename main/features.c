@@ -744,7 +744,7 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct as
 	int i, parking_space = -1, parking_range;
 	const char *parkinglotname = NULL;
 	const char *parkingexten;
-	struct ast_parkinglot *parkinglot;
+	struct ast_parkinglot *parkinglot = NULL;
 
 	if (args->parkinglot) {
 		parkinglot = args->parkinglot;
