@@ -9112,7 +9112,7 @@ static void dp_lookup(int callno, const char *context, const char *callednum, co
 	memset(&ied1, 0, sizeof(ied1));
 	mm = ast_matchmore_extension(NULL, context, callednum, 1, callerid);
 	/* Must be started */
-	if (!strcmp(callednum, ast_parking_ext()) || ast_exists_extension(NULL, context, callednum, 1, callerid)) {
+	if (ast_parking_ext_valid(callednum, NULL, context) || ast_exists_extension(NULL, context, callednum, 1, callerid)) {
 		dpstatus = IAX_DPSTATUS_EXISTS;
 	} else if (ast_canmatch_extension(NULL, context, callednum, 1, callerid)) {
 		dpstatus = IAX_DPSTATUS_CANEXIST;
@@ -9167,6 +9167,7 @@ static void spawn_dp_lookup(int callno, const char *context, const char *calledn
 struct iax_dual {
 	struct ast_channel *chan1;
 	struct ast_channel *chan2;
+	const char *parkexten;
 };
 
 static void *iax_park_thread(void *stuff)
@@ -9183,13 +9184,13 @@ static void *iax_park_thread(void *stuff)
 	f = ast_read(chan1);
 	if (f)
 		ast_frfree(f);
-	res = ast_park_call(chan1, chan2, 0, &ext);
+	res = ast_park_call(chan1, chan2, 0, d->parkexten, &ext);
 	ast_hangup(chan2);
 	ast_log(LOG_NOTICE, "Parked on extension '%d'\n", ext);
 	return NULL;
 }
 
-static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
+static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const char *parkexten)
 {
 	struct iax_dual *d;
 	struct ast_channel *chan1m, *chan2m;
@@ -9231,6 +9232,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 	if ((d = ast_calloc(1, sizeof(*d)))) {
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
+		d->parkexten = parkexten;
 		if (!ast_pthread_create_detached_background(&th, NULL, iax_park_thread, d)) {
 			return 0;
 		}
@@ -10604,10 +10606,10 @@ retryowner:
 					}
 
 					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", iaxs[fr->callno]->owner->name);
-					if (!strcmp(ies.called_number, ast_parking_ext())) {
+					if (ast_parking_ext_valid(ies.called_number, c, iaxs[fr->callno]->context)) {
 						struct ast_channel *saved_channel = iaxs[fr->callno]->owner;
 						ast_mutex_unlock(&iaxsl[fr->callno]);
-						if (iax_park(bridged_chan, saved_channel)) {
+						if (iax_park(bridged_chan, saved_channel, ies.called_number)) {
 							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", bridged_chan->name);
 						} else {
 							ast_debug(1, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);

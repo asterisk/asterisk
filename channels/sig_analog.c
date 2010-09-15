@@ -1939,7 +1939,7 @@ static void *__analog_ss_thread(void *data)
 			} else {
 				analog_play_tone(p, index, ANALOG_TONE_DIALTONE);
 			}
-			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && strcmp(exten, ast_parking_ext())) {
+			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && !ast_parking_ext_valid(exten, chan, chan->context)) {
 				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
@@ -2090,7 +2090,7 @@ static void *__analog_ss_thread(void *data)
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
-			} else if ((p->transfer || p->canpark) && !strcmp(exten, ast_parking_ext()) &&
+			} else if ((p->transfer || p->canpark) && ast_parking_ext_valid(exten, chan, chan->context) &&
 						p->subs[ANALOG_SUB_THREEWAY].owner &&
 						ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
 				/* This is a three way call, the main call being a real channel,

@@ -3107,7 +3107,7 @@ static void *mgcp_ss(void *data)
 			getforward = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			len = 0;
-		} else if (!strcmp(p->dtmf_buf, ast_parking_ext()) &&
+		} else if (ast_parking_ext_valid(p->dtmf_buf, chan, chan->context) &&
 			sub->next->owner && ast_bridged_channel(sub->next->owner)) {
 			/* This is a three way call, the main call being a real channel,
 			   and we're parking the first call. */

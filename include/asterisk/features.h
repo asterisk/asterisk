@@ -35,6 +35,7 @@
 #define FEATURE_MOH_LEN		80  /* same as MAX_MUSICCLASS from channel.h */
 
 #define PARK_APP_NAME "Park"
+#define DEFAULT_PARKINGLOT "default"	/*!< Default parking lot */
 
 #define AST_FEATURE_RETURN_HANGUP           -1
 #define AST_FEATURE_RETURN_SUCCESSBREAK     0
@@ -90,7 +91,7 @@ struct ast_call_feature {
  * \retval 0 on success.
  * \retval -1 on failure.
 */
-int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeout, int *extout);
+int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeout, const char *parkexten, int *extout);
 
 /*! 
  * \brief Park a call via a masqueraded channel
@@ -106,10 +107,11 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeou
 int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *host, int timeout, int *extout);
 
 /*! 
- * \brief Determine system parking extension
- * \returns the call parking extension for drivers that provide special call parking help 
+ * \brief Determine if parking extension exists in a given context
+ * \retval 0 if extension does not exist
+ * \retval 1 if extension does exist
 */
-const char *ast_parking_ext(void);
+int ast_parking_ext_valid(const char *exten_str, struct ast_channel *chan, const char *context);
 
 /*! \brief Determine system call pickup extension */
 const char *ast_pickup_ext(void);

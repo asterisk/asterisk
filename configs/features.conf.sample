@@ -3,7 +3,7 @@
 ;
 
 [general]
-parkext => 700			; What extension to dial to park	(all parking lots)
+parkext => 700			; What extension to dial to park
 parkpos => 701-720		; What extensions to park calls on. (defafult parking lot)
 				; These needs to be numeric, as Asterisk starts from the start position
 				; and increments with one for the next parked call.
@@ -85,6 +85,7 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ;
 ;[parkinglot_edvina]
 ;context => edvinapark
+;parkext => 799
 ;parkpos => 800-850
 ;findslot => next
 

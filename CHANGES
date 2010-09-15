@@ -436,6 +436,7 @@ Asterisk Manager Interface
    conform more closely to similar events.
  * Added a new eventfilter option per user to allow whitelisting and blacklisting
    of events.
+ * Added optional parkinglot variable for park command.
 
 Channel Event Logging
 ---------------------
@@ -1515,6 +1516,8 @@ Call Features (res_features) Changes
   * Added cli command 'features reload' to reload call features from features.conf
   * Moved into core asterisk binary.
   * Changed the default setting for featuredigittimeout to 2000 ms from 500 ms.
+  * Added the ability for custom parking lots to be configured with their own
+    parking extension with the parkext option.
 
 Language Support Changes
 ------------------------

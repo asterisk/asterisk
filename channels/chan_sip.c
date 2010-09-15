@@ -1260,7 +1260,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *totag, const char *fromtag);
 static void check_pendings(struct sip_pvt *p);
 static void *sip_park_thread(void *stuff);
-static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno);
+static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno, char *parkexten);
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static int is_method_allowed(unsigned int *allowed_methods, enum sipmethod method);
 
@@ -4877,7 +4877,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, cid_name, peer->cid_name);
 	ast_string_field_set(dialog, cid_tag, peer->cid_tag);
 	ast_string_field_set(dialog, mwi_from, peer->mwi_from);
-	ast_string_field_set(dialog, parkinglot, peer->parkinglot);
+	if (!ast_strlen_zero(peer->parkinglot)) {
+		ast_string_field_set(dialog, parkinglot, peer->parkinglot);
+	}
 	ast_string_field_set(dialog, engine, peer->engine);
 	ref_proxy(dialog, obproxy_get(dialog, peer));
 	dialog->callgroup = peer->callgroup;
@@ -14891,7 +14893,9 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	ast_string_field_set(p, subscribecontext, peer->subscribecontext);
 	ast_string_field_set(p, mohinterpret, peer->mohinterpret);
 	ast_string_field_set(p, mohsuggest, peer->mohsuggest);
-	ast_string_field_set(p, parkinglot, peer->parkinglot);
+	if (!ast_strlen_zero(peer->parkinglot)) {
+		ast_string_field_set(p, parkinglot, peer->parkinglot);
+	}
 	ast_string_field_set(p, engine, peer->engine);
 	p->disallowed_methods = peer->disallowed_methods;
 	set_pvt_allowed_methods(p, req);
@@ -20054,7 +20058,7 @@ static void *sip_park_thread(void *stuff)
 		return NULL;
 	}
 
-	res = ast_park_call(transferee, transferer, 0, &ext);
+	res = ast_park_call(transferee, transferer, 0, d->parkexten, &ext);
 	
 
 #ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
@@ -20091,7 +20095,7 @@ static void *sip_park_thread(void *stuff)
 /*! \brief Park a call using the subsystem in res_features.c
 	This is executed in a separate thread
 */
-static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno)
+static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno, char *parkexten)
 {
 	struct sip_dual *d;
 	struct ast_channel *transferee, *transferer;
@@ -20172,6 +20176,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		d->chan1 = transferee;	/* Transferee */
 		d->chan2 = transferer;	/* Transferer */
 		d->seqno = seqno;
+		d->parkexten = parkexten;
 		if (ast_pthread_create_detached_background(&th, NULL, sip_park_thread, d) < 0) {
 			/* Could not start thread */
 			deinit_req(&d->req);
@@ -22064,9 +22069,8 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		/* Fallthrough if we can't find the call leg internally */
 	}
 
-
 	/* Parking a call */
-	if (p->refer->localtransfer && !strcmp(p->refer->refer_to, ast_parking_ext())) {
+	if (p->refer->localtransfer && ast_parking_ext_valid(p->refer->refer_to, p->owner, p->owner->context)) {
 		/* Must release c's lock now, because it will not longer be accessible after the transfer! */
 		*nounlock = 1;
 		ast_channel_unlock(current.chan1);
@@ -22083,7 +22087,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			p->refer->refer_to);
 		if (sipdebug)
 			ast_debug(4, "SIP transfer to parking: trying to park %s. Parked by %s\n", current.chan2->name, current.chan1->name);
-		sip_park(current.chan2, current.chan1, req, seqno);
+		sip_park(current.chan2, current.chan1, req, seqno, p->refer->refer_to);
 		return res;
 	}
 
@@ -26486,6 +26490,7 @@ static int reload_config(enum channelreloadreason reason)
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
 	ast_set_flag(&global_flags[0], SIP_DIRECT_MEDIA);			/*!< Allow re-invites */
 	ast_copy_string(default_engine, DEFAULT_ENGINE, sizeof(default_engine));
+	ast_copy_string(default_parkinglot, DEFAULT_PARKINGLOT, sizeof(default_parkinglot));
 
 	/* Debugging settings, always default to off */
 	dumphistory = FALSE;
@@ -26994,7 +26999,9 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "subscribe_network_change_event value %s is not valid at line %d.\n", v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
-				ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
+			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
+		} else if (!strcasecmp(v->name, "parkinglot")) {
+			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		}
 	}
 
