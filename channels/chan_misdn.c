@@ -6200,13 +6200,36 @@ static void misdn_update_connected_line(struct ast_channel *ast, struct misdn_bc
 
 		is_ptmp = !misdn_lib_is_ptp(bc->port);
 		if (is_ptmp) {
-			/* Send NOTIFY(transfer-active, redirecting.to data) */
-			bc->redirecting.to_changed = 1;
-			bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE;
-			misdn_lib_send_event(bc, EVENT_NOTIFY);
+			/*
+			 * We should not send these messages to the network if we are
+			 * the CPE side since phones do not transfer calls within
+			 * themselves.  Well... If you consider handing the handset to
+			 * someone else a transfer then how is the network to know?
+			 */
+			if (!misdn_lib_port_is_nt(bc->port)) {
+				return;
+			}
+			if (ch->state != MISDN_CONNECTED) {
+				/* Send NOTIFY(Nie(transfer-active), RDNie(redirecting.to data)) */
+				bc->redirecting.to_changed = 1;
+				bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE;
+				misdn_lib_send_event(bc, EVENT_NOTIFY);
+#if defined(AST_MISDN_ENHANCEMENTS)
+			} else {
+				/* Send FACILITY(Fie(RequestSubaddress), Nie(transfer-active), RDNie(redirecting.to data)) */
+				bc->redirecting.to_changed = 1;
+				bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE;
+				bc->fac_out.Function = Fac_RequestSubaddress;
+				bc->fac_out.u.RequestSubaddress.InvokeID = ++misdn_invoke_id;
+
+				/* Send message */
+				print_facility(&bc->fac_out, bc);
+				misdn_lib_send_event(bc, EVENT_FACILITY);
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+			}
 #if defined(AST_MISDN_ENHANCEMENTS)
 		} else {
-			/* Send EctInform(transfer-active, redirecting.to data) */
+			/* Send FACILITY(Fie(EctInform(transfer-active, redirecting.to data))) */
 			bc->fac_out.Function = Fac_EctInform;
 			bc->fac_out.u.EctInform.InvokeID = ++misdn_invoke_id;
 			bc->fac_out.u.EctInform.Status = 1;/* active */
@@ -9191,7 +9214,59 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 		/* We do not have anything to do for this message since we do not handle subaddreses. */
 		break;
 	case Fac_RequestSubaddress:
-		/* We do not have anything to do for this message since we do not handle subaddreses. */
+		/*
+		 * We do not have anything to do for this message since we do not handle subaddreses.
+		 * However, we do care about some other ie's that should be present.
+		 */
+		if (bc->redirecting.to_changed) {
+			/* Add configured prefix to redirecting.to.number */
+			misdn_add_number_prefix(bc->port, bc->redirecting.to.number_type,
+				bc->redirecting.to.number, sizeof(bc->redirecting.to.number));
+		}
+		switch (bc->notify_description_code) {
+		case mISDN_NOTIFY_CODE_INVALID:
+			/* Notify ie was not present. */
+			bc->redirecting.to_changed = 0;
+			break;
+		case mISDN_NOTIFY_CODE_CALL_TRANSFER_ALERTING:
+			/*
+			 * It would be preferable to update the connected line information
+			 * only when the message callStatus is active.  However, the
+			 * optional redirection number may not be present in the active
+			 * message if an alerting message were received earlier.
+			 *
+			 * The consequences if we wind up sending two updates is benign.
+			 * The other end will think that it got transferred twice.
+			 */
+			if (!bc->redirecting.to_changed) {
+				break;
+			}
+			bc->redirecting.to_changed = 0;
+			if (!ch || !ch->ast) {
+				break;
+			}
+			misdn_update_remote_party(ch->ast, &bc->redirecting.to,
+				AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING,
+				bc->incoming_cid_tag);
+			break;
+		case mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE:
+			if (!bc->redirecting.to_changed) {
+				break;
+			}
+			bc->redirecting.to_changed = 0;
+			if (!ch || !ch->ast) {
+				break;
+			}
+			misdn_update_remote_party(ch->ast, &bc->redirecting.to,
+				AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER, bc->incoming_cid_tag);
+			break;
+		default:
+			bc->redirecting.to_changed = 0;
+			chan_misdn_log(0, bc->port," --> not yet handled: notify code:0x%02X\n",
+				bc->notify_description_code);
+			break;
+		}
+		bc->notify_description_code = mISDN_NOTIFY_CODE_INVALID;
 		break;
 	case Fac_EctInform:
 		/* Private-Public ISDN interworking message */
@@ -10651,24 +10726,25 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			bc->redirecting.to_changed = 0;
 			break;
 		case mISDN_NOTIFY_CODE_CALL_IS_DIVERTING:
-			if (bc->redirecting.to_changed) {
-				bc->redirecting.to_changed = 0;
-				if (ch && ch->ast) {
-					switch (ch->state) {
-					case MISDN_ALERTING:
-						/* Call is deflecting after we have seen an ALERTING message */
-						bc->redirecting.reason = mISDN_REDIRECTING_REASON_NO_REPLY;
-						break;
-					default:
-						/* Call is deflecting for call forwarding unconditional or busy reason. */
-						bc->redirecting.reason = mISDN_REDIRECTING_REASON_UNKNOWN;
-						break;
-					}
-					misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
-					ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting,
-						NULL);
-				}
+			if (!bc->redirecting.to_changed) {
+				break;
 			}
+			bc->redirecting.to_changed = 0;
+			if (!ch || !ch->ast) {
+				break;
+			}
+			switch (ch->state) {
+			case MISDN_ALERTING:
+				/* Call is deflecting after we have seen an ALERTING message */
+				bc->redirecting.reason = mISDN_REDIRECTING_REASON_NO_REPLY;
+				break;
+			default:
+				/* Call is deflecting for call forwarding unconditional or busy reason. */
+				bc->redirecting.reason = mISDN_REDIRECTING_REASON_UNKNOWN;
+				break;
+			}
+			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
+			ast_channel_queue_redirecting_update(ch->ast, &ch->ast->redirecting, NULL);
 			break;
 		case mISDN_NOTIFY_CODE_CALL_TRANSFER_ALERTING:
 			/*
@@ -10680,22 +10756,27 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			 * The consequences if we wind up sending two updates is benign.
 			 * The other end will think that it got transferred twice.
 			 */
-			if (bc->redirecting.to_changed) {
-				bc->redirecting.to_changed = 0;
-				if (ch && ch->ast) {
-					misdn_update_remote_party(ch->ast, &bc->redirecting.to,
-						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING, bc->incoming_cid_tag);
-				}
+			if (!bc->redirecting.to_changed) {
+				break;
 			}
+			bc->redirecting.to_changed = 0;
+			if (!ch || !ch->ast) {
+				break;
+			}
+			misdn_update_remote_party(ch->ast, &bc->redirecting.to,
+				AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER_ALERTING,
+				bc->incoming_cid_tag);
 			break;
 		case mISDN_NOTIFY_CODE_CALL_TRANSFER_ACTIVE:
-			if (bc->redirecting.to_changed) {
-				bc->redirecting.to_changed = 0;
-				if (ch && ch->ast) {
-					misdn_update_remote_party(ch->ast, &bc->redirecting.to,
-						AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER, bc->incoming_cid_tag);
-				}
+			if (!bc->redirecting.to_changed) {
+				break;
 			}
+			bc->redirecting.to_changed = 0;
+			if (!ch || !ch->ast) {
+				break;
+			}
+			misdn_update_remote_party(ch->ast, &bc->redirecting.to,
+				AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER, bc->incoming_cid_tag);
 			break;
 		default:
 			bc->redirecting.to_changed = 0;
@@ -10703,6 +10784,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				bc->notify_description_code);
 			break;
 		}
+		bc->notify_description_code = mISDN_NOTIFY_CODE_INVALID;
 		break;
 	case EVENT_FACILITY:
 		if (bc->fac_in.Function == Fac_None) {
@@ -10711,6 +10793,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		} else {
 			misdn_facility_ie_handler(event, bc, ch);
 		}
+
+		/* In case it came in on a FACILITY message and we did not handle it. */
+		bc->redirecting.to_changed = 0;
+		bc->notify_description_code = mISDN_NOTIFY_CODE_INVALID;
 		break;
 	case EVENT_RESTART:
 		if (!bc->dummy) {
