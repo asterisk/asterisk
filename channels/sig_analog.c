@@ -691,6 +691,8 @@ static int analog_update_conf(struct analog_pvt *p)
 
 struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const struct ast_channel *requestor)
 {
+	struct ast_channel *ast;
+
 	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
 	*callwait = (p->owner != NULL);
 
@@ -701,7 +703,13 @@ struct ast_channel * analog_request(struct analog_pvt *p, int *callwait, const s
 		}
 	}
 
-	return analog_new_ast_channel(p, AST_STATE_RESERVED, 0, p->owner ? ANALOG_SUB_CALLWAIT : ANALOG_SUB_REAL, requestor);
+	p->outgoing = 1;
+	ast = analog_new_ast_channel(p, AST_STATE_RESERVED, 0,
+		p->owner ? ANALOG_SUB_CALLWAIT : ANALOG_SUB_REAL, requestor);
+	if (!ast) {
+		p->outgoing = 0;
+	}
+	return ast;
 }
 
 int analog_available(struct analog_pvt *p)
@@ -912,6 +920,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int 
 	}
 
 	p->dialednone = 0;
+	p->outgoing = 1;
 
 	mysig = p->sig;
 	if (p->outsigmod > -1) {
