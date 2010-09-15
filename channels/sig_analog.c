@@ -2810,29 +2810,39 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_SF_FEATD:
 		case ANALOG_SIG_SF_FEATDMF:
 		case ANALOG_SIG_SF_FEATB:
-			if (ast->_state == AST_STATE_PRERING) {
+			switch (ast->_state) {
+			case AST_STATE_PRERING:
 				ast_setstate(ast, AST_STATE_RING);
-			}
-			if ((ast->_state == AST_STATE_DOWN) || (ast->_state == AST_STATE_RING)) {
+				/* Fall through */
+			case AST_STATE_DOWN:
+			case AST_STATE_RING:
 				ast_debug(1, "Ring detected\n");
 				p->subs[index].f.frametype = AST_FRAME_CONTROL;
 				p->subs[index].f.subclass.integer = AST_CONTROL_RING;
-			} else if (p->outgoing && ((ast->_state == AST_STATE_RINGING) || (ast->_state == AST_STATE_DIALING))) {
-				ast_debug(1, "Line answered\n");
-				if (analog_check_confirmanswer(p)) {
-					p->subs[index].f.frametype = AST_FRAME_NULL;
-					p->subs[index].f.subclass.integer = 0;
-				} else {
-					p->subs[index].f.frametype = AST_FRAME_CONTROL;
-					p->subs[index].f.subclass.integer = AST_CONTROL_ANSWER;
-					ast_setstate(ast, AST_STATE_UP);
+				break;
+			case AST_STATE_RINGING:
+			case AST_STATE_DIALING:
+				if (p->outgoing) {
+					ast_debug(1, "Line answered\n");
+					if (analog_check_confirmanswer(p)) {
+						p->subs[index].f.frametype = AST_FRAME_NULL;
+						p->subs[index].f.subclass.integer = 0;
+					} else {
+						p->subs[index].f.frametype = AST_FRAME_CONTROL;
+						p->subs[index].f.subclass.integer = AST_CONTROL_ANSWER;
+						ast_setstate(ast, AST_STATE_UP);
+					}
+					break;
 				}
-			} else if (ast->_state != AST_STATE_RING) {
+				/* Fall through */
+			default:
 				ast_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", ast->_state, p->channel);
+				break;
 			}
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
+			break;
 		}
 		break;
 #ifdef ANALOG_EVENT_RINGBEGIN
