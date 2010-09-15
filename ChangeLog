@@ -1,3 +1,14 @@
+2010-09-15  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.13 released.
+
+	* Incorrect .version and ChangeLog files updated. Re-release of
+	  Asterisk 1.6.2.12 with corrections and version number bump.
+
+2010-09-15  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.12 released.
+
 2010-08-23  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.12-rc1 Released.

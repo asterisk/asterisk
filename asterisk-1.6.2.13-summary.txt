@@ -1,6 +1,6 @@
                                 Release Summary
 
-                               asterisk-1.6.2.12
+                               asterisk-1.6.2.13
 
                                 Date: 2010-09-13
 
