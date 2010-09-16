@@ -10,7 +10,7 @@
 persistentmembers = yes
 ;
 ; AutoFill Behavior
-;    The old/current behavior of the queue has a serial type behavior
+;    The old behavior of the queue (autofill=no) is to have a serial type behavior
 ;    in that the queue will make all waiting callers wait in the queue
 ;    even if there is more than one available member ready to take
 ;    calls until the head caller is connected with the member they
@@ -23,10 +23,9 @@ persistentmembers = yes
 ;    no more available members or no more waiting callers. This is
 ;    probably more along the lines of how a queue should work and
 ;    in most cases, you will want to enable this behavior. If you
-;    do not specify or comment out this option, it will default to no
-;    to keep backward compatibility with the old behavior.
+;    do not specify or comment out this option, it will default to yes.
 ;
-autofill = yes
+;autofill = no
 ;
 ; Monitor Type
 ;    By setting monitor-type = MixMonitor, when specifying monitor-format
@@ -56,11 +55,11 @@ monitor-type = MixMonitor
 ; example: Queue(dave,t,,,45)
 
 ; shared_lastcall will make the lastcall and calls received be the same in
-; members logged in more than one queue.
-; This is useful to make the queue respect the wrapuptime of another queue
-; for a shared member
+; members logged in more than one queue.  This is useful to make the queue
+; respect the wrapuptime of another queue for a shared member.
+; The default value is yes.
 ;
-shared_lastcall=no
+;shared_lastcall=no
 ;
 ;[markq]
 ;

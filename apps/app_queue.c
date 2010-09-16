@@ -760,13 +760,13 @@ static int queue_persistent_members = 0;
 static int use_weight = 0;
 
 /*! \brief queues.conf [general] option */
-static int autofill_default = 0;
+static int autofill_default = 1;
 
 /*! \brief queues.conf [general] option */
 static int montype_default = 0;
 
 /*! \brief queues.conf [general] option */
-static int shared_lastcall = 0;
+static int shared_lastcall = 1;
 
 /*! \brief Subscription to device state change events */
 static struct ast_event_sub *device_state_sub;
