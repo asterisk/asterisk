@@ -20,6 +20,9 @@
 
 From 1.6.2 to 1.8:
 
+* The default value for 'autofill' and 'shared_lastcall' in queues.conf has
+  been changed to 'yes'.
+
 * The default value for the alwaysauthreject option in sip.conf has been changed
   from "no" to "yes".
 
