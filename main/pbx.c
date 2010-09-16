@@ -4225,12 +4225,10 @@ static int handle_statechange(void *datap)
 
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		struct ast_state_cb *cblist;
-		char buf[AST_MAX_EXTENSION];
-		char *parse = buf;
+		char *parse = ast_strdupa(ast_get_extension_app(hint->exten));
 		char *cur;
 		int state;
 
-		ast_copy_string(buf, ast_get_extension_app(hint->exten), sizeof(buf));
 		while ( (cur = strsep(&parse, "&")) ) {
 			if (!strcasecmp(cur, sc->dev)) {
 				break;
