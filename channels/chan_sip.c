@@ -5727,6 +5727,8 @@ const char *hangup_cause2sip(int cause)
 			return "502 Bad Gateway";
 		case AST_CAUSE_BEARERCAPABILITY_NOTAVAIL:	/* Can't find codec to connect to host */
 			return "488 Not Acceptable Here";
+		case AST_CAUSE_INTERWORKING:	/* Unspecified Interworking issues */
+			return "500 Network error";
 			
 		case AST_CAUSE_NOTDEFINED:
 		default:
