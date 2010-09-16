@@ -368,7 +368,7 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
 {
 	struct ast_var_t *variables;
-	const char *var, *val;
+	const char *var;
 	char *tmp;
 	char workspace[256];
 	int total = 0, x = 0, i;
@@ -380,16 +380,16 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 			ast_build_string(&buf, &size, "\n");
 
 		AST_LIST_TRAVERSE(&cdr->varshead, variables, entries) {
-			if (variables &&
-			    (var = ast_var_name(variables)) && (val = ast_var_value(variables)) &&
-			    !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
-				if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, var, delim, val, sep)) {
- 					ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
- 					break;
-				} else
-					total++;
-			} else 
+			if (!(var = ast_var_name(variables))) {
+				continue;
+			}
+
+			if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, var, delim, S_OR(ast_var_value(variables), ""), sep)) {
+				ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
 				break;
+			}
+
+			total++;
 		}
 
 		for (i = 0; cdr_readonly_vars[i]; i++) {
