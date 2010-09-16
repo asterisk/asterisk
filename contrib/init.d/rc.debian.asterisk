@@ -54,7 +54,7 @@ fi
 . /lib/lsb/init-functions
 
 # Allow configuration overrides in /etc/default/asterisk
-CONFIG0=`readlink $0`
+CONFIG0=`readlink $0 || :` # readlink returns 1 when something isn't a symlink
 if [ "$CONFIG0" = "" ]; then
 	CONFIGFILE=/etc/default/`basename $0`
 else
