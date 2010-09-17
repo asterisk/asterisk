@@ -528,7 +528,6 @@ static int send_ews_request_and_parse(struct ast_str *request, struct xml_contex
 	if (ret != NE_OK) { /* Error handling */
 		ast_log(LOG_WARNING, "Unable to communicate with Exchange Web Service at '%s': %s\n", ctx->pvt->url, ne_get_error(ctx->pvt->session));
 		ne_request_destroy(req);
-		ast_free(request);
 		ne_xml_destroy(parser);
 		return -1;
 	}
