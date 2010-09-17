@@ -2114,10 +2114,10 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		} else
 			tmp_name = v->name;
 
-		if (!ast_strlen_zero(v->value)) {
-			/* Don't want to try to set the option if the value is empty */
-			queue_set_param(q, tmp_name, v->value, -1, 0);
-		}
+		/* NULL values don't get returned from realtime; blank values should
+		 * still get set.  If someone doesn't want a value to be set, they
+		 * should set the realtime column to NULL, not blank. */
+		queue_set_param(q, tmp_name, v->value, -1, 0);
 	}
 
 	/* Temporarily set realtime members dead so we can detect deleted ones. 
