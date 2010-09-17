@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ne_xml.h>
 #include <ne_xmlreq.h>
 #include <ne_utils.h>
+#include <ne_redirect.h>
 
 #include "asterisk/module.h"
 #include "asterisk/calendar.h"
@@ -197,7 +198,7 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 			return NE_XML_ABORT;
 		}
 
-		ast_debug(3, "EWS: %d calendar items to load\n", items);
+		ast_debug(3, "EWS: %u calendar items to load\n", items);
 		ctx->pvt->items = items;
 		if (items < 1) {
 			/* Stop processing XML if there are no events */
@@ -838,6 +839,7 @@ static void *ewscal_load_calendar(void *void_data)
 	ast_debug(3, "secret		= %s\n", pvt->secret);
 
 	pvt->session = ne_session_create(pvt->uri.scheme, pvt->uri.host, pvt->uri.port);
+	ne_redirect_register(pvt->session);
 	ne_set_server_auth(pvt->session, auth_credentials, pvt);
 	ne_set_useragent(pvt->session, "Asterisk");
 
