@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ne_xml.h>
 #include <ne_xmlreq.h>
 #include <ne_utils.h>
+#include <ne_redirect.h>
 
 #include "asterisk/module.h"
 #include "asterisk/calendar.h"
@@ -197,10 +198,11 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 			return NE_XML_ABORT;
 		}
 
-		ast_debug(3, "EWS: %d calendar items to load\n", items);
+		ast_debug(3, "EWS: %u calendar items to load\n", items);
 		ctx->pvt->items = items;
 		if (items < 1) {
 			/* Stop processing XML if there are no events */
+			ast_calendar_merge_events(ctx->pvt->owner, ctx->pvt->events);
 			return NE_XML_DECLINE;
 		}
 		return 1;
@@ -527,7 +529,6 @@ static int send_ews_request_and_parse(struct ast_str *request, struct xml_contex
 	if (ret != NE_OK) { /* Error handling */
 		ast_log(LOG_WARNING, "Unable to communicate with Exchange Web Service at '%s': %s\n", ctx->pvt->url, ne_get_error(ctx->pvt->session));
 		ne_request_destroy(req);
-		ast_free(request);
 		ne_xml_destroy(parser);
 		return -1;
 	}
@@ -838,6 +839,7 @@ static void *ewscal_load_calendar(void *void_data)
 	ast_debug(3, "secret		= %s\n", pvt->secret);
 
 	pvt->session = ne_session_create(pvt->uri.scheme, pvt->uri.host, pvt->uri.port);
+	ne_redirect_register(pvt->session);
 	ne_set_server_auth(pvt->session, auth_credentials, pvt);
 	ne_set_useragent(pvt->session, "Asterisk");
 

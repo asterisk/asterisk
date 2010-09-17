@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ne_uri.h>
 #include <ne_request.h>
 #include <ne_auth.h>
+#include <ne_redirect.h>
 
 #include "asterisk/module.h"
 #include "asterisk/calendar.h"
@@ -420,6 +421,7 @@ static void *ical_load_calendar(void *void_data)
 	}
 
 	pvt->session = ne_session_create(pvt->uri.scheme, pvt->uri.host, pvt->uri.port);
+	ne_redirect_register(pvt->session);
 	ne_set_server_auth(pvt->session, auth_credentials, pvt);
 	if (!strcasecmp(pvt->uri.scheme, "https")) {
 		ne_ssl_trust_default_ca(pvt->session);
