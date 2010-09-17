@@ -202,6 +202,7 @@ static int startelm(void *userdata, int parent, const char *nspace, const char *
 		ctx->pvt->items = items;
 		if (items < 1) {
 			/* Stop processing XML if there are no events */
+			ast_calendar_merge_events(ctx->pvt->owner, ctx->pvt->events);
 			return NE_XML_DECLINE;
 		}
 		return 1;
