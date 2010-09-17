@@ -2017,14 +2017,19 @@ void ast_hint_state_changed(const char *device)
 
 	AST_LIST_TRAVERSE(&hints, hint, list) {
 		struct ast_state_cb *cblist;
-		char *parse = ast_strdupa(ast_get_extension_app(hint->exten));
-		char *cur;
+		/* can't use ast_strdupa() here because we may run out of stack
+		 * space while looping over a large number of large strings */
+		char *dup = ast_strdup(ast_get_extension_app(hint->exten));
+		char *cur, *parse = dup;
 		int state;
 
 		while ( (cur = strsep(&parse, "&")) ) {
 			if (!strcasecmp(cur, device))
 				break;
 		}
+
+		ast_free(dup);
+
 		if (!cur)
 			continue;
 
