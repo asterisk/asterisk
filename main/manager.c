@@ -3814,7 +3814,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	const char *async = astman_get_header(m, "Async");
 	const char *id = astman_get_header(m, "ActionID");
 	const char *codecs = astman_get_header(m, "Codecs");
-	struct ast_variable *vars = astman_get_variables(m);
+	struct ast_variable *vars;
 	char *tech, *data;
 	char *l = NULL, *n = NULL;
 	int pi = 0;
@@ -3865,6 +3865,9 @@ static int action_originate(struct mansession *s, const struct message *m)
 		format = 0;
 		ast_parse_allow_disallow(NULL, &format, codecs, 1);
 	}
+	/* Allocate requested channel variables */
+	vars = astman_get_variables(m);
+
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast = ast_calloc(1, sizeof(*fast));
 		if (!fast) {
@@ -3918,6 +3921,9 @@ static int action_originate(struct mansession *s, const struct message *m)
 			res = ast_pbx_outgoing_exten(tech, format, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
+			if (vars) {
+				ast_variables_destroy(vars);
+			}
 			return 0;
 		}
 	}
