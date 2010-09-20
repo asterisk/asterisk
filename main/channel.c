@@ -5984,9 +5984,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	ao2_unlink(channels, original);
 	ao2_unlink(channels, clonechan);
 
-	/* now that both channels are locked and unlinked from the container, it is safe to unlock it */
-	ao2_unlock(channels);
-
 	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		clonechan->name, clonechan->_state, original->name, original->_state);
 
@@ -6268,6 +6265,8 @@ done:
 		ast_channel_unlock(original);
 		ao2_link(channels, original);
 	}
+
+	ao2_unlock(channels);
 
 	return 0;
 }
