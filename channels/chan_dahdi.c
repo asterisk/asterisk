@@ -12426,6 +12426,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					break;
 #endif	/* defined(HAVE_SS7) */
 				default:
+					/* The only sig submodule left should be sig_analog. */
+					analog_p = tmp->sig_pvt;
+					if (analog_p) {
+						analog_p->inalarm = 1;
+					}
 					tmp->inalarm = 1;
 					break;
 				}
