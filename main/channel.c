@@ -3931,10 +3931,9 @@ retrymasq:
 	} else if (clone->masq) {
 		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
 			clone->masq->name, clone->name);
-	} else if (clone->masqr) {
+	} else { /* (clone->masqr) */
 		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
 			clone->name, clone->masqr->name);
-	} else {
 	}
 
 	ast_channel_unlock(clone);
