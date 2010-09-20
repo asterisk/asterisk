@@ -2011,24 +2011,27 @@ int ast_extension_state(struct ast_channel *c, const char *context, const char *
 void ast_hint_state_changed(const char *device)
 {
 	struct ast_hint *hint;
+	struct ast_dynamic_str *str;
+
+	if (!(str = ast_dynamic_str_create(1024))) {
+		return;
+	}
 
 	ast_rdlock_contexts();
 	AST_LIST_LOCK(&hints);
 
 	AST_LIST_TRAVERSE(&hints, hint, list) {
 		struct ast_state_cb *cblist;
-		/* can't use ast_strdupa() here because we may run out of stack
-		 * space while looping over a large number of large strings */
-		char *dup = ast_strdup(ast_get_extension_app(hint->exten));
-		char *cur, *parse = dup;
+		char *cur, *parse;
 		int state;
+
+		ast_dynamic_str_set(&str, 0, "%s", ast_get_extension_app(hint->exten));
+		parse = str->str;
 
 		while ( (cur = strsep(&parse, "&")) ) {
 			if (!strcasecmp(cur, device))
 				break;
 		}
-
-		ast_free(dup);
 
 		if (!cur)
 			continue;
@@ -2054,6 +2057,7 @@ void ast_hint_state_changed(const char *device)
 
 	AST_LIST_UNLOCK(&hints);
 	ast_unlock_contexts();
+	ast_free(str);
 }
 
 /*! \brief  ast_extension_state_add: Add watcher for extension states */
