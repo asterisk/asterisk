@@ -8227,10 +8227,37 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 	return 0;
 }
 
+/*! \brief Determine if two ast_party_connected_line structures differ
+ *
+ * \param c1 One of the structs to compare
+ * \param c2 The other struct to compare
+ * \retval 0 No difference or one of the structs is NULL
+ * \retval non-zero The structs differ
+ */
+static int connected_line_differ(const struct ast_party_connected_line *c1, const struct ast_party_connected_line *c2)
+{
+	unsigned char buf1[1024] = { 0, };
+	unsigned char buf2[sizeof(buf1)] = { 0, };
+
+	if (!c1 || !c2) {
+		return 0;
+	}
+
+	ast_connected_line_build_data(buf1, sizeof(buf1), c1, NULL);
+	ast_connected_line_build_data(buf2, sizeof(buf2), c2, NULL);
+
+	return memcmp(buf1, buf2, sizeof(buf1));
+}
+
 void ast_channel_update_connected_line(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update)
 {
 	unsigned char data[1024];	/* This should be large enough */
 	size_t datalen;
+
+	if (!connected_line_differ(&chan->connected, connected)) {
+		ast_debug(1, "No change, so ignoring update\n");
+		return;
+	}
 
 	datalen = ast_connected_line_build_data(data, sizeof(data), connected, update);
 	if (datalen == (size_t) -1) {
