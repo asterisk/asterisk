@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/audiohook.h"
+#include "asterisk/framehook.h"
 #include "asterisk/timing.h"
 #include "asterisk/autochan.h"
 #include "asterisk/stringfields.h"
@@ -2633,6 +2634,8 @@ int ast_hangup(struct ast_channel *chan)
 		chan->audiohooks = NULL;
 	}
 
+	ast_framehook_list_destroy(chan);
+
 	ast_autoservice_stop(chan);
 
 	if (chan->masq) {
@@ -3750,6 +3753,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	 */
 	chan->fdno = -1;
 
+	/* Perform the framehook read event here. After the frame enters the framehook list
+	 * there is no telling what will happen, <insert mad scientist laugh here>!!! */
+	f = ast_framehook_list_read_event(chan->framehooks, f);
+
 	if (f) {
 		struct ast_frame *readq_tail = AST_LIST_LAST(&chan->readq);
 		struct ast_control_read_action_payload *read_action_payload;
@@ -4143,14 +4150,42 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	enum ast_control_frame_type condition = _condition;
 	struct ast_tone_zone_sound *ts = NULL;
 	int res;
+	/* this frame is used by framehooks. if it is set, we must free it at the end of this function */
+	struct ast_frame *awesome_frame = NULL;
 
 	ast_channel_lock(chan);
 
 	/* Don't bother if the channel is about to go away, anyway. */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		ast_channel_unlock(chan);
-		return -1;
+		res = -1;
+		goto indicate_cleanup;
 	}
+
+	if (!ast_framehook_list_is_empty(chan->framehooks)) {
+		/* Do framehooks now, do it, go, go now */
+		struct ast_frame frame = {
+			.frametype = AST_FRAME_CONTROL,
+			.subclass.integer = condition,
+			.data.ptr = (void *) data, /* this cast from const is only okay because we do the ast_frdup below */
+			.datalen = datalen
+		};
+
+		/* we have now committed to freeing this frame */
+		awesome_frame = ast_frdup(&frame);
+
+		/* who knows what we will get back! the anticipation is killing me. */
+		if (!(awesome_frame = ast_framehook_list_read_event(chan->framehooks, &frame))) {
+			ast_channel_unlock(chan);
+			res = 0;
+			goto indicate_cleanup;
+		}
+
+		condition = awesome_frame->subclass.integer;
+		data = awesome_frame->data.ptr;
+		datalen = awesome_frame->datalen;
+	}
+
 	switch (condition) {
 	case AST_CONTROL_CONNECTED_LINE:
 		{
@@ -4196,7 +4231,8 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		if (is_visible_indication(condition)) {
 			chan->visible_indication = condition;
 		}
-		return 0;
+		res = 0;
+		goto indicate_cleanup;
 	}
 
 	/* The channel driver does not support this indication, let's fake
@@ -4208,14 +4244,16 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	if (_condition < 0) {
 		/* Stop any tones that are playing */
 		ast_playtones_stop(chan);
-		return 0;
+		res = 0;
+		goto indicate_cleanup;
 	}
 
 	/* Handle conditions that we have tones for. */
 	switch (condition) {
 	case _XXX_AST_CONTROL_T38:
 		/* deprecated T.38 control frame */
-		return -1;
+		res = -1;
+		goto indicate_cleanup;
 	case AST_CONTROL_T38_PARAMETERS:
 		/* there is no way to provide 'default' behavior for these
 		 * control frames, so we need to return failure, but there
@@ -4224,7 +4262,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		 * so just return right now. in addition, we want to return
 		 * whatever value the channel driver returned, in case it
 		 * has some meaning.*/
-		return res;
+		goto indicate_cleanup;
 	case AST_CONTROL_RINGING:
 		ts = ast_get_indication_tone(chan->zone, "ring");
 		/* It is common practice for channel drivers to return -1 if trying
@@ -4284,6 +4322,11 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	if (res) {
 		/* not handled */
 		ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
+	}
+
+indicate_cleanup:
+	if (awesome_frame) {
+		ast_frfree(awesome_frame);
 	}
 
 	return res;
@@ -4572,6 +4615,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		res = 0;	/* XXX explain, why 0 ? */
 		goto done;
 	}
+
+	/* Perform the framehook write event here. After the frame enters the framehook list
+	 * there is no telling what will happen, how awesome is that!!! */
+	if (!(fr = ast_framehook_list_write_event(chan->framehooks, fr))) {
+		res = 0;
+		goto done;
+	}
+
 	if (chan->generatordata && (!fr->src || strcasecmp(fr->src, "ast_prod"))) {
 		if (ast_test_flag(chan, AST_FLAG_WRITE_INT)) {
 				ast_deactivate_generator(chan);

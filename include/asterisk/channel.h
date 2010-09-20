@@ -151,6 +151,7 @@ extern "C" {
 #include "asterisk/data.h"
 #include "asterisk/channelstate.h"
 #include "asterisk/ccss.h"
+#include "asterisk/framehook.h"
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
 
@@ -752,6 +753,7 @@ struct ast_channel {
 	struct ast_trans_pvt *writetrans;		/*!< Write translation path */
 	struct ast_trans_pvt *readtrans;		/*!< Read translation path */
 	struct ast_audiohook_list *audiohooks;
+	struct ast_framehook_list *framehooks;
 	struct ast_cdr *cdr;				/*!< Call Detail Record */
 	struct ast_tone_zone *zone;			/*!< Tone zone as set in indications.conf or
 							 *   in the CHANNEL dialplan function */
