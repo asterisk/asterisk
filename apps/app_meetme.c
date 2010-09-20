@@ -2941,9 +2941,13 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				if (allowretry)
 					confno[0] = '\0';
 			} else {
-				if (((!ast_strlen_zero(cnf->pin) &&
-				    !ast_test_flag(&confflags, CONFFLAG_ADMIN)) ||
-				    !ast_strlen_zero(cnf->pinadmin)) &&
+				if (((!ast_strlen_zero(cnf->pin)       &&
+					!ast_test_flag(&confflags, CONFFLAG_ADMIN)) ||
+				     (!ast_strlen_zero(cnf->pinadmin)  &&
+				     	 ast_test_flag(&confflags, CONFFLAG_ADMIN)) ||
+			    	     (!ast_strlen_zero(cnf->pin) &&
+			    	     	 ast_strlen_zero(cnf->pinadmin) &&
+			    	     	 ast_test_flag(&confflags, CONFFLAG_ADMIN))) &&
 				    (!(cnf->users == 0 && cnf->isdynamic))) {
 					char pin[MAX_PIN] = "";
 					int j;
@@ -2958,9 +2962,11 @@ static int conf_exec(struct ast_channel *chan, void *data)
 							res = ast_app_getdata(chan, "conf-getpin", pin + strlen(pin), sizeof(pin) - 1 - strlen(pin), 0);
 						}
 						if (res >= 0) {
-							if (!strcasecmp(pin, cnf->pin) ||
-							    (!ast_strlen_zero(cnf->pinadmin) &&
-							     !strcasecmp(pin, cnf->pinadmin))) {
+							if ((!strcasecmp(pin, cnf->pin) &&
+							     (ast_strlen_zero(cnf->pinadmin) ||
+							      !ast_test_flag(&confflags, CONFFLAG_ADMIN))) ||
+							     (!ast_strlen_zero(cnf->pinadmin) &&
+							      !strcasecmp(pin, cnf->pinadmin))) {
 								/* Pin correct */
 								allowretry = 0;
 								if (!ast_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)) 
