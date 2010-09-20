@@ -5164,17 +5164,21 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 
 		if ((sub && sub->owner) && (sub->owner->_state ==  AST_STATE_UP)){
 			c = sub->owner;
-			if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
-				snprintf(message, sizeof(message), "Call Parked at: %d", extout);
-				transmit_displaynotify(d, message, 10);
+			if (ast_bridged_channel(c)) {
+				if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
+					snprintf(message, sizeof(message), "Call Parked at: %d", extout);
+					transmit_displaynotify(d, message, 10);
+				} else {
+					transmit_displaynotify(d, "Call Park failed", 10);
+				}
 			} else {
-				transmit_displaynotify(d, "Call Park failed", 10);
+				transmit_displaynotify(d, "Call Park not available", 10);
 			}
 		} else {
 			transmit_displaynotify(d, "Call Park not available", 10);
 		}
-		}
 		break;
+		}
 	case STIMULUS_DND:
 		if (skinnydebug)
 			ast_verb(1, "Received Stimulus: DND (%d/%d)\n", instance, callreference);
@@ -6056,17 +6060,21 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 		if ((sub && sub->owner) && (sub->owner->_state ==  AST_STATE_UP)){
 			c = sub->owner;
-			if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
-				snprintf(message, sizeof(message), "Call Parked at: %d", extout);
-				transmit_displaynotify(d, message, 10);
+			if (ast_bridged_channel(c)) {
+				if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
+					snprintf(message, sizeof(message), "Call Parked at: %d", extout);
+					transmit_displaynotify(d, message, 10);
+				} else {
+					transmit_displaynotify(d, "Call Park failed", 10);
+				}
 			} else {
-				transmit_displaynotify(d, "Call Park failed", 10);
+				transmit_displaynotify(d, "Call Park not available", 10);
 			}
 		} else {
 			transmit_displaynotify(d, "Call Park not available", 10);
 		}
-		}
 		break;
+		}
 	case SOFTKEY_JOIN:
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: Join(%d/%d)\n", instance, callreference);
