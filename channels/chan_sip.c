@@ -7260,8 +7260,10 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
 			return SIP_REQ_NOT_MATCH;
 		}
 	} else {
-		/* Verify the fromtag of Request matches the tag they provided earlier. */
-		if (strcmp(arg->fromtag, sip_pvt_ptr->theirtag)) {
+		/* Verify the fromtag of Request matches the tag they provided earlier.
+		 * If this is a Request with authentication credentials, forget their old
+		 * tag as it is not valid after the 401 or 407 response. */
+		if (!arg->authentication_present && strcmp(arg->fromtag, sip_pvt_ptr->theirtag)) {
 			/* their tag does not match the one was have stored for them */
 			return SIP_REQ_NOT_MATCH;
 		}
