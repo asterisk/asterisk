@@ -882,16 +882,8 @@ static void ast_log_vsyslog(struct logmsg *msg)
 		return;
 	}
 
-	if (msg->level == __LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: %s", msg->process_id, msg->message);
-		msg->level = __LOG_DEBUG;
-	} else if (msg->level == __LOG_DTMF) {
-		snprintf(buf, sizeof(buf), "DTMF[%ld]: %s", msg->process_id, msg->message);
-		msg->level = __LOG_DEBUG;
-	} else {
-		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: %s",
-			 levels[msg->level], msg->process_id, msg->file, msg->line, msg->function, msg->message);
-	}
+	snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: %s",
+		 levels[msg->level], msg->process_id, msg->file, msg->line, msg->function, msg->message);
 
 	term_strip(buf, buf, strlen(buf) + 1);
 	syslog(syslog_level, "%s", buf);
@@ -902,6 +894,17 @@ static void logger_print_normal(struct logmsg *logmsg)
 {
 	struct logchannel *chan = NULL;
 	char buf[BUFSIZ];
+	struct verb *v = NULL;
+
+	if (logmsg->level == __LOG_VERBOSE) {
+		char *tmpmsg = ast_strdupa(logmsg->message + 1);
+		/* Iterate through the list of verbosers and pass them the log message string */
+		AST_RWLIST_RDLOCK(&verbosers);
+		AST_RWLIST_TRAVERSE(&verbosers, v, list)
+			v->verboser(logmsg->message);
+		AST_RWLIST_UNLOCK(&verbosers);
+		ast_string_field_set(logmsg, message, tmpmsg);
+	}
 
 	AST_RWLIST_RDLOCK(&logchannels);
 
@@ -975,20 +978,6 @@ static void logger_print_normal(struct logmsg *logmsg)
 	return;
 }
 
-/*! \brief Print a verbose message to the verbosers */
-static void logger_print_verbose(struct logmsg *logmsg)
-{
-	struct verb *v = NULL;
-
-	/* Iterate through the list of verbosers and pass them the log message string */
-	AST_RWLIST_RDLOCK(&verbosers);
-	AST_RWLIST_TRAVERSE(&verbosers, v, list)
-		v->verboser(logmsg->message);
-	AST_RWLIST_UNLOCK(&verbosers);
-
-	return;
-}
-
 /*! \brief Actual logging thread */
 static void *logger_thread(void *data)
 {
@@ -1014,10 +1003,7 @@ static void *logger_thread(void *data)
 			next = AST_LIST_NEXT(msg, list);
 
 			/* Depending on the type, send it to the proper function */
-			if (msg->type == LOGMSG_NORMAL)
-				logger_print_normal(msg);
-			else if (msg->type == LOGMSG_VERBOSE)
-				logger_print_verbose(msg);
+			logger_print_normal(msg);
 
 			/* Free the data since we are done */
 			ast_free(msg);
@@ -1169,8 +1155,12 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	/* Copy string over */
 	ast_string_field_set(logmsg, message, ast_str_buffer(buf));
 
-	/* Set type to be normal */
-	logmsg->type = LOGMSG_NORMAL;
+	/* Set type */
+	if (level == __LOG_VERBOSE) {
+		logmsg->type = LOGMSG_VERBOSE;
+	} else {
+		logmsg->type = LOGMSG_NORMAL;
+	}
 
 	/* Create our date/time */
 	ast_localtime(&now, &tm, NULL);
@@ -1266,7 +1256,6 @@ void ast_backtrace(void)
 
 void __ast_verbose_ap(const char *file, int line, const char *func, const char *fmt, va_list ap)
 {
-	struct logmsg *logmsg = NULL;
 	struct ast_str *buf = NULL;
 	int res = 0;
 
@@ -1298,26 +1287,7 @@ void __ast_verbose_ap(const char *file, int line, const char *func, const char *
 	if (res == AST_DYNSTR_BUILD_FAILED)
 		return;
 
-	if (!(logmsg = ast_calloc_with_stringfields(1, struct logmsg, res + 128)))
-		return;
-
-	ast_string_field_set(logmsg, message, ast_str_buffer(buf));
-
-	ast_log(__LOG_VERBOSE, file, line, func, "%s", logmsg->message + 1);
-
-	/* Set type */
-	logmsg->type = LOGMSG_VERBOSE;
-	
-	/* Add to the list and poke the thread if possible */
-	if (logthread != AST_PTHREADT_NULL) {
-		AST_LIST_LOCK(&logmsgs);
-		AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
-		ast_cond_signal(&logcond);
-		AST_LIST_UNLOCK(&logmsgs);
-	} else {
-		logger_print_verbose(logmsg);
-		ast_free(logmsg);
-	}
+	ast_log(__LOG_VERBOSE, file, line, func, "%s", ast_str_buffer(buf));
 }
 
 void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
