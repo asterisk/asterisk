@@ -250,6 +250,7 @@ Dialplan Functions
    allows for high resolution times for billsec and duration fields.
  * FILE() now supports line-mode and writing.
  * Added FIELDNUM(), which returns the 1-based offset of a field in a list.
+ * FRAME_TRACE(), for tracking internal ast_frames on a channel.
 
 Dialplan Variables
 ------------------
