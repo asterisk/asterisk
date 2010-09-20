@@ -4218,26 +4218,29 @@ int ast_extension_state(struct ast_channel *c, const char *context, const char *
 static int handle_statechange(void *datap)
 {
 	struct ast_hint *hint;
+	struct ast_str *str;
 	struct statechange *sc = datap;
+
+	if (!(str = ast_str_create(1024))) {
+		return -1;
+	}
 
 	ast_rdlock_contexts();
 	AST_RWLIST_RDLOCK(&hints);
 
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		struct ast_state_cb *cblist;
-		/* can't use ast_strdupa() here because we may run out of stack
-		 * space while looping over a large number of large strings */
-		char *dup = ast_strdup(ast_get_extension_app(hint->exten));
-		char *cur, *parse = dup;
+		char *cur, *parse;
 		int state;
+
+		ast_str_set(&str, 0, "%s", ast_get_extension_app(hint->exten));
+		parse = str->str;
 
 		while ( (cur = strsep(&parse, "&")) ) {
 			if (!strcasecmp(cur, sc->dev)) {
 				break;
 			}
 		}
-
-		ast_free(dup);
 
 		if (!cur) {
 			continue;
@@ -4266,6 +4269,7 @@ static int handle_statechange(void *datap)
 	}
 	AST_RWLIST_UNLOCK(&hints);
 	ast_unlock_contexts();
+	ast_free(str);
 	ast_free(sc);
 	return 0;
 }
