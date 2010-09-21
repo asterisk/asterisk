@@ -21157,7 +21157,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Handle SDP here if we already have an owner */
 			if (find_sdp(req)) {
 				if (process_sdp(p, req, SDP_T38_INITIATE)) {
-					transmit_response_reliable(p, "488 Not acceptable here", req);
+					if (!ast_strlen_zero(get_header(req, "Content-Encoding"))) {
+						/* Asterisk does not yet support any Content-Encoding methods.  Always
+						 * attempt to process the sdp, but return a 415 if a Content-Encoding header
+						 * was present after processing failed.  */
+						transmit_response_reliable(p, "415 Unsupported Media type", req);
+					} else {
+						transmit_response_reliable(p, "488 Not acceptable here", req);
+					}
 					if (!p->lastinvite)
 						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					res = -1;
@@ -21222,8 +21229,15 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* We have a successful authentication, process the SDP portion if there is one */
 		if (find_sdp(req)) {
 			if (process_sdp(p, req, SDP_T38_INITIATE)) {
-				/* Unacceptable codecs */
-				transmit_response_reliable(p, "488 Not acceptable here", req);
+				/* Asterisk does not yet support any Content-Encoding methods.  Always
+				 * attempt to process the sdp, but return a 415 if a Content-Encoding header
+				 * was present after processing fails. */
+				if (!ast_strlen_zero(get_header(req, "Content-Encoding"))) {
+					transmit_response_reliable(p, "415 Unsupported Media type", req);
+				} else {
+					/* Unacceptable codecs */
+					transmit_response_reliable(p, "488 Not acceptable here", req);
+				}
 				p->invitestate = INV_COMPLETED;
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				ast_debug(1, "No compatible codecs for this SIP call.\n");
