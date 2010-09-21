@@ -163,6 +163,12 @@ The tag string available in CALLERID, CONNECTEDLINE, and REDIRECTING is
 useful for the interception macros to provide some information about where
 the information originally came from.
 
+The 'i' option of the CONNECTEDLINE dialplan function should always be
+used in the CONNECTED_LINE interception macros.  The interception macro
+always passes the connected line information on to the channel driver when
+the macro exits.  Similarly, the 'i' option of the REDIRECTING dialplan
+function should always be used in the REDIRECTING interception macros.
+
 \begin{verbatim}
 ${REDIRECTING_CALLEE_SEND_MACRO}
   Macro to call before sending a redirecting update to the callee.
