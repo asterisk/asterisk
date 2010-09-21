@@ -235,7 +235,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 */
 #define ast_string_field_index_set(x, index, data) do { \
     char *__zz__ = (char*) (x)->__begin_field[index]; \
-    char *__data__ = (char*) data; \
+    char *__data__ = (char*) (data); \
     size_t __dlen__ = strlen(__data__) + 1; \
     if ( __dlen__ == 1 ) {\
       (x)->__begin_field[index] = __ast_string_field_empty; \
@@ -253,7 +253,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 
 #define ast_string_field_index_logset(x, index, data, logstr) do { \
     char *__zz__ = (char*) (x)->__begin_field[index]; \
-    char *__data__ = (char*) data; \
+    char *__data__ = (char*) (data); \
     size_t __dlen__ = strlen(__data__) + 1; \
     if ( __dlen__ == 1 ) {\
       (x)->__begin_field[index] = __ast_string_field_empty; \
