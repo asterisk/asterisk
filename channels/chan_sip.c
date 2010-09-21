@@ -13864,6 +13864,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			/* Wrong password in authentication. Go away, don't try again until you fixed it */
 			transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
 			if (global_authfailureevents) {
+				const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
+				const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 					      "ChannelType: SIP\r\n"
 					      "Peer: SIP/%s\r\n"
@@ -13871,8 +13873,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 					      "Cause: AUTH_SECRET_FAILED\r\n"
 					      "Address: %s\r\n"
 					      "Port: %s\r\n",
-					      name, ast_strdupa(ast_sockaddr_stringify_addr(addr)),
-					      ast_strdupa(ast_sockaddr_stringify_port(addr)));
+					      name, peer_addr, peer_port);
 			}
 			break;
 		case AUTH_USERNAME_MISMATCH:
@@ -13886,6 +13887,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			if (sip_cfg.alwaysauthreject) {
 				transmit_fake_auth_response(p, SIP_REGISTER, &p->initreq, XMIT_UNRELIABLE);
 				if (global_authfailureevents) {
+					const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
+					const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
 					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 						      "ChannelType: SIP\r\n"
 						      "Peer: SIP/%s\r\n"
@@ -13895,14 +13898,15 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 						      "Port: %s\r\n",
 						      name,
 						      res == AUTH_PEER_NOT_DYNAMIC ? "AUTH_PEER_NOT_DYNAMIC" : "URI_NOT_FOUND",
-						      ast_strdupa(ast_sockaddr_stringify_addr(addr)),
-						      ast_strdupa(ast_sockaddr_stringify_port(addr)));
+						      peer_addr, peer_port);
 				}
 			} else {
 				/* URI not found */
 				if (res == AUTH_PEER_NOT_DYNAMIC) {
 					transmit_response(p, "403 Forbidden", &p->initreq);
 					if (global_authfailureevents) {
+						const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
+						const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
 						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 							"ChannelType: SIP\r\n"
 							"Peer: SIP/%s\r\n"
@@ -13910,13 +13914,13 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 							"Cause: AUTH_PEER_NOT_DYNAMIC\r\n"
 							"Address: %s\r\n"
 							"Port: %s\r\n",
-							name,
-							ast_strdupa(ast_sockaddr_stringify_addr(addr)),
-							ast_strdupa(ast_sockaddr_stringify_port(addr)));
+							name, peer_addr, peer_port);
 					}
 				} else {
 					transmit_response(p, "404 Not found", &p->initreq);
 					if (global_authfailureevents) {
+						const char *peer_addr = ast_strdupa(ast_sockaddr_stringify_addr(addr));
+						const char *peer_port = ast_strdupa(ast_sockaddr_stringify_port(addr));
 						manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 							"ChannelType: SIP\r\n"
 							"Peer: SIP/%s\r\n"
@@ -13926,8 +13930,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 							"Port: %s\r\n",
 							name,
 							(res == AUTH_USERNAME_MISMATCH) ? "AUTH_USERNAME_MISMATCH" : "URI_NOT_FOUND",
-							ast_strdupa(ast_sockaddr_stringify_addr(addr)),
-							ast_strdupa(ast_sockaddr_stringify_port(addr)));
+							peer_addr, peer_port);
 					}
 				}
 			}
@@ -16937,9 +16940,9 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		const char *prefix = "Localnet:";
 
 		for (d = localaddr; d ; prefix = "", d = d->next) {
-			ast_cli(a->fd, "  %-24s%s/%s\n",
-			    prefix, ast_strdupa(ast_sockaddr_stringify_addr(&d->addr)),
-			    ast_strdupa(ast_sockaddr_stringify_addr(&d->netmask)));
+			const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&d->addr));
+			const char *mask = ast_strdupa(ast_sockaddr_stringify_addr(&d->netmask));
+			ast_cli(a->fd, "  %-24s%s/%s\n", prefix, addr, mask);
 		}
 	}
 	ast_cli(a->fd, "\nGlobal Signalling Settings:\n");
@@ -27332,8 +27335,11 @@ static int apply_directmedia_ha(struct sip_pvt *p, const char *op)
 	ast_rtp_instance_get_local_address(p->rtp, &us);
 
 	if ((res = ast_apply_ha(p->directmediaha, &them)) == AST_SENSE_DENY) {
+		const char *us_addr = ast_strdupa(ast_sockaddr_stringify(&us));
+		const char *them_addr = ast_strdupa(ast_sockaddr_stringify(&them));
+
 		ast_debug(3, "Reinvite %s to %s denied by directmedia ACL on %s\n",
-			op, ast_strdupa(ast_sockaddr_stringify(&them)), ast_strdupa(ast_sockaddr_stringify(&us)));
+			op, them_addr, us_addr);
 	}
 
 	return res;

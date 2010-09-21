@@ -2012,9 +2012,12 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				ast_sockaddr_copy(&rtp->strict_rtp_address,
 						  &addr);
 			} else  {
+				const char *real_addr = ast_strdupa(ast_sockaddr_stringify(&addr));
+				const char *expected_addr = ast_strdupa(ast_sockaddr_stringify(&rtp->strict_rtp_address));
+
 				ast_debug(1, "Received RTP packet from %s, dropping due to strict RTP protection. Expected it to be from %s\n",
-					  ast_strdupa(ast_sockaddr_stringify(&addr)),
-					  ast_strdupa(ast_sockaddr_stringify(&rtp->strict_rtp_address)));
+						real_addr, expected_addr);
+
 				return &ast_null_frame;
 			}
 		}

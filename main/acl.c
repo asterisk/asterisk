@@ -488,7 +488,12 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		ret = ha;
 	}
 
-	ast_debug(1, "%s/%s sense %d appended to acl for peer\n", ast_strdupa(ast_sockaddr_stringify(&ha->addr)), ast_strdupa(ast_sockaddr_stringify(&ha->netmask)), ha->sense);
+	{
+		const char *addr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
+		const char *mask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
+
+		ast_debug(1, "%s/%s sense %d appended to acl for peer\n", addr, mask, ha->sense);
+	}
 
 	return ret;
 }
@@ -701,9 +706,14 @@ int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us)
 		return -1;
 	}
 	close(s);
-	ast_debug(3, "For destination '%s', our source address is '%s'.\n",
-		  ast_strdupa(ast_sockaddr_stringify_addr(them)),
-		  ast_strdupa(ast_sockaddr_stringify_addr(us)));
+
+	{
+		const char *them_addr = ast_strdupa(ast_sockaddr_stringify_addr(them));
+		const char *us_addr = ast_strdupa(ast_sockaddr_stringify_addr(us));
+
+		ast_debug(3, "For destination '%s', our source address is '%s'.\n",
+				them_addr, us_addr);
+	}
 
 	ast_sockaddr_set_port(us, port);
 

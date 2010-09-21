@@ -151,22 +151,26 @@ int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_
  */
 static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 {
-	struct ast_sockaddr tmp;
+	struct ast_sockaddr tmp = { .len = 0, };
 	int changed = 0;
 
 	ast_mutex_lock(&entry->lock);
-	if (verbose)
-		ast_verb(3, "refreshing '%s'\n", entry->name);
 
-	memset(&tmp, 0, sizeof(tmp));
+	if (verbose) {
+		ast_verb(3, "refreshing '%s'\n", entry->name);
+	}
 
 	if (!ast_get_ip_or_srv(&tmp, entry->name, entry->service)) {
-		if (!ast_sockaddr_port(&tmp))
+		if (!ast_sockaddr_port(&tmp)) {
 			ast_sockaddr_set_port(&tmp, ast_sockaddr_port(entry->result));
+		}
+
 		if (ast_sockaddr_cmp(&tmp, entry->result)) {
+			const char *old_addr = ast_strdupa(ast_sockaddr_stringify(entry->result));
+			const char *new_addr = ast_strdupa(ast_sockaddr_stringify(&tmp));
+
 			ast_log(LOG_NOTICE, "dnssrv: host '%s' changed from %s to %s\n",
-					entry->name, ast_strdupa(ast_sockaddr_stringify(entry->result)),
-					ast_strdupa(ast_sockaddr_stringify(&tmp)));
+					entry->name, old_addr, new_addr);
 
 			ast_sockaddr_copy(entry->result, &tmp);
 			changed = entry->changed = 1;
@@ -174,6 +178,7 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 	}
 
 	ast_mutex_unlock(&entry->lock);
+
 	return changed;
 }
 
