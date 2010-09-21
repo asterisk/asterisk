@@ -1760,7 +1760,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_set_flag(transferee, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 			ast_log(LOG_DEBUG,"ABOUT TO AST_ASYNC_GOTO, have a pbx... set HANGUP_DONT on chan=%s\n", transferee->name);
 			if (ast_channel_connected_line_macro(transferee, transferer, &transferer->connected, 1, 0)) {
-				ast_channel_update_connected_line(transferee, &transferer->connected, NULL);
+				ast_channel_update_connected_line(transferer, &transferer->connected, NULL);
 			}
 			set_c_e_p(transferee, transferer_real_context, xferto, 0);
 		}
