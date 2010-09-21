@@ -9905,24 +9905,37 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s (domain %s)\n", uri, p->context, p->domain);
 
+	/* Since extensions.conf can have unescaped characters, try matching a
+	 * decoded uri in addition to the non-decoded uri. */
+	decoded_uri = ast_strdupa(uri);
+	ast_uri_decode(decoded_uri);
+
 	/* If this is a subscription we actually just need to see if a hint exists for the extension */
 	if (req->method == SIP_SUBSCRIBE) {
 		char hint[AST_MAX_EXTENSION];
-		return (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten) ? 0 : -1);
+		int which = 0;
+		if (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, uri) ||
+		    (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, decoded_uri) && (which = 1))) {
+			if (!oreq) {
+				ast_string_field_set(p, exten, which ? decoded_uri : uri);
+			}
+			return 0;
+		} else {
+			return -1;
+		}
 	} else {
-		decoded_uri = ast_strdupa(uri);
-		ast_uri_decode(decoded_uri);
+		int which = 0;
 		/* Check the dialplan for the username part of the request URI,
 		   the domain will be stored in the SIPDOMAIN variable
-		   Since extensions.conf can have unescaped characters, try matching a decoded
-		   uri in addition to the non-decoded uri
 		   Return 0 if we have a matching extension */
-		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) || ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from)) ||
+		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) ||
+		    (ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from)) && (which = 1)) ||
 		    !strcmp(decoded_uri, ast_pickup_ext())) {
-			if (!oreq)
-				ast_string_field_set(p, exten, decoded_uri);
+			if (!oreq) {
+				ast_string_field_set(p, exten, which ? decoded_uri : uri);
+			}
 			return 0;
-		} 
+		}
 	}
 
 	/* Return 1 for pickup extension or overlap dialling support (if we support it) */
