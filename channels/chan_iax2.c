@@ -1008,6 +1008,39 @@ static const struct ast_channel_tech iax2_tech = {
 	.fixup = iax2_fixup,
 };
 
+/*!
+ * \internal
+ * \brief Obtain the owner channel lock if the owner exists.
+ *
+ * \param callno IAX2 call id.
+ *
+ * \note Assumes the iaxsl[callno] lock is already obtained.
+ *
+ * \note
+ * IMPORTANT NOTE!!!  Any time this function is used, even if
+ * iaxs[callno] was valid before calling it, it may no longer be
+ * valid after calling it.  This function may unlock and lock
+ * the mutex associated with this callno, meaning that another
+ * thread may grab it and destroy the call.
+ *
+ * \return Nothing
+ */
+static void iax2_lock_owner(int callno)
+{
+	for (;;) {
+		if (!iaxs[callno] || !iaxs[callno]->owner) {
+			/* There is no owner lock to get. */
+			break;
+		}
+		if (!ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
+			/* We got the lock */
+			break;
+		}
+		/* Avoid deadlock by pausing and trying again */
+		DEADLOCK_AVOIDANCE(&iaxsl[callno]);
+	}
+}
+
 /* WARNING: insert_idle_thread should only ever be called within the
  * context of an iax2_process_thread() thread.
  */
@@ -2564,18 +2597,10 @@ static int find_callno_locked(unsigned short callno, unsigned short dcallno, str
  */
 static int iax2_queue_frame(int callno, struct ast_frame *f)
 {
-	for (;;) {
-		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
-				/* Avoid deadlock by pausing and trying again */
-				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
-			} else {
-				ast_queue_frame(iaxs[callno]->owner, f);
-				ast_mutex_unlock(&iaxs[callno]->owner->lock);
-				break;
-			}
-		} else
-			break;
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_frame(iaxs[callno]->owner, f);
+		ast_mutex_unlock(&iaxs[callno]->owner->lock);
 	}
 	return 0;
 }
@@ -2595,18 +2620,10 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
  */
 static int iax2_queue_hangup(int callno)
 {
-	for (;;) {
-		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
-				/* Avoid deadlock by pausing and trying again */
-				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
-			} else {
-				ast_queue_hangup(iaxs[callno]->owner);
-				ast_mutex_unlock(&iaxs[callno]->owner->lock);
-				break;
-			}
-		} else
-			break;
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_hangup(iaxs[callno]->owner);
+		ast_mutex_unlock(&iaxs[callno]->owner->lock);
 	}
 	return 0;
 }
@@ -2627,18 +2644,10 @@ static int iax2_queue_hangup(int callno)
 static int iax2_queue_control_data(int callno, 
 	enum ast_control_frame_type control, const void *data, size_t datalen)
 {
-	for (;;) {
-		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
-				/* Avoid deadlock by pausing and trying again */
-				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
-			} else {
-				ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
-				ast_mutex_unlock(&iaxs[callno]->owner->lock);
-				break;
-			}
-		} else
-			break;
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
+		ast_mutex_unlock(&iaxs[callno]->owner->lock);
 	}
 	return 0;
 }
@@ -3620,6 +3629,12 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		return -1;
 	}
 
+	iax2_lock_owner(fr->callno);
+	if (!iaxs[fr->callno]) {
+		/* The call dissappeared so discard this frame that we could not send. */
+		iax2_frame_free(fr);
+		return -1;
+	}
 	if ((owner = iaxs[fr->callno]->owner))
 		bridge = ast_bridged_channel(owner);
 
@@ -3627,6 +3642,8 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	 * a channel that can accept jitter, then flush and suspend the jb, and send this frame straight through */
 	if ( (!ast_test_flag(iaxs[fr->callno], IAX_FORCEJITTERBUF)) && owner && bridge && (bridge->tech->properties & AST_CHAN_TP_WANTSJITTER) ) {
 		jb_frame frame;
+
+		ast_mutex_unlock(&owner->lock);
 
 		/* deliver any frames in the jb */
 		while (jb_getall(iaxs[fr->callno]->jb, &frame) == JB_OK) {
@@ -3645,6 +3662,9 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 			*tsout = fr->ts;
 		__do_deliver(fr);
 		return -1;
+	}
+	if (owner) {
+		ast_mutex_unlock(&owner->lock);
 	}
 
 	/* insert into jitterbuffer */
@@ -8832,14 +8852,11 @@ static int socket_process(struct iax2_thread *thread)
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
 					if (iaxs[fr->callno]->owner) {
-						int orignative;
-retryowner:
-						if (ast_mutex_trylock(&iaxs[fr->callno]->owner->lock)) {
-							DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
-							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner;
-						}
+						iax2_lock_owner(fr->callno);
 						if (iaxs[fr->callno]) {
 							if (iaxs[fr->callno]->owner) {
+								int orignative;
+
 								orignative = iaxs[fr->callno]->owner->nativeformats;
 								iaxs[fr->callno]->owner->nativeformats = f.subclass;
 								if (iaxs[fr->callno]->owner->readformat)
@@ -8908,22 +8925,32 @@ retryowner:
 
 					ast_set_flag(iaxs[fr->callno], IAX_QUELCH);
 					if (ies.musiconhold) {
-						if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
+						iax2_lock_owner(fr->callno);
+						if (!iaxs[fr->callno] || !iaxs[fr->callno]->owner) {
+							break;
+						}
+						if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
 							const char *mohsuggest = iaxs[fr->callno]->mohsuggest;
+
+							/*
+							 * We already hold the owner lock so we do not
+							 * need to check iaxs[fr->callno] after it returns.
+							 */
 							iax2_queue_control_data(fr->callno, AST_CONTROL_HOLD, 
 								S_OR(mohsuggest, NULL),
 								!ast_strlen_zero(mohsuggest) ? strlen(mohsuggest) + 1 : 0);
-							if (!iaxs[fr->callno]) {
-								ast_mutex_unlock(&iaxsl[fr->callno]);
-								return 1;
-							}
 						}
+						ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
 					}
 				}
 				break;
 			case IAX_COMMAND_UNQUELCH:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
-				        /* Generate Manager Unhold event, if necessary*/
+					iax2_lock_owner(fr->callno);
+					if (!iaxs[fr->callno]) {
+						break;
+					}
+					/* Generate Manager Unhold event, if necessary */
 					if (iaxs[fr->callno]->owner && ast_test_flag(iaxs[fr->callno], IAX_QUELCH)) {
 						manager_event(EVENT_FLAG_CALL, "Unhold",
 							"Channel: %s\r\n"
@@ -8933,13 +8960,17 @@ retryowner:
 					}
 
 					ast_clear_flag(iaxs[fr->callno], IAX_QUELCH);
-					if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
-						iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
-						if (!iaxs[fr->callno]) {
-							ast_mutex_unlock(&iaxsl[fr->callno]);
-							return 1;
-						}
+					if (!iaxs[fr->callno]->owner) {
+						break;
 					}
+					if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
+						/*
+						 * We already hold the owner lock so we do not
+						 * need to check iaxs[fr->callno] after it returns.
+						 */
+						iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
+					}
+					ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
 				}
 				break;
 			case IAX_COMMAND_TXACC:
@@ -9211,38 +9242,53 @@ retryowner:
 			case IAX_COMMAND_TRANSFER:
 			{
 				struct ast_channel *bridged_chan;
+				struct ast_channel *owner;
 
-				if (iaxs[fr->callno]->owner && (bridged_chan = ast_bridged_channel(iaxs[fr->callno]->owner)) && ies.called_number) {
-					/* Set BLINDTRANSFER channel variables */
-
+				iax2_lock_owner(fr->callno);
+				if (!iaxs[fr->callno]) {
+					/* Initiating call went away before we could transfer. */
+					break;
+				}
+				owner = iaxs[fr->callno]->owner;
+				bridged_chan = owner ? ast_bridged_channel(owner) : NULL;
+				if (bridged_chan && ies.called_number) {
 					ast_mutex_unlock(&iaxsl[fr->callno]);
-					pbx_builtin_setvar_helper(iaxs[fr->callno]->owner, "BLINDTRANSFER", bridged_chan->name);
-					ast_mutex_lock(&iaxsl[fr->callno]);
-					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
-					}
 
-					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", iaxs[fr->callno]->owner->name);
+					/* Set BLINDTRANSFER channel variables */
+					pbx_builtin_setvar_helper(owner, "BLINDTRANSFER", bridged_chan->name);
+					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", owner->name);
+
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
-						struct ast_channel *saved_channel = iaxs[fr->callno]->owner;
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						if (iax_park(bridged_chan, saved_channel)) {
-							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", bridged_chan->name);
-						} else {
-							ast_log(LOG_DEBUG, "Parked call on '%s'\n", bridged_chan->name);
+						ast_log(LOG_DEBUG, "Parking call '%s'\n", bridged_chan->name);
+						if (iax_park(bridged_chan, owner)) {
+							ast_log(LOG_WARNING, "Failed to park call '%s'\n",
+								bridged_chan->name);
 						}
 						ast_mutex_lock(&iaxsl[fr->callno]);
 					} else {
-						if (ast_async_goto(bridged_chan, iaxs[fr->callno]->context, ies.called_number, 1))
-							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", bridged_chan->name, 
-								ies.called_number, iaxs[fr->callno]->context);
-						else
-							ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", bridged_chan->name, 
-								ies.called_number, iaxs[fr->callno]->context);
+						ast_mutex_lock(&iaxsl[fr->callno]);
+
+						if (iaxs[fr->callno]) {
+							if (ast_async_goto(bridged_chan, iaxs[fr->callno]->context,
+								ies.called_number, 1)) {
+								ast_log(LOG_WARNING,
+									"Async goto of '%s' to '%s@%s' failed\n",
+									bridged_chan->name, ies.called_number,
+									iaxs[fr->callno]->context);
+							} else {
+								ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n",
+									bridged_chan->name, ies.called_number,
+									iaxs[fr->callno]->context);
+							}
+						} else {
+							/* Initiating call went away before we could transfer. */
+						}
 					}
 				} else
 						ast_log(LOG_DEBUG, "Async goto not applicable on call %d\n", fr->callno);
+				if (owner) {
+					ast_mutex_unlock(&owner->lock);
+				}
 
 				break;
 			}
@@ -9279,25 +9325,19 @@ retryowner:
 						ast_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
 				} else {
 					ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-					if (iaxs[fr->callno]->owner) {
+					iax2_lock_owner(fr->callno);
+					if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
 						/* Switch us to use a compatible format */
 						iaxs[fr->callno]->owner->nativeformats = iaxs[fr->callno]->peerformat;
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", ast_getformatname(iaxs[fr->callno]->owner->nativeformats));
-retryowner2:
-						if (ast_mutex_trylock(&iaxs[fr->callno]->owner->lock)) {
-							DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
-							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner2;
-						}
-						
-						if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
-							/* Setup read/write formats properly. */
-							if (iaxs[fr->callno]->owner->writeformat)
-								ast_set_write_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->writeformat);	
-							if (iaxs[fr->callno]->owner->readformat)
-								ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);	
-							ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
-						}
+
+						/* Setup read/write formats properly. */
+						if (iaxs[fr->callno]->owner->writeformat)
+							ast_set_write_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->writeformat);	
+						if (iaxs[fr->callno]->owner->readformat)
+							ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);	
+						ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
 					}
 				}
 				if (iaxs[fr->callno]) {
