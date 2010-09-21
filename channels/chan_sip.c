@@ -1066,6 +1066,20 @@ static void destroy_escs(void)
 }
 
 /*! \brief
+ * Here we implement the container for dialogs which are in the
+ * dialog_needdestroy state to iterate only through the dialogs
+ * unlink them instead of iterate through all dialogs
+ */
+struct ao2_container *dialogs_needdestroy;
+
+/*! \brief
+ * Here we implement the container for dialogs which have rtp
+ * traffic and rtptimeout, rtpholdtimeout or rtpkeepalive
+ * set. We use this container instead the whole dialog list.
+ */
+struct ao2_container *dialogs_rtpcheck;
+
+/*! \brief
  * Here we implement the container for dialogs (sip_pvt), defining
  * generic wrapper functions to ease the transition from the current
  * implementation (a single linked list) to a different container.
@@ -2692,6 +2706,15 @@ static void ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
 	}
 }
 
+ /*!
+ * \brief Unlink a dialog from the dialogs_checkrtp container
+ */
+static void *dialog_unlink_rtpcheck(struct sip_pvt *dialog)
+{
+	ao2_t_unlink(dialogs_rtpcheck, dialog, "unlinking dialog_rtpcheck via ao2_unlink");
+	return NULL;
+}
+
 /*!
  * \brief Unlink a dialog from the dialogs container, as well as any other places
  * that it may be currently stored.
@@ -2706,6 +2729,8 @@ void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglis
 	dialog_ref(dialog, "Let's bump the count in the unlink so it doesn't accidentally become dead before we are done");
 
 	ao2_t_unlink(dialogs, dialog, "unlinking dialog via ao2_unlink");
+	ao2_t_unlink(dialogs_needdestroy, dialog, "unlinking dialog_needdestroy via ao2_unlink");
+	ao2_t_unlink(dialogs_rtpcheck, dialog, "unlinking dialog_rtpcheck via ao2_unlink");
 
 	/* Unlink us from the owner (channel) if we have one */
 	if (dialog->owner) {
@@ -2804,6 +2829,9 @@ static inline void pvt_set_needdestroy(struct sip_pvt *pvt, const char *reason)
 {
 	if (pvt->final_destruction_scheduled) {
 		return; /* This is already scheduled for final destruction, let the scheduler take care of it. */
+	}
+	if(pvt->needdestroy != 1) {
+		ao2_t_link(dialogs_needdestroy, pvt, "link pvt into dialogs_needdestroy container");
 	}
 	append_history(pvt, "NeedDestroy", "Setting needdestroy because %s", reason);
 	pvt->needdestroy = 1;
@@ -10791,6 +10819,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	/* Update lastrtprx when we send our SDP */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
+	/* we unlink this dialog and link again into the dialogs_rtpcheck container to doesnt add it twice */
+	ao2_t_unlink(dialogs_rtpcheck, p, "unlink pvt into dialogs_rtpcheck container");
+	ao2_t_link(dialogs_rtpcheck, p, "link pvt into dialogs_rtpcheck container");
+
 	ast_debug(3, "Done building SDP. Settling with this capability: %s\n", ast_getformatname_multiple(buf, SIPBUFSIZE, capability));
 
 	return AST_SUCCESS;
@@ -15838,6 +15870,30 @@ static void cleanup_stale_contexts(char *new, char *old)
 	}
 }
 
+/*! \brief Check RTP Timeout on dialogs
+ * \details This is used with ao2_callback to check rtptimeout
+ * rtponholdtimeout and send rtpkeepalive packets
+ */
+static int dialog_checkrtp_cb(void *dialogobj, void *arg, int flags)
+{
+	struct sip_pvt *dialog = dialogobj;
+	time_t *t = arg;
+
+	if (sip_pvt_trylock(dialog)) {
+		return 0;
+	}
+
+	if (dialog->rtp || dialog->vrtp) {
+		check_rtp_timeout(dialog, *t);
+	} else {
+		/* Dialog has no active RTP or VRTP. unlink it from the checkrtp container */
+		dialog_unlink_rtpcheck(dialog);
+	}
+	sip_pvt_unlock(dialog);
+
+	return 0;
+}
+
 /*!
  * \brief Match dialogs that need to be destroyed
  *
@@ -15853,7 +15909,6 @@ static void cleanup_stale_contexts(char *new, char *old)
 static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 {
 	struct sip_pvt *dialog = dialogobj;
-	time_t *t = arg;
 
 	if (sip_pvt_trylock(dialog)) {
 		/* Don't block the monitor thread.  This function is called often enough
@@ -15861,21 +15916,6 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		return 0;
 	}
 
-	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
-	if (dialog->rtp && ast_rtp_instance_get_bridged(dialog->rtp)) {
-		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
-		sip_pvt_unlock(dialog);
-		return 0;
-	}
-
-	if (dialog->vrtp && ast_rtp_instance_get_bridged(dialog->vrtp)) {
-		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
-		sip_pvt_unlock(dialog);
-		return 0;
-	}
-
-	/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
-	check_rtp_timeout(dialog, *t);
 
 	/* If we have sessions that needs to be destroyed, do it now */
 	/* Check if we have outstanding requests not responsed to or an active call
@@ -24216,20 +24256,31 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 /*! \brief helper function for the monitoring thread -- seems to be called with the assumption that the dialog is locked */
 static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 {
-	/* If we have no RTP or no active owner, no need to check timers */
-	if (!dialog->rtp || !dialog->owner)
+	/* If we have no active owner, no need to check timers */
+	if (!dialog->owner) {
+		dialog_unlink_rtpcheck(dialog);
 		return;
-	/* If the call is not in UP state or redirected outside Asterisk, no need to check timers */
+	}
+	/* If the call is redirected outside Asterisk, no need to check timers */
 
-	if (dialog->owner->_state != AST_STATE_UP || !ast_sockaddr_isnull(&dialog->redirip))
+	if (!ast_sockaddr_isnull(&dialog->redirip)) {
+		dialog_unlink_rtpcheck(dialog);
 		return;
+	}
 
 	/* If the call is involved in a T38 fax session do not check RTP timeout */
-	if (dialog->t38.state == T38_ENABLED)
+	if (dialog->t38.state == T38_ENABLED) {
+		dialog_unlink_rtpcheck(dialog);
 		return;
+	}
+	/* If the call is not in UP state return for later check. */
+	if (dialog->owner->_state != AST_STATE_UP) {
+		return;
+	}
 
 	/* If we have no timers set, return now */
 	if (!ast_rtp_instance_get_timeout(dialog->rtp) && !ast_rtp_instance_get_hold_timeout(dialog->rtp)) {
+		dialog_unlink_rtpcheck(dialog);
 		return;
 	}
 
@@ -24244,13 +24295,11 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD) || (ast_rtp_instance_get_hold_timeout(dialog->rtp) && (t > dialog->lastrtprx + ast_rtp_instance_get_hold_timeout(dialog->rtp)))) {
 			/* Needs a hangup */
 			if (ast_rtp_instance_get_timeout(dialog->rtp)) {
-				while (dialog->owner && ast_channel_trylock(dialog->owner)) {
-					sip_pvt_unlock(dialog);
-					usleep(1);
-					sip_pvt_lock(dialog);
-				}
-				if (!dialog->owner) {
-					return; /* channel hangup can occur during deadlock avoidance. */
+				if(ast_channel_trylock(dialog->owner)) {
+				/* Dont do a infinite deadlock avoidance loop.
+				 * Lets try this on next round (1 ms to 1000 ms later)
+				 * call is allready dead */
+					return;
 				}
 				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
 					dialog->owner->name, (long) (t - dialog->lastrtprx));
@@ -24267,6 +24316,7 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 					ast_rtp_instance_set_timeout(dialog->vrtp, 0);
 					ast_rtp_instance_set_hold_timeout(dialog->vrtp, 0);
 				}
+				dialog_unlink_rtpcheck(dialog); /* finally unlink the dialog from the checkrtp container */
 			}
 		}
 	}
@@ -24311,16 +24361,15 @@ static void *do_monitor(void *data)
 
 		/* Check for dialogs needing to be killed */
 		t = time(NULL);
-		/* don't scan the dialogs list if it hasn't been a reasonable period
-		   of time since the last time we did it (when MWI is being sent, we can
-		   get back to this point every millisecond or less)
-		*/
-		ao2_t_callback(dialogs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t,
-				"callback to remove dialogs w/needdestroy");
+		/* Check for dialogs with rtp and rtptimeout
+		 * All Dialogs which have rtp are in dialogs_rtpcheck container*/
+		ao2_t_callback(dialogs_rtpcheck, OBJ_NODATA | OBJ_MULTIPLE, dialog_checkrtp_cb, &t,
+				"callback to check rtptimeout and hangup calls if necessary");
 
-		/* the old methodology would be to restart the search for dialogs to delete with every
-		   dialog that was found and destroyed, probably because the list contents would change,
-		   so we'd need to restart. This isn't the best thing to do with callbacks. */
+		/* Check for dialogs marked to be destroyed
+		 * All Dialogs which need Destroy are in dialogs_needdestroy container*/
+		ao2_t_callback(dialogs_needdestroy, OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t,
+				"callback to check rtptimeout and hangup calls if necessary");
 
 		/* XXX TODO The scheduler usage in this module does not have sufficient
 		 * synchronization being done between running the scheduler and places
@@ -28422,6 +28471,8 @@ static int load_module(void)
 	peers = ao2_t_container_alloc(HASH_PEER_SIZE, peer_hash_cb, peer_cmp_cb, "allocate peers");
 	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, peer_ipcmp_cb, "allocate peers_by_ip");
 	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
+	dialogs_needdestroy = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs_needdestroy");
+	dialogs_rtpcheck = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs for rtpchecks");
 	threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
 	
 	ASTOBJ_CONTAINER_INIT(&regl); /* Registry object list -- not searched for anything */
@@ -28668,6 +28719,8 @@ static int unload_module(void)
 	ao2_t_ref(peers, -1, "unref the peers table");
 	ao2_t_ref(peers_by_ip, -1, "unref the peers_by_ip table");
 	ao2_t_ref(dialogs, -1, "unref the dialogs table");
+	ao2_t_ref(dialogs_needdestroy, -1, "unref the dialogs table");
+	ao2_t_ref(dialogs_rtpcheck, -1, "unref the dialogs table");
 	ao2_t_ref(threadt, -1, "unref the thread table");
 
 	clear_sip_domains();
