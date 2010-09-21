@@ -10058,7 +10058,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	const char *fromdomain;
 	const char *privacy = NULL;
 	const char *screen = NULL;
-	const char *anonymous_string = "\"Anonymous\" <anonymous@anonymous.invalid>";
+	const char *anonymous_string = "\"Anonymous\" <sip:anonymous@anonymous.invalid>";
 
 	if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
 		return 0;
@@ -14018,7 +14018,7 @@ static int get_pai(struct sip_pvt *p, struct sip_request *req)
 		return 0;
 	}
 	*end++ = '\0';
-	if (!strncasecmp(uri, "anonymous@anonymous.invalid", 27)) {
+	if (!strncasecmp(uri, "sip:anonymous@anonymous.invalid", 31)) {
 		callingpres = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 		/*XXX Assume no change in cid_num. Perhaps it should be
 		 * blanked?
