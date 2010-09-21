@@ -13876,6 +13876,10 @@ static int load_module(void)
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
+	
+	if ((timer = ast_timer_open())) {
+		ast_timer_set_rate(timer, trunkfreq);
+	}
 
 	if (set_config(config, 0) == -1) {
 		if (timer) {
@@ -13895,10 +13899,6 @@ static int load_module(void)
 	ast_manager_register( "IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list, "List IAX Peers" );
 	ast_manager_register( "IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats, "Show IAX Netstats" );
 	ast_manager_register( "IAXregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_registry, "Show IAX registrations");
-
-	if ((timer = ast_timer_open())) {
-		ast_timer_set_rate(timer, trunkfreq);
-	}
 
  	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");
