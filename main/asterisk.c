@@ -3386,7 +3386,7 @@ int main(int argc, char *argv[])
 		}
 
 		fd2 = (l.rlim_cur > sizeof(readers) * 8 ? sizeof(readers) * 8 : l.rlim_cur) - 1;
-		if (dup2(fd, fd2)) {
+		if (dup2(fd, fd2) < 0) {
 			ast_log(LOG_WARNING, "Cannot open maximum file descriptor %d at boot? %s\n", fd2, strerror(errno));
 			break;
 		}
