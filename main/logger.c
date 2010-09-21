@@ -1136,7 +1136,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		return;
 
 	/* Ignore anything that never gets logged anywhere */
-	if (!(global_logmask & (1 << level)))
+	if (level != __LOG_VERBOSE && !(global_logmask & (1 << level)))
 		return;
 	
 	/* Build string */
