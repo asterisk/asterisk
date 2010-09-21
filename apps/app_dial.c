@@ -852,6 +852,8 @@ static void do_forward(struct chanlist *o,
 		handle_cause(cause, num);
 		ast_hangup(original);
 	} else {
+		struct ast_party_redirecting redirecting;
+
 		if (single && CAN_EARLY_BRIDGE(peerflags, c, in)) {
 			ast_rtp_instance_early_bridge_make_compatible(c, in);
 		}
@@ -895,21 +897,19 @@ static void do_forward(struct chanlist *o,
 		 * deadlock. This is why the handling of c's lock may seem a bit unusual
 		 * here.
 		 */
+		ast_party_redirecting_init(&redirecting);
+		ast_party_redirecting_copy(&redirecting, &c->redirecting);
 		ast_channel_unlock(c);
-		if (ast_channel_redirecting_macro(c, in, &c->redirecting, 1, 0)) {
-			while (ast_channel_trylock(c)) {
-				CHANNEL_DEADLOCK_AVOIDANCE(in);
-			}
-			ast_channel_update_redirecting(in, &c->redirecting, NULL);
-			ast_channel_unlock(c);
+		if (ast_channel_redirecting_macro(c, in, &redirecting, 1, 0)) {
+			ast_channel_update_redirecting(in, &redirecting, NULL);
 		}
+		ast_party_redirecting_free(&redirecting);
+		ast_channel_unlock(in);
 
 		ast_clear_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE);
 		if (ast_test_flag64(peerflags, OPT_CANCEL_TIMEOUT)) {
 			*to = -1;
 		}
-
-		ast_channel_unlock(in);
 
 		if (ast_call(c, stuff, 0)) {
 			ast_log(LOG_NOTICE, "Forwarding failed to dial '%s/%s'\n",

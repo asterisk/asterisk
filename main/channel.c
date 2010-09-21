@@ -8775,9 +8775,9 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 	macro_args = pbx_builtin_getvar_helper(macro_chan, is_caller
 		? "CONNECTED_LINE_CALLER_SEND_MACRO_ARGS" : "CONNECTED_LINE_CALLEE_SEND_MACRO_ARGS");
 	macro_args = ast_strdupa(S_OR(macro_args, ""));
-	ast_channel_unlock(macro_chan);
 
 	if (ast_strlen_zero(macro)) {
+		ast_channel_unlock(macro_chan);
 		return -1;
 	}
 
@@ -8790,9 +8790,12 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 
 		ast_party_connected_line_copy(&macro_chan->connected, connected);
 	}
+	ast_channel_unlock(macro_chan);
 
 	if (!(retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args))) {
+		ast_channel_lock(macro_chan);
 		ast_channel_update_connected_line(macro_chan, &macro_chan->connected, NULL);
+		ast_channel_unlock(macro_chan);
 	}
 
 	return retval;
@@ -8811,9 +8814,9 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 	macro_args = pbx_builtin_getvar_helper(macro_chan, is_caller
 		? "REDIRECTING_CALLER_SEND_MACRO_ARGS" : "REDIRECTING_CALLEE_SEND_MACRO_ARGS");
 	macro_args = ast_strdupa(S_OR(macro_args, ""));
-	ast_channel_unlock(macro_chan);
 
 	if (ast_strlen_zero(macro)) {
+		ast_channel_unlock(macro_chan);
 		return -1;
 	}
 
@@ -8826,10 +8829,13 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 
 		ast_party_redirecting_copy(&macro_chan->redirecting, redirecting);
 	}
+	ast_channel_unlock(macro_chan);
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
 	if (!retval) {
+		ast_channel_lock(macro_chan);
 		ast_channel_update_redirecting(macro_chan, &macro_chan->redirecting, NULL);
+		ast_channel_unlock(macro_chan);
 	}
 
 	return retval;

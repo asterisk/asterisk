@@ -3414,6 +3414,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						o->stillgoing = 0;
 						numnochan++;
 					} else {
+						struct ast_party_redirecting redirecting;
+
 						ast_channel_lock(o->chan);
 						while (ast_channel_trylock(in)) {
 							CHANNEL_DEADLOCK_AVOIDANCE(o->chan);
@@ -3449,27 +3451,24 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						 * deadlock.  This is why the handling of o->chan's lock may
 						 * seem a bit unusual here.
 						 */
+						ast_party_redirecting_init(&redirecting);
+						ast_party_redirecting_copy(&redirecting, &o->chan->redirecting);
 						ast_channel_unlock(o->chan);
-						res = ast_channel_redirecting_macro(o->chan, in, &o->chan->redirecting, 1, 0);
-						while (ast_channel_trylock(o->chan)) {
-							CHANNEL_DEADLOCK_AVOIDANCE(in);
-						}
+						res = ast_channel_redirecting_macro(o->chan, in, &redirecting, 1, 0);
 						if (res) {
-							ast_channel_update_redirecting(in, &o->chan->redirecting, NULL);
+							ast_channel_update_redirecting(in, &redirecting, NULL);
 						}
+						ast_party_redirecting_free(&redirecting);
+						ast_channel_unlock(in);
 
 						update_connectedline = 1;
 
 						if (ast_call(o->chan, stuff, 0)) {
 							ast_log(LOG_NOTICE, "Forwarding failed to dial '%s/%s'\n",
 								tech, stuff);
-							ast_channel_unlock(o->chan);
 							do_hang(o);
 							numnochan++;
-						} else {
-							ast_channel_unlock(o->chan);
 						}
-						ast_channel_unlock(in);
 					}
 					/* Hangup the original channel now, in case we needed it */
 					ast_hangup(winner);
