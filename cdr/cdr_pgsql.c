@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char name[] = "pgsql";
 static const char config[] = "cdr_pgsql.conf";
-static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL;
+static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL, *encoding = NULL;
 static int connected = 0;
 static int maxsize = 512, maxsize2 = 512;
 
@@ -110,6 +110,9 @@ static int pgsql_log(struct ast_cdr *cdr)
 		conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
 		if (PQstatus(conn) != CONNECTION_BAD) {
 			connected = 1;
+			if (PQsetClientEncoding(conn, encoding)) {
+				ast_log(LOG_WARNING, "Failed to set encoding to '%s'.  Encoding set to default '%s'\n", encoding, pg_encoding_to_char(PQclientEncoding(conn)));
+			}
 		} else {
 			pgerror = PQerrorMessage(conn);
 			ast_log(LOG_ERROR, "Unable to connect to database server %s.  Calls will not be logged!\n", pghostname);
@@ -449,6 +452,19 @@ static int config_module(int reload)
 		return -1;
 	}
 
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "encoding"))) {
+		ast_log(LOG_WARNING, "Encoding not specified.  Assuming LATIN9\n");
+		tmp = "LATIN9";
+	}
+
+	if (encoding) {
+		ast_free(encoding);
+	}
+	if (!(encoding = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
+		return -1;
+	}
+
 	if (option_debug) {
 		if (ast_strlen_zero(pghostname)) {
 			ast_debug(1, "using default unix socket\n");
@@ -469,6 +485,9 @@ static int config_module(int reload)
 		int i, rows, version;
 		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
 		connected = 1;
+		if (PQsetClientEncoding(conn, encoding)) {
+			ast_log(LOG_WARNING, "Failed to set encoding to '%s'.  Encoding set to default '%s'\n", encoding, pg_encoding_to_char(PQclientEncoding(conn)));
+		}
 		version = PQserverVersion(conn);
 
 		if (version >= 70300) {
