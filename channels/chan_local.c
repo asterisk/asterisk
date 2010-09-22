@@ -568,6 +568,15 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		p->owner = newchan;
 	else
 		p->chan = newchan;
+
+	/* Do not let a masquerade cause a Local channel to be bridged to itself! */
+	if (p->owner->_bridge == p->chan || p->chan->_bridge == p->owner) {
+		ast_log(LOG_WARNING, "You can not bridge a Local channel to itself!\n");
+		ast_mutex_unlock(&p->lock);
+		ast_queue_hangup(newchan);
+		return -1;
+	}
+
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
