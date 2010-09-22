@@ -11,3 +11,4 @@
 ;password=password
 ;user=postgres
 ;table=cdr		;SQL table where CDRs will be inserted
+;encoding=LATIN9	; Encoding of logged characters in Asterisk
