@@ -23595,7 +23595,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		}  else {
 			ast_debug(1, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
 			if (req->method != SIP_ACK)
-				transmit_response(p, "503 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
+				transmit_response(p, "500 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
 			return -1;
 		}
 	} else if (p->icseq &&
