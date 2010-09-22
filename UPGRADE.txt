@@ -493,6 +493,11 @@ CDR Records:
   on the channel from the dialplan and have that change also show up in the 
   CDR, then you *must* set CALLERID(ANI) as well as CALLERID(num).
 
+* cdr_pgsql now assumes the encoding of strings it is handed are in LATIN9,
+  which should cover most uses of the extended ASCII set.  If your strings
+  use a different encoding in Asterisk, the "encoding" parameter may be set
+  to specify the correct character set.
+
 API:
 
 * There are some API functions that were not previously prefixed with the 'ast_'
