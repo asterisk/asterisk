@@ -6205,6 +6205,8 @@ static int __init_manager(int reload)
 
 	/* default values */
 	ast_copy_string(global_realm, S_OR(ast_config_AST_SYSTEM_NAME, DEFAULT_REALM), sizeof(global_realm));
+	memset(&ami_desc.local_address, 0, sizeof(struct sockaddr_in));
+	memset(&amis_desc.local_address, 0, sizeof(amis_desc.local_address));
 	amis_desc_local_address_tmp.sin_port = htons(5039);
 	ami_desc_local_address_tmp.sin_port = htons(DEFAULT_MANAGER_PORT);
 
@@ -6289,8 +6291,10 @@ static int __init_manager(int reload)
 		    ami_desc_local_address_tmp.sin_addr;
 	}
 
-	ast_sockaddr_from_sin(&ami_desc.local_address, &ami_desc_local_address_tmp);
-	ast_sockaddr_from_sin(&amis_desc.local_address, &amis_desc_local_address_tmp);
+	if (manager_enabled) {
+		ast_sockaddr_from_sin(&ami_desc.local_address, &ami_desc_local_address_tmp);
+		ast_sockaddr_from_sin(&amis_desc.local_address, &amis_desc_local_address_tmp);
+	}
 
 	AST_RWLIST_WRLOCK(&users);
 
