@@ -196,7 +196,7 @@ Dialplan Functions
    setting various connected line and redirecting party information.
  * CALLERID and CONNECTEDLINE dialplan functions have been extended to
    support ISDN subaddressing.
- * The CHANNEL() function now supports the "name" option.
+ * The CHANNEL() function now supports the "name" and "checkhangup" options.
  * For DAHDI channels, the CHANNEL() dialplan function now allows
    the dialplan to request changes in the configuration of the active
    echo canceller on the channel (if any), for the current call only.
