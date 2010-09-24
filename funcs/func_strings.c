@@ -939,14 +939,14 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 	 * want them to be surprised by the result.  Hence, we prefer commas as the
 	 * delimiter, but we'll fall back to vertical bars if commas aren't found.
 	 */
-	ast_debug(1, "array (%s=%s)\n", var, value2);
+	ast_debug(1, "array (%s=%s)\n", var, S_OR(value2, ""));
 	AST_STANDARD_APP_ARGS(arg1, var);
 
 	AST_STANDARD_APP_ARGS(arg2, value2);
 
 	for (i = 0; i < arg1.argc; i++) {
 		ast_debug(1, "array set value (%s=%s)\n", arg1.var[i],
-				arg2.val[i]);
+				S_OR(arg2.val[i], ""));
 		if (i < arg2.argc) {
 			if (ishash) {
 				if (origvar[0] == '_') {
