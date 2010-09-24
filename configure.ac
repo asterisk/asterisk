@@ -1697,6 +1697,19 @@ if test "${PG_CONFIG}" != No; then
       AC_CHECK_LIB([pq], [PQescapeStringConn], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
       [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
 
+      AC_MSG_CHECKING(for pg_encoding_to_char within Postgres headers)
+      old_CFLAGS=${CFLAGS}
+      CFLAGS="${CFLAGS} -I${PGSQL_includedir} -Werror"
+      old_LDFLAGS=${LDFLAGS}
+      LDFLAGS="${LDFLAGS} -L${PGSQL_libdir} -lpq -lz"
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <libpq-fe.h>],
+          [const char *foo = pg_encoding_to_char(1)])],
+        [AC_MSG_RESULT(yes)
+         AC_DEFINE_UNQUOTED([HAVE_PGSQL_pg_encoding_to_char], 1, [Define to indicate presence of the pg_encoding_to_char API.])],
+        [AC_MSG_RESULT(no)])
+      CFLAGS=${old_CFLAGS}
+      LDFLAGS=${old_LDFLAGS}
+
       if test "${ac_cv_lib_pq_PQescapeStringConn}" = "yes"; then
          PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
          PGSQL_INCLUDE="-I${PGSQL_includedir}"

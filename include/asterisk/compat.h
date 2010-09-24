@@ -133,6 +133,10 @@ int unsetenv(const char *name);
 int __attribute__((format(printf, 2, 0))) vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
+#ifndef HAVE_TIMERSUB
+void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tvdiff);
+#endif
+
 #define	strlcat	__use__ast_str__functions_not__strlcat__
 #define	strlcpy	__use__ast_copy_string__not__strlcpy__
 

@@ -524,6 +524,9 @@
 /* Define to indicate the PostgreSQL library */
 #undef HAVE_PGSQL
 
+/* Define to indicate presence of the pg_encoding_to_char API. */
+#undef HAVE_PGSQL_pg_encoding_to_char
+
 /* Define to 1 if your system defines IP_PKTINFO. */
 #undef HAVE_PKTINFO
 

@@ -2242,19 +2242,6 @@ static inline int ast_fdisset(struct pollfd *pfds, int fd, int maximum, int *sta
 	return 0;
 }
 
-#ifndef HAVE_TIMERSUB
-static inline void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tvdiff)
-{
-	tvdiff->tv_sec = tvend->tv_sec - tvstart->tv_sec;
-	tvdiff->tv_usec = tvend->tv_usec - tvstart->tv_usec;
-	if (tvdiff->tv_usec < 0) {
-		tvdiff->tv_sec --;
-		tvdiff->tv_usec += 1000000;
-	}
-
-}
-#endif
-
 /*! \brief Retrieves the current T38 state of a channel */
 static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *chan)
 {

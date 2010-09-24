@@ -169,6 +169,19 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 }
 #endif /* !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC) */
 
+#ifndef HAVE_TIMERSUB
+void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tvdiff)
+{
+	tvdiff->tv_sec = tvend->tv_sec - tvstart->tv_sec;
+	tvdiff->tv_usec = tvend->tv_usec - tvstart->tv_usec;
+	if (tvdiff->tv_usec < 0) {
+		tvdiff->tv_sec --;
+		tvdiff->tv_usec += 1000000;
+	}
+
+}
+#endif
+
 /*
  * Based on Code from bsd-asprintf from OpenSSH
  * Copyright (c) 2004 Darren Tucker.
