@@ -22350,7 +22350,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	struct ast_channel *c=NULL;
 	int res;
 	struct ast_channel *bridged_to;
-	
+	const char *required;
+
 	/* If we have an INCOMING invite that we haven't answered, terminate that transaction */
 	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !req->ignore) {
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
@@ -22471,7 +22472,23 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		ast_debug(3, "Received bye, no owner, selfdestruct soon.\n");
 	}
 	ast_clear_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
-	transmit_response(p, "200 OK", req);
+
+	/* Find out what they require */
+	required = get_header(req, "Require");
+	if (!ast_strlen_zero(required)) {
+		char unsupported[256] = { 0, };
+		parse_sip_options(required, unsupported, ARRAY_LEN(unsupported));
+		/* If there are any options required that we do not support,
+		 * then send a 420 with only those unsupported options listed */
+		if (!ast_strlen_zero(unsupported)) {
+			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, unsupported);
+			ast_log(LOG_WARNING, "Received SIP BYE with unsupported required extension: required:%s unsupported:%s\n", required, unsupported);
+		} else {
+			transmit_response(p, "200 OK", req);
+		}
+	} else {
+		transmit_response(p, "200 OK", req);
+	}
 
 	return 1;
 }
