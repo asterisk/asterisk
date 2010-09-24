@@ -1399,19 +1399,6 @@ static inline int ast_fdisset(struct pollfd *pfds, int fd, int max, int *start)
 	return 0;
 }
 
-#ifndef HAVE_TIMERSUB
-static inline void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tvdiff)
-{
-	tvdiff->tv_sec = tvend->tv_sec - tvstart->tv_sec;
-	tvdiff->tv_usec = tvend->tv_usec - tvstart->tv_usec;
-	if (tvdiff->tv_usec < 0) {
-		tvdiff->tv_sec --;
-		tvdiff->tv_usec += 1000000;
-	}
-
-}
-#endif
-
 #define CHECK_BLOCKING(c) do { 	 \
 	if (ast_test_flag(c, AST_FLAG_BLOCKING)) {\
 		if (option_debug) \

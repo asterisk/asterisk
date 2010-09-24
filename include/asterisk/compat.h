@@ -62,6 +62,10 @@ int unsetenv(const char *name);
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
+#ifndef HAVE_TIMERSUB
+void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tvdiff);
+#endif
+
 #ifndef HAVE_STRLCAT
 size_t strlcat(char *dst, const char *src, size_t siz) attribute_deprecated;
 #endif
