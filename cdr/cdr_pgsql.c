@@ -113,7 +113,11 @@ static int pgsql_log(struct ast_cdr *cdr)
 		if (PQstatus(conn) != CONNECTION_BAD) {
 			connected = 1;
 			if (PQsetClientEncoding(conn, encoding)) {
+#ifdef HAVE_PGSQL_pg_encoding_to_char
 				ast_log(LOG_WARNING, "Failed to set encoding to '%s'.  Encoding set to default '%s'\n", encoding, pg_encoding_to_char(PQclientEncoding(conn)));
+#else
+				ast_log(LOG_WARNING, "Failed to set encoding to '%s'.  Encoding set to default.\n", encoding);
+#endif
 			}
 		} else {
 			pgerror = PQerrorMessage(conn);
@@ -489,7 +493,11 @@ static int config_module(int reload)
 		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
 		connected = 1;
 		if (PQsetClientEncoding(conn, encoding)) {
+#ifdef HAVE_PGSQL_pg_encoding_to_char
 			ast_log(LOG_WARNING, "Failed to set encoding to '%s'.  Encoding set to default '%s'\n", encoding, pg_encoding_to_char(PQclientEncoding(conn)));
+#else
+			ast_log(LOG_WARNING, "Failed to set encoding to '%s'.  Encoding set to default.\n", encoding);
+#endif
 		}
 		version = PQserverVersion(conn);
 
