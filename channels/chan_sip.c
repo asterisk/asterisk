@@ -9883,6 +9883,15 @@ static void append_date(struct sip_request *req)
 	add_header(req, "Date", tmpdat);
 }
 
+/*! \brief Append Retry-After header field when transmitting response */
+static int transmit_response_with_retry_after(struct sip_pvt *p, const char *msg, const struct sip_request *req, const char *seconds)
+{
+	struct sip_request resp;
+	respprep(&resp, p, msg, req);
+	add_header(&resp, "Retry-After", seconds);
+	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
+}
+
 /*! \brief Append date and content length before transmitting response */
 static int transmit_response_with_date(struct sip_pvt *p, const char *msg, const struct sip_request *req)
 {
@@ -23609,10 +23618,16 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 	if (p->icseq && (p->icseq > seqno) ) {
 		if (p->pendinginvite && seqno == p->pendinginvite && (req->method == SIP_ACK || req->method == SIP_CANCEL)) {
 			ast_debug(2, "Got CANCEL or ACK on INVITE with transactions in between.\n");
-		}  else {
+		} else {
 			ast_debug(1, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
-			if (req->method != SIP_ACK)
+			if (req->method == SIP_INVITE) {
+				unsigned int ran = (ast_random() % 10) + 1;
+				char seconds[4];
+				snprintf(seconds, sizeof(seconds), "%u", ran);
+				transmit_response_with_retry_after(p, "500 Server error", req, seconds);	/* respond according to RFC 3261 14.2 with Retry-After betwewn 0 and 10 */
+			} else if (req->method != SIP_ACK) {
 				transmit_response(p, "500 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
+			}
 			return -1;
 		}
 	} else if (p->icseq &&
