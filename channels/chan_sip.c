@@ -162,7 +162,7 @@
  */
 
 /*** MODULEINFO
-	<depend>res_crypto</depend>
+	<use>res_crypto</use>
 	<depend>chan_local</depend>
  ***/
 
