@@ -473,7 +473,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</agi>
 	<agi name="say datetime" language="en_US">
 		<synopsis>
-			Says a given time as specfied by the format given.
+			Says a given time as specified by the format given.
 		</synopsis>
 		<syntax>
 			<parameter name="time" required="true">
