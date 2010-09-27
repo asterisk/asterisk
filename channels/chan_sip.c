@@ -18830,6 +18830,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	if (resp > 100 && resp < 200 && resp!=101 && resp != 180 && resp != 181 && resp != 182 && resp != 183)
 		resp = 183;
 
+	/* For INVITE, treat all 2XX responses as we would a 200 response */
+	if ((resp >= 200) && (resp < 300)) {
+		resp = 200;
+	}
+
  	/* Any response between 100 and 199 is PROCEEDING */
  	if (resp >= 100 && resp < 200 && p->invitestate == INV_CALLING)
  		p->invitestate = INV_PROCEEDING;
@@ -19902,7 +19907,11 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			break;
 			/* Fallthrough */
 		default:
-			if ((resp >= 300) && (resp < 700)) {
+			if ((resp >= 200) && (resp < 300)) { /* on any 2XX response do the following */
+				if (sipmethod == SIP_INVITE) {
+					handle_response_invite(p, resp, rest, req, seqno);
+				}
+			} else if ((resp >= 300) && (resp < 700)) {
 				/* Fatal response */
 				if ((resp != 487))
 					ast_verb(3, "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_sockaddr_stringify(&p->sa));
@@ -20071,8 +20080,11 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 					if (!req->ignore && sip_cancel_destroy(p))
 						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 				}
-			}
-			if ((resp >= 300) && (resp < 700)) {
+			} else if ((resp >= 200) && (resp < 300)) { /* on any unrecognized 2XX response do the following */
+				if (sipmethod == SIP_INVITE) {
+					handle_response_invite(p, resp, rest, req, seqno);
+				}
+			} else if ((resp >= 300) && (resp < 700)) {
 				if ((resp != 487))
 					ast_verb(3, "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_sockaddr_stringify(&p->sa));
 				switch(resp) {
