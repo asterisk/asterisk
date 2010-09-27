@@ -134,7 +134,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</agi>
 	<agi name="control stream file" language="en_US">
 		<synopsis>
-			Sends audio file on channel and allows the listner to control the stream.
+			Sends audio file on channel and allows the listener to control the stream.
 		</synopsis>
 		<syntax>
 			<parameter name="filename" required="true">
@@ -151,7 +151,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="pausechr" />
 		</syntax>
 		<description>
-			<para>Send the given file, allowing playback to be controled by the given
+			<para>Send the given file, allowing playback to be controlled by the given
 			digits, if any. Use double quotes for the digits if you wish none to be
 			permitted. Returns <literal>0</literal> if playback completes without a digit
 			being pressed, or the ASCII numerical value of the digit if one was pressed,
@@ -245,7 +245,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="maxdigits" />
 		</syntax>
 		<description>
-			<para>Stream the given <replaceable>file</replaceable>, and recieve DTMF data.</para>
+			<para>Stream the given <replaceable>file</replaceable>, and receive DTMF data.</para>
 			<para>Returns the digits received from the channel at the other end.</para>
 		</description>
 	</agi>
@@ -678,7 +678,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Sends <replaceable>message</replaceable> to the console via verbose
-			message system. <replaceable>level</replaceable> is the the verbose level (1-4).
+			message system. <replaceable>level</replaceable> is the verbose level (1-4).
 			Always returns <literal>1</literal></para>
 		</description>
 	</agi>
