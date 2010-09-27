@@ -2214,9 +2214,11 @@ static const char *map_x_s(const struct _map_x_s *table, int x, const char *erro
 {
 	const struct _map_x_s *cur;
 
-	for (cur = table; cur->s; cur++)
-		if (cur->x == x)
+	for (cur = table; cur->s; cur++) {
+		if (cur->x == x) {
 			return cur->s;
+		}
+	}
 	return errorstring;
 }
 
@@ -2227,9 +2229,11 @@ static int map_s_x(const struct _map_x_s *table, const char *s, int errorvalue)
 {
 	const struct _map_x_s *cur;
 
-	for (cur = table; cur->s; cur++)
-		if (!strcasecmp(cur->s, s))
+	for (cur = table; cur->s; cur++) {
+		if (!strcasecmp(cur->s, s)) {
 			return cur->x;
+		}
+	}
 	return errorvalue;
 }
 
@@ -2329,6 +2333,7 @@ static void sip_threadinfo_destructor(void *obj)
 {
 	struct sip_threadinfo *th = obj;
 	struct tcptls_packet *packet;
+
 	if (th->alert_pipe[1] > -1) {
 		close(th->alert_pipe[0]);
 	}
@@ -2734,8 +2739,9 @@ void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglis
 
 	/* Unlink us from the owner (channel) if we have one */
 	if (dialog->owner) {
-		if (lockowner)
+		if (lockowner) {
 			ast_channel_lock(dialog->owner);
+		}
 		ast_debug(1, "Detaching from channel %s\n", dialog->owner->name);
 		dialog->owner->tech_pvt = dialog_unref(dialog->owner->tech_pvt, "resetting channel dialog ptr in unlink_all");
 		if (lockowner) {
@@ -26640,8 +26646,9 @@ static int reload_config(enum channelreloadreason reason)
 			continue;
 		}
 		/* handle jb conf */
-		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
 			continue;
+		}
 
 		/* handle tls conf */
 		if (!ast_tls_read_conf(&default_tls_cfg, &sip_tls_desc, v->name, v->value)) {
@@ -27040,8 +27047,9 @@ static int reload_config(enum channelreloadreason reason)
 			global_authfailureevents = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
 			default_maxcallbitrate = atoi(v->value);
-			if (default_maxcallbitrate < 0)
+			if (default_maxcallbitrate < 0) {
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
+			}
 		} else if (!strcasecmp(v->name, "matchexternaddrlocally") || !strcasecmp(v->name, "matchexterniplocally")) {
 			sip_cfg.matchexternaddrlocally = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "session-timers")) {
@@ -27416,8 +27424,9 @@ static int reload_config(enum channelreloadreason reason)
 	ast_config_destroy(cfg);
 
 	/* Load the list of manual NOTIFY types to support */
-	if (notify_types)
+	if (notify_types) {
 		ast_config_destroy(notify_types);
+	}
 	if ((notify_types = ast_config_load(notify_config, config_flags)) == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed.\n", notify_config);
 		notify_types = NULL;
@@ -27610,8 +27619,9 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	}
 
 	/* Disable early RTP bridge  */
-	if (!ast_bridged_channel(chan) && !sip_cfg.directrtpsetup) 	/* We are in early state */
+	if (!ast_bridged_channel(chan) && !sip_cfg.directrtpsetup) { 	/* We are in early state */
 		return 0;
+	}
 
 	sip_pvt_lock(p);
 	if (p->alreadygone) {
@@ -27800,10 +27810,11 @@ static int sip_removeheader(struct ast_channel *chan, const char *data)
 	AST_LIST_TRAVERSE_SAFE_BEGIN (headp, newvariable, entries) {
 		if (strncasecmp(ast_var_name(newvariable), "SIPADDHEADER", strlen("SIPADDHEADER")) == 0) {
 			if (removeall || (!strncasecmp(ast_var_value(newvariable),inbuf,strlen(inbuf)))) {
-				if (sipdebug)
+				if (sipdebug) {
 					ast_debug(1,"removing SIP Header \"%s\" as %s\n",
 						ast_var_value(newvariable),
 						ast_var_name(newvariable));
+				}
 				AST_LIST_REMOVE_CURRENT(entries);
 				ast_var_delete(newvariable);
 			}
@@ -27919,8 +27930,9 @@ static void sip_send_all_registers(void)
 {
 	int ms;
 	int regspacing;
-	if (!regobjs)
+	if (!regobjs) {
 		return;
+	}
 	regspacing = default_expiry * 1000/regobjs;
 	if (regspacing > 100) {
 		regspacing = 100;
@@ -28063,8 +28075,9 @@ static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 /*! \brief  Part of Asterisk module interface */
 static int reload(void)
 {
-	if (sip_reload(0, 0, NULL))
+	if (sip_reload(0, 0, NULL)) {
 		return 0;
+	}
 	return 1;
 }
 
