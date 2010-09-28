@@ -82,6 +82,7 @@ AST_TEST_DEFINE(test_timezone_watch)
 				ast_log(LOG_WARNING, "system(%s) returned non-zero: %d\n", syscmd, system_res);
 			}
 			ast_localtime_wakeup_monitor();
+			sched_yield();
 			ast_localtime(&tv, &atm[i], tzfile);
 			if (i != 0) {
 				if (atm[i].tm_hour == atm[i - 1].tm_hour) {

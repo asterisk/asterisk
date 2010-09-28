@@ -12432,7 +12432,7 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	char testcontext[] = "test";
 	char testmailbox[] = "00000000";
 	char from[] = "test@example.net", cidnum[] = "1234", cidname[] = "Mark Spencer", format[] = "gsm";
-	char attach[] = "/var/lib/asterisk/sounds/en/tt-weasels", attach2[] = "/var/lib/asterisk/sounds/en/tt-somethingwrong";
+	char attach[256], attach2[256];
 	char buf[256] = ""; /* No line should actually be longer than 80 */
 	struct ast_channel *chan = NULL;
 	struct ast_vm_user *vmu, vmus = {
@@ -12469,6 +12469,9 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	case TEST_EXECUTE:
 		break;
 	}
+
+	snprintf(attach, sizeof(attach), "%s/sounds/en/tt-weasels", ast_config_AST_VAR_DIR);
+	snprintf(attach2, sizeof(attach2), "%s/sounds/en/tt-somethingwrong", ast_config_AST_VAR_DIR);
 
 	if (!(vmu = find_user(&vmus, testcontext, testmailbox)) &&
 		!(vmu = find_or_create(testcontext, testmailbox))) {
