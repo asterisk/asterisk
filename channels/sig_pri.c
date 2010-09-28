@@ -3256,19 +3256,28 @@ static void sig_pri_aoc_e_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_deco
  * \brief send an AOC-E termination request on ast_channel and set
  * hangup delay.
  *
- * \param sig_pri_chan private
+ * \param pri sig_pri PRI control structure.
+ * \param chanpos Channel position in the span.
  * \param ms to delay hangup
  *
- * \note assumes pvt is locked
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
  *
  * \return Nothing
  */
-static void sig_pri_send_aoce_termination_request(struct sig_pri_chan *pvt, unsigned int ms)
+static void sig_pri_send_aoce_termination_request(struct sig_pri_span *pri, int chanpos, unsigned int ms)
 {
+	struct sig_pri_chan *pvt;
 	struct ast_aoc_decoded *decoded = NULL;
 	struct ast_aoc_encoded *encoded = NULL;
 	size_t encoded_size;
 	struct timeval whentohangup = { 0, };
+
+	sig_pri_lock_owner(pri, chanpos);
+	pvt = pri->pvts[chanpos];
+	if (!pvt->owner) {
+		return;
+	}
 
 	if (!(decoded = ast_aoc_create(AST_AOC_REQUEST, 0, AST_AOC_REQUEST_E))) {
 		ast_softhangup_nolock(pvt->owner, AST_SOFTHANGUP_DEV);
@@ -3296,6 +3305,7 @@ static void sig_pri_send_aoce_termination_request(struct sig_pri_chan *pvt, unsi
 	ast_log(LOG_DEBUG, "Delaying hangup on %s for aoc-e msg\n", pvt->owner->name);
 
 cleanup_termination_request:
+	ast_channel_unlock(pvt->owner);
 	ast_aoc_destroy_decoded(decoded);
 	ast_aoc_destroy_encoded(encoded);
 }
@@ -5257,7 +5267,7 @@ static void *pri_dchannel(void *vpri)
 									if (detect_aoc_e_subcmd(e->hangup.subcmds)) {
 										/* If a AOC-E msg was sent during the release, we must use a
 										 * AST_CONTROL_HANGUP frame to guarantee that frame gets read before hangup */
-										ast_queue_control(pri->pvts[chanpos]->owner, AST_CONTROL_HANGUP);
+										pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
 									} else {
 										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 									}
@@ -5395,12 +5405,15 @@ static void *pri_dchannel(void *vpri)
 
 							if (do_hangup) {
 #if defined(HAVE_PRI_AOC_EVENTS)
-								if (!pri->pvts[chanpos]->holding_aoce && pri->aoce_delayhangup && ast_bridged_channel(pri->pvts[chanpos]->owner)) {
-									sig_pri_send_aoce_termination_request(pri->pvts[chanpos], pri_get_timer(pri->pri, PRI_TIMER_T305) / 2);
+								if (!pri->pvts[chanpos]->holding_aoce
+									&& pri->aoce_delayhangup
+									&& ast_bridged_channel(pri->pvts[chanpos]->owner)) {
+									sig_pri_send_aoce_termination_request(pri, chanpos,
+										pri_get_timer(pri->pri, PRI_TIMER_T305) / 2);
 								} else if (detect_aoc_e_subcmd(e->hangup.subcmds)) {
 									/* If a AOC-E msg was sent during the Disconnect, we must use a AST_CONTROL_HANGUP frame
 									 * to guarantee that frame gets read before hangup */
-									ast_queue_control(pri->pvts[chanpos]->owner, AST_CONTROL_HANGUP);
+									pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
 								} else {
 									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								}
