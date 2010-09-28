@@ -1066,7 +1066,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	int x;
 	int flags;
 	struct varshead *headp;
-	char *tech = "";
+	char *tech = "", *tech2 = NULL;
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
@@ -1190,7 +1190,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 	if (!ast_strlen_zero(name_fmt)) {
-		char *slash;
+		char *slash, *slash2;
 		/* Almost every channel is calling this function, and setting the name via the ast_string_field_build() call.
 		 * And they all use slightly different formats for their name string.
 		 * This means, to set the name here, we have to accept variable args, and call the string_field_build from here.
@@ -1201,6 +1201,10 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_string_field_build_va(tmp, name, name_fmt, ap1, ap2);
 		tech = ast_strdupa(tmp->name);
 		if ((slash = strchr(tech, '/'))) {
+			if ((slash2 = strchr(slash + 1, '/'))) {
+				tech2 = slash + 1;
+				*slash2 = '\0';
+			}
 			*slash = '\0';
 		}
 	} else {
@@ -1261,7 +1265,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * proper and correct place to make this call, but you sure do have to pass
 	 * a lot of data into this func to do it here!
 	 */
-	if (ast_get_channel_tech(tech)) {
+	if (ast_get_channel_tech(tech) || (tech2 && ast_get_channel_tech(tech2))) {
 		ast_manager_event(tmp, EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"ChannelState: %d\r\n"
