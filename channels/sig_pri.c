@@ -1885,84 +1885,6 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 #if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
- * \brief Copy the source connected line information to the destination connected line for a transfer.
- * \since 1.8
- *
- * \param dest Destination connected line
- * \param src Source connected line
- *
- * \return Nothing
- */
-static void sig_pri_connected_line_copy_transfer(struct ast_party_connected_line *dest, struct ast_party_connected_line *src)
-{
-	struct ast_party_connected_line connected;
-
-	connected = *src;
-	connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-
-	/* Make sure empty strings will be erased. */
-	if (!connected.id.name.str) {
-		connected.id.name.str = "";
-	}
-	if (!connected.id.number.str) {
-		connected.id.number.str = "";
-	}
-	if (!connected.id.subaddress.str) {
-		connected.id.subaddress.str = "";
-	}
-	if (!connected.id.tag) {
-		connected.id.tag = "";
-	}
-
-	ast_party_connected_line_copy(dest, &connected);
-}
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
-
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
-struct xfer_rsp_data {
-	struct sig_pri_span *pri;
-	/*! Call to send transfer success/fail response over. */
-	q931_call *call;
-	/*! Invocation ID to use when sending a reply to the transfer request. */
-	int invoke_id;
-};
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
-
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
-/*!
- * \internal
- * \brief Send the transfer success/fail response message.
- * \since 1.8
- *
- * \param data Callback user data pointer
- * \param is_successful TRUE if the transfer was successful.
- *
- * \return Nothing
- */
-static void sig_pri_transfer_rsp(void *data, int is_successful)
-{
-	struct xfer_rsp_data *rsp = data;
-
-	pri_transfer_rsp(rsp->pri->pri, rsp->call, rsp->invoke_id, is_successful);
-}
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
-
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
-/*!
- * \brief Protocol callback to indicate if transfer will happen.
- * \since 1.8
- *
- * \param data Callback user data pointer
- * \param is_successful TRUE if the transfer was successful.
- *
- * \return Nothing
- */
-typedef void (*xfer_rsp_callback)(void *data, int is_successful);
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
-
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
-/*!
- * \internal
  * \brief Attempt to transfer the two calls to each other.
  * \since 1.8
  *
@@ -1971,36 +1893,24 @@ typedef void (*xfer_rsp_callback)(void *data, int is_successful);
  * \param call_1_held TRUE if call_1 is on hold.
  * \param call_2 Second call involved in the transfer.
  * \param call_2_held TRUE if call_2 is on hold.
- * \param callback Protocol callback to indicate if transfer will happen. NULL if not used.
- * \param data Callback user data pointer
  *
  * \note Assumes the pri->lock is already obtained.
  *
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1, int call_1_held, q931_call *call_2, int call_2_held, xfer_rsp_callback callback, void *data)
+static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1, int call_1_held, q931_call *call_2, int call_2_held)
 {
 	int retval;
 	int call_1_chanpos;
 	int call_2_chanpos;
-	int transferer_is_held;
-	int bridged_is_held;
 	struct ast_channel *call_1_ast;
 	struct ast_channel *call_2_ast;
-	struct ast_channel *transferer;
 	struct ast_channel *bridged;
-	struct ast_party_connected_line transferer_colp;
-	struct ast_party_connected_line bridged_colp;
 
 	call_1_chanpos = pri_find_pri_call(pri, call_1);
 	call_2_chanpos = pri_find_pri_call(pri, call_2);
 	if (call_1_chanpos < 0 || call_2_chanpos < 0) {
-		/* Calls not found in span control. */
-		if (callback) {
-			/* Transfer failed. */
-			callback(data, 0);
-		}
 		return -1;
 	}
 
@@ -2013,7 +1923,6 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1,
 	call_1_ast = pri->pvts[call_1_chanpos]->owner;
 	call_2_ast = pri->pvts[call_2_chanpos]->owner;
 	if (!call_1_ast || !call_2_ast) {
-		/* At least one owner is not present. */
 		if (call_1_ast) {
 			ast_channel_unlock(call_1_ast);
 		}
@@ -2022,158 +1931,54 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1,
 		}
 		sig_pri_unlock_private(pri->pvts[call_1_chanpos]);
 		sig_pri_unlock_private(pri->pvts[call_2_chanpos]);
-		if (callback) {
-			/* Transfer failed. */
-			callback(data, 0);
-		}
 		return -1;
 	}
 
-	ast_party_connected_line_init(&transferer_colp);
-	ast_party_connected_line_init(&bridged_colp);
-	transferer_is_held = 0;
-	bridged_is_held = 0;
-	transferer = NULL;
-
-	/* Setup transfer masquerade. */
 	bridged = ast_bridged_channel(call_2_ast);
 	if (bridged) {
-		transferer = call_1_ast;
-		sig_pri_connected_line_copy_transfer(&transferer_colp, &call_1_ast->connected);
-		sig_pri_connected_line_copy_transfer(&bridged_colp, &call_2_ast->connected);
 		if (call_1_held) {
-			transferer_is_held = 1;
+			ast_queue_control(call_1_ast, AST_CONTROL_UNHOLD);
 		}
 		if (call_2_held) {
-			bridged_is_held = 1;
+			ast_queue_control(call_2_ast, AST_CONTROL_UNHOLD);
 		}
 
 		ast_verb(3, "TRANSFERRING %s to %s\n", call_2_ast->name, call_1_ast->name);
-		retval = ast_channel_masquerade(transferer, bridged);
+		retval = ast_channel_masquerade(call_1_ast, bridged);
 	} else {
 		/* Try masquerading the other way. */
 		bridged = ast_bridged_channel(call_1_ast);
 		if (bridged) {
-			transferer = call_2_ast;
-			sig_pri_connected_line_copy_transfer(&transferer_colp, &call_2_ast->connected);
-			sig_pri_connected_line_copy_transfer(&bridged_colp, &call_1_ast->connected);
-			if (call_2_held) {
-				transferer_is_held = 1;
-			}
 			if (call_1_held) {
-				bridged_is_held = 1;
+				ast_queue_control(call_1_ast, AST_CONTROL_UNHOLD);
+			}
+			if (call_2_held) {
+				ast_queue_control(call_2_ast, AST_CONTROL_UNHOLD);
 			}
 
 			ast_verb(3, "TRANSFERRING %s to %s\n", call_1_ast->name, call_2_ast->name);
-			retval = ast_channel_masquerade(transferer, bridged);
+			retval = ast_channel_masquerade(call_2_ast, bridged);
 		} else {
-			/* Could not transfer.  Neither call is bridged. */
+			/* Could not transfer. */
 			retval = -1;
 		}
 	}
-
-	/*
-	 * Before manually completing a masquerade, all channel and pvt
-	 * locks must be unlocked.  Any recursive channel locks held
-	 * before ast_do_masquerade() invalidates channel container
-	 * locking order.  Since we are unlocking both the pvt and its
-	 * owner channel it is possible for "transferer" to be destroyed
-	 * in the pbx thread. To prevent this we must give "transferer"
-	 * a reference before any unlocking takes place.
-	 */
-	if (transferer) {
-		ao2_ref(transferer, +1);
+	if (bridged && retval) {
+		/* Restore HOLD on held calls because masquerade failed. */
+		if (call_1_held) {
+			ast_queue_control(call_1_ast, AST_CONTROL_HOLD);
+		}
+		if (call_2_held) {
+			ast_queue_control(call_2_ast, AST_CONTROL_HOLD);
+		}
 	}
+
 	ast_channel_unlock(call_1_ast);
 	ast_channel_unlock(call_2_ast);
 	sig_pri_unlock_private(pri->pvts[call_1_chanpos]);
 	sig_pri_unlock_private(pri->pvts[call_2_chanpos]);
 
-	if (retval) {
-		if (transferer) {
-			ao2_ref(transferer, -1);
-		}
-		ast_party_connected_line_free(&transferer_colp);
-		ast_party_connected_line_free(&bridged_colp);
-		if (callback) {
-			/* Transfer failed. */
-			callback(data, 0);
-		}
-		return -1;
-	}
-
-	if (callback) {
-		/*
-		 * Transfer successful.
-		 *
-		 * Must do the callback before releasing the pri->lock to ensure
-		 * that the protocol message goes out before the call leg is
-		 * disconnected.
-		 */
-		callback(data, 1);
-	}
-
-	/*
-	 * Make sure masquerade is complete.
-	 *
-	 * By manually completing the masquerade, we can send the unhold
-	 * and connected line updates where they need to go.
-	 */
-	ast_mutex_unlock(&pri->lock);
-	ast_do_masquerade(transferer);
-
-	/* Release any hold on the channels. */
-	if (transferer_is_held) {
-		ast_queue_control(transferer, AST_CONTROL_UNHOLD);
-	}
-	if (bridged_is_held) {
-		ast_indicate(transferer, AST_CONTROL_UNHOLD);
-	}
-
-	/* Transfer COLP */
-	{
-		/*
-		 * Since "transferer" may not actually be bridged to another
-		 * channel, there is no way for us to queue a frame so that its
-		 * connected line status will be updated.
-		 *
-		 * Instead, we use the somewhat hackish approach of using a
-		 * special control frame type that instructs ast_read() to
-		 * perform a specific action.  In this case, the frame we queue
-		 * tells ast_read() to call the connected line interception
-		 * macro configured for "transferer".
-		 */
-		struct ast_control_read_action_payload *frame_payload;
-		int payload_size;
-		int frame_size;
-		unsigned char connected_line_data[1024];
-
-		payload_size = ast_connected_line_build_data(connected_line_data,
-			sizeof(connected_line_data), &transferer_colp, NULL);
-		if (payload_size != -1) {
-			frame_size = payload_size + sizeof(*frame_payload);
-			frame_payload = alloca(frame_size);
-			frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
-			frame_payload->payload_size = payload_size;
-			memcpy(frame_payload->payload, connected_line_data, payload_size);
-			ast_queue_control_data(transferer, AST_CONTROL_READ_ACTION, frame_payload,
-				frame_size);
-		}
-		/*
-		 * In addition to queueing the read action frame so that the
-		 * connected line info on "transferer" will be updated, we also
-		 * are going to queue a plain old connected line update on
-		 * "transferer" to update the "bridged" channel.
-		 */
-		ast_channel_queue_connected_line_update(transferer, &bridged_colp, NULL);
-	}
-
-	ast_party_connected_line_free(&transferer_colp);
-	ast_party_connected_line_free(&bridged_colp);
-
-	ao2_ref(transferer, -1);
-	ast_mutex_lock(&pri->lock);
-	return 0;
+	return retval;
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
@@ -3451,28 +3256,19 @@ static void sig_pri_aoc_e_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_deco
  * \brief send an AOC-E termination request on ast_channel and set
  * hangup delay.
  *
- * \param pri sig_pri PRI control structure.
- * \param chanpos Channel position in the span.
+ * \param sig_pri_chan private
  * \param ms to delay hangup
  *
- * \note Assumes the pri->lock is already obtained.
- * \note Assumes the sig_pri_lock_private(pri->pvts[chanpos]) is already obtained.
+ * \note assumes pvt is locked
  *
  * \return Nothing
  */
-static void sig_pri_send_aoce_termination_request(struct sig_pri_span *pri, int chanpos, unsigned int ms)
+static void sig_pri_send_aoce_termination_request(struct sig_pri_chan *pvt, unsigned int ms)
 {
-	struct sig_pri_chan *pvt;
 	struct ast_aoc_decoded *decoded = NULL;
 	struct ast_aoc_encoded *encoded = NULL;
 	size_t encoded_size;
 	struct timeval whentohangup = { 0, };
-
-	sig_pri_lock_owner(pri, chanpos);
-	pvt = pri->pvts[chanpos];
-	if (!pvt->owner) {
-		return;
-	}
 
 	if (!(decoded = ast_aoc_create(AST_AOC_REQUEST, 0, AST_AOC_REQUEST_E))) {
 		ast_softhangup_nolock(pvt->owner, AST_SOFTHANGUP_DEV);
@@ -3500,7 +3296,6 @@ static void sig_pri_send_aoce_termination_request(struct sig_pri_span *pri, int 
 	ast_log(LOG_DEBUG, "Delaying hangup on %s for aoc-e msg\n", pvt->owner->name);
 
 cleanup_termination_request:
-	ast_channel_unlock(pvt->owner);
 	ast_aoc_destroy_decoded(decoded);
 	ast_aoc_destroy_encoded(encoded);
 }
@@ -3799,9 +3594,6 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 	int index;
 	struct ast_channel *owner;
 	struct ast_party_redirecting ast_redirecting;
-#if defined(HAVE_PRI_TRANSFER)
-	struct xfer_rsp_data xfer_rsp;
-#endif	/* defined(HAVE_PRI_TRANSFER) */
 
 	if (!subcmds) {
 		return;
@@ -4020,13 +3812,11 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 			}
 
 			sig_pri_unlock_private(pri->pvts[chanpos]);
-			xfer_rsp.pri = pri;
-			xfer_rsp.call = call_rsp;
-			xfer_rsp.invoke_id = subcmd->u.transfer.invoke_id;
-			sig_pri_attempt_transfer(pri,
-				subcmd->u.transfer.call_1, subcmd->u.transfer.is_call_1_held,
-				subcmd->u.transfer.call_2, subcmd->u.transfer.is_call_2_held,
-				sig_pri_transfer_rsp, &xfer_rsp);
+			pri_transfer_rsp(pri->pri, call_rsp, subcmd->u.transfer.invoke_id,
+				sig_pri_attempt_transfer(pri,
+					subcmd->u.transfer.call_1, subcmd->u.transfer.is_call_1_held,
+					subcmd->u.transfer.call_2, subcmd->u.transfer.is_call_2_held)
+				? 0 : 1);
 			sig_pri_lock_private(pri->pvts[chanpos]);
 			break;
 #endif	/* defined(HAVE_PRI_TRANSFER) */
@@ -5467,7 +5257,7 @@ static void *pri_dchannel(void *vpri)
 									if (detect_aoc_e_subcmd(e->hangup.subcmds)) {
 										/* If a AOC-E msg was sent during the release, we must use a
 										 * AST_CONTROL_HANGUP frame to guarantee that frame gets read before hangup */
-										pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
+										ast_queue_control(pri->pvts[chanpos]->owner, AST_CONTROL_HANGUP);
 									} else {
 										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 									}
@@ -5552,7 +5342,7 @@ static void *pri_dchannel(void *vpri)
 							/* We are to transfer the call instead of simply hanging up. */
 							sig_pri_unlock_private(pri->pvts[chanpos]);
 							if (!sig_pri_attempt_transfer(pri, e->hangup.call_active, 0,
-								e->hangup.call_held, 1, NULL, NULL)) {
+								e->hangup.call_held, 1)) {
 								break;
 							}
 							sig_pri_lock_private(pri->pvts[chanpos]);
@@ -5605,15 +5395,12 @@ static void *pri_dchannel(void *vpri)
 
 							if (do_hangup) {
 #if defined(HAVE_PRI_AOC_EVENTS)
-								if (!pri->pvts[chanpos]->holding_aoce
-									&& pri->aoce_delayhangup
-									&& ast_bridged_channel(pri->pvts[chanpos]->owner)) {
-									sig_pri_send_aoce_termination_request(pri, chanpos,
-										pri_get_timer(pri->pri, PRI_TIMER_T305) / 2);
+								if (!pri->pvts[chanpos]->holding_aoce && pri->aoce_delayhangup && ast_bridged_channel(pri->pvts[chanpos]->owner)) {
+									sig_pri_send_aoce_termination_request(pri->pvts[chanpos], pri_get_timer(pri->pri, PRI_TIMER_T305) / 2);
 								} else if (detect_aoc_e_subcmd(e->hangup.subcmds)) {
 									/* If a AOC-E msg was sent during the Disconnect, we must use a AST_CONTROL_HANGUP frame
 									 * to guarantee that frame gets read before hangup */
-									pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
+									ast_queue_control(pri->pvts[chanpos]->owner, AST_CONTROL_HANGUP);
 								} else {
 									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								}
