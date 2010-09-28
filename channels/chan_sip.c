@@ -21838,7 +21838,14 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	/* Perform the transfer */
 	chans[0] = transferer->owner;
 	chans[1] = target.chan1;
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans, "TransferMethod: SIP\r\nTransferType: Attended\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\n",
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
+		"TransferMethod: SIP\r\n"
+		"TransferType: Attended\r\n"
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"SIP-Callid: %s\r\n"
+		"TargetChannel: %s\r\n"
+		"TargetUniqueid: %s\r\n",
 		transferer->owner->name,
 		transferer->owner->uniqueid,
 		transferer->callid,
@@ -22176,7 +22183,16 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);
 		p->refer->status = REFER_200OK;
 		append_history(p, "Xfer", "REFER to call parking.");
-		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans, "TransferMethod: SIP\r\nTransferType: Blind\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\nTransferExten: %s\r\nTransfer2Parking: Yes\r\n",
+		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
+			"TransferMethod: SIP\r\n"
+			"TransferType: Blind\r\n"
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"SIP-Callid: %s\r\n"
+			"TargetChannel: %s\r\n"
+			"TargetUniqueid: %s\r\n"
+			"TransferExten: %s\r\n"
+			"Transfer2Parking: Yes\r\n",
 			current.chan1->name,
 			current.chan1->uniqueid,
 			p->callid,
@@ -22260,7 +22276,16 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	res = ast_async_goto(current.chan2, p->refer->refer_to_context, p->refer->refer_to, 1);
 
 	if (!res) {
-		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans, "TransferMethod: SIP\r\nTransferType: Blind\r\nChannel: %s\r\nUniqueid: %s\r\nSIP-Callid: %s\r\nTargetChannel: %s\r\nTargetUniqueid: %s\r\nTransferExten: %s\r\nTransferContext: %s\r\n",
+		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
+			"TransferMethod: SIP\r\n"
+			"TransferType: Blind\r\n"
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"SIP-Callid: %s\r\n"
+			"TargetChannel: %s\r\n"
+			"TargetUniqueid: %s\r\n"
+			"TransferExten: %s\r\n"
+			"TransferContext: %s\r\n",
 			current.chan1->name,
 			current.chan1->uniqueid,
 			p->callid,
