@@ -37,7 +37,35 @@ AC_SUBST(CONFIG_LDFLAGS)
 # specify output header file
 AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
 
-AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
+AC_USE_SYSTEM_EXTENSIONS	dnl note- does not work on FreeBSD
+
+# System default paths
+AC_SUBST([astsbindir],        ['${sbindir}'])dnl
+AC_SUBST([astetcdir],         ['${sysconfdir}/asterisk'])dnl
+AC_SUBST([astheaderdir],      ['${includedir}/asterisk'])dnl
+AC_SUBST([astlibdir],         ['${libdir}/asterisk'])dnl
+AC_SUBST([astmandir],         ['${mandir}'])dnl
+AC_SUBST([astvarlibdir],      ['${localstatedir}/lib/asterisk'])dnl
+AC_SUBST([astdatadir],        ['${astvarlibdir}'])dnl
+AC_SUBST([astdbdir],          ['${astvarlibdir}'])dnl
+AC_SUBST([astkeydir],         ['${astvarlibdir}'])dnl
+AC_SUBST([astspooldir],       ['${localstatedir}/spool/asterisk'])dnl
+AC_SUBST([astlogdir],         ['${localstatedir}/log/asterisk'])dnl
+AC_SUBST([astvarrundir],      ['${localstatedir}/run/asterisk'])dnl
+
+case "${host_os}" in
+     *bsd*)
+     if test ${prefix} = 'NONE'; then
+        astvarlibdir='${prefix}/share/asterisk'
+        astdbdir='${localstatedir}/db/asterisk'
+     fi
+     ;;
+     darwin*)
+     if test ${prefix} = 'NONE'; then
+        astvarrundir='/Library/Application Support/Asterisk/Run'
+     fi
+     ;;
+esac
 
 case "${host_os}" in
      freebsd*)
@@ -49,10 +77,10 @@ case "${host_os}" in
      AC_PREFIX_DEFAULT([/usr/local])
      if test ${prefix} = '/usr/local' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
-           sysconfdir=/etc
+           astetcdir=/etc/asterisk
         fi
         if test ${mandir} = '${prefix}/man'; then
-           mandir=/usr/share/man
+           astmandir=/usr/share/man
         fi
      fi
      CPPFLAGS=-I/usr/local/include
@@ -61,6 +89,19 @@ case "${host_os}" in
      darwin*)
      AC_DEFINE([AST_POLL_COMPAT], 1, [Define to 1 if internal poll should be used.])
      AC_DEFINE([_DARWIN_UNLIMITED_SELECT], 1, [Define to 1 if running on Darwin.])
+     ;;
+     solaris*)
+     if test ${prefix} = 'NONE'; then
+        astetcdir=/var/etc/asterisk
+        astsbindir=/opt/asterisk/sbin
+        astlibdir=/opt/asterisk/lib
+        astheaderdir=/opt/asterisk/include
+        astmandir=/opt/asterisk/man
+        astvarlibdir=/var/opt/asterisk
+        astspooldir=/var/spool/asterisk
+        astlogdir=/var/log/asterisk
+        astvarrundir=/var/run/asterisk
+     fi
      ;;
      *)
      AC_PREFIX_DEFAULT([/usr])
@@ -467,7 +508,7 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob htonll ioperm inet_ntoa isascii memchr memmove memset mkdir munmap ntohll newlocale ppoll putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv utime vasprintf getpeereid sysctl swapctl])
+AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob htonll ioperm inet_ntoa isascii memchr memmove memset mkdir mkdtemp munmap ntohll newlocale ppoll putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv utime vasprintf getpeereid sysctl swapctl])
 
 # NOTE: we use AC_CHECK_LIB to get -lm into the arguments for later checks,
 # so that AC_CHECK_FUNCS can detect functions in that library.

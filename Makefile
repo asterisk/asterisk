@@ -124,46 +124,6 @@ OVERWRITE=y
 # Include debug and macro symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g3
 
-# Define standard directories for various platforms
-# These apply if they are not redefined in asterisk.conf 
-ifeq ($(OSARCH),SunOS)
-  ASTETCDIR=/var/etc/asterisk
-  ASTLIBDIR=/opt/asterisk/lib
-  ASTVARLIBDIR=/var/opt/asterisk
-  ASTDBDIR=$(ASTVARLIBDIR)
-  ASTKEYDIR=$(ASTVARLIBDIR)
-  ASTSPOOLDIR=/var/spool/asterisk
-  ASTLOGDIR=/var/log/asterisk
-  ASTHEADERDIR=/opt/asterisk/include
-  ASTSBINDIR=/opt/asterisk/sbin
-  ASTVARRUNDIR=/var/run/asterisk
-  ASTMANDIR=/opt/asterisk/man
-else
-  ASTETCDIR=$(sysconfdir)/asterisk
-  ASTLIBDIR=$(libdir)/asterisk
-  ASTHEADERDIR=$(includedir)/asterisk
-  ASTSBINDIR=$(sbindir)
-  ASTSPOOLDIR=$(localstatedir)/spool/asterisk
-  ASTLOGDIR=$(localstatedir)/log/asterisk
-  ASTVARRUNDIR=$(localstatedir)/run/asterisk
-  ASTMANDIR=$(mandir)
-ifneq ($(findstring BSD,$(OSARCH)),)
-  ASTVARLIBDIR=$(prefix)/share/asterisk
-  ASTVARRUNDIR=$(localstatedir)/run/asterisk
-  ASTDBDIR=$(localstatedir)/db/asterisk
-else
-  ASTVARLIBDIR=$(localstatedir)/lib/asterisk
-  ASTDBDIR=$(ASTVARLIBDIR)
-endif
-ifneq ($(findstring darwin,$(OSARCH)),)
-  ASTVARRUNDIR=/Library/Application Support/Asterisk/Run
-endif
-  ASTKEYDIR=$(ASTVARLIBDIR)
-endif
-ifeq ($(ASTDATADIR),)
-  ASTDATADIR:=$(ASTVARLIBDIR)
-endif
-
 # Asterisk.conf is located in ASTETCDIR or by using the -C flag
 # when starting Asterisk
 ASTCONFPATH=$(ASTETCDIR)/asterisk.conf

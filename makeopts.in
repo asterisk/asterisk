@@ -77,6 +77,20 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 
+ASTSBINDIR = @astsbindir@
+ASTETCDIR = @astetcdir@
+ASTHEADERDIR = @astheaderdir@
+ASTLIBDIR = @astlibdir@
+ASTMANDIR = @astmandir@
+astvarlibdir = @astvarlibdir@
+ASTVARLIBDIR = @astvarlibdir@
+ASTDATADIR = @astdatadir@
+ASTDBDIR = @astdbdir@
+ASTKEYDIR = @astkeydir@
+ASTSPOOLDIR = @astspooldir@
+ASTLOGDIR = @astlogdir@
+ASTVARRUNDIR = @astvarrundir@
+
 AST_DEVMODE=@AST_DEVMODE@
 NOISY_BUILD=@NOISY_BUILD@
 

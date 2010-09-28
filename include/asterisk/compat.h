@@ -97,6 +97,10 @@ int getloadavg(double *list, int nelem);
 uint64_t htonll(uint64_t host64);
 #endif
 
+#ifndef HAVE_MKDTEMP
+char *mkdtemp(char *template_s);
+#endif
+
 #ifndef HAVE_NTOHLL
 uint64_t ntohll(uint64_t net64);
 #endif
