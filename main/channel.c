@@ -6346,6 +6346,9 @@ void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_par
 		/* The caller id name or number changed. */
 		report_new_callerid(chan);
 	}
+	if (chan->cdr) {
+		ast_cdr_setcid(chan->cdr, chan);
+	}
 	ast_channel_unlock(chan);
 }
 
