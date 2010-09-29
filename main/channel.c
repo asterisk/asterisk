@@ -3624,7 +3624,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	 * this happens so that it can be addressed. 
 	 */
 	if (chan->fdno == -1) {
-		ast_log(LOG_ERROR, "ast_read() called with no recorded file descriptor.\n");
+		ast_log(LOG_ERROR,
+			"ast_read() on chan '%s' called with no recorded file descriptor.\n",
+			chan->name);
 	}
 #endif
 
