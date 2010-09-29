@@ -293,8 +293,6 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 				if (is_realmed_password_attribute) {
 					if (!strncasecmp(valptr, "{md5}", 5)) {
 						valptr += 5;
-					} else {
-						valptr = NULL;
 					}
 					ast_debug(2, "md5: %s\n", valptr);
 				}
@@ -414,8 +412,6 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 						if (is_realmed_password_attribute) {
 							if (strncasecmp(valptr, "{md5}", 5) == 0) {
 								valptr += 5;
-							} else {
-								valptr = NULL;
 							}
 							ast_debug(2, "md5: %s\n", valptr);
 						}
