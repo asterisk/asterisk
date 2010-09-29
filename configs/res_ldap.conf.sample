@@ -83,7 +83,8 @@ fullcontact = gecos
 host = AstAccountHost
 insecure = AstAccountInsecure
 mailbox = AstAccountMailbox
-md5secret = realmedPassword
+md5secret = realmedPassword		; Must be an MD5 hash. Field value can start with
+					; {md5} but it is not required.
 nat = AstAccountNAT
 deny = AstAccountDeny
 permit = AstAccountPermit
@@ -118,7 +119,8 @@ fullcontact = AstAccountFullContact
 fullcontact = gecos
 host = AstAccountHost
 mailbox = AstAccountMailbox
-md5secret = realmedPassword
+md5secret = realmedPassword		; Must be an MD5 hash. Field value can start with
+					; {md5} but it is not required.
 deny = AstAccountDeny
 permit = AstAccountPermit
 port = AstAccountPort
@@ -154,7 +156,8 @@ fullcontact = gecos
 host = AstAccountHost
 insecure = AstAccountInsecure
 mailbox = AstAccountMailbox
-md5secret = realmedPassword
+md5secret = realmedPassword		; Must be an MD5 hash. Field value can start with
+					; {md5} but it is not required.
 nat = AstAccountNAT
 deny = AstAccountDeny
 permit = AstAccountPermit
