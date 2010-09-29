@@ -4356,6 +4356,9 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 			free(chan->cid.cid_ani);
 		chan->cid.cid_ani = ast_strdup(ani);
 	}
+	if (chan->cdr) {
+		ast_cdr_setcid(chan->cdr, chan);
+	}
 
 	report_new_callerid(chan);
 
