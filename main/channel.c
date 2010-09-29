@@ -3417,6 +3417,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	struct ast_channel *new = NULL;
 	char *data, *type;
 	int cause = 0;
+	int res;
 
 	/* gather data and request the new forward channel */
 	ast_copy_string(tmpchan, orig->call_forward, sizeof(tmpchan));
@@ -3467,7 +3468,11 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	ast_channel_unlock(orig);
 
 	/* call new channel */
-	if ((*timeout = ast_call(new, data, 0))) {
+	res = ast_call(new, data, 0);
+	if (timeout) {
+		*timeout = res;
+	}
+	if (res) {
 		ast_log(LOG_NOTICE, "Unable to call forward to channel %s/%s\n", type, (char *)data);
 		ast_hangup(orig);
 		ast_hangup(new);
@@ -3528,7 +3533,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 			if (timeout > -1)
 				timeout = res;
 			if (!ast_strlen_zero(chan->call_forward)) {
-				if (!(chan = ast_call_forward(NULL, chan, &timeout, format, oh, outstate))) {
+				if (!(chan = ast_call_forward(NULL, chan, NULL, format, oh, outstate))) {
 					return NULL;
 				}
 				continue;
