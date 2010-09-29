@@ -2833,7 +2833,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 
 		if (chan && (chan == active_channel)){
 			if (!ast_strlen_zero(chan->call_forward)) {
-				if (!(chan = ast_call_forward(caller, chan, &to, format, NULL, outstate))) {
+				if (!(chan = ast_call_forward(caller, chan, NULL, format, NULL, outstate))) {
 					return NULL;
 				}
 				continue;
