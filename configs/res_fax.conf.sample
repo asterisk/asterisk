@@ -22,3 +22,7 @@ statusevents=yes
 ; Possible values are { v17 | v27 | v29 }
 ; Set this value to modify the default modem options.  Default: v17,v27,v29
 modems=v17,v27,v29
+
+; Enable/disable T.30 ECM (error correction mode) by default.
+; Default: Enabled
+ecm=yes
