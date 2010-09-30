@@ -788,7 +788,7 @@ static int file_write(struct ast_channel *chan, const char *cmd, char *data, con
 		fseeko(ff, offset, SEEK_SET);
 
 		ast_debug(3, "offset=%s/%" PRId64 ", length=%s/%" PRId64 ", vlength=%" PRId64 ", flength=%" PRId64 "\n",
-			args.offset, offset, args.length, length, vlength, flength);
+			S_OR(args.offset, "(null)"), offset, S_OR(args.length, "(null)"), length, vlength, flength);
 
 		if (length == vlength) {
 			/* Simplest case, a straight replace */
@@ -820,6 +820,11 @@ static int file_write(struct ast_channel *chan, const char *cmd, char *data, con
 				fseeko(ff, cur + vlength - length, SEEK_SET);
 				if (fwrite(fbuf, 1, sizeof(fbuf), ff) < sizeof(fbuf)) {
 					ast_log(LOG_ERROR, "Short write?!!\n");
+				}
+				/* Seek to where we stopped reading */
+				if (fseeko(ff, cur + sizeof(fbuf), SEEK_SET) < 0) {
+					/* Only reason for seek to fail is EOF */
+					break;
 				}
 			}
 			fclose(ff);
