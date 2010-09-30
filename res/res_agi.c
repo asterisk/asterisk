@@ -1240,7 +1240,7 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 
 	if ((argc != 4) && (argc != 5))
 		return RESULT_SHOWUSAGE;
-	if (argc == 5) {
+	if (argc == 5 && strcasecmp(chan->name, argv[4])) {
 		chan2 = ast_get_channel_by_name_locked(argv[4]);
 	} else {
 		chan2 = chan;
