@@ -2454,7 +2454,20 @@ static void misdn_PresentedNumberUnscreened_extract(struct misdn_party_id *id, c
 {
 	id->presentation = PresentedNumberUnscreened_to_misdn_pres(presented->Type);
 	id->screening = 0;/* unscreened */
-	misdn_PartyNumber_extract(id, &presented->Unscreened);
+	switch (presented->Type) {
+	case 0:/* presentationAllowedNumber */
+	case 3:/* presentationRestrictedNumber */
+		misdn_PartyNumber_extract(id, &presented->Unscreened);
+		break;
+	case 1:/* presentationRestricted */
+	case 2:/* numberNotAvailableDueToInterworking */
+	default:
+		/* Number not present (And uninitialized so do not even look at it!) */
+		id->number_type = NUMTYPE_UNKNOWN;
+		id->number_plan = NUMPLAN_ISDN;
+		id->number[0] = 0;
+		break;
+	}
 }
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 
