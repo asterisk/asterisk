@@ -1506,6 +1506,12 @@ static int sms_exec (struct ast_channel *chan, void *data)
 
 	sms_log (&h, '?');			  /* log incomplete message */
 
+	/* 
+	 * The SMS generator data is on the stack.  We _MUST_ make sure the generator
+	 * is stopped before returning from this function.
+	 */
+	ast_deactivate_generator(chan);
+
 	ast_module_user_remove(u);
 	return (h.err);
 }
