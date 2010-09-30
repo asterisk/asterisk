@@ -98,6 +98,7 @@ char *ast_strptime_locale(const char *s, const char *format, struct ast_tm *tm, 
  * between checks to verify whether a timezone file has changed.  This routine
  * forces the monitor thread to wakeup immediately and check the timezone files.
  */
-void ast_localtime_wakeup_monitor(void);
+struct ast_test;
+void ast_localtime_wakeup_monitor(struct ast_test *info);
 
 #endif /* _ASTERISK_LOCALTIME_H */
