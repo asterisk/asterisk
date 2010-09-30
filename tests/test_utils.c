@@ -325,15 +325,18 @@ AST_TEST_DEFINE(agi_loaded_test)
 #endif
 
 	if (ast_agi_register(ast_module_info->self, &noop_command) == AST_OPTIONAL_API_UNAVAILABLE) {
+		ast_test_status_update(test, "Unable to register testnoop command, because res_agi is not loaded.\n");
 		return AST_TEST_FAIL;
 	}
 
 #ifndef HAVE_NULLSAFE_PRINTF
 	/* Test for condition without actually crashing Asterisk */
 	if (noop_command.usage == NULL) {
+		ast_test_status_update(test, "AGI testnoop usage was not updated properly.\n");
 		res = AST_TEST_FAIL;
 	}
 	if (noop_command.syntax == NULL) {
+		ast_test_status_update(test, "AGI testnoop syntax was not updated properly.\n");
 		res = AST_TEST_FAIL;
 	}
 #endif

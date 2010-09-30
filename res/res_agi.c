@@ -3029,11 +3029,20 @@ int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command 
 			*((char **) &cmd->syntax) = ast_xmldoc_build_syntax("agi", fullcmd);
 			*((char **) &cmd->seealso) = ast_xmldoc_build_seealso("agi", fullcmd);
 			*((enum ast_doc_src *) &cmd->docsrc) = AST_XML_DOC;
-#elif (!defined(HAVE_NULLSAFE_PRINTF))
-			*((char **) &cmd->summary) = ast_strdup("");
-			*((char **) &cmd->usage) = ast_strdup("");
-			*((char **) &cmd->syntax) = ast_strdup("");
-			*((char **) &cmd->seealso) = ast_strdup("");
+#endif
+#ifndef HAVE_NULLSAFE_PRINTF
+			if (!cmd->summary) {
+				*((char **) &cmd->summary) = ast_strdup("");
+			}
+			if (!cmd->usage) {
+				*((char **) &cmd->usage) = ast_strdup("");
+			}
+			if (!cmd->syntax) {
+				*((char **) &cmd->syntax) = ast_strdup("");
+			}
+			if (!cmd->seealso) {
+				*((char **) &cmd->seealso) = ast_strdup("");
+			}
 #endif
 		}
 
@@ -3802,15 +3811,18 @@ AST_TEST_DEFINE(test_agi_null_docs)
 	}
 
 	if (ast_agi_register(ast_module_info->self, &noop_command) == 0) {
+		ast_test_status_update(test, "Unable to register testnoop command, because res_agi is not loaded.\n");
 		return AST_TEST_NOT_RUN;
 	}
 
 #ifndef HAVE_NULLSAFE_PRINTF
 	/* Test for condition without actually crashing Asterisk */
 	if (noop_command.usage == NULL) {
+		ast_test_status_update(test, "AGI testnoop usage was not updated properly.\n");
 		res = AST_TEST_FAIL;
 	}
 	if (noop_command.syntax == NULL) {
+		ast_test_status_update(test, "AGI testnoop syntax was not updated properly.\n");
 		res = AST_TEST_FAIL;
 	}
 #endif

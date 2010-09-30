@@ -73,7 +73,13 @@ AST_TEST_DEFINE(test_timezone_watch)
 	}
 	snprintf(tzfile, sizeof(tzfile), "%s/test", tmpdir);
 
-	for (type = 0; type < 2; type++) {
+	for (type = 0; type <
+#ifdef SOLARIS
+			1 /* Solaris doesn't use symlinks for timezones */
+#else
+			2
+#endif
+				; type++) {
 		ast_test_status_update(test, "Executing %s test...\n", type == 0 ? "deletion" : "symlink");
 		for (i = 0; i < ARRAY_LEN(zones); i++) {
 			int system_res;
@@ -81,8 +87,8 @@ AST_TEST_DEFINE(test_timezone_watch)
 			if ((system_res = ast_safe_system(syscmd))) {
 				ast_log(LOG_WARNING, "system(%s) returned non-zero: %d\n", syscmd, system_res);
 			}
-			ast_localtime_wakeup_monitor();
-			sched_yield();
+			ast_localtime_wakeup_monitor(test);
+			ast_test_status_update(test, "Querying timezone %s\n", tzfile);
 			ast_localtime(&tv, &atm[i], tzfile);
 			if (i != 0) {
 				if (atm[i].tm_hour == atm[i - 1].tm_hour) {

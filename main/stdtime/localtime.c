@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <float.h>
+#include <stdlib.h>
 #ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
 #elif defined(HAVE_KQUEUE)
@@ -71,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
+#include "asterisk/test.h"
 
 #ifndef lint
 #ifndef NOID
@@ -104,6 +106,13 @@ static char	__attribute__((unused)) elsieid[] = "@(#)localtime.c	8.5";
 
 static const char	gmt[] = "GMT";
 static const struct timeval WRONG = { 0, 0 };
+
+#ifdef TEST_FRAMEWORK
+/* Protected from multiple threads by the zonelist lock */
+static struct ast_test *test = NULL;
+#else
+struct ast_test;
+#endif
 
 /*! \note
  * The DST rules to use if TZ has no rules and we can't load TZDEFRULES.
@@ -545,7 +554,11 @@ static void *notify_daemon(void *data)
 			stat(name, &st);
 			lstat(name, &lst);
 			if (st.st_mtime > cur->mtime[0] || lst.st_mtime > cur->mtime[1]) {
-				ast_log(LOG_NOTICE, "Removing cached TZ entry '%s' because underlying file changed.\n", name);
+				if (test) {
+					ast_test_status_update(test, "Removing cached TZ entry '%s' because underlying file changed. (%ld != %ld) or (%ld != %ld)\n", name, st.st_mtime, cur->mtime[0], lst.st_mtime, cur->mtime[1]);
+				} else {
+					ast_log(LOG_NOTICE, "Removing cached TZ entry '%s' because underlying file changed.\n", name);
+				}
 				AST_LIST_REMOVE_CURRENT(list);
 				ast_free(cur);
 				continue;
@@ -581,12 +594,18 @@ static void add_notify(struct state *sp, const char *path)
 }
 #endif
 
-void ast_localtime_wakeup_monitor(void)
+void ast_localtime_wakeup_monitor(struct ast_test *info)
 {
 	if (inotify_thread != AST_PTHREADT_NULL) {
 		AST_LIST_LOCK(&zonelist);
+#ifdef TEST_FRAMEWORK
+		test = info;
+#endif
 		pthread_kill(inotify_thread, SIGURG);
 		ast_cond_wait(&initialization, &(&zonelist)->lock);
+#ifdef TEST_FRAMEWORK
+		test = NULL;
+#endif
 		AST_LIST_UNLOCK(&zonelist);
 	}
 }
@@ -1386,8 +1405,16 @@ static const struct state *ast_tzset(const char *zone)
 {
 	struct state *sp;
 
-	if (ast_strlen_zero(zone))
+	if (ast_strlen_zero(zone)) {
+#ifdef SOLARIS
+		zone = getenv("TZ");
+		if (ast_strlen_zero(zone)) {
+			zone = "GMT";
+		}
+#else
 		zone = "/etc/localtime";
+#endif
+	}
 
 	AST_LIST_LOCK(&zonelist);
 	AST_LIST_TRAVERSE(&zonelist, sp, list) {
