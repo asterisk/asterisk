@@ -21396,7 +21396,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* Initialize our tag */
 
 			make_our_tag(p->tag, sizeof(p->tag));
-			/* First invitation - create the channel */
+			/* First invitation - create the channel.  Allocation
+			 * failures are handled below. */
 			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL), NULL);
 			if (cc_recall_core_id != -1) {
 				ast_setup_cc_recall_datastore(c, cc_recall_core_id);
@@ -21573,7 +21574,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!req->ignore && p)
 		p->lastinvite = seqno;
 
-	if (replace_id) {	/* Attended transfer or call pickup - we're the target */
+	if (c && replace_id) {	/* Attended transfer or call pickup - we're the target */
 		if (!ast_strlen_zero(pickup.exten)) {
 			append_history(p, "Xfer", "INVITE/Replace received");
 
