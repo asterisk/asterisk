@@ -19863,6 +19863,8 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_SUBSCRIBE) {
 				handle_response_subscribe(p, resp, rest, req, seqno);
+			} else if (sipmethod == SIP_NOTIFY) {
+				pvt_set_needdestroy(p, "received 481 response");
 			} else if (sipmethod == SIP_BYE) {
 				/* The other side has no transaction to bye,
 				just assume it's all right then */
@@ -20065,6 +20067,8 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				/* Re-invite failed */
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_BYE) {
+				pvt_set_needdestroy(p, "received 481 response");
+			} else if (sipmethod == SIP_NOTIFY) {
 				pvt_set_needdestroy(p, "received 481 response");
 			} else if (sipdebug) {
 				ast_debug(1, "Remote host can't match request %s to call '%s'. Giving up\n", sip_methods[sipmethod].text, p->callid);
@@ -23127,7 +23131,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	const char *eventheader = get_header(req, "Event");	/* Get Event package name */
 	int resubscribe = (p->subscribed != NONE);
 	char *temp, *event;
-	struct ao2_iterator i;
 
 	if (p->initreq.headers) {	
 		/* We already have a dialog */
@@ -23443,7 +23446,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ao2_unlock(p->relatedpeer);
 			}
 		} else if (p->subscribed != CALL_COMPLETION) {
-			struct sip_pvt *p_old;
 
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
 
@@ -23458,40 +23460,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
 			/* hide the 'complete' exten/context in the refer_to field for later display */
 			ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
+			/* Deleted the slow iteration of all sip dialogs to find old subscribes from this peer for exten@context */
 
-			/* remove any old subscription from this peer for the same exten/context,
-			as the peer has obviously forgotten about it and it's wasteful to wait
-			for it to expire and send NOTIFY messages to the peer only to have them
-			ignored (or generate errors)
-			*/
-			i = ao2_iterator_init(dialogs, 0);
-			while ((p_old = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
-				if (p_old == p) {
-					ao2_t_ref(p_old, -1, "toss dialog ptr from iterator_next before continue");
-					continue;
-				}
-				if (p_old->initreq.method != SIP_SUBSCRIBE) {
-					ao2_t_ref(p_old, -1, "toss dialog ptr from iterator_next before continue");
-					continue;
-				}
-				if (p_old->subscribed == NONE) {
-					ao2_t_ref(p_old, -1, "toss dialog ptr from iterator_next before continue");
-					continue;
-				}
-				sip_pvt_lock(p_old);
-				if (!strcmp(p_old->username, p->username)) {
-					if (!strcmp(p_old->exten, p->exten) &&
-					    !strcmp(p_old->context, p->context)) {
-						pvt_set_needdestroy(p_old, "replacing subscription");
-						sip_pvt_unlock(p_old);
-						ao2_t_ref(p_old, -1, "toss dialog ptr from iterator_next before break");
-						break;
-					}
-				}
-				sip_pvt_unlock(p_old);
-				ao2_t_ref(p_old, -1, "toss dialog ptr from iterator_next");
-			}
-			ao2_iterator_destroy(&i);
 		}
 		if (!p->expiry) {
 			pvt_set_needdestroy(p, "forcing expiration");
