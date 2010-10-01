@@ -13970,6 +13970,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* The other side has no transaction to cancel,
 				just assume it's all right then */
 				ast_log(LOG_WARNING, "Remote host can't match request %s to call '%s'. Giving up.\n", sip_methods[sipmethod].text, p->callid);
+			} else if (sipmethod == SIP_NOTIFY) {
+				/* The other side has no active Subscribe for this Callid. 
+				 * Remove this Dialog and old Subscription */
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else {
 				ast_log(LOG_WARNING, "Remote host can't match request %s to call '%s'. Giving up.\n", sip_methods[sipmethod].text, p->callid);
 				/* Guessing that this is not an important request */
@@ -14165,6 +14169,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* Re-invite failed */
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_BYE) {
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			} else if (sipmethod == SIP_NOTIFY) {
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else if (sipdebug) {
 				ast_log	(LOG_DEBUG, "Remote host can't match request %s to call '%s'. Giving up\n", sip_methods[sipmethod].text, p->callid);
@@ -16656,7 +16662,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ASTOBJ_UNLOCK(p->relatedpeer);
 			}
 		} else {
-			struct sip_pvt *p_old;
 
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
 
@@ -16672,31 +16677,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			/* hide the 'complete' exten/context in the refer_to field for later display */
 			ast_string_field_build(p, subscribeuri, "%s@%s", p->exten, p->context);
 
-			/* remove any old subscription from this peer for the same exten/context,
-			as the peer has obviously forgotten about it and it's wasteful to wait
-			for it to expire and send NOTIFY messages to the peer only to have them
-			ignored (or generate errors)
-			*/
-			ast_mutex_lock(&iflock);
-			for (p_old = iflist; p_old; p_old = p_old->next) {
-				if (p_old == p)
-					continue;
-				if (p_old->initreq.method != SIP_SUBSCRIBE)
-					continue;
-				if (p_old->subscribed == NONE)
-					continue;
-				ast_mutex_lock(&p_old->lock);
-				if (!strcmp(p_old->username, p->username)) {
-					if (!strcmp(p_old->exten, p->exten) &&
-					    !strcmp(p_old->context, p->context)) {
-						ast_set_flag(&p_old->flags[0], SIP_NEEDDESTROY);
-						ast_mutex_unlock(&p_old->lock);
-						break;
-					}
-				}
-				ast_mutex_unlock(&p_old->lock);
-			}
-			ast_mutex_unlock(&iflock);
 		}
 		if (!p->expiry)
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
