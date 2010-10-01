@@ -174,6 +174,7 @@ int ast_rtcp_fd(struct ast_rtp *rtp);
 int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit);
 
 int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit);
+int ast_rtp_senddigit_end_with_duration(struct ast_rtp *rtp, char digit, unsigned int duration);
 
 int ast_rtp_sendcng(struct ast_rtp *rtp, int level);
 
