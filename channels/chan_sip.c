@@ -6658,9 +6658,14 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	 * we should decode the uri before storing it in the channel, but leave it encoded in the sip_pvt
 	 * structure so that there aren't issues when forming URI's
 	 */
-	decoded_exten = ast_strdupa(i->exten);
-	ast_uri_decode(decoded_exten);
-	ast_copy_string(tmp->exten, decoded_exten, sizeof(tmp->exten));
+	if (ast_exists_extension(NULL, i->context, i->exten, 1, i->cid_num)) {
+		/* encoded in dialplan, so keep extension encoded */
+		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+	} else {
+		decoded_exten = ast_strdupa(i->exten);
+		ast_uri_decode(decoded_exten);
+		ast_copy_string(tmp->exten, decoded_exten, sizeof(tmp->exten));
+	}
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
