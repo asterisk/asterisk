@@ -2324,7 +2324,7 @@ static int aji_create_buddy(char *label, struct aji_client *client)
 static int aji_load_config(void)
 {
 	char *cat = NULL;
-	int debug = 1;
+	int debug = 0;
 	struct ast_config *cfg = NULL;
 	struct ast_variable *var = NULL;
 
