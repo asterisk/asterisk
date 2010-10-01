@@ -6441,7 +6441,7 @@ static int sip_senddigit_end(struct ast_channel *ast, char digit, unsigned int d
 		break;
 	case SIP_DTMF_RFC2833:
 		if (p->rtp)
-			ast_rtp_senddigit_end(p->rtp, digit);
+			ast_rtp_senddigit_end_with_duration(p->rtp, digit, duration);
 		break;
 	case SIP_DTMF_INBAND:
 		res = -1; /* Tell Asterisk to stop inband indications */
