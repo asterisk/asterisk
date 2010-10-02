@@ -324,6 +324,7 @@ struct ast_rtp_engine {
 	int (*dtmf_begin)(struct ast_rtp_instance *instance, char digit);
 	/*! Callback for stopping RFC2833 DTMF transmission */
 	int (*dtmf_end)(struct ast_rtp_instance *instance, char digit);
+	int (*dtmf_end_with_duration)(struct ast_rtp_instance *instance, char digit, unsigned int duration);
 	/*! Callback to indicate that we should update the marker bit */
 	void (*update_source)(struct ast_rtp_instance *instance);
 	/*! Callback to indicate that we should update the marker bit and ssrc */
@@ -1162,6 +1163,7 @@ int ast_rtp_instance_dtmf_begin(struct ast_rtp_instance *instance, char digit);
  * \since 1.8
  */
 int ast_rtp_instance_dtmf_end(struct ast_rtp_instance *instance, char digit);
+int ast_rtp_instance_dtmf_end_with_duration(struct ast_rtp_instance *instance, char digit, unsigned int duration);
 
 /*!
  * \brief Set the DTMF mode that should be used
