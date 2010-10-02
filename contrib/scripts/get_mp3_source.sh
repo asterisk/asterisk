@@ -9,6 +9,6 @@ if [ -f addons/mp3/mpg123.h ]; then
     exit 1
 fi
 
-svn export http://svn.digium.com/svn/thirdparty/mp3/trunk addons/mp3
+svn export http://svn.digium.com/svn/thirdparty/mp3/trunk addons/mp3 $@
 
 exit 0
