@@ -255,6 +255,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *
 static int ast_rtp_destroy(struct ast_rtp_instance *instance);
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit);
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit);
+static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, char digit, unsigned int duration);
 static void ast_rtp_update_source(struct ast_rtp_instance *instance);
 static void ast_rtp_change_source(struct ast_rtp_instance *instance);
 static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame);
@@ -279,6 +280,7 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.destroy = ast_rtp_destroy,
 	.dtmf_begin = ast_rtp_dtmf_begin,
 	.dtmf_end = ast_rtp_dtmf_end,
+	.dtmf_end_with_duration = ast_rtp_dtmf_end_with_duration,
 	.update_source = ast_rtp_update_source,
 	.change_source = ast_rtp_change_source,
 	.write = ast_rtp_write,
@@ -639,13 +641,14 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	return 0;
 }
 
-static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
+static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, char digit, unsigned int duration)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr remote_address = { {0,} };
 	int hdrlen = 12, res = 0, i = 0;
 	char data[256];
 	unsigned int *rtpheader = (unsigned int*)data;
+	unsigned int measured_samples;
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
@@ -671,6 +674,11 @@ static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 	}
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
+
+	if (duration > 0 && (measured_samples = duration * rtp_get_rate(rtp->f.subclass.codec) / 1000) > rtp->send_duration) {
+		ast_debug(2, "Adjusting final end duration from %u to %u\n", rtp->send_duration, measured_samples);
+		rtp->send_duration = measured_samples;
+	}
 
 	/* Construct the packet we are going to send */
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (rtp->send_payload << 16) | (rtp->seqno));
@@ -701,6 +709,11 @@ static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
 	rtp->send_digit = 0;
 
 	return 0;
+}
+
+static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit)
+{
+	return ast_rtp_dtmf_end_with_duration(instance, digit, 0);
 }
 
 static void ast_rtp_update_source(struct ast_rtp_instance *instance)

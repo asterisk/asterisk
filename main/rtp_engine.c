@@ -724,6 +724,10 @@ int ast_rtp_instance_dtmf_end(struct ast_rtp_instance *instance, char digit)
 {
 	return instance->engine->dtmf_end ? instance->engine->dtmf_end(instance, digit) : -1;
 }
+int ast_rtp_instance_dtmf_end_with_duration(struct ast_rtp_instance *instance, char digit, unsigned int duration)
+{
+	return instance->engine->dtmf_end_with_duration ? instance->engine->dtmf_end_with_duration(instance, digit, duration) : -1;
+}
 
 int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode)
 {
