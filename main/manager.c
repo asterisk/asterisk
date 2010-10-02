@@ -441,6 +441,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Async">
 				<para>Set to <literal>true</literal> for fast origination.</para>
 			</parameter>
+			<parameter name="Codecs">
+				<para>Comma-separated list of codecs to use for this call.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Generates an outgoing call to a
