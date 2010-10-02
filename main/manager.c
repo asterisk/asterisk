@@ -1944,6 +1944,7 @@ static char mandescr_originate[] =
 "	Timeout: How long to wait for call to be answered (in ms. Default: 30000)\n"
 "	CallerID: Caller ID to be set on the outgoing channel\n"
 "	Variable: Channel variable to set, multiple Variable: headers are allowed\n"
+"	Codecs: Comma-separated list of codecs to use for the new channels\n"
 "	Account: Account code\n"
 "	Async: Set to 'true' for fast origination\n";
 
