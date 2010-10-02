@@ -5173,18 +5173,12 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	recipmsgnum = last_message_index(recip, todir) + 1;
 	if (recipmsgnum < recip->maxmsg - (imbox ? 0 : inprocess_count(vmu->mailbox, vmu->context, 0))) {
 		make_file(topath, sizeof(topath), todir, recipmsgnum);
-		if (EXISTS(fromdir, msgnum, frompath, chan->language)) {
-			COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
-		} else {
-			/* For ODBC storage, if the file we want to copy isn't yet in the database, then the SQL
-			 * copy will fail. Instead, we need to create a local copy, store it, and delete the local
-			 * copy. We don't have to #ifdef this because if file storage reaches this point, there's a
-			 * much worse problem happening and IMAP storage doesn't call this function
-			 */
-			copy_plain_file(frompath, topath);
-			STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL, NULL);
-			vm_delete(topath);
-		}
+		/* If we are prepending a message for ODBC, then the message already
+		 * exists in the database, but we want to force copying from the
+		 * filesystem (since only the FS contains the prepend). */
+		copy_plain_file(frompath, topath);
+		STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL, NULL);
+		vm_delete(topath);
 	} else {
 		ast_log(AST_LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 		res = -1;
