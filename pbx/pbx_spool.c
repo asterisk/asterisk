@@ -552,7 +552,7 @@ static void *scan_thread(void *unused)
 	}
 
 #ifdef HAVE_INOTIFY
-	inotify_add_watch(inotify_fd, qdir, IN_CREATE | IN_MOVED_TO);
+	inotify_add_watch(inotify_fd, qdir, IN_CLOSE_WRITE | IN_MOVED_TO);
 #endif
 
 	/* First, run through the directory and clear existing entries */
