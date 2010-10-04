@@ -2155,9 +2155,9 @@ fi
 AC_SUBST([PBX_SYSLOG])
 
 if test -f makeopts; then
-	${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.bak
+	${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak
 else
-	touch makeopts.bak
+	touch makeopts.acbak
 fi
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
@@ -2175,14 +2175,14 @@ fi
 
 AC_OUTPUT
 
-${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.bak2
+${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
 if test "x${ac_cv_path_CMP}" = "x:"; then
-	( cd menuselect && ./configure )
-else if ${ac_cv_path_CMP} -s makeopts.bak makeopts.bak2; then : ; else
-	( cd menuselect && ./configure )
+	( cd `pwd`/menuselect && ./configure )
+else if ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
+	( cd `pwd`/menuselect && ./configure )
 fi ; fi
 
-rm makeopts.bak makeopts.bak2
+rm makeopts.acbak makeopts.acbak2
 
 
 if test "x${silent}" != "xyes" ; then
