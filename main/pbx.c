@@ -2006,6 +2006,10 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 			qsort(buf, specif, 1, compare_char);
 			specif <<= 8;
 			specif += buf[0];
+		} else if (*s1 == '-') {
+			/* Skip dashes in patterns */
+			s1++;
+			continue;
 		} else {
 			if (*s1 == '\\') {
 				s1++;
