@@ -3038,20 +3038,23 @@ static int aji_get_roster(struct aji_client *client)
 static int aji_client_connect(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	int res = 0;
+	int res = IKS_FILTER_PASS;
 
 	if (client) {
 		if (client->state == AJI_DISCONNECTED) {
 			iks_filter_add_rule(client->f, aji_filter_roster, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, "roster", IKS_RULE_DONE);
 			client->state = AJI_CONNECTING;
 			client->jid = (iks_find_cdata(pak->query, "jid")) ? iks_id_new(client->stack, iks_find_cdata(pak->query, "jid")) : client->jid;
-			iks_filter_remove_hook(client->f, aji_client_connect);
 			if (!client->component) { /*client*/
 				aji_get_roster(client);
-				if (client->distribute_events) {
-					aji_init_event_distribution(client);
-				}
 			}
+			if (client->distribute_events) {
+				aji_init_event_distribution(client);
+			}
+
+			iks_filter_remove_hook(client->f, aji_client_connect);
+			/* Once we remove the hook for this routine, we must return EAT or we will crash or corrupt memory */
+			res = IKS_FILTER_EAT;
 		}
 	} else {
 		ast_log(LOG_ERROR, "Out of memory.\n");
