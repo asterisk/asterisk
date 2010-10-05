@@ -72,6 +72,7 @@
  */
 #define AJI_MAX_JIDLEN 3071
 #define AJI_MAX_RESJIDLEN 1023
+#define AJI_MAX_ATTRLEN   256
 
 #define MUC_NS "http://jabber.org/protocol/muc"
 
