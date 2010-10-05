@@ -91,6 +91,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/taskprocessor.h"
 #include "asterisk/test.h"
 #include "asterisk/data.h"
+#include "asterisk/netsock2.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"
@@ -502,7 +503,7 @@ struct iax2_peer {
 	);
 	struct ast_codec_pref prefs;
 	struct ast_dnsmgr_entry *dnsmgr;		/*!< DNS refresh manager */
-	struct sockaddr_in addr;
+	struct ast_sockaddr addr;
 	int formats;
 	int sockfd;					/*!< Socket to use for transmission */
 	struct in_addr mask;
@@ -593,7 +594,7 @@ enum iax_transfer_state {
 };
 
 struct iax2_registry {
-	struct sockaddr_in addr;		/*!< Who we connect to for registration purposes */
+	struct ast_sockaddr addr;		/*!< Who we connect to for registration purposes */
 	char username[80];
 	char secret[80];			/*!< Password or key name in []'s */
 	int expire;				/*!< Sched ID of expiration */
@@ -1194,7 +1195,7 @@ static struct ast_channel *iax2_request(const char *type, format_t format, const
 static struct ast_frame *iax2_read(struct ast_channel *c);
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t regtime);
+static void realtime_update_peer(const char *peername, struct ast_sockaddr *sockaddr, time_t regtime);
 static void *iax2_dup_variable_datastore(void *);
 static void prune_peers(void);
 static void prune_users(void);
@@ -1736,8 +1737,12 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len)
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
-		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
-		    (peer->addr.sin_port == sin.sin_port)) {
+		struct sockaddr_in peer_addr;
+
+		ast_sockaddr_to_sin(&peer->addr, &peer_addr);
+
+		if ((peer_addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
+		    (peer_addr.sin_port == sin.sin_port)) {
 			ast_copy_string(host, peer->name, len);
 			peer_unref(peer);
 			res = 1;
@@ -2288,13 +2293,18 @@ static int prune_addr_range_cb(void *obj, void *arg, int flags)
  * \internal
  * \brief modifies peercnt entry in peercnts table. Used to set custom limit or mark a registered ip
  */
-static void peercnt_modify(unsigned char reg, uint16_t limit, struct sockaddr_in *sin)
+static void peercnt_modify(unsigned char reg, uint16_t limit, struct ast_sockaddr *sockaddr)
 {
 	/* this function turns off and on custom callno limits set by peer registration */
 	struct peercnt *peercnt;
 	struct peercnt tmp = {
-		.addr = sin->sin_addr.s_addr,
+		.addr = 0,
 	};
+	struct sockaddr_in sin;
+
+	ast_sockaddr_to_sin(sockaddr, &sin);
+
+	tmp.addr = sin.sin_addr.s_addr;
 
 	if ((peercnt = ao2_find(peercnts, &tmp, OBJ_POINTER))) {
 		peercnt->reg = reg;
@@ -2303,7 +2313,7 @@ static void peercnt_modify(unsigned char reg, uint16_t limit, struct sockaddr_in
 		} else {
 			set_peercnt_limit(peercnt);
 		}
-		ast_debug(1, "peercnt entry %s modified limit:%d registered:%d", ast_inet_ntoa(sin->sin_addr), peercnt->limit, peercnt->reg);
+		ast_debug(1, "peercnt entry %s modified limit:%d registered:%d", ast_inet_ntoa(sin.sin_addr), peercnt->limit, peercnt->reg);
 		ao2_ref(peercnt, -1); /* decrement ref from find */
 	}
 }
@@ -2901,8 +2911,7 @@ static int __find_callno(unsigned short callno, unsigned short dcallno, struct s
 	return res;
 }
 
-static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int full_frame) {
-
+static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int sockfd, int full_frame) { 
 	return __find_callno(callno, dcallno, sin, new, sockfd, 0, full_frame);
 }
 
@@ -3739,6 +3748,10 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 
 	peer = find_peer(a->argv[3], load_realtime);
 	if (peer) {
+		struct sockaddr_in peer_addr;
+
+		ast_sockaddr_to_sin(&peer->addr, &peer_addr);
+
 		encmethods_to_str(peer->encmethods, encmethods);
 		ast_cli(a->fd, "\n\n");
 		ast_cli(a->fd, "  * Name       : %s\n", peer->name);
@@ -3754,7 +3767,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(a->fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(a->fd, "  ACL          : %s\n", (peer->ha ? "Yes" : "No"));
-		ast_cli(a->fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
+		ast_cli(a->fd, "  Addr->IP     : %s Port %d\n",  peer_addr.sin_addr.s_addr ? ast_inet_ntoa(peer_addr.sin_addr) : "(Unspecified)", ntohs(peer_addr.sin_port));
 		ast_cli(a->fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		ast_cli(a->fd, "  Username     : %s\n", peer->username);
 		ast_cli(a->fd, "  Codecs       : ");
@@ -4355,9 +4368,9 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		} else if (!strcasecmp(tmp->name, "regseconds")) {
 			ast_get_time_t(tmp->value, &regseconds, 0, NULL);
 		} else if (!strcasecmp(tmp->name, "ipaddr")) {
-			inet_aton(tmp->value, &(peer->addr.sin_addr));
+			ast_sockaddr_parse(&peer->addr, tmp->value, PARSE_PORT_IGNORE);
 		} else if (!strcasecmp(tmp->name, "port")) {
-			peer->addr.sin_port = htons(atoi(tmp->value));
+			ast_sockaddr_set_port(&peer->addr, atoi(tmp->value));
 		} else if (!strcasecmp(tmp->name, "host")) {
 			if (!strcasecmp(tmp->value, "dynamic"))
 				dynamic = 1;
@@ -4477,7 +4490,7 @@ static struct iax2_user *realtime_user(const char *username, struct sockaddr_in 
 	return user;
 }
 
-static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t regtime)
+static void realtime_update_peer(const char *peername, struct ast_sockaddr *sockaddr, time_t regtime)
 {
 	char port[10];
 	char regseconds[20];
@@ -4490,9 +4503,9 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 		syslabel = "regserver";
 
 	snprintf(regseconds, sizeof(regseconds), "%d", (int)regtime);
-	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
+	snprintf(port, sizeof(port), "%d", ast_sockaddr_port(sockaddr));
 	ast_update_realtime("iaxpeers", "name", peername, 
-		"ipaddr", ast_inet_ntoa(sin->sin_addr), "port", port, 
+		"ipaddr", ast_sockaddr_stringify_addr(sockaddr), "port", port, 
 		"regseconds", regseconds, syslabel, sysname, SENTINEL); /* note syslable can be NULL */
 }
 
@@ -4522,6 +4535,7 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	struct iax2_peer *peer;
 	int res = -1;
 	struct ast_codec_pref ourprefs;
+	struct sockaddr_in peer_addr;
 
 	ast_clear_flag64(cai, IAX_SENDANI | IAX_TRUNK);
 	cai->sockfd = defaultsockfd;
@@ -4549,10 +4563,13 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 	}
 
 	cai->found = 1;
-	
+
+	ast_sockaddr_to_sin(&peer->addr, &peer_addr);
+
 	/* if the peer has no address (current or default), return failure */
-	if (!(peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr))
+	if (!(peer_addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr)) {
 		goto return_unref;
+	}
 
 	/* if the peer is being monitored and is currently unreachable, return failure */
 	if (peer->maxms && ((peer->lastms > peer->maxms) || (peer->lastms < 0)))
@@ -4596,9 +4613,9 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 		}
 	}
 
-	if (peer->addr.sin_addr.s_addr) {
-		sin->sin_addr = peer->addr.sin_addr;
-		sin->sin_port = peer->addr.sin_port;
+	if (peer_addr.sin_addr.s_addr) {
+		sin->sin_addr = peer_addr.sin_addr;
+		sin->sin_port = peer_addr.sin_port;
 	} else {
 		sin->sin_addr = peer->defaddr.sin_addr;
 		sin->sin_port = peer->defaddr.sin_port;
@@ -5641,8 +5658,12 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
-		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
-		    (peer->addr.sin_port == sin.sin_port)) {
+		struct sockaddr_in peer_addr;
+
+		ast_sockaddr_to_sin(&peer->addr, &peer_addr);
+
+		if ((peer_addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
+		    (peer_addr.sin_port == sin.sin_port)) {
 			res = ast_test_flag64(peer, IAX_TRUNK);
 			peer_unref(peer);
 			break;
@@ -6637,11 +6658,16 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 		char nm[20];
 		char status[20];
 		int retstatus;
+		struct sockaddr_in peer_addr;
 
-		if (registeredonly && !peer->addr.sin_addr.s_addr)
+		ast_sockaddr_to_sin(&peer->addr, &peer_addr);
+
+		if (registeredonly && !peer_addr.sin_addr.s_addr) {
 			continue;
-		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0))
+		}
+		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
 			continue;
+		}
 
 		if (!ast_strlen_zero(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
@@ -6673,18 +6699,18 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 				"Status: %s\r\n\r\n",
 				idtext,
 				name,
-				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "-none-",
-				ntohs(peer->addr.sin_port),
+				ast_sockaddr_stringify_addr(&peer->addr),
+				ast_sockaddr_port(&peer->addr),
 				ast_test_flag64(peer, IAX_DYNAMIC) ? "yes" : "no",
 				ast_test_flag64(peer, IAX_TRUNK) ? "yes" : "no",
 				peer->encmethods ? ast_str_buffer(encmethods) : "no",
 				status);
 		} else {
 			ast_cli(fd, FORMAT, name,
-				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+				ast_sockaddr_stringify_addr(&peer->addr),
 				ast_test_flag64(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 				nm,
-				ntohs(peer->addr.sin_port),
+				ast_sockaddr_port(&peer->addr),
 				ast_test_flag64(peer, IAX_TRUNK) ? "(T)" : "   ",
 				peer->encmethods ? "(E)" : "   ",
 				status);
@@ -6960,10 +6986,10 @@ static int manager_iax2_show_peer_list(struct mansession *s, const struct messag
 			astman_append(s, "ObjectName: %s\r\n", peer->name);
 		}
 		astman_append(s, "ChanObjectType: peer\r\n");
-		astman_append(s, "IPaddress: %s\r\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "-none-");
+		astman_append(s, "IPaddress: %s\r\n", ast_sockaddr_stringify_addr(&peer->addr));
 		ast_copy_string(nm, ast_inet_ntoa(peer->mask), sizeof(nm));
 		astman_append(s, "Mask: %s\r\n", nm);
-		astman_append(s, "Port: %d\r\n", ntohs(peer->addr.sin_port));
+		astman_append(s, "Port: %d\r\n", ast_sockaddr_port(&peer->addr));
 		astman_append(s, "Dynamic: %s\r\n", ast_test_flag64(peer, IAX_DYNAMIC) ? "Yes" : "No");
 		astman_append(s, "Trunk: %s\r\n", ast_test_flag64(peer, IAX_TRUNK) ? "Yes" : "No");
 		astman_append(s, "Encryption: %s\r\n", peer->encmethods ? ast_str_buffer(encmethods) : "No");
@@ -7024,7 +7050,7 @@ static char *handle_cli_iax2_show_registry(struct ast_cli_entry *e, int cmd, str
 	ast_cli(a->fd, FORMAT2, "Host", "dnsmgr", "Username", "Perceived", "Refresh", "State");
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
-		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
+		snprintf(host, sizeof(host), "%s", ast_sockaddr_stringify(&reg->addr));
 		if (reg->us.sin_addr.s_addr) 
 			snprintf(perceived, sizeof(perceived), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
 		else
@@ -7057,7 +7083,7 @@ static int manager_iax2_show_registry(struct mansession *s, const struct message
 
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
-		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
+		snprintf(host, sizeof(host), "%s", ast_sockaddr_stringify(&reg->addr));
 		
 		if (reg->us.sin_addr.s_addr) {
 			snprintf(perceived, sizeof(perceived), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
@@ -7284,6 +7310,9 @@ static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct 
 
 	if (!strcasecmp(a->argv[3], "peer")) {
 		struct iax2_peer *peer;
+		struct sockaddr_in peer_addr;
+
+		ast_sockaddr_to_sin(&peer->addr, &peer_addr);
 
 		if (a->argc != e->args + 1)
 			return CLI_SHOWUSAGE;
@@ -7295,8 +7324,8 @@ static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct 
 			return CLI_FAILURE;
 		}
 
-		debugaddr.sin_addr = peer->addr.sin_addr;
-		debugaddr.sin_port = peer->addr.sin_port;
+		debugaddr.sin_addr = peer_addr.sin_addr;
+		debugaddr.sin_port = peer_addr.sin_port;
 
 		ast_cli(a->fd, "IAX2 Debugging Enabled for IP: %s:%d\n",
 			ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
@@ -8111,11 +8140,15 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 	} else {
 		struct ao2_iterator i = ao2_iterator_init(peers, 0);
 		while ((peer = ao2_iterator_next(&i))) {
+			struct sockaddr_in peer_addr;
+
+			ast_sockaddr_to_sin(&peer->addr, &peer_addr);
+
 			if ((ast_strlen_zero(p->peer) || !strcmp(p->peer, peer->name)) 
 			    /* No peer specified at our end, or this is the peer */
 			    && (ast_strlen_zero(peer->username) || (!strcmp(peer->username, p->username)))
 			    /* No username specified in peer rule, or this is the right username */
-			    && (!peer->addr.sin_addr.s_addr || ((sin->sin_addr.s_addr & peer->mask.s_addr) == (peer->addr.sin_addr.s_addr & peer->mask.s_addr)))
+			    && (!peer_addr.sin_addr.s_addr || ((sin->sin_addr.s_addr & peer->mask.s_addr) == (peer_addr.sin_addr.s_addr & peer->mask.s_addr)))
 			    /* No specified host, or this is our host */
 				) {
 				res = authenticate(p->challenge, peer->secret, peer->outkey, authmethods, &ied, sin, p);
@@ -8369,6 +8402,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	struct sockaddr_in oldus;
 	struct sockaddr_in us;
 	int oldmsgs;
+	struct sockaddr_in reg_addr;
 
 	memset(&us, 0, sizeof(us));
 	if (ies->apparent_addr)
@@ -8387,7 +8421,8 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	}
 	memcpy(&oldus, &reg->us, sizeof(oldus));
 	oldmsgs = reg->messages;
-	if (inaddrcmp(&reg->addr, sin)) {
+	ast_sockaddr_to_sin(&reg->addr, &reg_addr);
+	if (inaddrcmp(&reg_addr, sin)) {
 		ast_log(LOG_WARNING, "Received unsolicited registry ack from '%s'\n", ast_inet_ntoa(sin->sin_addr));
 		return -1;
 	}
@@ -8421,18 +8456,14 @@ static int iax2_append_register(const char *hostname, const char *username,
 	const char *secret, const char *porta)
 {
 	struct iax2_registry *reg;
-	struct ast_sockaddr reg_addr_tmp;
 
 	if (!(reg = ast_calloc(1, sizeof(*reg))))
 		return -1;
 
-	reg->addr.sin_family = AF_INET;
-	ast_sockaddr_from_sin(&reg_addr_tmp, &reg->addr);
-	if (ast_dnsmgr_lookup(hostname, &reg_addr_tmp, &reg->dnsmgr, srvlookup ? "_iax._udp" : NULL) < 0) {
+	if (ast_dnsmgr_lookup(hostname, &reg->addr, &reg->dnsmgr, srvlookup ? "_iax._udp" : NULL) < 0) {
 		ast_free(reg);
 		return -1;
 	}
-	ast_sockaddr_to_sin(&reg_addr_tmp, &reg->addr);
 
 	ast_copy_string(reg->username, username, sizeof(reg->username));
 
@@ -8441,8 +8472,7 @@ static int iax2_append_register(const char *hostname, const char *username,
 
 	reg->expire = -1;
 	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
-	reg->addr.sin_family = AF_INET;
-	reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
+	ast_sockaddr_set_port(&reg->addr, porta ? atoi(porta) : IAX_DEFAULT_PORTNO);
 
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_INSERT_HEAD(&registrations, reg, entry);
@@ -8571,44 +8601,48 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
 static void reg_source_db(struct iax2_peer *p)
 {
 	char data[80];
-	struct in_addr in;
-	char *c, *d;
-	if (!ast_test_flag64(p, IAX_TEMPONLY) && (!ast_db_get("IAX/Registry", p->name, data, sizeof(data)))) {
-		c = strchr(data, ':');
-		if (c) {
-			*c = '\0';
-			c++;
-			if (inet_aton(data, &in)) {
-				d = strchr(c, ':');
-				if (d) {
-					*d = '\0';
-					d++;
-					ast_verb(3, "Seeding '%s' at %s:%d for %d\n", p->name,
-						ast_inet_ntoa(in), atoi(c), atoi(d));
-					iax2_poke_peer(p, 0);
-					p->expiry = atoi(d);
-					memset(&p->addr, 0, sizeof(p->addr));
-					p->addr.sin_family = AF_INET;
-					p->addr.sin_addr = in;
-					p->addr.sin_port = htons(atoi(c));
- 					if (p->expire > -1) {
- 						if (!ast_sched_thread_del(sched, p->expire)) {
- 							p->expire = -1;
- 							peer_unref(p);
- 						}
- 					}
-  					ast_devstate_changed(AST_DEVICE_UNKNOWN, "IAX2/%s", p->name); /* Activate notification */
- 					p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, peer_ref(p));
- 					if (p->expire == -1)
- 						peer_unref(p);
-					if (iax2_regfunk)
-						iax2_regfunk(p->name, 1);
-					register_peer_exten(p, 1);
-				}					
-					
-			}
+	char *expiry;
+
+	if (ast_test_flag64(p, IAX_TEMPONLY) || ast_db_get("IAX/Registry", p->name, data, sizeof(data))) {
+		return;
+	}
+
+	expiry = strrchr(data, ':');
+	if (!expiry) {
+		ast_log(LOG_NOTICE, "IAX/Registry astdb entry missing expiry: '%s'\n", data);
+	}
+	*expiry++ = '\0';
+
+	if (ast_sockaddr_parse(&p->addr, data, PARSE_PORT_REQUIRE)) {
+		ast_log(LOG_NOTICE, "IAX/Registry astdb host:port invalid - '%s'\n", data);
+		return;
+	}
+
+	p->expiry = atoi(expiry);
+
+	ast_verb(3, "Seeding '%s' at %s for %d\n", p->name,
+		ast_sockaddr_stringify(&p->addr), p->expiry);
+
+	iax2_poke_peer(p, 0);
+	if (p->expire > -1) {
+		if (!ast_sched_thread_del(sched, p->expire)) {
+			p->expire = -1;
+			peer_unref(p);
 		}
 	}
+
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, "IAX2/%s", p->name); /* Activate notification */
+
+	p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, peer_ref(p));
+	if (p->expire == -1) {
+		peer_unref(p);
+	}
+
+	if (iax2_regfunk) {
+		iax2_regfunk(p->name, 1);
+	}
+
+	register_peer_exten(p, 1);
 }
 
 /*!
@@ -8620,15 +8654,18 @@ static void reg_source_db(struct iax2_peer *p)
 static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
 {
 	/* Called from IAX thread only, with proper iaxsl lock */
-	struct iax_ie_data ied;
+	struct iax_ie_data ied = {
+		.pos = 0,
+	};
 	struct iax2_peer *p;
 	int msgcount;
 	char data[80];
 	int version;
 	const char *peer_name;
 	int res = -1;
+	struct ast_sockaddr sockaddr;
 
-	memset(&ied, 0, sizeof(ied));
+	ast_sockaddr_from_sin(&sockaddr, sin);
 
 	peer_name = ast_strdupa(iaxs[callno]->peer);
 
@@ -8647,14 +8684,16 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 		if (sin->sin_addr.s_addr) {
 			time_t nowtime;
 			time(&nowtime);
-			realtime_update_peer(peer_name, sin, nowtime);
+			realtime_update_peer(peer_name, &sockaddr, nowtime);
 		} else {
-			realtime_update_peer(peer_name, sin, 0);
+			realtime_update_peer(peer_name, &sockaddr, 0);
 		}
 	}
-	if (inaddrcmp(&p->addr, sin)) {
-		if (iax2_regfunk)
+
+	if (ast_sockaddr_cmp(&p->addr, &sockaddr)) {
+		if (iax2_regfunk) {
 			iax2_regfunk(p->name, 1);
+		}
 
 		/* modify entry in peercnts table as _not_ registered */
 		peercnt_modify(0, 0, &p->addr);
@@ -8725,8 +8764,12 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 	if (sin->sin_addr.s_addr) {
+		struct sockaddr_in peer_addr;
+
+		ast_sockaddr_to_sin(&p->addr, &peer_addr);
+
 		iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expiry);
-		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
+		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &peer_addr);
 		if (!ast_strlen_zero(p->mailbox)) {
 			struct ast_event *event;
 			int new, old;
@@ -8842,31 +8885,35 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 	memset(&ied, 0, sizeof(ied));
 	reg = iaxs[callno]->reg;
 	if (reg) {
-			if (inaddrcmp(&reg->addr, sin)) {
-				ast_log(LOG_WARNING, "Received unsolicited registry authenticate request from '%s'\n", ast_inet_ntoa(sin->sin_addr));
-				return -1;
-			}
-			if (ast_strlen_zero(reg->secret)) {
-				ast_log(LOG_NOTICE, "No secret associated with peer '%s'\n", reg->username);
-				reg->regstate = REG_STATE_NOAUTH;
-				return -1;
-			}
-			iax_ie_append_str(&ied, IAX_IE_USERNAME, reg->username);
-			iax_ie_append_short(&ied, IAX_IE_REFRESH, reg->refresh);
-			if (reg->secret[0] == '[') {
-				char tmpkey[256];
-				ast_copy_string(tmpkey, reg->secret + 1, sizeof(tmpkey));
-				tmpkey[strlen(tmpkey) - 1] = '\0';
-				res = authenticate(challenge, NULL, tmpkey, authmethods, &ied, sin, NULL);
-			} else
-				res = authenticate(challenge, reg->secret, NULL, authmethods, &ied, sin, NULL);
-			if (!res) {
-				reg->regstate = REG_STATE_AUTHSENT;
-				add_empty_calltoken_ie(iaxs[callno], &ied); /* this _MUST_ be the last ie added */
-				return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
-			} else
-				return -1;
-			ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+		struct sockaddr_in reg_addr;
+
+		ast_sockaddr_to_sin(&reg->addr, &reg_addr);
+
+		if (inaddrcmp(&reg_addr, sin)) {
+			ast_log(LOG_WARNING, "Received unsolicited registry authenticate request from '%s'\n", ast_inet_ntoa(sin->sin_addr));
+			return -1;
+		}
+		if (ast_strlen_zero(reg->secret)) {
+			ast_log(LOG_NOTICE, "No secret associated with peer '%s'\n", reg->username);
+			reg->regstate = REG_STATE_NOAUTH;
+			return -1;
+		}
+		iax_ie_append_str(&ied, IAX_IE_USERNAME, reg->username);
+		iax_ie_append_short(&ied, IAX_IE_REFRESH, reg->refresh);
+		if (reg->secret[0] == '[') {
+			char tmpkey[256];
+			ast_copy_string(tmpkey, reg->secret + 1, sizeof(tmpkey));
+			tmpkey[strlen(tmpkey) - 1] = '\0';
+			res = authenticate(challenge, NULL, tmpkey, authmethods, &ied, sin, NULL);
+		} else
+			res = authenticate(challenge, reg->secret, NULL, authmethods, &ied, sin, NULL);
+		if (!res) {
+			reg->regstate = REG_STATE_AUTHSENT;
+			add_empty_calltoken_ie(iaxs[callno], &ied); /* this _MUST_ be the last ie added */
+			return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
+		} else
+			return -1;
+		ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
 	} else	
 		ast_log(LOG_NOTICE, "Can't reregister without a reg\n");
 	return -1;
@@ -11633,7 +11680,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 		ast_debug(1, "Sending registration request for '%s'\n", reg->username);
 
 	if (reg->dnsmgr && 
-	    ((reg->regstate == REG_STATE_TIMEOUT) || !reg->addr.sin_addr.s_addr)) {
+	    ((reg->regstate == REG_STATE_TIMEOUT) || !ast_sockaddr_ipv4(&reg->addr))) {
 		/* Maybe the IP has changed, force DNS refresh */
 		ast_dnsmgr_refresh(reg->dnsmgr);
 	}
@@ -11649,7 +11696,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 		ast_mutex_unlock(&iaxsl[callno]);
 		reg->callno = 0;
 	}
-	if (!reg->addr.sin_addr.s_addr) {
+	if (!ast_sockaddr_ipv4(&reg->addr)) {
 		if (iaxdebug)
 			ast_debug(1, "Unable to send registration request for '%s' without IP address\n", reg->username);
 		/* Setup the next registration attempt */
@@ -11659,8 +11706,13 @@ static int iax2_do_register(struct iax2_registry *reg)
 	}
 
 	if (!reg->callno) {
+		struct sockaddr_in reg_addr;
+
 		ast_debug(3, "Allocate call number\n");
-		reg->callno = find_callno_locked(0, 0, &reg->addr, NEW_FORCE, defaultsockfd, 0);
+
+		ast_sockaddr_to_sin(&reg->addr, &reg_addr);
+
+		reg->callno = find_callno_locked(0, 0, &reg_addr, NEW_FORCE, defaultsockfd, 0);
 		if (reg->callno < 1) {
 			ast_log(LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
@@ -11849,7 +11901,9 @@ static int iax2_poke_peer_cb(void *obj, void *arg, int flags)
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 {
 	int callno;
-	if (!peer->maxms || (!peer->addr.sin_addr.s_addr && !peer->dnsmgr)) {
+	struct sockaddr_in peer_addr;
+
+	if (!peer->maxms || (!ast_sockaddr_ipv4(&peer->addr) && !peer->dnsmgr)) {
 		/* IF we have no IP without dnsmgr, or this isn't to be monitored, return
 		  immediately after clearing things out */
 		peer->lastms = 0;
@@ -11858,6 +11912,8 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		peer->callno = 0;
 		return 0;
 	}
+
+	ast_sockaddr_to_sin(&peer->addr, &peer_addr);
 
 	/* The peer could change the callno inside iax2_destroy, since we do deadlock avoidance */
 	if ((callno = peer->callno) > 0) {
@@ -11868,7 +11924,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	}
 	if (heldcall)
 		ast_mutex_unlock(&iaxsl[heldcall]);
-	callno = peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, peer->sockfd, 0);
+	callno = peer->callno = find_callno(0, 0, &peer_addr, NEW_FORCE, peer->sockfd, 0);
 	if (heldcall)
 		ast_mutex_lock(&iaxsl[heldcall]);
 	if (peer->callno < 1) {
@@ -12235,7 +12291,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			ast_string_field_set(peer,secret,"");
 			if (!found) {
 				ast_string_field_set(peer, name, name);
-				peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
+				ast_sockaddr_set_port(&peer->addr, IAX_DEFAULT_PORTNO);
 				peer->expiry = min_reg_expire;
 			}
 			peer->prefs = prefs;
@@ -12314,26 +12370,20 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					if (!found) {
 						/* Initialize stuff iff we're not found, otherwise
 						   we keep going with what we had */
-						memset(&peer->addr.sin_addr, 0, 4);
-						if (peer->addr.sin_port) {
-							/* If we've already got a port, make it the default rather than absolute */
-							peer->defaddr.sin_port = peer->addr.sin_port;
-							peer->addr.sin_port = 0;
+						if (ast_sockaddr_port(&peer->addr)) {
+							peer->defaddr.sin_port = htons(ast_sockaddr_port(&peer->addr));
 						}
+						ast_sockaddr_setnull(&peer->addr);
 					}
 				} else {
-					struct ast_sockaddr peer_addr_tmp;
-
 					/* Non-dynamic.  Make sure we become that way if we're not */
 					ast_sched_thread_del(sched, peer->expire);
 					ast_clear_flag64(peer, IAX_DYNAMIC);
-					peer_addr_tmp.ss.ss_family = AF_INET;
-					if (ast_dnsmgr_lookup(v->value, &peer_addr_tmp, &peer->dnsmgr, srvlookup ? "_iax._udp" : NULL))
+					if (ast_dnsmgr_lookup(v->value, &peer->addr, &peer->dnsmgr, srvlookup ? "_iax._udp" : NULL))
 						return peer_unref(peer);
-					ast_sockaddr_to_sin(&peer_addr_tmp,
-							    &peer->addr);
-					if (!peer->addr.sin_port)
-						peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
+					if (!ast_sockaddr_port(&peer->addr)) {
+						ast_sockaddr_set_port(&peer->addr, IAX_DEFAULT_PORTNO);
+					}
 				}
 				if (!maskfound)
 					inet_aton("255.255.255.255", &peer->mask);
@@ -12360,10 +12410,11 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "peercontext")) {
 				ast_string_field_set(peer, peercontext, v->value);
 			} else if (!strcasecmp(v->name, "port")) {
-				if (ast_test_flag64(peer, IAX_DYNAMIC))
+				if (ast_test_flag64(peer, IAX_DYNAMIC)) {
 					peer->defaddr.sin_port = htons(atoi(v->value));
-				else
-					peer->addr.sin_port = htons(atoi(v->value));
+				} else {
+					ast_sockaddr_set_port(&peer->addr, atoi(v->value));
+				}
 			} else if (!strcasecmp(v->name, "username")) {
 				ast_string_field_set(peer, username, v->value);
 			} else if (!strcasecmp(v->name, "allow")) {
@@ -12457,8 +12508,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		if (!peer->authmethods)
 			peer->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
 		ast_clear_flag64(peer, IAX_DELME);
-		/* Make sure these are IPv4 addresses */
-		peer->addr.sin_family = AF_INET;
 	}
 
 	if (oldha)
@@ -13726,7 +13775,7 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 		return -1;
 
 	if (!strcasecmp(colname, "ip")) {
-		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", len);
+		ast_copy_string(buf, ast_sockaddr_stringify_addr(&peer->addr), len);
 	} else  if (!strcasecmp(colname, "status")) {
 		peer_status(peer, buf, len); 
 	} else  if (!strcasecmp(colname, "mailbox")) {
@@ -13831,9 +13880,9 @@ static int iax2_devicestate(void *data)
 
 	res = AST_DEVICE_UNAVAILABLE;
 	ast_debug(3, "iax2_devicestate: Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
-		pds.peer, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
+		pds.peer, ast_sockaddr_ipv4(&p->addr), p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 	
-	if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
+	if ((ast_sockaddr_ipv4(&p->addr) || p->defaddr.sin_addr.s_addr) &&
 	    (!p->maxms || ((p->lastms > -1) && (p->historicms <= p->maxms)))) {
 		/* Peer is registered, or have default IP address
 		   and a valid registration */
@@ -14381,11 +14430,11 @@ static int peers_data_provider_get(const struct ast_data_search *search,
 		peer_status(peer, status, sizeof(status));
 		ast_data_add_str(data_peer, "status", status);
 
-		ast_data_add_str(data_peer, "host", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "");
+		ast_data_add_str(data_peer, "host", ast_sockaddr_stringify_host(&peer->addr));
 
 		ast_data_add_str(data_peer, "mask", ast_inet_ntoa(peer->mask));
 
-		ast_data_add_int(data_peer, "port", ntohs(peer->addr.sin_port));
+		ast_data_add_int(data_peer, "port", ast_sockaddr_port(&peer->addr));
 
 		ast_data_add_bool(data_peer, "trunk", ast_test_flag64(peer, IAX_TRUNK));
 
