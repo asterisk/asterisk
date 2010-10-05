@@ -7312,7 +7312,6 @@ static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct 
 		struct iax2_peer *peer;
 		struct sockaddr_in peer_addr;
 
-		ast_sockaddr_to_sin(&peer->addr, &peer_addr);
 
 		if (a->argc != e->args + 1)
 			return CLI_SHOWUSAGE;
@@ -7323,6 +7322,8 @@ static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct 
 			ast_cli(a->fd, "IAX2 peer '%s' does not exist\n", a->argv[e->args-1]);
 			return CLI_FAILURE;
 		}
+
+		ast_sockaddr_to_sin(&peer->addr, &peer_addr);
 
 		debugaddr.sin_addr = peer_addr.sin_addr;
 		debugaddr.sin_port = peer_addr.sin_port;
