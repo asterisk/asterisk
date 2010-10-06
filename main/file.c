@@ -961,10 +961,12 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	 * done this way because there is no where for ast_openstream_full to
 	 * return the file had no data. */
 	seekattempt = fseek(fs->f, -1, SEEK_END);
-	if (!seekattempt)
-		ast_seekstream(fs, 0, SEEK_SET);
-	else
+	if (seekattempt && errno == EINVAL) {
+		/* Zero-length file, as opposed to a pipe */
 		return 0;
+	} else {
+		ast_seekstream(fs, 0, SEEK_SET);
+	}
 
 	vfs = ast_openvstream(chan, filename, preflang);
 	if (vfs) {
