@@ -173,7 +173,7 @@ AST_MUTEX_DEFINE_STATIC(gtalklock); /*!< Protect the interface list (of gtalk_pv
 
 /* Forward declarations */
 static struct ast_channel *gtalk_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
-static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration);
+/*static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration);*/
 static int gtalk_sendtext(struct ast_channel *ast, const char *text);
 static int gtalk_digit_begin(struct ast_channel *ast, char digit);
 static int gtalk_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -201,7 +201,10 @@ static const struct ast_channel_tech gtalk_tech = {
 	.send_text = gtalk_sendtext,
 	.send_digit_begin = gtalk_digit_begin,
 	.send_digit_end = gtalk_digit_end,
-	.bridge = ast_rtp_instance_bridge,
+	/* XXX TODO native bridging is causing odd problems with DTMF pass-through with
+	 * the gtalk servers. Enable native bridging once the source of this problem has
+	 * been identified.
+	.bridge = ast_rtp_instance_bridge, */
 	.call = gtalk_call,
 	.hangup = gtalk_hangup,
 	.answer = gtalk_answer,
@@ -412,7 +415,7 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 
 	if (codecs_num) {
 		/* only propose DTMF within an audio session */
-		iks_insert_attrib(payload_telephone, "id", "106");
+		iks_insert_attrib(payload_telephone, "id", "101");
 		iks_insert_attrib(payload_telephone, "name", "telephone-event");
 		iks_insert_attrib(payload_telephone, "clockrate", "8000");
 	}
@@ -997,6 +1000,8 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	  return NULL;
 	}
 	ast_rtp_instance_set_prop(tmp->rtp, AST_RTP_PROPERTY_RTCP, 1);
+	ast_rtp_instance_set_prop(tmp->rtp, AST_RTP_PROPERTY_DTMF, 1);
+	ast_rtp_instance_dtmf_mode_set(tmp->rtp, AST_RTP_DTMF_MODE_RFC2833);
 	ast_rtp_codecs_payloads_clear(ast_rtp_instance_get_codecs(tmp->rtp), tmp->rtp);
 
 	/* add user configured codec capabilites */
@@ -1590,14 +1595,39 @@ static int gtalk_sendtext(struct ast_channel *chan, const char *text)
 
 static int gtalk_digit_begin(struct ast_channel *chan, char digit)
 {
-	return gtalk_digit(chan, digit, 0);
+	struct gtalk_pvt *p = chan->tech_pvt;
+	int res = 0;
+
+	ast_mutex_lock(&p->lock);
+	if (p->rtp) {
+		ast_rtp_instance_dtmf_begin(p->rtp, digit);
+	} else {
+		res = -1;
+	}
+	ast_mutex_unlock(&p->lock);
+
+	return res;
 }
 
 static int gtalk_digit_end(struct ast_channel *chan, char digit, unsigned int duration)
 {
-	return gtalk_digit(chan, digit, duration);
+	struct gtalk_pvt *p = chan->tech_pvt;
+	int res = 0;
+
+	ast_mutex_lock(&p->lock);
+	if (p->rtp) {
+		ast_rtp_instance_dtmf_end_with_duration(p->rtp, digit, duration);
+	} else {
+		res = -1;
+	}
+	ast_mutex_unlock(&p->lock);
+
+	return res;
 }
 
+/* This function is of not in use at the moment, but I am choosing to leave this
+ * within the code base as a reference to how DTMF is possible through
+ * jingle signaling.  However, google currently does DTMF through the RTP. 
 static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct gtalk_pvt *p = ast->tech_pvt;
@@ -1623,8 +1653,8 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	ast_aji_increment_mid(client->connection->mid);
 	iks_insert_attrib(gtalk, "xmlns", "http://jabber.org/protocol/gtalk");
 	iks_insert_attrib(gtalk, "action", "session-info");
-	/* put the initiator attribute to lower case if we receive the call
-	 * otherwise GoogleTalk won't establish the session */
+	// put the initiator attribute to lower case if we receive the call
+	// otherwise GoogleTalk won't establish the session
 	if (!p->initiator) {
 	        char c;
 	        char *t = lowerthem = ast_strdupa(p->them);
@@ -1651,7 +1681,7 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
-
+*/
 static int gtalk_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen)
 {
 	ast_log(LOG_NOTICE, "XXX Implement gtalk sendhtml XXX\n");
