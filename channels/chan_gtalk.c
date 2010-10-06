@@ -1627,7 +1627,8 @@ static int gtalk_digit_end(struct ast_channel *chan, char digit, unsigned int du
 
 /* This function is of not in use at the moment, but I am choosing to leave this
  * within the code base as a reference to how DTMF is possible through
- * jingle signaling.  However, google currently does DTMF through the RTP. 
+ * jingle signaling.  However, google currently does DTMF through the RTP. */
+#if 0
 static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct gtalk_pvt *p = ast->tech_pvt;
@@ -1653,8 +1654,8 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	ast_aji_increment_mid(client->connection->mid);
 	iks_insert_attrib(gtalk, "xmlns", "http://jabber.org/protocol/gtalk");
 	iks_insert_attrib(gtalk, "action", "session-info");
-	// put the initiator attribute to lower case if we receive the call
-	// otherwise GoogleTalk won't establish the session
+	/* put the initiator attribute to lower case if we receive the call
+	 * otherwise GoogleTalk won't establish the session */
 	if (!p->initiator) {
 	        char c;
 	        char *t = lowerthem = ast_strdupa(p->them);
@@ -1681,7 +1682,8 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
-*/
+#endif
+
 static int gtalk_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen)
 {
 	ast_log(LOG_NOTICE, "XXX Implement gtalk sendhtml XXX\n");
