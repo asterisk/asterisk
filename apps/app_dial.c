@@ -1404,8 +1404,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				if ((f->subclass.integer == AST_CONTROL_HOLD) ||
 				    (f->subclass.integer == AST_CONTROL_UNHOLD) ||
 				    (f->subclass.integer == AST_CONTROL_VIDUPDATE) ||
-				    (f->subclass.integer == AST_CONTROL_SRCUPDATE) ||
-				    (f->subclass.integer == AST_CONTROL_REDIRECTING)) {
+				    (f->subclass.integer == AST_CONTROL_SRCUPDATE)) {
 					ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass.integer, outgoing->chan->name);
 					ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
 				} else if (f->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
