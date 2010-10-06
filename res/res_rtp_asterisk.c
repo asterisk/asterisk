@@ -1945,6 +1945,11 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 
 	ast_rtp_instance_get_remote_address(instance1, &remote_address);
 
+	if (ast_sockaddr_isnull(&remote_address)) {
+		ast_debug(1, "Remote address is null, most likely RTP has been stopped\n");
+		return 0;
+	}
+
 	/* Send the packet back out */
 	res = rtp_sendto(instance1, (void *)rtpheader, len, 0, &remote_address);
 	if (res < 0) {
