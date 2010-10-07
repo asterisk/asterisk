@@ -36,6 +36,7 @@ m4_ifval([$3], [
 if test "x${$3_MANDATORY}" = "xyes" ; then
    $1_MANDATORY="yes"
 fi
+$1_DIR=${$3_DIR}
 ])
 PBX_$1=0
 AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
