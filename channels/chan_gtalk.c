@@ -4,6 +4,7 @@
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Matt O'Gorman <mogorman@digium.com>
+ * Philippe Sultan <philippe.sultan@gmail.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -19,6 +20,7 @@
 /*! \file
  *
  * \author Matt O'Gorman <mogorman@digium.com>
+ * \author Philippe Sultan <philippe.sultan@gmail.com>
  *
  * \brief Gtalk Channel Driver, until google/libjingle works with jingle spec
  *
