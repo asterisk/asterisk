@@ -1,0 +1,382 @@
+                                Release Summary
+
+                               asterisk-1.8.0-rc3
+
+                                Date: 2010-10-07
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.0-rc2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   15 tilghman              2 dvossel                1 afried                 
+   6 dvossel                1 abelbeck               1 asgaroth               
+   6 rmudgett               1 afried                 1 dpetersen              
+   6 russell                1 dpetersen              1 jamicque               
+   3 mnicholson             1 jamicque               1 jmls                   
+   2 jpeeler                1 jmls                   1 lmadsen                
+   2 twilson                1 RadicAlish             1 mkeuter                
+   1 abelbeck               1 russell                1 murf                   
+   1 kpfleming              1 schern                 1 RadicAlish             
+   1 lmadsen                1 schmidts               1 schern                 
+   1 oej                    1 tbelder                1 schmidts               
+   1 pabelanger             1 tilghman               1 tbelder                
+   1 qwell                  1 wdoekes                1 wdoekes                
+   1 RadicAlish             
+   1 schern                 
+   1 schmitds               
+   1 tbelder                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_directed_pickup
+
+   #18011: [patch] PickupChan() is not working with full channel name
+   Revision: 290376
+   Reporter: schern
+   Testers: schern, dvossel
+   Coders: schern
+
+  Category: Applications/app_voicemail/ODBC
+
+   #17803: [patch] [regression] Forwarding a voicemail with a prepended
+   message does not work
+   Revision: 289875
+   Reporter: dpetersen
+   Testers: dpetersen
+   Coders: tilghman
+
+  Category: CDR/General
+
+   #17569: [patch] cdr->src variable is not set anymore in destination
+   channels
+   Revision: 289179
+   Reporter: tbelder
+   Testers: tbelder
+   Coders: tbelder
+
+  Category: Channels/chan_sip/General
+
+   #17892: [patch] contact header does not get ast_uri_encoded value from
+   p->exten, but dialplan does
+   Revision: 289701
+   Reporter: wdoekes
+   Testers: wdoekes
+   Coders: jpeeler
+
+   #18062: chan_sip doesn't get built if missing OpenSSL dependencies
+   Revision: 288961
+   Reporter: lmadsen
+   Coders: tilghman
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #17950: iterate through all ao2_sip dialogs on every subscribe is slow,
+   and not needed
+   Revision: 289622
+   Reporter: schmidts
+   Testers: schmidts
+   Coders: schmitds
+
+  Category: Core/ManagerInterface
+
+   #17987: [regression] Newchannel event is missing during masquerading
+   process
+   Revision: 289099
+   Reporter: RadicAlish
+   Testers: RadicAlish
+   Coders: RadicAlish
+
+  Category: Core/PBX
+
+   #17902: [patch] Asterisk 1.8.0-beta3 DNSMGR address corruption
+   Revision: 290378
+   Reporter: afried
+   Testers: afried, russell, dvossel
+   Coders: russell
+
+  Category: Functions/func_odbc
+
+   #18041: Crash when assigning 2 return vallues to an ARRAY with FUNC_ODBC
+   call
+   Revision: 288713
+   Reporter: asgaroth
+   Coders: tilghman
+
+  Category: PBX/General
+
+   #17366: [patch] strange extension pattern matching
+   Revision: 290255
+   Reporter: murf
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: PBX/pbx_spool
+
+   #17924: [patch] Call file errors in Asterisk 1.8beta
+   Revision: 290066
+   Reporter: mkeuter
+   Testers: abelbeck
+   Coders: abelbeck
+
+  Category: Resources/res_agi
+
+   #18001: [patch] GET DATA problem with pipes
+   Revision: 290576
+   Reporter: jamicque
+   Testers: jamicque
+   Coders: tilghman
+
+  Category: Resources/res_jabber
+
+   #17387: [patch] Memory corruption from iksemel
+   Revision: 290408
+   Reporter: jmls
+   Testers: jmls
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 288606   | tilghman   | Add note about the checkhangup    |            |
+   |          |            | option of ${CHANNEL()}            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 288638   | tilghman   | Solaris compatibility fixes       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 288640   | tilghman   | Export timersub for platforms     |            |
+   |          |            | which do not have it              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 288748   | twilson    | Don't fail a masquerade if it is  |            |
+   |          |            | already being hung up             |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Inspect Require header on BYE     |            |
+   | 288821   | dvossel    | transaction according to RFC3261  |            |
+   |          |            | section 8.2.2.3.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Append Retry-After header on 500  |            |
+   | 288852   | dvossel    | error response to Re-INVITE       |            |
+   |          |            | according to RFC3261 section      |            |
+   |          |            | 14.2.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 288925   | russell    | Fix a documentation spelling      |            |
+   |          |            | error.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 288927   | russell    | Fix some documentation typos and  |            |
+   |          |            | spelling errors.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Break up long                     |            |
+   | 289054   | rmudgett   | ast_manager_event_multichan()     |            |
+   |          |            | event lines.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289055   | rmudgett   | Revert stuff not ready for commit |            |
+   |          |            | in -r289054.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289057   | rmudgett   | Avoid deadlock processing         |            |
+   |          |            | incoming AOC-E messages.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289104   | tilghman   | Solaris compatibility fixes       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289253   | rmudgett   | Make development error message    |            |
+   |          |            | indicate which channel.           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Update the CDR record when        |            |
+   | 289268   | mnicholson | ast_channel_set_caller_event() is | #17569     |
+   |          |            | called                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289300   | mnicholson | Add 'ecm' to the sample fax       |            |
+   |          |            | config file                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Don't completely ignore md5secret |            |
+   | 289333   | russell    | from LDAP if the value does not   |            |
+   |          |            | begin with {md5}.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289336   | lmadsen    | Update sample documentation to    |            |
+   |          |            | note md5secret requirements.      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289340   | qwell      | Allow a manager originate to      |            |
+   |          |            | succeed on forwarded devices.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289426   | russell    | Fix a crash in app_sms.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289543   | tilghman   | More Solaris compatibility fixes  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289549   | rmudgett   | Merged revision 289547 from       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Properly handle channel           |            |
+   | 289554   | mnicholson | allocation failures duing invites |            |
+   |          |            | with replaces.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289581   | tilghman   | Solaris fixes.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 289718   | pabelanger | Disable debugging by default      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Change RFC2833 DTMF event         |            |
+   | 289840   | jpeeler    | duration on end to report actual  |            |
+   |          |            | elapsed time.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add documentation for             |            |
+   | 289951   | oej        | undocumented option to AMI action |            |
+   |          |            | originate                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Allow users to pass additional    |            |
+   | 290026   | kpfleming  | arguments to the Subversion       |            |
+   |          |            | command that                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Automatically re-run configure    |            |
+   | 290102   | tilghman   | test for menuselect, when the     |            |
+   |          |            | relevant makeopts settings        |            |
+   |          |            | change.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290209   | tilghman   | Fixing Mac OS X auto-builder.     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Restore run directory for OS X,   |            |
+   | 290289   | tilghman   | as well as standardizing some     |            |
+   |          |            | other paths to Mac OS X.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290479   | dvossel    | Fixes chan_gtalk to work with     |            |
+   |          |            | gmail client                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fixes uninitialized memory        |            |
+   | 290506   | dvossel    | problem in 'iax2 set debug peer'  |            |
+   |          |            | option.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290542   | twilson    | Don't try to send RTP when        |            |
+   |          |            | remote_address is null            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290614   | rmudgett   | Merged revision 290613 from       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290648   | dvossel    | Fixes gtalk outbound DTMF to work |            |
+   |          |            | properly.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290674   | dvossel    | Fixes commented out code to use   |            |
+   |          |            | #if 0 instead.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290713   | russell    | Don't crash when Set() is called  |            |
+   |          |            | without a value.                  |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                           |    2
+ Makefile                          |   40
+ apps/app_dial.c                   |    3
+ apps/app_directed_pickup.c        |   28
+ apps/app_sms.c                    |    6
+ apps/app_voicemail.c              |   23
+ cdr/cdr_pgsql.c                   |    8
+ channels/chan_gtalk.c             |  290 ++-
+ channels/chan_iax2.c              |  332 ++--
+ channels/chan_local.c             |    2
+ channels/chan_misdn.c             |   15
+ channels/chan_sip.c               |  132 +
+ channels/sig_pri.c                |   27
+ configs/jabber.conf.sample        |   75
+ configs/res_fax.conf.sample       |    4
+ configs/res_ldap.conf.sample      |    9
+ configure.ac                      |   87 +
+ contrib/scripts/get_mp3_source.sh |    2
+ funcs/func_env.c                  |    7
+ funcs/func_strings.c              |    4
+ include/asterisk/autoconfig.h.in  |    6
+ include/asterisk/channel.h        |   13
+ include/asterisk/compat.h         |    8
+ include/asterisk/jabber.h         |    1
+ include/asterisk/jingle.h         |    3
+ include/asterisk/localtime.h      |    3
+ include/asterisk/rtp_engine.h     |    2
+ main/asterisk.exports.in          |    1
+ main/channel.c                    |   29
+ main/features.c                   |    2
+ main/file.c                       |    8
+ main/manager.c                    |    3
+ main/pbx.c                        |   15
+ main/rtp_engine.c                 |    4
+ main/stdtime/localtime.c          |   33
+ main/strcompat.c                  |  103 +
+ makeopts.in                       |   14
+ pbx/ael/ael-test/ref.ael-ntest10  |  305 +--
+ pbx/ael/ael-test/ref.ael-test1    |   28
+ pbx/ael/ael-test/ref.ael-test19   |   28
+ pbx/ael/ael-test/ref.ael-test2    |   47
+ pbx/ael/ael-test/ref.ael-test3    |  190 +-
+ pbx/ael/ael-test/ref.ael-test4    |   47
+ pbx/ael/ael-test/ref.ael-test5    |   20
+ pbx/ael/ael-test/ref.ael-vtest13  | 3020 +++++++++++++++++++-------------------
+ pbx/ael/ael-test/ref.ael-vtest17  |   24
+ pbx/pbx_spool.c                   |    2
+ res/ael/pval.c                    |   62
+ res/res_agi.c                     |   32
+ res/res_config_ldap.c             |    4
+ res/res_jabber.c                  |   42
+ res/res_rtp_asterisk.c            |   20
+ tests/test_time.c                 |   11
+ tests/test_utils.c                |    7
+ 54 files changed, 2914 insertions(+), 2319 deletions(-)
+
+     ----------------------------------------------------------------------
