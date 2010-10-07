@@ -819,7 +819,7 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 		iks_insert_node(gtalk,candidate);
 	} else {
 		iks_insert_node(gtalk,transport);
-		iks_insert_node(transport, candidate);
+		iks_insert_node(gtalk,candidate);
 	}
 	for (; p; p = p->next) {
 		if (!strcasecmp(p->sid, sid))
