@@ -569,8 +569,16 @@ static struct aji_resource *aji_find_resource(struct aji_buddy *buddy, char *nam
 static int gtalk_yuck(iks *node)
 {
 	if (iks_find_with_attrib(node, "c", "node", "http://www.google.com/xmpp/client/caps")) {
+		ast_debug(1, "Found resource with Googletalk voice capabilities\n");
+		return 1;
+	} else if (iks_find_with_attrib(node, "caps:c", "ext", "pmuc-v1 sms-v1 camera-v1 video-v1 voice-v1")) {
+		ast_debug(1, "Found resource with Gmail voice/video chat capabilities\n");
+		return 1;
+	} else if (iks_find_with_attrib(node, "caps:c", "ext", "pmuc-v1 sms-v1 video-v1 voice-v1")) {
+		ast_debug(1, "Found resource with Gmail voice/video chat capabilities (no camera)\n");
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -1577,6 +1585,23 @@ static int aji_act_hook(void *data, int type, iks *node)
 
 	pak = iks_packet(node);
 
+	/* work around iksemel's impossibility to recognize node names
+	 * containing a semicolon. Set the namespace of the corresponding
+	 * node accordingly. */
+	if (iks_has_children(node) && strchr(iks_name(iks_child(node)), ':')) {
+		char *node_ns = NULL;
+		char attr[AJI_MAX_ATTRLEN];
+		char *node_name = iks_name(iks_child(node));
+		char *aux = strchr(node_name, ':') + 1;
+		snprintf(attr, strlen("xmlns:") + (strlen(node_name) - strlen(aux)), "xmlns:%s", node_name);
+		node_ns = iks_find_attrib(iks_child(node), attr);
+		if (node_ns) {
+			pak->ns = node_ns;
+			pak->query = iks_child(node);
+		}
+	}
+
+
 	if (!client->component) { /*client */
 		switch (type) {
 		case IKS_NODE_START:
@@ -2405,7 +2430,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		if (gtalk_yuck(pak->x)) { /* gtalk should do discover */
 			found->cap->jingle = 1;
 		}
-		if (found->cap->jingle && option_debug > 4) {
+		if (found->cap->jingle) {
 			ast_debug(1, "Special case for google till they support discover.\n");
 		} else {
 			iks *iq, *query;
@@ -3038,20 +3063,23 @@ static int aji_get_roster(struct aji_client *client)
 static int aji_client_connect(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	int res = 0;
+	int res = IKS_FILTER_PASS;
 
 	if (client) {
 		if (client->state == AJI_DISCONNECTED) {
 			iks_filter_add_rule(client->f, aji_filter_roster, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, "roster", IKS_RULE_DONE);
 			client->state = AJI_CONNECTING;
 			client->jid = (iks_find_cdata(pak->query, "jid")) ? iks_id_new(client->stack, iks_find_cdata(pak->query, "jid")) : client->jid;
-			iks_filter_remove_hook(client->f, aji_client_connect);
 			if (!client->component) { /*client*/
 				aji_get_roster(client);
-				if (client->distribute_events) {
-					aji_init_event_distribution(client);
-				}
 			}
+			if (client->distribute_events) {
+				aji_init_event_distribution(client);
+			}
+
+			iks_filter_remove_hook(client->f, aji_client_connect);
+			/* Once we remove the hook for this routine, we must return EAT or we will crash or corrupt memory */
+			res = IKS_FILTER_EAT;
 		}
 	} else {
 		ast_log(LOG_ERROR, "Out of memory.\n");

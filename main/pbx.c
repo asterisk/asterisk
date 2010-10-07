@@ -9550,11 +9550,18 @@ int pbx_builtin_setvar(struct ast_channel *chan, const char *data)
 	mydata = ast_strdupa(data);
 	name = strsep(&mydata, "=");
 	value = mydata;
-	if (strchr(name, ' '))
+	if (!value) {
+		ast_log(LOG_WARNING, "Set requires an '=' to be a valid assignment.\n");
+		return 0;
+	}
+
+	if (strchr(name, ' ')) {
 		ast_log(LOG_WARNING, "Please avoid unnecessary spaces on variables as it may lead to unexpected results ('%s' set to '%s').\n", name, mydata);
+	}
 
 	pbx_builtin_setvar_helper(chan, name, value);
-	return(0);
+
+	return 0;
 }
 
 int pbx_builtin_setvar_multiple(struct ast_channel *chan, const char *vdata)
