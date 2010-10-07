@@ -71,6 +71,7 @@ for i in ${ac_mandatory_list}; do
       break
    fi
 done
+$1_DIR=${$3_DIR}
 ])
 PBX_$1=0
 AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
