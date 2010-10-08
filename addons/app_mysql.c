@@ -57,10 +57,10 @@ static const char descrip[] =
 "Syntax:\n"
 "  MYSQL(Set timeout <num>)\n"
 "    Set the connection timeout, in seconds.\n"
-"  MYSQL(Connect connid dhhost dbuser dbpass dbname)\n"
+"  MYSQL(Connect connid dhhost dbuser dbpass dbname [dbcharset])\n"
 "    Connects to a database.  Arguments contain standard MySQL parameters\n"
-"    passed to function mysql_real_connect.  Connection identifer returned\n"
-"    in ${connid}\n"
+"    passed to function mysql_real_connect.  Optional parameter dbcharset\n"
+"    defaults to 'latin1'.  Connection identifer returned in ${connid}\n"
 "  MYSQL(Query resultid ${connid} query-string)\n"
 "    Executes standard MySQL query contained in query-string using established\n"
 "    connection identified by ${connid}. Result of query is stored in ${resultid}.\n"
@@ -80,7 +80,7 @@ static const char descrip[] =
 /*
 EXAMPLES OF USE :
 
-exten => s,2,MYSQL(Connect connid localhost asterisk mypass credit)
+exten => s,2,MYSQL(Connect connid localhost asterisk mypass credit utf8)
 exten => s,3,MYSQL(Query resultid ${connid} SELECT username,credit FROM credit WHERE callerid=${CALLERIDNUM})
 exten => s,4,MYSQL(Fetch fetchid ${resultid} datavar1 datavar2)
 exten => s,5,GotoIf(${fetchid}?6:8)
@@ -315,6 +315,7 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 		AST_APP_ARG(dbuser);
 		AST_APP_ARG(dbpass);
 		AST_APP_ARG(dbname);
+		AST_APP_ARG(dbcharset);
 	);
 	MYSQL *mysql;
 	int timeout;
@@ -322,7 +323,7 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 
 	AST_NONSTANDARD_APP_ARGS(args, data, ' ');
 
-	if (args.argc != 6) {
+	if (args.argc < 6) {
 		ast_log(LOG_WARNING, "MYSQL_connect is missing some arguments\n");
 		return -1;
 	}
@@ -335,6 +336,14 @@ static int aMYSQL_connect(struct ast_channel *chan, char *data)
 	ctimeout = pbx_builtin_getvar_helper(chan, "MYSQL_TIMEOUT");
 	if (ctimeout && sscanf(ctimeout, "%30d", &timeout) == 1) {
 		mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (void *)&timeout);
+	}
+	if(args.dbcharset && strlen(args.dbcharset) > 2){
+		char set_names[255];
+		char statement[512];
+		snprintf(set_names, sizeof(set_names), "SET NAMES %s", args.dbcharset);
+		mysql_real_escape_string(mysql, statement, set_names, sizeof(set_names));
+		mysql_options(mysql, MYSQL_INIT_COMMAND, set_names);
+		mysql_options(mysql, MYSQL_SET_CHARSET_NAME, args.dbcharset);
 	}
 
 	if (! mysql_real_connect(mysql, args.dbhost, args.dbuser, args.dbpass, args.dbname, 0, NULL,

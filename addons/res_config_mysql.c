@@ -91,6 +91,7 @@ struct mysql_conn {
 	char        user[50];
 	char        pass[50];
 	char        sock[50];
+	char        charset[50];
 	int         port;
 	int         connected;
 	time_t      connect_time;
@@ -1527,6 +1528,10 @@ static int load_mysql_config(struct ast_config *config, const char *category, st
 	} else
 		ast_copy_string(conn->sock, s, sizeof(conn->sock));
 
+	if ((s = ast_variable_retrieve(config, category, "dbcharset"))) {
+		ast_copy_string(conn->charset, s, sizeof(conn->charset));
+	}
+
 	if (!(s = ast_variable_retrieve(config, category, "requirements"))) {
 		ast_log(LOG_WARNING, "MySQL realtime: no requirements setting found, using 'warn' as default.\n");
 		conn->requirements = RQ_WARN;
@@ -1549,6 +1554,8 @@ static int load_mysql_config(struct ast_config *config, const char *category, st
 	ast_debug(1, "MySQL RealTime database name: %s\n", conn->name);
 	ast_debug(1, "MySQL RealTime user: %s\n", conn->user);
 	ast_debug(1, "MySQL RealTime password: %s\n", conn->pass);
+	if(conn->charset)
+		ast_debug(1, "MySQL RealTime charset: %s\n", conn->charset);
 
 	return 1;
 }
@@ -1568,6 +1575,15 @@ reconnect_tryagain:
 			conn->connected = 0;
 			return 0;
 		}
+		if(conn->charset && strlen(conn->charset) > 2){
+			char set_names[255];
+			char statement[512];
+			snprintf(set_names, sizeof(set_names), "SET NAMES %s", conn->charset);
+			mysql_real_escape_string(&conn->handle, statement, set_names, sizeof(set_names));
+			mysql_options(&conn->handle, MYSQL_INIT_COMMAND, set_names);
+			mysql_options(&conn->handle, MYSQL_SET_CHARSET_NAME, conn->charset);
+		}
+
 		if (mysql_real_connect(&conn->handle, conn->host, conn->user, conn->pass, conn->name, conn->port, conn->sock, 0)) {
 #ifdef MYSQL_OPT_RECONNECT
 			/* The default is no longer to automatically reconnect on failure,
