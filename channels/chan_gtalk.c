@@ -99,6 +99,8 @@ enum gtalk_client_type {
 	AJI_CLIENT_UNKNOWN,
 	AJI_CLIENT_GTALK,		/*!< Remote client type is GoogleTalk */
 	AJI_CLIENT_GMAIL,		/*!< Remote client type is Gmail */
+	AJI_CLIENT_GOOGLE_VOICE,/*!< Remote client type is Google Voice*/
+
 };
 
 struct gtalk_pvt {
@@ -442,7 +444,9 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 	iks_insert_attrib(gtalk, "id", sid);
 	iks_insert_node(iq, gtalk);
 	iks_insert_node(gtalk, dcodecs);
-	iks_insert_node(gtalk, transport);
+	if (p->ctype != AJI_CLIENT_GOOGLE_VOICE) {
+		iks_insert_node(gtalk, transport);
+	}
 	iks_insert_node(dcodecs, payload_telephone);
 
 	ast_aji_send(client->connection, iq);
@@ -950,6 +954,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	char idroster[200];
 	char *data, *exten = NULL;
 	struct ast_sockaddr bindaddr_tmp;
+	enum gtalk_client_type ctype = AJI_CLIENT_UNKNOWN;
 
 	ast_debug(1, "The client is %s for alloc\n", client->name);
 	if (!sid && !strchr(them, '/')) {	/* I started call! */
@@ -970,6 +975,12 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		}
 		if (resources) {
 			snprintf(idroster, sizeof(idroster), "%s/%s", them, resources->resource);
+			if (strstr(resources->resource, "gmail")) {
+				ctype = AJI_CLIENT_GMAIL;
+			}
+		} else if ((*them == '+') || (strstr(them, "@voice.google.com"))) {
+			snprintf(idroster, sizeof(idroster), "%s/srvres", them);
+			ctype = AJI_CLIENT_GOOGLE_VOICE;
 		} else {
 			ast_log(LOG_ERROR, "no gtalk capable clients to talk to.\n");
 			return NULL;
@@ -979,7 +990,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		return NULL;
 	}
 	/* set client type to unknown until we have more info */
-	tmp->ctype = AJI_CLIENT_UNKNOWN;
+	tmp->ctype = ctype;
 
 	memcpy(&tmp->prefs, &client->prefs, sizeof(struct ast_codec_pref));
 
@@ -1216,8 +1227,9 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 
 	/* Make sure our new call doesn't exist yet */
 	from = iks_find_attrib(pak->x,"to");
-	if(!from)
+	if(!from) {
 		from = client->connection->jid->full;
+	}
 
 	while (tmp) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) || !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid)) {
