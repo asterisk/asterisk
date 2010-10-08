@@ -1528,7 +1528,7 @@ static int load_mysql_config(struct ast_config *config, const char *category, st
 	} else
 		ast_copy_string(conn->sock, s, sizeof(conn->sock));
 
-	if (s = ast_variable_retrieve(config, category, "dbcharset")) {
+	if ((s = ast_variable_retrieve(config, category, "dbcharset"))) {
 		ast_copy_string(conn->charset, s, sizeof(conn->charset));
 	}
 
