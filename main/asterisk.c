@@ -278,6 +278,7 @@ static char *_argv[256];
 static int shuttingdown;
 static int restartnow;
 static pthread_t consolethread = AST_PTHREADT_NULL;
+static pthread_t mon_sig_flags;
 static int canary_pid = 0;
 static char canary_filename[128];
 
@@ -1637,14 +1638,15 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 			ast_module_shutdown();
 	}
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
+		pthread_t thisthread = pthread_self();
 		if (getenv("HOME")) {
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 		}
 		if (!ast_strlen_zero(filename)) {
 			ast_el_write_history(filename);
 		}
-		if (consolethread == AST_PTHREADT_NULL || consolethread == pthread_self()) {
-			/* Only end if we are the consolethread, otherwise there's a race with that thread. */
+		if (consolethread == AST_PTHREADT_NULL || consolethread == thisthread || mon_sig_flags == thisthread) {
+			/* Only end if we are the consolethread or signal handler, otherwise there's a race with that thread. */
 			if (el != NULL) {
 				el_end(el);
 			}
@@ -3835,9 +3837,8 @@ int main(int argc, char *argv[])
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];
-		pthread_t dont_care;
 
-		ast_pthread_create_detached(&dont_care, NULL, monitor_sig_flags, NULL);
+		ast_pthread_create_detached(&mon_sig_flags, NULL, monitor_sig_flags, NULL);
 
 		set_icon("Asterisk");
 		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %ld)", hostname, (long)ast_mainpid);
