@@ -751,9 +751,18 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
       
    }
 
-   /* Retrieve the H.245 control channel address from the connect msg */
+   /* Retrieve tunneling info/H.245 control channel address from the connect msg */
+   if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent && 
+      !q931Msg->userInfo->h323_uu_pdu.h245Tunneling) {
+	if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+		OO_CLRFLAG (call->flags, OO_M_TUNNELING);
+		OOTRACEINFO3("Tunneling is disabled for call due to remote reject tunneling"
+			      " (%s, %s)\n", call->callType, call->callToken);
+	}
+   }
    if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
       q931Msg->userInfo->h323_uu_pdu.h245Tunneling &&
+      OO_TESTFLAG (call->flags, OO_M_TUNNELING) &&
       callProceeding->m.h245AddressPresent) {
       OOTRACEINFO3("Tunneling and h245address provided."
                    "Using Tunneling for H.245 messages (%s, %s)\n", 
@@ -801,6 +810,7 @@ int ooOnReceivedCallProceeding(OOH323CallData *call, Q931Message *q931Msg)
        }
       }
    }
+
    return OO_OK;
 }
 
@@ -970,16 +980,27 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
 
    }
 
-   /* Retrieve the H.245 control channel address from the connect msg */
+   /* Retrieve tunneling info/H.245 control channel address from the connect msg */
+   if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent && 
+      !q931Msg->userInfo->h323_uu_pdu.h245Tunneling) {
+	if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+		OO_CLRFLAG (call->flags, OO_M_TUNNELING);
+		OOTRACEINFO3("Tunneling is disabled for call due to remote reject tunneling"
+			      " (%s, %s)\n", call->callType, call->callToken);
+	}
+   }
    if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
       q931Msg->userInfo->h323_uu_pdu.h245Tunneling &&
-      alerting->m.h245AddressPresent) {
-      OOTRACEINFO3("Tunneling and h245address provided."
-                   "Giving preference to Tunneling (%s, %s)\n", 
-                   call->callType, call->callToken);
-   }
-   else if(alerting->m.h245AddressPresent)
-   {
+	 OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+      if (alerting->m.h245AddressPresent) 
+      	OOTRACEINFO3("Tunneling and h245address provided."
+                     "Giving preference to Tunneling (%s, %s)\n", 
+                   	call->callType, call->callToken);
+	ret =ooSendTCSandMSD(call);
+	if (ret != OO_OK)
+		return ret;
+
+   } else if(alerting->m.h245AddressPresent) {
       if (OO_TESTFLAG (call->flags, OO_M_TUNNELING))
       {
          OO_CLRFLAG (call->flags, OO_M_TUNNELING);
@@ -1019,12 +1040,11 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
          return OO_FAILED;
        }
       }
-   } else if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
-	ret =ooSendTCSandMSD(call);
+   } else if (!call->pH245Channel && !call->h245listener) {
+	ret = ooSendStartH245Facility(call);
 	if (ret != OO_OK)
 		return ret;
    }
-
 
    return OO_OK;
 }
@@ -1195,15 +1215,26 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
    }
 
    /* Retrieve the H.245 control channel address from the connect msg */
+   /* Retrieve tunneling info/H.245 control channel address from the connect msg */
+   if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent && 
+      !q931Msg->userInfo->h323_uu_pdu.h245Tunneling) {
+	if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+		OO_CLRFLAG (call->flags, OO_M_TUNNELING);
+		OOTRACEINFO3("Tunneling is disabled for call due to remote reject tunneling"
+			      " (%s, %s)\n", call->callType, call->callToken);
+	}
+   }
    if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
       q931Msg->userInfo->h323_uu_pdu.h245Tunneling &&
-      progress->m.h245AddressPresent) {
-      OOTRACEINFO3("Tunneling and h245address provided."
-                   "Giving preference to Tunneling (%s, %s)\n", 
-                   call->callType, call->callToken);
-   }
-   else if(progress->m.h245AddressPresent)
-   {
+      OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+      if (progress->m.h245AddressPresent) 
+      	OOTRACEINFO3("Tunneling and h245address provided."
+                     "Giving preference to Tunneling (%s, %s)\n", 
+                     call->callType, call->callToken);
+	ret =ooSendTCSandMSD(call);
+	if (ret != OO_OK)
+		return ret;
+   } else if(progress->m.h245AddressPresent) {
       if (OO_TESTFLAG (call->flags, OO_M_TUNNELING))
       {
          OO_CLRFLAG (call->flags, OO_M_TUNNELING);
@@ -1243,8 +1274,8 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
          return OO_FAILED;
        }
       }
-   } else if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
-	ret =ooSendTCSandMSD(call);
+   } else if (!call->pH245Channel && !call->h245listener) {
+	ret = ooSendStartH245Facility(call);
 	if (ret != OO_OK)
 		return ret;
    }
@@ -1444,9 +1475,18 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
       OO_SETFLAG(call->flags, OO_M_FASTSTARTANSWERED);
    }
 
-   /* Retrieve the H.245 control channel address from the CONNECT msg */
+   /* Retrieve tunneling info/H.245 control channel address from the connect msg */
+   if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent && 
+      !q931Msg->userInfo->h323_uu_pdu.h245Tunneling) {
+	if (OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+		OO_CLRFLAG (call->flags, OO_M_TUNNELING);
+		OOTRACEINFO3("Tunneling is disabled for call due to remote reject tunneling"
+			      " (%s, %s)\n", call->callType, call->callToken);
+	}
+   }
    if(q931Msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent &&
       q931Msg->userInfo->h323_uu_pdu.h245Tunneling &&
+      OO_TESTFLAG (call->flags, OO_M_TUNNELING) &&
       connect->m.h245AddressPresent) {
       OOTRACEINFO3("Tunneling and h245address provided."
                    "Giving preference to Tunneling (%s, %s)\n", 
