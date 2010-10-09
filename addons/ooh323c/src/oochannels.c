@@ -982,7 +982,7 @@ int ooH2250Receive(OOH323CallData *call)
    ASN1OCTET message[MAXMSGLEN], message1[MAXMSGLEN];
    int len;
    Q931Message *pmsg;
-   OOCTXT *pctxt = call->pctxt;
+   OOCTXT *pctxt = call->msgctxt;
    
    struct timeval timeout;
 
@@ -1116,6 +1116,7 @@ int ooH2250Receive(OOH323CallData *call)
 
    initializePrintHandler(&printHandler, "Received H.2250 Message");
    setEventHandler (pctxt, &printHandler);
+   setPERBuffer (pctxt, message, len, TRUE);
    ret = ooQ931Decode (call, pmsg, len, message, 1);
    if(ret != OO_OK) {
       OOTRACEERR3("Error:Failed to decode received H.2250 message. (%s, %s)\n",
