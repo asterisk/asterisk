@@ -107,6 +107,12 @@ MGCP Changes
  * PacketCable NCS 1.0 support has been added for Docsis/Eurodocsis Networks.
    See configs/res_pktccops.conf for more information.
 
+XMPP Google Talk/Jingle changes
+-------------------------------
+  * Added the externip option to gtalk.conf.
+  * Added the stunaddr option to gtalk.conf which allows for the automatic
+    retrieval of the external ip from a stun server.
+
 Applications
 ------------
  * Added 'p' option to PickupChan() to allow for picking up channel by the first
