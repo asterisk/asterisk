@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char name[] = "pgsql";
 static const char config[] = "cdr_pgsql.conf";
-static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL, *encoding = NULL;
+static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL, *encoding = NULL, *tz = NULL;
 static int connected = 0;
 static int maxsize = 512, maxsize2 = 512;
 
@@ -177,7 +177,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
-					ast_localtime(&cdr->start, &tm, NULL);
+					ast_localtime(&cdr->start, &tm, tz);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
 					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", buf);
 				}
@@ -191,7 +191,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
-					ast_localtime(&cdr->start, &tm, NULL);
+					ast_localtime(&cdr->start, &tm, tz);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
 					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", buf);
 				}
@@ -205,7 +205,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
-					ast_localtime(&cdr->end, &tm, NULL);
+					ast_localtime(&cdr->end, &tm, tz);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
 					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", buf);
 				}
@@ -359,6 +359,12 @@ static int unload_module(void)
 	if (table) {
 		ast_free(table);
 	}
+	if (encoding) {
+		ast_free(encoding);
+	}
+	if (tz) {
+		ast_free(tz);
+	}
 
 	AST_RWLIST_WRLOCK(&psql_columns);
 	while ((current = AST_RWLIST_REMOVE_HEAD(&psql_columns, list))) {
@@ -482,6 +488,19 @@ static int config_module(int reload)
 		return -1;
 	}
 
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "timezone"))) {
+		tmp = "";
+	}
+
+	if (tz) {
+		ast_free(tz);
+		tz = NULL;
+	}
+	if (!ast_strlen_zero(tmp) && !(tz = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
+		return -1;
+	}
+
 	if (option_debug) {
 		if (ast_strlen_zero(pghostname)) {
 			ast_debug(1, "using default unix socket\n");
@@ -493,6 +512,8 @@ static int config_module(int reload)
 		ast_debug(1, "got dbname of %s\n", pgdbname);
 		ast_debug(1, "got password of %s\n", pgpassword);
 		ast_debug(1, "got sql table name of %s\n", table);
+		ast_debug(1, "got encoding of %s\n", encoding);
+		ast_debug(1, "got timezone of %s\n", tz);
 	}
 
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
