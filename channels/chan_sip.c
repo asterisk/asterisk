@@ -22226,8 +22226,8 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 	if (p->owner && !nounlock)
 		ast_channel_unlock(p->owner);
 	sip_pvt_unlock(p);
-	ast_mutex_unlock(&netlock);
 	ao2_t_ref(p, -1, "throw away dialog ptr from find_call at end of routine"); /* p is gone after the return */
+	ast_mutex_unlock(&netlock);
 	return 1;
 }
 
