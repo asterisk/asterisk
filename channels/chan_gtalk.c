@@ -25,6 +25,10 @@
  * \brief Gtalk Channel Driver, until google/libjingle works with jingle spec
  *
  * \ingroup channel_drivers
+ *
+ * ********** General TODO:s
+ * \todo Support config reloading.
+ * \todo Fix native bridging.
  */
 
 /*** MODULEINFO
@@ -32,6 +36,7 @@
 	<depend>res_jabber</depend>
 	<use>openssl</use>
  ***/
+
 
 #include "asterisk.h"
 
@@ -193,8 +198,10 @@ static int gtalk_indicate(struct ast_channel *ast, int condition, const void *da
 static int gtalk_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int gtalk_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const char *them, const char *sid);
-static char *gtalk_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p);
+/* static char *gtalk_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a); */
 static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static int gtalk_update_externip(void);
 
 /*! \brief PBX interface structure for channel registration */
 static const struct ast_channel_tech gtalk_tech = {
@@ -228,11 +235,12 @@ static struct io_context *io;	/*!< The IO context */
 static struct in_addr __ourip;
 
 static struct ast_cli_entry gtalk_cli[] = {
-	AST_CLI_DEFINE(gtalk_do_reload, "Reload GoogleTalk configuration"),
+/*	AST_CLI_DEFINE(gtalk_do_reload, "Reload GoogleTalk configuration"), XXX TODO reloads are not possible yet. */
 	AST_CLI_DEFINE(gtalk_show_channels, "Show GoogleTalk channels"),
 };
 
 static char externip[16];
+static struct sockaddr_in stunaddr; /*!< the stun server we get the externip from */
 
 static struct gtalk_container gtalk_list;
 
@@ -631,7 +639,7 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 		}
 	}
 
-	if (tmp == 0) {
+	if (!tmp) {
 		ast_log(LOG_WARNING, "Could not find session in iq\n");
 		return -1;
 	}
@@ -662,14 +670,14 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 	}
 
 	from = iks_find_attrib(pak->x, "to");
-	if(!from)
+	if (!from) {
 		from = client->connection->jid->full;
+	}
 
-	if (tmp) {
-		if (tmp->owner)
-			ast_queue_control(tmp->owner, AST_CONTROL_ANSWER);
-	} else
-		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
+	if (tmp->owner) {
+		ast_queue_control(tmp->owner, AST_CONTROL_ANSWER);
+	}
+	gtalk_update_stun(tmp->parent, tmp);
 	gtalk_response(client, from, pak, NULL, NULL);
 	return 1;
 }
@@ -682,16 +690,21 @@ static int gtalk_is_accepted(struct gtalk *client, ikspak *pak)
 	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
 	/* find corresponding call */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid))
+		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid)) {
 			break;
+		}
 	}
 
 	from = iks_find_attrib(pak->x, "to");
-	if(!from)
+	if (!from) {
 		from = client->connection->jid->full;
+	}
 
-	if (!tmp)
-		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
+	if (tmp) {
+		gtalk_update_stun(tmp->parent, tmp);
+	} else {
+		ast_log(LOG_NOTICE, "Whoa, didn't find call during accept?!\n");
+	}
 
 	/* answer 'iq' packet to let the remote peer know that we're alive */
 	gtalk_response(client, from, pak, NULL, NULL);
@@ -710,9 +723,9 @@ static int gtalk_handle_dtmf(struct gtalk *client, ikspak *pak)
 			break;
 	}
 	from = iks_find_attrib(pak->x, "to");
-	if(!from)
+	if (!from) {
 		from = client->connection->jid->full;
-
+	}
 
 	if (tmp) {
 		if(iks_find_with_attrib(pak->x, "dtmf-method", "method", "rtp")) {
@@ -759,8 +772,9 @@ static int gtalk_handle_dtmf(struct gtalk *client, ikspak *pak)
 		}
 		gtalk_response(client, from, pak, NULL, NULL);
 		return 1;
-	} else
+	} else {
 		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
+	}
 
 	gtalk_response(client, from, pak, NULL, NULL);
 	return 1;
@@ -778,15 +792,18 @@ static int gtalk_hangup_farend(struct gtalk *client, ikspak *pak)
 			break;
 	}
 	from = iks_find_attrib(pak->x, "to");
-	if(!from)
+	if (!from) {
 		from = client->connection->jid->full;
+	}
 
 	if (tmp) {
 		tmp->alreadygone = 1;
-		if (tmp->owner)
+		if (tmp->owner) {
 			ast_queue_hangup(tmp->owner);
-	} else
-		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
+		}
+	} else {
+		ast_log(LOG_NOTICE, "Whoa, didn't find call during hangup!\n");
+	}
 	gtalk_response(client, from, pak, NULL, NULL);
 	return 1;
 }
@@ -799,12 +816,10 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	struct sockaddr_in sin = { 0, };
 	struct ast_sockaddr sin_tmp;
 	struct ast_sockaddr bindaddr_tmp;
-	struct sockaddr_in dest;
 	struct ast_sockaddr us;
 	iks *iq, *gtalk, *candidate, *transport;
 	char user[17], pass[17], preference[5], port[7];
 	char *lowerfrom = NULL;
-
 
 	iq = iks_new("iq");
 	gtalk = iks_new("session");
@@ -821,12 +836,14 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 
 	iks_insert_attrib(transport, "xmlns",GOOGLE_TRANSPORT_NS);
 	iks_insert_node(iq, gtalk);
+
 	if (p->ctype == AJI_CLIENT_GMAIL) {
 		iks_insert_node(gtalk,candidate);
 	} else {
 		iks_insert_node(gtalk,transport);
 		iks_insert_node(gtalk,candidate);
 	}
+
 	for (; p; p = p->next) {
 		if (!strcasecmp(p->sid, sid))
 			break;
@@ -860,10 +877,11 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	ours1->generation = 0;
 	p->ourcandidates = ours1;
 
+	/* XXX this is a blocking action.  We send a STUN request to the server
+	 * and wait for the response.  If blocking here is a problem the STUN requests/responses
+	 * for the externip may need to be done differently. */
+	gtalk_update_externip();
 	if (!ast_strlen_zero(externip)) {
-		/* XXX We should really stun for this one not just go with externip XXX */
-		snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
-		snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
 		ast_copy_string(ours2->username, user, sizeof(ours2->username));
 		ast_copy_string(ours2->password, pass, sizeof(ours2->password));
 		ast_copy_string(ours2->ip, externip, sizeof(ours2->ip));
@@ -877,9 +895,6 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 		ours2 = NULL;
 	}
 	ours1 = NULL;
-	dest.sin_addr = __ourip;
-	dest.sin_port = sin.sin_port;
-
 
 	for (tmp = p->ourcandidates; tmp; tmp = tmp->next) {
 		snprintf(port, sizeof(port), "%d", tmp->port);
@@ -1227,7 +1242,7 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 
 	/* Make sure our new call doesn't exist yet */
 	from = iks_find_attrib(pak->x,"to");
-	if(!from) {
+	if (!from) {
 		from = client->connection->jid->full;
 	}
 
@@ -1333,6 +1348,45 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 	return 1;
 }
 
+static int gtalk_update_externip(void)
+{
+	int sock;
+	char *newaddr;
+	struct sockaddr_in answer = { 0, };
+	struct sockaddr_in *dst;
+	struct ast_sockaddr tmp_dst;
+
+	if (!stunaddr.sin_addr.s_addr) {
+		return -1;
+	}
+	dst = &stunaddr;
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock < 0) {
+		ast_log(LOG_WARNING, "Unable to create STUN socket: %s\n", strerror(errno));
+		return -1;
+	}
+
+	ast_sockaddr_from_sin(&tmp_dst, dst);
+	if (ast_connect(sock, &tmp_dst) != 0) {
+		ast_log(LOG_WARNING, "STUN Failed to connect to %s\n", ast_sockaddr_stringify(&tmp_dst));
+		close(sock);
+		return -1;
+	}
+
+	if ((ast_stun_request(sock, &stunaddr, NULL, &answer))) {
+		close(sock);
+		return -1;
+	}
+
+	newaddr = ast_strdupa(ast_inet_ntoa(answer.sin_addr));
+	memcpy(externip, newaddr, sizeof(externip));
+
+	close(sock);
+	return 0;
+
+}
+
 static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 {
 	struct gtalk_candidate *tmp;
@@ -1363,8 +1417,8 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 		ast_sockaddr_to_sin(&aux_tmp, &aux);
 
 		/* If the STUN result is different from the IP of the hostname,
-			lock on the stun IP of the hostname advertised by the
-			remote client */
+		 * lock on the stun IP of the hostname advertised by the
+		 * remote client */
 		if (aux.sin_addr.s_addr && (aux.sin_addr.s_addr != sin.sin_addr.s_addr)) {
 			ast_rtp_instance_stun_request(p->rtp, &aux_tmp, username);
 		} else {
@@ -1390,8 +1444,9 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 	char *from;
 
 	from = iks_find_attrib(pak->x,"to");
-	if(!from)
+	if (!from) {
 		from = c->jid->full;
+	}
 
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) || !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid)) {
@@ -1472,8 +1527,9 @@ static struct ast_frame *gtalk_rtp_read(struct ast_channel *ast, struct gtalk_pv
 {
 	struct ast_frame *f;
 
-	if (!p->rtp)
+	if (!p->rtp) {
 		return &ast_null_frame;
+	}
 	f = ast_rtp_instance_read(p->rtp, 0);
 	gtalk_update_stun(p->parent, p);
 	if (p->owner) {
@@ -1486,11 +1542,11 @@ static struct ast_frame *gtalk_rtp_read(struct ast_channel *ast, struct gtalk_pv
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
-/*			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
+			/* if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
 				f = ast_dsp_process(p->owner, p->vad, f);
 				if (option_debug && f && (f->frametype == AST_FRAME_DTMF))
 					ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass);
-		        } */
+	        } */
 		}
 	}
 	return f;
@@ -1668,8 +1724,8 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	ast_aji_increment_mid(client->connection->mid);
 	iks_insert_attrib(gtalk, "xmlns", "http://jabber.org/protocol/gtalk");
 	iks_insert_attrib(gtalk, "action", "session-info");
-	/* put the initiator attribute to lower case if we receive the call
-	 * otherwise GoogleTalk won't establish the session */
+	// put the initiator attribute to lower case if we receive the call
+	// otherwise GoogleTalk won't establish the session
 	if (!p->initiator) {
 	        char c;
 	        char *t = lowerthem = ast_strdupa(p->them);
@@ -1758,8 +1814,9 @@ static int gtalk_hangup(struct ast_channel *ast)
 	client = p->parent;
 	p->owner = NULL;
 	ast->tech_pvt = NULL;
-	if (!p->alreadygone)
+	if (!p->alreadygone) {
 		gtalk_action(client, p, "terminate");
+	}
 	ast_mutex_unlock(&p->lock);
 
 	gtalk_free_pvt(client, p);
@@ -1878,7 +1935,9 @@ static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT
 }
 
-/*! \brief CLI command "gtalk reload" */
+/*! \brief CLI command "gtalk reload"
+ *  \todo XXX TODO make this work. */
+#if 0
 static char *gtalk_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -1895,6 +1954,7 @@ static char *gtalk_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	ast_verbose("IT DOES WORK!\n");
 	return CLI_SUCCESS;
 }
+#endif
 
 static int gtalk_parser(void *data, ikspak *pak)
 {
@@ -1929,53 +1989,6 @@ static int gtalk_parser(void *data, ikspak *pak)
 	return IKS_FILTER_EAT;
 }
 
-/* Not using this anymore probably take out soon 
-static struct gtalk_candidate *gtalk_create_candidate(char *args)
-{
-	char *name, *type, *preference, *protocol;
-	struct gtalk_candidate *res;
-	res = ast_calloc(1, sizeof(*res));
-	if (args)
-		name = args;
-	if ((args = strchr(args, ','))) {
-		*args = '\0';
-		args++;
-		preference = args;
-	}
-	if ((args = strchr(args, ','))) {
-		*args = '\0';
-		args++;
-		protocol = args;
-	}
-	if ((args = strchr(args, ','))) {
-		*args = '\0';
-		args++;
-		type = args;
-	}
-	if (name)
-		ast_copy_string(res->name, name, sizeof(res->name));
-	if (preference) {
-		res->preference = atof(preference);
-	}
-	if (protocol) {
-		if (!strcasecmp("udp", protocol))
-			res->protocol = AJI_PROTOCOL_UDP;
-		if (!strcasecmp("ssltcp", protocol))
-			res->protocol = AJI_PROTOCOL_SSLTCP;
-	}
-	if (type) {
-		if (!strcasecmp("stun", type))
-			res->type = AJI_CONNECT_STUN;
-		if (!strcasecmp("local", type))
-			res->type = AJI_CONNECT_LOCAL;
-		if (!strcasecmp("relay", type))
-			res->type = AJI_CONNECT_RELAY;
-	}
-
-	return res;
-}
-*/
-
 static int gtalk_create_member(char *label, struct ast_variable *var, int allowguest,
 								struct ast_codec_pref prefs, char *context,
 								struct gtalk *member)
@@ -1991,9 +2004,6 @@ static int gtalk_create_member(char *label, struct ast_variable *var, int allowg
 	member->allowguest = allowguest;
 	member->prefs = prefs;
 	while (var) {
-#if 0
-		struct gtalk_candidate *candidate = NULL;
-#endif
 		if (!strcasecmp(var->name, "username"))
 			ast_copy_string(member->user, var->value, sizeof(member->user));
 		else if (!strcasecmp(var->name, "disallow"))
@@ -2004,15 +2014,6 @@ static int gtalk_create_member(char *label, struct ast_variable *var, int allowg
 			ast_copy_string(member->context, var->value, sizeof(member->context));
 		else if (!strcasecmp(var->name, "parkinglot"))
 			ast_copy_string(member->parkinglot, var->value, sizeof(member->parkinglot));
-#if 0
-		else if (!strcasecmp(var->name, "candidate")) {
-			candidate = gtalk_create_candidate(var->value);
-			if (candidate) {
-				candidate->next = member->ourcandidates;
-				member->ourcandidates = candidate;
-			}
-		}
-#endif
 		else if (!strcasecmp(var->name, "connection")) {
 			if ((client = ast_aji_get_client(var->value))) {
 				member->connection = client;
@@ -2021,7 +2022,6 @@ static int gtalk_create_member(char *label, struct ast_variable *var, int allowg
 						    IKS_RULE_FROM_PARTIAL, member->user,
 						    IKS_RULE_NS, GOOGLE_NS,
 						    IKS_RULE_DONE);
-
 			} else {
 				ast_log(LOG_ERROR, "connection referenced not found!\n");
 				return 0;
@@ -2064,40 +2064,39 @@ static int gtalk_load_config(void)
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
+	/* set defaults */
+	memset(&stunaddr, 0, sizeof(stunaddr));
+
 	cat = ast_category_browse(cfg, NULL);
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 		/* handle jb conf */
 		if (!ast_jb_read_conf(&global_jbconf, var->name, var->value))
 			continue;
 
-		if (!strcasecmp(var->name, "allowguest"))
-			allowguest =
-				(ast_true(ast_variable_retrieve(cfg, "general", "allowguest"))) ? 1 : 0;
-		else if (!strcasecmp(var->name, "disallow"))
+		if (!strcasecmp(var->name, "allowguest")) {
+			allowguest = (ast_true(ast_variable_retrieve(cfg, "general", "allowguest"))) ? 1 : 0;
+		} else if (!strcasecmp(var->name, "disallow")) {
 			ast_parse_allow_disallow(&prefs, &global_capability, var->value, 0);
-		else if (!strcasecmp(var->name, "allow"))
+		} else if (!strcasecmp(var->name, "allow")) {
 			ast_parse_allow_disallow(&prefs, &global_capability, var->value, 1);
-		else if (!strcasecmp(var->name, "context"))
+		} else if (!strcasecmp(var->name, "context")) {
 			ast_copy_string(context, var->value, sizeof(context));
-		else if (!strcasecmp(var->name, "parkinglot"))
+		} else if (!strcasecmp(var->name, "externip")) {
+			ast_copy_string(externip, var->value, sizeof(externip));
+		} else if (!strcasecmp(var->name, "parkinglot")) {
 			ast_copy_string(parkinglot, var->value, sizeof(parkinglot));
-		else if (!strcasecmp(var->name, "bindaddr")) {
+		} else if (!strcasecmp(var->name, "bindaddr")) {
 			if (!(hp = ast_gethostbyname(var->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", var->value);
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
-		}
-/*  Idea to allow for custom candidates  */
-/*
-		else if (!strcasecmp(var->name, "candidate")) {
-			candidate = gtalk_create_candidate(var->value);
-			if (candidate) {
-				candidate->next = global_candidates;
-				global_candidates = candidate;
+		} else if (!strcasecmp(var->name, "stunaddr")) {
+			stunaddr.sin_port = htons(STANDARD_STUN_PORT);
+			if (ast_parse_arg(var->value, PARSE_INADDR, &stunaddr)) {
+				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", var->value);
 			}
 		}
-*/
 	}
 	while (cat) {
 		if (strcasecmp(cat, "general")) {
@@ -2113,28 +2112,19 @@ static int gtalk_load_config(void)
 				member->allowguest = allowguest;
 				member->prefs = prefs;
 				while (var) {
-					if (!strcasecmp(var->name, "disallow"))
+					if (!strcasecmp(var->name, "disallow")) {
 						ast_parse_allow_disallow(&member->prefs, &member->capability,
 												 var->value, 0);
-					else if (!strcasecmp(var->name, "allow"))
+					} else if (!strcasecmp(var->name, "allow")) {
 						ast_parse_allow_disallow(&member->prefs, &member->capability,
 												 var->value, 1);
-					else if (!strcasecmp(var->name, "context"))
+					} else if (!strcasecmp(var->name, "context")) {
 						ast_copy_string(member->context, var->value,
 										sizeof(member->context));
-					else if (!strcasecmp(var->name, "parkinglot"))
+					} else if (!strcasecmp(var->name, "parkinglot")) {
 						ast_copy_string(member->parkinglot, var->value,
 										sizeof(member->parkinglot));
-/*  Idea to allow for custom candidates  */
-/*
-					else if (!strcasecmp(var->name, "candidate")) {
-						candidate = gtalk_create_candidate(var->value);
-						if (candidate) {
-							candidate->next = member->ourcandidates;
-							member->ourcandidates = candidate;
-						}
 					}
-*/
 					var = var->next;
 				}
 				ASTOBJ_UNLOCK(member);
@@ -2164,6 +2154,8 @@ static int gtalk_load_config(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
+
+	gtalk_update_externip();
 	gtalk_free_candidates(global_candidates);
 	return 1;
 }
@@ -2193,12 +2185,14 @@ static int load_module(void)
 	}
 
 	sched = sched_context_create();
-	if (!sched) 
+	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+	}
 
 	io = io_context_create();
-	if (!io) 
+	if (!io) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	}
 
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp)) {
@@ -2218,12 +2212,14 @@ static int load_module(void)
 	return 0;
 }
 
-/*! \brief Reload module */
+/*! \brief Reload module
+ *  \todo XXX TODO make this work. */
+#if 0
 static int reload(void)
 {
 	return 0;
 }
-
+#endif
 /*! \brief Unload the gtalk channel from Asterisk */
 static int unload_module(void)
 {
@@ -2259,6 +2255,6 @@ static int unload_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Gtalk Channel Driver",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
+		/* .reload = reload, */
 		.load_pri = AST_MODPRI_CHANNEL_DRIVER,
 	       );

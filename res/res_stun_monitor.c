@@ -36,7 +36,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include <fcntl.h>
 
-static const int STANDARD_STUN_PORT = 3478;
 static const int DEFAULT_MONITOR_REFRESH = 30;
 
 static const char stun_conf_file[] = "res_stun_monitor.conf";
