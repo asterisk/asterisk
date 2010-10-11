@@ -32,6 +32,8 @@
 extern "C" {
 #endif
 
+static const int STANDARD_STUN_PORT = 3478;
+
 enum ast_stun_result {
 	AST_STUN_IGNORE = 0,
 	AST_STUN_ACCEPT,
