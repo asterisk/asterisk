@@ -23412,9 +23412,13 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 	return res;
 }
 
-/*! \brief Handle incoming SIP requests (methods)
-\note	This is where all incoming requests go first   */
-/* called with p and p->owner locked */
+/*!
+ * \brief Handle incoming SIP requests (methods)
+ * \note
+ * This is where all incoming requests go first.
+ * \note
+ * called with p and p->owner locked
+ */
 static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *recount, int *nounlock)
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
@@ -23913,8 +23917,8 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 	if (p->owner && !nounlock)
 		ast_channel_unlock(p->owner);
 	sip_pvt_unlock(p);
-	ast_mutex_unlock(&netlock);
 	ao2_t_ref(p, -1, "throw away dialog ptr from find_call at end of routine"); /* p is gone after the return */
+	ast_mutex_unlock(&netlock);
 	return 1;
 }
 
@@ -27082,6 +27086,7 @@ static int reload_config(enum channelreloadreason reason)
 		if (sipsock < 0) {
 			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
 			ast_config_destroy(cfg);
+			ast_mutex_unlock(&netlock);
 			return -1;
 		} else {
 			/* Allow SIP clients on the same host to access us: */
