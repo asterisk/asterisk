@@ -7342,7 +7342,6 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
  */
 static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method)
 {
-	struct sip_pvt *p = NULL;
 	char totag[128];
 	char fromtag[128];
 	const char *callid = get_header(req, "Call-ID");
@@ -7456,6 +7455,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 
 	/* See if the method is capable of creating a dialog */
 	if (sip_methods[intended_method].can_create == CAN_CREATE_DIALOG) {
+		struct sip_pvt *p = NULL;
+
 		if (intended_method == SIP_REFER) {
 			/* We do support REFER, but not outside of a dialog yet */
 			transmit_response_using_temp(callid, addr, 1, intended_method, req, "603 Declined (no dialog)");
