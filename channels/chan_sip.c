@@ -23799,6 +23799,7 @@ static void process_request_queue(struct sip_pvt *p, int *recount, int *nounlock
 	struct sip_request *req;
 
 	while ((req = AST_LIST_REMOVE_HEAD(&p->request_queue, next))) {
+		/*! \todo XXX if nounlock is nonzero we do not have the channel lock anymore.  handle_incoming() assumes that it is locked. */
 		if (handle_incoming(p, req, &p->recv, recount, nounlock) == -1) {
 			/* Request failed */
 			ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
@@ -24024,6 +24025,7 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 		process_request_queue(p, &recount, &nounlock);
 	}
 
+	/*! \todo XXX if nounlock is nonzero we do not have the channel lock anymore.  handle_incoming() assumes that it is locked. */
 	if (handle_incoming(p, req, addr, &recount, &nounlock) == -1) {
 		/* Request failed */
 		ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
