@@ -386,6 +386,7 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 {
 	int oldval;
 	int newlevel;
+	unsigned int is_debug;
 	int atleast = 0;
 	int fd = a->fd;
 	int argc = a->argc;
@@ -454,22 +455,23 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		dst = &option_debug;
 		oldval = option_debug;
 		what = "Core debug";
+		is_debug = 1;
 	} else {
 		dst = &option_verbose;
 		oldval = option_verbose;
 		what = "Verbosity";
+		is_debug = 0;
 	}
 	if (argc == e->args + 1 && !strcasecmp(argv[e->args], "off")) {
-		unsigned int debug = (*what == 'C');
 		newlevel = 0;
 
-		mll = debug ? &debug_modules : &verbose_modules;
+		mll = is_debug ? &debug_modules : &verbose_modules;
 
 		AST_RWLIST_WRLOCK(mll);
 		while ((ml = AST_RWLIST_REMOVE_HEAD(mll, entry))) {
 			ast_free(ml);
 		}
-		ast_clear_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
+		ast_clear_flag(&ast_options, is_debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
 		AST_RWLIST_UNLOCK(mll);
 
 		goto done;
@@ -481,21 +483,27 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (sscanf(argv[e->args + atleast], "%30d", &newlevel) != 1)
 		return CLI_SHOWUSAGE;
 	if (argc == e->args + atleast + 2) {
-		unsigned int debug = (*what == 'C');
+		/* We have specified a module name. */
 		char *mod = ast_strdupa(argv[e->args + atleast + 1]);
-
-		mll = debug ? &debug_modules : &verbose_modules;
 
 		if ((strlen(mod) > 3) && !strcasecmp(mod + strlen(mod) - 3, ".so")) {
 			mod[strlen(mod) - 3] = '\0';
 		}
 
+		mll = is_debug ? &debug_modules : &verbose_modules;
+
 		AST_RWLIST_WRLOCK(mll);
 
-		if ((ml = find_module_level(mod, debug)) && !newlevel) {
+		ml = find_module_level(mod, is_debug);
+		if (!newlevel) {
+			if (!ml) {
+				/* Specified off for a nonexistent entry. */
+				AST_RWLIST_UNLOCK(mll);
+				return CLI_SUCCESS;
+			}
 			AST_RWLIST_REMOVE(mll, ml, entry);
 			if (AST_RWLIST_EMPTY(mll))
-				ast_clear_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
+				ast_clear_flag(&ast_options, is_debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
 			AST_RWLIST_UNLOCK(mll);
 			ast_cli(fd, "%s was %d and has been set to 0 for '%s'\n", what, ml->level, mod);
 			ast_free(ml);
@@ -508,23 +516,37 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 				AST_RWLIST_UNLOCK(mll);
 				return CLI_SUCCESS;
 			}
-		} else if (!(ml = ast_calloc(1, sizeof(*ml) + strlen(mod) + 1))) {
-			AST_RWLIST_UNLOCK(mll);
-			return CLI_FAILURE;
+			oldval = ml->level;
+			ml->level = newlevel;
+		} else {
+			ml = ast_calloc(1, sizeof(*ml) + strlen(mod) + 1);
+			if (!ml) {
+				AST_RWLIST_UNLOCK(mll);
+				return CLI_FAILURE;
+			}
+			oldval = ml->level;
+			ml->level = newlevel;
+			strcpy(ml->module, mod);
+			AST_RWLIST_INSERT_TAIL(mll, ml, entry);
 		}
 
-		oldval = ml->level;
-		ml->level = newlevel;
-		strcpy(ml->module, mod);
+		ast_set_flag(&ast_options, is_debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
 
-		ast_set_flag(&ast_options, debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
-
-		AST_RWLIST_INSERT_TAIL(mll, ml, entry);
 		AST_RWLIST_UNLOCK(mll);
 
 		ast_cli(fd, "%s was %d and has been set to %d for '%s'\n", what, oldval, ml->level, ml->module);
 
 		return CLI_SUCCESS;
+	} else if (!newlevel) {
+		/* Specified level as 0 instead of off. */
+		mll = is_debug ? &debug_modules : &verbose_modules;
+
+		AST_RWLIST_WRLOCK(mll);
+		while ((ml = AST_RWLIST_REMOVE_HEAD(mll, entry))) {
+			ast_free(ml);
+		}
+		ast_clear_flag(&ast_options, is_debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
+		AST_RWLIST_UNLOCK(mll);
 	}
 
 done:
