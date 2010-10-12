@@ -77,8 +77,8 @@ static void score_address(const struct sockaddr_in *sin, struct in_addr *best_ad
 		/* 172.20.0.0 - 172.29.255.255, but not 172.200.0.0 - 172.255.255.255 nor 172.2.0.0 - 172.2.255.255 */
 		} else if (address[4] == '2' && address[6] == '.') {
 			score = -5;
-		/* 172.30.0.0 - 172.31.255.255 */
-		} else if (address[4] == '3' && address[5] <= '1') {
+		/* 172.30.0.0 - 172.31.255.255, but not 172.3.0.0 - 172.3.255.255 */
+		} else if (address[4] == '3' && (address[5] == '0' || address[5] == '1')) {
 			score = -5;
 		/* All other 172 addresses are public */
 		} else {
