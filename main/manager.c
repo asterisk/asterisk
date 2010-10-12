@@ -1972,11 +1972,11 @@ static int set_eventmask(struct mansession *s, const char *eventmask)
 {
 	int maskint = strings_to_mask(eventmask);
 
-	mansession_lock(s);
+	ao2_lock(s->session);
 	if (maskint >= 0) {
 		s->session->send_events = maskint;
 	}
-	mansession_unlock(s);
+	ao2_unlock(s->session);
 
 	return maskint;
 }
@@ -2765,7 +2765,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		/* XXX maybe put an upper bound, or prevent the use of 0 ? */
 	}
 
-	mansession_lock(s);
+	ao2_lock(s->session);
 	if (s->session->waiting_thread != AST_PTHREADT_NULL) {
 		pthread_kill(s->session->waiting_thread, SIGURG);
 	}
@@ -2789,14 +2789,14 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 			s->session->send_events = -1;
 		}
 	}
-	mansession_unlock(s);
+	ao2_unlock(s->session);
 
 	/* XXX should this go inside the lock ? */
 	s->session->waiting_thread = pthread_self();	/* let new events wake up this thread */
 	ast_debug(1, "Starting waiting for an event!\n");
 
 	for (x = 0; x < timeout || timeout < 0; x++) {
-		mansession_lock(s);
+		ao2_lock(s->session);
 		if (AST_RWLIST_NEXT(s->session->last_ev, eq_next)) {
 			needexit = 1;
 		}
@@ -2810,7 +2810,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		if (s->session->needdestroy) {
 			needexit = 1;
 		}
-		mansession_unlock(s);
+		ao2_unlock(s->session);
 		if (needexit) {
 			break;
 		}
@@ -2824,7 +2824,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	}
 	ast_debug(1, "Finished waiting for an event!\n");
 
-	mansession_lock(s);
+	ao2_lock(s->session);
 	if (s->session->waiting_thread == pthread_self()) {
 		struct eventqent *eqe = s->session->last_ev;
 		astman_send_response(s, m, "Success", "Waiting for Event completed.");
@@ -2845,7 +2845,8 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	} else {
 		ast_debug(1, "Abandoning event request!\n");
 	}
-	mansession_unlock(s);
+	ao2_unlock(s->session);
+
 	return 0;
 }
 
@@ -4538,21 +4539,20 @@ static int get_input(struct mansession *s, char *output)
 	}
 	res = 0;
 	while (res == 0) {
-		/* XXX do we really need this locking ? */
-		mansession_lock(s);
+		ao2_lock(s->session);
 		if (s->session->pending_event) {
 			s->session->pending_event = 0;
-			mansession_unlock(s);
+			ao2_unlock(s->session);
 			return 0;
 		}
 		s->session->waiting_thread = pthread_self();
-		mansession_unlock(s);
+		ao2_unlock(s->session);
 
 		res = ast_wait_for_input(s->session->fd, -1);	/* return 0 on timeout ? */
 
-		mansession_lock(s);
+		ao2_lock(s->session);
 		s->session->waiting_thread = AST_PTHREADT_NULL;
-		mansession_unlock(s);
+		ao2_unlock(s->session);
 	}
 	if (res < 0) {
 		/* If we get a signal from some other thread (typically because
@@ -4565,7 +4565,7 @@ static int get_input(struct mansession *s, char *output)
 		return -1;
 	}
 
-	mansession_lock(s);
+	ao2_lock(s->session);
 	res = fread(src + s->session->inlen, 1, maxlen - s->session->inlen, s->session->f);
 	if (res < 1) {
 		res = -1;	/* error return */
@@ -4574,7 +4574,7 @@ static int get_input(struct mansession *s, char *output)
 		src[s->session->inlen] = '\0';
 		res = 0;
 	}
-	mansession_unlock(s);
+	ao2_unlock(s->session);
 	return res;
 }
 
