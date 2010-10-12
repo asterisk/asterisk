@@ -36,10 +36,24 @@ default_profile=polycom ; The default profile to use if none specified in users.
 ;   CALLERID (cid_number)
 ;   VOCIEMAIL_EXTEN (vmexten)
 ;   EXTENSION_LENGTH (localextenlength)
+;   LINE
+;   LINEKEYS
 
 ; Built-in variables and the options in phoneprov.conf that they come from
 ;   SERVER (server)
 ;   SERVER_PORT (serverport)
+
+
+; Built-in variables for managing timezones and daylight savings time.
+;   TZOFFSET
+;   DST_ENABLE
+;   DST_START_MONTH
+;   DST_START_MDAY
+;   DST_START_HOUR
+;   DST_END_MONTH
+;   DST_END_MDAY
+;   DST_END_HOUR
+;   TIMEZONE
 
 [polycom]
 staticdir => configs/ ; Sub directory of AST_DATA_DIR/phoneprov that static files reside
