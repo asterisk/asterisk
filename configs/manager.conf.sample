@@ -111,8 +111,8 @@ bindaddr = 0.0.0.0
 ;             management commands, such as Shutdown, Restart, and Reload.
 ; call      - Information about channels and ability to set information in a
 ;             running channel.
-; log       - Logging information.  Read-only.
-; verbose   - Verbose information.  Read-only.
+; log       - Logging information.  Read-only. (Defined but not yet used.)
+; verbose   - Verbose information.  Read-only. (Defined but not yet used.)
 ; agent     - Information about queues and agents and ability to add queue
 ;             members to a queue.
 ; user      - Permission to send and receive UserEvent.
