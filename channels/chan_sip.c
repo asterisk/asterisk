@@ -3637,9 +3637,21 @@ static int __sip_autodestruct(const void *data)
 	/* Reset schedule ID */
 	p->autokillid = -1;
 
+
+	/*
+	 * Lock both the pvt and the channel safely so that we can queue up a frame.
+	 */
+	sip_pvt_lock(p);
+	while (p->owner && ast_channel_trylock(p->owner)) {
+		sip_pvt_unlock(p);
+		sched_yield();
+		sip_pvt_lock(p);
+	}
+
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup_with_cause(p->owner, AST_CAUSE_PROTOCOL_ERROR);
+		ast_channel_unlock(p->owner);
 	} else if (p->refer && !p->alreadygone) {
 		ast_debug(3, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
@@ -3653,7 +3665,11 @@ static int __sip_autodestruct(const void *data)
 		/* sip_destroy(p); */		/* Go ahead and destroy dialog. All attempts to recover is done */
 		/* sip_destroy also absorbs the reference */
 	}
+
+	sip_pvt_unlock(p);
+
 	dialog_unref(p, "The ref to a dialog passed to this sched callback is going out of scope; unref it.");
+
 	return 0;
 }
 
