@@ -301,7 +301,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	if (!ast_exists_extension(chan, fullmacro, "s", 1,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		if (!ast_context_find(fullmacro)) 
-			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
+			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'. Was called by %s@%s\n", fullmacro, macro, chan->exten, chan->context);
 		else
 			ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
 		return 0;
