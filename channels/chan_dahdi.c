@@ -2058,6 +2058,13 @@ static void my_unlock_private(void *pvt)
 	ast_mutex_unlock(&p->lock);
 }
 
+static void my_deadlock_avoidance_private(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
+
+	DEADLOCK_AVOIDANCE(&p->lock);
+}
+
 /* linear_mode = 0 - turn linear mode off, >0 - turn linear mode on
 * 	returns the last value of the linear setting 
 */ 
@@ -3479,6 +3486,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.all_subchannels_hungup = my_all_subchannels_hungup,
 	.lock_private = my_lock_private,
 	.unlock_private = my_unlock_private,
+	.deadlock_avoidance_private = my_deadlock_avoidance_private,
 	.handle_dtmfup = my_handle_dtmfup,
 	.wink = my_wink,
 	.new_ast_channel = my_new_analog_ast_channel,
@@ -3537,19 +3545,43 @@ static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nul
 	return res;
 }
 
-static void wakeup_sub(struct dahdi_pvt *p, int a)
+/*!
+ * \internal
+ * \brief Obtain the specified subchannel owner lock if the owner exists.
+ *
+ * \param pvt Channel private struct.
+ * \param sub_idx Subchannel owner to lock.
+ *
+ * \note Assumes the pvt->lock is already obtained.
+ *
+ * \note
+ * Because deadlock avoidance may have been necessary, you need to confirm
+ * the state of things before continuing.
+ *
+ * \return Nothing
+ */
+static void dahdi_lock_sub_owner(struct dahdi_pvt *pvt, int sub_idx)
 {
 	for (;;) {
-		if (p->subs[a].owner) {
-			if (ast_channel_trylock(p->subs[a].owner)) {
-				DEADLOCK_AVOIDANCE(&p->lock);
-			} else {
-				ast_queue_frame(p->subs[a].owner, &ast_null_frame);
-				ast_channel_unlock(p->subs[a].owner);
-				break;
-			}
-		} else
+		if (!pvt->subs[sub_idx].owner) {
+			/* No subchannel owner pointer */
 			break;
+		}
+		if (!ast_channel_trylock(pvt->subs[sub_idx].owner)) {
+			/* Got subchannel owner lock */
+			break;
+		}
+		/* We must unlock the private to avoid the possibility of a deadlock */
+		DEADLOCK_AVOIDANCE(&pvt->lock);
+	}
+}
+
+static void wakeup_sub(struct dahdi_pvt *p, int a)
+{
+	dahdi_lock_sub_owner(p, a);
+	if (p->subs[a].owner) {
+		ast_queue_frame(p->subs[a].owner, &ast_null_frame);
+		ast_channel_unlock(p->subs[a].owner);
 	}
 }
 
@@ -11266,9 +11298,13 @@ static void *do_monitor(void *data)
 					if (last) {
 						struct analog_pvt *analog_p = last->sig_pvt;
 						/* Only allow MWI to be initiated on a quiescent fxs port */
-						if (!last->mwisendactive &&	last->sig & __DAHDI_SIG_FXO &&
-								!analog_p->fxsoffhookstate && !last->owner &&
-								!ast_strlen_zero(last->mailbox) && (thispass - analog_p->onhooktime > 3)) {
+						if (analog_p
+							&& !last->mwisendactive
+							&& (last->sig & __DAHDI_SIG_FXO)
+							&& !analog_p->fxsoffhookstate
+							&& !last->owner
+							&& !ast_strlen_zero(last->mailbox)
+							&& (thispass - analog_p->onhooktime > 3)) {
 							res = has_voicemail(last);
 							if (analog_p->msgstate != res) {
 								/* Set driver resources for signalling VMWI */
