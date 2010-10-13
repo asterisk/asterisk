@@ -2214,16 +2214,31 @@ static int __sip_autodestruct(const void *data)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Auto destroying SIP dialog '%s'\n", p->callid);
 	append_history(p, "AutoDestroy", "%s", p->callid);
+
+	/*
+	 * Lock both the pvt and the channel safely so that we can queue up a frame.
+	 */
+	ast_mutex_lock(&p->lock);
+	while (p->owner && ast_channel_trylock(p->owner)) {
+		DEADLOCK_AVOIDANCE(&p->lock);
+	}
+
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
+		ast_channel_unlock(p->owner);
+		ast_mutex_unlock(&p->lock);
 	} else if (p->refer && !ast_test_flag(&p->flags[0], SIP_ALREADYGONE)) {
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-	} else
+		ast_mutex_unlock(&p->lock);
+	} else {
+		ast_mutex_unlock(&p->lock);
 		sip_destroy(p);
+	}
+
 	return 0;
 }
 
