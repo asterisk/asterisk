@@ -788,8 +788,10 @@ static int gtalk_hangup_farend(struct gtalk *client, ikspak *pak)
 	ast_debug(1, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) || !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid))
+		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) ||
+			(iks_find_attrib(pak->query, "id") && !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid))) {
 			break;
+		}
 	}
 	from = iks_find_attrib(pak->x, "to");
 	if (!from) {
@@ -840,8 +842,8 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	if (p->ctype == AJI_CLIENT_GMAIL) {
 		iks_insert_node(gtalk,candidate);
 	} else {
-		iks_insert_node(gtalk,transport);
 		iks_insert_node(gtalk,candidate);
+		iks_insert_node(gtalk,transport);
 	}
 
 	for (; p; p = p->next) {
@@ -1028,6 +1030,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	  return NULL;
 	}
 	ast_rtp_instance_set_prop(tmp->rtp, AST_RTP_PROPERTY_RTCP, 1);
+	ast_rtp_instance_set_prop(tmp->rtp, AST_RTP_PROPERTY_STUN, 1);
 	ast_rtp_instance_set_prop(tmp->rtp, AST_RTP_PROPERTY_DTMF, 1);
 	ast_rtp_instance_dtmf_mode_set(tmp->rtp, AST_RTP_DTMF_MODE_RFC2833);
 	ast_rtp_codecs_payloads_clear(ast_rtp_instance_get_codecs(tmp->rtp), tmp->rtp);
@@ -1091,19 +1094,18 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		what = global_capability;
 
 	/* Set Frame packetization */
-	if (i->rtp)
+	if (i->rtp) {
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(i->rtp), i->rtp, &i->prefs);
+	}
 
 	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | (i->jointcapability & AST_FORMAT_VIDEO_MASK);
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (i->rtp) {
-		ast_rtp_instance_set_prop(i->rtp, AST_RTP_PROPERTY_STUN, 1);
 		ast_channel_set_fd(tmp, 0, ast_rtp_instance_fd(i->rtp, 0));
 		ast_channel_set_fd(tmp, 1, ast_rtp_instance_fd(i->rtp, 1));
 	}
 	if (i->vrtp) {
-		ast_rtp_instance_set_prop(i->vrtp, AST_RTP_PROPERTY_STUN, 1);
 		ast_channel_set_fd(tmp, 2, ast_rtp_instance_fd(i->vrtp, 0));
 		ast_channel_set_fd(tmp, 3, ast_rtp_instance_fd(i->vrtp, 1));
 	}
@@ -1239,6 +1241,7 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 	char *from = NULL;
 	char s1[BUFSIZ], s2[BUFSIZ], s3[BUFSIZ];
 	int peernoncodeccapability;
+	char *sid;
 
 	/* Make sure our new call doesn't exist yet */
 	from = iks_find_attrib(pak->x,"to");
@@ -1247,7 +1250,8 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 	}
 
 	while (tmp) {
-		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) || !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid)) {
+		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) ||
+			(iks_find_attrib(pak->query, "id") && !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid))) {
 			ast_log(LOG_NOTICE, "Ignoring duplicate call setup on SID %s\n", tmp->sid);
 			gtalk_response(client, from, pak, "out-of-order", NULL);
 			return -1;
@@ -1265,7 +1269,12 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 		}
 	}
 
-	p = gtalk_alloc(client, from, pak->from->full, iks_find_attrib(pak->query, "id"));
+	if (!(sid = iks_find_attrib(pak->query, "id"))) {
+		ast_log(LOG_WARNING, "Received Initiate without id attribute. Can not start call.\n");
+		return -1;
+	}
+
+	p = gtalk_alloc(client, from, pak->from->full, sid);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to allocate gtalk structure!\n");
 		return -1;
@@ -1287,21 +1296,24 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 
 	ast_mutex_lock(&p->lock);
 	ast_copy_string(p->them, pak->from->full, sizeof(p->them));
-	if (iks_find_attrib(pak->query, "id")) {
-		ast_copy_string(p->sid, iks_find_attrib(pak->query, "id"),
-				sizeof(p->sid));
-	}
+	ast_copy_string(p->sid, sid, sizeof(p->sid));
 
 	/* codec points to the first <payload-type/> tag */
 	codec = iks_first_tag(iks_first_tag(iks_first_tag(pak->x)));
 
 	while (codec) {
+		char *codec_id = iks_find_attrib(codec, "id");
+		char *codec_name = iks_find_attrib(codec, "name");
+		if (!codec_id || !codec_name) {
+			codec = iks_next_tag(codec);
+			continue;
+		}
 		if (!strcmp(iks_name(codec), "vid:payload-type") && p->vrtp) {
-			ast_rtp_codecs_payloads_set_m_type(ast_rtp_instance_get_codecs(p->vrtp), p->vrtp, atoi(iks_find_attrib(codec, "id")));
-			ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(p->vrtp), p->vrtp, atoi(iks_find_attrib(codec, "id")), "video", iks_find_attrib(codec, "name"), 0);
+			ast_rtp_codecs_payloads_set_m_type(ast_rtp_instance_get_codecs(p->vrtp), p->vrtp, atoi(codec_id));
+			ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(p->vrtp), p->vrtp, atoi(codec_id), "video", codec_name, 0);
 		} else {
-			ast_rtp_codecs_payloads_set_m_type(ast_rtp_instance_get_codecs(p->rtp), p->rtp, atoi(iks_find_attrib(codec, "id")));
-			ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(p->rtp), p->rtp, atoi(iks_find_attrib(codec, "id")), "audio", iks_find_attrib(codec, "name"), 0);
+			ast_rtp_codecs_payloads_set_m_type(ast_rtp_instance_get_codecs(p->rtp), p->rtp, atoi(codec_id));
+			ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(p->rtp), p->rtp, atoi(codec_id), "audio", codec_name, 0);
 		}
 		codec = iks_next_tag(codec);
 	}
@@ -1406,7 +1418,11 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 		char username[256];
 
 		/* Find the IP address of the host */
-		hp = ast_gethostbyname(tmp->ip, &ahp);
+		if (!(hp = ast_gethostbyname(tmp->ip, &ahp))) {
+			ast_log(LOG_WARNING, "Could not get host by name for %s\n", tmp->ip);
+			tmp = tmp->next;
+			continue;
+		}
 		sin.sin_family = AF_INET;
 		memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 		sin.sin_port = htons(tmp->port);
@@ -1449,7 +1465,8 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 	}
 
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) || !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid)) {
+		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid) ||
+			(iks_find_attrib(pak->query, "id") && !strcmp(iks_find_attrib(pak->query, "id"), tmp->sid))) {
 			p = tmp;
 			break;
 		}
@@ -1468,38 +1485,39 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 			traversenodes = iks_child(traversenodes);
 			continue;
 		}
-		if(!strcasecmp(iks_name(traversenodes), "transport")) {
-			traversenodes = iks_first_tag(traversenodes);
-			continue;
-		}
 		if(!strcasecmp(iks_name(traversenodes), "candidate") || !strcasecmp(iks_name(traversenodes), "ses:candidate")) {
 			newcandidate = ast_calloc(1, sizeof(*newcandidate));
 			if (!newcandidate)
 				return 0;
-			ast_copy_string(newcandidate->name, iks_find_attrib(traversenodes, "name"),
-							sizeof(newcandidate->name));
-			ast_copy_string(newcandidate->ip, iks_find_attrib(traversenodes, "address"),
-							sizeof(newcandidate->ip));
+			ast_copy_string(newcandidate->name,
+				S_OR(iks_find_attrib(traversenodes, "name"), ""),
+				sizeof(newcandidate->name));
+			ast_copy_string(newcandidate->ip,
+				S_OR(iks_find_attrib(traversenodes, "address"), ""),
+				sizeof(newcandidate->ip));
 			newcandidate->port = atoi(iks_find_attrib(traversenodes, "port"));
-			ast_copy_string(newcandidate->username, iks_find_attrib(traversenodes, "username"),
-							sizeof(newcandidate->username));
-			ast_copy_string(newcandidate->password, iks_find_attrib(traversenodes, "password"),
-							sizeof(newcandidate->password));
+			ast_copy_string(newcandidate->username,
+				S_OR(iks_find_attrib(traversenodes, "username"), ""),
+				sizeof(newcandidate->username));
+			ast_copy_string(newcandidate->password,
+				S_OR(iks_find_attrib(traversenodes, "password"), ""),
+				sizeof(newcandidate->password));
 			newcandidate->preference = atof(iks_find_attrib(traversenodes, "preference"));
-			if (!strcasecmp(iks_find_attrib(traversenodes, "protocol"), "udp"))
+			if (!strcasecmp(S_OR(iks_find_attrib(traversenodes, "protocol"), ""), "udp"))
 				newcandidate->protocol = AJI_PROTOCOL_UDP;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "protocol"), "ssltcp"))
+			if (!strcasecmp(S_OR(iks_find_attrib(traversenodes, "protocol"), ""), "ssltcp"))
 				newcandidate->protocol = AJI_PROTOCOL_SSLTCP;
 
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "stun"))
+			if (!strcasecmp(S_OR(iks_find_attrib(traversenodes, "type"), ""), "stun"))
 				newcandidate->type = AJI_CONNECT_STUN;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "local"))
+			if (!strcasecmp(S_OR(iks_find_attrib(traversenodes, "type"), ""), "local"))
 				newcandidate->type = AJI_CONNECT_LOCAL;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "relay"))
+			if (!strcasecmp(S_OR(iks_find_attrib(traversenodes, "type"), ""), "relay"))
 				newcandidate->type = AJI_CONNECT_RELAY;
-			ast_copy_string(newcandidate->network, iks_find_attrib(traversenodes, "network"),
-							sizeof(newcandidate->network));
-			newcandidate->generation = atoi(iks_find_attrib(traversenodes, "generation"));
+			ast_copy_string(newcandidate->network,
+				S_OR(iks_find_attrib(traversenodes, "network"), ""),
+				sizeof(newcandidate->network));
+			newcandidate->generation = atoi(S_OR(iks_find_attrib(traversenodes, "generation"), "0"));
 			newcandidate->next = NULL;
 
 			newcandidate->next = p->theircandidates;
@@ -1514,8 +1532,8 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 	receipt = iks_new("iq");
 	iks_insert_attrib(receipt, "type", "result");
 	iks_insert_attrib(receipt, "from", from);
-	iks_insert_attrib(receipt, "to", iks_find_attrib(pak->x, "from"));
-	iks_insert_attrib(receipt, "id", iks_find_attrib(pak->x, "id"));
+	iks_insert_attrib(receipt, "to", S_OR(iks_find_attrib(pak->x, "from"), ""));
+	iks_insert_attrib(receipt, "id", S_OR(iks_find_attrib(pak->x, "id"), ""));
 	ast_aji_send(c, receipt);
 
 	iks_delete(receipt);
@@ -1864,9 +1882,9 @@ static struct ast_channel *gtalk_request(const char *type, format_t format, cons
 
 	ASTOBJ_WRLOCK(client);
 	p = gtalk_alloc(client, strchr(sender, '@') ? sender : client->connection->jid->full, strchr(to, '@') ? to : client->user, NULL);
-	if (p)
+	if (p) {
 		chan = gtalk_new(client, p, AST_STATE_DOWN, to, requestor ? requestor->linkedid : NULL);
-
+	}
 	ASTOBJ_UNLOCK(client);
 	return chan;
 }
@@ -1961,8 +1979,12 @@ static int gtalk_parser(void *data, ikspak *pak)
 	struct gtalk *client = ASTOBJ_REF((struct gtalk *) data);
 	int res;
 
-	if (iks_find_attrib(pak->x, "type") && !strcmp(iks_find_attrib (pak->x, "type"),"error")) {
+	if (!strcmp(S_OR(iks_find_attrib(pak->x, "type"), ""), "error")) {
 		ast_log(LOG_NOTICE, "Remote peer reported an error, trying to establish the call anyway\n");
+	}
+
+	if (ast_strlen_zero(iks_find_attrib(pak->query, "type"))) {
+		ast_log(LOG_NOTICE, "No attribute \"type\" found.  Ignoring message.\n");
 	} else if (!strcmp(iks_find_attrib(pak->query, "type"), "initiate")) {
 		/* New call */
 		gtalk_newcall(client, pak);
