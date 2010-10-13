@@ -449,7 +449,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -rf doc/api
 	rm -f build_tools/menuselect-deps
 
-datafiles: _all
+datafiles: _all doc/core-en_US.xml
 	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig $(DESTDIR)$(libdir)/pkgconfig;
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
@@ -458,6 +458,7 @@ datafiles: _all
 	for x in static-http/*; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
 	done
+	$(INSTALL) -m 644 doc/core-en_US.xml $(DESTDIR)$(ASTDATADIR)/static-http;
 	if [ -d doc/tex/asterisk ] ; then \
 		$(INSTALL) -d $(DESTDIR)$(ASTDATADIR)/static-http/docs ; \
 		for n in doc/tex/asterisk/* ; do \

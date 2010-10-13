@@ -1,0 +1,177 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+	<style type="text/css">
+		#container {
+			margin: 0 auto;
+			width: 100%;
+			height: 100%;
+			background: #fff;
+		}
+		#top {
+			float: left;
+			width: 100%;
+			background: #fff;
+		}
+		#bottom {
+			float: left;
+			width: 100%;
+			background: #fff;
+		}
+		#sender {
+			clear: left;
+			float: left;
+			width: 20%;
+			display: inline;
+			overflow: auto;
+		}
+		#output {
+			float: right;
+			width: 79%;
+			display: inline;
+			overflow: auto;
+			border: thin solid black;
+		}
+		.required {
+			color: red;
+		}
+	</style>
+	<title>Manager Utility</title>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+
+	<script type="text/javascript">
+
+$(document).ready(function() {
+	$('#output').height($(document).height() - $('#top').height() - 100);
+	$.ajax({
+		type: "GET",
+		url: "core-en_US.xml",
+		dataType: "xml",
+		success: parseXml
+	});
+
+	$("#login").submit(function() {
+		$("#output").empty();
+		submitCommand($(this));
+		$("#command").focus();
+		return false;
+	});
+
+	$("#search_button").click(function() {
+		var command = $("#command").val();
+		$("#command").val("");
+		$("#output").empty();
+		if (commands) {
+			commands.each(function() {
+				if ($(this).attr("name").toLowerCase() == command.toLowerCase()) {
+					buildCommandForm($(this));
+				}
+			});
+		}
+		$('#output').height($(document).height() - $('#top').height() - 100);
+		return false;
+	});
+	$('#command').keyup(function(event) {
+		if (event.keyCode == '13') {
+			return;
+		}
+		var matches = [];
+		var search = $("#command").val().toLowerCase();
+		$("#output").empty();
+		if (search.length && commands) {
+			commands.each(function() {
+				var com = $(this).attr("name").toLowerCase();
+				if (com.substr(0, search.length) === search) {
+					matches.push(com);
+				}
+			});
+		}
+		if (matches.length) {
+			$("#output").append(matches.sort().join("<br/>"));
+		}
+	});
+});
+
+function parseXml(xml) {
+	commands = $(xml).find("manager")
+}
+
+function buildCommandForm(command) {
+	var name = command.attr("name");
+	var i = 0;
+	$("#sendcommand").empty();
+	$("#sendcommand").unbind('submit');
+	$("#sendcommand").append('<label>Action:&nbsp;</label><input name="action" readonly="readonly" value="'+name+'"/><br />');
+	command.find("parameter").each(function() {
+		var param = $(this).attr("name");
+		if (param != "ActionID") {
+			$("#sendcommand").append('<label for="'+param+'">'+param+':&nbsp;</label><input name="'+param+'" /><br />');
+			if ($(this).attr("required")) {
+				$('label[for='+param+']').addClass("required");
+			}
+			if (i == 0) {
+				$("input[name="+param+"]").focus();
+			}
+			i++;
+		}
+	});
+	$("#sendcommand").append('<button type="submit" id="commandbutton">Send</button>');
+	$("#sendcommand").submit(function() {
+		$("#output").empty();
+		submitCommand($(this));
+		$("#command").focus();
+		return false;
+	});
+
+	// If we don't have any fields to fill in, go ahead and submit!
+	if (i == 0) {
+		$("#sendcommand").submit();
+	}
+}
+
+function submitCommand(form) {
+	$.ajax({
+		type: "GET",
+		url: "../rawman",
+		dataType: "text",
+		data: $(form).serializeArray(),
+		success: displayResponse,
+		failure: function() {alert("Error!");}
+	});
+	return false;
+}
+
+function displayResponse(data) {
+	data = data.replace(/\r\n/g, "<br />");
+	$("#output").append(data);
+	return false;
+}
+
+	</script>
+</head>
+
+<body>
+	<div id="container">
+		<div id="top">
+			<form id="login" name="login">
+				<label for="username">Username:&nbsp;</label><input id="username" name="username" />
+				<label for="secret">Secret:&nbsp;</label><input id="secret" name="secret" type="password"/>
+				<input type="hidden" name="action" value="login" />
+				<button id="login_button" type="submit">Submit</button>
+			</form>
+			<hr />
+			<form id="search" name="search">
+				<label for="txt">Action:&nbsp;</label><input name="command" id="command"/>
+				<button id="search_button">Submit</button>
+			</form>
+		</div>
+		<hr />
+		<div id="bottom">
+			<div id="sender">
+				<form id="sendcommand" name="sendcommand"></form>
+			</div>
+			<div id="output"></div>
+		</div>
+	</div>
+</body>
+</html>
