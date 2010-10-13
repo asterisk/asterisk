@@ -3611,7 +3611,18 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		if (chan->generator)
 			ast_deactivate_generator(chan);
-		goto done;
+
+		/* It is possible for chan->_softhangup to be set, yet there still be control
+		 * frames that still need to be read. Instead of just going to 'done' in the
+		 * case of ast_check_hangup(), we instead need to send the HANGUP frame so that
+		 * it can mark the end of the read queue. If there are frames to be read, 
+		 * ast_queue_control will be called repeatedly, but will only queue one hangup
+		 * frame. */
+		if (ast_check_hangup(chan)) {
+			ast_queue_control(chan, AST_CONTROL_HANGUP);
+		} else {
+			goto done;
+		}
 	}
 
 #ifdef AST_DEVMODE
