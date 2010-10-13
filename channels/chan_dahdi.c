@@ -2005,6 +2005,11 @@ static void my_handle_dtmfup(void *pvt, struct ast_channel *ast, enum analog_sub
 				}
 			}
 			p->faxhandled = 1;
+			if (p->dsp) {
+				p->dsp_features &= ~DSP_FEATURE_FAX_DETECT;
+				ast_dsp_set_features(p->dsp, p->dsp_features);
+				ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast->name);
+			}
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
 
@@ -6418,7 +6423,7 @@ static int dahdi_queryoption(struct ast_channel *chan, int option, void *data, i
 		break;
 	case AST_OPTION_FAX_DETECT:
 		cp = (char *) data;
-		*cp = (p->callprogress & CALLPROGRESS_FAX) ? 0 : 1;
+		*cp = (p->dsp_features & DSP_FEATURE_FAX_DETECT) ? 0 : 1;
 		ast_debug(1, "Reporting fax tone detection %sabled on %s\n", *cp ? "en" : "dis", chan->name);
 		break;
 	case AST_OPTION_CC_AGENT_TYPE:
@@ -6644,10 +6649,8 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		if (p->dsp) {
 			ast_debug(1, "%sabling fax tone detection on %s\n", *cp ? "En" : "Dis", chan->name);
 			if (*cp) {
-				p->callprogress |= CALLPROGRESS_FAX;
 				p->dsp_features |= DSP_FEATURE_FAX_DETECT;
 			} else {
-				p->callprogress &= ~CALLPROGRESS_FAX;
 				p->dsp_features &= ~DSP_FEATURE_FAX_DETECT;
 			}
 			ast_dsp_set_features(p->dsp, p->dsp_features);
@@ -7457,10 +7460,11 @@ static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_fra
 				}
 			}
 			p->faxhandled = 1;
-			p->callprogress &= ~CALLPROGRESS_FAX;
-			p->dsp_features &= ~DSP_FEATURE_FAX_DETECT;
-			ast_dsp_set_features(p->dsp, p->dsp_features);
-			ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast->name);
+			if (p->dsp) {
+				p->dsp_features &= ~DSP_FEATURE_FAX_DETECT;
+				ast_dsp_set_features(p->dsp, p->dsp_features);
+				ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast->name);
+			}
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
 
