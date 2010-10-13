@@ -8332,16 +8332,42 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 {
 	struct ast_channel *ast;
 
+	chan_misdn_log(5, bc->port, "release_chan: bc with pid:%d l3id: %x\n", bc->pid, bc->l3_id);
+
 	ast_mutex_lock(&release_lock);
+	for (;;) {
+		ast = ch->ast;
+		if (!ast || !ast_channel_trylock(ast)) {
+			break;
+		}
+		DEADLOCK_AVOIDANCE(&release_lock);
+	}
 	if (!cl_dequeue_chan(ch)) {
 		/* Someone already released it. */
+		if (ast) {
+			ast_channel_unlock(ast);
+		}
 		ast_mutex_unlock(&release_lock);
 		return;
 	}
 	ch->state = MISDN_CLEANING;
-	ast = ch->ast;
 	ch->ast = NULL;
-	ast_mutex_unlock(&release_lock);
+	if (ast) {
+		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+		chan_misdn_log(1, bc->port,
+			"* RELEASING CHANNEL pid:%d context:%s dialed:%s caller:\"%s\" <%s>\n",
+			bc->pid,
+			ast->context,
+			ast->exten,
+			S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
+			S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""));
+
+		if (ast->_state != AST_STATE_RESERVED) {
+			chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
+			ast_setstate(ast, AST_STATE_DOWN);
+		}
+		ast_channel_unlock(ast);
+	}
 
 #if defined(AST_MISDN_ENHANCEMENTS)
 	if (ch->peer) {
@@ -8354,8 +8380,6 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 		ast_dsp_free(ch->dsp);
 		ch->dsp = NULL;
 	}
-
-	chan_misdn_log(5, bc->port, "release_chan: bc with pid:%d l3id: %x\n", bc->pid, bc->l3_id);
 
 	/* releasing jitterbuffer */
 	if (ch->jb) {
@@ -8384,27 +8408,9 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 	close(ch->pipe[0]);
 	close(ch->pipe[1]);
 
-	if (ast) {
-		ast_channel_lock(ast);
-		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
-		chan_misdn_log(1, bc->port,
-			"* RELEASING CHANNEL pid:%d context:%s dialed:%s caller:\"%s\" <%s>\n",
-			bc->pid,
-			ast->context,
-			ast->exten,
-			(ast->caller.id.name.valid && ast->caller.id.name.str)
-				? ast->caller.id.name.str : "",
-			(ast->caller.id.number.valid && ast->caller.id.number.str)
-				? ast->caller.id.number.str : "");
-
-		if (ast->_state != AST_STATE_RESERVED) {
-			chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
-			ast_setstate(ast, AST_STATE_DOWN);
-		}
-		ast_channel_unlock(ast);
-	}
-
 	ast_free(ch);
+
+	ast_mutex_unlock(&release_lock);
 }
 
 /*!
@@ -8422,15 +8428,30 @@ static void release_chan_early(struct chan_list *ch)
 	struct ast_channel *ast;
 
 	ast_mutex_lock(&release_lock);
+	for (;;) {
+		ast = ch->ast;
+		if (!ast || !ast_channel_trylock(ast)) {
+			break;
+		}
+		DEADLOCK_AVOIDANCE(&release_lock);
+	}
 	if (!cl_dequeue_chan(ch)) {
 		/* Someone already released it. */
+		if (ast) {
+			ast_channel_unlock(ast);
+		}
 		ast_mutex_unlock(&release_lock);
 		return;
 	}
 	ch->state = MISDN_CLEANING;
-	ast = ch->ast;
 	ch->ast = NULL;
-	ast_mutex_unlock(&release_lock);
+	if (ast) {
+		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+		if (ast->_state != AST_STATE_RESERVED) {
+			ast_setstate(ast, AST_STATE_DOWN);
+		}
+		ast_channel_unlock(ast);
+	}
 
 #if defined(AST_MISDN_ENHANCEMENTS)
 	if (ch->peer) {
@@ -8469,16 +8490,9 @@ static void release_chan_early(struct chan_list *ch)
 	close(ch->pipe[0]);
 	close(ch->pipe[1]);
 
-	if (ast) {
-		ast_channel_lock(ast);
-		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
-		if (ast->_state != AST_STATE_RESERVED) {
-			ast_setstate(ast, AST_STATE_DOWN);
-		}
-		ast_channel_unlock(ast);
-	}
-
 	ast_free(ch);
+
+	ast_mutex_unlock(&release_lock);
 }
 
 /*!
