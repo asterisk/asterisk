@@ -250,7 +250,9 @@ static int		tzparse P((const char * name, struct state * sp,
 				int lastditch));
 
 static AST_LIST_HEAD_STATIC(zonelist, state);
+#ifdef HAVE_NEWLOCALE
 static AST_LIST_HEAD_STATIC(localelist, locale_entry);
+#endif
 
 #ifndef TZ_STRLEN_MAX
 #define TZ_STRLEN_MAX 255
@@ -554,9 +556,12 @@ static void *notify_daemon(void *data)
 			stat(name, &st);
 			lstat(name, &lst);
 			if (st.st_mtime > cur->mtime[0] || lst.st_mtime > cur->mtime[1]) {
+#ifdef TEST_FRAMEWORK
 				if (test) {
 					ast_test_status_update(test, "Removing cached TZ entry '%s' because underlying file changed. (%ld != %ld) or (%ld != %ld)\n", name, st.st_mtime, cur->mtime[0], lst.st_mtime, cur->mtime[1]);
-				} else {
+				} else
+#endif
+				{
 					ast_log(LOG_NOTICE, "Removing cached TZ entry '%s' because underlying file changed.\n", name);
 				}
 				AST_LIST_REMOVE_CURRENT(list);
