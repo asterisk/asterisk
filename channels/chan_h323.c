@@ -965,7 +965,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 		struct ast_sockaddr tmp;
 
 		ast_sockaddr_from_sin(&tmp, &bindaddr);
-		if (ast_find_ourip(&our_addr, &tmp)) {
+		if (ast_find_ourip(&our_addr, &tmp, AF_INET)) {
 			ast_mutex_unlock(&pvt->lock);
 			ast_log(LOG_ERROR, "Unable to locate local IP address for RTP stream\n");
 			return -1;

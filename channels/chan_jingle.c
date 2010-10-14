@@ -623,7 +623,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	ast_rtp_instance_get_local_address(p->rtp, &sin_tmp);
 	ast_sockaddr_to_sin(&sin_tmp, &sin);
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
-	ast_find_ourip(&us_tmp, &bindaddr_tmp);
+	ast_find_ourip(&us_tmp, &bindaddr_tmp, AF_INET);
 	us.s_addr = htonl(ast_sockaddr_ipv4(&us_tmp));
 
 	/* Setup our first jingle candidate */
@@ -1904,15 +1904,17 @@ static int load_module(void)
 	}
 
 	sched = sched_context_create();
-	if (!sched) 
+	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+	}
 
 	io = io_context_create();
-	if (!io) 
+	if (!io) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	}
 
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
-	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp)) {
+	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp, AF_INET)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, Jingle disabled\n");
 		return 0;
 	}

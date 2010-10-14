@@ -27216,7 +27216,7 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Set UDP address and open socket */
 	ast_sockaddr_copy(&internip, &bindaddr);
-	if (ast_find_ourip(&internip, &bindaddr)) {
+	if (ast_find_ourip(&internip, &bindaddr, 0)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
 		ast_config_destroy(cfg);
 		return 0;
