@@ -13,7 +13,7 @@ Each channel that supports secure signaling or media can implement a CHANNEL rea
 \begin{astlisting}
 \begin{verbatim}
 exten => 123,1,GotoIf("$[${CHANNEL(secure_signaling)}" = ""]?fail)
-exten => 123,n,GotoIf("$[${CHANNEL(seucre_media)}" = ""]?fail)
+exten => 123,n,GotoIf("$[${CHANNEL(secure_media)}" = ""]?fail)
 exten => 123,n,Dial(SIP/123)
 exten => 123,n,Hangup
 exten => 123,n(fail),Playback(vm-goodbye)
