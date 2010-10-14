@@ -454,8 +454,17 @@ ssize_t ast_sendto(int sockfd, const void *buf, size_t len, int flags,
 int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 {
 	int res;
+	int proto_type = IPPROTO_IP; /* ipv4 values by default */
+	int dscp_field = IP_TOS;
+	struct ast_sockaddr addr;
 
-	if ((res = setsockopt(sockfd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) {
+	/* if this is IPv6 we need to set the TCLASS instead of TOS */
+	if (!ast_getsockname(sockfd, &addr) && ast_sockaddr_is_ipv6(&addr)) {
+		proto_type = IPPROTO_IPV6;
+		dscp_field = IPV6_TCLASS;
+	}
+
+	if ((res = setsockopt(sockfd, proto_type, dscp_field, &tos, sizeof(tos)))) {
 		ast_log(LOG_WARNING, "Unable to set %s TOS to %d (may be you have no "
 			"root privileges): %s\n", desc, tos, strerror(errno));
 	} else if (tos) {
