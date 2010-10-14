@@ -720,7 +720,7 @@ int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us)
 	return 0;
 }
 
-int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindaddr)
+int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindaddr, int family)
 {
 	char ourhost[MAXHOSTNAMELEN] = "";
 	struct ast_sockaddr root;
@@ -735,7 +735,7 @@ int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindad
 	if (gethostname(ourhost, sizeof(ourhost) - 1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname\n");
 	} else {
-		if (resolve_first(ourip, ourhost, PARSE_PORT_FORBID, 0) == 0) {
+		if (resolve_first(ourip, ourhost, PARSE_PORT_FORBID, family) == 0) {
 			return 0;
 		}
 	}

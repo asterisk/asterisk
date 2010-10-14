@@ -220,10 +220,12 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
  * \param[out] ourip Our IP address is written here when it is found
  * \param bindaddr A hint used for finding our IP. See the steps above for
  * more details
+ * \param family Only addresses of the given family will be returned. Use 0
+ * or AST_SOCKADDR_UNSPEC to get addresses of all families.
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindaddr);
+int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindaddr, int family);
 
 /*!
  * \brief Convert a string to the appropriate COS value

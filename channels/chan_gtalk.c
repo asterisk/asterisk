@@ -859,7 +859,7 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	ast_rtp_instance_get_local_address(p->rtp, &sin_tmp);
 	ast_sockaddr_to_sin(&sin_tmp, &sin);
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
-	ast_find_ourip(&us, &bindaddr_tmp);
+	ast_find_ourip(&us, &bindaddr_tmp, AF_INET);
 	if (!strcmp(ast_sockaddr_stringify_addr(&us), "127.0.0.1")) {
 		ast_log(LOG_WARNING, "Found a loopback IP on the system, check your network configuration or set the bindaddr attribute.");
 	}
@@ -2217,7 +2217,7 @@ static int load_module(void)
 	}
 
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
-	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp)) {
+	if (ast_find_ourip(&ourip_tmp, &bindaddr_tmp, AF_INET)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, Gtalk disabled\n");
 		return 0;
 	}
