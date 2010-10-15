@@ -1875,12 +1875,13 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	struct chan_oss_pvt *o;
+	struct chan_oss_pvt *o, *next;
 
 	ast_channel_unregister(&oss_tech);
 	ast_cli_unregister_multiple(cli_oss, sizeof(cli_oss) / sizeof(struct ast_cli_entry));
 
-	for (o = oss_default.next; o; o = o->next) {
+	o = oss_default.next;
+	while (o) {
 		if (o->owner) {
 			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
 			/* Give the channel a chance to go away */
@@ -1900,9 +1901,11 @@ static int unload_module(void)
 			close(o->sndcmd[0]);
 			close(o->sndcmd[1]);
 		}
+		next = o->next;
 		if (o->sthread > 0) {
-			free(o);
+			ast_free(o);
 		}
+		o = next;
 	}
 	return 0;
 }
