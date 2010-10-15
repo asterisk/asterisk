@@ -4695,12 +4695,12 @@ static int unload_module(void)
 	ast_custom_function_unregister(&jabberreceive_function);
 
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
-		ASTOBJ_RDLOCK(iterator);
+		ASTOBJ_WRLOCK(iterator);
 		ast_debug(3, "JABBER: Releasing and disconnecting client: %s\n", iterator->name);
 		iterator->state = AJI_DISCONNECTING;
-		ast_aji_disconnect(iterator);
-		pthread_join(iterator->thread, NULL);
 		ASTOBJ_UNLOCK(iterator);
+		pthread_join(iterator->thread, NULL);
+		ast_aji_disconnect(iterator);
 	});
 
 	ASTOBJ_CONTAINER_DESTROYALL(&clients, aji_client_destroy);
