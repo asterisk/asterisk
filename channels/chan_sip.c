@@ -26341,6 +26341,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 			}
 		}
+	} else if (peer->dnsmgr && !peer->host_dynamic) {
+		/* force a refresh here on reload if dnsmgr already exists and host is set. */
+		ast_dnsmgr_refresh(peer->dnsmgr);
 	}
 
 	if (port && !realtime && peer->host_dynamic) {
