@@ -382,6 +382,7 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 		return -1;
 	}
 
+	ast_module_ref(ast_module_info->self);
 	temp->rtp = rtp;
 	*srtp = temp;
 
@@ -400,6 +401,7 @@ static void ast_srtp_destroy(struct ast_srtp *srtp)
 	ao2_t_ref(srtp->policies, -1, "Destroying container");
 
 	ast_free(srtp);
+	ast_module_unref(ast_module_info->self);
 }
 
 static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *policy)
