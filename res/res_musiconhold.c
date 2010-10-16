@@ -1022,7 +1022,7 @@ static int moh_scan_files(struct mohclass *class) {
 	int i;
 
 	if (class->dir[0] != '/') {
-		ast_copy_string(dir_path, ast_config_AST_VAR_DIR, sizeof(dir_path));
+		ast_copy_string(dir_path, ast_config_AST_DATA_DIR, sizeof(dir_path));
 		strncat(dir_path, "/", sizeof(dir_path) - 1);
 		strncat(dir_path, class->dir, sizeof(dir_path) - 1);
 	} else {
