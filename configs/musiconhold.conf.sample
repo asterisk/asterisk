@@ -31,7 +31,7 @@
 ;
 ; The path specified can be either an absolute path (starts with '/'),
 ; or a relative path; relative paths are interpreted as being relative
-; to the 'astvarlibdir' in asterisk.conf, which defaults to
+; to the 'astdatalibdir' in asterisk.conf, which defaults to
 ; /var/lib/asterisk.
 ;
 ; NOTE:
