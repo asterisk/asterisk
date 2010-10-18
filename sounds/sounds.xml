@@ -36,6 +36,18 @@
 		</member>
 		<member name="CORE-SOUNDS-FR-G722" displayname="French, G.722 format">
 		</member>
+		<member name="CORE-SOUNDS-EN_AU-WAV" displayname="English (Australian Accent), WAV format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-ULAW" displayname="English (Australian Accent), mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-ALAW" displayname="English (Australian Accent), a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-GSM" displayname="English (Australian Accent), GSM format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-G729" displayname="English (Australian Accent), G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-G722" displayname="English (Australian Accent), G.722 format">
+		</member>
 	</category>
 	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
 		<member name="MOH-OPSOUND-WAV" displayname="opsound.org Music On Hold Files, WAV format" >
@@ -51,7 +63,7 @@
 		</member>
 		<member name="MOH-OPSOUND-G722" displayname="opsound.org Music On Hold Files, G.722 format" >
 		</member>
-	</category>
+		</category>
 	<category name="MENUSELECT_EXTRA_SOUNDS" displayname="Extras Sound Packages" positive_output="yes">
 		<member name="EXTRA-SOUNDS-EN-WAV" displayname="English, WAV format">
 		</member>
