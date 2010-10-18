@@ -9384,6 +9384,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 	char tempfile[PATH_MAX];
 	char *acceptdtmf = "#";
 	char *canceldtmf = "";
+	int canceleddtmf = 0;
 
 	/* Note that urgent and private are for flagging messages as such in the future */
 
@@ -9448,6 +9449,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			if (ast_test_flag(vmu, VM_OPERATOR))
 				canceldtmf = "0";
 			cmd = ast_play_and_record_full(chan, playfile, tempfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir, acceptdtmf, canceldtmf);
+			if (strchr(canceldtmf, cmd)) {
+			/* need this flag here to distinguish between pressing '0' during message recording or after */
+				canceleddtmf = 1;
+			}
 			if (record_gain)
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
 			if (cmd == -1) {
@@ -9514,7 +9519,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				return 1;
 #endif
 		case '0':
-			if (!ast_test_flag(vmu, VM_OPERATOR) || !outsidecaller) {
+			if (!ast_test_flag(vmu, VM_OPERATOR) || (!canceleddtmf && !outsidecaller)) {
 				cmd = ast_play_and_wait(chan, "vm-sorry");
 				break;
 			}
@@ -9523,11 +9528,12 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				if (!cmd)
 					cmd = ast_waitfordigit(chan, 3000);
 				if (cmd == '1') {
+					ast_filerename(tempfile, recordfile, NULL);
 					ast_play_and_wait(chan, "vm-msgsaved");
 					cmd = '0';
 				} else {
 					ast_play_and_wait(chan, "vm-deleted");
-					DELETE(recordfile, -1, recordfile, vmu);
+					DELETE(tempfile, -1, tempfile, vmu);
 					cmd = '0';
 				}
 			}
@@ -9540,8 +9546,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				return cmd;
 			if (message_exists) {
 				cmd = ast_play_and_wait(chan, "vm-review");
-			}
-			else {
+			} else {
 				cmd = ast_play_and_wait(chan, "vm-torerecord");
 				if (!cmd)
 					cmd = ast_waitfordigit(chan, 600);
@@ -9565,6 +9570,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				cmd = 't';
 			}
 		}
+	}
+	if (!outsidecaller && (cmd == -1 || cmd == 't')) {
+		/* Hang up or timeout, so delete the recording. */
+		ast_filedelete(tempfile, NULL);
 	}
 	if (cmd == 't')
 		cmd = 0;
