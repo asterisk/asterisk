@@ -453,7 +453,7 @@ ssize_t ast_sendto(int sockfd, const void *buf, size_t len, int flags,
 
 int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 {
-	int res;
+	int res = 0;
 	int set_tos;
 	int set_tclass;
 	struct ast_sockaddr addr;
@@ -473,6 +473,7 @@ int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 		}
 	}
 
+#if defined(IPV6_TCLASS) && defined(IPPROTO_IPV6)
 	if (set_tclass) {
 		if (!ast_getsockname(sockfd, &addr) && ast_sockaddr_is_ipv6(&addr)) {
 			if ((res = setsockopt(sockfd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos)))) {
@@ -483,6 +484,7 @@ int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 			}
 		}
 	}
+#endif
 
 #ifdef linux
 	if (setsockopt(sockfd, SOL_SOCKET, SO_PRIORITY, &cos, sizeof(cos))) {
