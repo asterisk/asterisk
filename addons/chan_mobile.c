@@ -2232,7 +2232,7 @@ static int hfp_parse_cmgr(struct hfp_pvt *hfp, char *buf, char **from_number, ch
 	 */
 	state = 0;
 	s = strlen(buf);
-	for (i = 0; i < s && s != 6; i++) {
+	for (i = 0; i < s && state != 6; i++) {
 		switch (state) {
 		case 0: /* search for start of the number section (,) */
 			if (buf[i] == ',') {
