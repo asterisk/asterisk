@@ -19,11 +19,12 @@ CMD_PREFIX?=@
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 SOUNDS_CACHE_DIR?=
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.19
+CORE_SOUNDS_VERSION:=1.4.20
 EXTRA_SOUNDS_VERSION:=1.4.11
 MOH_VERSION:=2.03
 SOUNDS_URL:=http://downloads.asterisk.org/pub/telephony/sounds/releases
 MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
+MCS:=$(subst -EN_AU-,-en_AU-,$(MCS))
 MCS:=$(subst -FR-,-fr-,$(MCS))
 MCS:=$(subst -ES-,-es-,$(MCS))
 MCS:=$(subst -WAV,-wav,$(MCS))
@@ -143,13 +144,15 @@ have_download:
 		echo "***                                            ***"; \
 		echo "*** Please install one of these, or remove any ***"; \
 		echo "*** extra sound package selections in          ***"; \
-		echo "*** menuselecct before installing Asterisk.    ***"; \
+		echo "*** menuselect before installing Asterisk.     ***"; \
 		echo "***                                            ***"; \
 		echo "**************************************************"; \
 		exit 1; \
 	fi
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,en,$(CORE_SOUNDS_VERSION)))
+
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,en_AU,$(CORE_SOUNDS_VERSION)))
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,es,$(CORE_SOUNDS_VERSION)))
 
@@ -172,10 +175,10 @@ $(eval $(call sound_download_rule,moh))
 dist-clean:
 	rm -f *.tar.gz
 
-$(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_CACHE_DIR):
+$(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_CACHE_DIR):
 	$(INSTALL) -d $@
 
-install: $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
+install: $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
 uninstall:
 	rm -rf $(SOUNDS_DIR)
