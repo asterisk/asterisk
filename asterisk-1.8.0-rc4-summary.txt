@@ -1,0 +1,324 @@
+                                Release Summary
+
+                               asterisk-1.8.0-rc4
+
+                                Date: 2010-10-18
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.0-rc3.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   11 dvossel               1 alecdavis              2 jamesnet               
+   7 rmudgett               1 dvossel                2 tzafrir                
+   4 twilson                1 jamesnet               1 davidw                 
+   2 espiceland             1 lmadsen                1 jmls                   
+   2 jpeeler                1 ovi                    1 lathama                
+   2 may                    1 rmudgett               1 lmadsen                
+   2 pabelanger             1 vrban                  1 ovi                    
+   2 russell                                         1 seandarcy              
+   2 tilghman                                        1 shin-shoryuken         
+   1 lathama                                         1 st                     
+   1 lmadsen                                         1 vrban                  
+   1 qwell                  
+   1 tzafrir                
+   1 wdoekes                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_dial
+
+   #16946: Call that clears in same app_dial poll as answer is reported as
+   NOANSWER but NORMAL_CLEARING
+   Revision: 291581
+   Reporter: davidw
+   Coders: twilson
+
+  Category: Applications/app_fax
+
+   #18116: [patch] [regression] faxdetect now must apply to all dahdi
+   channels; change from 1.6.2.x
+   Revision: 291541
+   Reporter: seandarcy
+   Coders: rmudgett
+
+  Category: Channels/chan_dahdi
+
+   #16847: [patch] Deadlock between dahdi_exception and dahdi_indicate
+   Revision: 291656
+   Reporter: shin-shoryuken
+   Testers: alecdavis, rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/General
+
+   #18135: [patch] chan_sip loses port information for peers in memory when
+   using bindaddr=::
+   Revision: 291942
+   Reporter: lmadsen
+   Testers: lmadsen
+   Coders: dvossel
+
+  Category: Channels/chan_sip/IPv6
+
+   #18099: [patch] tos_sip and tos_audio doesn't work on IPV6
+   Revision: 291829
+   Reporter: jamesnet
+   Testers: dvossel, jamesnet
+   Coders: dvossel
+
+   #18099: [patch] tos_sip and tos_audio doesn't work on IPV6
+   Revision: 292085
+   Reporter: jamesnet
+   Coders: dvossel
+
+  Category: Core/BuildSystem
+
+   #17314: [patch] ./configure --with-pri=LIBPATH does not use libpri from
+   LIBPRI_PATH
+   Revision: 290752
+   Reporter: tzafrir
+   Coders: qwell
+
+  Category: Core/General
+
+   #17698: CTRL-C from asterisk -vvvvvvvvc has strange results
+   Revision: 290864
+   Reporter: jmls
+   Coders: jpeeler
+
+  Category: Core/ManagerInterface
+
+   #17994: [patch] crash in __ast_manager_event_multichan
+   Revision: 291227
+   Reporter: vrban
+   Testers: vrban
+   Coders: dvossel
+
+  Category: Core/Portability
+
+   #18137: [patch] failure to cross compile asterisk-1.8.0-rc3
+   Revision: 291791
+   Reporter: ovi
+   Testers: ovi
+   Coders: wdoekes
+
+  Category: Resources/res_musiconhold
+
+   #16906: [patch] moh files install under datadir, at runtime: under
+   varlibdir
+   Revision: 292050
+   Reporter: tzafrir
+   Coders: tzafrir
+
+  Category: Resources/res_phoneprov
+
+   #18107: [patch] Add Undocumented Variables to phoneprov.conf.sample
+   Revision: 291284
+   Reporter: lathama
+   Coders: lathama
+
+  Category: Resources/res_srtp
+
+   #18085: Segmentation fault caused by "core restart when convenient" while
+   SRTP call is active
+   Revision: 292016
+   Reporter: st
+   Coders: twilson
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 290828   | dvossel    | Outbound gtalk calls now work     |            |
+   |          |            | correctly.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290829   | dvossel    | Add Philippe Sultan to chan_gtalk |            |
+   |          |            | author list.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add option to res_config_mysql    |            |
+   | 290937   | espiceland | and app_mysql to specify a        |            |
+   |          |            | character set that MySQL should   |            |
+   |          |            | use.                              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Parentheses around assignment     |            |
+   | 290938   | espiceland | used as truth value, introduced   |            |
+   |          |            | in r290937.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 290973   | dvossel    | Make outbound Google Voice calls. |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Added fast start and h.245        |            |
+   | 291005   | may        | tunneling options per user and    | #17972     |
+   |          |            | peer.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291037   | may        | small correction for verbose      |            |
+   |          |            | print h.323 packets               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291038   | tilghman   | Add missing option to set calls   |            |
+   |          |            | to be logged in GMT/UTC.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291075   | rmudgett   | Fixed infinite loop in            |            |
+   |          |            | verbose/debug message output.     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add missing unlock to an          |            |
+   | 291112   | rmudgett   | exception condition in            |            |
+   |          |            | reload_config().                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291113   | rmudgett   | Move declaration closer to where  |            |
+   |          |            | now used.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291192   | dvossel    | Gtalk enhancements and general    |            |
+   |          |            | code cleanup.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291194   | dvossel    | Update CHANGES to reflect new     |            |
+   |          |            | gtalk.conf options.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291230   | lmadsen    | Add documention that mentions     |            |
+   |          |            | options are defined but not used. |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291265   | tilghman   | Oops, incorrect range (although   |            |
+   |          |            | unallocated at ARIN)              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Lock pvt so pvt->owner can't      |            |
+   | 291394   | russell    | disappear when queueing up a      |            |
+   |          |            | frame.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291469   | rmudgett   | Merge revision 291468 from        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291507   | rmudgett   | Merged revision 291504 from       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291575   | twilson    | Add a simple AMI client web page  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291578   | dvossel    | More fixup for chan_gtalk.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291725   | russell    | Fix a typo - s/seucre/secure/     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add the ability for               |            |
+   | 291758   | pabelanger | ast_find_ourip to return IPv4,    |            |
+   |          |            | IPv6 or both.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Safer xml parsing, treat all      |            |
+   | 291827   | dvossel    | clients the same, and better      |            |
+   |          |            | local candidate selection.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291905   | twilson    | Don't crash or deadlock on module |            |
+   |          |            | unload                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 291940   | pabelanger | Clean up formatting.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Disable use of inotify for call   |            |
+   | 292083   | jpeeler    | file handling as it is not        |            |
+   |          |            | working properly.                 |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                              |    6
+ Makefile                             |    3
+ addons/app_mysql.c                   |   19 -
+ addons/chan_ooh323.c                 |   42 ++
+ addons/ooh323c/src/oochannels.c      |    3
+ addons/ooh323c/src/ooh245.c          |   18 -
+ addons/ooh323c/src/ooh323.c          |   84 +++--
+ addons/res_config_mysql.c            |   16
+ autoconf/ast_ext_lib.m4              |    1
+ cdr/cdr_pgsql.c                      |   47 ++
+ channels/chan_dahdi.c                |   80 +++-
+ channels/chan_gtalk.c                |  579 +++++++++++++++++------------------
+ channels/chan_h323.c                 |    2
+ channels/chan_jingle.c               |   10
+ channels/chan_misdn.c                |  281 +++++++++++-----
+ channels/chan_sip.c                  |   37 +-
+ channels/sig_analog.c                |  303 +++++++++++++-----
+ channels/sig_analog.h                |    3
+ configs/cdr_pgsql.conf.sample        |    1
+ configs/gtalk.conf.sample            |   26 -
+ configs/manager.conf.sample          |    4
+ configs/musiconhold.conf.sample      |    2
+ configs/phoneprov.conf.sample        |   14
+ configs/res_config_mysql.conf.sample |    5
+ doc/tex/secure-calls.tex             |    2
+ include/asterisk/acl.h               |    4
+ include/asterisk/autoconfig.h.in     |   53 +--
+ include/asterisk/stun.h              |    2
+ main/acl.c                           |    8
+ main/asterisk.c                      |    9
+ main/channel.c                       |   13
+ main/cli.c                           |   56 ++-
+ main/manager.c                       |   32 -
+ main/netsock2.c                      |   32 +
+ main/stdtime/localtime.c             |    7
+ pbx/pbx_spool.c                      |    5
+ res/res_jabber.c                     |    6
+ res/res_musiconhold.c                |    2
+ res/res_srtp.c                       |    2
+ res/res_stun_monitor.c               |    1
+ static-http/mantest.html             |  177 ++++++++++
+ 41 files changed, 1341 insertions(+), 656 deletions(-)
+
+     ----------------------------------------------------------------------
