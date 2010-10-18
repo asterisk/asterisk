@@ -389,11 +389,16 @@ int ast_sockaddr_is_ipv6(const struct ast_sockaddr *addr)
 
 int ast_sockaddr_is_any(const struct ast_sockaddr *addr)
 {
-	return (ast_sockaddr_is_ipv4(addr) &&
-		((const struct sockaddr_in *)&addr->ss)->sin_addr.s_addr ==
-		INADDR_ANY) ||
-	    (ast_sockaddr_is_ipv6(addr) &&
-	     IN6_IS_ADDR_UNSPECIFIED(&((const struct sockaddr_in6 *)&addr->ss)->sin6_addr));
+	union {
+		struct sockaddr_storage ss;
+		struct sockaddr_in sin;
+		struct sockaddr_in6 sin6;
+	} tmp_addr = {
+		.ss = addr->ss,
+	};
+
+	return (ast_sockaddr_is_ipv4(addr) && (tmp_addr.sin.sin_addr.s_addr == INADDR_ANY)) ||
+	    (ast_sockaddr_is_ipv6(addr) && IN6_IS_ADDR_UNSPECIFIED(&tmp_addr.sin6.sin6_addr));
 }
 
 int ast_sockaddr_hash(const struct ast_sockaddr *addr)
