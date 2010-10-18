@@ -26,6 +26,11 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+/* Handling of call files using inotify is not functioning correctly currently:
+ * Issue 18089 - https://issues.asterisk.org/view.php?id=18089 
+ */
+#undef HAVE_INOTIFY
+
 #include <sys/stat.h>
 #include <time.h>
 #include <utime.h>
