@@ -454,21 +454,34 @@ ssize_t ast_sendto(int sockfd, const void *buf, size_t len, int flags,
 int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 {
 	int res;
-	int proto_type = IPPROTO_IP; /* ipv4 values by default */
-	int dscp_field = IP_TOS;
+	int set_tos;
+	int set_tclass;
 	struct ast_sockaddr addr;
 
-	/* if this is IPv6 we need to set the TCLASS instead of TOS */
-	if (!ast_getsockname(sockfd, &addr) && ast_sockaddr_is_ipv6(&addr)) {
-		proto_type = IPPROTO_IPV6;
-		dscp_field = IPV6_TCLASS;
+	/* If the sock address is IPv6, the TCLASS field must be set. */
+	set_tclass = !ast_getsockname(sockfd, &addr) && ast_sockaddr_is_ipv6(&addr) ? 1 : 0;
+
+	/* If the the sock address is IPv4 or (IPv6 set to any address [::]) set TOS bits */
+	set_tos = (!set_tclass || (set_tclass && ast_sockaddr_is_any(&addr))) ? 1 : 0;
+
+	if (set_tos) {
+		if ((res = setsockopt(sockfd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) {
+			ast_log(LOG_WARNING, "Unable to set %s DSCP TOS value to %d (may be you have no "
+				"root privileges): %s\n", desc, tos, strerror(errno));
+		} else if (tos) {
+			ast_verb(2, "Using %s TOS bits %d\n", desc, tos);
+		}
 	}
 
-	if ((res = setsockopt(sockfd, proto_type, dscp_field, &tos, sizeof(tos)))) {
-		ast_log(LOG_WARNING, "Unable to set %s TOS to %d (may be you have no "
-			"root privileges): %s\n", desc, tos, strerror(errno));
-	} else if (tos) {
-		ast_verb(2, "Using %s TOS bits %d\n", desc, tos);
+	if (set_tclass) {
+		if (!ast_getsockname(sockfd, &addr) && ast_sockaddr_is_ipv6(&addr)) {
+			if ((res = setsockopt(sockfd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos)))) {
+				ast_log(LOG_WARNING, "Unable to set %s DSCP TCLASS field to %d (may be you have no "
+					"root privileges): %s\n", desc, tos, strerror(errno));
+			} else if (tos) {
+				ast_verb(2, "Using %s TOS bits %d in TCLASS field.\n", desc, tos);
+			}
+		}
 	}
 
 #ifdef linux
