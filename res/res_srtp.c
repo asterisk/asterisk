@@ -32,15 +32,7 @@
          <depend>srtp</depend>
 ***/
 
-/* The SIP channel will automatically use sdescriptions if received in a SDP offer,
-   and res_srtp is loaded. SRTP with sdescriptions key exchange can be activated
-  in outgoing offers by setting _SIPSRTP_CRYPTO=enable in extension.conf before executing Dial
-
-  The dial fails if the callee doesn't support SRTP and sdescriptions.
-
-  exten => 2345,1,Set(_SIPSRTP_CRYPTO=enable)
-  exten => 2345,2,Dial(SIP/1001)
-*/
+/* See doc/tex/secure-calls.tex for SRTP usage information */
 
 #include "asterisk.h"
 
