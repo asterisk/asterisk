@@ -5063,6 +5063,10 @@ static void *pri_dchannel(void *vpri)
 				break;
 			case PRI_EVENT_ANSWER:
 				if (sig_pri_is_cis_call(e->answer.channel)) {
+#if defined(HAVE_PRI_CALL_WAITING)
+					/* Call is CIS so do normal CONNECT_ACKNOWLEDGE. */
+					pri_connect_ack(pri->pri, e->answer.call, 0);
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 					sig_pri_handle_cis_subcmds(pri, e->e, e->answer.subcmds,
 						e->answer.call);
 					break;
