@@ -1176,7 +1176,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 				*/
 				ast_answer(chan);
-				res = ast_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
+				res = ast_play_and_record(chan, "priv-recordintro", privintro, 4, "sln", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
 										/* don't think we'll need a lock removed, we took care of
 										   conflicts by naming the privintro file */
 				if (res == -1) {
