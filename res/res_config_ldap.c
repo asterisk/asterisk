@@ -1321,7 +1321,8 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		for (i = 0; ldap_entry; i++) { 
 			dn = ldap_get_dn(ldapConn, ldap_entry);
 			if ((error = ldap_modify_ext_s(ldapConn, dn, ldap_mods, NULL, NULL)) != LDAP_SUCCESS)  {
-				ast_log(LOG_ERROR, "Couldn't modify dn:%s because %s", dn, ldap_err2string(error));
+				ast_log(LOG_ERROR, "Couldn't modify '%s'='%s', dn:%s because %s\n",
+						attribute, lookup, dn, ldap_err2string(error));
 			}
 
 			ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
