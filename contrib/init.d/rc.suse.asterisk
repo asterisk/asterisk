@@ -106,7 +106,7 @@ start() {
 	if [ "0$MAXCALLS" -gt "0" ]; then
 		ASTARGS="$ASTARGS -M $MAXCALLS"
 	fi
-	if [ "$VERBOSITY" -gt "0" ]; then
+	if [ "0$VERBOSITY" -gt "0" ]; then
 		for i in `seq 1 $VERBOSITY`; do
 			ASTARGS="$ASTARGS -v"
 		done
