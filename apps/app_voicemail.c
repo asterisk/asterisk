@@ -12541,6 +12541,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app4);
+	res |= ast_unregister_application(sayname_app);
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
 	res |= ast_manager_unregister("VoicemailUsersList");
 	res |= ast_data_unregister(NULL);
