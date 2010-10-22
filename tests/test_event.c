@@ -253,7 +253,7 @@ AST_TEST_DEFINE(event_sub_test)
 	struct ast_event *event;
 	int i;
 	enum ast_event_subscriber_res sub_res;
-	static struct {
+	struct {
 		struct ast_event_sub *sub;
 		struct event_sub_data data;
 		const unsigned int expected_count;
