@@ -2789,7 +2789,6 @@ int ast_raw_answer(struct ast_channel *chan, int cdr_answer)
 	}
 
 	ast_indicate(chan, -1);
-	chan->visible_indication = 0;
 
 	return res;
 }
@@ -4154,8 +4153,12 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_RINGING:
 	case AST_CONTROL_RING:
 	case AST_CONTROL_HOLD:
-	case AST_CONTROL_UNHOLD:
+		/* You can hear these */
 		return 1;
+
+	case AST_CONTROL_UNHOLD:
+		/* This is a special case.  You stop hearing this. */
+		break;
 	}
 
 	return 0;
@@ -4176,7 +4179,6 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	/* Don't bother if the channel is about to go away, anyway. */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
-		ast_channel_unlock(chan);
 		res = -1;
 		goto indicate_cleanup;
 	}
@@ -4195,7 +4197,6 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 		/* who knows what we will get back! the anticipation is killing me. */
 		if (!(awesome_frame = ast_framehook_list_read_event(chan->framehooks, &frame))) {
-			ast_channel_unlock(chan);
 			res = 0;
 			goto indicate_cleanup;
 		}
@@ -4236,6 +4237,14 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		break;
 	}
 
+	if (is_visible_indication(condition)) {
+		/* A new visible indication is requested. */
+		chan->visible_indication = condition;
+	} else if (condition == AST_CONTROL_UNHOLD || _condition < 0) {
+		/* Visible indication is cleared/stopped. */
+		chan->visible_indication = 0;
+	}
+
 	if (chan->tech->indicate) {
 		/* See if the channel driver can handle this condition. */
 		res = chan->tech->indicate(chan, condition, data, datalen);
@@ -4243,13 +4252,8 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		res = -1;
 	}
 
-	ast_channel_unlock(chan);
-
 	if (!res) {
 		/* The channel driver successfully handled this indication */
-		if (is_visible_indication(condition)) {
-			chan->visible_indication = condition;
-		}
 		res = 0;
 		goto indicate_cleanup;
 	}
@@ -4335,7 +4339,6 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		ast_playtones_start(chan, 0, ts->data, 1);
 		ts = ast_tone_zone_sound_unref(ts);
 		res = 0;
-		chan->visible_indication = condition;
 	}
 
 	if (res) {
@@ -4344,6 +4347,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	}
 
 indicate_cleanup:
+	ast_channel_unlock(chan);
 	if (awesome_frame) {
 		ast_frfree(awesome_frame);
 	}
@@ -5948,6 +5952,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	int i;
 	int res=0;
 	int origstate;
+	int visible_indication;
 	struct ast_frame *current;
 	const struct ast_channel_tech *t;
 	void *t_pvt;
@@ -6019,10 +6024,21 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		clonechan->name, clonechan->_state, original->name, original->_state);
 
+	/*
+	 * Stop any visible indiction on the original channel so we can
+	 * transfer it to the clonechan taking the original's place.
+	 */
+	visible_indication = original->visible_indication;
+	ast_indicate(original, -1);
+
 	chans[0] = clonechan;
 	chans[1] = original;
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Masquerade", 2, chans, "Clone: %s\r\nCloneState: %s\r\nOriginal: %s\r\nOriginalState: %s\r\n",
-		      clonechan->name, ast_state2str(clonechan->_state), original->name, ast_state2str(original->_state));
+	ast_manager_event_multichan(EVENT_FLAG_CALL, "Masquerade", 2, chans,
+		"Clone: %s\r\n"
+		"CloneState: %s\r\n"
+		"Original: %s\r\n"
+		"OriginalState: %s\r\n",
+		clonechan->name, ast_state2str(clonechan->_state), original->name, ast_state2str(original->_state));
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */
@@ -6246,8 +6262,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	 * of this channel, and the new channel private data needs to be made
 	 * aware of the current visible indication (RINGING, CONGESTION, etc.)
 	 */
-	if (original->visible_indication) {
-		ast_indicate(original, original->visible_indication);
+	if (visible_indication) {
+		ast_indicate(original, visible_indication);
 	}
 
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
