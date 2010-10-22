@@ -22,6 +22,10 @@
 ; ldap.conf file for OpenLDAP clients on your system.
 ; This requires that you have OpenLDAP libraries compiled with TLS support
 
+; *********************************************************************************
+; NOTE: res_ldap.conf should be chmod 600 because it contains the plain-text LDAP
+;       password to an account with WRITE access to the asterisk configuration. 
+; *********************************************************************************
 
 [_general]
 ;
@@ -31,8 +35,8 @@
 ;port=389
 ;url=ldap://ldap3.mydomain.com:3890
 ;protocol=3                          ; Version of the LDAP protocol to use; default is 3.
-;basedn=MyRootDN                     ; Base DN
-;user=MyDN                           ; Bind DN
+;basedn=dc=example,dc=tld            ; Base DN
+;user=cn=asterisk,dc=example,dc=tld  ; Bind DN
 ;pass=MyPassword                     ; Bind password
 
 ; Configuration Table
@@ -69,7 +73,15 @@ additionalFilter=(objectClass=AstExtension)
 ; Sip Users Table
 ;
 [sip]
-name = cn
+name = cn       ; We use the "cn" as the default value for name on the line above
+                ; because objectClass=AsteriskSIPUser does not include a uid as an allowed field
+                ; If your entry combines other objectClasses and uid is available, you may
+                ; prefer to change the line to be name = uid, especially if your LDAP entries
+                ; contain spaces in the cn field.
+                ; You may also find it appropriate to use something completely different.
+                ; This is possible by changing the line above to name = AstAccountName (or whatever you
+                ; prefer).
+                ;
 amaflags = AstAccountAMAFlags
 callgroup = AstAccountCallGroup
 callerid = AstAccountCallerID
@@ -83,8 +95,10 @@ fullcontact = gecos
 host = AstAccountHost
 insecure = AstAccountInsecure
 mailbox = AstAccountMailbox
-md5secret = AstAccountRealmedPassword		; Must be an MD5 hash. Field value can start with
-					; {md5} but it is not required.
+md5secret = AstAccountRealmedPassword           ; Must be an MD5 hash. Field value can start with
+                                                ; {md5} but it is not required.
+                                                ; Generate the password via the md5sum command, e.g.
+                                                ; echo "my_password" | md5sum
 nat = AstAccountNAT
 deny = AstAccountDeny
 permit = AstAccountPermit
@@ -119,8 +133,10 @@ fullcontact = AstAccountFullContact
 fullcontact = gecos
 host = AstAccountHost
 mailbox = AstAccountMailbox
-md5secret = AstAccountRealmedPassword		; Must be an MD5 hash. Field value can start with
-					; {md5} but it is not required.
+md5secret = AstAccountRealmedPassword           ; Must be an MD5 hash. Field value can start with
+                                                ; {md5} but it is not required.
+                                                ; Generate the password via the md5sum command, e.g.
+                                                ; echo "my_password" | md5sum
 deny = AstAccountDeny
 permit = AstAccountPermit
 port = AstAccountPort
@@ -156,8 +172,10 @@ fullcontact = gecos
 host = AstAccountHost
 insecure = AstAccountInsecure
 mailbox = AstAccountMailbox
-md5secret = AstAccountRealmedPassword		; Must be an MD5 hash. Field value can start with
-					; {md5} but it is not required.
+md5secret = AstAccountRealmedPassword           ; Must be an MD5 hash. Field value can start with
+                                                ; {md5} but it is not required.
+                                                ; Generate the password via the md5sum command, e.g.
+                                                ; echo "my_password" | md5sum
 nat = AstAccountNAT
 deny = AstAccountDeny
 permit = AstAccountPermit

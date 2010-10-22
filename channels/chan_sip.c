@@ -4253,6 +4253,12 @@ static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr
 	else if (sip_cfg.rtsave_sysname)
 		syslabel = "regserver";
 
+	/* XXX IMPORTANT: Anytime you add a new parameter to be updated, you
+         *  must also add it to contrib/scripts/asterisk.ldap-schema,
+         *  contrib/scripts/asterisk.ldif,
+         *  and to configs/res_ldap.conf.sample as described in
+         *  bugs 15156 and 15895 
+         */
 	if (fc) {
 		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
