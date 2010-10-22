@@ -105,6 +105,8 @@ OUTPUT_BASE=asterisk # Our default cert basename
 CERT_MODE=server
 ORG_NAME=${DEFAULT_ORG}
 
+umask 377
+
 while getopts "hf:c:k:o:d:m:C:O:" OPTION
 do
 	case ${OPTION} in
