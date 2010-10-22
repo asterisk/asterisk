@@ -8497,6 +8497,40 @@ static void release_chan_early(struct chan_list *ch)
 
 /*!
  * \internal
+ * \brief Copy the source connected line information to the destination for a transfer.
+ * \since 1.8
+ *
+ * \param dest Destination connected line
+ * \param src Source connected line
+ *
+ * \return Nothing
+ */
+static void misdn_connected_line_copy_transfer(struct ast_party_connected_line *dest, struct ast_party_connected_line *src)
+{
+	struct ast_party_connected_line connected;
+
+	connected = *src;
+	connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
+
+	/* Make sure empty strings will be erased. */
+	if (!connected.id.name.str) {
+		connected.id.name.str = "";
+	}
+	if (!connected.id.number.str) {
+		connected.id.number.str = "";
+	}
+	if (!connected.id.subaddress.str) {
+		connected.id.subaddress.str = "";
+	}
+	if (!connected.id.tag) {
+		connected.id.tag = "";
+	}
+
+	ast_party_connected_line_copy(dest, &connected);
+}
+
+/*!
+ * \internal
  * \brief Attempt to transfer the active channel party to the held channel party.
  *
  * \param active_ch Channel currently connected.
@@ -8508,7 +8542,10 @@ static void release_chan_early(struct chan_list *ch)
 static int misdn_attempt_transfer(struct chan_list *active_ch, struct chan_list *held_ch)
 {
 	int retval;
-	struct ast_channel *bridged;
+	struct ast_channel *target;
+	struct ast_channel *transferee;
+	struct ast_party_connected_line target_colp;
+	struct ast_party_connected_line transferee_colp;
 
 	switch (active_ch->state) {
 	case MISDN_PROCEEDING:
@@ -8520,23 +8557,116 @@ static int misdn_attempt_transfer(struct chan_list *active_ch, struct chan_list 
 		return -1;
 	}
 
-	bridged = ast_bridged_channel(held_ch->ast);
-	if (bridged) {
-		ast_queue_control(held_ch->ast, AST_CONTROL_UNHOLD);
-		held_ch->hold.state = MISDN_HOLD_TRANSFER;
+	ast_channel_lock(held_ch->ast);
+	while (ast_channel_trylock(active_ch->ast)) {
+		CHANNEL_DEADLOCK_AVOIDANCE(held_ch->ast);
+	}
 
-		chan_misdn_log(1, held_ch->hold.port, "TRANSFERRING %s to %s\n",
-			held_ch->ast->name, active_ch->ast->name);
-		retval = ast_channel_masquerade(active_ch->ast, bridged);
-	} else {
+	transferee = ast_bridged_channel(held_ch->ast);
+	if (!transferee) {
 		/*
 		 * Could not transfer.  Held channel is not bridged anymore.
 		 * Held party probably got tired of waiting and hung up.
 		 */
-		retval = -1;
+		ast_channel_unlock(held_ch->ast);
+		ast_channel_unlock(active_ch->ast);
+		return -1;
 	}
 
-	return retval;
+	target = active_ch->ast;
+	chan_misdn_log(1, held_ch->hold.port, "TRANSFERRING %s to %s\n",
+		held_ch->ast->name, target->name);
+
+	ast_party_connected_line_init(&target_colp);
+	misdn_connected_line_copy_transfer(&target_colp, &target->connected);
+	ast_party_connected_line_init(&transferee_colp);
+	misdn_connected_line_copy_transfer(&transferee_colp, &held_ch->ast->connected);
+	held_ch->hold.state = MISDN_HOLD_TRANSFER;
+
+	/*
+	 * Before starting a masquerade, all channel and pvt locks must
+	 * be unlocked.  Any recursive channel locks held before
+	 * ast_channel_masquerade() invalidates deadlock avoidance.  Any
+	 * recursive channel locks held before ast_do_masquerade()
+	 * invalidates channel container locking order.  Since we are
+	 * unlocking both the pvt and its owner channel it is possible
+	 * for "target" and "transferee" to be destroyed by their pbx
+	 * threads.  To prevent this we must give "target" and
+	 * "transferee" a reference before any unlocking takes place.
+	 */
+	ao2_ref(target, +1);
+	ao2_ref(transferee, +1);
+	ast_channel_unlock(held_ch->ast);
+	ast_channel_unlock(active_ch->ast);
+
+	/* Release hold on the transferee channel. */
+	ast_indicate(transferee, AST_CONTROL_UNHOLD);
+
+	/* Setup transfer masquerade. */
+	retval = ast_channel_masquerade(target, transferee);
+	if (retval) {
+		/* Masquerade setup failed. */
+		ast_party_connected_line_free(&target_colp);
+		ast_party_connected_line_free(&transferee_colp);
+		ao2_ref(target, -1);
+		ao2_ref(transferee, -1);
+		return -1;
+	}
+	ao2_ref(transferee, -1);
+
+	/*
+	 * Make sure masquerade is complete.
+	 *
+	 * After the masquerade, the "target" channel pointer actually
+	 * points to the new transferee channel and the bridged channel
+	 * is still the intended target of the transfer.
+	 *
+	 * By manually completing the masquerade, we can send connected
+	 * line updates where they need to go.
+	 */
+	ast_do_masquerade(target);
+
+	/* Transfer COLP between target and transferee channels. */
+	{
+		/*
+		 * Since "target" may not actually be bridged to another
+		 * channel, there is no way for us to queue a frame so that its
+		 * connected line status will be updated.  Instead, we use the
+		 * somewhat hackish approach of using a special control frame
+		 * type that instructs ast_read() to perform a specific action.
+		 * In this case, the frame we queue tells ast_read() to call the
+		 * connected line interception macro configured for "target".
+		 */
+		struct ast_control_read_action_payload *frame_payload;
+		int payload_size;
+		int frame_size;
+		unsigned char connected_line_data[1024];
+
+		payload_size = ast_connected_line_build_data(connected_line_data,
+			sizeof(connected_line_data), &target_colp, NULL);
+		if (payload_size != -1) {
+			frame_size = payload_size + sizeof(*frame_payload);
+			frame_payload = alloca(frame_size);
+			frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
+			frame_payload->payload_size = payload_size;
+			memcpy(frame_payload->payload, connected_line_data, payload_size);
+			ast_queue_control_data(target, AST_CONTROL_READ_ACTION, frame_payload,
+				frame_size);
+		}
+		/*
+		 * In addition to queueing the read action frame so that the
+		 * connected line info on "target" will be updated, we also
+		 * are going to queue a plain old connected line update on
+		 * "target" to update the target channel.
+		 */
+		ast_channel_queue_connected_line_update(target, &transferee_colp, NULL);
+	}
+
+	ast_party_connected_line_free(&target_colp);
+	ast_party_connected_line_free(&transferee_colp);
+
+	ao2_ref(target, -1);
+	return 0;
 }
 
 
