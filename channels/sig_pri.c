@@ -1882,7 +1882,7 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 }
 #endif	/* defined(HAVE_PRI_MCID) */
 
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
  * \brief Copy the source connected line information to the destination for a transfer.
@@ -1916,9 +1916,9 @@ static void sig_pri_connected_line_copy_transfer(struct ast_party_connected_line
 
 	ast_party_connected_line_copy(dest, &connected);
 }
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_TRANSFER)
 struct xfer_rsp_data {
 	struct sig_pri_span *pri;
 	/*! Call to send transfer success/fail response over. */
@@ -1926,9 +1926,9 @@ struct xfer_rsp_data {
 	/*! Invocation ID to use when sending a reply to the transfer request. */
 	int invoke_id;
 };
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
  * \brief Send the transfer success/fail response message.
@@ -1945,9 +1945,9 @@ static void sig_pri_transfer_rsp(void *data, int is_successful)
 
 	pri_transfer_rsp(rsp->pri->pri, rsp->call, rsp->invoke_id, is_successful);
 }
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_TRANSFER)
 /*!
  * \brief Protocol callback to indicate if transfer will happen.
  * \since 1.8
@@ -1958,9 +1958,9 @@ static void sig_pri_transfer_rsp(void *data, int is_successful)
  * \return Nothing
  */
 typedef void (*xfer_rsp_callback)(void *data, int is_successful);
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
  * \brief Attempt to transfer the two calls to each other.
@@ -2220,7 +2220,7 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 	ast_mutex_lock(&pri->lock);
 	return 0;
 }
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
 #if defined(HAVE_PRI_CCSS)
 /*!
