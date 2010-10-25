@@ -1427,7 +1427,7 @@ static int pri_find_empty_nobch(struct sig_pri_span *pri)
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
-#if defined(HAVE_PRI_CALL_HOLD)
+#if defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
  * \brief Find the channel associated with the libpri call.
@@ -1453,7 +1453,7 @@ static int pri_find_pri_call(struct sig_pri_span *pri, q931_call *call)
 	}
 	return -1;
 }
-#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
 static void *do_idle_thread(void *v_pvt)
 {
@@ -5595,7 +5595,7 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
 							e->hangup.subcmds, e->hangup.call);
-#if defined(HAVE_PRI_CALL_HOLD)
+#if defined(HAVE_PRI_TRANSFER)
 						if (e->hangup.call_active && e->hangup.call_held
 							&& pri->hold_disconnect_transfer) {
 							/* We are to transfer the call instead of simply hanging up. */
@@ -5606,7 +5606,7 @@ static void *pri_dchannel(void *vpri)
 							}
 							sig_pri_lock_private(pri->pvts[chanpos]);
 						}
-#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 						switch (e->hangup.cause) {
 						case PRI_CAUSE_USER_BUSY:
 						case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
