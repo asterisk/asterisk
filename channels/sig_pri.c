@@ -1427,7 +1427,7 @@ static int pri_find_empty_nobch(struct sig_pri_span *pri)
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
-#if defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_CALL_HOLD)
 /*!
  * \internal
  * \brief Find the channel associated with the libpri call.
@@ -1453,7 +1453,7 @@ static int pri_find_pri_call(struct sig_pri_span *pri, q931_call *call)
 	}
 	return -1;
 }
-#endif	/* defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
 static void *do_idle_thread(void *v_pvt)
 {
@@ -1882,7 +1882,7 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 }
 #endif	/* defined(HAVE_PRI_MCID) */
 
-#if defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
  * \brief Copy the source connected line information to the destination for a transfer.
@@ -1916,9 +1916,9 @@ static void sig_pri_connected_line_copy_transfer(struct ast_party_connected_line
 
 	ast_party_connected_line_copy(dest, &connected);
 }
-#endif	/* defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
 struct xfer_rsp_data {
 	struct sig_pri_span *pri;
 	/*! Call to send transfer success/fail response over. */
@@ -1926,7 +1926,7 @@ struct xfer_rsp_data {
 	/*! Invocation ID to use when sending a reply to the transfer request. */
 	int invoke_id;
 };
-#endif	/* defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
 #if defined(HAVE_PRI_TRANSFER)
 /*!
@@ -1947,7 +1947,7 @@ static void sig_pri_transfer_rsp(void *data, int is_successful)
 }
 #endif	/* defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
 /*!
  * \brief Protocol callback to indicate if transfer will happen.
  * \since 1.8
@@ -1958,9 +1958,9 @@ static void sig_pri_transfer_rsp(void *data, int is_successful)
  * \return Nothing
  */
 typedef void (*xfer_rsp_callback)(void *data, int is_successful);
-#endif	/* defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
 /*!
  * \internal
  * \brief Attempt to transfer the two calls to each other.
@@ -2220,7 +2220,7 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 	ast_mutex_lock(&pri->lock);
 	return 0;
 }
-#endif	/* defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
 #if defined(HAVE_PRI_CCSS)
 /*!
@@ -5595,7 +5595,7 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
 							e->hangup.subcmds, e->hangup.call);
-#if defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_CALL_HOLD)
 						if (e->hangup.call_active && e->hangup.call_held
 							&& pri->hold_disconnect_transfer) {
 							/* We are to transfer the call instead of simply hanging up. */
@@ -5606,7 +5606,7 @@ static void *pri_dchannel(void *vpri)
 							}
 							sig_pri_lock_private(pri->pvts[chanpos]);
 						}
-#endif	/* defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
 						switch (e->hangup.cause) {
 						case PRI_CAUSE_USER_BUSY:
 						case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
