@@ -1918,7 +1918,7 @@ static void sig_pri_connected_line_copy_transfer(struct ast_party_connected_line
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
+#if defined(HAVE_PRI_TRANSFER)
 struct xfer_rsp_data {
 	struct sig_pri_span *pri;
 	/*! Call to send transfer success/fail response over. */
@@ -1926,7 +1926,7 @@ struct xfer_rsp_data {
 	/*! Invocation ID to use when sending a reply to the transfer request. */
 	int invoke_id;
 };
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
+#endif	/* defined(HAVE_PRI_TRANSFER) */
 
 #if defined(HAVE_PRI_TRANSFER)
 /*!
