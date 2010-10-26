@@ -682,6 +682,7 @@ struct vm_state {
 	char intro[PATH_MAX];
 	int *deleted;
 	int *heard;
+	int dh_arraysize; /* used for deleted / heard allocation */
 	int curmsg;
 	int lastmsg;
 	int newmessages;
@@ -914,7 +915,7 @@ static int inprocess_hash_fn(const void *obj, const int flags)
 static int inprocess_cmp_fn(void *obj, void *arg, int flags)
 {
 	struct inprocess *i = obj, *j = arg;
-	if (!strcmp(i->mailbox, j->mailbox)) {
+	if (strcmp(i->mailbox, j->mailbox)) {
 		return 0;
 	}
 	return !strcmp(i->context, j->context) ? CMP_MATCH : 0;
@@ -932,6 +933,9 @@ static int inprocess_count(const char *context, const char *mailbox, int delta)
 		ao2_unlock(inprocess_container);
 		ao2_ref(i, -1);
 		return ret;
+	}
+	if (delta < 0) {
+		ast_log(LOG_WARNING, "BUG: ref count decrement on non-existing object???\n");
 	}
 	if (!(i = ao2_alloc(sizeof(*i) + strlen(context) + strlen(mailbox) + 2, NULL))) {
 		ao2_unlock(inprocess_container);
@@ -1696,6 +1700,33 @@ static void free_user(struct ast_vm_user *vmu)
 	}
 }
 
+static int vm_allocate_dh(struct vm_state *vms, struct ast_vm_user *vmu, int count_msg) {
+
+	int arraysize = (vmu->maxmsg > count_msg ? vmu->maxmsg : count_msg);
+	if (!vms->dh_arraysize) {
+		/* initial allocation */
+		if (!(vms->deleted = ast_calloc(arraysize, sizeof(int)))) {
+			return -1;
+		}
+		if (!(vms->heard = ast_calloc(arraysize, sizeof(int)))) {
+			return -1;
+		}
+		vms->dh_arraysize = arraysize;
+	} else if (vms->dh_arraysize < arraysize) {
+		if (!(vms->deleted = ast_realloc(vms->deleted, arraysize * sizeof(int)))) {
+			return -1;
+		}
+		if (!(vms->heard = ast_realloc(vms->heard, arraysize * sizeof(int)))) {
+			return -1;
+		}
+		memset(vms->deleted, 0, arraysize * sizeof(int));
+		memset(vms->heard, 0, arraysize * sizeof(int));
+		vms->dh_arraysize = arraysize;
+	}
+
+	return 0;
+}
+
 /* All IMAP-specific functions should go in this block. This
  * keeps them from being spread out all over the code */
 #ifdef IMAP_STORAGE
@@ -2097,9 +2128,11 @@ static int imap_check_limits(struct ast_channel *chan, struct vm_state *vms, str
 	}
 	
 	/* Check if we have exceeded maxmsg */
-	if (msgnum >= vmu->maxmsg  - inprocess_count(vmu->mailbox, vmu->context, 0)) {
-		ast_log(AST_LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u > %u)\n", msgnum, vmu->maxmsg);
+	ast_debug(3, "Checking message number quota: mailbox has %d messages, maximum is set to %d, current messages %d\n", msgnum, vmu->maxmsg, inprocess_count(vmu->mailbox, vmu->context, 0));
+	if (msgnum >= vmu->maxmsg - inprocess_count(vmu->mailbox, vmu->context, +1)) {
+		ast_log(LOG_WARNING, "Unable to leave message since we will exceed the maximum number of messages allowed (%u >= %u)\n", msgnum, vmu->maxmsg);
 		ast_play_and_wait(chan, "vm-mailboxfull");
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		return -1;
 	}
 
@@ -2248,7 +2281,7 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	
 	if (tempcopy)
 		*(vmu->email) = '\0';
-	
+	inprocess_count(vmu->mailbox, vmu->context, -1);
 	return 0;
 
 }
@@ -2582,6 +2615,16 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	mail_search_full (vms->mailstream, NULL, pgm, NIL);
 	vms->lastmsg = vms->vmArrayIndex - 1;
 	mail_free_searchpgm(&pgm);
+	/* Since IMAP storage actually stores both old and new messages in the same IMAP folder,
+	 * ensure to allocate enough space to account for all of them. Warn if old messages
+	 * have not been checked first as that is required.
+	 */
+	if (box == 0 && !vms->dh_arraysize) {
+		ast_log(LOG_WARNING, "The code expects the old messages to be checked first, fix the code.\n");
+	}
+	if (vm_allocate_dh(vms, vmu, box == 0 ? vms->vmArrayIndex + vms->oldmessages : vms->lastmsg)) {
+		return -1;
+	}
 
 	ast_mutex_unlock(&vms->lock);
 	return 0;
@@ -4689,11 +4732,18 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	FILE *p = NULL;
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[256];
+	char *stringp;
 
 	if (vmu && ast_strlen_zero(vmu->email)) {
 		ast_log(AST_LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
 		return(0);
 	}
+
+	/* Mail only the first format */
+	format = ast_strdupa(format);
+	stringp = format;
+	strsep(&stringp, "|");
+
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
 	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
@@ -5510,7 +5560,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 	DISPOSE(tempfile, -1);
 	/* It's easier just to try to make it than to check for its existence */
+#ifndef IMAP_STORAGE
 	create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
+#else
+	snprintf(dir, sizeof(dir), "%simap", VM_SPOOL_DIR);
+	if (mkdir(dir, VOICEMAIL_DIR_MODE) && errno != EEXIST) {
+		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
+	}
+#endif
 
 	/* Check current or macro-calling context for special extensions */
 	if (ast_test_flag(vmu, VM_OPERATOR)) {
@@ -5692,7 +5749,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		/* here is a big difference! We add one to it later */
 		msgnum = newmsgs + oldmsgs;
 		ast_debug(3, "Messagecount set to %d\n", msgnum);
-		snprintf(fn, sizeof(fn), "%s/imap/msg%s%04d", VM_SPOOL_DIR, vmu->mailbox, msgnum);
+		snprintf(fn, sizeof(fn), "%simap/msg%s%04d", VM_SPOOL_DIR, vmu->mailbox, msgnum);
 		/* set variable for compatibility */
 		pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", "IMAP_STORAGE");
 
@@ -6800,7 +6857,11 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	}
 	ast_channel_unlock(chan);
 
+#ifndef IMAP_STORAGE
 	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, !ast_strlen_zero(flag) && !strcmp(flag, "Urgent") ? "Urgent" : "INBOX");
+#else
+	snprintf(todir, sizeof(todir), "%simap", VM_SPOOL_DIR);
+#endif
 	make_file(fn, sizeof(fn), todir, msgnum);
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 
@@ -7621,11 +7682,16 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	/* Faster to make the directory than to check if it exists. */
 	create_dirpath(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
 
+	/* traverses directory using readdir (or select query for ODBC) */
 	count_msg = count_messages(vmu, vms->curdir);
 	if (count_msg < 0) {
 		return count_msg;
 	} else {
 		vms->lastmsg = count_msg - 1;
+	}
+
+	if (vm_allocate_dh(vms, vmu, count_msg)) {
+		return -1;
 	}
 
 	/*
@@ -7640,11 +7706,14 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 		return -1;
 	}
 
+	/* for local storage, checks directory for messages up to maxmsg limit */
 	last_msg = last_message_index(vmu, vms->curdir);
 	ast_unlock_path(vms->curdir);
 
 	if (last_msg < 0) {
 		return last_msg;
+	} else if (vms->lastmsg != last_msg) {
+		ast_log(LOG_NOTICE, "Mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
 	}
 
 	return 0;
@@ -7670,7 +7739,8 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		return ERROR_LOCK_PATH;
 	}
 
-	for (x = 0; x < vmu->maxmsg; x++) {
+	/* must check up to last detected message, just in case it is erroneously greater than maxmsg */
+	for (x = 0; x < vms->lastmsg + 1; x++) {
 		if (!vms->deleted[x] && ((strcasecmp(vms->curbox, "INBOX") && strcasecmp(vms->curbox, "Urgent")) || !vms->heard[x] || (vms->heard[x] && !ast_test_flag(vmu, VM_MOVEHEARD)))) {
 			/* Save this message.  It's not in INBOX or hasn't been heard */
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
@@ -7724,7 +7794,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	if (vms->deleted) {
 		/* Since we now expunge after each delete, deleting in reverse order
 		 * ensures that no reordering occurs between each step. */
-		for (x = vmu->maxmsg - 1; x >= 0; x--) {
+		for (x = vms->dh_arraysize - 1; x >= 0; x--) {
 			if (vms->deleted[x]) {
 				ast_debug(3, "IMAP delete of %d\n", x);
 				DELETE(vms->curdir, x, vms->fn, vmu);
@@ -7735,10 +7805,10 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 
 done:
 	if (vms->deleted && vmu->maxmsg) {
-		memset(vms->deleted, 0, vmu->maxmsg * sizeof(int));
+		memset(vms->deleted, 0, vms->dh_arraysize * sizeof(int));
 	}
 	if (vms->heard && vmu->maxmsg) {
-		memset(vms->heard, 0, vmu->maxmsg * sizeof(int));
+		memset(vms->heard, 0, vms->dh_arraysize * sizeof(int));
 	}
 
 	return 0;
@@ -9719,20 +9789,20 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	/* Retrieve urgent, old and new message counts */
 	ast_debug(1, "Before open_mailbox\n");
 	res = open_mailbox(&vms, vmu, OLD_FOLDER); /* Count all messages, even Urgent */
-	if (res == ERROR_LOCK_PATH)
+	if (res < 0)
 		goto out;
 	vms.oldmessages = vms.lastmsg + 1;
 	ast_debug(1, "Number of old messages: %d\n", vms.oldmessages);
 	/* check INBOX */
 	res = open_mailbox(&vms, vmu, NEW_FOLDER);
-	if (res == ERROR_LOCK_PATH)
+	if (res < 0)
 		goto out;
 	vms.newmessages = vms.lastmsg + 1;
 	ast_debug(1, "Number of new messages: %d\n", vms.newmessages);
 	/* Start in Urgent */
 	in_urgent = 1;
 	res = open_mailbox(&vms, vmu, 11); /*11 is the Urgent folder */
-	if (res == ERROR_LOCK_PATH)
+	if (res < 0)
 		goto out;
 	vms.urgentmessages = vms.lastmsg + 1;
 	ast_debug(1, "Number of urgent messages: %d\n", vms.urgentmessages);
@@ -9746,7 +9816,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			in_urgent = 0;
 			res = open_mailbox(&vms, vmu, play_folder);
 		}
-		if (res == ERROR_LOCK_PATH)
+		if (res < 0)
 			goto out;
 
 		/* If there are no new messages, inform the user and hangup */
@@ -9762,13 +9832,13 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			res = open_mailbox(&vms, vmu, OLD_FOLDER); /* Count all messages, even Urgent */
 			in_urgent = 0;
 			play_folder = 1;
-			if (res == ERROR_LOCK_PATH)
+			if (res < 0)
 				goto out;
 		} else if (!vms.urgentmessages && vms.newmessages) {
 			/* If we have new messages but none are urgent */
 			in_urgent = 0;
 			res = open_mailbox(&vms, vmu, NEW_FOLDER);
-			if (res == ERROR_LOCK_PATH)
+			if (res < 0)
 				goto out;
 		}
 	}
@@ -9836,7 +9906,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 				/* If folder is not urgent, set in_urgent to zero! */
 				if (cmd != 11) in_urgent = 0;
 				res = open_mailbox(&vms, vmu, cmd);
-				if (res == ERROR_LOCK_PATH)
+				if (res < 0)
 					goto out;
 				play_folder = cmd;
 				cmd = 0;
@@ -9967,7 +10037,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 					if (res == ERROR_LOCK_PATH)
 						goto out;
 					res = open_mailbox(&vms, vmu, 11);  /* Open Urgent folder */
-					if (res == ERROR_LOCK_PATH)
+					if (res < 0)
 						goto out;
 					ast_debug(1, "No more new messages, opened INBOX and got %d Urgent messages\n", vms.lastmsg + 1);
 					vms.curmsg = vms.lastmsg;
@@ -9996,7 +10066,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 					if (res == ERROR_LOCK_PATH)
 						goto out;
 					res = open_mailbox(&vms, vmu, NEW_FOLDER);
-					if (res == ERROR_LOCK_PATH)
+					if (res < 0)
 						goto out;
 					ast_debug(1, "No more urgent messages, opened INBOX and got %d new messages\n", vms.lastmsg + 1);
 					vms.curmsg = -1;
@@ -10058,7 +10128,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 							if (res == ERROR_LOCK_PATH)
 								goto out;
 							res = open_mailbox(&vms, vmu, NEW_FOLDER);
-							if (res == ERROR_LOCK_PATH)
+							if (res < 0)
 								goto out;
 							ast_debug(1, "No more urgent messages, opened INBOX and got %d new messages\n", vms.lastmsg + 1);
 							vms.curmsg = -1;
@@ -10095,7 +10165,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 					if (res == ERROR_LOCK_PATH)
 						goto out;
 					res = open_mailbox(&vms, vmu, NEW_FOLDER);
-					if (res == ERROR_LOCK_PATH)
+					if (res < 0)
 						goto out;
 					ast_debug(1, "No more urgent messages, opened INBOX and got %d new messages\n", vms.lastmsg + 1);
 					vms.curmsg = -1;
@@ -10168,7 +10238,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 						if (res == ERROR_LOCK_PATH)
 							goto out;
 						res = open_mailbox(&vms, vmu, NEW_FOLDER);
-						if (res == ERROR_LOCK_PATH)
+						if (res < 0)
 							goto out;
 						ast_debug(1, "No more urgent messages, opened INBOX and got %d new messages\n", vms.lastmsg + 1);
 						vms.curmsg = -1;
