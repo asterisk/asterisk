@@ -1,24 +1,23 @@
-/* A Bison parser, made by GNU Bison 2.3.  */
+
+/* A Bison parser, made by GNU Bison 2.4.1.  */
 
 /* Skeleton implementation for Bison's Yacc-like parsers in C
-
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-
-   This program is free software; you can redistribute it and/or modify
+   
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -29,7 +28,7 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-
+   
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
@@ -47,7 +46,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.3"
+#define YYBISON_VERSION "2.4.1"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -55,115 +54,28 @@
 /* Pure parsers.  */
 #define YYPURE 1
 
+/* Push parsers.  */
+#define YYPUSH 0
+
+/* Pull parsers.  */
+#define YYPULL 1
+
 /* Using locations.  */
 #define YYLSP_NEEDED 1
 
 /* Substitute the variable and function names.  */
-#define yyparse ael_yyparse
-#define yylex   ael_yylex
-#define yyerror ael_yyerror
-#define yylval  ael_yylval
-#define yychar  ael_yychar
-#define yydebug ael_yydebug
-#define yynerrs ael_yynerrs
-#define yylloc ael_yylloc
-
-/* Tokens.  */
-#ifndef YYTOKENTYPE
-# define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     KW_CONTEXT = 258,
-     LC = 259,
-     RC = 260,
-     LP = 261,
-     RP = 262,
-     SEMI = 263,
-     EQ = 264,
-     COMMA = 265,
-     COLON = 266,
-     AMPER = 267,
-     BAR = 268,
-     AT = 269,
-     KW_MACRO = 270,
-     KW_GLOBALS = 271,
-     KW_IGNOREPAT = 272,
-     KW_SWITCH = 273,
-     KW_IF = 274,
-     KW_IFTIME = 275,
-     KW_ELSE = 276,
-     KW_RANDOM = 277,
-     KW_ABSTRACT = 278,
-     KW_EXTEND = 279,
-     EXTENMARK = 280,
-     KW_GOTO = 281,
-     KW_JUMP = 282,
-     KW_RETURN = 283,
-     KW_BREAK = 284,
-     KW_CONTINUE = 285,
-     KW_REGEXTEN = 286,
-     KW_HINT = 287,
-     KW_FOR = 288,
-     KW_WHILE = 289,
-     KW_CASE = 290,
-     KW_PATTERN = 291,
-     KW_DEFAULT = 292,
-     KW_CATCH = 293,
-     KW_SWITCHES = 294,
-     KW_ESWITCHES = 295,
-     KW_INCLUDES = 296,
-     KW_LOCAL = 297,
-     word = 298
-   };
-#endif
-/* Tokens.  */
-#define KW_CONTEXT 258
-#define LC 259
-#define RC 260
-#define LP 261
-#define RP 262
-#define SEMI 263
-#define EQ 264
-#define COMMA 265
-#define COLON 266
-#define AMPER 267
-#define BAR 268
-#define AT 269
-#define KW_MACRO 270
-#define KW_GLOBALS 271
-#define KW_IGNOREPAT 272
-#define KW_SWITCH 273
-#define KW_IF 274
-#define KW_IFTIME 275
-#define KW_ELSE 276
-#define KW_RANDOM 277
-#define KW_ABSTRACT 278
-#define KW_EXTEND 279
-#define EXTENMARK 280
-#define KW_GOTO 281
-#define KW_JUMP 282
-#define KW_RETURN 283
-#define KW_BREAK 284
-#define KW_CONTINUE 285
-#define KW_REGEXTEN 286
-#define KW_HINT 287
-#define KW_FOR 288
-#define KW_WHILE 289
-#define KW_CASE 290
-#define KW_PATTERN 291
-#define KW_DEFAULT 292
-#define KW_CATCH 293
-#define KW_SWITCHES 294
-#define KW_ESWITCHES 295
-#define KW_INCLUDES 296
-#define KW_LOCAL 297
-#define word 298
-
-
-
+#define yyparse         ael_yyparse
+#define yylex           ael_yylex
+#define yyerror         ael_yyerror
+#define yylval          ael_yylval
+#define yychar          ael_yychar
+#define yydebug         ael_yydebug
+#define yynerrs         ael_yynerrs
+#define yylloc          ael_yylloc
 
 /* Copy the first part of user declarations.  */
+
+/* Line 189 of yacc.c  */
 #line 1 "ael.y"
 
 /*
@@ -222,6 +134,9 @@ static char *ael_token_subst(const char *mess);
 
 
 
+/* Line 189 of yacc.c  */
+#line 139 "ael.tab.c"
+
 /* Enabling traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -240,20 +155,78 @@ static char *ael_token_subst(const char *mess);
 # define YYTOKEN_TABLE 0
 #endif
 
+
+/* Tokens.  */
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
+      know about them.  */
+   enum yytokentype {
+     KW_CONTEXT = 258,
+     LC = 259,
+     RC = 260,
+     LP = 261,
+     RP = 262,
+     SEMI = 263,
+     EQ = 264,
+     COMMA = 265,
+     COLON = 266,
+     AMPER = 267,
+     BAR = 268,
+     AT = 269,
+     KW_MACRO = 270,
+     KW_GLOBALS = 271,
+     KW_IGNOREPAT = 272,
+     KW_SWITCH = 273,
+     KW_IF = 274,
+     KW_IFTIME = 275,
+     KW_ELSE = 276,
+     KW_RANDOM = 277,
+     KW_ABSTRACT = 278,
+     KW_EXTEND = 279,
+     EXTENMARK = 280,
+     KW_GOTO = 281,
+     KW_JUMP = 282,
+     KW_RETURN = 283,
+     KW_BREAK = 284,
+     KW_CONTINUE = 285,
+     KW_REGEXTEN = 286,
+     KW_HINT = 287,
+     KW_FOR = 288,
+     KW_WHILE = 289,
+     KW_CASE = 290,
+     KW_PATTERN = 291,
+     KW_DEFAULT = 292,
+     KW_CATCH = 293,
+     KW_SWITCHES = 294,
+     KW_ESWITCHES = 295,
+     KW_INCLUDES = 296,
+     KW_LOCAL = 297,
+     word = 298
+   };
+#endif
+
+
+
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 59 "ael.y"
 {
+
+/* Line 214 of yacc.c  */
+#line 59 "ael.y"
+
 	int	intval;		/* integer value, typically flags */
 	char	*str;		/* strings */
 	struct pval *pval;	/* full objects */
-}
-/* Line 187 of yacc.c.  */
-#line 253 "ael.tab.c"
-	YYSTYPE;
+
+
+
+/* Line 214 of yacc.c  */
+#line 226 "ael.tab.c"
+} YYSTYPE;
+# define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
-# define YYSTYPE_IS_TRIVIAL 1
 #endif
 
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
@@ -271,6 +244,8 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
+
+/* Line 264 of yacc.c  */
 #line 65 "ael.y"
 
 	/* declaring these AFTER the union makes things a lot simpler! */
@@ -293,8 +268,8 @@ static pval *nword(char *string, YYLTYPE *pos);
 static pval *update_last(pval *, YYLTYPE *);
 
 
-/* Line 216 of yacc.c.  */
-#line 298 "ael.tab.c"
+/* Line 264 of yacc.c  */
+#line 273 "ael.tab.c"
 
 #ifdef short
 # undef short
@@ -369,14 +344,14 @@ typedef short int yytype_int16;
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static int
-YYID (int i)
+YYID (int yyi)
 #else
 static int
-YYID (i)
-    int i;
+YYID (yyi)
+    int yyi;
 #endif
 {
-  return i;
+  return yyi;
 }
 #endif
 
@@ -458,9 +433,9 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
 {
-  yytype_int16 yyss;
-  YYSTYPE yyvs;
-    YYLTYPE yyls;
+  yytype_int16 yyss_alloc;
+  YYSTYPE yyvs_alloc;
+  YYLTYPE yyls_alloc;
 };
 
 /* The size of the maximum gap between one aligned stack and the next.  */
@@ -495,12 +470,12 @@ union yyalloc
    elements in the stack, and YYPTR gives the new location of the
    stack.  Advance YYPTR to a properly aligned location for the next
    stack.  */
-# define YYSTACK_RELOCATE(Stack)					\
+# define YYSTACK_RELOCATE(Stack_alloc, Stack)				\
     do									\
       {									\
 	YYSIZE_T yynewbytes;						\
-	YYCOPY (&yyptr->Stack, Stack, yysize);				\
-	Stack = &yyptr->Stack;						\
+	YYCOPY (&yyptr->Stack_alloc, Stack, yysize);			\
+	Stack = &yyptr->Stack_alloc;					\
 	yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
 	yyptr += yynewbytes / sizeof (*yyptr);				\
       }									\
@@ -674,15 +649,15 @@ static const char *const yytname[] =
   "KW_DEFAULT", "KW_CATCH", "KW_SWITCHES", "KW_ESWITCHES", "KW_INCLUDES",
   "KW_LOCAL", "word", "$accept", "file", "objects", "object",
   "context_name", "context", "opt_abstract", "macro", "globals",
-  "global_statements", "assignment", "@1", "local_assignment", "@2",
+  "global_statements", "assignment", "$@1", "local_assignment", "$@2",
   "arglist", "elements", "element", "ignorepat", "extension", "statements",
-  "timerange", "timespec", "test_expr", "@3", "if_like_head", "word_list",
+  "timerange", "timespec", "test_expr", "$@3", "if_like_head", "word_list",
   "hint_word", "word3_list", "goto_word", "switch_statement", "statement",
-  "@4", "@5", "@6", "@7", "opt_else", "target", "opt_pri", "jumptarget",
-  "macro_call", "@8", "application_call_head", "@9", "application_call",
-  "opt_word", "eval_arglist", "case_statements", "case_statement",
-  "macro_statements", "macro_statement", "switches", "eswitches",
-  "switchlist", "included_entry", "includeslist", "includes", 0
+  "$@4", "$@5", "$@6", "$@7", "opt_else", "target", "opt_pri",
+  "jumptarget", "macro_call", "$@8", "application_call_head", "$@9",
+  "application_call", "opt_word", "eval_arglist", "case_statements",
+  "case_statement", "macro_statements", "macro_statement", "switches",
+  "eswitches", "switchlist", "included_entry", "includeslist", "includes", 0
 };
 #endif
 
@@ -1147,17 +1122,20 @@ yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp, parseio)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_stack_print (yytype_int16 *bottom, yytype_int16 *top)
+yy_stack_print (yytype_int16 *yybottom, yytype_int16 *yytop)
 #else
 static void
-yy_stack_print (bottom, top)
-    yytype_int16 *bottom;
-    yytype_int16 *top;
+yy_stack_print (yybottom, yytop)
+    yytype_int16 *yybottom;
+    yytype_int16 *yytop;
 #endif
 {
   YYFPRINTF (stderr, "Stack now");
-  for (; bottom <= top; ++bottom)
-    YYFPRINTF (stderr, " %d", *bottom);
+  for (; yybottom <= yytop; yybottom++)
+    {
+      int yybot = *yybottom;
+      YYFPRINTF (stderr, " %d", yybot);
+    }
   YYFPRINTF (stderr, "\n");
 }
 
@@ -1193,11 +1171,11 @@ yy_reduce_print (yyvsp, yylsp, yyrule, parseio)
   /* The symbols being reduced.  */
   for (yyi = 0; yyi < yynrhs; yyi++)
     {
-      fprintf (stderr, "   $%d = ", yyi + 1);
+      YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
 		       &(yyvsp[(yyi + 1) - (yynrhs)])
 		       , &(yylsp[(yyi + 1) - (yynrhs)])		       , parseio);
-      fprintf (stderr, "\n");
+      YYFPRINTF (stderr, "\n");
     }
 }
 
@@ -1477,339 +1455,513 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
   switch (yytype)
     {
       case 43: /* "word" */
+
+/* Line 1000 of yacc.c  */
 #line 183 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1483 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1465 "ael.tab.c"
 	break;
       case 46: /* "objects" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1491 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1477 "ael.tab.c"
 	break;
       case 47: /* "object" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1499 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1489 "ael.tab.c"
 	break;
       case 48: /* "context_name" */
+
+/* Line 1000 of yacc.c  */
 #line 183 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1504 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1498 "ael.tab.c"
 	break;
       case 49: /* "context" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1512 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1510 "ael.tab.c"
 	break;
       case 51: /* "macro" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1520 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1522 "ael.tab.c"
 	break;
       case 52: /* "globals" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1528 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1534 "ael.tab.c"
 	break;
       case 53: /* "global_statements" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1536 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1546 "ael.tab.c"
 	break;
       case 54: /* "assignment" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1544 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1558 "ael.tab.c"
 	break;
       case 56: /* "local_assignment" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1552 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1570 "ael.tab.c"
 	break;
       case 58: /* "arglist" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1560 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1582 "ael.tab.c"
 	break;
       case 59: /* "elements" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1568 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1594 "ael.tab.c"
 	break;
       case 60: /* "element" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1576 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1606 "ael.tab.c"
 	break;
       case 61: /* "ignorepat" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1584 "ael.tab.c"
-	break;
-      case 62: /* "extension" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1592 "ael.tab.c"
-	break;
-      case 63: /* "statements" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1600 "ael.tab.c"
-	break;
-      case 64: /* "timerange" */
-#line 183 "ael.y"
-	{ free((yyvaluep->str));};
-#line 1605 "ael.tab.c"
-	break;
-      case 65: /* "timespec" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1613 "ael.tab.c"
-	break;
-      case 66: /* "test_expr" */
-#line 183 "ael.y"
-	{ free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
 #line 1618 "ael.tab.c"
 	break;
-      case 68: /* "if_like_head" */
+      case 62: /* "extension" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1626 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1630 "ael.tab.c"
+	break;
+      case 63: /* "statements" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1642 "ael.tab.c"
+	break;
+      case 64: /* "timerange" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "ael.y"
+	{ free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1651 "ael.tab.c"
+	break;
+      case 65: /* "timespec" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1663 "ael.tab.c"
+	break;
+      case 66: /* "test_expr" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "ael.y"
+	{ free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1672 "ael.tab.c"
+	break;
+      case 68: /* "if_like_head" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1684 "ael.tab.c"
 	break;
       case 69: /* "word_list" */
+
+/* Line 1000 of yacc.c  */
 #line 183 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1631 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1693 "ael.tab.c"
 	break;
       case 71: /* "word3_list" */
+
+/* Line 1000 of yacc.c  */
 #line 183 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1636 "ael.tab.c"
-	break;
-      case 72: /* "goto_word" */
-#line 183 "ael.y"
-	{ free((yyvaluep->str));};
-#line 1641 "ael.tab.c"
-	break;
-      case 73: /* "switch_statement" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1649 "ael.tab.c"
-	break;
-      case 74: /* "statement" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1657 "ael.tab.c"
-	break;
-      case 79: /* "opt_else" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1665 "ael.tab.c"
-	break;
-      case 80: /* "target" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1673 "ael.tab.c"
-	break;
-      case 81: /* "opt_pri" */
-#line 183 "ael.y"
-	{ free((yyvaluep->str));};
-#line 1678 "ael.tab.c"
-	break;
-      case 82: /* "jumptarget" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1686 "ael.tab.c"
-	break;
-      case 83: /* "macro_call" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1694 "ael.tab.c"
-	break;
-      case 85: /* "application_call_head" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
+
+/* Line 1000 of yacc.c  */
 #line 1702 "ael.tab.c"
 	break;
-      case 87: /* "application_call" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
-#line 1710 "ael.tab.c"
-	break;
-      case 88: /* "opt_word" */
+      case 72: /* "goto_word" */
+
+/* Line 1000 of yacc.c  */
 #line 183 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1715 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1711 "ael.tab.c"
 	break;
-      case 89: /* "eval_arglist" */
+      case 73: /* "switch_statement" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
+
+/* Line 1000 of yacc.c  */
 #line 1723 "ael.tab.c"
 	break;
-      case 90: /* "case_statements" */
+      case 74: /* "statement" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1731 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1735 "ael.tab.c"
 	break;
-      case 91: /* "case_statement" */
+      case 79: /* "opt_else" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1739 "ael.tab.c"
-	break;
-      case 92: /* "macro_statements" */
-#line 170 "ael.y"
-	{
-		destroy_pval((yyvaluep->pval));
-		prev_word=0;
-	};
+
+/* Line 1000 of yacc.c  */
 #line 1747 "ael.tab.c"
 	break;
-      case 93: /* "macro_statement" */
+      case 80: /* "target" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1755 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1759 "ael.tab.c"
+	break;
+      case 81: /* "opt_pri" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "ael.y"
+	{ free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1768 "ael.tab.c"
+	break;
+      case 82: /* "jumptarget" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1780 "ael.tab.c"
+	break;
+      case 83: /* "macro_call" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1792 "ael.tab.c"
+	break;
+      case 85: /* "application_call_head" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1804 "ael.tab.c"
+	break;
+      case 87: /* "application_call" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1816 "ael.tab.c"
+	break;
+      case 88: /* "opt_word" */
+
+/* Line 1000 of yacc.c  */
+#line 183 "ael.y"
+	{ free((yyvaluep->str));};
+
+/* Line 1000 of yacc.c  */
+#line 1825 "ael.tab.c"
+	break;
+      case 89: /* "eval_arglist" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1837 "ael.tab.c"
+	break;
+      case 90: /* "case_statements" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1849 "ael.tab.c"
+	break;
+      case 91: /* "case_statement" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1861 "ael.tab.c"
+	break;
+      case 92: /* "macro_statements" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1873 "ael.tab.c"
+	break;
+      case 93: /* "macro_statement" */
+
+/* Line 1000 of yacc.c  */
+#line 170 "ael.y"
+	{
+		destroy_pval((yyvaluep->pval));
+		prev_word=0;
+	};
+
+/* Line 1000 of yacc.c  */
+#line 1885 "ael.tab.c"
 	break;
       case 94: /* "switches" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1763 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1897 "ael.tab.c"
 	break;
       case 95: /* "eswitches" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1771 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1909 "ael.tab.c"
 	break;
       case 96: /* "switchlist" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1779 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1921 "ael.tab.c"
 	break;
       case 97: /* "included_entry" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1787 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1933 "ael.tab.c"
 	break;
       case 98: /* "includeslist" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1795 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1945 "ael.tab.c"
 	break;
       case 99: /* "includes" */
+
+/* Line 1000 of yacc.c  */
 #line 170 "ael.y"
 	{
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1803 "ael.tab.c"
+
+/* Line 1000 of yacc.c  */
+#line 1957 "ael.tab.c"
 	break;
 
       default:
 	break;
     }
 }
-
 
 /* Prevent warnings from -Wmissing-prototypes.  */
-
 #ifdef YYPARSE_PARAM
 #if defined __STDC__ || defined __cplusplus
 int yyparse (void *YYPARSE_PARAM);
@@ -1828,10 +1980,9 @@ int yyparse ();
 
 
 
-
-/*----------.
-| yyparse.  |
-`----------*/
+/*-------------------------.
+| yyparse or yypush_parse.  |
+`-------------------------*/
 
 #ifdef YYPARSE_PARAM
 #if (defined __STDC__ || defined __C99__FUNC__ \
@@ -1855,24 +2006,59 @@ yyparse (parseio)
 #endif
 #endif
 {
-  /* The look-ahead symbol.  */
+/* The lookahead symbol.  */
 int yychar;
 
-/* The semantic value of the look-ahead symbol.  */
+/* The semantic value of the lookahead symbol.  */
 YYSTYPE yylval;
 
-/* Number of syntax errors so far.  */
-int yynerrs;
-/* Location data for the look-ahead symbol.  */
+/* Location data for the lookahead symbol.  */
 YYLTYPE yylloc;
 
-  int yystate;
+    /* Number of syntax errors so far.  */
+    int yynerrs;
+
+    int yystate;
+    /* Number of tokens to shift before error messages enabled.  */
+    int yyerrstatus;
+
+    /* The stacks and their tools:
+       `yyss': related to states.
+       `yyvs': related to semantic values.
+       `yyls': related to locations.
+
+       Refer to the stacks thru separate pointers, to allow yyoverflow
+       to reallocate them elsewhere.  */
+
+    /* The state stack.  */
+    yytype_int16 yyssa[YYINITDEPTH];
+    yytype_int16 *yyss;
+    yytype_int16 *yyssp;
+
+    /* The semantic value stack.  */
+    YYSTYPE yyvsa[YYINITDEPTH];
+    YYSTYPE *yyvs;
+    YYSTYPE *yyvsp;
+
+    /* The location stack.  */
+    YYLTYPE yylsa[YYINITDEPTH];
+    YYLTYPE *yyls;
+    YYLTYPE *yylsp;
+
+    /* The locations where the error started and ended.  */
+    YYLTYPE yyerror_range[2];
+
+    YYSIZE_T yystacksize;
+
   int yyn;
   int yyresult;
-  /* Number of tokens to shift before error messages enabled.  */
-  int yyerrstatus;
-  /* Look-ahead token as an internal (translated) token number.  */
-  int yytoken = 0;
+  /* Lookahead token as an internal (translated) token number.  */
+  int yytoken;
+  /* The variables used to return semantic value and location from the
+     action routines.  */
+  YYSTYPE yyval;
+  YYLTYPE yyloc;
+
 #if YYERROR_VERBOSE
   /* Buffer for error messages, and its allocated size.  */
   char yymsgbuf[128];
@@ -1880,63 +2066,37 @@ YYLTYPE yylloc;
   YYSIZE_T yymsg_alloc = sizeof yymsgbuf;
 #endif
 
-  /* Three stacks and their tools:
-     `yyss': related to states,
-     `yyvs': related to semantic values,
-     `yyls': related to locations.
-
-     Refer to the stacks thru separate pointers, to allow yyoverflow
-     to reallocate them elsewhere.  */
-
-  /* The state stack.  */
-  yytype_int16 yyssa[YYINITDEPTH];
-  yytype_int16 *yyss = yyssa;
-  yytype_int16 *yyssp;
-
-  /* The semantic value stack.  */
-  YYSTYPE yyvsa[YYINITDEPTH];
-  YYSTYPE *yyvs = yyvsa;
-  YYSTYPE *yyvsp;
-
-  /* The location stack.  */
-  YYLTYPE yylsa[YYINITDEPTH];
-  YYLTYPE *yyls = yylsa;
-  YYLTYPE *yylsp;
-  /* The locations where the error started and ended.  */
-  YYLTYPE yyerror_range[2];
-
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N), yylsp -= (N))
-
-  YYSIZE_T yystacksize = YYINITDEPTH;
-
-  /* The variables used to return semantic value and location from the
-     action routines.  */
-  YYSTYPE yyval;
-  YYLTYPE yyloc;
 
   /* The number of symbols on the RHS of the reduced rule.
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
+
+  yytoken = 0;
+  yyss = yyssa;
+  yyvs = yyvsa;
+  yyls = yylsa;
+  yystacksize = YYINITDEPTH;
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yystate = 0;
   yyerrstatus = 0;
   yynerrs = 0;
-  yychar = YYEMPTY;		/* Cause a token to be read.  */
+  yychar = YYEMPTY; /* Cause a token to be read.  */
 
   /* Initialize stack pointers.
      Waste one element of value and location stack
      so that they stay on the same level as the state stack.
      The wasted elements are never initialized.  */
-
   yyssp = yyss;
   yyvsp = yyvs;
   yylsp = yyls;
+
 #if YYLTYPE_IS_TRIVIAL
   /* Initialize the default location before parsing starts.  */
   yylloc.first_line   = yylloc.last_line   = 1;
-  yylloc.first_column = yylloc.last_column = 0;
+  yylloc.first_column = yylloc.last_column = 1;
 #endif
 
   goto yysetstate;
@@ -1975,6 +2135,7 @@ YYLTYPE yylloc;
 		    &yyvs1, yysize * sizeof (*yyvsp),
 		    &yyls1, yysize * sizeof (*yylsp),
 		    &yystacksize);
+
 	yyls = yyls1;
 	yyss = yyss1;
 	yyvs = yyvs1;
@@ -1996,9 +2157,9 @@ YYLTYPE yylloc;
 	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
 	if (! yyptr)
 	  goto yyexhaustedlab;
-	YYSTACK_RELOCATE (yyss);
-	YYSTACK_RELOCATE (yyvs);
-	YYSTACK_RELOCATE (yyls);
+	YYSTACK_RELOCATE (yyss_alloc, yyss);
+	YYSTACK_RELOCATE (yyvs_alloc, yyvs);
+	YYSTACK_RELOCATE (yyls_alloc, yyls);
 #  undef YYSTACK_RELOCATE
 	if (yyss1 != yyssa)
 	  YYSTACK_FREE (yyss1);
@@ -2019,6 +2180,9 @@ YYLTYPE yylloc;
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
+  if (yystate == YYFINAL)
+    YYACCEPT;
+
   goto yybackup;
 
 /*-----------.
@@ -2027,16 +2191,16 @@ YYLTYPE yylloc;
 yybackup:
 
   /* Do appropriate processing given the current state.  Read a
-     look-ahead token if we need one and don't already have one.  */
+     lookahead token if we need one and don't already have one.  */
 
-  /* First try to decide what to do without reference to look-ahead token.  */
+  /* First try to decide what to do without reference to lookahead token.  */
   yyn = yypact[yystate];
   if (yyn == YYPACT_NINF)
     goto yydefault;
 
-  /* Not known => get a look-ahead token if don't already have one.  */
+  /* Not known => get a lookahead token if don't already have one.  */
 
-  /* YYCHAR is either YYEMPTY or YYEOF or a valid look-ahead symbol.  */
+  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
   if (yychar == YYEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token: "));
@@ -2068,20 +2232,16 @@ yybackup:
       goto yyreduce;
     }
 
-  if (yyn == YYFINAL)
-    YYACCEPT;
-
   /* Count tokens shifted since error; after three, turn off error
      status.  */
   if (yyerrstatus)
     yyerrstatus--;
 
-  /* Shift the look-ahead token.  */
+  /* Shift the lookahead token.  */
   YY_SYMBOL_PRINT ("Shifting", yytoken, &yylval, &yylloc);
 
-  /* Discard the shifted token unless it is eof.  */
-  if (yychar != YYEOF)
-    yychar = YYEMPTY;
+  /* Discard the shifted token.  */
+  yychar = YYEMPTY;
 
   yystate = yyn;
   *++yyvsp = yylval;
@@ -2122,56 +2282,78 @@ yyreduce:
   switch (yyn)
     {
         case 2:
+
+/* Line 1455 of yacc.c  */
 #line 191 "ael.y"
     { (yyval.pval) = parseio->pval = (yyvsp[(1) - (1)].pval); ;}
     break;
 
   case 3:
+
+/* Line 1455 of yacc.c  */
 #line 194 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 4:
+
+/* Line 1455 of yacc.c  */
 #line 195 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); ;}
     break;
 
   case 5:
+
+/* Line 1455 of yacc.c  */
 #line 196 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);;}
     break;
 
   case 6:
+
+/* Line 1455 of yacc.c  */
 #line 199 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 7:
+
+/* Line 1455 of yacc.c  */
 #line 200 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 8:
+
+/* Line 1455 of yacc.c  */
 #line 201 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 9:
+
+/* Line 1455 of yacc.c  */
 #line 202 "ael.y"
     {(yyval.pval)=0;/* allow older docs to be read */;}
     break;
 
   case 10:
+
+/* Line 1455 of yacc.c  */
 #line 205 "ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str); ;}
     break;
 
   case 11:
+
+/* Line 1455 of yacc.c  */
 #line 206 "ael.y"
     { (yyval.str) = strdup("default"); ;}
     break;
 
   case 12:
+
+/* Line 1455 of yacc.c  */
 #line 209 "ael.y"
     {
 		(yyval.pval) = npval2(PV_CONTEXT, &(yylsp[(1) - (6)]), &(yylsp[(6) - (6)]));
@@ -2182,31 +2364,43 @@ yyreduce:
     break;
 
   case 13:
+
+/* Line 1455 of yacc.c  */
 #line 218 "ael.y"
     { (yyval.intval) = 1; ;}
     break;
 
   case 14:
+
+/* Line 1455 of yacc.c  */
 #line 219 "ael.y"
     { (yyval.intval) = 0; ;}
     break;
 
   case 15:
+
+/* Line 1455 of yacc.c  */
 #line 220 "ael.y"
     { (yyval.intval) = 2; ;}
     break;
 
   case 16:
+
+/* Line 1455 of yacc.c  */
 #line 221 "ael.y"
     { (yyval.intval)=3; ;}
     break;
 
   case 17:
+
+/* Line 1455 of yacc.c  */
 #line 222 "ael.y"
     { (yyval.intval)=3; ;}
     break;
 
   case 18:
+
+/* Line 1455 of yacc.c  */
 #line 225 "ael.y"
     {
 		(yyval.pval) = npval2(PV_MACRO, &(yylsp[(1) - (8)]), &(yylsp[(8) - (8)]));
@@ -2215,6 +2409,8 @@ yyreduce:
     break;
 
   case 19:
+
+/* Line 1455 of yacc.c  */
 #line 231 "ael.y"
     {
 		(yyval.pval) = npval2(PV_GLOBALS, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
@@ -2223,26 +2419,36 @@ yyreduce:
     break;
 
   case 20:
+
+/* Line 1455 of yacc.c  */
 #line 237 "ael.y"
     { (yyval.pval) = NULL; ;}
     break;
 
   case 21:
+
+/* Line 1455 of yacc.c  */
 #line 238 "ael.y"
     {(yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); ;}
     break;
 
   case 22:
+
+/* Line 1455 of yacc.c  */
 #line 239 "ael.y"
     {(yyval.pval)=(yyvsp[(2) - (2)].pval);;}
     break;
 
   case 23:
+
+/* Line 1455 of yacc.c  */
 #line 242 "ael.y"
     { reset_semicount(parseio->scanner); ;}
     break;
 
   case 24:
+
+/* Line 1455 of yacc.c  */
 #line 242 "ael.y"
     {
 		(yyval.pval) = npval2(PV_VARDEC, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
@@ -2251,11 +2457,15 @@ yyreduce:
     break;
 
   case 25:
+
+/* Line 1455 of yacc.c  */
 #line 248 "ael.y"
     { reset_semicount(parseio->scanner); ;}
     break;
 
   case 26:
+
+/* Line 1455 of yacc.c  */
 #line 248 "ael.y"
     {
 		(yyval.pval) = npval2(PV_LOCALVARDEC, &(yylsp[(1) - (6)]), &(yylsp[(6) - (6)]));
@@ -2264,86 +2474,120 @@ yyreduce:
     break;
 
   case 27:
+
+/* Line 1455 of yacc.c  */
 #line 255 "ael.y"
     { (yyval.pval) = NULL; ;}
     break;
 
   case 28:
+
+/* Line 1455 of yacc.c  */
 #line 256 "ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); ;}
     break;
 
   case 29:
+
+/* Line 1455 of yacc.c  */
 #line 257 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (3)].pval), nword((yyvsp[(3) - (3)].str), &(yylsp[(3) - (3)]))); ;}
     break;
 
   case 30:
+
+/* Line 1455 of yacc.c  */
 #line 258 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);;}
     break;
 
   case 31:
+
+/* Line 1455 of yacc.c  */
 #line 261 "ael.y"
     {(yyval.pval)=0;;}
     break;
 
   case 32:
+
+/* Line 1455 of yacc.c  */
 #line 262 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); ;}
     break;
 
   case 33:
+
+/* Line 1455 of yacc.c  */
 #line 263 "ael.y"
     { (yyval.pval)=(yyvsp[(2) - (2)].pval);;}
     break;
 
   case 34:
+
+/* Line 1455 of yacc.c  */
 #line 266 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 35:
+
+/* Line 1455 of yacc.c  */
 #line 267 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 36:
+
+/* Line 1455 of yacc.c  */
 #line 268 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 37:
+
+/* Line 1455 of yacc.c  */
 #line 269 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 38:
+
+/* Line 1455 of yacc.c  */
 #line 270 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 39:
+
+/* Line 1455 of yacc.c  */
 #line 271 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 40:
+
+/* Line 1455 of yacc.c  */
 #line 272 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 41:
+
+/* Line 1455 of yacc.c  */
 #line 273 "ael.y"
     {free((yyvsp[(1) - (2)].str)); (yyval.pval)=0;;}
     break;
 
   case 42:
+
+/* Line 1455 of yacc.c  */
 #line 274 "ael.y"
     {(yyval.pval)=0;/* allow older docs to be read */;}
     break;
 
   case 43:
+
+/* Line 1455 of yacc.c  */
 #line 277 "ael.y"
     {
 		(yyval.pval) = npval2(PV_IGNOREPAT, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
@@ -2351,6 +2595,8 @@ yyreduce:
     break;
 
   case 44:
+
+/* Line 1455 of yacc.c  */
 #line 282 "ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
@@ -2359,6 +2605,8 @@ yyreduce:
     break;
 
   case 45:
+
+/* Line 1455 of yacc.c  */
 #line 286 "ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (5)]), &(yylsp[(3) - (5)]));
@@ -2371,6 +2619,8 @@ yyreduce:
     break;
 
   case 46:
+
+/* Line 1455 of yacc.c  */
 #line 294 "ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
@@ -2380,6 +2630,8 @@ yyreduce:
     break;
 
   case 47:
+
+/* Line 1455 of yacc.c  */
 #line 299 "ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (7)]), &(yylsp[(7) - (7)]));
@@ -2389,6 +2641,8 @@ yyreduce:
     break;
 
   case 48:
+
+/* Line 1455 of yacc.c  */
 #line 304 "ael.y"
     {
 		(yyval.pval) = npval2(PV_EXTENSION, &(yylsp[(1) - (8)]), &(yylsp[(8) - (8)]));
@@ -2399,21 +2653,29 @@ yyreduce:
     break;
 
   case 49:
+
+/* Line 1455 of yacc.c  */
 #line 313 "ael.y"
     { (yyval.pval) = NULL; ;}
     break;
 
   case 50:
+
+/* Line 1455 of yacc.c  */
 #line 314 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); ;}
     break;
 
   case 51:
+
+/* Line 1455 of yacc.c  */
 #line 315 "ael.y"
     {(yyval.pval)=(yyvsp[(2) - (2)].pval);;}
     break;
 
   case 52:
+
+/* Line 1455 of yacc.c  */
 #line 321 "ael.y"
     {
 		if (asprintf(&(yyval.str), "%s:%s:%s", (yyvsp[(1) - (5)].str), (yyvsp[(3) - (5)].str), (yyvsp[(5) - (5)].str)) < 0) {
@@ -2428,11 +2690,15 @@ yyreduce:
     break;
 
   case 53:
+
+/* Line 1455 of yacc.c  */
 #line 331 "ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str); ;}
     break;
 
   case 54:
+
+/* Line 1455 of yacc.c  */
 #line 335 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (7)].str), &(yylsp[(1) - (7)]));
@@ -2442,16 +2708,22 @@ yyreduce:
     break;
 
   case 55:
+
+/* Line 1455 of yacc.c  */
 #line 343 "ael.y"
     { reset_parencount(parseio->scanner); ;}
     break;
 
   case 56:
+
+/* Line 1455 of yacc.c  */
 #line 343 "ael.y"
     { (yyval.str) = (yyvsp[(3) - (4)].str); ;}
     break;
 
   case 57:
+
+/* Line 1455 of yacc.c  */
 #line 347 "ael.y"
     {
 		(yyval.pval)= npval2(PV_IF, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
@@ -2459,6 +2731,8 @@ yyreduce:
     break;
 
   case 58:
+
+/* Line 1455 of yacc.c  */
 #line 350 "ael.y"
     {
 		(yyval.pval) = npval2(PV_RANDOM, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
@@ -2466,6 +2740,8 @@ yyreduce:
     break;
 
   case 59:
+
+/* Line 1455 of yacc.c  */
 #line 353 "ael.y"
     {
 		(yyval.pval) = npval2(PV_IFTIME, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
@@ -2474,11 +2750,15 @@ yyreduce:
     break;
 
   case 60:
+
+/* Line 1455 of yacc.c  */
 #line 364 "ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str);;}
     break;
 
   case 61:
+
+/* Line 1455 of yacc.c  */
 #line 365 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s%s", (yyvsp[(1) - (2)].str), (yyvsp[(2) - (2)].str)) < 0) {
@@ -2493,11 +2773,15 @@ yyreduce:
     break;
 
   case 62:
+
+/* Line 1455 of yacc.c  */
 #line 377 "ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str); ;}
     break;
 
   case 63:
+
+/* Line 1455 of yacc.c  */
 #line 378 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s %s", (yyvsp[(1) - (2)].str), (yyvsp[(2) - (2)].str)) < 0) {
@@ -2511,6 +2795,8 @@ yyreduce:
     break;
 
   case 64:
+
+/* Line 1455 of yacc.c  */
 #line 387 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s:%s", (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str)) < 0) {
@@ -2524,6 +2810,8 @@ yyreduce:
     break;
 
   case 65:
+
+/* Line 1455 of yacc.c  */
 #line 396 "ael.y"
     {  /* there are often '&' in hints */
 		if (asprintf(&((yyval.str)), "%s&%s", (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str)) < 0) {
@@ -2537,6 +2825,8 @@ yyreduce:
     break;
 
   case 66:
+
+/* Line 1455 of yacc.c  */
 #line 405 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s@%s", (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str)) < 0) {
@@ -2550,11 +2840,15 @@ yyreduce:
     break;
 
   case 67:
+
+/* Line 1455 of yacc.c  */
 #line 416 "ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str);;}
     break;
 
   case 68:
+
+/* Line 1455 of yacc.c  */
 #line 417 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s%s", (yyvsp[(1) - (2)].str), (yyvsp[(2) - (2)].str)) < 0) {
@@ -2569,6 +2863,8 @@ yyreduce:
     break;
 
   case 69:
+
+/* Line 1455 of yacc.c  */
 #line 427 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s%s%s", (yyvsp[(1) - (3)].str), (yyvsp[(2) - (3)].str), (yyvsp[(3) - (3)].str)) < 0) {
@@ -2584,11 +2880,15 @@ yyreduce:
     break;
 
   case 70:
+
+/* Line 1455 of yacc.c  */
 #line 440 "ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str);;}
     break;
 
   case 71:
+
+/* Line 1455 of yacc.c  */
 #line 441 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s%s", (yyvsp[(1) - (2)].str), (yyvsp[(2) - (2)].str)) < 0) {
@@ -2602,6 +2902,8 @@ yyreduce:
     break;
 
   case 72:
+
+/* Line 1455 of yacc.c  */
 #line 450 "ael.y"
     {
 		if (asprintf(&((yyval.str)), "%s:%s", (yyvsp[(1) - (3)].str), (yyvsp[(3) - (3)].str)) < 0) {
@@ -2615,6 +2917,8 @@ yyreduce:
     break;
 
   case 73:
+
+/* Line 1455 of yacc.c  */
 #line 461 "ael.y"
     {
 		(yyval.pval) = npval2(PV_SWITCH, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
@@ -2623,6 +2927,8 @@ yyreduce:
     break;
 
   case 74:
+
+/* Line 1455 of yacc.c  */
 #line 470 "ael.y"
     {
 		(yyval.pval) = npval2(PV_STATEMENTBLOCK, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
@@ -2630,16 +2936,22 @@ yyreduce:
     break;
 
   case 75:
+
+/* Line 1455 of yacc.c  */
 #line 473 "ael.y"
     { (yyval.pval) = (yyvsp[(1) - (1)].pval); ;}
     break;
 
   case 76:
+
+/* Line 1455 of yacc.c  */
 #line 474 "ael.y"
     { (yyval.pval) = (yyvsp[(1) - (1)].pval); ;}
     break;
 
   case 77:
+
+/* Line 1455 of yacc.c  */
 #line 475 "ael.y"
     {
 		(yyval.pval) = npval2(PV_GOTO, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
@@ -2647,6 +2959,8 @@ yyreduce:
     break;
 
   case 78:
+
+/* Line 1455 of yacc.c  */
 #line 478 "ael.y"
     {
 		(yyval.pval) = npval2(PV_GOTO, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
@@ -2654,6 +2968,8 @@ yyreduce:
     break;
 
   case 79:
+
+/* Line 1455 of yacc.c  */
 #line 481 "ael.y"
     {
 		(yyval.pval) = npval2(PV_LABEL, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
@@ -2661,21 +2977,29 @@ yyreduce:
     break;
 
   case 80:
+
+/* Line 1455 of yacc.c  */
 #line 484 "ael.y"
     {reset_semicount(parseio->scanner);;}
     break;
 
   case 81:
+
+/* Line 1455 of yacc.c  */
 #line 485 "ael.y"
     {reset_semicount(parseio->scanner);;}
     break;
 
   case 82:
+
+/* Line 1455 of yacc.c  */
 #line 486 "ael.y"
     {reset_parencount(parseio->scanner);;}
     break;
 
   case 83:
+
+/* Line 1455 of yacc.c  */
 #line 486 "ael.y"
     { /* XXX word_list maybe ? */
 		(yyval.pval) = npval2(PV_FOR, &(yylsp[(1) - (12)]), &(yylsp[(12) - (12)]));
@@ -2686,6 +3010,8 @@ yyreduce:
     break;
 
   case 84:
+
+/* Line 1455 of yacc.c  */
 #line 492 "ael.y"
     {
 		(yyval.pval) = npval2(PV_WHILE, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
@@ -2694,21 +3020,29 @@ yyreduce:
     break;
 
   case 85:
+
+/* Line 1455 of yacc.c  */
 #line 496 "ael.y"
     { (yyval.pval) = (yyvsp[(1) - (1)].pval); ;}
     break;
 
   case 86:
+
+/* Line 1455 of yacc.c  */
 #line 497 "ael.y"
     { (yyval.pval) = update_last((yyvsp[(2) - (3)].pval), &(yylsp[(2) - (3)])); ;}
     break;
 
   case 87:
+
+/* Line 1455 of yacc.c  */
 #line 498 "ael.y"
     { (yyval.pval) = update_last((yyvsp[(1) - (2)].pval), &(yylsp[(2) - (2)])); ;}
     break;
 
   case 88:
+
+/* Line 1455 of yacc.c  */
 #line 499 "ael.y"
     {
 		(yyval.pval)= npval2(PV_APPLICATION_CALL, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)]));
@@ -2716,11 +3050,15 @@ yyreduce:
     break;
 
   case 89:
+
+/* Line 1455 of yacc.c  */
 #line 502 "ael.y"
     {reset_semicount(parseio->scanner);;}
     break;
 
   case 90:
+
+/* Line 1455 of yacc.c  */
 #line 502 "ael.y"
     {
 		char *bufx;
@@ -2758,21 +3096,29 @@ yyreduce:
     break;
 
   case 91:
+
+/* Line 1455 of yacc.c  */
 #line 535 "ael.y"
     { (yyval.pval) = npval2(PV_BREAK, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)])); ;}
     break;
 
   case 92:
+
+/* Line 1455 of yacc.c  */
 #line 536 "ael.y"
     { (yyval.pval) = npval2(PV_RETURN, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)])); ;}
     break;
 
   case 93:
+
+/* Line 1455 of yacc.c  */
 #line 537 "ael.y"
     { (yyval.pval) = npval2(PV_CONTINUE, &(yylsp[(1) - (2)]), &(yylsp[(2) - (2)])); ;}
     break;
 
   case 94:
+
+/* Line 1455 of yacc.c  */
 #line 538 "ael.y"
     {
 		(yyval.pval) = update_last((yyvsp[(1) - (3)].pval), &(yylsp[(2) - (3)]));
@@ -2781,26 +3127,36 @@ yyreduce:
     break;
 
   case 95:
+
+/* Line 1455 of yacc.c  */
 #line 542 "ael.y"
     { (yyval.pval)=0; ;}
     break;
 
   case 96:
+
+/* Line 1455 of yacc.c  */
 #line 545 "ael.y"
     { (yyval.pval) = (yyvsp[(2) - (2)].pval); ;}
     break;
 
   case 97:
+
+/* Line 1455 of yacc.c  */
 #line 546 "ael.y"
     { (yyval.pval) = NULL ; ;}
     break;
 
   case 98:
+
+/* Line 1455 of yacc.c  */
 #line 549 "ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); ;}
     break;
 
   case 99:
+
+/* Line 1455 of yacc.c  */
 #line 550 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)]));
@@ -2808,6 +3164,8 @@ yyreduce:
     break;
 
   case 100:
+
+/* Line 1455 of yacc.c  */
 #line 553 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)]));
@@ -2815,6 +3173,8 @@ yyreduce:
     break;
 
   case 101:
+
+/* Line 1455 of yacc.c  */
 #line 556 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (5)].str), &(yylsp[(1) - (5)]));
@@ -2823,6 +3183,8 @@ yyreduce:
     break;
 
   case 102:
+
+/* Line 1455 of yacc.c  */
 #line 560 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (5)].str), &(yylsp[(1) - (5)]));
@@ -2831,6 +3193,8 @@ yyreduce:
     break;
 
   case 103:
+
+/* Line 1455 of yacc.c  */
 #line 564 "ael.y"
     {
 		(yyval.pval) = nword(strdup("default"), &(yylsp[(1) - (5)]));
@@ -2839,6 +3203,8 @@ yyreduce:
     break;
 
   case 104:
+
+/* Line 1455 of yacc.c  */
 #line 568 "ael.y"
     {
 		(yyval.pval) = nword(strdup("default"), &(yylsp[(1) - (5)]));
@@ -2847,16 +3213,22 @@ yyreduce:
     break;
 
   case 105:
+
+/* Line 1455 of yacc.c  */
 #line 574 "ael.y"
     { (yyval.str) = strdup("1"); ;}
     break;
 
   case 106:
+
+/* Line 1455 of yacc.c  */
 #line 575 "ael.y"
     { (yyval.str) = (yyvsp[(2) - (2)].str); ;}
     break;
 
   case 107:
+
+/* Line 1455 of yacc.c  */
 #line 579 "ael.y"
     {			/* ext[, pri] default 1 */
 		(yyval.pval) = nword((yyvsp[(1) - (2)].str), &(yylsp[(1) - (2)]));
@@ -2864,6 +3236,8 @@ yyreduce:
     break;
 
   case 108:
+
+/* Line 1455 of yacc.c  */
 #line 582 "ael.y"
     {	/* context, ext, pri */
 		(yyval.pval) = nword((yyvsp[(4) - (4)].str), &(yylsp[(4) - (4)]));
@@ -2872,11 +3246,15 @@ yyreduce:
     break;
 
   case 109:
+
+/* Line 1455 of yacc.c  */
 #line 588 "ael.y"
     {reset_argcount(parseio->scanner);;}
     break;
 
   case 110:
+
+/* Line 1455 of yacc.c  */
 #line 588 "ael.y"
     {
 		/* XXX original code had @2 but i think we need @5 */
@@ -2886,6 +3264,8 @@ yyreduce:
     break;
 
   case 111:
+
+/* Line 1455 of yacc.c  */
 #line 593 "ael.y"
     {
 		(yyval.pval)= npval2(PV_MACRO_CALL, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
@@ -2893,11 +3273,15 @@ yyreduce:
     break;
 
   case 112:
+
+/* Line 1455 of yacc.c  */
 #line 601 "ael.y"
     {reset_argcount(parseio->scanner);;}
     break;
 
   case 113:
+
+/* Line 1455 of yacc.c  */
 #line 601 "ael.y"
     {
 		if (strcasecmp((yyvsp[(1) - (3)].str),"goto") == 0) {
@@ -2911,6 +3295,8 @@ yyreduce:
     break;
 
   case 114:
+
+/* Line 1455 of yacc.c  */
 #line 612 "ael.y"
     {
 		(yyval.pval) = update_last((yyvsp[(1) - (3)].pval), &(yylsp[(3) - (3)]));
@@ -2922,26 +3308,36 @@ yyreduce:
     break;
 
   case 115:
+
+/* Line 1455 of yacc.c  */
 #line 619 "ael.y"
     { (yyval.pval) = update_last((yyvsp[(1) - (2)].pval), &(yylsp[(2) - (2)])); ;}
     break;
 
   case 116:
+
+/* Line 1455 of yacc.c  */
 #line 622 "ael.y"
     { (yyval.str) = (yyvsp[(1) - (1)].str) ;}
     break;
 
   case 117:
+
+/* Line 1455 of yacc.c  */
 #line 623 "ael.y"
     { (yyval.str) = strdup(""); ;}
     break;
 
   case 118:
+
+/* Line 1455 of yacc.c  */
 #line 626 "ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); ;}
     break;
 
   case 119:
+
+/* Line 1455 of yacc.c  */
 #line 627 "ael.y"
     {
 		(yyval.pval)= npval(PV_WORD,0/*@1.first_line*/,0/*@1.last_line*/,0/* @1.first_column*/, 0/*@1.last_column*/);
@@ -2949,21 +3345,29 @@ yyreduce:
     break;
 
   case 120:
+
+/* Line 1455 of yacc.c  */
 #line 630 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (3)].pval), nword((yyvsp[(3) - (3)].str), &(yylsp[(3) - (3)]))); ;}
     break;
 
   case 121:
+
+/* Line 1455 of yacc.c  */
 #line 633 "ael.y"
     { (yyval.pval) = NULL; ;}
     break;
 
   case 122:
+
+/* Line 1455 of yacc.c  */
 #line 634 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); ;}
     break;
 
   case 123:
+
+/* Line 1455 of yacc.c  */
 #line 637 "ael.y"
     {
 		(yyval.pval) = npval2(PV_CASE, &(yylsp[(1) - (4)]), &(yylsp[(3) - (4)])); /* XXX 3 or 4 ? */
@@ -2972,6 +3376,8 @@ yyreduce:
     break;
 
   case 124:
+
+/* Line 1455 of yacc.c  */
 #line 641 "ael.y"
     {
 		(yyval.pval) = npval2(PV_DEFAULT, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));
@@ -2980,6 +3386,8 @@ yyreduce:
     break;
 
   case 125:
+
+/* Line 1455 of yacc.c  */
 #line 645 "ael.y"
     {
 		(yyval.pval) = npval2(PV_PATTERN, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)])); /* XXX@3 or @4 ? */
@@ -2988,26 +3396,36 @@ yyreduce:
     break;
 
   case 126:
+
+/* Line 1455 of yacc.c  */
 #line 651 "ael.y"
     { (yyval.pval) = NULL; ;}
     break;
 
   case 127:
+
+/* Line 1455 of yacc.c  */
 #line 652 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (2)].pval), (yyvsp[(2) - (2)].pval)); ;}
     break;
 
   case 128:
+
+/* Line 1455 of yacc.c  */
 #line 655 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 129:
+
+/* Line 1455 of yacc.c  */
 #line 656 "ael.y"
     { (yyval.pval)=(yyvsp[(1) - (1)].pval);;}
     break;
 
   case 130:
+
+/* Line 1455 of yacc.c  */
 #line 657 "ael.y"
     {
 		(yyval.pval) = npval2(PV_CATCH, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
@@ -3016,6 +3434,8 @@ yyreduce:
     break;
 
   case 131:
+
+/* Line 1455 of yacc.c  */
 #line 663 "ael.y"
     {
 		(yyval.pval) = npval2(PV_SWITCHES, &(yylsp[(1) - (4)]), &(yylsp[(2) - (4)]));
@@ -3023,6 +3443,8 @@ yyreduce:
     break;
 
   case 132:
+
+/* Line 1455 of yacc.c  */
 #line 668 "ael.y"
     {
 		(yyval.pval) = npval2(PV_ESWITCHES, &(yylsp[(1) - (4)]), &(yylsp[(2) - (4)]));
@@ -3030,16 +3452,22 @@ yyreduce:
     break;
 
   case 133:
+
+/* Line 1455 of yacc.c  */
 #line 673 "ael.y"
     { (yyval.pval) = NULL; ;}
     break;
 
   case 134:
+
+/* Line 1455 of yacc.c  */
 #line 674 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (3)].pval),nword((yyvsp[(2) - (3)].str), &(yylsp[(2) - (3)]))); ;}
     break;
 
   case 135:
+
+/* Line 1455 of yacc.c  */
 #line 675 "ael.y"
     {
 	  char *x;
@@ -3055,16 +3483,22 @@ yyreduce:
     break;
 
   case 136:
+
+/* Line 1455 of yacc.c  */
 #line 686 "ael.y"
     {(yyval.pval)=(yyvsp[(2) - (2)].pval);;}
     break;
 
   case 137:
+
+/* Line 1455 of yacc.c  */
 #line 689 "ael.y"
     { (yyval.pval) = nword((yyvsp[(1) - (1)].str), &(yylsp[(1) - (1)])); ;}
     break;
 
   case 138:
+
+/* Line 1455 of yacc.c  */
 #line 690 "ael.y"
     {
 		(yyval.pval) = nword((yyvsp[(1) - (3)].str), &(yylsp[(1) - (3)]));
@@ -3073,21 +3507,29 @@ yyreduce:
     break;
 
   case 139:
+
+/* Line 1455 of yacc.c  */
 #line 697 "ael.y"
     { (yyval.pval) = (yyvsp[(1) - (2)].pval); ;}
     break;
 
   case 140:
+
+/* Line 1455 of yacc.c  */
 #line 698 "ael.y"
     { (yyval.pval) = linku1((yyvsp[(1) - (3)].pval), (yyvsp[(2) - (3)].pval)); ;}
     break;
 
   case 141:
+
+/* Line 1455 of yacc.c  */
 #line 699 "ael.y"
     {(yyval.pval)=(yyvsp[(1) - (2)].pval);;}
     break;
 
   case 142:
+
+/* Line 1455 of yacc.c  */
 #line 702 "ael.y"
     {
 		(yyval.pval) = npval2(PV_INCLUDES, &(yylsp[(1) - (4)]), &(yylsp[(4) - (4)]));
@@ -3095,14 +3537,17 @@ yyreduce:
     break;
 
   case 143:
+
+/* Line 1455 of yacc.c  */
 #line 705 "ael.y"
     {
 		(yyval.pval) = npval2(PV_INCLUDES, &(yylsp[(1) - (3)]), &(yylsp[(3) - (3)]));;}
     break;
 
 
-/* Line 1267 of yacc.c.  */
-#line 3106 "ael.tab.c"
+
+/* Line 1455 of yacc.c  */
+#line 3551 "ael.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -3178,7 +3623,7 @@ yyerrlab:
 
   if (yyerrstatus == 3)
     {
-      /* If just tried and failed to reuse look-ahead token after an
+      /* If just tried and failed to reuse lookahead token after an
 	 error, discard it.  */
 
       if (yychar <= YYEOF)
@@ -3195,7 +3640,7 @@ yyerrlab:
 	}
     }
 
-  /* Else will try to reuse look-ahead token after shifting the error
+  /* Else will try to reuse lookahead token after shifting the error
      token.  */
   goto yyerrlab1;
 
@@ -3253,14 +3698,11 @@ yyerrlab1:
       YY_STACK_PRINT (yyss, yyssp);
     }
 
-  if (yyn == YYFINAL)
-    YYACCEPT;
-
   *++yyvsp = yylval;
 
   yyerror_range[1] = yylloc;
   /* Using YYLLOC is tempting, but would change the location of
-     the look-ahead.  YYLOC is available though.  */
+     the lookahead.  YYLOC is available though.  */
   YYLLOC_DEFAULT (yyloc, (yyerror_range - 1), 2);
   *++yylsp = yyloc;
 
@@ -3285,7 +3727,7 @@ yyabortlab:
   yyresult = 1;
   goto yyreturn;
 
-#ifndef yyoverflow
+#if !defined(yyoverflow) || YYERROR_VERBOSE
 /*-------------------------------------------------.
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
@@ -3296,7 +3738,7 @@ yyexhaustedlab:
 #endif
 
 yyreturn:
-  if (yychar != YYEOF && yychar != YYEMPTY)
+  if (yychar != YYEMPTY)
      yydestruct ("Cleanup: discarding lookahead",
 		 yytoken, &yylval, &yylloc, parseio);
   /* Do not reclaim the symbols of the rule which action triggered
@@ -3322,6 +3764,8 @@ yyreturn:
 }
 
 
+
+/* Line 1675 of yacc.c  */
 #line 710 "ael.y"
 
 

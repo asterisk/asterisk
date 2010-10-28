@@ -1,3 +1,5 @@
+#include "asterisk.h"
+
 #line 2 "ael_lex.c"
 
 #line 4 "ael_lex.c"
@@ -16,7 +18,6 @@
 
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
-#include "asterisk.h"
 /* begin standard C headers. */
 #include <stdio.h>
 #include <string.h>
@@ -160,7 +161,15 @@ typedef void* yyscan_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -952,7 +961,7 @@ static void pbcwhere(const char *text, int *line, int *col )
 #define	STORE_POS
 #define	STORE_LOC
 #endif
-#line 955 "ael_lex.c"
+#line 963 "ael_lex.c"
 
 #define INITIAL 0
 #define paren 1
@@ -1096,7 +1105,12 @@ static int input (yyscan_t yyscanner );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1203,7 +1217,7 @@ YY_DECL
 #line 217 "ael.flex"
 
 
-#line 1206 "ael_lex.c"
+#line 1219 "ael_lex.c"
 
     yylval = yylval_param;
 
@@ -2037,7 +2051,7 @@ YY_RULE_SETUP
 #line 656 "ael.flex"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 2040 "ael_lex.c"
+#line 2053 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2808,8 +2822,8 @@ YY_BUFFER_STATE ael_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 
 /** Setup the input buffer state to scan the given bytes. The next call to ael_yylex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
@@ -3221,7 +3235,8 @@ static void pbcpush(char x)
 
 void ael_yyfree(void *ptr, yyscan_t yyscanner)
 {
-	free( (char*) ptr );
+	if (ptr)
+		free( (char*) ptr );
 }
 
 static int pbcpop(char x)
@@ -3360,7 +3375,8 @@ struct pval *ael2_parse(char *filename, int *errors)
 		*errors = 1;
 		return 0;
 	}
-	free(my_file);
+	if (my_file)
+		free(my_file);
 	my_file = strdup(filename);
 	stat(filename, &stats);
 	buffer = (char*)malloc(stats.st_size+2);
