@@ -18,7 +18,9 @@
 ;
 ;enabled=yes
 ;
-; Address to bind to, both for HTTP and HTTPS.  Default is 0.0.0.0
+; Address to bind to, both for HTTP and HTTPS. You MUST specify
+; a bindaddr in order for the HTTP server to run. There is no
+; default value.
 ;
 bindaddr=127.0.0.1
 ;
