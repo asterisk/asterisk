@@ -4065,7 +4065,6 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 		res = 0;
 		break;
 	default:
-		ast_log(LOG_NOTICE, "Unknown option: %d\n", option);
 		break;
 	}
 
