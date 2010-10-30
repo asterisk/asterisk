@@ -3113,20 +3113,8 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						analog_set_echocanceller(p, 1);
 						ast_hangup(chan);
 					} else {
- 						struct ast_channel *other = ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner);
- 						int way3bridge = 0, cdr3way = 0;
-
-						if (!other) {
-							other = ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner);
-						} else {
-							way3bridge = 1;
-						}
-
-						if (p->subs[ANALOG_SUB_THREEWAY].owner->cdr) {
-							cdr3way = 1;
-						}
-
 						ast_verb(3, "Started three way call on channel %d\n", p->channel);
+
 						/* Start music on hold if appropriate */
 						if (ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
 							ast_queue_control_data(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CONTROL_HOLD,
