@@ -3172,19 +3172,6 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					/* Lets see what we're up to */
 					if (((ast->pbx) || (ast->_state == AST_STATE_UP)) &&
 						(p->transfertobusy || (ast->_state != AST_STATE_BUSY))) {
-						struct ast_channel *other = ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner);
-						int way3bridge = 0, cdr3way = 0;
-
-						if (!other) {
-							other = ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner);
-						} else {
-							way3bridge = 1;
-						}
-
-						if (p->subs[ANALOG_SUB_THREEWAY].owner->cdr) {
-							cdr3way = 1;
-						}
-
 						ast_verb(3, "Building conference on call on %s and %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name, p->subs[ANALOG_SUB_REAL].owner->name);
 						/* Put them in the threeway, and flip */
 						p->subs[ANALOG_SUB_THREEWAY].inthreeway = 1;
