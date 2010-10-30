@@ -4915,17 +4915,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 							dahdi_enable_ec(p);
 							ast_hangup(chan);
 						} else {
- 							struct ast_channel *other = ast_bridged_channel(p->subs[SUB_THREEWAY].owner);
- 							int way3bridge = 0, cdr3way = 0;
- 							
- 							if (!other) {
- 								other = ast_bridged_channel(p->subs[SUB_REAL].owner);
- 							} else
- 								way3bridge = 1;
- 							
- 							if (p->subs[SUB_THREEWAY].owner->cdr)
- 								cdr3way = 1;
- 							
 							if (option_verbose > 2)	
 								ast_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
 							/* Start music on hold if appropriate */
