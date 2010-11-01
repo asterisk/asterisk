@@ -2068,17 +2068,24 @@ static void my_deadlock_avoidance_private(void *pvt)
 /* linear_mode = 0 - turn linear mode off, >0 - turn linear mode on
 * 	returns the last value of the linear setting 
 */ 
-static int my_set_linear_mode(void *pvt, int idx, int linear_mode)
+static int my_set_linear_mode(void *pvt, enum analog_sub sub, int linear_mode)
 {
 	struct dahdi_pvt *p = pvt;
 	int oldval;
+	int idx = analogsub_to_dahdisub(sub);
 	
-    if (0 > linear_mode || !dahdi_setlinear(p->subs[idx].dfd, linear_mode)) {
-        return -1;
-    }
+	dahdi_setlinear(p->subs[idx].dfd, linear_mode);
 	oldval = p->subs[idx].linear;
-	p->subs[idx].linear = linear_mode;
+	p->subs[idx].linear = linear_mode ? 1 : 0;
 	return oldval;
+}
+
+static void my_set_inthreeway(void *pvt, enum analog_sub sub, int inthreeway)
+{
+	struct dahdi_pvt *p = pvt;
+	int idx = analogsub_to_dahdisub(sub);
+
+	p->subs[idx].inthreeway = inthreeway;
 }
 
 static int get_alarms(struct dahdi_pvt *p);
@@ -2382,23 +2389,26 @@ static void my_swap_subchannels(void *pvt, enum analog_sub a, struct ast_channel
 	struct dahdi_pvt *p = pvt;
 	int da, db;
 	int tchan;
+	int tinthreeway;
 
 	da = analogsub_to_dahdisub(a);
 	db = analogsub_to_dahdisub(b);
 
 	tchan = p->subs[da].chan;
-
 	p->subs[da].chan = p->subs[db].chan;
-
 	p->subs[db].chan = tchan;
+
+	tinthreeway = p->subs[da].inthreeway;
+	p->subs[da].inthreeway = p->subs[db].inthreeway;
+	p->subs[db].inthreeway = tinthreeway;
+
+	p->subs[da].owner = ast_a;
+	p->subs[db].owner = ast_b;
 
 	if (ast_a)
 		ast_channel_set_fd(ast_a, 0, p->subs[da].dfd);
 	if (ast_b)
 		ast_channel_set_fd(ast_b, 0, p->subs[db].dfd);
-
-	p->subs[da].owner = ast_a;
-	p->subs[db].owner = ast_b;
 
 	wakeup_sub(p, a);
 	wakeup_sub(p, b);
@@ -3503,6 +3513,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.decrease_ss_count = my_decrease_ss_count,
 	.distinctive_ring = my_distinctive_ring,
 	.set_linear_mode = my_set_linear_mode,
+	.set_inthreeway = my_set_inthreeway,
 	.get_and_handle_alarms = my_get_and_handle_alarms,
 	.get_sigpvt_bridged_channel = my_get_sigpvt_bridged_channel,
 	.get_sub_fd = my_get_sub_fd,
