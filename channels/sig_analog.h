@@ -213,7 +213,8 @@ struct analog_callback {
 
 	int (* const distinctive_ring)(struct ast_channel *chan, void *pvt, int idx, int *ringdata);
 	/* Sets the specified sub-channel in and out of signed linear mode, returns the value that was overwritten */
-	int (* const set_linear_mode)(void *pvt, int idx, int linear_mode);
+	int (* const set_linear_mode)(void *pvt, enum analog_sub sub, int linear_mode);
+	void (* const set_inthreeway)(void *pvt, enum analog_sub sub, int inthreeway);
 	void (* const get_and_handle_alarms)(void *pvt);
 	void * (* const get_sigpvt_bridged_channel)(struct ast_channel *chan);
 	int (* const get_sub_fd)(void *pvt, enum analog_sub sub);

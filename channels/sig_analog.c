@@ -322,12 +322,11 @@ static void analog_swap_subs(struct analog_pvt *p, enum analog_sub a, enum analo
 	ast_debug(1, "Swapping %d and %d\n", a, b);
 
 	towner = p->subs[a].owner;
-	tinthreeway = p->subs[a].inthreeway;
-
 	p->subs[a].owner = p->subs[b].owner;
-	p->subs[a].inthreeway = p->subs[b].inthreeway;
-
 	p->subs[b].owner = towner;
+
+	tinthreeway = p->subs[a].inthreeway;
+	p->subs[a].inthreeway = p->subs[b].inthreeway;
 	p->subs[b].inthreeway = tinthreeway;
 
 	if (p->calls->swap_subs) {
@@ -954,13 +953,21 @@ static void analog_set_pulsedial(struct analog_pvt *p, int flag)
 	p->calls->set_pulsedial(p->chan_pvt, flag);
 }
 
-static int analog_set_linear_mode(struct analog_pvt *p, int index, int linear_mode)
+static int analog_set_linear_mode(struct analog_pvt *p, enum analog_sub sub, int linear_mode)
 {
 	if (p->calls->set_linear_mode) {
 		/* Return provides old linear_mode setting or error indication */
-		return p->calls->set_linear_mode(p->chan_pvt, index, linear_mode);
+		return p->calls->set_linear_mode(p->chan_pvt, sub, linear_mode);
 	}
 	return -1;
+}
+
+static void analog_set_inthreeway(struct analog_pvt *p, enum analog_sub sub, int inthreeway)
+{
+	p->subs[sub].inthreeway = inthreeway;
+	if (p->calls->set_inthreeway) {
+		p->calls->set_inthreeway(p->chan_pvt, sub, inthreeway);
+	}
 }
 
 int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int timeout)
@@ -1283,7 +1290,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 						/* This was part of a three way call.  Immediately make way for
 						   another call */
 						ast_debug(1, "Call was complete, setting owner to former third call\n");
-						p->subs[ANALOG_SUB_REAL].inthreeway = 0;
+						analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
 						p->owner = p->subs[ANALOG_SUB_REAL].owner;
 					} else {
 						/* This call hasn't been completed yet...  Set owner to NULL */
@@ -1319,7 +1326,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 					/* This was part of a three way call.  Immediately make way for
 					   another call */
 					ast_debug(1, "Call was complete, setting owner to former third call\n");
-					p->subs[ANALOG_SUB_REAL].inthreeway = 0;
+					analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
 					p->owner = p->subs[ANALOG_SUB_REAL].owner;
 				} else {
 					/* This call hasn't been completed yet...  Set owner to NULL */
@@ -1341,7 +1348,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 						S_OR(p->mohsuggest, NULL),
 						!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
 				}
-				p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
+				analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
 				/* Make it the call wait now */
 				analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_THREEWAY);
 				analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
@@ -1359,7 +1366,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 			if (p->subs[ANALOG_SUB_CALLWAIT].inthreeway) {
 				/* The other party of the three way call is currently in a call-wait state.
 				   Start music on hold for them, and take the main guy out of the third call */
-				p->subs[ANALOG_SUB_CALLWAIT].inthreeway = 0;
+				analog_set_inthreeway(p, ANALOG_SUB_CALLWAIT, 0);
 				if (p->subs[ANALOG_SUB_CALLWAIT].owner && ast_bridged_channel(p->subs[ANALOG_SUB_CALLWAIT].owner)) {
 					ast_queue_control_data(p->subs[ANALOG_SUB_CALLWAIT].owner, AST_CONTROL_HOLD,
 						S_OR(p->mohsuggest, NULL),
@@ -1369,7 +1376,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 			if (p->subs[ANALOG_SUB_CALLWAIT].owner) {
 				ast_channel_unlock(p->subs[ANALOG_SUB_CALLWAIT].owner);
 			}
-			p->subs[ANALOG_SUB_REAL].inthreeway = 0;
+			analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
 			/* If this was part of a three way call index, let us make
 			   another three way call */
 			analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
@@ -2748,16 +2755,16 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 									ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 								} else if (res) {
 									/* this isn't a threeway call anymore */
-									p->subs[ANALOG_SUB_REAL].inthreeway = 0;
-									p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
+									analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
+									analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
 
 									/* Don't actually hang up at this point */
 									break;
 								}
 							}
 							/* this isn't a threeway call anymore */
-							p->subs[ANALOG_SUB_REAL].inthreeway = 0;
-							p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
+							analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
+							analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
 						} else {
 							ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 							ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
@@ -3154,16 +3161,16 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					/* Drop the last call and stop the conference */
 					ast_verb(3, "Dropping three-way call on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
 					ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
-					p->subs[ANALOG_SUB_REAL].inthreeway = 0;
-					p->subs[ANALOG_SUB_THREEWAY].inthreeway = 0;
+					analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
+					analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
 				} else {
 					/* Lets see what we're up to */
 					if (((ast->pbx) || (ast->_state == AST_STATE_UP)) &&
 						(p->transfertobusy || (ast->_state != AST_STATE_BUSY))) {
 						ast_verb(3, "Building conference on call on %s and %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name, p->subs[ANALOG_SUB_REAL].owner->name);
 						/* Put them in the threeway, and flip */
-						p->subs[ANALOG_SUB_THREEWAY].inthreeway = 1;
-						p->subs[ANALOG_SUB_REAL].inthreeway = 1;
+						analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 1);
+						analog_set_inthreeway(p, ANALOG_SUB_REAL, 1);
 						if (ast->_state == AST_STATE_UP) {
 							analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 							orig_3way_sub = ANALOG_SUB_REAL;
