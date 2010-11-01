@@ -8700,7 +8700,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 		peercnt_modify(0, 0, &p->addr);
 
 		/* Stash the IP address from which they registered */
-		memcpy(&p->addr, sin, sizeof(p->addr));
+		ast_sockaddr_from_sin(&p->addr, sin);
 
 		snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), p->expiry);
 		if (!ast_test_flag64(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
@@ -11190,10 +11190,13 @@ immediatedial:
 				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) ||
 						ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED)) {
 
-					if (f.subclass.integer == IAX_COMMAND_REGREL)
+					if (f.subclass.integer == IAX_COMMAND_REGREL) {
 						memset(&sin, 0, sizeof(sin));
-					if (update_registry(&sin, fr->callno, ies.devicetype, fd, ies.refresh))
+						sin.sin_family = AF_INET;
+					}
+					if (update_registry(&sin, fr->callno, ies.devicetype, fd, ies.refresh)) {
 						ast_log(LOG_WARNING, "Registry error\n");
+					}
 					if (!iaxs[fr->callno]) {
 						break;
 					}
