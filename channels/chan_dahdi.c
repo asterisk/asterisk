@@ -3539,7 +3539,8 @@ static struct analog_callback dahdi_analog_callbacks =
 /*! Round robin search locations. */
 static struct dahdi_pvt *round_robin[32];
 
-static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok)
+#define dahdi_get_index(ast, p, nullok)	_dahdi_get_index(ast, p, nullok, __PRETTY_FUNCTION__, __LINE__)
+static int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, const char *fname, unsigned long line)
 {
 	int res;
 	if (p->subs[SUB_REAL].owner == ast)
@@ -3551,7 +3552,9 @@ static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nul
 	else {
 		res = -1;
 		if (!nullok)
-			ast_log(LOG_WARNING, "Unable to get index, and nullok is not asserted\n");
+			ast_log(LOG_WARNING,
+				"Unable to get index for '%s' on channel %d (%s(), line %lu)\n",
+				ast ? ast->name : "", p->channel, fname, line);
 	}
 	return res;
 }
