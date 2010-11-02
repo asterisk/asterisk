@@ -26,5 +26,10 @@ HTTP:
    to run. Previous versions would default to 0.0.0.0 if no
    bindaddr was specified.
 
+Gtalk:
+ - The default value for 'context' and 'parkinglots' in gtalk.conf has
+   been changed to 'default', previously they were empty.
+
+
 ===========================================================
 ===========================================================

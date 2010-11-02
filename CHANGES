@@ -20,6 +20,11 @@ Asterisk HTTP Server
 --------------------------
  * The HTTP Server can bind to IPv6 addresses.
 
+CLI Changes
+-----------
+ * New 'gtalk show settings' command showing the current settings loaded from
+   gtalk.conf.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------

@@ -37,7 +37,6 @@
 	<use>openssl</use>
  ***/
 
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -75,8 +74,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/jabber.h"
 #include "asterisk/jingle.h"
+#include "asterisk/features.h"
 
-#define GOOGLE_CONFIG "gtalk.conf"
+#define GOOGLE_CONFIG		"gtalk.conf"
 
 /*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
@@ -165,7 +165,9 @@ struct gtalk_container {
 	ASTOBJ_CONTAINER_COMPONENTS(struct gtalk);
 };
 
-static const char desc[] = "Gtalk Channel";
+static const char desc[]		= "Gtalk Channel";
+static const char DEFAULT_CONTEXT[]	= "default";
+static const int DEFAULT_ALLOWGUEST	= 1;
 
 static format_t global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
@@ -192,6 +194,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p);
 /* static char *gtalk_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a); */
 static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *gtalk_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int gtalk_update_externip(void);
 
 /*! \brief PBX interface structure for channel registration */
@@ -228,10 +231,15 @@ static struct in_addr __ourip;
 static struct ast_cli_entry gtalk_cli[] = {
 /*	AST_CLI_DEFINE(gtalk_do_reload, "Reload GoogleTalk configuration"), XXX TODO reloads are not possible yet. */
 	AST_CLI_DEFINE(gtalk_show_channels, "Show GoogleTalk channels"),
+	AST_CLI_DEFINE(gtalk_show_settings, "Show GoogleTalk global settings"),
 };
 
 static char externip[16];
+static char global_context[AST_MAX_CONTEXT];
+static char global_parkinglot[AST_MAX_CONTEXT];
+static int global_allowguest;
 static struct sockaddr_in stunaddr; /*!< the stun server we get the externip from */
+static int global_stunaddr;
 
 static struct gtalk_container gtalk_list;
 
@@ -1912,6 +1920,42 @@ static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT
 }
 
+/*! \brief List global settings for the GoogleTalk channel */
+static char *gtalk_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char codec_buf[BUFSIZ];
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "gtalk show settings";
+		e->usage =
+			"Usage: gtalk show settings\n"
+			"       Provides detailed list of the configuration on the GoogleTalk channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+#define FORMAT "  %-25.20s  %-15.30s\n"
+
+	ast_cli(a->fd, "\nGlobal Settings:\n");
+	ast_cli(a->fd, "----------------\n");
+	ast_cli(a->fd, FORMAT, "UDP Bindaddress:", ast_inet_ntoa(bindaddr.sin_addr));
+	ast_cli(a->fd, FORMAT, "Stun Address:", global_stunaddr != 0 ? ast_inet_ntoa(stunaddr.sin_addr) : "Disabled");
+	ast_cli(a->fd, FORMAT, "External IP:", S_OR(externip, "Disabled"));
+	ast_cli(a->fd, FORMAT, "Context:", global_context);
+	ast_cli(a->fd, FORMAT, "Codecs:", ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, global_capability));
+	ast_cli(a->fd, FORMAT, "Parking Lot:", global_parkinglot);
+	ast_cli(a->fd, FORMAT, "Allow Guest:", AST_CLI_YESNO(global_allowguest));
+	ast_cli(a->fd, "\n----\n");
+
+	return CLI_SUCCESS;
+#undef FORMAT
+}
+
 /*! \brief CLI command "gtalk reload"
  *  \todo XXX TODO make this work. */
 #if 0
@@ -2022,9 +2066,6 @@ static int gtalk_load_config(void)
 {
 	char *cat = NULL;
 	struct ast_config *cfg = NULL;
-	char context[AST_MAX_CONTEXT];
-	char parkinglot[AST_MAX_CONTEXT];
-	int allowguest = 1;
 	struct ast_variable *var;
 	struct gtalk *member;
 	struct ast_codec_pref prefs;
@@ -2047,25 +2088,30 @@ static int gtalk_load_config(void)
 
 	/* set defaults */
 	memset(&stunaddr, 0, sizeof(stunaddr));
+	global_stunaddr = 0;
+	global_allowguest = DEFAULT_ALLOWGUEST;
+	ast_copy_string(global_context, DEFAULT_CONTEXT, sizeof(global_context));
+	ast_copy_string(global_parkinglot, DEFAULT_PARKINGLOT, sizeof(global_parkinglot));
 
 	cat = ast_category_browse(cfg, NULL);
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 		/* handle jb conf */
-		if (!ast_jb_read_conf(&global_jbconf, var->name, var->value))
+		if (!ast_jb_read_conf(&global_jbconf, var->name, var->value)) {
 			continue;
+		}
 
 		if (!strcasecmp(var->name, "allowguest")) {
-			allowguest = (ast_true(ast_variable_retrieve(cfg, "general", "allowguest"))) ? 1 : 0;
+			global_allowguest = (ast_true(ast_variable_retrieve(cfg, "general", "allowguest"))) ? 1 : 0;
 		} else if (!strcasecmp(var->name, "disallow")) {
 			ast_parse_allow_disallow(&prefs, &global_capability, var->value, 0);
 		} else if (!strcasecmp(var->name, "allow")) {
 			ast_parse_allow_disallow(&prefs, &global_capability, var->value, 1);
 		} else if (!strcasecmp(var->name, "context")) {
-			ast_copy_string(context, var->value, sizeof(context));
+			ast_copy_string(global_context, var->value, sizeof(global_context));
 		} else if (!strcasecmp(var->name, "externip")) {
 			ast_copy_string(externip, var->value, sizeof(externip));
 		} else if (!strcasecmp(var->name, "parkinglot")) {
-			ast_copy_string(parkinglot, var->value, sizeof(parkinglot));
+			ast_copy_string(global_parkinglot, var->value, sizeof(global_parkinglot));
 		} else if (!strcasecmp(var->name, "bindaddr")) {
 			if (!(hp = ast_gethostbyname(var->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", var->value);
@@ -2074,6 +2120,7 @@ static int gtalk_load_config(void)
 			}
 		} else if (!strcasecmp(var->name, "stunaddr")) {
 			stunaddr.sin_port = htons(STANDARD_STUN_PORT);
+			global_stunaddr = 1;
 			if (ast_parse_arg(var->value, PARSE_INADDR, &stunaddr)) {
 				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", var->value);
 			}
@@ -2088,9 +2135,9 @@ static int gtalk_load_config(void)
 			if (!strcasecmp(cat, "guest")) {
 				ast_copy_string(member->name, "guest", sizeof(member->name));
 				ast_copy_string(member->user, "guest", sizeof(member->user));
-				ast_copy_string(member->context, context, sizeof(member->context));
-				ast_copy_string(member->parkinglot, parkinglot, sizeof(member->parkinglot));
-				member->allowguest = allowguest;
+				ast_copy_string(member->context, global_context, sizeof(member->context));
+				ast_copy_string(member->parkinglot, global_parkinglot, sizeof(member->parkinglot));
+				member->allowguest = global_allowguest;
 				member->prefs = prefs;
 				while (var) {
 					if (!strcasecmp(var->name, "disallow")) {
@@ -2128,8 +2175,9 @@ static int gtalk_load_config(void)
 				}
 			} else {
 				ASTOBJ_UNLOCK(member);
-				if (gtalk_create_member(cat, var, allowguest, prefs, context, member))
+				if (gtalk_create_member(cat, var, global_allowguest, prefs, global_context, member)) {
 					ASTOBJ_CONTAINER_LINK(&gtalk_list, member);
+				}
 				ASTOBJ_UNREF(member, gtalk_member_destroy);
 			}
 		}

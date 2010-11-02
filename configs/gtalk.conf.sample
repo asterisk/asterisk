@@ -1,4 +1,4 @@
-;[general]
+[general]
 ;context=default		; Context to dump call into
 ;bindaddr=0.0.0.0		; Address to bind to
 ;externip=127.0.0.1		; Set your external ip if you are behind a NAT.
@@ -6,6 +6,11 @@
 				; Note, if the STUN query is successful, this will
 				; replace any value placed in externip;
 ;allowguest=yes			; Allow calls from people not in list of peers
+;disallow=all
+;allow=gsm
+;allow=ulaw
+;parkinglot=soccer		; Sets the default parking lot for call parking
+				; Parkinglots are configured in features.conf
 
 ;[guest]			; special account for options on guest account
 ;disallow=all
