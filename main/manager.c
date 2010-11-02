@@ -6103,10 +6103,10 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, "----------------\n");
 	ast_cli(a->fd, FORMAT, "Manager (AMI):", AST_CLI_YESNO(manager_enabled));
 	ast_cli(a->fd, FORMAT, "Web Manager (AMI/HTTP):", AST_CLI_YESNO(webmanager_enabled));
-	ast_cli(a->fd, FORMAT, "TCP Bindaddress:", ast_sockaddr_stringify(&ami_desc.local_address));
+	ast_cli(a->fd, FORMAT, "TCP Bindaddress:", manager_enabled != 0 ? ast_sockaddr_stringify(&ami_desc.local_address) : "Disabled");
 	ast_cli(a->fd, FORMAT2, "HTTP Timeout (minutes):", httptimeout);
 	ast_cli(a->fd, FORMAT, "TLS Enable:", AST_CLI_YESNO(ami_tls_cfg.enabled));
-	ast_cli(a->fd, FORMAT, "TLS Bindaddress:", ast_sockaddr_stringify(&amis_desc.local_address));
+	ast_cli(a->fd, FORMAT, "TLS Bindaddress:", ami_tls_cfg.enabled != 0 ? ast_sockaddr_stringify(&amis_desc.local_address) : "Disabled");
 	ast_cli(a->fd, FORMAT, "TLS Certfile:", ami_tls_cfg.certfile);
 	ast_cli(a->fd, FORMAT, "TLS Privatekey:", ami_tls_cfg.pvtfile);
 	ast_cli(a->fd, FORMAT, "TLS Cipher:", ami_tls_cfg.cipher);
