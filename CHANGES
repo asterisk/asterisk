@@ -16,6 +16,10 @@ Asterisk Manager Interface
 --------------------------
  * PeerStatus now includes Address and Port.
 
+Asterisk HTTP Server
+--------------------------
+ * The HTTP Server can bind to IPv6 addresses.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
