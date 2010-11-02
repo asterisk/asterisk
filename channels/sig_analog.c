@@ -373,7 +373,8 @@ static int analog_send_callerid(struct analog_pvt *p, int cwcid, struct ast_part
 	return 0;
 }
 
-static int analog_get_index(struct ast_channel *ast, struct analog_pvt *p, int nullok)
+#define analog_get_index(ast, p, nullok)	_analog_get_index(ast, p, nullok, __PRETTY_FUNCTION__, __LINE__)
+static int _analog_get_index(struct ast_channel *ast, struct analog_pvt *p, int nullok, const char *fname, unsigned long line)
 {
 	int res;
 	if (p->subs[ANALOG_SUB_REAL].owner == ast) {
@@ -385,7 +386,9 @@ static int analog_get_index(struct ast_channel *ast, struct analog_pvt *p, int n
 	} else {
 		res = -1;
 		if (!nullok) {
-			ast_log(LOG_WARNING, "Unable to get index, and nullok is not asserted\n");
+			ast_log(LOG_WARNING,
+				"Unable to get index for '%s' on channel %d (%s(), line %lu)\n",
+				ast ? ast->name : "", p->channel, fname, line);
 		}
 	}
 	return res;
