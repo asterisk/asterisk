@@ -11845,7 +11845,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Update:                 %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE) ? "Yes" : "No");
 		ast_cli(fd, "  Ignore Reg. Expire:     %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) ? "Yes" : "No");
 		ast_cli(fd, "  Save sys. name:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTSAVE_SYSNAME) ? "Yes" : "No");
-		ast_cli(fd, "  Auto Clear:             %d\n", global_rtautoclear);
+		ast_cli(fd, "  Auto Clear:             %d (%s)", global_rtautoclear, ast_test_flag(&global_flags[1], SIP_PAGE2_RTAUTOCLEAR) ? "Enabled" : "Disabled");
 	}
 	ast_cli(fd, "\n----\n");
 	return RESULT_SUCCESS;
