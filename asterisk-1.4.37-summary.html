@@ -1,0 +1,281 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.4.37</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.4.37</h3>
+<h3 align="center">Date: 2010-11-02</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.4.36.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+8 tilghman<br/>
+6 dvossel<br/>
+5 mnicholson<br/>
+4 twilson<br/>
+3 qwell<br/>
+2 bbryant<br/>
+2 jpeeler<br/>
+2 oej<br/>
+1 junky<br/>
+1 makoto<br/>
+1 pabelanger<br/>
+1 pprindeville<br/>
+1 rmudgett<br/>
+1 RoadKill<br/>
+1 schmidts<br/>
+</td>
+<td>
+2 mnicholson<br/>
+1 denzs<br/>
+1 junky<br/>
+1 mdu113<br/>
+1 mkeuter<br/>
+1 PavelL<br/>
+1 pprindeville<br/>
+1 qwell<br/>
+1 ricardolandim<br/>
+1 RoadKill<br/>
+</td>
+<td>
+2 oej<br/>
+1 298<br/>
+1 denzs<br/>
+1 Guggemand<br/>
+1 haakon<br/>
+1 ibc<br/>
+1 javyer<br/>
+1 kshumard<br/>
+1 lmadsen<br/>
+1 makoto<br/>
+1 mdu113<br/>
+1 PavelL<br/>
+1 pprindeville<br/>
+1 ricardolandim<br/>
+1 RoadKill<br/>
+1 russell<br/>
+1 schmidts<br/>
+1 under<br/>
+1 zerohalo<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16893">#16893</a>: [patch] Realtime queue does not re-read announce variable from mysql after first use<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=287386">287386</a><br/>
+Reporter: haakon<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17673">#17673</a>: [patch] When using Local/ as members, language is not inherited<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286059">286059</a><br/>
+Reporter: Guggemand<br/>
+Coders: twilson<br/>
+<br/>
+<h3>Category: Applications/app_voicemail</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=15726">#15726</a>: [patch] password change for mailboxes without user name<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285194">285194</a><br/>
+Reporter: 298<br/>
+Testers: junky<br/>
+Coders: junky<br/>
+<br/>
+<h3>Category: CDR/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17900">#17900</a>: [patch] empty CDR variables and everything that goes after is not shown<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=287114">287114</a><br/>
+Reporter: under<br/>
+Testers: mnicholson<br/>
+Coders: mnicholson<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17741">#17741</a>: [patch] sip_poke_noanswer launch ast_devstate_changed everytime even a peer is still unreachable<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=284393">284393</a><br/>
+Reporter: schmidts<br/>
+Coders: schmidts<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17758">#17758</a>: [patch] Asterisk just reads the first "Accept" header<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=283960">283960</a><br/>
+Reporter: ibc<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Registration</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17551">#17551</a>: [patch] Realtime erase username when Unavailable<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286756">286756</a><br/>
+Reporter: ricardolandim<br/>
+Testers: ricardolandim, mnicholson<br/>
+Coders: mnicholson<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Subscriptions</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17790">#17790</a>: [patch] Missing semicolon in SIP-Notify<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=283880">283880</a><br/>
+Reporter: denzs<br/>
+Testers: qwell, denzs<br/>
+Coders: qwell<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17928">#17928</a>: [patch] AST_MAX_EXTENSION limitation on hint string length<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=287118">287118</a><br/>
+Reporter: mdu113<br/>
+Testers: mdu113<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Codecs/codec_gsm</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17688">#17688</a>: [patch] GCC 4.2.x optimizations result in improper behavior of GSM codec<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285817">285817</a><br/>
+Reporter: pprindeville<br/>
+Testers: mkeuter, pprindeville<br/>
+Coders: pprindeville<br/>
+<br/>
+<h3>Category: Core/BuildSystem</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17983">#17983</a>: lack of  svn:ignore for files in "tests" directory<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286381">286381</a><br/>
+Reporter: oej<br/>
+Coders: qwell<br/>
+<br/>
+<h3>Category: Core/Channels</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17370">#17370</a>: [patch] ast_readstring (multiple DTMF input) doesn't transmit silence to the caller even if transmit_silence=yes<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285742">285742</a><br/>
+Reporter: makoto<br/>
+Coders: makoto<br/>
+<br/>
+<h3>Category: Core/Configuration</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17794">#17794</a>: [patch] segfault on dialplan reload<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285365">285365</a><br/>
+Reporter: PavelL<br/>
+Testers: PavelL<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17835">#17835</a>: [patch] say.conf dont have the same amount of rule's as say.c<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=284316">284316</a><br/>
+Reporter: RoadKill<br/>
+Testers: RoadKill<br/>
+Coders: RoadKill<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17678">#17678</a>: Fix select() usage in Asterisk<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=284478">284478</a><br/>
+Reporter: russell<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17891">#17891</a>: Possible memory leak in originate<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=287469">287469</a><br/>
+Reporter: oej<br/>
+Coders: oej<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17917">#17917</a>: Reloads of manager.conf do not properly handle the resetting of options<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=284777">284777</a><br/>
+Reporter: lmadsen<br/>
+Coders: bbryant<br/>
+<br/>
+<h3>Category: Core/PBX</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17888">#17888</a>: ast_add_hint deadlock in pbx.c MUTEX ast_hint_state_changed<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286070">286070</a><br/>
+Reporter: zerohalo<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Resources/res_musiconhold</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17807">#17807</a>: Music on hold doesn't recover very cleanly when it can't play a file<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285638">285638</a><br/>
+Reporter: kshumard<br/>
+Coders: bbryant<br/>
+<br/>
+<h3>Category: Utilities/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17958">#17958</a>: [patch] debian warnings on make config<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=287197">287197</a><br/>
+Reporter: javyer<br/>
+Coders: qwell<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=283380">283380</a></td><td>dvossel</td><td>This fix makes sure the ast_channel hangs up correctly when the dialog's PENDING_BYE flag is set.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=283690">283690</a></td><td>dvossel</td><td>Fixed how Asterisk destroys a dialog on channel hangup before invite receives a response.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=283834">283834</a></td><td>twilson</td><td>Use ast_free since ast_variable_new uses ast_calloc</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=284703">284703</a></td><td>dvossel</td><td>Removed relatedpeer code from sip_autodestruct</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=284881">284881</a></td><td>twilson</td><td>Properly detect when a sound file doesn't exist</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285088">285088</a></td><td>tilghman</td><td>Silly convenience script for BSD platforms.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285266">285266</a></td><td>tilghman</td><td>Use poll, if indicated to do so, in the ast_poll2 implementation.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285566">285566</a></td><td>dvossel</td><td>In retrans_pkt, do not unlock pvt until the end of the function on a transmit failure.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=285889">285889</a></td><td>tilghman</td><td>Fix Mac OS X build.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286023">286023</a></td><td>tilghman</td><td>Missing newline</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286113">286113</a></td><td>rmudgett</td><td>An outgoing call may not get hung up if a pre-connect incoming ISDN call is disconnected.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286114">286114</a></td><td>pabelanger</td><td>Load iax.conf before registering any functions/applications/actions.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286222">286222</a></td><td>twilson</td><td>Return -1 if chan_local doesn't support an option</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286267">286267</a></td><td>oej</td><td>Handle error response when we can't make file compatible</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286679">286679</a></td><td>mnicholson</td><td>Only drop duplicate answer frames if the channel is bridged.</td>
+<td><a href="https://issues.asterisk.org/view.php?id=2342">#2342</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286941">286941</a></td><td>jpeeler</td><td>Ensure mailbox is not filled to capacity before doing message forwarding.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=286956">286956</a></td><td>jpeeler</td><td>whitespace fix</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=287307">287307</a></td><td>mnicholson</td><td>Use ast_strdup() instead of ast_strdupa() while processing in ast_hint_state_changed().</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17928">#17928</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.4?view=revision&revision=287555">287555</a></td><td>mnicholson</td><td>Use ast_dynamic_str when processing hint state changes</td>
+<td><a href="https://issues.asterisk.org/view.php?id=17928">#17928</a></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+BSDmakefile                       |   11
+apps/app_chanspy.c                |    2
+apps/app_queue.c                  |    8
+apps/app_voicemail.c              |   43 ++-
+channels/chan_alsa.c              |   37 +--
+channels/chan_dahdi.c             |   16 +
+channels/chan_iax2.c              |   38 +--
+channels/chan_local.c             |   67 +++++
+channels/chan_misdn.c             |   54 +---
+channels/chan_oss.c               |   32 +-
+channels/chan_phone.c             |   76 ++++--
+channels/chan_sip.c               |  438 +++++++++++++++++++++++++++++++-------
+codecs/gsm/Makefile               |    8
+configs/say.conf.sample           |   11
+configure.ac                      |   98 ++++++++
+contrib/init.d/rc.debian.asterisk |   12 +
+funcs/func_channel.c              |   20 +
+include/asterisk/autoconfig.h.in  |   77 ++++--
+include/asterisk/channel.h        |   54 +---
+include/asterisk/frame.h          |    7
+include/asterisk/pbx.h            |    4
+include/asterisk/poll-compat.h    |    8
+include/asterisk/select.h         |  111 +++++++++
+main/asterisk.c                   |   45 +++
+main/cdr.c                        |   20 -
+main/channel.c                    |   15 +
+main/config.c                     |    2
+main/file.c                       |    5
+main/manager.c                    |   36 ++-
+main/pbx.c                        |   15 -
+main/poll.c                       |  337 ++++++++++++++---------------
+main/test.c                       |    2
+makeopts.in                       |    1
+pbx/pbx_config.c                  |   49 ++--
+res/res_config_odbc.c             |    2
+res/res_config_pgsql.c            |    2
+res/res_features.c                |  148 ++++++++----
+res/res_musiconhold.c             |    9
+tests/test_poll.c                 |  247 +++++++++++++++++++++
+39 files changed, 1626 insertions(+), 541 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>

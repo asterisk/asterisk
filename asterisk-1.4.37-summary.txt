@@ -1,0 +1,354 @@
+                                Release Summary
+
+                                asterisk-1.4.37
+
+                                Date: 2010-11-02
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.36.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   8 tilghman               2 mnicholson             2 oej                    
+   6 dvossel                1 denzs                  1 298                    
+   5 mnicholson             1 junky                  1 denzs                  
+   4 twilson                1 mdu113                 1 Guggemand              
+   3 qwell                  1 mkeuter                1 haakon                 
+   2 bbryant                1 PavelL                 1 ibc                    
+   2 jpeeler                1 pprindeville           1 javyer                 
+   2 oej                    1 qwell                  1 kshumard               
+   1 junky                  1 ricardolandim          1 lmadsen                
+   1 makoto                 1 RoadKill               1 makoto                 
+   1 pabelanger                                      1 mdu113                 
+   1 pprindeville                                    1 PavelL                 
+   1 rmudgett                                        1 pprindeville           
+   1 RoadKill                                        1 ricardolandim          
+   1 schmidts                                        1 RoadKill               
+                                                     1 russell                
+                                                     1 schmidts               
+                                                     1 under                  
+                                                     1 zerohalo               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_queue
+
+   #16893: [patch] Realtime queue does not re-read announce variable from
+   mysql after first use
+   Revision: 287386
+   Reporter: haakon
+   Coders: tilghman
+
+   #17673: [patch] When using Local/ as members, language is not inherited
+   Revision: 286059
+   Reporter: Guggemand
+   Coders: twilson
+
+  Category: Applications/app_voicemail
+
+   #15726: [patch] password change for mailboxes without user name
+   Revision: 285194
+   Reporter: 298
+   Testers: junky
+   Coders: junky
+
+  Category: CDR/General
+
+   #17900: [patch] empty CDR variables and everything that goes after is not
+   shown
+   Revision: 287114
+   Reporter: under
+   Testers: mnicholson
+   Coders: mnicholson
+
+  Category: Channels/chan_sip/General
+
+   #17741: [patch] sip_poke_noanswer launch ast_devstate_changed everytime
+   even a peer is still unreachable
+   Revision: 284393
+   Reporter: schmidts
+   Coders: schmidts
+
+   #17758: [patch] Asterisk just reads the first "Accept" header
+   Revision: 283960
+   Reporter: ibc
+   Coders: dvossel
+
+  Category: Channels/chan_sip/Registration
+
+   #17551: [patch] Realtime erase username when Unavailable
+   Revision: 286756
+   Reporter: ricardolandim
+   Testers: ricardolandim, mnicholson
+   Coders: mnicholson
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #17790: [patch] Missing semicolon in SIP-Notify
+   Revision: 283880
+   Reporter: denzs
+   Testers: qwell, denzs
+   Coders: qwell
+
+   #17928: [patch] AST_MAX_EXTENSION limitation on hint string length
+   Revision: 287118
+   Reporter: mdu113
+   Testers: mdu113
+   Coders: tilghman
+
+  Category: Codecs/codec_gsm
+
+   #17688: [patch] GCC 4.2.x optimizations result in improper behavior of GSM
+   codec
+   Revision: 285817
+   Reporter: pprindeville
+   Testers: mkeuter, pprindeville
+   Coders: pprindeville
+
+  Category: Core/BuildSystem
+
+   #17983: lack of svn:ignore for files in "tests" directory
+   Revision: 286381
+   Reporter: oej
+   Coders: qwell
+
+  Category: Core/Channels
+
+   #17370: [patch] ast_readstring (multiple DTMF input) doesn't transmit
+   silence to the caller even if transmit_silence=yes
+   Revision: 285742
+   Reporter: makoto
+   Coders: makoto
+
+  Category: Core/Configuration
+
+   #17794: [patch] segfault on dialplan reload
+   Revision: 285365
+   Reporter: PavelL
+   Testers: PavelL
+   Coders: tilghman
+
+   #17835: [patch] say.conf dont have the same amount of rule's as say.c
+   Revision: 284316
+   Reporter: RoadKill
+   Testers: RoadKill
+   Coders: RoadKill
+
+  Category: Core/General
+
+   #17678: Fix select() usage in Asterisk
+   Revision: 284478
+   Reporter: russell
+   Coders: tilghman
+
+  Category: Core/ManagerInterface
+
+   #17891: Possible memory leak in originate
+   Revision: 287469
+   Reporter: oej
+   Coders: oej
+
+   #17917: Reloads of manager.conf do not properly handle the resetting of
+   options
+   Revision: 284777
+   Reporter: lmadsen
+   Coders: bbryant
+
+  Category: Core/PBX
+
+   #17888: ast_add_hint deadlock in pbx.c MUTEX ast_hint_state_changed
+   Revision: 286070
+   Reporter: zerohalo
+   Coders: dvossel
+
+  Category: Resources/res_musiconhold
+
+   #17807: Music on hold doesn't recover very cleanly when it can't play a
+   file
+   Revision: 285638
+   Reporter: kshumard
+   Coders: bbryant
+
+  Category: Utilities/General
+
+   #17958: [patch] debian warnings on make config
+   Revision: 287197
+   Reporter: javyer
+   Coders: qwell
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | This fix makes sure the           |            |
+   | 283380   | dvossel    | ast_channel hangs up correctly    |            |
+   |          |            | when the dialog's PENDING_BYE     |            |
+   |          |            | flag is set.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fixed how Asterisk destroys a     |            |
+   | 283690   | dvossel    | dialog on channel hangup before   |            |
+   |          |            | invite receives a response.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 283834   | twilson    | Use ast_free since                |            |
+   |          |            | ast_variable_new uses ast_calloc  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 284703   | dvossel    | Removed relatedpeer code from     |            |
+   |          |            | sip_autodestruct                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 284881   | twilson    | Properly detect when a sound file |            |
+   |          |            | doesn't exist                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 285088   | tilghman   | Silly convenience script for BSD  |            |
+   |          |            | platforms.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 285266   | tilghman   | Use poll, if indicated to do so,  |            |
+   |          |            | in the ast_poll2 implementation.  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | In retrans_pkt, do not unlock pvt |            |
+   | 285566   | dvossel    | until the end of the function on  |            |
+   |          |            | a transmit failure.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 285889   | tilghman   | Fix Mac OS X build.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 286023   | tilghman   | Missing newline                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | An outgoing call may not get hung |            |
+   | 286113   | rmudgett   | up if a pre-connect incoming ISDN |            |
+   |          |            | call is disconnected.             |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Load iax.conf before registering  |            |
+   | 286114   | pabelanger | any                               |            |
+   |          |            | functions/applications/actions.   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 286222   | twilson    | Return -1 if chan_local doesn't   |            |
+   |          |            | support an option                 |            |
+   |----------+------------+-----------------------------------+------------|
+   | 286267   | oej        | Handle error response when we     |            |
+   |          |            | can't make file compatible        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 286679   | mnicholson | Only drop duplicate answer frames | #2342      |
+   |          |            | if the channel is bridged.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure mailbox is not filled to   |            |
+   | 286941   | jpeeler    | capacity before doing message     |            |
+   |          |            | forwarding.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 286956   | jpeeler    | whitespace fix                    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Use ast_strdup() instead of       |            |
+   | 287307   | mnicholson | ast_strdupa() while processing in | #17928     |
+   |          |            | ast_hint_state_changed().         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 287555   | mnicholson | Use ast_dynamic_str when          | #17928     |
+   |          |            | processing hint state changes     |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ BSDmakefile                       |   11
+ apps/app_chanspy.c                |    2
+ apps/app_queue.c                  |    8
+ apps/app_voicemail.c              |   43 ++-
+ channels/chan_alsa.c              |   37 +--
+ channels/chan_dahdi.c             |   16 +
+ channels/chan_iax2.c              |   38 +--
+ channels/chan_local.c             |   67 +++++
+ channels/chan_misdn.c             |   54 +---
+ channels/chan_oss.c               |   32 +-
+ channels/chan_phone.c             |   76 ++++--
+ channels/chan_sip.c               |  438 +++++++++++++++++++++++++++++++-------
+ codecs/gsm/Makefile               |    8
+ configs/say.conf.sample           |   11
+ configure.ac                      |   98 ++++++++
+ contrib/init.d/rc.debian.asterisk |   12 +
+ funcs/func_channel.c              |   20 +
+ include/asterisk/autoconfig.h.in  |   77 ++++--
+ include/asterisk/channel.h        |   54 +---
+ include/asterisk/frame.h          |    7
+ include/asterisk/pbx.h            |    4
+ include/asterisk/poll-compat.h    |    8
+ include/asterisk/select.h         |  111 +++++++++
+ main/asterisk.c                   |   45 +++
+ main/cdr.c                        |   20 -
+ main/channel.c                    |   15 +
+ main/config.c                     |    2
+ main/file.c                       |    5
+ main/manager.c                    |   36 ++-
+ main/pbx.c                        |   15 -
+ main/poll.c                       |  337 ++++++++++++++---------------
+ main/test.c                       |    2
+ makeopts.in                       |    1
+ pbx/pbx_config.c                  |   49 ++--
+ res/res_config_odbc.c             |    2
+ res/res_config_pgsql.c            |    2
+ res/res_features.c                |  148 ++++++++----
+ res/res_musiconhold.c             |    9
+ tests/test_poll.c                 |  247 +++++++++++++++++++++
+ 39 files changed, 1626 insertions(+), 541 deletions(-)
+
+     ----------------------------------------------------------------------
