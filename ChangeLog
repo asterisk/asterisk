@@ -1,3 +1,7 @@
+2010-11-02  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.14 Released.
+
 2010-09-20  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.14-rc1 Released.
@@ -542,6 +546,18 @@
 
 	* cdr/cdr_odbc.c, cdr/cdr_adaptive_odbc.c: CDR drivers depend upon
 	  res_odbc, not directly on the ODBC libraries
+
+2010-09-15  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.13 released.
+
+	* Incorrect .version and ChangeLog files updated. Re-release
+	  of Asterisk 1.6.2.12 with corrections and version
+	  number bump.
+
+2010-09-15  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.12 released.
 
 2010-08-23  Leif Madsen <lmadsen@digium.com>
 
