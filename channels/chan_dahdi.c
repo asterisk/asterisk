@@ -1502,7 +1502,8 @@ static struct dahdi_ring_cadence AS_RP_cadence = {{250, 10000}};
 #define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
 #define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __DAHDI_SIG_FXO) */)
 
-static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok)
+#define dahdi_get_index(ast, p, nullok)	_dahdi_get_index(ast, p, nullok, __PRETTY_FUNCTION__, __LINE__)
+static int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, const char *fname, unsigned long line)
 {
 	int res;
 	if (p->subs[SUB_REAL].owner == ast)
@@ -1514,7 +1515,9 @@ static int dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nul
 	else {
 		res = -1;
 		if (!nullok)
-			ast_log(LOG_WARNING, "Unable to get index, and nullok is not asserted\n");
+			ast_log(LOG_WARNING,
+				"Unable to get index for '%s' on channel %d (%s(), line %lu)\n",
+				ast ? ast->name : "", p->channel, fname, line);
 	}
 	return res;
 }
