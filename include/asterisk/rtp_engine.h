@@ -720,9 +720,6 @@ int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance,
  * \param instance The RTP instance to get the address from
  * \param address The variable to store the address in
  *
- * \retval 0 success
- * \retval -1 failure
- *
  * Example usage:
  *
  * \code
@@ -734,16 +731,36 @@ int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance,
  *
  * \since 1.8
  */
-int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+void ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+
+/*!
+ * \brief Get the address of the local endpoint that we are sending RTP to, comparing its address to another
+ *
+ * \param instance The instance that we want to get the local address for
+ * \param address An initialized address that may be overwritten if the local address is different
+ *
+ * \retval 0 address was not changed
+ * \retval 1 address was changed
+ * Example usage:
+ *
+ * \code
+ * struct ast_sockaddr address;
+ * int ret;
+ * ret = ast_rtp_instance_get_and_cmp_local_address(instance, &address);
+ * \endcode
+ *
+ * This retrieves the current local address set on the instance pointed to by instance and puts the value
+ * into the address structure.
+ *
+ * \since 1.8
+ */
+int ast_rtp_instance_get_and_cmp_local_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
 
 /*!
  * \brief Get the address of the remote endpoint that we are sending RTP to
  *
  * \param instance The instance that we want to get the remote address for
  * \param address A structure to put the address into
- *
- * \retval 0 success
- * \retval -1 failure
  *
  * Example usage:
  *
@@ -757,7 +774,31 @@ int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struct
  *
  * \since 1.8
  */
-int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+void ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+
+/*!
+ * \brief Get the address of the remote endpoint that we are sending RTP to, comparing its address to another
+ *
+ * \param instance The instance that we want to get the remote address for
+ * \param address An initialized address that may be overwritten if the remote address is different
+ *
+ * \retval 0 address was not changed
+ * \retval 1 address was changed
+ * Example usage:
+ *
+ * \code
+ * struct ast_sockaddr address;
+ * int ret;
+ * ret = ast_rtp_instance_get_and_cmp_remote_address(instance, &address);
+ * \endcode
+ *
+ * This retrieves the current remote address set on the instance pointed to by instance and puts the value
+ * into the address structure.
+ *
+ * \since 1.8
+ */
+
+int ast_rtp_instance_get_and_cmp_remote_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
 
 /*!
  * \brief Set the value of an RTP instance extended property
