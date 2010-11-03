@@ -3821,11 +3821,14 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		    p1->subs[SUB_REAL].owner && 
 		    p1->subs[SUB_REAL].inthreeway && 
 		    (p1->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
-			ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c0->name, c1->name);
+			ast_log(LOG_DEBUG,
+				"Playing ringback on %d/%d(%s) since %d/%d(%s) is in a ringing three-way\n",
+				p0->channel, oi0, c0->name, p1->channel, oi1, c1->name);
 			tone_zone_play_tone(p0->subs[oi0].dfd, DAHDI_TONE_RINGTONE);
 			os1 = p1->subs[SUB_REAL].owner->_state;
 		} else {
-			ast_log(LOG_DEBUG, "Stopping tones on %d/%d talking to %d/%d\n", p0->channel, oi0, p1->channel, oi1);
+			ast_log(LOG_DEBUG, "Stopping tones on %d/%d(%s) talking to %d/%d(%s)\n",
+				p0->channel, oi0, c0->name, p1->channel, oi1, c1->name);
 			tone_zone_play_tone(p0->subs[oi0].dfd, -1);
 		}
 		if ((oi0 == SUB_THREEWAY) && 
@@ -3833,12 +3836,15 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		    p0->subs[SUB_REAL].owner && 
 		    p0->subs[SUB_REAL].inthreeway && 
 		    (p0->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
-			ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c1->name, c0->name);
+			ast_log(LOG_DEBUG,
+				"Playing ringback on %d/%d(%s) since %d/%d(%s) is in a ringing three-way\n",
+				p1->channel, oi1, c1->name, p0->channel, oi0, c0->name);
 			tone_zone_play_tone(p1->subs[oi1].dfd, DAHDI_TONE_RINGTONE);
 			os0 = p0->subs[SUB_REAL].owner->_state;
 		} else {
-			ast_log(LOG_DEBUG, "Stopping tones on %d/%d talking to %d/%d\n", p1->channel, oi1, p0->channel, oi0);
-			tone_zone_play_tone(p1->subs[oi0].dfd, -1);
+			ast_log(LOG_DEBUG, "Stopping tones on %d/%d(%s) talking to %d/%d(%s)\n",
+				p1->channel, oi1, c1->name, p0->channel, oi0, c0->name);
+			tone_zone_play_tone(p1->subs[oi1].dfd, -1);
 		}
 		if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
 			if (!p0->echocanbridged || !p1->echocanbridged) {
@@ -4967,8 +4973,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						/* Lets see what we're up to */
 						if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
 						    (p->transfertobusy || (ast->_state != AST_STATE_BUSY))) {
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Building conference on call on %s and %s\n", p->subs[SUB_THREEWAY].owner->name, p->subs[SUB_REAL].owner->name);
+							if (option_verbose > 2) {
+								ast_verbose(VERBOSE_PREFIX_3 "Building conference call with %s and %s\n",
+									p->subs[SUB_THREEWAY].owner->name,
+									p->subs[SUB_REAL].owner->name);
+							}
 							/* Put them in the threeway, and flip */
 							p->subs[SUB_THREEWAY].inthreeway = 1;
 							p->subs[SUB_REAL].inthreeway = 1;
@@ -4981,11 +4990,6 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 							}
 							p->subs[orig_3way_sub].needunhold = 1;
 							p->owner = p->subs[SUB_REAL].owner;
-							if (ast->_state == AST_STATE_RINGING) {
-								ast_log(LOG_DEBUG, "Enabling ringtone on real and threeway\n");
-								res = tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
-								res = tone_zone_play_tone(p->subs[SUB_THREEWAY].dfd, DAHDI_TONE_RINGTONE);
-							}
 						} else {
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Dumping incomplete call on %s\n", p->subs[SUB_THREEWAY].owner->name);
