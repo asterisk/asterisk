@@ -3170,7 +3170,9 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					/* Lets see what we're up to */
 					if (((ast->pbx) || (ast->_state == AST_STATE_UP)) &&
 						(p->transfertobusy || (ast->_state != AST_STATE_BUSY))) {
-						ast_verb(3, "Building conference on call on %s and %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name, p->subs[ANALOG_SUB_REAL].owner->name);
+						ast_verb(3, "Building conference call with %s and %s\n",
+							p->subs[ANALOG_SUB_THREEWAY].owner->name,
+							p->subs[ANALOG_SUB_REAL].owner->name);
 						/* Put them in the threeway, and flip */
 						analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 1);
 						analog_set_inthreeway(p, ANALOG_SUB_REAL, 1);
@@ -3182,11 +3184,6 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 							ast_queue_control(p->subs[orig_3way_sub].owner, AST_CONTROL_UNHOLD);
 						}
 						p->owner = p->subs[ANALOG_SUB_REAL].owner;
-						if (ast->_state == AST_STATE_RINGING) {
-							ast_debug(1, "Enabling ringtone on real and threeway\n");
-							analog_play_tone(p, ANALOG_SUB_REAL, ANALOG_TONE_RINGTONE);
-							analog_play_tone(p, ANALOG_SUB_THREEWAY, ANALOG_TONE_RINGTONE);
-						}
 					} else {
 						ast_verb(3, "Dumping incomplete call on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
 						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
