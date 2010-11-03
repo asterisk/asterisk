@@ -27686,19 +27686,19 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	}
 
 	if (instance) {
-		changed |= ast_rtp_instance_get_remote_address(instance, &p->redirip);
+		changed |= ast_rtp_instance_get_and_cmp_remote_address(instance, &p->redirip);
 	} else if (!ast_sockaddr_isnull(&p->redirip)) {
 		memset(&p->redirip, 0, sizeof(p->redirip));
 		changed = 1;
 	}
 	if (vinstance) {
-		changed |= ast_rtp_instance_get_remote_address(vinstance, &p->vredirip);
+		changed |= ast_rtp_instance_get_and_cmp_remote_address(vinstance, &p->vredirip);
 	} else if (!ast_sockaddr_isnull(&p->vredirip)) {
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
 		changed = 1;
 	}
 	if (tinstance) {
-		changed |= ast_rtp_instance_get_remote_address(tinstance, &p->tredirip);
+		changed |= ast_rtp_instance_get_and_cmp_remote_address(tinstance, &p->tredirip);
 	} else if (!ast_sockaddr_isnull(&p->tredirip)) {
 		memset(&p->tredirip, 0, sizeof(p->tredirip));
 		changed = 1;

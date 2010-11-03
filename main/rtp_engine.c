@@ -410,7 +410,7 @@ int ast_rtp_instance_set_alt_remote_address(struct ast_rtp_instance *instance,
 	return 0;
 }
 
-int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance,
+int ast_rtp_instance_get_and_cmp_local_address(struct ast_rtp_instance *instance,
 		struct ast_sockaddr *address)
 {
 	if (ast_sockaddr_cmp(address, &instance->local_address) != 0) {
@@ -421,7 +421,13 @@ int ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance,
 	return 0;
 }
 
-int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance,
+void ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance,
+		struct ast_sockaddr *address)
+{
+	ast_sockaddr_copy(address, &instance->local_address);
+}
+
+int ast_rtp_instance_get_and_cmp_remote_address(struct ast_rtp_instance *instance,
 		struct ast_sockaddr *address)
 {
 	if (ast_sockaddr_cmp(address, &instance->remote_address) != 0) {
@@ -430,6 +436,12 @@ int ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance,
 	}
 
 	return 0;
+}
+
+void ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance,
+		struct ast_sockaddr *address)
+{
+	ast_sockaddr_copy(address, &instance->remote_address);
 }
 
 void ast_rtp_instance_set_extended_prop(struct ast_rtp_instance *instance, int property, void *value)
