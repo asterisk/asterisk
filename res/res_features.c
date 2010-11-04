@@ -1009,6 +1009,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		case AST_CONTROL_RINGING:
 		{
 			int connected = 0;
+
+			ast_indicate(transferee, AST_CONTROL_UNHOLD);
+			ast_indicate(transferee, AST_CONTROL_RINGING);
 			while (!connected && (ast_waitfor(newchan, -1) >= 0)) {
 				if ((f = ast_read(newchan)) == NULL) {
 					break;
