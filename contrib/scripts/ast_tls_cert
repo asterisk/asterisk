@@ -63,11 +63,9 @@ OPTIONS:
   -c  CA cert filename (creates new CA cert/key as ca.crt/ca.key if not passed)
   -k  CA key filename
   -C  Common name (cert field)
-        For a server cert, this should be the same address that clients
-        attempt to connect to. Usually this will be the Fully Qualified
-        Domain Name, but might be the IP of the server. For a CA or client
-        cert, it is merely informational. Make sure your certs have unique
-        common names.
+        This should be the fully qualified domain name or IP address for
+        the client or server. Make sure your certs have unique common
+        namems.
   -O  Org name (cert field)
         An informational string (company name)
   -o  Output filename base (defaults to asterisk) 
