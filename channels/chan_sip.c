@@ -21939,6 +21939,10 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 
 		ast_indicate(target.chan1, AST_CONTROL_UNHOLD);
 
+		if (current->chan2 && current->chan2->_state == AST_STATE_RING) {
+			ast_indicate(target.chan1, AST_CONTROL_RINGING);
+		}
+
 		if (target.chan2) {
 			ast_channel_queue_connected_line_update(target.chan1, &connected_to_transferee, NULL);
 			ast_channel_queue_connected_line_update(target.chan2, &connected_to_target, NULL);
