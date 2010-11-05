@@ -7134,8 +7134,8 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		return NULL;
 	}
 
-	/* If this dialog is created as the result of an incoming Request. Lets store
-	 * some information about that request */
+	/* If this dialog is created as a result of a request or response, lets store
+	 * some information about it in the dialog. */
 	if (req) {
 		char *sent_by, *branch;
 		const char *cseq = get_header(req, "Cseq");
@@ -7267,6 +7267,9 @@ struct match_req_args {
 	const char *fromtag;
 	unsigned int seqno;
 
+	/* Set if this method is a Response */
+	int respid;
+
 	/* Set if the method is a Request */
 	const char *ruri;
 	const char *viabranch;
@@ -7279,7 +7282,8 @@ struct match_req_args {
 enum match_req_res {
 	SIP_REQ_MATCH,
 	SIP_REQ_NOT_MATCH,
-	SIP_REQ_LOOP_DETECTED,
+	SIP_REQ_LOOP_DETECTED, /* multiple incoming requests with same call-id but different branch parameters have been detected */
+	SIP_REQ_FORKED, /* An outgoing request has been forked as result of receiving two differing 200ok responses. */
 };
 
 /*
@@ -7302,6 +7306,12 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
 		return SIP_REQ_NOT_MATCH;
 	}
 	if (arg->method == SIP_RESPONSE) {
+		/* Verify fromtag of response matches the tag we gave them. */
+		if (strcmp(arg->fromtag, sip_pvt_ptr->tag)) {
+			/* fromtag from response does not match our tag */
+			return SIP_REQ_NOT_MATCH;
+		}
+
 		/* Verify totag if we have one stored for this dialog, but never be strict about this for
 		 * a response until the dialog is established */
 		if (!ast_strlen_zero(sip_pvt_ptr->theirtag) && ast_test_flag(&sip_pvt_ptr->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
@@ -7309,15 +7319,35 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
 				/* missing totag when they already gave us one earlier */
 				return SIP_REQ_NOT_MATCH;
 			}
+			/* compare the totag of response with the tag we have stored for them */
 			if (strcmp(arg->totag, sip_pvt_ptr->theirtag)) {
-				/* The totag of the response does not match the one we have stored */
+				/* totag did not match what we had stored for them. */
+				char invite_branch[32] = { 0, };
+				if (sip_pvt_ptr->invite_branch) {
+					snprintf(invite_branch, sizeof(invite_branch), "z9hG4bK%08x", (int) sip_pvt_ptr->invite_branch);
+				}
+				/* Forked Request Detection
+				 *
+				 * If this is a 200ok response and the totags do not match, this
+				 * might be a forked response to an outgoing Request. Detection of
+				 * a forked response must meet the criteria below.
+				 *
+				 * 1. must be a 2xx Response
+				 * 2. call-d equal to call-id of Request. this is done earlier
+				 * 3. from-tag equal to from-tag of Request. this is done earlier
+				 * 4. branch parameter equal to branch of inital Request
+				 * 5. to-tag _NOT_ equal to previous 2xx response that already established the dialog.
+				 */
+				if ((arg->respid == 200) &&
+					!ast_strlen_zero(invite_branch) &&
+					!ast_strlen_zero(arg->viabranch) &&
+					!strcmp(invite_branch, arg->viabranch)) {
+					return SIP_REQ_FORKED;
+				}
+
+				/* The totag did not match the one we had stored, and this is not a Forked Request. */
 				return SIP_REQ_NOT_MATCH;
 			}
-		}
-		/* Verify fromtag of response matches the tag we gave them. */
-		if (strcmp(arg->fromtag, sip_pvt_ptr->tag)) {
-			/* fromtag from response does not match our tag */
-			return SIP_REQ_NOT_MATCH;
 		}
 	} else {
 		/* Verify the fromtag of Request matches the tag they provided earlier.
@@ -7414,6 +7444,37 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
 	return SIP_REQ_MATCH;
 }
 
+/*! \brief This function creates a dialog to handle a forked request.  This dialog
+ * exists only to properly terminiate the the forked request immediately.
+ */
+static void forked_invite_init(struct sip_request *req, const char *new_theirtag, struct sip_pvt *original, struct ast_sockaddr *addr)
+{
+	struct sip_pvt *p;
+
+	if (!(p = sip_alloc(original->callid, addr, 1, SIP_INVITE, req)))  {
+		return; /* alloc error */
+	}
+	p->invitestate = INV_TERMINATED;
+	p->ocseq = original->ocseq;
+	p->branch = original->branch;
+
+	memcpy(&p->flags, &original->flags, sizeof(p->flags));
+	copy_request(&p->initreq, &original->initreq);
+	ast_string_field_set(p, theirtag, new_theirtag);
+	ast_copy_string(p->tag, original->tag, sizeof(p->tag));
+	ast_string_field_set(p, uri, original->uri);
+	ast_string_field_set(p, our_contact, original->our_contact);
+	ast_string_field_set(p, fullcontact, original->fullcontact);
+	parse_ok_contact(p, req);
+	build_route(p, req, 1);
+
+	transmit_request(p, SIP_ACK, p->ocseq, XMIT_UNRELIABLE, TRUE);
+	transmit_request(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
+
+	pvt_set_needdestroy(p, "forked request"); /* this dialog will terminate once the BYE is responed to or times out. */
+	dialog_unref(p, "setup forked invite termination");
+}
+
 /*! \brief find or create a dialog structure for an incoming SIP message.
  * Connect incoming SIP message to current dialog or create new dialog structure
  * Returns a reference to the sip_pvt object, remember to give it back once done.
@@ -7485,6 +7546,9 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		struct sip_pvt tmp_dialog = {
 			.callid = callid,
 		};
+		/* if a Outbound forked Request is detected, this pvt will point
+		 * to the dialog the Request is forking off of. */
+		struct sip_pvt *fork_pvt = NULL;
 		struct match_req_args args = { 0, };
 		int found;
 		struct ao2_iterator *iterator = ao2_t_callback(dialogs,
@@ -7498,14 +7562,20 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		args.totag = totag;
 		args.fromtag = fromtag;
 		args.seqno = seqno;
-
-		/* If this is a Request, set the Via and Authorization header arguments */
-		if (req->method != SIP_RESPONSE) {
-			args.ruri = REQ_OFFSET_TO_STR(req, rlPart2);
-			get_viabranch(ast_strdupa(get_header(req, "Via")), (char **) &args.viasentby, (char **) &args.viabranch);
-			if (!ast_strlen_zero(get_header(req, "Authorization")) ||
-				!ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
-				args.authentication_present = 1;
+		/* get via header information. */
+		args.ruri = REQ_OFFSET_TO_STR(req, rlPart2);
+		get_viabranch(ast_strdupa(get_header(req, "Via")), (char **) &args.viasentby, (char **) &args.viabranch);
+		/* determine if this is a Request with authentication credentials. */
+		if (!ast_strlen_zero(get_header(req, "Authorization")) ||
+			!ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
+			args.authentication_present = 1;
+		}
+		/* if it is a response, get the response code */
+		if (req->method == SIP_RESPONSE) {
+			const char* e = ast_skip_blanks(REQ_OFFSET_TO_STR(req, rlPart2));
+			int respid;
+			if (!ast_strlen_zero(e) && (sscanf(e, "%30d", &respid) == 1)) {
+				args.respid = respid;
 			}
 		}
 
@@ -7517,6 +7587,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 			case SIP_REQ_MATCH:
 				sip_pvt_lock(sip_pvt_ptr);
 				ao2_iterator_destroy(iterator);
+				dialog_unref(fork_pvt, "unref fork_pvt");
 				return sip_pvt_ptr; /* return pvt with ref */
 			case SIP_REQ_LOOP_DETECTED:
 				/* This is likely a forked Request that somehow resulted in us receiving multiple parts of the fork.
@@ -7524,7 +7595,12 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 				transmit_response_using_temp(callid, addr, 1, intended_method, req, "482 (Loop Detected)");
 				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search.");
 				ao2_iterator_destroy(iterator);
+				dialog_unref(fork_pvt, "unref fork_pvt");
 				return NULL;
+			case SIP_REQ_FORKED:
+				dialog_unref(fork_pvt, "throwing way pvt to fork off of.");
+				fork_pvt = dialog_ref(sip_pvt_ptr, "this pvt has a forked request, save this off to copy information into new dialog\n");
+				/* fall through */
 			case SIP_REQ_NOT_MATCH:
 			default:
 				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search");
@@ -7532,6 +7608,18 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		}
 		if (iterator) {
 			ao2_iterator_destroy(iterator);
+		}
+
+		/* Handle any possible forked requests. This must be done only after transaction matching is complete. */
+		if (fork_pvt) {
+			/* XXX right now we only support handling forked INVITE Requests. Any other
+			 * forked request type must be added here. */
+			if (fork_pvt->method == SIP_INVITE) {
+				forked_invite_init(req, args.totag, fork_pvt, addr);
+				dialog_unref(fork_pvt, "throwing way old forked pvt");
+				return NULL;
+			}
+			fork_pvt = dialog_unref(fork_pvt, "throwing way pvt to fork off of");
 		}
 	} /* end of pedantic mode Request/Reponse to Dialog matching */
 
