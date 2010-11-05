@@ -5177,6 +5177,10 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER_REPLACES")) {
 			/* We're replacing a call. */
 			p->options->replaces = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "SIP_MAX_FORWARDS")) {
+			if (sscanf(ast_var_value(current), "%d", &(p->maxforwards)) != 1) {
+				ast_log(LOG_WARNING, "The SIP_MAX_FORWARDS channel variable is not a valid integer.");
+			}
 		}
 	}
 
@@ -9231,29 +9235,17 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	return 0;	
 }
 
-/*! \brief Add 'Max-Forwards' header to SIP message */
+/*! 
+ * \pre dialog is assumed to be locked while calling this function
+ * \brief Add 'Max-Forwards' header to SIP message 
+ */
 static int add_header_max_forwards(struct sip_pvt *dialog, struct sip_request *req)
 {
 	char clen[10];
-	const char *max = NULL;
 
-	/* deadlock avoidance */
-	while (dialog->owner && ast_channel_trylock(dialog->owner)) {
-		sip_pvt_unlock(dialog);
-		usleep(1);
-		sip_pvt_lock(dialog);
-	}
+	snprintf(clen, sizeof(clen), "%d", dialog->maxforwards);
 
-	if (dialog->owner) {
- 		max = pbx_builtin_getvar_helper(dialog->owner, "SIP_MAX_FORWARDS");
-		ast_channel_unlock(dialog->owner);
-	}
-
-	/* The channel variable overrides the peer/channel value */
-	if (max == NULL) {
-		snprintf(clen, sizeof(clen), "%d", dialog->maxforwards);
-	}
-	return add_header(req, "Max-Forwards", max != NULL ? max : clen);
+	return add_header(req, "Max-Forwards", clen);
 }
 
 /*! \brief Add 'Content-Length' header and content to SIP message */
