@@ -92,10 +92,10 @@ struct codec_dahdi_pvt {
 };
 
 /* Only used by a decoder */
-static int ulawtolin(struct ast_trans_pvt *pvt)
+static int ulawtolin(struct ast_trans_pvt *pvt, int samples)
 {
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
-	int i = dahdip->required_samples;
+	int i = samples;
 	uint8_t *src = &dahdip->ulaw_buffer[0];
 	int16_t *dst = pvt->outbuf.i16 + pvt->datalen;
 
@@ -334,7 +334,7 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 		}
 	} else {
 		if (dahdip->softslin) {
-			ulawtolin(pvt);
+			ulawtolin(pvt, res);
 			pvt->f.datalen = res * 2;
 		} else {
 			pvt->f.datalen = res;
@@ -346,7 +346,7 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 		pvt->f.offset = AST_FRIENDLY_OFFSET;
 		pvt->f.src = pvt->t->name;
 		pvt->f.data.ptr = pvt->outbuf.c;
-		pvt->f.samples = dahdip->required_samples;
+		pvt->f.samples = res;
 		ast_set_flag(&pvt->f, AST_FRFLAG_FROM_TRANSLATOR);
 		pvt->samples = 0;
 
