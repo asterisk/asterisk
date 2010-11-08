@@ -31,7 +31,7 @@
 ;app = Playback          ; Application to execute on answer (instead of context/extension)
 ;appdata = tt-weasels    ; Data part of application to execute on answer
 ;
-;waittime = 30            ; How long to wait for an answer
+;waittime = 30            ; How long to wait for an answer, defaults to 30 seconds
 
 ;[calendar2]
 ; Note: Support for Exchange Server 2003 
@@ -76,7 +76,7 @@
 ;app = Playback          ; Application to execute on answer (instead of context/extension)
 ;appdata = tt-weasels    ; Data part of application to execute on answer
 ;
-;waittime = 30            ; How long to wait for an answer
+;waittime = 30            ; How long to wait for an answer, defaults to 30 seconds
 
 ;[calendar4]
 ;type = caldav            ;  type of calendar--currently supported: ical, caldav, exchange, or ews
@@ -99,4 +99,4 @@
 ;app = Playback          ; Application to execute on answer (instead of context/extension)
 ;appdata = tt-weasels    ; Data part of application to execute on answer
 ;
-;waittime = 30            ; How long to wait for an answer
+;waittime = 30            ; How long to wait for an answer, defaults to 30 seconds
