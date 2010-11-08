@@ -228,6 +228,7 @@ static int timerfd_timer_disable_continuous(int handle)
 		/* No reason to do anything if we're not
 		 * in continuous mode
 		 */
+		ao2_unlock(our_timer);
 		ao2_ref(our_timer, -1);
 		return 0;
 	}
