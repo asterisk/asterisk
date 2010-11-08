@@ -8108,6 +8108,35 @@ static int find_sdp(struct sip_request *req)
 	return FALSE;
 }
 
+/*! \brief Change hold state for a call */
+static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, int holdstate, int sendonly)
+{
+	if (sip_cfg.notifyhold && (!holdstate || !ast_test_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD)))
+		sip_peer_hold(dialog, holdstate);
+	if (sip_cfg.callevents)
+		manager_event(EVENT_FLAG_CALL, "Hold",
+			      "Status: %s\r\n"
+			      "Channel: %s\r\n"
+			      "Uniqueid: %s\r\n",
+			      holdstate ? "On" : "Off",
+			      dialog->owner->name,
+			      dialog->owner->uniqueid);
+	append_history(dialog, holdstate ? "Hold" : "Unhold", "%s", req->data->str);
+	if (!holdstate) {	/* Put off remote hold */
+		ast_clear_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
+		return;
+	}
+	/* No address for RTP, we're on hold */
+
+	if (sendonly == 1)	/* One directional hold (sendonly/recvonly) */
+		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
+	else if (sendonly == 2)	/* Inactive stream */
+		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
+	else
+		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_ACTIVE);
+	return;
+}
+
 
 static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_type media, struct ast_sockaddr *addr)
 {
@@ -8745,20 +8774,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
-		/* Queue Manager Unhold event */
-		append_history(p, "Unhold", "%s", req->data->str);
-		if (sip_cfg.callevents)
-			ast_manager_event(p->owner, EVENT_FLAG_CALL, "Hold",
-				      "Status: Off\r\n"
-				      "Channel: %s\r\n"
-				      "Uniqueid: %s\r\n",
-				      p->owner->name,
-				      p->owner->uniqueid);
-		if (sip_cfg.notifyhold)
-			sip_peer_hold(p, FALSE);
-		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD); /* Clear both flags */
+		change_hold_state(p, req, FALSE, sendonly);
 	} else if ((ast_sockaddr_isnull(sa) && ast_sockaddr_isnull(vsa) && ast_sockaddr_isnull(tsa) && ast_sockaddr_isnull(isa)) || (sendonly && sendonly != -1)) {
-		int already_on_hold = ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD,
 				       S_OR(p->mohsuggest, NULL),
 				       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
@@ -8767,24 +8784,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* RTCP needs to go ahead, even if we're on hold!!! */
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
-		/* Queue Manager Hold event */
-		append_history(p, "Hold", "%s", req->data->str);
-		if (sip_cfg.callevents && !ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
-			ast_manager_event(p->owner, EVENT_FLAG_CALL, "Hold",
-				      "Status: On\r\n"
-				      "Channel: %s\r\n"
-				      "Uniqueid: %s\r\n",
-				      p->owner->name,
-				      p->owner->uniqueid);
-		}
-		if (sendonly == 1)	/* One directional hold (sendonly/recvonly) */
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
-		else if (sendonly == 2)	/* Inactive stream */
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
-		else
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ACTIVE);
-		if (sip_cfg.notifyhold && !already_on_hold)
-			sip_peer_hold(p, TRUE);
+		change_hold_state(p, req, TRUE, sendonly);
 	}
 	
 	return 0;
@@ -21364,6 +21364,15 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			} else {
 				p->jointcapability = p->capability;
 				ast_debug(1, "Hm....  No sdp for the moment\n");
+				/* Some devices signal they want to be put off hold by sending a re-invite
+				   *without* an SDP, which is supposed to mean "Go back to your state"
+				   and since they put os on remote hold, we go back to off hold */
+				if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
+					ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+					/* Activate a re-invite */
+					ast_queue_frame(p->owner, &ast_null_frame);
+					change_hold_state(p, req, FALSE, 0);
+				}
 			}
 			if (p->do_history) /* This is a response, note what it was for */
 				append_history(p, "ReInv", "Re-invite received");
