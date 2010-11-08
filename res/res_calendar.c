@@ -369,6 +369,7 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 
 	cal->refresh = 3600;
 	cal->timeframe = 60;
+	cal->notify_waittime = 30000;
 
 	for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 		if (!strcasecmp(v->name, "autoreminder")) {
@@ -380,7 +381,10 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 		} else if (!strcasecmp(v->name, "extension")) {
 			ast_string_field_set(cal, notify_extension, v->value);
 		} else if (!strcasecmp(v->name, "waittime")) {
-			cal->notify_waittime = atoi(v->value);
+			int i = atoi(v->value);
+			if (i > 0) {
+				cal->notify_waittime = 1000 * i;
+			}
 		} else if (!strcasecmp(v->name, "app")) {
 			ast_string_field_set(cal, notify_app, v->value);
 		} else if (!strcasecmp(v->name, "appdata")) {
