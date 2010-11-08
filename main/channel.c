@@ -1129,7 +1129,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 	if ((tmp->timer = ast_timer_open())) {
-		needqueue = 0;
+		if (strcmp(ast_timer_get_name(tmp->timer), "timerfd")) {
+			needqueue = 0;
+		}
 		tmp->timingfd = ast_timer_fd(tmp->timer);
 	}
 
