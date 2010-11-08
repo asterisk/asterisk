@@ -338,6 +338,9 @@ struct hold_info {
 	int channel;
 };
 
+#define chan_list_ref(obj, debug) (ao2_t_ref((obj), +1, (debug)), (obj))
+#define chan_list_unref(obj, debug) (ao2_t_ref((obj), -1, (debug)), NULL)
+
 /*!
  * \brief Channel call record structure
  */
@@ -543,19 +546,6 @@ struct chan_list {
 	int nttimeout;
 
 	/*!
-	 * \brief Other channel call record PID
-	 * \note Value imported from Asterisk environment variable MISDN_PID
-	 */
-	int other_pid;
-
-	/*!
-	 * \brief Bridged other channel call record
-	 * \note Pointer set when other_pid imported from Asterisk environment
-	 * variable MISDN_PID by either side.
-	 */
-	struct chan_list *other_ch;
-
-	/*!
 	 * \brief Tone zone sound used for dialtone generation.
 	 * \note Used as a boolean.  Non-NULL to prod generation if enabled.
 	 */
@@ -744,6 +734,7 @@ static int misdn_chan_is_valid(struct chan_list *ch)
 	return 0;
 }
 
+/*! Returns a reference to the found chan_list. */
 static struct chan_list *get_chan_by_ast(struct ast_channel *ast)
 {
 	struct chan_list *tmp;
@@ -751,6 +742,7 @@ static struct chan_list *get_chan_by_ast(struct ast_channel *ast)
 	ast_mutex_lock(&cl_te_lock);
 	for (tmp = cl_te; tmp; tmp = tmp->next) {
 		if (tmp->ast == ast) {
+			chan_list_ref(tmp, "Found chan_list by ast");
 			ast_mutex_unlock(&cl_te_lock);
 			return tmp;
 		}
@@ -760,6 +752,7 @@ static struct chan_list *get_chan_by_ast(struct ast_channel *ast)
 	return NULL;
 }
 
+/*! Returns a reference to the found chan_list. */
 static struct chan_list *get_chan_by_ast_name(const char *name)
 {
 	struct chan_list *tmp;
@@ -767,6 +760,7 @@ static struct chan_list *get_chan_by_ast_name(const char *name)
 	ast_mutex_lock(&cl_te_lock);
 	for (tmp = cl_te; tmp; tmp = tmp->next) {
 		if (tmp->ast && strcmp(tmp->ast->name, name) == 0) {
+			chan_list_ref(tmp, "Found chan_list by ast name");
 			ast_mutex_unlock(&cl_te_lock);
 			return tmp;
 		}
@@ -5199,12 +5193,15 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 			ast_verbose("Sending CD with nr %s to %s failed: Channel does not exist.\n", nr, channame);
 			return 0;
 		}
+		ao2_lock(tmp);
 
 #if defined(AST_MISDN_ENHANCEMENTS)
 		max_len = sizeof(tmp->bc->fac_out.u.CallDeflection.Component.Invoke.Deflection.Party.Number) - 1;
 		if (max_len < strlen(nr)) {
 			ast_verbose("Sending CD with nr %s to %s failed: Number too long (up to %u digits are allowed).\n",
 				nr, channame, max_len);
+			ao2_unlock(tmp);
+			chan_list_unref(tmp, "Number too long");
 			return 0;
 		}
 		tmp->bc->fac_out.Function = Fac_CallDeflection;
@@ -5223,6 +5220,8 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 		if (max_len < strlen(nr)) {
 			ast_verbose("Sending CD with nr %s to %s failed: Number too long (up to %u digits are allowed).\n",
 				nr, channame, max_len);
+			ao2_unlock(tmp);
+			chan_list_unref(tmp, "Number too long");
 			return 0;
 		}
 		tmp->bc->fac_out.Function = Fac_CD;
@@ -5233,7 +5232,9 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 
 		/* Send message */
 		print_facility(&tmp->bc->fac_out, tmp->bc);
+		ao2_unlock(tmp);
 		misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
+		chan_list_unref(tmp, "Send facility complete");
 #if defined(AST_MISDN_ENHANCEMENTS)
 	} else if (strstr(a->argv[3], "callrerouteing") || strstr(a->argv[3], "callrerouting")) {
 		if (a->argc < 6) {
@@ -5249,11 +5250,14 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 			ast_verbose("Sending Call Rerouting with nr %s to %s failed: Channel does not exist.\n", nr, channame);
 			return 0;
 		}
+		ao2_lock(tmp);
 
 		max_len = sizeof(tmp->bc->fac_out.u.CallRerouteing.Component.Invoke.CalledAddress.Party.Number) - 1;
 		if (max_len < strlen(nr)) {
 			ast_verbose("Sending Call Rerouting with nr %s to %s failed: Number too long (up to %u digits are allowed).\n",
 				nr, channame, max_len);
+			ao2_unlock(tmp);
+			chan_list_unref(tmp, "Number too long");
 			return 0;
 		}
 		tmp->bc->fac_out.Function = Fac_CallRerouteing;
@@ -5284,11 +5288,13 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 
 		/* Send message */
 		print_facility(&tmp->bc->fac_out, tmp->bc);
+		ao2_unlock(tmp);
 		misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
+		chan_list_unref(tmp, "Send facility complete");
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
-		} else if (strstr(a->argv[3], "CFActivate")) {
-			if (a->argc < 7) {
-				ast_verbose("CFActivate requires 2 args: 1.FromNumber, 2.ToNumber\n\n");
+	} else if (strstr(a->argv[3], "CFActivate")) {
+		if (a->argc < 7) {
+			ast_verbose("CFActivate requires 2 args: 1.FromNumber, 2.ToNumber\n\n");
 			return 0;
 		}
 		port = atoi(a->argv[4]);
@@ -5373,20 +5379,23 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 		}
 		port = atoi(a->argv[4]);
 
-		channame = argv[4];
+		channame = a->argv[4];
 		tmp = get_chan_by_ast_name(channame);
 		if (tmp) {
 			/* We are going to send this FACILITY message out on an existing connection */
-			msg_number = atoi(argv[5]);
+			msg_number = atoi(a->argv[5]);
 			if (msg_number < ARRAY_LEN(Fac_Msgs)) {
+				ao2_lock(tmp);
 				tmp->bc->fac_out = Fac_Msgs[msg_number];
 
 				/* Send message */
 				print_facility(&tmp->bc->fac_out, tmp->bc);
+				ao2_unlock(tmp);
 				misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
 			} else {
 				ast_verbose("test <channel-name> <msg#>\n\n");
 			}
+			chan_list_unref(tmp, "Facility test done");
 		} else if (a->argc < 6) {
 			for (msg_number = 0; msg_number < ARRAY_LEN(Fac_Msgs); ++msg_number) {
 				misdn_make_dummy(bc, port, 0, misdn_lib_port_is_nt(port), 0);
@@ -5410,16 +5419,16 @@ static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, st
 				ast_verbose("test <port> [<msg#>]\n\n");
 			}
 		}
-	} else if (strstr(argv[3], "register")) {
-		if (argc < 5) {
-			ast_cli(fd, "register <port>\n\n");
+	} else if (strstr(a->argv[3], "register")) {
+		if (a->argc < 5) {
+			ast_verbose("register <port>\n\n");
 			return 0;
 		}
-		port = atoi(argv[4]);
+		port = atoi(a->argv[4]);
 
 		bc = misdn_lib_get_register_bc(port);
 		if (!bc) {
-			ast_cli(fd, "Could not allocate REGISTER bc struct\n\n");
+			ast_verbose("Could not allocate REGISTER bc struct\n\n");
 			return 0;
 		}
 		bc->fac_out = Fac_Msgs[45];
@@ -5501,6 +5510,9 @@ static char *handle_cli_misdn_send_digit(struct ast_cli_entry *e, int cmd, struc
 	}
 #if 1
 	for (i = 0; i < msglen; i++) {
+		if (!tmp->ast) {
+			break;
+		}
 		ast_cli(a->fd, "Sending: %c\n", msg[i]);
 		send_digit_to_chan(tmp, msg[i]);
 		/* res = ast_safe_sleep(tmp->ast, 250); */
@@ -5508,8 +5520,11 @@ static char *handle_cli_misdn_send_digit(struct ast_cli_entry *e, int cmd, struc
 		/* res = ast_waitfor(tmp->ast,100); */
 	}
 #else
-	ast_dtmf_stream(tmp->ast, NULL, msg, 250);
+	if (tmp->ast) {
+		ast_dtmf_stream(tmp->ast, NULL, msg, 250);
+	}
 #endif
+	chan_list_unref(tmp, "Digit(s) sent");
 
 	return CLI_SUCCESS;
 }
@@ -5556,6 +5571,7 @@ static char *handle_cli_misdn_toggle_echocancel(struct ast_cli_entry *e, int cmd
 	} else {
 		manager_ec_disable(tmp->bc);
 	}
+	chan_list_unref(tmp, "Done toggling echo cancel");
 
 	return CLI_SUCCESS;
 }
@@ -5586,12 +5602,16 @@ static char *handle_cli_misdn_send_display(struct ast_cli_entry *e, int cmd, str
 	msg = a->argv[4];
 
 	ast_cli(a->fd, "Sending %s to %s\n", msg, channame);
-	tmp = get_chan_by_ast_name(channame);
 
+	tmp = get_chan_by_ast_name(channame);
 	if (tmp && tmp->bc) {
 		ast_copy_string(tmp->bc->display, msg, sizeof(tmp->bc->display));
 		misdn_lib_send_event(tmp->bc, EVENT_INFORMATION);
+		chan_list_unref(tmp, "Done sending display");
 	} else {
+		if (tmp) {
+			chan_list_unref(tmp, "Display failed");
+		}
 		ast_cli(a->fd, "No such channel %s\n", channame);
 		return CLI_SUCCESS;
 	}
@@ -6457,7 +6477,6 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	int port = 0;
 	int r;
 	int exceed;
-	int bridging;
 	int number_type;
 	struct chan_list *ch;
 	struct misdn_bchannel *newbc;
@@ -6675,20 +6694,6 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			newbc->div_leg_3_rx_wanted = 1;
 		}
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
-
-		/*check for bridging*/
-		misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
-		if (bridging && ch->other_ch) {
-#ifdef MISDN_1_2
-			chan_misdn_log(1, port, "Disabling EC (aka Pipeline) on both Sides\n");
-			*ch->bc->pipeline = 0;
-			*ch->other_ch->bc->pipeline = 0;
-#else
-			chan_misdn_log(1, port, "Disabling EC on both Sides\n");
-			ch->bc->ec_enable = 0;
-			ch->other_ch->bc->ec_enable = 0;
-#endif
-		}
 	}
 
 	exceed = add_out_calls(port);
@@ -6937,18 +6942,6 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 			chan_misdn_log(2, p->bc->port, " --> * IND :\tringing pid:%d\n", p->bc->pid);
 			misdn_lib_send_event(p->bc, EVENT_ALERTING);
 
-			if (p->other_ch && p->other_ch->bc) {
-				if (misdn_inband_avail(p->other_ch->bc)) {
-					chan_misdn_log(2, p->bc->port, " --> other End is mISDN and has inband info available\n");
-					break;
-				}
-
-				if (!p->other_ch->bc->nt) {
-					chan_misdn_log(2, p->bc->port, " --> other End is mISDN TE so it has inband info for sure (?)\n");
-					break;
-				}
-			}
-
 			chan_misdn_log(3, p->bc->port, " --> * SEND: State Ring pid:%d\n", p->bc->pid);
 			ast_setstate(ast, AST_STATE_RING);
 
@@ -7034,15 +7027,22 @@ static int misdn_hangup(struct ast_channel *ast)
 		return -1;
 	}
 
+	ast_debug(1, "misdn_hangup(%s)\n", ast->name);
+
+	/* Take the ast_channel's tech_pvt reference. */
 	ast_mutex_lock(&release_lock);
 	p = MISDN_ASTERISK_TECH_PVT(ast);
-	if (!p || !misdn_chan_is_valid(p)) {
+	if (!p) {
 		ast_mutex_unlock(&release_lock);
 		return -1;
 	}
 	MISDN_ASTERISK_TECH_PVT(ast) = NULL;
 
-	ast_debug(1, "misdn_hangup(%s)\n", ast->name);
+	if (!misdn_chan_is_valid(p)) {
+		ast_mutex_unlock(&release_lock);
+		chan_list_unref(p, "Release ast_channel reference.  Was not active?");
+		return 0;
+	}
 
 	if (p->hold.state == MISDN_HOLD_IDLE) {
 		bc = p->bc;
@@ -7054,6 +7054,7 @@ static int misdn_hangup(struct ast_channel *ast)
 				"misdn_hangup: Could not find held bc for (%s)\n", ast->name);
 			release_chan_early(p);
 			ast_mutex_unlock(&release_lock);
+			chan_list_unref(p, "Release ast_channel reference");
 			return 0;
 		}
 	}
@@ -7066,6 +7067,7 @@ static int misdn_hangup(struct ast_channel *ast)
 			misdn_lib_release(bc);
 		}
 		ast_mutex_unlock(&release_lock);
+		chan_list_unref(p, "Release ast_channel reference");
 		return 0;
 	}
 	if (!bc) {
@@ -7073,6 +7075,7 @@ static int misdn_hangup(struct ast_channel *ast)
 			misdn_get_ch_state(p), p->l3id);
 		release_chan_early(p);
 		ast_mutex_unlock(&release_lock);
+		chan_list_unref(p, "Release ast_channel reference");
 		return 0;
 	}
 
@@ -7132,6 +7135,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		release_chan(p, bc);
 		misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
 		ast_mutex_unlock(&release_lock);
+		chan_list_unref(p, "Release ast_channel reference");
 		return 0;
 	case MISDN_DIALING:
 		if (p->hold.state == MISDN_HOLD_IDLE) {
@@ -7185,6 +7189,7 @@ static int misdn_hangup(struct ast_channel *ast)
 
 	case MISDN_CLEANING:
 		ast_mutex_unlock(&release_lock);
+		chan_list_unref(p, "Release ast_channel reference");
 		return 0;
 
 	case MISDN_BUSY:
@@ -7208,6 +7213,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		misdn_get_ch_state(p));
 
 	ast_mutex_unlock(&release_lock);
+	chan_list_unref(p, "Release ast_channel reference");
 	return 0;
 }
 
@@ -7494,20 +7500,25 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 	int bridging;
 
 	ch1 = get_chan_by_ast(c0);
+	if (!ch1) {
+		return -1;
+	}
 	ch2 = get_chan_by_ast(c1);
+	if (!ch2) {
+		chan_list_unref(ch1, "Failed to find ch2");
+		return -1;
+	}
 
 	carr[0] = c0;
 	carr[1] = c1;
-
-	if (!(ch1 && ch2)) {
-		return -1;
-	}
 
 	misdn_cfg_get(ch1->bc->port, MISDN_CFG_BRIDGING, &p1_b, sizeof(p1_b));
 	misdn_cfg_get(ch2->bc->port, MISDN_CFG_BRIDGING, &p2_b, sizeof(p2_b));
 
 	if (! p1_b || ! p2_b) {
 		ast_log(LOG_NOTICE, "Falling back to Asterisk bridging\n");
+		chan_list_unref(ch1, "Bridge fallback ch1");
+		chan_list_unref(ch2, "Bridge fallback ch2");
 		return AST_BRIDGE_FAILED;
 	}
 
@@ -7581,6 +7592,8 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 
 	misdn_lib_split_bridge(ch1->bc, ch2->bc);
 
+	chan_list_unref(ch1, "Bridge complete ch1");
+	chan_list_unref(ch2, "Bridge complete ch2");
 	return AST_BRIDGE_COMPLETE;
 }
 
@@ -7663,12 +7676,58 @@ static int stop_bc_tones(struct chan_list *cl)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Destroy the chan_list object.
+ *
+ * \param obj chan_list object to destroy.
+ *
+ * \return Nothing
+ */
+static void chan_list_destructor(void *obj)
+{
+	struct chan_list *ch = obj;
 
-static struct chan_list *init_chan_list(int orig)
+#if defined(AST_MISDN_ENHANCEMENTS)
+	if (ch->peer) {
+		ao2_ref(ch->peer, -1);
+		ch->peer = NULL;
+	}
+#endif /* AST_MISDN_ENHANCEMENTS */
+
+	if (ch->dsp) {
+		ast_dsp_free(ch->dsp);
+		ch->dsp = NULL;
+	}
+
+	/* releasing jitterbuffer */
+	if (ch->jb) {
+		misdn_jb_destroy(ch->jb);
+		ch->jb = NULL;
+	}
+
+	if (ch->overlap_dial) {
+		if (ch->overlap_dial_task != -1) {
+			misdn_tasks_remove(ch->overlap_dial_task);
+			ch->overlap_dial_task = -1;
+		}
+		ast_mutex_destroy(&ch->overlap_tv_lock);
+	}
+
+	if (-1 < ch->pipe[0]) {
+		close(ch->pipe[0]);
+	}
+	if (-1 < ch->pipe[1]) {
+		close(ch->pipe[1]);
+	}
+}
+
+/*! Returns a reference to the new chan_list. */
+static struct chan_list *chan_list_init(int orig)
 {
 	struct chan_list *cl;
 
-	cl = ast_calloc(1, sizeof(*cl));
+	cl = ao2_alloc(sizeof(*cl), chan_list_destructor);
 	if (!cl) {
 		chan_misdn_log(-1, 0, "misdn_request: malloc failed!");
 		return NULL;
@@ -7682,6 +7741,8 @@ static struct chan_list *init_chan_list(int orig)
 #if defined(AST_MISDN_ENHANCEMENTS)
 	cl->record_id = -1;
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+	cl->pipe[0] = -1;
+	cl->pipe[1] = -1;
 
 	return cl;
 }
@@ -7905,7 +7966,7 @@ static struct ast_channel *misdn_request(const char *type, format_t format, cons
 	}
 
 	/* create ast_channel and link all the objects together */
-	cl = init_chan_list(ORG_AST);
+	cl = chan_list_init(ORG_AST);
 	if (!cl) {
 		ast_log(LOG_ERROR, "Could not create call record for Dial(%s)\n", dial_str);
 		return NULL;
@@ -7914,11 +7975,10 @@ static struct ast_channel *misdn_request(const char *type, format_t format, cons
 
 	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, format, requestor ? requestor->linkedid : NULL, port, channel);
 	if (!ast) {
-		ast_free(cl);
+		chan_list_unref(cl, "Failed to create a new channel");
 		ast_log(LOG_ERROR, "Could not create Asterisk channel for Dial(%s)\n", dial_str);
 		return NULL;
 	}
-	cl->ast = ast;
 
 #if defined(AST_MISDN_ENHANCEMENTS)
 	cl->record_id = record_id;
@@ -7933,13 +7993,14 @@ static struct ast_channel *misdn_request(const char *type, format_t format, cons
 	/* important */
 	cl->need_hangup = 0;
 
+	chan_list_unref(cl, "Successful misdn_request()");
 	return ast;
 }
 
 
 static int misdn_send_text(struct ast_channel *chan, const char *text)
 {
-	struct chan_list *tmp = chan->tech_pvt;
+	struct chan_list *tmp = MISDN_ASTERISK_TECH_PVT(chan);
 
 	if (tmp && tmp->bc) {
 		ast_copy_string(tmp->bc->display, text, sizeof(tmp->bc->display));
@@ -8050,7 +8111,10 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		tmp->writeformat = format;
 		tmp->rawwriteformat = format;
 
-		tmp->tech_pvt = chlist;
+		/* Link the channel and private together */
+		chan_list_ref(chlist, "Give a reference to ast_channel");
+		MISDN_ASTERISK_TECH_PVT(tmp) = chlist;
+		chlist->ast = tmp;
 
 		misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
 		tmp->tech = bridging ? &misdn_tech : &misdn_tech_wo_bridge;
@@ -8087,6 +8151,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	return tmp;
 }
 
+/*! Returns a reference to the found chan_list. */
 static struct chan_list *find_chan_by_bc(struct misdn_bchannel *bc)
 {
 	struct chan_list *help;
@@ -8094,6 +8159,7 @@ static struct chan_list *find_chan_by_bc(struct misdn_bchannel *bc)
 	ast_mutex_lock(&cl_te_lock);
 	for (help = cl_te; help; help = help->next) {
 		if (help->bc == bc) {
+			chan_list_ref(help, "Found chan_list by bc");
 			ast_mutex_unlock(&cl_te_lock);
 			return help;
 		}
@@ -8109,24 +8175,7 @@ static struct chan_list *find_chan_by_bc(struct misdn_bchannel *bc)
 	return NULL;
 }
 
-static struct chan_list *find_chan_by_pid(int pid)
-{
-	struct chan_list *help;
-
-	ast_mutex_lock(&cl_te_lock);
-	for (help = cl_te; help; help = help->next) {
-		if (help->bc && (help->bc->pid == pid)) {
-			ast_mutex_unlock(&cl_te_lock);
-			return help;
-		}
-	}
-	ast_mutex_unlock(&cl_te_lock);
-
-	chan_misdn_log(6, 0, "$$$ find_chan_by_pid: No channel found for pid:%d\n", pid);
-
-	return NULL;
-}
-
+/*! Returns a reference to the found chan_list. */
 static struct chan_list *find_hold_call(struct misdn_bchannel *bc)
 {
 	struct chan_list *help;
@@ -8144,6 +8193,7 @@ static struct chan_list *find_hold_call(struct misdn_bchannel *bc)
 	for (help = cl_te; help; help = help->next) {
 		chan_misdn_log(4, bc->port, "$$$ find_hold_call: --> hold:%d channel:%d\n", help->hold.state, help->hold.channel);
 		if (help->hold.state == MISDN_HOLD_ACTIVE && help->hold.port == bc->port) {
+			chan_list_ref(help, "Found chan_list hold call");
 			ast_mutex_unlock(&cl_te_lock);
 			return help;
 		}
@@ -8159,6 +8209,7 @@ static struct chan_list *find_hold_call(struct misdn_bchannel *bc)
 }
 
 
+/*! Returns a reference to the found chan_list. */
 static struct chan_list *find_hold_call_l3(unsigned long l3_id)
 {
 	struct chan_list *help;
@@ -8166,6 +8217,7 @@ static struct chan_list *find_hold_call_l3(unsigned long l3_id)
 	ast_mutex_lock(&cl_te_lock);
 	for (help = cl_te; help; help = help->next) {
 		if (help->hold.state != MISDN_HOLD_IDLE && help->l3id == l3_id) {
+			chan_list_ref(help, "Found chan_list hold call l3");
 			ast_mutex_unlock(&cl_te_lock);
 			return help;
 		}
@@ -8185,6 +8237,8 @@ static struct chan_list *find_hold_call_l3(unsigned long l3_id)
  *
  * \return Found call record or NULL.
  *
+ * \note Returns a reference to the found chan_list.
+ *
  * \note There could be a possibility where we find the wrong active call to transfer.
  * This concern is mitigated by the fact that there could be at most one other call
  * on a PTMP BRI link to another device.  Maybe the l3_id could help in locating an
@@ -8203,6 +8257,7 @@ static struct chan_list *find_hold_active_call(struct misdn_bchannel *bc)
 			case MISDN_PROGRESS:
 			case MISDN_ALERTING:
 			case MISDN_CONNECTED:
+				chan_list_ref(list, "Found chan_list hold active call");
 				ast_mutex_unlock(&cl_te_lock);
 				return list;
 			default:
@@ -8219,6 +8274,7 @@ static void cl_queue_chan(struct chan_list *chan)
 {
 	chan_misdn_log(4, chan->bc ? chan->bc->port : 0, "* Queuing chan %p\n", chan);
 
+	chan_list_ref(chan, "Adding chan_list to list");
 	ast_mutex_lock(&cl_te_lock);
 	chan->next = NULL;
 	if (!cl_te) {
@@ -8251,6 +8307,7 @@ static int cl_dequeue_chan(struct chan_list *chan)
 		/* What we want is the head of the list. */
 		cl_te = cl_te->next;
 		ast_mutex_unlock(&cl_te_lock);
+		chan_list_unref(chan, "Removed chan_list from list head");
 		return 1;
 	}
 
@@ -8265,6 +8322,9 @@ static int cl_dequeue_chan(struct chan_list *chan)
 	}
 
 	ast_mutex_unlock(&cl_te_lock);
+	if (found_it) {
+		chan_list_unref(chan, "Removed chan_list from list");
+	}
 	return found_it;
 }
 
@@ -8326,7 +8386,7 @@ static void hangup_chan(struct chan_list *ch, struct misdn_bchannel *bc)
  *
  * \return Nothing
  *
- * \note ch must not be referenced after calling.
+ * \note The only valid thing to do with ch after calling is to chan_list_unref(ch, "").
  */
 static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 {
@@ -8353,6 +8413,9 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 	ch->state = MISDN_CLEANING;
 	ch->ast = NULL;
 	if (ast) {
+		struct chan_list *ast_ch;
+
+		ast_ch = MISDN_ASTERISK_TECH_PVT(ast);
 		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
 		chan_misdn_log(1, bc->port,
 			"* RELEASING CHANNEL pid:%d context:%s dialed:%s caller:\"%s\" <%s>\n",
@@ -8367,36 +8430,9 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 			ast_setstate(ast, AST_STATE_DOWN);
 		}
 		ast_channel_unlock(ast);
-	}
-
-#if defined(AST_MISDN_ENHANCEMENTS)
-	if (ch->peer) {
-		ao2_ref(ch->peer, -1);
-		ch->peer = NULL;
-	}
-#endif /* AST_MISDN_ENHANCEMENTS */
-
-	if (ch->dsp) {
-		ast_dsp_free(ch->dsp);
-		ch->dsp = NULL;
-	}
-
-	/* releasing jitterbuffer */
-	if (ch->jb) {
-		misdn_jb_destroy(ch->jb);
-		ch->jb = NULL;
-	} else {
-		if (!bc->nojitter) {
-			chan_misdn_log(5, bc->port, "Jitterbuffer already destroyed.\n");
+		if (ast_ch) {
+			chan_list_unref(ast_ch, "Release ast_channel reference.");
 		}
-	}
-
-	if (ch->overlap_dial) {
-		if (ch->overlap_dial_task != -1) {
-			misdn_tasks_remove(ch->overlap_dial_task);
-			ch->overlap_dial_task = -1;
-		}
-		ast_mutex_destroy(&ch->overlap_tv_lock);
 	}
 
 	if (ch->originator == ORG_AST) {
@@ -8404,11 +8440,6 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 	} else {
 		--misdn_in_calls[bc->port];
 	}
-
-	close(ch->pipe[0]);
-	close(ch->pipe[1]);
-
-	ast_free(ch);
 
 	ast_mutex_unlock(&release_lock);
 }
@@ -8421,7 +8452,7 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
  *
  * \return Nothing
  *
- * \note ch must not be referenced after calling.
+ * \note The only valid thing to do with ch after calling is to chan_list_unref(ch, "").
  */
 static void release_chan_early(struct chan_list *ch)
 {
@@ -8446,37 +8477,18 @@ static void release_chan_early(struct chan_list *ch)
 	ch->state = MISDN_CLEANING;
 	ch->ast = NULL;
 	if (ast) {
+		struct chan_list *ast_ch;
+
+		ast_ch = MISDN_ASTERISK_TECH_PVT(ast);
 		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+
 		if (ast->_state != AST_STATE_RESERVED) {
 			ast_setstate(ast, AST_STATE_DOWN);
 		}
 		ast_channel_unlock(ast);
-	}
-
-#if defined(AST_MISDN_ENHANCEMENTS)
-	if (ch->peer) {
-		ao2_ref(ch->peer, -1);
-		ch->peer = NULL;
-	}
-#endif /* AST_MISDN_ENHANCEMENTS */
-
-	if (ch->dsp) {
-		ast_dsp_free(ch->dsp);
-		ch->dsp = NULL;
-	}
-
-	/* releasing jitterbuffer */
-	if (ch->jb) {
-		misdn_jb_destroy(ch->jb);
-		ch->jb = NULL;
-	}
-
-	if (ch->overlap_dial) {
-		if (ch->overlap_dial_task != -1) {
-			misdn_tasks_remove(ch->overlap_dial_task);
-			ch->overlap_dial_task = -1;
+		if (ast_ch) {
+			chan_list_unref(ast_ch, "Release ast_channel reference.");
 		}
-		ast_mutex_destroy(&ch->overlap_tv_lock);
 	}
 
 	if (ch->hold.state != MISDN_HOLD_IDLE) {
@@ -8486,11 +8498,6 @@ static void release_chan_early(struct chan_list *ch)
 			--misdn_in_calls[ch->hold.port];
 		}
 	}
-
-	close(ch->pipe[0]);
-	close(ch->pipe[1]);
-
-	ast_free(ch);
 
 	ast_mutex_unlock(&release_lock);
 }
@@ -8796,18 +8803,6 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	const char *tmp;
 
 	ast_channel_lock(chan);
-	tmp = pbx_builtin_getvar_helper(chan, "MISDN_PID");
-	if (tmp) {
-		ch->other_pid = atoi(tmp);
-		chan_misdn_log(3, bc->port, " --> IMPORT_PID: importing pid:%s\n", tmp);
-		if (ch->other_pid > 0) {
-			ch->other_ch = find_chan_by_pid(ch->other_pid);
-			if (ch->other_ch) {
-				ch->other_ch->other_ch = ch;
-			}
-		}
-	}
-
 	tmp = pbx_builtin_getvar_helper(chan, "MISDN_ADDRESS_COMPLETE");
 	if (tmp && (atoi(tmp) == 1)) {
 		bc->sending_complete = 1;
@@ -8832,6 +8827,12 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 {
 	char tmp[32];
 
+	/*
+	 * The only use for MISDN_PID is if there is a problem and you
+	 * have to use the "misdn restart pid" CLI command.  Otherwise,
+	 * the pid is not used by anyone.  The internal use of MISDN_PID
+	 * has been deleted.
+	 */
 	chan_misdn_log(3, bc->port, " --> EXPORT_PID: pid:%d\n", bc->pid);
 	snprintf(tmp, sizeof(tmp), "%d", bc->pid);
 	pbx_builtin_setvar_helper(chan, "_MISDN_PID", tmp);
@@ -9962,9 +9963,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			chan_misdn_log(1, bc->port, "Chan not existing at the moment bc->l3id:%x bc:%p event:%s port:%d channel:%d\n", bc->l3_id, bc, manager_isdn_get_info(event), bc->port, bc->channel);
 			return -1;
 		}
-	}
-
-	if (ch) {
+	} else {
 		switch (event) {
 		case EVENT_TONE_GENERATE:
 			break;
@@ -9982,6 +9981,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				if (event != EVENT_BCHAN_DATA) {
 					ast_log(LOG_NOTICE, "No Ast or No private Pointer in Event (%d:%s)\n", event, manager_isdn_get_info(event));
 				}
+				chan_list_unref(ch, "No Ast or Ast private pointer");
 				return -1;
 			}
 			break;
@@ -10157,7 +10157,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 	case EVENT_SETUP:
 	{
-		struct chan_list *ch = find_chan_by_bc(bc);
 		struct ast_channel *chan;
 		int exceed;
 		int ai;
@@ -10167,9 +10166,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		if (ch) {
 			switch (ch->state) {
 			case MISDN_NOTHING:
+				chan_list_unref(ch, "Ignore found ch.  Is it for an outgoing call?");
 				ch = NULL;
 				break;
 			default:
+				chan_list_unref(ch, "Already have a call.");
 				chan_misdn_log(1, bc->port, " --> Ignoring Call we have already one\n");
 				return RESPONSE_IGNORE_SETUP_WITHOUT_CLOSE; /*  Ignore MSNs which are not in our List */
 			}
@@ -10190,7 +10191,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		print_bearer(bc);
 
-		ch = init_chan_list(ORG_MISDN);
+		ch = chan_list_init(ORG_MISDN);
 		if (!ch) {
 			chan_misdn_log(-1, bc->port, "cb_events: malloc for chan_list failed!\n");
 			return 0;
@@ -10202,13 +10203,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, AST_FORMAT_ALAW, NULL, bc->port, bc->channel);
 		if (!chan) {
-			ast_free(ch);
+			chan_list_unref(ch, "Failed to create a new channel");
 			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 			ast_log(LOG_ERROR, "cb_events: misdn_new failed !\n");
 			return 0;
 		}
-
-		ch->ast = chan;
 
 		if ((exceed = add_in_calls(bc->port))) {
 			char tmp[16];
@@ -10292,6 +10291,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 				ch->state = MISDN_EXTCANTMATCH;
 				misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
+				chan_list_unref(ch, "BC not allowed, releasing call");
 				return RESPONSE_OK;
 			}
 		}
@@ -10679,6 +10679,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				}
 			}
 		}
+		if (held_ch) {
+			chan_list_unref(held_ch, "Done with held call");
+		}
 		bc->out_cause = -1;
 		if (bc->need_release) {
 			misdn_lib_send_event(bc, EVENT_RELEASE);
@@ -11045,6 +11048,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 	}
 
+	if (ch) {
+		chan_list_unref(ch, "cb_event complete OK");
+	}
 	return RESPONSE_OK;
 }
 
@@ -12483,13 +12489,22 @@ static int misdn_set_opt_exec(struct ast_channel *chan, const char *data)
 
 int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len)
 {
-	struct chan_list *ch = find_chan_by_bc(bc);
+	struct chan_list *ch;
+	int res;
 
-	if (ch && ch->jb) {
-		return misdn_jb_empty(ch->jb, buf, len);
+	ch = find_chan_by_bc(bc);
+	if (!ch) {
+		return 0;
 	}
 
-	return -1;
+	if (ch->jb) {
+		res = misdn_jb_empty(ch->jb, buf, len);
+	} else {
+		res = 0;
+	}
+	chan_list_unref(ch, "Done emptying jb");
+
+	return res;
 }
 
 
