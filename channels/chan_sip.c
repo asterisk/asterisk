@@ -13497,6 +13497,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				} else {
 					wait = ast_random() % 2000;
 				}
+
+				if (p->waitid != -1) {
+					if (option_debug > 2)
+						ast_log(LOG_DEBUG, "Reinvite race during existing reinvite race. Abandoning previous reinvite retry.\n");
+					AST_SCHED_DEL(sched, p->waitid);
+					p->waitid = -1;
+				}
+
 				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, p);
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "Reinvite race. Waiting %d secs before retry\n", wait);
