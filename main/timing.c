@@ -205,6 +205,11 @@ unsigned int ast_timer_get_max_rate(const struct ast_timer *handle)
 	return res;
 }
 
+const char *ast_timer_get_name(const struct ast_timer *handle)
+{
+	return handle->holder->iface->name;
+}
+
 static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_timer *timer;
