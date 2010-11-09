@@ -109,6 +109,7 @@ int astobj2_init(void);				/*! Provided by astobj2.c */
 void ast_autoservice_init(void);    /*!< Provided by autoservice.c */
 int ast_fd_init(void);				/*!< Provided by astfd.c */
 int ast_test_init(void);                        /*!< Provided by test.c */
+int ast_pbx_init(void);                         /*!< Provided by pbx.c */
 
 /* Many headers need 'ast_channel' to be defined */
 struct ast_channel;

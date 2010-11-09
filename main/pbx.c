@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/astobj2.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -197,7 +198,6 @@ struct ast_hint {
 	struct ast_exten *exten;	/*!< Extension */
 	int laststate; 			/*!< Last known state */
 	struct ast_state_cb *callbacks;	/*!< Callback list for this extension */
-	AST_LIST_ENTRY(ast_hint) list;	/*!< Pointer to next hint in list */
 };
 
 static const struct cfextension_states {
@@ -503,13 +503,16 @@ static AST_LIST_HEAD_STATIC(apps, ast_app);
 static AST_LIST_HEAD_STATIC(switches, ast_switch);
 
 static int stateid = 1;
+
 /* WARNING:
-   When holding this list's lock, do _not_ do anything that will cause conlock
+   When holding this container's lock, do _not_ do anything that will cause conlock
    to be taken, unless you _already_ hold it. The ast_merge_contexts_and_delete
    function will take the locks in conlock/hints order, so any other
    paths that require both locks must also take them in that order.
 */
-static AST_LIST_HEAD_STATIC(hints, ast_hint);
+static struct ao2_container *hints;
+
+/* XXX TODO Convert this to an astobj2 container, too. */
 struct ast_state_cb *statecbs;
 
 /*
@@ -2012,15 +2015,14 @@ void ast_hint_state_changed(const char *device)
 {
 	struct ast_hint *hint;
 	struct ast_dynamic_str *str;
+	struct ao2_iterator i;
 
 	if (!(str = ast_dynamic_str_create(1024))) {
 		return;
 	}
 
-	ast_rdlock_contexts();
-	AST_LIST_LOCK(&hints);
-
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	i = ao2_iterator_init(hints, 0);
+	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
 		struct ast_state_cb *cblist;
 		char *cur, *parse;
 		int state;
@@ -2029,34 +2031,56 @@ void ast_hint_state_changed(const char *device)
 		parse = str->str;
 
 		while ( (cur = strsep(&parse, "&")) ) {
-			if (!strcasecmp(cur, device))
+			if (!strcasecmp(cur, device)) {
 				break;
+			}
 		}
 
-		if (!cur)
+		if (!cur) {
 			continue;
+		}
 
 		/* Get device state for this hint */
 		state = ast_extension_state2(hint->exten);
 
-		if ((state == -1) || (state == hint->laststate))
+		if ((state == -1) || (state == hint->laststate)) {
 			continue;
+		}
 
 		/* Device state changed since last check - notify the watchers */
 
+		ast_rdlock_contexts();
+		ao2_lock(hints);
+		ao2_lock(hint);
+
+		if (hint->exten == NULL) {
+			/* the extension has been destroyed */
+			ao2_unlock(hint);
+			ao2_unlock(hints);
+			ast_unlock_contexts();
+			continue;
+		}
+
 		/* For general callbacks */
-		for (cblist = statecbs; cblist; cblist = cblist->next)
+		for (cblist = statecbs; cblist; cblist = cblist->next) {
 			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
+		}
+		//caused problems here
+		//ao2_unlock(hints);
+		//ast_unlock_contexts();
 
 		/* For extension callbacks */
-		for (cblist = hint->callbacks; cblist; cblist = cblist->next)
+		for (cblist = hint->callbacks; cblist; cblist = cblist->next) {
 			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
+		}
 
 		hint->laststate = state;	/* record we saw the change */
+		ao2_unlock(hint);
+		ao2_unlock(hints);
+		ast_unlock_contexts();
 	}
 
-	AST_LIST_UNLOCK(&hints);
-	ast_unlock_contexts();
+	ao2_iterator_destroy(&i);
 	ast_free(str);
 }
 
@@ -2070,19 +2094,19 @@ int ast_extension_state_add(const char *context, const char *exten,
 
 	/* If there's no context and extension:  add callback to statecbs list */
 	if (!context && !exten) {
-		AST_LIST_LOCK(&hints);
+		ao2_lock(hints);
 
 		for (cblist = statecbs; cblist; cblist = cblist->next) {
 			if (cblist->callback == callback) {
 				cblist->data = data;
-				AST_LIST_UNLOCK(&hints);
+				ao2_unlock(hints);
 				return 0;
 			}
 		}
 
 		/* Now insert the callback */
 		if (!(cblist = ast_calloc(1, sizeof(*cblist)))) {
-			AST_LIST_UNLOCK(&hints);
+			ao2_unlock(hints);
 			return -1;
 		}
 		cblist->id = 0;
@@ -2092,7 +2116,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 		cblist->next = statecbs;
 		statecbs = cblist;
 
-		AST_LIST_UNLOCK(&hints);
+		ao2_unlock(hints);
 		return 0;
 	}
 
@@ -2105,34 +2129,44 @@ int ast_extension_state_add(const char *context, const char *exten,
 		return -1;
 	}
 
-	/* Find the hint in the list of hints */
-	AST_LIST_LOCK(&hints);
-
-	AST_LIST_TRAVERSE(&hints, hint, list) {
-		if (hint->exten == e)
-			break;
-	}
+	hint = ao2_find(hints, e, 0);
 
 	if (!hint) {
-		/* We have no hint, sorry */
-		AST_LIST_UNLOCK(&hints);
 		return -1;
 	}
 
 	/* Now insert the callback in the callback list  */
 	if (!(cblist = ast_calloc(1, sizeof(*cblist)))) {
-		AST_LIST_UNLOCK(&hints);
+		ao2_ref(hint, -1);
 		return -1;
 	}
 	cblist->id = stateid++;		/* Unique ID for this callback */
 	cblist->callback = callback;	/* Pointer to callback routine */
 	cblist->data = data;		/* Data for the callback */
 
+	ao2_lock(hint);
 	cblist->next = hint->callbacks;
 	hint->callbacks = cblist;
+	ao2_unlock(hint);
 
-	AST_LIST_UNLOCK(&hints);
+	ao2_ref(hint, -1);
+
 	return cblist->id;
+}
+
+static int find_hint_by_cb_id(void *obj, void *arg, int flags)
+{
+	const struct ast_hint *hint = obj;
+	int *id = arg;
+	struct ast_state_cb *cb;
+
+	for (cb = hint->callbacks; cb; cb = cb->next) {
+		if (cb->id == *id) {
+			return CMP_MATCH | CMP_STOP;
+		}
+	}
+
+	return 0;
 }
 
 /*! \brief  ast_extension_state_del: Remove a watcher from the callback list */
@@ -2141,35 +2175,53 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	struct ast_state_cb **p_cur = NULL;	/* address of pointer to us */
 	int ret = -1;
 
-	if (!id && !callback)
+	if (!id && !callback) {
 		return -1;
-
-	AST_LIST_LOCK(&hints);
+	}
 
 	if (!id) {	/* id == 0 is a callback without extension */
+		ao2_lock(hints);
 		for (p_cur = &statecbs; *p_cur; p_cur = &(*p_cur)->next) {
-	 		if ((*p_cur)->callback == callback)
+			if ((*p_cur)->callback == callback) {
 				break;
+			}
 		}
+		if (p_cur && *p_cur) {
+			struct ast_state_cb *cur = *p_cur;
+			*p_cur = cur->next;
+			free(cur);
+			ret = 0;
+		}
+		ao2_unlock(hints);
 	} else { /* callback with extension, find the callback based on ID */
 		struct ast_hint *hint;
-		AST_LIST_TRAVERSE(&hints, hint, list) {
+
+		hint = ao2_callback(hints, 0, find_hint_by_cb_id, &id);
+
+		if (hint) {
+			ao2_lock(hint);
 			for (p_cur = &hint->callbacks; *p_cur; p_cur = &(*p_cur)->next) {
-				if ((*p_cur)->id == id)
+				if ((*p_cur)->id == id) {
 					break;
+				}
 			}
-			if (*p_cur)	/* found in the inner loop */
-				break;
+			if (p_cur && *p_cur) {
+				struct ast_state_cb *cur = *p_cur;
+				*p_cur = cur->next;
+				free(cur);
+				ret = 0;
+			}
+			ao2_unlock(hint);
+			ao2_ref(hint, -1);
 		}
 	}
-	if (p_cur && *p_cur) {
-		struct ast_state_cb *cur = *p_cur;
-		*p_cur = cur->next;
-		free(cur);
-		ret = 0;
-	}
-	AST_LIST_UNLOCK(&hints);
+
 	return ret;
+}
+
+static void ast_hint_destroy(void *obj)
+{
+	/* ast_remove_hint() takes care of most things before object destruction */
 }
 
 /*! \brief  ast_add_hint: Add hint to hint list, check initial extension state */
@@ -2177,34 +2229,34 @@ static int ast_add_hint(struct ast_exten *e)
 {
 	struct ast_hint *hint;
 
-	if (!e)
+	if (!e) {
 		return -1;
+	}
 
-	AST_LIST_LOCK(&hints);
+	hint = ao2_find(hints, e, 0);
 
-	/* Search if hint exists, do nothing */
-	AST_LIST_TRAVERSE(&hints, hint, list) {
-		if (hint->exten == e) {
-			AST_LIST_UNLOCK(&hints);
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
-			return -1;
-		}
+	if (hint) {
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
+		ao2_ref(hint, -1);
+		return -1;
 	}
 
 	if (option_debug > 1)
 		ast_log(LOG_DEBUG, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 
-	if (!(hint = ast_calloc(1, sizeof(*hint)))) {
-		AST_LIST_UNLOCK(&hints);
+	if (!(hint = ao2_alloc(sizeof(*hint), ast_hint_destroy))) {
 		return -1;
 	}
+
 	/* Initialize and insert new item at the top */
 	hint->exten = e;
 	hint->laststate = ast_extension_state2(e);
-	AST_LIST_INSERT_HEAD(&hints, hint, list);
 
-	AST_LIST_UNLOCK(&hints);
+	ao2_link(hints, hint);
+
+	ao2_ref(hint, -1);
+
 	return 0;
 }
 
@@ -2212,19 +2264,19 @@ static int ast_add_hint(struct ast_exten *e)
 static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 {
 	struct ast_hint *hint;
-	int res = -1;
 
-	AST_LIST_LOCK(&hints);
-	AST_LIST_TRAVERSE(&hints, hint, list) {
-		if (hint->exten == oe) {
-	    		hint->exten = ne;
-			res = 0;
-			break;
-		}
+	hint = ao2_find(hints, oe, 0);
+
+	if (!hint) {
+		return -1;
 	}
-	AST_LIST_UNLOCK(&hints);
 
-	return res;
+	ao2_lock(hint);
+	hint->exten = ne;
+	ao2_unlock(hint);
+	ao2_ref(hint, -1);
+
+	return 0;
 }
 
 /*! \brief  ast_remove_hint: Remove hint from extension */
@@ -2233,34 +2285,33 @@ static int ast_remove_hint(struct ast_exten *e)
 	/* Cleanup the Notifys if hint is removed */
 	struct ast_hint *hint;
 	struct ast_state_cb *cblist, *cbprev;
-	int res = -1;
 
-	if (!e)
+	if (!e) {
 		return -1;
-
-	AST_LIST_LOCK(&hints);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&hints, hint, list) {
-		if (hint->exten == e) {
-			cbprev = NULL;
-			cblist = hint->callbacks;
-			while (cblist) {
-				/* Notify with -1 and remove all callbacks */
-				cbprev = cblist;
-				cblist = cblist->next;
-				cbprev->callback(hint->exten->parent->name, hint->exten->exten, AST_EXTENSION_DEACTIVATED, cbprev->data);
-				free(cbprev);
-	    		}
-	    		hint->callbacks = NULL;
-			AST_LIST_REMOVE_CURRENT(&hints, list);
-	    		free(hint);
-	   		res = 0;
-			break;
-		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&hints);
 
-	return res;
+	hint = ao2_find(hints, e, 0);
+
+	if (!hint) {
+		return -1;
+	}
+	ao2_lock(hint);
+
+	cbprev = NULL;
+	cblist = hint->callbacks;
+	while (cblist) {
+		cbprev = cblist;
+		cblist = cblist->next;
+		cbprev->callback(hint->exten->parent->name, hint->exten->exten, AST_EXTENSION_DEACTIVATED, cbprev->data);
+		ast_free(cbprev);
+	}
+	hint->callbacks = NULL;
+	hint->exten = NULL;
+	ao2_unlink(hints, hint);
+	ao2_unlock(hint);
+	ao2_ref(hint, -1);
+
+	return 0;
 }
 
 
@@ -3267,18 +3318,21 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	int num = 0;
 	int watchers;
 	struct ast_state_cb *watcher;
+	struct ao2_iterator i;
 
-	if (AST_LIST_EMPTY(&hints)) {
+	if (ao2_container_count(hints) == 0) {
 		ast_cli(fd, "There are no registered dialplan hints\n");
 		return RESULT_SUCCESS;
 	}
-	/* ... we have hints ... */
+
 	ast_cli(fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
-	AST_LIST_LOCK(&hints);
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+
+	i = ao2_iterator_init(hints, 0);
+	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
 		watchers = 0;
-		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
+		for (watcher = hint->callbacks; watcher; watcher = watcher->next) {
 			watchers++;
+		}
 		ast_cli(fd, "   %20s@%-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 			ast_get_extension_name(hint->exten),
 			ast_get_context_name(ast_get_extension_context(hint->exten)),
@@ -3286,9 +3340,11 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 			ast_extension_state2str(hint->laststate), watchers);
 		num++;
 	}
+	ao2_iterator_destroy(&i);
+
 	ast_cli(fd, "----------------\n");
 	ast_cli(fd, "- %d hints registered\n", num);
-	AST_LIST_UNLOCK(&hints);
+
 	return RESULT_SUCCESS;
 }
 
@@ -3980,6 +4036,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	struct ast_exten *exten;
 	int length;
 	struct ast_state_cb *thiscb, *prevcb;
+	struct ao2_iterator i;
 
 	/* it is very important that this function hold the hint list lock _and_ the conlock
 	   during its operation; not only do we need to ensure that the list of contexts
@@ -3990,17 +4047,21 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	   other code paths that use this order
 	*/
 	ast_wrlock_contexts();
-	AST_LIST_LOCK(&hints);
+	ao2_lock(hints);
 
 	/* preserve all watchers for hints associated with this registrar */
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	i = ao2_iterator_init(hints, AO2_ITERATOR_DONTLOCK);
+	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
 		if (hint->callbacks && !strcmp(registrar, hint->exten->parent->registrar)) {
 			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
-			if (!(this = ast_calloc(1, length)))
+			if (!(this = ast_calloc(1, length))) {
 				continue;
+			}
+			ao2_lock(hint);
 			this->callbacks = hint->callbacks;
 			hint->callbacks = NULL;
 			this->laststate = hint->laststate;
+			ao2_unlock(hint);
 			this->context = this->data;
 			strcpy(this->data, hint->exten->parent->name);
 			this->exten = this->data + strlen(this->context) + 1;
@@ -4041,11 +4102,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	while ((this = AST_LIST_REMOVE_HEAD(&store, list))) {
 		struct pbx_find_info q = { .stacklen = 0 };
 		exten = pbx_find_extension(NULL, NULL, &q, this->context, this->exten, PRIORITY_HINT, NULL, "", E_MATCH);
-		/* Find the hint in the list of hints */
-		AST_LIST_TRAVERSE(&hints, hint, list) {
-			if (hint->exten == exten)
-				break;
-		}
+		hint = ao2_find(hints, exten, 0);
 		if (!exten || !hint) {
 			/* this hint has been removed, notify the watchers */
 			prevcb = NULL;
@@ -4058,16 +4115,22 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	    		}
 		} else {
 			thiscb = this->callbacks;
-			while (thiscb->next)
+			while (thiscb->next) {
 				thiscb = thiscb->next;
+			}
+			ao2_lock(hint);
 			thiscb->next = hint->callbacks;
 			hint->callbacks = this->callbacks;
 			hint->laststate = this->laststate;
+			ao2_unlock(hint);
+		}
+		if (hint) {
+			ao2_ref(hint, -1);
 		}
 		free(this);
 	}
 
-	AST_LIST_UNLOCK(&hints);
+	ao2_unlock(hints);
 	ast_unlock_contexts();
 
 	return;
@@ -6476,4 +6539,25 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 	ast_explicit_goto(chan, context, exten, ipri);
 	return 0;
 
+}
+
+static int hint_hash(const void *hint, const int flags)
+{
+	/* Only 1 bucket, not important. */
+	return 0;
+}
+
+static int hint_cmp(void *obj, void *arg, int flags)
+{
+	const struct ast_hint *hint = obj;
+	const struct ast_exten *exten = arg;
+
+	return (hint->exten == exten) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+int ast_pbx_init(void)
+{
+	hints = ao2_container_alloc(1, hint_hash, hint_cmp);
+
+	return hints ? 0 : -1;
 }
