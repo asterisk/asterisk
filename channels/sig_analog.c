@@ -652,6 +652,7 @@ static int analog_is_dialing(struct analog_pvt *p, enum analog_sub index)
  * \brief Attempt to transfer 3-way call.
  *
  * \param p Analog private structure.
+ * \param inthreeway TRUE if the 3-way call is conferenced.
  *
  * \note
  * On entry these locks are held: real-call, private, 3-way call.
@@ -661,74 +662,77 @@ static int analog_is_dialing(struct analog_pvt *p, enum analog_sub index)
  * \retval 0 Transfer successful.  3-way call is unlocked and subchannel is unalloced.
  * \retval -1 on error.  Caller must unlock 3-way call.
  */
-static int analog_attempt_transfer(struct analog_pvt *p)
+static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 {
-	/* In order to transfer, we need at least one of the channels to
-	   actually be in a call bridge.  We can't conference two applications
-	   together (but then, why would we want to?) */
-	if (ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner)) {
-		/* The three-way person we're about to transfer to could still be in MOH, so
-		   stop it now if appropriate */
-		if (ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
-			ast_queue_control(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CONTROL_UNHOLD);
-		}
-		if (p->subs[ANALOG_SUB_REAL].owner->_state == AST_STATE_RINGING) {
-			/*
-			 * This may not be safe.
-			 * We currently hold the locks on the real-call, private, and 3-way call.
-			 * We could possibly avoid this here by using an ast_queue_control() instead.
-			 * However, the following ast_channel_masquerade() is going to be locking
-			 * the bridged channel again anyway.
-			 */
-			ast_indicate(ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner), AST_CONTROL_RINGING);
-		}
-		if (p->subs[ANALOG_SUB_THREEWAY].owner->_state == AST_STATE_RING) {
-			analog_play_tone(p, ANALOG_SUB_THREEWAY, ANALOG_TONE_RINGTONE);
-		}
-		if (!p->subs[ANALOG_SUB_THREEWAY].inthreeway) {
-			ast_cel_report_event(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CEL_ATTENDEDTRANSFER, NULL, p->subs[ANALOG_SUB_THREEWAY].owner->linkedid, NULL);
-		}
-		if (ast_channel_masquerade(p->subs[ANALOG_SUB_THREEWAY].owner, ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner))) {
+	struct ast_channel *owner_real;
+	struct ast_channel *owner_3way;
+	struct ast_channel *bridge_real;
+	struct ast_channel *bridge_3way;
+
+	owner_real = p->subs[ANALOG_SUB_REAL].owner;
+	owner_3way = p->subs[ANALOG_SUB_THREEWAY].owner;
+	bridge_real = ast_bridged_channel(owner_real);
+	bridge_3way = ast_bridged_channel(owner_3way);
+
+	/*
+	 * In order to transfer, we need at least one of the channels to
+	 * actually be in a call bridge.  We can't conference two
+	 * applications together.  Why would we want to?
+	 */
+	if (bridge_3way) {
+		ast_verb(3, "TRANSFERRING %s to %s\n", owner_3way->name, owner_real->name);
+		ast_cel_report_event(owner_3way,
+			(owner_real->_state == AST_STATE_RINGING
+				|| owner_3way->_state == AST_STATE_RINGING)
+				? AST_CEL_BLINDTRANSFER : AST_CEL_ATTENDEDTRANSFER,
+			NULL, owner_3way->linkedid, NULL);
+
+		/*
+		 * The three-way party we're about to transfer is on hold if he
+		 * is not in a three way conference.
+		 */
+		if (ast_channel_transfer_masquerade(owner_real, &owner_real->connected, 0,
+			bridge_3way, &owner_3way->connected, !inthreeway)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner)->name, p->subs[ANALOG_SUB_THREEWAY].owner->name);
+				bridge_3way->name, owner_real->name);
 			return -1;
 		}
-		/* Orphan the channel after releasing the lock */
-		ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
-		analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
-	} else if (ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
-		ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
-		if (p->subs[ANALOG_SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
-			/*
-			 * This may not be safe.
-			 * We currently hold the locks on the real-call, private, and 3-way call.
-			 * We could possibly avoid this here by using an ast_queue_control() instead.
-			 * However, the following ast_channel_masquerade() is going to be locking
-			 * the bridged channel again anyway.
-			 */
-			ast_indicate(ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner), AST_CONTROL_RINGING);
-		}
-		if (p->subs[ANALOG_SUB_REAL].owner->_state == AST_STATE_RING) {
-			analog_play_tone(p, ANALOG_SUB_REAL, ANALOG_TONE_RINGTONE);
-		}
-		ast_cel_report_event(p->subs[ANALOG_SUB_THREEWAY].owner, AST_CEL_BLINDTRANSFER, NULL, p->subs[ANALOG_SUB_THREEWAY].owner->linkedid, NULL);
-		if (ast_channel_masquerade(p->subs[ANALOG_SUB_REAL].owner, ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner))) {
-			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)->name, p->subs[ANALOG_SUB_REAL].owner->name);
-			return -1;
-		}
+
 		/* Three-way is now the REAL */
 		analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
-		ast_channel_unlock(p->subs[ANALOG_SUB_REAL].owner); /* unlock REAL because THREEWAY has become REAL */
+		ast_channel_unlock(owner_3way);
 		analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
 		/* Tell the caller not to hangup */
 		return 1;
+	} else if (bridge_real) {
+		/* Try transferring the other way. */
+		ast_verb(3, "TRANSFERRING %s to %s\n", owner_real->name, owner_3way->name);
+		ast_cel_report_event(owner_3way,
+			(owner_real->_state == AST_STATE_RINGING
+				|| owner_3way->_state == AST_STATE_RINGING)
+				? AST_CEL_BLINDTRANSFER : AST_CEL_ATTENDEDTRANSFER,
+			NULL, owner_3way->linkedid, NULL);
+
+		/*
+		 * The three-way party we're about to transfer is on hold if he
+		 * is not in a three way conference.
+		 */
+		if (ast_channel_transfer_masquerade(owner_3way, &owner_3way->connected,
+			!inthreeway, bridge_real, &owner_real->connected, 0)) {
+			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
+				bridge_real->name, owner_3way->name);
+			return -1;
+		}
+
+		/* Orphan the channel after releasing the lock */
+		ast_channel_unlock(owner_3way);
+		analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
+		return 0;
 	} else {
 		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-					p->subs[ANALOG_SUB_REAL].owner->name, p->subs[ANALOG_SUB_THREEWAY].owner->name);
+			owner_real->name, owner_3way->name);
 		return -1;
 	}
-	return 0;
 }
 
 static int analog_update_conf(struct analog_pvt *p)
@@ -2741,6 +2745,14 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 					} else if ((ast->pbx) || (ast->_state == AST_STATE_UP)) {
 						if (p->transfer) {
+							int inthreeway;
+
+							inthreeway = p->subs[ANALOG_SUB_THREEWAY].inthreeway;
+
+							/* In any case this isn't a threeway call anymore */
+							analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
+							analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
+
 							/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
 							if (!p->transfertobusy && ast->_state == AST_STATE_BUSY) {
 								/* Swap subs and dis-own channel */
@@ -2751,29 +2763,21 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 								/* Ring the phone */
 								analog_ring(p);
 							} else {
-								res = analog_attempt_transfer(p);
+								res = analog_attempt_transfer(p, inthreeway);
 								if (res < 0) {
 									/* Transfer attempt failed. */
 									ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 									ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 								} else if (res) {
-									/* this isn't a threeway call anymore */
-									analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
-									analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
-
 									/* Don't actually hang up at this point */
 									break;
 								}
 							}
-							/* this isn't a threeway call anymore */
-							analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
-							analog_set_inthreeway(p, ANALOG_SUB_THREEWAY, 0);
 						} else {
 							ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
 							ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
 						}
 					} else {
-						ast_cel_report_event(ast, AST_CEL_BLINDTRANSFER, NULL, ast->linkedid, NULL);
 						/* Swap subs and dis-own channel */
 						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 						/* Unlock the 3-way call that we swapped to real-call. */

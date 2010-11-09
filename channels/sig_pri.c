@@ -1882,42 +1882,6 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 }
 #endif	/* defined(HAVE_PRI_MCID) */
 
-#if defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER)
-/*!
- * \internal
- * \brief Copy the source connected line information to the destination for a transfer.
- * \since 1.8
- *
- * \param dest Destination connected line
- * \param src Source connected line
- *
- * \return Nothing
- */
-static void sig_pri_connected_line_copy_transfer(struct ast_party_connected_line *dest, struct ast_party_connected_line *src)
-{
-	struct ast_party_connected_line connected;
-
-	connected = *src;
-	connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-
-	/* Make sure empty strings will be erased. */
-	if (!connected.id.name.str) {
-		connected.id.name.str = "";
-	}
-	if (!connected.id.number.str) {
-		connected.id.number.str = "";
-	}
-	if (!connected.id.subaddress.str) {
-		connected.id.subaddress.str = "";
-	}
-	if (!connected.id.tag) {
-		connected.id.tag = "";
-	}
-
-	ast_party_connected_line_copy(dest, &connected);
-}
-#endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
-
 #if defined(HAVE_PRI_TRANSFER)
 struct xfer_rsp_data {
 	struct sig_pri_span *pri;
@@ -1988,16 +1952,12 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 		int chanpos;
 	};
 	int retval;
-	int transferee_is_held;
 	struct ast_channel *transferee;
 	struct attempt_xfer_call *call_1;
 	struct attempt_xfer_call *call_2;
-	struct attempt_xfer_call *target;
 	struct attempt_xfer_call *swap_call;
 	struct attempt_xfer_call c1;
 	struct attempt_xfer_call c2;
-	struct ast_party_connected_line target_colp;
-	struct ast_party_connected_line transferee_colp;
 
 	c1.pri = call_1_pri;
 	c1.held = call_1_held;
@@ -2083,20 +2043,13 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 		return -1;
 	}
 
-	target = call_2;
-	ast_verb(3, "TRANSFERRING %s to %s\n", call_1->ast->name, target->ast->name);
-
-	ast_party_connected_line_init(&target_colp);
-	sig_pri_connected_line_copy_transfer(&target_colp, &target->ast->connected);
-	ast_party_connected_line_init(&transferee_colp);
-	sig_pri_connected_line_copy_transfer(&transferee_colp, &call_1->ast->connected);
-	transferee_is_held = call_1->held;
+	ast_verb(3, "TRANSFERRING %s to %s\n", call_1->ast->name, call_2->ast->name);
 
 	/*
 	 * Setup transfer masquerade.
 	 *
 	 * Note:  There is an extremely nasty deadlock avoidance issue
-	 * with ast_channel_masquerade().  Deadlock may be possible if
+	 * with ast_channel_transfer_masquerade().  Deadlock may be possible if
 	 * the channels involved are proxies (chan_agent channels) and
 	 * it is called with locks.  Unfortunately, there is no simple
 	 * or even merely difficult way to guarantee deadlock avoidance
@@ -2104,45 +2057,17 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 	 * possibility of the bridged channel hanging up on us.
 	 */
 	ast_mutex_unlock(&pri->lock);
-	retval = ast_channel_masquerade(target->ast, transferee);
-	if (retval) {
-		/* Masquerade setup failed. */
-		ast_party_connected_line_free(&target_colp);
-		ast_party_connected_line_free(&transferee_colp);
+	retval = ast_channel_transfer_masquerade(
+		call_2->ast,
+		&call_2->ast->connected,
+		call_2->held,
+		transferee,
+		&call_1->ast->connected,
+		call_1->held);
 
-		ast_mutex_lock(&pri->lock);
-
-		ast_channel_unlock(call_1->ast);
-		ast_channel_unlock(call_2->ast);
-		sig_pri_unlock_private(pri->pvts[call_1->chanpos]);
-		sig_pri_unlock_private(pri->pvts[call_2->chanpos]);
-
-		if (rsp_callback) {
-			/* Transfer failed. */
-			rsp_callback(data, 0);
-		}
-		return -1;
-	}
-
-	/*
-	 * Release any hold on the transferee channel before allowing
-	 * the masquerade to happen.
-	 */
-	if (transferee_is_held) {
-		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-	}
+	/* Reacquire the pri->lock to hold off completion of the transfer masquerade. */
 	ast_mutex_lock(&pri->lock);
 
-	/*
-	 * Before manually completing a masquerade, all channel and pvt
-	 * locks must be unlocked.  Any recursive channel locks held
-	 * before ast_do_masquerade() invalidates channel container
-	 * locking order.  Since we are unlocking both the pvt and its
-	 * owner channel it is possible for "target" to be destroyed
-	 * in the pbx thread.  To prevent this we must give "target"
-	 * a reference before any unlocking takes place.
-	 */
-	ao2_ref(target->ast, +1);
 	ast_channel_unlock(call_1->ast);
 	ast_channel_unlock(call_2->ast);
 	sig_pri_unlock_private(pri->pvts[call_1->chanpos]);
@@ -2150,75 +2075,15 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 
 	if (rsp_callback) {
 		/*
-		 * Transfer successful.
+		 * Report transfer status.
 		 *
-		 * Must do the callback before releasing the pri->lock to ensure
+		 * Must do the callback before the masquerade completes to ensure
 		 * that the protocol message goes out before the call leg is
 		 * disconnected.
 		 */
-		rsp_callback(data, 1);
+		rsp_callback(data, retval ? 0 : 1);
 	}
-
-	/*
-	 * Make sure masquerade is complete.
-	 *
-	 * After the masquerade, the "target" channel pointer actually
-	 * points to the new transferee channel and the bridged channel
-	 * is still the intended target of the transfer.
-	 *
-	 * By manually completing the masquerade, we can send the unhold
-	 * and connected line updates where they need to go.
-	 */
-	ast_mutex_unlock(&pri->lock);
-	ast_do_masquerade(target->ast);
-
-	/* Release any hold on the target. */
-	if (target->held) {
-		ast_queue_control(target->ast, AST_CONTROL_UNHOLD);
-	}
-
-	/* Transfer COLP between target and transferee channels. */
-	{
-		/*
-		 * Since "target" may not actually be bridged to another
-		 * channel, there is no way for us to queue a frame so that its
-		 * connected line status will be updated.  Instead, we use the
-		 * somewhat hackish approach of using a special control frame
-		 * type that instructs ast_read() to perform a specific action.
-		 * In this case, the frame we queue tells ast_read() to call the
-		 * connected line interception macro configured for "target".
-		 */
-		struct ast_control_read_action_payload *frame_payload;
-		int payload_size;
-		int frame_size;
-		unsigned char connected_line_data[1024];
-
-		payload_size = ast_connected_line_build_data(connected_line_data,
-			sizeof(connected_line_data), &target_colp, NULL);
-		if (payload_size != -1) {
-			frame_size = payload_size + sizeof(*frame_payload);
-			frame_payload = alloca(frame_size);
-			frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
-			frame_payload->payload_size = payload_size;
-			memcpy(frame_payload->payload, connected_line_data, payload_size);
-			ast_queue_control_data(target->ast, AST_CONTROL_READ_ACTION, frame_payload,
-				frame_size);
-		}
-		/*
-		 * In addition to queueing the read action frame so that the
-		 * connected line info on "target" will be updated, we also
-		 * are going to queue a plain old connected line update on
-		 * "target" to update the target channel.
-		 */
-		ast_channel_queue_connected_line_update(target->ast, &transferee_colp, NULL);
-	}
-
-	ast_party_connected_line_free(&target_colp);
-	ast_party_connected_line_free(&transferee_colp);
-
-	ao2_ref(target->ast, -1);
-	ast_mutex_lock(&pri->lock);
-	return 0;
+	return retval;
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) || defined(HAVE_PRI_TRANSFER) */
 
