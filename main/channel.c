@@ -6511,7 +6511,7 @@ done:
 
 	ao2_unlock(channels);
 
-	return 0;
+	return res;
 }
 
 void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char *cid_name, const char *cid_ani)
