@@ -818,6 +818,9 @@ else if test $ac_cv_sizeof_long_long = $ac_cv_sizeof_fd_set_fds_bits; then
   AC_DEFINE([TYPEOF_FD_SET_FDS_BITS], [long long], [Define to a type of the same size as fd_set.fds_bits[[0]]])
 fi ; fi ; fi
 
+# PKGCONFIG is used in later tests
+AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
+
 
 # do the package library checks now
 
@@ -1708,7 +1711,22 @@ then
     AST_CHECK_OSPTK([3], [5], [0])
 fi
 
-AST_EXT_TOOL_CHECK([GMIME], [gmime], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
+AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
+if test "x${PBX_GMIME}" = "x0"; then
+	# Later versions of GMime use pkg-config
+	if test "x${PKGCONFIG}" = xNo; then :; else
+		GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.0 --cflags 2>/dev/null)
+		GMIME_LIB=$(${PKGCONFIG} gmime-2.0 --libs)
+		if test "x${GMIME_INCLUDE}${GMIME_LIB}" = "x"; then 
+			GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.2 --cflags 2>/dev/null)
+			GMIME_LIB=$(${PKGCONFIG} gmime-2.2 --libs)
+		fi
+		if test "x${GMIME_INCLUDE}${GMIME_LIB}" != "x"; then
+			PBX_GMIME=1
+			AC_DEFINE([HAVE_GMIME], 1, [Define if your system has the GMIME libraries.])
+		fi
+	fi
+fi
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
 
@@ -1845,7 +1863,6 @@ PBX_GTK=0
 AST_EXT_TOOL_CHECK([GTK], [gtk], [--cflags gthread], [--libs gthread])
 
 PBX_GTK2=0
-AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
 if test ! "x${PKGCONFIG}" = xNo; then
    GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
    GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)

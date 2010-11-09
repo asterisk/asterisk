@@ -605,7 +605,6 @@ ac_subst_vars='LTLIBOBJS
 PBX_GENERIC_ODBC
 GENERIC_ODBC_INCLUDE
 GENERIC_ODBC_LIB
-PKGCONFIG
 CONFIG_GTK
 CONFIG_SDL
 PBX_IXJUSER
@@ -632,6 +631,7 @@ PBX_MISDN_FAC_RESULT
 CONFIG_LIBXML2
 GSM_INTERNAL
 PBX_DAHDI_HALF_FULL
+PKGCONFIG
 PBX_IP_MTU_DISCOVER
 AST_SHADOW_WARNINGS
 AST_NO_STRICT_OVERFLOW
@@ -15309,6 +15309,100 @@ $as_echo "#define TYPEOF_FD_SET_FDS_BITS long long" >>confdefs.h
 
 fi ; fi ; fi
 
+# PKGCONFIG is used in later tests
+if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_prog_PKGCONFIG+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$PKGCONFIG"; then
+  ac_cv_prog_PKGCONFIG="$PKGCONFIG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_prog_PKGCONFIG="${ac_tool_prefix}pkg-config"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+PKGCONFIG=$ac_cv_prog_PKGCONFIG
+if test -n "$PKGCONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKGCONFIG" >&5
+$as_echo "$PKGCONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_prog_PKGCONFIG"; then
+  ac_ct_PKGCONFIG=$PKGCONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if test "${ac_cv_prog_ac_ct_PKGCONFIG+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$ac_ct_PKGCONFIG"; then
+  ac_cv_prog_ac_ct_PKGCONFIG="$ac_ct_PKGCONFIG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_prog_ac_ct_PKGCONFIG="pkg-config"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+ac_ct_PKGCONFIG=$ac_cv_prog_ac_ct_PKGCONFIG
+if test -n "$ac_ct_PKGCONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_ct_PKGCONFIG" >&5
+$as_echo "$ac_ct_PKGCONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_ct_PKGCONFIG" = x; then
+    PKGCONFIG="No"
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKGCONFIG=$ac_ct_PKGCONFIG
+  fi
+else
+  PKGCONFIG="$ac_cv_prog_PKGCONFIG"
+fi
+
+
 
 # do the package library checks now
 
@@ -22968,8 +23062,8 @@ fi
     if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
 	PBX_GMIME=0
 	if test -n "$ac_tool_prefix"; then
-  # Extract the first word of "${ac_tool_prefix}gmime-config", so it can be a program name with args.
-set dummy ${ac_tool_prefix}gmime-config; ac_word=$2
+  # Extract the first word of "${ac_tool_prefix}gmime-config-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}gmime-config-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if test "${ac_cv_path_CONFIG_GMIME+set}" = set; then :
@@ -23012,8 +23106,8 @@ fi
 fi
 if test -z "$ac_cv_path_CONFIG_GMIME"; then
   ac_pt_CONFIG_GMIME=$CONFIG_GMIME
-  # Extract the first word of "gmime-config", so it can be a program name with args.
-set dummy gmime-config; ac_word=$2
+  # Extract the first word of "gmime-config-config", so it can be a program name with args.
+set dummy gmime-config-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if test "${ac_cv_path_ac_pt_CONFIG_GMIME+set}" = set; then :
@@ -23114,6 +23208,23 @@ $as_echo "#define HAVE_GMIME 1" >>confdefs.h
 	fi
     fi
 
+if test "x${PBX_GMIME}" = "x0"; then
+	# Later versions of GMime use pkg-config
+	if test "x${PKGCONFIG}" = xNo; then :; else
+		GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.0 --cflags 2>/dev/null)
+		GMIME_LIB=$(${PKGCONFIG} gmime-2.0 --libs)
+		if test "x${GMIME_INCLUDE}${GMIME_LIB}" = "x"; then
+			GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.2 --cflags 2>/dev/null)
+			GMIME_LIB=$(${PKGCONFIG} gmime-2.2 --libs)
+		fi
+		if test "x${GMIME_INCLUDE}${GMIME_LIB}" != "x"; then
+			PBX_GMIME=1
+
+$as_echo "#define HAVE_GMIME 1" >>confdefs.h
+
+		fi
+	fi
+fi
 
 
 if test "x${PBX_HOARD}" != "x1" -a "${USE_HOARD}" != "no"; then
@@ -25044,98 +25155,6 @@ $as_echo "#define HAVE_GTK 1" >>confdefs.h
 
 
 PBX_GTK2=0
-if test -n "$ac_tool_prefix"; then
-  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
-set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if test "${ac_cv_prog_PKGCONFIG+set}" = set; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -n "$PKGCONFIG"; then
-  ac_cv_prog_PKGCONFIG="$PKGCONFIG" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_prog_PKGCONFIG="${ac_tool_prefix}pkg-config"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-fi
-fi
-PKGCONFIG=$ac_cv_prog_PKGCONFIG
-if test -n "$PKGCONFIG"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKGCONFIG" >&5
-$as_echo "$PKGCONFIG" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-fi
-if test -z "$ac_cv_prog_PKGCONFIG"; then
-  ac_ct_PKGCONFIG=$PKGCONFIG
-  # Extract the first word of "pkg-config", so it can be a program name with args.
-set dummy pkg-config; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if test "${ac_cv_prog_ac_ct_PKGCONFIG+set}" = set; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -n "$ac_ct_PKGCONFIG"; then
-  ac_cv_prog_ac_ct_PKGCONFIG="$ac_ct_PKGCONFIG" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_prog_ac_ct_PKGCONFIG="pkg-config"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-fi
-fi
-ac_ct_PKGCONFIG=$ac_cv_prog_ac_ct_PKGCONFIG
-if test -n "$ac_ct_PKGCONFIG"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_ct_PKGCONFIG" >&5
-$as_echo "$ac_ct_PKGCONFIG" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-  if test "x$ac_ct_PKGCONFIG" = x; then
-    PKGCONFIG="No"
-  else
-    case $cross_compiling:$ac_tool_warned in
-yes:)
-{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
-$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
-ac_tool_warned=yes ;;
-esac
-    PKGCONFIG=$ac_ct_PKGCONFIG
-  fi
-else
-  PKGCONFIG="$ac_cv_prog_PKGCONFIG"
-fi
-
 if test ! "x${PKGCONFIG}" = xNo; then
    GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
    GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)
