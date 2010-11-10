@@ -3680,6 +3680,17 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 			}
 		} else if (!strcasecmp(confvar->name, "findslot")) {
 			parkinglot->parkfindnext = (!strcasecmp(confvar->value, "next"));
+		} else if (!strcasecmp(confvar->name, "parkedcalltransfers") ||
+				!strcasecmp(confvar->name, "parkedcallreparking") ||
+				!strcasecmp(confvar->name, "parkedcallhangup") ||
+				!strcasecmp(confvar->name, "parkedcallrecording")) {
+			if (!strcasecmp(confvar->value, "both")) {
+				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
+			} else if (!strcasecmp(confvar->value, "caller")) {
+				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLER;
+			} else if (!strcasecmp(confvar->value, "callee")) {
+				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
+			}
 		}
 		confvar = confvar->next;
 	}
