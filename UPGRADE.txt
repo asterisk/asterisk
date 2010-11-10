@@ -20,6 +20,10 @@
 
 From 1.6.2 to 1.8:
 
+* A couple of CLI commands in res_ais were changed back to their original form:
+    "ais show clm members" --> "ais clm show members"
+    "ais show evt event channels" --> "ais evt show event channels"
+
 * The default value for 'autofill' and 'shared_lastcall' in queues.conf has
   been changed to 'yes'.
 

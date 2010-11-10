@@ -79,9 +79,9 @@ static char *ais_clm_show_members(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "ais show clm members";
+		e->command = "ais clm show members";
 		e->usage =
-			"Usage: ais show clm members\n"
+			"Usage: ais clm show members\n"
 			"       List members of the cluster using the CLM (Cluster Membership) service.\n";
 		return NULL;
 
