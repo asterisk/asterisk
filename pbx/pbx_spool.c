@@ -456,8 +456,11 @@ struct direntry {
 };
 
 static AST_LIST_HEAD_STATIC(dirlist, direntry);
+
+#if defined(HAVE_INOTIFY)
 /* Only one thread is accessing this list, so no lock is necessary */
 static AST_LIST_HEAD_NOLOCK_STATIC(createlist, direntry);
+#endif
 
 static void queue_file(const char *filename, time_t when)
 {
