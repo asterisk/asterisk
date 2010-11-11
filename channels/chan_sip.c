@@ -8617,11 +8617,22 @@ static int expire_register(const void *data)
 static int sip_poke_peer_s(const void *data)
 {
 	struct sip_peer *peer = (struct sip_peer *) data;
+	struct sip_peer *foundpeer;
 
 	peer->pokeexpire = -1;
 
-	sip_poke_peer(peer);
+	foundpeer = ASTOBJ_CONTAINER_FIND(&peerl, peer->name);
+	if (!foundpeer) {
+		ASTOBJ_UNREF(peer, sip_destroy_peer);
+		return 0;
+	} else if (foundpeer->name != peer->name) {
+		ASTOBJ_UNREF(foundpeer, sip_destroy_peer);
+		ASTOBJ_UNREF(peer, sip_destroy_peer);
+		return 0;
+	}
 
+	ASTOBJ_UNREF(foundpeer, sip_destroy_peer);
+	sip_poke_peer(peer);
 	ASTOBJ_UNREF(peer, sip_destroy_peer);
 
 	return 0;
@@ -19763,6 +19774,18 @@ static void sip_send_all_registers(void)
 static int sip_do_reload(enum channelreloadreason reason)
 {
 	reload_config(reason);
+
+	/* before peers are removed from the peer container, cancel any scheduled pokes */
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
+		ASTOBJ_RDLOCK(iterator);
+		if (ast_test_flag(&iterator->flags[0], SIP_REALTIME)) {
+			if (!AST_SCHED_DEL(sched, iterator->pokeexpire)) {
+				struct sip_peer *peer_ptr = iterator;
+				ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
+			}
+		}
+		ASTOBJ_UNLOCK(iterator);
+	} while (0) );
 
 	/* Prune peers who still are supposed to be deleted */
 	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
