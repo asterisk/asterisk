@@ -2065,9 +2065,6 @@ void ast_hint_state_changed(const char *device)
 		for (cblist = statecbs; cblist; cblist = cblist->next) {
 			cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
 		}
-		//caused problems here
-		//ao2_unlock(hints);
-		//ast_unlock_contexts();
 
 		/* For extension callbacks */
 		for (cblist = hint->callbacks; cblist; cblist = cblist->next) {
