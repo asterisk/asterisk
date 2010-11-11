@@ -1,3 +1,0 @@
-This document now lives here:
-
-    http://svn.digium.com/view/asterisk/team/group/gsoc-2009/ideas.txt?view=markup
