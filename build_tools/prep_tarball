@@ -8,18 +8,8 @@
 make -C sounds MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-OPSOUND-WAV WGET=wget DOWNLOAD=wget all
 make AWK=awk GREP=grep menuselect-tree
 
-make_tex_docs() {
-    # make backup of asterisk.tex because we are going to alter it
-    cp asterisk.tex asterisk.tex.orig
-    sed -e "s/ASTERISKVERSION/${VERSION}/" asterisk.tex > asterisk_local.tex
-    mv asterisk_local.tex asterisk.tex
-    rubber --pdf asterisk.tex
-    latex2html asterisk.tex
-    latex asterisk.tex
-    catdvi -e 1 -U asterisk.dvi | sed -re "s/\[U\+2022\]/*/g" | sed -re "s/\[U\+02C6\]/^/g" | sed -re "s/([^^[:space:]])\s+/\1 /g" > asterisk.txt
-    # restore backup of asterisk.tex
-    mv asterisk.tex.orig asterisk.tex
-}
-
-VERSION=`cat .version`
-cd doc/tex && make_tex_docs
+cd doc
+echo "Exporting Asterisk wiki to a PDF (this will take a minute) ..."
+wikiexport.py
+echo "Converting wiki export PDF to plain text ..."
+pdftotext AST.pdf

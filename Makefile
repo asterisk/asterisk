@@ -922,14 +922,6 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	@cat sounds/sounds.xml >> $@
 	@echo "</menu>" >> $@
 
-pdf: asterisk.pdf
-asterisk.pdf:
-	$(MAKE) -C doc/tex asterisk.pdf
-
-txt: asterisk.txt
-asterisk.txt:
-	$(MAKE) -C doc/tex asterisk.txt
-
 .PHONY: menuselect
 .PHONY: main
 .PHONY: sounds
@@ -942,7 +934,6 @@ asterisk.txt:
 .PHONY: uninstall
 .PHONY: _uninstall
 .PHONY: uninstall-all
-.PHONY: pdf
 .PHONY: dont-optimize
 .PHONY: badshell
 .PHONY: installdirs
