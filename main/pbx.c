@@ -4058,6 +4058,12 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 				continue;
 			}
 			ao2_lock(hint);
+
+			if (hint->exten == NULL) {
+				ao2_unlock(hint);
+				continue;
+			}
+
 			this->callbacks = hint->callbacks;
 			hint->callbacks = NULL;
 			this->laststate = hint->laststate;
