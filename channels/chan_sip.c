@@ -2646,6 +2646,9 @@ cleanup:
 static int peer_is_marked(void *peerobj, void *arg, int flags)
 {
 	struct sip_peer *peer = peerobj;
+	if (peer->the_mark && peer->pokeexpire != -1) {
+		AST_SCHED_DEL(sched, peer->pokeexpire);
+	}
 	return peer->the_mark ? CMP_MATCH : 0;
 }
 
@@ -12922,11 +12925,22 @@ static int expire_register(const void *data)
 static int sip_poke_peer_s(const void *data)
 {
 	struct sip_peer *peer = (struct sip_peer *)data;
+	struct sip_peer *foundpeer;
 
 	peer->pokeexpire = -1;
 
-	sip_poke_peer(peer, 0);
+	foundpeer = ao2_find(peers, peer, OBJ_POINTER);
+	if (!foundpeer) {
+		unref_peer(peer, "removing poke peer ref");
+		return 0;
+	} else if (foundpeer->name != peer->name) {
+		unref_peer(foundpeer, "removing above peer ref");
+		unref_peer(peer, "removing poke peer ref");
+		return 0;
+	}
 
+	unref_peer(foundpeer, "removing above peer ref");
+	sip_poke_peer(peer, 0);
 	unref_peer(peer, "removing poke peer ref");
 
 	return 0;
