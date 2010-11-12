@@ -548,6 +548,8 @@ struct dahdi_pri {
 #ifdef HAVE_PRI_INBANDDISCONNECT
 	unsigned int inbanddisconnect:1;				/*!< Should we support inband audio after receiving DISCONNECT? */
 #endif
+	/*! TRUE if we have already whined about no D channels available. */
+	unsigned int no_d_channels:1;
 	time_t lastreset;						/*!< time when unused channels were last reset */
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
 	/*! \brief ISDN signalling type (SIG_PRI, SIG_BRI, SIG_BRI_PTMP, etc...) */
@@ -4192,10 +4194,14 @@ static int pri_find_dchan(struct dahdi_pri *pri)
 	if (newslot < 0) {
 		newslot = 0;
 		/* This is annoying to see on non persistent layer 2 connections.  Let's not complain in that case */
-		if (pri->sig != SIG_BRI_PTMP) {
-			ast_log(LOG_WARNING, "No D-channels available!  Using Primary channel %d as D-channel anyway!\n",
+		if (pri->sig != SIG_BRI_PTMP && !pri->no_d_channels) {
+			pri->no_d_channels = 1;
+			ast_log(LOG_WARNING,
+				"No D-channels available!  Using Primary channel %d as D-channel anyway!\n",
 				pri->dchannels[newslot]);
 		}
+	} else {
+		pri->no_d_channels = 0;
 	}
 	if (old && (oldslot != newslot))
 		ast_log(LOG_NOTICE, "Switching from from d-channel %d to channel %d!\n",
@@ -12886,6 +12892,7 @@ static void *pri_dchannel(void *vpri)
 
 			switch (e->e) {
 			case PRI_EVENT_DCHAN_UP:
+				pri->no_d_channels = 0;
 				if (!pri->pri) pri_find_dchan(pri);
 
 				/* Note presense of D-channel */
