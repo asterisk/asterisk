@@ -981,9 +981,14 @@ static int pri_find_dchan(struct sig_pri_span *pri)
 	if (newslot < 0) {
 		newslot = 0;
 		/* This is annoying to see on non persistent layer 2 connections.  Let's not complain in that case */
-		if (pri->sig != SIG_BRI_PTMP) {
-			ast_log(LOG_WARNING, "No D-channels available!  Using Primary channel as D-channel anyway!\n");
+		if (pri->sig != SIG_BRI_PTMP && !pri->no_d_channels) {
+			pri->no_d_channels = 1;
+			ast_log(LOG_WARNING,
+				"Span %d: No D-channels available!  Using Primary channel as D-channel anyway!\n",
+				pri->span);
 		}
+	} else {
+		pri->no_d_channels = 0;
 	}
 	if (old && (oldslot != newslot))
 		ast_log(LOG_NOTICE, "Switching from d-channel fd %d to fd %d!\n",
@@ -4386,6 +4391,7 @@ static void *pri_dchannel(void *vpri)
 
 			switch (e->e) {
 			case PRI_EVENT_DCHAN_UP:
+				pri->no_d_channels = 0;
 				if (!pri->pri) pri_find_dchan(pri);
 
 				/* Note presense of D-channel */

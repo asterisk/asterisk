@@ -395,6 +395,8 @@ struct sig_pri_span {
 	int resetpos;							/*!< current position during a reset (-1 if not started) */
 	int sig;								/*!< ISDN signalling type (SIG_PRI, SIG_BRI, SIG_BRI_PTMP, etc...) */
 	int new_chan_seq;						/*!< New struct ast_channel sequence number */
+	/*! TRUE if we have already whined about no D channels available. */
+	unsigned int no_d_channels:1;
 
 	/* Everything after here is internally set */
 	struct pri *dchans[SIG_PRI_NUM_DCHANS];		/*!< Actual d-channels */
