@@ -7704,7 +7704,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	if (vm_lock_path(vms->curdir)) {
 		ast_log(AST_LOG_ERROR, "Could not open mailbox %s:  mailbox is locked\n", vms->curdir);
-		return -1;
+		return ERROR_LOCK_PATH;
 	}
 
 	/* for local storage, checks directory for messages up to maxmsg limit */
