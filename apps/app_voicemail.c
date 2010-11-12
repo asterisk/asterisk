@@ -2623,6 +2623,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 		ast_log(LOG_WARNING, "The code expects the old messages to be checked first, fix the code.\n");
 	}
 	if (vm_allocate_dh(vms, vmu, box == 0 ? vms->vmArrayIndex + vms->oldmessages : vms->lastmsg)) {
+		ast_mutex_unlock(&vms->lock);
 		return -1;
 	}
 
@@ -7710,7 +7711,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	last_msg = last_message_index(vmu, vms->curdir);
 	ast_unlock_path(vms->curdir);
 
-	if (last_msg < 0) {
+	if (last_msg < -1) {
 		return last_msg;
 	} else if (vms->lastmsg != last_msg) {
 		ast_log(LOG_NOTICE, "Mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
