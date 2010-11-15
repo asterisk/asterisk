@@ -1,0 +1,226 @@
+                                Release Summary
+
+                             asterisk-1.6.2.15-rc1
+
+                                Date: 2010-11-15
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.2.14.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   7 jpeeler                2 tilghman               1 antonio                
+   3 rmudgett               2 zerohalo               1 frawd                  
+   3 tilghman               1 pabelanger             1 jcollie                
+   1 alecdavis              1 tpanton                1 jmls                   
+   1 klaus3000                                       1 klaus3000              
+   1 mnicholson                                      1 lftsy                  
+   1 sruffell                                        1 netfuse                
+                                                     1 smallet                
+                                                     1 tpanton                
+                                                     1 voxter                 
+                                                     1 wdoekes                
+                                                     1 zerohalo               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_voicemail
+
+   #18240: [patch] VoicemailMain Exits Without Warning
+   Revision: 294904
+   Reporter: netfuse
+   Testers: pabelanger
+   Coders: alecdavis
+
+  Category: Channels/chan_dahdi
+
+   #17270: getting warning message every 4 seconds
+   Revision: 294822
+   Reporter: jmls
+   Coders: rmudgett
+
+  Category: Channels/chan_iax2
+
+   #18110: Playback stalls when playing demo-congrats to an IAX2 channel
+   Revision: 294277
+   Reporter: tpanton
+   Testers: tpanton
+   Coders: jpeeler
+
+  Category: Channels/chan_sip/General
+
+   #16382: [patch] SIP OPTIONS qualify message forever
+   Revision: 294733
+   Reporter: lftsy
+   Testers: zerohalo
+   Coders: jpeeler
+
+   #18123: rtautoclear = no or rtautoclear = 0 not respected in sip.conf
+   Revision: 293723
+   Reporter: zerohalo
+   Coders: jpeeler
+
+  Category: Channels/chan_sip/Interoperability
+
+   #17878: [patch] chan_sip fails to remove hold when receving a reINVITE
+   without SDP
+   Revision: 294242
+   Reporter: frawd
+   Coders: mnicholson
+
+  Category: Channels/chan_sip/TCP-TLS
+
+   #17779: [patch] tcptls.c:350 Unable to connect SIP socket Connection
+   refused
+   Revision: 294733
+   Reporter: smallet
+   Testers: zerohalo
+   Coders: jpeeler
+
+  Category: Core/BuildSystem
+
+   #16155: [patch] Use pkg-config to find gmime libraries.
+   Revision: 294429
+   Reporter: jcollie
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: Core/General
+
+   #18282: [patch] better debug message in devicestate.c
+   Revision: 294500
+   Reporter: klaus3000
+   Coders: klaus3000
+
+  Category: Core/PBX
+
+   #18165: [patch] hint state changes deadlock problem
+   Revision: 294639
+   Reporter: antonio
+   Coders: jpeeler
+
+  Category: Functions/func_curl
+
+   #18161: [patch] crashing func_curl hashcompat with invalid data
+   Revision: 294988
+   Reporter: wdoekes
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: Resources/res_features
+
+   #16757: [patch] Parking a call, then retrieving it with ParkedCall() kills
+   the ability to transfer the retrieved call.
+   Revision: 294571
+   Reporter: voxter
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author   | Summary                             | Issues     |
+   |          |          |                                     | Referenced |
+   |----------+----------+-------------------------------------+------------|
+   | 293647   | rmudgett | Make warning message have more      |            |
+   |          |          | useful information in it.           |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | Party A in an analog 3-way call     |            |
+   | 293806   | rmudgett | would continue to hear ringback     |            |
+   |          |          | after party C answers.              |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | codecs/codec_dahdi: Prevent         |            |
+   | 293969   | sruffell | "choppy" audio when receiving       |            |
+   |          |          | unexpected frame sizes.             |            |
+   |----------+----------+-------------------------------------+------------|
+   | 294312   | jpeeler  | add missing unlock not present in   |            |
+   |          |          | 294277                              |            |
+   |----------+----------+-------------------------------------+------------|
+   |          |          | Return correct error code if lock   |            |
+   | 294910   | jpeeler  | path fails. The recent changes to   |            |
+   |          |          | open_mailbox actually caused it to  |            |
+   |          |          | be fixed, but let's be consistent.  |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_voicemail.c      |    5
+ channels/chan_dahdi.c     |   43 ++++--
+ channels/chan_sip.c       |   89 ++++++++-----
+ codecs/codec_dahdi.c      |    8 -
+ configure.ac              |   21 ++-
+ funcs/func_curl.c         |    5
+ include/asterisk.h        |    1
+ include/asterisk/timing.h |   10 +
+ main/asterisk.c           |    1
+ main/channel.c            |    4
+ main/devicestate.c        |    3
+ main/features.c           |   11 +
+ main/pbx.c                |  293 +++++++++++++++++++++++++++++-----------------
+ main/timing.c             |    5
+ res/res_timing_timerfd.c  |   10 +
+ 15 files changed, 342 insertions(+), 167 deletions(-)
+
+     ----------------------------------------------------------------------
