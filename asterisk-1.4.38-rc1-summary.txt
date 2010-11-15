@@ -1,0 +1,169 @@
+                                Release Summary
+
+                              asterisk-1.4.38-rc1
+
+                                Date: 2010-11-15
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.37.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   5 jpeeler                1 pabelanger             1 antonio                
+   3 rmudgett               1 zerohalo               1 jmls                   
+   1 alecdavis                                       1 lftsy                  
+   1 dvossel                                         1 netfuse                
+   1 mnicholson                                      1 zerohalo               
+   1 sruffell               
+   1 tilghman               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_voicemail
+
+   #18240: [patch] VoicemailMain Exits Without Warning
+   Revision: 294903
+   Reporter: netfuse
+   Testers: pabelanger
+   Coders: alecdavis
+
+  Category: Channels/chan_dahdi
+
+   #17270: getting warning message every 4 seconds
+   Revision: 294821
+   Reporter: jmls
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/General
+
+   #16382: [patch] SIP OPTIONS qualify message forever
+   Revision: 294688
+   Reporter: lftsy
+   Testers: zerohalo
+   Coders: jpeeler
+
+   #18123: rtautoclear = no or rtautoclear = 0 not respected in sip.conf
+   Revision: 293722
+   Reporter: zerohalo
+   Coders: jpeeler
+
+  Category: Core/PBX
+
+   #18165: [patch] hint state changes deadlock problem
+   Revision: 294384
+   Reporter: antonio
+   Coders: jpeeler
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 293639   | rmudgett   | Make warning message have more    |            |
+   |          |            | useful information in it.         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Party A in an analog 3-way call   |            |
+   | 293805   | rmudgett   | would continue to hear ringback   |            |
+   |          |            | after party C answers.            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 293922   | dvossel    | Fixes ringback tone on feature    |            |
+   |          |            | semi-attended transfer            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | codecs/codec_dahdi: Prevent       |            |
+   | 293968   | sruffell   | "choppy" audio when receiving     |            |
+   |          |            | unexpected frame sizes.           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Modify our handling of 491        |            |
+   | 294163   | mnicholson | responses to drop any pending     |            |
+   |          |            | reinvite retry scheduler entries  |            |
+   |          |            | if we get a new 491.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | One small addition to 294384      |            |
+   | 294641   | jpeeler    | found while very carefully        |            |
+   |          |            | merging to 1.6.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 294739   | jpeeler    | I didn't mean to merge this,      |            |
+   |          |            | sorry                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295026   | tilghman   | Create test verifying results of  |            |
+   |          |            | expression parser                 |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_voicemail.c  |    3
+ channels/chan_dahdi.c |   48 +++++--
+ channels/chan_sip.c   |   35 +++++
+ codecs/codec_dahdi.c  |    8 -
+ include/asterisk.h    |    1
+ main/asterisk.c       |    1
+ main/pbx.c            |  301 ++++++++++++++++++++++++++++++++------------------
+ res/res_features.c    |    3
+ tests/test_expr.c     |  191 +++++++++++++++++++++++++++++++
+ 9 files changed, 461 insertions(+), 130 deletions(-)
+
+     ----------------------------------------------------------------------
