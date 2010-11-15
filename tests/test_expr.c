@@ -43,7 +43,7 @@ AST_TEST_DEFINE(expr_test)
 {
 	int res = AST_TEST_PASS, i, len;
 	struct {
-		const char *input;
+		char *input;
 		const char *output;
 	} tests[] = {
 		{ "2 + 2", "4" },
