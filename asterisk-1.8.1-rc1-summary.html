@@ -1,0 +1,405 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.8.1-rc1</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.8.1-rc1</h3>
+<h3 align="center">Date: 2010-11-16</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.8.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+13 rmudgett<br/>
+10 tilghman<br/>
+9 jpeeler<br/>
+8 twilson<br/>
+6 pabelanger<br/>
+4 russell<br/>
+3 dvossel<br/>
+2 bbryant<br/>
+1 alecdavis<br/>
+1 jcovert<br/>
+1 junky<br/>
+1 klaus3000<br/>
+1 lmadsen<br/>
+1 mmichelson<br/>
+1 mnicholson<br/>
+1 one47<br/>
+1 sruffell<br/>
+1 wdoekes<br/>
+</td>
+<td>
+3 pabelanger<br/>
+3 tilghman<br/>
+2 lmadsen<br/>
+2 zerohalo<br/>
+1 falves11<br/>
+1 jcovert<br/>
+1 Nic Colledge (mailing list)<br/>
+1 one47<br/>
+1 orn<br/>
+1 rgenthner<br/>
+1 suretec<br/>
+1 sustav<br/>
+1 tpanton<br/>
+1 wdoekes<br/>
+</td>
+<td>
+2 pabelanger<br/>
+2 wdoekes<br/>
+1 abelbeck<br/>
+1 antonio<br/>
+1 bwg<br/>
+1 chodorenko<br/>
+1 DennisD<br/>
+1 frawd<br/>
+1 globalnetinc<br/>
+1 jcollie<br/>
+1 jcovert<br/>
+1 jmls<br/>
+1 junky<br/>
+1 klaus3000<br/>
+1 lftsy<br/>
+1 netfuse<br/>
+1 one47<br/>
+1 orn<br/>
+1 scramatte<br/>
+1 smallet<br/>
+1 sustav<br/>
+1 tpanton<br/>
+1 zerohalo<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_voicemail</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18128">#18128</a>: [patch] application not properly unregister in voicemail<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292436">292436</a><br/>
+Reporter: junky<br/>
+Testers: pabelanger, lmadsen<br/>
+Coders: junky<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18240">#18240</a>: [patch] VoicemailMain Exits Without Warning<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294905">294905</a><br/>
+Reporter: netfuse<br/>
+Testers: pabelanger<br/>
+Coders: alecdavis<br/>
+<br/>
+<h3>Category: Channels/chan_dahdi</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17270">#17270</a>: getting warning message every 4 seconds<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294823">294823</a><br/>
+Reporter: jmls<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18110">#18110</a>: Playback stalls when playing demo-congrats to an IAX2 channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294278">294278</a><br/>
+Reporter: tpanton<br/>
+Testers: tpanton<br/>
+Coders: jpeeler<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18202">#18202</a>: [patch] IAX2 registration issues<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293496">293496</a><br/>
+Reporter: pabelanger<br/>
+Testers: pabelanger, Nic Colledge (mailing list)<br/>
+Coders: pabelanger<br/>
+<br/>
+<h3>Category: Channels/chan_sip/CodecHandling</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17403">#17403</a>: [patch] RTP directmedia is broken in some cases<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293493">293493</a><br/>
+Reporter: one47<br/>
+Testers: one47, falves11<br/>
+Coders: one47<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16382">#16382</a>: [patch] SIP OPTIONS qualify message forever<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294734">294734</a><br/>
+Reporter: lftsy<br/>
+Testers: zerohalo<br/>
+Coders: jpeeler<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17949">#17949</a>: [patch] Mutex 'dialog' freed more times than we've locked !       and      Error releasing mutex.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294084">294084</a><br/>
+Reporter: bwg<br/>
+Coders: bbryant<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17985">#17985</a>: New calls generate ambiguous message on the Asterisk console<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293305">293305</a><br/>
+Reporter: globalnetinc<br/>
+Coders: jpeeler<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18123">#18123</a>: rtautoclear = no or rtautoclear = 0 not respected in sip.conf<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293724">293724</a><br/>
+Reporter: zerohalo<br/>
+Coders: jpeeler<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18176">#18176</a>: [patch] record priv-recordintro as sln, not gsm<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292413">292413</a><br/>
+Reporter: pabelanger<br/>
+Coders: pabelanger<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18200">#18200</a>: chan_sip hangs<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294084">294084</a><br/>
+Reporter: DennisD<br/>
+Coders: bbryant<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Interoperability</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17878">#17878</a>: [patch] chan_sip fails to remove hold when receving a reINVITE without SDP<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294243">294243</a><br/>
+Reporter: frawd<br/>
+Coders: mnicholson<br/>
+<br/>
+<h3>Category: Channels/chan_sip/TCP-TLS</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=17779">#17779</a>: [patch] tcptls.c:350 Unable to connect SIP socket Connection refused<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294734">294734</a><br/>
+Reporter: smallet<br/>
+Testers: zerohalo<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: Core/BuildSystem</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=16155">#16155</a>: [patch] Use pkg-config to find gmime libraries.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294430">294430</a><br/>
+Reporter: jcollie<br/>
+Testers: tilghman<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18282">#18282</a>: [patch] better debug message in devicestate.c<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294501">294501</a><br/>
+Reporter: klaus3000<br/>
+Coders: klaus3000<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18167">#18167</a>: [patch] A call locks when sending SIP originate from AMI script<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292595">292595</a><br/>
+Reporter: sustav<br/>
+Testers: sustav<br/>
+Coders: dvossel<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18248">#18248</a>: [patch] sippeers command in AMI has incorrect output<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293887">293887</a><br/>
+Reporter: orn<br/>
+Testers: orn<br/>
+Coders: pabelanger<br/>
+<br/>
+<h3>Category: Core/PBX</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18165">#18165</a>: [patch] hint state changes deadlock problem<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294640">294640</a><br/>
+Reporter: antonio<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: Functions/func_curl</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18161">#18161</a>: [patch] crashing func_curl hashcompat with invalid data<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294989">294989</a><br/>
+Reporter: wdoekes<br/>
+Testers: tilghman<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Functions/func_strings</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18060">#18060</a>: [patch] func_string FILTER contains an infinite loop<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293159">293159</a><br/>
+Reporter: wdoekes<br/>
+Testers: wdoekes<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: PBX/pbx_spool</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18089">#18089</a>: [patch] Call files generate two warning logs after each successful completion<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294569">294569</a><br/>
+Reporter: abelbeck<br/>
+Testers: tilghman<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Resources/res_config_ldap</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=13861">#13861</a>: [patch] ERROR[23999]: res_config_ldap.c:1292 update_ldap: Couldn't modify   ...  Undefined attribute type<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292787">292787</a><br/>
+Reporter: scramatte<br/>
+Testers: lmadsen, jcovert, suretec, rgenthner<br/>
+Coders: lmadsen<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=17376">#17376</a>: [patch] res_ldap.conf points md5secret to RealmedPassword, but the schema uses AstAccountRealmedPassword<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292557">292557</a><br/>
+Reporter: jcovert<br/>
+Coders: jcovert<br/>
+<br/>
+<h3>Category: Resources/res_srtp</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18140">#18140</a>: SRTP enable disable from dialplan<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292309">292309</a><br/>
+Reporter: chodorenko<br/>
+Coders: twilson<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292343">292343</a></td><td>pabelanger</td><td>Add resample and imap_tk dependencies.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292376">292376</a></td><td>tilghman</td><td>Oops.  This module uses the generic timer and no longer uses DAHDI.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292489">292489</a></td><td>rmudgett</td><td>Send CONNECT_ACKNOWLEDGE for CIS calls too.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292523">292523</a></td><td>russell</td><td>Add var=value to log message on update failure, and add newline.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292628">292628</a></td><td>pabelanger</td><td>Fix typo in SUSE init script.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292667">292667</a></td><td>tilghman</td><td>Compile correctly on Linux (asterisk/localtime.h depends upon asterisk/autoconfig.h loading first).</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292704">292704</a></td><td>rmudgett</td><td>Connected line is not updated when chan_dahdi/sig_pri or chan_misdn transfers a call.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292740">292740</a></td><td>twilson</td><td>Add TLS cert helper script</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292741">292741</a></td><td>mmichelson</td><td>Prevent multiple runs of event_sub_test from producing false failure results.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292794">292794</a></td><td>twilson</td><td>Make files readable only by the owner</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292825">292825</a></td><td>twilson</td><td>Don't create directories without at least o+x</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292868">292868</a></td><td>dvossel</td><td>This patch turns chan_local pvts into astobj2 objects.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292906">292906</a></td><td>tilghman</td><td>Allow the DAHDI driver to compile, even with a sufficiently older version of libpri.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=292969">292969</a></td><td>tilghman</td><td>Several more defines that need to be altered for compiling against an older version of libpri</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293046">293046</a></td><td>rmudgett</td><td>Allow the DAHDI driver to compile, even with a sufficiently older version of libpri.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293081">293081</a></td><td>rmudgett</td><td>No need to define the struct if there are no users.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293119">293119</a></td><td>jpeeler</td><td>Fix inprocess_container in voicemail to correctly restrict max messages.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293197">293197</a></td><td>tilghman</td><td>"!00" evaluated as false, which is incorrect.  Fixing.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293341">293341</a></td><td>rmudgett</td><td>Remove some code that serves no purpose.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293418">293418</a></td><td>rmudgett</td><td>Remove some more code that serves no purpose.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293530">293530</a></td><td>rmudgett</td><td>Analog 3-way call would not connect all parties if one was using sig_pri.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293611">293611</a></td><td>pabelanger</td><td>If manager and tls are disabled, do not display TCP/TLS Bindaddress.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293648">293648</a></td><td>rmudgett</td><td>Make warning message have more useful information in it.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293803">293803</a></td><td>twilson</td><td>Avoid valgrind warnings for ast_rtp_instance_get_xxx_address</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293807">293807</a></td><td>rmudgett</td><td>Party A in an analog 3-way call would continue to hear ringback after party C answers.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293924">293924</a></td><td>dvossel</td><td>Fixes ringback tone on sip semi-attended transfer.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=293970">293970</a></td><td>sruffell</td><td>codecs/codec_dahdi: Prevent "choppy" audio when receiving unexpected frame sizes.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294047">294047</a></td><td>twilson</td><td>Tell people to use the correct common name for clients as well</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294049">294049</a></td><td>twilson</td><td>Corret spelling and example</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294125">294125</a></td><td>rmudgett</td><td>valgrind reported references to freed memory during a mISDN hangup collision.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294207">294207</a></td><td>twilson</td><td>Set a default waittime, and make sure to convert it to milliseconds</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294313">294313</a></td><td>jpeeler</td><td>add missing unlock not present in 294277</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294349">294349</a></td><td>rmudgett</td><td>Analog lines do not transfer CONNECTED LINE or execute the interception macros.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294466">294466</a></td><td>rmudgett</td><td>Allow ast_do_masquerade() failure to be reported again.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294535">294535</a></td><td>russell</td><td>Tweak a couple of CLI commands back to their original form.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294605">294605</a></td><td>tilghman</td><td>Fixing the Mac OS X build (bamboo warning)</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294740">294740</a></td><td>russell</td><td>Remove most of the contents of the doc dir in favor of the wiki content.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294745">294745</a></td><td>russell</td><td>Remove CCSS architecture PDF.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=294911">294911</a></td><td>jpeeler</td><td>Return correct error code if lock path fails. The recent changes to open_mailbox actually caused it to be fixed, but let's be consistent.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295078">295078</a></td><td>tilghman</td><td>Create test verifying results of expression parser</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+Makefile                                |    9
+UPGRADE.txt                             |    4
+apps/app_dial.c                         |    2
+apps/app_voicemail.c                    |  118 +++
+build_tools/prep_tarball                |   20
+channels/chan_dahdi.c                   |   84 +-
+channels/chan_iax2.c                    |    9
+channels/chan_local.c                   |  406 +++++++------
+channels/chan_misdn.c                   |  417 +++++++------
+channels/chan_sip.c                     |  162 +++--
+channels/misdn/ie.c                     |    1
+channels/sig_analog.c                   |  212 +++---
+channels/sig_analog.h                   |    3
+channels/sig_pri.c                      |  260 ++++++--
+channels/sig_pri.h                      |    2
+codecs/codec_dahdi.c                    |    8
+configs/calendar.conf.sample            |    6
+configs/res_ldap.conf.sample            |   36 -
+configure.ac                            |   19
+contrib/init.d/rc.suse.asterisk         |    2
+contrib/scripts/ast_tls_cert            |  186 ++++++
+contrib/scripts/asterisk.ldif           |  171 ++++-
+contrib/scripts/install_prereq          |    1
+doc/CODING-GUIDELINES                   |  982 --------------------------------
+doc/HOWTO_collect_debug_information.txt |   89 --
+doc/India-CID.txt                       |   75 --
+doc/PEERING                             |  503 ----------------
+doc/README.txt                          |   10
+doc/advice_of_charge.txt                |  189 ------
+doc/asterisk-mib.txt                    |  778 -------------------------
+doc/backtrace.txt                       |  277 ---------
+doc/building_queues.txt                 |  823 --------------------------
+doc/callfiles.txt                       |  139 ----
+doc/chan_sip-perf-testing.txt           |  110 ---
+doc/cli.txt                             |   33 -
+doc/codec-64bit.txt                     |   47 -
+doc/database_transactions.txt           |   29
+doc/datastores.txt                      |   63 --
+doc/digium-mib.txt                      |   24
+doc/distributed_devstate-XMPP.txt       |  433 --------------
+doc/distributed_devstate.txt            |  320 ----------
+doc/externalivr.txt                     |  197 ------
+doc/followme.txt                        |   32 -
+doc/google-soc2009-ideas.txt            |    3
+doc/hoard.txt                           |   38 -
+doc/jabber.txt                          |  107 ---
+doc/janitor-projects.txt                |   28
+doc/jingle.txt                          |   10
+doc/ldap.txt                            |   65 --
+doc/macroexclusive.txt                  |   78 --
+doc/manager_1_1.txt                     |  454 --------------
+doc/modules.txt                         |   25
+doc/osp.txt                             |  747 ------------------------
+doc/queue.txt                           |   39 -
+doc/realtimetext.txt                    |   84 --
+doc/res_config_sqlite.txt               |  124 ----
+doc/rtp-packetization.txt               |   75 --
+doc/sip-retransmit.txt                  |  126 ----
+doc/siptls.txt                          |   97 ---
+doc/smdi.txt                            |  137 ----
+doc/sms.txt                             |  147 ----
+doc/snmp.txt                            |   53 -
+doc/speechrec.txt                       |  295 ---------
+doc/ss7.txt                             |  116 ---
+doc/timing.txt                          |   90 --
+doc/unistim.txt                         |  127 ----
+doc/valgrind.txt                        |   24
+doc/video.txt                           |   47 -
+doc/video_console.txt                   |  159 -----
+doc/voicemail_odbc_postgresql.txt       |  454 --------------
+funcs/func_curl.c                       |    5
+funcs/func_strings.c                    |    6
+include/asterisk.h                      |    1
+include/asterisk/channel.h              |   46 +
+include/asterisk/rtp_engine.h           |   57 +
+include/asterisk/timing.h               |   10
+main/ast_expr2.c                        |  566 +++++++++++-------
+main/ast_expr2.h                        |   69 --
+main/ast_expr2.y                        |    4
+main/asterisk.c                         |    1
+main/channel.c                          |  257 +++++++-
+main/devicestate.c                      |    3
+main/manager.c                          |    9
+main/pbx.c                              |  303 ++++++---
+main/rtp_engine.c                       |   16
+main/timing.c                           |    5
+pbx/pbx_spool.c                         |  163 +++--
+res/ael/ael.tab.c                       |  978 +++++++++++++++++++++++--------
+res/ael/ael.tab.h                       |   87 --
+res/ael/ael_lex.c                       |   32 -
+res/ais/clm.c                           |    4
+res/ais/evt.c                           |    4
+res/res_calendar.c                      |    6
+res/res_config_ldap.c                   |    3
+res/res_musiconhold.c                   |    3
+res/res_srtp.c                          |   10
+res/res_timing_timerfd.c                |   10
+tests/test_event.c                      |    2
+tests/test_expr.c                       |  191 ++++++
+99 files changed, 3417 insertions(+), 10474 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
