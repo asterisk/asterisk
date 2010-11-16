@@ -333,7 +333,7 @@ int ast_app_messagecount(const char *context, const char *mailbox, const char *f
 	return 0;
 }
 
-int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between, unsigned int duration) 
+int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between, unsigned int duration)
 {
 	const char *ptr;
 	int res = 0;
