@@ -8,7 +8,7 @@
 make -C sounds MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-OPSOUND-WAV WGET=wget DOWNLOAD=wget all
 make AWK=awk GREP=grep menuselect-tree
 
-if ! which wiikiexport.py 2>&1 > /dev/null ; then
+if ! which wikiexport.py 2>&1 > /dev/null ; then
 	echo
 	echo "wikiexport.py not found in \${PATH}."
 	echo
