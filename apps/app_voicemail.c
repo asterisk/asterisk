@@ -3975,12 +3975,20 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		recipmsgnum++;
 	} while (recipmsgnum < recip->maxmsg);
 	if (recipmsgnum < recip->maxmsg - (imbox ? 0 : inprocess_count(vmu->mailbox, vmu->context, 0))) {
-		/* If we are prepending a message for ODBC, then the message already
-		 * exists in the database, but we want to force copying from the
-		 * filesystem (since only the FS contains the prepend). */
-		copy_plain_file(frompath, topath);
-		STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL);
-		vm_delete(topath);
+#ifndef ODBC_STORAGE
+		if (EXISTS(fromdir, msgnum, frompath, chan->language)) {
+			COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
+		} else {
+#endif
+			/* If we are prepending a message for ODBC, then the message already
+			 * exists in the database, but we want to force copying from the
+			 * filesystem (since only the FS contains the prepend). */
+			copy_plain_file(frompath, topath);
+			STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL);
+			vm_delete(topath);
+#ifndef ODBC_STORAGE
+		}
+#endif
 	} else {
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 		res = -1;
@@ -5163,6 +5171,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	const char *duration_cstr;
 	char msgfile[PATH_MAX], backup[PATH_MAX];
 	char textfile[PATH_MAX];
+	char backup_textfile[PATH_MAX];
 	struct ast_category *msg_cat;
 	char duration_str[12] = "";
 
@@ -5171,8 +5180,10 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	make_file(msgfile, sizeof(msgfile), curdir, curmsg);
 	strcpy(textfile, msgfile);
 	strcpy(backup, msgfile);
+	strcpy(backup_textfile, msgfile);
 	strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
 	strncat(backup, "-bak", sizeof(backup) - strlen(backup) - 1);
+	strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
 
 	if (!(msg_cfg = ast_config_load(textfile))) {
 		return -1;
@@ -5195,8 +5206,10 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			/* Back up the original file, so we can retry the prepend */
 			if (already_recorded) {
 				ast_filecopy(backup, msgfile, NULL);
+				copy(textfile, backup_textfile);
 			} else {
 				ast_filecopy(msgfile, backup, NULL);
+				copy(textfile, backup_textfile);
 			}
 			already_recorded = 1;
 
