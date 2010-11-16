@@ -18,6 +18,15 @@ if ! which wikiexport.py 2>&1 > /dev/null ; then
 	exit 1
 fi
 
+if ! which pdftotext 2>&1 > /dev/null ; then
+	echo
+	echo "pdftotext not found.  Please install it."
+	echo
+	echo "On Debian/Ubuntu/Fedora/CentOS, install the poppler-utils package."
+	echo
+	exit 1
+fi
+
 cd doc
 echo "Exporting Asterisk wiki to a PDF (this will take a minute) ..."
 wikiexport.py
