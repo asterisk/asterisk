@@ -3,6 +3,6 @@
 ;
 [globals]
 ;proxy=myproxy.example.com
-;proxytype=http
-;proxyport=8001
+proxytype=http
+proxyport=8001
 ;proxyuserpwd=asterisk:asteriskrocks
