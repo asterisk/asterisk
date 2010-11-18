@@ -1244,7 +1244,7 @@ static int aji_tls_handshake(struct aji_client *client)
 
 	/* Choose an SSL/TLS protocol version, create SSL_CTX */
 	client->ssl_method = SSLv3_method();
-	if (!(client->ssl_context = SSL_CTX_new(client->ssl_method))) {
+	if (!(client->ssl_context = SSL_CTX_new((SSL_METHOD *) client->ssl_method))) {
 		return IKS_NET_TLSFAIL;
 	}
 
