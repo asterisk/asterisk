@@ -618,40 +618,45 @@ static int aji_tls_handshake(struct aji_client *client)
 {
 	int ret;
 	int sock;
-	
-	ast_debug(1, "Starting TLS handshake\n"); 
+
+	ast_debug(1, "Starting TLS handshake\n");
 
 	/* Choose an SSL/TLS protocol version, create SSL_CTX */
 	client->ssl_method = SSLv3_method();
-	client->ssl_context = SSL_CTX_new(client->ssl_method);                
-	if (!client->ssl_context)
+	client->ssl_context = SSL_CTX_new((SSL_METHOD *) client->ssl_method);
+	if (!client->ssl_context) {
 		return IKS_NET_TLSFAIL;
+	}
 
 	/* Create new SSL session */
 	client->ssl_session = SSL_new(client->ssl_context);
-	if (!client->ssl_session)
+	if (!client->ssl_session) {
 		return IKS_NET_TLSFAIL;
+	}
 
 	/* Enforce TLS on our XMPP connection */
 	sock = iks_fd(client->p);
 	ret = SSL_set_fd(client->ssl_session, sock);
-	if (!ret)
+	if (!ret) {
 		return IKS_NET_TLSFAIL;
+	}
 
 	/* Perform SSL handshake */
 	ret = SSL_connect(client->ssl_session);
-	if (!ret)
+	if (!ret) {
 		return IKS_NET_TLSFAIL;
+	}
 
 	client->stream_flags &= (~TRY_SECURE);
 	client->stream_flags |= SECURE;
 
 	/* Sent over the established TLS connection */
 	ret = aji_send_header(client, client->jid->server);
-	if (ret != IKS_OK)
+	if (ret != IKS_OK) {
 		return IKS_NET_TLSFAIL;
+	}
 
-	ast_debug(1, "TLS started with server\n"); 
+	ast_debug(1, "TLS started with server\n");
 
 	return IKS_OK;
 }
