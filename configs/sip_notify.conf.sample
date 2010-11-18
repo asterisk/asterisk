@@ -1,4 +1,5 @@
 ; rfc3842
+; put empty "Content=>" at the end to have CRLF after last body line
 
 [clear-mwi]
 Event=>message-summary
@@ -6,6 +7,7 @@ Content-type=>application/simple-message-summary
 Content=>Messages-Waiting: no
 Content=>Message-Account: sip:asterisk@127.0.0.1
 Content=>Voice-Message: 0/0 (0/0)
+Content=>
 
 ; Aastra
 
