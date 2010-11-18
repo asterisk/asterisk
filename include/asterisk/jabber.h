@@ -164,7 +164,7 @@ struct aji_client {
 #ifdef HAVE_OPENSSL
 	SSL_CTX *ssl_context;
 	SSL *ssl_session;
-	SSL_METHOD *ssl_method;
+	const SSL_METHOD *ssl_method;
 	unsigned int stream_flags;
 #endif /* HAVE_OPENSSL */
 	enum aji_state state;
