@@ -1134,6 +1134,8 @@ static void set_queue_variables(struct call_queue *q, struct ast_channel *chan)
 	char interfacevar[256]="";
 	float sl = 0;
 
+	ao2_lock(q);
+
 	if (q->setqueuevar) {
 		sl = 0;
 		if (q->callscompleted > 0) 
@@ -1142,8 +1144,12 @@ static void set_queue_variables(struct call_queue *q, struct ast_channel *chan)
 		snprintf(interfacevar, sizeof(interfacevar),
 			"QUEUENAME=%s,QUEUEMAX=%d,QUEUESTRATEGY=%s,QUEUECALLS=%d,QUEUEHOLDTIME=%d,QUEUETALKTIME=%d,QUEUECOMPLETED=%d,QUEUEABANDONED=%d,QUEUESRVLEVEL=%d,QUEUESRVLEVELPERF=%2.1f",
 			q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->talktime, q->callscompleted, q->callsabandoned,  q->servicelevel, sl);
+
+		ao2_unlock(q);
 	
 		pbx_builtin_setvar_multiple(chan, interfacevar); 
+	} else {
+		ao2_unlock(q);
 	}
 }
 
@@ -3173,8 +3179,8 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 /*! \brief Record that a caller gave up on waiting in queue */
 static void record_abandoned(struct queue_ent *qe)
 {
-	ao2_lock(qe->parent);
 	set_queue_variables(qe->parent, qe->chan);
+	ao2_lock(qe->parent);
 	manager_event(EVENT_FLAG_AGENT, "QueueCallerAbandon",
 		"Queue: %s\r\n"
 		"Uniqueid: %s\r\n"
@@ -4096,9 +4102,7 @@ static void end_bridge_callback(void *data)
 	struct ast_channel *chan = qeb->chan;
 
 	if (ao2_ref(qeb, -1) == 1) {
-		ao2_lock(q);
 		set_queue_variables(q, chan);
-		ao2_unlock(q);
 		/* This unrefs the reference we made in try_calling when we allocated qeb */
 		queue_t_unref(q, "Expire bridge_config reference");
 	}
@@ -4568,10 +4572,11 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			pbx_builtin_setvar_multiple(peer, interfacevar);
 		}
 	
+		ao2_unlock(qe->parent);
+
 		/* try to set queue variables if configured to do so*/
 		set_queue_variables(qe->parent, qe->chan);
 		set_queue_variables(qe->parent, peer);
-		ao2_unlock(qe->parent);
 		
 		ast_channel_lock(qe->chan);
 		if ((monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME"))) {
