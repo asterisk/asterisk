@@ -688,13 +688,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="timeout" required="true" />
+			<parameter name="voicefile" required="false" />
+			<parameter name="escape_chars" required="false" />
+			<parameter name="maxdigits" required="false" />
+			<parameter name="previously_die_on_chars" required="false" />
 		</syntax>
 		<description>
 			<para>Waits up to <replaceable>timeout</replaceable> milliseconds for channel to
 			receive a DTMF digit. Returns <literal>-1</literal> on channel failure, <literal>0</literal>
 			if no digit is received in the timeout, or the numerical value of the ascii of the digit if
 			one is received. Use <literal>-1</literal> for the <replaceable>timeout</replaceable> value if
-			you desire the call to block indefinitely.</para>
+			you desire the call to block indefinitely.
+
+			If 'voicefile' is specified it is played as long 'previously die chars' (default '#') are
+			not typed in or as long as any of 'escape chars' (default '1234567890*#ABCD') is pressed a
+			'maxdigit' (default 1) times .</para>
 		</description>
 	</agi>
 	<agi name="speech create" language="en_US">
@@ -1678,14 +1686,85 @@ static int handle_asyncagi_break(struct ast_channel *chan, AGI *agi, int argc, c
 
 static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
-	int res, to;
+	int res;
+	int to;
+	char *valid_dtmf_digits = AST_DIGIT_ANY;
+	char *previously_die_on = "#";
+	char *digits = NULL;
+	char *escape_digits = NULL;
+	char *voicefile = NULL;
+	int maxdigits = 1;
 
-	if (argc != 4)
+	if (argc < 4)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[3], "%30d", &to) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
-	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
+
+	/* Answer the chan */
+	if (chan->_state != AST_STATE_UP)
+		res = ast_answer(chan);
+
+	/* soundfile specified */
+	if (argc >= 5) {
+
+		/* escape characters defined */
+		if (argc >= 6)
+			valid_dtmf_digits = (char *) argv[5];
+
+		/* maxdigits */
+		if (argc >= 7 && (sscanf(argv[6], "%d", &maxdigits) != 1))
+			return RESULT_SHOWUSAGE;
+
+		/* escape before escape chars on */
+		if (argc >= 8)
+			previously_die_on = (char *) argv[7];
+
+		voicefile = (char *) argv[4];
+		res = ast_streamfile(chan, voicefile, chan->language);
+		if (res < 0)
+			return RESULT_FAILURE;
+
+		/* allocate space for the digits (2 chars per digit + \0 - <digit>|<digit>|...) */
+		digits = (char *)ast_malloc(maxdigits * 2 + 1);
+		ast_copy_string(digits, "", 1);
+
+		/* catenate the escape digits together with previously die digits */
+		escape_digits = (char *)ast_malloc(strlen(valid_dtmf_digits) + strlen(previously_die_on)+ 1);
+		ast_copy_string(escape_digits, valid_dtmf_digits, sizeof(valid_dtmf_digits));
+		strcat(escape_digits, previously_die_on);
+
+		if (chan->stream) {
+			int dtmf_count = 0;
+			do {
+				char buf[3];
+				res = ast_waitstream_full(chan, escape_digits, agi->audio, agi->ctrl);
+				if (res > 0) {
+					if (strchr(previously_die_on, res) != NULL) {
+						/* previously die character found - end loop */
+						ast_log(LOG_DEBUG, "prev die digit %c pressed\n", res);
+						break;
+					} else {
+						/* chars in valid_dtmf_digits found */
+						ast_log(LOG_DEBUG, "dtmf turn=%d of %d | res=%d\n", dtmf_count, maxdigits, res);
+						sprintf(buf, "%c", res);
+						strcat(digits, buf);
+						dtmf_count++;
+					}
+				}
+			} while ( strchr(previously_die_on, res) == NULL && dtmf_count < maxdigits && chan->stream);
+			ast_stopstream(chan);
+			ast_agi_send(agi->fd, chan, "200 result=%s\n", digits);
+		} else {
+			res = ast_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
+			ast_agi_send(agi->fd, chan, "200 result=%c\n", res);
+		}
+	} else {
+		res = ast_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
+		ast_agi_send(agi->fd, chan, "200 result=%c\n", res);
+	}
+
+	ast_free(escape_digits);
+	ast_free(digits);
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
