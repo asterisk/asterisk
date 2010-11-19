@@ -27,7 +27,9 @@
 
 #include "asterisk/channel.h"
 #include "asterisk/frame.h"
+#include "asterisk/smdi.h"
 
+#define ANALOG_SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 #define ANALOG_MAX_CID 300
 #define READ_SIZE 160
 #define RING_PATTERNS 3
@@ -276,13 +278,13 @@ struct analog_pvt {
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
 	unsigned int callwaitingcallerid:1;
-	const struct ast_channel_tech *chan_tech;
 	/*!
-     * \brief TRUE if distinctive rings are to be detected.
-     * \note For FXO lines
-     * \note Set indirectly from the "usedistinctiveringdetection" value read in from chan_dahdi.conf
-     */
-	unsigned int usedistinctiveringdetection:1;
+	 * \brief TRUE if SMDI (Simplified Message Desk Interface) is enabled
+	 */
+	unsigned int use_smdi:1;
+	/*! \brief The SMDI interface to get SMDI messages from. */
+	struct ast_smdi_interface *smdi_iface;
+	const struct ast_channel_tech *chan_tech;
 
 	/* Not used for anything but log messages.  Could be just the TCID */
 	int channel;					/*!< Channel Number */
@@ -329,7 +331,6 @@ struct analog_pvt {
 
 	/* All variables after this are definitely going to be audited */
 	unsigned int inalarm:1;
-	unsigned int unknown_alarm:1;
 
 	int callwaitcas;
 

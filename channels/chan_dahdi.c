@@ -955,7 +955,7 @@ struct dahdi_pvt {
 	 */
 	unsigned int use_smdi:1;
 	struct mwisend_info mwisend_data;
-	/*! \brief The serial port to listen for SMDI data on */
+	/*! \brief The SMDI interface to get SMDI messages from. */
 	struct ast_smdi_interface *smdi_iface;
 
 	/*! \brief Distinctive Ring data */
@@ -12589,7 +12589,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->threewaycalling = conf->chan.threewaycalling;
 				analog_p->transfer = conf->chan.transfer;
 				analog_p->transfertobusy = conf->chan.transfertobusy;
-				analog_p->use_callerid = conf->chan.use_callerid;
+				analog_p->use_callerid = tmp->use_callerid;
+				analog_p->use_smdi = tmp->use_smdi;
+				analog_p->smdi_iface = tmp->smdi_iface;
 				analog_p->outsigmod = ANALOG_SIG_NONE;
 				analog_p->echotraining = conf->chan.echotraining;
 				analog_p->cid_signalling = conf->chan.cid_signalling;
@@ -12609,7 +12611,6 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 					break;
 				}
 				analog_p->callwaitingcallerid = conf->chan.callwaitingcallerid;
-				analog_p->usedistinctiveringdetection = conf->chan.usedistinctiveringdetection;
 				analog_p->ringt = conf->chan.ringt;
 				analog_p->ringt_base = ringt_base;
 				analog_p->chan_tech = &dahdi_tech;
