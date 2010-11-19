@@ -23674,6 +23674,9 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 	const char *cmd;
 	const char *cseq;
 	const char *useragent;
+	const char *via;
+	const char *callid;
+	int via_pos = 0;
 	int seqno;
 	int len;
 	int respid;
@@ -23684,13 +23687,19 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 	int oldmethod = p->method;
 	int acked = 0;
 
-	/* Get Method and Cseq */
+	/* RFC 3261 - 8.1.1 A valid SIP request must contain To, From, CSeq, Call-ID and Via.
+	 * 8.2.6.2 Response must have To, From, Call-ID CSeq, and Via related to the request,
+	 * so we can check to make sure these fields exist for all requests and responses */
 	cseq = get_header(req, "Cseq");
 	cmd = REQ_OFFSET_TO_STR(req, header[0]);
+	/* Save the via_pos so we can check later that responses only have 1 Via header */
+	via = __get_header(req, "Via", &via_pos);
+	/* This must exist already because we've called find_call by now */
+	callid = get_header(req, "Call-ID");
 
 	/* Must have Cseq */
-	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq)) {
-		ast_log(LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
+	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq) || ast_strlen_zero(via)) {
+		ast_log(LOG_ERROR, "Dropping this SIP message with Call-ID '%s', it's incomplete.\n", callid);
 		error = 1;
 	}
 	if (!error && sscanf(cseq, "%30d%n", &seqno, &len) != 1) {
@@ -23730,6 +23739,13 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		}
 		if (respid <= 0) {
 			ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
+			return 0;
+		}
+		/* RFC 3261 - 8.1.3.3 If more than one Via header field value is present in a reponse
+		 * the UAC SHOULD discard the message. This is not perfect, as it will not catch multiple
+		 * headers joined with a comma. Fixing that would pretty much involve writing a new parser */
+		if (!ast_strlen_zero(__get_header(req, "via", &via_pos))) {
+			ast_log(LOG_WARNING, "Misrouted SIP response '%s' with Call-ID '%s', too many vias\n", e, callid);
 			return 0;
 		}
 		if (p->ocseq && (p->ocseq < seqno)) {
