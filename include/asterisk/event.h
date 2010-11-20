@@ -584,6 +584,17 @@ uint32_t ast_event_get_ie_str_hash(const struct ast_event *event, enum ast_event
 const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_ie_type ie_type);
 
 /*!
+ * \brief Get the length of the raw payload for a particular IE
+ *
+ * \param event The event to get the IE payload length from
+ * \param ie_type the type of information element to get the length of
+ *
+ * \return If an IE of type ie_type is found, its payload length is returned.
+ *         Otherwise, 0 is returned.
+ */
+uint16_t ast_event_get_ie_raw_payload_len(const struct ast_event *event, enum ast_event_ie_type ie_type);
+
+/*!
  * \brief Get the string representation of an information element type
  *
  * \param ie_type the information element type to get the string representation of
@@ -723,6 +734,15 @@ const char *ast_event_iterator_get_ie_str(struct ast_event_iterator *iterator);
  * \return This returns the payload of the information element as type raw.
  */
 void *ast_event_iterator_get_ie_raw(struct ast_event_iterator *iterator);
+
+/*!
+ * \brief Get the length of the raw payload for the current IE for an iterator
+ *
+ * \param iterator The IE iterator
+ *
+ * \return The payload length of the current IE
+ */
+uint16_t ast_event_iterator_get_ie_raw_payload_len(struct ast_event_iterator *iterator);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

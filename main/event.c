@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/cli.h"
 
 static struct ast_taskprocessor *event_dispatcher;
 
@@ -183,6 +184,13 @@ static struct {
 };
 
 /*!
+ * \brief Names of cached event types, for CLI tab completion
+ *
+ * \note These names must match what is in the event_names array.
+ */
+static const char * const cached_event_types[] = { "MWI", "DeviceState", "DeviceStateChange", NULL };
+
+/*!
  * \brief Event Names
  */
 static const char * const event_names[AST_EVENT_TOTAL] = {
@@ -194,6 +202,7 @@ static const char * const event_names[AST_EVENT_TOTAL] = {
 	[AST_EVENT_DEVICE_STATE_CHANGE] = "DeviceStateChange",
 	[AST_EVENT_CEL]                 = "CEL",
 	[AST_EVENT_SECURITY]            = "Security",
+	[AST_EVENT_NETWORK_CHANGE]      = "NetworkChange",
 };
 
 /*!
@@ -275,7 +284,7 @@ int ast_event_str_to_event_type(const char *str, enum ast_event_type *event_type
 	int i;
 
 	for (i = 0; i < ARRAY_LEN(event_names); i++) {
-		if (strcasecmp(event_names[i], str)) {
+		if (ast_strlen_zero(event_names[i]) || strcasecmp(event_names[i], str)) {
 			continue;
 		}
 
@@ -539,8 +548,9 @@ static int match_ie_val(const struct ast_event *event,
 	case AST_EVENT_IE_PLTYPE_RAW:
 	{
 		const void *buf = event2 ? ast_event_get_ie_raw(event2, ie_val->ie_type) : ie_val->payload.raw;
+		uint16_t ie_payload_len = event2 ? ast_event_get_ie_raw_payload_len(event2, ie_val->ie_type) : ie_val->raw_datalen;
 
-		return (buf && !memcmp(buf, ast_event_get_ie_raw(event, ie_val->ie_type), ie_val->raw_datalen)) ? 1 : 0;
+		return (buf && !memcmp(buf, ast_event_get_ie_raw(event, ie_val->ie_type), ie_payload_len)) ? 1 : 0;
 	}
 
 	case AST_EVENT_IE_PLTYPE_EXISTS:
@@ -986,6 +996,11 @@ void *ast_event_iterator_get_ie_raw(struct ast_event_iterator *iterator)
 	return iterator->ie->ie_payload;
 }
 
+uint16_t ast_event_iterator_get_ie_raw_payload_len(struct ast_event_iterator *iterator)
+{
+	return ntohs(iterator->ie->ie_payload_len);
+}
+
 enum ast_event_type ast_event_get_type(const struct ast_event *event)
 {
 	return ntohs(event->type);
@@ -1039,6 +1054,20 @@ const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_i
 	}
 
 	return NULL;
+}
+
+uint16_t ast_event_get_ie_raw_payload_len(const struct ast_event *event, enum ast_event_ie_type ie_type)
+{
+	struct ast_event_iterator iterator;
+	int res;
+
+	for (res = ast_event_iterator_init(&iterator, event); !res; res = ast_event_iterator_next(&iterator)) {
+		if (ast_event_iterator_get_ie_type(&iterator) == ie_type) {
+			return ast_event_iterator_get_ie_raw_payload_len(&iterator);
+		}
+	}
+
+	return 0;
 }
 
 int ast_event_append_ie_str(struct ast_event **event, enum ast_event_ie_type ie_type,
@@ -1529,6 +1558,132 @@ static int ast_event_cmp(void *obj, void *arg, int flags)
 	return res;
 }
 
+static void dump_raw_ie(struct ast_event_iterator *i, struct ast_cli_args *a)
+{
+	char eid_buf[32];
+	enum ast_event_ie_type ie_type;
+	const char *ie_type_name;
+
+	ie_type = ast_event_iterator_get_ie_type(i);
+	ie_type_name = ast_event_get_ie_type_name(ie_type);
+
+	switch (ie_type) {
+	case AST_EVENT_IE_EID:
+		ast_eid_to_str(eid_buf, sizeof(eid_buf), ast_event_iterator_get_ie_raw(i));
+		ast_cli(a->fd, "%.30s: %s\n", ie_type_name, eid_buf);
+		break;
+	default:
+		ast_cli(a->fd, "%s\n", ie_type_name);
+		break;
+	}
+}
+
+static int event_dump_cli(void *obj, void *arg, int flags)
+{
+	const struct ast_event_ref *event_ref = obj;
+	const struct ast_event *event = event_ref->event;
+	struct ast_cli_args *a = arg;
+	struct ast_event_iterator i;
+
+	if (ast_event_iterator_init(&i, event)) {
+		ast_cli(a->fd, "Failed to initialize event iterator.  :-(\n");
+		return 0;
+	}
+
+	ast_cli(a->fd, "Event: %s\n", ast_event_get_type_name(event));
+
+	do {
+		enum ast_event_ie_type ie_type;
+		enum ast_event_ie_pltype ie_pltype;
+		const char *ie_type_name;
+
+		ie_type = ast_event_iterator_get_ie_type(&i);
+		ie_type_name = ast_event_get_ie_type_name(ie_type);
+		ie_pltype = ast_event_get_ie_pltype(ie_type);
+
+		switch (ie_pltype) {
+		case AST_EVENT_IE_PLTYPE_UNKNOWN:
+		case AST_EVENT_IE_PLTYPE_EXISTS:
+			ast_cli(a->fd, "%s\n", ie_type_name);
+			break;
+		case AST_EVENT_IE_PLTYPE_STR:
+			ast_cli(a->fd, "%.30s: %s\n", ie_type_name,
+					ast_event_iterator_get_ie_str(&i));
+			break;
+		case AST_EVENT_IE_PLTYPE_UINT:
+			ast_cli(a->fd, "%.30s: %u\n", ie_type_name,
+					ast_event_iterator_get_ie_uint(&i));
+			break;
+		case AST_EVENT_IE_PLTYPE_BITFLAGS:
+			ast_cli(a->fd, "%.30s: %u\n", ie_type_name,
+					ast_event_iterator_get_ie_bitflags(&i));
+			break;
+		case AST_EVENT_IE_PLTYPE_RAW:
+			dump_raw_ie(&i, a);
+			break;
+		}
+	} while (!ast_event_iterator_next(&i));
+
+	ast_cli(a->fd, "\n");
+
+	return 0;
+}
+
+static char *event_dump_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	enum ast_event_type event_type;
+	enum ast_event_ie_type *cache_args;
+	int i;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "event dump cache";
+		e->usage =
+			"Usage: event dump cache <event type>\n"
+			"       Dump all of the cached events for the given event type.\n"
+			"       This is primarily intended for debugging.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 3) {
+			return ast_cli_complete(a->word, cached_event_types, a->n);
+		}
+		return NULL;
+	case CLI_HANDLER:
+		break;
+	}
+
+	if (a->argc != e->args + 1) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_event_str_to_event_type(a->argv[e->args], &event_type)) {
+		ast_cli(a->fd, "Invalid cached event type: '%s'\n", a->argv[e->args]);
+		return CLI_SHOWUSAGE;
+	}
+
+	if (!ast_event_cache[event_type].container) {
+		ast_cli(a->fd, "Event type '%s' has no cache.\n", a->argv[e->args]);
+		return CLI_SUCCESS;
+	}
+
+	ast_cli(a->fd, "Event Type: %s\n", a->argv[e->args]);
+	ast_cli(a->fd, "Cache Unique Keys:\n");
+	cache_args = ast_event_cache[event_type].cache_args;
+	for (i = 0; i < ARRAY_LEN(ast_event_cache[0].cache_args) && cache_args[i]; i++) {
+		ast_cli(a->fd, "--> %s\n", ast_event_get_ie_type_name(cache_args[i]));
+	}
+
+	ast_cli(a->fd, "\n--- Begin Cache Dump ---\n\n");
+	ao2_callback(ast_event_cache[event_type].container, OBJ_NODATA, event_dump_cli, a);
+	ast_cli(a->fd, "--- End Cache Dump ---\n\n");
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry event_cli[] = {
+	AST_CLI_DEFINE(event_dump_cache, "Dump the internal event cache (for debugging)"),
+};
+
 int ast_event_init(void)
 {
 	int i;
@@ -1552,6 +1707,8 @@ int ast_event_init(void)
 	if (!(event_dispatcher = ast_taskprocessor_get("core_event_dispatcher", 0))) {
 		return -1;
 	}
+
+	ast_cli_register_multiple(event_cli, ARRAY_LEN(event_cli));
 
 	return 0;
 }
