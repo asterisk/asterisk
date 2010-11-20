@@ -2246,6 +2246,13 @@ static void my_set_pulsedial(void *pvt, int flag)
 	p->pulsedial = flag;
 }
 
+static void my_set_new_owner(void *pvt, struct ast_channel *new_owner)
+{
+	struct dahdi_pvt *p = pvt;
+
+	p->owner = new_owner;
+}
+
 static const char *my_get_orig_dialstring(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
@@ -3528,6 +3535,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.cancel_cidspill = my_cancel_cidspill,
 	.confmute = my_confmute,
 	.set_pulsedial = my_set_pulsedial,
+	.set_new_owner = my_set_new_owner,
 	.get_orig_dialstring = my_get_orig_dialstring,
 	.set_needringing = my_set_needringing,
 	.set_polarity = my_set_polarity,
