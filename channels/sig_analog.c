@@ -412,6 +412,14 @@ static int analog_play_tone(struct analog_pvt *p, enum analog_sub sub, enum anal
 	return -1;
 }
 
+static void analog_set_new_owner(struct analog_pvt *p, struct ast_channel *new_owner)
+{
+	p->owner = new_owner;
+	if (p->calls->set_new_owner) {
+		p->calls->set_new_owner(p->chan_pvt, new_owner);
+	}
+}
+
 static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int state, int startpbx, enum analog_sub sub, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
@@ -426,7 +434,7 @@ static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int sta
 	}
 	p->subs[sub].owner = c;
 	if (!p->owner) {
-		p->owner = c;
+		analog_set_new_owner(p, c);
 	}
 	return c;
 }
@@ -1290,7 +1298,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 					/* Move to the call-wait, but un-own us until they flip back. */
 					analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_REAL);
 					analog_unalloc_sub(p, ANALOG_SUB_CALLWAIT);
-					p->owner = NULL;
+					analog_set_new_owner(p, NULL);
 				} else {
 					/* The three way hung up, but we still have a call wait */
 					ast_debug(1, "We were in the threeway and have a callwait still.  Ditching the threeway.\n");
@@ -1301,11 +1309,11 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 						   another call */
 						ast_debug(1, "Call was complete, setting owner to former third call\n");
 						analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
-						p->owner = p->subs[ANALOG_SUB_REAL].owner;
+						analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 					} else {
 						/* This call hasn't been completed yet...  Set owner to NULL */
 						ast_debug(1, "Call was incomplete, setting owner to NULL\n");
-						p->owner = NULL;
+						analog_set_new_owner(p, NULL);
 					}
 				}
 			} else if (p->subs[ANALOG_SUB_CALLWAIT].allocd) {
@@ -1313,14 +1321,14 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 				analog_lock_sub_owner(p, ANALOG_SUB_CALLWAIT);
 				if (!p->subs[ANALOG_SUB_CALLWAIT].owner) {
 					/* The call waiting call dissappeared. */
-					p->owner = NULL;
+					analog_set_new_owner(p, NULL);
 					break;
 				}
 
 				/* Move to the call-wait and switch back to them. */
 				analog_swap_subs(p, ANALOG_SUB_CALLWAIT, ANALOG_SUB_REAL);
 				analog_unalloc_sub(p, ANALOG_SUB_CALLWAIT);
-				p->owner = p->subs[ANALOG_SUB_REAL].owner;
+				analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 				if (p->owner->_state != AST_STATE_UP) {
 					ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_ANSWER);
 				}
@@ -1337,11 +1345,11 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 					   another call */
 					ast_debug(1, "Call was complete, setting owner to former third call\n");
 					analog_set_inthreeway(p, ANALOG_SUB_REAL, 0);
-					p->owner = p->subs[ANALOG_SUB_REAL].owner;
+					analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 				} else {
 					/* This call hasn't been completed yet...  Set owner to NULL */
 					ast_debug(1, "Call was incomplete, setting owner to NULL\n");
-					p->owner = NULL;
+					analog_set_new_owner(p, NULL);
 				}
 			}
 			break;
@@ -1402,7 +1410,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 	}
 
 	if (!p->subs[ANALOG_SUB_REAL].owner && !p->subs[ANALOG_SUB_CALLWAIT].owner && !p->subs[ANALOG_SUB_THREEWAY].owner) {
-		p->owner = NULL;
+		analog_set_new_owner(p, NULL);
 		analog_set_ringtimeout(p, 0);
 		analog_set_confirmanswer(p, 0);
 		analog_set_pulsedial(p, 0);
@@ -1512,7 +1520,7 @@ int analog_answer(struct analog_pvt *p, struct ast_channel *ast)
 				ast_debug(1, "Finally swapping real and threeway\n");
 				analog_play_tone(p, ANALOG_SUB_THREEWAY, -1);
 				analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
-				p->owner = p->subs[ANALOG_SUB_REAL].owner;
+				analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 			}
 		}
 
@@ -2252,7 +2260,7 @@ static void *__analog_ss_thread(void *data)
 					}
 					analog_swap_subs(p, ANALOG_SUB_REAL, ANALOG_SUB_THREEWAY);
 					analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
-					p->owner = p->subs[ANALOG_SUB_REAL].owner;
+					analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 					if (ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner)) {
 						ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
 					}
@@ -2264,7 +2272,7 @@ static void *__analog_ss_thread(void *data)
 					analog_play_tone(p, idx, -1);
 					analog_swap_subs(p, ANALOG_SUB_REAL, ANALOG_SUB_THREEWAY);
 					analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
-					p->owner = p->subs[ANALOG_SUB_REAL].owner;
+					analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 					ast_hangup(chan);
 					goto quit;
 				}
@@ -2744,7 +2752,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					ast_verb(3, "Channel %d still has (callwait) call, ringing phone\n", p->channel);
 					analog_unalloc_sub(p, ANALOG_SUB_CALLWAIT);
 					analog_stop_callwait(p);
-					p->owner = NULL;
+					analog_set_new_owner(p, NULL);
 					/* Don't start streaming audio yet if the incoming call isn't up yet */
 					if (p->subs[ANALOG_SUB_REAL].owner->_state != AST_STATE_UP) {
 						analog_set_dialing(p, 1);
@@ -2794,7 +2802,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 								analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 								/* Unlock the 3-way call that we swapped to real-call. */
 								ast_channel_unlock(p->subs[ANALOG_SUB_REAL].owner);
-								p->owner = NULL;
+								analog_set_new_owner(p, NULL);
 								/* Ring the phone */
 								analog_ring(p);
 							} else {
@@ -2817,7 +2825,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 						/* Unlock the 3-way call that we swapped to real-call. */
 						ast_channel_unlock(p->subs[ANALOG_SUB_REAL].owner);
-						p->owner = NULL;
+						analog_set_new_owner(p, NULL);
 						/* Ring the phone */
 						analog_ring(p);
 					}
@@ -3064,7 +3072,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				/* Swap to call-wait */
 				analog_swap_subs(p, ANALOG_SUB_REAL, ANALOG_SUB_CALLWAIT);
 				analog_play_tone(p, ANALOG_SUB_REAL, -1);
-				p->owner = p->subs[ANALOG_SUB_REAL].owner;
+				analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 				ast_debug(1, "Making %s the new owner\n", p->owner->name);
 				if (p->subs[ANALOG_SUB_REAL].owner->_state == AST_STATE_RINGING) {
 					ast_setstate(p->subs[ANALOG_SUB_REAL].owner, AST_STATE_UP);
@@ -3149,7 +3157,8 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					if (res) {
 						ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
 					}
-					p->ss_astchan = p->owner = chan;
+					analog_set_new_owner(p, chan);
+					p->ss_astchan = chan;
 					if (ast_pthread_create_detached(&threadid, NULL, __analog_ss_thread, p)) {
 						ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 						res = analog_play_tone(p, ANALOG_SUB_REAL, ANALOG_TONE_CONGESTION);
@@ -3191,7 +3200,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						/* Swap back -- we're dropping the real 3-way that isn't finished yet*/
 						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 						orig_3way_sub = ANALOG_SUB_REAL;
-						p->owner = p->subs[ANALOG_SUB_REAL].owner;
+						analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 					}
 					/* Drop the last call and stop the conference */
 					ast_verb(3, "Dropping three-way call on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
@@ -3215,13 +3224,13 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 						if (ast_bridged_channel(p->subs[orig_3way_sub].owner)) {
 							ast_queue_control(p->subs[orig_3way_sub].owner, AST_CONTROL_UNHOLD);
 						}
-						p->owner = p->subs[ANALOG_SUB_REAL].owner;
+						analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 					} else {
 						ast_verb(3, "Dumping incomplete call on %s\n", p->subs[ANALOG_SUB_THREEWAY].owner->name);
 						analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
 						orig_3way_sub = ANALOG_SUB_REAL;
 						ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
-						p->owner = p->subs[ANALOG_SUB_REAL].owner;
+						analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 						if (ast_bridged_channel(p->subs[ANALOG_SUB_REAL].owner)) {
 							ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_UNHOLD);
 						}
@@ -3457,7 +3466,7 @@ struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast
 		if ((res != ANALOG_EVENT_RINGEROFF) && (res != ANALOG_EVENT_RINGERON) &&
 			(res != ANALOG_EVENT_HOOKCOMPLETE)) {
 			ast_debug(1, "Restoring owner of channel %d on event %d\n", p->channel, res);
-			p->owner = p->subs[ANALOG_SUB_REAL].owner;
+			analog_set_new_owner(p, p->subs[ANALOG_SUB_REAL].owner);
 			if (p->owner && ast != p->owner) {
 				/*
 				 * Could this even happen?
@@ -3834,7 +3843,7 @@ int analog_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, void 
 	int x;
 	ast_debug(1, "New owner for channel %d is %s\n", new_pvt->channel, newchan->name);
 	if (new_pvt->owner == oldchan) {
-		new_pvt->owner = newchan;
+		analog_set_new_owner(new_pvt, newchan);
 	}
 	for (x = 0; x < 3; x++) {
 		if (new_pvt->subs[x].owner == oldchan) {

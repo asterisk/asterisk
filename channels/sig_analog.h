@@ -231,6 +231,7 @@ struct analog_callback {
 	void (* const cancel_cidspill)(void *pvt);
 	int (* const confmute)(void *pvt, int mute);	
 	void (* const set_pulsedial)(void *pvt, int flag);
+	void (* const set_new_owner)(void *pvt, struct ast_channel *new_owner);
 
 	const char *(* const get_orig_dialstring)(void *pvt);
 };
