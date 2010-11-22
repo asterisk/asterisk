@@ -816,7 +816,7 @@ pickupgroup=1
 ; BUSYDETECT_COMPARE_TONE_AND_SILENCE option.
 ;
 ; To further detect which hangup tone your telco provider is sending, it is
-; useful to use the ztmonitor utility to record the audio that main/dsp.c
+; useful to use the dahdi_monitor utility to record the audio that main/dsp.c
 ; is receiving after the caller hangs up.
 ;
 ; For FXS (FXO signalled) ports
