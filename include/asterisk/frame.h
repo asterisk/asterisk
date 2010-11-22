@@ -318,6 +318,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
 	AST_CONTROL_T38_PARAMETERS = 24, /*!< T38 state change request/notification with parameters */
 	AST_CONTROL_SRCCHANGE = 25,  /*!< Media source has changed and requires a new RTP SSRC */
+	AST_CONTROL_END_OF_Q = 29,		/*!< Indicate that this position was the end of the channel queue for a softhangup. */
 };
 
 enum ast_control_t38 {
