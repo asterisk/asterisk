@@ -1360,15 +1360,42 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 
 	ast_channel_lock(chan);
 
-	/* See if the last frame on the queue is a hangup, if so don't queue anything */
-	if ((cur = AST_LIST_LAST(&chan->readq)) &&
-	    (cur->frametype == AST_FRAME_CONTROL) &&
-	    (cur->subclass.integer == AST_CONTROL_HANGUP)) {
-		ast_channel_unlock(chan);
-		return 0;
+	/*
+	 * Check the last frame on the queue if we are queuing the new
+	 * frames after it.
+	 */
+	cur = AST_LIST_LAST(&chan->readq);
+	if (cur && cur->frametype == AST_FRAME_CONTROL && !head && (!after || after == cur)) {
+		switch (cur->subclass.integer) {
+		case AST_CONTROL_END_OF_Q:
+			if (fin->frametype == AST_FRAME_CONTROL
+				&& fin->subclass.integer == AST_CONTROL_HANGUP) {
+				/*
+				 * Destroy the end-of-Q marker frame so we can queue the hangup
+				 * frame in its place.
+				 */
+				AST_LIST_REMOVE(&chan->readq, cur, frame_list);
+				ast_frfree(cur);
+
+				/*
+				 * This has degenerated to a normal queue append anyway.  Since
+				 * we just destroyed the last frame in the queue we must make
+				 * sure that "after" is NULL or bad things will happen.
+				 */
+				after = NULL;
+				break;
+			}
+			/* Fall through */
+		case AST_CONTROL_HANGUP:
+			/* Don't queue anything. */
+			ast_channel_unlock(chan);
+			return 0;
+		default:
+			break;
+		}
 	}
 
-	/* Build copies of all the frames and count them */
+	/* Build copies of all the new frames and count them */
 	AST_LIST_HEAD_INIT_NOLOCK(&frames);
 	for (cur = fin; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 		if (!(f = ast_frdup(cur))) {
@@ -3613,14 +3640,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		if (chan->generator)
 			ast_deactivate_generator(chan);
 
-		/* It is possible for chan->_softhangup to be set, yet there still be control
-		 * frames that still need to be read. Instead of just going to 'done' in the
-		 * case of ast_check_hangup(), we instead need to send the HANGUP frame so that
-		 * it can mark the end of the read queue. If there are frames to be read, 
-		 * ast_queue_control will be called repeatedly, but will only queue one hangup
-		 * frame. */
-		if (ast_check_hangup(chan)) {
-			ast_queue_control(chan, AST_CONTROL_HANGUP);
+		/*
+		 * It is possible for chan->_softhangup to be set and there
+		 * still be control frames that need to be read.  Instead of
+		 * just going to 'done' in the case of ast_check_hangup(), we
+		 * need to queue the end-of-Q frame so that it can mark the end
+		 * of the read queue.  If there are frames to be read,
+		 * ast_queue_control() will be called repeatedly, but will only
+		 * queue the first end-of-Q frame.
+		 */
+		if (chan->_softhangup) {
+			ast_queue_control(chan, AST_CONTROL_END_OF_Q);
 		} else {
 			goto done;
 		}
@@ -3743,12 +3773,21 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 		}
 
-		/* Interpret hangup and return NULL */
+		/* Interpret hangup and end-of-Q frames to return NULL */
 		/* XXX why not the same for frames from the channel ? */
-		if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
-			cause = f->data.uint32;
-			ast_frfree(f);
-			f = NULL;
+		if (f->frametype == AST_FRAME_CONTROL) {
+			switch (f->subclass.integer) {
+			case AST_CONTROL_HANGUP:
+				chan->_softhangup |= AST_SOFTHANGUP_DEV;
+				cause = f->data.uint32;
+				/* Fall through */
+			case AST_CONTROL_END_OF_Q:
+				ast_frfree(f);
+				f = NULL;
+				break;
+			default:
+				break;
+			}
 		}
 	} else {
 		chan->blocker = pthread_self();
@@ -4074,7 +4113,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		}
 	} else {
 		/* Make sure we always return NULL in the future */
-		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		if (!chan->_softhangup) {
+			chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		}
 		if (cause)
 			chan->hangupcause = cause;
 		if (chan->generator)
@@ -4148,6 +4189,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_CC:
 	case AST_CONTROL_READ_ACTION:
 	case AST_CONTROL_AOC:
+	case AST_CONTROL_END_OF_Q:
 		break;
 
 	case AST_CONTROL_CONGESTION:
@@ -4330,6 +4372,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_CC:
 	case AST_CONTROL_READ_ACTION:
 	case AST_CONTROL_AOC:
+	case AST_CONTROL_END_OF_Q:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
@@ -6749,11 +6792,13 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			/* No frame received within the specified timeout - check if we have to deliver now */
 			if (jb_in_use)
 				ast_jb_get_and_deliver(c0, c1);
-			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
-				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-					c0->_softhangup = 0;
-				if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-					c1->_softhangup = 0;
+			if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
+				if (c0->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+					c0->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+				}
+				if (c1->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+					c1->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+				}
 				c0->_bridge = c1;
 				c1->_bridge = c0;
 			}
@@ -7091,11 +7136,13 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_clear_flag(config, AST_FEATURE_WARNING_ACTIVE);
 		}
 
-		if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
-			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-				c0->_softhangup = 0;
-			if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-				c1->_softhangup = 0;
+		if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
+			if (c0->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+				c0->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+			}
+			if (c1->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
+				c1->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+			}
 			c0->_bridge = c1;
 			c1->_bridge = c0;
 			ast_debug(1, "Unbridge signal received. Ending native bridge.\n");
@@ -7149,8 +7196,9 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
 
-				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+				if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
 					continue;
+				}
 
 				c0->_bridge = NULL;
 				c1->_bridge = NULL;

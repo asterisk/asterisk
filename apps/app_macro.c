@@ -539,22 +539,20 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	}
 
 	if (!strcasecmp(chan->context, fullmacro)) {
+		const char *offsets;
+
   		/* If we're leaving the macro normally, restore original information */
 		chan->priority = oldpriority;
 		ast_copy_string(chan->context, oldcontext, sizeof(chan->context));
-		if (!(ast_check_hangup(chan) & AST_SOFTHANGUP_ASYNCGOTO)) {
-			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
-			const char *offsets;
-			ast_copy_string(chan->exten, oldexten, sizeof(chan->exten));
-			if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
-				/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
-			   	normally if there is any problem */
-				if (sscanf(offsets, "%30d", &offset) == 1) {
-					if (ast_exists_extension(chan, chan->context, chan->exten,
-						chan->priority + offset + 1,
-						S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
-						chan->priority += offset;
-					}
+		ast_copy_string(chan->exten, oldexten, sizeof(chan->exten));
+		if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
+			/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
+			normally if there is any problem */
+			if (sscanf(offsets, "%30d", &offset) == 1) {
+				if (ast_exists_extension(chan, chan->context, chan->exten,
+					chan->priority + offset + 1,
+					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+					chan->priority += offset;
 				}
 			}
 		}
