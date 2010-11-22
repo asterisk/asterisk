@@ -292,6 +292,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_VIDUPDATE = 18,	/*!< Indicate video frame update */
 	AST_CONTROL_SRCUPDATE = 20,     /*!< Indicate source of media has changed */
 	AST_CONTROL_SRCCHANGE = 21,     /*!< Media has changed and requires a new RTP SSRC */
+	AST_CONTROL_END_OF_Q = 22,		/*!< Indicate that this position was the end of the channel queue for a softhangup. */
 };
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
