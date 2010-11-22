@@ -332,6 +332,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_SRCCHANGE = 26,  /*!< Media source has changed and requires a new RTP SSRC */
 	AST_CONTROL_READ_ACTION = 27, /*!< Tell ast_read to take a specific action */
 	AST_CONTROL_AOC = 28,           /*!< Advice of Charge with encoded generic AOC payload */
+	AST_CONTROL_END_OF_Q = 29,		/*!< Indicate that this position was the end of the channel queue for a softhangup. */
 };
 
 enum ast_frame_read_action {

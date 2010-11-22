@@ -979,14 +979,42 @@ struct outgoing_helper {
 };
 
 enum {
-	/*! Soft hangup by device */
+	/*!
+	 * Soft hangup requested by device or other internal reason.
+	 * Actual hangup needed.
+	 */
 	AST_SOFTHANGUP_DEV =       (1 << 0),
-	/*! Soft hangup for async goto */
+	/*!
+	 * Used to break the normal frame flow so an async goto can be
+	 * done instead of actually hanging up.
+	 */
 	AST_SOFTHANGUP_ASYNCGOTO = (1 << 1),
+	/*!
+	 * Soft hangup requested by system shutdown.  Actual hangup
+	 * needed.
+	 */
 	AST_SOFTHANGUP_SHUTDOWN =  (1 << 2),
+	/*!
+	 * Used to break the normal frame flow after a timeout so an
+	 * implicit async goto can be done to the 'T' exten if it exists
+	 * instead of actually hanging up.  If the exten does not exist
+	 * then actually hangup.
+	 */
 	AST_SOFTHANGUP_TIMEOUT =   (1 << 3),
+	/*!
+	 * Soft hangup requested by application/channel-driver being
+	 * unloaded.  Actual hangup needed.
+	 */
 	AST_SOFTHANGUP_APPUNLOAD = (1 << 4),
+	/*!
+	 * Soft hangup requested by non-associated party.  Actual hangup
+	 * needed.
+	 */
 	AST_SOFTHANGUP_EXPLICIT =  (1 << 5),
+	/*!
+	 * Used to break a bridge so the channel can be spied upon
+	 * instead of actually hanging up.
+	 */
 	AST_SOFTHANGUP_UNBRIDGE =  (1 << 6),
 };
 
