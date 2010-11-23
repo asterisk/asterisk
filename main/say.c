@@ -2121,15 +2121,15 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 		} else if (playh) {
 			snprintf(fn, sizeof(fn), "digits/hundred");
 			playh = 0;
+		} else if (num == 1 && cn == -1) {	/* En eller ett? */
+			snprintf(fn, sizeof(fn), "digits/1N");
+			num = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
 		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num -= ((num / 10) * 10);
-		} else if (num == 1 && cn == -1) {	/* En eller ett? */
-		 	snprintf(fn, sizeof(fn), "digits/1N");
-			num = 0;
 		} else {
 			if (num < 1000){
 				snprintf(fn, sizeof(fn), "digits/%d", (num/100));
