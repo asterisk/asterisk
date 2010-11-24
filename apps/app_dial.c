@@ -839,7 +839,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		/* Turn off hold music, etc */
 		ast_deactivate_generator(in);
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */
-		ast_channel_make_compatible(outgoing->chan, in);
+		if (ast_channel_make_compatible(outgoing->chan, in) < 0) {
+			/* If these channels can not be made compatible, 
+			 * there is no point in continuing.  The bridge
+			 * will just fail if it gets that far.
+			 */
+			*to = -1;
+			strcpy(pa->status, "CONGESTION");
+			ast_cdr_failed(in->cdr);
+			return NULL;
+		}
 	}
 
 #ifdef HAVE_EPOLL
