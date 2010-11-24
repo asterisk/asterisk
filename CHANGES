@@ -198,6 +198,8 @@ Applications
    notices a change.
  * Voicemail now includes rdnis within msgXXXX.txt file.
  * Added 'D' command to ExternalIVR full details in doc/externalivr.txt
+ * Added 'v' option to MeetMe to play voicemail greetings when a user joins/leaves
+   a MeetMe conference
 
 Dialplan Functions
 ------------------

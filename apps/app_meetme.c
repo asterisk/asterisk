@@ -168,6 +168,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="T">
 						<para>Set talker detection (sent to manager interface and meetme list).</para>
 					</option>
+					<option name="v" hasparams="optional">
+						<para>Announce when a user is joining or leaving the conference.  Use the voicemail greeting as the announcement.
+						 If the i or I options are set, the application will fall back to them if no voicemail greeting can be found.</para>
+						<argument name="mailbox@[context]" required="true">
+							<para>The mailbox and voicemail context to play from.  If no context provided, assumed context is default.</para>
+						</argument>
+					</option>
 					<option name="w" hasparams="optional">
 						<para>Wait until the marked user enters the conference.</para>
 						<argument name="secs" required="true" />
@@ -608,6 +615,7 @@ enum {
 
 /* !If set play an intro announcement at start of conference */
 #define CONFFLAG_INTROMSG ((uint64_t)1 << 32)
+#define CONFFLAG_INTROUSER_VMREC ((uint64_t)1 << 33)
 
 enum {
 	OPT_ARG_WAITMARKED = 0,
@@ -616,7 +624,8 @@ enum {
 	OPT_ARG_DURATION_LIMIT = 3,
 	OPT_ARG_MOH_CLASS = 4,
 	OPT_ARG_INTROMSG = 5,
-	OPT_ARG_ARRAY_SIZE = 6,
+	OPT_ARG_INTROUSER_VMREC = 6,
+	OPT_ARG_ARRAY_SIZE = 7,
 };
 
 AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
@@ -631,6 +640,7 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
 	AST_APP_OPTION('F', CONFFLAG_PASS_DTMF ),
 	AST_APP_OPTION_ARG('G', CONFFLAG_INTROMSG, OPT_ARG_INTROMSG ),
+	AST_APP_OPTION_ARG('v', CONFFLAG_INTROUSER_VMREC , OPT_ARG_INTROUSER_VMREC),
 	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
 	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
 	AST_APP_OPTION_ARG('M', CONFFLAG_MOH, OPT_ARG_MOH_CLASS ),
@@ -687,6 +697,7 @@ struct announce_listitem {
 	char language[MAX_LANGUAGE];
 	struct ast_channel *confchan;
 	int confusers;
+	int vmrec;
 	enum announcetypes announcetype;
 };
 
@@ -1818,7 +1829,10 @@ static int conf_free(struct ast_conference *conf)
 		pthread_join(conf->announcethread, NULL);
 	
 		while ((item = AST_LIST_REMOVE_HEAD(&conf->announcelist, entry))) {
-			ast_filedelete(item->namerecloc, NULL);
+			/* If it's a voicemail greeting file we don't want to remove it */
+			if (!item->vmrec){
+				ast_filedelete(item->namerecloc, NULL);
+			}
 			ao2_ref(item, -1);
 		}
 		ast_mutex_destroy(&conf->announcelistlock);
@@ -2091,7 +2105,8 @@ static void *announce_thread(void *data)
 						ast_waitstream(current->confchan, "");
 				}
 			}
-			if (current->announcetype == CONF_HASLEFT) {
+			if (current->announcetype == CONF_HASLEFT && current->announcetype && !current->vmrec) {
+				/* only remove it if it isn't a VM recording file */
 				ast_filedelete(current->namerecloc, NULL);
 			}
 		}
@@ -2099,7 +2114,10 @@ static void *announce_thread(void *data)
 
 	/* thread marked to stop, clean up */
 	while ((current = AST_LIST_REMOVE_HEAD(&local_list, entry))) {
-		ast_filedelete(current->namerecloc, NULL);
+		/* only delete if it's a vm rec */
+		if (!current->vmrec) {
+			ast_filedelete(current->namerecloc, NULL);
+		}
 		ao2_ref(current, -1);
 	}
 	return NULL;
@@ -2233,6 +2251,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
  	int to;
 	int setusercount = 0;
 	int confsilence = 0, totalsilence = 0;
+	char *mailbox, *context;
 
 	if (!(user = ao2_alloc(sizeof(*user), NULL))) {
 		return ret;
@@ -2363,7 +2382,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 
 	ast_mutex_lock(&conf->announcethreadlock);
 	if ((conf->announcethread == AST_PTHREADT_NULL) && !ast_test_flag64(confflags, CONFFLAG_QUIET) &&
-		(ast_test_flag64(confflags, CONFFLAG_INTROUSER) || ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW))) {
+		ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW | CONFFLAG_INTROUSER_VMREC)) {
 		ast_mutex_init(&conf->announcelistlock);
 		AST_LIST_HEAD_INIT_NOLOCK(&conf->announcelist);
 		ast_pthread_create_background(&conf->announcethread, NULL, announce_thread, conf);
@@ -2425,8 +2444,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 
 	ast_mutex_unlock(&conf->playlock);
 
-	if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && (ast_test_flag64(confflags, CONFFLAG_INTROUSER) ||
-		ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW))) {
+	if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && (ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW | CONFFLAG_INTROUSER_VMREC))) {
 		char destdir[PATH_MAX];
 
 		snprintf(destdir, sizeof(destdir), "%s/meetme", ast_config_AST_SPOOL_DIR);
@@ -2436,15 +2454,44 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			goto outrun;
 		}
 
-		snprintf(user->namerecloc, sizeof(user->namerecloc),
-			 "%s/meetme-username-%s-%d", destdir,
-			 conf->confno, user->user_no);
-		if (ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW))
+		if (ast_test_flag64(confflags, CONFFLAG_INTROUSER_VMREC)){
+			context = ast_strdupa(optargs[OPT_ARG_INTROUSER_VMREC]);
+			mailbox = strsep(&context, "@");
+
+			if (ast_strlen_zero(mailbox)) {
+				/* invalid input, clear the v flag*/
+				ast_clear_flag64(confflags,CONFFLAG_INTROUSER_VMREC);
+				ast_log(LOG_WARNING,"You must specify a mailbox in the v() option\n");
+			} else {
+				if (ast_strlen_zero(context)) {
+				    context = "default";
+				}
+				/* if there is no mailbox we don't need to do this logic  */
+				snprintf(user->namerecloc, sizeof(user->namerecloc),
+					 "%s/voicemail/%s/%s/greet",ast_config_AST_SPOOL_DIR,context,mailbox);
+
+				/* if the greeting doesn't exist then use the temp file method instead, clear flag v */
+				if (!ast_fileexists(user->namerecloc, NULL, NULL)){
+					snprintf(user->namerecloc, sizeof(user->namerecloc),
+						 "%s/meetme-username-%s-%d", destdir,
+						 conf->confno, user->user_no);
+					ast_clear_flag64(confflags, CONFFLAG_INTROUSER_VMREC);
+				}
+			}
+		} else {
+			snprintf(user->namerecloc, sizeof(user->namerecloc),
+				 "%s/meetme-username-%s-%d", destdir,
+				 conf->confno, user->user_no);
+		}
+
+		res = 0;
+		if (ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW) && !ast_fileexists(user->namerecloc, NULL, NULL))
 			res = ast_play_and_record(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL);
-		else
+		else if (ast_test_flag64(confflags, CONFFLAG_INTROUSER) && !ast_fileexists(user->namerecloc, NULL, NULL))
 			res = ast_record_review(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL);
 		if (res == -1)
 			goto outrun;
+
 	}
 
 	ast_mutex_lock(&conf->playlock);
@@ -2621,7 +2668,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	dahdic.confno = conf->dahdiconf;
 
 	if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && (ast_test_flag64(confflags, CONFFLAG_INTROUSER) ||
-		ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW)) && conf->users > 1) {
+			ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW) || ast_test_flag64(confflags, CONFFLAG_INTROUSER_VMREC)) && conf->users > 1) {
 		struct announce_listitem *item;
 		if (!(item = ao2_alloc(sizeof(*item), NULL)))
 			return -1;
@@ -2629,6 +2676,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		ast_copy_string(item->language, chan->language, sizeof(item->language));
 		item->confchan = conf->chan;
 		item->confusers = conf->users;
+		if (ast_test_flag64(confflags, CONFFLAG_INTROUSER_VMREC)){
+			item->vmrec = 1;
+		}
 		item->announcetype = CONF_HASJOIN;
 		ast_mutex_lock(&conf->announcelistlock);
 		ao2_ref(item, +1); /* add one more so we can determine when announce_thread is done playing it */
@@ -3670,7 +3720,7 @@ bailoutandtrynormal:
 		conf_play(chan, conf, LEAVE);
 	}
 
-	if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && (ast_test_flag64(confflags, CONFFLAG_INTROUSER) || ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW)) && conf->users > 1) {
+	if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && ast_test_flag64(confflags, CONFFLAG_INTROUSER |CONFFLAG_INTROUSERNOREVIEW | CONFFLAG_INTROUSER_VMREC) && conf->users > 1) {
 		struct announce_listitem *item;
 		if (!(item = ao2_alloc(sizeof(*item), NULL)))
 			return -1;
@@ -3679,12 +3729,14 @@ bailoutandtrynormal:
 		item->confchan = conf->chan;
 		item->confusers = conf->users;
 		item->announcetype = CONF_HASLEFT;
+		if (ast_test_flag64(confflags, CONFFLAG_INTROUSER_VMREC)){
+			item->vmrec = 1;
+		}
 		ast_mutex_lock(&conf->announcelistlock);
 		AST_LIST_INSERT_TAIL(&conf->announcelist, item, entry);
 		ast_cond_signal(&conf->announcelist_addition);
 		ast_mutex_unlock(&conf->announcelistlock);
-	} else if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && (ast_test_flag64(confflags, CONFFLAG_INTROUSER) ||
-		ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW)) && conf->users == 1) {
+	} else if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW) && !ast_test_flag64(confflags, CONFFLAG_INTROUSER_VMREC) && conf->users == 1) {
 		/* Last person is leaving, so no reason to try and announce, but should delete the name recording */
 		ast_filedelete(user->namerecloc, NULL);
 	}
@@ -3925,9 +3977,9 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 	if (cnf) {
 		if (confflags->flags && !cnf->chan &&
 		    !ast_test_flag64(confflags, CONFFLAG_QUIET) &&
-		    ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW)) {
+		    ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW) | CONFFLAG_INTROUSER_VMREC) {
 			ast_log(LOG_WARNING, "No DAHDI channel available for conference, user introduction disabled (is chan_dahdi loaded?)\n");
-			ast_clear_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW);
+			ast_clear_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW | CONFFLAG_INTROUSER_VMREC);
 		}
 
 		if (confflags && !cnf->chan &&
@@ -4029,9 +4081,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	if (cnf) {
 		if (confflags && !cnf->chan &&
 		    !ast_test_flag64(confflags, CONFFLAG_QUIET) &&
-		    ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW)) {
+		    ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW  | CONFFLAG_INTROUSER_VMREC)) {
 			ast_log(LOG_WARNING, "No DAHDI channel available for conference, user introduction disabled (is chan_dahdi loaded?)\n");
-			ast_clear_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW);
+			ast_clear_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW | CONFFLAG_INTROUSER_VMREC);
 		}
 		
 		if (confflags && !cnf->chan &&
