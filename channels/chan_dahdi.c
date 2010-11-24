@@ -399,11 +399,12 @@ static inline int dahdi_wait_event(int fd)
 #define MASK_AVAIL		(1 << 0)	/*!< Channel available for PRI use */
 #define MASK_INUSE		(1 << 1)	/*!< Channel currently in use */
 
-#define CALLWAITING_SILENT_SAMPLES	( (300 * 8) / READ_SIZE) /*!< 300 ms */
-#define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /*!< 10,000 ms */
-#define CIDCW_EXPIRE_SAMPLES		( (500 * 8) / READ_SIZE) /*!< 500 ms */
-#define MIN_MS_SINCE_FLASH			( (2000) )	/*!< 2000 ms */
-#define DEFAULT_RINGT 				( (8000 * 8) / READ_SIZE) /*!< 8,000 ms */
+#define CALLWAITING_SILENT_SAMPLES		((300 * 8) / READ_SIZE) /*!< 300 ms */
+#define CALLWAITING_REPEAT_SAMPLES		((10000 * 8) / READ_SIZE) /*!< 10,000 ms */
+#define CALLWAITING_SUPPRESS_SAMPLES	((100 * 8) / READ_SIZE) /*!< 100 ms */
+#define CIDCW_EXPIRE_SAMPLES			((500 * 8) / READ_SIZE) /*!< 500 ms */
+#define MIN_MS_SINCE_FLASH				((2000) )	/*!< 2000 ms */
+#define DEFAULT_RINGT 					((8000 * 8) / READ_SIZE) /*!< 8,000 ms */
 
 struct dahdi_pvt;
 
@@ -1047,7 +1048,8 @@ static struct dahdi_pvt {
 	int cid_start;					/*!< CID start indicator, polarity or ring */
 	int callingpres;				/*!< The value of calling presentation that we're going to use when placing a PRI call */
 	int callwaitingrepeat;				/*!< How many samples to wait before repeating call waiting */
-	int cidcwexpire;				/*!< When to expire our muting for CID/CW */
+	int cidcwexpire;				/*!< When to stop waiting for CID/CW CAS response (In samples) */
+	int cid_suppress_expire;		/*!< How many samples to suppress after a CID spill. */
 	/*! \brief Analog caller ID waveform sample buffer */
 	unsigned char *cidspill;
 	/*! \brief Position in the cidspill buffer to send out next. */
@@ -1068,7 +1070,12 @@ static struct dahdi_pvt {
 	 * characters are processed.
 	 */
 	int stripmsd;
-	/*! \brief BOOLEAN. XXX Meaning what?? */
+	/*!
+	 * \brief TRUE if Call Waiting (CW) CPE Alert Signal (CAS) is being sent.
+	 * \note
+	 * After CAS is sent, the call waiting caller id will be sent if the phone
+	 * gives a positive reply.
+	 */
 	int callwaitcas;
 	/*! \brief Number of call waiting rings. */
 	int callwaitrings;
@@ -3007,8 +3014,8 @@ static int restore_conference(struct dahdi_pvt *p)
 			ast_log(LOG_WARNING, "Unable to restore conference info: %s\n", strerror(errno));
 			return -1;
 		}
+		ast_debug(1, "Restored conferencing\n");
 	}
-	ast_debug(1, "Restored conferencing\n");
 	return 0;
 }
 
@@ -3018,6 +3025,7 @@ static int send_cwcidspill(struct dahdi_pvt *p)
 {
 	p->callwaitcas = 0;
 	p->cidcwexpire = 0;
+	p->cid_suppress_expire = 0;
 	if (!(p->cidspill = ast_malloc(MAX_CALLERID_SIZE)))
 		return -1;
 	p->cidlen = ast_callerid_callwaiting_generate(p->cidspill, p->callwait_name, p->callwait_num, AST_LAW(p));
@@ -3077,11 +3085,13 @@ static int send_callerid(struct dahdi_pvt *p)
 			return 0;
 		p->cidpos += res;
 	}
+	p->cid_suppress_expire = CALLWAITING_SUPPRESS_SAMPLES;
 	ast_free(p->cidspill);
 	p->cidspill = NULL;
 	if (p->callwaitcas) {
 		/* Wait for CID/CW to expire */
 		p->cidcwexpire = CIDCW_EXPIRE_SAMPLES;
+		p->cid_suppress_expire = p->cidcwexpire;
 	} else
 		restore_conference(p);
 	return 0;
@@ -3095,6 +3105,11 @@ static int dahdi_callwait(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Spill already exists?!?\n");
 		ast_free(p->cidspill);
 	}
+
+	/*
+	 * SAS: Subscriber Alert Signal, 440Hz for 300ms
+	 * CAS: CPE Alert Signal, 2130Hz * 2750Hz sine waves
+	 */
 	if (!(p->cidspill = ast_malloc(2400 /* SAS */ + 680 /* CAS */ + READ_SIZE * 4)))
 		return -1;
 	save_conference(p);
@@ -3901,6 +3916,8 @@ static void destroy_dahdi_pvt(struct dahdi_pvt **pvt)
 		p->prev->next = p->next;
 	if (p->next)
 		p->next->prev = p->prev;
+
+	ast_free(p->cidspill);
 	if (p->use_smdi)
 		ast_smdi_interface_unref(p->smdi_iface);
 	if (p->mwi_event_sub)
@@ -3979,15 +3996,11 @@ static void destroy_all_channels(void)
 	/* Destroy all the interfaces and free their memory */
 	p = iflist;
 	while (p) {
-		/* Free any callerid */
-		if (p->cidspill)
-			ast_free(p->cidspill);
 		pl = p;
 		p = p->next;
 		x = pl->channel;
 		/* Free associated memory */
-		if (pl)
-			destroy_dahdi_pvt(&pl);
+		destroy_dahdi_pvt(&pl);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_2 "Unregistered channel %d\n", x);
 	}
@@ -4725,15 +4738,14 @@ static int dahdi_hangup(struct ast_channel *ast)
 		default:
 			tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
 		}
-		if (p->cidspill)
-			ast_free(p->cidspill);
+		ast_free(p->cidspill);
+		p->cidspill = NULL;
 		if (p->sig)
 			dahdi_disable_ec(p);
 		x = 0;
 		ast_channel_setoption(ast,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		ast_channel_setoption(ast,AST_OPTION_TDD,&x,sizeof(char),0);
 		p->didtdd = 0;
-		p->cidspill = NULL;
 		p->callwaitcas = 0;
 		p->callwaiting = p->permcallwaiting;
 		p->hidecallerid = p->permhidecallerid;
@@ -4767,6 +4779,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 
 	p->callwaitingrepeat = 0;
 	p->cidcwexpire = 0;
+	p->cid_suppress_expire = 0;
 	p->oprmode = 0;
 	ast->tech_pvt = NULL;
 	ast_mutex_unlock(&p->lock);
@@ -5371,6 +5384,24 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 		return AST_BRIDGE_RETRY;
 	}
 
+	if ((p0->callwaiting && p0->callwaitingcallerid)
+		|| (p1->callwaiting && p1->callwaitingcallerid)) {
+		/*
+		 * Call Waiting Caller ID requires DTMF detection to know if it
+		 * can send the CID spill.
+		 *
+		 * For now, don't attempt to native bridge if either channel
+		 * needs DTMF detection.  There is code below to handle it
+		 * properly until DTMF is actually seen, but due to currently
+		 * unresolved issues it's ignored...
+		 */
+		ast_mutex_unlock(&p0->lock);
+		ast_mutex_unlock(&p1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
+		return AST_BRIDGE_FAILED_NOWARN;
+	}
+
 	if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
 		if (p0->owner && p1->owner) {
 			/* If we don't have a call-wait in a 3-way, and we aren't in a 3-way, we can be master */
@@ -5785,81 +5816,92 @@ static int get_alarms(struct dahdi_pvt *p)
 	return DAHDI_ALARM_NONE;
 }
 
-static void dahdi_handle_dtmfup(struct ast_channel *ast, int idx, struct ast_frame **dest)
+static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame **dest)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
 	struct ast_frame *f = *dest;
 
-	ast_debug(1, "DTMF digit: %c on %s\n", f->subclass, ast->name);
+	ast_debug(1, "%s DTMF digit: 0x%02X '%c' on %s\n",
+		f->frametype == AST_FRAME_DTMF_BEGIN ? "Begin" : "End",
+		f->subclass, f->subclass, ast->name);
 
 	if (p->confirmanswer) {
-		ast_debug(1, "Confirm answer on %s!\n", ast->name);
-		/* Upon receiving a DTMF digit, consider this an answer confirmation instead
-		   of a DTMF digit */
-		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
-		p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
-		*dest = &p->subs[idx].f;
-		/* Reset confirmanswer so DTMF's will behave properly for the duration of the call */
-		p->confirmanswer = 0;
-	} else if (p->callwaitcas) {
-		if ((f->subclass == 'A') || (f->subclass == 'D')) {
-			ast_debug(1, "Got some DTMF, but it's for the CAS\n");
-			if (p->cidspill)
-				ast_free(p->cidspill);
-			send_cwcidspill(p);
+		if (f->frametype == AST_FRAME_DTMF_END) {
+			ast_debug(1, "Confirm answer on %s!\n", ast->name);
+			/* Upon receiving a DTMF digit, consider this an answer confirmation instead
+			   of a DTMF digit */
+			p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+			p->subs[idx].f.subclass = AST_CONTROL_ANSWER;
+			/* Reset confirmanswer so DTMF's will behave properly for the duration of the call */
+			p->confirmanswer = 0;
+		} else {
+			p->subs[idx].f.frametype = AST_FRAME_NULL;
+			p->subs[idx].f.subclass = 0;
 		}
-		p->callwaitcas = 0;
+		*dest = &p->subs[idx].f;
+	} else if (p->callwaitcas) {
+		if (f->frametype == AST_FRAME_DTMF_END) {
+			if ((f->subclass == 'A') || (f->subclass == 'D')) {
+				ast_debug(1, "Got some DTMF, but it's for the CAS\n");
+				ast_free(p->cidspill);
+				p->cidspill = NULL;
+				send_cwcidspill(p);
+			}
+			p->callwaitcas = 0;
+		}
 		p->subs[idx].f.frametype = AST_FRAME_NULL;
 		p->subs[idx].f.subclass = 0;
 		*dest = &p->subs[idx].f;
 	} else if (f->subclass == 'f') {
-		/* Fax tone -- Handle and return NULL */
-		if ((p->callprogress & CALLPROGRESS_FAX) && !p->faxhandled) {
-			/* If faxbuffers are configured, use them for the fax transmission */
-			if (p->usefaxbuffers && !p->bufferoverrideinuse) {
-				struct dahdi_bufferinfo bi = {
-					.txbufpolicy = p->faxbuf_policy,
-					.bufsize = p->bufsize,
-					.numbufs = p->faxbuf_no
-				};
-				int res;
+		if (f->frametype == AST_FRAME_DTMF_END) {
+			/* Fax tone -- Handle and return NULL */
+			if ((p->callprogress & CALLPROGRESS_FAX) && !p->faxhandled) {
+				/* If faxbuffers are configured, use them for the fax transmission */
+				if (p->usefaxbuffers && !p->bufferoverrideinuse) {
+					struct dahdi_bufferinfo bi = {
+						.txbufpolicy = p->faxbuf_policy,
+						.bufsize = p->bufsize,
+						.numbufs = p->faxbuf_no
+					};
+					int res;
 
-				if ((res = ioctl(p->subs[idx].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
-					ast_log(LOG_WARNING, "Channel '%s' unable to set faxbuffer policy, reason: %s\n", ast->name, strerror(errno));
-				} else {
-					p->bufferoverrideinuse = 1;
+					if ((res = ioctl(p->subs[idx].dfd, DAHDI_SET_BUFINFO, &bi)) < 0) {
+						ast_log(LOG_WARNING, "Channel '%s' unable to set faxbuffer policy, reason: %s\n", ast->name, strerror(errno));
+					} else {
+						p->bufferoverrideinuse = 1;
+					}
 				}
-			}
-			p->faxhandled = 1;
-			if (strcmp(ast->exten, "fax")) {
-				const char *target_context = S_OR(ast->macrocontext, ast->context);
+				p->faxhandled = 1;
+				if (strcmp(ast->exten, "fax")) {
+					const char *target_context = S_OR(ast->macrocontext, ast->context);
 
-				/* We need to unlock 'ast' here because ast_exists_extension has the
-				 * potential to start autoservice on the channel. Such action is prone
-				 * to deadlock.
-				 */
-				ast_mutex_unlock(&p->lock);
-				ast_channel_unlock(ast);
-				if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
-					ast_channel_lock(ast);
-					ast_mutex_lock(&p->lock);
-					ast_verb(3, "Redirecting %s to fax extension\n", ast->name);
-					/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-					pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
-					if (ast_async_goto(ast, target_context, "fax", 1))
-						ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
+					/* We need to unlock 'ast' here because ast_exists_extension has the
+					 * potential to start autoservice on the channel. Such action is prone
+					 * to deadlock.
+					 */
+					ast_mutex_unlock(&p->lock);
+					ast_channel_unlock(ast);
+					if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
+						ast_channel_lock(ast);
+						ast_mutex_lock(&p->lock);
+						ast_verb(3, "Redirecting %s to fax extension\n", ast->name);
+						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
+						if (ast_async_goto(ast, target_context, "fax", 1))
+							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
+					} else {
+						ast_channel_lock(ast);
+						ast_mutex_lock(&p->lock);
+						ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
+					}
 				} else {
-					ast_channel_lock(ast);
-					ast_mutex_lock(&p->lock);
-					ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
+					ast_debug(1, "Already in a fax extension, not redirecting\n");
 				}
 			} else {
-				ast_debug(1, "Already in a fax extension, not redirecting\n");
+				ast_debug(1, "Fax already handled\n");
 			}
-		} else {
-			ast_debug(1, "Fax already handled\n");
+			dahdi_confmute(p, 0);
 		}
-		dahdi_confmute(p, 0);
 		p->subs[idx].f.frametype = AST_FRAME_NULL;
 		p->subs[idx].f.subclass = 0;
 		*dest = &p->subs[idx].f;
@@ -5920,27 +5962,35 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 	if (res & (DAHDI_EVENT_PULSEDIGIT | DAHDI_EVENT_DTMFUP)) {
 		p->pulsedial = (res & DAHDI_EVENT_PULSEDIGIT) ? 1 : 0;
 		ast_debug(1, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 		if (!p->proceeding && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) && p->pri && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
-		} else {
-#endif
+		} else
+#endif	/* defined(HAVE_PRI) */
+		{
+			/* Unmute conference */
 			dahdi_confmute(p, 0);
 			p->subs[idx].f.frametype = AST_FRAME_DTMF_END;
 			p->subs[idx].f.subclass = res & 0xff;
-#ifdef HAVE_PRI
+			dahdi_handle_dtmf(ast, idx, &f);
 		}
-#endif
-		dahdi_handle_dtmfup(ast, idx, &f);
 		return f;
 	}
 
 	if (res & DAHDI_EVENT_DTMFDOWN) {
 		ast_debug(1, "DTMF Down '%c'\n", res & 0xff);
-		/* Mute conference */
-		dahdi_confmute(p, 1);
-		p->subs[idx].f.frametype = AST_FRAME_DTMF_BEGIN;
-		p->subs[idx].f.subclass = res & 0xff;
+#if defined(HAVE_PRI)
+		if (!p->proceeding && ((p->sig == SIG_PRI) || (p->sig == SIG_BRI) || (p->sig == SIG_BRI_PTMP)) && p->pri && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
+			/* absorb event */
+		} else
+#endif	/* defined(HAVE_PRI) */
+		{
+			/* Mute conference */
+			dahdi_confmute(p, 1);
+			p->subs[idx].f.frametype = AST_FRAME_DTMF_BEGIN;
+			p->subs[idx].f.subclass = res & 0xff;
+			dahdi_handle_dtmf(ast, idx, &f);
+		}
 		return &p->subs[idx].f;
 	}
 
@@ -6122,6 +6172,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 #endif
 						p->callwaitingrepeat = 0;
 						p->cidcwexpire = 0;
+						p->cid_suppress_expire = 0;
 						p->owner = NULL;
 						/* Don't start streaming audio yet if the incoming call isn't up yet */
 						if (p->subs[SUB_REAL].owner->_state != AST_STATE_UP)
@@ -6266,11 +6317,12 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					p->subs[SUB_REAL].needringing = 0;
 					dahdi_set_hook(p->subs[idx].dfd, DAHDI_OFFHOOK);
 					ast_debug(1, "channel %d answered\n", p->channel);
-					if (p->cidspill) {
-						/* Cancel any running CallerID spill */
-						ast_free(p->cidspill);
-						p->cidspill = NULL;
-					}
+
+					/* Cancel any running CallerID spill */
+					ast_free(p->cidspill);
+					p->cidspill = NULL;
+					restore_conference(p);
+
 					p->dialing = 0;
 					p->callwaitcas = 0;
 					if (p->confirmanswer) {
@@ -6441,6 +6493,11 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			case SIG_FXOKS:
 				ast_debug(1, "Winkflash, index: %d, normal: %d, callwait: %d, thirdcall: %d\n",
 					idx, p->subs[SUB_REAL].dfd, p->subs[SUB_CALLWAIT].dfd, p->subs[SUB_THREEWAY].dfd);
+
+				/* Cancel any running CallerID spill */
+				ast_free(p->cidspill);
+				p->cidspill = NULL;
+				restore_conference(p);
 				p->callwaitcas = 0;
 
 				if (idx != SUB_REAL) {
@@ -6471,6 +6528,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					}
 					p->callwaitingrepeat = 0;
 					p->cidcwexpire = 0;
+					p->cid_suppress_expire = 0;
 
 					/* Start music on hold if appropriate */
 					if (!p->subs[SUB_CALLWAIT].inthreeway && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner)) {
@@ -6866,6 +6924,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 				dahdi_ring_phone(p);
 				p->callwaitingrepeat = 0;
 				p->cidcwexpire = 0;
+				p->cid_suppress_expire = 0;
 			} else {
 				ast_log(LOG_WARNING, "Absorbed %s, but nobody is left!?!?\n",
 					event2str(res));
@@ -6896,6 +6955,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 				}
 				p->callwaitingrepeat = 0;
 				p->cidcwexpire = 0;
+				p->cid_suppress_expire = 0;
 				if (ast_bridged_channel(p->owner))
 					ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 				p->subs[SUB_REAL].needunhold = 1;
@@ -7158,21 +7218,25 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 			return &p->subs[idx].f;
 		}
 	}
-	/* Ensure the CW timer decrements only on a single subchannel */
-	if (p->callwaitingrepeat && dahdi_get_index(ast, p, 1) == SUB_REAL) {
-		p->callwaitingrepeat--;
-	}
-	if (p->cidcwexpire)
-		p->cidcwexpire--;
-	/* Repeat callwaiting */
-	if (p->callwaitingrepeat == 1) {
-		p->callwaitrings++;
-		dahdi_callwait(ast);
-	}
-	/* Expire CID/CW */
-	if (p->cidcwexpire == 1) {
-		ast_verb(3, "CPE does not support Call Waiting Caller*ID.\n");
-		restore_conference(p);
+	if (idx == SUB_REAL) {
+		/* Ensure the CW timers decrement only on a single subchannel */
+		if (p->cidcwexpire) {
+			if (!--p->cidcwexpire) {
+				/* Expired CID/CW */
+				ast_verb(3, "CPE does not support Call Waiting Caller*ID.\n");
+				restore_conference(p);
+			}
+		}
+		if (p->cid_suppress_expire) {
+			--p->cid_suppress_expire;
+		}
+		if (p->callwaitingrepeat) {
+			if (!--p->callwaitingrepeat) {
+				/* Expired, Repeat callwaiting tone */
+				++p->callwaitrings;
+				dahdi_callwait(ast);
+			}
+		}
 	}
 	if (p->subs[idx].linear) {
 		p->subs[idx].f.datalen = READ_SIZE * 2;
@@ -7274,8 +7338,28 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	} else
 		f = &p->subs[idx].f;
 
-	if (f && (f->frametype == AST_FRAME_DTMF))
-		dahdi_handle_dtmfup(ast, idx, &f);
+	if (f) {
+		switch (f->frametype) {
+		case AST_FRAME_DTMF_BEGIN:
+		case AST_FRAME_DTMF_END:
+			dahdi_handle_dtmf(ast, idx, &f);
+			break;
+		case AST_FRAME_VOICE:
+			if (p->cidspill || p->cid_suppress_expire) {
+				/* We are/were sending a caller id spill.  Suppress any echo. */
+				p->subs[idx].f.frametype = AST_FRAME_NULL;
+				p->subs[idx].f.subclass = 0;
+				p->subs[idx].f.samples = 0;
+				p->subs[idx].f.mallocd = 0;
+				p->subs[idx].f.offset = 0;
+				p->subs[idx].f.data.ptr = NULL;
+				p->subs[idx].f.datalen= 0;
+			}
+			break;
+		default:
+			break;
+		}
+	}
 
 	/* If we have a fake_event, trigger exception to handle it */
 	if (p->fake_event)
@@ -7355,7 +7439,8 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 	}
 	if (p->cidspill) {
-		ast_debug(1, "Dropping frame since I've still got a callerid spill\n");
+		ast_debug(1, "Dropping frame since I've still got a callerid spill on %s...\n",
+			ast->name);
 		return 0;
 	}
 	/* Return if it's not valid data */
@@ -9457,11 +9542,9 @@ static int mwi_send_process_event(struct dahdi_pvt * pvt, int event)
 				handled = 1;
 
 				if (dahdi_set_hook(pvt->subs[SUB_REAL].dfd, DAHDI_RINGOFF) ) {
-					ast_log(LOG_WARNING, "Unable to finsh RP-AS: %s mwi send aborted\n", strerror(errno));
-					if(pvt->cidspill) {
-						ast_free(pvt->cidspill);
-						pvt->cidspill = NULL;
-					}
+					ast_log(LOG_WARNING, "Unable to finish RP-AS: %s mwi send aborted\n", strerror(errno));
+					ast_free(pvt->cidspill);
+					pvt->cidspill = NULL;
 					pvt->mwisend_data.mwisend_current = MWI_SEND_DONE;
 					pvt->mwisendactive = 0;
 				} else {
@@ -9537,11 +9620,12 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 			i->fxsoffhookstate = 1;
 			if (res && (errno == EBUSY))
 				break;
-			if (i->cidspill) {
-				/* Cancel VMWI spill */
-				ast_free(i->cidspill);
-				i->cidspill = NULL;
-			}
+
+			/* Cancel VMWI spill */
+			ast_free(i->cidspill);
+			i->cidspill = NULL;
+			restore_conference(i);
+
 			if (i->immediate) {
 				dahdi_enable_ec(i);
 				/* The channel is immediately up.  Start right away */
