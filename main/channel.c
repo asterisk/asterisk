@@ -4381,9 +4381,8 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	if (ts) {
 		/* We have a tone to play, yay. */
 		ast_debug(1, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
-		ast_playtones_start(chan, 0, ts->data, 1);
+		res = ast_playtones_start(chan, 0, ts->data, 1);
 		ts = ast_tone_zone_sound_unref(ts);
-		res = 0;
 	}
 
 	if (res) {
@@ -5001,10 +5000,11 @@ static int set_format(struct ast_channel *chan, format_t fmt, format_t *rawforma
 	else
 		/* writing */
 		*trans = ast_translator_build_path(*rawformat, *format);
+	res = *trans ? 0 : -1;
 	ast_channel_unlock(chan);
 	ast_debug(1, "Set channel %s to %s format %s\n", chan->name,
 		direction ? "write" : "read", ast_getformatname(fmt));
-	return 0;
+	return res;
 }
 
 int ast_set_read_format(struct ast_channel *chan, format_t fmt)
