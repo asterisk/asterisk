@@ -2827,8 +2827,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		if (option_debug) {
 				ast_log(LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
 		}
-		ast_playtones_start(chan, 0, ts->data, 1);
-		res = 0;
+		res = ast_playtones_start(chan, 0, ts->data, 1);
 		chan->visible_indication = condition;
 	}
 
@@ -3410,11 +3409,12 @@ static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *fo
 	else
 		/* writing */
 		*trans = ast_translator_build_path(*rawformat, *format);
+	res = *trans ? 0 : -1;
 	ast_channel_unlock(chan);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to %s format %s\n", chan->name,
 			direction ? "write" : "read", ast_getformatname(fmt));
-	return 0;
+	return res;
 }
 
 int ast_set_read_format(struct ast_channel *chan, int fmt)
