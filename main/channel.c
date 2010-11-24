@@ -4994,13 +4994,23 @@ static int set_format(struct ast_channel *chan, format_t fmt, format_t *rawforma
 	if (*trans)
 		ast_translator_free_path(*trans);
 	/* Build a translation path from the raw format to the desired format */
-	if (!direction)
-		/* reading */
-		*trans = ast_translator_build_path(*format, *rawformat);
-	else
-		/* writing */
-		*trans = ast_translator_build_path(*rawformat, *format);
-	res = *trans ? 0 : -1;
+	if (*format == *rawformat) {
+		/*
+		 * If we were able to swap the native format to the format that
+		 * has been requested, then there is no need to try to build
+		 * a translation path.
+		 */
+		res = 0;
+	} else {
+		if (!direction) {
+			/* reading */
+			*trans = ast_translator_build_path(*format, *rawformat);
+		} else {
+			/* writing */
+			*trans = ast_translator_build_path(*rawformat, *format);
+		}
+		res = *trans ? 0 : -1;
+	}
 	ast_channel_unlock(chan);
 	ast_debug(1, "Set channel %s to %s format %s\n", chan->name,
 		direction ? "write" : "read", ast_getformatname(fmt));
