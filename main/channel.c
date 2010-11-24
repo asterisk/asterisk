@@ -4991,8 +4991,10 @@ static int set_format(struct ast_channel *chan, format_t fmt, format_t *rawforma
 	/* User perspective is fmt */
 	*format = fmt;
 	/* Free any read translation we have right now */
-	if (*trans)
+	if (*trans) {
 		ast_translator_free_path(*trans);
+		*trans = NULL;
+	}
 	/* Build a translation path from the raw format to the desired format */
 	if (*format == *rawformat) {
 		/*
