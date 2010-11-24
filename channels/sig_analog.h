@@ -134,10 +134,10 @@ struct analog_callback {
 	/* Do deadlock avoidance for the private signaling structure lock.  */
 	void (* const deadlock_avoidance_private)(void *pvt);
 
-	/* Function which is called back to handle any other DTMF up events that are received.  Called by analog_handle_event.  Why is this
+	/* Function which is called back to handle any other DTMF events that are received.  Called by analog_handle_event.  Why is this
 	 * important to use, instead of just directly using events received before they are passed into the library?  Because sometimes,
 	 * (CWCID) the library absorbs DTMF events received. */
-	void (* const handle_dtmfup)(void *pvt, struct ast_channel *ast, enum analog_sub analog_index, struct ast_frame **dest);
+	void (* const handle_dtmf)(void *pvt, struct ast_channel *ast, enum analog_sub analog_index, struct ast_frame **dest);
 
 	int (* const get_event)(void *pvt);
 	int (* const wait_event)(void *pvt);
@@ -228,6 +228,7 @@ struct analog_callback {
 	int (* const check_waitingfordt)(void *pvt);
 	void (* const set_confirmanswer)(void *pvt, int flag);
 	int (* const check_confirmanswer)(void *pvt);
+	void (* const set_callwaiting)(void *pvt, int callwaiting_enable);
 	void (* const cancel_cidspill)(void *pvt);
 	int (* const confmute)(void *pvt, int mute);	
 	void (* const set_pulsedial)(void *pvt, int flag);
@@ -271,14 +272,14 @@ struct analog_pvt {
 	unsigned int dahditrcallerid:1;			/*!< should we use the callerid from incoming call on dahdi transfer or not */
 	unsigned int hanguponpolarityswitch:1;
 	unsigned int immediate:1;
-	unsigned int permcallwaiting:1;
+	unsigned int permcallwaiting:1;			/*!< TRUE if call waiting is enabled. (Configured option) */
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
 	unsigned int pulse:1;
 	unsigned int threewaycalling:1;
 	unsigned int transfer:1;
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
-	unsigned int callwaitingcallerid:1;
+	unsigned int callwaitingcallerid:1;		/*!< TRUE if send caller ID for Call Waiting */
 	/*!
 	 * \brief TRUE if SMDI (Simplified Message Desk Interface) is enabled
 	 */
@@ -289,6 +290,7 @@ struct analog_pvt {
 
 	/* Not used for anything but log messages.  Could be just the TCID */
 	int channel;					/*!< Channel Number */
+
 	enum analog_sigtype outsigmod;
 	int echotraining;
 	int cid_signalling;				/*!< Asterisk callerid type we're using */
@@ -301,13 +303,21 @@ struct analog_pvt {
 
 
 	/* XXX: All variables after this are internal */
-	unsigned int callwaiting:1;
+	unsigned int callwaiting:1;		/*!< TRUE if call waiting is enabled. (Active option) */
 	unsigned int dialednone:1;
 	unsigned int dialing:1;			/*!< TRUE if in the process of dialing digits or sending something */
 	unsigned int dnd:1;				/*!< TRUE if Do-Not-Disturb is enabled. */
 	unsigned int echobreak:1;
 	unsigned int hidecallerid:1;
 	unsigned int outgoing:1;
+	unsigned int inalarm:1;
+	/*!
+	 * \brief TRUE if Call Waiting (CW) CPE Alert Signal (CAS) is being sent.
+	 * \note
+	 * After CAS is sent, the call waiting caller id will be sent if the phone
+	 * gives a positive reply.
+	 */
+	unsigned int callwaitcas:1;
 
 	char callwait_num[AST_MAX_EXTENSION];
 	char callwait_name[AST_MAX_EXTENSION];
@@ -331,10 +341,6 @@ struct analog_pvt {
 	struct ast_channel *ss_astchan;
 
 	/* All variables after this are definitely going to be audited */
-	unsigned int inalarm:1;
-
-	int callwaitcas;
-
 	int ringt;
 	int ringt_base;
 };
@@ -360,7 +366,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event);
 
 int analog_config_complete(struct analog_pvt *p);
 
-void analog_handle_dtmfup(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub index, struct ast_frame **dest);
+void analog_handle_dtmf(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub index, struct ast_frame **dest);
 
 enum analog_cid_start analog_str_to_cidstart(const char *value);
 

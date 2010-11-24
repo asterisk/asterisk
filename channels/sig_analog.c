@@ -624,10 +624,10 @@ static int analog_dsp_set_digitmode(struct analog_pvt *p, enum analog_dsp_digitm
 	return -1;
 }
 
-static void analog_cb_handle_dtmfup(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub analog_index, struct ast_frame **dest)
+static void analog_cb_handle_dtmf(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub analog_index, struct ast_frame **dest)
 {
-	if (p->calls->handle_dtmfup) {
-		p->calls->handle_dtmfup(p->chan_pvt, ast, analog_index, dest);
+	if (p->calls->handle_dtmf) {
+		p->calls->handle_dtmf(p->chan_pvt, ast, analog_index, dest);
 	}
 }
 
@@ -859,10 +859,7 @@ int analog_available(struct analog_pvt *p)
 
 static int analog_stop_callwait(struct analog_pvt *p)
 {
-	if (p->callwaitingcallerid) {
-		p->callwaitcas = 0;
-	}
-
+	p->callwaitcas = 0;
 	if (p->calls->stop_callwait) {
 		return p->calls->stop_callwait(p->chan_pvt);
 	}
@@ -871,13 +868,19 @@ static int analog_stop_callwait(struct analog_pvt *p)
 
 static int analog_callwait(struct analog_pvt *p)
 {
-	if (p->callwaitingcallerid) {
-		p->callwaitcas = 1;
-	}
+	p->callwaitcas = p->callwaitingcallerid;
 	if (p->calls->callwait) {
 		return p->calls->callwait(p->chan_pvt);
 	}
 	return 0;
+}
+
+static void analog_set_callwaiting(struct analog_pvt *p, int callwaiting_enable)
+{
+	p->callwaiting = callwaiting_enable;
+	if (p->calls->set_callwaiting) {
+		p->calls->set_callwaiting(p->chan_pvt, callwaiting_enable);
+	}
 }
 
 static void analog_set_cadence(struct analog_pvt *p, struct ast_channel *chan)
@@ -1456,7 +1459,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 		ast_channel_setoption(ast,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		ast_channel_setoption(ast,AST_OPTION_TDD,&x,sizeof(char),0);
 		p->callwaitcas = 0;
-		p->callwaiting = p->permcallwaiting;
+		analog_set_callwaiting(p, p->permcallwaiting);
 		p->hidecallerid = p->permhidecallerid;
 		analog_set_dialing(p, 0);
 		analog_update_conf(p);
@@ -1574,35 +1577,45 @@ static int analog_handles_digit(struct ast_frame *f)
 	}
 }
 
-void analog_handle_dtmfup(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub idx, struct ast_frame **dest)
+void analog_handle_dtmf(struct analog_pvt *p, struct ast_channel *ast, enum analog_sub idx, struct ast_frame **dest)
 {
 	struct ast_frame *f = *dest;
 
-	ast_debug(1, "DTMF digit: %c on %s\n", f->subclass.integer, ast->name);
+	ast_debug(1, "%s DTMF digit: 0x%02X '%c' on %s\n",
+		f->frametype == AST_FRAME_DTMF_BEGIN ? "Begin" : "End",
+		f->subclass.integer, f->subclass.integer, ast->name);
 
 	if (analog_check_confirmanswer(p)) {
-		ast_debug(1, "Confirm answer on %s!\n", ast->name);
-		/* Upon receiving a DTMF digit, consider this an answer confirmation instead
-		of a DTMF digit */
-		p->subs[idx].f.frametype = AST_FRAME_CONTROL;
-		p->subs[idx].f.subclass.integer = AST_CONTROL_ANSWER;
-		*dest = &p->subs[idx].f;
-		/* Reset confirmanswer so DTMF's will behave properly for the duration of the call */
-		analog_set_confirmanswer(p, 0);
-	} else if (p->callwaitcas) {
-		if ((f->subclass.integer == 'A') || (f->subclass.integer == 'D')) {
-			ast_debug(1, "Got some DTMF, but it's for the CAS\n");
-			p->caller.id.name.str = p->callwait_name;
-			p->caller.id.number.str = p->callwait_num;
-			analog_send_callerid(p, 1, &p->caller);
+		if (f->frametype == AST_FRAME_DTMF_END) {
+			ast_debug(1, "Confirm answer on %s!\n", ast->name);
+			/* Upon receiving a DTMF digit, consider this an answer confirmation instead
+			of a DTMF digit */
+			p->subs[idx].f.frametype = AST_FRAME_CONTROL;
+			p->subs[idx].f.subclass.integer = AST_CONTROL_ANSWER;
+			/* Reset confirmanswer so DTMF's will behave properly for the duration of the call */
+			analog_set_confirmanswer(p, 0);
+		} else {
+			p->subs[idx].f.frametype = AST_FRAME_NULL;
+			p->subs[idx].f.subclass.integer = 0;
 		}
-		if (analog_handles_digit(f))
-			p->callwaitcas = 0;
+		*dest = &p->subs[idx].f;
+	} else if (p->callwaitcas) {
+		if (f->frametype == AST_FRAME_DTMF_END) {
+			if ((f->subclass.integer == 'A') || (f->subclass.integer == 'D')) {
+				ast_debug(1, "Got some DTMF, but it's for the CAS\n");
+				p->caller.id.name.str = p->callwait_name;
+				p->caller.id.number.str = p->callwait_num;
+				analog_send_callerid(p, 1, &p->caller);
+			}
+			if (analog_handles_digit(f)) {
+				p->callwaitcas = 0;
+			}
+		}
 		p->subs[idx].f.frametype = AST_FRAME_NULL;
 		p->subs[idx].f.subclass.integer = 0;
 		*dest = &p->subs[idx].f;
 	} else {
-		analog_cb_handle_dtmfup(p, ast, idx, dest);
+		analog_cb_handle_dtmf(p, ast, idx, dest);
 	}
 }
 
@@ -2122,7 +2135,7 @@ static void *__analog_ss_thread(void *data)
 			} else if (p->callwaiting && !strcmp(exten, "*70")) {
 				ast_verb(3, "Disabling call waiting on %s\n", chan->name);
 				/* Disable call waiting if enabled */
-				p->callwaiting = 0;
+				analog_set_callwaiting(p, 0);
 				res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n",
@@ -2631,7 +2644,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		analog_confmute(p, 0);
 		p->subs[idx].f.frametype = AST_FRAME_DTMF_END;
 		p->subs[idx].f.subclass.integer = res & 0xff;
-		analog_handle_dtmfup(p, ast, idx, &f);
+		analog_handle_dtmf(p, ast, idx, &f);
 		return f;
 	}
 
@@ -2641,6 +2654,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		analog_confmute(p, 1);
 		p->subs[idx].f.frametype = AST_FRAME_DTMF_BEGIN;
 		p->subs[idx].f.subclass.integer = res & 0xff;
+		analog_handle_dtmf(p, ast, idx, &f);
 		return f;
 	}
 
@@ -2890,7 +2904,10 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				analog_set_needringing(p, 0);
 				analog_off_hook(p);
 				ast_debug(1, "channel %d answered\n", p->channel);
+
+				/* Cancel any running CallerID spill */
 				analog_cancel_cidspill(p);
+
 				analog_set_dialing(p, 0);
 				p->callwaitcas = 0;
 				if (analog_check_confirmanswer(p)) {
@@ -3050,6 +3067,8 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 			ast_debug(1, "Winkflash, index: %d, normal: %d, callwait: %d, thirdcall: %d\n",
 				idx, analog_get_sub_fd(p, ANALOG_SUB_REAL), analog_get_sub_fd(p, ANALOG_SUB_CALLWAIT), analog_get_sub_fd(p, ANALOG_SUB_THREEWAY));
 
+			/* Cancel any running CallerID spill */
+			analog_cancel_cidspill(p);
 			p->callwaitcas = 0;
 
 			if (idx != ANALOG_SUB_REAL) {
@@ -3568,7 +3587,10 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 			if (res && (errno == EBUSY)) {
 				break;
 			}
+
+			/* Cancel VMWI spill */
 			analog_cancel_cidspill(i);
+
 			if (i->immediate) {
 				analog_set_echocanceller(i, 1);
 				/* The channel is immediately up.  Start right away */
@@ -3826,7 +3848,7 @@ int analog_config_complete(struct analog_pvt *p)
 		p->permcallwaiting = 0;
 	}
 
-	p->callwaiting = p->permcallwaiting;
+	analog_set_callwaiting(p, p->permcallwaiting);
 
 	return 0;
 }
