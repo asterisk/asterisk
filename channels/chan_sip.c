@@ -1431,7 +1431,7 @@ static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr
 static void update_peer(struct sip_peer *p, int expire);
 static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config);
 static const char *get_name_from_variable(struct ast_variable *var, const char *newpeername);
-static struct sip_peer *realtime_peer(const char *peername, struct ast_sockaddr *sin, int devstate_only);
+static struct sip_peer *realtime_peer(const char *peername, struct ast_sockaddr *sin, int devstate_only, int which_objects);
 static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*--- Internal UA client handling (outbound registrations) */
@@ -4429,7 +4429,7 @@ static const char *get_name_from_variable(struct ast_variable *var, const char *
  * This returns a pointer to a peer and because we use build_peer, we can rest
  * assured that the refcount is bumped.
 */
-static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockaddr *addr, int devstate_only)
+static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockaddr *addr, int devstate_only, int which_objects)
 {
 	struct sip_peer *peer;
 	struct ast_variable *var = NULL;
@@ -4553,11 +4553,19 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockad
 	}
 
 	for (tmp = var; tmp; tmp = tmp->next) {
-		if (!newpeername && !strcasecmp(tmp->name, "name")) {
+		if (!strcasecmp(tmp->name, "type") && (!strcasecmp(tmp->value, "peer") && which_objects == FINDUSERS)) {
+			if (peerlist) {
+				ast_config_destroy(peerlist);
+			} else {
+				ast_variables_destroy(var);
+				ast_variables_destroy(varregs);
+			}
+			return NULL;
+		} else if (!newpeername && !strcasecmp(tmp->name, "name")) {
 			newpeername = tmp->value;
 		}
 	}
-	
+
 	if (!newpeername) {	/* Did not find peer in realtime */
 		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", ipaddr);
 		if(peerlist)
@@ -4672,7 +4680,7 @@ static struct sip_peer *find_peer(const char *peer, struct ast_sockaddr *addr, i
 	}
 
 	if (!p && (realtime || devstate_only)) {
-		p = realtime_peer(peer, addr, devstate_only);
+		p = realtime_peer(peer, addr, devstate_only, which_objects);
 		if (p) {
 			switch (which_objects) {
 			case FINDUSERS:
