@@ -2212,73 +2212,81 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 */
 static int ast_say_number_full_se(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
-	int res = 0;
 	int playh = 0;
+	int start = 1;
 	char fn[256] = "";
 	int cn = 1;		/* +1 = commune; -1 = neuter */
-	if (!num) 
+	int res = 0;
+
+	if (!num) {
 		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+	}
 	if (options && !strncasecmp(options, "n", 1)) cn = -1;
 
-	while (!res && (num || playh)) {
+	while (num || playh) {
 		if (num < 0) {
 			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
-			}	
+			}
 		} else if (playh) {
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
+		} else if (start  && num < 200 && num > 99 && cn == -1) {
+			/* Don't say "en hundra" just say "hundra". */
+			snprintf(fn, sizeof(fn), "digits/hundred");
+			num -= 100;
 		} else if (num == 1 && cn == -1) {	/* En eller ett? */
 		 	ast_copy_string(fn, "digits/1N", sizeof(fn));
 			num = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
-		} else if (num < 100) {
+		} else if (num < 100) {	/* Below hundreds - teens and tens */
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num %= 10;
-		} else {
-			if (num < 1000){
-				snprintf(fn, sizeof(fn), "digits/%d", (num/100));
-				playh++;
-				num %= 100;
+		} else if (num < 1000) {
+			/* Hundreds */
+			snprintf(fn, sizeof(fn), "digits/%d", (num/100));
+			playh++;
+			num %= 100;
+		} else if (num < 1000000) { /* 1,000,000 */
+			/* Always say "ett hundra tusen", not "en hundra tusen" */
+			res = ast_say_number_full_se(chan, num / 1000, ints, language, "c", audiofd, ctrlfd);
+			if (res) {
+				return res;
+			}
+			num %= 1000;
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
+		} else if (num < 1000000000) {	/* 1,000,000,000 */
+			/* Always say "en miljon", not "ett miljon" */
+			res = ast_say_number_full_se(chan, num / 1000000, ints, language, "n", audiofd, ctrlfd);
+			if (res) {
+				return res;
+			}
+			num %= 1000000;
+			ast_copy_string(fn, "digits/million", sizeof(fn));
+		} else {	/* Miljarder - Billions */
+			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+			return -1;
+		}
+
+		if (!ast_streamfile(chan, fn, language)) {
+			if ((audiofd > -1) && (ctrlfd > -1)) {
+				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 			} else {
-				if (num < 1000000) { /* 1,000,000 */
-					res = ast_say_number_full_se(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
-					if (res) {
-						return res;
-					}
-					num %= 1000;
-					ast_copy_string(fn, "digits/thousand", sizeof(fn));
-				} else {
-					if (num < 1000000000) {	/* 1,000,000,000 */
-						res = ast_say_number_full_se(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
-						if (res) {
-							return res;
-						}
-						num %= 1000000;
-						ast_copy_string(fn, "digits/million", sizeof(fn));
-					} else {
-						ast_debug(1, "Number '%d' is too big for me\n", num);
-						res = -1;
-					}
-				}
+				res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
+			if (res) {
+				return res;
 			}
 		}
-		if (!res) {
-			if (!ast_streamfile(chan, fn, language)) {
-				if ((audiofd > -1) && (ctrlfd > -1))
-					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-				else
-					res = ast_waitstream(chan, ints);
-				ast_stopstream(chan);
-			}
-		}
+		start = 0;
 	}
-	return res;
+	return 0;
 }
 
 /*! \brief  ast_say_number_full_zh: Taiwanese / Chinese syntax */
