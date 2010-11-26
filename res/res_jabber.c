@@ -403,7 +403,7 @@ static ast_mutex_t messagelock;
 static struct ast_flags globalflags = { AJI_AUTOREGISTER | AJI_AUTOACCEPT };
 
 /*! \brief PubSub flags, initialized to default values */
-static struct ast_flags pubsubflags = { AJI_AUTOREGISTER };
+static struct ast_flags pubsubflags = { 0 };
 /*!
  * \internal
  * \brief Deletes the aji_client data structure.
@@ -3545,7 +3545,7 @@ static int aji_receive_node_list(void *data, ikspak* pak)
 	iks *item = NULL;
 	if (iks_has_children(pak->query)) {
 		item = iks_first_tag(pak->query);
-		ast_verbose("Connection: %s\nNode name: %s\n", client->jid->partial,
+		ast_verbose("Connection %s: %s\nNode name: %s\n", client->name, client->jid->partial,
 			iks_find_attrib(item, "node"));
 		while ((item = iks_next_tag(item))) {
 			ast_verbose("Node name: %s\n", iks_find_attrib(item, "node"));
@@ -3569,16 +3569,16 @@ static char *aji_cli_list_pubsub_nodes(struct ast_cli_entry *e, int cmd, struct
 ast_cli_args *a)
 {
 		struct aji_client *client;
-		const char *name = "asterisk";
+		const char *name = NULL;
 		const char *collection = NULL;
 
 		switch (cmd) {
 		case CLI_INIT:
 				e->command = "jabber list nodes";
 				e->usage =
-					"Usage: jabber list nodes [name]\n"
-					"       Lists nodes on PubSub server\n"
-					"       as configured in jabber.conf.\n";
+					"Usage: jabber list nodes <connection> [collection]\n"
+					"       Lists the user's nodes on the respective connection\n"
+					"       ([connection] as configured in jabber.conf.)\n";
 			return NULL;
 		case CLI_GENERATE:
 			return NULL;
@@ -3613,13 +3613,13 @@ static char *aji_cli_purge_pubsub_nodes(struct ast_cli_entry *e, int cmd, struct
 	ast_cli_args *a)
 {
 	struct aji_client *client;
-	const char *name = "asterisk";
+	const char *name;
 
 	switch (cmd) {
 		case CLI_INIT:
 			e->command = "jabber purge nodes";
 			e->usage =
-					"Usage: jabber purge nodes [name]\n"
+					"Usage: jabber purge nodes <connection> <node>\n"
 					"       Purges nodes on PubSub server\n"
 					"       as configured in jabber.conf.\n";
 			return NULL;
@@ -3627,11 +3627,11 @@ static char *aji_cli_purge_pubsub_nodes(struct ast_cli_entry *e, int cmd, struct
 			return NULL;
 	}
 
-	if (a->argc > 5) {
+	if (a->argc != 5) {
 		return CLI_SHOWUSAGE;
-	} else if (a->argc == 5) {
-		name = a->argv[3];
 	}
+	name = a->argv[3];
+
 	if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
 		ast_cli(a->fd, "Unable to find client '%s'!\n", name);
 		return CLI_FAILURE;
@@ -3693,13 +3693,13 @@ static char *aji_cli_delete_pubsub_node(struct ast_cli_entry *e, int cmd, struct
 	ast_cli_args *a)
 {
 	struct aji_client *client;
-	const char *name = "asterisk";
+	const char *name;
 
 	switch (cmd) {
 		case CLI_INIT:
 			e->command = "jabber delete node";
 			e->usage =
-					"Usage: jabber delete node [name]\n"
+					"Usage: jabber delete node <connection> <node>\n"
 					"       Deletes a node on PubSub server\n"
 					"       as configured in jabber.conf.\n";
 			return NULL;
@@ -3707,11 +3707,11 @@ static char *aji_cli_delete_pubsub_node(struct ast_cli_entry *e, int cmd, struct
 			return NULL;
 	}
 
-	if (a->argc > 5) {
+	if (a->argc != 5) {
 		return CLI_SHOWUSAGE;
-	} else if (a->argc == 5) {
-		name = a->argv[3];
 	}
+	name = a->argv[3];
+
 	if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
 		ast_cli(a->fd, "Unable to find client '%s'!\n", name);
 		return CLI_FAILURE;
@@ -3839,14 +3839,14 @@ static iks* aji_build_node_config(iks *pubsub, const char *node_type, const char
 static char *aji_cli_create_collection(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 		struct aji_client *client;
-		const char *name = "asterisk";
-		const char *collection_name = "test_collection";
+		const char *name;
+		const char *collection_name;
 
 		switch (cmd) {
 		case CLI_INIT:
 				e->command = "jabber create collection";
 				e->usage =
-					"Usage: jabber create collection [name] [node name]\n"
+					"Usage: jabber create collection <connection> <collection>\n"
 					"       Creates a PubSub collection node using the account\n"
 					"       as configured in jabber.conf.\n";
 			return NULL;
@@ -3854,14 +3854,13 @@ static char *aji_cli_create_collection(struct ast_cli_entry *e, int cmd, struct 
 			return NULL;
 		}
 
-		if (a->argc > 5) {
+		if (a->argc != 5) {
 			return CLI_SHOWUSAGE;
-		} else if (a->argc == 5) {
-			name = a->argv[3];
-			collection_name = a->argv[4];
 		}
+		name = a->argv[3];
+		collection_name = a->argv[4];
 
-        if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
+		if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
 			ast_cli(a->fd, "Unable to find client '%s'!\n", name);
 			return CLI_FAILURE;
 		}
@@ -3878,15 +3877,15 @@ static char *aji_cli_create_collection(struct ast_cli_entry *e, int cmd, struct 
 static char *aji_cli_create_leafnode(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct aji_client *client;
-	const char *name = "asterisk";
-	const char *collection_name = "test_collection";
-	const char *leaf_name = "test_leaf";
+	const char *name;
+	const char *collection_name;
+	const char *leaf_name;
 
 	switch (cmd) {
 		case CLI_INIT:
 			e->command = "jabber create leaf";
 			e->usage =
-					"Usage: jabber create leaf [name] [collection_name] [node name]\n"
+					"Usage: jabber create leaf <connection> <collection> <leaf>\n"
 					"       Creates a PubSub leaf node using the account\n"
 					"       as configured in jabber.conf.\n";
 			return NULL;
@@ -3894,13 +3893,12 @@ static char *aji_cli_create_leafnode(struct ast_cli_entry *e, int cmd, struct as
 			return NULL;
 	}
 
-	if (a->argc > 6) {
+	if (a->argc != 6) {
 		return CLI_SHOWUSAGE;
-	} else if (a->argc == 6) {
-		name = a->argv[3];
-		collection_name = a->argv[4];
-		leaf_name = a->argv[5];
 	}
+	name = a->argv[3];
+	collection_name = a->argv[4];
+	leaf_name = a->argv[5];
 
 	if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
 		ast_cli(a->fd, "Unable to find client '%s'!\n", name);
@@ -4080,10 +4078,10 @@ static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "jabber show connected";
+		e->command = "jabber show connections";
 		e->usage =
-			"Usage: jabber show connected\n"
-			"       Shows state of clients and components\n";
+			"Usage: jabber show connections\n"
+			"       Shows state of client and component connections\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -4106,7 +4104,7 @@ static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		default:
 			status = "Unknown";
 		}
-		ast_cli(a->fd, "       User: %s     - %s\n", iterator->user, status);
+		ast_cli(a->fd, "       [%s] %s     - %s\n", iterator->name, iterator->user, status);
 		ASTOBJ_UNLOCK(iterator);
 	});
 	ast_cli(a->fd, "----\n");
@@ -4170,26 +4168,25 @@ static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct aji_client *client;
 	struct aji_resource *resource;
-	const char *name = "asterisk";
+	const char *name;
 	struct aji_message *tmp;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "jabber test";
 		e->usage =
-			"Usage: jabber test [client]\n"
+			"Usage: jabber test <connection>\n"
 			"       Sends test message for debugging purposes.  A specific client\n"
-			"       as configured in jabber.conf can be optionally specified.\n";
+			"       as configured in jabber.conf must be specified.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc > 3) {
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
-	} else if (a->argc == 3) {
-		name = a->argv[2];
 	}
+	name = a->argv[2];
 
 	if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
 		ast_cli(a->fd, "Unable to find client '%s'!\n", name);
