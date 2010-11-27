@@ -20,7 +20,7 @@
 
 #include "asterisk/autoconfig.h"
 
-#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && defined(MALLOC_DEBUG)
+#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2) && defined(MALLOC_DEBUG)
 #include "asterisk/astmm.h"
 #endif
 
@@ -43,7 +43,7 @@
 #define	setpriority	__PLEASE_USE_ast_set_priority_INSTEAD_OF_setpriority__
 #define	sched_setscheduler	__PLEASE_USE_ast_set_priority_INSTEAD_OF_sched_setscheduler__
 
-#if defined(DEBUG_FD_LEAKS) && !defined(STANDALONE) && !defined(STANDALONE_AEL)
+#if defined(DEBUG_FD_LEAKS) && !defined(STANDALONE) && !defined(STANDALONE2) && !defined(STANDALONE_AEL)
 /* These includes are all about ordering */
 #include <stdio.h>
 #include <sys/types.h>
