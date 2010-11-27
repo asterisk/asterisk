@@ -3835,8 +3835,8 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		struct timeval now;
 		char recordingfilename[256] = "";
 		char recordingformat[11] = "";
-		char currenttime[19] = "";
-		char eatime[19] = "";
+		char currenttime[32] = "";
+		char eatime[32] = "";
 		char bookid[51] = "";
 		char recordingtmp[AST_MAX_EXTENSION] = "";
 		char useropts[OPTIONS_LEN + 1]; /* Used for RealTime conferences */
