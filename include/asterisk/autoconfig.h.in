@@ -816,6 +816,12 @@
 /* Define to 1 if `st_blksize' is a member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
+/* Define to 1 if `cr_uid' is a member of `struct ucred'. */
+#undef HAVE_STRUCT_UCRED_CR_UID
+
+/* Define to 1 if `uid' is a member of `struct ucred'. */
+#undef HAVE_STRUCT_UCRED_UID
+
 /* Define to 1 if you have the mISDN Supplemental Services library. */
 #undef HAVE_SUPPSERV
 
