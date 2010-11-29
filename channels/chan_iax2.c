@@ -12610,7 +12610,6 @@ static int __unload_module(void)
 	ast_channel_unregister(&iax2_tech);
 	delete_users();
 	iax_provision_unload();
-	sched_context_destroy(sched);
 	reload_firmware(1);
 
 	ast_mutex_destroy(&waresl.lock);
@@ -12622,12 +12621,13 @@ static int __unload_module(void)
 	ao2_ref(peers, -1);
 	ao2_ref(users, -1);
 	ao2_ref(iax_peercallno_pvts, -1);
-	ao2_ref(iax_transfercallno_pvts, -1);	
+	ao2_ref(iax_transfercallno_pvts, -1);
 	ao2_ref(peercnts, -1);
 	ao2_ref(callno_limits, -1);
 	ao2_ref(calltoken_ignores, -1);
 	ao2_ref(callno_pool, -1);
 	ao2_ref(callno_pool_trunk, -1);
+	sched_context_destroy(sched);
 
 	return 0;
 }
