@@ -6432,6 +6432,15 @@ static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchan
 
 	is_ptmp = !misdn_lib_is_ptp(bc->port);
 	if (is_ptmp) {
+		/*
+		 * We should not send these messages to the network if we are
+		 * the CPE side since phones do not redirect calls within
+		 * themselves.  Well... If you consider someone else picking up
+		 * the handset a redirection then how is the network to know?
+		 */
+		if (!misdn_lib_port_is_nt(bc->port)) {
+			return;
+		}
 		/* Send NOTIFY(call-is-diverting, redirecting.to data) */
 		bc->redirecting.to_changed = 1;
 		bc->notify_description_code = mISDN_NOTIFY_CODE_CALL_IS_DIVERTING;
