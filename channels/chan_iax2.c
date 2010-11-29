@@ -14218,8 +14218,6 @@ static int __unload_module(void)
 	cleanup_thread_list(&active_list);
 	cleanup_thread_list(&dynamic_list);
 
-	sched = ast_sched_thread_destroy(sched);
-
 	ast_netsock_release(netsock);
 	ast_netsock_release(outsock);
 	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
@@ -14261,6 +14259,7 @@ static int __unload_module(void)
 		ast_timer_close(timer);
 	}
 	transmit_processor = ast_taskprocessor_unreference(transmit_processor);
+	sched = ast_sched_thread_destroy(sched);
 
 	con = ast_context_find(regcontext);
 	if (con)
