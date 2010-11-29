@@ -500,6 +500,8 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	SETUP_t *setup;
 	msg_t *msg =(msg_t*)create_l3msg(CC_SETUP | REQUEST, MT_SETUP,  bc?bc->l3_id:-1, sizeof(SETUP_t) ,nt);
+	int is_ptp;
+	enum FacFunction fac_type;
 
 	setup=(SETUP_t*)((msg->data+HEADER_LEN));
 
@@ -508,7 +510,8 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 	else
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 1, bc->channel, nt,bc);
 
-	if (bc->fac_out.Function != Fac_None) {
+	fac_type = bc->fac_out.Function;
+	if (fac_type != Fac_None) {
 		enc_ie_facility(&setup->FACILITY, msg, &bc->fac_out, nt);
 	}
 
@@ -522,7 +525,20 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 	switch (bc->outgoing_colp) {
 	case 0:/* pass */
 	case 1:/* restricted */
-		if (bc->redirecting.from.number[0]) {
+		is_ptp = misdn_lib_is_ptp(bc->port);
+		if (bc->redirecting.from.number[0]
+			&& ((!is_ptp && nt)
+				|| (is_ptp
+#if defined(AST_MISDN_ENHANCEMENTS)
+					/*
+					 * There is no need to send out this ie when we are also sending
+					 * a Fac_DivertingLegInformation2 as well.  The
+					 * Fac_DivertingLegInformation2 supercedes the information in
+					 * this ie.
+					 */
+					&& fac_type != Fac_DivertingLegInformation2
+#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+			))) {
 #if 1
 			/* ETSI and Q.952 do not define the screening field */
 			enc_ie_redir_nr(&setup->REDIR_NR, msg, bc->redirecting.from.number_type,
