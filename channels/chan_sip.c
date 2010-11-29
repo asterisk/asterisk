@@ -11439,8 +11439,10 @@ static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_ty
 	sip_pvt_lock(pvt);
 
 	if (create_addr(pvt, epa_entry->destination, NULL, TRUE, NULL)) {
+		sip_pvt_unlock(pvt);
 		dialog_unlink_all(pvt, TRUE, TRUE);
 		dialog_unref(pvt, "create_addr failed in transmit_publish. Unref dialog");
+		return -1;
 	}
 	ast_sip_ouraddrfor(&pvt->sa, &pvt->ourip, pvt);
 	ast_set_flag(&pvt->flags[0], SIP_OUTGOING);
