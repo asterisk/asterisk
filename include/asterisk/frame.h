@@ -300,7 +300,13 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_SPEEX16    (1ULL << 33)
 /*! Raw mu-law data (G.711) */
 #define AST_FORMAT_TESTLAW    (1ULL << 47)
-/*! Reserved bit - do not use */
+/*! Reserved bit - do not use
+ * \warning We use this bit internally for iteration.  Additionally, using this
+ * bit will severely break the implementation of codec prefs within IAX2, as we
+ * rely on the equivalence of UTF-8 and ASCII.  The codec represented by this
+ * bit should use the first two-byte encoding of UTF-8, which is not presently
+ * accounted for.  Hence, we reserve this bit as unused.
+ */
 #define AST_FORMAT_RESERVED   (1ULL << 63)
 
 enum ast_control_frame_type {
