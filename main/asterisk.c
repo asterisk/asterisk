@@ -3207,6 +3207,7 @@ int main(int argc, char *argv[])
 	tdd_init();
 	ast_tps_init();
 	ast_fd_init();
+	ast_pbx_init();
 
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
