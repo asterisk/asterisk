@@ -7229,6 +7229,16 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 #endif
 		}
 		DISPOSE(dir, curmsg);
+#ifndef IMAP_STORAGE
+		if (cmd) { /* assuming hangup, cleanup backup file */
+			make_file(msgfile, sizeof(msgfile), dir, curmsg);
+			strcpy(textfile, msgfile);
+			strcpy(backup_textfile, msgfile);
+			strncat(textfile, ".txt", sizeof(textfile) - strlen(textfile) - 1);
+			strncat(backup_textfile, "-bak.txt", sizeof(backup_textfile) - strlen(backup_textfile) - 1);
+			rename(backup_textfile, textfile);
+		}
+#endif
 	}
 
 	/* If anything failed above, we still have this list to free */
