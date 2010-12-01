@@ -930,7 +930,7 @@ static int disable_t38(struct ast_channel *chan)
 
 	ast_debug(1, "Shutting down T.38 on %s\n", chan->name);
 	if (ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters)) != 0) {
-		ast_log(LOG_WARNING, "error while disabling T.38 on channel '%s'\n", chan->name);
+		ast_debug(1, "error while disabling T.38 on channel '%s'\n", chan->name);
 		return -1;
 	}
 
@@ -940,12 +940,12 @@ static int disable_t38(struct ast_channel *chan)
 	while (ms > 0) {
 		ms = ast_waitfor(chan, ms);
 		if (ms < 0) {
-			ast_log(LOG_WARNING, "error while disabling T.38 on channel '%s'\n", chan->name);
+			ast_debug(1, "error while disabling T.38 on channel '%s'\n", chan->name);
 			return -1;
 		}
 
 		if (ms == 0) { /* all done, nothing happened */
-			ast_log(LOG_WARNING, "channel '%s' timed-out during T.38 shutdown\n", chan->name);
+			ast_debug(1, "channel '%s' timed-out during T.38 shutdown\n", chan->name);
 			break;
 		}
 
@@ -1093,7 +1093,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
  				 * FAX session complete before we exit the application.  if needed,
  				 * send the FAX stack silence so the modems can finish their session without
  				 * any problems */
-				ast_log(LOG_NOTICE, "Channel '%s' did not return a frame; probably hung up.\n", chan->name);
+				ast_debug(1, "Channel '%s' did not return a frame; probably hung up.\n", chan->name);
 				GENERIC_FAX_EXEC_SET_VARS(fax, chan, "HANGUP", "remote channel hungup");
 				c = NULL;
 				chancount = 0;
@@ -1295,7 +1295,7 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 					ast_playtones_stop(chan);
 					break;
 				case AST_T38_NEGOTIATED:
-					ast_log(LOG_NOTICE, "Negotiated T.38 for receive on %s\n", chan->name);
+					ast_debug(1, "Negotiated T.38 for receive on %s\n", chan->name);
 					t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 					details->caps &= ~AST_FAX_TECH_AUDIO;
 					report_fax_status(chan, details, "T.38 Negotiated");
@@ -1316,7 +1316,7 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 	}
 
 	/* request T.38 */
-	ast_log(LOG_NOTICE, "Negotiating T.38 for receive on %s\n", chan->name);
+	ast_debug(1, "Negotiating T.38 for receive on %s\n", chan->name);
 
 	/* wait up to five seconds for negotiation to complete */
 	ms = 5000;
@@ -1358,7 +1358,7 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 				ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters));
 				break;
 			case AST_T38_NEGOTIATED:
-				ast_log(LOG_NOTICE, "Negotiated T.38 for receive on %s\n", chan->name);
+				ast_debug(1, "Negotiated T.38 for receive on %s\n", chan->name);
 				t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 				details->caps &= ~AST_FAX_TECH_AUDIO;
 				report_fax_status(chan, details, "T.38 Negotiated");
@@ -1570,7 +1570,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 
 	if (ast_channel_get_t38_state(chan) == T38_STATE_NEGOTIATED) {
 		if (disable_t38(chan)) {
-			ast_log(LOG_WARNING, "error disabling T.38 mode on %s\n", chan->name);
+			ast_debug(1, "error disabling T.38 mode on %s\n", chan->name);
 		}
 	}
 
@@ -1666,7 +1666,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 				ast_playtones_stop(chan);
 				break;
 			case AST_T38_NEGOTIATED:
-				ast_log(LOG_NOTICE, "Negotiated T.38 for send on %s\n", chan->name);
+				ast_debug(1, "Negotiated T.38 for send on %s\n", chan->name);
 				t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 				details->caps &= ~AST_FAX_TECH_AUDIO;
 				report_fax_status(chan, details, "T.38 Negotiated");
@@ -1687,7 +1687,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 
 	/* T.38 negotiation did not happen, initiate a switch if requested */
 	if (details->option.request_t38 == AST_FAX_OPTFLAG_TRUE) {
-		ast_log(LOG_NOTICE, "Negotiating T.38 for send on %s\n", chan->name);
+		ast_debug(1, "Negotiating T.38 for send on %s\n", chan->name);
 
 		/* wait up to five seconds for negotiation to complete */
 		ms = 5000;
@@ -1729,7 +1729,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 					ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters));
 					break;
 				case AST_T38_NEGOTIATED:
-					ast_log(LOG_NOTICE, "Negotiated T.38 for receive on %s\n", chan->name);
+					ast_debug(1, "Negotiated T.38 for receive on %s\n", chan->name);
 					t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 					details->caps &= ~AST_FAX_TECH_AUDIO;
 					report_fax_status(chan, details, "T.38 Negotiated");
@@ -1798,7 +1798,7 @@ static int sendfax_t38_init(struct ast_channel *chan, struct ast_fax_session_det
 						ast_playtones_stop(chan);
 						break;
 					case AST_T38_NEGOTIATED:
-						ast_log(LOG_NOTICE, "Negotiated T.38 for send on %s\n", chan->name);
+						ast_debug(1, "Negotiated T.38 for send on %s\n", chan->name);
 						t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 						details->caps &= ~AST_FAX_TECH_AUDIO;
 						report_fax_status(chan, details, "T.38 Negotiated");
@@ -2030,7 +2030,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 
 	if (ast_channel_get_t38_state(chan) == T38_STATE_NEGOTIATED) {
 		if (disable_t38(chan)) {
-			ast_log(LOG_WARNING, "error disabling T.38 mode on %s\n", chan->name);
+			ast_debug(1, "error disabling T.38 mode on %s\n", chan->name);
 		}
 	}
 
