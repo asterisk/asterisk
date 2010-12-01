@@ -22424,6 +22424,9 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
 	   servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
+	/* indicate before masquerade so the indication actually makes it to the real channel
+	   when using local channels with MOH passthru */
+	ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
 	res = ast_async_goto(current.chan2, p->refer->refer_to_context, p->refer->refer_to, 1);
 
 	if (!res) {
