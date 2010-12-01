@@ -714,7 +714,15 @@ int ast_parse_allow_disallow(struct ast_codec_pref *pref, format_t *mask, const 
 /*! \brief Dump audio codec preference list into a string */
 int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);
 
-/*! \brief Shift an audio codec preference list up or down 65 bytes so that it becomes an ASCII string */
+/*! \brief Shift an audio codec preference list up or down 65 bytes so that it becomes an ASCII string
+ * \note Due to a misunderstanding in how codec preferences are stored, this
+ * list starts at 'B', not 'A'.  For backwards compatibility reasons, this
+ * cannot change.
+ * \param pref A codec preference list structure
+ * \param buf A string denoting codec preference, appropriate for use in line transmission
+ * \param size Size of \a buf
+ * \param right Boolean:  if 0, convert from \a buf to \a pref; if 1, convert from \a pref to \a buf.
+ */
 void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right);
 
 /*! \brief Returns the number of samples contained in the frame */
