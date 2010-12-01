@@ -227,7 +227,11 @@ static struct ast_flags globalflags = { 0 };
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 static pthread_t schedthreadid = AST_PTHREADT_NULL;
+#ifndef AST_MUTEX_INIT_W_CONSTRUCTORS
 AST_MUTEX_DEFINE_STATIC(sched_lock);
+#else
+static ast_mutex_t sched_lock;
+#endif
 static ast_cond_t sched_cond;
 
 enum {
@@ -12634,8 +12638,13 @@ static int __unload_module(void)
 
 static int unload_module(void)
 {
+	int res;
 	ast_custom_function_unregister(&iaxpeer_function);
-	return __unload_module();
+	res = __unload_module();
+#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	ast_mutex_destroy(&sched_lock);
+#endif
+	return res;
 }
 
 static int peer_set_sock_cb(void *obj, void *arg, int flags)
@@ -12770,6 +12779,9 @@ static int load_module(void)
 	}
 
 	ast_cond_init(&sched_cond, NULL);
+#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	ast_mutex_init(&sched_lock);
+#endif
 
 	io = io_context_create();
 	sched = sched_context_create();

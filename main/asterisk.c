@@ -262,7 +262,16 @@ struct file_version {
 	char *version;
 };
 
+#ifndef AST_MUTEX_INIT_W_CONSTRUCTORS
 static AST_LIST_HEAD_STATIC(file_versions, file_version);
+#else
+static AST_LIST_HEAD(file_versions, file_version) file_versions;
+static pthread_once_t file_versions_once = PTHREAD_ONCE_INIT;
+static void file_versions_init(void)
+{
+	AST_LIST_HEAD_INIT(&file_versions);
+}
+#endif
 
 void ast_register_file_version(const char *file, const char *version)
 {
@@ -280,6 +289,9 @@ void ast_register_file_version(const char *file, const char *version)
 	new->file = file;
 	new->version = (char *) new + sizeof(*new);
 	memcpy(new->version, work, version_length);
+#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	pthread_once(&file_versions_once, file_versions_init);
+#endif
 	AST_LIST_LOCK(&file_versions);
 	AST_LIST_INSERT_HEAD(&file_versions, new, list);
 	AST_LIST_UNLOCK(&file_versions);
