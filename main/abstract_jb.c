@@ -762,6 +762,11 @@ static void jb_destroy_adaptive(void *jb)
 
 static int jb_put_first_adaptive(void *jb, struct ast_frame *fin, long now)
 {
+	jitterbuf *adaptivejb = (jitterbuf *) jb;
+
+	/* Initialize the offset to that of the first frame's timestamp */
+	adaptivejb->info.resync_offset = fin->ts;
+
 	return jb_put_adaptive(jb, fin, now);
 }
 
