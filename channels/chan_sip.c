@@ -7541,7 +7541,7 @@ restartsearch:
 		} else if (intended_method == SIP_NOTIFY) {
 			/* We do not support out-of-dialog NOTIFY either,
 		   	like voicemail notification, so cancel that early */
-			transmit_response_using_temp(callid, sin, 1, intended_method, req, "489 Bad event");
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 No subscription");
 		} else {
 			/* Ok, time to create a new SIP dialog object, a pvt */
 			if ((p = sip_alloc(callid, sin, 1, intended_method, req)))  {
