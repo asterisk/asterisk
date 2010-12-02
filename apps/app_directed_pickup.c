@@ -129,16 +129,24 @@ static struct ast_channel *my_ast_get_channel_by_name_locked(const char *channam
 	size_t channame_len, chkchan_len;
 
 	channame_len = strlen(channame);
-	chkchan_len = channame_len + 1;
 
- 	chkchan = alloca(chkchan_len + 1);
-
-	/* need to append a '-' for the comparison so we check full channel name,
-	 * i.e SIP/hgc- , use a temporary variable so original stays the same for
-	 * debugging.
+	/* Check if channel name contains a '-'.
+	 * In this case the channel name will be interpreted as full channel name.
 	 */
-	strcpy(chkchan, channame);
-	strcat(chkchan, "-");
+	if (strchr(channame, '-')) {
+		/* check full channel name */
+		chkchan_len = channame_len;
+		chkchan = (char *)channame;
+	} else {
+		/* need to append a '-' for the comparison so we check full channel name,
+		 * i.e SIP/hgc- , use a temporary variable so original stays the same for
+		 * debugging.
+		 */
+		chkchan_len = channame_len + 1;
+		chkchan = alloca(chkchan_len + 1);
+		strcpy(chkchan, channame);
+		strcat(chkchan, "-");
+	}
 
 	for (chan = ast_walk_channel_by_name_prefix_locked(NULL, channame, channame_len);
 		 chan;

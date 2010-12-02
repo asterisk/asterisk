@@ -1,3 +1,912 @@
+2010-11-15  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.15-rc1
+
+2010-11-15 18:24 +0000 [r294988-295062]  Tilghman Lesher <tlesher@digium.com>
+
+	* tests/test_expr.c (added), /: Merged revisions 295026 via
+	  svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r295026 | tilghman | 2010-11-15 11:58:37 -0600 (Mon, 15 Nov 2010)
+	  | 2 lines Create test verifying results of expression parser
+	  ........
+
+	* funcs/func_curl.c: It is possible to crash Asterisk by feeding
+	  the curl engine invalid data. (closes issue #18161) Reported by:
+	  wdoekes Patches: 20101029__issue18161.diff.txt uploaded by
+	  tilghman (license 14) Tested by: tilghman
+
+2010-11-12 21:14 +0000 [r294904-294910]  Jeff Peeler <jpeeler@digium.com>
+
+	* apps/app_voicemail.c: Return correct error code if lock path
+	  fails. The recent changes to open_mailbox actually caused it to
+	  be fixed, but let's be consistent. Reported by alecdavis in
+	  asterisk-dev.
+
+	* apps/app_voicemail.c, /: Merged revisions 294903 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r294903 | jpeeler | 2010-11-12 14:49:09 -0600 (Fri, 12
+	  Nov 2010) | 16 lines Fix regression causing abort in voicemail
+	  after opening a mailbox with no mesgs. In order to be more safe,
+	  some error handling code was changed to respect more error
+	  conditions including the potential memory allocation failure for
+	  deleted and heard message tracking introduced in 293004. However,
+	  last_message_index returns -1 for zero messages (perhaps as
+	  expected) and was triggering the stricter error checking. Because
+	  last_message_index is only called directly in one place, just
+	  return 0 from open_mailbox (for file based storage) when no
+	  messages are detected unless a real error has occurred. (closes
+	  issue #18240) Reported by: leobrown Patches:
+	  bug18240.1-6-2.diff.txt uploaded by alecdavis (license 585)
+	  Tested by: pabelanger ........
+
+2010-11-12 02:44 +0000 [r294822]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_dahdi.c, /: Merged revisions 294821 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r294821 | rmudgett | 2010-11-11 20:41:13 -0600 (Thu, 11
+	  Nov 2010) | 11 lines Asterisk is getting a "No D-channels
+	  available!" warning message every 4 seconds. Asterisk is just
+	  whining too much with this message: "No D-channels available!
+	  Using Primary channel XXX as D-channel anyway!". Filtered the
+	  message so it only comes out once if there is no D channel
+	  available without an intervening D channel available period.
+	  (closes issue #17270) Reported by: jmls ........
+
+2010-11-11 21:57 +0000 [r294639-294733]  Jeff Peeler <jpeeler@digium.com>
+
+	* /, channels/chan_sip.c: Merged revisions 294688 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r294688 | jpeeler | 2010-11-11 15:12:27 -0600 (Thu, 11 Nov 2010)
+	  | 18 lines Fix problem with qualify option packets for realtime
+	  peers never stopping. The option packets not only never stopped,
+	  but if a realtime peer was not in the peer list multiple options
+	  dialogs could accumulate over time. This scenario has the
+	  potential to progress to the point of saturating a link just from
+	  options packets. The fix was to ensure that the poke scheduler
+	  checks to see if a peer is in the peer list before continuing to
+	  poke. The reason a peer must be in the peer list to be able to
+	  properly manage an options dialog is because otherwise the call
+	  pointer is lost when the peer is regenerated from the database,
+	  which is how existing qualify dialogs are detected. (closes issue
+	  #16382) (closes issue #17779) Reported by: lftsy Patches:
+	  bug16382-3.patch uploaded by jpeeler (license 325) Tested by:
+	  zerohalo ........
+
+	* main/asterisk.c, include/asterisk.h, main/pbx.c, /: Merged
+	  revisions 294384 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r294384 | jpeeler | 2010-11-09 11:37:59 -0600 (Tue, 09 Nov 2010)
+	  | 47 lines Fix a deadlock in device state change processing.
+	  Copied from some notes from the original author (Russell):
+	  Deadlock scenario: Thread 1: device state change thread Holds -
+	  rdlock on contexts Holds - hints lock Waiting on channels
+	  container lock Thread 2: SIP monitor thread Holds the "iflock"
+	  Holds a sip_pvt lock Holds channel container lock Waiting for a
+	  channel lock Thread 3: A channel thread (chan_local in this case)
+	  Holds 2 channel locks acquired within app_dial Holds a 3rd
+	  channel lock it got inside of chan_local Holds a local_pvt lock
+	  Waiting on a rdlock of the contexts lock A bunch of other threads
+	  waiting on a wrlock of the contexts lock To address this
+	  deadlock, some locking order rules must be put in place and
+	  enforced. Existing relevant rules: 1) channel lock before a pvt
+	  lock 2) contexts lock before hints lock 3) channels container
+	  before a channel What's missing is some enforcement of the order
+	  when you involve more than any two. To fix this problem, I put in
+	  some code that ensures that (at least in the code paths involved
+	  in this bug) the locks in (3) come before the locks in (2). To
+	  change the operation of thread 1 to comply, I converted the
+	  storage of hints to an astobj2 container. This allows processing
+	  of hints without holding the hints container lock. So, in the
+	  code path that led to thread 1's state, it no longer holds either
+	  the contexts or hints lock while it attempts to lock the channels
+	  container. (closes issue #18165) Reported by: antonio ABE-2583
+	  ........
+
+2010-11-10 23:16 +0000 [r294571]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/features.c: Actually pay attention to documented settings in
+	  features.conf. (closes issue #16757) Reported by: voxter Patches:
+	  20101012__issue16757.diff.txt uploaded by tilghman (license 14)
+	  Review: https://reviewboard.asterisk.org/r/994/
+
+2010-11-10 12:41 +0000 [r294500]  Russell Bryant <russell@digium.com>
+
+	* main/devicestate.c: Improve a debug message to be more readable
+	  and consistent. (closes issue #18282) Reported by: klaus3000
+	  Patches: ast_devstate2str-patch.txt uploaded by klaus3000
+	  (license 65)
+
+2010-11-09 20:27 +0000 [r294429]  Tilghman Lesher <tlesher@digium.com>
+
+	* configure, configure.ac: Detect GMime properly on systems where
+	  gmime flags and libs are configured with pkg-config. (closes
+	  issue #16155) Reported by: jcollie Patches:
+	  20100917__issue16155.diff.txt uploaded by tilghman (license 14)
+	  Tested by: tilghman
+
+2010-11-08 22:30 +0000 [r294277-294312]  Jeff Peeler <jpeeler@digium.com>
+
+	* res/res_timing_timerfd.c: add missing unlock not present in
+	  294277
+
+	* main/timing.c, main/channel.c, res/res_timing_timerfd.c,
+	  include/asterisk/timing.h: Fix playback failure when using IAX
+	  with the timerfd module. To fix this issue the alert pipe will
+	  now be used when the timerfd module is in use. There appeared to
+	  be a race that was not solved by adding locking in the timerfd
+	  module, but needed to be there anyway. The race was between the
+	  timer being put in non-continuous mode in ast_read on the channel
+	  thread and the IAX frame scheduler queuing a frame which would
+	  enable continuous mode before the non-continuous mode event was
+	  read. This race for now is simply avoided. (closes issue #18110)
+	  Reported by: tpanton Tested by: tpanton I put tested by tpanton
+	  because it was tested on his hardware. Thanks for the remote
+	  access to debug this issue!
+
+2010-11-08 20:50 +0000 [r294242]  Matthew Nicholson <mnicholson@digium.com>
+
+	* channels/chan_sip.c: Go off hold when we get an empty reinvite
+	  telling us to. (closes issue 0014448) Reported by: frawd (closes
+	  issue #17878) Reported by: frawd
+
+2010-11-05 00:06 +0000 [r293969]  Shaun Ruffell <sruffell@digium.com>
+
+	* codecs/codec_dahdi.c, /: Merged revisions 293968 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r293968 | sruffell | 2010-11-04 19:02:53 -0500 (Thu, 04
+	  Nov 2010) | 17 lines codecs/codec_dahdi: Prevent "choppy" audio
+	  when receiving unexpected frame sizes. dahdi-linux 2.4.0
+	  (specifically commit 9034) added the capability for the wctc4xxp
+	  to return more than a single packet of data in response to a
+	  read. However, when decoding packets, codec_dahdi was still
+	  assuming that the default number of samples was in each read. In
+	  other words, each packet your provider sent you, regardless of
+	  size, would result in 20 ms of decoded data (30 ms if decoding
+	  G723). If your provider was sending 60 ms packets then
+	  codec_dahdi would end up stripping 40 ms of data from each
+	  transcoded frame resulting in "choppy" audio. This would only
+	  affect systems where G729 packets are arriving in sizes greater
+	  than 20ms or G723 packets arriving in sizes greater than 30ms.
+	  DAHDI-744. ........
+
+2010-11-03 18:31 +0000 [r293806]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_dahdi.c, /: Merged revisions 293805 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r293805 | rmudgett | 2010-11-03 13:23:04 -0500 (Wed, 03
+	  Nov 2010) | 20 lines Party A in an analog 3-way call would
+	  continue to hear ringback after party C answers. All parties are
+	  analog FXS ports. 1) A calls B. 2) A flash hooks to call C. 3) A
+	  flash hooks to bring C into 3-way call before C answers. (A and B
+	  hear ringback) 4) C answers 5) A continues to hear ringback
+	  during the 3-way call. (All parties can hear each other.) * Fixed
+	  use of wrong variable in dahdi_bridge() that stopped ringback on
+	  the wrong subchannel. * Made several debug messages have more
+	  information. A similar issue happens if B and C are SIP channels.
+	  B continues to hear ringback. For some reason this only affects
+	  v1.8 and trunk. * Don't start ringback on the real and 3-way
+	  subchannels when creating the 3-way conference. Removing this
+	  code is benign on v1.6.2 and earlier. ........
+
+2010-11-02 23:07 +0000 [r293723]  Jeff Peeler <jpeeler@digium.com>
+
+	* /, channels/chan_sip.c: Merged revisions 293722 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r293722 | jpeeler | 2010-11-02 18:02:51 -0500 (Tue, 02 Nov 2010)
+	  | 8 lines Add enabled/disabled information for rtautoclear sip
+	  show settings output. When setting to zero/"no", the numeric
+	  default was shown making it not obvious the disabled setting was
+	  respected. (closes issue #18123) Reported by: zerohalo ........
+
+2010-11-02 21:26 +0000 [r293647]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_dahdi.c, /: Merged revisions 293639 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r293639 | rmudgett | 2010-11-02 16:24:13 -0500 (Tue, 02
+	  Nov 2010) | 6 lines Make warning message have more useful
+	  information in it. Change "Unable to get index, and nullok is not
+	  asserted" to "Unable to get index for '<channel-name>' on channel
+	  <number> (<function>(), line <number>)". ........
+
+2010-10-30 01:49 +0000 [r293340-293417]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_dahdi.c, /: Merged revisions 293416 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r293416 | rmudgett | 2010-10-29 20:45:49 -0500 (Fri, 29
+	  Oct 2010) | 1 line Remove some more code that serves no purpose.
+	  ........
+
+	* channels/chan_dahdi.c, /: Merged revisions 293339 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r293339 | rmudgett | 2010-10-29 19:34:12 -0500 (Fri, 29
+	  Oct 2010) | 1 line Remove some code that serves no purpose.
+	  ........
+
+2010-10-28 19:54 +0000 [r293195-293196]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/ast_expr2.c, main/ast_expr2.h: Merged revisions 293194 via
+	  svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r293194 | tilghman | 2010-10-28 14:44:37 -0500 (Thu, 28 Oct 2010)
+	  | 5 lines "!00" evaluated as false, which is incorrect. Fixing.
+	  Reported (though the reporter did not understand he was reporting
+	  a bug) on the asterisk-users list:
+	  http://lists.digium.com/pipermail/asterisk-users/2010-October/255505.html
+	  ........
+
+	* /, res/ael/ael.tab.c, main/ast_expr2.y, res/ael/ael_lex.c,
+	  res/ael/ael.tab.h: Merged revisions 293194 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r293194 | tilghman | 2010-10-28 14:44:37 -0500 (Thu, 28 Oct 2010)
+	  | 5 lines "!00" evaluated as false, which is incorrect. Fixing.
+	  Reported (though the reporter did not understand he was reporting
+	  a bug) on the asterisk-users list:
+	  http://lists.digium.com/pipermail/asterisk-users/2010-October/255505.html
+	  ........
+
+2010-10-28 16:09 +0000 [r293158]  Jeff Peeler <jpeeler@digium.com>
+
+	* funcs/func_strings.c: Fix infinite loop in FILTER(). Specifically
+	  when you're using characters above \x7f or invalid character
+	  escapes (e.g. \xgg). (closes issue #18060) Reported by: wdoekes
+	  Patches: issue18060_func_strings_filter_infinite_loop.patch
+	  uploaded by wdoekes (license 717) Tested by: wdoekes
+
+2010-10-26 18:33 +0000 [r293118]  Jeff Peeler <jpeeler@digium.com>
+
+	* apps/app_voicemail.c, /: Merged revisions 293004 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r293004 | jpeeler | 2010-10-25 17:55:28 -0500 (Mon, 25
+	  Oct 2010) | 29 lines Fix inprocess_container in voicemail to
+	  correctly restrict max messages. The comparison function logic
+	  was off, so the number of sessions for a given mailbox were not
+	  being incremented properly. This problem caused the maximum
+	  number of messages per folder to not be respected when
+	  simultaneously leaving multiple voicemails just below the
+	  threshold. These problems should be fixed by the above, but just
+	  in case: Fixed resequence_mailbox to rely on the actual number of
+	  detected number of files in a directory rather than just assuming
+	  only 10 messages more than the maximum had been left. Also if
+	  more messages than the maximum are deleted they are actually
+	  removed now. The second purpose of this commit should have been
+	  separated out probably, but is related to the above. Again, if
+	  the number of messages in a given voicemail folder exceeds the
+	  maximum set limit make sure to allocate enough space for the
+	  deleted and heard index tracking array. A few random fixes: There
+	  was a forgotten decrement of the inprocess count in
+	  imap_store_file. When using IMAP storage, do not look in the
+	  directory where file based storage messages may still reside and
+	  influence the message count. Ensure to use only the first format
+	  in sendmail. ABE-2516 ........
+
+2010-10-25 19:06 +0000 [r292867]  David Vossel <dvossel@digium.com>
+
+	* channels/chan_local.c, /: Merged revisions 292866 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r292866 | dvossel | 2010-10-25 14:05:07 -0500 (Mon, 25
+	  Oct 2010) | 27 lines This patch turns chan_local pvts into
+	  astobj2 objects. chan_local does some dangerous things involving
+	  deadlock avoidance. tech_pvt functions like hangup and
+	  queue_frame are provided with a locked channel upon entry. Those
+	  functions are completely safe as long as you don't attempt to
+	  give up that channel lock, but that is impossible to guarantee
+	  due to the required deadlock avoidance necessary to lock both the
+	  tech_pvt and both channels involved. In the past, we have tried
+	  to account for this by doing things like setting a "glare" flag
+	  that indicates what function should destroy the pvt. This was
+	  used in local_hangup and local_queue_frame to decided who should
+	  destroy the pvt if they collided in separate threads. I have
+	  removed the need to do this by converting all chan_local
+	  tech_pvts to astobj2. This means we can ref a pvt before deadlock
+	  avoidance and not have to worry about that pvt possibly getting
+	  destroyed under us. It also cleans up where we destroy the
+	  tech_pvt. The only unlink from the tech_pvt container occurs in
+	  local_hangup now, which is where it should occur. Since there
+	  still may be thread collisions on some functions like
+	  local_hangup after deadlock avoidance, I have added some checks
+	  to detect those collisions and exit appropriately. I think this
+	  patch is going to solve quite a bit of weirdness we have had with
+	  local channels in the past. ........
+
+2010-10-22 21:16 +0000 [r292786]  Leif Madsen <lmadsen@digium.com>
+
+	* contrib/scripts/asterisk.ldif, channels/chan_sip.c,
+	  configs/res_ldap.conf.sample: Update the LDIF file for LDAP. The
+	  LDIF file asterisk.ldif was quite a bit out of date from the
+	  asterisk.ldap-schema file, so I've now updated that to be in
+	  sync. The asterisk.ldif file being out of sync was a problem on
+	  my systems where I was doing an ldapadd to import the schema into
+	  the LDAP database, and the existing file would cause problems and
+	  ERROR messages when registering. Additional documention has been
+	  added based on feedback in the issue I'm closing. (closes issue
+	  #13861) Reported by: scramatte Patches: ldap-update.txt uploaded
+	  by lmadsen (license 10) Tested by: lmadsen, jcovert, suretec,
+	  rgenthner
+
+2010-10-21 13:11 +0000 [r292556]  Leif Madsen <lmadsen@digium.com>
+
+	* configs/res_ldap.conf.sample: Change res_ldap.sample.conf to
+	  match the schema. (closes issue #17376) Reported by: jcovert
+	  Patches: res_ldap.conf.sample.patch uploaded by jcovert (license
+	  551)
+
+2010-10-21 00:05 +0000 [r292412]  Paul Belanger <paul.belanger@polybeacon.com>
+
+	* apps/app_dial.c, /: Merged revisions 292411 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r292411 | pabelanger | 2010-10-20 20:00:51 -0400 (Wed, 20 Oct
+	  2010) | 10 lines Record priv-recordintro as sln, not gsm This
+	  removes the gsm->sln step when transcoding priv-recordintro.
+	  (closes issue #18176) Reported by: pabelanger Patches:
+	  chan_sip.diff uploaded by pabelanger (license 224) ........
+
+2010-10-18 22:01 +0000 [r292229]  Leif Madsen <lmadsen@digium.com>
+
+	* sounds/Makefile: Fix typo in the sounds/Makefile. (Issue #17426)
+
+2010-10-18 21:54 +0000 [r292226]  Jeff Peeler <jpeeler@digium.com>
+
+	* apps/app_voicemail.c, /: Merged revisions 292223 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r292223 | jpeeler | 2010-10-18 16:50:30 -0500 (Mon, 18
+	  Oct 2010) | 11 lines Fix improper operator key acceptance and
+	  clean up temp recording files. This is a fix for when pressing
+	  the operator key after recording an unavailable, busy, name, or
+	  temporary message in mailbox options. The operator key should not
+	  be accepted here, but should be allowed during the message
+	  recording. If the operator key is pressed during ensure the file
+	  is saved or deleted as apporopriate. Also, ensure removal of
+	  temporary recorded files after an early hang up or when message
+	  acceptance confirmation times out. ABE-2518 ........
+
+2010-10-18 21:50 +0000 [r292224]  Leif Madsen <lmadsen@digium.com>
+
+	* sounds/Makefile, /, sounds/sounds.xml: Merged revisions 292222
+	  via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r292222 | lmadsen | 2010-10-18 16:47:25 -0500 (Mon, 18 Oct 2010)
+	  | 9 lines Add support for the new English (Australian Accent)
+	  sound files. (closes issue #17426) Reported by: camsown Patches:
+	  core-sounds-en_AU.txt uploaded by camsown (license 1050)
+	  add_AU_sounds.patch.txt uploaded by lmadsen (license 10) Tested
+	  by: camsown, lmadsen, jtodd, qwell ........
+
+2010-10-16 10:03 +0000 [r292049]  Tzafrir Cohen <tzafrir.cohen@xorcom.com>
+
+	* res/res_musiconhold.c, configs/musiconhold.conf.sample: Base
+	  directory for MOH should be ASTDATADIR If the directive
+	  'directory' is relative, make it relative to the datadir, rather
+	  than to the varlibdir. In the sample configuration it is relative
+	  ('moh'). This has no effect unless you have actively set the
+	  datadir explicitly (at build time or at run time). (closes issue
+	  #16906) Patches: moh_datadir uploaded by tzafrir (license 46)
+	  Review: https://reviewboard.asterisk.org/r/974/
+
+2010-10-15 19:35 +0000 [r291939]  Paul Belanger <paul.belanger@polybeacon.com>
+
+	* configs/gtalk.conf.sample, /: Merged revisions 291938 via
+	  svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r291938 | pabelanger | 2010-10-15 15:30:41 -0400 (Fri, 15 Oct
+	  2010) | 2 lines Clean up formatting. ........
+
+2010-10-15 16:16 +0000 [r291904]  Terry Wilson <twilson@digium.com>
+
+	* res/res_jabber.c: Don't crash or deadlock on module unload We
+	  can't hold the lock while pthread_join is called since
+	  aji_log_hook will attempt to lock from the other therad. We
+	  reorder the pthread_join and ast_aji_disconnect so that we don't
+	  do an SSL_read() while SSL_shutdown is running, causing a crash.
+
+2010-10-13 23:36 +0000 [r291655]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_dahdi.c, /: Merged revisions 291643 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r291643 | rmudgett | 2010-10-13 18:29:58 -0500 (Wed, 13
+	  Oct 2010) | 20 lines Deadlock between dahdi_exception() and
+	  dahdi_indicate(). There is a deadlock between dahdi_exception()
+	  and dahdi_indicate() for analog ports. The call-waiting and
+	  three-way-calling feature can experience deadlock if these
+	  features are trying to do something and an event from the bridged
+	  channel happens at the same time. Deadlock avoidance code added
+	  to obtain necessary channel locks before attemting an operation
+	  with call-waiting and three-way-calling. (closes issue #16847)
+	  Reported by: shin-shoryuken Patches: issue_16847_v1.4.patch
+	  uploaded by rmudgett (license 664) issue_16847_v1.6.2.patch
+	  uploaded by rmudgett (license 664) issue_16847_v1.8_v2.patch
+	  uploaded by rmudgett (license 664) Tested by: alecdavis, rmudgett
+	  Review: https://reviewboard.asterisk.org/r/971/ ........
+
+2010-10-13 22:58 +0000 [r291580]  Terry Wilson <twilson@digium.com>
+
+	* main/channel.c, /: Merged revisions 291577 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r291577 | twilson | 2010-10-13 15:45:15 -0700 (Wed, 13 Oct 2010)
+	  | 21 lines Don't ignore frames that have been queued when
+	  softhangup'd When an outgoing call is answered and hung up by the
+	  far end *very* quickly, we may not read any frames and therefor
+	  end up with a call that displays the wrong
+	  disposition/DIALSTATUS. The reason is because ast_queue_hangup()
+	  immediately sets the _softhangup flag on the channel and then
+	  queues the HANGUP control frame, but __ast_read refuses to read
+	  any frames if ast_check_hangup() indicates that a hangup request
+	  has been made (which it will if _softhangup is set). So, we end
+	  up losing control frames. This change makes __ast_read continue
+	  to read frames even if a soft hangup has been requested. It
+	  queues a hangup frame to make sure that __ast_read() will still
+	  eventually return NULL. Much thanks to David Vossel for all of
+	  the reviews, discussion, and help! (closes issue #16946) Reported
+	  by: davidw Review: https://reviewboard.asterisk.org/r/740/
+	  ........
+
+2010-10-13 15:29 +0000 [r291393]  Russell Bryant <russell@digium.com>
+
+	* /, channels/chan_sip.c: Merged revisions 291392 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r291392 | russell | 2010-10-13 10:23:19 -0500 (Wed, 13 Oct 2010)
+	  | 6 lines Lock pvt so pvt->owner can't disappear when queueing up
+	  a frame. This fixes a crash due to a hangup race condition.
+	  ABE-2601 ........
+
+2010-10-12 17:20 +0000 [r291280]  Leif Madsen <lmadsen@digium.com>
+
+	* configs/phoneprov.conf.sample: Add undocumented variables to
+	  phoneprov.conf.sample (closes issue #18107) Reported by: lathama
+	  Patches: phoneprov.conf.sample.diff uploaded by lathama (license
+	  1028)
+
+2010-10-12 17:05 +0000 [r291264]  Tilghman Lesher <tlesher@digium.com>
+
+	* /, main/acl.c: Merged revisions 291263 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r291263 | tilghman | 2010-10-12 11:55:30 -0500 (Tue, 12 Oct 2010)
+	  | 2 lines Oops, incorrect range (although unallocated at ARIN)
+	  ........
+
+2010-10-12 16:07 +0000 [r291229]  Leif Madsen <lmadsen@digium.com>
+
+	* configs/manager.conf.sample: Add documention that mentions
+	  options are defined but not used. (Issue #18101)
+
+2010-10-11 18:39 +0000 [r291073-291111]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_sip.c: Make exit from handle_request_do()
+	  consistent.
+
+	* /, channels/chan_sip.c: Merged revisions 291109 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r291109 | rmudgett | 2010-10-11 13:29:43 -0500 (Mon, 11 Oct 2010)
+	  | 1 line Add missing unlock to an exception condition in
+	  reload_config(). ........
+
+	* main/cli.c: Fixed infinite loop in verbose/debug message output.
+	  Setting the module/filename specific message level and then
+	  changing it resulted in the linked list being looped on itself.
+	  Traversing this linked list is an infinite loop if what you are
+	  looking for is not in the list. Also plugged some CLI parsing
+	  holes in the associated CLI command: * Removing a nonexistent
+	  module from the list actually added it with a level of zero. *
+	  Setting the non-module specific level to zero is now equivalent
+	  to setting it to "off" as documented.
+
+2010-10-08 02:45 +0000 [r290863]  Jeff Peeler <jpeeler@digium.com>
+
+	* main/asterisk.c, /: Merged revisions 290862 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r290862 | jpeeler | 2010-10-07 21:35:29 -0500 (Thu, 07 Oct 2010)
+	  | 9 lines Ensure editline cleanup occurs when Ctrl-C is pressed
+	  at control console. A recent change was made to avoid a race
+	  condition on shutdown which only called the end functions from
+	  the console thread. However, when pressing Ctrl-C the quit
+	  handler is called from the signal handler thread. (closes issue
+	  #17698) Reported by: jmls ........
+
+2010-10-07 20:57 +0000 [r290751]  Jason Parker <jparker@digium.com>
+
+	* autoconf/ast_ext_lib.m4, /, configure,
+	  include/asterisk/autoconfig.h.in: Merged revisions 290750 via
+	  svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r290750 | qwell | 2010-10-07 15:56:04 -0500 (Thu, 07 Oct 2010) |
+	  9 lines Allow PRI to build properly when using --with-pri. Use
+	  the directories found for the parent when using lib dependencies.
+	  (closes issue #17314) Reported by: tzafrir Patches:
+	  17314-withdeps.diff uploaded by qwell (license 4) ........
+
+2010-10-07 10:53 +0000 [r290712]  Russell Bryant <russell@digium.com>
+
+	* main/pbx.c: Don't crash when Set() is called without a value.
+	  Review: https://reviewboard.asterisk.org/r/949/
+
+2010-10-06 13:48 +0000 [r290396-290575]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/file.c: Allow streaming audio from a pipe. (closes issue
+	  #18001) Reported by: jamicque Patches:
+	  20100926__issue18001.diff.txt uploaded by tilghman (license 14)
+	  Tested by: jamicque
+
+	* res/res_jabber.c, /: Merged revisions 290392 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r290392 | tilghman | 2010-10-05 15:20:07 -0500 (Tue, 05 Oct 2010)
+	  | 8 lines Fix a crash by ensuring that we don't alter memory
+	  after it's freed. (closes issue #17387) Reported by: jmls
+	  Patches: 20100726__issue17387.diff.txt uploaded by tilghman
+	  (license 14) Tested by: jmls ........
+
+2010-10-05 19:54 +0000 [r290375]  David Vossel <dvossel@digium.com>
+
+	* apps/app_directed_pickup.c: Fixes PickupChan() not working with
+	  full channel name. (closes issue #18011) Reported by: schern
+	  Patches: app_directed_pickup.c.2.patch uploaded by schern
+	  (license 995) app_directed_pickup.c.trunk.patch uploaded by
+	  schern (license 995) Tested by: schern, dvossel
+
+2010-10-05 17:42 +0000 [r290324]  Richard Mudgett <rmudgett@digium.com>
+
+	* contrib/valgrind.supp, /: Merged revisions 290323 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ................ r290323 | rmudgett | 2010-10-05 12:41:18 -0500
+	  (Tue, 05 Oct 2010) | 11 lines Merged revision 258974 from
+	  https://origsvn.digium.com/svn/asterisk/trunk .......... r258974
+	  | diruggles | 2010-04-26 14:05:47 -0500 (Mon, 26 Apr 2010) | 4
+	  lines Line 24 missed in compatibility fix in revision 233577
+	  added a "fun:" prefix line 24 .......... ................
+
+2010-10-04 23:14 +0000 [r290101-290254]  Tilghman Lesher <tlesher@digium.com>
+
+	* pbx/ael/ael-test/ref.ael-test19,
+	  pbx/ael/ael-test/ref.ael-vtest13, res/ael/pval.c, main/pbx.c,
+	  pbx/ael/ael-test/ref.ael-vtest17,
+	  pbx/ael/ael-test/ref.ael-ntest10, pbx/ael/ael-test/ref.ael-test1,
+	  pbx/ael/ael-test/ref.ael-test2, pbx/ael/ael-test/ref.ael-test3,
+	  pbx/ael/ael-test/ref.ael-test4, pbx/ael/ael-test/ref.ael-test5:
+	  Change new pattern matcher to regard dashes the same as the old
+	  pattern matcher -- as visual candy to be ignored. Also change the
+	  AEL parser to not generate dashes within extensions, as those
+	  dashes would be ignored. Update the AEL tests to match this
+	  behavior. (closes issue #17366) Reported by: murf Patches:
+	  20100727__issue17366.diff.txt uploaded by tilghman (license 14)
+	  Tested by: tilghman
+
+	* /, configure, configure.ac: Merged revisions 290177 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r290177 | tilghman | 2010-10-04 15:15:26 -0500 (Mon, 04
+	  Oct 2010) | 2 lines Fixing Mac OS X auto-builder. ........
+
+	* /, configure, configure.ac: Merged revisions 290100 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r290100 | tilghman | 2010-10-03 16:04:29 -0500 (Sun, 03
+	  Oct 2010) | 2 lines Automatically re-run configure test for
+	  menuselect, when the relevant makeopts settings change. ........
+
+2010-10-02 08:52 +0000 [r289950]  Olle Johansson <oej@edvina.net>
+
+	* main/manager.c, /: Merged revisions 289949 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289949 | oej | 2010-10-02 10:50:05 +0200 (Lör, 02 Okt 2010) | 2
+	  lines Add documentation for undocumented option to AMI action
+	  originate ........
+
+2010-10-02 04:45 +0000 [r289874]  Tilghman Lesher <tlesher@digium.com>
+
+	* apps/app_voicemail.c, /: Merged revisions 289873 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r289873 | tilghman | 2010-10-01 23:42:08 -0500 (Fri, 01
+	  Oct 2010) | 8 lines When forwarding a message, a prepend means
+	  that the filesystem will always have a better copy. (closes issue
+	  #17803) Reported by: dpetersen Patches:
+	  20100923__issue17803.diff.txt uploaded by tilghman (license 14)
+	  Tested by: dpetersen ........
+
+2010-10-01 23:01 +0000 [r289798]  Jeff Peeler <jpeeler@digium.com>
+
+	* main/rtp.c, /, channels/chan_sip.c, include/asterisk/rtp.h:
+	  Merged revisions 289797 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289797 | jpeeler | 2010-10-01 17:58:38 -0500 (Fri, 01 Oct 2010)
+	  | 15 lines Change RFC2833 DTMF event duration on end to report
+	  actual elapsed time. The scenario here is with a non P2P early
+	  media session. The reported time length of DTMF presses are
+	  coming up short when sending to the remote side. Currently the
+	  event duration is a running total that is incremented when
+	  sending continuation packets. These continuation packets are only
+	  triggered upon incoming media from the remote side, which means
+	  that the running total probably is not going to end up matching
+	  the actual length of time Asterisk received DTMF. This patch
+	  changes the end event duration to be lengthened if it is detected
+	  that the end event is going to come up short. Review:
+	  https://reviewboard.asterisk.org/r/957/ ABE-2476 ........
+
+2010-10-01 17:09 +0000 [r289704]  Paul Belanger <paul.belanger@polybeacon.com>
+
+	* res/res_jabber.c, /, configs/jabber.conf.sample: Merged revisions
+	  289703 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289703 | pabelanger | 2010-10-01 13:03:11 -0400 (Fri, 01 Oct
+	  2010) | 6 lines Disable debugging by default and reformat .config
+	  file. Review: https://reviewboard.asterisk.org/r/929/ ........
+
+2010-10-01 16:21 +0000 [r289700]  Jeff Peeler <jpeeler@digium.com>
+
+	* /, channels/chan_sip.c: Merged revisions 289699 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289699 | jpeeler | 2010-10-01 11:20:00 -0500 (Fri, 01 Oct 2010)
+	  | 14 lines Ensure user portion of SIP URI matches dialplan when
+	  using encoded characters. This commit takes a simliar approach to
+	  288112 and checks the dialplan to determine the proper action for
+	  an incoming contact header as to whether or not it should be
+	  decoded or not. sip_new was blindly always decoding the
+	  extension, which also caused the outgoing contact header to be
+	  incorrect as well as failing to match the encoded extension in
+	  the dialplan. (closes issue #17892) Reported by: wdoekes Patches:
+	  bug17892-1.patch uploaded by jpeeler (license 325) Tested by:
+	  wdoekes ........
+
+2010-10-01 09:42 +0000 [r289622]  schmitds <schmitds@localhost>:
+
+	* channels/chan_sip.c: don't iterate through all dialogs to find
+	  and delete old subscribes On every incoming subscribe there is a
+	  iteration through all dialogs to find old subscribes and delete
+	  them. This is slow and not RFC conform. This was only needed in
+	  1.2 cause a subscribe was not deleted when a dialog was
+	  destroyed, after 1.4 a subscribe get removed when its dialog is
+	  destroyed. (closes issue #17950) Reported by: schmidts Tested by:
+	  schmidts Review: https://reviewboard.asterisk.org/r/901/
+
+2010-09-30 19:51 +0000 [r289553]  Matthew Nicholson <mnicholson@digium.com>
+
+	* channels/chan_sip.c: Properly handle channel allocation failures
+	  duing invites with replaces. ABE-2588
+
+2010-09-30 17:09 +0000 [r289501]  Brett Bryant <bbryant@digium.com>
+
+	* /, res/res_agi.c: Merged revisions 289500 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289500 | bbryant | 2010-09-30 13:08:20 -0400 (Thu, 30 Sep 2010)
+	  | 11 lines res_agi.c:handle_getvariablefull() could recursively
+	  lock a channel and not release it if an argument is the current
+	  channel's name. (closes issue #17970) Reported by: mdu113
+	  Patches: res_agi.c.diff3 uploaded by mdu113 (license 582) Tested
+	  by: mdu113 Review: https://reviewboard.asterisk.org/r/947/
+	  ........
+
+2010-09-30 15:37 +0000 [r289425]  Russell Bryant <russell@digium.com>
+
+	* /, apps/app_sms.c: Merged revisions 289424 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289424 | russell | 2010-09-30 10:34:29 -0500 (Thu, 30 Sep 2010)
+	  | 8 lines Fix a crash in app_sms. Since the data being passed to
+	  the generator callback is on the stack of the SMS() application,
+	  we must ensure that the generator is stopped before the
+	  application exits. ABE-2587 ........
+
+2010-09-29 21:03 +0000 [r289339]  Jason Parker <jparker@digium.com>
+
+	* main/channel.c, /, main/features.c: Merged revisions 289338 via
+	  svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289338 | qwell | 2010-09-29 15:56:26 -0500 (Wed, 29 Sep 2010) |
+	  8 lines Allow a manager originate to succeed on forwarded
+	  devices. The timeout to wait for an answer was being set to 0
+	  when a device forwarded to another extension. We don't always
+	  need the timeout set like this, so make it an optional parameter,
+	  and don't use it in this case. ABE-2544 ........
+
+2010-09-29 20:24 +0000 [r289334]  Leif Madsen <lmadsen@digium.com>
+
+	* configs/res_ldap.conf.sample: Update sample documentation to note
+	  md5secret requirements.
+
+2010-09-29 20:15 +0000 [r289332]  Russell Bryant <russell@digium.com>
+
+	* res/res_config_ldap.c: Don't completely ignore md5secret from
+	  LDAP if the value does not begin with {md5}. This fixes a problem
+	  that lmadsen ran in to where md5secret was not working for him.
+
+2010-09-29 15:04 +0000 [r289178]  Matthew Nicholson <mnicholson@digium.com>
+
+	* main/channel.c, /: Merged revisions 289177 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289177 | mnicholson | 2010-09-29 10:03:27 -0500 (Wed, 29 Sep
+	  2010) | 8 lines Set the caller id on CDRs when it is set on the
+	  parent channel. (closes issue #17569) Reported by: tbelder
+	  Patches: 17569.diff uploaded by tbelder (license 618) Tested by:
+	  tbelder ........
+
+2010-09-28 18:14 +0000 [r289095]  Brett Bryant <bbryant@digium.com>
+
+	* main/channel.c, /: Merged revisions 289094 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r289094 | bbryant | 2010-09-28 14:10:19 -0400 (Tue, 28 Sep 2010)
+	  | 14 lines Fixes an issue with the Newchannel AMI event during
+	  the Masquerading process. Fixes an issue with the Newchannel AMI
+	  event during the Masquerading process, where no Newchannel AMI
+	  event was generated for the psuedo channel used during the
+	  masquerading process. (closes issue #17987) Reported by:
+	  RadicAlish Patches: newchannel.patch.txt uploaded by RadicAlish
+	  (license 1122) Tested by: RadicAlish Review:
+	  https://reviewboard.asterisk.org/r/937/ ........
+
+2010-09-24 15:37 +0000 [r288747]  Terry Wilson <twilson@digium.com>
+
+	* channels/chan_local.c, /: Merged revisions 288746 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r288746 | twilson | 2010-09-24 08:26:09 -0700 (Fri, 24
+	  Sep 2010) | 5 lines Don't fail a masquerade if it is already
+	  being hung up This avoids noise on some Local channel situations
+	  where we don't use /n. Thanks to Alec Davis for the suggestion.
+	  ........
+
+2010-09-24 13:53 +0000 [r288637-288712]  Tilghman Lesher <tlesher@digium.com>
+
+	* funcs/func_strings.c: Solaris won't printf a NULL. (closes issue
+	  #18041) Reported by: asgaroth
+
+	* cdr/cdr_pgsql.c, /, configure, include/asterisk/autoconfig.h.in,
+	  include/asterisk/compat.h, main/strcompat.c, configure.ac,
+	  include/asterisk/channel.h: Merged revisions 288636 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r288636 | tilghman | 2010-09-23 22:20:24 -0500 (Thu, 23
+	  Sep 2010) | 2 lines Solaris compatibility fixes ........
+
+2010-09-22 23:10 +0000 [r288500]  Terry Wilson <twilson@digium.com>
+
+	* channels/chan_local.c, /: Merged revisions 288499 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r288499 | twilson | 2010-09-22 16:00:30 -0700 (Wed, 22
+	  Sep 2010) | 8 lines Don't let a Local channel get bridged to
+	  itself If a local channel gets bridged to itself, it becomes
+	  orphaned with no devices left to actually tell it to hang up.
+	  This patch modifies local_fixup() to detect this case and deny
+	  it. Review: https://reviewboard.asterisk.org/r/934 ........
+
+2010-09-22 17:49 +0000 [r288344-288417]  David Vossel <dvossel@digium.com>
+
+	* /, channels/chan_sip.c: Merged revisions 288416 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r288416 | dvossel | 2010-09-22 12:48:15 -0500 (Wed, 22 Sep 2010)
+	  | 5 lines RFC3261 section 12.2 explicitly says out of order
+	  requests are responded with a 500 Server Internal Error response.
+	  ABE-2458 ........
+
+	* /, channels/chan_sip.c: Merged revisions 288343 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r288343 | dvossel | 2010-09-22 11:49:56 -0500 (Wed, 22 Sep 2010)
+	  | 2 lines During check_pendings, if the dialog is terminated with
+	  a CANCEL, change the invitestate to INV_CANCEL like in
+	  sip_hangup. ........
+
+2010-09-22 16:44 +0000 [r288340]  Russell Bryant <russell@digium.com>
+
+	* main/asterisk.c, /: Merged revisions 288339 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r288339 | russell | 2010-09-22 11:39:16 -0500 (Wed, 22 Sep 2010)
+	  | 11 lines Fix a 100% CPU consumption problem when setting
+	  console=yes in asterisk.conf. The handling of -c and console=yes
+	  should be the same, but they were not. When you specify -c, it
+	  sets both a flag for console module and for asterisk not to
+	  fork() off into the background. The handling of console=yes only
+	  set console mode, so you would end up with a background process()
+	  trying to run the Asterisk console and freaking out since it
+	  didn't have anything to read input from. Thanks to beagles for
+	  reporting and helping debug the problem! ........
+
+2010-09-22 15:11 +0000 [r288267]  Tilghman Lesher <tlesher@digium.com>
+
+	* cdr/cdr_pgsql.c, configs/cdr_pgsql.conf.sample, /, UPGRADE.txt:
+	  Merged revisions 288265-288266 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r288265 | tilghman | 2010-09-22 09:48:04 -0500 (Wed, 22 Sep 2010)
+	  | 9 lines Allow the encoding to be set, in case local charset
+	  does not agree with database. (closes issue #16940) Reported by:
+	  jamicque Patches: 20100827__issue16940.diff.txt uploaded by
+	  tilghman (license 14) 20100921__issue16940__1.6.2.diff.txt
+	  uploaded by tilghman (license 14) Tested by: jamicque ........
+	  r288266 | tilghman | 2010-09-22 10:04:52 -0500 (Wed, 22 Sep 2010)
+	  | 5 lines Document addition of encoding parameter. (issue #16940)
+	  Reported by: jamicque ........
+
+2010-09-22 00:03 +0000 [r288193]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_iax2.c, /: Merged revisions 288192 via svnmerge
+	  from https://origsvn.digium.com/svn/asterisk/branches/1.4
+	  ........ r288192 | rmudgett | 2010-09-21 18:55:58 -0500 (Tue, 21
+	  Sep 2010) | 26 lines In chan_iax2.c:schedule_delivery() calls
+	  ast_bridged_channel() on an unlocked channel. Near the beginning
+	  of schedule_delivery(), ast_bridged_channel() is called on
+	  iaxs[fr->callno]->owner. However, the channel is not locked,
+	  which can result in ast_bridged_channel() crashing should
+	  owner->tech change to a technology that doesn't implement
+	  bridged_channel. I also fixed the other calls to
+	  ast_bridged_channel() in chan_iax2.c since the owner lock was not
+	  held there either. Converted the existing channel deadlock
+	  avoidance to use iax2_lock_owner(). Using the new function
+	  simplified some awkward code. In the process of fixing the
+	  locking on ast_bridged_channel(), I also found a memory leak in
+	  socket_process() for v1.6.2 and v1.8. The local struct variable
+	  ies.vars is not freed on early/abnormal function exits. (closes
+	  issue #17919) Reported by: rain Patches: issue17919_v1.4.patch
+	  uploaded by rmudgett (license 664) issue17919_w_leak_v1.6.2.patch
+	  uploaded by rmudgett (license 664) issue17919_w_leak_v1.8.patch
+	  uploaded by rmudgett (license 664) Review:
+	  https://reviewboard.asterisk.org/r/926/ ........
+
+2010-09-21 22:22 +0000 [r288147]  Paul Belanger <paul.belanger@polybeacon.com>
+
+	* channels/chan_iax2.c: Setup timer before set_config(). (closes
+	  issue #18019) Reported by: Netview Patches: issue_0018019.patch
+	  uploaded by pabelanger (license 224) Tested by: Netview
+
+2010-09-21 21:59 +0000 [r288113]  Tilghman Lesher <tlesher@digium.com>
+
+	* /, channels/chan_sip.c: Merged revisions 288112 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r288112 | tilghman | 2010-09-21 16:58:13 -0500 (Tue, 21 Sep 2010)
+	  | 15 lines Try both the encoded and unencoded subscription URI
+	  for a match in hints. When a phone sends an encoded URI for a
+	  subscription, the URI is not matched with the actual hint that is
+	  in decoded format. For example, if we have an extension with a
+	  hint that is named: "#5601" or "*5601", the subscription will
+	  work fine if the phone subscribes with an already decoded URI,
+	  but when it's decoded like "%255601" or "%2A5601", Asterisk is
+	  unable to match it with the correct hint. (closes issue #17785)
+	  Reported by: ramonpeek Patches: 20100831__issue17785.diff.txt
+	  uploaded by tilghman (license 14) Tested by: ramonpeek ........
+
+2010-09-21 19:46 +0000 [r288006]  Brett Bryant <bbryant@digium.com>
+
+	* main/channel.c, /: Merged revisions 288005 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r288005 | bbryant | 2010-09-21 15:43:46 -0400 (Tue, 21 Sep 2010)
+	  | 8 lines Add a check to fix a rare segmentation fault you'd get
+	  if ast_frdup couldn't allocate memory on the first frame being
+	  queued in ast_queue_frame. (closes issue #17882) Reported by:
+	  seanbright Tested by: seanbright ........
+
+2010-09-21 19:07 +0000 [r287934]  Tilghman Lesher <tlesher@digium.com>
+
+	* main/asterisk.c, /: Merged revisions 287933 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r287933 | tilghman | 2010-09-21 14:07:07 -0500 (Tue, 21 Sep 2010)
+	  | 2 lines Less than zero is an error, not any non-zero value.
+	  ........
+
+2010-09-20 23:58 +0000 [r287759]  Brett Bryant <bbryant@digium.com>
+
+	* /, apps/app_meetme.c: Merged revisions 287758 via svnmerge from
+	  https://origsvn.digium.com/svn/asterisk/branches/1.4 ........
+	  r287758 | bbryant | 2010-09-20 19:57:08 -0400 (Mon, 20 Sep 2010)
+	  | 16 lines Fix misvalidation of meetme pins in conjunction with
+	  the 'a' MeetMe flag. When using the 'a' MeetMe flag and having a
+	  user and admin pin setup for your conference, using the user pin
+	  would gain you admin priviledges. Also, when no user pin was set,
+	  an admin pin was, the 'a' MeetMe flag wasn't used, and the user
+	  tried to enter a conference then they were still prompted for a
+	  pin and forced to hit #. (closes issue #17908) Reported by: kuj
+	  Patches: pins_2.patch uploaded by kuj (license 1111) Tested by:
+	  kuj Review: [full review board URL with trailing slash] ........
+
+2010-09-20 23:16 +0000 [r287685]  Alec L Davis <sivad.a@paradise.net.nz>
+
+	* main/channel.c: ast_channel_masquerade: Avoid recursive
+	  masquerades. Check all 4 combinations of (original/clonechan) *
+	  (masq/masqr). Initially original->masq and clonechan->masqr were
+	  only checked. It's possible with multiple masq's planned - and
+	  not yet executed, that the 'original' chan could already have
+	  another masq'd into it - thus original->masqr would be set, that
+	  masqr would lost. Likewise for the clonechan->masq. (closes issue
+	  #16057;#17363) Reported by: amorsen;davidw,alecdavis Patches:
+	  based on bug16057.diff4.txt uploaded by alecdavis (license 585)
+	  Tested by: ramonpeek, davidw, alecdavis
+
+2010-09-20 21:28 +0000 [r287642]  Jason Parker <jparker@digium.com>
+
+	* channels/chan_skinny.c: Don't crash when parking a non-bridged
+	  call. (closes issue #17680) Reported by: jmhunter Patches:
+	  chan_skinny-park-v1.txt uploaded by DEA (license 3) Tested by:
+	  jmhunter, DEA
+
 2010-11-02  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.14 Released.

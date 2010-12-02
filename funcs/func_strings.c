@@ -459,10 +459,10 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 
 		if (*(args.allowed) == '-') {
 			if (ast_get_encoded_char(args.allowed + 1, &c2, &consumed))
-				c2 = -1;
+				c2 = c1;
 			args.allowed += consumed + 1;
 
-			if ((c2 < c1 || c2 == -1) && !ast_opt_dont_warn) {
+			if ((unsigned char) c2 < (unsigned char) c1 && !ast_opt_dont_warn) {
 				ast_log(LOG_WARNING, "Range wrapping in FILTER(%s,%s).  This may not be what you want.\n", parse, args.string);
 			}
 
@@ -470,7 +470,7 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			 * Looks a little strange, until you realize that we can overflow
 			 * the size of a char.
 			 */
-			for (ac = c1; ac != c2; ac++) {
+			for (ac = (unsigned char) c1; ac != (unsigned char) c2; ac++) {
 				bitfield[ac / 32] |= 1 << (ac % 32);
 			}
 			bitfield[ac / 32] |= 1 << (ac % 32);
@@ -609,14 +609,14 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 	 * want them to be surprised by the result.  Hence, we prefer commas as the
 	 * delimiter, but we'll fall back to vertical bars if commas aren't found.
 	 */
-	ast_debug(1, "array (%s=%s)\n", var, value2);
+	ast_debug(1, "array (%s=%s)\n", var, S_OR(value2, ""));
 	AST_STANDARD_APP_ARGS(arg1, var);
 
 	AST_STANDARD_APP_ARGS(arg2, value2);
 
 	for (i = 0; i < arg1.argc; i++) {
 		ast_debug(1, "array set value (%s=%s)\n", arg1.var[i],
-				arg2.val[i]);
+				S_OR(arg2.val[i], ""));
 		if (i < arg2.argc) {
 			if (ishash) {
 				snprintf(varname, sizeof(varname), HASH_FORMAT, origvar, arg1.var[i]);

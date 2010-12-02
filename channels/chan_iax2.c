@@ -1181,6 +1181,39 @@ static const struct ast_channel_tech iax2_tech = {
 	.func_channel_read = acf_channel_read,
 };
 
+/*!
+ * \internal
+ * \brief Obtain the owner channel lock if the owner exists.
+ *
+ * \param callno IAX2 call id.
+ *
+ * \note Assumes the iaxsl[callno] lock is already obtained.
+ *
+ * \note
+ * IMPORTANT NOTE!!!  Any time this function is used, even if
+ * iaxs[callno] was valid before calling it, it may no longer be
+ * valid after calling it.  This function may unlock and lock
+ * the mutex associated with this callno, meaning that another
+ * thread may grab it and destroy the call.
+ *
+ * \return Nothing
+ */
+static void iax2_lock_owner(int callno)
+{
+	for (;;) {
+		if (!iaxs[callno] || !iaxs[callno]->owner) {
+			/* There is no owner lock to get. */
+			break;
+		}
+		if (!ast_channel_trylock(iaxs[callno]->owner)) {
+			/* We got the lock */
+			break;
+		}
+		/* Avoid deadlock by pausing and trying again */
+		DEADLOCK_AVOIDANCE(&iaxsl[callno]);
+	}
+}
+
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	/* The MWI subscriptions exist just so the core knows we care about those
@@ -2763,18 +2796,10 @@ static int find_callno_locked(unsigned short callno, unsigned short dcallno, str
  */
 static int iax2_queue_frame(int callno, struct ast_frame *f)
 {
-	for (;;) {
-		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_channel_trylock(iaxs[callno]->owner)) {
-				/* Avoid deadlock by pausing and trying again */
-				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
-			} else {
-				ast_queue_frame(iaxs[callno]->owner, f);
-				ast_channel_unlock(iaxs[callno]->owner);
-				break;
-			}
-		} else
-			break;
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_frame(iaxs[callno]->owner, f);
+		ast_channel_unlock(iaxs[callno]->owner);
 	}
 	return 0;
 }
@@ -2794,18 +2819,10 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
  */
 static int iax2_queue_hangup(int callno)
 {
-	for (;;) {
-		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_channel_trylock(iaxs[callno]->owner)) {
-				/* Avoid deadlock by pausing and trying again */
-				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
-			} else {
-				ast_queue_hangup(iaxs[callno]->owner);
-				ast_channel_unlock(iaxs[callno]->owner);
-				break;
-			}
-		} else
-			break;
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_hangup(iaxs[callno]->owner);
+		ast_channel_unlock(iaxs[callno]->owner);
 	}
 	return 0;
 }
@@ -2826,18 +2843,10 @@ static int iax2_queue_hangup(int callno)
 static int iax2_queue_control_data(int callno, 
 	enum ast_control_frame_type control, const void *data, size_t datalen)
 {
-	for (;;) {
-		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_channel_trylock(iaxs[callno]->owner)) {
-				/* Avoid deadlock by pausing and trying again */
-				DEADLOCK_AVOIDANCE(&iaxsl[callno]);
-			} else {
-				ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
-				ast_channel_unlock(iaxs[callno]->owner);
-				break;
-			}
-		} else
-			break;
+	iax2_lock_owner(callno);
+	if (iaxs[callno] && iaxs[callno]->owner) {
+		ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
+		ast_channel_unlock(iaxs[callno]->owner);
 	}
 	return 0;
 }
@@ -4015,6 +4024,12 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		return -1;
 	}
 
+	iax2_lock_owner(fr->callno);
+	if (!iaxs[fr->callno]) {
+		/* The call dissappeared so discard this frame that we could not send. */
+		iax2_frame_free(fr);
+		return -1;
+	}
 	if ((owner = iaxs[fr->callno]->owner))
 		bridge = ast_bridged_channel(owner);
 
@@ -4022,6 +4037,8 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	 * a channel that can accept jitter, then flush and suspend the jb, and send this frame straight through */
 	if ( (!ast_test_flag(iaxs[fr->callno], IAX_FORCEJITTERBUF)) && owner && bridge && (bridge->tech->properties & AST_CHAN_TP_WANTSJITTER) ) {
 		jb_frame frame;
+
+		ast_channel_unlock(owner);
 
 		/* deliver any frames in the jb */
 		while (jb_getall(iaxs[fr->callno]->jb, &frame) == JB_OK) {
@@ -4040,6 +4057,9 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 			*tsout = fr->ts;
 		__do_deliver(fr);
 		return -1;
+	}
+	if (owner) {
+		ast_channel_unlock(owner);
 	}
 
 	/* insert into jitterbuffer */
@@ -9578,6 +9598,7 @@ static int socket_process(struct iax2_thread *thread)
 			if (f.frametype == AST_FRAME_IAX) {
 				if (iax_parse_ies(&ies, thread->buf + sizeof(struct ast_iax2_full_hdr), f.datalen)) {
 					ast_log(LOG_WARNING, "Undecodable frame received from '%s'\n", ast_inet_ntoa(sin.sin_addr));
+					ast_variables_destroy(ies.vars);
 					return 1;
 				}
 				f.data.ptr = NULL;
@@ -9597,6 +9618,7 @@ static int socket_process(struct iax2_thread *thread)
 		if (!dcallno && iax2_allow_new(f.frametype, f.subclass, 1)) {
 			/* only set NEW_ALLOW if calltoken checks out */
 			if (handle_call_token(fh, &ies, &sin, fd)) {
+				ast_variables_destroy(ies.vars);
 				return 1;
 			}
 
@@ -9614,6 +9636,7 @@ static int socket_process(struct iax2_thread *thread)
 		/* Don't know anything about it yet */
 		f.frametype = AST_FRAME_NULL;
 		f.subclass = 0;
+		memset(&ies, 0, sizeof(ies));
 	}
 
 	if (!fr->callno) {
@@ -9637,6 +9660,7 @@ static int socket_process(struct iax2_thread *thread)
 			} else if (f.frametype == AST_FRAME_IAX && (f.subclass == IAX_COMMAND_REGREQ || f.subclass == IAX_COMMAND_REGREL)) {
 				send_apathetic_reply(1, ntohs(fh->scallno), &sin, IAX_COMMAND_REGREJ, ntohl(fh->ts), fh->iseqno + 1, fd, NULL);
 			}
+			ast_variables_destroy(ies.vars);
 			return 1;
 		}
 	}
@@ -9659,11 +9683,13 @@ static int socket_process(struct iax2_thread *thread)
 		}
 		if (fr->callno > 0) 
 			ast_mutex_unlock(&iaxsl[fr->callno]);
+		ast_variables_destroy(ies.vars);
 		return 1;
 	}
 	if (ast_test_flag(iaxs[fr->callno], IAX_ENCRYPTED) && !decrypted) {
 		if (decrypt_frame(fr->callno, fh, &f, &res)) {
 			ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
+			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
@@ -9751,6 +9777,7 @@ static int socket_process(struct iax2_thread *thread)
 					/* Send a VNAK requesting retransmission */
 					iax2_vnak(fr->callno);
 				}
+				ast_variables_destroy(ies.vars);
 				ast_mutex_unlock(&iaxsl[fr->callno]);
 				return 1;
 			}
@@ -9816,6 +9843,7 @@ static int socket_process(struct iax2_thread *thread)
 					iaxs[fr->callno]->rseqno = fr->iseqno;
 				else {
 					/* Stop processing now */
+					ast_variables_destroy(ies.vars);
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
@@ -9828,6 +9856,7 @@ static int socket_process(struct iax2_thread *thread)
 			 ((f.subclass != IAX_COMMAND_TXACC) &&
 			  (f.subclass != IAX_COMMAND_TXCNT)))) {
 			/* Only messages we accept from a transfer host are TXACC and TXCNT */
+			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
@@ -9841,6 +9870,7 @@ static int socket_process(struct iax2_thread *thread)
 			if (ast_test_flag(iaxs[fr->callno], IAX_DELAYPBXSTART)) {
 				ast_clear_flag(iaxs[fr->callno], IAX_DELAYPBXSTART);
 				if (!ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->chosenformat)) {
+					ast_variables_destroy(ies.vars);
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 					return 1;
 				}
@@ -9850,6 +9880,13 @@ static int socket_process(struct iax2_thread *thread)
 				struct ast_datastore *variablestore = NULL;
 				struct ast_variable *var, *prev = NULL;
 				AST_LIST_HEAD(, ast_var_t) *varlist;
+
+				iax2_lock_owner(fr->callno);
+				if (!iaxs[fr->callno]) {
+					ast_variables_destroy(ies.vars);
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
+				}
 				if ((c = iaxs[fr->callno]->owner)) {
 					varlist = ast_calloc(1, sizeof(*varlist));
 					variablestore = ast_datastore_alloc(&iax2_variable_datastore_info, NULL);
@@ -9886,6 +9923,7 @@ static int socket_process(struct iax2_thread *thread)
 							ast_free(varlist);
 						}
 					}
+					ast_channel_unlock(c);
 				} else {
 					/* No channel yet, so transfer the variables directly over to the pvt,
 					 * for later inheritance. */
@@ -9915,14 +9953,11 @@ static int socket_process(struct iax2_thread *thread)
 					iaxs[fr->callno]->voiceformat = f.subclass;
 					ast_debug(1, "Ooh, voice format changed to %d\n", f.subclass);
 					if (iaxs[fr->callno]->owner) {
-						int orignative;
-retryowner:
-						if (ast_channel_trylock(iaxs[fr->callno]->owner)) {
-							DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
-							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner;
-						}
+						iax2_lock_owner(fr->callno);
 						if (iaxs[fr->callno]) {
 							if (iaxs[fr->callno]->owner) {
+								int orignative;
+
 								orignative = iaxs[fr->callno]->owner->nativeformats;
 								iaxs[fr->callno]->owner->nativeformats = f.subclass;
 								if (iaxs[fr->callno]->owner->readformat)
@@ -9994,22 +10029,32 @@ retryowner:
 
 					ast_set_flag(iaxs[fr->callno], IAX_QUELCH);
 					if (ies.musiconhold) {
-						if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
+						iax2_lock_owner(fr->callno);
+						if (!iaxs[fr->callno] || !iaxs[fr->callno]->owner) {
+							break;
+						}
+						if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
 							const char *moh_suggest = iaxs[fr->callno]->mohsuggest;
+
+							/*
+							 * We already hold the owner lock so we do not
+							 * need to check iaxs[fr->callno] after it returns.
+							 */
 							iax2_queue_control_data(fr->callno, AST_CONTROL_HOLD, 
 								S_OR(moh_suggest, NULL),
 								!ast_strlen_zero(moh_suggest) ? strlen(moh_suggest) + 1 : 0);
-							if (!iaxs[fr->callno]) {
-								ast_mutex_unlock(&iaxsl[fr->callno]);
-								return 1;
-							}
 						}
+						ast_channel_unlock(iaxs[fr->callno]->owner);
 					}
 				}
 				break;
 			case IAX_COMMAND_UNQUELCH:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
-				        /* Generate Manager Unhold event, if necessary*/
+					iax2_lock_owner(fr->callno);
+					if (!iaxs[fr->callno]) {
+						break;
+					}
+					/* Generate Manager Unhold event, if necessary */
 					if (iaxs[fr->callno]->owner && ast_test_flag(iaxs[fr->callno], IAX_QUELCH)) {
 						manager_event(EVENT_FLAG_CALL, "Hold",
 							"Status: Off\r\n"
@@ -10020,13 +10065,17 @@ retryowner:
 					}
 
 					ast_clear_flag(iaxs[fr->callno], IAX_QUELCH);
-					if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
-						iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
-						if (!iaxs[fr->callno]) {
-							ast_mutex_unlock(&iaxsl[fr->callno]);
-							return 1;
-						}
+					if (!iaxs[fr->callno]->owner) {
+						break;
 					}
+					if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
+						/*
+						 * We already hold the owner lock so we do not
+						 * need to check iaxs[fr->callno] after it returns.
+						 */
+						iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
+					}
+					ast_channel_unlock(iaxs[fr->callno]->owner);
 				}
 				break;
 			case IAX_COMMAND_TXACC:
@@ -10054,8 +10103,7 @@ retryowner:
 					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 					ast_mutex_lock(&iaxsl[fr->callno]);
 					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
+						break;
 					}
 				}
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
@@ -10092,8 +10140,7 @@ retryowner:
 					ast_mutex_lock(&iaxsl[fr->callno]);
 
 					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
+						break;
 					}
 				} else
 					exists = 0;
@@ -10106,8 +10153,7 @@ retryowner:
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
 						send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 						if (!iaxs[fr->callno]) {
-							ast_mutex_unlock(&iaxsl[fr->callno]);
-							return 1;
+							break;
 						}
 						if (authdebug)
 							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
@@ -10153,8 +10199,7 @@ retryowner:
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 								send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 								if (!iaxs[fr->callno]) {
-									ast_mutex_unlock(&iaxsl[fr->callno]);
-									return 1;
+									break;
 								}
 								if (authdebug) {
 									if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP))
@@ -10198,8 +10243,7 @@ retryowner:
 									ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 									send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 									if (!iaxs[fr->callno]) {
-										ast_mutex_unlock(&iaxsl[fr->callno]);
-										return 1;
+										break;
 									}
 									if (authdebug)
 										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->peercapability, iaxs[fr->callno]->capability);
@@ -10250,10 +10294,6 @@ retryowner:
 					iaxs[fr->callno]->encmethods = 0;
 				if (!authenticate_request(fr->callno) && iaxs[fr->callno])
 					ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED);
-				if (!iaxs[fr->callno]) {
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-					return 1;
-				}
 				break;
 			case IAX_COMMAND_DPREQ:
 				/* Request status in the dialplan */
@@ -10301,39 +10341,53 @@ retryowner:
 			case IAX_COMMAND_TRANSFER:
 			{
 				struct ast_channel *bridged_chan;
+				struct ast_channel *owner;
 
-				if (iaxs[fr->callno]->owner && (bridged_chan = ast_bridged_channel(iaxs[fr->callno]->owner)) && ies.called_number) {
-					/* Set BLINDTRANSFER channel variables */
-
+				iax2_lock_owner(fr->callno);
+				if (!iaxs[fr->callno]) {
+					/* Initiating call went away before we could transfer. */
+					break;
+				}
+				owner = iaxs[fr->callno]->owner;
+				bridged_chan = owner ? ast_bridged_channel(owner) : NULL;
+				if (bridged_chan && ies.called_number) {
 					ast_mutex_unlock(&iaxsl[fr->callno]);
-					pbx_builtin_setvar_helper(iaxs[fr->callno]->owner, "BLINDTRANSFER", bridged_chan->name);
-					ast_mutex_lock(&iaxsl[fr->callno]);
-					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
-					}
 
-					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", iaxs[fr->callno]->owner->name);
+					/* Set BLINDTRANSFER channel variables */
+					pbx_builtin_setvar_helper(owner, "BLINDTRANSFER", bridged_chan->name);
+					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", owner->name);
+
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
-						struct ast_channel *saved_channel = iaxs[fr->callno]->owner;
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						if (iax_park(bridged_chan, saved_channel)) {
-							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", bridged_chan->name);
-						} else {
-							ast_debug(1, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
+						ast_debug(1, "Parking call '%s'\n", bridged_chan->name);
+						if (iax_park(bridged_chan, owner)) {
+							ast_log(LOG_WARNING, "Failed to park call '%s'\n",
+								bridged_chan->name);
 						}
 						ast_mutex_lock(&iaxsl[fr->callno]);
 					} else {
-						if (ast_async_goto(bridged_chan, iaxs[fr->callno]->context, ies.called_number, 1))
-							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", bridged_chan->name, 
-								ies.called_number, iaxs[fr->callno]->context);
-						else {
-							ast_debug(1, "Async goto of '%s' to '%s@%s' started\n", bridged_chan->name, 
-								ies.called_number, iaxs[fr->callno]->context);
+						ast_mutex_lock(&iaxsl[fr->callno]);
+
+						if (iaxs[fr->callno]) {
+							if (ast_async_goto(bridged_chan, iaxs[fr->callno]->context,
+								ies.called_number, 1)) {
+								ast_log(LOG_WARNING,
+									"Async goto of '%s' to '%s@%s' failed\n",
+									bridged_chan->name, ies.called_number,
+									iaxs[fr->callno]->context);
+							} else {
+								ast_debug(1, "Async goto of '%s' to '%s@%s' started\n",
+									bridged_chan->name, ies.called_number,
+									iaxs[fr->callno]->context);
+							}
+						} else {
+							/* Initiating call went away before we could transfer. */
 						}
 					}
 				} else {
 					ast_debug(1, "Async goto not applicable on call %d\n", fr->callno);
+				}
+				if (owner) {
+					ast_channel_unlock(owner);
 				}
 
 				break;
@@ -10363,31 +10417,24 @@ retryowner:
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
+						break;
 					}
 					if (authdebug)
 						ast_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
 				} else {
 					ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-					if (iaxs[fr->callno]->owner) {
+					iax2_lock_owner(fr->callno);
+					if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
 						/* Switch us to use a compatible format */
 						iaxs[fr->callno]->owner->nativeformats = iaxs[fr->callno]->peerformat;
 						ast_verb(3, "Format for call is %s\n", ast_getformatname(iaxs[fr->callno]->owner->nativeformats));
-retryowner2:
-						if (ast_channel_trylock(iaxs[fr->callno]->owner)) {
-							DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
-							if (iaxs[fr->callno] && iaxs[fr->callno]->owner) goto retryowner2;
-						}
-						
-						if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
-							/* Setup read/write formats properly. */
-							if (iaxs[fr->callno]->owner->writeformat)
-								ast_set_write_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->writeformat);	
-							if (iaxs[fr->callno]->owner->readformat)
-								ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);	
-							ast_channel_unlock(iaxs[fr->callno]->owner);
-						}
+
+						/* Setup read/write formats properly. */
+						if (iaxs[fr->callno]->owner->writeformat)
+							ast_set_write_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->writeformat);	
+						if (iaxs[fr->callno]->owner->readformat)
+							ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);	
+						ast_channel_unlock(iaxs[fr->callno]->owner);
 					}
 				}
 				if (iaxs[fr->callno]) {
@@ -10401,10 +10448,6 @@ retryowner2:
 			case IAX_COMMAND_POKE:
 				/* Send back a pong packet with the original timestamp */
 				send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, NULL, 0, -1);
-				if (!iaxs[fr->callno]) {
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-					return 1;
-				}
 				break;
 			case IAX_COMMAND_PING:
 			{
@@ -10504,10 +10547,6 @@ retryowner2:
 						ies.username ? ies.username : "<unknown>", ast_inet_ntoa(iaxs[fr->callno]->addr.sin_addr));
 					iax2_queue_frame(fr->callno, &hangup_fr);
 				}
-				if (!iaxs[fr->callno]) {
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-					return 1;
-				}
 				break;
 			case IAX_COMMAND_AUTHREP:
 				/* For security, always ack immediately */
@@ -10538,8 +10577,7 @@ retryowner2:
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
+						break;
 					}
 				} else {
 					/* Select an appropriate format */
@@ -10588,8 +10626,7 @@ retryowner2:
 							iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 							send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 							if (!iaxs[fr->callno]) {
-								ast_mutex_unlock(&iaxsl[fr->callno]);
-								return 1;
+								break;
 							}
 						} else {
 							/* Pick one... */
@@ -10632,8 +10669,7 @@ retryowner2:
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 								send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 								if (!iaxs[fr->callno]) {
-									ast_mutex_unlock(&iaxsl[fr->callno]);
-									return 1;
+									break;
 								}
 							}
 						}
@@ -10725,8 +10761,7 @@ immediatedial:
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
 						send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 						if (!iaxs[fr->callno]) {
-							ast_mutex_unlock(&iaxsl[fr->callno]);
-							return 1;
+							break;
 						}
 					} else {
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
@@ -10791,16 +10826,14 @@ immediatedial:
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 				if (register_verify(fr->callno, &sin, &ies)) {
 					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
+						break;
 					}
 					/* Send delayed failure */
 					auth_fail(fr->callno, IAX_COMMAND_REGREJ);
 					break;
 				}
 				if (!iaxs[fr->callno]) {
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-					return 1;
+					break;
 				}
 				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) ||
 						ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED)) {
@@ -10810,25 +10843,16 @@ immediatedial:
 					if (update_registry(&sin, fr->callno, ies.devicetype, fd, ies.refresh))
 						ast_log(LOG_WARNING, "Registry error\n");
 					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
+						break;
 					}
 					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr) {
 						ast_mutex_unlock(&iaxsl[fr->callno]);
 						check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 						ast_mutex_lock(&iaxsl[fr->callno]);
-						if (!iaxs[fr->callno]) {
-							ast_mutex_unlock(&iaxsl[fr->callno]);
-							return 1;
-						}
 					}
 					break;
 				}
 				registry_authrequest(fr->callno);
-				if (!iaxs[fr->callno]) {
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-					return 1;
-				}
 				break;
 			case IAX_COMMAND_REGACK:
 				if (iax2_ack_registry(&ies, &sin, fr->callno)) 
@@ -10856,10 +10880,6 @@ immediatedial:
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No authority found");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_FACILITY_NOT_SUBSCRIBED);
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
-					if (!iaxs[fr->callno]) {
-						ast_mutex_unlock(&iaxsl[fr->callno]);
-						return 1;
-					}
 				}
 				break;
 			case IAX_COMMAND_TXREJ:
@@ -10982,10 +11002,6 @@ immediatedial:
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
 				else
 					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
-				if (!iaxs[fr->callno]) {
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-					return 1;
-				}
 				break;
 			case IAX_COMMAND_CALLTOKEN:
 			{
@@ -11044,6 +11060,7 @@ immediatedial:
 		else {
 			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n");
 			iax2_vnak(fr->callno);
+			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
@@ -11066,12 +11083,14 @@ immediatedial:
 		else {
 			ast_debug(1, "Received mini frame before first full voice frame\n");
 			iax2_vnak(fr->callno);
+			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
 		f.datalen = res - sizeof(struct ast_iax2_mini_hdr);
 		if (f.datalen < 0) {
 			ast_log(LOG_WARNING, "Datalen < 0?\n");
+			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
@@ -11089,6 +11108,7 @@ immediatedial:
 	}
 	/* Don't pass any packets until we're started */
 	if (!ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
+		ast_variables_destroy(ies.vars);
 		ast_mutex_unlock(&iaxsl[fr->callno]);
 		return 1;
 	}
@@ -11129,6 +11149,7 @@ immediatedial:
 	}
 
 	/* Always run again */
+	ast_variables_destroy(ies.vars);
 	ast_mutex_unlock(&iaxsl[fr->callno]);
 	return 1;
 }
@@ -13876,6 +13897,10 @@ static int load_module(void)
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
+	
+	if ((timer = ast_timer_open())) {
+		ast_timer_set_rate(timer, trunkfreq);
+	}
 
 	if (set_config(config, 0) == -1) {
 		if (timer) {
@@ -13895,10 +13920,6 @@ static int load_module(void)
 	ast_manager_register( "IAXpeerlist", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_peer_list, "List IAX Peers" );
 	ast_manager_register( "IAXnetstats", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_netstats, "Show IAX Netstats" );
 	ast_manager_register( "IAXregistry", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_iax2_show_registry, "Show IAX registrations");
-
-	if ((timer = ast_timer_open())) {
-		ast_timer_set_rate(timer, trunkfreq);
-	}
 
  	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");

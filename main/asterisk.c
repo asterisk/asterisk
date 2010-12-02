@@ -275,6 +275,7 @@ static char *_argv[256];
 static int shuttingdown;
 static int restartnow;
 static pthread_t consolethread = AST_PTHREADT_NULL;
+static pthread_t mon_sig_flags;
 static int canary_pid = 0;
 static char canary_filename[128];
 
@@ -1628,14 +1629,15 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 			ast_module_shutdown();
 	}
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
+		pthread_t thisthread = pthread_self();
 		if (getenv("HOME")) {
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 		}
 		if (!ast_strlen_zero(filename)) {
 			ast_el_write_history(filename);
 		}
-		if (consolethread == AST_PTHREADT_NULL || consolethread == pthread_self()) {
-			/* Only end if we are the consolethread, otherwise there's a race with that thread. */
+		if (consolethread == AST_PTHREADT_NULL || consolethread == thisthread || mon_sig_flags == thisthread) {
+			/* Only end if we are the consolethread or signal handler, otherwise there's a race with that thread. */
 			if (el != NULL) {
 				el_end(el);
 			}
@@ -2933,7 +2935,7 @@ static void ast_readconfig(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_QUIET);
 		/* Run as console (-c at startup, implies nofork) */
 		} else if (!strcasecmp(v->name, "console")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CONSOLE);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
 		/* Run with high priority if the O/S permits (-p at startup) */
 		} else if (!strcasecmp(v->name, "highpriority")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIGH_PRIORITY);
@@ -3176,6 +3178,7 @@ int main(int argc, char *argv[])
 	tdd_init();
 	ast_tps_init();
 	ast_fd_init();
+	ast_pbx_init();
 
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
@@ -3354,7 +3357,7 @@ int main(int argc, char *argv[])
 		}
 
 		fd2 = (l.rlim_cur > sizeof(readers) * 8 ? sizeof(readers) * 8 : l.rlim_cur) - 1;
-		if (dup2(fd, fd2)) {
+		if (dup2(fd, fd2) < 0) {
 			ast_log(LOG_WARNING, "Cannot open maximum file descriptor %d at boot? %s\n", fd2, strerror(errno));
 			break;
 		}
@@ -3786,9 +3789,8 @@ int main(int argc, char *argv[])
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];
-		pthread_t dont_care;
 
-		ast_pthread_create_detached(&dont_care, NULL, monitor_sig_flags, NULL);
+		ast_pthread_create_detached(&mon_sig_flags, NULL, monitor_sig_flags, NULL);
 
 		set_icon("Asterisk");
 		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %ld)", hostname, (long)ast_mainpid);

@@ -2317,16 +2317,19 @@ static int aji_get_roster(struct aji_client *client)
 static int aji_client_connect(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	int res = 0;
+	int res = IKS_FILTER_PASS;
 
 	if (client) {
 		if (client->state == AJI_DISCONNECTED) {
 			iks_filter_add_rule(client->f, aji_filter_roster, client, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, "roster", IKS_RULE_DONE);
 			client->state = AJI_CONNECTING;
 			client->jid = (iks_find_cdata(pak->query, "jid")) ? iks_id_new(client->stack, iks_find_cdata(pak->query, "jid")) : client->jid;
-			iks_filter_remove_hook(client->f, aji_client_connect);
-			if(!client->component) /*client*/
+			if (!client->component) { /*client*/
 				aji_get_roster(client);
+			}
+			iks_filter_remove_hook(client->f, aji_client_connect);
+			/* Once we remove the hook for this routine, we must return EAT or we will crash or corrupt memory */
+			res = IKS_FILTER_EAT;
 		}
 	} else
 		ast_log(LOG_ERROR, "Out of memory.\n");
@@ -2897,7 +2900,7 @@ static int aji_create_buddy(char *label, struct aji_client *client)
 static int aji_load_config(int reload)
 {
 	char *cat = NULL;
-	int debug = 1;
+	int debug = 0;
 	struct ast_config *cfg = NULL;
 	struct ast_variable *var = NULL;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
@@ -3058,12 +3061,12 @@ static int unload_module(void)
 	ast_custom_function_unregister(&jabberstatus_function);
 	
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
-		ASTOBJ_RDLOCK(iterator);
+		ASTOBJ_WRLOCK(iterator);
 		ast_debug(3, "JABBER: Releasing and disconnecting client: %s\n", iterator->name);
 		iterator->state = AJI_DISCONNECTING;
-		ast_aji_disconnect(iterator);
-		pthread_join(iterator->thread, NULL);
 		ASTOBJ_UNLOCK(iterator);
+		pthread_join(iterator->thread, NULL);
+		ast_aji_disconnect(iterator);
 	});
 
 	ASTOBJ_CONTAINER_DESTROYALL(&clients, aji_client_destroy);

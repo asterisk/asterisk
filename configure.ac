@@ -176,6 +176,7 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_RANLIB
 AST_CHECK_GNU_MAKE
+AC_PROG_EGREP
 
 AC_CHECK_TOOLS([STRIP], [strip gstrip], :)
 AC_CHECK_TOOLS([AR], [ar gar], :)
@@ -188,6 +189,7 @@ fi
 AC_SUBST(GNU_LD)
 
 AC_PATH_PROG([BISON], [bison], :)
+AC_PATH_PROG([CMP], [cmp], :)
 AC_PATH_PROG([FLEX], [flex], :)
 AC_PATH_PROG([GREP], [grep], :)
 AC_PATH_PROG([FIND], [find], :)
@@ -815,6 +817,9 @@ else if test $ac_cv_sizeof_long = $ac_cv_sizeof_fd_set_fds_bits; then
 else if test $ac_cv_sizeof_long_long = $ac_cv_sizeof_fd_set_fds_bits; then
   AC_DEFINE([TYPEOF_FD_SET_FDS_BITS], [long long], [Define to a type of the same size as fd_set.fds_bits[[0]]])
 fi ; fi ; fi
+
+# PKGCONFIG is used in later tests
+AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
 
 
 # do the package library checks now
@@ -1532,6 +1537,19 @@ if test "${PG_CONFIG}" != No; then
       AC_CHECK_LIB([pq], [PQescapeStringConn], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
       [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
 
+      AC_MSG_CHECKING(for pg_encoding_to_char within Postgres headers)
+      old_CFLAGS=${CFLAGS}
+      CFLAGS="${CFLAGS} -I${PGSQL_includedir} -Werror"
+      old_LDFLAGS=${LDFLAGS}
+      LDFLAGS="${LDFLAGS} -L${PGSQL_libdir} -lpq -lz"
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <libpq-fe.h>],
+          [const char *foo = pg_encoding_to_char(1)])],
+        [AC_MSG_RESULT(yes)
+         AC_DEFINE_UNQUOTED([HAVE_PGSQL_pg_encoding_to_char], 1, [Define to indicate presence of the pg_encoding_to_char API.])],
+        [AC_MSG_RESULT(no)])
+      CFLAGS=${old_CFLAGS}
+      LDFLAGS=${old_LDFLAGS}
+
       if test "${ac_cv_lib_pq_PQescapeStringConn}" = "yes"; then
          PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
          PGSQL_INCLUDE="-I${PGSQL_includedir}"
@@ -1693,7 +1711,22 @@ then
     AST_CHECK_OSPTK([3], [5], [0])
 fi
 
-AST_EXT_TOOL_CHECK([GMIME], [gmime], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
+AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
+if test "x${PBX_GMIME}" = "x0"; then
+	# Later versions of GMime use pkg-config
+	if test "x${PKGCONFIG}" = xNo; then :; else
+		GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.0 --cflags 2>/dev/null)
+		GMIME_LIB=$(${PKGCONFIG} gmime-2.0 --libs)
+		if test "x${GMIME_INCLUDE}${GMIME_LIB}" = "x"; then 
+			GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.2 --cflags 2>/dev/null)
+			GMIME_LIB=$(${PKGCONFIG} gmime-2.2 --libs)
+		fi
+		if test "x${GMIME_INCLUDE}${GMIME_LIB}" != "x"; then
+			PBX_GMIME=1
+			AC_DEFINE([HAVE_GMIME], 1, [Define if your system has the GMIME libraries.])
+		fi
+	fi
+fi
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
 
@@ -1830,7 +1863,6 @@ PBX_GTK=0
 AST_EXT_TOOL_CHECK([GTK], [gtk], [--cflags gthread], [--libs gthread])
 
 PBX_GTK2=0
-AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
 if test ! "x${PKGCONFIG}" = xNo; then
    GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
    GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)
@@ -1860,6 +1892,12 @@ AC_SUBST([GENERIC_ODBC_LIB])
 AC_SUBST([GENERIC_ODBC_INCLUDE])
 AC_SUBST([PBX_GENERIC_ODBC])
 
+if test -f makeopts; then
+	${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak
+else
+	touch makeopts.acbak
+fi
+
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
 AST_CHECK_MANDATORY
 
@@ -1874,6 +1912,16 @@ if test -f build_tools/menuselect-deps; then
 fi
 
 AC_OUTPUT
+
+${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
+if test "x${ac_cv_path_CMP}" = "x:"; then
+	( cd `pwd`/menuselect && ./configure )
+else if ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
+	( cd `pwd`/menuselect && ./configure )
+fi ; fi
+
+rm makeopts.acbak makeopts.acbak2
+
 
 if test "x${silent}" != "xyes" ; then
 echo

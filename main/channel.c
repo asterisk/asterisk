@@ -778,7 +778,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	int x;
 	int flags;
 	struct varshead *headp;
-	char *tech = "";
+	char *tech = "", *tech2 = NULL;
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
@@ -820,7 +820,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 	if ((tmp->timer = ast_timer_open())) {
-		needqueue = 0;
+		if (strcmp(ast_timer_get_name(tmp->timer), "timerfd")) {
+			needqueue = 0;
+		}
 		tmp->timingfd = ast_timer_fd(tmp->timer);
 	} else {
 		tmp->timingfd = -1;
@@ -883,7 +885,7 @@ alertpipe_failed:
 	tmp->cid.cid_num = ast_strdup(cid_num);
 	
 	if (!ast_strlen_zero(name_fmt)) {
-		char *slash;
+		char *slash, *slash2;
 		/* Almost every channel is calling this function, and setting the name via the ast_string_field_build() call.
 		 * And they all use slightly different formats for their name string.
 		 * This means, to set the name here, we have to accept variable args, and call the string_field_build from here.
@@ -894,6 +896,10 @@ alertpipe_failed:
 		ast_string_field_build_va(tmp, name, name_fmt, ap1, ap2);
 		tech = ast_strdupa(tmp->name);
 		if ((slash = strchr(tech, '/'))) {
+			if ((slash2 = strchr(slash + 1, '/'))) {
+				tech2 = slash + 1;
+				*slash2 = '\0';
+			}
 			*slash = '\0';
 		}
 	}
@@ -950,7 +956,7 @@ alertpipe_failed:
 	 * proper and correct place to make this call, but you sure do have to pass
 	 * a lot of data into this func to do it here!
 	 */
-	if (ast_get_channel_tech(tech)) {
+	if (ast_get_channel_tech(tech) || (tech2 && ast_get_channel_tech(tech2))) {
 		manager_event(EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"ChannelState: %d\r\n"
@@ -1019,7 +1025,9 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 	AST_LIST_HEAD_INIT_NOLOCK(&frames);
 	for (cur = fin; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 		if (!(f = ast_frdup(cur))) {
-			ast_frfree(AST_LIST_FIRST(&frames));
+			if (AST_LIST_FIRST(&frames)) {
+				ast_frfree(AST_LIST_FIRST(&frames));
+			}
 			ast_channel_unlock(chan);
 			return -1;
 		}
@@ -2725,7 +2733,18 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		if (chan->generator)
 			ast_deactivate_generator(chan);
-		goto done;
+
+		/* It is possible for chan->_softhangup to be set, yet there still be control
+		 * frames that still need to be read. Instead of just going to 'done' in the
+		 * case of ast_check_hangup(), we instead need to send the HANGUP frame so that
+		 * it can mark the end of the read queue. If there are frames to be read, 
+		 * ast_queue_control will be called repeatedly, but will only queue one hangup
+		 * frame. */
+		if (ast_check_hangup(chan)) {
+			ast_queue_control(chan, AST_CONTROL_HANGUP);
+		} else {
+			goto done;
+		}
 	}
 
 #ifdef AST_DEVMODE
@@ -3980,6 +3999,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	struct ast_channel *new = NULL;
 	char *data, *type;
 	int cause = 0;
+	int res;
 
 	/* gather data and request the new forward channel */
 	ast_copy_string(tmpchan, orig->call_forward, sizeof(tmpchan));
@@ -4035,7 +4055,11 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	ast_channel_unlock(orig);
 
 	/* call new channel */
-	if ((*timeout = ast_call(new, data, 0))) {
+	res = ast_call(new, data, 0);
+	if (timeout) {
+		*timeout = res;
+	}
+	if (res) {
 		ast_log(LOG_NOTICE, "Unable to call forward to channel %s/%s\n", type, (char *)data);
 		ast_hangup(orig);
 		ast_hangup(new);
@@ -4098,7 +4122,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 			if (timeout > -1)
 				timeout = res;
 			if (!ast_strlen_zero(chan->call_forward)) {
-				if (!(chan = ast_call_forward(NULL, chan, &timeout, format, oh, outstate))) {
+				if (!(chan = ast_call_forward(NULL, chan, NULL, format, oh, outstate))) {
 					return NULL;
 				}
 				continue;
@@ -4497,19 +4521,27 @@ retrymasq:
 
 	ast_debug(1, "Planning to masquerade channel %s into the structure of %s\n",
 		clonechan->name, original->name);
-	if (original->masq) {
-		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
-			original->masq->name, original->name);
-	} else if (clonechan->masqr) {
-		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
-			clonechan->name, clonechan->masqr->name);
-	} else {
+
+	if (!original->masqr && !original->masq && !clonechan->masq && !clonechan->masqr) {
 		original->masq = clonechan;
 		clonechan->masqr = original;
 		ast_queue_frame(original, &ast_null_frame);
 		ast_queue_frame(clonechan, &ast_null_frame);
 		ast_debug(1, "Done planning to masquerade channel %s into the structure of %s\n", clonechan->name, original->name);
 		res = 0;
+	} else if (original->masq) {
+		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
+			original->masq->name, original->name);
+	} else if (original->masqr) {
+		/* not yet as a previously planned masq hasn't yet happened */
+		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
+			original->name, original->masqr->name);
+	} else if (clonechan->masq) {
+		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
+			clonechan->masq->name, clonechan->name);
+	} else { /* (clonechan->masqr) */
+		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n",
+		clonechan->name, clonechan->masqr->name);
 	}
 
 	ast_channel_unlock(clonechan);
@@ -4920,6 +4952,9 @@ void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char 
 		if (chan->cid.cid_ani)
 			ast_free(chan->cid.cid_ani);
 		chan->cid.cid_ani = ast_strdup(cid_ani);
+	}
+	if (chan->cdr) {
+		ast_cdr_setcid(chan->cdr, chan);
 	}
 
 	report_new_callerid(chan);

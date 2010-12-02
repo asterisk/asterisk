@@ -140,6 +140,7 @@ static int timerfd_timer_set_rate(int handle, unsigned int rate)
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}
+	ao2_lock(our_timer);
 
 	our_timer->saved_timer.it_value.tv_sec = 0;
 	our_timer->saved_timer.it_value.tv_nsec = rate ? (long) (1000000000 / rate) : 0L;
@@ -150,6 +151,7 @@ static int timerfd_timer_set_rate(int handle, unsigned int rate)
 		res = timerfd_settime(handle, 0, &our_timer->saved_timer, NULL);
 	}
 
+	ao2_unlock(our_timer);
 	ao2_ref(our_timer, -1);
 
 	return res;
@@ -191,17 +193,20 @@ static int timerfd_timer_enable_continuous(int handle)
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}
+	ao2_lock(our_timer);
 
 	if (our_timer->is_continuous) {
 		/*It's already in continous mode, no need to do
 		 * anything further
 		 */
+		ao2_unlock(our_timer);
 		ao2_ref(our_timer, -1);
 		return 0;
 	}
 
 	res = timerfd_settime(handle, 0, &continuous_timer, &our_timer->saved_timer);
 	our_timer->is_continuous = 1;
+	ao2_unlock(our_timer);
 	ao2_ref(our_timer, -1);
 	return res;
 }
@@ -217,11 +222,13 @@ static int timerfd_timer_disable_continuous(int handle)
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}
+	ao2_lock(our_timer);
 
 	if(!our_timer->is_continuous) {
 		/* No reason to do anything if we're not
 		 * in continuous mode
 		 */
+		ao2_unlock(our_timer);
 		ao2_ref(our_timer, -1);
 		return 0;
 	}
@@ -229,6 +236,7 @@ static int timerfd_timer_disable_continuous(int handle)
 	res = timerfd_settime(handle, 0, &our_timer->saved_timer, NULL);
 	our_timer->is_continuous = 0;
 	memset(&our_timer->saved_timer, 0, sizeof(our_timer->saved_timer));
+	ao2_unlock(our_timer);
 	ao2_ref(our_timer, -1);
 	return res;
 }
@@ -244,6 +252,7 @@ static enum ast_timer_event timerfd_timer_get_event(int handle)
 		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
 		return -1;
 	}
+	ao2_lock(our_timer);
 
 	if (our_timer->is_continuous) {
 		res = AST_TIMING_EVENT_CONTINUOUS;
@@ -251,6 +260,7 @@ static enum ast_timer_event timerfd_timer_get_event(int handle)
 		res = AST_TIMING_EVENT_EXPIRED;
 	}
 
+	ao2_unlock(our_timer);
 	ao2_ref(our_timer, -1);
 	return res;
 }
