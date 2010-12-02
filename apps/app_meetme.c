@@ -826,7 +826,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	ztc.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
 	cnf->fd = open(DAHDI_FILE_PSEUDO, O_RDWR);
 	if (cnf->fd < 0 || ioctl(cnf->fd, DAHDI_SETCONF, &ztc)) {
-		ast_log(LOG_WARNING, "Unable to open pseudo device\n");
+		ast_log(LOG_WARNING, "Unable to open DAHDI pseudo device\n");
 		if (cnf->fd >= 0)
 			close(cnf->fd);
 		free(cnf);
@@ -1807,7 +1807,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		/* open pseudo in non-blocking mode */
 		fd = open(DAHDI_FILE_PSEUDO, O_RDWR | O_NONBLOCK);
 		if (fd < 0) {
-			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "Unable to open DAHDI pseudo channel: %s\n", strerror(errno));
 			goto outrun;
 		}
 		using_pseudo = 1;
