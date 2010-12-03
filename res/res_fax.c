@@ -714,7 +714,7 @@ static struct ast_fax_session *fax_session_reserve(struct ast_fax_session_detail
 	}
 
 	if (!s->tech->reserve_session) {
-		ast_log(LOG_WARNING, "Selected FAX technology module (%s) does not support reserving sessions.\n", s->tech->description);
+		ast_debug(1, "Selected FAX technology module (%s) does not support reserving sessions.\n", s->tech->description);
 		return s;
 	}
 
@@ -1614,14 +1614,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		details->option.allow_audio = AST_FAX_OPTFLAG_TRUE;
 	}
 
-	if (set_fax_t38_caps(chan, details)) {
-		ast_string_field_set(details, error, "T38_NEG_ERROR");
-		ast_string_field_set(details, resultstr, "error negotiating T.38");
-		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
-		return -1;
-	}
-
 	if (!(s = fax_session_reserve(details))) {
 		ast_string_field_set(details, resultstr, "error reserving fax session");
 		set_channel_variables(chan, details);
@@ -1640,6 +1632,15 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 			ao2_ref(details, -1);
 			return -1;
 		}
+	}
+
+	if (set_fax_t38_caps(chan, details)) {
+		ast_string_field_set(details, error, "T38_NEG_ERROR");
+		ast_string_field_set(details, resultstr, "error negotiating T.38");
+		set_channel_variables(chan, details);
+		ao2_ref(s, -1);
+		ao2_ref(details, -1);
+		return -1;
 	}
 
 	if (details->caps & AST_FAX_TECH_T38) {
@@ -2088,14 +2089,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		details->option.request_t38 = AST_FAX_OPTFLAG_TRUE;
 	}
 
-	if (set_fax_t38_caps(chan, details)) {
-		ast_string_field_set(details, error, "T38_NEG_ERROR");
-		ast_string_field_set(details, resultstr, "error negotiating T.38");
-		set_channel_variables(chan, details);
-		ao2_ref(details, -1);
-		return -1;
-	}
-
 	if (!(s = fax_session_reserve(details))) {
 		ast_string_field_set(details, resultstr, "error reserving fax session");
 		set_channel_variables(chan, details);
@@ -2114,6 +2107,15 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ao2_ref(details, -1);
 			return -1;
 		}
+	}
+
+	if (set_fax_t38_caps(chan, details)) {
+		ast_string_field_set(details, error, "T38_NEG_ERROR");
+		ast_string_field_set(details, resultstr, "error negotiating T.38");
+		set_channel_variables(chan, details);
+		ao2_ref(s, -1);
+		ao2_ref(details, -1);
+		return -1;
 	}
 
 	if (details->caps & AST_FAX_TECH_T38) {
