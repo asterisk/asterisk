@@ -13112,8 +13112,12 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	int transport_type;
 	const char *useragent;
 	struct ast_sockaddr oldsin, testsa;
+	char *firstcuri = NULL;
+	int start = 0;
+	int wildcard_found = 0;
+	int single_binding_found;
 
-	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
+	ast_copy_string(contact, __get_header(req, "Contact", &start), sizeof(contact));
 
 	if (ast_strlen_zero(expires)) {	/* No expires header, try look in Contact: */
 		char *s = strcasestr(contact, ";expires=");
@@ -13130,11 +13134,31 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 	copy_socket_data(&pvt->socket, &req->socket);
 
-	/* Look for brackets */
-	curi = contact;
-	if (strchr(contact, '<') == NULL)	/* No <, check for ; and strip it */
-		strsep(&curi, ";");	/* This is Header options, not URI options */
-	curi = get_in_brackets(contact);
+	do {
+		/* Look for brackets */
+		curi = contact;
+		if (strchr(contact, '<') == NULL)	/* No <, check for ; and strip it */
+			strsep(&curi, ";");	/* This is Header options, not URI options */
+		curi = get_in_brackets(contact);
+		if (!firstcuri) {
+			firstcuri = ast_strdupa(curi);
+		}
+
+		if (!strcasecmp(curi, "*")) {
+			wildcard_found = 1;
+		} else {
+			single_binding_found = 1;
+		}
+
+		if (wildcard_found && (ast_strlen_zero(expires) || expire != 0 || single_binding_found)) {
+			/* Contact header parameter "*" detected, so punt if: Expires header is missing,
+			 * Expires value is not zero, or another Contact header is present. */
+			return PARSE_REGISTER_FAILED;
+		}
+
+		ast_copy_string(contact, __get_header(req, "Contact", &start), sizeof(contact));
+	} while (!ast_strlen_zero(contact));
+	curi = firstcuri;
 
 	/* if they did not specify Contact: or Expires:, they are querying
 	   what we currently have stored as their contact address, so return
