@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.asterisk.muted</string>
+	<key>Disabled</key>
+	<true/>
+	<key>UserName</key>
+	<string>asterisk</string>
+	<key>GroupName</key>
+	<string>asterisk</string>
+	<key>KeepAlive</key>
+	<true/>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>Umask</key>
+	<integer>7</integer><!-- 0007 -->
+	<key>Program</key>
+	<string>__ASTERISK_SBIN_DIR__/muted</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__ASTERISK_SBIN_DIR__/muted</string>
+		<string>-f</string>
+	</array>
+	<key>StandardInPath</key>
+	<string>/dev/null</string>
+	<key>StandardOutPath</key>
+	<string>/dev/null</string>
+	<key>StandardErrorPath</key>
+	<string>/dev/null</string>
+</dict>
+</plist>

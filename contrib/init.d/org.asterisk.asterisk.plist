@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>org.asterisk.asterisk.launchagent</string>
+	<string>org.asterisk.asterisk</string>
 	<key>Disabled</key>
 	<false/><!-- Change this to '<true/>' to disable Asterisk -->
 	<key>UserName</key>
@@ -19,10 +19,10 @@
 	<key>Umask</key>
 	<integer>7</integer><!-- 0007 -->
 	<key>Program</key>
-	<string>/usr/local/sbin/asterisk</string>
+	<string>__ASTERISK_SBIN_DIR__/asterisk</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/usr/local/sbin/asterisk</string>
+		<string>__ASTERISK_SBIN_DIR__/asterisk</string>
 		<string>-f</string><!-- Don't fork.  This option is mandatory when running with launchd. -->
 	</array>
 	<key>EnvironmentVariables</key>

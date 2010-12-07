@@ -39,6 +39,9 @@
 
 #ifdef __Darwin__
 #include <CoreAudio/AudioHardware.h> 
+#include <sys/types.h>
+#include <pwd.h>
+#include <sys/stat.h>
 #elif defined(__linux__) || defined(__FreeBSD__)
 #include <sys/soundcard.h>
 #endif
@@ -54,7 +57,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-static char *config = "/etc/muted.conf";
+#define ast_strlen_zero(a)	(!(*(a)))
+
+static char *config = "/etc/asterisk/muted.conf";
 
 static char host[256] = "";
 static char user[256] = "";
@@ -349,17 +354,25 @@ static float getvol(void)
 	AudioDeviceID device;
 	UInt32 size;
 	UInt32 channels[2];
+	AudioObjectPropertyAddress OutputAddr = { kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMaster };
+	AudioObjectPropertyAddress ChannelAddr = { kAudioDevicePropertyPreferredChannelsForStereo, kAudioDevicePropertyScopeOutput, kAudioObjectPropertyElementWildcard };
+	AudioObjectPropertyAddress VolumeAddr = { kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeOutput, };
 
 	size = sizeof(device);
-	err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice, &size, &device);
+	err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &OutputAddr, 0, NULL, &size, &device);
 	size = sizeof(channels);
-	if (!err) 
-		err = AudioDeviceGetProperty(device, 0, false, kAudioDevicePropertyPreferredChannelsForStereo, &size, &channels);
+	if (!err) {
+		err = AudioObjectGetPropertyData(device, &ChannelAddr, 0, NULL, &size, &channels);
+	}
 	size = sizeof(vol);
-	if (!err)
-		err = AudioDeviceGetProperty(device, channels[0], false, kAudioDevicePropertyVolumeScalar, &size, &volumeL);
-	if (!err)
-		err = AudioDeviceGetProperty(device, channels[1], false, kAudioDevicePropertyVolumeScalar, &size, &volumeR);
+	if (!err) {
+		VolumeAddr.mElement = channels[0];
+		err = AudioObjectGetPropertyData(device, &VolumeAddr, 0, NULL, &size, &volumeL);
+	}
+	if (!err) {
+		VolumeAddr.mElement = channels[1];
+		err = AudioObjectGetPropertyData(device, &VolumeAddr, 0, NULL, &size, &volumeR);
+	}
 	if (!err)
 		vol = (volumeL < volumeR) ? volumeR : volumeL;
 	else {
@@ -385,16 +398,23 @@ static int setvol(float vol)
 	AudioDeviceID device;
 	UInt32 size;
 	UInt32 channels[2];
+	AudioObjectPropertyAddress OutputAddr = { kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMaster };
+	AudioObjectPropertyAddress ChannelAddr = { kAudioDevicePropertyPreferredChannelsForStereo, kAudioDevicePropertyScopeOutput, kAudioObjectPropertyElementWildcard };
+	AudioObjectPropertyAddress VolumeAddr = { kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeOutput, };
 
 	size = sizeof(device);
-	err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice, &size, &device);
+	err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &OutputAddr, 0, NULL, &size, &device);
 	size = sizeof(channels);
-	err = AudioDeviceGetProperty(device, 0, false, kAudioDevicePropertyPreferredChannelsForStereo, &size, &channels);
+	err = AudioObjectGetPropertyData(device, &ChannelAddr, 0, NULL, &size, &channels);
 	size = sizeof(vol);
-	if (!err)
-		err = AudioDeviceSetProperty(device, 0, channels[0], false, kAudioDevicePropertyVolumeScalar, size, &volumeL);
-	if (!err)
-		err = AudioDeviceSetProperty(device, 0, channels[1], false, kAudioDevicePropertyVolumeScalar, size, &volumeR); 
+	if (!err) {
+		VolumeAddr.mElement = channels[0];
+		err = AudioObjectSetPropertyData(device, &VolumeAddr, 0, NULL, size, &volumeL);
+	}
+	if (!err) {
+		VolumeAddr.mElement = channels[1];
+		err = AudioObjectSetPropertyData(device, &VolumeAddr, 0, NULL, size, &volumeR);
+	}
 	if (err) {
 #endif
 
@@ -692,9 +712,33 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 #else
-		fprintf(stderr, "Mac OS X detected.  Use 'launchd -d muted -f' to launch.\n");
+		const char *found = NULL, *paths[] = {
+			"/Library/LaunchAgents/org.asterisk.muted.plist",
+			"/Library/LaunchDaemons/org.asterisk.muted.plist",
+			"contrib/init.d/org.asterisk.muted.plist",
+			"<path-to-asterisk-source>/contrib/init.d/org.asterisk.muted.plist" };
+		char userpath[256];
+		struct stat unused;
+		struct passwd *pwd = getpwuid(getuid());
+		int i;
+
+		snprintf(userpath, sizeof(userpath), "%s%s", pwd->pw_dir, paths[0]);
+		if (!stat(userpath, &unused)) {
+			found = userpath;
+		}
+
+		if (!found) {
+			for (i = 0; i < 3; i++) {
+				if (!stat(paths[i], &unused)) {
+					found = paths[i];
+					break;
+				}
+			}
+		}
+
+		fprintf(stderr, "Mac OS X detected.  Use 'launchctl load -w %s' to launch.\n", found ? found : paths[3]);
 		exit(1);
-#endif
+#endif /* !defined(HAVE_SBIN_LAUNCHD */
 	}
 #endif
 	for(;;) {

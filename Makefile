@@ -801,8 +801,17 @@ config:
 			cat contrib/init.d/rc.archlinux.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
 			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/asterisk ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
-		elif [ -d $(DESTDIR)/Library/LaunchDaemons -a ! -f $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist ] ; then \
-			$(INSTALL) -m 644 contrib/init.d/org.asterisk.asterisk.plist $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist; \
+		elif [ -d $(DESTDIR)/Library/LaunchDaemons ]; then \
+			if [ ! -f $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist ]; then \
+				sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;' < contrib/init.d/org.asterisk.asterisk.plist > asterisk.plist ; \
+				$(INSTALL) -m 644 asterisk.plist $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist; \
+				rm -f asterisk.plist; \
+			fi; \
+			if [ ! -f $(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist ]; then \
+				sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;' < contrib/init.d/org.asterisk.muted.plist > muted.plist ; \
+				$(INSTALL) -m 644 muted.plist $(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist; \
+				rm -f muted.plist; \
+			fi; \
 		elif [ -f /etc/slackware-version ]; then \
 			echo "Slackware is not currently supported, although an init script does exist for it."; \
 		else \
