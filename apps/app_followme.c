@@ -801,7 +801,6 @@ static void findmeexec(struct fm_args *tpargs)
 			break;
 
 	while (nm) {
-
 		if (option_debug > 1)	
 			ast_log(LOG_DEBUG, "Number %s timeout %ld\n", nm->number,nm->timeout);
 
@@ -815,18 +814,25 @@ static void findmeexec(struct fm_args *tpargs)
 				rest++;
 			}
 
+			/* We check if that context exists, before creating the ast_channel struct needed */
+			if (!ast_exists_extension(caller, tpargs->context, number, 1, caller->cid.cid_num)) {
+				/* XXX Should probably restructure to simply skip this item, instead of returning. XXX */
+				ast_log(LOG_ERROR, "Extension '%s@%s' doesn't exist\n", number, tpargs->context);
+				free(findme_user_list);
+				return;
+			}
+
 			if (!strcmp(tpargs->context, ""))
 				snprintf(dialarg, sizeof(dialarg), "%s", number);
 			else
 				snprintf(dialarg, sizeof(dialarg), "%s@%s", number, tpargs->context);
-					
+
 			tmpuser = ast_calloc(1, sizeof(*tmpuser));
 			if (!tmpuser) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
 				free(findme_user_list);
 				return;
 			}
-					
+
 			outbound = ast_request("Local", ast_best_codec(caller->nativeformats), dialarg, &dg);
 			if (outbound) {
 				ast_set_callerid(outbound, caller->cid.cid_num, caller->cid.cid_name, caller->cid.cid_num);
