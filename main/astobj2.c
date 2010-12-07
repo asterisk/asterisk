@@ -758,6 +758,10 @@ static int handle_astobj2_test(int fd, int argc, char *argv[])
 	char *obj;
 	static int prof_id = -1;
 
+	if (argc != 3) {
+		return RESULT_SHOWUSAGE;
+	}
+
 	if (prof_id == -1)
 		prof_id = ast_add_profile("ao2_alloc", 0);
 
