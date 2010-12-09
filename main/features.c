@@ -3091,6 +3091,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int hasfeatures=0;
 	int hadfeatures=0;
 	int autoloopflag;
+	int we_disabled_peer_cdr = 0;
 	struct ast_option_header *aoh;
 	struct ast_cdr *bridge_cdr = NULL;
 	struct ast_cdr *orig_peer_cdr = NULL;
@@ -3158,9 +3159,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_cdr_appenduserfield(chan, tmp);
 		} else
 			ast_cdr_setuserfield(chan, peer->cdr->userfield);
-		/* free the peer's cdr without ast_cdr_free complaining */
-		ast_free(peer->cdr);
-		peer->cdr = NULL;
+		/* Don't delete the CDR; just disable it. */
+		ast_set_flag(peer->cdr, AST_CDR_FLAG_POST_DISABLED);
+		we_disabled_peer_cdr = 1;
 	}
 	ast_copy_string(orig_channame,chan->name,sizeof(orig_channame));
 	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
@@ -3600,6 +3601,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				ast_cdr_specialized_reset(new_peer_cdr, 0);
 			}
 		} else {
+			if (we_disabled_peer_cdr) {
+				ast_clear_flag(peer->cdr, AST_CDR_FLAG_POST_DISABLED);
+			}
 			ast_cdr_specialized_reset(peer->cdr, 0); /* nothing changed, reset the peer cdr  */
 		}
 	}
