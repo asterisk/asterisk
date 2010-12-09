@@ -16755,6 +16755,13 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 {
 	enum check_auth_result res;
 
+	/* If this is not the intial request, and the initial request isn't
+	 * a register, something screwy happened, so bail */
+	if (p->initreq.headers && p->initreq.method != SIP_REGISTER) {
+		ast_log(LOG_WARNING, "Ignoring spurious REGISTER with Call-ID: %s\n", p->callid);
+		return -1;
+	}
+
 	/* Use this as the basis */
 	if (ast_test_flag(req, SIP_PKT_DEBUG))
 		ast_verbose("Using latest REGISTER request as basis request\n");
