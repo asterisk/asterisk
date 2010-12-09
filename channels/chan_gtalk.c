@@ -196,6 +196,8 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p);
 static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *gtalk_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int gtalk_update_externip(void);
+static int gtalk_parser(void *data, ikspak *pak);
+static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, char *sid, char *from, char *to);
 
 /*! \brief PBX interface structure for channel registration */
 static const struct ast_channel_tech gtalk_tech = {
@@ -466,12 +468,46 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 static int gtalk_ringing_ack(void *data, ikspak *pak)
 {
 	struct gtalk_pvt *p = data;
+	struct ast_channel *owner;
 
-	if (p->ringrule)
+	ast_mutex_lock(&p->lock);
+
+	if (p->ringrule) {
 		iks_filter_remove_rule(p->parent->connection->f, p->ringrule);
+	}
 	p->ringrule = NULL;
-	if (p->owner)
-		ast_queue_control(p->owner, AST_CONTROL_RINGING);
+
+	/* this may be a redirect */
+	if (!strcmp(S_OR(iks_find_attrib(pak->x, "type"), ""), "error")) {
+		char *name = NULL;
+		char *redirect = NULL;
+		iks *traversenodes = NULL;
+		traversenodes = pak->query;
+		while (traversenodes) {
+			if (!(name = iks_name(traversenodes))) {
+				break;
+			}
+			if (!strcasecmp(name, "error") &&
+				(redirect = iks_find_cdata(traversenodes, "redirect")) &&
+				(redirect = strstr(redirect, "xmpp:"))) {
+				redirect += 5;
+				ast_log(LOG_DEBUG, "redirect %s\n", redirect);
+				ast_copy_string(p->them, redirect, sizeof(p->them));
+
+				gtalk_invite(p, p->them, p->us, p->sid, 1);
+				break;
+			}
+			traversenodes = iks_next_tag(traversenodes);
+		}
+	}
+	gtalk_create_candidates(p->parent, p, p->sid, p->them, p->us);
+	owner = p->owner;
+	ast_mutex_unlock(&p->lock);
+
+	if (owner) {
+		ast_queue_control(owner, AST_CONTROL_RINGING);
+	}
+
 	return IKS_FILTER_EAT;
 }
 
@@ -973,7 +1009,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		if (resources) {
 			snprintf(idroster, sizeof(idroster), "%s/%s", them, resources->resource);
 		} else if ((*them == '+') || (strstr(them, "@voice.google.com"))) {
-			snprintf(idroster, sizeof(idroster), "%s/srvres", them);
+			snprintf(idroster, sizeof(idroster), "%s", them);
 		} else {
 			ast_log(LOG_ERROR, "no gtalk capable clients to talk to.\n");
 			return NULL;
@@ -1783,7 +1819,6 @@ static int gtalk_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	gtalk_invite(p, p->them, p->us, p->sid, 1);
-	gtalk_create_candidates(p->parent, p, p->sid, p->them, p->us);
 
 	return 0;
 }
