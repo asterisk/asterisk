@@ -23648,6 +23648,13 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 {
 	enum check_auth_result res;
 
+	/* If this is not the intial request, and the initial request isn't
+	 * a register, something screwy happened, so bail */
+	if (p->initreq.headers && p->initreq.method != SIP_REGISTER) {
+		ast_log(LOG_WARNING, "Ignoring spurious REGISTER with Call-ID: %s\n", p->callid);
+		return -1;
+	}
+
 	/* Use this as the basis */
 	copy_request(&p->initreq, req);
 	if (sipdebug)
