@@ -236,7 +236,7 @@ char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid)
 
 void ast_set_default_eid(struct ast_eid *eid)
 {
-#if defined(SIOCGIFHWADDR)
+#if defined(SIOCGIFHWADDR) && defined(HAVE_STRUCT_IFREQ_IFR_IFRU_IFRU_HWADDR)
 	int s, x = 0;
 	char eid_str[20];
 	struct ifreq ifr;
