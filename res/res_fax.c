@@ -928,9 +928,12 @@ static void set_channel_variables(struct ast_channel *chan, struct ast_fax_sessi
 
 #define GENERIC_FAX_EXEC_SET_VARS(fax, chan, errorstr, reason) \
 	do {	\
-		ast_string_field_set(fax->details, result, S_OR(fax->details->result, "FAILED")); \
-		ast_string_field_set(fax->details, resultstr, S_OR(fax->details->resultstr, reason)); \
-		ast_string_field_set(fax->details, error, S_OR(fax->details->error, errorstr)); \
+		if (ast_strlen_zero(fax->details->result)) \
+			ast_string_field_set(fax->details, result, "FAILED"); \
+		if (ast_strlen_zero(fax->details->resultstr)) \
+			ast_string_field_set(fax->details, resultstr, reason); \
+		if (ast_strlen_zero(fax->details->error)) \
+			ast_string_field_set(fax->details, error, errorstr); \
 		set_channel_variables(chan, fax->details); \
 	} while (0)
 
