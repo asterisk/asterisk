@@ -823,10 +823,9 @@ int ooGkClientHandleGatekeeperConfirm
              sizeof(ASN116BITCHAR)* pGkClient->gkId.nchars);
    }
    else{
-      OOTRACEERR1("ERROR:No Gatekeeper ID present in received GKConfirmed "
+      OOTRACEINFO1("ERROR:No Gatekeeper ID present in received GKConfirmed "
                   "message\n");
-      OOTRACEINFO1("Ignoring message and will retransmit GRQ after timeout\n");
-      return OO_FAILED;
+      pGkClient->gkId.nchars = 0;
    }
    
    /* Extract Gatekeeper's RAS address */
@@ -1018,21 +1017,23 @@ int ooGkClientSendRRQ(ooGkClient *pGkClient, ASN1BOOL keepAlive)
      return OO_FAILED;
    }
    
-   pRegReq->m.gatekeeperIdentifierPresent=TRUE;
-   pRegReq->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
-   pRegReq->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc
+   if (pGkClient->gkId.nchars) {
+    pRegReq->m.gatekeeperIdentifierPresent=TRUE;
+    pRegReq->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
+    pRegReq->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc
                          (pctxt, pGkClient->gkId.nchars*sizeof(ASN116BITCHAR));
-   if(!pRegReq->gatekeeperIdentifier.data)
-   {
+    if(!pRegReq->gatekeeperIdentifier.data)
+    {
       OOTRACEERR1("Error: Failed to allocate memory for GKIdentifier in RRQ "
                    "message.\n");
       memReset(pctxt);
       pGkClient->state = GkClientFailed;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
-   }
-   memcpy(pRegReq->gatekeeperIdentifier.data, pGkClient->gkId.data, 
+    }
+    memcpy(pRegReq->gatekeeperIdentifier.data, pGkClient->gkId.data, 
                                 pGkClient->gkId.nchars*sizeof(ASN116BITCHAR));
+   }
    
    ooGkClientFillVendor(pGkClient, &pRegReq->endpointVendor);
    
@@ -1149,7 +1150,26 @@ int ooGkClientHandleRegistrationConfirm
    memcpy(pGkClient->endpointId.data, 
           pRegistrationConfirm->endpointIdentifier.data,
           sizeof(ASN116BITCHAR)*pGkClient->endpointId.nchars);
+
+   /* Extract GK Identifier */
    
+   if(pRegistrationConfirm->m.gatekeeperIdentifierPresent && pGkClient->gkId.nchars == 0)
+   {
+      pGkClient->gkId.nchars = pRegistrationConfirm->gatekeeperIdentifier.nchars;
+      pGkClient->gkId.data = (ASN116BITCHAR*)memAlloc(&pGkClient->ctxt,
+                              sizeof(ASN116BITCHAR)*pGkClient->gkId.nchars);
+      if(!pGkClient->gkId.data)
+      {
+         OOTRACEERR1("Error:Failed to allocate memory for GK ID data\n");
+         pGkClient->state = GkClientFailed;
+         return OO_FAILED;
+      }
+
+      memcpy(pGkClient->gkId.data, 
+             pRegistrationConfirm->gatekeeperIdentifier.data,
+             sizeof(ASN116BITCHAR)* pGkClient->gkId.nchars);
+   }
+
    /* Extract CallSignalling Address */
    for(i=0; i<(int)pRegistrationConfirm->callSignalAddress.count; i++)
    {
@@ -1437,21 +1457,23 @@ int ooGkClientSendURQ(ooGkClient *pGkClient, ooAliases *aliases)
           sizeof(ASN116BITCHAR)*pGkClient->endpointId.nchars);
 
    /* Populate gatekeeper identifier */
-   pUnregReq->m.gatekeeperIdentifierPresent = TRUE;
-   pUnregReq->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
-   pUnregReq->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc(pctxt,
+   if (pGkClient->gkId.nchars) {
+    pUnregReq->m.gatekeeperIdentifierPresent = TRUE;
+    pUnregReq->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
+    pUnregReq->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc(pctxt,
                                  sizeof(ASN116BITCHAR)*pGkClient->gkId.nchars);
-   if(!pUnregReq->gatekeeperIdentifier.data)
-   {
+    if(!pUnregReq->gatekeeperIdentifier.data)
+    {
       OOTRACEERR1("Error:Failed to allocate memory for GKID of URQ message\n");
       memReset(pctxt);
       pGkClient->state = GkClientFailed;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
-   }
-   memcpy((void*)pUnregReq->gatekeeperIdentifier.data, 
+    }
+    memcpy((void*)pUnregReq->gatekeeperIdentifier.data, 
           (void*)pGkClient->gkId.data, 
           sizeof(ASN116BITCHAR)*pGkClient->gkId.nchars);   
+   }
 
    /* Check whether specific aliases are to be unregistered*/
    if(aliases)
@@ -1766,21 +1788,23 @@ int ooGkClientSendAdmissionRequest
                                              sizeof(H225CallIdentifier));
 
    /* Populate Gatekeeper Id */
-   pAdmReq->m.gatekeeperIdentifierPresent = TRUE;
-   pAdmReq->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
-   pAdmReq->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc(pctxt,
+   if (pGkClient->gkId.nchars) {
+    pAdmReq->m.gatekeeperIdentifierPresent = TRUE;
+    pAdmReq->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
+    pAdmReq->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc(pctxt,
                                  sizeof(ASN116BITCHAR)*pGkClient->gkId.nchars);
-   if(!pAdmReq->gatekeeperIdentifier.data)
-   {
+    if(!pAdmReq->gatekeeperIdentifier.data)
+    {
       OOTRACEERR1("Error:Failed to allocate memory for GKID of ARQ message\n");
       memReset(pctxt);
       pGkClient->state = GkClientFailed;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
-   }
-   memcpy((void*)pAdmReq->gatekeeperIdentifier.data, 
+    }
+    memcpy((void*)pAdmReq->gatekeeperIdentifier.data, 
           (void*)pGkClient->gkId.data, 
           sizeof(ASN116BITCHAR)*pGkClient->gkId.nchars);
+   }
 
    pAdmReq->m.willSupplyUUIEsPresent = 1;
    pAdmReq->willSupplyUUIEs = FALSE;
@@ -2416,20 +2440,22 @@ int ooGkClientSendDisengageRequest(ooGkClient *pGkClient, OOH323CallData *call)
    pDRQ->m.callIdentifierPresent = 1;
    memcpy((void*)&pDRQ->callIdentifier, (void*)&call->callIdentifier,
                                              sizeof(H225CallIdentifier));
-   pDRQ->m.gatekeeperIdentifierPresent = 1;
-   pDRQ->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
-   pDRQ->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc
+   if (pGkClient->gkId.nchars) {
+    pDRQ->m.gatekeeperIdentifierPresent = 1;
+    pDRQ->gatekeeperIdentifier.nchars = pGkClient->gkId.nchars;
+    pDRQ->gatekeeperIdentifier.data = (ASN116BITCHAR*)memAlloc
                        (pctxt, pGkClient->gkId.nchars*sizeof(ASN116BITCHAR));
-   if(!pDRQ->gatekeeperIdentifier.data)
-   {
+    if(!pDRQ->gatekeeperIdentifier.data)
+    {
       OOTRACEERR1("Error:Failed to allocate memory for GKId in DRQ.\n");
       memReset(pctxt);
       pGkClient->state = GkClientFailed;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
-   }
-   memcpy(pDRQ->gatekeeperIdentifier.data, pGkClient->gkId.data, 
+    }
+    memcpy(pDRQ->gatekeeperIdentifier.data, pGkClient->gkId.data, 
                                 pGkClient->gkId.nchars*sizeof(ASN116BITCHAR));
+   }
 
    pDRQ->m.terminationCausePresent = 1;
    pDRQ->terminationCause.t = T_H225CallTerminationCause_releaseCompleteCauseIE;
