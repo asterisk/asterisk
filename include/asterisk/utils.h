@@ -758,4 +758,11 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
  */
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 
+/*!
+ * \brief Get current thread ID
+ * \param None
+ * \return the ID if platform is supported, else -1
+ */
+int ast_get_tid(void);
+
 #endif /* _ASTERISK_UTILS_H */

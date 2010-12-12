@@ -58,15 +58,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_BACKTRACE_FRAMES 20
 #endif
 
-#if defined(__linux__) && !defined(__NR_gettid)
-#include <asm/unistd.h>
-#endif
-
-#if defined(__linux__) && defined(__NR_gettid)
-#define GETTID() syscall(__NR_gettid)
-#else
-#define GETTID() getpid()
-#endif
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 static char queue_log_name[256] = QUEUELOG;
@@ -128,7 +119,7 @@ struct logmsg {
 	enum logmsgtypes type;
 	int level;
 	int line;
-	long process_id;
+	int lwp;
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(date);
 		AST_STRING_FIELD(file);
@@ -882,8 +873,8 @@ static void ast_log_vsyslog(struct logmsg *msg)
 		return;
 	}
 
-	snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: %s",
-		 levels[msg->level], msg->process_id, msg->file, msg->line, msg->function, msg->message);
+	snprintf(buf, sizeof(buf), "%s[%d]: %s:%d in %s: %s",
+		 levels[msg->level], msg->lwp, msg->file, msg->line, msg->function, msg->message);
 
 	term_strip(buf, buf, strlen(buf) + 1);
 	syslog(syslog_level, "%s", buf);
@@ -928,10 +919,10 @@ static void logger_print_normal(struct logmsg *logmsg)
 				/* Turn the numerical line number into a string */
 				snprintf(linestr, sizeof(linestr), "%d", logmsg->line);
 				/* Build string to print out */
-				snprintf(buf, sizeof(buf), "[%s] %s[%ld]: %s:%s %s: %s",
+				snprintf(buf, sizeof(buf), "[%s] %s[%d]: %s:%s %s: %s",
 					 logmsg->date,
 					 term_color(tmp1, logmsg->level_name, colors[logmsg->level], 0, sizeof(tmp1)),
-					 logmsg->process_id,
+					 logmsg->lwp,
 					 term_color(tmp2, logmsg->file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 					 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 					 term_color(tmp4, logmsg->function, COLOR_BRWHITE, 0, sizeof(tmp4)),
@@ -948,8 +939,8 @@ static void logger_print_normal(struct logmsg *logmsg)
 				}
 
 				/* Print out to the file */
-				res = fprintf(chan->fileptr, "[%s] %s[%ld] %s: %s",
-					      logmsg->date, logmsg->level_name, logmsg->process_id, logmsg->file, term_strip(buf, logmsg->message, BUFSIZ));
+				res = fprintf(chan->fileptr, "[%s] %s[%d] %s: %s",
+					      logmsg->date, logmsg->level_name, logmsg->lwp, logmsg->file, term_strip(buf, logmsg->message, BUFSIZ));
 				if (res <= 0 && !ast_strlen_zero(logmsg->message)) {
 					fprintf(stderr, "**** Asterisk Logging Error: ***********\n");
 					if (errno == ENOMEM || errno == ENOSPC)
@@ -1173,7 +1164,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	ast_string_field_set(logmsg, level_name, levels[level]);
 	ast_string_field_set(logmsg, file, file);
 	ast_string_field_set(logmsg, function, function);
-	logmsg->process_id = (long) GETTID();
+	logmsg->lwp = ast_get_tid();
 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {

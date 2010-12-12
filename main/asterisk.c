@@ -379,6 +379,7 @@ struct thread_list_t {
 	AST_RWLIST_ENTRY(thread_list_t) list;
 	char *name;
 	pthread_t id;
+	int lwp;
 };
 
 static AST_RWLIST_HEAD_STATIC(thread_list, thread_list_t);
@@ -390,6 +391,7 @@ void ast_register_thread(char *name)
 	if (!new)
 		return;
 	new->id = pthread_self();
+	new->lwp = ast_get_tid();
 	new->name = name; /* steal the allocated memory for the thread name */
 	AST_RWLIST_WRLOCK(&thread_list);
 	AST_RWLIST_INSERT_HEAD(&thread_list, new, list);
@@ -516,7 +518,7 @@ static char *handle_show_threads(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	AST_RWLIST_RDLOCK(&thread_list);
 	AST_RWLIST_TRAVERSE(&thread_list, cur, list) {
-		ast_cli(a->fd, "%p %s\n", (void *)cur->id, cur->name);
+		ast_cli(a->fd, "%p %d %s\n", (void *)cur->id, cur->lwp, cur->name);
 		count++;
 	}
         AST_RWLIST_UNLOCK(&thread_list);

@@ -34,6 +34,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #endif
 
+#include <sys/syscall.h>
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#elif defined(HAVE_SYS_THR_H)
+#include <sys/thr.h>
+#endif
+
 #include "asterisk/network.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in lock.h if required */
@@ -2081,3 +2088,21 @@ int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, co
 	return res;
 }
 #endif
+
+int ast_get_tid(void)
+{
+	int ret = -1;
+#if defined (__linux) && defined(SYS_gettid)
+	ret = syscall(SYS_gettid); /* available since Linux 1.4.11 */
+#elif defined(__sun)
+	ret = pthread_self();
+#elif defined(__APPLE__)
+	ret = mach_thread_self();
+	mach_port_deallocate(mach_task_self(), ret);
+#elif defined(__FreeBSD__) && defined(HAVE_SYS_THR_H)
+	long lwpid;
+	thr_self(&lwpid); /* available since sys/thr.h creation 2003 */
+	ret = lwpid;
+#endif
+	return ret;
+}

@@ -774,6 +774,9 @@ AC_LINK_IFELSE(
 #)
 #fi
 
+# for FreeBSD thr_self
+AC_CHECK_HEADERS([sys/thr.h])
+
 AC_MSG_CHECKING(for compiler atomic operations)
 AC_LINK_IFELSE(
 AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),
