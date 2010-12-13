@@ -8937,7 +8937,8 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 					   a busy */
 					f = NULL;
 				}
-			} else if (f->frametype == AST_FRAME_DTMF) {
+			} else if (f->frametype == AST_FRAME_DTMF_BEGIN
+				|| f->frametype == AST_FRAME_DTMF_END) {
 #ifdef HAVE_PRI
 				if (dahdi_sig_pri_lib_handles(p->sig)
 					&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
@@ -8945,6 +8946,10 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 					&& ((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING))
 						|| (p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)))) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
+					ast_debug(1, "Absorbing inband %s DTMF digit: 0x%02X '%c' on %s\n",
+						f->frametype == AST_FRAME_DTMF_BEGIN ? "begin" : "end",
+						f->subclass.integer, f->subclass.integer, ast->name);
+
 					f->frametype = AST_FRAME_NULL;
 					f->subclass.integer = 0;
 				}

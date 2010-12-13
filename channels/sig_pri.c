@@ -5259,6 +5259,7 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
 					e->answer.subcmds, e->answer.call);
+				pri->pvts[chanpos]->proceeding = 1;
 				sig_pri_open_media(pri->pvts[chanpos]);
 				pri_queue_control(pri, chanpos, AST_CONTROL_ANSWER);
 				/* Enable echo cancellation if it's not on already */
