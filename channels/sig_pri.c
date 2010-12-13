@@ -4037,6 +4037,29 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 #if defined(HAVE_PRI_CALL_HOLD)
 /*!
  * \internal
+ * \brief Post an AMI hold event.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to
+ * \param is_held TRUE if the call was placed on hold.
+ *
+ * \return Nothing
+ */
+static void sig_pri_ami_hold_event(struct ast_channel *chan, int is_held)
+{
+	ast_manager_event(chan, EVENT_FLAG_CALL, "Hold",
+		"Status: %s\r\n"
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n",
+		is_held ? "On" : "Off",
+		chan->name,
+		chan->uniqueid);
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
  * \brief Handle the hold event from libpri.
  * \since 1.8
  *
@@ -4089,20 +4112,14 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 	}
 	sig_pri_handle_subcmds(pri, chanpos_old, ev->e, ev->hold.channel, ev->hold.subcmds,
 		ev->hold.call);
+	pri_queue_control(pri, chanpos_old, AST_CONTROL_HOLD);
 	chanpos_new = pri_fixup_principle(pri, chanpos_new, ev->hold.call);
 	if (chanpos_new < 0) {
 		/* Should never happen. */
+		pri_queue_control(pri, chanpos_old, AST_CONTROL_UNHOLD);
 		retval = -1;
 	} else {
-		struct ast_frame f = { AST_FRAME_CONTROL, };
-
-		/*
-		 * Things are in an odd state here so we cannot use pri_queue_control().
-		 * However, we already have the owner lock so we can simply queue the frame.
-		 */
-		f.subclass.integer = AST_CONTROL_HOLD;
-		ast_queue_frame(owner, &f);
-
+		sig_pri_ami_hold_event(owner, 1);
 		sig_pri_span_devstate_changed(pri);
 		retval = 0;
 	}
@@ -4170,7 +4187,12 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 	sig_pri_lock_private(pri->pvts[chanpos]);
 	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve.channel,
 		ev->retrieve.subcmds, ev->retrieve.call);
+	sig_pri_lock_owner(pri, chanpos);
 	pri_queue_control(pri, chanpos, AST_CONTROL_UNHOLD);
+	if (pri->pvts[chanpos]->owner) {
+		sig_pri_ami_hold_event(pri->pvts[chanpos]->owner, 0);
+		ast_channel_unlock(pri->pvts[chanpos]->owner);
+	}
 	sig_pri_unlock_private(pri->pvts[chanpos]);
 	sig_pri_span_devstate_changed(pri);
 	pri_retrieve_ack(pri->pri, ev->retrieve.call,
