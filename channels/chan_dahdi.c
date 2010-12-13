@@ -5626,12 +5626,18 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 					   a busy  */
 					f = NULL;
 				}
-			} else if (f->frametype == AST_FRAME_DTMF) {
+			} else if (f->frametype == AST_FRAME_DTMF_BEGIN
+				|| f->frametype == AST_FRAME_DTMF_END) {
 #ifdef HAVE_PRI
 				if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial &&
 					((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) ||
 					(p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)))) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
+					ast_log(LOG_DEBUG,
+						"Absorbing inband %s DTMF digit: 0x%02X '%c' on %s\n",
+						f->frametype == AST_FRAME_DTMF_BEGIN ? "begin" : "end",
+						f->subclass, f->subclass, ast->name);
+
 					f->frametype = AST_FRAME_NULL;
 					f->subclass = 0;
 				}
@@ -10100,6 +10106,7 @@ static void *pri_dchannel(void *vpri)
 							ast_log(LOG_DEBUG, "Waiting on answer confirmation on channel %d!\n", pri->pvts[chanpos]->channel);
 						} else {
 							pri->pvts[chanpos]->dialing = 0;
+							pri->pvts[chanpos]->proceeding = 1;
 							pri->pvts[chanpos]->subs[SUB_REAL].needanswer =1;
 							/* Enable echo cancellation if it's not on already */
 							dahdi_enable_ec(pri->pvts[chanpos]);
