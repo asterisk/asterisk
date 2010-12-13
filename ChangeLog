@@ -1,3 +1,31 @@
+2010-12-13  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.1.1 Released.
+
+2010-12-09 15:32:20 -0600  David Vossel <dvossel@digium.com>
+
+	* Fixes issue with outbound google voice calls not working.
+
+	  Thanks to az1234 and nevermind_quack for their input in helping debug
+	  the issue.
+
+	  (closes issue #18412)
+	  Reported by: nevermind_quack
+	  Patches:
+	        fix uploaded by dvossel (license 671)
+
+2010-12-09 14:48:44 -0600  Terry Wilson <twilson@digium.com>
+
+	* Don't crash after Set(CDR(userfield)=...) in ast_bridge_call
+
+	  Instead of setting peer->cdr = NULL, set it to not post.
+
+	  (closes issue #18415)
+	  Reported by: macbrody
+	  Patches: 
+	        patch-18415 uploaded by jsolares (license 1167)
+	  Tested by: jsolares, twilson
+
 2010-12-02  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.1 Released.
