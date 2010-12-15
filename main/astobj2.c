@@ -789,6 +789,7 @@ static int handle_astobj2_test(int fd, int argc, char *argv[])
 		ast_cli(fd, "object %d allocated as %p\n", i, obj);
 		sprintf(obj, "-- this is obj %d --", i);
 		ao2_link(c1, obj);
+		ao2_ref(obj, -1);
 	}
 	ast_cli(fd, "testing callbacks\n");
 	ao2_callback(c1, 0, print_cb, &fd);
@@ -805,12 +806,14 @@ static int handle_astobj2_test(int fd, int argc, char *argv[])
 				ao2_unlink(c1, obj);
 			ao2_ref(obj, -1);
 		}
+		ao2_iterator_destroy(&ai);
 		ast_cli(fd, "testing iterators again\n");
 		ai = ao2_iterator_init(c1, 0);
 		while ( (obj = ao2_iterator_next(&ai)) ) {
 			ast_cli(fd, "iterator on <%s>\n", obj);
 			ao2_ref(obj, -1);
 		}
+		ao2_iterator_destroy(&ai);
 	}
 	ast_cli(fd, "testing callbacks again\n");
 	ao2_callback(c1, 0, print_cb, &fd);
