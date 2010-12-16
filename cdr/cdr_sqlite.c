@@ -188,9 +188,10 @@ static int sqlite_log(struct ast_cdr *cdr)
 
 static int unload_module(void)
 {
-	if (db)
-		sqlite_close(db);
 	ast_cdr_unregister(name);
+	if (db) {
+		sqlite_close(db);
+	}
 	return 0;
 }
 
