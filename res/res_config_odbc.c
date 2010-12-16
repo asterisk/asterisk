@@ -61,7 +61,7 @@ struct custom_prepare_struct {
 static void decode_chunk(char *chunk)
 {
 	for (; *chunk; chunk++) {
-		if (*chunk == '^' && strchr("0123456789ABCDEFabcdef", chunk[1]) && strchr("0123456789ABCDEFabcdef", chunk[2])) {
+		if (*chunk == '^' && strchr("0123456789ABCDEF", chunk[1]) && strchr("0123456789ABCDEF", chunk[2])) {
 			sscanf(chunk + 1, "%02hhX", chunk);
 			memmove(chunk + 1, chunk + 3, strlen(chunk + 3) + 1);
 		}
@@ -109,9 +109,8 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 					/* We use ^XX, instead of %XX because '%' is a special character in SQL */
 					snprintf(eptr, encodebuf + sizeof(encodebuf) - eptr, "^%02hhX", *vptr);
 					eptr += 3;
-					vptr++;
 				} else {
-					*eptr++ = *vptr++;
+					*eptr++ = *vptr;
 				}
 			}
 			if (eptr < encodebuf + sizeof(encodebuf)) {
