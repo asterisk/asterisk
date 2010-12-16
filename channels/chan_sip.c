@@ -4229,7 +4229,7 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr, const char *defaultuser, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms)
 {
 	char port[10];
-	char ipaddr[INET_ADDRSTRLEN];
+	char ipaddr[INET6_ADDRSTRLEN];
 	char regseconds[20];
 	char *tablename = NULL;
 	char str_lastms[20];
@@ -4436,7 +4436,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockad
 	struct ast_variable *varregs = NULL;
 	struct ast_variable *tmp;
 	struct ast_config *peerlist = NULL;
-	char ipaddr[INET_ADDRSTRLEN];
+	char ipaddr[INET6_ADDRSTRLEN];
 	char portstring[6]; /*up to 5 digits plus null terminator*/
 	char *cat = NULL;
 	int realtimeregs = ast_check_realtime("sipregs");
@@ -28847,7 +28847,7 @@ static int load_module(void)
 
 	ast_realtime_require_field(ast_check_realtime("sipregs") ? "sipregs" : "sippeers",
 		"name", RQ_CHAR, 10,
-		"ipaddr", RQ_CHAR, 15,
+		"ipaddr", RQ_CHAR, INET6_ADDRSTRLEN - 1,
 		"port", RQ_UINTEGER2, 5,
 		"regseconds", RQ_INTEGER4, 11,
 		"defaultuser", RQ_CHAR, 10,
