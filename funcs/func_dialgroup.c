@@ -236,6 +236,11 @@ static int dialgroup_write(struct ast_channel *chan, const char *cmd, char *data
 
 	if (strcasecmp(args.op, "add") == 0) {
 		for (j = 0; j < inter.argc; j++) {
+			/* Eliminate duplicates */
+			if ((entry = ao2_find(grhead->entries, inter.faces[j], 0))) {
+				ao2_ref(entry, -1);
+				continue;
+			}
 			if ((entry = ao2_alloc(sizeof(*entry), NULL))) {
 				ast_copy_string(entry->name, inter.faces[j], sizeof(entry->name));
 				ao2_link(grhead->entries, entry);
