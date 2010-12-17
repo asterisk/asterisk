@@ -58,7 +58,10 @@ even if it is running in the background. This will affect the size
 of your log files.
 .TP
 \fB-f\fR
-Do not fork or detach from controlling terminal.
+Do not fork or detach from controlling terminal.  Overrides \fB-F\fR.
+.TP
+\fB-F\fR
+Always fork and detach from controlling terminal.  Overrides \fB-f\fR.
 .TP
 \fB-g\fR
 Remove resource limit on core size, thus forcing Asterisk to dump
