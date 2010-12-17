@@ -3493,6 +3493,8 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t t, const char *
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
+	ast_backtrace();
+
 	if (format == NULL)
 		format = "ABdY 'digits/at' IMp";
 
