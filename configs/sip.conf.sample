@@ -680,12 +680,15 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 
 ;----------------------------------------- OUTBOUND MWI SUBSCRIPTIONS -------------------------
 ; Asterisk can subscribe to receive the MWI from another SIP server and store it locally for retrieval
-; by other phones.
+; by other phones. At this time, you can only subscribe using UDP as the transport.
 ; Format for the mwi register statement is:
-;       mwi => user[:secret[:authuser]]@host[:port][/mailbox]
+;       mwi => user[:secret[:authuser]]@host[:port]/mailbox
 ;
 ; Examples:
 ;mwi => 1234:password@mysipprovider.com/1234
+;mwi => 1234:password@myportprovider.com:6969/1234
+;mwi => 1234:password:authuser@myauthprovider.com/1234
+;mwi => 1234:password:authuser@myauthportprovider.com:6969/1234
 ;
 ; MWI received will be stored in the 1234 mailbox of the SIP_Remote context. It can be used by other phones by following the below:
 ; mailbox=1234@SIP_Remote
