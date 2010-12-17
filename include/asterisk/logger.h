@@ -296,6 +296,16 @@ int ast_bt_get_addresses(struct ast_bt *bt);
  */
 void *ast_bt_destroy(struct ast_bt *bt);
 
+/* \brief Retrieve symbols for a set of backtrace addresses
+ *
+ * \param addresses A list of addresses, such as the ->addresses structure element of struct ast_bt.
+ * \param num_frames Number of addresses in the addresses list
+ * \retval NULL Unable to allocate memory
+ * \return List of strings
+ * \since 1.6.2.16
+ */
+char **ast_bt_get_symbols(void **addresses, size_t num_frames);
+
 #endif /* HAVE_BKTR */
 #endif /* _LOGGER_BACKTRACE_H */
 

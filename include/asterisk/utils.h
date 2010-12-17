@@ -758,4 +758,13 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
  */
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 
+/*!\brief Resolve a binary to a full pathname
+ * \param binary Name of the executable to resolve
+ * \param fullpath Buffer to hold the complete pathname
+ * \param fullpath_size Size of \a fullpath
+ * \retval NULL \a binary was not found or the environment variable PATH is not set
+ * \return \a fullpath
+ */
+char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size);
+
 #endif /* _ASTERISK_UTILS_H */
