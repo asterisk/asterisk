@@ -39,8 +39,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <sys/stat.h>
 #if ((defined(AST_DEVMODE)) && (defined(linux)))
-#include <execinfo.h>
-#define MAX_BACKTRACE_FRAMES 20
+#  include <execinfo.h>
+#  define MAX_BACKTRACE_FRAMES 20
+#  if defined(HAVE_DLADDR) && defined(HAVE_BFD) && defined(BETTER_BACKTRACES)
+#    include <dlfcn.h>
+#    include <bfd.h>
+#  endif
 #endif
 
 #define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
@@ -829,31 +833,160 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 void ast_backtrace(void)
 {
 #ifdef linux
-#ifdef AST_DEVMODE
-	int count=0, i=0;
+#  ifdef AST_DEVMODE
+	int stackcount = 0, stackfr;
 	void **addresses;
+#    if defined(HAVE_DLADDR) && defined(HAVE_BFD) && defined(BETTER_BACKTRACES)
+	bfd *bfdobj;           /* bfd.h */
+	Dl_info dli;           /* dlfcn.h */
+	long allocsize;
+	asymbol **syms = NULL; /* bfd.h */
+	bfd_vma offset;        /* bfd.h */
+	const char *lastslash;
+	asection *section;
+	const char *file, *func;
+	unsigned int line;
+	char address_str[128];
+#    else
 	char **strings;
+#    endif
 
 	if ((addresses = ast_calloc(MAX_BACKTRACE_FRAMES, sizeof(*addresses)))) {
-		count = backtrace(addresses, MAX_BACKTRACE_FRAMES);
-		if ((strings = backtrace_symbols(addresses, count))) {
-			ast_log(LOG_DEBUG, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
-			for (i=0; i < count ; i++) {
-#if __WORDSIZE == 32
-				ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
-#elif __WORDSIZE == 64
-				ast_log(LOG_DEBUG, "#%d: [%016lX] %s\n", i, (unsigned long)addresses[i], strings[i]);
-#endif
+		stackcount = backtrace(addresses, MAX_BACKTRACE_FRAMES);
+#    if defined(HAVE_DLADDR) && defined(HAVE_BFD) && defined(BETTER_BACKTRACES)
+		ast_log(LOG_DEBUG, "Got %d backtrace record%c\n", stackcount, stackcount != 1 ? 's' : ' ');
+		for (stackfr = 0; stackfr < stackcount; stackfr++) {
+			int found = 0, symbolcount;
+
+			if (!dladdr(addresses[stackfr], &dli)) {
+				continue;
+			}
+
+			if (strcmp(dli.dli_fname, "asterisk") == 0) {
+				char asteriskpath[256];
+				if (!(dli.dli_fname = ast_utils_which("asterisk", asteriskpath, sizeof(asteriskpath)))) {
+					/* This will fail to find symbols */
+					ast_log(LOG_DEBUG, "Failed to find asterisk binary for debug symbols.\n");
+					dli.dli_fname = "asterisk";
+				}
+			}
+
+			lastslash = strrchr(dli.dli_fname, '/');
+			if (	(bfdobj = bfd_openr(dli.dli_fname, NULL)) &&
+					bfd_check_format(bfdobj, bfd_object) &&
+					(allocsize = bfd_get_symtab_upper_bound(bfdobj)) > 0 &&
+					(syms = ast_malloc(allocsize)) &&
+					(symbolcount = bfd_canonicalize_symtab(bfdobj, syms))) {
+
+				if (bfdobj->flags & DYNAMIC) {
+					offset = addresses[stackfr] - dli.dli_fbase;
+				} else {
+					offset = addresses[stackfr] - (void *) 0;
+				}
+
+				for (section = bfdobj->sections; section; section = section->next) {
+					if (	!bfd_get_section_flags(bfdobj, section) & SEC_ALLOC ||
+							section->vma > offset ||
+							section->size + section->vma < offset) {
+						continue;
+					}
+
+					if (!bfd_find_nearest_line(bfdobj, section, syms, offset - section->vma, &file, &func, &line)) {
+						continue;
+					}
+
+					/* Stack trace output */
+					found++;
+					lastslash = strrchr(file, '/');
+#      if __WORDSIZE == 32
+					if (dli.dli_saddr == NULL) {
+						address_str[0] = '\0';
+					} else {
+						snprintf(address_str, sizeof(address_str), " (%08lX+%lX)",
+							(unsigned long) dli.dli_saddr,
+							(unsigned long) (addresses[stackfr] - dli.dli_saddr));
+					}
+					ast_log(LOG_DEBUG, "#%d: [%08lX] %s:%u %s()%s\n", stackfr,
+						(unsigned long) addresses[stackfr],
+						lastslash ? lastslash + 1 : file, line,
+						S_OR(func, "???"),
+						address_str);
+#      elif __WORDSIZE == 64
+					if (dli.dli_saddr == NULL) {
+						address_str[0] = '\0';
+					} else {
+						snprintf(address_str, sizeof(address_str), " (%016lX+%lX)",
+							(unsigned long) dli.dli_saddr,
+							(unsigned long) (addresses[stackfr] - dli.dli_saddr));
+					}
+					ast_log(LOG_DEBUG, "#%d: [%016lX] %s:%u %s()%s\n", stackfr,
+						(unsigned long) addresses[stackfr],
+						lastslash ? lastslash + 1 : file, line,
+						S_OR(func, "???"),
+						address_str);
+#      endif
+
+					break;
+				}
+			}
+			if (bfdobj) {
+				bfd_close(bfdobj);
+				if (syms) {
+					ast_free(syms);
+				}
+			}
+
+			/* Default output, if we cannot find the information within BFD */
+			if (!found) {
+#      if __WORDSIZE == 32
+				if (dli.dli_saddr == NULL) {
+					address_str[0] = '\0';
+				} else {
+					snprintf(address_str, sizeof(address_str), " (%08lX+%lX)",
+						(unsigned long) dli.dli_saddr,
+						(unsigned long) (addresses[stackfr] - dli.dli_saddr));
+				}
+				ast_log(LOG_DEBUG, "#%d: [%08lX] %s %s()%s\n", stackfr,
+					(unsigned long) addresses[stackfr],
+					lastslash ? lastslash + 1 : dli.dli_fname,
+					S_OR(dli.dli_sname, "<unknown>"),
+					address_str);
+#      elif __WORDSIZE == 64
+				if (dli.dli_saddr == NULL) {
+					address_str[0] = '\0';
+				} else {
+					snprintf(address_str, sizeof(address_str), " (%016lX+%lX)",
+						(unsigned long) dli.dli_saddr,
+						(unsigned long) (addresses[stackfr] - dli.dli_saddr));
+				}
+				ast_log(LOG_DEBUG, "#%d: [%016lX] %s %s()%s\n", stackfr,
+					(unsigned long) addresses[stackfr],
+					lastslash ? lastslash + 1 : dli.dli_fname,
+					S_OR(dli.dli_sname, "<unknown>"),
+					address_str);
+#      endif
+			}
+		}
+#    else /* !defined(HAVE_DLADDR) || !defined(HAVE_BFD) || !defined(BETTER_BACKTRACES) */
+		if ((strings = backtrace_symbols(addresses, stackcount))) {
+			ast_log(LOG_DEBUG, "Got %d backtrace record%c\n", stackcount, stackcount != 1 ? 's' : ' ');
+			for (stackfr = 0; stackfr < stackcount ; stackfr++) {
+#      if __WORDSIZE == 32
+				ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", stackfr, (unsigned int)addresses[stackfr], strings[stackfr]);
+#      elif __WORDSIZE == 64
+				ast_log(LOG_DEBUG, "#%d: [%016lX] %s\n", stackfr, (unsigned long)addresses[stackfr], strings[stackfr]);
+#      endif
 			}
 			free(strings);
 		} else {
 			ast_log(LOG_DEBUG, "Could not allocate memory for backtrace\n");
 		}
+#    endif /* defined(HAVE_DLADDR) && defined(HAVE_BFD) && defined(BETTER_BACKTRACES) */
 		free(addresses);
 	}
-#else
+#  else /* !defined(AST_DEVMODE) */
 	ast_log(LOG_WARNING, "Must run configure with '--enable-dev-mode' for stack backtraces.\n");
-#endif
+#  endif /* defined(AST_DEVMODE) */
 #else /* ndef linux */
 	ast_log(LOG_WARNING, "Inline stack backtraces are only available on the Linux platform.\n");
 #endif

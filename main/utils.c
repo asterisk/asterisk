@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in lock.h if required */
 #include "asterisk/lock.h"
@@ -1441,3 +1442,22 @@ int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, co
 	return res;
 }
 #endif
+
+char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size)
+{
+	const char *envPATH = getenv("PATH");
+	char *tpath, *path;
+	struct stat unused;
+	if (!envPATH) {
+		return NULL;
+	}
+	tpath = ast_strdupa(envPATH);
+	while ((path = strsep(&tpath, ":"))) {
+		snprintf(fullpath, fullpath_size, "%s/%s", path, binary);
+		if (!stat(fullpath, &unused)) {
+			return fullpath;
+		}
+	}
+	return NULL;
+}
+

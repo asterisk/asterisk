@@ -50,6 +50,10 @@ else
   AST_LIBS+=$(EDITLINE_LIB) -lm
 endif
 
+ifneq ($(findstring BETTER_BACKTRACES,$(MENUSELECT_CFLAGS)),)
+  AST_LIBS+=$(BFD_LIB)
+endif
+
 ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)

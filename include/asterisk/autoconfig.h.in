@@ -74,6 +74,9 @@
    attribute. */
 #undef HAVE_ATTRIBUTE_warn_unused_result
 
+/* Define to 1 if you have the Debug symbol decoding library. */
+#undef HAVE_BFD
+
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
 
@@ -98,6 +101,9 @@
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
+
+/* Define to 1 if your system has the dladdr() GNU extension */
+#undef HAVE_DLADDR
 
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 #undef HAVE_DOPRNT

@@ -630,6 +630,7 @@ KDEDIR
 KDEINIT
 GSM_INTERNAL
 PBX_DAHDI_TRANSCODE
+PBX_DLADDR
 AST_NO_STRICT_OVERFLOW
 AST_FORTIFY_SOURCE
 AST_DECLARATION_AFTER_STATEMENT
@@ -819,6 +820,10 @@ PBX_CAP
 CAP_DIR
 CAP_INCLUDE
 CAP_LIB
+PBX_BFD
+BFD_DIR
+BFD_INCLUDE
+BFD_LIB
 PBX_ALSA
 ALSA_DIR
 ALSA_INCLUDE
@@ -934,6 +939,7 @@ enable_option_checking
 with_gnu_ld
 enable_dev_mode
 with_asound
+with_bfd
 with_cap
 with_curses
 with_dahdi
@@ -1613,6 +1619,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
   --with-asound=PATH      use Advanced Linux Sound Architecture files in PATH
+  --with-bfd=PATH         use Debug symbol decoding files in PATH
   --with-cap=PATH         use POSIX 1.e capabilities files in PATH
   --with-curses=PATH      use curses files in PATH
   --with-dahdi=PATH       use DAHDI files in PATH
@@ -7863,6 +7870,35 @@ PBX_ALSA=0
 
 
 
+BFD_DESCRIP="Debug symbol decoding"
+BFD_OPTION="bfd"
+
+# Check whether --with-bfd was given.
+if test "${with_bfd+set}" = set; then :
+  withval=$with_bfd;
+case ${withval} in
+     n|no)
+     USE_BFD=no
+     ;;
+     y|ye|yes)
+     BFD_MANDATORY="yes"
+     ;;
+     *)
+     BFD_DIR="${withval}"
+     BFD_MANDATORY="yes"
+     ;;
+esac
+
+fi
+
+PBX_BFD=0
+
+
+
+
+
+
+
 CAP_DESCRIP="POSIX 1.e capabilities"
 CAP_OPTION="cap"
 
@@ -13179,6 +13215,41 @@ $as_echo "#define TYPEOF_FD_SET_FDS_BITS long long" >>confdefs.h
 
 fi ; fi ; fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dladdr in dlfcn.h" >&5
+$as_echo_n "checking for dladdr in dlfcn.h... " >&6; }
+PBX_DLADDR=0
+old_LIBS=${LIBS}
+LIBS="${LIBS} -ldl"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#define _GNU_SOURCE 1
+#include <dlfcn.h>
+int
+main ()
+{
+dladdr((void *)0, (void *)0)
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	PBX_DLADDR=1
+
+
+$as_echo "#define HAVE_DLADDR 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=${old_LIBS}
+
 
 # do the package library checks now
 
@@ -13297,6 +13368,127 @@ $as_echo "$as_me: *** Please correct the installation" >&6;}
 $as_echo "$as_me: *** Either correct the installation, or run configure" >&6;}
          { $as_echo "$as_me:${as_lineno-$LINENO}: *** without explicitly specifying --with-${ALSA_OPTION}" >&5
 $as_echo "$as_me: *** without explicitly specifying --with-${ALSA_OPTION}" >&6;}
+      fi
+      exit 1
+   fi
+fi
+
+
+
+if test "${USE_BFD}" != "no"; then
+   pbxlibdir=""
+   if test "x${BFD_DIR}" != "x"; then
+      if test -d ${BFD_DIR}/lib; then
+      	 pbxlibdir="-L${BFD_DIR}/lib"
+      else
+      	 pbxlibdir="-L${BFD_DIR}"
+      fi
+   fi
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_openr in -lbfd" >&5
+$as_echo_n "checking for bfd_openr in -lbfd... " >&6; }
+if test "${ac_cv_lib_bfd_bfd_openr+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbfd ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char bfd_openr ();
+int
+main ()
+{
+return bfd_openr ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_bfd_bfd_openr=yes
+else
+  ac_cv_lib_bfd_bfd_openr=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bfd_bfd_openr" >&5
+$as_echo "$ac_cv_lib_bfd_bfd_openr" >&6; }
+if test "x$ac_cv_lib_bfd_bfd_openr" = x""yes; then :
+  AST_BFD_FOUND=yes
+else
+  AST_BFD_FOUND=no
+fi
+
+
+   if test "${AST_BFD_FOUND}" = "yes"; then
+      BFD_LIB="-lbfd "
+      BFD_HEADER_FOUND="1"
+      if test "x${BFD_DIR}" != "x"; then
+         BFD_LIB="${pbxlibdir} ${BFD_LIB}"
+	 BFD_INCLUDE="-I${BFD_DIR}/include"
+      fi
+      BFD_INCLUDE="${BFD_INCLUDE} "
+      saved_cppflags="${CPPFLAGS}"
+      CPPFLAGS="${CPPFLAGS} ${BFD_INCLUDE}"
+      if test "xbfd.h" != "x" ; then
+         ac_fn_c_check_header_mongrel "$LINENO" "bfd.h" "ac_cv_header_bfd_h" "$ac_includes_default"
+if test "x$ac_cv_header_bfd_h" = x""yes; then :
+  BFD_HEADER_FOUND=1
+else
+  BFD_HEADER_FOUND=0
+fi
+
+
+      fi
+      CPPFLAGS="${saved_cppflags}"
+      if test "x${BFD_HEADER_FOUND}" = "x0" ; then
+         if test -n "${BFD_MANDATORY}" ;
+         then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: ***" >&5
+$as_echo "$as_me: ***" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: *** It appears that you do not have the bfd development package installed." >&5
+$as_echo "$as_me: *** It appears that you do not have the bfd development package installed." >&6;}
+            if test "x${BFD_OPTION}" = "x" ; then
+               { $as_echo "$as_me:${as_lineno-$LINENO}: *** Please install it to include ${BFD_DESCRIP} support" >&5
+$as_echo "$as_me: *** Please install it to include ${BFD_DESCRIP} support" >&6;}
+            else
+               { $as_echo "$as_me:${as_lineno-$LINENO}: *** Please install it to include ${BFD_DESCRIP} support, or re-run configure" >&5
+$as_echo "$as_me: *** Please install it to include ${BFD_DESCRIP} support, or re-run configure" >&6;}
+               { $as_echo "$as_me:${as_lineno-$LINENO}: *** without explicitly specifying --with-${BFD_OPTION}" >&5
+$as_echo "$as_me: *** without explicitly specifying --with-${BFD_OPTION}" >&6;}
+            fi
+            exit 1
+         fi
+         BFD_LIB=""
+         BFD_INCLUDE=""
+         PBX_BFD=0
+      else
+         PBX_BFD=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_BFD 1
+_ACEOF
+      fi
+   elif test -n "${BFD_MANDATORY}";
+   then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: ***" >&5
+$as_echo "$as_me: ***" >&6;}
+      { $as_echo "$as_me:${as_lineno-$LINENO}: *** The ${BFD_DESCRIP} installation on this system appears to be broken." >&5
+$as_echo "$as_me: *** The ${BFD_DESCRIP} installation on this system appears to be broken." >&6;}
+      if test "x${BFD_OPTION}" = "x" ; then
+         { $as_echo "$as_me:${as_lineno-$LINENO}: *** Please correct the installation" >&5
+$as_echo "$as_me: *** Please correct the installation" >&6;}
+      else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: *** Either correct the installation, or run configure" >&5
+$as_echo "$as_me: *** Either correct the installation, or run configure" >&6;}
+         { $as_echo "$as_me:${as_lineno-$LINENO}: *** without explicitly specifying --with-${BFD_OPTION}" >&5
+$as_echo "$as_me: *** without explicitly specifying --with-${BFD_OPTION}" >&6;}
       fi
       exit 1
    fi
