@@ -7720,36 +7720,39 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 	int portnum = 0;
 	enum sip_transport transport = SIP_TRANSPORT_UDP;
 	char buf[256] = "";
-	char *username = NULL, *hostname = NULL, *secret = NULL, *authuser = NULL, *porta = NULL, *mailbox = NULL;
-	
+	char *username = NULL, *hostname = NULL, *secret = NULL, *authuser = NULL, *porta = NULL, *mailbox = NULL, *at = NULL;
+
 	if (!value) {
 		return -1;
 	}
-	
+
 	ast_copy_string(buf, value, sizeof(buf));
 
-	sip_parse_host(buf, lineno, &username, &portnum, &transport);
-	
-	if ((hostname = strrchr(username, '@'))) {
-		*hostname++ = '\0';
+	if (!(at = strstr(buf, "@"))) {
+		return -1;
 	}
-	
+
+	if ((hostname = strrchr(buf, '@'))) {
+		*hostname++ = '\0';
+		username = buf;
+	}
+
 	if ((secret = strchr(username, ':'))) {
 		*secret++ = '\0';
 		if ((authuser = strchr(secret, ':'))) {
 			*authuser++ = '\0';
 		}
 	}
-	
+
 	if ((mailbox = strchr(hostname, '/'))) {
 		*mailbox++ = '\0';
 	}
 
 	if (ast_strlen_zero(username) || ast_strlen_zero(hostname) || ast_strlen_zero(mailbox)) {
-		ast_log(LOG_WARNING, "Format for MWI subscription is user[:secret[:authuser]]@host[:port][/mailbox] at line %d\n", lineno);
+		ast_log(LOG_WARNING, "Format for MWI subscription is user[:secret[:authuser]]@host[:port]/mailbox at line %d\n", lineno);
 		return -1;
 	}
-	
+
 	if ((porta = strchr(hostname, ':'))) {
 		*porta++ = '\0';
 		if (!(portnum = atoi(porta))) {
@@ -7757,11 +7760,11 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 			return -1;
 		}
 	}
-	
+
 	if (!(mwi = ast_calloc_with_stringfields(1, struct sip_subscription_mwi, 256))) {
 		return -1;
 	}
-	
+
 	ASTOBJ_INIT(mwi);
 	ast_string_field_set(mwi, username, username);
 	if (secret) {
@@ -7775,10 +7778,10 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 	mwi->resub = -1;
 	mwi->portno = portnum;
 	mwi->transport = transport;
-	
+
 	ASTOBJ_CONTAINER_LINK(&submwil, mwi);
 	ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy);
-	
+
 	return 0;
 }
 
@@ -28504,6 +28507,157 @@ static void sip_unregister_tests(void)
 }
 
 #ifdef TEST_FRAMEWORK
+AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
+{
+	int found = 0;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	const char *mwi1 = "1234@mysipprovider.com/1234";
+	const char *mwi2 = "1234:password@mysipprovider.com/1234";
+	const char *mwi3 = "1234:password@mysipprovider.com:5061/1234";
+	const char *mwi4 = "1234:password:authuser@mysipprovider.com/1234";
+	const char *mwi5 = "1234:password:authuser@mysipprovider.com:5061/1234";
+	const char *mwi6 = "1234:password";
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_mwi_subscribe_parse_test";
+		info->category = "/channels/chan_sip/";
+		info->summary = "SIP MWI subscribe line parse unit test";
+		info->description =
+			"Tests the parsing of mwi subscription lines (e.g., mwi => from sip.conf)";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (sip_subscribe_mwi(mwi1, 1)) {
+		res = AST_TEST_FAIL;
+	} else {
+		found = 0;
+		res = AST_TEST_FAIL;
+		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+			ASTOBJ_WRLOCK(iterator);
+			if (
+				!strcmp(iterator->hostname, "mysipprovider.com") &&
+				!strcmp(iterator->username, "1234") &&
+				!strcmp(iterator->secret, "") &&
+				!strcmp(iterator->authuser, "") &&
+				!strcmp(iterator->mailbox, "1234") &&
+				iterator->portno == 0) {
+				found = 1;
+				res = AST_TEST_PASS;
+			}
+			ASTOBJ_UNLOCK(iterator);
+		} while(0));
+		if (!found) {
+			ast_test_status_update(test, "sip_subscribe_mwi test 1 failed\n");
+		}
+	}
+
+	if (sip_subscribe_mwi(mwi2, 1)) {
+		res = AST_TEST_FAIL;
+	} else {
+		found = 0;
+		res = AST_TEST_FAIL;
+		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+			ASTOBJ_WRLOCK(iterator);
+			if (
+				!strcmp(iterator->hostname, "mysipprovider.com") &&
+				!strcmp(iterator->username, "1234") &&
+				!strcmp(iterator->secret, "password") &&
+				!strcmp(iterator->authuser, "") &&
+				!strcmp(iterator->mailbox, "1234") &&
+				iterator->portno == 0) {
+				found = 1;
+				res = AST_TEST_PASS;
+			}
+			ASTOBJ_UNLOCK(iterator);
+		} while(0));
+		if (!found) {
+			ast_test_status_update(test, "sip_subscribe_mwi test 2 failed\n");
+		}
+	}
+
+	if (sip_subscribe_mwi(mwi3, 1)) {
+		res = AST_TEST_FAIL;
+	} else {
+		found = 0;
+		res = AST_TEST_FAIL;
+		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+			ASTOBJ_WRLOCK(iterator);
+			if (
+				!strcmp(iterator->hostname, "mysipprovider.com") &&
+				!strcmp(iterator->username, "1234") &&
+				!strcmp(iterator->secret, "password") &&
+				!strcmp(iterator->authuser, "") &&
+				!strcmp(iterator->mailbox, "1234") &&
+				iterator->portno == 5061) {
+				found = 1;
+				res = AST_TEST_PASS;
+			}
+			ASTOBJ_UNLOCK(iterator);
+		} while(0));
+		if (!found) {
+			ast_test_status_update(test, "sip_subscribe_mwi test 3 failed\n");
+		}
+	}
+
+	if (sip_subscribe_mwi(mwi4, 1)) {
+		res = AST_TEST_FAIL;
+	} else {
+		found = 0;
+		res = AST_TEST_FAIL;
+		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+			ASTOBJ_WRLOCK(iterator);
+			if (
+				!strcmp(iterator->hostname, "mysipprovider.com") &&
+				!strcmp(iterator->username, "1234") &&
+				!strcmp(iterator->secret, "password") &&
+				!strcmp(iterator->authuser, "authuser") &&
+				!strcmp(iterator->mailbox, "1234") &&
+				iterator->portno == 0) {
+				found = 1;
+				res = AST_TEST_PASS;
+			}
+			ASTOBJ_UNLOCK(iterator);
+		} while(0));
+		if (!found) {
+			ast_test_status_update(test, "sip_subscribe_mwi test 4 failed\n");
+		}
+	}
+
+	if (sip_subscribe_mwi(mwi5, 1)) {
+		res = AST_TEST_FAIL;
+	} else {
+		found = 0;
+		res = AST_TEST_FAIL;
+		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+			ASTOBJ_WRLOCK(iterator);
+			if (
+				!strcmp(iterator->hostname, "mysipprovider.com") &&
+				!strcmp(iterator->username, "1234") &&
+				!strcmp(iterator->secret, "password") &&
+				!strcmp(iterator->authuser, "authuser") &&
+				!strcmp(iterator->mailbox, "1234") &&
+				iterator->portno == 5061) {
+				found = 1;
+				res = AST_TEST_PASS;
+			}
+			ASTOBJ_UNLOCK(iterator);
+		} while(0));
+		if (!found) {
+			ast_test_status_update(test, "sip_subscribe_mwi test 5 failed\n");
+		}
+	}
+	
+	if (sip_subscribe_mwi(mwi6, 1)) {
+		res = AST_TEST_PASS;
+	} else {
+		res = AST_TEST_FAIL;
+	}
+	return res;
+}
+
 AST_TEST_DEFINE(test_sip_peers_get)
 {
 	struct sip_peer *peer;
@@ -28782,6 +28936,7 @@ static int load_module(void)
 
 #ifdef TEST_FRAMEWORK
 	AST_TEST_REGISTER(test_sip_peers_get);
+	AST_TEST_REGISTER(test_sip_mwi_subscribe_parse);
 #endif
 
 	/* Register AstData providers */
@@ -28892,6 +29047,7 @@ static int unload_module(void)
 
 #ifdef TEST_FRAMEWORK
 	AST_TEST_UNREGISTER(test_sip_peers_get);
+	AST_TEST_UNREGISTER(test_sip_mwi_subscribe_parse);
 #endif
 	/* Unregister all the AstData providers */
 	ast_data_unregister(NULL);
