@@ -88,7 +88,7 @@ void ao2_bt(void)
 	char **strings;
 
 	c = backtrace(addresses, N1);
-	strings = backtrace_symbols(addresses,c);
+	strings = ast_bt_get_symbols(addresses,c);
 	ast_verbose("backtrace returned: %d\n", c);
 	for(i = 0; i < c; i++) {
 		ast_verbose("%d: %p %s\n", i, addresses[i], strings[i]);

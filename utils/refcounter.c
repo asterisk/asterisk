@@ -287,6 +287,19 @@ int ast_bt_get_addresses(struct ast_bt *bt)
 	return 0;
 }
 
+char **ast_bt_get_symbols(void **addresses, size_t num_frames);
+char **ast_bt_get_symbols(void **addresses, size_t num_frames)
+{
+	char **foo = calloc(num_frames, sizeof(char *) + 1);
+	if (foo) {
+		int i;
+		for (i = 0; i < num_frames; i++) {
+			foo[i] = (char *) foo + sizeof(char *) * num_frames;
+		}
+	}
+	return foo;
+}
+
 void *ast_bt_destroy(struct ast_bt *bt);
 void *ast_bt_destroy(struct ast_bt *bt)
 {

@@ -29,6 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
 #include <sys/stat.h>
+#include <sys/stat.h>
 
 #ifdef HAVE_DEV_URANDOM
 #include <fcntl.h>
@@ -746,7 +747,7 @@ static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt
 		return;
 	}
 
-	if ((symbols = backtrace_symbols(bt->addresses, bt->num_frames))) {
+	if ((symbols = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
 		int frame_iterator;
 		
 		for (frame_iterator = 0; frame_iterator < bt->num_frames; ++frame_iterator) {
@@ -2106,3 +2107,22 @@ int ast_get_tid(void)
 #endif
 	return ret;
 }
+
+char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size)
+{
+	const char *envPATH = getenv("PATH");
+	char *tpath, *path;
+	struct stat unused;
+	if (!envPATH) {
+		return NULL;
+	}
+	tpath = ast_strdupa(envPATH);
+	while ((path = strsep(&tpath, ":"))) {
+		snprintf(fullpath, fullpath_size, "%s/%s", path, binary);
+		if (!stat(fullpath, &unused)) {
+			return fullpath;
+		}
+	}
+	return NULL;
+}
+

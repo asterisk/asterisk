@@ -364,16 +364,17 @@ AC_SUBST(AST_CODE_COVERAGE)
 # to make things easier for the users.
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
-AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec], [avcodec])
+AST_EXT_LIB_SETUP([BFD], [Debug symbol decoding], [bfd])
+
+# BKTR is used for backtrace support on platforms that do not
+# have it natively.
+AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace], [execinfo])
 AST_EXT_LIB_SETUP([BLUETOOTH], [Bluetooth], [bluetooth])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
-
-# BKTR is used for backtrace support on platforms that do not
-# have it natively.
-AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace], [execinfo])
+AST_EXT_LIB_SETUP([FFMPEG], [Ffmpeg and avcodec], [avcodec])
 AST_EXT_LIB_SETUP([GSM], [External GSM], [gsm], [, use 'internal' GSM otherwise])
 AST_EXT_LIB_SETUP([GTK2], [gtk2], [gtk2])
 AST_EXT_LIB_SETUP([GMIME], [GMime], [gmime])
@@ -1012,6 +1013,23 @@ else if test $ac_cv_sizeof_long_long = $ac_cv_sizeof_fd_set_fds_bits; then
   AC_DEFINE([TYPEOF_FD_SET_FDS_BITS], [long long], [Define to a type of the same size as fd_set.fds_bits[[0]]])
 fi ; fi ; fi
 
+AC_MSG_CHECKING(for dladdr in dlfcn.h)
+PBX_DLADDR=0
+old_LIBS=${LIBS}
+LIBS="${LIBS} -ldl"
+AC_LINK_IFELSE(
+	AC_LANG_PROGRAM([#define _GNU_SOURCE 1
+#include <dlfcn.h>],
+		[dladdr((void *)0, (void *)0)]
+	),
+	AC_MSG_RESULT(yes)
+	PBX_DLADDR=1
+	AC_SUBST([PBX_DLADDR])
+	AC_DEFINE([HAVE_DLADDR], 1, [Define to 1 if your system has the dladdr() GNU extension]),
+	AC_MSG_RESULT(no)
+)
+LIBS=${old_LIBS}
+
 # PKGCONFIG is used in later tests
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
 
@@ -1019,6 +1037,8 @@ AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
 # do the package library checks now
 
 AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
+
+AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h])
 
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 

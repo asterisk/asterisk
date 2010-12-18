@@ -46,6 +46,10 @@ else
   AST_LIBS+=$(EDITLINE_LIB) -lm
 endif
 
+ifneq ($(findstring BETTER_BACKTRACES,$(MENUSELECT_CFLAGS)),)
+  AST_LIBS+=$(BFD_LIB)
+endif
+
 ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
   ASTLINK=-Xlinker -macosx_version_min -Xlinker 10.4 -Xlinker -undefined -Xlinker dynamic_lookup -force_flat_namespace
