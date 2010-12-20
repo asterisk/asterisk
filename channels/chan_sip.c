@@ -1639,7 +1639,7 @@ static int find_by_notify_uri_helper(void *obj, void *arg, int flags)
 	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
 	const char *uri = arg;
 
-	return !strcmp(agent_pvt->notify_uri, uri) ? CMP_MATCH | CMP_STOP : 0;
+	return !sip_uri_cmp(agent_pvt->notify_uri, uri) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static struct ast_cc_agent *find_sip_cc_agent_by_notify_uri(const char * const uri)
@@ -1654,7 +1654,7 @@ static int find_by_subscribe_uri_helper(void *obj, void *arg, int flags)
 	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
 	const char *uri = arg;
 
-	return !strcmp(agent_pvt->subscribe_uri, uri) ? CMP_MATCH | CMP_STOP : 0;
+	return !sip_uri_cmp(agent_pvt->subscribe_uri, uri) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 static struct ast_cc_agent *find_sip_cc_agent_by_subscribe_uri(const char * const uri)
@@ -25874,6 +25874,11 @@ static struct sip_peer *temp_peer(const char *name)
 
 	if (ast_string_field_init(peer, 512)) {
 		ao2_t_ref(peer, -1, "failed to string_field_init, drop peer");
+		return NULL;
+	}
+	
+	if (!(peer->cc_params = ast_cc_config_params_init())) {
+		ao2_t_ref(peer, -1, "failed to allocate cc_params for peer");
 		return NULL;
 	}
 
