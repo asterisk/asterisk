@@ -159,7 +159,7 @@ struct ast_rtp {
 	int *ioid;
 	unsigned short seqno;		/*!< Sequence number, RFC 3550, page 13. */
 	unsigned short rxseqno;
-	struct sched_context *sched;
+	struct ast_sched_context *sched;
 	struct io_context *io;
 	void *data;
 	struct ast_rtcp *rtcp;
@@ -251,7 +251,7 @@ struct rtp_red {
 AST_LIST_HEAD_NOLOCK(frame_list, ast_frame);
 
 /* Forward Declarations */
-static int ast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data);
+static int ast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *addr, void *data);
 static int ast_rtp_destroy(struct ast_rtp_instance *instance);
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit);
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit);
@@ -434,7 +434,7 @@ static int create_new_socket(const char *type, int af)
 }
 
 static int ast_rtp_new(struct ast_rtp_instance *instance,
-		       struct sched_context *sched, struct ast_sockaddr *addr,
+		       struct ast_sched_context *sched, struct ast_sockaddr *addr,
 		       void *data)
 {
 	struct ast_rtp *rtp = NULL;

@@ -225,7 +225,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 }
 
 #ifdef TEST_FRAMEWORK
-static int test_sip_rtpqos_1_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data)
+static int test_sip_rtpqos_1_new(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *addr, void *data)
 {
 	/* Needed to pass sanity checks */
 	ast_rtp_instance_set_data(instance, data);

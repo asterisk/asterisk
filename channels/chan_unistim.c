@@ -217,7 +217,7 @@ static struct {
 } qos = { 0, 0, 0, 0 };
 
 static struct io_context *io;
-static struct sched_context *sched;
+static struct ast_sched_context *sched;
 static struct sockaddr_in public_ip = { 0, };
 /*! give the IP address for the last packet received */
 static struct sockaddr_in address_from;
@@ -5645,7 +5645,7 @@ int load_module(void)
 		goto io_failed;
 	}
 
-	sched = sched_context_create();
+	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_ERROR, "Failed to allocate scheduler context\n");
 		goto sched_failed;
@@ -5671,7 +5671,7 @@ int load_module(void)
 
 chanreg_failed:
 	/*! XXX \todo Leaking anything allocated by reload_config() ... */
-	sched_context_destroy(sched);
+	ast_sched_context_destroy(sched);
 	sched = NULL;
 sched_failed:
 	io_context_destroy(io);
@@ -5686,8 +5686,9 @@ buff_failed:
 static int unload_module(void)
 {
 	/* First, take us out of the channel loop */
-	if (sched)
-		sched_context_destroy(sched);
+	if (sched) {
+		ast_sched_context_destroy(sched);
+	}
 
 	ast_cli_unregister_multiple(unistim_cli, ARRAY_LEN(unistim_cli));
 

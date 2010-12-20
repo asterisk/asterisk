@@ -356,8 +356,8 @@ static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 		ast_log(LOG_NOTICE, msg " IAX_COMMAND_RTKEY to rotate key to '%s'\n", digest); \
 	} while(0)
 
-static	struct io_context *io;
-static	struct ast_sched_thread *sched;
+static struct io_context *io;
+static struct ast_sched_context *sched;
 
 #define DONT_RESCHEDULE -2
 
@@ -1183,7 +1183,7 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 static int iax2_queryoption(struct ast_channel *c, int option, void *data, int *datalen);
 static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
-static int iax2_sched_add(struct ast_sched_thread *st, int when, ast_sched_cb callback, const void *data);
+static int iax2_sched_add(struct ast_sched_context *sched, int when, ast_sched_cb callback, const void *data);
 
 static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now);
 static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
@@ -1487,18 +1487,16 @@ static int __schedule_action(void (*func)(const void *data), const void *data, c
 #define schedule_action(func, data) __schedule_action(func, data, __PRETTY_FUNCTION__)
 #endif
 
-static int iax2_sched_replace(int id, struct ast_sched_thread *st, int when, 
+static int iax2_sched_replace(int id, struct ast_sched_context *con, int when,
 		ast_sched_cb callback, const void *data)
 {
-	ast_sched_thread_del(st, id);
-
-	return ast_sched_thread_add(st, when, callback, data);
+	return ast_sched_replace(id, con, when, callback, data);
 }
 
-static int iax2_sched_add(struct ast_sched_thread *st, int when, 
+static int iax2_sched_add(struct ast_sched_context *con, int when,
 		ast_sched_cb callback, const void *data)
 {
-	return ast_sched_thread_add(st, when, callback, data);
+	return ast_sched_add(con, when, callback, data);
 }
 
 static int send_ping(const void *data);
@@ -1787,20 +1785,20 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 		ast_clear_flag64(pvt, IAX_MAXAUTHREQ);
 	}
 	/* No more pings or lagrq's */
-	AST_SCHED_DEL_SPINLOCK(ast_sched_thread_get_context(sched), pvt->pingid, &iaxsl[pvt->callno]);
+	AST_SCHED_DEL_SPINLOCK(sched, pvt->pingid, &iaxsl[pvt->callno]);
 	pvt->pingid = DONT_RESCHEDULE;
-	AST_SCHED_DEL_SPINLOCK(ast_sched_thread_get_context(sched), pvt->lagid, &iaxsl[pvt->callno]);
+	AST_SCHED_DEL_SPINLOCK(sched, pvt->lagid, &iaxsl[pvt->callno]);
 	pvt->lagid = DONT_RESCHEDULE;
-	ast_sched_thread_del(sched, pvt->autoid);
-	ast_sched_thread_del(sched, pvt->authid);
-	ast_sched_thread_del(sched, pvt->initid);
-	ast_sched_thread_del(sched, pvt->jbid);
-	ast_sched_thread_del(sched, pvt->keyrotateid);
+	AST_SCHED_DEL(sched, pvt->autoid);
+	AST_SCHED_DEL(sched, pvt->authid);
+	AST_SCHED_DEL(sched, pvt->initid);
+	AST_SCHED_DEL(sched, pvt->jbid);
+	AST_SCHED_DEL(sched, pvt->keyrotateid);
 }
 
 static void iax2_frame_free(struct iax_frame *fr)
 {
-	ast_sched_thread_del(sched, fr->retrans);
+	AST_SCHED_DEL(sched, fr->retrans);
 	iax_frame_free(fr);
 }
 
@@ -2058,8 +2056,8 @@ static int make_trunk(unsigned short callno, int locked)
 	 * \note We delete these before switching the slot, because if
 	 * they fire in the meantime, they will generate a warning.
 	 */
-	ast_sched_thread_del(sched, iaxs[callno]->pingid);
-	ast_sched_thread_del(sched, iaxs[callno]->lagid);
+	AST_SCHED_DEL(sched, iaxs[callno]->pingid);
+	AST_SCHED_DEL(sched, iaxs[callno]->lagid);
 	iaxs[callno]->lagid = iaxs[callno]->pingid = -1;
 	iaxs[x] = iaxs[callno];
 	iaxs[x]->callno = x;
@@ -4194,7 +4192,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 
 		jb_reset(iaxs[fr->callno]->jb);
 
-		ast_sched_thread_del(sched, iaxs[fr->callno]->jbid);
+		AST_SCHED_DEL(sched, iaxs[fr->callno]->jbid);
 
 		/* deliver this frame now */
 		if (tsout)
@@ -4389,7 +4387,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		ast_copy_flags64(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
 		if (ast_test_flag64(peer, IAX_RTAUTOCLEAR)) {
 			if (peer->expire > -1) {
-				if (!ast_sched_thread_del(sched, peer->expire)) {
+				if (!AST_SCHED_DEL(sched, peer->expire)) {
 					peer->expire = -1;
 					peer_unref(peer);
 				}
@@ -5217,7 +5215,7 @@ static int iax2_hangup(struct ast_channel *c)
 			ast_debug(1, "Really destroying %s now...\n", c->name);
 			iax2_destroy(callno);
 		} else if (iaxs[callno]) {
-			if (ast_sched_thread_add(sched, 10000, scheduled_destroy, CALLNO_TO_PTR(callno)) < 0) {
+			if (ast_sched_add(sched, 10000, scheduled_destroy, CALLNO_TO_PTR(callno)) < 0) {
 				ast_log(LOG_ERROR, "Unable to schedule iax2 callno %d destruction?!!  Destroying immediately.\n", callno);
 				iax2_destroy(callno);
 			}
@@ -5348,12 +5346,11 @@ static int iax2_key_rotate(const void *vpvt)
 	struct MD5Context md5;
 	char key[17] = "";
 	struct iax_ie_data ied = {
-		.pos = 0,	
+		.pos = 0,
 	};
-	
+
 	ast_mutex_lock(&iaxsl[pvt->callno]);
-	pvt->keyrotateid = 
-		ast_sched_thread_add(sched, 120000 + (ast_random() % 180001), iax2_key_rotate, vpvt);
+	pvt->keyrotateid = ast_sched_add(sched, 120000 + (ast_random() % 180001), iax2_key_rotate, vpvt);
 
 	snprintf(key, sizeof(key), "%lX", ast_random());
 
@@ -8543,14 +8540,14 @@ static void prune_peers(void);
 static void unlink_peer(struct iax2_peer *peer)
 {
 	if (peer->expire > -1) {
-		if (!ast_sched_thread_del(sched, peer->expire)) {
+		if (!AST_SCHED_DEL(sched, peer->expire)) {
 			peer->expire = -1;
 			peer_unref(peer);
 		}
 	}
 
 	if (peer->pokeexpire > -1) {
-		if (!ast_sched_thread_del(sched, peer->pokeexpire)) {
+		if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
 			peer->pokeexpire = -1;
 			peer_unref(peer);
 		}
@@ -8629,7 +8626,7 @@ static void reg_source_db(struct iax2_peer *p)
 
 	iax2_poke_peer(p, 0);
 	if (p->expire > -1) {
-		if (!ast_sched_thread_del(sched, p->expire)) {
+		if (!AST_SCHED_DEL(sched, p->expire)) {
 			p->expire = -1;
 			peer_unref(p);
 		}
@@ -8741,7 +8738,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 	p->sockfd = fd;
 	/* Setup the expiry */
 	if (p->expire > -1) {
-		if (!ast_sched_thread_del(sched, p->expire)) {
+		if (!AST_SCHED_DEL(sched, p->expire)) {
 			p->expire = -1;
 			peer_unref(p);
 		}
@@ -10297,7 +10294,7 @@ static int socket_process(struct iax2_thread *thread)
 			}
 		}
 		if (f.frametype == AST_FRAME_IAX) {
-			ast_sched_thread_del(sched, iaxs[fr->callno]->initid);
+			AST_SCHED_DEL(sched, iaxs[fr->callno]->initid);
 			/* Handle the IAX pseudo frame itself */
 			if (iaxdebug)
 				ast_debug(1, "IAX subclass %d received\n", f.subclass.integer);
@@ -10823,7 +10820,7 @@ static int socket_process(struct iax2_thread *thread)
 
 					/* Remove scheduled iax2_poke_noanswer */
 					if (peer->pokeexpire > -1) {
-						if (!ast_sched_thread_del(sched, peer->pokeexpire)) {
+						if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
 							peer_unref(peer);
 							peer->pokeexpire = -1;
 						}
@@ -11943,22 +11940,22 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
 	iaxs[peer->callno]->peerpoke = peer;
 
- 	if (peer->pokeexpire > -1) {
- 		if (!ast_sched_thread_del(sched, peer->pokeexpire)) {
- 			peer->pokeexpire = -1;
- 			peer_unref(peer);
- 		}
- 	}
- 
+	if (peer->pokeexpire > -1) {
+		if (!AST_SCHED_DEL(sched, peer->pokeexpire)) {
+			peer->pokeexpire = -1;
+			peer_unref(peer);
+		}
+	}
+
 	/* Queue up a new task to handle no reply */
 	/* If the host is already unreachable then use the unreachable interval instead */
 	if (peer->lastms < 0)
- 		peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer_ref(peer));
+		peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer_ref(peer));
 	else
- 		peer->pokeexpire = iax2_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer_ref(peer));
+		peer->pokeexpire = iax2_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer_ref(peer));
 
- 	if (peer->pokeexpire == -1)
- 		peer_unref(peer);
+	if (peer->pokeexpire == -1)
+		peer_unref(peer);
 
 	/* And send the poke */
 	ast_mutex_lock(&iaxsl[callno]);
@@ -12391,7 +12388,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					}
 				} else {
 					/* Non-dynamic.  Make sure we become that way if we're not */
-					ast_sched_thread_del(sched, peer->expire);
+					AST_SCHED_DEL(sched, peer->expire);
 					ast_clear_flag64(peer, IAX_DYNAMIC);
 					if (ast_dnsmgr_lookup(v->value, &peer->addr, &peer->dnsmgr, srvlookup ? "_iax._udp" : NULL))
 						return peer_unref(peer);
@@ -12835,7 +12832,7 @@ static void delete_users(void)
 	AST_LIST_LOCK(&registrations);
 	while ((reg = AST_LIST_REMOVE_HEAD(&registrations, entry))) {
 		if (sched) {
-			ast_sched_thread_del(sched, reg->expire);
+			AST_SCHED_DEL(sched, reg->expire);
 		}
 		if (reg->callno) {
 			int callno = reg->callno;
@@ -14269,7 +14266,8 @@ static int __unload_module(void)
 		ast_timer_close(timer);
 	}
 	transmit_processor = ast_taskprocessor_unreference(transmit_processor);
-	sched = ast_sched_thread_destroy(sched);
+	ast_sched_context_destroy(sched);
+	sched = NULL;
 
 	con = ast_context_find(regcontext);
 	if (con)
@@ -14588,21 +14586,29 @@ static int load_module(void)
 		ast_mutex_init(&iaxsl[x]);
 	}
 
-	if (!(sched = ast_sched_thread_create())) {
+	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Failed to create scheduler thread\n");
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (ast_sched_start_thread(sched)) {
+		ast_sched_context_destroy(sched);
+		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(io = io_context_create())) {
 		ast_log(LOG_ERROR, "Failed to create I/O context\n");
-		sched = ast_sched_thread_destroy(sched);
+		ast_sched_context_destroy(sched);
+		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(netsock = ast_netsock_list_alloc())) {
 		ast_log(LOG_ERROR, "Failed to create netsock list\n");
 		io_context_destroy(io);
-		sched = ast_sched_thread_destroy(sched);
+		ast_sched_context_destroy(sched);
+		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_netsock_init(netsock);
@@ -14611,7 +14617,8 @@ static int load_module(void)
 	if (!outsock) {
 		ast_log(LOG_ERROR, "Could not allocate outsock list.\n");
 		io_context_destroy(io);
-		sched = ast_sched_thread_destroy(sched);
+		ast_sched_context_destroy(sched);
+		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_netsock_init(outsock);

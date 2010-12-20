@@ -205,7 +205,7 @@ static struct h323_alias_list {
 } aliasl;
 
 /* Asterisk RTP stuff */
-static struct sched_context *sched;
+static struct ast_sched_context *sched;
 static struct io_context *io;
 
 AST_MUTEX_DEFINE_STATIC(iflock);	/*!< Protect the interface list (oh323_pvt) */
@@ -3261,7 +3261,7 @@ static enum ast_module_load_result load_module(void)
 	int res;
 
 	h323debug = 0;
-	sched = sched_context_create();
+	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 		return AST_MODULE_LOAD_FAILURE;
@@ -3282,7 +3282,7 @@ static enum ast_module_load_result load_module(void)
 		ast_cli_unregister(&cli_h323_reload);
 		io_context_destroy(io);
 		io = NULL;
-		sched_context_destroy(sched);
+		ast_sched_context_destroy(sched);
 		sched = NULL;
 		ASTOBJ_CONTAINER_DESTROY(&userl);
 		ASTOBJ_CONTAINER_DESTROY(&peerl);
@@ -3295,7 +3295,7 @@ static enum ast_module_load_result load_module(void)
 			ast_cli_unregister(&cli_h323_reload);
 			h323_end_process();
 			io_context_destroy(io);
-			sched_context_destroy(sched);
+			ast_sched_context_destroy(sched);
 
 			ASTOBJ_CONTAINER_DESTROYALL(&userl, oh323_destroy_user);
 			ASTOBJ_CONTAINER_DESTROY(&userl);
@@ -3334,7 +3334,7 @@ static enum ast_module_load_result load_module(void)
 			ast_cli_unregister(&cli_h323_reload);
 			h323_end_process();
 			io_context_destroy(io);
-			sched_context_destroy(sched);
+			ast_sched_context_destroy(sched);
 
 			ASTOBJ_CONTAINER_DESTROYALL(&userl, oh323_destroy_user);
 			ASTOBJ_CONTAINER_DESTROY(&userl);
@@ -3421,7 +3421,7 @@ static int unload_module(void)
 	if (io)
 		io_context_destroy(io);
 	if (sched)
-		sched_context_destroy(sched);
+		ast_sched_context_destroy(sched);
 
 	ASTOBJ_CONTAINER_DESTROYALL(&userl, oh323_destroy_user);
 	ASTOBJ_CONTAINER_DESTROY(&userl);

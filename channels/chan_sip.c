@@ -782,7 +782,7 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static int sip_reloading = FALSE;                       /*!< Flag for avoiding multiple reloads at the same time */
 static enum channelreloadreason sip_reloadreason;       /*!< Reason for last reload/load of configuration */
 
-struct sched_context *sched;     /*!< The scheduling context */
+struct ast_sched_context *sched;     /*!< The scheduling context */
 static struct io_context *io;           /*!< The IO context */
 static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 struct sip_pkt;
@@ -28901,14 +28901,14 @@ static int load_module(void)
 	ASTOBJ_CONTAINER_INIT(&regl); /* Registry object list -- not searched for anything */
 	ASTOBJ_CONTAINER_INIT(&submwil); /* MWI subscription object list */
 
-	if (!(sched = sched_context_create())) {
+	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(io = io_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create I/O context\n");
-		sched_context_destroy(sched);
+		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -28930,7 +28930,7 @@ static int load_module(void)
 	if (ast_channel_register(&sip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'SIP'\n");
 		io_context_destroy(io);
-		sched_context_destroy(sched);
+		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -29151,7 +29151,7 @@ static int unload_module(void)
 	clear_sip_domains();
 	ast_free_ha(sip_cfg.contact_ha);
 	close(sipsock);
-	sched_context_destroy(sched);
+	ast_sched_context_destroy(sched);
 	con = ast_context_find(used_context);
 	if (con) {
 		ast_context_destroy(con, "SIP");

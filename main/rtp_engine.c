@@ -300,7 +300,7 @@ int ast_rtp_instance_destroy(struct ast_rtp_instance *instance)
 }
 
 struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
-		struct sched_context *sched, const struct ast_sockaddr *sa,
+		struct ast_sched_context *sched, const struct ast_sockaddr *sa,
 		void *data)
 {
 	struct ast_sockaddr address = {{0,}};

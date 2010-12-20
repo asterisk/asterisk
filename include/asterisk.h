@@ -211,6 +211,7 @@ struct ast_frame;
 struct ast_module;
 struct ast_variable;
 struct ast_str;
+struct ast_sched_context;
 
 #ifdef bzero
 #undef bzero

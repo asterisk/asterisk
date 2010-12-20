@@ -68,9 +68,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 
 /*!
- * The sched_thread ID used for all generic CC timeouts
+ * The ast_sched_context used for all generic CC timeouts
  */
-static struct ast_sched_thread *cc_sched_thread;
+static struct ast_sched_context *cc_sched_context;
 /*!
  * Counter used to create core IDs for CC calls. Each new
  * core ID is created by atomically adding 1 to the core_id_counter
@@ -1235,7 +1235,7 @@ static int cc_generic_monitor_request_cc(struct ast_cc_monitor *monitor, int *av
 	when = service == AST_CC_CCBS ? ast_get_ccbs_available_timer(monitor->interface->config_params) :
 		ast_get_ccnr_available_timer(monitor->interface->config_params);
 
-	*available_timer_id = ast_sched_thread_add(cc_sched_thread, when * 1000,
+	*available_timer_id = ast_sched_add(cc_sched_context, when * 1000,
 			ast_cc_available_timer_expire, cc_ref(monitor, "Give the scheduler a monitor reference"));
 	if (*available_timer_id == -1) {
 		cc_unref(monitor, "Failed to schedule available timer. (monitor)");
@@ -1333,7 +1333,7 @@ static int cc_generic_monitor_cancel_available_timer(struct ast_cc_monitor *moni
 
 	ast_log_dynamic_level(cc_logger_level, "Core %d: Canceling generic monitor available timer for monitor %s\n",
 			monitor->core_id, monitor->interface->device_name);
-	if (!ast_sched_thread_del(cc_sched_thread, *sched_id)) {
+	if (!ast_sched_del(cc_sched_context, *sched_id)) {
 		cc_unref(monitor, "Remove scheduler's reference to the monitor");
 	}
 	*sched_id = -1;
@@ -2377,13 +2377,13 @@ static int cc_generic_agent_start_offer_timer(struct ast_cc_agent *agent)
 	int sched_id;
 	struct cc_generic_agent_pvt *generic_pvt = agent->private_data;
 
-	ast_assert(cc_sched_thread != NULL);
+	ast_assert(cc_sched_context != NULL);
 	ast_assert(agent->cc_params != NULL);
 
 	when = ast_get_cc_offer_timer(agent->cc_params) * 1000;
 	ast_log_dynamic_level(cc_logger_level, "Core %d: About to schedule offer timer expiration for %d ms\n",
 			agent->core_id, when);
-	if ((sched_id = ast_sched_thread_add(cc_sched_thread, when, offer_timer_expire, cc_ref(agent, "Give scheduler an agent ref"))) == -1) {
+	if ((sched_id = ast_sched_add(cc_sched_context, when, offer_timer_expire, cc_ref(agent, "Give scheduler an agent ref"))) == -1) {
 		return -1;
 	}
 	generic_pvt->offer_timer_id = sched_id;
@@ -2395,7 +2395,7 @@ static int cc_generic_agent_stop_offer_timer(struct ast_cc_agent *agent)
 	struct cc_generic_agent_pvt *generic_pvt = agent->private_data;
 
 	if (generic_pvt->offer_timer_id != -1) {
-		if (!ast_sched_thread_del(cc_sched_thread, generic_pvt->offer_timer_id)) {
+		if (!ast_sched_del(cc_sched_context, generic_pvt->offer_timer_id)) {
 			cc_unref(agent, "Remove scheduler's reference to the agent");
 		}
 		generic_pvt->offer_timer_id = -1;
@@ -4192,7 +4192,10 @@ int ast_cc_init(void)
 	if (!(cc_core_taskprocessor = ast_taskprocessor_get("CCSS core", TPS_REF_DEFAULT))) {
 		return -1;
 	}
-	if (!(cc_sched_thread = ast_sched_thread_create())) {
+	if (!(cc_sched_context = ast_sched_context_create())) {
+		return -1;
+	}
+	if (ast_sched_start_thread(cc_sched_context)) {
 		return -1;
 	}
 	res = ast_register_application2(ccreq_app, ccreq_exec, NULL, NULL, NULL);

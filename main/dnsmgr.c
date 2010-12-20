@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/acl.h"
 
-static struct sched_context *sched;
+static struct ast_sched_context *sched;
 static int refresh_sched = -1;
 static pthread_t refresh_thread = AST_PTHREADT_NULL;
 
@@ -351,7 +351,7 @@ static struct ast_cli_entry cli_status = AST_CLI_DEFINE(handle_cli_status, "Disp
 
 int dnsmgr_init(void)
 {
-	if (!(sched = sched_context_create())) {
+	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
 		return -1;
 	}

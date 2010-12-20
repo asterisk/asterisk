@@ -231,7 +231,7 @@ static int ourport;
 
 static int mgcpdebug = 0;
 
-static struct sched_context *sched;
+static struct ast_sched_context *sched;
 static struct io_context *io;
 /*! The private structures of the mgcp channels are linked for
  * selecting outgoing channels
@@ -4776,14 +4776,14 @@ static int reload_config(int reload)
 /*! \brief  load_module: PBX load module - initialization ---*/
 static int load_module(void)
 {
-	if (!(sched = sched_context_create())) {
+	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(io = io_context_create())) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
-		sched_context_destroy(sched);
+		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -4794,7 +4794,7 @@ static int load_module(void)
 	if (ast_channel_register(&mgcp_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'MGCP'\n");
 		io_context_destroy(io);
-		sched_context_destroy(sched);
+		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -4905,7 +4905,7 @@ static int unload_module(void)
 	close(mgcpsock);
 	ast_rtp_glue_unregister(&mgcp_rtp_glue);
 	ast_cli_unregister_multiple(cli_mgcp, sizeof(cli_mgcp) / sizeof(struct ast_cli_entry));
-	sched_context_destroy(sched);
+	ast_sched_context_destroy(sched);
 
 	return 0;
 }

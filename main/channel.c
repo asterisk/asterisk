@@ -1103,7 +1103,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	tmp->epfd = epoll_create(25);
 #endif
 
-	if (!(tmp->sched = sched_context_create())) {
+	if (!(tmp->sched = ast_sched_context_create())) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
 		return ast_channel_unref(tmp);
 	}
@@ -2339,8 +2339,9 @@ static void ast_channel_destructor(void *obj)
 		ast_free(chan->tech_pvt);
 	}
 
-	if (chan->sched)
-		sched_context_destroy(chan->sched);
+	if (chan->sched) {
+		ast_sched_context_destroy(chan->sched);
+	}
 
 	if (chan->name) {
 		char *dashptr;
@@ -2710,7 +2711,7 @@ int ast_hangup(struct ast_channel *chan)
 		chan->vstream = NULL;
 	}
 	if (chan->sched) {
-		sched_context_destroy(chan->sched);
+		ast_sched_context_destroy(chan->sched);
 		chan->sched = NULL;
 	}
 

@@ -165,7 +165,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define CALENDAR_BUCKETS 19
 
 static struct ao2_container *calendars;
-static struct sched_context *sched;
+static struct ast_sched_context *sched;
 static pthread_t refresh_thread = AST_PTHREADT_NULL;
 static ast_mutex_t refreshlock;
 static ast_cond_t refresh_condition;
@@ -1696,7 +1696,7 @@ static int load_module(void)
 	ast_cond_init(&refresh_condition, NULL);
 	ast_mutex_init(&reloadlock);
 
-	if (!(sched = sched_context_create())) {
+	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create sched context\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}

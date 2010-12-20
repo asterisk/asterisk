@@ -226,7 +226,7 @@ static const struct ast_channel_tech gtalk_tech = {
 
 static struct sockaddr_in bindaddr = { 0, };	/*!< The address we bind to */
 
-static struct sched_context *sched;	/*!< The scheduling context */
+static struct ast_sched_context *sched;	/*!< The scheduling context */
 static struct io_context *io;	/*!< The IO context */
 static struct in_addr __ourip;
 
@@ -2248,7 +2248,7 @@ static int load_module(void)
 		return 0;
 	}
 
-	sched = sched_context_create();
+	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 	}

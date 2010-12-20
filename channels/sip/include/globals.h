@@ -25,7 +25,7 @@
 #define _SIP_GLOBALS_H
 
 extern struct ast_sockaddr bindaddr;     /*!< UDP: The address we bind to */
-extern struct sched_context *sched;     /*!< The scheduling context */
+extern struct ast_sched_context *sched;     /*!< The scheduling context */
 
 /*! \brief Definition of this channel for PBX channel registration */
 extern const struct ast_channel_tech sip_tech;

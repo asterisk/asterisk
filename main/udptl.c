@@ -124,7 +124,7 @@ struct ast_udptl {
 	struct ast_sockaddr us;
 	struct ast_sockaddr them;
 	int *ioid;
-	struct sched_context *sched;
+	struct ast_sched_context *sched;
 	struct io_context *io;
 	void *data;
 	char *tag;
@@ -913,7 +913,7 @@ unsigned int ast_udptl_get_far_max_ifp(struct ast_udptl *udptl)
 	return udptl->far_max_ifp;
 }
 
-struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct ast_sockaddr *addr)
+struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, struct io_context *io, int callbackmode, struct ast_sockaddr *addr)
 {
 	struct ast_udptl *udptl;
 	int x;

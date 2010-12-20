@@ -89,7 +89,7 @@ struct multicast_rtp {
 };
 
 /* Forward Declarations */
-static int multicast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data);
+static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *addr, void *data);
 static int multicast_rtp_activate(struct ast_rtp_instance *instance);
 static int multicast_rtp_destroy(struct ast_rtp_instance *instance);
 static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame);
@@ -106,7 +106,7 @@ static struct ast_rtp_engine multicast_rtp_engine = {
 };
 
 /*! \brief Function called to create a new multicast instance */
-static int multicast_rtp_new(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *addr, void *data)
+static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *addr, void *data)
 {
 	struct multicast_rtp *multicast;
 	const char *type = data;

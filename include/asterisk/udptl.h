@@ -57,7 +57,7 @@ struct ast_udptl;
 
 typedef int (*ast_udptl_callback)(struct ast_udptl *udptl, struct ast_frame *f, void *data);
 
-struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int callbackmode, struct ast_sockaddr *in);
+struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, struct io_context *io, int callbackmode, struct ast_sockaddr *in);
 
 /*!
  * \brief Associates a character string 'tag' with a UDPTL session.

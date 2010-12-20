@@ -139,7 +139,6 @@ extern "C" {
 #define MAX_MUSICCLASS		80	/*!< Max length of the music class setting */
 
 #include "asterisk/frame.h"
-#include "asterisk/sched.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
@@ -744,7 +743,7 @@ struct ast_channel {
 	const char *blockproc;				/*!< Procedure causing blocking */
 	const char *appl;				/*!< Current application */
 	const char *data;				/*!< Data passed to current application */
-	struct sched_context *sched;			/*!< Schedule context */
+	struct ast_sched_context *sched;                /*!< Schedule context */
 	struct ast_filestream *stream;			/*!< Stream itself. */
 	struct ast_filestream *vstream;			/*!< Video Stream itself. */
 	int (*timingfunc)(const void *data);

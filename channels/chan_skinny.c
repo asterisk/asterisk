@@ -1151,7 +1151,7 @@ static const char * const skinny_cxmodes[] = {
 #endif
 
 /* driver scheduler */
-static struct sched_context *sched = NULL;
+static struct ast_sched_context *sched = NULL;
 static struct io_context *io;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
@@ -7368,7 +7368,7 @@ static int load_module(void)
 	ast_manager_register_xml("SKINNYlines", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_lines);
 	ast_manager_register_xml("SKINNYshowline", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_line);
 
-	sched = sched_context_create();
+	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 	}
@@ -7449,8 +7449,9 @@ static int unload_module(void)
 	ast_mutex_unlock(&netlock);
 
 	close(skinnysock);
-	if (sched)
-		sched_context_destroy(sched);
+	if (sched) {
+		ast_sched_context_destroy(sched);
+	}
 
 	con = ast_context_find(used_context);
 	if (con)

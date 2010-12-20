@@ -80,7 +80,7 @@ static int cdr_sequence =  0;
 
 static int cdr_seq_inc(struct ast_cdr *cdr);
 
-static struct sched_context *sched;
+static struct ast_sched_context *sched;
 static int cdr_sched = -1;
 static pthread_t cdr_thread = AST_PTHREADT_NULL;
 
@@ -1616,7 +1616,7 @@ int ast_cdr_engine_init(void)
 {
 	int res;
 
-	sched = sched_context_create();
+	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
 		return -1;

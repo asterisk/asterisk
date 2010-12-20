@@ -313,7 +313,7 @@ struct ast_rtp_engine {
 	/*! Module this RTP engine came from, used for reference counting */
 	struct ast_module *mod;
 	/*! Callback for setting up a new RTP instance */
-	int (*new)(struct ast_rtp_instance *instance, struct sched_context *sched, struct ast_sockaddr *sa, void *data);
+	int (*new)(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *sa, void *data);
 	/*! Callback for destroying an RTP instance */
 	int (*destroy)(struct ast_rtp_instance *instance);
 	/*! Callback for writing out a frame */
@@ -542,7 +542,7 @@ int ast_rtp_glue_unregister(struct ast_rtp_glue *glue);
  * \since 1.8
  */
 struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
-                struct sched_context *sched, const struct ast_sockaddr *sa,
+                struct ast_sched_context *sched, const struct ast_sockaddr *sa,
                 void *data);
 
 /*!
