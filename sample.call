@@ -72,7 +72,7 @@ Priority: 1
 #Set: file1=/tmp/to
 #Set: file2=/tmp/msg
 #Set: timestamp=20021023104500
-#Set: CDR(userfield|r)=42
+#Set: CDR(userfield,r)=42
 
 #
 # Setting Archive to yes the call file is never deleted, but is moved
