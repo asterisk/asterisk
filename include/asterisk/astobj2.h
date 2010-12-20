@@ -674,6 +674,12 @@ enum search_flags {
 	 * the hash value on the argument.
 	 */
 	OBJ_CONTINUE     = (1 << 4),
+	/*! 
+	 * \brief By using this flag, the ao2_container being searched will _NOT_
+	 * be locked.  Only use this flag if the ao2_container is being protected
+	 * by another mechanism other that the internal ao2_lock.
+	 */
+	OBJ_NOLOCK     = (1 << 5),
 };
 
 /*!

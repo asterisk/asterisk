@@ -654,7 +654,10 @@ static void *internal_ao2_callback(struct ao2_container *c,
 		last = i + 1;
 	}
 
-	ao2_lock(c);	/* avoid modifications to the content */
+
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_lock(c);	/* avoid modifications to the content */
+	}
 
 	for (; i < last ; i++) {
 		/* scan the list with prev-cur pointers */
@@ -738,7 +741,10 @@ static void *internal_ao2_callback(struct ao2_container *c,
 			last = start;
 		}
 	}
-	ao2_unlock(c);
+
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_unlock(c);
+	}
 
 	/* if multi_container was created, we are returning multiple objects */
 	if (multi_container != NULL) {
