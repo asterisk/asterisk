@@ -4947,69 +4947,6 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	return p;
 }
 
-/*!
- * \brief Parse a Via header
- *
- * \note This function does not parse all of the elmentes of the via header at
- * this time.
- *
- * VIA syntax. RFC 3261 section 25.1
- * Via               =  ( "Via" / "v" ) HCOLON via-parm *(COMMA via-parm)
- * via-parm          =  sent-protocol LWS sent-by *( SEMI via-params )
- * via-params        =  via-ttl / via-maddr
- *                   / via-received / via-branch
- *                   / via-extension
- * via-ttl           =  "ttl" EQUAL ttl
- * via-maddr         =  "maddr" EQUAL host
- * via-received      =  "received" EQUAL (IPv4address / IPv6address)
- * via-branch        =  "branch" EQUAL token
- * via-extension     =  generic-param
- * sent-protocol     =  protocol-name SLASH protocol-version
- *                   SLASH transport
- * protocol-name     =  "SIP" / token
- * protocol-version  =  token
- * transport         =  "UDP" / "TCP" / "TLS" / "SCTP"
- *                   / other-transport
- * sent-by           =  host [ COLON port ]
- * ttl               =  1*3DIGIT ; 0 to 255
- */
-static void get_viabranch(char *via, char **sent_by, char **branch)
-{
-	char *tmp;
-
-	if (sent_by) {
-		*sent_by = NULL;
-	}
-	if (branch) {
-		*branch = NULL;
-	}
-	if (ast_strlen_zero(via)) {
-		return;
-	}
-
-	/* chop off sent-protocol */
-	strsep(&via, " \t\r\n");
-	if (ast_strlen_zero(via)) {
-		return;
-	}
-
-	/* chop off sent-by */
-	via = ast_skip_blanks(via);
-	*sent_by = strsep(&via, "; \t\r\n");
-	if (ast_strlen_zero(via)) {
-		return;
-	}
-
-	/* now see if there is a branch parameter in there */
-	if (branch && (tmp = strstr(via, "branch="))) {
-		/* find the branch ID */
-		via = ast_skip_blanks(tmp + 7);
-
-		/* chop off the branch parameter */
-		*branch = strsep(&via, "; \t\r\n");
-	}
-}
-
 /*! \brief Connect incoming SIP message to current dialog or create new dialog structure
 	Called by handle_request, sipsock_read */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
@@ -6612,7 +6549,6 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 {
 	char newto[256];
 	const char *ot;
-	char *via, *sent_by;
 
 	init_resp(resp, msg);
 	copy_via_headers(p, resp, req, "Via");
@@ -6655,13 +6591,6 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	} else if (!ast_strlen_zero(p->our_contact) && resp_needs_contact(msg, p->method)) {
 		add_header(resp, "Contact", p->our_contact);
 	}
-
-	via = ast_strdupa(get_header(req, "Via"));
-	get_viabranch(via, &sent_by, NULL);
-	if (!ast_strlen_zero(sent_by)) {
-		set_destination(p, sent_by);
-	}
-
 	return 0;
 }
 
