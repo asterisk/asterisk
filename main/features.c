@@ -179,7 +179,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="timeout">
-				<para>A custom parking timeout for this parked call.</para>
+				<para>A custom parking timeout for this parked call. Value in milliseconds.</para>
 			</parameter>
 			<parameter name="return_context">
 				<para>The context to return the call to after it times out.</para>
