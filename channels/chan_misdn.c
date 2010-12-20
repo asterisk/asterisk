@@ -637,7 +637,7 @@ static struct robin_list *get_robin_position(char *group)
 
 
 /*! \brief the main schedule context for stuff like l1 watcher, overlap dial, ... */
-static struct sched_context *misdn_tasks = NULL;
+static struct ast_sched_context *misdn_tasks = NULL;
 static pthread_t misdn_tasks_thread;
 
 static int *misdn_ports;
@@ -3530,7 +3530,7 @@ static void misdn_tasks_init(void)
 
 	chan_misdn_log(4, 0, "Starting misdn_tasks thread\n");
 
-	misdn_tasks = sched_context_create();
+	misdn_tasks = ast_sched_context_create();
 	pthread_create(&misdn_tasks_thread, NULL, misdn_tasks_thread_func, &blocker);
 
 	while (sem_wait(&blocker) && --i) {
@@ -3546,7 +3546,7 @@ static void misdn_tasks_destroy(void)
 			cb_log(4, 0, "Joining misdn_tasks thread\n");
 			pthread_join(misdn_tasks_thread, NULL);
 		}
-		sched_context_destroy(misdn_tasks);
+		ast_sched_context_destroy(misdn_tasks);
 	}
 }
 
