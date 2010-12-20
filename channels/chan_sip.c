@@ -19368,7 +19368,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		transmit_response(p, "200 OK", req);
 	} else if (!strcmp(event, "keep-alive")) {
 		 /* Used by Sipura/Linksys for NAT pinhole,
-		  * just confirm that we recieved the packet. */
+		  * just confirm that we received the packet. */
 		transmit_response(p, "200 OK", req);
 	} else {
 		/* We don't understand this event. */
