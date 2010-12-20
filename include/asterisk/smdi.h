@@ -80,7 +80,7 @@ struct ast_smdi_md_message {
  *
  * The ast_smdi_interface structure holds information on a serial port that
  * should be monitored for SMDI activity.  The structure contains a message
- * queue of messages that have been recieved on the interface.
+ * queue of messages that have been received on the interface.
  */
 struct ast_smdi_interface;
 

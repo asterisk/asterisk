@@ -971,7 +971,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 
 	resource = aji_find_resource(buddy, pak->from->resource);
 	if (pak->subtype == IKS_TYPE_ERROR) {
-		ast_log(LOG_WARNING, "Recieved error from a client, turn on jabber debug!\n");
+		ast_log(LOG_WARNING, "Received error from a client, turn on jabber debug!\n");
 		return IKS_FILTER_EAT;
 	}
 	if (pak->subtype == IKS_TYPE_RESULT) {
