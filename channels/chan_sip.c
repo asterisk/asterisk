@@ -14301,7 +14301,7 @@ static void *sip_park_thread(void *stuff)
 
 	if (!transferee || !transferer) {
 		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
-		free(d);
+		ast_free(d);
 		return NULL;
 	}
 	if (option_debug > 3) 
@@ -14312,7 +14312,7 @@ static void *sip_park_thread(void *stuff)
 		ast_log(LOG_WARNING, "Masquerade failed.\n");
 		transmit_response(transferer->tech_pvt, "503 Internal error", &req);
 		ast_channel_unlock(transferee);
-		free(d);
+		ast_free(d);
 		return NULL;
 	} 
 	ast_channel_unlock(transferee);
@@ -14347,7 +14347,7 @@ static void *sip_park_thread(void *stuff)
 			ast_log(LOG_DEBUG, "SIP Call parked failed \n");
 		/* Do not hangup call */
 	}
-	free(d);
+	ast_free(d);
 	return NULL;
 }
 
@@ -14444,7 +14444,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	d->seqno = seqno;
 	if (ast_pthread_create_background(&th, &attr, sip_park_thread, d) < 0) {
 		/* Could not start thread */
-		free(d);	/* We don't need it anymore. If thread is created, d will be free'd
+		ast_free(d);	/* We don't need it anymore. If thread is created, d will be free'd
 				   by sip_park_thread() */
 		pthread_attr_destroy(&attr);
 		return -1;
