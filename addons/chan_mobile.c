@@ -136,7 +136,7 @@ struct mbl_pvt {
 	int alignment_count;
 	int ring_sched_id;
 	struct ast_dsp *dsp;
-	struct sched_context *sched;
+	struct ast_sched_context *sched;
 
 	/* flags */
 	unsigned int outgoing:1;	/*!< outgoing call */
@@ -4324,7 +4324,7 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 	}
 
 	/* setup the scheduler */
-	if (!(pvt->sched = sched_context_create())) {
+	if (!(pvt->sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context for headset device\n");
 		goto e_free_dsp;
 	}
@@ -4377,7 +4377,7 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 	return pvt;
 
 e_free_sched:
-	sched_context_destroy(pvt->sched);
+	ast_sched_context_destroy(pvt->sched);
 e_free_dsp:
 	ast_dsp_free(pvt->dsp);
 e_free_smoother:
@@ -4515,7 +4515,7 @@ static int unload_module(void)
 
 		ast_smoother_free(pvt->smoother);
 		ast_dsp_free(pvt->dsp);
-		sched_context_destroy(pvt->sched);
+		ast_sched_context_destroy(pvt->sched);
 		ast_free(pvt);
 	}
 	AST_RWLIST_UNLOCK(&devices);

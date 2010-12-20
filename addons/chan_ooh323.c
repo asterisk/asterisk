@@ -323,7 +323,7 @@ static struct ooh323_config
 } ooconfig;
 
 /** Asterisk RTP stuff*/
-static struct sched_context *sched;
+static struct ast_sched_context *sched;
 static struct io_context *io;
 
 /* Protect the monitoring thread, so only one process can kill or start it, 
@@ -3235,7 +3235,7 @@ static int load_module(void)
 	ast_register_atexit(&ast_ooh323c_exit);
 #endif
 
-	if (!(sched = sched_context_create())) {
+	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 	}
 	if (!(io = io_context_create())) {
