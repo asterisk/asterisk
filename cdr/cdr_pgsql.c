@@ -191,7 +191,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
-					ast_localtime(&cdr->start, &tm, tz);
+					ast_localtime(&cdr->answer, &tm, tz);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
 					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", buf);
 				}
@@ -216,12 +216,12 @@ static int pgsql_log(struct ast_cdr *cdr)
 					LENGTHEN_BUF2(13);
 					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", value);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
-					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
+					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : ast_tvzero(cdr->answer) ? &cdr->end : &cdr->answer;
 					LENGTHEN_BUF2(31);
 					ast_str_append(&sql2, 0, "%s%f", first ? "" : ",", (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
 				} else {
 					/* Char field, probably */
-					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : &cdr->answer;
+					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : ast_tvzero(cdr->answer) ? &cdr->end : &cdr->answer;
 					LENGTHEN_BUF2(31);
 					ast_str_append(&sql2, 0, "%s'%f'", first ? "" : ",", (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
 				}
