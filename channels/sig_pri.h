@@ -206,7 +206,7 @@ struct sig_pri_chan {
 	struct pri_subcmd_aoc_e aoc_e;
 	int aoc_s_request_invoke_id;     /*!< If an AOC-S request was present for the call, this is the invoke_id to use for the response */
 	unsigned int aoc_s_request_invoke_id_valid:1; /*!< This is set when the AOC-S invoke id is present */
-	unsigned int waiting_for_aoce:1; /*!< Delaying hangup for AOC-E msg. If this is set and AOC-E is recieved, continue with hangup before timeout period. */
+	unsigned int waiting_for_aoce:1; /*!< Delaying hangup for AOC-E msg. If this is set and AOC-E is received, continue with hangup before timeout period. */
 	unsigned int holding_aoce:1;     /*!< received AOC-E msg from asterisk. holding for disconnect/release */
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 	unsigned int inalarm:1;

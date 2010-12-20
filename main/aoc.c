@@ -253,7 +253,7 @@ static int aoc_parse_ie(struct ast_aoc_decoded *decoded, unsigned char *data, un
 				decoded->multiplier = ie.multiplier; /* only one byte */
 				memcpy(decoded->currency_name, ie.name, sizeof(decoded->currency_name));
 			} else {
-				ast_log(LOG_WARNING, "Recieved invalid currency ie\n");
+				ast_log(LOG_WARNING, "Received invalid currency ie\n");
 			}
 			break;
 		case AOC_IE_UNIT:
@@ -262,7 +262,7 @@ static int aoc_parse_ie(struct ast_aoc_decoded *decoded, unsigned char *data, un
 				memcpy(&ie, data + 2, len);
 				ast_aoc_add_unit_entry(decoded, ie.valid_amount, ntohl(ie.amount), ie.valid_type, ie.type);
 			} else {
-				ast_log(LOG_WARNING, "Recieved invalid unit ie\n");
+				ast_log(LOG_WARNING, "Received invalid unit ie\n");
 			}
 			break;
 		case AOC_IE_BILLING:
@@ -271,7 +271,7 @@ static int aoc_parse_ie(struct ast_aoc_decoded *decoded, unsigned char *data, un
 				memcpy(&ie, data + 2, len);
 				decoded->billing_id = ie.id; /* only one byte */
 			} else {
-				ast_log(LOG_WARNING, "Recieved invalid billing ie\n");
+				ast_log(LOG_WARNING, "Received invalid billing ie\n");
 			}
 			break;
 		case AOC_IE_CHARGING_ASSOCIATION:
@@ -282,7 +282,7 @@ static int aoc_parse_ie(struct ast_aoc_decoded *decoded, unsigned char *data, un
 					decoded->charging_association.charge.id = ntohl(decoded->charging_association.charge.id);
 				}
 			} else {
-				ast_log(LOG_WARNING, "Recieved invalid charging association ie\n");
+				ast_log(LOG_WARNING, "Received invalid charging association ie\n");
 			}
 			break;
 		case AOC_IE_RATE:
@@ -291,14 +291,14 @@ static int aoc_parse_ie(struct ast_aoc_decoded *decoded, unsigned char *data, un
 				memcpy(&ie, data + 2, len);
 				aoc_parse_ie_charging_rate(decoded, &ie);
 			} else {
-				ast_log(LOG_WARNING, "Recieved invalid charging rate ie\n");
+				ast_log(LOG_WARNING, "Received invalid charging rate ie\n");
 			}
 			break;
 		case AOC_IE_TERMINATION_REQUEST:
 			if (len == 0) {
 				decoded->termination_request = 1;
 			} else {
-				ast_log(LOG_WARNING, "Recieved invalid termination request ie\n");
+				ast_log(LOG_WARNING, "Received invalid termination request ie\n");
 			}
 			break;
 		default:
