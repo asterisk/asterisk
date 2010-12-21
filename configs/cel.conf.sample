@@ -63,7 +63,7 @@ apps=dial,park
 ;  TRANSFER         -- Generic transfer initiated; not used yet...?
 ;  HOOKFLASH        -- So far, when a hookflash event occurs on a DAHDI
 ;                      interface
-;  USER_EVENT       -- Triggered from the dialplan, and has a name given by the
+;  USER_DEFINED     -- Triggered from the dialplan, and has a name given by the
 ;                      user
 ;
 ; Default value: none
