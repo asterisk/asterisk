@@ -40,7 +40,7 @@ exten => 81,9,Set(time2=${EPOCH})
 exten => 81,10,Verbose(The time diff is $[${time2} - ${time1} ] seconds)
 exten => 81,11,Verbose(Which means that the priorities/sec = $[4* ${iterations} / (${time2} - ${time1}) ])
 exten => 81,12,SayNumber($[4 * ${iterations} / (${time2} - ${time1}) ])
-exten => 82,1,Gosub(ndeep,s,1(100000))
+exten => 82,1,Gosub(ndeep,~~s~~,1(100000))
 exten => 82,2,Verbose(Finished 100000 levels deep call!)
 exten => 83,1,Set(~~EXTEN~~=${EXTEN})
 exten => 83,2,Goto(sw_2_${~~EXTEN~~},10)
@@ -56,13 +56,13 @@ exten => _sw_2_8X,11,Goto(sw_2_99,10)
 
 
 [ndeep]
-exten => s,1,Set(LOCAL(level)=${ARG1})
-exten => s,2,GotoIf($[${level} == 0]?3:5)
-exten => s,3,Verbose(2|Got to Level 0)
-exten => s,4,Return()
-exten => s,5,NoOp(Finish if_ndeep_3)
-exten => s,6,Gosub(ndeep,s,1($[${level}-1]))
-exten => s,7,Return()
+exten => ~~s~~,1,Set(LOCAL(level)=${ARG1})
+exten => ~~s~~,2,GotoIf($[${level} == 0]?3:5)
+exten => ~~s~~,3,Verbose(2|Got to Level 0)
+exten => ~~s~~,4,Return()
+exten => ~~s~~,5,NoOp(Finish if_ndeep_3)
+exten => ~~s~~,6,Gosub(ndeep,~~s~~,1($[${level}-1]))
+exten => ~~s~~,7,Return()
 
 
 [t1extension]
