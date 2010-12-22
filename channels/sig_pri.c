@@ -3751,9 +3751,6 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 						ast_connected.id.number.str, sizeof(pri->pvts[chanpos]->cid_num));
 					pri->pvts[chanpos]->cid_ton = ast_connected.id.number.plan;
 					caller_id_update = 1;
-				} else {
-					ast_connected.id.number.valid = 1;
-					ast_connected.id.number.str = ast_strdup("");
 				}
 				ast_connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 
@@ -3770,12 +3767,16 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				}
 #endif	/* defined(HAVE_PRI_SUBADDR) */
 				if (caller_id_update) {
+					struct ast_party_caller ast_caller;
+
 					pri->pvts[chanpos]->callingpres =
 						ast_party_id_presentation(&ast_connected.id);
 					sig_pri_set_caller_id(pri->pvts[chanpos]);
-					ast_set_callerid(owner, S_OR(ast_connected.id.number.str, NULL),
-						S_OR(ast_connected.id.name.str, NULL),
-						S_OR(ast_connected.id.number.str, NULL));
+
+					ast_party_caller_set_init(&ast_caller, &owner->caller);
+					ast_caller.id = ast_connected.id;
+					ast_caller.ani = ast_connected.id;
+					ast_channel_set_caller_event(owner, &ast_caller, NULL);
 				}
 
 				/* Update the connected line information on the other channel */
