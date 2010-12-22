@@ -15,4 +15,4 @@ LOG: lev:2 file:pbx_ael.c  line:138 func: pbx_load_module  AEL load process: che
 LOG: lev:2 file:pbx_ael.c  line:145 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:150 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:153 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:516 func: main  13 contexts, 57 extensions, 191 priorities
+LOG: lev:4 file:ael2_parse  line:516 func: main  13 contexts, 58 extensions, 191 priorities
