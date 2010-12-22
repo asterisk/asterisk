@@ -3380,7 +3380,7 @@ static int gen_prios(struct ael_extension *exten, char *label, pval *statement, 
 							switch_set->app = strdup("Set");
 						}
 						/* Are we likely inside a gosub subroutine? */
-						if (!strcmp(mother_exten->name, "s") && first) {
+						if (!strcmp(mother_exten->name, "~~s~~") && first) {
 							/* If we're not actually within a gosub, this will fail, but the
 							 * second time through, it will get set.  If we are within gosub,
 							 * the second time through is redundant, but acceptable. */
@@ -3409,7 +3409,7 @@ static int gen_prios(struct ael_extension *exten, char *label, pval *statement, 
 							switch_set->app = strdup("Set");
 						}
 						/* Are we likely inside a gosub subroutine? */
-						if (!strcmp(exten->name, "s")) {
+						if (!strcmp(exten->name, "~~s~~")) {
 							/* If we're not actually within a gosub, this will fail, but the
 							 * second time through, it will get set.  If we are within gosub,
 							 * the second time through is redundant, but acceptable. */
@@ -3988,7 +3988,7 @@ static int gen_prios(struct ael_extension *exten, char *label, pval *statement, 
 		case PV_MACRO_CALL:
 			pr = new_prio();
 			pr->type = AEL_APPCALL;
-			snprintf(buf1, BUF_SIZE, "%s,s,1", p->u1.str);
+			snprintf(buf1, BUF_SIZE, "%s,~~s~~,1", p->u1.str);
 			first = 1;
 			for (p2 = p->u2.arglist; p2; p2 = p2->next) {
 				if (first)
@@ -4459,7 +4459,7 @@ int ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *lo
 			
 			exten = new_exten();
 			exten->context = context;
-			exten->name = strdup("s");
+			exten->name = strdup("~~s~~");
 			argc = 1;
 			for (lp=p->u2.arglist; lp; lp=lp->next) {
 				/* for each arg, set up a "Set" command */

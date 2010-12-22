@@ -3,12 +3,12 @@
 
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
 LOG: lev:2 file:pbx_ael.c  line:122 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:ael.flex  line:883 func: setup_filestack    --Read in included file ././include1.ael2, 78 chars
-LOG: lev:2 file:ael.flex  line:883 func: setup_filestack    --Read in included file ././include2.ael2, 98 chars
-LOG: lev:2 file:ael.flex  line:883 func: setup_filestack    --Read in included file ././include3.ael2, 57 chars
-LOG: lev:2 file:ael.flex  line:883 func: setup_filestack    --Read in included file ././include5.ael2, 56 chars
-LOG: lev:2 file:ael.flex  line:883 func: setup_filestack    --Read in included file ././include4.ael2, 87 chars
-LOG: lev:2 file:ael.flex  line:883 func: setup_filestack    --Read in included file ././telemarket_torture.ael2, 28036 chars
+LOG: lev:2 file:ael.flex  line:885 func: setup_filestack    --Read in included file ././include1.ael2, 78 chars
+LOG: lev:2 file:ael.flex  line:885 func: setup_filestack    --Read in included file ././include2.ael2, 98 chars
+LOG: lev:2 file:ael.flex  line:885 func: setup_filestack    --Read in included file ././include3.ael2, 57 chars
+LOG: lev:2 file:ael.flex  line:885 func: setup_filestack    --Read in included file ././include5.ael2, 56 chars
+LOG: lev:2 file:ael.flex  line:885 func: setup_filestack    --Read in included file ././include4.ael2, 87 chars
+LOG: lev:2 file:ael.flex  line:885 func: setup_filestack    --Read in included file ././telemarket_torture.ael2, 28036 chars
 LOG: lev:2 file:pbx_ael.c  line:135 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
 LOG: lev:3 file:pval.c  line:673 func: check_macro_returns  Warning: file ./extensions.ael, line 14-34: The macro std-exten does not end with a return; I will insert one.
 LOG: lev:3 file:pval.c  line:1365 func: check_goto  Warning: file ./extensions.ael, line 17-17: It's bad form to have a goto in a macro to a target outside the macro!
@@ -96,4 +96,4 @@ LOG: lev:2 file:pbx_ael.c  line:138 func: pbx_load_module  AEL load process: che
 LOG: lev:2 file:pbx_ael.c  line:145 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:150 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:153 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:516 func: main  172 contexts, 934 extensions, 2634 priorities
+LOG: lev:4 file:ael2_parse  line:516 func: main  172 contexts, 935 extensions, 2633 priorities
