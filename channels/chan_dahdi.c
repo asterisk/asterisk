@@ -1230,6 +1230,7 @@ static struct dahdi_pvt {
 	int mfcr2_forced_release:1;
 	int mfcr2_dnis_matched:1;
 	int mfcr2_call_accepted:1;
+	int mfcr2_progress:1;
 	int mfcr2_accept_on_offer:1;
 #endif
 	/*! \brief DTMF digit in progress.  0 when no digit in progress. */
@@ -3619,6 +3620,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			return -1;
 		}
 		p->mfcr2_call_accepted = 0;
+		p->mfcr2_progress = 0;
 		ast_setstate(ast, AST_STATE_DIALING);
 	}
 #endif /* HAVE_OPENR2 */
@@ -7070,11 +7072,11 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 			/* if the call is already accepted and we already delivered AST_CONTROL_RINGING
 			 * now enqueue a progress frame to bridge the media up */
 			if (p->mfcr2_call_accepted &&
-			    !p->progress && 
+			    !p->mfcr2_progress && 
 			    ast->_state == AST_STATE_RINGING) {
 				ast_log(LOG_DEBUG, "Enqueuing progress frame after R2 accept in chan %d\n", p->channel);
 				ast_queue_frame(p->owner, &f);
-				p->progress = 1;
+				p->mfcr2_progress = 1;
 			}
 		}
 	}
