@@ -745,6 +745,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 
 		ESCAPE_STRING(buf, newval);
 		ast_str_append(&sql, 0, "%s %s = '%s'", first ? "" : ",", newparam, ast_str_buffer(buf));
+		first = 0;
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
 		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
