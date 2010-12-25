@@ -146,13 +146,6 @@ int ooCreateH245Connection(OOH323CallData *call)
                          call->callType, call->callToken);
             return ret;
          }
-         ret = ooSendMasterSlaveDetermination(call);
-         if(ret != OO_OK)
-         {
-            OOTRACEERR3("ERROR:Sending Master-slave determination message "
-                        "(%s, %s)\n", call->callType, call->callToken);
-            return ret;
-         }
       }
       else
       {
@@ -489,13 +482,6 @@ int ooAcceptH245Connection(OOH323CallData *call)
                    call->callType, call->callToken);
       return ret;
    }
-   ret = ooSendMasterSlaveDetermination(call);
-   if(ret != OO_OK)
-   {
-      OOTRACEERR3("ERROR:Sending Master-slave determination message "
-                  "(%s, %s)\n", call->callType, call->callToken);
-      return ret;
-   }   
    return OO_OK;
 }
 
