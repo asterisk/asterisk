@@ -595,12 +595,6 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	ast_cdr_update(p->chan);
 	p->chan->cdrflags = p->owner->cdrflags;
 
-	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
-		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
-		ao2_unlock(p);
-		return -1;
-	}
-
 	/* copy the channel variables from the incoming channel to the outgoing channel */
 	/* Note that due to certain assumptions, they MUST be in the same order */
 	AST_LIST_TRAVERSE(&p->owner->varshead, varptr, entries) {
@@ -613,6 +607,12 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 	}
 	ast_channel_datastore_inherit(p->owner, p->chan);
+
+	if (!ast_exists_extension(p->chan, p->chan->context, p->chan->exten, 1, p->owner->cid.cid_num)) {
+		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
+		ao2_unlock(p);
+		return -1;
+	}
 
 	/* Start switch on sub channel */
 	if (!(res = ast_pbx_start(p->chan)))
