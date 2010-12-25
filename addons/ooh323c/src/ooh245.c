@@ -2102,10 +2102,20 @@ int ooHandleH245Command(OOH323CallData *call,
 
 int ooOnReceivedTerminalCapabilitySetAck(OOH323CallData* call)
 {
+   int ret = OO_OK;
    call->localTermCapState = OO_LocalTermCapSetAckRecvd;
    if(call->remoteTermCapState != OO_RemoteTermCapSetAckSent)
       return OO_OK;
    
+   if(call->masterSlaveState == OO_MasterSlave_Idle) {
+      ret = ooSendMasterSlaveDetermination(call);
+      if(ret != OO_OK) {
+                OOTRACEERR3("ERROR:Sending Master-slave determination message "
+                            "(%s, %s)\n", call->callType, call->callToken);
+                return ret;
+      }
+   } 
+
    if((call->masterSlaveState == OO_MasterSlave_Master ||
        call->masterSlaveState == OO_MasterSlave_Slave) &&
        (call->msAckStatus == OO_msAck_remoteReceived))
@@ -3126,6 +3136,16 @@ int ooOnReceivedTerminalCapabilitySet(OOH323CallData *call, H245Message *pmsg)
    if(call->remoteTermCapState != OO_RemoteTermCapSetAckSent ||
       call->localTermCapState  != OO_LocalTermCapSetAckRecvd)
       return OO_OK;
+
+   if(call->masterSlaveState == OO_MasterSlave_Idle) {
+      ret = ooSendMasterSlaveDetermination(call);
+      if(ret != OO_OK) {
+                OOTRACEERR3("ERROR:Sending Master-slave determination message "
+                            "(%s, %s)\n", call->callType, call->callToken);
+                return ret;
+      }
+   } 
+
 
    /* Check MasterSlave procedure has finished */
    if(call->masterSlaveState != OO_MasterSlave_Master &&

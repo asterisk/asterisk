@@ -1213,14 +1213,6 @@ int ooSendTCSandMSD(OOH323CallData *call)
 			return ret;
 		}
 	}
-	if(call->masterSlaveState == OO_MasterSlave_Idle) {
-		ret = ooSendMasterSlaveDetermination(call);
-		if(ret != OO_OK) {
-			OOTRACEERR3("ERROR:Sending Master-slave determination message "
-				"(%s, %s)\n", call->callType, call->callToken);
-			return ret;
-		}
-	}
 
 	return OO_OK;
 }
@@ -1592,6 +1584,9 @@ int ooSendProgress(OOH323CallData *call)
    {
       OOTRACEERR3("Error: Failed to enqueue Alerting message to outbound queue. (%s, %s)\n", call->callType, call->callToken);
    }
+
+   if (!OO_TESTFLAG(call->flags, OO_M_TUNNELING) && call->h245listener)
+      ooSendStartH245Facility(call);
 
    ooSendTCSandMSD(call);
    memReset (call->msgctxt);

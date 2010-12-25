@@ -1040,10 +1040,6 @@ int ooOnReceivedAlerting(OOH323CallData *call, Q931Message *q931Msg)
          return OO_FAILED;
        }
       }
-   } else if (!call->pH245Channel && !call->h245listener) {
-	ret = ooSendStartH245Facility(call);
-	if (ret != OO_OK)
-		return ret;
    }
 
    return OO_OK;
@@ -1274,10 +1270,6 @@ int ooOnReceivedProgress(OOH323CallData *call, Q931Message *q931Msg)
          return OO_FAILED;
        }
       }
-   } else if (!call->pH245Channel && !call->h245listener) {
-	ret = ooSendStartH245Facility(call);
-	if (ret != OO_OK)
-		return ret;
    }
 
    return OO_OK;
@@ -1571,16 +1563,6 @@ int ooOnReceivedSignalConnect(OOH323CallData* call, Q931Message *q931Msg)
                          call->callType, call->callToken);
             return ret;
          }
-      }
-      if(call->masterSlaveState == OO_MasterSlave_Idle)
-      {
-         ret = ooSendMasterSlaveDetermination(call);
-         if(ret != OO_OK)
-         {
-            OOTRACEERR3("ERROR:Sending Master-slave determination message "
-                     "(%s, %s)\n", call->callType, call->callToken);
-            return ret;
-         }   
       }
 
    }
@@ -1986,12 +1968,17 @@ int ooHandleStartH245FacilityMessage
    OO_CLRFLAG (call->flags, OO_M_TUNNELING);
 
    /*Establish an H.245 connection */
-   ret = ooCreateH245Connection(call);
-   if(ret != OO_OK)
-   {
+   if (!call->pH245Channel) {
+    ret = ooCreateH245Connection(call);
+    if(ret != OO_OK)
+    {
       OOTRACEERR3("ERROR: Failed to establish an H.245 connection with remote"
                   " endpoint (%s, %s)\n", call->callType, call->callToken);
       return ret;
+    }
+   } else {
+     OOTRACEINFO3("INFO: H.245 connection already established with remote"
+                  " endpoint (%s, %s)\n", call->callType, call->callToken);
    }
    return OO_OK;
 }
