@@ -795,15 +795,6 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 
 	ast_channel_cc_params_init(p->chan, ast_channel_get_cc_config_params(p->owner));
 
-	if (!ast_exists_extension(NULL, p->chan->context, p->chan->exten, 1,
-		S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
-		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
-		ao2_unlock(p);
-		ast_channel_unlock(p->chan);
-		ao2_ref(p, -1);
-		return -1;
-	}
-
 	/* Make sure we inherit the ANSWERED_ELSEWHERE flag if it's set on the queue/dial call request in the dialplan */
 	if (ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
 		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
@@ -829,6 +820,15 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		*slash = '\0';
 	}
 	ast_set_cc_interfaces_chanvar(p->chan, reduced_dest);
+
+	if (!ast_exists_extension(p->chan, p->chan->context, p->chan->exten, 1,
+		S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
+		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
+		ao2_unlock(p);
+		ast_channel_unlock(p->chan);
+		ao2_ref(p, -1);
+		return -1;
+	}
 
 	/* Start switch on sub channel */
 	if (!(res = ast_pbx_start(p->chan)))
