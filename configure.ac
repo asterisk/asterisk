@@ -89,10 +89,10 @@ case "${host_os}" in
      darwin*)
      AC_PREFIX_DEFAULT([/usr/local])
      if test ${prefix} = 'NONE'; then
-        astlibdir=/Library/Application Support/Asterisk/Modules
-        astvarlibdir=/Library/Application Support/Asterisk
+        astlibdir='/Library/Application Support/Asterisk/Modules'
+        astvarlibdir='/Library/Application Support/Asterisk'
         astlogdir=/Library/Logs/Asterisk
-        astvarrundir=/Library/Application Support/Asterisk/Run
+        astvarrundir='/Library/Application Support/Asterisk/Run'
      fi
      AC_DEFINE([AST_POLL_COMPAT], 1, [Define to 1 if internal poll should be used.])
      AC_DEFINE([_DARWIN_UNLIMITED_SELECT], 1, [Define to 1 if running on Darwin.])
