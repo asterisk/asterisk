@@ -15,6 +15,13 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/makeopts
 
+# Make doesn't tolerate spaces in pathnames well.  I hate to hardcode the OS X
+# path, but Make doesn't allow spaces as arguments, either.
+ifneq ($(findstring Application Support,$(ASTDATADIR)),)
+ASTDATADIR=/tmp/astdatadir
+PREFIXCMD=ln -sf "$(ASTDATADIR)/" /tmp/astdatadir
+endif
+
 CMD_PREFIX?=@
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 SOUNDS_CACHE_DIR?=
@@ -132,7 +139,10 @@ endef
 
 endif
 
-all: $(SOUNDS_CACHE_DIR) $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
+all: prefixcmd $(SOUNDS_CACHE_DIR) $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
+
+prefixcmd:
+	@$(PREFIXCMD)
 
 have_download:
 	@if test "$(DOWNLOAD)" = ":" ; then \
@@ -178,7 +188,7 @@ dist-clean:
 $(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_CACHE_DIR):
 	$(INSTALL) -d $@
 
-install: $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
+install: prefixcmd $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
 uninstall:
 	rm -rf $(SOUNDS_DIR)
