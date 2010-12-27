@@ -122,7 +122,7 @@ clean::
 
 install:: all
 	@echo "Installing modules from `basename $(CURDIR)`..."
-	@for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	@for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -m 755 $$x "$(DESTDIR)$(MODULES_DIR)" ; done
 
 uninstall::
 
