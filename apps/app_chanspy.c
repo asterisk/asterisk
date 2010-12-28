@@ -152,7 +152,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>This application is used to listen to the audio from an Asterisk channel. This includes the audio 
-			coming in and "out of the channel being spied on. If the <literal>chanprefix</literal> parameter is specified,
+			coming in and out of the channel being spied on. If the <literal>chanprefix</literal> parameter is specified,
 			only channels beginning with this string will be spied upon.</para>
 			<para>While spying, the following actions may be performed:</para>
 			<para> - Dialing <literal>#</literal> cycles the volume level.</para>
