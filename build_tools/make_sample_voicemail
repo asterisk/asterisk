@@ -4,22 +4,22 @@ for lang in /en/ /fr/ /es/
   do
   for format in ulaw alaw wav gsm g729 g722
     do
-    [ ! -f ${1}/sounds${lang}vm-isunavail.${format} ] && continue
+    [ ! -f "${1}/sounds${lang}vm-isunavail.${format}" ] && continue
 
-    mkdir -p ${2}/voicemail/default/1234${lang}
+    mkdir -p "${2}/voicemail/default/1234${lang}"
     
-    : > ${2}/voicemail/default/1234${lang}unavail.${format}
+    : > "${2}/voicemail/default/1234${lang}unavail.${format}"
     
     for file in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail
       do
-      cat ${1}/sounds${lang}${file}.${format} >> ${2}/voicemail/default/1234${lang}unavail.${format}
+      cat "${1}/sounds${lang}${file}.${format}" >> "${2}/voicemail/default/1234${lang}unavail.${format}"
     done
 
-    : > ${2}/voicemail/default/1234${lang}busy.${format}
+    : > "${2}/voicemail/default/1234${lang}busy.${format}"
     
     for file in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone
       do
-      cat ${1}/sounds${lang}${file}.${format} >> ${2}/voicemail/default/1234${lang}busy.${format}
+      cat "${1}/sounds${lang}${file}.${format}" >> "${2}/voicemail/default/1234${lang}busy.${format}"
     done
   done
 done

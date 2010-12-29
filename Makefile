@@ -690,7 +690,7 @@ samples: adsi
 		rm -f $(DESTDIR)$(ASTCONFPATH).tmp ; \
 	fi ; \
 	$(INSTALL) -d $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
-	build_tools/make_sample_voicemail "$(DESTDIR)/$(ASTDATADIR)" "$(DESTDIR)/$(ASTSPOOLDIR)"
+	build_tools/make_sample_voicemail "$(DESTDIR)$(ASTDATADIR)" "$(DESTDIR)$(ASTSPOOLDIR)"
 
 	@for x in phoneprov/*; do \
 		dst="$(DESTDIR)$(ASTDATADIR)/$$x" ;	\
