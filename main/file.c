@@ -313,7 +313,7 @@ static void filestream_destructor(void *arg)
 			size = strlen(f->filename) + strlen(f->realfilename) + 15;
 			cmd = alloca(size);
 			memset(cmd,0,size);
-			snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
+			snprintf(cmd, size, "/bin/mv -f \"%s\" \"%s\"", f->filename, f->realfilename);
 			ast_safe_system(cmd);
 	}
 
