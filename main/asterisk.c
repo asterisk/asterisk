@@ -3835,7 +3835,7 @@ int main(int argc, char *argv[])
 
 #ifdef __AST_DEBUG_MALLOC
 	__ast_mm_init();
-#endif	
+#endif
 
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
