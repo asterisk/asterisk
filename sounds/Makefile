@@ -144,8 +144,8 @@ endif
 all: prefixcmd $(SOUNDS_CACHE_DIR) $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
 prefixcmd:
-	if [ -d $(TMPDATADIR) ] ; then \
-		rm -rf $(TMPDATADIR) ; \
+	if [ -d /tmp/astdatadir ] ; then \
+		rm -rf /tmp/astdatadir ; \
 	fi
 	@$(PREFIXCMD)
 
