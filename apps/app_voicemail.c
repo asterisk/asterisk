@@ -12382,7 +12382,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 
 	/* Make sure the original path was completely empty */
-	snprintf(syscmd, sizeof(syscmd), "rm -rf %s%s/%s", VM_SPOOL_DIR, testcontext, testmailbox);
+	snprintf(syscmd, sizeof(syscmd), "rm -rf \"%s%s/%s\"", VM_SPOOL_DIR, testcontext, testmailbox);
 	if ((syserr = ast_safe_system(syscmd))) {
 		ast_test_status_update(test, "Unable to clear test directory: %s\n",
 			syserr > 0 ? strerror(syserr) : "unable to fork()");
@@ -12413,7 +12413,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 		snprintf(tmp[i].txtfile, sizeof(tmp[i].txtfile), "%s.txt", tmp[i].file);
 
 		if (ast_fileexists(origweasels, "gsm", "en") > 0) {
-			snprintf(syscmd, sizeof(syscmd), "cp %s/sounds/en/%s.gsm %s/%s/%s/%s/msg0000.gsm", ast_config_AST_DATA_DIR, origweasels,
+			snprintf(syscmd, sizeof(syscmd), "cp \"%s/sounds/en/%s.gsm\" \"%s/%s/%s/%s/msg0000.gsm\"", ast_config_AST_DATA_DIR, origweasels,
 				VM_SPOOL_DIR, testcontext, testmailbox, folders[i]);
 			if ((syserr = ast_safe_system(syscmd))) {
 				ast_test_status_update(test, "Unable to create test voicemail: %s\n",
@@ -12496,7 +12496,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 #endif
 
 	/* And remove test directory */
-	snprintf(syscmd, sizeof(syscmd), "rm -rf %s%s/%s", VM_SPOOL_DIR, testcontext, testmailbox);
+	snprintf(syscmd, sizeof(syscmd), "rm -rf \"%s%s/%s\"", VM_SPOOL_DIR, testcontext, testmailbox);
 	if ((syserr = ast_safe_system(syscmd))) {
 		ast_test_status_update(test, "Unable to clear test directory: %s\n",
 			syserr > 0 ? strerror(syserr) : "unable to fork()");
