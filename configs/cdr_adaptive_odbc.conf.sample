@@ -37,6 +37,8 @@
 ; Any filter specified MUST match exactly or the CDR will be discarded
 ;filter accountcode => somename
 ;filter src => 123
+; Negative filters are also now available
+;filter src != 456
 ;
 ; Additionally, we now support setting static values per column.  Reason
 ; for this is to allow different sections to specify different values for

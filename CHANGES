@@ -27,6 +27,11 @@ CLI Changes
  * The 'logger reload' command now supports an optional argument, specifying an
    alternate configuration file to use.
 
+CDR
+---
+ * The filter option in cdr_adaptive_odbc now supports negating the argument,
+   thus allowing records which do NOT match the specified filter.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
