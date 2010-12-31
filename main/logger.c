@@ -283,7 +283,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 	return chan;
 }
 
-static void init_logger_chain(int locked)
+static void init_logger_chain(int locked, const char *altconf)
 {
 	struct logchannel *chan;
 	struct ast_config *cfg;
@@ -291,7 +291,7 @@ static void init_logger_chain(int locked)
 	const char *s;
 	struct ast_flags config_flags = { 0 };
 
-	if (!(cfg = ast_config_load2("logger.conf", "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
+	if (!(cfg = ast_config_load2(S_OR(altconf, "logger.conf"), "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		return;
 	}
 
@@ -616,7 +616,7 @@ static int rotate_file(const char *filename)
 	return res;
 }
 
-static int reload_logger(int rotate)
+static int reload_logger(int rotate, const char *altconf)
 {
 	char old[PATH_MAX] = "";
 	int queue_rotate = rotate;
@@ -665,7 +665,7 @@ static int reload_logger(int rotate)
 
 	filesize_reload_needed = 0;
 
-	init_logger_chain(1 /* locked */);
+	init_logger_chain(1 /* locked */, altconf);
 
 	if (logfiles.queue_log) {
 		do {
@@ -716,7 +716,7 @@ static int reload_logger(int rotate)
 	a full Asterisk reload) */
 int logger_reload(void)
 {
-	if (reload_logger(0)) {
+	if (reload_logger(0, NULL)) {
 		return RESULT_FAILURE;
 	}
 	return RESULT_SUCCESS;
@@ -727,14 +727,14 @@ static char *handle_logger_reload(struct ast_cli_entry *e, int cmd, struct ast_c
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "logger reload";
-		e->usage = 
-			"Usage: logger reload\n"
+		e->usage =
+			"Usage: logger reload [<alt-conf>]\n"
 			"       Reloads the logger subsystem state.  Use after restarting syslogd(8) if you are using syslog logging.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (reload_logger(0)) {
+	if (reload_logger(0, a->argc == 3 ? a->argv[2] : NULL)) {
 		ast_cli(a->fd, "Failed to reload the logger\n");
 		return CLI_FAILURE;
 	}
@@ -753,7 +753,7 @@ static char *handle_logger_rotate(struct ast_cli_entry *e, int cmd, struct ast_c
 	case CLI_GENERATE:
 		return NULL;	
 	}
-	if (reload_logger(1)) {
+	if (reload_logger(1, NULL)) {
 		ast_cli(a->fd, "Failed to reload the logger and rotate log files\n");
 		return CLI_FAILURE;
 	} 
@@ -966,7 +966,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 
 	/* If we need to reload because of the file size, then do so */
 	if (filesize_reload_needed) {
-		reload_logger(-1);
+		reload_logger(-1, NULL);
 		ast_verb(1, "Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
 
@@ -1048,7 +1048,7 @@ int init_logger(void)
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
 	/* create log channels */
-	init_logger_chain(0 /* locked */);
+	init_logger_chain(0 /* locked */, NULL);
 
 	return 0;
 }
