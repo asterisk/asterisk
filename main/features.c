@@ -291,14 +291,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</manager>
  ***/
 
-#define DEFAULT_PARK_TIME 45000
-#define DEFAULT_PARK_EXTENSION "700"
-#define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
-#define DEFAULT_FEATURE_DIGIT_TIMEOUT 1000
-#define DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER 15000
-#define DEFAULT_ATXFER_DROP_CALL 0
-#define DEFAULT_ATXFER_LOOP_DELAY 10000
-#define DEFAULT_ATXFER_CALLBACK_RETRIES 2
+#define DEFAULT_PARK_TIME							45000	/*!< ms */
+#define DEFAULT_PARK_EXTENSION						"700"
+#define DEFAULT_TRANSFER_DIGIT_TIMEOUT				3000	/*!< ms */
+#define DEFAULT_FEATURE_DIGIT_TIMEOUT				1000	/*!< ms */
+#define DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER	15000	/*!< ms */
+#define DEFAULT_ATXFER_DROP_CALL					0		/*!< Do not drop call. */
+#define DEFAULT_ATXFER_LOOP_DELAY					10000	/*!< ms */
+#define DEFAULT_ATXFER_CALLBACK_RETRIES				2
 
 #define AST_MAX_WATCHERS 256
 #define MAX_DIAL_FEATURE_OPTIONS 30
@@ -3412,7 +3412,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				}
 				config->feature_start_time = ast_tvnow();
 				config->feature_timer = featuredigittimeout;
-				ast_debug(1, "Set feature timer to %ld\n", config->feature_timer);
+				ast_debug(1, "Set feature timer to %ld ms\n", config->feature_timer);
 			}
 		}
 		if (f)
@@ -4585,7 +4585,7 @@ static int load_config(void)
 		} else if (!strcasecmp(var->name, "atxferdropcall")) {
 			atxferdropcall = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "atxfercallbackretries")) {
-			if ((sscanf(var->value, "%30u", &atxferloopdelay) != 1)) {
+			if ((sscanf(var->value, "%30u", &atxfercallbackretries) != 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid atxfercallbackretries\n", var->value);
 				atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
 			}
