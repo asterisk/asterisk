@@ -286,7 +286,7 @@ struct dundi_mapping {
 	int options;
 	int tech;
 	int dead;
-	char dest[AST_MAX_EXTENSION];
+	char dest[512];
 	AST_LIST_ENTRY(dundi_mapping) list;
 };
 
