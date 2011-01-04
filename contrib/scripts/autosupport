@@ -1,255 +1,504 @@
 #!/bin/sh
 #
+# Autosupport Version 2.0.15
 # Collect support information
 #
-# Copyright (C) 2005, Digium, Inc.
+# Copyright (C) 2005-2010, Digium, Inc.
 #
 # Written by John Bigelow (support@digium.com)
+#            Charles Moye (cmoye@digium.com)
+#            Trey Blancher (trey@digium.com)
 #
 # Distributed under the terms of the GNU General Public
 # License
 #
+# usage:
+# autosupport [prefix]
+# ARGUMENTS:
+# prefix - Prefix to tarball. (Referenced as $1)
+#      Example: autosupport <Your Digium Technical Support Ticket number>
 
-OUTPUT=$HOME/digiuminfo
+# Ensure the PATH variable includes '/usr/sbin' and '/sbin'
+PATH=/usr/sbin:/sbin:${PATH}
+
+DATE_STAMP=$(date +%Y%m%d)
+OUTPUT_FILE=digiuminfo.txt
+TARBALL_OUTPUT_FILE="digium-info_${DATE_STAMP}.tar"
+VAR_LIB_LIST_FILE="list-of-varlibasterisk.txt"
+FILE_PREFIX=
+FOLDER_PREFIX="${HOME}/"
+files="n";
+
+# If a prefix is specified on command-line, add it.
+if (set -u; : $1) 2> /dev/null
+then
+  if [ $1 == "-h" ] || [ $1 == "--help" ]; then
+    echo
+    echo "Digium autosupport script"
+    echo "Copyright (C) 2005-2010, Digium, Inc."
+    echo "Licensed under the terms of the GNU General Public License"
+    echo
+    echo "usage: autosupport [prefix]"
+    echo "Valid Options:"
+    echo "   [prefix]		Prefix to apply to output files"
+    echo "			May be your existing Digium Technical Support Ticket ID"
+    echo "   -h, --help		Show help about options"
+    echo
+    echo "Example:"
+    echo "    autosupport XXXXXXXX"
+    echo "Generates:"
+    echo "    XXXXXXXX_${OUTPUT_FILE}"
+    echo "    XXXXXXXX_${TARBALL_OUTPUT_FILE}"
+    echo
+    exit
+  fi
+  FILE_PREFIX="${FILE_PREFIX}${1}_";
+fi
 
 MYUID=$(id -u);
 
 if [ $MYUID -ne  0 ]; then
-
   echo "You must be root to run this."
   exit 1
 fi
 
-clear
+SUPPORTED_MODULES="wcb4xxp wct4xxp wctc4xxp wctdm wctdm24xxp wcte11xp wcte12xp"
+RELATED_MODULES="$SUPPORTED_MODULES dahdi_dummy dahdi_transcode dahdi_vpmadt032_loader zaptel ztdummy zttranscode";
+
+OUTPUT_FILE="${FILE_PREFIX}${OUTPUT_FILE}"
+TARBALL_OUTPUT_FILE="${FILE_PREFIX}${TARBALL_OUTPUT_FILE}"
+VAR_LIB_LIST_FILE="${FILE_PREFIX}${VAR_LIB_LIST_FILE}"
+
+OUTPUT="${FOLDER_PREFIX}${OUTPUT_FILE}"
+TARBALL_OUTPUT="${FOLDER_PREFIX}${TARBALL_OUTPUT_FILE}"
+VAR_LIB_LIST="${FOLDER_PREFIX}${VAR_LIB_LIST_FILE}"
+
+# Done with setup, now start gathering information.
+
+# function not implemented yet
+determine_paths()
+{
+  ASTERISK_PROCESS=$(ps -o cmd -C asterisk | grep asterisk 2> /dev/null)
+echo "detected process: $ASTERISK_PROCESS";
+  # split on whitespace? or use sed/awk to parse
+  # get first arg which will be path to Asterisk binary - add this to PATH
+  # look for a '-C' if that is present, get the arg after it, and make the tarball collect that directory
+  ## in addition to /etc/asterisk/ or instead of it?
+}
+
+collect_digiuminfo()
+{
+# Delete existing OUTPUT
+[ -f $OUTPUT ] && rm -rf $OUTPUT
+
+# Sanity Checks
+echo "------------------" >> $OUTPUT;
+echo "Sanity" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+md5sum $0 >> $OUTPUT;
+grep "Autosupport Version" $0 | head -n1 >> $OUTPUT
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "Working";
+
+echo "------------------" >> $OUTPUT;
+echo "KERNEL VERSION : uname -a" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+uname -a >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "VERSION INFO : cat /proc/version" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+cat /proc/version >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "CMDLINE INFO : cat /proc/cmdline" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+cat /proc/cmdline >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+# Check for loaded Zaptel/DAHDI modules
+for module in dahdi zaptel; do
+  if [ -d /sys/module/$module ]; then
+    echo "------------------" >> $OUTPUT
+    echo "$module version:" >> $OUTPUT
+    echo "------------------" >> $OUTPUT
+    echo "/sys/module/$module/version: " >> $OUTPUT
+    cat /sys/module/$module/version 2> /dev/null >> $OUTPUT
+    echo "" >> $OUTPUT;
+    echo -n "."
+  fi
+done
+
+echo "------------------" >> $OUTPUT;
+echo "DAHDI TOOLS : dahdi_cfg --help" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+dahdi_cfg --help 2>&1 | grep "Version" >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "DAHDI HARDWARE : dahdi_hardware" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+dahdi_hardware >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+
+echo "------------------" >> $OUTPUT;
+echo "ASTERISK INFO : asterisk -V" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+echo "asterisk -V:" >> $OUTPUT;
+asterisk -V >> $OUTPUT;
+echo >> $OUTPUT;
+# Add check to see if asterisk is running.
+if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
+  for command in "show version" "core show version" "pri show version" "dahdi show version" "transcoder show" \
+      "core show uptime" "pri show spans" "misdn show stacks" "zap show channels" "dahdi show channels" \
+      "dahdi show channel 1" "core show channels" "skype show version" "skype show licenses" "skype show users" \
+      "show g729" "g729 show version" "g729 show licenses" "fax show version" "fax show licenses" "fax show stats" ; do
+    echo "asterisk -rx \"$command\"" >> $OUTPUT;
+    asterisk -rx "$command" >> $OUTPUT;
+    echo >> $OUTPUT;
+    echo -n "."
+  done
+  echo >> $OUTPUT;
+fi
+
+echo "------------------" >> $OUTPUT;
+echo "OTHER INFO : cat /etc/*{issue,release,version}*" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+for file in $(ls /etc/*issue* /etc/*release* /etc/*version* \
+  /etc/*motd* /etc/asterisknow-version /dev/zap/ /dev/dahdi/ \
+  2> /dev/null); do
+  if [ -f $file ]; then
+    echo "$file:" >> $OUTPUT;
+    cat $file >> $OUTPUT;
+    echo >> $OUTPUT;
+    echo -n "."
+  fi
+done
+echo >> $OUTPUT;
+
+echo "------------------" >> $OUTPUT;
+echo "RUNNING PROCESSES : ps aux" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+ps aux >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "INTERRUPTS : cat /proc/interrupts" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+cat /proc/interrupts >> $OUTPUT;
+echo -n "."
+sleep 2;
+echo "---------- sleep(2) ----------" >> $OUTPUT;
+cat /proc/interrupts >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "DAHDI SCAN : dahdi_scan" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+dahdi_scan >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "----------------------------" >> $OUTPUT;
+echo "CAT OF DAHDI/ZAPTEL CHANNELS : cat /proc/dahdi/" >> $OUTPUT;
+echo "----------------------------" >> $OUTPUT;
+for tech in dahdi zaptel zap; do
+  if [ -d /proc/$tech/ ]; then
+    for file in $(ls /proc/$tech/ 2> /dev/null); do
+      echo "----------------------------" >> $OUTPUT;
+      echo "/proc/$tech/$file:" >> $OUTPUT;
+      cat /proc/$tech/$file >> $OUTPUT;
+      echo >> $OUTPUT;
+      echo -n "."
+    done
+  fi
+done
+echo >> $OUTPUT;
+
+echo "------------------" >> $OUTPUT;
+echo "DMESG OUTPUT : dmesg" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+dmesg >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "LOADED MODULES : lsmod" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+lsmod >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+# Grab the parameters for each module
+for mod in $SUPPORTED_MODULES; do
+  if [ -d /sys/module/$mod ]; then
+    echo "------------------" >> $OUTPUT
+    echo "$mod parameters" >> $OUTPUT
+    echo "------------------" >> $OUTPUT
+    echo "/sys/module/$mod/parameters:" >> $OUTPUT
+    for param in $(ls /sys/module/$mod/parameters/ /sys/module/$mod/ 2> /dev/null); do
+      if [ -f /sys/module/$mod/parameters/$param ]; then
+        echo -n "$param:  " >> $OUTPUT
+        cat /sys/module/$mod/parameters/$param 2> /dev/null >> $OUTPUT
+      elif [ -f /sys/module/$mod/$param ]; then
+        # Handle Zaptel doing it differently
+        echo -n "$param:  " >> $OUTPUT
+        cat /sys/module/$mod/$param 2> /dev/null >> $OUTPUT
+      fi
+      echo -n "."
+    done
+    echo >> $OUTPUT
+  fi
+done
+
+echo "------------------------" >> $OUTPUT;
+echo "DAHDI/ZAPTEL MODULE INFO : modinfo" >> $OUTPUT;
+echo "------------------------" >> $OUTPUT;
+for file in $(ls /lib/modules/$(uname -r)/dahdi/*.ko \
+  /lib/modules/$(uname -r)/dahdi/*/*.ko\
+  /lib/modules/$(uname -r)/extra/*.ko \
+  /lib/modules/$(uname -r)/extra/*/*.ko \
+  /lib/modules/$(uname -r)/misc/*.ko \
+  /lib/modules/$(uname -r)/misc/*/*.ko 2> /dev/null); do
+  if [ -f $file ]; then
+    echo "------------------------" >> $OUTPUT;
+    modinfo $file >> $OUTPUT;
+    echo >> $OUTPUT;
+    echo -n "."
+  fi
+done
+echo "------------------------" >> $OUTPUT;
+echo >> $OUTPUT;
+
+echo "------------------" >> $OUTPUT;
+echo "PCI LIST : lspci -vvvb" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+lspci -vvvb >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "PCI LIST(no lookup) : lspci -vvvbn" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+lspci -vvvbn >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "CPU INFO : cat /proc/cpuinfo" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+cat /proc/cpuinfo >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "----------------------" >> $OUTPUT;
+echo "VPM FIRMWARE INSTALLED : ls -la /lib/firmware" >> $OUTPUT;
+echo "----------------------" >> $OUTPUT;
+$(ls -la /lib/firmware 2> /dev/null >> $OUTPUT);
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "NETWORK INFO : route -n; iptables -L; ifconfig" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+route -n 2> /dev/null >> $OUTPUT;
+echo >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+iptables -L 2> /dev/null >> $OUTPUT;
+echo >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+ifconfig 2> /dev/null >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "DMIDECODE : dmidecode" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+dmidecode >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "KERNEL CONFIG : cat /path/.config" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+for file in /lib/modules/$(uname -r)/build/.config /usr/src/linux/.config; do
+  if [ -f $file ]; then
+    echo "------------------" >> $OUTPUT;
+    echo "$file:" >> $OUTPUT;
+    cat $file >> $OUTPUT;
+    echo >> $OUTPUT;
+    echo -n "."
+  fi
+done
+echo >> $OUTPUT;
+
+echo "done!"
+}
+
+collect_var_lib_list()
+{
+  # Delete existing VAR_LIB_LIST
+  [ -f $VAR_LIB_LIST ] && rm -rf $VAR_LIB_LIST
+  DIR_LISTING="/var/lib/asterisk/"
+  if [ -d /var/lib/digium ]; then
+    DIR_LISTING="/var/lib/digium/ ${DIR_LISTING}"
+  fi
+  if [ -d /usr/lib/asterisk/modules/ ]; then
+    DIR_LISTING="/usr/lib/asterisk/modules/ ${DIR_LISTING}"
+  fi
+  echo "ls -1aAR $DIR_LISTING > $VAR_LIB_LIST"
+  $(ls -1aR ${DIR_LISTING} | sed -e '/^\.\.*$/d' > $VAR_LIB_LIST);
+}
+
+collect_config_backup()
+{
+  collect_var_lib_list
+  # Include the /etc/asterisk directory, modprobe.conf, and the modprobe.d directory
+  TAR_FILES="/etc/asterisk/ /etc/modprobe.*"
+
+  # Check if any Asterisk licenses are installed
+  # G.729, Fax, ABE, Cepstral, Skype, etc.
+  if [ -d /var/lib/asterisk/licenses/ ]; then
+    TAR_FILES="$TAR_FILES /var/lib/asterisk/licenses/*"
+  fi
+
+  # Check if any Digium licenses are installed
+  # HPEC
+  if [ -d /var/lib/digium/licenses/ ]; then
+    TAR_FILES="$TAR_FILES /var/lib/digium/licenses/*"
+  fi
+
+  # Check if DAHDI is installed
+  if [ -d /etc/dahdi ]; then
+    TAR_FILES="$TAR_FILES /etc/dahdi*"
+  fi
+
+  # Check for Zaptel Module configuration
+  if [ -f /etc/sysconfig/zaptel ]; then
+    TAR_FILES="$TAR_FILES /etc/sysconfig/zaptel*"
+  fi
+
+  # Check for Zaptel Module configuration (alternate location)
+  if [ -f /etc/default/zaptel ]; then
+    TAR_FILES="$TAR_FILES /etc/default/zaptel*"
+  fi
+
+  # Grab the dahdi/zaptel init scripts, in case they have been modified
+  for driver in dahdi zaptel; do
+    if [ -f /etc/init.d/$driver ]; then
+      TAR_FILES="$TAR_FILES /etc/init.d/$driver"
+    fi
+  done
+
+  # Check for zaptel.conf
+  if [ -f /etc/zaptel.conf ]; then
+    TAR_FILES="$TAR_FILES /etc/zaptel*"
+  fi
+
+  # Check for fxotune.conf
+  if [ -f /etc/fxotune.conf ]; then
+    TAR_FILES="$TAR_FILES /etc/fxotune.conf*"
+  fi
+
+  # Check for misdn-init.conf
+  if [ -f /etc/misdn-init.conf ]; then
+    TAR_FILES="$TAR_FILES /etc/misdn-init.conf*"
+  fi
+
+  # Check for digiuminfo.txt
+  if [ -f $HOME/$OUTPUT_FILE ]; then
+    TAR_FILES="$TAR_FILES $OUTPUT_FILE"
+  fi
+
+  # Check for asterisk listing
+  if [ -f $VAR_LIB_LIST ]; then
+    TAR_FILES="$TAR_FILES $VAR_LIB_LIST_FILE"
+  fi
+
+  # Collect System Log Files
+  if [ -f /var/log/dmesg ]; then
+    TAR_FILES="$TAR_FILES /var/log/dmesg"
+  fi
+  if [ -f /var/log/messages ]; then
+    TAR_FILES="$TAR_FILES /var/log/messages"
+  fi
+
+  [ -f $TARBALL_OUTPUT ] && rm -rf $TARBALL_OUTPUT
+  [ -f $TARBALL_OUTPUT.gz ] && rm -rf $TARBALL_OUTPUT.gz
+
+  echo "tarring: tar -chvf ${TARBALL_OUTPUT} $TAR_FILES"
+  cd $HOME && tar -chvf $TARBALL_OUTPUT $TAR_FILES
+  echo "gzipping $TARBALL_OUTPUT"
+  gzip $TARBALL_OUTPUT
+}
+
+clear;
 
 echo
-echo "This will gather information about your system such as:"
+echo "This script will try to collect the following pieces of"
+echo "information from your system."
+echo
+echo "1. Information about your system such as:"
 echo "pci listing, dmesg, running processes, and kernel version"
-echo "This may take up to half a minute to run. Please be patient."
-echo "To continue press 'y', to quit press any other key"
-read ans
-
-if [ "$ans" = "y" ]; then
-
-  rm -f $OUTPUT
-
-  echo "------------------" >> $OUTPUT;
-  echo "PCI LIST" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  lspci -vvvb >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "PCI LIST(no lookup)" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  lspci -vvvbn >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "INTERRUPTS" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  cat /proc/interrupts >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "RUNNING PROCESSES" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  ps aux >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "KERNEL VERSION" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  uname -a >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "CPU INFO" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  cat /proc/cpuinfo >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "VERSION INFO" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  cat /proc/version >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "CMDLINE INFO" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  cat /proc/cmdline >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "KERNEL CONFIG" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  echo "/lib/modules/$(uname -r)/build/.config:" >> $OUTPUT;
-  cat /lib/modules/$(uname -r)/build/.config >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo "/usr/src/linux/.config:" >> $OUTPUT;
-  cat /usr/src/linux/.config >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "ZAPTEL MODULE INFO" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  modinfo /lib/modules/$(uname -r)/misc/*.ko >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "DAHDI MODULE INFO" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  modinfo /lib/modules/$(uname -r)/dahdi/*.ko >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "OTHER INFO" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  echo "/etc/*issues*:" >> $OUTPUT;
-  cat /etc/*issues* >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo "/etc/*release*:" >> $OUTPUT;
-  cat /etc/*release* >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo "/etc/*motd*:" >> $OUTPUT;
-  cat /etc/*motd* >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "LOADED MODULES" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  lsmod >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "ZTTEST" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  zttest -c 20 >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "DAHDI_TEST" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  dahdi_test -c 20 >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "DMESG OUTPUT" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  dmesg >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "DMIDECODE" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  dmidecode >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "ZAPTEL CONFIG" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  grep -v '^#' /etc/zaptel.conf >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "DAHDI CONFIG" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  grep -v '^#' /etc/dahdi/system.conf >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "ZAPATA CONFIG" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  grep -v '^;' /etc/asterisk/zapata.conf >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "CHAN_DAHDI CONFIG" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  grep -v '^;' /etc/asterisk/chan_dahdi.conf >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-  echo "------------------" >> $OUTPUT;
-  echo "EXTENSIONS CONFIG" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-  grep -v '^;' /etc/asterisk/extensions.conf >> $OUTPUT;
-  echo >> $OUTPUT;
-  echo >> $OUTPUT;
-
-else
-  echo "terminated";
-exit
-fi
-
-clear
-
 echo
-echo "Digium may require root level access to the system to help debug";
-echo "the problem you are experiencing. Do you want to provide login";
-echo "information at this time? Please note that if you do so, change";
-echo "your root password to a secure temporary password for Digium support";
-echo "Press 'y' for yes and any other key to exit and save the previous info collected"
-read login
+echo "2. A backup of elements of your configuration such as:"
+echo "asterisk config files, license files, loaded dahdi/zaptel module"
+echo "parameters, and other asterisk/dahdi/zaptel related files."
+echo
+echo "Collect this information [y/n] ? "
+read files;
 
-if [ "$login" = "y" ]; then
+if [ "$files" = "y" ] || [ "$files" = "yes" ]; then
+  echo "This may take up to half a minute to run. Please be patient."
+  collect_digiuminfo;
+  collect_config_backup;
 
-  echo "------------------" >> $OUTPUT;
-  echo "LOGIN INFORMATION" >> $OUTPUT;
-  echo "------------------" >> $OUTPUT;
-
-  echo
-  echo "What is your root password?"
-  read rootpass
-
-  echo
-  echo "Root pass: "$rootpass >> $OUTPUT
-
-  echo
-  echo "What is your PUBLIC IP address?"
-  read ip
-
-  echo "IP address: "$ip >> $OUTPUT
-
-  echo
-  echo "Please provide any other login information that the technician"
-  echo "may need to know to login to the system'(press enter if not)'"
-  read adinfo
-
-  echo "Additional login info: "$adinfo >> $OUTPUT
-
-  clear
-  echo
-  echo "All information has been stored in $OUTPUT,"
-  echo "Please attach this file to an email case you already"
-  echo "have open with Digium Tech Support."
-
+  # ensure the output was written
+  if [ -f $TARBALL_OUTPUT.gz ]; then
+    clear;
+    echo;
+    echo;
+    echo "Tarball has been stored to:"
+    echo "$TARBALL_OUTPUT.gz"
+    echo "Please send this file to an email case you already"
+    echo "have open with Digium Tech Support."
+  else
+    echo;
+    echo;
+    echo "An error has occurred in capturing information."
+    echo "$TARBALL_OUTPUT.gz was not found."
+    echo;
+    echo "Please investigate your system, and send the output"
+    echo "above to your Digium Technical Support Ticket."
+  fi
 else
-  clear
-  echo
-  echo "All information except login info has been stored in $OUTPUT,"
-  echo "Please send this file to an email case you already"
-  echo "have open with Digium Tech Support."
-exit
+  clear;
+  echo;
+  echo "User selected not to continue."
 fi
+exit
