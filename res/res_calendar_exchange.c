@@ -403,6 +403,7 @@ static struct ast_str *exchangecal_request(struct exchangecal_pvt *pvt, const ch
 	ne_add_request_header(req, "Content-type", "text/xml");
 
 	ret = ne_request_dispatch(req);
+	ne_request_destroy(req);
 
 	if (ret != NE_OK || !ast_str_strlen(response)) {
 		ast_log(LOG_WARNING, "Unknown response to CalDAV calendar %s, request %s to %s: %s\n", pvt->owner->name, method, pvt->url, ne_get_error(pvt->session));
