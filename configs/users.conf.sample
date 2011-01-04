@@ -51,6 +51,27 @@ hasmanager = no
 ;managerread = system,call,log,verbose,command,agent,user,config
 ;managerwrite = system,call,log,verbose,command,agent,user,config
 ;
+;
+; MAC Address for res_phoneprov
+;
+;macaddress = 112233445566
+;
+; Auto provision the phone with res_phoneprov
+;
+;autoprov = yes
+;
+; Line Keys for hardphone
+;
+;LINEKEYS = 1
+;
+; Line number for hardphone
+;
+;linenumber = 1
+;
+; Local Caller ID number used with res_phoneprov and Asterisk GUI
+;
+;cid_number = 6000
+;
 ; Remaining options are not specific to users.conf entries but are general.
 ;
 callwaiting = yes
@@ -62,7 +83,7 @@ cancallforward = yes
 callreturn = yes
 callgroup = 1
 pickupgroup = 1
-
+;nat = no
 
 ;[6000]
 ;fullname = Joe User
@@ -83,3 +104,9 @@ pickupgroup = 1
 ; alternateexts entry.
 ;
 ;alternateexts = 7057,3249
+;macaddress = 112233445566
+;autoprov = yes
+;LINEKEYS = 1
+;linenumber = 1
+;cid_number = 6000
+
