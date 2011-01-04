@@ -16445,7 +16445,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	int firststate = AST_EXTENSION_REMOVED;
 	struct sip_peer *authpeer = NULL;
 	const char *eventheader = get_header(req, "Event");	/* Get Event package name */
-	int resubscribe = (p->subscribed != NONE);
+	int resubscribe = (p->subscribed != NONE) && !ast_test_flag(req, SIP_PKT_IGNORE);
 	char *temp, *event;
 
 	if (p->initreq.headers) {	
@@ -16463,7 +16463,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				if (resubscribe)
 					ast_log(LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
 				else
-					ast_log(LOG_DEBUG, "Got a new subscription %s (possibly with auth)\n", p->callid);
+					ast_log(LOG_DEBUG, "Got a new subscription %s (possibly with auth) or retransmission\n", p->callid);
 			}
 		}
 	}
@@ -16517,26 +16517,31 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	} else
 		event = (char *) eventheader;		/* XXX is this legal ? */
 
-	/* Handle authentication */
-	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
-	/* if an authentication response was sent, we are done here */
-	if (res == AUTH_CHALLENGE_SENT) {
-		if (authpeer)
-			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
-		return 0;
-	}
-	if (res < 0) {
-		if (res == AUTH_FAKE_AUTH) {
-			ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
-			transmit_fake_auth_response(p, SIP_SUBSCRIBE, req, XMIT_UNRELIABLE);
-		} else {
-			ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
-			transmit_response_reliable(p, "403 Forbidden", req);
+	/* Handle authentication if we're new and not a retransmission. We can't just
+	 * use if !(ast_test_flag(req, SIP_PKT_IGNORE), because then we'll end up sending
+	 * a 200 OK if someone retransmits without sending auth */
+	if (p->subscribed == NONE || resubscribe) {
+		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
+
+		/* if an authentication response was sent, we are done here */
+		if (res == AUTH_CHALLENGE_SENT) {
+			if (authpeer)
+				ASTOBJ_UNREF(authpeer, sip_destroy_peer);
+			return 0;
 		}
-		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-		if (authpeer)
-			ASTOBJ_UNREF(authpeer, sip_destroy_peer);
-		return 0;
+		if (res < 0) {
+			if (res == AUTH_FAKE_AUTH) {
+				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
+				transmit_fake_auth_response(p, SIP_SUBSCRIBE, req, XMIT_UNRELIABLE);
+			} else {
+				ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
+				transmit_response_reliable(p, "403 Forbidden", req);
+			}
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			if (authpeer)
+				ASTOBJ_UNREF(authpeer, sip_destroy_peer);
+			return 0;
+		}
 	}
 
 	/* Check if this user/peer is allowed to subscribe at all */
