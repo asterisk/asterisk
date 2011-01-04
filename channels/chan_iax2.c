@@ -161,7 +161,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 			</parameter>
 		</syntax>
-		<description />
+		<description></description>
 		<see-also>
 			<ref type="function">SIPPEER</ref>
 		</see-also>
@@ -173,7 +173,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="varname" required="true" />
 		</syntax>
-		<description />
+		<description></description>
 	</function>
  ***/
 

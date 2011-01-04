@@ -421,7 +421,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 			</parameter>
 		</syntax>
-		<description />
+		<description></description>
 	</function>
 	<function name="SIPCHANINFO" language="en_US">
 		<synopsis>
@@ -455,7 +455,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 			</parameter>
 		</syntax>
-		<description />
+		<description></description>
 	</function>
 	<function name="CHECKSIPDOMAIN" language="en_US">
 		<synopsis>
