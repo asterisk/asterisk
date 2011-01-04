@@ -539,6 +539,13 @@ struct dahdi_mfcr2_conf {
 	int metering_pulse_timeout;
 	int max_ani;
 	int max_dnis;
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 2
+	int dtmf_time_on;
+	int dtmf_time_off;
+#endif
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 3
+	int dtmf_end_timeout;
+#endif
 	signed int get_ani_first:2;
 #if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 1
 	signed int skip_category_request:2;
@@ -550,6 +557,10 @@ struct dahdi_mfcr2_conf {
 	unsigned int forced_release:1;
 	unsigned int double_answer:1;
 	signed int immediate_accept:2;
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 2
+	signed int dtmf_dialing:2;
+	signed int dtmf_detection:2;
+#endif
 	char logdir[OR2_MAX_PATH];
 	char r2proto_file[OR2_MAX_PATH];
 	openr2_log_level_t loglevel;
@@ -1385,6 +1396,15 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.forced_release = 0,
 			.double_answer = 0,
 			.immediate_accept = -1,
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 2
+			.dtmf_dialing = -1,
+			.dtmf_detection = -1,
+			.dtmf_time_on = OR2_DEFAULT_DTMF_ON,
+			.dtmf_time_off = OR2_DEFAULT_DTMF_OFF,
+#endif
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 3
+			.dtmf_end_timeout = -1,
+#endif
 			.logdir = "",
 			.r2proto_file = "",
 			.loglevel = OR2_LOG_ERROR | OR2_LOG_WARNING,
@@ -11831,6 +11851,13 @@ static int dahdi_r2_set_context(struct dahdi_mfcr2 *r2_link, const struct dahdi_
 	openr2_context_set_metering_pulse_timeout(r2_link->protocol_context, conf->mfcr2.metering_pulse_timeout);
 	openr2_context_set_double_answer(r2_link->protocol_context, conf->mfcr2.double_answer);
 	openr2_context_set_immediate_accept(r2_link->protocol_context, conf->mfcr2.immediate_accept);
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 2
+	openr2_context_set_dtmf_dialing(r2_link->protocol_context, conf->mfcr2.dtmf_dialing, conf->mfcr2.dtmf_time_on, conf->mfcr2.dtmf_time_off);
+	openr2_context_set_dtmf_detection(r2_link->protocol_context, conf->mfcr2.dtmf_detection);
+#endif
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 3
+	openr2_context_set_dtmf_detection_end_timeout(r2_link->protocol_context, conf->mfcr2.dtmf_end_timeout);
+#endif
 	if (ast_strlen_zero(conf->mfcr2.logdir)) {
 		if (openr2_context_set_log_directory(r2_link->protocol_context, tmplogdir)) {
 			ast_log(LOG_ERROR, "Failed setting default MFC/R2 log directory %s\n", tmplogdir);
@@ -14956,6 +14983,10 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 				ast_cli(a->fd, "MFC/R2 Variant: %s\n", openr2_proto_get_variant_string(r2variant));
 				ast_cli(a->fd, "MFC/R2 Max ANI: %d\n", openr2_context_get_max_ani(r2context));
 				ast_cli(a->fd, "MFC/R2 Max DNIS: %d\n", openr2_context_get_max_dnis(r2context));
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 2
+				ast_cli(a->fd, "MFC/R2 DTMF Dialing: %s\n", openr2_context_get_dtmf_dialing(r2context, NULL, NULL) ? "Yes" : "No");
+				ast_cli(a->fd, "MFC/R2 DTMF Detection: %s\n", openr2_context_get_dtmf_detection(r2context) ? "Yes" : "No");
+#endif
 				ast_cli(a->fd, "MFC/R2 Get ANI First: %s\n", openr2_context_get_ani_first(r2context) ? "Yes" : "No");
 #if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 1
 				ast_cli(a->fd, "MFC/R2 Skip Category Request: %s\n", openr2_context_get_skip_category_request(r2context) ? "Yes" : "No");
@@ -17258,6 +17289,20 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				if (confp->mfcr2.metering_pulse_timeout > 500) {
 					ast_log(LOG_WARNING, "Metering pulse timeout greater than 500ms is not recommended, you have been warned!\n");
 				}
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 2
+			} else if (!strcasecmp(v->name, "mfcr2_dtmf_detection")) {
+				confp->mfcr2.dtmf_detection = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_dtmf_dialing")) {
+				confp->mfcr2.dtmf_dialing = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "mfcr2_dtmf_time_on")) {
+				confp->mfcr2.dtmf_time_on = atoi(v->value);
+			} else if (!strcasecmp(v->name, "mfcr2_dtmf_time_off")) {
+				confp->mfcr2.dtmf_time_off = atoi(v->value);
+#endif
+#if defined(OR2_LIB_INTERFACE) && OR2_LIB_INTERFACE > 3
+			} else if (!strcasecmp(v->name, "mfcr2_dtmf_end_timeout")) {
+				confp->mfcr2.dtmf_end_timeout = atoi(v->value);
+#endif
 			} else if (!strcasecmp(v->name, "mfcr2_get_ani_first")) {
 				confp->mfcr2.get_ani_first = ast_true(v->value) ? 1 : 0;
 			} else if (!strcasecmp(v->name, "mfcr2_double_answer")) {
