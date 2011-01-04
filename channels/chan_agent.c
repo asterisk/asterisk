@@ -167,7 +167,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 			</parameter>
 		</syntax>
-		<description />
+		<description></description>
 	</function>
 	<manager name="Agents" language="en_US">
 		<synopsis>
