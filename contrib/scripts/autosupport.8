@@ -1,40 +1,53 @@
-.TH AUTOSUPPORT 8 "Jul 5th, 2005" "Asterisk" "Linux Programmer's Manual"
+.TH AUTOSUPPORT 8 "Aug 8th, 2010" "Asterisk" "Linux Programmer's Manual"
 .SH NAME
 .B autosupport
 \(em interactive script to provide Digium[tm]'s support with information
 .SH SYNOPSIS
 .PP 
-.B autosupport
+.B autosupport [-h] [prefix]
 
 .SH DESCRIPTION
-.B autosupport
-is a script that is normally run by a user contacting Digium's support 
-to automate gathering support information.
+\fBautosupport\fR is a script that is normally run by a user contacting Digium's Technical
+Support to automate gathering support information. It will probe the
+system for some run\-time and system information, and generate a backup
+of Asterisk related configuration. An optional parameter for a prefix
+may be specified which is typically used to specify a Digium Technical
+Support Ticket ID.
+.PP 
+The script requires root privileges to run, and writes all output in the 
+home directory of the user running the script. For the purposes of this 
+document, this will be referred to as /root/ henceforth.
+.PP 
+The system information is written to /root/digiuminfo.txt and the backup
+of configuration (and the system information file) are written to a tarball
+in /root/ with a base name of digium\-info. A Date Stamp will be appended,
+and if specified the optional parameter will be a prefix. The tarball at
+least is expected to be attached to a support ticket with Digium.
 
-It will probe the system for some configuration and run-time information, 
-and will also prompt the user for some optional access information (IP 
-address, login and password).
-
-The information is written to /root/digiuminfo.txt which the user is expected 
-to attach to a support ticket to Digium.
-
-The script must be run as root.
-
+.SH OPTIONS
+.SS Arguments:
+.TP 15
+\fBprefix\fR
+Used to prefix the file names. Typically a Digium Technical Support Ticket ID
+.SS Options:
+.TP 15
+\fB\-h, \-\-help\fR
+Show help about options
 .SH FILES
 .B /root/digiuminfo.txt
-.RS
-The output of the script goes there
-.RE
+.br 
+.B /root/digium\-info_YYYYMMDD.tar.gz
 
 .SH SEE ALSO
 asterisk(8)
 
-.SH "AUTHOR" 
-autosupport was written by John Bigelow <support@digium.com>.
-This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 
-Permission is granted to copy, distribute and/or modify this document under 
-the terms of the GNU General Public License, Version 2 any  
-later version published by the Free Software Foundation. 
-
+.SH AUTHOR
+autosupport was written by John Bigelow <support@digium.com> in conjunction with
+Charles Moye and Trey Blancher. This manual page was written by
+Tzafrir Cohen <tzafrir.cohen@xorcom.com> and updated by Charles Moye. Permission
+is granted to copy, distribute and/or modify this document under the terms of
+the GNU General Public License, Version 2 any later version published by the
+Free Software Foundation. 
+.PP 
 On Debian systems, the complete text of the GNU General Public 
-License can be found in /usr/share/common-licenses/GPL. 
+License can be found in /usr/share/common\-licenses/GPL\-2. 
