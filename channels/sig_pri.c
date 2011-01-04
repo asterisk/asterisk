@@ -1078,6 +1078,36 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
 	pri_queue_frame(pri, chanpos, &f);
 }
 
+/*!
+ * \internal
+ * \brief Find the channel associated with the libpri call.
+ * \since 1.10
+ *
+ * \param pri sig_pri span controller to find interface.
+ * \param call LibPRI opaque call pointer to find.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval array-index into private pointer array on success.
+ * \retval -1 on error.
+ */
+static int pri_find_principle_by_call(struct sig_pri_span *pri, q931_call *call)
+{
+	int idx;
+
+	if (!call) {
+		/* Cannot find a call without a call. */
+		return -1;
+	}
+	for (idx = 0; idx < pri->numchans; ++idx) {
+		if (pri->pvts[idx] && pri->pvts[idx]->call == call) {
+			/* Found the principle */
+			return idx;
+		}
+	}
+	return -1;
+}
+
 static int pri_find_principle(struct sig_pri_span *pri, int channel, q931_call *call)
 {
 	int x;
@@ -1092,19 +1122,8 @@ static int pri_find_principle(struct sig_pri_span *pri, int channel, q931_call *
 
 	prioffset = PRI_CHANNEL(channel);
 	if (!prioffset || (channel & PRI_HELD_CALL)) {
-		if (!call) {
-			/* Cannot find a call waiting call or held call without a call. */
-			return -1;
-		}
-		principle = -1;
-		for (x = 0; x < pri->numchans; ++x) {
-			if (pri->pvts[x]
-				&& pri->pvts[x]->call == call) {
-				principle = x;
-				break;
-			}
-		}
-		return principle;
+		/* Find the call waiting call or held call. */
+		return pri_find_principle_by_call(pri, call);
 	}
 
 	span = PRI_SPAN(channel);
@@ -1222,6 +1241,10 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 #if defined(HAVE_PRI_SETUP_KEYPAD)
 		strcpy(new_chan->keypad_digits, old_chan->keypad_digits);
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+		strcpy(new_chan->moh_suggested, old_chan->moh_suggested);
+		new_chan->moh_state = old_chan->moh_state;
+		old_chan->moh_state = SIG_PRI_MOH_STATE_IDLE;
+
 #if defined(HAVE_PRI_AOC_EVENTS)
 		new_chan->aoc_s_request_invoke_id = old_chan->aoc_s_request_invoke_id;
 		new_chan->aoc_e = old_chan->aoc_e;
@@ -1429,34 +1452,6 @@ static int pri_find_empty_nobch(struct sig_pri_span *pri)
 		idx = -1;
 	}
 	return idx;
-}
-#endif	/* defined(HAVE_PRI_CALL_HOLD) */
-
-#if defined(HAVE_PRI_CALL_HOLD)
-/*!
- * \internal
- * \brief Find the channel associated with the libpri call.
- * \since 1.8
- *
- * \param pri sig_pri span controller to find interface.
- * \param call LibPRI opaque call pointer to find.
- *
- * \note Assumes the pri->lock is already obtained.
- *
- * \retval array-index into private pointer array on success.
- * \retval -1 on error.
- */
-static int pri_find_pri_call(struct sig_pri_span *pri, q931_call *call)
-{
-	int idx;
-
-	for (idx = 0; idx < pri->numchans; ++idx) {
-		if (pri->pvts[idx] && pri->pvts[idx]->call == call) {
-			/* Found the channel */
-			return idx;
-		}
-	}
-	return -1;
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
@@ -1972,8 +1967,8 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 	c2.held = call_2_held;
 	call_2 = &c2;
 
-	call_1->chanpos = pri_find_pri_call(pri, call_1->pri);
-	call_2->chanpos = pri_find_pri_call(pri, call_2->pri);
+	call_1->chanpos = pri_find_principle_by_call(pri, call_1->pri);
+	call_2->chanpos = pri_find_principle_by_call(pri, call_2->pri);
 	if (call_1->chanpos < 0 || call_2->chanpos < 0) {
 		/* Calls not found in span control. */
 		if (rsp_callback) {
@@ -4038,6 +4033,677 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 #if defined(HAVE_PRI_CALL_HOLD)
 /*!
  * \internal
+ * \brief Kill the call.
+ * \since 1.10
+ *
+ * \param pri Span controller to find interface.
+ * \param call LibPRI opaque call pointer to find.
+ * \param cause Reason call was killed.
+ *
+ * \note Assumes the pvt->pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_kill_call(struct sig_pri_span *pri, q931_call *call, int cause)
+{
+	int chanpos;
+
+	chanpos = pri_find_principle_by_call(pri, call);
+	if (chanpos < 0) {
+		pri_hangup(pri->pri, call, cause);
+		return;
+	}
+	sig_pri_lock_private(pri->pvts[chanpos]);
+	if (!pri->pvts[chanpos]->owner) {
+		pri_hangup(pri->pri, call, cause);
+		pri->pvts[chanpos]->call = NULL;
+		sig_pri_unlock_private(pri->pvts[chanpos]);
+		return;
+	}
+	pri->pvts[chanpos]->owner->hangupcause = cause;
+	pri_queue_control(pri, chanpos, AST_CONTROL_HANGUP);
+	sig_pri_unlock_private(pri->pvts[chanpos]);
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+/*!
+ * \internal
+ * \brief Convert the MOH state to string.
+ * \since 1.10
+ *
+ * \param state MOH state to process.
+ *
+ * \return String version of MOH state.
+ */
+static const char *sig_pri_moh_state_str(enum sig_pri_moh_state state)
+{
+	const char *str;
+
+	str = "Unknown";
+	switch (state) {
+	case SIG_PRI_MOH_STATE_IDLE:
+		str = "SIG_PRI_MOH_STATE_IDLE";
+		break;
+	case SIG_PRI_MOH_STATE_NOTIFY:
+		str = "SIG_PRI_MOH_STATE_NOTIFY";
+		break;
+	case SIG_PRI_MOH_STATE_MOH:
+		str = "SIG_PRI_MOH_STATE_MOH";
+		break;
+#if defined(HAVE_PRI_CALL_HOLD)
+	case SIG_PRI_MOH_STATE_HOLD_REQ:
+		str = "SIG_PRI_MOH_STATE_HOLD_REQ";
+		break;
+	case SIG_PRI_MOH_STATE_PEND_UNHOLD:
+		str = "SIG_PRI_MOH_STATE_PEND_UNHOLD";
+		break;
+	case SIG_PRI_MOH_STATE_HOLD:
+		str = "SIG_PRI_MOH_STATE_HOLD";
+		break;
+	case SIG_PRI_MOH_STATE_RETRIEVE_REQ:
+		str = "SIG_PRI_MOH_STATE_RETRIEVE_REQ";
+		break;
+	case SIG_PRI_MOH_STATE_PEND_HOLD:
+		str = "SIG_PRI_MOH_STATE_PEND_HOLD";
+		break;
+	case SIG_PRI_MOH_STATE_RETRIEVE_FAIL:
+		str = "SIG_PRI_MOH_STATE_RETRIEVE_FAIL";
+		break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+	case SIG_PRI_MOH_STATE_NUM:
+		/* Not a real state. */
+		break;
+	}
+	return str;
+}
+
+/*!
+ * \internal
+ * \brief Convert the MOH event to string.
+ * \since 1.10
+ *
+ * \param event MOH event to process.
+ *
+ * \return String version of MOH event.
+ */
+static const char *sig_pri_moh_event_str(enum sig_pri_moh_event event)
+{
+	const char *str;
+
+	str = "Unknown";
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+		str = "SIG_PRI_MOH_EVENT_RESET";
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD:
+		str = "SIG_PRI_MOH_EVENT_HOLD";
+		break;
+	case SIG_PRI_MOH_EVENT_UNHOLD:
+		str = "SIG_PRI_MOH_EVENT_UNHOLD";
+		break;
+#if defined(HAVE_PRI_CALL_HOLD)
+	case SIG_PRI_MOH_EVENT_HOLD_ACK:
+		str = "SIG_PRI_MOH_EVENT_HOLD_ACK";
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD_REJ:
+		str = "SIG_PRI_MOH_EVENT_HOLD_REJ";
+		break;
+	case SIG_PRI_MOH_EVENT_RETRIEVE_ACK:
+		str = "SIG_PRI_MOH_EVENT_RETRIEVE_ACK";
+		break;
+	case SIG_PRI_MOH_EVENT_RETRIEVE_REJ:
+		str = "SIG_PRI_MOH_EVENT_RETRIEVE_REJ";
+		break;
+	case SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK:
+		str = "SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK";
+		break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+	case SIG_PRI_MOH_EVENT_NUM:
+		/* Not a real event. */
+		break;
+	}
+	return str;
+}
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Retrieve a call that was placed on hold by the HOLD message.
+ * \since 1.10
+ *
+ * \param pvt Channel private control structure.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_retrieve_call(struct sig_pri_chan *pvt)
+{
+	int chanpos;
+	int channel;
+
+	if (pvt->pri->nodetype == PRI_NETWORK) {
+		/* Find an available channel to propose */
+		chanpos = pri_find_empty_chan(pvt->pri, 1);
+		if (chanpos < 0) {
+			/* No channels available. */
+			return SIG_PRI_MOH_STATE_RETRIEVE_FAIL;
+		}
+		channel = PVT_TO_CHANNEL(pvt->pri->pvts[chanpos]);
+
+		/*
+		 * We cannot occupy or reserve this channel at this time because
+		 * the retrieve may fail or we could have a RETRIEVE collision.
+		 */
+	} else {
+		/* Let the network pick the channel. */
+		channel = 0;
+	}
+
+	if (pri_retrieve(pvt->pri->pri, pvt->call, channel)) {
+		return SIG_PRI_MOH_STATE_RETRIEVE_FAIL;
+	}
+	return SIG_PRI_MOH_STATE_RETRIEVE_REQ;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+/*!
+ * \internal
+ * \brief MOH FSM state idle.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_idle(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_HOLD:
+		if (!strcasecmp(pvt->mohinterpret, "passthrough")) {
+			/*
+			 * This config setting is deprecated.
+			 * The old way did not send MOH just in case the notification was ignored.
+			 */
+			pri_notify(pvt->pri->pri, pvt->call, pvt->prioffset, PRI_NOTIFY_REMOTE_HOLD);
+			next_state = SIG_PRI_MOH_STATE_NOTIFY;
+			break;
+		}
+
+		switch (pvt->pri->moh_signaling) {
+		default:
+		case SIG_PRI_MOH_SIGNALING_MOH:
+			ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+			next_state = SIG_PRI_MOH_STATE_MOH;
+			break;
+		case SIG_PRI_MOH_SIGNALING_NOTIFY:
+			/* Send MOH anyway in case the far end does not interpret the notification. */
+			ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+
+			pri_notify(pvt->pri->pri, pvt->call, pvt->prioffset, PRI_NOTIFY_REMOTE_HOLD);
+			next_state = SIG_PRI_MOH_STATE_NOTIFY;
+			break;
+#if defined(HAVE_PRI_CALL_HOLD)
+		case SIG_PRI_MOH_SIGNALING_HOLD:
+			if (pri_hold(pvt->pri->pri, pvt->call)) {
+				/* Fall back to MOH instead */
+				ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+				next_state = SIG_PRI_MOH_STATE_MOH;
+			} else {
+				next_state = SIG_PRI_MOH_STATE_HOLD_REQ;
+			}
+			break;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+		}
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+
+/*!
+ * \internal
+ * \brief MOH FSM state notify remote party.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_notify(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_UNHOLD:
+		pri_notify(pvt->pri->pri, pvt->call, pvt->prioffset, PRI_NOTIFY_REMOTE_RETRIEVAL);
+		/* Fall through */
+	case SIG_PRI_MOH_EVENT_RESET:
+		ast_moh_stop(chan);
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+
+/*!
+ * \internal
+ * \brief MOH FSM state generate moh.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_moh(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+	case SIG_PRI_MOH_EVENT_UNHOLD:
+		ast_moh_stop(chan);
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief MOH FSM state hold requested.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_hold_req(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_UNHOLD:
+		next_state = SIG_PRI_MOH_STATE_PEND_UNHOLD;
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD_REJ:
+		/* Fall back to MOH */
+		if (chan) {
+			ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+		}
+		next_state = SIG_PRI_MOH_STATE_MOH;
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD_ACK:
+		next_state = SIG_PRI_MOH_STATE_HOLD;
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief MOH FSM state hold requested with pending unhold.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_pend_unhold(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD:
+		next_state = SIG_PRI_MOH_STATE_HOLD_REQ;
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD_REJ:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD_ACK:
+		next_state = sig_pri_moh_retrieve_call(pvt);
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief MOH FSM state hold.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_hold(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_UNHOLD:
+		next_state = sig_pri_moh_retrieve_call(pvt);
+		break;
+	case SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK:
+		/* Fall back to MOH */
+		if (chan) {
+			ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+		}
+		next_state = SIG_PRI_MOH_STATE_MOH;
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief MOH FSM state retrieve requested.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_retrieve_req(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD:
+		next_state = SIG_PRI_MOH_STATE_PEND_HOLD;
+		break;
+	case SIG_PRI_MOH_EVENT_RETRIEVE_ACK:
+	case SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_RETRIEVE_REJ:
+		next_state = SIG_PRI_MOH_STATE_RETRIEVE_FAIL;
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief MOH FSM state retrieve requested with pending hold.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_pend_hold(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_UNHOLD:
+		next_state = SIG_PRI_MOH_STATE_RETRIEVE_REQ;
+		break;
+	case SIG_PRI_MOH_EVENT_RETRIEVE_ACK:
+	case SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK:
+		/*
+		 * Successfully came off of hold.  Now we can reinterpret the
+		 * MOH signaling option to handle the pending HOLD request.
+		 */
+		switch (pvt->pri->moh_signaling) {
+		default:
+		case SIG_PRI_MOH_SIGNALING_MOH:
+			if (chan) {
+				ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+			}
+			next_state = SIG_PRI_MOH_STATE_MOH;
+			break;
+		case SIG_PRI_MOH_SIGNALING_NOTIFY:
+			/* Send MOH anyway in case the far end does not interpret the notification. */
+			if (chan) {
+				ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+			}
+
+			pri_notify(pvt->pri->pri, pvt->call, pvt->prioffset, PRI_NOTIFY_REMOTE_HOLD);
+			next_state = SIG_PRI_MOH_STATE_NOTIFY;
+			break;
+		case SIG_PRI_MOH_SIGNALING_HOLD:
+			if (pri_hold(pvt->pri->pri, pvt->call)) {
+				/* Fall back to MOH instead */
+				if (chan) {
+					ast_moh_start(chan, pvt->moh_suggested, pvt->mohinterpret);
+				}
+				next_state = SIG_PRI_MOH_STATE_MOH;
+			} else {
+				next_state = SIG_PRI_MOH_STATE_HOLD_REQ;
+			}
+			break;
+		}
+		break;
+	case SIG_PRI_MOH_EVENT_RETRIEVE_REJ:
+		/*
+		 * We cannot reinterpret the MOH signaling option because we
+		 * failed to come off of hold.
+		 */
+		next_state = SIG_PRI_MOH_STATE_HOLD;
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief MOH FSM state retrieve failed.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+static enum sig_pri_moh_state sig_pri_moh_fsm_retrieve_fail(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state next_state;
+
+	next_state = pvt->moh_state;
+	switch (event) {
+	case SIG_PRI_MOH_EVENT_RESET:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	case SIG_PRI_MOH_EVENT_HOLD:
+		next_state = SIG_PRI_MOH_STATE_HOLD;
+		break;
+	case SIG_PRI_MOH_EVENT_UNHOLD:
+		next_state = sig_pri_moh_retrieve_call(pvt);
+		break;
+	case SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK:
+		next_state = SIG_PRI_MOH_STATE_IDLE;
+		break;
+	default:
+		break;
+	}
+	pvt->moh_state = next_state;
+	return next_state;
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+/*!
+ * \internal
+ * \brief MOH FSM state function type.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Next MOH state
+ */
+typedef enum sig_pri_moh_state (*sig_pri_moh_fsm_state)(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event);
+
+/*! MOH FSM state table. */
+static const sig_pri_moh_fsm_state sig_pri_moh_fsm[SIG_PRI_MOH_STATE_NUM] = {
+/* *INDENT-OFF* */
+	[SIG_PRI_MOH_STATE_IDLE] = sig_pri_moh_fsm_idle,
+	[SIG_PRI_MOH_STATE_NOTIFY] = sig_pri_moh_fsm_notify,
+	[SIG_PRI_MOH_STATE_MOH] = sig_pri_moh_fsm_moh,
+#if defined(HAVE_PRI_CALL_HOLD)
+	[SIG_PRI_MOH_STATE_HOLD_REQ] = sig_pri_moh_fsm_hold_req,
+	[SIG_PRI_MOH_STATE_PEND_UNHOLD] = sig_pri_moh_fsm_pend_unhold,
+	[SIG_PRI_MOH_STATE_HOLD] = sig_pri_moh_fsm_hold,
+	[SIG_PRI_MOH_STATE_RETRIEVE_REQ] = sig_pri_moh_fsm_retrieve_req,
+	[SIG_PRI_MOH_STATE_PEND_HOLD] = sig_pri_moh_fsm_pend_hold,
+	[SIG_PRI_MOH_STATE_RETRIEVE_FAIL] = sig_pri_moh_fsm_retrieve_fail,
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+/* *INDENT-ON* */
+};
+
+/*!
+ * \internal
+ * \brief Send an event to the MOH FSM.
+ * \since 1.10
+ *
+ * \param chan Channel to post event to (Usually pvt->owner)
+ * \param pvt Channel private control structure.
+ * \param event MOH event to process.
+ * 
+ * \note Assumes the pvt->pri->lock is already obtained.
+ * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_moh_fsm_event(struct ast_channel *chan, struct sig_pri_chan *pvt, enum sig_pri_moh_event event)
+{
+	enum sig_pri_moh_state orig_state;
+	enum sig_pri_moh_state next_state;
+	const char *chan_name;
+
+	if (chan) {
+		chan_name = ast_strdupa(chan->name);
+	} else {
+		chan_name = "Unknown";
+	}
+	orig_state = pvt->moh_state;
+	ast_debug(2, "Channel '%s' MOH-Event: %s in state %s\n", chan_name,
+		sig_pri_moh_event_str(event), sig_pri_moh_state_str(orig_state));
+	if (orig_state < SIG_PRI_MOH_STATE_IDLE || SIG_PRI_MOH_STATE_NUM <= orig_state
+		|| !sig_pri_moh_fsm[orig_state]) {
+		/* Programming error: State not implemented. */
+		ast_log(LOG_ERROR, "MOH state not implemented: %s(%d)\n",
+			sig_pri_moh_state_str(orig_state), orig_state);
+		return;
+	}
+	/* Execute the state. */
+	next_state = sig_pri_moh_fsm[orig_state](chan, pvt, event);
+	ast_debug(2, "Channel '%s'  MOH-Next-State: %s\n", chan_name,
+		(orig_state == next_state) ? "$" : sig_pri_moh_state_str(next_state));
+}
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
  * \brief Post an AMI hold event.
  * \since 1.10
  *
@@ -4137,6 +4803,94 @@ done_with_private:;
 #if defined(HAVE_PRI_CALL_HOLD)
 /*!
  * \internal
+ * \brief Handle the hold acknowledge event from libpri.
+ * \since 1.10
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param ev Hold acknowledge event received.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
+{
+	int chanpos;
+
+	/*
+	 * We were successfully put on hold by the remote party
+	 * so we just need to switch to a no_b_channel channel.
+	 */
+	chanpos = pri_find_empty_nobch(pri);
+	if (chanpos < 0) {
+		/* Very bad news.  No hold channel available. */
+		ast_log(LOG_ERROR,
+			"Span %d: No hold channel available for held call that is on %d/%d\n",
+			pri->span, PRI_SPAN(ev->hold_ack.channel), PRI_CHANNEL(ev->hold_ack.channel));
+		sig_pri_kill_call(pri, ev->hold_ack.call, PRI_CAUSE_RESOURCE_UNAVAIL_UNSPECIFIED);
+		return;
+	}
+	chanpos = pri_fixup_principle(pri, chanpos, ev->hold_ack.call);
+	if (chanpos < 0) {
+		/* Should never happen. */
+		sig_pri_kill_call(pri, ev->hold_ack.call, PRI_CAUSE_NORMAL_TEMPORARY_FAILURE);
+		return;
+	}
+
+	sig_pri_lock_private(pri->pvts[chanpos]);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_ack.channel,
+		ev->hold_ack.subcmds, ev->hold_ack.call);
+	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
+		SIG_PRI_MOH_EVENT_HOLD_ACK);
+	sig_pri_unlock_private(pri->pvts[chanpos]);
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Handle the hold reject event from libpri.
+ * \since 1.10
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param ev Hold reject event received.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_handle_hold_rej(struct sig_pri_span *pri, pri_event *ev)
+{
+	int chanpos;
+
+	chanpos = pri_find_principle(pri, ev->hold_rej.channel, ev->hold_rej.call);
+	if (chanpos < 0) {
+		ast_log(LOG_WARNING, "Span %d: Could not find principle for HOLD_REJECT\n",
+			pri->span);
+		return;
+	}
+	chanpos = pri_fixup_principle(pri, chanpos, ev->hold_rej.call);
+	if (chanpos < 0) {
+		/* Should never happen. */
+		sig_pri_kill_call(pri, ev->hold_rej.call, PRI_CAUSE_NORMAL_TEMPORARY_FAILURE);
+		return;
+	}
+
+	ast_debug(1, "Span %d: HOLD_REJECT cause: %d(%s)\n", pri->span,
+		ev->hold_rej.cause, pri_cause2str(ev->hold_rej.cause));
+
+	sig_pri_lock_private(pri->pvts[chanpos]);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_rej.channel,
+		ev->hold_rej.subcmds, ev->hold_rej.call);
+	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
+		SIG_PRI_MOH_EVENT_HOLD_REJ);
+	sig_pri_unlock_private(pri->pvts[chanpos]);
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
  * \brief Handle the retrieve event from libpri.
  * \since 1.8
  *
@@ -4194,10 +4948,93 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 		sig_pri_ami_hold_event(pri->pvts[chanpos]->owner, 0);
 		ast_channel_unlock(pri->pvts[chanpos]->owner);
 	}
-	sig_pri_unlock_private(pri->pvts[chanpos]);
-	sig_pri_span_devstate_changed(pri);
 	pri_retrieve_ack(pri->pri, ev->retrieve.call,
 		PVT_TO_CHANNEL(pri->pvts[chanpos]));
+	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
+		SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK);
+	sig_pri_unlock_private(pri->pvts[chanpos]);
+	sig_pri_span_devstate_changed(pri);
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Handle the retrieve acknowledge event from libpri.
+ * \since 1.10
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param ev Retrieve acknowledge event received.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
+{
+	int chanpos;
+
+	chanpos = pri_find_principle(pri, ev->retrieve_ack.channel, ev->retrieve_ack.call);
+	if (chanpos < 0) {
+		ast_log(LOG_WARNING,
+			"Span %d: Could not find principle for RETRIEVE_ACKNOWLEDGE\n", pri->span);
+		return;
+	}
+	chanpos = pri_fixup_principle(pri, chanpos, ev->retrieve_ack.call);
+	if (chanpos < 0) {
+		/* Very bad news.  The channel is already in use. */
+		sig_pri_kill_call(pri, ev->retrieve_ack.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+		return;
+	}
+
+	sig_pri_lock_private(pri->pvts[chanpos]);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_ack.channel,
+		ev->retrieve_ack.subcmds, ev->retrieve_ack.call);
+	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
+		SIG_PRI_MOH_EVENT_RETRIEVE_ACK);
+	sig_pri_unlock_private(pri->pvts[chanpos]);
+}
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+#if defined(HAVE_PRI_CALL_HOLD)
+/*!
+ * \internal
+ * \brief Handle the retrieve reject event from libpri.
+ * \since 1.10
+ *
+ * \param pri sig_pri PRI control structure.
+ * \param ev Retrieve reject event received.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_handle_retrieve_rej(struct sig_pri_span *pri, pri_event *ev)
+{
+	int chanpos;
+
+	chanpos = pri_find_principle(pri, ev->retrieve_rej.channel, ev->retrieve_rej.call);
+	if (chanpos < 0) {
+		ast_log(LOG_WARNING, "Span %d: Could not find principle for RETRIEVE_REJECT\n",
+			pri->span);
+		return;
+	}
+	chanpos = pri_fixup_principle(pri, chanpos, ev->retrieve_rej.call);
+	if (chanpos < 0) {
+		/* Should never happen. */
+		sig_pri_kill_call(pri, ev->retrieve_rej.call, PRI_CAUSE_NORMAL_TEMPORARY_FAILURE);
+		return;
+	}
+
+	ast_debug(1, "Span %d: RETRIEVE_REJECT cause: %d(%s)\n", pri->span,
+		ev->retrieve_rej.cause, pri_cause2str(ev->retrieve_rej.cause));
+
+	sig_pri_lock_private(pri->pvts[chanpos]);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_rej.channel,
+		ev->retrieve_rej.subcmds, ev->retrieve_rej.call);
+	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
+		SIG_PRI_MOH_EVENT_RETRIEVE_REJ);
+	sig_pri_unlock_private(pri->pvts[chanpos]);
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 
@@ -4392,8 +5229,8 @@ static void *pri_dchannel(void *vpri)
 
 		if (e) {
 			if (pri->debug) {
-				ast_verbose("Span: %d Processing event: %s\n",
-					pri->span, pri_event2str(e->e));
+				ast_verbose("Span: %d Processing event: %s(%d)\n",
+					pri->span, pri_event2str(e->e), e->e);
 			}
 
 			if (e->e != PRI_EVENT_DCHAN_DOWN) {
@@ -5775,12 +6612,14 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 #if defined(HAVE_PRI_CALL_HOLD)
 			case PRI_EVENT_HOLD_ACK:
-				ast_debug(1, "Event: HOLD_ACK\n");
+				/* We should not be getting any CIS calls with this message type. */
+				sig_pri_handle_hold_ack(pri, e);
 				break;
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 #if defined(HAVE_PRI_CALL_HOLD)
 			case PRI_EVENT_HOLD_REJ:
-				ast_debug(1, "Event: HOLD_REJ\n");
+				/* We should not be getting any CIS calls with this message type. */
+				sig_pri_handle_hold_rej(pri, e);
 				break;
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 #if defined(HAVE_PRI_CALL_HOLD)
@@ -5791,16 +6630,19 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 #if defined(HAVE_PRI_CALL_HOLD)
 			case PRI_EVENT_RETRIEVE_ACK:
-				ast_debug(1, "Event: RETRIEVE_ACK\n");
+				/* We should not be getting any CIS calls with this message type. */
+				sig_pri_handle_retrieve_ack(pri, e);
 				break;
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 #if defined(HAVE_PRI_CALL_HOLD)
 			case PRI_EVENT_RETRIEVE_REJ:
-				ast_debug(1, "Event: RETRIEVE_REJ\n");
+				/* We should not be getting any CIS calls with this message type. */
+				sig_pri_handle_retrieve_rej(pri, e);
 				break;
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 			default:
-				ast_debug(1, "Event: %d\n", e->e);
+				ast_debug(1, "Span: %d Unhandled event: %s(%d)\n",
+					pri->span, pri_event2str(e->e), e->e);
 				break;
 			}
 		}
@@ -5858,6 +6700,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 
 	/* Make sure we have a call (or REALLY have a call in the case of a PRI) */
 	if (!pri_grab(p, p->pri)) {
+		sig_pri_moh_fsm_event(ast, p, SIG_PRI_MOH_EVENT_RESET);
 		if (p->call) {
 			if (p->alreadyhungup) {
 				ast_log(LOG_DEBUG, "Already hungup...  Calling hangup once, and clearing call\n");
@@ -6546,24 +7389,31 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		}
 		break;
 	case AST_CONTROL_HOLD:
-		if (p->pri && !strcasecmp(p->mohinterpret, "passthrough")) {
+		ast_copy_string(p->moh_suggested, S_OR(data, ""), sizeof(p->moh_suggested));
+		if (p->pri) {
 			if (!pri_grab(p, p->pri)) {
-				res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_HOLD);
+				sig_pri_moh_fsm_event(chan, p, SIG_PRI_MOH_EVENT_HOLD);
 				pri_rel(p->pri);
 			} else {
 				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->pri->span);
 			}
-		} else
+		} else {
+			/* Something is wrong here.  A PRI channel without the pri pointer? */
 			ast_moh_start(chan, data, p->mohinterpret);
+		}
 		break;
 	case AST_CONTROL_UNHOLD:
-		if (p->pri && !strcasecmp(p->mohinterpret, "passthrough")) {
+		if (p->pri) {
 			if (!pri_grab(p, p->pri)) {
-				res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_RETRIEVAL);
+				sig_pri_moh_fsm_event(chan, p, SIG_PRI_MOH_EVENT_UNHOLD);
 				pri_rel(p->pri);
+			} else {
+				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->pri->span);
 			}
-		} else
+		} else {
+			/* Something is wrong here.  A PRI channel without the pri pointer? */
 			ast_moh_stop(chan);
+		}
 		break;
 	case AST_CONTROL_SRCUPDATE:
 		res = 0;

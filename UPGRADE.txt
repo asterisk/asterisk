@@ -7,7 +7,7 @@
 === versions listed below. These changes may require that
 === you modify your configuration files, dialplan or (in
 === some cases) source code if you have your own Asterisk
-=== modules or patches. These files also includes advance
+=== modules or patches. These files also include advance
 === notice of any functionality that has been marked as
 === 'deprecated' and may be removed in a future release,
 === along with the suggested replacement functionality.
@@ -30,6 +30,9 @@ Gtalk:
  - The default value for 'context' and 'parkinglots' in gtalk.conf has
    been changed to 'default', previously they were empty.
 
+chan_dahdi:
+ - The mohinterpret=passthrough setting is deprecated in favor of
+   moh_signaling=notify.
 
 ===========================================================
 ===========================================================

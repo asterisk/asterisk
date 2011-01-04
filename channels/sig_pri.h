@@ -83,6 +83,67 @@ enum sig_pri_law {
 	SIG_PRI_ALAW
 };
 
+enum sig_pri_moh_signaling {
+	/*! Generate MOH to the remote party. */
+	SIG_PRI_MOH_SIGNALING_MOH,
+	/*! Send hold notification signaling to the remote party. */
+	SIG_PRI_MOH_SIGNALING_NOTIFY,
+#if defined(HAVE_PRI_CALL_HOLD)
+	/*! Use HOLD/RETRIEVE signaling to release the B channel while on hold. */
+	SIG_PRI_MOH_SIGNALING_HOLD,
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+};
+
+enum sig_pri_moh_state {
+	/*! Bridged peer has not put us on hold. */
+	SIG_PRI_MOH_STATE_IDLE,
+	/*! Bridged peer has put us on hold and we were to notify the remote party. */
+	SIG_PRI_MOH_STATE_NOTIFY,
+	/*! Bridged peer has put us on hold and we were to play MOH or HOLD/RETRIEVE fallback. */
+	SIG_PRI_MOH_STATE_MOH,
+#if defined(HAVE_PRI_CALL_HOLD)
+	/*! Requesting to put channel on hold. */
+	SIG_PRI_MOH_STATE_HOLD_REQ,
+	/*! Trying to go on hold when bridged peer requested to unhold. */
+	SIG_PRI_MOH_STATE_PEND_UNHOLD,
+	/*! Channel is held. */
+	SIG_PRI_MOH_STATE_HOLD,
+	/*! Requesting to take channel out of hold. */
+	SIG_PRI_MOH_STATE_RETRIEVE_REQ,
+	/*! Trying to take channel out of hold when bridged peer requested to hold. */
+	SIG_PRI_MOH_STATE_PEND_HOLD,
+	/*! Failed to take the channel out of hold. No B channels were available? */
+	SIG_PRI_MOH_STATE_RETRIEVE_FAIL,
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+	/*! Number of MOH states.  Must be last in enum. */
+	SIG_PRI_MOH_STATE_NUM
+};
+
+enum sig_pri_moh_event {
+	/*! Reset the MOH state machine. (Because of hangup.) */
+	SIG_PRI_MOH_EVENT_RESET,
+	/*! Bridged peer placed this channel on hold. */
+	SIG_PRI_MOH_EVENT_HOLD,
+	/*! Bridged peer took this channel off hold. */
+	SIG_PRI_MOH_EVENT_UNHOLD,
+#if defined(HAVE_PRI_CALL_HOLD)
+	/*! The hold request was successfully acknowledged. */
+	SIG_PRI_MOH_EVENT_HOLD_ACK,
+	/*! The hold request was rejected. */
+	SIG_PRI_MOH_EVENT_HOLD_REJ,
+	/*! The unhold request was successfully acknowledged. */
+	SIG_PRI_MOH_EVENT_RETRIEVE_ACK,
+	/*! The unhold request was rejected. */
+	SIG_PRI_MOH_EVENT_RETRIEVE_REJ,
+	/*! The remote party took this channel off hold. */
+	SIG_PRI_MOH_EVENT_REMOTE_RETRIEVE_ACK,
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+
+	/*! Number of MOH events.  Must be last in enum. */
+	SIG_PRI_MOH_EVENT_NUM
+};
+
 struct sig_pri_span;
 
 struct sig_pri_callback {
@@ -201,6 +262,9 @@ struct sig_pri_chan {
 	/*! \brief Keypad digits that came in with the SETUP message. */
 	char keypad_digits[AST_MAX_EXTENSION];
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+	/*! Music class suggested with AST_CONTROL_HOLD. */
+	char moh_suggested[MAX_MUSICCLASS];
+	enum sig_pri_moh_state moh_state;
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 	struct pri_subcmd_aoc_e aoc_e;
@@ -330,6 +394,7 @@ struct sig_pri_span {
 	char localprefix[20];					/*!< area access code + area code ('0'+area code for european dialplans) */
 	char privateprefix[20];					/*!< for private dialplans */
 	char unknownprefix[20];					/*!< for unknown dialplans */
+	enum sig_pri_moh_signaling moh_signaling;
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
 #if defined(HAVE_PRI_MWI)
 	/*! \brief Active MWI mailboxes */

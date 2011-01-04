@@ -15,22 +15,29 @@
 Asterisk Manager Interface
 --------------------------
  * PeerStatus now includes Address and Port.
+ * Added Hold events for when the remote party puts the call on and off hold
+   for chan_dahdi ISDN channels.
 
 Asterisk HTTP Server
 --------------------------
  * The HTTP Server can bind to IPv6 addresses.
 
 CLI Changes
------------
+--------------------------
  * New 'gtalk show settings' command showing the current settings loaded from
    gtalk.conf.
  * The 'logger reload' command now supports an optional argument, specifying an
    alternate configuration file to use.
 
 CDR
----
+--------------------------
  * The filter option in cdr_adaptive_odbc now supports negating the argument,
    thus allowing records which do NOT match the specified filter.
+
+libpri channel driver (chan_dahdi) DAHDI changes
+--------------------------
+ * Added moh_signaling option to specify what to do when the channel's bridged
+   peer puts the ISDN channel on hold.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------

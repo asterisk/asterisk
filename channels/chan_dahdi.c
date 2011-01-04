@@ -12283,6 +12283,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						ast_copy_string(pris[span].pri.localprefix, conf->pri.pri.localprefix, sizeof(pris[span].pri.localprefix));
 						ast_copy_string(pris[span].pri.privateprefix, conf->pri.pri.privateprefix, sizeof(pris[span].pri.privateprefix));
 						ast_copy_string(pris[span].pri.unknownprefix, conf->pri.pri.unknownprefix, sizeof(pris[span].pri.unknownprefix));
+						pris[span].pri.moh_signaling = conf->pri.pri.moh_signaling;
 						pris[span].pri.resetinterval = conf->pri.pri.resetinterval;
 
 						for (x = 0; x < PRI_MAX_TIMERS; x++) {
@@ -17091,6 +17092,19 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "hold_disconnect_transfer")) {
 				confp->pri.pri.hold_disconnect_transfer = ast_true(v->value);
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
+			} else if (!strcasecmp(v->name, "moh_signaling")
+				|| !strcasecmp(v->name, "moh_signalling")) {
+				if (!strcasecmp(v->value, "moh")) {
+					confp->pri.pri.moh_signaling = SIG_PRI_MOH_SIGNALING_MOH;
+				} else if (!strcasecmp(v->value, "notify")) {
+					confp->pri.pri.moh_signaling = SIG_PRI_MOH_SIGNALING_NOTIFY;
+#if defined(HAVE_PRI_CALL_HOLD)
+				} else if (!strcasecmp(v->value, "hold")) {
+					confp->pri.pri.moh_signaling = SIG_PRI_MOH_SIGNALING_HOLD;
+#endif	/* defined(HAVE_PRI_CALL_HOLD) */
+				} else {
+					confp->pri.pri.moh_signaling = SIG_PRI_MOH_SIGNALING_MOH;
+				}
 #if defined(HAVE_PRI_CCSS)
 			} else if (!strcasecmp(v->name, "cc_ptmp_recall_mode")) {
 				if (!strcasecmp(v->value, "global")) {

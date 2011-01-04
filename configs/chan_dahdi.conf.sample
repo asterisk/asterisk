@@ -902,14 +902,21 @@ pickupgroup=1
 ;
 ;faxbuffers=>6,full
 ;
+; This option specifies what to do when the channel's bridged peer puts the
+; ISDN channel on hold.  Settable per logical ISDN span.
+; moh:          Generate music-on-hold to the remote party.
+; notify:       Send hold notification signaling to the remote party.
+;               For ETSI PTP and ETSI PTMP NT links.
+;               (The notify setting deprecates the mohinterpret=passthrough setting.)
+; hold:         Use HOLD/RETRIEVE signaling to release the B channel while on hold.
+;               For ETSI PTMP TE links.
+;
+;moh_signaling=moh
+;
 ; This option specifies a preference for which music on hold class this channel
 ; should listen to when put on hold if the music class has not been set on the
 ; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer
 ; channel putting this one on hold did not suggest a music class.
-;
-; If this option is set to "passthrough", then the hold message will always be
-; passed through as signalling instead of generating hold music locally. This
-; setting is only valid when used on a channel that uses digital signalling.
 ;
 ; This option may be set globally or on a per-channel basis.
 ;
