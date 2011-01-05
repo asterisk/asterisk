@@ -578,12 +578,11 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
 		} else if (obj->tx) {
 			ast_log(LOG_WARNING, "Failed to execute, but unable to reconnect, as we're transactional.\n");
 			break;
-		} else {
-			obj->up = 0;
-			ast_log(LOG_WARNING, "SQL Exec Direct failed.  Attempting a reconnect...\n");
-
-			odbc_obj_disconnect(obj);
-			odbc_obj_connect(obj);
+		} else if (attempt == 0) {
+			ast_log(LOG_WARNING, "SQL Execute error! Verifying connection to %s [%s]...\n", obj->parent->name, obj->parent->dsn);
+		}
+		if (!ast_odbc_sanity_check(obj)) {
+			break;
 		}
 	}
 
@@ -625,7 +624,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 					ast_log(LOG_WARNING, "SQL Execute error, but unable to reconnect, as we're transactional.\n");
 					break;
 				} else {
-					ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
+					ast_log(LOG_WARNING, "SQL Execute error %d! Verifying connection to %s [%s]...\n", res, obj->parent->name, obj->parent->dsn);
 					SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 					stmt = NULL;
 
@@ -634,7 +633,9 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 					 * While this isn't the best way to try to correct an error, this won't automatically
 					 * fail when the statement handle invalidates.
 					 */
-					ast_odbc_sanity_check(obj);
+					if (!ast_odbc_sanity_check(obj)) {
+						break;
+					}
 					continue;
 				}
 			} else {
