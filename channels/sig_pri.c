@@ -1078,6 +1078,19 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
 	pri_queue_frame(pri, chanpos, &f);
 }
 
+/*!
+ * \internal
+ * \brief Find the private structure for the libpri call.
+ *
+ * \param pri Span controller structure.
+ * \param channel LibPRI encoded channel ID.
+ * \param call LibPRI opaque call pointer.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval array-index into private pointer array on success.
+ * \retval -1 on error.
+ */
 static int pri_find_principle(struct sig_pri_span *pri, int channel, q931_call *call)
 {
 	int x;
@@ -1132,6 +1145,19 @@ static int pri_find_principle(struct sig_pri_span *pri, int channel, q931_call *
 	return principle;
 }
 
+/*!
+ * \internal
+ * \brief Fixup the private structure associated with the libpri call.
+ *
+ * \param pri Span controller structure.
+ * \param principle Array-index into private array to move call to if not already there.
+ * \param call LibPRI opaque call pointer to find if need to move call.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval principle on success.
+ * \retval -1 on error.
+ */
 static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_call *call)
 {
 	int x;
@@ -1162,12 +1188,24 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 		new_chan = pri->pvts[principle];
 		old_chan = pri->pvts[x];
 
-		ast_verb(3, "Moving call from channel %d to channel %d\n",
+		/* Get locks to safely move to the new private structure. */
+		sig_pri_lock_private(old_chan);
+		sig_pri_lock_owner(pri, x);
+		sig_pri_lock_private(new_chan);
+
+		ast_verb(3, "Moving call (%s) from channel %d to %d.\n",
+			old_chan->owner ? old_chan->owner->name : "",
 			old_chan->channel, new_chan->channel);
 		if (new_chan->owner) {
 			ast_log(LOG_WARNING,
-				"Can't fix up channel from %d to %d because %d is already in use\n",
-				old_chan->channel, new_chan->channel, new_chan->channel);
+				"Can't move call (%s) from channel %d to %d.  It is already in use.\n",
+				old_chan->owner ? old_chan->owner->name : "",
+				old_chan->channel, new_chan->channel);
+			sig_pri_unlock_private(new_chan);
+			if (old_chan->owner) {
+				ast_channel_unlock(old_chan->owner);
+			}
+			sig_pri_unlock_private(old_chan);
 			return -1;
 		}
 
@@ -1244,7 +1282,21 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 			/* Become a member of the old channel span/trunk-group. */
 			new_chan->logicalspan = old_chan->logicalspan;
 			new_chan->mastertrunkgroup = old_chan->mastertrunkgroup;
+		} else if (old_chan->no_b_channel) {
+			/*
+			 * We are transitioning from a held/call-waiting channel to a
+			 * real channel so we need to make sure that the media path is
+			 * open.  (Needed especially if the channel is natively
+			 * bridged.)
+			 */
+			sig_pri_open_media(new_chan);
 		}
+
+		sig_pri_unlock_private(old_chan);
+		if (new_chan->owner) {
+			ast_channel_unlock(new_chan->owner);
+		}
+		sig_pri_unlock_private(new_chan);
 
 		return principle;
 	}
