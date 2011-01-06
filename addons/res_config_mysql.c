@@ -978,7 +978,6 @@ static struct ast_config *config_mysql(const char *database, const char *table, 
 				if (!ast_config_internal_load(row[2], cfg, config_flags, "", who_asked)) {
 					mysql_free_result(result);
 					release_database(dbh);
-					ast_config_destroy(cfg);
 					return NULL;
 				}
 				continue;
