@@ -50,6 +50,122 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 
+/*** DOCUMENTATION
+	<function name="CURL" language="en_US">
+		<synopsis>
+			Retrieve content from a remote web or ftp server
+		</synopsis>
+		<syntax>
+			<parameter name="url" required="true" />
+			<parameter name="post-data">
+				<para>If specified, an <literal>HTTP POST</literal> will be
+				performed with the content of
+				<replaceable>post-data</replaceable>, instead of an
+				<literal>HTTP GET</literal> (default).</para>
+			</parameter>
+		</syntax>
+		<description />
+		<see-also>
+			<ref type="function">CURLOPT</ref>
+		</see-also>
+	</function>
+	<function name="CURLOPT" language="en_US">
+		<synopsis>
+			Sets various options for future invocations of <literal>CURL</literal>.
+		</synopsis>
+		<syntax>
+			<parameter name="key" required="yes">
+				<enumlist>
+					<enum name="cookie">
+						<para>A cookie to send with the request.  Multiple
+						cookies are supported.</para>
+					</enum>
+					<enum name="conntimeout">
+						<para>Number of seconds to wait for a connection to succeed</para>
+					</enum>
+					<enum name="dnstimeout">
+						<para>Number of seconds to wait for DNS to be resolved</para>
+					</enum>
+					<enum name="ftptext">
+						<para>For FTP URIs, force a text transfer (boolean)</para>
+					</enum>
+					<enum name="ftptimeout">
+						<para>For FTP URIs, number of seconds to wait for a
+						server response</para>
+					</enum>
+					<enum name="header">
+						<para>Include header information in the result
+						(boolean)</para>
+					</enum>
+					<enum name="httptimeout">
+						<para>For HTTP(S) URIs, number of seconds to wait for a
+						server response</para>
+					</enum>
+					<enum name="maxredirs">
+						<para>Maximum number of redirects to follow</para>
+					</enum>
+					<enum name="proxy">
+						<para>Hostname or IP address to use as a proxy server</para>
+					</enum>
+					<enum name="proxytype">
+						<para>Type of <literal>proxy</literal></para>
+						<enumlist>
+							<enum name="http" />
+							<enum name="socks4" />
+							<enum name="socks5" />
+						</enumlist>
+					</enum>
+					<enum name="proxyport">
+						<para>Port number of the <literal>proxy</literal></para>
+					</enum>
+					<enum name="proxyuserpwd">
+						<para>A <replaceable>username</replaceable><literal>:</literal><replaceable>password</replaceable>
+						combination to use for authenticating requests through a
+						<literal>proxy</literal></para>
+					</enum>
+					<enum name="referer">
+						<para>Referer URL to use for the request</para>
+					</enum>
+					<enum name="useragent">
+						<para>UserAgent string to use for the request</para>
+					</enum>
+					<enum name="userpwd">
+						<para>A <replaceable>username</replaceable><literal>:</literal><replaceable>password</replaceable>
+						to use for authentication when the server response to
+						an initial request indicates a 401 status code.</para>
+					</enum>
+					<enum name="ssl_verifypeer">
+						<para>Whether to verify the server certificate against
+						a list of known root certificate authorities (boolean).</para>
+					</enum>
+					<enum name="hashcompat">
+						<para>Assuming the responses will be in <literal>key1=value1&amp;key2=value2</literal>
+						format, reformat the response such that it can be used
+						by the <literal>HASH</literal> function.</para>
+						<enumlist>
+							<enum name="yes" />
+							<enum name="no" />
+							<enum name="legacy">
+								<para>Also translate <literal>+<literal> to the
+								space character, in violation of current RFC
+								standards.</para>
+							</enum>
+						</enumlist>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Options may be set globally or per channel.  Per-channel
+			settings will override global settings.</para>
+		</description>
+		<see-also>
+			<ref type="function">CURL</ref>
+			<ref type="function">HASH</ref>
+		</see-also>
+	</function>
+ ***/
+
 #define CURLVERSION_ATLEAST(a,b,c) \
 	((LIBCURL_VERSION_MAJOR > (a)) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR > (b))) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR == (b)) && (LIBCURL_VERSION_PATCH >= (c))))
 
@@ -89,6 +205,12 @@ enum optiontype {
 	OT_INTEGER_MS,
 	OT_STRING,
 	OT_ENUM,
+};
+
+enum hashcompat {
+	HASHCOMPAT_NO = 0,
+	HASHCOMPAT_YES,
+	HASHCOMPAT_LEGACY,
 };
 
 static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype *ot)
@@ -153,7 +275,7 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 		*ot = OT_BOOLEAN;
 	} else if (!strcasecmp(name, "hashcompat")) {
 		*key = CURLOPT_SPECIAL_HASHCOMPAT;
-		*ot = OT_BOOLEAN;
+		*ot = OT_ENUM;
 	} else {
 		return -1;
 	}
@@ -241,6 +363,10 @@ static int acf_curlopt_write(struct ast_channel *chan, const char *cmd, char *na
 
 				if ((new = ast_calloc(1, sizeof(*new)))) {
 					new->value = (void *)ptype;
+				}
+			} else if (key == CURLOPT_SPECIAL_HASHCOMPAT) {
+				if ((new = ast_calloc(1, sizeof(*new)))) {
+					new->value = (void *) (long) (!strcasecmp(value, "legacy") ? HASHCOMPAT_LEGACY : ast_true(value) ? HASHCOMPAT_YES : HASHCOMPAT_NO);
 				}
 			} else {
 				/* Highly unlikely */
@@ -333,51 +459,45 @@ static int acf_curlopt_helper(struct ast_channel *chan, const char *cmd, char *d
 						ast_str_set(bufstr, 0, "%s", (char *) cur->value);
 					}
 				} else if (key == CURLOPT_PROXYTYPE) {
+					const char *strval = "unknown";
 					if (0) {
 #if CURLVERSION_ATLEAST(7,15,2)
 					} else if ((long)cur->value == CURLPROXY_SOCKS4) {
-						if (buf) {
-							ast_copy_string(buf, "socks4", len);
-						} else {
-							ast_str_set(bufstr, 0, "socks4");
-						}
+						strval = "socks4";
 #endif
 #if CURLVERSION_ATLEAST(7,18,0)
 					} else if ((long)cur->value == CURLPROXY_SOCKS4A) {
-						if (buf) {
-							ast_copy_string(buf, "socks4a", len);
-						} else {
-							ast_str_set(bufstr, 0, "socks4a");
-						}
+						strval = "socks4a";
 #endif
 					} else if ((long)cur->value == CURLPROXY_SOCKS5) {
-						if (buf) {
-							ast_copy_string(buf, "socks5", len);
-						} else {
-							ast_str_set(bufstr, 0, "socks5");
-						}
+						strval = "socks5";
 #if CURLVERSION_ATLEAST(7,18,0)
 					} else if ((long)cur->value == CURLPROXY_SOCKS5_HOSTNAME) {
-						if (buf) {
-							ast_copy_string(buf, "socks5hostname", len);
-						} else {
-							ast_str_set(bufstr, 0, "socks5hostname");
-						}
+						strval = "socks5hostname";
 #endif
 #if CURLVERSION_ATLEAST(7,10,0)
 					} else if ((long)cur->value == CURLPROXY_HTTP) {
-						if (buf) {
-							ast_copy_string(buf, "http", len);
-						} else {
-							ast_str_set(bufstr, 0, "http");
-						}
+						strval = "http";
 #endif
+					}
+					if (buf) {
+						ast_copy_string(buf, strval, len);
 					} else {
-						if (buf) {
-							ast_copy_string(buf, "unknown", len);
-						} else {
-							ast_str_set(bufstr, 0, "unknown");
-						}
+						ast_str_set(bufstr, 0, "%s", strval);
+					}
+				} else if (key == CURLOPT_SPECIAL_HASHCOMPAT) {
+					const char *strval = "unknown";
+					if ((long) cur->value == HASHCOMPAT_LEGACY) {
+						strval = "legacy";
+					} else if ((long) cur->value == HASHCOMPAT_YES) {
+						strval = "yes";
+					} else if ((long) cur->value == HASHCOMPAT_NO) {
+						strval = "no";
+					}
+					if (buf) {
+						ast_copy_string(buf, strval, len);
+					} else {
+						ast_str_set(bufstr, 0, "%s", strval);
 					}
 				}
 				break;
@@ -482,7 +602,7 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 	AST_LIST_LOCK(&global_curl_info);
 	AST_LIST_TRAVERSE(&global_curl_info, cur, list) {
 		if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
-			hashcompat = (cur->value != NULL) ? 1 : 0;
+			hashcompat = (long) cur->value;
 		} else {
 			curl_easy_setopt(*curl, cur->key, cur->value);
 		}
@@ -493,7 +613,7 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 		AST_LIST_LOCK(list);
 		AST_LIST_TRAVERSE(list, cur, list) {
 			if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
-				hashcompat = (cur->value != NULL) ? 1 : 0;
+				hashcompat = (long) cur->value;
 			} else {
 				curl_easy_setopt(*curl, cur->key, cur->value);
 			}
@@ -608,6 +728,7 @@ static struct ast_custom_function acf_curlopt = {
 "  userpwd        - A <user>:<pass> to use for authentication\n"
 "  ssl_verifypeer - Whether to verify the peer certificate (boolean)\n"
 "  hashcompat     - Result data will be compatible for use with HASH()\n"
+"                 - if value is \"legacy\", will translate '+' to ' '\n"
 "",
 	.read = acf_curlopt_read,
 	.read2 = acf_curlopt_read2,
