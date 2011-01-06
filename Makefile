@@ -205,6 +205,7 @@ ifeq ($(findstring -Wall,$(_ASTCFLAGS) $(ASTCFLAGS)),)
 endif
 
 _ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
+ADDL_TARGETS=
 
 ifeq ($(AST_DEVMODE),yes)
   _ASTCFLAGS+=-Werror
@@ -214,6 +215,7 @@ ifeq ($(AST_DEVMODE),yes)
   _ASTCFLAGS+=-Wundef 
   _ASTCFLAGS+=-Wmissing-format-attribute
   _ASTCFLAGS+=-Wformat=2
+  ADDL_TARGETS+=validate-docs
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
@@ -336,7 +338,7 @@ all: _all
 	@echo " +               $(mK) install               +"  
 	@echo " +-------------------------------------------+"  
 
-_all: cleantest makeopts $(SUBDIRS) doc/core-en_US.xml
+_all: cleantest makeopts $(SUBDIRS) doc/core-en_US.xml $(ADDL_TARGETS)
 
 makeopts: configure
 	@echo "****"

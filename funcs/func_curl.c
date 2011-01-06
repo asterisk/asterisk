@@ -71,7 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</function>
 	<function name="CURLOPT" language="en_US">
 		<synopsis>
-			Sets various options for future invocations of <literal>CURL</literal>.
+			Sets various options for future invocations of CURL.
 		</synopsis>
 		<syntax>
 			<parameter name="key" required="yes">
@@ -146,7 +146,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 							<enum name="yes" />
 							<enum name="no" />
 							<enum name="legacy">
-								<para>Also translate <literal>+<literal> to the
+								<para>Also translate <literal>+</literal> to the
 								space character, in violation of current RFC
 								standards.</para>
 							</enum>
