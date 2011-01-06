@@ -1,18 +1,20 @@
 #!/bin/sh
 # vim:textwidth=80:tabstop=4:shiftwidth=4:smartindent:autoindent
 
-CLIARGS="$*"				# Grab any args passed to safe_asterisk
-TTY=9						# TTY (if you want one) for Asterisk to run on
-CONSOLE=yes					# Whether or not you want a console
-#NOTIFY=ben@alkaloid.net	# Who to notify about crashes
-#EXEC=/path/to/somescript	# Run this command if Asterisk crashes
-#LOGFILE=/path/to/logfile	# Where to place the normal logfile (disabled if blank)
-#SYSLOG=local0				# Which syslog facility to use (disabled if blank)
-MACHINE=`hostname`			# To specify which machine has crashed when getting the mail
-DUMPDROP=/tmp
-SLEEPSECS=4
 ASTSBINDIR=__ASTERISK_SBIN_DIR__
 ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
+ASTVARLOGDIR=__ASTERISK_LOG_DIR__
+
+CLIARGS="$*"					# Grab any args passed to safe_asterisk
+TTY=9						# TTY (if you want one) for Asterisk to run on
+CONSOLE=yes					# Whether or not you want a console
+#NOTIFY=root@localhost.localdomain		# Who to notify about crashes
+#EXEC=/path/to/somescript			# Run this command if Asterisk crashes
+#LOGFILE=${ASTVARLOGDIR}/safe_asterisk.log	# Where to place the normal logfile (disabled if blank)
+#SYSLOG=local0					# Which syslog facility to use (disabled if blank)
+MACHINE=`hostname`				# To specify which machine has crashed when getting the mail
+DUMPDROP=/tmp
+SLEEPSECS=4
 ASTPIDFILE=${ASTVARRUNDIR}/asterisk.pid
 
 # comment this line out to have this script _not_ kill all mpg123 processes when
