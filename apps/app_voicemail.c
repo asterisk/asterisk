@@ -5981,7 +5981,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		}
 		if (res == '0') {
 			goto transfer;
-		} else if (res > 0)
+		} else if (res > 0 && res != 't')
 			res = 0;
 
 		if (duration < vmu->minsecs)
@@ -10407,6 +10407,11 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 	}
 
 	res = leave_voicemail(chan, args.argv0, &leave_options);
+	if (res == 't') {
+		ast_play_and_wait(chan, "vm-goodbye");
+		res = 0;
+	}
+
 	if (res == OPERATOR_EXIT) {
 		res = 0;
 	}
@@ -13189,10 +13194,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		/* Hang up or timeout, so delete the recording. */
 		ast_filedelete(tempfile, NULL);
 	}
-	if (cmd == 't')
-		cmd = 0;
-	else if (outsidecaller) /* won't play if time out occurs */
+
+	if (cmd != 't' && outsidecaller)
 		ast_play_and_wait(chan, "vm-goodbye");
+
 	return cmd;
 }
 
