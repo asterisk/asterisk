@@ -5337,7 +5337,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	return 0;
 }
 
-static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int noforward, signed char record_gain)
+static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int is_new_message, signed char record_gain)
 {
 #ifdef IMAP_STORAGE
 	int todircount=0;
@@ -5452,8 +5452,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* start optimistic */
 		valid_extensions = 1;
 		while (s) {
-			/* Don't forward to ourselves but allow leaving a message for ourselves (noforward == 1).  find_user is going to malloc since we have a NULL as first argument */
-			if ((noforward == 1 || strcmp(s,sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
+			/* Don't forward to ourselves but allow leaving a message for ourselves (is_new_message == 1).  find_user is going to malloc since we have a NULL as first argument */
+			if ((is_new_message == 1 || strcmp(s,sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
 				int oldmsgs;
 				int newmsgs;
 				int capacity;
@@ -5493,7 +5493,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	/* check if we're clear to proceed */
 	if (AST_LIST_EMPTY(&extensions) || !valid_extensions)
 		return res;
-	if (noforward == 1) {
+	if (is_new_message == 1) {
 		struct leave_vm_options leave_options;
 		char mailbox[AST_MAX_EXTENSION * 2 + 2];
 		/* Make sure that context doesn't get set as a literal "(null)" (or else find_user won't find it) */
