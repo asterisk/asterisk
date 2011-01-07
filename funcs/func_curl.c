@@ -654,6 +654,22 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 				if (!piece) {
 					piece = "";
 				}
+				/* Do this before the decode, because if something has encoded
+				 * a literal plus-sign, we don't want to translate that to a
+				 * space. */
+				if (hashcompat == HASHCOMPAT_LEGACY) {
+					int i;
+					for (i = 0; name[i]; i++) {
+						if (name[i] == '+') {
+							name[i] = ' ';
+						}
+					}
+					for (i = 0; piece[i]; i++) {
+						if (piece[i] == '+') {
+							piece[i] = ' ';
+						}
+					}
+				}
 				ast_uri_decode(piece);
 				ast_uri_decode(name);
 				ast_str_append(&fields, 0, "%s%s", rowcount ? "," : "", name);
