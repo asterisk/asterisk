@@ -4510,7 +4510,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		}
 		if (res == '0') {
 			goto transfer;
-		} else if (res > 0)
+		} else if (res > 0 && res != 't')
 			res = 0;
 
 		if (duration < vmminmessage)
@@ -5337,7 +5337,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	return 0;
 }
 
-static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int flag, signed char record_gain)
+static int forward_message(struct ast_channel *chan, char *context, struct vm_state *vms, struct ast_vm_user *sender, char *fmt, int noforward, signed char record_gain)
 {
 #ifdef IMAP_STORAGE
 	int todircount=0;
@@ -5452,8 +5452,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* start optimistic */
 		valid_extensions = 1;
 		while (s) {
-			/* Don't forward to ourselves but allow leaving a message for ourselves (flag == 1).  find_user is going to malloc since we have a NULL as first argument */
-			if ((flag == 1 || strcmp(s,sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
+			/* Don't forward to ourselves but allow leaving a message for ourselves (noforward == 1).  find_user is going to malloc since we have a NULL as first argument */
+			if ((noforward == 1 || strcmp(s,sender->mailbox)) && (receiver = find_user(NULL, context, s))) {
 				int oldmsgs;
 				int newmsgs;
 				int capacity;
@@ -5493,7 +5493,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	/* check if we're clear to proceed */
 	if (AST_LIST_EMPTY(&extensions) || !valid_extensions)
 		return res;
-	if (flag==1) {
+	if (noforward == 1) {
 		struct leave_vm_options leave_options;
 		char mailbox[AST_MAX_EXTENSION * 2 + 2];
 		/* Make sure that context doesn't get set as a literal "(null)" (or else find_user won't find it) */
@@ -8246,6 +8246,11 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	}
 
 	res = leave_voicemail(chan, args.argv0, &leave_options);
+	if (res == 't') {
+		ast_play_and_wait(chan, "vm-goodbye");
+		res = 0;
+	}
+
 	if (res == OPERATOR_EXIT) {
 		res = 0;
 	}
@@ -9651,10 +9656,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		/* Hang up or timeout, so delete the recording. */
 		ast_filedelete(tempfile, NULL);
 	}
-	if (cmd == 't')
-		cmd = 0;
-	else if (outsidecaller) /* won't play if time out occurs */
+
+	if (cmd != 't' && outsidecaller)
 		ast_play_and_wait(chan, "vm-goodbye");
+
 	return cmd;
 }
 
