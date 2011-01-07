@@ -5007,12 +5007,20 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	recipmsgnum = last_message_index(recip, todir) + 1;
 	if (recipmsgnum < recip->maxmsg - (imbox ? 0 : inprocess_count(vmu->mailbox, vmu->context, 0))) {
 		make_file(topath, sizeof(topath), todir, recipmsgnum);
-		/* If we are prepending a message for ODBC, then the message already
-		 * exists in the database, but we want to force copying from the
-		 * filesystem (since only the FS contains the prepend). */
-		copy_plain_file(frompath, topath);
-		STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL, NULL);
-		vm_delete(topath);
+#ifndef ODBC_STORAGE
+		if (EXISTS(fromdir, msgnum, frompath, chan->language)) {	
+			COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
+		} else {
+#endif
+			/* If we are prepending a message for ODBC, then the message already
+			 * exists in the database, but we want to force copying from the
+			 * filesystem (since only the FS contains the prepend). */
+			copy_plain_file(frompath, topath);
+			STORE(todir, recip->mailbox, recip->context, recipmsgnum, chan, recip, fmt, duration, NULL, NULL);
+			vm_delete(topath);
+#ifndef ODBC_STORAGE
+		}
+#endif
 	} else {
 		ast_log(AST_LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 		res = -1;
