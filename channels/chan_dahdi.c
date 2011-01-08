@@ -12773,6 +12773,11 @@ static int is_group_or_channel_match(struct dahdi_pvt *p, int span, ast_group_t 
 		if (!p->pri || p->pri->span != span) {
 			return 0;
 		}
+		if (!groupmatch && channelmatch == -1) {
+			/* Match any group since it only needs to be on the PRI span. */
+			*groupmatched = 1;
+			return 1;
+		}
 	}
 #endif	/* defined(HAVE_PRI) */
 	/* check group matching */
@@ -13083,11 +13088,14 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	 * data is ---v
 	 * Dial(DAHDI/pseudo[/extension[/options]])
 	 * Dial(DAHDI/<channel#>[c|r<cadance#>|d][/extension[/options]])
-	 * Dial(DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]])
 	 * Dial(DAHDI/<subdir>!<channel#>[c|r<cadance#>|d][/extension[/options]])
+	 * Dial(DAHDI/i<span>[/extension[/options]])
+	 * Dial(DAHDI/[i<span>-](g|G|r|R)<group#(0-63)>[c|r<cadance#>|d][/extension[/options]])
 	 *
 	 * i - ISDN span channel restriction.
 	 *     Used by CC to ensure that the CC recall goes out the same span.
+	 *     Also to make ISDN channel names dialable when the sequence number
+	 *     is stripped off.  (Used by DTMF attended transfer feature.)
 	 *
 	 * g - channel group allocation search forward
 	 * G - channel group allocation search backward
@@ -13136,8 +13144,8 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 		/* Remove the ISDN span channel restriction specifier. */
 		s = strchr(args.group, '-');
 		if (!s) {
-			ast_log(LOG_WARNING, "Bad ISDN span format for data %s\n", data);
-			return NULL;
+			/* Search all groups since we are ISDN span restricted. */
+			return iflist;
 		}
 		args.group = s + 1;
 		res = 0;
