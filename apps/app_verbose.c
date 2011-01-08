@@ -57,7 +57,7 @@ static char *app_log = "Log";
 			Send arbitrary text to a selected log level.
 		</synopsis>
 		<syntax>
-			<parameter name="level">
+			<parameter name="level" required="true">
 				<para>Level must be one of <literal>ERROR</literal>, <literal>WARNING</literal>, <literal>NOTICE</literal>,
 				<literal>DEBUG</literal>, <literal>VERBOSE</literal> or <literal>DTMF</literal>.</para>	
 			</parameter>
