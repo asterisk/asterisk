@@ -10925,7 +10925,7 @@ if test "${with_sounds_cache+set}" = set; then :
 		;;
 	*)
 		if test "x${withval}" = "x"; then
-			SOUNDS_CACHE_DIR="${HOME}/.asterisk_sounds_cache"
+			:
 		else
 			SOUNDS_CACHE_DIR="${withval}"
 		fi
@@ -10933,7 +10933,7 @@ if test "${with_sounds_cache+set}" = set; then :
 	esac
 
 else
-  SOUNDS_CACHE_DIR="${HOME}/.asterisk_sounds_cache"
+  :
 fi
 
 
