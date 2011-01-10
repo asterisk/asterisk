@@ -367,14 +367,14 @@ uint64_t ntohll(uint64_t net64)
 	} number;
 	number.u = net64;
 	return
-		(((uint64_t) number.c[0]) <<  0) |
-		(((uint64_t) number.c[1]) <<  8) |
-		(((uint64_t) number.c[2]) << 16) |
-		(((uint64_t) number.c[3]) << 24) |
-		(((uint64_t) number.c[4]) << 32) |
-		(((uint64_t) number.c[5]) << 40) |
-		(((uint64_t) number.c[6]) << 48) |
-		(((uint64_t) number.c[7]) << 56);
+		(((uint64_t) number.c[0]) << 56) |
+		(((uint64_t) number.c[1]) << 48) |
+		(((uint64_t) number.c[2]) << 40) |
+		(((uint64_t) number.c[3]) << 32) |
+		(((uint64_t) number.c[4]) << 24) |
+		(((uint64_t) number.c[5]) << 16) |
+		(((uint64_t) number.c[6]) <<  8) |
+		(((uint64_t) number.c[7]) <<  0);
 #else
 	#error "Unknown byte order"
 #endif
@@ -393,14 +393,14 @@ uint64_t htonll(uint64_t host64)
 	} number;
 	number.u = host64;
 	return
-		(((uint64_t) number.c[0]) <<  0) |
-		(((uint64_t) number.c[1]) <<  8) |
-		(((uint64_t) number.c[2]) << 16) |
-		(((uint64_t) number.c[3]) << 24) |
-		(((uint64_t) number.c[4]) << 32) |
-		(((uint64_t) number.c[5]) << 40) |
-		(((uint64_t) number.c[6]) << 48) |
-		(((uint64_t) number.c[7]) << 56);
+		(((uint64_t) number.c[0]) << 56) |
+		(((uint64_t) number.c[1]) << 48) |
+		(((uint64_t) number.c[2]) << 40) |
+		(((uint64_t) number.c[3]) << 32) |
+		(((uint64_t) number.c[4]) << 24) |
+		(((uint64_t) number.c[5]) << 16) |
+		(((uint64_t) number.c[6]) <<  8) |
+		(((uint64_t) number.c[7]) <<  0);
 #else
 	#error "Unknown byte order"
 #endif
