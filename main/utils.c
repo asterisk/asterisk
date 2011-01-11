@@ -384,33 +384,32 @@ static void base64_init(void)
 char *ast_uri_encode(const char *string, char *outbuf, int buflen, int do_special_char)
 {
 	const char *ptr  = string;	/* Start with the string */
-	char *out = NULL;
-	char *buf = NULL;
+	char *out = outbuf;
 	const char *mark = "-_.!~*'()"; /* no encode set, RFC 2396 section 2.3, RFC 3261 sec 25 */
-	ast_copy_string(outbuf, string, buflen);
 
-	while (*ptr) {
+	while (*ptr && out - outbuf < buflen - 1) {
 		if ((const signed char) *ptr < 32 || *ptr == 0x7f || *ptr == '%' ||
 				(do_special_char &&
 				!(*ptr >= '0' && *ptr <= '9') &&      /* num */
 				!(*ptr >= 'A' && *ptr <= 'Z') &&      /* ALPHA */
 				!(*ptr >= 'a' && *ptr <= 'z') &&      /* alpha */
 				!strchr(mark, *ptr))) {               /* mark set */
-
-			/* Oops, we need to start working here */
-			if (!buf) {
-				buf = outbuf;
-				out = buf + (ptr - string) ;	/* Set output ptr */
+			if (out - outbuf >= buflen - 3) {
+				break;
 			}
+
 			out += sprintf(out, "%%%02X", (unsigned char) *ptr);
-		} else if (buf) {
+		} else {
 			*out = *ptr;	/* Continue copying the string */
 			out++;
 		}
 		ptr++;
 	}
-	if (buf)
+
+	if (buflen) {
 		*out = '\0';
+	}
+
 	return outbuf;
 }
 
