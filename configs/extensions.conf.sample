@@ -456,7 +456,7 @@ exten => _s-.,1,NoOp
 ; Standard extension subroutine:
 ;   ${EXTEN} - Extension
 ;   ${ARG1} - Device(s) to ring
-;   ${ARG2} - Optional context in Voicemail (if empty, then "default")
+;   ${ARG2} - Optional context in Voicemail
 ;
 ; Note that the current version will drop through to the next priority in the
 ; case of their pressing '#'.  This gives more flexibility in what do to next:
@@ -473,23 +473,19 @@ exten => _X.,50000(stdexten),NoOp(Start stdexten)
 exten => _X.,n,Set(LOCAL(ext)=${EXTEN})
 exten => _X.,n,Set(LOCAL(dev)=${ARG1})
 exten => _X.,n,Set(LOCAL(cntx)=${ARG2})
-
-exten => _X.,n,Set(LOCAL(mbx)="${ext}"$["${cntx}" ? "@${cntx}" :: ""])
-exten => _X.,n,Dial(${dev},20)			; Ring the interface, 20 seconds maximum
+exten => _X.,n,Set(LOCAL(mbx)=${ext}${IF($[!${ISNULL(${cntx})}]?@${cntx})})
+exten => _X.,n,Dial(${dev},20)				; Ring the interface, 20 seconds maximum
 exten => _X.,n,Goto(stdexten-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
 exten => stdexten-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
-exten => stdexten-NOANSWER,n,NoOp(Finish stdexten NOANSWER)
 exten => stdexten-NOANSWER,n,Return()			; If they press #, return to start
 
-exten => stdexten-BUSY,1,Voicemail(${mbx},b)
-						; If busy, send to voicemail w/ busy announce
-exten => stdexten-BUSY,n,NoOp(Finish stdexten BUSY)
+exten => stdexten-BUSY,1,Voicemail(${mbx},b)		; If busy, send to voicemail w/ busy announce
 exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
 exten => _stde[x]te[n]-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
 
-exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
+exten => a,1,VoicemailMain(${mbx})			; If they press *, send the user into VoicemailMain
 exten => a,n,Return()
 
 [stdPrivacyexten]
