@@ -386,28 +386,27 @@ char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserve
 	char *reserved = ";/?:@&=+$,# ";	/* Reserved chars */
 
  	const char *ptr  = string;	/* Start with the string */
-	char *out = NULL;
-	char *buf = NULL;
+	char *out = outbuf;
 
-	ast_copy_string(outbuf, string, buflen);
-
-	/* If there's no characters to convert, just go through and don't do anything */
-	while (*ptr) {
+	/* If there's no characters to convert, just go through and copy the string */
+	while (*ptr && out - outbuf < buflen - 1) {
 		if ((*ptr < 32) || (doreserved && strchr(reserved, *ptr))) {
-			/* Oops, we need to start working here */
-			if (!buf) {
-				buf = outbuf;
-				out = buf + (ptr - string) ;	/* Set output ptr */
+			if (out - outbuf >= buflen - 3) {
+				break;
 			}
+
 			out += sprintf(out, "%%%02x", (unsigned char) *ptr);
-		} else if (buf) {
-			*out = *ptr;	/* Continue copying the string */
+		} else {
+			*out = *ptr;	/* copy the character */
 			out++;
-		} 
+		}
 		ptr++;
 	}
-	if (buf)
+
+	if (buflen) {
 		*out = '\0';
+	}
+
 	return outbuf;
 }
 
