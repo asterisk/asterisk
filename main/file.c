@@ -290,8 +290,6 @@ static int exts_compare(const char *exts, const char *type)
 
 static void filestream_destructor(void *arg)
 {
-	char *cmd = NULL;
-	size_t size = 0;
 	struct ast_filestream *f = arg;
 
 	/* Stop a running stream if there is one */
