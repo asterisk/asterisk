@@ -1,3 +1,40 @@
+2011-01-12  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.2 Released.
+
+	* Merge in a change in the configure script to fix an issue for
+	  Debian packagers.
+
+	  ------------------------------------------------------------------------
+	  r301221 | pabelanger | 2011-01-09 15:40:35 -0600 (Sun, 09 Jan 2011)
+	  | 21 lines
+
+	  Merged revisions 301220 via svnmerge from 
+	  https://origsvn.digium.com/svn/asterisk/branches/1.6.2 [^]
+
+	  ........
+	    r301220 | pabelanger | 2011-01-09 16:38:24 -0500 (Sun, 09 Jan
+	    2011) | 14 lines
+	    SOUND_CACHE_DIR now defaults to empty
+
+	    Sounds files included in the Asterisk tarball were being
+	    ignored and
+	    re-downloaded. Users wanting to cache the files can
+	    still override the setting
+	    using the --with-sounds-cache option.
+
+	    (closes issue 0018589)
+	    Reported by: pabelanger
+	       Patches:
+	        issue18589.patch uploaded by
+		pabelanger (license 224)
+	        Tested by: pabelanger
+
+	    Review:
+	    https://reviewboard.asterisk.org/r/1074/
+
+	    ------------------------------------------------------------------------
+
 2010-12-13  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.2-rc1 Released.
