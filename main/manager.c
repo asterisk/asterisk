@@ -185,8 +185,6 @@ static struct {
  * data.
  */
 struct mansession_session {
-	/*! Execution thread */
-	pthread_t t;
 	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
 	ast_mutex_t __lock;
 	/*! socket address */
@@ -2464,18 +2462,11 @@ static void *session_do(void *data)
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
 	}
 
-	/* It is possible under certain circumstances for this session thread
-	   to complete its work and exit *before* the thread that created it
-	   has finished executing the ast_pthread_create_background() function.
-	   If this occurs, some versions of glibc appear to act in a buggy
-	   fashion and attempt to write data into memory that it thinks belongs
-	   to the thread but is in fact not owned by the thread (or may have
-	   been freed completely).
-
-	   Causing this thread to yield to other threads at least one time
-	   appears to work around this bug.
-	*/
-	usleep(1);
+	/* At one point there was a usleep(1) here intended to allow the call
+	 * to ast_pthread_create_background() to complete before this thread
+	 * exited. This should no longer be necessary as the thread id is no
+	 * longer stored in the mansessions_session.
+	 */
 
 	destroy_session(session);
 	return NULL;
@@ -2491,6 +2482,7 @@ static void *accept_thread(void *ignore)
 	struct protoent *p;
 	int arg = 1;
 	int flags;
+	pthread_t t;
 	pthread_attr_t attr;
 	time_t now;
 	struct pollfd pfds[1];
@@ -2570,7 +2562,7 @@ static void *accept_thread(void *ignore)
 			s->eventq = s->eventq->next;
 		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
 		AST_LIST_UNLOCK(&sessions);
-		if (ast_pthread_create_background(&s->t, &attr, session_do, s))
+		if (ast_pthread_create_background(&t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
