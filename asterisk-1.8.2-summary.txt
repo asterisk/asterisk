@@ -1,0 +1,489 @@
+                                Release Summary
+
+                                 asterisk-1.8.2
+
+                                Date: 2011-01-12
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.1.1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   11 rmudgett              3 klaus3000              4 klaus3000              
+   10 russell               2 cmbaker82              2 oej                    
+   9 tilghman               2 russell                1 alecdavis              
+   6 lmadsen                2 twilson                1 birgita                
+   5 jpeeler                1 alecdavis              1 bjm                    
+   5 mnicholson             1 bjm                    1 cmaj                   
+   5 pabelanger             1 jsolares               1 eeman                  
+   3 twilson                1 Marquis                1 junky                  
+   2 klaus3000              1 nivek                  1 kwemheuer              
+   2 oej                    1 ranjtech               1 macbrody               
+   2 seanbright             1 rmudgett               1 marcbou                
+   1 bbryant                1 tilghman               1 mbrevda                
+   1 bjm                                             1 nerbos                 
+   1 dvossel                                         1 nevermind_quack        
+   1 jsolares                                        1 nivek                  
+   1 junky                                           1 pabelanger             
+   1 may                                             1 rain                   
+   1 nivek                                           1 ranjtech               
+                                                     1 rsw686                 
+                                                     1 SantaFox               
+                                                     1 tnakonz                
+                                                     1 vmarrone               
+                                                     1 zahir_koradia          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_followme
+
+   #18126: [patch] stuck channels if followme context doesnt exists
+   Revision: 297733
+   Reporter: junky
+   Coders: junky
+
+  Category: Applications/app_meetme
+
+   #18322: Redirect two bridged channels to the same conference
+   Revision: 295866
+   Reporter: nerbos
+   Coders: rmudgett
+
+   #18369: Conference with scheduler blocks on realtime ODBC connection to
+   MSSQL database
+   Revision: 296467
+   Reporter: tnakonz
+   Coders: tilghman
+
+  Category: Applications/app_queue
+
+   #18031: potential channel/queue deadlock when setqueuevar enabled
+   Revision: 295670
+   Reporter: rain
+   Coders: bbryant
+
+  Category: CDR/General
+
+   #18415: [patch] Asterisk 1.8.1-rc1 crashes in cdr.c line 1201 after a
+   parked call catched with parkedcall() is hungup
+   Revision: 297952
+   Reporter: macbrody
+   Testers: jsolares, twilson
+   Coders: jsolares
+
+  Category: Channels/General
+
+   #18129: [patch] Oneway audio from SIP phone to FXS port after FXS port
+   gets a CallWaiting pip
+   Revision: 296167
+   Reporter: alecdavis
+   Testers: alecdavis, rmudgett
+   Coders: rmudgett
+
+   #18211: Channel hangs up when redirected through CLI or AMI
+   Revision: 295866
+   Reporter: zahir_koradia
+   Coders: rmudgett
+
+   #18230: [regression] Redirect function (over console or AMI) does not work
+   anymore
+   Revision: 295866
+   Reporter: vmarrone
+   Coders: rmudgett
+
+  Category: Channels/chan_gtalk
+
+   #18412: [patch] outbound google voice calls fail (staring approx
+   30Nov2010)
+   Revision: 297957
+   Reporter: nevermind_quack
+   Coders: dvossel
+
+  Category: Channels/chan_iax2
+
+   #18397: IAX2 CODEC_PRES wrong (offset error?)
+   Revision: 296992
+   Reporter: birgita
+   Coders: tilghman
+
+   #18398: [patch] segfault with 'core stop gracefully'
+   Revision: 296673
+   Reporter: pabelanger
+   Coders: pabelanger
+
+  Category: Channels/chan_sip/General
+
+   #18051: SIP brute force attemps having a DoS effect
+   Revision: 297965
+   Reporter: eeman
+   Testers: twilson
+   Coders: twilson
+
+  Category: Channels/chan_sip/Interoperability
+
+   #18275: [patch] "sip notify clear-mwi" needs terminating CRLF
+   Revision: 295477
+   Reporter: klaus3000
+   Coders: klaus3000
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #18342: [patch] chan_sip continues to call add_peer_mwi_subs which
+   continues to increament MWI NOTIFY's
+   Revision: 296352
+   Reporter: nivek
+   Testers: nivek
+   Coders: nivek
+
+  Category: Channels/chan_sip/Transfers
+
+   #18185: Blind transfer failure, A calls B, B transfers to C
+   Revision: 295866
+   Reporter: kwemheuer
+   Coders: rmudgett
+
+  Category: Core/General
+
+   #18284: [patch] devicestate is not aggregated from all received events
+   Revision: 295711
+   Reporter: klaus3000
+   Testers: russell, klaus3000
+   Coders: russell
+
+  Category: Core/Internationalization
+
+   #18353: saynumber(1,n) in Swedish doesn't work
+   Revision: 295949
+   Reporter: oej
+   Coders: oej
+
+   #18355: saynumber() fixes for Swedish
+   Revision: 296391
+   Reporter: oej
+   Coders: oej
+
+  Category: Core/Netsock
+
+   #18442: [patch] Error building netsock library on OpenSolaris 5.11
+   snv_134b
+   Revision: 298051
+   Reporter: ranjtech
+   Testers: ranjtech
+   Coders: tilghman
+
+  Category: Core/Portability
+
+   #18384: [patch] main/asterisk.c compile errors
+   Revision: 296534
+   Reporter: bjm
+   Testers: tilghman, bjm
+   Coders: bjm, tilghman
+
+  Category: Core/RTP
+
+   #18189: RFC2833 DTMF generation broken due to SSRC change on bridges
+   channels
+   Revision: 297825
+   Reporter: marcbou
+   Testers: cmbaker82
+   Coders: jpeeler
+
+   #18352: SSRC is changing when DTMF sent
+   Revision: 297825
+   Reporter: rsw686
+   Testers: cmbaker82
+   Coders: jpeeler
+
+  Category: General
+
+   #18171: Channel redirect doesn't work
+   Revision: 295866
+   Reporter: SantaFox
+   Coders: rmudgett
+
+  Category: Resources/res_fax
+
+   #18299: Asterisk not send fax to fax extension
+   Revision: 295866
+   Reporter: mbrevda
+   Coders: rmudgett
+
+  Category: Resources/res_jabber
+
+   #18272: [patch] distributed device state does not work
+   Revision: 296354
+   Reporter: klaus3000
+   Testers: klaus3000, Marquis
+   Coders: klaus3000
+
+   #18280: EID is not copied when event is received from XMPP and forwarded
+   into Asterisk's core
+   Revision: 295711
+   Reporter: klaus3000
+   Testers: russell, klaus3000
+   Coders: russell
+
+  Category: Utilities/General
+
+   #18385: ast_expr2.y undefined references with DEBUG_FD_LEAKS
+   Revision: 296429
+   Reporter: cmaj
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Check for wikiexport.py in PATH   |            |
+   | 295164   | russell    | and give a useful error message   |            |
+   |          |            | if not found.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Remove intentional typo I had     |            |
+   | 295201   | russell    | added when testing the check.     |            |
+   |          |            | oops.                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295278   | russell    | Check for pdftotext and give a    |            |
+   |          |            | useful error if not found.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Dead code elimination in          |            |
+   | 295282   | rmudgett   | channel.c:ast_channel_bridge()    |            |
+   |          |            | variable who.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Uncomment settings under          |            |
+   | 295361   | pabelanger | [global], to surpress warning     |            |
+   |          |            | when loading Asterisk.            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295404   | pabelanger | Add RedHat specific dependencies  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295441   | pabelanger | Fix compiler warnings when using  |            |
+   |          |            | openssl-dev 1.0.0+                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Bring sig_analog extraction more  |            |
+   | 295516   | rmudgett   | into alignment with               |            |
+   |          |            | orig-trunk/v1.6.2 chan_dahdi.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295673   | twilson    | Discard responses with more than  |            |
+   |          |            | one Via                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295747   | rmudgett   | One way audio before answering    |            |
+   |          |            | call waiting call on analog port. |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Change some documentation to      |            |
+   | 295869   | seanbright | suggest dahdi_monitor instead of  |            |
+   |          |            | ztmonitor.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Handle failures building          |            |
+   | 296002   | russell    | translation paths more            |            |
+   |          |            | effectively.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 296084   | russell    | Fix false reporting of an error   |            |
+   |          |            | by set_format().                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 296230   | russell    | Make Asterisk less crashy.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 296582   | rmudgett   | Merged revision 296575 from       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 296628   | russell    | Complete some error handling in   |            |
+   |          |            | transmit_publish() in chan_sip.c. |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | DOC: Conference number can be     |            |
+   | 296787   | tilghman   | omitted; if omitted, all users in |            |
+   |          |            | a meetme are listed.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Properly restore backup           |            |
+   | 296870   | jpeeler    | information file when hanging up  |            |
+   |          |            | during message prepending.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Missed initializations caused     |            |
+   | 296951   | tilghman   | startup errors on Mac OS X (and   |            |
+   |          |            | possibly others, too).            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix not stopping MOH when         |            |
+   | 297075   | jpeeler    | transfered local channel queue    |            |
+   |          |            | member is answered.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297157   | mnicholson | Changed some NOTICE and WARNING   |            |
+   |          |            | messages to DEBUG messages.       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297245   | russell    | Add "DAHDI" to a couple of        |            |
+   |          |            | app_meetme error messages.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297312   | twilson    | Initialize offset for adaptive    |            |
+   |          |            | jitter buffer                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297406   | pabelanger | Resolve compile error under       |            |
+   |          |            | FreeBSD                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add support for reserving a fax   |            |
+   | 297486   | mnicholson | session before answering the      |            |
+   |          |            | channel.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Print a DEBUG message instead of  |            |
+   | 297495   | mnicholson | a WARNING message when the        |            |
+   |          |            | selected fax tech does not        |            |
+   |          |            | support reserving sessions.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | The CLI command should not        |            |
+   | 297535   | seanbright | contain s, these are for          |            |
+   |          |            | descriptions.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Improve handling of REGISTER      |            |
+   | 297607   | jpeeler    | requests with multiple contact    |            |
+   |          |            | headers.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297821   | tilghman   | Use non-deprecated APIs for       |            |
+   |          |            | CoreAudio                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Display the capabilities          |            |
+   | 297905   | mnicholson | requested when requesting a fax   |            |
+   |          |            | session fails instead of          |            |
+   |          |            | displaying a hex value.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297909   | tilghman   | Use inheritance to get correct    |            |
+   |          |            | results for SIPFROMDOMAIN.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 298054   | mnicholson | Prevent a memcpy overlap in       |            |
+   |          |            | GENERIC_FAX_EXEC_SET_VARS         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 298099   | may        | Correction to work with           | #18401     |
+   |          |            | gatekeeper which don't send GK ID |            |
+   |----------+------------+-----------------------------------+------------|
+   | 298192   | lmadsen    | Create 1.8.1.1 tag from 1.8.1.    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Update ChangeLog and .version     |            |
+   | 298203   | lmadsen    | file. Merge fixes for CDR crash   |            |
+   |          |            | and chan_gtalk fixup.             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 298285   | lmadsen    | Importing release summary for     |            |
+   |          |            | 1.8.1.1 release.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 301456   | lmadsen    | Create Asterisk 1.8.2 from        |            |
+   |          |            | 1.8.2-rc1                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 301494   | lmadsen    |                                   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 301495   | lmadsen    | Update ChangeLog, .version file,  |            |
+   |          |            | and remove summary files.         |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                                   |    2
+ ChangeLog                                  |   37 +
+ Makefile                                   |   16
+ addons/ooh323c/src/ooGkClient.c            |   88 ++--
+ apps/app_dial.c                            |   11
+ apps/app_followme.c                        |   10
+ apps/app_macro.c                           |   24 -
+ apps/app_meetme.c                          |   12
+ apps/app_queue.c                           |   13
+ apps/app_voicemail.c                       |   10
+ asterisk-1.8.2-rc1-summary.html            |  352 ----------------
+ asterisk-1.8.2-rc1-summary.txt             |  466 ----------------------
+ autoconf/ast_ext_lib.m4                    |    2
+ build_tools/prep_tarball                   |   19
+ channels/chan_console.c                    |    2
+ channels/chan_dahdi.c                      |  460 +++++++++++++--------
+ channels/chan_gtalk.c                      |   45 +-
+ channels/chan_iax2.c                       |   13
+ channels/chan_misdn.c                      |    9
+ channels/chan_sip.c                        |   88 +++-
+ channels/misdn/isdn_msg_parser.c           |   20
+ channels/sig_analog.c                      |  610 ++++++++++++++++-------------
+ channels/sig_analog.h                      |   42 +
+ channels/sig_pri.h                         |    4
+ configs/chan_dahdi.conf.sample             |    2
+ configs/extensions.conf.sample             |    4
+ configs/res_curl.conf.sample               |    4
+ configs/sip_notify.conf.sample             |    2
+ configure                                  |    2
+ configure.ac                               |    2
+ contrib/init.d/org.asterisk.asterisk.plist |    6
+ contrib/init.d/org.asterisk.muted.plist    |   33 +
+ contrib/scripts/install_prereq             |    5
+ include/asterisk.h                         |    4
+ include/asterisk/autoconfig.h.in           |   68 ++-
+ include/asterisk/channel.h                 |   32 +
+ include/asterisk/event.h                   |   20
+ include/asterisk/frame.h                   |   11
+ include/asterisk/jabber.h                  |    2
+ include/asterisk/res_fax.h                 |   25 -
+ main/abstract_jb.c                         |    5
+ main/asterisk.c                            |    8
+ main/channel.c                             |  154 ++++---
+ main/event.c                               |  161 +++++++
+ main/features.c                            |   10
+ main/netsock.c                             |    2
+ main/pbx.c                                 |   24 -
+ main/say.c                                 |   93 ++--
+ res/res_fax.c                              |  324 ++++++++++++---
+ res/res_jabber.c                           |   85 +---
+ utils/muted.c                              |   76 ++-
+ 51 files changed, 1871 insertions(+), 1648 deletions(-)
+
+     ----------------------------------------------------------------------

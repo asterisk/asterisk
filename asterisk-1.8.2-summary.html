@@ -1,0 +1,365 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-1.8.2</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-1.8.2</h3>
+<h3 align="center">Date: 2011-01-12</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.8.1.1.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+11 rmudgett<br/>
+10 russell<br/>
+9 tilghman<br/>
+6 lmadsen<br/>
+5 jpeeler<br/>
+5 mnicholson<br/>
+5 pabelanger<br/>
+3 twilson<br/>
+2 klaus3000<br/>
+2 oej<br/>
+2 seanbright<br/>
+1 bbryant<br/>
+1 bjm<br/>
+1 dvossel<br/>
+1 jsolares<br/>
+1 junky<br/>
+1 may<br/>
+1 nivek<br/>
+</td>
+<td>
+3 klaus3000<br/>
+2 cmbaker82<br/>
+2 russell<br/>
+2 twilson<br/>
+1 alecdavis<br/>
+1 bjm<br/>
+1 jsolares<br/>
+1 Marquis<br/>
+1 nivek<br/>
+1 ranjtech<br/>
+1 rmudgett<br/>
+1 tilghman<br/>
+</td>
+<td>
+4 klaus3000<br/>
+2 oej<br/>
+1 alecdavis<br/>
+1 birgita<br/>
+1 bjm<br/>
+1 cmaj<br/>
+1 eeman<br/>
+1 junky<br/>
+1 kwemheuer<br/>
+1 macbrody<br/>
+1 marcbou<br/>
+1 mbrevda<br/>
+1 nerbos<br/>
+1 nevermind_quack<br/>
+1 nivek<br/>
+1 pabelanger<br/>
+1 rain<br/>
+1 ranjtech<br/>
+1 rsw686<br/>
+1 SantaFox<br/>
+1 tnakonz<br/>
+1 vmarrone<br/>
+1 zahir_koradia<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_followme</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18126">#18126</a>: [patch] stuck channels if followme context doesnt exists<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297733">297733</a><br/>
+Reporter: junky<br/>
+Coders: junky<br/>
+<br/>
+<h3>Category: Applications/app_meetme</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18322">#18322</a>: Redirect two bridged channels to the same conference<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295866">295866</a><br/>
+Reporter: nerbos<br/>
+Coders: rmudgett<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18369">#18369</a>: Conference with scheduler blocks on realtime ODBC connection to MSSQL database<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296467">296467</a><br/>
+Reporter: tnakonz<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18031">#18031</a>: potential channel/queue deadlock when setqueuevar enabled<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295670">295670</a><br/>
+Reporter: rain<br/>
+Coders: bbryant<br/>
+<br/>
+<h3>Category: CDR/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18415">#18415</a>: [patch] Asterisk 1.8.1-rc1 crashes in cdr.c line 1201 after a parked call catched with parkedcall() is hungup<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297952">297952</a><br/>
+Reporter: macbrody<br/>
+Testers: jsolares, twilson<br/>
+Coders: jsolares<br/>
+<br/>
+<h3>Category: Channels/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18129">#18129</a>: [patch] Oneway audio from SIP phone to FXS port after FXS port gets a CallWaiting pip<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296167">296167</a><br/>
+Reporter: alecdavis<br/>
+Testers: alecdavis, rmudgett<br/>
+Coders: rmudgett<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18211">#18211</a>: Channel hangs up when redirected through CLI or AMI<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295866">295866</a><br/>
+Reporter: zahir_koradia<br/>
+Coders: rmudgett<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18230">#18230</a>: [regression] Redirect function (over console or AMI) does not work anymore<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295866">295866</a><br/>
+Reporter: vmarrone<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Channels/chan_gtalk</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18412">#18412</a>: [patch] outbound google voice calls fail (staring approx 30Nov2010)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297957">297957</a><br/>
+Reporter: nevermind_quack<br/>
+Coders: dvossel<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18397">#18397</a>: IAX2 CODEC_PRES wrong (offset error?)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296992">296992</a><br/>
+Reporter: birgita<br/>
+Coders: tilghman<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18398">#18398</a>: [patch] segfault with 'core stop gracefully'<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296673">296673</a><br/>
+Reporter: pabelanger<br/>
+Coders: pabelanger<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18051">#18051</a>: SIP brute force attemps having a DoS effect<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297965">297965</a><br/>
+Reporter: eeman<br/>
+Testers: twilson<br/>
+Coders: twilson<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Interoperability</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18275">#18275</a>: [patch] "sip notify clear-mwi" needs terminating CRLF<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295477">295477</a><br/>
+Reporter: klaus3000<br/>
+Coders: klaus3000<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Subscriptions</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18342">#18342</a>: [patch] chan_sip continues to call add_peer_mwi_subs which continues to increament MWI NOTIFY's<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296352">296352</a><br/>
+Reporter: nivek<br/>
+Testers: nivek<br/>
+Coders: nivek<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Transfers</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18185">#18185</a>: Blind transfer failure, A calls B, B transfers to C<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295866">295866</a><br/>
+Reporter: kwemheuer<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18284">#18284</a>: [patch] devicestate is not aggregated from all received events<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295711">295711</a><br/>
+Reporter: klaus3000<br/>
+Testers: russell, klaus3000<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: Core/Internationalization</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18353">#18353</a>: saynumber(1,n) in Swedish doesn't work<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295949">295949</a><br/>
+Reporter: oej<br/>
+Coders: oej<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18355">#18355</a>: saynumber() fixes for Swedish<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296391">296391</a><br/>
+Reporter: oej<br/>
+Coders: oej<br/>
+<br/>
+<h3>Category: Core/Netsock</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18442">#18442</a>: [patch] Error building netsock library on OpenSolaris 5.11 snv_134b<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=298051">298051</a><br/>
+Reporter: ranjtech<br/>
+Testers: ranjtech<br/>
+Coders: tilghman<br/>
+<br/>
+<h3>Category: Core/Portability</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18384">#18384</a>: [patch] main/asterisk.c compile errors<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296534">296534</a><br/>
+Reporter: bjm<br/>
+Testers: tilghman, bjm<br/>
+Coders: bjm, tilghman<br/>
+<br/>
+<h3>Category: Core/RTP</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18189">#18189</a>: RFC2833 DTMF generation broken due to SSRC change on bridges channels<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297825">297825</a><br/>
+Reporter: marcbou<br/>
+Testers: cmbaker82<br/>
+Coders: jpeeler<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18352">#18352</a>: SSRC is changing when DTMF sent<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297825">297825</a><br/>
+Reporter: rsw686<br/>
+Testers: cmbaker82<br/>
+Coders: jpeeler<br/>
+<br/>
+<h3>Category: General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18171">#18171</a>: Channel redirect doesn't work<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295866">295866</a><br/>
+Reporter: SantaFox<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Resources/res_fax</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18299">#18299</a>: Asterisk not send fax to fax extension<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295866">295866</a><br/>
+Reporter: mbrevda<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Resources/res_jabber</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18272">#18272</a>: [patch] distributed device state does not work<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296354">296354</a><br/>
+Reporter: klaus3000<br/>
+Testers: klaus3000, Marquis<br/>
+Coders: klaus3000<br/>
+<br/>
+<a href="https://issues.asterisk.org/view.php?id=18280">#18280</a>: EID is not copied when event is received from XMPP and forwarded into Asterisk's core<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295711">295711</a><br/>
+Reporter: klaus3000<br/>
+Testers: russell, klaus3000<br/>
+Coders: russell<br/>
+<br/>
+<h3>Category: Utilities/General</h3><br/>
+<a href="https://issues.asterisk.org/view.php?id=18385">#18385</a>: ast_expr2.y undefined references with DEBUG_FD_LEAKS<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296429">296429</a><br/>
+Reporter: cmaj<br/>
+Coders: tilghman<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295164">295164</a></td><td>russell</td><td>Check for wikiexport.py in PATH and give a useful error message if not found.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295201">295201</a></td><td>russell</td><td>Remove intentional typo I had added when testing the check.  oops.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295278">295278</a></td><td>russell</td><td>Check for pdftotext and give a useful error if not found.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295282">295282</a></td><td>rmudgett</td><td>Dead code elimination in channel.c:ast_channel_bridge() variable who.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295361">295361</a></td><td>pabelanger</td><td>Uncomment settings under [global], to surpress warning when loading Asterisk.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295404">295404</a></td><td>pabelanger</td><td>Add RedHat specific dependencies</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295441">295441</a></td><td>pabelanger</td><td>Fix compiler warnings when using openssl-dev 1.0.0+</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295516">295516</a></td><td>rmudgett</td><td>Bring sig_analog extraction more into alignment with orig-trunk/v1.6.2 chan_dahdi.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295673">295673</a></td><td>twilson</td><td>Discard responses with more than one Via</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295747">295747</a></td><td>rmudgett</td><td>One way audio before answering call waiting call on analog port.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=295869">295869</a></td><td>seanbright</td><td>Change some documentation to suggest dahdi_monitor instead of ztmonitor.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296002">296002</a></td><td>russell</td><td>Handle failures building translation paths more effectively.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296084">296084</a></td><td>russell</td><td>Fix false reporting of an error by set_format().</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296230">296230</a></td><td>russell</td><td>Make Asterisk less crashy.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296582">296582</a></td><td>rmudgett</td><td>Merged revision 296575 from</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296628">296628</a></td><td>russell</td><td>Complete some error handling in transmit_publish() in chan_sip.c.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296787">296787</a></td><td>tilghman</td><td>DOC: Conference number can be omitted; if omitted, all users in a meetme are listed.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296870">296870</a></td><td>jpeeler</td><td>Properly restore backup information file when hanging up during message prepending.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=296951">296951</a></td><td>tilghman</td><td>Missed initializations caused startup errors on Mac OS X (and possibly others, too).</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297075">297075</a></td><td>jpeeler</td><td>Fix not stopping MOH when transfered local channel queue member is answered.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297157">297157</a></td><td>mnicholson</td><td>Changed some NOTICE and WARNING messages to DEBUG messages.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297245">297245</a></td><td>russell</td><td>Add "DAHDI" to a couple of app_meetme error messages.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297312">297312</a></td><td>twilson</td><td>Initialize offset for adaptive jitter buffer</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297406">297406</a></td><td>pabelanger</td><td>Resolve compile error under FreeBSD</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297486">297486</a></td><td>mnicholson</td><td>Add support for reserving a fax session before answering the channel.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297495">297495</a></td><td>mnicholson</td><td>Print a DEBUG message instead of a WARNING message when the selected fax tech does not support reserving sessions.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297535">297535</a></td><td>seanbright</td><td>The CLI command should not contain <placeholder>s, these are for descriptions.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297607">297607</a></td><td>jpeeler</td><td>Improve handling of REGISTER requests with multiple contact headers.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297821">297821</a></td><td>tilghman</td><td>Use non-deprecated APIs for CoreAudio</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297905">297905</a></td><td>mnicholson</td><td>Display the capabilities requested when requesting a fax session fails instead of displaying a hex value.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=297909">297909</a></td><td>tilghman</td><td>Use inheritance to get correct results for SIPFROMDOMAIN.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=298054">298054</a></td><td>mnicholson</td><td>Prevent a memcpy overlap in GENERIC_FAX_EXEC_SET_VARS</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=298099">298099</a></td><td>may</td><td>Correction to work with gatekeeper which don't send GK ID</td>
+<td><a href="https://issues.asterisk.org/view.php?id=18401">#18401</a></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=298192">298192</a></td><td>lmadsen</td><td>Create 1.8.1.1 tag from 1.8.1.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=298203">298203</a></td><td>lmadsen</td><td>Update ChangeLog and .version file. Merge fixes for CDR crash and chan_gtalk fixup.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=298285">298285</a></td><td>lmadsen</td><td>Importing release summary for 1.8.1.1 release.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=301456">301456</a></td><td>lmadsen</td><td>Create Asterisk 1.8.2 from 1.8.2-rc1</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=301494">301494</a></td><td>lmadsen</td><td></td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=301495">301495</a></td><td>lmadsen</td><td>Update ChangeLog, .version file, and remove summary files.</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.version                                   |    2
+ChangeLog                                  |   37 +
+Makefile                                   |   16
+addons/ooh323c/src/ooGkClient.c            |   88 ++--
+apps/app_dial.c                            |   11
+apps/app_followme.c                        |   10
+apps/app_macro.c                           |   24 -
+apps/app_meetme.c                          |   12
+apps/app_queue.c                           |   13
+apps/app_voicemail.c                       |   10
+asterisk-1.8.2-rc1-summary.html            |  352 ----------------
+asterisk-1.8.2-rc1-summary.txt             |  466 ----------------------
+autoconf/ast_ext_lib.m4                    |    2
+build_tools/prep_tarball                   |   19
+channels/chan_console.c                    |    2
+channels/chan_dahdi.c                      |  460 +++++++++++++--------
+channels/chan_gtalk.c                      |   45 +-
+channels/chan_iax2.c                       |   13
+channels/chan_misdn.c                      |    9
+channels/chan_sip.c                        |   88 +++-
+channels/misdn/isdn_msg_parser.c           |   20
+channels/sig_analog.c                      |  610 ++++++++++++++++-------------
+channels/sig_analog.h                      |   42 +
+channels/sig_pri.h                         |    4
+configs/chan_dahdi.conf.sample             |    2
+configs/extensions.conf.sample             |    4
+configs/res_curl.conf.sample               |    4
+configs/sip_notify.conf.sample             |    2
+configure                                  |    2
+configure.ac                               |    2
+contrib/init.d/org.asterisk.asterisk.plist |    6
+contrib/init.d/org.asterisk.muted.plist    |   33 +
+contrib/scripts/install_prereq             |    5
+include/asterisk.h                         |    4
+include/asterisk/autoconfig.h.in           |   68 ++-
+include/asterisk/channel.h                 |   32 +
+include/asterisk/event.h                   |   20
+include/asterisk/frame.h                   |   11
+include/asterisk/jabber.h                  |    2
+include/asterisk/res_fax.h                 |   25 -
+main/abstract_jb.c                         |    5
+main/asterisk.c                            |    8
+main/channel.c                             |  154 ++++---
+main/event.c                               |  161 +++++++
+main/features.c                            |   10
+main/netsock.c                             |    2
+main/pbx.c                                 |   24 -
+main/say.c                                 |   93 ++--
+res/res_fax.c                              |  324 ++++++++++++---
+res/res_jabber.c                           |   85 +---
+utils/muted.c                              |   76 ++-
+51 files changed, 1871 insertions(+), 1648 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
