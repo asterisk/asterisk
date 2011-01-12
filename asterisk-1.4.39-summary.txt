@@ -1,0 +1,291 @@
+                                Release Summary
+
+                                asterisk-1.4.39
+
+                                Date: 2011-01-12
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.38.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   8 rmudgett               2 cmbaker82              2 oej                    
+   6 jpeeler                1 alecdavis              1 alecdavis              
+   4 russell                1 diLLec                 1 birgita                
+   3 oej                    1 espiceland             1 diLLec                 
+   3 tilghman               1 rmudgett               1 eeman                  
+   3 twilson                1 twilson                1 junky                  
+   2 pabelanger                                      1 kwemheuer              
+   1 diLLec                                          1 marcbou                
+   1 espiceland                                      1 mbrevda                
+   1 junky                                           1 nerbos                 
+   1 seanbright                                      1 pabelanger             
+                                                     1 rsw686                 
+                                                     1 SantaFox               
+                                                     1 vmarrone               
+                                                     1 zahir_koradia          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_followme
+
+   #18126: [patch] stuck channels if followme context doesnt exists
+   Revision: 297689
+   Reporter: junky
+   Coders: junky
+
+  Category: Applications/app_meetme
+
+   #18322: Redirect two bridged channels to the same conference
+   Revision: 295790
+   Reporter: nerbos
+   Coders: rmudgett
+
+  Category: Channels/General
+
+   #18129: [patch] Oneway audio from SIP phone to FXS port after FXS port
+   gets a CallWaiting pip
+   Revision: 296165
+   Reporter: alecdavis
+   Testers: alecdavis, rmudgett
+   Coders: rmudgett
+
+   #18211: Channel hangs up when redirected through CLI or AMI
+   Revision: 295790
+   Reporter: zahir_koradia
+   Coders: rmudgett
+
+   #18230: [regression] Redirect function (over console or AMI) does not work
+   anymore
+   Revision: 295790
+   Reporter: vmarrone
+   Coders: rmudgett
+
+  Category: Channels/chan_iax2
+
+   #18397: IAX2 CODEC_PRES wrong (offset error?)
+   Revision: 296990
+   Reporter: birgita
+   Coders: tilghman
+
+   #18398: [patch] segfault with 'core stop gracefully'
+   Revision: 296670
+   Reporter: pabelanger
+   Coders: pabelanger
+
+  Category: Channels/chan_sip/General
+
+   #18051: SIP brute force attemps having a DoS effect
+   Revision: 297959
+   Reporter: eeman
+   Testers: twilson
+   Coders: twilson
+
+  Category: Channels/chan_sip/Transfers
+
+   #18185: Blind transfer failure, A calls B, B transfers to C
+   Revision: 295790
+   Reporter: kwemheuer
+   Coders: rmudgett
+
+  Category: Core/Internationalization
+
+   #18353: saynumber(1,n) in Swedish doesn't work
+   Revision: 295906
+   Reporter: oej
+   Coders: oej
+
+   #18355: saynumber() fixes for Swedish
+   Revision: 296309
+   Reporter: oej
+   Coders: oej
+
+  Category: Core/RTP
+
+   #18189: RFC2833 DTMF generation broken due to SSRC change on bridges
+   channels
+   Revision: 297823
+   Reporter: marcbou
+   Testers: cmbaker82
+   Coders: jpeeler
+
+   #18352: SSRC is changing when DTMF sent
+   Revision: 297823
+   Reporter: rsw686
+   Testers: cmbaker82
+   Coders: jpeeler
+
+  Category: General
+
+   #18171: Channel redirect doesn't work
+   Revision: 295790
+   Reporter: SantaFox
+   Coders: rmudgett
+
+  Category: Resources/res_agi
+
+   #15531: [patch] Add voicefile and dtmf options to res/res_agi.c
+   Revision: 295552
+   Reporter: diLLec
+   Testers: diLLec, espiceland
+   Coders: diLLec
+
+  Category: Resources/res_fax
+
+   #18299: Asterisk not send fax to fax extension
+   Revision: 295790
+   Reporter: mbrevda
+   Coders: rmudgett
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure original message duration  |            |
+   | 295200   | jpeeler    | is preserved when prepending a    | #17103     |
+   |          |            | message.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Dead code elimination in          |            |
+   | 295280   | rmudgett   | channel.c:ast_channel_bridge()    |            |
+   |          |            | variable who.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295553   | espiceland | Revert a new feature which should |            |
+   |          |            | have gone into trunk.             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 295628   | twilson    | Discard responses with more than  |            |
+   |          |            | one Via                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Handle failures building          |            |
+   | 296000   | russell    | translation paths more            |            |
+   |          |            | effectively.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 296082   | russell    | Fix false reporting of an error   |            |
+   |          |            | by set_format().                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 296213   | russell    | Make Asterisk less crashy.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 296867   | tilghman   | Get rid of the annoying startup   |            |
+   |          |            | and shutdown errors on OS X.      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Properly restore backup           |            |
+   | 296868   | jpeeler    | information file when hanging up  |            |
+   |          |            | during message prepending.        |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Fix not stopping MOH when         |            |
+   | 297072   | jpeeler    | transfered local channel queue    |            |
+   |          |            | member is answered.               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | If we get a NOTIFY from a         |            |
+   | 297185   | oej        | non-existing subscription we      |            |
+   |          |            | should answer with 481, not bad   |            |
+   |          |            | event.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297228   | russell    | Add "DAHDI" to a couple of        |            |
+   |          |            | app_meetme error messages.        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297310   | twilson    | Initialize offset for adaptive    |            |
+   |          |            | jitter buffer                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297404   | pabelanger | Resolve compile error under       |            |
+   |          |            | FreeBSD                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Improve handling of REGISTER      |            |
+   | 297603   | jpeeler    | requests with multiple contact    |            |
+   |          |            | headers.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297775   | seanbright | Avoid a crash if we don't pass an |            |
+   |          |            | argument to 'astobj2 test.'       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 297818   | tilghman   | Use non-deprecated APIs for       |            |
+   |          |            | CoreAudio                         |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ Makefile                                |   12 +
+ apps/app_dial.c                         |   11 +
+ apps/app_followme.c                     |   14 +
+ apps/app_macro.c                        |   22 +-
+ apps/app_meetme.c                       |    4
+ apps/app_voicemail.c                    |   35 +++
+ channels/chan_dahdi.c                   |  308 ++++++++++++++++++++------------
+ channels/chan_iax2.c                    |   18 +
+ channels/chan_sip.c                     |   70 ++++++-
+ contrib/init.d/org.asterisk.muted.plist |   33 +++
+ include/asterisk/channel.h              |   32 +++
+ include/asterisk/frame.h                |   11 +
+ main/abstract_jb.c                      |    5
+ main/asterisk.c                         |   12 +
+ main/astobj2.c                          |    4
+ main/channel.c                          |  151 ++++++++++-----
+ main/pbx.c                              |   22 +-
+ main/say.c                              |   89 ++++-----
+ utils/muted.c                           |   76 ++++++-
+ 19 files changed, 664 insertions(+), 265 deletions(-)
+
+     ----------------------------------------------------------------------
