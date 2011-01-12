@@ -192,7 +192,6 @@ static struct {
  * data.
  */
 struct mansession_session {
-	pthread_t ms_t;		/*!< Execution thread, basically useless */
 	ast_mutex_t __lock;	/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
 				/* XXX need to document which fields it is protecting */
 	struct sockaddr_in sin;	/*!< address we are connecting from */
@@ -3286,19 +3285,6 @@ static void *session_do(void *data)
 			ast_verb(2, "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
 	}
-
-	/* It is possible under certain circumstances for this session thread
-	   to complete its work and exit *before* the thread that created it
-	   has finished executing the ast_pthread_create_background() function.
-	   If this occurs, some versions of glibc appear to act in a buggy
-	   fashion and attempt to write data into memory that it thinks belongs
-	   to the thread but is in fact not owned by the thread (or may have
-	   been freed completely).
-
-	   Causing this thread to yield to other threads at least one time
-	   appears to work around this bug.
-	*/
-	usleep(1);
 
 	destroy_session(session);
 
