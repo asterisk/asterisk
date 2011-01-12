@@ -21532,10 +21532,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ast_log(LOG_NOTICE, "Failed to authenticate device %s for SUBSCRIBE\n", get_header(req, "From"));
 				transmit_response_reliable(p, "403 Forbidden", req);
 			}
-		}
 
-		pvt_set_needdestroy(p, "authentication failed");
-		return 0;
+			pvt_set_needdestroy(p, "authentication failed");
+			return 0;
+		}
 	}
 
 	/* At this point, authpeer cannot be NULL. Remember we hold a reference,
