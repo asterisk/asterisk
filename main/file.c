@@ -312,11 +312,9 @@ static void filestream_destructor(void *arg)
 		ast_translator_free_path(f->trans);
 
 	if (f->realfilename && f->filename) {
-			size = strlen(f->filename) + strlen(f->realfilename) + 15;
-			cmd = alloca(size);
-			memset(cmd,0,size);
-			snprintf(cmd, size, "/bin/mv -f \"%s\" \"%s\"", f->filename, f->realfilename);
-			ast_safe_system(cmd);
+		if (ast_safe_fork(0) == 0) {
+			execl("/bin/mv", "mv", "-f", f->filename, f->realfilename, SENTINEL);
+		}
 	}
 
 	if (f->filename)
