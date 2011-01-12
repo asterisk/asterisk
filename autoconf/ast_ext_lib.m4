@@ -54,7 +54,7 @@ AC_ARG_WITH([$1], AC_HELP_STRING([--with-$1=PATH], [use $3 in PATH]),
 		;;
 	esac
 	],
-	[m4_ifval($4, [$2="$4"])])
+	[m4_ifval($4, [$2="$4"], [:])])
 AC_SUBST($2)
 ])
 
