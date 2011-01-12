@@ -1372,13 +1372,13 @@ int ast_is_deferrable_frame(const struct ast_frame *frame)
 	 * be queued up or not.
 	 */
 	switch (frame->frametype) {
-	case AST_FRAME_DTMF_END:
 	case AST_FRAME_CONTROL:
 	case AST_FRAME_TEXT:
 	case AST_FRAME_IMAGE:
 	case AST_FRAME_HTML:
 		return 1;
 
+	case AST_FRAME_DTMF_END:
 	case AST_FRAME_DTMF_BEGIN:
 	case AST_FRAME_VOICE:
 	case AST_FRAME_VIDEO:
