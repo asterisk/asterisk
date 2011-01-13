@@ -3159,6 +3159,26 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 			s = ast_str_buffer(*str);
 		} else if (!strcmp(var, "SYSTEMNAME")) {
 			s = ast_config_AST_SYSTEM_NAME;
+		} else if (!strcmp(var, "ASTETCDIR")) {
+			s = ast_config_AST_CONFIG_DIR;
+		} else if (!strcmp(var, "ASTMODDIR")) {
+			s = ast_config_AST_MODULE_DIR;
+		} else if (!strcmp(var, "ASTVARLIBDIR")) {
+			s = ast_config_AST_VAR_DIR;
+		} else if (!strcmp(var, "ASTDBDIR")) {
+			s = ast_config_AST_DB;
+		} else if (!strcmp(var, "ASTKEYDIR")) {
+			s = ast_config_AST_KEY_DIR;
+		} else if (!strcmp(var, "ASTDATADIR")) {
+			s = ast_config_AST_DATA_DIR;
+		} else if (!strcmp(var, "ASTAGIDIR")) {
+			s = ast_config_AST_AGI_DIR;
+		} else if (!strcmp(var, "ASTSPOOLDIR")) {
+			s = ast_config_AST_SPOOL_DIR;
+		} else if (!strcmp(var, "ASTRUNDIR")) {
+			s = ast_config_AST_RUN_DIR;
+		} else if (!strcmp(var, "ASTLOGDIR")) {
+			s = ast_config_AST_LOG_DIR;
 		} else if (!strcmp(var, "ENTITYID")) {
 			char workspace[20];
 			ast_eid_to_str(workspace, sizeof(workspace), &ast_eid_default);

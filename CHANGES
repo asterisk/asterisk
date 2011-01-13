@@ -34,6 +34,12 @@ CDR
  * The filter option in cdr_adaptive_odbc now supports negating the argument,
    thus allowing records which do NOT match the specified filter.
 
+Dialplan Variables
+------------------
+ * Added ASTETCDIR, ASTMODDIR, ASTVARLIBDIR, ASTDBDIR, ASTKEYDIR, ASTDATADIR,
+   ASTAGIDIR, ASTSPOOLDIR, ASTRUNDIR, ASTLOGDIR which hold the equivalent
+   variables from asterisk.conf.
+
 libpri channel driver (chan_dahdi) DAHDI changes
 --------------------------
  * Added moh_signaling option to specify what to do when the channel's bridged
