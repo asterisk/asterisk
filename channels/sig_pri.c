@@ -880,11 +880,10 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 	if (transfercapability & AST_TRANS_CAP_DIGITAL) {
 		sig_pri_set_digital(p, 1);
 	}
-	if (p->pri && !pri_grab(p, p->pri)) {
+	if (p->pri) {
+		ast_mutex_lock(&p->pri->lock);
 		sig_pri_span_devstate_changed(p->pri);
-		pri_rel(p->pri);
-	} else {
-		ast_log(LOG_WARNING, "Failed to grab PRI!\n");
+		ast_mutex_unlock(&p->pri->lock);
 	}
 
 	return c;
