@@ -1,0 +1,386 @@
+                                Release Summary
+
+                             asterisk-1.6.2.17-rc1
+
+                                Date: 2011-01-14
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.2.16.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   10 tilghman              2 elguero                2 pabelanger             
+   5 jpeeler                2 jthurman               1 bcnit                  
+   4 pabelanger             2 lathama                1 bunny                  
+   3 lathama                2 pabelanger             1 cabal95                
+   3 mnicholson             2 trev                   1 cjacobsen              
+   2 moy                    2 zerohalo               1 dimas                  
+   2 rmudgett               1 bunny                  1 jcovert                
+   2 twilson                1 dimas                  1 jlaguilar              
+   1 cjacobsen              1 joscas                 1 joscas                 
+   1 dimas                  1 ks3                    1 ks3                    
+   1 jcovert                1 mdu113                 1 kshumard               
+   1 ks3                    1 mmurdock               1 lathama                
+   1 kshumard               1 moy                    1 mariner7               
+   1 lmadsen                1 nivek                  1 mdu113                 
+   1 pprindeville           1 pprindeville           1 mmurdock               
+   1 russell                1 seanbright             1 nivek                  
+   1 seanbright             1 twilson                1 pprindeville           
+   1 tzafrir                                         1 rgj                    
+                                                     1 thsgmbh                
+                                                     1 zerohalo               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_meetme
+
+   #18182: [patch] useropts not initialized
+   Revision: 301089
+   Reporter: dimas
+   Testers: dimas
+   Coders: dimas
+
+  Category: Applications/app_verbose
+
+   #18586: [patch] Indicate log level argument for Log() is not optional
+   Revision: 301176
+   Reporter: kshumard
+   Coders: kshumard
+
+  Category: Applications/app_voicemail
+
+   #18358: [patch] Cannot forward voicemail with file storage backend
+   Revision: 301046
+   Reporter: cabal95
+   Coders: jpeeler
+
+  Category: CDR/cdr_pgsql
+
+   #18460: [patch] CDR(billsec) is not inserted properly for unanswered calls
+   Revision: 299130
+   Reporter: joscas
+   Testers: joscas
+   Coders: tilghman
+
+  Category: Channels/chan_dahdi
+
+   #18438: Ealry media is lost on accepted calls (with open r2 support,
+   Elastix 2 flavor)
+   Revision: 299530
+   Reporter: mariner7
+   Testers: moy
+   Coders: moy
+
+  Category: Channels/chan_sip/DatabaseSupport
+
+   #18251: [patch] Realtime field 'fullcontact' populated with invalid data
+   Revision: 298481
+   Reporter: bcnit
+   Testers: trev, jthurman, elguero, zerohalo
+   Coders: tilghman
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #18075: [patch] Asterisk fails to recognize SUBSCRIBE retransmissions and
+   tries to re-authenticate them, which breaks presence on polyco
+   Revision: 300298
+   Reporter: mdu113
+   Testers: twilson, mdu113
+   Coders: twilson
+
+   #18597: [regression] Snom BLF subscription does not work
+   Revision: 301682
+   Reporter: thsgmbh
+   Coders: twilson
+
+  Category: Core/BuildSystem
+
+   #18493: [patch] Sqlite3 requires -lpthread to build in configure.ac
+   Revision: 298817
+   Reporter: pprindeville
+   Testers: pprindeville
+   Coders: pprindeville
+
+   #18589: [patch] [regression] asterisk 1.8 tarball sound files ignored,
+   Makefile re-downloads them.
+   Revision: 301220
+   Reporter: pabelanger
+   Testers: pabelanger
+   Coders: pabelanger
+
+  Category: Documentation
+
+   #18531: [patch] Note more settings in users.conf.sample to guide the user
+   Revision: 300431
+   Reporter: lathama
+   Testers: lathama
+   Coders: lathama
+
+  Category: Features/Parking
+
+   #15758: Park application expects timeout to be in Milliseconds
+   Revision: 299087
+   Reporter: mmurdock
+   Testers: mmurdock, seanbright
+   Coders: lmadsen
+
+  Category: Functions/func_dialgroup
+
+   #18091: [patch] dialgroup fills database with duplicates
+   Revision: 298477
+   Reporter: bunny
+   Testers: bunny
+   Coders: tilghman
+
+  Category: Functions/func_odbc
+
+   #18243: [patch] Random segfault when querying MySQL via func_odbc
+   Revision: 300622
+   Reporter: ks3
+   Testers: ks3
+   Coders: ks3
+
+  Category: General
+
+   #18130: [regression] DTMF on agent channel causes high CPU
+   Revision: 301503
+   Reporter: rgj
+   Coders: jpeeler
+
+   #18547: [patch] main/xmldoc.c error message is backwards -- fix that, and
+   remove the sources of the error while we're at it
+   Revision: 300520
+   Reporter: jcovert
+   Coders: jcovert
+
+  Category: PBX/pbx_ael
+
+   #18480: [patch] Contexts with a 'switch' statement in a 's' extension adds
+   MSet to the beginning of the Context
+   Revision: 299448
+   Reporter: nivek
+   Testers: nivek
+   Coders: tilghman
+
+  Category: PBX/pbx_realtime
+
+   #16228: eswitch does not substiotute variables when using Local Channel
+   Revision: 299625
+   Reporter: jlaguilar
+   Coders: tilghman
+
+  Category: Resources/res_config_odbc
+
+   #18279: [patch] res_odbc using ^ separator in M(macro) option as argument
+   separator in Dial app gives control characters
+   Revision: 298481
+   Reporter: zerohalo
+   Testers: trev, jthurman, elguero, zerohalo
+   Coders: tilghman
+
+  Category: Resources/res_fax
+
+   #18481: [patch] *** glibc detected *** /usr/sbin/asterisk: free(): invalid
+   pointer on shutdown
+   Revision: 298393
+   Reporter: pabelanger
+   Testers: pabelanger
+   Coders: tilghman
+
+  Category: Resources/res_phoneprov
+
+   #18607: [patch] Static entry for Polycom 331 split firmware
+   Revision: 301730
+   Reporter: cjacobsen
+   Testers: lathama
+   Coders: cjacobsen
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 298194   | rmudgett   | Outgoing PRI/BRI calls cannot do  |            |
+   |          |            | DTMF triggered transfers.         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 298346   | seanbright | Fix reference and container leaks |            |
+   |          |            | when running 'astobj2 test.'      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 298597   | jpeeler    | Fix improper hangup when doing an |            |
+   |          |            | attended transfer to queue.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | After recording only silence for  |            |
+   | 298684   | jpeeler    | a voicemail prepending, restore   |            |
+   |          |            | backup files.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Let Asterisk find better          |            |
+   | 298957   | tilghman   | backtrace information with        |            |
+   |          |            | libbfd.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 298962   | tilghman   | Remove backtrace used for testing |            |
+   |          |            | merge process                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 299003   | tzafrir    | Typos: recieved => received       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 299136   | tilghman   | Documentation fix                 |            |
+   |----------+------------+-----------------------------------+------------|
+   | 299242   | mnicholson | Respond as soon as possible with  |            |
+   |          |            | a 202 Accepted to refer requests. |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | do not use progress which is for  |            |
+   | 299533   | moy        | PRI and SS7, add mfcr2_progress   |            |
+   |          |            | member                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 299864   | pabelanger | Documentation typo                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Use correct variable for          |            |
+   | 300165   | rmudgett   | atxfercallbackretries config      |            |
+   |          |            | option.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 300429   | russell    | Update the autosupport script     |            |
+   |          |            | from Digium support.              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 300574   | pabelanger | Change deprecated message to      |            |
+   |          |            | LOG_WARNING                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Ensure good bye prompt in         |            |
+   | 300951   | jpeeler    | voicemail is played at the        |            |
+   |          |            | correct time.                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 301307   | mnicholson | Prevent buffer overflows in       |            |
+   |          |            | ast_uri_encode()                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 301310   | pabelanger | Fix a logic issue when passing    |            |
+   |          |            | context ARG                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Removed a usleep(1) that          |            |
+   | 301594   | mnicholson | shouldn't be necessary in         |            |
+   |          |            | session_do, and removed the       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 301842   | lathama    | Add relationships to function     |            |
+   |          |            | documentation.                    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 301848   | lathama    | Add relationships to function     |            |
+   |          |            | documentation.                    |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_chanspy.c               |    2
+ apps/app_meetme.c                |    4
+ apps/app_queue.c                 |    1
+ apps/app_verbose.c               |    2
+ apps/app_voicemail.c             |   37
+ autoconf/ast_ext_lib.m4          |    2
+ build_tools/cflags-devmode.xml   |    5
+ build_tools/menuselect-deps.in   |    2
+ cdr/cdr_pgsql.c                  |    6
+ cdr/cdr_sqlite.c                 |    9
+ channels/chan_agent.c            |    2
+ channels/chan_dahdi.c            |   23
+ channels/chan_iax2.c             |    4
+ channels/chan_local.c            |   12
+ channels/chan_sip.c              |   93 -
+ configs/extensions.conf.sample   |   14
+ configs/phoneprov.conf.sample    |    2
+ configs/users.conf.sample        |   29
+ configure.ac                     |   34
+ contrib/scripts/autosupport      |  619 +++++--
+ contrib/scripts/autosupport.8    |   63
+ funcs/func_aes.c                 |   10
+ funcs/func_base64.c              |   10
+ funcs/func_dialgroup.c           |    5
+ include/asterisk/autoconfig.h.in |    6
+ include/asterisk/logger.h        |   10
+ include/asterisk/utils.h         |    9
+ main/Makefile                    |    4
+ main/astobj2.c                   |    4
+ main/channel.c                   |    2
+ main/features.c                  |   22
+ main/logger.c                    |  156 +
+ main/manager.c                   |   14
+ main/utils.c                     |   49
+ main/xmldoc.c                    |    2
+ makeopts.in                      |    3
+ pbx/ael/ael-test/ref.ael-test19  |    2
+ pbx/ael/ael-test/ref.ael-test3   |   14
+ pbx/ael/ael-test/ref.ael-vtest13 | 3367 +++++++++++++++++++--------------------
+ pbx/ael/ael-test/ref.ael-vtest17 |   16
+ pbx/ael/ael-test/ref.ael-vtest25 |    2
+ res/ael/pval.c                   |    8
+ res/res_config_odbc.c            |    5
+ res/res_odbc.c                   |   17
+ sample.call                      |    2
+ utils/ael_main.c                 |   11
+ utils/check_expr.c               |   12
+ utils/conf2ael.c                 |   12
+ utils/hashtest.c                 |   13
+ utils/hashtest2.c                |   12
+ utils/refcounter.c               |   13
+ 51 files changed, 2725 insertions(+), 2052 deletions(-)
+
+     ----------------------------------------------------------------------
