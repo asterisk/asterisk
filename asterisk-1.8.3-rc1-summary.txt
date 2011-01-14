@@ -1,0 +1,132 @@
+                                Release Summary
+
+                               asterisk-1.8.3-rc1
+
+                                Date: 2011-01-14
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   2 jpeeler                1 jthurman               1 cjacobsen              
+   1 cjacobsen              1 lathama                1 jthurman               
+   1 jthurman                                        1 rgj                    
+   1 mnicholson                                      1 thsgmbh                
+   1 twilson                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Channels/chan_sip/Subscriptions
+
+   #18597: [regression] Snom BLF subscription does not work
+   Revision: 301683
+   Reporter: thsgmbh
+   Coders: twilson
+
+  Category: Channels/chan_sip/Transfers
+
+   #18403: [patch] Deadlock on SIP blind transfer (REFER)
+   Revision: 301790
+   Reporter: jthurman
+   Testers: jthurman
+   Coders: jthurman, jpeeler
+
+  Category: General
+
+   #18130: [regression] DTMF on agent channel causes high CPU
+   Revision: 301504
+   Reporter: rgj
+   Coders: jpeeler
+
+  Category: Resources/res_phoneprov
+
+   #18607: [patch] Static entry for Polycom 331 split firmware
+   Revision: 301731
+   Reporter: cjacobsen
+   Testers: lathama
+   Coders: cjacobsen
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                    | Issues Referenced |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Removed a usleep(1) that   |                   |
+   | 301595   | mnicholson | shouldn't be necessary in  |                   |
+   |          |            | session_do, and removed    |                   |
+   |          |            | the                        |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ channels/chan_sip.c           |   34 +++++++++++++++++++---------------
+ configs/phoneprov.conf.sample |    2 ++
+ main/channel.c                |    2 +-
+ main/manager.c                |   14 --------------
+ 4 files changed, 22 insertions(+), 30 deletions(-)
+
+     ----------------------------------------------------------------------
