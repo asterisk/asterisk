@@ -111,7 +111,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, format_t form
 {
 	char *tmp = ast_strdupa(data), *multicast_type = tmp, *destination, *control;
 	struct ast_rtp_instance *instance;
-	struct ast_sockaddr control_address;
+	struct ast_sockaddr control_address = { .len = 0 };
 	struct ast_sockaddr destination_address;
 	struct ast_channel *chan;
 	format_t fmt = ast_best_codec(format);
