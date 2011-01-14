@@ -45,9 +45,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Returns the base64 string.</para>
 		</description>
 		<see-also>
-			<ref type="application">BASE64_DECODE</ref>
-			<ref type="application">AES_DECRYPT</ref>
-			<ref type="application">AES_ENCRYPT</ref>
+			<ref type="function">BASE64_DECODE</ref>
+			<ref type="function">AES_DECRYPT</ref>
+			<ref type="function">AES_ENCRYPT</ref>
 		</see-also>
 	</function>
 	<function name="BASE64_DECODE" language="en_US">
@@ -63,9 +63,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Returns the plain text string.</para>
 		</description>
 		<see-also>
-			<ref type="application">BASE64_ENCODE</ref>
-			<ref type="application">AES_DECRYPT</ref>
-			<ref type="application">AES_ENCRYPT</ref>
+			<ref type="function">BASE64_ENCODE</ref>
+			<ref type="function">AES_DECRYPT</ref>
+			<ref type="function">AES_ENCRYPT</ref>
 		</see-also>
 	</function>
  ***/
