@@ -10193,6 +10193,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo,
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int oldsdp, int add_audio, int add_t38)
 {
 	int alreadysent = 0;
+	int doing_directmedia = FALSE;
 
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
@@ -10254,6 +10255,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	}
 
 	if (add_audio) {
+		doing_directmedia = (p->redirip.sin_addr.s_addr && p->redircodecs) ? TRUE : FALSE;
 		/* Check if we need video in this call */
 		if ((p->jointcapability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
 			if (p->vrtp) {
@@ -10284,12 +10286,27 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
 
 	if (add_audio) {
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_ONEDIR) {
+			hold = "a=recvonly\r\n";
+			doing_directmedia = FALSE;
+		} else if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_INACTIVE) {
+			hold = "a=inactive\r\n";
+			doing_directmedia = FALSE;
+		} else {
+			hold = "a=sendrecv\r\n";
+		}
+
 		capability = p->jointcapability;
 
 		/* XXX note, Video and Text are negated - 'true' means 'no' */
 		ast_debug(1, "** Our capability: %s Video flag: %s Text flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), 
 			  p->novideo ? "True" : "False", p->notext ? "True" : "False");
 		ast_debug(1, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
+
+		if (doing_directmedia) {
+			capability &= p->redircodecs;
+			ast_debug(1, "** Our native-bridge filtered capablity: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability));
+		}
 
 		/* Check if we need audio */
 		if (capability & AST_FORMAT_AUDIO_MASK)
@@ -10335,13 +10352,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		   peer doesn't have to ast_gethostbyname() us */
 
 		ast_str_append(&m_audio, 0, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
-
-		if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_ONEDIR)
-			hold = "a=recvonly\r\n";
-		else if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_INACTIVE)
-			hold = "a=inactive\r\n";
-		else
-			hold = "a=sendrecv\r\n";
 
 		/* Now, start adding audio codecs. These are added in this order:
 		   - First what was requested by the calling channel
