@@ -1,3 +1,9 @@
+2011-01-17  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.1.2 Released.
+
+	* AST-2011-001: Stack buffer overflow in SIP channel driver
+
 2010-12-13  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.1.1 Released.
