@@ -7027,6 +7027,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int add_audio, int add_t38)
 {
 	int alreadysent = 0;
+	int doing_directmedia = FALSE;
 
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
@@ -7092,6 +7093,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	if (p->redirip.sin_addr.s_addr) {
 		dest.sin_port = p->redirip.sin_port;
 		dest.sin_addr = p->redirip.sin_addr;
+		doing_directmedia = p->redircodecs ? TRUE : FALSE;
 	} else {
 		dest.sin_addr = p->ourip;
 		dest.sin_port = sin.sin_port;
@@ -7108,13 +7110,19 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		hold = "a=sendrecv\r\n";
 
 	if (add_audio) {
+		char codecbuf[SIPBUFSIZE];
 		capability = p->jointcapability;
 
-
 		if (option_debug > 1) {
-			char codecbuf[SIPBUFSIZE];
 			ast_log(LOG_DEBUG, "** Our capability: %s Video flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), ast_test_flag(&p->flags[0], SIP_NOVIDEO) ? "True" : "False");
 			ast_log(LOG_DEBUG, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
+		}
+
+		if (doing_directmedia) {
+			capability &= p->redircodecs;
+			if (option_debug > 1) {
+				ast_log(LOG_NOTICE, "** Our native-bridge filtered capablity: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability));
+			}
 		}
 
 #ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
