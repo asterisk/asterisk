@@ -11065,12 +11065,15 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Build contact header - the contact header we send out */
 static void build_contact(struct sip_pvt *p)
 {
+	char tmp[SIPBUFSIZE];
+	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), 1);
+
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten,
-			ast_strlen_zero(p->exten) ? "" : "@", ast_sockaddr_stringify(&p->ourip));
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", user,
+			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify(&p->ourip));
 	} else {
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", p->exten,
-			ast_strlen_zero(p->exten) ? "" : "@", ast_sockaddr_stringify(&p->ourip),
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", user,
+			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify(&p->ourip),
 			get_transport(p->socket.type));
 	}
 }
