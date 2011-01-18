@@ -863,6 +863,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; also contains the Asterisk version.
 ;sdpowner=root                  ; Allows you to change the username field in the SDP owner string, (o=)
                                 ; This field MUST NOT contain spaces
+;encryption=no                  ; Whether to offer SRTP encrypted media (and only SRTP encrypted media)
+                                ; on outgoing calls to a peer. Calls will fail with HANGUPCAUSE=58 if
+                                ; the peer does not support SRTP. Defaults to no.
 
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
@@ -1091,6 +1094,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; unsolicited_mailbox
 ; use_q850_reason
 ; maxforwards
+; encryption
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)

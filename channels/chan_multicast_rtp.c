@@ -116,6 +116,8 @@ static struct ast_channel *multicast_rtp_request(const char *type, format_t form
 	struct ast_channel *chan;
 	format_t fmt = ast_best_codec(format);
 
+	ast_sockaddr_setnull(&control_address);
+
 	/* If no type was given we can't do anything */
 	if (ast_strlen_zero(multicast_type)) {
 		goto failure;
