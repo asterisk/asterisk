@@ -743,7 +743,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	const char *caller_name, struct ast_channel *requestor,
-	struct ast_channel *transferee, const char *type, int format, void *data,
+	struct ast_channel *transferee, const char *type, format_t format, void *data,
 	int timeout, int *outstate, const char *language);
 
 /*!
@@ -2971,7 +2971,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
  */
 static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	const char *caller_name, struct ast_channel *requestor,
-	struct ast_channel *transferee, const char *type, int format, void *data,
+	struct ast_channel *transferee, const char *type, format_t format, void *data,
 	int timeout, int *outstate, const char *language)
 {
 	int state = 0;
