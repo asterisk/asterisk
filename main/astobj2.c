@@ -60,7 +60,7 @@ struct astobj2 {
 };
 
 #ifdef AST_DEVMODE
-#define AO2_DEBUG 1
+/* #define AO2_DEBUG 1 */
 #endif
 
 #ifdef AO2_DEBUG
