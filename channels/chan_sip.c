@@ -10736,19 +10736,21 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Build contact header - the contact header we send out */
 static void build_contact(struct sip_pvt *p)
 {
-
+	char tmp[SIPBUFSIZE];
+	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), 1);
 	int ourport = ntohs(p->ourip.sin_port);
+
 	/* only add port if it's non-standard for the transport type */
 	if (!sip_standard_port(p->socket.type, ourport)) {
 		if (p->socket.type == SIP_TRANSPORT_UDP)
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport);
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", user, ast_strlen_zero(user) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport);
 		else
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d;transport=%s>", user, ast_strlen_zero(user) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ourport, get_transport(p->socket.type));
 	} else {
 		if (p->socket.type == SIP_TRANSPORT_UDP)
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s>", user, ast_strlen_zero(user) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
 		else
-			ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
+			ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", user, ast_strlen_zero(user) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), get_transport(p->socket.type));
 	}
 }
 
