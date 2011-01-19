@@ -419,7 +419,7 @@ void ast_uri_decode(char *s)
 	unsigned int tmp;
 
 	for (o = s; *s; s++, o++) {
-		if (*s == '%' && strlen(s) > 2 && sscanf(s + 1, "%2x", &tmp) == 1) {
+		if (*s == '%' && s[1] != '\0' && s[2] != '\0' && sscanf(s + 1, "%2x", &tmp) == 1) {
 			/* have '%', two chars and correct parsing */
 			*o = tmp;
 			s += 2;	/* Will be incremented once more when we break out */
