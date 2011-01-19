@@ -3391,7 +3391,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			retry = AGI_NANDFS_RETRY;
 			buf[0] = '\0';
 
-			while (buflen < (len - 1)) {
+			while (len > 1) {
 				res = fgets(buf + buflen, len, readf);
 				if (feof(readf))
 					break;
@@ -3402,7 +3402,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				buflen = strlen(buf);
 				if (buflen && buf[buflen - 1] == '\n')
 					break;
-				len -= buflen;
+				len = sizeof(buf) - buflen;
 				if (agidebug)
 					ast_verbose( "AGI Rx << temp buffer %s - errno %s\n", buf, strerror(errno));
 			}
