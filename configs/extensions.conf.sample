@@ -88,14 +88,6 @@ writeprotect=no
 ;
 clearglobalvars=no
 ;
-; If priorityjumping is set to 'yes', then applications that support
-; 'jumping' to a different priority based on the result of their operations
-; will do so (this is backwards compatible behavior with pre-1.2 releases
-; of Asterisk). Individual applications can also be requested to do this
-; by passing a 'j' option in their arguments.
-;
-;priorityjumping=yes
-;
 ; User context is where entries from users.conf are registered.  The
 ; default value is 'default'
 ;
