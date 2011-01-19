@@ -1462,15 +1462,27 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 
 	ast_stopstream(transferer);
 	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
-	if (res < 0) {  /* hangup, would be 0 for invalid and 1 for valid */
+	if (res < 0) {  /* hangup or error, (would be 0 for invalid and 1 for valid) */
 		finishup(transferee);
-		return res;
+		return -1;
 	}
+	if (res == 0) {
+		if (xferto[0]) {
+			ast_log(LOG_WARNING, "Extension '%s' does not exist in context '%s'\n",
+				xferto, transferer_real_context);
+		} else {
+			/* Does anyone care about this case? */
+			ast_log(LOG_WARNING, "No digits dialed.\n");
+		}
+		ast_stream_and_wait(transferer, "pbx-invalid", "");
+		finishup(transferee);
+		return AST_FEATURE_RETURN_SUCCESS;
+	}
+
 	if (!strcmp(xferto, ast_parking_ext())) {
 		res = finishup(transferee);
-		if (res)
-			res = -1;
-		else if (!(parkstatus = masq_park_call_announce(transferee, transferer, 0, NULL))) {	/* success */
+		if (res) {
+		} else if (!(parkstatus = masq_park_call_announce(transferee, transferer, 0, NULL))) {	/* success */
 			/* We return non-zero, but tell the PBX not to hang the channel when
 			   the thread dies -- We have to be careful now though.  We are responsible for 
 			   hanging up the channel, else it will never be hung up! */
@@ -1479,8 +1491,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		} else {
 			ast_log(LOG_WARNING, "Unable to park call %s, parkstatus = %d\n", transferee->name, parkstatus);
 		}
-		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
-	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
+		ast_autoservice_start(transferee);
+	} else {
 		pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", transferee->name);
 		pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", transferer->name);
 		res=finishup(transferee);
@@ -1517,10 +1529,9 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		}
 		check_goto_on_transfer(transferer);
 		return res;
-	} else {
-		ast_verb(3, "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
 	}
-	if (parkstatus != AST_FEATURE_RETURN_PARKFAILED && ast_stream_and_wait(transferer, xferfailsound, AST_DIGIT_ANY) < 0) {
+	if (parkstatus != AST_FEATURE_RETURN_PARKFAILED
+		&& ast_stream_and_wait(transferer, xferfailsound, "")) {
 		finishup(transferee);
 		return -1;
 	}
@@ -4104,7 +4115,7 @@ static int load_config(void)
 	strcpy(pickup_ext, "*8");
 	courtesytone[0] = '\0';
 	strcpy(xfersound, "beep");
-	strcpy(xferfailsound, "pbx-invalid");
+	strcpy(xferfailsound, "beeperr");
 	pickupsound[0] = '\0';
 	pickupfailsound[0] = '\0';
 	adsipark = 0;
