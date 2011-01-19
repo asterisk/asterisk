@@ -27,7 +27,7 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcurl-dev libspeex-dev libspeexdsp-dev libog
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libsqlite3-dev libmysqlclient15-dev libneon27-dev libgmime-2.0-2-dev libusb-dev liblua5.1-0-dev lua5.1"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev libvpb-dev libgtk2.0-dev libmysqlclient-dev libbluetooth-dev libradiusclient-ng-dev freetds-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libopenais-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev libjack-dev"
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev binutils-dev"
 
 PACKAGES_RH="automake gcc gcc-c++ ncurses-devel openssl-devel libxml2-devel unixODBC-devel libcurl-devel libogg-devel libvorbis-devel speex-devel"
 PACKAGES_RH="$PACKAGES_RH spandsp-devel freetds-devel net-snmp-devel iksemel-devel openais-devel newt-devel popt-devel libtool-ltdl-devel lua-devel"
