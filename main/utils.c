@@ -215,6 +215,8 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 		hp->hp.h_addrtype = AF_INET;
 		hp->hp.h_addr_list = (void *) hp->buf;
 		hp->hp.h_addr = hp->buf + sizeof(void *);
+		/* For AF_INET, this will always be 4 */
+		hp->hp.h_length = 4;
 		if (inet_pton(AF_INET, host, hp->hp.h_addr) > 0)
 			return &hp->hp;
 		return NULL;
