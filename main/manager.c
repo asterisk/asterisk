@@ -4781,7 +4781,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	struct ast_str *buf;
 	int i;
 
-	if (!ao2_container_count(sessions) && AST_RWLIST_EMPTY(&manager_hooks)) {
+	if (!(sessions && ao2_container_count(sessions)) && AST_RWLIST_EMPTY(&manager_hooks)) {
 		return 0;
 	}
 	
