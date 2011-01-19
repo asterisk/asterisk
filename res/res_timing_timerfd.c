@@ -165,7 +165,7 @@ static void timerfd_timer_ack(int handle, unsigned int quantity)
 	do {
 		read_result = read(handle, &expirations, sizeof(expirations));
 		if (read_result == -1) {
-			if (errno == EINTR) {
+			if (errno == EINTR || errno == EAGAIN) {
 				continue;
 			} else {
 				ast_log(LOG_ERROR, "Read error: %s\n", strerror(errno));
