@@ -12978,7 +12978,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	char *firstcuri = NULL;
 	int start = 0;
 	int wildcard_found = 0;
-	int single_binding_found;
+	int single_binding_found = 0;
 
 	ast_copy_string(contact, __get_header(req, "Contact", &start), sizeof(contact));
 
