@@ -10976,6 +10976,9 @@ static int load_config(int reload)
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "greetingfolder"))) {
 			ast_copy_string(greetingfolder, val, sizeof(greetingfolder));
+		} else if ((val = ast_variable_retrieve(cfg, "general", "greetingsfolder"))) {
+			/* Also support greetingsfolder as documented in voicemail.conf.sample */
+			ast_copy_string(greetingfolder, val, sizeof(greetingfolder));
 		} else {
 			ast_copy_string(greetingfolder, imapfolder, sizeof(greetingfolder));
 		}
