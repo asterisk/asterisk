@@ -36,8 +36,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>       /* for getrlimit(2) */
 #include <sys/resource.h>   /* for getrlimit(2) */
 #include <stdlib.h>         /* for closefrom(3) */
-#ifndef HAVE_CLOSEFROM
 #include <sys/types.h>
+#include <sys/wait.h>       /* for waitpid(2) */
+#ifndef HAVE_CLOSEFROM
 #include <dirent.h>         /* for opendir(3)   */
 #endif
 #ifdef HAVE_CAP
@@ -57,6 +58,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 
 AST_THREADSTORAGE_PUBLIC(ast_str_thread_global_buf);
+
+static pthread_t shaun_of_the_dead_thread = AST_PTHREADT_NULL;
+
+struct zombie {
+	pid_t pid;
+	AST_LIST_ENTRY(zombie) list;
+};
+
+static AST_LIST_HEAD_STATIC(zombies, zombie);
+
+static void *shaun_of_the_dead(void *data)
+{
+	struct zombie *cur;
+	int status;
+	for (;;) {
+		if (!AST_LIST_EMPTY(&zombies)) {
+			/* Don't allow cancellation while we have a lock. */
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+			AST_LIST_LOCK(&zombies);
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&zombies, cur, list) {
+				if (waitpid(cur->pid, &status, WNOHANG) != 0) {
+					AST_LIST_REMOVE_CURRENT(list);
+					ast_free(cur);
+				}
+			}
+			AST_LIST_TRAVERSE_SAFE_END
+			AST_LIST_UNLOCK(&zombies);
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		}
+		pthread_testcancel();
+		/* Wait for 60 seconds, without engaging in a busy loop. */
+		ast_poll(NULL, 0, AST_LIST_FIRST(&zombies) ? 5000 : 60000);
+	}
+	return NULL;
+}
 
 
 #define AST_MAX_FORMATS 10
@@ -2054,6 +2090,21 @@ int ast_safe_fork(int stop_reaper)
 	if (pid != 0) {
 		/* Fork failed or parent */
 		pthread_sigmask(SIG_SETMASK, &old_set, NULL);
+		if (!stop_reaper && pid > 0) {
+			struct zombie *cur = ast_calloc(1, sizeof(*cur));
+			if (cur) {
+				cur->pid = pid;
+				AST_LIST_LOCK(&zombies);
+				AST_LIST_INSERT_TAIL(&zombies, cur, list);
+				AST_LIST_UNLOCK(&zombies);
+				if (shaun_of_the_dead_thread == AST_PTHREADT_NULL) {
+					if (ast_pthread_create_background(&shaun_of_the_dead_thread, NULL, shaun_of_the_dead, NULL)) {
+						ast_log(LOG_ERROR, "Shaun of the Dead wants to kill zombies, but can't?!!\n");
+						shaun_of_the_dead_thread = AST_PTHREADT_NULL;
+					}
+				}
+			}
+		}
 		return pid;
 	} else {
 		/* Child */
