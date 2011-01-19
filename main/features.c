@@ -3299,7 +3299,7 @@ static void post_manager_event(const char *s, struct parkeduser *pu)
 		"Parkinglot: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n"
-		"UniqueID: %s\r\n\r\n",
+		"UniqueID: %s\r\n",
 		pu->parkingexten, 
 		pu->chan->name,
 		pu->parkinglot->name,
