@@ -57,6 +57,56 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/global_datastores.h"
 #include "asterisk/astobj2.h"
 
+/*
+ * Party A - transferee
+ * Party B - transferer
+ * Party C - target of transfer
+ *
+ * DTMF attended transfer works within the channel bridge.
+ * Unfortunately, when either party A or B in the channel bridge
+ * hangs up, that channel is not completely hung up until the
+ * transfer completes.  This is a real problem depending upon
+ * the channel technology involved.
+ *
+ * For chan_dahdi, the channel is crippled until the hangup is
+ * complete.  Either the channel is not useable (analog) or the
+ * protocol disconnect messages are held up (PRI/BRI/SS7) and
+ * the media is not released.
+ *
+ * For chan_sip, a call limit of one is going to block that
+ * endpoint from any further calls until the hangup is complete.
+ *
+ * For party A this is a minor problem.  The party A channel
+ * will only be in this condition while party B is dialing and
+ * when party B and C are conferring.  The conversation between
+ * party B and C is expected to be a short one.  Party B is
+ * either asking a question of party C or announcing party A.
+ * Also party A does not have much incentive to hangup at this
+ * point.
+ *
+ * For party B this can be a major problem during a blonde
+ * transfer.  (A blonde transfer is our term for an attended
+ * transfer that is converted into a blind transfer. :))  Party
+ * B could be the operator.  When party B hangs up, he assumes
+ * that he is out of the original call entirely.  The party B
+ * channel will be in this condition while party C is ringing,
+ * while attempting to recall party B, and while waiting between
+ * call attempts.
+ *
+ * WARNING:
+ * The ATXFER_NULL_TECH conditional is a hack to fix the
+ * problem.  It will replace the party B channel technology with
+ * a NULL channel driver.  The consequences of this code is that
+ * the 'h' extension will not be able to access any channel
+ * technology specific information like SIP statistics for the
+ * call.
+ *
+ * Uncomment the ATXFER_NULL_TECH define below to replace the
+ * party B channel technology in the channel bridge to complete
+ * hanging up the channel technology.
+ */
+//#define ATXFER_NULL_TECH	1
+
 /*** DOCUMENTATION
 	<application name="Bridge" language="en_US">
 		<synopsis>
@@ -278,6 +328,119 @@ struct ast_dial_features {
 	int is_caller;
 };
 
+#if defined(ATXFER_NULL_TECH)
+static struct ast_frame *null_read(struct ast_channel *chan)
+{
+	/* Hangup channel. */
+	return NULL;
+}
+
+static struct ast_frame *null_exception(struct ast_channel *chan)
+{
+	/* Hangup channel. */
+	return NULL;
+}
+
+static int null_write(struct ast_channel *chan, struct ast_frame *frame)
+{
+	/* Hangup channel. */
+	return -1;
+}
+
+static int null_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+{
+	/* No problem fixing up the channel. */
+	return 0;
+}
+
+static int null_hangup(struct ast_channel *chan)
+{
+	chan->tech_pvt = NULL;
+	return 0;
+}
+
+static const struct ast_channel_tech null_tech = {
+	.type = "NULL",
+	.description = "NULL channel driver for atxfer",
+	.capabilities = -1,
+	.read = null_read,
+	.exception = null_exception,
+	.write = null_write,
+	.fixup = null_fixup,
+	.hangup = null_hangup,
+};
+#endif	/* defined(ATXFER_NULL_TECH) */
+
+#if defined(ATXFER_NULL_TECH)
+/*!
+ * \internal
+ * \brief Set the channel technology to the NULL technology.
+ *
+ * \param chan Channel to change technology.
+ *
+ * \return Nothing
+ */
+static void set_null_chan_tech(struct ast_channel *chan)
+{
+	int idx;
+
+	ast_channel_lock(chan);
+
+	/* Hangup the channel's physical side */
+	if (chan->tech->hangup) {
+		chan->tech->hangup(chan);
+	}
+	if (chan->tech_pvt) {
+		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n",
+			chan->name);
+		ast_free(chan->tech_pvt);
+		chan->tech_pvt = NULL;
+	}
+
+	/* Install the NULL technology and wake up anyone waiting on it. */
+	chan->tech = &null_tech;
+	for (idx = 0; idx < AST_MAX_FDS; ++idx) {
+		switch (idx) {
+		case AST_ALERT_FD:
+		case AST_TIMING_FD:
+		case AST_GENERATOR_FD:
+			/* Don't clear these fd's. */
+			break;
+		default:
+			ast_channel_set_fd(chan, idx, -1);
+			break;
+		}
+	}
+	ast_queue_frame(chan, &ast_null_frame);
+
+	ast_channel_unlock(chan);
+}
+#endif	/* defined(ATXFER_NULL_TECH) */
+
+#if defined(ATXFER_NULL_TECH)
+/*!
+ * \internal
+ * \brief Set the channel name to something unique.
+ *
+ * \param chan Channel to change name.
+ *
+ * \return Nothing
+ */
+static void set_new_chan_name(struct ast_channel *chan)
+{
+	char *orig_name;
+	static int seq_num;
+
+	ast_channel_lock(chan);
+
+	orig_name = ast_strdupa(chan->name);
+	ast_string_field_build(chan, name, "%s<XFER_%x>", orig_name,
+		ast_atomic_fetchadd_int(&seq_num, +1));
+
+	ast_channel_unlock(chan);
+}
+#endif	/* defined(ATXFER_NULL_TECH) */
+
 static void *dial_features_duplicate(void *data)
 {
 	struct ast_dial_features *df = data, *df_copy;
@@ -400,7 +563,10 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	}
 }
 
-static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language);
+static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
+	const char *caller_name, struct ast_channel *transferee, const char *type,
+	int format, void *data, int timeout, int *outstate, const char *cid_num,
+	const char *cid_name, const char *language);
 
 /*!
  * \brief bridge the call 
@@ -1392,9 +1558,9 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
  * \param config
  * \param code
  * \param sense feature options
- * 
+ *
  * \param data
- * Get extension to transfer to, if you cannot generate channel (or find extension) 
+ * Get extension to transfer to, if you cannot generate channel (or find extension)
  * return to host channel. After called channel answered wait for hangup of transferer,
  * bridge call between transfer peer (taking them off hold) to attended transfer channel.
  *
@@ -1402,8 +1568,8 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
 */
 static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
-	struct ast_channel *transferer;
-	struct ast_channel *transferee;
+	struct ast_channel *transferer;/* Party B */
+	struct ast_channel *transferee;/* Party A */
 	const char *transferer_real_context;
 	char xferto[256] = "";
 	int res;
@@ -1412,60 +1578,60 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_channel *xferchan;
 	struct ast_bridge_thread_obj *tobj;
 	struct ast_bridge_config bconfig;
-	struct ast_frame *f;
 	int l;
 	struct ast_datastore *features_datastore;
 	struct ast_dial_features *dialfeatures = NULL;
+	char *transferer_tech;
+	char *transferer_name;
+	char *transferer_name_orig;
+	char *dash;
 
 	ast_debug(1, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
 	transferer_real_context = real_ctx(transferer, transferee);
-	/* Start autoservice on chan while we talk to the originator */
+
+	/* Start autoservice on transferee while we talk to the transferer */
 	ast_autoservice_start(transferee);
-	ast_autoservice_ignore(transferee, AST_FRAME_DTMF_END);
 	ast_indicate(transferee, AST_CONTROL_HOLD);
-	
+
 	/* Transfer */
 	res = ast_stream_and_wait(transferer, "pbx-transfer", AST_DIGIT_ANY);
 	if (res < 0) {
 		finishup(transferee);
-		return res;
+		return -1;
 	}
 	if (res > 0) /* If they've typed a digit already, handle it */
 		xferto[0] = (char) res;
 
 	/* this is specific of atxfer */
 	res = ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout);
-	if (res < 0) {  /* hangup, would be 0 for invalid and 1 for valid */
+	if (res < 0) {  /* hangup or error, (would be 0 for invalid and 1 for valid) */
 		finishup(transferee);
-		return res;
+		return -1;
 	}
-	if (res == 0) {
-		ast_log(LOG_WARNING, "Did not read data.\n");
-		finishup(transferee);
-		if (ast_stream_and_wait(transferer, "beeperr", ""))
-			return -1;
-		return AST_FEATURE_RETURN_SUCCESS;
-	}
-
-	/* valid extension, res == 1 */
-	if (!ast_exists_extension(transferer, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
-		ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
-		finishup(transferee);
-		if (ast_stream_and_wait(transferer, "beeperr", ""))
-			return -1;
-		return AST_FEATURE_RETURN_SUCCESS;
-	}
-
- 	/* If we are attended transfering to parking, just use builtin_parkcall instead of trying to track all of
- 	 * the different variables for handling this properly with a builtin_atxfer */
- 	if (!strcmp(xferto, ast_parking_ext())) {
- 		finishup(transferee);
- 		return builtin_parkcall(chan, peer, config, code, sense, data);
- 	}
-
 	l = strlen(xferto);
-	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);	/* append context */
+	if (res == 0) {
+		if (l) {
+			ast_log(LOG_WARNING, "Extension '%s' does not exist in context '%s'\n",
+				xferto, transferer_real_context);
+		} else {
+			/* Does anyone care about this case? */
+			ast_log(LOG_WARNING, "No digits dialed for atxfer.\n");
+		}
+		ast_stream_and_wait(transferer, "pbx-invalid", "");
+		finishup(transferee);
+		return AST_FEATURE_RETURN_SUCCESS;
+	}
+
+	/* If we are attended transfering to parking, just use builtin_parkcall instead of trying to track all of
+	 * the different variables for handling this properly with a builtin_atxfer */
+	if (!strcmp(xferto, ast_parking_ext())) {
+		finishup(transferee);
+		return builtin_parkcall(chan, peer, config, code, sense, data);
+	}
+
+	/* Append context to dialed transfer number. */
+	snprintf(xferto + l, sizeof(xferto) - l, "@%s/n", transferer_real_context);
 
 	/* If we are performing an attended transfer and we have two channels involved then
 	   copy sound file information to play upon attended transfer completion */
@@ -1481,29 +1647,66 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		}
 	}
 
-	newchan = feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
-		xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
+	/* Extract redial transferer information from the channel name. */
+	transferer_name_orig = ast_strdupa(transferer->name);
+	transferer_name = ast_strdupa(transferer_name_orig);
+	transferer_tech = strsep(&transferer_name, "/");
+	dash = strrchr(transferer_name, '-');
+	if (dash) {
+		/* Trim off channel name sequence/serial number. */
+		*dash = '\0';
+	}
+
+	/* Stop autoservice so we can monitor all parties involved in the transfer. */
+	if (ast_autoservice_stop(transferee) < 0) {
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
+		return -1;
+	}
+
+	/* Dial party C */
+	newchan = feature_request_and_dial(transferer, transferer_name_orig, transferee,
+		"Local", ast_best_codec(transferer->nativeformats), xferto, atxfernoanswertimeout,
+		&outstate, transferer->cid.cid_num, transferer->cid.cid_name,
+		transferer->language);
+	ast_debug(2, "Dial party C result: newchan:%d, outstate:%d\n", !!newchan, outstate);
 
 	if (!ast_check_hangup(transferer)) {
 		int hangup_dont = 0;
 
-		/* Transferer is up - old behaviour */
+		/* Transferer (party B) is up */
+		ast_debug(1, "Actually doing an attended transfer.\n");
+
+		/* Start autoservice on transferee while the transferer deals with party C. */
+		ast_autoservice_start(transferee);
+
 		ast_indicate(transferer, -1);
 		if (!newchan) {
-			finishup(transferee);
 			/* any reason besides user requested cancel and busy triggers the failed sound */
-			if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY &&
-				ast_stream_and_wait(transferer, xferfailsound, ""))
-				return -1;
-			if (ast_stream_and_wait(transferer, xfersound, ""))
-				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
+			switch (outstate) {
+			case AST_CONTROL_UNHOLD:/* Caller requested cancel or party C answer timeout. */
+			case AST_CONTROL_BUSY:
+			case AST_CONTROL_CONGESTION:
+				if (ast_stream_and_wait(transferer, xfersound, "")) {
+					ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
+				}
+				break;
+			default:
+				if (ast_stream_and_wait(transferer, xferfailsound, "")) {
+					ast_log(LOG_WARNING, "Failed to play transfer failed sound!\n");
+				}
+				break;
+			}
+			finishup(transferee);
 			return AST_FEATURE_RETURN_SUCCESS;
 		}
 
 		if (check_compat(transferer, newchan)) {
+			if (ast_stream_and_wait(transferer, xferfailsound, "")) {
+				ast_log(LOG_WARNING, "Failed to play transfer failed sound!\n");
+			}
 			/* we do mean transferee here, NOT transferer */
 			finishup(transferee);
-			return -1;
+			return AST_FEATURE_RETURN_SUCCESS;
 		}
 		memset(&bconfig,0,sizeof(struct ast_bridge_config));
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
@@ -1515,205 +1718,194 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		if (ast_test_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT)) {
 			hangup_dont = 1;
 		}
-		res = ast_bridge_call(transferer, newchan, &bconfig);
+		/* Let party B and party C talk as long as they want. */
+		ast_bridge_call(transferer, newchan, &bconfig);
 		if (hangup_dont) {
 			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
 		}
 
 		if (ast_check_hangup(newchan) || !ast_check_hangup(transferer)) {
 			ast_hangup(newchan);
-			if (ast_stream_and_wait(transferer, xfersound, ""))
+			if (ast_stream_and_wait(transferer, xfersound, "")) {
 				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
+			}
 			finishup(transferee);
-			transferer->_softhangup = 0;
 			return AST_FEATURE_RETURN_SUCCESS;
 		}
+
+		/* Transferer (party B) is confirmed hung up at this point. */
 		if (check_compat(transferee, newchan)) {
 			finishup(transferee);
 			return -1;
 		}
+
 		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-
 		if ((ast_autoservice_stop(transferee) < 0)
-		 || (ast_waitfordigit(transferee, 100) < 0)
-		 || (ast_waitfordigit(newchan, 100) < 0)
-		 || ast_check_hangup(transferee)
-		 || ast_check_hangup(newchan)) {
+			|| (ast_waitfordigit(transferee, 100) < 0)
+			|| (ast_waitfordigit(newchan, 100) < 0)
+			|| ast_check_hangup(transferee)
+			|| ast_check_hangup(newchan)) {
 			ast_hangup(newchan);
 			return -1;
 		}
-		xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Transfered/%s", transferee->name);
-		if (!xferchan) {
-			ast_hangup(newchan);
-			return -1;
-		}
-		/* Make formats okay */
-		xferchan->visible_indication = transferer->visible_indication;
-		xferchan->readformat = transferee->readformat;
-		xferchan->writeformat = transferee->writeformat;
-		ast_channel_masquerade(xferchan, transferee);
-		ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
-		xferchan->_state = AST_STATE_UP;
-		ast_clear_flag(xferchan, AST_FLAGS_ALL);
-		xferchan->_softhangup = 0;
-		if ((f = ast_read(xferchan)))
-			ast_frfree(f);
-		newchan->_state = AST_STATE_UP;
-		ast_clear_flag(newchan, AST_FLAGS_ALL);
-		newchan->_softhangup = 0;
-		if (!(tobj = ast_calloc(1, sizeof(*tobj)))) {
-			ast_hangup(xferchan);
-			ast_hangup(newchan);
-			return -1;
-		}
-
-		ast_channel_lock(newchan);
-		if ((features_datastore = ast_channel_datastore_find(newchan, &dial_features_info, NULL))) {
-				dialfeatures = features_datastore->data;
-		}
-		ast_channel_unlock(newchan);
-
-		if (dialfeatures) {
-			/* newchan should always be the callee and shows up as callee in dialfeatures, but for some reason
-			   I don't currently understand, the abilities of newchan seem to be stored on the caller side */
-			ast_copy_flags(&(config->features_callee), &(dialfeatures->features_caller), AST_FLAGS_ALL);
-			dialfeatures = NULL;
-		}
-
-		ast_channel_lock(xferchan);
-		if ((features_datastore = ast_channel_datastore_find(xferchan, &dial_features_info, NULL))) {
-			dialfeatures = features_datastore->data;
-		}
-		ast_channel_unlock(xferchan);
-	 
-		if (dialfeatures) {
-			ast_copy_flags(&(config->features_caller), &(dialfeatures->features_caller), AST_FLAGS_ALL);
-		}
-	 
-		tobj->chan = newchan;
-		tobj->peer = xferchan;
-		tobj->bconfig = *config;
-
-		if (tobj->bconfig.end_bridge_callback_data_fixup) {
-			tobj->bconfig.end_bridge_callback_data_fixup(&tobj->bconfig, tobj->peer, tobj->chan);
-		}
-
-		if (ast_stream_and_wait(newchan, xfersound, ""))
-			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
-		bridge_call_thread_launch(tobj);
-		return -1;      /* XXX meaning the channel is bridged ? */
 	} else if (!ast_check_hangup(transferee)) {
-		/* act as blind transfer */
-		if (ast_autoservice_stop(transferee) < 0) {
-			ast_hangup(newchan);
-			return -1;
-		}
+		/* Transferer (party B) has hung up at this point.  Doing blonde transfer. */
+		ast_debug(1, "Actually doing a blonde transfer.\n");
 
-		if (!newchan) {
+		if (!newchan && !atxferdropcall) {
+			/* Party C is not available, try to call party B back. */
 			unsigned int tries = 0;
-			char *transferer_tech, *transferer_name = ast_strdupa(transferer->name);
-
-			transferer_tech = strsep(&transferer_name, "/");
-			transferer_name = strsep(&transferer_name, "-");
 
 			if (ast_strlen_zero(transferer_name) || ast_strlen_zero(transferer_tech)) {
-				ast_log(LOG_WARNING, "Transferer has invalid channel name: '%s'\n", transferer->name);
-				if (ast_stream_and_wait(transferee, "beeperr", ""))
-					return -1;
-				return AST_FEATURE_RETURN_SUCCESS;
+				ast_log(LOG_WARNING,
+					"Transferer channel name: '%s' cannot be used for callback.\n",
+					transferer_name_orig);
+				ast_indicate(transferee, AST_CONTROL_UNHOLD);
+				return -1;
 			}
 
-			ast_log(LOG_NOTICE, "We're trying to call %s/%s\n", transferer_tech, transferer_name);
-			newchan = feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
-				transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
-			while (!newchan && !atxferdropcall && tries < atxfercallbackretries) {
-				/* Trying to transfer again */
-				ast_autoservice_start(transferee);
-				ast_autoservice_ignore(transferee, AST_FRAME_DTMF_END);
-				ast_indicate(transferee, AST_CONTROL_HOLD);
-
-				newchan = feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
-					xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1, transferer->language);
-				if (ast_autoservice_stop(transferee) < 0) {
-					if (newchan)
-						ast_hangup(newchan);
-					return -1;
+			tries = 0;
+			for (;;) {
+				/* Try to get party B back. */
+				ast_debug(1, "We're trying to callback %s/%s\n",
+					transferer_tech, transferer_name);
+				newchan = feature_request_and_dial(transferer, transferer_name_orig,
+					transferee, transferer_tech,
+					ast_best_codec(transferee->nativeformats), transferer_name,
+					atxfernoanswertimeout, &outstate, transferee->cid.cid_num,
+					transferee->cid.cid_name, transferer->language);
+				ast_debug(2, "Dial party B result: newchan:%d, outstate:%d\n",
+					!!newchan, outstate);
+				if (newchan || ast_check_hangup(transferee)) {
+					break;
 				}
-				if (!newchan) {
+
+				++tries;
+				if (atxfercallbackretries <= tries) {
+					/* No more callback tries remaining. */
+					break;
+				}
+
+				if (atxferloopdelay) {
 					/* Transfer failed, sleeping */
-					ast_debug(1, "Sleeping for %d ms before callback.\n", atxferloopdelay);
+					ast_debug(1, "Sleeping for %d ms before retrying atxfer.\n",
+						atxferloopdelay);
 					ast_safe_sleep(transferee, atxferloopdelay);
-					ast_debug(1, "Trying to callback...\n");
-					newchan = feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
-						transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0, transferer->language);
+					if (ast_check_hangup(transferee)) {
+						return -1;
+					}
 				}
-				tries++;
-			}
-		}
-		if (!newchan)
-			return -1;
 
-		/* newchan is up, we should prepare transferee and bridge them */
-		if (check_compat(transferee, newchan)) {
-			finishup(transferee);
-			return -1;
+				/* Retry dialing party C. */
+				ast_debug(1, "We're retrying to call %s/%s\n", "Local", xferto);
+				newchan = feature_request_and_dial(transferer, transferer_name_orig,
+					transferee, "Local", ast_best_codec(transferee->nativeformats),
+					xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num,
+					transferer->cid.cid_name, transferer->language);
+				ast_debug(2, "Redial party C result: newchan:%d, outstate:%d\n",
+					!!newchan, outstate);
+				if (newchan || ast_check_hangup(transferee)) {
+					break;
+				}
+			}
 		}
 		ast_indicate(transferee, AST_CONTROL_UNHOLD);
-
-		if ((ast_waitfordigit(transferee, 100) < 0)
-		   || (ast_waitfordigit(newchan, 100) < 0)
-		   || ast_check_hangup(transferee)
-		   || ast_check_hangup(newchan)) {
-			ast_hangup(newchan);
+		if (!newchan) {
+			/* No party C or could not callback party B. */
 			return -1;
 		}
 
-		xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Transfered/%s", transferee->name);
-		if (!xferchan) {
+		/* newchan is up, we should prepare transferee and bridge them */
+		if (ast_check_hangup(newchan)) {
 			ast_hangup(newchan);
 			return -1;
 		}
-		/* Make formats okay */
-		xferchan->visible_indication = transferer->visible_indication;
-		xferchan->readformat = transferee->readformat;
-		xferchan->writeformat = transferee->writeformat;
-		ast_channel_masquerade(xferchan, transferee);
-		ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
-		xferchan->_state = AST_STATE_UP;
-		ast_clear_flag(xferchan, AST_FLAGS_ALL);
-		xferchan->_softhangup = 0;
-		if ((f = ast_read(xferchan)))
-			ast_frfree(f);
-		newchan->_state = AST_STATE_UP;
-		ast_clear_flag(newchan, AST_FLAGS_ALL);
-		newchan->_softhangup = 0;
-		if (!(tobj = ast_calloc(1, sizeof(*tobj)))) {
-			ast_hangup(xferchan);
-			ast_hangup(newchan);
+		if (check_compat(transferee, newchan)) {
 			return -1;
 		}
-		tobj->chan = newchan;
-		tobj->peer = xferchan;
-		tobj->bconfig = *config;
-
-		if (tobj->bconfig.end_bridge_callback_data_fixup) {
-			tobj->bconfig.end_bridge_callback_data_fixup(&tobj->bconfig, tobj->peer, tobj->chan);
-		}
-
-		if (ast_stream_and_wait(newchan, xfersound, ""))
-			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
-		bridge_call_thread_launch(tobj);
-		return -1;      /* XXX meaning the channel is bridged ? */
 	} else {
-		/* Transferee hung up */
-		finishup(transferee);
-		/* At this point both the transferer transferee have hungup,
-		 * so if newchan is up, hang it up as it has no one to talk to */
+		/*
+		 * Both the transferer and transferee have hungup.  If newchan
+		 * is up, hang it up as it has no one to talk to.
+		 */
+		ast_debug(1, "Everyone is hungup.\n");
 		if (newchan) {
 			ast_hangup(newchan);
 		}
 		return -1;
 	}
+
+	/* Initiate the channel transfer of party A to party C (or recalled party B). */
+
+	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Transfered/%s", transferee->name);
+	if (!xferchan) {
+		ast_hangup(newchan);
+		return -1;
+	}
+
+	/* Give party A a momentary ringback tone during transfer. */
+	xferchan->visible_indication = AST_CONTROL_RINGING;
+
+	/* Make formats okay */
+	xferchan->readformat = transferee->readformat;
+	xferchan->writeformat = transferee->writeformat;
+
+	ast_channel_masquerade(xferchan, transferee);
+	ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
+	xferchan->_state = AST_STATE_UP;
+	ast_clear_flag(xferchan, AST_FLAGS_ALL);
+
+	/* Do the masquerade manually to make sure that is is completed. */
+	ast_channel_lock(xferchan);
+	if (xferchan->masq) {
+		ast_do_masquerade(xferchan);
+	}
+	ast_channel_unlock(xferchan);
+
+	newchan->_state = AST_STATE_UP;
+	ast_clear_flag(newchan, AST_FLAGS_ALL);
+	tobj = ast_calloc(1, sizeof(*tobj));
+	if (!tobj) {
+		ast_hangup(xferchan);
+		ast_hangup(newchan);
+		return -1;
+	}
+
+	ast_channel_lock(newchan);
+	if ((features_datastore = ast_channel_datastore_find(newchan, &dial_features_info, NULL))) {
+		dialfeatures = features_datastore->data;
+	}
+	ast_channel_unlock(newchan);
+
+	if (dialfeatures) {
+		/* newchan should always be the callee and shows up as callee in dialfeatures, but for some reason
+		   I don't currently understand, the abilities of newchan seem to be stored on the caller side */
+		ast_copy_flags(&(config->features_callee), &(dialfeatures->features_caller), AST_FLAGS_ALL);
+		dialfeatures = NULL;
+	}
+
+	ast_channel_lock(xferchan);
+	if ((features_datastore = ast_channel_datastore_find(xferchan, &dial_features_info, NULL))) {
+		dialfeatures = features_datastore->data;
+	}
+	ast_channel_unlock(xferchan);
+
+	if (dialfeatures) {
+		ast_copy_flags(&(config->features_caller), &(dialfeatures->features_caller), AST_FLAGS_ALL);
+	}
+
+	tobj->chan = newchan;
+	tobj->peer = xferchan;
+	tobj->bconfig = *config;
+
+	if (tobj->bconfig.end_bridge_callback_data_fixup) {
+		tobj->bconfig.end_bridge_callback_data_fixup(&tobj->bconfig, tobj->peer, tobj->chan);
+	}
+
+	if (ast_stream_and_wait(newchan, xfersound, ""))
+		ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
+	bridge_call_thread_launch(tobj);
+	return -1;/* The transferee is masqueraded and the original bridged channels can be hungup. */
 }
 
 /* add atxfer and automon as undefined so you can only use em if you configure them */
@@ -2191,38 +2383,74 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 	}
 }
 
-/*! 
- * \brief Get feature and dial
- * \param caller,transferee,type,format,data,timeout,outstate,cid_num,cid_name,igncallerstate
+/*!
+ * \internal
+ * \brief Get feature and dial.
  *
- * Request channel, set channel variables, initiate call,check if they want to disconnect
- * go into loop, check if timeout has elapsed, check if person to be transfered hung up,
- * check for answer break loop, set cdr return channel.
+ * \param caller Channel to represent as the calling channel for the dialed channel.
+ * \param caller_name Original caller channel name.
+ * \param transferee Channel that the dialed channel will be transferred to.
+ * \param type Channel technology type to dial.
+ * \param format Codec formats for dialed channel.
+ * \param data Dialed channel extra parameters for ast_request() and ast_call().
+ * \param timeout Time limit for dialed channel to answer in ms. Must be greater than zero.
+ * \param outstate Status of dialed channel if unsuccessful.
+ * \param cid_num CallerID number to give dialed channel.
+ * \param cid_name CallerID name to give dialed channel.
+ * \param language Language of the caller.
  *
- * \todo XXX Check - this is very similar to the code in channel.c 
- * \return always a channel
-*/
-static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, struct ast_channel *transferee, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, int igncallerstate, const char *language)
+ * \note
+ * outstate can be:
+ * 0, AST_CONTROL_BUSY, AST_CONTROL_CONGESTION,
+ * AST_CONTROL_ANSWER, or AST_CONTROL_UNHOLD.  If
+ * AST_CONTROL_UNHOLD then the caller channel cancelled the
+ * transfer or the dialed channel did not answer before the
+ * timeout.
+ *
+ * \details
+ * Request channel, set channel variables, initiate call,
+ * check if they want to disconnect, go into loop, check if timeout has elapsed,
+ * check if person to be transfered hung up, check for answer break loop,
+ * set cdr return channel.
+ *
+ * \retval Channel Connected channel for transfer.
+ * \retval NULL on failure to get third party connected.
+ *
+ * \note This is similar to __ast_request_and_dial() in channel.c
+ */
+static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
+	const char *caller_name, struct ast_channel *transferee, const char *type,
+	int format, void *data, int timeout, int *outstate, const char *cid_num,
+	const char *cid_name, const char *language)
 {
 	int state = 0;
 	int cause = 0;
 	int to;
+	int caller_hungup;
+	int transferee_hungup;
 	struct ast_channel *chan;
-	struct ast_channel *monitor_chans[2];
+	struct ast_channel *monitor_chans[3];
 	struct ast_channel *active_channel;
-	int res = 0, ready = 0;
+	int ready = 0;
 	struct timeval started;
 	int x, len = 0;
 	char *disconnect_code = NULL, *dialed_code = NULL;
+	struct ast_frame *f;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
+
+	caller_hungup = ast_check_hangup(caller);
 
 	if (!(chan = ast_request(type, format, data, &cause))) {
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
-		switch(cause) {
+		switch (cause) {
 		case AST_CAUSE_BUSY:
 			state = AST_CONTROL_BUSY;
 			break;
 		case AST_CAUSE_CONGESTION:
 			state = AST_CONTROL_CONGESTION;
+			break;
+		default:
+			state = 0;
 			break;
 		}
 		goto done;
@@ -2230,15 +2458,25 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
 	ast_string_field_set(chan, language, language);
-	ast_channel_inherit_variables(caller, chan);	
-	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
-		
+	ast_channel_inherit_variables(caller, chan);
+	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller_name);
+
 	if (ast_call(chan, data, timeout)) {
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+		switch (chan->hangupcause) {
+		case AST_CAUSE_BUSY:
+			state = AST_CONTROL_BUSY;
+			break;
+		case AST_CAUSE_CONGESTION:
+			state = AST_CONTROL_CONGESTION;
+			break;
+		default:
+			state = 0;
+			break;
+		}
 		goto done;
 	}
-	
-	ast_indicate(caller, AST_CONTROL_RINGING);
+
 	/* support dialing of the featuremap disconnect code while performing an attended tranfer */
 	ast_rwlock_rdlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++) {
@@ -2255,57 +2493,111 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 	x = 0;
 	started = ast_tvnow();
 	to = timeout;
+	AST_LIST_HEAD_INIT_NOLOCK(&deferred_frames);
 
 	ast_poll_channel_add(caller, chan);
 
-	while (!((transferee && ast_check_hangup(transferee)) && (!igncallerstate && ast_check_hangup(caller))) && timeout && (chan->_state != AST_STATE_UP)) {
-		struct ast_frame *f = NULL;
+	transferee_hungup = 0;
+	while (!ast_check_hangup(transferee) && (chan->_state != AST_STATE_UP)) {
+		int num_chans = 0;
 
-		monitor_chans[0] = caller;
-		monitor_chans[1] = chan;
-		active_channel = ast_waitfor_n(monitor_chans, 2, &to);
+		monitor_chans[num_chans++] = transferee;
+		monitor_chans[num_chans++] = chan;
+		if (!caller_hungup) {
+			if (ast_check_hangup(caller)) {
+				caller_hungup = 1;
+
+#if defined(ATXFER_NULL_TECH)
+				/* Change caller's name to ensure that it will remain unique. */
+				set_new_chan_name(caller);
+
+				/*
+				 * Get rid of caller's physical technology so it is free for
+				 * other calls.
+				 */
+				set_null_chan_tech(caller);
+#endif	/* defined(ATXFER_NULL_TECH) */
+			} else {
+				/* caller is not hungup so monitor it. */
+				monitor_chans[num_chans++] = caller;
+			}
+		}
 
 		/* see if the timeout has been violated */
-		if(ast_tvdiff_ms(ast_tvnow(), started) > timeout) {
+		if (ast_tvdiff_ms(ast_tvnow(), started) > timeout) {
 			state = AST_CONTROL_UNHOLD;
-			ast_log(LOG_NOTICE, "We exceeded our AT-timeout\n");
+			ast_log(LOG_NOTICE, "We exceeded our AT-timeout for %s\n", chan->name);
 			break; /*doh! timeout*/
 		}
 
+		active_channel = ast_waitfor_n(monitor_chans, num_chans, &to);
 		if (!active_channel)
 			continue;
 
-		if (chan && (chan == active_channel)){
+		f = NULL;
+		if (transferee == active_channel) {
+			struct ast_frame *dup_f;
+
+			f = ast_read(transferee);
+			if (f == NULL) { /*doh! where'd he go?*/
+				transferee_hungup = 1;
+				state = 0;
+				break;
+			}
+			if (ast_is_deferrable_frame(f)) {
+				dup_f = ast_frisolate(f);
+				if (dup_f) {
+					if (dup_f == f) {
+						f = NULL;
+					}
+					AST_LIST_INSERT_HEAD(&deferred_frames, dup_f, frame_list);
+				}
+			}
+		} else if (chan == active_channel) {
 			if (!ast_strlen_zero(chan->call_forward)) {
-				if (!(chan = ast_call_forward(caller, chan, NULL, format, NULL, outstate))) {
-					return NULL;
+				state = 0;
+				chan = ast_call_forward(caller, chan, NULL, format, NULL, &state);
+				if (!chan) {
+					break;
 				}
 				continue;
 			}
 			f = ast_read(chan);
 			if (f == NULL) { /*doh! where'd he go?*/
-				state = AST_CONTROL_HANGUP;
-				res = 0;
+				switch (chan->hangupcause) {
+				case AST_CAUSE_BUSY:
+					state = AST_CONTROL_BUSY;
+					break;
+				case AST_CAUSE_CONGESTION:
+					state = AST_CONTROL_CONGESTION;
+					break;
+				default:
+					state = 0;
+					break;
+				}
 				break;
 			}
-			
-			if (f->frametype == AST_FRAME_CONTROL || f->frametype == AST_FRAME_DTMF || f->frametype == AST_FRAME_TEXT) {
+
+			if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_RINGING) {
-					state = f->subclass;
 					ast_verb(3, "%s is ringing\n", chan->name);
 					ast_indicate(caller, AST_CONTROL_RINGING);
-				} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
+				} else if (f->subclass == AST_CONTROL_BUSY) {
 					state = f->subclass;
 					ast_verb(3, "%s is busy\n", chan->name);
 					ast_indicate(caller, AST_CONTROL_BUSY);
 					ast_frfree(f);
-					f = NULL;
+					break;
+				} else if (f->subclass == AST_CONTROL_CONGESTION) {
+					state = f->subclass;
+					ast_verb(3, "%s is congested\n", chan->name);
+					ast_indicate(caller, AST_CONTROL_CONGESTION);
+					ast_frfree(f);
 					break;
 				} else if (f->subclass == AST_CONTROL_ANSWER) {
 					/* This is what we are hoping for */
 					state = f->subclass;
 					ast_frfree(f);
-					f = NULL;
 					ready=1;
 					break;
 				} else if (f->subclass != -1 && f->subclass != AST_CONTROL_PROGRESS) {
@@ -2315,22 +2607,9 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 			} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
 				ast_write(caller, f);
 			}
-
-		} else if (caller && (active_channel == caller)) {
+		} else if (caller == active_channel) {
 			f = ast_read(caller);
-			if (f == NULL) { /*doh! where'd he go?*/
-				if (!igncallerstate) {
-					if (ast_check_hangup(caller) && !ast_check_hangup(chan)) {
-						/* make this a blind transfer */
-						ready = 1;
-						break;
-					}
-					state = AST_CONTROL_HANGUP;
-					res = 0;
-					break;
-				}
-			} else {
-			
+			if (f) {
 				if (f->frametype == AST_FRAME_DTMF) {
 					dialed_code[x++] = f->subclass;
 					dialed_code[x] = '\0';
@@ -2344,7 +2623,6 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 						/* Caller Canceled the call */
 						state = AST_CONTROL_UNHOLD;
 						ast_frfree(f);
-						f = NULL;
 						break;
 					}
 				} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
@@ -2357,21 +2635,31 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller, 
 	} /* end while */
 
 	ast_poll_channel_del(caller, chan);
-		
+
+	/*
+	 * We need to free all the deferred frames, but we only need to
+	 * queue the deferred frames if no hangup was received.
+	 */
+	ast_channel_lock(transferee);
+	transferee_hungup = (transferee_hungup || ast_check_hangup(transferee));
+	while ((f = AST_LIST_REMOVE_HEAD(&deferred_frames, frame_list))) {
+		if (!transferee_hungup) {
+			ast_queue_frame_head(transferee, f);
+		}
+		ast_frfree(f);
+	}
+	ast_channel_unlock(transferee);
+
 done:
 	ast_indicate(caller, -1);
 	if (chan && ready) {
-		if (chan->_state == AST_STATE_UP) 
+		if (chan->_state == AST_STATE_UP)
 			state = AST_CONTROL_ANSWER;
-		res = 0;
 	} else if (chan) {
-		res = -1;
 		ast_hangup(chan);
 		chan = NULL;
-	} else {
-		res = -1;
 	}
-	
+
 	if (outstate)
 		*outstate = state;
 
@@ -3190,7 +3478,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, const struct pollfd *pfds, 
 					continue;
 				}
 
-				if (!(pfds[y].revents & (POLLIN | POLLERR))) {
+				if (!(pfds[y].revents & (POLLIN | POLLERR | POLLPRI))) {
 					/* Next x */
 					continue;
 				}
@@ -3247,7 +3535,7 @@ std:			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 						}
 						*new_pfds = tmp;
 						(*new_pfds)[*new_nfds].fd = chan->fds[x];
-						(*new_pfds)[*new_nfds].events = POLLIN | POLLERR;
+						(*new_pfds)[*new_nfds].events = POLLIN | POLLERR | POLLPRI;
 						(*new_pfds)[*new_nfds].revents = 0;
 						(*new_nfds)++;
 					}
