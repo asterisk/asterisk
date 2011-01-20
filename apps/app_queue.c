@@ -497,7 +497,8 @@ enum {
 	QUEUE_STRATEGY_RANDOM,
 	QUEUE_STRATEGY_RRMEMORY,
 	QUEUE_STRATEGY_LINEAR,
-	QUEUE_STRATEGY_WRANDOM
+	QUEUE_STRATEGY_WRANDOM,
+	QUEUE_STRATEGY_RRORDERED,
 };
 
 enum queue_reload_mask {
@@ -519,6 +520,7 @@ static const struct strategy {
 	{ QUEUE_STRATEGY_RRMEMORY, "roundrobin" },
 	{ QUEUE_STRATEGY_LINEAR, "linear" },
 	{ QUEUE_STRATEGY_WRANDOM, "wrandom"},
+	{ QUEUE_STRATEGY_RRORDERED, "rrordered"},
 };
 
 static struct ast_taskprocessor *devicestate_tps;
@@ -1216,7 +1218,7 @@ static void init_queue(struct call_queue *q)
 	q->numperiodicannounce = 0;
 	q->timeoutpriority = TIMEOUT_PRIORITY_APP;
 	if (!q->members) {
-		if (q->strategy == QUEUE_STRATEGY_LINEAR)
+		if (q->strategy == QUEUE_STRATEGY_LINEAR || q->strategy == QUEUE_STRATEGY_RRORDERED)
 			/* linear strategy depends on order, so we have to place all members in a single bucket */
 			q->members = ao2_container_alloc(1, member_hash_fn, member_cmp_fn);
 		else
@@ -3352,6 +3354,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		}
 		tmp->metric += mem->penalty * 1000000;
 		break;
+	case QUEUE_STRATEGY_RRORDERED:
 	case QUEUE_STRATEGY_RRMEMORY:
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
@@ -3675,7 +3678,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_PARKCALL);
 			break;
 		case 'n':
-			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_LINEAR)
+			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_LINEAR || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED)
 				(*tries)++;
 			else
 				*tries = qe->parent->membercount;
@@ -3852,8 +3855,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	}
 	ast_channel_unlock(qe->chan);
 	ao2_lock(qe->parent);
-	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
+	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED) {
 		store_next_rr(qe, outgoing);
+
 	}
 	if (qe->parent->strategy == QUEUE_STRATEGY_LINEAR) {
 		store_next_lin(qe, outgoing);
