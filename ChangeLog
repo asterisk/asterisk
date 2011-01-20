@@ -1,3 +1,66 @@
+2011-01-20  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.3-rc2 Released.
+
+	------------------------------------------------------------------------
+	r303106 | sruffell | 2011-01-20 13:56:35 -0600 (Thu, 20 Jan 2011) | 15
+	lines
+
+	main/features: Use POLLPRI when waiting for events on parked channels.
+
+	This change resolves a regression in the 1.6.2 when converting from
+	select to poll. The DAHDI timers use POLLPRI to indicate that the
+	timer
+	fired, but features was not waiting for that flag. The result was no
+	audio for MOH when a call was parked and res_timing_dahdi was in use.
+
+	This patch is slightly modified from the one on the mantis issue. It
+	does
+	not set an exception on the channel if the POLLPRI flag is set.
+
+	(closes issue 0018262)
+	Reported by: francesco_r
+	Patches:
+	      patch_park_moh-trunk-2.txt uploaded by cjacobsen (license 1029)
+	            Tested by: francesco_r, rfrantik, one47
+	------------------------------------------------------------------------
+
+	------------------------------------------------------------------------
+	r302785 | russell | 2011-01-19 16:35:15 -0600 (Wed, 19 Jan 2011) | 15
+	lines
+
+	Resolve a memory leak with the manager interface is disabled.
+
+	The intent of this check as it stands in previous versions of Asterisk
+	was to
+	check if there are any active sessions.  If there were no sessions,
+	then the
+	function would return immediately and not bother with queueing up the
+	manager
+	event to be processed.  Since the conversion of storing sessions in an
+	astobj2
+	container, this check will always pass.  I changed it to go back to
+	checking
+	what was intended.
+
+	The side effect of this was that if the AMI is disabled, the manager
+	event
+	queue is populated anyway, but the code that runs to clear out the
+	queue
+	never runs.  A producer with no consumer is a bad thing.
+
+	Reported internally by kmorgan.
+
+	------------------------------------------------------------------------
+
+	------------------------------------------------------------------------
+	r302837 | russell | 2011-01-19 17:56:48 -0600 (Wed, 19 Jan 2011) | 2
+	lines
+
+	Only check container count if it exists.
+
+	------------------------------------------------------------------------
+
 2011-01-17  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.3-rc1 Released.
