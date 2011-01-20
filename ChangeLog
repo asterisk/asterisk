@@ -1,3 +1,11 @@
+2011-01-20  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.2.2 Released.
+
+	* An improper merge of the changes for AST-2011-011 caused the changes
+	  to not be applied to the 1.8.2.1 tag. The 1.8.2.2 tag contains the
+	  security changes related to AST-2011-001.
+
 2011-01-17  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.2.1 Released.
