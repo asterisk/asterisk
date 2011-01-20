@@ -119,7 +119,8 @@ enum {
 	QUEUE_STRATEGY_LEASTRECENT,
 	QUEUE_STRATEGY_FEWESTCALLS,
 	QUEUE_STRATEGY_RANDOM,
-	QUEUE_STRATEGY_RRMEMORY
+	QUEUE_STRATEGY_RRMEMORY,
+	QUEUE_STRATEGY_RRORDERED,
 };
 
 static struct strategy {
@@ -132,6 +133,7 @@ static struct strategy {
 	{ QUEUE_STRATEGY_FEWESTCALLS, "fewestcalls" },
 	{ QUEUE_STRATEGY_RANDOM, "random" },
 	{ QUEUE_STRATEGY_RRMEMORY, "rrmemory" },
+	{ QUEUE_STRATEGY_RRORDERED, "rrordered" },
 };
 
 #define DEFAULT_RETRY		5
@@ -884,8 +886,13 @@ static void init_queue(struct call_queue *q)
 	q->eventwhencalled = 0;
 	q->weight = 0;
 	q->timeoutrestart = 0;
-	if (!q->members)
-		q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
+	if (!q->members) {
+		if (q->strategy == QUEUE_STRATEGY_RRORDERED) {
+			q->members = ao2_container_alloc(1, member_hash_fn, member_cmp_fn);
+		} else {
+			q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
+		}
+	}
 	q->membercount = 0;
 	q->found = 1;
 	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
@@ -1279,12 +1286,34 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 
 	/* Create a new queue if an in-core entry does not exist yet. */
 	if (!q) {
+		struct ast_variable *tmpvar;
 		if (!(q = alloc_queue(queuename)))
 			return NULL;
 		ao2_lock(q);
 		clear_queue(q);
 		q->realtime = 1;
 		AST_LIST_INSERT_HEAD(&queues, q, list);
+	
+		/* Due to the fact that the "rrordered" strategy will have a different allocation
+ 		 * scheme for queue members, we must devise the queue's strategy before other initializations.
+		 * To be specific, the rrordered strategy needs to function like a linked list, meaning the ao2
+		 * container used will have only a single bucket instead of the typical number.
+		 */
+		for (tmpvar = queue_vars; tmpvar; tmpvar = tmpvar->next) {
+			if (!strcasecmp(tmpvar->name, "strategy")) {
+				q->strategy = strat2int(tmpvar->value);
+				if (q->strategy < 0) {
+					ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+					tmpvar->value, q->name);
+					q->strategy = QUEUE_STRATEGY_RINGALL;
+				}
+				break;
+			}
+		}
+		/* We traversed all variables and didn't find a strategy */
+		if (!tmpvar) {
+			q->strategy = QUEUE_STRATEGY_RINGALL;
+		}
 	}
 	init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 
@@ -2650,6 +2679,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 			q->wrapped = 0;
 		}
 		/* Fall through */
+	case QUEUE_STRATEGY_RRORDERED:
 	case QUEUE_STRATEGY_RRMEMORY:
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
@@ -2883,7 +2913,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT);
 			break;
 		case 'n':
-			if (qe->parent->strategy == QUEUE_STRATEGY_ROUNDROBIN || qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY)
+			if (qe->parent->strategy == QUEUE_STRATEGY_ROUNDROBIN || qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED)
 				(*tries)++;
 			else
 				*tries = qe->parent->membercount;
@@ -3030,7 +3060,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	}
 	ast_channel_unlock(qe->chan);
 	ao2_lock(qe->parent);
-	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
+	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED) {
 		store_next(qe, outgoing);
 	}
 	ao2_unlock(qe->parent);
@@ -4517,6 +4547,7 @@ static int reload_queues(void)
 			} else
 				new = 0;
 			if (q) {
+				const char *tmpvar;
 				if (!new)
 					ao2_lock(q);
 				/* Check if a queue with this name already exists */
@@ -4526,6 +4557,22 @@ static int reload_queues(void)
 						ao2_unlock(q);
 					continue;
 				}
+
+				/* Due to the fact that the "rrordered" strategy will have a different allocation
+				 * scheme for queue members, we must devise the queue's strategy before other initializations.
+				 * To be specific, the rrordered strategy needs to function like a linked list, meaning the ao2
+				 * container used will have only a single bucket instead of the typical number.
+				 */
+				if ((tmpvar = ast_variable_retrieve(cfg, cat, "strategy"))) {
+					q->strategy = strat2int(tmpvar);
+					if (q->strategy < 0) {
+						ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n", tmpvar, q->name);
+						q->strategy = QUEUE_STRATEGY_RINGALL;
+					}
+				} else {
+					q->strategy = QUEUE_STRATEGY_RINGALL;
+				}
+
 				/* Re-initialize the queue, and clear statistics */
 				init_queue(q);
 				clear_queue(q);
