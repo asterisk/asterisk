@@ -1002,7 +1002,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			goto done;
 		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
+			ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d milliseconds.\n", calldurationlimit);
 	}
 
 	if (ast_test_flag(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
@@ -1069,7 +1069,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!play_warning && !start_sound && !end_sound && timelimit) {
 			calldurationlimit = timelimit / 1000;
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n", calldurationlimit);
+				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d milliseconds.\n", calldurationlimit);
 			timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
 		} else if (option_verbose > 2) {
 			ast_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
