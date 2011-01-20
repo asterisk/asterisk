@@ -3186,10 +3186,14 @@ struct ast_cc_monitor *ast_cc_get_monitor_by_recall_core_id(const int core_id, c
  * \param dialstring A new dialstring to add
  * \retval void
  */
-static void cc_unique_append(struct ast_str *str, const char * const dialstring)
+static void cc_unique_append(struct ast_str *str, const char *dialstring)
 {
 	char dialstring_search[AST_CHANNEL_NAME];
 
+	if (ast_strlen_zero(dialstring)) {
+		/* No dialstring to append. */
+		return;
+	}
 	snprintf(dialstring_search, sizeof(dialstring_search), "%s%c", dialstring, '&');
 	if (strstr(ast_str_buffer(str), dialstring_search)) {
 		return;
@@ -3218,6 +3222,10 @@ static void build_cc_interfaces_chanvar(struct ast_cc_monitor *starting_point, s
 	struct extension_child_dialstring *child_dialstring;
 	struct ast_cc_monitor *monitor_iter = starting_point;
 	int top_level_id = starting_point->id;
+	size_t length;
+
+	/* Init to an empty string. */
+	ast_str_truncate(str, 0);
 
 	/* First we need to take all of the is_valid child_dialstrings from
 	 * the extension monitor we found and add them to the CC_INTERFACES
@@ -3240,7 +3248,15 @@ static void build_cc_interfaces_chanvar(struct ast_cc_monitor *starting_point, s
 	/* str will have an extra '&' tacked onto the end of it, so we need
 	 * to get rid of that.
 	 */
-	ast_str_truncate(str, ast_str_strlen(str) - 1);
+	length = ast_str_strlen(str);
+	if (length) {
+		ast_str_truncate(str, length - 1);
+	}
+	if (length <= 1) {
+		/* Nothing to recall?  This should not happen. */
+		ast_log(LOG_ERROR, "CC_INTERFACES is empty. starting device_name:'%s'\n",
+			starting_point->interface->device_name);
+	}
 }
 
 int ast_cc_agent_set_interfaces_chanvar(struct ast_channel *chan)
