@@ -3489,7 +3489,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, const struct pollfd *pfds, 
 					continue;
 				}
 
-				if (!(pfds[y].revents & (POLLIN | POLLERR))) {
+				if (!(pfds[y].revents & (POLLIN | POLLERR | POLLPRI))) {
 					/* Next x */
 					continue;
 				}
@@ -3546,7 +3546,7 @@ std:			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 						}
 						*new_pfds = tmp;
 						(*new_pfds)[*new_nfds].fd = chan->fds[x];
-						(*new_pfds)[*new_nfds].events = POLLIN | POLLERR;
+						(*new_pfds)[*new_nfds].events = POLLIN | POLLERR | POLLPRI;
 						(*new_pfds)[*new_nfds].revents = 0;
 						(*new_nfds)++;
 					}
