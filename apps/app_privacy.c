@@ -107,7 +107,7 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 			}
 		}
 
-		parse = ast_strdupa(S_OR(data, ""));
+		parse = ast_strdupa(data);
 
 		AST_STANDARD_APP_ARGS(args, parse);
 
