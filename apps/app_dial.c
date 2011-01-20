@@ -1239,7 +1239,7 @@ static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *conf
 	if (!config->play_warning && !config->start_sound && !config->end_sound && config->timelimit) {
 		calldurationlimit->tv_sec = config->timelimit / 1000;
 		calldurationlimit->tv_usec = (config->timelimit % 1000) * 1000;
-		ast_verb(3, "Setting call duration limit to %.3lf seconds.\n",
+		ast_verb(3, "Setting call duration limit to %.3lf milliseconds.\n",
 			calldurationlimit->tv_sec + calldurationlimit->tv_usec / 1000000.0);
 		config->timelimit = play_to_caller = play_to_callee =
 		config->play_warning = config->warning_freq = 0;
@@ -1614,7 +1614,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 			goto done;
 		}
-		ast_verb(3, "Setting call duration limit to %.3lf seconds.\n", calldurationlimit.tv_sec + calldurationlimit.tv_usec / 1000000.0);
+		ast_verb(3, "Setting call duration limit to %.3lf milliseconds.\n", calldurationlimit.tv_sec + calldurationlimit.tv_usec / 1000000.0);
 	}
 
 	if (ast_test_flag64(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
