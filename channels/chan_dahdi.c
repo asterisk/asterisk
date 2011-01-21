@@ -17736,6 +17736,8 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *base_conf, struct
 	if (ucfg) {
 		const char *chans;
 
+		/* Reset conf back to defaults, so values from chan_dahdi.conf don't leak in. */
+		base_conf = dahdi_chan_conf_default();
 		process_dahdi(base_conf, "", ast_variable_browse(ucfg, "general"), 1, 0);
 
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
