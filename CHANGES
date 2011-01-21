@@ -40,6 +40,11 @@ Dialplan Variables
    ASTAGIDIR, ASTSPOOLDIR, ASTRUNDIR, ASTLOGDIR which hold the equivalent
    variables from asterisk.conf.
 
+Dialplan Functions
+------------------
+ * Added DB_KEYS, which lists the next set of keys in the Asterisk database
+   hierarchy.
+
 libpri channel driver (chan_dahdi) DAHDI changes
 --------------------------
  * Added moh_signaling option to specify what to do when the channel's bridged
