@@ -1239,7 +1239,7 @@ static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *conf
 	if (!config->play_warning && !config->start_sound && !config->end_sound && config->timelimit) {
 		calldurationlimit->tv_sec = config->timelimit / 1000;
 		calldurationlimit->tv_usec = (config->timelimit % 1000) * 1000;
-		ast_verb(3, "Setting call duration limit to %.3lf milliseconds.\n",
+		ast_verb(3, "Setting call duration limit to %.3lf seconds.\n",
 			calldurationlimit->tv_sec + calldurationlimit->tv_usec / 1000000.0);
 		config->timelimit = play_to_caller = play_to_callee =
 		config->play_warning = config->warning_freq = 0;
