@@ -12580,6 +12580,9 @@ static int setup_dahdi(int reload)
 	cfg = ast_config_load("users.conf");
 	if (cfg) {
 		char *cat;
+
+		/* Reset conf back to defaults, so values from chan_dahdi.conf don't leak in. */
+		conf = dahdi_chan_conf_default();
 		process_dahdi(&conf, "", ast_variable_browse(cfg, "general"), 1, 1);
 		for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
 			if (!strcasecmp(cat, "general"))
