@@ -39,7 +39,7 @@ AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
 
 # Note: AC_PROG_CC *must* be specified before AC_USE_SYSTEM_EXTENSIONS or any
 # other macro that uses the C compiler, or the default order will be used.
-AC_PROG_CC([llvm-gcc gcc cc])
+AC_PROG_CC([gcc cc])
 
 AC_USE_SYSTEM_EXTENSIONS	dnl note- does not work on FreeBSD
 
