@@ -695,7 +695,7 @@ static struct sip_settings sip_cfg;		/*!< SIP configuration data.
 /*!< use this macro when ast_uri_decode is dependent on pedantic checking to be on. */
 #define SIP_PEDANTIC_DECODE(str)	\
 	if (sip_cfg.pedanticsipchecking && !ast_strlen_zero(str)) {	\
-		ast_uri_decode(str);	\
+		ast_uri_decode(str, ast_uri_sip_user);	\
 	}	\
 
 static unsigned int chan_idx;       /*!< used in naming sip channel */
@@ -6699,7 +6699,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	} else {
 		decoded_exten = ast_strdupa(i->exten);
-		ast_uri_decode(decoded_exten);
+		ast_uri_decode(decoded_exten, ast_uri_sip_user);
 		ast_copy_string(tmp->exten, decoded_exten, sizeof(tmp->exten));
 	}
 
@@ -10244,7 +10244,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		lid_name = lid_num;
 	fromdomain = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
 
-	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), 1);
+	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), ast_uri_sip_user);
 
 	if (ast_test_flag(&p->flags[0], SIP_SENDRPID_PAI)) {
 		if ((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
@@ -11219,7 +11219,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 static void build_contact(struct sip_pvt *p)
 {
 	char tmp[SIPBUFSIZE];
-	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), 1);
+	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), ast_uri_sip_user);
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", user,
@@ -11307,9 +11307,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		ast_string_field_set(p, fromname, n);
 
 	if (sip_cfg.pedanticsipchecking) {
-		ast_uri_encode(n, tmp_n, sizeof(tmp_n), 0);
+		ast_escape_quoted(n, tmp_n, sizeof(tmp_n));
 		n = tmp_n;
-		ast_uri_encode(l, tmp_l, sizeof(tmp_l), 0);
+		ast_uri_encode(l, tmp_l, sizeof(tmp_l), ast_uri_sip_user);
 		l = tmp_l;
 	}
 
@@ -11333,7 +11333,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 			if (!ast_strlen_zero(p->username)) {
 				n = p->username;
 				if (sip_cfg.pedanticsipchecking) {
-					ast_uri_encode(n, tmp_n, sizeof(tmp_n), 0);
+					ast_uri_encode(n, tmp_n, sizeof(tmp_n), ast_uri_sip_user);
 					n = tmp_n;
 				}
 				ast_str_append(&invite, 0, "%s@", n);
@@ -14553,7 +14553,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	/* Since extensions.conf can have unescaped characters, try matching a
 	 * decoded uri in addition to the non-decoded uri. */
 	decoded_uri = ast_strdupa(uri);
-	ast_uri_decode(decoded_uri);
+	ast_uri_decode(decoded_uri, ast_uri_sip_user);
 
 	/* If this is a subscription we actually just need to see if a hint exists for the extension */
 	if (req->method == SIP_SUBSCRIBE) {
@@ -14781,7 +14781,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 		/* This is an attended transfer */
 		referdata->attendedtransfer = 1;
 		ast_copy_string(referdata->replaces_callid, ptr+9, sizeof(referdata->replaces_callid));
-		ast_uri_decode(referdata->replaces_callid);
+		ast_uri_decode(referdata->replaces_callid, ast_uri_sip_user);
 		if ((ptr = strchr(referdata->replaces_callid, ';'))) 	/* Find options */ {
 			*ptr++ = '\0';
 		}
@@ -18761,7 +18761,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 		separator = strchr(contact_number, ';');	/* And username ; parameters? */
 		if (separator)
 			*separator = '\0';
-		ast_uri_decode(contact_number);
+		ast_uri_decode(contact_number, ast_uri_sip_user);
 		if (set_call_forward) {
 			ast_debug(2, "Received 302 Redirect to extension '%s' (domain %s)\n", contact_number, domain);
 			if (p->owner) {
@@ -21249,7 +21249,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_debug(3, "INVITE part of call transfer. Replaces [%s]\n", p_replaces);
 		/* Create a buffer we can manipulate */
 		replace_id = ast_strdupa(p_replaces);
-		ast_uri_decode(replace_id);
+		ast_uri_decode(replace_id, ast_uri_sip_user);
 
 		if (!p->refer && !sip_refer_allocate(p)) {
 			transmit_response_reliable(p, "500 Server Internal Error", req);
@@ -21561,7 +21561,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				{
 					char *decoded_exten = ast_strdupa(p->exten);
 					transmit_response_reliable(p, "404 Not Found", req);
-					ast_uri_decode(decoded_exten);
+					ast_uri_decode(decoded_exten, ast_uri_sip_user);
 					ast_log(LOG_NOTICE, "Call from '%s' to extension"
 						" '%s' rejected because extension not found in context '%s'.\n",
 						S_OR(p->username, p->peername), decoded_exten, p->context);

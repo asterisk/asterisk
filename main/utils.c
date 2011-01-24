@@ -378,35 +378,34 @@ static void base64_init(void)
 	b2a[(int)'/'] = 63;
 }
 
-/*! \brief Turn text string to URI-encoded %XX version 
- *
- * \note 
- *  At this point, this function is encoding agnostic; it does not
- *  check whether it is fed legal UTF-8. We escape control
- *  characters (\x00-\x1F\x7F), '%', and all characters above 0x7F.
- *  If do_special_char == 1 we will convert all characters except alnum
- *  and mark.
- *  Outbuf needs to have more memory allocated than the instring
- *  to have room for the expansion. Every char that is converted
- *  is replaced by three ASCII characters.
- */
-char *ast_uri_encode(const char *string, char *outbuf, int buflen, int do_special_char)
+const struct ast_flags ast_uri_http = {AST_URI_UNRESERVED};
+const struct ast_flags ast_uri_http_legacy = {AST_URI_LEGACY_SPACE | AST_URI_UNRESERVED};
+const struct ast_flags ast_uri_sip_user = {AST_URI_UNRESERVED | AST_URI_SIP_USER_UNRESERVED};
+
+char *ast_uri_encode(const char *string, char *outbuf, int buflen, struct ast_flags spec)
 {
 	const char *ptr  = string;	/* Start with the string */
 	char *out = outbuf;
 	const char *mark = "-_.!~*'()"; /* no encode set, RFC 2396 section 2.3, RFC 3261 sec 25 */
+	const char *user_unreserved = "&=+$,;?/"; /* user-unreserved set, RFC 3261 sec 25 */
 
 	while (*ptr && out - outbuf < buflen - 1) {
-		if ((const signed char) *ptr < 32 || *ptr == 0x7f || *ptr == '%' ||
-				(do_special_char &&
-				!(*ptr >= '0' && *ptr <= '9') &&      /* num */
-				!(*ptr >= 'A' && *ptr <= 'Z') &&      /* ALPHA */
-				!(*ptr >= 'a' && *ptr <= 'z') &&      /* alpha */
-				!strchr(mark, *ptr))) {               /* mark set */
+		if (ast_test_flag(&spec, AST_URI_LEGACY_SPACE) && *ptr == ' ') {
+			/* for legacy encoding, encode spaces as '+' */
+			*out = '+';
+			out++;
+		} else if (!(ast_test_flag(&spec, AST_URI_MARK)
+				&& strchr(mark, *ptr))
+			&& !(ast_test_flag(&spec, AST_URI_ALPHANUM)
+				&& ((*ptr >= '0' && *ptr <= '9')
+				|| (*ptr >= 'A' && *ptr <= 'Z')
+				|| (*ptr >= 'a' && *ptr <= 'z')))
+			&& !(ast_test_flag(&spec, AST_URI_SIP_USER_UNRESERVED)
+				&& strchr(user_unreserved, *ptr))) {
+
 			if (out - outbuf >= buflen - 3) {
 				break;
 			}
-
 			out += sprintf(out, "%%%02X", (unsigned char) *ptr);
 		} else {
 			*out = *ptr;	/* Continue copying the string */
@@ -422,14 +421,16 @@ char *ast_uri_encode(const char *string, char *outbuf, int buflen, int do_specia
 	return outbuf;
 }
 
-/*! \brief  ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  */
-void ast_uri_decode(char *s) 
+void ast_uri_decode(char *s, struct ast_flags spec)
 {
 	char *o;
 	unsigned int tmp;
 
 	for (o = s; *s; s++, o++) {
-		if (*s == '%' && s[1] != '\0' && s[2] != '\0' && sscanf(s + 1, "%2x", &tmp) == 1) {
+		if (ast_test_flag(&spec, AST_URI_LEGACY_SPACE) && *s == '+') {
+			/* legacy mode, decode '+' as space */
+			*o = ' ';
+		} else if (*s == '%' && s[1] != '\0' && s[2] != '\0' && sscanf(s + 1, "%2x", &tmp) == 1) {
 			/* have '%', two chars and correct parsing */
 			*o = tmp;
 			s += 2;	/* Will be incremented once more when we break out */
@@ -439,6 +440,35 @@ void ast_uri_decode(char *s)
 	*o = '\0';
 }
 
+char *ast_escape_quoted(const char *string, char *outbuf, int buflen)
+{
+	const char *ptr  = string;
+	char *out = outbuf;
+	char *allow = "\t\v !"; /* allow LWS (minus \r and \n) and "!" */
+
+	while (*ptr && out - outbuf < buflen - 1) {
+		if (!(strchr(allow, *ptr))
+			&& !(*ptr >= '#' && *ptr <= '[') /* %x23 - %x5b */
+			&& !(*ptr >= ']' && *ptr <= '~') /* %x5d - %x7e */
+			&& !(*ptr > 0x7f)) {             /* UTF8-nonascii */
+
+			if (out - outbuf >= buflen - 2) {
+				break;
+			}
+			out += sprintf(out, "\\%c", (unsigned char) *ptr);
+		} else {
+			*out = *ptr;
+			out++;
+		}
+		ptr++;
+	}
+
+	if (buflen) {
+		*out = '\0';
+	}
+
+	return outbuf;
+}
 /*! \brief  ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
 const char *ast_inet_ntoa(struct in_addr ia)
 {

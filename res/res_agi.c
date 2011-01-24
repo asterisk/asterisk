@@ -1254,7 +1254,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	/* encode it and send it thru the manager so whoever is going to take
 	   care of AGI commands on this channel can decide which AGI commands
 	   to execute based on the setup info */
-	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
+	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, ast_uri_http);
 	manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Start\r\nChannel: %s\r\nEnv: %s\r\n", chan->name, ami_buffer);
 	while (1) {
 		/* bail out if we need to hangup */
@@ -1286,7 +1286,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 			   manager. Include the CommandID if it was specified
 			   when the command was added */
 			agi_buffer[res] = '\0';
-			ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
+			ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, ast_uri_http);
 			if (ast_strlen_zero(cmd->cmd_id))
 				manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Exec\r\nChannel: %s\r\nResult: %s\r\n", chan->name, ami_buffer);
 			else

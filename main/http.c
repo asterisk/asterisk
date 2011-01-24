@@ -569,24 +569,6 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 }
 
 /*
- * Decode special characters in http uri.
- * We have ast_uri_decode to handle %XX sequences, but spaces
- * are encoded as a '+' so we need to replace them beforehand.
- */
-static void http_decode(char *s)
-{
-	char *t;
-
-	for (t = s; *t; t++) {
-		if (*t == '+') {
-			*t = ' ';
-		}
-	}
-
-	ast_uri_decode(s);
-}
-
-/*
  * get post variables from client Request Entity-Body, if content type is
  * application/x-www-form-urlencoded
  */
@@ -627,11 +609,11 @@ struct ast_variable *ast_http_get_post_vars(
 	while ((val = strsep(&buf, "&"))) {
 		var = strsep(&val, "=");
 		if (val) {
-			http_decode(val);
+			ast_uri_decode(val, ast_uri_http_legacy);
 		} else  {
 			val = "";
 		}
-		http_decode(var);
+		ast_uri_decode(var, ast_uri_http_legacy);
 		if ((v = ast_variable_new(var, val, ""))) {
 			if (post_vars) {
 				prev->next = v;
@@ -663,11 +645,11 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 		while ((val = strsep(&params, "&"))) {
 			var = strsep(&val, "=");
 			if (val) {
-				http_decode(val);
+				ast_uri_decode(val, ast_uri_http_legacy);
 			} else  {
 				val = "";
 			}
-			http_decode(var);
+			ast_uri_decode(var, ast_uri_http_legacy);
 			if ((v = ast_variable_new(var, val, ""))) {
 				if (get_vars) {
 					prev->next = v;
@@ -678,7 +660,7 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 			}
 		}
 	}
-	http_decode(uri);
+	ast_uri_decode(uri, ast_uri_http_legacy);
 
 	AST_RWLIST_RDLOCK(&uri_redirects);
 	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry) {
