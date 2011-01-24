@@ -17494,7 +17494,7 @@ static void deep_copy_dahdi_chan_conf(struct dahdi_chan_conf *dest, const struct
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int setup_dahdi_int(int reload, struct dahdi_chan_conf *base_conf, struct dahdi_chan_conf *conf)
+static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, struct dahdi_chan_conf *base_conf, struct dahdi_chan_conf *conf)
 {
 	struct ast_config *cfg;
 	struct ast_config *ucfg;
@@ -17652,6 +17652,8 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *base_conf, struct
 	if (ucfg) {
 		const char *chans;
 
+		/* Reset base_conf, so things dont leak from dahdi_chan.conf */
+		deep_copy_dahdi_chan_conf(base_conf, default_conf);
 		process_dahdi(base_conf, "", ast_variable_browse(ucfg, "general"), 1, 0);
 
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
@@ -17738,14 +17740,16 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *base_conf, struct
 static int setup_dahdi(int reload)
 {
 	int res;
+	struct dahdi_chan_conf default_conf = dahdi_chan_conf_default();
 	struct dahdi_chan_conf base_conf = dahdi_chan_conf_default();
 	struct dahdi_chan_conf conf = dahdi_chan_conf_default();
 
-	if (base_conf.chan.cc_params && conf.chan.cc_params) {
-		res = setup_dahdi_int(reload, &base_conf, &conf);
+	if (default_conf.chan.cc_params && base_conf.chan.cc_params && conf.chan.cc_params) {
+		res = setup_dahdi_int(reload, &default_conf, &base_conf, &conf);
 	} else {
 		res = -1;
 	}
+	ast_cc_config_params_destroy(default_conf.chan.cc_params);
 	ast_cc_config_params_destroy(base_conf.chan.cc_params);
 	ast_cc_config_params_destroy(conf.chan.cc_params);
 
