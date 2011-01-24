@@ -4635,7 +4635,7 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 		   keep reading digits until we can't possibly get a right answer anymore.  */
 		digit = ast_waitfordigit(c, waittime);
 		if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
-			c->_softhangup &= ~AST_SOFTHANGUP_ASYNCGOTO;
+			ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 		} else {
 			if (!digit)	/* No entry */
 				break;
@@ -4712,16 +4712,16 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				memset(&c->whentohangup, 0, sizeof(c->whentohangup));
-				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 			} else if ((c->_softhangup & AST_SOFTHANGUP_TIMEOUT)
 				&& ast_exists_extension(c, c->context, "e", 1,
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 				pbx_builtin_raise_exception(c, "ABSOLUTETIMEOUT");
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				memset(&c->whentohangup, 0, sizeof(c->whentohangup));
-				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 			} else if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
-				c->_softhangup &= ~AST_SOFTHANGUP_ASYNCGOTO;
+				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 				continue;
 			} else if (ast_check_hangup(c)) {
 				ast_debug(1, "Extension %s, priority %d returned normally even though call was hung up\n",
@@ -4769,7 +4769,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				}
 
 				if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
-					c->_softhangup &= ~AST_SOFTHANGUP_ASYNCGOTO;
+					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 					continue;
 				} else if ((c->_softhangup & AST_SOFTHANGUP_TIMEOUT)
 					&& ast_exists_extension(c, c->context, "T", 1,
@@ -4777,7 +4777,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					set_ext_pri(c, "T", 1);
 					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 					memset(&c->whentohangup, 0, sizeof(c->whentohangup));
-					c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 					continue;
 				} else {
 					if (c->cdr)
@@ -4819,7 +4819,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			}
 		} else if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
 			/* If we get this far with AST_SOFTHANGUP_TIMEOUT, then we know that the "T" extension is next. */
-			c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+			ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 		} else {	/* keypress received, get more digits for a full extension */
 			int waittime = 0;
 			if (digit)

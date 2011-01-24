@@ -2599,6 +2599,31 @@ void ast_poll_channel_del(struct ast_channel *chan0, struct ast_channel *chan1)
 	return;
 }
 
+void ast_channel_clear_softhangup(struct ast_channel *chan, int flag)
+{
+	ast_channel_lock(chan);
+
+	chan->_softhangup &= ~flag;
+
+	if (!chan->_softhangup) {
+		struct ast_frame *fr;
+
+		/* If we have completely cleared the softhangup flag,
+		 * then we need to fully abort the hangup process.  This requires
+		 * pulling the END_OF_Q frame out of the channel frame queue if it
+		 * still happens to be there. */
+
+		fr = AST_LIST_LAST(&chan->readq);
+		if (fr && fr->frametype == AST_FRAME_CONTROL &&
+				fr->subclass.integer == AST_CONTROL_END_OF_Q) {
+			AST_LIST_REMOVE(&chan->readq, fr, frame_list);
+			ast_frfree(fr);
+		}
+	}
+
+	ast_channel_unlock(chan);
+}
+
 /*! \brief Softly hangup a channel, don't lock */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
@@ -6806,10 +6831,10 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				ast_jb_get_and_deliver(c0, c1);
 			if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
 				if (c0->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
-					c0->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+					ast_channel_clear_softhangup(c0, AST_SOFTHANGUP_UNBRIDGE);
 				}
 				if (c1->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
-					c1->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+					ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 				}
 				c0->_bridge = c1;
 				c1->_bridge = c0;
@@ -7150,10 +7175,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 		if ((c0->_softhangup | c1->_softhangup) & AST_SOFTHANGUP_UNBRIDGE) {/* Bit operators are intentional. */
 			if (c0->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
-				c0->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+				ast_channel_clear_softhangup(c0, AST_SOFTHANGUP_UNBRIDGE);
 			}
 			if (c1->_softhangup & AST_SOFTHANGUP_UNBRIDGE) {
-				c1->_softhangup &= ~AST_SOFTHANGUP_UNBRIDGE;
+				ast_channel_clear_softhangup(c1, AST_SOFTHANGUP_UNBRIDGE);
 			}
 			c0->_bridge = c1;
 			c1->_bridge = c0;
