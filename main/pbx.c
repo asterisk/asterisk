@@ -2490,7 +2490,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				c->whentohangup = 0;
-				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
+				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 			} else if (c->_softhangup) {
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
