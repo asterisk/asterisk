@@ -2383,7 +2383,7 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 		   keep reading digits until we can't possibly get a right answer anymore.  */
 		digit = ast_waitfordigit(c, waittime * 1000);
 		if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
-			c->_softhangup &= ~AST_SOFTHANGUP_ASYNCGOTO;
+			ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 		} else {
 			if (!digit)	/* No entry */
 				break;
@@ -2474,7 +2474,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
-					c->_softhangup &= ~AST_SOFTHANGUP_ASYNCGOTO;
+					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 				} else if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
 					/* atimeout, nothing bad */
 				} else {
@@ -2485,12 +2485,12 @@ static int __ast_pbx_run(struct ast_channel *c)
 				}
 			}
 			if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
-				c->_softhangup &= ~AST_SOFTHANGUP_ASYNCGOTO;
+				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 			} else if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c,c->context,"T",1,c->cid.cid_num)) {
 				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				c->whentohangup = 0;
-				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 			} else if (c->_softhangup) {
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
@@ -2522,7 +2522,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 			}
 		} else if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
 			/* If we get this far with AST_SOFTHANGUP_TIMEOUT, then we know that the "T" extension is next. */
-			c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+			ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 		} else {	/* keypress received, get more digits for a full extension */
 			int waittime = 0;
 			if (digit)

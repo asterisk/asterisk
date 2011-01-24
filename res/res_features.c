@@ -419,6 +419,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 	xferchan->_state = AST_STATE_UP;
 	ast_clear_flag(xferchan, AST_FLAGS_ALL);	
 	xferchan->_softhangup = 0;
+	ast_channel_clear_softhangup(xferchan, AST_SOFTHANGUP_ALL);
 	if ((f = ast_read(xferchan))) {
 		ast_frfree(f);
 		f = NULL;

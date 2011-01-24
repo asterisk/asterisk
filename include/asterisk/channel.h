@@ -645,6 +645,15 @@ enum {
 	 * instead of actually hanging up.
 	 */
 	AST_SOFTHANGUP_UNBRIDGE =  (1 << 6),
+
+
+	/*!
+	 * \brief All softhangup flags.
+	 *
+	 * This can be used as an argument to ast_channel_softhangup_clear
+	 * to clear all softhangup flags from a channel.
+	 */
+	AST_SOFTHANGUP_ALL =       (0xFFFFFFFF)
 };
 
 
@@ -833,6 +842,20 @@ int ast_softhangup(struct ast_channel *chan, int cause);
  * \param chan channel to be soft-hung-up
  * \param reason an AST_SOFTHANGUP_* reason code */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause);
+
+/*!
+ * \brief Clear a set of softhangup flags from a channel
+ *
+ * Never clear a softhangup flag from a channel directly.  Instead,
+ * use this function.  This ensures that all aspects of the softhangup
+ * process are aborted.
+ *
+ * \param chan the channel to clear the flag on
+ * \param flag the flag or flags to clear
+ *
+ * \return Nothing.
+ */
+void ast_channel_clear_softhangup(struct ast_channel *chan, int flag);
 
 /*! \brief Check to see if a channel is needing hang up 
  * \param chan channel on which to check for hang up
