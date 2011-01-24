@@ -3120,11 +3120,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				break;
 			}
 
-			/* Perform an extra hangup check just in case */
-			if (ast_check_hangup(chan)) {
-				break;
-			}
-
 			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 
 			if (c) {
