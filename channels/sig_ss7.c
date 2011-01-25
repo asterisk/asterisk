@@ -431,8 +431,10 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	char tmp[256];
 
 	if (!(linkset->flags & LINKSET_FLAG_EXPLICITACM)) {
-		p->proceeding = 1;
+		p->call_level = SIG_SS7_CALL_LEVEL_PROCEEDING;
 		isup_acm(ss7, p->ss7call);
+	} else {
+		p->call_level = SIG_SS7_CALL_LEVEL_SETUP;
 	}
 
 	if (linkset->type == SS7_ITU) {
@@ -451,7 +453,7 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
 		ast_mutex_lock(&linkset->lock);
 		isup_rel(linkset->ss7, p->ss7call, -1);
-		p->proceeding = 0;
+		p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
 		p->alreadyhungup = 1;
 		return;
 	}
@@ -682,7 +684,9 @@ void *ss7_linkset(void *data)
 				sig_ss7_lock_private(p);
 				switch (e->cpg.event) {
 				case CPG_EVENT_ALERTING:
-					p->alerting = 1;
+					if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING) {
+						p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
+					}
 					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_RINGING);
 					break;
 				case CPG_EVENT_PROGRESS:
@@ -925,11 +929,15 @@ void *ss7_linkset(void *data)
 
 					sig_ss7_lock_private(p);
 					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_PROCEEDING);
-					p->proceeding = 1;
+					if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING) {
+						p->call_level = SIG_SS7_CALL_LEVEL_PROCEEDING;
+					}
 					sig_ss7_set_dialing(p, 0);
 					/* Send alerting if subscriber is free */
 					if (e->acm.called_party_status_ind == 1) {
-						p->alerting = 1;
+						if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING) {
+							p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
+						}
 						sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_RINGING);
 					}
 					sig_ss7_unlock_private(p);
@@ -1033,6 +1041,9 @@ void *ss7_linkset(void *data)
 				} else {
 					p = linkset->pvts[chanpos];
 					sig_ss7_lock_private(p);
+					if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+						p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
+					}
 					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_ANSWER);
 #if 0	/* This code no longer seems to be necessary so I did not convert it. */
 					if (p->dsp && p->dsp_features) {
@@ -1361,6 +1372,7 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, char *rdest)
 	if ((send_far) && ((strncmp("NO", send_far, strlen(send_far))) != 0 ))
 		(isup_far(p->ss7->ss7, p->ss7call));
 
+	p->call_level = SIG_SS7_CALL_LEVEL_SETUP;
 	isup_iam(p->ss7->ss7, p->ss7call);
 	sig_ss7_set_dialing(p, 1);
 	ast_setstate(ast, AST_STATE_DIALING);
@@ -1389,10 +1401,9 @@ int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast)
 
 	p->owner = NULL;
 	sig_ss7_set_dialing(p, 0);
+	p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
 	p->outgoing = 0;
-	p->proceeding = 0;
 	p->progress = 0;
-	p->alerting = 0;
 	p->rlt = 0;
 	p->exten[0] = '\0';
 	/* Perform low level hangup if no owner left */
@@ -1435,7 +1446,9 @@ int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast)
 	int res;
 
 	if (!ss7_grab(p, p->ss7)) {
-		p->proceeding = 1;
+		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+			p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
+		}
 		res = isup_anm(p->ss7->ss7, p->ss7call);
 		ss7_rel(p->ss7);
 	} else {
@@ -1484,15 +1497,14 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		res = sig_ss7_play_tone(p, SIG_SS7_TONE_BUSY);
 		break;
 	case AST_CONTROL_RINGING:
-		if ((!p->alerting) && p->ss7 && !p->outgoing && (chan->_state != AST_STATE_UP)) {
-			if (p->ss7->ss7) {
+		if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING && !p->outgoing) {
+			p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
+			if (p->ss7 && p->ss7->ss7) {
 				ss7_grab(p, p->ss7);
-
 				if ((isup_far(p->ss7->ss7, p->ss7call)) != -1)
 					p->rlt = 1;
 				if (p->rlt != 1) /* No need to send CPG if call will be RELEASE */
 					isup_cpg(p->ss7->ss7, p->ss7call, CPG_EVENT_ALERTING);
-				p->alerting = 1;
 				ss7_rel(p->ss7);
 			}
 		}
@@ -1511,11 +1523,11 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 				p->rlt = 1;
 		}
 
-		if (!p->proceeding && p->ss7 && !p->outgoing) {
-			if (p->ss7->ss7) {
+		if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING && !p->outgoing) {
+			p->call_level = SIG_SS7_CALL_LEVEL_PROCEEDING;
+			if (p->ss7 && p->ss7->ss7) {
 				ss7_grab(p, p->ss7);
 				isup_acm(p->ss7->ss7, p->ss7call);
-				p->proceeding = 1;
 				ss7_rel(p->ss7);
 			}
 		}
@@ -1524,11 +1536,11 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		break;
 	case AST_CONTROL_PROGRESS:
 		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
-		if (!p->progress && p->ss7 && !p->outgoing) {
-			if (p->ss7->ss7) {
+		if (!p->progress && p->call_level < SIG_SS7_CALL_LEVEL_ALERTING && !p->outgoing) {
+			p->progress = 1;/* No need to send inband-information progress again. */
+			if (p->ss7 && p->ss7->ss7) {
 				ss7_grab(p, p->ss7);
 				isup_cpg(p->ss7->ss7, p->ss7call, CPG_EVENT_INBANDINFO);
-				p->progress = 1;
 				ss7_rel(p->ss7);
 				/* enable echo canceler here on SS7 calls */
 				sig_ss7_set_echocanceller(p, 1);

@@ -7705,7 +7705,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		ast_debug(1, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #if defined(HAVE_PRI)
 		if (dahdi_sig_pri_lib_handles(p->sig)
-			&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
+			&& ((struct sig_pri_chan *) p->sig_pvt)->call_level < SIG_PRI_CALL_LEVEL_PROCEEDING
 			&& p->pri
 			&& (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
@@ -7725,7 +7725,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		ast_debug(1, "DTMF Down '%c'\n", res & 0xff);
 #if defined(HAVE_PRI)
 		if (dahdi_sig_pri_lib_handles(p->sig)
-			&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
+			&& ((struct sig_pri_chan *) p->sig_pvt)->call_level < SIG_PRI_CALL_LEVEL_PROCEEDING
 			&& p->pri
 			&& (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
@@ -8976,7 +8976,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				|| f->frametype == AST_FRAME_DTMF_END) {
 #ifdef HAVE_PRI
 				if (dahdi_sig_pri_lib_handles(p->sig)
-					&& !((struct sig_pri_chan *) p->sig_pvt)->proceeding
+					&& ((struct sig_pri_chan *) p->sig_pvt)->call_level < SIG_PRI_CALL_LEVEL_PROCEEDING
 					&& p->pri
 					&& ((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING))
 						|| (p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)))) {
@@ -9209,7 +9209,17 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 			res = 0;
 			break;
 		case AST_CONTROL_CONGESTION:
-			chan->hangupcause = AST_CAUSE_CONGESTION;
+			/* There are many cause codes that generate an AST_CONTROL_CONGESTION. */
+			switch (chan->hangupcause) {
+			case AST_CAUSE_USER_BUSY:
+			case AST_CAUSE_NORMAL_CLEARING:
+			case 0:/* Cause has not been set. */
+				/* Supply a more appropriate cause. */
+				chan->hangupcause = AST_CAUSE_CONGESTION;
+				break;
+			default:
+				break;
+			}
 			break;
 		case AST_CONTROL_HOLD:
 			ast_moh_start(chan, data, p->mohinterpret);
