@@ -83,6 +83,22 @@ enum sig_pri_law {
 	SIG_PRI_ALAW
 };
 
+/*! Call establishment life cycle level for simple comparisons. */
+enum sig_pri_call_level {
+	/*! Call does not exist. */
+	SIG_PRI_CALL_LEVEL_IDLE,
+	/*! Call is present but has no response yet. (SETUP) */
+	SIG_PRI_CALL_LEVEL_SETUP,
+	/*! Call is collecting digits for overlap dialing. (SETUP ACKNOWLEDGE) */
+	SIG_PRI_CALL_LEVEL_OVERLAP,
+	/*! Call routing is happening. (PROCEEDING) */
+	SIG_PRI_CALL_LEVEL_PROCEEDING,
+	/*! Called party is being alerted of the call. (ALERTING) */
+	SIG_PRI_CALL_LEVEL_ALERTING,
+	/*! Call is connected/answered. (CONNECT) */
+	SIG_PRI_CALL_LEVEL_CONNECT,
+};
+
 struct sig_pri_span;
 
 struct sig_pri_callback {
@@ -210,13 +226,10 @@ struct sig_pri_chan {
 	unsigned int holding_aoce:1;     /*!< received AOC-E msg from asterisk. holding for disconnect/release */
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 	unsigned int inalarm:1;
-	unsigned int alerting:1;		/*!< TRUE if channel is alerting/ringing */
 	unsigned int alreadyhungup:1;	/*!< TRUE if the call has already gone/hungup */
 	unsigned int isidlecall:1;		/*!< TRUE if this is an idle call */
-	unsigned int proceeding:1;		/*!< TRUE if call is in a proceeding state */
-	unsigned int progress:1;		/*!< TRUE if the call has seen progress through the network */
+	unsigned int progress:1;		/*!< TRUE if the call has seen inband-information progress through the network */
 	unsigned int resetting:1;		/*!< TRUE if this channel is being reset/restarted */
-	unsigned int setup_ack:1;		/*!< TRUE if this channel has received a SETUP_ACKNOWLEDGE */
 
 	unsigned int outgoing:1;
 	unsigned int digital:1;
@@ -232,6 +245,8 @@ struct sig_pri_chan {
 	struct sig_pri_span *pri;
 	q931_call *call;				/*!< opaque libpri call control structure */
 
+	/*! Call establishment life cycle level for simple comparisons. */
+	enum sig_pri_call_level call_level;
 	int prioffset;					/*!< channel number in span */
 	int logicalspan;				/*!< logical span number within trunk group */
 	int mastertrunkgroup;			/*!< what trunk group is our master */
