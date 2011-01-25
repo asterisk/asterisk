@@ -3762,6 +3762,8 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	DIR *msgdir;
 	struct dirent *msgdirent;
 	int msgdirint;
+	char extension[3];
+	int stopcount = 0;
 
 	/* Reading the entire directory into a file map scales better than
 	 * doing a stat repeatedly on a predicted sequence.  I suspect this
@@ -3772,14 +3774,20 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	}
 
 	while ((msgdirent = readdir(msgdir))) {
-		if (sscanf(msgdirent->d_name, "msg%30d", &msgdirint) == 1 && msgdirint < MAXMSGLIMIT)
+		if (sscanf(msgdirent->d_name, "msg%30d.%3s", &msgdirint, extension) == 2 && msgdirint < MAXMSGLIMIT && !strcmp(extension, "txt")) {
 			map[msgdirint] = 1;
+			stopcount++;
+			ast_debug(4, "%s map[%d] = %d, count = %d\n", dir, msgdirint, map[msgdirint], stopcount);
+		}
 	}
 	closedir(msgdir);
 
 	for (x = 0; x < vmu->maxmsg; x++) {
-		if (map[x] == 0)
+		if (map[x] == 1) {
+			stopcount--;
+		} else if (map[x] == 0 && !stopcount) {
 			break;
+		}
 	}
 
 	return x - 1;
@@ -5750,6 +5758,36 @@ leave_vm_out:
 	return res;
 }
 
+#ifndef IMAP_STORAGE
+static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
+{
+    /* we know the actual number of messages, so stop process when number is hit */
+
+    int x, dest;
+    char sfn[PATH_MAX];
+    char dfn[PATH_MAX];
+
+    if (vm_lock_path(dir))
+        return ERROR_LOCK_PATH;
+
+    for (x = 0, dest = 0; dest != stopcount && x < vmu->maxmsg + 10; x++) {
+        make_file(sfn, sizeof(sfn), dir, x);
+        if (EXISTS(dir, x, sfn, NULL)) {
+
+            if (x != dest) {
+                make_file(dfn, sizeof(dfn), dir, dest);
+                RENAME(dir, x, vmu->mailbox, vmu->context, dir, dest, sfn, dfn);
+            }
+
+            dest++;
+        }
+    }
+    ast_unlock_path(dir);
+
+    return dest;
+}
+#endif
+
 static int say_and_wait(struct ast_channel *chan, int num, const char *language)
 {
 	int d;
@@ -7440,8 +7478,12 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	if (last_msg < -1) {
 		return last_msg;
-	} else if (vms->lastmsg != last_msg) {
-		ast_log(LOG_NOTICE, "Mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
+	} 
+#ifndef ODBC_STORAGE
+	else if (vms->lastmsg != last_msg) {
+		ast_log(LOG_NOTICE, "Resequencing mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
+        resequence_mailbox(vmu, vms->curdir, count_msg);
+#endif
 	}
 
 	return 0;
