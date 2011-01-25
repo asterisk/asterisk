@@ -2906,24 +2906,54 @@ static void rename_file(char *sfn, char *dfn)
 }
 #endif
 
-/*
- * A negative return value indicates an error.
+/*! 
+ * \brief Determines the highest message number in use for a given user and mailbox folder.
+ * \param vmu 
+ * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
+ *
+ * This method is used when mailboxes are stored on the filesystem. (not ODBC and not IMAP).
+ * Typical use to set the msgnum would be to take the value returned from this method and add one to it.
+ *
+ * \note Should always be called with a lock already set on dir.
+ * \return the value of zero or greater to indicate the last message index in use, -1 to indicate none.
  */
 #if (!defined(IMAP_STORAGE) && !defined(ODBC_STORAGE))
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x;
-	char fn[PATH_MAX];
+	unsigned char map[MAXMSGLIMIT] = "";
+	DIR *msgdir;
+	struct dirent *msgdirent;
+	int msgdirint;
+	char extension[3];
+	int stopcount = 0;
 
-	if (vm_lock_path(dir))
-		return ERROR_LOCK_PATH;
+	/* Reading the entire directory into a file map scales better than
+	 * doing a stat repeatedly on a predicted sequence.  I suspect this
+	 * is partially due to stat(2) internally doing a readdir(2) itself to
+	 * find each file. */
+	if (!(msgdir = opendir(dir))) {
+		return -1;
+	}
+
+	while ((msgdirent = readdir(msgdir))) {
+		if (sscanf(msgdirent->d_name, "msg%30d.%3s", &msgdirint, extension) == 2 && msgdirint < MAXMSGLIMIT && !strcmp(extension, "txt")) {
+			map[msgdirint] = 1;
+			stopcount++;
+			if (option_debug > 3) {
+				ast_log(LOG_DEBUG, "%s map[%d] = %d, count = %d\n", dir, msgdirint, map[msgdirint], stopcount);
+			}
+		}
+	}
+	closedir(msgdir);
 
 	for (x = 0; x < vmu->maxmsg; x++) {
-		make_file(fn, sizeof(fn), dir, x);
-		if (ast_fileexists(fn, NULL, NULL) < 1)
+		if (map[x] == 1) {
+			stopcount--;
+		} else if (map[x] == 0 && !stopcount) {
 			break;
+		}
 	}
-	ast_unlock_path(dir);
 
 	return x - 1;
 }
@@ -4527,9 +4557,9 @@ leave_vm_out:
 }
 
 #ifndef IMAP_STORAGE
-static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int count_msg)
+static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
 {
-	/* we know max messages, so stop process when number is hit */
+	/* we know the actual number of messages, so stop process when number is hit */
 
 	int x,dest;
 	char sfn[PATH_MAX];
@@ -4538,7 +4568,7 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int count_msg)
 	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
 
-	for (x = 0, dest = 0; x < count_msg + 1; x++) {
+	for (x = 0, dest = 0; dest != stopcount && x < vmu->maxmsg + 10; x++) {
 		make_file(sfn, sizeof(sfn), dir, x);
 		if (EXISTS(dir, x, sfn, NULL)) {
 			
@@ -5997,13 +6027,17 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 
 	/* for local storage, checks directory for messages up to maxmsg limit */
 	last_msg = last_message_index(vmu, vms->curdir);
-	if (last_msg < -1)
+
+	if (last_msg < -1) {
 		return last_msg;
+	}
+#ifndef ODBC_STORAGE
 	else if (vms->lastmsg != last_msg)
 	{
 		ast_log(LOG_NOTICE, "Resequencing Mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
 		res = resequence_mailbox(vmu, vms->curdir, count_msg);
 	}
+#endif
 
 	return 0;
 }
