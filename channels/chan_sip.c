@@ -16583,6 +16583,9 @@ static char *complete_sip_user(const char *word, int state)
 		}
 		ao2_unlock(user);
 		unref_peer(user, "complete sip user");
+		if (result) {
+			break;
+		}
 	}
 	ao2_iterator_destroy(&user_iter);
 	return result;
