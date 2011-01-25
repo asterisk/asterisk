@@ -2663,9 +2663,8 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 
 done:
 	ast_indicate(caller, -1);
-	if (chan && ready) {
-		if (chan->_state == AST_STATE_UP)
-			state = AST_CONTROL_ANSWER;
+	if (chan && (ready || chan->_state == AST_STATE_UP)) {
+		state = AST_CONTROL_ANSWER;
 	} else if (chan) {
 		ast_hangup(chan);
 		chan = NULL;
