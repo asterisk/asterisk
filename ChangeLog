@@ -3,6 +3,112 @@
 	* Asterisk 1.8.3-rc2 Released.
 
 	------------------------------------------------------------------------
+	r302172 | rmudgett | 2011-01-18 12:04:37 -0600 (Tue, 18 Jan 2011) | 88
+	lines
+
+	Issues with DTMF triggered attended transfers.
+
+	Issue 0017999
+	1) A calls B. B answers.
+	2) B using DTMF dial *2 (code in features.conf for attended transfer).
+	3) A hears MOH. B dial number C
+	4) C ringing. A hears MOH.
+	5) B hangup. A still hears MOH. C ringing.
+	6) A hangup. C still ringing until "atxfernoanswertimeout" expires.
+	For v1.4 C will ring forever until C answers the dead line. (Issue
+	0017096)
+
+	Problem: When A and B hangup, C is still ringing.
+
+	Issue 0018395
+	SIP call limit of B is 1
+	1. A call B, B answered
+	2. B *2(atxfer) call C
+	3. B hangup, C ringing
+	4. Timeout waiting for C to answer
+	5. Recall to B fails because B has reached its call limit.
+
+	Because B reached its call limit, it cannot do anything until the
+	transfer
+	it started completes.
+
+	Issue 0017273
+	Same scenario as issue 18395 but party B is an FXS port. Party B
+	cannot
+	do anything until the transfer it started completes. If B goes back
+	off
+	hook before C answers, B hears ringback instead of the expected
+	dialtone.
+
+	**********
+	Note for the issue 0017273 and 0018395 fix:
+
+	DTMF attended transfer works within the channel bridge. Unfortunately,
+	when either party A or B in the channel bridge hangs up, that channel
+	is
+	not completely hung up until the transfer completes. This is a real
+	problem depending upon the channel technology involved.
+
+	For chan_dahdi, the channel is crippled until the hangup is complete.
+	Either the channel is not useable (analog) or the protocol disconnect
+	messages are held up (PRI/BRI/SS7) and the media is not released.
+
+	For chan_sip, a call limit of one is going to block that endpoint from
+	any
+	further calls until the hangup is complete.
+
+	For party A this is a minor problem. The party A channel will only be
+	in
+	this condition while party B is dialing and when party B and C are
+	conferring. The conversation between party B and C is expected to be a
+	short one. Party B is either asking a question of party C or
+	announcing
+	party A. Also party A does not have much incentive to hangup at this
+	point.
+
+	For party B this can be a major problem during a blonde transfer. (A
+	blonde transfer is our term for an attended transfer that is converted
+	into a blind transfer. :)) Party B could be the operator. When party B
+	hangs up, he assumes that he is out of the original call entirely. The
+	party B channel will be in this condition while party C is ringing,
+	while
+	attempting to recall party B, and while waiting between call attempts.
+
+	WARNING:
+	The ATXFER_NULL_TECH conditional is a hack to fix the problem. It will
+	replace the party B channel technology with a NULL channel driver to
+	complete hanging up the party B channel technology. The consequences
+	of
+	this code is that the 'h' extension will not be able to access any
+	channel
+	technology specific information like SIP statistics for the call.
+
+	ATXFER_NULL_TECH is not defined by default.
+	**********
+
+	(closes issue 0017999)
+	Reported by: iskatel
+	Tested by: rmudgett
+	JIRA SWP-2246
+
+	(closes issue 0017096)
+	Reported by: gelo
+	Tested by: rmudgett
+	JIRA SWP-1192
+
+	(closes issue 0018395)
+	Reported by: shihchuan
+	Tested by: rmudgett
+
+	(closes issue 0017273)
+	Reported by: grecco
+	Tested by: rmudgett
+
+	Review: https://reviewboard.asterisk.org/r/1047/ [^]
+
+	------------------------------------------------------------------------
+
+	------------------------------------------------------------------------
 	r303106 | sruffell | 2011-01-20 13:56:35 -0600 (Thu, 20 Jan 2011) | 15
 	lines
 
