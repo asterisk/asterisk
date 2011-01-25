@@ -450,7 +450,7 @@ char *ast_escape_quoted(const char *string, char *outbuf, int buflen)
 		if (!(strchr(allow, *ptr))
 			&& !(*ptr >= '#' && *ptr <= '[') /* %x23 - %x5b */
 			&& !(*ptr >= ']' && *ptr <= '~') /* %x5d - %x7e */
-			&& !(*ptr > 0x7f)) {             /* UTF8-nonascii */
+			&& !((unsigned char) *ptr > 0x7f)) {             /* UTF8-nonascii */
 
 			if (out - outbuf >= buflen - 2) {
 				break;
