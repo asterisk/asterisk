@@ -307,6 +307,22 @@ static int ringt_base = DEFAULT_RINGT;
 #define PRI_SPAN(p) (((p) >> 8) & 0xff)
 #define PRI_EXPLICIT(p) (((p) >> 16) & 0x01)
 
+/*! Call establishment life cycle level for simple comparisons. */
+enum dahdi_call_level {
+	/*! Call does not exist. */
+	DAHDI_CALL_LEVEL_IDLE,
+	/*! Call is present but has no response yet. (SETUP) */
+	DAHDI_CALL_LEVEL_SETUP,
+	/*! Call is collecting digits for overlap dialing. (SETUP ACKNOWLEDGE) */
+	DAHDI_CALL_LEVEL_OVERLAP,
+	/*! Call routing is happening. (PROCEEDING) */
+	DAHDI_CALL_LEVEL_PROCEEDING,
+	/*! Called party is being alerted of the call. (ALERTING) */
+	DAHDI_CALL_LEVEL_ALERTING,
+	/*! Call is connected/answered. (CONNECT) */
+	DAHDI_CALL_LEVEL_CONNECT,
+};
+
 struct dahdi_pri {
 	pthread_t master;						/*!< Thread of master */
 	ast_mutex_t lock;						/*!< Mutex */
@@ -659,9 +675,12 @@ static struct dahdi_pvt {
 	 * \note Set from the "transfertobusy" value read in from chan_dahdi.conf
 	 */
 	unsigned int transfertobusy:1;
+	/*!
+	 * \brief TRUE if SMDI (Simplified Message Desk Interface) is enabled
+	 * \note Set from the "usesmdi" value read in from chan_dahdi.conf
+	 */
+	unsigned int use_smdi:1;
 #if defined(HAVE_PRI)
-	/*! \brief TRUE if channel is alerting/ringing */
-	unsigned int alerting:1;
 	/*! \brief TRUE if the call has already gone/hungup */
 	unsigned int alreadyhungup:1;
 	/*!
@@ -669,29 +688,17 @@ static struct dahdi_pvt {
 	 * \note Applies to PRI channels.
 	 */
 	unsigned int isidlecall:1;
-	/*!
-	 * \brief TRUE if call is in a proceeding state.
-	 * The call has started working its way through the network.
-	 */
-	unsigned int proceeding:1;
-	/*! \brief TRUE if the call has seen progress through the network. */
+	/*! \brief TRUE if the call has seen inband-information progress through the network. */
 	unsigned int progress:1;
 	/*!
 	 * \brief TRUE if this channel is being reset/restarted
 	 * \note Applies to PRI channels.
 	 */
 	unsigned int resetting:1;
-	/*!
-	 * \brief TRUE if this channel has received a SETUP_ACKNOWLEDGE
-	 * \note Applies to PRI channels.
-	 */
-	unsigned int setup_ack:1;
+
+	/*! Call establishment life cycle level for simple comparisons. */
+	enum dahdi_call_level call_level;
 #endif
-	/*!
-	 * \brief TRUE if SMDI (Simplified Message Desk Interface) is enabled
-	 * \note Set from the "usesmdi" value read in from chan_dahdi.conf
-	 */
-	unsigned int use_smdi:1;
 	/*! \brief The serial port to listen for SMDI data on */
 	struct ast_smdi_interface *smdi_iface;
 
@@ -1402,21 +1409,38 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 		goto out;
 
 #ifdef HAVE_PRI
-	if ((pvt->sig == SIG_PRI) && (chan->_state == AST_STATE_DIALING) && !pvt->proceeding) {
-		if (pvt->setup_ack) {
+	if (pvt->sig == SIG_PRI
+		&& chan->_state == AST_STATE_DIALING) {
+		if (pvt->call_level < DAHDI_CALL_LEVEL_OVERLAP) {
+			unsigned int len;
+
+			len = strlen(pvt->dialdest);
+			if (len < sizeof(pvt->dialdest) - 1) {
+				ast_log(LOG_DEBUG,
+					"Queueing digit '%c' since setup_ack not yet received\n", digit);
+				pvt->dialdest[len++] = digit;
+				pvt->dialdest[len] = '\0';
+			} else {
+				ast_log(LOG_WARNING,
+					"Span %d: Deferred digit buffer overflow for digit '%c'.\n",
+					pvt->span, digit);
+			}
+			goto out;
+		}
+		if (pvt->call_level < DAHDI_CALL_LEVEL_PROCEEDING) {
 			if (!pri_grab(pvt, pvt->pri)) {
 				pri_information(pvt->pri->pri, pvt->call, digit);
 				pri_rel(pvt->pri);
-			} else
+			} else {
 				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", pvt->span);
-		} else if (strlen(pvt->dialdest) < sizeof(pvt->dialdest) - 1) {
-			int res;
-			ast_log(LOG_DEBUG, "Queueing digit '%c' since setup_ack not yet received\n", digit);
-			res = strlen(pvt->dialdest);
-			pvt->dialdest[res++] = digit;
-			pvt->dialdest[res] = '\0';
+			}
+			goto out;
 		}
-		goto out;
+		if (pvt->call_level < DAHDI_CALL_LEVEL_CONNECT) {
+			ast_log(LOG_WARNING,
+				"Span %d: Digit '%c' may be ignored by peer. (Call level:%d)\n",
+				pvt->span, digit, pvt->call_level);
+		}
 	}
 #endif
 	if ((dtmf = digit_to_dtmfindex(digit)) == -1)
@@ -2592,11 +2616,14 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (pri_setup(p->pri->pri, p->call, sr)) {
  			ast_log(LOG_WARNING, "Unable to setup call to %s (using %s)\n", 
  				c + p->stripmsd + dp_strip, dialplan2str(p->pri->dialplan));
+			pri_destroycall(p->pri->pri, p->call);
+			p->call = NULL;
 			pri_rel(p->pri);
 			ast_mutex_unlock(&p->lock);
 			pri_sr_free(sr);
 			return -1;
 		}
+		p->call_level = DAHDI_CALL_LEVEL_SETUP;
 		pri_sr_free(sr);
 		ast_setstate(ast, AST_STATE_DIALING);
 		pri_rel(p->pri);
@@ -3044,11 +3071,9 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->pulsedial = 0;
 		p->onhooktime = time(NULL);
 #ifdef HAVE_PRI
-		p->proceeding = 0;
 		p->dialing = 0;
 		p->progress = 0;
-		p->alerting = 0;
-		p->setup_ack = 0;
+		p->call_level = DAHDI_CALL_LEVEL_IDLE;
 #endif		
 		if (p->dsp) {
 			ast_dsp_free(p->dsp);
@@ -3300,7 +3325,9 @@ static int dahdi_answer(struct ast_channel *ast)
 	case SIG_PRI:
 		/* Send a pri acknowledge */
 		if (!pri_grab(p, p->pri)) {
-			p->proceeding = 1;
+			if (p->call_level < DAHDI_CALL_LEVEL_CONNECT) {
+				p->call_level = DAHDI_CALL_LEVEL_CONNECT;
+			}
 			p->dialing = 0;
 			res = pri_answer(p->pri->pri, p->call, 0, !p->digital);
 			pri_rel(p->pri);
@@ -4383,7 +4410,10 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 
 		ast_log(LOG_DEBUG, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef HAVE_PRI
-		if (!p->proceeding && p->sig == SIG_PRI && p->pri && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
+		if (p->sig == SIG_PRI
+			&& p->call_level < DAHDI_CALL_LEVEL_PROCEEDING
+			&& p->pri
+			&& (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
 		} else
 #endif
@@ -4399,7 +4429,10 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
 #ifdef HAVE_PRI
-		if (!p->proceeding && p->sig == SIG_PRI && p->pri && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
+		if (p->sig == SIG_PRI
+			&& p->call_level < DAHDI_CALL_LEVEL_PROCEEDING
+			&& p->pri
+			&& (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
 		} else
 #endif
@@ -5629,9 +5662,11 @@ static struct ast_frame  *dahdi_read(struct ast_channel *ast)
 			} else if (f->frametype == AST_FRAME_DTMF_BEGIN
 				|| f->frametype == AST_FRAME_DTMF_END) {
 #ifdef HAVE_PRI
-				if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial &&
-					((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) ||
-					(p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)))) {
+				if (p->sig == SIG_PRI
+					&& p->call_level < DAHDI_CALL_LEVEL_PROCEEDING
+					&& p->pri
+					&& ((!p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING))
+						|| (p->outgoing && (p->pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)))) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
 					ast_log(LOG_DEBUG,
 						"Absorbing inband %s DTMF digit: 0x%02X '%c' on %s\n",
@@ -5714,22 +5749,6 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 
-#if 0
-#ifdef HAVE_PRI
-	ast_mutex_lock(&p->lock);
-	if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
-		if (p->pri->pri) {		
-			if (!pri_grab(p, p->pri)) {
-					pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
-					pri_rel(p->pri);
-			} else
-					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
-		}
-		p->proceeding=1;
-	}
-	ast_mutex_unlock(&p->lock);
-#endif
-#endif
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype != AST_FRAME_IMAGE)
@@ -5803,37 +5822,44 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 		switch (condition) {
 		case AST_CONTROL_BUSY:
 #ifdef HAVE_PRI
-			if (p->priindication_oob && p->sig == SIG_PRI) {
-				chan->hangupcause = AST_CAUSE_USER_BUSY;
-				chan->_softhangup |= AST_SOFTHANGUP_DEV;
-				res = 0;
-			} else if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
-				if (p->pri->pri) {		
-					if (!pri_grab(p, p->pri)) {
-						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
-						pri_rel(p->pri);
-					}
-					else
-						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+			if (p->sig == SIG_PRI) {
+				if (p->priindication_oob) {
+					chan->hangupcause = AST_CAUSE_USER_BUSY;
+					chan->_softhangup |= AST_SOFTHANGUP_DEV;
+					res = 0;
+					break;
 				}
-				p->progress = 1;
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_BUSY);
-			} else
+				if (p->call_level < DAHDI_CALL_LEVEL_ALERTING && !p->outgoing) {
+					chan->hangupcause = AST_CAUSE_USER_BUSY;
+					p->progress = 1;/* No need to send plain PROGRESS after this. */
+					if (p->pri && p->pri->pri) {
+						if (!pri_grab(p, p->pri)) {
+							pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+							pri_rel(p->pri);
+						} else {
+							ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+						}
+					}
+				}
+				break;
+			}
 #endif
-				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_BUSY);
+			res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_BUSY);
 			break;
 		case AST_CONTROL_RINGING:
 #ifdef HAVE_PRI
-			if ((!p->alerting) && p->sig==SIG_PRI && p->pri && !p->outgoing && (chan->_state != AST_STATE_UP)) {
-				if (p->pri->pri) {		
+			if (p->sig == SIG_PRI
+				&& p->call_level < DAHDI_CALL_LEVEL_ALERTING && !p->outgoing) {
+				p->call_level = DAHDI_CALL_LEVEL_ALERTING;
+				if (p->pri && p->pri->pri) {
 					if (!pri_grab(p, p->pri)) {
 						pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
 						pri_rel(p->pri);
-					}
-					else
+					} else {
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+					}
 				}
-				p->alerting = 1;
 			}
 #endif
 			res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_RINGTONE);
@@ -5848,16 +5874,17 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 		case AST_CONTROL_PROCEEDING:
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
 #ifdef HAVE_PRI
-			if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
-				if (p->pri->pri) {		
+			if (p->sig == SIG_PRI
+				&& p->call_level < DAHDI_CALL_LEVEL_PROCEEDING && !p->outgoing) {
+				p->call_level = DAHDI_CALL_LEVEL_PROCEEDING;
+				if (p->pri && p->pri->pri) {
 					if (!pri_grab(p, p->pri)) {
 						pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
 						pri_rel(p->pri);
-					}
-					else
+					} else {
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+					}
 				}
-				p->proceeding = 1;
 				p->dialing = 0;
 			}
 #endif
@@ -5868,41 +5895,80 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef HAVE_PRI
 			p->digital = 0;	/* Digital-only calls isn't allows any inband progress messages */
-			if (!p->progress && !p->alerting && p->sig==SIG_PRI && p->pri && !p->outgoing) {
-				if (p->pri->pri) {		
+			if (p->sig == SIG_PRI
+				&& !p->progress && p->call_level < DAHDI_CALL_LEVEL_ALERTING
+				&& !p->outgoing) {
+				p->progress = 1;/* No need to send plain PROGRESS again. */
+				if (p->pri && p->pri->pri) {
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
 						pri_rel(p->pri);
-					}
-					else
+					} else {
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+					}
 				}
-				p->progress = 1;
 			}
 #endif
 			/* don't continue in ast_indicate */
 			res = 0;
 			break;
 		case AST_CONTROL_CONGESTION:
-			chan->hangupcause = AST_CAUSE_CONGESTION;
 #ifdef HAVE_PRI
-			if (p->priindication_oob && p->sig == SIG_PRI) {
-				chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-				chan->_softhangup |= AST_SOFTHANGUP_DEV;
-				res = 0;
-			} else if (!p->progress && p->sig==SIG_PRI && p->pri && !p->outgoing) {
-				if (p->pri) {		
-					if (!pri_grab(p, p->pri)) {
-						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
-						pri_rel(p->pri);
-					} else
-						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+			if (p->sig == SIG_PRI) {
+				if (p->priindication_oob) {
+					/* There are many cause codes that generate an AST_CONTROL_CONGESTION. */
+					switch (chan->hangupcause) {
+					case AST_CAUSE_USER_BUSY:
+					case AST_CAUSE_NORMAL_CLEARING:
+					case 0:/* Cause has not been set. */
+						/* Supply a more appropriate cause. */
+						chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+						break;
+					default:
+						break;
+					}
+					chan->_softhangup |= AST_SOFTHANGUP_DEV;
+					res = 0;
+					break;
 				}
-				p->progress = 1;
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_CONGESTION);
-			} else
+				if (p->call_level < DAHDI_CALL_LEVEL_ALERTING && !p->outgoing) {
+					/* There are many cause codes that generate an AST_CONTROL_CONGESTION. */
+					switch (chan->hangupcause) {
+					case AST_CAUSE_USER_BUSY:
+					case AST_CAUSE_NORMAL_CLEARING:
+					case 0:/* Cause has not been set. */
+						/* Supply a more appropriate cause. */
+						chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+						break;
+					default:
+						break;
+					}
+					p->progress = 1;/* No need to send plain PROGRESS after this. */
+					if (p->pri && p->pri->pri) {
+						if (!pri_grab(p, p->pri)) {
+							pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+							pri_rel(p->pri);
+						} else {
+							ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+						}
+					}
+				}
+				break;
+			}
 #endif
-				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_CONGESTION);
+			/* There are many cause codes that generate an AST_CONTROL_CONGESTION. */
+			switch (chan->hangupcause) {
+			case AST_CAUSE_USER_BUSY:
+			case AST_CAUSE_NORMAL_CLEARING:
+			case 0:/* Cause has not been set. */
+				/* Supply a more appropriate cause. */
+				chan->hangupcause = AST_CAUSE_CONGESTION;
+				break;
+			default:
+				break;
+			}
+			res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_CONGESTION);
 			break;
 		case AST_CONTROL_HOLD:
 #ifdef HAVE_PRI
@@ -6282,12 +6348,28 @@ static void *ss_thread(void *data)
 			if (p->dsp) {
 				ast_dsp_digitreset(p->dsp);
 			}
-			if (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) {
+#if defined(ISSUE_16789)
+			/*
+			 * Conditionaled out this code to effectively revert the Mantis
+			 * issue 16789 change.  It breaks overlap dialing through
+			 * Asterisk.  There is not enough information available at this
+			 * point to know if dialing is complete.  The
+			 * ast_exists_extension(), ast_matchmore_extension(), and
+			 * ast_canmatch_extension() calls are not adequate to detect a
+			 * dial through extension pattern of "_9!".
+			 *
+			 * Workaround is to use the dialplan Proceeding() application
+			 * early on non-dial through extensions.
+			 */
+			if ((p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
+				&& !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 				ast_mutex_lock(&p->lock);
-				if (p->pri->pri) {		
+				if (p->pri->pri) {
 					if (!pri_grab(p, p->pri)) {
+						if (p->call_level < DAHDI_CALL_LEVEL_PROCEEDING) {
+							p->call_level = DAHDI_CALL_LEVEL_PROCEEDING;
+						}
 						pri_proceeding(p->pri->pri, p->call, PVT_TO_CHANNEL(p), 0);
-						p->proceeding = 1;
 						pri_rel(p->pri);
 					} else {
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
@@ -6295,6 +6377,8 @@ static void *ss_thread(void *data)
 				}
 				ast_mutex_unlock(&p->lock);
 			}
+#endif	/* defined(ISSUE_16789) */
+
 			dahdi_enable_ec(p);
 			ast_setstate(chan, AST_STATE_RING);
 			res = ast_pbx_run(chan);
@@ -9004,6 +9088,22 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 				new->dsp_features = old->dsp_features;
 				old->dsp = NULL;
 				old->dsp_features = 0;
+
+				/* Transfer flags from the old channel. */
+				new->alreadyhungup = old->alreadyhungup;
+				new->isidlecall = old->isidlecall;
+				new->progress = old->progress;
+				new->outgoing = old->outgoing;
+				new->digital = old->digital;
+				old->alreadyhungup = 0;
+				old->isidlecall = 0;
+				old->progress = 0;
+				old->outgoing = 0;
+				old->digital = 0;
+
+				/* More stuff to transfer to the new channel. */
+				new->call_level = old->call_level;
+				old->call_level = DAHDI_CALL_LEVEL_IDLE;
 			}
 			return principle;
 		}
@@ -9773,13 +9873,14 @@ static void *pri_dchannel(void *vpri)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvts[chanpos]->channel);
 						if (e->ring.complete || !(pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 							/* Just announce proceeding */
-							pri->pvts[chanpos]->proceeding = 1;
+							pri->pvts[chanpos]->call_level = DAHDI_CALL_LEVEL_PROCEEDING;
 							pri_proceeding(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 0);
+						} else if (pri->switchtype == PRI_SWITCH_GR303_TMC) {
+							pri->pvts[chanpos]->call_level = DAHDI_CALL_LEVEL_CONNECT;
+							pri_answer(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
 						} else {
-							if (pri->switchtype != PRI_SWITCH_GR303_TMC) 
-								pri_need_more_info(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
-							else
-								pri_answer(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
+							pri->pvts[chanpos]->call_level = DAHDI_CALL_LEVEL_OVERLAP;
+							pri_need_more_info(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
 						}
 						/* Get the use_callingpres state */
 						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
@@ -9822,6 +9923,16 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 								if (e->ring.redirectingreason >= 0)
 									pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
+
+								if (!pri->pvts[chanpos]->digital) {
+									/*
+									 * Call has a channel.
+									 * Indicate that we are providing dialtone.
+									 */
+									pri->pvts[chanpos]->progress = 1;/* No need to send plain PROGRESS again. */
+									pri_progress(pri->pri, e->ring.call,
+										PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
+								}
 							}
 
 							pthread_attr_init(&attr);
@@ -9931,7 +10042,9 @@ static void *pri_dchannel(void *vpri)
 						if (ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
 							dahdi_enable_ec(pri->pvts[chanpos]);
 							pri->pvts[chanpos]->subs[SUB_REAL].needringing = 1;
-							pri->pvts[chanpos]->alerting = 1;
+							if (pri->pvts[chanpos]->call_level < DAHDI_CALL_LEVEL_ALERTING) {
+								pri->pvts[chanpos]->call_level = DAHDI_CALL_LEVEL_ALERTING;
+							}
 						} else
 							ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 #ifdef PRI_PROGRESS_MASK
@@ -10014,10 +10127,11 @@ static void *pri_dchannel(void *vpri)
 			case PRI_EVENT_PROCEEDING:
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
-					if (!pri->pvts[chanpos]->proceeding) {
+					ast_mutex_lock(&pri->pvts[chanpos]->lock);
+					if (pri->pvts[chanpos]->call_level < DAHDI_CALL_LEVEL_PROCEEDING) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
-						
-						ast_mutex_lock(&pri->pvts[chanpos]->lock);
+
+						pri->pvts[chanpos]->call_level = DAHDI_CALL_LEVEL_PROCEEDING;
 						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 						dahdi_queue_frame(pri->pvts[chanpos], &f, pri);
@@ -10035,10 +10149,9 @@ static void *pri_dchannel(void *vpri)
 							f.subclass = AST_CONTROL_PROGRESS;
 							dahdi_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
-						pri->pvts[chanpos]->proceeding = 1;
 						pri->pvts[chanpos]->dialing = 0;
-						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
+					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 				}
 				break;
 			case PRI_EVENT_FACNAME:
@@ -10106,7 +10219,9 @@ static void *pri_dchannel(void *vpri)
 							ast_log(LOG_DEBUG, "Waiting on answer confirmation on channel %d!\n", pri->pvts[chanpos]->channel);
 						} else {
 							pri->pvts[chanpos]->dialing = 0;
-							pri->pvts[chanpos]->proceeding = 1;
+							if (pri->pvts[chanpos]->call_level < DAHDI_CALL_LEVEL_CONNECT) {
+								pri->pvts[chanpos]->call_level = DAHDI_CALL_LEVEL_CONNECT;
+							}
 							pri->pvts[chanpos]->subs[SUB_REAL].needanswer =1;
 							/* Enable echo cancellation if it's not on already */
 							dahdi_enable_ec(pri->pvts[chanpos]);
@@ -10382,13 +10497,36 @@ static void *pri_dchannel(void *vpri)
 				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->setup_ack.call);
 					if (chanpos > -1) {
+						unsigned int len;
+
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
-						pri->pvts[chanpos]->setup_ack = 1;
+						if (pri->pvts[chanpos]->call_level < DAHDI_CALL_LEVEL_OVERLAP) {
+							pri->pvts[chanpos]->call_level = DAHDI_CALL_LEVEL_OVERLAP;
+						}
+
 						/* Send any queued digits */
-						for (x = 0;x < strlen(pri->pvts[chanpos]->dialdest); x++) {
+						len = strlen(pri->pvts[chanpos]->dialdest);
+						for (x = 0; x < len; ++x) {
 							ast_log(LOG_DEBUG, "Sending pending digit '%c'\n", pri->pvts[chanpos]->dialdest[x]);
 							pri_information(pri->pri, pri->pvts[chanpos]->call, 
 								pri->pvts[chanpos]->dialdest[x]);
+						}
+
+						if (!pri->pvts[chanpos]->progress
+							&& (pri->overlapdial & DAHDI_OVERLAPDIAL_OUTGOING)
+							&& !pri->pvts[chanpos]->digital) {
+							/*
+							 * Call has a channel.
+							 * Indicate for overlap dialing that dialtone may be present.
+							 */
+							struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+							dahdi_queue_frame(pri->pvts[chanpos], &f, pri);
+							pri->pvts[chanpos]->progress = 1;/* Claim to have seen inband-information */
+							pri->pvts[chanpos]->dialing = 0;
+							if (pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
+								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
+								pri->pvts[chanpos]->dsp_features = 0;
+							}
 						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					} else
