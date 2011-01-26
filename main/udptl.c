@@ -170,8 +170,6 @@ struct ast_udptl {
 	 */
 	int local_max_ifp;
 
-	int verbose;
-
 	struct sockaddr_in far;
 
 	unsigned int tx_seq_no;
@@ -629,9 +627,6 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, unsigned int bu
 		}
 		break;
 	}
-
-	if (s->verbose)
-		fprintf(stderr, "\n");
 
 	s->tx_seq_no++;
 	return len;
