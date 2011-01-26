@@ -7095,17 +7095,20 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	/* If this dialog is created as the result of an incoming Request. Lets store
 	 * some information about that request */
 	if (req) {
-		char *sent_by, *branch;
+		struct sip_via *via;
 		const char *cseq = get_header(req, "Cseq");
 		unsigned int seqno;
 
 		/* get branch parameter from initial Request that started this dialog */
-		get_viabranch(ast_strdupa(get_header(req, "Via")), &sent_by, &branch);
-		/* only store the branch if it begins with the magic prefix "z9hG4bK", otherwise
-		 * it is not useful to us to have it */
-		if (!ast_strlen_zero(branch) && !strncasecmp(branch, "z9hG4bK", 7)) {
-			ast_string_field_set(p, initviabranch, branch);
-			ast_string_field_set(p, initviasentby, sent_by);
+		via = parse_via(get_header(req, "Via"));
+		if (via) {
+			/* only store the branch if it begins with the magic prefix "z9hG4bK", otherwise
+			 * it is not useful to us to have it */
+			if (!ast_strlen_zero(via->branch) && !strncasecmp(via->branch, "z9hG4bK", 7)) {
+				ast_string_field_set(p, initviabranch, via->branch);
+				ast_string_field_set(p, initviasentby, via->sent_by);
+			}
+			free_via(via);
 		}
 
 		/* Store initial incoming cseq. An error in sscanf here is ignored.  There is no approperiate
@@ -7215,6 +7218,50 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	
 	ast_debug(1, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : p->callid, sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
 	return p;
+}
+
+/*!
+ * \brief Check if an ip is an multicast IP.
+ * \parm addr the address to check
+ *
+ * This function checks if an address is in the 224.0.0.0/4 network block.
+ * \return non-zero if this is a multicast address
+ */
+static int addr_is_multicast(const struct ast_sockaddr *addr)
+{
+	return ((ast_sockaddr_ipv4(addr) & 0xf0000000) == 0xe0000000);
+}
+
+static int process_via(struct sip_pvt *p, const struct sip_request *req)
+{
+	struct sip_via *via = parse_via(get_header(req, "Via"));
+
+	if (!via) {
+		ast_log(LOG_ERROR, "error processing via header\n");
+		return -1;
+	}
+
+	if (via->maddr) {
+		if (ast_sockaddr_resolve_first(&p->sa, via->maddr, PARSE_PORT_FORBID)) {
+			ast_log(LOG_WARNING, "Can't find address for maddr '%s'\n", via->maddr);
+			ast_log(LOG_ERROR, "error processing via header\n");
+			free_via(via);
+			return -1;
+		}
+
+		if (via->port) {
+			ast_sockaddr_set_port(&p->sa, via->port);
+		} else {
+			ast_sockaddr_set_port(&p->sa, STANDARD_SIP_PORT);
+		}
+
+		if (addr_is_multicast(&p->sa)) {
+			setsockopt(sipsock, IPPROTO_IP, IP_MULTICAST_TTL, &via->ttl, sizeof(via->ttl));
+		}
+	}
+
+	free_via(via);
+	return 0;
 }
 
 /* \brief arguments used for Request/Response to matching */
@@ -7447,6 +7494,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 			dialog_find_multiple,
 			&tmp_dialog,
 			"pedantic ao2_find in dialogs");
+		struct sip_via *via = NULL;
 
 		args.method = req->method;
 		args.callid = NULL; /* we already matched this. */
@@ -7457,7 +7505,11 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		/* If this is a Request, set the Via and Authorization header arguments */
 		if (req->method != SIP_RESPONSE) {
 			args.ruri = REQ_OFFSET_TO_STR(req, rlPart2);
-			get_viabranch(ast_strdupa(get_header(req, "Via")), (char **) &args.viasentby, (char **) &args.viabranch);
+			via = parse_via(get_header(req, "Via"));
+			if (via) {
+				args.viasentby = via->sent_by;
+				args.viabranch = via->branch;
+			}
 			if (!ast_strlen_zero(get_header(req, "Authorization")) ||
 				!ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
 				args.authentication_present = 1;
@@ -7472,6 +7524,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 			case SIP_REQ_MATCH:
 				sip_pvt_lock(sip_pvt_ptr);
 				ao2_iterator_destroy(iterator);
+				free_via(via);
 				return sip_pvt_ptr; /* return pvt with ref */
 			case SIP_REQ_LOOP_DETECTED:
 				/* This is likely a forked Request that somehow resulted in us receiving multiple parts of the fork.
@@ -7479,6 +7532,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 				transmit_response_using_temp(callid, addr, 1, intended_method, req, "482 (Loop Detected)");
 				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search.");
 				ao2_iterator_destroy(iterator);
+				free_via(via);
 				return NULL;
 			case SIP_REQ_NOT_MATCH:
 			default:
@@ -7488,6 +7542,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		if (iterator) {
 			ao2_iterator_destroy(iterator);
 		}
+
+		free_via(via);
 	} /* end of pedantic mode Request/Reponse to Dialog matching */
 
 	/* See if the method is capable of creating a dialog */
@@ -9535,6 +9591,15 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	if (!ast_strlen_zero(p->url)) {
 		add_header(resp, "Access-URL", p->url);
 		ast_string_field_set(p, url, NULL);
+	}
+
+	/* default to routing the response to the address where the request
+	 * came from.  Since we don't have a transport layer, we do this here.
+	 */
+	p->sa = p->recv;
+
+	if (process_via(p, req)) {
+		ast_log(LOG_WARNING, "error processing via header, will send response to originating address\n");
 	}
 
 	return 0;
