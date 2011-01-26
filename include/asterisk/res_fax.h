@@ -58,10 +58,8 @@ enum ast_fax_modems {
 
 /*! \brief current state of a fax session */
 enum ast_fax_state {
-	/*! reserved state */
-	AST_FAX_STATE_RESERVED = 0,
 	/*! uninitialized state */
-	AST_FAX_STATE_UNINITIALIZED,
+	AST_FAX_STATE_UNINITIALIZED = 0,
 	/*! initialized state */
 	AST_FAX_STATE_INITIALIZED,
 	/*! fax resources open state */
@@ -70,6 +68,10 @@ enum ast_fax_state {
 	AST_FAX_STATE_ACTIVE,
 	/*! fax session complete */
 	AST_FAX_STATE_COMPLETE,
+	/*! reserved state */
+	AST_FAX_STATE_RESERVED,
+	/*! inactive state */
+	AST_FAX_STATE_INACTIVE,
 };
 
 /*! \brief fax session options */
@@ -186,8 +188,6 @@ struct ast_fax_session {
 	unsigned long frames_sent;
 	/*! the fax technology callbacks */
 	const struct ast_fax_tech *tech;
-	/*! the token used to reserve this session */
-	struct ast_fax_tech_token *token;
 	/*! private implementation pointer */
 	void *tech_pvt;
 	/*! fax state */
@@ -202,10 +202,6 @@ struct ast_fax_session {
 	struct ast_fax_debug_info *debug_info;
 	/*! used to take variable-sized frames in and output frames of an expected size to the fax stack */
 	struct ast_smoother *smoother;
-
-	/*! some flags to track the stat counters for this session */
-	unsigned int reserved:1;
-	unsigned int active:1;
 };
 
 /*! \brief used to register a FAX technology module with res_fax */
@@ -248,14 +244,6 @@ struct ast_fax_tech {
 	char * (* const cli_show_stats)(int);
 	/*! displays settings from the fax technology module */
 	char * (* const cli_show_settings)(int);
-};
-
-/*! \brief used by res_fax to reserve a FAX session */
-struct ast_fax_tech_token {
-	/*! the fax technology callbacks */
-	const struct ast_fax_tech *tech;
-	/*! private implementation pointer */
-	void *tech_pvt;
 };
 
 /*! \brief register a fax technology */

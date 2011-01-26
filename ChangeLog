@@ -1,3 +1,16 @@
+2011-01-26  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.2.3 Released.
+
+	------------------------------------------------------------------------
+	r303907 | mnicholson | 2011-01-25 14:56:12 -0600 (Tue, 25 Jan 2011) |
+	2 lines
+
+	Reimplemented fax session reservation to reverse the ABI breakage
+	introduced in r297486.
+
+	------------------------------------------------------------------------
+
 2011-01-20  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.2.2 Released.
