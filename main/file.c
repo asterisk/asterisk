@@ -1117,6 +1117,11 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 		if (fd > -1) {
 			errno = 0;
 			fs = get_filestream(f, bfile);
+			if (fs) {
+				if ((fs->write_buffer = ast_malloc(32768))) {
+					setvbuf(fs->f, fs->write_buffer, _IOFBF, 32768);
+				}
+			}
 			if (!fs || rewrite_wrapper(fs, comment)) {
 				ast_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
 				close(fd);
@@ -1143,11 +1148,6 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			}
 			fs->vfs = NULL;
 			/* If truncated, we'll be at the beginning; if not truncated, then append */
-
-			if ((fs->write_buffer = ast_malloc(32768))){
-				setvbuf(fs->f, fs->write_buffer, _IOFBF, 32768);
-			}
-
 			f->seek(fs, 0, SEEK_END);
 		} else if (errno != EEXIST) {
 			ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
