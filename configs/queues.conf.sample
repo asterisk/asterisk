@@ -89,7 +89,7 @@ shared_lastcall=no
 ; random - ring random interface
 ; rrmemory - round robin with memory, remember where we left off last ring pass
 ; rrordered - same as rrmemory, except the queue member order from config file 
-              is preserved
+;             is preserved
 ; linear - rings interfaces in the order specified in this configuration file.
 ;          If you use dynamic members, the members will be rung in the order in
 ;          which they were added
