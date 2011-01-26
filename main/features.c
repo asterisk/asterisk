@@ -722,7 +722,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 	for (x = goto_on_transfer; x && *x; x++) {
 		if (*x == '^')
-			*x = '|';
+			*x = ',';
 	}
 	/* Make formats okay */
 	xferchan->readformat = chan->readformat;
