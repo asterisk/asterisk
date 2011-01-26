@@ -381,6 +381,11 @@ int ast_sockaddr_is_ipv4_mapped(const struct ast_sockaddr *addr)
 	return addr->len && IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr);
 }
 
+int ast_sockaddr_is_ipv4_multicast(const struct ast_sockaddr *addr)
+{
+	return ((ast_sockaddr_ipv4(addr) & 0xf0000000) == 0xe0000000);
+}
+
 int ast_sockaddr_is_ipv6(const struct ast_sockaddr *addr)
 {
 	return addr->ss.ss_family == AF_INET6 &&

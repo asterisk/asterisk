@@ -166,9 +166,43 @@ int sip_reqresp_parser_init(void);
 void sip_reqresp_parser_exit(void);
 
 /*!
- * \brief Parse the VIA header into it's parts.
+ * \brief Parse a Via header
  *
- * \note This will modify the string
+ * This function parses the Via header and processes it according to section
+ * 18.2 of RFC 3261 and RFC 3581. Since we don't have a transport layer, we
+ * only care about the maddr and ttl parms.  The received and rport params are
+ * not parsed.
+ *
+ * \note This function fails to parse some odd combinations of SWS in parameter
+ * lists.
+ *
+ * \code
+ * VIA syntax. RFC 3261 section 25.1
+ * Via               =  ( "Via" / "v" ) HCOLON via-parm *(COMMA via-parm)
+ * via-parm          =  sent-protocol LWS sent-by *( SEMI via-params )
+ * via-params        =  via-ttl / via-maddr
+ *                   / via-received / via-branch
+ *                   / via-extension
+ * via-ttl           =  "ttl" EQUAL ttl
+ * via-maddr         =  "maddr" EQUAL host
+ * via-received      =  "received" EQUAL (IPv4address / IPv6address)
+ * via-branch        =  "branch" EQUAL token
+ * via-extension     =  generic-param
+ * sent-protocol     =  protocol-name SLASH protocol-version
+ *                   SLASH transport
+ * protocol-name     =  "SIP" / token
+ * protocol-version  =  token
+ * transport         =  "UDP" / "TCP" / "TLS" / "SCTP"
+ *                   / other-transport
+ * sent-by           =  host [ COLON port ]
+ * ttl               =  1*3DIGIT ; 0 to 255
+ * \endcode
  */
-void get_viabranch(char *via, char **sent_by, char **branch);
+struct sip_via *parse_via(const char *header);
+
+/*
+ * \brief Free parsed Via data.
+ */
+void free_via(struct sip_via *v);
+
 #endif

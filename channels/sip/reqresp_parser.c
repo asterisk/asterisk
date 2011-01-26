@@ -2243,123 +2243,159 @@ AST_TEST_DEFINE(sip_uri_cmp_test)
 	return test_res;
 }
 
-void get_viabranch(char *via, char **sent_by, char **branch)
+void free_via(struct sip_via *v)
 {
-	char *tmp;
-
-	if (sent_by) {
-		*sent_by = NULL;
-	}
-	if (branch) {
-		*branch = NULL;
-	}
-	if (ast_strlen_zero(via)) {
+	if (!v) {
 		return;
 	}
-	via = ast_skip_blanks(via);
-	/*
-	 * VIA syntax. RFC 3261 section 6.40.5
-	 * Via = ( "Via" | "v") ":" 1#( sent-protocol sent-by *( ";" via-params ) [ comment ] )
-	 * via-params  = via-hidden | via-ttl | via-maddr | via-received | via-branch
-	 * via-hidden       = "hidden"
-	 * via-ttl          = "ttl" "=" ttl
-	 * via-maddr        = "maddr" "=" maddr
-	 * via-received     = "received" "=" host
-	 * via-branch       = "branch" "=" token
-	 * sent-protocol    = protocol-name "/" protocol-version "/" transport
-	 * protocol-name    = "SIP" | token
-	 * protocol-version = token
-	 * transport        = "UDP" | "TCP" | token
-	 * sent-by          = ( host [ ":" port ] ) | ( concealed-host )
-	 * concealed-host   = token
-	 * ttl              = 1*3DIGIT     ; 0 to 255	
-	 */
 
-	/* chop off ("Via:" | "v:") if present */
-	if (!strncasecmp(via, "Via:", 4)) {
-		via += 4;
-	} else if (!strncasecmp(via, "v:", 2)) {
-		via += 2;
+	if (v->via) {
+		ast_free(v->via);
 	}
+
+	ast_free(v);
+}
+
+struct sip_via *parse_via(const char *header)
+{
+	struct sip_via *v = ast_calloc(1, sizeof(*v));
+	char *via, *parm;
+
+	if (!v) {
+		return NULL;
+	}
+
+	v->via = ast_strdup(header);
+	v->ttl = 1;
+
+	via = v->via;
+
 	if (ast_strlen_zero(via)) {
-		return;
+		ast_log(LOG_ERROR, "received request without a Via header\n");
+		free_via(v);
+		return NULL;
 	}
+
+	/* seperate the first via-parm */
+	via = strsep(&via, ",");
 
 	/* chop off sent-protocol */
-	via = ast_skip_blanks(via);
-	strsep(&via, " \t\r\n");
-	if (ast_strlen_zero(via)) {
-		return;
+	v->protocol = strsep(&via, " \t\r\n");
+	if (ast_strlen_zero(v->protocol)) {
+		ast_log(LOG_ERROR, "missing sent-protocol in Via header\n");
+		free_via(v);
+		return NULL;
+	}
+	v->protocol = ast_skip_blanks(v->protocol);
+
+	if (via) {
+		via = ast_skip_blanks(via);
 	}
 
 	/* chop off sent-by */
-	via = ast_skip_blanks(via);
-	*sent_by = strsep(&via, "; \t\r\n");
-	if (ast_strlen_zero(via)) {
-		return;
+	v->sent_by = strsep(&via, "; \t\r\n");
+	if (ast_strlen_zero(v->sent_by)) {
+		ast_log(LOG_ERROR, "missing sent-by in Via header\n");
+		free_via(v);
+		return NULL;
+	}
+	v->sent_by = ast_skip_blanks(v->sent_by);
+
+	/* store the port */
+	if ((parm = strchr(v->sent_by, ':'))) {
+		char *endptr;
+
+		v->port = strtol(++parm, &endptr, 10);
 	}
 
-	/* now see if there is a branch parameter in there */
-	if (!ast_strlen_zero(via) && (tmp = strstr(via, "branch="))) {
-		/* find the branch ID */
-		via = ast_skip_blanks(tmp + 7);
+	/* evaluate any via-parms */
+	while ((parm = strsep(&via, "; \t\r\n"))) {
+		char *c;
+		if ((c = strstr(parm, "maddr="))) {
+			v->maddr = ast_skip_blanks(c + sizeof("maddr=") - 1);
+		} else if ((c = strstr(parm, "branch="))) {
+			v->branch = ast_skip_blanks(c + sizeof("branch=") - 1);
+		} else if ((c = strstr(parm, "ttl="))) {
+			char *endptr;
+			c = ast_skip_blanks(c + sizeof("ttl=") - 1);
+			v->ttl = strtol(c, &endptr, 10);
 
-		/* chop off the branch parameter */
-		*branch = strsep(&via, "; \t\r\n");
+			/* make sure we got a valid ttl value */
+			if (c == endptr) {
+				v->ttl = 1;
+			}
+		}
 	}
+
+	return v;
 }
 
-AST_TEST_DEFINE(get_viabranch_test)
+AST_TEST_DEFINE(parse_via_test)
 {
 	int res = AST_TEST_PASS;
 	int i = 1;
-	char *sent_by, *branch;
+	struct sip_via *via;
 	struct testdata {
 		char *in;
+		char *expected_protocol;
 		char *expected_branch;
 		char *expected_sent_by;
+		char *expected_maddr;
+		unsigned int expected_port;
+		unsigned char expected_ttl;
+		int expected_null;
 		AST_LIST_ENTRY(testdata) list;
 	};
 	struct testdata *testdataptr;
 	static AST_LIST_HEAD_NOLOCK(testdataliststruct, testdata) testdatalist;
 	struct testdata t1 = {
-		.in = "Via: SIP/2.0/UDP host:port;branch=thebranch",
+		.in = "SIP/2.0/UDP host:port;branch=thebranch",
+		.expected_protocol = "SIP/2.0/UDP",
+		.expected_sent_by = "host:port",
 		.expected_branch = "thebranch",
-		.expected_sent_by = "host:port"
 	};
 	struct testdata t2 = {
-		.in = "SIP/2.0/UDP host:port;branch=thebranch",
-		.expected_branch = "thebranch",
-		.expected_sent_by = "host:port"
+		.in = "SIP/2.0/UDP host:port",
+		.expected_protocol = "SIP/2.0/UDP",
+		.expected_sent_by = "host:port",
+		.expected_branch = "",
 	};
 	struct testdata t3 = {
-		.in = "SIP/2.0/UDP host:port",
-		.expected_branch = "",
-		.expected_sent_by = "host:port"
+		.in = "SIP/2.0/UDP",
+		.expected_null = 1,
 	};
 	struct testdata t4 = {
-		.in = "BLAH/BLAH/BLAH            host:port        ;    branch=        thebranch ;;;;;;;",
-		.expected_branch = "thebranch",
-		.expected_sent_by = "host:port"
+		.in = "BLAH/BLAH/BLAH host:port;branch=",
+		.expected_protocol = "BLAH/BLAH/BLAH",
+		.expected_sent_by = "host:port",
+		.expected_branch = "",
 	};
 	struct testdata t5 = {
-		.in = "v: BLAH/BLAH/BLAH",
-		.expected_branch = "",
-		.expected_sent_by = ""
+		.in = "SIP/2.0/UDP host:5060;branch=thebranch;maddr=224.0.0.1;ttl=1",
+		.expected_protocol = "SIP/2.0/UDP",
+		.expected_sent_by = "host:5060",
+		.expected_port = 5060,
+		.expected_branch = "thebranch",
+		.expected_maddr = "224.0.0.1",
+		.expected_ttl = 1,
 	};
 	struct testdata t6 = {
-		.in = "BLAH/BLAH/BLAH host:port;branch=",
-		.expected_branch = "",
-		.expected_sent_by = "host:port"
+		.in = "SIP/2.0/UDP      host:5060;\n   branch=thebranch;\r\n  maddr=224.0.0.1;   ttl=1",
+		.expected_protocol = "SIP/2.0/UDP",
+		.expected_sent_by = "host:5060",
+		.expected_port = 5060,
+		.expected_branch = "thebranch",
+		.expected_maddr = "224.0.0.1",
+		.expected_ttl = 1,
 	};
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "get_viabranch_test";
+		info->name = "parse_via_test";
 		info->category = "/channels/chan_sip/";
-		info->summary = "Tests getting sent-by and branch parameter from via";
+		info->summary = "Tests parsing the Via header";
 		info->description =
-				"Runs through various test situations in which a sent-by and"
-				" branch parameter must be extracted from a VIA header";
+				"Runs through various test situations in which various "
+				" parameters parameter must be extracted from a VIA header";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -2374,15 +2410,91 @@ AST_TEST_DEFINE(get_viabranch_test)
 
 
 	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
-		get_viabranch(ast_strdupa(testdataptr->in), &sent_by, &branch);
-		if ((ast_strlen_zero(sent_by) && !ast_strlen_zero(testdataptr->expected_sent_by)) ||
-			(ast_strlen_zero(branch) && !ast_strlen_zero(testdataptr->expected_branch)) ||
-			(!ast_strlen_zero(sent_by) && strcmp(sent_by, testdataptr->expected_sent_by)) ||
-			(!ast_strlen_zero(branch) && strcmp(branch, testdataptr->expected_branch))) {
-			ast_test_status_update(test, "TEST#%d FAILED:  VIA = \"%s\" parsed sent-by = \"%s\" parsed branch = \"%s\"\n",
-			i, testdataptr->in, sent_by, branch);
+		via = parse_via(testdataptr->in);
+		if (!via) {
+		        if (!testdataptr->expected_null) {
+				ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+					"failed to parse header\n",
+				i, testdataptr->in);
+				res = AST_TEST_FAIL;
+			}
+			i++;
+			continue;
+		}
+
+		if (testdataptr->expected_null) {
+			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+				"successfully parased invalid via header\n",
+			i, testdataptr->in);
+			res = AST_TEST_FAIL;
+			free_via(via);
+			i++;
+			continue;
+		}
+
+		if ((ast_strlen_zero(via->protocol) && !ast_strlen_zero(testdataptr->expected_protocol))
+			|| (!ast_strlen_zero(via->protocol) && strcmp(via->protocol, testdataptr->expected_protocol))) {
+
+			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+				"parsed protocol = \"%s\"\n"
+				"expected = \"%s\"\n"
+				"failed to parse protocol\n",
+			i, testdataptr->in, via->protocol, testdataptr->expected_protocol);
 			res = AST_TEST_FAIL;
 		}
+
+		if ((ast_strlen_zero(via->sent_by) && !ast_strlen_zero(testdataptr->expected_sent_by))
+			|| (!ast_strlen_zero(via->sent_by) && strcmp(via->sent_by, testdataptr->expected_sent_by))) {
+
+			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+				"parsed sent_by = \"%s\"\n"
+				"expected = \"%s\"\n"
+				"failed to parse sent-by\n",
+			i, testdataptr->in, via->sent_by, testdataptr->expected_sent_by);
+			res = AST_TEST_FAIL;
+		}
+
+		if (testdataptr->expected_port && testdataptr->expected_port != via->port) {
+			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+				"parsed port = \"%d\"\n"
+				"expected = \"%d\"\n"
+				"failed to parse port\n",
+			i, testdataptr->in, via->port, testdataptr->expected_port);
+			res = AST_TEST_FAIL;
+		}
+
+		if ((ast_strlen_zero(via->branch) && !ast_strlen_zero(testdataptr->expected_branch))
+			|| (!ast_strlen_zero(via->branch) && strcmp(via->branch, testdataptr->expected_branch))) {
+
+			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+				"parsed branch = \"%s\"\n"
+				"expected = \"%s\"\n"
+				"failed to parse branch\n",
+			i, testdataptr->in, via->branch, testdataptr->expected_branch);
+			res = AST_TEST_FAIL;
+		}
+
+		if ((ast_strlen_zero(via->maddr) && !ast_strlen_zero(testdataptr->expected_maddr))
+			|| (!ast_strlen_zero(via->maddr) && strcmp(via->maddr, testdataptr->expected_maddr))) {
+
+			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+				"parsed maddr = \"%s\"\n"
+				"expected = \"%s\"\n"
+				"failed to parse maddr\n",
+			i, testdataptr->in, via->maddr, testdataptr->expected_maddr);
+			res = AST_TEST_FAIL;
+		}
+
+		if (testdataptr->expected_ttl && testdataptr->expected_ttl != via->ttl) {
+			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
+				"parsed ttl = \"%d\"\n"
+				"expected = \"%d\"\n"
+				"failed to parse ttl\n",
+			i, testdataptr->in, via->ttl, testdataptr->expected_ttl);
+			res = AST_TEST_FAIL;
+		}
+
+		free_via(via);
 		i++;
 	}
 	return res;
@@ -2399,7 +2511,7 @@ void sip_request_parser_register_tests(void)
 	AST_TEST_REGISTER(parse_contact_header_test);
 	AST_TEST_REGISTER(sip_parse_options_test);
 	AST_TEST_REGISTER(sip_uri_cmp_test);
-	AST_TEST_REGISTER(get_viabranch_test);
+	AST_TEST_REGISTER(parse_via_test);
 }
 void sip_request_parser_unregister_tests(void)
 {
@@ -2412,7 +2524,7 @@ void sip_request_parser_unregister_tests(void)
 	AST_TEST_UNREGISTER(parse_contact_header_test);
 	AST_TEST_UNREGISTER(sip_parse_options_test);
 	AST_TEST_UNREGISTER(sip_uri_cmp_test);
-	AST_TEST_UNREGISTER(get_viabranch_test);
+	AST_TEST_UNREGISTER(parse_via_test);
 }
 
 int sip_reqresp_parser_init(void)

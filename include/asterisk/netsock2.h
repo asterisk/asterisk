@@ -386,6 +386,20 @@ int ast_sockaddr_is_ipv4(const struct ast_sockaddr *addr);
 int ast_sockaddr_is_ipv4_mapped(const struct ast_sockaddr *addr);
 
 /*!
+ * \since 1.10
+ *
+ * \brief
+ * Determine if an IPv4 address is a multicast address
+ *
+ * \parm addr the address to check
+ *
+ * This function checks if an address is in the 224.0.0.0/4 network block.
+ *
+ * \return non-zero if this is a multicast address
+ */
+int ast_sockaddr_is_ipv4_multicast(const struct ast_sockaddr *addr);
+
+/*!
  * \since 1.8
  *
  * \brief

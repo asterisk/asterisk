@@ -789,6 +789,17 @@ struct sip_route {
 	char hop[0];
 };
 
+/*! \brief Structure to store Via information */
+struct sip_via {
+	char *via;
+	const char *protocol;
+	const char *sent_by;
+	const char *branch;
+	const char *maddr;
+	unsigned int port;
+	unsigned char ttl;
+};
+
 /*! \brief Domain data structure.
 	\note In the future, we will connect this to a configuration tree specific
 	for this domain
