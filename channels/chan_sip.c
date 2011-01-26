@@ -1253,6 +1253,17 @@ struct sip_route {
 	char hop[0];
 };
 
+/*! \brief Structure to store Via information */
+struct sip_via {
+	char *via;
+	const char *protocol;
+	const char *sent_by;
+	const char *branch;
+	const char *maddr;
+	unsigned int port;
+	unsigned char ttl;
+};
+
 /*! \brief Modes for SIP domain handling in the PBX */
 enum domain_mode {
 	SIP_DOMAIN_AUTO,		/*!< This domain is auto-configured */
@@ -2552,6 +2563,8 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq);
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
 static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewline);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
+static struct sip_via *parse_via(const char *header);
+static void free_via(struct sip_via *v);
 
 /*-- TCP connection handling ---*/
 static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *tcptls_session);
@@ -7402,6 +7415,177 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	return p;
 }
 
+static void free_via(struct sip_via *v)
+{
+	if (!v) {
+		return;
+	}
+
+	if (v->via) {
+		ast_free(v->via);
+	}
+
+	ast_free(v);
+}
+
+/*!
+ * \brief Parse a Via header
+ *
+ * This function parses the Via header and processes it according to section
+ * 18.2 of RFC 3261 and RFC 3581. Since we don't have a transport layer, we
+ * only care about the maddr and ttl parms.  The received and rport params are
+ * not parsed.
+ *
+ * \note This function fails to parse some odd combinations of SWS in parameter
+ * lists.
+ *
+ * \code
+ * VIA syntax. RFC 3261 section 25.1
+ * Via               =  ( "Via" / "v" ) HCOLON via-parm *(COMMA via-parm)
+ * via-parm          =  sent-protocol LWS sent-by *( SEMI via-params )
+ * via-params        =  via-ttl / via-maddr
+ *                   / via-received / via-branch
+ *                   / via-extension
+ * via-ttl           =  "ttl" EQUAL ttl
+ * via-maddr         =  "maddr" EQUAL host
+ * via-received      =  "received" EQUAL (IPv4address / IPv6address)
+ * via-branch        =  "branch" EQUAL token
+ * via-extension     =  generic-param
+ * sent-protocol     =  protocol-name SLASH protocol-version
+ *                   SLASH transport
+ * protocol-name     =  "SIP" / token
+ * protocol-version  =  token
+ * transport         =  "UDP" / "TCP" / "TLS" / "SCTP"
+ *                   / other-transport
+ * sent-by           =  host [ COLON port ]
+ * ttl               =  1*3DIGIT ; 0 to 255
+ * \endcode
+ */
+static struct sip_via *parse_via(const char *header)
+{
+	struct sip_via *v = ast_calloc(1, sizeof(*v));
+	char *via, *parm;
+
+	if (!v) {
+		return NULL;
+	}
+
+	v->via = ast_strdup(header);
+	v->ttl = 1;
+
+	via = v->via;
+
+	if (ast_strlen_zero(via)) {
+		ast_log(LOG_ERROR, "received request without a Via header\n");
+		free_via(v);
+		return NULL;
+	}
+
+	/* seperate the first via-parm */
+	via = strsep(&via, ",");
+
+	/* chop off sent-protocol */
+	v->protocol = strsep(&via, " \t\r\n");
+	if (ast_strlen_zero(v->protocol)) {
+		ast_log(LOG_ERROR, "missing sent-protocol in Via header\n");
+		free_via(v);
+		return NULL;
+	}
+	v->protocol = ast_skip_blanks(v->protocol);
+
+	if (via) {
+		via = ast_skip_blanks(via);
+	}
+
+	/* chop off sent-by */
+	v->sent_by = strsep(&via, "; \t\r\n");
+	if (ast_strlen_zero(v->sent_by)) {
+		ast_log(LOG_ERROR, "missing sent-by in Via header\n");
+		free_via(v);
+		return NULL;
+	}
+	v->sent_by = ast_skip_blanks(v->sent_by);
+
+	/* store the port */
+	if ((parm = strchr(v->sent_by, ':'))) {
+		char *endptr;
+
+		v->port = strtol(++parm, &endptr, 10);
+	}
+
+	/* evaluate any via-parms */
+	while ((parm = strsep(&via, "; \t\r\n"))) {
+		char *c;
+		if ((c = strstr(parm, "maddr="))) {
+			v->maddr = ast_skip_blanks(c + sizeof("maddr=") - 1);
+		} else if ((c = strstr(parm, "branch="))) {
+			v->branch = ast_skip_blanks(c + sizeof("branch=") - 1);
+		} else if ((c = strstr(parm, "ttl="))) {
+			char *endptr;
+			c = ast_skip_blanks(c + sizeof("ttl=") - 1);
+			v->ttl = strtol(c, &endptr, 10);
+
+			/* make sure we got a valid ttl value */
+			if (c == endptr) {
+				v->ttl = 1;
+			}
+		}
+	}
+
+	return v;
+}
+
+/*!
+ * \brief Check if an ip is an multicast IP.
+ * \parm addr the address to check
+ *
+ * This function checks if an address is in the 224.0.0.0/4 network block.
+ * \return non-zero if this is a multicast address
+ */
+static int addr_is_multicast(struct in_addr *addr)
+{
+	return ((ntohl(addr->s_addr) & 0xf0000000) == 0xe0000000);
+}
+
+static int process_via(struct sip_pvt *p, const struct sip_request *req)
+{
+	struct sip_via *via = parse_via(get_header(req, "Via"));
+
+	if (!via) {
+		ast_log(LOG_ERROR, "error processing via header\n");
+		return -1;
+	}
+
+	if (via->maddr) {
+		struct hostent *hp;
+		struct ast_hostent ahp;
+
+		hp = ast_gethostbyname(via->maddr, &ahp);
+		if (hp == NULL)  {
+			ast_log(LOG_WARNING, "Can't find address for maddr '%s'\n", via->maddr);
+			ast_log(LOG_ERROR, "error processing via header\n");
+			free_via(via);
+			return -1;
+		}
+
+		p->sa.sin_family = AF_INET;
+		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
+
+		if (via->port) {
+			p->sa.sin_port = via->port;
+		} else {
+			p->sa.sin_port = STANDARD_SIP_PORT;
+		}
+
+		if (addr_is_multicast(&p->sa.sin_addr)) {
+			setsockopt(sipsock, IPPROTO_IP, IP_MULTICAST_TTL, &via->ttl, sizeof(via->ttl));
+		}
+	}
+
+	free_via(via);
+	return 0;
+}
+
 /*! \brief argument to the helper function to identify a call */
 struct find_call_cb_arg {
 	enum sipmethod method;
@@ -9603,6 +9787,15 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	if (!ast_strlen_zero(p->url)) {
 		add_header(resp, "Access-URL", p->url);
 		ast_string_field_set(p, url, NULL);
+	}
+
+	/* default to routing the response to the address where the request
+	 * came from.  Since we don't have a transport layer, we do this here.
+	 */
+	p->sa = p->recv;
+
+	if (process_via(p, req)) {
+		ast_log(LOG_WARNING, "error processing via header, will send response to originating address\n");
 	}
 
 	return 0;
