@@ -125,8 +125,6 @@ struct ast_udptl {
 	    accept. */
 	int local_max_datagram_size;
 
-	int verbose;
-
 	struct sockaddr_in far;
 
 	int tx_seq_no;
@@ -585,9 +583,6 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, int buflen, uin
 		}
 		break;
 	}
-
-	if (s->verbose)
-		fprintf(stderr, "\n");
 
 	s->tx_seq_no++;
 	return len;
