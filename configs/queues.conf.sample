@@ -75,7 +75,7 @@ monitor-type = MixMonitor
 ; random - ring random interface
 ; rrmemory - round robin with memory, remember where we left off last ring pass
 ; rrordered - same as rrmemory, except the queue member order from config file 
-              is preserved
+;             is preserved
 ;
 ;strategy = ringall
 ;
