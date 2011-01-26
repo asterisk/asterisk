@@ -134,7 +134,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<application name="DAHDISendCallreroutingFacility" language="en_US">
 		<synopsis>
-			Send QSIG call rerouting facility over a PRI.
+			Send an ISDN call rerouting/deflection facility message.
 		</synopsis>
 		<syntax argsep=",">
 			<parameter name="destination" required="true">
@@ -148,8 +148,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>This application will send a Callrerouting Facility IE over the
-			current channel.</para>
+			<para>This application will send an ISDN switch specific call
+			rerouting/deflection facility message over the current channel.
+			Supported switches depend upon the version of libpri in use.</para>
 		</description>
 	</application>
 	<application name="DAHDIAcceptR2Call" language="en_US">
