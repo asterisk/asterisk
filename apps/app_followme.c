@@ -78,6 +78,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Playback the unreachable status message if we've run out
 						of steps to reach the or the callee has elected not to be reachable.</para>
 					</option>
+					<option name="N">
+						<para>Don't answer the incoming call until we're ready to
+						connect the caller or give up. This will disable all the other
+						options while implicitly turning on the 'd' option.</para>
+					</option>
 					<option name="d">
 						<para>Disable the 'Please hold while we try to connect your call' announcement.</para>
 					</option>
@@ -162,7 +167,8 @@ enum {
 	FOLLOWMEFLAG_STATUSMSG = (1 << 0),
 	FOLLOWMEFLAG_RECORDNAME = (1 << 1),
 	FOLLOWMEFLAG_UNREACHABLEMSG = (1 << 2),
-	FOLLOWMEFLAG_DISABLEHOLDPROMPT = (1 << 3)
+	FOLLOWMEFLAG_DISABLEHOLDPROMPT = (1 << 3),
+	FOLLOWMEFLAG_NOANSWER = (1 << 4)
 };
 
 AST_APP_OPTIONS(followme_opts, {
@@ -170,6 +176,7 @@ AST_APP_OPTIONS(followme_opts, {
 	AST_APP_OPTION('a', FOLLOWMEFLAG_RECORDNAME ),
 	AST_APP_OPTION('n', FOLLOWMEFLAG_UNREACHABLEMSG ),
 	AST_APP_OPTION('d', FOLLOWMEFLAG_DISABLEHOLDPROMPT ),
+	AST_APP_OPTION('N', FOLLOWMEFLAG_NOANSWER ),
 });
 
 static int ynlongest = 0;
@@ -1091,30 +1098,36 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	}
 	ast_mutex_unlock(&f->lock);
 
-	/* Answer the call */
-	if (chan->_state != AST_STATE_UP) {
-		ast_answer(chan);
-	}
-
-	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
-		ast_stream_and_wait(chan, targs.statusprompt, "");
-
 	snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
 	duration = 5;
 
-	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) 
-		if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0)
-			goto outrun;
-
 	if (!ast_fileexists(namerecloc, NULL, chan->language))
 		ast_copy_string(namerecloc, "", sizeof(namerecloc));
-	if (!ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
-		if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
-			goto outrun;
-		if (ast_waitstream(chan, "") < 0)
-			goto outrun;
+
+	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
+		if (chan->_state != AST_STATE_UP) {
+			ast_indicate(chan, AST_CONTROL_RINGING);
+		}
+	} else {
+		/* Answer the call */
+		if (chan->_state != AST_STATE_UP)
+			ast_answer(chan);
+
+		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
+			ast_stream_and_wait(chan, targs.statusprompt, "");
+
+		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) 
+			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0)
+				goto outrun;
+
+		if (!ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
+			if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
+				goto outrun;
+			if (ast_waitstream(chan, "") < 0)
+				goto outrun;
+		}
+		ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
 	}
-	ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
 
 	targs.status = 0;
 	targs.chan = chan;
@@ -1128,8 +1141,15 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	if (!ast_strlen_zero(namerecloc))
 		unlink(namerecloc);
 
-	if (targs.status != 100) {
+	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_NOANSWER)) {
+		if (chan->_state != AST_STATE_UP) {
+			ast_answer(chan);
+		}
+	} else {
 		ast_moh_stop(chan);
+	}
+
+	if (targs.status != 100) {
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) 
 			ast_stream_and_wait(chan, targs.sorryprompt, "");
 		res = 0;
@@ -1146,7 +1166,6 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		config.end_bridge_callback_data = chan;
 		config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
 
-		ast_moh_stop(caller);
 		/* Be sure no generators are left on it */
 		ast_deactivate_generator(caller);
 		/* Make sure channels are compatible */
