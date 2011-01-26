@@ -5090,7 +5090,7 @@ static struct sip_via *parse_via(const char *header)
  */
 static int addr_is_multicast(struct in_addr *addr)
 {
-	return ((addr->s_addr & 0xf0000000) == 0xe0000000);
+	return ((ntohl(addr->s_addr) & 0xf0000000) == 0xe0000000);
 }
 
 static int process_via(struct sip_pvt *p, const struct sip_request *req)
