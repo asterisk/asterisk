@@ -23,17 +23,17 @@ AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
 
 case "${host_os}" in
      freebsd*)
-     AC_PREFIX_DEFAULT([/usr/local])
+     ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
      ;;
      darwin*)
-     AC_PREFIX_DEFAULT([/usr/local])
+     ac_default_prefix=/usr/local
      AC_DEFINE([AST_POLL_COMPAT], 1, [Define to 1 if internal poll should be used.])
      AC_DEFINE([_DARWIN_UNLIMITED_SELECT], 1, [Define to 1 if running on Darwin.])
      ;;
      *)
-     AC_PREFIX_DEFAULT([/usr])
+     ac_default_prefix=/usr
      if test ${prefix} = '/usr' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
            sysconfdir=/etc
