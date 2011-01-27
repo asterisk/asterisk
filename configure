@@ -598,8 +598,6 @@ ac_includes_default="\
 #endif"
 
 ac_default_prefix=/usr/local
-ac_default_prefix=/usr/local
-ac_default_prefix=/usr
 ac_header_list=
 ac_subst_vars='LTLIBOBJS
 PBX_GENERIC_ODBC
@@ -4549,7 +4547,7 @@ $as_echo "$ac_cv_safe_to_define___extensions__" >&6; }
 
 case "${host_os}" in
      freebsd*)
-
+     ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
      ;;
@@ -4575,7 +4573,7 @@ $as_echo "#define _DARWIN_UNLIMITED_SELECT 1" >>confdefs.h
 
      ;;
      *)
-
+     ac_default_prefix=/usr
      if test ${prefix} = '/usr' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
            sysconfdir=/etc
