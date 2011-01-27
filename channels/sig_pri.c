@@ -7253,6 +7253,9 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		} else {
 			prilocaldialplan = PRI_LOCAL_ISDN;
 		}
+	} else if (prilocaldialplan == -1) {
+		/* Use the numbering plan passed in. */
+		prilocaldialplan = ast->connected.id.number.plan;
 	}
 	if (l != NULL) {
 		while (*l > '9' && *l != '*' && *l != '#') {
@@ -7558,9 +7561,45 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		ast_debug(1, "Received AST_CONTROL_CONNECTED_LINE on %s\n", chan->name);
 		if (p->pri && !pri_grab(p, p->pri)) {
 			struct pri_party_connected_line connected;
+			int dialplan;
+			int prefix_strip;
 
 			memset(&connected, 0, sizeof(connected));
 			sig_pri_party_id_from_ast(&connected.id, &chan->connected.id);
+
+			/* Determine the connected line numbering plan to actually use. */
+			switch (p->pri->cpndialplan) {
+			case -2:/* redundant */
+			case -1:/* dynamic */
+				/* compute dynamically */
+				prefix_strip = 0;
+				if (!strncmp(connected.id.number.str, p->pri->internationalprefix,
+					strlen(p->pri->internationalprefix))) {
+					prefix_strip = strlen(p->pri->internationalprefix);
+					dialplan = PRI_INTERNATIONAL_ISDN;
+				} else if (!strncmp(connected.id.number.str, p->pri->nationalprefix,
+					strlen(p->pri->nationalprefix))) {
+					prefix_strip = strlen(p->pri->nationalprefix);
+					dialplan = PRI_NATIONAL_ISDN;
+				} else {
+					dialplan = PRI_LOCAL_ISDN;
+				}
+				connected.id.number.plan = dialplan;
+
+				if (prefix_strip && p->pri->cpndialplan != -2) {
+					/* Strip the prefix from the connected line number. */
+					memmove(connected.id.number.str,
+						connected.id.number.str + prefix_strip,
+						strlen(connected.id.number.str + prefix_strip) + 1);
+				}
+				break;
+			case 0:/* from_channel */
+				/* Use the numbering plan passed in. */
+				break;
+			default:
+				connected.id.number.plan = p->pri->cpndialplan - 1;
+				break;
+			}
 
 			pri_connected_line_update(p->pri->pri, p->call, &connected);
 			pri_rel(p->pri);

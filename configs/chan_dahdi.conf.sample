@@ -92,33 +92,59 @@
 ;          Send out the specified digits as keypad digits.
 ;
 ; PRI Dialplan: The ISDN-level Type Of Number (TON) or numbering plan, used for
-; the dialed number.  For most installations, leaving this as 'unknown' (the
-; default) works in the most cases.  In some very unusual circumstances, you
-; may need to set this to 'dynamic' or 'redundant'.  Note that if you set one
-; of the others, you will be unable to dial another class of numbers.  For
-; example, if you set 'national', you will be unable to dial local or
-; international numbers.
-;
-; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's
-; numbering plan).  In North America, the typical use is sending the 10 digit
-; callerID number and setting the prilocaldialplan to 'national' (the default).
-; Only VERY rarely will you need to change this.
-;
-; Neither pridialplan nor prilocaldialplan can be changed on reload.
+; the dialed number.  Leaving this as 'unknown' (the default) works for most
+; cases.  In some very unusual circumstances, you may need to set this to
+; 'dynamic' or 'redundant'.
 ;
 ; unknown:        Unknown
 ; private:        Private ISDN
 ; local:          Local ISDN
 ; national:       National ISDN
 ; international:  International ISDN
-; dynamic:        Dynamically selects the appropriate dialplan
+; dynamic:        Dynamically selects the appropriate dialplan using the
+;                 prefix settings.
 ; redundant:      Same as dynamic, except that the underlying number is not
 ;                 changed (not common)
 ;
+; pridialplan cannot be changed on reload.
 ;pridialplan=unknown
+;
+; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's
+; numbering plan).  In North America, the typical use is sending the 10 digit
+; callerID number and setting the prilocaldialplan to 'national' (the default).
+; Only VERY rarely will you need to change this.
+;
+; unknown:        Unknown
+; private:        Private ISDN
+; local:          Local ISDN
+; national:       National ISDN
+; international:  International ISDN
+; from_channel:   Use the CALLERID(ton) value from the channel.
+; dynamic:        Dynamically selects the appropriate dialplan using the
+;                 prefix settings.
+; redundant:      Same as dynamic, except that the underlying number is not
+;                 changed (not common)
+;
+; prilocaldialplan cannot be changed on reload.
 ;prilocaldialplan=national
 ;
-; pridialplan may be also set at dialtime, by prefixing the dialled number with
+; PRI Connected Line Dialplan:  Sets the connected party number's numbering plan.
+;
+; unknown:        Unknown
+; private:        Private ISDN
+; local:          Local ISDN
+; national:       National ISDN
+; international:  International ISDN
+; from_channel:   Use the CONNECTEDLINE(ton) value from the channel.
+; dynamic:        Dynamically selects the appropriate dialplan using the
+;                 prefix settings.
+; redundant:      Same as dynamic, except that the underlying number is not
+;                 changed (not common)
+;
+; pricpndialplan cannot be changed on reload.
+;pricpndialplan=from_channel
+;
+; pridialplan may be also set at dialtime, by prefixing the dialed number with
 ; one of the following letters:
 ; U - Unknown
 ; I - International
@@ -129,7 +155,7 @@
 ; R - Reserved (should probably never be used but is included for completeness)
 ;
 ; Additionally, you may also set the following NPI bits (also by prefixing the
-; dialled string with one of the following letters):
+; dialed string with one of the following letters):
 ; u - Unknown
 ; e - E.163/E.164 (ISDN/telephony)
 ; x - X.121 (Data)
@@ -139,10 +165,11 @@
 ; r - Reserved (should probably never be used but is included for completeness)
 ;
 ; You may also set the prilocaldialplan in the same way, but by prefixing the
-; Caller*ID Number, rather than the dialled number.  Please note that telcos
-; which require this kind of additional manipulation of the TON/NPI are *rare*.
-; Most telco PRIs will work fine simply by setting pridialplan to unknown or
-; dynamic.
+; Caller*ID Number rather than the dialed number.
+
+; Please note that telcos which require this kind of additional manipulation
+; of the TON/NPI are *rare*.  Most telco PRIs will work fine simply by
+; setting pridialplan to unknown or dynamic.
 ;
 ;
 ; PRI caller ID prefixes based on the given TON/NPI (dialplan)

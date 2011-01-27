@@ -404,6 +404,7 @@ struct sig_pri_span {
 	unsigned int append_msn_to_user_tag:1;
 	int dialplan;							/*!< Dialing plan */
 	int localdialplan;						/*!< Local dialing plan */
+	int cpndialplan;						/*!< Connected party dialing plan */
 	char internationalprefix[10];			/*!< country access code ('00' for european dialplans) */
 	char nationalprefix[10];				/*!< area access code ('0' for european dialplans) */
 	char localprefix[20];					/*!< area access code + area code ('0'+area code for european dialplans) */

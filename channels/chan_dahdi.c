@@ -12270,6 +12270,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.nsf = conf->pri.pri.nsf;
 						pris[span].pri.dialplan = conf->pri.pri.dialplan;
 						pris[span].pri.localdialplan = conf->pri.pri.localdialplan;
+						pris[span].pri.cpndialplan = conf->pri.pri.cpndialplan;
 						pris[span].pri.pvts[pris[span].pri.numchans++] = tmp->sig_pvt;
 						pris[span].pri.minunused = conf->pri.pri.minunused;
 						pris[span].pri.minidle = conf->pri.pri.minidle;
@@ -16971,12 +16972,34 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					confp->pri.pri.localdialplan = PRI_INTERNATIONAL_ISDN + 1;
 				} else if (!strcasecmp(v->value, "local")) {
 					confp->pri.pri.localdialplan = PRI_LOCAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "from_channel")) {
+					confp->pri.pri.localdialplan = 0;
 				} else if (!strcasecmp(v->value, "dynamic")) {
 					confp->pri.pri.localdialplan = -1;
 				} else if (!strcasecmp(v->value, "redundant")) {
 					confp->pri.pri.localdialplan = -2;
 				} else {
 					ast_log(LOG_WARNING, "Unknown PRI localdialplan '%s' at line %d.\n", v->value, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "pricpndialplan")) {
+				if (!strcasecmp(v->value, "national")) {
+					confp->pri.pri.cpndialplan = PRI_NATIONAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "unknown")) {
+					confp->pri.pri.cpndialplan = PRI_UNKNOWN + 1;
+				} else if (!strcasecmp(v->value, "private")) {
+					confp->pri.pri.cpndialplan = PRI_PRIVATE + 1;
+				} else if (!strcasecmp(v->value, "international")) {
+					confp->pri.pri.cpndialplan = PRI_INTERNATIONAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "local")) {
+					confp->pri.pri.cpndialplan = PRI_LOCAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "from_channel")) {
+					confp->pri.pri.cpndialplan = 0;
+				} else if (!strcasecmp(v->value, "dynamic")) {
+					confp->pri.pri.cpndialplan = -1;
+				} else if (!strcasecmp(v->value, "redundant")) {
+					confp->pri.pri.cpndialplan = -2;
+				} else {
+					ast_log(LOG_WARNING, "Unknown PRI cpndialplan '%s' at line %d.\n", v->value, v->lineno);
 				}
 			} else if (!strcasecmp(v->name, "switchtype")) {
 				if (!strcasecmp(v->value, "national"))
