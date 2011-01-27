@@ -613,6 +613,7 @@ int ast_cc_get_param(struct ast_cc_config_params *params, const char * const nam
 		char *buf, size_t buf_len)
 {
 	const char *value = NULL;
+
 	if (!strcasecmp(name, "cc_callback_macro")) {
 		value = ast_get_cc_callback_macro(params);
 	} else if (!strcasecmp(name, "cc_agent_policy")) {
@@ -622,8 +623,7 @@ int ast_cc_get_param(struct ast_cc_config_params *params, const char * const nam
 	} else if (!strcasecmp(name, "cc_agent_dialstring")) {
 		value = ast_get_cc_agent_dialstring(params);
 	}
-
-	if (!ast_strlen_zero(value)) {
+	if (value) {
 		ast_copy_string(buf, value, buf_len);
 		return 0;
 	}
