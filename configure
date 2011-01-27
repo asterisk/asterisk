@@ -597,10 +597,6 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_default_prefix=/usr/local
-ac_default_prefix=/usr/local
-ac_default_prefix=/usr/local
-ac_default_prefix=/usr
 ac_header_list=
 ac_subst_vars='LTLIBOBJS
 PBX_SYSLOG
@@ -4709,12 +4705,12 @@ esac
 
 case "${host_os}" in
      freebsd*)
-
+     ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
      ;;
      openbsd*)
-
+     ac_default_prefix=/usr/local
      if test ${prefix} = '/usr/local' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
            astetcdir=/etc/asterisk
@@ -4727,7 +4723,7 @@ case "${host_os}" in
      LDFLAGS=-L/usr/local/lib
      ;;
      darwin*)
-
+     ac_default_prefix=/usr/local
      if test ${prefix} = 'NONE'; then
         astlibdir='/Library/Application Support/Asterisk/Modules'
         astvarlibdir='/Library/Application Support/Asterisk'
@@ -4755,7 +4751,7 @@ $as_echo "#define _DARWIN_UNLIMITED_SELECT 1" >>confdefs.h
      fi
      ;;
      *)
-
+     ac_default_prefix=/usr
      if test ${prefix} = '/usr' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
            sysconfdir=/etc

@@ -69,12 +69,12 @@ esac
 
 case "${host_os}" in
      freebsd*)
-     AC_PREFIX_DEFAULT([/usr/local])
+     ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
      ;;
      openbsd*)
-     AC_PREFIX_DEFAULT([/usr/local])
+     ac_default_prefix=/usr/local
      if test ${prefix} = '/usr/local' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
            astetcdir=/etc/asterisk
@@ -87,7 +87,7 @@ case "${host_os}" in
      LDFLAGS=-L/usr/local/lib
      ;;
      darwin*)
-     AC_PREFIX_DEFAULT([/usr/local])
+     ac_default_prefix=/usr/local
      if test ${prefix} = 'NONE'; then
         astlibdir='/Library/Application Support/Asterisk/Modules'
         astvarlibdir='/Library/Application Support/Asterisk'
@@ -111,7 +111,7 @@ case "${host_os}" in
      fi
      ;;
      *)
-     AC_PREFIX_DEFAULT([/usr])
+     ac_default_prefix=/usr
      if test ${prefix} = '/usr' || test ${prefix} = 'NONE'; then
         if test ${sysconfdir} = '${prefix}/etc'; then
            sysconfdir=/etc
