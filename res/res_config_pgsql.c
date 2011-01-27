@@ -267,6 +267,10 @@ static struct tables *find_table(const char *database, const char *orig_tablenam
 		}
 	}
 
+	if (database == NULL) {
+		return NULL;
+	}
+
 	ast_debug(1, "Table '%s' not found in cache, querying now\n", orig_tablename);
 
 	/* Not found, scan the table */
@@ -1514,7 +1518,7 @@ static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, s
 		AST_LIST_UNLOCK(&psql_tables);
 	} else if (a->argc == 5) {
 		/* List of columns */
-		if ((cur = find_table(cur->name, a->argv[4]))) {
+		if ((cur = find_table(NULL, a->argv[4]))) {
 			struct columns *col;
 			ast_cli(a->fd, "Columns for Table Cache '%s':\n", a->argv[4]);
 			ast_cli(a->fd, "%-20.20s %-20.20s %-3.3s %-8.8s\n", "Name", "Type", "Len", "Nullable");
