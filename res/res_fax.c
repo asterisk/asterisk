@@ -1663,6 +1663,8 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 			ao2_ref(details, -1);
 			return -1;
 		}
+	} else {
+		details->caps |= AST_FAX_TECH_AUDIO;
 	}
 
 	if (!ast_test_flag(&opts, OPT_FORCE_AUDIO) && (details->caps & AST_FAX_TECH_T38)) {
@@ -2145,6 +2147,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 			ao2_ref(details, -1);
 			return -1;
 		}
+	} else {
+		details->caps |= AST_FAX_TECH_AUDIO;
 	}
 
 	if (!ast_test_flag(&opts, OPT_FORCE_AUDIO) && (details->caps & AST_FAX_TECH_T38)) {
