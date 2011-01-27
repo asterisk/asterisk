@@ -74,8 +74,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="f">
 						<para>Allow audio fallback FAX transfer on T.38 capable channels.</para>
 					</option>
-					<option name="n">
-						<para>Disable usage of T.38 on otherwise T.38 capable channels.</para>
+					<option name="F">
+						<para>Force usage of audio mode on T.38 capable channels.</para>
 					</option>
 					<option name="s">
 						<para>Send progress Manager events (overrides statusevents setting in res_fax.conf).</para>
@@ -110,8 +110,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="f">
 						<para>Allow audio fallback FAX transfer on T.38 capable channels.</para>
 					</option>
-					<option name="n">
-						<para>Disable usage of T.38 on otherwise T.38 capable channels.</para>
+					<option name="F">
+						<para>Force usage of audio mode on T.38 capable channels.</para>
 					</option>
 					<option name="s">
 						<para>Send progress Manager events (overrides statusevents setting in res_fax.conf).</para>
@@ -273,7 +273,7 @@ enum {
 	OPT_STATUS      = (1 << 3),
 	OPT_ALLOWAUDIO  = (1 << 5),
 	OPT_REQUEST_T38 = (1 << 6),
-	OPT_DISABLE_T38 = (1 << 7),
+	OPT_FORCE_AUDIO = (1 << 7),
 };
 
 AST_APP_OPTIONS(fax_exec_options, BEGIN_OPTIONS
@@ -281,7 +281,7 @@ AST_APP_OPTIONS(fax_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('c', OPT_CALLERMODE),
 	AST_APP_OPTION('d', OPT_DEBUG),
 	AST_APP_OPTION('f', OPT_ALLOWAUDIO),
-	AST_APP_OPTION('n', OPT_DISABLE_T38),
+	AST_APP_OPTION('F', OPT_FORCE_AUDIO),
 	AST_APP_OPTION('s', OPT_STATUS),
 	AST_APP_OPTION('z', OPT_REQUEST_T38),
 END_OPTIONS);
@@ -1628,7 +1628,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 
 	if ((ast_channel_get_t38_state(chan) == T38_STATE_UNAVAILABLE) ||
 	    ast_test_flag(&opts, OPT_ALLOWAUDIO) ||
-	    ast_test_flag(&opts, OPT_DISABLE_T38)) {
+	    ast_test_flag(&opts, OPT_FORCE_AUDIO)) {
 		details->option.allow_audio = AST_FAX_OPTFLAG_TRUE;
 	}
 
@@ -1653,7 +1653,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (!ast_test_flag(&opts, OPT_DISABLE_T38)) {
+	if (!ast_test_flag(&opts, OPT_FORCE_AUDIO)) {
 		if (set_fax_t38_caps(chan, details)) {
 			ast_string_field_set(details, error, "T38_NEG_ERROR");
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
@@ -1665,7 +1665,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (!ast_test_flag(&opts, OPT_DISABLE_T38) && (details->caps & AST_FAX_TECH_T38)) {
+	if (!ast_test_flag(&opts, OPT_FORCE_AUDIO) && (details->caps & AST_FAX_TECH_T38)) {
 		if (receivefax_t38_init(chan, details)) {
 			ast_string_field_set(details, error, "T38_NEG_ERROR");
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
@@ -2106,7 +2106,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 
 	if ((ast_channel_get_t38_state(chan) == T38_STATE_UNAVAILABLE) ||
 	    ast_test_flag(&opts, OPT_ALLOWAUDIO) ||
-	    ast_test_flag(&opts, OPT_DISABLE_T38)) {
+	    ast_test_flag(&opts, OPT_FORCE_AUDIO)) {
 		details->option.allow_audio = AST_FAX_OPTFLAG_TRUE;
 	}
 
@@ -2135,7 +2135,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (!ast_test_flag(&opts, OPT_DISABLE_T38)) {
+	if (!ast_test_flag(&opts, OPT_FORCE_AUDIO)) {
 		if (set_fax_t38_caps(chan, details)) {
 			ast_string_field_set(details, error, "T38_NEG_ERROR");
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
@@ -2147,7 +2147,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (!ast_test_flag(&opts, OPT_DISABLE_T38) && (details->caps & AST_FAX_TECH_T38)) {
+	if (!ast_test_flag(&opts, OPT_FORCE_AUDIO) && (details->caps & AST_FAX_TECH_T38)) {
 		if (sendfax_t38_init(chan, details)) {
 			ast_string_field_set(details, error, "T38_NEG_ERROR");
 			ast_string_field_set(details, resultstr, "error negotiating T.38");
