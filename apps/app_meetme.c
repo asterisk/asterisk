@@ -3438,8 +3438,6 @@ bailoutandtrynormal:
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
 
-		/* ao2_ref(user, -1); */
-
 		/* Return the RealTime bookid for CDR linking */
 		if (rt_schedule) {
 			pbx_builtin_setvar_helper(chan, "MEETMEBOOKID", conf->bookid);
