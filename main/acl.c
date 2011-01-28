@@ -421,7 +421,9 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 	if (!ast_sockaddr_parse(&ha->addr, address, PARSE_PORT_FORBID)) {
 		ast_log(LOG_WARNING, "Invalid IP address: %s\n", address);
 		ast_free_ha(ha);
-		*error = 1;
+		if (error) {
+			*error = 1;
+		}
 		return ret;
 	}
 
@@ -443,7 +445,9 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		if (!ast_sockaddr_parse(&ha->netmask, mask, PARSE_PORT_FORBID)) {
 			ast_log(LOG_WARNING, "Invalid netmask: %s\n", mask);
 			ast_free_ha(ha);
-			*error = 1;
+			if (error) {
+				*error = 1;
+			}
 			return ret;
 		}
 		/* If someone specifies an IPv4-mapped IPv6 netmask,
@@ -457,13 +461,17 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		if (addr_is_v4 ^ mask_is_v4) {
 			ast_log(LOG_WARNING, "Address and mask are not using same address scheme.\n");
 			ast_free_ha(ha);
-			*error = 1;
+			if (error) {
+				*error = 1;
+			}
 			return ret;
 		}
 	} else if (parse_cidr_mask(&ha->netmask, addr_is_v4, mask)) {
 		ast_log(LOG_WARNING, "Invalid CIDR netmask: %s\n", mask);
 		ast_free_ha(ha);
-		*error = 1;
+		if (error) {
+			*error = 1;
+		}
 		return ret;
 	}
 
@@ -475,7 +483,9 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		char *failaddr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
 		ast_log(LOG_WARNING, "Unable to apply netmask %s to address %s\n", failmask, failaddr);
 		ast_free_ha(ha);
-		*error = 1;
+		if (error) {
+			*error = 1;
+		}
 		return ret;
 	}
 
