@@ -1123,6 +1123,11 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		ast_log(LOG_WARNING, "Unable to open DAHDI pseudo device\n");
 		if (cnf->fd >= 0)
 			close(cnf->fd);
+		ao2_ref(cnf->usercontainer, -1);
+		ast_mutex_destroy(&cnf->playlock);
+		ast_mutex_destroy(&cnf->listenlock);
+		ast_mutex_destroy(&cnf->recordthreadlock);
+		ast_mutex_destroy(&cnf->announcethreadlock);
 		ast_free(cnf);
 		cnf = NULL;
 		goto cnfout;
@@ -1144,7 +1149,11 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 				ast_hangup(cnf->chan);
 			else
 				close(cnf->fd);
-
+			ao2_ref(cnf->usercontainer, -1);
+			ast_mutex_destroy(&cnf->playlock);
+			ast_mutex_destroy(&cnf->listenlock);
+			ast_mutex_destroy(&cnf->recordthreadlock);
+			ast_mutex_destroy(&cnf->announcethreadlock);
 			ast_free(cnf);
 			cnf = NULL;
 			goto cnfout;
@@ -3428,6 +3437,8 @@ bailoutandtrynormal:
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
+
+		/* ao2_ref(user, -1); */
 
 		/* Return the RealTime bookid for CDR linking */
 		if (rt_schedule) {
