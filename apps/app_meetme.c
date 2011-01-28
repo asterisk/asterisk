@@ -1220,6 +1220,11 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 			ast_log(LOG_WARNING, "Unable to open DAHDI pseudo device\n");
 			if (cnf->fd >= 0)
 				close(cnf->fd);
+			ao2_ref(cnf->usercontainer, -1);
+			ast_mutex_destroy(&cnf->playlock);
+			ast_mutex_destroy(&cnf->listenlock);
+			ast_mutex_destroy(&cnf->recordthreadlock);
+			ast_mutex_destroy(&cnf->announcethreadlock);
 			ast_free(cnf);
 			cnf = NULL;
 			goto cnfout;
@@ -1245,7 +1250,11 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 				ast_hangup(cnf->chan);
 			else
 				close(cnf->fd);
-
+			ao2_ref(cnf->usercontainer, -1);
+			ast_mutex_destroy(&cnf->playlock);
+			ast_mutex_destroy(&cnf->listenlock);
+			ast_mutex_destroy(&cnf->recordthreadlock);
+			ast_mutex_destroy(&cnf->announcethreadlock);
 			ast_free(cnf);
 			cnf = NULL;
 			goto cnfout;
