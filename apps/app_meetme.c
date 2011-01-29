@@ -2052,7 +2052,6 @@ static void set_user_talking(struct ast_channel *chan, struct ast_conference *co
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
 	struct ast_conf_user *user = NULL;
-	struct ast_conf_user *usr = NULL;
 	int fd;
 	struct dahdi_confinfo dahdic, dahdic_empty;
 	struct ast_frame *f;
@@ -3055,6 +3054,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								break;
 							case '3': /* Eject last user */
 							{
+								struct ast_conf_user *usr = NULL;
 								int max_no = 0;
 								menu_active = 0;
 								ao2_callback(conf->usercontainer, OBJ_NODATA, user_max_cmp, &max_no);
@@ -3065,7 +3065,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								} else {
 									usr->adminflags |= ADMINFLAG_KICKME;
 								}
-								ao2_ref(user, -1);
+								ao2_ref(usr, -1);
 								ast_stopstream(chan);
 								break;
 							}
