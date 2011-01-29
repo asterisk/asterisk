@@ -829,6 +829,11 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		ast_log(LOG_WARNING, "Unable to open DAHDI pseudo device\n");
 		if (cnf->fd >= 0)
 			close(cnf->fd);
+		ao2_ref(cnf->usercontainer, -1);
+		ast_mutex_destroy(&cnf->playlock);
+		ast_mutex_destroy(&cnf->listenlock);
+		ast_mutex_destroy(&cnf->recordthreadlock);
+		ast_mutex_destroy(&cnf->announcethreadlock);
 		free(cnf);
 		cnf = NULL;
 		goto cnfout;
@@ -850,6 +855,11 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 				ast_hangup(cnf->chan);
 			else
 				close(cnf->fd);
+			ao2_ref(cnf->usercontainer, -1);
+			ast_mutex_destroy(&cnf->playlock);
+			ast_mutex_destroy(&cnf->listenlock);
+			ast_mutex_destroy(&cnf->recordthreadlock);
+			ast_mutex_destroy(&cnf->announcethreadlock);
 			free(cnf);
 			cnf = NULL;
 			goto cnfout;
@@ -1569,7 +1579,6 @@ static void set_user_talking(struct ast_channel *chan, struct ast_conference *co
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
 	struct ast_conf_user *user = NULL;
-	struct ast_conf_user *usr = NULL;
 	int fd;
 	struct dahdi_confinfo ztc, ztc_empty;
 	struct ast_frame *f;
@@ -1859,7 +1868,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW)) && conf->users > 1) {
 		struct announce_listitem *item;
 		if (!(item = ao2_alloc(sizeof(*item), NULL)))
-			return -1;
+			goto outrun;
 		ast_copy_string(item->namerecloc, user->namerecloc, sizeof(item->namerecloc));
 		ast_copy_string(item->language, chan->language, sizeof(item->language));
 		item->confchan = conf->chan;
@@ -2246,6 +2255,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								break;
 							case '3': /* Eject last user */
 							{
+								struct ast_conf_user *usr = NULL;
 								int max_no = 0;
 								ao2_callback(conf->usercontainer, OBJ_NODATA, user_max_cmp, &max_no);
 								menu_active = 0;
@@ -2256,7 +2266,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								} else {
 									usr->adminflags |= ADMINFLAG_KICKME;
 								}
-								ao2_ref(user, -1);
+								ao2_ref(usr, -1);
 								ast_stopstream(chan);
 								break;	
 							}
@@ -2498,7 +2508,7 @@ bailoutandtrynormal:
 	if (!(confflags & CONFFLAG_QUIET) && ((confflags & CONFFLAG_INTROUSER) || (confflags & CONFFLAG_INTROUSERNOREVIEW)) && conf->users > 1) {
 		struct announce_listitem *item;
 		if (!(item = ao2_alloc(sizeof(*item), NULL)))
-			return -1;
+			goto outrun;
 		ast_copy_string(item->namerecloc, user->namerecloc, sizeof(item->namerecloc));
 		ast_copy_string(item->language, chan->language, sizeof(item->language));
 		item->confchan = conf->chan;
@@ -2519,9 +2529,8 @@ bailoutandtrynormal:
 	if (dsp)
 		ast_dsp_free(dsp);
 	
-	if (!user->user_no) {
-		ao2_ref(user, -1);
-	} else { /* Only cleanup users who really joined! */
+	if (user->user_no) {
+		/* Only cleanup users who really joined! */
 		now = time(NULL);
 		hr = (now - user->jointime) / 3600;
 		min = ((now - user->jointime) % 3600) / 60;
@@ -2562,6 +2571,7 @@ bailoutandtrynormal:
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
 	}
+	ao2_ref(user, -1);
 	AST_LIST_UNLOCK(&confs);
 
 	return ret;
