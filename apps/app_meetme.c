@@ -3752,9 +3752,8 @@ bailoutandtrynormal:
 		ast_dsp_free(dsp);
 	}
 	
-	if (!user->user_no) {
-		ao2_ref(user, -1);
-	} else { /* Only cleanup users who really joined! */
+	if (user->user_no) {
+		/* Only cleanup users who really joined! */
 		now = ast_tvnow();
 		hr = (now.tv_sec - user->jointime) / 3600;
 		min = ((now.tv_sec - user->jointime) % 3600) / 60;
@@ -3808,6 +3807,7 @@ bailoutandtrynormal:
 			pbx_builtin_setvar_helper(chan, "MEETMEBOOKID", conf->bookid);
 		}
 	}
+	ao2_ref(user, -1);
 	AST_LIST_UNLOCK(&confs);
 
 	return ret;
