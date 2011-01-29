@@ -2649,6 +2649,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			}
 
  			if (user->kicktime && (user->kicktime <= now.tv_sec)) {
+				if (confflags & CONFFLAG_KICK_CONTINUE) {
+					ret = 0;
+				} else {
+					ret = -1;
+				}
 				break;
 			}
   
@@ -2719,6 +2724,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 			now = ast_tvnow();
 			if (timeout && now.tv_sec >= timeout) {
+				if (confflags & CONFFLAG_KICK_CONTINUE) {
+					ret = 0;
+				} else {
+					ret = -1;
+				}
 				break;
 			}
 
