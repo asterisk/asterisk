@@ -343,6 +343,7 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 			}
 			ldap_value_free_len(values);
 		}
+		ldap_memfree(ldap_attribute_name);
 		ldap_attribute_name = ldap_next_attribute(ldapConn, ldap_entry, ber);
 	}
 	ber_free(ber, 0);
@@ -508,6 +509,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 					} /*!< for (v = values; *v; v++) */
 					ldap_value_free_len(values);
 				}/*!< if (values) */
+				ldap_memfree(ldap_attribute_name);
 				ldap_attribute_name = ldap_next_attribute(ldapConn, ldap_entry, ber);
 			} /*!< while (ldap_attribute_name) */
 			ber_free(ber, 0);
@@ -1324,7 +1326,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 				ast_log(LOG_ERROR, "Couldn't modify '%s'='%s', dn:%s because %s\n",
 						attribute, lookup, dn, ldap_err2string(error));
 			}
-
+			ldap_memfree(dn);
 			ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
 		}
 	}
@@ -1506,7 +1508,7 @@ static int update2_ldap(const char *basedn, const char *table_name, va_list ap)
 			if ((error = ldap_modify_ext_s(ldapConn, dn, ldap_mods, NULL, NULL)) != LDAP_SUCCESS)  {
 				ast_log(LOG_ERROR, "Couldn't modify dn:%s because %s", dn, ldap_err2string(error));
 			}
-
+			ldap_memfree(dn);
 			ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
 		}
 	}
