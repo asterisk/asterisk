@@ -27,7 +27,7 @@
  *
  * \par See also
  * \arg \ref Config_vm
- * \note For information about voicemail IMAP storage, read doc/imapstorage.txt
+ * \note For information about voicemail IMAP storage, read doc/asterisk.pdf
  * \ingroup applications
  * \note This module requires res_adsi to load. This needs to be optional
  * during compilation.
