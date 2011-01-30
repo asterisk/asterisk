@@ -57,8 +57,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			completion configuration parameter for a channel. Note that setting
 			a configuration parameter will only change the parameter for the
 			duration of the call.
-			
-			For more information on call completion in Asterisk, see <filename>doc/tex/ccss.tex</filename>.
+
+			For more information see <filename>doc/asterisk.pdf</filename>.
 			For more information on call completion parameters, see <filename>configs/ccss.conf.sample</filename>.</para>
 		</description>
 	</function>
