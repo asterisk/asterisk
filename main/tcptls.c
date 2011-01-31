@@ -550,7 +550,7 @@ int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_
 	} else if (!strcasecmp(varname, "tlscafile")) {
 		ast_free(tls_cfg->cafile);
 		tls_cfg->cafile = ast_strdup(value);
-	} else if (!strcasecmp(varname, "tlscapath")) {
+	} else if (!strcasecmp(varname, "tlscapath") || !strcasecmp(varname, "tlscadir")) {
 		ast_free(tls_cfg->capath);
 		tls_cfg->capath = ast_strdup(value);
 	} else if (!strcasecmp(varname, "tlsverifyclient")) {
