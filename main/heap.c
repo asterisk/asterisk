@@ -308,15 +308,15 @@ size_t ast_heap_size(struct ast_heap *h)
 
 int __ast_heap_wrlock(struct ast_heap *h, const char *file, const char *func, int line)
 {
-	return __ast_rwlock_wrlock(&h->lock, "&h->lock", file, line, func);
+	return __ast_rwlock_wrlock(file, line, func, &h->lock, "&h->lock");
 }
 
 int __ast_heap_rdlock(struct ast_heap *h, const char *file, const char *func, int line)
 {
-	return __ast_rwlock_rdlock(&h->lock, "&h->lock", file, line, func);
+	return __ast_rwlock_rdlock(file, line, func, &h->lock, "&h->lock");
 }
 
 int __ast_heap_unlock(struct ast_heap *h, const char *file, const char *func, int line)
 {
-	return __ast_rwlock_unlock(&h->lock, "&h->lock", file, line, func);
+	return __ast_rwlock_unlock(file, line, func, &h->lock, "&h->lock");
 }

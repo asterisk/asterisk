@@ -782,7 +782,7 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 		return;
 	
 	lock = lock_info->locks[i].lock_addr;
-	lt = &lock->track;
+	lt = lock->track;
 	ast_reentrancy_lock(lt);
 	for (j = 0; *str && j < lt->reentrancy; j++) {
 		ast_str_append(str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
