@@ -98,6 +98,7 @@ static struct {
 	const char *mtype;
 } mimetypes[] = {
 	{ "png", "image/png" },
+	{ "xml", "text/xml" },
 	{ "jpg", "image/jpeg" },
 	{ "js", "application/x-javascript" },
 	{ "wav", "audio/x-wav" },
@@ -105,6 +106,13 @@ static struct {
 	{ "svg", "image/svg+xml" },
 	{ "svgz", "image/svg+xml" },
 	{ "gif", "image/gif" },
+	{ "html", "text/html" },
+	{ "htm", "text/html" },
+	{ "cnf", "text/plain" },
+	{ "cfg", "text/plain" },
+	{ "bin", "application/octet-stream" },
+	{ "sbn", "application/octet-stream" },
+	{ "ld", "application/octet-stream" },
 };
 
 struct http_uri_redirect {
