@@ -18014,6 +18014,12 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Asked to create a SIP channel with formats: %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), oldformat));
 
+	if (ast_strlen_zero(dest)) {
+		ast_log(LOG_ERROR, "Unable to create channel with empty destination.\n");
+		*cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
+		return NULL;
+	}
+
 	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE))) {
 		ast_log(LOG_ERROR, "Unable to build sip pvt data for '%s' (Out of memory or socket error)\n", (char *)data);
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
