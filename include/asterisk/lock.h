@@ -91,11 +91,11 @@
 #define AST_LOCK_TRACK_INIT_VALUE { { NULL }, { 0 }, 0, { NULL }, { 0 }, PTHREAD_MUTEX_INIT_VALUE }
 #endif
 
-#define AST_MUTEX_INIT_VALUE { AST_LOCK_TRACK_INIT_VALUE, 1, PTHREAD_MUTEX_INIT_VALUE }
-#define AST_MUTEX_INIT_VALUE_NOTRACKING { AST_LOCK_TRACK_INIT_VALUE, 0, PTHREAD_MUTEX_INIT_VALUE }
+#define AST_MUTEX_INIT_VALUE { PTHREAD_MUTEX_INIT_VALUE, NULL, 1 }
+#define AST_MUTEX_INIT_VALUE_NOTRACKING { PTHREAD_MUTEX_INIT_VALUE, NULL, 0 }
 
-#define AST_RWLOCK_INIT_VALUE { AST_LOCK_TRACK_INIT_VALUE, 1, __AST_RWLOCK_INIT_VALUE }
-#define AST_RWLOCK_INIT_VALUE_NOTRACKING { AST_LOCK_TRACK_INIT_VALUE, 0, __AST_RWLOCK_INIT_VALUE }
+#define AST_RWLOCK_INIT_VALUE { __AST_RWLOCK_INIT_VALUE, NULL, 1 }
+#define AST_RWLOCK_INIT_VALUE_NOTRACKING { __AST_RWLOCK_INIT_VALUE, NULL, 0 }
 
 #define AST_MAX_REENTRANCY 10
 
@@ -119,10 +119,10 @@ struct ast_lock_track {
  * The information will just be ignored in the core if a module does not request it..
  */
 struct ast_mutex_info {
-	/*! Track which thread holds this mutex */
-	struct ast_lock_track track;
-	unsigned int tracking:1;
 	pthread_mutex_t mutex;
+	/*! Track which thread holds this mutex */
+	struct ast_lock_track *track;
+	unsigned int tracking:1;
 };
 
 /*! \brief Structure for rwlock and tracking information.
@@ -131,10 +131,10 @@ struct ast_mutex_info {
  * The information will just be ignored in the core if a module does not request it..
  */
 struct ast_rwlock_info {
-	/*! Track which thread holds this lock */
-	struct ast_lock_track track;
-	unsigned int tracking:1;
 	pthread_rwlock_t lock;
+	/*! Track which thread holds this lock */
+	struct ast_lock_track *track;
+	unsigned int tracking:1;
 };
 
 typedef struct ast_mutex_info ast_mutex_t;
@@ -174,13 +174,13 @@ int __ast_cond_timedwait(const char *filename, int lineno, const char *func, con
 
 int __ast_rwlock_init(int tracking, const char *filename, int lineno, const char *func, const char *rwlock_name, ast_rwlock_t *t);
 int __ast_rwlock_destroy(const char *filename, int lineno, const char *func, const char *rwlock_name, ast_rwlock_t *t);
-int __ast_rwlock_unlock(ast_rwlock_t *t, const char *name, const char *filename, int line, const char *func);
-int __ast_rwlock_rdlock(ast_rwlock_t *t, const char *name, const char *filename, int line, const char *func);
-int __ast_rwlock_wrlock(ast_rwlock_t *t, const char *name, const char *filename, int line, const char *func);
-int __ast_rwlock_timedrdlock(ast_rwlock_t *t, const char *name, const struct timespec *abs_timeout, const char *filename, int line, const char *func);
-int __ast_rwlock_timedwrlock(ast_rwlock_t *t, const char *name, const struct timespec *abs_timeout, const char *filename, int line, const char *func);
-int __ast_rwlock_tryrdlock(ast_rwlock_t *t, const char *name, const char *filename, int line, const char *func);
-int __ast_rwlock_trywrlock(ast_rwlock_t *t, const char *name, const char *filename, int line, const char *func);
+int __ast_rwlock_unlock(const char *filename, int lineno, const char *func, ast_rwlock_t *t, const char *name);
+int __ast_rwlock_rdlock(const char *filename, int lineno, const char *func, ast_rwlock_t *t, const char *name);
+int __ast_rwlock_wrlock(const char *filename, int lineno, const char *func, ast_rwlock_t *t, const char *name);
+int __ast_rwlock_timedrdlock(const char *filename, int lineno, const char *func, ast_rwlock_t *t, const char *name, const struct timespec *abs_timeout);
+int __ast_rwlock_timedwrlock(const char *filename, int lineno, const char *func, ast_rwlock_t *t, const char *name, const struct timespec *abs_timeout);
+int __ast_rwlock_tryrdlock(const char *filename, int lineno, const char *func, ast_rwlock_t *t, const char *name);
+int __ast_rwlock_trywrlock(const char *filename, int lineno, const char *func, ast_rwlock_t *t, const char *name);
 
 /*!
  * \brief wrapper for rwlock with tracking enabled
@@ -197,13 +197,13 @@ int __ast_rwlock_trywrlock(ast_rwlock_t *t, const char *name, const char *filena
 #define ast_rwlock_init_notracking(rwlock) __ast_rwlock_init(0, __FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
 
 #define ast_rwlock_destroy(rwlock)         __ast_rwlock_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #rwlock, rwlock)
-#define ast_rwlock_unlock(a)               __ast_rwlock_unlock(a, #a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ast_rwlock_rdlock(a)               __ast_rwlock_rdlock(a, #a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ast_rwlock_wrlock(a)               __ast_rwlock_wrlock(a, #a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ast_rwlock_tryrdlock(a)            __ast_rwlock_tryrdlock(a, #a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ast_rwlock_trywrlock(a)            __ast_rwlock_trywrlock(a, #a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ast_rwlock_timedrdlock(a, b)       __ast_rwlock_timedrdlock(a, #a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ast_rwlock_timedwrlock(a, b)       __ast_rwlock_timedwrlock(a, #a, b, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_rwlock_unlock(a)               __ast_rwlock_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, #a)
+#define ast_rwlock_rdlock(a)               __ast_rwlock_rdlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, #a)
+#define ast_rwlock_wrlock(a)               __ast_rwlock_wrlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, #a)
+#define ast_rwlock_tryrdlock(a)            __ast_rwlock_tryrdlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, #a)
+#define ast_rwlock_trywrlock(a)            __ast_rwlock_trywrlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, #a)
+#define ast_rwlock_timedrdlock(a, b)       __ast_rwlock_timedrdlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, #a, b)
+#define ast_rwlock_timedwrlock(a, b)       __ast_rwlock_timedwrlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, #a, b)
 
 #define	ROFFSET	((lt->reentrancy > 0) ? (lt->reentrancy-1) : 0)
 
@@ -436,10 +436,15 @@ static inline void ast_reentrancy_unlock(struct ast_lock_track *lt)
 	pthread_mutex_unlock(&lt->reentr_mutex);
 }
 
-static inline void ast_reentrancy_init(struct ast_lock_track *lt)
+static inline void ast_reentrancy_init(struct ast_lock_track **plt)
 {
 	int i;
 	pthread_mutexattr_t reentr_attr;
+	struct ast_lock_track *lt = *plt;
+
+	if (!lt) {
+		lt = *plt = (struct ast_lock_track *) ast_calloc(1, sizeof(*lt));
+	}
 
 	for (i = 0; i < AST_MAX_REENTRANCY; i++) {
 		lt->file[i] = NULL;
@@ -459,9 +464,15 @@ static inline void ast_reentrancy_init(struct ast_lock_track *lt)
 	pthread_mutexattr_destroy(&reentr_attr);
 }
 
-static inline void delete_reentrancy_cs(struct ast_lock_track *lt)
+static inline void delete_reentrancy_cs(struct ast_lock_track **plt)
 {
-	pthread_mutex_destroy(&lt->reentr_mutex);
+	struct ast_lock_track *lt;
+	if (*plt) {
+		lt = *plt;
+		pthread_mutex_destroy(&lt->reentr_mutex);
+		ast_free(lt);
+		*plt = NULL;
+	}
 }
 
 #else /* !DEBUG_THREADS */
