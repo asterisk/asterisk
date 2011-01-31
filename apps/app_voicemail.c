@@ -4556,7 +4556,7 @@ leave_vm_out:
 	return res;
 }
 
-#ifndef IMAP_STORAGE
+#if !defined(IMAP_STORAGE) && !defined(ODBC_STORAGE)
 static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
 {
 	/* we know the actual number of messages, so stop process when number is hit */
@@ -5994,7 +5994,9 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 #ifndef IMAP_STORAGE
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 {
+#ifndef ODBC_STORAGE
 	int res = 0;
+#endif
 	int count_msg, last_msg;
 
 	ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
