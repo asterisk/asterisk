@@ -443,7 +443,7 @@ static inline void ast_reentrancy_init(struct ast_lock_track **plt)
 	struct ast_lock_track *lt = *plt;
 
 	if (!lt) {
-		lt = *plt = (struct ast_lock_track *) ast_calloc(1, sizeof(*lt));
+		lt = *plt = (struct ast_lock_track *) calloc(1, sizeof(*lt));
 	}
 
 	for (i = 0; i < AST_MAX_REENTRANCY; i++) {
@@ -470,7 +470,7 @@ static inline void delete_reentrancy_cs(struct ast_lock_track **plt)
 	if (*plt) {
 		lt = *plt;
 		pthread_mutex_destroy(&lt->reentr_mutex);
-		ast_free(lt);
+		free(lt);
 		*plt = NULL;
 	}
 }
