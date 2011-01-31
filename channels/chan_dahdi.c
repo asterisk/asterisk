@@ -10871,6 +10871,7 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 			ast_cli(fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
 			build_status(status, sizeof(status), pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
 			ast_cli(fd, "Status: %s\n", status);
+			ast_mutex_lock(&pris[span - 1].lock);
 #ifdef PRI_DUMP_INFO_STR
 			info_str = pri_dump_info_str(pris[span-1].pri);
 			if (info_str) {
@@ -10880,6 +10881,7 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 #else
 			pri_dump_info(pris[span-1].pri);
 #endif
+			ast_mutex_unlock(&pris[span - 1].lock);
 			ast_cli(fd, "Overlap Recv: %s\n\n", (pris[span-1].overlapdial & DAHDI_OVERLAPDIAL_INCOMING)?"Yes":"No");
 		}
 	}
