@@ -1944,7 +1944,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		struct ast_dialed_interface *di;
 		AST_LIST_HEAD(, ast_dialed_interface) *dialed_interfaces;
 		num_dialed++;
-		if (!number) {
+		if (ast_strlen_zero(number)) {
 			ast_log(LOG_WARNING, "Dial argument takes format (technology/[device:]number1)\n");
 			goto out;
 		}
