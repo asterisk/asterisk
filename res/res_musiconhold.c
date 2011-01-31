@@ -1159,6 +1159,8 @@ static struct mohclass *moh_class_malloc(void)
 
 	if ((class = ao2_alloc(sizeof(*class), moh_class_destructor))) {
 		class->format = AST_FORMAT_SLINEAR;
+		class->srcfd = -1;
+		class->pseudofd = -1;
 	}
 
 	return class;
