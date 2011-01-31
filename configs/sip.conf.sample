@@ -447,7 +447,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;        you should have their certificate installed here so the code can
 ;        verify the authenticity of their certificate.
 
-;tlscadir=</path/to/ca/dir>
+;tlscapath=</path/to/ca/dir>
 ;        A directory full of CA certificates.  The files must be named with
 ;        the CA subject name hash value.
 ;        (see man SSL_CTX_load_verify_locations for more info)
