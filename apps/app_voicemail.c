@@ -6029,7 +6029,7 @@ leave_vm_out:
 	return res;
 }
 
-#ifndef IMAP_STORAGE
+#if !defined(IMAP_STORAGE) && !defined(ODBC_STORAGE)
 static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
 {
     /* we know the actual number of messages, so stop process when number is hit */
@@ -7773,9 +7773,8 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	if (last_msg < -1) {
 		return last_msg;
-	} 
 #ifndef ODBC_STORAGE
-	else if (vms->lastmsg != last_msg) {
+	} else if (vms->lastmsg != last_msg) {
 		ast_log(LOG_NOTICE, "Resequencing mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
         resequence_mailbox(vmu, vms->curdir, count_msg);
 #endif
