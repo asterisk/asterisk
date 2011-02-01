@@ -7390,6 +7390,7 @@ void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_span *pri)
 			ast_cli(fd, "%s D-channel: %d\n", pri_order(x), dchannels[x]);
 			build_status(status, sizeof(status), pri->dchanavail[x], pri->dchans[x] == pri->pri);
 			ast_cli(fd, "Status: %s\n", status);
+			ast_mutex_lock(&pri->lock);
 #ifdef PRI_DUMP_INFO_STR
 			info_str = pri_dump_info_str(pri->pri);
 			if (info_str) {
@@ -7399,6 +7400,7 @@ void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_span *pri)
 #else
 			pri_dump_info(pri->pri);
 #endif
+			ast_mutex_unlock(&pri->lock);
 			ast_cli(fd, "Overlap Recv: %s\n\n", (pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)?"Yes":"No");
 			ast_cli(fd, "\n");
 		}
