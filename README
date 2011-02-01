@@ -16,9 +16,7 @@ the security information document before you attempt to configure and run
 an Asterisk server.
 
   If you downloaded Asterisk as a tarball, see the security section in the PDF
-version of the documentation in doc/tex/asterisk.pdf.  Alternatively, pull up
-the HTML version of the documentation in doc/tex/asterisk/index.html.  The
-source for the security document is available in doc/tex/security.tex.
+or text version of the documentation in doc/AST.pdf or doc/AST.txt.
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -275,8 +273,8 @@ the configuration options.
 
   If this release of Asterisk was downloaded from a tarball, then some
 additional documentation should have been included.
-     * doc/tex/asterisk.pdf --- PDF version of the documentation
-     * doc/tex/asterisk/index.html --- HTML version of the documentation
+     * doc/AST.pdf --- PDF version of the documentation
+     * doc/AST.txt --- Text version of the documentation
 
   Finally, you may wish to visit the web site and join the mailing list if
 you're interested in getting more information.

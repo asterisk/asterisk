@@ -462,12 +462,6 @@ datafiles: _all doc/core-en_US.xml
 		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/static-http" ; \
 	done
 	$(INSTALL) -m 644 doc/core-en_US.xml "$(DESTDIR)$(ASTDATADIR)/static-http";
-	if [ -d doc/tex/asterisk ] ; then \
-		$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http/docs" ; \
-		for n in doc/tex/asterisk/* ; do \
-			$(INSTALL) -m 644 $$n "$(DESTDIR)$(ASTDATADIR)/static-http/docs" ; \
-		done \
-	fi
 	for x in images/*.jpg; do \
 		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/images" ; \
 	done
