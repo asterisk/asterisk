@@ -337,31 +337,39 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 static int my_unload_module(void)
 {
 	struct columns *current;
+	AST_RWLIST_WRLOCK(&psql_columns);
 	if (event_sub) {
 		event_sub = ast_event_unsubscribe(event_sub);
+		event_sub = NULL;
 	}
 	if (conn) {
 		PQfinish(conn);
+		conn = NULL;
 	}
 	if (pghostname) {
 		ast_free(pghostname);
+		pghostname = NULL;
 	}
 	if (pgdbname) {
 		ast_free(pgdbname);
+		pgdbname = NULL;
 	}
 	if (pgdbuser) {
 		ast_free(pgdbuser);
+		pgdbuser = NULL;
 	}
 	if (pgpassword) {
 		ast_free(pgpassword);
+		pgpassword = NULL;
 	}
 	if (pgdbport) {
 		ast_free(pgdbport);
+		pgdbport = NULL;
 	}
 	if (table) {
 		ast_free(table);
+		table = NULL;
 	}
-	AST_RWLIST_WRLOCK(&psql_columns);
 	while ((current = AST_RWLIST_REMOVE_HEAD(&psql_columns, list))) {
 		ast_free(current);
 	}
