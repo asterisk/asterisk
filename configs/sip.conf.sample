@@ -236,6 +236,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;maxforwards=70			; Setting for the SIP Max-Forwards: header (loop prevention)
 				; Default value is 70
 ;qualifyfreq=60                 ; Qualification: How often to check for the host to be up in seconds
+				; and reported in milliseconds with sip show settings.
                                 ; Set to low value if you use low timeout for NAT of UDP sessions
 				; Default: 60
 ;qualifygap=100			; Number of milliseconds between each group of peers being qualified
