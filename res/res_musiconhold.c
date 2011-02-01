@@ -1589,6 +1589,11 @@ static void moh_class_destructor(void *obj)
 		class->filearray = NULL;
 	}
 
+	if (class->timer) {
+		ast_timer_close(class->timer);
+		class->timer = NULL;
+	}
+
 	/* Finally, collect the exit status of the monitor thread */
 	if (tid > 0) {
 		pthread_join(tid, NULL);
