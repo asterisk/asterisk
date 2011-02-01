@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 #include <signal.h>
 
+#include "asterisk/cli.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -792,10 +793,173 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
+static char *complete_confbridge_name(const char *line, const char *word, int pos, int state)
+{
+	int which = 0;
+	struct conference_bridge *bridge = NULL;
+	char *res = NULL;
+	int wordlen = strlen(word);
+	struct ao2_iterator i;
+
+	i = ao2_iterator_init(conference_bridges, 0);
+	while ((bridge = ao2_iterator_next(&i))) {
+		if (!strncasecmp(bridge->name, word, wordlen) && ++which > state) {
+			res = ast_strdup(bridge->name);
+			ao2_ref(bridge, -1);
+			break;
+		}
+		ao2_ref(bridge, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	return res;
+}
+
+static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+
+	struct conference_bridge *bridge = NULL;
+	struct conference_bridge tmp;
+	struct conference_bridge_user *participant = NULL;
+
+        switch (cmd) {
+        case CLI_INIT:
+                e->command = "confbridge kick";
+                e->usage =
+                        "Usage: confbridge kick <name> <channel>\n"
+                        "       Kicks a channel out of the conference bridge.\n";
+                return NULL;
+        case CLI_GENERATE:
+		if (a->pos == 2) {
+			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
+		}
+		/*
+		if (a->pos == 3) {
+			return complete_confbridge_channel(a->line, a->word, a->pos, a->n);
+		}
+		*/
+                return NULL;
+        }
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_copy_string(tmp.name, a->argv[2], sizeof(tmp.name));
+	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!bridge) {
+		ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
+		return CLI_SUCCESS;
+	}
+	ao2_lock(bridge);
+	AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
+		if (!strncmp(a->argv[3], participant->chan->name, strlen(participant->chan->name))) {
+			break;
+		}
+	}
+	if (participant) {
+		ast_cli(a->fd, "Kicking %s from confbridge %s\n", participant->chan->name, bridge->name);
+		participant->kicked = 1;
+		ast_bridge_remove(bridge->bridge, participant->chan);
+	}
+	ao2_unlock(bridge);
+	ao2_ref(bridge, -1);
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ao2_iterator i;
+	struct conference_bridge *bridge = NULL;
+	struct conference_bridge tmp;
+	struct conference_bridge_user *participant = NULL;
+
+        switch (cmd) {
+        case CLI_INIT:
+                e->command = "confbridge list";
+                e->usage =
+                        "Usage: confbridge list [<name>]\n"
+                        "       Lists all currently active conference bridges.\n";
+                return NULL;
+        case CLI_GENERATE:
+		if (a->pos == 2) {
+			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
+		}
+                return NULL;
+        }
+
+	if (a->argc == 2) {
+		ast_cli(a->fd, "Conference Bridge Name           Users  Marked Locked?\n");
+		ast_cli(a->fd, "================================ ====== ====== ========\n");
+		i = ao2_iterator_init(conference_bridges, 0);
+		while ((bridge = ao2_iterator_next(&i))) {
+			ast_cli(a->fd, "%-32s %6i %6i %s\n", bridge->name, bridge->users, bridge->markedusers, (bridge->locked ? "locked" : "unlocked"));
+			ao2_ref(bridge, -1);
+		}
+		ao2_iterator_destroy(&i);
+		return CLI_SUCCESS;
+	}
+
+	if (a->argc == 3) {
+		ast_copy_string(tmp.name, a->argv[2], sizeof(tmp.name));
+		bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+		if (!bridge) {
+			ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
+			return CLI_SUCCESS;
+		}
+		ast_cli(a->fd, "Channel                          Flags\n");
+		ast_cli(a->fd, "================================ ================\n");
+		ao2_lock(bridge);
+		AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
+			ast_cli(a->fd, "%-32s ", participant->chan->name);
+			if (ast_test_flag(&participant->flags, OPTION_MARKEDUSER)) {
+				ast_cli(a->fd, "A");
+			}
+			if (ast_test_flag(&participant->flags, OPTION_ADMIN)) {
+				ast_cli(a->fd, "a");
+			}
+			if (ast_test_flag(&participant->flags, OPTION_ANNOUNCEUSERCOUNT)) {
+				ast_cli(a->fd, "c");
+			}
+			if (ast_test_flag(&participant->flags, OPTION_MENU)) {
+				ast_cli(a->fd, "m");
+			}
+			if (ast_test_flag(&participant->flags, OPTION_MUSICONHOLD)) {
+				ast_cli(a->fd, "M(%s)", participant->opt_args[OPTION_MUSICONHOLD_CLASS]);
+			}
+			if (ast_test_flag(&participant->flags, OPTION_NOONLYPERSON)) {
+				ast_cli(a->fd, "1");
+			}
+			if (ast_test_flag(&participant->flags, OPTION_STARTMUTED)) {
+				ast_cli(a->fd, "s");
+			}
+			if (ast_test_flag(&participant->flags, OPTION_WAITMARKED)) {
+				ast_cli(a->fd, "w");
+			}
+			if (ast_test_flag(&participant->flags, OPTION_QUIET)) {
+				ast_cli(a->fd, "q");
+			}
+			ast_cli(a->fd, "\n");
+		}
+		ao2_unlock(bridge);
+		ao2_ref(bridge, -1);
+		return CLI_SUCCESS;
+	}
+
+	return CLI_SHOWUSAGE;
+}
+
+static struct ast_cli_entry cli_confbridge[] = {
+	AST_CLI_DEFINE(handle_cli_confbridge_list, "List conference bridges and participants."),
+	AST_CLI_DEFINE(handle_cli_confbridge_kick, "Kick participants out of conference bridges.")
+};
+
 /*! \brief Called when module is being unloaded */
 static int unload_module(void)
 {
 	int res = ast_unregister_application(app);
+
+	ast_cli_unregister_multiple(cli_confbridge, sizeof(cli_confbridge) / sizeof(struct ast_cli_entry));
 
 	/* Get rid of the conference bridges container. Since we only allow dynamic ones none will be active. */
 	ao2_ref(conference_bridges, -1);
@@ -815,6 +979,8 @@ static int load_module(void)
 		ao2_ref(conference_bridges, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	ast_cli_register_multiple(cli_confbridge, sizeof(cli_confbridge) / sizeof(struct ast_cli_entry));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
