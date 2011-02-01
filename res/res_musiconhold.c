@@ -1559,6 +1559,11 @@ static void moh_class_destructor(void *obj)
 		free(member);
 	}
 
+	if (class->pseudofd > -1) {
+		close(class->pseudofd);
+		class->pseudofd = -1;
+	}
+
 	if (class->filearray) {
 		int i;
 		for (i = 0; i < class->total_files; i++) {
