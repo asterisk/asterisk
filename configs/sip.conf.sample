@@ -176,7 +176,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;defaultexpiry=120              ; Default length of incoming/outgoing registration
 ;mwiexpiry=3600                 ; Expiry time for outgoing MWI subscriptions
 ;qualifyfreq=60                 ; Qualification: How often to check for the 
-                                ; host to be up in seconds
+                                ; host to be up in seconds. sip show settings reports in 
+				; milliseconds.
                                 ; Set to low value if you use low timeout for
                                 ; NAT of UDP sessions
 ;qualifygap=100			; Number of milliseconds between each group of peers being qualified
