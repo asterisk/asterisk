@@ -439,7 +439,7 @@ usecallerid=yes
 ;     polarity    = polarity reversal signals the start
 ;     polarity_IN = polarity reversal signals the start, for India,
 ;                   for dtmf dialtone detection; using DTMF.
-;                   (see doc/India-CID.txt)
+;     (see https://wiki.asterisk.org/wiki/display/AST/Caller+ID+in+India)
 ;     dtmf        = causes monitor loop to look for dtmf energy on the
 ;                   incoming channel to initate cid acquisition
 ;
@@ -1182,7 +1182,7 @@ pickupgroup=1
 ;channel = 25-47
 ;
 ; For more information on setting up SS7, see the README file in libss7 or
-; the doc/ss7.txt file in the Asterisk source tree.
+; https://wiki.asterisk.org/wiki/display/AST/Signaling+System+Number+7
 ; ----------------- SS7 Options ----------------------------------------
 
 ; ---------------- Options for use with signalling=mfcr2 --------------

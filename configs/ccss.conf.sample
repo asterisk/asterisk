@@ -1,8 +1,8 @@
 ;
 ; --- Call Completion Supplementary Services ---
 ;
-; For more information about CCSS, see the CCSS user documentation included
-; in the HTML and PDF documentation generated from the doc/tex/ directory.
+; For more information about CCSS, see the CCSS user documentation
+; https://wiki.asterisk.org/wiki/display/AST/Call+Completion+Supplementary+Services+(CCSS)
 ;
 
 [general]

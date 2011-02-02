@@ -137,7 +137,7 @@ static unsigned int dahdi_timer_get_max_rate(int handle)
 	return 1000;
 }
 
-#define SEE_TIMING "For more information on Asterisk timing modules, including ways to potentially fix this problem, please see doc/timing.txt\n"
+#define SEE_TIMING "For more information on Asterisk timing modules, including ways to potentially fix this problem, please see https://wiki.asterisk.org/wiki/display/AST/Timing+Interfaces\n"
 
 static int dahdi_test_timer(void)
 {

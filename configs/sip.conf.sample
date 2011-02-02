@@ -274,7 +274,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 
 ;disallow=all                   ; First disallow all codecs
 ;allow=ulaw                     ; Allow codecs in order of preference
-;allow=ilbc                     ; see doc/rtp-packetization for framing options
+;allow=ilbc                     ; see https://wiki.asterisk.org/wiki/display/AST/RTP+Packetization
+				; for framing options
 ;
 ; This option specifies a preference for which music on hold class this channel
 ; should listen to when put on hold if the music class has not been set on the
@@ -870,8 +871,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
-; please read realtime.txt and extconfig.txt in the /doc directory of the
-; source code.
+; please read https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
 ;
 ;rtcachefriends=yes             ; Cache realtime friends by adding them to the internal list
                                 ; just like friends added from the config file only on a

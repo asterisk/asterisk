@@ -25,7 +25,8 @@ keepalive=120
 ;
 ;regcontext=skinnyregistrations
 
-;allow=all		; see doc/rtp-packetization for framing options
+;allow=all		; see https://wiki.asterisk.org/wiki/display/AST/RTP+Packetization
+			; for framing options
 ;disallow=
 
 ; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
