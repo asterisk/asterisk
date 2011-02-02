@@ -3417,7 +3417,7 @@ static int retrans_pkt(const void *data)
 
 	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
 		if (pkt->is_fatal || sipdebug) { /* Tell us if it's critical or if we're debugging */
-			ast_log(LOG_WARNING, "Retransmission timeout reached on transmission %s for seqno %d (%s %s) -- See doc/sip-retransmit.txt.\n"
+			ast_log(LOG_WARNING, "Retransmission timeout reached on transmission %s for seqno %d (%s %s) -- See https://wiki.asterisk.org/wiki/display/AST/SIP+Retransmissions\n"
 				"Packet timed out after %dms with no response\n",
 				pkt->owner->callid,
 				pkt->seqno,
@@ -3426,7 +3426,7 @@ static int retrans_pkt(const void *data)
 				(int) ast_tvdiff_ms(ast_tvnow(), pkt->time_sent));
 		}
 	} else if (pkt->method == SIP_OPTIONS && sipdebug) {
-		ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s)  -- See doc/sip-retransmit.txt.\n", pkt->owner->callid);
+		ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s)  -- See https://wiki.asterisk.org/wiki/display/AST/SIP+Retransmissions\n", pkt->owner->callid);
 	}
 
 	if (xmitres == XMIT_ERROR) {
@@ -3446,7 +3446,7 @@ static int retrans_pkt(const void *data)
 			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
 		}
 		if (pkt->owner->owner) {
-			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet (see doc/sip-retransmit.txt).\n", pkt->owner->callid);
+			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet (see https://wiki.asterisk.org/wiki/display/AST/SIP+Retransmissions).\n", pkt->owner->callid);
 
 			if (pkt->is_resp &&
 				(pkt->response_code >= 200) &&
