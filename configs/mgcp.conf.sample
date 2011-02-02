@@ -5,7 +5,7 @@
 ;port = 2427
 ;bindaddr = 0.0.0.0
 
-; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
+; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
 ;tos=cs3		; Sets TOS for signaling packets.
 ;tos_audio=ef		; Sets TOS for RTP audio packets.
 ;cos=3			; Sets 802.1p priority for signaling packets.

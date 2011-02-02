@@ -5,7 +5,7 @@
 port = 1720
 ;bindaddr = 1.2.3.4 	; this SHALL contain a single, valid IP address for this machine
 ;
-; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
+; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
 ;tos_audio=ef		; Sets TOS for RTP audio packets.
 ;cos_audio=5		; Sets 802.1p priority for RTP audio packets.
 ;

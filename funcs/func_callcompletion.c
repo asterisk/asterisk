@@ -58,7 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			a configuration parameter will only change the parameter for the
 			duration of the call.
 
-			For more information see <filename>doc/asterisk.pdf</filename>.
+			For more information see <filename>doc/AST.pdf</filename>.
 			For more information on call completion parameters, see <filename>configs/ccss.conf.sample</filename>.</para>
 		</description>
 	</function>

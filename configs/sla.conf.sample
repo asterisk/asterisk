@@ -21,11 +21,12 @@
 
 ;type=trunk                 ; This line is what marks this entry as a trunk.
 
-;device=DAHDI/3               ; Map this trunk declaration to a specific device.
+;device=DAHDI/3             ; Map this trunk declaration to a specific device.
                             ; NOTE: You can not just put any type of channel here.
                             ;       DAHDI channels can be directly used.  IP trunks
                             ;       require some indirect configuration which is
-                            ;       described in doc/asterisk.pdf.
+                            ;       described in 
+                            ; https://wiki.asterisk.org/wiki/display/AST/SLA+Trunk+Configuration
 
 ;autocontext=line1          ; This supports automatic generation of the dialplan entries
                             ; if the autocontext option is used.  Each trunk should have
@@ -61,8 +62,7 @@
 ;type=trunk
 ;device=Local/disa@line4_outbound ; A Local channel in combination with the Disa
                                   ; application can be used to support IP trunks.
-                                  ; See doc/asterisk.pdf on more information on how
-                                  ; IP trunks work.
+                                  ; See https://wiki.asterisk.org/wiki/display/AST/SLA+Trunk+Configuration
 ;autocontext=line4
 ; --------------------------------------
 

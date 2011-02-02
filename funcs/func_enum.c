@@ -127,7 +127,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>For more information see <filename>doc/asterisk.pdf</filename>.</para>
+			<para>For more information see <filename>doc/AST.pdf</filename>.</para>
 		</description>
 	</function>
 	<function name="TXTCIDNAME" language="en_US">

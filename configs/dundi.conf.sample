@@ -27,7 +27,7 @@
 ;bindaddr=0.0.0.0
 ;port=4520
 ;
-; See qos.tex or Quality of Service section of asterisk.pdf for a description of the tos parameter.
+; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of the tos parameter.
 ;tos=ef
 ;
 ; Our entity identifier (Should generally be the MAC address of the
