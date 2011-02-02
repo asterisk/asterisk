@@ -217,7 +217,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; and multiline formatted headers for strict
                                 ; SIP compatibility (defaults to "yes")
 
-; See qos.tex or Quality of Service section of asterisk.pdf for a description of these parameters.
+; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
 ;tos_sip=cs3                    ; Sets TOS for SIP packets.
 ;tos_audio=ef                   ; Sets TOS for RTP audio packets.
 ;tos_video=af41                 ; Sets TOS for RTP video packets.

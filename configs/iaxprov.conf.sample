@@ -53,7 +53,7 @@ codec=ulaw
 ;
 flags=register,heartbeat
 ;
-; See qos.tex or Quality of Service section of asterisk.pdf for a description of this parameter.
+; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of this parameter.
 ;tos=ef
 ;
 ; Example iaxy provisioning
