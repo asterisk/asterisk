@@ -27,7 +27,8 @@ port = 1720
 ;allow=all		; turns on all installed codecs
 ;disallow=g723.1	; Hm...  Proprietary, don't use it...
 ;allow=gsm		; Always allow GSM, it's cool :)
-;allow=ulaw		; see doc/rtp-packetization for framing options
+;allow=ulaw		; see https://wiki.asterisk.org/wiki/display/AST/RTP+Packetization
+			; for framing options
 ;
 ; User-Input Mode (DTMF)
 ;

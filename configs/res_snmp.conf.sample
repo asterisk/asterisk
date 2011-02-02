@@ -10,7 +10,8 @@
 ; If you use the subagent model, you need to enable agentx in snmpd.conf
 ; Note that you can only run one Asterisk on the system in this case.
 ;
-; Please read documentat in doc/snmp.txt to get more information about
+; See https://wiki.asterisk.org/wiki/display/AST/Simple+Network+Management+Protocol+(SNMP)+Support 
+; to get more information about
 ; snmp support in Asterisk
 
 [general]

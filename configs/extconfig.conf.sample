@@ -2,8 +2,8 @@
 ; Static and realtime external configuration
 ; engine configuration
 ;
-; Please read doc/extconfig.txt for basic table
-; formatting information.
+; See https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
+; for basic table formatting information.
 ;
 [settings]
 ;

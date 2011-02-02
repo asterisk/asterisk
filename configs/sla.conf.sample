@@ -1,7 +1,7 @@
 ;
 ; Configuration for Shared Line Appearances (SLA).
 ;
-; See doc/asterisk.pdf for more information.
+; See http://wiki.asterisk.org or doc/AST.pdf for more information.
 ;
 
 ; ---- General Options ----------------

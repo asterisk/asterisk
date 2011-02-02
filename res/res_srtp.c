@@ -32,7 +32,7 @@
          <depend>srtp</depend>
 ***/
 
-/* See doc/tex/secure-calls.tex for SRTP usage information */
+/* See https://wiki.asterisk.org/wiki/display/AST/Secure+Calling */
 
 #include "asterisk.h"
 
