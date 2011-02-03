@@ -131,3 +131,7 @@ ${MAC}-phone.cfg => 000000000000-phone.cfg   ; (relative to AST_DATA_DIR/phonepr
 config/${MAC} => polycom.xml                 ; Dynamic Filename => template file
 ${MAC}-directory.xml => 000000000000-directory.xml
 setvar => CUSTOM_CONFIG=/var/lib/asterisk/phoneprov/configs/custom.cfg  ; Custom variable
+
+;snom 300, 320, 360, 370, 820, 821, 870 support
+snom-${MAC}.xml => snom-mac.xml
+
