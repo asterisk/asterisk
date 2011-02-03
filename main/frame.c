@@ -682,7 +682,7 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		ast_cli(a->fd, "Disclaimer: this command is for informational purposes only.\n"
 				"\tIt does not indicate anything about your configuration.\n");
 
-	ast_cli(a->fd, "%19s %8s %8s %s\n","ID","TYPE","NAME","DESCRIPTION");
+	ast_cli(a->fd, "%8s %5s %8s %s\n","ID","TYPE","NAME","DESCRIPTION");
 	ast_cli(a->fd, "-----------------------------------------------------------------------------------\n");
 
 	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
@@ -708,7 +708,7 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			}
 		}
 
-		ast_cli(a->fd, "%19u %5s %8s (%s)\n",
+		ast_cli(a->fd, "%8u %5s %8s (%s)\n",
 			AST_FORMAT_LIST[x].id,
 			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id) == AST_FORMAT_TYPE_AUDIO) ? "audio" :
 			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_IMAGE)  ? "image" :
