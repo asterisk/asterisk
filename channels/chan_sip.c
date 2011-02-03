@@ -14710,7 +14710,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		f.subclass = 0;
 		f.offset = 0;
 		f.data.ptr = buf;
-		f.datalen = strlen(buf);
+		f.datalen = strlen(buf) + 1;
 		ast_queue_frame(p->owner, &f);
 		transmit_response(p, "202 Accepted", req); /* We respond 202 accepted, since we relay the message */
 		return;

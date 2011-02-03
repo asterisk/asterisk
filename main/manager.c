@@ -2106,12 +2106,13 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 
 	res = ast_sendtext(c, textmsg);
 	ast_channel_unlock(c);
-	
-	if (res > 0)
+
+	if (res >= 0) {
 		astman_send_ack(s, m, "Success");
-	else
+	} else {
 		astman_send_error(s, m, "Failure");
-	
+	}
+
 	return res;
 }
 
