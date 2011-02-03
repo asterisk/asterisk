@@ -2764,12 +2764,12 @@ static void *do_parking_thread(void *ignore)
 						continue;
 					}
 
-					if (!(fds[y].revents & (POLLIN | POLLERR))) {
+					if (!(fds[y].revents & (POLLIN | POLLERR | POLLPRI))) {
 						/* Next x */
 						continue;
 					}
 
-					if (fds[y].revents & POLLERR) {
+					if (fds[y].revents & POLLPRI) {
 						ast_set_flag(chan, AST_FLAG_EXCEPTION);
 					} else {
 						ast_clear_flag(chan, AST_FLAG_EXCEPTION);
@@ -2835,7 +2835,7 @@ std:				for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
 							}
 							new_fds = tmp;
 							new_fds[new_nfds].fd = chan->fds[x];
-							new_fds[new_nfds].events = POLLIN | POLLERR;
+							new_fds[new_nfds].events = POLLIN | POLLERR | POLLPRI;
 							new_fds[new_nfds].revents = 0;
 							new_nfds++;
 						}
