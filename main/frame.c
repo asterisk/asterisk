@@ -711,7 +711,7 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		ast_cli(a->fd, "%19u %5s %8s (%s)\n",
 			AST_FORMAT_LIST[x].id,
 			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id) == AST_FORMAT_TYPE_AUDIO) ? "audio" :
-			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_TEXT)  ? "image" :
+			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_IMAGE)  ? "image" :
 			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_VIDEO) ? "video" :
 			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_TEXT)  ? "text"  :
 			"(unk)",
