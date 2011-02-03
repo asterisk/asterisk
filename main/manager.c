@@ -3251,12 +3251,10 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_channel_lock(c);
 	res = ast_sendtext(c, textmsg);
-	ast_channel_unlock(c);
 	c = ast_channel_unref(c);
 
-	if (res > 0) {
+	if (res >= 0) {
 		astman_send_ack(s, m, "Success");
 	} else {
 		astman_send_error(s, m, "Failure");

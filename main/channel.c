@@ -4465,13 +4465,18 @@ char *ast_recvtext(struct ast_channel *chan, int timeout)
 int ast_sendtext(struct ast_channel *chan, const char *text)
 {
 	int res = 0;
+
+	ast_channel_lock(chan);
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan))
+	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+		ast_channel_unlock(chan);
 		return -1;
+	}
 	CHECK_BLOCKING(chan);
 	if (chan->tech->send_text)
 		res = chan->tech->send_text(chan, text);
 	ast_clear_flag(chan, AST_FLAG_BLOCKING);
+	ast_channel_unlock(chan);
 	return res;
 }
 
