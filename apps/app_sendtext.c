@@ -105,10 +105,10 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	status = "FAILURE";
-	ast_channel_unlock(chan);
 	res = ast_sendtext(chan, args.text);
 	if (!res)
 		status = "SUCCESS";
+	ast_channel_unlock(chan);
 	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
 	ast_module_user_remove(u);
 	return 0;
