@@ -28052,10 +28052,12 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 		return 0;
 	}
 
+	ast_channel_lock(chan);
 	sip_pvt_lock(p);
 	if (p->alreadygone) {
 		/* If we're destroyed, don't bother */
 		sip_pvt_unlock(p);
+		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -28064,6 +28066,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	*/
 	if (nat_active && !ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
 		sip_pvt_unlock(p);
+		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -28106,6 +28109,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	/* Reset lastrtprx timer */
 	p->lastrtprx = p->lastrtptx = time(NULL);
 	sip_pvt_unlock(p);
+	ast_channel_unlock(chan);
 	return 0;
 }
 
