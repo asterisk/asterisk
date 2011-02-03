@@ -133,7 +133,7 @@ static int autoanswer = 1;
 static int mute = 0;
 static int noaudiocapture = 0;
 
-static struct ast_channel *alsa_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *alsa_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 static int alsa_digit(struct ast_channel *c, char digit, unsigned int duration);
 static int alsa_text(struct ast_channel *c, const char *text);
 static int alsa_hangup(struct ast_channel *c);
@@ -144,10 +144,9 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f);
 static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen);
 static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
-static const struct ast_channel_tech alsa_tech = {
+static struct ast_channel_tech alsa_tech = {
 	.type = "Console",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_SLINEAR,
 	.requester = alsa_request,
 	.send_digit_end = alsa_digit,
 	.send_text = alsa_text,
@@ -502,7 +501,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		}
 
 		f.frametype = AST_FRAME_VOICE;
-		f.subclass.codec = AST_FORMAT_SLINEAR;
+		ast_format_set(&f.subclass.format, AST_FORMAT_SLINEAR, 0);
 		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE * 2;
 		f.data.ptr = buf;
@@ -572,9 +571,10 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 
 	tmp->tech = &alsa_tech;
 	ast_channel_set_fd(tmp, 0, readdev);
-	tmp->nativeformats = AST_FORMAT_SLINEAR;
-	tmp->readformat = AST_FORMAT_SLINEAR;
-	tmp->writeformat = AST_FORMAT_SLINEAR;
+	ast_format_set(&tmp->readformat, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&tmp->writeformat, AST_FORMAT_SLINEAR, 0);
+	ast_format_cap_add(tmp->nativeformats, &tmp->writeformat);
+
 	tmp->tech_pvt = p;
 	if (!ast_strlen_zero(p->context))
 		ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
@@ -596,14 +596,16 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	return tmp;
 }
 
-static struct ast_channel *alsa_request(const char *type, format_t fmt, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *alsa_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
 {
-	format_t oldformat = fmt;
+	struct ast_format tmpfmt;
 	char buf[256];
 	struct ast_channel *tmp = NULL;
 
-	if (!(fmt &= AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of format '%s'\n", ast_getformatname_multiple(buf, sizeof(buf), oldformat));
+	ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0);
+
+	if (!(ast_format_cap_iscompatible(cap, &tmpfmt))) {
+		ast_log(LOG_NOTICE, "Asked to get a channel of format '%s'\n", ast_getformatname_multiple(buf, sizeof(buf), cap));
 		return NULL;
 	}
 
@@ -929,6 +931,12 @@ static int load_module(void)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { 0 };
+	struct ast_format tmpfmt;
+
+	if (!(alsa_tech.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	ast_format_cap_add(alsa_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
@@ -1006,6 +1014,7 @@ static int unload_module(void)
 	if (alsa.owner)
 		return -1;
 
+	alsa_tech.capabilities = ast_format_cap_destroy(alsa_tech.capabilities);
 	return 0;
 }
 

@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char tdesc[] = "Network Broadcast Sound Driver";
 
 /* Only linear is allowed */
-static format_t prefformat = AST_FORMAT_SLINEAR;
+static struct ast_format prefformat;
 
 static char context[AST_MAX_EXTENSION] = "default";
 static const char type[] = "NBS";
@@ -66,16 +66,15 @@ struct nbs_pvt {
 	struct ast_module_user *u;		/*! for holding a reference to this module */
 };
 
-static struct ast_channel *nbs_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 static int nbs_call(struct ast_channel *ast, char *dest, int timeout);
 static int nbs_hangup(struct ast_channel *ast);
 static struct ast_frame *nbs_xread(struct ast_channel *ast);
 static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame);
 
-static const struct ast_channel_tech nbs_tech = {
+static struct ast_channel_tech nbs_tech = {
 	.type = type,
 	.description = tdesc,
-	.capabilities = AST_FORMAT_SLINEAR,
 	.requester = nbs_request,
 	.call = nbs_call,
 	.hangup = nbs_hangup,
@@ -205,9 +204,8 @@ static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 			ast_log(LOG_WARNING, "Don't know what to do with  frame type '%d'\n", frame->frametype);
 		return 0;
 	}
-	if (!(frame->subclass.codec &
-		(AST_FORMAT_SLINEAR))) {
-		ast_log(LOG_WARNING, "Cannot handle frames in %s format\n", ast_getformatname(frame->subclass.codec));
+	if (frame->subclass.format.id != (AST_FORMAT_SLINEAR)) {
+		ast_log(LOG_WARNING, "Cannot handle frames in %s format\n", ast_getformatname(&frame->subclass.format));
 		return 0;
 	}
 	if (ast->_state != AST_STATE_UP) {
@@ -226,11 +224,12 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 	if (tmp) {
 		tmp->tech = &nbs_tech;
 		ast_channel_set_fd(tmp, 0, nbs_fd(i->nbs));
-		tmp->nativeformats = prefformat;
-		tmp->rawreadformat = prefformat;
-		tmp->rawwriteformat = prefformat;
-		tmp->writeformat = prefformat;
-		tmp->readformat = prefformat;
+
+		ast_format_cap_add(tmp->nativeformats, &prefformat);
+		ast_format_copy(&tmp->rawreadformat, &prefformat);
+		ast_format_copy(&tmp->rawwriteformat, &prefformat);
+		ast_format_copy(&tmp->writeformat, &prefformat);
+		ast_format_copy(&tmp->readformat, &prefformat);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;
@@ -251,16 +250,14 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 }
 
 
-static struct ast_channel *nbs_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
 {
-	format_t oldformat;
 	struct nbs_pvt *p;
 	struct ast_channel *tmp = NULL;
-	
-	oldformat = format;
-	format &= (AST_FORMAT_SLINEAR);
-	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname(oldformat));
+
+	if (!(ast_format_cap_iscompatible(cap, &prefformat))) {
+		char tmp[256];
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), cap));
 		return NULL;
 	}
 	p = nbs_alloc(data);
@@ -276,11 +273,17 @@ static int unload_module(void)
 {
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(&nbs_tech);
+	nbs_tech.capabilities = ast_format_cap_destroy(nbs_tech.capabilities);
 	return 0;
 }
 
 static int load_module(void)
 {
+	ast_format_set(&prefformat, AST_FORMAT_SLINEAR, 0);
+	if (!(nbs_tech.capabilities == ast_format_cap_alloc())) {
+		return -1;
+	}
+	ast_format_cap_add(nbs_tech.capabilities, &prefformat);
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&nbs_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);

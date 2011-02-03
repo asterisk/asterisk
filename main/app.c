@@ -445,15 +445,15 @@ struct linear_state {
 	int fd;
 	int autoclose;
 	int allowoverride;
-	int origwfmt;
+	struct ast_format origwfmt;
 };
 
 static void linear_release(struct ast_channel *chan, void *params)
 {
 	struct linear_state *ls = params;
 
-	if (ls->origwfmt && ast_set_write_format(chan, ls->origwfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt);
+	if (ls->origwfmt.id && ast_set_write_format(chan, &ls->origwfmt)) {
+		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt.id);
 	}
 
 	if (ls->autoclose) {
@@ -469,11 +469,12 @@ static int linear_generator(struct ast_channel *chan, void *data, int len, int s
 	struct linear_state *ls = data;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.codec = AST_FORMAT_SLINEAR,
 		.data.ptr = buf + AST_FRIENDLY_OFFSET / 2,
 		.offset = AST_FRIENDLY_OFFSET,
 	};
 	int res;
+
+	ast_format_set(&f.subclass.format, AST_FORMAT_SLINEAR, 0);
 
 	len = samples * 2;
 	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
@@ -507,9 +508,9 @@ static void *linear_alloc(struct ast_channel *chan, void *params)
 		ast_clear_flag(chan, AST_FLAG_WRITE_INT);
 	}
 
-	ls->origwfmt = chan->writeformat;
+	ast_format_copy(&ls->origwfmt, &chan->writeformat);
 
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
 		ast_free(ls);
 		ls = params = NULL;
@@ -741,10 +742,11 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int olddspsilence = 0;
-	int rfmt = 0;
+	struct ast_format rfmt;
 	struct ast_silence_generator *silgen = NULL;
 	char prependfile[80];
 
+	ast_format_clear(&rfmt);
 	if (silencethreshold < 0) {
 		silencethreshold = global_silence_threshold;
 	}
@@ -815,8 +817,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			return -1;
 		}
 		ast_dsp_set_threshold(sildet, silencethreshold);
-		rfmt = chan->readformat;
-		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+		ast_format_copy(&rfmt, &chan->readformat);
+		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			ast_dsp_free(sildet);
@@ -1005,8 +1007,8 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			ast_filedelete(prependfile, sfmt[x]);
 		}
 	}
-	if (rfmt && ast_set_read_format(chan, rfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
+	if (rfmt.id && ast_set_read_format(chan, &rfmt)) {
+		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(&rfmt), chan->name);
 	}
 	if (outmsg == 2) {
 		ast_stream_and_wait(chan, "auth-thankyou", "");

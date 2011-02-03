@@ -30,7 +30,7 @@
 #define CHAN_H323_H
 
 #include <arpa/inet.h>
-#include "asterisk/frame_defs.h"
+#include "asterisk/format.h"
 
 /*
  * Enable support for sending/reception of tunnelled Q.SIG messages and
@@ -46,6 +46,8 @@
 #define H323_HOLD_NOTIFY	(1 << 0)
 #define H323_HOLD_Q931ONLY	(1 << 1)
 #define H323_HOLD_H450		(1 << 2)
+
+typedef int64_t h323_format;
 
 /** call_option struct holds various bits
  *         of information for each call */
@@ -65,7 +67,7 @@ typedef struct call_options {
 	int				progress_audio;
 	int				dtmfcodec[2];
 	int				dtmfmode;
-	format_t        capability;
+	h323_format     capability;
 	int				bridge;
 	int				nat;
 	int				tunnelOptions;

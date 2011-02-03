@@ -31,14 +31,10 @@ extern "C" {
 
 #include <sys/time.h>
 
-#include "asterisk/frame_defs.h"
+#include "asterisk/format_pref.h"
+#include "asterisk/format.h"
 #include "asterisk/endian.h"
 #include "asterisk/linkedlists.h"
-
-struct ast_codec_pref {
-	char order[sizeof(format_t) * 8];
-	char framing[sizeof(format_t) * 8];
-};
 
 /*!
  * \page Def_Frame AST Multimedia and signalling frames
@@ -134,7 +130,7 @@ enum {
 
 union ast_frame_subclass {
 	int integer;
-	format_t codec;
+	struct ast_format format;
 };
 
 /*! \brief Data structure associated with a single frame of data
@@ -236,78 +232,6 @@ extern struct ast_frame ast_null_frame;
 #define AST_HTML_UNLINK		19
 /*! Reject link request */
 #define AST_HTML_LINKREJECT	20
-
-/* Data formats for capabilities and frames alike */
-/*! G.723.1 compression */
-#define AST_FORMAT_G723_1     (1ULL << 0)
-/*! GSM compression */
-#define AST_FORMAT_GSM        (1ULL << 1)
-/*! Raw mu-law data (G.711) */
-#define AST_FORMAT_ULAW       (1ULL << 2)
-/*! Raw A-law data (G.711) */
-#define AST_FORMAT_ALAW       (1ULL << 3)
-/*! ADPCM (G.726, 32kbps, AAL2 codeword packing) */
-#define AST_FORMAT_G726_AAL2  (1ULL << 4)
-/*! ADPCM (IMA) */
-#define AST_FORMAT_ADPCM      (1ULL << 5)
-/*! Raw 16-bit Signed Linear (8000 Hz) PCM */
-#define AST_FORMAT_SLINEAR    (1ULL << 6)
-/*! LPC10, 180 samples/frame */
-#define AST_FORMAT_LPC10      (1ULL << 7)
-/*! G.729A audio */
-#define AST_FORMAT_G729A      (1ULL << 8)
-/*! SpeeX Free Compression */
-#define AST_FORMAT_SPEEX      (1ULL << 9)
-/*! iLBC Free Compression */
-#define AST_FORMAT_ILBC       (1ULL << 10)
-/*! ADPCM (G.726, 32kbps, RFC3551 codeword packing) */
-#define AST_FORMAT_G726       (1ULL << 11)
-/*! G.722 */
-#define AST_FORMAT_G722       (1ULL << 12)
-/*! G.722.1 (also known as Siren7, 32kbps assumed) */
-#define AST_FORMAT_SIREN7     (1ULL << 13)
-/*! G.722.1 Annex C (also known as Siren14, 48kbps assumed) */
-#define AST_FORMAT_SIREN14    (1ULL << 14)
-/*! Raw 16-bit Signed Linear (16000 Hz) PCM */
-#define AST_FORMAT_SLINEAR16  (1ULL << 15)
-/*! Maximum audio mask */
-#define AST_FORMAT_AUDIO_MASK 0xFFFF0000FFFFULL
-/*! JPEG Images */
-#define AST_FORMAT_JPEG       (1ULL << 16)
-/*! PNG Images */
-#define AST_FORMAT_PNG        (1ULL << 17)
-/*! H.261 Video */
-#define AST_FORMAT_H261       (1ULL << 18)
-/*! H.263 Video */
-#define AST_FORMAT_H263       (1ULL << 19)
-/*! H.263+ Video */
-#define AST_FORMAT_H263_PLUS  (1ULL << 20)
-/*! H.264 Video */
-#define AST_FORMAT_H264       (1ULL << 21)
-/*! MPEG4 Video */
-#define AST_FORMAT_MP4_VIDEO  (1ULL << 22)
-#define AST_FORMAT_VIDEO_MASK ((((1ULL << 25)-1) & ~(AST_FORMAT_AUDIO_MASK)) | 0x7FFF000000000000ULL)
-/*! T.140 RED Text format RFC 4103 */
-#define AST_FORMAT_T140RED    (1ULL << 26)
-/*! T.140 Text format - ITU T.140, RFC 4103 */
-#define AST_FORMAT_T140       (1ULL << 27)
-/*! Maximum text mask */
-#define AST_FORMAT_MAX_TEXT   (1ULL << 28)
-#define AST_FORMAT_TEXT_MASK  (((1ULL << 30)-1) & ~(AST_FORMAT_AUDIO_MASK) & ~(AST_FORMAT_VIDEO_MASK))
-/*! G.719 (64 kbps assumed) */
-#define AST_FORMAT_G719	      (1ULL << 32)
-/*! SpeeX Wideband (16kHz) Free Compression */
-#define AST_FORMAT_SPEEX16    (1ULL << 33)
-/*! Raw mu-law data (G.711) */
-#define AST_FORMAT_TESTLAW    (1ULL << 47)
-/*! Reserved bit - do not use
- * \warning We use this bit internally for iteration.  Additionally, using this
- * bit will severely break the implementation of codec prefs within IAX2, as we
- * rely on the equivalence of UTF-8 and ASCII.  The codec represented by this
- * bit should use the first two-byte encoding of UTF-8, which is not presently
- * accounted for.  Hence, we reserve this bit as unused.
- */
-#define AST_FORMAT_RESERVED   (1ULL << 63)
 
 enum ast_control_frame_type {
 	AST_CONTROL_HANGUP = 1,		/*!< Other end has hungup */
@@ -505,7 +429,7 @@ struct ast_option_header {
 
 /*! \brief Definition of supported media formats (codecs) */
 struct ast_format_list {
-	format_t bits;	/*!< bitmask value */
+	enum ast_format_id id;    /*!< The format unique id */
 	char *name;	/*!< short name */
 	int samplespersecond; /*!< Number of samples per second (8000/16000) */
 	char *desc;	/*!< Description */
@@ -573,12 +497,18 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples);
 #define ast_frame_byteswap_be(fr) do { ; } while(0)
 #endif
 
+/*! \brief Parse an "allow" or "deny" line in a channel or device configuration
+        and update the capabilities and pref if provided.
+	Video codecs are not added to codec preference lists, since we can not transcode
+	\return Returns number of errors encountered during parsing
+ */
+int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing);
 
 /*! \brief Get the name of a format
  * \param format id of format
  * \return A static string containing the name of the format or "unknown" if unknown.
  */
-char* ast_getformatname(format_t format);
+char* ast_getformatname(struct ast_format *format);
 
 /*! \brief Get the names of a set of formats
  * \param buf a buffer for the output string
@@ -588,21 +518,22 @@ char* ast_getformatname(format_t format);
  * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
  * \return The return value is buf.
  */
-char* ast_getformatname_multiple(char *buf, size_t size, format_t format);
+char* ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap);
 
 /*!
  * \brief Gets a format from a name.
  * \param name string of format
- * \return This returns the form of the format in binary on success, 0 on error.
+ * \param format structure to return the format in.
+ * \return This returns the format pointer given to it on success and NULL on failure
  */
-format_t ast_getformatbyname(const char *name);
+struct ast_format *ast_getformatbyname(const char *name, struct ast_format *format);
 
 /*! \brief Get a name from a format 
  * Gets a name from a format
- * \param codec codec number (1,2,4,8,16,etc.)
+ * \param format to get name of
  * \return This returns a static string identifying the format on success, 0 on error.
  */
-char *ast_codec2str(format_t codec);
+char *ast_codec2str(struct ast_format *format);
 
 /*! \name AST_Smoother 
 */
@@ -654,91 +585,20 @@ const struct ast_format_list *ast_get_format_list_index(int index);
 const struct ast_format_list *ast_get_format_list(size_t *size);
 void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 
-/*! \page AudioCodecPref Audio Codec Preferences
-
-	In order to negotiate audio codecs in the order they are configured
-	in \<channel\>.conf for a device, we set up codec preference lists
-	in addition to the codec capabilities setting. The capabilities
-	setting is a bitmask of audio and video codecs with no internal
-	order. This will reflect the offer given to the other side, where
-	the prefered codecs will be added to the top of the list in the
-	order indicated by the "allow" lines in the device configuration.
-	
-	Video codecs are not included in the preference lists since they
-	can't be transcoded and we just have to pick whatever is supported
-*/
-
-/*! 
- *\brief Initialize an audio codec preference to "no preference".
- * \arg \ref AudioCodecPref 
-*/
-void ast_codec_pref_init(struct ast_codec_pref *pref);
-
-/*! 
- * \brief Codec located at a particular place in the preference index.
- * \arg \ref AudioCodecPref 
-*/
-format_t ast_codec_pref_index(struct ast_codec_pref *pref, int index);
-
-/*! \brief Remove audio a codec from a preference list */
-void ast_codec_pref_remove(struct ast_codec_pref *pref, format_t format);
-
-/*! \brief Append a audio codec to a preference list, removing it first if it was already there 
-*/
-int ast_codec_pref_append(struct ast_codec_pref *pref, format_t format);
-
-/*! \brief Prepend an audio codec to a preference list, removing it first if it was already there 
-*/
-void ast_codec_pref_prepend(struct ast_codec_pref *pref, format_t format, int only_if_existing);
-
-/*! \brief Select the best audio format according to preference list from supplied options. 
-   If "find_best" is non-zero then if nothing is found, the "Best" format of 
-   the format list is selected, otherwise 0 is returned. */
-format_t ast_codec_choose(struct ast_codec_pref *pref, format_t formats, int find_best);
-
-/*! \brief Set packet size for codec
-*/
-int ast_codec_pref_setsize(struct ast_codec_pref *pref, format_t format, int framems);
-
-/*! \brief Get packet size for codec
-*/
-struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, format_t format);
-
-/*! \brief Parse an "allow" or "deny" line in a channel or device configuration 
-        and update the capabilities mask and pref if provided.
-	Video codecs are not added to codec preference lists, since we can not transcode
-	\return Returns number of errors encountered during parsing
- */
-int ast_parse_allow_disallow(struct ast_codec_pref *pref, format_t *mask, const char *list, int allowing);
-
-/*! \brief Dump audio codec preference list into a string */
-int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);
-
-/*! \brief Shift an audio codec preference list up or down 65 bytes so that it becomes an ASCII string
- * \note Due to a misunderstanding in how codec preferences are stored, this
- * list starts at 'B', not 'A'.  For backwards compatibility reasons, this
- * cannot change.
- * \param pref A codec preference list structure
- * \param buf A string denoting codec preference, appropriate for use in line transmission
- * \param size Size of \a buf
- * \param right Boolean:  if 0, convert from \a buf to \a pref; if 1, convert from \a pref to \a buf.
- */
-void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right);
-
 /*! \brief Returns the number of samples contained in the frame */
 int ast_codec_get_samples(struct ast_frame *f);
 
 /*! \brief Returns the number of bytes for the number of samples of the given format */
-int ast_codec_get_len(format_t format, int samples);
+int ast_codec_get_len(struct ast_format *format, int samples);
 
 /*! \brief Appends a frame to the end of a list of frames, truncating the maximum length of the list */
 struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f, int maxlen, int dupe);
 
 
 /*! \brief Gets duration in ms of interpolation frame for a format */
-static inline int ast_codec_interp_len(format_t format) 
+static inline int ast_codec_interp_len(struct ast_format *format)
 { 
-	return (format == AST_FORMAT_ILBC) ? 30 : 20;
+	return (format->id == AST_FORMAT_ILBC) ? 30 : 20;
 }
 
 /*!
@@ -763,9 +623,9 @@ int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2);
 /*!
  * \brief Get the sample rate for a given format.
  */
-static force_inline int ast_format_rate(format_t format)
+static force_inline int ast_format_rate(struct ast_format *format)
 {
-	switch (format) {
+	switch (format->id) {
 	case AST_FORMAT_G722:
 	case AST_FORMAT_SLINEAR16:
 	case AST_FORMAT_SIREN7:

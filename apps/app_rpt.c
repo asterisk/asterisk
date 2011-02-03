@@ -882,6 +882,7 @@ static int setrem(struct rpt *myrpt);
 static int setrtx_check(struct rpt *myrpt);
 static int channel_revert(struct rpt *myrpt);
 static int channel_steer(struct rpt *myrpt, char *data);
+static struct ast_format_cap *get_slin_cap(struct ast_format_cap *cap);
 
 AST_MUTEX_DEFINE_STATIC(nodeloglock);
 
@@ -950,7 +951,6 @@ int	i;
 	}
 	return(NULL);
 }
-
 
 static void rpt_mutex_spew(void)
 {
@@ -1069,6 +1069,18 @@ pthread_t id;
 #define rpt_mutex_unlock(x) ast_mutex_unlock(x)
 
 #endif  /* APP_RPT_LOCK_DEBUG */
+
+static struct ast_format_cap *get_slin_cap(struct ast_format_cap *cap)
+{
+	struct ast_format tmp;
+	cap = ast_format_cap_alloc_nolock();
+	if (!cap) {
+		return NULL;
+	}
+	ast_format_cap_add(cap, ast_format_set(&tmp, AST_FORMAT_SLINEAR, 0));
+
+	return cap;
+}
 
 /*
 * Return 1 if rig is multimode capable
@@ -3961,7 +3973,7 @@ char mhz[MAXREMSTR];
 char decimals[MAXREMSTR];
 char	mystr[200];
 struct dahdi_params par;
-
+struct ast_format_cap *cap = NULL;
 
 	/* get a pointer to myrpt */
 	myrpt = mytele->rpt;
@@ -4004,7 +4016,8 @@ struct dahdi_params par;
 
 
 	/* allocate a pseudo-channel thru asterisk */
-	mychannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	mychannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!mychannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -5288,10 +5301,12 @@ struct	rpt *myrpt = (struct rpt *)this;
 int	res;
 int stopped,congstarted,dialtimer,lastcidx,aborted;
 struct ast_channel *mychannel,*genchannel;
+struct ast_format_cap *cap = NULL;
 
 	myrpt->mydtmf = 0;
 	/* allocate a pseudo-channel thru asterisk */
-	mychannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	mychannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!mychannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -5317,7 +5332,8 @@ struct ast_channel *mychannel,*genchannel;
 		pthread_exit(NULL);
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	genchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	genchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!genchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -5689,6 +5705,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	int reconnects = 0;
 	int i,n;
 	struct dahdi_confinfo ci;  /* conference info */
+	struct ast_format_cap *cap = NULL;
 
 	val = node_lookup(myrpt,node);
 	if (!val){
@@ -5792,10 +5809,11 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 		return -1;
 	}
 	*tele++ = 0;
-	l->chan = ast_request(deststr, AST_FORMAT_SLINEAR, NULL, tele, NULL);
+	l->chan = ast_request(deststr, get_slin_cap(cap), NULL, tele, NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (l->chan){
-		ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
+		ast_set_read_format_by_id(l->chan, AST_FORMAT_SLINEAR);
+		ast_set_write_format_by_id(l->chan, AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 		if (l->chan->cdr)
 			ast_set_flag(l->chan->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -5827,15 +5845,16 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 		return -1;
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	l->pchan = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	l->pchan = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!l->pchan){
 		ast_log(LOG_WARNING,"rpt connect: Sorry unable to obtain pseudo channel\n");
 		ast_hangup(l->chan);
 		ast_free(l);
 		return -1;
 	}
-	ast_set_read_format(l->pchan, AST_FORMAT_SLINEAR);
-	ast_set_write_format(l->pchan, AST_FORMAT_SLINEAR);
+	ast_set_read_format_by_id(l->pchan, AST_FORMAT_SLINEAR);
+	ast_set_write_format_by_id(l->pchan, AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 	if (l->pchan->cdr)
 		ast_set_flag(l->pchan->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -10341,6 +10360,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	char *val, *s, *s1, *s2, *tele;
 	char tmp[300], deststr[300] = "";
 	char sx[320],*sy;
+	struct ast_format_cap *cap = NULL;
 
 
 	val = node_lookup(myrpt,l->name);
@@ -10376,10 +10396,11 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	l->connecttime = 0;
 	l->thisconnected = 0;
 	l->newkey = 0;
-	l->chan = ast_request(deststr, AST_FORMAT_SLINEAR, NULL, tele, NULL);
+	l->chan = ast_request(deststr, get_slin_cap(cap), NULL, tele, NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (l->chan){
-		ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
+		ast_set_read_format_by_id(l->chan, AST_FORMAT_SLINEAR);
+		ast_set_write_format_by_id(l->chan, AST_FORMAT_SLINEAR);
 #ifndef	NEW_ASTERISK
 		l->chan->whentohangup = 0;
 #endif
@@ -10743,6 +10764,7 @@ time_t	t;
 struct rpt_link *l,*m;
 struct rpt_tele *telem;
 char tmpstr[300],lstr[MAXLINKLIST];
+struct ast_format_cap *cap = NULL;
 
 
 	if (myrpt->p.archivedir) mkdir(myrpt->p.archivedir,0600);
@@ -10795,7 +10817,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
-	myrpt->rxchannel = ast_request(tmpstr, AST_FORMAT_SLINEAR, NULL, tele, NULL);
+	myrpt->rxchannel = ast_request(tmpstr, get_slin_cap(cap), NULL, tele, NULL);
+	cap = ast_format_cap_destroy(cap);
 	myrpt->dahdirxchannel = NULL;
 	if (!strcasecmp(tmpstr,"DAHDI"))
 		myrpt->dahdirxchannel = myrpt->rxchannel;
@@ -10809,8 +10832,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			myrpt->rpt_thread = AST_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
-		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
-		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+		ast_set_read_format_by_id(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+		ast_set_write_format_by_id(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 		if (myrpt->rxchannel->cdr)
 			ast_set_flag(myrpt->rxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -10853,7 +10876,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
-		myrpt->txchannel = ast_request(tmpstr, AST_FORMAT_SLINEAR, NULL, tele, NULL);
+		myrpt->txchannel = ast_request(tmpstr, get_slin_cap(cap), NULL, tele, NULL);
+		cap = ast_format_cap_destroy(cap);
 		if (!strcasecmp(tmpstr,"DAHDI"))
 			myrpt->dahditxchannel = myrpt->txchannel;
 		if (myrpt->txchannel)
@@ -10867,8 +10891,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				myrpt->rpt_thread = AST_PTHREADT_STOP;
 				pthread_exit(NULL);
 			}			
-			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
-			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
+			ast_set_read_format_by_id(myrpt->txchannel,AST_FORMAT_SLINEAR);
+			ast_set_write_format_by_id(myrpt->txchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 			if (myrpt->txchannel->cdr)
 				ast_set_flag(myrpt->txchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -10909,7 +10933,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_KEY);
 	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->pchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	myrpt->pchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!myrpt->pchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -10928,7 +10953,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	if (!myrpt->dahditxchannel)
 	{
 		/* allocate a pseudo-channel thru asterisk */
-		myrpt->dahditxchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+		myrpt->dahditxchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+		cap = ast_format_cap_destroy(cap);
 		if (!myrpt->dahditxchannel)
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -10939,15 +10965,16 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			myrpt->rpt_thread = AST_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
-		ast_set_read_format(myrpt->dahditxchannel,AST_FORMAT_SLINEAR);
-		ast_set_write_format(myrpt->dahditxchannel,AST_FORMAT_SLINEAR);
+		ast_set_read_format_by_id(myrpt->dahditxchannel,AST_FORMAT_SLINEAR);
+		ast_set_write_format_by_id(myrpt->dahditxchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 		if (myrpt->dahditxchannel->cdr)
 			ast_set_flag(myrpt->dahditxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
 #endif
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->monchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	myrpt->monchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!myrpt->monchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -10958,8 +10985,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
-	ast_set_read_format(myrpt->monchannel,AST_FORMAT_SLINEAR);
-	ast_set_write_format(myrpt->monchannel,AST_FORMAT_SLINEAR);
+	ast_set_read_format_by_id(myrpt->monchannel,AST_FORMAT_SLINEAR);
+	ast_set_write_format_by_id(myrpt->monchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 	if (myrpt->monchannel->cdr)
 		ast_set_flag(myrpt->monchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -11042,7 +11069,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		pthread_exit(NULL);
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->parrotchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	myrpt->parrotchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!myrpt->parrotchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -11053,14 +11081,15 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
-	ast_set_read_format(myrpt->parrotchannel,AST_FORMAT_SLINEAR);
-	ast_set_write_format(myrpt->parrotchannel,AST_FORMAT_SLINEAR);
+	ast_set_read_format_by_id(myrpt->parrotchannel,AST_FORMAT_SLINEAR);
+	ast_set_write_format_by_id(myrpt->parrotchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 	if (myrpt->parrotchannel->cdr)
 		ast_set_flag(myrpt->parrotchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
 #endif
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->voxchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	myrpt->voxchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!myrpt->voxchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -11071,14 +11100,15 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
-	ast_set_read_format(myrpt->voxchannel,AST_FORMAT_SLINEAR);
-	ast_set_write_format(myrpt->voxchannel,AST_FORMAT_SLINEAR);
+	ast_set_read_format_by_id(myrpt->voxchannel,AST_FORMAT_SLINEAR);
+	ast_set_write_format_by_id(myrpt->voxchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 	if (myrpt->voxchannel->cdr)
 		ast_set_flag(myrpt->voxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
 #endif
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->txpchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	myrpt->txpchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!myrpt->txpchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -13146,6 +13176,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 	struct	dahdi_radio_param z;
 	struct rpt_tele *telem;
 	int	numlinks;
+	struct ast_format_cap *cap = NULL;
 
 	nullfd = open("/dev/null",O_RDWR);
 	if (ast_strlen_zero(data)) {
@@ -13631,17 +13662,18 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		l->lastf2 = NULL;
 		l->dtmfed = 0;
 		voxinit_link(l,1);
-		ast_set_read_format(l->chan,AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->chan,AST_FORMAT_SLINEAR);
+		ast_set_read_format_by_id(l->chan,AST_FORMAT_SLINEAR);
+		ast_set_write_format_by_id(l->chan,AST_FORMAT_SLINEAR);
 		/* allocate a pseudo-channel thru asterisk */
-		l->pchan = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+		l->pchan = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+		cap = ast_format_cap_destroy(cap);
 		if (!l->pchan)
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 			pthread_exit(NULL);
 		}
-		ast_set_read_format(l->pchan,AST_FORMAT_SLINEAR);
-		ast_set_write_format(l->pchan,AST_FORMAT_SLINEAR);
+		ast_set_read_format_by_id(l->pchan,AST_FORMAT_SLINEAR);
+		ast_set_write_format_by_id(l->pchan,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 		if (l->pchan->cdr)
 			ast_set_flag(l->pchan->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -13778,14 +13810,15 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
-	myrpt->rxchannel = ast_request(myrpt->rxchanname, AST_FORMAT_SLINEAR, NULL, tele, NULL);
+	myrpt->rxchannel = ast_request(myrpt->rxchanname, get_slin_cap(cap), NULL, tele, NULL);
+	cap = ast_format_cap_destroy(cap);
 	myrpt->dahdirxchannel = NULL;
 	if (!strcasecmp(myrpt->rxchanname,"DAHDI"))
 		myrpt->dahdirxchannel = myrpt->rxchannel;
 	if (myrpt->rxchannel)
 	{
-		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
-		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+		ast_set_read_format_by_id(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+		ast_set_write_format_by_id(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 		if (myrpt->rxchannel->cdr)
 			ast_set_flag(myrpt->rxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -13821,13 +13854,14 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
-		myrpt->txchannel = ast_request(myrpt->txchanname, AST_FORMAT_SLINEAR, NULL, tele, NULL);
+		myrpt->txchannel = ast_request(myrpt->txchanname, get_slin_cap(cap), NULL, tele, NULL);
+		cap = ast_format_cap_destroy(cap);
 		if (!strncasecmp(myrpt->txchanname,"DAHDI",3))
 			myrpt->dahditxchannel = myrpt->txchannel;
 		if (myrpt->txchannel)
 		{
-			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
-			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
+			ast_set_read_format_by_id(myrpt->txchannel,AST_FORMAT_SLINEAR);
+			ast_set_write_format_by_id(myrpt->txchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 			if (myrpt->txchannel->cdr)
 				ast_set_flag(myrpt->txchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -13860,7 +13894,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			myrpt->dahditxchannel = myrpt->rxchannel;
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->pchannel = ast_request("DAHDI", AST_FORMAT_SLINEAR, NULL, "pseudo", NULL);
+	myrpt->pchannel = ast_request("DAHDI", get_slin_cap(cap), NULL, "pseudo", NULL);
+	cap = ast_format_cap_destroy(cap);
 	if (!myrpt->pchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -13870,8 +13905,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		ast_hangup(myrpt->rxchannel);
 		pthread_exit(NULL);
 	}
-	ast_set_read_format(myrpt->pchannel,AST_FORMAT_SLINEAR);
-	ast_set_write_format(myrpt->pchannel,AST_FORMAT_SLINEAR);
+	ast_set_read_format_by_id(myrpt->pchannel,AST_FORMAT_SLINEAR);
+	ast_set_write_format_by_id(myrpt->pchannel,AST_FORMAT_SLINEAR);
 #ifdef	AST_CDR_FLAG_POST_DISABLED
 	if (myrpt->pchannel->cdr)
 		ast_set_flag(myrpt->pchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
@@ -13987,8 +14022,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 	myrpt->tele.prev = &myrpt->tele;
 	myrpt->newkey = 0;
 	rpt_mutex_unlock(&myrpt->lock);
-	ast_set_write_format(chan, AST_FORMAT_SLINEAR);
-	ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+	ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR);
+	ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 	rem_rx = 0;
 	remkeyed = 0;
 	/* if we are on 2w loop and are a remote, turn EC on */

@@ -170,8 +170,6 @@ static int slin8_to_slin16_framein(struct ast_trans_pvt *pvt, struct ast_frame *
 
 static struct ast_translator slin16_to_slin8 = {
 	.name = "slin16_to_slin8",
-	.srcfmt = AST_FORMAT_SLINEAR16,
-	.dstfmt = AST_FORMAT_SLINEAR,
 	.newpvt = slin16_to_slin8_new,
 	.destroy = slin16_to_slin8_destroy,
 	.framein = slin16_to_slin8_framein,
@@ -183,8 +181,6 @@ static struct ast_translator slin16_to_slin8 = {
 
 static struct ast_translator slin8_to_slin16 = {
 	.name = "slin8_to_slin16",
-	.srcfmt = AST_FORMAT_SLINEAR,
-	.dstfmt = AST_FORMAT_SLINEAR16,
 	.newpvt = slin8_to_slin16_new,
 	.destroy = slin8_to_slin16_destroy,
 	.framein = slin8_to_slin16_framein,
@@ -207,6 +203,12 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res = 0;
+
+	ast_format_set(&slin16_to_slin8.src_format, AST_FORMAT_SLINEAR16, 0);
+	ast_format_set(&slin16_to_slin8.dst_format, AST_FORMAT_SLINEAR, 0);
+
+	ast_format_set(&slin8_to_slin16.src_format, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&slin8_to_slin16.dst_format, AST_FORMAT_SLINEAR16, 0);
 
 	res |= ast_register_translator(&slin16_to_slin8);
 	res |= ast_register_translator(&slin8_to_slin16);

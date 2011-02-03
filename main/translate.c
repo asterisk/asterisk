@@ -40,31 +40,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
 
-#define MAX_RECALC 1000 /* max sample recalc */
+/*! \todo
+ * TODO: sample frames for each supported input format.
+ * We build this on the fly, by taking an SLIN frame and using
+ * the existing converter to play with it.
+ */
+
+/*! max sample recalc */
+#define MAX_RECALC 1000
 
 /*! \brief the list of translators */
 static AST_RWLIST_HEAD_STATIC(translators, ast_translator);
 
-
-/*! \brief these values indicate how a translation path will affect the sample rate
- *
- *  \note These must stay in this order.  They are ordered by most optimal selection first.
- */
-enum path_samp_change {
-	RATE_CHANGE_NONE = 0, /*!< path uses the same sample rate consistently */
-	RATE_CHANGE_UPSAMP = 1, /*!< path will up the sample rate during a translation */
-	RATE_CHANGE_DOWNSAMP = 2, /*!< path will have to down the sample rate during a translation. */
-	RATE_CHANGE_UPSAMP_DOWNSAMP = 3, /*!< path will both up and down the sample rate during translation */
-};
-
 struct translator_path {
-	struct ast_translator *step;	/*!< Next step translator */
-	unsigned int cost;		/*!< Complete cost to destination */
-	unsigned int multistep;		/*!< Multiple conversions required for this translation */
-	enum path_samp_change rate_change; /*!< does this path require a sample rate change, if so what kind. */
+	struct ast_translator *step;       /*!< Next step translator */
+	uint32_t table_cost;               /*!< Complete table cost to destination */
+	uint8_t multistep;                 /*!< Multiple conversions required for this translation */
 };
 
-/*! \brief a matrix that, for any pair of supported formats,
+/*!
+ * \brief a matrix that, for any pair of supported formats,
  * indicates the total cost of translation and the first step.
  * The full path can be reconstricted iterating on the matrix
  * until step->dstfmt == desired_format.
@@ -74,25 +69,200 @@ struct translator_path {
  * Note: the lock in the 'translators' list is also used to protect
  * this structure.
  */
-static struct translator_path tr_matrix[MAX_FORMAT][MAX_FORMAT];
+static struct translator_path **__matrix;
 
-/*! \todo
- * TODO: sample frames for each supported input format.
- * We build this on the fly, by taking an SLIN frame and using
- * the existing converter to play with it.
+/*!
+ * \brief table for converting index to format id values.
+ *
+ * \note this table is protected by the table_lock.
  */
+static int *__indextable;
 
-/*! \brief returns the index of the lowest bit set */
-static force_inline int powerof(format_t d)
+/*! protects the __indextable for resizing */
+static ast_rwlock_t tablelock;
+
+/* index size starts at this*/
+#define INIT_INDEX 32
+/* index size grows by this as necessary */
+#define GROW_INDEX 16
+
+/*! the current largest index used by the __matrix and __indextable arrays*/
+static int cur_max_index;
+/*! the largest index that can be used in either the __indextable or __matrix before resize must occur */
+static int index_size;
+
+static void matrix_rebuild(int samples);
+
+/*!
+ * \internal
+ * \brief converts format id to index value.
+ */
+static int format2index(enum ast_format_id id)
 {
-	int x = ffsll(d);
+	int x;
 
-	if (x)
-		return x - 1;
+	ast_rwlock_rdlock(&tablelock);
+	for (x = 0; x < cur_max_index; x++) {
+		if (__indextable[x] == id) {
+			/* format already exists in index2format table */
+			ast_rwlock_unlock(&tablelock);
+			return x;
+		}
+	}
+	ast_rwlock_unlock(&tablelock);
+	return -1; /* not found */
+}
 
-	ast_log(LOG_WARNING, "No bits set? %llu\n", (unsigned long long) d);
+/*!
+ * \internal
+ * \brief add a new format to the matrix and index table structures.
+ *
+ * \note it is perfectly safe to call this on formats already indexed.
+ *
+ * \retval 0, success
+ * \retval -1, matrix and index table need to be resized
+ */
+static int add_format2index(enum ast_format_id id)
+{
+	if (format2index(id) != -1) {
+		/* format is already already indexed */
+		return 0;
+	}
+
+	ast_rwlock_wrlock(&tablelock);
+	if (cur_max_index == (index_size)) {
+		ast_rwlock_unlock(&tablelock);
+		return -1; /* hit max length */
+	}
+	__indextable[cur_max_index] = id;
+	cur_max_index++;
+	ast_rwlock_unlock(&tablelock);
+
+	return 0;
+}
+
+/*! 
+ * \internal
+ * \brief converts index value back to format id
+ */
+static enum ast_format_id index2format(int index)
+{
+	enum ast_format_id format_id;
+
+	if (index >= cur_max_index) {
+		return 0;
+	}
+	ast_rwlock_rdlock(&tablelock);
+	format_id = __indextable[index];
+	ast_rwlock_unlock(&tablelock);
+
+	return format_id;
+}
+
+/*!
+ * \internal
+ * \brief resize both the matrix and index table so they can represent
+ * more translators
+ *
+ * \note _NO_ locks can be held prior to calling this function
+ *
+ * \retval 0, success
+ * \retval -1, failure.  Old matrix and index table can still be used though
+ */
+static int matrix_resize(int init)
+{
+	struct translator_path **tmp_matrix = NULL;
+	int *tmp_table = NULL;
+	int old_index;
+	int x;
+
+	AST_RWLIST_WRLOCK(&translators);
+	ast_rwlock_wrlock(&tablelock);
+
+	old_index = index_size;
+	if (init) {
+		index_size += INIT_INDEX;
+	} else {
+		index_size += GROW_INDEX;
+	}
+
+	/* make new 2d array of translator_path structures */
+	if (!(tmp_matrix = ast_calloc(1, sizeof(struct translator_path *) * (index_size)))) {
+		goto resize_cleanup;
+	}
+
+	for (x = 0; x < index_size; x++) {
+		if (!(tmp_matrix[x] = ast_calloc(1, sizeof(struct translator_path) * (index_size)))) {
+			goto resize_cleanup;
+		}
+	}
+
+	/* make new index table */
+	if (!(tmp_table = ast_calloc(1, sizeof(int) * index_size))) {
+		goto resize_cleanup;
+	}
+
+	/* if everything went well this far, free the old and use the new */
+	if (!init) {
+		for (x = 0; x < old_index; x++) {
+			ast_free(__matrix[x]);
+		}
+		ast_free(__matrix);
+
+		memcpy(tmp_table, __indextable, sizeof(int) * old_index);
+		ast_free(__indextable);
+	}
+
+	/* now copy them over */
+	__matrix = tmp_matrix;
+	__indextable = tmp_table;
+
+	matrix_rebuild(0);
+	ast_rwlock_unlock(&tablelock);
+	AST_RWLIST_UNLOCK(&translators);
+
+	return 0;
+
+resize_cleanup:
+	ast_rwlock_unlock(&tablelock);
+	AST_RWLIST_UNLOCK(&translators);
+	if (tmp_matrix) {
+		for (x = 0; x < index_size; x++) {
+			ast_free(tmp_matrix[x]);
+		}
+		ast_free(tmp_matrix);
+	}
+	ast_free(tmp_table);
 
 	return -1;
+}
+
+/*!
+ * \internal
+ * \brief reinitialize the __matrix during matrix rebuild
+ *
+ * \note must be protected by the translators list lock
+ */
+static void matrix_clear(void)
+{
+	int x;
+	for (x = 0; x < index_size; x++) {
+		memset(__matrix[x], '\0', sizeof(struct translator_path) * (index_size));
+	}
+}
+
+/*!
+ * \internal
+ * \brief get a matrix entry
+ *
+ * \note This function must be protected by the translators list lock
+ */
+static struct translator_path *matrix_get(unsigned int x, unsigned int y)
+{
+	if (!(x >= 0 && y >= 0)) {
+		return NULL;
+	}
+	return __matrix[x] + y;
 }
 
 /*
@@ -151,7 +321,7 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	int ret;
 	int samples = pvt->samples;	/* initial value */
-	
+
 	/* Copy the last in jb timing info to the pvt */
 	ast_copy_flags(&pvt->f, f, AST_FRFLAG_HAS_TIMING_INFO);
 	pvt->f.ts = f->ts;
@@ -193,23 +363,23 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 {
 	struct ast_frame *f = &pvt->f;
 
-	if (samples)
+	if (samples) {
 		f->samples = samples;
-	else {
+	} else {
 		if (pvt->samples == 0)
 			return NULL;
 		f->samples = pvt->samples;
 		pvt->samples = 0;
 	}
-	if (datalen)
+	if (datalen) {
 		f->datalen = datalen;
-	else {
+	} else {
 		f->datalen = pvt->datalen;
 		pvt->datalen = 0;
 	}
 
 	f->frametype = AST_FRAME_VOICE;
-	f->subclass.codec = 1LL << (pvt->t->dstfmt);
+	ast_format_copy(&f->subclass.format, &pvt->t->dst_format);
 	f->mallocd = 0;
 	f->offset = AST_FRIENDLY_OFFSET;
 	f->src = pvt->t->name;
@@ -235,45 +405,56 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 }
 
 /*! \brief Build a chain of translators based upon the given source and dest formats */
-struct ast_trans_pvt *ast_translator_build_path(format_t dest, format_t source)
+struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct ast_format *src)
 {
 	struct ast_trans_pvt *head = NULL, *tail = NULL;
-	
-	source = powerof(source);
-	dest = powerof(dest);
+	int src_index, dst_index;
+	struct ast_format tmp_fmt1;
+	struct ast_format tmp_fmt2;
 
-	if (source == -1 || dest == -1) {
-		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", source == -1 ? "starting" : "ending");
+	src_index = format2index(src->id);
+	dst_index = format2index(dst->id);
+
+	if (src_index == -1 || dst_index == -1) {
+		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", src_index == -1 ? "starting" : "ending");
 		return NULL;
 	}
 
 	AST_RWLIST_RDLOCK(&translators);
 
-	while (source != dest) {
+	while (src_index != dst_index) {
 		struct ast_trans_pvt *cur;
-		struct ast_translator *t = tr_matrix[source][dest].step;
+		struct ast_translator *t = matrix_get(src_index, dst_index)->step;
 		if (!t) {
-			ast_log(LOG_WARNING, "No translator path from %s to %s\n", 
-				ast_getformatname(source), ast_getformatname(dest));
+			int src_id = index2format(src_index);
+			int dst_id = index2format(dst_index);
+			ast_log(LOG_WARNING, "No translator path from %s to %s\n",
+				ast_getformatname(ast_format_set(&tmp_fmt1, src_id, 0)),
+				ast_getformatname(ast_format_set(&tmp_fmt2, dst_id, 0)));
 			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
 		if (!(cur = newpvt(t))) {
+			int src_id = index2format(src_index);
+			int dst_id = index2format(dst_index);
 			ast_log(LOG_WARNING, "Failed to build translator step from %s to %s\n",
-				ast_getformatname(source), ast_getformatname(dest));
-			if (head)
-				ast_translator_free_path(head);	
+				ast_getformatname(ast_format_set(&tmp_fmt1, src_id, 0)),
+				ast_getformatname(ast_format_set(&tmp_fmt2, dst_id, 0)));
+			if (head) {
+				ast_translator_free_path(head);
+			}
 			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
-		if (!head)
+		if (!head) {
 			head = cur;
-		else
+		} else {
 			tail->next = cur;
+		}
 		tail = cur;
 		cur->nextin = cur->nextout = ast_tv(0, 0);
 		/* Keep going if this isn't the final destination */
-		source = cur->t->dstfmt;
+		src_index = cur->t->dst_fmt_index;
 	}
 
 	AST_RWLIST_UNLOCK(&translators);
@@ -284,7 +465,7 @@ struct ast_trans_pvt *ast_translator_build_path(format_t dest, format_t source)
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
 	struct ast_trans_pvt *p = path;
-	struct ast_frame *out = f;
+	struct ast_frame *out;
 	struct timeval delivery;
 	int has_timing_info;
 	long ts;
@@ -296,7 +477,6 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	len = f->len;
 	seqno = f->seqno;
 
-	/* XXX hmmm... check this below */
 	if (!ast_tvzero(f->delivery)) {
 		if (!ast_tvzero(path->nextin)) {
 			/* Make sure this is in line with what we were expecting */
@@ -316,31 +496,35 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			path->nextout = f->delivery;
 		}
 		/* Predict next incoming sample */
-		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, ast_format_rate(f->subclass.codec)));
+		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, ast_format_rate(&f->subclass.format)));
 	}
 	delivery = f->delivery;
-	for ( ; out && p ; p = p->next) {
+	for (out = f; out && p ; p = p->next) {
 		framein(p, out);
-		if (out != f)
+		if (out != f) {
 			ast_frfree(out);
+		}
 		out = p->t->frameout(p);
 	}
-	if (consume)
+	if (consume) {
 		ast_frfree(f);
-	if (out == NULL)
+	}
+	if (out == NULL) {
 		return NULL;
+	}
 	/* we have a frame, play with times */
 	if (!ast_tvzero(delivery)) {
 		/* Regenerate prediction after a discontinuity */
-		if (ast_tvzero(path->nextout))
+		if (ast_tvzero(path->nextout)) {
 			path->nextout = ast_tvnow();
+		}
 
 		/* Use next predicted outgoing timestamp */
 		out->delivery = path->nextout;
-		
+
 		/* Predict next outgoing timestamp from samples in this
 		   frame. */
-		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(out->subclass.codec)));
+		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(&out->subclass.format)));
 	} else {
 		out->delivery = ast_tv(0, 0);
 		ast_set2_flag(out, has_timing_info, AST_FRFLAG_HAS_TIMING_INFO);
@@ -351,35 +535,45 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		}
 	}
 	/* Invalidate prediction if we're entering a silence period */
-	if (out->frametype == AST_FRAME_CNG)
+	if (out->frametype == AST_FRAME_CNG) {
 		path->nextout = ast_tv(0, 0);
+	}
 	return out;
 }
 
-/*! \brief compute the cost of a single translation step */
-static void calc_cost(struct ast_translator *t, int seconds)
+/*!
+ * \internal
+ * \brief Compute the computational cost of a single translation step.
+ *
+ * \note This function is only used to decide which translation path to
+ * use between two translators with identical src and dst formats.  Computational
+ * cost acts only as a tie breaker. This is done so hardware translators
+ * can naturally have precedence over software translators.
+ */
+static void generate_computational_cost(struct ast_translator *t, int seconds)
 {
 	int num_samples = 0;
 	struct ast_trans_pvt *pvt;
 	struct rusage start;
 	struct rusage end;
 	int cost;
-	int out_rate = ast_format_rate(t->dstfmt);
+	int out_rate = ast_format_rate(&t->dst_format);
 
-	if (!seconds)
+	if (!seconds) {
 		seconds = 1;
-	
+	}
+
 	/* If they don't make samples, give them a terrible score */
 	if (!t->sample) {
 		ast_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
-		t->cost = 999999;
+		t->comp_cost = 999999;
 		return;
 	}
 
 	pvt = newpvt(t);
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
-		t->cost = 999999;
+		t->comp_cost = 999999;
 		return;
 	}
 
@@ -391,7 +585,7 @@ static void calc_cost(struct ast_translator *t, int seconds)
 		if (!f) {
 			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
 			destroy(pvt);
-			t->cost = 999999;
+			t->comp_cost = 999999;
 			return;
 		}
 		framein(pvt, f);
@@ -409,72 +603,127 @@ static void calc_cost(struct ast_translator *t, int seconds)
 
 	destroy(pvt);
 
-	t->cost = cost / seconds;
+	t->comp_cost = cost / seconds;
 
-	if (!t->cost)
-		t->cost = 1;
+	if (!t->comp_cost) {
+		t->comp_cost = 1;
+	}
 }
 
-static enum path_samp_change get_rate_change_result(format_t src, format_t dst)
+/*!
+ * \internal
+ *
+ * \brief If no table cost value was pre set by the translator.  An attempt is made to
+ * automatically generate that cost value from the cost table based on our src and
+ * dst formats.
+ *
+ * \note This function allows older translators built before the translation cost
+ * changed away from using onely computational time to continue to be registered
+ * correctly.  It is expected that translators built after the introduction of this
+ * function will manually assign their own table cost value.
+ *
+ * \note This function is safe to use on any audio formats that used to be defined in the
+ * first 64 bits of the old bit field codec representation.
+ *
+ * \retval Table Cost value greater than 0.
+ * \retval 0 on error.
+ */
+static int generate_table_cost(struct ast_format *src, struct ast_format *dst)
 {
 	int src_rate = ast_format_rate(src);
+	int src_ll = 0;
 	int dst_rate = ast_format_rate(dst);
+	int dst_ll = 0;
 
-	/* if src rate is less than dst rate, a sample upgrade is required */
-	if (src_rate < dst_rate) {
-		return RATE_CHANGE_UPSAMP;
+	if ((AST_FORMAT_GET_TYPE(src->id) != AST_FORMAT_TYPE_AUDIO) || (AST_FORMAT_GET_TYPE(dst->id) != AST_FORMAT_TYPE_AUDIO)) {
+		/* This method of generating table cost is limited to audio.
+		 * Translators for media other than audio must manually set their
+		 * table cost. */
+		return 0;
+	}
+	if ((src->id == AST_FORMAT_SLINEAR) || (src->id == AST_FORMAT_SLINEAR16)) {
+		src_ll = 1;
+	}
+	if ((dst->id == AST_FORMAT_SLINEAR) || (dst->id == AST_FORMAT_SLINEAR16)) {
+		dst_ll = 1;
 	}
 
-	/* if src rate is larger than dst rate, a downgrade is required */
-	if (src_rate > dst_rate) {
-		return RATE_CHANGE_DOWNSAMP;
+	if (src_ll) {
+		if (dst_ll && (src_rate == dst_rate)) {
+			return AST_TRANS_COST_LL_LL_ORIGSAMP;
+		} else if (!dst_ll && (src_rate == dst_rate)) {
+			return AST_TRANS_COST_LL_LY_ORIGSAMP;
+		} else if (dst_ll && (src_rate < dst_rate)) {
+			return AST_TRANS_COST_LL_LL_UPSAMP;
+		} else if (!dst_ll && (src_rate < dst_rate)) {
+			return AST_TRANS_COST_LL_LY_UPSAMP;
+		} else if (dst_ll && (src_rate > dst_rate)) {
+			return AST_TRANS_COST_LL_LL_DOWNSAMP;
+		} else if (!dst_ll && (src_rate > dst_rate)) {
+			return AST_TRANS_COST_LL_LY_DOWNSAMP;
+		} else {
+			return AST_TRANS_COST_LL_UNKNOWN;
+		}
+	} else {
+		if (dst_ll && (src_rate == dst_rate)) {
+			return AST_TRANS_COST_LY_LL_ORIGSAMP;
+		} else if (!dst_ll && (src_rate == dst_rate)) {
+			return AST_TRANS_COST_LY_LY_ORIGSAMP;
+		} else if (dst_ll && (src_rate < dst_rate)) {
+			return AST_TRANS_COST_LY_LL_UPSAMP;
+		} else if (!dst_ll && (src_rate < dst_rate)) {
+			return AST_TRANS_COST_LY_LY_UPSAMP;
+		} else if (dst_ll && (src_rate > dst_rate)) {
+			return AST_TRANS_COST_LY_LL_DOWNSAMP;
+		} else if (!dst_ll && (src_rate > dst_rate)) {
+			return AST_TRANS_COST_LY_LY_DOWNSAMP;
+		} else {
+			return AST_TRANS_COST_LY_UNKNOWN;
+		}
 	}
-
-	return RATE_CHANGE_NONE;
 }
 
 /*!
  * \brief rebuild a translation matrix.
  * \note This function expects the list of translators to be locked
 */
-static void rebuild_matrix(int samples)
+static void matrix_rebuild(int samples)
 {
 	struct ast_translator *t;
-	int new_rate_change;
-	int newcost;
+	int newtablecost;
 	int x;      /* source format index */
 	int y;      /* intermediate format index */
 	int z;      /* destination format index */
 
 	ast_debug(1, "Resetting translation matrix\n");
 
-	memset(tr_matrix, '\0', sizeof(tr_matrix));
+	matrix_clear();
 
 	/* first, compute all direct costs */
 	AST_RWLIST_TRAVERSE(&translators, t, list) {
-		if (!t->active)
+		if (!t->active) {
 			continue;
+		}
 
-		x = t->srcfmt;
-		z = t->dstfmt;
+		x = t->src_fmt_index;
+		z = t->dst_fmt_index;
 
-		if (samples)
-			calc_cost(t, samples);
+		if (samples) {
+			generate_computational_cost(t, samples);
+		}
 
-		new_rate_change = get_rate_change_result(1LL << t->srcfmt, 1LL << t->dstfmt);
-
-		/* this translator is the best choice if any of the below are true.
+		/* This new translator is the best choice if any of the below are true.
 		 * 1. no translation path is set between x and z yet.
-		 * 2. the new translation costs less and sample rate is no worse than old one. 
-		 * 3. the new translation has a better sample rate conversion than the old one.
+		 * 2. the new table cost is less.
+		 * 3. the new computational cost is less.  Computational cost is only used
+		 *    to break a tie between two identical translation paths.
 		 */
-		if (!tr_matrix[x][z].step ||
-			((t->cost < tr_matrix[x][z].cost) && (new_rate_change <= tr_matrix[x][z].rate_change)) ||
-			(new_rate_change < tr_matrix[x][z].rate_change)) {
+		if (!matrix_get(x, z)->step ||
+			(t->table_cost < matrix_get(x, z)->step->table_cost) ||
+			(t->comp_cost < matrix_get(x, z)->step->comp_cost)) {
 
-			tr_matrix[x][z].step = t;
-			tr_matrix[x][z].cost = t->cost;
-			tr_matrix[x][z].rate_change = new_rate_change;
+			matrix_get(x, z)->step = t;
+			matrix_get(x, z)->table_cost = t->table_cost;
 		}
 	}
 
@@ -486,81 +735,43 @@ static void rebuild_matrix(int samples)
 	 */
 	for (;;) {
 		int changed = 0;
-		int better_choice = 0;
-		for (x = 0; x < MAX_FORMAT; x++) {      /* source format */
-			for (y = 0; y < MAX_FORMAT; y++) {    /* intermediate format */
-				if (x == y)                     /* skip ourselves */
+		for (x = 0; x < cur_max_index; x++) {      /* source format */
+			for (y = 0; y < cur_max_index; y++) {  /* intermediate format */
+				if (x == y) {                      /* skip ourselves */
 					continue;
-				for (z = 0; z < MAX_FORMAT; z++) {  /* dst format */
-					if (z == x || z == y)       /* skip null conversions */
-						continue;
-					if (!tr_matrix[x][y].step)  /* no path from x to y */
-						continue;
-					if (!tr_matrix[y][z].step)  /* no path from y to z */
-						continue;
-
-					/* Does x->y->z result in a less optimal sample rate change?
-					 * Never downgrade the sample rate conversion quality regardless
-					 * of any cost improvements */
-					if (tr_matrix[x][z].step &&
-						((tr_matrix[x][z].rate_change < tr_matrix[x][y].rate_change) ||
-						(tr_matrix[x][z].rate_change < tr_matrix[y][z].rate_change))) {
+				}
+				for (z = 0; z < cur_max_index; z++) {  /* dst format */
+					if ((z == x || z == y) ||        /* skip null conversions */
+						!matrix_get(x, y)->step ||   /* no path from x to y */
+						!matrix_get(y, z)->step) {   /* no path from y to z */
 						continue;
 					}
 
-					/* is x->y->z a better sample rate confersion that the current x->z? */
-					new_rate_change = tr_matrix[x][y].rate_change + tr_matrix[y][z].rate_change;
+					/* calculate table cost from x->y->z */
+					newtablecost = matrix_get(x, y)->table_cost + matrix_get(y, z)->table_cost;
 
-					/* calculate cost from x->y->z */
-					newcost = tr_matrix[x][y].cost + tr_matrix[y][z].cost;
-
-					/* Is x->y->z a better choice than x->z?
-					 * There are three conditions for x->y->z to be a better choice than x->z
-					 * 1. if there is no step directly between x->z then x->y->z is the best and only current option.
-					 * 2. if x->y->z costs less and the sample rate conversion is no less optimal.
-					 * 3. if x->y->z results in a more optimal sample rate conversion. */
-					if (!tr_matrix[x][z].step) {
-						better_choice = 1;
-					} else if ((newcost < tr_matrix[x][z].cost) && (new_rate_change <= tr_matrix[x][z].rate_change)) {
-						better_choice = 1;
-					} else if (new_rate_change < tr_matrix[x][z].rate_change) {
-						better_choice = 1;
-					} else {
-						better_choice = 0;
+					/* if no step already exists between x and z OR the new cost of using the intermediate
+					 * step is cheaper, use this step. */
+					if (!matrix_get(x, z)->step || (newtablecost < matrix_get(x, z)->table_cost)) {
+						struct ast_format tmpx;
+						struct ast_format tmpy;
+						struct ast_format tmpz;
+						matrix_get(x, z)->step = matrix_get(x, y)->step;
+						matrix_get(x, z)->table_cost = newtablecost;
+						matrix_get(x, z)->multistep = 1;
+						changed++;
+						ast_debug(3, "Discovered %d cost path from %s to %s, via %s\n",
+							matrix_get(x, z)->table_cost,
+							ast_getformatname(ast_format_set(&tmpx, index2format(x), 0)),
+							ast_getformatname(ast_format_set(&tmpy, index2format(z), 0)),
+							ast_getformatname(ast_format_set(&tmpz, index2format(y), 0)));
 					}
-
-					if (!better_choice) {
-						continue;
-					}
-					/* ok, we can get from x to z via y with a cost that
-					   is the sum of the transition from x to y and from y to z */
-					tr_matrix[x][z].step = tr_matrix[x][y].step;
-					tr_matrix[x][z].cost = newcost;
-					tr_matrix[x][z].multistep = 1;
-
-					/* now calculate what kind of sample rate change is required for this multi-step path
-					 * 
-					 * if both paths require a change in rate, and they are not in the same direction
-					 * then this is a up sample down sample conversion scenario. */
-					if ((tr_matrix[x][y].rate_change > RATE_CHANGE_NONE) &&
-						(tr_matrix[y][z].rate_change > RATE_CHANGE_NONE) &&
-						(tr_matrix[x][y].rate_change != tr_matrix[y][z].rate_change)) {
-
-						tr_matrix[x][z].rate_change = RATE_CHANGE_UPSAMP_DOWNSAMP;
-					} else {
-						/* else just set the rate change to whichever is worse */
-						tr_matrix[x][z].rate_change = tr_matrix[x][y].rate_change > tr_matrix[y][z].rate_change
-							? tr_matrix[x][y].rate_change : tr_matrix[y][z].rate_change;
-					}
-
-					ast_debug(3, "Discovered %d cost path from %s to %s, via %s\n", tr_matrix[x][z].cost,
-						  ast_getformatname(1LL << x), ast_getformatname(1LL << z), ast_getformatname(1LL << y));
-					changed++;
 				}
 			}
 		}
-		if (!changed)
+		if (!changed) {
 			break;
+		}
 	}
 }
 
@@ -572,11 +783,11 @@ const char *ast_translate_path_to_str(struct ast_trans_pvt *p, struct ast_str **
 		return "";
 	}
 
-	ast_str_set(str, 0, "%s", ast_getformatname(1LL << p->t->srcfmt));
+	ast_str_set(str, 0, "%s", ast_getformatname(&p->t->src_format));
 
 	while ( (p = pn) ) {
 		pn = p->next;
-		ast_str_append(str, 0, "->%s", ast_getformatname(1LL << p->t->dstfmt));
+		ast_str_append(str, 0, "->%s", ast_getformatname(&p->t->dst_format));
 	}
 
 	return ast_str_buffer(*str);
@@ -592,7 +803,7 @@ static char *complete_trans_path_choice(const char *line, const char *word, int 
 	const struct ast_format_list *format_list = ast_get_format_list(&len);
 
 	for (i = 0; i < len; i++) {
-		if (!(format_list[i].bits & AST_FORMAT_AUDIO_MASK)) {
+		if (AST_FORMAT_GET_TYPE(format_list[i].id) != AST_FORMAT_TYPE_AUDIO) {
 			continue;
 		}
 		if (!strncasecmp(word, format_list[i].name, wordlen) && ++which > state) {
@@ -603,12 +814,158 @@ static char *complete_trans_path_choice(const char *line, const char *word, int 
 	return ret;
 }
 
+static void handle_cli_recalc(struct ast_cli_args *a)
+{
+	int time = a->argv[4] ? atoi(a->argv[4]) : 1;
+
+	if (time <= 0) {
+		ast_cli(a->fd, "         Recalc must be greater than 0.  Defaulting to 1.\n");
+		time = 1;
+	}
+
+	if (time > MAX_RECALC) {
+		ast_cli(a->fd, "         Maximum limit of recalc exceeded by %d, truncating value to %d\n", time - MAX_RECALC, MAX_RECALC);
+		time = MAX_RECALC;
+	}
+	ast_cli(a->fd, "         Recalculating Codec Translation (number of sample seconds: %d)\n\n", time);
+	AST_RWLIST_WRLOCK(&translators);
+	matrix_rebuild(time);
+	AST_RWLIST_UNLOCK(&translators);
+}
+
+static char *handle_show_translation_table(struct ast_cli_args *a)
+{
+	int x, y;
+	int curlen = 0, longest = 0;
+	struct ast_format tmp_fmt;
+	AST_RWLIST_RDLOCK(&translators);
+	ast_cli(a->fd, "         Translation times between formats (in microseconds) for one second of data\n");
+	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
+
+	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
+	for (x = 0; x < cur_max_index; x++) {
+		/* translation only applies to audio right now. */
+		if (AST_FORMAT_GET_TYPE(index2format(x)) != AST_FORMAT_TYPE_AUDIO)
+			continue;
+		curlen = strlen(ast_getformatname(ast_format_set(&tmp_fmt, index2format(x), 0)));
+		if (curlen > longest) {
+			longest = curlen;
+		}
+	}
+
+	for (x = -1; x < cur_max_index; x++) {
+		struct ast_str *out = ast_str_alloca(256);
+		/* translation only applies to audio right now. */
+		if (x >= 0 && (AST_FORMAT_GET_TYPE(index2format(x)) != AST_FORMAT_TYPE_AUDIO)) {
+			continue;
+		}
+		/*Go ahead and move to next iteration if dealing with an unknown codec*/
+		if (x >= 0 && !strcmp(ast_getformatname(ast_format_set(&tmp_fmt, index2format(x), 0)), "unknown")) {
+			continue;
+		}
+		ast_str_set(&out, -1, " ");
+		for (y = -1; y < cur_max_index; y++) {
+			/* translation only applies to audio right now. */
+			if (y >= 0 && (AST_FORMAT_GET_TYPE(index2format(y)) != AST_FORMAT_TYPE_AUDIO)) {
+				continue;
+			}
+			/*Go ahead and move to next iteration if dealing with an unknown codec*/
+			if (y >= 0 && !strcmp(ast_getformatname(ast_format_set(&tmp_fmt, index2format(y), 0)), "unknown")) {
+				continue;
+			}
+			if (y >= 0) {
+				curlen = strlen(ast_getformatname(ast_format_set(&tmp_fmt, index2format(y), 0)));
+			}
+			if (curlen < 5) {
+				curlen = 5;
+			}
+
+			if (x >= 0 && y >= 0 && matrix_get(x, y)->step) {
+				/* Actual codec output */
+				ast_str_append(&out, -1, "%*d", curlen + 1, (matrix_get(x, y)->table_cost/100));
+			} else if (x == -1 && y >= 0) {
+				/* Top row - use a dynamic size */
+				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(ast_format_set(&tmp_fmt, index2format(y), 0)));
+			} else if (y == -1 && x >= 0) {
+				/* Left column - use a static size. */
+				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(ast_format_set(&tmp_fmt, index2format(x), 0)));
+			} else if (x >= 0 && y >= 0) {
+				/* Codec not supported */
+				ast_str_append(&out, -1, "%*s", curlen + 1, "-");
+			} else {
+				/* Upper left hand corner */
+				ast_str_append(&out, -1, "%*s", longest, "");
+			}
+		}
+		ast_str_append(&out, -1, "\n");
+		ast_cli(a->fd, "%s", ast_str_buffer(out));
+	}
+	AST_RWLIST_UNLOCK(&translators);
+	return CLI_SUCCESS;
+}
+
+static char *handle_show_translation_path(struct ast_cli_args *a)
+{
+	struct ast_format input_src_format;
+	size_t len = 0;
+	int i;
+	const struct ast_format_list *format_list = ast_get_format_list(&len);
+	struct ast_str *str = ast_str_alloca(256);
+	struct ast_translator *step;
+
+	ast_format_clear(&input_src_format);
+
+	for (i = 0; i < len; i++) {
+		if (AST_FORMAT_GET_TYPE(format_list[i].id) != AST_FORMAT_TYPE_AUDIO) {
+			continue;
+		}
+		if (!strncasecmp(format_list[i].name, a->argv[4], strlen(format_list[i].name))) {
+			ast_format_set(&input_src_format, format_list[i].id, 0);
+		}
+	}
+
+	if (!input_src_format.id) {
+		ast_cli(a->fd, "Source codec \"%s\" is not found.\n", a->argv[4]);
+		return CLI_FAILURE;
+	}
+
+	AST_RWLIST_RDLOCK(&translators);
+	ast_cli(a->fd, "--- Translation paths SRC Codec \"%s\" sample rate %d ---\n", a->argv[4], ast_format_rate(&input_src_format));
+	for (i = 0; i < len; i++) {
+		int src;
+		int dst;
+		if ((AST_FORMAT_GET_TYPE(format_list[i].id) != AST_FORMAT_TYPE_AUDIO) || (format_list[i].id == input_src_format.id)) {
+			continue;
+		}
+		dst = format2index(format_list[i].id);
+		src = format2index(input_src_format.id);
+		ast_str_reset(str);
+		if ((len >= cur_max_index) && (src != -1) && (dst != -1) && matrix_get(src, dst)->step) {
+			ast_str_append(&str, 0, "%s", ast_getformatname(&matrix_get(src, dst)->step->src_format));
+			while (src != dst) {
+				step = matrix_get(src, dst)->step;
+				if (!step) {
+					ast_str_reset(str);
+					break;
+				}
+				ast_str_append(&str, 0, "->%s", ast_getformatname(&step->dst_format));
+				src = step->dst_fmt_index;
+			}
+		}
+
+		if (ast_strlen_zero(ast_str_buffer(str))) {
+			ast_str_set(&str, 0, "No Translation Path");
+		}
+		ast_cli(a->fd, "\t%-10.10s To %-10.10s: %-60.60s\n", a->argv[4], format_list[i].name, ast_str_buffer(str));
+	}
+	AST_RWLIST_UNLOCK(&translators);
+
+	return CLI_SUCCESS;
+}
+
 static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define SHOW_TRANS 64
-	static const char * const option1[] = { "recalc", "paths", NULL };
-	int x, y, z;
-	int curlen = 0, longest = 0, magnitude[SHOW_TRANS] = { 0, };
+	static const char * const option[] = { "recalc", "paths", NULL };
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -625,9 +982,9 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3) {
-			return ast_cli_complete(a->word, option1, a->n);
+			return ast_cli_complete(a->word, option, a->n);
 		}
-		if (a->pos == 4 && !strcasecmp(a->argv[3], option1[1])) {
+		if (a->pos == 4 && !strcasecmp(a->argv[3], option[1])) {
 			return complete_trans_path_choice(a->line, a->word, a->pos, a->n);
 		}
 		return NULL;
@@ -636,145 +993,15 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 	if (a->argc > 5)
 		return CLI_SHOWUSAGE;
 
-	if (a->argv[3] && !strcasecmp(a->argv[3], option1[1]) && a->argc == 5) {
-		format_t input_src = 0;
-		format_t src = 0;
-		size_t len = 0;
-		int dst;
-		int i;
-		const struct ast_format_list *format_list = ast_get_format_list(&len);
-		struct ast_str *str = ast_str_alloca(256);
-		struct ast_translator *step;
-
-		for (i = 0; i < len; i++) {
-			if (!(format_list[i].bits & AST_FORMAT_AUDIO_MASK)) {
-				continue;
-			}
-			if (!strncasecmp(format_list[i].name, a->argv[4], strlen(format_list[i].name))) {
-				input_src = format_list[i].bits;
-			}
-		}
-
-		if (!input_src) {
-			ast_cli(a->fd, "Source codec \"%s\" is not found.\n", a->argv[4]);
-			return CLI_FAILURE;
-		}
-
-		AST_RWLIST_RDLOCK(&translators);
-		ast_cli(a->fd, "--- Translation paths SRC Codec \"%s\" sample rate %d ---\n", a->argv[4], ast_format_rate(input_src));
-		for (i = 0; i < len; i++) {
-			if (!(format_list[i].bits & AST_FORMAT_AUDIO_MASK) || (format_list[i].bits == input_src)) {
-				continue;
-			}
-			dst = powerof(format_list[i].bits);
-			src = powerof(input_src);
-			ast_str_reset(str);
-			if (tr_matrix[src][dst].step) {
-				ast_str_append(&str, 0, "%s", ast_getformatname(1LL << tr_matrix[src][dst].step->srcfmt));
-				while (src != dst) {
-					step = tr_matrix[src][dst].step;
-					if (!step) {
-						ast_str_reset(str);
-						break;
-					}
-					ast_str_append(&str, 0, "->%s", ast_getformatname(1LL << step->dstfmt));
-					src = step->dstfmt;
-				}
-			}
-
-			if (ast_strlen_zero(ast_str_buffer(str))) {
-				ast_str_set(&str, 0, "No Translation Path");
-			}
-
-			ast_cli(a->fd, "\t%-10.10s To %-10.10s: %-60.60s\n", a->argv[4], format_list[i].name, ast_str_buffer(str));
-		}
-		AST_RWLIST_UNLOCK(&translators);
-
-		return CLI_SUCCESS;
-	} else if (a->argv[3] && !strcasecmp(a->argv[3], "recalc")) {
-		z = a->argv[4] ? atoi(a->argv[4]) : 1;
-
-		if (z <= 0) {
-			ast_cli(a->fd, "         Recalc must be greater than 0.  Defaulting to 1.\n");
-			z = 1;
-		}
-
-		if (z > MAX_RECALC) {
-			ast_cli(a->fd, "         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC, MAX_RECALC);
-			z = MAX_RECALC;
-		}
-		ast_cli(a->fd, "         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
-		AST_RWLIST_WRLOCK(&translators);
-		rebuild_matrix(z);
-		AST_RWLIST_UNLOCK(&translators);
-	} else if (a->argc > 3)
+	if (a->argv[3] && !strcasecmp(a->argv[3], option[1]) && a->argc == 5) { /* show paths */
+		return handle_show_translation_path(a);
+	} else if (a->argv[3] && !strcasecmp(a->argv[3], option[0])) { /* recalc and then fall through to show table */
+		handle_cli_recalc(a);
+	} else if (a->argc > 3) { /* wrong input */
 		return CLI_SHOWUSAGE;
-
-	AST_RWLIST_RDLOCK(&translators);
-
-	ast_cli(a->fd, "         Translation times between formats (in microseconds) for one second of data\n");
-	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
-	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
-	for (x = 0; x < SHOW_TRANS; x++) {
-		/* translation only applies to audio right now. */
-		if (!(AST_FORMAT_AUDIO_MASK & (1LL << (x))))
-			continue;
-		curlen = strlen(ast_getformatname(1LL << (x)));
-		if (curlen > longest)
-			longest = curlen;
-		for (y = 0; y < SHOW_TRANS; y++) {
-			if (!(AST_FORMAT_AUDIO_MASK & (1LL << (y))))
-				continue;
-			if (tr_matrix[x][y].cost > pow(10, magnitude[x])) {
-				magnitude[y] = floor(log10(tr_matrix[x][y].cost));
-			}
-		}
 	}
-	for (x = -1; x < SHOW_TRANS; x++) {
-		struct ast_str *out = ast_str_alloca(256);
-		/* translation only applies to audio right now. */
-		if (x >= 0 && !(AST_FORMAT_AUDIO_MASK & (1LL << (x))))
-			continue;
-		/*Go ahead and move to next iteration if dealing with an unknown codec*/
-		if(x >= 0 && !strcmp(ast_getformatname(1LL << (x)), "unknown"))
-			continue;
-		ast_str_set(&out, -1, " ");
-		for (y = -1; y < SHOW_TRANS; y++) {
-			/* translation only applies to audio right now. */
-			if (y >= 0 && !(AST_FORMAT_AUDIO_MASK & (1LL << (y))))
-				continue;
-			/*Go ahead and move to next iteration if dealing with an unknown codec*/
-			if (y >= 0 && !strcmp(ast_getformatname(1LL << (y)), "unknown"))
-				continue;
-			if (y >= 0)
-				curlen = strlen(ast_getformatname(1LL << (y)));
-			if (y >= 0 && magnitude[y] + 1 > curlen) {
-				curlen = magnitude[y] + 1;
-			}
-			if (curlen < 5)
-				curlen = 5;
-			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
-				/* Actual codec output */
-				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost);
-			} else if (x == -1 && y >= 0) {
-				/* Top row - use a dynamic size */
-				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1LL << (y)) );
-			} else if (y == -1 && x >= 0) {
-				/* Left column - use a static size. */
-				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(1LL << (x)) );
-			} else if (x >= 0 && y >= 0) {
-				/* Codec not supported */
-				ast_str_append(&out, -1, "%*s", curlen + 1, "-");
-			} else {
-				/* Upper left hand corner */
-				ast_str_append(&out, -1, "%*s", longest, "");
-			}
-		}
-		ast_str_append(&out, -1, "\n");
-		ast_cli(a->fd, "%s", ast_str_buffer(out));
-	}
-	AST_RWLIST_UNLOCK(&translators);
-	return CLI_SUCCESS;
+
+	return handle_show_translation_table(a);
 }
 
 static struct ast_cli_entry cli_translate[] = {
@@ -784,9 +1011,17 @@ static struct ast_cli_entry cli_translate[] = {
 /*! \brief register codec translator */
 int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
-	static int added_cli = 0;
 	struct ast_translator *u;
 	char tmp[80];
+
+	if (add_format2index(t->src_format.id) || add_format2index(t->dst_format.id)) {
+		if (matrix_resize(0)) {
+			ast_log(LOG_WARNING, "Translator matrix can not represent any more translators.  Out of resources.\n");
+			return -1;
+		}
+		add_format2index(t->src_format.id);
+		add_format2index(t->dst_format.id);
+	}
 
 	if (!mod) {
 		ast_log(LOG_WARNING, "Missing module pointer, you need to supply one\n");
@@ -797,24 +1032,28 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		ast_log(LOG_WARNING, "empty buf size, you need to supply one\n");
 		return -1;
 	}
+	if (!t->table_cost && !(t->table_cost = generate_table_cost(&t->src_format, &t->dst_format))) {
+		ast_log(LOG_WARNING, "Table cost could not be generated for %s, "
+			"Please set table_cost variable on translator.\n", t->name);
+		return -1;
+	}
 
 	t->module = mod;
-
-	t->srcfmt = powerof(t->srcfmt);
-	t->dstfmt = powerof(t->dstfmt);
+	t->src_fmt_index = format2index(t->src_format.id);
+	t->dst_fmt_index = format2index(t->dst_format.id);
 	t->active = 1;
 
-	if (t->srcfmt == -1 || t->dstfmt == -1) {
-		ast_log(LOG_WARNING, "Invalid translator path: (%s codec is not valid)\n", t->srcfmt == -1 ? "starting" : "ending");
+	if (t->src_fmt_index == -1 || t->dst_fmt_index == -1) {
+		ast_log(LOG_WARNING, "Invalid translator path: (%s codec is not valid)\n", t->src_fmt_index == -1 ? "starting" : "ending");
 		return -1;
 	}
-	if (t->srcfmt >= MAX_FORMAT) {
-		ast_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
+	if (t->src_fmt_index >= cur_max_index) {
+		ast_log(LOG_WARNING, "Source format %s is larger than cur_max_index\n", ast_getformatname(&t->src_format));
 		return -1;
 	}
 
-	if (t->dstfmt >= MAX_FORMAT) {
-		ast_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", ast_getformatname(t->dstfmt));
+	if (t->dst_fmt_index >= cur_max_index) {
+		ast_log(LOG_WARNING, "Destination format %s is larger than cur_max_index\n", ast_getformatname(&t->dst_format));
 		return -1;
 	}
 
@@ -829,28 +1068,24 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		t->buf_size = ((t->buf_size + align - 1) / align) * align;
 	}
 
-	if (t->frameout == NULL)
+	if (t->frameout == NULL) {
 		t->frameout = default_frameout;
-  
-	calc_cost(t, 1);
-
-	ast_verb(2, "Registered translator '%s' from format %s to %s, cost %d\n",
-			    term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
-			    ast_getformatname(1LL << t->srcfmt), ast_getformatname(1LL << t->dstfmt), t->cost);
-
-	if (!added_cli) {
-		ast_cli_register_multiple(cli_translate, ARRAY_LEN(cli_translate));
-		added_cli++;
 	}
+
+	generate_computational_cost(t, 1);
+
+	ast_verb(2, "Registered translator '%s' from format %s to %s, table cost, %d, computational cost %d\n",
+			    term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
+			    ast_getformatname(&t->src_format), ast_getformatname(&t->dst_format), t->table_cost, t->comp_cost);
 
 	AST_RWLIST_WRLOCK(&translators);
 
 	/* find any existing translators that provide this same srcfmt/dstfmt,
-	   and put this one in order based on cost */
+	   and put this one in order based on computational cost */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
-		if ((u->srcfmt == t->srcfmt) &&
-		    (u->dstfmt == t->dstfmt) &&
-		    (u->cost > t->cost)) {
+		if ((u->src_fmt_index == t->src_fmt_index) &&
+		    (u->dst_fmt_index == t->dst_fmt_index) &&
+		    (u->comp_cost > t->comp_cost)) {
 			AST_RWLIST_INSERT_BEFORE_CURRENT(t, list);
 			t = NULL;
 			break;
@@ -860,10 +1095,11 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 
 	/* if no existing translator was found for this format combination,
 	   add it to the beginning of the list */
-	if (t)
+	if (t) {
 		AST_RWLIST_INSERT_HEAD(&translators, t, list);
+	}
 
-	rebuild_matrix(0);
+	matrix_rebuild(0);
 
 	AST_RWLIST_UNLOCK(&translators);
 
@@ -881,15 +1117,19 @@ int ast_unregister_translator(struct ast_translator *t)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1LL << t->srcfmt), ast_getformatname(1LL << t->dstfmt));
+			ast_verb(2, "Unregistered translator '%s' from format %s to %s\n",
+				term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
+				ast_getformatname(&t->src_format),
+				ast_getformatname(&t->dst_format));
 			found = 1;
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
-	if (found)
-		rebuild_matrix(0);
+	if (found) {
+		matrix_rebuild(0);
+	}
 
 	AST_RWLIST_UNLOCK(&translators);
 
@@ -900,7 +1140,7 @@ void ast_translator_activate(struct ast_translator *t)
 {
 	AST_RWLIST_WRLOCK(&translators);
 	t->active = 1;
-	rebuild_matrix(0);
+	matrix_rebuild(0);
 	AST_RWLIST_UNLOCK(&translators);
 }
 
@@ -908,93 +1148,93 @@ void ast_translator_deactivate(struct ast_translator *t)
 {
 	AST_RWLIST_WRLOCK(&translators);
 	t->active = 0;
-	rebuild_matrix(0);
+	matrix_rebuild(0);
 	AST_RWLIST_UNLOCK(&translators);
 }
 
 /*! \brief Calculate our best translator source format, given costs, and a desired destination */
-format_t ast_translator_best_choice(format_t *dst, format_t *srcs)
+int ast_translator_best_choice(struct ast_format_cap *dst_cap,
+	struct ast_format_cap *src_cap,
+	struct ast_format *dst_fmt_out,
+	struct ast_format *src_fmt_out)
 {
-	int x,y;
-	int better = 0;
-	int besttime = INT_MAX;
-	int beststeps = INT_MAX;
-	unsigned int best_rate_change = INT_MAX;
-	format_t best = -1;
-	format_t bestdst = 0;
-	format_t cur, cursrc;
-	format_t common = ((*dst) & (*srcs)) & AST_FORMAT_AUDIO_MASK;	/* are there common formats ? */
+	unsigned int besttablecost = INT_MAX;
+	unsigned int beststeps = INT_MAX;
+	struct ast_format best;
+	struct ast_format bestdst;
+	struct ast_format_cap *joint_cap = ast_format_cap_joint(dst_cap, src_cap);
+	ast_format_clear(&best);
+	ast_format_clear(&bestdst);
 
-	if (common) { /* yes, pick one and return */
-		for (cur = 1, y = 0; y <= MAX_AUDIO_FORMAT; cur <<= 1, y++) {
-			if (!(cur & common)) {
-				continue;
-			}
-
+	if (joint_cap) { /* yes, pick one and return */
+		struct ast_format tmp_fmt;
+		ast_format_cap_iter_start(joint_cap);
+		while (!ast_format_cap_iter_next(joint_cap, &tmp_fmt)) {
 			/* We are guaranteed to find one common format. */
-			if (best == -1) {
-				best = cur;
+			if (!best.id) {
+				ast_format_copy(&best, &tmp_fmt);
 				continue;
 			}
 			/* If there are multiple common formats, pick the one with the highest sample rate */
-			if (ast_format_rate(best) < ast_format_rate(cur)) {
-				best = cur;
+			if (ast_format_rate(&best) < ast_format_rate(&tmp_fmt)) {
+				ast_format_copy(&best, &tmp_fmt);
 				continue;
 			}
+
 		}
+		ast_format_cap_iter_end(joint_cap);
+
 		/* We are done, this is a common format to both. */
-		*srcs = *dst = best;
+		ast_format_copy(dst_fmt_out, &best);
+		ast_format_copy(src_fmt_out, &best);
+		ast_format_cap_destroy(joint_cap);
 		return 0;
 	} else {      /* No, we will need to translate */
+		struct ast_format cur_dst;
+		struct ast_format cur_src;
 		AST_RWLIST_RDLOCK(&translators);
-		for (cur = 1, y = 0; y <= MAX_AUDIO_FORMAT; cur <<= 1, y++) {
-			if (! (cur & *dst)) {
-				continue;
-			}
-			for (cursrc = 1, x = 0; x <= MAX_AUDIO_FORMAT; cursrc <<= 1, x++) {
-				if (!(*srcs & cursrc) || !tr_matrix[x][y].step) {
+
+		ast_format_cap_iter_start(dst_cap);
+		while (!ast_format_cap_iter_next(dst_cap, &cur_dst)) {
+			ast_format_cap_iter_start(src_cap);
+			while (!ast_format_cap_iter_next(src_cap, &cur_src)) {
+				int x = format2index(cur_src.id);
+				int y = format2index(cur_dst.id);
+				if (x < 0 || y < 0) {
 					continue;
 				}
-
-				/* This is a better choice if any of the following are true.
-				 * 1. The sample rate conversion is better than the current pick.
-				 * 2. the sample rate conversion is no worse than the current pick and the cost or multistep is better
-				 */
-				better = 0;
-				if (tr_matrix[x][y].rate_change < best_rate_change) {
-					better = 1; /* this match has a better rate conversion */
+				if (!matrix_get(x, y) || !(matrix_get(x, y)->step)) {
+					continue;
 				}
-				if ((tr_matrix[x][y].rate_change <= best_rate_change) &&
-					(tr_matrix[x][y].cost < besttime || tr_matrix[x][y].multistep < beststeps)) {
-					better = 1; /* this match has no worse rate conversion and the conversion cost is less */
-				}
-				if (better) {
+				if (((matrix_get(x, y)->table_cost < besttablecost) || (matrix_get(x, y)->multistep < beststeps))) {
 					/* better than what we have so far */
-					best = cursrc;
-					bestdst = cur;
-					besttime = tr_matrix[x][y].cost;
-					beststeps = tr_matrix[x][y].multistep;
-					best_rate_change = tr_matrix[x][y].rate_change;
+					ast_format_copy(&best, &cur_src);
+					ast_format_copy(&bestdst, &cur_dst);
+					besttablecost = matrix_get(x, y)->table_cost;
+					beststeps = matrix_get(x, y)->multistep;
 				}
 			}
+			ast_format_cap_iter_end(src_cap);
 		}
+
+		ast_format_cap_iter_end(dst_cap);
 		AST_RWLIST_UNLOCK(&translators);
-		if (best > -1) {
-			*srcs = best;
-			*dst = bestdst;
-			best = 0;
+		if (best.id) {
+			ast_format_copy(dst_fmt_out, &bestdst);
+			ast_format_copy(src_fmt_out, &best);
+			return 0;
 		}
-		return best;
+		return -1;
 	}
 }
 
-unsigned int ast_translate_path_steps(format_t dest, format_t src)
+unsigned int ast_translate_path_steps(struct ast_format *dst_format, struct ast_format *src_format)
 {
 	unsigned int res = -1;
-
+	int src, dest;
 	/* convert bitwise format numbers into array indices */
-	src = powerof(src);
-	dest = powerof(dest);
+	src = format2index(src_format->id);
+	dest = format2index(dst_format->id);
 
 	if (src == -1 || dest == -1) {
 		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", src == -1 ? "starting" : "ending");
@@ -1002,97 +1242,123 @@ unsigned int ast_translate_path_steps(format_t dest, format_t src)
 	}
 	AST_RWLIST_RDLOCK(&translators);
 
-	if (tr_matrix[src][dest].step)
-		res = tr_matrix[src][dest].multistep + 1;
+	if (matrix_get(src, dest)->step) {
+		res = matrix_get(src, dest)->multistep + 1;
+	}
 
 	AST_RWLIST_UNLOCK(&translators);
 
 	return res;
 }
 
-format_t ast_translate_available_formats(format_t dest, format_t src)
+void ast_translate_available_formats(struct ast_format_cap *dest, struct ast_format_cap *src, struct ast_format_cap *result)
 {
-	format_t res = dest;
-	format_t x;
-	format_t src_audio = src & AST_FORMAT_AUDIO_MASK;
-	format_t src_video = src & AST_FORMAT_VIDEO_MASK;
+	struct ast_format tmp_fmt;
+	struct ast_format cur_src;
+	int src_audio = 0;
+	int src_video = 0;
+	int index;
+
+	ast_format_cap_copy(result, dest);
 
 	/* if we don't have a source format, we just have to try all
 	   possible destination formats */
-	if (!src)
-		return dest;
-
-	/* If we have a source audio format, get its format index */
-	if (src_audio)
-		src_audio = powerof(src_audio);
-
-	/* If we have a source video format, get its format index */
-	if (src_video)
-		src_video = powerof(src_video);
-
-	AST_RWLIST_RDLOCK(&translators);
-
-	/* For a given source audio format, traverse the list of
-	   known audio formats to determine whether there exists
-	   a translation path from the source format to the
-	   destination format. */
-	for (x = 1LL; src_audio && x > 0; x <<= 1) {
-		if (!(x & AST_FORMAT_AUDIO_MASK)) {
-			continue;
-		}
-
-		/* if this is not a desired format, nothing to do */
-		if (!(dest & x))
-			continue;
-
-		/* if the source is supplying this format, then
-		   we can leave it in the result */
-		if (src & x)
-			continue;
-
-		/* if we don't have a translation path from the src
-		   to this format, remove it from the result */
-		if (!tr_matrix[src_audio][powerof(x)].step) {
-			res &= ~x;
-			continue;
-		}
-
-		/* now check the opposite direction */
-		if (!tr_matrix[powerof(x)][src_audio].step)
-			res &= ~x;
+	if (!src) {
+		return;
 	}
 
-	/* For a given source video format, traverse the list of
-	   known video formats to determine whether there exists
-	   a translation path from the source format to the
-	   destination format. */
-	for (x = 1LL; src_video && x > 0; x <<= 1) {
-		if (!(x & AST_FORMAT_VIDEO_MASK)) {
-			continue;
+	ast_format_cap_iter_start(src);
+	while (!ast_format_cap_iter_next(src, &cur_src)) {
+		/* If we have a source audio format, get its format index */
+		if (AST_FORMAT_GET_TYPE(cur_src.id) == AST_FORMAT_TYPE_AUDIO) {
+			src_audio = format2index(cur_src.id);
 		}
 
-		/* if this is not a desired format, nothing to do */
-		if (!(dest & x))
-			continue;
-
-		/* if the source is supplying this format, then
-		   we can leave it in the result */
-		if (src & x)
-			continue;
-
-		/* if we don't have a translation path from the src
-		   to this format, remove it from the result */
-		if (!tr_matrix[src_video][powerof(x)].step) {
-			res &= ~x;
-			continue;
+		/* If we have a source video format, get its format index */
+		if (AST_FORMAT_GET_TYPE(cur_src.id) == AST_FORMAT_TYPE_VIDEO) {
+			src_video = format2index(cur_src.id);
 		}
 
-		/* now check the opposite direction */
-		if (!tr_matrix[powerof(x)][src_video].step)
-			res &= ~x;
+		AST_RWLIST_RDLOCK(&translators);
+
+		/* For a given source audio format, traverse the list of
+		   known audio formats to determine whether there exists
+		   a translation path from the source format to the
+		   destination format. */
+		for (index = 0; (src_audio >= 0) && index < cur_max_index; index++) {
+			ast_format_set(&tmp_fmt, index2format(index), 0);
+
+			if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_AUDIO) {
+				continue;
+			}
+
+			/* if this is not a desired format, nothing to do */
+			if (!ast_format_cap_iscompatible(dest, &tmp_fmt)) {
+				continue;
+			}
+
+			/* if the source is supplying this format, then
+			   we can leave it in the result */
+			if (ast_format_cap_iscompatible(src, &tmp_fmt)) {
+				continue;
+			}
+
+			/* if we don't have a translation path from the src
+			   to this format, remove it from the result */
+			if (!matrix_get(src_audio, index)->step) {
+				ast_format_cap_remove_byid(result, tmp_fmt.id);
+				continue;
+			}
+
+			/* now check the opposite direction */
+			if (!matrix_get(index, src_audio)->step) {
+				ast_format_cap_remove_byid(result, tmp_fmt.id);
+			}
+		}
+
+		/* For a given source video format, traverse the list of
+		   known video formats to determine whether there exists
+		   a translation path from the source format to the
+		   destination format. */
+		for (index = 0; (src_video >= 0) && index < cur_max_index; index++) {
+			ast_format_set(&tmp_fmt, index2format(index), 0);
+			if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_VIDEO) {
+				continue;
+			}
+
+			/* if this is not a desired format, nothing to do */
+			if (!ast_format_cap_iscompatible(dest, &tmp_fmt)) {
+				continue;
+			}
+
+			/* if the source is supplying this format, then
+			   we can leave it in the result */
+			if (ast_format_cap_iscompatible(src, &tmp_fmt)) {
+				continue;
+			}
+
+			/* if we don't have a translation path from the src
+			   to this format, remove it from the result */
+			if (!matrix_get(src_video, index)->step) {
+				ast_format_cap_remove_byid(result, tmp_fmt.id);
+				continue;
+			}
+
+			/* now check the opposite direction */
+			if (!matrix_get(index, src_video)->step) {
+				ast_format_cap_remove_byid(result, tmp_fmt.id);
+			}
+		}
+		AST_RWLIST_UNLOCK(&translators);
 	}
+	ast_format_cap_iter_end(src);
+}
 
-	AST_RWLIST_UNLOCK(&translators);
-
+int ast_translate_init(void)
+{
+	int res = 0;
+	ast_rwlock_init(&tablelock);
+	res = matrix_resize(1);
+	res |= ast_cli_register_multiple(cli_translate, ARRAY_LEN(cli_translate));
 	return res;
 }

@@ -24,6 +24,8 @@
 #ifndef _ASTERISK_SLINFACTORY_H
 #define _ASTERISK_SLINFACTORY_H
 
+#include "asterisk/format.h"
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -37,8 +39,8 @@ struct ast_slinfactory {
 	short *offset;                           /*!< Offset into the hold where audio begins */
 	size_t holdlen;                          /*!< Number of samples currently in the hold */
 	unsigned int size;                       /*!< Number of samples currently in the factory */
-	format_t format;                         /*!< Current format the translation path is converting from */
-	format_t output_format;                  /*!< The output format desired */
+	struct ast_format format;                /*!< Current format the translation path is converting from */
+	struct ast_format output_format;         /*!< The output format desired */
 };
 
 /*!

@@ -90,6 +90,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/causes.h"
+#include "asterisk/format.h"
+#include "asterisk/format_cap.h"
 
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
@@ -645,7 +647,7 @@ static int *misdn_ports;
 static void chan_misdn_log(int level, int port, char *tmpl, ...)
 	__attribute__((format(printf, 3, 4)));
 
-static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, const char *linkedid, int port, int c);
+static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, struct ast_format_cap *cap, const char *linkedid, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit);
 
 static int pbx_start_chan(struct chan_list *ch);
@@ -661,7 +663,7 @@ static const char misdn_type[] = "mISDN";
 static int tracing = 0;
 
 /*! \brief Only alaw and mulaw is allowed for now */
-static int prefformat =  AST_FORMAT_ALAW ; /*  AST_FORMAT_SLINEAR ;  AST_FORMAT_ULAW | */
+static struct ast_format prefformat; /*  AST_FORMAT_SLINEAR ;  AST_FORMAT_ULAW | */
 
 static int *misdn_debug;
 static int *misdn_debug_only;
@@ -7346,7 +7348,7 @@ static struct ast_frame *misdn_read(struct ast_channel *ast)
 	}
 
 	tmp->frame.frametype = AST_FRAME_VOICE;
-	tmp->frame.subclass.codec = AST_FORMAT_ALAW;
+	ast_format_set(&tmp->frame.subclass.format, AST_FORMAT_ALAW, 0);
 	tmp->frame.datalen = len;
 	tmp->frame.samples = len;
 	tmp->frame.mallocd = 0;
@@ -7412,13 +7414,13 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 
-	if (!frame->subclass.codec) {
+	if (!frame->subclass.format.id) {
 		chan_misdn_log(4, ch->bc->port, "misdn_write: * prods us\n");
 		return 0;
 	}
 
-	if (!(frame->subclass.codec & prefformat)) {
-		chan_misdn_log(-1, ch->bc->port, "Got Unsupported Frame with Format:%s\n", ast_getformatname(frame->subclass.codec));
+	if (ast_format_cmp(&frame->subclass.format, &prefformat) == AST_FORMAT_CMP_NOT_EQUAL) {
+		chan_misdn_log(-1, ch->bc->port, "Got Unsupported Frame with Format:%s\n", ast_getformatname(&frame->subclass.format));
 		return 0;
 	}
 
@@ -7756,7 +7758,7 @@ static struct chan_list *chan_list_init(int orig)
 	return cl;
 }
 
-static struct ast_channel *misdn_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *misdn_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct ast_channel *ast;
 	char group[BUFFERSIZE + 1] = "";
@@ -7982,7 +7984,7 @@ static struct ast_channel *misdn_request(const char *type, format_t format, cons
 	}
 	cl->bc = newbc;
 
-	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, format, requestor ? requestor->linkedid : NULL, port, channel);
+	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, cap, requestor ? requestor->linkedid : NULL, port, channel);
 	if (!ast) {
 		chan_list_unref(cl, "Failed to create a new channel");
 		ast_log(LOG_ERROR, "Could not create Asterisk channel for Dial(%s)\n", dial_str);
@@ -8025,7 +8027,6 @@ static int misdn_send_text(struct ast_channel *chan, const char *text)
 static struct ast_channel_tech misdn_tech = {
 	.type = misdn_type,
 	.description = "Channel driver for mISDN Support (Bri/Pri)",
-	.capabilities = AST_FORMAT_ALAW ,
 	.requester = misdn_request,
 	.send_digit_begin = misdn_digit_begin,
 	.send_digit_end = misdn_digit_end,
@@ -8044,7 +8045,6 @@ static struct ast_channel_tech misdn_tech = {
 static struct ast_channel_tech misdn_tech_wo_bridge = {
 	.type = misdn_type,
 	.description = "Channel driver for mISDN Support (Bri/Pri)",
-	.capabilities = AST_FORMAT_ALAW ,
 	.requester = misdn_request,
 	.send_digit_begin = misdn_digit_begin,
 	.send_digit_end = misdn_digit_end,
@@ -8086,7 +8086,7 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 	}
 }
 
-static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, const char *linkedid, int port, int c)
+static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, struct ast_format_cap *cap, const char *linkedid, int port, int c)
 {
 	struct ast_channel *tmp;
 	char *cid_name = NULL;
@@ -8094,6 +8094,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	int chan_offset = 0;
 	int tmp_port = misdn_cfg_get_next_port(0);
 	int bridging;
+	struct ast_format tmpfmt;
 
 	for (; tmp_port > 0; tmp_port = misdn_cfg_get_next_port(tmp_port)) {
 		if (tmp_port == port) {
@@ -8113,12 +8114,12 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dialed:%s caller:%s\n", exten, callerid);
 
-		tmp->nativeformats = prefformat;
-
-		tmp->readformat = format;
-		tmp->rawreadformat = format;
-		tmp->writeformat = format;
-		tmp->rawwriteformat = format;
+		ast_best_codec(cap, &tmpfmt);
+		ast_format_cap_add(tmp->nativeformats, &prefformat);
+		ast_format_copy(&tmp->writeformat, &tmpfmt);
+		ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
+		ast_format_copy(&tmp->readformat, &tmpfmt);
+		ast_format_copy(&tmp->rawreadformat, &tmpfmt);
 
 		/* Link the channel and private together */
 		chan_list_ref(chlist, "Give a reference to ast_channel");
@@ -8128,8 +8129,6 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
 		tmp->tech = bridging ? &misdn_tech : &misdn_tech_wo_bridge;
 
-		tmp->writeformat = format;
-		tmp->readformat = format;
 		tmp->priority = 1;
 
 		if (exten) {
@@ -10116,7 +10115,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->l3id = bc->l3_id;
 		ch->addr = bc->addr;
 
-		chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, AST_FORMAT_ALAW, NULL, bc->port, bc->channel);
+		{
+			struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+			struct ast_format tmpfmt;
+			if (!(cap)) {
+				return RESPONSE_ERR; 
+			}
+			ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
+			chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, cap, NULL, bc->port, bc->channel);
+			cap = ast_format_cap_destroy(cap);
+		}
 		if (!chan) {
 			chan_list_unref(ch, "Failed to create a new channel");
 			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
@@ -10723,7 +10731,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			/* In Data Modes we queue frames */
 			memset(&frame, 0, sizeof(frame));
 			frame.frametype = AST_FRAME_VOICE; /* we have no data frames yet */
-			frame.subclass.codec = AST_FORMAT_ALAW;
+			ast_format_set(&frame.subclass.format, AST_FORMAT_ALAW, 0);
 			frame.datalen = bc->bframe_len;
 			frame.samples = bc->bframe_len;
 			frame.mallocd = 0;
@@ -11145,6 +11153,8 @@ static int unload_module(void)
 #if defined(AST_MISDN_ENHANCEMENTS)
 	misdn_cc_destroy();
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
+	misdn_tech.capabilities = ast_format_cap_destroy(misdn_tech.capabilities);
+	misdn_tech_wo_bridge.capabilities = ast_format_cap_destroy(misdn_tech_wo_bridge.capabilities);
 
 	return 0;
 }
@@ -11161,6 +11171,17 @@ static int load_module(void)
 		.cb_log = chan_misdn_log,
 		.cb_jb_empty = chan_misdn_jb_empty,
 	};
+
+
+	if (!(misdn_tech.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (!(misdn_tech_wo_bridge.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	ast_format_set(&prefformat, AST_FORMAT_ALAW, 0);
+	ast_format_cap_add(misdn_tech.capabilities, &prefformat);
+	ast_format_cap_add(misdn_tech_wo_bridge.capabilities, &prefformat);
 
 	max_ports = misdn_lib_maxports_get();
 

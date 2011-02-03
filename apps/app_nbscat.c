@@ -111,7 +111,7 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
-	int owriteformat;
+	struct ast_format owriteformat;
 	struct timeval next;
 	struct ast_frame *f;
 	struct myframe {
@@ -119,7 +119,8 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 		char offset[AST_FRIENDLY_OFFSET];
 		short frdata[160];
 	} myf;
-	
+
+	ast_format_clear(&owriteformat);
 	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fds)) {
 		ast_log(LOG_WARNING, "Unable to create socketpair\n");
 		return -1;
@@ -127,8 +128,8 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	
 	ast_stopstream(chan);
 
-	owriteformat = chan->writeformat;
-	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+	ast_format_copy(&owriteformat, &chan->writeformat);
+	res = ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
@@ -148,7 +149,7 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata));
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
-					myf.f.subclass.codec = AST_FORMAT_SLINEAR;
+					ast_format_set(&myf.f.subclass.format, AST_FORMAT_SLINEAR, 0);
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
 					myf.f.mallocd = 0;
@@ -197,8 +198,8 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	
 	if (pid > -1)
 		kill(pid, SIGKILL);
-	if (!res && owriteformat)
-		ast_set_write_format(chan, owriteformat);
+	if (!res && owriteformat.id)
+		ast_set_write_format(chan, &owriteformat);
 
 	return res;
 }

@@ -24,9 +24,6 @@
 #ifndef _ASTERISK_TRANSLATE_H
 #define _ASTERISK_TRANSLATE_H
 
-#define MAX_AUDIO_FORMAT 47 /* Do not include video here */
-#define MAX_FORMAT 64	/* Do include video here */
-
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -35,10 +32,77 @@ extern "C" {
 #include "asterisk/frame.h"
 #include "asterisk/plc.h"
 #include "asterisk/linkedlists.h"
-// XXX #include "asterisk/module.h"
 #endif
 
 struct ast_trans_pvt;	/* declared below */
+
+/*!
+ * \brief Translator Cost Table definition.
+ *
+ * \note The defined values in this table must be used to set
+ * the translator's table_cost value.
+ *
+ * \note The cost value of the first two values must always add
+ * up to be greater than the largest value defined in this table.
+ * This is done to guarantee a direct translation will always
+ * have precedence over a multi step translation.
+ *
+ * \details This table is built in a way that allows translation
+ * paths to be built that guarantee the best possible balance
+ * between performance and quality.  With this table direct
+ * translation paths between two formats will always take precedence
+ * over multi step paths, lossless intermediate steps will always
+ * be chosen over lossy intermediate steps, and preservation of
+ * sample rate across the translation will always have precedence
+ * over a path that involves any re-sampling.
+ */
+enum ast_trans_cost_table {
+
+	/* Lossless Source Translation Costs */
+
+	/*! [lossless -> lossless] original sampling */
+	AST_TRANS_COST_LL_LL_ORIGSAMP = 400000,
+	/*! [lossless -> lossy]    original sampling */
+	AST_TRANS_COST_LL_LY_ORIGSAMP = 600000,
+
+	/*! [lossless -> lossless] up sample */
+	AST_TRANS_COST_LL_LL_UPSAMP   = 800000,
+	/*! [lossless -> lossy]    up sample */
+	AST_TRANS_COST_LL_LY_UPSAMP   = 825000,
+
+	/*! [lossless -> lossless] down sample */
+	AST_TRANS_COST_LL_LL_DOWNSAMP = 850000,
+	/*! [lossless -> lossy]    down sample */
+	AST_TRANS_COST_LL_LY_DOWNSAMP = 875000,
+
+	/*! [lossless -> unknown]    unknown.
+	 * This value is for a lossless source translation
+	 * with an unknown destination and or sample rate conversion. */
+	AST_TRANS_COST_LL_UNKNOWN     = 885000,
+
+	/* Lossy Source Translation Costs */
+
+	/*! [lossy -> lossless]    original sampling */
+	AST_TRANS_COST_LY_LL_ORIGSAMP = 900000,
+	/*! [lossy -> lossy]       original sampling */
+	AST_TRANS_COST_LY_LY_ORIGSAMP = 915000,
+
+	/*! [lossy -> lossless]    up sample */
+	AST_TRANS_COST_LY_LL_UPSAMP   = 930000,
+	/*! [lossy -> lossy]       up sample */
+	AST_TRANS_COST_LY_LY_UPSAMP   = 945000,
+
+	/*! [lossy -> lossless]    down sample */
+	AST_TRANS_COST_LY_LL_DOWNSAMP = 960000,
+	/*! [lossy -> lossy]       down sample */
+	AST_TRANS_COST_LY_LY_DOWNSAMP = 975000,
+
+	/*! [lossy -> unknown]    unknown.
+	 * This value is for a lossy source translation
+	 * with an unknown destination and or sample rate conversion. */
+	AST_TRANS_COST_LY_UNKNOWN     = 985000,
+
+};
 
 /*! \brief
  * Descriptor of a translator. 
@@ -70,10 +134,14 @@ struct ast_trans_pvt;	/* declared below */
  */
 struct ast_translator {
 	const char name[80];                   /*!< Name of translator */
-	format_t srcfmt;                       /*!< Source format (note: bit position,
-	                                        *   converted to index during registration) */
-	format_t dstfmt;                       /*!< Destination format (note: bit position,
-	                                        *   converted to index during registration) */
+	struct ast_format src_format;          /*!< Source format */
+	struct ast_format dst_format;          /*!< Destination format */
+
+	int table_cost;                        /*!< Cost value associated with this translator based
+	                                        *   on translation cost table. */
+	int comp_cost;                         /*!< Cost value associated with this translator based
+	                                        *   on computation time. This cost value is computed based
+											*   on the time required to translate sample data. */
 
 	int (*newpvt)(struct ast_trans_pvt *); /*!< initialize private data 
                                             *   associated with the translator */
@@ -109,8 +177,9 @@ struct ast_translator {
 
 	struct ast_module *module;             /*!< opaque reference to the parent module */
 
-	int cost;                              /*!< Cost in milliseconds for encoding/decoding 1 second of sound */
 	int active;                            /*!< Whether this translator should be used or not */
+	int src_fmt_index;                     /*!< index of the source format in the matrix table */
+	int dst_fmt_index;                     /*!< index of the destination format in the matrix table */
 	AST_LIST_ENTRY(ast_translator) list;   /*!< link field */
 };
 
@@ -199,11 +268,20 @@ void ast_translator_deactivate(struct ast_translator *t);
  * \brief Chooses the best translation path
  *
  * Given a list of sources, and a designed destination format, which should
- * I choose? 
- * \return Returns 0 on success, -1 if no path could be found.  
- * \note Modifies dests and srcs in place 
+ * I choose?
+ *
+ * \param destination capabilities
+ * \param source capabilities
+ * \param destination format chosen out of destination capabilities
+ * \param source format chosen out of source capabilities
+ * \return Returns 0 on success, -1 if no path could be found.
+ *
+ * \note dst_cap and src_cap are not mondified.
  */
-format_t ast_translator_best_choice(format_t *dsts, format_t *srcs);
+int ast_translator_best_choice(struct ast_format_cap *dst_cap,
+	struct ast_format_cap *src_cap,
+	struct ast_format *dst_fmt_out,
+	struct ast_format *src_fmt_out);
 
 /*! 
  * \brief Builds a translator path
@@ -212,7 +290,7 @@ format_t ast_translator_best_choice(format_t *dsts, format_t *srcs);
  * \param source source format
  * \return ast_trans_pvt on success, NULL on failure
  * */
-struct ast_trans_pvt *ast_translator_build_path(format_t dest, format_t source);
+struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dest, struct ast_format *source);
 
 /*!
  * \brief Frees a translator path
@@ -238,12 +316,14 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *tr, struct ast_frame *f, i
  * \param src source format
  * \return the number of translation steps required, or -1 if no path is available
  */
-unsigned int ast_translate_path_steps(format_t dest, format_t src);
+unsigned int ast_translate_path_steps(struct ast_format *dest, struct ast_format *src);
 
 /*!
- * \brief Mask off unavailable formats from a format bitmask
+ * \brief Find available formats
  * \param dest possible destination formats
  * \param src source formats
+ * \param result capabilities structure to store available formats in
+ *
  * \return the destination formats that are available in the source or translatable
  *
  * The result will include all formats from 'dest' that are either present
@@ -252,7 +332,7 @@ unsigned int ast_translate_path_steps(format_t dest, format_t src);
  * \note Only a single audio format and a single video format can be
  * present in 'src', or the function will produce unexpected results.
  */
-format_t ast_translate_available_formats(format_t dest, format_t src);
+void ast_translate_available_formats(struct ast_format_cap *dest, struct ast_format_cap *src, struct ast_format_cap *result);
 
 /*!
  * \brief Puts a string representation of the translation path into outbuf
@@ -261,6 +341,13 @@ format_t ast_translate_available_formats(format_t dest, format_t src);
  * \retval on success pointer to beginning of outbuf. on failure "".
  */
 const char *ast_translate_path_to_str(struct ast_trans_pvt *t, struct ast_str **str);
+
+/*!
+ * \brief Initialize the translation matrix and index to format conversion table.
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_translate_init(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -771,18 +771,20 @@ int ao2_container_count(struct ao2_container *c);
  */
 #ifdef REF_DEBUG
 
-#define ao2_t_link(arg1, arg2, arg3) __ao2_link_debug((arg1), (arg2), (arg3),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_link(arg1, arg2)         __ao2_link_debug((arg1), (arg2), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_link(arg1, arg2, arg3) __ao2_link_debug((arg1), (arg2), 0, (arg3),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_link(arg1, arg2)         __ao2_link_debug((arg1), (arg2), 0, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_link_nolock(arg1, arg2)  __ao2_link_debug((arg1), (arg2), OBJ_NOLOCK, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #else
 
-#define ao2_t_link(arg1, arg2, arg3) __ao2_link((arg1), (arg2))
-#define ao2_link(arg1, arg2)         __ao2_link((arg1), (arg2))
+#define ao2_t_link(arg1, arg2, arg3) __ao2_link((arg1), (arg2), 0)
+#define ao2_link(arg1, arg2)         __ao2_link((arg1), (arg2), 0)
+#define ao2_link_nolock(arg1, arg2)  __ao2_link((arg1), (arg2), OBJ_NOLOCK)
 
 #endif
 
-void *__ao2_link_debug(struct ao2_container *c, void *new_obj, char *tag, char *file, int line, const char *funcname);
-void *__ao2_link(struct ao2_container *c, void *newobj);
+void *__ao2_link_debug(struct ao2_container *c, void *new_obj, int flags, char *tag, char *file, int line, const char *funcname);
+void *__ao2_link(struct ao2_container *c, void *newobj, int flags);
 
 /*!
  * \brief Remove an object from a container
@@ -803,18 +805,20 @@ void *__ao2_link(struct ao2_container *c, void *newobj);
  */
 #ifdef REF_DEBUG
 
-#define ao2_t_unlink(arg1, arg2, arg3) __ao2_unlink_debug((arg1), (arg2), (arg3),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_unlink(arg1, arg2)         __ao2_unlink_debug((arg1), (arg2), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_unlink(arg1, arg2, arg3) __ao2_unlink_debug((arg1), (arg2), 0, (arg3),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_unlink(arg1, arg2)         __ao2_unlink_debug((arg1), (arg2), 0, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_unlink_nolock(arg1, arg2)  __ao2_unlink_debug((arg1), (arg2), OBJ_NOLOCK, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #else
 
-#define ao2_t_unlink(arg1, arg2, arg3) __ao2_unlink((arg1), (arg2))
-#define ao2_unlink(arg1, arg2)         __ao2_unlink((arg1), (arg2))
+#define ao2_t_unlink(arg1, arg2, arg3) __ao2_unlink((arg1), (arg2), 0)
+#define ao2_unlink(arg1, arg2)         __ao2_unlink((arg1), (arg2), 0)
+#define ao2_unlink_nolock(arg1, arg2)  __ao2_unlink((arg1), (arg2), OBJ_NOLOCK)
 
 #endif
 
-void *__ao2_unlink_debug(struct ao2_container *c, void *obj, char *tag, char *file, int line, const char *funcname);
-void *__ao2_unlink(struct ao2_container *c, void *obj);
+void *__ao2_unlink_debug(struct ao2_container *c, void *obj, int flags, char *tag, char *file, int line, const char *funcname);
+void *__ao2_unlink(struct ao2_container *c, void *obj, int flags);
 
 
 /*@} */

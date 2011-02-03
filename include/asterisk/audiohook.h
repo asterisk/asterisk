@@ -30,7 +30,6 @@ extern "C" {
 /* these two are used in struct ast_audiohook */
 #include "asterisk/lock.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/frame_defs.h"
 #include "asterisk/slinfactory.h"
 
 enum ast_audiohook_type {
@@ -104,7 +103,7 @@ struct ast_audiohook {
 	struct ast_slinfactory write_factory;                  /*!< Factory where frames written to the channel will go through */
 	struct timeval read_time;                              /*!< Last time read factory was fed */
 	struct timeval write_time;                             /*!< Last time write factory was fed */
-	int format;                                            /*!< Format translation path is setup as */
+	struct ast_format format;                              /*!< Format translation path is setup as */
 	struct ast_trans_pvt *trans_pvt;                       /*!< Translation path for reading frames */
 	ast_audiohook_manipulate_callback manipulate_callback; /*!< Manipulation callback */
 	struct ast_audiohook_options options;                  /*!< Applicable options */
@@ -142,7 +141,7 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
  * \param format Format of frame remote side wants back
  * \return Returns frame on success, NULL on failure
  */
-struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, format_t format);
+struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, struct ast_format *format);
 
 /*! \brief Attach audiohook to channel
  * \param chan Channel

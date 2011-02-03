@@ -291,9 +291,9 @@ static int ogg_vorbis_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass.codec != AST_FORMAT_SLINEAR) {
+	if (f->subclass.format.id != AST_FORMAT_SLINEAR) {
 		ast_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%s)!\n",
-			ast_getformatname(f->subclass.codec));
+			ast_getformatname(&f->subclass.format));
 		return -1;
 	}
 	if (!f->datalen)
@@ -438,7 +438,7 @@ static struct ast_frame *ogg_vorbis_read(struct ast_filestream *fs,
 	short *buf;	/* SLIN data buffer */
 
 	fs->fr.frametype = AST_FRAME_VOICE;
-	fs->fr.subclass.codec = AST_FORMAT_SLINEAR;
+	ast_format_set(&fs->fr.subclass.format, AST_FORMAT_SLINEAR, 0);
 	fs->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&fs->fr, fs->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	buf = (short *)(fs->fr.data.ptr);	/* SLIN data buffer */
@@ -528,10 +528,9 @@ static off_t ogg_vorbis_tell(struct ast_filestream *s)
 	return -1;
 }
 
-static const struct ast_format vorbis_f = {
+static struct ast_format_def vorbis_f = {
 	.name = "ogg_vorbis",
 	.exts = "ogg",
-	.format = AST_FORMAT_SLINEAR,
 	.open = ogg_vorbis_open,
 	.rewrite = ogg_vorbis_rewrite,
 	.write = ogg_vorbis_write,
@@ -546,14 +545,15 @@ static const struct ast_format vorbis_f = {
 
 static int load_module(void)
 {
-	if (ast_format_register(&vorbis_f))
+	ast_format_set(&vorbis_f.format, AST_FORMAT_SLINEAR, 0);
+	if (ast_format_def_register(&vorbis_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(vorbis_f.name);
+	return ast_format_def_unregister(vorbis_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "OGG/Vorbis audio",

@@ -319,7 +319,7 @@ static int wav_open(struct ast_filestream *s)
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
 	struct wav_desc *tmp = (struct wav_desc *)s->_private;
-	if ((tmp->maxlen = check_header(s->f, (s->fmt->format == AST_FORMAT_SLINEAR16 ? 16000 : 8000))) < 0)
+	if ((tmp->maxlen = check_header(s->f, (s->fmt->format.id == AST_FORMAT_SLINEAR16 ? 16000 : 8000))) < 0)
 		return -1;
 	return 0;
 }
@@ -331,7 +331,7 @@ static int wav_rewrite(struct ast_filestream *s, const char *comment)
 	   and be sure it's a valid file.  */
 
 	struct wav_desc *tmp = (struct wav_desc *)s->_private;
-	tmp->hz = (s->fmt->format == AST_FORMAT_SLINEAR16 ? 16000 : 8000);
+	tmp->hz = (s->fmt->format.id == AST_FORMAT_SLINEAR16 ? 16000 : 8000);
 	if (write_header(s->f,tmp->hz))
 		return -1;
 	return 0;
@@ -376,7 +376,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 		bytes = 0;
 /* 	ast_debug(1, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass.codec = (fs->hz == 16000 ? AST_FORMAT_SLINEAR16 : AST_FORMAT_SLINEAR);
+	ast_format_set(&s->fr.subclass.format, (fs->hz == 16000 ? AST_FORMAT_SLINEAR16 : AST_FORMAT_SLINEAR), 0);
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
 	
@@ -412,11 +412,11 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if ((f->subclass.codec != AST_FORMAT_SLINEAR) && (f->subclass.codec != AST_FORMAT_SLINEAR16)) {
-		ast_log(LOG_WARNING, "Asked to write non-SLINEAR%s frame (%s)!\n", s->hz == 16000 ? "16" : "", ast_getformatname(f->subclass.codec));
+	if ((f->subclass.format.id != AST_FORMAT_SLINEAR) && (f->subclass.format.id != AST_FORMAT_SLINEAR16)) {
+		ast_log(LOG_WARNING, "Asked to write non-SLINEAR%s frame (%s)!\n", s->hz == 16000 ? "16" : "", ast_getformatname(&f->subclass.format));
 		return -1;
 	}
-	if (f->subclass.codec != fs->fmt->format) {
+	if (ast_format_cmp(&f->subclass.format, &fs->fmt->format) == AST_FORMAT_CMP_NOT_EQUAL) {
 		ast_log(LOG_WARNING, "Can't change SLINEAR frequency during write\n");
 		return -1;
 	}
@@ -486,10 +486,9 @@ static off_t wav_tell(struct ast_filestream *fs)
 	return (offset - 44)/2;
 }
 
-static const struct ast_format wav16_f = {
+static struct ast_format_def wav16_f = {
 	.name = "wav16",
 	.exts = "wav16",
-	.format = AST_FORMAT_SLINEAR16,
 	.open =	wav_open,
 	.rewrite = wav_rewrite,
 	.write = wav_write,
@@ -502,10 +501,9 @@ static const struct ast_format wav16_f = {
 	.desc_size = sizeof(struct wav_desc),
 };
 
-static const struct ast_format wav_f = {
+static struct ast_format_def wav_f = {
 	.name = "wav",
 	.exts = "wav",
-	.format = AST_FORMAT_SLINEAR,
 	.open =	wav_open,
 	.rewrite = wav_rewrite,
 	.write = wav_write,
@@ -520,16 +518,18 @@ static const struct ast_format wav_f = {
 
 static int load_module(void)
 {
-	if (ast_format_register(&wav_f)
-		|| ast_format_register(&wav16_f))
+	ast_format_set(&wav_f.format, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&wav16_f.format, AST_FORMAT_SLINEAR16, 0);
+	if (ast_format_def_register(&wav_f)
+		|| ast_format_def_register(&wav16_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(wav_f.name)
-		|| ast_format_unregister(wav16_f.name);
+	return ast_format_def_unregister(wav_f.name)
+		|| ast_format_def_unregister(wav16_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Microsoft WAV/WAV16 format (8kHz/16kHz Signed Linear)",

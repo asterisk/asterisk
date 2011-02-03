@@ -1106,7 +1106,7 @@ int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf)
 		ast_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
 		return 0;
 	}
-	if (inf->subclass.codec != AST_FORMAT_SLINEAR) {
+	if (inf->subclass.format.id != AST_FORMAT_SLINEAR) {
 		ast_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
 		return 0;
 	}
@@ -1280,7 +1280,7 @@ int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
 		ast_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
 		return 0;
 	}
-	if (f->subclass.codec != AST_FORMAT_SLINEAR) {
+	if (f->subclass.format.id != AST_FORMAT_SLINEAR) {
 		ast_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
 		return 0;
 	}
@@ -1298,7 +1298,7 @@ int ast_dsp_noise(struct ast_dsp *dsp, struct ast_frame *f, int *totalnoise)
                ast_log(LOG_WARNING, "Can't calculate noise on a non-voice frame\n");
                return 0;
        }
-       if (f->subclass.codec != AST_FORMAT_SLINEAR) {
+       if (f->subclass.format.id != AST_FORMAT_SLINEAR) {
                ast_log(LOG_WARNING, "Can only calculate noise on signed-linear frames :(\n");
                return 0;
        }
@@ -1329,7 +1329,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	odata = af->data.ptr;
 	len = af->datalen;
 	/* Make sure we have short data */
-	switch (af->subclass.codec) {
+	switch (af->subclass.format.id) {
 	case AST_FORMAT_SLINEAR:
 		shortdata = af->data.ptr;
 		len = af->datalen / 2;
@@ -1350,7 +1350,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	default:
 		/*Display warning only once. Otherwise you would get hundreds of warnings every second */
 		if (dsp->display_inband_dtmf_warning)
-			ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass.codec));
+			ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(&af->subclass.format));
 		dsp->display_inband_dtmf_warning = 0;
 		return af;
 	}
@@ -1479,7 +1479,7 @@ done:
 		memset(shortdata + dsp->mute_data[x].start, 0, sizeof(int16_t) * (dsp->mute_data[x].end - dsp->mute_data[x].start));
 	}
 
-	switch (af->subclass.codec) {
+	switch (af->subclass.format.id) {
 	case AST_FORMAT_SLINEAR:
 		break;
 	case AST_FORMAT_ULAW:
@@ -1491,6 +1491,8 @@ done:
 		for (x = 0; x < len; x++) {
 			odata[x] = AST_LIN2A((unsigned short) shortdata[x]);
 		}
+		/* fall through */
+	default:
 		break;
 	}
 

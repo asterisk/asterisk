@@ -193,7 +193,7 @@ struct ast_bridge {
  * This creates a simple two party bridge that will be destroyed once one of
  * the channels hangs up.
  */
-struct ast_bridge *ast_bridge_new(format_t capabilities, int flags);
+struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags);
 
 /*! \brief See if it is possible to create a bridge
  *
@@ -211,7 +211,7 @@ struct ast_bridge *ast_bridge_new(format_t capabilities, int flags);
  * This sees if it is possible to create a bridge capable of bridging two channels
  * together.
  */
-int ast_bridge_check(format_t capabilities);
+int ast_bridge_check(uint32_t capabilities);
 
 /*! \brief Destroy a bridge
  *

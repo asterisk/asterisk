@@ -37,14 +37,14 @@ extern "C" {
  * Not all are necessary, the support routine implement default
  * values for some of them.
  * A handler typically fills a structure initializing the desired
- * fields, and then calls ast_format_register() with the (readonly)
+ * fields, and then calls ast_format_def_register() with the (readonly)
  * structure as an argument.
  */
-struct ast_format {
+struct ast_format_def {
 	char name[80];		/*!< Name of format */
 	char exts[80];		/*!< Extensions (separated by | if more than one) 
 	    			this format can read.  First is assumed for writing (e.g. .mp3) */
-	format_t format;		/*!< Format of frames it uses/provides (one only) */
+	struct ast_format format;	/*!< Format of frames it uses/provides (one only) */
 	/*! 
 	 * \brief Prepare an input stream for playback. 
 	 * \return 0 on success, -1 on error.
@@ -76,7 +76,7 @@ struct ast_format {
 	void (*close)(struct ast_filestream *);
 	char * (*getcomment)(struct ast_filestream *);		/*!< Retrieve file comment */
 
-	AST_LIST_ENTRY(ast_format) list;			/*!< Link */
+	AST_LIST_ENTRY(ast_format_def) list;                /*!< Link */
 
 	/*!
 	 * If the handler needs a buffer (for read, typically)
@@ -99,7 +99,7 @@ struct ast_format {
  */
 struct ast_filestream {
 	/*! Everybody reserves a block of AST_RESERVED_POINTERS pointers for us */
-	struct ast_format *fmt;	/* need to write to the lock and usecnt */
+	struct ast_format_def *fmt;	/* need to write to the lock and usecnt */
 	int flags;
 	mode_t mode;
 	char *open_filename;
@@ -110,7 +110,7 @@ struct ast_filestream {
 	/*! Transparently translate from another format -- just once */
 	struct ast_trans_pvt *trans;
 	struct ast_tranlator_pvt *tr;
-	int lastwriteformat;
+	struct ast_format lastwriteformat;
 	int lasttimeout;
 	struct ast_channel *owner;
 	FILE *f;
@@ -127,8 +127,8 @@ struct ast_filestream {
  * \retval 0 on success
  * \retval -1 on failure
  */
-int __ast_format_register(const struct ast_format *f, struct ast_module *mod);
-#define ast_format_register(f) __ast_format_register(f, ast_module_info->self)
+int __ast_format_def_register(const struct ast_format_def *f, struct ast_module *mod);
+#define ast_format_def_register(f) __ast_format_def_register(f, ast_module_info->self)
 
 /*! 
  * \brief Unregisters a file format 
@@ -137,7 +137,7 @@ int __ast_format_register(const struct ast_format *f, struct ast_module *mod);
  * \retval 0 on success
  * \retval -1 on failure to unregister
  */
-int ast_format_unregister(const char *name);
+int ast_format_def_unregister(const char *name);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

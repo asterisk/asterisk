@@ -382,16 +382,12 @@ static void *bridge_thread(void *data)
 }
 
 /*! \brief Helper function used to find the "best" bridge technology given a specified capabilities */
-static struct ast_bridge_technology *find_best_technology(format_t capabilities)
+static struct ast_bridge_technology *find_best_technology(uint32_t capabilities)
 {
 	struct ast_bridge_technology *current = NULL, *best = NULL;
 
 	AST_RWLIST_RDLOCK(&bridge_technologies);
 	AST_RWLIST_TRAVERSE(&bridge_technologies, current, entry) {
-		char tmp1[256], tmp2[256];
-		ast_debug(1, "Bridge technology %s has capabilities %s and we want %s\n", current->name,
-			ast_getformatname_multiple(tmp1, sizeof(tmp1), current->capabilities),
-			ast_getformatname_multiple(tmp2, sizeof(tmp2), capabilities));
 		if (current->suspended) {
 			ast_debug(1, "Bridge technology %s is suspended. Skipping.\n", current->name);
 			continue;
@@ -448,7 +444,7 @@ static void destroy_bridge(void *obj)
 	return;
 }
 
-struct ast_bridge *ast_bridge_new(format_t capabilities, int flags)
+struct ast_bridge *ast_bridge_new(uint32_t capabilities, int flags)
 {
 	struct ast_bridge *bridge = NULL;
 	struct ast_bridge_technology *bridge_technology = NULL;
@@ -470,9 +466,6 @@ struct ast_bridge *ast_bridge_new(format_t capabilities, int flags)
 
 	/* If no bridge technology was found we can't possibly do bridging so fail creation of the bridge */
 	if (!bridge_technology) {
-		char codec_buf[256];
-		ast_debug(1, "Failed to find a bridge technology to satisfy capabilities %s\n",
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf), capabilities));
 		return NULL;
 	}
 
@@ -503,7 +496,7 @@ struct ast_bridge *ast_bridge_new(format_t capabilities, int flags)
 	return bridge;
 }
 
-int ast_bridge_check(format_t capabilities)
+int ast_bridge_check(uint32_t capabilities)
 {
 	struct ast_bridge_technology *bridge_technology = NULL;
 
@@ -542,47 +535,51 @@ int ast_bridge_destroy(struct ast_bridge *bridge)
 
 static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	format_t formats[2] = {bridge_channel->chan->readformat, bridge_channel->chan->writeformat};
+	struct ast_format formats[2];
+	ast_format_copy(&formats[0], &bridge_channel->chan->readformat);
+	ast_format_copy(&formats[1], &bridge_channel->chan->writeformat);
 
 	/* Are the formats currently in use something ths bridge can handle? */
-	if (!(bridge->technology->formats & bridge_channel->chan->readformat)) {
-		format_t best_format = ast_best_codec(bridge->technology->formats);
+	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, &bridge_channel->chan->readformat)) {
+		struct ast_format best_format;
+		ast_best_codec(bridge->technology->format_capabilities, &best_format);
 
 		/* Read format is a no go... */
 		if (option_debug) {
 			char codec_buf[512];
 			ast_debug(1, "Bridge technology %s wants to read any of formats %s but channel has %s\n", bridge->technology->name,
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf), bridge->technology->formats),
-				ast_getformatname(formats[0]));
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf), bridge->technology->format_capabilities),
+				ast_getformatname(&formats[0]));
 		}
 		/* Switch read format to the best one chosen */
-		if (ast_set_read_format(bridge_channel->chan, best_format)) {
-			ast_log(LOG_WARNING, "Failed to set channel %s to read format %s\n", bridge_channel->chan->name, ast_getformatname(best_format));
+		if (ast_set_read_format(bridge_channel->chan, &best_format)) {
+			ast_log(LOG_WARNING, "Failed to set channel %s to read format %s\n", bridge_channel->chan->name, ast_getformatname(&best_format));
 			return -1;
 		}
-		ast_debug(1, "Bridge %p put channel %s into read format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(best_format));
+		ast_debug(1, "Bridge %p put channel %s into read format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&best_format));
 	} else {
-		ast_debug(1, "Bridge %p is happy that channel %s already has read format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(formats[0]));
+		ast_debug(1, "Bridge %p is happy that channel %s already has read format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&formats[0]));
 	}
 
-	if (!(bridge->technology->formats & formats[1])) {
-		int best_format = ast_best_codec(bridge->technology->formats);
+	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, &formats[1])) {
+		struct ast_format best_format;
+		ast_best_codec(bridge->technology->format_capabilities, &best_format);
 
 		/* Write format is a no go... */
 		if (option_debug) {
 			char codec_buf[512];
 			ast_debug(1, "Bridge technology %s wants to write any of formats %s but channel has %s\n", bridge->technology->name,
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf), bridge->technology->formats),
-				ast_getformatname(formats[1]));
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf), bridge->technology->format_capabilities),
+				ast_getformatname(&formats[1]));
 		}
 		/* Switch write format to the best one chosen */
-		if (ast_set_write_format(bridge_channel->chan, best_format)) {
-			ast_log(LOG_WARNING, "Failed to set channel %s to write format %s\n", bridge_channel->chan->name, ast_getformatname(best_format));
+		if (ast_set_write_format(bridge_channel->chan, &best_format)) {
+			ast_log(LOG_WARNING, "Failed to set channel %s to write format %s\n", bridge_channel->chan->name, ast_getformatname(&best_format));
 			return -1;
 		}
-		ast_debug(1, "Bridge %p put channel %s into write format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(best_format));
+		ast_debug(1, "Bridge %p put channel %s into write format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&best_format));
 	} else {
-		ast_debug(1, "Bridge %p is happy that channel %s already has write format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(formats[1]));
+		ast_debug(1, "Bridge %p is happy that channel %s already has write format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&formats[1]));
 	}
 
 	return 0;
@@ -591,7 +588,7 @@ static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_c
 /*! \brief Perform the smart bridge operation. Basically sees if a new bridge technology should be used instead of the current one. */
 static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, int count)
 {
-	format_t new_capabilities = 0;
+	uint32_t new_capabilities = 0;
 	struct ast_bridge_technology *new_technology = NULL, *old_technology = bridge->technology;
 	struct ast_bridge temp_bridge = {
 		.technology = bridge->technology,
@@ -621,9 +618,6 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 
 	/* Attempt to find a new bridge technology to satisfy the capabilities */
 	if (!(new_technology = find_best_technology(new_capabilities))) {
-		char codec_buf[256];
-		ast_debug(1, "Smart bridge operation was unable to find new bridge technology with capabilities %s to satisfy bridge %p\n",
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf), new_capabilities), bridge);
 		return -1;
 	}
 
@@ -873,8 +867,10 @@ static void bridge_channel_dtmf_stream(struct ast_bridge *bridge, struct ast_bri
 /*! \brief Join a channel to a bridge and handle anything the bridge may want us to do */
 static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 {
-	int formats[2] = { bridge_channel->chan->readformat, bridge_channel->chan->writeformat };
+	struct ast_format formats[2];
 	enum ast_bridge_channel_state state;
+	ast_format_copy(&formats[0], &bridge_channel->chan->readformat);
+	ast_format_copy(&formats[1], &bridge_channel->chan->writeformat);
 
 	/* Record the thread that will be the owner of us */
 	bridge_channel->thread = pthread_self();
@@ -975,16 +971,16 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 	ao2_unlock(bridge_channel->bridge);
 
 	/* Restore original formats of the channel as they came in */
-	if (bridge_channel->chan->readformat != formats[0]) {
-		ast_debug(1, "Bridge is returning %p to read format %s(%d)\n", bridge_channel, ast_getformatname(formats[0]), formats[0]);
-		if (ast_set_read_format(bridge_channel->chan, formats[0])) {
-			ast_debug(1, "Bridge failed to return channel %p to read format %s(%d)\n", bridge_channel, ast_getformatname(formats[0]), formats[0]);
+	if (ast_format_cmp(&bridge_channel->chan->readformat, &formats[0]) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_debug(1, "Bridge is returning %p to read format %s(%d)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
+		if (ast_set_read_format(bridge_channel->chan, &formats[0])) {
+			ast_debug(1, "Bridge failed to return channel %p to read format %s(%d)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
 		}
 	}
-	if (bridge_channel->chan->writeformat != formats[1]) {
-		ast_debug(1, "Bridge is returning %p to write format %s(%d)\n", bridge_channel, ast_getformatname(formats[1]), formats[1]);
-		if (ast_set_write_format(bridge_channel->chan, formats[1])) {
-			ast_debug(1, "Bridge failed to return channel %p to write format %s(%d)\n", bridge_channel, ast_getformatname(formats[1]), formats[1]);
+	if (ast_format_cmp(&bridge_channel->chan->writeformat, &formats[1]) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_debug(1, "Bridge is returning %p to write format %s(%d)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);
+		if (ast_set_write_format(bridge_channel->chan, &formats[1])) {
+			ast_debug(1, "Bridge failed to return channel %p to write format %s(%d)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);
 		}
 	}
 

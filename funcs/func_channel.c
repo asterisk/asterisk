@@ -265,27 +265,30 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 			     char *data, char *buf, size_t len)
 {
 	int ret = 0;
+	char tmp[512];
+	struct ast_format_cap *tmpcap;
 
-	if (!strcasecmp(data, "audionativeformat"))
-		/* use the _multiple version when chan->nativeformats holds multiple formats */
-		/* ast_getformatname_multiple(buf, len, chan->nativeformats & AST_FORMAT_AUDIO_MASK); */
-		ast_copy_string(buf, ast_getformatname(chan->nativeformats & AST_FORMAT_AUDIO_MASK), len);
-	else if (!strcasecmp(data, "videonativeformat"))
-		/* use the _multiple version when chan->nativeformats holds multiple formats */
-		/* ast_getformatname_multiple(buf, len, chan->nativeformats & AST_FORMAT_VIDEO_MASK); */
-		ast_copy_string(buf, ast_getformatname(chan->nativeformats & AST_FORMAT_VIDEO_MASK), len);
-	else if (!strcasecmp(data, "audioreadformat"))
-		ast_copy_string(buf, ast_getformatname(chan->readformat), len);
-	else if (!strcasecmp(data, "audiowriteformat"))
-		ast_copy_string(buf, ast_getformatname(chan->writeformat), len);
+	if (!strcasecmp(data, "audionativeformat")) {
+		if ((tmpcap = ast_format_cap_get_type(chan->nativeformats, AST_FORMAT_TYPE_AUDIO))) {
+			ast_copy_string(buf, ast_getformatname_multiple(tmp, sizeof(tmp), tmpcap), len);
+			tmpcap = ast_format_cap_destroy(tmpcap);
+		}
+	} else if (!strcasecmp(data, "videonativeformat")) {
+		if ((tmpcap = ast_format_cap_get_type(chan->nativeformats, AST_FORMAT_TYPE_VIDEO))) {
+			ast_copy_string(buf, ast_getformatname_multiple(tmp, sizeof(tmp), tmpcap), len);
+			tmpcap = ast_format_cap_destroy(tmpcap);
+		}
+	} else if (!strcasecmp(data, "audioreadformat")) {
+		ast_copy_string(buf, ast_getformatname(&chan->readformat), len);
+	} else if (!strcasecmp(data, "audiowriteformat")) {
+		ast_copy_string(buf, ast_getformatname(&chan->writeformat), len);
 #ifdef CHANNEL_TRACE
-	else if (!strcasecmp(data, "trace")) {
+	} else if (!strcasecmp(data, "trace")) {
 		ast_channel_lock(chan);
 		ast_copy_string(buf, ast_channel_trace_is_enabled(chan) ? "1" : "0", len);
 		ast_channel_unlock(chan);
-	}
 #endif
-	else if (!strcasecmp(data, "tonezone") && chan->zone)
+	} else if (!strcasecmp(data, "tonezone") && chan->zone)
 		locked_copy_string(chan, buf, chan->zone->country, len);
 	else if (!strcasecmp(data, "language"))
 		locked_copy_string(chan, buf, chan->language, len);
@@ -349,9 +352,9 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "uniqueid")) {
 		locked_copy_string(chan, buf, chan->uniqueid, len);
-	} else if (!strcasecmp(data, "transfercapability"))
+	} else if (!strcasecmp(data, "transfercapability")) {
 		locked_copy_string(chan, buf, transfercapability_table[chan->transfercapability & 0x1f], len);
-	else if (!strcasecmp(data, "callgroup")) {
+	} else if (!strcasecmp(data, "callgroup")) {
 		char groupbuf[256];
 		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), chan->callgroup), len);
 	} else if (!strcasecmp(data, "amaflags")) {

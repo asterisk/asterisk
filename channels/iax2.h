@@ -214,6 +214,12 @@ enum iax_frame_subclass {
 #define IAX_DPSTATUS_IGNOREPAT		(1 << 14)
 #define IAX_DPSTATUS_MATCHMORE		(1 << 15)
 
+/*! iax2 format bit field for handling codecs the old way */
+typedef int64_t iax2_format;
+
+/*!\brief iax2 wrapper function for ast_getformatname */
+char *iax2_getformatname(iax2_format format);
+
 /*! Full frames are always delivered reliably */
 struct ast_iax2_full_hdr {
 	unsigned short scallno;	/*!< Source call number -- high bit must be 1 */

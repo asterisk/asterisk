@@ -137,7 +137,7 @@ enum ao2_callback_type {
 static int internal_ao2_ref(void *user_data, const int delta);
 static struct ao2_container *internal_ao2_container_alloc(struct ao2_container *c, const uint n_buckets, ao2_hash_fn *hash_fn,
 							  ao2_callback_fn *cmp_fn);
-static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *user_data, const char *file, int line, const char *func);
+static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *user_data, int flags, const char *file, int line, const char *func);
 static void *internal_ao2_callback(struct ao2_container *c,
 				   const enum search_flags flags, void *cb_fn, void *arg, void *data, enum ao2_callback_type type,
 				   char *tag, char *file, int line, const char *funcname);
@@ -471,7 +471,7 @@ struct bucket_entry {
  * link an object to a container
  */
 
-static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *user_data, const char *file, int line, const char *func)
+static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *user_data, int flags, const char *file, int line, const char *func)
 {
 	int i;
 	/* create a new list entry */
@@ -490,7 +490,9 @@ static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *use
 
 	i = abs(c->hash_fn(user_data, OBJ_POINTER));
 
-	ao2_lock(c);
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_lock(c);
+	}
 	i %= c->n_buckets;
 	p->astobj = obj;
 	p->version = ast_atomic_fetchadd_int(&c->version, 1);
@@ -501,24 +503,28 @@ static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *use
 	return p;
 }
 
-void *__ao2_link_debug(struct ao2_container *c, void *user_data, char *tag, char *file, int line, const char *funcname)
+void *__ao2_link_debug(struct ao2_container *c, void *user_data, int flags, char *tag, char *file, int line, const char *funcname)
 {
-	struct bucket_entry *p = internal_ao2_link(c, user_data, file, line, funcname);
+	struct bucket_entry *p = internal_ao2_link(c, user_data, flags, file, line, funcname);
 
 	if (p) {
 		__ao2_ref_debug(user_data, +1, tag, file, line, funcname);
-		ao2_unlock(c);
+		if (!(flags & OBJ_NOLOCK)) {
+			ao2_unlock(c);
+		}
 	}
 	return p;
 }
 
-void *__ao2_link(struct ao2_container *c, void *user_data)
+void *__ao2_link(struct ao2_container *c, void *user_data, int flags)
 {
-	struct bucket_entry *p = internal_ao2_link(c, user_data, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+	struct bucket_entry *p = internal_ao2_link(c, user_data, flags, __FILE__, __LINE__, __PRETTY_FUNCTION__);
 
 	if (p) {
 		__ao2_ref(user_data, +1);
-		ao2_unlock(c);
+		if (!(flags & OBJ_NOLOCK)) {
+			ao2_unlock(c);
+		}
 	}
 	return p;
 }
@@ -535,23 +541,26 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags)
  * Unlink an object from the container
  * and destroy the associated * bucket_entry structure.
  */
-void *__ao2_unlink_debug(struct ao2_container *c, void *user_data, char *tag,
+void *__ao2_unlink_debug(struct ao2_container *c, void *user_data, int flags, char *tag,
 			 char *file, int line, const char *funcname)
 {
 	if (INTERNAL_OBJ(user_data) == NULL)	/* safety check on the argument */
 		return NULL;
 
-	__ao2_callback_debug(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, ao2_match_by_addr, user_data, tag, file, line, funcname);
+	flags |= (OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA);
+
+	__ao2_callback_debug(c, flags, ao2_match_by_addr, user_data, tag, file, line, funcname);
 
 	return NULL;
 }
 
-void *__ao2_unlink(struct ao2_container *c, void *user_data)
+void *__ao2_unlink(struct ao2_container *c, void *user_data, int flags)
 {
 	if (INTERNAL_OBJ(user_data) == NULL)	/* safety check on the argument */
 		return NULL;
 
-	__ao2_callback(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, ao2_match_by_addr, user_data);
+	flags |= (OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA);
+	__ao2_callback(c, flags, ao2_match_by_addr, user_data);
 
 	return NULL;
 }
@@ -696,7 +705,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 			 * link the object into the container that will hold the results.
 			 */
 			if (ret && (multi_container != NULL)) {
-				__ao2_link(multi_container, ret);
+				__ao2_link(multi_container, ret, flags);
 				ret = NULL;
 			}
 

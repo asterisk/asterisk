@@ -73,8 +73,6 @@ static int lintoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 static struct ast_translator alawtolin = {
 	.name = "alawtolin",
-	.srcfmt = AST_FORMAT_ALAW,
-	.dstfmt = AST_FORMAT_SLINEAR,
 	.framein = alawtolin_framein,
 	.sample = alaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -83,8 +81,6 @@ static struct ast_translator alawtolin = {
 
 static struct ast_translator lintoalaw = {
 	"lintoalaw",
-	.srcfmt = AST_FORMAT_SLINEAR,
-	.dstfmt = AST_FORMAT_ALAW,
 	.framein = lintoalaw_framein,
 	.sample = slin8_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -111,6 +107,12 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
+
+	ast_format_set(&lintoalaw.src_format, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&lintoalaw.dst_format, AST_FORMAT_ALAW, 0);
+
+	ast_format_set(&alawtolin.src_format, AST_FORMAT_ALAW, 0);
+	ast_format_set(&alawtolin.dst_format, AST_FORMAT_SLINEAR, 0);
 
 	res = ast_register_translator(&alawtolin);
 	if (!res)

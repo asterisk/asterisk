@@ -281,7 +281,9 @@ static void *mixmonitor_thread(void *obj)
 	unsigned int oflags;
 	char *ext;
 	int errflag = 0;
+	struct ast_format format_slin;
 
+	ast_format_set(&format_slin, AST_FORMAT_SLINEAR, 0);
 	ast_verb(2, "Begin MixMonitor Recording %s\n", mixmonitor->name);
 
 	fs = &mixmonitor->mixmonitor_ds->fs;
@@ -291,7 +293,7 @@ static void *mixmonitor_thread(void *obj)
 	while (mixmonitor->audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING && !mixmonitor->mixmonitor_ds->fs_quit) {
 		struct ast_frame *fr = NULL;
 
-		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR))) {
+		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, &format_slin))) {
 			ast_audiohook_trigger_wait(&mixmonitor->audiohook);
 
 			if (mixmonitor->audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING) {

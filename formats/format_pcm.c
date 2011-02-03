@@ -80,7 +80,7 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 	/* Send a frame from the file to the appropriate channel */
 
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass.codec = s->fmt->format;
+	ast_format_copy(&s->fr.subclass.format, &s->fmt->format);
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
@@ -89,7 +89,7 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 		return NULL;
 	}
 	s->fr.datalen = res;
-	if (s->fmt->format == AST_FORMAT_G722)
+	if (s->fmt->format.id == AST_FORMAT_G722)
 		*whennext = s->fr.samples = res * 2;
 	else
 		*whennext = s->fr.samples = res;
@@ -126,7 +126,7 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	}
 	if (whence == SEEK_FORCECUR && offset > max) { /* extend the file */
 		size_t left = offset - max;
-		const char *src = (fs->fmt->format == AST_FORMAT_ALAW) ? alaw_silence : ulaw_silence;
+		const char *src = (fs->fmt->format.id == AST_FORMAT_ALAW) ? alaw_silence : ulaw_silence;
 
 		while (left) {
 			size_t written = fwrite(src, 1, (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
@@ -163,8 +163,8 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass.codec != fs->fmt->format) {
-		ast_log(LOG_WARNING, "Asked to write incompatible format frame (%s)!\n", ast_getformatname(f->subclass.codec));
+	if (ast_format_cmp(&f->subclass.format, &fs->fmt->format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_log(LOG_WARNING, "Asked to write incompatible format frame (%s)!\n", ast_getformatname(&f->subclass.format));
 		return -1;
 	}
 
@@ -373,7 +373,7 @@ static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	off_t min, max, cur;
 	long offset = 0, bytes;
 
-	if (fs->fmt->format == AST_FORMAT_G722)
+	if (fs->fmt->format.id == AST_FORMAT_G722)
 		bytes = sample_offset / 2;
 	else
 		bytes = sample_offset;
@@ -413,10 +413,9 @@ static off_t au_tell(struct ast_filestream *fs)
 	return offset - AU_HEADER_SIZE;
 }
 
-static const struct ast_format alaw_f = {
+static struct ast_format_def alaw_f = {
 	.name = "alaw",
 	.exts = "alaw|al|alw",
-	.format = AST_FORMAT_ALAW,
 	.write = pcm_write,
 	.seek = pcm_seek,
 	.trunc = pcm_trunc,
@@ -430,10 +429,9 @@ static const struct ast_format alaw_f = {
 #endif
 };
 
-static const struct ast_format pcm_f = {
+static struct ast_format_def pcm_f = {
 	.name = "pcm",
 	.exts = "pcm|ulaw|ul|mu|ulw",
-	.format = AST_FORMAT_ULAW,
 	.write = pcm_write,
 	.seek = pcm_seek,
 	.trunc = pcm_trunc,
@@ -442,10 +440,9 @@ static const struct ast_format pcm_f = {
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,
 };
 
-static const struct ast_format g722_f = {
+static struct ast_format_def g722_f = {
 	.name = "g722",
 	.exts = "g722",
-	.format = AST_FORMAT_G722,
 	.write = pcm_write,
 	.seek = pcm_seek,
 	.trunc = pcm_trunc,
@@ -454,10 +451,9 @@ static const struct ast_format g722_f = {
 	.buf_size = (BUF_SIZE * 2) + AST_FRIENDLY_OFFSET,
 };
 
-static const struct ast_format au_f = {
+static struct ast_format_def au_f = {
 	.name = "au",
 	.exts = "au",
-	.format = AST_FORMAT_ULAW,
 	.open = au_open,
 	.rewrite = au_rewrite,
 	.write = pcm_write,
@@ -478,20 +474,24 @@ static int load_module(void)
 	for (i = 0; i < ARRAY_LEN(alaw_silence); i++)
 		alaw_silence[i] = AST_LIN2A(0);
 
-	if ( ast_format_register(&pcm_f)
-		|| ast_format_register(&alaw_f)
-		|| ast_format_register(&au_f)
-		|| ast_format_register(&g722_f) )
+	ast_format_set(&pcm_f.format, AST_FORMAT_ULAW, 0);
+	ast_format_set(&alaw_f.format, AST_FORMAT_ALAW, 0);
+	ast_format_set(&au_f.format, AST_FORMAT_ULAW, 0);
+	ast_format_set(&g722_f.format, AST_FORMAT_G722, 0);
+	if ( ast_format_def_register(&pcm_f)
+		|| ast_format_def_register(&alaw_f)
+		|| ast_format_def_register(&au_f)
+		|| ast_format_def_register(&g722_f) )
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(pcm_f.name)
-		|| ast_format_unregister(alaw_f.name)
-		|| ast_format_unregister(au_f.name)
-		|| ast_format_unregister(g722_f.name);
+	return ast_format_def_unregister(pcm_f.name)
+		|| ast_format_def_unregister(alaw_f.name)
+		|| ast_format_def_unregister(au_f.name)
+		|| ast_format_def_unregister(g722_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw/Sun uLaw/ALaw 8KHz (PCM,PCMA,AU), G.722 16Khz",

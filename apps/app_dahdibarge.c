@@ -113,13 +113,13 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 
 	/* Set it into U-law mode (write) */
-	if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_ULAW) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
 		goto outrun;
 	}
 
 	/* Set it into U-law mode (read) */
-	if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
+	if (ast_set_read_format_by_id(chan, AST_FORMAT_ULAW) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
 		goto outrun;
 	}
@@ -214,11 +214,11 @@ dahdiretry:
 				break;
 			} else if (fd != chan->fds[0]) {
 				if (f->frametype == AST_FRAME_VOICE) {
-					if (f->subclass.codec == AST_FORMAT_ULAW) {
+					if (f->subclass.format.id == AST_FORMAT_ULAW) {
 						/* Carefully write */
 						careful_write(fd, f->data.ptr, f->datalen);
 					} else
-						ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%s) frame in the conference\n", ast_getformatname(f->subclass.codec));
+						ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%s) frame in the conference\n", ast_getformatname(&f->subclass.format));
 				}
 			}
 			ast_frfree(f);
@@ -227,7 +227,7 @@ dahdiretry:
 			if (res > 0) {
 				memset(&fr, 0, sizeof(fr));
 				fr.frametype = AST_FRAME_VOICE;
-				fr.subclass.codec = AST_FORMAT_ULAW;
+				ast_format_set(&fr.subclass.format, AST_FORMAT_ULAW, 0);
 				fr.datalen = res;
 				fr.samples = res;
 				fr.data.ptr = buf;

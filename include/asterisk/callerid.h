@@ -45,7 +45,7 @@
 #ifndef _ASTERISK_CALLERID_H
 #define _ASTERISK_CALLERID_H
 
-#include "asterisk/frame_defs.h"
+#include "asterisk/format.h"
 
 #define MAX_CALLERID_SIZE 32000
 
@@ -75,8 +75,8 @@
 /*! MWI MDMF format -- generate name, callerid, date and MWI fields */
 #define CID_MWI_TYPE_MDMF_FULL	0x02
 
-#define AST_LIN2X(a) ((codec == AST_FORMAT_ALAW) ? (AST_LIN2A(a)) : (AST_LIN2MU(a)))
-#define AST_XLAW(a) ((codec == AST_FORMAT_ALAW) ? (AST_ALAW(a)) : (AST_MULAW(a)))
+#define AST_LIN2X(a) ((codec->id == AST_FORMAT_ALAW) ? (AST_LIN2A(a)) : (AST_LIN2MU(a)))
+#define AST_XLAW(a) ((codec->id == AST_FORMAT_ALAW) ? (AST_ALAW(a)) : (AST_MULAW(a)))
 
 
 struct callerid_state;
@@ -101,7 +101,7 @@ void callerid_init(void);
  * \return It returns the size
  * (in bytes) of the data (if it returns a size of 0, there is probably an error)
  */
-int callerid_generate(unsigned char *buf, const char *number, const char *name, int flags, int callwaiting, format_t codec);
+int callerid_generate(unsigned char *buf, const char *number, const char *name, int flags, int callwaiting, struct ast_format *codec);
 
 /*! \brief Create a callerID state machine
  * \param cid_signalling Type of signalling in use
@@ -124,7 +124,7 @@ struct callerid_state *callerid_new(int cid_signalling);
  * \retval 0 for "needs more samples"
  * \retval 1 if the CallerID spill reception is complete.
  */
-int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples, format_t codec);
+int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples, struct ast_format *codec);
 
 /*! \brief Read samples into the state machine.
  * \param cid Which state machine to act upon
@@ -138,7 +138,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples, 
  * \retval 0 for "needs more samples"
  * \retval 1 if the CallerID spill reception is complete.
  */
-int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int samples, format_t codec);
+int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int samples, struct ast_format *codec);
 
 /*! \brief Extract info out of callerID state machine.  Flags are listed above
  * \param cid Callerid state machine to act upon
@@ -177,7 +177,7 @@ void callerid_free(struct callerid_state *cid);
  * \details
  * Acts like callerid_generate except uses an asterisk format callerid string.
  */
-int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, format_t codec);
+int ast_callerid_generate(unsigned char *buf, const char *name, const char *number, struct ast_format *codec);
 
 /*!
  * \brief Generate message waiting indicator
@@ -192,13 +192,13 @@ int ast_callerid_generate(unsigned char *buf, const char *name, const char *numb
  * \see callerid_generate() for more info as it uses the same encoding
  * \version 1.6.1 changed mdmf parameter to type, added name, number and flags for caller id message generation
  */
-int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, format_t codec, const char *name,
+int ast_callerid_vmwi_generate(unsigned char *buf, int active, int type, struct ast_format *codec, const char *name,
 	const char *number, int flags);
 
 /*! \brief Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
  * \see ast_callerid_generate() for other details
  */
-int ast_callerid_callwaiting_generate(unsigned char *buf, const char *name, const char *number, format_t codec);
+int ast_callerid_callwaiting_generate(unsigned char *buf, const char *name, const char *number, struct ast_format *codec);
 
 /*! \brief Destructively parse inbuf into name and location (or number)
  * \details
@@ -223,7 +223,7 @@ int ast_callerid_parse(char *instr, char **name, char **location);
  * \param codec Which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
  * \return Returns -1 on error (if len is less than 2400), 0 on success.
  */
-int ast_gen_cas(unsigned char *outbuf, int sas, int len, format_t codec);
+int ast_gen_cas(unsigned char *outbuf, int sas, int len, struct ast_format *codec);
 
 /*!
  * \brief Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s...

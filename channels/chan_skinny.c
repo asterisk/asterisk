@@ -148,7 +148,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char tdesc[] = "Skinny Client Control Protocol (Skinny)";
 static const char config[] = "skinny.conf";
 
-static format_t default_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW;
+static struct ast_format_cap *default_cap;
 static struct ast_codec_pref default_prefs;
 
 enum skinny_codecs {
@@ -296,7 +296,7 @@ struct onhook_message {
 
 #define CAPABILITIES_RES_MESSAGE 0x0010
 struct station_capabilities {
-	uint32_t codec;
+	uint32_t codec; /* skinny codec, not ast codec */
 	uint32_t frames;
 	union {
 		char res[8];
@@ -1244,9 +1244,9 @@ struct skinny_subchannel {
 	int instance;					\
 	int group;					\
 	int needdestroy;				\
-	format_t confcapability;				\
+	struct ast_format_cap *confcap;				\
 	struct ast_codec_pref confprefs;		\
-	format_t capability;					\
+	struct ast_format_cap *cap;					\
 	struct ast_codec_pref prefs;			\
 	int nonCodecCapability;				\
 	int onhooktime;					\
@@ -1282,8 +1282,6 @@ static struct skinny_line_options{
  	.instance = 0,
  	.directmedia = 0,
  	.nat = 0,
- 	.confcapability = AST_FORMAT_ULAW | AST_FORMAT_ALAW,
- 	.capability = 0,
 	.getforward = 0,
  	.needdestroy = 0,
 	.prune = 0,
@@ -1324,9 +1322,9 @@ struct skinny_addon {
 	int registered;						\
 	int lastlineinstance;					\
 	int lastcallreference;					\
-	format_t confcapability;					\
+	struct ast_format_cap *confcap;					\
 	struct ast_codec_pref confprefs;			\
-	format_t capability;						\
+	struct ast_format_cap *cap;						\
 	int earlyrtp;						\
 	int transfer;						\
 	int callwaiting;					\
@@ -1358,8 +1356,6 @@ static struct skinny_device_options {
  	.callwaiting = 1,
  	.mwiblink = 0,
  	.dnd = 0,
- 	.confcapability = AST_FORMAT_ULAW | AST_FORMAT_ALAW,
- 	.capability = 0,
 	.prune = 0,
 };
 static struct skinny_device_options *default_device = &default_device_struct;
@@ -1386,7 +1382,7 @@ struct skinnysession {
 	AST_LIST_ENTRY(skinnysession) list;
 };
 
-static struct ast_channel *skinny_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *skinny_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 static AST_LIST_HEAD_STATIC(sessions, skinnysession);
 
 static int skinny_devicestate(void *data);
@@ -1402,10 +1398,9 @@ static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned in
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
 static int skinny_reload(void);
 
-static const struct ast_channel_tech skinny_tech = {
+static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_AUDIO_MASK,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = skinny_request,
 	.devicestate = skinny_devicestate,
@@ -1423,6 +1418,55 @@ static const struct ast_channel_tech skinny_tech = {
 
 static int skinny_extensionstate_cb(char *context, char* exten, int state, void *data);
 static int skinny_transfer(struct skinny_subchannel *sub);
+
+static struct skinny_line *skinny_line_alloc(void)
+{
+	struct skinny_line *l;
+	if (!(l = ast_calloc(1, sizeof(*l)))) {
+		return NULL;
+	}
+
+	l->cap = ast_format_cap_alloc_nolock();
+	l->confcap = ast_format_cap_alloc_nolock();
+	if (!l->cap || !l->confcap) {
+		l->cap = ast_format_cap_destroy(l->cap);
+		l->confcap = ast_format_cap_destroy(l->confcap);
+		ast_free(l);
+		return NULL;
+	}
+	return l;
+}
+static struct skinny_line *skinny_line_destroy(struct skinny_line *l)
+{
+	l->cap = ast_format_cap_destroy(l->cap);
+	l->confcap = ast_format_cap_destroy(l->confcap);
+	ast_free(l);
+	return NULL;
+}
+static struct skinny_device *skinny_device_alloc(void)
+{
+	struct skinny_device *d;
+	if (!(d = ast_calloc(1, sizeof(*d)))) {
+		return NULL;
+	}
+
+	d->cap = ast_format_cap_alloc_nolock();
+	d->confcap = ast_format_cap_alloc_nolock();
+	if (!d->cap || !d->confcap) {
+		d->cap = ast_format_cap_destroy(d->cap);
+		d->confcap = ast_format_cap_destroy(d->confcap);
+		ast_free(d);
+		return NULL;
+	}
+	return d;
+}
+static struct skinny_device *skinny_device_destroy(struct skinny_device *d)
+{
+	d->cap = ast_format_cap_destroy(d->cap);
+	d->confcap = ast_format_cap_destroy(d->confcap);
+	ast_free(d);
+	return NULL;
+}
 
 static void *get_button_template(struct skinnysession *s, struct button_definition_template *btn)
 {
@@ -1729,31 +1773,32 @@ static struct skinny_speeddial *find_speeddial_by_instance(struct skinny_device 
 	return sd;
 }
 
-static format_t codec_skinny2ast(enum skinny_codecs skinnycodec)
+static struct ast_format *codec_skinny2ast(enum skinny_codecs skinnycodec, struct ast_format *result)
 {
 	switch (skinnycodec) {
 	case SKINNY_CODEC_ALAW:
-		return AST_FORMAT_ALAW;
+		return ast_format_set(result, AST_FORMAT_ALAW, 0);
 	case SKINNY_CODEC_ULAW:
-		return AST_FORMAT_ULAW;
+		return ast_format_set(result, AST_FORMAT_ULAW, 0);
 	case SKINNY_CODEC_G723_1:
-		return AST_FORMAT_G723_1;
+		return ast_format_set(result, AST_FORMAT_G723_1, 0);
 	case SKINNY_CODEC_G729A:
-		return AST_FORMAT_G729A;
+		return ast_format_set(result, AST_FORMAT_G729A, 0);
 	case SKINNY_CODEC_G726_32:
-		return AST_FORMAT_G726_AAL2; /* XXX Is this right? */
+		return ast_format_set(result, AST_FORMAT_G726_AAL2, 0); /* XXX Is this right? */
 	case SKINNY_CODEC_H261:
-		return AST_FORMAT_H261;
+		return ast_format_set(result, AST_FORMAT_H261, 0);
 	case SKINNY_CODEC_H263:
-		return AST_FORMAT_H263;
+		return ast_format_set(result, AST_FORMAT_H263 ,0);
 	default:
-		return 0;
+		ast_format_clear(result);
+		return result;
 	}
 }
 
-static int codec_ast2skinny(format_t astcodec)
+static int codec_ast2skinny(struct ast_format *astcodec)
 {
-	switch (astcodec) {
+	switch (astcodec->id) {
 	case AST_FORMAT_ALAW:
 		return SKINNY_CODEC_ALAW;
 	case AST_FORMAT_ULAW:
@@ -1924,7 +1969,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 					ast_verb(1, "Line %s already connected to %s. Not connecting to %s.\n", l->name, l->device->name, d->name);
 				} else {
 					l->device = d;
-					l->capability = l->confcapability & d->capability;
+					ast_format_cap_joint_copy(l->confcap, d->cap, l->cap);
 					l->prefs = l->confprefs;
 					if (!l->prefs.order[0]) {
 						l->prefs = d->confprefs;
@@ -1971,8 +2016,8 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 		AST_LIST_TRAVERSE(&d->lines, l, list) {
 			if (l->device == d) {
 				l->device = NULL;
-				l->capability = 0;
-				ast_parse_allow_disallow(&l->prefs, &l->capability, "all", 0);			
+				ast_format_cap_remove_all(l->cap);
+				ast_parse_allow_disallow(&l->prefs, l->cap, "all", 0);
 				l->instance = 0;
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 				unregister_exten(l);
@@ -2234,16 +2279,17 @@ static void transmit_connect(struct skinny_device *d, struct skinny_subchannel *
 	struct skinny_req *req;
 	struct skinny_line *l = sub->parent;
 	struct ast_format_list fmt;
+	struct ast_format tmpfmt;
 
 	if (!(req = req_alloc(sizeof(struct open_receive_channel_message), OPEN_RECEIVE_CHANNEL_MESSAGE)))
 		return;
-
-	fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
+	ast_best_codec(l->cap, &tmpfmt);
+	fmt = ast_codec_pref_getsize(&l->prefs, &tmpfmt);
 
 	req->data.openreceivechannel.conferenceId = htolel(sub->callid);
 	req->data.openreceivechannel.partyId = htolel(sub->callid);
 	req->data.openreceivechannel.packets = htolel(fmt.cur_ms);
-	req->data.openreceivechannel.capability = htolel(codec_ast2skinny(fmt.bits));
+	req->data.openreceivechannel.capability = htolel(codec_ast2skinny(ast_format_set(&tmpfmt, fmt.id, 0)));
 	req->data.openreceivechannel.echo = htolel(0);
 	req->data.openreceivechannel.bitrate = htolel(0);
 	transmit_response(d, req);
@@ -2448,6 +2494,7 @@ static void transmit_stopmediatransmission(struct skinny_device *d, struct skinn
 static void transmit_startmediatransmission(struct skinny_device *d, struct skinny_subchannel *sub, struct sockaddr_in dest, struct ast_format_list fmt)
 {
 	struct skinny_req *req;
+	struct ast_format tmpfmt;
 
 	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
 		return;
@@ -2457,7 +2504,7 @@ static void transmit_startmediatransmission(struct skinny_device *d, struct skin
 	req->data.startmedia.remoteIp = dest.sin_addr.s_addr;
 	req->data.startmedia.remotePort = htolel(ntohs(dest.sin_port));
 	req->data.startmedia.packetSize = htolel(fmt.cur_ms);
-	req->data.startmedia.payloadType = htolel(codec_ast2skinny(fmt.bits));
+	req->data.startmedia.payloadType = htolel(codec_ast2skinny(ast_format_set(&tmpfmt, fmt.id, 0)));
 	req->data.startmedia.qualifier.precedence = htolel(127);
 	req->data.startmedia.qualifier.vad = htolel(0);
 	req->data.startmedia.qualifier.packets = htolel(0);
@@ -2901,7 +2948,7 @@ static enum ast_rtp_glue_result skinny_get_rtp_peer(struct ast_channel *c, struc
 
 }
 
-static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active)
+static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, const struct ast_format_cap *codecs, int nat_active)
 {
 	struct skinny_subchannel *sub;
 	struct skinny_line *l;
@@ -2925,6 +2972,7 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 	d = l->device;
 
 	if (rtp){
+		struct ast_format tmpfmt;
 		ast_rtp_instance_get_remote_address(rtp, &them_tmp);
 		ast_sockaddr_to_sin(&them_tmp, &them);
 
@@ -2934,10 +2982,11 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 		if (skinnydebug)
 			ast_verb(1, "Peerip = %s:%d\n", ast_inet_ntoa(them.sin_addr), ntohs(them.sin_port));
 
-		fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
+		ast_best_codec(l->cap, &tmpfmt);
+		fmt = ast_codec_pref_getsize(&l->prefs, &tmpfmt);
 
 		if (skinnydebug)
-			ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(fmt.bits), fmt.cur_ms);
+			ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(ast_format_set(&tmpfmt, fmt.id, 0)), fmt.cur_ms);
 
 		if (!(l->directmedia) || (l->nat)){
 			ast_rtp_instance_get_local_address(rtp, &us_tmp);
@@ -3195,15 +3244,16 @@ static char *device2str(int type)
 /*! \brief Print codec list from preference to CLI/manager */
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 {
-	int x, codec;
+	int x;
+	struct ast_format tmpfmt;
 
 	for(x = 0; x < 32 ; x++) {
-		codec = ast_codec_pref_index(pref, x);
-		if (!codec)
+		ast_codec_pref_index(pref, x, &tmpfmt);
+		if (!tmpfmt.id)
 			break;
-		ast_cli(fd, "%s", ast_getformatname(codec));
+		ast_cli(fd, "%s", ast_getformatname(&tmpfmt));
 		ast_cli(fd, ":%d", pref->framing[x]);
-		if (x < 31 && ast_codec_pref_index(pref, x + 1))
+		if (x < 31 && ast_codec_pref_index(pref, x + 1, &tmpfmt))
 			ast_cli(fd, ",");
 	}
 	if (!x)
@@ -3358,10 +3408,10 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 				ast_cli(fd, "Port:        %d\n", (d->session ? ntohs(d->session->sin.sin_port) : 0));
 				ast_cli(fd, "Device Type: %s\n", device2str(d->type));
 				ast_cli(fd, "Conf Codecs:");
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->confcapability);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->confcap);
 				ast_cli(fd, "%s\n", codec_buf);
 				ast_cli(fd, "Neg Codecs: ");
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->capability);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, d->cap);
 				ast_cli(fd, "%s\n", codec_buf);
 				ast_cli(fd, "Registered:  %s\n", (d->registered ? "Yes" : "No"));
 				ast_cli(fd, "Lines:       %d\n", numlines);
@@ -3392,10 +3442,10 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 				astman_append(s, "Port: %d\r\n", (d->session ? ntohs(d->session->sin.sin_port) : 0));
 				astman_append(s, "DeviceType: %s\r\n", device2str(d->type));
 				astman_append(s, "Codecs: ");
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->confcapability);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->confcap);
 				astman_append(s, "%s\r\n", codec_buf);
 				astman_append(s, "CodecOrder: ");
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->capability);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, d->cap);
 				astman_append(s, "%s\r\n", codec_buf);
 				astman_append(s, "Devicestatus: %s\r\n", (d->registered?"registered":"unregistered"));
 				astman_append(s, "NumberOfLines: %d\r\n", numlines);
@@ -3587,7 +3637,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 	struct skinny_device *d;
 	struct skinny_line *l;
 	struct ast_codec_pref *pref;
-	int x = 0, codec = 0;
+	int x = 0;
 	char codec_buf[512];
 	char group_buf[256];
 	char cbuf[256];
@@ -3648,10 +3698,10 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				ast_cli(fd, "Group:            %d\n", l->group);
 				ast_cli(fd, "Parkinglot:       %s\n", S_OR(l->parkinglot, "<not set>"));
 				ast_cli(fd, "Conf Codecs:      ");
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcapability);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcap);
 				ast_cli(fd, "%s\n", codec_buf);
 				ast_cli(fd, "Neg Codecs:       ");
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->capability);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->cap);
 				ast_cli(fd, "%s\n", codec_buf);
 				ast_cli(fd, "Codec Order:      (");
 				print_codec_to_cli(fd, &l->prefs);
@@ -3693,16 +3743,17 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 				astman_append(s, "immediate: %s\r\n", (l->immediate ? "Yes" : "No"));
 				astman_append(s, "Group: %d\r\n", l->group);
 				astman_append(s, "Parkinglot: %s\r\n", S_OR(l->parkinglot, "<not set>"));
-				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcapability);
+				ast_getformatname_multiple(codec_buf, sizeof(codec_buf) - 1, l->confcap);
 				astman_append(s, "Codecs: %s\r\n", codec_buf);
 				astman_append(s, "CodecOrder: ");
 				pref = &l->prefs;
 				for(x = 0; x < 32 ; x++) {
-					codec = ast_codec_pref_index(pref, x);
-					if (!codec)
+					struct ast_format tmpfmt;
+					ast_codec_pref_index(pref, x, &tmpfmt);
+					if (!tmpfmt.id)
 						break;
-					astman_append(s, "%s", ast_getformatname(codec));
-					if (x < 31 && ast_codec_pref_index(pref, x+1))
+					astman_append(s, "%s", ast_getformatname(&tmpfmt));
+					if (x < 31 && ast_codec_pref_index(pref, x+1, &tmpfmt))
 						astman_append(s, ",");
 				}
 				astman_append(s, "\r\n");
@@ -4221,11 +4272,11 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 	if (ast) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass.codec != ast->nativeformats) {
-				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(f->subclass.codec));
-				ast->nativeformats = f->subclass.codec;
-				ast_set_read_format(ast, ast->readformat);
-				ast_set_write_format(ast, ast->writeformat);
+			if (!(ast_format_cap_iscompatible(ast->nativeformats, &f->subclass.format))) {
+				ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(&f->subclass.format));
+				ast_format_cap_set(ast->nativeformats, &f->subclass.format);
+				ast_set_read_format(ast, &ast->readformat);
+				ast_set_write_format(ast, &ast->writeformat);
 			}
 		}
 	}
@@ -4254,13 +4305,13 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 			return 0;
 		}
 	} else {
-		if (!(frame->subclass.codec & ast->nativeformats)) {
+		if (!(ast_format_cap_iscompatible(ast->nativeformats, &frame->subclass.format))) {
 			char buf[256];
 			ast_log(LOG_WARNING, "Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
-				ast_getformatname(frame->subclass.codec),
+				ast_getformatname(&frame->subclass.format),
 				ast_getformatname_multiple(buf, sizeof(buf), ast->nativeformats),
-				ast_getformatname(ast->readformat),
-				ast_getformatname(ast->writeformat));
+				ast_getformatname(&ast->readformat),
+				ast_getformatname(&ast->writeformat));
 			return -1;
 		}
 	}
@@ -4586,7 +4637,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 	struct skinny_subchannel *sub;
 	struct skinny_device *d = l->device;
 	struct ast_variable *v = NULL;
-	int fmt;
+	struct ast_format tmpfmt;
 
 	if (!l->device) {
 		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
@@ -4622,16 +4673,17 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 		}
 		tmp->tech = &skinny_tech;
 		tmp->tech_pvt = sub;
-		tmp->nativeformats = l->capability;
-		if (!tmp->nativeformats)
+		ast_format_cap_copy(tmp->nativeformats, l->cap);
+		if (ast_format_cap_is_empty(tmp->nativeformats)) {
 			// Should throw an error
-			tmp->nativeformats = default_capability;
-		fmt = ast_best_codec(tmp->nativeformats);
+			ast_format_cap_copy(tmp->nativeformats, default_cap);
+		}
+		ast_best_codec(tmp->nativeformats, &tmpfmt);
 		if (skinnydebug) {
 			char buf[256];
 			ast_verb(1, "skinny_new: tmp->nativeformats=%s fmt=%s\n",
 				ast_getformatname_multiple(buf, sizeof(buf), tmp->nativeformats),
-				ast_getformatname(fmt));
+				ast_getformatname(&tmpfmt));
 		}
 		if (sub->rtp) {
 			ast_channel_set_fd(tmp, 0, ast_rtp_instance_fd(sub->rtp, 0));
@@ -4639,10 +4691,11 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
 		}
-		tmp->writeformat = fmt;
-		tmp->rawwriteformat = fmt;
-		tmp->readformat = fmt;
-		tmp->rawreadformat = fmt;
+		ast_format_copy(&tmp->writeformat, &tmpfmt);
+		ast_format_copy(&tmp->rawwriteformat, &tmpfmt);
+		ast_format_copy(&tmp->readformat, &tmpfmt);
+		ast_format_copy(&tmp->rawreadformat, &tmpfmt);
+
 		if (!ast_strlen_zero(l->language))
 			ast_string_field_set(tmp, language, l->language);
 		if (!ast_strlen_zero(l->accountcode))
@@ -5469,9 +5522,13 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
 	uint32_t count = 0;
-	format_t codecs = 0;
+	struct ast_format_cap *codecs = ast_format_cap_alloc();
 	int i;
 	char buf[256];
+
+	if (!codecs) {
+		return 0;
+	}
 
 	count = letohl(req->data.caps.count);
 	if (count > SKINNY_MAX_CAPABILITIES) {
@@ -5480,23 +5537,24 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 	}
 
 	for (i = 0; i < count; i++) {
-		format_t acodec = 0;
+		struct ast_format acodec;
 		int scodec = 0;
 		scodec = letohl(req->data.caps.caps[i].codec);
-		acodec = codec_skinny2ast(scodec);
+		codec_skinny2ast(scodec, &acodec);
 		if (skinnydebug)
-			ast_verb(1, "Adding codec capability '%" PRId64 " (%d)'\n", acodec, scodec);
-		codecs |= acodec;
+			ast_verb(1, "Adding codec capability %s (%d)'\n", ast_getformatname(&acodec), scodec);
+		ast_format_cap_add(codecs, &acodec);
 	}
 
-	d->capability = d->confcapability & codecs;
-	ast_verb(0, "Device capability set to '%s'\n", ast_getformatname_multiple(buf, sizeof(buf), d->capability));
+	ast_format_cap_joint_copy(d->confcap, codecs, d->cap);
+	ast_verb(0, "Device capability set to '%s'\n", ast_getformatname_multiple(buf, sizeof(buf), d->cap));
 	AST_LIST_TRAVERSE(&d->lines, l, list) {
 		ast_mutex_lock(&l->lock);
-		l->capability = l->confcapability & d->capability;
+		ast_format_cap_joint_copy(l->confcap, d->cap, l->cap);
 		ast_mutex_unlock(&l->lock);
 	}
 
+	codecs = ast_format_cap_destroy(codecs);
 	return 1;
 }
 
@@ -5658,6 +5716,7 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	struct sockaddr_in us = { 0, };
 	struct ast_sockaddr sin_tmp;
 	struct ast_sockaddr us_tmp;
+	struct ast_format tmpfmt;
 	uint32_t addr;
 	int port;
 	int status;
@@ -5698,11 +5757,11 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 		ast_verb(1, "device ipaddr = %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 		ast_verb(1, "asterisk ipaddr = %s:%d\n", ast_inet_ntoa(us.sin_addr), ntohs(us.sin_port));
 	}
-
-	fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
+	ast_best_codec(l->cap, &tmpfmt);
+	fmt = ast_codec_pref_getsize(&l->prefs, &tmpfmt);
 
 	if (skinnydebug)
-		ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(fmt.bits), fmt.cur_ms);
+		ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(ast_format_set(&tmpfmt, fmt.id, 0)), fmt.cur_ms);
 
 	transmit_startmediatransmission(d, sub, us, fmt);
 
@@ -6546,19 +6605,15 @@ static int skinny_devicestate(void *data)
 	return get_devicestate(l);
 }
 
-static struct ast_channel *skinny_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *skinny_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
 {
-	format_t oldformat;
-	
 	struct skinny_line *l;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
 	char *dest = data;
 
-	oldformat = format;
-	
-	if (!(format &= AST_FORMAT_AUDIO_MASK)) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), format));
+	if (!(ast_format_cap_has_type(cap, AST_FORMAT_TYPE_AUDIO))) {
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), cap));
 		return NULL;
 	}
 
@@ -6670,10 +6725,10 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
  				}
  				continue;
  			} else if (!strcasecmp(v->name, "allow")) {
- 				ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 1);
+ 				ast_parse_allow_disallow(&default_prefs, default_cap, v->value, 1);
  				continue;
  			} else if (!strcasecmp(v->name, "disallow")) {
- 				ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 0);
+ 				ast_parse_allow_disallow(&default_prefs, default_cap, v->value, 0);
  				continue;
  			} 
  		}
@@ -6860,20 +6915,20 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
  			}
  		} else if (!strcasecmp(v->name, "allow")) {
  			if (type & (TYPE_DEF_DEVICE | TYPE_DEVICE)) {
- 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, &CDEV_OPTS->confcapability, v->value, 1);
+ 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, CDEV_OPTS->confcap, v->value, 1);
  				continue;
  			}
  			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
- 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, &CLINE_OPTS->confcapability, v->value, 1);
+ 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, CLINE_OPTS->confcap, v->value, 1);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "disallow")) {
  			if (type & (TYPE_DEF_DEVICE | TYPE_DEVICE)) {
- 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, &CDEV_OPTS->confcapability, v->value, 0);
+ 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, CDEV_OPTS->confcap, v->value, 0);
  				continue;
  			}
  			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
- 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, &CLINE_OPTS->confcapability, v->value, 0);
+ 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, CLINE_OPTS->confcap, v->value, 0);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "version")) {
@@ -6982,7 +7037,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
  		}
  	}
 
- 	if (!(l=ast_calloc(1, sizeof(*l)))) {
+ 	if (!(l = skinny_line_alloc())) {
  		ast_verb(1, "Unable to allocate memory for line %s.\n", lname);
  		AST_LIST_UNLOCK(&lines);
  		return NULL;
@@ -7040,7 +7095,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
  		}
  	}
 
- 	if (!(d = ast_calloc(1, sizeof(*d)))) {
+ 	if (!(d = skinny_device_alloc())) {
  		ast_verb(1, "Unable to allocate memory for device %s.\n", dname);
  		AST_LIST_UNLOCK(&devices);
  		return NULL;
@@ -7162,7 +7217,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
 	bindaddr.sin_family = AF_INET;
 
 	/* load the lines sections */
-	default_line->confcapability = default_capability;
+	ast_format_cap_copy(default_line->confcap, default_cap);
 	default_line->confprefs = default_prefs;
 	config_parse_variables(TYPE_DEF_LINE, default_line, ast_variable_browse(cfg, "lines"));
 	cat = ast_category_browse(cfg, "lines");
@@ -7172,7 +7227,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
 	}
 		
 	/* load the devices sections */
-	default_device->confcapability = default_capability;
+	ast_format_cap_copy(default_device->confcap, default_cap);
 	default_device->confprefs = default_prefs;
 	config_parse_variables(TYPE_DEF_DEVICE, default_device, ast_variable_browse(cfg, "devices"));
 	cat = ast_category_browse(cfg, "devices");
@@ -7243,7 +7298,7 @@ static void delete_devices(void)
 		/* Delete all lines for this device */
 		while ((l = AST_LIST_REMOVE_HEAD(&d->lines, list))) {
 			AST_LIST_REMOVE(&lines, l, all);
-			free(l);
+			l = skinny_line_destroy(l);
 		}
 		/* Delete all speeddials for this device */
 		while ((sd = AST_LIST_REMOVE_HEAD(&d->speeddials, list))) {
@@ -7252,8 +7307,8 @@ static void delete_devices(void)
 		/* Delete all addons for this device */
 		while ((a = AST_LIST_REMOVE_HEAD(&d->addons, list))) {
 			free(a);
-		} 
-		free(d);
+		}
+		d = skinny_device_destroy(d);
 	}
 	AST_LIST_UNLOCK(&lines);
 	AST_LIST_UNLOCK(&devices);
@@ -7310,7 +7365,7 @@ int skinny_reload(void)
 			free(a);
 		}
 		AST_LIST_REMOVE_CURRENT(list);
-		free(d);
+		d = skinny_device_destroy(d);
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&devices);
@@ -7319,7 +7374,7 @@ int skinny_reload(void)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&lines, l, all) {
 		if (l->prune) {
 			AST_LIST_REMOVE_CURRENT(all);
-			free(l);
+			l = skinny_line_destroy(l);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -7344,6 +7399,33 @@ int skinny_reload(void)
 static int load_module(void)
 {
 	int res = 0;
+	struct ast_format tmpfmt;
+	if (!(default_cap = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (!(skinny_tech.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (!(default_line->confcap = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (!(default_line->cap = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (!(default_device->confcap = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	if (!(default_device->cap = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	ast_format_cap_add_all_by_type(skinny_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
+	ast_format_cap_add(default_cap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
+	ast_format_cap_add(default_cap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
+	ast_format_cap_add(default_line->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
+	ast_format_cap_add(default_line->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
+	ast_format_cap_add(default_device->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
+	ast_format_cap_add(default_device->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
 
 	for (; res < ARRAY_LEN(soft_key_template_default); res++) {
 		soft_key_template_default[res].softKeyEvent = htolel(soft_key_template_default[res].softKeyEvent);
@@ -7456,7 +7538,13 @@ static int unload_module(void)
 	con = ast_context_find(used_context);
 	if (con)
 		ast_context_destroy(con, "Skinny");
-	
+
+	default_cap = ast_format_cap_destroy(default_cap);
+	skinny_tech.capabilities = ast_format_cap_destroy(skinny_tech.capabilities);
+	default_line->confcap = ast_format_cap_destroy(default_line->confcap);
+	default_line->cap = ast_format_cap_destroy(default_line->cap);
+	default_device->confcap = ast_format_cap_destroy(default_device->confcap);
+	default_device->cap = ast_format_cap_destroy(default_device->cap);
 	return 0;
 }
 

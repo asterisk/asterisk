@@ -64,7 +64,7 @@ static int h263_open(struct ast_filestream *s)
 static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	format_t mark;
+	uint32_t mark;
 	unsigned short len;
 	unsigned int ts;
 	struct h263_desc *fs = (struct h263_desc *)s->_private;
@@ -80,7 +80,7 @@ static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 		return NULL;
 	}
 	s->fr.frametype = AST_FRAME_VIDEO;
-	s->fr.subclass.codec = AST_FORMAT_H263;
+	ast_format_set(&s->fr.subclass.format, AST_FORMAT_H263, 0);
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
@@ -90,7 +90,9 @@ static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 	}
 	s->fr.samples = fs->lastts;	/* XXX what ? */
 	s->fr.datalen = len;
-	s->fr.subclass.codec |= mark;
+	if (mark) {
+		ast_format_set_video_mark(&s->fr.subclass.format);
+	}
 	s->fr.delivery.tv_sec = 0;
 	s->fr.delivery.tv_usec = 0;
 	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts)) {
@@ -106,18 +108,14 @@ static int h263_write(struct ast_filestream *fs, struct ast_frame *f)
 	int res;
 	unsigned int ts;
 	unsigned short len;
-	format_t subclass;
-	format_t mark=0;
+	uint32_t mark = 0;
 	if (f->frametype != AST_FRAME_VIDEO) {
 		ast_log(LOG_WARNING, "Asked to write non-video frame!\n");
 		return -1;
 	}
-	subclass = f->subclass.codec;
-	if (subclass & 0x1)
-		mark=0x8000;
-	subclass &= ~0x1;
-	if (subclass != AST_FORMAT_H263) {
-		ast_log(LOG_WARNING, "Asked to write non-h263 frame (%s)!\n", ast_getformatname(f->subclass.codec));
+	mark = ast_format_get_video_mark(&f->subclass.format) ? 0x8000 : 0;
+	if (f->subclass.format.id != AST_FORMAT_H263) {
+		ast_log(LOG_WARNING, "Asked to write non-h263 frame (%s)!\n", ast_getformatname(&f->subclass.format));
 		return -1;
 	}
 	ts = htonl(f->samples);
@@ -157,10 +155,9 @@ static off_t h263_tell(struct ast_filestream *fs)
 	return offset;	/* XXX totally bogus, needs fixing */
 }
 
-static const struct ast_format h263_f = {
+static struct ast_format_def h263_f = {
 	.name = "h263",
 	.exts = "h263",
-	.format = AST_FORMAT_H263,
 	.open = h263_open,
 	.write = h263_write,
 	.seek = h263_seek,
@@ -173,14 +170,15 @@ static const struct ast_format h263_f = {
 
 static int load_module(void)
 {
-	if (ast_format_register(&h263_f))
+	ast_format_set(&h263_f.format, AST_FORMAT_H263, 0);
+	if (ast_format_def_register(&h263_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(h263_f.name);
+	return ast_format_def_unregister(h263_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw H.263 data",

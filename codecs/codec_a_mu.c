@@ -76,8 +76,6 @@ static int ulawtoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 static struct ast_translator alawtoulaw = {
 	.name = "alawtoulaw",
-	.srcfmt = AST_FORMAT_ALAW,
-	.dstfmt = AST_FORMAT_ULAW,
 	.framein = alawtoulaw_framein,
 	.sample = alaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -86,8 +84,6 @@ static struct ast_translator alawtoulaw = {
 
 static struct ast_translator ulawtoalaw = {
 	.name = "ulawtoalaw",
-	.srcfmt = AST_FORMAT_ULAW,
-	.dstfmt = AST_FORMAT_ALAW,
 	.framein = ulawtoalaw_framein,
 	.sample = ulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -110,6 +106,12 @@ static int load_module(void)
 {
 	int res;
 	int x;
+
+	ast_format_set(&alawtoulaw.src_format, AST_FORMAT_ALAW, 0);
+	ast_format_set(&alawtoulaw.dst_format, AST_FORMAT_ULAW, 0);
+
+	ast_format_set(&ulawtoalaw.src_format, AST_FORMAT_ULAW, 0);
+	ast_format_set(&ulawtoalaw.dst_format, AST_FORMAT_ALAW, 0);
 
 	for (x=0;x<256;x++) {
 		mu2a[x] = AST_LIN2A(AST_MULAW(x));

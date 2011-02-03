@@ -51,11 +51,11 @@ static const char app[] = "Echo";
 static int echo_exec(struct ast_channel *chan, const char *data)
 {
 	int res = -1;
-	format_t format;
+	struct ast_format format;
 
-	format = ast_best_codec(chan->nativeformats);
-	ast_set_write_format(chan, format);
-	ast_set_read_format(chan, format);
+	ast_best_codec(chan->nativeformats, &format);
+	ast_set_write_format(chan, &format);
+	ast_set_read_format(chan, &format);
 
 	while (ast_waitfor(chan, -1) > -1) {
 		struct ast_frame *f = ast_read(chan);

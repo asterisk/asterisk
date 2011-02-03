@@ -213,7 +213,7 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 	}
 
 	/* Grab the actual payload number for when we create the RTP packet */
-	if ((codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 1, frame->subclass.codec)) < 0) {
+	if ((codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 1, &frame->subclass.format, 0)) < 0) {
 		return -1;
 	}
 

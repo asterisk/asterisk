@@ -702,8 +702,12 @@ static void *do_notify(void *data)
 	}
 
 	chan->tech = &null_tech;
-	chan->nativeformats = chan->writeformat = chan->rawwriteformat =
-		chan->readformat = chan->rawreadformat = AST_FORMAT_SLINEAR;
+	ast_format_set(&chan->writeformat, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&chan->readformat, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&chan->rawwriteformat, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&chan->rawreadformat, AST_FORMAT_SLINEAR, 0);
+	/* clear native formats and set to slinear. write format is signlear so just use that to set it */
+	ast_format_cap_set(chan->nativeformats, &chan->writeformat);
 
 	if (!(datastore = ast_datastore_alloc(&event_notification_datastore, NULL))) {
 		ast_log(LOG_ERROR, "Could not allocate datastore, notification not being sent!\n");

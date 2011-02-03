@@ -18,7 +18,6 @@ static struct ast_frame *gsm_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.codec = AST_FORMAT_GSM,
 		.datalen = sizeof(ex_gsm),
 		/* All frames are 20 ms long */
 		.samples = GSM_SAMPLES,
@@ -28,5 +27,6 @@ static struct ast_frame *gsm_sample(void)
 		.data.ptr = ex_gsm,
 	};
 
+	ast_format_set(&f.subclass.format, AST_FORMAT_GSM, 0);
 	return &f;
 }

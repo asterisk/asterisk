@@ -61,7 +61,7 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 	}
 	/* Read the data into the buffer */
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass.codec = AST_FORMAT_G723_1;
+	ast_format_set(&s->fr.subclass.format, AST_FORMAT_G723_1, 0);
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, size);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != size) {
@@ -82,7 +82,7 @@ static int g723_write(struct ast_filestream *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass.codec != AST_FORMAT_G723_1) {
+	if (f->subclass.format.id != AST_FORMAT_G723_1) {
 		ast_log(LOG_WARNING, "Asked to write non-g723 frame!\n");
 		return -1;
 	}
@@ -125,10 +125,9 @@ static off_t g723_tell(struct ast_filestream *fs)
 	return -1;
 }
 
-static const struct ast_format g723_1_f = {
+static struct ast_format_def g723_1_f = {
 	.name = "g723sf",
 	.exts = "g723|g723sf",
-	.format = AST_FORMAT_G723_1,
 	.write = g723_write,
 	.seek =	g723_seek,
 	.trunc = g723_trunc,
@@ -139,14 +138,16 @@ static const struct ast_format g723_1_f = {
 
 static int load_module(void)
 {
-	if (ast_format_register(&g723_1_f))
+	ast_format_set(&g723_1_f.format, AST_FORMAT_G723_1, 0);
+
+	if (ast_format_def_register(&g723_1_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(g723_1_f.name);
+	return ast_format_def_unregister(g723_1_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "G.723.1 Simple Timestamp File Format",

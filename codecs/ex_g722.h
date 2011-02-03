@@ -34,7 +34,6 @@ static struct ast_frame *g722_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.codec = AST_FORMAT_G722,
 		.datalen = sizeof(ex_g722),
 		.samples = ARRAY_LEN(ex_g722),
 		.mallocd = 0,
@@ -42,6 +41,8 @@ static struct ast_frame *g722_sample(void)
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = ex_g722,
 	};
+
+	ast_format_set(&f.subclass.format, AST_FORMAT_G722, 0);
 
 	return &f;
 }

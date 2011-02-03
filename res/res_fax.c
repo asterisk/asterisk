@@ -1095,8 +1095,11 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	struct ast_fax_session *fax = NULL;
 	struct ast_frame *frame = NULL;
 	struct ast_channel *c = chan;
-	unsigned int orig_write_format = 0, orig_read_format = 0;
+	struct ast_format orig_write_format;
+	struct ast_format orig_read_format;
 
+	ast_format_clear(&orig_write_format);
+	ast_format_clear(&orig_read_format);
 	chancount = 1;
 
 	/* create the FAX session */
@@ -1121,9 +1124,9 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 
 	if (details->caps & AST_FAX_TECH_AUDIO) {
 		expected_frametype = AST_FRAME_VOICE;;
-		expected_framesubclass.codec = AST_FORMAT_SLINEAR;
-		orig_write_format = chan->writeformat;
-		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+		ast_format_set(&expected_framesubclass.format, AST_FORMAT_SLINEAR, 0);
+		ast_format_copy(&orig_write_format, &chan->writeformat);
+		if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set write format to signed linear'.\n", chan->name);
  			ao2_lock(faxregistry.container);
  			ao2_unlink(faxregistry.container, fax);
@@ -1132,8 +1135,8 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 			ast_channel_unlock(chan);
 			return -1;
 		}
-		orig_read_format = chan->readformat;
-		if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
+		ast_format_copy(&orig_read_format, &chan->readformat);
+		if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set read format to signed linear.\n", chan->name);
  			ao2_lock(faxregistry.container);
  			ao2_unlink(faxregistry.container, fax);
@@ -1151,7 +1154,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 		}
 	} else {
 		expected_frametype = AST_FRAME_MODEM;
-		expected_framesubclass.codec = AST_MODEM_T38;
+		expected_framesubclass.integer = AST_MODEM_T38;
 	}
 
 	if (fax->debug_info) {
@@ -1226,7 +1229,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 					fax->tech->switch_to_t38(fax);
 					details->caps &= ~AST_FAX_TECH_AUDIO;
 					expected_frametype = AST_FRAME_MODEM;
-					expected_framesubclass.codec = AST_MODEM_T38;
+					expected_framesubclass.integer = AST_MODEM_T38;
 					if (fax->smoother) {
 						ast_smoother_free(fax->smoother);
 						fax->smoother = NULL;
@@ -1327,11 +1330,11 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	 * restore them now
 	 */
 	if (chancount) {
-		if (orig_read_format) {
-			ast_set_read_format(chan, orig_read_format);
+		if (orig_read_format.id) {
+			ast_set_read_format(chan, &orig_read_format);
 		}
-		if (orig_write_format) {
-			ast_set_write_format(chan, orig_write_format);
+		if (orig_write_format.id) {
+			ast_set_write_format(chan, &orig_write_format);
 		}
 	}
 

@@ -52,6 +52,8 @@ static char *orig_app(int fd, const char *chan, const char *app, const char *app
 	char *chantech;
 	char *chandata;
 	int reason = 0;
+	struct ast_format_cap *cap;
+	struct ast_format tmpfmt;
 
 	if (ast_strlen_zero(app))
 		return CLI_SHOWUSAGE;
@@ -64,7 +66,12 @@ static char *orig_app(int fd, const char *chan, const char *app, const char *app
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_pbx_outgoing_app(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, app, appdata, &reason, 0, NULL, NULL, NULL, NULL, NULL);
+	if (!(cap = ast_format_cap_alloc_nolock())) {
+		return CLI_FAILURE;
+	}
+	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_pbx_outgoing_app(chantech, cap, chandata, TIMEOUT * 1000, app, appdata, &reason, 0, NULL, NULL, NULL, NULL, NULL);
+	cap = ast_format_cap_destroy(cap);
 
 	return CLI_SUCCESS;
 }
@@ -84,6 +91,8 @@ static char *orig_exten(int fd, const char *chan, const char *data)
 	char *exten = NULL;
 	char *context = NULL;
 	int reason = 0;
+	struct ast_format_cap *cap;
+	struct ast_format tmpfmt;
 
 	chandata = ast_strdupa(chan);
 
@@ -102,8 +111,12 @@ static char *orig_exten(int fd, const char *chan, const char *data)
 		exten = "s";
 	if (ast_strlen_zero(context))
 		context = "default";
-
-	ast_pbx_outgoing_exten(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, context, exten, 1, &reason, 0, NULL, NULL, NULL, NULL, NULL);
+	if (!(cap = ast_format_cap_alloc_nolock())) {
+		return CLI_FAILURE;
+	}
+	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_pbx_outgoing_exten(chantech, cap, chandata, TIMEOUT * 1000, context, exten, 1, &reason, 0, NULL, NULL, NULL, NULL, NULL);
+	cap = ast_format_cap_destroy(cap);
 
 	return CLI_SUCCESS;
 }

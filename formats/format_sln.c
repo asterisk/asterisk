@@ -39,7 +39,7 @@ static struct ast_frame *slinear_read(struct ast_filestream *s, int *whennext)
 	/* Send a frame from the file to the appropriate channel */
 
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass.codec = AST_FORMAT_SLINEAR;
+	ast_format_set(&s->fr.subclass.format, AST_FORMAT_SLINEAR, 0);
 	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
@@ -59,8 +59,8 @@ static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass.codec != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Asked to write non-slinear frame (%s)!\n", ast_getformatname(f->subclass.codec));
+	if (f->subclass.format.id != AST_FORMAT_SLINEAR) {
+		ast_log(LOG_WARNING, "Asked to write non-slinear frame (%s)!\n", ast_getformatname(&f->subclass.format));
 		return -1;
 	}
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {
@@ -103,10 +103,9 @@ static off_t slinear_tell(struct ast_filestream *fs)
 	return ftello(fs->f) / 2;
 }
 
-static const struct ast_format slin_f = {
+static struct ast_format_def slin_f = {
 	.name = "sln",
 	.exts = "sln|raw",
-	.format = AST_FORMAT_SLINEAR,
 	.write = slinear_write,
 	.seek = slinear_seek,
 	.trunc = slinear_trunc,
@@ -117,14 +116,15 @@ static const struct ast_format slin_f = {
 
 static int load_module(void)
 {
-	if (ast_format_register(&slin_f))
+	ast_format_set(&slin_f.format, AST_FORMAT_SLINEAR, 0);
+	if (ast_format_def_register(&slin_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(slin_f.name);
+	return ast_format_def_unregister(slin_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw Signed Linear Audio support (SLN)",

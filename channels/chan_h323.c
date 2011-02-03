@@ -85,6 +85,8 @@ extern "C" {
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/astobj.h"
+#include "asterisk/format.h"
+#include "asterisk/format_cap.h"
 
 #ifdef __cplusplus
 }
@@ -129,7 +131,13 @@ static const char config[] = "h323.conf";
 static char default_context[AST_MAX_CONTEXT] = "default";
 static struct sockaddr_in bindaddr;
 
-#define GLOBAL_CAPABILITY (AST_FORMAT_G723_1 | AST_FORMAT_GSM | AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_G729A | AST_FORMAT_G726_AAL2 | AST_FORMAT_H261)
+#define GLOBAL_CAPABILITY (ast_format_id_to_old_bitfield(AST_FORMAT_G723_1) | \
+	ast_format_id_to_old_bitfield(AST_FORMAT_GSM) | \
+	ast_format_id_to_old_bitfield(AST_FORMAT_ULAW) | \
+	ast_format_id_to_old_bitfield(AST_FORMAT_ALAW) | \
+	ast_format_id_to_old_bitfield(AST_FORMAT_G729A) | \
+	ast_format_id_to_old_bitfield(AST_FORMAT_G726_AAL2) | \
+	ast_format_id_to_old_bitfield(AST_FORMAT_H261)) \
 
 /** H.323 configuration values */
 static int h323_signalling_port = 1720;
@@ -173,9 +181,9 @@ static struct oh323_pvt {
 	int newcontrol;				/*!< Pending control to send */
 	int newdigit;				/*!< Pending DTMF digit to send */
 	int newduration;			/*!< Pending DTMF digit duration to send */
-	format_t pref_codec;				/*!< Preferred codec */
-	format_t peercapability;			/*!< Capabilities learned from peer */
-	format_t jointcapability;			/*!< Common capabilities for local and remote side */
+	h323_format pref_codec;				/*!< Preferred codec */
+	h323_format peercapability;			/*!< Capabilities learned from peer */
+	h323_format jointcapability;			/*!< Common capabilities for local and remote side */
 	struct ast_codec_pref peer_prefs;	/*!< Preferenced list of codecs which remote side supports */
 	int dtmf_pt[2];				/*!< Payload code used for RFC2833/CISCO messages */
 	int curDTMF;				/*!< DTMF tone being generated to Asterisk side */
@@ -231,7 +239,7 @@ static void delete_users(void);
 static void delete_aliases(void);
 static void prune_peers(void);
 
-static struct ast_channel *oh323_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 static int oh323_digit_begin(struct ast_channel *c, char digit);
 static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int oh323_call(struct ast_channel *c, char *dest, int timeout);
@@ -242,10 +250,9 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame);
 static int oh323_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen);
 static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
-static const struct ast_channel_tech oh323_tech = {
+static struct ast_channel_tech oh323_tech = {
 	.type = "H323",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_AUDIO_MASK,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = oh323_request,
 	.send_digit_begin = oh323_digit_begin,
@@ -331,12 +338,13 @@ static int oh323_simulate_dtmf_end(const void *data)
 /*! \brief Channel and private structures should be already locked */
 static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 {
-	if (c->nativeformats != pvt->nativeformats) {
+	h323_format chan_nativeformats_bits = ast_format_cap_to_old_bitfield(c->nativeformats);
+	if (chan_nativeformats_bits != pvt->nativeformats) {
 		if (h323debug)
 			ast_debug(1, "Preparing %s for new native format\n", c->name);
-		c->nativeformats = pvt->nativeformats;
-		ast_set_read_format(c, c->readformat);
-		ast_set_write_format(c, c->writeformat);
+		ast_format_cap_from_old_bitfield(c->nativeformats, pvt->nativeformats);
+		ast_set_read_format(c, &c->readformat);
+		ast_set_write_format(c, &c->writeformat);
 	}
 	if (pvt->needhangup) {
 		if (h323debug)
@@ -764,18 +772,20 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 	if (pvt->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass.codec != pvt->owner->nativeformats) {
+			if (!ast_format_cap_iscompatible(pvt->owner->nativeformats, &f->subclass.format)) {
 				/* Try to avoid deadlock */
 				if (ast_channel_trylock(pvt->owner)) {
 					ast_log(LOG_NOTICE, "Format changed but channel is locked. Ignoring frame...\n");
 					return &ast_null_frame;
 				}
 				if (h323debug)
-					ast_debug(1, "Oooh, format changed to '%s'\n", ast_getformatname(f->subclass.codec));
-				pvt->owner->nativeformats = f->subclass.codec;
-				pvt->nativeformats = f->subclass.codec;
-				ast_set_read_format(pvt->owner, pvt->owner->readformat);
-				ast_set_write_format(pvt->owner, pvt->owner->writeformat);
+					ast_debug(1, "Oooh, format changed to '%s'\n", ast_getformatname(&f->subclass.format));
+				ast_format_cap_set(pvt->owner->nativeformats, &f->subclass.format);
+
+				pvt->nativeformats = ast_format_to_old_bitfield(&f->subclass.format);
+
+				ast_set_read_format(pvt->owner, &pvt->owner->readformat);
+				ast_set_write_format(pvt->owner, &pvt->owner->writeformat);
 				ast_channel_unlock(pvt->owner);
 			}
 			/* Do in-band DTMF detection */
@@ -788,7 +798,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 					else
 						ast_log(LOG_NOTICE, "Unable to process inband DTMF while channel is locked\n");
 				} else if (pvt->nativeformats && !pvt->noInbandDtmf) {
-					ast_log(LOG_NOTICE, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(f->subclass.codec));
+					ast_log(LOG_NOTICE, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(&f->subclass.format));
 					pvt->noInbandDtmf = 1;
 				}
 				if (f &&(f->frametype == AST_FRAME_DTMF)) {
@@ -838,10 +848,10 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 			return 0;
 		}
 	} else {
-		if (!(frame->subclass.codec & c->nativeformats)) {
+		if (!(ast_format_cap_iscompatible(c->nativeformats, &frame->subclass.format))) {
 			char tmp[256];
 			ast_log(LOG_WARNING, "Asked to transmit frame type '%s', while native formats is '%s' (read/write = %s/%s)\n",
-				ast_getformatname(frame->subclass.codec), ast_getformatname_multiple(tmp, sizeof(tmp), c->nativeformats), ast_getformatname(c->readformat), ast_getformatname(c->writeformat));
+				ast_getformatname(&frame->subclass.format), ast_getformatname_multiple(tmp, sizeof(tmp), c->nativeformats), ast_getformatname(&c->readformat), ast_getformatname(&c->writeformat));
 			return 0;
 		}
 	}
@@ -1011,7 +1021,8 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 {
 	struct ast_channel *ch;
 	char *cid_num, *cid_name;
-	int fmt;
+	h323_format fmt;
+	struct ast_format tmpfmt;
 
 	if (!ast_strlen_zero(pvt->options.cid_num))
 		cid_num = pvt->options.cid_num;
@@ -1033,13 +1044,18 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		ch->tech = &oh323_tech;
 		if (!(fmt = pvt->jointcapability) && !(fmt = pvt->options.capability))
 			fmt = global_options.capability;
-		ch->nativeformats = ast_codec_choose(&pvt->options.prefs, fmt, 1)/* | (pvt->jointcapability & AST_FORMAT_VIDEO_MASK)*/;
-		pvt->nativeformats = ch->nativeformats;
-		fmt = ast_best_codec(ch->nativeformats);
-		ch->writeformat = fmt;
-		ch->rawwriteformat = fmt;
-		ch->readformat = fmt;
-		ch->rawreadformat = fmt;
+
+		ast_format_cap_from_old_bitfield(ch->nativeformats, fmt);
+		ast_codec_choose(&pvt->options.prefs, ch->nativeformats, 1, &tmpfmt)/* | (pvt->jointcapability & AST_FORMAT_VIDEO_MASK)*/;
+
+		ast_format_cap_set(ch->nativeformats, &tmpfmt);
+
+		pvt->nativeformats = ast_format_cap_to_old_bitfield(ch->nativeformats);
+		ast_best_codec(ch->nativeformats, &tmpfmt);
+		ast_format_copy(&ch->writeformat, &tmpfmt);
+		ast_format_copy(&ch->rawwriteformat, &tmpfmt);
+		ast_format_copy(&ch->readformat, &tmpfmt);
+		ast_format_copy(&ch->rawreadformat, &tmpfmt);
 		if (!pvt->rtp)
 			__oh323_rtp_create(pvt);
 #if 0
@@ -1264,17 +1280,33 @@ static struct oh323_alias *realtime_alias(const char *alias)
 	return a;
 }
 
+static int h323_parse_allow_disallow(struct ast_codec_pref *pref, h323_format *formats, const char *list, int allowing)
+{
+	int res;
+	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	if (!cap) {
+		return 1;
+	}
+
+	ast_format_cap_from_old_bitfield(cap, *formats);
+	res = ast_parse_allow_disallow(pref, cap, list, allowing);
+	*formats = ast_format_cap_to_old_bitfield(cap);
+	cap = ast_format_cap_destroy(cap);
+	return res;
+
+}
+
 static int update_common_options(struct ast_variable *v, struct call_options *options)
 {
 	int tmp = 0;
 	char *val, *opt;
 
 	if (!strcasecmp(v->name, "allow")) {
-		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 1);
+		h323_parse_allow_disallow(&options->prefs, &options->capability, v->value, 1);
 	} else if (!strcasecmp(v->name, "autoframing")) {
 		options->autoframing = ast_true(v->value);
 	} else if (!strcasecmp(v->name, "disallow")) {
-		ast_parse_allow_disallow(&options->prefs, &options->capability, v->value, 0);
+		h323_parse_allow_disallow(&options->prefs, &options->capability, v->value, 0);
 	} else if (!strcasecmp(v->name, "dtmfmode")) {
 		val = ast_strdupa(v->value);
 		if ((opt = strchr(val, ':')) != (char *)NULL) {
@@ -1745,9 +1777,8 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 		return 0;
 	}
 }
-static struct ast_channel *oh323_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
 {
-	format_t oldformat;
 	struct oh323_pvt *pvt;
 	struct ast_channel *tmpc = NULL;
 	char *dest = (char *)data;
@@ -1756,17 +1787,15 @@ static struct ast_channel *oh323_request(const char *type, format_t format, cons
 	char tmp[256], tmp1[256];
 
 	if (h323debug)
-		ast_debug(1, "type=%s, format=%s, data=%s.\n", type, ast_getformatname_multiple(tmp, sizeof(tmp), format), (char *)data);
+		ast_debug(1, "type=%s, format=%s, data=%s.\n", type, ast_getformatname_multiple(tmp, sizeof(tmp), cap), (char *)data);
 
 	pvt = oh323_alloc(0);
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", (char *)data);
 		return NULL;
 	}
-	oldformat = format;
-	format &= AST_FORMAT_AUDIO_MASK;
-	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), format));
+	if (!(ast_format_cap_has_type(cap, AST_FORMAT_TYPE_AUDIO))) {
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), cap));
 		oh323_destroy(pvt);
 		if (cause)
 			*cause = AST_CAUSE_INCOMPATIBLE_DESTINATION;
@@ -2020,11 +2049,11 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 	nativeformats_changed = 0;
 	if (pt != 128 && pvt->rtp) {	/* Payload type is invalid, so try to use previously decided */
 		struct ast_rtp_payload_type rtptype = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(pvt->rtp), pt);
-		if (h323debug)
-			ast_debug(1, "Native format is set to %llu from %d by RTP payload type %d\n", (unsigned long long) rtptype.code, pvt->nativeformats, pt);
-		if (pvt->nativeformats != rtptype.code) {
-			pvt->nativeformats = rtptype.code;
-			nativeformats_changed = 1;
+		if (rtptype.asterisk_format) {
+			if (pvt->nativeformats != ast_format_to_old_bitfield(&rtptype.format)) {
+				pvt->nativeformats = ast_format_to_old_bitfield(&rtptype.format);
+				nativeformats_changed = 1;
+			}
 		}
 	} else if (h323debug)
 		ast_log(LOG_NOTICE, "Payload type is unknown, formats isn't changed\n");
@@ -2032,15 +2061,18 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 	/* Don't try to lock the channel if nothing changed */
 	if (nativeformats_changed || pvt->options.progress_audio || (rtp_change != NEED_NONE)) {
 		if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
+			struct ast_format_cap *pvt_native = ast_format_cap_alloc_nolock();
+			ast_format_cap_from_old_bitfield(pvt_native, pvt->nativeformats);
+
 			/* Re-build translation path only if native format(s) has been changed */
-			if (pvt->owner->nativeformats != pvt->nativeformats) {
+			if (!(ast_format_cap_identical(pvt->owner->nativeformats, pvt_native))) {
 				if (h323debug) {
 					char tmp[256], tmp2[256];
-					ast_debug(1, "Native format changed to '%s' from '%s', read format is %s, write format is %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), pvt->nativeformats), ast_getformatname_multiple(tmp2, sizeof(tmp2), pvt->owner->nativeformats), ast_getformatname(pvt->owner->readformat), ast_getformatname(pvt->owner->writeformat));
+					ast_debug(1, "Native format changed to '%s' from '%s', read format is %s, write format is %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), pvt_native), ast_getformatname_multiple(tmp2, sizeof(tmp2), pvt->owner->nativeformats), ast_getformatname(&pvt->owner->readformat), ast_getformatname(&pvt->owner->writeformat));
 				}
-				pvt->owner->nativeformats = pvt->nativeformats;
-				ast_set_read_format(pvt->owner, pvt->owner->readformat);
-				ast_set_write_format(pvt->owner, pvt->owner->writeformat);
+				ast_format_cap_copy(pvt->owner->nativeformats, pvt_native);
+				ast_set_read_format(pvt->owner, &pvt->owner->readformat);
+				ast_set_write_format(pvt->owner, &pvt->owner->writeformat);
 			}
 			if (pvt->options.progress_audio)
 				ast_queue_control(pvt->owner, AST_CONTROL_PROGRESS);
@@ -2055,6 +2087,7 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 				break;
 			}
 			ast_channel_unlock(pvt->owner);
+			pvt_native = ast_format_cap_destroy(pvt_native);
 		}
 		else {
 			if (pvt->options.progress_audio)
@@ -2491,7 +2524,7 @@ static void set_peer_capabilities(unsigned call_reference, const char *token, in
 			for (i = 0; i < 32; ++i) {
 				if (!prefs->order[i])
 					break;
-				ast_debug(1, "prefs[%d]=%s:%d\n", i, (prefs->order[i] ? ast_getformatname(1 << (prefs->order[i]-1)) : "<none>"), prefs->framing[i]);
+				ast_debug(1, "prefs[%d]=%s:%d\n", i, (prefs->order[i] ? ast_getformatname(&prefs->formats[i]) : "<none>"), prefs->framing[i]);
 			}
 		}
 		if (pvt->rtp) {
@@ -2531,7 +2564,7 @@ static void set_local_capabilities(unsigned call_reference, const char *token)
 		for (i = 0; i < 32; i++) {
 			if (!prefs.order[i])
 				break;
-			ast_debug(1, "local prefs[%d]=%s:%d\n", i, (prefs.order[i] ? ast_getformatname(1 << (prefs.order[i]-1)) : "<none>"), prefs.framing[i]);
+			ast_debug(1, "local prefs[%d]=%s:%d\n", i, (prefs.order[i] ? ast_getformatname(&prefs.formats[i]) : "<none>"), prefs.framing[i]);
 		}
 		ast_debug(1, "Capabilities for connection %s is set\n", token);
 	}
@@ -3191,9 +3224,9 @@ static enum ast_rtp_glue_result oh323_get_rtp_peer(struct ast_channel *chan, str
 	return res;
 }
 
-static char *convertcap(format_t cap)
+static char *convertcap(struct ast_format *format)
 {
-	switch (cap) {
+	switch (format->id) {
 	case AST_FORMAT_G723_1:
 		return "G.723";
 	case AST_FORMAT_GSM:
@@ -3213,12 +3246,12 @@ static char *convertcap(format_t cap)
 	case AST_FORMAT_ILBC:
 		return "ILBC";
 	default:
-		ast_log(LOG_NOTICE, "Don't know how to deal with mode %" PRId64 "\n", cap);
+		ast_log(LOG_NOTICE, "Don't know how to deal with mode %s\n", ast_getformatname(format));
 		return NULL;
 	}
 }
 
-static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active)
+static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, const struct ast_format_cap *codecs, int nat_active)
 {
 	/* XXX Deal with Video */
 	struct oh323_pvt *pvt;
@@ -3230,7 +3263,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance 
 		return 0;
 	}
 
-	mode = convertcap(chan->writeformat);
+	mode = convertcap(&chan->writeformat);
 	pvt = (struct oh323_pvt *) chan->tech_pvt;
 	if (!pvt) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
@@ -3259,6 +3292,11 @@ static struct ast_rtp_glue oh323_rtp_glue = {
 static enum ast_module_load_result load_module(void)
 {
 	int res;
+
+	if (!(oh323_tech.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	ast_format_cap_add_all_by_type(oh323_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
 
 	h323debug = 0;
 	sched = ast_sched_context_create();
@@ -3430,6 +3468,7 @@ static int unload_module(void)
 	ASTOBJ_CONTAINER_DESTROYALL(&aliasl, oh323_destroy_alias);
 	ASTOBJ_CONTAINER_DESTROY(&aliasl);
 
+	oh323_tech.capabilities = ast_format_cap_destroy(oh323_tech.capabilities);
 	return 0;
 }
 

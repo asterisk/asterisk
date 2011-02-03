@@ -218,9 +218,9 @@ static void dump_versioned_codec(char *output, int maxlen, void *value, int len)
 {
 	char *version = (char *) value;
 	if (version[0] == 0) {
-		if (len == (int) (sizeof(format_t) + sizeof(char))) {
-			format_t codec = ntohll(get_unaligned_uint64(value + 1));
-			ast_copy_string(output, ast_getformatname(codec), maxlen);
+		if (len == (int) (sizeof(iax2_format) + sizeof(char))) {
+			iax2_format codec = ntohll(get_unaligned_uint64(value + 1));
+			ast_copy_string(output, iax2_getformatname(codec), maxlen);
 		} else {
 			ast_copy_string(output, "Invalid length!", maxlen);
 		}
@@ -804,11 +804,11 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			{
 				int version = data[2];
 				if (version == 0) {
-					if (len != (int)sizeof(char) + sizeof(format_t)) {
-						snprintf(tmp, (int)sizeof(tmp), "Expecting capability to be %d bytes long but was %d\n", (int) (sizeof(format_t) + sizeof(char)), len);
+					if (len != (int)sizeof(char) + sizeof(iax2_format)) {
+						snprintf(tmp, (int)sizeof(tmp), "Expecting capability to be %d bytes long but was %d\n", (int) (sizeof(iax2_format) + sizeof(char)), len);
 						errorf(tmp);
 					} else {
-						ies->capability = (format_t) ntohll(get_unaligned_uint64(data + 3));
+						ies->capability = (iax2_format) ntohll(get_unaligned_uint64(data + 3));
 					}
 				} /* else unknown version */
 			}
@@ -825,11 +825,11 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			{
 				int version = data[2];
 				if (version == 0) {
-					if (len != (int)sizeof(char) + sizeof(format_t)) {
-						snprintf(tmp, (int)sizeof(tmp), "Expecting format to be %d bytes long but was %d\n", (int) (sizeof(format_t) + sizeof(char)), len);
+					if (len != (int)sizeof(char) + sizeof(iax2_format)) {
+						snprintf(tmp, (int)sizeof(tmp), "Expecting format to be %d bytes long but was %d\n", (int) (sizeof(iax2_format) + sizeof(char)), len);
 						errorf(tmp);
 					} else {
-						ies->format = (format_t) ntohll(get_unaligned_uint64(data + 3));
+						ies->format = (iax2_format) ntohll(get_unaligned_uint64(data + 3));
 					}
 				} /* else unknown version */
 			}
@@ -1138,7 +1138,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 {
 	fr->af.frametype = f->frametype;
-	fr->af.subclass.codec = f->subclass.codec;
+	ast_format_copy(&fr->af.subclass.format, &f->subclass.format);
 	fr->af.mallocd = 0;				/* Our frame is static relative to the container */
 	fr->af.datalen = f->datalen;
 	fr->af.samples = f->samples;
@@ -1157,7 +1157,7 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 		}
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		/* We need to byte-swap slinear samples from network byte order */
-		if ((fr->af.frametype == AST_FRAME_VOICE) && (fr->af.subclass.codec == AST_FORMAT_SLINEAR)) {
+		if ((fr->af.frametype == AST_FRAME_VOICE) && (fr->af.subclass.format.id == AST_FORMAT_SLINEAR)) {
 			/* 2 bytes / sample for SLINEAR */
 			ast_swapcopy_samples(fr->af.data.ptr, f->data.ptr, copy_len / 2);
 		} else

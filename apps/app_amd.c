@@ -148,7 +148,8 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	int res = 0;
 	struct ast_frame *f = NULL;
 	struct ast_dsp *silenceDetector = NULL;
-	int dspsilence = 0, readFormat, framelength = 0;
+	int dspsilence = 0, framelength = 0;
+	struct ast_format readFormat;
 	int inInitialSilence = 1;
 	int inGreeting = 0;
 	int voiceDuration = 0;
@@ -188,10 +189,11 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(argMaximumWordLength);
 	);
 
+	ast_format_clear(&readFormat);
 	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", chan->name,
 		S_COR(chan->caller.ani.number.valid, chan->caller.ani.number.str, "(N/A)"),
 		S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, "(N/A)"),
-		ast_getformatname(chan->readformat));
+		ast_getformatname(&chan->readformat));
 
 	/* Lets parse the arguments. */
 	if (!ast_strlen_zero(parse)) {
@@ -240,8 +242,8 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 				minimumWordLength, betweenWordsSilence, maximumNumberOfWords, silenceThreshold, maximumWordLength);
 
 	/* Set read format to signed linear so we get signed linear frames in */
-	readFormat = chan->readformat;
-	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0 ) {
+	ast_format_copy(&readFormat, &chan->readformat);
+	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0 ) {
 		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to set to linear mode, giving up\n", chan->name );
 		pbx_builtin_setvar_helper(chan , "AMDSTATUS", "");
 		pbx_builtin_setvar_helper(chan , "AMDCAUSE", "");
@@ -399,7 +401,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	pbx_builtin_setvar_helper(chan , "AMDCAUSE" , amdCause);
 
 	/* Restore channel read format */
-	if (readFormat && ast_set_read_format(chan, readFormat))
+	if (readFormat.id && ast_set_read_format(chan, &readFormat))
 		ast_log(LOG_WARNING, "AMD: Unable to restore read format on '%s'\n", chan->name);
 
 	/* Free the DSP used to detect silence */

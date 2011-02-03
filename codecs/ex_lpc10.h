@@ -15,7 +15,6 @@ static struct ast_frame *lpc10_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.codec = AST_FORMAT_LPC10,
 		.datalen = sizeof(ex_lpc10),
 		/* All frames are 22 ms long (maybe a little more -- why did he choose
 		   LPC10_SAMPLES_PER_FRAME sample frames anyway?? */
@@ -25,6 +24,8 @@ static struct ast_frame *lpc10_sample(void)
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = ex_lpc10,
 	};
+
+	ast_format_set(&f.subclass.format, AST_FORMAT_LPC10, 0);
 
 	return &f;
 }

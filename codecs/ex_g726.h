@@ -19,7 +19,6 @@ static struct ast_frame *g726_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.codec = AST_FORMAT_G726,
 		.datalen = sizeof(ex_g726),
 		.samples = ARRAY_LEN(ex_g726) * 2, /* 2 samples per byte */
 		.mallocd = 0,
@@ -27,6 +26,8 @@ static struct ast_frame *g726_sample(void)
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = ex_g726,
 	};
+
+	ast_format_set(&f.subclass.format, AST_FORMAT_G726, 0);
 
 	return &f;
 }

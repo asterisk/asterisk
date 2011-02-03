@@ -48,7 +48,7 @@ static struct ast_frame *jpeg_read_image(int fd, int len)
 	}
 	memset(&fr, 0, sizeof(fr));
 	fr.frametype = AST_FRAME_IMAGE;
-	fr.subclass.codec = AST_FORMAT_JPEG;
+	ast_format_set(&fr.subclass.format, AST_FORMAT_JPEG, 0);
 	fr.data.ptr = buf;
 	fr.src = "JPEG Read";
 	fr.datalen = len;
@@ -74,7 +74,7 @@ static int jpeg_write_image(int fd, struct ast_frame *fr)
 		ast_log(LOG_WARNING, "Not an image\n");
 		return -1;
 	}
-	if (fr->subclass.codec != AST_FORMAT_JPEG) {
+	if (fr->subclass.format.id != AST_FORMAT_JPEG) {
 		ast_log(LOG_WARNING, "Not a jpeg image\n");
 		return -1;
 	}
@@ -92,7 +92,6 @@ static struct ast_imager jpeg_format = {
 	.name = "jpg",
 	.desc = "JPEG (Joint Picture Experts Group)",
 	.exts = "jpg|jpeg",
-	.format = AST_FORMAT_JPEG,
 	.read_image = jpeg_read_image,
 	.identify = jpeg_identify,
 	.write_image = jpeg_write_image,
@@ -100,6 +99,7 @@ static struct ast_imager jpeg_format = {
 
 static int load_module(void)
 {
+	ast_format_set(&jpeg_format.format, AST_FORMAT_JPEG, 0);
 	if (ast_image_register(&jpeg_format))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

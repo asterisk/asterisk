@@ -1603,7 +1603,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 	buf = alloca(len);
 
 	f.frametype = AST_FRAME_VOICE;
-	f.subclass.codec = __OUT_FMT;
+	ast_format_set(&f.subclass.format, __OUT_FMT, 0);
 	f.datalen = samples * sizeof(*buf);
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;
@@ -2001,9 +2001,9 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 		sms_messagetx(&h);
 	}
 
-	res = ast_set_write_format(chan, __OUT_FMT);
+	res = ast_set_write_format_by_id(chan, __OUT_FMT);
 	if (res >= 0) {
-		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
 	}
 	if (res < 0) {
 		ast_log(LOG_ERROR, "Unable to set to linear mode, giving up\n");

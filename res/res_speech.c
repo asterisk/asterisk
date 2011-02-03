@@ -169,23 +169,26 @@ int ast_speech_change(struct ast_speech *speech, const char *name, const char *v
 }
 
 /*! \brief Create a new speech structure using the engine specified */
-struct ast_speech *ast_speech_new(const char *engine_name, int formats)
+struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_format_cap *cap)
 {
 	struct ast_speech_engine *engine = NULL;
 	struct ast_speech *new_speech = NULL;
-	int format = AST_FORMAT_SLINEAR;
+	struct ast_format_cap *joint = NULL;
+	struct ast_format best;
+
+	ast_format_set(&best, AST_FORMAT_SLINEAR, 0);
 
 	/* Try to find the speech recognition engine that was requested */
 	if (!(engine = find_engine(engine_name)))
 		return NULL;
 
 	/* Before even allocating the memory below do some codec negotiation, we choose the best codec possible and fall back to signed linear if possible */
-	if ((format = (engine->formats & formats)))
-		format = ast_best_codec(format);
-	else if ((engine->formats & AST_FORMAT_SLINEAR))
-		format = AST_FORMAT_SLINEAR;
-	else
+	if ((joint = ast_format_cap_joint(engine->formats, cap))) {
+		ast_best_codec(joint, &best);
+		joint = ast_format_cap_destroy(joint);
+	} else if (!ast_format_cap_iscompatible(engine->formats, &best)) {
 		return NULL;
+	}
 
 	/* Allocate our own speech structure, and try to allocate a structure from the engine too */
 	if (!(new_speech = ast_calloc(1, sizeof(*new_speech))))
@@ -201,13 +204,13 @@ struct ast_speech *ast_speech_new(const char *engine_name, int formats)
 	new_speech->engine = engine;
 
 	/* Can't forget the format audio is going to be in */
-	new_speech->format = format;
+	ast_format_copy(&new_speech->format, &best);
 
 	/* We are not ready to accept audio yet */
 	ast_speech_change_state(new_speech, AST_SPEECH_STATE_NOT_READY);
 
 	/* Pass ourselves to the engine so they can set us up some more and if they error out then do not create a structure */
-	if (engine->create(new_speech, format)) {
+	if (engine->create(new_speech, &best)) {
 		ast_mutex_destroy(&new_speech->lock);
 		ast_free(new_speech);
 		new_speech = NULL;

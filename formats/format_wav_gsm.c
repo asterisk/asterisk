@@ -395,7 +395,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	struct wavg_desc *fs = (struct wavg_desc *)s->_private;
 
 	s->fr.frametype = AST_FRAME_VOICE;
-	s->fr.subclass.codec = AST_FORMAT_GSM;
+	ast_format_set(&s->fr.subclass.format, AST_FORMAT_GSM, 0);
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.samples = GSM_SAMPLES;
 	s->fr.mallocd = 0;
@@ -432,8 +432,8 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
-	if (f->subclass.codec != AST_FORMAT_GSM) {
-		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%s)!\n", ast_getformatname(f->subclass.codec));
+	if (f->subclass.format.id != AST_FORMAT_GSM) {
+		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%s)!\n", ast_getformatname(&f->subclass.format));
 		return -1;
 	}
 	/* XXX this might fail... if the input is a multiple of MSGSM_FRAME_SIZE
@@ -521,10 +521,9 @@ static off_t wav_tell(struct ast_filestream *fs)
 	return (offset - MSGSM_DATA_OFFSET)/MSGSM_FRAME_SIZE*MSGSM_SAMPLES;
 }
 
-static const struct ast_format wav49_f = {
+static struct ast_format_def wav49_f = {
 	.name = "wav49",
 	.exts = "WAV|wav49",
-	.format = AST_FORMAT_GSM,
 	.open =	wav_open,
 	.rewrite = wav_rewrite,
 	.write = wav_write,
@@ -538,14 +537,15 @@ static const struct ast_format wav49_f = {
 
 static int load_module(void)
 {
-	if (ast_format_register(&wav49_f))
+	ast_format_set(&wav49_f.format, AST_FORMAT_GSM, 0);
+	if (ast_format_def_register(&wav49_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	return ast_format_unregister(wav49_f.name);
+	return ast_format_def_unregister(wav49_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Microsoft WAV format (Proprietary GSM)",

@@ -88,7 +88,7 @@ static struct ast_jb_conf g_jb_conf = {
 	.target_extra = -1,
 };
 
-static struct ast_channel *local_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 static int local_digit_begin(struct ast_channel *ast, char digit);
 static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int local_call(struct ast_channel *ast, char *dest, int timeout);
@@ -106,10 +106,9 @@ static int local_queryoption(struct ast_channel *ast, int option, void *data, in
 static int local_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 
 /* PBX interface structure for channel registration */
-static const struct ast_channel_tech local_tech = {
+static struct ast_channel_tech local_tech = {
 	.type = "Local",
 	.description = tdesc,
-	.capabilities = -1,
 	.requester = local_request,
 	.send_digit_begin = local_digit_begin,
 	.send_digit_end = local_digit_end,
@@ -138,15 +137,15 @@ static const struct ast_channel_tech local_tech = {
 
 */
 struct local_pvt {
-	unsigned int flags;                     /*!< Private flags */
-	char context[AST_MAX_CONTEXT];		/*!< Context to call */
-	char exten[AST_MAX_EXTENSION];		/*!< Extension to call */
-	format_t reqformat;				/*!< Requested format */
-	struct ast_jb_conf jb_conf;		/*!< jitterbuffer configuration for this local channel */
-	struct ast_channel *owner;		/*!< Master Channel - Bridging happens here */
-	struct ast_channel *chan;		/*!< Outbound channel - PBX is run here */
-	struct ast_module_user *u_owner;	/*!< reference to keep the module loaded while in use */
-	struct ast_module_user *u_chan;		/*!< reference to keep the module loaded while in use */
+	unsigned int flags;             /*!< Private flags */
+	char context[AST_MAX_CONTEXT];  /*!< Context to call */
+	char exten[AST_MAX_EXTENSION];  /*!< Extension to call */
+	struct ast_format_cap *reqcap;  /*!< Requested format capabilities */
+	struct ast_jb_conf jb_conf;     /*!< jitterbuffer configuration for this local channel */
+	struct ast_channel *owner;      /*!< Master Channel - Bridging happens here */
+	struct ast_channel *chan;       /*!< Outbound channel - PBX is run here */
+	struct ast_module_user *u_owner;/*!< reference to keep the module loaded while in use */
+	struct ast_module_user *u_chan; /*!< reference to keep the module loaded while in use */
 };
 
 #define LOCAL_ALREADY_MASQED  (1 << 0) /*!< Already masqueraded */
@@ -954,13 +953,23 @@ static int local_hangup(struct ast_channel *ast)
 	return 0;
 }
 
+static void local_destroy(void *obj)
+{
+	struct local_pvt *pvt = obj;
+	pvt->reqcap = ast_format_cap_destroy(pvt->reqcap);
+}
+
 /*! \brief Create a call structure */
-static struct local_pvt *local_alloc(const char *data, format_t format)
+static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *cap)
 {
 	struct local_pvt *tmp = NULL;
 	char *c = NULL, *opts = NULL;
 
-	if (!(tmp = ao2_alloc(sizeof(*tmp), NULL))) {
+	if (!(tmp = ao2_alloc(sizeof(*tmp), local_destroy))) {
+		return NULL;
+	}
+	if (!(tmp->reqcap = ast_format_cap_dup(cap))) {
+		ao2_ref(tmp, -1);
 		return NULL;
 	}
 
@@ -995,9 +1004,6 @@ static struct local_pvt *local_alloc(const char *data, format_t format)
 		*c++ = '\0';
 
 	ast_copy_string(tmp->context, c ? c : "default", sizeof(tmp->context));
-
-	tmp->reqformat = format;
-
 #if 0
 	/* We can't do this check here, because we don't know the CallerID yet, and
 	 * the CallerID could potentially affect what step is actually taken (or
@@ -1019,7 +1025,8 @@ static struct local_pvt *local_alloc(const char *data, format_t format)
 static struct ast_channel *local_new(struct local_pvt *p, int state, const char *linkedid)
 {
 	struct ast_channel *tmp = NULL, *tmp2 = NULL;
-	int randnum = ast_random() & 0xffff, fmt = 0;
+	int randnum = ast_random() & 0xffff;
+	struct ast_format fmt;
 	const char *t;
 	int ama;
 
@@ -1045,19 +1052,19 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 
 	tmp2->tech = tmp->tech = &local_tech;
 
-	tmp->nativeformats = p->reqformat;
-	tmp2->nativeformats = p->reqformat;
+	ast_format_cap_copy(tmp->nativeformats, p->reqcap);
+	ast_format_cap_copy(tmp2->nativeformats, p->reqcap);
 
 	/* Determine our read/write format and set it on each channel */
-	fmt = ast_best_codec(p->reqformat);
-	tmp->writeformat = fmt;
-	tmp2->writeformat = fmt;
-	tmp->rawwriteformat = fmt;
-	tmp2->rawwriteformat = fmt;
-	tmp->readformat = fmt;
-	tmp2->readformat = fmt;
-	tmp->rawreadformat = fmt;
-	tmp2->rawreadformat = fmt;
+	ast_best_codec(p->reqcap, &fmt);
+	ast_format_copy(&tmp->writeformat, &fmt);
+	ast_format_copy(&tmp2->writeformat, &fmt);
+	ast_format_copy(&tmp->rawwriteformat, &fmt);
+	ast_format_copy(&tmp2->rawwriteformat, &fmt);
+	ast_format_copy(&tmp->readformat, &fmt);
+	ast_format_copy(&tmp2->readformat, &fmt);
+	ast_format_copy(&tmp->rawreadformat, &fmt);
+	ast_format_copy(&tmp2->rawreadformat, &fmt);
 
 	tmp->tech_pvt = p;
 	tmp2->tech_pvt = p;
@@ -1079,13 +1086,13 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *local_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
 {
 	struct local_pvt *p = NULL;
 	struct ast_channel *chan = NULL;
 
 	/* Allocate a new private structure and then Asterisk channel */
-	if ((p = local_alloc(data, format))) {
+	if ((p = local_alloc(data, cap))) {
 		if (!(chan = local_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL))) {
 			ao2_unlink(locals, p);
 		}
@@ -1197,7 +1204,13 @@ static int locals_cmp_cb(void *obj, void *arg, int flags)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
+	if (!(local_tech.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	ast_format_cap_add_all(local_tech.capabilities);
+
 	if (!(locals = ao2_container_alloc(BUCKET_SIZE, NULL, locals_cmp_cb))) {
+		ast_format_cap_destroy(local_tech.capabilities);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -1205,6 +1218,7 @@ static int load_module(void)
 	if (ast_channel_register(&local_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Local'\n");
 		ao2_ref(locals, -1);
+		ast_format_cap_destroy(local_tech.capabilities);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_cli_register_multiple(cli_local, sizeof(cli_local) / sizeof(struct ast_cli_entry));
@@ -1234,6 +1248,7 @@ static int unload_module(void)
 	ao2_iterator_destroy(&it);
 	ao2_ref(locals, -1);
 
+	ast_format_cap_destroy(local_tech.capabilities);
 	return 0;
 }
 

@@ -66,7 +66,7 @@ static struct ast_jb_conf default_jbconf =
 static struct ast_jb_conf global_jbconf;
 
 /* Channel Definition */
-static struct ast_channel *ooh323_request(const char *type, format_t format, 
+static struct ast_channel *ooh323_request(const char *type, struct ast_format_cap *cap,
 			const struct ast_channel *requestor,  void *data, int *cause);
 static int ooh323_digit_begin(struct ast_channel *ast, char digit);
 static int ooh323_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -82,7 +82,7 @@ static int ooh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 static enum ast_rtp_glue_result ooh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **rtp);
 static enum ast_rtp_glue_result ooh323_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp_instance **rtp);
 static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, 
-          struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active);
+          struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, const struct ast_format_cap *codecs, int nat_active);
 
 static struct ast_udptl *ooh323_get_udptl_peer(struct ast_channel *chan);
 static int ooh323_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl);
@@ -92,10 +92,9 @@ static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
 struct ooh323_peer *find_friend(const char *name, int port);
 
 
-static const struct ast_channel_tech ooh323_tech = {
+static struct ast_channel_tech ooh323_tech = {
 	.type = type,
 	.description = tdesc,
-	.capabilities = -1,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = ooh323_request,
 	.send_digit_begin = ooh323_digit_begin,
@@ -172,9 +171,9 @@ static struct ooh323_pvt {
 	char callee_url[AST_MAX_EXTENSION];
  
 	int port;
-	format_t readformat;   /* negotiated read format */
-	format_t writeformat;  /* negotiated write format */
-	format_t capability;
+	struct ast_format readformat;   /* negotiated read format */
+	struct ast_format writeformat;  /* negotiated write format */
+	struct ast_format_cap *cap;
 	struct ast_codec_pref prefs;
 	int dtmfmode;
 	int dtmfcodec;
@@ -204,7 +203,7 @@ struct ooh323_user{
 	unsigned    inUse;
 	char        accountcode[20];
 	int         amaflags;
-	format_t    capability;
+	struct ast_format_cap *cap;
 	struct ast_codec_pref prefs;
 	int         dtmfmode;
 	int	    dtmfcodec;
@@ -225,7 +224,7 @@ struct ooh323_peer{
 	char        name[256];
 	unsigned    outgoinglimit;
 	unsigned    outUse;
-	format_t    capability;
+	struct ast_format_cap *cap;
 	struct ast_codec_pref prefs;
 	char        accountcode[20];
 	int         amaflags;
@@ -286,7 +285,7 @@ static int  gPort = 1720;
 static char gIP[20];
 static char gCallerID[AST_MAX_EXTENSION] = "";
 static struct ooAliases *gAliasList;
-static format_t gCapability = AST_FORMAT_ULAW;
+static struct ast_format_cap *gCap;
 static struct ast_codec_pref gPrefs;
 static int  gDTMFMode = H323_DTMF_RFC2833;
 static int  gDTMFCodec = 101;
@@ -337,14 +336,14 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 
 static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
-                                             const char *host, int capability, const char *linkedid) 
+                                             const char *host, struct ast_format_cap *cap, const char *linkedid) 
 {
 	struct ast_channel *ch = NULL;
-	int fmt = 0;
+	struct ast_format tmpfmt;
 	if (gH323Debug)
-		ast_verbose("---   ooh323_new - %s, %d\n", host, capability);
+		ast_verbose("---   ooh323_new - %s\n", host);
 
-
+	ast_format_clear(&tmpfmt);
 	/* Don't hold a h323 pvt lock while we allocate a channel */
 	ast_mutex_unlock(&i->lock);
    	ch = ast_channel_alloc(1, state, i->callerid_num, i->callerid_name, 
@@ -360,12 +359,14 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 		ast_channel_lock(ch);
 		ch->tech = &ooh323_tech;
 
-		if (capability)
-			fmt = ast_best_codec(capability);
-		if (!fmt) 
-			fmt = ast_codec_pref_index(&i->prefs, 0);
+		if (cap)
+			ast_best_codec(cap, &tmpfmt);
+		if (!tmpfmt.id)
+			ast_codec_pref_index(&i->prefs, 0, &tmpfmt);
 
-		ch->nativeformats = ch->rawwriteformat = ch->rawreadformat = fmt;
+		ast_format_cap_add(ch->nativeformats, &tmpfmt);
+		ast_format_copy(&ch->rawwriteformat, &tmpfmt);
+		ast_format_copy(&ch->rawreadformat, &tmpfmt);
 
 		ast_channel_set_fd(ch, 0, ast_rtp_instance_fd(i->rtp, 0));
 		ast_channel_set_fd(ch, 1, ast_rtp_instance_fd(i->rtp, 1));
@@ -377,8 +378,8 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 			ch->rings = 1;
 
 		ch->adsicpe = AST_ADSI_UNAVAILABLE;
-		ast_set_write_format(ch, fmt);
-		ast_set_read_format(ch, fmt);
+		ast_set_write_format(ch, &tmpfmt);
+		ast_set_read_format(ch, &tmpfmt);
 		ch->tech_pvt = i;
 		i->owner = ch;
 		ast_module_ref(myself);
@@ -472,6 +473,11 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 		ast_log(LOG_ERROR, "Couldn't allocate private ooh323 structure\n");
 		return NULL;
 	}
+	if (!(pvt->cap = ast_format_cap_alloc_nolock())) {
+		ast_free(pvt);
+		ast_log(LOG_ERROR, "Couldn't allocate private ooh323 structure\n");
+		return NULL;
+	}
 
 	ast_mutex_init(&pvt->lock);
 	ast_mutex_lock(&pvt->lock);
@@ -529,7 +535,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	ast_copy_string(pvt->accountcode, gAccountcode, sizeof(pvt->accountcode));
 
 	pvt->amaflags = gAMAFLAGS;
-	pvt->capability = gCapability;
+	ast_format_cap_copy(pvt->cap, gCap);
 	memcpy(&pvt->prefs, &gPrefs, sizeof(pvt->prefs));
 
 	ast_mutex_unlock(&pvt->lock); 
@@ -549,7 +555,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 /*
 	Possible data values - peername, exten/peername, exten@ip
  */
-static struct ast_channel *ooh323_request(const char *type, format_t format,
+static struct ast_channel *ooh323_request(const char *type, struct ast_format_cap *cap,
 		const struct ast_channel *requestor, void *data, int *cause)
 
 {
@@ -560,17 +566,14 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 	char *ext = NULL;
 	char tmp[256];
 	char formats[FORMAT_STRING_SIZE];
-	int oldformat;
 	int port = 0;
 
 	if (gH323Debug)
 		ast_verbose("---   ooh323_request - data %s format %s\n", (char*)data,  
-										ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,format));
+										ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,cap));
 
-	oldformat = format;
-	format &= AST_FORMAT_AUDIO_MASK;
-	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%lld'\n", (long long) format);
+	if (!(ast_format_cap_has_type(cap, AST_FORMAT_TYPE_AUDIO))) {
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,cap));
 		return NULL;
 	}
 
@@ -633,7 +636,7 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 		if (ext)
 			ast_copy_string(p->exten, ext, sizeof(p->exten));
 
-		p->capability = peer->capability;
+		ast_format_cap_copy(p->cap, peer->cap);
 		memcpy(&p->prefs, &peer->prefs, sizeof(struct ast_codec_pref));
 		p->dtmfmode |= peer->dtmfmode;
 		p->dtmfcodec  = peer->dtmfcodec;
@@ -667,7 +670,7 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 		p->dtmfcodec = gDTMFCodec;
 		p->t38support = gT38Support;
 		p->rtptimeout = gRTPTimeout;
-		p->capability = gCapability;
+		ast_format_cap_copy(p->cap, gCap);
 		p->rtdrinterval = gRTDRInterval;
 		p->rtdrcount = gRTDRCount;
 		p->faststart = gFastStart;
@@ -686,7 +689,7 @@ static struct ast_channel *ooh323_request(const char *type, format_t format,
 	}
 
 
-	chan = ooh323_new(p, AST_STATE_DOWN, p->username, format,
+	chan = ooh323_new(p, AST_STATE_DOWN, p->username, cap,
 				 requestor ? requestor->linkedid : NULL);
 	
 	ast_mutex_unlock(&p->lock);
@@ -1140,16 +1143,16 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 			}
 
 
-			if (!(f->subclass.codec & ast->nativeformats)) {
-				if (ast->nativeformats != 0) {
+			if (!(ast_format_cap_iscompatible(ast->nativeformats, &f->subclass.format))) {
+				if (!(ast_format_cap_is_empty(ast->nativeformats))) {
 					ast_log(LOG_WARNING,
 							"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
-							ast_getformatname(f->subclass.codec),
+							ast_getformatname(&f->subclass.format),
 							ast_getformatname_multiple(buf, sizeof(buf), ast->nativeformats),
-							ast_getformatname(ast->readformat),
-							ast_getformatname(ast->writeformat));
+							ast_getformatname(&ast->readformat),
+							ast_getformatname(&ast->writeformat));
 
-					ast_set_write_format(ast, f->subclass.codec);
+					ast_set_write_format(ast, &f->subclass.format);
 				} else {
 					/* ast_set_write_format(ast, f->subclass);
 					ast->nativeformats = f->subclass; */
@@ -1409,14 +1412,14 @@ static int ooh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 }
 
 
-void ooh323_set_write_format(ooCallData *call, int fmt, int txframes)
+void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txframes)
 {
 	struct ooh323_pvt *p = NULL;
 	char formats[FORMAT_STRING_SIZE];
 
 	if (gH323Debug)
 		ast_verbose("---   ooh323_update_writeformat %s/%d\n", 
-				ast_getformatname_multiple(formats,FORMAT_STRING_SIZE, fmt), txframes);
+				ast_getformatname(fmt), txframes);
 	
 	p = find_call(call);
 	if (!p) {
@@ -1426,7 +1429,7 @@ void ooh323_set_write_format(ooCallData *call, int fmt, int txframes)
 
 	ast_mutex_lock(&p->lock);
 
-	p->writeformat = fmt;
+	ast_format_copy(&p->writeformat, fmt);
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
@@ -1440,8 +1443,8 @@ void ooh323_set_write_format(ooCallData *call, int fmt, int txframes)
 		}
 		if (gH323Debug)
 	  		ast_verbose("Writeformat before update %s/%s\n", 
-			  ast_getformatname_multiple(formats,FORMAT_STRING_SIZE, p->owner->writeformat),
-			  ast_getformatname_multiple(formats,FORMAT_STRING_SIZE, p->owner->nativeformats));
+			  ast_getformatname(&p->owner->writeformat),
+			  ast_getformatname_multiple(formats, sizeof(formats), p->owner->nativeformats));
 		if (txframes)
 			ast_codec_pref_setsize(&p->prefs, fmt, txframes);
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &p->prefs);
@@ -1454,9 +1457,9 @@ void ooh323_set_write_format(ooCallData *call, int fmt, int txframes)
 				 p->rtp, p->dtmfcodec, "audio", "cisco-telephone-event", 0);
 		}
 
-		p->owner->nativeformats = fmt;
-	  	ast_set_write_format(p->owner, p->owner->writeformat);
-	  	ast_set_read_format(p->owner, p->owner->readformat);
+		ast_format_cap_set(p->owner->nativeformats, fmt);
+	  	ast_set_write_format(p->owner, &p->owner->writeformat);
+	  	ast_set_read_format(p->owner, &p->owner->readformat);
 		ast_channel_unlock(p->owner);
    	} else
 		ast_log(LOG_ERROR, "No owner found\n");
@@ -1468,14 +1471,13 @@ void ooh323_set_write_format(ooCallData *call, int fmt, int txframes)
 		ast_verbose("+++   ooh323_update_writeformat\n");
 }
 
-void ooh323_set_read_format(ooCallData *call, int fmt)
+void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 {
 	struct ooh323_pvt *p = NULL;
-	char formats[FORMAT_STRING_SIZE];
 
 	if (gH323Debug)
 		ast_verbose("---   ooh323_update_readformat %s\n", 
-				ast_getformatname_multiple(formats,FORMAT_STRING_SIZE, fmt));
+				ast_getformatname(fmt));
 	
 	p = find_call(call);
 	if (!p) {
@@ -1485,8 +1487,7 @@ void ooh323_set_read_format(ooCallData *call, int fmt)
 
 	ast_mutex_lock(&p->lock);
 
-	p->readformat = fmt;
-
+	ast_format_copy(&p->readformat, fmt);
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
@@ -1501,9 +1502,9 @@ void ooh323_set_read_format(ooCallData *call, int fmt)
 
 		if (gH323Debug)
 	  		ast_verbose("Readformat before update %s\n", 
-				  ast_getformatname_multiple(formats,FORMAT_STRING_SIZE, p->owner->readformat));
-		p->owner->nativeformats = fmt;
-	  	ast_set_read_format(p->owner, p->owner->readformat);
+				  ast_getformatname(&p->owner->readformat));
+		ast_format_cap_set(p->owner->nativeformats, fmt);
+	  	ast_set_read_format(p->owner, &p->owner->readformat);
 		ast_channel_unlock(p->owner);
    	} else
 		ast_log(LOG_ERROR, "No owner found\n");
@@ -1760,7 +1761,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 		ast_copy_string(p->context, user->context, sizeof(p->context));
 		ast_copy_string(p->accountcode, user->accountcode, sizeof(p->accountcode));
 		p->amaflags = user->amaflags;
-		p->capability = user->capability;
+		ast_format_cap_copy(p->cap, user->cap);
 		memcpy(&p->prefs, &user->prefs, sizeof(struct ast_codec_pref));
 		p->dtmfmode |= user->dtmfmode;
 		p->dtmfcodec = user->dtmfcodec;
@@ -1804,7 +1805,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 	 }
 	}
 
-	ooh323c_set_capability_for_call(call, &p->prefs, p->capability, p->dtmfmode, p->dtmfcodec,
+	ooh323c_set_capability_for_call(call, &p->prefs, p->cap, p->dtmfmode, p->dtmfcodec,
 					 p->t38support);
 	configure_local_rtp(p, call);
 
@@ -1971,7 +1972,7 @@ int onNewCallCreated(ooCallData *call)
 				p->username?p->username:"NULL", call->callToken, prefsBuf);
 		}
 
-      		ooh323c_set_capability_for_call(call, &p->prefs, p->capability, 
+      		ooh323c_set_capability_for_call(call, &p->prefs, p->cap,
                                      p->dtmfmode, p->dtmfcodec, p->t38support);
 
 		configure_local_rtp(p, call);
@@ -2157,6 +2158,7 @@ void ooh323_delete_peer(struct ooh323_peer *peer)
       if(peer->url)      free(peer->url);
       if(peer->e164)     free(peer->e164);
 
+		peer->cap = ast_format_cap_destroy(peer->cap);
 		free(peer);
 	}  
 
@@ -2176,10 +2178,14 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 
    	user = ast_calloc(1,sizeof(struct ooh323_user));
 	if (user) {
+		if (!(user->cap = ast_format_cap_alloc_nolock())) {
+			ast_free(user);
+			return NULL;
+		}
 		memset(user, 0, sizeof(struct ooh323_user));
 		ast_mutex_init(&user->lock);
 		ast_copy_string(user->name, name, sizeof(user->name));
-		user->capability = gCapability;
+		ast_format_cap_copy(user->cap, gCap);
 		memcpy(&user->prefs, &gPrefs, sizeof(user->prefs));
 		user->rtptimeout = gRTPTimeout;
 		user->dtmfmode = gDTMFMode;
@@ -2223,14 +2229,14 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 				} else user->rtpmask = NULL;
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&user->prefs, 
-					&user->capability,  v->value, 0);
+					user->cap,  v->value, 0);
 			} else if (!strcasecmp(v->name, "allow")) {
 				const char* tcodecs = v->value;
 				if (!strcasecmp(v->value, "all")) {
 					tcodecs = "ulaw,alaw,g729,g723,gsm";
 				}
 				ast_parse_allow_disallow(&user->prefs,
-					 &user->capability,  tcodecs, 1);
+					 user->cap,  tcodecs, 1);
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				user->amaflags = ast_cdr_amaflags2int(v->value);
 			} else if (!strcasecmp(v->name, "ip")) {
@@ -2285,10 +2291,14 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 
 	peer = ast_calloc(1, sizeof(*peer));
 	if (peer) {
+		if (!(peer->cap = ast_format_cap_alloc_nolock())) {
+			ast_free(peer);
+			return NULL;
+		}
 		memset(peer, 0, sizeof(struct ooh323_peer));
 		ast_mutex_init(&peer->lock);
 		ast_copy_string(peer->name, name, sizeof(peer->name));
-		peer->capability = gCapability;
+		ast_format_cap_copy(peer->cap, gCap);
       		memcpy(&peer->prefs, &gPrefs, sizeof(peer->prefs));
 		peer->rtptimeout = gRTPTimeout;
 		ast_copy_string(peer->accountcode, gAccountcode, sizeof(peer->accountcode));
@@ -2362,14 +2372,14 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 								sizeof(peer->rtpmaskstr));
 				} else peer->rtpmask = NULL;
 			} else if (!strcasecmp(v->name, "disallow")) {
-				ast_parse_allow_disallow(&peer->prefs, &peer->capability, 
+				ast_parse_allow_disallow(&peer->prefs, peer->cap, 
 												 v->value, 0); 
 			} else if (!strcasecmp(v->name, "allow")) {
 				const char* tcodecs = v->value;
 				if (!strcasecmp(v->value, "all")) {
 					tcodecs = "ulaw,alaw,g729,g723,gsm";
 				}
-				ast_parse_allow_disallow(&peer->prefs, &peer->capability, 
+				ast_parse_allow_disallow(&peer->prefs, peer->cap, 
 												 tcodecs, 1);				 
 			} else if (!strcasecmp(v->name,  "amaflags")) {
 				peer->amaflags = ast_cdr_amaflags2int(v->value);
@@ -2475,6 +2485,7 @@ int reload_config(int reload)
 	struct ooh323_peer *peer = NULL;
 	char *cat;
 	const char *utype;
+	struct ast_format tmpfmt;
 
 	if (gH323Debug)
 		ast_verbose("---   reload_config\n");
@@ -2509,7 +2520,7 @@ int reload_config(int reload)
 	gPort = 1720;
 	gIP[0] = '\0';
 	strcpy(gCallerID, DEFAULT_H323ID);
-   	gCapability = AST_FORMAT_ALAW;
+	ast_format_cap_set(gCap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
 	memset(&gPrefs, 0, sizeof(struct ast_codec_pref));
 	gDTMFMode = H323_DTMF_RFC2833;
 	gDTMFCodec = 101;
@@ -2678,13 +2689,13 @@ int reload_config(int reload)
 		} else if (!strcasecmp(v->name, "accountcode")) {
          ast_copy_string(gAccountcode, v->value, sizeof(gAccountcode));
 		} else if (!strcasecmp(v->name, "disallow")) {
-			ast_parse_allow_disallow(&gPrefs, &gCapability, v->value, 0);
+			ast_parse_allow_disallow(&gPrefs, gCap, v->value, 0);
 		} else if (!strcasecmp(v->name, "allow")) {
 			const char* tcodecs = v->value;
 			if (!strcasecmp(v->value, "all")) {
 				tcodecs = "ulaw,alaw,g729,g723,gsm";
 			}
-			ast_parse_allow_disallow(&gPrefs, &gCapability, tcodecs, 1);
+			ast_parse_allow_disallow(&gPrefs, gCap, tcodecs, 1);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
 			if (!strcasecmp(v->value, "inband"))
 				gDTMFMode = H323_DTMF_INBAND;
@@ -2893,7 +2904,7 @@ static char *handle_cli_ooh323_show_peers(struct ast_cli_entry *e, int cmd, stru
      ast_cli(a->fd, FORMAT, peer->name, 
 					peer->accountcode,
 					ip_port,
-                 ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,peer->capability));
+                 ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,peer->cap));
 		prev = peer;
 		peer = peer->next;
 		ast_mutex_unlock(&prev->lock);
@@ -2907,15 +2918,15 @@ static char *handle_cli_ooh323_show_peers(struct ast_cli_entry *e, int cmd, stru
 /*! \brief Print codec list from preference to CLI/manager */
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 {
-	int x, codec;
-
+	int x;
+	struct ast_format tmpfmt;
 	for (x = 0; x < 32; x++) {
-		codec = ast_codec_pref_index(pref, x);
-		if (!codec)
+		ast_codec_pref_index(pref, x, &tmpfmt);
+		if (!tmpfmt.id)
 			break;
-		ast_cli(fd, "%s", ast_getformatname(codec));
+		ast_cli(fd, "%s", ast_getformatname(&tmpfmt));
 		ast_cli(fd, ":%d", pref->framing[x]);
-		if (x < 31 && ast_codec_pref_index(pref, x + 1))
+		if (x < 31 && ast_codec_pref_index(pref, x + 1, &tmpfmt))
 			ast_cli(fd, ",");
 	}
 	if (!x)
@@ -3038,7 +3049,7 @@ static char *handle_cli_ooh323_show_users(struct ast_cli_entry *e, int cmd, stru
 		ast_mutex_lock(&user->lock);
      		ast_cli(a->fd, FORMAT1, user->name, 
 					user->accountcode, user->context,
-					ast_getformatname_multiple(formats, FORMAT_STRING_SIZE, user->capability));
+					ast_getformatname_multiple(formats, FORMAT_STRING_SIZE, user->cap));
 		prev = user;
 		user = user->next;
 		ast_mutex_unlock(&prev->lock);
@@ -3137,7 +3148,7 @@ static char *handle_cli_ooh323_show_config(struct ast_cli_entry *e, int cmd, str
    ast_cli(a->fd,  "%-20s%s\n", "Context:", gContext);
    
    ast_cli(a->fd,  "%-20s%s\n", "Capability:", 
-           ast_getformatname_multiple(value,FORMAT_STRING_SIZE,gCapability));
+           ast_getformatname_multiple(value,FORMAT_STRING_SIZE,gCap));
 
    ast_cli(a->fd, "%-20s", "DTMF Mode: ");
 	if (gDTMFMode & H323_DTMF_CISCO) {
@@ -3207,6 +3218,7 @@ static int load_module(void)
 	int res;
 	struct ooAliases * pNewAlias = NULL;
 	struct ooh323_peer *peer = NULL;
+	struct ast_format tmpfmt;
 	OOH225MsgCallbacks h225Callbacks = {0, 0, 0, 0};
 
 	OOH323CALLBACKS h323Callbacks = {
@@ -3221,6 +3233,14 @@ static int load_module(void)
 		.onReceivedDTMF = ooh323_onReceivedDigit,
 		.onModeChanged = onModeChanged
 	};
+	if (!(gCap = ast_format_cap_alloc())) {
+		return 1;
+	}
+	if (!(ooh323_tech.capabilities = ast_format_cap_alloc())) {
+		return 1;
+	}
+	ast_format_cap_add(gCap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
+	ast_format_cap_add_all(ooh323_tech.capabilities);
 
 	myself = ast_module_info->self;
 
@@ -3334,7 +3354,7 @@ static int load_module(void)
 		ooH323EpSetH323Callbacks(h323Callbacks);
 
 		/* Add endpoint capabilities */
-		if (ooh323c_set_capability(&gPrefs, gCapability, gDTMFMode, gDTMFCodec) < 0) {
+		if (ooh323c_set_capability(&gPrefs, gCap, gDTMFMode, gDTMFCodec) < 0) {
 			ast_log(LOG_ERROR, "Capabilities failure for OOH323. OOH323 Disabled.\n");
 			return 1;
 		}
@@ -3558,7 +3578,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
 
 		ast_mutex_unlock(&cur->lock);
 		ast_mutex_destroy(&cur->lock);
-
+		cur->cap = ast_format_cap_destroy(cur->cap);
 		ast_free(cur);
 	}
 
@@ -3623,6 +3643,7 @@ int delete_users()
 	  			free(prev->rtpmask);
       			}
       		}
+		prev->cap = ast_format_cap_destroy(prev->cap);
 		free(prev);
 		if (cur == userl.users) {
 			break;
@@ -3751,6 +3772,8 @@ static int unload_module(void)
 		ast_verbose("+++ ooh323  unload_module \n");	
 	}
 
+	gCap = ast_format_cap_destroy(gCap);
+	ooh323_tech.capabilities = ast_format_cap_destroy(ooh323_tech.capabilities);
 	return 0;
 }
 
@@ -3802,22 +3825,23 @@ int ooh323_update_capPrefsOrderForCall
 	(ooCallData *call, struct ast_codec_pref *prefs)
 {
 	int i = 0;
-	int codec = ast_codec_pref_index(prefs, i);
+	struct ast_format tmpfmt;
+
+	ast_codec_pref_index(prefs, i, &tmpfmt);
 
 	ooResetCapPrefs(call);
-	while (codec) {
-		ooAppendCapToCapPrefs(call, ooh323_convertAsteriskCapToH323Cap(codec));
-		codec = ast_codec_pref_index(prefs, ++i);
+	while (tmpfmt.id) {
+		ooAppendCapToCapPrefs(call, ooh323_convertAsteriskCapToH323Cap(&tmpfmt));
+		ast_codec_pref_index(prefs, ++i, &tmpfmt);
 	}
 
 	return 0;
 }
 
 
-int ooh323_convertAsteriskCapToH323Cap(format_t cap)
+int ooh323_convertAsteriskCapToH323Cap(struct ast_format *format)
 {
-	char formats[FORMAT_STRING_SIZE];
-	switch (cap) {
+	switch (format->id) {
 	case AST_FORMAT_ULAW:
 		return OO_G711ULAW64K;
 	case AST_FORMAT_ALAW:
@@ -3845,14 +3869,13 @@ int ooh323_convertAsteriskCapToH323Cap(format_t cap)
 	case AST_FORMAT_H263:
 		return OO_H263VIDEO;
 	default:
-		ast_log(LOG_NOTICE, "Don't know how to deal with mode %s\n", 
-                        ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,cap));
+		ast_log(LOG_NOTICE, "Don't know how to deal with mode %s\n", ast_getformatname(format));
 		return -1;
 	}
 }
 
 static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp,
-	 struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active)
+	 struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, const struct ast_format_cap *cap, int nat_active)
 {
 	/* XXX Deal with Video */
 	struct ooh323_pvt *p;
@@ -3868,7 +3891,7 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 		return 0;
 	}
 
-	mode = ooh323_convertAsteriskCapToH323Cap(chan->writeformat); 
+	mode = ooh323_convertAsteriskCapToH323Cap(&chan->writeformat); 
 	p = (struct ooh323_pvt *) chan->tech_pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
@@ -3890,7 +3913,9 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 	struct ast_sockaddr tmp;
 	ooMediaInfo mediaInfo;
 	int x;
-	format_t format = 0;
+	struct ast_format tmpfmt;
+
+	ast_format_clear(&tmpfmt);
 
 	if (gH323Debug)
 		ast_verbose("---   configure_local_rtp\n");
@@ -3929,9 +3954,9 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 	ast_copy_string(mediaInfo.lMediaIP, ast_inet_ntoa(us.sin_addr), sizeof(mediaInfo.lMediaIP));
 	mediaInfo.lMediaPort = ntohs(us.sin_port);
 	mediaInfo.lMediaCntrlPort = mediaInfo.lMediaPort +1;
-	for (x = 0; 0 != (format = ast_codec_pref_index(&p->prefs, x)); x++) {
+	for (x = 0; ast_codec_pref_index(&p->prefs, x, &tmpfmt); x++) {
 		strcpy(mediaInfo.dir, "transmit");
-		mediaInfo.cap = ooh323_convertAsteriskCapToH323Cap(format);
+		mediaInfo.cap = ooh323_convertAsteriskCapToH323Cap(&tmpfmt);
 		ooAddMediaInfo(call, mediaInfo);
 		strcpy(mediaInfo.dir, "receive");
 		ooAddMediaInfo(call, mediaInfo);
@@ -3995,7 +4020,7 @@ void setup_rtp_connection(ooCallData *call, const char *remoteIp,
 	ast_sockaddr_from_sin(&tmp, &them);
 	ast_rtp_instance_set_remote_address(p->rtp, &tmp);
 
-	if (p->writeformat & AST_FORMAT_G726_AAL2) 
+	if (p->writeformat.id == AST_FORMAT_G726_AAL2) 
                 ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(p->rtp), p->rtp, 2,
 							"audio", "G726-32", AST_RTP_OPT_G726_NONSTANDARD);
 
@@ -4237,16 +4262,16 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 	if (p->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE && !p->faxmode) {
-			if (f->subclass.codec != p->owner->nativeformats) {
-            			ast_debug(1, "Oooh, voice format changed to %s\n", ast_getformatname(f->subclass.codec));
-				p->owner->nativeformats = f->subclass.codec;
-				ast_set_read_format(p->owner, p->owner->readformat);
-				ast_set_write_format(p->owner, p->owner->writeformat);
+			if (!(ast_format_cap_iscompatible(p->owner->nativeformats, &f->subclass.format))) {
+            			ast_debug(1, "Oooh, voice format changed to %s\n", ast_getformatname(&f->subclass.format));
+				ast_format_cap_set(p->owner->nativeformats, &f->subclass.format);
+				ast_set_read_format(p->owner, &p->owner->readformat);
+				ast_set_write_format(p->owner, &p->owner->writeformat);
 			}
 
 			if ((p->dtmfmode & H323_DTMF_INBAND) && p->vad &&
-				(f->subclass.codec == AST_FORMAT_SLINEAR || f->subclass.codec == AST_FORMAT_ALAW ||
-					f->subclass.codec == AST_FORMAT_ULAW)) {
+				(f->subclass.format.id == AST_FORMAT_SLINEAR || f->subclass.format.id == AST_FORMAT_ALAW ||
+					f->subclass.format.id == AST_FORMAT_ULAW)) {
 				f = ast_dsp_process(p->owner, p->vad, f);
             			if (f && (f->frametype == AST_FRAME_DTMF)) 
                				ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass.integer);

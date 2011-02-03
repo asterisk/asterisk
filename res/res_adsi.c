@@ -69,7 +69,7 @@ static char speeddial[ADSI_MAX_SPEED_DIAL][3][SPEEDDIAL_MAX_LEN];
 
 static int alignment = 0;
 
-static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, format_t codec)
+static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, struct ast_format *codec)
 {
 	int sum, x, bytes = 0;
 	/* Initial carrier (imaginary) */
@@ -139,7 +139,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			*remain = *remain - amt;
 		}
 		outf.frametype = AST_FRAME_VOICE;
-		outf.subclass.codec = AST_FORMAT_ULAW;
+		ast_format_set(&outf.subclass.format, AST_FORMAT_ULAW, 0);
 		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
@@ -170,7 +170,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			continue;
 		}
 
-		if (inf->subclass.codec != AST_FORMAT_ULAW) {
+		if (inf->subclass.format.id != AST_FORMAT_ULAW) {
 			ast_log(LOG_WARNING, "Channel not in ulaw?\n");
 			ast_frfree(inf);
 			return -1;
@@ -182,7 +182,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			*remain = inf->datalen - amt;
 		}
 		outf.frametype = AST_FRAME_VOICE;
-		outf.subclass.codec = AST_FORMAT_ULAW;
+		ast_format_set(&outf.subclass.format, AST_FORMAT_ULAW, 0);
 		outf.data.ptr = buf;
 		outf.datalen = amt;
 		outf.samples = amt;
@@ -214,9 +214,11 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 	}
 
 	while (retries < maxretries) {
+		struct ast_format tmpfmt;
 		if (!(chan->adsicpe & ADSI_FLAG_DATAMODE)) {
 			/* Generate CAS (no SAS) */
-			ast_gen_cas(buf, 0, 680, AST_FORMAT_ULAW);
+			ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0);
+			ast_gen_cas(buf, 0, 680, &tmpfmt);
 
 			/* Send CAS */
 			if (adsi_careful_send(chan, buf, 680, NULL)) {
@@ -275,7 +277,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 		def= ast_channel_defer_dtmf(chan);
 #endif
 		while ((x < 6) && msg[x]) {
-			if ((res = adsi_generate(buf + pos, msgtype[x], msg[x], msglen[x], x+1 - start, (x == 5) || !msg[x+1], AST_FORMAT_ULAW)) < 0) {
+			if ((res = adsi_generate(buf + pos, msgtype[x], msg[x], msglen[x], x+1 - start, (x == 5) || !msg[x+1], ast_format_set(&tmpfmt, AST_FORMAT_ULAW,0))) < 0) {
 				ast_log(LOG_WARNING, "Failed to generate ADSI message %d on channel %s\n", x + 1, chan->name);
 				return -1;
 			}
@@ -361,7 +363,12 @@ int AST_OPTIONAL_API_NAME(ast_adsi_end_download)(struct ast_channel *chan)
 int AST_OPTIONAL_API_NAME(ast_adsi_transmit_message_full)(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
 {
 	unsigned char *msgs[5] = { NULL, NULL, NULL, NULL, NULL };
-	int msglens[5], msgtypes[5], newdatamode = (chan->adsicpe & ADSI_FLAG_DATAMODE), res, x, writeformat = chan->writeformat, readformat = chan->readformat, waitforswitch = 0;
+	int msglens[5], msgtypes[5], newdatamode = (chan->adsicpe & ADSI_FLAG_DATAMODE), res, x, waitforswitch = 0;
+	struct ast_format writeformat;
+	struct ast_format readformat;
+
+	ast_format_copy(&writeformat, &chan->writeformat);
+	ast_format_copy(&readformat, &chan->readformat);
 
 	for (x = 0; x < msglen; x += (msg[x+1]+2)) {
 		if (msg[x] == ADSI_SWITCH_TO_DATA) {
@@ -388,16 +395,16 @@ int AST_OPTIONAL_API_NAME(ast_adsi_transmit_message_full)(struct ast_channel *ch
 
 	ast_stopstream(chan);
 
-	if (ast_set_write_format(chan, AST_FORMAT_ULAW)) {
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set write format to ULAW\n");
 		return -1;
 	}
 
-	if (ast_set_read_format(chan, AST_FORMAT_ULAW)) {
+	if (ast_set_read_format_by_id(chan, AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set read format to ULAW\n");
-		if (writeformat) {
-			if (ast_set_write_format(chan, writeformat)) {
-				ast_log(LOG_WARNING, "Unable to restore write format to %d\n", writeformat);
+		if (writeformat.id) {
+			if (ast_set_write_format(chan, &writeformat)) {
+				ast_log(LOG_WARNING, "Unable to restore write format to %s\n", ast_getformatname(&writeformat));
 			}
 		}
 		return -1;
@@ -416,11 +423,11 @@ int AST_OPTIONAL_API_NAME(ast_adsi_transmit_message_full)(struct ast_channel *ch
 		chan->adsicpe = (chan->adsicpe & ~ADSI_FLAG_DATAMODE) | newdatamode;
 	}
 
-	if (writeformat) {
-		ast_set_write_format(chan, writeformat);
+	if (writeformat.id) {
+		ast_set_write_format(chan, &writeformat);
 	}
-	if (readformat) {
-		ast_set_read_format(chan, readformat);
+	if (readformat.id) {
+		ast_set_read_format(chan, &readformat);
 	}
 
 	if (!res) {

@@ -2482,19 +2482,30 @@ static void *generic_recall(void *data)
 	struct ast_channel *chan;
 	const char *callback_macro = ast_get_cc_callback_macro(agent->cc_params);
 	unsigned int recall_timer = ast_get_cc_recall_timer(agent->cc_params) * 1000;
+	struct ast_format tmp_fmt;
+	struct ast_format_cap *tmp_cap = ast_format_cap_alloc_nolock();
+
+	if (!tmp_cap) {
+		return NULL;
+	}
 
 	tech = interface;
 	if ((target = strchr(interface, '/'))) {
 		*target++ = '\0';
 	}
-	if (!(chan = ast_request_and_dial(tech, AST_FORMAT_SLINEAR, NULL, target, recall_timer, &reason, generic_pvt->cid_num, generic_pvt->cid_name))) {
+
+	ast_format_cap_add(tmp_cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+	if (!(chan = ast_request_and_dial(tech, tmp_cap, NULL, target, recall_timer, &reason, generic_pvt->cid_num, generic_pvt->cid_name))) {
 		/* Hmm, no channel. Sucks for you, bud.
 		 */
 		ast_log_dynamic_level(cc_logger_level, "Core %d: Failed to call back %s for reason %d\n",
 				agent->core_id, agent->device_name, reason);
 		ast_cc_failed(agent->core_id, "Failed to call back device %s/%s", tech, target);
+		ast_format_cap_destroy(tmp_cap);
 		return NULL;
 	}
+	ast_format_cap_destroy(tmp_cap);
+
 	if (!ast_strlen_zero(callback_macro)) {
 		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback macro configured for agent %s\n",
 				agent->core_id, agent->device_name);

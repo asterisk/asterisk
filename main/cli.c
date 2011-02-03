@@ -1387,7 +1387,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	struct timeval now;
 	struct ast_str *out = ast_str_thread_get(&ast_str_thread_global_buf, 16);
 	char cdrtime[256];
-	char nf[256], wf[256], rf[256];
+	char nf[256];
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
 	long elapsed_seconds=0;
@@ -1469,9 +1469,9 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		S_OR(c->dialed.number.str, "(N/A)"),
 		c->language,	
 		ast_state2str(c->_state), c->_state, c->rings, 
-		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats), 
-		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat), 
-		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
+		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats),
+		ast_getformatname(&c->writeformat),
+		ast_getformatname(&c->readformat),
 		c->writetrans ? "Yes" : "No",
 		ast_translate_path_to_str(c->writetrans, &write_transpath),
 		c->readtrans ? "Yes" : "No",

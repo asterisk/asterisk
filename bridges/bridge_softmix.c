@@ -126,9 +126,9 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	/* Setup frame parameters */
 	sc->frame.frametype = AST_FRAME_VOICE;
 #ifdef SOFTMIX_16_SUPPORT
-	sc->frame.subclass.codec = AST_FORMAT_SLINEAR16;
+	ast_format_set(&sc->frame.subclass.format, AST_FORMAT_SLINEAR16, 0);
 #else
-	sc->frame.subclass.codec = AST_FORMAT_SLINEAR;
+	ast_format_set(&sc->frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 #endif
 	sc->frame.data.ptr = sc->final_buf;
 	sc->frame.datalen = SOFTMIX_DATALEN;
@@ -171,9 +171,9 @@ static enum ast_bridge_write_result softmix_bridge_write(struct ast_bridge *brid
 
 	/* If a frame was provided add it to the smoother */
 #ifdef SOFTMIX_16_SUPPORT
-	if (frame->frametype == AST_FRAME_VOICE && frame->subclass.codec == AST_FORMAT_SLINEAR16) {
+	if (frame->frametype == AST_FRAME_VOICE && frame->subclass.format.id == AST_FORMAT_SLINEAR16) {
 #else
-	if (frame->frametype == AST_FRAME_VOICE && frame->subclass.codec == AST_FORMAT_SLINEAR) {
+	if (frame->frametype == AST_FRAME_VOICE && frame->subclass.format.id == AST_FORMAT_SLINEAR) {
 #endif
 		ast_slinfactory_feed(&sc->factory, frame);
 	}
@@ -282,11 +282,6 @@ static struct ast_bridge_technology softmix_bridge = {
 	.name = "softmix",
 	.capabilities = AST_BRIDGE_CAPABILITY_MULTIMIX | AST_BRIDGE_CAPABILITY_THREAD | AST_BRIDGE_CAPABILITY_MULTITHREADED,
 	.preference = AST_BRIDGE_PREFERENCE_LOW,
-#ifdef SOFTMIX_16_SUPPORT
-	.formats = AST_FORMAT_SLINEAR16,
-#else
-	.formats = AST_FORMAT_SLINEAR,
-#endif
 	.create = softmix_bridge_create,
 	.destroy = softmix_bridge_destroy,
 	.join = softmix_bridge_join,
@@ -298,11 +293,21 @@ static struct ast_bridge_technology softmix_bridge = {
 
 static int unload_module(void)
 {
+	ast_format_cap_destroy(softmix_bridge.format_capabilities);
 	return ast_bridge_technology_unregister(&softmix_bridge);
 }
 
 static int load_module(void)
 {
+	struct ast_format tmp;
+	if (!(softmix_bridge.format_capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+#ifdef SOFTMIX_16_SUPPORT
+	ast_format_cap_add(softmix_bridge.format_capabilities, ast_format_set(&tmp, AST_FORMAT_SLINEAR16, 0));
+#else
+	ast_format_cap_add(softmix_bridge.format_capabilities, ast_format_set(&tmp, AST_FORMAT_SLINEAR, 0));
+#endif
 	return ast_bridge_technology_register(&softmix_bridge);
 }
 

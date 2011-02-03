@@ -427,6 +427,9 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 {
 	struct chanspy_translation_helper *csth = data;
 	struct ast_frame *f, *cur;
+	struct ast_format format_slin;
+
+	ast_format_set(&format_slin, AST_FORMAT_SLINEAR, 0);
 
 	ast_audiohook_lock(&csth->spy_audiohook);
 	if (csth->spy_audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING) {
@@ -437,9 +440,9 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 
 	if (ast_test_flag(&csth->spy_audiohook, OPTION_READONLY)) {
 		/* Option 'o' was set, so don't mix channel audio */
-		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_READ, AST_FORMAT_SLINEAR);
+		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_READ, &format_slin);
 	} else {
-		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR);
+		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, &format_slin);
 	}
 
 	ast_audiohook_unlock(&csth->spy_audiohook);
@@ -1006,7 +1009,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 		.volume = '#',
 		.exit = '\0',
 	};
-	int oldwf = 0;
+	struct ast_format oldwf;
 	int volfactor = 0;
 	int res;
 	char *mailbox = NULL;
@@ -1019,6 +1022,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 	char *parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
+	ast_format_clear(&oldwf);
 
 	if (args.spec && !strcmp(args.spec, "all"))
 		args.spec = NULL;
@@ -1082,8 +1086,8 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 		ast_clear_flag(&flags, AST_FLAGS_ALL);
 	}
 
-	oldwf = chan->writeformat;
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+	ast_format_copy(&oldwf, &chan->writeformat);
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 		return -1;
 	}
@@ -1103,7 +1107,7 @@ static int chanspy_exec(struct ast_channel *chan, const char *data)
 	if (fd)
 		close(fd);
 
-	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
+	if (oldwf.id && ast_set_write_format(chan, &oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 
 	if (ast_test_flag(&flags, OPTION_EXITONHANGUP)) {
@@ -1125,7 +1129,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 		.volume = '#',
 		.exit = '\0',
 	};
-	int oldwf = 0;
+	struct ast_format oldwf;
 	int volfactor = 0;
 	int res;
 	char *mailbox = NULL;
@@ -1137,12 +1141,13 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 	char *parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
+	ast_format_clear(&oldwf);
+
 	if (!ast_strlen_zero(args.context) && (ptr = strchr(args.context, '@'))) {
 		exten = args.context;
 		*ptr++ = '\0';
 		args.context = ptr;
 	}
-
 	if (ast_strlen_zero(args.context))
 		args.context = ast_strdupa(chan->context);
 
@@ -1206,7 +1211,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 	}
 
 	oldwf = chan->writeformat;
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 		return -1;
 	}
@@ -1227,7 +1232,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 	if (fd)
 		close(fd);
 
-	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
+	if (oldwf.id && ast_set_write_format(chan, &oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 
 	return res;
@@ -1242,12 +1247,12 @@ static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 		.volume = '\0',
 		.exit = '*',
 	};
-	int oldwf = 0;
+	struct ast_format oldwf;
 	int res;
 	char *mygroup = NULL;
 
 	ast_clear_flag(&flags, AST_FLAGS_ALL);
-
+	ast_format_clear(&oldwf);
 	if (!ast_strlen_zero(data)) {
 		mygroup = ast_strdupa(data);
 	}
@@ -1255,15 +1260,15 @@ static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 	ast_set_flag(&flags, OPTION_DTMF_CYCLE);
 	ast_set_flag(&flags, OPTION_DAHDI_SCAN);
 
-	oldwf = chan->writeformat;
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+	ast_format_copy(&oldwf, &chan->writeformat);
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 		return -1;
 	}
 
 	res = common_exec(chan, &flags, 0, 0, &user_options, mygroup, NULL, spec, NULL, NULL, NULL, NULL);
 
-	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
+	if (oldwf.id && ast_set_write_format(chan, &oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 
 	return res;

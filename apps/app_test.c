@@ -87,9 +87,10 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 	short *foo;
 	struct timeval start;
 	struct ast_frame *f;
-	int rformat;
-	rformat = chan->readformat;
-	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
+	struct ast_format rformat;
+
+	ast_format_copy(&rformat, &chan->readformat);
+	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_NOTICE, "Unable to set to linear mode!\n");
 		return -1;
 	}
@@ -106,7 +107,7 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 			res = -1;
 			break;
 		}
-		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.codec == AST_FORMAT_SLINEAR)) {
+		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id == AST_FORMAT_SLINEAR)) {
 			foo = (short *)f->data.ptr;
 			for (x=0;x<f->samples;x++) {
 				noise += abs(foo[x]);
@@ -116,8 +117,8 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 		ast_frfree(f);
 	}
 
-	if (rformat) {
-		if (ast_set_read_format(chan, rformat)) {
+	if (rformat.id) {
+		if (ast_set_read_format(chan, &rformat)) {
 			ast_log(LOG_NOTICE, "Unable to restore original format!\n");
 			return -1;
 		}

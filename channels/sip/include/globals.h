@@ -28,7 +28,7 @@ extern struct ast_sockaddr bindaddr;     /*!< UDP: The address we bind to */
 extern struct ast_sched_context *sched;     /*!< The scheduling context */
 
 /*! \brief Definition of this channel for PBX channel registration */
-extern const struct ast_channel_tech sip_tech;
+extern struct ast_channel_tech sip_tech;
 
 /*! \brief This version of the sip channel tech has no send_digit_begin
  * callback so that the core knows that the channel does not want

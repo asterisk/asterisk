@@ -568,11 +568,18 @@ static int play_sound_file(struct conference_bridge *conference_bridge, const ch
 
 	if (!(conference_bridge->playback_chan)) {
 		int cause;
-
-		if (!(conference_bridge->playback_chan = ast_request("Bridge", AST_FORMAT_SLINEAR, NULL, "", &cause))) {
-			ast_mutex_unlock(&conference_bridge->playback_lock);
+		struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+		struct ast_format tmpfmt;
+		if (!cap) {
 			return -1;
 		}
+		ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+		if (!(conference_bridge->playback_chan = ast_request("Bridge", cap, NULL, "", &cause))) {
+			ast_mutex_unlock(&conference_bridge->playback_lock);
+			cap = ast_format_cap_destroy(cap);
+			return -1;
+		}
+		cap = ast_format_cap_destroy(cap);
 
 		conference_bridge->playback_chan->bridge = conference_bridge->bridge;
 

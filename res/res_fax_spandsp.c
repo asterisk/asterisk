@@ -492,11 +492,10 @@ static struct ast_frame *spandsp_fax_read(struct ast_fax_session *s)
 
 	struct ast_frame fax_frame = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.codec = AST_FORMAT_SLINEAR,
 		.src = "res_fax_spandsp_g711",
 	};
-
 	struct ast_frame *f = &fax_frame;
+	ast_format_set(&fax_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 
 	ast_timer_ack(p->timer, 1);
 

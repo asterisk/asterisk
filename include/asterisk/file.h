@@ -90,7 +90,8 @@ int ast_stopstream(struct ast_channel *c);
  * \param fmt the format you wish to check (the extension)
  * \param preflang (the preferred language you wisht to find the file in)
  * See if a given file exists in a given format.  If fmt is NULL,  any format is accepted.
- * \return 0 if file does not exist, non-zero positive otherwise.
+ * \retval 0, false. The file does not exist
+ * \retval 1, true. The file does exist.
  */
 int ast_fileexists(const char *filename, const char *fmt, const char *preflang);
 

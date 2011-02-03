@@ -58,7 +58,7 @@ struct ast_speech {
 	/*! Current state of structure */
 	int state;
 	/*! Expected write format */
-	int format;
+	struct ast_format format;
 	/*! Data for speech engine */
 	void *data;
 	/*! Cached results */
@@ -74,7 +74,7 @@ struct ast_speech_engine {
 	/*! Name of speech engine */
 	char *name;
 	/*! Set up the speech structure within the engine */
-	int (*create)(struct ast_speech *speech, int format);
+	int (*create)(struct ast_speech *speech, struct ast_format *format);
 	/*! Destroy any data set on the speech structure by the engine */
 	int (*destroy)(struct ast_speech *speech);
 	/*! Load a local grammar on the speech structure */
@@ -98,7 +98,7 @@ struct ast_speech_engine {
 	/*! Try to get results */
 	struct ast_speech_result *(*get)(struct ast_speech *speech);
 	/*! Accepted formats by the engine */
-	int formats;
+	struct ast_format_cap *formats;
 	AST_LIST_ENTRY(ast_speech_engine) list;
 };
 
@@ -131,7 +131,7 @@ int ast_speech_results_free(struct ast_speech_result *result);
 /*! \brief Indicate to the speech engine that audio is now going to start being written */
 void ast_speech_start(struct ast_speech *speech);
 /*! \brief Create a new speech structure */
-struct ast_speech *ast_speech_new(const char *engine_name, int formats);
+struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_format_cap *formats);
 /*! \brief Destroy a speech structure */
 int ast_speech_destroy(struct ast_speech *speech);
 /*! \brief Write audio to the speech engine */

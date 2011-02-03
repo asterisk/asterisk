@@ -8503,7 +8503,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	return 0;  /* success */
 }
 
-int ast_pbx_outgoing_exten(const char *type, format_t format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel)
+int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -8520,7 +8520,7 @@ int ast_pbx_outgoing_exten(const char *type, format_t format, void *data, int ti
 		oh.vars = vars;
 		oh.parent_channel = NULL;
 
-		chan = __ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name, &oh);
+		chan = __ast_request_and_dial(type, cap, NULL, data, timeout, reason, cid_num, cid_name, &oh);
 		if (channel) {
 			*channel = chan;
 			if (chan)
@@ -8610,7 +8610,7 @@ int ast_pbx_outgoing_exten(const char *type, format_t format, void *data, int ti
 			res = -1;
 			goto outgoing_exten_cleanup;
 		}
-		chan = ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name);
+		chan = ast_request_and_dial(type, cap, NULL, data, timeout, reason, cid_num, cid_name);
 		if (channel) {
 			*channel = chan;
 			if (chan)
@@ -8669,7 +8669,7 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(const char *type, format_t format, void *data, int timeout, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
+int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, void *data, int timeout, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
 {
 	struct ast_channel *chan;
 	struct app_tmp *tmp;
@@ -8687,7 +8687,7 @@ int ast_pbx_outgoing_app(const char *type, format_t format, void *data, int time
 		goto outgoing_app_cleanup;
 	}
 	if (synchronous) {
-		chan = __ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name, &oh);
+		chan = __ast_request_and_dial(type, cap, NULL, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
 			ast_set_variables(chan, vars);
 			if (account)
@@ -8752,7 +8752,7 @@ int ast_pbx_outgoing_app(const char *type, format_t format, void *data, int time
 			res = -1;
 			goto outgoing_app_cleanup;
 		}
-		chan = __ast_request_and_dial(type, format, NULL, data, timeout, reason, cid_num, cid_name, &oh);
+		chan = __ast_request_and_dial(type, cap, NULL, data, timeout, reason, cid_num, cid_name, &oh);
 		if (!chan) {
 			ast_free(as);
 			res = -1;

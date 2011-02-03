@@ -191,7 +191,7 @@ static int send_tone_burst(struct ast_channel *chan, float freq, int duration, i
 
 		if (f->frametype == AST_FRAME_VOICE) {
 			wf.frametype = AST_FRAME_VOICE;
-			wf.subclass.codec = AST_FORMAT_ULAW;
+			ast_format_set(&wf.subclass.format, AST_FORMAT_ULAW, 0);
 			wf.offset = AST_FRIENDLY_OFFSET;
 			wf.mallocd = 0;
 			wf.data.ptr = tone_block.buf;
@@ -578,12 +578,12 @@ static int alarmreceiver_exec(struct ast_channel *chan, const char *data)
 	/* Set write and read formats to ULAW */
 	ast_verb(4, "AlarmReceiver: Setting read and write formats to ULAW\n");
 
-	if (ast_set_write_format(chan,AST_FORMAT_ULAW)) {
+	if (ast_set_write_format_by_id(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
 		return -1;
 	}
 
-	if (ast_set_read_format(chan,AST_FORMAT_ULAW)) {
+	if (ast_set_read_format_by_id(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",chan->name);
 		return -1;
 	}

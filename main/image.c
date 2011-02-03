@@ -96,7 +96,7 @@ static void make_filename(char *buf, int len, const char *filename, const char *
 	}
 }
 
-struct ast_frame *ast_read_image(const char *filename, const char *preflang, int format)
+struct ast_frame *ast_read_image(const char *filename, const char *preflang, struct ast_format *format)
 {
 	struct ast_imager *i;
 	char buf[256];
@@ -109,7 +109,8 @@ struct ast_frame *ast_read_image(const char *filename, const char *preflang, int
 	
 	AST_RWLIST_RDLOCK(&imagers);
 	AST_RWLIST_TRAVERSE(&imagers, i, list) {
-		if (i->format & format) {
+		/* if NULL image format, just pick the first one, otherwise match it. */
+		if (!format || (ast_format_cmp(&i->format, format) == AST_FORMAT_CMP_EQUAL)) {
 			char *stringp=NULL;
 			ast_copy_string(tmp, i->exts, sizeof(tmp));
 			stringp = tmp;
@@ -157,7 +158,7 @@ int ast_send_image(struct ast_channel *chan, const char *filename)
 	struct ast_frame *f;
 	int res = -1;
 	if (chan->tech->send_image) {
-		f = ast_read_image(filename, chan->language, -1);
+		f = ast_read_image(filename, chan->language, NULL);
 		if (f) {
 			res = chan->tech->send_image(chan, f);
 			ast_frfree(f);
@@ -189,7 +190,7 @@ static char *handle_core_show_image_formats(struct ast_cli_entry *e, int cmd, st
 	ast_cli(a->fd, FORMAT, "----", "----------", "-----------", "------");
 	AST_RWLIST_RDLOCK(&imagers);
 	AST_RWLIST_TRAVERSE(&imagers, i, list) {
-		ast_cli(a->fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
+		ast_cli(a->fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(&i->format));
 		count_fmt++;
 	}
 	AST_RWLIST_UNLOCK(&imagers);

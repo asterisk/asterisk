@@ -22,7 +22,7 @@
 #include "ooCalls.h"
 #include "ooCapability.h"
 #include "ooStackCmds.h"
-#include "asterisk/frame_defs.h"
+#include "asterisk/format.h"
 #define H323_DTMF_RFC2833          (1 << 0)
 #define H323_DTMF_Q931             (1 << 1)
 #define H323_DTMF_H245ALPHANUMERIC (1 << 2)
@@ -37,9 +37,9 @@ int ooh323c_stop_stack_thread(void);
 int ooh323c_start_call_thread(ooCallData *call);
 int ooh323c_stop_call_thread(ooCallData *call);
 int ooh323c_set_capability
-   (struct ast_codec_pref *prefs, int capability, int dtmf, int dtmfcodec);
-format_t convertH323CapToAsteriskCap(int cap);
+   (struct ast_codec_pref *prefs, struct ast_format_cap *cap, int dtmf, int dtmfcodec);
+struct ast_format *convertH323CapToAsteriskCap(int cap, struct ast_format *format);
 int ooh323c_set_capability_for_call
-   (ooCallData *call, struct ast_codec_pref *prefs, int capability, int dtmf, int dtmfcodec,
+   (ooCallData *call, struct ast_codec_pref *prefs, struct ast_format_cap *cap, int dtmf, int dtmfcodec,
 	int t38support);
 #endif

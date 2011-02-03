@@ -216,7 +216,6 @@
 #define DEFAULT_SDPSESSION "Asterisk PBX"  /*!< Default SDP session name, (s=) header unless re-defined in sip.conf */
 #define DEFAULT_SDPOWNER   "root"          /*!< Default SDP username field in (o=) header unless re-defined in sip.conf */
 #define DEFAULT_ENGINE     "asterisk"      /*!< Default RTP engine to use for sessions */
-#define DEFAULT_CAPABILITY (AST_FORMAT_ULAW | AST_FORMAT_TESTLAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263);
 #endif
 /*@}*/
 
@@ -695,7 +694,7 @@ struct sip_settings {
 	char default_context[AST_MAX_CONTEXT];
 	char default_subscribecontext[AST_MAX_CONTEXT];
 	struct ast_ha *contact_ha;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
-	format_t capability;        /*!< Supported codecs */
+	struct ast_format_cap *caps; /*!< Supported codecs */
 	int tcp_enabled;
 	int default_max_forwards;    /*!< Default max forwards (SIP Anti-loop) */
 };
@@ -995,13 +994,13 @@ struct sip_pvt {
 	unsigned int sipoptions;          /*!< Supported SIP options on the other end */
 	unsigned int reqsipoptions;       /*!< Required SIP options on the other end */
 	struct ast_codec_pref prefs;      /*!< codec prefs */
-	format_t capability;              /*!< Special capability (codec) */
-	format_t jointcapability;         /*!< Supported capability at both ends (codecs) */
-	format_t peercapability;          /*!< Supported peer capability */
-	format_t prefcodec;               /*!< Preferred codec (outbound only) */
+	struct ast_format_cap *caps;             /*!< Special capability (codec) */
+	struct ast_format_cap *jointcaps;        /*!< Supported capability at both ends (codecs) */
+	struct ast_format_cap *peercaps;         /*!< Supported peer capability */
+	struct ast_format_cap *redircaps;        /*!< Redirect codecs */
+	struct ast_format_cap *prefcaps;         /*!< Preferred codec (outbound only) */
 	int noncodeccapability;	          /*!< DTMF RFC2833 telephony-event */
 	int jointnoncodeccapability;      /*!< Joint Non codec capability */
-	format_t redircodecs;             /*!< Redirect codecs */
 	int maxcallbitrate;               /*!< Maximum Call Bitrate for Video Calls */	
 	int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
 	int request_queue_sched_id;       /*!< Scheduler ID of any scheduled action to process queued requests */
@@ -1217,7 +1216,7 @@ struct sip_peer {
 
 	int maxcallbitrate;             /*!<  Maximum Bitrate for a video call */
 	int expire;                     /*!<  When to expire this peer registration */
-	format_t capability;            /*!<  Codec capability */
+	struct ast_format_cap *caps;            /*!<  Codec capability */
 	int rtptimeout;                 /*!<  RTP timeout */
 	int rtpholdtimeout;             /*!<  RTP Hold Timeout */
 	int rtpkeepalive;               /*!<  Send RTP packets for keepalive */

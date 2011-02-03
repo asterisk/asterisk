@@ -24,7 +24,6 @@ static struct ast_frame *alaw_sample(void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
-		.subclass.codec = AST_FORMAT_ALAW,
 		.datalen = sizeof(ex_alaw),
 		.samples = ARRAY_LEN(ex_alaw),
 		.mallocd = 0,
@@ -32,6 +31,6 @@ static struct ast_frame *alaw_sample(void)
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = ex_alaw,
 	};
-
+	ast_format_set(&f.subclass.format, AST_FORMAT_ALAW, 0);
 	return &f;
 }

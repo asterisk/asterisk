@@ -116,7 +116,7 @@ struct playtones_state {
 	int npos;
 	int oldnpos;
 	int pos;
-	int origwfmt;
+	struct ast_format origwfmt;
 	struct ast_frame f;
 	unsigned char offset[AST_FRIENDLY_OFFSET];
 	short data[4000];
@@ -127,7 +127,7 @@ static void playtones_release(struct ast_channel *chan, void *params)
 	struct playtones_state *ps = params;
 
 	if (chan) {
-		ast_set_write_format(chan, ps->origwfmt);
+		ast_set_write_format(chan, &ps->origwfmt);
 	}
 
 	if (ps->items) {
@@ -147,9 +147,9 @@ static void *playtones_alloc(struct ast_channel *chan, void *params)
 		return NULL;
 	}
 
-	ps->origwfmt = chan->writeformat;
+	ast_format_copy(&ps->origwfmt, &chan->writeformat);
 
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		playtones_release(NULL, ps);
 		ps = NULL;
@@ -223,7 +223,7 @@ static int playtones_generator(struct ast_channel *chan, void *data, int len, in
 	}
 
 	ps->f.frametype = AST_FRAME_VOICE;
-	ps->f.subclass.codec = AST_FORMAT_SLINEAR;
+	ast_format_set(&ps->f.subclass.format, AST_FORMAT_SLINEAR, 0);
 	ps->f.datalen = len;
 	ps->f.samples = samples;
 	ps->f.offset = AST_FRIENDLY_OFFSET;

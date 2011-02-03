@@ -111,6 +111,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/network.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
+#include "asterisk/translate.h"
 #include "asterisk/features.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
@@ -142,6 +143,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/poll-compat.h"
 #include "asterisk/ccss.h"
 #include "asterisk/test.h"
+#include "asterisk/format.h"
 #include "asterisk/aoc.h"
 
 #include "../defaults.h"
@@ -3669,6 +3671,11 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+	if (ast_translate_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	ast_aoc_cli_init();
 
 	ast_makesocket();
@@ -3699,6 +3706,8 @@ int main(int argc, char *argv[])
 	threadstorage_init();
 
 	astobj2_init();
+
+	ast_format_attr_init();
 
 	ast_autoservice_init();
 

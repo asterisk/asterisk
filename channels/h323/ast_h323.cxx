@@ -1770,20 +1770,21 @@ PBoolean MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remo
 				if ((subType == codecs[x].h245_cap) && (!codecs[x].formatName || (!strcmp(codecs[x].formatName, (const char *)remoteCapabilities[i].GetFormatName())))) {
 					int ast_codec = codecs[x].asterisk_codec;
 					int ms = 0;
-					if (!(peer_capabilities & ast_codec)) {
+					struct ast_format tmpfmt;
+					if (!(peer_capabilities & ast_format_id_to_old_bitfield((enum ast_format_id) ast_codec))) {
 						struct ast_format_list format;
-						ast_codec_pref_append(&prefs, ast_codec);
-						format = ast_codec_pref_getsize(&prefs, ast_codec);
+						ast_codec_pref_append(&prefs, ast_format_set(&tmpfmt, (enum ast_format_id) ast_codec, 0));
+						format = ast_codec_pref_getsize(&prefs, &tmpfmt);
 						if ((ast_codec == AST_FORMAT_ALAW) || (ast_codec == AST_FORMAT_ULAW)) {
 							ms = remoteCapabilities[i].GetTxFramesInPacket();
 						} else
 							ms = remoteCapabilities[i].GetTxFramesInPacket() * format.inc_ms;
-						ast_codec_pref_setsize(&prefs, ast_codec, ms);
+						ast_codec_pref_setsize(&prefs, &tmpfmt, ms);
 					}
 					if (h323debug) {
 						cout << "Found peer capability " << remoteCapabilities[i] << ", Asterisk code is " << ast_codec << ", frame size (in ms) is " << ms << endl;
 					}
-					peer_capabilities |= ast_codec;
+					peer_capabilities |= ast_format_id_to_old_bitfield((enum ast_format_id) ast_codec);
 				}
 			}
 			break;
@@ -1846,12 +1847,7 @@ PBoolean MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remo
 			break;
 		}
 	}
-	if (h323debug) {
-		char caps_str[1024], caps2_str[1024];
-		ast_codec_pref_string(&prefs, caps2_str, sizeof(caps2_str));
-		cout << "Peer capabilities = " << ast_getformatname_multiple(caps_str, sizeof(caps_str), peer_capabilities)
-				<< ", ordered list is " << caps2_str << endl;
-	}
+
 #if 0
 	redir_capabilities &= peer_capabilities;
 #endif
@@ -1897,38 +1893,37 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 	int alreadysent = 0;
 	int codec;
 	int x, y;
-	char caps_str[1024];
 	struct ast_codec_pref *prefs = (struct ast_codec_pref *)_prefs;
 	struct ast_format_list format;
 	int frames_per_packet;
+	struct ast_format tmpfmt;
 	H323Capability *cap;
 
 	localCapabilities.RemoveAll();
 
-	if (h323debug) {
-		cout << "Setting capabilities to " << ast_getformatname_multiple(caps_str, sizeof(caps_str), caps) << endl;
-		ast_codec_pref_string(prefs, caps_str, sizeof(caps_str));
-		cout << "Capabilities in preference order is " << caps_str << endl;
-	}
 	/* Add audio codecs in preference order first, then
 	   audio codecs without preference as allowed by mask */
 	for (y = 0, x = -1; x < 32 + 32; ++x) {
+		ast_format_clear(&tmpfmt);
 		if (x < 0)
 			codec = pref_codec;
-		else if (y || (!(codec = ast_codec_pref_index(prefs, x)))) {
+		else if (y || (!(ast_codec_pref_index(prefs, x, &tmpfmt)))) {
 			if (!y)
 				y = 1;
 			else
 				y <<= 1;
 			codec = y;
 		}
-		if (!(caps & codec) || (alreadysent & codec) || !(codec & AST_FORMAT_AUDIO_MASK))
+		if (tmpfmt.id) {
+			codec = ast_format_to_old_bitfield(&tmpfmt);
+		}
+		if (!(caps & codec) || (alreadysent & codec) || (AST_FORMAT_GET_TYPE(ast_format_id_from_old_bitfield(codec)) != AST_FORMAT_TYPE_AUDIO))
 			continue;
 		alreadysent |= codec;
 		/* format.cur_ms will be set to default if packetization is not explicitly set */
-		format = ast_codec_pref_getsize(prefs, codec);
+		format = ast_codec_pref_getsize(prefs, ast_format_from_old_bitfield(&tmpfmt, codec));
 		frames_per_packet = (format.inc_ms ? format.cur_ms / format.inc_ms : format.cur_ms);
-		switch(codec) {
+		switch(ast_format_id_from_old_bitfield(codec)) {
 #if 0
 		case AST_FORMAT_SPEEX:
 			/* Not real sure if Asterisk acutally supports all

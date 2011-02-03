@@ -96,6 +96,9 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	struct ast_channel *dchan;
 	struct outgoing_helper oh = { 0, };
 	int outstate;
+	struct ast_format tmpfmt;
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc_nolock();
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(template);
 		AST_APP_ARG(timeout);
@@ -104,9 +107,15 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	);
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ParkAndAnnounce requires arguments: (announce:template|timeout|dial|[return_context])\n");
-		return -1;
+		res = -1;
+		goto parkcleanup;
 	}
-  
+	if (!cap_slin) {
+		res = -1;
+		goto parkcleanup;
+	}
+	ast_format_cap_add(cap_slin, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+
 	s = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, s);
 
@@ -115,7 +124,8 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 
 	if (ast_strlen_zero(args.dial)) {
 		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or DAHDI/g1/5551212\n");
-		return -1;
+		res = -1;
+		goto parkcleanup;
 	}
 
 	dialtech = strsep(&args.dial, "/");
@@ -138,8 +148,9 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	before we are done announcing and the channel is messed with, Kablooeee.  So we use Masq to prevent this.  */
 
 	res = ast_masq_park_call(chan, NULL, timeout, &lot);
-	if (res == -1)
-		return res;
+	if (res == -1) {
+		goto parkcleanup;
+	}
 
 	ast_verb(3, "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, args.return_context);
 
@@ -148,7 +159,7 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	snprintf(buf, sizeof(buf), "%d", lot);
 	oh.parent_channel = chan;
 	oh.vars = ast_variable_new("_PARKEDAT", buf, "");
-	dchan = __ast_request_and_dial(dialtech, AST_FORMAT_SLINEAR, chan, args.dial, 30000,
+	dchan = __ast_request_and_dial(dialtech, cap_slin, chan, args.dial, 30000,
 		&outstate,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, NULL),
@@ -160,11 +171,13 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 			ast_verb(4, "Channel %s was never answered.\n", dchan->name);
 			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
 			ast_hangup(dchan);
-			return -1;
+			res = -1;
+			goto parkcleanup;
 		}
 	} else {
 		ast_log(LOG_WARNING, "PARK: Unable to allocate announce channel.\n");
-		return -1; 
+		res = -1;
+		goto parkcleanup;
 	}
 
 	ast_stopstream(dchan);
@@ -197,7 +210,10 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 
 	ast_stopstream(dchan);  
 	ast_hangup(dchan);
-	
+
+parkcleanup:
+	cap_slin = ast_format_cap_destroy(cap_slin);
+
 	return res;
 }
 

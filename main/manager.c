@@ -3506,7 +3506,7 @@ struct fast_originate_helper {
 	/*! data can contain a channel name, extension number, username, password, etc. */
 	char data[512];
 	int timeout;
-	format_t format;				/*!< Codecs used for a call */
+	struct ast_format_cap *cap;				/*!< Codecs used for a call */
 	char app[AST_MAX_APP];
 	char appdata[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
@@ -3528,12 +3528,12 @@ static void *fast_originate(void *data)
 	char requested_channel[AST_CHANNEL_NAME];
 
 	if (!ast_strlen_zero(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, in->format, in->data, in->timeout, in->app, in->appdata, &reason, 1,
+		res = ast_pbx_outgoing_app(in->tech, in->cap, in->data, in->timeout, in->app, in->appdata, &reason, 1,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, in->format, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1,
+		res = ast_pbx_outgoing_exten(in->tech, in->cap, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
@@ -3565,6 +3565,7 @@ static void *fast_originate(void *data)
 	if (chan) {
 		ast_channel_unlock(chan);
 	}
+	in->cap = ast_format_cap_destroy(in->cap);
 	ast_free(in);
 	return NULL;
 }
@@ -3822,29 +3823,39 @@ static int action_originate(struct mansession *s, const struct message *m)
 	int reason = 0;
 	char tmp[256];
 	char tmp2[256];
-	format_t format = AST_FORMAT_SLINEAR;
-
+	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format tmp_fmt;
 	pthread_t th;
+
+	if (!cap) {
+		astman_send_error(s, m, "Internal Error. Memory allocation failure.");
+	}
+	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
-		return 0;
+		res = 0;
+		goto fast_orig_cleanup;
 	}
 	if (!ast_strlen_zero(priority) && (sscanf(priority, "%30d", &pi) != 1)) {
 		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
 			astman_send_error(s, m, "Invalid priority");
-			return 0;
+			res = 0;
+			goto fast_orig_cleanup;
 		}
 	}
 	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%30d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout");
-		return 0;
+		res = 0;
+		goto fast_orig_cleanup;
 	}
 	ast_copy_string(tmp, name, sizeof(tmp));
 	tech = tmp;
 	data = strchr(tmp, '/');
 	if (!data) {
 		astman_send_error(s, m, "Invalid channel");
-		return 0;
+		res = 0;
+		goto fast_orig_cleanup;
 	}
 	*data++ = '\0';
 	ast_copy_string(tmp2, callerid, sizeof(tmp2));
@@ -3861,8 +3872,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 		}
 	}
 	if (!ast_strlen_zero(codecs)) {
-		format = 0;
-		ast_parse_allow_disallow(NULL, &format, codecs, 1);
+		ast_format_cap_remove_all(cap);
+		ast_parse_allow_disallow(NULL, cap, codecs, 1);
 	}
 	/* Allocate requested channel variables */
 	vars = astman_get_variables(m);
@@ -3888,10 +3899,12 @@ static int action_originate(struct mansession *s, const struct message *m)
 			ast_copy_string(fast->context, context, sizeof(fast->context));
 			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
 			ast_copy_string(fast->account, account, sizeof(fast->account));
-			fast->format = format;
+			fast->cap = cap;
+			cap = NULL; /* transfered originate helper the capabilities structure.  It is now responsible for freeing it. */
 			fast->timeout = to;
 			fast->priority = pi;
 			if (ast_pthread_create_detached(&th, NULL, fast_originate, fast)) {
+				ast_format_cap_destroy(fast->cap);
 				ast_free(fast);
 				res = -1;
 			} else {
@@ -3912,18 +3925,20 @@ static int action_originate(struct mansession *s, const struct message *m)
 				strstr(appdata, "EVAL")           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
 				)) {
 			astman_send_error(s, m, "Originate with certain 'Application' arguments requires the additional System privilege, which you do not have.");
-			return 0;
+			res = 0;
+			goto fast_orig_cleanup;
 		}
-		res = ast_pbx_outgoing_app(tech, format, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
+		res = ast_pbx_outgoing_app(tech, cap, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
 	} else {
 		if (exten && context && pi) {
-			res = ast_pbx_outgoing_exten(tech, format, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
+			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			if (vars) {
 				ast_variables_destroy(vars);
 			}
-			return 0;
+			res = 0;
+			goto fast_orig_cleanup;
 		}
 	}
 	if (!res) {
@@ -3931,6 +3946,9 @@ static int action_originate(struct mansession *s, const struct message *m)
 	} else {
 		astman_send_error(s, m, "Originate failed");
 	}
+
+fast_orig_cleanup:
+	ast_format_cap_destroy(cap);
 	return 0;
 }
 

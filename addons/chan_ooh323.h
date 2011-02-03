@@ -61,7 +61,8 @@
 #include "asterisk/manager.h"
 #include "asterisk/dsp.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/frame_defs.h"
+#include "asterisk/format.h"
+#include "asterisk/format_cap.h"
 #include "asterisk/udptl.h"
 
 #include "ootypes.h"
@@ -99,13 +100,13 @@ void close_rtp_connection(ooCallData *call);
 struct ast_frame *ooh323_rtp_read
          (struct ast_channel *ast, struct ooh323_pvt *p);
 
-void ooh323_set_write_format(ooCallData *call, int fmt, int txframes);
-void ooh323_set_read_format(ooCallData *call, int fmt);
+void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txframes);
+void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt);
 
 int ooh323_update_capPrefsOrderForCall
    (ooCallData *call, struct ast_codec_pref *prefs);
 
-int ooh323_convertAsteriskCapToH323Cap(format_t cap);
+int ooh323_convertAsteriskCapToH323Cap(struct ast_format *format);
 
 int ooh323_convert_hangupcause_asteriskToH323(int cause);
 int ooh323_convert_hangupcause_h323ToAsterisk(int cause);

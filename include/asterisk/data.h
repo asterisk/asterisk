@@ -800,6 +800,16 @@ static inline struct in_addr ast_data_retrieve_ipaddr(struct ast_data *tree, con
 }
 
 /*!
+ * \brief Add the codec in the root node based on the format parameter.
+ * \param[in] root The astdata root node where to add the codec node.
+ * \param[in] node_name The name of the node where we are going to add the codec.
+ * \param[in] format The codec allowed.
+ * \return < 0 on error.
+ * \return 0 on success.
+ */
+int ast_data_add_codec(struct ast_data *root, const char *node_name, struct ast_format *format);
+
+/*!
  * \brief Add the list of codecs in the root node based on the capability parameter.
  * \param[in] root The astdata root node where to add the codecs node.
  * \param[in] node_name The name of the node where we are going to add the list of
@@ -808,7 +818,7 @@ static inline struct in_addr ast_data_retrieve_ipaddr(struct ast_data *tree, con
  * \return < 0 on error.
  * \return 0 on success.
  */
-int ast_data_add_codecs(struct ast_data *root, const char *node_name, format_t capability);
+int ast_data_add_codecs(struct ast_data *root, const char *node_name, struct ast_format_cap *capability);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

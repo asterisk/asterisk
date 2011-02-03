@@ -297,19 +297,19 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
-		if (ast->nativeformats != p->chan->nativeformats) { \
+		if (!(ast_format_cap_identical(ast->nativeformats, p->chan->nativeformats))) { \
 			char tmp1[256], tmp2[256]; \
 			ast_debug(1, "Native formats changing from '%s' to '%s'\n", ast_getformatname_multiple(tmp1, sizeof(tmp1), ast->nativeformats), ast_getformatname_multiple(tmp2, sizeof(tmp2), p->chan->nativeformats)); \
 			/* Native formats changed, reset things */ \
-			ast->nativeformats = p->chan->nativeformats; \
-			ast_debug(1, "Resetting read to '%s' and write to '%s'\n", ast_getformatname_multiple(tmp1, sizeof(tmp1), ast->readformat), ast_getformatname_multiple(tmp2, sizeof(tmp2), ast->writeformat));\
-			ast_set_read_format(ast, ast->readformat); \
-			ast_set_write_format(ast, ast->writeformat); \
+			ast_format_cap_copy(ast->nativeformats, p->chan->nativeformats); \
+			ast_debug(1, "Resetting read to '%s' and write to '%s'\n", ast_getformatname(&ast->readformat), ast_getformatname(&ast->writeformat));\
+			ast_set_read_format(ast, &ast->readformat); \
+			ast_set_write_format(ast, &ast->writeformat); \
 		} \
-		if (p->chan->readformat != ast->rawreadformat && !p->chan->generator)  \
-			ast_set_read_format(p->chan, ast->rawreadformat); \
-		if (p->chan->writeformat != ast->rawwriteformat && !p->chan->generator) \
-			ast_set_write_format(p->chan, ast->rawwriteformat); \
+		if ((ast_format_cmp(&p->chan->readformat, &ast->rawreadformat) != AST_FORMAT_CMP_EQUAL) && !p->chan->generator)  \
+			ast_set_read_format(p->chan, &ast->rawreadformat); \
+		if ((ast_format_cmp(&p->chan->writeformat, &ast->rawwriteformat) != AST_FORMAT_CMP_EQUAL) && !p->chan->generator) \
+			ast_set_write_format(p->chan, &ast->rawwriteformat); \
 	} \
 } while(0)
 
@@ -329,7 +329,7 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 } while(0)
 
 /*--- Forward declarations */
-static struct ast_channel *agent_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *agent_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 static int agent_devicestate(void *data);
 static int agent_digit_begin(struct ast_channel *ast, char digit);
 static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -349,10 +349,9 @@ static int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *
 static int agent_logoff(const char *agent, int soft);
 
 /*! \brief Channel interface description for PBX integration */
-static const struct ast_channel_tech agent_tech = {
+static struct ast_channel_tech agent_tech = {
 	.type = "Agent",
 	.description = tdesc,
-	.capabilities = -1,
 	.requester = agent_request,
 	.devicestate = agent_devicestate,
 	.send_digit_begin = agent_digit_begin,
@@ -695,7 +694,7 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 	else {
 		if ((f->frametype != AST_FRAME_VOICE) ||
 		    (f->frametype != AST_FRAME_VIDEO) ||
-		    (f->subclass.codec == p->chan->writeformat)) {
+		    (ast_format_cmp(&f->subclass.format, &p->chan->writeformat) != AST_FORMAT_CMP_NOT_EQUAL)) {
 			res = ast_write(p->chan, f);
 		} else {
 			ast_debug(1, "Dropping one incompatible %s frame on '%s' to '%s'\n", 
@@ -799,10 +798,11 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_debug(3, "Waited for stream, result '%d'\n", res);
 	}
 	if (!res) {
-		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats));
+		struct ast_format tmpfmt;
+		res = ast_set_read_format_from_cap(p->chan, p->chan->nativeformats);
 		ast_debug(3, "Set read format, result '%d'\n", res);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
+			ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(&tmpfmt));
 	} else {
 		/* Agent hung-up */
 		p->chan = NULL;
@@ -810,10 +810,11 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if (!res) {
-		res = ast_set_write_format(p->chan, ast_best_codec(p->chan->nativeformats));
+		struct ast_format tmpfmt;
+		res = ast_set_write_format_from_cap(p->chan, p->chan->nativeformats);
 		ast_debug(3, "Set write format, result '%d'\n", res);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
+			ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(&tmpfmt));
 	}
 	if(!res) {
 		/* Call is immediately up, or might need ack */
@@ -1047,21 +1048,21 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 
 	tmp->tech = &agent_tech;
 	if (p->chan) {
-		tmp->nativeformats = p->chan->nativeformats;
-		tmp->writeformat = p->chan->writeformat;
-		tmp->rawwriteformat = p->chan->writeformat;
-		tmp->readformat = p->chan->readformat;
-		tmp->rawreadformat = p->chan->readformat;
+		ast_format_cap_copy(tmp->nativeformats, p->chan->nativeformats);
+		ast_format_copy(&tmp->writeformat, &p->chan->writeformat);
+		ast_format_copy(&tmp->rawwriteformat, &p->chan->writeformat);
+		ast_format_copy(&tmp->readformat, &p->chan->readformat);
+		ast_format_copy(&tmp->rawreadformat, &p->chan->readformat);
 		ast_string_field_set(tmp, language, p->chan->language);
 		ast_copy_string(tmp->context, p->chan->context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, p->chan->exten, sizeof(tmp->exten));
 		/* XXX Is this really all we copy form the originating channel?? */
 	} else {
-		tmp->nativeformats = AST_FORMAT_SLINEAR;
-		tmp->writeformat = AST_FORMAT_SLINEAR;
-		tmp->rawwriteformat = AST_FORMAT_SLINEAR;
-		tmp->readformat = AST_FORMAT_SLINEAR;
-		tmp->rawreadformat = AST_FORMAT_SLINEAR;
+		ast_format_set(&tmp->writeformat, AST_FORMAT_SLINEAR, 0);
+		ast_format_set(&tmp->rawwriteformat, AST_FORMAT_SLINEAR, 0);
+		ast_format_set(&tmp->readformat, AST_FORMAT_SLINEAR, 0);
+		ast_format_set(&tmp->rawreadformat, AST_FORMAT_SLINEAR, 0);
+		ast_format_cap_add(tmp->nativeformats, &tmp->writeformat);
 	}
 	/* Safe, agentlock already held */
 	tmp->tech_pvt = p;
@@ -1374,7 +1375,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 }
 
 /*! \brief Part of the Asterisk PBX interface */
-static struct ast_channel *agent_request(const char *type, format_t format, const struct ast_channel* requestor, void *data, int *cause)
+static struct ast_channel *agent_request(const char *type, struct ast_format_cap *cap, const struct ast_channel* requestor, void *data, int *cause)
 {
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;
@@ -1997,14 +1998,18 @@ static int login_exec(struct ast_channel *chan, const char *data)
 					AST_LIST_LOCK(&agents);
 					ast_mutex_lock(&p->lock);
 					if (!res) {
-						res = ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
-						if (res)
-							ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(ast_best_codec(chan->nativeformats)));
+						struct ast_format tmpfmt;
+						res = ast_set_read_format_from_cap(chan, chan->nativeformats);
+						if (res) {
+							ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(&tmpfmt));
+						}
 					}
 					if (!res) {
-						res = ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
-						if (res)
-							ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(ast_best_codec(chan->nativeformats)));
+						struct ast_format tmpfmt;
+						res = ast_set_write_format_from_cap(chan, chan->nativeformats);
+						if (res) {
+							ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(&tmpfmt));
+						}
 					}
 					/* Check once more just in case */
 					if (p->chan)
@@ -2024,7 +2029,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
 						ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", p->agent,
-								    ast_getformatname(chan->readformat), ast_getformatname(chan->writeformat));
+								    ast_getformatname(&chan->readformat), ast_getformatname(&chan->writeformat));
 						/* Login this channel and wait for it to go away */
 						p->chan = chan;
 						if (p->ackcall) {
@@ -2418,6 +2423,11 @@ static const struct ast_data_entry agents_data_providers[] = {
  */
 static int load_module(void)
 {
+	if (!(agent_tech.capabilities = ast_format_cap_alloc())) {
+		ast_log(LOG_ERROR, "ast_format_cap_alloc_nolock fail.\n");
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	ast_format_cap_add_all(agent_tech.capabilities);
 	/* Make sure we can register our agent channel type */
 	if (ast_channel_register(&agent_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Agent'\n");
@@ -2477,6 +2487,8 @@ static int unload_module(void)
 		ast_free(p);
 	}
 	AST_LIST_UNLOCK(&agents);
+
+	agent_tech.capabilities = ast_format_cap_destroy(agent_tech.capabilities);
 	return 0;
 }
 

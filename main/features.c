@@ -743,7 +743,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	const char *caller_name, struct ast_channel *requestor,
-	struct ast_channel *transferee, const char *type, format_t format, void *data,
+	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, void *data,
 	int timeout, int *outstate, const char *language);
 
 /*!
@@ -1315,17 +1315,20 @@ static int fake_fixup(struct ast_channel *clonechan, struct ast_channel *origina
 static struct ast_channel *create_test_channel(const struct ast_channel_tech *fake_tech)
 {
 	struct ast_channel *test_channel1;
+	struct ast_format tmp_fmt;
 	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
 	NULL, NULL, 0, 0, "TestChannel1"))) {
 		return NULL;
 	}
 
 	/* normally this is done in the channel driver */
-	test_channel1->nativeformats = AST_FORMAT_GSM;
-	test_channel1->writeformat = AST_FORMAT_GSM;
-	test_channel1->rawwriteformat = AST_FORMAT_GSM;
-	test_channel1->readformat = AST_FORMAT_GSM;
-	test_channel1->rawreadformat = AST_FORMAT_GSM;
+	ast_format_cap_add(test_channel1->nativeformats, ast_format_set(&tmp_fmt, AST_FORMAT_GSM, 0));
+
+	ast_format_set(&test_channel1->writeformat, AST_FORMAT_GSM, 0);
+	ast_format_set(&test_channel1->rawwriteformat, AST_FORMAT_GSM, 0);
+	ast_format_set(&test_channel1->readformat, AST_FORMAT_GSM, 0);
+	ast_format_set(&test_channel1->rawreadformat, AST_FORMAT_GSM, 0);
+
 	test_channel1->tech = fake_tech;
 
 	return test_channel1;
@@ -2136,7 +2139,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 	/* Dial party C */
 	newchan = feature_request_and_dial(transferer, transferer_name_orig, transferer,
-		transferee, "Local", ast_best_codec(transferer->nativeformats), xferto,
+		transferee, "Local", transferer->nativeformats, xferto,
 		atxfernoanswertimeout, &outstate, transferer->language);
 	ast_debug(2, "Dial party C result: newchan:%d, outstate:%d\n", !!newchan, outstate);
 
@@ -2243,14 +2246,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					transferer_tech, transferer_name);
 				newchan = feature_request_and_dial(transferer, transferer_name_orig,
 					transferee, transferee, transferer_tech,
-					ast_best_codec(transferee->nativeformats), transferer_name,
+					transferee->nativeformats, transferer_name,
 					atxfernoanswertimeout, &outstate, transferer->language);
 				ast_debug(2, "Dial party B result: newchan:%d, outstate:%d\n",
 					!!newchan, outstate);
 				if (newchan || ast_check_hangup(transferee)) {
 					break;
 				}
-
 				++tries;
 				if (atxfercallbackretries <= tries) {
 					/* No more callback tries remaining. */
@@ -2272,7 +2274,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				ast_debug(1, "We're retrying to call %s/%s\n", "Local", xferto);
 				newchan = feature_request_and_dial(transferer, transferer_name_orig,
 					transferer, transferee, "Local",
-					ast_best_codec(transferee->nativeformats), xferto,
+					transferee->nativeformats, xferto,
 					atxfernoanswertimeout, &outstate, transferer->language);
 				ast_debug(2, "Redial party C result: newchan:%d, outstate:%d\n",
 					!!newchan, outstate);
@@ -2980,7 +2982,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
  */
 static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	const char *caller_name, struct ast_channel *requestor,
-	struct ast_channel *transferee, const char *type, format_t format, void *data,
+	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, void *data,
 	int timeout, int *outstate, const char *language)
 {
 	int state = 0;
@@ -2996,12 +2998,21 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	struct timeval started;
 	int x, len = 0;
 	char *disconnect_code = NULL, *dialed_code = NULL;
+	struct ast_format_cap *tmp_cap;
+	struct ast_format best_audio_fmt;
 	struct ast_frame *f;
 	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
 
+	tmp_cap = ast_format_cap_alloc_nolock();
+	if (!tmp_cap) {
+		return NULL;
+	}
+	ast_best_codec(cap, &best_audio_fmt);
+	ast_format_cap_add(tmp_cap, &best_audio_fmt);
+
 	caller_hungup = ast_check_hangup(caller);
 
-	if (!(chan = ast_request(type, format, requestor, data, &cause))) {
+	if (!(chan = ast_request(type, tmp_cap, requestor, data, &cause))) {
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
 		switch (cause) {
 		case AST_CAUSE_BUSY:
@@ -3119,8 +3130,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 			}
 		} else if (chan == active_channel) {
 			if (!ast_strlen_zero(chan->call_forward)) {
-				state = 0;
-				chan = ast_call_forward(caller, chan, NULL, format, NULL, &state);
+				chan = ast_call_forward(caller, chan, NULL, tmp_cap, NULL, &state);
 				if (!chan) {
 					break;
 				}
@@ -3251,6 +3261,8 @@ done:
 		ast_hangup(chan);
 		chan = NULL;
 	}
+
+	tmp_cap = ast_format_cap_destroy(tmp_cap);
 
 	if (outstate)
 		*outstate = state;

@@ -20,7 +20,7 @@
 
 #include "asterisk/linkedlists.h"
 #include "asterisk/crypto.h"
-#include "asterisk/frame_defs.h"
+#include "iax2.h"
 
 struct iax_ies {
 	char *called_number;
@@ -33,8 +33,8 @@ struct iax_ies {
 	char *called_context;
 	char *username;
 	char *password;
-	format_t capability;
-	format_t format;
+	iax2_format capability;
+	iax2_format format;
 	char *codec_prefs;
 	char *language;
 	int version;

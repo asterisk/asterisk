@@ -248,13 +248,27 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 {
 	char numsubst[AST_MAX_EXTENSION];
 	int res = 1;
+	struct ast_format_cap *cap_all_audio = NULL;
+	struct ast_format_cap *cap_request;
 
 	/* Copy device string over */
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
+	if (chan) {
+		cap_request = chan->nativeformats;
+	} else {
+		cap_all_audio = ast_format_cap_alloc_nolock();
+		ast_format_cap_add_all_by_type(cap_all_audio, AST_FORMAT_TYPE_AUDIO);
+		cap_request = cap_all_audio;
+	}
+
 	/* If we fail to create our owner channel bail out */
-	if (!(channel->owner = ast_request(channel->tech, chan ? chan->nativeformats : AST_FORMAT_AUDIO_MASK, chan, numsubst, &channel->cause)))
+	if (!(channel->owner = ast_request(channel->tech, cap_request, chan, numsubst, &channel->cause))) {
+		cap_all_audio = ast_format_cap_destroy(cap_all_audio);
 		return -1;
+	}
+	cap_request = NULL;
+	cap_all_audio = ast_format_cap_destroy(cap_all_audio);
 
 	channel->owner->appl = "AppDial2";
 	channel->owner->data = "(Outgoing Line)";

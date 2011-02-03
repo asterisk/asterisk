@@ -74,7 +74,7 @@ struct outgoing {
 	int retrytime;                            /*!< How long to wait between retries (in seconds) */
 	int waittime;                             /*!< How long to wait for an answer */
 	long callingpid;                          /*!< PID which is currently calling */
-	format_t format;                          /*!< Formats (codecs) for this call */
+	struct ast_format_cap *capabilities;                 /*!< Formats (codecs) for this call */
 	AST_DECLARE_STRING_FIELDS (
 		AST_STRING_FIELD(fn);                 /*!< File name of call file */
 		AST_STRING_FIELD(tech);               /*!< Which channel technology to use for outgoing call */
@@ -99,10 +99,16 @@ static void queue_file(const char *filename, time_t when);
 
 static int init_outgoing(struct outgoing *o)
 {
+	struct ast_format tmpfmt;
 	o->priority = 1;
 	o->retrytime = 300;
 	o->waittime = 45;
-	o->format = AST_FORMAT_SLINEAR;
+
+	if (!(o->capabilities = ast_format_cap_alloc_nolock())) {
+		return -1;
+	}
+	ast_format_cap_add(o->capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+
 	ast_set_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE);
 	if (ast_string_field_init(o, 128)) {
 		return -1;
@@ -116,6 +122,7 @@ static void free_outgoing(struct outgoing *o)
 		ast_variables_destroy(o->vars);
 	}
 	ast_string_field_free_memory(o);
+	o->capabilities = ast_format_cap_destroy(o->capabilities);
 	ast_free(o);
 }
 
@@ -189,7 +196,7 @@ static int apply_outgoing(struct outgoing *o, const char *fn, FILE *f)
 						o->maxretries = 0;
 					}
 				} else if (!strcasecmp(buf, "codecs")) {
-					ast_parse_allow_disallow(NULL, &o->format, c, 1);
+					ast_parse_allow_disallow(NULL, o->capabilities, c, 1);
 				} else if (!strcasecmp(buf, "context")) {
 					ast_string_field_set(o, context, c);
 				} else if (!strcasecmp(buf, "extension")) {
@@ -338,11 +345,11 @@ static void *attempt_thread(void *data)
 	int res, reason;
 	if (!ast_strlen_zero(o->app)) {
 		ast_verb(3, "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
-		res = ast_pbx_outgoing_app(o->tech, o->format, (void *) o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
+		res = ast_pbx_outgoing_app(o->tech, o->capabilities, (void *) o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
 		o->vars = NULL;
 	} else {
 		ast_verb(3, "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
-		res = ast_pbx_outgoing_exten(o->tech, o->format, (void *) o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
+		res = ast_pbx_outgoing_exten(o->tech, o->capabilities, (void *) o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, o->account, NULL);
 		o->vars = NULL;
 	}
 	if (res) {

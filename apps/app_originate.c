@@ -105,8 +105,14 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	int outgoing_status = 0;
 	static const unsigned int timeout = 30;
 	static const char default_exten[] = "s";
+	struct ast_format tmpfmt;
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc_nolock();
 
 	ast_autoservice_start(chan);
+	if (!cap_slin) {
+		goto return_cleanup;
+	}
+	ast_format_cap_add(cap_slin, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "Originate() requires arguments\n");
@@ -148,14 +154,14 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to extension %s,%s,%d\n",
 				chantech, chandata, args.arg1, exten, priority);
 
-		outgoing_res = ast_pbx_outgoing_exten(chantech, AST_FORMAT_SLINEAR, chandata,
+		outgoing_res = ast_pbx_outgoing_exten(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, exten, priority, &outgoing_status, 0, NULL,
 				NULL, NULL, NULL, NULL);
 	} else if (!strcasecmp(args.type, "app")) {
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to %s(%s)\n",
 				chantech, chandata, args.arg1, S_OR(args.arg2, ""));
 
-		outgoing_res = ast_pbx_outgoing_app(chantech, AST_FORMAT_SLINEAR, chandata,
+		outgoing_res = ast_pbx_outgoing_app(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, args.arg2, &outgoing_status, 0, NULL,
 				NULL, NULL, NULL, NULL);
 	} else {
@@ -194,7 +200,7 @@ return_cleanup:
 			break;
 		}
 	}
-
+	cap_slin = ast_format_cap_destroy(cap_slin);
 	ast_autoservice_stop(chan);
 
 	return res;
