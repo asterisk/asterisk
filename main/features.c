@@ -4121,7 +4121,7 @@ int manage_parkinglot(struct ast_parkinglot *curlot, const struct pollfd *pfds, 
 					continue;
 				}
 
-				if (pfds[y].revents & POLLERR) {
+				if (pfds[y].revents & POLLPRI) {
 					ast_set_flag(chan, AST_FLAG_EXCEPTION);
 				} else {
 					ast_clear_flag(chan, AST_FLAG_EXCEPTION);
