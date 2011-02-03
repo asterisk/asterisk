@@ -760,6 +760,7 @@ static int local_hangup(struct ast_channel *ast)
 				ao2_lock(p);
 			}
 			if (p->owner) {
+				p->owner->hangupcause = p->chan->hangupcause;
 				pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 				ast_channel_unlock(p->owner);
 			}
