@@ -4069,11 +4069,12 @@ static int blackfilter_cmp_fn(void *obj, void *arg, void *data, int flags)
 	const char *eventdata = arg;
 	int *result = data;
 
-	if (regexec(regex_filter, eventdata, 0, NULL, 0)) {
-		*result = 1;
+	if (!regexec(regex_filter, eventdata, 0, NULL, 0)) {
+		*result = 0;
 		return (CMP_MATCH | CMP_STOP);
 	}
 
+	*result = 1;
 	return 0;
 }
 
