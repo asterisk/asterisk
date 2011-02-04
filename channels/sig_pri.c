@@ -4084,6 +4084,31 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 			/* Ignore for now. */
 			break;
 #endif	/* defined(HAVE_PRI_MCID) */
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+		case PRI_SUBCMD_DISPLAY_TEXT:
+			if (event_id != PRI_EVENT_RING) {
+				/*
+				 * This display text was not from a SETUP message.  We can do
+				 * something with this display text string.
+				 */
+				sig_pri_lock_owner(pri, chanpos);
+				owner = pri->pvts[chanpos]->owner;
+				if (owner) {
+					struct ast_frame f;
+
+					/* Pass the display text to the peer channel. */
+					memset(&f, 0, sizeof(f));
+					f.frametype = AST_FRAME_TEXT;
+					f.subclass.integer = 0;
+					f.offset = 0;
+					f.data.ptr = &subcmd->u.display.text;
+					f.datalen = subcmd->u.display.length + 1;
+					ast_queue_frame(owner, &f);
+					ast_channel_unlock(owner);
+				}
+			}
+			break;
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 		default:
 			ast_debug(2,
 				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
@@ -8171,6 +8196,10 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 #if defined(HAVE_PRI_MCID)
 	pri_mcid_enable(pri->pri, 1);
 #endif	/* defined(HAVE_PRI_MCID) */
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+	pri_display_options_send(pri->pri, pri->display_flags_send);
+	pri_display_options_receive(pri->pri, pri->display_flags_receive);
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {
@@ -8382,6 +8411,31 @@ void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, str
 		pchan->owner = newchan;
 	}
 }
+
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+/*!
+ * \brief Send display text.
+ * \since 1.10
+ *
+ * \param p Channel to send text over
+ * \param text Text to send.
+ *
+ * \return Nothing
+ */
+void sig_pri_sendtext(struct sig_pri_chan *p, const char *text)
+{
+	struct pri_subcmd_display_txt display;
+
+	if (p->pri && p->pri->pri) {
+		ast_copy_string(display.text, text, sizeof(display.text));
+		display.length = strlen(display.text);
+		display.char_set = 0;/* unknown(0) */
+		pri_grab(p, p->pri);
+		pri_display_text(p->pri->pri, p->call, &display);
+		pri_rel(p->pri);
+	}
+}
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 
 #if defined(HAVE_PRI_CCSS)
 /*!

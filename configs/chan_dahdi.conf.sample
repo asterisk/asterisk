@@ -205,7 +205,32 @@
 ; yes or both: both directions
 ;
 ;overlapdial=yes
+
+; Send/receive ISDN display IE options.  The display options are a comma separated
+; list of the following options:
 ;
+; block:        Do not pass display text data.
+;               Q.SIG: Default for send/receive.
+;               ETSI CPE: Default for send.
+; name_initial: Use display text in SETUP/CONNECT messages as the party name.
+;               Default for all other modes.
+; name_update:  Use display text in other messages (NOTIFY/FACILITY) for COLP name
+;               update.
+; name:         Combined name_initial and name_update options.
+; text:         Pass any unused display text data as an arbitrary display message
+;               during a call.  Sent text goes out in an INFORMATION message.
+;
+; * Default is an empty string for legacy behavior.
+; * The name options are not recommended for Q.SIG since Q.SIG already
+;   supports names.
+; * The send block is the only recommended setting for CPE mode since Q.931 uses
+;   the display IE only in the network to user direction.
+;
+; display_send and display_receive cannot be changed on reload.
+;
+;display_send=
+;display_receive=
+
 ; Allow inband audio (progress) when a call is DISCONNECTed by the far end of a PRI
 ;
 ;inbanddisconnect=yes

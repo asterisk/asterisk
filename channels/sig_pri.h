@@ -412,6 +412,10 @@ struct sig_pri_span {
 	char unknownprefix[20];					/*!< for unknown dialplans */
 	enum sig_pri_moh_signaling moh_signaling;
 	long resetinterval;						/*!< Interval (in seconds) for resetting unused channels */
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+	unsigned long display_flags_send;		/*!< PRI_DISPLAY_OPTION_xxx flags for display text sending */
+	unsigned long display_flags_receive;	/*!< PRI_DISPLAY_OPTION_xxx flags for display text receiving */
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 #if defined(HAVE_PRI_MWI)
 	/*! \brief Active MWI mailboxes */
 	struct sig_pri_mbox mbox[SIG_PRI_MAX_MWI_MAILBOXES];
@@ -576,6 +580,9 @@ int pri_maintenance_bservice(struct pri *pri, struct sig_pri_chan *p, int change
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
 
 void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_pri_chan *pchan);
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+void sig_pri_sendtext(struct sig_pri_chan *pchan, const char *text);
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 
 int sig_pri_cc_agent_init(struct ast_cc_agent *agent, struct sig_pri_chan *pvt_chan);
 int sig_pri_cc_agent_start_offer_timer(struct ast_cc_agent *agent);

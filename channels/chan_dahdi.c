@@ -7334,13 +7334,13 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 			continue;
 		}
 		f = ast_read(who);
-		if (!f || (f->frametype == AST_FRAME_CONTROL)) {
+		switch (f ? f->frametype : AST_FRAME_CONTROL) {
+		case AST_FRAME_CONTROL:
 			*fo = f;
 			*rc = who;
 			res = AST_BRIDGE_COMPLETE;
 			goto return_from_bridge;
-		}
-		if (f->frametype == AST_FRAME_DTMF) {
+		case AST_FRAME_DTMF_END:
 			if ((who == c0) && p0->pulsedial) {
 				ast_write(c1, f);
 			} else if ((who == c1) && p1->pulsedial) {
@@ -7351,6 +7351,20 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 				res = AST_BRIDGE_COMPLETE;
 				goto return_from_bridge;
 			}
+			break;
+		case AST_FRAME_TEXT:
+			if (who == c0) {
+				ast_write(c1, f);
+			} else {
+				ast_write(c0, f);
+			}
+			break;
+		case AST_FRAME_NULL:
+			break;
+		default:
+			ast_debug(1, "Chan '%s' is discarding frame of frametype:%d\n",
+				who->name, f->frametype);
+			break;
 		}
 		ast_frfree(f);
 
@@ -12333,6 +12347,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						ast_copy_string(pris[span].pri.unknownprefix, conf->pri.pri.unknownprefix, sizeof(pris[span].pri.unknownprefix));
 						pris[span].pri.moh_signaling = conf->pri.pri.moh_signaling;
 						pris[span].pri.resetinterval = conf->pri.pri.resetinterval;
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+						pris[span].pri.display_flags_send = conf->pri.pri.display_flags_send;
+						pris[span].pri.display_flags_receive = conf->pri.pri.display_flags_receive;
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 
 						for (x = 0; x < PRI_MAX_TIMERS; x++) {
 							pris[span].pri.pritimers[x] = conf->pri.pri.pritimers[x];
@@ -16462,6 +16480,53 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 	}
 }
 
+#if defined(HAVE_PRI)
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+/*!
+ * \internal
+ * \brief Determine the configured display text options.
+ * \since 1.10
+ *
+ * \param value Configuration value string.
+ *
+ * \return Configured display text option flags.
+ */
+static unsigned long dahdi_display_text_option(const char *value)
+{
+	char *val_str;
+	char *opt_str;
+	unsigned long options;
+
+	options = 0;
+	val_str = ast_strdupa(value);
+
+	for (;;) {
+		opt_str = strsep(&val_str, ",");
+		if (!opt_str) {
+			break;
+		}
+		opt_str = ast_strip(opt_str);
+		if (!*opt_str) {
+			continue;
+		}
+
+		if (!strcasecmp(opt_str, "block")) {
+			options |= PRI_DISPLAY_OPTION_BLOCK;
+		} else if (!strcasecmp(opt_str, "name_initial")) {
+			options |= PRI_DISPLAY_OPTION_NAME_INITIAL;
+		} else if (!strcasecmp(opt_str, "name_update")) {
+			options |= PRI_DISPLAY_OPTION_NAME_UPDATE;
+		} else if (!strcasecmp(opt_str, "name")) {
+			options |= (PRI_DISPLAY_OPTION_NAME_INITIAL | PRI_DISPLAY_OPTION_NAME_UPDATE);
+		} else if (!strcasecmp(opt_str, "text")) {
+			options |= PRI_DISPLAY_OPTION_TEXT;
+		}
+	}
+	return options;
+}
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
+#endif	/* defined(HAVE_PRI) */
+
 /*! process_dahdi() - ignore keyword 'channel' and similar */
 #define PROC_DAHDI_OPT_NOCHAN  (1 << 0)
 /*! process_dahdi() - No warnings on non-existing cofiguration keywords */
@@ -17234,6 +17299,12 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif	/* defined(HAVE_PRI_MWI) */
 			} else if (!strcasecmp(v->name, "append_msn_to_cid_tag")) {
 				confp->pri.pri.append_msn_to_user_tag = ast_true(v->value);
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+			} else if (!strcasecmp(v->name, "display_send")) {
+				confp->pri.pri.display_flags_send = dahdi_display_text_option(v->value);
+			} else if (!strcasecmp(v->name, "display_receive")) {
+				confp->pri.pri.display_flags_receive = dahdi_display_text_option(v->value);
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 #endif /* HAVE_PRI */
 #if defined(HAVE_SS7)
 			} else if (!strcasecmp(v->name, "ss7type")) {
@@ -18150,13 +18221,26 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 	float scont = 0.0;
 	int idx;
 
+	if (!text[0]) {
+		return(0); /* if nothing to send, don't */
+	}
 	idx = dahdi_get_index(c, p, 0);
 	if (idx < 0) {
 		ast_log(LOG_WARNING, "Huh?  I don't exist?\n");
 		return -1;
 	}
-	if (!text[0]) return(0); /* if nothing to send, don't */
-	if ((!p->tdd) && (!p->mate)) return(0);  /* if not in TDD mode, just return */
+	if ((!p->tdd) && (!p->mate)) {
+#if defined(HAVE_PRI)
+#if defined(HAVE_PRI_DISPLAY_TEXT)
+		ast_mutex_lock(&p->lock);
+		if (dahdi_sig_pri_lib_handles(p->sig)) {
+			sig_pri_sendtext(p->sig_pvt, text);
+		}
+		ast_mutex_unlock(&p->lock);
+#endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
+#endif	/* defined(HAVE_PRI) */
+		return(0);  /* if not in TDD mode, just return */
+	}
 	if (p->mate)
 		buf = ast_malloc(((strlen(text) + 1) * ASCII_BYTES_PER_CHAR) + END_SILENCE_LEN + HEADER_LEN);
 	else
