@@ -198,8 +198,8 @@ static int load_module(void)
 {
 	int res;
 
-	ast_format_set(&ilibctolin.src_format, AST_FORMAT_ILBC, 0);
-	ast_format_set(&ilibctolin.dst_format, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&ilbctolin.src_format, AST_FORMAT_ILBC, 0);
+	ast_format_set(&ilbctolin.dst_format, AST_FORMAT_SLINEAR, 0);
 
 	ast_format_set(&lintoilbc.src_format, AST_FORMAT_SLINEAR, 0);
 	ast_format_set(&lintoilbc.dst_format, AST_FORMAT_ILBC, 0);
