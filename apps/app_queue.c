@@ -987,6 +987,7 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 				ast_debug(4, "%s is unavailable because his device state is 'ringing'\n", member->membername);
 				break;
 			}
+			goto default_case;
 		case AST_DEVICE_UNKNOWN:
 			if (conditions & QUEUE_EMPTY_UNKNOWN) {
 				ast_debug(4, "%s is unavailable because his device state is 'unknown'\n", member->membername);
