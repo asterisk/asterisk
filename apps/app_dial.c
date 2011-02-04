@@ -1276,7 +1276,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_REDIRECTING:
 					if (ast_test_flag64(peerflags, OPT_IGNORE_CONNECTEDLINE)) {
 						ast_verb(3, "Redirecting update to %s prevented.\n", in->name);
-					} else {
+					} else if (single) {
 						ast_verb(3, "%s redirecting info has changed, passing it to %s\n", c->name, in->name);
 						if (ast_channel_redirecting_macro(c, in, f, 1, 1)) {
 							ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
@@ -1321,20 +1321,22 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				}
 			} else if (single) {
 				switch (f->frametype) {
-					case AST_FRAME_VOICE:
-					case AST_FRAME_IMAGE:
-					case AST_FRAME_TEXT:
-						if (ast_write(in, f)) {
-							ast_log(LOG_WARNING, "Unable to write frame\n");
-						}
-						break;
-					case AST_FRAME_HTML:
-						if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML) && ast_channel_sendhtml(in, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
-							ast_log(LOG_WARNING, "Unable to send URL\n");
-						}
-						break;
-					default:
-						break;
+				case AST_FRAME_VOICE:
+				case AST_FRAME_IMAGE:
+				case AST_FRAME_TEXT:
+					if (ast_write(in, f)) {
+						ast_log(LOG_WARNING, "Unable to write frametype: %d\n",
+							f->frametype);
+					}
+					break;
+				case AST_FRAME_HTML:
+					if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML)
+						&& ast_channel_sendhtml(in, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
+						ast_log(LOG_WARNING, "Unable to send URL\n");
+					}
+					break;
+				default:
+					break;
 				}
 			}
 			ast_frfree(f);

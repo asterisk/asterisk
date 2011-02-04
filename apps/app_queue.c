@@ -3754,7 +3754,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						case AST_CONTROL_REDIRECTING:
 							if (!update_connectedline) {
 								ast_verb(3, "Redirecting update to %s prevented\n", inchan_name);
-							} else {
+							} else if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ochan_name, inchan_name);
 								if (ast_channel_redirecting_macro(o->chan, in, f, 1, 1)) {
 									ast_indicate_data(in, AST_CONTROL_REDIRECTING, f->data.ptr, f->datalen);
