@@ -299,7 +299,7 @@ static int container_test1_helper(struct ast_format_cap *cap1, struct ast_format
 {
 
 	int res = AST_TEST_PASS;
-	struct ast_format_cap *cap_joint;
+	struct ast_format_cap *cap_joint = NULL;
 	struct ast_format tmpformat;
 
 	if (ast_format_attr_reg_interface(&test_interface)) {
