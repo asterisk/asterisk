@@ -7233,9 +7233,9 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 {
 	struct ast_frame *f;
 
- 	if (tmp->dsp) {
- 		f = ast_dsp_process(tmp->ast, tmp->dsp, frame);
- 	} else {
+	if (tmp->dsp) {
+		f = ast_dsp_process(tmp->ast, tmp->dsp, frame);
+	} else {
 		chan_misdn_log(0, tmp->bc->port, "No DSP-Path found\n");
 		return NULL;
 	}
@@ -7246,59 +7246,59 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 
 	ast_debug(1, "Detected inband DTMF digit: %c\n", f->subclass.integer);
 
- 	if (tmp->faxdetect && (f->subclass.integer == 'f')) {
- 		/* Fax tone -- Handle and return NULL */
- 		if (!tmp->faxhandled) {
-  			struct ast_channel *ast = tmp->ast;
- 			tmp->faxhandled++;
- 			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", ast->name);
- 			tmp->bc->rxgain = 0;
- 			isdn_lib_update_rxgain(tmp->bc);
- 			tmp->bc->txgain = 0;
- 			isdn_lib_update_txgain(tmp->bc);
+	if (tmp->faxdetect && (f->subclass.integer == 'f')) {
+		/* Fax tone -- Handle and return NULL */
+		if (!tmp->faxhandled) {
+			struct ast_channel *ast = tmp->ast;
+			tmp->faxhandled++;
+			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", ast->name);
+			tmp->bc->rxgain = 0;
+			isdn_lib_update_rxgain(tmp->bc);
+			tmp->bc->txgain = 0;
+			isdn_lib_update_txgain(tmp->bc);
 #ifdef MISDN_1_2
 			*tmp->bc->pipeline = 0;
 #else
- 			tmp->bc->ec_enable = 0;
+			tmp->bc->ec_enable = 0;
 #endif
- 			isdn_lib_update_ec(tmp->bc);
- 			isdn_lib_stop_dtmf(tmp->bc);
- 			switch (tmp->faxdetect) {
- 			case 1:
-  				if (strcmp(ast->exten, "fax")) {
- 					char *context;
- 					char context_tmp[BUFFERSIZE];
- 					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
- 					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
+			isdn_lib_update_ec(tmp->bc);
+			isdn_lib_stop_dtmf(tmp->bc);
+			switch (tmp->faxdetect) {
+			case 1:
+				if (strcmp(ast->exten, "fax")) {
+					char *context;
+					char context_tmp[BUFFERSIZE];
+					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
+					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
 					if (ast_exists_extension(ast, context, "fax", 1,
 						S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
- 						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
-  						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-  						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
- 						if (ast_async_goto(ast, context, "fax", 1)) {
- 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, context);
+						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
+						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
+						if (ast_async_goto(ast, context, "fax", 1)) {
+							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, context);
 						}
-  					} else {
- 						ast_log(LOG_NOTICE, "Fax detected but no fax extension, context:%s exten:%s\n", context, ast->exten);
+					} else {
+						ast_log(LOG_NOTICE, "Fax detected but no fax extension, context:%s exten:%s\n", context, ast->exten);
 					}
- 				} else {
+				} else {
 					ast_debug(1, "Already in a fax extension, not redirecting\n");
 				}
- 				break;
- 			case 2:
- 				ast_verb(3, "Not redirecting %s to fax extension, nojump is set.\n", ast->name);
- 				break;
+				break;
+			case 2:
+				ast_verb(3, "Not redirecting %s to fax extension, nojump is set.\n", ast->name);
+				break;
 			default:
 				break;
- 			}
- 		} else {
+			}
+		} else {
 			ast_debug(1, "Fax already handled\n");
 		}
-  	}
+	}
 
- 	if (tmp->ast_dsp && (f->subclass.integer != 'f')) {
- 		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n", f->subclass.integer);
- 	}
+	if (tmp->ast_dsp && (f->subclass.integer != 'f')) {
+		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n", f->subclass.integer);
+	}
 
 	return f;
 }
@@ -11988,7 +11988,7 @@ static int misdn_command_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	ast_log(LOG_DEBUG, "%s(%s)\n", misdn_command_name, (char *) data);
+	ast_debug(1, "%s(%s)\n", misdn_command_name, (char *) data);
 
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(subcommand, parse);

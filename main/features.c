@@ -854,7 +854,7 @@ static const char *findparkinglotname(struct ast_channel *chan)
 /*! \brief Notify metermaids that we've changed an extension */
 static void notify_metermaids(const char *exten, char *context, enum ast_device_state state)
 {
-	ast_debug(4, "Notification of state change to metermaids %s@%s\n to state '%s'", 
+	ast_debug(4, "Notification of state change to metermaids %s@%s\n to state '%s'",
 		exten, context, ast_devstate2str(state));
 
 	ast_devstate_changed(state, "park:%s@%s", exten, context);
@@ -871,7 +871,7 @@ static enum ast_device_state metermaidstate(const char *data)
 	exten = strsep(&context, "@");
 	if (!context)
 		return AST_DEVICE_INVALID;
-	
+
 	ast_debug(4, "Checking state of exten %s in context %s\n", exten, context);
 
 	if (!ast_exists_extension(NULL, context, exten, 1, NULL))
@@ -1923,12 +1923,12 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		}
 		if (transferer->cdr) {
 			struct ast_cdr *swap = transferer->cdr;
-			ast_log(LOG_DEBUG,"transferer=%s; transferee=%s; lastapp=%s; lastdata=%s; chan=%s; dstchan=%s\n",
+			ast_debug(1, "transferer=%s; transferee=%s; lastapp=%s; lastdata=%s; chan=%s; dstchan=%s\n",
 					transferer->name, transferee->name, transferer->cdr->lastapp, transferer->cdr->lastdata, 
 					transferer->cdr->channel, transferer->cdr->dstchannel);
-			ast_log(LOG_DEBUG,"TRANSFEREE; lastapp=%s; lastdata=%s, chan=%s; dstchan=%s\n",
+			ast_debug(1, "TRANSFEREE; lastapp=%s; lastdata=%s, chan=%s; dstchan=%s\n",
 					transferee->cdr->lastapp, transferee->cdr->lastdata, transferee->cdr->channel, transferee->cdr->dstchannel);
-			ast_log(LOG_DEBUG,"transferer_real_context=%s; xferto=%s\n", transferer_real_context, xferto);
+			ast_debug(1, "transferer_real_context=%s; xferto=%s\n", transferer_real_context, xferto);
 			/* swap cdrs-- it will save us some time & work */
 			transferer->cdr = transferee->cdr;
 			transferee->cdr = swap;
@@ -1942,7 +1942,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		} else {
 			/* Set the channel's new extension, since it exists, using transferer context */
 			ast_set_flag(transferee, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
-			ast_log(LOG_DEBUG,"ABOUT TO AST_ASYNC_GOTO, have a pbx... set HANGUP_DONT on chan=%s\n", transferee->name);
+			ast_debug(1, "ABOUT TO AST_ASYNC_GOTO, have a pbx... set HANGUP_DONT on chan=%s\n", transferee->name);
 			if (ast_channel_connected_line_macro(transferee, transferer, &transferer->connected, 1, 0)) {
 				ast_channel_update_connected_line(transferer, &transferer->connected, NULL);
 			}
@@ -3534,7 +3534,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				ast_cdr_start(bridge_cdr);
 			}
 		}
-		ast_debug(4,"bridge answer set, chan answer set\n");
+		ast_debug(4, "bridge answer set, chan answer set\n");
 		/* peer_cdr->answer will be set when a macro runs on the peer;
 		   in that case, the bridge answer will be delayed while the
 		   macro plays on the peer channel. The peer answered the call
@@ -4665,7 +4665,7 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 		} else if (!strcasecmp(confvar->name, "findslot")) {
 			parkinglot->parkfindnext = (!strcasecmp(confvar->value, "next"));
 		} else if (!strcasecmp(confvar->name, "parkedcalltransfers")) {
-			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			ast_debug(1, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
 			if (!strcasecmp(confvar->value, "both")) {
 				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
 			} else if (!strcasecmp(confvar->value, "caller")) {
@@ -4674,7 +4674,7 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 				parkinglot->parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
 			}
 		} else if (!strcasecmp(confvar->name, "parkedcallreparking")) {
-			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			ast_debug(1, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
 			if (!strcasecmp(confvar->value, "both")) {
 				parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYBOTH;
 			} else if (!strcasecmp(confvar->value, "caller")) {
@@ -4683,16 +4683,16 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 				parkinglot->parkedcallreparking = AST_FEATURE_FLAG_BYCALLEE;
 			}
 		} else if (!strcasecmp(confvar->name, "parkedcallhangup")) {
-			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			ast_debug(1, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
 			if (!strcasecmp(confvar->value, "both")) {
 				parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYBOTH;
 			} else if (!strcasecmp(confvar->value, "caller")) {
-				parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLER; 
+				parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLER;
 			} else if (!strcasecmp(confvar->value, "callee")) {
 				parkinglot->parkedcallhangup = AST_FEATURE_FLAG_BYCALLEE;
 			}
 		} else if (!strcasecmp(confvar->name, "parkedcallrecording")) {
-			ast_log(LOG_DEBUG, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
+			ast_debug(1, "Setting parking lot %s %s to %s\n", name, confvar->name, confvar->value);
 			if (!strcasecmp(confvar->value, "both")) {
 				parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYBOTH;
 			} else if (!strcasecmp(confvar->value, "caller")) {
@@ -4762,7 +4762,7 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 	return parkinglot;
 }
 
-static int load_config(void) 
+static int load_config(void)
 {
 	int start = 0, end = 0;
 	int res;
@@ -4793,7 +4793,7 @@ static int load_config(void)
 		default_parkinglot->parkingtime = DEFAULT_PARK_TIME;
 		ao2_unlock(default_parkinglot);
 	}
-	
+
 	if (default_parkinglot) {
 		ast_debug(1, "Configuration of default parkinglot done.\n");
 	} else {
@@ -5053,7 +5053,7 @@ static int load_config(void)
 				ast_log(LOG_ERROR, "Could not build parking lot %s. Configuration error.\n", ctg);
 			else
 				ast_debug(1, "Configured parking context %s\n", ctg);
-			continue;	
+			continue;
 		}
 		/* No, check if it's a group */
 		for (i = 0; i < ARRAY_LEN(categories); i++) {
@@ -5061,7 +5061,7 @@ static int load_config(void)
 				break;
 		}
 
-		if (i < ARRAY_LEN(categories)) 
+		if (i < ARRAY_LEN(categories))
 			continue;
 
 		if (!(fg = register_group(ctg)))
@@ -5937,7 +5937,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 	if (ast_test_flag(&opts, OPT_CALLEE_MONITOR))
 		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_AUTOMON);
-	if (ast_test_flag(&opts, OPT_CALLER_MONITOR)) 
+	if (ast_test_flag(&opts, OPT_CALLER_MONITOR))
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_AUTOMON);
 	if (ast_test_flag(&opts, OPT_CALLEE_PARK))
 		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_PARKCALL);
@@ -5949,8 +5949,8 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	/* the bridge has ended, set BRIDGERESULT to SUCCESS. If the other channel has not been hung up, return it to the PBX */
 	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
 	if (!ast_check_hangup(final_dest_chan) && !ast_test_flag(&opts, OPT_CALLEE_KILL)) {
-		ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n", 
-			final_dest_chan->context, final_dest_chan->exten, 
+		ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n",
+			final_dest_chan->context, final_dest_chan->exten,
 			final_dest_chan->priority, final_dest_chan->name);
 
 		if (ast_pbx_start(final_dest_chan) != AST_PBX_SUCCESS) {

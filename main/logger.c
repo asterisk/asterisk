@@ -1258,7 +1258,7 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 			char asteriskpath[256];
 			if (!(dli.dli_fname = ast_utils_which("asterisk", asteriskpath, sizeof(asteriskpath)))) {
 				/* This will fail to find symbols */
-				ast_log(LOG_DEBUG, "Failed to find asterisk binary for debug symbols.\n");
+				ast_debug(1, "Failed to find asterisk binary for debug symbols.\n");
 				dli.dli_fname = "asterisk";
 			}
 		}
@@ -1378,7 +1378,7 @@ void ast_backtrace(void)
 	if ((strings = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
 		ast_debug(1, "Got %d backtrace record%c\n", bt->num_frames, bt->num_frames != 1 ? 's' : ' ');
 		for (i = 3; i < bt->num_frames - 2; i++) {
-			ast_log(LOG_DEBUG, "#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
+			ast_debug(1, "#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
 		}
 
 		/* MALLOC_DEBUG will erroneously report an error here, unless we undef the macro. */

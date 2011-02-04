@@ -2051,7 +2051,7 @@ static int rt_extend_conf(const char *confno)
 
 static void conf_start_moh(struct ast_channel *chan, const char *musicclass)
 {
-  	char *original_moh;
+	char *original_moh;
 
 	ast_channel_lock(chan);
 	original_moh = ast_strdupa(chan->musicclass);
@@ -2106,7 +2106,7 @@ static void *announce_thread(void *data)
 		}
 
 		for (res = 1; !conf->announcethread_stop && (current = AST_LIST_REMOVE_HEAD(&local_list, entry)); ao2_ref(current, -1)) {
-			ast_log(LOG_DEBUG, "About to play %s\n", current->namerecloc);
+			ast_debug(1, "About to play %s\n", current->namerecloc);
 			if (!ast_fileexists(current->namerecloc, NULL, NULL))
 				continue;
 			if ((current->confchan) && (current->confusers > 1) && !ast_check_hangup(current->confchan)) {
@@ -2251,16 +2251,16 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	char *exitkeys = NULL;
- 	unsigned int calldurationlimit = 0;
- 	long timelimit = 0;
- 	long play_warning = 0;
- 	long warning_freq = 0;
- 	const char *warning_sound = NULL;
- 	const char *end_sound = NULL;
- 	char *parse;	
- 	long time_left_ms = 0;
- 	struct timeval nexteventts = { 0, };
- 	int to;
+	unsigned int calldurationlimit = 0;
+	long timelimit = 0;
+	long play_warning = 0;
+	long warning_freq = 0;
+	const char *warning_sound = NULL;
+	const char *end_sound = NULL;
+	char *parse;
+	long time_left_ms = 0;
+	struct timeval nexteventts = { 0, };
+	int to;
 	int setusercount = 0;
 	int confsilence = 0, totalsilence = 0;
 	char *mailbox, *context;
@@ -2283,72 +2283,72 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		(opt_waitmarked_timeout > 0)) {
 		timeout = time(NULL) + opt_waitmarked_timeout;
 	}
-	 	
- 	if (ast_test_flag64(confflags, CONFFLAG_DURATION_STOP) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_STOP])) {
- 		calldurationlimit = atoi(optargs[OPT_ARG_DURATION_STOP]);
- 		ast_verb(3, "Setting call duration limit to %d seconds.\n", calldurationlimit);
- 	}
- 	
- 	if (ast_test_flag64(confflags, CONFFLAG_DURATION_LIMIT) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_LIMIT])) {
- 		char *limit_str, *warning_str, *warnfreq_str;
+
+	if (ast_test_flag64(confflags, CONFFLAG_DURATION_STOP) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_STOP])) {
+		calldurationlimit = atoi(optargs[OPT_ARG_DURATION_STOP]);
+		ast_verb(3, "Setting call duration limit to %d seconds.\n", calldurationlimit);
+	}
+
+	if (ast_test_flag64(confflags, CONFFLAG_DURATION_LIMIT) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_LIMIT])) {
+		char *limit_str, *warning_str, *warnfreq_str;
 		const char *var;
- 
- 		parse = optargs[OPT_ARG_DURATION_LIMIT];
- 		limit_str = strsep(&parse, ":");
- 		warning_str = strsep(&parse, ":");
- 		warnfreq_str = parse;
- 
- 		timelimit = atol(limit_str);
- 		if (warning_str)
- 			play_warning = atol(warning_str);
- 		if (warnfreq_str)
- 			warning_freq = atol(warnfreq_str);
- 
- 		if (!timelimit) {
- 			timelimit = play_warning = warning_freq = 0;
- 			warning_sound = NULL;
- 		} else if (play_warning > timelimit) {			
- 			if (!warning_freq) {
- 				play_warning = 0;
- 			} else {
- 				while (play_warning > timelimit)
- 					play_warning -= warning_freq;
- 				if (play_warning < 1)
- 					play_warning = warning_freq = 0;
- 			}
- 		}
- 		
+
+		parse = optargs[OPT_ARG_DURATION_LIMIT];
+		limit_str = strsep(&parse, ":");
+		warning_str = strsep(&parse, ":");
+		warnfreq_str = parse;
+
+		timelimit = atol(limit_str);
+		if (warning_str)
+			play_warning = atol(warning_str);
+		if (warnfreq_str)
+			warning_freq = atol(warnfreq_str);
+
+		if (!timelimit) {
+			timelimit = play_warning = warning_freq = 0;
+			warning_sound = NULL;
+		} else if (play_warning > timelimit) {
+			if (!warning_freq) {
+				play_warning = 0;
+			} else {
+				while (play_warning > timelimit)
+					play_warning -= warning_freq;
+				if (play_warning < 1)
+					play_warning = warning_freq = 0;
+			}
+		}
+
 		ast_channel_lock(chan);
 		if ((var = pbx_builtin_getvar_helper(chan, "CONF_LIMIT_WARNING_FILE"))) {
 			var = ast_strdupa(var);
 		}
 		ast_channel_unlock(chan);
 
- 		warning_sound = var ? var : "timeleft";
- 		
+		warning_sound = var ? var : "timeleft";
+
 		ast_channel_lock(chan);
 		if ((var = pbx_builtin_getvar_helper(chan, "CONF_LIMIT_TIMEOUT_FILE"))) {
 			var = ast_strdupa(var);
 		}
 		ast_channel_unlock(chan);
- 		
+
 		end_sound = var ? var : NULL;
- 			
- 		/* undo effect of S(x) in case they are both used */
- 		calldurationlimit = 0;
- 		/* more efficient do it like S(x) does since no advanced opts */
- 		if (!play_warning && !end_sound && timelimit) { 
- 			calldurationlimit = timelimit / 1000;
- 			timelimit = play_warning = warning_freq = 0;
- 		} else {
- 			ast_debug(2, "Limit Data for this call:\n");
+
+		/* undo effect of S(x) in case they are both used */
+		calldurationlimit = 0;
+		/* more efficient do it like S(x) does since no advanced opts */
+		if (!play_warning && !end_sound && timelimit) {
+			calldurationlimit = timelimit / 1000;
+			timelimit = play_warning = warning_freq = 0;
+		} else {
+			ast_debug(2, "Limit Data for this call:\n");
 			ast_debug(2, "- timelimit     = %ld\n", timelimit);
- 			ast_debug(2, "- play_warning  = %ld\n", play_warning);
- 			ast_debug(2, "- warning_freq  = %ld\n", warning_freq);
- 			ast_debug(2, "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
- 			ast_debug(2, "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
- 		}
- 	}
+			ast_debug(2, "- play_warning  = %ld\n", play_warning);
+			ast_debug(2, "- warning_freq  = %ld\n", warning_freq);
+			ast_debug(2, "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
+			ast_debug(2, "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
+		}
+	}
 
 	/* Get exit keys */
 	if (ast_test_flag64(confflags, CONFFLAG_KEYEXIT)) {
@@ -2667,7 +2667,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	memset(&dahdic, 0, sizeof(dahdic));
 	memset(&dahdic_empty, 0, sizeof(dahdic_empty));
 	/* Check to see if we're in a conference... */
-	dahdic.chan = 0;	
+	dahdic.chan = 0;
 	if (ioctl(fd, DAHDI_GETCONF, &dahdic)) {
 		ast_log(LOG_WARNING, "Error getting conference\n");
 		close(fd);
@@ -2683,7 +2683,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	}
 	memset(&dahdic, 0, sizeof(dahdic));
 	/* Add us to the conference */
-	dahdic.chan = 0;	
+	dahdic.chan = 0;
 	dahdic.confno = conf->dahdiconf;
 
 	if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && (ast_test_flag64(confflags, CONFFLAG_INTROUSER) ||
@@ -2717,7 +2717,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		dahdic.confmode = DAHDI_CONF_CONFMON | DAHDI_CONF_LISTENER;
 	else if (ast_test_flag64(confflags, CONFFLAG_TALKER))
 		dahdic.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER;
-	else 
+	else
 		dahdic.confmode = DAHDI_CONF_CONF | DAHDI_CONF_TALKER | DAHDI_CONF_LISTENER;
 
 	if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
@@ -3595,7 +3595,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				} else if ((f->frametype == AST_FRAME_DTMF) && ast_test_flag64(confflags, CONFFLAG_KEYEXIT) &&
 					(strchr(exitkeys, f->subclass.integer))) {
 					pbx_builtin_setvar_helper(chan, "MEETME_EXIT_KEY", dtmfstr);
-						
+
 					if (ast_test_flag64(confflags, CONFFLAG_PASS_DTMF)) {
 						conf_queue_dtmf(conf, user, f);
 					}
@@ -3623,12 +3623,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						goto outrun;
 						break;
 					default:
-						ast_debug(1, 
+						ast_debug(1,
 							"Got ignored control frame on channel %s, f->frametype=%d,f->subclass=%d\n",
 							chan->name, f->frametype, f->subclass.integer);
 					}
 				} else {
-					ast_debug(1, 
+					ast_debug(1,
 						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
 						chan->name, f->frametype, f->subclass.integer);
 				}
@@ -4046,7 +4046,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
 		ast_debug(3, "Does conf %s match %s?\n", confno, cnf->confno);
-		if (!strcmp(confno, cnf->confno)) 
+		if (!strcmp(confno, cnf->confno))
 			break;
 	}
 	if (cnf) {
@@ -6280,7 +6280,7 @@ static int sla_station_exec(struct ast_channel *chan, const char *data)
 	}
 
 	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_ref->trunk->name);
-	ast_set_flag64(&conf_flags, 
+	ast_set_flag64(&conf_flags,
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
 	ast_answer(chan);
 	conf = build_conf(conf_name, "", "", 0, 0, 1, chan, NULL);

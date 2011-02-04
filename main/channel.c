@@ -675,16 +675,16 @@ static int ast_channel_trace_data_update(struct ast_channel *chan, struct ast_ch
 		return 0;
 	/* If the last saved context does not match the current one
 	   OR we have not saved any context so far, then save the current context */
-	if ((!AST_LIST_EMPTY(&traced->trace) && strcasecmp(AST_LIST_FIRST(&traced->trace)->context, chan->context)) || 
+	if ((!AST_LIST_EMPTY(&traced->trace) && strcasecmp(AST_LIST_FIRST(&traced->trace)->context, chan->context)) ||
 	    (AST_LIST_EMPTY(&traced->trace))) {
 		/* Just do some debug logging */
 		if (AST_LIST_EMPTY(&traced->trace))
-			ast_log(LOG_DEBUG, "Setting initial trace context to %s\n", chan->context);
+			ast_debug(1, "Setting initial trace context to %s\n", chan->context);
 		else
-			ast_log(LOG_DEBUG, "Changing trace context from %s to %s\n", AST_LIST_FIRST(&traced->trace)->context, chan->context);
+			ast_debug(1, "Changing trace context from %s to %s\n", AST_LIST_FIRST(&traced->trace)->context, chan->context);
 		/* alloc or bail out */
 		trace = ast_malloc(sizeof(*trace));
-		if (!trace) 
+		if (!trace)
 			return -1;
 		/* save the current location and store it in the trace list */
 		ast_copy_string(trace->context, chan->context, sizeof(trace->context));
@@ -745,7 +745,7 @@ int ast_check_hangup(struct ast_channel *chan)
 		return 1;
 	if (ast_tvzero(chan->whentohangup))	/* no if no hangup scheduled */
 		return 0;
-	if (ast_tvdiff_ms(chan->whentohangup, ast_tvnow()) > 0) 	/* no if hangup time has not come yet. */
+	if (ast_tvdiff_ms(chan->whentohangup, ast_tvnow()) > 0)		/* no if hangup time has not come yet. */
 		return 0;
 	ast_debug(4, "Hangup time has come: %" PRIi64 "\n", ast_tvdiff_ms(chan->whentohangup, ast_tvnow()));
 	chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;	/* record event */
@@ -847,7 +847,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 			return -1;
 		}
 	}
-	
+
 	if (!(chan = ast_calloc(1, sizeof(*chan)))) {
 		AST_RWLIST_UNLOCK(&backends);
 		return -1;
@@ -2775,7 +2775,7 @@ int ast_hangup(struct ast_channel *chan)
 	} else {
 		ast_debug(1, "Hanging up zombie '%s'\n", chan->name);
 	}
-			
+
 	ast_channel_unlock(chan);
 	ast_cc_offer(chan);
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Hangup",
@@ -3568,7 +3568,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 		} else {
 			samples = f->samples;
 		}
-		
+
 		/* This unlock is here based on two assumptions that hold true at this point in the
 		 * code. 1) this function is only called from within __ast_read() and 2) all generators
 		 * call ast_write() in their generate callback.
@@ -4548,7 +4548,7 @@ int ast_senddigit_end(struct ast_channel *chan, char digit, unsigned int duratio
 
 	if (res && chan->generator)
 		ast_playtones_stop(chan);
-	
+
 	return 0;
 }
 
@@ -4558,7 +4558,7 @@ int ast_senddigit(struct ast_channel *chan, char digit, unsigned int duration)
 		ast_senddigit_begin(chan, digit);
 		ast_safe_sleep(chan, (duration >= AST_DEFAULT_EMULATE_DTMF_DURATION ? duration : AST_DEFAULT_EMULATE_DTMF_DURATION));
 	}
-	
+
 	return ast_senddigit_end(chan, digit, (duration >= AST_DEFAULT_EMULATE_DTMF_DURATION ? duration : AST_DEFAULT_EMULATE_DTMF_DURATION));
 }
 
@@ -6222,32 +6222,32 @@ static void ast_set_owners_and_peers(struct ast_channel *chan1,
 									 struct ast_channel *chan2)
 {
 	if (!ast_strlen_zero(chan1->accountcode) && ast_strlen_zero(chan2->peeraccount)) {
-		ast_log(LOG_DEBUG, "setting peeraccount to %s for %s from data on channel %s\n",
+		ast_debug(1, "setting peeraccount to %s for %s from data on channel %s\n",
 				chan1->accountcode, chan2->name, chan1->name);
 		ast_string_field_set(chan2, peeraccount, chan1->accountcode);
 	}
 	if (!ast_strlen_zero(chan2->accountcode) && ast_strlen_zero(chan1->peeraccount)) {
-		ast_log(LOG_DEBUG, "setting peeraccount to %s for %s from data on channel %s\n",
+		ast_debug(1, "setting peeraccount to %s for %s from data on channel %s\n",
 				chan2->accountcode, chan1->name, chan2->name);
 		ast_string_field_set(chan1, peeraccount, chan2->accountcode);
 	}
 	if (!ast_strlen_zero(chan1->peeraccount) && ast_strlen_zero(chan2->accountcode)) {
-		ast_log(LOG_DEBUG, "setting accountcode to %s for %s from data on channel %s\n",
+		ast_debug(1, "setting accountcode to %s for %s from data on channel %s\n",
 				chan1->peeraccount, chan2->name, chan1->name);
 		ast_string_field_set(chan2, accountcode, chan1->peeraccount);
 	}
 	if (!ast_strlen_zero(chan2->peeraccount) && ast_strlen_zero(chan1->accountcode)) {
-		ast_log(LOG_DEBUG, "setting accountcode to %s for %s from data on channel %s\n",
+		ast_debug(1, "setting accountcode to %s for %s from data on channel %s\n",
 				chan2->peeraccount, chan1->name, chan2->name);
 		ast_string_field_set(chan1, accountcode, chan2->peeraccount);
 	}
 	if (0 != strcmp(chan1->accountcode, chan2->peeraccount)) {
-		ast_log(LOG_DEBUG, "changing peeraccount from %s to %s on %s to match channel %s\n",
+		ast_debug(1, "changing peeraccount from %s to %s on %s to match channel %s\n",
 				chan2->peeraccount, chan1->peeraccount, chan2->name, chan1->name);
 		ast_string_field_set(chan2, peeraccount, chan1->accountcode);
 	}
 	if (0 != strcmp(chan2->accountcode, chan1->peeraccount)) {
-		ast_log(LOG_DEBUG, "changing peeraccount from %s to %s on %s to match channel %s\n",
+		ast_debug(1, "changing peeraccount from %s to %s on %s to match channel %s\n",
 				chan1->peeraccount, chan2->peeraccount, chan1->name, chan2->name);
 		ast_string_field_set(chan1, peeraccount, chan2->accountcode);
 	}
@@ -6999,7 +6999,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		if (!f) {
 			*fo = NULL;
 			*rc = who;
-			ast_debug(1, "Didn't get a frame from channel: %s\n",who->name);
+			ast_debug(1, "Didn't get a frame from channel: %s\n", who->name);
 			break;
 		}
 
@@ -7062,7 +7062,7 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 				f->frametype == AST_FRAME_DTMF_BEGIN)) {
 				*fo = f;
 				*rc = who;
-				ast_debug(1, "Got DTMF %s on channel (%s)\n", 
+				ast_debug(1, "Got DTMF %s on channel (%s)\n",
 					f->frametype == AST_FRAME_DTMF_END ? "end" : "begin",
 					who->name);
 
@@ -8686,7 +8686,7 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 			break;
 /* Connected line party unknown element */
 		default:
-			ast_log(LOG_DEBUG, "Unknown connected line element: %u (%u)\n",
+			ast_debug(1, "Unknown connected line element: %u (%u)\n",
 				(unsigned) ie_id, (unsigned) ie_len);
 			break;
 		}
@@ -8714,7 +8714,7 @@ int ast_connected_line_parse_data(const unsigned char *data, size_t datalen, str
 		 * The other end is newer than we are.
 		 * We need to assume that they are compatible with us.
 		 */
-		ast_log(LOG_DEBUG, "Connected line frame has newer version: %u\n",
+		ast_debug(1, "Connected line frame has newer version: %u\n",
 			(unsigned) frame_version);
 		break;
 	}
@@ -9185,7 +9185,7 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 			break;
 /* Redirecting unknown element */
 		default:
-			ast_log(LOG_DEBUG, "Unknown redirecting element: %u (%u)\n",
+			ast_debug(1, "Unknown redirecting element: %u (%u)\n",
 				(unsigned) ie_id, (unsigned) ie_len);
 			break;
 		}
@@ -9221,7 +9221,7 @@ int ast_redirecting_parse_data(const unsigned char *data, size_t datalen, struct
 		 * The other end is newer than we are.
 		 * We need to assume that they are compatible with us.
 		 */
-		ast_log(LOG_DEBUG, "Redirecting frame has newer version: %u\n",
+		ast_debug(1, "Redirecting frame has newer version: %u\n",
 			(unsigned) frame_version);
 		break;
 	}

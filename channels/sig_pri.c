@@ -913,7 +913,7 @@ struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law
 {
 	struct ast_channel *ast;
 
-	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
+	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 
 	p->outgoing = 1;
 	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, law, transfercapability, p->exten, requestor);
@@ -1594,7 +1594,7 @@ static void *pri_ss_thread(void *data)
 			timeout = pri_gendigittimeout;
 		res = ast_waitfordigit(chan, timeout);
 		if (res < 0) {
-			ast_log(LOG_DEBUG, "waitfordigit returned < 0...\n");
+			ast_debug(1, "waitfordigit returned < 0...\n");
 			ast_hangup(chan);
 			return NULL;
 		} else if (res) {
@@ -1666,7 +1666,7 @@ static void *pri_ss_thread(void *data)
 			ast_log(LOG_WARNING, "PBX exited non-zero!\n");
 		}
 	} else {
-		ast_log(LOG_DEBUG, "No such possible extension '%s' in context '%s'\n", exten, chan->context);
+		ast_debug(1, "No such possible extension '%s' in context '%s'\n", exten, chan->context);
 		chan->hangupcause = AST_CAUSE_UNALLOCATED;
 		ast_hangup(chan);
 		p->exten[0] = '\0';
@@ -3471,7 +3471,7 @@ static void sig_pri_send_aoce_termination_request(struct sig_pri_span *pri, int 
 
 	pvt->waiting_for_aoce = 1;
 	ast_channel_setwhentohangup_tv(pvt->owner, whentohangup);
-	ast_log(LOG_DEBUG, "Delaying hangup on %s for aoc-e msg\n", pvt->owner->name);
+	ast_debug(1, "Delaying hangup on %s for aoc-e msg\n", pvt->owner->name);
 
 cleanup_termination_request:
 	ast_channel_unlock(pvt->owner);
@@ -6776,7 +6776,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	const char *useruser = pbx_builtin_getvar_helper(ast, "USERUSERINFO");
 #endif
 
-	ast_log(LOG_DEBUG, "%s %d\n", __FUNCTION__, p->channel);
+	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 	if (!ast->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
@@ -6805,7 +6805,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 		sig_pri_moh_fsm_event(ast, p, SIG_PRI_MOH_EVENT_RESET);
 		if (p->call) {
 			if (p->alreadyhungup) {
-				ast_log(LOG_DEBUG, "Already hungup...  Calling hangup once, and clearing call\n");
+				ast_debug(1, "Already hungup...  Calling hangup once, and clearing call\n");
 
 #ifdef SUPPORT_USERUSER
 				pri_call_set_useruser(p->call, useruser);
@@ -6821,7 +6821,7 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 			} else {
 				const char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
 				int icause = ast->hangupcause ? ast->hangupcause : -1;
-				ast_log(LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
+				ast_debug(1, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
 
 #ifdef SUPPORT_USERUSER
 				pri_call_set_useruser(p->call, useruser);
@@ -6976,7 +6976,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	struct ast_flags opts;
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 
-	ast_log(LOG_DEBUG, "CALLER NAME: %s NUM: %s\n",
+	ast_debug(1, "CALLER NAME: %s NUM: %s\n",
 		S_COR(ast->connected.id.name.valid, ast->connected.id.name.str, ""),
 		S_COR(ast->connected.id.number.valid, ast->connected.id.number.str, ""));
 
@@ -7438,7 +7438,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		}
 		break;
 	case AST_CONTROL_PROCEEDING:
-		ast_debug(1,"Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
+		ast_debug(1, "Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
 		if (p->call_level < SIG_PRI_CALL_LEVEL_PROCEEDING && !p->outgoing) {
 			p->call_level = SIG_PRI_CALL_LEVEL_PROCEEDING;
 			if (p->pri && p->pri->pri) {
@@ -7458,7 +7458,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		res = 0;
 		break;
 	case AST_CONTROL_PROGRESS:
-		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
+		ast_debug(1, "Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 		sig_pri_set_digital(p, 0);	/* Digital-only calls isn't allowing any inband progress messages */
 		if (!p->progress && p->call_level < SIG_PRI_CALL_LEVEL_ALERTING && !p->outgoing
 			&& !p->no_b_channel) {
@@ -7640,7 +7640,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 					 * and initiate the softhangup since the delay is no longer necessary */
 					if (p->waiting_for_aoce) {
 						p->waiting_for_aoce = 0;
-						ast_log(LOG_DEBUG,
+						ast_debug(1,
 							"Received final AOC-E msg, continue with hangup on %s\n",
 							chan->name);
 						ast_softhangup_nolock(chan, AST_SOFTHANGUP_DEV);
@@ -8349,7 +8349,7 @@ int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channe
 	sig_pri_lock_private(p);
 
 	if (!p->pri || !p->call) {
-		ast_log(LOG_DEBUG, "Unable to find pri or call on channel!\n");
+		ast_debug(1, "Unable to find pri or call on channel!\n");
 		sig_pri_unlock_private(p);
 		return -1;
 	}
@@ -8358,7 +8358,7 @@ int pri_send_callrerouting_facility_exec(struct sig_pri_chan *p, enum ast_channe
 		res = pri_callrerouting_facility(p->pri->pri, p->call, destination, original, reason);
 		pri_rel(p->pri);
 	} else {
-		ast_log(LOG_DEBUG, "Unable to grab pri to send callrerouting facility on span %d!\n", p->pri->span);
+		ast_debug(1, "Unable to grab pri to send callrerouting facility on span %d!\n", p->pri->span);
 	}
 
 	sig_pri_unlock_private(p);

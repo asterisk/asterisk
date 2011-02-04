@@ -159,7 +159,7 @@ static int semicolon_count_str(const char *somestr)
 	}
 
 	return count;
-} 
+}
 
 /* takes a linked list of \a ast_variable variables, finds the one with the name variable_value
  * and returns the number of semicolons in the value for that \a ast_variable
@@ -399,19 +399,18 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	i = 0;
 
 	/* For each static realtime variable we may create several entries in the \a vars array if it's delimited */
-	for (entry_index = 0; ldap_entry; ) { 
+	for (entry_index = 0; ldap_entry; ) {
 		int pos = 0;
 		delim_value = NULL;
 		delim_tot_count = 0;
 		delim_count = 0;
-		
+
 		do { /* while delim_count */
 
 			/* Starting new static var */
 			char *ldap_attribute_name = ldap_first_attribute(ldapConn, ldap_entry, &ber);
 			struct berval *value;
 			while (ldap_attribute_name) {
-			
 				const char *attribute_name = convert_attribute_name_from_ldap(table_config, ldap_attribute_name);
 				int is_realmed_password_attribute = strcasecmp(attribute_name, "md5secret") == 0;
 				struct berval **values = NULL;
@@ -431,7 +430,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 							ast_debug(2, "md5: %s\n", valptr);
 						}
 						if (valptr) {
-							if (delim_value == NULL && !is_realmed_password_attribute 
+							if (delim_value == NULL && !is_realmed_password_attribute
 								&& (static_table_config != table_config || strcmp(attribute_name, "variable_value") == 0)) {
 
 								delim_value = ast_strdup(valptr);
@@ -442,7 +441,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 								}
 							}
 
-							if (is_delimited != 0 && !is_realmed_password_attribute 
+							if (is_delimited != 0 && !is_realmed_password_attribute
 								&& (static_table_config != table_config || strcmp(attribute_name, "variable_value") == 0) ) {
 								/* for non-Static RealTime, first */
 
@@ -452,7 +451,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 										delim_value[i] = '\0';
 
 										ast_debug(2, "LINE(%d) DELIM - attribute_name: %s value: %s pos: %d\n", __LINE__, attribute_name, &delim_value[pos], pos);
-							
+
 										if (prev) {
 											prev->next = ast_variable_new(attribute_name, &delim_value[pos], table_config->table_name);
 											if (prev->next) {
@@ -486,7 +485,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 								}
 								free(delim_value);
 								delim_value = NULL;
-								
+
 								ast_debug(4, "LINE(%d) DELIM pos: %d i: %d\n", __LINE__, pos, i);
 							} else {
 								/* not delimited */
@@ -530,7 +529,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 
 		if (static_table_config != table_config) {
 			ast_debug(3, "LINE(%d) Added to vars - non static\n", __LINE__);
-				
+
 			vars[entry_index++] = var;
 			prev = NULL;
 		}
@@ -805,7 +804,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 				  LDAP_SCOPE_SUBTREE, ast_str_buffer(filter), NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
 				  &ldap_result_msg);
 		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
-			ast_log(LOG_DEBUG, "Failed to query directory. Try %d/10\n", tries + 1);
+			ast_debug(1, "Failed to query directory. Try %d/10\n", tries + 1);
 			if (++tries < 10) {
 				usleep(1);
 				if (ldapConn) {
@@ -1084,7 +1083,7 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 		struct ast_variable *var_val = variable_named(*p, "variable_value");
 		struct ast_variable *var_metric = variable_named(*p, "var_metric");
 		struct ast_variable *dn = variable_named(*p, "dn");
-			
+
 		ast_debug(3, "category: %s\n", category->value);
 		ast_debug(3, "var_name: %s\n", var_name->value);
 		ast_debug(3, "var_val: %s\n", var_val->value);
@@ -1503,7 +1502,7 @@ static int update2_ldap(const char *basedn, const char *table_name, va_list ap)
 
 		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
-		for (i = 0; ldap_entry; i++) { 
+		for (i = 0; ldap_entry; i++) {
 			dn = ldap_get_dn(ldapConn, ldap_entry);
 			if ((error = ldap_modify_ext_s(ldapConn, dn, ldap_mods, NULL, NULL)) != LDAP_SUCCESS)  {
 				ast_log(LOG_ERROR, "Couldn't modify dn:%s because %s", dn, ldap_err2string(error));

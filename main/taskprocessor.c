@@ -346,13 +346,13 @@ static int tps_cmp_cb(void *obj, void *arg, int flags)
 static void tps_taskprocessor_destroy(void *tps)
 {
 	struct ast_taskprocessor *t = tps;
-	
+
 	if (!tps) {
 		ast_log(LOG_ERROR, "missing taskprocessor\n");
 		return;
 	}
-	ast_log(LOG_DEBUG, "destroying taskprocessor '%s'\n", t->name);
-	/* kill it */	
+	ast_debug(1, "destroying taskprocessor '%s'\n", t->name);
+	/* kill it */
 	ast_mutex_lock(&t->taskprocessor_lock);
 	t->poll_thread_run = 0;
 	ast_cond_signal(&t->poll_cond);

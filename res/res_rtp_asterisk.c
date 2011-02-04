@@ -1127,7 +1127,7 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 					  strerror(errno));
 			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
 				/* Only give this error message once if we are not RTP debugging */
-				if (option_debug || rtpdebug)
+				if (rtpdebug)
 					ast_debug(0, "RTP NAT: Can't write RTP to private address %s, waiting for other end to send audio...\n",
 						  ast_sockaddr_stringify(&remote_address));
 				ast_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
@@ -1417,7 +1417,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 	}
 
 	/* Print out debug if turned on */
-	if (rtpdebug || option_debug > 2)
+	if (rtpdebug)
 		ast_debug(0, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
 
 	/* Figure out what digit was pressed */
@@ -1433,7 +1433,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 		resp = 'X';
 	} else {
 		/* Not a supported event */
-		ast_log(LOG_DEBUG, "Ignoring RTP 2833 Event: %08x. Not a DTMF Digit.\n", event);
+		ast_debug(1, "Ignoring RTP 2833 Event: %08x. Not a DTMF Digit.\n", event);
 		return;
 	}
 
@@ -1563,7 +1563,7 @@ static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, u
 	power = data[2];
 	event = data[3] & 0x1f;
 
-	if (option_debug > 2 || rtpdebug)
+	if (rtpdebug)
 		ast_debug(0, "Cisco DTMF Digit: %02x (len=%d, seq=%d, flags=%02x, power=%d, history count=%d)\n", event, len, seq, flags, power, (len - 4) / 2);
 	if (event < 10) {
 		resp = '0' + event;
@@ -1663,7 +1663,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		/* Send to whoever sent to us */
 		if (ast_sockaddr_cmp(&rtp->rtcp->them, &addr)) {
 			ast_sockaddr_copy(&rtp->rtcp->them, &addr);
-			if (option_debug || rtpdebug)
+			if (rtpdebug)
 				ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s\n",
 					  ast_sockaddr_stringify(&rtp->rtcp->them));
 		}
@@ -1685,8 +1685,8 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		length &= 0xffff;
 
 		if ((i + length) > packetwords) {
-			if (option_debug || rtpdebug)
-				ast_log(LOG_DEBUG, "RTCP Read too short\n");
+			if (rtpdebug)
+				ast_debug(1, "RTCP Read too short\n");
 			return &ast_null_frame;
 		}
 
@@ -2068,7 +2068,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			}
 			rtp->rxseqno = 0;
 			ast_set_flag(rtp, FLAG_NAT_ACTIVE);
-			if (option_debug || rtpdebug)
+			if (rtpdebug)
 				ast_debug(0, "RTP NAT: Got audio from other end. Now sending to address %s\n",
 					  ast_sockaddr_stringify(&remote_address));
 		}
@@ -2103,7 +2103,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		};
 
 		if (!mark) {
-			if (option_debug || rtpdebug) {
+			if (rtpdebug) {
 				ast_debug(1, "Forcing Marker bit, because SSRC has changed\n");
 			}
 			mark = 1;

@@ -1481,9 +1481,9 @@ static int ast_unlock_path_flock(const char *path)
 		snprintf(s, strlen(path) + 19, "%s/lock", path);
 		unlink(s);
 		path_lock_destroy(p);
-		ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+		ast_debug(1, "Unlocked path '%s'\n", path);
 	} else {
-		ast_log(LOG_DEBUG, "Failed to unlock path '%s': "
+		ast_debug(1, "Failed to unlock path '%s': "
 				"lock not found\n", path);
 	}
 

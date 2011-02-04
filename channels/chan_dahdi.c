@@ -1734,7 +1734,7 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 			if (num)
 				ast_copy_string(numbuf, num, ANALOG_MAX_CID);
 
-			ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
+			ast_debug(1, "CallerID number: %s, name: %s, flags=%d\n", num, name, flags);
 			return 0;
 		}
 	}
@@ -2236,7 +2236,7 @@ static void my_set_waitingfordt(void *pvt, struct ast_channel *ast)
 	struct dahdi_pvt *p = pvt;
 
 	if (p->waitfordialtone && CANPROGRESSDETECT(p) && p->dsp) {
-		ast_log(LOG_DEBUG, "Defer dialing for %dms or dialtone\n", p->waitfordialtone);
+		ast_debug(1, "Defer dialing for %dms or dialtone\n", p->waitfordialtone);
 		gettimeofday(&p->waitingfordt, NULL);
 		ast_setstate(ast, AST_STATE_OFFHOOK);
 	}
@@ -2899,7 +2899,7 @@ static int my_dial_digits(void *pvt, enum analog_sub sub, struct analog_dialoper
 	res = ioctl(p->subs[index].dfd, DAHDI_DIAL, &ddop);
 
 	if (res == -1)
-		ast_log(LOG_DEBUG, "DAHDI_DIAL ioctl failed on %s: %s\n", p->owner->name, strerror(errno));
+		ast_debug(1, "DAHDI_DIAL ioctl failed on %s: %s\n", p->owner->name, strerror(errno));
 
 	return res;
 }
@@ -2924,7 +2924,7 @@ static int my_is_dialing(void *pvt, enum analog_sub sub)
 	index = analogsub_to_dahdisub(sub);
 
 	if (ioctl(p->subs[index].dfd, DAHDI_DIALING, &x)) {
-		ast_log(LOG_DEBUG, "DAHDI_DIALING ioctl failed!\n");
+		ast_debug(1, "DAHDI_DIALING ioctl failed!\n");
 		return -1;
 	}
 
@@ -3829,13 +3829,13 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 	p->mfcr2_recvd_category = category;
 	/* if we're not supposed to use CID, clear whatever we have */
 	if (!p->use_callerid) {
-		ast_log(LOG_DEBUG, "No CID allowed in configuration, CID is being cleared!\n");
+		ast_debug(1, "No CID allowed in configuration, CID is being cleared!\n");
 		p->cid_num[0] = 0;
 		p->cid_name[0] = 0;
 	}
 	/* if we're supposed to answer immediately, clear DNIS and set 's' exten */
 	if (p->immediate || !openr2_context_get_max_dnis(openr2_chan_get_context(r2chan))) {
-		ast_log(LOG_DEBUG, "Setting exten => s because of immediate or 0 DNIS configured\n");
+		ast_debug(1, "Setting exten => s because of immediate or 0 DNIS configured\n");
 		p->exten[0] = 's';
 		p->exten[1] = 0;
 	}
@@ -3858,10 +3858,10 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 		ast_log(LOG_WARNING, "Unable to create PBX channel in DAHDI channel %d\n", p->channel);
 		dahdi_r2_disconnect_call(p, OR2_CAUSE_OUT_OF_ORDER);
 	} else if (p->mfcr2_charge_calls) {
-		ast_log(LOG_DEBUG, "Accepting MFC/R2 call with charge on chan %d\n", p->channel);
+		ast_debug(1, "Accepting MFC/R2 call with charge on chan %d\n", p->channel);
 		openr2_chan_accept_call(r2chan, OR2_CALL_WITH_CHARGE);
 	} else {
-		ast_log(LOG_DEBUG, "Accepting MFC/R2 call with no charge on chan %d\n", p->channel);
+		ast_debug(1, "Accepting MFC/R2 call with no charge on chan %d\n", p->channel);
 		openr2_chan_accept_call(r2chan, OR2_CALL_NO_CHARGE);
 	}
 }
@@ -3893,7 +3893,7 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 		if (!p->mfcr2_accept_on_offer) {
 			openr2_chan_disable_read(r2chan);
 			if (p->mfcr2_answer_pending) {
-				ast_log(LOG_DEBUG, "Answering MFC/R2 call after accepting it on chan %d\n", openr2_chan_get_number(r2chan));
+				ast_debug(1, "Answering MFC/R2 call after accepting it on chan %d\n", openr2_chan_get_number(r2chan));
 				dahdi_r2_answer(p);
 			}
 			return;
@@ -3927,7 +3927,7 @@ static void dahdi_r2_on_call_answered(openr2_chan_t *r2chan)
 
 static void dahdi_r2_on_call_read(openr2_chan_t *r2chan, const unsigned char *buf, int buflen)
 {
-	/*ast_log(LOG_DEBUG, "Read data from dahdi channel %d\n", openr2_chan_get_number(r2chan));*/
+	/*ast_debug(1, "Read data from dahdi channel %d\n", openr2_chan_get_number(r2chan));*/
 }
 
 static int dahdi_r2_cause_to_ast_cause(openr2_call_disconnect_cause_t cause)
@@ -4010,11 +4010,11 @@ static void dahdi_r2_write_log(openr2_log_level_t level, char *logmessage)
 	case OR2_LOG_CAS_TRACE:
 	case OR2_LOG_DEBUG:
 	case OR2_LOG_EX_DEBUG:
-		ast_log(LOG_DEBUG, "%s", logmessage);
+		ast_debug(1, "%s", logmessage);
 		break;
 	default:
 		ast_log(LOG_WARNING, "We should handle logging level %d here.\n", level);
-		ast_log(LOG_DEBUG, "%s", logmessage);
+		ast_debug(1, "%s", logmessage);
 		break;
 	}
 }
@@ -5819,23 +5819,23 @@ static int dahdi_send_callrerouting_facility_exec(struct ast_channel *chan, cons
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_DEBUG, "No data sent to application!\n");
+		ast_debug(1, "No data sent to application!\n");
 		return -1;
 	}
 	if (chan->tech != &dahdi_tech) {
-		ast_log(LOG_DEBUG, "Only DAHDI technology accepted!\n");
+		ast_debug(1, "Only DAHDI technology accepted!\n");
 		return -1;
 	}
 	pvt = (struct dahdi_pvt *) chan->tech_pvt;
 	if (!pvt) {
-		ast_log(LOG_DEBUG, "Unable to find technology private\n");
+		ast_debug(1, "Unable to find technology private\n");
 		return -1;
 	}
 	switch (pvt->sig) {
 	case SIG_PRI_LIB_HANDLE_CASES:
 		break;
 	default:
-		ast_log(LOG_DEBUG, "callrerouting attempted on non-ISDN channel %s\n",
+		ast_debug(1, "callrerouting attempted on non-ISDN channel %s\n",
 			chan->name);
 		return -1;
 	}
@@ -5882,18 +5882,18 @@ static int dahdi_accept_r2_call_exec(struct ast_channel *chan, const char *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_DEBUG, "No data sent to application!\n");
+		ast_debug(1, "No data sent to application!\n");
 		return -1;
 	}
 
 	if (chan->tech != &dahdi_tech) {
-		ast_log(LOG_DEBUG, "Only DAHDI technology accepted!\n");
+		ast_debug(1, "Only DAHDI technology accepted!\n");
 		return -1;
 	}
 
 	p = (struct dahdi_pvt *)chan->tech_pvt;
 	if (!p) {
-		ast_log(LOG_DEBUG, "Unable to find technology private!\n");
+		ast_debug(1, "Unable to find technology private!\n");
 		return -1;
 	}
 
@@ -5908,13 +5908,13 @@ static int dahdi_accept_r2_call_exec(struct ast_channel *chan, const char *data)
 	ast_mutex_lock(&p->lock);
 	if (!p->mfcr2 || !p->mfcr2call) {
 		ast_mutex_unlock(&p->lock);
-		ast_log(LOG_DEBUG, "Channel %s does not seems to be an R2 active channel!\n", chan->name);
+		ast_debug(1, "Channel %s does not seems to be an R2 active channel!\n", chan->name);
 		return -1;
 	}
 
 	if (p->mfcr2_call_accepted) {
 		ast_mutex_unlock(&p->lock);
-		ast_log(LOG_DEBUG, "MFC/R2 call already accepted on channel %s!\n", chan->name);
+		ast_debug(1, "MFC/R2 call already accepted on channel %s!\n", chan->name);
 		return 0;
 	}
 	accept_mode = ast_true(args.charge) ? OR2_CALL_WITH_CHARGE : OR2_CALL_NO_CHARGE;
@@ -5936,7 +5936,7 @@ static int dahdi_accept_r2_call_exec(struct ast_channel *chan, const char *data)
 		}
 		res = ast_waitfor(chan, timeout);
 		if (res < 0) {
-			ast_log(LOG_DEBUG, "ast_waitfor failed on channel %s, going out ...\n", chan->name);
+			ast_debug(1, "ast_waitfor failed on channel %s, going out ...\n", chan->name);
 			res = -1;
 			break;
 		}
@@ -5945,12 +5945,12 @@ static int dahdi_accept_r2_call_exec(struct ast_channel *chan, const char *data)
 		}
 		f = ast_read(chan);
 		if (!f) {
-			ast_log(LOG_DEBUG, "No frame read on channel %s, going out ...\n", chan->name);
+			ast_debug(1, "No frame read on channel %s, going out ...\n", chan->name);
 			res = -1;
 			break;
 		}
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
-			ast_log(LOG_DEBUG, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
+			ast_debug(1, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
 			ast_frfree(f);
 			res = -1;
 			break;
@@ -5959,7 +5959,7 @@ static int dahdi_accept_r2_call_exec(struct ast_channel *chan, const char *data)
 		ast_mutex_lock(&p->lock);
 		if (p->mfcr2_call_accepted) {
 			ast_mutex_unlock(&p->lock);
-			ast_log(LOG_DEBUG, "Accepted MFC/R2 call!\n");
+			ast_debug(1, "Accepted MFC/R2 call!\n");
 			break;
 		}
 		ast_mutex_unlock(&p->lock);
@@ -6003,7 +6003,7 @@ static openr2_call_disconnect_cause_t dahdi_ast_cause_to_r2_cause(int cause)
 		r2cause = OR2_CAUSE_NORMAL_CLEARING;
 		break;
 	}
-	ast_log(LOG_DEBUG, "ast cause %d resulted in openr2 cause %d/%s\n",
+	ast_debug(1, "ast cause %d resulted in openr2 cause %d/%s\n",
 			cause, r2cause, openr2_proto_get_disconnect_string(r2cause));
 	return r2cause;
 }
@@ -6305,7 +6305,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		/* Perform low level hangup if no owner left */
 #ifdef HAVE_OPENR2
 		if (p->mfcr2 && p->mfcr2call && openr2_chan_get_direction(p->r2chan) != OR2_DIR_STOPPED) {
-			ast_log(LOG_DEBUG, "disconnecting MFC/R2 call on chan %d\n", p->channel);
+			ast_debug(1, "disconnecting MFC/R2 call on chan %d\n", p->channel);
 			/* If it's an incoming call, check the mfcr2_forced_release setting */
 			if (openr2_chan_get_direction(p->r2chan) == OR2_DIR_BACKWARD && p->mfcr2_forced_release) {
 				dahdi_r2_disconnect_call(p, OR2_CAUSE_FORCED_RELEASE);
@@ -6317,7 +6317,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 				dahdi_r2_disconnect_call(p, r2cause);
 			}
 		} else if (p->mfcr2call) {
-			ast_log(LOG_DEBUG, "Clearing call request on channel %d\n", p->channel);
+			ast_debug(1, "Clearing call request on channel %d\n", p->channel);
 			/* since ast_request() was called but not ast_call() we have not yet dialed
 			and the openr2 stack will not call on_call_end callback, we need to unset
 			the mfcr2call flag and bump the monitor count so the monitor thread can take
@@ -6464,14 +6464,14 @@ static int dahdi_answer(struct ast_channel *ast)
 			   openr2_chan_answer_call will be called when the callback on_call_accepted is executed */
 			p->mfcr2_answer_pending = 1;
 			if (p->mfcr2_charge_calls) {
-				ast_log(LOG_DEBUG, "Accepting MFC/R2 call with charge before answering on chan %d\n", p->channel);
+				ast_debug(1, "Accepting MFC/R2 call with charge before answering on chan %d\n", p->channel);
 				openr2_chan_accept_call(p->r2chan, OR2_CALL_WITH_CHARGE);
 			} else {
-				ast_log(LOG_DEBUG, "Accepting MFC/R2 call with no charge before answering on chan %d\n", p->channel);
+				ast_debug(1, "Accepting MFC/R2 call with no charge before answering on chan %d\n", p->channel);
 				openr2_chan_accept_call(p->r2chan, OR2_CALL_NO_CHARGE);
 			}
 		} else {
-			ast_log(LOG_DEBUG, "Answering MFC/R2 call on chan %d\n", p->channel);
+			ast_debug(1, "Answering MFC/R2 call on chan %d\n", p->channel);
 			dahdi_r2_answer(p);
 		}
 		break;
@@ -7771,7 +7771,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		if (p->sig != SIG_MFCR2) {
 			ast_log(LOG_WARNING, "Received bits changed on %s signalling?\n", sig2str(p->sig));
 		} else {
-			ast_log(LOG_DEBUG, "bits changed in chan %d\n", p->channel);
+			ast_debug(1, "bits changed in chan %d\n", p->channel);
 			openr2_chan_handle_cas(p->r2chan);
 		}
 #else
@@ -7793,7 +7793,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		if (p->inalarm) break;
 		if ((p->radio || (p->oprmode < 0))) break;
 		if (ioctl(p->subs[idx].dfd,DAHDI_DIALING,&x) == -1) {
-			ast_log(LOG_DEBUG, "DAHDI_DIALING ioctl failed on %s: %s\n",ast->name, strerror(errno));
+			ast_debug(1, "DAHDI_DIALING ioctl failed on %s: %s\n",ast->name, strerror(errno));
 			return NULL;
 		}
 		if (!x) { /* if not still dialing in driver */
@@ -8744,7 +8744,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 			if (p->mfcr2_call_accepted &&
 				!p->mfcr2_progress_sent && 
 				ast->_state == AST_STATE_RINGING) {
-				ast_log(LOG_DEBUG, "Enqueuing progress frame after R2 accept in chan %d\n", p->channel);
+				ast_debug(1, "Enqueuing progress frame after R2 accept in chan %d\n", p->channel);
 				ast_queue_frame(p->owner, &fr);
 				p->mfcr2_progress_sent = 1;
 			}
@@ -9009,7 +9009,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 						p->waitingfordt.tv_sec = 0;
 						p->dsp_features &= ~DSP_FEATURE_WAITDIALTONE;
 						ast_dsp_set_features(p->dsp, p->dsp_features);
-						ast_log(LOG_DEBUG, "Got 10 samples of dialtone!\n");
+						ast_debug(1, "Got 10 samples of dialtone!\n");
 						if (!ast_strlen_zero(p->dop.dialstr)) { /* Dial deferred digits */
 							res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_DIAL, &p->dop);
 							if (res < 0) {
@@ -9018,7 +9018,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 								ast_mutex_unlock(&p->lock);
 								return NULL;
 							} else {
-								ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
+								ast_debug(1, "Sent deferred digit string: %s\n", p->dop.dialstr);
 								p->dialing = 1;
 								p->dop.dialstr[0] = '\0';
 								p->dop.op = DAHDI_DIAL_OP_REPLACE;
@@ -10462,7 +10462,7 @@ static void *analog_ss_thread(void *data)
 					f = ast_read(chan);
 					if (f->frametype == AST_FRAME_DTMF) {
 						dtmfbuf[k++] = f->subclass.integer;
-						ast_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass.integer);
+						ast_debug(1, "CID got digit '%c'\n", f->subclass.integer);
 						res = 2000;
 					}
 					ast_frfree(f);
@@ -10474,7 +10474,7 @@ static void *analog_ss_thread(void *data)
 				dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
 				/* Got cid and ring. */
 				callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
-				ast_log(LOG_DEBUG, "CID is '%s', flags %d\n",
+				ast_debug(1, "CID is '%s', flags %d\n",
 					dtmfcid, flags);
 				/* If first byte is NULL, we have no cid */
 				if (!ast_strlen_zero(dtmfcid))
@@ -10522,7 +10522,7 @@ static void *analog_ss_thread(void *data)
 							}
 							/* If we get a PR event, they hung up while processing calerid */
 							if ( res == DAHDI_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
-								ast_log(LOG_DEBUG, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
+								ast_debug(1, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
 								p->polarity = POLARITY_IDLE;
 								callerid_free(cs);
 								ast_hangup(chan);
@@ -11537,7 +11537,7 @@ static void *do_monitor(void *data)
 								pthread_attr_init(&attr);
 								pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-								ast_log(LOG_DEBUG, "Maybe some MWI on port %d!\n", i->channel);
+								ast_debug(1, "Maybe some MWI on port %d!\n", i->channel);
 								if ((mtd = ast_calloc(1, sizeof(*mtd)))) {
 									mtd->pvt = i;
 									memcpy(mtd->buf, buf, res);
@@ -11844,7 +11844,7 @@ static struct dahdi_mfcr2 *dahdi_r2_get_link(void)
 		new_r2link->r2master = AST_PTHREADT_NULL;
 		r2links[r2links_count] = new_r2link;
 		r2links_count++;
-		ast_log(LOG_DEBUG, "Created new R2 link!\n");
+		ast_debug(1, "Created new R2 link!\n");
 	}
 	return r2links[r2links_count - 1];
 }
@@ -11942,7 +11942,7 @@ static int device2chan(const char *subdir, int channel, char *path, int pathlen)
 		return -EINVAL;
 	}
 	num = minor(stbuf.st_rdev);
-	ast_log(LOG_DEBUG, "%s -> %d\n", path, num);
+	ast_debug(1, "%s -> %d\n", path, num);
 	return num;
 
 }
@@ -13339,7 +13339,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				ast_mutex_lock(&p->lock);
 				if (p->mfcr2call) {
 					ast_mutex_unlock(&p->lock);
-					ast_log(LOG_DEBUG, "Yay!, someone just beat us in the race for channel %d.\n", p->channel);
+					ast_debug(1, "Yay!, someone just beat us in the race for channel %d.\n", p->channel);
 					goto next;
 				}
 				p->mfcr2call = 1;
@@ -13676,7 +13676,7 @@ static void *mfcr2_monitor(void *data)
 				continue;
 			}
 			if (!mfcr2->pvts[i]->r2chan) {
-				ast_log(LOG_DEBUG, "Wow, no r2chan on channel %d\n", mfcr2->pvts[i]->channel);
+				ast_debug(1, "Wow, no r2chan on channel %d\n", mfcr2->pvts[i]->channel);
 				quit_loop = 1;
 				break;
 			}
@@ -13690,7 +13690,7 @@ static void *mfcr2_monitor(void *data)
 		}
 		if (pollsize == 0) {
 			if (!was_idle) {
-				ast_log(LOG_DEBUG, "Monitor thread going idle since everybody has an owner\n");
+				ast_debug(1, "Monitor thread going idle since everybody has an owner\n");
 				was_idle = 1;
 			}
 			poll(NULL, 0, maxsleep);
@@ -16485,19 +16485,19 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel") || !strcasecmp(v->name, "channels")) {
- 			if (options & PROC_DAHDI_OPT_NOCHAN) {
+			if (options & PROC_DAHDI_OPT_NOCHAN) {
 				ast_log(LOG_WARNING, "Channel '%s' ignored.\n", v->value);
- 				continue;
+				continue;
 			}
 			if (build_channels(confp, v->value, reload, v->lineno, &found_pseudo)) {
 				if (confp->ignore_failed_channels) {
 					ast_log(LOG_WARNING, "Channel '%s' failure ignored: ignore_failed_channels.\n", v->value);
 					continue;
 				} else {
- 					return -1;
+					return -1;
 				}
 			}
-			ast_log(LOG_DEBUG, "Channel '%s' configured.\n", v->value);
+			ast_debug(1, "Channel '%s' configured.\n", v->value);
 		} else if (!strcasecmp(v->name, "ignore_failed_channels")) {
 			confp->ignore_failed_channels = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "buffers")) {
@@ -16510,8 +16510,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			if (!parse_buffers_policy(v->value, &confp->chan.faxbuf_no, &confp->chan.faxbuf_policy)) {
 				confp->chan.usefaxbuffers = 1;
 			}
- 		} else if (!strcasecmp(v->name, "dahdichan")) {
- 			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
+		} else if (!strcasecmp(v->name, "dahdichan")) {
+			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
 			usedistinctiveringdetection = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "distinctiveringaftercid")) {

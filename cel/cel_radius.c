@@ -186,9 +186,7 @@ static void radius_log(const struct ast_event *event, void *userdata)
 	}
 
 	if (build_radius_record(&send, &record)) {
-		if (option_debug) {
-			ast_log(LOG_DEBUG, "Unable to create RADIUS record. CEL not recorded!\n");
-		}
+		ast_debug(1, "Unable to create RADIUS record. CEL not recorded!\n");
 		goto return_cleanup;
 	}
 

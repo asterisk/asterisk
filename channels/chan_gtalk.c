@@ -498,7 +498,7 @@ static int gtalk_ringing_ack(void *data, ikspak *pak)
 				(redirect = iks_find_cdata(traversenodes, "redirect")) &&
 				(redirect = strstr(redirect, "xmpp:"))) {
 				redirect += 5;
-				ast_log(LOG_DEBUG, "redirect %s\n", redirect);
+				ast_debug(1, "redirect %s\n", redirect);
 				ast_copy_string(p->them, redirect, sizeof(p->them));
 
 				gtalk_invite(p, p->them, p->us, p->sid, 1);
@@ -626,7 +626,7 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 	char s1[BUFSIZ], s2[BUFSIZ], s3[BUFSIZ];
 	int peernoncodeccapability;
 
-	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	ast_debug(1, "The client is %s\n", client->name);
 
 	/* Make sure our new call does exist */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
@@ -701,7 +701,7 @@ static int gtalk_is_accepted(struct gtalk *client, ikspak *pak)
 	struct gtalk_pvt *tmp;
 	char *from;
 
-	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	ast_debug(1, "The client is %s\n", client->name);
 	/* find corresponding call */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid)) {

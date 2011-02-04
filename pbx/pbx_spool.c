@@ -432,7 +432,7 @@ static int scan_service(const char *fn, time_t now)
 		now += o->retrytime;
 		if (o->callingpid && (o->callingpid == ast_mainpid)) {
 			safe_append(o, time(NULL), "DelayedRetry");
-			ast_log(LOG_DEBUG, "Delaying retry since we're currently running '%s'\n", o->fn);
+			ast_debug(1, "Delaying retry since we're currently running '%s'\n", o->fn);
 			free_outgoing(o);
 		} else {
 			/* Increment retries */

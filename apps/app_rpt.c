@@ -1646,7 +1646,7 @@ static const char* dtmf_tones[] = {
 				ast_playtones_start(myrpt->txchannel, 0, dtmf_tones[15], 0);
 			else {
 				/* not handled */
-				ast_log(LOG_DEBUG, "Unable to generate DTMF tone '%c' for '%s'\n", digit, myrpt->txchannel->name);
+				ast_debug(1, "Unable to generate DTMF tone '%c' for '%s'\n", digit, myrpt->txchannel->name);
 			}
 			rpt_mutex_lock(&myrpt->lock);
 		}
@@ -12525,7 +12525,7 @@ struct ast_format_cap *cap = NULL;
 							f->data.ptr,f->datalen / 2);
 						if (n1 != l->wasvox)
 						{
-							if (debug)ast_log(LOG_DEBUG,"Link Node %s, vox %d\n",l->name,n1);
+							ast_debug(1,"Link Node %s, vox %d\n",l->name,n1);
 							l->wasvox = n1;
 							l->voxtostate = 0;
 							if (n1) l->voxtotimer = myrpt->p.voxtimeout_ms;
@@ -12874,7 +12874,7 @@ struct ast_format_cap *cap = NULL;
 				n = dovox(&myrpt->vox,f->data.ptr,f->datalen / 2);
 				if (n != myrpt->wasvox)
 				{
-					if (debug) ast_log(LOG_DEBUG,"Node %s, vox %d\n",myrpt->name,n);
+					ast_debug(1,"Node %s, vox %d\n",myrpt->name,n);
 					myrpt->wasvox = n;
 					myrpt->voxtostate = 0;
 					if (n) myrpt->voxtotimer = myrpt->p.voxtimeout_ms;

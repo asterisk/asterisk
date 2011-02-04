@@ -289,16 +289,16 @@ static int smdi_toggle_mwi(struct ast_smdi_interface *iface, const char *mailbox
 {
 	FILE *file;
 	int i;
-	
+
 	if (!(file = fopen(iface->name, "w"))) {
 		ast_log(LOG_ERROR, "Error opening SMDI interface %s (%s) for writing\n", iface->name, strerror(errno));
 		return 1;
-	}	
-	
+	}
+
 	ASTOBJ_WRLOCK(iface);
-	
+
 	fprintf(file, "%s:MWI ", on ? "OP" : "RMV");
-	
+
 	for (i = 0; i < iface->msdstrip; i++)
 		fprintf(file, "0");
 
@@ -643,71 +643,71 @@ static void *smdi_read(void *iface_p)
 	char *cp = NULL;
 	int i;
 	int start = 0;
-		
+
 	/* read an smdi message */
 	while ((c = fgetc(iface->file))) {
 
 		/* check if this is the start of a message */
 		if (!start) {
 			if (c == 'M') {
-				ast_log(LOG_DEBUG, "Read an 'M' to start an SMDI message\n");
+				ast_debug(1, "Read an 'M' to start an SMDI message\n");
 				start = 1;
 			}
 			continue;
 		}
-		
+
 		if (c == 'D') { /* MD message */
 			start = 0;
 
-			ast_log(LOG_DEBUG, "Read a 'D' ... it's an MD message.\n");
+			ast_debug(1, "Read a 'D' ... it's an MD message.\n");
 
 			if (!(md_msg = ast_calloc(1, sizeof(*md_msg)))) {
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 				return NULL;
 			}
-			
+
 			ASTOBJ_INIT(md_msg);
 
 			/* read the message desk number */
 			for (i = 0; i < sizeof(md_msg->mesg_desk_num) - 1; i++) {
 				md_msg->mesg_desk_num[i] = fgetc(iface->file);
-				ast_log(LOG_DEBUG, "Read a '%c'\n", md_msg->mesg_desk_num[i]);
+				ast_debug(1, "Read a '%c'\n", md_msg->mesg_desk_num[i]);
 			}
 
 			md_msg->mesg_desk_num[sizeof(md_msg->mesg_desk_num) - 1] = '\0';
-			
-			ast_log(LOG_DEBUG, "The message desk number is '%s'\n", md_msg->mesg_desk_num);
+
+			ast_debug(1, "The message desk number is '%s'\n", md_msg->mesg_desk_num);
 
 			/* read the message desk terminal number */
 			for (i = 0; i < sizeof(md_msg->mesg_desk_term) - 1; i++) {
 				md_msg->mesg_desk_term[i] = fgetc(iface->file);
-				ast_log(LOG_DEBUG, "Read a '%c'\n", md_msg->mesg_desk_term[i]);
+				ast_debug(1, "Read a '%c'\n", md_msg->mesg_desk_term[i]);
 			}
 
 			md_msg->mesg_desk_term[sizeof(md_msg->mesg_desk_term) - 1] = '\0';
 
-			ast_log(LOG_DEBUG, "The message desk terminal is '%s'\n", md_msg->mesg_desk_term);
+			ast_debug(1, "The message desk terminal is '%s'\n", md_msg->mesg_desk_term);
 
 			/* read the message type */
 			md_msg->type = fgetc(iface->file);
-		 
-			ast_log(LOG_DEBUG, "Message type is '%c'\n", md_msg->type);
+
+			ast_debug(1, "Message type is '%c'\n", md_msg->type);
 
 			/* read the forwarding station number (may be blank) */
 			cp = &md_msg->fwd_st[0];
 			for (i = 0; i < sizeof(md_msg->fwd_st) - 1; i++) {
 				if ((c = fgetc(iface->file)) == ' ') {
 					*cp = '\0';
-					ast_log(LOG_DEBUG, "Read a space, done looking for the forwarding station\n");
+					ast_debug(1, "Read a space, done looking for the forwarding station\n");
 					break;
 				}
 
 				/* store c in md_msg->fwd_st */
 				if (i >= iface->msdstrip) {
-					ast_log(LOG_DEBUG, "Read a '%c' and stored it in the forwarding station buffer\n", c);
+					ast_debug(1, "Read a '%c' and stored it in the forwarding station buffer\n", c);
 					*cp++ = c;
 				} else {
-					ast_log(LOG_DEBUG, "Read a '%c', but didn't store it in the fwd station buffer, because of the msdstrip setting (%d < %d)\n", c, i, iface->msdstrip);
+					ast_debug(1, "Read a '%c', but didn't store it in the fwd station buffer, because of the msdstrip setting (%d < %d)\n", c, i, iface->msdstrip);
 				}
 			}
 
@@ -715,7 +715,7 @@ static void *smdi_read(void *iface_p)
 			md_msg->fwd_st[sizeof(md_msg->fwd_st) - 1] = '\0';
 			cp = NULL;
 
-			ast_log(LOG_DEBUG, "The forwarding station is '%s'\n", md_msg->fwd_st);
+			ast_debug(1, "The forwarding station is '%s'\n", md_msg->fwd_st);
 
 			/* Put the fwd_st in the name field so that we can use ASTOBJ_FIND to look
 			 * up a message on this field */
@@ -726,7 +726,7 @@ static void *smdi_read(void *iface_p)
 			for (i = 0; i < sizeof(md_msg->calling_st) - 1; i++) {
 				if (!isdigit((c = fgetc(iface->file)))) {
 					*cp = '\0';
-					ast_log(LOG_DEBUG, "Read a '%c', but didn't store it in the calling station buffer because it's not a digit\n", c);
+					ast_debug(1, "Read a '%c', but didn't store it in the calling station buffer because it's not a digit\n", c);
 					if (c == ' ') {
 						/* Don't break on a space.  We may read the space before the calling station
 						 * here if the forwarding station buffer filled up. */
@@ -738,10 +738,10 @@ static void *smdi_read(void *iface_p)
 
 				/* store c in md_msg->calling_st */
 				if (i >= iface->msdstrip) {
-					ast_log(LOG_DEBUG, "Read a '%c' and stored it in the calling station buffer\n", c);
+					ast_debug(1, "Read a '%c' and stored it in the calling station buffer\n", c);
 					*cp++ = c;
 				} else {
-					ast_log(LOG_DEBUG, "Read a '%c', but didn't store it in the calling station buffer, because of the msdstrip setting (%d < %d)\n", c, i, iface->msdstrip);
+					ast_debug(1, "Read a '%c', but didn't store it in the calling station buffer, because of the msdstrip setting (%d < %d)\n", c, i, iface->msdstrip);
 				}
 			}
 
@@ -749,19 +749,19 @@ static void *smdi_read(void *iface_p)
 			md_msg->calling_st[sizeof(md_msg->calling_st) - 1] = '\0';
 			cp = NULL;
 
-			ast_log(LOG_DEBUG, "The calling station is '%s'\n", md_msg->calling_st);
+			ast_debug(1, "The calling station is '%s'\n", md_msg->calling_st);
 
 			/* add the message to the message queue */
 			md_msg->timestamp = ast_tvnow();
 			ast_smdi_md_message_push(iface, md_msg);
-			ast_log(LOG_DEBUG, "Received SMDI MD message on %s\n", iface->name);
-			
+			ast_debug(1, "Received SMDI MD message on %s\n", iface->name);
+
 			ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
 
 		} else if (c == 'W') { /* MWI message */
 			start = 0;
 
-			ast_log(LOG_DEBUG, "Read a 'W', it's an MWI message. (No more debug coming for MWI messages)\n");
+			ast_debug(1, "Read a 'W', it's an MWI message. (No more debug coming for MWI messages)\n");
 
 			if (!(mwi_msg = ast_calloc(1, sizeof(*mwi_msg)))) {
 				ASTOBJ_UNREF(iface,ast_smdi_interface_destroy);
@@ -789,7 +789,7 @@ static void *smdi_read(void *iface_p)
 			/* make sure the station number is null terminated, even if this will truncate it */
 			mwi_msg->fwd_st[sizeof(mwi_msg->fwd_st) - 1] = '\0';
 			cp = NULL;
-			
+
 			/* Put the fwd_st in the name field so that we can use ASTOBJ_FIND to look
 			 * up a message on this field */
 			ast_copy_string(mwi_msg->name, mwi_msg->fwd_st, sizeof(mwi_msg->name));
@@ -803,8 +803,8 @@ static void *smdi_read(void *iface_p)
 			/* add the message to the message queue */
 			mwi_msg->timestamp = ast_tvnow();
 			ast_smdi_mwi_message_push(iface, mwi_msg);
-			ast_log(LOG_DEBUG, "Received SMDI MWI message on %s\n", iface->name);
-			
+			ast_debug(1, "Received SMDI MWI message on %s\n", iface->name);
+
 			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
 		} else {
 			ast_log(LOG_ERROR, "Unknown SMDI message type received on %s (M%c).\n", iface->name, c);

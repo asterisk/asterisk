@@ -1122,7 +1122,7 @@ static char *handle_cli_agi_add_cmd(struct ast_cli_entry *e, int cmd, struct ast
 		return CLI_FAILURE;
 	}
 
-	ast_log(LOG_DEBUG, "Added AGI command to channel %s queue\n", chan->name);
+	ast_debug(1, "Added AGI command to channel %s queue\n", chan->name);
 
 	ast_channel_unlock(chan);
 	chan = ast_channel_unref(chan);
@@ -1259,7 +1259,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	while (1) {
 		/* bail out if we need to hangup */
 		if (ast_check_hangup(chan)) {
-			ast_log(LOG_DEBUG, "ast_check_hangup returned true on chan %s\n", chan->name);
+			ast_debug(1, "ast_check_hangup returned true on chan %s\n", chan->name);
 			break;
 		}
 		/* retrieve a command
@@ -1296,21 +1296,21 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 			/* no command so far, wait a bit for a frame to read */
 			res = ast_waitfor(chan, timeout);
 			if (res < 0) {
-				ast_log(LOG_DEBUG, "ast_waitfor returned <= 0 on chan %s\n", chan->name);
+				ast_debug(1, "ast_waitfor returned <= 0 on chan %s\n", chan->name);
 				break;
 			}
 			if (res == 0)
 				continue;
 			f = ast_read(chan);
 			if (!f) {
-				ast_log(LOG_DEBUG, "No frame read on channel %s, going out ...\n", chan->name);
+				ast_debug(1, "No frame read on channel %s, going out ...\n", chan->name);
 				returnstatus = AGI_RESULT_HANGUP;
 				break;
 			}
 			/* is there any other frame we should care about
 			   besides AST_CONTROL_HANGUP? */
 			if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
-				ast_log(LOG_DEBUG, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
+				ast_debug(1, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
 				ast_frfree(f);
 				break;
 			}

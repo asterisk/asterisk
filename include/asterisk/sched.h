@@ -49,8 +49,8 @@ extern "C" {
 		int _sched_res = -1; \
 		while (id > -1 && (_sched_res = ast_sched_del(sched, id)) && ++_count < 10) \
 			usleep(1); \
-		if (_count == 10 && option_debug > 2) { \
-			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.\n", id); \
+		if (_count == 10) { \
+			ast_debug(3, "Unable to cancel schedule ID %d.\n", id); \
 		} \
 		id = -1; \
 		(_sched_res); \
@@ -87,8 +87,8 @@ extern "C" {
 			usleep(1); \
 			ast_mutex_lock(lock); \
 		} \
-		if (_count == 10 && option_debug > 2) { \
-			ast_log(LOG_DEBUG, "Unable to cancel schedule ID %d.\n", id); \
+		if (_count == 10) { \
+			ast_debug(3, "Unable to cancel schedule ID %d.\n", id); \
 		} \
 		id = -1; \
 		(_sched_res); \

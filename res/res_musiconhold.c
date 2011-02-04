@@ -343,10 +343,10 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	return 0;
 }
 
-static struct ast_frame *moh_files_readframe(struct ast_channel *chan) 
+static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 {
 	struct ast_frame *f = NULL;
-	
+
 	if (!(chan->stream && (f = ast_readframe(chan->stream)))) {
 		if (!ast_moh_files_next(chan))
 			f = ast_readframe(chan->stream);
@@ -842,7 +842,7 @@ static struct mohclass *_get_mohbyname(const char *name, int warn, int flags, co
 #endif
 
 	if (!moh && warn) {
-		ast_log(LOG_DEBUG, "Music on Hold class '%s' not found in memory\n", name);
+		ast_debug(1, "Music on Hold class '%s' not found in memory\n", name);
 	}
 
 	return moh;
@@ -851,11 +851,11 @@ static struct mohclass *_get_mohbyname(const char *name, int warn, int flags, co
 static struct mohdata *mohalloc(struct mohclass *cl)
 {
 	struct mohdata *moh;
-	long flags;	
-	
+	long flags;
+
 	if (!(moh = ast_calloc(1, sizeof(*moh))))
 		return NULL;
-	
+
 	if (pipe(moh->pipe)) {
 		ast_log(LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
 		ast_free(moh);
@@ -1537,7 +1537,7 @@ static void moh_class_destructor(void *obj)
 		char buff[8192];
 		int bytes, tbytes = 0, stime = 0, pid = 0;
 
-		ast_log(LOG_DEBUG, "killing %d!\n", class->pid);
+		ast_debug(1, "killing %d!\n", class->pid);
 
 		stime = time(NULL) + 2;
 		pid = class->pid;
@@ -1571,7 +1571,7 @@ static void moh_class_destructor(void *obj)
 			tbytes = tbytes + bytes;
 		}
 
-		ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
+		ast_debug(1, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 
 		close(class->srcfd);
 	}

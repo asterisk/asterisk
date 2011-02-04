@@ -4454,7 +4454,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 	struct skinny_subchannel *xferor; /* the sub doing the transferring */
 	struct skinny_subchannel *xferee; /* the sub being transferred */
 	struct ast_tone_zone_sound *ts = NULL;
-		
+
 	if (ast_bridged_channel(sub->owner) || ast_bridged_channel(sub->related->owner)) {
 		if (sub->xferor) {
 			xferor = sub;
@@ -4463,7 +4463,7 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			xferor = sub;
 			xferee = sub->related;
 		}
-		
+
 		if (skinnydebug) {
 			ast_debug(1, "Transferee channels (local/remote): %s and %s\n",
 				xferee->owner->name, ast_bridged_channel(xferee->owner)?ast_bridged_channel(xferee->owner)->name:"");
@@ -4508,9 +4508,8 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			}
 			return 0;
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-					xferor->owner->name, xferee->owner->name);
+			ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
+				xferor->owner->name, xferee->owner->name);
 		}
 	}
 	return 0;
@@ -5410,7 +5409,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	} else {
 		/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
 		transmit_definetimedate(d);
-		
+
 		if (sub && sub->owner) {
 			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
 		} else {
@@ -6402,7 +6401,7 @@ static int get_input(struct skinnysession *s)
 		} else if (res != 4) {
 			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.  Expected 4 but got %d.\n", res);
 			ast_mutex_unlock(&s->lock);
-			
+
 			if (res == 0) {
 				if (skinnydebug)
 					ast_verb(1, "Skinny Client was lost, unregistering\n");
@@ -6492,9 +6491,9 @@ static void *skinny_session(void *data)
 	}
 	ast_debug(3, "Skinny Session returned: %s\n", strerror(errno));
 
-	if (s) 
+	if (s)
 		destroy_session(s);
-	
+
 	return 0;
 }
 

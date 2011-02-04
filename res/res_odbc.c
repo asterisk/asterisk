@@ -1435,15 +1435,15 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj)
 
 	if (obj->parent) {
 		if (res == SQL_SUCCESS || res == SQL_SUCCESS_WITH_INFO) {
-			ast_log(LOG_DEBUG, "Disconnected %d from %s [%s]\n", res, obj->parent->name, obj->parent->dsn);
+			ast_debug(1, "Disconnected %d from %s [%s]\n", res, obj->parent->name, obj->parent->dsn);
 		} else {
-			ast_log(LOG_DEBUG, "res_odbc: %s [%s] already disconnected\n", obj->parent->name, obj->parent->dsn);
+			ast_debug(1, "res_odbc: %s [%s] already disconnected\n", obj->parent->name, obj->parent->dsn);
 		}
 	}
 
 	if ((res = SQLFreeHandle(SQL_HANDLE_DBC, obj->con) == SQL_SUCCESS)) {
 		obj->con = NULL;
-		ast_log(LOG_DEBUG, "Database handle deallocated\n");
+		ast_debug(1, "Database handle deallocated\n");
 	} else {
 		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, state, &err, msg, 100, &mlen);
 		ast_log(LOG_WARNING, "Unable to deallocate database handle? %d errno=%d %s\n", res, (int)err, msg);

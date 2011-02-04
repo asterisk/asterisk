@@ -1037,13 +1037,13 @@ static int ooh323_hangup(struct ast_channel *ast)
 
 		if (gH323Debug)
 			ast_verbose("    hanging %s with cause: %d\n", p->username, q931cause);
-		ast->tech_pvt = NULL; 
+		ast->tech_pvt = NULL;
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
-         		ooHangCall(p->callToken, 
+			ooHangCall(p->callToken,
 				ooh323_convert_hangupcause_asteriskToH323(q931cause), q931cause);
 			ast_set_flag(p, H323_ALREADYGONE);
 			/* ast_mutex_unlock(&p->lock); */
-      		} else 
+		} else
 			ast_set_flag(p, H323_NEEDDESTROY);
 		/* detach channel here */
 		if (p->owner) {
@@ -1059,11 +1059,11 @@ static int ooh323_hangup(struct ast_channel *ast)
 
 		/* Notify the module monitors that use count for resource has changed */
 		ast_update_use_count();
-	  
+
 	} else {
 		ast_debug(1, "No call to hangup\n" );
 	}
-	
+
 	if (gH323Debug)
 		ast_verbose("+++   ooh323_hangup\n");
 
@@ -1083,8 +1083,7 @@ static int ooh323_answer(struct ast_channel *ast)
 		if (ast->_state != AST_STATE_UP) {
 			ast_channel_lock(ast);
 			ast_setstate(ast, AST_STATE_UP);
-      			if (option_debug)
-				ast_debug(1, "ooh323_answer(%s)\n", ast->name);
+			ast_debug(1, "ooh323_answer(%s)\n", ast->name);
 			ast_channel_unlock(ast);
 			ooAnswerCall(p->callToken);
 		}
@@ -1133,11 +1132,10 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 			return res;
 		}
 
-	
 		if (f->frametype == AST_FRAME_VOICE) {
 /* sending progress for first */
 			if (!ast_test_flag(p, H323_OUTGOING) && !p->progsent &&
-			 		p->callToken) {
+					p->callToken) {
 				ooManualProgress(p->callToken);
 				p->progsent = 1;
 			}
@@ -1201,48 +1199,50 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 
 	if (gH323Debug)
 		ast_verbose("----- ooh323_indicate %d on call %s\n", condition, callToken);
-	 
-   	ast_mutex_lock(&p->lock);
+
+	ast_mutex_lock(&p->lock);
 	switch (condition) {
 	case AST_CONTROL_CONGESTION:
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
-            		ooHangCall(callToken, OO_REASON_LOCAL_CONGESTED, 
+			ooHangCall(callToken, OO_REASON_LOCAL_CONGESTED,
 						AST_CAUSE_SWITCH_CONGESTION);
 			ast_set_flag(p, H323_ALREADYGONE);
 		}
 		break;
 	case AST_CONTROL_BUSY:
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
-            		ooHangCall(callToken, OO_REASON_LOCAL_BUSY, AST_CAUSE_USER_BUSY);
+			ooHangCall(callToken, OO_REASON_LOCAL_BUSY, AST_CAUSE_USER_BUSY);
 			ast_set_flag(p, H323_ALREADYGONE);
 		}
 		break;
 	case AST_CONTROL_HOLD:
-		ast_moh_start(ast, data, NULL);		
+		ast_moh_start(ast, data, NULL);
 		break;
 	case AST_CONTROL_UNHOLD:
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_PROGRESS:
 		if (ast->_state != AST_STATE_UP) {
-	    		if (!p->progsent) {
-	     			if (gH323Debug) 
-					ast_log(LOG_DEBUG,"Sending manual progress for %s, res = %d\n", callToken,
-             				ooManualProgress(callToken));	
-				else
-	     				ooManualProgress(callToken);
-	     			p->progsent = 1;
-	    		}
+			if (!p->progsent) {
+				if (gH323Debug) {
+					ast_debug(1, "Sending manual progress for %s, res = %d\n", callToken,
+					ooManualProgress(callToken));
+				} else {
+					ooManualProgress(callToken);
+				}
+				p->progsent = 1;
+			}
 		}
 	    break;
       case AST_CONTROL_RINGING:
 	    if (ast->_state == AST_STATE_RING || ast->_state == AST_STATE_RINGING) {
-	    	if (gH323Debug) 
-			ast_log(LOG_DEBUG,"Sending manual ringback for %s, res = %d\n", 
+		if (gH323Debug) {
+			ast_debug(1, "Sending manual ringback for %s, res = %d\n",
 			callToken,
-            		ooManualRingback(callToken));
-		 else
-	    		ooManualRingback(callToken);
+			ooManualRingback(callToken));
+		} else {
+			ooManualRingback(callToken);
+		}
 	    }
 	 break;
 	case AST_CONTROL_SRCUPDATE:
@@ -1256,9 +1256,10 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 			|| ast_strlen_zero(ast->connected.id.name.str)) {
 			break;
 		}
-		if (gH323Debug)
-			ast_log(LOG_DEBUG, "Sending connected line info for %s (%s)\n",
+		if (gH323Debug) {
+			ast_debug(1, "Sending connected line info for %s (%s)\n",
 				callToken, ast->connected.id.name.str);
+		}
 		ooSetANI(callToken, ast->connected.id.name.str);
 		break;
 
@@ -1373,8 +1374,8 @@ static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, i
 
 	if (gH323Debug)
 		ast_verbose("+++++ ooh323_queryoption %d on channel %s\n", option, ast->name);
-	 
-   	ast_mutex_unlock(&p->lock);
+
+	ast_mutex_unlock(&p->lock);
 
 	return res;
 }
@@ -1418,9 +1419,9 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 	char formats[FORMAT_STRING_SIZE];
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_update_writeformat %s/%d\n", 
+		ast_verbose("---   ooh323_update_writeformat %s/%d\n",
 				ast_getformatname(fmt), txframes);
-	
+
 	p = find_call(call);
 	if (!p) {
 		ast_log(LOG_ERROR, "No matching call found for %s\n", call->callToken);
@@ -1433,7 +1434,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
-			ast_debug(1,"Failed to grab lock, trying again\n");
+			ast_debug(1, "Failed to grab lock, trying again\n");
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
 		if (!p->owner) {
@@ -1442,7 +1443,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 			return;
 		}
 		if (gH323Debug)
-	  		ast_verbose("Writeformat before update %s/%s\n", 
+			ast_verbose("Writeformat before update %s/%s\n",
 			  ast_getformatname(&p->owner->writeformat),
 			  ast_getformatname_multiple(formats, sizeof(formats), p->owner->nativeformats));
 		if (txframes)
@@ -1478,7 +1479,7 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 	if (gH323Debug)
 		ast_verbose("---   ooh323_update_readformat %s\n", 
 				ast_getformatname(fmt));
-	
+
 	p = find_call(call);
 	if (!p) {
 		ast_log(LOG_ERROR, "No matching call found for %s\n", call->callToken);
@@ -1491,7 +1492,7 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
-			ast_debug(1,"Failed to grab lock, trying again\n");
+			ast_debug(1, "Failed to grab lock, trying again\n");
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
 		if (!p->owner) {
@@ -1501,12 +1502,12 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 		}
 
 		if (gH323Debug)
-	  		ast_verbose("Readformat before update %s\n", 
+			ast_verbose("Readformat before update %s\n",
 				  ast_getformatname(&p->owner->readformat));
 		ast_format_cap_set(p->owner->nativeformats, fmt);
-	  	ast_set_read_format(p->owner, &p->owner->readformat);
+		ast_set_read_format(p->owner, &p->owner->readformat);
 		ast_channel_unlock(p->owner);
-   	} else
+	} else
 		ast_log(LOG_ERROR, "No owner found\n");
 
 	ast_mutex_unlock(&p->lock);
@@ -1524,12 +1525,12 @@ int onAlerting(ooCallData *call)
 	if (gH323Debug)
 		ast_verbose("--- onAlerting %s\n", call->callToken);
 
-   	p = find_call(call);
+	p = find_call(call);
 
-   	if(!p) {
+	if(!p) {
 		ast_log(LOG_ERROR, "No matching call found\n");
 		return -1;
-	}  
+	}
 	ast_mutex_lock(&p->lock);
 	if (!p->owner) {
 		ast_mutex_unlock(&p->lock);
@@ -1537,7 +1538,7 @@ int onAlerting(ooCallData *call)
 		return 0;
 	}
 	while (p->owner && ast_channel_trylock(p->owner)) {
-		ast_debug(1,"Failed to grab lock, trying again\n");
+		ast_debug(1, "Failed to grab lock, trying again\n");
 		DEADLOCK_AVOIDANCE(&p->lock);
 	}
 	if (!p->owner) {
@@ -1580,12 +1581,12 @@ int onProgress(ooCallData *call)
 	if (gH323Debug)
 		ast_verbose("--- onProgress %s\n", call->callToken);
 
-   	p = find_call(call);
+	p = find_call(call);
 
-   	if(!p) {
+	if(!p) {
 		ast_log(LOG_ERROR, "No matching call found\n");
 		return -1;
-	}  
+	}
 	ast_mutex_lock(&p->lock);
 	if (!p->owner) {
 		ast_mutex_unlock(&p->lock);
@@ -1593,7 +1594,7 @@ int onProgress(ooCallData *call)
 		return 0;
 	}
 	while (p->owner && ast_channel_trylock(p->owner)) {
-		ast_debug(1,"Failed to grab lock, trying again\n");
+		ast_debug(1, "Failed to grab lock, trying again\n");
 		DEADLOCK_AVOIDANCE(&p->lock);
 	}
 	if (!p->owner) {
@@ -1619,8 +1620,8 @@ int onProgress(ooCallData *call)
 		ast_setstate(c, AST_STATE_RINGING);
 
 	ast_queue_control(c, AST_CONTROL_PROGRESS);
-      	ast_channel_unlock(c);
-      	ast_mutex_unlock(&p->lock);
+	ast_channel_unlock(c);
+	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
 		ast_verbose("+++ onProgress %s\n", call->callToken);
@@ -1660,7 +1661,7 @@ int ooh323_onReceivedDigit(OOH323CallData *call, const char *digit)
 	f.src = "SEND_DIGIT";
 
 	while (p->owner && ast_channel_trylock(p->owner)) {
-		ast_debug(1,"Failed to grab lock, trying again\n");
+		ast_debug(1, "Failed to grab lock, trying again\n");
 		DEADLOCK_AVOIDANCE(&p->lock);
 	}
 	if (!p->owner) {
@@ -1998,16 +1999,16 @@ int onCallEstablished(ooCallData *call)
 		return -1;
 	}
 
-   	if(ast_test_flag(p, H323_OUTGOING)) {
+	if(ast_test_flag(p, H323_OUTGOING)) {
 		ast_mutex_lock(&p->lock);
 		if (!p->owner) {
 			ast_mutex_unlock(&p->lock);
 			ast_log(LOG_ERROR, "Channel has no owner\n");
 			return -1;
 		}
-	
+
 		while (p->owner && ast_channel_trylock(p->owner)) {
-			ast_debug(1,"Failed to grab lock, trying again\n");
+			ast_debug(1, "Failed to grab lock, trying again\n");
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
 		if (p->owner) {
@@ -2027,7 +2028,7 @@ int onCallEstablished(ooCallData *call)
 			}
 
 			ast_queue_control(c, AST_CONTROL_ANSWER);
-   			ast_channel_unlock(p->owner);
+			ast_channel_unlock(p->owner);
 			manager_event(EVENT_FLAG_SYSTEM,"ChannelUpdate","Channel: %s\r\nChanneltype: %s\r\n"
 				"CallRef: %d\r\n", c->name, "OOH323", p->call_reference);
 		}
@@ -2052,42 +2053,42 @@ int onCallCleared(ooCallData *call)
 
    if ((p = find_call(call))) {
 	ast_mutex_lock(&p->lock);
-  
+
 	while (p->owner) {
 		if (ast_channel_trylock(p->owner)) {
 			ooTrace(OOTRCLVLINFO, "Failed to grab lock, trying again\n");
-         		ast_log(LOG_DEBUG,"Failed to grab lock, trying again\n");
+			ast_debug(1, "Failed to grab lock, trying again\n");
 			DEADLOCK_AVOIDANCE(&p->lock);
 		} else {
-         		ownerLock = 1; break;
+			ownerLock = 1; break;
 		}
 	}
 
 	if (ownerLock) {
-		if (!ast_test_flag(p, H323_ALREADYGONE)) { 
+		if (!ast_test_flag(p, H323_ALREADYGONE)) {
 
 			ast_set_flag(p, H323_ALREADYGONE);
 			p->owner->hangupcause = call->q931cause;
 			p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			ast_queue_hangup_with_cause(p->owner,call->q931cause);
 		}
-   	}
+	}
 
-   	if(p->owner) {
-    		p->owner->tech_pvt = NULL;
+	if(p->owner) {
+		p->owner->tech_pvt = NULL;
 		ast_channel_unlock(p->owner);
-    		p->owner = NULL;
+		p->owner = NULL;
 		ast_module_unref(myself);
 	}
 
 	ast_set_flag(p, H323_NEEDDESTROY);
 
-   	ooh323c_stop_call_thread(call);
+	ooh323c_stop_call_thread(call);
 
 	ast_mutex_unlock(&p->lock);
-   	ast_mutex_lock(&usecnt_lock);
-   	usecnt--;
-   	ast_mutex_unlock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
+	usecnt--;
+	ast_mutex_unlock(&usecnt_lock);
 
     }
 
@@ -3526,7 +3527,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
 			free(cur->callerid_name);
 			cur->callerid_name = 0;
 		}
-		
+
 		if (cur->callerid_num) {
 			free(cur->callerid_num);
 			cur->callerid_num = 0;
@@ -3541,20 +3542,20 @@ int ooh323_destroy(struct ooh323_pvt *p)
 			ast_udptl_destroy(cur->udptl);
 			cur->udptl = NULL;
 		}
-	
+
 		/* Unlink us from the owner if we have one */
 		if (cur->owner) {
-         		while(ast_channel_trylock(cur->owner)) {
-            			ast_debug(1,"Failed to grab lock, trying again\n");
+			while(ast_channel_trylock(cur->owner)) {
+				ast_debug(1, "Failed to grab lock, trying again\n");
 				DEADLOCK_AVOIDANCE(&cur->lock);
-         		}           
+			}
 			ast_debug(1, "Detaching from %s\n", cur->owner->name);
 			cur->owner->tech_pvt = NULL;
 			ast_channel_unlock(cur->owner);
 			cur->owner = NULL;
 			ast_module_unref(myself);
 		}
-  
+
 		if (cur->vad) {
 			ast_dsp_free(cur->vad);
 			cur->vad = NULL;
@@ -4105,7 +4106,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 		ast_verbose("---   setup_udptl_connection\n");
 
 	/* Find the call or allocate a private structure if call not found */
-	p = find_call(call); 
+	p = find_call(call);
 
 	if (!p) {
 		ast_log(LOG_ERROR, "Something is wrong: rtp\n");
@@ -4115,7 +4116,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 	ast_mutex_lock(&p->lock);
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
-			ast_debug(1,"Failed to grab lock, trying again\n");
+			ast_debug(1, "Failed to grab lock, trying again\n");
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
 		if (!p->owner) {
@@ -4142,7 +4143,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 		ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
 	}
 	if (gH323Debug)
-		ast_debug(1, "Receiving UDPTL  %s:%d\n", ast_inet_ntoa(them.sin_addr), 
+		ast_debug(1, "Receiving UDPTL  %s:%d\n", ast_inet_ntoa(them.sin_addr),
 							 ntohs(them.sin_port));
 
 	ast_channel_unlock(p->owner);
@@ -4158,19 +4159,19 @@ void close_udptl_connection(ooCallData *call)
 {
 	struct ooh323_pvt *p = NULL;
 
-   	if(gH323Debug)
+	if(gH323Debug)
 		ast_verbose("---   close_udptl_connection\n");
 
 	p = find_call(call);
 	if (!p) {
-      		ast_log(LOG_ERROR, "Couldn't find matching call to close udptl "
+		ast_log(LOG_ERROR, "Couldn't find matching call to close udptl "
                          "connection\n");
 		return;
 	}
 	ast_mutex_lock(&p->lock);
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
-			ast_debug(1,"Failed to grab lock, trying again\n");
+			ast_debug(1, "Failed to grab lock, trying again\n");
 			DEADLOCK_AVOIDANCE(&p->lock);
 		}
 		if (!p->owner) {
@@ -4251,8 +4252,10 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		break;
 	case 5:
 		f = ast_udptl_read(p->udptl);		/* UDPTL t.38 data */
-		if (gH323Debug) ast_debug(1, "Got UDPTL %d/%d len %d for %s\n",
+		if (gH323Debug) {
+			ast_debug(1, "Got UDPTL %d/%d len %d for %s\n",
 				f->frametype, f->subclass.integer, f->datalen, ast->name);
+		}
 		break;
 
 	default:
@@ -4263,7 +4266,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE && !p->faxmode) {
 			if (!(ast_format_cap_iscompatible(p->owner->nativeformats, &f->subclass.format))) {
-            			ast_debug(1, "Oooh, voice format changed to %s\n", ast_getformatname(&f->subclass.format));
+				ast_debug(1, "Oooh, voice format changed to %s\n", ast_getformatname(&f->subclass.format));
 				ast_format_cap_set(p->owner->nativeformats, &f->subclass.format);
 				ast_set_read_format(p->owner, &p->owner->readformat);
 				ast_set_write_format(p->owner, &p->owner->writeformat);
@@ -4273,8 +4276,9 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 				(f->subclass.format.id == AST_FORMAT_SLINEAR || f->subclass.format.id == AST_FORMAT_ALAW ||
 					f->subclass.format.id == AST_FORMAT_ULAW)) {
 				f = ast_dsp_process(p->owner, p->vad, f);
-            			if (f && (f->frametype == AST_FRAME_DTMF)) 
-               				ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass.integer);
+				if (f && (f->frametype == AST_FRAME_DTMF)) {
+					ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass.integer);
+				}
 			}
 		}
 	}
@@ -4292,13 +4296,15 @@ void onModeChanged(ooCallData *call, int t38mode) {
 
 	ast_mutex_lock(&p->lock);
 
-	if (gH323Debug)
-       		ast_debug(1, "change mode to %d for %s\n", t38mode, call->callToken);
+	if (gH323Debug) {
+		ast_debug(1, "change mode to %d for %s\n", t38mode, call->callToken);
+	}
 
 	if (t38mode == p->faxmode) {
-		if (gH323Debug)
+		if (gH323Debug) {
 			ast_debug(1, "mode for %s is already %d\n", call->callToken,
 					t38mode);
+		}
 		ast_mutex_unlock(&p->lock);
 		return;
 	}

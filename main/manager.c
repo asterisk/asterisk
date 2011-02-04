@@ -1214,7 +1214,7 @@ static struct mansession_session *unref_mansession(struct mansession_session *s)
 {
 	int refcount = ao2_ref(s, -1);
         if (manager_debug) {
-		ast_log(LOG_DEBUG, "Mansession: %p refcount now %d\n", s, refcount - 1);
+		ast_debug(1, "Mansession: %p refcount now %d\n", s, refcount - 1);
 	}
 	return s;
 }
@@ -4344,14 +4344,14 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 		cut = filename + strlen(filename);
 	}
 	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".so");
-	ast_log(LOG_DEBUG, "**** ModuleCheck .so file %s\n", filename);
+	ast_debug(1, "**** ModuleCheck .so file %s\n", filename);
 	res = ast_module_check(filename);
 	if (!res) {
 		astman_send_error(s, m, "Module not loaded");
 		return 0;
 	}
 	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".c");
-	ast_log(LOG_DEBUG, "**** ModuleCheck .c file %s\n", filename);
+	ast_debug(1, "**** ModuleCheck .c file %s\n", filename);
 #if !defined(LOW_MEMORY)
 	version = ast_file_version_find(filename);
 #endif

@@ -787,7 +787,7 @@ static struct ast_variable *parse_cookies(char *cookies)
 		}
 
 		if (option_debug) {
-			ast_log(LOG_DEBUG, "mmm ... cookie!  Name: '%s'  Value: '%s'\n", name, val);
+			ast_debug(1, "mmm ... cookie!  Name: '%s'  Value: '%s'\n", name, val);
 		}
 
 		var = ast_variable_new(name, val, __FILE__);

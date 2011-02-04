@@ -3158,7 +3158,7 @@ static void aji_mwi_cb(const struct ast_event *ast_event, void *data)
 	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID)))
 	{
 		/* If the event didn't originate from this server, don't send it back out. */
-		ast_log(LOG_DEBUG, "Returning here\n");
+		ast_debug(1, "Returning here\n");
 		return;
 	}
 
@@ -3186,7 +3186,7 @@ static void aji_devstate_cb(const struct ast_event *ast_event, void *data)
 	if (ast_eid_cmp(&ast_eid_default, ast_event_get_ie_raw(ast_event, AST_EVENT_IE_EID)))
 	{
 		/* If the event didn't originate from this server, don't send it back out. */
-		ast_log(LOG_DEBUG, "Returning here\n");
+		ast_debug(1, "Returning here\n");
 		return;
 	}
 
@@ -3246,7 +3246,7 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 	item_content = iks_child(item);
 	ast_str_to_eid(&pubsub_eid, iks_find_attrib(item_content, "eid"));
 	if (!ast_eid_cmp(&ast_eid_default, &pubsub_eid)) {
-		ast_log(LOG_DEBUG, "Returning here, eid of incoming event matches ours!\n");
+		ast_debug(1, "Returning here, eid of incoming event matches ours!\n");
 		return IKS_FILTER_EAT;
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
@@ -3271,7 +3271,7 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 			return IKS_FILTER_EAT;
 		}
 	} else {
-		ast_log(LOG_DEBUG, "Don't know how to handle PubSub event of type %s\n",
+		ast_debug(1, "Don't know how to handle PubSub event of type %s\n",
 			iks_name(item_content));
 		return IKS_FILTER_EAT;
 	}

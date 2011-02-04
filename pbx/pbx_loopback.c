@@ -76,7 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	char *newpattern=NULL; \
 	loopback_subst(buf, sizeof(buf), exten, context, priority, data); \
 	loopback_parse(&newexten, &newcontext, &newpriority, &newpattern, buf); \
-	ast_log(LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
+	ast_debug(1, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
 	if (!strcasecmp(newcontext, context)) return -1
 
 static char *loopback_subst(char *buf, int buflen, const char *exten, const char *context, int priority, const char *data)

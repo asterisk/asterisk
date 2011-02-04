@@ -138,16 +138,13 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	other_factory_ms = other_factory_samples / 8;
 
 	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && other_factory_samples && (our_factory_ms - other_factory_ms > AST_AUDIOHOOK_SYNC_TOLERANCE)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Flushing audiohook %p so it remains in sync\n", audiohook);
+		ast_debug(1, "Flushing audiohook %p so it remains in sync\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
 	}
 
 	if (ast_test_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE) && (our_factory_samples > 640 || other_factory_samples > 640)) {
-		if (option_debug) {
-			ast_log(LOG_DEBUG, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
-		}
+		ast_debug(1, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
 	}
@@ -256,8 +253,8 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 				}
 			}
 		}
-	} else if (option_debug)
-		ast_log(LOG_DEBUG, "Failed to get %d samples from read factory %p\n", (int)samples, &audiohook->read_factory);
+	}
+	ast_debug(1, "Failed to get %d samples from read factory %p\n", (int)samples, &audiohook->read_factory);
 
 	/* Move on to the write factory... if there are enough samples, read them in */
 	if (usable_write) {
@@ -275,8 +272,8 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 				}
 			}
 		}
-	} else if (option_debug)
-		ast_log(LOG_DEBUG, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
+	}
+	ast_debug(1, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
 
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
 	if (!read_buf && !write_buf)
@@ -818,7 +815,7 @@ int ast_channel_audiohook_count_by_source(struct ast_channel *chan, const char *
 			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		default:
-			ast_log(LOG_DEBUG, "Invalid audiohook type supplied, (%d)\n", type);
+			ast_debug(1, "Invalid audiohook type supplied, (%d)\n", type);
 			return -1;
 	}
 
@@ -856,7 +853,7 @@ int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, cons
 			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		default:
-			ast_log(LOG_DEBUG, "Invalid audiohook type supplied, (%d)\n", type);
+			ast_debug(1, "Invalid audiohook type supplied, (%d)\n", type);
 			return -1;
 	}
 	return count;

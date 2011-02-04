@@ -3761,31 +3761,29 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			fflush(stdout);
 		}
 		if (!(f = fopen(fn, "r"))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
+			ast_debug(1, "No file to parse: %s\n", fn);
 			if (option_verbose > 1)
 				ast_verbose( "Not found (%s)\n", strerror(errno));
 			continue;
 		}
 		count++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
+		ast_debug(1, "Parsing %s\n", fn);
 		if (option_verbose > 1)
 			ast_verbose("Found\n");
 		while(!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
-				if ( withcomments ) {    
+				if ( withcomments ) {
 					CB_ADD(lline_buffer);       /* add the current lline buffer to the comment buffer */
 					lline_buffer[0] = 0;        /* erase the lline buffer */
 				}
-				
+
 				new_buf = buf;
-				if (comment) 
+				if (comment)
 					process_buf = NULL;
 				else
 					process_buf = buf;
-				
+
 				while ((comment_p = strchr(new_buf, COMMENT_META))) {
 					if ((comment_p > new_buf) && (*(comment_p-1) == '\\')) {
 						/* Yuck, gotta memmove */
@@ -4141,24 +4139,22 @@ int localized_config_text_file_save(const char *configfile, const struct ast_con
 						}
 					}
 				}
-                
+
 				for (cmt = var->precomments; cmt; cmt=cmt->next) {
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
 						fprintf(f,"%s", cmt->cmt);
 				}
-				if (var->sameline) 
+				if (var->sameline)
 					fprintf(f, "%s %s %s  %s", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
-				else	
+				else
 					fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="), var->value);
 				if (var->blanklines) {
 					blanklines = var->blanklines;
 					while (blanklines--)
 						fprintf(f, "\n");
 				}
-				
+
 				fclose(f);
-                
-				
 				var = var->next;
 			}
 			cat = cat->next;
@@ -4166,8 +4162,7 @@ int localized_config_text_file_save(const char *configfile, const struct ast_con
 		if ((option_verbose > 1) && !option_debug)
 			ast_verbose("Saved\n");
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Unable to open for writing: %s\n", fn);
+		ast_debug(1, "Unable to open for writing: %s\n", fn);
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Unable to write (%s)", strerror(errno));
 		return -1;
@@ -4175,7 +4170,7 @@ int localized_config_text_file_save(const char *configfile, const struct ast_con
 
 	/* Now, for files with trailing #include/#exec statements,
 	   we have to make sure every entry is output */
-	
+
 	for (incl=cfg->includes; incl; incl = incl->next) {
 		if (!incl->output) {
 			/* open the respective file */
@@ -4186,7 +4181,7 @@ int localized_config_text_file_save(const char *configfile, const struct ast_con
 				ast_verbose(VERBOSE_PREFIX_2 "Unable to write %s (%s)", fn, strerror(errno));
 				return -1;
 			}
-            
+
 			/* output the respective include */
 			if (incl->exec)
 				fprintf(f,"#exec \"%s\"\n", incl->exec_file);
@@ -4277,14 +4272,12 @@ static int ast_add_hint(struct ast_exten *e)
 	/* Search if hint exists, do nothing */
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (hint->exten == e) {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
+			ast_debug(2, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 			return -1;
 		}
 	}
 
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
+	ast_debug(2, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 
 	if (!(hint = ast_calloc(1, sizeof(*hint)))) {
 		return -1;
@@ -5323,8 +5316,7 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 		tmp->includes = NULL;
 		tmp->ignorepats = NULL;
 		*loc_contexts = tmp;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
+		ast_debug(1, "Registered context '%s'\n", tmp->name);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
 	}
@@ -5457,10 +5449,10 @@ static int ast_add_extension2(struct ast_context *con,
 	}
 	if (option_debug) {
 		if (tmp->matchcid) {
-			ast_log(LOG_DEBUG, "Added extension '%s' priority %d (CID match '%s') to %s\n",
+			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s\n",
 				tmp->exten, tmp->priority, tmp->cidmatch, con->name);
 		} else {
-			ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s\n",
+			ast_debug(1, "Added extension '%s' priority %d to %s\n",
 				tmp->exten, tmp->priority, con->name);
 		}
 	}
@@ -5551,8 +5543,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, context);
 			break;
 		default:
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Shouldn't happen!\n");
+			ast_debug(1, "Shouldn't happen!\n");
 		}
 
 		return (matching_action) ? 0 : -1;
@@ -5834,8 +5825,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			if (isfunction) {
 				/* Evaluate function */
 				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
+				ast_debug(1, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
 				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
@@ -5903,8 +5893,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			length = ast_expr(vars, cp2, count, NULL);
 
 			if (length) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Expression result is '%s'\n", cp2);
+				ast_debug(1, "Expression result is '%s'\n", cp2);
 				count -= length;
 				cp2 += length;
 				*cp2 = 0;
@@ -6098,8 +6087,7 @@ static void __ast_context_destroy(struct ast_context *con, const char *registrar
 	for (tmp = contexts; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "check ctx %s %s\n", tmp->name, tmp->registrar);
+			ast_debug(1, "check ctx %s %s\n", tmp->name, tmp->registrar);
 			if ( (!registrar || !strcasecmp(registrar, tmp->registrar)) &&
 			     (!con || !strcasecmp(tmp->name, con->name)) )
 				break;	/* found it */
@@ -6107,8 +6095,7 @@ static void __ast_context_destroy(struct ast_context *con, const char *registrar
 		if (!tmp)	/* not found, we are done */
 			break;
 		ast_wrlock_context(tmp);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "delete ctx %s %s\n", tmp->name, tmp->registrar);
+		ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 		next = tmp->next;
 		if (tmpl)
 			tmpl->next = next;
@@ -6173,8 +6160,7 @@ static void ast_merge_contexts_and_delete(struct ast_context **extcontexts, cons
 	tmp = *extcontexts;
 	if (registrar) {
 		/* XXX remove previous contexts from same registrar */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "must remove any reg %s\n", registrar);
+		ast_debug(1, "must remove any reg %s\n", registrar);
 		__ast_context_destroy(NULL,registrar);
 		while (tmp) {
 			lasttmp = tmp;

@@ -1811,10 +1811,10 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 							}                                                                                                            \
 						}                                                                                                                \
 					}
-					
+
 #define	NEW_MATCHER_RECURSE	           \
 					if (p->next_char && (*(str + 1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0)                 \
-        	                                       || p->next_char->x[0] == '!')) {                                          \
+		                                       || p->next_char->x[0] == '!')) {                                          \
 						if (*(str + 1) || p->next_char->x[0] == '!') {                                                         \
 							new_find_extension(str + 1, score, p->next_char, length + 1, spec + p->specificity, callerid, label, action); \
 							if (score->exten)  {                                                                             \
@@ -1825,7 +1825,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 							new_find_extension("/", score, p->next_char, length + 1, spec + p->specificity, callerid, label, action);	 \
 							if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {      \
 						        ast_debug(4,"returning a (can/more) match--- %s\n", score->exten ? score->exten->exten :     \
-        	                               "NULL");                                                                        \
+		                               "NULL");                                                                        \
 								return; /* the first match is all we need */                                                 \
 							}												                                                 \
 						}                                                                                                    \
@@ -1837,7 +1837,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 							return;                                                                                          \
 						}												                                                     \
 					}
-					
+
 					NEW_MATCHER_CHK_MATCH;
 					NEW_MATCHER_RECURSE;
 				}
@@ -1846,7 +1846,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 					NEW_MATCHER_CHK_MATCH;
 					NEW_MATCHER_RECURSE;
 				}
-			} else if (p->x[0] == 'X') { 
+			} else if (p->x[0] == 'X') {
 				if (p->x[1] == 0 && *str >= '0' && *str <= '9' ) {
 					NEW_MATCHER_CHK_MATCH;
 					NEW_MATCHER_RECURSE;
@@ -2054,7 +2054,7 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 		return 0;
 	}
 #ifdef NEED_DEBUG
-	ast_log(LOG_DEBUG, "Adding exten %s%c%s to tree\n", s1, e1->matchcid ? '/' : ' ', e1->matchcid ? e1->cidmatch : "");
+	ast_debug(1, "Adding exten %s%c%s to tree\n", s1, e1->matchcid ? '/' : ' ', e1->matchcid ? e1->cidmatch : "");
 #endif
 	m1 = con->pattern_tree; /* each pattern starts over at the root of the pattern tree */
 	m0 = &con->pattern_tree;
@@ -2180,9 +2180,9 @@ static void create_match_char_tree(struct ast_context *con)
 #ifdef NEED_DEBUG
 	int biggest_bucket, resizes, numobjs, numbucks;
 
-	ast_log(LOG_DEBUG,"Creating Extension Trie for context %s(%p)\n", con->name, con);
+	ast_debug(1, "Creating Extension Trie for context %s(%p)\n", con->name, con);
 	ast_hashtab_get_stats(con->root_table, &biggest_bucket, &resizes, &numobjs, &numbucks);
-	ast_log(LOG_DEBUG,"This tree has %d objects in %d bucket lists, longest list=%d objects, and has resized %d times\n",
+	ast_debug(1, "This tree has %d objects in %d bucket lists, longest list=%d objects, and has resized %d times\n",
 			numobjs, numbucks, biggest_bucket, resizes);
 #endif
 	t1 = ast_hashtab_start_traversal(con->root_table);
@@ -2701,7 +2701,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	if (!tmp->pattern_tree && tmp->root_table) {
 		create_match_char_tree(tmp);
 #ifdef NEED_DEBUG
-		ast_log(LOG_DEBUG, "Tree Created in context %s:\n", context);
+		ast_debug(1, "Tree Created in context %s:\n", context);
 		log_match_char_tree(tmp->pattern_tree," ");
 #endif
 	}
@@ -6623,7 +6623,7 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 				if (!dpc->total_items++)
 					manager_dpsendack(s, m);
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
-				astman_append(s, "Context: %s\r\nSwitch: %s/%s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_registrar(sw));	
+				astman_append(s, "Context: %s\r\nSwitch: %s/%s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_registrar(sw));
 				astman_append(s, "\r\n");
 				ast_debug(3, "manager_show_dialplan: Found Switch : %s \n", ast_get_switch_name(sw));
 			}
