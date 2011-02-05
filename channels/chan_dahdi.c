@@ -7359,6 +7359,8 @@ static enum ast_bridge_result dahdi_bridge(struct ast_channel *c0, struct ast_ch
 				ast_write(c0, f);
 			}
 			break;
+		case AST_FRAME_VOICE:
+			/* Native bridge handles voice frames in hardware. */
 		case AST_FRAME_NULL:
 			break;
 		default:
