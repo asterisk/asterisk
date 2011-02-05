@@ -2179,11 +2179,11 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 
    	user = ast_calloc(1,sizeof(struct ooh323_user));
 	if (user) {
+		memset(user, 0, sizeof(struct ooh323_user));
 		if (!(user->cap = ast_format_cap_alloc_nolock())) {
 			ast_free(user);
 			return NULL;
 		}
-		memset(user, 0, sizeof(struct ooh323_user));
 		ast_mutex_init(&user->lock);
 		ast_copy_string(user->name, name, sizeof(user->name));
 		ast_format_cap_copy(user->cap, gCap);
@@ -2292,11 +2292,11 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 
 	peer = ast_calloc(1, sizeof(*peer));
 	if (peer) {
+		memset(peer, 0, sizeof(struct ooh323_peer));
 		if (!(peer->cap = ast_format_cap_alloc_nolock())) {
 			ast_free(peer);
 			return NULL;
 		}
-		memset(peer, 0, sizeof(struct ooh323_peer));
 		ast_mutex_init(&peer->lock);
 		ast_copy_string(peer->name, name, sizeof(peer->name));
 		ast_format_cap_copy(peer->cap, gCap);
