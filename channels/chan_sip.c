@@ -14045,7 +14045,15 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 				*to = '\0';
 			ast_copy_string(referdata->replaces_callid_fromtag, ptr, sizeof(referdata->replaces_callid_fromtag));
 		}
-		
+
+		if (!strcmp(referdata->replaces_callid, transferer->callid) &&
+			(!sip_cfg.pedanticsipchecking ||
+			(!strcmp(referdata->replaces_callid_fromtag, transferer->tag) &&
+			!strcmp(referdata->replaces_callid_totag, transferer->theirtag)))) {
+				ast_log(LOG_WARNING, "Got an attempt to replace own Call-ID on %s\n", transferer->callid);
+				return -4;
+		}
+
 		if (!sip_cfg.pedanticsipchecking)
 			ast_debug(2, "Attended transfer: Will use Replace-Call-ID : %s (No check of from/to tags)\n", referdata->replaces_callid );
 		else
