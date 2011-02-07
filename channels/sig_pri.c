@@ -1917,7 +1917,12 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 	}
 
 	if (owner) {
-		/* The owner channel is present. */
+		/*
+		 * The owner channel is present.
+		 * Pass the event to the peer as well.
+		 */
+		ast_queue_control(owner, AST_CONTROL_MCID);
+
 		ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
 		ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
 
@@ -7687,6 +7692,15 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		}
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		break;
+#if defined(HAVE_PRI_MCID)
+	case AST_CONTROL_MCID:
+		if (p->pri && p->pri->pri && p->pri->mcid_send) {
+			pri_grab(p, p->pri);
+			pri_mcid_req_send(p->pri->pri, p->call);
+			pri_rel(p->pri);
+		}
+		break;
+#endif	/* defined(HAVE_PRI_MCID) */
 	}
 
 	return res;

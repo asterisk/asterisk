@@ -12353,6 +12353,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						pris[span].pri.display_flags_send = conf->pri.pri.display_flags_send;
 						pris[span].pri.display_flags_receive = conf->pri.pri.display_flags_receive;
 #endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
+#if defined(HAVE_PRI_MCID)
+						pris[span].pri.mcid_send = conf->pri.pri.mcid_send;
+#endif	/* defined(HAVE_PRI_MCID) */
 
 						for (x = 0; x < PRI_MAX_TIMERS; x++) {
 							pris[span].pri.pritimers[x] = conf->pri.pri.pritimers[x];
@@ -17307,6 +17310,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "display_receive")) {
 				confp->pri.pri.display_flags_receive = dahdi_display_text_option(v->value);
 #endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
+#if defined(HAVE_PRI_MCID)
+			} else if (!strcasecmp(v->name, "mcid_send")) {
+				confp->pri.pri.mcid_send = ast_true(v->value);
+#endif	/* defined(HAVE_PRI_MCID) */
 #endif /* HAVE_PRI */
 #if defined(HAVE_SS7)
 			} else if (!strcasecmp(v->name, "ss7type")) {

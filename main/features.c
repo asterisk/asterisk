@@ -3662,6 +3662,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			switch (f->subclass.integer) {
 			case AST_CONTROL_RINGING:
 			case AST_CONTROL_FLASH:
+			case AST_CONTROL_MCID:
 			case -1:
 				ast_indicate(other, f->subclass.integer);
 				break;
