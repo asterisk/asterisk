@@ -3288,7 +3288,8 @@ int ast_pickup_call(struct ast_channel *chan)
 			(cur != chan) &&
 			(chan->pickupgroup & cur->callgroup) &&
 			((cur->_state == AST_STATE_RINGING) ||
-			 (cur->_state == AST_STATE_RING))) {
+			 (cur->_state == AST_STATE_RING)) &&
+			!cur->masq) {
 			 	break;
 		}
 		ast_channel_unlock(cur);
