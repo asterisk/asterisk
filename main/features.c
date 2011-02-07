@@ -5570,7 +5570,8 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 		   change while we're here, but that isn't a problem. */
 		(c != chan) &&
 		(chan->pickupgroup & c->callgroup) &&
-		((chan->_state == AST_STATE_RINGING) || (chan->_state == AST_STATE_RING));
+		((chan->_state == AST_STATE_RINGING) || (chan->_state == AST_STATE_RING)) &&
+		!c->masq;
 
 	return i ? CMP_MATCH | CMP_STOP : 0;
 }
