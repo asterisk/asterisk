@@ -4882,7 +4882,8 @@ static int find_channel_by_group(struct ast_channel *c, void *data) {
 		   change while we're here, but that isn't a problem. */
 		(c != chan) &&
 		(chan->pickupgroup & c->callgroup) &&
-		((c->_state == AST_STATE_RINGING) || (c->_state == AST_STATE_RING));
+		((c->_state == AST_STATE_RINGING) || (c->_state == AST_STATE_RING)) &&
+		!c->masq;
 }
 
 /*!
