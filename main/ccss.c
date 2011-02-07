@@ -2495,15 +2495,7 @@ static void *generic_recall(void *data)
 		ast_cc_failed(agent->core_id, "Failed to call back device %s/%s", tech, target);
 		return NULL;
 	}
-	if (!ast_strlen_zero(callback_macro)) {
-		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback macro configured for agent %s\n",
-				agent->core_id, agent->device_name);
-		if (ast_app_run_macro(NULL, chan, callback_macro, NULL)) {
-			ast_cc_failed(agent->core_id, "Callback macro to %s failed. Maybe a hangup?", agent->device_name);
-			ast_hangup(chan);
-			return NULL;
-		}
-	}
+	
 	/* We have a channel. It's time now to set up the datastore of recalled CC interfaces.
 	 * This will be a common task for all recall functions. If it were possible, I'd have
 	 * the core do it automatically, but alas I cannot. Instead, I will provide a public
@@ -2515,6 +2507,16 @@ static void *generic_recall(void *data)
 	ast_copy_string(chan->exten, generic_pvt->exten, sizeof(chan->exten));
 	ast_copy_string(chan->context, generic_pvt->context, sizeof(chan->context));
 	chan->priority = 1;
+
+	if (!ast_strlen_zero(callback_macro)) {
+		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback macro configured for agent %s\n",
+				agent->core_id, agent->device_name);
+		if (ast_app_run_macro(NULL, chan, callback_macro, NULL)) {
+			ast_cc_failed(agent->core_id, "Callback macro to %s failed. Maybe a hangup?", agent->device_name);
+			ast_hangup(chan);
+			return NULL;
+		}
+	}
 	ast_cc_agent_recalling(agent->core_id, "Generic agent %s is recalling", agent->device_name);
 	ast_pbx_start(chan);
 	return NULL;
