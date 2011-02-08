@@ -3923,7 +3923,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	DIR *msgdir;
 	struct dirent *msgdirent;
 	int msgdirint;
-	char extension[3];
+	char extension[4];
 	int stopcount = 0;
 
 	/* Reading the entire directory into a file map scales better than
@@ -3935,7 +3935,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	}
 
 	while ((msgdirent = readdir(msgdir))) {
-		if (sscanf(msgdirent->d_name, "msg%30d.%3s", &msgdirint, extension) == 2 && msgdirint < MAXMSGLIMIT && !strcmp(extension, "txt")) {
+		if (!strcmp(extension, "txt") && msgdirint < MAXMSGLIMIT && sscanf(msgdirent->d_name, "msg%10d.%3s", &msgdirint, extension) == 2) {
 			map[msgdirint] = 1;
 			stopcount++;
 			ast_debug(4, "%s map[%d] = %d, count = %d\n", dir, msgdirint, map[msgdirint], stopcount);
