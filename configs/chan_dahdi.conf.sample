@@ -231,7 +231,7 @@
 ;display_send=
 ;display_receive=
 
-; Allow sending an ISDN MCID request on this span.
+; Allow sending an ISDN Malicious Caller ID (MCID) request on this span.
 ; Default disabled
 ;
 ;mcid_send=yes
