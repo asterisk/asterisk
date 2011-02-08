@@ -6767,14 +6767,16 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			}
 			
 			/* Back up the original file, so we can retry the prepend and restore it after forward. */
+#ifndef IMAP_STORAGE
 			if (already_recorded) {
 				ast_filecopy(backup, msgfile, NULL);
 				copy(backup_textfile, textfile);
 			}
 			else {
 				ast_filecopy(msgfile, backup, NULL);
-				copy(textfile,backup_textfile);
+				copy(textfile, backup_textfile);
 			}
+#endif
 			already_recorded = 1;
 
 			if (record_gain)
