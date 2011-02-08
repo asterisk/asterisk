@@ -1103,20 +1103,18 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
 		return;
 
-	if (AST_RWLIST_EMPTY(&logchannels)) {
+	if (level != __LOG_VERBOSE && AST_RWLIST_EMPTY(&logchannels)) {
 		/*
 		 * we don't have the logger chain configured yet,
 		 * so just log to stdout
 		 */
-		if (level != __LOG_VERBOSE) {
-			int result;
-			va_start(ap, fmt);
-			result = ast_str_set_va(&buf, BUFSIZ, fmt, ap); /* XXX BUFSIZ ? */
-			va_end(ap);
-			if (result != AST_DYNSTR_BUILD_FAILED) {
-				term_filter_escapes(ast_str_buffer(buf));
-				fputs(ast_str_buffer(buf), stdout);
-			}
+		int result;
+		va_start(ap, fmt);
+		result = ast_str_set_va(&buf, BUFSIZ, fmt, ap); /* XXX BUFSIZ ? */
+		va_end(ap);
+		if (result != AST_DYNSTR_BUILD_FAILED) {
+			term_filter_escapes(ast_str_buffer(buf));
+			fputs(ast_str_buffer(buf), stdout);
 		}
 		return;
 	}
