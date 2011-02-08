@@ -2937,7 +2937,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	}
 
 	while ((msgdirent = readdir(msgdir))) {
-		if (!strcmp(extension, "txt") && msgdirint < MAXMSGLIMIT && sscanf(msgdirent->d_name, "msg%10d.%3s", &msgdirint, extension) == 2) {
+		if (sscanf(msgdirent->d_name, "msg%30d.%3s", &msgdirint, extension) == 2 && !strcmp(extension, "txt") && msgdirint < MAXMSGLIMIT) {
 			map[msgdirint] = 1;
 			stopcount++;
 			if (option_debug > 3) {
