@@ -2518,6 +2518,9 @@ static void *generic_recall(void *data)
 	ast_copy_string(chan->context, generic_pvt->context, sizeof(chan->context));
 	chan->priority = 1;
 
+	pbx_builtin_setvar_helper(chan, "CC_EXTEN", generic_pvt->exten);
+	pbx_builtin_setvar_helper(chan, "CC_CONTEXT", generic_pvt->context);
+
 	if (!ast_strlen_zero(callback_macro)) {
 		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback macro configured for agent %s\n",
 				agent->core_id, agent->device_name);
