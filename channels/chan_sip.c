@@ -14730,8 +14730,8 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 		if (!strcmp(referdata->replaces_callid, transferer->callid) &&
 			(!sip_cfg.pedanticsipchecking ||
-			(!strcmp(referdata->replaces_callid_fromtag, transferer->tag) &&
-			!strcmp(referdata->replaces_callid_totag, transferer->theirtag)))) {
+			(!strcmp(referdata->replaces_callid_fromtag, transferer->theirtag) &&
+			!strcmp(referdata->replaces_callid_totag, transferer->tag)))) {
 				ast_log(LOG_WARNING, "Got an attempt to replace own Call-ID on %s\n", transferer->callid);
 				return -4;
 		}
