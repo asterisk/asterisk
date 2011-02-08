@@ -1,13 +1,13 @@
 <refentry>
 <refentryinfo>
-	<date>2010-08-03</date>
+	<date>2011-02-08</date>
 </refentryinfo>
 <refmeta>
 	<refentrytitle>
 		<application>asterisk</application>
 	</refentrytitle>
 	<manvolnum>8</manvolnum>
-	<refmiscinfo>asterisk 1.6</refmiscinfo>
+	<refmiscinfo>asterisk Trunk</refmiscinfo>
 </refmeta>
 <refnamediv>
 	<refname>
@@ -39,7 +39,7 @@
 </refsynopsisdiv>
 <refsect1>
 	<refsect1info>
-		<date>2010-08-03</date>
+		<date>2011-02-08</date>
 	</refsect1info>
 	<title>DESCRIPTION</title>
 	<para>
@@ -412,7 +412,7 @@
 	http://www.asteriskdocs.org - The Asterisk Documentation Project
 	</para>
 	<para>
-	http://www.voip-info.org/wiki-Asterisk - The Asterisk Wiki
+	http://wiki.asterisk.org - The Asterisk Wiki
 	</para>
 	<para>
 	http://www.digium.com/ - Asterisk sponsor and hardware supplier
