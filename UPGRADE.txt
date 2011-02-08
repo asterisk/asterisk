@@ -81,8 +81,8 @@ From 1.6.2 to 1.8:
 * ExternalIVR will now send Z events for invalid or missing files, T events
   now include the interrupted file and bugs in argument parsing have been
   fixed so there may be arguments specified in incorrect ways that were
-  working that will no longer work.
-  Please see doc/externalivr.txt for details.
+  working that will no longer work. Please see 
+  https://wiki.asterisk.org/wiki/display/AST/External+IVR+Interface for details.
 
 * OSP lookup application changes following variable names:
   OSPPEERIP to OSPINPEERIP
