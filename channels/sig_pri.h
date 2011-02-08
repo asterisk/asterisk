@@ -402,10 +402,10 @@ struct sig_pri_span {
 	 * appended to the initial_user_tag[].
 	 */
 	unsigned int append_msn_to_user_tag:1;
-#if defined(HAVE_PRI_CALL_WAITING)
+#if defined(HAVE_PRI_MCID)
 	/*! \brief TRUE if allow sending MCID request on this span. */
 	unsigned int mcid_send:1;
-#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#endif	/* defined(HAVE_PRI_MCID) */
 	int dialplan;							/*!< Dialing plan */
 	int localdialplan;						/*!< Local dialing plan */
 	int cpndialplan;						/*!< Connected party dialing plan */
