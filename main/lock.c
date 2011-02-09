@@ -61,7 +61,9 @@ int __ast_pthread_mutex_init(int tracking, const char *filename, int lineno, con
 
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-	ast_reentrancy_init(&t->track);
+	if ((t->tracking = tracking)) {
+		ast_reentrancy_init(&t->track);
+	}
 #endif /* DEBUG_THREADS */
 
 	pthread_mutexattr_init(&attr);
