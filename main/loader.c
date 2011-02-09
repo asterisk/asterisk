@@ -843,7 +843,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 			}
 		}
 #else
-		ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
+		ast_log(LOG_WARNING, "Module support is not available. Module '%s' could not be loaded.\n", resource_name);
 		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 #endif
 	}
