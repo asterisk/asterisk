@@ -705,7 +705,11 @@ static void *internal_ao2_callback(struct ao2_container *c,
 			 * link the object into the container that will hold the results.
 			 */
 			if (ret && (multi_container != NULL)) {
-				__ao2_link(multi_container, ret, flags);
+				if (tag) {
+					__ao2_link_debug(multi_container, ret, flags, tag, file, line, funcname);
+				} else {
+					__ao2_link(multi_container, ret, flags);
+				}
 				ret = NULL;
 			}
 
