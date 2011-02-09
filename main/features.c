@@ -3999,9 +3999,9 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 
 	if (!var) {	/* Default parking lot */
 		ast_copy_string(parkinglot->parking_con, "parkedcalls", sizeof(parkinglot->parking_con));
-		ast_copy_string(parkinglot->parking_con_dial, "park-dial", sizeof(parkinglot->parking_con_dial));
 		ast_copy_string(parkinglot->mohclass, "default", sizeof(parkinglot->mohclass));
 	}
+	ast_copy_string(parkinglot->parking_con_dial, "park-dial", sizeof(parkinglot->parking_con_dial));
 
 	/* Check for errors */
 	if (ast_strlen_zero(parkinglot->parking_con)) {
