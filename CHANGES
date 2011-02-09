@@ -12,6 +12,10 @@
 --- Functionality changes from Asterisk 1.8 to Asterisk 1.10 -----------------
 ------------------------------------------------------------------------------
 
+Parking
+-------
+ * parkedmusicclass can now be set for non-default parking lots.
+
 Asterisk Manager Interface
 --------------------------
  * PeerStatus now includes Address and Port.

@@ -4701,6 +4701,8 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 			} else if (!strcasecmp(confvar->value, "callee")) {
 				parkinglot->parkedcallrecording = AST_FEATURE_FLAG_BYCALLEE;
 			}
+		} else if (!strcasecmp(confvar->name, "parkedmusicclass")) {
+			ast_copy_string(parkinglot->mohclass, confvar->value, sizeof(parkinglot->mohclass));
 		}
 		confvar = confvar->next;
 	}
