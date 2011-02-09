@@ -509,6 +509,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			MeetmeListComplete.</para>
 		</description>
 	</manager>
+	<manager name="MeetmeListRooms" language="en_US">
+		<synopsis>
+			List active conferences.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Lists data about all active conferences.
+				MeetmeListRooms will follow as separate events, followed by a final event called
+				MeetmeListRoomsComplete.</para>
+		</description>
+	</manager>
  ***/
 
 #define CONFIG_FILE_NAME "meetme.conf"
@@ -4891,6 +4904,73 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int action_meetmelistrooms(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	char idText[80] = "";
+	struct ast_conference *cnf;
+	int totalitems = 0;
+	int hr, min, sec;
+	time_t now;
+	char markedusers[5];
+
+	if (!ast_strlen_zero(actionid)) {
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+	}
+
+	if (AST_LIST_EMPTY(&confs)) {
+		astman_send_error(s, m, "No active conferences.");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Meetme conferences will follow", "start");
+
+	now = time(NULL);
+
+	/* Traverse the conference list */
+	AST_LIST_LOCK(&confs);
+	AST_LIST_TRAVERSE(&confs, cnf, list) {
+		totalitems++;
+
+		if (cnf->markedusers == 0) {
+			strcpy(markedusers, "N/A");
+		} else {
+			sprintf(markedusers, "%.4d", cnf->markedusers);
+		}
+		hr = (now - cnf->start) / 3600;
+		min = ((now - cnf->start) % 3600) / 60;
+		sec = (now - cnf->start) % 60;
+
+		astman_append(s,
+		"Event: MeetmeListRooms\r\n"
+		"%s"
+		"Conference: %s\r\n"
+		"Parties: %d\r\n"
+		"Marked: %s\r\n"
+		"Activity: %2.2d:%2.2d:%2.2d\r\n"
+		"Creation: %s\r\n"
+		"Locked: %s\r\n"
+		"\r\n",
+		idText,
+		cnf->confno,
+		cnf->users,
+		markedusers,
+		hr,  min, sec,
+		cnf->isdynamic ? "Dynamic" : "Static",
+		cnf->locked ? "Yes" : "No"); 
+	}
+	AST_LIST_UNLOCK(&confs);
+
+	/* Send final confirmation */
+	astman_append(s,
+	"Event: MeetmeListRoomsComplete\r\n"
+	"EventList: Complete\r\n"
+	"ListItems: %d\r\n"
+	"%s"
+	"\r\n", totalitems, idText);
+	return 0;
+}
+
 static void *recordthread(void *args)
 {
 	struct ast_conference *cnf = args;
@@ -7152,6 +7232,7 @@ static int unload_module(void)
 	res = ast_manager_unregister("MeetmeMute");
 	res |= ast_manager_unregister("MeetmeUnmute");
 	res |= ast_manager_unregister("MeetmeList");
+	res |= ast_manager_unregister("MeetmeListRooms");
 	res |= ast_unregister_application(app4);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
@@ -7187,6 +7268,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("MeetmeMute", EVENT_FLAG_CALL, action_meetmemute);
 	res |= ast_manager_register_xml("MeetmeUnmute", EVENT_FLAG_CALL, action_meetmeunmute);
 	res |= ast_manager_register_xml("MeetmeList", EVENT_FLAG_REPORTING, action_meetmelist);
+	res |= ast_manager_register_xml("MeetmeListRooms", EVENT_FLAG_REPORTING, action_meetmelistrooms);
 	res |= ast_register_application_xml(app4, channel_admin_exec);
 	res |= ast_register_application_xml(app3, admin_exec);
 	res |= ast_register_application_xml(app2, count_exec);

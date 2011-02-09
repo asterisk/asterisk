@@ -21,6 +21,8 @@ Asterisk Manager Interface
  * PeerStatus now includes Address and Port.
  * Added Hold events for when the remote party puts the call on and off hold
    for chan_dahdi ISDN channels.
+ * Added new action MeetmeListRooms to list active conferences (shows same
+   data as "meetme list" at the CLI).
 
 Asterisk HTTP Server
 --------------------------
