@@ -191,7 +191,7 @@ typedef socklen_t OOSOCKLEN;
 int ooSocketCreate (OOSOCKET* psocket) 
 {
    int on;
-
+   int keepalive = 1, keepcnt = 24, keepidle = 120, keepintvl = 30;
    struct linger linger;
    OOSOCKET sock = socket (AF_INET,
                              SOCK_STREAM,
@@ -217,6 +217,11 @@ int ooSocketCreate (OOSOCKET* psocket)
       OOTRACEERR1("Error:Failed to set socket option linger\n");
       return ASN_E_INVSOCKET;
    }
+   setsockopt (sock, SOL_SOCKET, SO_KEEPALIVE, (const char *)&keepalive,
+			sizeof(keepalive));
+   setsockopt (sock, SOL_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt));
+   setsockopt (sock, SOL_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
+   setsockopt (sock, SOL_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
    *psocket = sock;
    return ASN_OK;
 }

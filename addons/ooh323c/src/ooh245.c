@@ -2060,14 +2060,12 @@ int ooHandleH245Command(OOH323CallData *call,
                }
             }
             ooCloseH245Connection(call);
+	    if (call->callState < OO_CALL_CLEAR)
+	        call->callState = OO_CALL_CLEAR;
          }
          else{
 
             call->h245SessionState = OO_H245SESSION_ENDRECVD;
-#if 0
-            if(call->callState < OO_CALL_CLEAR)
-               call->callState = OO_CALL_CLEAR;
-#else 
             if(call->logicalChans)
             {
                OOTRACEINFO3("In response to received EndSessionCommand - "
@@ -2076,7 +2074,6 @@ int ooHandleH245Command(OOH323CallData *call,
                ooClearAllLogicalChannels(call);
             }
             ooSendEndSessionCommand(call);
-#endif
          }
             
             

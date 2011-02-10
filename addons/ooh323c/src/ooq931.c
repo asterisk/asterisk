@@ -53,6 +53,7 @@ EXTERN int ooQ931Decode
    int offset, x;
    int rv = ASN_OK;
    char number[128];
+   char *display = NULL;
    /* OOCTXT *pctxt = &gH323ep.msgctxt; */
    OOCTXT *pctxt = call->msgctxt;
 
@@ -164,9 +165,15 @@ EXTERN int ooQ931Decode
       }
       if(ie->discriminator == Q931DisplayIE)
       {
-         OOTRACEDBGB1("   Display IE = {\n");
-         OOTRACEDBGB2("      %s\n", ie->data);
-         OOTRACEDBGB1("   }\n");
+	 if (!(display = memAllocZ(pctxt, ie->length + 1))) {
+		OOTRACEERR4("Can't alloc DisplayIE buffer for %n bytes, (%s, %s)\n", ie->length,
+				call->callType, call->callToken);
+	 } else {
+            memcpy(display, ie->data,ie->length);
+            OOTRACEDBGB1("   Display IE = {\n");
+            OOTRACEDBGB2("      %s\n", display);
+            OOTRACEDBGB1("   }\n");
+	 }
       }
 
       if(ie->discriminator == Q931KeypadIE)
@@ -1451,7 +1458,9 @@ int ooSendAlerting(OOH323CallData *call)
       OOTRACEERR3("Error: Failed to enqueue Alerting message to outbound queue. (%s, %s)\n", call->callType, call->callToken);
    }
 
-   ooSendTCSandMSD(call);
+   if (call->h225version >= 4) {
+	ooSendTCSandMSD(call);
+   }
    memReset (call->msgctxt);
 
    return ret;
@@ -1588,7 +1597,9 @@ int ooSendProgress(OOH323CallData *call)
    if (!OO_TESTFLAG(call->flags, OO_M_TUNNELING) && call->h245listener)
       ooSendStartH245Facility(call);
 
-   ooSendTCSandMSD(call);
+   if (call->h225version >= 4) {
+	ooSendTCSandMSD(call);
+   }
    memReset (call->msgctxt);
 
    return ret;
@@ -1957,12 +1968,16 @@ int ooAcceptCall(OOH323CallData *call)
    }
 
 
-   /* Add h245 listener address. Do not add H245 listener address in case
-      of fast-start. */
+   /* Add h245 listener address. */
+   /* Do not add H245 listener address in case
+      of fast-start. why? */
+   /* May 20110205 */
+   /* Send h245 listener addr any case if H245 connection isn't established */
    if (/* (!OO_TESTFLAG(call->flags, OO_M_FASTSTART) || 
         call->remoteFastStartOLCs.count == 0) && */
        !OO_TESTFLAG (call->flags, OO_M_TUNNELING) &&
-       !call->h245listener && ooCreateH245Listener(call) == OO_OK)
+       ( (!call->h245listener && ooCreateH245Listener(call) == OO_OK) ||
+         !call->pH245Channel))
    {
       connect->m.h245AddressPresent = TRUE;
       connect->h245Address.t = T_H225TransportAddress_ipAddress;
@@ -1997,6 +2012,7 @@ int ooAcceptCall(OOH323CallData *call)
       return OO_FAILED;
    }
    /* memReset(&gH323ep.msgctxt); */
+   ooSendTCSandMSD(call);
    memReset(call->msgctxt);
 
    call->callState = OO_CALL_CONNECTED;
@@ -2721,11 +2737,8 @@ int ooH323MakeCall_helper(OOH323CallData *call)
 
    /* For H.323 version 4 and higher, if fast connect, tunneling should be 
       supported.
+      why?
    */
-   if(OO_TESTFLAG(call->flags, OO_M_FASTSTART)) {
-      q931msg->userInfo->h323_uu_pdu.h245Tunneling = TRUE;
-      OO_SETFLAG(call->flags, OO_M_TUNNELING);
-   }
 
    OOTRACEDBGA3("Built SETUP message (%s, %s)\n", call->callType, 
                  call->callToken);

@@ -261,6 +261,9 @@ OOStkCmdStat ooManualProgress(const char *callToken)
          return OO_STKCMD_CONNECTIONERR;
    }
 
+   if (call->h225version < 4)
+      return OO_STKCMD_SUCCESS;
+
    memset(&cmd, 0, sizeof(OOStackCommand));
    cmd.type = OO_CMD_MANUALPROGRESS;
    cmd.param1 = (void*) malloc(strlen(callToken)+1);

@@ -473,15 +473,6 @@ int ooAcceptH245Connection(OOH323CallData *call)
    OOTRACEINFO3("H.245 connection established (%s, %s)\n", 
                 call->callType, call->callToken);
 
-
-   /* Start terminal capability exchange and master slave determination */
-   ret = ooSendTermCapMsg(call);
-   if(ret != OO_OK)
-   {
-      OOTRACEERR3("ERROR:Sending Terminal capability message (%s, %s)\n",
-                   call->callType, call->callToken);
-      return ret;
-   }
    return OO_OK;
 }
 
@@ -1835,6 +1826,8 @@ int ooOnSendMsg
       }
       else{
          ooCloseH245Connection(call);
+	 if(call->callState < OO_CALL_CLEAR)
+	    call->callState = OO_CALL_CLEAR;
       }
       break;
    case OOCloseLogicalChannel:

@@ -172,6 +172,7 @@ typedef struct OOH323CallData {
    OOCallState          callState;
    OOCallClearReason    callEndReason;
    int			q931cause;
+   ASN1UINT		h225version;
    unsigned             h245ConnectionAttempts;
    OOH245SessionState   h245SessionState;
    int                  dtmfmode;
