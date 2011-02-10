@@ -409,7 +409,7 @@ struct ast_format_cap *ast_format_cap_joint(const struct ast_format_cap *cap1, c
 	return NULL;
 }
 
-int ast_format_cap_joint_copy(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result)
+static int joint_copy_helper(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result, int append)
 {
 	struct ao2_iterator it;
 	struct ast_format *tmp;
@@ -417,8 +417,9 @@ int ast_format_cap_joint_copy(const struct ast_format_cap *cap1, const struct as
 		.joint_cap = result,
 		.joint_found = 0,
 	};
-
-	ast_format_cap_remove_all(result);
+	if (!append) {
+		ast_format_cap_remove_all(result);
+	}
 	it = ao2_iterator_init(cap1->formats, cap2->nolock ? AO2_ITERATOR_DONTLOCK : 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		data.format = tmp;
@@ -431,6 +432,16 @@ int ast_format_cap_joint_copy(const struct ast_format_cap *cap1, const struct as
 	ao2_iterator_destroy(&it);
 
 	return ao2_container_count(result->formats) ? 1 : 0;
+}
+
+int ast_format_cap_joint_append(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result)
+{
+	return joint_copy_helper(cap1, cap2, result, 1);
+}
+
+int ast_format_cap_joint_copy(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result)
+{
+	return joint_copy_helper(cap1, cap2, result, 0);
 }
 
 struct ast_format_cap *ast_format_cap_get_type(const struct ast_format_cap *cap, enum ast_format_type ftype)

@@ -8881,8 +8881,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_codec_choose(&p->prefs, p->jointcaps, 1, &tmp_fmt);
 
 		ast_format_cap_set(p->owner->nativeformats, &tmp_fmt);
-		ast_format_cap_joint_copy(p->caps, vpeercapability, p->owner->nativeformats);
-		ast_format_cap_joint_copy(p->caps, tpeercapability, p->owner->nativeformats);
+		ast_format_cap_joint_append(p->caps, vpeercapability, p->owner->nativeformats);
+		ast_format_cap_joint_append(p->caps, tpeercapability, p->owner->nativeformats);
 
 		ast_set_read_format(p->owner, &p->owner->readformat);
 		ast_set_write_format(p->owner, &p->owner->writeformat);

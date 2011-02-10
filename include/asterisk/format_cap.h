@@ -192,6 +192,14 @@ struct ast_format_cap *ast_format_cap_joint(const struct ast_format_cap *cap1, c
 int ast_format_cap_joint_copy(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result);
 
 /*!
+ * \brief Get joint capability structure, append into result capabilities structure
+ *
+ * \retval 1, joint capabilities exist
+ * \retval 0, joint capabilities do not exist
+ */
+int ast_format_cap_joint_append(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result);
+
+/*!
  * \brief Find out if capability structures have any joint capabilities without
  * returning those capabilities.
  *
