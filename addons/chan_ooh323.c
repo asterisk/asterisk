@@ -184,6 +184,7 @@ static struct ooh323_pvt {
 	int nat;
 	int amaflags;
 	int progsent;			/* progress is sent */
+	int alertsent;			/* alerting is sent */
 	struct ast_dsp *vad;
 	struct OOH323Regex *rtpmask;	/* rtp ip regexp */
 	char rtpmaskstr[120];
@@ -1234,12 +1235,15 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 	    break;
       case AST_CONTROL_RINGING:
 	    if (ast->_state == AST_STATE_RING || ast->_state == AST_STATE_RINGING) {
-	    	if (gH323Debug) 
-			ast_log(LOG_DEBUG,"Sending manual ringback for %s, res = %d\n", 
-			callToken,
-            		ooManualRingback(callToken));
-		 else
-	    		ooManualRingback(callToken);
+		if (!p->alertsent) {
+	    		if (gH323Debug) {
+				ast_debug(1, "Sending manual ringback for %s, res = %d\n", 
+					callToken,
+            				ooManualRingback(callToken));
+			} else {
+	    				ooManualRingback(callToken);
+			}
+		}
 	    }
 	 break;
 	case AST_CONTROL_SRCUPDATE:
