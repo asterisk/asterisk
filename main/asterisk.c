@@ -3321,7 +3321,7 @@ int main(int argc, char *argv[])
 			ast_clear_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
 			break;
 		case 'x':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC);
+			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC | AST_OPT_FLAG_NO_COLOR);
 			xarg = ast_strdupa(optarg);
 			break;
 		case '?':
