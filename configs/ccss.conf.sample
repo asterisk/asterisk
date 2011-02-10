@@ -100,7 +100,7 @@
 ;         protocol-specific methods to request CC from this interface
 ;         and to monitor the interface for availability.
 ;
-;accept:  If an interface is set to "accept," then we will accept
+;always:  If an interface is set to "always," then we will accept
 ;         protocol-specific CC offers from the caller and use
 ;         a native CC monitor for the remainder of the CC transaction.
 ;         However, if the interface does not offer protocol-specific
