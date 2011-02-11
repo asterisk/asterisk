@@ -12502,6 +12502,51 @@ static struct dahdi_pvt *pri_find_crv(struct dahdi_pri *pri, int crv)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Obtain the DAHDI owner channel lock if the owner exists.
+ * \since 1.8
+ *
+ * \param pri DAHDI PRI control structure.
+ * \param chanpos Channel position in the span.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ * \note Assumes the pri->pvts[chanpos]->lock is already obtained.
+ *
+ * \return Nothing
+ */
+static void sig_pri_lock_owner(struct dahdi_pri *pri, int chanpos)
+{
+	for (;;) {
+		if (!pri->pvts[chanpos]->owner) {
+			/* There is no owner lock to get. */
+			break;
+		}
+		if (!ast_channel_trylock(pri->pvts[chanpos]->owner)) {
+			/* We got the lock */
+			break;
+		}
+		/* We must unlock the PRI to avoid the possibility of a deadlock */
+		ast_mutex_unlock(&pri->lock);
+		DEADLOCK_AVOIDANCE(&pri->pvts[chanpos]->lock);
+		ast_mutex_lock(&pri->lock);
+	}
+}
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Find the private structure for the libpri call.
+ *
+ * \param pri Span controller structure.
+ * \param channel LibPRI encoded channel ID.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval array-index into private pointer array on success.
+ * \retval -1 on error.
+ */
 static int pri_find_principle(struct dahdi_pri *pri, int channel)
 {
 	int x;
@@ -12532,6 +12577,19 @@ static int pri_find_principle(struct dahdi_pri *pri, int channel)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Fixup the private structure associated with the libpri call.
+ *
+ * \param pri Span controller structure.
+ * \param principle Array-index into private array to move call to if not already there.
+ * \param c LibPRI opaque call pointer to find if need to move call.
+ *
+ * \note Assumes the pri->lock is already obtained.
+ *
+ * \retval principle on success.
+ * \retval -1 on error.
+ */
 static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *c)
 {
 	int x;
@@ -12555,13 +12613,27 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 			if (principle != x) {
 				struct dahdi_pvt *new = pri->pvts[principle], *old = pri->pvts[x];
 
-				ast_verb(3, "Moving call from channel %d to channel %d\n",
-					 old->channel, new->channel);
+				/* Get locks to safely move to the new private structure. */
+				ast_mutex_lock(&old->lock);
+				sig_pri_lock_owner(pri, x);
+				ast_mutex_lock(&new->lock);
+
+				ast_verb(3, "Moving call (%s) from channel %d to %d.\n",
+					old->owner ? old->owner->name : "",
+					old->channel, new->channel);
 				if (new->owner) {
-					ast_log(LOG_WARNING, "Can't fix up channel from %d to %d because %d is already in use\n",
-						old->channel, new->channel, new->channel);
+					ast_log(LOG_WARNING,
+						"Can't move call (%s) from channel %d to %d.  It is already in use.\n",
+						old->owner ? old->owner->name : "",
+						old->channel, new->channel);
+					ast_mutex_unlock(&new->lock);
+					if (old->owner) {
+						ast_channel_unlock(old->owner);
+					}
+					ast_mutex_unlock(&old->lock);
 					return -1;
 				}
+
 				/* Fix it all up now */
 				new->owner = old->owner;
 				old->owner = NULL;
@@ -12599,6 +12671,12 @@ static int pri_fixup_principle(struct dahdi_pri *pri, int principle, q931_call *
 				/* More stuff to transfer to the new channel. */
 				new->call_level = old->call_level;
 				old->call_level = DAHDI_CALL_LEVEL_IDLE;
+ 
+				ast_mutex_unlock(&old->lock);
+				if (new->owner) {
+					ast_channel_unlock(new->owner);
+				}
+				ast_mutex_unlock(&new->lock);
 			}
 			return principle;
 		}
