@@ -701,7 +701,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 		ast_mutex_unlock(&iflock);
    	} else {
       		ast_mutex_lock(&p->lock);
-      		p->callToken = (char*)ast_malloc(AST_MAX_EXTENSION);
+      		p->callToken = (char*)ast_calloc(1, AST_MAX_EXTENSION);
       		if(!p->callToken) {
        			ast_mutex_unlock(&p->lock);
        			ast_mutex_lock(&iflock);
@@ -1433,7 +1433,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 
 	ast_mutex_lock(&p->lock);
 
-	ast_format_copy(&p->writeformat, fmt);
+	ast_format_copy(&(p->writeformat), fmt);
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
@@ -1491,7 +1491,7 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 
 	ast_mutex_lock(&p->lock);
 
-	ast_format_copy(&p->readformat, fmt);
+	ast_format_copy(&(p->readformat), fmt);
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
@@ -2183,7 +2183,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
    	user = ast_calloc(1,sizeof(struct ooh323_user));
 	if (user) {
 		memset(user, 0, sizeof(struct ooh323_user));
-		if (!(user->cap = ast_format_cap_alloc_nolock())) {
+		if (!(user->cap = ast_format_cap_alloc())) {
 			ast_free(user);
 			return NULL;
 		}
@@ -2223,7 +2223,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 				if (user->rtptimeout < 0)
 					user->rtptimeout = gRTPTimeout;
 			} else if (!strcasecmp(v->name, "rtpmask")) {
-				if ((user->rtpmask = malloc(sizeof(struct OOH323Regex))) &&
+				if ((user->rtpmask = ast_calloc(1, sizeof(struct OOH323Regex))) &&
 					(regcomp(&user->rtpmask->regex, v->value, REG_EXTENDED) 
 											== 0)) {
 					ast_mutex_init(&user->rtpmask->lock);
@@ -2296,7 +2296,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 	peer = ast_calloc(1, sizeof(*peer));
 	if (peer) {
 		memset(peer, 0, sizeof(struct ooh323_peer));
-		if (!(peer->cap = ast_format_cap_alloc_nolock())) {
+		if (!(peer->cap = ast_format_cap_alloc())) {
 			ast_free(peer);
 			return NULL;
 		}
@@ -2367,7 +2367,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
             			if(peer->rtptimeout < 0)
 					peer->rtptimeout = gRTPTimeout;
 			} else if (!strcasecmp(v->name, "rtpmask")) {
-				if ((peer->rtpmask = malloc(sizeof(struct OOH323Regex))) &&
+				if ((peer->rtpmask = ast_calloc(1, sizeof(struct OOH323Regex))) &&
 					(regcomp(&peer->rtpmask->regex, v->value, REG_EXTENDED) 
 											== 0)) {
 					ast_mutex_init(&peer->rtpmask->lock);
@@ -2601,7 +2601,7 @@ int reload_config(int reload)
 			else 
 				ooH323EpTryBeMaster(0);
 		} else if (!strcasecmp(v->name, "h323id")) {
-         		pNewAlias = malloc(sizeof(struct ooAliases));
+         		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for h323id alias\n");
 				return 1;
@@ -2615,7 +2615,7 @@ int reload_config(int reload)
 			gAliasList = pNewAlias;
 			pNewAlias = NULL;
 		} else if (!strcasecmp(v->name, "e164")) {
-         		pNewAlias = malloc(sizeof(struct ooAliases));
+         		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for e164 alias\n");
 				return 1;
@@ -2626,7 +2626,7 @@ int reload_config(int reload)
 			gAliasList = pNewAlias;
 			pNewAlias = NULL;
 		} else if (!strcasecmp(v->name, "email")) {
-         		pNewAlias = malloc(sizeof(struct ooAliases));
+         		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
 			if (!pNewAlias) {
 				ast_log(LOG_ERROR, "Failed to allocate memory for email alias\n");
 				return 1;
@@ -3238,7 +3238,7 @@ static int load_module(void)
 		.onModeChanged = onModeChanged
 	};
 	if (!(gCap = ast_format_cap_alloc())) {
-		return 1;
+		return 1; 
 	}
 	if (!(ooh323_tech.capabilities = ast_format_cap_alloc())) {
 		return 1;
@@ -4095,6 +4095,7 @@ static int ooh323_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udp
 		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
 
 	ast_mutex_unlock(&p->lock);
+	free(callToken);
 	return 0;
 }
 
