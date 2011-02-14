@@ -1177,10 +1177,11 @@ struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags)
 			ast_assert(ao2_ref(obj, 0) > 1);
 		}
 
-		if (!obj && (class->count < class->limit)) {
+		if (!obj && (ast_atomic_fetchadd_int(&class->count, +1) < class->limit)) {
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 			if (!obj) {
 				ao2_ref(class, -1);
+				ast_atomic_fetchadd_int(&class->count, -1);
 				return NULL;
 			}
 			ast_assert(ao2_ref(obj, 0) == 1);
@@ -1191,14 +1192,18 @@ struct odbc_obj *ast_odbc_request_obj2(const char *name, struct ast_flags flags)
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ao2_ref(obj, -1);
-				ast_assert(ao2_ref(class, 0) > 0);
 				obj = NULL;
+				ast_assert(ao2_ref(class, 0) > 0);
+				ast_atomic_fetchadd_int(&class->count, -1);
 			} else {
 				obj->used = 1;
 				ao2_link(obj->parent->obj_container, obj);
-				ast_atomic_fetchadd_int(&obj->parent->count, +1);
 			}
 		} else {
+			/* If construction fails due to the limit, remove our increment. */
+			if (!obj) {
+				ast_atomic_fetchadd_int(&class->count, -1);
+			}
 			/* Object is not constructed, so delete outstanding reference to class. */
 			ao2_ref(class, -1);
 			class = NULL;
