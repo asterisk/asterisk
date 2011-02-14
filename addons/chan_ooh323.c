@@ -1236,17 +1236,18 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 		}
 	    break;
       case AST_CONTROL_RINGING:
-	    if (ast->_state == AST_STATE_RING || ast->_state == AST_STATE_RINGING) {
-		if (!p->alertsent) {
-			if (gH323Debug) {
-				ast_debug(1, "Sending manual ringback for %s, res = %d\n",
-					callToken,
-					ooManualRingback(callToken));
-			} else {
-				ooManualRingback(callToken);
+		if (ast->_state == AST_STATE_RING || ast->_state == AST_STATE_RINGING) {
+			if (!p->alertsent) {
+				if (gH323Debug) {
+					ast_debug(1, "Sending manual ringback for %s, res = %d\n",
+						callToken,
+						ooManualRingback(callToken));
+				} else {
+					ooManualRingback(callToken);
+				}
+				p->alertsent = 1;
 			}
-			p->alertsent = 1;
-	    }
+		}
 	 break;
 	case AST_CONTROL_SRCUPDATE:
 		ast_rtp_instance_update_source(p->rtp);
@@ -4095,7 +4096,7 @@ static int ooh323_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udp
 		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
 
 	ast_mutex_unlock(&p->lock);
-	free(callToken);
+	/* free(callToken); */
 	return 0;
 }
 

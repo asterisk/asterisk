@@ -56,7 +56,7 @@ int ooCreateCallCmdConnection(OOH323CallData* call)
 
     OOTRACEINFO2("INFO: create cmd connect for call: %lx\n", call);
 
-   call->CmdChanLock = ast_calloc(1, sizeof(ast_mutex_t));
+   call->CmdChanLock = calloc(1, sizeof(ast_mutex_t));
    ast_mutex_init(call->CmdChanLock);
 
 
