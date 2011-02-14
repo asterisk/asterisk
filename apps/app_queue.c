@@ -4931,14 +4931,24 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 				gosub_argstart = strchr(gosubexec, ',');
 				if (gosub_argstart) {
+					const char *what_is_s = "s";
 					*gosub_argstart = 0;
-					if (asprintf(&gosub_args, "%s,s,1(%s)", gosubexec, gosub_argstart + 1) < 0) {
+					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL)) &&
+						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL))) {
+						what_is_s = "~~s~~";
+					}
+					if (asprintf(&gosub_args, "%s,%s,1(%s)", gosubexec, what_is_s, gosub_argstart + 1) < 0) {
 						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 						gosub_args = NULL;
 					}
 					*gosub_argstart = ',';
 				} else {
-					if (asprintf(&gosub_args, "%s,s,1", gosubexec) < 0) {
+					const char *what_is_s = "s";
+					if (!ast_exists_extension(peer, gosubexec, "s", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL)) &&
+						 ast_exists_extension(peer, gosubexec, "~~s~~", 1, S_COR(peer->caller.id.number.valid, peer->caller.id.number.str, NULL))) {
+						what_is_s = "~~s~~";
+					}
+					if (asprintf(&gosub_args, "%s,%s,1", gosubexec, what_is_s) < 0) {
 						ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 						gosub_args = NULL;
 					}
