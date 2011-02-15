@@ -1614,7 +1614,7 @@ struct ast_channel_tech sip_tech_info;
 static int sip_cc_agent_init(struct ast_cc_agent *agent, struct ast_channel *chan);
 static int sip_cc_agent_start_offer_timer(struct ast_cc_agent *agent);
 static int sip_cc_agent_stop_offer_timer(struct ast_cc_agent *agent);
-static void sip_cc_agent_ack(struct ast_cc_agent *agent);
+static void sip_cc_agent_respond(struct ast_cc_agent *agent, enum ast_cc_agent_response_reason reason);
 static int sip_cc_agent_status_request(struct ast_cc_agent *agent);
 static int sip_cc_agent_start_monitoring(struct ast_cc_agent *agent);
 static int sip_cc_agent_recall(struct ast_cc_agent *agent);
@@ -1625,7 +1625,7 @@ static struct ast_cc_agent_callbacks sip_cc_agent_callbacks = {
 	.init = sip_cc_agent_init,
 	.start_offer_timer = sip_cc_agent_start_offer_timer,
 	.stop_offer_timer = sip_cc_agent_stop_offer_timer,
-	.ack = sip_cc_agent_ack,
+	.respond = sip_cc_agent_respond,
 	.status_request = sip_cc_agent_status_request,
 	.start_monitoring = sip_cc_agent_start_monitoring,
 	.callee_available = sip_cc_agent_recall,
@@ -1726,14 +1726,30 @@ static int sip_cc_agent_stop_offer_timer(struct ast_cc_agent *agent)
 	return 0;
 }
 
-static void sip_cc_agent_ack(struct ast_cc_agent *agent)
+static void sip_cc_agent_respond(struct ast_cc_agent *agent, enum ast_cc_agent_response_reason reason)
 {
 	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
 
 	sip_pvt_lock(agent_pvt->subscribe_pvt);
 	ast_set_flag(&agent_pvt->subscribe_pvt->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
-	transmit_response(agent_pvt->subscribe_pvt, "200 OK", &agent_pvt->subscribe_pvt->initreq);
-	transmit_cc_notify(agent, agent_pvt->subscribe_pvt, CC_QUEUED);
+	if (reason == AST_CC_AGENT_RESPONSE_SUCCESS || !ast_strlen_zero(agent_pvt->notify_uri)) {
+		/* The second half of this if statement may be a bit hard to grasp,
+		 * so here's an explanation. When a subscription comes into
+		 * chan_sip, as long as it is not malformed, it will be passed
+		 * to the CC core. If the core senses an out-of-order state transition,
+		 * then the core will call this callback with the "reason" set to a
+		 * failure condition.
+		 * However, an out-of-order state transition will occur during a resubscription
+		 * for CC. In such a case, we can see that we have already generated a notify_uri
+		 * and so we can detect that this isn't a *real* failure. Rather, it is just
+		 * something the core doesn't recognize as a legitimate SIP state transition.
+		 * Thus we respond with happiness and flowers.
+		 */
+		transmit_response(agent_pvt->subscribe_pvt, "200 OK", &agent_pvt->subscribe_pvt->initreq);
+		transmit_cc_notify(agent, agent_pvt->subscribe_pvt, CC_QUEUED);
+	} else {
+		transmit_response(agent_pvt->subscribe_pvt, "500 Internal Error", &agent_pvt->subscribe_pvt->initreq);
+	}
 	sip_pvt_unlock(agent_pvt->subscribe_pvt);
 	agent_pvt->is_available = TRUE;
 }

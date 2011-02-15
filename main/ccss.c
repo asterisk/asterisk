@@ -2205,7 +2205,7 @@ static void check_callback_sanity(const struct ast_cc_agent_callbacks *callbacks
 	ast_assert(callbacks->init != NULL);
 	ast_assert(callbacks->start_offer_timer != NULL);
 	ast_assert(callbacks->stop_offer_timer != NULL);
-	ast_assert(callbacks->ack != NULL);
+	ast_assert(callbacks->respond != NULL);
 	ast_assert(callbacks->status_request != NULL);
 	ast_assert(callbacks->start_monitoring != NULL);
 	ast_assert(callbacks->callee_available != NULL);
@@ -2267,7 +2267,7 @@ static struct ast_cc_agent *cc_agent_init(struct ast_channel *caller_chan,
 static int cc_generic_agent_init(struct ast_cc_agent *agent, struct ast_channel *chan);
 static int cc_generic_agent_start_offer_timer(struct ast_cc_agent *agent);
 static int cc_generic_agent_stop_offer_timer(struct ast_cc_agent *agent);
-static void cc_generic_agent_ack(struct ast_cc_agent *agent);
+static void cc_generic_agent_respond(struct ast_cc_agent *agent, enum ast_cc_agent_response_reason reason);
 static int cc_generic_agent_status_request(struct ast_cc_agent *agent);
 static int cc_generic_agent_stop_ringing(struct ast_cc_agent *agent);
 static int cc_generic_agent_start_monitoring(struct ast_cc_agent *agent);
@@ -2279,7 +2279,7 @@ static struct ast_cc_agent_callbacks generic_agent_callbacks = {
 	.init = cc_generic_agent_init,
 	.start_offer_timer = cc_generic_agent_start_offer_timer,
 	.stop_offer_timer = cc_generic_agent_stop_offer_timer,
-	.ack = cc_generic_agent_ack,
+	.respond = cc_generic_agent_respond,
 	.status_request = cc_generic_agent_status_request,
 	.stop_ringing = cc_generic_agent_stop_ringing,
 	.start_monitoring = cc_generic_agent_start_monitoring,
@@ -2403,7 +2403,7 @@ static int cc_generic_agent_stop_offer_timer(struct ast_cc_agent *agent)
 	return 0;
 }
 
-static void cc_generic_agent_ack(struct ast_cc_agent *agent)
+static void cc_generic_agent_respond(struct ast_cc_agent *agent, enum ast_cc_agent_response_reason reason)
 {
 	/* The generic agent doesn't have to do anything special to
 	 * acknowledge a CC request. Just return.
@@ -2635,6 +2635,7 @@ static struct cc_core_instance *cc_core_init_instance(struct ast_channel *caller
 }
 
 struct cc_state_change_args {
+	struct cc_core_instance *core_instance;/*!< Holds reference to core instance. */
 	enum cc_state state;
 	int core_id;
 	char debug[1];
@@ -2783,6 +2784,8 @@ static int cc_caller_requested(struct cc_core_instance *core_instance, struct cc
 {
 	if (!ast_cc_request_is_within_limits()) {
 		ast_log(LOG_WARNING, "Cannot request CC since there is no more room for requests\n");
+		core_instance->agent->callbacks->respond(core_instance->agent,
+			AST_CC_AGENT_RESPONSE_FAILURE_TOO_MANY);
 		ast_cc_failed(core_instance->core_id, "Too many requests in the system");
 		return -1;
 	}
@@ -2821,7 +2824,8 @@ static int cc_active(struct cc_core_instance *core_instance, struct cc_state_cha
 	 *    call monitor's unsuspend callback.
 	 */
 	if (previous_state == CC_CALLER_REQUESTED) {
-		core_instance->agent->callbacks->ack(core_instance->agent);
+		core_instance->agent->callbacks->respond(core_instance->agent,
+			AST_CC_AGENT_RESPONSE_SUCCESS);
 		manager_event(EVENT_FLAG_CC, "CCRequestAcknowledged",
 			"CoreID: %d\r\n"
 			"Caller: %s\r\n",
@@ -2958,15 +2962,19 @@ static int cc_do_state_change(void *datap)
 	ast_log_dynamic_level(cc_logger_level, "Core %d: State change to %d requested. Reason: %s\n",
 			args->core_id, args->state, args->debug);
 
-	if (!(core_instance = find_cc_core_instance(args->core_id))) {
-		ast_log_dynamic_level(cc_logger_level, "Core %d: Unable to find core instance.\n", args->core_id);
-		ast_free(args);
-		return -1;
-	}
+	core_instance = args->core_instance;
 
 	if (!is_state_change_valid(core_instance->current_state, args->state, core_instance->agent)) {
 		ast_log_dynamic_level(cc_logger_level, "Core %d: Invalid state change requested. Cannot go from %s to %s\n",
 				args->core_id, cc_state_to_string(core_instance->current_state), cc_state_to_string(args->state));
+		if (args->state == CC_CALLER_REQUESTED) {
+			/*
+			 * For out-of-order requests, we need to let the requester know that
+			 * we can't handle the request now.
+			 */
+			core_instance->agent->callbacks->respond(core_instance->agent,
+				AST_CC_AGENT_RESPONSE_FAILURE_INVALID);
+		}
 		ast_free(args);
 		cc_unref(core_instance, "Unref core instance from when it was found earlier");
 		return -1;
@@ -2988,6 +2996,7 @@ static int cc_request_state_change(enum cc_state state, const int core_id, const
 	int debuglen;
 	char dummy[1];
 	va_list aq;
+	struct cc_core_instance *core_instance;
 	struct cc_state_change_args *args;
 	/* This initial call to vsnprintf is simply to find what the
 	 * size of the string needs to be
@@ -3003,12 +3012,22 @@ static int cc_request_state_change(enum cc_state state, const int core_id, const
 		return -1;
 	}
 
+	core_instance = find_cc_core_instance(core_id);
+	if (!core_instance) {
+		ast_log_dynamic_level(cc_logger_level, "Core %d: Unable to find core instance.\n",
+			core_id);
+		ast_free(args);
+		return -1;
+	}
+
+	args->core_instance = core_instance;
 	args->state = state;
 	args->core_id = core_id;
 	vsnprintf(args->debug, debuglen, debug, ap);
 
 	res = ast_taskprocessor_push(cc_core_taskprocessor, cc_do_state_change, args);
 	if (res) {
+		cc_unref(core_instance, "Unref core instance. ast_taskprocessor_push failed");
 		ast_free(args);
 	}
 	return res;
