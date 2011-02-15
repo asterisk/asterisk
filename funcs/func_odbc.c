@@ -325,6 +325,10 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		}
 	}
 
+	if (stmt) {
+		SQLRowCount(stmt, &rows);
+	}
+
 	if (stmt && rows == 0 && ast_str_strlen(insertbuf) != 0) {
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -347,7 +351,6 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		}
 	} else if (stmt) {
 		status = "SUCCESS";
-		SQLRowCount(stmt, &rows);
 	}
 
 	AST_RWLIST_UNLOCK(&queries);
