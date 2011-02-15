@@ -2442,7 +2442,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						case AST_CONTROL_RINGING:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
-							ast_indicate(in, AST_CONTROL_RINGING);
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
