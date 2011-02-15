@@ -2115,7 +2115,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			struct ast_party_connected_line connected;
 			int pres;
 
-			ast_party_connected_line_set_init(&connected, &tmp->chan->connected);
+			ast_party_connected_line_set_init(&connected, &tc->connected);
 			if (cid_pres) {
 				pres = ast_parse_caller_presentation(cid_pres);
 				if (pres < 0) {
@@ -2135,7 +2135,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				connected.id.name.presentation = pres;
 			}
 			connected.id.tag = cid_tag;
-			ast_channel_set_connected_line(tmp->chan, &connected, NULL);
+			ast_channel_set_connected_line(tc, &connected, NULL);
 		} else {
 			ast_connected_line_copy_from_caller(&tc->connected, &chan->caller);
 		}
