@@ -514,7 +514,7 @@ void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, str
 int sig_pri_cc_agent_init(struct ast_cc_agent *agent, struct sig_pri_chan *pvt_chan);
 int sig_pri_cc_agent_start_offer_timer(struct ast_cc_agent *agent);
 int sig_pri_cc_agent_stop_offer_timer(struct ast_cc_agent *agent);
-void sig_pri_cc_agent_req_ack(struct ast_cc_agent *agent);
+void sig_pri_cc_agent_req_rsp(struct ast_cc_agent *agent, enum ast_cc_agent_response_reason reason);
 int sig_pri_cc_agent_status_req(struct ast_cc_agent *agent);
 int sig_pri_cc_agent_stop_ringing(struct ast_cc_agent *agent);
 int sig_pri_cc_agent_party_b_free(struct ast_cc_agent *agent);

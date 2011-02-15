@@ -7563,38 +7563,75 @@ int sig_pri_cc_agent_stop_offer_timer(struct ast_cc_agent *agent)
 
 #if defined(HAVE_PRI_CCSS)
 /*!
- * \brief Acknowledge CC request.
+ * \brief Response to a CC request.
  * \since 1.8
  *
  * \param agent CC core agent control.
+ * \param reason CC request response status.
  *
  * \details
  * When the core receives knowledge that a called
  * party has accepted a CC request, it will call
- * this callback.
+ * this callback.  The core may also call this
+ * if there is some error when attempting to process
+ * the incoming CC request.
  *
- * The duty of this is to accept a CC request from
- * the caller by acknowledging receipt of that request.
+ * The duty of this is to issue a propper response to a
+ * CC request from the caller by acknowledging receipt
+ * of that request or rejecting it.
  *
  * \return Nothing
  */
-void sig_pri_cc_agent_req_ack(struct ast_cc_agent *agent)
+void sig_pri_cc_agent_req_rsp(struct ast_cc_agent *agent, enum ast_cc_agent_response_reason reason)
 {
 	struct sig_pri_cc_agent_prv *cc_pvt;
 	int res;
+	int status;
+	const char *failed_msg;
+	static const char *failed_to_send = "Failed to send the CC request response.";
+	static const char *not_accepted = "The core declined the CC request.";
 
 	cc_pvt = agent->private_data;
 	ast_mutex_lock(&cc_pvt->pri->lock);
 	if (cc_pvt->cc_request_response_pending) {
 		cc_pvt->cc_request_response_pending = 0;
-		res = pri_cc_req_rsp(cc_pvt->pri->pri, cc_pvt->cc_id, 0/* success */);
+
+		/* Convert core response reason to ISDN response status. */
+		status = 2;/* short_term_denial */
+		switch (reason) {
+		case AST_CC_AGENT_RESPONSE_SUCCESS:
+			status = 0;/* success */
+			break;
+		case AST_CC_AGENT_RESPONSE_FAILURE_INVALID:
+			status = 2;/* short_term_denial */
+			break;
+		case AST_CC_AGENT_RESPONSE_FAILURE_TOO_MANY:
+			status = 5;/* queue_full */
+			break;
+		}
+
+		res = pri_cc_req_rsp(cc_pvt->pri->pri, cc_pvt->cc_id, status);
+		if (!status) {
+			/* CC core request was accepted. */
+			if (res) {
+				failed_msg = failed_to_send;
+			} else {
+				failed_msg = NULL;
+			}
+		} else {
+			/* CC core request was declined. */
+			if (res) {
+				failed_msg = failed_to_send;
+			} else {
+				failed_msg = not_accepted;
+			}
+		}
 	} else {
-		res = 0;
+		failed_msg = NULL;
 	}
 	ast_mutex_unlock(&cc_pvt->pri->lock);
-	if (res) {
-		ast_cc_failed(agent->core_id, "%s agent failed to send the CC request ack.",
-			sig_pri_cc_type_name);
+	if (failed_msg) {
+		ast_cc_failed(agent->core_id, "%s agent: %s", sig_pri_cc_type_name, failed_msg);
 	}
 }
 #endif	/* defined(HAVE_PRI_CCSS) */
