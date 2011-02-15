@@ -219,9 +219,11 @@ int ooSocketCreate (OOSOCKET* psocket)
    }
    setsockopt (sock, SOL_SOCKET, SO_KEEPALIVE, (const char *)&keepalive,
 			sizeof(keepalive));
+#ifdef __linux__
    setsockopt (sock, SOL_TCP, TCP_KEEPCNT, &keepcnt, sizeof(keepcnt));
    setsockopt (sock, SOL_TCP, TCP_KEEPIDLE, &keepidle, sizeof(keepidle));
    setsockopt (sock, SOL_TCP, TCP_KEEPINTVL, &keepintvl, sizeof(keepintvl));
+#endif
    *psocket = sock;
    return ASN_OK;
 }
