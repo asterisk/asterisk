@@ -3050,7 +3050,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_RINGING:
 							ast_verb(3, "%s is ringing\n", o->chan->name);
-							ast_indicate(in, AST_CONTROL_RINGING);
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
