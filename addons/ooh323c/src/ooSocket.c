@@ -191,8 +191,9 @@ typedef socklen_t OOSOCKLEN;
 int ooSocketCreate (OOSOCKET* psocket) 
 {
    int on;
+   int keepalive = 1;
 #ifdef __linux__
-   int keepalive = 1, keepcnt = 24, keepidle = 120, keepintvl = 30;
+   int keepcnt = 24, keepidle = 120, keepintvl = 30;
 #endif
    struct linger linger;
    OOSOCKET sock = socket (AF_INET,
