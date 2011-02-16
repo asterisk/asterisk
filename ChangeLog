@@ -1,3 +1,39 @@
+2011-02-16  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.3-rc3 Released.
+
+	------------------------------------------------------------------------
+	r301790 | jpeeler | 2011-01-14 11:32:53 -0600 (Fri, 14 Jan 2011) | 42 lines
+
+	Resolve deadlock involving REFER.
+
+	(closes issue 0018403)
+	Reported by: jthurman
+	Patches: 
+	      20110103-blind_deadlock.diff uploaded by jthurman (license 614)
+	            issue18403.patch uploaded by jpeeler (license 325)
+		    Tested by: jthurman
+
+	------------------------------------------------------------------------
+
+	------------------------------------------------------------------------
+	r308002 | qwell | 2011-02-15 17:32:21 -0600 (Tue, 15 Feb 2011) | 10
+	lines
+
+	Fix regression that changed behavior of queues when ringing a queue
+	member.
+
+	This reverts r298596, which was to fix a highly bizarre and contrived
+	issue with a queue member that called into his own queue being 
+	transferred back into his own queue. I couldn't reproduce that issue in 
+	any way. I think one of the other recent transfer fixes actually fixed 
+	this.
+
+	(closes issue 0018747)
+	Reported by: vrban
+
+	------------------------------------------------------------------------
+
 2011-01-20  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.3-rc2 Released.

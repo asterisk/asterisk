@@ -3558,7 +3558,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_moh_stop(qe->chan);
 								ast_indicate(qe->chan, AST_CONTROL_RINGING);
 							}
-							ast_indicate(in, AST_CONTROL_RINGING);
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
