@@ -14181,7 +14181,10 @@ static char *handle_pri_show_channels(struct ast_cli_entry *e, int cmd, struct a
 		e->command = "pri show channels";
 		e->usage =
 			"Usage: pri show channels\n"
-			"       Displays PRI channel information\n";
+			"       Displays PRI channel information such as the current mapping\n"
+			"       of DAHDI B channels to Asterisk channel names and which calls\n"
+			"       are on hold or call-waiting.  Calls on hold or call-waiting\n"
+			"       are not associated with any B channel.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
