@@ -184,6 +184,7 @@ static struct ooh323_pvt {
 	int amaflags;
 	int progsent;			/* progress is sent */
 	int alertsent;			/* alerting is sent */
+	int g729onlyA;			/* G.729 only A */
 	struct ast_dsp *vad;
 	struct OOH323Regex *rtpmask;	/* rtp ip regexp */
 	char rtpmaskstr[120];
@@ -216,6 +217,7 @@ struct ooh323_user{
 	char	    rtpmaskstr[120];
 	int	    rtdrcount, rtdrinterval;
 	int	    faststart, h245tunneling;
+	int	    g729onlyA;
 	struct ooh323_user *next;
 };
 
@@ -244,6 +246,7 @@ struct ooh323_peer{
 	char	    rtpmaskstr[120];
 	int	    rtdrcount,rtdrinterval;
 	int	    faststart, h245tunneling;
+	int	    g729onlyA;
 	struct ooh323_peer *next;
 };
 
@@ -301,6 +304,7 @@ static int  gBeMaster = 0;
 static int  gMediaWaitForConnect = 0;
 static int  gTOS = 0;
 static int  gRTPTimeout = 60;
+static int  g729onlyA = 0;
 static char gAccountcode[80] = DEFAULT_H323ACCNT;
 static int  gAMAFLAGS;
 static char gContext[AST_MAX_EXTENSION] = DEFAULT_CONTEXT;
@@ -521,6 +525,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	pvt->rtptimeout = gRTPTimeout;
 	pvt->rtdrinterval = gRTDRInterval;
 	pvt->rtdrcount = gRTDRCount;
+	pvt->g729onlyA = g729onlyA;
 
 	pvt->call_reference = callref;
 	if (callToken)
@@ -639,6 +644,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 
 		ast_format_cap_copy(p->cap, peer->cap);
 		memcpy(&p->prefs, &peer->prefs, sizeof(struct ast_codec_pref));
+		p->g729onlyA = peer->g729onlyA;
 		p->dtmfmode |= peer->dtmfmode;
 		p->dtmfcodec  = peer->dtmfcodec;
 		p->t38support = peer->t38support;
@@ -667,6 +673,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 			ast_mutex_unlock(&iflock);
 			return NULL;
 		}
+		p->g729onlyA = g729onlyA;
 		p->dtmfmode = gDTMFMode;
 		p->dtmfcodec = gDTMFCodec;
 		p->t38support = gT38Support;
@@ -1767,6 +1774,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 		ast_copy_string(p->accountcode, user->accountcode, sizeof(p->accountcode));
 		p->amaflags = user->amaflags;
 		ast_format_cap_copy(p->cap, user->cap);
+		p->g729onlyA = user->g729onlyA;
 		memcpy(&p->prefs, &user->prefs, sizeof(struct ast_codec_pref));
 		p->dtmfmode |= user->dtmfmode;
 		p->dtmfcodec = user->dtmfcodec;
@@ -1779,9 +1787,11 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
          		OO_SETFLAG(call->flags, OO_M_FASTSTART);
 		else
 			OO_CLRFLAG(call->flags, OO_M_FASTSTART);
-		if (p->h245tunneling)
-			OO_SETFLAG(call->flags, OO_M_TUNNELING);
-		else
+		/* if we disable h245tun for this user then we clear flag */
+		/* in any other case we don't must touch this */
+		/* ie if we receive setup without h245tun but enabled
+		   				we can't enable it per call */
+		if (!p->h245tunneling)
 			OO_CLRFLAG(call->flags, OO_M_TUNNELING);
 
 		if (user->rtpmask && user->rtpmaskstr[0]) {
@@ -1811,7 +1821,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 	}
 
 	ooh323c_set_capability_for_call(call, &p->prefs, p->cap, p->dtmfmode, p->dtmfcodec,
-					 p->t38support);
+					 p->t38support, p->g729onlyA);
 	configure_local_rtp(p, call);
 
 /* Incoming call */
@@ -1978,7 +1988,7 @@ int onNewCallCreated(ooCallData *call)
 		}
 
       		ooh323c_set_capability_for_call(call, &p->prefs, p->cap,
-                                     p->dtmfmode, p->dtmfcodec, p->t38support);
+                                     p->dtmfmode, p->dtmfcodec, p->t38support, p->g729onlyA);
 
 		configure_local_rtp(p, call);
 		ast_mutex_unlock(&p->lock);
@@ -2198,6 +2208,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 		user->t38support = gT38Support;
 		user->faststart = gFastStart;
 		user->h245tunneling = gTunneling;
+		user->g729onlyA = g729onlyA;
 		/* set default context */
 		ast_copy_string(user->context, gContext, sizeof(user->context));
 		ast_copy_string(user->accountcode, gAccountcode, sizeof(user->accountcode));
@@ -2219,6 +2230,8 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 				user->faststart = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "h245tunneling")) {
 				user->h245tunneling = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "g729onlyA")) {
+				user->g729onlyA = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
 				user->rtptimeout = atoi(v->value);
 				if (user->rtptimeout < 0)
@@ -2313,6 +2326,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 		peer->t38support = gT38Support;
 		peer->faststart = gFastStart;
 		peer->h245tunneling = gTunneling;
+		peer->g729onlyA = g729onlyA;
       		peer->port = 1720;
 		if (0 == friend_type) {
 			peer->mFriend = 1;
@@ -2363,6 +2377,8 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 				peer->faststart = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "h245tunneling")) {
 				peer->h245tunneling = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "g729onlyA")) {
+				peer->g729onlyA = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
             			peer->rtptimeout = atoi(v->value);
             			if(peer->rtptimeout < 0)
@@ -2593,6 +2609,8 @@ int reload_config(int reload)
 				ooH323EpEnableH245Tunneling();
 			else
 				ooH323EpDisableH245Tunneling();
+		} else if (!strcasecmp(v->name, "g729onlyA")) {
+			g729onlyA = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "roundtrip")) {
 			sscanf(v->value, "%d,%d", &gRTDRCount, &gRTDRInterval);
       		} else if (!strcasecmp(v->name, "trybemaster")) {
