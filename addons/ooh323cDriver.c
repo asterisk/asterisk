@@ -385,7 +385,7 @@ int ooh323c_set_capability
 
 int ooh323c_set_capability_for_call
    (ooCallData *call, struct ast_codec_pref *prefs, int capability, int dtmf, int dtmfcodec,
-		 int t38support)
+		 int t38support, int g729onlyA)
 {
    int ret = 0, x, txframes;
    int format=0;
@@ -471,17 +471,19 @@ int ooh323c_set_capability_for_call
       
          txframes = (prefs->framing[x])/10;
          if(gH323Debug)
-            ast_verbose("\tAdding g729 capability to call(%s, %s)\n",
+            ast_verbose("\tAdding g729A capability to call(%s, %s)\n",
                                             call->callType, call->callToken);
-         ret|= ooCallAddG729Capability(call, OO_G729, txframes, txframes, 
+         ret= ooCallAddG729Capability(call, OO_G729A, txframes, txframes, 
                                      OORXANDTX, &ooh323c_start_receive_channel,
                                      &ooh323c_start_transmit_channel,
                                      &ooh323c_stop_receive_channel, 
                                      &ooh323c_stop_transmit_channel);
+	 if (g729onlyA)
+		continue;
          if(gH323Debug)
-            ast_verbose("\tAdding g729A capability to call(%s, %s)\n",
+            ast_verbose("\tAdding g729 capability to call(%s, %s)\n",
                                             call->callType, call->callToken);
-         ret= ooCallAddG729Capability(call, OO_G729A, txframes, txframes, 
+         ret|= ooCallAddG729Capability(call, OO_G729, txframes, txframes, 
                                      OORXANDTX, &ooh323c_start_receive_channel,
                                      &ooh323c_start_transmit_channel,
                                      &ooh323c_stop_receive_channel, 

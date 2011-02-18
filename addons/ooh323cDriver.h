@@ -41,5 +41,5 @@ int ooh323c_set_capability
 format_t convertH323CapToAsteriskCap(int cap);
 int ooh323c_set_capability_for_call
    (ooCallData *call, struct ast_codec_pref *prefs, int capability, int dtmf, int dtmfcodec,
-	int t38support);
+	int t38support, int g729onlyA);
 #endif
