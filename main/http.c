@@ -108,6 +108,7 @@ static struct {
 	{ "gif", "image/gif" },
 	{ "html", "text/html" },
 	{ "htm", "text/html" },
+	{ "css", "text/css" },
 	{ "cnf", "text/plain" },
 	{ "cfg", "text/plain" },
 	{ "bin", "application/octet-stream" },
