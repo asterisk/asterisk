@@ -1,3 +1,10 @@
+2011-02-21  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.2.4 Released.
+
+	* AST-2011-002: Stack array overflow and crash vulnerability in UDPTL
+	  code
+
 2011-01-26  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.2.3 Released.
