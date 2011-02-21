@@ -4348,9 +4348,11 @@ static int handle_statechange(void *datap)
 	struct ao2_iterator cb_iter;
 
 	if (ao2_container_count(hintdevices) == 0) {
+		ast_free(sc);
 		return 0;
 	}
 	if (!(cmpdevice = ast_malloc(sizeof(*cmpdevice) + strlen(sc->dev)))) {
+		ast_free(sc);
 		return -1;
 	}
 	strcpy(cmpdevice->hintdevice, sc->dev);
@@ -4414,6 +4416,7 @@ static int handle_statechange(void *datap)
 	if (cmpdevice) {
 		ast_free(cmpdevice);
 	}
+	ast_free(sc);
 	return 0;
 }
 
