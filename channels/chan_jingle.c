@@ -257,7 +257,7 @@ static struct jingle *find_jingle(char *name, char *connection)
 
 static void add_codec_to_answer(const struct jingle_pvt *p, struct ast_format *codec, iks *dcodecs)
 {
-	char *format = ast_getformatname(codec);
+	const char *format = ast_getformatname(codec);
 
 	if (!strcasecmp("ulaw", format)) {
 		iks *payload_eg711u, *payload_pcmu;

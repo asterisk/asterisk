@@ -38,12 +38,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/frame.h"
 #include "asterisk/translate.h"
 
+#define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*!< Tolerance in milliseconds for audiohooks synchronization */
+#define AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE 100 /*!< When small queue is enabled, this is the maximum amount of audio that can remain queued at a time. */
+
 struct ast_audiohook_translate {
 	struct ast_trans_pvt *trans_pvt;
 	struct ast_format format;
 };
 
 struct ast_audiohook_list {
+	/* If all the audiohooks in this list are capable
+	 * of processing slinear at any sample rate, this
+	 * variable will be set and the sample rate will
+	 * be preserved during ast_audiohook_write_list()*/
+	int native_slin_compatible;
+	int list_internal_samp_rate;/*!< Internal sample rate used when writing to the audiohook list */
+
 	struct ast_audiohook_translate in_translate[2];
 	struct ast_audiohook_translate out_translate[2];
 	AST_LIST_HEAD_NOLOCK(, ast_audiohook) spy_list;
@@ -51,13 +61,44 @@ struct ast_audiohook_list {
 	AST_LIST_HEAD_NOLOCK(, ast_audiohook) manipulate_list;
 };
 
+static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate, int reset)
+{
+	struct ast_format slin;
+
+	if (audiohook->hook_internal_samp_rate == rate) {
+		return 0;
+	}
+
+	audiohook->hook_internal_samp_rate = rate;
+
+	ast_format_set(&slin, ast_format_slin_by_rate(rate), 0);
+	/* Setup the factories that are needed for this audiohook type */
+	switch (audiohook->type) {
+	case AST_AUDIOHOOK_TYPE_SPY:
+		if (reset) {
+			ast_slinfactory_destroy(&audiohook->read_factory);
+		}
+		ast_slinfactory_init_with_format(&audiohook->read_factory, &slin);
+		/* fall through */
+	case AST_AUDIOHOOK_TYPE_WHISPER:
+		if (reset) {
+			ast_slinfactory_destroy(&audiohook->write_factory);
+		}
+		ast_slinfactory_init_with_format(&audiohook->write_factory, &slin);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 /*! \brief Initialize an audiohook structure
  * \param audiohook Audiohook structure
  * \param type
  * \param source
  * \return Returns 0 on success, -1 on failure
  */
-int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source)
+int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source, enum ast_audiohook_init_flags init_flags)
 {
 	/* Need to keep the type and source */
 	audiohook->type = type;
@@ -67,16 +108,10 @@ int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type 
 	ast_mutex_init(&audiohook->lock);
 	ast_cond_init(&audiohook->trigger, NULL);
 
-	/* Setup the factories that are needed for this audiohook type */
-	switch (type) {
-	case AST_AUDIOHOOK_TYPE_SPY:
-		ast_slinfactory_init(&audiohook->read_factory);
-	case AST_AUDIOHOOK_TYPE_WHISPER:
-		ast_slinfactory_init(&audiohook->write_factory);
-		break;
-	default:
-		break;
-	}
+	audiohook->init_flags = init_flags;
+
+	/* initialize internal rate at 8khz, this will adjust if necessary */
+	audiohook_set_internal_rate(audiohook, 8000, 0);
 
 	/* Since we are just starting out... this audiohook is new */
 	ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_NEW);
@@ -133,9 +168,9 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	*rwtime = ast_tvnow();
 
 	our_factory_samples = ast_slinfactory_available(factory);
-	our_factory_ms = ast_tvdiff_ms(*rwtime, previous_time) + (our_factory_samples / 8);
+	our_factory_ms = ast_tvdiff_ms(*rwtime, previous_time) + (our_factory_samples / (audiohook->hook_internal_samp_rate / 1000));
 	other_factory_samples = ast_slinfactory_available(other_factory);
-	other_factory_ms = other_factory_samples / 8;
+	other_factory_ms = other_factory_samples / (audiohook->hook_internal_samp_rate / 1000);
 
 	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && other_factory_samples && (our_factory_ms - other_factory_ms > AST_AUDIOHOOK_SYNC_TOLERANCE)) {
 		ast_debug(1, "Flushing audiohook %p so it remains in sync\n", audiohook);
@@ -143,7 +178,7 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 		ast_slinfactory_flush(other_factory);
 	}
 
-	if (ast_test_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE) && (our_factory_samples > 640 || other_factory_samples > 640)) {
+	if (ast_test_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE) && ((our_factory_ms > AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE) || (other_factory_ms > AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE))) {
 		ast_debug(1, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
@@ -186,7 +221,7 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 		.datalen = sizeof(buf),
 		.samples = samples,
 	};
-	ast_format_set(&frame.subclass.format, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&frame.subclass.format, ast_format_slin_by_rate(audiohook->hook_internal_samp_rate), 0);
 
 	/* Ensure the factory is able to give us the samples we want */
 	if (samples > ast_slinfactory_available(factory))
@@ -213,7 +248,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		.datalen = sizeof(buf1),
 		.samples = samples,
 	};
-	ast_format_set(&frame.subclass.format, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&frame.subclass.format, ast_format_slin_by_rate(audiohook->hook_internal_samp_rate), 0);
 
 	/* Make sure both factories have the required samples */
 	usable_read = (ast_slinfactory_available(&audiohook->read_factory) >= samples ? 1 : 0);
@@ -296,7 +331,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 /*! \brief Reads a frame in from the audiohook structure
  * \param audiohook Audiohook structure
- * \param samples Number of samples wanted
+ * \param samples Number of samples wanted in requested output format
  * \param direction Direction the audio frame came from
  * \param format Format of frame remote side wants back
  * \return Returns frame on success, NULL on failure
@@ -305,23 +340,39 @@ struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size
 {
 	struct ast_frame *read_frame = NULL, *final_frame = NULL;
 	struct ast_format tmp_fmt;
+	int samples_converted;
 
-	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ? audiohook_read_frame_both(audiohook, samples) : audiohook_read_frame_single(audiohook, samples, direction))))
+	/* the number of samples requested is based on the format they are requesting.  Inorder
+	 * to process this correctly samples must be converted to our internal sample rate */
+	if (audiohook->hook_internal_samp_rate == ast_format_rate(format)) {
+		samples_converted = samples;
+	} else if (audiohook->hook_internal_samp_rate > ast_format_rate(format)) {
+		samples_converted = samples * (audiohook->hook_internal_samp_rate / (float) ast_format_rate(format));
+	} else {
+		samples_converted = samples * (ast_format_rate(format) / (float) audiohook->hook_internal_samp_rate);
+	}
+
+	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
+		audiohook_read_frame_both(audiohook, samples_converted) :
+		audiohook_read_frame_single(audiohook, samples_converted, direction)))) {
 		return NULL;
+	}
 
 	/* If they don't want signed linear back out, we'll have to send it through the translation path */
-	if (format->id != AST_FORMAT_SLINEAR) {
+	if (format->id != ast_format_slin_by_rate(audiohook->hook_internal_samp_rate)) {
 		/* Rebuild translation path if different format then previously */
 		if (ast_format_cmp(format, &audiohook->format) == AST_FORMAT_CMP_NOT_EQUAL) {
 			if (audiohook->trans_pvt) {
 				ast_translator_free_path(audiohook->trans_pvt);
 				audiohook->trans_pvt = NULL;
 			}
+
 			/* Setup new translation path for this format... if we fail we can't very well return signed linear so free the frame and return nothing */
-			if (!(audiohook->trans_pvt = ast_translator_build_path(format, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0)))) {
+			if (!(audiohook->trans_pvt = ast_translator_build_path(format, ast_format_set(&tmp_fmt, ast_format_slin_by_rate(audiohook->hook_internal_samp_rate), 0)))) {
 				ast_frfree(read_frame);
 				return NULL;
 			}
+			ast_format_copy(&audiohook->format, format);
 		}
 		/* Convert to requested format, and allow the read in frame to be freed */
 		final_frame = ast_translate(audiohook->trans_pvt, read_frame, 1);
@@ -330,6 +381,18 @@ struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size
 	}
 
 	return final_frame;
+}
+
+static void audiohook_list_set_samplerate_compatibility(struct ast_audiohook_list *audiohook_list)
+{
+	struct ast_audiohook *ah = NULL;
+	audiohook_list->native_slin_compatible = 1;
+	AST_LIST_TRAVERSE(&audiohook_list->manipulate_list, ah, list) {
+		if (!(ah->init_flags & AST_AUDIOHOOK_MANIPULATE_ALL_RATES)) {
+			audiohook_list->native_slin_compatible = 0;
+			return;
+		}
+	}
 }
 
 /*! \brief Attach audiohook to channel
@@ -350,6 +413,8 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 		AST_LIST_HEAD_INIT_NOLOCK(&chan->audiohooks->spy_list);
 		AST_LIST_HEAD_INIT_NOLOCK(&chan->audiohooks->whisper_list);
 		AST_LIST_HEAD_INIT_NOLOCK(&chan->audiohooks->manipulate_list);
+		/* This sample rate will adjust as necessary when writing to the list. */
+		chan->audiohooks->list_internal_samp_rate = 8000;
 	}
 
 	/* Drop into respective list */
@@ -359,6 +424,10 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 		AST_LIST_INSERT_TAIL(&chan->audiohooks->whisper_list, audiohook, list);
 	else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE)
 		AST_LIST_INSERT_TAIL(&chan->audiohooks->manipulate_list, audiohook, list);
+
+
+	audiohook_set_internal_rate(audiohook, chan->audiohooks->list_internal_samp_rate, 1);
+	audiohook_list_set_samplerate_compatibility(chan->audiohooks);
 
 	/* Change status over to running since it is now attached */
 	ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_RUNNING);
@@ -546,6 +615,7 @@ int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audioho
 	else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE)
 		AST_LIST_REMOVE(&chan->audiohooks->manipulate_list, audiohook, list);
 
+	audiohook_list_set_samplerate_compatibility(chan->audiohooks);
 	ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 
 	ast_channel_unlock(chan);
@@ -563,11 +633,13 @@ int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audioho
 static struct ast_frame *dtmf_audiohook_write_list(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list, enum ast_audiohook_direction direction, struct ast_frame *frame)
 {
 	struct ast_audiohook *audiohook = NULL;
+	int removed = 0;
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&audiohook_list->manipulate_list, audiohook, list) {
 		ast_audiohook_lock(audiohook);
 		if (audiohook->status != AST_AUDIOHOOK_STATUS_RUNNING) {
 			AST_LIST_REMOVE_CURRENT(list);
+			removed = 1;
 			ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 			ast_audiohook_unlock(audiohook);
 			audiohook->manipulate_callback(audiohook, NULL, NULL, 0);
@@ -579,7 +651,75 @@ static struct ast_frame *dtmf_audiohook_write_list(struct ast_channel *chan, str
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
+	/* if an audiohook got removed, reset samplerate compatibility */
+	if (removed) {
+		audiohook_list_set_samplerate_compatibility(audiohook_list);
+	}
 	return frame;
+}
+
+static struct ast_frame *audiohook_list_translate_to_slin(struct ast_audiohook_list *audiohook_list,
+	enum ast_audiohook_direction direction, struct ast_frame *frame)
+{
+	struct ast_audiohook_translate *in_translate = (direction == AST_AUDIOHOOK_DIRECTION_READ ?
+		&audiohook_list->in_translate[0] : &audiohook_list->in_translate[1]);
+	struct ast_frame *new_frame = frame;
+	struct ast_format tmp_fmt;
+	enum ast_format_id slin_id;
+
+	/* If we are capable of maintaining doing samplerates other that 8khz, update
+	 * the internal audiohook_list's rate and higher samplerate audio arrives. By
+	 * updating the list's rate, all the audiohooks in the list will be updated as well
+	 * as the are written and read from. */
+	if (audiohook_list->native_slin_compatible) {
+		audiohook_list->list_internal_samp_rate =
+			MAX(ast_format_rate(&frame->subclass.format), audiohook_list->list_internal_samp_rate);
+	}
+
+	slin_id = ast_format_slin_by_rate(audiohook_list->list_internal_samp_rate);
+
+	if (frame->subclass.format.id == slin_id) {
+		return new_frame;
+	}
+
+	if (ast_format_cmp(&frame->subclass.format, &in_translate->format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		if (in_translate->trans_pvt) {
+			ast_translator_free_path(in_translate->trans_pvt);
+		}
+		if (!(in_translate->trans_pvt = ast_translator_build_path(ast_format_set(&tmp_fmt, slin_id, 0), &frame->subclass.format))) {
+			return NULL;
+		}
+		ast_format_copy(&in_translate->format, &frame->subclass.format);
+	}
+	if (!(new_frame = ast_translate(in_translate->trans_pvt, frame, 0))) {
+		return NULL;
+	}
+
+	return new_frame;
+}
+
+static struct ast_frame *audiohook_list_translate_to_native(struct ast_audiohook_list *audiohook_list,
+	enum ast_audiohook_direction direction, struct ast_frame *slin_frame, struct ast_format *outformat)
+{
+	struct ast_audiohook_translate *out_translate = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook_list->out_translate[0] : &audiohook_list->out_translate[1]);
+	struct ast_frame *outframe = NULL;
+	if (ast_format_cmp(&slin_frame->subclass.format, outformat) == AST_FORMAT_CMP_NOT_EQUAL) {
+		/* rebuild translators if necessary */
+		if (ast_format_cmp(&out_translate->format, outformat) == AST_FORMAT_CMP_NOT_EQUAL) {
+			if (out_translate->trans_pvt) {
+				ast_translator_free_path(out_translate->trans_pvt);
+			}
+			if (!(out_translate->trans_pvt = ast_translator_build_path(outformat, &slin_frame->subclass.format))) {
+				return NULL;
+			}
+			ast_format_copy(&out_translate->format, outformat);
+		}
+		/* translate back to the format the frame came in as. */
+		if (!(outframe = ast_translate(out_translate->trans_pvt, slin_frame, 0))) {
+			return NULL;
+		}
+	}
+	return outframe;
 }
 
 /*!
@@ -595,15 +735,9 @@ static struct ast_frame *dtmf_audiohook_write_list(struct ast_channel *chan, str
  *         SLINEAR format for Part_2.
  * Part_2: Send middle_frame off to spies and manipulators.  At this point middle_frame is
  *         either a new frame as result of the translation, or points directly to the start_frame
- *         because no translation to SLINEAR audio was required.  The result of this part
- *         is end_frame will be updated to point to middle_frame if any audiohook manipulation
- *         took place.
- * Part_3: Translate end_frame's audio back into the format of start frame if necessary.
- *         At this point if middle_frame != end_frame, we are guaranteed that no manipulation
- *         took place and middle_frame can be freed as it was translated... If middle_frame was
- *         not translated and still pointed to start_frame, it would be equal to end_frame as well
- *         regardless if manipulation took place which would not result in this free.  The result
- *         of this part is end_frame is guaranteed to be the format of start_frame for the return.
+ *         because no translation to SLINEAR audio was required.
+ * Part_3: Translate end_frame's audio back into the format of start frame if necessary.  This
+ *         is only necessary if manipulation of middle_frame occurred.
  *         
  * \param chan Channel that the list is coming off of
  * \param audiohook_list List of audiohooks
@@ -613,27 +747,17 @@ static struct ast_frame *dtmf_audiohook_write_list(struct ast_channel *chan, str
  */
 static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list, enum ast_audiohook_direction direction, struct ast_frame *frame)
 {
-	struct ast_audiohook_translate *in_translate = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook_list->in_translate[0] : &audiohook_list->in_translate[1]);
-	struct ast_audiohook_translate *out_translate = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook_list->out_translate[0] : &audiohook_list->out_translate[1]);
 	struct ast_frame *start_frame = frame, *middle_frame = frame, *end_frame = frame;
 	struct ast_audiohook *audiohook = NULL;
-	struct ast_format tmp_fmt;
-	int samples = frame->samples;
+	int samples;
+	int middle_frame_manipulated = 0;
+	int removed = 0;
 
 	/* ---Part_1. translate start_frame to SLINEAR if necessary. */
-	/* If the frame coming in is not signed linear we have to send it through the in_translate path */
-	if (frame->subclass.format.id != AST_FORMAT_SLINEAR) {
-		if (ast_format_cmp(&frame->subclass.format, &in_translate->format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			if (in_translate->trans_pvt)
-				ast_translator_free_path(in_translate->trans_pvt);
-			if (!(in_translate->trans_pvt = ast_translator_build_path(ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0), &frame->subclass.format)))
-				return frame;
-			ast_format_copy(&in_translate->format, &frame->subclass.format);
-		}
-		if (!(middle_frame = ast_translate(in_translate->trans_pvt, frame, 0)))
-			return frame;
-		samples = middle_frame->samples;
+	if (!(middle_frame = audiohook_list_translate_to_slin(audiohook_list, direction, start_frame))) {
+		return frame;
 	}
+	samples = middle_frame->samples;
 
 	/* ---Part_2: Send middle_frame to spy and manipulator lists.  middle_frame is guaranteed to be SLINEAR here.*/
 	/* Queue up signed linear frame to each spy */
@@ -641,10 +765,12 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		ast_audiohook_lock(audiohook);
 		if (audiohook->status != AST_AUDIOHOOK_STATUS_RUNNING) {
 			AST_LIST_REMOVE_CURRENT(list);
+			removed = 1;
 			ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 			ast_audiohook_unlock(audiohook);
 			continue;
 		}
+		audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 		ast_audiohook_write_frame(audiohook, direction, middle_frame);
 		ast_audiohook_unlock(audiohook);
 	}
@@ -659,10 +785,12 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			ast_audiohook_lock(audiohook);
 			if (audiohook->status != AST_AUDIOHOOK_STATUS_RUNNING) {
 				AST_LIST_REMOVE_CURRENT(list);
+				removed = 1;
 				ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 				ast_audiohook_unlock(audiohook);
 				continue;
 			}
+			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 			if (ast_slinfactory_available(&audiohook->write_factory) >= samples && ast_slinfactory_read(&audiohook->write_factory, read_buf, samples)) {
 				/* Take audio from this whisper source and combine it into our main buffer */
 				for (i = 0, data1 = combine_buf, data2 = read_buf; i < samples; i++, data1++, data2++)
@@ -672,9 +800,10 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
 		/* We take all of the combined whisper sources and combine them into the audio being written out */
-		for (i = 0, data1 = middle_frame->data.ptr, data2 = combine_buf; i < samples; i++, data1++, data2++)
+		for (i = 0, data1 = middle_frame->data.ptr, data2 = combine_buf; i < samples; i++, data1++, data2++) {
 			ast_slinear_saturated_add(data1, data2);
-		end_frame = middle_frame;
+		}
+		middle_frame_manipulated = 1;
 	}
 
 	/* Pass off frame to manipulate audiohooks */
@@ -683,12 +812,14 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			ast_audiohook_lock(audiohook);
 			if (audiohook->status != AST_AUDIOHOOK_STATUS_RUNNING) {
 				AST_LIST_REMOVE_CURRENT(list);
+				removed = 1;
 				ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 				ast_audiohook_unlock(audiohook);
 				/* We basically drop all of our links to the manipulate audiohook and prod it to do it's own destructive things */
 				audiohook->manipulate_callback(audiohook, chan, NULL, direction);
 				continue;
 			}
+			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 			/* Feed in frame to manipulation. */
 			if (audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
 				/* XXX IGNORE FAILURE */
@@ -700,35 +831,27 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			ast_audiohook_unlock(audiohook);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
-		end_frame = middle_frame;
+		middle_frame_manipulated = 1;
 	}
 
 	/* ---Part_3: Decide what to do with the end_frame (whether to transcode or not) */
-	if (middle_frame == end_frame) {
-		/* Middle frame was modified and became the end frame... let's see if we need to transcode */
-		if (ast_format_cmp(&end_frame->subclass.format, &start_frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			if (ast_format_cmp(&out_translate->format, &start_frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-				if (out_translate->trans_pvt)
-					ast_translator_free_path(out_translate->trans_pvt);
-				if (!(out_translate->trans_pvt = ast_translator_build_path(&start_frame->subclass.format, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0)))) {
-					/* We can't transcode this... drop our middle frame and return the original */
-					ast_frfree(middle_frame);
-					return start_frame;
-				}
-				ast_format_copy(&out_translate->format, &start_frame->subclass.format);
-			}
-			/* Transcode from our middle (signed linear) frame to new format of the frame that came in */
-			if (!(end_frame = ast_translate(out_translate->trans_pvt, middle_frame, 0))) {
-				/* Failed to transcode the frame... drop it and return the original */
-				ast_frfree(middle_frame);
-				return start_frame;
-			}
-			/* Here's the scoop... middle frame is no longer of use to us */
-			ast_frfree(middle_frame);
+	if (middle_frame_manipulated) {
+		if (!(end_frame = audiohook_list_translate_to_native(audiohook_list, direction, middle_frame, &start_frame->subclass.format))) {
+			/* translation failed, so just pass back the input frame */
+			end_frame = start_frame;
 		}
 	} else {
-		/* No frame was modified, we can just drop our middle frame and pass the frame we got in out */
+		end_frame = start_frame;
+	}
+	/* clean up our middle_frame if required */
+	if (middle_frame != end_frame) {
 		ast_frfree(middle_frame);
+		middle_frame = NULL;
+	}
+
+	/* Before returning, if an audiohook got removed, reset samplerate compatibility */
+	if (removed) {
+		audiohook_list_set_samplerate_compatibility(audiohook_list);
 	}
 
 	return end_frame;
@@ -956,7 +1079,7 @@ static struct audiohook_volume *audiohook_volume_get(struct ast_channel *chan, i
 	}
 
 	/* Setup our audiohook structure so we can manipulate the audio */
-	ast_audiohook_init(&audiohook_volume->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Volume");
+	ast_audiohook_init(&audiohook_volume->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Volume", AST_AUDIOHOOK_MANIPULATE_ALL_RATES);
 	audiohook_volume->audiohook.manipulate_callback = audiohook_volume_callback;
 
 	/* Attach the audiohook_volume blob to the datastore and attach to the channel */

@@ -273,7 +273,7 @@ static struct translator_path *matrix_get(unsigned int x, unsigned int y)
  * \brief Allocate the descriptor, required outbuf space,
  * and possibly desc.
  */
-static void *newpvt(struct ast_translator *t)
+static void *newpvt(struct ast_translator *t, const struct ast_format *explicit_dst)
 {
 	struct ast_trans_pvt *pvt;
 	int len;
@@ -287,16 +287,23 @@ static void *newpvt(struct ast_translator *t)
 	if (t->buf_size)
 		len += AST_FRIENDLY_OFFSET + t->buf_size;
 	pvt = ast_calloc(1, len);
-	if (!pvt)
+	if (!pvt) {
 		return NULL;
+	}
 	pvt->t = t;
 	ofs = (char *)(pvt + 1);	/* pointer to data space */
 	if (t->desc_size) {		/* first comes the descriptor */
 		pvt->pvt = ofs;
 		ofs += t->desc_size;
 	}
-	if (t->buf_size)		/* finally buffer and header */
+	if (t->buf_size) {/* finally buffer and header */
 		pvt->outbuf.c = ofs + AST_FRIENDLY_OFFSET;
+	}
+	/* if a explicit destination format is provided, set that on the pvt so the
+	 * translator will process it. */
+	if (explicit_dst) {
+		ast_format_copy(&pvt->explicit_dst, explicit_dst);
+	}
 	/* call local init routine, if present */
 	if (t->newpvt && t->newpvt(pvt)) {
 		ast_free(pvt);
@@ -424,6 +431,7 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 
 	while (src_index != dst_index) {
 		struct ast_trans_pvt *cur;
+		struct ast_format *explicit_dst = NULL;
 		struct ast_translator *t = matrix_get(src_index, dst_index)->step;
 		if (!t) {
 			int src_id = index2format(src_index);
@@ -434,7 +442,10 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
-		if (!(cur = newpvt(t))) {
+		if (dst_index == t->dst_fmt_index) {
+			explicit_dst = dst;
+		}
+		if (!(cur = newpvt(t, explicit_dst))) {
 			int src_id = index2format(src_index);
 			int dst_id = index2format(dst_index);
 			ast_log(LOG_WARNING, "Failed to build translator step from %s to %s\n",
@@ -565,12 +576,12 @@ static void generate_computational_cost(struct ast_translator *t, int seconds)
 
 	/* If they don't make samples, give them a terrible score */
 	if (!t->sample) {
-		ast_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
+		ast_debug(3, "Translator '%s' does not produce sample frames.\n", t->name);
 		t->comp_cost = 999999;
 		return;
 	}
 
-	pvt = newpvt(t);
+	pvt = newpvt(t, NULL);
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
 		t->comp_cost = 999999;
@@ -641,13 +652,8 @@ static int generate_table_cost(struct ast_format *src, struct ast_format *dst)
 		 * table cost. */
 		return 0;
 	}
-	if ((src->id == AST_FORMAT_SLINEAR) || (src->id == AST_FORMAT_SLINEAR16)) {
-		src_ll = 1;
-	}
-	if ((dst->id == AST_FORMAT_SLINEAR) || (dst->id == AST_FORMAT_SLINEAR16)) {
-		dst_ll = 1;
-	}
-
+	src_ll = ast_format_is_slinear(src);
+	dst_ll = ast_format_is_slinear(dst);
 	if (src_ll) {
 		if (dst_ll && (src_rate == dst_rate)) {
 			return AST_TRANS_COST_LL_LL_ORIGSAMP;
@@ -778,16 +784,17 @@ static void matrix_rebuild(int samples)
 const char *ast_translate_path_to_str(struct ast_trans_pvt *p, struct ast_str **str)
 {
 	struct ast_trans_pvt *pn = p;
+	char tmp[256];
 
 	if (!p || !p->t) {
 		return "";
 	}
 
-	ast_str_set(str, 0, "%s", ast_getformatname(&p->t->src_format));
+	ast_str_set(str, 0, "%s", ast_getformatname_multiple_byid(tmp, sizeof(tmp), p->t->src_format.id));
 
 	while ( (p = pn) ) {
 		pn = p->next;
-		ast_str_append(str, 0, "->%s", ast_getformatname(&p->t->dst_format));
+		ast_str_append(str, 0, "->%s", ast_getformatname_multiple_byid(tmp, sizeof(tmp), p->t->dst_format.id));
 	}
 
 	return ast_str_buffer(*str);
@@ -800,10 +807,10 @@ static char *complete_trans_path_choice(const char *line, const char *word, int 
 	int i;
 	char *ret = NULL;
 	size_t len = 0;
-	const struct ast_format_list *format_list = ast_get_format_list(&len);
+	const struct ast_format_list *format_list = ast_format_list_get(&len);
 
 	for (i = 0; i < len; i++) {
-		if (AST_FORMAT_GET_TYPE(format_list[i].id) != AST_FORMAT_TYPE_AUDIO) {
+		if (AST_FORMAT_GET_TYPE(format_list[i].format.id) != AST_FORMAT_TYPE_AUDIO) {
 			continue;
 		}
 		if (!strncasecmp(word, format_list[i].name, wordlen) && ++which > state) {
@@ -811,6 +818,7 @@ static char *complete_trans_path_choice(const char *line, const char *word, int 
 			break;
 		}
 	}
+	ast_format_list_destroy(format_list);
 	return ret;
 }
 
@@ -835,46 +843,56 @@ static void handle_cli_recalc(struct ast_cli_args *a)
 
 static char *handle_show_translation_table(struct ast_cli_args *a)
 {
-	int x, y;
+	int x, y, i, k;
 	int curlen = 0, longest = 0;
-	struct ast_format tmp_fmt;
+	int f_len = 0;
+	const struct ast_format_list *f_list = ast_format_list_get((size_t *) &f_len);
+	struct ast_str *out = ast_str_create(1024);
+
 	AST_RWLIST_RDLOCK(&translators);
 	ast_cli(a->fd, "         Translation times between formats (in microseconds) for one second of data\n");
 	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
-	for (x = 0; x < cur_max_index; x++) {
+	for (i = 0; i < f_len; i++) {
 		/* translation only applies to audio right now. */
-		if (AST_FORMAT_GET_TYPE(index2format(x)) != AST_FORMAT_TYPE_AUDIO)
+		if (AST_FORMAT_GET_TYPE(f_list[i].format.id) != AST_FORMAT_TYPE_AUDIO)
 			continue;
-		curlen = strlen(ast_getformatname(ast_format_set(&tmp_fmt, index2format(x), 0)));
+		curlen = strlen(ast_getformatname(&f_list[i].format));
 		if (curlen > longest) {
 			longest = curlen;
 		}
 	}
 
-	for (x = -1; x < cur_max_index; x++) {
-		struct ast_str *out = ast_str_alloca(256);
+	for (i = -1; i < f_len; i++) {
+		x = -1;
+		if ((i >= 0) && ((x = format2index(f_list[i].format.id)) == -1)) {
+			continue;
+		}
 		/* translation only applies to audio right now. */
-		if (x >= 0 && (AST_FORMAT_GET_TYPE(index2format(x)) != AST_FORMAT_TYPE_AUDIO)) {
+		if (i >= 0 && (AST_FORMAT_GET_TYPE(f_list[i].format.id) != AST_FORMAT_TYPE_AUDIO)) {
 			continue;
 		}
 		/*Go ahead and move to next iteration if dealing with an unknown codec*/
-		if (x >= 0 && !strcmp(ast_getformatname(ast_format_set(&tmp_fmt, index2format(x), 0)), "unknown")) {
+		if (i >= 0 && !strcmp(ast_getformatname(&f_list[i].format), "unknown")) {
 			continue;
 		}
-		ast_str_set(&out, -1, " ");
-		for (y = -1; y < cur_max_index; y++) {
+		ast_str_set(&out, 0, " ");
+		for (k = -1; k < f_len; k++) {
+			y = -1;
+			if ((k >= 0) && ((y = format2index(f_list[k].format.id)) == -1)) {
+				continue;
+			}
 			/* translation only applies to audio right now. */
-			if (y >= 0 && (AST_FORMAT_GET_TYPE(index2format(y)) != AST_FORMAT_TYPE_AUDIO)) {
+			if (k >= 0 && (AST_FORMAT_GET_TYPE(f_list[k].format.id) != AST_FORMAT_TYPE_AUDIO)) {
 				continue;
 			}
 			/*Go ahead and move to next iteration if dealing with an unknown codec*/
-			if (y >= 0 && !strcmp(ast_getformatname(ast_format_set(&tmp_fmt, index2format(y), 0)), "unknown")) {
+			if (k >= 0 && !strcmp(ast_getformatname(&f_list[k].format), "unknown")) {
 				continue;
 			}
-			if (y >= 0) {
-				curlen = strlen(ast_getformatname(ast_format_set(&tmp_fmt, index2format(y), 0)));
+			if (k >= 0) {
+				curlen = strlen(ast_getformatname(&f_list[k].format));
 			}
 			if (curlen < 5) {
 				curlen = 5;
@@ -882,25 +900,27 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 
 			if (x >= 0 && y >= 0 && matrix_get(x, y)->step) {
 				/* Actual codec output */
-				ast_str_append(&out, -1, "%*d", curlen + 1, (matrix_get(x, y)->table_cost/100));
-			} else if (x == -1 && y >= 0) {
+				ast_str_append(&out, 0, "%*d", curlen + 1, (matrix_get(x, y)->table_cost/100));
+			} else if (i == -1 && k >= 0) {
 				/* Top row - use a dynamic size */
-				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(ast_format_set(&tmp_fmt, index2format(y), 0)));
-			} else if (y == -1 && x >= 0) {
+				ast_str_append(&out, 0, "%*s", curlen + 1, ast_getformatname(&f_list[k].format));
+			} else if (k == -1 && i >= 0) {
 				/* Left column - use a static size. */
-				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(ast_format_set(&tmp_fmt, index2format(x), 0)));
+				ast_str_append(&out, 0, "%*s", longest, ast_getformatname(&f_list[i].format));
 			} else if (x >= 0 && y >= 0) {
 				/* Codec not supported */
-				ast_str_append(&out, -1, "%*s", curlen + 1, "-");
+				ast_str_append(&out, 0, "%*s", curlen + 1, "-");
 			} else {
 				/* Upper left hand corner */
-				ast_str_append(&out, -1, "%*s", longest, "");
+				ast_str_append(&out, 0, "%*s", longest, "");
 			}
 		}
-		ast_str_append(&out, -1, "\n");
+		ast_str_append(&out, 0, "\n");
 		ast_cli(a->fd, "%s", ast_str_buffer(out));
 	}
+	ast_free(out);
 	AST_RWLIST_UNLOCK(&translators);
+	ast_format_list_destroy(f_list);
 	return CLI_SUCCESS;
 }
 
@@ -909,23 +929,24 @@ static char *handle_show_translation_path(struct ast_cli_args *a)
 	struct ast_format input_src_format;
 	size_t len = 0;
 	int i;
-	const struct ast_format_list *format_list = ast_get_format_list(&len);
-	struct ast_str *str = ast_str_alloca(256);
+	const struct ast_format_list *format_list = ast_format_list_get(&len);
+	struct ast_str *str = ast_str_alloca(1024);
 	struct ast_translator *step;
+	char tmp[256];
 
 	ast_format_clear(&input_src_format);
-
 	for (i = 0; i < len; i++) {
-		if (AST_FORMAT_GET_TYPE(format_list[i].id) != AST_FORMAT_TYPE_AUDIO) {
+		if (AST_FORMAT_GET_TYPE(format_list[i].format.id) != AST_FORMAT_TYPE_AUDIO) {
 			continue;
 		}
 		if (!strncasecmp(format_list[i].name, a->argv[4], strlen(format_list[i].name))) {
-			ast_format_set(&input_src_format, format_list[i].id, 0);
+			ast_format_copy(&input_src_format, &format_list[i].format);
 		}
 	}
 
 	if (!input_src_format.id) {
 		ast_cli(a->fd, "Source codec \"%s\" is not found.\n", a->argv[4]);
+		ast_format_list_destroy(format_list);
 		return CLI_FAILURE;
 	}
 
@@ -934,21 +955,21 @@ static char *handle_show_translation_path(struct ast_cli_args *a)
 	for (i = 0; i < len; i++) {
 		int src;
 		int dst;
-		if ((AST_FORMAT_GET_TYPE(format_list[i].id) != AST_FORMAT_TYPE_AUDIO) || (format_list[i].id == input_src_format.id)) {
+		if ((AST_FORMAT_GET_TYPE(format_list[i].format.id) != AST_FORMAT_TYPE_AUDIO) || (format_list[i].format.id == input_src_format.id)) {
 			continue;
 		}
-		dst = format2index(format_list[i].id);
+		dst = format2index(format_list[i].format.id);
 		src = format2index(input_src_format.id);
 		ast_str_reset(str);
 		if ((len >= cur_max_index) && (src != -1) && (dst != -1) && matrix_get(src, dst)->step) {
-			ast_str_append(&str, 0, "%s", ast_getformatname(&matrix_get(src, dst)->step->src_format));
+			ast_str_append(&str, 0, "%s", ast_getformatname_multiple_byid(tmp, sizeof(tmp), matrix_get(src, dst)->step->src_format.id));
 			while (src != dst) {
 				step = matrix_get(src, dst)->step;
 				if (!step) {
 					ast_str_reset(str);
 					break;
 				}
-				ast_str_append(&str, 0, "->%s", ast_getformatname(&step->dst_format));
+				ast_str_append(&str, 0, "->%s", ast_getformatname_multiple_byid(tmp, sizeof(tmp), step->dst_format.id));
 				src = step->dst_fmt_index;
 			}
 		}
@@ -960,6 +981,7 @@ static char *handle_show_translation_path(struct ast_cli_args *a)
 	}
 	AST_RWLIST_UNLOCK(&translators);
 
+	ast_format_list_destroy(format_list);
 	return CLI_SUCCESS;
 }
 

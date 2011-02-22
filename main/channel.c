@@ -1006,7 +1006,14 @@ struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format 
 		/*! G.722 is better then all below, but not as common as the above... so give ulaw and alaw priority */
 		AST_FORMAT_G722,
 		/*! Okay, well, signed linear is easy to translate into other stuff */
+		AST_FORMAT_SLINEAR192,
+		AST_FORMAT_SLINEAR96,
+		AST_FORMAT_SLINEAR48,
+		AST_FORMAT_SLINEAR44,
+		AST_FORMAT_SLINEAR32,
+		AST_FORMAT_SLINEAR24,
 		AST_FORMAT_SLINEAR16,
+		AST_FORMAT_SLINEAR12,
 		AST_FORMAT_SLINEAR,
 		/*! G.726 is standard ADPCM, in RFC3551 packing order */
 		AST_FORMAT_G726,
@@ -1020,8 +1027,11 @@ struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format 
 		/*! iLBC is not too bad */
 		AST_FORMAT_ILBC,
 		/*! Speex is free, but computationally more expensive than GSM */
+		AST_FORMAT_SPEEX32,
 		AST_FORMAT_SPEEX16,
 		AST_FORMAT_SPEEX,
+		/*! SILK is pretty awesome. */
+		AST_FORMAT_SILK,
 		/*! Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
 		    to use it */
 		AST_FORMAT_LPC10,
@@ -1035,7 +1045,7 @@ struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format 
 
 	/* Find the first preferred codec in the format given */
 	for (x = 0; x < ARRAY_LEN(prefs); x++) {
-		if (ast_format_cap_iscompatible(cap, ast_format_set(result, prefs[x], 0))) {
+		if (ast_format_cap_best_byid(cap, prefs[x], result)) {
 			return result;
 		}
 	}
@@ -5778,12 +5788,16 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	 * no direct conversion available. If generic PLC is
 	 * desired, then transcoding via SLINEAR is a requirement
 	 */
-	use_slin = (best_src_fmt.id == AST_FORMAT_SLINEAR || best_dst_fmt.id == AST_FORMAT_SLINEAR);
+	use_slin = ast_format_is_slinear(&best_src_fmt) || ast_format_is_slinear(&best_dst_fmt) ? 1 : 0;
 	if ((ast_format_cmp(&best_src_fmt, &best_dst_fmt) == AST_FORMAT_CMP_NOT_EQUAL) &&
 		(ast_opt_generic_plc || ast_opt_transcode_via_slin) &&
 	    (ast_translate_path_steps(&best_dst_fmt, &best_src_fmt) != 1 || use_slin)) {
 
-		ast_format_set(&best_dst_fmt, AST_FORMAT_SLINEAR, 0);
+		int best_sample_rate = ast_format_rate(&best_src_fmt) > ast_format_rate(&best_dst_fmt) ?
+			ast_format_rate(&best_src_fmt) : ast_format_rate(&best_dst_fmt);
+
+		/* pick the best signed linear format based upon what preserves the sample rate the best. */
+		ast_format_set(&best_dst_fmt, ast_format_slin_by_rate(best_sample_rate), 0);
 	}
 
 	if (ast_set_read_format(from, &best_dst_fmt) < 0) {

@@ -40,6 +40,11 @@ CDR
  * The filter option in cdr_adaptive_odbc now supports negating the argument,
    thus allowing records which do NOT match the specified filter.
 
+CODECS
+--------------------------
+ * Ability to define custom SILK formats in codecs.conf.
+ * Addition of speex32 audio format with translation.
+
 Dialplan Variables
 ------------------
  * Added ASTETCDIR, ASTMODDIR, ASTVARLIBDIR, ASTDBDIR, ASTKEYDIR, ASTDATADIR,

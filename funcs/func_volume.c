@@ -132,7 +132,7 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 			ast_datastore_free(datastore);
 			return 0;
 		}
-		ast_audiohook_init(&vi->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Volume");
+		ast_audiohook_init(&vi->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Volume", AST_AUDIOHOOK_MANIPULATE_ALL_RATES);
 		vi->audiohook.manipulate_callback = volume_callback;
 		ast_set_flag(&vi->audiohook, AST_AUDIOHOOK_WANTS_DTMF);
 		is_new = 1;

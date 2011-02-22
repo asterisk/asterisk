@@ -1796,7 +1796,7 @@ static struct ast_format *codec_skinny2ast(enum skinny_codecs skinnycodec, struc
 	}
 }
 
-static int codec_ast2skinny(struct ast_format *astcodec)
+static int codec_ast2skinny(const struct ast_format *astcodec)
 {
 	switch (astcodec->id) {
 	case AST_FORMAT_ALAW:
@@ -2289,7 +2289,7 @@ static void transmit_connect(struct skinny_device *d, struct skinny_subchannel *
 	req->data.openreceivechannel.conferenceId = htolel(sub->callid);
 	req->data.openreceivechannel.partyId = htolel(sub->callid);
 	req->data.openreceivechannel.packets = htolel(fmt.cur_ms);
-	req->data.openreceivechannel.capability = htolel(codec_ast2skinny(ast_format_set(&tmpfmt, fmt.id, 0)));
+	req->data.openreceivechannel.capability = htolel(codec_ast2skinny(&fmt.format));
 	req->data.openreceivechannel.echo = htolel(0);
 	req->data.openreceivechannel.bitrate = htolel(0);
 	transmit_response(d, req);
@@ -2494,7 +2494,6 @@ static void transmit_stopmediatransmission(struct skinny_device *d, struct skinn
 static void transmit_startmediatransmission(struct skinny_device *d, struct skinny_subchannel *sub, struct sockaddr_in dest, struct ast_format_list fmt)
 {
 	struct skinny_req *req;
-	struct ast_format tmpfmt;
 
 	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
 		return;
@@ -2504,7 +2503,7 @@ static void transmit_startmediatransmission(struct skinny_device *d, struct skin
 	req->data.startmedia.remoteIp = dest.sin_addr.s_addr;
 	req->data.startmedia.remotePort = htolel(ntohs(dest.sin_port));
 	req->data.startmedia.packetSize = htolel(fmt.cur_ms);
-	req->data.startmedia.payloadType = htolel(codec_ast2skinny(ast_format_set(&tmpfmt, fmt.id, 0)));
+	req->data.startmedia.payloadType = htolel(codec_ast2skinny(&fmt.format));
 	req->data.startmedia.qualifier.precedence = htolel(127);
 	req->data.startmedia.qualifier.vad = htolel(0);
 	req->data.startmedia.qualifier.packets = htolel(0);
@@ -2986,7 +2985,7 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 		fmt = ast_codec_pref_getsize(&l->prefs, &tmpfmt);
 
 		if (skinnydebug)
-			ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(ast_format_set(&tmpfmt, fmt.id, 0)), fmt.cur_ms);
+			ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(&fmt.format), fmt.cur_ms);
 
 		if (!(l->directmedia) || (l->nat)){
 			ast_rtp_instance_get_local_address(rtp, &us_tmp);
@@ -5760,7 +5759,7 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	fmt = ast_codec_pref_getsize(&l->prefs, &tmpfmt);
 
 	if (skinnydebug)
-		ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(ast_format_set(&tmpfmt, fmt.id, 0)), fmt.cur_ms);
+		ast_verb(1, "Setting payloadType to '%s' (%d ms)\n", ast_getformatname(&fmt.format), fmt.cur_ms);
 
 	transmit_startmediatransmission(d, sub, us, fmt);
 

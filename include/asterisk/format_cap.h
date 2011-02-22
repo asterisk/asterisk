@@ -70,7 +70,7 @@ void *ast_format_cap_destroy(struct ast_format_cap *cap);
  * what is placed in the ast_format_cap structure.  The actual
  * input format ptr is not stored.
  */
-void ast_format_cap_add(struct ast_format_cap *cap, struct ast_format *format);
+void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *format);
 
 /*!
  * \brief Add all formats Asterisk knows about for a specific type to
@@ -155,12 +155,29 @@ void ast_format_cap_remove_all(struct ast_format_cap *cap);
 void ast_format_cap_set(struct ast_format_cap *cap, struct ast_format *format);
 
 /*!
+ * \brief Find if input ast_format is within the capabilities of the ast_format_cap object
+ * then return the compatible format from the capabilities structure in the result.
+ *
+ * \retval 1 format is compatible with formats held in ast_format_cap object.
+ * \retval 0 format is not compatible with any formats in ast_format_cap object.
+ */
+int ast_format_cap_get_compatible_format(const struct ast_format_cap *cap, const struct ast_format *format, struct ast_format *result);
+
+/*!
  * \brief Find if ast_format is within the capabilities of the ast_format_cap object.
  *
  * retval 1 format is compatible with formats held in ast_format_cap object.
  * retval 0 format is not compatible with any formats in ast_format_cap object.
  */
 int ast_format_cap_iscompatible(const struct ast_format_cap *cap, const struct ast_format *format);
+
+/*!
+ * \brief Finds the best quality audio format for a given format id and returns it in result.
+ *
+ * \retval 1 format found and set to result structure.
+ * \retval 0 no format found, result structure is cleared.
+ */
+int ast_format_cap_best_byid(const struct ast_format_cap *cap, enum ast_format_id, struct ast_format *result);
 
 /*!
  * \brief is cap1 identical to cap2
@@ -277,5 +294,15 @@ uint64_t ast_format_cap_to_old_bitfield(const struct ast_format_cap *cap);
  * \note This is only to be used for IAX2 compatibility 
  */
 void ast_format_cap_from_old_bitfield(struct ast_format_cap *dst, uint64_t src);
+
+/*! \brief Get the names of a set of formats
+ * \param buf a buffer for the output string
+ * \param size size of buf (bytes)
+ * \param format the format (combined IDs of codecs)
+ * Prints a list of readable codec names corresponding to "format".
+ * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
+ * \return The return value is buf.
+ */
+char* ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap);
 
 #endif /* _AST_FORMATCAP_H */

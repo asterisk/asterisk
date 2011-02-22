@@ -34,7 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right)
 {
 	size_t f_len;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 	int x, differential = (int) 'A', mem;
 	char *from, *to;
 
@@ -57,9 +57,10 @@ void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size,
 		}
 		to[x] = right ? (from[x] + differential) : (from[x] - differential);
 		if (!right && to[x] && (to[x] < f_len)) {
-			ast_format_set(&pref->formats[x], f_list[to[x]-1].id , 0);
+			ast_format_copy(&pref->formats[x], &f_list[to[x]-1].format);
 		}
 	}
+	ast_format_list_destroy(f_list);
 }
 
 int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size)
@@ -67,7 +68,7 @@ int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size)
 	int x;
 	struct ast_format format;
 	size_t total_len, slen;
-	char *formatname;
+	const char *formatname;
 
 	memset(buf, 0, size);
 	total_len = size;
@@ -116,23 +117,27 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, struct ast_format *forma
 	struct ast_codec_pref oldorder;
 	int x, y = 0;
 	size_t f_len = 0;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const const struct ast_format_list *f_list;
 
-	if (!pref->order[0])
+	if (!pref->order[0]) {
 		return;
+	}
 
+	f_list = ast_format_list_get(&f_len);
 	memcpy(&oldorder, pref, sizeof(oldorder));
 	memset(pref, 0, sizeof(*pref));
 
 	for (x = 0; x < f_len; x++) {
-		if (!oldorder.order[x])
+		if (!oldorder.order[x]) {
 			break;
-		if (f_list[oldorder.order[x]-1].id != format->id) {
+		}
+		if (ast_format_cmp(&f_list[oldorder.order[x]-1].format, format) == AST_FORMAT_CMP_NOT_EQUAL) {
 			pref->order[y] = oldorder.order[x];
 			ast_format_copy(&pref->formats[y], &oldorder.formats[x]);
 			pref->framing[y++] = oldorder.framing[x];
 		}
 	}
+	ast_format_list_destroy(f_list);
 }
 
 /*! \brief Append codec to list */
@@ -140,12 +145,12 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, struct ast_format *format
 {
 	int x, newindex = 0;
 	size_t f_len = 0;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	ast_codec_pref_remove(pref, format);
 
 	for (x = 0; x < f_len; x++) {
-		if (f_list[x].id == format->id) {
+		if (ast_format_cmp(&f_list[x].format, format) == AST_FORMAT_CMP_EQUAL) {
 			newindex = x + 1;
 			break;
 		}
@@ -161,6 +166,7 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, struct ast_format *format
 		}
 	}
 
+	ast_format_list_destroy(f_list);
 	return x;
 }
 
@@ -169,18 +175,20 @@ void ast_codec_pref_prepend(struct ast_codec_pref *pref, struct ast_format *form
 {
 	int x, newindex = 0;
 	size_t f_len = 0;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	/* First step is to get the codecs "index number" */
 	for (x = 0; x < f_len; x++) {
-		if (f_list[x].id == format->id) {
+		if (ast_format_cmp(&f_list[x].format, format) == AST_FORMAT_CMP_EQUAL) {
 			newindex = x + 1;
 			break;
 		}
 	}
 	/* Done if its unknown */
-	if (!newindex)
+	if (!newindex) {
+		ast_format_list_destroy(f_list);
 		return;
+	}
 
 	/* Now find any existing occurrence, or the end */
 	for (x = 0; x < AST_CODEC_PREF_SIZE; x++) {
@@ -188,8 +196,10 @@ void ast_codec_pref_prepend(struct ast_codec_pref *pref, struct ast_format *form
 			break;
 	}
 
-	if (only_if_existing && !pref->order[x])
+	if (only_if_existing && !pref->order[x]) {
+		ast_format_list_destroy(f_list);
 		return;
+	}
 
 	/* Move down to make space to insert - either all the way to the end,
 	   or as far as the existing location (which will be overwritten) */
@@ -203,6 +213,7 @@ void ast_codec_pref_prepend(struct ast_codec_pref *pref, struct ast_format *form
 	pref->order[0] = newindex;
 	pref->framing[0] = 0; /* ? */
 	ast_format_copy(&pref->formats[0], format);
+	ast_format_list_destroy(f_list);
 }
 
 /*! \brief Set packet size for codec */
@@ -210,17 +221,19 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, struct ast_format *forma
 {
 	int x, idx = -1;
 	size_t f_len = 0;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	for (x = 0; x < f_len; x++) {
-		if (f_list[x].id == format->id) {
+		if (ast_format_cmp(&f_list[x].format, format) == AST_FORMAT_CMP_EQUAL) {
 			idx = x;
 			break;
 		}
 	}
 
-	if (idx < 0)
+	if (idx < 0) {
+		ast_format_list_destroy(f_list);
 		return -1;
+	}
 
 	/* size validation */
 	if (!framems)
@@ -242,6 +255,7 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, struct ast_format *forma
 		}
 	}
 
+	ast_format_list_destroy(f_list);
 	return x;
 }
 
@@ -249,12 +263,12 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, struct ast_format *forma
 struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, struct ast_format *format)
 {
 	int x, idx = -1, framems = 0;
-	struct ast_format_list fmt = { 0, };
+	struct ast_format_list fmt = { { 0, }, };
 	size_t f_len = 0;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	for (x = 0; x < f_len; x++) {
-		if (f_list[x].id == format->id) {
+		if (ast_format_cmp(&f_list[x].format, format) == AST_FORMAT_CMP_EQUAL) {
 			fmt = f_list[x];
 			idx = x;
 			break;
@@ -282,7 +296,7 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, struc
 		framems = f_list[idx].max_ms;
 
 	fmt.cur_ms = framems;
-
+	ast_format_list_destroy(f_list);
 	return fmt;
 }
 
@@ -291,27 +305,23 @@ struct ast_format *ast_codec_choose(struct ast_codec_pref *pref, struct ast_form
 {
 	int x, slot, found;
 	size_t f_len = 0;
-	struct ast_format tmp_fmt;
-
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
-
-	ast_format_clear(result);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	for (x = 0; x < f_len; x++) {
 		slot = pref->order[x];
 
 		if (!slot)
 			break;
-		if (ast_format_cap_iscompatible(cap, ast_format_set(&tmp_fmt, f_list[slot-1].id, 0))) {
-			found = 1; /*format is found and stored in tmp_fmt */
+		if (ast_format_cap_get_compatible_format(cap, &f_list[slot-1].format, result)) {
+			found = 1; /*format is found and stored in result */
 			break;
 		}
 	}
-	if (found && (AST_FORMAT_GET_TYPE(tmp_fmt.id) == AST_FORMAT_TYPE_AUDIO)) {
-		ast_format_copy(result, &tmp_fmt);
+	ast_format_list_destroy(f_list);
+	if (found && (AST_FORMAT_GET_TYPE(result->id) == AST_FORMAT_TYPE_AUDIO)) {
 		return result;
 	}
-
+	ast_format_clear(result);
 	ast_debug(4, "Could not find preferred codec - %s\n", find_best ? "Going for the best codec" : "Returning zero codec");
 
 	return find_best ? ast_best_codec(cap, result) : NULL;

@@ -427,23 +427,6 @@ struct ast_option_header {
 		uint8_t data[0];
 };
 
-
-/*! \brief Definition of supported media formats (codecs) */
-struct ast_format_list {
-	enum ast_format_id id;    /*!< The format unique id */
-	char *name;	/*!< short name */
-	int samplespersecond; /*!< Number of samples per second (8000/16000) */
-	char *desc;	/*!< Description */
-	int fr_len;	/*!< Single frame length in bytes */
-	int min_ms;	/*!< Min value */
-	int max_ms;	/*!< Max value */
-	int inc_ms;	/*!< Increment */
-	int def_ms;	/*!< Default value */
-	unsigned int flags;	/*!< Smoother flags */
-	int cur_ms;	/*!< Current value */
-};
-
-
 /*! \brief  Requests a frame to be allocated 
  * 
  * \param source 
@@ -505,37 +488,6 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples);
  */
 int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing);
 
-/*! \brief Get the name of a format
- * \param format id of format
- * \return A static string containing the name of the format or "unknown" if unknown.
- */
-char* ast_getformatname(struct ast_format *format);
-
-/*! \brief Get the names of a set of formats
- * \param buf a buffer for the output string
- * \param size size of buf (bytes)
- * \param format the format (combined IDs of codecs)
- * Prints a list of readable codec names corresponding to "format".
- * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
- * \return The return value is buf.
- */
-char* ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap);
-
-/*!
- * \brief Gets a format from a name.
- * \param name string of format
- * \param format structure to return the format in.
- * \return This returns the format pointer given to it on success and NULL on failure
- */
-struct ast_format *ast_getformatbyname(const char *name, struct ast_format *format);
-
-/*! \brief Get a name from a format 
- * Gets a name from a format
- * \param format to get name of
- * \return This returns a static string identifying the format on success, 0 on error.
- */
-char *ast_codec2str(struct ast_format *format);
-
 /*! \name AST_Smoother 
 */
 /*@{ */
@@ -582,8 +534,6 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 #endif
 /*@} Doxygen marker */
 
-const struct ast_format_list *ast_get_format_list_index(int index);
-const struct ast_format_list *ast_get_format_list(size_t *size);
 void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 
 /*! \brief Returns the number of samples contained in the frame */
@@ -620,26 +570,6 @@ int ast_frame_adjust_volume(struct ast_frame *f, int adjustment);
   and must contain the same number of samples.
  */
 int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2);
-
-/*!
- * \brief Get the sample rate for a given format.
- */
-static force_inline int ast_format_rate(struct ast_format *format)
-{
-	switch (format->id) {
-	case AST_FORMAT_G722:
-	case AST_FORMAT_SLINEAR16:
-	case AST_FORMAT_SIREN7:
-	case AST_FORMAT_SPEEX16:
-		return 16000;
-	case AST_FORMAT_SIREN14:
-		return 32000;
-	case AST_FORMAT_G719:
-		return 48000;
-	default:
-		return 8000;
-	}
-}
 
 /*!
  * \brief Clear all audio samples from an ast_frame. The frame must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR 

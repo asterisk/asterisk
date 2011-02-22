@@ -885,7 +885,7 @@ static int enable_jack_hook(struct ast_channel *chan, char *data)
 		goto return_error;
 
 	jack_data->has_audiohook = 1;
-	ast_audiohook_init(&jack_data->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "JACK_HOOK");
+	ast_audiohook_init(&jack_data->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "JACK_HOOK", 0);
 	jack_data->audiohook.manipulate_callback = jack_hook_callback;
 
 	datastore->data = jack_data;

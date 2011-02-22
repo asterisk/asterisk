@@ -56,11 +56,11 @@ void ast_slinfactory_init(struct ast_slinfactory *sf);
  * \brief Initialize a slinfactory
  *
  * \param sf The slinfactory to initialize
- * \param sample_rate The output sample rate desired
+ * \param slin_out the slinear output format desired.
  *
  * \return 0 on success, non-zero on failure
  */
-int ast_slinfactory_init_rate(struct ast_slinfactory *sf, unsigned int sample_rate);
+int ast_slinfactory_init_with_format(struct ast_slinfactory *sf, const struct ast_format *slin_out);
 
 /*!
  * \brief Destroy the contents of a slinfactory

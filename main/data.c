@@ -3111,11 +3111,12 @@ int ast_data_add_codec(struct ast_data *root, const char *node_name, struct ast_
 	if (!codecs) {
 		return -1;
 	}
-	fmlist = ast_get_format_list(&fmlist_size);
+	fmlist = ast_format_list_get(&fmlist_size);
 	for (x = 0; x < fmlist_size; x++) {
-		if (fmlist[x].id == format->id) {
+		if (ast_format_cmp(&fmlist[x].format, format) == AST_FORMAT_CMP_EQUAL) {
 			codec = ast_data_add_node(codecs, "codec");
 			if (!codec) {
+				ast_format_list_destroy(fmlist);
 				return -1;
 			}
 			ast_data_add_str(codec, "name", fmlist[x].name);
@@ -3124,6 +3125,7 @@ int ast_data_add_codec(struct ast_data *root, const char *node_name, struct ast_
 			ast_data_add_int(codec, "frame_length", fmlist[x].fr_len);
 		}
 	}
+	ast_format_list_destroy(fmlist);
 
 	return 0;
 }
@@ -3133,18 +3135,18 @@ int ast_data_add_codecs(struct ast_data *root, const char *node_name, struct ast
 	struct ast_data *codecs, *codec;
 	size_t fmlist_size;
 	const struct ast_format_list *fmlist;
-	struct ast_format tmp_fmt;
 	int x;
 
 	codecs = ast_data_add_node(root, node_name);
 	if (!codecs) {
 		return -1;
 	}
-	fmlist = ast_get_format_list(&fmlist_size);
+	fmlist = ast_format_list_get(&fmlist_size);
 	for (x = 0; x < fmlist_size; x++) {
-		if (ast_format_cap_iscompatible(cap, ast_format_set(&tmp_fmt, fmlist[x].id, 0))) {
+		if (ast_format_cap_iscompatible(cap, &fmlist[x].format)) {
 			codec = ast_data_add_node(codecs, "codec");
 			if (!codec) {
+				ast_format_list_destroy(fmlist);
 				return -1;
 			}
 			ast_data_add_str(codec, "name", fmlist[x].name);
@@ -3153,6 +3155,7 @@ int ast_data_add_codecs(struct ast_data *root, const char *node_name, struct ast
 			ast_data_add_int(codec, "frame_length", fmlist[x].fr_len);
 		}
 	}
+	ast_format_list_destroy(fmlist);
 
 	return 0;
 }

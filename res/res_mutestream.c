@@ -173,7 +173,7 @@ static struct ast_datastore *initialize_mutehook(struct ast_channel *chan)
 		ast_datastore_free(datastore);
 		return NULL;
 	}
-	ast_audiohook_init(&mute->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Mute");
+	ast_audiohook_init(&mute->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "Mute", AST_AUDIOHOOK_MANIPULATE_ALL_RATES);
 	mute->audiohook.manipulate_callback = mute_callback;
 	datastore->data = mute;
 	return datastore;

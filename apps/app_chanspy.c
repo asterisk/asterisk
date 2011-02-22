@@ -541,15 +541,15 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	memset(&csth, 0, sizeof(csth));
 	ast_copy_flags(&csth.spy_audiohook, flags, AST_FLAGS_ALL);
 
-	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy");
+	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy", 0);
 
 	if (start_spying(spyee_autochan, spyer_name, &csth.spy_audiohook)) {
 		ast_audiohook_destroy(&csth.spy_audiohook);
 		return 0;
 	}
 
-	ast_audiohook_init(&csth.whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "ChanSpy");
-	ast_audiohook_init(&csth.bridge_whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "Chanspy");
+	ast_audiohook_init(&csth.whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "ChanSpy", 0);
+	ast_audiohook_init(&csth.bridge_whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "Chanspy", 0);
 	if (start_spying(spyee_autochan, spyer_name, &csth.whisper_audiohook)) {
 		ast_log(LOG_WARNING, "Unable to attach whisper audiohook to spyee %s. Whisper mode disabled!\n", name);
 	}

@@ -143,6 +143,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/poll-compat.h"
 #include "asterisk/ccss.h"
 #include "asterisk/test.h"
+#include "asterisk/rtp_engine.h"
 #include "asterisk/format.h"
 #include "asterisk/aoc.h"
 
@@ -3708,6 +3709,8 @@ int main(int argc, char *argv[])
 	astobj2_init();
 
 	ast_format_attr_init();
+	ast_format_list_init();
+	ast_rtp_engine_init();
 
 	ast_autoservice_init();
 

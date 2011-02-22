@@ -133,7 +133,7 @@ enum ast_trans_cost_table {
  * Generic plc is only available for dstfmt = SLINEAR
  */
 struct ast_translator {
-	const char name[80];                   /*!< Name of translator */
+	char name[80];                         /*!< Name of translator */
 	struct ast_format src_format;          /*!< Source format */
 	struct ast_format dst_format;          /*!< Destination format */
 
@@ -204,6 +204,12 @@ struct ast_translator {
 struct ast_trans_pvt {
 	struct ast_translator *t;
 	struct ast_frame f;         /*!< used in frameout */
+	/*! If a translation path using a format with attributes requires the output
+	 * to be a specific set of attributes, this variable will be set describing those
+	 * attributes to the translator.  Otherwise, the translator must choose a set
+	 * of format attributes for the destination that preserves the quality of the
+	 * audio in the best way possible. */
+	struct ast_format explicit_dst;
 	int samples;                /*!< samples available in outbuf */
 	/*! \brief actual space used in outbuf */
 	int datalen;
@@ -213,7 +219,7 @@ struct ast_trans_pvt {
 		unsigned char *uc;      /*!< the useful portion of the buffer */
 		int16_t *i16;
 		uint8_t *ui8;
-	} outbuf; 
+	} outbuf;
 	plc_state_t *plc;           /*!< optional plc pointer */
 	struct ast_trans_pvt *next; /*!< next in translator chain */
 	struct timeval nextin;

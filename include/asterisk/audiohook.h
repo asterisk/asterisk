@@ -65,7 +65,12 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_MUTE_WRITE = (1 << 5),    /*!< audiohook should be mute frames written */
 };
 
-#define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*< Tolerance in milliseconds for audiohooks synchronization */
+enum ast_audiohook_init_flags {
+	/*! Audiohook manipulate callback is capable of handling slinear at any sample rate.
+	 * Without enabling this flag on initialization the manipulation callback is guaranteed
+	 * 8khz audio only. */
+	AST_AUDIOHOOK_MANIPULATE_ALL_RATES = (1 << 0),
+};
 
 struct ast_audiohook;
 
@@ -97,6 +102,7 @@ struct ast_audiohook {
 	ast_cond_t trigger;                                    /*!< Trigger condition (if enabled) */
 	enum ast_audiohook_type type;                          /*!< Type of audiohook */
 	enum ast_audiohook_status status;                      /*!< Status of the audiohook */
+	enum ast_audiohook_init_flags init_flags;              /*!< Init flags */
 	const char *source;                                    /*!< Who this audiohook ultimately belongs to */
 	unsigned int flags;                                    /*!< Flags on the audiohook */
 	struct ast_slinfactory read_factory;                   /*!< Factory where frames read from the channel, or read from the whisper source will go through */
@@ -107,6 +113,7 @@ struct ast_audiohook {
 	struct ast_trans_pvt *trans_pvt;                       /*!< Translation path for reading frames */
 	ast_audiohook_manipulate_callback manipulate_callback; /*!< Manipulation callback */
 	struct ast_audiohook_options options;                  /*!< Applicable options */
+	unsigned int hook_internal_samp_rate;                           /*!< internal read/write sample rate on the audiohook.*/
 	AST_LIST_ENTRY(ast_audiohook) list;                    /*!< Linked list information */
 };
 
@@ -116,9 +123,10 @@ struct ast_audiohook_list;
  * \param audiohook Audiohook structure
  * \param type Type of audiohook to initialize this as
  * \param source Who is initializing this audiohook
+ * \param init flags
  * \return Returns 0 on success, -1 on failure
  */
-int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source);
+int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source, enum ast_audiohook_init_flags flags);
 
 /*! \brief Destroys an audiohook structure
  * \param audiohook Audiohook structure

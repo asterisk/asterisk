@@ -92,38 +92,6 @@ struct ast_smoother {
 	int len;
 };
 
-/*! \brief Definition of supported media formats (codecs) */
-static const struct ast_format_list AST_FORMAT_LIST[] = {
-	{ AST_FORMAT_G723_1 , "g723", 8000, "G.723.1", 20, 30, 300, 30, 30 },                                  /*!< G723.1 */
-	{ AST_FORMAT_GSM, "gsm", 8000, "GSM", 33, 20, 300, 20, 20 },                                           /*!< codec_gsm.c */
-	{ AST_FORMAT_ULAW, "ulaw", 8000, "G.711 u-law", 80, 10, 150, 10, 20 },                                 /*!< codec_ulaw.c */
-	{ AST_FORMAT_ALAW, "alaw", 8000, "G.711 A-law", 80, 10, 150, 10, 20 },                                 /*!< codec_alaw.c */
-	{ AST_FORMAT_G726, "g726", 8000, "G.726 RFC3551", 40, 10, 300, 10, 20 },                               /*!< codec_g726.c */
-	{ AST_FORMAT_ADPCM, "adpcm" , 8000, "ADPCM", 40, 10, 300, 10, 20 },                                    /*!< codec_adpcm.c */
-	{ AST_FORMAT_SLINEAR, "slin", 8000, "16 bit Signed Linear PCM", 160, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE }, /*!< Signed linear */
-	{ AST_FORMAT_LPC10, "lpc10", 8000, "LPC10", 7, 20, 20, 20, 20 },                                       /*!< codec_lpc10.c */ 
-	{ AST_FORMAT_G729A, "g729", 8000, "G.729A", 10, 10, 230, 10, 20, AST_SMOOTHER_FLAG_G729 },             /*!< Binary commercial distribution */
-	{ AST_FORMAT_SPEEX, "speex", 8000, "SpeeX", 10, 10, 60, 10, 20 },                                      /*!< codec_speex.c */
-	{ AST_FORMAT_SPEEX16, "speex16", 16000, "SpeeX 16khz", 10, 10, 60, 10, 20 },                          /*!< codec_speex.c */
-	{ AST_FORMAT_ILBC, "ilbc", 8000, "iLBC", 50, 30, 30, 30, 30 },                                         /*!< codec_ilbc.c */ /* inc=30ms - workaround */
-	{ AST_FORMAT_G726_AAL2, "g726aal2", 8000, "G.726 AAL2", 40, 10, 300, 10, 20 },                         /*!< codec_g726.c */
-	{ AST_FORMAT_G722, "g722", 16000, "G722", 80, 10, 150, 10, 20 },                                       /*!< codec_g722.c */
-	{ AST_FORMAT_SLINEAR16, "slin16", 16000, "16 bit Signed Linear PCM (16kHz)", 320, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE },    /*!< Signed linear (16kHz) */
-	{ AST_FORMAT_JPEG, "jpeg", 0, "JPEG image"},                                                           /*!< See format_jpeg.c */
-	{ AST_FORMAT_PNG, "png", 0, "PNG image"},                                                              /*!< PNG Image format */
-	{ AST_FORMAT_H261, "h261", 0, "H.261 Video" },                                                         /*!< H.261 Video Passthrough */
-	{ AST_FORMAT_H263, "h263", 0, "H.263 Video" },                                                         /*!< H.263 Passthrough support, see format_h263.c */
-	{ AST_FORMAT_H263_PLUS, "h263p", 0, "H.263+ Video" },                                                  /*!< H.263plus passthrough support See format_h263.c */
-	{ AST_FORMAT_H264, "h264", 0, "H.264 Video" },                                                         /*!< Passthrough support, see format_h263.c */
-	{ AST_FORMAT_MP4_VIDEO, "mpeg4", 0, "MPEG4 Video" },                                                   /*!< Passthrough support for MPEG4 */
-	{ AST_FORMAT_T140RED, "red", 1, "T.140 Realtime Text with redundancy"},                                /*!< Redundant T.140 Realtime Text */
-	{ AST_FORMAT_T140, "t140", 0, "Passthrough T.140 Realtime Text" },                                     /*!< Passthrough support for T.140 Realtime Text */
-	{ AST_FORMAT_SIREN7, "siren7", 16000, "ITU G.722.1 (Siren7, licensed from Polycom)", 80, 20, 80, 20, 20 },			/*!< Binary commercial distribution */
-	{ AST_FORMAT_SIREN14, "siren14", 32000, "ITU G.722.1 Annex C, (Siren14, licensed from Polycom)", 120, 20, 80, 20, 20 },	/*!< Binary commercial distribution */
-	{ AST_FORMAT_TESTLAW, "testlaw", 8000, "G.711 test-law", 80, 10, 150, 10, 20 },                        /*!< codec_ulaw.c */
-	{ AST_FORMAT_G719, "g719", 48000, "ITU G.719", 160, 20, 80, 20, 20 },
-};
-
 struct ast_frame ast_null_frame = { AST_FRAME_NULL, };
 
 static int smoother_frame_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
@@ -554,218 +522,6 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples)
 		dst_s[i] = (src_s[i]<<8) | (src_s[i]>>8);
 }
 
-
-const struct ast_format_list *ast_get_format_list_index(int idx) 
-{
-	return &AST_FORMAT_LIST[idx];
-}
-
-const struct ast_format_list *ast_get_format_list(size_t *size) 
-{
-	*size = ARRAY_LEN(AST_FORMAT_LIST);
-	return AST_FORMAT_LIST;
-}
-
-char* ast_getformatname(struct ast_format *format)
-{
-	int x;
-	char *ret = "unknown";
-	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		if (AST_FORMAT_LIST[x].id == format->id) {
-			ret = AST_FORMAT_LIST[x].name;
-			break;
-		}
-	}
-	return ret;
-}
-
-char *ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap)
-{
-	int x;
-	unsigned len;
-	char *start, *end = buf;
-	struct ast_format tmp_fmt;
-
-	if (!size)
-		return buf;
-	snprintf(end, size, "(");
-	len = strlen(end);
-	end += len;
-	size -= len;
-	start = end;
-	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		ast_format_set(&tmp_fmt, AST_FORMAT_LIST[x].id, 0);
-		if (ast_format_cap_iscompatible(cap, &tmp_fmt)) {
-			snprintf(end, size, "%s|", AST_FORMAT_LIST[x].name);
-			len = strlen(end);
-			end += len;
-			size -= len;
-		}
-	}
-	if (start == end)
-		ast_copy_string(start, "nothing)", size);
-	else if (size > 1)
-		*(end - 1) = ')';
-	return buf;
-}
-
-static struct ast_codec_alias_table {
-	char *alias;
-	char *realname;
-} ast_codec_alias_table[] = {
-	{ "slinear", "slin"},
-	{ "slinear16", "slin16"},
-	{ "g723.1", "g723"},
-	{ "g722.1", "siren7"},
-	{ "g722.1c", "siren14"},
-};
-
-static const char *ast_expand_codec_alias(const char *in)
-{
-	int x;
-
-	for (x = 0; x < ARRAY_LEN(ast_codec_alias_table); x++) {
-		if (!strcmp(in,ast_codec_alias_table[x].alias))
-			return ast_codec_alias_table[x].realname;
-	}
-	return in;
-}
-
-struct ast_format *ast_getformatbyname(const char *name, struct ast_format *result)
-{
-	int x;
-
-	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		if (!strcasecmp(AST_FORMAT_LIST[x].name,name) ||
-			 !strcasecmp(AST_FORMAT_LIST[x].name, ast_expand_codec_alias(name))) {
-
-			ast_format_set(result, AST_FORMAT_LIST[x].id, 0);
-			return result;
-		}
-	}
-
-	return NULL;
-}
-
-char *ast_codec2str(struct ast_format *format)
-{
-	int x;
-	char *ret = "unknown";
-	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		if (AST_FORMAT_LIST[x].id == format->id) {
-			ret = AST_FORMAT_LIST[x].desc;
-			break;
-		}
-	}
-	return ret;
-}
-
-static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	int x, found=0;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show codecs [audio|video|image|text]";
-		e->usage =
-			"Usage: core show codecs [audio|video|image|text]\n"
-			"       Displays codec mapping\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if ((a->argc < 3) || (a->argc > 4))
-		return CLI_SHOWUSAGE;
-
-	if (!ast_opt_dont_warn)
-		ast_cli(a->fd, "Disclaimer: this command is for informational purposes only.\n"
-				"\tIt does not indicate anything about your configuration.\n");
-
-	ast_cli(a->fd, "%8s %5s %8s %s\n","ID","TYPE","NAME","DESCRIPTION");
-	ast_cli(a->fd, "-----------------------------------------------------------------------------------\n");
-
-	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		if (a->argc == 4) {
-			if (!strcasecmp(a->argv[3], "audio")) {
-				if (AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id) != AST_FORMAT_TYPE_AUDIO) {
-					continue;
-				}
-			} else if (!strcasecmp(a->argv[3], "video")) {
-				if (AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id) != AST_FORMAT_TYPE_VIDEO) {
-					continue;
-				}
-			} else if (!strcasecmp(a->argv[3], "image")) {
-				if (AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id) != AST_FORMAT_TYPE_IMAGE) {
-					continue;
-				}
-			} else if (!strcasecmp(a->argv[3], "text")) {
-				if (AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id) != AST_FORMAT_TYPE_TEXT) {
-					continue;
-				}
-			} else {
-				continue;
-			}
-		}
-
-		ast_cli(a->fd, "%8u %5s %8s (%s)\n",
-			AST_FORMAT_LIST[x].id,
-			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id) == AST_FORMAT_TYPE_AUDIO) ? "audio" :
-			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_IMAGE)  ? "image" :
-			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_VIDEO) ? "video" :
-			(AST_FORMAT_GET_TYPE(AST_FORMAT_LIST[x].id)  == AST_FORMAT_TYPE_TEXT)  ? "text"  :
-			"(unk)",
-			AST_FORMAT_LIST[x].name,
-			AST_FORMAT_LIST[x].desc);
-		found = 1;
-	}
-
-	if (!found) {
-		return CLI_SHOWUSAGE;
-	} else {
-		return CLI_SUCCESS;
-	}
-}
-
-static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	enum ast_format_id format_id;
-	int x, found = 0;
-	int type_punned_codec;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show codec";
-		e->usage =
-			"Usage: core show codec <number>\n"
-			"       Displays codec mapping\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != 4)
-		return CLI_SHOWUSAGE;
-
-	if (sscanf(a->argv[3], "%30d", &type_punned_codec) != 1) {
-		return CLI_SHOWUSAGE;
-	}
-	format_id = type_punned_codec;
-
-	for (x = 0; x < ARRAY_LEN(AST_FORMAT_LIST); x++) {
-		if (AST_FORMAT_LIST[x].id == format_id) {
-			found = 1;
-			ast_cli(a->fd, "%11u %s\n", (unsigned int) format_id, AST_FORMAT_LIST[x].desc);
-			break;
-		}
-	}
-
-	if (!found)
-		ast_cli(a->fd, "Codec %d not found\n", format_id);
-
-	return CLI_SUCCESS;
-}
-
 /*! Dump a frame for debugging purposes */
 void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 {
@@ -970,19 +726,6 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			    term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
 			    f->subclass.integer, 
 			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
-}
-
-
-/* Builtin Asterisk CLI-commands for debugging */
-static struct ast_cli_entry my_clis[] = {
-	AST_CLI_DEFINE(show_codecs, "Displays a list of codecs"),
-	AST_CLI_DEFINE(show_codec_n, "Shows a specific codec"),
-};
-
-int init_framer(void)
-{
-	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
-	return 0;	
 }
 
 int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing) 
@@ -1202,6 +945,9 @@ int ast_codec_get_samples(struct ast_frame *f)
 	case AST_FORMAT_SPEEX16:
 		samples = 2 * speex_samples(f->data.ptr, f->datalen);
 		break;
+	case AST_FORMAT_SPEEX32:
+		samples = 4 * speex_samples(f->data.ptr, f->datalen);
+		break;
 	case AST_FORMAT_G723_1:
 		samples = g723_samples(f->data.ptr, f->datalen);
 		break;
@@ -1246,6 +992,25 @@ int ast_codec_get_samples(struct ast_frame *f)
 		/* 48,000 samples per second at 64kbps is 8,000 bytes per second */
 		samples = (int) f->datalen * ((float) 48000 / 8000);
 		break;
+	case AST_FORMAT_SILK:
+		if (!(ast_format_isset(&f->subclass.format,
+			SILK_ATTR_KEY_SAMP_RATE,
+			SILK_ATTR_VAL_SAMP_24KHZ,
+			AST_FORMAT_ATTR_END))) {
+			return 480;
+		} else if (!(ast_format_isset(&f->subclass.format,
+			SILK_ATTR_KEY_SAMP_RATE,
+			SILK_ATTR_VAL_SAMP_16KHZ,
+			AST_FORMAT_ATTR_END))) {
+			return 320;
+		} else if (!(ast_format_isset(&f->subclass.format,
+			SILK_ATTR_KEY_SAMP_RATE,
+			SILK_ATTR_VAL_SAMP_12KHZ,
+			AST_FORMAT_ATTR_END))) {
+			return 240;
+		} else {
+			return 160;
+		}
 	default:
 		ast_log(LOG_WARNING, "Unable to calculate samples for format %s\n", ast_getformatname(&f->subclass.format));
 	}
@@ -1310,11 +1075,13 @@ int ast_frame_adjust_volume(struct ast_frame *f, int adjustment)
 	short *fdata = f->data.ptr;
 	short adjust_value = abs(adjustment);
 
-	if ((f->frametype != AST_FRAME_VOICE) || (f->subclass.format.id != AST_FORMAT_SLINEAR))
+	if ((f->frametype != AST_FRAME_VOICE) || !(ast_format_is_slinear(&f->subclass.format))) {
 		return -1;
+	}
 
-	if (!adjustment)
+	if (!adjustment) {
 		return 0;
+	}
 
 	for (count = 0; count < f->samples; count++) {
 		if (adjustment > 0) {

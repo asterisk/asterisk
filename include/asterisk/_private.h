@@ -90,4 +90,16 @@ int ast_xmldoc_load_documentation(void);
  */
 int ast_plc_reload(void);
 
+/*!
+ * \brief Init the ast_format attribute interface register container.
+ */
+int ast_format_attr_init(void);
+
+/*!
+ * \brief Init the Asterisk global format list after all format attribute modules have been loaded
+ */
+int ast_format_list_init(void);
+
+/*! \brief initializes the rtp engine arrays */
+int ast_rtp_engine_init(void);
 #endif /* _ASTERISK__PRIVATE_H */

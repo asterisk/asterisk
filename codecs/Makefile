@@ -29,11 +29,13 @@ GSM_INCLUDE:=-Igsm/inc
 $(if $(filter codec_gsm,$(EMBEDDED_MODS)),modules.link,codec_gsm.so): gsm/lib/libgsm.a
 endif
 
+
 clean::
 	$(MAKE) -C gsm clean
 	$(MAKE) -C lpc10 clean
 	$(MAKE) -C ilbc clean
 	rm -f g722/*.[oa]
+	rm -f speex/*.[oa]
 
 gsm/lib/libgsm.a:
 	@mkdir -p gsm/lib
@@ -47,7 +49,17 @@ $(if $(filter codec_lpc10,$(EMBEDDED_MODS)),modules.link,codec_lpc10.so): $(LIBL
 $(LIBILBC):
 	@$(MAKE) -C ilbc all _ASTCFLAGS="$(filter-out -Wmissing-prototypes -Wmissing-declarations -Wshadow,$(_ASTCFLAGS)) $(AST_NO_STRICT_OVERFLOW)"
 
+
 $(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
 
 $(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): g722/g722_encode.o g722/g722_decode.o
 g722/g722_encode.o g722/g722_decode.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_g722)
+
+ifeq ($(BUILD_CPU),x86_64)
+SPEEX_RESAMPLE_CFLAGS:=-fPIC
+else
+SPEEX_RESAMPLE_CFLAGS:=
+endif
+
+$(if $(filter codec_resample,$(EMBEDDED_MODS)),modules.link,codec_resample.so): speex/resample.o
+speex/resample.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_resample) $(SPEEX_RESAMPLE_CFLAGS)

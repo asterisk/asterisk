@@ -1,9 +1,10 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Digium, Inc.
+ * Copyright (C) 2011, Digium, Inc.
  *
  * Russell Bryant <russell@digium.com>
+ * David Vossel <dvossel@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -21,9 +22,6 @@
  *
  * \brief Resample slinear audio
  * 
- * \note To install libresample, check it out of the following repository:
- * <code>$ svn co http://svn.digium.com/svn/thirdparty/libresample/trunk</code>
- *
  * \ingroup codecs
  */
 
@@ -32,170 +30,75 @@
  ***/
 
 #include "asterisk.h"
+#include "speex/speex_resampler.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-/* These are for SHRT_MAX and FLT_MAX -- { */
-#if defined(__Darwin__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__CYGWIN__)
-#include <float.h>
-#else
-#include <values.h>
-#endif
-#include <limits.h>
-/* } */
-
-#include <libresample.h>
-
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
-
 #include "asterisk/slin.h"
-
-#define RESAMPLER_QUALITY 1
 
 #define OUTBUF_SIZE   8096
 
-struct slin16_to_slin8_pvt {
-	void *resampler;
-	float resample_factor;
+static struct ast_translator *translators;
+static int trans_size;
+static int id_list[] = {
+	AST_FORMAT_SLINEAR,
+	AST_FORMAT_SLINEAR12,
+	AST_FORMAT_SLINEAR16,
+	AST_FORMAT_SLINEAR24,
+	AST_FORMAT_SLINEAR32,
+	AST_FORMAT_SLINEAR44,
+	AST_FORMAT_SLINEAR48,
+	AST_FORMAT_SLINEAR96,
+	AST_FORMAT_SLINEAR192,
 };
 
-struct slin8_to_slin16_pvt {
-	void *resampler;
-	float resample_factor;
-};
-
-static int slin16_to_slin8_new(struct ast_trans_pvt *pvt)
+static int resamp_new(struct ast_trans_pvt *pvt)
 {
-	struct slin16_to_slin8_pvt *resamp_pvt = pvt->pvt;
+	int err;
 
-	resamp_pvt->resample_factor = 8000.0 / 16000.0;
-
-	if (!(resamp_pvt->resampler = resample_open(RESAMPLER_QUALITY, resamp_pvt->resample_factor, resamp_pvt->resample_factor)))
+	if (!(pvt->pvt = speex_resampler_init(1, ast_format_rate(&pvt->t->src_format), ast_format_rate(&pvt->t->dst_format), 5, &err))) {
 		return -1;
-
-	return 0;
-}
-
-static int slin8_to_slin16_new(struct ast_trans_pvt *pvt)
-{
-	struct slin8_to_slin16_pvt *resamp_pvt = pvt->pvt;
-
-	resamp_pvt->resample_factor = 16000.0 / 8000.0;
-
-	if (!(resamp_pvt->resampler = resample_open(RESAMPLER_QUALITY, resamp_pvt->resample_factor, resamp_pvt->resample_factor)))
-		return -1;
-
-	return 0;
-}
-
-static void slin16_to_slin8_destroy(struct ast_trans_pvt *pvt)
-{
-	struct slin16_to_slin8_pvt *resamp_pvt = pvt->pvt;
-
-	if (resamp_pvt->resampler)
-		resample_close(resamp_pvt->resampler);
-}
-
-static void slin8_to_slin16_destroy(struct ast_trans_pvt *pvt)
-{
-	struct slin8_to_slin16_pvt *resamp_pvt = pvt->pvt;
-
-	if (resamp_pvt->resampler)
-		resample_close(resamp_pvt->resampler);
-}
-
-static int resample_frame(struct ast_trans_pvt *pvt,
-	void *resampler, float resample_factor, struct ast_frame *f)
-{
-	int total_in_buf_used = 0;
-	int total_out_buf_used = 0;
-	int16_t *in_buf = (int16_t *) f->data.ptr;
-	int16_t *out_buf = pvt->outbuf.i16 + pvt->samples;
-	float in_buf_f[f->samples];
-	float out_buf_f[2048];
-	int res = 0;
-	int i;
-
-	for (i = 0; i < f->samples; i++)
-		in_buf_f[i] = in_buf[i] * (FLT_MAX / SHRT_MAX);
-
-	while (total_in_buf_used < f->samples) {
-		int in_buf_used, out_buf_used;
-
-		out_buf_used = resample_process(resampler, resample_factor,
-			&in_buf_f[total_in_buf_used], f->samples - total_in_buf_used,
-			0, &in_buf_used,
-			&out_buf_f[total_out_buf_used], ARRAY_LEN(out_buf_f) - total_out_buf_used);
-
-		if (out_buf_used < 0)
-			break;
-
-		total_out_buf_used += out_buf_used;
-		total_in_buf_used += in_buf_used;
-
-		if (total_out_buf_used == ARRAY_LEN(out_buf_f)) {
-			ast_log(LOG_ERROR, "Output buffer filled ... need to increase its size\n");
-			res = -1;
-			break;
-		}
 	}
 
-	for (i = 0; i < total_out_buf_used; i++)
-		out_buf[i] = out_buf_f[i] * (SHRT_MAX / FLT_MAX);	
-
-	pvt->samples += total_out_buf_used;
-	pvt->datalen += (total_out_buf_used * sizeof(int16_t));
-
-	return res;
+	return 0;
 }
 
-static int slin16_to_slin8_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+static void resamp_destroy(struct ast_trans_pvt *pvt)
 {
-	struct slin16_to_slin8_pvt *resamp_pvt = pvt->pvt;
-	void *resampler = resamp_pvt->resampler;
-	float resample_factor = resamp_pvt->resample_factor;
-
-	return resample_frame(pvt, resampler, resample_factor, f);
+	SpeexResamplerState *resamp_pvt = pvt->pvt;
+	speex_resampler_destroy(resamp_pvt);
 }
 
-static int slin8_to_slin16_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
+static int resamp_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	struct slin8_to_slin16_pvt *resamp_pvt = pvt->pvt;
-	void *resampler = resamp_pvt->resampler;
-	float resample_factor = resamp_pvt->resample_factor;
+	SpeexResamplerState *resamp_pvt = pvt->pvt;
+	unsigned int out_samples = (OUTBUF_SIZE / sizeof(int16_t)) - pvt->samples;
+	unsigned int in_samples = f->samples;
 
-	return resample_frame(pvt, resampler, resample_factor, f);
+	speex_resampler_process_int(resamp_pvt,
+		0,
+		f->data.ptr,
+		&in_samples,
+		pvt->outbuf.i16 + pvt->samples,
+		&out_samples);
+
+	pvt->samples += out_samples;
+	pvt->datalen += out_samples * 2;
+
+	return 0;
 }
-
-static struct ast_translator slin16_to_slin8 = {
-	.name = "slin16_to_slin8",
-	.newpvt = slin16_to_slin8_new,
-	.destroy = slin16_to_slin8_destroy,
-	.framein = slin16_to_slin8_framein,
-	.sample = slin16_sample,
-	.desc_size = sizeof(struct slin16_to_slin8_pvt),
-	.buffer_samples = (OUTBUF_SIZE / sizeof(int16_t)),
-	.buf_size = OUTBUF_SIZE,
-};
-
-static struct ast_translator slin8_to_slin16 = {
-	.name = "slin8_to_slin16",
-	.newpvt = slin8_to_slin16_new,
-	.destroy = slin8_to_slin16_destroy,
-	.framein = slin8_to_slin16_framein,
-	.sample = slin8_sample,
-	.desc_size = sizeof(struct slin8_to_slin16_pvt),
-	.buffer_samples = (OUTBUF_SIZE / sizeof(int16_t)),
-	.buf_size = OUTBUF_SIZE,
-};
 
 static int unload_module(void)
 {
 	int res = 0;
+	int idx;
 
-	res |= ast_unregister_translator(&slin16_to_slin8);
-	res |= ast_unregister_translator(&slin8_to_slin16);
+	for (idx = 0; idx < trans_size; idx++) {
+		res |= ast_unregister_translator(&translators[idx]);
+	}
+	ast_free(translators);
 
 	return res;
 }
@@ -203,15 +106,33 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res = 0;
+	int x, y, idx = 0;
 
-	ast_format_set(&slin16_to_slin8.src_format, AST_FORMAT_SLINEAR16, 0);
-	ast_format_set(&slin16_to_slin8.dst_format, AST_FORMAT_SLINEAR, 0);
+	trans_size = ARRAY_LEN(id_list) * ARRAY_LEN(id_list);
+	if (!(translators = ast_calloc(1, sizeof(struct ast_translator) * trans_size))) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
-	ast_format_set(&slin8_to_slin16.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&slin8_to_slin16.dst_format, AST_FORMAT_SLINEAR16, 0);
+	for (x = 0; x < ARRAY_LEN(id_list); x++) {
+		for (y = 0; y < ARRAY_LEN(id_list); y++) {
+			if (x == y) {
+				continue;
+			}
+			translators[idx].newpvt = resamp_new;
+			translators[idx].destroy = resamp_destroy;
+			translators[idx].framein = resamp_framein;
+			translators[idx].desc_size = 0;
+			translators[idx].buffer_samples = (OUTBUF_SIZE / sizeof(int16_t));
+			translators[idx].buf_size = OUTBUF_SIZE;
+			ast_format_set(&translators[idx].src_format, id_list[x], 0);
+			ast_format_set(&translators[idx].dst_format, id_list[y], 0);
+			snprintf(translators[idx].name, sizeof(translators[idx].name), "slin %dkhz -> %dkhz",
+				ast_format_rate(&translators[idx].src_format), ast_format_rate(&translators[idx].dst_format));
+			res |= ast_register_translator(&translators[idx]);
+			idx++;
+		}
 
-	res |= ast_register_translator(&slin16_to_slin8);
-	res |= ast_register_translator(&slin8_to_slin16);
+	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

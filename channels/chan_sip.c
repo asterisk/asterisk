@@ -8885,11 +8885,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	ast_debug(4, "We have an owner, now see if we need to change this call\n");
-
-	if (!(ast_format_cap_has_joint(p->owner->nativeformats, p->jointcaps)) && ast_format_cap_has_type(p->jointcaps, AST_FORMAT_TYPE_AUDIO)) {
+	if (ast_format_cap_has_type(p->jointcaps, AST_FORMAT_TYPE_AUDIO)) {
 		if (debug) {
 			char s1[SIPBUFSIZE], s2[SIPBUFSIZE];
-			ast_debug(1, "Oooh, we need to change our audio formats since our peer supports only %s and not %s\n",
+			ast_debug(1, "Setting native formats after processing SDP. peer joint formats %s, old nativeformats %s\n",
 				ast_getformatname_multiple(s1, SIPBUFSIZE, p->jointcaps),
 				ast_getformatname_multiple(s2, SIPBUFSIZE, p->owner->nativeformats));
 		}
@@ -9109,13 +9108,12 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
 		}
 	} else if (sscanf(a, "fmtp: %30u %63s", &codec, fmtp_string) == 2) {
-		struct ast_rtp_payload_type payload;
+		struct ast_format *format;
 
-		payload = ast_rtp_codecs_payload_lookup(newaudiortp, codec);
-		if (payload.format.id && payload.asterisk_format) {
+		if ((format = ast_rtp_codecs_get_payload_format(newaudiortp, codec))) {
 			unsigned int bit_rate;
 
-			switch ((int) payload.format.id) {
+			switch ((int) format->id) {
 			case AST_FORMAT_SIREN7:
 				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
 					if (bit_rate != 32000) {
@@ -9144,6 +9142,21 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 					} else {
 						found = TRUE;
 					}
+				}
+				break;
+			case AST_FORMAT_SILK:
+				{
+					int val = 0;
+					if (sscanf(fmtp_string, "maxaveragebitrate=%30u", &val) == 1) {
+						ast_format_append(format, SILK_ATTR_KEY_MAX_BITRATE, val, AST_FORMAT_ATTR_END);
+					}
+					if (sscanf(fmtp_string, "usedtx=%30u", &val) == 1) {
+						ast_format_append(format, SILK_ATTR_KEY_DTX, val ? 1 : 0, AST_FORMAT_ATTR_END);
+					}
+					if (sscanf(fmtp_string, "useinbandfec=%30u", &val) == 1) {
+						ast_format_append(format, SILK_ATTR_KEY_FEC, val ? 1 : 0, AST_FORMAT_ATTR_END);
+					}
+					break;
 				}
 			}
 		}
@@ -10505,6 +10518,20 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 		/* Indicate that we only expect 64Kbps */
 		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=64000\r\n", rtp_code);
 		break;
+	case AST_FORMAT_SILK:
+		{
+			int val = 0;
+			if (!ast_format_get_value(format, SILK_ATTR_KEY_MAX_BITRATE, &val) && val > 5000 && val < 40000) {
+				ast_str_append(a_buf, 0, "a=fmtp:%d maxaveragebitrate=%u\r\n", rtp_code, val);
+			}
+			if (!ast_format_get_value(format, SILK_ATTR_KEY_DTX, &val)) {
+				ast_str_append(a_buf, 0, "a=fmtp:%d usedtx=%u\r\n", rtp_code, val ? 1 : 0);
+			}
+			if (!ast_format_get_value(format, SILK_ATTR_KEY_FEC, &val)) {
+				ast_str_append(a_buf, 0, "a=fmtp:%d useinbandfec=%u\r\n", rtp_code, val ? 1 : 0);
+			}
+			break;
+		}
 	}
 
 	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size))

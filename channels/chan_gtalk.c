@@ -285,7 +285,7 @@ static struct gtalk *find_gtalk(char *name, char *connection)
 static int add_codec_to_answer(const struct gtalk_pvt *p, struct ast_format *codec, iks *dcodecs)
 {
 	int res = 0;
-	char *format = ast_getformatname(codec);
+	const char *format = ast_getformatname(codec);
 
 	if (!strcasecmp("ulaw", format)) {
 		iks *payload_eg711u, *payload_pcmu;

@@ -1250,6 +1250,8 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		switch (subclass.id) {
 		case AST_FORMAT_SPEEX:
 		case AST_FORMAT_SPEEX16:
+		case AST_FORMAT_SPEEX32:
+		case AST_FORMAT_SILK:
 		case AST_FORMAT_G723_1:
 		case AST_FORMAT_SIREN7:
 		case AST_FORMAT_SIREN14:
@@ -2292,7 +2294,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	if (AST_FORMAT_GET_TYPE(rtp->f.subclass.format.id) == AST_FORMAT_TYPE_AUDIO) {
 		rtp->f.samples = ast_codec_get_samples(&rtp->f);
-		if ((rtp->f.subclass.format.id == AST_FORMAT_SLINEAR) || (rtp->f.subclass.format.id == AST_FORMAT_SLINEAR16)) {
+		if (ast_format_is_slinear(&rtp->f.subclass.format)) {
 			ast_frame_byteswap_be(&rtp->f);
 		}
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);

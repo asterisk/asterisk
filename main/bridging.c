@@ -721,11 +721,11 @@ static enum ast_bridge_channel_state bridge_channel_join_multithreaded(struct as
 
 	/* Wait for data to either come from the channel or us to be signalled */
 	if (!bridge_channel->suspended) {
-		ast_debug(1, "Going into a multithreaded waitfor for bridge channel %p of bridge %p\n", bridge_channel, bridge_channel->bridge);
+		ast_debug(10, "Going into a multithreaded waitfor for bridge channel %p of bridge %p\n", bridge_channel, bridge_channel->bridge);
 		chan = ast_waitfor_nandfds(&bridge_channel->chan, 1, fds, nfds, NULL, &outfd, &ms);
 	} else {
 		ast_mutex_lock(&bridge_channel->lock);
-		ast_debug(1, "Going into a multithreaded signal wait for bridge channel %p of bridge %p\n", bridge_channel, bridge_channel->bridge);
+		ast_debug(10, "Going into a multithreaded signal wait for bridge channel %p of bridge %p\n", bridge_channel, bridge_channel->bridge);
 		ast_cond_wait(&bridge_channel->cond, &bridge_channel->lock);
 		ast_mutex_unlock(&bridge_channel->lock);
 	}

@@ -1668,7 +1668,7 @@ static iax2_format iax2_best_codec(iax2_format formats)
 	return ast_format_to_old_bitfield(&tmpfmt);
 }
 
-char *iax2_getformatname(iax2_format format)
+const char *iax2_getformatname(iax2_format format)
 {
 	struct ast_format tmpfmt;
 	if (!(ast_format_from_old_bitfield(&tmpfmt, format))) {

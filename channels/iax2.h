@@ -218,7 +218,7 @@ enum iax_frame_subclass {
 typedef int64_t iax2_format;
 
 /*!\brief iax2 wrapper function for ast_getformatname */
-char *iax2_getformatname(iax2_format format);
+const char *iax2_getformatname(iax2_format format);
 
 /*! Full frames are always delivered reliably */
 struct ast_iax2_full_hdr {

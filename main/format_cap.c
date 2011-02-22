@@ -99,7 +99,7 @@ void *ast_format_cap_destroy(struct ast_format_cap *cap)
 	return NULL;
 }
 
-void ast_format_cap_add(struct ast_format_cap *cap, struct ast_format *format)
+void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *format)
 {
 	struct ast_format *fnew;
 
@@ -122,26 +122,26 @@ void ast_format_cap_add_all_by_type(struct ast_format_cap *cap, enum ast_format_
 {
 	int x;
 	size_t f_len = 0;
-	struct ast_format tmp_fmt;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	for (x = 0; x < f_len; x++) {
-		if (AST_FORMAT_GET_TYPE(f_list[x].id) == type) {
-			ast_format_cap_add(cap, ast_format_set(&tmp_fmt, f_list[x].id, 0));
+		if (AST_FORMAT_GET_TYPE(f_list[x].format.id) == type) {
+			ast_format_cap_add(cap, &f_list[x].format);
 		}
 	}
+	ast_format_list_destroy(f_list);
 }
 
 void ast_format_cap_add_all(struct ast_format_cap *cap)
 {
 	int x;
 	size_t f_len = 0;
-	struct ast_format tmp_fmt;
-	const struct ast_format_list *f_list = ast_get_format_list(&f_len);
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	for (x = 0; x < f_len; x++) {
-		ast_format_cap_add(cap, ast_format_set(&tmp_fmt, f_list[x].id, 0));
+		ast_format_cap_add(cap, &f_list[x].format);
 	}
+	ast_format_list_destroy(f_list);
 }
 
 static int append_cb(void *obj, void *arg, int flag)
@@ -288,6 +288,21 @@ void ast_format_cap_set(struct ast_format_cap *cap, struct ast_format *format)
 	ast_format_cap_add(cap, format);
 }
 
+int ast_format_cap_get_compatible_format(const struct ast_format_cap *cap, const struct ast_format *format, struct ast_format *result)
+{
+	struct ast_format *f;
+	struct ast_format_cap *tmp_cap = (struct ast_format_cap *) cap;
+	f = ao2_find(tmp_cap->formats, (struct ast_format *) format, OBJ_POINTER | tmp_cap->nolock);
+
+	if (f) {
+		ast_format_copy(result, f);
+		ao2_ref(f, -1);
+		return 1;
+	}
+	ast_format_clear(result);
+	return 0;
+}
+
 int ast_format_cap_iscompatible(const struct ast_format_cap *cap, const struct ast_format *format)
 {
 	struct ast_format *f;
@@ -300,6 +315,38 @@ int ast_format_cap_iscompatible(const struct ast_format_cap *cap, const struct a
 	}
 
 	return 0;
+}
+
+struct byid_data {
+	struct ast_format *result;
+	enum ast_format_id id;
+};
+static int find_best_byid_cb(void *obj, void *arg, int flag)
+{
+	struct ast_format *format = obj;
+	struct byid_data *data = arg;
+
+	if (data->id != format->id) {
+		return 0;
+	}
+	if (!data->result->id || (ast_format_rate(data->result) < ast_format_rate(format))) {
+		ast_format_copy(data->result, format);
+	}
+	return 0;
+}
+
+int ast_format_cap_best_byid(const struct ast_format_cap *cap, enum ast_format_id id, struct ast_format *result)
+{
+	struct byid_data data;
+	data.result = result;
+	data.id = id;
+
+	ast_format_clear(result);
+	ao2_callback(cap->formats,
+		OBJ_MULTIPLE | OBJ_NODATA | cap->nolock,
+		find_best_byid_cb,
+		&data);
+	return result->id ? 1 : 0;
 }
 
 /*! \internal
@@ -523,6 +570,42 @@ int ast_format_cap_iter_next(struct ast_format_cap *cap, struct ast_format *form
 	ao2_ref(tmp, -1);
 
 	return 0;
+}
+
+char *ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap)
+{
+	int x;
+	unsigned len;
+	char *start, *end = buf;
+	struct ast_format tmp_fmt;
+	size_t f_len;
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
+
+	if (!size) {
+		f_list = ast_format_list_destroy(f_list);
+		return buf;
+	}
+	snprintf(end, size, "(");
+	len = strlen(end);
+	end += len;
+	size -= len;
+	start = end;
+	for (x = 0; x < f_len; x++) {
+		ast_format_copy(&tmp_fmt, &f_list[x].format);
+		if (ast_format_cap_iscompatible(cap, &tmp_fmt)) {
+			snprintf(end, size, "%s|", f_list[x].name);
+			len = strlen(end);
+			end += len;
+			size -= len;
+		}
+	}
+	if (start == end) {
+		ast_copy_string(start, "nothing)", size);
+	} else if (size > 1) {
+		*(end - 1) = ')';
+	}
+	f_list = ast_format_list_destroy(f_list);
+	return buf;
 }
 
 uint64_t ast_format_cap_to_old_bitfield(const struct ast_format_cap *cap)

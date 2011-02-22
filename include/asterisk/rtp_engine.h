@@ -1048,6 +1048,19 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs *codecs, int payload);
 
 /*!
+ * \brief Retrieve the actual ast_format stored on the codecs structure for a specific payload
+ *
+ * \param codecs Codecs structure to look in
+ * \param payload Numerical payload to look up
+ *
+ * \retval pointer to format structure on success
+ * \retval NULL on failure
+ *
+ * \since 1.10
+ */
+struct ast_format *ast_rtp_codecs_get_payload_format(struct ast_rtp_codecs *codecs, int payload);
+
+/*!
  * \brief Get the sample rate associated with known RTP payload types
  *
  * \param asterisk_format True if the value in format is to be used.
@@ -1797,6 +1810,15 @@ struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance)
 
 int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *policy);
 struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance);
+
+/*! \brief Custom formats declared in codecs.conf at startup must be communicated to the rtp_engine
+ * so their mime type can payload number can be initialized. */
+int ast_rtp_engine_load_format(const struct ast_format *format);
+
+/*! \brief Formats requiring the use of a format attribute interface must have that
+ * interface registered in order for the rtp engine to handle it correctly.  If an
+ * attribute interface is unloaded, this function must be called to notify the rtp_engine. */
+int ast_rtp_engine_unload_format(const struct ast_format *format);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
