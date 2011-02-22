@@ -217,38 +217,29 @@ static int decode_length(uint8_t *buf, unsigned int limit, unsigned int *len, un
 	}
 	*pvalue = (buf[*len] & 0x3F) << 14;
 	(*len)++;
-	/* Indicate we have a fragment */
+	/* We have a fragment.  Currently we don't process fragments. */
+	ast_debug(1, "UDPTL packet with length greater than 16K received, decoding will fail\n");
 	return 1;
 }
 /*- End of function --------------------------------------------------------*/
 
 static int decode_open_type(uint8_t *buf, unsigned int limit, unsigned int *len, const uint8_t **p_object, unsigned int *p_num_octets)
 {
-	unsigned int octet_cnt;
-	unsigned int octet_idx;
-	unsigned int i;
-	int length; /* a negative length indicates the limit has been reached in decode_length. */
-	const uint8_t **pbuf;
+	unsigned int octet_cnt = 0;
 
-	for (octet_idx = 0, *p_num_octets = 0; ; octet_idx += octet_cnt) {
-		octet_cnt = 0;
-		if ((length = decode_length(buf, limit, len, &octet_cnt)) < 0)
+	if (decode_length(buf, limit, len, &octet_cnt) != 0)
+		return -1;
+
+	if (octet_cnt > 0) {
+		/* Make sure the buffer contains at least the number of bits requested */
+		if ((*len + octet_cnt) > limit)
 			return -1;
-		if (octet_cnt > 0) {
-			*p_num_octets += octet_cnt;
 
-			pbuf = &p_object[octet_idx];
-			i = 0;
-			/* Make sure the buffer contains at least the number of bits requested */
-			if ((*len + octet_cnt) > limit)
-				return -1;
-
-			*pbuf = &buf[*len];
-			*len += octet_cnt;
-		}
-		if (length == 0)
-			break;
+		*p_num_octets = octet_cnt;
+		*p_object = &buf[*len];
+		*len += octet_cnt;
 	}
+
 	return 0;
 }
 /*- End of function --------------------------------------------------------*/
@@ -335,8 +326,8 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 	const uint8_t *data;
 	unsigned int ifp_len;
 	int repaired[16];
-	const uint8_t *bufs[16];
-	unsigned int lengths[16];
+	const uint8_t *bufs[ARRAY_LEN(s->f) - 1];
+	unsigned int lengths[ARRAY_LEN(s->f) - 1];
 	int span;
 	int entries;
 	int ifp_no;
@@ -366,13 +357,13 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 			do {
 				if ((stat2 = decode_length(buf, len, &ptr, &count)) < 0)
 					return -1;
-				for (i = 0; i < count; i++) {
+				for (i = 0; i < count && total_count + i < ARRAY_LEN(bufs); i++) {
 					if ((stat1 = decode_open_type(buf, len, &ptr, &bufs[total_count + i], &lengths[total_count + i])) != 0)
 						return -1;
 				}
-				total_count += count;
+				total_count += i;
 			}
-			while (stat2 > 0);
+			while (stat2 > 0 && total_count < ARRAY_LEN(bufs));
 			/* Step through in reverse order, so we go oldest to newest */
 			for (i = total_count; i > 0; i--) {
 				if (seq_no - i >= s->rx_seq_no) {
@@ -435,6 +426,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 		if (ptr + 1 > len)
 			return -1;
 		entries = buf[ptr++];
+		if (entries > MAX_FEC_ENTRIES) {
+			return -1;
+		}
 		s->rx[x].fec_entries = entries;
 
 		/* Decode the elements */
