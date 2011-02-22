@@ -442,6 +442,8 @@ static struct ast_str *handle_uri(struct ast_tcptls_session_instance *ser, char 
 	struct http_uri_redirect *redirect;
 	int saw_method = 0;
 
+	ast_debug(2, "HTTP Request URI is %s \n", uri);
+
 	/* preserve previous behavior of only support URI parameters on GET requests */
 	if (method == AST_HTTP_GET) {
 		strsep(&params, "?");
@@ -653,9 +655,7 @@ static struct ast_variable *parse_cookies(char *cookies)
 			continue;
 		}
 
-		if (option_debug) {
-			ast_log(LOG_DEBUG, "mmm ... cookie!  Name: '%s'  Value: '%s'\n", name, val);
-		}
+		ast_debug(1, "HTTP Cookie, Name: '%s'  Value: '%s'\n", name, val);
 
 		var = ast_variable_new(name, val, __FILE__);
 		var->next = vars;
