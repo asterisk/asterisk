@@ -661,8 +661,7 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 	struct ast_variable *get_vars = NULL, *v, *prev = NULL;
 	struct http_uri_redirect *redirect;
 
-	if (option_debug > 4)
-		ast_verbose("HTTP Request URI is %s \n", uri);
+	ast_debug(2, "HTTP Request URI is %s \n", uri);
 
 	strsep(&params, "?");
 	/* Extract arguments from the request and store them in variables. */
@@ -806,9 +805,7 @@ static struct ast_variable *parse_cookies(char *cookies)
 			continue;
 		}
 
-		if (option_debug) {
-			ast_log(LOG_DEBUG, "HTTP Cookie, Name: '%s'  Value: '%s'\n", name, val);
-		}
+		ast_debug(1, "HTTP Cookie, Name: '%s'  Value: '%s'\n", name, val);
 
 		var = ast_variable_new(name, val, __FILE__);
 		var->next = vars;
