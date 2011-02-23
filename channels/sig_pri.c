@@ -865,10 +865,14 @@ static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int s
 {
 	struct ast_channel *c;
 
-	if (p->calls->new_ast_channel)
+	if (p->calls->new_ast_channel) {
 		c = p->calls->new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
-	else
+	} else {
 		return NULL;
+	}
+	if (!c) {
+		return NULL;
+	}
 
 	if (!p->owner)
 		p->owner = c;
