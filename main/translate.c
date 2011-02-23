@@ -843,12 +843,18 @@ static void handle_cli_recalc(struct ast_cli_args *a)
 
 static char *handle_show_translation_table(struct ast_cli_args *a)
 {
-	int x, y, i, k;
-	int curlen = 0, longest = 0;
-	int f_len = 0;
-	const struct ast_format_list *f_list = ast_format_list_get((size_t *) &f_len);
+	int x;
+	int y;
+	int i;
+	int k;
+	int curlen = 0;
+	int longest = 0;
+	int f_len;
+	size_t f_size = 0;
+	const struct ast_format_list *f_list = ast_format_list_get(&f_size);
 	struct ast_str *out = ast_str_create(1024);
 
+	f_len = f_size;
 	AST_RWLIST_RDLOCK(&translators);
 	ast_cli(a->fd, "         Translation times between formats (in microseconds) for one second of data\n");
 	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
