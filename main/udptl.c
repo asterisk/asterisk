@@ -320,9 +320,9 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 	unsigned int count;
 	int total_count;
 	int seq_no;
-	const uint8_t *ifp;
-	const uint8_t *data;
-	unsigned int ifp_len;
+	const uint8_t *ifp = NULL;
+	const uint8_t *data = NULL;
+	unsigned int ifp_len = 0;
 	int repaired[16];
 	const uint8_t *bufs[ARRAY_LEN(s->f) - 1];
 	unsigned int lengths[ARRAY_LEN(s->f) - 1];
