@@ -2927,7 +2927,11 @@ static int action_login(struct mansession *s, const struct message *m)
 	}
 	astman_send_ack(s, m, "Authentication accepted");
 	if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
-		manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");
+		struct ast_str *auth = ast_str_alloca(80);
+		const char *cat_str = authority_to_str(EVENT_FLAG_SYSTEM, &auth);
+		astman_append(s, "Event: FullyBooted\r\n"
+			"Privilege: %s\r\n"
+			"Status: Fully Booted\r\n\r\n", cat_str);
 	}
 	return 0;
 }
