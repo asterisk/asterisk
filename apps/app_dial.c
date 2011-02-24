@@ -572,6 +572,7 @@ struct chanlist {
 	uint64_t flags;
 };
 
+static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str *featurecode);
 
 static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception, int answered_elsewhere)
 {
@@ -834,7 +835,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 #ifdef HAVE_EPOLL
 	struct chanlist *epollo;
 #endif
-
+	struct ast_str *featurecode = ast_str_alloca(FEATURE_MAX_LEN + 1);
 	if (single) {
 		/* Turn off hold music, etc */
 		ast_deactivate_generator(in);
@@ -1090,8 +1091,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				}
 
 				if (ast_test_flag64(peerflags, OPT_CALLER_HANGUP) &&
-						(f->subclass == '*')) { /* hmm it it not guaranteed to be '*' anymore. */
-					ast_verb(3, "User hit %c to disconnect call.\n", f->subclass);
+					detect_disconnect(in, f->subclass, featurecode)) {
+					ast_verb(3, "User requested call disconnect.\n");
 					*to = 0;
 					strcpy(pa->status, "CANCEL");
 					ast_cdr_noanswer(in->cdr);
@@ -1133,6 +1134,26 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 #endif
 
 	return peer;
+}
+
+static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str *featurecode)
+{
+	struct ast_flags features = { AST_FEATURE_DISCONNECT }; /* only concerned with disconnect feature */
+	struct ast_call_feature feature = { 0, };
+	int res;
+
+	ast_str_append(&featurecode, 1, "%c", code);
+
+	res = ast_feature_detect(chan, &features, ast_str_buffer(featurecode), &feature);
+
+	if (res != AST_FEATURE_RETURN_STOREDIGITS) {
+		ast_str_reset(featurecode);
+	}
+	if (feature.feature_mask & AST_FEATURE_DISCONNECT) {
+		return 1;
+	}
+
+	return 0;
 }
 
 static void replace_macro_delimiter(char *s)
@@ -1639,7 +1660,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		res = -1; /* reset default */
 	}
 
-	if (ast_test_flag64(&opts, OPT_DTMF_EXIT)) {
+	if (ast_test_flag64(&opts, OPT_DTMF_EXIT) || ast_test_flag64(&opts, OPT_CALLER_HANGUP)) {
 		__ast_answer(chan, 0, 0);
 	}
 
