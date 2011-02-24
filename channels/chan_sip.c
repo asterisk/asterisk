@@ -18225,7 +18225,9 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
  	} else {
  		/* No authentication, use peer or register= config */
  		username = p->authname;
- 		secret =  p->peersecret;
+ 		secret = p->relatedpeer 
+			&& !ast_strlen_zero(p->relatedpeer->remotesecret)
+			? p->relatedpeer->remotesecret : p->peersecret;
  		md5secret = p->peermd5secret;
  	}
 	if (ast_strlen_zero(username))	/* We have no authentication */
