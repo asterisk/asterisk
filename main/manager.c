@@ -2315,7 +2315,12 @@ static int process_message(struct mansession *s, const struct message *m)
 					(s->session->sessiontimeout ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 				if (ast_opt_send_fullybooted && ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
-					manager_event(EVENT_FLAG_SYSTEM, "FullyBooted", "Status: Fully Booted\r\n");
+					char auth[80];
+				   	authority_to_str(EVENT_FLAG_SYSTEM, auth, sizeof(auth));
+					astman_append(s, "Event: FullyBooted\r\n"
+						"Privilege: %s\r\n"
+						"Status: Fully Booted\r\n\r\n",
+						auth);
 				}
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
