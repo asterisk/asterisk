@@ -1014,6 +1014,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;   Asterisk only matches on IP/port, not on names. This is mostly used for SIP
 ;   trunks.
 ;
+; Use remotesecret for outbound authentication, and secret for authenticating
+; inbound requests. For historical reasons, if no remotesecret is supplied for an
+; outbound registration or call, the secret will be used. 
+;
 ; For device names, we recommend using only a-z, numerics (0-9) and underscore
 ;
 ; For local phones, type=friend works most of the time
