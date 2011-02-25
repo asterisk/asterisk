@@ -27615,7 +27615,20 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	if (!p) {
 		return -1;
 	}
+	/*
+	 * Lock both the pvt and it's owner safely.
+	 */
 	sip_pvt_lock(p);
+	while (p->owner && ast_channel_trylock(p->owner)) {
+		sip_pvt_unlock(p);
+		usleep(1);
+		sip_pvt_lock(p);
+	}
+
+	if (!p->owner) {
+		sip_pvt_unlock(p);
+		return 0;
+	}
 	if (udptl) {
 		ast_udptl_get_peer(udptl, &p->udptlredirip);
 	} else {
@@ -27634,6 +27647,7 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	}
 	/* Reset lastrtprx timer */
 	p->lastrtprx = p->lastrtptx = time(NULL);
+	ast_channel_unlock(p->owner);
 	sip_pvt_unlock(p);
 	return 0;
 }
@@ -27750,12 +27764,25 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	if (!ast_bridged_channel(chan) && !sip_cfg.directrtpsetup) 	/* We are in early state */
 		return 0;
 
-	ast_channel_lock(chan);
+	/*
+	 * Lock both the pvt and it's owner safely.
+	 */
 	sip_pvt_lock(p);
+	while (p->owner && ast_channel_trylock(p->owner)) {
+		sip_pvt_unlock(p);
+		usleep(1);
+		sip_pvt_lock(p);
+	}
+
+	if (!p->owner) {
+		sip_pvt_unlock(p);
+		return 0;
+	}
+
 	if (p->alreadygone) {
 		/* If we're destroyed, don't bother */
+		ast_channel_unlock(p->owner);
 		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -27763,8 +27790,8 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	   that are known to be behind a NAT, then stop the process now
 	*/
 	if (nat_active && !ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
+		ast_channel_unlock(p->owner);
 		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -27806,8 +27833,8 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	}
 	/* Reset lastrtprx timer */
 	p->lastrtprx = p->lastrtptx = time(NULL);
+	ast_channel_unlock(p->owner);
 	sip_pvt_unlock(p);
-	ast_channel_unlock(chan);
 	return 0;
 }
 
