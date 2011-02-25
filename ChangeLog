@@ -1,3 +1,11 @@
+2011-02-25  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.4-rc2 Released.
+
+	* Fix Deadlock with attended transfer of SIP call
+	  (Closes issue #18837. Reported, patched by alecdavis. Tested by
+	  alecdavid, Irontec, ZX81, cmaj)
+
 2011-02-23  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.4-rc1 Released.
