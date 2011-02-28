@@ -170,7 +170,7 @@ static SQLHSTMT generic_execute(struct odbc_obj *obj, void *data)
 	}
 
 	res = SQLExecDirect(stmt, (unsigned char *)sql, SQL_NTS);
-	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
 		if (res == SQL_ERROR) {
 			int i;
 			SQLINTEGER nativeerror=0, numfields=0;
