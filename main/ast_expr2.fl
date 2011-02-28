@@ -65,10 +65,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #endif
 
-/*!\note The latest Flex uses fwrite without checking its return value, which
+#ifdef NEED_FLEX_FWRITE_WORKAROUND
+/*!\note Some versions of Flex use fwrite without checking its return value, which
  * is a warning on some compilers.  Therefore, we use this workaround, to trick
  * the compiler into suppressing this warning. */
 #define fwrite(a,b,c,d)	do { int __res = fwrite(a,b,c,d); (__res); } while (0)
+#endif
 
 enum valtype {
 	AST_EXPR_number, AST_EXPR_numeric_string, AST_EXPR_string

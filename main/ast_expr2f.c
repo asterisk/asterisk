@@ -11,7 +11,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 34
+#define YY_FLEX_SUBMINOR_VERSION 35
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -56,7 +56,6 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
-#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -86,6 +85,8 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+
+#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -160,7 +161,15 @@ typedef void* yyscan_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -193,13 +202,6 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 	while ( 0 )
 
 #define unput(c) yyunput( c, yyg->yytext_ptr , yyscanner )
-
-/* The following is because we cannot portably get our hands on size_t
- * (without autoconf's help, which isn't available because we want
- * flex-generated scanners to compile on their own).
- * Given that the standard has decreed that size_t exists since 1989,
- * I guess we can afford to depend on it. Manoj.
- */
 
 #ifndef YY_TYPEDEF_YY_SIZE_T
 #define YY_TYPEDEF_YY_SIZE_T
@@ -557,10 +559,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #endif
 
-/*!\note The latest Flex uses fwrite without checking its return value, which
+#ifdef NEED_FLEX_FWRITE_WORKAROUND
+/*!\note Some versions of Flex use fwrite without checking its return value, which
  * is a warning on some compilers.  Therefore, we use this workaround, to trick
  * the compiler into suppressing this warning. */
 #define fwrite(a,b,c,d)	do { int __res = fwrite(a,b,c,d); (__res); } while (0)
+#endif
 
 enum valtype {
 	AST_EXPR_number, AST_EXPR_numeric_string, AST_EXPR_string
@@ -607,7 +611,7 @@ int ast_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
 static char *expr2_token_subst(const char *mess);
 
-#line 609 "ast_expr2f.c"
+#line 613 "ast_expr2f.c"
 
 #define INITIAL 0
 #define var 1
@@ -746,7 +750,12 @@ static int input (yyscan_t yyscanner );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -754,7 +763,7 @@ static int input (yyscan_t yyscanner );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO fwrite( yytext, yyleng, 1, yyout )
+#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
@@ -765,7 +774,7 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		int n; \
+		size_t n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -850,10 +859,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 130 "ast_expr2.fl"
+#line 132 "ast_expr2.fl"
 
 
-#line 855 "ast_expr2f.c"
+#line 864 "ast_expr2f.c"
 
     yylval = yylval_param;
 
@@ -944,132 +953,132 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 132 "ast_expr2.fl"
+#line 134 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 133 "ast_expr2.fl"
+#line 135 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 134 "ast_expr2.fl"
+#line 136 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 135 "ast_expr2.fl"
+#line 137 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 136 "ast_expr2.fl"
+#line 138 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 137 "ast_expr2.fl"
+#line 139 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 138 "ast_expr2.fl"
+#line 140 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQTILDE;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 139 "ast_expr2.fl"
+#line 141 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_TILDETILDE;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 140 "ast_expr2.fl"
+#line 142 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GT;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 141 "ast_expr2.fl"
+#line 143 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LT;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 142 "ast_expr2.fl"
+#line 144 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GE;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 143 "ast_expr2.fl"
+#line 145 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LE;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 144 "ast_expr2.fl"
+#line 146 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_NE;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 145 "ast_expr2.fl"
+#line 147 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_PLUS;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 146 "ast_expr2.fl"
+#line 148 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COMMA;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 147 "ast_expr2.fl"
+#line 149 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MINUS;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 148 "ast_expr2.fl"
+#line 150 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MULT;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 149 "ast_expr2.fl"
+#line 151 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_DIV;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 150 "ast_expr2.fl"
+#line 152 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MOD;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 151 "ast_expr2.fl"
+#line 153 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COND;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 152 "ast_expr2.fl"
+#line 154 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COMPL;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 153 "ast_expr2.fl"
+#line 155 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLON;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 154 "ast_expr2.fl"
+#line 156 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 155 "ast_expr2.fl"
+#line 157 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LP;}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 156 "ast_expr2.fl"
+#line 158 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_RP;}
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 157 "ast_expr2.fl"
+#line 159 "ast_expr2.fl"
 {
 		/* gather the contents of ${} expressions, with trailing stuff,
 		 * into a single TOKEN.
@@ -1082,24 +1091,24 @@ YY_RULE_SETUP
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 167 "ast_expr2.fl"
+#line 169 "ast_expr2.fl"
 {}
 	YY_BREAK
 case 28:
 /* rule 28 can match eol */
 YY_RULE_SETUP
-#line 168 "ast_expr2.fl"
+#line 170 "ast_expr2.fl"
 {SET_COLUMNS; SET_STRING; return TOKEN;}
 	YY_BREAK
 case 29:
 /* rule 29 can match eol */
 YY_RULE_SETUP
-#line 170 "ast_expr2.fl"
+#line 172 "ast_expr2.fl"
 {/* what to do with eol */}
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 171 "ast_expr2.fl"
+#line 173 "ast_expr2.fl"
 {
 		SET_COLUMNS;
 		/* the original behavior of the expression parser was
@@ -1112,7 +1121,7 @@ YY_RULE_SETUP
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 180 "ast_expr2.fl"
+#line 182 "ast_expr2.fl"
 {
 		SET_COLUMNS;
 		SET_STRING;
@@ -1122,7 +1131,7 @@ YY_RULE_SETUP
 case 32:
 /* rule 32 can match eol */
 YY_RULE_SETUP
-#line 186 "ast_expr2.fl"
+#line 188 "ast_expr2.fl"
 {
 		curlycount = 0;
 		BEGIN(var);
@@ -1132,7 +1141,7 @@ YY_RULE_SETUP
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 192 "ast_expr2.fl"
+#line 194 "ast_expr2.fl"
 {
 		curlycount--;
 		if (curlycount < 0) {
@@ -1146,7 +1155,7 @@ YY_RULE_SETUP
 case 34:
 /* rule 34 can match eol */
 YY_RULE_SETUP
-#line 202 "ast_expr2.fl"
+#line 204 "ast_expr2.fl"
 {
 		curlycount++;
 		yymore();
@@ -1154,7 +1163,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 208 "ast_expr2.fl"
+#line 210 "ast_expr2.fl"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1164,7 +1173,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 215 "ast_expr2.fl"
+#line 217 "ast_expr2.fl"
 {
 		curlycount = 0;
 		BEGIN(var);
@@ -1174,7 +1183,7 @@ YY_RULE_SETUP
 case 37:
 /* rule 37 can match eol */
 YY_RULE_SETUP
-#line 221 "ast_expr2.fl"
+#line 223 "ast_expr2.fl"
 {
 		char c = yytext[yyleng-1];
 		BEGIN(0);
@@ -1185,7 +1194,7 @@ YY_RULE_SETUP
 	}
 	YY_BREAK
 case YY_STATE_EOF(trail):
-#line 230 "ast_expr2.fl"
+#line 232 "ast_expr2.fl"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1196,10 +1205,10 @@ case YY_STATE_EOF(trail):
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 238 "ast_expr2.fl"
+#line 240 "ast_expr2.fl"
 ECHO;
 	YY_BREAK
-#line 1201 "ast_expr2f.c"
+#line 1210 "ast_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(var):
 	yyterminate();
@@ -1973,8 +1982,8 @@ YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 
 /** Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
@@ -2375,7 +2384,7 @@ void *ast_yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 238 "ast_expr2.fl"
+#line 240 "ast_expr2.fl"
 
 
 

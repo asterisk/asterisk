@@ -245,6 +245,40 @@ __EOL__
 		rm -rf ${tmp}
 	fi
 	])
+AC_CACHE_CHECK([for flex that does not ignore fwrite return value], [ac_cv_path_FLEX], [
+	if test "x$FLEX" != "x:" ; then
+		# Create a temporary directory $tmp in $TMPDIR (default /tmp).
+		# Use mktemp if possible; otherwise fall back on mkdir,
+		# with $RANDOM to make collisions less likely.
+		: ${TMPDIR=/tmp}
+		{
+		  tmp=`
+		    (umask 077 && mktemp -d "$TMPDIR/fooXXXXXX") 2>/dev/null
+		  ` &&
+		  test -n "$tmp" && test -d "$tmp"
+		} || {
+		  tmp=$TMPDIR/foo$$-$RANDOM
+		  (umask 077 && mkdir "$tmp")
+		} || exit $?
+		cat >$tmp/test.fl <<__EOL__
+#include <unistd.h>
+#include <stdio.h>
+%%
+         username    printf( "%s", getlogin() );
+__EOL__
+		${FLEX} -o ${tmp}/test.c ${tmp}/test.fl
+		${CC} -o ${tmp}/test.o ${tmp}/test.c -Wall -Werror >/dev/null 2>&1
+		if test -e "${tmp}/test.o"; then :; else
+			need_flex_fwrite_workaround=1
+		fi
+		rm -rf ${tmp}
+	fi
+	])
+
+if test "x${need_flex_fwrite_workaround}" = "x1"; then
+	AC_DEFINE([NEED_FLEX_FWRITE_WORKAROUND], 1, [Define to 1 if your system has a version of flex that does not check the return value of fwrite.])
+fi
+
 if test "x${ac_cv_path_BISON2}" = "x" ; then
 	BISON=:
 	PBX_BISON=0
