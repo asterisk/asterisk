@@ -3019,7 +3019,6 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 			break;
 		}
 		break;
-#ifdef ANALOG_EVENT_RINGBEGIN
 	case ANALOG_EVENT_RINGBEGIN:
 		switch (p->sig) {
 		case ANALOG_SIG_FXSLS:
@@ -3029,9 +3028,10 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				analog_set_ringtimeout(p, p->ringt_base);
 			}
 			break;
+		default:
+			break;
 		}
 		break;
-#endif
 	case ANALOG_EVENT_RINGEROFF:
 		if (p->inalarm) break;
 		ast->rings++;
