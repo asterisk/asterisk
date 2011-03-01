@@ -3061,14 +3061,15 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 				ao2_lock(me);
 				if (!(packet = AST_LIST_REMOVE_HEAD(&me->packet_q, entry))) {
 					ast_log(LOG_WARNING, "TCPTLS thread alert_pipe indicated packet should be sent, but frame_q is empty");
-				} else if (ast_tcptls_server_write(tcptls_session, ast_str_buffer(packet->data), packet->len) == -1) {
-					ast_log(LOG_WARNING, "Failure to write to tcp/tls socket\n");
-				}
-
-				if (packet) {
-					ao2_t_ref(packet, -1, "tcptls packet sent, this is no longer needed");
 				}
 				ao2_unlock(me);
+
+				if (packet) {
+					if (ast_tcptls_server_write(tcptls_session, ast_str_buffer(packet->data), packet->len) == -1) {
+						ast_log(LOG_WARNING, "Failure to write to tcp/tls socket\n");
+					}
+					ao2_t_ref(packet, -1, "tcptls packet sent, this is no longer needed");
+				}
 				break;
 			default:
 				ast_log(LOG_ERROR, "Unknown tcptls thread alert '%d'\n", alert);
