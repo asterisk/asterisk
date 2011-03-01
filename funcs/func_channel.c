@@ -224,12 +224,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 				<para><emphasis>chan_dahdi</emphasis> provides the following additional options:</para>
 				<enumlist>
+					<enum name="keypad_digits">
+						<para>R/O PRI Keypad digits that came in with the SETUP message.</para>
+					</enum>
 					<enum name="reversecharge">
-						<para>R/O Reverse Charging Indication, one of:</para>
+						<para>R/O PRI Reverse Charging Indication, one of:</para>
 						<enumlist>
-							<enum name="-1 - None" />
-							<enum name="1 - Reverse Charging Requested" />
+							<enum name="-1"> <para>None</para></enum>
+							<enum name=" 1"> <para>Reverse Charging Requested</para></enum>
 						</enumlist>
+					</enum>
+					<enum name="no_media_path">
+						<para>R/O PRI Nonzero if the channel has no B channel.
+						The channel is either on hold or a call waiting call.</para>
 					</enum>
 				</enumlist>
 			</parameter>
