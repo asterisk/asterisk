@@ -1496,6 +1496,11 @@ int ast_queue_hangup(struct ast_channel *chan)
 	/* Yeah, let's not change a lock-critical value without locking */
 	if (!ast_channel_trylock(chan)) {
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		manager_event(EVENT_FLAG_CALL, "HangupRequest",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n",
+			chan->name,
+			chan->uniqueid);
 		ast_channel_unlock(chan);
 	}
 	return ast_queue_frame(chan, &f);
@@ -1515,6 +1520,13 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 		if (cause < 0)
 			f.data.uint32 = chan->hangupcause;
 
+		manager_event(EVENT_FLAG_CALL, "HangupRequest",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Cause: %d\r\n",
+			chan->name,
+			chan->uniqueid,
+			cause);
 		ast_channel_unlock(chan);
 	}
 
@@ -2661,6 +2673,13 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 
 	ast_channel_lock(chan);
 	res = ast_softhangup_nolock(chan, cause);
+	manager_event(EVENT_FLAG_CALL, "SoftHangupRequest",
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"Cause: %d\r\n",
+		chan->name,
+		chan->uniqueid,
+		cause);
 	ast_channel_unlock(chan);
 
 	return res;
