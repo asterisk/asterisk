@@ -26154,7 +26154,6 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 			if (!strcmp(mailbox->mailbox, mbox) && !strcmp(S_OR(mailbox->context, ""), S_OR(context, ""))) {
 				duplicate = 1;
-				mailbox->delme = 0;
 				break;
 			}
 		}
