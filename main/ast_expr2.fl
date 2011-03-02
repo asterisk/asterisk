@@ -65,11 +65,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #endif
 
-#ifdef NEED_FLEX_FWRITE_WORKAROUND
-/*!\note Some versions of Flex use fwrite without checking its return value, which
- * is a warning on some compilers.  Therefore, we use this workaround, to trick
- * the compiler into suppressing this warning. */
-#define fwrite(a,b,c,d)	do { int __res = fwrite(a,b,c,d); (__res); } while (0)
+/* Conditionally redefine the macro from flex 2.5.35, in case someone uses flex <2.5.35 to regenerate this file. */
+#ifndef ECHO
+#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
 #endif
 
 enum valtype {
