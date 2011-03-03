@@ -73,7 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			Pickup a ringing channel.
 		</synopsis>
-		<syntax>
+		<syntax argsep="&amp;">
 			<parameter name="channel" required="true" />
 			<parameter name="channel2" multiple="true" />
 		</syntax>
