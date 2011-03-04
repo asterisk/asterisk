@@ -737,6 +737,9 @@ static int lua_error_function(lua_State *L)
 	 * backtrace to it */
 	message_index = lua_gettop(L);
 
+	/* prepare to prepend a new line to the traceback */
+	lua_pushliteral(L, "\n");
+
 	lua_getglobal(L, "debug");
 	lua_getfield(L, -1, "traceback");
 	lua_remove(L, -2); /* remove the 'debug' table */
@@ -747,6 +750,9 @@ static int lua_error_function(lua_State *L)
 	lua_pushnumber(L, 2);
 
 	lua_call(L, 2, 1);
+
+	/* prepend the new line we prepared above */
+	lua_concat(L, 2);
 
 	return 1;
 }
@@ -1001,6 +1007,7 @@ static int lua_extension_cmp(lua_State *L)
 static char *lua_read_extensions_file(lua_State *L, long *size)
 {
 	FILE *f;
+	int error_func;
 	char *data;
 	char *path = alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
 	sprintf(path, "%s/%s", ast_config_AST_CONFIG_DIR, config);
@@ -1015,10 +1022,20 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 		return NULL;
 	}
 
-	fseek(f, 0l, SEEK_END);
+	if (fseek(f, 0l, SEEK_END)) {
+		fclose(f);
+		lua_pushliteral(L, "error determining the size of the config file");
+		return NULL;
+	}
+
 	*size = ftell(f);
 
-	fseek(f, 0l, SEEK_SET);
+	if (fseek(f, 0l, SEEK_SET)) {
+		*size = 0;
+		fclose(f);
+		lua_pushliteral(L, "error reading config file");
+		return NULL;
+	}
 
 	if (!(data = ast_malloc(*size))) {
 		*size = 0;
@@ -1028,12 +1045,18 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 	}
 
 	if (fread(data, sizeof(char), *size, f) != *size) {
-		ast_log(LOG_WARNING, "fread() failed: %s\n", strerror(errno));
+		*size = 0;
+		fclose(f);
+		lua_pushliteral(L, "problem reading configuration file");
+		return NULL;
 	}
 	fclose(f);
 
+	lua_pushcfunction(L, &lua_error_function);
+	error_func = lua_gettop(L);
+
 	if (luaL_loadbuffer(L, data, *size, "extensions.lua")
-			|| lua_pcall(L, 0, LUA_MULTRET, 0)
+			|| lua_pcall(L, 0, LUA_MULTRET, error_func)
 			|| lua_sort_extensions(L)
 			|| lua_register_switches(L)
 			|| lua_register_hints(L)) {
@@ -1041,6 +1064,8 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 		data = NULL;
 		*size = 0;
 	}
+
+	lua_remove(L, error_func);
 	return data;
 }
 
