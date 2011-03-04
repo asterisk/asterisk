@@ -913,6 +913,24 @@ static void sig_pri_open_media(struct sig_pri_chan *p)
 	}
 }
 
+/*!
+ * \internal
+ * \brief Post an AMI B channel association event.
+ * \since 1.8
+ *
+ * \param p Channel private control structure.
+ *
+ * \note Assumes the private and owner are locked.
+ *
+ * \return Nothing
+ */
+static void sig_pri_ami_channel_event(struct sig_pri_chan *p)
+{
+	if (p->calls->ami_channel_event) {
+		p->calls->ami_channel_event(p->chan_pvt, p->owner);
+	}
+}
+
 struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability)
 {
 	struct ast_channel *ast;
@@ -1289,6 +1307,10 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 			 * bridged.)
 			 */
 			sig_pri_open_media(new_chan);
+		}
+
+		if (new_chan->owner) {
+			sig_pri_ami_channel_event(new_chan);
 		}
 
 		sig_pri_unlock_private(old_chan);

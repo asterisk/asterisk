@@ -224,6 +224,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 				<para><emphasis>chan_dahdi</emphasis> provides the following additional options:</para>
 				<enumlist>
+					<enum name="dahdi_channel">
+						<para>R/O DAHDI channel related to this channel.</para>
+					</enum>
+					<enum name="dahdi_span">
+						<para>R/O DAHDI span related to this channel.</para>
+					</enum>
+					<enum name="dahdi_type">
+						<para>R/O DAHDI channel type, one of:</para>
+						<enumlist>
+							<enum name="analog" />
+							<enum name="mfc/r2" />
+							<enum name="pri" />
+							<enum name="pseudo" />
+							<enum name="ss7" />
+						</enumlist>
+					</enum>
 					<enum name="keypad_digits">
 						<para>R/O PRI Keypad digits that came in with the SETUP message.</para>
 					</enum>

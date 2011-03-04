@@ -139,6 +139,16 @@ struct sig_pri_callback {
 
 	void (* const open_media)(void *pvt);
 
+	/*!
+	 * \brief Post an AMI B channel association event.
+	 *
+	 * \param pvt Private structure of the user of this module.
+	 * \param chan Channel associated with the private pointer
+	 *
+	 * \return Nothing
+	 */
+	void (* const ami_channel_event)(void *pvt, struct ast_channel *chan);
+
 	/*! Reference the parent module. */
 	void (*module_ref)(void);
 	/*! Unreference the parent module. */
