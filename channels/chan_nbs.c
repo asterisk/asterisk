@@ -280,16 +280,16 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_format_set(&prefformat, AST_FORMAT_SLINEAR, 0);
-	if (!(nbs_tech.capabilities == ast_format_cap_alloc())) {
-		return -1;
+	if (!(nbs_tech.capabilities = ast_format_cap_alloc())) {
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add(nbs_tech.capabilities, &prefformat);
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&nbs_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Network Broadcast Sound Support");
