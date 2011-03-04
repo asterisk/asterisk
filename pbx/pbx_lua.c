@@ -787,7 +787,7 @@ static int lua_sort_extensions(lua_State *L)
 		int context_name = context - 1;
 		int context_order;
 
-		lua_pushvalue(L, context_name);
+		/* create the context_order table */
 		lua_newtable(L);
 		context_order = lua_gettop(L);
 
