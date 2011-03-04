@@ -58,6 +58,7 @@ static int lua_reload_extensions(lua_State *L);
 static void lua_free_extensions(void);
 static int lua_sort_extensions(lua_State *L);
 static int lua_register_switches(lua_State *L);
+static int lua_register_hints(lua_State *L);
 static int lua_extension_cmp(lua_State *L);
 static int lua_find_extension(lua_State *L, const char *context, const char *exten, int priority, ast_switch_f *func, int push_func);
 static int lua_pbx_findapp(lua_State *L);
@@ -886,6 +887,86 @@ static int lua_register_switches(lua_State *L)
 	return 0;
 }
 
+/*!
+ * \brief Register dialplan hints for our pbx_lua contexs.
+ *
+ * In the event of an error, an error string will be pushed onto the lua stack.
+ *
+ * \retval 0 success
+ * \retval 1 failure
+ */
+static int lua_register_hints(lua_State *L)
+{
+	int hints;
+	struct ast_context *con = NULL;
+
+	/* create the hash table for our contexts */
+	/* XXX do we ever need to destroy this? pbx_config does not */
+	if (!local_table)
+		local_table = ast_hashtab_create(17, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
+
+	/* load the 'hints' table */
+	lua_getglobal(L, "hints");
+	hints = lua_gettop(L);
+	if (lua_isnil(L, -1)) {
+		/* hints table not found, move along */
+		lua_pop(L, 1);
+		return 0;
+	}
+
+	/* iterate through the hints table and register each context and
+	 * the hints that go along with it
+	 */
+	for (lua_pushnil(L); lua_next(L, hints); lua_pop(L, 1)) {
+		int context = lua_gettop(L);
+		int context_name = context - 1;
+		const char *context_str = lua_tostring(L, context_name);
+
+		/* find or create this context */
+		con = ast_context_find_or_create(&local_contexts, local_table, context_str, registrar);
+		if (!con) {
+			/* remove hints table and context key and value */
+			lua_pop(L, 3);
+			lua_pushstring(L, "Failed to find or create context\n");
+			return 1;
+		}
+
+		/* register each hint */
+		for (lua_pushnil(L); lua_next(L, context); lua_pop(L, 1)) {
+			const char *hint_value = lua_tostring(L, -1);
+			const char *hint_name;
+
+			/* the hint value is not a string, ignore it */
+			if (!hint_value) {
+				continue;
+			}
+
+			/* copy the name then convert it to a string */
+			lua_pushvalue(L, -2);
+			if (!(hint_name = lua_tostring(L, -1))) {
+				/* ignore non-string value */
+				lua_pop(L, 1);
+				continue;
+			}
+
+			if (ast_add_extension2(con, 0, hint_name, PRIORITY_HINT, NULL, NULL, hint_value, NULL, NULL, registrar)) {
+				/* remove hints table, hint name, hint value,
+				 * key copy, context name, and contex table */
+				lua_pop(L, 6);
+				lua_pushstring(L, "Error creating hint\n");
+				return 1;
+			}
+
+			/* pop the name copy */
+			lua_pop(L, 1);
+		}
+	}
+
+	/* remove the hints table */
+	lua_pop(L, 1);
+
+	return 0;
+}
 
 /*!
  * \brief [lua_CFunction] Compare two extensions (for access from lua, don't
@@ -954,7 +1035,8 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 	if (luaL_loadbuffer(L, data, *size, "extensions.lua")
 			|| lua_pcall(L, 0, LUA_MULTRET, 0)
 			|| lua_sort_extensions(L)
-			|| lua_register_switches(L)) {
+			|| lua_register_switches(L)
+			|| lua_register_hints(L)) {
 		ast_free(data);
 		data = NULL;
 		*size = 0;
