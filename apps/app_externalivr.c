@@ -124,6 +124,7 @@ static void send_eivr_event(FILE *handle, const char event, const char *data,
 
 	fprintf(handle, "%s\n", ast_str_buffer(tmp));
 	ast_debug(1, "sent '%s'\n", ast_str_buffer(tmp));
+	ast_free(tmp);
 }
 
 static void *gen_alloc(struct ast_channel *chan, void *params)
