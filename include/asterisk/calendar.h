@@ -123,6 +123,7 @@ struct ast_calendar {
 		AST_STRING_FIELD(notify_app);		/*!< Optional dialplan app to execute for notification */
 		AST_STRING_FIELD(notify_appdata);	/*!< Optional arguments for dialplan app */
 	);
+	struct ast_variable *vars; /*!< Channel variables to pass to notification channel */
 	int autoreminder;    /*!< If set, override any calendar_tech specific notification times and use this time (in mins) */
 	int notify_waittime; /*!< Maxiumum time to allow for a notification attempt */
 	int refresh;         /*!< When to refresh the calendar events */

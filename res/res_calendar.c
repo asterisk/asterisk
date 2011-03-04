@@ -313,6 +313,10 @@ static void calendar_destructor(void *obj)
 	}
 	ast_calendar_clear_events(cal);
 	ast_string_field_free_memory(cal);
+	if (cal->vars) {
+		ast_variables_destroy(cal->vars);
+		cal->vars = NULL;
+	}
 	ao2_ref(cal->events, -1);
 	ao2_unlock(cal);
 }
@@ -369,7 +373,7 @@ static enum ast_device_state calendarstate(const char *data)
 static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *cat, const struct ast_calendar_tech *tech)
 {
 	struct ast_calendar *cal;
-	struct ast_variable *v;
+	struct ast_variable *v, *last = NULL;
 	int new_calendar = 0;
 
 	if (!(cal = find_calendar(cat))) {
@@ -423,6 +427,26 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 			cal->refresh = atoi(v->value);
 		} else if (!strcasecmp(v->name, "timeframe")) {
 			cal->timeframe = atoi(v->value);
+		} else if (!strcasecmp(v->name, "setvar")) {
+			char *name, *value;
+			struct ast_variable *var;
+
+			if ((name = (value = ast_strdup(v->value)))) {
+				strsep(&value, "=");
+				if (value) {
+					if ((var = ast_variable_new(ast_strip(name), ast_strip(value), ""))) {
+						if (last) {
+							last->next = var;
+						} else {
+							cal->vars = var;
+						}
+						last = var;
+					}
+				} else {
+					ast_log(LOG_WARNING, "Malformed argument. Should be '%s: variable=value'\n", v->name);
+				}
+				ast_free(name);
+			}
 		}
 	}
 
@@ -666,10 +690,11 @@ static void *do_notify(void *data)
 {
 	struct ast_calendar_event *event = data;
 	struct ast_dial *dial = NULL;
-	struct ast_str *apptext = NULL;
+	struct ast_str *apptext = NULL, *tmpstr;
 	struct ast_datastore *datastore;
 	enum ast_dial_result res;
 	struct ast_channel *chan = NULL;
+	struct ast_variable *itervar;
 	char *tech, *dest;
 	char buf[8];
 
@@ -720,6 +745,15 @@ static void *do_notify(void *data)
 	ao2_ref(event, +1);
 	res = ast_channel_datastore_add(chan, datastore);
 
+	if (!(tmpstr = ast_str_create(32))) {
+		goto notify_cleanup;
+	}
+
+	for (itervar = event->owner->vars; itervar; itervar = itervar->next) {
+		ast_str_substitute_variables(&tmpstr, 0, chan, itervar->value);
+		pbx_builtin_setvar_helper(chan, itervar->name, tmpstr->str);
+	}
+
 	if (!(apptext = ast_str_create(32))) {
 		goto notify_cleanup;
 	}
@@ -750,6 +784,9 @@ static void *do_notify(void *data)
 notify_cleanup:
 	if (apptext) {
 		ast_free(apptext);
+	}
+	if (tmpstr) {
+		ast_free(tmpstr);
 	}
 	if (dial) {
 		ast_dial_destroy(dial);

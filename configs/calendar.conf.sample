@@ -32,6 +32,13 @@
 ;appdata = tt-weasels    ; Data part of application to execute on answer
 ;
 ;waittime = 30            ; How long to wait for an answer, defaults to 30 seconds
+;
+; Channel variables can be set on the notification channel. The format is
+; setvar=name=value. Variable subsitution is done on the value to allow the use of dialplan
+; functions like CALENDAR_EVENT. The variables are set in order, so one can use the value
+; of earlier variables in the definition of later ones.
+;
+;setvar = CALLERID(name)=${CALENDAR_EVENT(summary)}
 
 ;[calendar2]
 ; Note: Support for Exchange Server 2003 

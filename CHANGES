@@ -65,6 +65,11 @@ libpri channel driver (chan_dahdi) DAHDI changes
    application when the option is enabled.
  * Added mcid_send option to allow sending a MCID request on a span.
 
+Calendaring
+--------------------------
+ * Added setvar option to calendar.conf to allow setting channel variables on
+   notification channels.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
