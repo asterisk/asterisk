@@ -2109,6 +2109,58 @@ static void my_deadlock_avoidance_private(void *pvt)
 	DEADLOCK_AVOIDANCE(&p->lock);
 }
 
+/*!
+ * \internal
+ * \brief Post an AMI DAHDI channel association event.
+ * \since 1.8
+ *
+ * \param p DAHDI private pointer
+ * \param chan Channel associated with the private pointer
+ *
+ * \return Nothing
+ */
+static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *chan)
+{
+	char ch_name[20];
+
+	if (p->channel < CHAN_PSEUDO) {
+		/* No B channel */
+		snprintf(ch_name, sizeof(ch_name), "no-media (%d)", p->channel);
+	} else if (p->channel == CHAN_PSEUDO) {
+		/* Pseudo channel */
+		strcpy(ch_name, "pseudo");
+	} else {
+		/* Real channel */
+		snprintf(ch_name, sizeof(ch_name), "%d", p->channel);
+	}
+	ast_manager_event(chan, EVENT_FLAG_CALL, "DAHDIChannel",
+		"Channel: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"DAHDISpan: %d\r\n"
+		"DAHDIChannel: %s\r\n",
+		chan->name,
+		chan->uniqueid,
+		p->span,
+		ch_name);
+}
+
+/*!
+ * \internal
+ * \brief Post an AMI DAHDI channel association event.
+ * \since 1.8
+ *
+ * \param pvt DAHDI private pointer
+ * \param chan Channel associated with the private pointer
+ *
+ * \return Nothing
+ */
+static void my_ami_channel_event(void *pvt, struct ast_channel *chan)
+{
+	struct dahdi_pvt *p = pvt;
+
+	dahdi_ami_channel_event(p, chan);
+}
+
 /* linear_mode = 0 - turn linear mode off, >0 - turn linear mode on
 * 	returns the last value of the linear setting 
 */ 
@@ -3294,6 +3346,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.module_ref = my_module_ref,
 	.module_unref = my_module_unref,
 	.open_media = my_pri_open_media,
+	.ami_channel_event = my_ami_channel_event,
 };
 #endif	/* defined(HAVE_PRI) */
 
@@ -6792,6 +6845,41 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 		ast_mutex_lock(&p->lock);
 		snprintf(buf, len, "%f", p->txgain);
 		ast_mutex_unlock(&p->lock);
+	} else if (!strcasecmp(data, "dahdi_channel")) {
+		ast_mutex_lock(&p->lock);
+		snprintf(buf, len, "%d", p->channel);
+		ast_mutex_unlock(&p->lock);
+	} else if (!strcasecmp(data, "dahdi_span")) {
+		ast_mutex_lock(&p->lock);
+		snprintf(buf, len, "%d", p->span);
+		ast_mutex_unlock(&p->lock);
+	} else if (!strcasecmp(data, "dahdi_type")) {
+		ast_mutex_lock(&p->lock);
+		switch (p->sig) {
+#if defined(HAVE_OPENR2)
+		case SIG_MFCR2:
+			ast_copy_string(buf, "mfc/r2", len);
+			break;
+#endif	/* defined(HAVE_OPENR2) */
+#if defined(HAVE_PRI)
+		case SIG_PRI_LIB_HANDLE_CASES:
+			ast_copy_string(buf, "pri", len);
+			break;
+#endif	/* defined(HAVE_PRI) */
+		case 0:
+			ast_copy_string(buf, "pseudo", len);
+			break;
+#if defined(HAVE_SS7)
+		case SIG_SS7:
+			ast_copy_string(buf, "ss7", len);
+			break;
+#endif	/* defined(HAVE_SS7) */
+		default:
+			/* The only thing left is analog ports. */
+			ast_copy_string(buf, "analog", len);
+			break;
+		}
+		ast_mutex_unlock(&p->lock);
 #if defined(HAVE_PRI)
 #if defined(HAVE_PRI_REVERSE_CHARGE)
 	} else if (!strcasecmp(data, "reversecharge")) {
@@ -9530,6 +9618,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 
 	ast_module_ref(ast_module_info->self);
 
+	dahdi_ami_channel_event(i, tmp);
 	if (startpbx) {
 #ifdef HAVE_OPENR2
 		if (i->mfcr2call) {
@@ -13089,6 +13178,7 @@ static int dahdi_new_pri_nobch_channel(struct sig_pri_span *pri)
 		nobch_channel = CHAN_PSEUDO - 1;
 	}
 	pvt->channel = nobch_channel;
+	pvt->span = pri->span;
 	chan->channel = pvt->channel;
 
 	dahdi_nobch_insert(pri, pvt);

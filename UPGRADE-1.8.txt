@@ -72,6 +72,15 @@ From 1.6.2 to 1.8:
   The new channel naming for PRI channels is:
   DAHDI/i<span>/<number>[:<subaddress>]-<sequence-number>
 
+* Added CHANNEL(dahdi_span), CHANNEL(dahdi_channel), and CHANNEL(dahdi_type)
+  so the dialplan can determine the B channel currently in use by the channel.
+  Use CHANNEL(no_media_path) to determine if the channel even has a B channel.
+
+* Added AMI event DAHDIChannel to associate a DAHDI channel with an Asterisk
+  channel so AMI applications can passively determine the B channel currently
+  in use.  Calls with "no-media" as the DAHDIChannel do not have an associated
+  B channel.  No-media calls are either on hold or call-waiting.
+
 * The ChanIsAvail application has been changed so the AVAILSTATUS variable
   no longer contains both the device state and cause code. The cause code
   is now available in the AVAILCAUSECODE variable. If existing dialplan logic
