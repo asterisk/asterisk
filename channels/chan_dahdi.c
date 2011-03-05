@@ -5344,7 +5344,7 @@ static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
 			c = "";
 		}
 		if (!p->hidecallerid) {
-			l = ast->caller.id.number.valid ? ast->caller.id.number.str : NULL;
+			l = ast->connected.id.number.valid ? ast->connected.id.number.str : NULL;
 		} else {
 			l = NULL;
 		}
