@@ -3646,7 +3646,7 @@ int main(int argc, char *argv[])
 			ast_copy_string(canary_binary, argv[0], sizeof(canary_binary));
 			if ((lastslash = strrchr(canary_binary, '/'))) {
 				ast_copy_string(lastslash + 1, "astcanary", sizeof(canary_binary) + canary_binary - (lastslash + 1));
-				execl(canary_binary, "astcanary", canary_filename, (char *)NULL);
+				execl(canary_binary, "astcanary", canary_filename, ppid, (char *)NULL);
 			}
 
 			/* Should never happen */
