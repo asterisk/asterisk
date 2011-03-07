@@ -2122,6 +2122,7 @@ static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *cha
 		ch_name);
 }
 
+#ifdef HAVE_PRI
 /*!
  * \internal
  * \brief Post an AMI DAHDI channel association event.
@@ -2138,6 +2139,7 @@ static void my_ami_channel_event(void *pvt, struct ast_channel *chan)
 
 	dahdi_ami_channel_event(p, chan);
 }
+#endif
 
 /* linear_mode = 0 - turn linear mode off, >0 - turn linear mode on
 * 	returns the last value of the linear setting 
