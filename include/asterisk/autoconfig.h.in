@@ -1098,10 +1098,6 @@
 /* Build chan_misdn for mISDN 1.2 or later. */
 #undef MISDN_1_2
 
-/* Define to 1 if your system has a version of flex that does not check the
-   return value of fwrite. */
-#undef NEED_FLEX_FWRITE_WORKAROUND
-
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 
