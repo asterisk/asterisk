@@ -280,6 +280,7 @@ static void *mixmonitor_thread(void *obj)
 	struct ast_filestream **fs = NULL;
 	unsigned int oflags;
 	char *ext;
+	char *last_slash;
 	int errflag = 0;
 	struct ast_format format_slin;
 
@@ -313,7 +314,8 @@ static void *mixmonitor_thread(void *obj)
 				oflags = O_CREAT | O_WRONLY;
 				oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
 
-				if ((ext = strrchr(mixmonitor->filename, '.')))
+				last_slash = strrchr(mixmonitor->filename, '/');
+				if ((ext = strrchr(mixmonitor->filename, '.')) && (ext > last_slash))
 					*(ext++) = '\0';
 				else
 					ext = "raw";
