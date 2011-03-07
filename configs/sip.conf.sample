@@ -179,8 +179,8 @@ udpbindaddr=0.0.0.0             ; IP address to bind UDP listen socket to (0.0.0
 ;
 ; Note also that while Asterisk currently will parse an Allow header to learn
 ; what methods an endpoint supports, the only actual use for this currently
-; is for determining if Asterisk may send connected line UPDATE requests. Its
-; use may be expanded in the future.
+; is for determining if Asterisk may send connected line UPDATE requests and
+; MESSAGE requests. Its use may be expanded in the future.
 ;
 ; disallowed_methods = UPDATE
 
