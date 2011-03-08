@@ -112,7 +112,6 @@ static void send_child_event(FILE *handle, const char event, const char *data,
 
 	fprintf(handle, "%s\n", tmp);
 	ast_chan_log(LOG_DEBUG, chan, "sent '%s'\n", tmp);
-	ast_free(tmp);
 }
 
 static void *gen_alloc(struct ast_channel *chan, void *params)
