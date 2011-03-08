@@ -178,7 +178,7 @@ static void sig_pri_make_cc_dialstring(struct sig_pri_chan *p, char *buf, size_t
  * \brief Reevaluate the PRI span device state.
  * \since 1.8
  *
- * \param pri Asterisk D channel control structure.
+ * \param pri PRI span control structure.
  *
  * \return Nothing
  *
@@ -1023,7 +1023,7 @@ static int pri_find_dchan(struct sig_pri_span *pri)
  * \brief Obtain the sig_pri owner channel lock if the owner exists.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  *
  * \note Assumes the pri->lock is already obtained.
@@ -1054,7 +1054,7 @@ static void sig_pri_lock_owner(struct sig_pri_span *pri, int chanpos)
  * \brief Queue the given frame onto the owner channel.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param frame Frame to queue onto the owner channel.
  *
@@ -1077,7 +1077,7 @@ static void pri_queue_frame(struct sig_pri_span *pri, int chanpos, struct ast_fr
  * \brief Queue a control frame of the specified subclass onto the owner channel.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param subclass Control frame subclass to queue onto the owner channel.
  *
@@ -1103,7 +1103,7 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
  * \internal
  * \brief Find the private structure for the libpri call.
  *
- * \param pri Span controller structure.
+ * \param pri PRI span control structure.
  * \param channel LibPRI encoded channel ID.
  * \param call LibPRI opaque call pointer.
  *
@@ -1170,7 +1170,7 @@ static int pri_find_principle(struct sig_pri_span *pri, int channel, q931_call *
  * \internal
  * \brief Fixup the private structure associated with the libpri call.
  *
- * \param pri Span controller structure.
+ * \param pri PRI span control structure.
  * \param principle Array-index into private array to move call to if not already there.
  * \param call LibPRI opaque call pointer to find if need to move call.
  *
@@ -1415,7 +1415,7 @@ tryanotherpos:
  * \since 1.8
  *
  * \param pvt Channel to init the configuration.
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  *
  * \note Assumes the pri->lock is already obtained.
  *
@@ -1474,7 +1474,7 @@ static int pri_find_empty_chan(struct sig_pri_span *pri, int backwards)
  * \brief Find or create an empty no-B-channel interface to use.
  * \since 1.8
  *
- * \param pri sig_pri span controller to find interface.
+ * \param pri PRI span control structure.
  *
  * \note Assumes the pri->lock is already obtained.
  *
@@ -1511,7 +1511,7 @@ static int pri_find_empty_nobch(struct sig_pri_span *pri)
  * \brief Find the channel associated with the libpri call.
  * \since 1.8
  *
- * \param pri sig_pri span controller to find interface.
+ * \param pri PRI span control structure.
  * \param call LibPRI opaque call pointer to find.
  *
  * \note Assumes the pri->lock is already obtained.
@@ -1749,7 +1749,7 @@ static void sig_pri_party_name_convert(struct ast_party_name *ast_name, const st
  *
  * \param ast_number Asterisk party number structure to fill.  Must already be set initialized.
  * \param pri_number libpri party number structure containing source information.
- * \param pri Span controlling structure.
+ * \param pri PRI span control structure.
  *
  * \note The filled in ast_number structure needs to be destroyed by
  * ast_party_number_free() when it is no longer needed.
@@ -1774,7 +1774,7 @@ static void sig_pri_party_number_convert(struct ast_party_number *ast_number, co
  *
  * \param ast_id Asterisk party id structure to fill.  Must already be set initialized.
  * \param pri_id libpri party id structure containing source information.
- * \param pri Span controlling structure.
+ * \param pri PRI span control structure.
  *
  * \note The filled in ast_id structure needs to be destroyed by
  * ast_party_id_free() when it is no longer needed.
@@ -1804,7 +1804,7 @@ static void sig_pri_party_id_convert(struct ast_party_id *ast_id, const struct p
  * \param ast_redirecting Asterisk redirecting structure to fill.
  * \param pri_redirecting libpri redirecting structure containing source information.
  * \param ast_guide Asterisk redirecting structure to use as an initialization guide.
- * \param pri Span controlling structure.
+ * \param pri PRI span control structure.
  *
  * \note The filled in ast_redirecting structure needs to be destroyed by
  * ast_party_redirecting_free() when it is no longer needed.
@@ -1926,7 +1926,7 @@ static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, str
  * \brief Handle the MCID event.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param mcid MCID event parameters.
  * \param owner Asterisk channel associated with the call.
  * NULL if Asterisk no longer has the ast_channel struct.
@@ -2025,7 +2025,7 @@ typedef void (*xfer_rsp_callback)(void *data, int is_successful);
  * \brief Attempt to transfer the two calls to each other.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param call_1_pri First call involved in the transfer. (transferee; usually on hold)
  * \param call_1_held TRUE if call_1_pri is on hold.
  * \param call_2_pri Second call involved in the transfer. (target; usually active/ringing)
@@ -2211,7 +2211,7 @@ static int sig_pri_cc_agent_cmp_cc_id(void *obj, void *arg, int flags)
  * \brief Find the CC agent by libpri cc_id.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param cc_id CC record ID to find.
  *
  * \note
@@ -2262,7 +2262,7 @@ static int sig_pri_cc_monitor_cmp_cc_id(void *obj, void *arg, int flags)
  * \brief Find the CC monitor instance by libpri cc_id.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param cc_id CC record ID to find.
  *
  * \note
@@ -2314,7 +2314,7 @@ static void sig_pri_cc_monitor_instance_destroy(void *data)
  * \since 1.8
  *
  * \param core_id CC core ID.
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param cc_id CC record ID.
  * \param device_name Name of device (Asterisk channel name less sequence number).
  *
@@ -2358,7 +2358,7 @@ static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int 
  * \brief Announce to the CC core that protocol CC monitor is available for this call.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param cc_id CC record ID.
  * \param service CCBS/CCNR indication.
@@ -2434,7 +2434,7 @@ static int sig_pri_cc_available(struct sig_pri_span *pri, int chanpos, long cc_i
  * \brief Check if generic CC monitor is needed and request it.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param service CCBS/CCNR indication.
  *
@@ -2534,7 +2534,7 @@ done:
  * \brief The CC link canceled the CC instance.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param cc_id CC record ID.
  * \param is_agent TRUE if the cc_id is for an agent.
  *
@@ -3456,7 +3456,7 @@ static void sig_pri_aoc_e_from_ast(struct sig_pri_chan *pvt, struct ast_aoc_deco
  * \brief send an AOC-E termination request on ast_channel and set
  * hangup delay.
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param ms to delay hangup
  *
@@ -3530,7 +3530,7 @@ static int sig_pri_is_cis_call(int channel)
  * \brief Handle the CIS associated PRI subcommand events.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param event_id PRI event id
  * \param subcmds Subcommands to process if any. (Could be NULL).
  * \param call_rsp libpri opaque call structure to send any responses toward.
@@ -3783,7 +3783,7 @@ static int detect_aoc_e_subcmd(const struct pri_subcommands *subcmds)
  * \brief Handle the call associated PRI subcommand events.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param event_id PRI event id
  * \param channel PRI encoded span/channel
@@ -4131,7 +4131,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
  * \brief Handle the hold event from libpri.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param ev Hold event received.
  *
  * \note Assumes the pri->lock is already obtained.
@@ -4213,7 +4213,7 @@ done_with_private:;
  * \brief Handle the retrieve event from libpri.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  * \param ev Retrieve event received.
  *
  * \note Assumes the pri->lock is already obtained.
@@ -6845,7 +6845,7 @@ static int sig_pri_available_check(struct sig_pri_chan *pvt)
  * \brief Get an available call waiting interface.
  * \since 1.8
  *
- * \param pri sig_pri PRI control structure.
+ * \param pri PRI span control structure.
  *
  * \retval cw Call waiting interface to use.
  * \retval NULL if no call waiting interface available.
@@ -6969,7 +6969,7 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
  * \brief Send a MWI indication to the given span.
  * \since 1.8
  *
- * \param pri Asterisk D channel control structure.
+ * \param pri PRI span control structure.
  * \param mbox_number Mailbox number
  * \param mbox_context Mailbox context
  * \param num_messages Number of messages waiting.
@@ -7032,7 +7032,7 @@ static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
  * \brief Send update MWI indications from the event cache.
  * \since 1.8
  *
- * \param pri Asterisk D channel control structure.
+ * \param pri PRI span control structure.
  *
  * \return Nothing
  */
@@ -7068,7 +7068,7 @@ static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
  * \brief Stop PRI span.
  * \since 1.8
  *
- * \param pri Asterisk D channel control structure.
+ * \param pri PRI span control structure.
  *
  * \return Nothing
  */
@@ -7124,7 +7124,7 @@ static int sig_pri_cmp_pri_chans(const void *left, const void *right)
  * \brief Sort the PRI B channel private pointer array.
  * \since 1.8
  *
- * \param pri PRI Span controlling structure.
+ * \param pri PRI span control structure.
  *
  * \details
  * Since the chan_dahdi.conf file can declare channels in any order, we need to sort
