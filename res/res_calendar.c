@@ -1559,7 +1559,7 @@ static char *handle_show_calendar(struct ast_cli_entry *e, int cmd, struct ast_c
 		ast_cli(a->fd, FORMAT2, "Description", event->description);
 		ast_cli(a->fd, FORMAT2, "Organizer", event->organizer);
 		ast_cli(a->fd, FORMAT2, "Location", event->location);
-		ast_cli(a->fd, FORMAT2, "Cartegories", event->categories);
+		ast_cli(a->fd, FORMAT2, "Categories", event->categories);
 		ast_cli(a->fd, "%-12.12s: %d\n", "Priority", event->priority);
 		ast_cli(a->fd, FORMAT2, "UID", event->uid);
 		ast_cli(a->fd, FORMAT2, "Start", epoch_to_string(buf, sizeof(buf), event->start));
