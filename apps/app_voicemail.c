@@ -2473,6 +2473,7 @@ static int retrieve_file(char *dir, int msgnum)
 			fprintf(f, "[message]\n");
 		for (x=0;x<colcount;x++) {
 			rowdata[0] = '\0';
+			colsize = 0;
 			collen = sizeof(coltitle);
 			res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
 						&datatype, &colsize, &decimaldigits, &nullable);
