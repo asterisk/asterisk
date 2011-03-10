@@ -440,7 +440,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		}
 
 		http_header = ast_str_create(80);
-		ast_str_set(&http_header, 0, "Content-type: %s",
+		ast_str_set(&http_header, 0, "Content-type: %s\r\n",
 			route->file->mime_type);
 
 		ast_http_send(ser, method, 200, NULL, http_header, NULL, fd, 0);
@@ -504,7 +504,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		}
 
 		http_header = ast_str_create(80);
-		ast_str_set(&http_header, 0, "Content-type: %s",
+		ast_str_set(&http_header, 0, "Content-type: %s\r\n",
 			route->file->mime_type);
 
 		if (!(result = ast_str_create(512))) {

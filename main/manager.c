@@ -5852,7 +5852,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		goto auth_callback_out;
 	}
 
-	ast_str_append(&http_header, 0, "Content-type: text/%s", contenttype[format]);
+	ast_str_append(&http_header, 0, "Content-type: text/%s\r\n", contenttype[format]);
 
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "<ajax-response>\n");
