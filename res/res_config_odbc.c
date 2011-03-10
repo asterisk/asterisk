@@ -238,6 +238,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	}
 	for (x = 0; x < colcount; x++) {
 		rowdata[0] = '\0';
+		colsize = 0;
 		collen = sizeof(coltitle);
 		res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
 					&datatype, &colsize, &decimaldigits, &nullable);
@@ -410,6 +411,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		}
 		for (x=0;x<colcount;x++) {
 			rowdata[0] = '\0';
+			colsize = 0;
 			collen = sizeof(coltitle);
 			res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
 						&datatype, &colsize, &decimaldigits, &nullable);
