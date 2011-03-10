@@ -23178,7 +23178,7 @@ static int sip_pidf_validate(struct sip_request *req, struct ast_xml_doc **pidf_
 static int cc_esc_publish_handler(struct sip_pvt *pvt, struct sip_request *req, struct event_state_compositor *esc, struct sip_esc_entry *esc_entry)
 {
 	const char *uri = REQ_OFFSET_TO_STR(req, rlPart2);
-	struct ast_cc_agent *agent = find_sip_cc_agent_by_notify_uri(uri);
+	struct ast_cc_agent *agent;
 	struct sip_cc_agent_pvt *agent_pvt;
 	struct ast_xml_doc *pidf_doc = NULL;
 	const char *basic_status = NULL;
@@ -23191,7 +23191,7 @@ static int cc_esc_publish_handler(struct sip_pvt *pvt, struct sip_request *req, 
 	struct ast_xml_node *basic_node;
 	int res = 0;
 
-	if (!agent) {
+	if (!((agent = find_sip_cc_agent_by_notify_uri(uri)) || (agent = find_sip_cc_agent_by_subscribe_uri(uri)))) {
 		ast_log(LOG_WARNING, "Could not find agent using uri '%s'\n", uri);
 		transmit_response(pvt, "412 Conditional Request Failed", req);
 		return -1;
