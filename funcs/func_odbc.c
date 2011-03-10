@@ -559,7 +559,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 
 			if (y == 0) {
 				char colname[256];
-				SQLULEN maxcol;
+				SQLULEN maxcol = 0;
 
 				res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, &maxcol, NULL, NULL);
 				ast_debug(3, "Got collength of %d and maxcol of %d for column '%s' (offset %d)\n", (int)collength, (int)maxcol, colname, x);
@@ -1152,6 +1152,8 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			}
 			for (;;) {
 				for (x = 0; x < colcount; x++) {
+					maxcol = 0;
+
 					res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, &maxcol, NULL, NULL);
 					if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || collength == 0) {
 						snprintf(colname, sizeof(colname), "field%d", x);
