@@ -1202,10 +1202,22 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 		cs[1] = cs[2];
 	}
 
-	if (glue0->update_peer(c0, NULL, NULL, NULL, 0, 0)) {
+	if (ast_test_flag(c0, AST_FLAG_ZOMBIE)) {
+		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", c0->name);
+	} else if (c0->tech_pvt != pvt0) {
+		ast_debug(1, "Channel c0->'%s' pvt changed, in bridge with c1->'%s'\n", c0->name, c1->name);
+	} else if (glue0 != ast_rtp_instance_get_glue(c0->tech->type)) {
+		ast_debug(1, "Channel c0->'%s' technology changed, in bridge with c1->'%s'\n", c0->name, c1->name);
+	} else if (glue0->update_peer(c0, NULL, NULL, NULL, 0, 0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 	}
-	if (glue1->update_peer(c1, NULL, NULL, NULL, 0, 0)) {
+	if (ast_test_flag(c1, AST_FLAG_ZOMBIE)) {
+		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", c1->name);
+	} else if (c1->tech_pvt != pvt1) {
+		ast_debug(1, "Channel c1->'%s' pvt changed, in bridge with c0->'%s'\n", c1->name, c0->name);
+	} else if (glue1 != ast_rtp_instance_get_glue(c1->tech->type)) {
+		ast_debug(1, "Channel c1->'%s' technology changed, in bridge with c0->'%s'\n", c1->name, c0->name);
+	} else if (glue1->update_peer(c1, NULL, NULL, NULL, 0, 0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 	}
 
