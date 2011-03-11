@@ -238,7 +238,7 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 	return ast_frdup(&frame);
 }
 
-static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audiohook, size_t samples)
+static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audiohook, size_t samples, struct ast_frame **read_reference, struct ast_frame **write_reference)
 {
 	int i = 0, usable_read, usable_write;
 	short buf1[samples], buf2[samples], *read_buf = NULL, *write_buf = NULL, *final_buf = NULL, *data1 = NULL, *data2 = NULL;
@@ -313,14 +313,24 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
 	if (!read_buf && !write_buf)
 		return NULL;
-	else if (read_buf && write_buf) {
+
+	if (read_buf) {
+		final_buf = buf1;
+		frame.data.ptr = final_buf;
+		*read_reference = ast_frdup(&frame);
+	}
+
+	if (write_buf) {
+		final_buf = buf2;
+		frame.data.ptr = final_buf;
+		*write_reference = ast_frdup(&frame);
+	}
+
+	if (read_buf && write_buf) {
 		for (i = 0, data1 = read_buf, data2 = write_buf; i < samples; i++, data1++, data2++)
 			ast_slinear_saturated_add(data1, data2);
 		final_buf = buf1;
-	} else if (read_buf)
-		final_buf = buf1;
-	else if (write_buf)
-		final_buf = buf2;
+	}
 
 	/* Make the final buffer part of the frame, so it gets duplicated fine */
 	frame.data.ptr = final_buf;
@@ -329,14 +339,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	return ast_frdup(&frame);
 }
 
-/*! \brief Reads a frame in from the audiohook structure
- * \param audiohook Audiohook structure
- * \param samples Number of samples wanted in requested output format
- * \param direction Direction the audio frame came from
- * \param format Format of frame remote side wants back
- * \return Returns frame on success, NULL on failure
- */
-struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, struct ast_format *format)
+static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, struct ast_format *format, struct ast_frame **read_reference, struct ast_frame **write_reference)
 {
 	struct ast_frame *read_frame = NULL, *final_frame = NULL;
 	struct ast_format tmp_fmt;
@@ -352,10 +355,10 @@ struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size
 		samples_converted = samples * (ast_format_rate(format) / (float) audiohook->hook_internal_samp_rate);
 	}
 
-	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
-		audiohook_read_frame_both(audiohook, samples_converted) :
-		audiohook_read_frame_single(audiohook, samples_converted, direction)))) {
-		return NULL;
+	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ? 
+		audiohook_read_frame_both(audiohook, samples_converted, read_reference, write_reference) : 
+		audiohook_read_frame_single(audiohook, samples_converted, direction)))) { 
+		return NULL; 
 	}
 
 	/* If they don't want signed linear back out, we'll have to send it through the translation path */
@@ -381,6 +384,32 @@ struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size
 	}
 
 	return final_frame;
+}
+
+/*! \brief Reads a frame in from the audiohook structure
+ * \param audiohook Audiohook structure
+ * \param samples Number of samples wanted in requested output format
+ * \param direction Direction the audio frame came from
+ * \param format Format of frame remote side wants back
+ * \return Returns frame on success, NULL on failure
+ */
+struct ast_frame *ast_audiohook_read_frame(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, struct ast_format *format)
+{
+	return audiohook_read_frame_helper(audiohook, samples, direction, format, NULL, NULL);
+}
+
+/*! \brief Reads a frame in from the audiohook structure
+ * \param audiohook Audiohook structure
+ * \param samples Number of samples wanted
+ * \param direction Direction the audio frame came from
+ * \param format Format of frame remote side wants back
+ * \param read_frame frame pointer for copying read frame data
+ * \param write_frame frame pointer for copying write frame data
+ * \return Returns frame on success, NULL on failure
+ */
+struct ast_frame *ast_audiohook_read_frame_all(struct ast_audiohook *audiohook, size_t samples, struct ast_format *format, struct ast_frame **read_frame, struct ast_frame **write_frame)
+{
+	return audiohook_read_frame_helper(audiohook, samples, AST_AUDIOHOOK_DIRECTION_BOTH, format, read_frame, write_frame);
 }
 
 static void audiohook_list_set_samplerate_compatibility(struct ast_audiohook_list *audiohook_list)

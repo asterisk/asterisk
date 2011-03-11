@@ -89,6 +89,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						of <replaceable>x</replaceable> (range <literal>-4</literal> to <literal>4</literal>)</para>
 						<argument name="x" required="true" />
 					</option>
+					<option name="r">
+						<argument name="file" required="true" />
+						<para>Use the specified file to record the <emphasis>receive</emphasis> audio feed.
+						Like with the basic filename argument, if an absolute path isn't given, it will create
+						the file in the configured monitoring directory.</para>
+
+					</option>
+					<option name="t">
+						<argument name="file" required="true" />
+						<para>Use the specified file to record the <emphasis>transmit</emphasis> audio feed.
+						Like with the basic filename argument, if an absolute path isn't given, it will create
+						the file in the configured monitoring directory.</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="command">
@@ -159,6 +172,8 @@ static const char * const mixmonitor_spy_type = "MixMonitor";
 struct mixmonitor {
 	struct ast_audiohook audiohook;
 	char *filename;
+	char *filename_read;
+	char *filename_write;
 	char *post_process;
 	char *name;
 	unsigned int flags;
@@ -172,13 +187,18 @@ enum mixmonitor_flags {
 	MUXFLAG_VOLUME = (1 << 3),
 	MUXFLAG_READVOLUME = (1 << 4),
 	MUXFLAG_WRITEVOLUME = (1 << 5),
+	MUXFLAG_READ = (1 << 6),
+	MUXFLAG_WRITE = (1 << 7),
+	MUXFLAG_COMBINED = (1 << 8),
 };
 
 enum mixmonitor_args {
 	OPT_ARG_READVOLUME = 0,
 	OPT_ARG_WRITEVOLUME,
 	OPT_ARG_VOLUME,
-	OPT_ARG_ARRAY_SIZE,
+	OPT_ARG_WRITENAME,
+	OPT_ARG_READNAME,
+	OPT_ARG_ARRAY_SIZE,	/* Always last element of the enum */
 };
 
 AST_APP_OPTIONS(mixmonitor_opts, {
@@ -187,6 +207,8 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('v', MUXFLAG_READVOLUME, OPT_ARG_READVOLUME),
 	AST_APP_OPTION_ARG('V', MUXFLAG_WRITEVOLUME, OPT_ARG_WRITEVOLUME),
 	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
+	AST_APP_OPTION_ARG('r', MUXFLAG_READ, OPT_ARG_READNAME),
+	AST_APP_OPTION_ARG('t', MUXFLAG_WRITE, OPT_ARG_WRITENAME),
 });
 
 struct mixmonitor_ds {
@@ -197,7 +219,11 @@ struct mixmonitor_ds {
 	/* The filestream is held in the datastore so it can be stopped
 	 * immediately during stop_mixmonitor or channel destruction. */
 	int fs_quit;
+
 	struct ast_filestream *fs;
+	struct ast_filestream *fs_read;
+	struct ast_filestream *fs_write;
+
 	struct ast_audiohook *audiohook;
 };
 
@@ -207,11 +233,31 @@ struct mixmonitor_ds {
  */
 static void mixmonitor_ds_close_fs(struct mixmonitor_ds *mixmonitor_ds)
 {
+	unsigned char quitting = 0;
+
 	if (mixmonitor_ds->fs) {
+		quitting = 1;
 		ast_closestream(mixmonitor_ds->fs);
 		mixmonitor_ds->fs = NULL;
+		ast_verb(2, "MixMonitor close filestream (mixed)\n");
+	}
+
+	if (mixmonitor_ds->fs_read) {
+		quitting = 1;
+		ast_closestream(mixmonitor_ds->fs_read);
+		mixmonitor_ds->fs_read = NULL;
+		ast_verb(2, "MixMonitor close filestream (read)\n");
+	}
+
+	if (mixmonitor_ds->fs_write) {
+		quitting = 1;
+		ast_closestream(mixmonitor_ds->fs_write);
+		mixmonitor_ds->fs_write = NULL;
+		ast_verb(2, "MixMonitor close filestream (write)\n");
+	}
+
+	if (quitting) {
 		mixmonitor_ds->fs_quit = 1;
-		ast_verb(2, "MixMonitor close filestream\n");
 	}
 }
 
@@ -269,18 +315,51 @@ static void mixmonitor_free(struct mixmonitor *mixmonitor)
 		if (mixmonitor->mixmonitor_ds) {
 			ast_mutex_destroy(&mixmonitor->mixmonitor_ds->lock);
 			ast_cond_destroy(&mixmonitor->mixmonitor_ds->destruction_condition);
+			ast_free(mixmonitor->filename_write);
+			ast_free(mixmonitor->filename_read);
 			ast_free(mixmonitor->mixmonitor_ds);
+			ast_free(mixmonitor->name);
+			ast_free(mixmonitor->post_process);
 		}
 		ast_free(mixmonitor);
 	}
 }
+
+static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, struct ast_filestream **fs, unsigned int *oflags, int *errflag)
+{
+	/* Initialize the file if not already done so */
+	char *ext = NULL;
+	char *last_slash = NULL;
+	if (!ast_strlen_zero(filename)) {
+		if (!*fs && !*errflag && !mixmonitor->mixmonitor_ds->fs_quit) {
+			*oflags = O_CREAT | O_WRONLY;
+			*oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
+			
+			last_slash = strrchr(filename, '/');
+
+			if ((ext = strrchr(filename, '.')) && (ext > last_slash)) {
+				*(ext++) = '\0';
+			} else {
+				ext = "raw";
+			}
+
+			if (!(*fs = ast_writefile(filename, ext, NULL, *oflags, 0, 0666))) {
+				ast_log(LOG_ERROR, "Cannot open %s.%s\n", filename, ext);
+				*errflag = 1;
+			}
+		}
+	}
+}
+
 static void *mixmonitor_thread(void *obj) 
 {
 	struct mixmonitor *mixmonitor = obj;
+
 	struct ast_filestream **fs = NULL;
+	struct ast_filestream **fs_read = NULL;
+	struct ast_filestream **fs_write = NULL;
+
 	unsigned int oflags;
-	char *ext;
-	char *last_slash;
 	int errflag = 0;
 	struct ast_format format_slin;
 
@@ -288,13 +367,18 @@ static void *mixmonitor_thread(void *obj)
 	ast_verb(2, "Begin MixMonitor Recording %s\n", mixmonitor->name);
 
 	fs = &mixmonitor->mixmonitor_ds->fs;
+	fs_read = &mixmonitor->mixmonitor_ds->fs_read;
+	fs_write = &mixmonitor->mixmonitor_ds->fs_write;
 
 	/* The audiohook must enter and exit the loop locked */
 	ast_audiohook_lock(&mixmonitor->audiohook);
 	while (mixmonitor->audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING && !mixmonitor->mixmonitor_ds->fs_quit) {
 		struct ast_frame *fr = NULL;
+		struct ast_frame *fr_read = NULL;
+		struct ast_frame *fr_write = NULL;
 
-		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, &format_slin))) {
+		if (!(fr = ast_audiohook_read_frame_all(&mixmonitor->audiohook, SAMPLES_PER_FRAME, &format_slin,
+						&fr_read, &fr_write))) {
 			ast_audiohook_trigger_wait(&mixmonitor->audiohook);
 
 			if (mixmonitor->audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING) {
@@ -309,25 +393,28 @@ static void *mixmonitor_thread(void *obj)
 
 		if (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) || (mixmonitor->autochan->chan && ast_bridged_channel(mixmonitor->autochan->chan))) {
 			ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
-			/* Initialize the file if not already done so */
-			if (!*fs && !errflag && !mixmonitor->mixmonitor_ds->fs_quit) {
-				oflags = O_CREAT | O_WRONLY;
-				oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
+			mixmonitor_save_prep(mixmonitor, mixmonitor->filename, fs, &oflags, &errflag);
+			mixmonitor_save_prep(mixmonitor, mixmonitor->filename_read, fs_read, &oflags, &errflag);
+			mixmonitor_save_prep(mixmonitor, mixmonitor->filename_write, fs_write, &oflags, &errflag);
 
-				last_slash = strrchr(mixmonitor->filename, '/');
-				if ((ext = strrchr(mixmonitor->filename, '.')) && (ext > last_slash))
-					*(ext++) = '\0';
-				else
-					ext = "raw";
+			/* Write out the frame(s) */
+			if ((*fs_read) && (fr_read)) {
+				struct ast_frame *cur;
 
-				if (!(*fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0666))) {
-					ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
-					errflag = 1;
+				for (cur = fr_read; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+					ast_writestream(*fs_read, cur);
 				}
 			}
 
-			/* Write out the frame(s) */
-			if (*fs) {
+			if ((*fs_write) && (fr_write)) {
+				struct ast_frame *cur;
+
+				for (cur = fr_write; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+					ast_writestream(*fs_write, cur);
+				}
+			}
+
+			if ((*fs) && (fr)) {
 				struct ast_frame *cur;
 
 				for (cur = fr; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
@@ -337,7 +424,19 @@ static void *mixmonitor_thread(void *obj)
 			ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
 		}
 		/* All done! free it. */
-		ast_frame_free(fr, 0);
+		if (fr) {
+			ast_frame_free(fr, 0);
+		}
+		if (fr_read) {
+			ast_frame_free(fr_read, 0);
+		}
+		if (fr_write) {
+			ast_frame_free(fr_write, 0);
+		}
+
+		fr = NULL;
+		fr_write = NULL;
+		fr_read = NULL;
 
 		ast_audiohook_lock(&mixmonitor->audiohook);
 	}
@@ -396,15 +495,14 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 	return 0;
 }
 
-static void launch_monitor_thread(struct ast_channel *chan, const char *filename, unsigned int flags,
-				  int readvol, int writevol, const char *post_process) 
+static void launch_monitor_thread(struct ast_channel *chan, const char *filename,
+				  unsigned int flags, int readvol, int writevol,
+				  const char *post_process, const char *filename_write,
+				  const char *filename_read) 
 {
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
 	char postprocess2[1024] = "";
-	size_t len;
-
-	len = sizeof(*mixmonitor) + strlen(chan->name) + strlen(filename) + 2;
 
 	postprocess2[0] = 0;
 	/* If a post process system command is given attach it to the structure */
@@ -412,18 +510,16 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 		char *p1, *p2;
 
 		p1 = ast_strdupa(post_process);
-		for (p2 = p1; *p2 ; p2++) {
+		for (p2 = p1; *p2; p2++) {
 			if (*p2 == '^' && *(p2+1) == '{') {
 				*p2 = '$';
 			}
 		}
 		pbx_substitute_variables_helper(chan, p1, postprocess2, sizeof(postprocess2) - 1);
-		if (!ast_strlen_zero(postprocess2))
-			len += strlen(postprocess2) + 1;
 	}
 
 	/* Pre-allocate mixmonitor structure and spy */
-	if (!(mixmonitor = ast_calloc(1, len))) {
+	if (!(mixmonitor = ast_calloc(1, sizeof(*mixmonitor)))) {
 		return;
 	}
 
@@ -445,15 +541,24 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 		mixmonitor_free(mixmonitor);
 		return;
 	}
-	mixmonitor->name = (char *) mixmonitor + sizeof(*mixmonitor);
-	strcpy(mixmonitor->name, chan->name);
+
+	mixmonitor->name = ast_strdup(chan->name);
+
 	if (!ast_strlen_zero(postprocess2)) {
-		mixmonitor->post_process = mixmonitor->name + strlen(mixmonitor->name) + strlen(filename) + 2;
-		strcpy(mixmonitor->post_process, postprocess2);
+		mixmonitor->post_process = ast_strdup(postprocess2);
 	}
 
-	mixmonitor->filename = (char *) mixmonitor + sizeof(*mixmonitor) + strlen(chan->name) + 1;
-	strcpy(mixmonitor->filename, filename);
+	if (!ast_strlen_zero(filename)) {
+		mixmonitor->filename = ast_strdup(filename);
+	}
+
+	if (!ast_strlen_zero(filename_write)) {
+		mixmonitor->filename_write = ast_strdup(filename_write);
+	}
+
+	if (!ast_strlen_zero(filename_read)) {
+		mixmonitor->filename_read = ast_strdup(filename_read);
+	}
 
 	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
 
@@ -473,11 +578,39 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
 }
 
+/* a note on filename_parse: creates directory structure and assigns absolute path from relative paths for filenames */
+/* requires immediate copying of string from return to retain data since otherwise it will immediately lose scope */
+static char *filename_parse(char *filename, char *buffer, size_t len)
+{
+	char *slash;
+	if (ast_strlen_zero(filename)) {
+		ast_log(LOG_WARNING, "No file name was provided for a file save option.\n");
+	} else if (filename[0] != '/') {
+		char *build;
+		build = alloca(strlen(ast_config_AST_MONITOR_DIR) + strlen(filename) + 3);
+		sprintf(build, "%s/%s", ast_config_AST_MONITOR_DIR, filename);
+		filename = build;
+	}
+
+	ast_copy_string(buffer, filename, len);
+
+	if ((slash = strrchr(filename, '/'))) {
+		*slash = '\0';
+	}
+	ast_mkdir(filename, 0777);
+
+	return buffer;
+}
+
 static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 {
 	int x, readvol = 0, writevol = 0;
-	struct ast_flags flags = {0};
-	char *parse, *tmp, *slash;
+	char *filename_read = NULL;
+	char *filename_write = NULL;
+	char filename_buffer[1024] = "";
+
+	struct ast_flags flags = { 0 };
+	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(options);
@@ -485,18 +618,13 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	);
 	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename)\n");
+		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename or ,t(filename) and/or r(filename)\n");
 		return -1;
 	}
 
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
-	
-	if (ast_strlen_zero(args.filename)) {
-		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename)\n");
-		return -1;
-	}
 
 	if (args.options) {
 		char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
@@ -532,24 +660,30 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 				readvol = writevol = get_volfactor(x);
 			}
 		}
+
+		if (ast_test_flag(&flags, MUXFLAG_WRITE)) {
+			filename_write = ast_strdupa(filename_parse(opts[OPT_ARG_WRITENAME], filename_buffer, sizeof(filename_buffer)));
+		}
+
+		if (ast_test_flag(&flags, MUXFLAG_READ)) {
+			filename_read = ast_strdupa(filename_parse(opts[OPT_ARG_READNAME], filename_buffer, sizeof(filename_buffer)));
+		}
 	}
 
-	/* if not provided an absolute path, use the system-configured monitoring directory */
-	if (args.filename[0] != '/') {
-		char *build;
+	/* If there are no file writing arguments/options for the mix monitor, send a warning message and return -1 */
 
-		build = alloca(strlen(ast_config_AST_MONITOR_DIR) + strlen(args.filename) + 3);
-		sprintf(build, "%s/%s", ast_config_AST_MONITOR_DIR, args.filename);
-		args.filename = build;
+	if (!ast_test_flag(&flags, MUXFLAG_WRITE) && !ast_test_flag(&flags, MUXFLAG_READ) && ast_strlen_zero(args.filename)) {
+		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename)\n");
+		return -1;
 	}
 
-	tmp = ast_strdupa(args.filename);
-	if ((slash = strrchr(tmp, '/')))
-		*slash = '\0';
-	ast_mkdir(tmp, 0777);
+	/* If filename exists, try to create directories for it */
+	if (!(ast_strlen_zero(args.filename))) {
+		args.filename = ast_strdupa(filename_parse(args.filename, filename_buffer, sizeof(filename_buffer)));
+	}
 
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
-	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process);
+	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process, filename_write, filename_read);
 
 	return 0;
 }

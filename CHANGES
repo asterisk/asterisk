@@ -70,6 +70,13 @@ Calendaring
  * Added setvar option to calendar.conf to allow setting channel variables on
    notification channels.
 
+MixMonitor
+--------------------------
+ * Added two new options, r and t with file name arguments to record 
+   single direction (unmixed) audio recording separate from the bidirectional
+   (mixed) recording.  The mixed file name argument is optional now as long
+   as at least one recording option is used.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
