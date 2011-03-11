@@ -27,30 +27,35 @@ CFLAGS+= -fPIC -Wno-comment
 # fails miserably. Remove it for the time being.
 _ASTCFLAGS:=$(_ASTCFLAGS:-Werror=)
 
-#fix for PPC processors and ALPHA, And UltraSparc too
-ifneq ($(OSARCH),Darwin)
- ifneq ($(findstring BSD,${OSARCH}),BSD)
-  ifneq ($(PROC),ppc)
-   ifneq ($(PROC),x86_64)
-    ifneq ($(PROC),alpha)
-#The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
-#This works for even old (2.96) versions of gcc and provides a small boost either way.
-#A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn.t support it.
-#So we go lowest common available by gcc and go a step down, still a step up from
-#the default as we now have a better instruction set to work with. - Belgarath
-     ifeq ($(PROC),ultrasparc)
-        CFLAGS+= -mtune=$(PROC) -mcpu=v8 -O3 -fomit-frame-pointer
-     else
-      ifneq ($(OSARCH),SunOS)
-       ifneq  ($(OSARCH),arm)
-#        CFLAGS+= -march=$(PROC)
+# If the compiler's '-march' flag has been specified already, then assume it's a value
+# that is what the user wants (or has been determined by the configure script). If not,
+# do some simple logic to set a decent value
+ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
+  #fix for PPC processors and ALPHA, And UltraSparc too
+  ifneq ($(OSARCH),Darwin)
+   ifneq ($(findstring BSD,${OSARCH}),BSD)
+    ifneq ($(PROC),ppc)
+     ifneq ($(PROC),x86_64)
+      ifneq ($(PROC),alpha)
+  #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
+  #This works for even old (2.96) versions of gcc and provides a small boost either way.
+  #A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn.t support it.
+  #So we go lowest common available by gcc and go a step down, still a step up from
+  #the default as we now have a better instruction set to work with. - Belgarath
+       ifeq ($(PROC),ultrasparc)
+          CFLAGS+= -mtune=$(PROC) -mcpu=v8 -O3 -fomit-frame-pointer
+       else
+        ifneq ($(OSARCH),SunOS)
+         ifneq  ($(OSARCH),arm)
+  #        CFLAGS+= -march=$(PROC)
+         endif
+        endif
        endif
       endif
      endif
     endif
    endif
   endif
- endif
 endif
 
 LIB = $(LIB_TARGET_DIR)/liblpc10.a

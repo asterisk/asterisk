@@ -223,8 +223,12 @@ ifneq ($(findstring BSD,$(OSARCH)),)
 endif
 
 ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
-  ifneq ($(PROC),ultrasparc)
-    _ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+  ifneq ($(AST_MARCH_NATIVE),)
+    _ASTCFLAGS+=$(AST_MARCH_NATIVE)
+  else
+    ifneq ($(PROC),ultrasparc)
+      _ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+    endif
   endif
 endif
 
@@ -233,8 +237,10 @@ ifeq ($(PROC),ppc)
 endif
 
 ifeq ($(OSARCH),FreeBSD)
-  ifeq ($(PROC),i386)
-    _ASTCFLAGS+=-march=i686
+  ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
+    ifeq ($(PROC),i386)
+      _ASTCFLAGS+=-march=i686
+    endif
   endif
   # -V is understood by BSD Make, not by GNU make.
   BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)

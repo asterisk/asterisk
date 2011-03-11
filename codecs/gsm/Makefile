@@ -45,28 +45,33 @@ ifeq ($(shell $(CC) -v 2>&1 | awk '/^gcc version/ { split($$3, v, "."); printf "
 OPTIMIZE=-O2
 endif
 
-ifeq (,$(findstring $(shell uname -s),Darwin SunOS))
-  ifeq (,$(strip $(findstring $(PROC) ,"x86_64 amd64 ultrasparc sparc64 arm armv5b armeb ppc powerpc ppc64 ia64 s390 bfin mipsel mips ")))
-    ifeq (,$(strip $(findstring $(shell uname -m) ,"ppc ppc64 alpha armv4l s390 ")))
-      OPTIMIZE+=-march=$(PROC)
+# If the compiler's '-march' flag has been specified already, then assume it's a value
+# that is what the user wants (or has been determined by the configure script). If not,
+# do some simple logic to set a decent value
+ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
+  ifeq (,$(findstring $(shell uname -s),Darwin SunOS))
+    ifeq (,$(strip $(findstring $(PROC) ,"x86_64 amd64 ultrasparc sparc64 arm armv5b armeb ppc powerpc ppc64 ia64 s390 bfin mipsel mips ")))
+      ifeq (,$(strip $(findstring $(shell uname -m) ,"ppc ppc64 alpha armv4l s390 ")))
+        OPTIMIZE+=-march=$(PROC)
+      endif
+    endif
+  else
+    ifneq (,$(findstring $(OSARCH),Darwin))
+      ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
+        # Snow Leopard reports i386, even though it's really x86_64
+        OPTIMIZE+=-mtune=native
+      endif
     endif
   endif
-else
-  ifneq (,$(findstring $(OSARCH),Darwin))
-    ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
-      # Snow Leopard reports i386, even though it's really x86_64
-      OPTIMIZE+=-mtune=native
-    endif
-  endif
-endif
 
-#The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
-#This works for even old (2.96) versions of gcc and provides a small boost either way.
-#A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
-#So we go lowest common available by gcc and go a step down, still a step up from
-#the default as we now have a better instruction set to work with. - Belgarath
-ifeq ($(PROC),ultrasparc)
-OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 
+  #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
+  #This works for even old (2.96) versions of gcc and provides a small boost either way.
+  #A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
+  #So we go lowest common available by gcc and go a step down, still a step up from
+  #the default as we now have a better instruction set to work with. - Belgarath
+  ifeq ($(PROC),ultrasparc)
+  OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 
+  endif
 endif
 
 PG =

@@ -918,6 +918,16 @@ else
 fi
 AC_SUBST(AST_SHADOW_WARNINGS)
 
+AC_MSG_CHECKING(for -march=native)
+if $(${CC} -march=native -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+	AC_MSG_RESULT(yes)
+	AST_MARCH_NATIVE="-march=native"
+else
+	AC_MSG_RESULT(no)
+	AST_MARCH_NATIVE=
+fi
+AC_SUBST(AST_MARCH_NATIVE)
+
 AC_MSG_CHECKING(for sysinfo)
 AC_LINK_IFELSE(
         AC_LANG_PROGRAM([#include <sys/sysinfo.h>],
