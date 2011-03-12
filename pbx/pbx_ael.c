@@ -55,6 +55,26 @@ static int mtx_prof = -1; /* helps the standalone compile with the mtx_prof flag
 #include "asterisk/argdesc.h"
 #endif
 
+/*** DOCUMENTATION
+	<application name="AELSub" language="en_US">
+		<synopsis>
+			Launch subroutine built with AEL
+		</synopsis>
+		<syntax>
+			<parameter name="routine" required="true">
+				<para>Named subroutine to execute.</para>
+			</parameter>
+			<parameter name="args" required="false" />
+		</syntax>
+		<description>
+			<para>Execute the named subroutine, defined in AEL, from another dialplan
+			language, such as extensions.conf, Realtime extensions, or Lua.</para>
+			<para>The purpose of this application is to provide a sane entry point into
+			AEL subroutines, the implementation of which may change from time to time.</para>
+		</description>
+	</application>
+ ***/
+
 /* these functions are in ../ast_expr2.fl */
 
 #define DEBUG_READ   (1 << 0)
@@ -107,6 +127,27 @@ int is_empty(char *arg);
 static int aeldebug = 0;
 
 /* interface stuff */
+
+#ifndef STANDALONE
+static char *aelsub = "AELSub";
+
+static int aelsub_exec(struct ast_channel *chan, void *vdata)
+{
+	char buf[256], *data = ast_strdupa(vdata);
+	struct ast_app *gosub = pbx_findapp("Gosub");
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(name);
+		AST_APP_ARG(args);
+	);
+
+	if (gosub) {
+		AST_STANDARD_RAW_ARGS(args, data);
+		snprintf(buf, sizeof(buf), "%s,~~s~~,1(%s)", args.name, args.args);
+		return pbx_exec(chan, gosub, buf);
+	}
+	return -1;
+}
+#endif
 
 /* if all the below are static, who cares if they are present? */
 
@@ -224,12 +265,18 @@ static int unload_module(void)
 {
 	ast_context_destroy(NULL, registrar);
 	ast_cli_unregister_multiple(cli_ael, ARRAY_LEN(cli_ael));
+#ifndef STANDALONE
+	ast_unregister_application(aelsub);
+#endif
 	return 0;
 }
 
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_ael, ARRAY_LEN(cli_ael));
+#ifndef STANDALONE
+	ast_register_application_xml(aelsub, aelsub_exec);
+#endif
 	return (pbx_load_module());
 }
 
