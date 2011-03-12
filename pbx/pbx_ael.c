@@ -4502,6 +4502,30 @@ int ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 
 static int aeldebug = 0;
 
+#ifndef STANDALONE_AEL
+static char *aelsub = "AELSub";
+static char *aelsub_synopsis = "Launch subroutine built with AEL";
+static char *aelsub_descrip =
+"AELSub(<macroname>[|<args>])\n"
+"Execute the named subroutine, defined in AEL, from another dialplan language,\n"
+"such as extensions.conf or Realtime extensions.\n\n"
+"The purpose of this application is to provide a sane entry point into AEL\n"
+"subroutines, the implementation of which may change from time to time.\n";
+
+static int aelsub_exec(struct ast_channel *chan, void *vdata)
+{
+	char *data = ast_strdupa(vdata);
+	struct ast_app *macro = pbx_findapp("Macro");
+	if (macro) {
+		if (strncmp(data, "macro-", 6) == 0) {
+			data += 6;
+		}
+		return pbx_exec(chan, macro, data);
+	}
+	return -1;
+}
+#endif
+
 /* interface stuff */
 
 /* if all the below are static, who cares if they are present? */
@@ -4620,12 +4644,18 @@ static int unload_module(void)
 {
 	ast_context_destroy(NULL, registrar);
 	ast_cli_unregister_multiple(cli_ael, sizeof(cli_ael) / sizeof(struct ast_cli_entry));
+#ifndef STANDALONE_AEL
+	ast_unregister_application(aelsub);
+#endif
 	return 0;
 }
 
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_ael, sizeof(cli_ael) / sizeof(struct ast_cli_entry));
+#ifndef STANDALONE_AEL
+	ast_register_application(aelsub, aelsub_exec, aelsub_synopsis, aelsub_descrip);
+#endif
 	return (pbx_load_module());
 }
 
