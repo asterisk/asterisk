@@ -302,12 +302,12 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	 * transaction, or else we CANNOT enforce atomicity.
 	 */
 	for (dsn = 0; dsn < 5; dsn++) {
-		if (transactional) {
-			/* This can only happen second time through or greater. */
-			ast_log(LOG_WARNING, "Transactions do not work well with multiple DSNs for 'writehandle'\n");
-		}
-
 		if (!ast_strlen_zero(query->writehandle[dsn])) {
+			if (transactional) {
+				/* This can only happen second time through or greater. */
+				ast_log(LOG_WARNING, "Transactions do not work well with multiple DSNs for 'writehandle'\n");
+			}
+
 			if ((obj = ast_odbc_retrieve_transaction_obj(chan, query->writehandle[dsn]))) {
 				transactional = 1;
 			} else {
@@ -332,9 +332,27 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	if (stmt && rows == 0 && ast_str_strlen(insertbuf) != 0) {
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		for (dsn = 0; dsn < 5; dsn++) {
+		if (obj && !transactional) {
+			ast_odbc_release_obj(obj);
+			obj = NULL;
+		}
+
+		for (transactional = 0, dsn = 0; dsn < 5; dsn++) {
 			if (!ast_strlen_zero(query->writehandle[dsn])) {
-				obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
+				if (transactional) {
+					/* This can only happen second time through or greater. */
+					ast_log(LOG_WARNING, "Transactions do not work well with multiple DSNs for 'writehandle'\n");
+				} else if (obj) {
+					ast_odbc_release_obj(obj);
+					obj = NULL;
+				}
+
+				if ((obj = ast_odbc_retrieve_transaction_obj(chan, query->writehandle[dsn]))) {
+					transactional = 1;
+				} else {
+					obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
+					transactional = 0;
+				}
 				if (obj) {
 					stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(insertbuf));
 				}
@@ -343,10 +361,6 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 				status = "FAILOVER";
 				SQLRowCount(stmt, &rows);
 				break;
-			}
-			if (obj) {
-				ast_odbc_release_obj(obj);
-				obj = NULL;
 			}
 		}
 	} else if (stmt) {
@@ -372,10 +386,12 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		obj = NULL;
 	}
 
-	if (chan)
+	if (chan) {
 		ast_autoservice_stop(chan);
-	if (bogus_chan)
+	}
+	if (bogus_chan) {
 		ast_channel_free(chan);
+	}
 
 	return 0;
 }
