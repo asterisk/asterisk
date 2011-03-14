@@ -311,25 +311,26 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	ast_debug(1, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
 
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
-	if (!read_buf && !write_buf)
-		return NULL;
-
-	if (read_buf) {
-		final_buf = buf1;
-		frame.data.ptr = final_buf;
+	if (read_buf && read_reference) {
+		frame.data.ptr = buf1;
 		*read_reference = ast_frdup(&frame);
 	}
-
-	if (write_buf) {
-		final_buf = buf2;
-		frame.data.ptr = final_buf;
+	if (write_buf && write_reference) {
+		frame.data.ptr = buf2;
 		*write_reference = ast_frdup(&frame);
 	}
 
 	if (read_buf && write_buf) {
-		for (i = 0, data1 = read_buf, data2 = write_buf; i < samples; i++, data1++, data2++)
+		for (i = 0, data1 = read_buf, data2 = write_buf; i < samples; i++, data1++, data2++) {
 			ast_slinear_saturated_add(data1, data2);
+		}
 		final_buf = buf1;
+	} else if (read_buf) {
+		final_buf = buf1;
+	} else if (write_buf) {
+		final_buf = buf2;
+	} else {
+		return NULL;
 	}
 
 	/* Make the final buffer part of the frame, so it gets duplicated fine */
