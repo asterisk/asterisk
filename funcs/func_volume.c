@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Digium, Inc.
+ * Copyright (C) 2011, Digium, Inc.
  *
  * Joshua Colp <jcolp@digium.com> 
  *
@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/audiohook.h"
+#include "asterisk/app.h"
 
 /*** DOCUMENTATION
 	<function name="VOLUME" language="en_US">
@@ -45,6 +46,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="direction" required="true">
 				<para>Must be <literal>TX</literal> or <literal>RX</literal>.</para>
 			</parameter>
+			<parameter name="options">
+				<optionlist>
+					<option name="p">
+						<para>Enable DTMF volume control</para>
+					</option>
+				</optionlist>
+			</parameter>
 		</syntax>
 		<description>
 			<para>The VOLUME function can be used to increase or decrease the <literal>tx</literal> or
@@ -52,6 +60,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>For example:</para>
 			<para>Set(VOLUME(TX)=3)</para>
 			<para>Set(VOLUME(RX)=2)</para>
+			<para>Set(VOLUME(TX,p)=3)</para>
+			<para>Set(VOLUME(RX,p)=3></para>
 		</description>
 	</function>
  ***/
@@ -60,7 +70,16 @@ struct volume_information {
 	struct ast_audiohook audiohook;
 	int tx_gain;
 	int rx_gain;
+	unsigned int flags;
 };
+
+enum volume_flags {
+	VOLUMEFLAG_CHANGE = (1 << 1),
+};
+
+AST_APP_OPTIONS(volume_opts, {
+	AST_APP_OPTION('p', VOLUMEFLAG_CHANGE),
+});
 
 static void destroy_callback(void *data)
 {
@@ -96,18 +115,24 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 	vi = datastore->data;
 
 	/* If this is DTMF then allow them to increase/decrease the gains */
-	if (frame->frametype == AST_FRAME_DTMF) {
-		/* Only use DTMF coming from the source... not going to it */
-		if (direction != AST_AUDIOHOOK_DIRECTION_READ)
-			return 0;
-		if (frame->subclass == '*') {
-			vi->tx_gain += 1;
-			vi->rx_gain += 1;
-		} else if (frame->subclass == '#') {
-			vi->tx_gain -= 1;
-			vi->rx_gain -= 1;
+	
+	if (ast_test_flag(vi, VOLUMEFLAG_CHANGE)) {
+		if (frame->frametype == AST_FRAME_DTMF) {
+			/* Only use DTMF coming from the source... not going to it */
+			if (direction != AST_AUDIOHOOK_DIRECTION_READ)
+				return 0; 
+			if (frame->subclass == '*') {
+				vi->tx_gain += 1;
+				vi->rx_gain += 1;
+			} else if (frame->subclass == '#') {
+				vi->tx_gain -= 1;
+				vi->rx_gain -= 1;
+			}
 		}
-	} else if (frame->frametype == AST_FRAME_VOICE) {
+	}
+
+	
+	if (frame->frametype == AST_FRAME_VOICE) {
 		/* Based on direction of frame grab the gain, and confirm it is applicable */
 		if (!(gain = (direction == AST_AUDIOHOOK_DIRECTION_READ) ? &vi->rx_gain : &vi->tx_gain) || !*gain)
 			return 0;
@@ -124,7 +149,18 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 	struct volume_information *vi = NULL;
 	int is_new = 0;
 
+	/* Separate options from argument */
+	
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(direction);
+		AST_APP_ARG(options);
+	);
+	
+	AST_STANDARD_APP_ARGS(args, data);
+
+	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &volume_datastore, NULL))) {
+		ast_channel_unlock(chan);
 		/* Allocate a new datastore to hold the reference to this volume and audiohook information */
 		if (!(datastore = ast_datastore_alloc(&volume_datastore, NULL)))
 			return 0;
@@ -137,19 +173,40 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 		ast_set_flag(&vi->audiohook, AST_AUDIOHOOK_WANTS_DTMF);
 		is_new = 1;
 	} else {
+		ast_channel_unlock(chan);
 		vi = datastore->data;
 	}
 
 	/* Adjust gain on volume information structure */
-	if (!strcasecmp(data, "tx"))
-		vi->tx_gain = atoi(value);
-	else if (!strcasecmp(data, "rx"))
+	if (ast_strlen_zero(args.direction)) {
+		ast_log(LOG_ERROR, "Direction must be specified for VOLUME function\n");
+		return -1;
+	}
+
+	if (!strcasecmp(args.direction, "tx")) { 
+		vi->tx_gain = atoi(value); 
+	} else if (!strcasecmp(args.direction, "rx")) {
 		vi->rx_gain = atoi(value);
+	} else {
+		ast_log(LOG_ERROR, "Direction must be either RX or TX\n");
+	}
 
 	if (is_new) {
 		datastore->data = vi;
+		ast_channel_lock(chan);
 		ast_channel_datastore_add(chan, datastore);
+		ast_channel_unlock(chan);
 		ast_audiohook_attach(chan, &vi->audiohook);
+	}
+
+	/* Add Option data to struct */
+	
+	if (!ast_strlen_zero(args.options)) {
+		struct ast_flags flags = { 0 };
+		ast_app_parse_options(volume_opts, &flags, &data, args.options);
+		vi->flags = flags.flags;
+	} else { 
+		vi->flags = 0; 
 	}
 
 	return 0;
