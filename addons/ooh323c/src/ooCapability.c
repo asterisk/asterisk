@@ -2710,6 +2710,12 @@ int ooAddRemoteDataApplicationCapability(OOH323CallData *call,
    switch(dataCap->application.t)
    {
    case T_H245DataApplicationCapability_application_t38fax:
+      if (dataCap->application.u.t38fax->t38FaxProfile.m.t38FaxUdpOptionsPresent) {
+      	call->T38FarMaxDatagram = dataCap->application.u.t38fax->t38FaxProfile.t38FaxUdpOptions.t38FaxMaxDatagram;
+      }
+      if (dataCap->application.u.t38fax->t38FaxProfile.m.versionPresent) {
+      	call->T38Version = dataCap->application.u.t38fax->t38FaxProfile.version;
+      }
       return ooCapabilityAddT38Capability(call, OO_T38,
                             		     dir, NULL, NULL, NULL, NULL,TRUE);
    default:

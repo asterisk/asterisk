@@ -520,6 +520,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	}
 
 	ast_udptl_set_error_correction_scheme(pvt->udptl, UDPTL_ERROR_CORRECTION_NONE);
+	ast_udptl_set_far_max_datagram(pvt->udptl, 144);
 	pvt->faxmode = 0;
 	pvt->t38support = gT38Support;
 	pvt->rtptimeout = gRTPTimeout;
@@ -4158,11 +4159,14 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 	them.sin_port = htons(remotePort);
 	ast_sockaddr_from_sin(&them_addr, &them);
 	ast_udptl_set_peer(p->udptl, &them_addr);
+	ast_udptl_set_tag(p->udptl, p->owner->name);
 	p->t38_tx_enable = 1;
 	p->lastTxT38 = time(NULL);
 	if (p->t38support == T38_ENABLED) {
 		struct ast_control_t38_parameters parameters = { .request_response = 0 };
 		parameters.request_response = AST_T38_NEGOTIATED;
+		parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
+		parameters.rate = AST_T38_RATE_14400;
 		ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
 	}
 	if (gH323Debug)
@@ -4357,6 +4361,16 @@ void onModeChanged(ooCallData *call, int t38mode) {
 
 			struct ast_control_t38_parameters parameters = { .request_response = 0 };
 			parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
+			if (call->T38FarMaxDatagram) {
+				ast_udptl_set_far_max_datagram(p->udptl, call->T38FarMaxDatagram);
+			} else {
+				ast_udptl_set_far_max_datagram(p->udptl, 144);
+			}
+			if (call->T38Version) {
+				parameters.version = call->T38Version;
+			}
+			parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
+			parameters.rate = AST_T38_RATE_14400;
 			ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, 
 							&parameters, sizeof(parameters));
 			p->faxmode = 1;
@@ -4366,6 +4380,8 @@ void onModeChanged(ooCallData *call, int t38mode) {
 		if (p->t38support == T38_ENABLED) {
 			struct ast_control_t38_parameters parameters = { .request_response = 0 };
 			parameters.request_response = AST_T38_REQUEST_TERMINATE;
+			parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
+			parameters.rate = AST_T38_RATE_14400;
 			ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, 
 							&parameters, sizeof(parameters));
 		}
