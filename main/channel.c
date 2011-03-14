@@ -2313,7 +2313,6 @@ static void ast_channel_destructor(void *obj)
 	struct ast_var_t *vardata;
 	struct ast_frame *f;
 	struct varshead *headp;
-	struct ast_datastore *datastore;
 	char device_name[AST_CHANNEL_NAME];
 
 	if (chan->name) {
@@ -2321,18 +2320,6 @@ static void ast_channel_destructor(void *obj)
 		ast_cel_report_event(chan, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
 		ast_cel_check_retire_linkedid(chan);
 	}
-
-	/* Get rid of each of the data stores on the channel */
-	ast_channel_lock(chan);
-	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry)))
-		/* Free the data store */
-		ast_datastore_free(datastore);
-	ast_channel_unlock(chan);
-
-	/* Lock and unlock the channel just to be sure nobody has it locked still
-	   due to a reference that was stored in a datastore. (i.e. app_chanspy) */
-	ast_channel_lock(chan);
-	ast_channel_unlock(chan);
 
 	if (chan->tech_pvt) {
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
@@ -2684,6 +2671,7 @@ int ast_hangup(struct ast_channel *chan)
 {
 	int res = 0;
 	char extra_str[64]; /* used for cel logging below */
+	struct ast_datastore *datastore;
 
 	/* Don't actually hang up a channel that will masquerade as someone else, or
 	   if someone is going to masquerade as us */
@@ -2789,6 +2777,15 @@ int ast_hangup(struct ast_channel *chan)
 		chan->cdr = NULL;
 		ast_channel_unlock(chan);
 	}
+
+	/* Get rid of each of the data stores on the channel */
+	ast_channel_lock(chan);
+	while ((datastore = AST_LIST_REMOVE_HEAD(&chan->datastores, entry))) {
+		/* Free the data store */
+		ast_datastore_free(datastore);
+	}
+	ast_channel_unlock(chan);
+
 
 	chan = ast_channel_release(chan);
 
