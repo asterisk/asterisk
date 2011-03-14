@@ -568,9 +568,22 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 			return -1;
 		}
 		if (res == 1) {
-			/* Ignore invalid bytes */
-			if (b > 0xff)
-				continue;
+			if (b > 0xff) {
+				if (cid->sawflag != 5) {
+					/* Ignore invalid bytes */
+					continue;
+				}
+				/*
+				 * We can tollerate an error on the checksum character since the
+				 * checksum character is the last character in the message and
+				 * it validates the message.
+				 *
+				 * Remove character error flags.
+				 * Bit 8 : Parity error
+				 * Bit 9 : Framing error
+				 */
+				b &= 0xff;
+			}
 			switch (cid->sawflag) {
 			case 0: /* Look for flag */
 				if (b == 'U')
