@@ -4132,7 +4132,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 	them.sin_port = htons(remotePort);
 	ast_sockaddr_from_sin(&them_addr, &them);
 	ast_udptl_set_peer(p->udptl, &them_addr);
-	ast_udptl_set_tag(p->udptl, p->owner->name);
+	ast_udptl_set_tag(p->udptl, "%s", p->owner->name);
 	p->t38_tx_enable = 1;
 	p->lastTxT38 = time(NULL);
 	if (p->t38support == T38_ENABLED) {
