@@ -962,6 +962,7 @@ struct mansession {
 	struct ast_tcptls_session_instance *tcptls_session;
 	FILE *f;
 	int fd;
+	int write_error:1;
 	struct manager_custom_hook *hook;
 	ast_mutex_t lock;
 };
@@ -1835,6 +1836,7 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
  */
 static int send_string(struct mansession *s, char *string)
 {
+	int res;
 	/* It's a result from one of the hook's action invocation */
 	if (s->hook) {
 		/*
@@ -1843,11 +1845,13 @@ static int send_string(struct mansession *s, char *string)
 		 */
 		s->hook->helper(EVENT_FLAG_HOOKRESPONSE, "HookResponse", string);
 		return 0;
-	} else if (s->f) {
-		return ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->session->writetimeout);
-	} else {
-		return ast_careful_fwrite(s->session->f, s->session->fd, string, strlen(string), s->session->writetimeout);
+	}	else if (s->f && (res = ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->session->writetimeout))) {
+		s->write_error = 1;
+	} else if ((res = ast_careful_fwrite(s->session->f, s->session->fd, string, strlen(string), s->session->writetimeout))) {
+		s->write_error = 1;
 	}
+
+	return res;
 }
 
 /*!
@@ -4686,7 +4690,7 @@ static void *session_do(void *data)
 	ao2_unlock(session);
 	astman_append(&s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
-		if ((res = do_message(&s)) < 0) {
+		if ((res = do_message(&s)) < 0 || s.write_error) {
 			break;
 		}
 	}
