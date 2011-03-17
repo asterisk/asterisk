@@ -966,10 +966,10 @@ struct ast_variable *astman_get_variables(const struct message *m)
 static int send_string(struct mansession *s, char *string)
 {
 	int res;
+	FILE *f = s->f ? s->f : s->session->f;
+	int fd = s->f ? s->fd : s->session->fd;
 
-	if (s->f && (res = ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->session->writetimeout))) {
-		s->write_error = 1;
-	} else if ((res = ast_careful_fwrite(s->session->f, s->session->fd, string, strlen(string), s->session->writetimeout))) {
+	if ((res = ast_careful_fwrite(f, fd, string, strlen(string), s->session->writetimeout))) {
 		s->write_error = 1;
 	}
 
