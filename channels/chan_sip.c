@@ -2487,11 +2487,17 @@ static void remove_provisional_keepalive_sched(struct sip_pvt *pvt)
 		return;
 	}
 	res = AST_SCHED_DEL(sched, pvt->provisional_keepalive_data->sched_id);
-	/* If we could not remove this item. remove pvt's reference this data and mark it for removal
-	 * for the next time the scheduler uses it. The scheduler has it's own ref to this data
-	 * and will detect it should not reschedule the event since the sched_id is -1 and pvt == NULL */
 	if (res == -1) {
+		/* If we could not remove this item. remove pvt's reference
+		 * this data and mark it for removal for the next time the
+		 * scheduler uses it. The scheduler has it's own ref to this
+		 * data and will detect it should not reschedule the event
+		 * since the sched_id is -1 and pvt == NULL */
 		pvt->provisional_keepalive_data = unref_provisional_keepalive(pvt->provisional_keepalive_data);
+	} else {
+		/* If we successfully canceled the scheduler entry, we need to
+		 * remove its reference to the data. */
+		ao2_ref(pvt->provisional_keepalive_data, -1);
 	}
 }
 
