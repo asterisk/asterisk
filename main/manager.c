@@ -1846,6 +1846,9 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 static int send_string(struct mansession *s, char *string)
 {
 	int res;
+	FILE *f = s->f ? s->f : s->session->f;
+	int fd = s->f ? s->fd : s->session->fd;
+
 	/* It's a result from one of the hook's action invocation */
 	if (s->hook) {
 		/*
@@ -1854,9 +1857,9 @@ static int send_string(struct mansession *s, char *string)
 		 */
 		s->hook->helper(EVENT_FLAG_HOOKRESPONSE, "HookResponse", string);
 		return 0;
-	}	else if (s->f && (res = ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->session->writetimeout))) {
-		s->write_error = 1;
-	} else if ((res = ast_careful_fwrite(s->session->f, s->session->fd, string, strlen(string), s->session->writetimeout))) {
+	}
+       
+	if ((res = ast_careful_fwrite(f, fd, string, strlen(string), s->session->writetimeout))) {
 		s->write_error = 1;
 	}
 
