@@ -784,7 +784,8 @@ static struct ast_cli_entry cli_manager[] = {
 
 static void unuse_eventqent(struct eventqent *e)
 {
-	if (ast_atomic_dec_and_test(&e->usecount) && e->next)
+	struct eventqent *next = e->next;
+	if (ast_atomic_dec_and_test(&e->usecount) && next)
 		pthread_kill(t, SIGURG);
 }
 
