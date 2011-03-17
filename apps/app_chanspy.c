@@ -707,6 +707,7 @@ static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
 		struct ast_autochan *autochan, struct ast_channel *chan)
 {
 	struct ast_channel *next;
+	struct ast_autochan *autochan_store;
 	const size_t pseudo_len = strlen("DAHDI/pseudo");
 
 	if (!iter) {
@@ -724,7 +725,10 @@ redo:
 		goto redo;
 	}
 
-	return ast_autochan_setup(next);
+	autochan_store = ast_autochan_setup(next);
+	ast_channel_unref(next);
+
+	return autochan_store;
 }
 
 static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
