@@ -1,3 +1,14 @@
+2011-03-17  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.6.2.17.2 Released.
+
+	(Asterisk 1.6.2.17.2 was released a day earlier, but a bug existed in
+	the patch for AST-2011-003 so this is a reissue of that release.)
+
+	* AST-2011-003: Resource exhaustion in Asterisk Manager Interface
+
+	* AST-2011-004: Remote crash vulnerability in TCP/TLS server
+
 2011-02-22  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.17 Released.
