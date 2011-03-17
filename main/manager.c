@@ -220,6 +220,7 @@ struct mansession {
 	struct mansession_session *session;
 	FILE *f;
 	int fd;
+	int write_error:1;
 };
 
 #define NEW_EVENT(m)	(AST_LIST_NEXT(m->session->last_ev, eq_next))
@@ -944,11 +945,15 @@ struct ast_variable *astman_get_variables(const struct message *m)
  */
 static int send_string(struct mansession *s, char *string)
 {
-	if (s->f) {
-		return ast_careful_fwrite(s->f, s->fd, string, strlen(string), s->session->writetimeout);
-	} else {
-		return ast_careful_fwrite(s->session->f, s->session->fd, string, strlen(string), s->session->writetimeout);
+	int res;
+	FILE *f = s->f ? s->f : s->session->f;
+	int fd = s->f ? s->fd : s->session->fd;
+
+	if ((res = ast_careful_fwrite(f, fd, string, strlen(string), s->session->writetimeout))) {
+		s->write_error = 1;
 	}
+
+	return res;
 }
 
 /*!
@@ -3204,7 +3209,7 @@ static void *session_do(void *data)
 
 	astman_append(&s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
-		if ((res = do_message(&s)) < 0)
+		if ((res = do_message(&s)) < 0 || s.write_error)
 			break;
 	}
 	/* session is over, explain why and terminate */
