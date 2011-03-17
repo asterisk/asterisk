@@ -751,6 +751,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int newstate=0;
+	struct ast_channel *chan;
 	ast_mutex_lock(&p->lock);
 	p->acknowledged = 0;
 	if (!p->chan) {
@@ -783,14 +784,25 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_verbose(VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Playing beep, lang '%s'\n", p->chan->language);
-	res = ast_streamfile(p->chan, beep, p->chan->language);
+
+	chan = p->chan;
+	ast_mutex_unlock(&p->lock);
+
+	res = ast_streamfile(chan, beep, chan->language);
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Played beep, result '%d'\n", res);
 	if (!res) {
-		res = ast_waitstream(p->chan, "");
+		res = ast_waitstream(chan, "");
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 	}
+
+	ast_mutex_lock(&p->lock);
+	if (p->chan != chan) {
+		/* chan went away while we were streaming */
+		res = -1;
+	}
+
 	if (!res) {
 		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats));
 		if (option_debug > 2)
