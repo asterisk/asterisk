@@ -1717,11 +1717,11 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		      info.context,
 		      info.exten,
 		      info.cid,
-		      pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"),
-		      pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"),
-		      pbx_builtin_getvar_helper(chan, "FAXPAGES"),
-		      pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"),
-		      pbx_builtin_getvar_helper(chan, "FAXBITRATE"),
+		      S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
 		      args.filename);
 	ast_channel_unlock(chan);
 
@@ -2208,11 +2208,11 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		      info.context,
 		      info.exten,
 		      info.cid,
-		      pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"),
-		      pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"),
-		      pbx_builtin_getvar_helper(chan, "FAXPAGES"),
-		      pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"),
-		      pbx_builtin_getvar_helper(chan, "FAXBITRATE"),
+		      S_OR(pbx_builtin_getvar_helper(chan, "REMOTESTATIONID"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "LOCALSTATIONID"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "FAXPAGES"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "FAXRESOLUTION"), ""),
+		      S_OR(pbx_builtin_getvar_helper(chan, "FAXBITRATE"), ""),
 		      filenames);
 	ast_channel_unlock(chan);
 

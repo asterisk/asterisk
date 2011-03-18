@@ -23768,7 +23768,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (!authpeer || AST_LIST_EMPTY(&authpeer->mailboxes)) {
 			transmit_response(p, "404 Not found (no mailbox)", req);
 			pvt_set_needdestroy(p, "received 404 response");
-			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
+			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", S_OR(authpeer->name, ""));
 			if (authpeer)
 				unref_peer(authpeer, "unref_peer, from handle_request_subscribe (authpeer 4)");
 			return 0;
