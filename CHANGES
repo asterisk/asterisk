@@ -77,6 +77,13 @@ MixMonitor
    (mixed) recording.  The mixed file name argument is optional now as long
    as at least one recording option is used.
 
+FollowMe
+--------------------------
+ * Added a new option, l, which will disable local call optimization for
+   channels involved with the FollowMe thread.  Use this option to improve
+   compatability for a FollowMe call with certain dialplan apps, options, and
+   functions.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------

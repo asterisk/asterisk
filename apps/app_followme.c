@@ -86,6 +86,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="d">
 						<para>Disable the 'Please hold while we try to connect your call' announcement.</para>
 					</option>
+					<option name="l">
+						<para>Disable local call optimization so that applications with
+						audio hooks between the local bridge don't get dropped when the
+						calls get joined directly.</para>
+					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
@@ -168,7 +173,8 @@ enum {
 	FOLLOWMEFLAG_RECORDNAME = (1 << 1),
 	FOLLOWMEFLAG_UNREACHABLEMSG = (1 << 2),
 	FOLLOWMEFLAG_DISABLEHOLDPROMPT = (1 << 3),
-	FOLLOWMEFLAG_NOANSWER = (1 << 4)
+	FOLLOWMEFLAG_NOANSWER = (1 << 4),
+	FOLLOWMEFLAG_DISABLEOPTIMIZATION = (1 << 5),
 };
 
 AST_APP_OPTIONS(followme_opts, {
@@ -177,6 +183,7 @@ AST_APP_OPTIONS(followme_opts, {
 	AST_APP_OPTION('n', FOLLOWMEFLAG_UNREACHABLEMSG ),
 	AST_APP_OPTION('d', FOLLOWMEFLAG_DISABLEHOLDPROMPT ),
 	AST_APP_OPTION('N', FOLLOWMEFLAG_NOANSWER ),
+	AST_APP_OPTION('l', FOLLOWMEFLAG_DISABLEOPTIMIZATION ),
 });
 
 static int ynlongest = 0;
@@ -838,9 +845,9 @@ static void findmeexec(struct fm_args *tpargs)
 			}
 
 			if (!strcmp(tpargs->context, ""))
-				snprintf(dialarg, sizeof(dialarg), "%s", number);
+				snprintf(dialarg, sizeof(dialarg), "%s%s", number, ast_test_flag(&tpargs->followmeflags, FOLLOWMEFLAG_DISABLEOPTIMIZATION) ? "/n" : "");
 			else
-				snprintf(dialarg, sizeof(dialarg), "%s@%s", number, tpargs->context);
+				snprintf(dialarg, sizeof(dialarg), "%s@%s%s", number, tpargs->context, ast_test_flag(&tpargs->followmeflags, FOLLOWMEFLAG_DISABLEOPTIMIZATION) ? "/n" : "");
 
 			tmpuser = ast_calloc(1, sizeof(*tmpuser));
 			if (!tmpuser) {
