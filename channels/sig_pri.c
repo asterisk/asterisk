@@ -3908,16 +3908,35 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				struct pri_party_redirecting pri_deflection;
 
 				if (!call_rsp) {
-					ast_channel_unlock(owner);
 					ast_log(LOG_WARNING,
-						"CallRerouting/CallDeflection to '%s' without call!\n",
-						subcmd->u.rerouting.deflection.to.number.str);
+						"Span %d: %s tried CallRerouting/CallDeflection to '%s' without call!\n",
+						pri->span, owner->name, subcmd->u.rerouting.deflection.to.number.str);
+					ast_channel_unlock(owner);
+					break;
+				}
+				if (ast_strlen_zero(subcmd->u.rerouting.deflection.to.number.str)) {
+					ast_log(LOG_WARNING,
+						"Span %d: %s tried CallRerouting/CallDeflection to empty number!\n",
+						pri->span, owner->name);
+					pri_rerouting_rsp(pri->pri, call_rsp, subcmd->u.rerouting.invoke_id,
+						PRI_REROUTING_RSP_INVALID_NUMBER);
+					ast_channel_unlock(owner);
 					break;
 				}
 
-				pri_deflection = subcmd->u.rerouting.deflection;
+				ast_verb(3, "Span %d: %s is CallRerouting/CallDeflection to '%s'.\n",
+					pri->span, owner->name, subcmd->u.rerouting.deflection.to.number.str);
 
-				ast_string_field_set(owner, call_forward, pri_deflection.to.number.str);
+				/*
+				 * Send back positive ACK to CallRerouting/CallDeflection.
+				 *
+				 * Note:  This call will be hungup by the core when it processes
+				 * the call_forward string.
+				 */
+				pri_rerouting_rsp(pri->pri, call_rsp, subcmd->u.rerouting.invoke_id,
+					PRI_REROUTING_RSP_OK_CLEAR);
+
+				pri_deflection = subcmd->u.rerouting.deflection;
 
 				/* Adjust the deflecting to number based upon the subscription option. */
 				switch (subcmd->u.rerouting.subscription_option) {
@@ -3943,17 +3962,12 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				ast_channel_set_redirecting(owner, &ast_redirecting, NULL);
 				ast_party_redirecting_free(&ast_redirecting);
 
-				/*
-				 * Send back positive ACK to CallRerouting/CallDeflection.
-				 *
-				 * Note:  This call will be hungup by the dial application when
-				 * it processes the call_forward string set above.
-				 */
-				pri_rerouting_rsp(pri->pri, call_rsp, subcmd->u.rerouting.invoke_id,
-					PRI_REROUTING_RSP_OK_CLEAR);
+				/* Request the core to forward to the new number. */
+				ast_string_field_set(owner, call_forward,
+					subcmd->u.rerouting.deflection.to.number.str);
 
-				/* This line is BUSY to further attempts by this dialing attempt. */
-				ast_queue_control(owner, AST_CONTROL_BUSY);
+				/* Wake up the channel. */
+				ast_queue_frame(owner, &ast_null_frame);
 
 				ast_channel_unlock(owner);
 			}
