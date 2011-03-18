@@ -135,12 +135,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</option>
 				<option name="f">
 					<argument name="x" required="false" />
-					<para>If <replaceable>x</replaceable> is not provided, force the callerid of the <emphasis>calling</emphasis> 
-					channel to be set as the extension associated with the channel using a dialplan <literal>hint</literal>.
+					<para>If <replaceable>x</replaceable> is not provided, force the CallerID sent on a call-forward or
+					deflection to the dialplan extension of this Dial() using a dialplan <literal>hint</literal>.
 					For example, some PSTNs do not allow CallerID to be set to anything
-					other than the number assigned to the caller. If <replaceable>x</replaceable> is provided, though, then
-					this option behaves quite differently. Any outgoing channel created will have its connected party information
-					set to <replaceable>x</replaceable></para>
+					other than the numbers assigned to you.
+					If <replaceable>x</replaceable> is provided, force the CallerID sent to <replaceable>x</replaceable>.</para>
 				</option>
 				<option name="F" argsep="^">
 					<argument name="context" required="false" />
@@ -296,9 +295,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					that if Caller*ID is present, do not screen the call.</para>
 				</option>
 				<option name="o">
-					<para>Specify that the Caller*ID that was present on the <emphasis>calling</emphasis> channel
-					be set as the Caller*ID on the <emphasis>called</emphasis> channel. This was the
-					behavior of Asterisk 1.0 and earlier.</para>
+					<argument name="x" required="false" />
+					<para>If <replaceable>x</replaceable> is not provided, specify that the CallerID that was present on the
+					<emphasis>calling</emphasis> channel be stored as the CallerID on the <emphasis>called</emphasis> channel.
+					This was the behavior of Asterisk 1.0 and earlier.
+					If <replaceable>x</replaceable> is provided, specify the CallerID stored on the <emphasis>called</emphasis> channel.
+					Note that o(${CALLERID(all)}) is similar to option o without the parameter.</para>
 				</option>
 				<option name="O">
 					<argument name="mode">
@@ -338,7 +340,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</option>
 				<option name="s">
 					<argument name="x" required="true" />
-					<para>Force the outgoing callerid tag parameter to be set to the string <replaceable>x</replaceable></para>
+					<para>Force the outgoing callerid tag parameter to be set to the string <replaceable>x</replaceable>.</para>
+					<para>Works with the f option.</para>
 				</option>
 				<option name="t">
 					<para>Allow the called party to transfer the calling party by sending the
@@ -403,6 +406,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<literal>prohib</literal>
 						<literal>unavailable</literal></para>
 					</argument>
+					<para>Works with the f option.</para>
 				</option>
 				<option name="w">
 					<para>Allow the called party to enable recording of the call by sending
@@ -574,6 +578,7 @@ enum {
 	OPT_ARG_DURATION_STOP,
 	OPT_ARG_OPERMODE,
 	OPT_ARG_SCREEN_NOINTRO,
+	OPT_ARG_ORIGINAL_CLID,
 	OPT_ARG_FORCECLID,
 	OPT_ARG_FORCE_CID_TAG,
 	OPT_ARG_FORCE_CID_PRES,
@@ -604,7 +609,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
 	AST_APP_OPTION_ARG('n', OPT_SCREEN_NOINTRO, OPT_ARG_SCREEN_NOINTRO),
 	AST_APP_OPTION('N', OPT_SCREEN_NOCALLERID),
-	AST_APP_OPTION('o', OPT_ORIGINAL_CLID),
+	AST_APP_OPTION_ARG('o', OPT_ORIGINAL_CLID, OPT_ARG_ORIGINAL_CLID),
 	AST_APP_OPTION_ARG('O', OPT_OPERMODE, OPT_ARG_OPERMODE),
 	AST_APP_OPTION('p', OPT_SCREENING),
 	AST_APP_OPTION_ARG('P', OPT_PRIVACY, OPT_ARG_PRIVACY),
@@ -792,7 +797,8 @@ static void senddialendevent(struct ast_channel *src, const char *dialstatus)
  * \todo eventually this function should be intergrated into and replaced by ast_call_forward() 
  */
 static void do_forward(struct chanlist *o,
-	struct cause_args *num, struct ast_flags64 *peerflags, int single, int *to)
+	struct cause_args *num, struct ast_flags64 *peerflags, int single, int *to,
+	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid)
 {
 	char tmpchan[256];
 	struct ast_channel *original = o->chan;
@@ -801,6 +807,7 @@ static void do_forward(struct chanlist *o,
 	char *stuff;
 	char *tech;
 	int cause;
+	struct ast_party_caller caller;
 
 	ast_copy_string(tmpchan, c->call_forward, sizeof(tmpchan));
 	if ((stuff = strchr(tmpchan, '/'))) {
@@ -878,17 +885,34 @@ static void do_forward(struct chanlist *o,
 
 		c->dialed.transit_network_select = in->dialed.transit_network_select;
 
-		if (ast_test_flag64(o, OPT_FORCECLID)) {
-			ast_party_id_free(&c->caller.id);
-			ast_party_id_init(&c->caller.id);
-			c->caller.id.number.valid = 1;
-			c->caller.id.number.str = ast_strdup(S_OR(in->macroexten, in->exten));
-			ast_string_field_set(c, accountcode, c->accountcode);
-		} else {
-			ast_party_caller_copy(&c->caller, &in->caller);
-			ast_string_field_set(c, accountcode, in->accountcode);
+		/* Determine CallerID to store in outgoing channel. */
+		ast_party_caller_set_init(&caller, &c->caller);
+		if (ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
+			caller.id = *stored_clid;
+			ast_channel_set_caller_event(c, &caller, NULL);
+		} else if (ast_strlen_zero(S_COR(c->caller.id.number.valid,
+			c->caller.id.number.str, NULL))) {
+			/*
+			 * The new channel has no preset CallerID number by the channel
+			 * driver.  Use the dialplan extension and hint name.
+			 */
+			caller.id = *stored_clid;
+			ast_channel_set_caller_event(c, &caller, NULL);
 		}
-		ast_party_connected_line_copy(&c->connected, &original->connected);
+
+		/* Determine CallerID for outgoing channel to send. */
+		if (ast_test_flag64(o, OPT_FORCECLID)) {
+			struct ast_party_connected_line connected;
+
+			ast_party_connected_line_init(&connected);
+			connected.id = *forced_clid;
+			ast_party_connected_line_copy(&c->connected, &connected);
+		} else {
+			ast_connected_line_copy_from_caller(&c->connected, &in->caller);
+		}
+
+		ast_string_field_set(c, accountcode, in->accountcode);
+
 		c->appl = "AppDial";
 		c->data = "(Outgoing Line)";
 		/*
@@ -925,17 +949,8 @@ static void do_forward(struct chanlist *o,
 				CHANNEL_DEADLOCK_AVOIDANCE(c);
 			}
 			senddialevent(in, c, stuff);
-			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
-				char cidname[AST_MAX_EXTENSION] = "";
-				const char *tmpexten;
-				tmpexten = ast_strdupa(S_OR(in->macroexten, in->exten));
-				ast_channel_unlock(in);
-				ast_channel_unlock(c);
-				ast_set_callerid(c, tmpexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
-			} else {
-				ast_channel_unlock(in);
-				ast_channel_unlock(c);
-			}
+			ast_channel_unlock(in);
+			ast_channel_unlock(c);
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);
 		}
@@ -959,7 +974,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	char *opt_args[],
 	struct privacy_args *pa,
 	const struct cause_args *num_in, int *result, char *dtmf_progress,
-	const int ignore_cc)
+	const int ignore_cc,
+	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid)
 {
 	struct cause_args num = *num_in;
 	int prestart = num.busy + num.congestion + num.nochan;
@@ -1104,7 +1120,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					ast_frfree(f);
 				}
-				do_forward(o, &num, peerflags, single, to);
+				do_forward(o, &num, peerflags, single, to, forced_clid, stored_clid);
 				continue;
 			}
 			f = ast_read(winner);
@@ -1794,7 +1810,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	struct cause_args num = { chan, 0, 0, 0 };
 	int cause;
 	char numsubst[256];
-	char *cid_num = NULL, *cid_name = NULL, *cid_tag = NULL, *cid_pres = NULL;
 
 	struct ast_bridge_config config = { { 0, } };
 	struct timeval calldurationlimit = { 0, };
@@ -1822,6 +1837,29 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	int fulldial = 0, num_dialed = 0;
 	int ignore_cc = 0;
 	char device_name[AST_CHANNEL_NAME];
+	char forced_clid_name[AST_MAX_EXTENSION];
+	char stored_clid_name[AST_MAX_EXTENSION];
+	int force_forwards_only;	/*!< TRUE if force CallerID on call forward only. Legacy behaviour.*/
+	/*!
+	 * \brief Forced CallerID party information to send.
+	 * \note This will not have any malloced strings so do not free it.
+	 */
+	struct ast_party_id forced_clid;
+	/*!
+	 * \brief Stored CallerID information if needed.
+	 *
+	 * \note If OPT_ORIGINAL_CLID set then this is the o option
+	 * CallerID.  Otherwise it is the dialplan extension and hint
+	 * name.
+	 *
+	 * \note This will not have any malloced strings so do not free it.
+	 */
+	struct ast_party_id stored_clid;
+	/*!
+	 * \brief CallerID party information to store.
+	 * \note This will not have any malloced strings so do not free it.
+	 */
+	struct ast_party_caller caller;
 
 	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", "");
@@ -1895,12 +1933,94 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			goto done;
 	}
 
-	if (ast_test_flag64(&opts, OPT_FORCECLID) && !ast_strlen_zero(opt_args[OPT_ARG_FORCECLID]))
-		ast_callerid_parse(opt_args[OPT_ARG_FORCECLID], &cid_name, &cid_num);
-	if (ast_test_flag64(&opts, OPT_FORCE_CID_TAG) && !ast_strlen_zero(opt_args[OPT_ARG_FORCE_CID_TAG]))
-		cid_tag = ast_strdupa(opt_args[OPT_ARG_FORCE_CID_TAG]);
-	if (ast_test_flag64(&opts, OPT_FORCE_CID_PRES) && !ast_strlen_zero(opt_args[OPT_ARG_FORCE_CID_PRES]))
-		cid_pres = ast_strdupa(opt_args[OPT_ARG_FORCE_CID_PRES]);
+	/* Setup the forced CallerID information to send if used. */
+	ast_party_id_init(&forced_clid);
+	force_forwards_only = 0;
+	if (ast_test_flag64(&opts, OPT_FORCECLID)) {
+		if (ast_strlen_zero(opt_args[OPT_ARG_FORCECLID])) {
+			ast_channel_lock(chan);
+			forced_clid.number.str = ast_strdupa(S_OR(chan->macroexten, chan->exten));
+			ast_channel_unlock(chan);
+			forced_clid_name[0] = '\0';
+			forced_clid.name.str = (char *) get_cid_name(forced_clid_name,
+				sizeof(forced_clid_name), chan);
+			force_forwards_only = 1;
+		} else {
+			/* Note: The opt_args[OPT_ARG_FORCECLID] string value is altered here. */
+			ast_callerid_parse(opt_args[OPT_ARG_FORCECLID], &forced_clid.name.str,
+				&forced_clid.number.str);
+		}
+		if (!ast_strlen_zero(forced_clid.name.str)) {
+			forced_clid.name.valid = 1;
+		}
+		if (!ast_strlen_zero(forced_clid.number.str)) {
+			forced_clid.number.valid = 1;
+		}
+	}
+	if (ast_test_flag64(&opts, OPT_FORCE_CID_TAG)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_FORCE_CID_TAG])) {
+		forced_clid.tag = opt_args[OPT_ARG_FORCE_CID_TAG];
+	}
+	forced_clid.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
+	if (ast_test_flag64(&opts, OPT_FORCE_CID_PRES)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_FORCE_CID_PRES])) {
+		int pres;
+
+		pres = ast_parse_caller_presentation(opt_args[OPT_ARG_FORCE_CID_PRES]);
+		if (0 <= pres) {
+			forced_clid.number.presentation = pres;
+		}
+	}
+
+	/* Setup the stored CallerID information if needed. */
+	ast_party_id_init(&stored_clid);
+	if (ast_test_flag64(&opts, OPT_ORIGINAL_CLID)) {
+		if (ast_strlen_zero(opt_args[OPT_ARG_ORIGINAL_CLID])) {
+			ast_channel_lock(chan);
+			ast_party_id_set_init(&stored_clid, &chan->caller.id);
+			if (!ast_strlen_zero(chan->caller.id.name.str)) {
+				stored_clid.name.str = ast_strdupa(chan->caller.id.name.str);
+			}
+			if (!ast_strlen_zero(chan->caller.id.number.str)) {
+				stored_clid.number.str = ast_strdupa(chan->caller.id.number.str);
+			}
+			if (!ast_strlen_zero(chan->caller.id.subaddress.str)) {
+				stored_clid.subaddress.str = ast_strdupa(chan->caller.id.subaddress.str);
+			}
+			if (!ast_strlen_zero(chan->caller.id.tag)) {
+				stored_clid.tag = ast_strdupa(chan->caller.id.tag);
+			}
+			ast_channel_unlock(chan);
+		} else {
+			/* Note: The opt_args[OPT_ARG_ORIGINAL_CLID] string value is altered here. */
+			ast_callerid_parse(opt_args[OPT_ARG_ORIGINAL_CLID], &stored_clid.name.str,
+				&stored_clid.number.str);
+			if (!ast_strlen_zero(stored_clid.name.str)) {
+				stored_clid.name.valid = 1;
+			}
+			if (!ast_strlen_zero(stored_clid.number.str)) {
+				stored_clid.number.valid = 1;
+			}
+		}
+	} else {
+		/*
+		 * In case the new channel has no preset CallerID number by the
+		 * channel driver, setup the dialplan extension and hint name.
+		 */
+		stored_clid_name[0] = '\0';
+		stored_clid.name.str = (char *) get_cid_name(stored_clid_name,
+			sizeof(stored_clid_name), chan);
+		if (ast_strlen_zero(stored_clid.name.str)) {
+			stored_clid.name.str = NULL;
+		} else {
+			stored_clid.name.valid = 1;
+		}
+		ast_channel_lock(chan);
+		stored_clid.number.str = ast_strdupa(S_OR(chan->macroexten, chan->exten));
+		stored_clid.number.valid = 1;
+		ast_channel_unlock(chan);
+	}
+
 	if (ast_test_flag64(&opts, OPT_RESETCDR) && chan->cdr)
 		ast_cdr_reset(chan->cdr, NULL);
 	if (ast_test_flag64(&opts, OPT_PRIVACY) && ast_strlen_zero(opt_args[OPT_ARG_PRIVACY]))
@@ -2074,47 +2194,50 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		tc->data = "(Outgoing Line)";
 		memset(&tc->whentohangup, 0, sizeof(tc->whentohangup));
 
-		/* If the new channel has no callerid, try to guess what it should be */
-		if (!tc->caller.id.number.valid) {
-			if (chan->connected.id.number.valid) {
-				struct ast_party_caller caller;
-
-				ast_party_caller_set_init(&caller, &tc->caller);
-				caller.id = chan->connected.id;
-				caller.ani = chan->connected.ani;
-				ast_channel_set_caller_event(tc, &caller, NULL);
-			} else if (!ast_strlen_zero(chan->dialed.number.str)) {
-				ast_set_callerid(tc, chan->dialed.number.str, NULL, NULL);
-			} else if (!ast_strlen_zero(S_OR(chan->macroexten, chan->exten))) {
-				ast_set_callerid(tc, S_OR(chan->macroexten, chan->exten), NULL, NULL);
-			}
+		/* Determine CallerID to store in outgoing channel. */
+		ast_party_caller_set_init(&caller, &tc->caller);
+		if (ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
+			caller.id = stored_clid;
+			ast_channel_set_caller_event(tc, &caller, NULL);
 			ast_set_flag64(tmp, DIAL_CALLERID_ABSENT);
+		} else if (ast_strlen_zero(S_COR(tc->caller.id.number.valid,
+			tc->caller.id.number.str, NULL))) {
+			/*
+			 * The new channel has no preset CallerID number by the channel
+			 * driver.  Use the dialplan extension and hint name.
+			 */
+			caller.id = stored_clid;
+			if (!caller.id.name.valid
+				&& !ast_strlen_zero(S_COR(chan->connected.id.name.valid,
+					chan->connected.id.name.str, NULL))) {
+				/*
+				 * No hint name available.  We have a connected name supplied by
+				 * the dialplan we can use instead.
+				 */
+				caller.id.name = chan->connected.id.name;
+			}
+			ast_channel_set_caller_event(tc, &caller, NULL);
+			ast_set_flag64(tmp, DIAL_CALLERID_ABSENT);
+		} else if (ast_strlen_zero(S_COR(tc->caller.id.name.valid, tc->caller.id.name.str,
+			NULL))) {
+			/* The new channel has no preset CallerID name by the channel driver. */
+			if (!ast_strlen_zero(S_COR(chan->connected.id.name.valid,
+				chan->connected.id.name.str, NULL))) {
+				/*
+				 * We have a connected name supplied by the dialplan we can
+				 * use instead.
+				 */
+				caller.id.name = chan->connected.id.name;
+				ast_channel_set_caller_event(tc, &caller, NULL);
+			}
 		}
 
-		if (ast_test_flag64(peerflags, OPT_FORCECLID) && !ast_strlen_zero(opt_args[OPT_ARG_FORCECLID])) {
+		/* Determine CallerID for outgoing channel to send. */
+		if (ast_test_flag64(peerflags, OPT_FORCECLID) && !force_forwards_only) {
 			struct ast_party_connected_line connected;
-			int pres;
 
 			ast_party_connected_line_set_init(&connected, &tc->connected);
-			if (cid_pres) {
-				pres = ast_parse_caller_presentation(cid_pres);
-				if (pres < 0) {
-					pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
-				}
-			} else {
-				pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
-			}
-			if (cid_num) {
-				connected.id.number.valid = 1;
-				connected.id.number.str = cid_num;
-				connected.id.number.presentation = pres;
-			}
-			if (cid_name) {
-				connected.id.name.valid = 1;
-				connected.id.name.str = cid_name;
-				connected.id.name.presentation = pres;
-			}
-			connected.id.tag = cid_tag;
+			connected.id = forced_clid;
 			ast_channel_set_connected_line(tc, &connected, NULL);
 		} else {
 			ast_connected_line_copy_from_caller(&tc->connected, &chan->caller);
@@ -2164,7 +2287,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if (res) {
 			/* Again, keep going even if there's an error */
 			ast_debug(1, "ast call on peer returned %d\n", res);
-			ast_verb(3, "Couldn't call %s\n", numsubst);
+			ast_verb(3, "Couldn't call %s/%s\n", tech, numsubst);
 			if (tc->hangupcause) {
 				chan->hangupcause = tc->hangupcause;
 			}
@@ -2175,14 +2298,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			chanlist_free(tmp);
 			continue;
 		} else {
-			const char *tmpexten = ast_strdupa(S_OR(chan->macroexten, chan->exten));
 			senddialevent(chan, tc, numsubst);
-			ast_verb(3, "Called %s\n", numsubst);
+			ast_verb(3, "Called %s/%s\n", tech, numsubst);
 			ast_channel_unlock(chan);
-			if (!ast_test_flag64(peerflags, OPT_ORIGINAL_CLID)) {
-				char cidname[AST_MAX_EXTENSION];
-				ast_set_callerid(tc, tmpexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
-			}
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now.
 		   XXX If we're forcibly removed, these outgoing calls won't get
@@ -2243,7 +2361,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 	}
 
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, opt_args, &pa, &num, &result, dtmf_progress, ignore_cc);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, opt_args, &pa, &num, &result,
+		dtmf_progress, ignore_cc, &forced_clid, &stored_clid);
 
 	/* The ast_channel_datastore_remove() function could fail here if the
 	 * datastore was moved to another channel during a masquerade. If this is
