@@ -4491,12 +4491,12 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 	/* Find the right conference */
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
-		user_iter = ao2_iterator_init(cnf->usercontainer, 0);
 		/* If we ask for one particular, and this isn't it, skip it */
 		if (!ast_strlen_zero(conference) && strcmp(cnf->confno, conference))
 			continue;
 
 		/* Show all the users */
+		user_iter = ao2_iterator_init(cnf->usercontainer, 0);
 		while ((user = ao2_iterator_next(&user_iter))) {
 			total++;
 			astman_append(s,
