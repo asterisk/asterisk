@@ -4316,11 +4316,12 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 				if (((!ast_strlen_zero(cnf->pin)       &&
 					!ast_test_flag64(&confflags, CONFFLAG_ADMIN)) ||
 				     (!ast_strlen_zero(cnf->pinadmin)  &&
-				     	 ast_test_flag64(&confflags, CONFFLAG_ADMIN)) ||
-			    	     (!ast_strlen_zero(cnf->pin) &&
-			    	     	 ast_strlen_zero(cnf->pinadmin) &&
-			    	     	 ast_test_flag64(&confflags, CONFFLAG_ADMIN))) &&
-				    (!(cnf->users == 0 && cnf->isdynamic))) {
+						 ast_test_flag64(&confflags, CONFFLAG_ADMIN)) ||
+					     (!ast_strlen_zero(cnf->pin) &&
+							 ast_strlen_zero(cnf->pinadmin) &&
+							 ast_test_flag64(&confflags, CONFFLAG_ADMIN))) &&
+				    ((!(cnf->users == 0 && cnf->isdynamic)) ||
+						ast_test_flag64(&confflags, CONFFLAG_ALWAYSPROMPT))) {
 					char pin[MAX_PIN] = "";
 					int j;
 
