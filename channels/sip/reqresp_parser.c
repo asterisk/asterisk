@@ -2009,7 +2009,11 @@ static int sip_uri_domain_cmp(const char *host1, const char *host2)
 	 */
 	if (!addr1_parsed) {
 #ifdef HAVE_XLOCALE_H
-		return strcasecmp_l(host1, host2, c_locale);
+		if(!c_locale) {
+			return strcasecmp(host1, host2);
+		} else {
+			return strcasecmp_l(host1, host2, c_locale);
+		}
 #else
 		return strcasecmp(host1, host2);
 #endif
