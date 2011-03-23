@@ -1128,7 +1128,7 @@ int parse_name_andor_addr(char *uri, const char *scheme, char **name,
 			  struct uriparams *params, char **headers,
 			  char **residue)
 {
-	static char buf[1024];
+	char buf[1024];
 	char **residue2=residue;
 	int ret;
 	if (name) {
