@@ -1193,6 +1193,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 
 	struct ooh323_pvt *p = (struct ooh323_pvt *) ast->tech_pvt;
 	char *callToken = (char *)NULL;
+	int res = -1;
 
 	if (!p) return -1;
 
@@ -1297,6 +1298,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 				if (!p->chmodepend && !p->faxmode) {
 					ooRequestChangeMode(p->callToken, 1);
 					p->chmodepend = 1;
+					res = 0;
 				}
 				break;
 
@@ -1305,6 +1307,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 				if (!p->chmodepend && p->faxmode) {
 					ooRequestChangeMode(p->callToken, 0);
 					p->chmodepend = 1;
+					res = 0;
 				}
 				break;
 
@@ -1330,7 +1333,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 		ast_verbose("++++  ooh323_indicate %d on %s\n", condition, callToken);
 
    	free(callToken);
-	return -1;
+	return res;
 }
 
 static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, int *datalen)
