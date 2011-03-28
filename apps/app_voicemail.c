@@ -201,6 +201,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">VoiceMailMain</ref>
+		</see-also>
 	</application>
 	<application name="VoiceMailMain" language="en_US">
 		<synopsis>
@@ -259,6 +262,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enum>
 			</enumlist>
 		</description>
+		<see-also>
+			<ref type="application">VoiceMail</ref>
+		</see-also>
 	</application>
 	<application name="MailboxExists" language="en_US">
 		<synopsis>
