@@ -571,9 +571,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_INTEGER:
-					if (ast_strlen_zero(colptr)) {
-						continue;
-					} else {
+					{
 						int integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (int) record.event_type;
@@ -590,9 +588,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_BIGINT:
-					if (ast_strlen_zero(colptr)) {
-						continue;
-					} else {
+					{
 						long long integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (long long) record.event_type;
@@ -609,9 +605,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_SMALLINT:
-					if (ast_strlen_zero(colptr)) {
-						continue;
-					} else {
+					{
 						short integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (short) record.event_type;
@@ -628,9 +622,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_TINYINT:
-					if (ast_strlen_zero(colptr)) {
-						continue;
-					} else {
+					{
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
@@ -647,9 +639,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					}
 					break;
 				case SQL_BIT:
-					if (ast_strlen_zero(colptr)) {
-						continue;
-					} else {
+					{
 						char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
@@ -669,9 +659,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					break;
 				case SQL_NUMERIC:
 				case SQL_DECIMAL:
-					if (ast_strlen_zero(colptr)) {
-						continue;
-					} else {
+					{
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double)record.event_type;
@@ -690,9 +678,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				case SQL_FLOAT:
 				case SQL_REAL:
 				case SQL_DOUBLE:
-					if (ast_strlen_zero(colptr)) {
-						continue;
-					} else {
+					{
 						double number = 0.0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							number = (double) record.event_type;
