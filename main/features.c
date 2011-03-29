@@ -3542,10 +3542,10 @@ int manage_parkinglot(struct ast_parkinglot *curlot, const struct pollfd *pfds, 
 					if (comebacktoorigin) {
 						set_c_e_p(chan, pu->parkinglot->parking_con_dial, peername_flat, 1);
 					} else {
-						ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
+						ast_verb(2, "comebacktoorigin is disabled - now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
 						snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
 						pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
-						set_c_e_p(chan, "parkedcallstimeout", peername_flat, 1);
+						set_c_e_p(chan, "parkedcallstimeout", "s", 1);
 					}
 				}
 			} else {
