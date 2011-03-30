@@ -17824,7 +17824,8 @@ static void deep_copy_dahdi_chan_conf(struct dahdi_chan_conf *dest, const struct
  * \brief Setup DAHDI channel driver.
  *
  * \param reload enum: load_module(0), reload(1), restart(2).
- * \param base_conf Default config parameters.  So cc_params can be properly destroyed.
+ * \param default_conf Default config parameters.  So cc_params can be properly destroyed.
+ * \param base_conf Default config parameters per section.  So cc_params can be properly destroyed.
  * \param conf Local config parameters.  So cc_params can be properly destroyed.
  *
  * \retval 0 on success.
@@ -17988,7 +17989,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 	if (ucfg) {
 		const char *chans;
 
-		/* Reset base_conf, so things dont leak from dahdi_chan.conf */
+		/* Reset base_conf, so things don't leak from dahdi_chan.conf */
 		deep_copy_dahdi_chan_conf(base_conf, default_conf);
 		process_dahdi(base_conf, "", ast_variable_browse(ucfg, "general"), 1, 0);
 
