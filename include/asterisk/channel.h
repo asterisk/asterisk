@@ -1020,7 +1020,7 @@ enum {
 	/*!
 	 * \brief All softhangup flags.
 	 *
-	 * This can be used as an argument to ast_channel_softhangup_clear
+	 * This can be used as an argument to ast_channel_clear_softhangup()
 	 * to clear all softhangup flags from a channel.
 	 */
 	AST_SOFTHANGUP_ALL =       (0xFFFFFFFF)
