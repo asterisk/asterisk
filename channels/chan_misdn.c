@@ -12432,38 +12432,33 @@ int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len)
 /* allocates the jb-structure and initialize the elements*/
 struct misdn_jb *misdn_jb_init(int size, int upper_threshold)
 {
-	int i;
 	struct misdn_jb *jb;
 
-	jb = ast_malloc(sizeof(*jb));
+	jb = ast_calloc(1, sizeof(*jb));
 	if (!jb) {
 	    chan_misdn_log(-1, 0, "No free Mem for jb\n");
 	    return NULL;
 	}
 	jb->size = size;
 	jb->upper_threshold = upper_threshold;
-	jb->wp = 0;
-	jb->rp = 0;
-	jb->state_full = 0;
-	jb->state_empty = 0;
-	jb->bytes_wrote = 0;
-	jb->samples = ast_malloc(size * sizeof(char));
+	//jb->wp = 0;
+	//jb->rp = 0;
+	//jb->state_full = 0;
+	//jb->state_empty = 0;
+	//jb->bytes_wrote = 0;
+	jb->samples = ast_calloc(size, sizeof(*jb->samples));
 	if (!jb->samples) {
 		ast_free(jb);
 		chan_misdn_log(-1, 0, "No free Mem for jb->samples\n");
 		return NULL;
 	}
 
-	jb->ok = ast_malloc(size * sizeof(char));
+	jb->ok = ast_calloc(size, sizeof(*jb->ok));
 	if (!jb->ok) {
 		ast_free(jb->samples);
 		ast_free(jb);
 		chan_misdn_log(-1, 0, "No free Mem for jb->ok\n");
 		return NULL;
-	}
-
-	for (i = 0; i < size; i++) {
-		jb->ok[i] = 0;
 	}
 
 	ast_mutex_init(&jb->mutexjb);
