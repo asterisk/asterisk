@@ -6051,6 +6051,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x = 0;
+	int last_msg_index;
 #ifndef IMAP_STORAGE
 	int res = 0, nummsg;
 #endif
@@ -6063,9 +6064,14 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	/* Get the deleted messages fixed */ 
 	if (vm_lock_path(vms->curdir))
 		return ERROR_LOCK_PATH;
-	 
+
+	last_msg_index = last_message_index(vmu, vms->curdir);
+	if (last_msg_index !=  vms->lastmsg) {
+		ast_log(LOG_NOTICE, "%d messages arrived while mailbox was open\n", last_msg_index - vms->lastmsg);
+	}
+ 
 	/* must check up to last detected message, just in case it is erroneously greater than maxmsg */
-	for (x = 0; x < vms->lastmsg + 1; x++) { 
+	for (x = 0; x < last_msg_index + 1; x++) { 
 		if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
 			/* Save this message.  It's not in INBOX or hasn't been heard */ 
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
