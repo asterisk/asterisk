@@ -16666,7 +16666,8 @@ static void parse_busy_pattern(struct ast_variable *v, struct ast_dsp_busy_patte
 
 	for (; ;) {
 		/* Scans the string for the next value in the pattern. If none, it checks to see if any have been entered so far. */
-		if(!sscanf(v->value, "%30d", &norval) && count_pattern == 0) { 			ast_log(LOG_ERROR, "busypattern= expects either busypattern=tonelength,quietlength or busypattern=t1length, q1length, t2length, q2length at line %d.\n", v->lineno);
+		if(!sscanf(v->value, "%30d", &norval) && count_pattern == 0) { 
+			ast_log(LOG_ERROR, "busypattern= expects either busypattern=tonelength,quietlength or busypattern=t1length, q1length, t2length, q2length at line %d.\n", v->lineno);
 			break;
 		}
 
