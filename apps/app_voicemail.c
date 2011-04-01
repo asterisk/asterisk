@@ -4534,12 +4534,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					ast_unlock_path(dir);
 					inprocess_count(vmu->mailbox, vmu->context, -1);
 				} else {
-					for (;;) {
-						make_file(fn, sizeof(fn), dir, msgnum);
-						if (!EXISTS(dir, msgnum, fn, NULL))
-							break;
-						msgnum++;
-					}
+#ifndef IMAP_STORAGE
+					msgnum = last_message_index(vmu, dir) + 1;
+#endif
+					make_file(fn, sizeof(fn), dir, msgnum);
 
 					/* assign a variable with the name of the voicemail file */ 
 #ifndef IMAP_STORAGE
