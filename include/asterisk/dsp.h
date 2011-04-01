@@ -59,6 +59,13 @@
 
 struct ast_dsp;
 
+struct ast_dsp_busy_pattern {
+	/*! Number of elements. */
+	int length;
+	/*! Pattern elements in on/off time durations. */
+	int pattern[4];
+};
+
 enum threshold {
 	/* Array offsets */
 	THRESHOLD_SILENCE = 0,
@@ -76,7 +83,7 @@ void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold);
 void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences);
 
 /*! \brief Set expected lengths of the busy tone */
-void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietlength);
+void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, const struct ast_dsp_busy_pattern *cadence);
 
 /*! \brief Scans for progress indication in audio */
 int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf);

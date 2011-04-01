@@ -28,6 +28,11 @@ Asterisk HTTP Server
 --------------------------
  * The HTTP Server can bind to IPv6 addresses.
 
+chan_dahdi
+--------------------------
+ * Busy tone patterns featuring 2 silence and 2 tone lengths can now be used
+   with busydetect.  usage example: busypattern=200,200,200,600
+
 CLI Changes
 --------------------------
  * New 'gtalk show settings' command showing the current settings loaded from

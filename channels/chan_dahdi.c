@@ -1115,15 +1115,10 @@ struct dahdi_pvt {
 	 */
 	int busycount;
 	/*!
-	 * \brief Length of "busy" tone on time.
-	 * \note Set from the "busypattern" value read in from chan_dahdi.conf
+	 * \brief Busy cadence pattern description.
+	 * \note Set from the "busypattern" value read from chan_dahdi.conf
 	 */
-	int busy_tonelength;
-	/*!
-	 * \brief Length of "busy" tone off time.
-	 * \note Set from the "busypattern" value read in from chan_dahdi.conf
-	 */
-	int busy_quietlength;
+	struct ast_dsp_busy_pattern busy_cadence;
 	/*!
 	 * \brief Bitmapped call progress detection flags. CALLPROGRESS_xxx values.
 	 * \note Bits set from the "callprogress" and "faxdetect" values read in from chan_dahdi.conf
@@ -9542,7 +9537,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 					ast_dsp_set_call_progress_zone(i->dsp, progzone);
 				if (i->busydetect && CANBUSYDETECT(i)) {
 					ast_dsp_set_busy_count(i->dsp, i->busycount);
-					ast_dsp_set_busy_pattern(i->dsp, i->busy_tonelength, i->busy_quietlength);
+					ast_dsp_set_busy_pattern(i->dsp, &i->busy_cadence);
 				}
 			}
 		}
@@ -12615,8 +12610,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		}
 		tmp->busydetect = conf->chan.busydetect;
 		tmp->busycount = conf->chan.busycount;
-		tmp->busy_tonelength = conf->chan.busy_tonelength;
-		tmp->busy_quietlength = conf->chan.busy_quietlength;
+		tmp->busy_cadence = conf->chan.busy_cadence;
 		tmp->callprogress = conf->chan.callprogress;
 		tmp->waitfordialtone = conf->chan.waitfordialtone;
 		tmp->cancallforward = conf->chan.cancallforward;
@@ -15120,7 +15114,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 				ast_cli(a->fd, "    Busy Detector Debug: Enabled\n");
 #endif
 				ast_cli(a->fd, "    Busy Count: %d\n", tmp->busycount);
-				ast_cli(a->fd, "    Busy Pattern: %d,%d\n", tmp->busy_tonelength, tmp->busy_quietlength);
+				ast_cli(a->fd, "    Busy Pattern: %d,%d,%d,%d\n", tmp->busy_cadence.pattern[0], tmp->busy_cadence.pattern[1], (tmp->busy_cadence.length == 4) ? tmp->busy_cadence.pattern[2] : 0, (tmp->busy_cadence.length == 4) ? tmp->busy_cadence.pattern[3] : 0);
 			}
 			ast_cli(a->fd, "TDD: %s\n", tmp->tdd ? "yes" : "no");
 			ast_cli(a->fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
@@ -16664,6 +16658,40 @@ static unsigned long dahdi_display_text_option(const char *value)
 /*! process_dahdi() - No warnings on non-existing cofiguration keywords */
 #define PROC_DAHDI_OPT_NOWARN  (1 << 1)
 
+static void parse_busy_pattern(struct ast_variable *v, struct ast_dsp_busy_pattern *busy_cadence)
+{
+	int count_pattern = 0;
+	int norval = 0;
+	char *temp = NULL;
+
+	for (; ;) {
+		/* Scans the string for the next value in the pattern. If none, it checks to see if any have been entered so far. */
+		if(!sscanf(v->value, "%30d", &norval) && count_pattern == 0) { 			ast_log(LOG_ERROR, "busypattern= expects either busypattern=tonelength,quietlength or busypattern=t1length, q1length, t2length, q2length at line %d.\n", v->lineno);
+			break;
+		}
+
+		busy_cadence->pattern[count_pattern] = norval; 
+		
+		count_pattern++;
+		if (count_pattern == 4) {
+			break;
+		}
+
+		temp = strchr(v->value, ',');
+		if (temp == NULL) {
+			break;
+		}
+		v->value = temp + 1;
+	}
+	busy_cadence->length = count_pattern;
+
+	if (count_pattern % 2 != 0) { 
+		/* The pattern length must be divisible by two */
+		ast_log(LOG_ERROR, "busypattern= expects either busypattern=tonelength,quietlength or busypattern=t1length, q1length, t2length, q2length at line %d.\n", v->lineno);
+	}
+	
+}
+
 static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct ast_variable *v, int reload, int options)
 {
 	struct dahdi_pvt *tmp;
@@ -16789,9 +16817,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "busycount")) {
 			confp->chan.busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "busypattern")) {
-			if (sscanf(v->value, "%30d,%30d", &confp->chan.busy_tonelength, &confp->chan.busy_quietlength) != 2) {
-				ast_log(LOG_ERROR, "busypattern= expects busypattern=tonelength,quietlength at line %d.\n", v->lineno);
-			}
+			parse_busy_pattern(v, &confp->chan.busy_cadence);
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			confp->chan.callprogress &= ~CALLPROGRESS_PROGRESS;
 			if (ast_true(v->value))

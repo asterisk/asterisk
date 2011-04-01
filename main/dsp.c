@@ -378,8 +378,7 @@ struct ast_dsp {
 	int ringtimeout;
 	int busymaybe;
 	int busycount;
-	int busy_tonelength;
-	int busy_quietlength;
+	struct ast_dsp_busy_pattern busy_cadence;
 	int historicnoise[DSP_HISTORY];
 	int historicsilence[DSP_HISTORY];
 	goertzel_state_t freqs[7];
@@ -1183,9 +1182,14 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	int avgsilence = 0, hitsilence = 0;
 #endif
 	int avgtone = 0, hittone = 0;
-	if (!dsp->busymaybe) {
-		return res;
+
+	/* if we have a 4 length pattern, the way busymaybe is set doesn't help us. */
+	if (dsp->busy_cadence.length != 4) {
+		if (!dsp->busymaybe) {
+			return res;
+		}
 	}
+
 	for (x = DSP_HISTORY - dsp->busycount; x < DSP_HISTORY; x++) {
 #ifndef BUSYDETECT_TONEONLY
 		avgsilence += dsp->historicsilence[x];
@@ -1239,23 +1243,60 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 		res = 1;
 #endif
 	}
+
+	/* If we have a 4-length pattern, we can go ahead and just check it in a different way. */
+	if (dsp->busy_cadence.length == 4) {
+		int x;
+		int errors = 0;
+		int errors_max = ((4 * dsp->busycount) / 100.0) * BUSY_PAT_PERCENT;
+
+		for (x = DSP_HISTORY - (dsp->busycount); x < DSP_HISTORY; x += 2) {
+			int temp_error;
+			temp_error = abs(dsp->historicnoise[x] - dsp->busy_cadence.pattern[0]);
+			if ((temp_error * 100) / dsp->busy_cadence.pattern[0] > BUSY_PERCENT) {
+				errors++;
+			}
+
+			temp_error = abs(dsp->historicnoise[x + 1] - dsp->busy_cadence.pattern[2]);
+			if ((temp_error * 100) / dsp->busy_cadence.pattern[2] > BUSY_PERCENT) {
+				errors++;
+			}
+
+			temp_error = abs(dsp->historicsilence[x] - dsp->busy_cadence.pattern[1]);
+			if ((temp_error * 100) / dsp->busy_cadence.pattern[1] > BUSY_PERCENT) {
+				errors++;
+			}
+
+			temp_error = abs(dsp->historicsilence[x + 1] - dsp->busy_cadence.pattern[3]);
+			if ((temp_error * 100) / dsp->busy_cadence.pattern[3] > BUSY_PERCENT) {
+				errors++;
+			}
+		}
+
+		ast_debug(5, "errors = %d  max = %d\n", errors, errors_max);
+
+		if (errors <= errors_max) {
+			return 1;
+		}
+	}
+
 	/* If we know the expected busy tone length, check we are in the range */
-	if (res && (dsp->busy_tonelength > 0)) {
-		if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100)) {
+	if (res && (dsp->busy_cadence.pattern[0] > 0)) {
+		if (abs(avgtone - dsp->busy_cadence.pattern[0]) > (dsp->busy_cadence.pattern[0]*BUSY_PAT_PERCENT/100)) {
 #ifdef BUSYDETECT_DEBUG
 			ast_debug(5, "busy detector: avgtone of %d not close enough to desired %d\n",
-				avgtone, dsp->busy_tonelength);
+				avgtone, dsp->busy_cadence.pattern[0]);
 #endif
 			res = 0;
 		}
 	}
 #ifndef BUSYDETECT_TONEONLY
 	/* If we know the expected busy tone silent-period length, check we are in the range */
-	if (res && (dsp->busy_quietlength > 0)) {
-		if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100)) {
+	if (res && (dsp->busy_cadence.pattern[1] > 0)) {
+		if (abs(avgsilence - dsp->busy_cadence.pattern[1]) > (dsp->busy_cadence.pattern[1] * BUSY_PAT_PERCENT / 100)) {
 #ifdef BUSYDETECT_DEBUG
 		ast_debug(5, "busy detector: avgsilence of %d not close enough to desired %d\n",
-			avgsilence, dsp->busy_quietlength);
+			avgsilence, dsp->busy_cadence.pattern[1]);
 #endif
 			res = 0;
 		}
@@ -1571,11 +1612,10 @@ void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences)
 	dsp->busycount = cadences;
 }
 
-void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietlength)
+void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, const struct ast_dsp_busy_pattern *cadence)
 {
-	dsp->busy_tonelength = tonelength;
-	dsp->busy_quietlength = quietlength;
-	ast_debug(1, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
+	dsp->busy_cadence = *cadence;
+	ast_debug(1, "dsp busy pattern set to %d,%d,%d,%d\n", cadence->pattern[0], cadence->pattern[1], (cadence->length == 4) ? cadence->pattern[2] : 0, (cadence->length == 4) ? cadence->pattern[3] : 0);
 }
 
 void ast_dsp_digitreset(struct ast_dsp *dsp)
