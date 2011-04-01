@@ -6051,8 +6051,8 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x = 0;
-	int last_msg_index;
 #ifndef IMAP_STORAGE
+	int last_msg_index;
 	int res = 0, nummsg;
 #endif
 
