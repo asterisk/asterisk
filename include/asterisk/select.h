@@ -38,8 +38,9 @@ extern unsigned int ast_FD_SETSIZE;
 #if !defined(HAVE_VARIABLE_FDSET) && defined(CONFIGURE_RAN_AS_ROOT)
 #define ast_fdset fd_set
 #else
+#define ast_FDMAX	32768
 typedef struct {
-	TYPEOF_FD_SET_FDS_BITS fds_bits[4096 / SIZEOF_FD_SET_FDS_BITS]; /* 32768 bits */
+	TYPEOF_FD_SET_FDS_BITS fds_bits[ast_FDMAX / 8 / SIZEOF_FD_SET_FDS_BITS]; /* 32768 bits */
 } ast_fdset;
 
 #undef FD_ZERO
