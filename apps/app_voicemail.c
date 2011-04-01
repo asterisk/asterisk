@@ -3662,9 +3662,7 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 	} while (0);
 	if (obj) {
 		ast_odbc_release_obj(obj);
-	} else
-		ast_log(AST_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-yuck:
+	}
 	if (cfg)
 		ast_config_destroy(cfg);
 	if (fdm != MAP_FAILED)
@@ -4935,12 +4933,8 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 	}
 	if (obj) {
 		ast_odbc_release_obj(obj);
-		*oldmsgs = atoi(rowdata);
-		x = 0;
-	} else
-		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-		
-yuck:
+	}
+
 	return x;
 }
 
