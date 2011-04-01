@@ -428,7 +428,7 @@ static int my_load_module(int reload)
 	int res;
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { 0 };
 	struct column *entry;
 	char *temp;
 	struct ast_str *compat;
@@ -439,6 +439,9 @@ static int my_load_module(int reload)
 	my_bool my_bool_true = 1;
 #endif
 
+	/* Cannot use a conditionally different flag, because the table layout may
+	 * have changed, which is not detectable by config file change detection,
+	 * but should still cause the configuration to be re-parsed. */
 	cfg = ast_config_load(config, config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "Unable to load config for mysql CDR's: %s\n", config);
