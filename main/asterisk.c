@@ -2932,6 +2932,7 @@ int main(int argc, char *argv[])
 		fd2 = (l.rlim_cur > sizeof(readers) * 8 ? sizeof(readers) * 8 : l.rlim_cur) - 1;
 		if (dup2(fd, fd2) < 0) {
 			ast_log(LOG_WARNING, "Cannot open maximum file descriptor %d at boot? %s\n", fd2, strerror(errno));
+			close(fd);
 			break;
 		}
 
@@ -2940,9 +2941,12 @@ int main(int argc, char *argv[])
 		if (ast_select(fd2 + 1, &readers, NULL, NULL, &tv) < 0) {
 			ast_log(LOG_WARNING, "Maximum select()able file descriptor is %d\n", FD_SETSIZE);
 		}
+		ast_FD_SETSIZE = l.rlim_cur > ast_FDMAX ? ast_FDMAX : l.rlim_cur;
+		close(fd);
+		close(fd2);
 	} while (0);
 #elif defined(HAVE_VARIABLE_FDSET)
-	ast_FD_SETSIZE = l.rlim_cur;
+	ast_FD_SETSIZE = l.rlim_cur > ast_FDMAX ? ast_FDMAX : l.rlim_cur;
 #endif /* !defined(CONFIGURE_RAN_AS_ROOT) */
 
 	if ((!rungroup) && !ast_strlen_zero(ast_config_AST_RUN_GROUP))
