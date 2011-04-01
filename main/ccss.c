@@ -48,6 +48,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Request call completion service for a previously failed
 			call attempt.</para>
+			<para>This application sets the following channel variables:</para>
+			<variablelist>
+				<variable name="CC_REQUEST_RESULT">
+					<para>This is the returned status of the request.</para>
+					<value name="SUCCESS" />
+					<value name="FAIL" />
+				</variable>
+				<variable name="CC_REQUEST_REASON">
+					<para>This is the reason the request failed.</para>
+					<value name="NO_CORE_INSTANCE" />
+					<value name="NOT_GENERIC" />
+					<value name="TOO_MANY_REQUESTS" />
+					<value name="UNSPECIFIED" />
+				</variable>
+			</variablelist>
 		</description>
 	</application>
 	<application name="CallCompletionCancel" language="en_US">
@@ -57,6 +72,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax />
 		<description>
 			<para>Cancel a Call Completion Request.</para>
+			<para>This application sets the following channel variables:</para>
+			<variablelist>
+				<variable name="CC_CANCEL_RESULT">
+					<para>This is the returned status of the cancel.</para>
+					<value name="SUCCESS" />
+					<value name="FAIL" />
+				</variable>
+				<variable name="CC_CANCEL_REASON">
+					<para>This is the reason the cancel failed.</para>
+					<value name="NO_CORE_INSTANCE" />
+					<value name="NOT_GENERIC" />
+					<value name="UNSPECIFIED" />
+				</variable>
+			</variablelist>
 		</description>
 	</application>
  ***/
@@ -3924,7 +3953,9 @@ static int ccreq_exec(struct ast_channel *chan, const char *data)
 	match_flags = MATCH_NO_REQUEST;
 	if (!(core_instance = ao2_t_callback_data(cc_core_instances, 0, match_agent, device_name, &match_flags, "Find core instance for CallCompletionRequest"))) {
 		ast_log_dynamic_level(cc_logger_level, "Couldn't find a core instance for caller %s\n", device_name);
-		return -1;
+		pbx_builtin_setvar_helper(chan, "CC_REQUEST_RESULT", "FAIL");
+		pbx_builtin_setvar_helper(chan, "CC_REQUEST_REASON", "NO_CORE_INSTANCE");
+		return 0;
 	}
 
 	ast_log_dynamic_level(cc_logger_level, "Core %d: Found core_instance for caller %s\n",
@@ -3934,6 +3965,7 @@ static int ccreq_exec(struct ast_channel *chan, const char *data)
 		ast_log_dynamic_level(cc_logger_level, "Core %d: CallCompletionRequest is only for generic agent types.\n",
 				core_instance->core_id);
 		pbx_builtin_setvar_helper(chan, "CC_REQUEST_RESULT", "FAIL");
+		pbx_builtin_setvar_helper(chan, "CC_REQUEST_REASON", "NOT_GENERIC");
 		cc_unref(core_instance, "Unref core_instance since CallCompletionRequest was called with native agent");
 		return 0;
 	}
@@ -3943,14 +3975,19 @@ static int ccreq_exec(struct ast_channel *chan, const char *data)
 				core_instance->core_id);
 		ast_cc_failed(core_instance->core_id, "Too many CC requests\n");
 		pbx_builtin_setvar_helper(chan, "CC_REQUEST_RESULT", "FAIL");
+		pbx_builtin_setvar_helper(chan, "CC_REQUEST_REASON", "TOO_MANY_REQUESTS");
 		cc_unref(core_instance, "Unref core_instance since too many CC requests");
 		return 0;
 	}
 
 	res = ast_cc_agent_accept_request(core_instance->core_id, "CallCompletionRequest called by caller %s for core_id %d", device_name, core_instance->core_id);
 	pbx_builtin_setvar_helper(chan, "CC_REQUEST_RESULT", res ? "FAIL" : "SUCCESS");
+	if (res) {
+		pbx_builtin_setvar_helper(chan, "CC_REQUEST_REASON", "UNSPECIFIED");
+	}
+
 	cc_unref(core_instance, "Done with CallCompletionRequest");
-	return res;
+	return 0;
 }
 
 static const char *cccancel_app = "CallCompletionCancel";
@@ -3966,19 +4003,27 @@ static int cccancel_exec(struct ast_channel *chan, const char *data)
 
 	match_flags = MATCH_REQUEST;
 	if (!(core_instance = ao2_t_callback_data(cc_core_instances, 0, match_agent, device_name, &match_flags, "Find core instance for CallCompletionCancel"))) {
-		ast_log(LOG_WARNING, "Cannot find CC transaction to cancel for caller %s\n", device_name);
-		return -1;
+		ast_log_dynamic_level(cc_logger_level, "Cannot find CC transaction to cancel for caller %s\n", device_name);
+		pbx_builtin_setvar_helper(chan, "CC_CANCEL_RESULT", "FAIL");
+		pbx_builtin_setvar_helper(chan, "CC_CANCEL_REASON", "NO_CORE_INSTANCE");
+		return 0;
 	}
 
 	if (strcmp(core_instance->agent->callbacks->type, "generic")) {
 		ast_log(LOG_WARNING, "CallCompletionCancel may only be used for calles with a generic agent\n");
 		cc_unref(core_instance, "Unref core instance found during CallCompletionCancel");
-		return -1;
+		pbx_builtin_setvar_helper(chan, "CC_CANCEL_RESULT", "FAIL");
+		pbx_builtin_setvar_helper(chan, "CC_CANCEL_REASON", "NOT_GENERIC");
+		return 0;
 	}
 	res = ast_cc_failed(core_instance->core_id, "Call completion request Cancelled for core ID %d by caller %s",
 			core_instance->core_id, device_name);
 	cc_unref(core_instance, "Unref core instance found during CallCompletionCancel");
-	return res;
+	pbx_builtin_setvar_helper(chan, "CC_CANCEL_RESULT", res ? "FAIL" : "SUCCESS");
+	if (res) {
+		pbx_builtin_setvar_helper(chan, "CC_CANCEL_REASON", "UNSPECIFIED");
+	}
+	return 0;
 }
 
 struct count_monitors_cb_data {
