@@ -3403,7 +3403,7 @@ static int retrieve_file(char *dir, int msgnum)
 		ast_odbc_release_obj(obj);
 	} else
 		ast_log(AST_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-yuck:	
+yuck:
 	if (f)
 		fclose(f);
 	if (fd > -1)
@@ -3419,7 +3419,8 @@ yuck:
  * This method is used when mailboxes are stored in an ODBC back end.
  * Typical use to set the msgnum would be to take the value returned from this method and add one to it.
  *
- * \return the value of zero or greaterto indicate the last message index in use, -1 to indicate none.
+ * \return the value of zero or greater to indicate the last message index in use, -1 to indicate none.
+
  */
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
@@ -3434,7 +3435,8 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	struct odbc_obj *obj;
 	obj = ast_odbc_request_obj(odbc_database, 0);
 	if (obj) {
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=?", odbc_table);
+		snprintf(sql, sizeof(sql), "SELECT msgnum FROM %s WHERE dir=? order by msgnum desc limit 1", odbc_table);
+
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 		if (!stmt) {
 			ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -3443,7 +3445,12 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			if (res == SQL_NO_DATA) {
+				ast_log(AST_LOG_DEBUG, "Directory '%s' has no messages and therefore no index was retrieved.\n", dir);
+			} else {
+				ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			}
+
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			goto yuck;
@@ -3456,12 +3463,13 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 			goto yuck;
 		}
 		if (sscanf(rowdata, "%30d", &x) != 1)
-			ast_log(AST_LOG_WARNING, "Failed to read message count!\n");
+			ast_log(AST_LOG_WARNING, "Failed to read message index!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
+		return x;
 	} else
 		ast_log(AST_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-yuck:	
+yuck:
 	return x - 1;
 }
 
@@ -3516,25 +3524,63 @@ static int message_exists(char *dir, int msgnum)
 		ast_odbc_release_obj(obj);
 	} else
 		ast_log(AST_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-yuck:	
+yuck:
 	return x;
 }
 
 /*!
- * \brief returns the one-based count for messages.
+ * \brief returns the number of messages found.
  * \param vmu
  * \param dir the folder the mailbox folder to look for messages. Used to construct the SQL where clause.
  *
  * This method is used when mailboxes are stored in an ODBC back end.
- * The message index is zero-based, the first message will be index 0. For convenient display it is good to have the
- * one-based messages.
- * This method just calls last_message_index and returns +1 of its value.
  *
- * \return the value greater than zero on success to indicate the one-based count of messages, less than zero on error.
+ * \return The count of messages being zero or more, less than zero on error.
  */
 static int count_messages(struct ast_vm_user *vmu, char *dir)
 {
-	return last_message_index(vmu, dir) + 1;
+	int x = 0;
+	int res;
+	SQLHSTMT stmt;
+	char sql[PATH_MAX];
+	char rowdata[20];
+	char *argv[] = { dir };
+	struct generic_prepare_struct gps = { .sql = sql, .argc = 1, .argv = argv };
+
+	struct odbc_obj *obj;
+	obj = ast_odbc_request_obj(odbc_database, 0);
+	if (obj) {
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=?", odbc_table);
+		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+		if (!stmt) {
+			ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(AST_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			ast_odbc_release_obj(obj);
+			goto yuck;
+		}
+		if (sscanf(rowdata, "%30d", &x) != 1)
+			ast_log(AST_LOG_WARNING, "Failed to read message count!\n");
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+		return x;
+	} else
+		ast_log(AST_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:
+	return x - 1;
+
 }
 
 /*!
@@ -5099,7 +5145,6 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 	if (obj) {
 		ast_odbc_release_obj(obj);
 	}
-
 	return x;
 }
 
@@ -6026,7 +6071,7 @@ leave_vm_out:
 	return res;
 }
 
-#if !defined(IMAP_STORAGE) && !defined(ODBC_STORAGE)
+#if !defined(IMAP_STORAGE)
 static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
 {
     /* we know the actual number of messages, so stop process when number is hit */
@@ -7771,11 +7816,9 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	if (last_msg < -1) {
 		return last_msg;
-#ifndef ODBC_STORAGE
 	} else if (vms->lastmsg != last_msg) {
-		ast_log(LOG_NOTICE, "Resequencing mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
-        resequence_mailbox(vmu, vms->curdir, count_msg);
-#endif
+		ast_log(LOG_NOTICE, "Resequencing Mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
+		resequence_mailbox(vmu, vms->curdir, count_msg);
 	}
 
 	return 0;
@@ -10216,7 +10259,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 #endif
 			break;
 
-		case '8': /* Forward the current messgae */
+		case '8': /* Forward the current message */
 			if (vms.lastmsg > -1) {
 				cmd = forward_message(chan, context, &vms, vmu, vmfmts, 0, record_gain, in_urgent);
 				if (cmd == ERROR_LOCK_PATH) {
