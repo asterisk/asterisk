@@ -7796,7 +7796,9 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x = 0;
+
 #ifndef IMAP_STORAGE
+	int last_msg_idx;
 	int res = 0, nummsg;
 	char fn2[PATH_MAX];
 #endif
@@ -7812,8 +7814,14 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		return ERROR_LOCK_PATH;
 	}
 
+	/* update count as message may have arrived while we've got mailbox open */
+	last_msg_idx = last_message_index(vmu, vms->curdir);
+	if (last_msg_idx != vms->lastmsg) {
+		ast_log(AST_LOG_WARNING, "%d messages received after mailbox opened.\n", last_msg_idx - vms->lastmsg);
+	}
+
 	/* must check up to last detected message, just in case it is erroneously greater than maxmsg */
-	for (x = 0; x < vms->lastmsg + 1; x++) {
+	for (x = 0; x < last_msg_idx + 1; x++) {
 		if (!vms->deleted[x] && ((strcasecmp(vms->curbox, "INBOX") && strcasecmp(vms->curbox, "Urgent")) || !vms->heard[x] || (vms->heard[x] && !ast_test_flag(vmu, VM_MOVEHEARD)))) {
 			/* Save this message.  It's not in INBOX or hasn't been heard */
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
