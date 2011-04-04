@@ -969,6 +969,16 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT))
 		return CLI_SHOWUSAGE;
 
+	if (!ast_context_find(a->argv[5])) {
+		ast_cli(a->fd, "Context '%s' did not exist prior to add extension - the context will be created.\n", a->argv[5]);
+	}
+
+	if (!ast_context_find_or_create(NULL, NULL, a->argv[5], registrar)) {
+		ast_cli(a->fd, "ast_context_find_or_create() failed\n");
+		ast_cli(a->fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n", exten, prior, app, app_data, a->argv[5]);
+		return CLI_FAILURE;
+	}
+
 	if (!app_data)
 		app_data="";
 	if (ast_add_extension(a->argv[5], a->argc == 7 ? 1 : 0, exten, iprior, NULL, cidmatch, app,

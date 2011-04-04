@@ -39,6 +39,8 @@ CLI Changes
    gtalk.conf.
  * The 'logger reload' command now supports an optional argument, specifying an
    alternate configuration file to use.
+ * 'dialplan add extension' command will now automatically create a context if
+   the specified context does not exist with a message indicated it did so.
 
 CDR
 --------------------------
