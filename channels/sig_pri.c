@@ -3905,9 +3905,8 @@ static void sig_pri_handle_cis_subcmds(struct sig_pri_span *pri, int event_id,
 			break;
 #endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 		default:
-			ast_debug(2,
-				"Unknown CIS subcommand(%d) in %s event on span %d.\n",
-				subcmd->cmd, pri_event2str(event_id), pri->span);
+			ast_debug(2, "Span %d: Unknown CIS subcommand(%d) in %s event.\n", pri->span,
+				subcmd->cmd, pri_event2str(event_id));
 			break;
 		}
 	}
@@ -3958,7 +3957,6 @@ static int detect_aoc_e_subcmd(const struct pri_subcommands *subcmds)
  * \param pri PRI span control structure.
  * \param chanpos Channel position in the span.
  * \param event_id PRI event id
- * \param channel PRI encoded span/channel
  * \param subcmds Subcommands to process if any. (Could be NULL).
  * \param call_rsp libpri opaque call structure to send any responses toward.
  * Could be NULL either because it is not available or the call is for the
@@ -3971,7 +3969,7 @@ static int detect_aoc_e_subcmd(const struct pri_subcommands *subcmds)
  * \return Nothing
  */
 static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int event_id,
-	int channel, const struct pri_subcommands *subcmds, q931_call *call_rsp)
+	const struct pri_subcommands *subcmds, q931_call *call_rsp)
 {
 	int index;
 	struct ast_channel *owner;
@@ -4327,10 +4325,8 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 			break;
 #endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 		default:
-			ast_debug(2,
-				"Unknown call subcommand(%d) in %s event on channel %d/%d on span %d.\n",
-				subcmd->cmd, pri_event2str(event_id), PRI_SPAN(channel),
-				PRI_CHANNEL(channel), pri->span);
+			ast_debug(2, "Span %d: Unknown call subcommand(%d) in %s event.\n",
+				pri->span, subcmd->cmd, pri_event2str(event_id));
 			break;
 		}
 	}
@@ -5044,8 +5040,7 @@ static int sig_pri_handle_hold(struct sig_pri_span *pri, pri_event *ev)
 		/* No hold channel available. */
 		goto done_with_owner;
 	}
-	sig_pri_handle_subcmds(pri, chanpos_old, ev->e, ev->hold.channel, ev->hold.subcmds,
-		ev->hold.call);
+	sig_pri_handle_subcmds(pri, chanpos_old, ev->e, ev->hold.subcmds, ev->hold.call);
 	pri_queue_control(pri, chanpos_old, AST_CONTROL_HOLD);
 	chanpos_new = pri_fixup_principle(pri, chanpos_new, ev->hold.call);
 	if (chanpos_new < 0) {
@@ -5109,8 +5104,7 @@ static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
 	}
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
-	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_ack.channel,
-		ev->hold_ack.subcmds, ev->hold_ack.call);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_ack.subcmds, ev->hold_ack.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_HOLD_ACK);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -5153,8 +5147,7 @@ static void sig_pri_handle_hold_rej(struct sig_pri_span *pri, pri_event *ev)
 		ev->hold_rej.cause, pri_cause2str(ev->hold_rej.cause));
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
-	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_rej.channel,
-		ev->hold_rej.subcmds, ev->hold_rej.call);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->hold_rej.subcmds, ev->hold_rej.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_HOLD_REJ);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -5218,8 +5211,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 		return;
 	}
 	sig_pri_lock_private(pri->pvts[chanpos]);
-	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve.channel,
-		ev->retrieve.subcmds, ev->retrieve.call);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve.subcmds, ev->retrieve.call);
 	sig_pri_lock_owner(pri, chanpos);
 	pri_queue_control(pri, chanpos, AST_CONTROL_UNHOLD);
 	if (pri->pvts[chanpos]->owner) {
@@ -5259,8 +5251,8 @@ static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
 	}
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
-	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_ack.channel,
-		ev->retrieve_ack.subcmds, ev->retrieve_ack.call);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_ack.subcmds,
+		ev->retrieve_ack.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_RETRIEVE_ACK);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -5303,8 +5295,8 @@ static void sig_pri_handle_retrieve_rej(struct sig_pri_span *pri, pri_event *ev)
 		ev->retrieve_rej.cause, pri_cause2str(ev->retrieve_rej.cause));
 
 	sig_pri_lock_private(pri->pvts[chanpos]);
-	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_rej.channel,
-		ev->retrieve_rej.subcmds, ev->retrieve_rej.call);
+	sig_pri_handle_subcmds(pri, chanpos, ev->e, ev->retrieve_rej.subcmds,
+		ev->retrieve_rej.call);
 	sig_pri_moh_fsm_event(pri->pvts[chanpos]->owner, pri->pvts[chanpos],
 		SIG_PRI_MOH_EVENT_RETRIEVE_REJ);
 	sig_pri_unlock_private(pri->pvts[chanpos]);
@@ -5665,8 +5657,8 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->digit.channel,
-					e->digit.subcmds, e->digit.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->digit.subcmds,
+					e->digit.call);
 				/* queue DTMF frame if the PBX for this call was already started (we're forwarding KEYPAD_DIGITs further on */
 				if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
 					&& pri->pvts[chanpos]->owner) {
@@ -5696,8 +5688,7 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
-					e->ring.subcmds, e->ring.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.subcmds, e->ring.call);
 				/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
 				if ((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
 					&& pri->pvts[chanpos]->owner) {
@@ -6045,8 +6036,8 @@ static void *pri_dchannel(void *vpri)
 								sizeof(pri->pvts[chanpos]->keypad_digits));
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 
-							sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
-								e->ring.subcmds, e->ring.call);
+							sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.subcmds,
+								e->ring.call);
 
 							if (!pri->pvts[chanpos]->digital
 								&& !pri->pvts[chanpos]->no_b_channel) {
@@ -6173,9 +6164,8 @@ static void *pri_dchannel(void *vpri)
 							snprintf(calledtonstr, sizeof(calledtonstr), "%d", e->ring.calledplan);
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 
-							sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.channel,
-								e->ring.subcmds, e->ring.call);
-
+							sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.subcmds,
+								e->ring.call);
 						}
 						if (c && !ast_pbx_start(c)) {
 							ast_verb(3, "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
@@ -6227,8 +6217,8 @@ static void *pri_dchannel(void *vpri)
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
 
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->ringing.channel,
-					e->ringing.subcmds, e->ringing.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->ringing.subcmds,
+					e->ringing.call);
 				sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCNR);
 				sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 				pri_queue_control(pri, chanpos, AST_CONTROL_RINGING);
@@ -6274,8 +6264,8 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
-					e->proceeding.subcmds, e->proceeding.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.subcmds,
+					e->proceeding.call);
 
 				if (e->proceeding.cause > -1) {
 					ast_verb(3, "PROGRESS with cause code %d received\n", e->proceeding.cause);
@@ -6323,8 +6313,8 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.channel,
-					e->proceeding.subcmds, e->proceeding.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->proceeding.subcmds,
+					e->proceeding.call);
 				if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_PROCEEDING) {
 					pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_PROCEEDING;
 					ast_debug(1,
@@ -6369,11 +6359,11 @@ static void *pri_dchannel(void *vpri)
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
 #if defined(HAVE_PRI_CALL_REROUTING)
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.channel,
-					e->facility.subcmds, e->facility.subcall);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.subcmds,
+					e->facility.subcall);
 #else
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.channel,
-					e->facility.subcmds, e->facility.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->facility.subcmds,
+					e->facility.call);
 #endif	/* !defined(HAVE_PRI_CALL_REROUTING) */
 				sig_pri_unlock_private(pri->pvts[chanpos]);
 				break;
@@ -6414,8 +6404,8 @@ static void *pri_dchannel(void *vpri)
 								"Span %d: Channel not available for call waiting call.\n",
 								pri->span);
 							sig_pri_lock_private(pri->pvts[chanpos]);
-							sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
-								e->answer.subcmds, e->answer.call);
+							sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.subcmds,
+								e->answer.call);
 							sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCBS);
 							sig_pri_lock_owner(pri, chanpos);
 							if (pri->pvts[chanpos]->owner) {
@@ -6457,8 +6447,8 @@ static void *pri_dchannel(void *vpri)
 					ast_atomic_fetchadd_int(&pri->num_call_waiting_calls, -1);
 				}
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
-					e->answer.subcmds, e->answer.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.subcmds,
+					e->answer.call);
 				if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_CONNECT) {
 					pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_CONNECT;
 				}
@@ -6498,8 +6488,8 @@ static void *pri_dchannel(void *vpri)
 				}
 
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->connect_ack.channel,
-					e->connect_ack.subcmds, e->connect_ack.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->connect_ack.subcmds,
+					e->connect_ack.call);
 				sig_pri_open_media(pri->pvts[chanpos]);
 				sig_pri_unlock_private(pri->pvts[chanpos]);
 				sig_pri_span_devstate_changed(pri);
@@ -6522,8 +6512,8 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
-					e->hangup.subcmds, e->hangup.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.subcmds,
+					e->hangup.call);
 				switch (e->hangup.cause) {
 				case PRI_CAUSE_INVALID_CALL_REFERENCE:
 					/*
@@ -6664,8 +6654,8 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.channel,
-					e->hangup.subcmds, e->hangup.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->hangup.subcmds,
+					e->hangup.call);
 #if defined(HAVE_PRI_CALL_HOLD)
 				if (e->hangup.call_active && e->hangup.call_held
 					&& pri->hold_disconnect_transfer) {
@@ -6896,8 +6886,8 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				sig_pri_lock_private(pri->pvts[chanpos]);
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->setup_ack.channel,
-					e->setup_ack.subcmds, e->setup_ack.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->setup_ack.subcmds,
+					e->setup_ack.call);
 				if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_OVERLAP) {
 					pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_OVERLAP;
 				}
@@ -6957,11 +6947,10 @@ static void *pri_dchannel(void *vpri)
 #endif	/* !defined(HAVE_PRI_CALL_HOLD) */
 				sig_pri_lock_private(pri->pvts[chanpos]);
 #if defined(HAVE_PRI_CALL_HOLD)
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.channel,
-					e->notify.subcmds, e->notify.call);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.subcmds,
+					e->notify.call);
 #else
-				sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.channel,
-					e->notify.subcmds, NULL);
+				sig_pri_handle_subcmds(pri, chanpos, e->e, e->notify.subcmds, NULL);
 #endif	/* !defined(HAVE_PRI_CALL_HOLD) */
 				switch (e->notify.info) {
 				case PRI_NOTIFY_REMOTE_HOLD:
