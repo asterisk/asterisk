@@ -305,6 +305,17 @@ struct sig_pri_chan {
 	unsigned int progress:1;		/*!< TRUE if the call has seen inband-information progress through the network */
 	unsigned int resetting:1;		/*!< TRUE if this channel is being reset/restarted */
 
+	/*!
+	 * \brief TRUE when this channel is allocated.
+	 *
+	 * \details
+	 * Needed to hold an outgoing channel allocation before the
+	 * owner pointer is created.
+	 *
+	 * \note This is one of several items to check to see if a
+	 * channel is available for use.
+	 */
+	unsigned int allocated:1;
 	unsigned int outgoing:1;
 	unsigned int digital:1;
 	/*! \brief TRUE if this interface has no B channel.  (call hold and call waiting) */
@@ -558,6 +569,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 
 int sig_pri_answer(struct sig_pri_chan *p, struct ast_channel *ast);
 
+int sig_pri_is_chan_available(struct sig_pri_chan *pvt);
 int sig_pri_available(struct sig_pri_chan **pvt, int is_specific_channel);
 
 void sig_pri_init_pri(struct sig_pri_span *pri);

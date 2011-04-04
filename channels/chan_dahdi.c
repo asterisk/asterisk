@@ -3238,12 +3238,7 @@ static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
 		if (pri->pvts[idx] && !pri->pvts[idx]->no_b_channel) {
 			/* This is a B channel interface. */
 			++num_b_chans;
-			if (pri->pvts[idx]->owner
-#if defined(HAVE_PRI_SERVICE_MESSAGES)
-				/* Out-of-service B channels are "in-use". */
-				|| pri->pvts[idx]->service_status
-#endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
-				) {
+			if (!sig_pri_is_chan_available(pri->pvts[idx])) {
 				++in_use;
 			}
 			if (!pri->pvts[idx]->inalarm) {
@@ -6458,11 +6453,9 @@ hangup_out:
 	p->cidspill = NULL;
 
 	ast_mutex_unlock(&p->lock);
-	ast_module_unref(ast_module_info->self);
 	ast_verb(3, "Hungup '%s'\n", ast->name);
 
 	ast_mutex_lock(&iflock);
-
 	if (p->restartpending) {
 		num_restart_pending--;
 	}
@@ -6471,6 +6464,8 @@ hangup_out:
 		destroy_channel(p, 0);
 	}
 	ast_mutex_unlock(&iflock);
+
+	ast_module_unref(ast_module_info->self);
 	return 0;
 }
 
@@ -8771,14 +8766,27 @@ static struct ast_frame *dahdi_exception(struct ast_channel *ast)
 
 static struct ast_frame *dahdi_read(struct ast_channel *ast)
 {
-	struct dahdi_pvt *p = ast->tech_pvt;
+	struct dahdi_pvt *p;
 	int res;
 	int idx;
 	void *readbuf;
 	struct ast_frame *f;
 
+	/*
+	 * For analog channels, we must do deadlock avoidance because
+	 * analog ports can have more than one Asterisk channel using
+	 * the same private structure.
+	 */
+	p = ast->tech_pvt;
 	while (ast_mutex_trylock(&p->lock)) {
 		CHANNEL_DEADLOCK_AVOIDANCE(ast);
+
+		/*
+		 * For PRI channels, we must refresh the private pointer because
+		 * the call could move to another B channel while the Asterisk
+		 * channel is unlocked.
+		 */
+		p = ast->tech_pvt;
 	}
 
 	idx = dahdi_get_index(ast, p, 0);
@@ -11317,7 +11325,9 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 		switch (i->sig) {
 #if defined(HAVE_PRI)
 		case SIG_PRI_LIB_HANDLE_CASES:
+			ast_mutex_lock(&i->lock);
 			sig_pri_chan_alarm_notify(i->sig_pvt, 1);
+			ast_mutex_unlock(&i->lock);
 			break;
 #endif	/* defined(HAVE_PRI) */
 #if defined(HAVE_SS7)
@@ -11335,7 +11345,9 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 		switch (i->sig) {
 #if defined(HAVE_PRI)
 		case SIG_PRI_LIB_HANDLE_CASES:
+			ast_mutex_lock(&i->lock);
 			sig_pri_chan_alarm_notify(i->sig_pvt, 0);
+			ast_mutex_unlock(&i->lock);
 			break;
 #endif	/* defined(HAVE_PRI) */
 #if defined(HAVE_SS7)
@@ -12745,7 +12757,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				switch (tmp->sig) {
 #ifdef HAVE_PRI
 				case SIG_PRI_LIB_HANDLE_CASES:
+					ast_mutex_lock(&tmp->lock);
 					sig_pri_chan_alarm_notify(tmp->sig_pvt, si.alarms);
+					ast_mutex_unlock(&tmp->lock);
 					break;
 #endif
 #if defined(HAVE_SS7)
@@ -13489,6 +13503,14 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				tmp = analog_request(p->sig_pvt, &callwait, requestor);
 #ifdef HAVE_PRI
 			} else if (dahdi_sig_pri_lib_handles(p->sig)) {
+				/*
+				 * We already have the B channel reserved for this call.  We
+				 * just need to make sure that dahdi_hangup() has completed
+				 * cleaning up before continuing.
+				 */
+				ast_mutex_lock(&p->lock);
+				ast_mutex_unlock(&p->lock);
+
 				sig_pri_extract_called_num_subaddr(p->sig_pvt, data, p->dnid,
 					sizeof(p->dnid));
 				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, requestor, transcapdigital);
@@ -13503,18 +13525,23 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 			if (!tmp) {
 				p->outgoing = 0;
 #if defined(HAVE_PRI)
-#if defined(HAVE_PRI_CALL_WAITING)
 				switch (p->sig) {
 				case SIG_PRI_LIB_HANDLE_CASES:
+#if defined(HAVE_PRI_CALL_WAITING)
 					if (((struct sig_pri_chan *) p->sig_pvt)->is_call_waiting) {
 						((struct sig_pri_chan *) p->sig_pvt)->is_call_waiting = 0;
 						ast_atomic_fetchadd_int(&p->pri->num_call_waiting_calls, -1);
 					}
+#endif	/* defined(HAVE_PRI_CALL_WAITING) */
+					/*
+					 * This should be the last thing to clear when we are done with
+					 * the channel.
+					 */
+					((struct sig_pri_chan *) p->sig_pvt)->allocated = 0;
 					break;
 				default:
 					break;
 				}
-#endif	/* defined(HAVE_PRI_CALL_WAITING) */
 #endif	/* defined(HAVE_PRI) */
 			} else {
 				snprintf(p->dialstring, sizeof(p->dialstring), "DAHDI/%s", (char *) data);
@@ -15194,6 +15221,9 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 					ast_cli(a->fd, "Resetting ");
 				if (chan->call)
 					ast_cli(a->fd, "Call ");
+				if (chan->allocated) {
+					ast_cli(a->fd, "Allocated ");
+				}
 				ast_cli(a->fd, "\n");
 				if (tmp->logicalspan)
 					ast_cli(a->fd, "PRI Logical Span: %d\n", tmp->logicalspan);
