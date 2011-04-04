@@ -499,8 +499,14 @@
 /* Define to 1 if you have the ISDN PRI library. */
 #undef HAVE_PRI
 
+/* Define to 1 if you have the NOTIFY with call ptr library. */
+#undef HAVE_PRI_CALL_HOLD
+
 /* Define to 1 if you have the ISDN PRI set_inbanddisconnect library. */
 #undef HAVE_PRI_INBANDDISCONNECT
+
+/* Define to 1 if you have the ISDN progress with cause library. */
+#undef HAVE_PRI_PROG_W_CAUSE
 
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
@@ -708,16 +714,16 @@
 /* Define to 1 if you have the `strtoq' function. */
 #undef HAVE_STRTOQ
 
-/* Define to 1 if `ifr_ifru.ifru_hwaddr' is a member of `struct ifreq'. */
+/* Define to 1 if `ifr_ifru.ifru_hwaddr' is member of `struct ifreq'. */
 #undef HAVE_STRUCT_IFREQ_IFR_IFRU_IFRU_HWADDR
 
-/* Define to 1 if `st_blksize' is a member of `struct stat'. */
+/* Define to 1 if `st_blksize' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
-/* Define to 1 if `cr_uid' is a member of `struct ucred'. */
+/* Define to 1 if `cr_uid' is member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_CR_UID
 
-/* Define to 1 if `uid' is a member of `struct ucred'. */
+/* Define to 1 if `uid' is member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_UID
 
 /* Define to 1 if you have the mISDN Supplemental Services library. */
@@ -952,9 +958,6 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
-
-/* Define to the home page for this package. */
-#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION

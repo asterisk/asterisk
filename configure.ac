@@ -337,7 +337,9 @@ AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PORTAUDIO], [PortAudio], [portaudio])
 AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
+AST_EXT_LIB_SETUP_DEPENDENT([PRI_CALL_HOLD], [NOTIFY with call ptr], [PRI], [pri])
 AST_EXT_LIB_SETUP_DEPENDENT([PRI_INBANDDISCONNECT], [ISDN PRI set_inbanddisconnect], [PRI], [pri])
+AST_EXT_LIB_SETUP_DEPENDENT([PRI_PROG_W_CAUSE], [ISDN progress with cause], [PRI], [pri])
 AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([RESAMPLE], [LIBRESAMPLE], [resample])
@@ -1592,9 +1594,8 @@ AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_new_bri], [libpri.h])
-
+AST_EXT_LIB_CHECK([PRI_CALL_HOLD], [pri], [pri_hold_enable], [libpri.h])
 AST_EXT_LIB_CHECK([PRI_PROG_W_CAUSE], [pri], [pri_progress_with_cause], [libpri.h])
-
 AST_EXT_LIB_CHECK([PRI_INBANDDISCONNECT], [pri], [pri_set_inbanddisconnect], [libpri.h])
 
 AST_EXT_LIB_CHECK([RESAMPLE], [resample], [resample_open], [libresample.h], [-lm])
