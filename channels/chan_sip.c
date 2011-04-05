@@ -14656,16 +14656,20 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 	return 0;
 }
 
-/*! \brief Find out who the call is for.
-	We use the request uri as a destination.
-	This code assumes authentication has been done, so that the
-	device (peer/user) context is already set.
-	\return 0 on success (found a matching extension), non-zero on failure
-
-  \note If the incoming uri is a SIPS: uri, we are required to carry this across
-	the dialplan, so that the outbound call also is a sips: call or encrypted
-	IAX2 call. If that's not available, the call should FAIL.
-*/
+/*!
+ * \brief Find out who the call is for.
+ *
+ * \details
+ * We use the request uri as a destination.
+ * This code assumes authentication has been done, so that the
+ * device (peer/user) context is already set.
+ *
+ * \return 0 on success (found a matching extension), non-zero on failure
+ *
+ * \note If the incoming uri is a SIPS: uri, we are required to carry this across
+ * the dialplan, so that the outbound call also is a sips: call or encrypted
+ * IAX2 call. If that's not available, the call should FAIL.
+ */
 static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id)
 {
 	char tmp[256] = "", *uri, *domain, *dummy = NULL;
@@ -14691,6 +14695,14 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 
 	SIP_PEDANTIC_DECODE(domain);
 	SIP_PEDANTIC_DECODE(uri);
+	if (ast_strlen_zero(uri)) {
+		/*
+		 * Either there really was no extension found or the request
+		 * URI had encoded nulls that made the string "empty".  Use "s"
+		 * as the extension.
+		 */
+		uri = "s";
+	}
 
 	ast_string_field_set(p, domain, domain);
 
