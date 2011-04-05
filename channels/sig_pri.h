@@ -507,6 +507,7 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
 void sig_pri_stop_pri(struct sig_pri_span *pri);
 int sig_pri_start_pri(struct sig_pri_span *pri);
 
+void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm);
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm);
 
 void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri);

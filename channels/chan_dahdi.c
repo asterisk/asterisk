@@ -12677,9 +12677,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				switch (tmp->sig) {
 #ifdef HAVE_PRI
 				case SIG_PRI_LIB_HANDLE_CASES:
-					ast_mutex_lock(&tmp->lock);
-					sig_pri_chan_alarm_notify(tmp->sig_pvt, si.alarms);
-					ast_mutex_unlock(&tmp->lock);
+					sig_pri_set_alarm(tmp->sig_pvt, !si.alarms);
 					break;
 #endif
 #if defined(HAVE_SS7)
