@@ -2287,7 +2287,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
  					play_warning = warning_freq = 0;
  			}
  		}
- 		
+
+		ast_verb(3, "Setting conference duration limit to: %ldms.\n", timelimit);
+		if (play_warning) {
+			ast_verb(3, "Setting warning time to %ldms from the conference duration limit.\n", play_warning);
+		}
+		if (warning_freq) {
+			ast_verb(3, "Setting warning frequency to %ldms.\n", warning_freq);
+		}
+
 		ast_channel_lock(chan);
 		if ((var = pbx_builtin_getvar_helper(chan, "CONF_LIMIT_WARNING_FILE"))) {
 			var = ast_strdupa(var);
