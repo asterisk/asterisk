@@ -21015,6 +21015,8 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 */
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const char *e)
 {
+	const char *msg;
+	enum sip_get_dest_result gotdest;
 	int res;
 
 	if (p->lastinvite) {
@@ -21046,24 +21048,37 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 	}
 
 	/* must go through authentication before getting here */
-	res = (get_destination(p, req, NULL) == SIP_GET_DEST_EXTEN_FOUND ? 0 : -1);
+	gotdest = get_destination(p, req, NULL);
 	build_contact(p);
 
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, sip_cfg.default_context);
 
-	if (ast_shutting_down())
-		transmit_response_with_allow(p, "503 Unavailable", req, 0);
-	else if (res < 0)
-		transmit_response_with_allow(p, "404 Not Found", req, 0);
-	else
-		transmit_response_with_allow(p, "200 OK", req, 0);
+	if (ast_shutting_down()) {
+		msg = "503 Unavailable";
+	} else {
+		msg = "404 Not Found";
+		switch (gotdest) {
+		case SIP_GET_DEST_INVALID_URI:
+			msg = "416 Unsupported URI scheme";
+			break;
+		case SIP_GET_DEST_PICKUP_EXTEN_FOUND:
+		case SIP_GET_DEST_REFUSED:
+		case SIP_GET_DEST_EXTEN_NOT_FOUND:
+			//msg = "404 Not Found";
+			break;
+		case SIP_GET_DEST_EXTEN_FOUND:
+			msg = "200 OK";
+			break;
+		}
+	}
+	transmit_response_with_allow(p, msg, req, 0);
 
 	/* Destroy if this OPTIONS was the opening request, but not if
 	   it's in the middle of a normal call flow. */
 	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 
-	return res;
+	return 0;
 }
 
 /*! \brief Handle the transfer part of INVITE with a replaces: header,
