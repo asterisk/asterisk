@@ -25,6 +25,17 @@ enabled = no
 ;webenabled = yes
 port = 5038
 
+; authtimeout specifies the maximum number of seconds a client has to
+; authenticate.  If the client does not authenticate beofre this timeout
+; expires, the client will be disconnected. (default: 30 seconds)
+
+;authtimeout = 30
+
+; authlimit specifies the maximum number of unauthenticated sessions that will
+; be allowed to connect at any given time.
+
+;authlimit = 50
+
 ;httptimeout = 60
 ; a) httptimeout sets the Max-Age of the http cookie
 ; b) httptimeout is the amount of time the webserver waits 
