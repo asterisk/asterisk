@@ -178,8 +178,15 @@ static void sig_pri_set_digital(struct sig_pri_chan *p, int is_digital)
 	}
 }
 
-static void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm)
+void sig_pri_set_alarm(struct sig_pri_chan *p, int in_alarm)
 {
+	/*
+	 * Clear the channel restart flag when the channel alarm changes
+	 * to prevent the flag from getting stuck when the link goes
+	 * down.
+	 */
+	p->resetting = 0;
+
 	p->inalarm = in_alarm;
 	if (p->calls->set_alarm) {
 		p->calls->set_alarm(p->chan_pvt, in_alarm);
@@ -5555,7 +5562,6 @@ static void *pri_dchannel(void *vpri)
 				for (i = 0; i < pri->numchans; i++) {
 					if (pri->pvts[i]) {
 						sig_pri_set_alarm(pri->pvts[i], 0);
-						pri->pvts[i]->resetting = 0;
 					}
 				}
 				sig_pri_span_devstate_changed(pri);
@@ -5584,7 +5590,6 @@ static void *pri_dchannel(void *vpri)
 									p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
 							sig_pri_set_alarm(p, 1);
-							p->resetting = 0;
 						}
 					}
 					sig_pri_span_devstate_changed(pri);
@@ -8488,7 +8493,6 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 void sig_pri_chan_alarm_notify(struct sig_pri_chan *p, int noalarm)
 {
 	pri_grab(p, p->pri);
-	p->resetting = 0;
 	sig_pri_set_alarm(p, !noalarm);
 	if (!noalarm) {
 		if (pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0) {
