@@ -104,6 +104,8 @@ static const int DEFAULT_DISPLAYCONNECTS	= 1;	/*!< Default setting for displayin
 static const int DEFAULT_TIMESTAMPEVENTS	= 0;	/*!< Default setting for timestampevents */	
 static const int DEFAULT_HTTPTIMEOUT 		= 60;	/*!< Default manager http timeout */
 static const int DEFAULT_BROKENEVENTSACTION	= 0;	/*!< Default setting for brokeneventsaction */
+static const int DEFAULT_AUTHTIMEOUT		= 30;	/*!< Default setting for authtimeout */
+static const int DEFAULT_AUTHLIMIT		= 50;	/*!< Default setting for authlimit */
 
 
 static int enabled;
@@ -113,10 +115,13 @@ static int displayconnects;
 static int timestampevents;
 static int httptimeout;
 static int broken_events_action;
+static int authtimeout;
+static int authlimit;
 
 static pthread_t t;
 static int block_sockets;
 static int num_sessions;
+static int unauth_sessions = 0;
 
 /* Protected by the sessions list lock */
 struct eventqent *master_eventq = NULL;
@@ -222,6 +227,7 @@ struct mansession_session {
 	struct eventqent *eventq;
 	/* Timeout for ast_carefulwrite() */
 	int writetimeout;
+	time_t authstart;
 	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
 	AST_LIST_ENTRY(mansession_session) list;
 };
@@ -2306,6 +2312,7 @@ static int process_message(struct mansession *s, const struct message *m)
 				return -1;
 			} else {
 				s->session->authenticated = 1;
+				ast_atomic_fetchadd_int(&unauth_sessions, -1);
 				if (option_verbose > 1) {
 					if (displayconnects) {
 						ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", 
@@ -2360,6 +2367,8 @@ static int get_input(struct mansession_session *s, char *output)
 	int res;
 	int x;
 	struct pollfd fds[1];
+	int timeout = -1;
+	time_t now;
 	for (x = 1; x < s->inlen; x++) {
 		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
 			/* Copy output data up to and including \r\n */
@@ -2378,7 +2387,22 @@ static int get_input(struct mansession_session *s, char *output)
 	}
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
+
 	do {
+		/* calculate a timeout if we are not authenticated */
+		if (!s->authenticated) {
+			if(time(&now) == -1) {
+				ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
+				return -1;
+			}
+
+			timeout = (authtimeout - (now - s->authstart)) * 1000;
+			if (timeout < 0) {
+				/* we have timed out */
+				return 0;
+			}
+		}
+
 		ast_mutex_lock(&s->__lock);
 		if (s->pending_event) {
 			s->pending_event = 0;
@@ -2388,7 +2412,7 @@ static int get_input(struct mansession_session *s, char *output)
 		s->waiting_thread = pthread_self();
 		ast_mutex_unlock(&s->__lock);
 
-		res = ast_poll(fds, 1, -1);
+		res = ast_poll(fds, 1, timeout);
 
 		ast_mutex_lock(&s->__lock);
 		s->waiting_thread = AST_PTHREADT_NULL;
@@ -2406,6 +2430,9 @@ static int get_input(struct mansession_session *s, char *output)
 			if (res < 1)
 				return -1;
 			break;
+		} else {
+			/* timeout */
+			return 0;
 		}
 	} while(1);
 	s->inlen += res;
@@ -2418,6 +2445,7 @@ static int do_message(struct mansession *s)
 	struct message m = { 0 };
 	char header_buf[sizeof(s->session->inbuf)] = { '\0' };
 	int res;
+	time_t now;
 
 	for (;;) {
 		/* Check if any events are pending and do them if needed */
@@ -2427,6 +2455,17 @@ static int do_message(struct mansession *s)
 		}
 		res = get_input(s->session, header_buf);
 		if (res == 0) {
+			if (!s->session->authenticated) {
+				if(time(&now) == -1) {
+					ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
+					return -1;
+				}
+
+				if (now - s->session->authstart > authtimeout) {
+					ast_log(LOG_EVENT, "Client from %s, failed to authenticate in %d seconds\n", ast_inet_ntoa(s->session->sin.sin_addr), authtimeout);
+					return -1;
+				}
+			}
 			continue;
 		} else if (res > 0) {
 			/* Strip trailing \r\n */
@@ -2461,6 +2500,7 @@ static void *session_do(void *data)
 		}
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 	} else {
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
 		if (option_verbose > 1) {
 			if (displayconnects)
 				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
@@ -2534,14 +2574,25 @@ static void *accept_thread(void *ignore)
 			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
 		}
+
+		if (ast_atomic_fetchadd_int(&unauth_sessions, +1) >= authlimit) {
+			close(as);
+			ast_atomic_fetchadd_int(&unauth_sessions, -1);
+			ast_log(LOG_WARNING, "manager connection rejected, too many unauthenticated sessions.\n");
+			continue;
+		}
+
 		p = getprotobyname("tcp");
 		if (p) {
 			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
 				ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 			}
 		}
-		if (!(s = ast_calloc(1, sizeof(*s))))
+		if (!(s = ast_calloc(1, sizeof(*s)))) {
+			close(as);
+			ast_atomic_fetchadd_int(&unauth_sessions, -1);
 			continue;
+		}
 
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->writetimeout = 100;
@@ -2568,8 +2619,16 @@ static void *accept_thread(void *ignore)
 			s->eventq = s->eventq->next;
 		ast_atomic_fetchadd_int(&s->eventq->usecount, 1);
 		AST_LIST_UNLOCK(&sessions);
-		if (ast_pthread_create_background(&t, &attr, session_do, s))
+		if(time(&s->authstart) == -1) {
+			ast_log(LOG_ERROR, "error executing time(): %s; disconnecting client\n", strerror(errno));
+			ast_atomic_fetchadd_int(&unauth_sessions, -1);
 			destroy_session(s);
+			continue;
+		}
+		if (ast_pthread_create_background(&t, &attr, session_do, s)) {
+			ast_atomic_fetchadd_int(&unauth_sessions, -1);
+			destroy_session(s);
+		}
 	}
 	pthread_attr_destroy(&attr);
 	return NULL;
@@ -3106,6 +3165,8 @@ int init_manager(void)
 	block_sockets = DEFAULT_BLOCKSOCKETS;
 	timestampevents = DEFAULT_TIMESTAMPEVENTS;
 	httptimeout = DEFAULT_HTTPTIMEOUT;
+	authtimeout = DEFAULT_AUTHTIMEOUT;
+	authlimit = DEFAULT_AUTHLIMIT;
 
 	cfg = ast_config_load("manager.conf");
 	if (!cfg) {
@@ -3142,6 +3203,26 @@ int init_manager(void)
 
 	if ((val = ast_variable_retrieve(cfg, "general", "httptimeout")))
 		newhttptimeout = atoi(val);
+
+	if ((val = ast_variable_retrieve(cfg, "general", "authtimeout"))) {
+		int timeout = atoi(val);
+
+		if (timeout < 1) {
+			ast_log(LOG_WARNING, "Invalid authtimeout value '%s', using default value\n", val);
+		} else {
+			authtimeout = timeout;
+		}
+	}
+
+	if ((val = ast_variable_retrieve(cfg, "general", "authlimit"))) {
+		int limit = atoi(val);
+
+		if (limit < 1) {
+			ast_log(LOG_WARNING, "Invalid authlimit value '%s', using default value\n", val);
+		} else {
+			authlimit = limit;
+		}
+	}
 
 	memset(&ba, 0, sizeof(ba));
 	ba.sin_family = AF_INET;
