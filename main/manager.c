@@ -127,6 +127,8 @@ static const int DEFAULT_DISPLAYCONNECTS	= 1;	/*!< Default setting for displayin
 static const int DEFAULT_TIMESTAMPEVENTS	= 0;	/*!< Default setting for timestampevents */	
 static const int DEFAULT_HTTPTIMEOUT 		= 60;	/*!< Default manager http timeout */
 static const int DEFAULT_BROKENEVENTSACTION	= 0;	/*!< Default setting for brokeneventsaction */
+static const int DEFAULT_AUTHTIMEOUT		= 30;	/*!< Default setting for authtimeout */
+static const int DEFAULT_AUTHLIMIT		= 50;	/*!< Default setting for authlimit */
 
 static int displayconnects;
 static int allowmultiplelogin = 1;
@@ -135,9 +137,12 @@ static int httptimeout;
 static int broken_events_action;
 static int manager_enabled = 0;
 static int webmanager_enabled = 0;
+static int authtimeout;
+static int authlimit;
 
 static int block_sockets;
 static int num_sessions;
+static int unauth_sessions = 0;
 
 static int manager_debug;	/*!< enable some debugging code in the manager */
 
@@ -214,6 +219,7 @@ struct mansession_session {
 	int send_events;	/*!<  XXX what ? */
 	struct eventqent *last_ev;	/*!< last event processed. */
 	int writetimeout;	/*!< Timeout for ast_carefulwrite() */
+	time_t authstart;
 	int pending_event;         /*!< Pending events indicator in case when waiting_thread is NULL */
 	AST_LIST_HEAD_NOLOCK(mansession_datastores, ast_datastore) datastores; /*!< Data stores on the session */
 	AST_LIST_ENTRY(mansession_session) list;
@@ -1792,6 +1798,7 @@ static int action_login(struct mansession *s, const struct message *m)
 		return -1;
 	}
 	s->session->authenticated = 1;
+	ast_atomic_fetchadd_int(&unauth_sessions, -1);
 	if (manager_displayconnects(s->session))
 		ast_verb(2, "%sManager '%s' logged on from %s\n", (s->session->managerid ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->session->managerid ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
@@ -3130,6 +3137,8 @@ static int get_input(struct mansession *s, char *output)
 	int res, x;
 	int maxlen = sizeof(s->session->inbuf) - 1;
 	char *src = s->session->inbuf;
+	int timeout = -1;
+	time_t now;
 
 	/*
 	 * Look for \r\n within the buffer. If found, copy to the output
@@ -3157,6 +3166,20 @@ static int get_input(struct mansession *s, char *output)
 	}
 	res = 0;
 	while (res == 0) {
+		/* calculate a timeout if we are not authenticated */
+		if (!s->session->authenticated) {
+			if(time(&now) == -1) {
+				ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
+				return -1;
+			}
+
+			timeout = (authtimeout - (now - s->session->authstart)) * 1000;
+			if (timeout < 0) {
+				/* we have timed out */
+				return 0;
+			}
+		}
+
 		/* XXX do we really need this locking ? */
 		ast_mutex_lock(&s->session->__lock);
 		if (s->session->pending_event) {
@@ -3167,7 +3190,7 @@ static int get_input(struct mansession *s, char *output)
 		s->session->waiting_thread = pthread_self();
 		ast_mutex_unlock(&s->session->__lock);
 
-		res = ast_wait_for_input(s->session->fd, -1);	/* return 0 on timeout ? */
+		res = ast_wait_for_input(s->session->fd, timeout);
 
 		ast_mutex_lock(&s->session->__lock);
 		s->session->waiting_thread = AST_PTHREADT_NULL;
@@ -3200,6 +3223,7 @@ static int do_message(struct mansession *s)
 	struct message m = { 0 };
 	char header_buf[sizeof(s->session->inbuf)] = { '\0' };
 	int res;
+	time_t now;
 
 	for (;;) {
 		/* Check if any events are pending and do them if needed */
@@ -3207,6 +3231,17 @@ static int do_message(struct mansession *s)
 			return -1;
 		res = get_input(s, header_buf);
 		if (res == 0) {
+			if (!s->session->authenticated) {
+				if(time(&now) == -1) {
+					ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
+					return -1;
+				}
+
+				if (now - s->session->authstart > authtimeout) {
+					ast_log(LOG_EVENT, "Client from %s, failed to authenticate in %d seconds\n", ast_inet_ntoa(s->session->sin.sin_addr), authtimeout);
+					return -1;
+				}
+			}
 			continue;
 		} else if (res > 0) {
 			if (ast_strlen_zero(header_buf))
@@ -3230,14 +3265,23 @@ static int do_message(struct mansession *s)
 static void *session_do(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
-	struct mansession_session *session = ast_calloc(1, sizeof(*session));
+	struct mansession_session *session = NULL;
 	struct mansession s = {.session = NULL, };
 	int flags;
 	int res;
 	struct protoent *p;
 
-	if (session == NULL)
+	if (ast_atomic_fetchadd_int(&unauth_sessions, +1) >= authlimit) {
+		fclose(ser->f);
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
 		goto done;
+	}
+
+	if ((session = ast_calloc(1, sizeof(*session))) == NULL) {
+		fclose(ser->f);
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
+		goto done;
+	}
 
 	/* here we set TCP_NODELAY on the socket to disable Nagle's algorithm.
 	 * This is necessary to prevent delays (caused by buffering) as we
@@ -3280,6 +3324,13 @@ static void *session_do(void *data)
 	ast_atomic_fetchadd_int(&num_sessions, 1);
 	AST_LIST_UNLOCK(&sessions);
 
+	if(time(&session->authstart) == -1) {
+		ast_log(LOG_ERROR, "error executing time(): %s; disconnecting client\n", strerror(errno));
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
+		destroy_session(session);
+		goto done;
+	}
+
 	astman_append(&s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
 		if ((res = do_message(&s)) < 0 || s.write_error)
@@ -3291,6 +3342,7 @@ static void *session_do(void *data)
 			ast_verb(2, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", session->username, ast_inet_ntoa(session->sin.sin_addr));
 	} else {
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
 			if (displayconnects)
 			ast_verb(2, "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(session->sin.sin_addr));
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(session->sin.sin_addr));
@@ -4186,6 +4238,8 @@ static int __init_manager(int reload)
 	block_sockets = DEFAULT_BLOCKSOCKETS;
 	timestampevents = DEFAULT_TIMESTAMPEVENTS;
 	httptimeout = DEFAULT_HTTPTIMEOUT;
+	authtimeout = DEFAULT_AUTHTIMEOUT;
+	authlimit = DEFAULT_AUTHLIMIT;
 
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_NOTICE, "Unable to open AMI configuration manager.conf, or configuration is invalid. Asterisk management interface (AMI) disabled.\n");
@@ -4250,6 +4304,22 @@ static int __init_manager(int reload)
 			manager_debug = ast_true(val);
 		} else if (!strcasecmp(var->name, "httptimeout")) {
 			newhttptimeout = atoi(val);
+		} else if (!strcasecmp(var->name, "authtimeout")) {
+			int timeout = atoi(var->value);
+
+			if (timeout < 1) {
+				ast_log(LOG_WARNING, "Invalid authtimeout value '%s', using default value\n", var->value);
+			} else {
+				authtimeout = timeout;
+			}
+		} else if (!strcasecmp(var->name, "authlimit")) {
+			int limit = atoi(var->value);
+
+			if (limit < 1) {
+				ast_log(LOG_WARNING, "Invalid authlimit value '%s', using default value\n", var->value);
+			} else {
+				authlimit = limit;
+			}
 		} else {
 			ast_log(LOG_NOTICE, "Invalid keyword <%s> = <%s> in manager.conf [general]\n",
 				var->name, val);
