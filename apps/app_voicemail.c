@@ -7562,7 +7562,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	/* update count as message may have arrived while we've got mailbox open */
 	last_msg_idx = last_message_index(vmu, vms->curdir);
 	if (last_msg_idx != vms->lastmsg) {
-		ast_log(AST_LOG_WARNING, "%d messages received after mailbox opened.\n", last_msg_idx - vms->lastmsg);
+		ast_log(AST_LOG_NOTICE, "%d messages received after mailbox opened.\n", last_msg_idx - vms->lastmsg);
 	}
 
 	/* must check up to last detected message, just in case it is erroneously greater than maxmsg */
