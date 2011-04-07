@@ -739,8 +739,14 @@ static void sig_pri_party_subaddress_from_ast(struct pri_party_subaddress *pri_s
 			int length = ast_pri_pack_hex_string(pri_subaddress->data,
 				ast_subaddress->str, sizeof(pri_subaddress->data));
 
-			pri_subaddress->length = length;
-			pri_subaddress->odd_even_indicator = (length & 1);
+			pri_subaddress->length = length; /* packed data length */
+
+			length = strlen(ast_subaddress->str);
+			if (length > 2 * sizeof(pri_subaddress->data)) {
+				pri_subaddress->odd_even_indicator = 0;
+			} else {
+				pri_subaddress->odd_even_indicator = (length & 1);
+			}
 			pri_subaddress->valid = 1;
 		}
 	}
@@ -6415,12 +6421,10 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		s++;
 		/* prefix */
 		/* 'n' = NSAP */
-		/* 'U' = odd, 'u'= even */
+		/* 'u' = User Specified */
 		/* Default = NSAP */
 		switch (*s) {
 		case 'U':
-			dialed_subaddress.odd_even_indicator = 1;
-			/* fall through */
 		case 'u':
 			s++;
 			dialed_subaddress.type = 2;
