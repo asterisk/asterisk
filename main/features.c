@@ -4189,6 +4189,17 @@ static int load_config(void)
 		"applicationmap"
 	};
 
+	/* Clear the existing parkinglots in the parkinglots container. */
+	{
+		struct ast_parkinglot *p;
+		struct ao2_iterator iter = ao2_iterator_init(parkinglots, 0);
+		while ((p = ao2_iterator_next(&iter))) {
+			ao2_unlink(parkinglots, p);
+			ao2_ref(p,-1);
+		}
+		ao2_iterator_destroy(&iter);
+	}
+
 	if (default_parkinglot) {
 		strcpy(old_parking_con, default_parkinglot->parking_con);
 		strcpy(old_parking_ext, parking_ext);
@@ -4242,7 +4253,19 @@ static int load_config(void)
 		ast_log(LOG_WARNING,"Could not load features.conf\n");
 		return 0;
 	}
-	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+
+	if ((var = ast_variable_browse(cfg, "general"))) {
+		/* Find a general context in features.conf, we need to clear our existing default context */
+		/* Can't outright destroy the parking lot because it's needed in a little while. */
+		if ((con = ast_context_find(default_parkinglot->parking_con))) {
+			ast_context_destroy(con, registrar);
+		}
+		if ((con = ast_context_find(default_parkinglot->parking_con_dial))) {
+			ast_context_destroy(con, registrar);
+		}
+	} 
+
+	for (; var; var = var->next) {
 		if (!strcasecmp(var->name, "parkext")) {
 			ast_copy_string(parking_ext, var->value, sizeof(parking_ext));
 		} else if (!strcasecmp(var->name, "context")) {
