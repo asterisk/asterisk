@@ -3320,6 +3320,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.dsp_reset_and_flush_digits = my_dsp_reset_and_flush_digits,
 	.lock_private = my_lock_private,
 	.unlock_private = my_unlock_private,
+	.deadlock_avoidance_private = my_deadlock_avoidance_private,
 	.new_ast_channel = my_new_pri_ast_channel,
 	.fixup_chans = my_pri_fixup_chans,
 	.set_alarm = my_set_alarm,
@@ -3483,6 +3484,7 @@ static struct sig_ss7_callback dahdi_ss7_callbacks =
 {
 	.lock_private = my_lock_private,
 	.unlock_private = my_unlock_private,
+	.deadlock_avoidance_private = my_deadlock_avoidance_private,
 
 	.set_echocanceller = my_set_echocanceller,
 	.set_loopback = my_ss7_set_loopback,

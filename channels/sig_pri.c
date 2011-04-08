@@ -321,6 +321,16 @@ static void sig_pri_lock_private(struct sig_pri_chan *p)
 		p->calls->lock_private(p->chan_pvt);
 }
 
+static void sig_pri_deadlock_avoidance_private(struct sig_pri_chan *p)
+{
+	if (p->calls->deadlock_avoidance_private) {
+		p->calls->deadlock_avoidance_private(p->chan_pvt);
+	} else {
+		/* Fallback to the old way if callback not present. */
+		PRI_DEADLOCK_AVOIDANCE(p);
+	}
+}
+
 static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_span *pri)
 {
 	int res;
@@ -328,7 +338,7 @@ static inline int pri_grab(struct sig_pri_chan *p, struct sig_pri_span *pri)
 	do {
 		res = ast_mutex_trylock(&pri->lock);
 		if (res) {
-			PRI_DEADLOCK_AVOIDANCE(p);
+			sig_pri_deadlock_avoidance_private(p);
 		}
 	} while (res);
 	/* Then break the poll */
@@ -1123,7 +1133,7 @@ static void sig_pri_lock_owner(struct sig_pri_span *pri, int chanpos)
 		}
 		/* We must unlock the PRI to avoid the possibility of a deadlock */
 		ast_mutex_unlock(&pri->lock);
-		PRI_DEADLOCK_AVOIDANCE(pri->pvts[chanpos]);
+		sig_pri_deadlock_avoidance_private(pri->pvts[chanpos]);
 		ast_mutex_lock(&pri->lock);
 	}
 }

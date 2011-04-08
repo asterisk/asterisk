@@ -105,6 +105,8 @@ struct sig_ss7_callback {
 	void (* const unlock_private)(void *pvt);
 	/* Lock the private in the signaling private structure. */
 	void (* const lock_private)(void *pvt);
+	/* Do deadlock avoidance for the private signaling structure lock.  */
+	void (* const deadlock_avoidance_private)(void *pvt);
 
 	int (* const set_echocanceller)(void *pvt, int enable);
 	void (* const set_loopback)(void *pvt, int enable);

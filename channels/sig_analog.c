@@ -518,23 +518,31 @@ static void analog_all_subchannels_hungup(struct analog_pvt *p)
 	}
 }
 
-#if 0
 static void analog_unlock_private(struct analog_pvt *p)
 {
 	if (p->calls->unlock_private) {
 		p->calls->unlock_private(p->chan_pvt);
 	}
 }
-#endif
 
-#if 0
 static void analog_lock_private(struct analog_pvt *p)
 {
 	if (p->calls->lock_private) {
 		p->calls->lock_private(p->chan_pvt);
 	}
 }
-#endif
+
+static void analog_deadlock_avoidance_private(struct analog_pvt *p)
+{
+	if (p->calls->deadlock_avoidance_private) {
+		p->calls->deadlock_avoidance_private(p->chan_pvt);
+	} else {
+		/* Fallback to manual avoidance if callback not present. */
+		analog_unlock_private(p);
+		usleep(1);
+		analog_lock_private(p);
+	}
+}
 
 /*!
  * \internal
@@ -563,12 +571,7 @@ static void analog_lock_sub_owner(struct analog_pvt *pvt, enum analog_sub sub_id
 			break;
 		}
 		/* We must unlock the private to avoid the possibility of a deadlock */
-		if (pvt->calls->deadlock_avoidance_private) {
-			pvt->calls->deadlock_avoidance_private(pvt->chan_pvt);
-		} else {
-			/* Don't use 100% CPU if required callback not present. */
-			usleep(1);
-		}
+		analog_deadlock_avoidance_private(pvt);
 	}
 }
 

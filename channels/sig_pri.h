@@ -167,6 +167,8 @@ struct sig_pri_callback {
 	void (* const unlock_private)(void *pvt);
 	/* Lock the private in the signalling private structure.  ... */
 	void (* const lock_private)(void *pvt);
+	/* Do deadlock avoidance for the private signaling structure lock.  */
+	void (* const deadlock_avoidance_private)(void *pvt);
 	/* Function which is called back to handle any other DTMF events that are received.  Called by analog_handle_event.  Why is this
 	 * important to use, instead of just directly using events received before they are passed into the library?  Because sometimes,
 	 * (CWCID) the library absorbs DTMF events received. */
