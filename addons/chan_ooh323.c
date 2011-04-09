@@ -1259,10 +1259,14 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 		}
 	 break;
 	case AST_CONTROL_SRCUPDATE:
-		ast_rtp_instance_update_source(p->rtp);
+		if (p->rtp) {
+			ast_rtp_instance_update_source(p->rtp);
+		}
 		break;
 	case AST_CONTROL_SRCCHANGE:
-		ast_rtp_instance_change_source(p->rtp);
+		if (p->rtp) {
+			ast_rtp_instance_change_source(p->rtp);
+		}
 		break;
 	case AST_CONTROL_CONNECTED_LINE:
 		if (!ast->connected.id.name.valid
