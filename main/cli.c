@@ -1438,6 +1438,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"       LinkedID: %s\n"
 		"      Caller ID: %s\n"
 		" Caller ID Name: %s\n"
+		"Connected Line ID: %s\n"
+		"Connected Line ID Name: %s\n"
 		"    DNID Digits: %s\n"
 		"       Language: %s\n"
 		"          State: %s (%d)\n"
@@ -1466,6 +1468,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		c->name, c->tech->type, c->uniqueid, c->linkedid,
 		S_COR(c->caller.id.number.valid, c->caller.id.number.str, "(N/A)"),
 		S_COR(c->caller.id.name.valid, c->caller.id.name.str, "(N/A)"),
+		S_COR(c->connected.id.number.valid, c->connected.id.number.str, "(N/A)"),
+		S_COR(c->connected.id.name.valid, c->connected.id.name.str, "(N/A)"),
 		S_OR(c->dialed.number.str, "(N/A)"),
 		c->language,	
 		ast_state2str(c->_state), c->_state, c->rings, 
