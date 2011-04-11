@@ -1418,30 +1418,48 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				}
 			}
 
-			/* Forward HTML stuff */
-			if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag64(outgoing, DIAL_NOFORWARDHTML))
-				if (ast_channel_sendhtml(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen) == -1)
-					ast_log(LOG_WARNING, "Unable to send URL\n");
-
-			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF_BEGIN) || (f->frametype == AST_FRAME_DTMF_END)))  {
-				if (ast_write(outgoing->chan, f))
-					ast_log(LOG_WARNING, "Unable to forward voice or dtmf\n");
-			}
-			if (single && (f->frametype == AST_FRAME_CONTROL)) { 
-				if ((f->subclass.integer == AST_CONTROL_HOLD) ||
-				    (f->subclass.integer == AST_CONTROL_UNHOLD) ||
-				    (f->subclass.integer == AST_CONTROL_VIDUPDATE) ||
-				    (f->subclass.integer == AST_CONTROL_SRCUPDATE)) {
-					ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass.integer, outgoing->chan->name);
-					ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
-				} else if (f->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
-					if (ast_channel_connected_line_macro(in, outgoing->chan, f, 0, 1)) {
-						ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+			if (single) {
+				switch (f->frametype) {
+				case AST_FRAME_HTML:
+					/* Forward HTML stuff */
+					if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML)
+						&& ast_channel_sendhtml(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
+						ast_log(LOG_WARNING, "Unable to send URL\n");
 					}
-				} else if (f->subclass.integer == AST_CONTROL_REDIRECTING) {
-					if (ast_channel_redirecting_macro(in, outgoing->chan, f, 0, 1)) {
-						ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+					break;
+				case AST_FRAME_VOICE:
+				case AST_FRAME_DTMF_BEGIN:
+				case AST_FRAME_DTMF_END:
+					if (ast_write(outgoing->chan, f)) {
+						ast_log(LOG_WARNING, "Unable to forward frametype: %d\n",
+							f->frametype);
 					}
+					break;
+				case AST_FRAME_CONTROL:
+					switch (f->subclass.integer) {
+					case AST_CONTROL_HOLD:
+					case AST_CONTROL_UNHOLD:
+					case AST_CONTROL_VIDUPDATE:
+					case AST_CONTROL_SRCUPDATE:
+						ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass.integer, outgoing->chan->name);
+						ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						break;
+					case AST_CONTROL_CONNECTED_LINE:
+						if (ast_channel_connected_line_macro(in, outgoing->chan, f, 0, 1)) {
+							ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						}
+						break;
+					case AST_CONTROL_REDIRECTING:
+						if (ast_channel_redirecting_macro(in, outgoing->chan, f, 0, 1)) {
+							ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						}
+						break;
+					default:
+						break;
+					}
+					break;
+				default:
+					break;
 				}
 			}
 			ast_frfree(f);
