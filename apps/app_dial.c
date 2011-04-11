@@ -1418,19 +1418,26 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				}
 			}
 
-			if (single) {
+			/* Send the frame from the in channel to all outgoing channels. */
+			for (o = outgoing; o; o = o->next) {
+				if (!o->chan || !ast_test_flag64(o, DIAL_STILLGOING)) {
+					/* This outgoing channel has died so don't send the frame to it. */
+					continue;
+				}
 				switch (f->frametype) {
 				case AST_FRAME_HTML:
 					/* Forward HTML stuff */
-					if (!ast_test_flag64(outgoing, DIAL_NOFORWARDHTML)
-						&& ast_channel_sendhtml(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
+					if (!ast_test_flag64(o, DIAL_NOFORWARDHTML)
+						&& ast_channel_sendhtml(o->chan, f->subclass.integer, f->data.ptr, f->datalen) == -1) {
 						ast_log(LOG_WARNING, "Unable to send URL\n");
 					}
 					break;
 				case AST_FRAME_VOICE:
+				case AST_FRAME_IMAGE:
+				case AST_FRAME_TEXT:
 				case AST_FRAME_DTMF_BEGIN:
 				case AST_FRAME_DTMF_END:
-					if (ast_write(outgoing->chan, f)) {
+					if (ast_write(o->chan, f)) {
 						ast_log(LOG_WARNING, "Unable to forward frametype: %d\n",
 							f->frametype);
 					}
@@ -1441,17 +1448,18 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					case AST_CONTROL_UNHOLD:
 					case AST_CONTROL_VIDUPDATE:
 					case AST_CONTROL_SRCUPDATE:
-						ast_verb(3, "%s requested special control %d, passing it to %s\n", in->name, f->subclass.integer, outgoing->chan->name);
-						ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						ast_verb(3, "%s requested special control %d, passing it to %s\n",
+							in->name, f->subclass.integer, o->chan->name);
+						ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						break;
 					case AST_CONTROL_CONNECTED_LINE:
-						if (ast_channel_connected_line_macro(in, outgoing->chan, f, 0, 1)) {
-							ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						if (ast_channel_connected_line_macro(in, o->chan, f, 0, 1)) {
+							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;
 					case AST_CONTROL_REDIRECTING:
-						if (ast_channel_redirecting_macro(in, outgoing->chan, f, 0, 1)) {
-							ast_indicate_data(outgoing->chan, f->subclass.integer, f->data.ptr, f->datalen);
+						if (ast_channel_redirecting_macro(in, o->chan, f, 0, 1)) {
+							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;
 					default:
