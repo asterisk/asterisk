@@ -2010,10 +2010,13 @@ static void *__analog_ss_thread(void *data)
 		}
 		if ((p->sig == ANALOG_SIG_FEATDMF) || (p->sig == ANALOG_SIG_FEATDMF_TA)) {
 			analog_wink(p, idx);
-			/* some switches require a minimum guard time between
-			the last FGD wink and something that answers
-			immediately. This ensures it */
-			if (ast_safe_sleep(chan,100)) {
+			/*
+			 * Some switches require a minimum guard time between the last
+			 * FGD wink and something that answers immediately.  This
+			 * ensures it.
+			 */
+			if (ast_safe_sleep(chan, 100)) {
+				ast_hangup(chan);
 				goto quit;
 			}
 		}
