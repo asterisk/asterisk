@@ -8474,7 +8474,10 @@ static void *ss_thread(void *data)
 			/* some switches require a minimum guard time between
 			   the last FGD wink and something that answers
 			   immediately. This ensures it */
-			if (ast_safe_sleep(chan,100)) goto quit;
+			if (ast_safe_sleep(chan, 100)) {
+				ast_hangup(chan);
+				goto quit;
+			}
 		}
 		dahdi_enable_ec(p);
 		if (NEED_MFDETECT(p)) {
