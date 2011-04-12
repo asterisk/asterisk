@@ -12138,6 +12138,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	if (tmp) {
 		int chan_sig = conf->chan.sig;
 
+		/* If there are variables in tmp before it is updated to match the new config, clear them */
+		if (reloading && tmp->vars) {
+			ast_variables_destroy(tmp->vars);
+			tmp->vars = NULL;
+		}
+
 		if (!here) {
 			/* Can only get here if this is a new channel interface being created. */
 			if ((channel != CHAN_PSEUDO)) {
@@ -17817,6 +17823,13 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!(options & PROC_DAHDI_OPT_NOWARN) )
 			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
 	}
+
+	/* Since confp has already filled invidual dahdi_pvt objects with channels at this point, clear the variables in confp's pvt. */
+	if (confp->chan.vars) {
+		ast_variables_destroy(confp->chan.vars);
+		confp->chan.vars = NULL;
+	}
+
 	if (dahdichan[0]) {
 		/* The user has set 'dahdichan' */
 		/*< \todo pass proper line number instead of 0 */
