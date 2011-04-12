@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
+#include "asterisk/translate.h"
 
 /*** DOCUMENTATION
 	<application name="DumpChan" language="en_US">
@@ -67,9 +68,15 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	struct timeval now;
 	long elapsed_seconds = 0;
 	int hour = 0, min = 0, sec = 0;
-	char cgrp[BUFSIZ/2];
-	char pgrp[BUFSIZ/2];
-	char formatbuf[BUFSIZ/2];
+	char nf[256];
+	char wf[256];
+	char rf[256];
+	char rwf[256];
+	char rrf[256];
+	char cgrp[256];
+	char pgrp[256];
+	struct ast_str *write_transpath = ast_str_alloca(256);
+	struct ast_str *read_transpath = ast_str_alloca(256);
 
 	now = ast_tvnow();
 	memset(buf, 0, size);
@@ -84,65 +91,83 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	}
 
 	snprintf(buf,size,
-			"Name=               %s\n"
-			"Type=               %s\n"
-			"UniqueID=           %s\n"
-			"CallerIDNum=        %s\n"
-			"CallerIDName=       %s\n"
-			"DNIDDigits=         %s\n"
-			"RDNIS=              %s\n"
-			"Parkinglot=         %s\n"
-			"Language=           %s\n"
-			"State=              %s (%d)\n"
-			"Rings=              %d\n"
-			"NativeFormat=       %s\n"
-			"WriteFormat=        %s\n"
-			"ReadFormat=         %s\n"
-			"RawWriteFormat=     %s\n"
-			"RawReadFormat=      %s\n"
-			"1stFileDescriptor=  %d\n"
-			"Framesin=           %d %s\n"
-			"Framesout=          %d %s\n"
-			"TimetoHangup=       %ld\n"
-			"ElapsedTime=        %dh%dm%ds\n"
-			"Context=            %s\n"
-			"Extension=          %s\n"
-			"Priority=           %d\n"
-			"CallGroup=          %s\n"
-			"PickupGroup=        %s\n"
-			"Application=        %s\n"
-			"Data=               %s\n"
-			"Blocking_in=        %s\n",
-			c->name,
-			c->tech->type,
-			c->uniqueid,
-			S_COR(c->caller.id.number.valid, c->caller.id.number.str, "(N/A)"),
-			S_COR(c->caller.id.name.valid, c->caller.id.name.str, "(N/A)"),
-			S_OR(c->dialed.number.str, "(N/A)"),
-			S_COR(c->redirecting.from.number.valid, c->redirecting.from.number.str, "(N/A)"),
-			c->parkinglot,
-			c->language,
-			ast_state2str(c->_state),
-			c->_state,
-			c->rings,
-			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->nativeformats),
-			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->writeformat),
-			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->readformat),
-			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawwriteformat),
-			ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawreadformat),
-			c->fds[0], c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-			c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "", (long)c->whentohangup.tv_sec,
-			hour,
-			min,
-			sec,
-			c->context,
-			c->exten,
-			c->priority,
-			ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
-			ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
-			( c->appl ? c->appl : "(N/A)" ),
-			( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
-			(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+		"Name=               %s\n"
+		"Type=               %s\n"
+		"UniqueID=           %s\n"
+		"LinkedID=           %s\n"
+		"CallerIDNum=        %s\n"
+		"CallerIDName=       %s\n"
+		"ConnectedLineIDNum= %s\n"
+		"ConnectedLineIDName=%s\n"
+		"DNIDDigits=         %s\n"
+		"RDNIS=              %s\n"
+		"Parkinglot=         %s\n"
+		"Language=           %s\n"
+		"State=              %s (%d)\n"
+		"Rings=              %d\n"
+		"NativeFormat=       %s\n"
+		"WriteFormat=        %s\n"
+		"ReadFormat=         %s\n"
+		"RawWriteFormat=     %s\n"
+		"RawReadFormat=      %s\n"
+		"WriteTranscode=     %s %s\n"
+		"ReadTranscode=      %s %s\n"
+		"1stFileDescriptor=  %d\n"
+		"Framesin=           %d %s\n"
+		"Framesout=          %d %s\n"
+		"TimetoHangup=       %ld\n"
+		"ElapsedTime=        %dh%dm%ds\n"
+		"DirectBridge=       %s\n"
+		"IndirectBridge=     %s\n"
+		"Context=            %s\n"
+		"Extension=          %s\n"
+		"Priority=           %d\n"
+		"CallGroup=          %s\n"
+		"PickupGroup=        %s\n"
+		"Application=        %s\n"
+		"Data=               %s\n"
+		"Blocking_in=        %s\n",
+		c->name,
+		c->tech->type,
+		c->uniqueid,
+		c->linkedid,
+		S_COR(c->caller.id.number.valid, c->caller.id.number.str, "(N/A)"),
+		S_COR(c->caller.id.name.valid, c->caller.id.name.str, "(N/A)"),
+		S_COR(c->connected.id.number.valid, c->connected.id.number.str, "(N/A)"),
+		S_COR(c->connected.id.name.valid, c->connected.id.name.str, "(N/A)"),
+		S_OR(c->dialed.number.str, "(N/A)"),
+		S_COR(c->redirecting.from.number.valid, c->redirecting.from.number.str, "(N/A)"),
+		c->parkinglot,
+		c->language,	
+		ast_state2str(c->_state),
+		c->_state,
+		c->rings, 
+		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats),
+		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat),
+		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
+		ast_getformatname_multiple(rwf, sizeof(rwf), c->rawwriteformat),
+		ast_getformatname_multiple(rrf, sizeof(rrf), c->rawreadformat),
+		c->writetrans ? "Yes" : "No",
+		ast_translate_path_to_str(c->writetrans, &write_transpath),
+		c->readtrans ? "Yes" : "No",
+		ast_translate_path_to_str(c->readtrans, &read_transpath),
+		c->fds[0],
+		c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
+		(long)c->whentohangup.tv_sec,
+		hour,
+		min,
+		sec,
+		c->_bridge ? c->_bridge->name : "<none>",
+		ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
+		c->context,
+		c->exten,
+		c->priority,
+		ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
+		ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
+		c->appl ? c->appl : "(N/A)",
+		c->data ? S_OR(c->data, "(Empty)") : "(None)",
+		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 
 	return 0;
 }
@@ -150,7 +175,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 static int dumpchan_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_str *vars = ast_str_thread_get(&ast_str_thread_global_buf, 16);
-	char info[1024];
+	char info[2048];
 	int level = 0;
 	static char *line = "================================================================================";
 
@@ -160,7 +185,13 @@ static int dumpchan_exec(struct ast_channel *chan, const char *data)
 	if (option_verbose >= level) {
 		serialize_showchan(chan, info, sizeof(info));
 		pbx_builtin_serialize_variables(chan, &vars);
-		ast_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, ast_str_buffer(vars), line);
+		ast_verbose("\n"
+			"Dumping Info For Channel: %s:\n"
+			"%s\n"
+			"Info:\n"
+			"%s\n"
+			"Variables:\n"
+			"%s%s\n", chan->name, line, info, ast_str_buffer(vars), line);
 	}
 
 	return 0;
