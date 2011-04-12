@@ -10540,13 +10540,14 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	}
 
 	if (tmp) {
+		int chan_sig = conf->chan.sig;
+
 		/* If there are variables in tmp before it is updated to match the new config, clear them */
 		if (reloading && tmp->vars) {
 			ast_variables_destroy(tmp->vars);
 			tmp->vars = NULL;
 		}
 
-		int chan_sig = conf->chan.sig;
 		if (!here) {
 			if ((channel != CHAN_PSEUDO) && !pri) {
 				int count = 0;
