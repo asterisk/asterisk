@@ -82,7 +82,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
       /* If user application has not specified a specific ip and is using 
          multihomed mode, substitute appropriate ip.
       */
-      if(!strcmp(pMediaInfo->lMediaIP, "0.0.0.0"))
+      if(!strcmp(pMediaInfo->lMediaIP, "0.0.0.0") || !strcmp(pMediaInfo->lMediaIP, "::"))
          strcpy(pNewChannel->localIP, call->localIP);
       else
          strcpy(pNewChannel->localIP, pMediaInfo->lMediaIP);

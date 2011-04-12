@@ -143,7 +143,7 @@ typedef enum OOCallClearReason {
 #define OOTERMTYPE 60
 
 /** Maximum length of an IP address (xxx.xxx.xxx.xxx). */
-#define MAX_IP_LENGTH 15
+#define MAX_IP_LENGTH 2+8*4+7
 
 /** Maximum length of a log file message */
 #define MAXLOGMSGLEN 2048

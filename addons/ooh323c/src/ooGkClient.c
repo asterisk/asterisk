@@ -22,6 +22,7 @@
  */
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/netsock2.h"
 
 #include "ooGkClient.h"
 #include "ootypes.h"
@@ -261,7 +262,7 @@ int ooGkClientCreateChannel(ooGkClient *pGkClient)
    int ret=0;
    OOIPADDR ipaddrs;
    /* Create socket */
-   if((ret=ooSocketCreateUDP(&pGkClient->rasSocket))!=ASN_OK)
+   if((ret=ooSocketCreateUDP(&pGkClient->rasSocket, 4))!=ASN_OK)
    {
       OOTRACEERR1("Failed to create RAS socket\n");
       pGkClient->state = GkClientFailed;
@@ -269,7 +270,7 @@ int ooGkClientCreateChannel(ooGkClient *pGkClient)
    }
    if(pGkClient->localRASPort)
    {
-      ret= ooSocketStrToAddr (pGkClient->localRASIP, &ipaddrs);
+      inet_pton(AF_INET, pGkClient->localRASIP, &ipaddrs);
       if( (ret=ooSocketBind( pGkClient->rasSocket, ipaddrs, 
            pGkClient->localRASPort))!=ASN_OK ) 
       {
@@ -295,7 +296,7 @@ int ooGkClientCreateChannel(ooGkClient *pGkClient)
       OOTRACEDBGA1("Determining ip address for RAS channel "
                    "multihomed mode. \n");
       ret = ooSocketGetIpAndPort(pGkClient->rasSocket, pGkClient->localRASIP, 
-                                 20, &pGkClient->localRASPort);
+                                 20, &pGkClient->localRASPort, NULL);
       if(ret != ASN_OK)
       {
          OOTRACEERR1("Error:Failed to retrieve local ip and port from "
@@ -666,7 +667,7 @@ int ooGkClientSendGRQ(ooGkClient *pGkClient)
    }
 
  
-   ooSocketConvertIpToNwAddr(pGkClient->localRASIP, pRasAddress->ip.data);
+   inet_pton(AF_INET, pGkClient->localRASIP, pRasAddress->ip.data);
 
    pRasAddress->ip.numocts = 4;
    pRasAddress->port = pGkClient->localRASPort;
@@ -932,7 +933,7 @@ int ooGkClientSendRRQ(ooGkClient *pGkClient, ASN1BOOL keepAlive)
    }
    pTransportAddress->t = T_H225TransportAddress_ipAddress;
    pTransportAddress->u.ipAddress = pIpAddress;
-   ooSocketConvertIpToNwAddr(pGkClient->localRASIP, pIpAddress->ip.data);
+   inet_pton(AF_INET, pGkClient->localRASIP, pIpAddress->ip.data);
    pIpAddress->ip.numocts = 4;
    pIpAddress->port = gH323ep.listenPort;
    
@@ -960,7 +961,7 @@ int ooGkClientSendRRQ(ooGkClient *pGkClient, ASN1BOOL keepAlive)
    pTransportAddress->t = T_H225TransportAddress_ipAddress;
    pTransportAddress->u.ipAddress = pIpAddress;
    
-   ooSocketConvertIpToNwAddr(pGkClient->localRASIP, pIpAddress->ip.data);
+   inet_pton(AF_INET, pGkClient->localRASIP, pIpAddress->ip.data);
 
    pIpAddress->ip.numocts = 4;
    pIpAddress->port = pGkClient->localRASPort;
@@ -1430,7 +1431,7 @@ int ooGkClientSendURQ(ooGkClient *pGkClient, ooAliases *aliases)
    }
    pTransportAddress->t = T_H225TransportAddress_ipAddress;
    pTransportAddress->u.ipAddress = pIpAddress;
-   ooSocketConvertIpToNwAddr(pGkClient->localRASIP, pIpAddress->ip.data);
+   inet_pton(AF_INET, pGkClient->localRASIP, pIpAddress->ip.data);
    pIpAddress->ip.numocts = 4;
    pIpAddress->port = gH323ep.listenPort;
    
@@ -1645,14 +1646,14 @@ int ooGkClientSendAdmissionRequest
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
    }
-   ooSocketConvertIpToNwAddr(pGkClient->localRASIP, pIpAddressLocal->ip.data);
+   inet_pton(AF_INET, pGkClient->localRASIP, pIpAddressLocal->ip.data);
 
    pIpAddressLocal->ip.numocts = 4;
    pIpAddressLocal->port = gH323ep.listenPort;
 
    if(!ooUtilsIsStrEmpty(call->remoteIP))
    {
-      ooSocketConvertIpToNwAddr(call->remoteIP, pIpAddressRemote->ip.data);
+      inet_pton(AF_INET, call->remoteIP, pIpAddressRemote->ip.data);
       pIpAddressRemote->ip.numocts = 4;
       pIpAddressRemote->port = call->remotePort;
    }
@@ -2153,7 +2154,7 @@ int ooGkClientSendIRR
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
    }
-   ooSocketConvertIpToNwAddr(pGkClient->localRASIP, pIpAddressLocal->ip.data);
+   inet_pton(AF_INET, pGkClient->localRASIP, pIpAddressLocal->ip.data);
 
    pIpAddressLocal->ip.numocts = 4;
    pIpAddressLocal->port = gH323ep.listenPort;
@@ -2184,7 +2185,7 @@ int ooGkClientSendIRR
 
    pIpRasAddress->ip.numocts = 4;
    pIpRasAddress->port = pGkClient->localRASPort;
-   ooSocketConvertIpToNwAddr(pGkClient->localRASIP, pIpRasAddress->ip.data);
+   inet_pton(AF_INET, pGkClient->localRASIP, pIpRasAddress->ip.data);
 
    pIRR->rasAddress.u.ipAddress = pIpRasAddress;
    pIRR->rasAddress.t=T_H225TransportAddress_ipAddress; /* IPv4 address */
@@ -2283,11 +2284,11 @@ int ooGkClientSendIRR
       return OO_FAILED;
    }
    pLocalAddr->ip.numocts = 4;
-   ooSocketConvertIpToNwAddr(call->localIP, pLocalAddr->ip.data);
+   inet_pton(AF_INET, call->localIP, pLocalAddr->ip.data);
    pLocalAddr->port = (call->pH225Channel->port) ? call->pH225Channel->port : gH323ep.listenPort;
 
    pRemoteAddr->ip.numocts = 4;
-   ooSocketConvertIpToNwAddr(call->remoteIP, pRemoteAddr->ip.data);
+   inet_pton(AF_INET, call->remoteIP, pRemoteAddr->ip.data);
    pRemoteAddr->port = call->remotePort;
 
    perCallInfo->callSignaling.m.sendAddressPresent = TRUE;

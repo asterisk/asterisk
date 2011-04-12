@@ -21,9 +21,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/network.h"
+#include "asterisk/netsock2.h"
+#include "asterisk/config.h"
 
 #include "ooSocket.h"
 #include "ootrace.h"
+#include "ooh323ep.h"
+
+/** Global endpoint structure */
+extern OOH323EndPoint gH323ep;
+
 #if defined(_WIN32_WCE)
 static int inited = 0;
 #define SEND_FLAGS     0
@@ -188,17 +195,25 @@ typedef int OOSOCKLEN;
 typedef socklen_t OOSOCKLEN;
 #endif
 
-int ooSocketCreate (OOSOCKET* psocket) 
+int ooSocketCreate (OOSOCKET* psocket, int family) 
 {
    int on;
+   OOSOCKET sock;
    int keepalive = 1;
 #ifdef __linux__
    int keepcnt = 24, keepidle = 120, keepintvl = 30;
 #endif
    struct linger linger;
-   OOSOCKET sock = socket (AF_INET,
-                             SOCK_STREAM,
-                             0);
+
+   if (family == 6) {
+   	sock = socket (AF_INET6,
+                             	SOCK_STREAM,
+                             	0);
+   } else {
+   	sock = socket (AF_INET,
+                            	SOCK_STREAM,
+                             	0);
+   }
   
    if (sock == OOSOCKET_INVALID){
       OOTRACEERR1("Error:Failed to create TCP socket\n");
@@ -231,12 +246,18 @@ int ooSocketCreate (OOSOCKET* psocket)
    return ASN_OK;
 }
 
-int ooSocketCreateUDP (OOSOCKET* psocket) 
+int ooSocketCreateUDP (OOSOCKET* psocket, int family) 
 {
    int on;
    struct linger linger;
+   OOSOCKET sock;
 
-   OOSOCKET sock = socket (AF_INET,
+   if (family == 6)
+   	sock = socket (AF_INET6,
+                             SOCK_DGRAM,
+                             0);
+   else
+   	sock = socket (AF_INET,
                              SOCK_DGRAM,
                              0);
 
@@ -272,7 +293,10 @@ int ooSocketClose (OOSOCKET socket)
 
 int ooSocketBind (OOSOCKET socket, OOIPADDR addr, int port) 
 {
-   struct sockaddr_in m_addr;
+   struct ast_sockaddr m_addr;
+
+   memset(&m_addr, 0, sizeof(m_addr));
+
 
    if (socket == OOSOCKET_INVALID)
    { 
@@ -280,14 +304,10 @@ int ooSocketBind (OOSOCKET socket, OOIPADDR addr, int port)
       return ASN_E_INVSOCKET;
    }
 
-   memset (&m_addr, 0, sizeof (m_addr));
-   m_addr.sin_family = AF_INET;
-   m_addr.sin_addr.s_addr = (addr == 0) ? INADDR_ANY : htonl (addr);
-   m_addr.sin_port = htons ((unsigned short)port);
+   ast_sockaddr_copy(&m_addr, &addr);
+   ast_sockaddr_set_port(&m_addr, port);
 
-   if (bind (socket, (struct sockaddr *) (void*) &m_addr,
-                     sizeof (m_addr)) == -1)
-   {
+   if (ast_bind(socket, &m_addr) < 0) {
       if (errno != EADDRINUSE) {
       	perror ("bind");
       	OOTRACEERR2("Error:Bind failed, error: %d\n", errno);
@@ -311,20 +331,17 @@ int ooSocketGetSockName(OOSOCKET socket, struct sockaddr_in *name, socklen_t *si
    }
 }
 
-int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port)
+int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port, int *family)
 {
    int ret=ASN_OK;
-   socklen_t size;
-   struct sockaddr_in addr;
+   struct ast_sockaddr addr;
    const char *host=NULL;
 
-   size = sizeof(addr);
-
-   ret = ooSocketGetSockName(socket, &addr, &size);
+   ret = ast_getsockname(socket, &addr);
    if(ret != 0)
       return ASN_E_INVSOCKET;
 
-   host = ast_inet_ntoa(addr.sin_addr);
+   host = ast_sockaddr_stringify_addr(&addr);
 
    if(host && strlen(host) < (unsigned)len)
       strcpy(ip, host);   
@@ -333,8 +350,14 @@ int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port)
                  "ooSocketGetIpAndPort\n");
       return -1;
    }
-   
-   *port = addr.sin_port;
+   *port = ast_sockaddr_port(&addr);
+
+   if (family) {
+	if (ast_sockaddr_is_ipv6(&addr) && !ast_sockaddr_is_ipv4_mapped(&addr))
+		*family = 6;
+	else
+		*family = 4;
+   }
 
    return ASN_OK;
 }
@@ -350,29 +373,30 @@ int ooSocketListen (OOSOCKET socket, int maxConnection)
 }
 
 int ooSocketAccept (OOSOCKET socket, OOSOCKET *pNewSocket, 
-                    OOIPADDR* destAddr, int* destPort) 
+                    char* destAddr, int* destPort) 
 {
-   struct sockaddr_in m_addr;
-   OOSOCKLEN addr_length = sizeof (m_addr);
+   struct ast_sockaddr addr;
+   char* host = NULL;
 
    if (socket == OOSOCKET_INVALID) return ASN_E_INVSOCKET;
    if (pNewSocket == 0) return ASN_E_INVPARAM;
 
-   *pNewSocket = accept (socket, (struct sockaddr *) (void*) &m_addr, 
-                         &addr_length);
+   *pNewSocket = ast_accept (socket, &addr);
    if (*pNewSocket <= 0) return ASN_E_INVSOCKET;
 
-   if (destAddr != 0) 
-      *destAddr = ntohl (m_addr.sin_addr.s_addr);
+   if (destAddr != 0) {
+      if ((host = ast_sockaddr_stringify_addr(&addr)) != NULL);
+      	strncpy(destAddr, host, strlen(host));
+   }
    if (destPort != 0)
-      *destPort = ntohs (m_addr.sin_port);
+      *destPort =  ast_sockaddr_port(&addr);
 
    return ASN_OK;
 }
 
 int ooSocketConnect (OOSOCKET socket, const char* host, int port) 
 {
-   struct sockaddr_in m_addr;
+   struct ast_sockaddr m_addr;
 
    if (socket == OOSOCKET_INVALID)
    { 
@@ -380,13 +404,10 @@ int ooSocketConnect (OOSOCKET socket, const char* host, int port)
    }
    
    memset (&m_addr, 0, sizeof (m_addr));
+   ast_parse_arg(host, PARSE_ADDR, &m_addr);
+   ast_sockaddr_set_port(&m_addr, port);
 
-   m_addr.sin_family = AF_INET;
-   m_addr.sin_port = htons ((unsigned short)port);
-   m_addr.sin_addr.s_addr = inet_addr (host);
-
-   if (connect (socket, (struct sockaddr *) (void*) &m_addr, 
-                sizeof (struct sockaddr_in)) == -1)
+   if (ast_connect(socket, &m_addr))
    {
       return ASN_E_INVSOCKET;
    }
@@ -522,10 +543,18 @@ int ooGetLocalIPAddress(char * pIPAddrs)
    ret = gethostname(hostname, 100);
    if(ret == 0)
    {
-      if (!(hp = ast_gethostbyname(hostname, &phost))) {
-	  		struct in_addr i;
-			memcpy(&i, hp->h_addr, sizeof(i));
-			  strcpy(pIPAddrs, (ast_inet_ntoa(i) == NULL) ? "127.0.0.1" : ast_inet_ntoa(i));
+      if ((hp = ast_gethostbyname(hostname, &phost))) {
+			if (hp->h_addrtype == AF_INET6) {
+				struct in6_addr i;
+				memcpy(&i, hp->h_addr, sizeof(i));
+				strcpy(pIPAddrs, (inet_ntop(AF_INET6, &i, 
+				hostname, sizeof(hostname))) == NULL ? "::1" : 
+				inet_ntop(AF_INET6, &i, hostname, sizeof(hostname)));
+			} else {
+	  			struct in_addr i;
+				memcpy(&i, hp->h_addr, sizeof(i));
+			  	strcpy(pIPAddrs, (ast_inet_ntoa(i) == NULL) ? "127.0.0.1" : ast_inet_ntoa(i));
+			}
       } else {
          return -1;
       }
@@ -536,7 +565,7 @@ int ooGetLocalIPAddress(char * pIPAddrs)
    return ASN_OK;
 }
 
-int ooSocketStrToAddr (const char* pIPAddrStr, OOIPADDR* pIPAddr) 
+/* int ooSocketStrToAddr (const char* pIPAddrStr, OOIPADDR* pIPAddr) 
 {
    int b1, b2, b3, b4;
    int rv = sscanf (pIPAddrStr, "%d.%d.%d.%d", &b1, &b2, &b3, &b4);
@@ -589,7 +618,7 @@ int ooSocketAddrToStr (OOIPADDR ipAddr, char* pbuf, int bufsize)
       return ASN_E_BUFOVFLW;
    sprintf (pbuf, "%s.%s.%s.%s", buf1, buf2, buf3, buf4);
    return ASN_OK;
-}
+} */
 
 int ooSocketsCleanup (void)
 {
@@ -623,7 +652,7 @@ int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList)
    struct sockaddr_in sin;
 
    OOTRACEDBGA1("Retrieving local interfaces\n");
-   if(ooSocketCreateUDP(&sock)!= ASN_OK)
+   if(ooSocketCreateUDP(&sock, 4)!= ASN_OK)
    {
       OOTRACEERR1("Error:Failed to create udp socket - "
                   "ooSocketGetInterfaceList\n");   

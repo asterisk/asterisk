@@ -97,7 +97,7 @@ typedef struct OOMediaInfo{
    int   cap;
    int   lMediaPort;
    int   lMediaCntrlPort;
-   char  lMediaIP[20];
+   char  lMediaIP[2+8*4+7];
    struct OOMediaInfo *next;
 } OOMediaInfo;
 
@@ -179,12 +179,13 @@ typedef struct OOH323CallData {
    int			dtmfcodec;
    OOMediaInfo          *mediaInfo;
    OOCallFwdData        *pCallFwdData;
-   char                 localIP[20];/* Local IP address */
+   char                 localIP[2+8*4+7];/* Local IP address */
+   int			versionIP; /* IP Address family 6 or 4 */
    OOH323Channel*       pH225Channel;
    OOH323Channel*       pH245Channel;
    OOSOCKET             *h245listener;
    int                  *h245listenport;
-   char                 remoteIP[20];/* Remote IP address */
+   char                 remoteIP[2+8*4+7];/* Remote IP address */
    int                  remotePort;
    int                  remoteH245Port;
    char                 *remoteDisplayName;

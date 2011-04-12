@@ -81,7 +81,8 @@ typedef int OOSOCKET;          /**< Socket's handle */
  * address. The least significant 8 bits represent the last number of the IP
  * address.
  */
-typedef unsigned long OOIPADDR;
+/* typedef unsigned long OOIPADDR; */
+typedef struct ast_sockaddr OOIPADDR;
 
 #define OOIPADDR_ANY   ((OOIPADDR)0)
 #define OOIPADDR_LOCAL ((OOIPADDR)0x7f000001UL) /* 127.0.0.1 */
@@ -115,7 +116,7 @@ typedef struct OOInterface{
  *                     negative return value is error.
  */
 EXTERN int ooSocketAccept (OOSOCKET socket, OOSOCKET *pNewSocket, 
-                             OOIPADDR* destAddr, int* destPort);
+                             char* destAddr, int* destPort);
 
 /**
  * This function converts an IP address to its string representation.
@@ -177,10 +178,11 @@ EXTERN int ooSocketConnect (OOSOCKET socket, const char* host, int port);
  *
  * @param psocket      The pointer to the socket's handle variable to receive
  *                     the handle of new socket.
+ * @param family       Which family socket will created
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketCreate (OOSOCKET* psocket);
+EXTERN int ooSocketCreate (OOSOCKET* psocket, int family);
 
 /**
  * This function creates a UDP datagram socket. 
@@ -190,7 +192,7 @@ EXTERN int ooSocketCreate (OOSOCKET* psocket);
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketCreateUDP (OOSOCKET* psocket);
+EXTERN int ooSocketCreateUDP (OOSOCKET* psocket, int family);
 
 /**
  * This function initiates use of sockets by an application. This function must
@@ -351,7 +353,7 @@ EXTERN int ooPDWrite(struct pollfd *pfds, int nfds, int fd);
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketStrToAddr (const char* pIPAddrStr, OOIPADDR* pIPAddr);
+/* EXTERN int ooSocketStrToAddr (const char* pIPAddrStr, OOIPADDR* pIPAddr); */
 
 /**
  * This function converts an internet dotted ip address to network address
@@ -364,7 +366,7 @@ EXTERN int ooSocketStrToAddr (const char* pIPAddrStr, OOIPADDR* pIPAddr);
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketConvertIpToNwAddr(char *inetIp, unsigned char *netIp);
+/* EXTERN int ooSocketConvertIpToNwAddr(char *inetIp, unsigned char *netIp); */
 
 /**
  * This function retrives the IP address of the local host.
@@ -393,10 +395,11 @@ EXTERN short ooSocketHTONS(short val);
  * @param ip      Buffer in which ip address will be returned.
  * @param len     Length of the ip address buffer.
  * @param port    Pointer to integer in which port number will be returned.
+ * @param family  Pointer to integer in which IP family (4 or 6) will be returned
  *
  * @return        ASN_OK, on success; -ve on failed.
  */
-EXTERN int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port);
+EXTERN int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port, int *family);
 
 
 EXTERN int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList);

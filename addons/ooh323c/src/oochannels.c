@@ -16,6 +16,8 @@
 #include "asterisk.h"
 #include "asterisk/lock.h"
 #include "asterisk/poll-compat.h"
+#include "asterisk/config.h"
+#include "asterisk/netsock2.h"
 
 #include "ooports.h" 
 #include "oochannels.h"
@@ -31,6 +33,7 @@
 #include "ooh323ep.h"
 #include "ooStackCmds.h"
 #include "ooCmdChannel.h"
+#include "ooSocket.h"
 #include "ootypes.h"
 
 
@@ -60,7 +63,7 @@ int ooCreateH245Listener(OOH323CallData *call)
    int ret=0;
    OOSOCKET channelSocket=0;
    OOTRACEINFO1("Creating H245 listener\n");
-   if((ret=ooSocketCreate (&channelSocket))!=ASN_OK)
+   if((ret=ooSocketCreate (&channelSocket, call->versionIP))!=ASN_OK)
    {
       OOTRACEERR3("ERROR: Failed to create socket for H245 listener "
                   "(%s, %s)\n", call->callType, call->callToken);
@@ -97,7 +100,7 @@ int ooCreateH245Connection(OOH323CallData *call)
    ooTimerCallback *cbData=NULL;
 
    OOTRACEINFO1("Creating H245 Connection\n");
-   if((ret=ooSocketCreate (&channelSocket))!=ASN_OK)
+   if((ret=ooSocketCreate (&channelSocket, call->versionIP))!=ASN_OK)
    {
       OOTRACEERR3("ERROR:Failed to create socket for H245 connection "
                   "(%s, %s)\n", call->callType, call->callToken);
@@ -241,7 +244,7 @@ int ooCreateH225Connection(OOH323CallData *call)
    int ret=0, i;
    OOSOCKET channelSocket=0;
    for (i=0;i<3;i++) {
-   if((ret=ooSocketCreate (&channelSocket))!=ASN_OK)
+   if((ret=ooSocketCreate (&channelSocket, call->versionIP))!=ASN_OK)
    {
       OOTRACEERR3("Failed to create socket for transmit H2250 channel (%s, %s)"
                   "\n", call->callType, call->callToken);
@@ -285,9 +288,9 @@ int ooCreateH225Connection(OOH323CallData *call)
       }
       call->pH225Channel->port = ret;
 
-      OOTRACEINFO5("Trying to connect to remote endpoint(%s:%d) to setup "
+      OOTRACEINFO6("Trying to connect to remote endpoint(%s:%d) (IPv%d) to setup "
                    "H2250 channel (%s, %s)\n", call->remoteIP, 
-                   call->remotePort, call->callType, call->callToken);
+                   call->remotePort, call->versionIP, call->callType, call->callToken);
 
       if((ret=ooSocketConnect(channelSocket, call->remoteIP,
                               call->remotePort))==ASN_OK)
@@ -298,13 +301,13 @@ int ooCreateH225Connection(OOH323CallData *call)
                       "(%s, %s)\n", call->callType, call->callToken);
 
          /* If multihomed, get ip from socket */
-         if(!strcmp(call->localIP, "0.0.0.0"))
+         if(!strcmp(call->localIP, "0.0.0.0") || !strcmp(call->localIP, "::"))
          {
             OOTRACEDBGA3("Determining IP address for outgoing call in "
                          "multihomed mode. (%s, %s)\n", call->callType, 
                           call->callToken);
-            ret = ooSocketGetIpAndPort(channelSocket, call->localIP, 20, 
-                                       &call->pH225Channel->port);
+            ret = ooSocketGetIpAndPort(channelSocket, call->localIP, 2+8*4+7, 
+                                       &call->pH225Channel->port, NULL);
             if(ret != ASN_OK)
             {
                OOTRACEERR3("ERROR:Failed to retrieve local ip and port from "
@@ -367,12 +370,13 @@ int ooCreateH323Listener()
    OOIPADDR ipaddrs;
 
     /* Create socket */
-   if((ret=ooSocketCreate (&channelSocket))!=ASN_OK)
+   ret = ast_parse_arg(gH323ep.signallingIP, PARSE_ADDR, &ipaddrs);
+   if((ret=ooSocketCreate (&channelSocket, ast_sockaddr_is_ipv6(&ipaddrs) ? 6 : 4))
+										!=ASN_OK)
    {
       OOTRACEERR1("Failed to create socket for H323 Listener\n");
       return OO_FAILED;
    }
-   ret= ooSocketStrToAddr (gH323ep.signallingIP, &ipaddrs);
    if((ret=ooSocketBind (channelSocket, ipaddrs, 
                          gH323ep.listenPort))==ASN_OK) 
    {
@@ -397,9 +401,12 @@ int ooAcceptH225Connection()
    OOH323CallData * call;
    int ret;
    char callToken[20];
+   char remoteIP[2+8*4+7];
    OOSOCKET h225Channel=0;
+
+   memset(remoteIP, 0, sizeof(remoteIP));
    ret = ooSocketAccept (*(gH323ep.listener), &h225Channel, 
-                         NULL, NULL);
+                         remoteIP, NULL);
    if(ret != ASN_OK)
    {
       OOTRACEERR1("Error:Accepting h225 connection\n");
@@ -421,29 +428,33 @@ int ooAcceptH225Connection()
    call->pH225Channel->sock = h225Channel;
 
    /* If multihomed, get ip from socket */
-   if(!strcmp(call->localIP, "0.0.0.0"))
+   if(!strcmp(call->localIP, "0.0.0.0") || !strcmp(call->localIP,"::"))
    {
       OOTRACEDBGA3("Determining IP address for incoming call in multihomed "
                    "mode (%s, %s)\n", call->callType, call->callToken);
 
-      ret = ooSocketGetIpAndPort(h225Channel, call->localIP, 20, 
-                                       &call->pH225Channel->port);
-      if(ret != ASN_OK)
-      {
-         OOTRACEERR3("Error:Failed to retrieve local ip and port from "
-                     "socket for multihomed mode.(%s, %s)\n", 
-                      call->callType, call->callToken);
-         if(call->callState < OO_CALL_CLEAR)
-         {  /* transport failure */
-            call->callState = OO_CALL_CLEAR;
-            call->callEndReason = OO_REASON_TRANSPORTFAILURE;
-         }
-	 ast_mutex_unlock(&call->Lock);
-         return OO_FAILED;
+   }
+   ret = ooSocketGetIpAndPort(h225Channel, call->localIP, 2+8*4+7, 
+                                       &call->pH225Channel->port, &call->versionIP);
+   if(ret != ASN_OK)
+   {
+      OOTRACEERR3("Error:Failed to retrieve local ip and port from "
+                  "socket for multihomed mode.(%s, %s)\n", 
+                   call->callType, call->callToken);
+      if(call->callState < OO_CALL_CLEAR)
+      {  /* transport failure */
+         call->callState = OO_CALL_CLEAR;
+         call->callEndReason = OO_REASON_TRANSPORTFAILURE;
       }
-      OOTRACEDBGA4("Using Local IP address %s for incoming call in multihomed "
-                   "mode. (%s, %s)\n", call->localIP, call->callType, 
-                    call->callToken);
+      ast_mutex_unlock(&call->Lock);
+      return OO_FAILED;
+   }
+   OOTRACEDBGA5("Using Local IP address %s (IPv%d) for incoming call "
+                "(%s, %s)\n", call->localIP, call->versionIP, call->callType, 
+                 call->callToken);
+
+   if (remoteIP[0]) {
+	strncpy(call->remoteIP, remoteIP, strlen(remoteIP));
    }
    
    ast_mutex_unlock(&call->Lock);
@@ -658,7 +669,7 @@ int ooProcessCallFDSETsAndTimers
         "(%s, %s)\n", call->callType, call->callToken);
        if(call->callState < OO_CALL_CLEAR)
        {
-        call->callEndReason = OO_REASON_INVALIDMESSAGE;
+        if (!call->callEndReason) call->callEndReason = OO_REASON_INVALIDMESSAGE;
         call->callState = OO_CALL_CLEAR;
        }
       }
@@ -1393,7 +1404,8 @@ int ooSendMsg(OOH323CallData *call, int type)
          {
             call->callEndReason = OO_REASON_TRANSPORTFAILURE;
             call->callState = OO_CALL_CLEAR;
-         }
+         } else if (call->callState == OO_CALL_CLEAR)
+	    call->callState = OO_CALL_CLEAR_RELEASESENT;
          return OO_FAILED;
       }
    }/* end of type==OOQ931MSG */

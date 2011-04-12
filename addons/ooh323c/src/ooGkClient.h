@@ -47,7 +47,7 @@ extern "C" {
 
 
 
-#define MAX_IP_LEN 18
+#define MAX_IP_LEN 2+8*4+7
 #define DEFAULT_GKPORT 1719
 #define MULTICAST_GKADDRESS "224.0.1.41"
 #define MULTICAST_GKPORT 1718
@@ -181,9 +181,9 @@ typedef struct ooGkClient{
    OOCTXT msgCtxt;
    OOSOCKET rasSocket;
    int localRASPort;
-   char localRASIP[20];
-   char gkRasIP[20];
-   char gkCallSignallingIP[20];
+   char localRASIP[2+8*4+7];
+   char gkRasIP[2+8*4+7];
+   char gkCallSignallingIP[2+8*4+7];
    RasGatekeeperInfo gkInfo;
    int gkRasPort;
    int gkCallSignallingPort;
