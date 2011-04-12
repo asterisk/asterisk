@@ -18122,7 +18122,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	if (confp->chan.vars) {
 		ast_variables_destroy(confp->chan.vars);
 		confp->chan.vars = NULL;
-	}	
+	}
 
 	if (dahdichan[0]) {
 		/* The user has set 'dahdichan' */
