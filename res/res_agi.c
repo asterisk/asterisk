@@ -1115,6 +1115,8 @@ static char *handle_cli_agi_add_cmd(struct ast_cli_entry *e, int cmd, struct ast
 		return CLI_FAILURE;
 	}
 
+	ast_channel_lock(chan);
+
 	if (add_agi_cmd(chan, a->argv[3], (a->argc > 4 ? a->argv[4] : ""))) {
 		ast_log(LOG_WARNING, "failed to add AGI command to queue of channel %s\n", chan->name);
 		ast_channel_unlock(chan);
@@ -1219,6 +1221,11 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 	if (add_to_agi(chan)) {
 		ast_log(LOG_ERROR, "failed to start Async AGI on channel %s\n", chan->name);
 		return AGI_RESULT_FAILURE;
+	}
+
+	/* Flush any stale commands. */
+	while ((cmd = get_agi_cmd(chan))) {
+		free_agi_cmd(cmd);
 	}
 
 	/* this pipe allows us to create a "fake" AGI struct to use
