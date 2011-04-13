@@ -952,12 +952,14 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
                 res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
                 if (res < 0) {
                 	ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-                        return -1;
+					fdprintf(agi->fd, "200 result=%d\n", res);
+					return RESULT_FAILURE;
                 }
                	sildet = ast_dsp_new();
                 if (!sildet) {
                 	ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-                        return -1;
+					fdprintf(agi->fd, "200 result=-1\n");
+					return RESULT_FAILURE;
                 }
                	ast_dsp_set_threshold(sildet, 256);
       	}
@@ -1855,7 +1857,7 @@ normal:
 	return 0;
 }
 
-static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
+static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 {
 	char *argv[MAX_ARGS];
 	int argc = MAX_ARGS;
@@ -1882,14 +1884,15 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 			return AST_PBX_KEEPALIVE;
 			break;
 		case RESULT_FAILURE:
-			/* They've already given the failure.  We've been hung up on so handle this
-			   appropriately */
-			return -1;
+			/* The RESULT_FAILURE code is usually because the channel hungup. */
+			return AGI_RESULT_FAILURE;
+		default:
+			break;
 		}
 	} else {
 		fdprintf(agi->fd, "510 Invalid or unknown command\n");
 	}
-	return 0;
+	return AGI_RESULT_SUCCESS;
 }
 static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int *status, int dead)
 {
@@ -1916,7 +1919,17 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	setup_env(chan, request, agi->fd, (agi->audio > -1));
 	for (;;) {
 		ms = -1;
-		c = ast_waitfor_nandfds(&chan, dead ? 0 : 1, &agi->ctrl, 1, NULL, &outfd, &ms);
+		if (dead) {
+			c = ast_waitfor_nandfds(&chan, 0, &agi->ctrl, 1, NULL, &outfd, &ms);
+		} else if (!ast_check_hangup(chan)) {
+			c = ast_waitfor_nandfds(&chan, 1, &agi->ctrl, 1, NULL, &outfd, &ms);
+		} else {
+			/*
+			 * Read the channel control queue until it is dry so we can
+			 * quit.
+			 */
+			c = chan;
+		}
 		if (c) {
 			retry = AGI_NANDFS_RETRY;
 			/* Idle the channel until we get a command */
@@ -1937,6 +1950,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		} else if (outfd > -1) {
 			size_t len = sizeof(buf);
 			size_t buflen = 0;
+			enum agi_result cmd_status;
 
 			retry = AGI_NANDFS_RETRY;
 			buf[0] = '\0';
@@ -1959,8 +1973,6 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 
 			if (!buf[0]) {
 				/* Program terminated */
-				if (returnstatus)
-					returnstatus = -1;
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "AGI Script %s completed, returning %d\n", request, returnstatus);
 				if (pid > 0)
@@ -1981,9 +1993,15 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				buf[strlen(buf) - 1] = 0;
 			if (agidebug)
 				ast_verbose("AGI Rx << %s\n", buf);
-			returnstatus |= agi_handle_command(chan, agi, buf);
-			/* If the handle_command returns -1, we need to stop */
-			if ((returnstatus < 0) || (returnstatus == AST_PBX_KEEPALIVE)) {
+			cmd_status = agi_handle_command(chan, agi, buf);
+			if (cmd_status == AGI_RESULT_FAILURE) {
+				if (dead || !ast_check_hangup(chan)) {
+					/* The failure was not because of a hangup. */
+					returnstatus = AGI_RESULT_FAILURE;
+					break;
+				}
+			} else if (cmd_status == AST_PBX_KEEPALIVE) {
+				returnstatus = AST_PBX_KEEPALIVE;
 				break;
 			}
 		} else {
