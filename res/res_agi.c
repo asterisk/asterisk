@@ -1225,19 +1225,16 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		return AGI_RESULT_FAILURE;
 	}
 
-	/* Flush any stale commands. */
-	while ((cmd = get_agi_cmd(chan))) {
-		free_agi_cmd(cmd);
-	}
-
 	/* this pipe allows us to create a "fake" AGI struct to use
 	   the AGI commands */
 	res = pipe(fds);
 	if (res) {
 		ast_log(LOG_ERROR, "Failed to create Async AGI pipe\n");
-		/* intentionally do not remove datastore, added with
-		   add_to_agi(), from channel. It will be removed when
-		   the channel is hung up anyways */
+		/*
+		 * Intentionally do not remove the datastore added with
+		 * add_to_agi() the from channel.  It will be removed when the
+		 * channel is hung up anyway.
+		 */
 		return AGI_RESULT_FAILURE;
 	}
 
@@ -1341,9 +1338,13 @@ quit:
 	close(fds[0]);
 	close(fds[1]);
 
-	/* intentionally don't get rid of the datastore. So commands can be
-	   still in the queue in case AsyncAGI gets called again.
-	   Datastore destructor will be called on channel destroy anyway  */
+	/*
+	 * Intentionally do not remove the datastore added with
+	 * add_to_agi() the from channel.  There might be commands still
+	 * in the queue or in-flight to us and AsyncAGI may get called
+	 * again.  The datastore destructor will be called on channel
+	 * destruction anyway.
+	 */
 
 	return returnstatus;
 
