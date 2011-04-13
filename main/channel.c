@@ -3679,23 +3679,27 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		} else {
 			goto done;
 		}
-	}
-
+	} else {
 #ifdef AST_DEVMODE
-	/* 
-	 * The ast_waitfor() code records which of the channel's file descriptors reported that
-	 * data is available.  In theory, ast_read() should only be called after ast_waitfor()
-	 * reports that a channel has data available for reading.  However, there still may be
-	 * some edge cases throughout the code where ast_read() is called improperly.  This can
-	 * potentially cause problems, so if this is a developer build, make a lot of noise if
-	 * this happens so that it can be addressed. 
-	 */
-	if (chan->fdno == -1) {
-		ast_log(LOG_ERROR,
-			"ast_read() on chan '%s' called with no recorded file descriptor.\n",
-			chan->name);
-	}
+		/*
+		 * The ast_waitfor() code records which of the channel's file
+		 * descriptors reported that data is available.  In theory,
+		 * ast_read() should only be called after ast_waitfor() reports
+		 * that a channel has data available for reading.  However,
+		 * there still may be some edge cases throughout the code where
+		 * ast_read() is called improperly.  This can potentially cause
+		 * problems, so if this is a developer build, make a lot of
+		 * noise if this happens so that it can be addressed.
+		 *
+		 * One of the potential problems is blocking on a dead channel.
+		 */
+		if (chan->fdno == -1) {
+			ast_log(LOG_ERROR,
+				"ast_read() on chan '%s' called with no recorded file descriptor.\n",
+				chan->name);
+		}
 #endif
+	}
 
 	prestate = chan->_state;
 
