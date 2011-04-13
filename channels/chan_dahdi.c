@@ -979,6 +979,11 @@ struct dahdi_pvt {
 	 * \note The "context" string read in from chan_dahdi.conf
 	 */
 	char context[AST_MAX_CONTEXT];
+	/*! 
+	 * \brief A description for the channel configuration
+	 * \note The "description" string read in from chan_dahdi.conf
+	 */
+	char description[32];
 	/*!
 	 * \brief Saved context string.
 	 */
@@ -1276,6 +1281,7 @@ struct dahdi_pvt {
 	MEMBER(dahdi_pvt, use_smdi, AST_DATA_BOOLEAN)				\
 	MEMBER(dahdi_pvt, context, AST_DATA_STRING)				\
 	MEMBER(dahdi_pvt, defcontext, AST_DATA_STRING)				\
+	MEMBER(dahdi_pvt, description, AST_DATA_STRING)				\
 	MEMBER(dahdi_pvt, exten, AST_DATA_STRING)				\
 	MEMBER(dahdi_pvt, language, AST_DATA_STRING)				\
 	MEMBER(dahdi_pvt, mohinterpret, AST_DATA_STRING)			\
@@ -12682,6 +12688,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		ast_copy_string(tmp->mohinterpret, conf->chan.mohinterpret, sizeof(tmp->mohinterpret));
 		ast_copy_string(tmp->mohsuggest, conf->chan.mohsuggest, sizeof(tmp->mohsuggest));
 		ast_copy_string(tmp->context, conf->chan.context, sizeof(tmp->context));
+		ast_copy_string(tmp->description, conf->chan.description, sizeof(tmp->description));
 		ast_copy_string(tmp->parkinglot, conf->chan.parkinglot, sizeof(tmp->parkinglot));
 		tmp->cid_ton = 0;
 		if (analog_lib_handles(tmp->sig, tmp->radio, tmp->oprmode)) {
@@ -14995,8 +15002,8 @@ static int action_dahdirestart(struct mansession *s, const struct message *m)
 
 static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s\n"
-#define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s\n"
+#define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
+#define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s %-32.32s\n"
 	unsigned int targetnum = 0;
 	int filtertype = 0;
 	struct dahdi_pvt *tmp = NULL;
@@ -15033,7 +15040,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 	}
 
-	ast_cli(a->fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State");
+	ast_cli(a->fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State", "Description");
 	ast_mutex_lock(&iflock);
 	for (tmp = iflist; tmp; tmp = tmp->next) {
 		if (filtertype) {
@@ -15071,7 +15078,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 		snprintf(statestr, sizeof(statestr), "%s", "In Service");
 
-		ast_cli(a->fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, statestr);
+		ast_cli(a->fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, statestr, tmp->description);
 	}
 	ast_mutex_unlock(&iflock);
 	return CLI_SUCCESS;
@@ -15107,6 +15114,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 	for (tmp = iflist; tmp; tmp = tmp->next) {
 		if (tmp->channel == channel) {
 			ast_cli(a->fd, "Channel: %d\n", tmp->channel);
+			ast_cli(a->fd, "Description: %s\n", tmp->description);
 			ast_cli(a->fd, "File Descriptor: %d\n", tmp->subs[SUB_REAL].dfd);
 			ast_cli(a->fd, "Span: %d\n", tmp->span);
 			ast_cli(a->fd, "Extension: %s\n", tmp->exten);
@@ -15812,6 +15820,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					"Context: %s\r\n"
 					"DND: %s\r\n"
 					"Alarm: %s\r\n"
+					"Description: %s\r\n"
 					"%s"
 					"\r\n",
 					tmp->channel,
@@ -15822,7 +15831,8 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					tmp->sig,
 					tmp->context,
 					dahdi_dnd(tmp, -1) ? "Enabled" : "Disabled",
-					alarm2str(alm), idText);
+					alarm2str(alm),
+					tmp->description, idText);
 			} else {
 				astman_append(s,
 					"Event: DAHDIShowChannels\r\n"
@@ -15832,12 +15842,14 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					"Context: %s\r\n"
 					"DND: %s\r\n"
 					"Alarm: %s\r\n"
+					"Description: %s\r\n"
 					"%s"
 					"\r\n",
 					tmp->channel, sig2str(tmp->sig), tmp->sig,
 					tmp->context,
 					dahdi_dnd(tmp, -1) ? "Enabled" : "Disabled",
-					alarm2str(alm), idText);
+					alarm2str(alm),
+					tmp->description, idText);
 			}
 		}
 	}
@@ -16836,6 +16848,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.dtmfrelax = 0;
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(confp->chan.mailbox, v->value, sizeof(confp->chan.mailbox));
+		} else if (!strcasecmp(v->name, "description")) {
+			ast_copy_string(confp->chan.description, v->value, sizeof(confp->chan.description));
 		} else if (!strcasecmp(v->name, "hasvoicemail")) {
 			if (ast_true(v->value) && ast_strlen_zero(confp->chan.mailbox)) {
 				ast_copy_string(confp->chan.mailbox, cat, sizeof(confp->chan.mailbox));

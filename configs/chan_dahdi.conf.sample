@@ -820,6 +820,11 @@ pickupgroup=1
 ;
 ;useincomingcalleridondahditransfer = yes
 ;
+; Add a description for the channel which can be shown through the Asterisk
+; console  when executing the 'dahdi show channels' command is run.
+;
+;description=Phone located in lobby
+;
 ; AMA flags affects the recording of Call Detail Records.  If specified
 ; it may be 'default', 'omit', 'billing', or 'documentation'.
 ;
@@ -1068,10 +1073,13 @@ pickupgroup=1
 ;
 ;
 ;callerid="Green Phone"<(256) 428-6121>
+;description=Reception Phone			; add a description for 'dahdi show channels'
 ;channel => 1
 ;callerid="Black Phone"<(256) 428-6122>
+;description=Courtesy Phone
 ;channel => 2
 ;callerid="CallerID Phone" <(630) 372-1564>
+;description=					; reset the description for following channels
 ;channel => 3
 ;callerid="Pac Tel Phone" <(256) 428-6124>
 ;channel => 4

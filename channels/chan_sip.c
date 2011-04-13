@@ -15997,8 +15997,8 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	struct ao2_iterator i;
 	
 /* the last argument is left-aligned, so we don't need a size anyways */
-#define FORMAT2 "%-25.25s  %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-10s %s\n"
-#define FORMAT  "%-25.25s  %-39.39s %-3.3s %-3.3s %-3.3s %-8d %-10s %s\n"
+#define FORMAT2 "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-11s %-32.32s %s\n"
+#define FORMAT  "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8d %-11s %-32.32s %s\n"
 
 	char name[256];
 	int total_peers = 0;
@@ -16038,7 +16038,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	}
 
 	if (!s) /* Normal list */
-		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "ACL", "Port", "Status", (realtimepeers ? "Realtime" : ""));
+		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "ACL", "Port", "Status", "Description", (realtimepeers ? "Realtime" : ""));
 	
 
 	i = ao2_iterator_init(peers, 0);
@@ -16103,6 +16103,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ", 	/* permit/deny */
 			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr), status,
+			peer->description ? peer->description : "",
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 
 		if (!s)  {/* Normal CLI list */
@@ -16112,6 +16113,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ",       /* permit/deny */
 			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr), status,
+			peer->description ? peer->description : "",
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
@@ -16128,7 +16130,8 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			"TextSupport: %s\r\n"
 			"ACL: %s\r\n"
 			"Status: %s\r\n"
-			"RealtimeDevice: %s\r\n\r\n",
+			"RealtimeDevice: %s\r\n"
+			"Description: %s\r\n\r\n",
 			idtext,
 			peer->name,
 			ast_sockaddr_isnull(&peer->addr) ? "-none-" : ast_sockaddr_stringify_fmt(&peer->addr, AST_SOCKADDR_STR_HOST),
@@ -16139,7 +16142,8 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
 			peer->ha ? "yes" : "no",       /* permit/deny */
 			status,
-			realtimepeers ? (peer->is_realtime ? "yes":"no") : "no");
+			realtimepeers ? (peer->is_realtime ? "yes":"no") : "no",
+			peer->description);
 		}
 		ao2_unlock(peer);
 		unref_peer(peer, "toss iterator peer ptr");
@@ -16717,6 +16721,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		ast_cli(fd, "\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
+		ast_cli(fd, "  Description  : %s\n", peer->description);
 		if (realtimepeers) {	/* Realtime is enabled */
 			ast_cli(fd, "  Realtime peer: %s\n", peer->is_realtime ? "Yes, cached" : "No");
 		}
@@ -16924,7 +16929,8 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
  				astman_append(s, "ChanVariable: %s=%s\r\n", v->name, v->value);
 			}
 		}
-		astman_append(s, "SIP-Use-Reason-Header : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON)) ? "Y" : "N");
+		astman_append(s, "SIP-Use-Reason-Header : %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON)) ? "Y" : "N");
+		astman_append(s, "Description : %s\r\n", peer->description);
 
 		peer = unref_peer(peer, "sip_show_peer: unref_peer: done with peer");
 
@@ -26105,6 +26111,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 		peer->call_limit=INT_MAX;
 	ast_string_field_set(peer, vmexten, default_vmexten);
 	ast_string_field_set(peer, secret, "");
+	ast_string_field_set(peer, description, "");
 	ast_string_field_set(peer, remotesecret, "");
 	ast_string_field_set(peer, md5secret, "");
 	ast_string_field_set(peer, cid_num, "");
@@ -26347,6 +26354,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_string_field_set(peer, remotesecret, v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				ast_string_field_set(peer, secret, v->value);
+			} else if (!strcasecmp(v->name, "description")) {
+				ast_string_field_set(peer, description, v->value);
 			} else if (!strcasecmp(v->name, "md5secret")) {
 				ast_string_field_set(peer, md5secret, v->value);
 			} else if (!strcasecmp(v->name, "auth")) {
@@ -29090,7 +29099,8 @@ AST_TEST_DEFINE(test_sip_peers_get)
 	MEMBER(sip_peer, maxms, AST_DATA_MILLISECONDS)		\
 	MEMBER(sip_peer, qualifyfreq, AST_DATA_MILLISECONDS)	\
 	MEMBER(sip_peer, timer_t1, AST_DATA_MILLISECONDS)	\
-	MEMBER(sip_peer, timer_b, AST_DATA_MILLISECONDS)
+	MEMBER(sip_peer, timer_b, AST_DATA_MILLISECONDS)	\
+	MEMBER(sip_peer, description, AST_DATA_STRING)
 
 AST_DATA_STRUCTURE(sip_peer, DATA_EXPORT_SIP_PEER);
 

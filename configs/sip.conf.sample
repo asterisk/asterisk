@@ -1100,6 +1100,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; use_q850_reason
 ; maxforwards
 ; encryption
+; description		; Used to provide a description of the peer in console output
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -1195,6 +1196,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;context=from-sip                ; Where to start in the dialplan when this phone calls
 ;callerid=John Doe <1234>        ; Full caller ID, to override the phones config
                                  ; on incoming calls to Asterisk
+;description=Courtesy Phone      ; Description of the peer. Shown when doing 'sip show peers'.
 ;host=192.168.0.23               ; we have a static but private IP address
                                  ; No registration allowed
 ;nat=no                          ; there is not NAT between phone and Asterisk

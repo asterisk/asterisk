@@ -87,6 +87,8 @@ pickupgroup = 1
 
 ;[6000]
 ;fullname = Joe User
+;description = Courtesy Phone In Lobby    ; Used to provide a description of the
+                                          ; peer in console output
 ;email = joe@foo.bar
 ;secret = 1234
 ;dahdichan = 1

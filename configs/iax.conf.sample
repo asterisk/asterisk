@@ -504,6 +504,7 @@ type=peer
 username=asterisk
 secret=supersecret
 host=216.207.245.47
+description=Demo System At Digium	; Description of this peer, as listed by 'iax2 show peers'
 ;sendani=no
 ;host=asterisk.linux-support.net
 ;port=5036
@@ -544,6 +545,7 @@ host=216.207.245.47
 ;[biggateway]
 ;type=peer
 ;host=192.168.0.1
+;description=Gateway to PSTN
 ;context=*
 ;secret=myscret
 ;trunk=yes			; Use IAX2 trunking with this host

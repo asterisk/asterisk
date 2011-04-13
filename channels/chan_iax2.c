@@ -484,6 +484,7 @@ struct iax2_peer {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(name);
 		AST_STRING_FIELD(username);
+		AST_STRING_FIELD(description);		/*!< Description of the peer */
 		AST_STRING_FIELD(secret);
 		AST_STRING_FIELD(dbsecret);
 		AST_STRING_FIELD(outkey);	    /*!< What key we use to talk to this peer */
@@ -3837,6 +3838,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 		encmethods_to_str(peer->encmethods, encmethods);
 		ast_cli(a->fd, "\n\n");
 		ast_cli(a->fd, "  * Name       : %s\n", peer->name);
+		ast_cli(a->fd, "  Description  : %s\n", peer->description);
 		ast_cli(a->fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret) ? "<Not set>" : "<Set>");
 		ast_cli(a->fd, "  Context      : %s\n", peer->context);
  		ast_cli(a->fd, "  Parking lot  : %s\n", peer->parkinglot);
@@ -6712,8 +6714,8 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 	int unmonitored_peers = 0;
 	struct ao2_iterator i;
 
-#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s\n"
-#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s\n"
+#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-11s %-32.32s\n"
+#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-11s %-32.32s\n"
 
 	struct iax2_peer *peer = NULL;
 	char name[256];
@@ -6755,7 +6757,7 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 
 
 	if (!s)
-		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status");
+		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", "Description");
 
 	i = ao2_iterator_init(peers, 0);
 	for (peer = ao2_iterator_next(&i); peer;
@@ -6801,7 +6803,8 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 				"Dynamic: %s\r\n"
 				"Trunk: %s\r\n"
 				"Encryption: %s\r\n"
-				"Status: %s\r\n\r\n",
+				"Status: %s\r\n"
+				"Description: %s\r\n\r\n",
 				idtext,
 				name,
 				ast_sockaddr_stringify_addr(&peer->addr),
@@ -6809,7 +6812,8 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 				ast_test_flag64(peer, IAX_DYNAMIC) ? "yes" : "no",
 				ast_test_flag64(peer, IAX_TRUNK) ? "yes" : "no",
 				peer->encmethods ? ast_str_buffer(encmethods) : "no",
-				status);
+				status,
+				peer->description);
 		} else {
 			ast_cli(fd, FORMAT, name,
 				ast_sockaddr_stringify_addr(&peer->addr),
@@ -6818,7 +6822,8 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 				ast_sockaddr_port(&peer->addr),
 				ast_test_flag64(peer, IAX_TRUNK) ? "(T)" : "   ",
 				peer->encmethods ? "(E)" : "   ",
-				status);
+				status,
+				peer->description);
 		}
 		total_peers++;
 	}
@@ -12459,6 +12464,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				ast_string_field_set(peer, mohsuggest, v->value);
 			} else if (!strcasecmp(v->name, "dbsecret")) {
 				ast_string_field_set(peer, dbsecret, v->value);
+			} else if (!strcasecmp(v->name, "description")) {
+				ast_string_field_set(peer, description, v->value);
 			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag64(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag64(peer, IAX_TRUNK) && !timer) {

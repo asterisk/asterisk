@@ -23,6 +23,9 @@ Asterisk Manager Interface
    for chan_dahdi ISDN channels.
  * Added new action MeetmeListRooms to list active conferences (shows same
    data as "meetme list" at the CLI).
+ * DAHDIShowChannels, SIPshowpeer, SIPpeers, and IAXpeers now contains a
+   Description field that is set by 'description' in the channel configuration
+   file.
 
 Asterisk HTTP Server
 --------------------------
@@ -41,6 +44,9 @@ CLI Changes
    alternate configuration file to use.
  * 'dialplan add extension' command will now automatically create a context if
    the specified context does not exist with a message indicated it did so.
+ * 'sip show peers', 'iax show peers', and 'dahdi show peers' now contains a
+   Description field which can be populated with 'description' in the channel
+   configuration files (sip.conf, iax2.conf, and chan_dahdi.conf).
 
 CDR
 --------------------------

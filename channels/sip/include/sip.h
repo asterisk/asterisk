@@ -1157,6 +1157,7 @@ struct sip_peer {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(secret);       /*!< Password for inbound auth */
 		AST_STRING_FIELD(md5secret);    /*!< Password in MD5 */
+		AST_STRING_FIELD(description);	/*!< Description of this peer */
 		AST_STRING_FIELD(remotesecret); /*!< Remote secret (trunks, remote devices) */
 		AST_STRING_FIELD(context);      /*!< Default context for incoming calls */
 		AST_STRING_FIELD(subscribecontext); /*!< Default context for subscriptions */
