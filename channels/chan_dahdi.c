@@ -2920,18 +2920,21 @@ static int my_dial_digits(void *pvt, enum analog_sub sub, struct analog_dialoper
 		return -1;
 	}
 
-	if (sub != ANALOG_SUB_REAL)
-		printf("Trying to dial digits on sub %d\n", sub);
+	if (sub != ANALOG_SUB_REAL) {
+		ast_log(LOG_ERROR, "Trying to dial_digits '%s' on channel %d subchannel %d\n",
+			dop->dialstr, p->channel, sub);
+		return -1;
+	}
 
 	ddop.op = DAHDI_DIAL_OP_REPLACE;
-	strncpy(ddop.dialstr, dop->dialstr, sizeof(ddop.dialstr));
+	ast_copy_string(ddop.dialstr, dop->dialstr, sizeof(ddop.dialstr));
 
-	printf("Dialing %s on %d\n", ddop.dialstr, p->channel);
+	ast_debug(1, "Channel %d: Sending '%s' to DAHDI_DIAL.\n", p->channel, ddop.dialstr);
 
 	res = ioctl(p->subs[index].dfd, DAHDI_DIAL, &ddop);
-
-	if (res == -1)
-		ast_log(LOG_DEBUG, "DAHDI_DIAL ioctl failed on %s: %s\n", p->owner->name, strerror(errno));
+	if (res == -1) {
+		ast_debug(1, "DAHDI_DIAL ioctl failed on %s: %s\n", p->owner->name, strerror(errno));
+	}
 
 	return res;
 }
