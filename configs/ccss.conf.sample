@@ -6,12 +6,54 @@
 ;
 
 [general]
-; There is only a single option that may be defined in this file.
 ; The cc_max_requests option is a global limit on the number of
 ; CC requests that may be in the Asterisk system at any time.
 ;
 ;cc_max_requests = 20
 ;
+; The cc_STATE_devstate variables listed below can be used to change the
+; default mapping of the internal state machine tracking the state of
+; call completion to an Asterisk Device State value. The acceptable values
+; that can be provided are as follows, with a description of what the
+; equivalent device BLF that this maps to:
+;
+;	UNKNOWN      ; Device is valid but channel didn't know state
+;	NOT_INUSE    ; Device is not used
+;	INUSE        ; Device is in use
+;	BUSY         ; Device is busy
+;	INVALID      ; Device is invalid
+;	UNAVAILABLE  ; Device is unavailable
+;	RINGING      ; Device is ringing
+;	RINGINUSE    ; Device is ringing *and* in use
+;	ONHOLD       ; Device is on hold
+;
+; These states are used to generate DEVICE_STATE information that can be
+; included with Asterisk hints for phones to subscribe to the state information
+; or dialplan to check the state using the EXTENSION_STATE() function or
+; the DEVICE_STATE() function.
+;
+; The states are in the format of: "ccss:TECH/ID" so an example of device
+; SIP/3000 making a CallCompletionRequest() could be checked  by looking at
+; DEVICE_STATE(ccss:SIP/3000) or an Asterisk Hint could be generated such as
+;
+; [hint-context]
+; exten => *843000,hint,ccss:SIP/3000
+;
+; and then accessed with EXTENSION_STATE(*843000@hint-context)
+; or subscribed to with a BLF button on a phone.
+;
+; The available state mapping and default values are:
+;
+; cc_available_devstate = NOT_INUSE
+; cc_offered_devstate = NOT_INUSE
+; cc_caller_requested_devstate = NOT_INUSE
+; cc_active_devstate = INUSE
+; cc_callee_ready_devstate = INUSE
+; cc_caller_busy_devstate = ONHOLD
+; cc_recalling_devstate = RINGING
+; cc_complete_devstate = NOT_INUSE
+; cc_failed_devstate = NOT_INUSE
+
 ;
 ;============================================
 ;           PLEASE READ THIS!!!

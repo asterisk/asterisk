@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/event.h"
+#include "asterisk/devicestate.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 #include "asterisk/cli.h"
@@ -528,6 +529,111 @@ static int count_agents_cb(void *obj, void *arg, void *data, int flags)
 		cb_data->count++;
 	}
 	return 0;
+}
+
+/* default values mapping from cc_state to ast_dev_state */
+
+#define CC_AVAILABLE_DEVSTATE_DEFAULT        AST_DEVICE_NOT_INUSE
+#define CC_CALLER_OFFERED_DEVSTATE_DEFAULT   AST_DEVICE_NOT_INUSE
+#define CC_CALLER_REQUESTED_DEVSTATE_DEFAULT AST_DEVICE_NOT_INUSE
+#define CC_ACTIVE_DEVSTATE_DEFAULT           AST_DEVICE_INUSE
+#define CC_CALLEE_READY_DEVSTATE_DEFAULT     AST_DEVICE_RINGING
+#define CC_CALLER_BUSY_DEVSTATE_DEFAULT      AST_DEVICE_ONHOLD
+#define CC_RECALLING_DEVSTATE_DEFAULT        AST_DEVICE_RINGING
+#define CC_COMPLETE_DEVSTATE_DEFAULT         AST_DEVICE_NOT_INUSE
+#define CC_FAILED_DEVSTATE_DEFAULT           AST_DEVICE_NOT_INUSE
+
+/*!
+ * \internal
+ * \brief initialization of defaults for CC_STATE to DEVICE_STATE map
+ */
+static enum ast_device_state cc_state_to_devstate_map[] = {
+	[CC_AVAILABLE] =        CC_AVAILABLE_DEVSTATE_DEFAULT,
+	[CC_CALLER_OFFERED] =   CC_CALLER_OFFERED_DEVSTATE_DEFAULT,
+	[CC_CALLER_REQUESTED] = CC_CALLER_REQUESTED_DEVSTATE_DEFAULT,
+	[CC_ACTIVE] =           CC_ACTIVE_DEVSTATE_DEFAULT,
+	[CC_CALLEE_READY] =     CC_CALLEE_READY_DEVSTATE_DEFAULT,
+	[CC_CALLER_BUSY] =      CC_CALLER_BUSY_DEVSTATE_DEFAULT,
+	[CC_RECALLING] =        CC_RECALLING_DEVSTATE_DEFAULT,
+	[CC_COMPLETE] =         CC_COMPLETE_DEVSTATE_DEFAULT,
+	[CC_FAILED] =           CC_FAILED_DEVSTATE_DEFAULT,
+};
+
+/*!
+ * \intenral
+ * \brief lookup the ast_device_state mapped to cc_state
+ *
+ * \return the correponding DEVICE STATE from the cc_state_to_devstate_map
+ * when passed an internal state.
+ */
+static enum ast_device_state cc_state_to_devstate(enum cc_state state)
+{
+	return cc_state_to_devstate_map[state];
+}
+
+/*!
+ * \internal
+ * \brief Callback for devicestate providers
+ *
+ * \details
+ * Initialize with ast_devstate_prov_add() and returns the corresponding
+ * DEVICE STATE based on the current CC_STATE state machine if the requested
+ * device is found and is a generic device. Returns the equivalent of
+ * CC_FAILED, which defaults to NOT_INUSE, if no device is found.  NOT_INUSE would
+ * indicate that there is no presence of any pending call back.
+ */
+static enum ast_device_state ccss_device_state(const char *device_name)
+{
+	struct cc_core_instance *core_instance;
+	unsigned long match_flags;
+	enum ast_device_state cc_current_state;
+
+	match_flags = MATCH_NO_REQUEST;
+	core_instance = ao2_t_callback_data(cc_core_instances, 0, match_agent,
+		(char *) device_name, &match_flags,
+		"Find Core Instance for ccss_device_state reqeust.");
+	if (!core_instance) {
+		ast_log_dynamic_level(cc_logger_level,
+			"Couldn't find a core instance for caller %s\n", device_name);
+		return cc_state_to_devstate(CC_FAILED);
+	}
+
+	ast_log_dynamic_level(cc_logger_level,
+		"Core %d: Found core_instance for caller %s in state %s\n",
+		core_instance->core_id, device_name, cc_state_to_string(core_instance->current_state));
+
+	if (strcmp(core_instance->agent->callbacks->type, "generic")) {
+		ast_log_dynamic_level(cc_logger_level,
+			"Core %d: Device State is only for generic agent types.\n",
+			core_instance->core_id);
+		cc_unref(core_instance, "Unref core_instance since ccss_device_state was called with native agent");
+		return cc_state_to_devstate(CC_FAILED);
+	}
+	cc_current_state = cc_state_to_devstate(core_instance->current_state);
+	cc_unref(core_instance, "Unref core_instance done with ccss_device_state");
+	return cc_current_state;
+}
+
+/*!
+ * \internal
+ * \brief Notify Device State Changes from CC STATE MACHINE
+ *
+ * \details
+ * Any time a state is changed, we call this function to notify the DEVICE STATE
+ * subsystem of the change so that subscribed phones to any corresponding hints that
+ * are using that state are updated.
+ */
+static void ccss_notify_device_state_change(const char *device, enum cc_state state)
+{
+	enum ast_device_state devstate;
+
+	devstate = cc_state_to_devstate(state);
+
+	ast_log_dynamic_level(cc_logger_level,
+		"Notification of CCSS state change to '%s', device state '%s' for device '%s'",
+		cc_state_to_string(state), ast_devstate2str(devstate), device);
+
+	ast_devstate_changed(devstate, "ccss:%s", device);
 }
 
 #define CC_OFFER_TIMER_DEFAULT			20		/* Seconds */
@@ -3014,6 +3120,11 @@ static int cc_do_state_change(void *datap)
 	core_instance->current_state = args->state;
 	res = state_change_funcs[core_instance->current_state](core_instance, args, previous_state);
 
+	/* If state change successful then notify any device state watchers of the change */
+	if (!res && !strcmp(core_instance->agent->callbacks->type, "generic")) {
+		ccss_notify_device_state_change(core_instance->agent->device_name, core_instance->current_state);
+	}
+
 	ast_free(args);
 	cc_unref(core_instance, "Unref since state change has completed"); /* From ao2_find */
 	return res;
@@ -4102,6 +4213,59 @@ static void initialize_cc_max_requests(void)
 	return;
 }
 
+/*!
+ * \internal
+ * \brief helper function to parse and configure each devstate map
+ */
+static void initialize_cc_devstate_map_helper(struct ast_config *cc_config, enum cc_state state, const char *cc_setting)
+{
+	const char *cc_devstate_str;
+	enum ast_device_state this_devstate;
+
+	if ((cc_devstate_str = ast_variable_retrieve(cc_config, "general", cc_setting))) {
+		this_devstate = ast_devstate_val(cc_devstate_str);
+		if (this_devstate != AST_DEVICE_UNKNOWN) {
+			cc_state_to_devstate_map[state] = this_devstate;
+		}
+	}
+}
+
+/*!
+ * \internal
+ * \brief initializes cc_state_to_devstate_map from ccss.conf
+ *
+ * \details
+ * The cc_state_to_devstate_map[] is already initialized with all the
+ * default values. This will update that structure with any changes
+ * from the ccss.conf file. The configuration parameters in ccss.conf
+ * should use any valid device state form that is recognized by
+ * ast_devstate_val() function.
+ */
+static void initialize_cc_devstate_map(void)
+{
+	struct ast_config *cc_config;
+	struct ast_flags config_flags = { 0, };
+
+	cc_config = ast_config_load2("ccss.conf", "ccss", config_flags);
+	if (!cc_config || cc_config == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_WARNING,
+			"Could not find valid ccss.conf file. Using cc_[state]_devstate defaults\n");
+		return;
+	}
+
+	initialize_cc_devstate_map_helper(cc_config, CC_AVAILABLE, "cc_available_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_CALLER_OFFERED, "cc_caller_offered_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_CALLER_REQUESTED, "cc_caller_requested_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_ACTIVE, "cc_active_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_CALLEE_READY, "cc_callee_ready_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_CALLER_BUSY, "cc_caller_busy_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_RECALLING, "cc_recalling_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_COMPLETE, "cc_complete_devstate");
+	initialize_cc_devstate_map_helper(cc_config, CC_FAILED, "cc_failed_devstate");
+
+	ast_config_destroy(cc_config);
+}
+
 static void cc_cli_print_monitor_stats(struct ast_cc_monitor *monitor, int fd, int parent_id)
 {
 	struct ast_cc_monitor *child_monitor_iter = monitor;
@@ -4297,9 +4461,15 @@ int ast_cc_init(void)
 	res |= ast_register_application2(cccancel_app, cccancel_exec, NULL, NULL, NULL);
 	res |= ast_cc_monitor_register(&generic_monitor_cbs);
 	res |= ast_cc_agent_register(&generic_agent_callbacks);
+
 	ast_cli_register_multiple(cc_cli, ARRAY_LEN(cc_cli));
 	cc_logger_level = ast_logger_register_level(CC_LOGGER_LEVEL_NAME);
 	dialed_cc_interface_counter = 1;
 	initialize_cc_max_requests();
+
+	/* Read the map and register the device state callback for generic agents */
+	initialize_cc_devstate_map();
+	res |= ast_devstate_prov_add("ccss", ccss_device_state);
+
 	return res;
 }
