@@ -2311,7 +2311,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->f.delivery.tv_sec = 0;
 		rtp->f.delivery.tv_usec = 0;
 		/* Pass the RTP marker bit as bit */
-		ast_format_set_video_mark(&rtp->f.subclass.format);
+		if (mark) {
+			ast_format_set_video_mark(&rtp->f.subclass.format);
+		}
 	} else {
 		/* TEXT -- samples is # of samples vs. 1000 */
 		if (!rtp->lastitexttimestamp)
