@@ -3962,7 +3962,7 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 			strerror(errno));
 		return 0;
 	}
-	ast_udptl_set_far_max_datagram(pvt->udptl, 144);
+	ast_udptl_set_far_max_datagram(p->udptl, 144);
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
