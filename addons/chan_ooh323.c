@@ -483,7 +483,6 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	ast_mutex_init(&pvt->lock);
 	ast_mutex_lock(&pvt->lock);
 
-	ast_udptl_set_far_max_datagram(pvt->udptl, 144);
 	pvt->faxmode = 0;
 	pvt->t38support = gT38Support;
 	pvt->rtptimeout = gRTPTimeout;
@@ -3963,6 +3962,7 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 			strerror(errno));
 		return 0;
 	}
+	ast_udptl_set_far_max_datagram(pvt->udptl, 144);
 
 	if (p->owner) {
 		while (p->owner && ast_channel_trylock(p->owner)) {
