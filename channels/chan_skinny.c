@@ -1397,6 +1397,7 @@ static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
 static int skinny_reload(void);
+static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
 
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -3981,10 +3982,7 @@ static void *skinny_ss(void *data)
 					}
 					return NULL;
 				} else {
-					ast_copy_string(c->exten, d->exten, sizeof(c->exten));
-					ast_copy_string(l->lastnumberdialed, d->exten, sizeof(l->lastnumberdialed));
-					memset(d->exten, 0, sizeof(d->exten));
-					skinny_newcall(c);
+					setsubstate_ringout(c->tech_pvt, d->exten);
 					return NULL;
 				}
 			} else {
@@ -4772,6 +4770,40 @@ static void setsubstate_offhook(struct skinny_subchannel *sub)
 	}
 }
 
+static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+	struct ast_channel *c = sub->owner;
+	pthread_t t;
+	
+	if (ast_strlen_zero(exten) || !ast_exists_extension(c, c->context, exten, 1, l->cid_num)) {
+		ast_log(LOG_WARNING, "Exten (%s) does not exist, unable to set substate DIALING on sub %d\n", exten, sub->callid);
+		return;
+	}
+
+	if (l->hookstate == SKINNY_ONHOOK) {
+		l->hookstate = SKINNY_OFFHOOK;
+		transmit_speaker_mode(d, SKINNY_SPEAKERON);
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
+		transmit_activatecallplane(d, l);
+	}
+	transmit_stop_tone(d, l->instance, sub->callid);
+	transmit_clear_display_message(d, l->instance, sub->callid);
+	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
+
+	ast_copy_string(c->exten, exten, sizeof(c->exten));
+	ast_copy_string(l->lastnumberdialed, exten, sizeof(l->lastnumberdialed));
+	memset(d->exten, 0, sizeof(d->exten));
+
+	sub->substate = SUBSTATE_RINGOUT;
+	
+	if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
+		ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
+		ast_hangup(c);
+	}
+}
+
 static void setsubstate_connected(struct skinny_subchannel *sub)
 {
 	struct skinny_line *l = sub->parent;
@@ -5034,7 +5066,6 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 	struct skinny_subchannel *sub;
 	/*struct skinny_speeddial *sd;*/
 	struct ast_channel *c;
-	pthread_t t;
 	int event;
 	int instance;
 	int callreference;
@@ -5076,23 +5107,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			sub = c->tech_pvt;
 			l = sub->parent;
 			l->activesub = sub;
-			if (l->hookstate == SKINNY_ONHOOK) {
-				l->hookstate = SKINNY_OFFHOOK;
-				transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-				transmit_activatecallplane(d, l);
-			}
-			transmit_clear_display_message(d, l->instance, sub->callid);
-			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
-
-			if (!ast_ignore_pattern(c->context, l->lastnumberdialed)) {
-				transmit_stop_tone(d, l->instance, sub->callid);
-			}
-			ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
-			if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
-				ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
-				ast_hangup(c);
-			}
+			setsubstate_ringout(sub, l->lastnumberdialed);
 		}
 		break;
 	case STIMULUS_SPEEDDIAL:
@@ -5116,29 +5131,8 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			sub = c->tech_pvt;
 			l = sub->parent;
 			l->activesub = sub;
-			if (l->hookstate == SKINNY_ONHOOK) {
-				l->hookstate = SKINNY_OFFHOOK;
-				transmit_speaker_mode(d, SKINNY_SPEAKERON);
-				transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-				transmit_activatecallplane(d, l);
-			}
-			transmit_clear_display_message(d, l->instance, sub->callid);
-			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
-
-			if (!ast_ignore_pattern(c->context, sd->exten)) {
-				transmit_stop_tone(d, l->instance, sub->callid);
-			}
-			if (ast_exists_extension(c, c->context, sd->exten, 1, l->cid_num)) {
-				ast_copy_string(c->exten, sd->exten, sizeof(c->exten));
-				ast_copy_string(l->lastnumberdialed, sd->exten, sizeof(l->lastnumberdialed));
-
-				if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
-					ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
-					ast_hangup(c);
-				}
-				break;
-			}
+			
+			setsubstate_ringout(sub, sd->exten);
 		}
 	    }
 		break;
@@ -5175,34 +5169,9 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			sub = c->tech_pvt;
 			l = sub->parent;
 			l->activesub = sub;
+			
+			setsubstate_ringout(sub,l->vmexten);
 
-			if (ast_strlen_zero(l->vmexten))  /* Exit the call if no VM pilot */
-				break;
-
-			if (l->hookstate == SKINNY_ONHOOK){
-				l->hookstate = SKINNY_OFFHOOK;
-				transmit_speaker_mode(d, SKINNY_SPEAKERON);
-				transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-				transmit_activatecallplane(d, l);
-			}
-
-			transmit_clear_display_message(d, l->instance, sub->callid);
-			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
-
-			if (!ast_ignore_pattern(c->context, l->vmexten)) {
-				transmit_stop_tone(d, l->instance, sub->callid);
-			}
-
-			if (ast_exists_extension(c, c->context, l->vmexten, 1, l->cid_num)) {
-				ast_copy_string(c->exten, l->vmexten, sizeof(c->exten));
-				ast_copy_string(l->lastnumberdialed, l->vmexten, sizeof(l->lastnumberdialed));
-				if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
-					ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
-					ast_hangup(c);
-				}
-				break;
-			}
 		}
 		break;
 	case STIMULUS_CALLPARK:
@@ -5772,7 +5741,6 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 	struct skinny_line *l;
 	struct skinny_subchannel *sub = NULL;
 	struct ast_channel *c;
-	pthread_t t;
 
 	if (skinnydebug)
 		ast_verb(1, "Received Enbloc Call: %s\n", req->data.enbloccallmessage.calledParty);
@@ -5797,19 +5765,7 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 
 		sub = c->tech_pvt;
 		l->activesub = sub;
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-		transmit_activatecallplane(d, l);
-		transmit_clear_display_message(d, l->instance, sub->callid);
-		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-
-		if (!ast_ignore_pattern(c->context, req->data.enbloccallmessage.calledParty)) {
-			transmit_stop_tone(d, l->instance, sub->callid);
-		}
-		ast_copy_string(c->exten, req->data.enbloccallmessage.calledParty, sizeof(c->exten));
-		if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
-			ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
-			ast_hangup(c);
-		}
+		setsubstate_ringout(sub, req->data.enbloccallmessage.calledParty);
 	}
 	
 	return 1;
@@ -5822,7 +5778,6 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	struct skinny_line *l;
 	struct skinny_subchannel *sub = NULL;
 	struct ast_channel *c;
-	pthread_t t;
 	int event;
 	int instance;
 	int callreference;
@@ -5875,24 +5830,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		} else {
 			sub = c->tech_pvt;
 			l->activesub = sub;
-			if (l->hookstate == SKINNY_ONHOOK) {
-				l->hookstate = SKINNY_OFFHOOK;
-				transmit_speaker_mode(d, SKINNY_SPEAKERON);
-				transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-				transmit_activatecallplane(d, l);
-			}
-			transmit_clear_display_message(d, l->instance, sub->callid);
-			transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-			transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
-
-			if (!ast_ignore_pattern(c->context, l->lastnumberdialed)) {
-				transmit_stop_tone(d, l->instance, sub->callid);
-			}
-			ast_copy_string(c->exten, l->lastnumberdialed, sizeof(c->exten));
-			if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
-				ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
-				ast_hangup(c);
-			}
+			setsubstate_ringout(sub, l->lastnumberdialed);
 		}
 		break;
 	case SOFTKEY_NEWCALL:  /* Actually the DIAL softkey */
