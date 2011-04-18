@@ -7436,6 +7436,72 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
 	return SIP_REQ_MATCH;
 }
 
+/*! \internal
+ *
+ * \brief Locks both pvt and pvt owner if owner is present.
+ *
+ * \note This function gives a ref to pvt->owner if it is present and locked.
+ *       This reference must be decremented after pvt->owner is unlocked.
+ *
+ * \note This function will never give you up,
+ * \note This function will never let you down.
+ * \note This function will run around and desert you.
+ *
+ * \pre vpt is not locked
+ * \post pvt is locked
+ * \post pvt->owner is locked and its reference count is increased (if pvt->owner is not NULL)
+ *
+ * \returns a pointer to the locked and reffed pvt->owner channel if it exists.
+ */
+static struct ast_channel *sip_pvt_lock_full(struct sip_pvt *pvt)
+{
+	struct ast_channel *chan;
+
+	/* Locking is simple when it is done right.  If you see a deadlock resulting
+	 * in this function, it is not this function's fault, Your problem exists elsewhere.
+	 * This function is perfect... seriously. */
+	for (;;) {
+		/* First, get the channel and grab a reference to it */
+		sip_pvt_lock(pvt);
+		chan = pvt->owner;
+		if (chan) {
+			/* The channel can not go away while we hold the pvt lock.
+			 * Give the channel a ref so it will not go away after we let
+			 * the pvt lock go. */
+			ast_channel_ref(chan);
+		} else {
+			/* no channel, return pvt locked */
+			return NULL;
+		}
+
+		/* We had to hold the pvt lock while getting a ref to the owner channel
+		 * but now we have to let this lock go in order to preserve proper
+		 * locking order when grabbing the channel lock */
+		sip_pvt_unlock(pvt);
+
+		/* Look, no deadlock avoidance, hooray! */
+		ast_channel_lock(chan);
+		sip_pvt_lock(pvt);
+
+		if (pvt->owner == chan) {
+			/* done */
+			break;
+		}
+
+		/* If the owner changed while everything was unlocked, no problem,
+		 * just start over and everthing will work.  This is rare, do not be
+		 * confused by this loop and think this it is an expensive operation.
+		 * The majority of the calls to this function will never involve multiple
+		 * executions of this loop. */
+		ast_channel_unlock(chan);
+		ast_channel_unref(chan);
+		sip_pvt_unlock(pvt);
+	}
+
+	/* If owner exists, it is locked and reffed */
+	return pvt->owner;
+}
+
 /*! \brief find or create a dialog structure for an incoming SIP message.
  * Connect incoming SIP message to current dialog or create new dialog structure
  * Returns a reference to the sip_pvt object, remember to give it back once done.
@@ -7497,7 +7563,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER, "ao2_find in dialogs");
 		if (sip_pvt_ptr) {  /* well, if we don't find it-- what IS in there? */
 			/* Found the call */
-			sip_pvt_lock(sip_pvt_ptr);
 			return sip_pvt_ptr;
 		}
 	} else { /* in pedantic mode! -- do the fancy search */
@@ -7539,7 +7604,6 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 
 			switch (found) {
 			case SIP_REQ_MATCH:
-				sip_pvt_lock(sip_pvt_ptr);
 				ao2_iterator_destroy(iterator);
 				free_via(via);
 				return sip_pvt_ptr; /* return pvt with ref */
@@ -7570,23 +7634,19 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		if (intended_method == SIP_REFER) {
 			/* We do support REFER, but not outside of a dialog yet */
 			transmit_response_using_temp(callid, addr, 1, intended_method, req, "603 Declined (no dialog)");
-		} else {
-			/* Ok, time to create a new SIP dialog object, a pvt */
-			if ((p = sip_alloc(callid, addr, 1, intended_method, req)))  {
-				/* Ok, we've created a dialog, let's go and process it */
-				sip_pvt_lock(p);
-			} else {
-				/* We have a memory or file/socket error (can't allocate RTP sockets or something) so we're not
-					getting a dialog from sip_alloc.
 	
-					Without a dialog we can't retransmit and handle ACKs and all that, but at least
-					send an error message.
-	
-					Sorry, we apologize for the inconvienience
-				*/
-				transmit_response_using_temp(callid, addr, 1, intended_method, req, "500 Server internal error");
-				ast_debug(4, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
-			}
+		/* Ok, time to create a new SIP dialog object, a pvt */
+		} else if (!(p = sip_alloc(callid, addr, 1, intended_method, req)))  {
+			/* We have a memory or file/socket error (can't allocate RTP sockets or something) so we're not
+				getting a dialog from sip_alloc.
+
+				Without a dialog we can't retransmit and handle ACKs and all that, but at least
+				send an error message.
+
+				Sorry, we apologize for the inconvienience
+			*/
+			transmit_response_using_temp(callid, addr, 1, intended_method, req, "500 Server internal error");
+			ast_debug(4, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
 		}
 		return p; /* can be NULL */
 	} else if( sip_methods[intended_method].can_create == CAN_CREATE_DIALOG_UNSUPPORTED_METHOD) {
@@ -23929,93 +23989,6 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 	return res;
 }
 
-static void process_request_queue(struct sip_pvt *p, int *recount, int *nounlock)
-{
-	struct sip_request *req;
-
-	while ((req = AST_LIST_REMOVE_HEAD(&p->request_queue, next))) {
-		if (handle_incoming(p, req, &p->recv, recount, nounlock) == -1) {
-			/* Request failed */
-			ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
-		}
-		ast_free(req);
-	}
-}
-
-static int scheduler_process_request_queue(const void *data)
-{
-	struct sip_pvt *p = (struct sip_pvt *) data;
-	int recount = 0;
-	int nounlock = 0;
-	int lockretry;
-
-	for (lockretry = 10; lockretry > 0; lockretry--) {
-		sip_pvt_lock(p);
-
-		/* lock the owner if it has one -- we may need it */
-		/* because this is deadlock-prone, we need to try and unlock if failed */
-		if (!p->owner || !ast_channel_trylock(p->owner)) {
-			break;	/* locking succeeded */
-		}
-
-		if (lockretry != 1) {
-			sip_pvt_unlock(p);
-			/* Sleep for a very short amount of time */
-			usleep(1);
-		}
-	}
-
-	if (!lockretry) {
-		int retry = !AST_LIST_EMPTY(&p->request_queue);
-
-		/* we couldn't get the owner lock, which is needed to process
-		   the queued requests, so return a non-zero value, which will
-		   cause the scheduler to run this request again later if there
-		   still requests to be processed
-		*/
-		sip_pvt_unlock(p);
-		if (!retry) {
-			dialog_unref(p, "The ref to a dialog passed to this sched callback is going out of scope; unref it.");
-		}
-		return retry;
-	};
-
-	process_request_queue(p, &recount, &nounlock);
-	p->request_queue_sched_id = -1;
-
-	if (p->owner && !nounlock) {
-		ast_channel_unlock(p->owner);
-	}
-	sip_pvt_unlock(p);
-
-	if (recount) {
-		ast_update_use_count();
-	}
-
-	dialog_unref(p, "The ref to a dialog passed to this sched callback is going out of scope; unref it.");
-
-	return 0;
-}
-
-static int queue_request(struct sip_pvt *p, const struct sip_request *req)
-{
-	struct sip_request *newreq;
-
-	if (!(newreq = ast_calloc(1, sizeof(*newreq)))) {
-		return -1;
-	}
-
-	copy_request(newreq, req);
-	AST_LIST_INSERT_TAIL(&p->request_queue, newreq, next);
-	if (p->request_queue_sched_id == -1) {
-		if ((p->request_queue_sched_id = ast_sched_add(sched, 10, scheduler_process_request_queue, dialog_ref(p, "Increment refcount to pass dialog pointer to sched callback"))) == -1) {
-			dialog_unref(p, "Decrement refcount due to sched_add failure");
-		}
-	}
-
-	return 0;
-}
-
 /*! \brief Read data from SIP UDP socket
 \note sipsock_read locks the owner channel while we are processing the SIP message
 \return 1 on error, 0 on success
@@ -24070,9 +24043,9 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 {
 	struct sip_pvt *p;
+	struct ast_channel *owner_chan_ref = NULL;
 	int recount = 0;
 	int nounlock = 0;
-	int lockretry;
 
 	if (sip_debug_test_addr(addr))	/* Set the debug flag early on packet level */
 		req->debug = 1;
@@ -24098,80 +24071,45 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 	}
 
 	/* Process request, with netlock held, and with usual deadlock avoidance */
-	for (lockretry = 10; lockretry > 0; lockretry--) {
-		ast_mutex_lock(&netlock);
+	ast_mutex_lock(&netlock);
 
-		/* Find the active SIP dialog or create a new one */
-		p = find_call(req, addr, req->method);	/* returns p locked */
-		if (p == NULL) {
-			ast_debug(1, "Invalid SIP message - rejected , no callid, len %d\n", req->len);
-			ast_mutex_unlock(&netlock);
-			return 1;
-		}
-
-		copy_socket_data(&p->socket, &req->socket);
-
-		/* Go ahead and lock the owner if it has one -- we may need it */
-		/* becaues this is deadlock-prone, we need to try and unlock if failed */
-		if (!p->owner || !ast_channel_trylock(p->owner))
-			break;	/* locking succeeded */
-
-		if (lockretry != 1) {
-			sip_pvt_unlock(p);
-			ao2_t_ref(p, -1, "release p (from find_call) inside lockretry loop"); /* we'll look for it again, but p is dead now */
-			ast_mutex_unlock(&netlock);
-			/* Sleep for a very short amount of time */
-			usleep(1);
-		}
+	/* Find the active SIP dialog or create a new one */
+	p = find_call(req, addr, req->method);	/* returns p with a reference only. _NOT_ locked*/
+	if (p == NULL) {
+		ast_debug(1, "Invalid SIP message - rejected , no callid, len %d\n", req->len);
+		ast_mutex_unlock(&netlock);
+		return 1;
 	}
+
+	/* Lock both the pvt and the owner if owner is present.  This will
+	 * not fail. */
+	owner_chan_ref = sip_pvt_lock_full(p);
+
+	copy_socket_data(&p->socket, &req->socket);
 	ast_sockaddr_copy(&p->recv, addr);
 
 	if (p->do_history) /* This is a request or response, note what it was for */
 		append_history(p, "Rx", "%s / %s / %s", req->data->str, get_header(req, "CSeq"), REQ_OFFSET_TO_STR(req, rlPart2));
 
-	if (!lockretry) {
-		if (!queue_request(p, req)) {
-			/* the request has been queued for later handling */
-			sip_pvt_unlock(p);
-			ao2_t_ref(p, -1, "release p (from find_call) after queueing request");
-			ast_mutex_unlock(&netlock);
-			return 1;
-		}
-
-		if (p->owner)
-			ast_log(LOG_ERROR, "Channel lock for %s could not be obtained, and request was unable to be queued.\n", S_OR(p->owner->name, "- no channel name ??? - "));
-		ast_log(LOG_ERROR, "SIP transaction failed: %s \n", p->callid);
-		if (req->method != SIP_ACK)
-			transmit_response(p, "503 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
-		/* XXX We could add retry-after to make sure they come back */
-		append_history(p, "LockFail", "Owner lock failed, transaction failed.");
-		sip_pvt_unlock(p);
-		ao2_t_ref(p, -1, "release p (from find_call) at end of lockretry"); /* p is gone after the return */
-		ast_mutex_unlock(&netlock);
-		return 1;
-	}
-
-	/* if there are queued requests on this sip_pvt, process them first, so that everything is
-	   handled in order
-	*/
-	if (!AST_LIST_EMPTY(&p->request_queue)) {
-		AST_SCHED_DEL_UNREF(sched, p->request_queue_sched_id, dialog_unref(p, "when you delete the request_queue_sched_id sched, you should dec the refcount for the stored dialog ptr"));
-		process_request_queue(p, &recount, &nounlock);
-	}
-
 	if (handle_incoming(p, req, addr, &recount, &nounlock) == -1) {
 		/* Request failed */
 		ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 	}
-		
-	if (recount)
-		ast_update_use_count();
 
-	if (p->owner && !nounlock)
+	if (recount) {
+		ast_update_use_count();
+	}
+
+	if (p->owner && !nounlock) {
 		ast_channel_unlock(p->owner);
+	}
+	if (owner_chan_ref) {
+		ast_channel_unref(owner_chan_ref);
+	}
 	sip_pvt_unlock(p);
 	ao2_t_ref(p, -1, "throw away dialog ptr from find_call at end of routine"); /* p is gone after the return */
 	ast_mutex_unlock(&netlock);
+
 	return 1;
 }
 
