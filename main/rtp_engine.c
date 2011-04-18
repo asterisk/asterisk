@@ -501,8 +501,8 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		}
 
 		/* if both sample rates have been supplied, and they don't match,
-		                      then this not a match; if one has not been supplied, then the
-				      rates are not compared */
+		 * then this not a match; if one has not been supplied, then the
+		 * rates are not compared */
 		if (sample_rate && t->sample_rate &&
 		    (sample_rate != t->sample_rate)) {
 			continue;

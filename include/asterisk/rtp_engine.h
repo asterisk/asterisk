@@ -968,7 +968,8 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
  * \param options Optional options that may change the behavior of this specific payload
  *
  * \retval 0 success
- * \retval -1 failure
+ * \retval -1 failure, invalid payload numbe
+ * \retval -2 failure, unknown mimetype
  *
  * Example usage:
  *

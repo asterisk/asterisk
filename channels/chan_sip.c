@@ -9092,8 +9092,8 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 	} else if (sscanf(a, "rtpmap: %30u %127[^/]/%30u", &codec, mimeSubtype, &sample_rate) == 3) {
 		/* We have a rtpmap to handle */
 		if (*last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
-			if (ast_rtp_codecs_payloads_set_rtpmap_type_rate(newaudiortp, NULL, codec, "audio", mimeSubtype,
-			    ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0, sample_rate) != -1) {
+			if (!(ast_rtp_codecs_payloads_set_rtpmap_type_rate(newaudiortp, NULL, codec, "audio", mimeSubtype,
+			    ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0, sample_rate))) {
 				if (debug)
 					ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
 				//found_rtpmap_codecs[last_rtpmap_codec] = codec;
@@ -9179,7 +9179,7 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_
 		if (*last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
 			/* Note: should really look at the '#chans' params too */
 			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {
-				if (ast_rtp_codecs_payloads_set_rtpmap_type_rate(newvideortp, NULL, codec, "video", mimeSubtype, 0, sample_rate) != -1) {
+				if (!(ast_rtp_codecs_payloads_set_rtpmap_type_rate(newvideortp, NULL, codec, "video", mimeSubtype, 0, sample_rate))) {
 					if (debug)
 						ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
 					//found_rtpmap_codecs[last_rtpmap_codec] = codec;
