@@ -8145,18 +8145,20 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
  * \since 1.8
  *
  * \param pri PRI span control structure.
+ * \param vm_number Voicemail controlling number (NULL if not present).
  * \param mbox_number Mailbox number
  * \param mbox_context Mailbox context
  * \param num_messages Number of messages waiting.
  *
  * \return Nothing
  */
-static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *mbox_number, const char *mbox_context, int num_messages)
+static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm_number, const char *mbox_number, const char *mbox_context, int num_messages)
 {
+	struct pri_party_id voicemail;
 	struct pri_party_id mailbox;
 
-	ast_debug(1, "Send MWI indication for %s@%s num_messages:%d\n", mbox_number,
-		mbox_context, num_messages);
+	ast_debug(1, "Send MWI indication for %s@%s vm_number:%s num_messages:%d\n",
+		mbox_number, mbox_context, S_OR(vm_number, "<not-present>"), num_messages);
 
 	memset(&mailbox, 0, sizeof(mailbox));
 	mailbox.number.valid = 1;
@@ -8164,8 +8166,21 @@ static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *mb
 	mailbox.number.plan = (PRI_TON_UNKNOWN << 4) | PRI_NPI_UNKNOWN;
 	ast_copy_string(mailbox.number.str, mbox_number, sizeof(mailbox.number.str));
 
+	memset(&voicemail, 0, sizeof(voicemail));
+	voicemail.number.valid = 1;
+	voicemail.number.presentation = PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	voicemail.number.plan = (PRI_TON_UNKNOWN << 4) | PRI_NPI_UNKNOWN;
+	if (vm_number) {
+		ast_copy_string(voicemail.number.str, vm_number, sizeof(voicemail.number.str));
+	}
+
 	ast_mutex_lock(&pri->lock);
+#if defined(HAVE_PRI_MWI_V2)
+	pri_mwi_indicate_v2(pri->pri, &mailbox, &voicemail, 1 /* speech */, num_messages,
+		NULL, NULL, -1, 0);
+#else	/* !defined(HAVE_PRI_MWI_V2) */
 	pri_mwi_indicate(pri->pri, &mailbox, 1 /* speech */, num_messages, NULL, NULL, -1, 0);
+#endif	/* !defined(HAVE_PRI_MWI_V2) */
 	ast_mutex_unlock(&pri->lock);
 }
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -8187,6 +8202,7 @@ static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
 	const char *mbox_context;
 	const char *mbox_number;
 	int num_messages;
+	int idx;
 
 	mbox_number = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
 	if (ast_strlen_zero(mbox_number)) {
@@ -8197,7 +8213,20 @@ static void sig_pri_mwi_event_cb(const struct ast_event *event, void *userdata)
 		return;
 	}
 	num_messages = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-	sig_pri_send_mwi_indication(pri, mbox_number, mbox_context, num_messages);
+
+	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
+		if (!pri->mbox[idx].sub) {
+			/* Mailbox slot is empty */
+			continue;
+		}
+		if (!strcmp(pri->mbox[idx].number, mbox_number)
+			&& !strcmp(pri->mbox[idx].context, mbox_context)) {
+			/* Found the mailbox. */
+			sig_pri_send_mwi_indication(pri, pri->mbox[idx].vm_number, mbox_number,
+				mbox_context, num_messages);
+			break;
+		}
+	}
 }
 #endif	/* defined(HAVE_PRI_MWI) */
 
@@ -8219,8 +8248,8 @@ static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
 		if (!pri->mbox[idx].sub) {
-			/* There are no more mailboxes on this span. */
-			break;
+			/* Mailbox slot is empty */
+			continue;
 		}
 
 		event = ast_event_get_cached(AST_EVENT_MWI,
@@ -8232,8 +8261,8 @@ static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 			continue;
 		}
 		num_messages = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		sig_pri_send_mwi_indication(pri, pri->mbox[idx].number, pri->mbox[idx].context,
-			num_messages);
+		sig_pri_send_mwi_indication(pri, pri->mbox[idx].vm_number, pri->mbox[idx].number,
+			pri->mbox[idx].context, num_messages);
 		ast_event_destroy(event);
 	}
 }
@@ -8318,8 +8347,7 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 	int i;
 #if defined(HAVE_PRI_MWI)
 	char *saveptr;
-	char *mbox_number;
-	char *mbox_context;
+	char *prev_vm_number;
 	struct ast_str *mwi_description = ast_str_alloca(64);
 #endif	/* defined(HAVE_PRI_MWI) */
 
@@ -8337,14 +8365,40 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 
 #if defined(HAVE_PRI_MWI)
 	/*
+	 * Split the mwi_vm_numbers configuration string into the mbox[].vm_number:
+	 * vm_number{,vm_number}
+	 */
+	prev_vm_number = NULL;
+	saveptr = pri->mwi_vm_numbers;
+	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
+		char *vm_number;
+
+		vm_number = strsep(&saveptr, ",");
+		if (vm_number) {
+			vm_number = ast_strip(vm_number);
+		}
+		if (ast_strlen_zero(vm_number)) {
+			/* There was no number so reuse the previous number. */
+			vm_number = prev_vm_number;
+		} else {
+			/* We have a new number. */
+			prev_vm_number = vm_number;
+		}
+		pri->mbox[i].vm_number = vm_number;
+	}
+
+	/*
 	 * Split the mwi_mailboxes configuration string into the mbox[]:
 	 * mailbox_number[@context]{,mailbox_number[@context]}
 	 */
-	i = 0;
 	saveptr = pri->mwi_mailboxes;
-	while (i < ARRAY_LEN(pri->mbox)) {
+	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
+		char *mbox_number;
+		char *mbox_context;
+
 		mbox_number = strsep(&saveptr, ",");
 		if (!mbox_number) {
+			/* No more defined mailboxes. */
 			break;
 		}
 		/* Split the mailbox_number and context */
@@ -8364,6 +8418,8 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 		}
 
 		/* Fill the mbox[] element. */
+		pri->mbox[i].number = mbox_number;
+		pri->mbox[i].context = mbox_context;
 		ast_str_set(&mwi_description, -1, "%s span %d[%d] MWI mailbox %s@%s",
 			sig_pri_cc_type_name, pri->span, i, mbox_number, mbox_context);
 		pri->mbox[i].sub = ast_event_subscribe(AST_EVENT_MWI, sig_pri_mwi_event_cb,
@@ -8374,11 +8430,13 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 		if (!pri->mbox[i].sub) {
 			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s@%s.",
 				sig_pri_cc_type_name, pri->span, mbox_number, mbox_context);
-			continue;
 		}
-		pri->mbox[i].number = mbox_number;
-		pri->mbox[i].context = mbox_context;
-		++i;
+#if defined(HAVE_PRI_MWI_V2)
+		if (ast_strlen_zero(pri->mbox[i].vm_number)) {
+			ast_log(LOG_WARNING, "%s span %d MWI voicemail number for %s@%s is empty.\n",
+				sig_pri_cc_type_name, pri->span, mbox_number, mbox_context);
+		}
+#endif	/* defined(HAVE_PRI_MWI_V2) */
 	}
 #endif	/* defined(HAVE_PRI_MWI) */
 

@@ -359,12 +359,22 @@ struct sig_pri_chan {
 #if defined(HAVE_PRI_MWI)
 /*! Maximum number of mailboxes per span. */
 #define SIG_PRI_MAX_MWI_MAILBOXES			8
+/*! Typical maximum length of mwi voicemail controlling number */
+#define SIG_PRI_MAX_MWI_VM_NUMBER_LEN		10	/* digits in number */
 /*! Typical maximum length of mwi mailbox number */
 #define SIG_PRI_MAX_MWI_MBOX_NUMBER_LEN		10	/* digits in number */
 /*! Typical maximum length of mwi mailbox context */
 #define SIG_PRI_MAX_MWI_CONTEXT_LEN			10
 /*!
- * \brief Maximum mwi_mailbox string length.
+ * \brief Maximum mwi_vm_numbers string length.
+ * \details
+ * max_length = #mailboxes * (vm_number + ',')
+ * The last ',' is a null terminator instead.
+ */
+#define SIG_PRI_MAX_MWI_VM_NUMBER_STR	(SIG_PRI_MAX_MWI_MAILBOXES \
+	* (SIG_PRI_MAX_MWI_VM_NUMBER_LEN + 1))
+/*!
+ * \brief Maximum mwi_mailboxs string length.
  * \details
  * max_length = #mailboxes * (mbox_number + '@' + context + ',')
  * The last ',' is a null terminator instead.
@@ -382,6 +392,8 @@ struct sig_pri_mbox {
 	const char *number;
 	/*! \brief Mailbox context. */
 	const char *context;
+	/*! \brief Voicemail controlling number. */
+	const char *vm_number;
 };
 #endif	/* defined(HAVE_PRI_MWI) */
 
@@ -453,6 +465,12 @@ struct sig_pri_span {
 	 * \note String is split apart when span is started.
 	 */
 	char mwi_mailboxes[SIG_PRI_MAX_MWI_MAILBOX_STR];
+	/*!
+	 * \brief Comma separated list of voicemail access controlling numbers for MWI.
+	 * \note Format: vm_number{,vm_number}
+	 * \note String is split apart when span is started.
+	 */
+	char mwi_vm_numbers[SIG_PRI_MAX_MWI_VM_NUMBER_STR];
 #endif	/* defined(HAVE_PRI_MWI) */
 	/*!
 	 * \brief Initial user tag for party id's sent from this device driver.

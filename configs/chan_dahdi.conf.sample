@@ -581,13 +581,28 @@ callwaiting=yes
 ; Allow incoming ISDN call waiting calls.
 ; A call waiting call is a SETUP message with no B channel selected.
 ;allow_call_waiting_calls=no
-;
+
 ; Configure the ISDN span to indicate MWI for the list of mailboxes.
 ; You can give a comma separated list of up to 8 mailboxes per span.
 ; An empty list disables MWI.
 ; The default is an empty list.
 ;mwi_mailboxes=mailbox_number[@context]{,mailbox_number[@context]}
 ;
+; Configure the ISDN span voicemail numbers for MWI mailboxes.  What number
+; to call for a user to retrieve voicemail messages.
+;
+; You can give a comma separated list of numbers.  The position of the number
+; corresponds to the position in mwi_mailboxes.  If a position is empty then
+; the last number is reused.
+;
+; For example:
+;  mwi_vm_numbers=700,,800,,900
+; is equivalent to:
+;  mwi_vm_numbers=700,700,800,800,900
+;
+; The default is no number.
+;mwi_vm_numbers=
+
 ; Whether or not restrict outgoing caller ID (will be sent as ANI only, not
 ; available for the user)
 ; Mostly use with FXS ports

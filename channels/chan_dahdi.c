@@ -12457,6 +12457,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						ast_copy_string(pris[span].pri.mwi_mailboxes,
 							conf->pri.pri.mwi_mailboxes,
 							sizeof(pris[span].pri.mwi_mailboxes));
+						ast_copy_string(pris[span].pri.mwi_vm_numbers,
+							conf->pri.pri.mwi_vm_numbers,
+							sizeof(pris[span].pri.mwi_vm_numbers));
 #endif	/* defined(HAVE_PRI_MWI) */
 						ast_copy_string(pris[span].pri.idledial, conf->pri.pri.idledial, sizeof(pris[span].pri.idledial));
 						ast_copy_string(pris[span].pri.idleext, conf->pri.pri.idleext, sizeof(pris[span].pri.idleext));
@@ -17511,6 +17514,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "mwi_mailboxes")) {
 				ast_copy_string(confp->pri.pri.mwi_mailboxes, v->value,
 					sizeof(confp->pri.pri.mwi_mailboxes));
+			} else if (!strcasecmp(v->name, "mwi_vm_numbers")) {
+				ast_copy_string(confp->pri.pri.mwi_vm_numbers, v->value,
+					sizeof(confp->pri.pri.mwi_vm_numbers));
 #endif	/* defined(HAVE_PRI_MWI) */
 			} else if (!strcasecmp(v->name, "append_msn_to_cid_tag")) {
 				confp->pri.pri.append_msn_to_user_tag = ast_true(v->value);
