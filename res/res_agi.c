@@ -916,6 +916,9 @@ static int agidebug = 0;
 
 #define AGI_PORT 4573
 
+/*! Special return code for "asyncagi break" command. */
+#define ASYNC_AGI_BREAK	3
+
 enum agi_result {
 	AGI_RESULT_FAILURE = -1,
 	AGI_RESULT_SUCCESS,
@@ -1184,6 +1187,44 @@ static int action_add_agi_cmd(struct mansession *s, const struct message *m)
 static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int dead);
 static void setup_env(struct ast_channel *chan, char *request, int fd, int enhanced, int argc, char *argv[]);
 
+/*!
+ * \internal
+ * \brief Read and handle a channel frame for Async AGI.
+ *
+ * \param chan Channel to read a frame from.
+ *
+ * \retval AGI_RESULT_SUCCESS on success.
+ * \retval AGI_RESULT_HANGUP on hangup.
+ * \retval AGI_RESULT_FAILURE on error.
+ */
+static enum agi_result async_agi_read_frame(struct ast_channel *chan)
+{
+	struct ast_frame *f;
+
+	f = ast_read(chan);
+	if (!f) {
+		ast_debug(3, "No frame read on channel %s, going out ...\n", chan->name);
+		return AGI_RESULT_HANGUP;
+	}
+	if (f->frametype == AST_FRAME_CONTROL) {
+		/*
+		 * Is there any other frame we should care about besides
+		 * AST_CONTROL_HANGUP?
+		 */
+		switch (f->subclass.integer) {
+		case AST_CONTROL_HANGUP:
+			ast_debug(3, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
+			ast_frfree(f);
+			return AGI_RESULT_HANGUP;
+		default:
+			break;
+		}
+	}
+	ast_frfree(f);
+
+	return AGI_RESULT_SUCCESS;
+}
+
 static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], int *efd)
 {
 /* This buffer sizes might cause truncation if the AGI command writes more data
@@ -1205,13 +1246,15 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
  */
 #define AGI_BUF_SIZE 1024
 #define AMI_BUF_SIZE 2048
-	struct ast_frame *f;
+	enum agi_result cmd_status;
 	struct agi_cmd *cmd;
-	int res, fds[2];
+	int res;
+	int fds[2];
+	int hungup;
 	int timeout = 100;
 	char agi_buffer[AGI_BUF_SIZE + 1];
 	char ami_buffer[AMI_BUF_SIZE];
-	enum agi_result returnstatus = AGI_RESULT_SUCCESS_ASYNC;
+	enum agi_result returnstatus = AGI_RESULT_SUCCESS;
 	AGI async_agi;
 
 	if (efd) {
@@ -1255,85 +1298,122 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, char *argv[], i
 		ast_log(LOG_ERROR, "Failed to read from Async AGI pipe on channel %s\n",
 			chan->name);
 		returnstatus = AGI_RESULT_FAILURE;
-		goto quit;
+		goto async_agi_abort;
 	}
 	agi_buffer[res] = '\0';
 	/* encode it and send it thru the manager so whoever is going to take
 	   care of AGI commands on this channel can decide which AGI commands
 	   to execute based on the setup info */
 	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
-	manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Start\r\nChannel: %s\r\nEnv: %s\r\n", chan->name, ami_buffer);
-	while (1) {
-		/* bail out if we need to hangup */
-		if (ast_check_hangup(chan)) {
-			ast_log(LOG_DEBUG, "ast_check_hangup returned true on chan %s\n", chan->name);
-			break;
-		}
-		/* retrieve a command
-		   (commands are added via the manager or the cli threads) */
-		cmd = get_agi_cmd(chan);
-		if (cmd) {
-			/* OK, we have a command, let's call the
-			   command handler. */
-			res = agi_handle_command(chan, &async_agi, cmd->cmd_buffer, 0);
-			if (res < 0) {
-				free_agi_cmd(cmd);
-				break;
-			}
-			/* the command handler must have written to our fake
-			   AGI struct fd (the pipe), let's read the response */
+	manager_event(EVENT_FLAG_AGI, "AsyncAGI",
+		"SubEvent: Start\r\n"
+		"Channel: %s\r\n"
+		"Env: %s\r\n", chan->name, ami_buffer);
+	hungup = ast_check_hangup(chan);
+	for (;;) {
+		/*
+		 * Process as many commands as we can.  Commands are added via
+		 * the manager or the cli threads.
+		 */
+		while (!hungup && (cmd = get_agi_cmd(chan))) {
+			/* OK, we have a command, let's call the command handler. */
+			cmd_status = agi_handle_command(chan, &async_agi, cmd->cmd_buffer, 0);
+
+			/*
+			 * The command handler must have written to our fake AGI struct
+			 * fd (the pipe), let's read the response.
+			 */
 			res = read(fds[0], agi_buffer, AGI_BUF_SIZE);
 			if (!res) {
-				returnstatus = AGI_RESULT_FAILURE;
 				ast_log(LOG_ERROR, "Failed to read from Async AGI pipe on channel %s\n",
 					chan->name);
 				free_agi_cmd(cmd);
-				break;
+				returnstatus = AGI_RESULT_FAILURE;
+				goto async_agi_done;
 			}
-			/* we have a response, let's send the response thru the
-			   manager. Include the CommandID if it was specified
-			   when the command was added */
+			/*
+			 * We have a response, let's send the response thru the manager.
+			 * Include the CommandID if it was specified when the command
+			 * was added.
+			 */
 			agi_buffer[res] = '\0';
 			ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, 1);
-			if (ast_strlen_zero(cmd->cmd_id))
-				manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Exec\r\nChannel: %s\r\nResult: %s\r\n", chan->name, ami_buffer);
-			else
-				manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: Exec\r\nChannel: %s\r\nCommandID: %s\r\nResult: %s\r\n", chan->name, cmd->cmd_id, ami_buffer);
+			if (ast_strlen_zero(cmd->cmd_id)) {
+				manager_event(EVENT_FLAG_AGI, "AsyncAGI",
+					"SubEvent: Exec\r\n"
+					"Channel: %s\r\n"
+					"Result: %s\r\n", chan->name, ami_buffer);
+			} else {
+				manager_event(EVENT_FLAG_AGI, "AsyncAGI",
+					"SubEvent: Exec\r\n"
+					"Channel: %s\r\n"
+					"CommandID: %s\r\n"
+					"Result: %s\r\n", chan->name, cmd->cmd_id, ami_buffer);
+			}
 			free_agi_cmd(cmd);
-		} else {
-			/* no command so far, wait a bit for a frame to read */
+
+			/*
+			 * Check the command status to determine if we should continue
+			 * executing more commands.
+			 */
+			hungup = ast_check_hangup(chan);
+			switch (cmd_status) {
+			case AGI_RESULT_FAILURE:
+				if (!hungup) {
+					/* The failure was not because of a hangup. */
+					returnstatus = AGI_RESULT_FAILURE;
+					goto async_agi_done;
+				}
+				break;
+			case AGI_RESULT_SUCCESS_ASYNC:
+				/* Only the "asyncagi break" command does this. */
+				returnstatus = AGI_RESULT_SUCCESS_ASYNC;
+				goto async_agi_done;
+			default:
+				break;
+			}
+		}
+
+		if (!hungup) {
+			/* Wait a bit for a frame to read or to poll for a new command. */
 			res = ast_waitfor(chan, timeout);
 			if (res < 0) {
-				ast_log(LOG_DEBUG, "ast_waitfor returned <= 0 on chan %s\n", chan->name);
+				ast_debug(1, "ast_waitfor returned <= 0 on chan %s\n", chan->name);
+				returnstatus = AGI_RESULT_FAILURE;
 				break;
 			}
-			if (res == 0)
-				continue;
-			f = ast_read(chan);
-			if (!f) {
-				ast_log(LOG_DEBUG, "No frame read on channel %s, going out ...\n", chan->name);
-				returnstatus = AGI_RESULT_HANGUP;
-				break;
-			}
-			/* is there any other frame we should care about
-			   besides AST_CONTROL_HANGUP? */
-			if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
-				ast_log(LOG_DEBUG, "Got HANGUP frame on channel %s, going out ...\n", chan->name);
-				ast_frfree(f);
-				break;
-			}
-			ast_frfree(f);
+		} else {
+			/*
+			 * Read the channel control queue until it is dry so we can
+			 * quit.
+			 */
+			res = 1;
+		}
+		if (0 < res) {
+			do {
+				cmd_status = async_agi_read_frame(chan);
+				if (cmd_status != AGI_RESULT_SUCCESS) {
+					returnstatus = cmd_status;
+					goto async_agi_done;
+				}
+				hungup = ast_check_hangup(chan);
+			} while (hungup);
+		} else {
+			hungup = ast_check_hangup(chan);
 		}
 	}
+async_agi_done:
 
 	if (async_agi.speech) {
 		ast_speech_destroy(async_agi.speech);
 	}
-quit:
 	/* notify manager users this channel cannot be
 	   controlled anymore by Async AGI */
-	manager_event(EVENT_FLAG_AGI, "AsyncAGI", "SubEvent: End\r\nChannel: %s\r\n", chan->name);
+	manager_event(EVENT_FLAG_AGI, "AsyncAGI",
+		"SubEvent: End\r\n"
+		"Channel: %s\r\n", chan->name);
 
+async_agi_abort:
 	/* close the pipe */
 	close(fds[0]);
 	close(fds[1]);
@@ -1346,6 +1426,9 @@ quit:
 	 * destruction anyway.
 	 */
 
+	if (returnstatus == AGI_RESULT_SUCCESS) {
+		returnstatus = AGI_RESULT_SUCCESS_ASYNC;
+	}
 	return returnstatus;
 
 #undef AGI_BUF_SIZE
@@ -1685,7 +1768,7 @@ static int handle_answer(struct ast_channel *chan, AGI *agi, int argc, const cha
 static int handle_asyncagi_break(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
 	ast_agi_send(agi->fd, chan, "200 result=0\n");
-	return RESULT_FAILURE;
+	return ASYNC_AGI_BREAK;
 }
 
 static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
@@ -3301,6 +3384,7 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 			ami_res = "Failure";
 			resultcode = -1;
 			break;
+		case ASYNC_AGI_BREAK:
 		case RESULT_SUCCESS:
 			ami_res = "Success";
 			resultcode = 200;
@@ -3327,6 +3411,8 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 				ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
 			}
 			break;
+		case ASYNC_AGI_BREAK:
+			return AGI_RESULT_SUCCESS_ASYNC;
 		case RESULT_FAILURE:
 			/* The RESULT_FAILURE code is usually because the channel hungup. */
 			return AGI_RESULT_FAILURE;
