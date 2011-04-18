@@ -1244,14 +1244,17 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					/* Setup early media if appropriate */
 					if (single && CAN_EARLY_BRIDGE(peerflags, in, c))
 						ast_channel_early_bridge(in, c);
-					if (!ast_test_flag64(outgoing, OPT_RINGBACK))
+					if (!ast_test_flag64(outgoing, OPT_RINGBACK)) {
 						if (single || (!single && !pa->sentringing)) {
 							ast_indicate(in, AST_CONTROL_PROGRESS);
 						}
-						if(!ast_strlen_zero(dtmf_progress)) {
-							ast_verb(3, "Sending DTMF '%s' to the called party as result of receiving a PROGRESS message.\n", dtmf_progress);
-							ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
-						}
+					}
+					if (!ast_strlen_zero(dtmf_progress)) {
+						ast_verb(3,
+							"Sending DTMF '%s' to the called party as result of receiving a PROGRESS message.\n",
+							dtmf_progress);
+						ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
+					}
 					break;
 				case AST_CONTROL_VIDUPDATE:
 					ast_verb(3, "%s requested a video update, passing it to %s\n", c->name, in->name);
