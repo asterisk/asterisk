@@ -297,9 +297,12 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	SSLeay_add_ssl_algorithms();
 
 	if (client) {
+#ifndef OPENSSL_NO_SSL2
 		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV2_CLIENT)) {
 			cfg->ssl_ctx = SSL_CTX_new(SSLv2_client_method());
-		} else if (ast_test_flag(&cfg->flags, AST_SSL_SSLV3_CLIENT)) {
+		} else
+#endif
+		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV3_CLIENT)) {
 			cfg->ssl_ctx = SSL_CTX_new(SSLv3_client_method());
 		} else if (ast_test_flag(&cfg->flags, AST_SSL_TLSV1_CLIENT)) {
 			cfg->ssl_ctx = SSL_CTX_new(TLSv1_client_method());
