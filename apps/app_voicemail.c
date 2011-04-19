@@ -2571,9 +2571,9 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			if (res == SQL_NO_DATA) {
-				ast_log(AST_LOG_DEBUG, "Directory '%s' has no messages and therefore no index was retrieved.\n", dir);
+				ast_log(LOG_DEBUG, "Directory '%s' has no messages and therefore no index was retrieved.\n", dir);
 			} else {
-				ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+				ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			}
 
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -2660,31 +2660,31 @@ static int count_messages(struct ast_vm_user *vmu, char *dir)
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=?", odbc_table);
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 		if (!stmt) {
-			ast_log(AST_LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			ast_odbc_release_obj(obj);
 			goto yuck;
 		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(AST_LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			goto yuck;
 		}
 		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(AST_LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			goto yuck;
 		}
 		if (sscanf(rowdata, "%30d", &x) != 1)
-			ast_log(AST_LOG_WARNING, "Failed to read message count!\n");
+			ast_log(LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		return x;
 	} else
-		ast_log(AST_LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:
 	return x - 1;
 
@@ -6043,9 +6043,6 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 #ifndef IMAP_STORAGE
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 {
-#ifndef ODBC_STORAGE
-	int res = 0;
-#endif
 	int count_msg, last_msg;
 
 	ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
@@ -6083,7 +6080,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 		return last_msg;
 	} else if (vms->lastmsg != last_msg) {
 		ast_log(LOG_NOTICE, "Resequencing Mailbox: %s, expected %d but found %d message(s) in box with max threshold of %d.\n", vms->curdir, last_msg + 1, vms->lastmsg + 1, vmu->maxmsg);
-		res = resequence_mailbox(vmu, vms->curdir, count_msg);
+		resequence_mailbox(vmu, vms->curdir, count_msg);
 	}
 
 	return 0;
