@@ -188,14 +188,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>     <literal>remote_normdevjitter</literal>Remote calculated jitter (normal deviation)</para>
 						<para>     <literal>remote_stdevjitter</literal>Remote calculated jitter (standard deviation)</para>
 						<para>     <literal>remote_count</literal>      Number of transmitted packets</para>
-						<para>     <literal>remote_ssrc</literal>       Remote SSRC (stream ID)</para>
-						<para>     <literal>remote_lostpackets</literal>Remote lost packets</para>
-						<para>     <literal>remote_jitter</literal>     Remote reported jitter</para>
-						<para>     <literal>remote_maxjitter</literal>  Remote calculated jitter (maximum)</para>
-						<para>     <literal>remote_minjitter</literal>  Remote calculated jitter (minimum)</para>
-						<para>     <literal>remote_normdevjitter</literal>Remote calculated jitter (normal deviation)</para>
-						<para>     <literal>remote_stdevjitter</literal>Remote calculated jitter (standard deviation)</para>
-						<para>     <literal>remote_count</literal>      Number of transmitted packets</para>
 						<para>     <literal>rtt</literal>               Round trip time</para>
 						<para>     <literal>maxrtt</literal>            Round trip time (maximum)</para>
 						<para>     <literal>minrtt</literal>            Round trip time (minimum)</para>
