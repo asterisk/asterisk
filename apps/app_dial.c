@@ -1948,7 +1948,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 			goto done;
 		}
-		ast_verb(3, "Setting call duration limit to %.3lf milliseconds.\n", calldurationlimit.tv_sec + calldurationlimit.tv_usec / 1000000.0);
+		ast_verb(3, "Setting call duration limit to %.3lf seconds.\n", calldurationlimit.tv_sec + calldurationlimit.tv_usec / 1000000.0);
 	}
 
 	if (ast_test_flag64(&opts, OPT_SENDDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_SENDDTMF])) {
