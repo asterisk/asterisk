@@ -626,8 +626,9 @@ enum {
 	CONFFLAG_NO_AUDIO_UNTIL_UP = (1 << 31),
 };
 
-/* !If set play an intro announcement at start of conference */
-#define CONFFLAG_INTROMSG ((uint64_t)1 << 32)
+/* These flags are defined separately because we ran out of bits that an enum can be used to represent. 
+   If you add new flags, be sure to do it in the same way that CONFFLAG_INTROMSG is. */
+#define CONFFLAG_INTROMSG ((uint64_t)1 << 32)	 /*!< If set play an intro announcement at start of conference */
 #define CONFFLAG_INTROUSER_VMREC ((uint64_t)1 << 33)
 
 enum {
