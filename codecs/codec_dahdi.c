@@ -56,6 +56,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define G723_SAMPLES 240
 #define G729_SAMPLES 160
 
+#ifndef DAHDI_FORMAT_MAX_AUDIO
+#define DAHDI_FORMAT_G723_1    (1 << 0)
+#define DAHDI_FORMAT_GSM       (1 << 1)
+#define DAHDI_FORMAT_ULAW      (1 << 2)
+#define DAHDI_FORMAT_ALAW      (1 << 3)
+#define DAHDI_FORMAT_G726      (1 << 4)
+#define DAHDI_FORMAT_ADPCM     (1 << 5)
+#define DAHDI_FORMAT_SLINEAR   (1 << 6)
+#define DAHDI_FORMAT_LPC10     (1 << 7)
+#define DAHDI_FORMAT_G729A     (1 << 8)
+#define DAHDI_FORMAT_SPEEX     (1 << 9)
+#define DAHDI_FORMAT_ILBC      (1 << 10)
+#endif
+
 static struct channel_usage {
 	int total;
 	int encoders;
@@ -598,13 +612,13 @@ static int find_transcoders(void)
 		 * module. Also, do not allow direct ulaw/alaw to complex
 		 * codec translation, since that will prevent the generic PLC
 		 * functions from working. */
-		if (info.dstfmts & (AST_FORMAT_ULAW | AST_FORMAT_ALAW)) {
-			info.dstfmts |= AST_FORMAT_SLINEAR;
-			info.dstfmts &= ~(AST_FORMAT_ULAW | AST_FORMAT_ALAW);
+		if (info.dstfmts & (DAHDI_FORMAT_ULAW | DAHDI_FORMAT_ALAW)) {
+			info.dstfmts |= DAHDI_FORMAT_SLINEAR;
+			info.dstfmts &= ~(DAHDI_FORMAT_ULAW | DAHDI_FORMAT_ALAW);
 		}
-		if (info.srcfmts & (AST_FORMAT_ULAW | AST_FORMAT_ALAW)) {
-			info.srcfmts |= AST_FORMAT_SLINEAR;
-			info.srcfmts &= ~(AST_FORMAT_ULAW | AST_FORMAT_ALAW);
+		if (info.srcfmts & (DAHDI_FORMAT_ULAW | DAHDI_FORMAT_ALAW)) {
+			info.srcfmts |= DAHDI_FORMAT_SLINEAR;
+			info.srcfmts &= ~(DAHDI_FORMAT_ULAW | DAHDI_FORMAT_ALAW);
 		}
 
 		build_translators(&map, info.dstfmts, info.srcfmts);
