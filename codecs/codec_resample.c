@@ -71,7 +71,12 @@ static int resamp_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	SpeexResamplerState *resamp_pvt = pvt->pvt;
 	unsigned int out_samples = (OUTBUF_SIZE / sizeof(int16_t)) - pvt->samples;
-	unsigned int in_samples = f->samples;
+	unsigned int in_samples;
+
+	if (!f->datalen) {
+		return -1;
+	}
+	in_samples = f->datalen / 2;
 
 	speex_resampler_process_int(resamp_pvt,
 		0,
