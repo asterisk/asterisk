@@ -47,6 +47,7 @@ int __ast_pthread_mutex_init(int tracking, const char *filename, int lineno, con
 	int res;
 	pthread_mutexattr_t  attr;
 
+	t->track = NULL;
 #ifdef DEBUG_THREADS
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
