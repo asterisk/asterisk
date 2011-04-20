@@ -47,6 +47,19 @@ enum {
 	AST_JB_LOG =     (1 << 2)
 };
 
+enum ast_jb_type {
+	AST_JB_FIXED,
+	AST_JB_ADAPTIVE,
+};
+
+/*! Abstract return codes */
+enum {
+	AST_JB_IMPL_OK,
+	AST_JB_IMPL_DROP,
+	AST_JB_IMPL_INTERP,
+	AST_JB_IMPL_NOFRAME
+};
+
 #define AST_JB_IMPL_NAME_SIZE 12
 
 /*!
@@ -77,9 +90,44 @@ struct ast_jb_conf
 #define AST_JB_CONF_IMPL "impl"
 #define AST_JB_CONF_LOG "log"
 
+/* Hooks for the abstract jb implementation */
+/*! \brief Create */
+typedef void * (*jb_create_impl)(struct ast_jb_conf *general_config, long resynch_threshold);
+/*! \brief Destroy */
+typedef void (*jb_destroy_impl)(void *jb);
+/*! \brief Put first frame */
+typedef int (*jb_put_first_impl)(void *jb, struct ast_frame *fin, long now);
+/*! \brief Put frame */
+typedef int (*jb_put_impl)(void *jb, struct ast_frame *fin, long now);
+/*! \brief Get frame for now */
+typedef int (*jb_get_impl)(void *jb, struct ast_frame **fout, long now, long interpl);
+/*! \brief Get next */
+typedef long (*jb_next_impl)(void *jb);
+/*! \brief Remove first frame */
+typedef int (*jb_remove_impl)(void *jb, struct ast_frame **fout);
+/*! \brief Force resynch */
+typedef void (*jb_force_resynch_impl)(void *jb);
+/*! \brief Empty and reset jb */
+typedef void (*jb_empty_and_reset_impl)(void *jb);
 
-struct ast_jb_impl;
 
+/*!
+ * \brief Jitterbuffer implementation struct.
+ */
+struct ast_jb_impl
+{
+	char name[AST_JB_IMPL_NAME_SIZE];
+	enum ast_jb_type type;
+	jb_create_impl create;
+	jb_destroy_impl destroy;
+	jb_put_first_impl put_first;
+	jb_put_impl put;
+	jb_get_impl get;
+	jb_next_impl next;
+	jb_remove_impl remove;
+	jb_force_resynch_impl force_resync;
+	jb_empty_and_reset_impl empty_and_reset;
+};
 
 /*!
  * \brief General jitterbuffer state.
@@ -223,6 +271,8 @@ void ast_jb_get_config(const struct ast_channel *chan, struct ast_jb_conf *conf)
  * \param c1 the other channel of the bridge
  */
 void ast_jb_empty_and_reset(struct ast_channel *c0, struct ast_channel *c1);
+
+const struct ast_jb_impl *ast_jb_get_impl(enum ast_jb_type type);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

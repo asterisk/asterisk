@@ -66,6 +66,10 @@ Dialplan Variables
 
 Dialplan Functions
 ------------------
+ * Addition of the JITTERBUFFER dialplan function. This function allows
+   for jitterbuffering to occur on the read side of a channel.  By using
+   this function conference applications such as ConfBridge and MeetMe can
+   have the rx streams jitterbuffered before conference mixing occurs.
  * Added DB_KEYS, which lists the next set of keys in the Asterisk database
    hierarchy.
 

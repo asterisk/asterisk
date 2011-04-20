@@ -3878,15 +3878,15 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
 	}
 
+	/* Perform the framehook read event here. After the frame enters the framehook list
+	 * there is no telling what will happen, <insert mad scientist laugh here>!!! */
+	f = ast_framehook_list_read_event(chan->framehooks, f);
+
 	/*
 	 * Reset the recorded file descriptor that triggered this read so that we can
 	 * easily detect when ast_read() is called without properly using ast_waitfor().
 	 */
 	chan->fdno = -1;
-
-	/* Perform the framehook read event here. After the frame enters the framehook list
-	 * there is no telling what will happen, <insert mad scientist laugh here>!!! */
-	f = ast_framehook_list_read_event(chan->framehooks, f);
 
 	if (f) {
 		struct ast_frame *readq_tail = AST_LIST_LAST(&chan->readq);

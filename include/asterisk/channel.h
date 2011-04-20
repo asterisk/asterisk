@@ -154,7 +154,7 @@ extern "C" {
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
 
-#define AST_MAX_FDS		10
+#define AST_MAX_FDS		11
 /*
  * We have AST_MAX_FDS file descriptors in a channel.
  * Some of them have a fixed use:
@@ -163,6 +163,7 @@ extern "C" {
 #define AST_TIMING_FD	(AST_MAX_FDS-2)		/*!< used for timingfd */
 #define AST_AGENT_FD	(AST_MAX_FDS-3)		/*!< used by agents for pass through */
 #define AST_GENERATOR_FD	(AST_MAX_FDS-4)	/*!< used by generator */
+#define AST_JITTERBUFFER_FD	(AST_MAX_FDS-5)	/*!< used by generator */
 
 enum ast_bridge_result {
 	AST_BRIDGE_COMPLETE = 0,
