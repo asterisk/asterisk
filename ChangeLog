@@ -4,6 +4,8 @@
 
 	* AST-2011-005: File Descriptor Resource Exhaustion
 
+	* AST-2011-006: Asterisk Manager User Shell Access
+
 2011-02-22  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.4.40 Released.

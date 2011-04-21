@@ -26,7 +26,12 @@ bindport=8088
 ; requests must begin with /asterisk
 ;
 ;prefix=asterisk
-
+;
+; sessionlimit specifies the maximum number of httpsessions that will be
+; allowed to exist at any given time. (default: 100)
+;
+;sessionlimit=100
+;
 ; The post_mappings section maps URLs to real paths on the filesystem.  If a
 ; POST is done from within an authenticated manager session to one of the
 ; configured POST mappings, then any files in the POST will be placed in the
