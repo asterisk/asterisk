@@ -32,6 +32,11 @@ bindaddr=127.0.0.1
 ;
 ;prefix=asterisk
 ;
+; sessionlimit specifies the maximum number of httpsessions that will be
+; allowed to exist at any given time. (default: 100)
+;
+;sessionlimit=100
+;
 ; Whether Asterisk should serve static content from http-static
 ; Default is no.
 ;

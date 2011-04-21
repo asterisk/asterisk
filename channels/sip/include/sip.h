@@ -59,6 +59,9 @@
 #define DEFAULT_REGISTRATION_TIMEOUT 20
 #define DEFAULT_MAX_FORWARDS         70
 
+#define DEFAULT_AUTHLIMIT            100
+#define DEFAULT_AUTHTIMEOUT          30
+
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
 #define EXPIRY_GUARD_SECS    15   /*!< How long before expiry do we reregister */
@@ -744,6 +747,7 @@ struct sip_request {
 	char debug;             /*!< print extra debugging if non zero */
 	char has_to_tag;        /*!< non-zero if packet has To: tag */
 	char ignore;            /*!< if non-zero This is a re-transmit, ignore it */
+	char authenticated;     /*!< non-zero if this request was authenticated */
 	ptrdiff_t header[SIP_MAX_HEADERS]; /*!< Array of offsets into the request string of each SIP header*/
 	ptrdiff_t line[SIP_MAX_LINES];     /*!< Array of offsets into the request string of each SDP line*/
 	struct ast_str *data;	
