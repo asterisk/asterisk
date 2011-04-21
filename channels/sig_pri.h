@@ -615,6 +615,9 @@ void sig_pri_chan_delete(struct sig_pri_chan *doomed);
 
 int pri_is_up(struct sig_pri_span *pri);
 
+struct mansession;
+int sig_pri_ami_show_spans(struct mansession *s, const char *show_cmd, struct sig_pri_span *pri, const int *dchannels, const char *action_id);
+
 void sig_pri_cli_show_channels_header(int fd);
 void sig_pri_cli_show_channels(int fd, struct sig_pri_span *pri);
 void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_span *pri);

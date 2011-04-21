@@ -252,6 +252,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 		</description>
 	</manager>
+	<manager name="PRIShowSpans" language="en_US">
+		<synopsis>
+			Show status of PRI spans.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Span">
+				<para>Specify the specific span to show.  Show all spans if zero or not present.</para>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</manager>
  ***/
 
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
@@ -15874,6 +15887,60 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	return 0;
 }
 
+#if defined(HAVE_PRI)
+static int action_prishowspans(struct mansession *s, const struct message *m)
+{
+	int count;
+	int idx;
+	int span_query;
+	struct dahdi_pri *dspan;
+	const char *id = astman_get_header(m, "ActionID");
+	const char *span_str = astman_get_header(m, "Span");
+	char action_id[256];
+	const char *show_cmd = "PRIShowSpans";
+
+	/* NOTE: Asking for span 0 gets all spans. */
+	if (!ast_strlen_zero(span_str)) {
+		span_query = atoi(span_str);
+	} else {
+		span_query = 0;
+	}
+
+	if (!ast_strlen_zero(id)) {
+		snprintf(action_id, sizeof(action_id), "ActionID: %s\r\n", id);
+	} else {
+		action_id[0] = '\0';
+	}
+
+	astman_send_ack(s, m, "Span status will follow");
+
+	count = 0;
+	for (idx = 0; idx < ARRAY_LEN(pris); ++idx) {
+		dspan = &pris[idx];
+
+		/* If a specific span is asked for, only deliver status for that span. */
+		if (0 < span_query && dspan->pri.span != span_query) {
+			continue;
+		}
+
+		if (dspan->pri.pri) {
+			count += sig_pri_ami_show_spans(s, show_cmd, &dspan->pri, dspan->dchannels,
+				action_id);
+		}
+	}
+
+	astman_append(s,
+		"Event: %sComplete\r\n"
+		"Items: %d\r\n"
+		"%s"
+		"\r\n",
+		show_cmd,
+		count,
+		action_id);
+	return 0;
+}
+#endif	/* defined(HAVE_PRI) */
+
 #if defined(HAVE_SS7)
 static int linkset_addsigchan(int sigchan)
 {
@@ -16449,6 +16516,9 @@ static int __unload_module(void)
 	ast_manager_unregister("DAHDIDNDon");
 	ast_manager_unregister("DAHDIShowChannels");
 	ast_manager_unregister("DAHDIRestart");
+#if defined(HAVE_PRI)
+	ast_manager_unregister("PRIShowSpans");
+#endif	/* defined(HAVE_PRI) */
 	ast_data_unregister(NULL);
 	ast_channel_unregister(&dahdi_tech);
 
@@ -18431,6 +18501,9 @@ static int load_module(void)
 	ast_manager_register_xml("DAHDIDNDoff", 0, action_dahdidndoff);
 	ast_manager_register_xml("DAHDIShowChannels", 0, action_dahdishowchannels);
 	ast_manager_register_xml("DAHDIRestart", 0, action_dahdirestart);
+#if defined(HAVE_PRI)
+	ast_manager_register_xml("PRIShowSpans", 0, action_prishowspans);
+#endif	/* defined(HAVE_PRI) */
 
 	ast_cond_init(&ss_thread_complete, NULL);
 
