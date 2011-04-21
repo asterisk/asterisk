@@ -1,8 +1,10 @@
-2011-04-05  Leif Madsen <lmadsen@digium.com>
+2011-04-21  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.6.2.17.3 Released.
 
 	* AST-2011-005: File Descriptor Resource Exhaustion
+
+	* AST-2011-006: Asterisk Manager User Shell Access
 
 2011-03-17  Leif Madsen <lmadsen@digium.com>
 
