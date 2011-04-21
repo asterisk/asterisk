@@ -500,6 +500,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_MWI_EXPIRY      3600
 #define DEFAULT_REGISTRATION_TIMEOUT 20
 #define DEFAULT_MAX_FORWARDS    "70"
+#define DEFAULT_AUTHLIMIT       100
+#define DEFAULT_AUTHTIMEOUT     30
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
@@ -551,6 +553,10 @@ static int mwi_expiry = DEFAULT_MWI_EXPIRY;
 #define DEFAULT_MIN_SE               90               /*!< Session-Timer Default Min-SE period (RFC 4028) */
 
 #define SDP_MAX_RTPMAP_CODECS        32               /*!< Maximum number of codecs allowed in received SDP */
+
+static int unauth_sessions = 0;
+static int authlimit = DEFAULT_AUTHLIMIT;
+static int authtimeout = DEFAULT_AUTHTIMEOUT;
 
 /*! \brief Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
@@ -1205,6 +1211,7 @@ struct sip_request {
 	char debug;		/*!< print extra debugging if non zero */
 	char has_to_tag;	/*!< non-zero if packet has To: tag */
 	char ignore;		/*!< if non-zero This is a re-transmit, ignore it */
+	char authenticated;     /*!< non-zero if this request was authenticated */
 	/* Array of offsets into the request string of each SIP header*/
 	ptrdiff_t header[SIP_MAX_HEADERS];
 	/* Array of offsets into the request string of each SDP line*/
@@ -2913,21 +2920,48 @@ static void *sip_tcp_worker_fn(void *data)
 	return _sip_tcp_helper_thread(NULL, tcptls_session);
 }
 
+/*! \brief Check if the authtimeout has expired.
+ * \param start the time when the session started
+ *
+ * \retval 0 the timeout has expired
+ * \retval -1 error
+ * \return the number of milliseconds until the timeout will expire
+ */
+static int sip_check_authtimeout(time_t start)
+{
+	int timeout;
+	time_t now;
+	if(time(&now) == -1) {
+		ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
+		return -1;
+	}
+
+	timeout = (authtimeout - (now - start)) * 1000;
+	if (timeout < 0) {
+		/* we have timed out */
+		return 0;
+	}
+
+	return timeout;
+}
+
 /*! \brief SIP TCP thread management function 
 	This function reads from the socket, parses the packet into a request
 */
 static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *tcptls_session) 
 {
-	int res, cl;
+	int res, cl, timeout = -1, authenticated = 0, flags;
+	time_t start;
 	struct sip_request req = { 0, } , reqcpy = { 0, };
 	struct sip_threadinfo *me = NULL;
 	char buf[1024] = "";
 	struct pollfd fds[2] = { { 0 }, { 0 }, };
 	struct ast_tcptls_session_args *ca = NULL;
 
-	/* If this is a server session, then the connection has already been setup,
-	 * simply create the threadinfo object so we can access this thread for writing.
-	 * 
+	/* If this is a server session, then the connection has already been
+	 * setup. Check if the authlimit has been reached and if not create the
+	 * threadinfo object so we can access this thread for writing.
+	 *
 	 * if this is a client connection more work must be done.
 	 * 1. We own the parent session args for a client connection.  This pointer needs
 	 *    to be held on to so we can decrement it's ref count on thread destruction.
@@ -2936,6 +2970,22 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	 * 3. Last, the tcptls_session must be started.
 	 */
 	if (!tcptls_session->client) {
+		if (ast_atomic_fetchadd_int(&unauth_sessions, +1) >= authlimit) {
+			/* unauth_sessions is decremented in the cleanup code */
+			goto cleanup;
+		}
+
+		if ((flags = fcntl(tcptls_session->fd, F_GETFL)) == -1) {
+			ast_log(LOG_ERROR, "error setting socket to non blocking mode, fcntl() failed: %s\n", strerror(errno));
+			goto cleanup;
+		}
+
+		flags |= O_NONBLOCK;
+		if (fcntl(tcptls_session->fd, F_SETFL, flags) == -1) {
+			ast_log(LOG_ERROR, "error setting socket to non blocking mode, fcntl() failed: %s\n", strerror(errno));
+			goto cleanup;
+		}
+
 		if (!(me = sip_threadinfo_create(tcptls_session, tcptls_session->ssl ? SIP_TRANSPORT_TLS : SIP_TRANSPORT_TCP))) {
 			goto cleanup;
 		}
@@ -2965,13 +3015,40 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	if (!(reqcpy.data = ast_str_create(SIP_MIN_PACKET)))
 		goto cleanup;
 
+	if(time(&start) == -1) {
+		ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
+		goto cleanup;
+	}
+
 	for (;;) {
 		struct ast_str *str_save;
 
-		res = ast_poll(fds, 2, -1); /* polls for both socket and alert_pipe */
+		if (!tcptls_session->client && req.authenticated && !authenticated) {
+			authenticated = 1;
+			ast_atomic_fetchadd_int(&unauth_sessions, -1);
+		}
 
+		/* calculate the timeout for unauthenticated server sessions */
+		if (!tcptls_session->client && !authenticated ) {
+			if ((timeout = sip_check_authtimeout(start)) < 0) {
+				goto cleanup;
+			}
+
+			if (timeout == 0) {
+				ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
+				goto cleanup;
+			}
+		} else {
+			timeout = -1;
+		}
+
+		res = ast_poll(fds, 2, timeout); /* polls for both socket and alert_pipe */
 		if (res < 0) {
 			ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
+			goto cleanup;
+		} else if (res == 0) {
+			/* timeout */
+			ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
 			goto cleanup;
 		}
 
@@ -3005,6 +3082,29 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 
 			/* Read in headers one line at a time */
 			while (req.len < 4 || strncmp(REQ_OFFSET_TO_STR(&req, len - 4), "\r\n\r\n", 4)) {
+				if (!tcptls_session->client && !authenticated ) {
+					if ((timeout = sip_check_authtimeout(start)) < 0) {
+						goto cleanup;
+					}
+
+					if (timeout == 0) {
+						ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
+						goto cleanup;
+					}
+				} else {
+					timeout = -1;
+				}
+
+				res = ast_wait_for_input(tcptls_session->fd, timeout);
+				if (res < 0) {
+					ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
+					goto cleanup;
+				} else if (res == 0) {
+					/* timeout */
+					ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
+					goto cleanup;
+				}
+
 				ast_mutex_lock(&tcptls_session->lock);
 				if (!fgets(buf, sizeof(buf), tcptls_session->f)) {
 					ast_mutex_unlock(&tcptls_session->lock);
@@ -3022,6 +3122,29 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 			if (sscanf(get_header(&reqcpy, "Content-Length"), "%30d", &cl)) {
 				while (cl > 0) {
 					size_t bytes_read;
+					if (!tcptls_session->client && !authenticated ) {
+						if ((timeout = sip_check_authtimeout(start)) < 0) {
+							goto cleanup;
+						}
+
+						if (timeout == 0) {
+							ast_debug(2, "SIP %s server timed out", tcptls_session->ssl ? "SSL": "TCP");
+							goto cleanup;
+						}
+					} else {
+						timeout = -1;
+					}
+
+					res = ast_wait_for_input(tcptls_session->fd, timeout);
+					if (res < 0) {
+						ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
+						goto cleanup;
+					} else if (res == 0) {
+						/* timeout */
+						ast_debug(2, "SIP %s server timed out", tcptls_session->ssl ? "SSL": "TCP");
+						goto cleanup;
+					}
+
 					ast_mutex_lock(&tcptls_session->lock);
 					if (!(bytes_read = fread(buf, 1, MIN(sizeof(buf) - 1, cl), tcptls_session->f))) {
 						ast_mutex_unlock(&tcptls_session->lock);
@@ -3080,6 +3203,10 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	ast_debug(2, "Shutting down thread for %s server\n", tcptls_session->ssl ? "SSL" : "TCP");
 
 cleanup:
+	if (!tcptls_session->client && !authenticated) {
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
+	}
+
 	if (me) {
 		ao2_t_unlink(threadt, me, "Removing tcptls helper thread, thread is closing");
 		ao2_t_ref(me, -1, "Removing tcp_helper_threads threadinfo ref");
@@ -20474,6 +20601,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 		}
 
+		req->authenticated = 1;
+
 		/* We have a succesful authentication, process the SDP portion if there is one */
 		if (find_sdp(req)) {
 			if (process_sdp(p, req, SDP_T38_INITIATE)) {
@@ -22047,8 +22176,10 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 			get_header(req, "To"), ast_inet_ntoa(sin->sin_addr),
 			reason);
 		append_history(p, "RegRequest", "Failed : Account %s : %s", get_header(req, "To"), reason);
-	} else
+	} else {
+		req->authenticated = 1;
 		append_history(p, "RegRequest", "Succeeded : Account %s", get_header(req, "To"));
+	}
 
 	if (res < 1) {
 		/* Destroy the session, but keep us around for just a bit in case they don't
@@ -22502,6 +22633,11 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		}
 	}
 	p->recv = *sin;
+
+	/* if we have an owner, then this request has been authenticated */
+	if (p->owner) {
+		req->authenticated = 1;
+	}
 
 	if (p->do_history) /* This is a request or response, note what it was for */
 		append_history(p, "Rx", "%s / %s / %s", req->data->str, get_header(req, "CSeq"), REQ_OFFSET_TO_STR(req, rlPart2));
@@ -25064,6 +25200,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_qualifyfreq = DEFAULT_QUALIFYFREQ;
 	global_t38_maxdatagram = -1;
 	global_shrinkcallerid = 1;
+	authlimit = DEFAULT_AUTHLIMIT;
+	authtimeout = DEFAULT_AUTHTIMEOUT;
 
 	sip_cfg.matchexterniplocally = DEFAULT_MATCHEXTERNIPLOCALLY;
 
@@ -25310,6 +25448,18 @@ static int reload_config(enum channelreloadreason reason)
 			mwi_expiry = atoi(v->value);
 			if (mwi_expiry < 1)
 				mwi_expiry = DEFAULT_MWI_EXPIRY;
+		} else if (!strcasecmp(v->name, "tcpauthtimeout")) {
+			if (ast_parse_arg(v->value, PARSE_INT32|PARSE_DEFAULT|PARSE_IN_RANGE,
+					  &authtimeout, DEFAULT_AUTHTIMEOUT, 1, INT_MAX)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
+					v->name, v->value, v->lineno, config);
+			}
+		} else if (!strcasecmp(v->name, "tcpauthlimit")) {
+			if (ast_parse_arg(v->value, PARSE_INT32|PARSE_DEFAULT|PARSE_IN_RANGE,
+					  &authlimit, DEFAULT_AUTHLIMIT, 1, INT_MAX)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
+					v->name, v->value, v->lineno, config);
+			}
 		} else if (!strcasecmp(v->name, "sipdebug")) {
 			if (ast_true(v->value))
 				sipdebug |= sip_debug_config;
