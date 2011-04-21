@@ -49,7 +49,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   5 lmadsen                
+   6 lmadsen                
 
      ----------------------------------------------------------------------
 
@@ -76,6 +76,9 @@
    |----------+---------+-------------------------------+-------------------|
    | 314720   | lmadsen | Merge changes for             |                   |
    |          |         | AST-2011-005 and AST-2011-006 |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 314725   | lmadsen | Importing release summary for |                   |
+   |          |         | 1.6.1.25 release.             |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -91,6 +94,8 @@
  ChangeLog                      |    8 ++
  asterisk-1.6.1.24-summary.html |   62 ---------------
  asterisk-1.6.1.24-summary.txt  |   93 -----------------------
+ asterisk-1.6.1.25-summary.html |   70 +++++++++++++++++
+ asterisk-1.6.1.25-summary.txt  |  103 +++++++++++++++++++++++++
  channels/chan_sip.c            |  164 +++++++++++++++++++++++++++++++++++++++--
  channels/chan_skinny.c         |   76 ++++++++++++++++++-
  configs/http.conf.sample       |    5 +
@@ -98,6 +103,6 @@
  configs/sip.conf.sample        |   10 ++
  configs/skinny.conf.sample     |    9 ++
  main/manager.c                 |  110 +++++++++++++++++++++++----
- 11 files changed, 366 insertions(+), 184 deletions(-)
+ 13 files changed, 539 insertions(+), 184 deletions(-)
 
      ----------------------------------------------------------------------
