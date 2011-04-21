@@ -8668,18 +8668,10 @@ static void build_status(char *s, size_t len, int status, int active)
 	if (!s || len < 1) {
 		return;
 	}
-	s[0] = '\0';
-	if (!(status & DCHAN_NOTINALARM))
-		strncat(s, "In Alarm, ", len - strlen(s) - 1);
-	if (status & DCHAN_UP)
-		strncat(s, "Up", len - strlen(s) - 1);
-	else
-		strncat(s, "Down", len - strlen(s) - 1);
-	if (active)
-		strncat(s, ", Active", len - strlen(s) - 1);
-	else
-		strncat(s, ", Standby", len - strlen(s) - 1);
-	s[len - 1] = '\0';
+	snprintf(s, len, "%s%s, %s",
+		(status & DCHAN_NOTINALARM) ? "" : "In Alarm, ",
+		(status & DCHAN_UP) ? "Up" : "Down",
+		(active) ? "Active" : "Standby");
 }
 
 void sig_pri_cli_show_spans(int fd, int span, struct sig_pri_span *pri)
