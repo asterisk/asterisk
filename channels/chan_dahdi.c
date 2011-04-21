@@ -235,7 +235,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="DAHDIChannel" required="true" />
+			<parameter name="DAHDIChannel">
+				<para>Specify the specific channel to show.  Show all channels if zero or not present.</para>
+			</parameter>
 		</syntax>
 		<description>
 		</description>
