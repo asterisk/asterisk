@@ -157,6 +157,8 @@ enum skinny_codecs {
 #define DEFAULT_SKINNY_PORT 2000
 #define DEFAULT_SKINNY_BACKLOG 2
 #define SKINNY_MAX_PACKET 1000
+#define DEFAULT_AUTH_TIMEOUT 30
+#define DEFAULT_AUTH_LIMIT 50
 
 static struct {
 	unsigned int tos;
@@ -168,6 +170,9 @@ static struct {
 } qos = { 0, 0, 0, 0, 0, 0 };
 
 static int keep_alive = 120;
+static int auth_timeout = DEFAULT_AUTH_TIMEOUT;
+static int auth_limit = DEFAULT_AUTH_LIMIT;
+static int unauth_sessions = 0;
 static char global_vmexten[AST_MAX_EXTENSION];      /* Voicemail pilot number */
 static char used_context[AST_MAX_EXTENSION]; /* placeholder to check if context are already used in regcontext */
 static char regcontext[AST_MAX_CONTEXT];     /* Context for auto-extension */
@@ -1364,6 +1369,7 @@ static struct ast_jb_conf global_jbconf;*/
 struct skinnysession {
 	pthread_t t;
 	ast_mutex_t lock;
+	time_t start;
 	struct sockaddr_in sin;
 	int fd;
 	char inbuf[SKINNY_MAX_PACKET];
@@ -4785,6 +4791,8 @@ static int handle_register_message(struct skinny_req *req, struct skinnysession 
 
 		return 0;
 	}
+	ast_atomic_fetchadd_int(&unauth_sessions, -1);
+
 	ast_verb(3, "Device '%s' successfully registered\n", name);
 
 	d = s->device;
@@ -6322,6 +6330,9 @@ static void destroy_session(struct skinnysession *s)
 			if (s->fd > -1) 
 				close(s->fd);
 			
+			if (!s->device)
+				ast_atomic_fetchadd_int(&unauth_sessions, -1);
+
 			ast_mutex_destroy(&s->lock);
 			
 			ast_free(s);
@@ -6337,13 +6348,30 @@ static int get_input(struct skinnysession *s)
 {
 	int res;
 	int dlen = 0;
+	int timeout = keep_alive * 1100;
+	time_t now;
 	int *bufaddr;
 	struct pollfd fds[1];
+
+	if (!s->device) {
+		if(time(&now) == -1) {
+			ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
+			return -1;
+		}
+
+		timeout = (auth_timeout - (now - s->start)) * 1000;
+		if (timeout < 0) {
+			/* we have timed out */
+			if (skinnydebug)
+				ast_verb(1, "Skinny Client failed to authenticate in %d seconds\n", auth_timeout);
+			return -1;
+		}
+	}
 
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
 	fds[0].revents = 0;
-	res = ast_poll(fds, 1, (keep_alive * 1100)); /* If nothing has happen, client is dead */
+	res = ast_poll(fds, 1, timeout); /* If nothing has happen, client is dead */
 						 /* we add 10% to the keep_alive to deal */
 						 /* with network delays, etc */
 	if (res < 0) {
@@ -6352,8 +6380,13 @@ static int get_input(struct skinnysession *s)
 			return res;
 		}
 	} else if (res == 0) {
-		if (skinnydebug)
-			ast_verb(1, "Skinny Client was lost, unregistering\n");
+		if (skinnydebug) {
+			if (s->device) {
+				ast_verb(1, "Skinny Client was lost, unregistering\n");
+			} else {
+				ast_verb(1, "Skinny Client failed to authenticate in %d seconds\n", auth_timeout);
+			}
+		}
 		skinny_unregister(NULL, s);
 		return -1;
 	}
@@ -6486,18 +6519,35 @@ static void *accept_thread(void *ignore)
 			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
 		}
+
+		if (ast_atomic_fetchadd_int(&unauth_sessions, +1) >= auth_limit) {
+			close(as);
+			ast_atomic_fetchadd_int(&unauth_sessions, -1);
+			continue;
+		}
+
 		p = getprotobyname("tcp");
 		if(p) {
 			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
 				ast_log(LOG_WARNING, "Failed to set Skinny tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 			}
 		}
-		if (!(s = ast_calloc(1, sizeof(struct skinnysession))))
+		if (!(s = ast_calloc(1, sizeof(struct skinnysession)))) {
+			close(as);
+			ast_atomic_fetchadd_int(&unauth_sessions, -1);
 			continue;
+		}
 
 		memcpy(&s->sin, &sin, sizeof(sin));
 		ast_mutex_init(&s->lock);
 		s->fd = as;
+
+		if(time(&s->start) == -1) {
+			ast_log(LOG_ERROR, "error executing time(): %s; disconnecting client\n", strerror(errno));
+			destroy_session(s);
+			continue;
+		}
+
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
 		AST_LIST_UNLOCK(&sessions);
@@ -6651,6 +6701,26 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
  			} else if (!strcasecmp(v->name, "keepalive")) {
  				keep_alive = atoi(v->value);
  				continue;
+			} else if (!strcasecmp(v->name, "authtimeout")) {
+				int timeout = atoi(v->value);
+
+				if (timeout < 1) {
+					ast_log(LOG_WARNING, "Invalid authtimeout value '%s', using default value\n", v->value);
+					auth_timeout = DEFAULT_AUTH_TIMEOUT;
+				} else {
+					auth_timeout = timeout;
+				}
+				continue;
+			} else if (!strcasecmp(v->name, "authlimit")) {
+				int limit = atoi(v->value);
+
+				if (limit < 1) {
+					ast_log(LOG_WARNING, "Invalid authlimit value '%s', using default value\n", v->value);
+					auth_limit = DEFAULT_AUTH_LIMIT;
+				} else {
+					auth_limit = limit;
+				}
+				continue;
  			} else if (!strcasecmp(v->name, "regcontext")) {
  				ast_copy_string(newcontexts, v->value, sizeof(newcontexts));
  				stringp = newcontexts;
