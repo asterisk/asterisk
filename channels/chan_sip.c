@@ -3556,7 +3556,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		}
 	}
 
-	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1))) {
+	if (!(pkt = ast_calloc(1, sizeof(*pkt)))) {
 		return AST_FAILURE;
 	}
 	/* copy data, add a terminator and save length */
