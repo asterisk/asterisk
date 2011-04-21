@@ -2472,6 +2472,24 @@ static int action_originate(struct mansession *s, const struct message *m)
 		format = 0;
 		ast_parse_allow_disallow(NULL, &format, codecs, 1);
 	}
+	if (!ast_strlen_zero(app)) {
+		/* To run the System application (or anything else that goes to
+		 * shell), you must have the additional System privilege */
+		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
+			&& (
+				strcasestr(app, "system") == 0 || /* System(rm -rf /)
+				                                     TrySystem(rm -rf /)       */
+				strcasestr(app, "exec") ||        /* Exec(System(rm -rf /))
+				                                     TryExec(System(rm -rf /)) */
+				strcasestr(app, "agi") ||         /* AGI(/bin/rm,-rf /)
+				                                     EAGI(/bin/rm,-rf /)       */
+				strstr(appdata, "SHELL") ||       /* NoOp(${SHELL(rm -rf /)})  */
+				strstr(appdata, "EVAL")           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
+				)) {
+			astman_send_error(s, m, "Originate with certain 'Application' arguments requires the additional System privilege, which you do not have.");
+			return 0;
+		}
+	}
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast = ast_calloc(1, sizeof(*fast));
 		if (!fast) {
@@ -2502,21 +2520,6 @@ static int action_originate(struct mansession *s, const struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-		/* To run the System application (or anything else that goes to shell), you must have the additional System privilege */
-		if (!(s->session->writeperm & EVENT_FLAG_SYSTEM)
-			&& (
-				strcasestr(app, "system") == 0 || /* System(rm -rf /)
-				                                     TrySystem(rm -rf /)       */
-				strcasestr(app, "exec") ||        /* Exec(System(rm -rf /))
-				                                     TryExec(System(rm -rf /)) */
-				strcasestr(app, "agi") ||         /* AGI(/bin/rm,-rf /)
-				                                     EAGI(/bin/rm,-rf /)       */
-				strstr(appdata, "SHELL") ||       /* NoOp(${SHELL(rm -rf /)})  */
-				strstr(appdata, "EVAL")           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
-				)) {
-			astman_send_error(s, m, "Originate with certain 'Application' arguments requires the additional System privilege, which you do not have.");
-			return 0;
-		}
 		res = ast_pbx_outgoing_app(tech, format, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
 	} else {
 		if (exten && context && pi)

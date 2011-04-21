@@ -122,6 +122,16 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
                                 ; For details how to construct a certificate for SIP see 
                                 ; http://tools.ietf.org/html/draft-ietf-sip-domain-certs
 
+;tcpauthtimeout = 30            ; tcpauthtimeout specifies the maximum number
+				; of seconds a client has to authenticate.  If
+				; the client does not authenticate beofre this
+				; timeout expires, the client will be
+                                ; disconnected. (default: 30 seconds)
+
+;tcpauthlimit = 100             ; tcpauthlimit specifies the maximum number of
+				; unauthenticated sessions that will be allowed
+                                ; to connect at any given time. (default: 100)
+
 ;tlscertfile=asterisk.pem       ; Certificate file (*.pem only) to use for TLS connections 
                                 ; default is to look for "asterisk.pem" in current directory
 

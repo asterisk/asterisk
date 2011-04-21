@@ -9,6 +9,15 @@ dateformat=M-D-Y	; M,D,Y in any order (6 chars max)
 			; Use M for month, D for day, Y for year, A for 12-hour time.
 keepalive=120
 
+;authtimeout = 30       ; authtimeout specifies the maximum number of seconds a
+			; client has to authenticate.  If the client does not
+			; authenticate beofre this timeout expires, the client
+                        ; will be disconnected.  (default: 30 seconds)
+
+;authlimit = 50         ; authlimit specifies the maximum number of
+			; unauthenticated sessions that will be allowed to
+                        ; connect at any given time. (default: 50)
+
 ;vmexten=8500		; Systemwide voicemailmain pilot number
 			; It must be in the same context as the calling
 			; device/line
