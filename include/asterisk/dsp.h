@@ -73,8 +73,18 @@ enum threshold {
 	THRESHOLD_MAX = 1,
 };
 
+/*! \brief Allocates a new dsp with a specific internal sample rate used
+ * during processing. */
+struct ast_dsp *ast_dsp_new_with_rate(unsigned int sample_rate);
+
+/*! \brief Allocates a new dsp, assumes 8khz for internal sample rate */
 struct ast_dsp *ast_dsp_new(void);
+
 void ast_dsp_free(struct ast_dsp *dsp);
+
+/*! \brief Retrieve the sample rate this DSP structure was
+ * created with */
+unsigned int ast_dsp_get_sample_rate(const struct ast_dsp *dsp);
 
 /*! \brief Set threshold value for silence */
 void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold);

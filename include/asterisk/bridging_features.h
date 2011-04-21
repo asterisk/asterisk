@@ -64,6 +64,31 @@ struct ast_bridge_channel;
 typedef int (*ast_bridge_features_hook_callback)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt);
 
 /*!
+ * \brief Features hook pvt destructor callback
+ *
+ * \param hook_pvt Private data passed in when the hook was create to destroy
+ */
+typedef void (*ast_bridge_features_hook_pvt_destructor)(void *hook_pvt);
+
+/*!
+ * \brief Talking indicator callback
+ *
+ * \details This callback can be registered with the bridge in order
+ * to receive updates on when a bridge_channel has started and stopped
+ * talking
+ *
+ * \param bridge The bridge that the channel is part of
+ * \param bridge_channel Channel executing the feature
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+typedef void (*ast_bridge_talking_indicate_callback)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *pvt_data);
+
+
+typedef void (*ast_bridge_talking_indicate_destructor)(void *pvt_data);
+
+/*!
  * \brief Maximum length of a DTMF feature string
  */
 #define MAXIMUM_DTMF_FEATURE_STRING 8
@@ -76,6 +101,8 @@ struct ast_bridge_features_hook {
 	char dtmf[MAXIMUM_DTMF_FEATURE_STRING];
 	/*! Callback that is called when DTMF string is matched */
 	ast_bridge_features_hook_callback callback;
+	/*! Callback to destroy hook_pvt data right before destruction. */
+	ast_bridge_features_hook_pvt_destructor destructor;
 	/*! Unique data that was passed into us */
 	void *hook_pvt;
 	/*! Linked list information */
@@ -88,12 +115,21 @@ struct ast_bridge_features_hook {
 struct ast_bridge_features {
 	/*! Attached DTMF based feature hooks */
 	AST_LIST_HEAD_NOLOCK(, ast_bridge_features_hook) hooks;
+	/*! Callback to indicate when a bridge channel has started and stopped talking */
+	ast_bridge_talking_indicate_callback talker_cb;
+	/*! Callback to destroy any pvt data stored for the talker. */
+	ast_bridge_talking_indicate_destructor talker_destructor_cb;
+	/*! Talker callback pvt data */
+	void *talker_pvt_data;
 	/*! Feature flags that are enabled */
 	struct ast_flags feature_flags;
-	/*! Bit to indicate that this structure is useful and should be considered when looking for features */
+	/*! Bit to indicate that the hook list is useful and should be considered when looking for DTMF features */
 	unsigned int usable:1;
 	/*! Bit to indicate whether the channel/bridge is muted or not */
 	unsigned int mute:1;
+	/*! Bit to indicate whether DTMF should be passed into the bridge tech or not.  */
+	unsigned int dtmf_passthrough:1;
+
 };
 
 /*!
@@ -161,6 +197,7 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
  * \param dtmf DTMF string to be activated upon
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
+ * \param Optional destructor callback for hook_pvt data
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -170,7 +207,7 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
  * \code
  * struct ast_bridge_features features;
  * ast_bridge_features_init(&features);
- * ast_bridge_features_hook(&features, "#", pound_callback, NULL);
+ * ast_bridge_features_hook(&features, "#", pound_callback, NULL, NULL);
  * \endcode
  *
  * This makes the bridging core call pound_callback if a channel that has this
@@ -180,7 +217,26 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
  * \note It is important that the callback set the bridge channel state back to
  *       AST_BRIDGE_CHANNEL_STATE_WAIT or the bridge thread will not service the channel.
  */
-int ast_bridge_features_hook(struct ast_bridge_features *features, const char *dtmf, ast_bridge_features_hook_callback callback, void *hook_pvt);
+int ast_bridge_features_hook(struct ast_bridge_features *features,
+	const char *dtmf,
+	ast_bridge_features_hook_callback callback,
+	void *hook_pvt,
+	ast_bridge_features_hook_pvt_destructor destructor);
+
+/*! \brief Set a callback on the features structure to receive talking notifications on.
+ *
+ * \param features Bridge features structure
+ * \param talker_cb, Callback function to execute when talking events occur in the bridge core.
+ * \param pvt_data Optional unique data that will be passed with the talking events.
+ * \param Optional destructor callback for pvt data.
+ *
+ * \retval 0, success
+ * \retval -1, failure
+ */
+int ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
+	ast_bridge_talking_indicate_callback talker_cb,
+	ast_bridge_talking_indicate_destructor talker_destructor,
+	void *pvt_data);
 
 /*! \brief Enable a built in feature on a bridge features structure
  *

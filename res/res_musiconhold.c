@@ -153,6 +153,7 @@ struct moh_files_state {
 	struct mohclass *class;
 	char name[MAX_MUSICCLASS];
 	struct ast_format origwfmt;
+	struct ast_format mohwfmt;
 	int samples;
 	int sample_queue;
 	int pos;
@@ -267,6 +268,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
 	}
 
+	ast_format_clear(&state->mohwfmt); /* make sure to clear this format before restoring the original format. */
 	if (state->origwfmt.id && ast_set_write_format(chan, &state->origwfmt)) {
 		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%s'\n", chan->name, ast_getformatname(&state->origwfmt));
 	}
@@ -355,6 +357,25 @@ static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 	return f;
 }
 
+static void moh_files_write_format_change(struct ast_channel *chan, void *data)
+{
+	struct moh_files_state *state = chan->music_state;
+
+	/* In order to prevent a recursive call to this function as a result
+	 * of setting the moh write format back on the channel. Clear
+	 * the moh write format before setting the write format on the channel.*/
+	if (&state->origwfmt.id) {
+		struct ast_format tmp;
+
+		ast_format_copy(&tmp, &chan->writeformat);
+		if (state->mohwfmt.id) {
+			ast_format_clear(&state->origwfmt);
+			ast_set_write_format(chan, &state->mohwfmt);
+		}
+		ast_format_copy(&state->origwfmt, &tmp);
+	}
+}
+
 static int moh_files_generator(struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct moh_files_state *state = chan->music_state;
@@ -375,6 +396,9 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 			ast_channel_unlock(chan);
 			state->samples += f->samples;
 			state->sample_queue -= f->samples;
+			if (ast_format_cmp(&f->subclass.format, &state->mohwfmt) == AST_FORMAT_CMP_NOT_EQUAL) {
+				ast_format_copy(&state->mohwfmt, &f->subclass.format);
+			}
 			res = ast_write(chan, f);
 			ast_frfree(f);
 			if (res < 0) {
@@ -418,7 +442,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	}
 
 	state->class = mohclass_ref(class, "Reffing music class for channel");
-	state->origwfmt = chan->writeformat;
+	ast_format_copy(&state->origwfmt, &chan->writeformat);
+	ast_format_copy(&state->mohwfmt, &chan->writeformat);
+
 	/* For comparison on restart of MOH (see above) */
 	ast_copy_string(state->name, class->name, sizeof(state->name));
 	state->save_total = class->total_files;
@@ -462,6 +488,7 @@ static struct ast_generator moh_file_stream =
 	.release  = moh_files_release,
 	.generate = moh_files_generator,
 	.digit    = moh_handle_digit,
+	.write_format_change = moh_files_write_format_change,
 };
 
 static int spawn_mp3(struct mohclass *class)
@@ -929,7 +956,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	}
 
 	if ((res = mohalloc(class))) {
-		res->origwfmt = chan->writeformat;
+		ast_format_copy(&res->origwfmt, &chan->writeformat);
 		if (ast_set_write_format(chan, &class->format)) {
 			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", chan->name, ast_codec2str(&class->format));
 			moh_release(NULL, res);

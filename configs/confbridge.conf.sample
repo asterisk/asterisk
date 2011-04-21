@@ -1,0 +1,302 @@
+[general]
+; The general section of this config
+; is not currently used, but reserved
+; for future use.
+
+;
+; --- Default Information ---
+; The default_user and default_bridge sections are applied
+; automatically to all ConfBridge instances invoked without
+; a user, or bridge argument.  No menu is applied by default.
+;
+
+; --- ConfBridge User Profile Options ---
+[default_user]
+type=user
+;admin=yes     ; Sets if the user is an admin or not. Off by default.
+;marked=yes    ; Sets if this is a marked user or not. Off by default.
+;startmuted=yes; Sets if all users should start out muted. Off by default
+;music_on_hold_when_empty=yes  ; Sets whether MOH should be played when only
+                               ; one person is in the conference or when the
+                               ; the user is waiting on a marked user to enter
+                               ; the conference. Off by default.
+;music_on_hold_class=default   ; The MOH class to use for this user.
+;quiet=yes     ; When enabled enter/leave prompts and user intros are not played.
+               ; There are some prompts, such as the prompt to enter a PIN number,
+               ; that must be played regardless of what this option is set to.
+               ; Off by default
+;announce_user_count=yes  ; Sets if the number of users should be announced to the
+                          ; caller.  Off by default.
+;announce_user_count_all=yes ; Sets if the number of users should be announced to
+                             ; all the other users in the conference when someone joins.
+                             ; This option can be either set to 'yes' or a number.
+                             ; When set to a number, the announcement will only occur
+                             ; once the user count is above the specified number.
+;announce_only_user=yes   ; Sets if the only user announcement should be played
+                          ; when a channel enters a empty conference.  On by default.
+;wait_marked=yes   ; Sets if the user must wait for a marked user to enter before
+                   ; joining the conference. Off by default.
+;end_marked=yes ; This option will kick every user with this option set in their
+                ; user profile after the last Marked user exists the conference.
+
+;dsp_drop_silence=yes  ; This option drops what Asterisk detects as silence from
+                       ; entering into the bridge.  Enabling this option will drastically
+                       ; improve performance and help remove the buildup of background
+                       ; noise from the conference. Highly recommended for large conferences
+                       ; due to its performance enhancements.
+
+;dsp_talking_threshold=128  ; The time in milliseconds of sound above what the dsp has
+                            ; established as base line silence for a user before a user
+                            ; is considered to be talking.  This value affects several
+                            ; operations and should not be changed unless the impact on
+                            ; call quality is fully understood.
+                            ;
+                            ; What this value affects internally:
+                            ;
+                            ; 1. Audio is only mixed out of a user's incoming audio stream
+                            ;    if talking is detected.  If this value is set too
+                            ;    loose the user will hear themselves briefly each
+                            ;    time they begin talking until the dsp has time to
+                            ;    establish that they are in fact talking.
+                            ; 2. When talk detection AMI events are enabled, this value 
+                            ;    determines when talking has begun which results in
+                            ;    an AMI event to fire.  If this value is set too tight
+                            ;    AMI events may be falsely triggered by variants in
+                            ;    room noise.
+                            ; 3. The drop_silence option depends on this value to determine
+                            ;    when the user's audio should be mixed into the bridge
+                            ;    after periods of silence.  If this value is too loose
+                            ;    the beginning of a user's speech will get cut off as they
+                            ;    transition from silence to talking.
+                            ;
+                            ; By default this value is 160 ms. Valid values are 1 through 2^31
+
+;dsp_silence_threshold=2000 ; The time in milliseconds of sound falling within the what
+                            ; the dsp has established as baseline silence before a user
+                            ; is considered be silent.  This value affects several
+                            ; operations and should not be changed unless the impact
+                            ; on call quality is fully understood.
+                            ;
+                            ; What this value affects internally:
+                            ;
+                            ; 1. When talk detection AMI events are enabled, this value
+                            ;    determines when the user has stopped talking after a
+                            ;    period of talking.  If this value is set too low
+                            ;    AMI events indicating the user has stopped talking
+                            ;    may get falsely sent out when the user briefly pauses
+                            ;    during mid sentence.
+                            ; 2. The drop_silence option depends on this value to
+                            ;    determine when the user's audio should begin to be
+                            ;    dropped from the conference bridge after the user
+                            ;    stops talking.  If this value is set too low the user's
+                            ;    audio stream may sound choppy to the other participants.
+                            ;    This is caused by the user transitioning constantly from
+                            ;    silence to talking during mid sentence.
+                            ;
+                            ; The best way to approach this option is to set it slightly above
+                            ; the maximum amount of ms of silence a user may generate during
+                            ; natural speech.
+                            ;
+                            ; By default this value is 2500ms. Valid values are 1 through 2^31
+
+;talk_detection_events=yes ; This option sets whether or not notifications of when a user
+                           ; begins and ends talking should be sent out as events over AMI.
+                           ; By default this option is off.
+
+;denoise=yes ; Sets whether or not a denoise filter should be applied
+             ; to the audio before mixing or not.  Off by default. Requires
+             ; codec_speex to be built and installed.  Do not confuse this option
+             ; with drop_silence.  Denoise is useful if there is a lot of background
+             ; noise for a user as it attempts to remove the noise while preserving
+             ; the speech.  This option does NOT remove silence from being mixed into
+             ; the conference and does come at the cost of a slight performance hit.
+
+;jitterbuffer=yes  ; Enabling this option places a jitterbuffer on the user's audio stream
+                   ; before audio mixing is performed.  This is highly recommended but will
+                   ; add a slight delay to the audio.  This option is using the JITTERBUFFER
+                   ; dialplan function's default adaptive jitterbuffer.  For a more fine tuned
+                   ; jitterbuffer, disable this option and use the JITTERBUFFER dialplan function
+                   ; on the user before entering the ConfBridge application.
+
+;pin=1234  ; Sets if this user must enter a PIN number before entering
+           ; the conference.  The PIN will be prompted for.
+;announce_join_leave=yes ; When enabled, this option will prompt the user for a
+                         ; name when entering the conference.  After the name is
+                         ; recorded, it will be played as the user enters and exists
+                         ; the conference. This option is off by default.
+;dtmf_passthrough=yes  ; Sets whether or not DTMF should pass through the conference.
+                       ; This option is off by default.
+
+; --- ConfBridge Bridge Profile Options ---
+[default_bridge]
+type=bridge
+;max_members=50                ; This option limits the number of participants for a single
+                               ; conference to a specific number.  By default conferences
+                               ; have no participant limit. After the limit is reached, the
+                               ; conference will be locked until someone leaves.  Note however
+                               ; that an Admin user will always be alowed to join the conference
+                               ; regardless if this limit is reached or not.
+
+;record_conference=yes         ; Records the conference call starting when the first user
+                               ; enters the room, and ending when the last user exits the room.
+                               ; The default recorded filename is
+                               ; 'confbridge-<name of conference bridge>-<start time>.wav
+                               ; and the default format is 8khz slinear.  This file will be
+                               ; located in the configured monitoring directory in asterisk.conf.
+
+;record_file=</path/to/file>   ; When record_conference is set to yes, the specific name of the
+                               ; record file can be set using this option.  Note that since multiple
+                               ; conferences may use the same bridge profile, this may cause issues
+                               ; depending on the configuration.  It is recommended to only use this
+                               ; option dynamically with the CONFBRIDGE() dialplan function. This
+                               ; allows the record name to be specified and a unique name to be chosen.
+                               ; By default, the record_file is stored in Asterisk's spool/monitor directory
+                               ; with a unique filename starting with the 'confbridge' prefix.
+
+;internal_sample_rate=auto     ; Sets the internal native sample rate the
+                               ; conference is mixed at.  This is set to automatically
+                               ; adjust the sample rate to the best quality by default.
+                               ; Other values can be anything from 8000-192000.  If a
+                               ; sample rate is set that Asterisk does not support, the
+                               ; closest sample rate Asterisk does support to the one requested
+                               ; will be used.
+
+;mixing_interval=40     ; Sets the internal mixing interval in milliseconds for the bridge.  This
+                        ; number reflects how tight or loose the mixing will be for the conference.
+                        ; In order to improve performance a larger mixing interval such as 40ms may
+                        ; be chosen.  Using a larger mixing interval comes at the cost of introducing
+                        ; larger amounts of delay into the bridge.  Valid values here are 10, 20, 40,
+                        ; or 80.  By default 20ms is used.
+
+; All sounds in the conference are customizable using the bridge profile options below.
+; Simply state the option followed by the filename or full path of the filename after
+; the option.  Example: sound_had_joined=conf-hasjoin  This will play the conf-hasjoin
+; sound file found in the sounds directory when announcing someone's name is joining the
+; conference.
+
+;sound_join  ; The sound played to everyone when someone enters the conference.
+;sound_leave ; The sound played to everyone when someone leaves the conference.
+;sound_has_joined ; The sound played before announcing someone's name has
+                  ; joined the conference. This is used for user intros.
+                  ; Example "_____ has joined the conference"
+;sound_has_left ; The sound played when announcing someone's name has
+                ; left the conference. This is used for user intros.
+                ; Example "_____ has left the conference"
+;sound_kicked ; The sound played to a user who has been kicked from the conference.
+;sound_muted  ; The sound played when the mute option it toggled on.
+;sound_unmuted  ; The sound played when the mute option it toggled off.
+;sound_only_person ; The sound played when the user is the only person in the conference.
+;sound_only_one ; The sound played to a user when there is only one other
+                ; person is in the conference.
+;sound_there_are  ; The sound played when announcing how many users there
+                  ; are in a conference.
+;sound_other_in_party; ; This file is used in conjunction with 'sound_there_are"
+                       ; when announcing how many users there are in the conference.
+                       ; The sounds are stringed together like this.
+                       ; "sound_there_are" <number of participants> "sound_other_in_party"
+;sound_place_into_conference ; The sound played when someone is placed into the conference
+                             ; after waiting for a marked user.
+;sound_wait_for_leader  ; The sound played when a user is placed into a conference that
+                        ; can not start until a marked user enters.
+;sound_leader_has_left  ; The sound played when the last marked user leaves the conference.
+;sound_get_pin ; The sound played when prompting for a conference pin number.
+;sound_invalid_pin ; The sound played when an invalid pin is entered too many times.
+;sound_locked ; The sound played to a user trying to join a locked conference.
+;sound_locked_now ; The sound played to an admin after toggling the conference to locked mode.
+;sound_unlocked_now; The sound played to an admin after toggling the conference to unlocked mode.
+;sound_error_menu ; The sound played when an invalid menu option is entered.
+
+; --- ConfBridge Menu Options ---
+; The ConfBridge application also has the ability to
+; apply custom DTMF menus to each channel using the
+; application.  Like the User and Bridge profiles
+; a menu is passed in to ConfBridge as an argument in
+; the dialplan.
+;
+; Below is a list of menu actions that can be assigned
+; to a DTMF sequence.
+;
+; A single DTMF sequence can have multiple actions associated with it. This is
+; accomplished by stringing the actions together and using a ',' as the delimiter.
+; Example:  Both listening and talking volume is reset when '5' is pressed.
+; 5=reset_talking_volume, reset_listening_volume
+;
+; playback(<name of audio file>&<name of audio file>)
+                                       ; Playback will play back an audio file to a channel
+                                       ; and then immediately return to the conference.
+                                       ; This file can not be interupted by DTMF.
+                                       ; Mutliple files can be chained together using the
+                                       ; '&' character.
+; playback_and_continue(<name of playback prompt>&<name of playback prompt>)
+                                       ; playback_and_continue will
+                                       ; play back a prompt while continuing to
+                                       ; collect the dtmf sequence.  This is useful
+                                       ; when using a menu prompt that describes all
+                                       ; the menu options.  Note however that any DTMF
+                                       ; during this action will terminate the prompts
+                                       ; playback.  Prompt files can be chained together
+                                       ; using the '&' character as a delimiter.
+; toggle_mute      ; Toggle turning on and off mute.  Mute will make the user silent
+                   ; to everyone else, but the user will still be able to listen in.
+                   ; continue to collect the dtmf sequence.
+; no_op ; This action does nothing (No Operation). Its only real purpose exists for
+        ; being able to reserve a sequence in the config as a menu exit sequence.
+; decrease_listening_volume ; Decreases the channel's listening volume.
+; increase_listening_volume ; Increases the channel's listening volume.
+; reset_listening_volume    ; Reset channel's listening volume to default level.
+
+; decrease_talking_volume ; Decreases the channel's talking volume.
+; increase_talking_volume ; Icreases the channel's talking volume.
+; reset_talking_volume    ; Reset channel's talking volume to default level.
+;
+; dialplan_exec(context,exten,priority)  ; The dialplan_exec action allows a user
+                                         ; to escape from the conference and execute
+                                         ; commands in the dialplan.  Once the dialplan
+                                         ; exits the user will be put back into the
+                                         ; conference.  The possibilities are endless!
+; leave_conference ; This action allows a user to exit the conference and continue
+                   ; execution in the dialplan.
+;
+; admin_kick_last  ; This action allows an Admin to kick the last participant from the
+                   ; conference. This action will only work for admins which allows
+                   ; a single menu to be used for both users and admins.
+;
+; admin_toggle_conference_lock ; This action allows an Admin to toggle locking and
+                               ; unlocking the conference.  Non admins can not use
+                               ; this action even if it is in their menu.
+
+[sample_user_menu]
+type=menu
+*=playback_and_continue(conf-usermenu)
+*1=toggle_mute
+1=toggle_mute
+*4=decrease_listening_volume
+4=decrease_listening_volume
+*6=increase_listening_volume
+6=increase_listening_volume
+*7=decrease_talking_volume
+7=decrease_talking_volume
+*8=no_op
+8=no_op
+*9=increase_talking_volume
+9=increase_talking_volume
+
+[sample_admin_menu]
+type=menu
+*=playback_and_continue(conf-adminmenu)
+*1=toggle_mute
+1=toggle_mute
+*2=admin_toggle_conference_lock ; only applied to admin users
+2=admin_toggle_conference_lock  ; only applied to admin users
+*3=admin_kick_last       ; only applied to admin users
+3=admin_kick_last        ; only applied to admin users
+*4=decrease_listening_volume
+4=decrease_listening_volume
+*6=increase_listening_volume
+6=increase_listening_volume
+*7=decrease_talking_volume
+7=decrease_talking_volume
+*8=no_op
+8=no_op
+*9=increase_talking_volume
+9=increase_talking_volume

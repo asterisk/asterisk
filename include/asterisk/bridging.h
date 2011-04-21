@@ -63,6 +63,7 @@ extern "C" {
 #endif
 
 #include "asterisk/bridging_features.h"
+#include "asterisk/dsp.h"
 
 /*! \brief Capabilities for a bridge technology */
 enum ast_bridge_capability {
@@ -96,6 +97,10 @@ enum ast_bridge_channel_state {
 	AST_BRIDGE_CHANNEL_STATE_FEATURE,
 	/*! Bridged channel is sending a DTMF stream out */
 	AST_BRIDGE_CHANNEL_STATE_DTMF,
+	/*! Bridged channel began talking */
+	AST_BRIDGE_CHANNEL_STATE_START_TALKING,
+	/*! Bridged channel has stopped talking */
+	AST_BRIDGE_CHANNEL_STATE_STOP_TALKING,
 };
 
 /*! \brief Return values for bridge technology write function */
@@ -110,6 +115,22 @@ enum ast_bridge_write_result {
 
 struct ast_bridge_technology;
 struct ast_bridge;
+
+/*!
+ * \brief Structure specific to bridge technologies capable of
+ * performing talking optimizations.
+ */
+struct ast_bridge_tech_optimizations {
+	/*! The amount of time in ms that talking must be detected before
+	 *  the dsp determines that talking has occurred */
+	unsigned int talking_threshold;
+	/*! The amount of time in ms that silence must be detected before
+	 *  the dsp determines that talking has stopped */
+	unsigned int silence_threshold;
+	/*! Whether or not the bridging technology should drop audio
+	 *  detected as silence from the mix. */
+	unsigned int drop_silence:1;
+};
 
 /*!
  * \brief Structure that contains information regarding a channel in a bridge
@@ -137,6 +158,9 @@ struct ast_bridge_channel {
 	unsigned int suspended:1;
 	/*! Features structure for features that are specific to this channel */
 	struct ast_bridge_features *features;
+	/*! Technology optimization parameters used by bridging technologies capable of
+	 *  optimizing based upon talk detection. */
+	struct ast_bridge_tech_optimizations tech_args;
 	/*! Queue of DTMF digits used for DTMF streaming */
 	char dtmf_stream_q[8];
 	/*! Linked list information */
@@ -149,6 +173,13 @@ struct ast_bridge_channel {
 struct ast_bridge {
 	/*! Number of channels participating in the bridge */
 	int num;
+	/*! The internal sample rate this bridge is mixed at when multiple channels are being mixed.
+	 *  If this value is 0, the bridge technology may auto adjust the internal mixing rate. */
+	unsigned int internal_sample_rate;
+	/*! The mixing interval indicates how quickly the bridges internal mixing should occur
+	 * for bridge technologies that mix audio. When set to 0, the bridge tech must choose a
+	 * default interval for itself. */
+	unsigned int internal_mixing_interval;
 	/*! Bit to indicate that the bridge thread is waiting on channels in the bridge array */
 	unsigned int waiting:1;
 	/*! Bit to indicate the bridge thread should stop */
@@ -236,6 +267,7 @@ int ast_bridge_destroy(struct ast_bridge *bridge);
  * \param chan Channel to join
  * \param swap Channel to swap out if swapping
  * \param features Bridge features structure
+ * \param (Optional) Bridging tech optimization parameters for this channel.
  *
  * \retval state that channel exited the bridge with
  *
@@ -256,7 +288,11 @@ int ast_bridge_destroy(struct ast_bridge *bridge);
  * If channel specific features are enabled a pointer to the features structure
  * can be specified in the features parameter.
  */
-enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features);
+enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
+	struct ast_channel *chan,
+	struct ast_channel *swap,
+	struct ast_bridge_features *features,
+	struct ast_bridge_tech_optimizations *tech_args);
 
 /*! \brief Impart (non-blocking) a channel on a bridge
  *
@@ -418,6 +454,27 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
  *       make sure the channel either hangs up or returns to the bridge.
  */
 void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
+
+/*! \brief Adjust the internal mixing sample rate of a bridge used during
+ *         multimix mode.
+ *
+ * \param bridge_channel Channel to change the sample rate on.
+ * \param sample rate, the sample rate to change to. If a
+ *        value of 0 is passed here, the bridge will be free to pick
+ *        what ever sample rate it chooses.
+ *
+ */
+void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int sample_rate);
+
+/*! \brief Adjust the internal mixing interval of a bridge used during
+ *         multimix mode.
+ *
+ * \param bridge_channel Channel to change the sample rate on.
+ * \param mixing_interval, the sample rate to change to.  If 0 is set
+ * the bridge tech is free to choose any mixing interval it uses by default.
+ */
+void ast_bridge_set_mixing_interval(struct ast_bridge *bridge, unsigned int mixing_interval);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

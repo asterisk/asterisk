@@ -21,6 +21,10 @@
 
 From 1.8 to 1.10:
 
+ConfBridge
+ - ConfBridge's dialplan arguments have changed and are not
+   backwards compatible.
+
 HTTP:
  - A bindaddr must be specified in order for the HTTP server
    to run. Previous versions would default to 0.0.0.0 if no

@@ -58,6 +58,13 @@ CODECS
  * Ability to define custom SILK formats in codecs.conf.
  * Addition of speex32 audio format with translation.
 
+ConfBridge
+--------------------------
+ * New highly optimized and customizable ConfBridge application capable of
+   mixing audio at sample rates ranging from 8khz-96khz.
+ * CONFBRIDGE dialplan function capable of creating dynamic ConfBridge user
+   and bridge profiles on a channel.
+
 Dialplan Variables
 ------------------
  * Added ASTETCDIR, ASTMODDIR, ASTVARLIBDIR, ASTDBDIR, ASTKEYDIR, ASTDATADIR,

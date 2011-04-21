@@ -3011,6 +3011,15 @@ void ast_deactivate_generator(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 }
 
+static void generator_write_format_change(struct ast_channel *chan)
+{
+	ast_channel_lock(chan);
+	if (chan->generator && chan->generator->write_format_change) {
+		chan->generator->write_format_change(chan, chan->generatordata);
+	}
+	ast_channel_unlock(chan);
+}
+
 static int generator_force(const void *data)
 {
 	/* Called if generator doesn't have data */
@@ -5035,10 +5044,9 @@ static int set_format(struct ast_channel *chan,
 		ast_debug(1, "Channel driver natively set channel %s to %s format %s\n", chan->name,
 			  direction ? "write" : "read", ast_getformatname(&best_set_fmt));
 
+		ast_channel_lock(chan);
 		ast_format_copy(format, &best_set_fmt);
 		ast_format_copy(rawformat, &best_set_fmt);
-
-		ast_channel_lock(chan);
 		ast_format_cap_set(chan->nativeformats, &best_set_fmt);
 		ast_channel_unlock(chan);
 
@@ -5046,6 +5054,11 @@ static int set_format(struct ast_channel *chan,
 			ast_translator_free_path(*trans);
 		}
 		*trans = NULL;
+		/* If there is a generator on the channel, it needs to know about this
+		 * change if it is the write format. */
+		if (direction && chan->generatordata) {
+			generator_write_format_change(chan);
+		}
 		return 0;
 	}
 
@@ -5110,6 +5123,12 @@ static int set_format(struct ast_channel *chan,
 		chan->name,
 		direction ? "write" : "read",
 		ast_getformatname(&best_set_fmt));
+	
+	/* If there is a generator on the channel, it needs to know about this
+	 * change if it is the write format. */
+	if (direction && chan->generatordata) {
+		generator_write_format_change(chan);
+	}
 	return res;
 }
 
