@@ -269,9 +269,9 @@ struct agent_pvt {
 	char agent[AST_MAX_AGENT];     /*!< Agent ID */
 	char password[AST_MAX_AGENT];  /*!< Password for Agent login */
 	char name[AST_MAX_AGENT];
-	ast_mutex_t app_lock;          /**< Synchronization between owning applications */
 	int app_lock_flag;
 	ast_cond_t app_complete_cond;
+	ast_cond_t login_wait_cond;
 	volatile int app_sleep_cond;   /**< Sleep condition for the login app */
 	struct ast_channel *owner;     /**< Agent */
 	char logincallerid[80];        /**< Caller ID they had when they logged in */
@@ -430,8 +430,8 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
 			return NULL;
 		ast_copy_string(p->agent, agt, sizeof(p->agent));
 		ast_mutex_init(&p->lock);
-		ast_mutex_init(&p->app_lock);
 		ast_cond_init(&p->app_complete_cond, NULL);
+		ast_cond_init(&p->login_wait_cond, NULL);
 		p->app_lock_flag = 0;
 		p->app_sleep_cond = 1;
 		p->group = group;
@@ -484,20 +484,23 @@ static struct agent_pvt *add_agent(const char *agent, int pending)
  */
 static int agent_cleanup(struct agent_pvt *p)
 {
-	struct ast_channel *chan = p->owner;
+	struct ast_channel *chan = NULL;
+	ast_mutex_lock(&p->lock);
+	chan = p->owner;
 	p->owner = NULL;
 	chan->tech_pvt = NULL;
-	p->app_sleep_cond = 1;
 	/* Release ownership of the agent to other threads (presumably running the login app). */
+	p->app_sleep_cond = 1;
 	p->app_lock_flag = 0;
 	ast_cond_signal(&p->app_complete_cond);
 	if (chan) {
 		chan = ast_channel_release(chan);
 	}
 	if (p->dead) {
+		ast_mutex_unlock(&p->lock);
 		ast_mutex_destroy(&p->lock);
-		ast_mutex_destroy(&p->app_lock);
 		ast_cond_destroy(&p->app_complete_cond);
+		ast_cond_destroy(&p->login_wait_cond);
 		ast_free(p);
         }
 	return 0;
@@ -774,30 +777,42 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int newstate=0;
+	struct ast_channel *chan;
+
 	ast_mutex_lock(&p->lock);
 	p->acknowledged = 0;
-	if (!p->chan) {
-		if (p->pending) {
-			ast_debug(1, "Pretending to dial on pending agent\n");
-			newstate = AST_STATE_DIALING;
-			res = 0;
-		} else {
-			ast_log(LOG_NOTICE, "Whoa, they hung up between alloc and call...  what are the odds of that?\n");
-			res = -1;
-		}
+
+	if (p->pending) {
+		ast_log(LOG_DEBUG, "Pretending to dial on pending agent\n");
 		ast_mutex_unlock(&p->lock);
-		if (newstate)
-			ast_setstate(ast, newstate);
+		ast_setstate(ast, AST_STATE_DIALING);
+		return 0;
+	}
+
+	if (!p->chan) {
+		ast_log(LOG_DEBUG, "Agent disconnected while we were connecting the call\n");
+		ast_mutex_unlock(&p->lock);
 		return res;
 	}
 	ast_verb(3, "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
 	ast_debug(3, "Playing beep, lang '%s'\n", p->chan->language);
-	res = ast_streamfile(p->chan, beep, p->chan->language);
+	
+	chan = p->chan;
+	ast_mutex_unlock(&p->lock);
+
+	res = ast_streamfile(chan, beep, chan->language);
 	ast_debug(3, "Played beep, result '%d'\n", res);
 	if (!res) {
-		res = ast_waitstream(p->chan, "");
+		res = ast_waitstream(chan, "");
 		ast_debug(3, "Waited for stream, result '%d'\n", res);
 	}
+	
+	ast_mutex_lock(&p->lock);
+	if (!p->chan) {
+		/* chan went away while we were streaming, this shouldn't be possible */
+		res = -1;
+	}
+
 	if (!res) {
 		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats));
 		ast_debug(3, "Set read format, result '%d'\n", res);
@@ -879,6 +894,10 @@ static int agent_hangup(struct ast_channel *ast)
 	p->app_sleep_cond = 1;
 	p->acknowledged = 0;
 
+	/* Release ownership of the agent to other threads (presumably running the login app). */
+	p->app_lock_flag = 0;
+	ast_cond_signal(&p->app_complete_cond);
+
 	/* if they really are hung up then set start to 0 so the test
 	 * later if we're called on an already downed channel
 	 * doesn't cause an agent to be logged out like when
@@ -929,8 +948,8 @@ static int agent_hangup(struct ast_channel *ast)
 		p->abouttograb = 0;
 	} else if (p->dead) {
 		ast_mutex_destroy(&p->lock);
-		ast_mutex_destroy(&p->app_lock);
 		ast_cond_destroy(&p->app_complete_cond);
+		ast_cond_destroy(&p->login_wait_cond);
 		ast_free(p);
 	} else {
 		if (p->chan) {
@@ -940,9 +959,6 @@ static int agent_hangup(struct ast_channel *ast)
 			p->lastdisc = ast_tvadd(ast_tvnow(), ast_samp2tv(p->wrapuptime, 1000));
 			ast_mutex_unlock(&p->lock);
 		}
-		/* Release ownership of the agent to other threads (presumably running the login app). */
-		p->app_lock_flag = 0;
-		ast_cond_signal(&p->app_complete_cond);
 	}
 	return 0;
 }
@@ -1029,7 +1045,6 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char *linkedid)
 {
 	struct ast_channel *tmp;
-	int alreadylocked;
 #if 0
 	if (!p->chan) {
 		ast_log(LOG_WARNING, "No channel? :(\n");
@@ -1067,38 +1082,6 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 	tmp->tech_pvt = p;
 	p->owner = tmp;
 	tmp->priority = 1;
-	/* Wake up and wait for other applications (by definition the login app)
-	 * to release this channel). Takes ownership of the agent channel
-	 * to this thread only.
-	 * For signalling the other thread, ast_queue_frame is used until we
-	 * can safely use signals for this purpose. The pselect() needs to be
-	 * implemented in the kernel for this.
-	 */
-	p->app_sleep_cond = 0;
-
-	alreadylocked = p->app_lock_flag;
-	p->app_lock_flag = 1;
-
-	if (alreadylocked) {
-		if (p->chan) {
-			ast_queue_frame(p->chan, &ast_null_frame);
-			ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
-			p->app_lock_flag = 1;
-			ast_mutex_lock(&p->lock);
-		} else {
-			ast_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
-			p->owner = NULL;
-			tmp->tech_pvt = NULL;
-			p->app_sleep_cond = 1;
-			tmp = ast_channel_release(tmp);
-			ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
-			p->app_lock_flag = 0;
-			ast_cond_signal(&p->app_complete_cond);
-			return NULL;
-		}
-	} 
-	if (p->chan)
-		ast_indicate(p->chan, AST_CONTROL_UNHOLD);
 	return tmp;
 }
 
@@ -1256,8 +1239,8 @@ static int read_agent_config(int reload)
 			if (!p->owner) {
 				if (!p->chan) {
 					ast_mutex_destroy(&p->lock);
-					ast_mutex_destroy(&p->app_lock);
 					ast_cond_destroy(&p->app_complete_cond);
+					ast_cond_destroy(&p->login_wait_cond);
 					ast_free(p);
 				} else {
 					/* Cause them to hang up */
@@ -1458,6 +1441,45 @@ static struct ast_channel *agent_request(const char *type, format_t format, cons
 	}
 	*cause = hasagent ? AST_CAUSE_BUSY : AST_CAUSE_UNREGISTERED;
 	AST_LIST_UNLOCK(&agents);
+
+	if (chan) {
+		ast_mutex_lock(&p->lock);
+		if (p->pending) {
+			ast_mutex_unlock(&p->lock);
+			return chan;
+		}
+
+		if (!p->chan) {
+			ast_log(LOG_DEBUG, "Agent disconnected while we were connecting the call\n");
+			*cause = AST_CAUSE_UNREGISTERED;
+			ast_mutex_unlock(&p->lock);
+			agent_hangup(chan);
+			return NULL;
+		}
+
+		/* we need to take control of the channel from the login app
+		 * thread */
+		p->app_sleep_cond = 0;
+		p->app_lock_flag = 1;
+
+		ast_queue_frame(p->chan, &ast_null_frame);
+		ast_cond_wait(&p->login_wait_cond, &p->lock);
+
+		if (!p->chan) {
+			ast_log(LOG_DEBUG, "Agent disconnected while we were connecting the call\n");
+			p->app_sleep_cond = 1;
+			p->app_lock_flag = 0;
+			ast_cond_signal(&p->app_complete_cond);
+			ast_mutex_unlock(&p->lock);
+			*cause = AST_CAUSE_UNREGISTERED;
+			agent_hangup(chan);
+			return NULL;
+		}
+
+		ast_indicate(p->chan, AST_CONTROL_UNHOLD);
+		ast_mutex_unlock(&p->lock);
+	}
+
 	return chan;
 }
 
@@ -2065,13 +2087,13 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							}
 							ast_mutex_unlock(&p->lock);
 							AST_LIST_UNLOCK(&agents);
+
 							/*	Synchronize channel ownership between call to agent and itself. */
-							ast_mutex_lock(&p->app_lock);
-							if (p->app_lock_flag == 1) {
-								ast_cond_wait(&p->app_complete_cond, &p->app_lock);
-							}
-							ast_mutex_unlock(&p->app_lock);
 							ast_mutex_lock(&p->lock);
+							if (p->app_lock_flag == 1) {
+								ast_cond_signal(&p->login_wait_cond);
+								ast_cond_wait(&p->app_complete_cond, &p->lock);
+							}
 							ast_mutex_unlock(&p->lock);
 							if (p->ackcall) {
 								res = agent_ack_sleep(p);
@@ -2089,12 +2111,20 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							sched_yield();
 						}
 						ast_mutex_lock(&p->lock);
-						if (res && p->owner) 
-							ast_log(LOG_WARNING, "Huh?  We broke out when there was still an owner?\n");
 						/* Log us off if appropriate */
 						if (p->chan == chan) {
 							p->chan = NULL;
 						}
+
+						/* Synchronize channel ownership between call to agent and itself. */
+						if (p->app_lock_flag == 1) {
+							ast_cond_signal(&p->login_wait_cond);
+							ast_cond_wait(&p->app_complete_cond, &p->lock);
+						}
+
+						if (res && p->owner)
+							ast_log(LOG_WARNING, "Huh?  We broke out when there was still an owner?\n");
+
 						p->acknowledged = 0;
 						logintime = time(NULL) - p->loginstart;
 						p->loginstart = 0;
@@ -2110,8 +2140,8 @@ static int login_exec(struct ast_channel *chan, const char *data)
 						ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Agent/%s", p->agent);
 						if (p->dead && !p->owner) {
 							ast_mutex_destroy(&p->lock);
-							ast_mutex_destroy(&p->app_lock);
 							ast_cond_destroy(&p->app_complete_cond);
+							ast_cond_destroy(&p->login_wait_cond);
 							ast_free(p);
 						}
 					}
