@@ -705,7 +705,7 @@ static char *spandsp_fax_cli_show_stats(int fd)
 	ast_cli(fd, "%-20.20s : %d\n", "Switched to T.38", spandsp_global_stats.g711.switched);
 	ast_cli(fd, "%-20.20s : %d\n", "Call Dropped", spandsp_global_stats.g711.call_dropped);
 	ast_cli(fd, "%-20.20s : %d\n", "No FAX", spandsp_global_stats.g711.nofax);
-	ast_cli(fd, "%-20.20s : %d\n", "Negotation Failed", spandsp_global_stats.g711.neg_failed);
+	ast_cli(fd, "%-20.20s : %d\n", "Negotiation Failed", spandsp_global_stats.g711.neg_failed);
 	ast_cli(fd, "%-20.20s : %d\n", "Train Failure", spandsp_global_stats.g711.failed_to_train);
 	ast_cli(fd, "%-20.20s : %d\n", "Retries Exceeded", spandsp_global_stats.g711.retries_exceeded);
 	ast_cli(fd, "%-20.20s : %d\n", "Protocol Error", spandsp_global_stats.g711.protocol_error);
@@ -719,7 +719,7 @@ static char *spandsp_fax_cli_show_stats(int fd)
 	ast_cli(fd, "%-20.20s : %d\n", "Success", spandsp_global_stats.t38.success);
 	ast_cli(fd, "%-20.20s : %d\n", "Call Dropped", spandsp_global_stats.t38.call_dropped);
 	ast_cli(fd, "%-20.20s : %d\n", "No FAX", spandsp_global_stats.t38.nofax);
-	ast_cli(fd, "%-20.20s : %d\n", "Negotation Failed", spandsp_global_stats.t38.neg_failed);
+	ast_cli(fd, "%-20.20s : %d\n", "Negotiation Failed", spandsp_global_stats.t38.neg_failed);
 	ast_cli(fd, "%-20.20s : %d\n", "Train Failure", spandsp_global_stats.t38.failed_to_train);
 	ast_cli(fd, "%-20.20s : %d\n", "Retries Exceeded", spandsp_global_stats.t38.retries_exceeded);
 	ast_cli(fd, "%-20.20s : %d\n", "Protocol Error", spandsp_global_stats.t38.protocol_error);

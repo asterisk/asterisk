@@ -1324,7 +1324,7 @@ send_select_output(struct unistimsession *pte, unsigned char output, unsigned ch
 				change_favorite_icon(pte, FAV_ICON_SPEAKER_OFFHOOK_BLACK);
 		}
 	} else
-		ast_log(LOG_WARNING, "Invalid ouput (%d)\n", output);
+		ast_log(LOG_WARNING, "Invalid output (%d)\n", output);
 	if (output != pte->device->output)
 		pte->device->previous_output = pte->device->output;
 	pte->device->output = output;
