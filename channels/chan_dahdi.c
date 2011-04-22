@@ -13513,6 +13513,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				}
 			}
 
+			p->distinctivering = 0;
 			/* Make special notes */
 			switch (start.opt) {
 			case '\0':
