@@ -2557,7 +2557,7 @@ static int handle_setvariable(struct ast_channel *chan, AGI *agi, int argc, cons
 static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
 	char *ret;
-	char tempstr[1024];
+	char tempstr[1024] = "";
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
