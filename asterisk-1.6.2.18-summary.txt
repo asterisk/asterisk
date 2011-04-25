@@ -1,0 +1,564 @@
+                                Release Summary
+
+                               asterisk-1.6.2.18
+
+                                Date: 2011-04-25
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.6.2.17.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   12 rmudgett              7 rmudgett               2 zaltar                 
+   8 jpeeler                2 seanbright             1 alecdavis              
+   7 qwell                  2 wimpy                  1 alexo                  
+   6 lathama                1 alexo                  1 bklang                 
+   6 seanbright             1 andrel                 1 bluecrow76             
+   6 tilghman               1 asgaroth               1 bluefox                
+   6 twilson                1 bklang                 1 clegall_proformatique  
+   5 lmadsen                1 efutch                 1 edhorton               
+   4 mnicholson             1 ernied                 1 ernied                 
+   3 russell                1 francesco_r            1 francesco_r            
+   2 zaltar                 1 lathama                1 gbour                  
+   1 alexo                  1 loloski                1 gelo                   
+   1 bluecrow76             1 oej                    1 gincantalupo           
+   1 cjacobsen              1 one47                  1 grecco                 
+   1 clegall                1 qwell                  1 irroot                 
+   1 crjw                   1 rfrantik               1 iskatel                
+   1 fnordian               1 russell                1 jacco                  
+   1 gbour                  1 tilghman               1 JJCinAZ                
+   1 kobaz                  1 wedhorn                1 junky                  
+   1 kshumard                                        1 kenji                  
+   1 mmichelson                                      1 kerframil              
+   1 one47                                           1 kobaz                  
+   1 pabelanger                                      1 kshumard               
+   1 thedavidfactor                                  1 mcallist               
+   1 wdoekes                                         1 notahat                
+                                                     1 oej                    
+                                                     1 one47                  
+                                                     1 pj                     
+                                                     1 shawkris               
+                                                     1 shihchuan              
+                                                     1 thedavidfactor         
+                                                     1 var                    
+                                                     1 vrban                  
+                                                     1 wdoekes                
+                                                     1 wimpy                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_dial
+
+   #18264: [patch] Dail L(x) shows "Setting call duration limit to x seconds"
+   in CLI
+   Revision: 302917
+   Reporter: jacco
+   Coders: lmadsen
+
+   #18379: attended transfer weird behaviour
+   Revision: 302693
+   Reporter: gincantalupo
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Applications/app_meetme
+
+   #17317: [patch] MeetMe 'L' and 'S' ignore 'C' option
+   Revision: 304773
+   Reporter: var
+   Coders: seanbright
+
+   #18225: [patch] Segfault with new meetme function (count callers in menu8)
+   Revision: 304729
+   Reporter: kenji
+   Testers: seanbright
+   Coders: seanbright
+
+   #18343: [patch] [regression] meetme conf_run leaks refs
+   Revision: 304776
+   Reporter: kobaz
+   Coders: kobaz
+
+   #18444: [patch] leak in meetme
+   Revision: 304726
+   Reporter: junky
+   Testers: seanbright
+   Coders: seanbright
+
+  Category: Applications/app_queue
+
+   #18499: [patch] Fallthrough in get_member_status can cause unwarranted
+   exit from queue
+   Revision: 306346
+   Reporter: zaltar
+   Coders: zaltar
+
+   #18747: [regression] changeset 298596 harm the ring/moh logic in queues
+   Revision: 308007
+   Reporter: vrban
+   Coders: qwell
+
+  Category: Applications/app_voicemail
+
+   #18486: [patch] Voicemail files out of sequence
+   Revision: 303677
+   Reporter: bluefox
+   Coders: jpeeler
+
+   #18498: [patch] [regression] Resequencing of mailbox not working as
+   expected.
+   Revision: 303677
+   Reporter: JJCinAZ
+   Coders: jpeeler
+
+  Category: Applications/app_voicemail/IMAP
+
+   #17870: [patch] greetingsfolder variable should be greetingfolder
+   Revision: 302833
+   Reporter: edhorton
+   Coders: lmadsen
+
+   #18718: [regression] Implicit declaration of copy yields broken
+   app_voicemail when building with IMAP support
+   Revision: 306961
+   Reporter: kerframil
+   Coders: jpeeler
+
+  Category: Channels/General
+
+   #18585: [patch] AMI redirect from meetme - calls fail
+   Revision: 303548
+   Reporter: oej
+   Testers: oej, wedhorn, russell
+   Coders: russell
+
+  Category: Channels/chan_dahdi
+
+   #17085: [patch] [regression] Overlap dialing to PSTN failing after #16789
+   Revision: 303769
+   Reporter: shawkris
+   Testers: wimpy, rmudgett
+   Coders: rmudgett
+
+   #17273: atxfer *2 channel dahdi FXS no hangup
+   Revision: 302173
+   Reporter: grecco
+   Testers: rmudgett
+   Coders: rmudgett
+
+   #18509: [patch] Sending out unnecessary PROCEEDING messages breaks overlap
+   dialing
+   Revision: 303769
+   Reporter: wimpy
+   Testers: wimpy, rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/General
+
+   #16675: "sip show peer/user " doesn't complete correctly
+   Revision: 303858
+   Reporter: pj
+   Coders: tilghman
+
+   #18371: [patch] asterisk crash when dialing SIP/${var} where var is empty
+   or not set
+   Revision: 305253
+   Reporter: gbour
+   Coders: gbour
+
+  Category: Core/General
+
+   #18515: [patch] Asterisk produces many zombie processes while under load.
+   Revision: 302599
+   Reporter: ernied
+   Testers: ernied
+   Coders: tilghman
+
+   #18776: [patch] asterisk -rx 'core show version' returns an ANSI string,
+   which is not evaluated correctly with debian init.d script.
+   Revision: 307316
+   Reporter: alecdavis
+   Testers: andrel, lathama
+   Coders: lathama
+
+  Category: Core/ManagerInterface
+
+   #18363: [patch] bad format in post_manager_event() i.e. ParkedCallGiveUp
+   and ParkedCallTimeOut
+   Revision: 302551
+   Reporter: clegall_proformatique
+   Coders: clegall
+
+  Category: Core/Netsock
+
+   #16135: [patch] ast_gethostbyname doesn't set h_length if argument is an
+   IP Address
+   Revision: 302504
+   Reporter: thedavidfactor
+   Coders: thedavidfactor
+
+  Category: Core/PBX
+
+   #17999: Issues with DTMF triggered attended transfers
+   Revision: 302173
+   Reporter: iskatel
+   Testers: rmudgett
+   Coders: rmudgett
+
+   #18310: [patch] hint state changes deadlock/race
+   Revision: 302265
+   Reporter: one47
+   Coders: one47
+
+  Category: Documentation
+
+   #18622: [patch] Remove reference to "priorityjumping" configuration option
+   in extensions.conf.sample
+   Revision: 302416
+   Reporter: kshumard
+   Coders: kshumard
+
+  Category: Features
+
+   #18395: C should not receive request call again after C cancel if B blind
+   transfer using atxfer call C
+   Revision: 302173
+   Reporter: shihchuan
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Features/Parking
+
+   #17946: [patch] Minor fixes to multiparking
+   Revision: 307227
+   Reporter: bluecrow76
+   Coders: bluecrow76
+
+  Category: Formats/format_wav
+
+   #16610: [patch] [OpenSolaris] wav format produces garbage files
+   Revision: 304096
+   Reporter: bklang
+   Testers: bklang, asgaroth, efutch
+   Coders: crjw
+
+  Category: Functions/func_odbc
+
+   #18795: [patch] func_odbc insertsql option may not work
+   Revision: 307836
+   Reporter: irroot
+   Testers: tilghman
+   Coders: tilghman
+
+  Category: General
+
+   #18042: [patch] inefficient strlen() in ast_uri_decode loop
+   Revision: 302554
+   Reporter: wdoekes
+   Coders: wdoekes
+
+   #18456: [patch] Asterisk HTTP response contains wrong Content-type
+   Revision: 305082
+   Reporter: alexo
+   Testers: alexo
+   Coders: alexo
+
+  Category: Resources/res_agi
+
+   #16032: [patch] AGI returns bogus "510 Invalid or unknown command"
+   Revision: 302548
+   Reporter: notahat
+   Coders: fnordian
+
+  Category: Resources/res_config_ldap
+
+   #18435: [patch] Memory leak in res_config_ldap when using realtime
+   Revision: 304865
+   Reporter: zaltar
+   Coders: zaltar
+
+  Category: Resources/res_features
+
+   #17096: C keeps ringing when hanging A and B after blind transfer using
+   atxfer
+   Revision: 302173
+   Reporter: gelo
+   Testers: rmudgett
+   Coders: rmudgett
+
+   #18262: [patch] No MOH When Call Parked
+   Revision: 303106
+   Reporter: francesco_r
+   Testers: francesco_r, rfrantik, one47
+   Coders: cjacobsen
+
+  Category: Resources/res_musiconhold
+
+   #18457: [patch] moh reload leaks file descriptors to dahdi timing channel
+   Revision: 305472
+   Reporter: mcallist
+   Testers: qwell, loloski
+   Coders: qwell
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 302049   | twilson    | Only offer codecs both sides      |            |
+   |          |            | support for directmedia           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 302313   | mnicholson | URI encode the user part of the   |            |
+   |          |            | contact header.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Handle 'Resource temporarily      |            |
+   | 302461   | pabelanger | unavailable' error more           |            |
+   |          |            | gracefully.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 302675   | tilghman   | Add some API documentation        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 302788   | russell    | Turn a noisy verbose message into |            |
+   |          |            | a debug message.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 302920   | russell    | Resolve a compiler warning.       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Add new queue strategy to         |            |
+   | 303008   | jpeeler    | preserve behavior for when queue  |            |
+   |          |            | members moved to ao2.             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 303273   | lmadsen    | Fix changes to L() flag in        | #18264     |
+   |          |            | Dial().                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 303285   | qwell      | Reset configuration before        |            |
+   |          |            | parsing users.conf.               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 303960   | twilson    | Guard against retransmitting BYEs |            |
+   |          |            | indefinitely                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 304006   | rmudgett   | DTMF attended transfers sometimes |            |
+   |          |            | fail for no apparent reason.      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Update documentation for          |            |
+   | 304149   | rmudgett   | DAHDISendCallreroutingFacility()  |            |
+   |          |            | application.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 304181   | seanbright | Make sure the sample queues.conf  |            |
+   |          |            | is properly commented.            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | This patch modifies chan_sip to   |            |
+   |          |            | route responses to the address    |            |
+   | 304244   | mnicholson | the request came from. It also    |            |
+   |          |            | modifies chan_sip to respect the  |            |
+   |          |            | maddr parameter in the Via        |            |
+   |          |            | header.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Convert from network to host byte |            |
+   | 304249   | mnicholson | ordering before checking if an IP |            |
+   |          |            | is a multicast address.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 304250   | mmichelson | Get rid of unused 'verbose' field |            |
+   |          |            | in ast_udptl                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Change delimiter used internally  |            |
+   | 304338   | jpeeler    | for GOTO_ON_BLINDXFR to commas to |            |
+   |          |            | match 76703.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Rerun bootstrap.sh with no        |            |
+   | 304461   | qwell      | changes, so that it is more       |            |
+   |          |            | obvious what my next commit       |            |
+   |          |            | changes.                          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 304465   | qwell      | Fix default prefix=/usr           | #17013     |
+   |          |            | regression on non-Linux systems.  |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Don't leak references if we can't |            |
+   | 304659   | seanbright | create a pseudo channel for       |            |
+   |          |            | mixing in MeetMe.                 |            |
+   |----------+------------+-----------------------------------+------------|
+   | 304682   | seanbright | Revert part of the previous       |            |
+   |          |            | commit that snuck in.             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 304978   | tilghman   | Fix compilation when ODBC_STORAGE |            |
+   |          |            | is defined.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Set file descriptors to -1 on     |            |
+   | 305130   | qwell      | creation, so that we don't see    |            |
+   |          |            | weirdness later.                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 305342   | rmudgett   | Obtain the pri lock for PRI queue |            |
+   |          |            | counters.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 305648   | lathama    | SIP Configuration Documentation   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 305752   | lathama    | Replace link to old doc with new  |            |
+   |          |            | wiki page.                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 305889   | rmudgett   | Minor AST_FRAME_TEXT related      |            |
+   |          |            | issues.                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 305985   | lathama    | res_phoneprov add snom 300, 320,  | #18713     |
+   |          |            | 360, 370, 820, 821, 870 support   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Set exception on channel in       |            |
+   | 306123   | jpeeler    | parking thread when POLLPRI event |            |
+   |          |            | detected.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 306126   | twilson    | Set hangup cause in local_hangup  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 306618   | twilson    | Don't allow a REFER w/replaces to |            |
+   |          |            | replace its own dialog            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 306673   | twilson    | Don't try to pickup a call in the |            |
+   |          |            | middle of a masquerade            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | make this safer and fully         |            |
+   | 306865   | jpeeler    | correct, pointed out by Steve     |            |
+   |          |            | Davis                             |            |
+   |----------+------------+-----------------------------------+------------|
+   | 306966   | jpeeler    | fix this line again               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 306973   | twilson    | Fix comparison for REFER Replaces |            |
+   |          |            | tags with pedantic=yes            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 307535   | qwell      | Remove color when executing       | #18776     |
+   |          |            | commands via a remote console.    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Reentrancy problem if outgoing    |            |
+   | 307624   | rmudgett   | call gets different B channel     |            |
+   |          |            | than requested.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Increment usage count at first    |            |
+   | 307792   | tilghman   | reference, to avoid a race        | #18156     |
+   |          |            | condition with many threads       |            |
+   |          |            | creating connections all at once. |            |
+   |----------+------------+-----------------------------------+------------|
+   | 308329   | lathama    | Add CSS MIME Type                 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Properly check the bounds of      |            |
+   |          |            | arrays when decoding UDPTL        |            |
+   | 308414   | mnicholson | packets. Also, remove broken      |            |
+   |          |            | support for receiving UDPTL       |            |
+   |          |            | packets larger than 16k. That     |            |
+   |          |            | shouldn't ever happen anyway.     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 308528   | lathama    | Add HTTP URI log, use ast_debug   |            |
+   |          |            | for console logging               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 315200   | lmadsen    | Create Asterisk 1.6.2.18 from     |            |
+   |          |            | 1.6.2.18-rc1                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Update .version, ChangeLog, merge |            |
+   | 315201   | lmadsen    | changes from AST-2011-005 and     |            |
+   |          |            | AST-2011-006                      |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                           |    2
+ ChangeLog                          |    6
+ apps/app_dial.c                    |    4
+ apps/app_meetme.c                  |   40 +
+ apps/app_privacy.c                 |    2
+ apps/app_queue.c                   |   14
+ apps/app_sendtext.c                |    2
+ apps/app_voicemail.c               |   54 ++
+ asterisk-1.6.2.18-rc1-summary.html |  428 ------------------
+ asterisk-1.6.2.18-rc1-summary.txt  |  549 ------------------------
+ channels/chan_dahdi.c              |  548 +++++++++++++++++-------
+ channels/chan_local.c              |    1
+ channels/chan_sip.c                |  419 +++++++++++++++++-
+ channels/chan_skinny.c             |   78 +++
+ configs/extensions.conf.sample     |    8
+ configs/http.conf.sample           |    5
+ configs/manager.conf.sample        |   11
+ configs/phoneprov.conf.sample      |    3
+ configs/queues.conf.sample         |    2
+ configs/sip.conf.sample            |   13
+ configs/skinny.conf.sample         |    9
+ configure.ac                       |    4
+ funcs/func_odbc.c                  |    5
+ include/asterisk/astdb.h           |   27 -
+ include/asterisk/channel.h         |   23 +
+ main/app.c                         |   53 ++
+ main/asterisk.c                    |    2
+ main/channel.c                     |   40 +
+ main/features.c                    |  841 +++++++++++++++++++++++++------------
+ main/file.c                        |   10
+ main/http.c                        |   30 +
+ main/manager.c                     |  121 ++++-
+ main/pbx.c                         |  174 ++++---
+ main/udptl.c                       |   53 --
+ main/utils.c                       |    4
+ phoneprov/snom-mac.xml             |   24 +
+ res/res_agi.c                      |    4
+ res/res_config_ldap.c              |    6
+ res/res_musiconhold.c              |    7
+ res/res_odbc.c                     |   11
+ res/res_timing_timerfd.c           |    2
+ 41 files changed, 2002 insertions(+), 1637 deletions(-)
+
+     ----------------------------------------------------------------------
