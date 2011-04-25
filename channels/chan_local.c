@@ -505,8 +505,8 @@ static void check_bridge(struct local_pvt *p)
 					}
 					ast_channel_unlock(p->owner);
 				}
-				ast_channel_unlock(p->chan->_bridge);
 			}
+			ast_channel_unlock(p->chan->_bridge);
 		}
 	}
 }
