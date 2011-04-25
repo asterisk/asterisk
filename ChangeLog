@@ -1,3 +1,17 @@
+2011-04-25  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.4.40.2 Released.
+
+	* Reverted part of r314607, as it can introduce a regression.
+	  Specifically, the security check for the "system"
+	  privilege was removed. If a user had the "call" privilege but not the
+	  "system" privilege, they would lose the ability to execute the system
+	  app and dialplan functions that run commands in a shell. This branch
+	  never used the "system" privilege for that purpose and did not need to
+	  be patched.
+	
+	  (Related to AST-2011-006)
+
 2011-04-21  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.4.40.1 Released.
