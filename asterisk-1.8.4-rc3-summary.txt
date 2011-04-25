@@ -49,7 +49,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   3 lmadsen                
+   4 lmadsen                
 
      ----------------------------------------------------------------------
 
@@ -72,6 +72,9 @@
    |----------+---------+-------------------------------+-------------------|
    | 315145   | lmadsen | Merge changes for             |                   |
    |          |         | AST-2011-005 and AST-2011-006 |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 315198   | lmadsen | Importing release summary for |                   |
+   |          |         | 1.8.4-rc3 release.            |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -83,19 +86,21 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .version                    |    2
- ChangeLog                   |   15 ++++
- channels/chan_sip.c         |  160 ++++++++++++++++++++++++++++++++++++++++++--
- channels/chan_skinny.c      |   78 ++++++++++++++++++++-
- channels/sip/include/sip.h  |    4 +
- configs/http.conf.sample    |    5 +
- configs/manager.conf.sample |   11 +++
- configs/sip.conf.sample     |   10 ++
- configs/skinny.conf.sample  |    9 ++
- main/http.c                 |   22 +++++-
- main/lock.c                 |    1
- main/manager.c              |  107 +++++++++++++++++++++++++----
- main/tcptls.c               |    5 +
- 13 files changed, 398 insertions(+), 31 deletions(-)
+ .version                        |    2
+ ChangeLog                       |   15 +++
+ asterisk-1.8.4-rc3-summary.html |   70 +++++++++++++++++
+ asterisk-1.8.4-rc3-summary.txt  |  101 +++++++++++++++++++++++++
+ channels/chan_sip.c             |  160 ++++++++++++++++++++++++++++++++++++++--
+ channels/chan_skinny.c          |   78 ++++++++++++++++++-
+ channels/sip/include/sip.h      |    4 +
+ configs/http.conf.sample        |    5 +
+ configs/manager.conf.sample     |   11 ++
+ configs/sip.conf.sample         |   10 ++
+ configs/skinny.conf.sample      |    9 ++
+ main/http.c                     |   22 ++++-
+ main/lock.c                     |    1
+ main/manager.c                  |  107 ++++++++++++++++++++++----
+ main/tcptls.c                   |    5 +
+ 15 files changed, 569 insertions(+), 31 deletions(-)
 
      ----------------------------------------------------------------------
