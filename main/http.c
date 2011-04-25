@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "/asterisk"
+#define DEFAULT_SESSION_LIMIT 100
 
 struct ast_http_server_instance {
 	FILE *f;
@@ -77,6 +78,8 @@ static char prefix[MAX_PREFIX];
 static int prefix_len;
 static struct sockaddr_in oldsin;
 static int enablestatic;
+static int session_limit = DEFAULT_SESSION_LIMIT;
+static int session_count = 0;
 
 /*! \brief Limit the kinds of files we're willing to serve up */
 static struct {
@@ -516,6 +519,7 @@ static void *ast_httpd_helper_thread(void *data)
 	}
 	fclose(ser->f);
 	free(ser);
+	ast_atomic_fetchadd_int(&session_count, -1);
 	return NULL;
 }
 
@@ -534,15 +538,23 @@ static void *http_root(void *data)
 		ast_wait_for_input(httpfd, -1);
 		sinlen = sizeof(sin);
 		fd = accept(httpfd, (struct sockaddr *)&sin, &sinlen);
+
 		if (fd < 0) {
 			if ((errno != EAGAIN) && (errno != EINTR))
 				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
 			continue;
 		}
+
+		if (ast_atomic_fetchadd_int(&session_count, +1) >= session_limit) {
+			close(fd);
+			continue;
+		}
+
 		ser = ast_calloc(1, sizeof(*ser));
 		if (!ser) {
 			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
 			close(fd);
+			ast_atomic_fetchadd_int(&session_count, -1);
 			continue;
 		}
 		flags = fcntl(fd, F_GETFL);
@@ -557,12 +569,14 @@ static void *http_root(void *data)
 				ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 				fclose(ser->f);
 				free(ser);
+				ast_atomic_fetchadd_int(&session_count, -1);
 			}
 			pthread_attr_destroy(&attr);
 		} else {
 			ast_log(LOG_WARNING, "fdopen failed!\n");
 			close(ser->fd);
 			free(ser);
+			ast_atomic_fetchadd_int(&session_count, -1);
 		}
 	}
 	return NULL;
@@ -679,8 +693,17 @@ static int __ast_http_load(int reload)
 				} else {
 					newprefix[0] = '\0';
 				}
-					
+			} else if (!strcasecmp(v->name, "sessionlimit")) {
+				int limit = atoi(v->value);
+
+				if (limit < 1) {
+					ast_log(LOG_WARNING, "Invalid sessionlimit value '%s', using default value\n", v->value);
+					session_limit = DEFAULT_SESSION_LIMIT;
+				} else {
+					session_limit = limit;
+				}
 			}
+
 			v = v->next;
 		}
 		ast_config_destroy(cfg);
