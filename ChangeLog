@@ -1,3 +1,18 @@
+2011-04-25  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.4-rc3 Released.
+
+	* Use SSLv23_client_method instead of old SSLv2 only.
+
+		(closes issue 0019095)
+		(closes issue 0019138)
+		Reported by: tzafrir
+		Patches: 
+		      no_ssl2.diff uploaded by tzafrir (license 46)
+		      Tested by: russell, chazzam
+
+	* Resolve crash in ast_mutex_init()
+
 2011-02-25  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.4-rc2 Released.
