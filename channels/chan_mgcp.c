@@ -3754,7 +3754,7 @@ static void *do_monitor(void *data)
 {
 	int res;
 	int reloading;
-	struct mgcp_gateway *g, *gprev, *gnext;
+	struct mgcp_gateway *g, *gprev;
 	/*struct mgcp_gateway *g;*/
 	/*struct mgcp_endpoint *e;*/
 	/*time_t thispass = 0, lastpass = 0;*/
@@ -3824,12 +3824,10 @@ static void *do_monitor(void *data)
 			g = gateways;
 			gprev = NULL;
 			while(g) {
-				gnext = g->next;
 				if(g->realtime) {
 					if(mgcp_prune_realtime_gateway(g)) {
 						if(gprev) {
-							gprev->next = gnext;
-							gprev = g;
+							gprev->next = g->next;
 						} else {
 							gateways = g->next;
 						}
@@ -3843,7 +3841,7 @@ static void *do_monitor(void *data)
 				} else {
 					gprev = g;
 				}
-				g = gnext;
+				g = g->next;
 			}
 			ast_mutex_unlock(&gatelock);
 			lastrun = time(NULL);
