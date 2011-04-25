@@ -2,7 +2,7 @@
 
                                asterisk-1.8.3-rc3
 
-                                Date: 2011-04-25
+                                Date: 2011-02-16
 
                            <asteriskteam@digium.com>
 
@@ -21,14 +21,13 @@
 
                                  [Back to Top]
 
-   This release has been made to address one or more security vulnerabilities
-   that have been identified. A security advisory document has been published
-   for each vulnerability that includes additional information. Users of
-   versions of Asterisk that are affected are strongly encouraged to review
-   the advisories and determine what action they should take to protect their
-   systems from these issues.
-
-   Security Advisories: AST-2011-005, AST-2011-006
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
 
    The data in this summary reflects changes that have been made since the
    previous release, asterisk-1.8.3-rc2.
@@ -49,7 +48,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   3 lmadsen                
+   2 lmadsen                
 
      ----------------------------------------------------------------------
 
@@ -72,9 +71,6 @@
    | 308144   | lmadsen | files. Remove old summary     |                   |
    |          |         | files. Merge in changes for   |                   |
    |          |         | chan_sip and app_queue.       |                   |
-   |----------+---------+-------------------------------+-------------------|
-   | 308147   | lmadsen | Importing release summary for |                   |
-   |          |         | 1.8.3-rc3 release.            |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -91,8 +87,6 @@
  apps/app_queue.c                |    1
  asterisk-1.8.3-rc2-summary.html |   68 -------------------------
  asterisk-1.8.3-rc2-summary.txt  |  107 ----------------------------------------
- asterisk-1.8.3-rc3-summary.html |   60 ++++++++++++++++++++++
- asterisk-1.8.3-rc3-summary.txt  |   92 ++++++++++++++++++++++++++++++++++
- 7 files changed, 189 insertions(+), 177 deletions(-)
+ 5 files changed, 37 insertions(+), 177 deletions(-)
 
      ----------------------------------------------------------------------
