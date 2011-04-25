@@ -12856,7 +12856,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	oldsin = peer->addr;
 
 	/* If we were already linked into the peers_by_ip container unlink ourselves so nobody can find us */
-	if (peer->addr.sin_addr.s_addr) {
+	if (peer->addr.sin_addr.s_addr && (!peer->is_realtime || ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS))) {
 		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 	}
 
@@ -12903,7 +12903,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 
 	/* Now that our address has been updated put ourselves back into the container for lookups */
-	ao2_t_link(peers_by_ip, peer, "ao2_link into peers_by_ip table");
+	if (!peer->is_realtime || ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
+		ao2_t_link(peers_by_ip, peer, "ao2_link into peers_by_ip table");
+	}
 
 	/* Save SIP options profile */
 	peer->sipoptions = pvt->sipoptions;
@@ -15462,6 +15464,8 @@ static char *sip_show_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "-= Peer objects: %d static, %d realtime, %d autocreate =-\n\n", speerobjs, rpeerobjs, apeerobjs);
 	ao2_t_callback(peers, OBJ_NODATA, peer_dump_func, &a->fd, "initiate ao2_callback to dump peers");
+	ast_cli(a->fd, "-= Peer objects by IP =-\n\n"); 
+	ao2_t_callback(peers_by_ip, OBJ_NODATA, peer_dump_func, &a->fd, "initiate ao2_callback to dump peers_by_ip");
 	ast_cli(a->fd, "-= Registry objects: %d =-\n\n", regobjs);
 	ASTOBJ_CONTAINER_DUMP(a->fd, tmp, sizeof(tmp), &regl);
 	ast_cli(a->fd, "-= Dialog objects:\n\n");
