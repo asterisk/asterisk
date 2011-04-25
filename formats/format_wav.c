@@ -87,48 +87,12 @@ struct wav_desc {	/* format-specific parameters */
 #endif
 
 
-static int check_header(FILE *f)
+static int check_header_fmt(FILE *f, int hsize)
 {
-	int type, size, formtype;
-	int fmt, hsize;
 	short format, chans, bysam, bisam;
 	int bysec;
 	int freq;
-	int data;
-	if (fread(&type, 1, 4, f) != 4) {
-		ast_log(LOG_WARNING, "Read failed (type)\n");
-		return -1;
-	}
-	if (fread(&size, 1, 4, f) != 4) {
-		ast_log(LOG_WARNING, "Read failed (size)\n");
-		return -1;
-	}
-	size = ltohl(size);
-	if (fread(&formtype, 1, 4, f) != 4) {
-		ast_log(LOG_WARNING, "Read failed (formtype)\n");
-		return -1;
-	}
-	if (memcmp(&type, "RIFF", 4)) {
-		ast_log(LOG_WARNING, "Does not begin with RIFF\n");
-		return -1;
-	}
-	if (memcmp(&formtype, "WAVE", 4)) {
-		ast_log(LOG_WARNING, "Does not contain WAVE\n");
-		return -1;
-	}
-	if (fread(&fmt, 1, 4, f) != 4) {
-		ast_log(LOG_WARNING, "Read failed (fmt)\n");
-		return -1;
-	}
-	if (memcmp(&fmt, "fmt ", 4)) {
-		ast_log(LOG_WARNING, "Does not say fmt\n");
-		return -1;
-	}
-	if (fread(&hsize, 1, 4, f) != 4) {
-		ast_log(LOG_WARNING, "Read failed (formtype)\n");
-		return -1;
-	}
-	if (ltohl(hsize) < 16) {
+	if (hsize < 16) {
 		ast_log(LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
 		return -1;
 	}
@@ -179,6 +143,34 @@ static int check_header(FILE *f)
 		ast_log(LOG_WARNING, "Failed to skip remaining header bytes: %d\n", ltohl(hsize)-16 );
 		return -1;
 	}
+	return 0;
+}
+
+static int check_header(FILE *f)
+{
+	int type, size, formtype;
+	int data;
+	if (fread(&type, 1, 4, f) != 4) {
+		ast_log(LOG_WARNING, "Read failed (type)\n");
+		return -1;
+	}
+	if (fread(&size, 1, 4, f) != 4) {
+		ast_log(LOG_WARNING, "Read failed (size)\n");
+		return -1;
+	}
+	size = ltohl(size);
+	if (fread(&formtype, 1, 4, f) != 4) {
+		ast_log(LOG_WARNING, "Read failed (formtype)\n");
+		return -1;
+	}
+	if (memcmp(&type, "RIFF", 4)) {
+		ast_log(LOG_WARNING, "Does not begin with RIFF\n");
+		return -1;
+	}
+	if (memcmp(&formtype, "WAVE", 4)) {
+		ast_log(LOG_WARNING, "Does not contain WAVE\n");
+		return -1;
+	}
 	/* Skip any facts and get the first data block */
 	for(;;)
 	{ 
@@ -186,23 +178,25 @@ static int check_header(FILE *f)
 	    
 	    /* Begin data chunk */
 	    if (fread(&buf, 1, 4, f) != 4) {
-			ast_log(LOG_WARNING, "Read failed (data)\n");
+			ast_log(LOG_WARNING, "Read failed (block header format)\n");
 			return -1;
 	    }
 	    /* Data has the actual length of data in it */
 	    if (fread(&data, 1, 4, f) != 4) {
-			ast_log(LOG_WARNING, "Read failed (data)\n");
+			ast_log(LOG_WARNING, "Read failed (block '%.4s' header length)\n", buf);
 			return -1;
 	    }
 	    data = ltohl(data);
+		if (memcmp(&buf, "fmt ", 4) == 0) {
+			if (check_header_fmt(f, data))
+				return -1;
+			continue;
+		}
 	    if(memcmp(buf, "data", 4) == 0 ) 
 			break;
-	    if(memcmp(buf, "fact", 4) != 0 ) {
-			ast_log(LOG_WARNING, "Unknown block - not fact or data\n");
-			return -1;
-	    }
+		ast_log(LOG_DEBUG, "Skipping unknown block '%.4s'\n", buf);
 	    if (fseek(f,data,SEEK_CUR) == -1 ) {
-			ast_log(LOG_WARNING, "Failed to skip fact block: %d\n", data );
+			ast_log(LOG_WARNING, "Failed to skip '%.4s' block: %d\n", buf, data);
 			return -1;
 	    }
 	}
