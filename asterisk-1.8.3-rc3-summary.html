@@ -4,7 +4,7 @@
 <body>
 <h1 align="center"><a name="top">Release Summary</a></h1>
 <h3 align="center">asterisk-1.8.3-rc3</h3>
-<h3 align="center">Date: 2011-02-16</h3>
+<h3 align="center">Date: 2011-04-25</h3>
 <h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
 <hr/>
 <h2 align="center">Table of Contents</h2>
@@ -16,7 +16,8 @@
 </ol>
 <hr/>
 <a name="summary"><h2 align="center">Summary</h2></a>
-<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release has been made to address one or more security vulnerabilities that have been identified.  A security advisory document has been published for each vulnerability that includes additional information.  Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p>
+<p>Security Advisories: <a href="http://downloads.asterisk.org/pub/security/AST-2011-005.html">AST-2011-005</a>, <a href="http://downloads.asterisk.org/pub/security/AST-2011-006.html">AST-2011-006</a></p>
 <p>The data in this summary reflects changes that have been made since the previous release, asterisk-1.8.3-rc2.</p>
 <hr/>
 <a name="contributors"><h2 align="center">Contributors</h2></a>
@@ -29,7 +30,7 @@
 </tr>
 <tr valign="top">
 <td>
-2 lmadsen<br/>
+3 lmadsen<br/>
 </td>
 <td>
 </td>
@@ -41,8 +42,9 @@
 <a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
 <center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
 <table width="100%" border="1">
-<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=308141">308141</a></td><td>lmadsen</td><td>Create 1.8.3-rc3 from 1.8.3-rc2</td>
-<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/1.8?view=revision&revision=308144">308144</a></td><td>lmadsen</td><td>Update .version and ChangeLog files. Remove old summary files. Merge in changes for chan_sip and app_queue.</td>
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.8.3-rc3?view=revision&revision=308141">308141</a></td><td>lmadsen</td><td>Create 1.8.3-rc3 from 1.8.3-rc2</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.8.3-rc3?view=revision&revision=308144">308144</a></td><td>lmadsen</td><td>Update .version and ChangeLog files. Remove old summary files. Merge in changes for chan_sip and app_queue.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/1.8.3-rc3?view=revision&revision=308147">308147</a></td><td>lmadsen</td><td>Importing release summary for 1.8.3-rc3 release.</td>
 <td></td></tr></table>
 <hr/>
 <a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
@@ -53,7 +55,9 @@ ChangeLog                       |   36 +++++++++++++
 apps/app_queue.c                |    1
 asterisk-1.8.3-rc2-summary.html |   68 -------------------------
 asterisk-1.8.3-rc2-summary.txt  |  107 ----------------------------------------
-5 files changed, 37 insertions(+), 177 deletions(-)
+asterisk-1.8.3-rc3-summary.html |   60 ++++++++++++++++++++++
+asterisk-1.8.3-rc3-summary.txt  |   92 ++++++++++++++++++++++++++++++++++
+7 files changed, 189 insertions(+), 177 deletions(-)
 </pre><br/>
 <hr/>
 </body>
