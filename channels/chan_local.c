@@ -371,8 +371,8 @@ static void check_bridge(struct local_pvt *p)
 					}
 					ast_mutex_unlock(&p->owner->lock);
 				}
-				ast_mutex_unlock(&(p->chan->_bridge)->lock);
 			}
+			ast_mutex_unlock(&(p->chan->_bridge)->lock);
 		}
 	}
 }
