@@ -26226,6 +26226,11 @@ static struct sip_peer *temp_peer(const char *name)
 		return NULL;
 	}
 
+	if (!(peer->caps = ast_format_cap_alloc_nolock())) {
+		ao2_t_ref(peer, -1, "failed to allocate format capabilities, drop peer");
+		return NULL;
+	}
+
 	ast_atomic_fetchadd_int(&apeerobjs, 1);
 	set_peer_defaults(peer);
 
