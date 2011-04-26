@@ -3404,6 +3404,22 @@ static void add_features_datastores(struct ast_channel *caller, struct ast_chann
 	return;
 }
 
+static void clear_dialed_interfaces(struct ast_channel *chan)
+{
+	struct ast_datastore *di_datastore;
+
+	ast_channel_lock(chan);
+	if ((di_datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL))) {
+		if (option_debug) {
+			ast_log(LOG_DEBUG, "Removing dialed interfaces datastore on %s since we're bridging\n", chan->name);
+		}
+		if (!ast_channel_datastore_remove(chan, di_datastore)) {
+			ast_datastore_free(di_datastore);
+		}
+	}
+	ast_channel_unlock(chan);
+}
+
 /*!
  * \brief bridge the call and set CDR
  * \param chan,peer,config
@@ -3589,6 +3605,13 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		ast_clear_flag(bridge_cdr, AST_CDR_FLAG_DIALED);
 	}
 	ast_cel_report_event(chan, AST_CEL_BRIDGE_START, NULL, NULL, NULL);
+
+	/* If we are bridging a call, stop worrying about forwarding loops. We presume that if
+	 * a call is being bridged, that the humans in charge know what they're doing. If they
+	 * don't, well, what can we do about that? */
+	clear_dialed_interfaces(chan);
+	clear_dialed_interfaces(peer);
+
 	for (;;) {
 		struct ast_channel *other;	/* used later */
 	
