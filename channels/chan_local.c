@@ -737,6 +737,9 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	size_t len, namelen;
 	char *reduced_dest = ast_strdupa(dest);
 	char *slash;
+	struct ast_channel *chan;
+	const char *exten;
+	const char *context;
 
 	if (!p || p->owner != ast) {
 		return -1;
@@ -821,21 +824,28 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	ast_set_cc_interfaces_chanvar(p->chan, reduced_dest);
 
-	if (!ast_exists_extension(p->chan, p->chan->context, p->chan->exten, 1,
+	chan = ast_channel_ref(p->chan);
+	ao2_unlock(p);
+	exten = ast_strdupa(chan->exten);
+	context = ast_strdupa(chan->context);
+	ast_channel_unlock(chan);
+
+	if (!ast_exists_extension(chan, context, exten, 1,
 		S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
-		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", p->chan->exten, p->chan->context);
-		ao2_unlock(p);
-		ast_channel_unlock(p->chan);
-		ao2_ref(p, -1);
-		return -1;
+		ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n", exten, context);
+		res = -1;
+		goto return_cleanup;
 	}
 
 	/* Start switch on sub channel */
-	if (!(res = ast_pbx_start(p->chan)))
+	if (!(res = ast_pbx_start(chan))) {
+		ao2_lock(p);
 		ast_set_flag(p, LOCAL_LAUNCHED_PBX);
+		ao2_unlock(p);
+	}
 
-	ao2_unlock(p);
-	ast_channel_unlock(p->chan);
+return_cleanup:
+	ast_channel_unref(chan);
 	ao2_ref(p, -1);
 	return res;
 }
