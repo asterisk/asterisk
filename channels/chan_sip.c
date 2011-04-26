@@ -12797,25 +12797,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		return PARSE_REGISTER_QUERY;
 	} else if (!strcasecmp(curi, "*") || !expire) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
-		memset(&peer->addr, 0, sizeof(peer->addr));
-		set_socket_transport(&peer->socket, peer->default_outbound_transport);
-
 		AST_SCHED_DEL_UNREF(sched, peer->expire,
 				unref_peer(peer, "remove register expire ref"));
-
-		destroy_association(peer);
-
-		register_peer_exten(peer, FALSE);	/* Remove extension from regexten= setting in sip.conf */
-		ast_string_field_set(peer, fullcontact, "");
-		ast_string_field_set(peer, useragent, "");
-		peer->sipoptions = 0;
-		peer->lastms = 0;
-		peer->portinuri = 0;
-		pvt->expiry = 0;
-
 		ast_verb(3, "Unregistered SIP '%s'\n", peer->name);
-
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
+		expire_register(ref_peer(peer,"add ref for explicit expire_register"));
 		return PARSE_REGISTER_UPDATE;
 	}
 
