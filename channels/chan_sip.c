@@ -9083,24 +9083,12 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		return PARSE_REGISTER_QUERY;
 	} else if (!strcasecmp(curi, "*") || !expiry) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
-		memset(&peer->addr, 0, sizeof(peer->addr));
 		if (!AST_SCHED_DEL(sched, peer->expire)) {
 			struct sip_peer *peer_ptr = peer;
 			ASTOBJ_UNREF(peer_ptr, sip_destroy_peer);
 		}
 
-		destroy_association(peer);
-		
-		register_peer_exten(peer, 0);	/* Add extension from regexten= setting in sip.conf */
-		peer->fullcontact[0] = '\0';
-		peer->useragent[0] = '\0';
-		peer->sipoptions = 0;
-		peer->lastms = 0;
-		peer->portinuri = 0;
-		pvt->expiry = 0;
-
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", peer->name);
+		expire_register(ASTOBJ_REF(peer));
 
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
 		return PARSE_REGISTER_UPDATE;
