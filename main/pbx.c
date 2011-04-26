@@ -3233,7 +3233,18 @@ static struct ast_datastore_info exception_store_info = {
 	.destroy = exception_store_free,
 };
 
-int pbx_builtin_raise_exception(struct ast_channel *chan, const char *reason)
+/*!
+ * \internal
+ * \brief Set the PBX to execute the exception extension.
+ *
+ * \param chan Channel to raise the exception on.
+ * \param reason Reason exception is raised.
+ * \param priority Dialplan priority to set.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int raise_exception(struct ast_channel *chan, const char *reason, int priority)
 {
 	struct ast_datastore *ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
 	struct pbx_exception *exception = NULL;
@@ -3255,8 +3266,14 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, const char *reason)
 	ast_string_field_set(exception, context, chan->context);
 	ast_string_field_set(exception, exten, chan->exten);
 	exception->priority = chan->priority;
-	set_ext_pri(chan, "e", 0);
+	set_ext_pri(chan, "e", priority);
 	return 0;
+}
+
+int pbx_builtin_raise_exception(struct ast_channel *chan, const char *reason)
+{
+	/* Priority will become 1, next time through the AUTOLOOP */
+	return raise_exception(chan, reason, 0);
 }
 
 static int acf_exception_read(struct ast_channel *chan, const char *name, char *data, char *buf, size_t buflen)
@@ -4838,30 +4855,41 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		while (!(res = ast_spawn_extension(c, c->context, c->exten, c->priority,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL),
 			&found, 1))) {
-			if ((c->_softhangup & AST_SOFTHANGUP_TIMEOUT)
-				&& ast_exists_extension(c, c->context, "T", 1,
-					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
-				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
-				memset(&c->whentohangup, 0, sizeof(c->whentohangup));
-				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
-			} else if ((c->_softhangup & AST_SOFTHANGUP_TIMEOUT)
-				&& ast_exists_extension(c, c->context, "e", 1,
-					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-				pbx_builtin_raise_exception(c, "ABSOLUTETIMEOUT");
-				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
-				memset(&c->whentohangup, 0, sizeof(c->whentohangup));
-				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
-			} else if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
+			if (!ast_check_hangup(c)) {
+				++c->priority;
+				continue;
+			}
+
+			/* Check softhangup flags. */
+			if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
 				ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 				continue;
-			} else if (ast_check_hangup(c)) {
-				ast_debug(1, "Extension %s, priority %d returned normally even though call was hung up\n",
-					c->exten, c->priority);
+			}
+			if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
+				if (ast_exists_extension(c, c->context, "T", 1,
+					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
+					set_ext_pri(c, "T", 1);
+					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
+					memset(&c->whentohangup, 0, sizeof(c->whentohangup));
+					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
+					continue;
+				} else if (ast_exists_extension(c, c->context, "e", 1,
+					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
+					raise_exception(c, "ABSOLUTETIMEOUT", 1);
+					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
+					memset(&c->whentohangup, 0, sizeof(c->whentohangup));
+					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
+					continue;
+				}
+
+				/* Call timed out with no special extension to jump to. */
 				error = 1;
 				break;
 			}
-			c->priority++;
+			ast_debug(1, "Extension %s, priority %d returned normally even though call was hung up\n",
+				c->exten, c->priority);
+			error = 1;
+			break;
 		} /* end while  - from here on we can use 'break' to go out */
 		if (found && res) {
 			/* Something bad happened, or a hangup has been requested. */
@@ -4895,7 +4923,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 						ast_verb(2, "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
 						error = 1;
 					} else {
-						pbx_builtin_raise_exception(c, "ERROR");
+						raise_exception(c, "ERROR", 1);
 						continue;
 					}
 				}
@@ -4903,20 +4931,29 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				if (c->_softhangup & AST_SOFTHANGUP_ASYNCGOTO) {
 					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_ASYNCGOTO);
 					continue;
-				} else if ((c->_softhangup & AST_SOFTHANGUP_TIMEOUT)
-					&& ast_exists_extension(c, c->context, "T", 1,
-						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-					set_ext_pri(c, "T", 1);
-					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
-					memset(&c->whentohangup, 0, sizeof(c->whentohangup));
-					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
-					continue;
-				} else {
-					if (c->cdr)
-						ast_cdr_update(c);
-					error = 1;
-					break;
 				}
+				if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
+					if (ast_exists_extension(c, c->context, "T", 1,
+						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
+						set_ext_pri(c, "T", 1);
+						/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
+						memset(&c->whentohangup, 0, sizeof(c->whentohangup));
+						ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
+						continue;
+					} else if (ast_exists_extension(c, c->context, "e", 1,
+						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
+						raise_exception(c, "ABSOLUTETIMEOUT", 1);
+						/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
+						memset(&c->whentohangup, 0, sizeof(c->whentohangup));
+						ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
+						continue;
+					}
+					/* Call timed out with no special extension to jump to. */
+				}
+				if (c->cdr)
+					ast_cdr_update(c);
+				error = 1;
+				break;
 			}
 		}
 		if (error)
@@ -4942,7 +4979,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				set_ext_pri(c, "i", 1);
 			} else if (ast_exists_extension(c, c->context, "e", 1,
 				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-				pbx_builtin_raise_exception(c, "INVALID");
+				raise_exception(c, "INVALID", 1);
 			} else {
 				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
 					c->name, c->exten, c->context);
@@ -4992,9 +5029,11 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 						set_ext_pri(c, "i", 1);
 					} else if (ast_exists_extension(c, c->context, "e", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-						pbx_builtin_raise_exception(c, "INVALID");
+						raise_exception(c, "INVALID", 1);
 					} else {
-						ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", dst_exten, c->context);
+						ast_log(LOG_WARNING,
+							"Invalid extension '%s', but no rule 'i' or 'e' in context '%s'\n",
+							dst_exten, c->context);
 						found = 1; /* XXX disable message */
 						break;
 					}
@@ -5006,9 +5045,11 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 						set_ext_pri(c, "t", 1);
 					} else if (ast_exists_extension(c, c->context, "e", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-						pbx_builtin_raise_exception(c, "RESPONSETIMEOUT");
+						raise_exception(c, "RESPONSETIMEOUT", 1);
 					} else {
-						ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
+						ast_log(LOG_WARNING,
+							"Timeout, but no rule 't' or 'e' in context '%s'\n",
+							c->context);
 						found = 1; /* XXX disable message */
 						break;
 					}
@@ -9405,18 +9446,22 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 
 	res = ast_waitfordigit(chan, ms);
 	if (!res) {
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1,
+		if (ast_check_hangup(chan)) {
+			/* Call is hungup for some reason. */
+			res = -1;
+		} else if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_verb(3, "Timeout on %s, continuing...\n", chan->name);
-		} else if (chan->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
-			ast_verb(3, "Call timeout on %s, checking for 'T'\n", chan->name);
-			res = -1;
 		} else if (ast_exists_extension(chan, chan->context, "t", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_verb(3, "Timeout on %s, going to 't'\n", chan->name);
 			set_ext_pri(chan, "t", 0); /* 0 will become 1, next time through the loop */
+		} else if (ast_exists_extension(chan, chan->context, "e", 1,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			raise_exception(chan, "RESPONSETIMEOUT", 0); /* 0 will become 1, next time through the loop */
 		} else {
-			ast_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
+			ast_log(LOG_WARNING, "Timeout but no rule 't' or 'e' in context '%s'\n",
+				chan->context);
 			res = -1;
 		}
 	}
