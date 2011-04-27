@@ -2253,10 +2253,7 @@ void free_via(struct sip_via *v)
 		return;
 	}
 
-	if (v->via) {
-		ast_free(v->via);
-	}
-
+	ast_free(v->via);
 	ast_free(v);
 }
 

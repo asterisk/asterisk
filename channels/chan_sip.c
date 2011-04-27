@@ -7438,6 +7438,21 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	return p;
 }
 
+/*!
+ * \brief Process the Via header according to RFC 3261 section 18.2.2.
+ * \param p a sip_pvt structure that will be modified according to the received
+ * header
+ * \param req a sip request with a Via header to process
+ *
+ * This function will update the destination of the response according to the
+ * Via header in the request and RFC 3261 section 18.2.2. We do not have a
+ * transport layer so we ignore certain values like the 'received' param (we
+ * set the destination address to the addres the request came from in the
+ * respprep() function).
+ *
+ * \retval -1 error
+ * \retval 0 success
+ */
 static int process_via(struct sip_pvt *p, const struct sip_request *req)
 {
 	struct sip_via *via = parse_via(get_header(req, "Via"));
@@ -7455,16 +7470,12 @@ static int process_via(struct sip_pvt *p, const struct sip_request *req)
 			return -1;
 		}
 
-		if (via->port) {
-			ast_sockaddr_set_port(&p->sa, via->port);
-		} else {
-			ast_sockaddr_set_port(&p->sa, STANDARD_SIP_PORT);
-		}
-
 		if (ast_sockaddr_is_ipv4_multicast(&p->sa)) {
 			setsockopt(sipsock, IPPROTO_IP, IP_MULTICAST_TTL, &via->ttl, sizeof(via->ttl));
 		}
 	}
+
+	ast_sockaddr_set_port(&p->sa, via->port ? via->port : STANDARD_SIP_PORT);
 
 	free_via(via);
 	return 0;
@@ -10012,6 +10023,9 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 
 	/* default to routing the response to the address where the request
 	 * came from.  Since we don't have a transport layer, we do this here.
+	 * The process_via() function will update the port to either the port
+	 * specified in the via header or the default port later on (per RFC
+	 * 3261 section 18.2.2).
 	 */
 	p->sa = p->recv;
 
