@@ -299,9 +299,9 @@ const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds 
 	case CONF_SOUND_ERROR_MENU:
 		return S_OR(custom_sounds->errormenu, "conf-errormenu");
 	case CONF_SOUND_JOIN:
-		return S_OR(custom_sounds->join, "beep");
+		return S_OR(custom_sounds->join, "confbridge-join");
 	case CONF_SOUND_LEAVE:
-		return S_OR(custom_sounds->leave, "beeperr");
+		return S_OR(custom_sounds->leave, "confbridge-leave");
 	}
 
 	return "";
