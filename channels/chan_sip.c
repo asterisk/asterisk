@@ -9101,7 +9101,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 		expire_register(ASTOBJ_REF(peer));
 
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", peer->name);
+
 		return PARSE_REGISTER_UPDATE;
 	}
 
