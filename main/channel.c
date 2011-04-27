@@ -3821,6 +3821,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		f = &ast_null_frame;
 		chan->fdno = -1;
 		goto done;
+	} else if (chan->fds[AST_JITTERBUFFER_FD] > -1 && chan->fdno == AST_JITTERBUFFER_FD) {
+		ast_clear_flag(chan, AST_FLAG_EXCEPTION);
 	}
 
 	/* Check for pending read queue */
