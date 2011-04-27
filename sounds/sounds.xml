@@ -72,6 +72,24 @@
 		</member>
 		<member name="CORE-SOUNDS-EN_AU-SIREN14" displayname="English (Australian Accent), G.722.1C (Siren14) format">
 		</member>
+		<member name="CORE-SOUNDS-RU-WAV" displayname="Russian, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-RU-ULAW" displayname="Russian, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-RU-ALAW" displayname="Russian, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-RU-GSM" displayname="Russian, GSM format" >
+		</member>
+		<member name="CORE-SOUNDS-RU-G729" displayname="Russian, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-RU-G722" displayname="Russian, G.722 format">
+		</member>
+		<member name="CORE-SOUNDS-RU-SLN16" displayname="Russian, Signed-linear 16kHz format">
+		</member>
+		<member name="CORE-SOUNDS-RU-SIREN7" displayname="Russian, G.722.1 (Siren7) format">
+		</member>
+		<member name="CORE-SOUNDS-RU-SIREN14" displayname="Russian, G.722.1C (Siren14) format">
+		</member>
 	</category>
 	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
 		<member name="MOH-OPSOUND-WAV" displayname="opsound.org Music On Hold Files, WAV format" >

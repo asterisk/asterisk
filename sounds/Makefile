@@ -28,7 +28,7 @@ CMD_PREFIX?=@
 SOUNDS_DIR:=$(DESTDIR)$(TMPDATADIR)/sounds
 SOUNDS_CACHE_DIR?=
 MOH_DIR:=$(DESTDIR)$(TMPDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.20
+CORE_SOUNDS_VERSION:=1.4.21
 EXTRA_SOUNDS_VERSION:=1.4.11
 MOH_VERSION:=2.03
 SOUNDS_URL:=http://downloads.asterisk.org/pub/telephony/sounds/releases
@@ -36,6 +36,7 @@ MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
 MCS:=$(subst -EN_AU-,-en_AU-,$(MCS))
 MCS:=$(subst -FR-,-fr-,$(MCS))
 MCS:=$(subst -ES-,-es-,$(MCS))
+MCS:=$(subst -RU-,-ru-,$(MCS))
 MCS:=$(subst -WAV,-wav,$(MCS))
 MCS:=$(subst -ULAW,-ulaw,$(MCS))
 MCS:=$(subst -ALAW,-alaw,$(MCS))
@@ -173,6 +174,8 @@ $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,es,$(CORE_SOUNDS_
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,fr,$(CORE_SOUNDS_VERSION)))
 
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,ru,$(CORE_SOUNDS_VERSION)))
+
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,en,$(EXTRA_SOUNDS_VERSION)))
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,es,$(EXTRA_SOUNDS_VERSION)))
@@ -190,10 +193,10 @@ $(eval $(call sound_download_rule,moh))
 dist-clean:
 	rm -f *.tar.gz
 
-$(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_CACHE_DIR):
+$(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_DIR)/ru $(SOUNDS_CACHE_DIR):
 	mkdir -p $@
 
-install: prefixcmd $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
+install: prefixcmd $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_DIR)/ru $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
 uninstall:
 	rm -rf $(SOUNDS_DIR)
