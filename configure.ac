@@ -159,8 +159,11 @@ AC_PATH_PROG([SHELL], [sh], :)
 AC_PATH_PROG([LN], [ln], :)
 AC_PATH_PROG([DOT], [dot], :)
 AC_PATH_PROG([WGET], [wget], :)
+AC_PATH_PROG([CURL], [curl], :)
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
+else if test "${CURL}" != ":" ; then
+  DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
 else
   AC_PATH_PROG([FETCH], [fetch], [:])
   DOWNLOAD=${FETCH}
