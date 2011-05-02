@@ -168,6 +168,7 @@ else
   AC_PATH_PROG([FETCH], [fetch], [:])
   DOWNLOAD=${FETCH}
 fi
+fi
 AC_SUBST(DOWNLOAD)
 
 AC_CACHE_CHECK([for bison that supports parse-param], [ac_cv_path_BISON2], [
