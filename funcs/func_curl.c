@@ -462,6 +462,10 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 		*buf = '\0';
 	}
 
+	if (!str) {
+		return -1;
+	}
+
 	if (ast_strlen_zero(info)) {
 		ast_log(LOG_WARNING, "CURL requires an argument (URL)\n");
 		ast_free(str);
@@ -531,13 +535,12 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 			int rowcount = 0;
 			while (fields && values && (piece = strsep(&remainder, "&"))) {
 				char *name = strsep(&piece, "=");
-				if (!piece) {
-					piece = "";
+				if (piece) {
+					ast_uri_decode(piece);
 				}
-				ast_uri_decode(piece);
 				ast_uri_decode(name);
 				ast_str_append(&fields, 0, "%s%s", rowcount ? "," : "", name);
-				ast_str_append(&values, 0, "%s%s", rowcount ? "," : "", piece);
+				ast_str_append(&values, 0, "%s%s", rowcount ? "," : "", S_OR(piece, ""));
 				rowcount++;
 			}
 			pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", ast_str_buffer(fields));
