@@ -563,7 +563,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		p->chan = newchan;
 
 	/* Do not let a masquerade cause a Local channel to be bridged to itself! */
-	if (!ast_check_hangup(newchan) && (p->owner->_bridge == p->chan || p->chan->_bridge == p->owner)) {
+	if (!ast_check_hangup(newchan) && ((p->owner && p->owner->_bridge == p->chan) || (p->chan && p->chan->_bridge == p->owner))) {
 		ast_log(LOG_WARNING, "You can not bridge a Local channel to itself!\n");
 		ao2_unlock(p);
 		ast_queue_hangup(newchan);
