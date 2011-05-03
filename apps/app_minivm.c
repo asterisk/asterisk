@@ -1229,7 +1229,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	struct ast_tm tm;
 	struct minivm_zone *the_zone = NULL;
 	struct ast_channel *ast;
-	char *finalfilename;
+	char *finalfilename = "";
 	struct ast_str *str1 = ast_str_create(16), *str2 = ast_str_create(16);
 	char *fromaddress;
 	char *fromemail;
