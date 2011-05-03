@@ -6260,8 +6260,6 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 
 	sig_pri_span_devstate_changed(p->pri);
 	pri_rel(p->pri);
-
-	ast->tech_pvt = NULL;
 	return 0;
 }
 
