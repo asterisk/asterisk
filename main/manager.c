@@ -2946,7 +2946,8 @@ static int action_login(struct mansession *s, const struct message *m)
 		ast_verb(2, "%sManager '%s' logged on from %s\n", (s->session->managerid ? "HTTP " : ""), s->session->username, ast_inet_ntoa(s->session->sin.sin_addr));
 	}
 	astman_send_ack(s, m, "Authentication accepted");
-	if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+	if ((s->session->send_events & EVENT_FLAG_SYSTEM)
+		&& ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
 		struct ast_str *auth = ast_str_alloca(80);
 		const char *cat_str = authority_to_str(EVENT_FLAG_SYSTEM, &auth);
 		astman_append(s, "Event: FullyBooted\r\n"
