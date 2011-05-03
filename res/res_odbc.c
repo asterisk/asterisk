@@ -1360,7 +1360,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 
 	if (obj && ast_test_flag(&flags, RES_ODBC_CONNECTED) && !obj->up) {
 		/* Check if this connection qualifies for reconnection, with negative connection cache time */
-		if (time(NULL) > class->last_negative_connect.tv_sec + class->negative_connection_cache.tv_sec) {
+		if (time(NULL) > obj->parent->last_negative_connect.tv_sec + obj->parent->negative_connection_cache.tv_sec) {
 			odbc_obj_connect(obj);
 		}
 	} else if (obj && ast_test_flag(&flags, RES_ODBC_SANITY_CHECK)) {
