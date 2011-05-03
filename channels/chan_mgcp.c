@@ -4746,7 +4746,7 @@ static int reload_config(int reload)
 		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
 	if (!ntohs(bindaddr.sin_port))
-		bindaddr.sin_port = ntohs(DEFAULT_MGCP_CA_PORT);
+		bindaddr.sin_port = htons(DEFAULT_MGCP_CA_PORT);
 	bindaddr.sin_family = AF_INET;
 	ast_mutex_lock(&netlock);
 	if (mgcpsock > -1)
