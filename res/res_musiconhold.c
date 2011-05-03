@@ -631,13 +631,11 @@ static void *monmp3thread(void *data)
 		}
 		if (class->timer) {
 			struct pollfd pfd = { .fd = ast_timer_fd(class->timer), .events = POLLIN, };
-			struct timeval tv;
 
 #ifdef SOLARIS
 			thr_yield();
 #endif
 			/* Pause some amount of time */
-			tv = ast_tvnow();
 			if (ast_poll(&pfd, 1, -1) > 0) {
 				ast_timer_ack(class->timer, 1);
 				res = 320;
@@ -1017,7 +1015,6 @@ static int moh_scan_files(struct mohclass *class) {
 	char filepath[PATH_MAX];
 	char *ext;
 	struct stat statbuf;
-	int dirnamelen;
 	int i;
 
 	if (class->dir[0] != '/') {
@@ -1038,7 +1035,6 @@ static int moh_scan_files(struct mohclass *class) {
 		ast_free(class->filearray[i]);
 
 	class->total_files = 0;
-	dirnamelen = strlen(dir_path) + 2;
 	if (!getcwd(path, sizeof(path))) {
 		ast_log(LOG_WARNING, "getcwd() failed: %s\n", strerror(errno));
 		return -1;

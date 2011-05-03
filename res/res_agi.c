@@ -1922,7 +1922,7 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 
 static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
-	int res, vres;
+	int res;
 	struct ast_filestream *fs, *vfs;
 	long sample_offset = 0, max_length;
 	const char *edigits = "";
@@ -1951,7 +1951,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 	ast_seekstream(fs, sample_offset, SEEK_SET);
 	res = ast_applystream(chan, fs);
 	if (vfs)
-		vres = ast_applystream(chan, vfs);
+		ast_applystream(chan, vfs);
 	ast_playstream(fs);
 	if (vfs)
 		ast_playstream(vfs);
@@ -1972,7 +1972,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 /*! \brief get option - really similar to the handle_streamfile, but with a timeout */
 static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
-	int res, vres;
+	int res;
 	struct ast_filestream *fs, *vfs;
 	long sample_offset = 0, max_length;
 	int timeout = 0;
@@ -2007,7 +2007,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, const 
 	ast_seekstream(fs, sample_offset, SEEK_SET);
 	res = ast_applystream(chan, fs);
 	if (vfs)
-		vres = ast_applystream(chan, vfs);
+		ast_applystream(chan, vfs);
 	ast_playstream(fs);
 	if (vfs)
 		ast_playstream(vfs);
@@ -2889,7 +2889,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 	struct ast_speech *speech = agi->speech;
 	const char *prompt;
 	char dtmf = 0, tmp[4096] = "", *buf = tmp;
-	int timeout = 0, offset = 0, old_read_format = 0, res = 0, i = 0;
+	int timeout = 0, offset = 0, res = 0, i = 0;
 	long current_offset = 0;
 	const char *reason = NULL;
 	struct ast_frame *fr = NULL;
@@ -2913,7 +2913,6 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		offset = atoi(argv[4]);
 
 	/* We want frames coming in signed linear */
-	old_read_format = chan->readformat;
 	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 		return RESULT_SUCCESS;

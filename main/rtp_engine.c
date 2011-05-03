@@ -1247,8 +1247,8 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 			*tinstance0 = NULL, *tinstance1 = NULL;
 	struct ast_rtp_glue *glue0, *glue1;
 	struct ast_sockaddr addr1, addr2;
-	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID, text_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
-	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID, text_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 	format_t codec0 = 0, codec1 = 0;
 	int unlock_chans = 1;
@@ -1275,11 +1275,9 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 
 	audio_glue0_res = glue0->get_rtp_info(c0, &instance0);
 	video_glue0_res = glue0->get_vrtp_info ? glue0->get_vrtp_info(c0, &vinstance0) : AST_RTP_GLUE_RESULT_FORBID;
-	text_glue0_res = glue0->get_trtp_info ? glue0->get_trtp_info(c0, &tinstance0) : AST_RTP_GLUE_RESULT_FORBID;
 
 	audio_glue1_res = glue1->get_rtp_info(c1, &instance1);
 	video_glue1_res = glue1->get_vrtp_info ? glue1->get_vrtp_info(c1, &vinstance1) : AST_RTP_GLUE_RESULT_FORBID;
-	text_glue1_res = glue1->get_trtp_info ? glue1->get_trtp_info(c1, &tinstance1) : AST_RTP_GLUE_RESULT_FORBID;
 
 	/* If we are carrying video, and both sides are not going to remotely bridge... fail the native bridge */
 	if (video_glue0_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue0_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue0_res != AST_RTP_GLUE_RESULT_REMOTE)) {
@@ -1381,8 +1379,8 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 		*vinstance0 = NULL, *vinstance1 = NULL,
 		*tinstance0 = NULL, *tinstance1 = NULL;
 	struct ast_rtp_glue *glue0, *glue1;
-	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID, text_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
-	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID, text_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	format_t codec0 = 0, codec1 = 0;
 	int res = 0;
 
@@ -1402,11 +1400,9 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 
 	audio_glue0_res = glue0->get_rtp_info(c0, &instance0);
 	video_glue0_res = glue0->get_vrtp_info ? glue0->get_vrtp_info(c0, &vinstance0) : AST_RTP_GLUE_RESULT_FORBID;
-	text_glue0_res = glue0->get_trtp_info ? glue0->get_trtp_info(c0, &tinstance0) : AST_RTP_GLUE_RESULT_FORBID;
 
 	audio_glue1_res = glue1->get_rtp_info(c1, &instance1);
 	video_glue1_res = glue1->get_vrtp_info ? glue1->get_vrtp_info(c1, &vinstance1) : AST_RTP_GLUE_RESULT_FORBID;
-	text_glue1_res = glue1->get_trtp_info ? glue1->get_trtp_info(c1, &tinstance1) : AST_RTP_GLUE_RESULT_FORBID;
 
 	/* If we are carrying video, and both sides are not going to remotely bridge... fail the native bridge */
 	if (video_glue0_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue0_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue0_res != AST_RTP_GLUE_RESULT_REMOTE)) {
@@ -1465,8 +1461,8 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 			*vinstance0 = NULL, *vinstance1 = NULL,
 			*tinstance0 = NULL, *tinstance1 = NULL;
 	struct ast_rtp_glue *glue0, *glue1;
-	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID, text_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
-	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID, text_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	format_t codec0 = 0, codec1 = 0;
 	int res = 0;
 
@@ -1491,11 +1487,9 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 
 	audio_glue0_res = glue0->get_rtp_info(c0, &instance0);
 	video_glue0_res = glue0->get_vrtp_info ? glue0->get_vrtp_info(c0, &vinstance0) : AST_RTP_GLUE_RESULT_FORBID;
-	text_glue0_res = glue0->get_trtp_info ? glue0->get_trtp_info(c0, &tinstance0) : AST_RTP_GLUE_RESULT_FORBID;
 
 	audio_glue1_res = glue1->get_rtp_info(c1, &instance1);
 	video_glue1_res = glue1->get_vrtp_info ? glue1->get_vrtp_info(c1, &vinstance1) : AST_RTP_GLUE_RESULT_FORBID;
-	text_glue1_res = glue1->get_trtp_info ? glue1->get_trtp_info(c1, &tinstance1) : AST_RTP_GLUE_RESULT_FORBID;
 
 	/* If we are carrying video, and both sides are not going to remotely bridge... fail the native bridge */
 	if (video_glue0_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue0_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue0_res != AST_RTP_GLUE_RESULT_REMOTE)) {

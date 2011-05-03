@@ -918,7 +918,7 @@ struct ast_park_call_args {
 static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
 {
 	struct parkeduser *pu;
-	int i, parking_space = -1, parking_range;
+	int i, parking_space = -1;
 	const char *parkinglotname = NULL;
 	const char *parkingexten;
 	struct ast_parkinglot *parkinglot = NULL;
@@ -1031,9 +1031,6 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct as
 		int start;
 		struct parkeduser *cur = NULL;
 
-		/* Select parking space within range */
-		parking_range = parkinglot->parking_stop - parkinglot->parking_start + 1;
-
 		if (ast_test_flag(args, AST_PARK_OPT_RANDOMIZE)) {
 			start = ast_random() % (parkinglot->parking_stop - parkinglot->parking_start + 1);
 		} else {
@@ -1082,7 +1079,6 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct as
 static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, struct ast_park_call_args *args)
 {
 	struct ast_context *con;
-	int parkingnum_copy;
 	struct parkeduser *pu = args->pu;
 	const char *event_from;
 
@@ -1111,7 +1107,6 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	
 	pu->start = ast_tvnow();
 	pu->parkingtime = (args->timeout > 0) ? args->timeout : pu->parkinglot->parkingtime;
-	parkingnum_copy = pu->parkingnum;
 	if (args->extout)
 		*(args->extout) = pu->parkingnum;
 
@@ -3448,7 +3443,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int we_disabled_peer_cdr = 0;
 	struct ast_option_header *aoh;
 	struct ast_cdr *bridge_cdr = NULL;
-	struct ast_cdr *orig_peer_cdr = NULL;
 	struct ast_cdr *chan_cdr = chan->cdr; /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *peer_cdr = peer->cdr; /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *new_chan_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
@@ -3520,8 +3514,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
 	ast_copy_string(orig_channame,chan->name,sizeof(orig_channame));
 	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
-	orig_peer_cdr = peer_cdr;
-	
+
 	if (!chan_cdr || (chan_cdr && !ast_test_flag(chan_cdr, AST_CDR_FLAG_POST_DISABLED))) {
 		
 		if (chan_cdr) {

@@ -3482,8 +3482,6 @@ static int manager_skinny_show_lines(struct mansession *s, const struct message 
 
 static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int verbose = 0;
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "skinny show lines [verbose]";
@@ -3498,9 +3496,7 @@ static char *handle_skinny_show_lines(struct ast_cli_entry *e, int cmd, struct a
 	}
 
 	if (a->argc == e->args) {
-		if (!strcasecmp(a->argv[e->args-1], "verbose")) {
-			verbose = 1;
-		} else {
+		if (strcasecmp(a->argv[e->args-1], "verbose")) {
 			return CLI_SHOWUSAGE;
 		}
 	} else if (a->argc != e->args - 1) {
@@ -3913,7 +3909,6 @@ static void *skinny_ss(void *data)
 static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	int res = 0;
-	int tone = 0;
 	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
@@ -3943,10 +3938,8 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	
 	switch (l->hookstate) {
 	case SKINNY_OFFHOOK:
-		tone = SKINNY_CALLWAITTONE;
 		break;
 	case SKINNY_ONHOOK:
-		tone = SKINNY_ALERT;
 		l->activesub = sub;
 		break;
 	default:
@@ -3975,7 +3968,6 @@ static int skinny_hangup(struct ast_channel *ast)
 	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l;
 	struct skinny_device *d;
-	struct skinnysession *s;
 
 	if (!sub) {
 		ast_debug(1, "Asked to hangup channel not connected\n");
@@ -3984,7 +3976,6 @@ static int skinny_hangup(struct ast_channel *ast)
 
 	l = sub->parent;
 	d = l->device;
-	s = d->session;
 
 	if (skinnydebug)
 		ast_verb(3,"Hanging up %s/%d\n",d->name,sub->callid);
@@ -5300,7 +5291,6 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	struct skinny_line *tmp;
 	pthread_t t;
 	int instance;
-	int reference;
 
 	/* if any line on a device is offhook, than the device must be offhook, 
 	   unless we have shared lines CCM seems that it would never get here, 
@@ -5316,7 +5306,6 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	}
 
 	instance = letohl(req->data.offhook.instance);
-	reference = letohl(req->data.offhook.reference);
 
 	if (instance) {
 		sub = find_subchannel_by_instance_reference(d, d->lastlineinstance, d->lastcallreference);
@@ -6629,15 +6618,11 @@ static int skinny_devicestate(void *data)
 
 static struct ast_channel *skinny_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
-	format_t oldformat;
-	
 	struct skinny_line *l;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
 	char *dest = data;
 
-	oldformat = format;
-	
 	if (!(format &= AST_FORMAT_AUDIO_MASK)) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), format));
 		return NULL;
@@ -7218,8 +7203,6 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
   	int on = 1;
   	struct ast_config *cfg;
   	char *cat;
-  	struct skinny_device *d;
- 	struct skinny_line *l;
   	int oldport = ntohs(bindaddr.sin_port);
   	struct ast_flags config_flags = { 0 };
  	
@@ -7268,7 +7251,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
 	config_parse_variables(TYPE_DEF_LINE, default_line, ast_variable_browse(cfg, "lines"));
 	cat = ast_category_browse(cfg, "lines");
 	while (cat && strcasecmp(cat, "general") && strcasecmp(cat, "devices")) {
-		l = config_line(cat, ast_variable_browse(cfg, cat));
+		config_line(cat, ast_variable_browse(cfg, cat));
 		cat = ast_category_browse(cfg, cat);
 	}
 		
@@ -7278,7 +7261,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
 	config_parse_variables(TYPE_DEF_DEVICE, default_device, ast_variable_browse(cfg, "devices"));
 	cat = ast_category_browse(cfg, "devices");
 	while (cat && strcasecmp(cat, "general") && strcasecmp(cat, "lines")) {
-		d = config_device(cat, ast_variable_browse(cfg, cat));
+		config_device(cat, ast_variable_browse(cfg, cat));
 		cat = ast_category_browse(cfg, cat);
 	}
 

@@ -362,11 +362,10 @@ const char *ast_file_version_find(const char *file)
 	struct file_version *iterator;
 
 	AST_RWLIST_WRLOCK(&file_versions);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&file_versions, iterator, list) {
+	AST_RWLIST_TRAVERSE(&file_versions, iterator, list) {
 		if (!strcasecmp(iterator->file, file))
 			break;
- 	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
+	}
 	AST_RWLIST_UNLOCK(&file_versions);
 	if (iterator)
 		return iterator->version;
@@ -575,9 +574,9 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 {
 	uint64_t physmem, freeram;
 	uint64_t freeswap = 0;
-	int totalswap = 0;
 	int nprocs = 0;
 	long uptime = 0;
+	int totalswap = 0;
 #if defined(HAVE_SYSINFO)
 	struct sysinfo sys_info;
 	sysinfo(&sys_info);
@@ -660,7 +659,7 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Buffer RAM:                %" PRIu64 " KiB\n", ((uint64_t) sys_info.bufferram * sys_info.mem_unit) / 1024);
 #endif
-#if defined (HAVE_SYSCTL) && defined(HAVE_SWAPCTL)
+#if defined (HAVE_SYSCTL) || defined(HAVE_SWAPCTL)
 	ast_cli(a->fd, "  Total Swap Space:          %u KiB\n", totalswap);
 	ast_cli(a->fd, "  Free Swap Space:           %" PRIu64 " KiB\n\n", freeswap);
 #endif

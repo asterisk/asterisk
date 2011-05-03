@@ -1266,13 +1266,22 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		char tmpcmd[PATH_MAX];
 		int tmpfd;
 
+		/**
+		 * XXX
+		 * /bug tmpfd is a leaked fd.  The file is also never unlinked.
+		 *      See app_voicemail.c for how the code works there that
+		 *      doesn't have this bug.
+		 */
+
 		ast_copy_string(newtmp, "/tmp/XXXXXX", sizeof(newtmp));
 		ast_debug(3, "newtmp: %s\n", newtmp);
 		tmpfd = mkstemp(newtmp);
-		snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
-		ast_safe_system(tmpcmd);
-		finalfilename = newtmp;
-		ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", filename, format, vmu->volgain, vmu->username);
+		if (tmpfd > -1) {
+			snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
+			ast_safe_system(tmpcmd);
+			finalfilename = newtmp;
+			ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", filename, format, vmu->volgain, vmu->username);
+		}
 	} else {
 		finalfilename = ast_strdupa(filename);
 	}
@@ -1828,7 +1837,6 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 	char callerid[256];
 	FILE *txt;
 	int res = 0, txtdes;
-	int msgnum;
 	int duration = 0;
 	char date[256];
 	char tmpdir[PATH_MAX];
@@ -1871,7 +1879,6 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 		pbx_builtin_setvar_helper(chan, "MVM_RECORD_STATUS", "FAILED");
 		return res;
 	}
-	msgnum = 0;
 
 	userdir = check_dirpath(tmpdir, sizeof(tmpdir), vmu->domain, username, "tmp");
 
@@ -2452,7 +2459,6 @@ static int minivm_accmess_exec(struct ast_channel *chan, const char *data)
 	char *message = NULL;
 	char *prompt = NULL;
 	int duration;
-	int cmd;
 
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "MinivmAccmess needs at least two arguments: account and option\n");
@@ -2526,7 +2532,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, const char *data)
 	}
 	snprintf(filename,sizeof(filename), "%s%s/%s/%s", MVM_SPOOL_DIR, vmu->domain, vmu->username, message);
 	/* Maybe we should check the result of play_record_review ? */
-	cmd = play_record_review(chan, prompt, filename, global_maxgreet, default_vmformat, 0, vmu, &duration, NULL, FALSE);
+	play_record_review(chan, prompt, filename, global_maxgreet, default_vmformat, 0, vmu, &duration, NULL, FALSE);
 
 	ast_debug(1, "Recorded new %s message in %s (duration %d)\n", message, filename, duration);
 
@@ -3238,12 +3244,10 @@ static int minivm_account_func_read(struct ast_channel *chan, const char *cmd, c
 		check_dirpath(buf, len, vmu->domain, vmu->username, NULL);
 	} else {	/* Look in channel variables */
 		struct ast_variable *var;
-		int found = 0;
 
 		for (var = vmu->chanvars ; var ; var = var->next)
 			if (!strcmp(var->name, colname)) {
 				ast_copy_string(buf, var->value, len);
-				found = 1;
 				break;
 			}
 	}

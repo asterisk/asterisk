@@ -1665,7 +1665,7 @@ static void *do_refresh(void *data)
 	for (;;) {
 		struct timeval now = ast_tvnow();
 		struct timespec ts = {0,};
-		int res, wait;
+		int wait;
 
 		ast_mutex_lock(&refreshlock);
 
@@ -1674,7 +1674,7 @@ static void *do_refresh(void *data)
 		}
 
 		ts.tv_sec = (now.tv_sec + wait / 1000) + 1;
-		res = ast_cond_timedwait(&refresh_condition, &refreshlock, &ts);
+		ast_cond_timedwait(&refresh_condition, &refreshlock, &ts);
 
 		ast_mutex_unlock(&refreshlock);
 
@@ -1701,10 +1701,9 @@ static int unload_module(void)
 	ao2_callback(calendars, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
 
 	AST_LIST_LOCK(&techs);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&techs, tech, list) {
+	AST_LIST_TRAVERSE(&techs, tech, list) {
 		ast_unload_resource(tech->module, 0);
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&techs);
 
 	return 0;

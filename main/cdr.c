@@ -716,11 +716,8 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 
 void ast_cdr_start(struct ast_cdr *cdr)
 {
-	char *chan;
-
 	for (; cdr; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = S_OR(cdr->channel, "<unknown>");
 			check_post(cdr);
 			cdr->start = ast_tvnow();
 		}
@@ -768,11 +765,8 @@ void ast_cdr_failed(struct ast_cdr *cdr)
 
 void ast_cdr_noanswer(struct ast_cdr *cdr)
 {
-	char *chan;
-
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 			check_post(cdr);
 			cdr->disposition = AST_CDR_NOANSWER;
 		}
@@ -892,11 +886,8 @@ static int cdr_seq_inc(struct ast_cdr *cdr)
 
 int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 {
-	char *chan;
-
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			chan = S_OR(cdr->channel, "<unknown>");
 			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
 			set_one_cid(cdr, c);
 			cdr_seq_inc(cdr);
@@ -1116,7 +1107,6 @@ int ast_cdr_amaflags2int(const char *flag)
 
 static void post_cdr(struct ast_cdr *cdr)
 {
-	char *chan;
 	struct ast_cdr_beitem *i;
 
 	for ( ; cdr ; cdr = cdr->next) {
@@ -1134,7 +1124,6 @@ static void post_cdr(struct ast_cdr *cdr)
 			continue;
 		}
 
-		chan = S_OR(cdr->channel, "<unknown>");
 		check_post(cdr);
 		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))

@@ -664,7 +664,6 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 	int res;
 	struct ast_sockaddr addr;
 	uint16_t seqno = 0;
-	uint16_t *udptlheader;
 	
 	/* Cache where the header will go */
 	res = ast_recvfrom(udptl->fd,
@@ -672,7 +671,6 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 			sizeof(udptl->rawdata) - AST_FRIENDLY_OFFSET,
 			0,
 			&addr);
-	udptlheader = (uint16_t *)(udptl->rawdata + AST_FRIENDLY_OFFSET);
 	if (res < 0) {
 		if (errno != EAGAIN)
 			ast_log(LOG_WARNING, "(%s): UDPTL read error: %s\n",

@@ -225,9 +225,7 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 	int i,j,n1,r;
 	int samples = 0;
 	int olen;
-	int beginlen=*len;
-	int beginlenx;
-	
+
 	switch (fskd->state) {
 		/* Pick up where we left off */
 	case STATE_SEARCH_STARTBIT2:
@@ -255,7 +253,6 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 		beginning of a start bit in the TDD sceanario. It just looks for sufficient
 		level to maybe, perhaps, guess, maybe that its maybe the beginning of
 		a start bit, perhaps. This whole thing stinks! */
-		beginlenx=beginlen; /* just to avoid unused war warnings */
 		if (demodulator(fskd, &fskd->x1, GET_SAMPLE))
 			return -1;
 		samples++;

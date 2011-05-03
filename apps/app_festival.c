@@ -163,7 +163,6 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 {
 	int res = 0;
 	int fds[2];
-	int pid = -1;
 	int needed = 0;
 	int owriteformat;
 	struct ast_frame *f;
@@ -195,7 +194,6 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 	
 	res = send_waveform_to_fd(waveform, length, fds[1]);
 	if (res >= 0) {
-		pid = res;
 		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
 		   user */
 		for (;;) {
@@ -257,10 +255,6 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 	close(fds[0]);
 	close(fds[1]);
 
-#if 0
-	if (pid > -1)
-		kill(pid, SIGKILL);
-#endif
 	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
 	return res;
@@ -284,7 +278,6 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 	char ack[4];
 	char *waveform;
 	int filesize;
-	int wave;
 	char bigstring[MAXFESTLEN];
 	int i;
 	struct MD5Context md5ctx;
@@ -493,7 +486,6 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 
 	/* Read back info from server */
 	/* This assumes only one waveform will come back, also LP is unlikely */
-	wave = 0;
 	do {
 		int read_data;
 		for (n = 0; n < 3; ) {

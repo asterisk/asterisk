@@ -795,7 +795,6 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 	float energy[6];
 	int best;
 	int second_best;
-	float famp;
 	int i;
 	int j;
 	int sample;
@@ -820,7 +819,6 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 		/* The following unrolled loop takes only 35% (rough estimate) of the 
 		   time of a rolled loop on the machine on which it was developed */
 		for (j = sample;  j < limit;  j++) {
-			famp = amp[j];
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
 			goertzel_sample(s->td.mf.tone_out, amp[j]);
