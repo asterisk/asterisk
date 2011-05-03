@@ -7241,7 +7241,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
 		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
 	if (!ntohs(bindaddr.sin_port)) {
-		bindaddr.sin_port = ntohs(DEFAULT_SKINNY_PORT);
+		bindaddr.sin_port = htons(DEFAULT_SKINNY_PORT);
 	}
 	bindaddr.sin_family = AF_INET;
 

@@ -4678,7 +4678,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		if (!strcasecmp(v->name, "port")){
-			sin->sin_port = ntohs(atoi(v->value));
+			sin->sin_port = htons(atoi(v->value));
 			if(last_port==0){
 				last_port=sin->sin_port;
 			} else if(sin->sin_port != last_port)
@@ -4831,7 +4831,7 @@ static int load_module(void)
 	dundi_set_error(dundi_error_output);
 
 	sin.sin_family = AF_INET;
-	sin.sin_port = ntohs(DUNDI_PORT);
+	sin.sin_port = htons(DUNDI_PORT);
 	sin.sin_addr.s_addr = INADDR_ANY;
 
 	/* Make a UDP socket */
