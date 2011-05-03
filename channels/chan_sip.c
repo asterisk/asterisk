@@ -10160,7 +10160,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval,
 			strefresher2str(p->stimer->st_ref));
-		add_header(req, "Require", "timer");
 		add_header(req, "Session-Expires", se_hdr);
 		snprintf(se_hdr, sizeof(se_hdr), "%d", st_get_se(p, FALSE));
 		add_header(req, "Min-SE", se_hdr);
