@@ -6135,46 +6135,10 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->cid_subaddr[0] = '\0';
 	}
 
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI)
 	if (dahdi_sig_pri_lib_handles(p->sig)) {
 		x = 1;
-		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
-		dahdi_confmute(p, 0);
-		p->muting = 0;
-		restore_gains(p);
-		if (p->dsp) {
-			ast_dsp_free(p->dsp);
-			p->dsp = NULL;
-		}
-		p->ignoredtmf = 0;
-		revert_fax_buffers(p, ast);
-		dahdi_setlinear(p->subs[SUB_REAL].dfd, 0);
-		p->law = p->law_default;
-		law = p->law_default;
-		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
-		dahdi_disable_ec(p);
-		update_conf(p);
-		reset_conf(p);
-		sig_pri_hangup(p->sig_pvt, ast);
-		p->subs[SUB_REAL].owner = NULL;
-		p->subs[SUB_REAL].needbusy = 0;
-		p->owner = NULL;
-		p->cid_tag[0] = '\0';
-		p->ringt = 0;/* Probably not used in this mode.  Reset anyway. */
-		p->distinctivering = 0;/* Probably not used in this mode. Reset anyway. */
-		p->confirmanswer = 0;/* Probably not used in this mode. Reset anyway. */
-		p->outgoing = 0;
-		p->digital = 0;
-		p->faxhandled = 0;
-		p->pulsedial = 0;/* Probably not used in this mode. Reset anyway. */
-		goto hangup_out;
-	}
-#endif
-
-#if defined(HAVE_SS7)
-	if (p->sig == SIG_SS7) {
-		x = 1;
-		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		ast_channel_setoption(ast, AST_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
 
 		dahdi_confmute(p, 0);
 		p->muting = 0;
@@ -6188,7 +6152,69 @@ static int dahdi_hangup(struct ast_channel *ast)
 		/* Real channel, do some fixup */
 		p->subs[SUB_REAL].owner = NULL;
 		p->subs[SUB_REAL].needbusy = 0;
-		p->polarity = POLARITY_IDLE;
+		dahdi_setlinear(p->subs[SUB_REAL].dfd, 0);
+
+		p->owner = NULL;
+		p->cid_tag[0] = '\0';
+		p->ringt = 0;/* Probably not used in this mode.  Reset anyway. */
+		p->distinctivering = 0;/* Probably not used in this mode. Reset anyway. */
+		p->confirmanswer = 0;/* Probably not used in this mode. Reset anyway. */
+		p->outgoing = 0;
+		p->digital = 0;
+		p->faxhandled = 0;
+		p->pulsedial = 0;/* Probably not used in this mode. Reset anyway. */
+
+		revert_fax_buffers(p, ast);
+
+		p->law = p->law_default;
+		law = p->law_default;
+		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n",
+				p->channel, strerror(errno));
+		}
+
+		sig_pri_hangup(p->sig_pvt, ast);
+
+		tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
+		dahdi_disable_ec(p);
+
+		x = 0;
+		ast_channel_setoption(ast, AST_OPTION_TDD, &x, sizeof(char), 0);
+		p->didtdd = 0;/* Probably not used in this mode. Reset anyway. */
+
+		p->rdnis[0] = '\0';
+		update_conf(p);
+		reset_conf(p);
+
+		/* Restore data mode */
+		x = 0;
+		ast_channel_setoption(ast, AST_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
+
+		if (num_restart_pending == 0) {
+			restart_monitor();
+		}
+		goto hangup_out;
+	}
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_SS7)
+	if (p->sig == SIG_SS7) {
+		x = 1;
+		ast_channel_setoption(ast, AST_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
+
+		dahdi_confmute(p, 0);
+		p->muting = 0;
+		restore_gains(p);
+		if (p->dsp) {
+			ast_dsp_free(p->dsp);
+			p->dsp = NULL;
+		}
+		p->ignoredtmf = 0;
+
+		/* Real channel, do some fixup */
+		p->subs[SUB_REAL].owner = NULL;
+		p->subs[SUB_REAL].needbusy = 0;
 		dahdi_setlinear(p->subs[SUB_REAL].dfd, 0);
 
 		p->owner = NULL;
@@ -6205,28 +6231,30 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->law = p->law_default;
 		law = p->law_default;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
-		if (res < 0)
-			ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n", p->channel, strerror(errno));
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Unable to set law on channel %d to default: %s\n",
+				p->channel, strerror(errno));
+		}
 
 		sig_ss7_hangup(p->sig_pvt, ast);
 
 		tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
 		dahdi_disable_ec(p);
+
 		x = 0;
-		ast_channel_setoption(ast,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-		ast_channel_setoption(ast,AST_OPTION_TDD,&x,sizeof(char),0);
+		ast_channel_setoption(ast, AST_OPTION_TDD, &x, sizeof(char), 0);
 		p->didtdd = 0;/* Probably not used in this mode. Reset anyway. */
+
 		update_conf(p);
 		reset_conf(p);
 
 		/* Restore data mode */
 		x = 0;
-		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		ast_channel_setoption(ast, AST_OPTION_AUDIO_MODE, &x, sizeof(char), 0);
 
-		if (num_restart_pending == 0)
+		if (num_restart_pending == 0) {
 			restart_monitor();
-
-		ast->tech_pvt = NULL;
+		}
 		goto hangup_out;
 	}
 #endif	/* defined(HAVE_SS7) */
@@ -6440,6 +6468,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 			break;
 		default:
 			tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
+			break;
 		}
 		if (p->sig)
 			dahdi_disable_ec(p);
@@ -6473,8 +6502,8 @@ static int dahdi_hangup(struct ast_channel *ast)
 	p->cidcwexpire = 0;
 	p->cid_suppress_expire = 0;
 	p->oprmode = 0;
-	ast->tech_pvt = NULL;
 hangup_out:
+	ast->tech_pvt = NULL;
 	ast_free(p->cidspill);
 	p->cidspill = NULL;
 

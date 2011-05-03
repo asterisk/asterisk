@@ -1470,7 +1470,6 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 	}
 
 	analog_stop_callwait(p);
-	ast->tech_pvt = NULL;
 
 	ast_verb(3, "Hanging up on '%s'\n", ast->name);
 
