@@ -944,28 +944,25 @@ int ast_channel_audiohook_count_by_source(struct ast_channel *chan, const char *
 
 	switch (type) {
 		case AST_AUDIOHOOK_TYPE_SPY:
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->spy_list, ah, list) {
+			AST_LIST_TRAVERSE(&chan->audiohooks->spy_list, ah, list) {
 				if (!strcmp(ah->source, source)) {
 					count++;
 				}
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		case AST_AUDIOHOOK_TYPE_WHISPER:
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->whisper_list, ah, list) {
+			AST_LIST_TRAVERSE(&chan->audiohooks->whisper_list, ah, list) {
 				if (!strcmp(ah->source, source)) {
 					count++;
 				}
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		case AST_AUDIOHOOK_TYPE_MANIPULATE:
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->manipulate_list, ah, list) {
+			AST_LIST_TRAVERSE(&chan->audiohooks->manipulate_list, ah, list) {
 				if (!strcmp(ah->source, source)) {
 					count++;
 				}
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		default:
 			ast_debug(1, "Invalid audiohook type supplied, (%d)\n", type);
@@ -985,25 +982,22 @@ int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, cons
 
 	switch (type) {
 		case AST_AUDIOHOOK_TYPE_SPY:
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->spy_list, ah, list) {
+			AST_LIST_TRAVERSE(&chan->audiohooks->spy_list, ah, list) {
 				if ((!strcmp(ah->source, source)) && (ah->status == AST_AUDIOHOOK_STATUS_RUNNING))
 					count++;
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		case AST_AUDIOHOOK_TYPE_WHISPER:
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->whisper_list, ah, list) {
+			AST_LIST_TRAVERSE(&chan->audiohooks->whisper_list, ah, list) {
 				if ((!strcmp(ah->source, source)) && (ah->status == AST_AUDIOHOOK_STATUS_RUNNING))
 					count++;
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		case AST_AUDIOHOOK_TYPE_MANIPULATE:
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->audiohooks->manipulate_list, ah, list) {
+			AST_LIST_TRAVERSE(&chan->audiohooks->manipulate_list, ah, list) {
 				if ((!strcmp(ah->source, source)) && (ah->status == AST_AUDIOHOOK_STATUS_RUNNING))
 					count++;
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 			break;
 		default:
 			ast_debug(1, "Invalid audiohook type supplied, (%d)\n", type);

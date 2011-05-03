@@ -143,7 +143,7 @@ extern struct {
     /* Local variables */
     integer pbar;
     real sbar;
-    integer path[2], iptr, i__, j;
+    integer iptr, i__, j;
     real alpha, minsc, maxsc;
 
 /*       Arguments */
@@ -389,7 +389,6 @@ n*/
     for (i__ = 1; i__ <= 2; ++i__) {
 	j = j % 2 + 1;
 	*pitch = p[*pitch + j * 60 - 61];
-	path[i__ - 1] = *pitch;
     }
 
 /*       The following statement subtracts one from IPOINT, mod DEPTH.  I 

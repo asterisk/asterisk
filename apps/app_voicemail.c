@@ -7061,7 +7061,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	char *dir;
 	int curmsg;
 	char urgent_str[7] = "";
-	char tmptxtfile[PATH_MAX];
 	int prompt_played = 0;
 #ifndef IMAP_STORAGE
 	char msgfile[PATH_MAX], textfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
@@ -7074,7 +7073,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	dir = vms->curdir;
 	curmsg = vms->curmsg;
 
-	tmptxtfile[0] = '\0';
 	while (!res && !valid_extensions) {
 		int use_directory = 0;
 		if (ast_test_flag((&globalflags), VM_DIRECFORWARD)) {

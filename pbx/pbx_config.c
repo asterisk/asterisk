@@ -677,7 +677,7 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	int incomplete = 0; /* incomplete config write? */
 	FILE *output;
 	struct ast_flags config_flags = { 0 };
-	const char *base, *slash, *file;
+	const char *base, *slash;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -716,16 +716,13 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 		if (!strstr(a->argv[2], ".conf")) { /*no, this is assumed to be a pathname */
 			/* if filename ends with '/', do not add one */
 			slash = (*(a->argv[2] + strlen(a->argv[2]) -1) == '/') ? "/" : "";
-			file = config;	/* default: 'extensions.conf' */
 		} else {	/* yes, complete file name */
 			slash = "";
-			file = "";
 		}
 	} else {
 		/* no config file, default one */
 		base = ast_config_AST_CONFIG_DIR;
 		slash = "/";
-		file = config;
 	}
 	snprintf(filename, sizeof(filename), "%s%s%s", base, slash, config);
 
@@ -1640,7 +1637,6 @@ static void pbx_load_users(void)
 	char dahdicopy[256];
 	char *ext, altcopy[256];
 	char *c;
-	int len;
 	int hasvoicemail;
 	int start, finish, x;
 	struct ast_context *con = NULL;
@@ -1654,7 +1650,6 @@ static void pbx_load_users(void)
 		if (!strcasecmp(cat, "general"))
 			continue;
 		iface[0] = '\0';
-		len = sizeof(iface);
 		if (ast_true(ast_config_option(cfg, cat, "hassip"))) {
 			snprintf(tmp, sizeof(tmp), "SIP/%s", cat);
 			append_interface(iface, sizeof(iface), tmp);

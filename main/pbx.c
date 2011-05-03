@@ -6692,7 +6692,6 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 	const char *exten, *context;
 	const char *id = astman_get_header(m, "ActionID");
 	char idtext[256];
-	int res;
 
 	/* Variables used for different counters */
 	struct dialplan_counters counters;
@@ -6707,7 +6706,7 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 	exten = astman_get_header(m, "Extension");
 	context = astman_get_header(m, "Context");
 
-	res = manager_show_dialplan_helper(s, m, idtext, context, exten, &counters, NULL);
+	manager_show_dialplan_helper(s, m, idtext, context, exten, &counters, NULL);
 
 	if (context && !counters.context_existence) {
 		char errorbuf[BUFSIZ];
@@ -7540,7 +7539,7 @@ static const char * const months[] =
 
 int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
-	char *info_save, *info;
+	char *info;
 	int j, num_fields, last_sep = -1;
 
 	/* Check for empty just in case */
@@ -7549,7 +7548,7 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 	}
 
 	/* make a copy just in case we were passed a static string */
-	info_save = info = ast_strdupa(info_in);
+	info = ast_strdupa(info_in);
 
 	/* count the number of fields in the timespec */
 	for (j = 0, num_fields = 1; info[j] != '\0'; j++) {

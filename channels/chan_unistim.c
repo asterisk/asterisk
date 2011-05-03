@@ -1924,7 +1924,7 @@ static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subcha
 	int res = 0;
 	struct ast_channel
 	 *chana = NULL, *chanb = NULL, *bridgea = NULL, *bridgeb = NULL, *peera =
-		NULL, *peerb = NULL, *peerc = NULL, *peerd = NULL;
+		NULL, *peerb = NULL, *peerc = NULL;
 
 	if (!p1->owner || !p2->owner) {
 		ast_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
@@ -1939,12 +1939,10 @@ static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subcha
 		peera = chana;
 		peerb = chanb;
 		peerc = bridgea;
-		peerd = bridgeb;
 	} else if (bridgeb) {
 		peera = chanb;
 		peerb = chana;
 		peerc = bridgeb;
-		peerd = bridgea;
 	}
 
 	if (peera && peerb && peerc && (peerb != peerc)) {

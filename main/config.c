@@ -1021,7 +1021,6 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 	} else if (cur[0] == '#') { /* A directive - #include or #exec */
 		char *cur2;
 		char real_inclusion_name[256];
-		struct ast_config_include *inclu;
 		int do_include = 0;	/* otherwise, it is exec */
 
 		cur++;
@@ -1094,7 +1093,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		}
 		/* A #include */
 		/* record this inclusion */
-		inclu = ast_include_new(cfg, cfg->include_level == 1 ? "" : configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+		ast_include_new(cfg, cfg->include_level == 1 ? "" : configfile, cur, !do_include, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
 
 		do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
 		if (!ast_strlen_zero(exec_file))

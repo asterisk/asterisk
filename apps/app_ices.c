@@ -112,7 +112,6 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 	int pid = -1;
 	int flags;
 	struct ast_format oreadformat;
-	struct timeval last;
 	struct ast_frame *f;
 	char filename[256]="";
 	char *c;
@@ -122,8 +121,6 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
 		return -1;
 	}
-	
-	last = ast_tv(0, 0);
 	
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");

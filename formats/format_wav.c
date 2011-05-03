@@ -355,7 +355,6 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 #if __BYTE_ORDER == __BIG_ENDIAN
 	int x;
 #endif
-	short *tmp;
 	int bytes;
 	off_t here;
 	/* Send a frame from the file to the appropriate channel */
@@ -382,8 +381,8 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	s->fr.datalen = res;
 	s->fr.samples = samples = res / 2;
 
-	tmp = (short *)(s->fr.data.ptr);
 #if __BYTE_ORDER == __BIG_ENDIAN
+	tmp = (short *)(s->fr.data.ptr);
 	/* file format is little endian so we need to swap */
 	for( x = 0; x < samples; x++)
 		tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);

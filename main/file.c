@@ -147,7 +147,6 @@ int ast_stopstream(struct ast_channel *tmp)
 int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res = -1;
-	int alt = 0;
 	if (f->frametype == AST_FRAME_VIDEO) {
 		if (AST_FORMAT_GET_TYPE(fs->fmt->format.id) == AST_FORMAT_TYPE_AUDIO) {
 			/* This is the audio portion.  Call the video one... */
@@ -160,9 +159,6 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 				return ast_writestream(fs->vfs, f);
 			/* else ignore */
 			return 0;				
-		} else {
-			/* Might / might not have mark set */
-			alt = 1;
 		}
 	} else if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Tried to write non-voice frame\n");

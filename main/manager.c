@@ -1717,7 +1717,7 @@ static const char *__astman_get_header(const struct message *m, char *var, int m
 		}
 	}
 
-	return "";
+	return result;
 }
 
 /*! \brief

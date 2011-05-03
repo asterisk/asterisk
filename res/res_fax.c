@@ -2266,9 +2266,7 @@ static char *fax_session_tab_complete(struct ast_cli_args *a)
 		}
 		ao2_ref(s, -1);
 	}
-	if (ao2_iterator_destroy != NULL) {
-		ao2_iterator_destroy(&i);
-	}
+	ao2_iterator_destroy(&i);
 	return name;
 }
 
@@ -2502,9 +2500,7 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 			ast_log(LOG_ERROR, "error printing filenames for 'fax show sessions' command");
 			ao2_unlock(s);
 			ao2_ref(s, -1);
-			if (ao2_iterator_destroy != NULL) {
-				ao2_iterator_destroy(&i);
-			}
+			ao2_iterator_destroy(&i);
 			return CLI_FAILURE;
 		}
 
@@ -2518,9 +2514,7 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 		ao2_unlock(s);
 		ao2_ref(s, -1);
 	}
-	if (ao2_iterator_destroy != NULL) {
-		ao2_iterator_destroy(&i);
-	}
+	ao2_iterator_destroy(&i);
 	session_count = ao2_container_count(faxregistry.container);
 	ast_cli(a->fd, "\n%d FAX sessions\n\n", session_count);
 

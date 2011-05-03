@@ -101,7 +101,6 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	char *parse;
 	char *chantech, *chandata;
 	int res = -1;
-	int outgoing_res = 0;
 	int outgoing_status = 0;
 	static const unsigned int timeout = 30;
 	static const char default_exten[] = "s";
@@ -154,14 +153,14 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to extension %s,%s,%d\n",
 				chantech, chandata, args.arg1, exten, priority);
 
-		outgoing_res = ast_pbx_outgoing_exten(chantech, cap_slin, chandata,
+		ast_pbx_outgoing_exten(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, exten, priority, &outgoing_status, 0, NULL,
 				NULL, NULL, NULL, NULL);
 	} else if (!strcasecmp(args.type, "app")) {
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to %s(%s)\n",
 				chantech, chandata, args.arg1, S_OR(args.arg2, ""));
 
-		outgoing_res = ast_pbx_outgoing_app(chantech, cap_slin, chandata,
+		ast_pbx_outgoing_app(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, args.arg2, &outgoing_status, 0, NULL,
 				NULL, NULL, NULL, NULL);
 	} else {

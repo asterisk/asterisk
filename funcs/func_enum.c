@@ -161,7 +161,6 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 		AST_APP_ARG(record);
 		AST_APP_ARG(zone);
 	);
-	int res = 0;
 	char tech[80];
 	char dest[256] = "", tmp[2] = "", num[AST_MAX_EXTENSION] = "";
 	char *s, *p;
@@ -205,7 +204,7 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 		}
 
 	}
-	res = ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone, args.options, record, NULL);
+	ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone, args.options, record, NULL);
 
 	p = strchr(dest, ':');
 	if (p && strcasecmp(tech, "ALL") && !strchr(args.options, 'u')) {
@@ -414,7 +413,6 @@ static struct ast_custom_function enum_function = {
 static int function_txtcidname(struct ast_channel *chan, const char *cmd,
 			       char *data, char *buf, size_t len)
 {
-	int res;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(number);
 		AST_APP_ARG(zone);
@@ -438,7 +436,7 @@ static int function_txtcidname(struct ast_channel *chan, const char *cmd,
 		args.zone = "e164.arpa";
 	}
 
-	res = ast_get_txt(chan, args.number, buf, len, args.zone);
+	ast_get_txt(chan, args.number, buf, len, args.zone);
 
 	return 0;
 }

@@ -887,7 +887,6 @@ int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base)
 static int agent_hangup(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->tech_pvt;
-	int howlong = 0;
 
 	ast_mutex_lock(&p->lock);
 	p->owner = NULL;
@@ -908,11 +907,8 @@ static int agent_hangup(struct ast_channel *ast)
 
 	ast_debug(1, "Hangup called for state %s\n", ast_state2str(ast->_state));
 	if (p->start && (ast->_state != AST_STATE_UP)) {
-		howlong = time(NULL) - p->start;
 		p->start = 0;
-	} else if (ast->_state == AST_STATE_RESERVED) 
-		howlong = 0;
-	else
+	} else
 		p->start = 0; 
 	if (p->chan) {
 		p->chan->_bridge = NULL;
@@ -1856,7 +1852,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 	int max_login_tries = maxlogintries;
 	struct agent_pvt *p;
 	struct ast_module_user *u;
-	int login_state = 0;
 	char user[AST_MAX_AGENT] = "";
 	char pass[AST_MAX_AGENT];
 	char agent[AST_MAX_AGENT] = "";
@@ -1950,7 +1945,6 @@ static int login_exec(struct ast_channel *chan, const char *data)
 			ast_mutex_lock(&p->lock);
 			if (!strcmp(p->agent, user) &&
 			    !strcmp(p->password, pass) && !p->pending) {
-				login_state = 1; /* Successful Login */
 
 				/* Ensure we can't be gotten until we're done */
 				p->lastdisc = ast_tvnow();

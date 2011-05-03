@@ -2531,7 +2531,7 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 	if (info == NULL)
 		return NULL;
 
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, entry) {
+	AST_LIST_TRAVERSE(&chan->datastores, datastore, entry) {
 		if (datastore->info != info) {
 			continue;
 		}
@@ -2546,7 +2546,6 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
 
 	return datastore;
 }
