@@ -44492,9 +44492,9 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 		PWLIB_VER=$((${PWLIB_MAJOR_VERSION}*10000+${PWLIB_MINOR_VERSION}*100+${PWLIB_BUILD_NUMBER}))
 		PWLIB_REQ=$((1*10000+9*100+2))
 		if test "x" = "x"; then
-			let PWLIB_MAX=9999999
+			PWLIB_MAX=9999999
 		else
-			let PWLIB_MAX=*10000+*100+
+			PWLIB_MAX=$((*10000+*100+))
 		fi
 
 		{ echo "$as_me:$LINENO: checking if PWLib version ${PWLIB_VERSION} is compatible with chan_h323" >&5
@@ -45284,9 +45284,9 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 		OPENH323_VER=$((${OPENH323_MAJOR_VERSION}*10000+${OPENH323_MINOR_VERSION}*100+${OPENH323_BUILD_NUMBER}))
 		OPENH323_REQ=$((1*10000+17*100+3))
 		if test "x0" = "x"; then
-			let OPENH323_MAX=9999999
+			OPENH323_MAX=9999999
 		else
-			let OPENH323_MAX=1*10000+19*100+0
+			$((OPENH323_MAX=1*10000+19*100+0))
 		fi
 
 		{ echo "$as_me:$LINENO: checking if OpenH323 version ${OPENH323_VERSION} is compatible with chan_h323" >&5
