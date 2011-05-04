@@ -2733,7 +2733,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		ao2_ref(item, -1);
 	}
 
-	if (ast_test_flag64(confflags, CONFFLAG_WAITMARKED && !conf->markedusers))
+	if (ast_test_flag64(confflags, CONFFLAG_WAITMARKED) && !conf->markedusers)
 		dahdic.confmode = DAHDI_CONF_CONF;
 	else if (ast_test_flag64(confflags, CONFFLAG_MONITOR))
 		dahdic.confmode = DAHDI_CONF_CONFMON | DAHDI_CONF_LISTENER;
