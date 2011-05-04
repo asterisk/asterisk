@@ -4743,6 +4743,7 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 	char fname[256];
 	char tmpcmd[256];
 	int tmpfd = -1;
+	int soxstatus = 0;
 
 	/* Eww. We want formats to tell us their own MIME type */
 	char *ctype = (!strcasecmp(format, "ogg")) ? "application/" : "audio/x-";
@@ -4754,7 +4755,6 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 		chmod(newtmp, VOICEMAIL_FILE_MODE & ~my_umask);
 		ast_debug(3, "newtmp: %s\n", newtmp);
 		if (tmpfd > -1) {
-			int soxstatus;
 			snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
 			if ((soxstatus = ast_safe_system(tmpcmd)) == 0) {
 				attach = newtmp;
@@ -4782,7 +4782,9 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 	if (last)
 		fprintf(p, ENDL ENDL "--%s--" ENDL "." ENDL, bound);
 	if (tmpfd > -1) {
-		unlink(fname);
+		if (soxstatus == 0) {
+			unlink(fname);
+		}
 		close(tmpfd);
 		unlink(newtmp);
 	}
