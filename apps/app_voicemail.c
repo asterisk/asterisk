@@ -3641,7 +3641,8 @@ plain_message:
 		char *ctype = (!strcasecmp(format, "ogg")) ? "application/" : "audio/x-";
 		char tmpdir[256], newtmp[256];
 		int tmpfd = -1;
-	
+		int soxstatus = 0;
+
 		if (vmu->volgain < -.001 || vmu->volgain > .001) {
 			create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
 			snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
@@ -3650,7 +3651,6 @@ plain_message:
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
 			if (tmpfd > -1) {
-				int soxstatus;
 				snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
 				if ((soxstatus = ast_safe_system(tmpcmd)) == 0) {
 					attach = newtmp;
@@ -3673,7 +3673,9 @@ plain_message:
 		base_encode(fname, p);
 		fprintf(p, ENDL "--%s--" ENDL "." ENDL, bound);
 		if (tmpfd > -1) {
-			unlink(fname);
+			if (soxstatus == 0) {
+				unlink(fname);
+			}
 			close(tmpfd);
 			unlink(newtmp);
 		}
