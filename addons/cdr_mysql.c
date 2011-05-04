@@ -325,7 +325,7 @@ db_reconnect:
 				ast_str_make_space(&escape, (valsz = strlen(value)) * 2 + 1);
 				mysql_real_escape_string(&mysql, ast_str_buffer(escape), value, valsz);
 
-				ast_str_append(&sql1, 0, "%s", entry->name);
+				ast_str_append(&sql1, 0, "`%s`", entry->name);
 				ast_str_append(&sql2, 0, "'%s'", ast_str_buffer(escape));
 			}
 		}

@@ -608,7 +608,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 
 	ESCAPE_STRING(buf, newval);
-	ast_str_set(&sql, 0, "UPDATE %s SET %s = '%s'", tablename, newparam, ast_str_buffer(buf));
+	ast_str_set(&sql, 0, "UPDATE %s SET `%s` = '%s'", tablename, newparam, ast_str_buffer(buf));
 
 	/* If the column length isn't long enough, give a chance to lengthen it. */
 	if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
@@ -625,7 +625,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 		}
 
 		ESCAPE_STRING(buf, newval);
-		ast_str_append(&sql, 0, ", %s = '%s'", newparam, ast_str_buffer(buf));
+		ast_str_append(&sql, 0, ", `%s` = '%s'", newparam, ast_str_buffer(buf));
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
 		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
@@ -635,7 +635,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	va_end(ap);
 
 	ESCAPE_STRING(buf, lookup);
-	ast_str_append(&sql, 0, " WHERE %s = '%s'", keyfield, ast_str_buffer(buf));
+	ast_str_append(&sql, 0, " WHERE `%s` = '%s'", keyfield, ast_str_buffer(buf));
 
 	ast_debug(1, "MySQL RealTime: Update SQL: %s\n", ast_str_buffer(sql));
 
@@ -719,7 +719,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 			return -1;
 		}
 		ESCAPE_STRING(buf, newval);
-		ast_str_append(&where, 0, "%s %s='%s'", first ? "" : " AND", newparam, ast_str_buffer(buf));
+		ast_str_append(&where, 0, "%s `%s` = '%s'", first ? "" : " AND", newparam, ast_str_buffer(buf));
 		first = 0;
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
@@ -744,7 +744,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 		}
 
 		ESCAPE_STRING(buf, newval);
-		ast_str_append(&sql, 0, "%s %s = '%s'", first ? "" : ",", newparam, ast_str_buffer(buf));
+		ast_str_append(&sql, 0, "%s `%s` = '%s'", first ? "" : ",", newparam, ast_str_buffer(buf));
 		first = 0;
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
@@ -816,7 +816,7 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 		If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 	ESCAPE_STRING(buf, newval);
-	ast_str_set(&sql, 0, "INSERT INTO %s (%s", table, newparam);
+	ast_str_set(&sql, 0, "INSERT INTO %s (`%s`", table, newparam);
 	ast_str_set(&sql2, 0, ") VALUES ('%s'", ast_str_buffer(buf));
 
 	internal_require(database, table, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
@@ -828,7 +828,7 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 			ast_str_reset(buf);
 		}
 		if (internal_require(database, table, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL) == 0) {
-			ast_str_append(&sql, 0, ", %s", newparam);
+			ast_str_append(&sql, 0, ", `%s`", newparam);
 			ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
 		}
 	}
@@ -894,11 +894,11 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 	ESCAPE_STRING(buf, lookup);
-	ast_str_set(&sql, 0, "DELETE FROM %s WHERE %s = '%s'", table, keyfield, ast_str_buffer(buf));
+	ast_str_set(&sql, 0, "DELETE FROM %s WHERE `%s` = '%s'", table, keyfield, ast_str_buffer(buf));
 	while ((newparam = va_arg(ap, const char *))) {
 		newval = va_arg(ap, const char *);
 		ESCAPE_STRING(buf, newval);
-		ast_str_append(&sql, 0, " AND %s = '%s'", newparam, ast_str_buffer(buf));
+		ast_str_append(&sql, 0, " AND `%s` = '%s'", newparam, ast_str_buffer(buf));
 	}
 	va_end(ap);
 
@@ -1074,7 +1074,7 @@ static int modify_mysql(const char *database, const char *tablename, struct colu
 			res = -1;
 			break;
 		}
-		ast_str_set(&sql, 0, "ALTER TABLE %s MODIFY %s %s", tablename, column->name, ast_str_buffer(typestr));
+		ast_str_set(&sql, 0, "ALTER TABLE %s MODIFY `%s` %s", tablename, column->name, ast_str_buffer(typestr));
 		if (!column->null) {
 			ast_str_append(&sql, 0, " NOT NULL");
 		}
