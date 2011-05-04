@@ -345,6 +345,7 @@ struct chanspy_translation_helper {
 	struct ast_audiohook bridge_whisper_audiohook;
 	int fd;
 	int volfactor;
+	struct ast_flags flags;
 };
 
 static void *spy_alloc(struct ast_channel *chan, void *data)
@@ -370,7 +371,7 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 		return -1;
 	}
 
-	if (ast_test_flag(&csth->spy_audiohook, OPTION_READONLY)) {
+	if (ast_test_flag(&csth->flags, OPTION_READONLY)) {
 		/* Option 'o' was set, so don't mix channel audio */
 		f = ast_audiohook_read_frame(&csth->spy_audiohook, samples, AST_AUDIOHOOK_DIRECTION_READ, AST_FORMAT_SLINEAR);
 	} else {
@@ -486,7 +487,7 @@ static int channel_spy(struct ast_channel *chan, struct chanspy_ds *spyee_chansp
 			spyer_name, name);
 
 	memset(&csth, 0, sizeof(csth));
-	ast_copy_flags(&csth.spy_audiohook, flags, AST_FLAGS_ALL);
+	ast_copy_flags(&csth.flags, flags, AST_FLAGS_ALL);
 
 	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy");
 
