@@ -2843,6 +2843,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
  						res = ast_streamfile(chan, user->end_sound, chan->language);
  						res = ast_waitstream(chan, "");
  					}
+					if (ast_test_flag64(confflags, CONFFLAG_KICK_CONTINUE)) {
+						ret = 0;
+					} else {
+						ret = -1;
+					}
  					break;
  				}
  				
