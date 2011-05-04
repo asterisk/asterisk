@@ -27231,512 +27231,505 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION);
 
 
-	/* Read all [general] config sections of sip.conf (or from realtime config) */
-	for (cat = ast_category_browse(cfg, "general"); cat; cat = ast_category_browse(cfg, cat)) {
-		if (strcmp(cat, "general")) {
+	/* Read the [general] config section of sip.conf (or from realtime config) */
+	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
+		if (handle_common_options(&global_flags[0], &dummy[0], v)) {
+			continue;
+		}
+		if (handle_t38_options(&global_flags[0], &dummy[0], v, &global_t38_maxdatagram)) {
+			continue;
+		}
+		/* handle jb conf */
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
 			continue;
 		}
 
-		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
-			if (handle_common_options(&global_flags[0], &dummy[0], v)) {
-				continue;
-			}
-			if (handle_t38_options(&global_flags[0], &dummy[0], v, &global_t38_maxdatagram)) {
-				continue;
-			}
-			/* handle jb conf */
-			if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
-				continue;
-			}
-
-			/* handle tls conf */
-			if (!ast_tls_read_conf(&default_tls_cfg, &sip_tls_desc, v->name, v->value)) {
-				continue;
-			}
-
-			if (!strcasecmp(v->name, "context")) {
-				ast_copy_string(sip_cfg.default_context, v->value, sizeof(sip_cfg.default_context));
-			} else if (!strcasecmp(v->name, "subscribecontext")) {
-				ast_copy_string(sip_cfg.default_subscribecontext, v->value, sizeof(sip_cfg.default_subscribecontext));
-			} else if (!strcasecmp(v->name, "callcounter")) {
-				global_callcounter = ast_true(v->value) ? 1 : 0;
-			} else if (!strcasecmp(v->name, "allowguest")) {
-				sip_cfg.allowguest = ast_true(v->value) ? 1 : 0;
-			} else if (!strcasecmp(v->name, "realm")) {
-				ast_copy_string(sip_cfg.realm, v->value, sizeof(sip_cfg.realm));
-			} else if (!strcasecmp(v->name, "domainsasrealm")) {
-				sip_cfg.domainsasrealm = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "useragent")) {
-				ast_copy_string(global_useragent, v->value, sizeof(global_useragent));
-				ast_debug(1, "Setting SIP channel User-Agent Name to %s\n", global_useragent);
-			} else if (!strcasecmp(v->name, "sdpsession")) {
-				ast_copy_string(global_sdpsession, v->value, sizeof(global_sdpsession));
-			} else if (!strcasecmp(v->name, "sdpowner")) {
-				/* Field cannot contain spaces */
-				if (!strstr(v->value, " ")) {
-					ast_copy_string(global_sdpowner, v->value, sizeof(global_sdpowner));
-				} else {
-					ast_log(LOG_WARNING, "'%s' must not contain spaces at line %d.  Using default.\n", v->value, v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "allowtransfer")) {
-				sip_cfg.allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
-			} else if (!strcasecmp(v->name, "rtcachefriends")) {
-				ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);
-			} else if (!strcasecmp(v->name, "rtsavesysname")) {
-				sip_cfg.rtsave_sysname = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "rtupdate")) {
-				sip_cfg.peer_rtupdate = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "ignoreregexpire")) {
-				sip_cfg.ignore_regexpire = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "timert1")) {
-				/* Defaults to 500ms, but RFC 3261 states that it is recommended
-				 * for the value to be set higher, though a lower value is only
-				 * allowed on private networks unconnected to the Internet. */
-				global_t1 = atoi(v->value);
-			} else if (!strcasecmp(v->name, "timerb")) {
-				int tmp = atoi(v->value);
-				if (tmp < 500) {
-					global_timer_b = global_t1 * 64;
-					ast_log(LOG_WARNING, "Invalid value for timerb ('%s').  Setting to default ('%d').\n", v->value, global_timer_b);
-				}
-				timerb_set = 1;
-			} else if (!strcasecmp(v->name, "t1min")) {
-				global_t1min = atoi(v->value);
-			} else if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
-				char *val = ast_strdupa(v->value);
-				char *trans;
-
-				while ((trans = strsep(&val, ","))) {
-					trans = ast_skip_blanks(trans);
-
-					if (!strncasecmp(trans, "udp", 3)) {
-						default_transports |= SIP_TRANSPORT_UDP;
-					} else if (!strncasecmp(trans, "tcp", 3)) {
-						default_transports |= SIP_TRANSPORT_TCP;
-					} else if (!strncasecmp(trans, "tls", 3)) {
-						default_transports |= SIP_TRANSPORT_TLS;
-					} else {
-						ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
-					}
-					if (default_primary_transport == 0) {
-						default_primary_transport = default_transports;
-					}
-				}
-			} else if (!strcasecmp(v->name, "tcpenable")) {
-				if (!ast_false(v->value)) {
-					ast_debug(2, "Enabling TCP socket for listening\n");
-					sip_cfg.tcp_enabled = TRUE;
-				}
-			} else if (!strcasecmp(v->name, "tcpbindaddr")) {
-				if (ast_parse_arg(v->value, PARSE_ADDR,
-						  &sip_tcp_desc.local_address)) {
-					ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
-						v->name, v->value, v->lineno, config);
-				}
-				ast_debug(2, "Setting TCP socket address to %s\n",
-					  ast_sockaddr_stringify(&sip_tcp_desc.local_address));
-			} else if (!strcasecmp(v->name, "dynamic_exclude_static") || !strcasecmp(v->name, "dynamic_excludes_static")) {
-				global_dynamic_exclude_static = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
-				int ha_error = 0;
-				sip_cfg.contact_ha = ast_append_ha(v->name + 7, v->value, sip_cfg.contact_ha, &ha_error);
-				if (ha_error) {
-					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
-				}
-			} else if (!strcasecmp(v->name, "rtautoclear")) {
-				int i = atoi(v->value);
-				if (i > 0) {
-					sip_cfg.rtautoclear = i;
-				} else {
-					i = 0;
-				}
-				ast_set2_flag(&global_flags[1], i || ast_true(v->value), SIP_PAGE2_RTAUTOCLEAR);
-			} else if (!strcasecmp(v->name, "usereqphone")) {
-				ast_set2_flag(&global_flags[0], ast_true(v->value), SIP_USEREQPHONE);
-			} else if (!strcasecmp(v->name, "prematuremedia")) {
-				global_prematuremediafilter = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "relaxdtmf")) {
-				global_relaxdtmf = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "vmexten")) {
-				ast_copy_string(default_vmexten, v->value, sizeof(default_vmexten));
-			} else if (!strcasecmp(v->name, "rtptimeout")) {
-				if ((sscanf(v->value, "%30d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
-					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-					global_rtptimeout = 0;
-				}
-			} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
-				if ((sscanf(v->value, "%30d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
-					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-					global_rtpholdtimeout = 0;
-				}
-			} else if (!strcasecmp(v->name, "rtpkeepalive")) {
-				if ((sscanf(v->value, "%30d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0)) {
-					ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
-					global_rtpkeepalive = DEFAULT_RTPKEEPALIVE;
-				}
-			} else if (!strcasecmp(v->name, "compactheaders")) {
-				sip_cfg.compactheaders = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "notifymimetype")) {
-				ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
-			} else if (!strcasecmp(v->name, "directrtpsetup")) {
-				sip_cfg.directrtpsetup = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "notifyringing")) {
-				sip_cfg.notifyringing = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "notifyhold")) {
-				sip_cfg.notifyhold = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "notifycid")) {
-				if (!strcasecmp(v->value, "ignore-context")) {
-					sip_cfg.notifycid = IGNORE_CONTEXT;
-				} else {
-					sip_cfg.notifycid = ast_true(v->value);
-				}
-			} else if (!strcasecmp(v->name, "alwaysauthreject")) {
-				sip_cfg.alwaysauthreject = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "auth_options_requests")) {
-				if (ast_true(v->value)) {
-					sip_cfg.auth_options_requests = 1;
-				}
-			} else if (!strcasecmp(v->name, "mohinterpret")) {
-				ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
-			} else if (!strcasecmp(v->name, "mohsuggest")) {
-				ast_copy_string(default_mohsuggest, v->value, sizeof(default_mohsuggest));
-			} else if (!strcasecmp(v->name, "language")) {
-				ast_copy_string(default_language, v->value, sizeof(default_language));
-			} else if (!strcasecmp(v->name, "regcontext")) {
-				ast_copy_string(newcontexts, v->value, sizeof(newcontexts));
-				stringp = newcontexts;
-				/* Let's remove any contexts that are no longer defined in regcontext */
-				cleanup_stale_contexts(stringp, oldregcontext);
-				/* Create contexts if they don't exist already */
-				while ((context = strsep(&stringp, "&"))) {
-					ast_copy_string(used_context, context, sizeof(used_context));
-					ast_context_find_or_create(NULL, NULL, context, "SIP");
-				}
-				ast_copy_string(sip_cfg.regcontext, v->value, sizeof(sip_cfg.regcontext));
-			} else if (!strcasecmp(v->name, "regextenonqualify")) {
-				sip_cfg.regextenonqualify = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "callerid")) {
-				ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
-			} else if (!strcasecmp(v->name, "mwi_from")) {
-				ast_copy_string(default_mwi_from, v->value, sizeof(default_mwi_from));
-			} else if (!strcasecmp(v->name, "fromdomain")) {
-				char *fromdomainport;
-				ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
-				if ((fromdomainport = strchr(default_fromdomain, ':'))) {
-					*fromdomainport++ = '\0';
-					if (!(default_fromdomainport = port_str2int(fromdomainport, 0))) {
-						ast_log(LOG_NOTICE, "'%s' is not a valid port number for fromdomain.\n",fromdomainport);
-					}
-				} else {
-					default_fromdomainport = STANDARD_SIP_PORT;
-				}
-			} else if (!strcasecmp(v->name, "outboundproxy")) {
-				char *tok, *proxyname;
-
-				if (ast_strlen_zero(v->value)) {
-					ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf.", v->lineno);
-					continue;
-				}
-
-				tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
-
-				sip_parse_host(tok, v->lineno, &proxyname,
-					       &sip_cfg.outboundproxy.port,
-					       &sip_cfg.outboundproxy.transport);
-
-				if ((tok = strtok(NULL, ","))) {
-					sip_cfg.outboundproxy.force = !strncasecmp(ast_skip_blanks(tok), "force", 5);
-				} else {
-					sip_cfg.outboundproxy.force = FALSE;
-				}
-
-				if (ast_strlen_zero(proxyname)) {
-					ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf.", v->lineno);
-					sip_cfg.outboundproxy.name[0] = '\0';
-					continue;
-				}
-
-				ast_copy_string(sip_cfg.outboundproxy.name, proxyname, sizeof(sip_cfg.outboundproxy.name));
-
-				proxy_update(&sip_cfg.outboundproxy);
-			} else if (!strcasecmp(v->name, "autocreatepeer")) {
-				sip_cfg.autocreatepeer = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "match_auth_username")) {
-				global_match_auth_username = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "srvlookup")) {
-				sip_cfg.srvlookup = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "pedantic")) {
-				sip_cfg.pedanticsipchecking = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "maxexpirey") || !strcasecmp(v->name, "maxexpiry")) {
-				max_expiry = atoi(v->value);
-				if (max_expiry < 1) {
-					max_expiry = DEFAULT_MAX_EXPIRY;
-				}
-			} else if (!strcasecmp(v->name, "minexpirey") || !strcasecmp(v->name, "minexpiry")) {
-				min_expiry = atoi(v->value);
-				if (min_expiry < 1) {
-					min_expiry = DEFAULT_MIN_EXPIRY;
-				}
-			} else if (!strcasecmp(v->name, "defaultexpiry") || !strcasecmp(v->name, "defaultexpirey")) {
-				default_expiry = atoi(v->value);
-				if (default_expiry < 1) {
-					default_expiry = DEFAULT_DEFAULT_EXPIRY;
-				}
-			} else if (!strcasecmp(v->name, "mwiexpiry") || !strcasecmp(v->name, "mwiexpirey")) {
-				mwi_expiry = atoi(v->value);
-				if (mwi_expiry < 1) {
-					mwi_expiry = DEFAULT_MWI_EXPIRY;
-				}
-			} else if (!strcasecmp(v->name, "tcpauthtimeout")) {
-				if (ast_parse_arg(v->value, PARSE_INT32|PARSE_DEFAULT|PARSE_IN_RANGE,
-						  &authtimeout, DEFAULT_AUTHTIMEOUT, 1, INT_MAX)) {
-					ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
-						v->name, v->value, v->lineno, config);
-				}
-			} else if (!strcasecmp(v->name, "tcpauthlimit")) {
-				if (ast_parse_arg(v->value, PARSE_INT32|PARSE_DEFAULT|PARSE_IN_RANGE,
-						  &authlimit, DEFAULT_AUTHLIMIT, 1, INT_MAX)) {
-					ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
-						v->name, v->value, v->lineno, config);
-				}
-			} else if (!strcasecmp(v->name, "sipdebug")) {
-				if (ast_true(v->value))
-					sipdebug |= sip_debug_config;
-			} else if (!strcasecmp(v->name, "dumphistory")) {
-				dumphistory = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "recordhistory")) {
-				recordhistory = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "registertimeout")) {
-				global_reg_timeout = atoi(v->value);
-				if (global_reg_timeout < 1) {
-					global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
-				}
-			} else if (!strcasecmp(v->name, "registerattempts")) {
-				global_regattempts_max = atoi(v->value);
-			} else if (!strcasecmp(v->name, "bindaddr") || !strcasecmp(v->name, "udpbindaddr")) {
-				if (ast_parse_arg(v->value, PARSE_ADDR, &bindaddr)) {
-					ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
-				}
-			} else if (!strcasecmp(v->name, "localnet")) {
-				struct ast_ha *na;
-				int ha_error = 0;
-
-				if (!(na = ast_append_ha("d", v->value, localaddr, &ha_error))) {
-					ast_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
-				} else {
-					localaddr = na;
-				}
-				if (ha_error) {
-					ast_log(LOG_ERROR, "Bad localnet configuration value line %d : %s\n", v->lineno, v->value);
-				}
-			} else if (!strcasecmp(v->name, "media_address")) {
-				if (ast_parse_arg(v->value, PARSE_ADDR, &media_address))
-					ast_log(LOG_WARNING, "Invalid address for media_address keyword: %s\n", v->value);
-			} else if (!strcasecmp(v->name, "externaddr") || !strcasecmp(v->name, "externip")) {
-				if (ast_parse_arg(v->value, PARSE_ADDR, &externaddr)) {
-					ast_log(LOG_WARNING,
-						"Invalid address for externaddr keyword: %s\n",
-						v->value);
-				}
-				externexpire = 0;
-			} else if (!strcasecmp(v->name, "externhost")) {
-				ast_copy_string(externhost, v->value, sizeof(externhost));
-				if (ast_sockaddr_resolve_first(&externaddr, externhost, 0)) {
-					ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
-				}
-				externexpire = time(NULL);
-			} else if (!strcasecmp(v->name, "externrefresh")) {
-				if (sscanf(v->value, "%30d", &externrefresh) != 1) {
-					ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
-					externrefresh = 10;
-				}
-			} else if (!strcasecmp(v->name, "externtcpport")) {
-				if (!(externtcpport = port_str2int(v->value, 0))) {
-					ast_log(LOG_WARNING, "Invalid externtcpport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
-					externtcpport = 0;
-				}
-			} else if (!strcasecmp(v->name, "externtlsport")) {
-				if (!(externtlsport = port_str2int(v->value, STANDARD_TLS_PORT))) {
-					ast_log(LOG_WARNING, "Invalid externtlsport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "allow")) {
-				int error =  ast_parse_allow_disallow(&default_prefs, sip_cfg.caps, v->value, TRUE);
-				if (error) {
-					ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
-				}
-			} else if (!strcasecmp(v->name, "disallow")) {
-				int error =  ast_parse_allow_disallow(&default_prefs, sip_cfg.caps, v->value, FALSE);
-				if (error) {
-					ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
-				}
-			} else if (!strcasecmp(v->name, "preferred_codec_only")) {
-				ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_PREFERRED_CODEC);
-			} else if (!strcasecmp(v->name, "autoframing")) {
-				global_autoframing = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "allowexternaldomains")) {
-				sip_cfg.allow_external_domains = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "autodomain")) {
-				auto_sip_domains = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "domain")) {
-				char *domain = ast_strdupa(v->value);
-				char *cntx = strchr(domain, ',');
-
-				if (cntx) {
-					*cntx++ = '\0';
-				}
-
-				if (ast_strlen_zero(cntx)) {
-					ast_debug(1, "No context specified at line %d for domain '%s'\n", v->lineno, domain);
-				}
-				if (ast_strlen_zero(domain)) {
-					ast_log(LOG_WARNING, "Empty domain specified at line %d\n", v->lineno);
-				} else {
-					add_sip_domain(ast_strip(domain), SIP_DOMAIN_CONFIG, cntx ? ast_strip(cntx) : "");
-				}
-			} else if (!strcasecmp(v->name, "register")) {
-				if (sip_register(v->value, v->lineno) == 0) {
-					registry_count++;
-				}
-			} else if (!strcasecmp(v->name, "mwi")) {
-				sip_subscribe_mwi(v->value, v->lineno);
-			} else if (!strcasecmp(v->name, "tos_sip")) {
-				if (ast_str2tos(v->value, &global_tos_sip)) {
-					ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "tos_audio")) {
-				if (ast_str2tos(v->value, &global_tos_audio)) {
-					ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "tos_video")) {
-				if (ast_str2tos(v->value, &global_tos_video)) {
-					ast_log(LOG_WARNING, "Invalid tos_video value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "tos_text")) {
-				if (ast_str2tos(v->value, &global_tos_text)) {
-					ast_log(LOG_WARNING, "Invalid tos_text value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "cos_sip")) {
-				if (ast_str2cos(v->value, &global_cos_sip)) {
-					ast_log(LOG_WARNING, "Invalid cos_sip value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "cos_audio")) {
-				if (ast_str2cos(v->value, &global_cos_audio)) {
-					ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "cos_video")) {
-				if (ast_str2cos(v->value, &global_cos_video)) {
-					ast_log(LOG_WARNING, "Invalid cos_video value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "cos_text")) {
-				if (ast_str2cos(v->value, &global_cos_text)) {
-					ast_log(LOG_WARNING, "Invalid cos_text value at line %d, refer to QoS documentation\n", v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "bindport")) {
-				if (sscanf(v->value, "%5d", &bindport) != 1) {
-					ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
-				}
-			} else if (!strcasecmp(v->name, "qualify")) {
-				if (!strcasecmp(v->value, "no")) {
-					default_qualify = 0;
-				} else if (!strcasecmp(v->value, "yes")) {
-					default_qualify = DEFAULT_MAXMS;
-				} else if (sscanf(v->value, "%30d", &default_qualify) != 1) {
-					ast_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
-					default_qualify = 0;
-				}
-			} else if (!strcasecmp(v->name, "qualifyfreq")) {
-				int i;
-				if (sscanf(v->value, "%30d", &i) == 1) {
-					global_qualifyfreq = i * 1000;
-				} else {
-					ast_log(LOG_WARNING, "Invalid qualifyfreq number '%s' at line %d of %s\n", v->value, v->lineno, config);
-					global_qualifyfreq = DEFAULT_QUALIFYFREQ;
-				}
-			} else if (!strcasecmp(v->name, "callevents")) {
-				sip_cfg.callevents = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "authfailureevents")) {
-				global_authfailureevents = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "maxcallbitrate")) {
-				default_maxcallbitrate = atoi(v->value);
-				if (default_maxcallbitrate < 0) {
-					default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
-				}
-			} else if (!strcasecmp(v->name, "matchexternaddrlocally") || !strcasecmp(v->name, "matchexterniplocally")) {
-				sip_cfg.matchexternaddrlocally = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "session-timers")) {
-				int i = (int) str2stmode(v->value);
-				if (i < 0) {
-					ast_log(LOG_WARNING, "Invalid session-timers '%s' at line %d of %s\n", v->value, v->lineno, config);
-					global_st_mode = SESSION_TIMER_MODE_ACCEPT;
-				} else {
-					global_st_mode = i;
-				}
-			} else if (!strcasecmp(v->name, "session-expires")) {
-				if (sscanf(v->value, "%30d", &global_max_se) != 1) {
-					ast_log(LOG_WARNING, "Invalid session-expires '%s' at line %d of %s\n", v->value, v->lineno, config);
-					global_max_se = DEFAULT_MAX_SE;
-				}
-			} else if (!strcasecmp(v->name, "session-minse")) {
-				if (sscanf(v->value, "%30d", &global_min_se) != 1) {
-					ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
-					global_min_se = DEFAULT_MIN_SE;
-				}
-				if (global_min_se < 90) {
-					ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
-					global_min_se = DEFAULT_MIN_SE;
-				}
-			} else if (!strcasecmp(v->name, "session-refresher")) {
-				int i = (int) str2strefresher(v->value);
-				if (i < 0) {
-					ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
-					global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
-				} else {
-					global_st_refresher = i;
-				}
-			} else if (!strcasecmp(v->name, "qualifygap")) {
-				if (sscanf(v->value, "%30d", &global_qualify_gap) != 1) {
-					ast_log(LOG_WARNING, "Invalid qualifygap '%s' at line %d of %s\n", v->value, v->lineno, config);
-					global_qualify_gap = DEFAULT_QUALIFY_GAP;
-				}
-			} else if (!strcasecmp(v->name, "qualifypeers")) {
-				if (sscanf(v->value, "%30d", &global_qualify_peers) != 1) {
-					ast_log(LOG_WARNING, "Invalid pokepeers '%s' at line %d of %s\n", v->value, v->lineno, config);
-					global_qualify_peers = DEFAULT_QUALIFY_PEERS;
-				}
-			} else if (!strcasecmp(v->name, "disallowed_methods")) {
-				char *disallow = ast_strdupa(v->value);
-				mark_parsed_methods(&sip_cfg.disallowed_methods, disallow);
-			} else if (!strcasecmp(v->name, "shrinkcallerid")) {
-				if (ast_true(v->value)) {
-					global_shrinkcallerid = 1;
-				} else if (ast_false(v->value)) {
-					global_shrinkcallerid = 0;
-				} else {
-					ast_log(LOG_WARNING, "shrinkcallerid value %s is not valid at line %d.\n", v->value, v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "use_q850_reason")) {
-				ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
-			} else if (!strcasecmp(v->name, "maxforwards")) {
-				if ((sscanf(v->value, "%30d", &sip_cfg.default_max_forwards) != 1) || (sip_cfg.default_max_forwards < 1)) {
-					ast_log(LOG_WARNING, "'%s' is not a valid maxforwards value at line %d.  Using default.\n", v->value, v->lineno);
-					sip_cfg.default_max_forwards = DEFAULT_MAX_FORWARDS;
-				}
-			} else if (!strcasecmp(v->name, "subscribe_network_change_event")) {
-				if (ast_true(v->value)) {
-					subscribe_network_change = 1;
-				} else if (ast_false(v->value)) {
-					subscribe_network_change = 0;
-				} else {
-					ast_log(LOG_WARNING, "subscribe_network_change_event value %s is not valid at line %d.\n", v->value, v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
-				ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
-			} else if (!strcasecmp(v->name, "parkinglot")) {
-				ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
-			}
+		/* handle tls conf */
+		if (!ast_tls_read_conf(&default_tls_cfg, &sip_tls_desc, v->name, v->value)) {
+			continue;
 		}
 
-	} /* for (...ast_category_browse(cfg, "general")...) */
+		if (!strcasecmp(v->name, "context")) {
+			ast_copy_string(sip_cfg.default_context, v->value, sizeof(sip_cfg.default_context));
+		} else if (!strcasecmp(v->name, "subscribecontext")) {
+			ast_copy_string(sip_cfg.default_subscribecontext, v->value, sizeof(sip_cfg.default_subscribecontext));
+		} else if (!strcasecmp(v->name, "callcounter")) {
+			global_callcounter = ast_true(v->value) ? 1 : 0;
+		} else if (!strcasecmp(v->name, "allowguest")) {
+			sip_cfg.allowguest = ast_true(v->value) ? 1 : 0;
+		} else if (!strcasecmp(v->name, "realm")) {
+			ast_copy_string(sip_cfg.realm, v->value, sizeof(sip_cfg.realm));
+		} else if (!strcasecmp(v->name, "domainsasrealm")) {
+			sip_cfg.domainsasrealm = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "useragent")) {
+			ast_copy_string(global_useragent, v->value, sizeof(global_useragent));
+			ast_debug(1, "Setting SIP channel User-Agent Name to %s\n", global_useragent);
+		} else if (!strcasecmp(v->name, "sdpsession")) {
+			ast_copy_string(global_sdpsession, v->value, sizeof(global_sdpsession));
+		} else if (!strcasecmp(v->name, "sdpowner")) {
+			/* Field cannot contain spaces */
+			if (!strstr(v->value, " ")) {
+				ast_copy_string(global_sdpowner, v->value, sizeof(global_sdpowner));
+			} else {
+				ast_log(LOG_WARNING, "'%s' must not contain spaces at line %d.  Using default.\n", v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "allowtransfer")) {
+			sip_cfg.allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
+		} else if (!strcasecmp(v->name, "rtcachefriends")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);
+		} else if (!strcasecmp(v->name, "rtsavesysname")) {
+			sip_cfg.rtsave_sysname = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "rtupdate")) {
+			sip_cfg.peer_rtupdate = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "ignoreregexpire")) {
+			sip_cfg.ignore_regexpire = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "timert1")) {
+			/* Defaults to 500ms, but RFC 3261 states that it is recommended
+			 * for the value to be set higher, though a lower value is only
+			 * allowed on private networks unconnected to the Internet. */
+			global_t1 = atoi(v->value);
+		} else if (!strcasecmp(v->name, "timerb")) {
+			int tmp = atoi(v->value);
+			if (tmp < 500) {
+				global_timer_b = global_t1 * 64;
+				ast_log(LOG_WARNING, "Invalid value for timerb ('%s').  Setting to default ('%d').\n", v->value, global_timer_b);
+			}
+			timerb_set = 1;
+		} else if (!strcasecmp(v->name, "t1min")) {
+			global_t1min = atoi(v->value);
+		} else if (!strcasecmp(v->name, "transport") && !ast_strlen_zero(v->value)) {
+			char *val = ast_strdupa(v->value);
+			char *trans;
+
+			while ((trans = strsep(&val, ","))) {
+				trans = ast_skip_blanks(trans);
+
+				if (!strncasecmp(trans, "udp", 3)) {
+					default_transports |= SIP_TRANSPORT_UDP;
+				} else if (!strncasecmp(trans, "tcp", 3)) {
+					default_transports |= SIP_TRANSPORT_TCP;
+				} else if (!strncasecmp(trans, "tls", 3)) {
+					default_transports |= SIP_TRANSPORT_TLS;
+				} else {
+					ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, udp will be used.\n", trans);
+				}
+				if (default_primary_transport == 0) {
+					default_primary_transport = default_transports;
+				}
+			}
+		} else if (!strcasecmp(v->name, "tcpenable")) {
+			if (!ast_false(v->value)) {
+				ast_debug(2, "Enabling TCP socket for listening\n");
+				sip_cfg.tcp_enabled = TRUE;
+			}
+		} else if (!strcasecmp(v->name, "tcpbindaddr")) {
+			if (ast_parse_arg(v->value, PARSE_ADDR,
+					  &sip_tcp_desc.local_address)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
+					v->name, v->value, v->lineno, config);
+			}
+			ast_debug(2, "Setting TCP socket address to %s\n",
+				  ast_sockaddr_stringify(&sip_tcp_desc.local_address));
+		} else if (!strcasecmp(v->name, "dynamic_exclude_static") || !strcasecmp(v->name, "dynamic_excludes_static")) {
+			global_dynamic_exclude_static = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny")) {
+			int ha_error = 0;
+			sip_cfg.contact_ha = ast_append_ha(v->name + 7, v->value, sip_cfg.contact_ha, &ha_error);
+			if (ha_error) {
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+			}
+		} else if (!strcasecmp(v->name, "rtautoclear")) {
+			int i = atoi(v->value);
+			if (i > 0) {
+				sip_cfg.rtautoclear = i;
+			} else {
+				i = 0;
+			}
+			ast_set2_flag(&global_flags[1], i || ast_true(v->value), SIP_PAGE2_RTAUTOCLEAR);
+		} else if (!strcasecmp(v->name, "usereqphone")) {
+			ast_set2_flag(&global_flags[0], ast_true(v->value), SIP_USEREQPHONE);
+		} else if (!strcasecmp(v->name, "prematuremedia")) {
+			global_prematuremediafilter = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "relaxdtmf")) {
+			global_relaxdtmf = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "vmexten")) {
+			ast_copy_string(default_vmexten, v->value, sizeof(default_vmexten));
+		} else if (!strcasecmp(v->name, "rtptimeout")) {
+			if ((sscanf(v->value, "%30d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+				global_rtptimeout = 0;
+			}
+		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
+			if ((sscanf(v->value, "%30d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+				global_rtpholdtimeout = 0;
+			}
+		} else if (!strcasecmp(v->name, "rtpkeepalive")) {
+			if ((sscanf(v->value, "%30d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
+				global_rtpkeepalive = DEFAULT_RTPKEEPALIVE;
+			}
+		} else if (!strcasecmp(v->name, "compactheaders")) {
+			sip_cfg.compactheaders = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "notifymimetype")) {
+			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
+		} else if (!strcasecmp(v->name, "directrtpsetup")) {
+			sip_cfg.directrtpsetup = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "notifyringing")) {
+			sip_cfg.notifyringing = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "notifyhold")) {
+			sip_cfg.notifyhold = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "notifycid")) {
+			if (!strcasecmp(v->value, "ignore-context")) {
+				sip_cfg.notifycid = IGNORE_CONTEXT;
+			} else {
+				sip_cfg.notifycid = ast_true(v->value);
+			}
+		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
+			sip_cfg.alwaysauthreject = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "auth_options_requests")) {
+			if (ast_true(v->value)) {
+				sip_cfg.auth_options_requests = 1;
+			}
+		} else if (!strcasecmp(v->name, "mohinterpret")) {
+			ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
+		} else if (!strcasecmp(v->name, "mohsuggest")) {
+			ast_copy_string(default_mohsuggest, v->value, sizeof(default_mohsuggest));
+		} else if (!strcasecmp(v->name, "language")) {
+			ast_copy_string(default_language, v->value, sizeof(default_language));
+		} else if (!strcasecmp(v->name, "regcontext")) {
+			ast_copy_string(newcontexts, v->value, sizeof(newcontexts));
+			stringp = newcontexts;
+			/* Let's remove any contexts that are no longer defined in regcontext */
+			cleanup_stale_contexts(stringp, oldregcontext);
+			/* Create contexts if they don't exist already */
+			while ((context = strsep(&stringp, "&"))) {
+				ast_copy_string(used_context, context, sizeof(used_context));
+				ast_context_find_or_create(NULL, NULL, context, "SIP");
+			}
+			ast_copy_string(sip_cfg.regcontext, v->value, sizeof(sip_cfg.regcontext));
+		} else if (!strcasecmp(v->name, "regextenonqualify")) {
+			sip_cfg.regextenonqualify = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "callerid")) {
+			ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
+		} else if (!strcasecmp(v->name, "mwi_from")) {
+			ast_copy_string(default_mwi_from, v->value, sizeof(default_mwi_from));
+		} else if (!strcasecmp(v->name, "fromdomain")) {
+			char *fromdomainport;
+			ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
+			if ((fromdomainport = strchr(default_fromdomain, ':'))) {
+				*fromdomainport++ = '\0';
+				if (!(default_fromdomainport = port_str2int(fromdomainport, 0))) {
+					ast_log(LOG_NOTICE, "'%s' is not a valid port number for fromdomain.\n",fromdomainport);
+				}
+			} else {
+				default_fromdomainport = STANDARD_SIP_PORT;
+			}
+		} else if (!strcasecmp(v->name, "outboundproxy")) {
+			char *tok, *proxyname;
+
+			if (ast_strlen_zero(v->value)) {
+				ast_log(LOG_WARNING, "no value given for outbound proxy on line %d of sip.conf.", v->lineno);
+				continue;
+			}
+
+			tok = ast_skip_blanks(strtok(ast_strdupa(v->value), ","));
+
+			sip_parse_host(tok, v->lineno, &proxyname,
+				       &sip_cfg.outboundproxy.port,
+				       &sip_cfg.outboundproxy.transport);
+
+			if ((tok = strtok(NULL, ","))) {
+				sip_cfg.outboundproxy.force = !strncasecmp(ast_skip_blanks(tok), "force", 5);
+			} else {
+				sip_cfg.outboundproxy.force = FALSE;
+			}
+
+			if (ast_strlen_zero(proxyname)) {
+				ast_log(LOG_WARNING, "you must specify a name for the outboundproxy on line %d of sip.conf.", v->lineno);
+				sip_cfg.outboundproxy.name[0] = '\0';
+				continue;
+			}
+
+			ast_copy_string(sip_cfg.outboundproxy.name, proxyname, sizeof(sip_cfg.outboundproxy.name));
+
+			proxy_update(&sip_cfg.outboundproxy);
+		} else if (!strcasecmp(v->name, "autocreatepeer")) {
+			sip_cfg.autocreatepeer = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "match_auth_username")) {
+			global_match_auth_username = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "srvlookup")) {
+			sip_cfg.srvlookup = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "pedantic")) {
+			sip_cfg.pedanticsipchecking = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "maxexpirey") || !strcasecmp(v->name, "maxexpiry")) {
+			max_expiry = atoi(v->value);
+			if (max_expiry < 1) {
+				max_expiry = DEFAULT_MAX_EXPIRY;
+			}
+		} else if (!strcasecmp(v->name, "minexpirey") || !strcasecmp(v->name, "minexpiry")) {
+			min_expiry = atoi(v->value);
+			if (min_expiry < 1) {
+				min_expiry = DEFAULT_MIN_EXPIRY;
+			}
+		} else if (!strcasecmp(v->name, "defaultexpiry") || !strcasecmp(v->name, "defaultexpirey")) {
+			default_expiry = atoi(v->value);
+			if (default_expiry < 1) {
+				default_expiry = DEFAULT_DEFAULT_EXPIRY;
+			}
+		} else if (!strcasecmp(v->name, "mwiexpiry") || !strcasecmp(v->name, "mwiexpirey")) {
+			mwi_expiry = atoi(v->value);
+			if (mwi_expiry < 1) {
+				mwi_expiry = DEFAULT_MWI_EXPIRY;
+			}
+		} else if (!strcasecmp(v->name, "tcpauthtimeout")) {
+			if (ast_parse_arg(v->value, PARSE_INT32|PARSE_DEFAULT|PARSE_IN_RANGE,
+					  &authtimeout, DEFAULT_AUTHTIMEOUT, 1, INT_MAX)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
+					v->name, v->value, v->lineno, config);
+			}
+		} else if (!strcasecmp(v->name, "tcpauthlimit")) {
+			if (ast_parse_arg(v->value, PARSE_INT32|PARSE_DEFAULT|PARSE_IN_RANGE,
+					  &authlimit, DEFAULT_AUTHLIMIT, 1, INT_MAX)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of %s\n",
+					v->name, v->value, v->lineno, config);
+			}
+		} else if (!strcasecmp(v->name, "sipdebug")) {
+			if (ast_true(v->value))
+				sipdebug |= sip_debug_config;
+		} else if (!strcasecmp(v->name, "dumphistory")) {
+			dumphistory = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "recordhistory")) {
+			recordhistory = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "registertimeout")) {
+			global_reg_timeout = atoi(v->value);
+			if (global_reg_timeout < 1) {
+				global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
+			}
+		} else if (!strcasecmp(v->name, "registerattempts")) {
+			global_regattempts_max = atoi(v->value);
+		} else if (!strcasecmp(v->name, "bindaddr") || !strcasecmp(v->name, "udpbindaddr")) {
+			if (ast_parse_arg(v->value, PARSE_ADDR, &bindaddr)) {
+				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
+			}
+		} else if (!strcasecmp(v->name, "localnet")) {
+			struct ast_ha *na;
+			int ha_error = 0;
+
+			if (!(na = ast_append_ha("d", v->value, localaddr, &ha_error))) {
+				ast_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
+			} else {
+				localaddr = na;
+			}
+			if (ha_error) {
+				ast_log(LOG_ERROR, "Bad localnet configuration value line %d : %s\n", v->lineno, v->value);
+			}
+		} else if (!strcasecmp(v->name, "media_address")) {
+			if (ast_parse_arg(v->value, PARSE_ADDR, &media_address))
+				ast_log(LOG_WARNING, "Invalid address for media_address keyword: %s\n", v->value);
+		} else if (!strcasecmp(v->name, "externaddr") || !strcasecmp(v->name, "externip")) {
+			if (ast_parse_arg(v->value, PARSE_ADDR, &externaddr)) {
+				ast_log(LOG_WARNING,
+					"Invalid address for externaddr keyword: %s\n",
+					v->value);
+			}
+			externexpire = 0;
+		} else if (!strcasecmp(v->name, "externhost")) {
+			ast_copy_string(externhost, v->value, sizeof(externhost));
+			if (ast_sockaddr_resolve_first(&externaddr, externhost, 0)) {
+				ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
+			}
+			externexpire = time(NULL);
+		} else if (!strcasecmp(v->name, "externrefresh")) {
+			if (sscanf(v->value, "%30d", &externrefresh) != 1) {
+				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
+				externrefresh = 10;
+			}
+		} else if (!strcasecmp(v->name, "externtcpport")) {
+			if (!(externtcpport = port_str2int(v->value, 0))) {
+				ast_log(LOG_WARNING, "Invalid externtcpport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
+				externtcpport = 0;
+			}
+		} else if (!strcasecmp(v->name, "externtlsport")) {
+			if (!(externtlsport = port_str2int(v->value, STANDARD_TLS_PORT))) {
+				ast_log(LOG_WARNING, "Invalid externtlsport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "allow")) {
+			int error =  ast_parse_allow_disallow(&default_prefs, sip_cfg.caps, v->value, TRUE);
+			if (error) {
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
+			}
+		} else if (!strcasecmp(v->name, "disallow")) {
+			int error =  ast_parse_allow_disallow(&default_prefs, sip_cfg.caps, v->value, FALSE);
+			if (error) {
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
+			}
+		} else if (!strcasecmp(v->name, "preferred_codec_only")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_PREFERRED_CODEC);
+		} else if (!strcasecmp(v->name, "autoframing")) {
+			global_autoframing = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "allowexternaldomains")) {
+			sip_cfg.allow_external_domains = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "autodomain")) {
+			auto_sip_domains = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "domain")) {
+			char *domain = ast_strdupa(v->value);
+			char *cntx = strchr(domain, ',');
+
+			if (cntx) {
+				*cntx++ = '\0';
+			}
+
+			if (ast_strlen_zero(cntx)) {
+				ast_debug(1, "No context specified at line %d for domain '%s'\n", v->lineno, domain);
+			}
+			if (ast_strlen_zero(domain)) {
+				ast_log(LOG_WARNING, "Empty domain specified at line %d\n", v->lineno);
+			} else {
+				add_sip_domain(ast_strip(domain), SIP_DOMAIN_CONFIG, cntx ? ast_strip(cntx) : "");
+			}
+		} else if (!strcasecmp(v->name, "register")) {
+			if (sip_register(v->value, v->lineno) == 0) {
+				registry_count++;
+			}
+		} else if (!strcasecmp(v->name, "mwi")) {
+			sip_subscribe_mwi(v->value, v->lineno);
+		} else if (!strcasecmp(v->name, "tos_sip")) {
+			if (ast_str2tos(v->value, &global_tos_sip)) {
+				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "tos_audio")) {
+			if (ast_str2tos(v->value, &global_tos_audio)) {
+				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "tos_video")) {
+			if (ast_str2tos(v->value, &global_tos_video)) {
+				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "tos_text")) {
+			if (ast_str2tos(v->value, &global_tos_text)) {
+				ast_log(LOG_WARNING, "Invalid tos_text value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "cos_sip")) {
+			if (ast_str2cos(v->value, &global_cos_sip)) {
+				ast_log(LOG_WARNING, "Invalid cos_sip value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "cos_audio")) {
+			if (ast_str2cos(v->value, &global_cos_audio)) {
+				ast_log(LOG_WARNING, "Invalid cos_audio value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "cos_video")) {
+			if (ast_str2cos(v->value, &global_cos_video)) {
+				ast_log(LOG_WARNING, "Invalid cos_video value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "cos_text")) {
+			if (ast_str2cos(v->value, &global_cos_text)) {
+				ast_log(LOG_WARNING, "Invalid cos_text value at line %d, refer to QoS documentation\n", v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "bindport")) {
+			if (sscanf(v->value, "%5d", &bindport) != 1) {
+				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
+			}
+		} else if (!strcasecmp(v->name, "qualify")) {
+			if (!strcasecmp(v->value, "no")) {
+				default_qualify = 0;
+			} else if (!strcasecmp(v->value, "yes")) {
+				default_qualify = DEFAULT_MAXMS;
+			} else if (sscanf(v->value, "%30d", &default_qualify) != 1) {
+				ast_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
+				default_qualify = 0;
+			}
+		} else if (!strcasecmp(v->name, "qualifyfreq")) {
+			int i;
+			if (sscanf(v->value, "%30d", &i) == 1) {
+				global_qualifyfreq = i * 1000;
+			} else {
+				ast_log(LOG_WARNING, "Invalid qualifyfreq number '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_qualifyfreq = DEFAULT_QUALIFYFREQ;
+			}
+		} else if (!strcasecmp(v->name, "callevents")) {
+			sip_cfg.callevents = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "authfailureevents")) {
+			global_authfailureevents = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "maxcallbitrate")) {
+			default_maxcallbitrate = atoi(v->value);
+			if (default_maxcallbitrate < 0) {
+				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
+			}
+		} else if (!strcasecmp(v->name, "matchexternaddrlocally") || !strcasecmp(v->name, "matchexterniplocally")) {
+			sip_cfg.matchexternaddrlocally = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "session-timers")) {
+			int i = (int) str2stmode(v->value);
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-timers '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_st_mode = SESSION_TIMER_MODE_ACCEPT;
+			} else {
+				global_st_mode = i;
+			}
+		} else if (!strcasecmp(v->name, "session-expires")) {
+			if (sscanf(v->value, "%30d", &global_max_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-expires '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_max_se = DEFAULT_MAX_SE;
+			}
+		} else if (!strcasecmp(v->name, "session-minse")) {
+			if (sscanf(v->value, "%30d", &global_min_se) != 1) {
+				ast_log(LOG_WARNING, "Invalid session-minse '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_min_se = DEFAULT_MIN_SE;
+			}
+			if (global_min_se < 90) {
+				ast_log(LOG_WARNING, "session-minse '%s' at line %d of %s is not allowed to be < 90 secs\n", v->value, v->lineno, config);
+				global_min_se = DEFAULT_MIN_SE;
+			}
+		} else if (!strcasecmp(v->name, "session-refresher")) {
+			int i = (int) str2strefresher(v->value);
+			if (i < 0) {
+				ast_log(LOG_WARNING, "Invalid session-refresher '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_st_refresher = SESSION_TIMER_REFRESHER_UAS;
+			} else {
+				global_st_refresher = i;
+			}
+		} else if (!strcasecmp(v->name, "qualifygap")) {
+			if (sscanf(v->value, "%30d", &global_qualify_gap) != 1) {
+				ast_log(LOG_WARNING, "Invalid qualifygap '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_qualify_gap = DEFAULT_QUALIFY_GAP;
+			}
+		} else if (!strcasecmp(v->name, "qualifypeers")) {
+			if (sscanf(v->value, "%30d", &global_qualify_peers) != 1) {
+				ast_log(LOG_WARNING, "Invalid pokepeers '%s' at line %d of %s\n", v->value, v->lineno, config);
+				global_qualify_peers = DEFAULT_QUALIFY_PEERS;
+			}
+		} else if (!strcasecmp(v->name, "disallowed_methods")) {
+			char *disallow = ast_strdupa(v->value);
+			mark_parsed_methods(&sip_cfg.disallowed_methods, disallow);
+		} else if (!strcasecmp(v->name, "shrinkcallerid")) {
+			if (ast_true(v->value)) {
+				global_shrinkcallerid = 1;
+			} else if (ast_false(v->value)) {
+				global_shrinkcallerid = 0;
+			} else {
+				ast_log(LOG_WARNING, "shrinkcallerid value %s is not valid at line %d.\n", v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "use_q850_reason")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
+		} else if (!strcasecmp(v->name, "maxforwards")) {
+			if ((sscanf(v->value, "%30d", &sip_cfg.default_max_forwards) != 1) || (sip_cfg.default_max_forwards < 1)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid maxforwards value at line %d.  Using default.\n", v->value, v->lineno);
+				sip_cfg.default_max_forwards = DEFAULT_MAX_FORWARDS;
+			}
+		} else if (!strcasecmp(v->name, "subscribe_network_change_event")) {
+			if (ast_true(v->value)) {
+				subscribe_network_change = 1;
+			} else if (ast_false(v->value)) {
+				subscribe_network_change = 0;
+			} else {
+				ast_log(LOG_WARNING, "subscribe_network_change_event value %s is not valid at line %d.\n", v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
+			ast_set2_flag(&global_flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
+		} else if (!strcasecmp(v->name, "parkinglot")) {
+			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
+		}
+	}
 
 	if (subscribe_network_change) {
 		network_change_event_subscribe();

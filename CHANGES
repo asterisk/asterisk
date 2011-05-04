@@ -108,11 +108,6 @@ FollowMe
    compatability for a FollowMe call with certain dialplan apps, options, and
    functions.
 
-SIP Changes
------------
- * Multiple [general] contexts are now permitted within sip.conf.  They will be
-   merged at load time.
-
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
