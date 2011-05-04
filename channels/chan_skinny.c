@@ -248,6 +248,9 @@ AST_THREADSTORAGE(device2str_threadbuf);
 AST_THREADSTORAGE(control2str_threadbuf);
 #define CONTROL2STR_BUFSIZE   100
 
+AST_THREADSTORAGE(substate2str_threadbuf);
+#define SUBSTATE2STR_BUFSIZE   15
+
 /*********************
  * Protocol Messages *
  *********************/
@@ -1186,6 +1189,7 @@ static int matchdigittimeout = 3000;
 #define SUBSTATE_RINGOUT 3
 #define SUBSTATE_RINGIN 4
 #define SUBSTATE_CONNECTED 5
+#define SUBSTATE_DIALING 101
 
 struct skinny_subchannel {
 	ast_mutex_t lock;
@@ -1407,8 +1411,9 @@ static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned in
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
 static int skinny_reload(void);
 
-static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
+static void setsubstate_dialing(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
 static void setsubstate_ringin(struct skinny_subchannel *sub);
+static void setsubstate_ringout(struct skinny_subchannel *sub);
 static void setsubstate_connected(struct skinny_subchannel *sub);
 
 static struct ast_channel_tech skinny_tech = {
@@ -3987,7 +3992,7 @@ static void *skinny_ss(void *data)
 					}
 					return NULL;
 				} else {
-					setsubstate_ringout(c->tech_pvt, d->exten);
+					setsubstate_dialing(c->tech_pvt, d->exten);
 					return NULL;
 				}
 			} else {
@@ -4492,20 +4497,9 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			skinny_transfer(sub);
 			break;
 		}
-		if (ast->_state != AST_STATE_UP) {
-			if (!sub->progress) {
-				if (!d->earlyrtp) {
-					transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
-				}
-				transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_RINGOUT);
-				transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
-				transmit_displaypromptstatus(d, "Ring Out", 0, l->instance, sub->callid);
-				transmit_callinfo(sub);
-				sub->ringing = 1;
-				if (!d->earlyrtp) {
-					break;
-				}
-			}
+		setsubstate_ringout(sub);
+		if (!d->earlyrtp) {
+			break;
 		}
 		return -1; /* Tell asterisk to provide inband signalling */
 	case AST_CONTROL_BUSY:
@@ -4693,6 +4687,29 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 	}
 	return tmp;
 }
+static char *substate2str(int ind) {
+	char *tmp;
+
+	switch (ind) {
+	case SUBSTATE_OFFHOOK:
+		return "SUBSTATE_OFFHOOK";
+	case SUBSTATE_ONHOOK:
+		return "SUBSTATE_ONHOOK";
+	case SUBSTATE_RINGOUT:
+		return "SUBSTATE_RINGOUT";
+	case SUBSTATE_RINGIN:
+		return "SUBSTATE_RINGIN";
+	case SUBSTATE_CONNECTED:
+		return "SUBSTATE_CONNECTED";
+	case SUBSTATE_DIALING:
+		return "SUBSTATE_DIALING";
+	default:
+		if (!(tmp = ast_threadstorage_get(&substate2str_threadbuf, SUBSTATE2STR_BUFSIZE)))
+                        return "Unknown";
+		snprintf(tmp, SUBSTATE2STR_BUFSIZE, "UNKNOWN-%d", ind);
+		return tmp;
+	}
+}
 
 static void setsubstate_offhook(struct skinny_subchannel *sub)
 {
@@ -4719,7 +4736,7 @@ static void setsubstate_offhook(struct skinny_subchannel *sub)
 	}
 }
 
-static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
+static void setsubstate_dialing(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
 {
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
@@ -4745,12 +4762,32 @@ static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MA
 	ast_copy_string(l->lastnumberdialed, exten, sizeof(l->lastnumberdialed));
 	memset(d->exten, 0, sizeof(d->exten));
 
-	sub->substate = SUBSTATE_RINGOUT;
+	sub->substate = SUBSTATE_DIALING;
 	
 	if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
 		ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
 		ast_hangup(c);
 	}
+}
+
+static void setsubstate_ringout(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+
+	if (sub->substate != SUBSTATE_DIALING) {
+		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_DIALING from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+		return;
+	}
+	
+	if (!d->earlyrtp) {
+		transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
+	}
+	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_RINGOUT);
+	transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
+	transmit_displaypromptstatus(d, "Ring Out", 0, l->instance, sub->callid);
+	transmit_callinfo(sub);
+	sub->substate = SUBSTATE_RINGOUT;
 }
 
 static void setsubstate_ringin(struct skinny_subchannel *sub)
@@ -4792,7 +4829,7 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 	if (sub->substate != SUBSTATE_RINGIN) {
 		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 	}
-	if (sub->substate == SUBSTATE_RINGOUT) {
+	if (sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_RINGOUT) {
 		transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
 	}
 	if (sub->owner->_state != AST_STATE_UP) {
@@ -5089,7 +5126,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			sub = c->tech_pvt;
 			l = sub->parent;
 			l->activesub = sub;
-			setsubstate_ringout(sub, l->lastnumberdialed);
+			setsubstate_dialing(sub, l->lastnumberdialed);
 		}
 		break;
 	case STIMULUS_SPEEDDIAL:
@@ -5114,7 +5151,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			l = sub->parent;
 			l->activesub = sub;
 			
-			setsubstate_ringout(sub, sd->exten);
+			setsubstate_dialing(sub, sd->exten);
 		}
 	    }
 		break;
@@ -5152,7 +5189,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			l = sub->parent;
 			l->activesub = sub;
 			
-			setsubstate_ringout(sub,l->vmexten);
+			setsubstate_dialing(sub,l->vmexten);
 
 		}
 		break;
@@ -5743,7 +5780,7 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 
 		sub = c->tech_pvt;
 		l->activesub = sub;
-		setsubstate_ringout(sub, req->data.enbloccallmessage.calledParty);
+		setsubstate_dialing(sub, req->data.enbloccallmessage.calledParty);
 	}
 	
 	return 1;
@@ -5808,7 +5845,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		} else {
 			sub = c->tech_pvt;
 			l->activesub = sub;
-			setsubstate_ringout(sub, l->lastnumberdialed);
+			setsubstate_dialing(sub, l->lastnumberdialed);
 		}
 		break;
 	case SOFTKEY_NEWCALL:  /* Actually the DIAL softkey */
