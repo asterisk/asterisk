@@ -1406,7 +1406,9 @@ static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
 static int skinny_reload(void);
+
 static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
+static void setsubstate_connected(struct skinny_subchannel *sub);
 
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -4197,22 +4199,12 @@ static int skinny_answer(struct ast_channel *ast)
 	}
 
 	sub->cxmode = SKINNY_CX_SENDRECV;
-	if (!sub->rtp) {
-		start_rtp(sub);
-	}
+
 	if (skinnydebug)
 		ast_verb(1, "skinny_answer(%s) on %s@%s-%d\n", ast->name, l->name, d->name, sub->callid);
-	if (ast->_state != AST_STATE_UP) {
-		ast_setstate(ast, AST_STATE_UP);
-	}
+	
+	setsubstate_connected(sub);
 
-	transmit_stop_tone(d, l->instance, sub->callid);
-	transmit_callinfo(sub);
-	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
-	transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
-	transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
-	l->activesub = sub;
 	return res;
 }
 
@@ -4786,13 +4778,24 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 
 	transmit_activatecallplane(d, l);
 	transmit_stop_tone(d, l->instance, sub->callid);
+	transmit_callinfo(sub);
 	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
 	transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
-	start_rtp(sub);
+	if (!sub->rtp) {
+		start_rtp(sub);
+	}
+	if (sub->substate != SUBSTATE_RINGOUT) { /* Bad form, neet to test for RINGIN, when it's implemented */
+		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
+	}
+	if (sub->substate == SUBSTATE_RINGOUT) {
+		transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
+	}
+	if (sub->owner->_state != AST_STATE_UP) {
+		ast_setstate(sub->owner, AST_STATE_UP);
+	}
 	sub->substate = SUBSTATE_CONNECTED;
-	ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
-	ast_setstate(sub->owner, AST_STATE_UP);
+	l->activesub = sub;
 }
 
 static int skinny_hold(struct skinny_subchannel *sub)
