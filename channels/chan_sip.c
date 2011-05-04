@@ -1551,7 +1551,7 @@ static int parse_session_expires(const char *p_hdrval, int *const p_interval, en
 static int parse_minse(const char *p_hdrval, int *const p_interval);
 static int st_get_se(struct sip_pvt *, int max);
 static enum st_refresher st_get_refresher(struct sip_pvt *);
-static enum st_mode st_get_mode(struct sip_pvt *);
+static enum st_mode st_get_mode(struct sip_pvt *, int no_cached);
 static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p);
 
 /*------- RTP Glue functions -------- */
@@ -9336,7 +9336,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 static int add_supported_header(struct sip_pvt *pvt, struct sip_request *req)
 {
 	int res;
-	if (st_get_mode(pvt) != SESSION_TIMER_MODE_REFUSE) {
+	if (st_get_mode(pvt, 0) != SESSION_TIMER_MODE_REFUSE) {
 		res = add_header(req, "Supported", "replaces, timer");
 	} else {
 		res = add_header(req, "Supported", "replaces");
@@ -11667,7 +11667,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 	}
 
 	/* Add Session-Timers related headers */
-	if (st_get_mode(p) == SESSION_TIMER_MODE_ORIGINATE) {
+	if (st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE) {
 		char i2astr[10];
 
 		if (!p->stimer->st_interval) {
@@ -19317,7 +19317,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		}
 
 		/* Check for Session-Timers related headers */
-		if (st_get_mode(p) != SESSION_TIMER_MODE_REFUSE && p->outgoing_call == TRUE && !reinvite) {
+		if (st_get_mode(p, 0) != SESSION_TIMER_MODE_REFUSE && p->outgoing_call == TRUE && !reinvite) {
 			p_hdrval = (char*)get_header(req, "Session-Expires");
 			if (!ast_strlen_zero(p_hdrval)) {
 				/* UAS supports Session-Timers */
@@ -19339,7 +19339,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				start_session_timer(p);
 			} else {
 				/* UAS doesn't support Session-Timers */
-				if (st_get_mode(p) == SESSION_TIMER_MODE_ORIGINATE) {
+				if (st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE) {
 					p->stimer->st_ref = SESSION_TIMER_REFRESHER_UAC;
 					p->stimer->st_active_peer_ua = FALSE;
 					start_session_timer(p);
@@ -21771,7 +21771,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 
 		dlg_min_se = st_get_se(p, FALSE);
-		switch (st_get_mode(p)) {
+		switch (st_get_mode(p, 1)) {
 		case SESSION_TIMER_MODE_ACCEPT:
 		case SESSION_TIMER_MODE_ORIGINATE:
 			if (uac_max_se > 0 && uac_max_se < dlg_min_se) {
@@ -21817,14 +21817,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			break;
 
 		default:
-			ast_log(LOG_ERROR, "Internal Error %d at %s:%d\n", st_get_mode(p), __FILE__, __LINE__);
+			ast_log(LOG_ERROR, "Internal Error %d at %s:%d\n", st_get_mode(p, 1), __FILE__, __LINE__);
 			break;
 		}
 	} else {
 		/* The UAC did not request session-timers.  Asterisk (UAS), will now decide
 		(based on session-timer-mode in sip.conf) whether to run session-timers for
 		this session or not. */
-		switch (st_get_mode(p)) {
+		switch (st_get_mode(p, 1)) {
 		case SESSION_TIMER_MODE_ORIGINATE:
 			st_active = TRUE;
 			st_interval = st_get_se(p, TRUE);
@@ -24972,15 +24972,18 @@ enum st_refresher st_get_refresher(struct sip_pvt *p)
 }
 
 
-/*! \brief Get the session-timer mode
- * \param p pointer to the SIP dialog
+/*!
+ * \brief Get the session-timer mode 
+ * \param p pointer to the SIP dialog 
+ * \param no_cached, set this to true in order to force a peername lookup on
+ *        the session timer mode.
 */
-enum st_mode st_get_mode(struct sip_pvt *p)
+enum st_mode st_get_mode(struct sip_pvt *p, int no_cached)
 {
 	if (!p->stimer)
 		sip_st_alloc(p);
 
-	if (p->stimer->st_cached_mode != SESSION_TIMER_MODE_INVALID)
+	if (!no_cached && p->stimer->st_cached_mode != SESSION_TIMER_MODE_INVALID)
 		return p->stimer->st_cached_mode;
 
 	if (p->relatedpeer) {
