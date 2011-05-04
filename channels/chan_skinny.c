@@ -1408,6 +1408,7 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata);
 static int skinny_reload(void);
 
 static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
+static void setsubstate_ringin(struct skinny_subchannel *sub);
 static void setsubstate_connected(struct skinny_subchannel *sub);
 
 static struct ast_channel_tech skinny_tech = {
@@ -4064,26 +4065,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 	
-	switch (l->hookstate) {
-	case SKINNY_OFFHOOK:
-		break;
-	case SKINNY_ONHOOK:
-		l->activesub = sub;
-		break;
-	default:
-		ast_log(LOG_ERROR, "Don't know how to deal with hookstate %d\n", l->hookstate);
-		break;
-	}
-
-	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_RINGIN);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
-	transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
-	transmit_callinfo(sub);
-	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
-	transmit_ringer_mode(d, SKINNY_RING_INSIDE);
-
-	ast_setstate(ast, AST_STATE_RINGING);
-	ast_queue_control(ast, AST_CONTROL_RINGING);
+	setsubstate_ringin(sub);
 	return res;
 }
 
@@ -4771,6 +4753,28 @@ static void setsubstate_ringout(struct skinny_subchannel *sub, char exten[AST_MA
 	}
 }
 
+static void setsubstate_ringin(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+	struct ast_channel *c = sub->owner;
+
+	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_RINGIN);
+	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
+	transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
+	transmit_callinfo(sub);
+	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
+	transmit_ringer_mode(d, SKINNY_RING_INSIDE);
+
+	if (l->hookstate == SKINNY_ONHOOK) {
+		l->activesub = sub;
+	}
+	
+	ast_setstate(c, AST_STATE_RINGING);
+	ast_queue_control(c, AST_CONTROL_RINGING);
+	sub->substate = SUBSTATE_RINGIN;
+}
+
 static void setsubstate_connected(struct skinny_subchannel *sub)
 {
 	struct skinny_line *l = sub->parent;
@@ -4785,7 +4789,7 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 	if (!sub->rtp) {
 		start_rtp(sub);
 	}
-	if (sub->substate != SUBSTATE_RINGOUT) { /* Bad form, neet to test for RINGIN, when it's implemented */
+	if (sub->substate != SUBSTATE_RINGIN) {
 		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 	}
 	if (sub->substate == SUBSTATE_RINGOUT) {
