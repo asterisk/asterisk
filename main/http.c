@@ -132,7 +132,7 @@ static AST_RWLIST_HEAD_STATIC(uri_redirects, http_uri_redirect);
 
 static const struct ast_cfhttp_methods_text {
 	enum ast_http_method method;
-	const char text[];
+	const char *text;
 } ast_http_methods_text[] = {
 	{ AST_HTTP_UNKNOWN,     "UNKNOWN" },
 	{ AST_HTTP_GET,         "GET" },
@@ -143,7 +143,15 @@ static const struct ast_cfhttp_methods_text {
 
 const char *ast_get_http_method(enum ast_http_method method)
 {
-	return ast_http_methods_text[method].text;
+	int x;
+
+	for (x = 0; x < ARRAY_LEN(ast_http_methods_text); x++) {
+		if (ast_http_methods_text[x].method == method) {
+			return ast_http_methods_text[x].text;
+		}
+	}
+
+	return NULL;
 }
 
 const char *ast_http_ftype2mtype(const char *ftype)
