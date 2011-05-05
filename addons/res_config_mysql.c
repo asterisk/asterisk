@@ -398,7 +398,7 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 				} else if (ast_strlen_zero(row[i])) {
 					row[i] = " ";
 				}
-				for (stringp = ast_strdupa(row[i]), chunk = strsep(&stringp, ";"); chunk; chunk = strsep(&stringp, ";")) {
+				for (stringp = row[i], chunk = strsep(&stringp, ";"); chunk; chunk = strsep(&stringp, ";")) {
 					if (prev) {
 						if ((prev->next = ast_variable_new(fields[i].name, decode_chunk(chunk), ""))) {
 							prev = prev->next;
@@ -524,7 +524,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 			for (i = 0; i < numFields; i++) {
 				if (ast_strlen_zero(row[i]))
 					continue;
-				for (stringp = ast_strdupa(row[i]), chunk = strsep(&stringp, ";"); chunk; chunk = strsep(&stringp, ";")) {
+				for (stringp = row[i], chunk = strsep(&stringp, ";"); chunk; chunk = strsep(&stringp, ";")) {
 					if (chunk && !ast_strlen_zero(decode_chunk(ast_strip(chunk)))) {
 						if (initfield && !strcmp(initfield, fields[i].name)) {
 							ast_category_rename(cat, chunk);
