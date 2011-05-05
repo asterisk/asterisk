@@ -1963,7 +1963,11 @@ unsigned int seq;
 		return;
 	}
 	n = finddelim(astr,astrs,100);
-	if (n < 1) return;
+	if (n < 1) {
+		ast_free(str);
+		ast_free(astr);
+		return;
+	}
 	ast_mutex_lock(&myrpt->statpost_lock);
 	seq = ++myrpt->statpost_seqno;
 	ast_mutex_unlock(&myrpt->statpost_lock);
@@ -12188,7 +12192,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						// ctcss code autopatch initiate
 						if (strstr((char *)f->data.ptr,"/M/")&& !myrpt->macropatch)
 						{
-						    char value[16];
+							char value[16] = "";
 							strcat(value,"*6");
 							myrpt->macropatch=1;
 							rpt_mutex_lock(&myrpt->lock);
