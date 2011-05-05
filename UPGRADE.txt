@@ -21,6 +21,10 @@
 
 From 1.8 to 1.10:
 
+cel_pgsql:
+ - This module now expects an 'extra' column in the database for data added
+   using the CELGenUserEvent() application.
+
 ConfBridge
  - ConfBridge's dialplan arguments have changed and are not
    backwards compatible.

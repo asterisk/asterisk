@@ -51,7 +51,7 @@
 ;	amaflag  (an int)
 ;	userfield
 ;	peer
-
+;	extra
 
 [global]
 ;hostname=localhost
