@@ -1343,12 +1343,12 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 	
 	/* step through the extensions looking for a match */
 	for (i = 1; i < lua_objlen(L, context_order_table) + 1; i++) {
-		int e_index, e_index_copy, match = 0;
+		int e_index_copy, match = 0;
 		const char *e;
 
 		lua_pushinteger(L, i);
 		lua_gettable(L, context_order_table);
-		e_index = lua_gettop(L);
+		lua_gettop(L);
 
 		/* copy the key at the top of the stack for use later */
 		lua_pushvalue(L, -1);

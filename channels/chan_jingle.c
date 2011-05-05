@@ -584,7 +584,6 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	struct ast_sockaddr sin_tmp;
 	struct ast_sockaddr us_tmp;
 	struct ast_sockaddr bindaddr_tmp;
-	struct sockaddr_in dest;
 	struct in_addr us;
 	struct in_addr externaddr;
 	iks *iq, *jingle, *content, *transport, *candidate;
@@ -665,9 +664,6 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 		ours2 = NULL;
 	}
 	ours1 = NULL;
-	dest.sin_addr = __ourip;
-	dest.sin_port = sin.sin_port;
-
 
 	for (tmp = p->ourcandidates; tmp; tmp = tmp->next) {
 		snprintf(component, sizeof(component), "%u", tmp->component);

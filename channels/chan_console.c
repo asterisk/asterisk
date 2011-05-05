@@ -733,7 +733,7 @@ static char *cli_console_autoanswer(struct ast_cli_entry *e, int cmd,
 
 	unref_pvt(pvt);
 
-	return CLI_SUCCESS;
+	return res;
 }
 
 static char *cli_console_flash(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)

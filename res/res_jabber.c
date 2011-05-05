@@ -2873,7 +2873,6 @@ static int aji_register_transport2(void *data, ikspak *pak)
  */
 static void aji_pruneregister(struct aji_client *client)
 {
-	int res = 0;
 	iks *removeiq = iks_new("iq");
 	iks *removequery = iks_new("query");
 	iks *removeitem = iks_new("item");
@@ -2890,10 +2889,10 @@ static void aji_pruneregister(struct aji_client *client)
 		/* For an aji_buddy, both AUTOPRUNE and AUTOREGISTER will never
 		 * be called at the same time */
 		if (ast_test_flag(&iterator->flags, AJI_AUTOPRUNE)) { /* If autoprune is set on jabber.conf */
-			res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
+			ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
 								 "GoodBye. Your status is no longer needed by Asterisk the Open Source PBX"
 								 " so I am no longer subscribing to your presence.\n"));
-			res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBED, iterator->name,
+			ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBED, iterator->name,
 								 "GoodBye.  You are no longer in the Asterisk config file so I am removing"
 								 " your access to my presence.\n"));
 			iks_insert_attrib(removeiq, "from", client->jid->full);
@@ -2901,9 +2900,9 @@ static void aji_pruneregister(struct aji_client *client)
 			iks_insert_attrib(removequery, "xmlns", "jabber:iq:roster");
 			iks_insert_attrib(removeitem, "jid", iterator->name);
 			iks_insert_attrib(removeitem, "subscription", "remove");
-			res = ast_aji_send(client, removeiq);
+			ast_aji_send(client, removeiq);
 		} else if (ast_test_flag(&iterator->flags, AJI_AUTOREGISTER)) {
-			res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name,
+			ast_aji_send(client, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name,
 								 "Greetings! I am the Asterisk Open Source PBX and I want to subscribe to your presence\n"));
 			ast_clear_flag(&iterator->flags, AJI_AUTOREGISTER);
 		}
@@ -3287,7 +3286,6 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
  */
 static void aji_create_affiliations(struct aji_client *client, const char *node)
 {
-	int res = 0;
 	iks *modify_affiliates = aji_pubsub_iq_create(client, "set");
 	iks *pubsub, *affiliations, *affiliate;
 	pubsub = iks_insert(modify_affiliates, "pubsub");
@@ -3301,7 +3299,7 @@ static void aji_create_affiliations(struct aji_client *client, const char *node)
 		iks_insert_attrib(affiliate, "affiliation", "owner");
 		ASTOBJ_UNLOCK(iterator);
 	});
-	res = ast_aji_send(client, modify_affiliates);
+	ast_aji_send(client, modify_affiliates);
 	iks_delete(modify_affiliates);
 }
 
@@ -3503,13 +3501,12 @@ static int aji_handle_pubsub_error(void *data, ikspak *pak)
  */
 static void aji_request_pubsub_nodes(struct aji_client *client, const char *collection)
 {
-	int res = 0;
 	iks *request = aji_build_node_request(client, collection);
 
 	iks_filter_add_rule(client->f, aji_receive_node_list, client, IKS_RULE_TYPE,
 		IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, client->mid,
 		IKS_RULE_DONE);
-	res = ast_aji_send(client, request);
+	ast_aji_send(client, request);
 	iks_delete(request);
 
 }
@@ -3646,13 +3643,12 @@ static char *aji_cli_purge_pubsub_nodes(struct ast_cli_entry *e, int cmd, struct
 
 static void aji_pubsub_purge_nodes(struct aji_client *client, const char* collection_name)
 {
-	int res = 0;
 	iks *request = aji_build_node_request(client, collection_name);
 	ast_aji_send(client, request);
 	iks_filter_add_rule(client->f, aji_delete_node_list, client, IKS_RULE_TYPE,
 		IKS_PAK_IQ, IKS_RULE_SUBTYPE, IKS_TYPE_RESULT, IKS_RULE_ID, client->mid,
 		IKS_RULE_DONE);
-	res = ast_aji_send(client, request);
+	ast_aji_send(client, request);
 	iks_delete(request);
 }
 
@@ -3772,15 +3768,14 @@ const char *leaf_name)
 static iks* aji_create_pubsub_node(struct aji_client *client, const char *node_type, const
 		char *name, const char *collection_name)
 {
-	int res = 0;
 	iks *node = aji_pubsub_iq_create(client, "set");
-	iks *pubsub, *create, *configure;
+	iks *pubsub, *create;
 	pubsub = iks_insert(node, "pubsub");
 	iks_insert_attrib(pubsub, "xmlns", "http://jabber.org/protocol/pubsub");
 	create = iks_insert(pubsub, "create");
 	iks_insert_attrib(create, "node", name);
-	configure = aji_build_node_config(pubsub, node_type, collection_name);
-	res = ast_aji_send(client, node);
+	aji_build_node_config(pubsub, node_type, collection_name);
+	ast_aji_send(client, node);
 	aji_create_affiliations(client, name);
 	iks_delete(node);
 	return 0;
@@ -3924,7 +3919,6 @@ static char *aji_cli_create_leafnode(struct ast_cli_entry *e, int cmd, struct as
  */
 static void aji_set_presence(struct aji_client *client, char *to, char *from, int level, char *desc)
 {
-	int res = 0;
 	iks *presence = iks_make_pres(level, desc);
 	iks *cnode = iks_new("c");
 	iks *priority = iks_new("priority");
@@ -3945,7 +3939,7 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 		iks_insert_attrib(cnode, "ext", "voice-v1");
 		iks_insert_attrib(cnode, "xmlns", "http://jabber.org/protocol/caps");
 		iks_insert_node(presence, cnode);
-		res = ast_aji_send(client, presence);
+		ast_aji_send(client, presence);
 	} else {
 		ast_log(LOG_ERROR, "Out of memory.\n");
 	}
