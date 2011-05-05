@@ -2888,6 +2888,14 @@ static int action_events(struct mansession *s, const struct message *m)
 {
 	const char *mask = astman_get_header(m, "EventMask");
 	int res, x;
+	const char *id = astman_get_header(m, "ActionID");
+	char id_text[256];
+
+	if (!ast_strlen_zero(id)) {
+		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
+	} else {
+		id_text[0] = '\0';
+	}
 
 	res = set_eventmask(s, mask);
 	if (broken_events_action) {
@@ -2900,20 +2908,20 @@ static int action_events(struct mansession *s, const struct message *m)
 					return 0;
 				}
 			}
-			astman_append(s, "Response: Success\r\n"
-					 "Events: On\r\n\r\n");
+			astman_append(s, "Response: Success\r\n%s"
+					 "Events: On\r\n\r\n", id_text);
 		} else if (res == 0)
-			astman_append(s, "Response: Success\r\n"
-					 "Events: Off\r\n\r\n");
+			astman_append(s, "Response: Success\r\n%s"
+					 "Events: Off\r\n\r\n", id_text);
 		return 0;
 	}
 
 	if (res > 0)
-		astman_append(s, "Response: Success\r\n"
-				 "Events: On\r\n\r\n");
+		astman_append(s, "Response: Success\r\n%s"
+				 "Events: On\r\n\r\n", id_text);
 	else if (res == 0)
-		astman_append(s, "Response: Success\r\n"
-				 "Events: Off\r\n\r\n");
+		astman_append(s, "Response: Success\r\n%s"
+				 "Events: Off\r\n\r\n", id_text);
 	else
 		astman_send_error(s, m, "Invalid event mask");
 
