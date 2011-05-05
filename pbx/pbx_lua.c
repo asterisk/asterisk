@@ -85,6 +85,7 @@ static void lua_create_autoservice_functions(lua_State *L);
 static void lua_create_hangup_function(lua_State *L);
 
 static void lua_state_destroy(void *data);
+static void lua_datastore_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
 static lua_State *lua_get_state(struct ast_channel *chan);
 
 static int exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
@@ -102,6 +103,7 @@ static struct ast_hashtab *local_table = NULL;
 static const struct ast_datastore_info lua_datastore = {
 	.type = "lua",
 	.destroy = lua_state_destroy,
+	.chan_fixup = lua_datastore_fixup,
 };
 
 
@@ -112,6 +114,21 @@ static void lua_state_destroy(void *data)
 {
 	if (data)
 		lua_close(data);
+}
+
+/*!
+ * \brief The fixup function for the lua_datastore.
+ * \param data the datastore data, in this case it will be a lua_State
+ * \param old_chan the channel we are moving from
+ * \param new_chan the channel we are moving to
+ *
+ * This function updates our internal channel pointer.
+ */
+static void lua_datastore_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	lua_State *L = data;
+	lua_pushlightuserdata(L, new_chan);
+	lua_setfield(L, LUA_REGISTRYINDEX, "channel");
 }
 
 /*!
