@@ -3002,6 +3002,12 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		}
 	}
 
+	flags = 1;
+	if (setsockopt(tcptls_session->fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
+		ast_log(LOG_ERROR, "error enabling TCP keep-alives on sip socket: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
 	me->threadid = pthread_self();
 	ast_debug(2, "Starting thread for %s server\n", tcptls_session->ssl ? "SSL" : "TCP");
 
