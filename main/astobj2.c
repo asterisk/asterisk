@@ -734,6 +734,10 @@ static void *internal_ao2_callback(struct ao2_container *c,
 				}
 				ast_free(cur);	/* free the link record */
 			}
+			if ((match) && (!(flags & OBJ_UNLINK))) {
+				AST_LIST_REMOVE_CURRENT(entry);
+				AST_LIST_INSERT_HEAD(&c->buckets[i], cur, entry);
+			}
 
 			if ((match & CMP_STOP) || !(flags & OBJ_MULTIPLE)) {
 				/* We found our only (or last) match, so force an exit from
