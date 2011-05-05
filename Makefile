@@ -531,7 +531,6 @@ installdirs:
 	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)"
 	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)/cdr-csv"
 	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)/cdr-custom"
-	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)/cel-csv"
 	$(INSTALL) -d "$(DESTDIR)$(ASTLOGDIR)/cel-custom"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/documentation"
