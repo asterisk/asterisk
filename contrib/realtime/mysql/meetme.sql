@@ -15,7 +15,7 @@ CREATE TABLE meetme (
 	recordingformat char(10) NULL,
 	maxusers int(11) NULL,
 	members integer DEFAULT 0 NOT NULL,
-	index confno (confno,starttime,endtime)
-	PRIMARY KEY (bookid),
+	index confno (confno,starttime,endtime),
+	PRIMARY KEY (bookid)
 );
 

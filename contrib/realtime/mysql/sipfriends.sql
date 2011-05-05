@@ -51,5 +51,5 @@ CREATE TABLE `sipfriends` (
   `setvar` varchar(200),
   PRIMARY KEY  (`name`),
   INDEX host (host, port),
-  INDEX ipaddr (ipaddr, port),
-) TYPE=MyISAM;
+  INDEX ipaddr (ipaddr, port)
+) ENGINE=MyISAM;
