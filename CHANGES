@@ -93,6 +93,8 @@ Calendaring
 --------------------------
  * Added setvar option to calendar.conf to allow setting channel variables on
    notification channels.
+ * Added "calendar show types" CLI command to list registered calendar
+   connectors.
 
 MixMonitor
 --------------------------
