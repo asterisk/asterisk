@@ -2569,7 +2569,13 @@ static char *cli_complete(EditLine *editline, int ch)
 static int ast_el_initialize(void)
 {
 	HistEvent ev;
-	char *editor = getenv("AST_EDITOR");
+	char *editor, *editrc = getenv("EDITRC");
+
+	if (!(editor = getenv("AST_EDITMODE"))) {
+		if (!(editor = getenv("AST_EDITOR"))) {
+			editor = "emacs";
+		}
+	}
 
 	if (el != NULL)
 		el_end(el);
@@ -2580,7 +2586,7 @@ static int ast_el_initialize(void)
 	el_set(el, EL_PROMPT, cli_prompt);
 
 	el_set(el, EL_EDITMODE, 1);		
-	el_set(el, EL_EDITOR, editor ? editor : "emacs");		
+	el_set(el, EL_EDITOR, editor);
 	el_hist = history_init();
 	if (!el || !el_hist)
 		return -1;
@@ -2597,6 +2603,18 @@ static int ast_el_initialize(void)
 	el_set(el, EL_BIND, "?", "ed-complete", NULL);
 	/* Bind ^D to redisplay */
 	el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
+	/* Bind Delete to delete char left */
+	el_set(el, EL_BIND, "\\e[3~", "ed-delete-next-char", NULL);
+	/* Bind Home and End to move to line start and end */
+	el_set(el, EL_BIND, "\\e[1~", "ed-move-to-beg", NULL);
+	el_set(el, EL_BIND, "\\e[4~", "ed-move-to-end", NULL);
+	/* Bind C-left and C-right to move by word (not all terminals) */
+	el_set(el, EL_BIND, "\\eOC", "vi-next-word", NULL);
+	el_set(el, EL_BIND, "\\eOD", "vi-prev-word", NULL);
+
+	if (editrc) {
+		el_source(el, editrc);
+	}
 
 	return 0;
 }
