@@ -1191,6 +1191,7 @@ static int matchdigittimeout = 3000;
 #define SUBSTATE_CONNECTED 5
 #define SUBSTATE_BUSY 6
 #define SUBSTATE_CONGESTION 7
+#define SUBSTATE_HOLD 8
 #define SUBSTATE_PROGRESS 12
 #define SUBSTATE_DIALING 101
 
@@ -1203,7 +1204,6 @@ struct skinny_subchannel {
 	/* time_t lastouttime; */ /* Unused */
 	int progress;
 	int ringing;
-	int onhold;
 	/* int lastout; */ /* Unused */
 	int cxmode;
 	int nat;
@@ -1421,6 +1421,7 @@ static void setsubstate_connected(struct skinny_subchannel *sub);
 static void setsubstate_busy(struct skinny_subchannel *sub);
 static void setsubstate_congestion(struct skinny_subchannel *sub);
 static void setsubstate_progress(struct skinny_subchannel *sub);
+static void setsubstate_hold(struct skinny_subchannel *sub);
 
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -4341,7 +4342,7 @@ static int get_devicestate(struct skinny_line *l)
 		}
 
 		AST_LIST_TRAVERSE(&l->sub, sub, list) {
-			if (sub->onhold) {
+			if (sub->substate == SUBSTATE_HOLD) {
 				res = AST_DEVICE_ONHOLD;
 				break;
 			}
@@ -4573,7 +4574,6 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state, const ch
 			sub->cxmode = SKINNY_CX_INACTIVE;
 			sub->nat = l->nat;
 			sub->parent = l;
-			sub->onhold = 0;
 			sub->blindxfer = 0;
 			sub->xferor = 0;
 			sub->related = NULL;
@@ -4679,6 +4679,8 @@ static char *substate2str(int ind) {
 		return "SUBSTATE_CONGESTION";
 	case SUBSTATE_PROGRESS:
 		return "SUBSTATE_PROGRESS";
+	case SUBSTATE_HOLD:
+		return "SUBSTATE_HOLD";
 	case SUBSTATE_DIALING:
 		return "SUBSTATE_DIALING";
 	default:
@@ -4794,7 +4796,11 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 {
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
-
+	
+	if (sub->substate == SUBSTATE_HOLD) {
+		ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+		transmit_connect(d, sub);
+	}
 	transmit_activatecallplane(d, l);
 	transmit_stop_tone(d, l->instance, sub->callid);
 	transmit_callinfo(sub);
@@ -4804,7 +4810,7 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 	if (!sub->rtp) {
 		start_rtp(sub);
 	}
-	if (sub->substate != SUBSTATE_RINGIN) {
+	if (sub->substate == SUBSTATE_RINGIN) {
 		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 	}
 	if (sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_RINGOUT) {
@@ -4874,19 +4880,16 @@ static void setsubstate_progress(struct skinny_subchannel *sub)
 	sub->substate = SUBSTATE_PROGRESS;
 }
 
-static int skinny_hold(struct skinny_subchannel *sub)
+static void setsubstate_hold(struct skinny_subchannel *sub)
 {
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 
-	/* Don't try to hold a channel that doesn't exist */
-	if (!sub || !sub->owner)
-		return 0;
-
-	/* Channel needs to be put on hold */
-	if (skinnydebug)
-		ast_verb(1, "Putting on Hold(%d)\n", l->instance);
-
+	if (sub->substate != SUBSTATE_CONNECTED) {
+		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_HOLD from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+		return;
+	}
+	
 	ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
 		S_OR(l->mohsuggest, NULL),
 		!ast_strlen_zero(l->mohsuggest) ? strlen(l->mohsuggest) + 1 : 0);
@@ -4897,33 +4900,8 @@ static int skinny_hold(struct skinny_subchannel *sub)
 
 	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_HOLD);
 	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_WINK);
-	sub->onhold = 1;
-	return 1;
-}
-
-static int skinny_unhold(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->parent;
-	struct skinny_device *d = l->device;
-
-	/* Don't try to unhold a channel that doesn't exist */
-	if (!sub || !sub->owner)
-		return 0;
-
-	/* Channel is on hold, so we will unhold */
-	if (skinnydebug)
-		ast_verb(1, "Taking off Hold(%d)\n", l->instance);
-
-	ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
-
-	transmit_activatecallplane(d, l);
-
-	transmit_connect(d, sub);
-	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONNECTED);
-	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
-	l->hookstate = SKINNY_OFFHOOK;
-	sub->onhold = 0;
-	return 1;
+	transmit_selectsoftkeys(sub->parent->device, sub->parent->instance, sub->callid, KEYDEF_ONHOLD);
+	sub->substate = SUBSTATE_HOLD;
 }
 
 static int handle_hold_button(struct skinny_subchannel *sub)
@@ -4931,16 +4909,13 @@ static int handle_hold_button(struct skinny_subchannel *sub)
 	if (!sub)
 		return -1;
 	if (sub->related) {
-		skinny_hold(sub);
-		skinny_unhold(sub->related);
-		sub->parent->activesub = sub->related;
+		setsubstate_hold(sub);
+		setsubstate_connected(sub->related);
 	} else {
-		if (sub->onhold) {
-			skinny_unhold(sub);
-			transmit_selectsoftkeys(sub->parent->device, sub->parent->instance, sub->callid, KEYDEF_CONNECTED);
+		if (sub->substate == SUBSTATE_HOLD) {
+			setsubstate_connected(sub->related);
 		} else {
-			skinny_hold(sub);
-			transmit_selectsoftkeys(sub->parent->device, sub->parent->instance, sub->callid, KEYDEF_ONHOLD);
+			setsubstate_hold(sub);
 		}
 	}
 	return 1;
@@ -4963,8 +4938,8 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 
 	if (!sub->related) {
 		/* Another sub has not been created so this must be first XFER press */
-		if (!sub->onhold) {
-			skinny_hold(sub);
+		if (!(sub->substate == SUBSTATE_HOLD)) {
+			setsubstate_hold(sub);
 		}
 		c = skinny_new(l, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
 		if (c) {
@@ -5416,7 +5391,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 
 	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s@%s", l->name, d->name);
 
-	if (sub && sub->onhold) {
+	if (sub && sub->substate == SUBSTATE_HOLD) {
 		return 1;
 	}
 
@@ -5477,7 +5452,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 
 	ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
 
-	if (sub->onhold) {
+	if (sub->substate == SUBSTATE_HOLD) {
 		return 0;
 	}
 
@@ -5900,7 +5875,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	case SOFTKEY_HOLD:
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: Hold(%d/%d)\n", instance, callreference);
-		handle_hold_button(sub);	
+		setsubstate_hold(sub);	
 		break;
 	case SOFTKEY_TRNSFER:
 		if (skinnydebug)
@@ -6059,16 +6034,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: Resume(%d/%d)\n", instance, callreference);
 
-		if (sub) {
-			if (sub->onhold) {
-				skinny_unhold(sub);
-				transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
-			} else {
-				skinny_hold(sub);
-				transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_ONHOLD);
-			}
-		}
-
+		setsubstate_connected(sub);
 		break;
 	case SOFTKEY_ANSWER:
 		if (skinnydebug)
@@ -6197,7 +6163,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 			sub = d->activeline->activesub;
 		}
 
-		if (sub && ((sub->owner && sub->owner->_state <  AST_STATE_UP) || sub->onhold)) {
+		if (sub && ((sub->owner && sub->owner->_state <  AST_STATE_UP) || sub->substate == SUBSTATE_HOLD)) {
 			char dgt;
 			int digit = letohl(req->data.keypad.button);
 
