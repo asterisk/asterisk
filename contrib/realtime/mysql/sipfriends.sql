@@ -37,6 +37,7 @@ CREATE TABLE `sipfriends` (
   `outboundproxy` varchar(40),
   `ipaddr` varchar(40) NOT NULL default '',
   `defaultip` varchar(20),
+  `dtmfmode` varchar(7) default NULL,
   `port` int(6) NOT NULL default '0',
   `fullcontact` varchar(40),
   `insecure` varchar(20),
