@@ -1595,6 +1595,9 @@ struct ast_dsp *ast_dsp_new_with_rate(unsigned int sample_rate)
 void ast_dsp_set_features(struct ast_dsp *dsp, int features)
 {
 	dsp->features = features;
+	if (!(features & DSP_FEATURE_DIGIT_DETECT)) {
+		dsp->display_inband_dtmf_warning = 0;
+	}
 }
 
 void ast_dsp_free(struct ast_dsp *dsp)
