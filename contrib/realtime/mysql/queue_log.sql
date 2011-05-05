@@ -20,5 +20,5 @@ CREATE TABLE queue_log (
 	data4 char(50),
 	data5 char(50),
 	index bydate (time),
-	index qname (queuename,datetime)
+	index qname (queuename,time)
 );
