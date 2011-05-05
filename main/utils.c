@@ -1995,7 +1995,7 @@ int ast_utils_init(void)
  */
 int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request, int pedantic) {
 	int i;
-	char *c, key[512], val[512], tmp[512];
+	char *c, key[512], val[512];
 	struct ast_str *str = ast_str_create(16);
 
 	if (ast_strlen_zero(digest) || !d || !str) {
@@ -2007,7 +2007,7 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 
 	c = ast_skip_blanks(ast_str_buffer(str));
 
-	if (strncasecmp(tmp, "Digest ", strlen("Digest "))) {
+	if (strncasecmp(c, "Digest ", strlen("Digest "))) {
 		ast_log(LOG_WARNING, "Missing Digest.\n");
 		ast_free(str);
 		return -1;

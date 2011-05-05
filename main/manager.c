@@ -5693,7 +5693,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 					     struct ast_variable *headers)
 {
 	struct mansession_session *session = NULL;
-	struct mansession s = { NULL, };
+	struct mansession s = { .session = NULL, .tcptls_session = ser };
 	struct ast_variable *v, *params = get_params;
 	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
 	struct ast_str *http_header = NULL, *out = NULL;
