@@ -4,7 +4,7 @@
 
 ; Channel Event Logging is a mechanism to provide fine-grained event information
 ; that can be used to generate billing information. Such event information can
-; be recorded to databases and files via pluggable backend modules.
+; be recorded to various backend modules.
 ;
 
 [general]
