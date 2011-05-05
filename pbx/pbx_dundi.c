@@ -2603,6 +2603,7 @@ static char *dundi_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		}
 		ast_cli(a->fd, "Peer:    %s\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		ast_cli(a->fd, "Model:   %s\n", model2str(peer->model));
+		ast_cli(a->fd, "Order:   %s\n", order);
 		ast_cli(a->fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "<Unspecified>");
 		ast_cli(a->fd, "Port:    %d\n", ntohs(peer->addr.sin_port));
 		ast_cli(a->fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");

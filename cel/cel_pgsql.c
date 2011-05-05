@@ -535,7 +535,6 @@ static int process_my_load_module(struct ast_config *cfg)
 static int my_load_module(int reload)
 {
 	struct ast_config *cfg;
-	int res;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	if ((cfg = ast_config_load(config, config_flags)) == NULL || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -545,7 +544,7 @@ static int my_load_module(int reload)
 		return AST_MODULE_LOAD_SUCCESS;
 	}
 
-	res = process_my_load_module(cfg);
+	process_my_load_module(cfg);
 	ast_config_destroy(cfg);
 
 	event_sub = ast_event_subscribe(AST_EVENT_CEL, pgsql_log, "CEL PGSQL backend", NULL, AST_EVENT_IE_END);

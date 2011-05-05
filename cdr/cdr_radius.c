@@ -231,7 +231,6 @@ static int load_module(void)
 {
 	struct ast_config *cfg;
 	struct ast_flags config_flags = { 0 };
-	int res;
 	const char *tmp;
 
 	if ((cfg = ast_config_load(cdr_config, config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
@@ -259,7 +258,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	res = ast_cdr_register(name, desc, radius_log);
+	ast_cdr_register(name, desc, radius_log);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
