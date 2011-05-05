@@ -6681,7 +6681,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	sip_pvt_lock(i);
 	ast_channel_cc_params_init(tmp, i->cc_params);
 	tmp->caller.id.tag = ast_strdup(i->cid_tag);
-	ast_channel_unlock(tmp);
 
 	tmp->tech = ( ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO || ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_SHORTINFO) ?  &sip_tech_info : &sip_tech;
 
@@ -6837,6 +6836,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		char valuebuf[1024];
 		pbx_builtin_setvar_helper(tmp, v->name, ast_get_encoded_str(v->value, valuebuf, sizeof(valuebuf)));
 	}
+
+	ast_channel_unlock(tmp); /* ast_hangup requires the channel to be unlocked */
 
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
