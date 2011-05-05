@@ -203,6 +203,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 	struct jb_framedata *framedata = data;
 	struct timeval now_tv;
 	unsigned long now;
+	int putframe = 0; /* signifies if audio frame was placed into the buffer or not */
 
 	switch (event) {
 	case AST_FRAMEHOOK_EVENT_READ:
@@ -249,15 +250,31 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		if (res == AST_JB_IMPL_OK) {
 			frame = &ast_null_frame;
 		}
+		putframe = 1;
 	}
 
 	if (frame->frametype == AST_FRAME_NULL) {
 		int res;
 		long next = framedata->jb_impl->next(framedata->jb_obj);
 
+		/* If now is earlier than the next expected output frame
+		 * from the jitterbuffer we may choose to pass on retrieving
+		 * a frame during this read iteration.  The only exception
+		 * to this rule is when an audio frame is placed into the buffer
+		 * and the time for the next frame to come out of the buffer is
+		 * at least within the timer_interval of the next output frame. By
+		 * doing this we are able to feed off the timing of the input frames
+		 * and only rely on our jitterbuffer timer when frames are dropped.
+		 * During testing, this hybrid form of timing gave more reliable results. */
 		if (now < next) {
-			return frame;
+			long int diff = next - now;
+			if (!putframe) {
+				return frame;
+			} else if (diff >= framedata->timer_interval) {
+				return frame;
+			}
 		}
+
 		res = framedata->jb_impl->get(framedata->jb_obj, &frame, now, framedata->timer_interval);
 		switch (res) {
 		case AST_JB_IMPL_OK:

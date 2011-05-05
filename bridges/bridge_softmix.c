@@ -429,15 +429,20 @@ static enum ast_bridge_write_result softmix_bridge_write(struct ast_bridge *brid
 		bridge_channel->tech_args.silence_threshold :
 		DEFAULT_SOFTMIX_SILENCE_THRESHOLD;
 	char update_talking = -1;  /* if this is set to 0 or 1, tell the bridge that the channel has started or stopped talking. */
+	int res = AST_BRIDGE_WRITE_SUCCESS;
 
 	/* Only accept audio frames, all others are unsupported */
 	if (frame->frametype == AST_FRAME_DTMF_END || frame->frametype == AST_FRAME_DTMF_BEGIN) {
 		softmix_pass_dtmf(bridge, bridge_channel, frame);
-		return AST_BRIDGE_WRITE_SUCCESS;
+		goto no_audio;
 	} else if (frame->frametype != AST_FRAME_VOICE) {
-		return AST_BRIDGE_WRITE_UNSUPPORTED;
+		res = AST_BRIDGE_WRITE_UNSUPPORTED;
+		goto no_audio;
+	} else if (frame->datalen == 0) {
+		goto no_audio;
 	}
 
+	/* If we made it here, we are going to write the frame into the conference */
 	ast_mutex_lock(&sc->lock);
 
 	ast_dsp_silence(sc->dsp, frame, &totalsilence);
@@ -480,7 +485,20 @@ static enum ast_bridge_write_result softmix_bridge_write(struct ast_bridge *brid
 		ast_bridge_notify_talking(bridge, bridge_channel, update_talking);
 	}
 
-	return AST_BRIDGE_WRITE_SUCCESS;
+	return res;
+
+no_audio:
+	/* Even though the frame is not being written into the conference because it is not audio,
+	 * we should use this opportunity to check to see if a frame is ready to be written out from
+	 * the conference to the channel. */
+	ast_mutex_lock(&sc->lock);
+	if (sc->have_frame) {
+		ast_write(bridge_channel->chan, &sc->write_frame);
+		sc->have_frame = 0;
+	}
+	ast_mutex_unlock(&sc->lock);
+
+	return res;
 }
 
 /*! \brief Function called when the channel's thread is poked */
