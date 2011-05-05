@@ -999,7 +999,7 @@ struct callattempt {
 struct queue_ent {
 	struct call_queue *parent;             /*!< What queue is our parent */
 	char moh[80];                          /*!< Name of musiconhold to be used */
-	char announce[80];                     /*!< Announcement to play for member when call is answered */
+	char announce[PATH_MAX];               /*!< Announcement to play for member when call is answered */
 	char context[AST_MAX_CONTEXT];         /*!< Context when user exits queue */
 	char digits[AST_MAX_EXTENSION];        /*!< Digits entered while in queue */
 	int valid_digits;                      /*!< Digits entered correspond to valid extension. Exited */
