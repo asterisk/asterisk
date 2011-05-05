@@ -1190,6 +1190,8 @@ static int matchdigittimeout = 3000;
 #define SUBSTATE_RINGIN 4
 #define SUBSTATE_CONNECTED 5
 #define SUBSTATE_BUSY 6
+#define SUBSTATE_CONGESTION 7
+#define SUBSTATE_PROGRESS 12
 #define SUBSTATE_DIALING 101
 
 struct skinny_subchannel {
@@ -1417,6 +1419,8 @@ static void setsubstate_ringin(struct skinny_subchannel *sub);
 static void setsubstate_ringout(struct skinny_subchannel *sub);
 static void setsubstate_connected(struct skinny_subchannel *sub);
 static void setsubstate_busy(struct skinny_subchannel *sub);
+static void setsubstate_congestion(struct skinny_subchannel *sub);
+static void setsubstate_progress(struct skinny_subchannel *sub);
 
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -4505,32 +4509,11 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 		setsubstate_busy(sub);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_CONGESTION:
-		if (ast->_state != AST_STATE_UP) {
-			if (!d->earlyrtp) {
-				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
-			}
-			transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONGESTION);
-			sub->alreadygone = 1;
-			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
-			if (!d->earlyrtp) {
-				break;
-			}
-		}
-		return -1; /* Tell asterisk to provide inband signalling */
+		setsubstate_congestion(sub);
+		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_PROGRESS:
-		if ((ast->_state != AST_STATE_UP) && !sub->progress && !(sub->calldirection == SKINNY_INCOMING)) {
-			if (!d->earlyrtp) {
-				transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
-			}
-			transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_PROGRESS);
-			transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
-			transmit_callinfo(sub);
-			sub->progress = 1;
-			if (!d->earlyrtp) {
-				break;
-			}
-		}
-		return -1; /* Tell asterisk to provide inband signalling */
+		setsubstate_progress(sub);
+		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case -1:  /* STOP_TONE */
 		transmit_stop_tone(d, l->instance, sub->callid);
 		break;
@@ -4690,6 +4673,12 @@ static char *substate2str(int ind) {
 		return "SUBSTATE_RINGIN";
 	case SUBSTATE_CONNECTED:
 		return "SUBSTATE_CONNECTED";
+	case SUBSTATE_BUSY:
+		return "SUBSTATE_BUSY";
+	case SUBSTATE_CONGESTION:
+		return "SUBSTATE_CONGESTION";
+	case SUBSTATE_PROGRESS:
+		return "SUBSTATE_PROGRESS";
 	case SUBSTATE_DIALING:
 		return "SUBSTATE_DIALING";
 	default:
@@ -4764,8 +4753,8 @@ static void setsubstate_ringout(struct skinny_subchannel *sub)
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 
-	if (sub->substate != SUBSTATE_DIALING) {
-		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_DIALING from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+	if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS)) {
+		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_RINGOUT from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
 		return;
 	}
 	
@@ -4833,7 +4822,7 @@ static void setsubstate_busy(struct skinny_subchannel *sub)
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->device;
 
-	if (sub->substate != SUBSTATE_DIALING) {
+	if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS || sub->substate == SUBSTATE_RINGOUT)) {
 		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_BUSY from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
 		return;
 	}
@@ -4845,6 +4834,44 @@ static void setsubstate_busy(struct skinny_subchannel *sub)
 	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_BUSY);
 	transmit_displaypromptstatus(d, "Busy", 0, l->instance, sub->callid);
 	sub->substate = SUBSTATE_BUSY;
+}
+
+static void setsubstate_congestion(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+
+	if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS || sub->substate == SUBSTATE_RINGOUT)) {
+		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_CONGESTION from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+		return;
+	}
+	
+	if (!d->earlyrtp) {
+		transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
+	}
+	transmit_callinfo(sub);
+	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_CONGESTION);
+	transmit_displaypromptstatus(d, "Congestion", 0, l->instance, sub->callid);
+	sub->substate = SUBSTATE_CONGESTION;
+}
+
+static void setsubstate_progress(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+
+	if (sub->substate != SUBSTATE_DIALING) {
+		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_PROGRESS from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+		return;
+	}
+	
+	if (!d->earlyrtp) {
+		transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
+	}
+	transmit_callinfo(sub);
+	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_PROGRESS);
+	transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
+	sub->substate = SUBSTATE_PROGRESS;
 }
 
 static int skinny_hold(struct skinny_subchannel *sub)
