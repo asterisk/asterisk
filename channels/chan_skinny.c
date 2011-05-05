@@ -1189,6 +1189,7 @@ static int matchdigittimeout = 3000;
 #define SUBSTATE_RINGOUT 3
 #define SUBSTATE_RINGIN 4
 #define SUBSTATE_CONNECTED 5
+#define SUBSTATE_BUSY 6
 #define SUBSTATE_DIALING 101
 
 struct skinny_subchannel {
@@ -1415,6 +1416,7 @@ static void setsubstate_dialing(struct skinny_subchannel *sub, char exten[AST_MA
 static void setsubstate_ringin(struct skinny_subchannel *sub);
 static void setsubstate_ringout(struct skinny_subchannel *sub);
 static void setsubstate_connected(struct skinny_subchannel *sub);
+static void setsubstate_busy(struct skinny_subchannel *sub);
 
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -4498,23 +4500,10 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			break;
 		}
 		setsubstate_ringout(sub);
-		if (!d->earlyrtp) {
-			break;
-		}
-		return -1; /* Tell asterisk to provide inband signalling */
+		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_BUSY:
-		if (ast->_state != AST_STATE_UP) {
-			if (!d->earlyrtp) {
-				transmit_start_tone(d, SKINNY_BUSYTONE, l->instance, sub->callid);
-			}
-			transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_BUSY);
-			sub->alreadygone = 1;
-			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
-			if (!d->earlyrtp) {
-				break;
-			}
-		}
-		return -1; /* Tell asterisk to provide inband signalling */
+		setsubstate_busy(sub);
+		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
 			if (!d->earlyrtp) {
@@ -4837,6 +4826,25 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 	}
 	sub->substate = SUBSTATE_CONNECTED;
 	l->activesub = sub;
+}
+
+static void setsubstate_busy(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->parent;
+	struct skinny_device *d = l->device;
+
+	if (sub->substate != SUBSTATE_DIALING) {
+		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_BUSY from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+		return;
+	}
+	
+	if (!d->earlyrtp) {
+		transmit_start_tone(d, SKINNY_BUSYTONE, l->instance, sub->callid);
+	}
+	transmit_callinfo(sub);
+	transmit_callstate(d, sub->parent->instance, sub->callid, SKINNY_BUSY);
+	transmit_displaypromptstatus(d, "Busy", 0, l->instance, sub->callid);
+	sub->substate = SUBSTATE_BUSY;
 }
 
 static int skinny_hold(struct skinny_subchannel *sub)
