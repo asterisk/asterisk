@@ -264,8 +264,10 @@ static int reload(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	free_config();
-	res = load_config(1);
+	if ((res = load_config(1))) {
+		free_config();
+	}
+
 	AST_RWLIST_UNLOCK(&sinks);
 
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
