@@ -656,6 +656,13 @@ static int lua_autoservice_start(lua_State *L)
 	struct ast_channel *chan;
 	int res;
 
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (lua_toboolean(L, -1)) {
+		/* autoservice already running */
+		return 1;
+	}
+	lua_pop(L, 1);
+
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
 	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
@@ -686,6 +693,13 @@ static int lua_autoservice_stop(lua_State *L)
 {
 	struct ast_channel *chan;
 	int res;
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (!lua_toboolean(L, -1)) {
+		/* no autoservice running */
+		return 1;
+	}
+	lua_pop(L, 1);
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
 	chan = lua_touserdata(L, -1);
@@ -1278,7 +1292,13 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 		ast_module_user_remove(u);
 		return -1;
 	}
-		
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (lua_toboolean(L, -1)) {
+		ast_autoservice_start(chan);
+	}
+	lua_pop(L, 1);
+
 	lua_update_registry(L, context, exten, priority);
 	
 	lua_pushstring(L, context);
@@ -1304,6 +1324,13 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 		lua_pop(L, 1);
 	}
 	lua_remove(L, error_func);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (lua_toboolean(L, -1)) {
+		ast_autoservice_stop(chan);
+	}
+	lua_pop(L, 1);
+
 	if (!chan) lua_close(L);
 	ast_module_user_remove(u);
 	return res;
