@@ -117,6 +117,8 @@ CEL
 
 pbx_lua
 --------------------------
+ * Support for defining hints has been added to pbx_lua.  See the 'hints' table
+   in the sample extensions.lua file for syntax details.
  * Applications that perform jumps in the dialplan such as Goto will now
    execute properly. When pbx_lua detects that the context, extension, or
    priority we are executing on has changed it will immediatly return control
