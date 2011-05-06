@@ -717,26 +717,28 @@ static int lua_func_read(lua_State *L)
  * This function will set a flag that will cause pbx_lua to maintain an
  * autoservice on this channel.  The autoservice will automatically be stopped
  * and restarted before calling applications and functions.
- *
- * \return This function returns the result of the ast_autoservice_start()
- * function as a boolean to its lua caller.
  */
 static int lua_autoservice_start(lua_State *L)
 {
 	struct ast_channel *chan;
-	int res;
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (lua_toboolean(L, -1)) {
+		/* autservice already running */
+		lua_pop(L, 1);
+		return 0;
+	}
+	lua_pop(L, 1);
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
 	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
-	res = ast_autoservice_start(chan);
+	ast_autoservice_start(chan);
 
-	lua_pushboolean(L, !res);
+	lua_pushboolean(L, 1);
 	lua_setfield(L, LUA_REGISTRYINDEX, "autoservice");
-
-	lua_pushboolean(L, !res);
-	return 1;
+	return 0;
 }
 
 /*!
@@ -748,26 +750,28 @@ static int lua_autoservice_start(lua_State *L)
  * This function will stop any autoservice running and turn off the autoservice
  * flag.  If this function returns false, it's probably because no autoservice
  * was running to begin with.
- *
- * \return This function returns the result of the ast_autoservice_stop()
- * function as a boolean to its lua caller.
  */
 static int lua_autoservice_stop(lua_State *L)
 {
 	struct ast_channel *chan;
-	int res;
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (!lua_toboolean(L, -1)) {
+		/* no autservice running */
+		lua_pop(L, 1);
+		return 0;
+	}
+	lua_pop(L, 1);
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
 	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
-	res = ast_autoservice_stop(chan);
+	ast_autoservice_stop(chan);
 
 	lua_pushboolean(L, 0);
 	lua_setfield(L, LUA_REGISTRYINDEX, "autoservice");
-
-	lua_pushboolean(L, !res);
-	return 1;
+	return 0;
 }
 
 /*!
@@ -1429,7 +1433,13 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 		ast_module_user_remove(u);
 		return -1;
 	}
-		
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (lua_toboolean(L, -1)) {
+		ast_autoservice_start(chan);
+	}
+	lua_pop(L, 1);
+
 	lua_update_registry(L, context, exten, priority);
 	
 	lua_pushstring(L, context);
@@ -1459,6 +1469,13 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 		lua_pop(L, 1);
 	}
 	lua_remove(L, error_func);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
+	if (lua_toboolean(L, -1)) {
+		ast_autoservice_stop(chan);
+	}
+	lua_pop(L, 1);
+
 	if (!chan) lua_close(L);
 	ast_module_user_remove(u);
 	return res;
