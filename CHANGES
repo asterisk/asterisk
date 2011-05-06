@@ -26,6 +26,7 @@ Asterisk Manager Interface
  * DAHDIShowChannels, SIPshowpeer, SIPpeers, and IAXpeers now contains a
    Description field that is set by 'description' in the channel configuration
    file.
+ * Added Uniqueid header to UserEvent.
 
 Asterisk HTTP Server
 --------------------------
