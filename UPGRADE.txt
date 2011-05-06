@@ -42,5 +42,11 @@ chan_dahdi:
  - The mohinterpret=passthrough setting is deprecated in favor of
    moh_signaling=notify.
 
+pbx_lua:
+ - Execution no longer continues after applications that do dialplan jumps
+   (such as app.goto).  Now when an application such as app.goto() is called,
+   control is returned back to the pbx engine and the current extension
+   function stops executing.
+
 ===========================================================
 ===========================================================
