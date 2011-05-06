@@ -566,7 +566,7 @@ static void lua_create_autoservice_functions(lua_State *L)
 	lua_pushcfunction(L, &lua_autoservice_status);
 	lua_setglobal(L, "autoservice_status");
 
-	lua_pushboolean(L, 0);
+	lua_pushboolean(L, 1);
 	lua_setfield(L, LUA_REGISTRYINDEX, "autoservice");
 }
 

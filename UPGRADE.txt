@@ -47,6 +47,7 @@ pbx_lua:
    (such as app.goto).  Now when an application such as app.goto() is called,
    control is returned back to the pbx engine and the current extension
    function stops executing.
+ - the autoservice now defaults to being on by default
  - autoservice_start() and autoservice_start() no longer return a value.
 
 ===========================================================
