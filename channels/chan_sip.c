@@ -5409,8 +5409,34 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		res = -1;
 	} else {
 		int xmitres;
+		struct ast_party_connected_line connected;
+		struct ast_set_party_connected_line update_connected;
 
 		sip_pvt_lock(p);
+
+		/* Supply initial connected line information if available. */
+		memset(&update_connected, 0, sizeof(update_connected));
+		ast_party_connected_line_init(&connected);
+		if (!ast_strlen_zero(p->cid_num)
+			|| (p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
+			update_connected.id.number = 1;
+			connected.id.number.valid = 1;
+			connected.id.number.str = (char *) p->cid_num;
+			connected.id.number.presentation = p->callingpres;
+		}
+		if (!ast_strlen_zero(p->cid_name)
+			|| (p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
+			update_connected.id.name = 1;
+			connected.id.name.valid = 1;
+			connected.id.name.str = (char *) p->cid_name;
+			connected.id.name.presentation = p->callingpres;
+		}
+		if (update_connected.id.number || update_connected.id.name) {
+			connected.id.tag = (char *) p->cid_tag;
+			connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+			ast_channel_queue_connected_line_update(ast, &connected, &update_connected);
+		}
+
 		xmitres = transmit_invite(p, SIP_INVITE, 1, 2, uri);
 		sip_pvt_unlock(p);
 		if (xmitres == XMIT_ERROR)
@@ -12638,15 +12664,18 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
 	} else {
+		ast_set_flag(&p->flags[1], SIP_PAGE2_CONNECTLINEUPDATE_PEND);
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_RPID_IMMEDIATE)) {
 			struct sip_request resp;
 
 			if ((p->owner->_state == AST_STATE_RING) && !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT)) {
+				ast_clear_flag(&p->flags[1], SIP_PAGE2_CONNECTLINEUPDATE_PEND);
 				respprep(&resp, p, "180 Ringing", &p->initreq);
 				add_rpid(&resp, p);
 				send_response(p, &resp, XMIT_UNRELIABLE, 0);
 				ast_set_flag(&p->flags[0], SIP_RINGING);
 			} else if (p->owner->_state == AST_STATE_RINGING) {
+				ast_clear_flag(&p->flags[1], SIP_PAGE2_CONNECTLINEUPDATE_PEND);
 				respprep(&resp, p, "183 Session Progress", &p->initreq);
 				add_rpid(&resp, p);
 				send_response(p, &resp, XMIT_UNRELIABLE, 0);
@@ -12654,8 +12683,6 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 			} else {
 				ast_debug(1, "Unable able to send update to '%s' in state '%s'\n", p->owner->name, ast_state2str(p->owner->_state));
 			}
-		} else {
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CONNECTLINEUPDATE_PEND);
 		}
 	}
 }
@@ -19465,20 +19492,20 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
+				/* Queue a connected line update */
 				ast_party_connected_line_init(&connected);
 				memset(&update_connected, 0, sizeof(update_connected));
-				if (p->cid_num) {
-					update_connected.id.number = 1;
-					connected.id.number.valid = 1;
-					connected.id.number.str = (char *) p->cid_num;
-					connected.id.number.presentation = p->callingpres;
-				}
-				if (p->cid_name) {
-					update_connected.id.name = 1;
-					connected.id.name.valid = 1;
-					connected.id.name.str = (char *) p->cid_name;
-					connected.id.name.presentation = p->callingpres;
-				}
+
+				update_connected.id.number = 1;
+				connected.id.number.valid = 1;
+				connected.id.number.str = (char *) p->cid_num;
+				connected.id.number.presentation = p->callingpres;
+
+				update_connected.id.name = 1;
+				connected.id.name.valid = 1;
+				connected.id.name.str = (char *) p->cid_name;
+				connected.id.name.presentation = p->callingpres;
+
 				connected.id.tag = (char *) p->cid_tag;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 				ast_channel_queue_connected_line_update(p->owner, &connected,
@@ -19530,18 +19557,17 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				/* Queue a connected line update */
 				ast_party_connected_line_init(&connected);
 				memset(&update_connected, 0, sizeof(update_connected));
-				if (p->cid_num) {
-					update_connected.id.number = 1;
-					connected.id.number.valid = 1;
-					connected.id.number.str = (char *) p->cid_num;
-					connected.id.number.presentation = p->callingpres;
-				}
-				if (p->cid_name) {
-					update_connected.id.name = 1;
-					connected.id.name.valid = 1;
-					connected.id.name.str = (char *) p->cid_name;
-					connected.id.name.presentation = p->callingpres;
-				}
+
+				update_connected.id.number = 1;
+				connected.id.number.valid = 1;
+				connected.id.number.str = (char *) p->cid_num;
+				connected.id.number.presentation = p->callingpres;
+
+				update_connected.id.name = 1;
+				connected.id.name.valid = 1;
+				connected.id.name.str = (char *) p->cid_name;
+				connected.id.name.presentation = p->callingpres;
+
 				connected.id.tag = (char *) p->cid_tag;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 				ast_channel_queue_connected_line_update(p->owner, &connected,
@@ -19583,26 +19609,37 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			ast_rtp_instance_activate(p->rtp);
 		}
 
-		if (!req->ignore && p->owner && (get_rpid(p, req) || !reinvite)) {
-			/* Queue a connected line update */
-			ast_party_connected_line_init(&connected);
-			memset(&update_connected, 0, sizeof(update_connected));
-			if (p->cid_num) {
-				update_connected.id.number = 1;
-				connected.id.number.valid = 1;
-				connected.id.number.str = (char *) p->cid_num;
-				connected.id.number.presentation = p->callingpres;
+		if (!req->ignore && p->owner) {
+			int rpid_changed;
+
+			rpid_changed = get_rpid(p, req);
+			if (rpid_changed || !reinvite) {
+				/* Queue a connected line update */
+				ast_party_connected_line_init(&connected);
+				memset(&update_connected, 0, sizeof(update_connected));
+				if (rpid_changed
+					|| !ast_strlen_zero(p->cid_num)
+					|| (p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
+					update_connected.id.number = 1;
+					connected.id.number.valid = 1;
+					connected.id.number.str = (char *) p->cid_num;
+					connected.id.number.presentation = p->callingpres;
+				}
+				if (rpid_changed
+					|| !ast_strlen_zero(p->cid_name)
+					|| (p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
+					update_connected.id.name = 1;
+					connected.id.name.valid = 1;
+					connected.id.name.str = (char *) p->cid_name;
+					connected.id.name.presentation = p->callingpres;
+				}
+				if (update_connected.id.number || update_connected.id.name) {
+					connected.id.tag = (char *) p->cid_tag;
+					connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+					ast_channel_queue_connected_line_update(p->owner, &connected,
+						&update_connected);
+				}
 			}
-			if (p->cid_name) {
-				update_connected.id.name = 1;
-				connected.id.name.valid = 1;
-				connected.id.name.str = (char *) p->cid_name;
-				connected.id.name.presentation = p->callingpres;
-			}
-			connected.id.tag = (char *) p->cid_tag;
-			connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-			ast_channel_queue_connected_line_update(p->owner, &connected,
-				&update_connected);
 		}
 
 		/* Parse contact header for continued conversation */
@@ -21481,20 +21518,20 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
 	if (get_rpid(p, req)) {
 		struct ast_party_connected_line connected;
 		struct ast_set_party_connected_line update_connected;
+
 		ast_party_connected_line_init(&connected);
 		memset(&update_connected, 0, sizeof(update_connected));
-		if (p->cid_num) {
-			update_connected.id.number = 1;
-			connected.id.number.valid = 1;
-			connected.id.number.str = (char *) p->cid_num;
-			connected.id.number.presentation = p->callingpres;
-		}
-		if (p->cid_name) {
-			update_connected.id.name = 1;
-			connected.id.name.valid = 1;
-			connected.id.name.str = (char *) p->cid_name;
-			connected.id.name.presentation = p->callingpres;
-		}
+
+		update_connected.id.number = 1;
+		connected.id.number.valid = 1;
+		connected.id.number.str = (char *) p->cid_num;
+		connected.id.number.presentation = p->callingpres;
+
+		update_connected.id.name = 1;
+		connected.id.name.valid = 1;
+		connected.id.name.str = (char *) p->cid_name;
+		connected.id.name.presentation = p->callingpres;
+
 		connected.id.tag = (char *) p->cid_tag;
 		connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 		ast_channel_queue_connected_line_update(p->owner, &connected, &update_connected);
@@ -21826,18 +21863,17 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 				ast_party_connected_line_init(&connected);
 				memset(&update_connected, 0, sizeof(update_connected));
-				if (p->cid_num) {
-					update_connected.id.number = 1;
-					connected.id.number.valid = 1;
-					connected.id.number.str = (char *) p->cid_num;
-					connected.id.number.presentation = p->callingpres;
-				}
-				if (p->cid_name) {
-					update_connected.id.name = 1;
-					connected.id.name.valid = 1;
-					connected.id.name.str = (char *) p->cid_name;
-					connected.id.name.presentation = p->callingpres;
-				}
+
+				update_connected.id.number = 1;
+				connected.id.number.valid = 1;
+				connected.id.number.str = (char *) p->cid_num;
+				connected.id.number.presentation = p->callingpres;
+
+				update_connected.id.name = 1;
+				connected.id.name.valid = 1;
+				connected.id.name.str = (char *) p->cid_name;
+				connected.id.name.presentation = p->callingpres;
+
 				connected.id.tag = (char *) p->cid_tag;
 				connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
 				ast_channel_queue_connected_line_update(p->owner, &connected,
