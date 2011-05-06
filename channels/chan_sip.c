@@ -15582,7 +15582,8 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		ast_string_field_set(p, authname, peer->name);
 
 		if (sipmethod == SIP_INVITE) {
-			/* copy channel vars */
+			/* destroy old channel vars and copy in new ones. */
+			ast_variables_destroy(p->chanvars);
 			p->chanvars = copy_vars(peer->chanvars);
 		}
 
