@@ -120,10 +120,10 @@ pbx_lua
  * Support for defining hints has been added to pbx_lua.  See the 'hints' table
    in the sample extensions.lua file for syntax details.
  * Applications that perform jumps in the dialplan such as Goto will now
-   execute properly. When pbx_lua detects that the context, extension, or
+   execute properly.  When pbx_lua detects that the context, extension, or
    priority we are executing on has changed it will immediatly return control
-   to the asterisk PBX engine. Currently the engine cannot detect a Goto to the
-   priority after the currently executing priority.
+   to the asterisk PBX engine.  Currently the engine cannot detect a Goto to
+   the priority after the currently executing priority.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
