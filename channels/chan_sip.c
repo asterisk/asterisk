@@ -24933,10 +24933,11 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD) || (ast_rtp_instance_get_hold_timeout(dialog->rtp) && (t > dialog->lastrtprx + ast_rtp_instance_get_hold_timeout(dialog->rtp)))) {
 			/* Needs a hangup */
 			if (ast_rtp_instance_get_timeout(dialog->rtp)) {
-				if(ast_channel_trylock(dialog->owner)) {
-				/* Dont do a infinite deadlock avoidance loop.
-				 * Lets try this on next round (1 ms to 1000 ms later)
-				 * call is allready dead */
+				if (!dialog->owner || ast_channel_trylock(dialog->owner)) {
+					/*
+					 * Don't block, just try again later.
+					 * If there was no owner, the call is dead already.
+					 */
 					return;
 				}
 				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
