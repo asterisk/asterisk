@@ -3908,7 +3908,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			ast_localtime(&now, &tm, NULL);
 			ast_strftime(currenttime, sizeof(currenttime), DATE_FORMAT, &tm);
 
-			ast_debug(1, "Looking for conference %s that starts after %s\n", confno, eatime);
+			ast_debug(1, "Looking for conference %s that starts after %s\n", confno, currenttime);
 
 			var = ast_load_realtime("meetme", "confno",
 				confno, "starttime <= ", currenttime, "endtime >= ",
