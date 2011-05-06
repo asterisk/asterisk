@@ -52,6 +52,11 @@ static char *registrar = "pbx_lua";
 #define LUA_EXT_DATA_SIZE 256
 #define LUA_BUF_SIZE 4096
 
+/* This value is used by the lua engine to signal that a Goto or dialplan jump
+ * was detected. Ensure this value does not conflict with any values dialplan
+ * applications might return */
+#define LUA_GOTO_DETECTED 5
+
 static char *lua_read_extensions_file(lua_State *L, long *size);
 static int lua_load_extensions(lua_State *L, struct ast_channel *chan);
 static int lua_reload_extensions(lua_State *L);
@@ -84,6 +89,7 @@ static void lua_create_variable_metatable(lua_State *L);
 static void lua_create_application_metatable(lua_State *L);
 static void lua_create_autoservice_functions(lua_State *L);
 static void lua_create_hangup_function(lua_State *L);
+static void lua_detect_goto(lua_State *L);
 
 static void lua_state_destroy(void *data);
 static void lua_datastore_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
@@ -254,7 +260,70 @@ static int lua_pbx_exec(lua_State *L)
 		lua_pushinteger(L, res);
 		return lua_error(L);
 	}
+
+	lua_detect_goto(L);
+
 	return 0;
+}
+
+/*!
+ * \brief Detect if a Goto or other dialplan jump has been executed and return
+ * control to the pbx engine.
+ */
+static void lua_detect_goto(lua_State *L)
+{
+	struct ast_channel *chan;
+
+	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
+	chan = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	/* check context */
+	lua_getfield(L, LUA_REGISTRYINDEX, "context");
+	lua_pushstring(L, chan->context);
+	if (!lua_equal(L, -1, -2)) {
+		lua_pushliteral(L, "context");
+		goto e_goto_detected;
+	}
+	lua_pop(L, 2);
+
+	/* check exten */
+	lua_getfield(L, LUA_REGISTRYINDEX, "exten");
+	lua_pushstring(L, chan->exten);
+	if (!lua_equal(L, -1, -2)) {
+		lua_pushliteral(L, "exten");
+		goto e_goto_detected;
+	}
+	lua_pop(L, 2);
+
+	/* check priority */
+	lua_getfield(L, LUA_REGISTRYINDEX, "priority");
+	lua_pushinteger(L, chan->priority);
+	if (!lua_equal(L, -1, -2)) {
+		lua_pushliteral(L, "priority");
+		goto e_goto_detected;
+	}
+	lua_pop(L, 2);
+	return;
+
+e_goto_detected:
+	/* format our debug message */
+	lua_insert(L, -3);
+
+	lua_pushliteral(L, " changed from ");
+	lua_insert(L, -3);
+
+	lua_pushliteral(L, " to ");
+	lua_insert(L, -2);
+
+	lua_concat(L, 5);
+
+	ast_debug(2, "Goto detected: %s\n", lua_tostring(L, -1));
+	lua_pop(L, 1);
+
+	/* let the lua engine know it needs to return control to the pbx */
+	lua_pushinteger(L, LUA_GOTO_DETECTED);
+	lua_error(L);
 }
 
 /*!
@@ -1372,6 +1441,10 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 			res = -1;
 			if (lua_isnumber(L, -1)) {
 				res = lua_tointeger(L, -1);
+
+				if (res == LUA_GOTO_DETECTED) {
+					res = 0;
+				}
 			} else if (lua_isstring(L, -1)) {
 				const char *error = lua_tostring(L, -1);
 				ast_log(LOG_ERROR, "Error executing lua extension: %s\n", error);

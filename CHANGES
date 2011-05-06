@@ -115,6 +115,14 @@ CEL
  * cel_pgsql now supports the 'extra' column for data added using the
    CELGenUserEvent() application.
 
+pbx_lua
+--------------------------
+ * Applications that perform jumps in the dialplan such as Goto will now
+   execute properly. When pbx_lua detects that the context, extension, or
+   priority we are executing on has changed it will immediatly return control
+   to the asterisk PBX engine. Currently the engine cannot detect a Goto to the
+   priority after the currently executing priority.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
