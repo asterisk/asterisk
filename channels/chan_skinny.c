@@ -1185,6 +1185,7 @@ static int gendigittimeout = 8000;
 /* How long to wait for an extra digit, if there is an ambiguous match */
 static int matchdigittimeout = 3000;
 
+#define SUBSTATE_UNSET 0
 #define SUBSTATE_OFFHOOK 1
 #define SUBSTATE_ONHOOK 2
 #define SUBSTATE_RINGOUT 3
@@ -4706,6 +4707,8 @@ static void setsubstate_offhook(struct skinny_subchannel *sub)
 	transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
 
+	sub->substate = SUBSTATE_OFFHOOK;
+	
 	/* start the switch thread */
 	if (ast_pthread_create(&t, NULL, skinny_ss, sub->owner)) {
 		ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
@@ -5181,23 +5184,26 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		/* XXX determine the best way to pull off a conference.  Meetme? */
 		break;
 	case STIMULUS_VOICEMAIL:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verb(1, "Received Stimulus: Voicemail(%d/%d)\n", instance, callreference);
+		}
 
 		if (!sub || !sub->owner) {
 			c = skinny_new(l, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
 		} else {
 			c = sub->owner;
 		}
+		
 		if (!c) {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
-		} else {
-			sub = c->tech_pvt;
+			break;
+		}
+		
+		sub = c->tech_pvt;
+		if (sub->substate == SUBSTATE_UNSET || sub->substate == SUBSTATE_OFFHOOK){
 			l = sub->line;
 			l->activesub = sub;
-			
 			setsubstate_dialing(sub,l->vmexten);
-
 		}
 		break;
 	case STIMULUS_CALLPARK:
