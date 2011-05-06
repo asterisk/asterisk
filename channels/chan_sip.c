@@ -10408,7 +10408,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		lid_name = lid_num;
 	fromdomain = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
 
-	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), 1);
+	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), 0);
 
 	if (ast_test_flag(&p->flags[0], SIP_SENDRPID_PAI)) {
 		if ((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
@@ -11379,7 +11379,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 static void build_contact(struct sip_pvt *p)
 {
 	char tmp[SIPBUFSIZE];
-	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), 1);
+	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), 0);
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", user,
