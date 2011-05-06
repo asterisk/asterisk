@@ -124,6 +124,9 @@ pbx_lua
    priority we are executing on has changed it will immediatly return control
    to the asterisk PBX engine.  Currently the engine cannot detect a Goto to
    the priority after the currently executing priority.
+ * An autoservice is now started by default for pbx_lua channels.  It can be
+   stopped and restarted using the autoservice_stop() and autoservice_start()
+   functions.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
