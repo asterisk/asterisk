@@ -4638,7 +4638,9 @@ static int create_addr(const char *peername, struct ast_channel *c, struct socka
 			return -1;
 		}
 		ast_sockaddr_to_sin(&sin_tmp, sin);
-		sin->sin_port = htons(IAX_DEFAULT_PORTNO);
+		if (sin->sin_port == 0) {
+			sin->sin_port = htons(IAX_DEFAULT_PORTNO);
+		}
 		/* use global iax prefs for unknown peer/user */
 		/* But move the calling channel's native codec to the top of the preference list */
 		memcpy(&ourprefs, &prefs, sizeof(ourprefs));
