@@ -575,7 +575,7 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 				return NULL;
 		}
 
-		if (strcmp(category, cur_cat) || last_cat_metric != cat_metric) {
+		if (!cat || strcmp(category, cur_cat) || last_cat_metric != cat_metric) {
 			if (!(cat = ast_category_new(category, "", 99999)))
 				break;
 			cur_cat = category;
