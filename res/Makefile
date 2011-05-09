@@ -22,9 +22,6 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   # cygwin has some dependencies among res_ things.
   # We use order-only dependencies, and then add the libraries as required.
-  res_features.so: | res_monitor.so
-  res_features.so_LIBS:= -lres_monitor.so
-  #
   res_agi.so: | res_speech.so
   res_agi.so_LIBS:= -lres_speech.so
 endif
