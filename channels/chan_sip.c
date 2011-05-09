@@ -10829,11 +10829,14 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		doing_directmedia = (!ast_sockaddr_isnull(&p->redirip) && p->redircodecs) ? TRUE : FALSE;
 		/* Check if we need video in this call */
 		if ((p->jointcapability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
-			if (p->vrtp) {
+			if (doing_directmedia && !(p->jointcapability & AST_FORMAT_VIDEO_MASK & p->redircodecs)) {
+				ast_debug(2, "This call needs video offers, but caller probably did not offer it!\n");
+			} else if (p->vrtp) {
 				needvideo = TRUE;
 				ast_debug(2, "This call needs video offers!\n");
-			} else
+			} else {
 				ast_debug(2, "This call needs video offers, but there's no video support enabled!\n");
+			}
 		}
 		/* Check if we need text in this call */
 		if ((p->jointcapability & AST_FORMAT_TEXT_MASK) && !p->notext) {
