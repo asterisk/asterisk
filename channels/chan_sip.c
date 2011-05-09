@@ -26052,8 +26052,11 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		return -1;
 
 	/* Disable early RTP bridge  */
-	if (!ast_bridged_channel(chan) && !sip_cfg.directrtpsetup) 	/* We are in early state */
-		return 0;
+	if ((rtp || vrtp || trtp) &&
+		!ast_bridged_channel(chan) &&
+		!sip_cfg.directrtpsetup) {
+			return 0;
+	}
 
 	sip_pvt_lock(p);
 	if (p->alreadygone) {
