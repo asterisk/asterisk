@@ -4501,7 +4501,11 @@ static int park_exec_full(struct ast_channel *chan, const char *data)
 	const char *lotname_split = NULL; /* name of the parking lot if an '@' symbol is included in data */
 
 	if (data) {
-		sscanf(data, "%d", &park);
+		if (sscanf(data, "%u", &park) != 1) {
+			/* Something went wrong when parsing the extension */
+			ast_log(LOG_WARNING, "Could not parse extension from '%s'\n", data);
+			return -1;
+		}
 		if ((lotname_split = strchr(data, (int)'@'))) {
 			lotname_split++;
 		}
