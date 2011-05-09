@@ -83,6 +83,9 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
 ; You can set parkinglot with the CHANNEL dialplan function
 ; or by setting 'parkinglot' directly in the channel configuration file.
 ;
+; (Note: Leading '0's and any non-numerical characters on parkpos extensions
+;  will be ignored.  Parkext on the other hand can be any string.)
+;
 ;[parkinglot_edvina]
 ;context => edvinapark
 ;parkext => 799
