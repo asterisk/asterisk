@@ -744,7 +744,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	int olddspsilence = 0;
 	struct ast_format rfmt;
 	struct ast_silence_generator *silgen = NULL;
-	char prependfile[80];
+	char prependfile[PATH_MAX];
 
 	ast_format_clear(&rfmt);
 	if (silencethreshold < 0) {
