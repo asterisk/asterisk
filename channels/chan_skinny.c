@@ -1194,6 +1194,7 @@ static int matchdigittimeout = 3000;
 #define SUBSTATE_BUSY 6
 #define SUBSTATE_CONGESTION 7
 #define SUBSTATE_HOLD 8
+#define SUBSTATE_CALLWAIT 9
 #define SUBSTATE_PROGRESS 12
 #define SUBSTATE_DIALING 101
 
@@ -1409,6 +1410,7 @@ static int skinny_reload(void);
 
 static void setsubstate_dialing(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
 static void setsubstate_ringin(struct skinny_subchannel *sub);
+static void setsubstate_callwait(struct skinny_subchannel *sub);
 static void setsubstate_ringout(struct skinny_subchannel *sub);
 static void setsubstate_connected(struct skinny_subchannel *sub);
 static void setsubstate_busy(struct skinny_subchannel *sub);
@@ -4679,6 +4681,8 @@ static char *substate2str(int ind) {
 		return "SUBSTATE_PROGRESS";
 	case SUBSTATE_HOLD:
 		return "SUBSTATE_HOLD";
+	case SUBSTATE_CALLWAIT:
+		return "SUBSTATE_CALLWAIT";
 	case SUBSTATE_DIALING:
 		return "SUBSTATE_DIALING";
 	default:
@@ -4776,6 +4780,11 @@ static void setsubstate_ringin(struct skinny_subchannel *sub)
 	struct skinny_device *d = l->device;
 	struct ast_channel *c = sub->owner;
 
+	if ((AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list)) && (d->hookstate == SKINNY_OFFHOOK)) {
+		setsubstate_callwait(sub);
+		return;
+	}
+	
 	transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
 	transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
@@ -4787,9 +4796,29 @@ static void setsubstate_ringin(struct skinny_subchannel *sub)
 		l->activesub = sub;
 	}
 	
+	if (sub->substate != SUBSTATE_RINGIN || sub->substate != SUBSTATE_CALLWAIT) {
+		ast_setstate(c, AST_STATE_RINGING);
+		ast_queue_control(c, AST_CONTROL_RINGING);
+	}
+	sub->substate = SUBSTATE_RINGIN;
+}
+
+static void setsubstate_callwait(struct skinny_subchannel *sub)
+{
+	struct skinny_line *l = sub->line;
+	struct skinny_device *d = l->device;
+	struct ast_channel *c = sub->owner;
+
+	transmit_callstate(d, l->instance, sub->callid, SKINNY_CALLWAIT);
+	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
+	transmit_displaypromptstatus(d, "Callwaiting", 0, l->instance, sub->callid);
+	transmit_callinfo(sub);
+	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
+	transmit_start_tone(d, SKINNY_CALLWAITTONE, l->instance, sub->callid);
+	
 	ast_setstate(c, AST_STATE_RINGING);
 	ast_queue_control(c, AST_CONTROL_RINGING);
-	sub->substate = SUBSTATE_RINGIN;
+	sub->substate = SUBSTATE_CALLWAIT;
 }
 
 static void setsubstate_connected(struct skinny_subchannel *sub)
@@ -4810,7 +4839,7 @@ static void setsubstate_connected(struct skinny_subchannel *sub)
 	if (!sub->rtp) {
 		start_rtp(sub);
 	}
-	if (sub->substate == SUBSTATE_RINGIN) {
+	if (sub->substate == SUBSTATE_RINGIN || sub->substate == SUBSTATE_CALLWAIT) {
 		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 	}
 	if (sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_RINGOUT) {
