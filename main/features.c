@@ -3859,6 +3859,7 @@ before_you_go:
 		if (bridge_cdr && ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(bridge_cdr);
 		}
+
 		/* swap the bridge cdr and the chan cdr for a moment, and let the endbridge
 		   dialplan code operate on it */
 		ast_channel_lock(chan);
@@ -3873,24 +3874,19 @@ before_you_go:
 		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
 		chan->priority = 1;
 		ast_channel_unlock(chan);
+
 		while ((spawn_error = ast_spawn_extension(chan, chan->context, chan->exten,
 			chan->priority,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
 			&found, 1)) == 0) {
 			chan->priority++;
 		}
-		if (spawn_error
-			&& (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
-				|| ast_check_hangup(chan))) {
-			/* if the extension doesn't exist or a hangup occurred, this isn't really a spawn error */
-			spawn_error = 0;
-		}
 		if (found && spawn_error) {
 			/* Something bad happened, or a hangup has been requested. */
 			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
 			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, chan->name);
 		}
+
 		/* swap it back */
 		ast_channel_lock(chan);
 		ast_copy_string(chan->exten, save_exten, sizeof(chan->exten));
@@ -3902,10 +3898,10 @@ before_you_go:
 				bridge_cdr = NULL;
 			}
 		}
-		if (!spawn_error) {
-			ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
-		}
+		/* An "h" exten has been run, so indicate that one has been run. */
+		ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_RUN);
 		ast_channel_unlock(chan);
+
 		/* protect the lastapp/lastdata against the effects of the hangup/dialplan code */
 		if (bridge_cdr) {
 			ast_copy_string(bridge_cdr->lastapp, savelastapp, sizeof(bridge_cdr->lastapp));
