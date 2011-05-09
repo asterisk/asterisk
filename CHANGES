@@ -15,6 +15,7 @@
 Parking
 -------
  * parkedmusicclass can now be set for non-default parking lots.
+ * ParkedCall application can now specify a specific parkinglot.
 
 Asterisk Manager Interface
 --------------------------
@@ -304,6 +305,8 @@ Applications
  * Added 'D' command to ExternalIVR full details in doc/externalivr.txt
  * Added 'v' option to MeetMe to play voicemail greetings when a user joins/leaves
    a MeetMe conference
+ * Added ability to include '@parkinglot' to ParkedCall extension in order to specify
+   a specific parkinglot on which to search the extension.
 
 Dialplan Functions
 ------------------

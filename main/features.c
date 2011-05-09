@@ -209,14 +209,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Answer a parked call.
 		</synopsis>
 		<syntax>
-			<parameter name="exten" required="true" />
+			<parameter name="exten" required="true" argsep="@">
+				<argument name="exten" required="true">
+					<para>Specify extension.</para>
+				</argument>
+				<argument name="parkinglot">
+					<para>Optionally specify a parkinglot.<literal>exten</literal>.</para>
+				</argument>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Used to connect to a parked call. This application is always
 			registered internally and does not need to be explicitly added
 			into the dialplan, although you should include the <literal>parkedcalls</literal>
 			context. If no extension is provided, then the first available
-			parked call will be acquired.</para>
+			parked call will be acquired.  If <literal>parkinglot</literal> is included,the
+			parkinglot with that name will be used to seek the extension.</para>
 		</description>
 		<see-also>
 			<ref type="application">Park</ref>
@@ -640,6 +648,18 @@ static int find_parkinglot_by_exten_cb(void *obj, void *args, int flags)
 	const char *parkext = args;
 
 	if (!strcmp(parkinglot->parkext, parkext)) {
+		return CMP_MATCH | CMP_STOP;
+	}
+
+	return 0;
+}
+
+static int find_parkinglot_by_name_cb(void *obj, void *args, int flags)
+{
+	struct ast_parkinglot *parkinglot = obj;
+	const char *parkname = args;
+
+	if (!strcmp(parkinglot->name, parkname)) {
 		return CMP_MATCH | CMP_STOP;
 	}
 
@@ -4478,12 +4498,25 @@ static int park_exec_full(struct ast_channel *chan, const char *data)
 	int park = 0;
 	struct ast_bridge_config config;
 	struct ast_parkinglot *parkinglot;
+	const char *lotname_split = NULL; /* name of the parking lot if an '@' symbol is included in data */
 
 	if (data) {
-		park = atoi((char *) data);
+		sscanf(data, "%d", &park);
+		if ((lotname_split = strchr(data, (int)'@'))) {
+			lotname_split++;
+		}
 	}
 
-	parkinglot = ao2_callback(parkinglots, 0, find_parkinglot_by_position_cb, (void *) &park);
+	/*
+	 * If we found an '@' in data, we want to specify the parkinglot used by its name.
+	 * otherwise we just search by position.
+	 */
+	if (lotname_split) {
+		parkinglot = ao2_callback(parkinglots, 0, find_parkinglot_by_name_cb, (void *) (lotname_split));
+	} else {
+		parkinglot = ao2_callback(parkinglots, 0, find_parkinglot_by_position_cb, (void *) &park);
+	}
+
 	if (!parkinglot)
 		parkinglot = default_parkinglot;
 
