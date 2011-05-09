@@ -27923,8 +27923,11 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	}
 
 	/* Disable early RTP bridge  */
-	if (!ast_bridged_channel(chan) && !sip_cfg.directrtpsetup) 	/* We are in early state */
-		return 0;
+	if ((instance || vinstance || tinstance) &&
+		!ast_bridged_channel(chan) &&
+		!sip_cfg.directrtpsetup) {
+			return 0;
+	}
 
 	/*
 	 * Lock both the pvt and it's owner safely.
