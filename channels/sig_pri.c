@@ -6247,13 +6247,19 @@ static void *pri_dchannel(void *vpri)
 					pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_ALERTING;
 				}
 
-				if (
+				if (!pri->pvts[chanpos]->progress
+					&& !pri->pvts[chanpos]->no_b_channel
 #ifdef PRI_PROGRESS_MASK
-					e->ringing.progressmask & PRI_PROG_INBAND_AVAILABLE
+					&& (e->ringing.progressmask
+						& (PRI_PROG_CALL_NOT_E2E_ISDN | PRI_PROG_INBAND_AVAILABLE))
 #else
-					e->ringing.progress == 8
+					&& e->ringing.progress == 8
 #endif
 					) {
+					/* Bring voice path up */
+					pri_queue_control(pri, chanpos, AST_CONTROL_PROGRESS);
+					pri->pvts[chanpos]->progress = 1;
+					sig_pri_set_dialing(pri->pvts[chanpos], 0);
 					sig_pri_open_media(pri->pvts[chanpos]);
 				}
 
@@ -6305,7 +6311,8 @@ static void *pri_dchannel(void *vpri)
 				if (!pri->pvts[chanpos]->progress
 					&& !pri->pvts[chanpos]->no_b_channel
 #ifdef PRI_PROGRESS_MASK
-					&& (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
+					&& (e->proceeding.progressmask
+						& (PRI_PROG_CALL_NOT_E2E_ISDN | PRI_PROG_INBAND_AVAILABLE))
 #else
 					&& e->proceeding.progress == 8
 #endif
@@ -6347,7 +6354,8 @@ static void *pri_dchannel(void *vpri)
 				if (!pri->pvts[chanpos]->progress
 					&& !pri->pvts[chanpos]->no_b_channel
 #ifdef PRI_PROGRESS_MASK
-					&& (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)
+					&& (e->proceeding.progressmask
+						& (PRI_PROG_CALL_NOT_E2E_ISDN | PRI_PROG_INBAND_AVAILABLE))
 #else
 					&& e->proceeding.progress == 8
 #endif
