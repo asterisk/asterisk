@@ -6242,6 +6242,11 @@ static void *pri_dchannel(void *vpri)
 					e->ringing.call);
 				sig_pri_cc_generic_check(pri, chanpos, AST_CC_CCNR);
 				sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
+				sig_pri_lock_owner(pri, chanpos);
+				if (pri->pvts[chanpos]->owner) {
+					ast_setstate(pri->pvts[chanpos]->owner, AST_STATE_RINGING);
+					ast_channel_unlock(pri->pvts[chanpos]->owner);
+				}
 				pri_queue_control(pri, chanpos, AST_CONTROL_RINGING);
 				if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_ALERTING) {
 					pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_ALERTING;
