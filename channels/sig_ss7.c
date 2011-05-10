@@ -687,6 +687,11 @@ void *ss7_linkset(void *data)
 					if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING) {
 						p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
 					}
+					sig_ss7_lock_owner(linkset, chanpos);
+					if (p->owner) {
+						ast_setstate(p->owner, AST_STATE_RINGING);
+						ast_channel_unlock(p->owner);
+					}
 					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_RINGING);
 					break;
 				case CPG_EVENT_PROGRESS:
@@ -937,6 +942,11 @@ void *ss7_linkset(void *data)
 					if (e->acm.called_party_status_ind == 1) {
 						if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING) {
 							p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
+						}
+						sig_ss7_lock_owner(linkset, chanpos);
+						if (p->owner) {
+							ast_setstate(p->owner, AST_STATE_RINGING);
+							ast_channel_unlock(p->owner);
 						}
 						sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_RINGING);
 					}
