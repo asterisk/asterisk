@@ -11069,11 +11069,15 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		doing_directmedia = (!ast_sockaddr_isnull(&p->redirip) && !(ast_format_cap_is_empty(p->redircaps))) ? TRUE : FALSE;
 		/* Check if we need video in this call */
 		if ((ast_format_cap_has_type(p->jointcaps, AST_FORMAT_TYPE_VIDEO)) && !p->novideo) {
-			if (p->vrtp) {
+			ast_format_cap_joint_copy(p->jointcaps, p->redircaps, tmpcap);
+			if (doing_directmedia && !ast_format_cap_has_type(tmpcap, AST_FORMAT_TYPE_VIDEO)) {
+				ast_debug(2, "This call needs video offers, but caller probably did not offer it!\n");
+			} else if (p->vrtp) {
 				needvideo = TRUE;
 				ast_debug(2, "This call needs video offers!\n");
-			} else
+			} else {
 				ast_debug(2, "This call needs video offers, but there's no video support enabled!\n");
+			}
 		}
 		/* Check if we need text in this call */
 		if ((ast_format_cap_has_type(p->jointcaps, AST_FORMAT_TYPE_TEXT)) && !p->notext) {
