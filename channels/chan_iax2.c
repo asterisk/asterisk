@@ -5339,7 +5339,7 @@ static int iax2_queryoption(struct ast_channel *c, int option, void *data, int *
 
 static struct ast_frame *iax2_read(struct ast_channel *c) 
 {
-	ast_log(LOG_NOTICE, "I should never be called!\n");
+	ast_debug(1, "I should never be called!\n");
 	return &ast_null_frame;
 }
 
