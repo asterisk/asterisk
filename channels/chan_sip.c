@@ -228,7 +228,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
    In normal operation, the macros defined will throw away the tags, so they do not
    affect the speed of the program at all. They can be considered to be documentation.
 */
-#define  REF_DEBUG 1
+/* #define  REF_DEBUG 1 */
 #include "asterisk/lock.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"
