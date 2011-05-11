@@ -3244,36 +3244,25 @@ cleanup:
 	return NULL;
 }
 
-/* this func is used with ao2_callback to unlink/delete all marked
-   peers */
-static int peer_is_marked(void *peerobj, void *arg, int flags)
+#ifdef REF_DEBUG
+#define ref_peer(arg1,arg2) _ref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define unref_peer(arg1,arg2) _unref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+static struct sip_peer *_ref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
 {
-	struct sip_peer *peer = peerobj;
-	if (peer->the_mark && peer->pokeexpire != -1) {
-		AST_SCHED_DEL(sched, peer->pokeexpire);
-	}
-	return peer->the_mark ? CMP_MATCH : 0;
+	if (peer)
+		_ao2_ref_debug(peer, 1, tag, file, line, func);
+	else
+		ast_log(LOG_ERROR, "Attempt to Ref a null peer pointer\n");
+	return peer;
 }
 
-
-/* \brief Unlink all marked peers from ao2 containers */
-static void unlink_marked_peers_from_tables(void)
+static struct sip_peer *_unref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
 {
-	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
-						"initiating callback to remove marked peers");
-	ao2_t_callback(peers_by_ip, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, peer_is_marked, NULL,
-						"initiating callback to remove marked peers");
+	if (peer)
+		_ao2_ref_debug(peer, -1, tag, file, line, func);
+	return NULL;
 }
-
-/* \brief Unlink single peer from all ao2 containers */
-static void unlink_peer_from_tables(struct sip_peer *peer)
-{
-	ao2_t_unlink(peers, peer, "ao2_unlink of peer from peers table");
-	if (peer->addr.sin_addr.s_addr) {
-		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
-	}
-}
-
+#else
 /*!
  * helper functions to unreference various types of objects.
  * By handling them this way, we don't have to declare the
@@ -3289,6 +3278,66 @@ static struct sip_peer *ref_peer(struct sip_peer *peer, char *tag)
 {
 	ao2_t_ref(peer, 1, tag);
 	return peer;
+}
+#endif /* REF_DEBUG */
+
+static void peer_sched_cleanup(struct sip_peer *peer)
+{
+	if (peer->pokeexpire != -1) {
+		AST_SCHED_DEL_UNREF(sched, peer->pokeexpire,
+				unref_peer(peer, "removing poke peer ref"));
+	}
+	if (peer->expire != -1) {
+		AST_SCHED_DEL_UNREF(sched, peer->expire,
+				unref_peer(peer, "remove register expire ref"));
+	}
+}
+
+typedef enum {
+	SIP_PEERS_MARKED,
+	SIP_PEERS_ALL,
+} peer_unlink_flag_t;
+
+/* this func is used with ao2_callback to unlink/delete all marked or linked
+   peers, depending on arg */
+static int match_and_cleanup_peer_sched(void *peerobj, void *arg, int flags)
+{
+	struct sip_peer *peer = peerobj;
+	peer_unlink_flag_t which = *(peer_unlink_flag_t *)arg;
+
+	if (which == SIP_PEERS_ALL || peer->the_mark) {
+		peer_sched_cleanup(peer);
+		return CMP_MATCH;
+	}
+	return 0;
+}
+
+static void unlink_peers_from_tables(peer_unlink_flag_t flag)
+{
+	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE,
+		match_and_cleanup_peer_sched, &flag, "initiating callback to remove marked peers");
+	ao2_t_callback(peers_by_ip, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE,
+		match_and_cleanup_peer_sched, &flag, "initiating callback to remove marked peers");
+}
+
+/* \brief Unlink all marked peers from ao2 containers */
+static void unlink_marked_peers_from_tables(void)
+{
+	unlink_peers_from_tables(SIP_PEERS_MARKED);
+}
+
+static void unlink_all_peers_from_tables(void)
+{
+	unlink_peers_from_tables(SIP_PEERS_ALL);
+}
+
+/* \brief Unlink single peer from all ao2 containers */
+static void unlink_peer_from_tables(struct sip_peer *peer)
+{
+	ao2_t_unlink(peers, peer, "ao2_unlink of peer from peers table");
+	if (peer->addr.sin_addr.s_addr) {
+		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
+	}
 }
 
 /*! \brief maintain proper refcounts for a sip_pvt's outboundproxy
@@ -3383,6 +3432,10 @@ static void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdi
 
 	if (dialog->t38id > -1) {
 		AST_SCHED_DEL_UNREF(sched, dialog->t38id, dialog_unref(dialog, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+	}
+
+	if (dialog->stimer) {
+		stop_session_timer(dialog);
 	}
 
 	dialog_unref(dialog, "Let's unbump the count in the unlink so the poor pvt can disappear if it is time");
@@ -4224,17 +4277,11 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms)
  */
 static int sip_cancel_destroy(struct sip_pvt *p)
 {
-	int res = 0;
 	if (p->autokillid > -1) {
-		int res3;
-
-		if (!(res3 = ast_sched_del(sched, p->autokillid))) {
-			append_history(p, "CancelDestroy", "");
-			p->autokillid = -1;
-			dialog_unref(p, "dialog unrefd because autokillid is de-sched'd");
-		}
+		append_history(p, "CancelDestroy", "");
+		AST_SCHED_DEL_UNREF(sched, p->autokillid, dialog_unref(p, "remove ref for autokillid"));
 	}
-	return res;
+	return 0;
 }
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission 
@@ -5722,7 +5769,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
 	struct sip_request *req;
 
-	if (p->stimer) {
+	/* Destroy Session-Timers if allocated */
+ 	if (p->stimer) {
+		p->stimer->quit_flag = 1;
+		stop_session_timer(p);
 		ast_free(p->stimer);
 		p->stimer = NULL;
 	}
@@ -5799,17 +5849,6 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->route = NULL;
 	}
 	deinit_req(&p->initreq);
-
-	/* Destroy Session-Timers if allocated */
-	if (p->stimer) {
-		p->stimer->quit_flag = 1;
-		if (p->stimer->st_active == TRUE && p->stimer->st_schedid > -1) {
-			AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
-					dialog_unref(p, "removing session timer ref"));
-		}
-		ast_free(p->stimer);
-		p->stimer = NULL;
-	}
 
 	/* Clear history */
 	if (p->history) {
@@ -6706,7 +6745,7 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 		struct ast_control_t38_parameters parameters = p->t38.their_parms;
 
 		if (p->t38.state == T38_PEER_REINVITE) {
-			AST_SCHED_DEL(sched, p->t38id);
+			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 			parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
 			parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
 			ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
@@ -7780,7 +7819,7 @@ static int find_call_cb(void *__pvt, void *__arg, int flags)
 /*! \brief find or create a dialog structure for an incoming SIP message.
  * Connect incoming SIP message to current dialog or create new dialog structure
  * Returns a reference to the sip_pvt object, remember to give it back once done.
- *     Called by handle_incoming(), sipsock_read
+ *     Called by handle_request_do
  */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
@@ -7852,6 +7891,7 @@ restartsearch:
 			if (sip_pvt_trylock(p)) {
 				ao2_unlock(dialogs);
 				usleep(1);
+				p = dialog_unref(p, "pedantic linear search for dialog unref to restart search");
 				goto restartsearch;
 			}
 			ao2_unlock(dialogs);
@@ -10073,7 +10113,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		char se_hdr[256];
 		snprintf(se_hdr, sizeof(se_hdr), "%d;refresher=%s", p->stimer->st_interval, 
 			strefresher2str(p->stimer->st_ref));
-		add_header(req, "Require", "timer");
 		add_header(req, "Session-Expires", se_hdr);
 		snprintf(se_hdr, sizeof(se_hdr), "%d", st_get_se(p, FALSE));
 		add_header(req, "Min-SE", se_hdr);
@@ -15114,7 +15153,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	ast_cli(a->fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
 
 	user_iter = ao2_iterator_init(peers, 0);
-	while ((user = ao2_iterator_next(&user_iter))) {
+	while ((user = ao2_t_iterator_next(&user_iter, "iterate thru peers table"))) {
 		ao2_lock(user);
 		if (!(user->type & SIP_TYPE_USER)) {
 			ao2_unlock(user);
@@ -15339,7 +15378,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 		ao2_lock(peer);
 		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
 			ao2_unlock(peer);
-			unref_peer(peer, "toss iterator peer ptr before continue");
+			peer = peerarray[k] = unref_peer(peer, "toss iterator peer ptr before continue");
 			continue;
 		}
 
@@ -15406,7 +15445,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			realtimepeers ? (peer->is_realtime ? "yes":"no") : "no");
 		}
 		ao2_unlock(peer);
-		unref_peer(peer, "toss iterator peer ptr");
+		peer = peerarray[k] = unref_peer(peer, "toss iterator peer ptr");
 	}
 	
 	if (!s)
@@ -16192,7 +16231,7 @@ static char *complete_sip_user(const char *word, int state)
 	struct sip_peer *user;
 
 	user_iter = ao2_iterator_init(peers, 0);
-	while ((user = ao2_iterator_next(&user_iter))) {
+	while ((user = ao2_t_iterator_next(&user_iter, "iterate thru peers table"))) {
 		ao2_lock(user);
 		if (!(user->type & SIP_TYPE_USER)) {
 			ao2_unlock(user);
@@ -20975,6 +21014,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "100 Trying", req);
 
 			if (p->t38.state == T38_PEER_REINVITE) {
+				if (p->t38id > -1) {
+					/* reset t38 abort timer */
+					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "remove ref for t38id"));
+				}
 				p->t38id = ast_sched_add(sched, 5000, sip_t38_abort, dialog_ref(p, "passing dialog ptr into sched structure based on t38id for sip_t38_abort."));
 			} else if (p->t38.state == T38_ENABLED) {
 				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
@@ -21524,6 +21567,10 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 			if (pkt->seqno == p->lastinvite && pkt->response_code == 487) {
 				AST_SCHED_DEL(sched, pkt->retransid);
 				UNLINK(pkt, p->packets, prev_pkt);
+				dialog_unref(pkt->owner, "unref packet->owner from dialog");
+				if (pkt->data) {
+					ast_free(pkt->data);
+				}
 				ast_free(pkt);
 				break;
 			}
@@ -22077,6 +22124,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
+	/* At this point, if we have an authpeer (which we have to have to get here) we should unref
+	 * it since if we have actually used it, we have reffed it when p->relatedpeer was set. */
+	authpeer = unref_peer(authpeer, "unref pointer into (*authpeer)");
+
 	/* Add subscription for extension state from the PBX core */
 	if (p->subscribed != MWI_NOTIFICATION && !resubscribe) {
 		if (p->stateid > -1) {
@@ -22626,7 +22677,7 @@ static int handle_request_do(struct sip_request *req, struct sockaddr_in *sin)
 		ast_mutex_lock(&netlock);
 
 		/* Find the active SIP dialog or create a new one */
-		p = find_call(req, sin, req->method);	/* returns p locked */
+		p = find_call(req, sin, req->method);	/* returns p locked and ref'd */
 		if (p == NULL) {
 			ast_debug(1, "Invalid SIP message - rejected , no callid, len %d\n", req->len);
 			ast_mutex_unlock(&netlock);
@@ -23198,9 +23249,9 @@ static void restart_session_timer(struct sip_pvt *p)
 	}
 
 	if (p->stimer->st_active == TRUE) {
+		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
 				dialog_unref(p, "Removing session timer ref"));
-		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 		start_session_timer(p);
 	}
 }
@@ -23216,9 +23267,9 @@ static void stop_session_timer(struct sip_pvt *p)
 
 	if (p->stimer->st_active == TRUE) {
 		p->stimer->st_active = FALSE;
+		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
 				dialog_unref(p, "removing session timer ref"));
-		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 	}
 }
 
@@ -23231,13 +23282,22 @@ static void start_session_timer(struct sip_pvt *p)
 		return;
 	}
 
+	if (p->stimer->st_schedid > -1) {
+		/* in the event a timer is already going, stop it */
+		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
+		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
+			dialog_unref(p, "unref stimer->st_schedid from dialog"));
+	}
+
 	p->stimer->st_schedid  = ast_sched_add(sched, p->stimer->st_interval * 1000 / 2, proc_session_timer, 
 			dialog_ref(p, "adding session timer ref"));
 	if (p->stimer->st_schedid < 0) {
 		dialog_unref(p, "removing session timer ref");
-		ast_log(LOG_ERROR, "ast_sched_add failed.\n");
+		ast_log(LOG_ERROR, "ast_sched_add failed - %s\n", p->callid);
+	} else {
+		p->stimer->st_active = TRUE;
+		ast_debug(2, "Session timer started: %d - %s\n", p->stimer->st_schedid, p->callid);
 	}
-	ast_debug(2, "Session timer started: %d - %s\n", p->stimer->st_schedid, p->callid);
 }
 
 
@@ -23309,6 +23369,7 @@ return_unref:
 	if (!res) {
 		/* An error occurred.  Stop session timer processing */
 		if (p->stimer) {
+			ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 			p->stimer->st_schedid = -1;
 			stop_session_timer(p);
 		}
@@ -23624,7 +23685,8 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 #endif
 	peer->ps = ast_tvnow();
 	if (xmitres == XMIT_ERROR) {
-		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
+		/* Immediately unreachable, network problems */
+		sip_poke_noanswer(ref_peer(peer, "add ref for peerexpire (fake, for sip_poke_noanswer to remove)"));
 	} else if (!force) {
 		AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched, peer->maxms * 2, sip_poke_noanswer, peer,
 				unref_peer(_data, "removing poke peer ref"),
@@ -26640,6 +26702,8 @@ static int unload_module(void)
 		ao2_t_ref(p, -1, "toss dialog ptr from iterator_next");
 	}
 	ao2_iterator_destroy(&i);
+
+	unlink_all_peers_from_tables();
 
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
