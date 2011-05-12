@@ -1204,6 +1204,7 @@ struct skinny_subchannel {
 	struct ast_rtp_instance *rtp;
 	struct ast_rtp_instance *vrtp;
 	unsigned int callid;
+	char exten[AST_MAX_EXTENSION];
 	/* time_t lastouttime; */ /* Unused */
 	int progress;
 	int ringing;
@@ -1407,15 +1408,7 @@ static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned in
 static void mwi_event_cb(const struct ast_event *event, void *userdata);
 static int skinny_reload(void);
 
-static void setsubstate_dialing(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
-static void setsubstate_ringin(struct skinny_subchannel *sub);
-static void setsubstate_callwait(struct skinny_subchannel *sub);
-static void setsubstate_ringout(struct skinny_subchannel *sub);
-static void setsubstate_connected(struct skinny_subchannel *sub);
-static void setsubstate_busy(struct skinny_subchannel *sub);
-static void setsubstate_congestion(struct skinny_subchannel *sub);
-static void setsubstate_progress(struct skinny_subchannel *sub);
-static void setsubstate_hold(struct skinny_subchannel *sub);
+static void setsubstate(struct skinny_subchannel *sub, int state);
 static void dumpsub(struct skinny_subchannel *sub, int forcehangup);
 
 static struct ast_channel_tech skinny_tech = {
@@ -3999,7 +3992,8 @@ static void *skinny_ss(void *data)
 					}
 					return NULL;
 				} else {
-					setsubstate_dialing(c->tech_pvt, d->exten);
+					ast_copy_string(sub->exten, d->exten, sizeof(sub->exten));
+					setsubstate(c->tech_pvt, SUBSTATE_DIALING);
 					return NULL;
 				}
 			} else {
@@ -4077,7 +4071,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 	
-	setsubstate_ringin(sub);
+	setsubstate(sub, SUBSTATE_RINGIN);
 	return res;
 }
 
@@ -4093,7 +4087,7 @@ static int skinny_hangup(struct ast_channel *ast)
 	dumpsub(sub, 1);
 
 	if (skinnydebug)
-		ast_verb(3,"Destroying subchannel %d\n", sub->callid);
+		ast_verb(3,"Sub %d - Destroying\n", sub->callid);
 
 	ast_mutex_lock(&sub->lock);
 	sub->owner = NULL;
@@ -4129,7 +4123,7 @@ static int skinny_answer(struct ast_channel *ast)
 	if (skinnydebug)
 		ast_verb(1, "skinny_answer(%s) on %s@%s-%d\n", ast->name, l->name, d->name, sub->callid);
 	
-	setsubstate_connected(sub);
+	setsubstate(sub, SUBSTATE_CONNECTED);
 
 	return res;
 }
@@ -4436,16 +4430,16 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			skinny_transfer(sub);
 			break;
 		}
-		setsubstate_ringout(sub);
+		setsubstate(sub, SUBSTATE_RINGOUT);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_BUSY:
-		setsubstate_busy(sub);
+		setsubstate(sub, SUBSTATE_BUSY);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_CONGESTION:
-		setsubstate_congestion(sub);
+		setsubstate(sub, SUBSTATE_CONGESTION);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case AST_CONTROL_PROGRESS:
-		setsubstate_progress(sub);
+		setsubstate(sub, SUBSTATE_PROGRESS);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
 	case -1:  /* STOP_TONE */
 		transmit_stop_tone(d, l->instance, sub->callid);
@@ -4595,6 +4589,8 @@ static char *substate2str(int ind) {
 	char *tmp;
 
 	switch (ind) {
+	case SUBSTATE_UNSET:
+		return "SUBSTATE_UNSET";
 	case SUBSTATE_OFFHOOK:
 		return "SUBSTATE_OFFHOOK";
 	case SUBSTATE_ONHOOK:
@@ -4625,288 +4621,249 @@ static char *substate2str(int ind) {
 	}
 }
 
-static void setsubstate_offhook(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-	pthread_t t;
-
-	ast_verb(1, "Call-id: %d\n", sub->callid);
-	l->activesub = sub;
-	if (d->hookstate == SKINNY_ONHOOK) {
-		d->hookstate = SKINNY_OFFHOOK;
-		transmit_speaker_mode(d, SKINNY_SPEAKERON);
-	}
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-	transmit_activatecallplane(d, l);
-	transmit_clear_display_message(d, l->instance, sub->callid);
-	transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
-
-	sub->substate = SUBSTATE_OFFHOOK;
-	
-	/* start the switch thread */
-	if (ast_pthread_create(&t, NULL, skinny_ss, sub->owner)) {
-		ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-		ast_hangup(sub->owner);
-	}
-}
-
-static void setsubstate_onhook(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-
-	AST_LIST_REMOVE(&l->sub, sub, list);
-	if (sub->related) {
-		sub->related->related = NULL;
-	}
-	
-	if (sub == l->activesub) {
-		l->activesub = NULL;
-		transmit_closereceivechannel(d, sub);
-		transmit_stopmediatransmission(d, sub);
-		transmit_stop_tone(d, l->instance, sub->callid);
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
-		transmit_clearpromptmessage(d, l->instance, sub->callid);
-		transmit_ringer_mode(d, SKINNY_RING_OFF);
-		d->hookstate = SKINNY_ONHOOK;
-		transmit_speaker_mode(d, SKINNY_SPEAKEROFF); 
-		transmit_definetimedate(d); 
-		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
-	} else {
-		transmit_stop_tone(d, l->instance, sub->callid);
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
-		transmit_clearpromptmessage(d, l->instance, sub->callid);
-	}
-
-	sub->cxmode = SKINNY_CX_RECVONLY;	
-	sub->substate = SUBSTATE_ONHOOK;
-	if (sub->rtp) {
-		ast_rtp_instance_destroy(sub->rtp);
-		sub->rtp = NULL;
-	}
-	if (sub->owner) {
-		ast_queue_hangup(sub->owner);
-	}
-}
-
-static void setsubstate_dialing(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
+static void setsubstate(struct skinny_subchannel *sub, int state)
 {
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
 	struct ast_channel *c = sub->owner;
 	pthread_t t;
-	
-	if (ast_strlen_zero(exten) || !ast_exists_extension(c, c->context, exten, 1, l->cid_num)) {
-		ast_log(LOG_WARNING, "Exten (%s) does not exist, unable to set substate DIALING on sub %d\n", exten, sub->callid);
-		return;
-	}
+	int actualstate = state;
 
-	if (d->hookstate == SKINNY_ONHOOK) {
-		d->hookstate = SKINNY_OFFHOOK;
-		transmit_speaker_mode(d, SKINNY_SPEAKERON);
-		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
-		transmit_activatecallplane(d, l);
-	}
-	transmit_stop_tone(d, l->instance, sub->callid);
-	transmit_clear_display_message(d, l->instance, sub->callid);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
-
-	ast_copy_string(c->exten, exten, sizeof(c->exten));
-	ast_copy_string(l->lastnumberdialed, exten, sizeof(l->lastnumberdialed));
-	memset(d->exten, 0, sizeof(d->exten));
-
-	sub->substate = SUBSTATE_DIALING;
-	
-	if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
-		ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
-		ast_hangup(c);
-	}
-}
-
-static void setsubstate_ringout(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-
-	if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS)) {
-		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_RINGOUT from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+	if (sub->substate == SUBSTATE_ONHOOK) {
 		return;
 	}
 	
-	if (!d->earlyrtp) {
-		transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
-	}
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGOUT);
-	transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
-	transmit_displaypromptstatus(d, "Ring Out", 0, l->instance, sub->callid);
-	transmit_callinfo(sub);
-	sub->substate = SUBSTATE_RINGOUT;
-}
-
-static void setsubstate_ringin(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-	struct ast_channel *c = sub->owner;
-
-	if ((AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list)) && (d->hookstate == SKINNY_OFFHOOK)) {
-		setsubstate_callwait(sub);
-		return;
+	if ((state == SUBSTATE_RINGIN) && (AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list))) {
+		actualstate = SUBSTATE_CALLWAIT;
 	}
 	
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
-	transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
-	transmit_callinfo(sub);
-	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
-	transmit_ringer_mode(d, SKINNY_RING_INSIDE);
+	if (skinnydebug) {
+		ast_verb(3, "Sub %d - change state from %s to %s\n", sub->callid, substate2str(sub->substate), substate2str(actualstate));
+	}
 
-	if (d->hookstate == SKINNY_ONHOOK) {
-		l->activesub = sub;
-	}
-	
-	if (sub->substate != SUBSTATE_RINGIN || sub->substate != SUBSTATE_CALLWAIT) {
-		ast_setstate(c, AST_STATE_RINGING);
-		ast_queue_control(c, AST_CONTROL_RINGING);
-	}
-	sub->substate = SUBSTATE_RINGIN;
-}
-
-static void setsubstate_callwait(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-	struct ast_channel *c = sub->owner;
-
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_CALLWAIT);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
-	transmit_displaypromptstatus(d, "Callwaiting", 0, l->instance, sub->callid);
-	transmit_callinfo(sub);
-	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
-	transmit_start_tone(d, SKINNY_CALLWAITTONE, l->instance, sub->callid);
-	
-	ast_setstate(c, AST_STATE_RINGING);
-	ast_queue_control(c, AST_CONTROL_RINGING);
-	sub->substate = SUBSTATE_CALLWAIT;
-}
-
-static void setsubstate_connected(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-	
-	if (sub->substate == SUBSTATE_HOLD) {
-		ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
-		transmit_connect(d, sub);
-	}
-	transmit_activatecallplane(d, l);
-	transmit_stop_tone(d, l->instance, sub->callid);
-	transmit_callinfo(sub);
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
-	transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
-	if (!sub->rtp) {
-		start_rtp(sub);
-	}
-	if (sub->substate == SUBSTATE_RINGIN || sub->substate == SUBSTATE_CALLWAIT) {
-		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
-	}
-	if (sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_RINGOUT) {
-		transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
-	}
-	if (sub->owner->_state != AST_STATE_UP) {
-		ast_setstate(sub->owner, AST_STATE_UP);
-	}
-	sub->substate = SUBSTATE_CONNECTED;
-	l->activesub = sub;
-}
-
-static void setsubstate_busy(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-
-	if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS || sub->substate == SUBSTATE_RINGOUT)) {
-		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_BUSY from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
-		return;
-	}
-	
-	if (!d->earlyrtp) {
-		transmit_start_tone(d, SKINNY_BUSYTONE, l->instance, sub->callid);
-	}
-	transmit_callinfo(sub);
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_BUSY);
-	transmit_displaypromptstatus(d, "Busy", 0, l->instance, sub->callid);
-	sub->substate = SUBSTATE_BUSY;
-}
-
-static void setsubstate_congestion(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-
-	if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS || sub->substate == SUBSTATE_RINGOUT)) {
-		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_CONGESTION from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
-		return;
-	}
-	
-	if (!d->earlyrtp) {
-		transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
-	}
-	transmit_callinfo(sub);
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_CONGESTION);
-	transmit_displaypromptstatus(d, "Congestion", 0, l->instance, sub->callid);
-	sub->substate = SUBSTATE_CONGESTION;
-}
-
-static void setsubstate_progress(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-
-	if (sub->substate != SUBSTATE_DIALING) {
-		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_PROGRESS from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
-		return;
-	}
-	
-	if (!d->earlyrtp) {
-		transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
-	}
-	transmit_callinfo(sub);
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_PROGRESS);
-	transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
-	sub->substate = SUBSTATE_PROGRESS;
-}
-
-static void setsubstate_hold(struct skinny_subchannel *sub)
-{
-	struct skinny_line *l = sub->line;
-	struct skinny_device *d = l->device;
-
-	if (!(sub->substate == SUBSTATE_CONNECTED || sub->substate == SUBSTATE_HOLD)) {
-		ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_HOLD from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
-		return;
-	}
-	
-	if (sub->substate == SUBSTATE_HOLD) {
+	if (actualstate == sub->substate) {
+		transmit_callinfo(sub);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_HOLD);
 		return;
 	}
 
-	ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
-		S_OR(l->mohsuggest, NULL),
-		!ast_strlen_zero(l->mohsuggest) ? strlen(l->mohsuggest) + 1 : 0);
+	switch (actualstate) {
+	case SUBSTATE_OFFHOOK:
+		ast_verb(1, "Call-id: %d\n", sub->callid);
+		l->activesub = sub;
+		if (d->hookstate == SKINNY_ONHOOK) {
+			d->hookstate = SKINNY_OFFHOOK;
+			transmit_speaker_mode(d, SKINNY_SPEAKERON);
+		}
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
+		transmit_activatecallplane(d, l);
+		transmit_clear_display_message(d, l->instance, sub->callid);
+		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
 
-	transmit_activatecallplane(d, l);
-	transmit_closereceivechannel(d, sub);
-	transmit_stopmediatransmission(d, sub);
+		sub->substate = SUBSTATE_OFFHOOK;
+	
+		/* start the switch thread */
+		if (ast_pthread_create(&t, NULL, skinny_ss, sub->owner)) {
+			ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
+			ast_hangup(sub->owner);
+		}
+		break;
+	case SUBSTATE_ONHOOK:
+		AST_LIST_REMOVE(&l->sub, sub, list);
+		if (sub->related) {
+			sub->related->related = NULL;
+		}
 
-	transmit_callstate(d, l->instance, sub->callid, SKINNY_HOLD);
-	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_WINK);
-	transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_ONHOLD);
-	sub->substate = SUBSTATE_HOLD;
+		if (sub == l->activesub) {
+			l->activesub = NULL;
+			transmit_closereceivechannel(d, sub);
+			transmit_stopmediatransmission(d, sub);
+			transmit_stop_tone(d, l->instance, sub->callid);
+			transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
+			transmit_clearpromptmessage(d, l->instance, sub->callid);
+			transmit_ringer_mode(d, SKINNY_RING_OFF);
+			d->hookstate = SKINNY_ONHOOK;
+			transmit_speaker_mode(d, SKINNY_SPEAKEROFF); 
+			transmit_definetimedate(d); 
+			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
+		} else {
+			transmit_stop_tone(d, l->instance, sub->callid);
+			transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
+			transmit_clearpromptmessage(d, l->instance, sub->callid);
+		}
+
+		sub->cxmode = SKINNY_CX_RECVONLY;	
+		sub->substate = SUBSTATE_ONHOOK;
+		if (sub->rtp) {
+			ast_rtp_instance_destroy(sub->rtp);
+			sub->rtp = NULL;
+		}
+		if (sub->owner) {
+			ast_queue_hangup(sub->owner);
+		}
+		break;
+	case SUBSTATE_DIALING:
+		if (ast_strlen_zero(sub->exten) || !ast_exists_extension(c, c->context, sub->exten, 1, l->cid_num)) {
+			ast_log(LOG_WARNING, "Exten (%s) does not exist, unable to set substate DIALING on sub %d\n", sub->exten, sub->callid);
+			return;
+		}
+
+		if (d->hookstate == SKINNY_ONHOOK) {
+			d->hookstate = SKINNY_OFFHOOK;
+			transmit_speaker_mode(d, SKINNY_SPEAKERON);
+			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
+			transmit_activatecallplane(d, l);
+		}
+		transmit_stop_tone(d, l->instance, sub->callid);
+		transmit_clear_display_message(d, l->instance, sub->callid);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
+
+		ast_copy_string(c->exten, sub->exten, sizeof(c->exten));
+		ast_copy_string(l->lastnumberdialed, sub->exten, sizeof(l->lastnumberdialed));
+		memset(d->exten, 0, sizeof(d->exten));
+
+		sub->substate = SUBSTATE_DIALING;
+	
+		if (ast_pthread_create(&t, NULL, skinny_newcall, c)) {
+			ast_log(LOG_WARNING, "Unable to create new call thread: %s\n", strerror(errno));
+			ast_hangup(c);
+		}
+		break;
+	case SUBSTATE_RINGOUT:
+		if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS)) {
+			ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_RINGOUT from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+			return;
+		}
+	
+		if (!d->earlyrtp) {
+			transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
+		}
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGOUT);
+		transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
+		transmit_displaypromptstatus(d, "Ring Out", 0, l->instance, sub->callid);
+		transmit_callinfo(sub);
+		sub->substate = SUBSTATE_RINGOUT;
+		break;
+	case SUBSTATE_RINGIN:
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
+		transmit_displaypromptstatus(d, "Ring-In", 0, l->instance, sub->callid);
+		transmit_callinfo(sub);
+		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
+		transmit_ringer_mode(d, SKINNY_RING_INSIDE);
+
+		if (d->hookstate == SKINNY_ONHOOK) {
+			l->activesub = sub;
+		}
+	
+		if (sub->substate != SUBSTATE_RINGIN || sub->substate != SUBSTATE_CALLWAIT) {
+			ast_setstate(c, AST_STATE_RINGING);
+			ast_queue_control(c, AST_CONTROL_RINGING);
+		}
+		sub->substate = SUBSTATE_RINGIN;
+		break;
+	case SUBSTATE_CALLWAIT:
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_CALLWAIT);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
+		transmit_displaypromptstatus(d, "Callwaiting", 0, l->instance, sub->callid);
+		transmit_callinfo(sub);
+		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
+		transmit_start_tone(d, SKINNY_CALLWAITTONE, l->instance, sub->callid);
+	
+		ast_setstate(c, AST_STATE_RINGING);
+		ast_queue_control(c, AST_CONTROL_RINGING);
+		sub->substate = SUBSTATE_CALLWAIT;
+		break;
+	case SUBSTATE_CONNECTED:
+		if (sub->substate == SUBSTATE_HOLD) {
+			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
+			transmit_connect(d, sub);
+		}
+		transmit_activatecallplane(d, l);
+		transmit_stop_tone(d, l->instance, sub->callid);
+		transmit_callinfo(sub);
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
+		transmit_displaypromptstatus(d, "Connected", 0, l->instance, sub->callid);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
+		if (!sub->rtp) {
+			start_rtp(sub);
+		}
+		if (sub->substate == SUBSTATE_RINGIN || sub->substate == SUBSTATE_CALLWAIT) {
+			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
+		}
+		if (sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_RINGOUT) {
+			transmit_dialednumber(d, l->lastnumberdialed, l->instance, sub->callid);
+		}
+		if (sub->owner->_state != AST_STATE_UP) {
+			ast_setstate(sub->owner, AST_STATE_UP);
+		}
+		sub->substate = SUBSTATE_CONNECTED;
+		l->activesub = sub;
+		break;
+	case SUBSTATE_BUSY:
+		if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS || sub->substate == SUBSTATE_RINGOUT)) {
+			ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_BUSY from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+			return;
+		}
+
+		if (!d->earlyrtp) {
+			transmit_start_tone(d, SKINNY_BUSYTONE, l->instance, sub->callid);
+		}
+		transmit_callinfo(sub);
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_BUSY);
+		transmit_displaypromptstatus(d, "Busy", 0, l->instance, sub->callid);
+		sub->substate = SUBSTATE_BUSY;
+		break;
+	case SUBSTATE_CONGESTION:
+		if (!(sub->substate == SUBSTATE_DIALING || sub->substate == SUBSTATE_PROGRESS || sub->substate == SUBSTATE_RINGOUT)) {
+			ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_CONGESTION from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+			return;
+		}
+
+		if (!d->earlyrtp) {
+			transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
+		}
+		transmit_callinfo(sub);
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONGESTION);
+		transmit_displaypromptstatus(d, "Congestion", 0, l->instance, sub->callid);
+		sub->substate = SUBSTATE_CONGESTION;
+		break;
+	case SUBSTATE_PROGRESS:
+		if (sub->substate != SUBSTATE_DIALING) {
+			ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_PROGRESS from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+			return;
+		}
+
+		if (!d->earlyrtp) {
+			transmit_start_tone(d, SKINNY_ALERT, l->instance, sub->callid);
+		}
+		transmit_callinfo(sub);
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_PROGRESS);
+		transmit_displaypromptstatus(d, "Call Progress", 0, l->instance, sub->callid);
+		sub->substate = SUBSTATE_PROGRESS;
+		break;
+	case SUBSTATE_HOLD:
+		if (sub->substate != SUBSTATE_CONNECTED) {
+			ast_log(LOG_WARNING, "Cannot set substate to SUBSTATE_HOLD from %s (on call-%d)\n", substate2str(sub->substate), sub->callid);
+			return;
+		}
+		ast_queue_control_data(sub->owner, AST_CONTROL_HOLD,
+			S_OR(l->mohsuggest, NULL),
+			!ast_strlen_zero(l->mohsuggest) ? strlen(l->mohsuggest) + 1 : 0);
+
+		transmit_activatecallplane(d, l);
+		transmit_closereceivechannel(d, sub);
+		transmit_stopmediatransmission(d, sub);
+
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_HOLD);
+		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_WINK);
+		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_ONHOLD);
+		sub->substate = SUBSTATE_HOLD;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Was asked to change to nonexistant substate %d on Sub-%d\n", state, sub->callid);
+	}
 }
 
 static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
@@ -4916,7 +4873,7 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 	struct skinny_subchannel *tsub;
 
 	if (skinnydebug) {
-		ast_verb(3, "Dumping sub %d - state = %s\n", sub->callid, substate2str(sub->substate));
+		ast_verb(3, "Sub %d - Dumping\n", sub->callid);
 	}
 	
 	if (!forcehangup && sub->substate == SUBSTATE_HOLD) {
@@ -4927,22 +4884,22 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 	if (sub == l->activesub) {
 		if (sub->related) {
 			activatesub = sub->related;
-			setsubstate_onhook(sub);
+			setsubstate(sub, SUBSTATE_ONHOOK);
 			l->activesub = activatesub;
 			if (l->activesub->substate != SUBSTATE_HOLD) {
 				ast_log(LOG_WARNING, "Sub-%d was related but not at SUBSTATE_HOLD\n", sub->callid);
 				return;
 			}
-			setsubstate_hold(l->activesub);
+			setsubstate(l->activesub, SUBSTATE_HOLD);
 		} else {
-			setsubstate_onhook(sub);
+			setsubstate(sub, SUBSTATE_ONHOOK);
 			AST_LIST_TRAVERSE(&l->sub, tsub, list) {
 				if (tsub->substate == SUBSTATE_CALLWAIT) {
 					activatesub = tsub;
 				}
 			}
 			if (activatesub) {
-				setsubstate_ringin(activatesub);
+				setsubstate(activatesub, SUBSTATE_RINGIN);
 				return;
 			}
 			AST_LIST_TRAVERSE(&l->sub, tsub, list) {
@@ -4951,12 +4908,12 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 				}
 			}
 			if (activatesub) {
-				setsubstate_hold(activatesub);
+				setsubstate(activatesub, SUBSTATE_HOLD);
 				return;
 			}
 		}
 	} else {
-		setsubstate_onhook(sub);
+		setsubstate(sub, SUBSTATE_ONHOOK);
 	}
 }
 
@@ -4965,13 +4922,13 @@ static int handle_hold_button(struct skinny_subchannel *sub)
 	if (!sub)
 		return -1;
 	if (sub->related) {
-		setsubstate_hold(sub);
-		setsubstate_connected(sub->related);
+		setsubstate(sub, SUBSTATE_HOLD);
+		setsubstate(sub->related, SUBSTATE_CONNECTED);
 	} else {
 		if (sub->substate == SUBSTATE_HOLD) {
-			setsubstate_connected(sub->related);
+			setsubstate(sub, SUBSTATE_CONNECTED);
 		} else {
-			setsubstate_hold(sub);
+			setsubstate(sub, SUBSTATE_HOLD);
 		}
 	}
 	return 1;
@@ -4995,7 +4952,7 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 	if (!sub->related) {
 		/* Another sub has not been created so this must be first XFER press */
 		if (!(sub->substate == SUBSTATE_HOLD)) {
-			setsubstate_hold(sub);
+			setsubstate(sub, SUBSTATE_HOLD);
 		}
 		c = skinny_new(l, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
 		if (c) {
@@ -5004,7 +4961,7 @@ static int handle_transfer_button(struct skinny_subchannel *sub)
 			newsub->related = sub;
 			sub->related = newsub;
 			newsub->xferor = 1;
-			setsubstate_offhook(newsub);
+			setsubstate(newsub, SUBSTATE_OFFHOOK);
 		} else {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		}
@@ -5063,7 +5020,7 @@ static int handle_callforward_button(struct skinny_subchannel *sub, int cfwdtype
 		transmit_cfwdstate(d, l);
 	} else {
 		l->getforward = cfwdtype;
-		setsubstate_offhook(sub);
+		setsubstate(sub, SUBSTATE_OFFHOOK);
 	}
 	return 0;
 }
@@ -5192,7 +5149,8 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			sub = c->tech_pvt;
 			l = sub->line;
 			l->activesub = sub;
-			setsubstate_dialing(sub, l->lastnumberdialed);
+			ast_copy_string(sub->exten, l->lastnumberdialed, sizeof(sub->exten));
+			setsubstate(sub, SUBSTATE_DIALING);
 		}
 		break;
 	case STIMULUS_SPEEDDIAL:
@@ -5216,8 +5174,9 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			sub = c->tech_pvt;
 			l = sub->line;
 			l->activesub = sub;
-			
-			setsubstate_dialing(sub, sd->exten);
+
+			ast_copy_string(sub->exten, sd->exten, sizeof(sub->exten));
+			setsubstate(sub, SUBSTATE_DIALING);
 		}
 	    }
 		break;
@@ -5259,7 +5218,8 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		if (sub->substate == SUBSTATE_UNSET || sub->substate == SUBSTATE_OFFHOOK){
 			l = sub->line;
 			l->activesub = sub;
-			setsubstate_dialing(sub,l->vmexten);
+			ast_copy_string(sub->exten, l->vmexten, sizeof(sub->exten));
+			setsubstate(sub, SUBSTATE_DIALING);
 		}
 		break;
 	case STIMULUS_CALLPARK:
@@ -5382,14 +5342,14 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		d->hookstate = SKINNY_OFFHOOK;
 
 		if (sub && sub->calldirection == SKINNY_INCOMING) {
-			setsubstate_connected(sub);
+			setsubstate(sub, SUBSTATE_CONNECTED);
 		} else {
 			if (sub && sub->owner) {
 				ast_debug(1, "Current subchannel [%s] already has owner\n", sub->owner->name);
 			} else {
 				c = skinny_new(l, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
 				if (c) {
-					setsubstate_offhook(c->tech_pvt);
+					setsubstate(c->tech_pvt, SUBSTATE_OFFHOOK);
 				} else {
 					ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 				}
@@ -5454,7 +5414,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
 
 	if (sub && sub->calldirection == SKINNY_INCOMING) {
-		setsubstate_connected(sub);
+		setsubstate(sub, SUBSTATE_CONNECTED);
 	} else {
 		/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
 		transmit_definetimedate(d);
@@ -5464,7 +5424,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		} else {
 			c = skinny_new(l, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
 			if (c) {
-				setsubstate_offhook(c->tech_pvt);
+				setsubstate(c->tech_pvt, SUBSTATE_OFFHOOK);
 			} else {
 				ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 			}
@@ -5805,7 +5765,8 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 
 		sub = c->tech_pvt;
 		l->activesub = sub;
-		setsubstate_dialing(sub, req->data.enbloccallmessage.calledParty);
+		ast_copy_string(sub->exten, req->data.enbloccallmessage.calledParty, sizeof(sub->exten));
+		setsubstate(sub, SUBSTATE_DIALING);
 	}
 	
 	return 1;
@@ -5870,7 +5831,8 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		} else {
 			sub = c->tech_pvt;
 			l->activesub = sub;
-			setsubstate_dialing(sub, l->lastnumberdialed);
+			ast_copy_string(sub->exten, l->lastnumberdialed, sizeof(sub->exten));
+			setsubstate(sub, SUBSTATE_DIALING);
 		}
 		break;
 	case SOFTKEY_NEWCALL:  /* Actually the DIAL softkey */
@@ -5884,13 +5846,13 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		if (!c) {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
-			setsubstate_offhook(sub);
+			setsubstate(sub, SUBSTATE_OFFHOOK);
 		}
 		break;
 	case SOFTKEY_HOLD:
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: Hold(%d/%d)\n", instance, callreference);
-		setsubstate_hold(sub);	
+		setsubstate(sub, SUBSTATE_HOLD);	
 		break;
 	case SOFTKEY_TRNSFER:
 		if (skinnydebug)
@@ -6010,7 +5972,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: Resume(%d/%d)\n", instance, callreference);
 
-		setsubstate_connected(sub);
+		setsubstate(sub, SUBSTATE_CONNECTED);
 		break;
 	case SOFTKEY_ANSWER:
 		if (skinnydebug)
@@ -6024,7 +5986,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 
 		if (sub && sub->calldirection == SKINNY_INCOMING) {
-			setsubstate_connected(sub);
+			setsubstate(sub, SUBSTATE_CONNECTED);
 		}
 		break;
 	case SOFTKEY_INFO:
