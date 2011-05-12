@@ -97,60 +97,17 @@ static const char app[] = "Pickup";
 static const char app2[] = "PickupChan";
 /*! \todo This application should return a result code, like PICKUPRESULT */
 
-/* Perform actual pickup between two channels */
-static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
-{
-	int res = 0;
-	struct ast_party_connected_line connected_caller;
-	struct ast_channel *chans[2] = { chan, target };
-
-	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
-	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
-
-	ast_party_connected_line_init(&connected_caller);
-	ast_party_connected_line_copy(&connected_caller, &target->connected);
-	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
-		ast_channel_update_connected_line(chan, &connected_caller, NULL);
-	}
-	ast_party_connected_line_free(&connected_caller);
-
-	ast_channel_lock(chan);
-	ast_connected_line_copy_from_caller(&connected_caller, &chan->caller);
-	ast_channel_unlock(chan);
-	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);
-	ast_party_connected_line_free(&connected_caller);
-
-	if ((res = ast_answer(chan))) {
-		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		return -1;
-	}
-
-	if ((res = ast_queue_control(chan, AST_CONTROL_ANSWER))) {
-		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
-		return -1;
-	}
-
-	if ((res = ast_channel_masquerade(target, chan))) {
-		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
-		return -1;
-	}
-
-	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
-		"Channel: %s\r\nTargetChannel: %s\r\n", chan->name, target->name);
-
-	return res;
-}
-
 /* Helper function that determines whether a channel is capable of being picked up */
 static int can_pickup(struct ast_channel *chan)
 {
-	if (!chan->pbx && (chan->_state == AST_STATE_RINGING || chan->_state == AST_STATE_RING || chan->_state == AST_STATE_DOWN))
+	if (!chan->pbx && !chan->masq &&
+		!ast_test_flag(chan, AST_FLAG_ZOMBIE) &&
+		(chan->_state == AST_STATE_RINGING ||
+		 chan->_state == AST_STATE_RING ||
+		 chan->_state == AST_STATE_DOWN)) {
 		return 1;
-	else
-		return 0;
+	}
+	return 0;
 }
 
 struct pickup_by_name_args {
@@ -213,9 +170,8 @@ static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 
 	/* Just check that we are not picking up the SAME as target */
 	if (chan != target) {
-		res = pickup_do(chan, target);
+		res = ast_do_pickup(chan, target);
 	}
-
 	ast_channel_unlock(target);
 	target = ast_channel_unref(target);
 
@@ -236,6 +192,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 	while ((target = ast_channel_iterator_next(iter))) {
 		ast_channel_lock(target);
 		if ((chan != target) && can_pickup(target)) {
+			ast_log(LOG_NOTICE, "%s pickup by %s\n", target->name, chan->name);
 			break;
 		}
 		ast_channel_unlock(target);
@@ -245,7 +202,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 	ast_channel_iterator_destroy(iter);
 
 	if (target) {
-		res = pickup_do(chan, target);
+		res = ast_do_pickup(chan, target);
 		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
 	}
@@ -277,12 +234,54 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 	struct ast_channel *target;
 	int res = -1;
 
-	if ((target = ast_channel_callback(find_by_mark, NULL, (char *) mark, 0))) {
-		ast_channel_lock(target);
-		res = pickup_do(chan, target);
-		ast_channel_unlock(target);
-		target = ast_channel_unref(target);
+	if (!(target = ast_channel_callback(find_by_mark, NULL, (char *) mark, 0))) {
+		return res;
 	}
+
+	ast_channel_lock(target);
+	if (can_pickup(target)) {
+		res = ast_do_pickup(chan, target);
+	} else {
+		ast_log(LOG_WARNING, "target has gone, or not ringing anymore for %s\n", chan->name);
+	}
+	ast_channel_unlock(target);
+	target = ast_channel_unref(target);
+
+	return res;
+}
+
+static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
+{
+	struct ast_channel *chan = obj;
+	struct ast_channel *c = data;
+	int i;
+
+	ast_channel_lock(chan);
+	i = (c != chan) && (c->pickupgroup & chan->callgroup) &&
+		can_pickup(chan);
+
+	ast_channel_unlock(chan);
+	return i ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static int pickup_by_group(struct ast_channel *chan)
+{
+	struct ast_channel *target;
+	int res = -1;
+
+	if (!(target = ast_channel_callback(find_channel_by_group, NULL, chan, 0))) {
+		return res;
+	}
+
+	ast_log(LOG_NOTICE, "%s, pickup attempt by %s\n", target->name, chan->name);
+	ast_channel_lock(target);
+	if (can_pickup(target)) {
+		res = ast_do_pickup(chan, target);
+	} else {
+		ast_log(LOG_WARNING, "target has gone, or not ringing anymore for %s\n", chan->name);
+	}
+	ast_channel_unlock(target);
+	target = ast_channel_unref(target);
 
 	return res;
 }
@@ -295,10 +294,10 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 	char *exten = NULL, *context = NULL;
 
 	if (ast_strlen_zero(data)) {
-		res = ast_pickup_call(chan);
+		res = pickup_by_group(chan);
 		return res;
 	}
-	
+
 	/* Parse extension (and context if there) */
 	while (!ast_strlen_zero(tmp) && (exten = strsep(&tmp, "&"))) {
 		if ((context = strchr(exten, '@')))
@@ -341,7 +340,11 @@ static int pickup_by_part(struct ast_channel *chan, const char *part)
 
 	if ((target = ast_channel_callback(find_by_part, NULL, (char *) part, 0))) {
 		ast_channel_lock(target);
-		res = pickup_do(chan, target);
+		if (can_pickup(target)) {
+			res = ast_do_pickup(chan, target);
+		} else {
+			ast_log(LOG_WARNING, "target has gone, or not ringing anymore for %s\n", chan->name);
+		}
 		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
 	}

@@ -5670,15 +5670,17 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *c = data;
 	struct ast_channel *chan = obj;
+	int i;
 
-	int i = !chan->pbx &&
+	i = !chan->pbx &&
 		/* Accessing 'chan' here is safe without locking, because there is no way for
-		   the channel do disappear from under us at this point.  pickupgroup *could*
+		   the channel to disappear from under us at this point.  pickupgroup *could*
 		   change while we're here, but that isn't a problem. */
 		(c != chan) &&
-		(chan->pickupgroup & c->callgroup) &&
+		(c->pickupgroup & chan->callgroup) &&
 		((chan->_state == AST_STATE_RINGING) || (chan->_state == AST_STATE_RING)) &&
-		!c->masq;
+		!chan->masq &&
+		!ast_test_flag(chan, AST_FLAG_ZOMBIE);
 
 	return i ? CMP_MATCH | CMP_STOP : 0;
 }
@@ -5690,68 +5692,106 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
  * Walk list of channels, checking it is not itself, channel is pbx one,
  * check that the callgroup for both channels are the same and the channel is ringing.
  * Answer calling channel, flag channel as answered on queue, masq channels together.
-*/
+ */
 int ast_pickup_call(struct ast_channel *chan)
 {
-	struct ast_channel *cur, *chans[2] = { chan, };
-	struct ast_party_connected_line connected_caller;
-	int res;
-	const char *chan_name;
-	const char *cur_name;
+	struct ast_channel *target;
+	int res = -1;
+	ast_debug(1, "pickup attempt by %s\n", chan->name);
 
-	if (!(cur = ast_channel_callback(find_channel_by_group, NULL, chan, 0))) {
-		ast_debug(1, "No call pickup possible...\n");
-		if (!ast_strlen_zero(pickupfailsound)) {
-			ast_stream_and_wait(chan, pickupfailsound, "");
+	/* If 2 callers try to pickup the same call, allow 1 to win, and other to fail early.*/
+	if ((target = ast_channel_callback(find_channel_by_group, NULL, chan, 0))) {
+		ast_channel_lock(target);
+
+		/* We now have the target locked, but is the target still available to pickup */
+		if (!target->masq && !ast_test_flag(target, AST_FLAG_ZOMBIE) &&
+			((target->_state == AST_STATE_RINGING) || (target->_state == AST_STATE_RING))) {
+
+			ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", target->name, chan->name);
+
+			/* A 2nd pickup attempt will bail out when we unlock the target */
+			if (!(res = ast_do_pickup(chan, target))) {
+				ast_channel_unlock(target);
+				if (!(res = ast_do_masquerade(target))) {
+					if (!ast_strlen_zero(pickupsound)) {
+						ast_channel_lock(target);
+						ast_stream_and_wait(target, pickupsound, "");
+						ast_channel_unlock(target);
+					}
+				} else {
+					ast_log(LOG_WARNING, "Failed to perform masquerade\n");
+				}
+			} else {
+				ast_log(LOG_WARNING, "pickup %s failed by %s\n", target->name, chan->name);
+				ast_channel_unlock(target);
+			}
+		} else {
+			ast_channel_unlock(target);
 		}
-		return -1;
+		target = ast_channel_unref(target);
 	}
 
-	chans[1] = cur;
+	if (res < 0) {
+		ast_debug(1, "No call pickup possible... for %s\n", chan->name);
+		if (!ast_strlen_zero(pickupfailsound)) {
+			ast_answer(chan);
+			ast_stream_and_wait(chan, pickupfailsound, "");
+		}
+	}
 
-	ast_channel_lock_both(cur, chan);
+	return res;
+}
 
-	cur_name = ast_strdupa(cur->name);
-	chan_name = ast_strdupa(chan->name);
+/*!
+ * \brief Pickup a call target, Common Code.
+ * \param chan channel that initiated pickup.
+ * \param target channel.
+ *
+ * Answer calling channel, flag channel as answered on queue, masq channels together.
+ */
+int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
+{
+	struct ast_party_connected_line connected_caller;
+	struct ast_channel *chans[2] = { chan, target };
 
-	ast_debug(1, "Call pickup on chan '%s' by '%s'\n", cur_name, chan_name);
+	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
+	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
 
-	connected_caller = cur->connected;
+	ast_party_connected_line_init(&connected_caller);
+	ast_party_connected_line_copy(&connected_caller, &target->connected);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
 		ast_channel_update_connected_line(chan, &connected_caller, NULL);
 	}
+	ast_party_connected_line_free(&connected_caller);
 
-	ast_party_connected_line_collect_caller(&connected_caller, &chan->caller);
+	ast_channel_lock(chan);
+	ast_connected_line_copy_from_caller(&connected_caller, &chan->caller);
+	ast_channel_unlock(chan);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);
-
-	ast_channel_unlock(cur);
-	ast_channel_unlock(chan);
+	ast_party_connected_line_free(&connected_caller);
 
 	if (ast_answer(chan)) {
-		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan_name);
+		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+		return -1;
 	}
 
 	if (ast_queue_control(chan, AST_CONTROL_ANSWER)) {
-		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan_name);
+		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+		return -1;
 	}
 
-	if ((res = ast_channel_masquerade(cur, chan))) {
-		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan_name, cur_name);
-	}
-
-	if (!ast_strlen_zero(pickupsound)) {
-		ast_stream_and_wait(cur, pickupsound, "");
+	if (ast_channel_masquerade(target, chan)) {
+		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
+		return -1;
 	}
 
 	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
-		"Channel: %s\r\nTargetChannel: %s\r\n", chan->name, cur->name);
+		"Channel: %s\r\nTargetChannel: %s\r\n", chan->name, target->name);
 
-	cur = ast_channel_unref(cur);
-
-	return res;
+	return 0;
 }
 
 static char *app_bridge = "Bridge";
