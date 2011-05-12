@@ -1280,6 +1280,10 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 static void check_pendings(struct sip_pvt *p);
 static void *sip_park_thread(void *stuff);
 static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req, int seqno, char *parkexten);
+
+static void *sip_pickup_thread(void *stuff);
+static int sip_pickup(struct ast_channel *chan);
+
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static int is_method_allowed(unsigned int *allowed_methods, enum sipmethod method);
 
@@ -20951,6 +20955,45 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	return 0;
 }
 
+
+/*! \brief SIP pickup support function
+ *	Starts in a new thread, then pickup the call
+ */
+static void *sip_pickup_thread(void *stuff)
+{
+	struct ast_channel *chan;
+	chan = stuff;
+
+	if (ast_pickup_call(chan)) {
+		chan->hangupcause = AST_CAUSE_CALL_REJECTED;
+	} else {
+		chan->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+	}
+	ast_hangup(chan);
+	ast_channel_unref(chan);
+	chan = NULL;
+	return NULL;
+}
+
+/*! \brief Pickup a call using the subsystem in features.c
+ *	This is executed in a separate thread
+ */
+static int sip_pickup(struct ast_channel *chan)
+{
+	pthread_t threadid;
+
+	ast_channel_ref(chan);
+
+	if (ast_pthread_create_detached_background(&threadid, NULL, sip_pickup_thread, chan)) {
+		ast_debug(1, "Unable to start Group pickup thread on channel %s\n", chan->name);
+		ast_channel_unref(chan);
+		return -1;
+	}
+	ast_debug(1, "Started Group pickup thread on channel %s\n", chan->name);
+	return 0;
+}
+
+
 /*! \brief Turn off generator data
 	XXX Does this function belong in the SIP channel?
 */
@@ -22361,29 +22404,29 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 					/* Unlock locks so ast_hangup can do its magic */
 					ast_channel_unlock(c);
+					*nounlock = 1;
 					sip_pvt_unlock(p);
 					ast_hangup(c);
 					sip_pvt_lock(p);
 					c = NULL;
 				}
 			} else {	/* Pickup call in call group */
-				ast_channel_unlock(c);
-				*nounlock = 1;
-				if (ast_pickup_call(c)) {
-					ast_log(LOG_NOTICE, "Nothing to pick up for %s\n", p->callid);
-					transmit_response_reliable(p, "503 Unavailable", req);
+				if (sip_pickup(c)) {
+					ast_log(LOG_WARNING, "Failed to start Group pickup by %s\n", c->name);
+					transmit_response_reliable(p, "480 Temporarily Unavailable", req);
 					sip_alreadygone(p);
+					c->hangupcause = AST_CAUSE_FAILURE;
+
 					/* Unlock locks so ast_hangup can do its magic */
+					ast_channel_unlock(c);
+					*nounlock = 1;
+
+					p->invitestate = INV_COMPLETED;
 					sip_pvt_unlock(p);
-					c->hangupcause = AST_CAUSE_CALL_REJECTED;
-				} else {
-					sip_pvt_unlock(p);
-					c->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+					ast_hangup(c);
+					sip_pvt_lock(p);
+					c = NULL;
 				}
-				p->invitestate = INV_COMPLETED;
-				ast_hangup(c);
-				sip_pvt_lock(p);
-				c = NULL;
 			}
 			break;
 		case AST_STATE_RING:
