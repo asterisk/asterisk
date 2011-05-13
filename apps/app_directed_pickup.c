@@ -54,39 +54,45 @@ static const char *descrip =
 "10@PICKUPMARK, this application tries to find a channel which has defined a channel variable with the same content\n"
 "as \"extension\".";
 
-/* Perform actual pickup between two channels */
+/*!
+ * \internal
+ * \brief Perform actual pickup between two channels.
+ * \note Must remain in sync with same function in res/res_features.c.
+ */
 static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 {
-	int res = 0;
-
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
 
-	if ((res = ast_answer(chan))) {
+	if (ast_answer(chan)) {
 		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
 		return -1;
 	}
 
-	if ((res = ast_queue_control(chan, AST_CONTROL_ANSWER))) {
+	if (ast_queue_control(chan, AST_CONTROL_ANSWER)) {
 		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
 		return -1;
 	}
 
-	if ((res = ast_channel_masquerade(target, chan))) {
+	if (ast_channel_masquerade(target, chan)) {
 		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
 		return -1;
 	}
 
-	return res;
+	return 0;
 }
 
 /* Helper function that determines whether a channel is capable of being picked up */
 static int can_pickup(struct ast_channel *chan)
 {
-	if (!chan->pbx && (chan->_state == AST_STATE_RINGING || chan->_state == AST_STATE_RING || chan->_state == AST_STATE_DOWN))
+	if (!chan->pbx && !chan->masq &&
+		!ast_test_flag(chan, AST_FLAG_ZOMBIE) &&
+		(chan->_state == AST_STATE_RINGING ||
+		 chan->_state == AST_STATE_RING ||
+		 chan->_state == AST_STATE_DOWN)) {
 		return 1;
-	else
-		return 0;
+	}
+	return 0;
 }
 
 /* Attempt to pick up specified extension with context */

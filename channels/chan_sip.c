@@ -15867,6 +15867,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 					/* Unlock locks so ast_hangup can do its magic */
 					ast_mutex_unlock(&c->lock);
+					*nounlock = 1;
 					ast_mutex_unlock(&p->lock);
 					ast_hangup(c);
 					ast_mutex_lock(&p->lock);
@@ -15875,7 +15876,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			} else {	/* Pickup call in call group */
 				ast_channel_unlock(c);
 				*nounlock = 1;
+				ast_mutex_unlock(&p->lock);
 				if (ast_pickup_call(c)) {
+					ast_mutex_lock(&p->lock);
 					ast_log(LOG_NOTICE, "Nothing to pick up for %s\n", p->callid);
 					if (ast_test_flag(req, SIP_PKT_IGNORE))
 						transmit_response(p, "503 Unavailable", req);	/* OEJ - Right answer? */
@@ -15886,13 +15889,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					ast_mutex_unlock(&p->lock);
 					c->hangupcause = AST_CAUSE_CALL_REJECTED;
 				} else {
-					ast_mutex_unlock(&p->lock);
-					ast_setstate(c, AST_STATE_DOWN);
 					c->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 				}
-				p->invitestate = INV_COMPLETED;
 				ast_hangup(c);
 				ast_mutex_lock(&p->lock);
+				p->invitestate = INV_COMPLETED;
 				c = NULL;
 			}
 			break;

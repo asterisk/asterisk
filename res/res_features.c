@@ -3374,6 +3374,34 @@ static int manager_park(struct mansession *s, const struct message *m)
 }
 
 
+/*!
+ * \internal
+ * \brief Perform actual pickup between two channels.
+ * \note Must remain in sync with same function in apps/app_directed_pickup.c.
+ */
+static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
+{
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
+
+	if (ast_answer(chan)) {
+		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+		return -1;
+	}
+
+	if (ast_queue_control(chan, AST_CONTROL_ANSWER)) {
+		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+		return -1;
+	}
+
+	if (ast_channel_masquerade(target, chan)) {
+		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
+		return -1;
+	}
+
+	return 0;
+}
+
 int ast_pickup_call(struct ast_channel *chan)
 {
 	struct ast_channel *cur = NULL;
@@ -3385,27 +3413,21 @@ int ast_pickup_call(struct ast_channel *chan)
 			(chan->pickupgroup & cur->callgroup) &&
 			((cur->_state == AST_STATE_RINGING) ||
 			 (cur->_state == AST_STATE_RING)) &&
-			!cur->masq) {
+			!cur->masq &&
+			!ast_test_flag(cur, AST_FLAG_ZOMBIE)) {
 			 	break;
 		}
 		ast_channel_unlock(cur);
 	}
 	if (cur) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
-		res = ast_answer(chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
-		res = ast_channel_masquerade(cur, chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
+		res = pickup_do(chan, cur);
+		if (res) {
+			ast_log(LOG_WARNING, "pickup %s failed by %s\n", cur->name, chan->name);
+		}
 		ast_channel_unlock(cur);
 	} else	{
 		if (option_debug)
-			ast_log(LOG_DEBUG, "No call pickup possible...\n");
+			ast_log(LOG_DEBUG, "No call pickup possible... for %s\n", chan->name);
 	}
 	return res;
 }
