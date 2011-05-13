@@ -13186,7 +13186,8 @@ static void reg_source_db(struct sip_peer *peer)
 		AST_APP_ARG(contact);
 	);
 
-	if (peer->rt_fromcontact) {
+	/* If read-only RT backend, then refresh from local DB cache */
+	if (peer->rt_fromcontact && sip_cfg.peer_rtupdate) {
 		return;
 	}
 	if (ast_db_get("SIP/Registry", peer->name, data, sizeof(data))) {
@@ -13505,11 +13506,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	pvt->expiry = expire;
 	snprintf(data, sizeof(data), "%s:%d:%s:%s", ast_sockaddr_stringify(&peer->addr),
 		 expire, peer->username, peer->fullcontact);
-	/* Saving TCP connections is useless, we won't be able to reconnect
-		XXX WHY???? XXX
-		\todo Fix this immediately.
-	*/
-	if (!peer->rt_fromcontact && (peer->socket.type & SIP_TRANSPORT_UDP))
+	/* We might not immediately be able to reconnect via TCP, but try caching it anyhow */
+	if (!peer->rt_fromcontact || !sip_cfg.peer_rtupdate)
 		ast_db_put("SIP/Registry", peer->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name,  ast_sockaddr_stringify(&peer->addr));
 
@@ -26735,7 +26733,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
 		sip_cfg.allowsubscribe = TRUE;	/* No global ban any more */
 	}
-	if (peer->host_dynamic && !peer->is_realtime) {
+	/* If read-only RT backend, then refresh from local DB cache */
+	if (peer->host_dynamic && !sip_cfg.peer_rtupdate) {
 		reg_source_db(peer);
 	}
 
