@@ -1332,7 +1332,6 @@ struct skinny_addon {
 	char name[80];						\
 	char id[16];						\
 	char version_id[16];					\
-	char exten[AST_MAX_EXTENSION];				\
 	char vmexten[AST_MAX_EXTENSION];			\
 	int type;						\
 	int registered;						\
@@ -2844,6 +2843,10 @@ static void update_connectedline(struct skinny_subchannel *sub, const void *data
 		|| ast_strlen_zero(c->connected.id.number.str))
 		return;
 
+	if (skinnydebug) {
+		ast_verb(3,"Sub %d - Updating\n", sub->callid);
+	}
+	
 	transmit_callinfo(sub);
 	if (sub->owner->_state == AST_STATE_UP) {
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
@@ -3949,11 +3952,11 @@ static void *skinny_ss(void *data)
 
 	ast_verb(3, "Starting simple switch on '%s@%s'\n", l->name, d->name);
 
-	len = strlen(d->exten);
+	len = strlen(sub->exten);
 
 	while (len < AST_MAX_EXTENSION-1) {
 		res = 1;  /* Assume that we will get a digit */
-		while (strlen(d->exten) == len){
+		while (strlen(sub->exten) == len){
 			ast_safe_sleep(c, loop_pause);
 			timeout -= loop_pause;
 			if ( (timeout -= loop_pause) <= 0){
@@ -3962,20 +3965,24 @@ static void *skinny_ss(void *data)
 			}
 		res = 1;
 		}
+		
+		if (sub != l->activesub) {
+			break;
+		}
 
 		timeout = 0;
-		len = strlen(d->exten);
+		len = strlen(sub->exten);
 
-		if (!ast_ignore_pattern(c->context, d->exten)) {
+		if (!ast_ignore_pattern(c->context, sub->exten)) {
 			transmit_stop_tone(d, l->instance, sub->callid);
 		}
-		if (ast_exists_extension(c, c->context, d->exten, 1, l->cid_num)) {
-			if (!res || !ast_matchmore_extension(c, c->context, d->exten, 1, l->cid_num)) {
+		if (ast_exists_extension(c, c->context, sub->exten, 1, l->cid_num)) {
+			if (!res || !ast_matchmore_extension(c, c->context, sub->exten, 1, l->cid_num)) {
 				if (l->getforward) {
 					/* Record this as the forwarding extension */
-					set_callforwards(l, d->exten, l->getforward);
+					set_callforwards(l, sub->exten, l->getforward);
 					ast_verb(3, "Setting call forward (%d) to '%s' on channel %s\n",
-							l->cfwdtype, d->exten, c->name);
+							l->cfwdtype, sub->exten, c->name);
 					transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 					transmit_lamp_indication(d, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
 					transmit_displaynotify(d, "CFwd enabled", 10);
@@ -3983,7 +3990,6 @@ static void *skinny_ss(void *data)
 					ast_safe_sleep(c, 500);
 					ast_indicate(c, -1);
 					ast_safe_sleep(c, 1000);
-					memset(d->exten, 0, sizeof(d->exten));
 					len = 0;
 					l->getforward = 0;
 					if (sub->owner && sub->owner->_state != AST_STATE_UP) {
@@ -3992,7 +3998,7 @@ static void *skinny_ss(void *data)
 					}
 					return NULL;
 				} else {
-					ast_copy_string(sub->exten, d->exten, sizeof(sub->exten));
+					ast_copy_string(sub->exten, sub->exten, sizeof(sub->exten));
 					setsubstate(c->tech_pvt, SUBSTATE_DIALING);
 					return NULL;
 				}
@@ -4002,8 +4008,7 @@ static void *skinny_ss(void *data)
 				timeout = matchdigittimeout;
 			}
 		} else if (res == 0) {
-			ast_debug(1, "Not enough digits (%s) (and no ambiguous match)...\n", d->exten);
-			memset(d->exten, 0, sizeof(d->exten));
+			ast_debug(1, "Not enough digits (%s) (and no ambiguous match)...\n", sub->exten);
 			if (d->hookstate == SKINNY_OFFHOOK) {
 				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
 			}
@@ -4012,13 +4017,12 @@ static void *skinny_ss(void *data)
 				ast_hangup(c);
 			}
 			return NULL;
-		} else if (!ast_canmatch_extension(c, c->context, d->exten, 1,
+		} else if (!ast_canmatch_extension(c, c->context, sub->exten, 1,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))
-			&& ((d->exten[0] != '*') || (!ast_strlen_zero(d->exten) > 2))) {
-			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", d->exten,
+			&& ((sub->exten[0] != '*') || (!ast_strlen_zero(sub->exten) > 2))) {
+			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", sub->exten,
 				S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<Unknown Caller>"),
 				c->context);
-			memset(d->exten, 0, sizeof(d->exten));
 			if (d->hookstate == SKINNY_OFFHOOK) {
 				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
 				/* hang out for 3 seconds to let congestion play */
@@ -4029,13 +4033,12 @@ static void *skinny_ss(void *data)
 		if (!timeout) {
 			timeout = gendigittimeout;
 		}
-		if (len && !ast_ignore_pattern(c->context, d->exten)) {
+		if (len && !ast_ignore_pattern(c->context, sub->exten)) {
 			ast_indicate(c, -1);
 		}
 	}
 	if (c)
 		ast_hangup(c);
-	memset(d->exten, 0, sizeof(d->exten));
 	return NULL;
 }
 
@@ -4660,6 +4663,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_clear_display_message(d, l->instance, sub->callid);
 		transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_OFFHOOK);
+		transmit_displaypromptstatus(d, "Enter number", 0, l->instance, sub->callid);
 
 		sub->substate = SUBSTATE_OFFHOOK;
 	
@@ -4718,10 +4722,10 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_stop_tone(d, l->instance, sub->callid);
 		transmit_clear_display_message(d, l->instance, sub->callid);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGOUT);
+		transmit_displaypromptstatus(d, "Dialing", 0, l->instance, sub->callid);
 
 		ast_copy_string(c->exten, sub->exten, sizeof(c->exten));
 		ast_copy_string(l->lastnumberdialed, sub->exten, sizeof(l->lastnumberdialed));
-		memset(d->exten, 0, sizeof(d->exten));
 
 		sub->substate = SUBSTATE_DIALING;
 	
@@ -6123,8 +6127,8 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 				ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
 			}
 
-			d->exten[strlen(d->exten)] = dgt;
-			d->exten[strlen(d->exten)+1] = '\0';
+			sub->exten[strlen(sub->exten)] = dgt;
+			sub->exten[strlen(sub->exten)+1] = '\0';
 		} else
 			res = handle_keypad_button_message(req, s);
 		}
