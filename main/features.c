@@ -3480,6 +3480,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_cdr *new_chan_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
 	struct ast_cdr *new_peer_cdr = NULL; /* the proper chan cdr, if there are forked cdrs */
 	struct ast_silence_generator *silgen = NULL;
+	const char *h_context;
 
 	if (chan && peer) {
 		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
@@ -3876,12 +3877,23 @@ before_you_go:
 	 * if it were, then chan belongs to a different thread now, and might have been hung up long
      * ago.
 	 */
-	if (!ast_test_flag(&(config->features_caller),AST_FEATURE_NO_H_EXTEN)
-		&& ast_exists_extension(chan, chan->context, "h", 1,
+	if (ast_test_flag(&config->features_caller, AST_FEATURE_NO_H_EXTEN)) {
+		h_context = NULL;
+	} else if (ast_exists_extension(chan, chan->context, "h", 1,
+		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		h_context = chan->context;
+	} else if (!ast_strlen_zero(chan->macrocontext)
+		&& ast_exists_extension(chan, chan->macrocontext, "h", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+		h_context = chan->macrocontext;
+	} else {
+		h_context = NULL;
+	}
+	if (h_context) {
 		struct ast_cdr *swapper = NULL;
 		char savelastapp[AST_MAX_EXTENSION];
 		char savelastdata[AST_MAX_EXTENSION];
+		char save_context[AST_MAX_CONTEXT];
 		char save_exten[AST_MAX_EXTENSION];
 		int  save_prio;
 		int  found = 0;	/* set if we find at least one match */
@@ -3902,8 +3914,12 @@ before_you_go:
 			ast_copy_string(savelastdata, bridge_cdr->lastdata, sizeof(bridge_cdr->lastdata));
 			chan->cdr = bridge_cdr;
 		}
+		ast_copy_string(save_context, chan->context, sizeof(save_context));
 		ast_copy_string(save_exten, chan->exten, sizeof(save_exten));
 		save_prio = chan->priority;
+		if (h_context != chan->context) {
+			ast_copy_string(chan->context, h_context, sizeof(chan->context));
+		}
 		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
 		chan->priority = 1;
 		ast_channel_unlock(chan);
@@ -3922,6 +3938,7 @@ before_you_go:
 
 		/* swap it back */
 		ast_channel_lock(chan);
+		ast_copy_string(chan->context, save_context, sizeof(chan->context));
 		ast_copy_string(chan->exten, save_exten, sizeof(chan->exten));
 		chan->priority = save_prio;
 		if (bridge_cdr) {
