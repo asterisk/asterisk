@@ -3882,7 +3882,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			/* Clear the exception flag */
 			ast_clear_flag(chan, AST_FLAG_EXCEPTION);
-		} else if (chan->tech->read)
+		} else if (chan->tech && chan->tech->read)
 			f = chan->tech->read(chan);
 		else
 			ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
