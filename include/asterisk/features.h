@@ -120,6 +120,14 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct as
 /*! \brief Pickup a call */
 int ast_pickup_call(struct ast_channel *chan);
 
+/*!
+ * \brief Pickup a call target
+ * \note This function assumes that target is locked
+ * \retval 0 on success.
+ * \retval -1 on failure.
+ */
+int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target);
+
 /*! \brief register new feature into feature_set 
    \param feature an ast_call_feature object which contains a keysequence
    and a callback function which is called when this keysequence is pressed

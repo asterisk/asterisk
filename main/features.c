@@ -5044,17 +5044,19 @@ static int manager_park(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int find_channel_by_group(struct ast_channel *c, void *data) {
+static int find_channel_by_group(struct ast_channel *c, void *data)
+{
 	struct ast_channel *chan = data;
 
 	return !c->pbx &&
 		/* Accessing 'chan' here is safe without locking, because there is no way for
-		   the channel do disappear from under us at this point.  pickupgroup *could*
+		   the channel to disappear from under us at this point.  pickupgroup *could*
 		   change while we're here, but that isn't a problem. */
 		(c != chan) &&
 		(chan->pickupgroup & c->callgroup) &&
 		((c->_state == AST_STATE_RINGING) || (c->_state == AST_STATE_RING)) &&
-		!c->masq;
+		!c->masq &&
+		!ast_test_flag(c, AST_FLAG_ZOMBIE);
 }
 
 /*!
@@ -5064,35 +5066,62 @@ static int find_channel_by_group(struct ast_channel *c, void *data) {
  * Walk list of channels, checking it is not itself, channel is pbx one,
  * check that the callgroup for both channels are the same and the channel is ringing.
  * Answer calling channel, flag channel as answered on queue, masq channels together.
-*/
+ */
 int ast_pickup_call(struct ast_channel *chan)
 {
-	struct ast_channel *cur = ast_channel_search_locked(find_channel_by_group, chan);
+	struct ast_channel *target = ast_channel_search_locked(find_channel_by_group, chan);
+	int res = -1;
+	ast_debug(1, "pickup attempt by %s\n", chan->name);
 
-	if (cur) {
-		int res = -1;
-		ast_debug(1, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
-		res = ast_answer(chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
-		res = ast_channel_masquerade(cur, chan);
-		if (res)
-			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
-		if (!ast_strlen_zero(pickupsound)) {
-			ast_stream_and_wait(cur, pickupsound, "");
+	if (target) {
+		if (!(res = ast_do_pickup(chan, target))) {
+			if (!ast_strlen_zero(pickupsound)) {
+				ast_stream_and_wait(target, pickupsound, "");
+			}
+		} else {
+			ast_log(LOG_WARNING, "pickup %s failed by %s\n", target->name, chan->name);
 		}
-		ast_channel_unlock(cur);
-		return res;
-	} else	{
-		ast_debug(1, "No call pickup possible...\n");
+		ast_channel_unlock(target);
+	}
+
+	if (res < 0) {
+		ast_debug(1, "No call pickup possible... for %s\n", chan->name);
 		if (!ast_strlen_zero(pickupfailsound)) {
+			ast_answer(chan);
 			ast_stream_and_wait(chan, pickupfailsound, "");
 		}
 	}
-	return -1;
+
+	return res;
+}
+
+/*!
+ * \brief Pickup a call target, Common Code.
+ * \param chan channel that initiated pickup.
+ * \param target channel.
+ *
+ * Answer calling channel, flag channel as answered on queue, masq channels together.
+ */
+int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
+{
+	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
+
+	if (ast_answer(chan)) {
+		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+		return -1;
+	}
+
+	if (ast_queue_control(chan, AST_CONTROL_ANSWER)) {
+		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+		return -1;
+	}
+
+	if (ast_channel_masquerade(target, chan)) {
+		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
+		return -1;
+	}
+
+	return 0;
 }
 
 static char *app_bridge = "Bridge";
