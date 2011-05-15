@@ -1409,6 +1409,8 @@ static int skinny_reload(void);
 
 static void setsubstate(struct skinny_subchannel *sub, int state);
 static void dumpsub(struct skinny_subchannel *sub, int forcehangup);
+static void activatesub(struct skinny_subchannel *sub, int state);
+static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
 
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -3998,8 +4000,7 @@ static void *skinny_ss(void *data)
 					}
 					return NULL;
 				} else {
-					ast_copy_string(sub->exten, sub->exten, sizeof(sub->exten));
-					setsubstate(c->tech_pvt, SUBSTATE_DIALING);
+					dialandactivatesub(sub, sub->exten);
 					return NULL;
 				}
 			} else {
@@ -4636,10 +4637,17 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		return;
 	}
 	
-	if ((state == SUBSTATE_RINGIN) && (AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list))) {
+	if ((state == SUBSTATE_RINGIN) && ((d->hookstate == SKINNY_OFFHOOK) || (AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list)))) {
 		actualstate = SUBSTATE_CALLWAIT;
 	}
 	
+	if ((d->hookstate == SKINNY_ONHOOK) && ((actualstate == SUBSTATE_OFFHOOK) || (actualstate == SUBSTATE_DIALING)
+		|| (actualstate == SUBSTATE_RINGOUT) || (actualstate == SUBSTATE_CONNECTED) || (actualstate == SUBSTATE_BUSY)
+		|| (actualstate == SUBSTATE_CONGESTION) || (actualstate == SUBSTATE_PROGRESS))) {
+			d->hookstate = SKINNY_OFFHOOK;
+			transmit_speaker_mode(d, SKINNY_SPEAKERON);
+	}
+
 	if (skinnydebug) {
 		ast_verb(3, "Sub %d - change state from %s to %s\n", sub->callid, substate2str(sub->substate), substate2str(actualstate));
 	}
@@ -4654,10 +4662,6 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 	case SUBSTATE_OFFHOOK:
 		ast_verb(1, "Call-id: %d\n", sub->callid);
 		l->activesub = sub;
-		if (d->hookstate == SKINNY_ONHOOK) {
-			d->hookstate = SKINNY_OFFHOOK;
-			transmit_speaker_mode(d, SKINNY_SPEAKERON);
-		}
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 		transmit_activatecallplane(d, l);
 		transmit_clear_display_message(d, l->instance, sub->callid);
@@ -4687,8 +4691,6 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			transmit_callstate(d, l->instance, sub->callid, SKINNY_ONHOOK);
 			transmit_clearpromptmessage(d, l->instance, sub->callid);
 			transmit_ringer_mode(d, SKINNY_RING_OFF);
-			d->hookstate = SKINNY_ONHOOK;
-			transmit_speaker_mode(d, SKINNY_SPEAKEROFF); 
 			transmit_definetimedate(d); 
 			transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
 		} else {
@@ -4756,6 +4758,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_callinfo(sub);
 		transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 		transmit_ringer_mode(d, SKINNY_RING_INSIDE);
+		transmit_activatecallplane(d, l);
 
 		if (d->hookstate == SKINNY_ONHOOK) {
 			l->activesub = sub;
@@ -4768,6 +4771,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		sub->substate = SUBSTATE_RINGIN;
 		break;
 	case SUBSTATE_CALLWAIT:
+		transmit_callstate(d, l->instance, sub->callid, SKINNY_RINGIN);
 		transmit_callstate(d, l->instance, sub->callid, SKINNY_CALLWAIT);
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_RINGIN);
 		transmit_displaypromptstatus(d, "Callwaiting", 0, l->instance, sub->callid);
@@ -4873,6 +4877,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 {
 	struct skinny_line *l = sub->line;
+	struct skinny_device *d = l->device;
 	struct skinny_subchannel *activatesub = NULL;
 	struct skinny_subchannel *tsub;
 
@@ -4886,6 +4891,8 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 	}
 	
 	if (sub == l->activesub) {
+		d->hookstate = SKINNY_ONHOOK;
+		transmit_speaker_mode(d, SKINNY_SPEAKEROFF); 
 		if (sub->related) {
 			activatesub = sub->related;
 			setsubstate(sub, SUBSTATE_ONHOOK);
@@ -4921,16 +4928,49 @@ static void dumpsub(struct skinny_subchannel *sub, int forcehangup)
 	}
 }
 
+static void activatesub(struct skinny_subchannel *sub, int state)
+{
+	struct skinny_line *l = sub->line;
+
+	if (skinnydebug) {
+		ast_verb(3, "Sub %d - Activating, and deactivating sub %d\n", sub->callid, l->activesub?l->activesub->callid:0);
+	}
+	
+	ast_channel_lock(sub->owner);
+
+	if (sub == l->activesub) {
+		setsubstate(sub, state);
+	} else {
+		if (l->activesub) {
+			if (l->activesub->substate == SUBSTATE_RINGIN) {
+				setsubstate(l->activesub, SUBSTATE_CALLWAIT);
+			} else if (l->activesub->substate != SUBSTATE_HOLD) {
+				setsubstate(l->activesub, SUBSTATE_ONHOOK);
+			}
+		}
+		l->activesub = sub;
+		setsubstate(sub, state);
+	}
+
+	ast_channel_unlock(sub->owner);
+}
+
+static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
+{
+	ast_copy_string(sub->exten, exten, sizeof(sub->exten));
+	activatesub(sub, SUBSTATE_DIALING);
+}
+	
 static int handle_hold_button(struct skinny_subchannel *sub)
 {
 	if (!sub)
 		return -1;
 	if (sub->related) {
 		setsubstate(sub, SUBSTATE_HOLD);
-		setsubstate(sub->related, SUBSTATE_CONNECTED);
+		activatesub(sub->related, SUBSTATE_CONNECTED);
 	} else {
 		if (sub->substate == SUBSTATE_HOLD) {
-			setsubstate(sub, SUBSTATE_CONNECTED);
+			activatesub(sub, SUBSTATE_CONNECTED);
 		} else {
 			setsubstate(sub, SUBSTATE_HOLD);
 		}
@@ -5152,9 +5192,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		} else {
 			sub = c->tech_pvt;
 			l = sub->line;
-			l->activesub = sub;
-			ast_copy_string(sub->exten, l->lastnumberdialed, sizeof(sub->exten));
-			setsubstate(sub, SUBSTATE_DIALING);
+			dialandactivatesub(sub, l->lastnumberdialed);
 		}
 		break;
 	case STIMULUS_SPEEDDIAL:
@@ -5176,11 +5214,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
 			sub = c->tech_pvt;
-			l = sub->line;
-			l->activesub = sub;
-
-			ast_copy_string(sub->exten, sd->exten, sizeof(sub->exten));
-			setsubstate(sub, SUBSTATE_DIALING);
+			dialandactivatesub(sub, sd->exten);
 		}
 	    }
 		break;
@@ -5220,10 +5254,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		
 		sub = c->tech_pvt;
 		if (sub->substate == SUBSTATE_UNSET || sub->substate == SUBSTATE_OFFHOOK){
-			l = sub->line;
-			l->activesub = sub;
-			ast_copy_string(sub->exten, l->vmexten, sizeof(sub->exten));
-			setsubstate(sub, SUBSTATE_DIALING);
+			dialandactivatesub(sub, l->vmexten);
 		}
 		break;
 	case STIMULUS_CALLPARK:
@@ -5373,36 +5404,34 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 static int handle_offhook_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d = s->device;
-	struct skinny_line *l;
-	struct skinny_subchannel *sub;
+	struct skinny_line *l = NULL;
+	struct skinny_subchannel *sub = NULL;
 	struct ast_channel *c;
 	int instance;
+	int reference;
 
-	/* if any line on a device is offhook, than the device must be offhook, 
-	   unless we have shared lines CCM seems that it would never get here, 
-	   but asterisk does, so we may need to do more work.  Ugly, we should 
-	   probably move hookstate from line to device, afterall, it's actually
-	    a device that changes hookstates */
+	instance = letohl(req->data.offhook.instance);
+	reference = letohl(req->data.offhook.reference);
 
+	SKINNY_DEVONLY(if (skinnydebug > 1) {
+		ast_verb(4, "Received OFFHOOK_MESSAGE from %s, instance=%d, callid=%d\n", d->name, instance, reference);
+	})
+	
 	if (d->hookstate == SKINNY_OFFHOOK) {
 		ast_verbose(VERBOSE_PREFIX_3 "Got offhook message when device (%s) already offhook\n", d->name);
 		return 0;
 	}
 
-	instance = letohl(req->data.offhook.instance);
-
-	if (instance) {
-		sub = find_subchannel_by_instance_reference(d, d->lastlineinstance, d->lastcallreference);
-		if (!sub) {
-			l = find_line_by_instance(d, d->lastlineinstance);
-			if (!l) {
-				return 0;
-			}
+	if (reference) {
+		sub = find_subchannel_by_instance_reference(d, instance, reference);
+		l = sub->line;
+	}
+	if (!sub) {
+		if (instance) {
+			l = find_line_by_instance(d, instance);
 		} else {
-			l = sub->line;
+			l = d->activeline;
 		}
-	} else {
-		l = d->activeline;
 		sub = l->activesub;
 	}
 
@@ -5768,9 +5797,7 @@ static int handle_enbloc_call_message(struct skinny_req *req, struct skinnysessi
 		d->hookstate = SKINNY_OFFHOOK;
 
 		sub = c->tech_pvt;
-		l->activesub = sub;
-		ast_copy_string(sub->exten, req->data.enbloccallmessage.calledParty, sizeof(sub->exten));
-		setsubstate(sub, SUBSTATE_DIALING);
+		dialandactivatesub(sub, req->data.enbloccallmessage.calledParty);
 	}
 	
 	return 1;
@@ -5834,9 +5861,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
 			sub = c->tech_pvt;
-			l->activesub = sub;
-			ast_copy_string(sub->exten, l->lastnumberdialed, sizeof(sub->exten));
-			setsubstate(sub, SUBSTATE_DIALING);
+			dialandactivatesub(sub, l->lastnumberdialed);
 		}
 		break;
 	case SOFTKEY_NEWCALL:  /* Actually the DIAL softkey */
@@ -5850,7 +5875,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		if (!c) {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		} else {
-			setsubstate(sub, SUBSTATE_OFFHOOK);
+			activatesub(sub, SUBSTATE_OFFHOOK);
 		}
 		break;
 	case SOFTKEY_HOLD:
@@ -5976,7 +6001,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: Resume(%d/%d)\n", instance, callreference);
 
-		setsubstate(sub, SUBSTATE_CONNECTED);
+		activatesub(sub, SUBSTATE_CONNECTED);
 		break;
 	case SOFTKEY_ANSWER:
 		if (skinnydebug)
@@ -5990,7 +6015,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 
 		if (sub && sub->calldirection == SKINNY_INCOMING) {
-			setsubstate(sub, SUBSTATE_CONNECTED);
+			activatesub(sub, SUBSTATE_CONNECTED);
 		}
 		break;
 	case SOFTKEY_INFO:
