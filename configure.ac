@@ -2018,18 +2018,17 @@ fi
 AST_EXT_TOOL_CHECK([GMIME], [gmime-config], [], [], [#include <gmime/gmime.h>], [gboolean q = g_mime_check_version(0,0,0);])
 if test "x${PBX_GMIME}" = "x0"; then
 	# Later versions of GMime use pkg-config
-	if test "x${PKGCONFIG}" = xNo; then :; else
-		GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.0 --cflags 2>/dev/null)
-		GMIME_LIB=$(${PKGCONFIG} gmime-2.0 --libs)
-		if test "x${GMIME_INCLUDE}${GMIME_LIB}" = "x"; then 
-			GMIME_INCLUDE=$(${PKGCONFIG} gmime-2.2 --cflags 2>/dev/null)
-			GMIME_LIB=$(${PKGCONFIG} gmime-2.2 --libs)
+	for ver in 2.0 2.2 2.4; do
+		if ! ${PKGCONFIG} --exists gmime-$ver; then
+			continue
 		fi
-		if test "x${GMIME_INCLUDE}${GMIME_LIB}" != "x"; then
-			PBX_GMIME=1
-			AC_DEFINE([HAVE_GMIME], 1, [Define if your system has the GMIME libraries.])
-		fi
-	fi
+		# If we got here, we have this version:
+		GMIME_INCLUDE=$(${PKGCONFIG} gmime-$ver --cflags 2>/dev/null)
+		GMIME_LIB=$(${PKGCONFIG} gmime-$ver --libs)
+		PBX_GMIME=1
+		AC_DEFINE([HAVE_GMIME], 1, [Define if your system has the GMIME libraries.])
+		break;
+	done
 fi
 
 AST_EXT_LIB_CHECK([HOARD], [hoard], [malloc], [])
