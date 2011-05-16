@@ -2226,7 +2226,18 @@ static long count_agents(const char * const caller, const int core_id_exception)
 static void kill_duplicate_offers(char *caller)
 {
 	unsigned long match_flags = MATCH_NO_REQUEST;
-	ao2_t_callback_data(cc_core_instances, OBJ_UNLINK | OBJ_NODATA, match_agent, caller, &match_flags, "Killing duplicate offers");
+	struct ao2_iterator *dups_iter;
+
+	/*
+	 * Must remove the ref that was in cc_core_instances outside of
+	 * the container lock to prevent deadlock.
+	 */
+	dups_iter = ao2_t_callback_data(cc_core_instances, OBJ_MULTIPLE | OBJ_UNLINK,
+		match_agent, caller, &match_flags, "Killing duplicate offers");
+	if (dups_iter) {
+		/* Now actually unref any duplicate offers by simply destroying the iterator. */
+		ao2_iterator_destroy(dups_iter);
+	}
 }
 
 static void check_callback_sanity(const struct ast_cc_agent_callbacks *callbacks)
