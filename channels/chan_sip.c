@@ -3213,7 +3213,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 	ast_debug(2, "Shutting down thread for %s server\n", tcptls_session->ssl ? "SSL" : "TCP");
 
 cleanup:
-	if (!tcptls_session->client && !authenticated) {
+	if (tcptls_session && !tcptls_session->client && !authenticated) {
 		ast_atomic_fetchadd_int(&unauth_sessions, -1);
 	}
 
