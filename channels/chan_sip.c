@@ -12605,6 +12605,11 @@ static int expire_register(const void *data)
 	if (peer->selfdestruct ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
 		unlink_peer_from_tables(peer);
+	} else if (peer->addr.sin_addr.s_addr) {
+		/* If we aren't self-destructing a temp_peer, we still need to unlink the peer
+		 * from the peers_by_ip table, otherwise we end up with multiple copies hanging
+		 * around each time a registration expires and the peer re-registers. */
+		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 	}
 
 	/* Only clear the addr after we check for destruction.  The addr must remain
