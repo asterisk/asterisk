@@ -1273,7 +1273,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 
 	/* If we know the expected busy tone length, check we are in the range */
 	if (res && (dsp->busy_cadence.pattern[0] > 0)) {
-		if (abs(avgtone - dsp->busy_cadence.pattern[0]) > (dsp->busy_cadence.pattern[0]*BUSY_PAT_PERCENT/100)) {
+		if (abs(avgtone - dsp->busy_cadence.pattern[0]) > MAX(dsp->busy_cadence.pattern[0]*BUSY_PAT_PERCENT/100, 20)) {
 #ifdef BUSYDETECT_DEBUG
 			ast_debug(5, "busy detector: avgtone of %d not close enough to desired %d\n",
 				avgtone, dsp->busy_cadence.pattern[0]);
@@ -1284,7 +1284,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 #ifndef BUSYDETECT_TONEONLY
 	/* If we know the expected busy tone silent-period length, check we are in the range */
 	if (res && (dsp->busy_cadence.pattern[1] > 0)) {
-		if (abs(avgsilence - dsp->busy_cadence.pattern[1]) > (dsp->busy_cadence.pattern[1] * BUSY_PAT_PERCENT / 100)) {
+		if (abs(avgsilence - dsp->busy_cadence.pattern[1]) > MAX(dsp->busy_cadence.pattern[1]*BUSY_PAT_PERCENT/100, 20)) {
 #ifdef BUSYDETECT_DEBUG
 		ast_debug(5, "busy detector: avgsilence of %d not close enough to desired %d\n",
 			avgsilence, dsp->busy_cadence.pattern[1]);
