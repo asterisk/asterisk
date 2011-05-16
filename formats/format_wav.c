@@ -354,6 +354,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	int samples;	/* actual samples read */
 #if __BYTE_ORDER == __BIG_ENDIAN
 	int x;
+	short *tmp;
 #endif
 	int bytes;
 	off_t here;
