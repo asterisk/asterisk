@@ -22037,7 +22037,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		const char *unknown_acceptheader = NULL;
 
 		if (authpeer)	/* We do not need the authpeer any more */
-			unref_peer(authpeer, "unref_peer, from handle_request_subscribe (authpeer 2)");
+			authpeer = unref_peer(authpeer, "unref_peer, from handle_request_subscribe (authpeer 2)");
 
 		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
 
@@ -22168,9 +22168,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	/* At this point, if we have an authpeer (which we have to have to get here) we should unref
-	 * it since if we have actually used it, we have reffed it when p->relatedpeer was set. */
-	authpeer = unref_peer(authpeer, "unref pointer into (*authpeer)");
+	/* At this point, if we have an authpeer we should unref it. */
+	if (authpeer) {
+		authpeer = unref_peer(authpeer, "unref pointer into (*authpeer)");
+	}
 
 	/* Add subscription for extension state from the PBX core */
 	if (p->subscribed != MWI_NOTIFICATION && !resubscribe) {
