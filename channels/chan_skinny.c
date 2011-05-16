@@ -1997,7 +1997,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 					register_exten(l);
 					/* initialize MWI on line and device */
 					mwi_event_cb(0, l);
-					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
+					ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
 				}
 				--instance;
 			}
@@ -2035,7 +2035,7 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 				l->instance = 0;
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: Skinny\r\nPeer: Skinny/%s@%s\r\nPeerStatus: Unregistered\r\n", l->name, d->name);
 				unregister_exten(l);
-				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Skinny/%s@%s", l->name, d->name);
+				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Skinny/%s", l->name);
 			}
 		}
 	}
@@ -2622,16 +2622,25 @@ static void transmit_speeddialstatres(struct skinny_device *d, struct skinny_spe
 	transmit_response(d, req);
 }
 
-static void transmit_linestatres(struct skinny_device *d, struct skinny_line *l)
+//static void transmit_linestatres(struct skinny_device *d, struct skinny_line *l)
+static void transmit_linestatres(struct skinny_device *d, int instance)
 {
 	struct skinny_req *req;
+	struct skinny_line *l;
+	struct skinny_speeddial *sd;
 
 	if (!(req = req_alloc(sizeof(struct line_stat_res_message), LINE_STAT_RES_MESSAGE)))
 		return;
 
-	req->data.linestat.lineNumber = letohl(l->instance);
-	memcpy(req->data.linestat.lineDirNumber, l->name, sizeof(req->data.linestat.lineDirNumber));
-	memcpy(req->data.linestat.lineDisplayName, l->label, sizeof(req->data.linestat.lineDisplayName));
+	if ((l = find_line_by_instance(d, instance))) {
+		req->data.linestat.lineNumber = letohl(l->instance);
+		memcpy(req->data.linestat.lineDirNumber, l->name, sizeof(req->data.linestat.lineDirNumber));
+		memcpy(req->data.linestat.lineDisplayName, l->label, sizeof(req->data.linestat.lineDisplayName));
+	} else if ((sd = find_speeddial_by_instance(d, instance, 1))) {
+		req->data.linestat.lineNumber = letohl(sd->instance);
+		memcpy(req->data.linestat.lineDirNumber, sd->label, sizeof(req->data.linestat.lineDirNumber));
+		memcpy(req->data.linestat.lineDisplayName, sd->label, sizeof(req->data.linestat.lineDisplayName));
+	}
 	transmit_response(d, req);
 }
 
@@ -2795,35 +2804,35 @@ static int skinny_extensionstate_cb(char *context, char *exten, int state, void 
 		/* If they are not registered, we will override notification and show no availability */
 		if (ast_device_state(hint) == AST_DEVICE_UNAVAILABLE) {
 			transmit_lamp_indication(d, STIMULUS_LINE, sd->instance, SKINNY_LAMP_FLASH);
-			transmit_callstate(d, sd->instance, SKINNY_ONHOOK, 0);
+			transmit_callstate(d, sd->instance, 0, SKINNY_ONHOOK);
+			return 0;
 		}
-	} else {
 		switch (state) {
 		case AST_EXTENSION_DEACTIVATED: /* Retry after a while */
 		case AST_EXTENSION_REMOVED:     /* Extension is gone */
 			ast_verb(2, "Extension state: Watcher for hint %s %s. Notify Device %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", d->name);
 			sd->stateid = -1;
 			transmit_lamp_indication(d, STIMULUS_LINE, sd->instance, SKINNY_LAMP_OFF);
-			transmit_callstate(d, sd->instance, SKINNY_ONHOOK, 0);
+			transmit_callstate(d, sd->instance, 0, SKINNY_ONHOOK);
 			break;
 		case AST_EXTENSION_RINGING:
 		case AST_EXTENSION_UNAVAILABLE:
 			transmit_lamp_indication(d, STIMULUS_LINE, sd->instance, SKINNY_LAMP_BLINK);
-			transmit_callstate(d, sd->instance, SKINNY_RINGIN, 0);
+			transmit_callstate(d, sd->instance, 0, SKINNY_RINGIN);
 			break;
 		case AST_EXTENSION_BUSY: /* callstate = SKINNY_BUSY wasn't wanting to work - I'll settle for this */
 		case AST_EXTENSION_INUSE:
 			transmit_lamp_indication(d, STIMULUS_LINE, sd->instance, SKINNY_LAMP_ON);
-			transmit_callstate(d, sd->instance, SKINNY_CALLREMOTEMULTILINE, 0);
+			transmit_callstate(d, sd->instance, 0, SKINNY_CALLREMOTEMULTILINE);
 			break;
 		case AST_EXTENSION_ONHOLD:
 			transmit_lamp_indication(d, STIMULUS_LINE, sd->instance, SKINNY_LAMP_WINK);
-			transmit_callstate(d, sd->instance, SKINNY_HOLD, 0);
+			transmit_callstate(d, sd->instance, 0, SKINNY_HOLD);
 			break;
 		case AST_EXTENSION_NOT_INUSE:
 		default:
 			transmit_lamp_indication(d, STIMULUS_LINE, sd->instance, SKINNY_LAMP_OFF);
-			transmit_callstate(d, sd->instance, SKINNY_ONHOOK, 0);
+			transmit_callstate(d, sd->instance, 0, SKINNY_ONHOOK);
 			break;
 		}
 	}
@@ -5396,7 +5405,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verb(1, "RECEIVED UNKNOWN STIMULUS:  %d(%d/%d)\n", event, instance, callreference);
 		break;
 	}
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, "Skinny/%s", l->name);
 
 	return 1;
 }
@@ -5438,7 +5447,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	transmit_ringer_mode(d, SKINNY_RING_OFF);
 	d->hookstate = SKINNY_OFFHOOK;
 
-	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s", l->name);
 
 	if (sub && sub->substate == SUBSTATE_HOLD) {
 		return 1;
@@ -5505,7 +5514,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 		return 0;
 	}
 	
-	ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
 	
 	dumpsub(sub, 0);
 
@@ -5835,7 +5844,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		return 0;
 	}
 
-	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s@%s", l->name, d->name);
+	ast_devstate_changed(AST_DEVICE_INUSE, "Skinny/%s", l->name);
 
 	switch(event) {
 	case SOFTKEY_NONE:
@@ -5987,7 +5996,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			return 0;
 		}
 	
-		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s@%s", l->name, d->name);
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Skinny/%s", l->name);
 	
 		dumpsub(sub, 1);
 
@@ -6082,7 +6091,6 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 {
 	int res = 0;
 	struct skinny_speeddial *sd;
-	struct skinny_line *l;
 	struct skinny_device *d = s->device;
 	
 	if ((!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
@@ -6186,9 +6194,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	case LINE_STATE_REQ_MESSAGE:
 		if (skinnydebug)
 			ast_verb(1, "Received LineStatRequest\n");
-		if ((l = find_line_by_instance(d, letohl(req->data.line.lineNumber)))) {
-			transmit_linestatres(d, l);
-		}
+		transmit_linestatres(d, letohl(req->data.line.lineNumber));
 		break;
 	case TIME_DATE_REQ_MESSAGE:
 		if (skinnydebug)
