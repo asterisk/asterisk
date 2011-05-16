@@ -4301,6 +4301,9 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 			case T38_ENABLED:
 				state = T38_STATE_NEGOTIATED;
 				break;
+			case T38_REJECTED:
+				state = T38_STATE_REJECTED;
+				break;
 			default:
 				state = T38_STATE_UNKNOWN;
 			}
@@ -4961,6 +4964,7 @@ static void change_t38_state(struct sip_pvt *p, int state)
 		parameters.request_response = AST_T38_NEGOTIATED;
 		ast_udptl_set_tag(p->udptl, "SIP/%s", p->username);
 		break;
+	case T38_REJECTED:
 	case T38_DISABLED:
 		if (old == T38_ENABLED) {
 			parameters.request_response = AST_T38_TERMINATED;
@@ -6528,11 +6532,11 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 	case AST_T38_REQUEST_NEGOTIATE:         /* Request T38 */
 		/* Negotiation can not take place without a valid max_ifp value. */
 		if (!parameters->max_ifp) {
-			change_t38_state(p, T38_DISABLED);
 			if (p->t38.state == T38_PEER_REINVITE) {
 				AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 				transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
 			}
+			change_t38_state(p, T38_REJECTED);
 			break;
 		} else if (p->t38.state == T38_PEER_REINVITE) {
 			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
@@ -6570,7 +6574,7 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 	case AST_T38_REQUEST_TERMINATE:         /* Shutdown T38 */
 		if (p->t38.state == T38_PEER_REINVITE) {
 			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
-			change_t38_state(p, T38_DISABLED);
+			change_t38_state(p, T38_REJECTED);
 			transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
 		} else if (p->t38.state == T38_ENABLED)
 			transmit_reinvite_with_sdp(p, FALSE, FALSE);
@@ -9141,7 +9145,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 	}
 
-	if ((portno == -1) && (p->t38.state != T38_DISABLED)) {
+	if ((portno == -1) && (p->t38.state != T38_DISABLED) && (p->t38.state != T38_REJECTED)) {
 		ast_debug(3, "Have T.38 but no audio, accepting offer anyway\n");
 		res = 0;
 		goto process_sdp_cleanup;
@@ -19081,7 +19085,7 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 	} else  if (!strcasecmp(data, "peername")) {
 		ast_copy_string(buf, p->peername, len);
 	} else if (!strcasecmp(data, "t38passthrough")) {
-		if (p->t38.state == T38_DISABLED) {
+		if ((p->t38.state == T38_DISABLED) || (p->t38.state == T38_REJECTED)) {
 			ast_copy_string(buf, "0", len);
 		} else { /* T38 is offered or enabled in this call */
 			ast_copy_string(buf, "1", len);
@@ -19852,7 +19856,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	case 606: /* Not Acceptable */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
-			change_t38_state(p, T38_DISABLED);
+			change_t38_state(p, T38_REJECTED);
 			/* Try to reset RTP timers */
 			//ast_rtp_set_rtptimers_onhold(p->rtp);
 
@@ -21573,7 +21577,7 @@ static int sip_t38_abort(const void *data)
 	 * want to abort the negotiation process
 	 */
 	if (p->t38id != -1) {
-		change_t38_state(p, T38_DISABLED);
+		change_t38_state(p, T38_REJECTED);
 		transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
 		p->t38id = -1;
 		dialog_unref(p, "unref the dialog ptr from sip_t38_abort, because it held a dialog ptr");
@@ -22449,7 +22453,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			} else if (p->t38.state == T38_ENABLED) {
 				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 				transmit_response_with_t38_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)));
-			} else if (p->t38.state == T38_DISABLED) {
+			} else if ((p->t38.state == T38_DISABLED) || (p->t38.state == T38_REJECTED)) {
 				/* If this is not a re-invite or something to ignore - it's critical */
 				if (p->srtp && !ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)) {
 					ast_log(LOG_WARNING, "Target does not support required crypto\n");

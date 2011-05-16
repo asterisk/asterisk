@@ -991,6 +991,7 @@ static int set_fax_t38_caps(struct ast_channel *chan, struct ast_fax_session_det
 	case T38_STATE_UNKNOWN:
 		details->caps |= AST_FAX_TECH_T38;
 		break;
+	case T38_STATE_REJECTED:
 	case T38_STATE_UNAVAILABLE:
 		details->caps |= AST_FAX_TECH_AUDIO;
 		break;
@@ -1510,6 +1511,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	);
 	struct ast_flags opts = { 0, };
 	struct manager_event_info info;
+	enum ast_t38_state t38state;
 
 	/* initialize output channel variables */
 	pbx_builtin_setvar_helper(chan, "FAXSTATUS", "FAILED");
@@ -1631,7 +1633,8 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		details->option.statusevents = AST_FAX_OPTFLAG_TRUE;
 	}
 
-	if ((ast_channel_get_t38_state(chan) == T38_STATE_UNAVAILABLE) ||
+	t38state = ast_channel_get_t38_state(chan);
+	if ((t38state == T38_STATE_UNAVAILABLE) || (t38state == T38_STATE_REJECTED) ||
 	    ast_test_flag(&opts, OPT_ALLOWAUDIO) ||
 	    ast_test_flag(&opts, OPT_FORCE_AUDIO)) {
 		details->option.allow_audio = AST_FAX_OPTFLAG_TRUE;
@@ -1972,6 +1975,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	);
 	struct ast_flags opts = { 0, };
 	struct manager_event_info info;
+	enum ast_t38_state t38state;
 
 	/* initialize output channel variables */
 	pbx_builtin_setvar_helper(chan, "FAXSTATUS", "FAILED");
@@ -2112,7 +2116,8 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		details->option.statusevents = AST_FAX_OPTFLAG_TRUE;
 	}
 
-	if ((ast_channel_get_t38_state(chan) == T38_STATE_UNAVAILABLE) ||
+	t38state = ast_channel_get_t38_state(chan);
+	if ((t38state == T38_STATE_UNAVAILABLE) || (t38state == T38_STATE_REJECTED) ||
 	    ast_test_flag(&opts, OPT_ALLOWAUDIO) ||
 	    ast_test_flag(&opts, OPT_FORCE_AUDIO)) {
 		details->option.allow_audio = AST_FAX_OPTFLAG_TRUE;

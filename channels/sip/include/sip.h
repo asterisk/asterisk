@@ -594,7 +594,8 @@ enum t38state {
 	T38_DISABLED = 0,     /*!< Not enabled */
 	T38_LOCAL_REINVITE,   /*!< Offered from local - REINVITE */
 	T38_PEER_REINVITE,    /*!< Offered from peer - REINVITE */
-	T38_ENABLED           /*!< Negotiated (enabled) */
+	T38_ENABLED,          /*!< Negotiated (enabled) */
+	T38_REJECTED          /*!< Refused */
 };
 
 /*! \brief Parameters to know status of transfer */

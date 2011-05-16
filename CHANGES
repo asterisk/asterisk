@@ -199,6 +199,7 @@ SIP Changes
    res_stun_monitor module support in chan_sip.
  * Addition of the 'auth_options_requests' option for turning on and off
    authentication for OPTIONS requests in chan_sip.
+ * Add T38 support for REJECTED state where T.38 Negotiation is explicitly rejected.
 
 
 IAX2 Changes
