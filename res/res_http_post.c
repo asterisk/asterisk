@@ -52,6 +52,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_PREFIX 80
 
+/* gmime 2.4 provides a newer interface. */
+#ifdef GMIME_TYPE_CONTENT_TYPE
+#define AST_GMIME_VER_24
+#endif
+
 /* just a little structure to hold callback info for gmime */
 struct mime_cbinfo {
 	int count;
@@ -84,7 +89,9 @@ static void post_raw(GMimePart *part, const char *post_dir, const char *fn)
 	g_mime_data_wrapper_write_to_stream(content, stream);
 	g_mime_stream_flush(stream);
 
+#ifndef AST_GMIME_VER_24
 	g_object_unref(content);
+#endif
 	g_object_unref(stream);
 }
 
@@ -108,7 +115,11 @@ static GMimeMessage *parse_message(FILE *f)
 	return message;
 }
 
+#ifdef AST_GMIME_VER_24
+static void process_message_callback(GMimeObject *parent, GMimeObject *part, gpointer user_data)
+#else
 static void process_message_callback(GMimeObject *part, gpointer user_data)
+#endif
 {
 	struct mime_cbinfo *cbinfo = user_data;
 
@@ -122,6 +133,7 @@ static void process_message_callback(GMimeObject *part, gpointer user_data)
 		ast_log(LOG_WARNING, "Got unexpected GMIME_IS_MESSAGE_PARTIAL\n");
 		return;
 	} else if (GMIME_IS_MULTIPART(part)) {
+#ifndef AST_GMIME_VER_24
 		GList *l;
 		
 		ast_log(LOG_WARNING, "Got unexpected GMIME_IS_MULTIPART, trying to process subparts\n");
@@ -130,6 +142,9 @@ static void process_message_callback(GMimeObject *part, gpointer user_data)
 			process_message_callback(l->data, cbinfo);
 			l = l->next;
 		}
+#else
+		ast_log(LOG_WARNING, "Got unexpected MIME subpart.\n");
+#endif
 	} else if (GMIME_IS_PART(part)) {
 		const char *filename;
 
@@ -151,7 +166,11 @@ static int process_message(GMimeMessage *message, const char *post_dir)
 		.post_dir = post_dir,
 	};
 
+#ifdef AST_GMIME_VER_24
+	g_mime_message_foreach(message, process_message_callback, &cbinfo);
+#else
 	g_mime_message_foreach_part(message, process_message_callback, &cbinfo);
+#endif
 
 	return cbinfo.count;
 }
