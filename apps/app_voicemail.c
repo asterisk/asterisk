@@ -12129,6 +12129,9 @@ static int load_config(int reload)
 
 		if (ucfg) {	
 			for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
+				if (!strcasecmp(cat, "general")) {
+					continue;
+				}
 				if (!ast_true(ast_config_option(ucfg, cat, "hasvoicemail")))
 					continue;
 				if ((current = find_or_create(userscontext, cat))) {
