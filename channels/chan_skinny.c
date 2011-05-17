@@ -1244,7 +1244,6 @@ struct skinny_subchannel {
 	char mohinterpret[MAX_MUSICCLASS];		\
 	char mohsuggest[MAX_MUSICCLASS];		\
 	char lastnumberdialed[AST_MAX_EXTENSION];	\
-	int curtone;					\
 	ast_group_t callgroup;				\
 	ast_group_t pickupgroup;			\
 	int callwaiting;				\
@@ -1253,22 +1252,16 @@ struct skinny_subchannel {
 	int mwiblink;					\
 	int cancallforward;				\
 	int getforward;					\
-	int callreturn;					\
 	int dnd;					\
-	int hascallerid;				\
 	int hidecallerid;				\
 	int amaflags;					\
-	int type;					\
 	int instance;					\
 	int group;					\
-	int needdestroy;				\
 	struct ast_format_cap *confcap;				\
 	struct ast_codec_pref confprefs;		\
 	struct ast_format_cap *cap;					\
 	struct ast_codec_pref prefs;			\
 	int nonCodecCapability;				\
-	int onhooktime;					\
-	int msgstate;					\
 	int immediate;					\
 	int nat;					\
 	int directmedia;				\
@@ -1300,7 +1293,6 @@ static struct skinny_line_options{
  	.directmedia = 0,
  	.nat = 0,
 	.getforward = 0,
- 	.needdestroy = 0,
 	.prune = 0,
 };
 static struct skinny_line_options *default_line = &default_line_struct;
@@ -6852,11 +6844,6 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
  				if (ast_true(v->value) && ast_strlen_zero(CLINE->mailbox)) {
  					ast_copy_string(CLINE->mailbox, CLINE->name, sizeof(CLINE->mailbox));
  				}
- 				continue;
- 			}
- 		} else if (!strcasecmp(v->name, "callreturn")) {
- 			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
- 				CLINE_OPTS->callreturn = ast_true(v->value);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "threewaycalling")) {
