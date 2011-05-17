@@ -1173,7 +1173,7 @@ int setup_bc(struct misdn_bchannel *bc)
 
 	cb_log(4, stack->port," --> Channel is %d\n", bc->channel);
 
-	if (bc->nodsp) {
+	if (bc->nodsp && !bc->hdlc) {
 		cb_log(2, stack->port," --> TRANSPARENT Mode (no DSP, no HDLC)\n");
 		pid.protocol[1] = ISDN_PID_L1_B_64TRANS;
 		pid.protocol[2] = ISDN_PID_L2_B_TRANS;
