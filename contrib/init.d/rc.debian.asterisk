@@ -132,9 +132,12 @@ case "$1" in
 	$0 start
 	# "restart|force-reload" starts Asterisk and returns 0 even if Asterisk was stopped (as LSB expects).
 	;;
+  status)
+       status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
+       ;;
   *)
 	N=/etc/init.d/$NAME
-	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	echo "Usage: $N {start|stop|restart|reload|force-reload|status}" >&2
 	exit 1
 	;;
 esac
