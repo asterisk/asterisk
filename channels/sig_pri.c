@@ -8580,6 +8580,9 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 	pri_display_options_send(pri->pri, pri->display_flags_send);
 	pri_display_options_receive(pri->pri, pri->display_flags_receive);
 #endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
+#if defined(HAVE_PRI_DATETIME_SEND)
+	pri_date_time_send_option(pri->pri, pri->datetime_send);
+#endif	/* defined(HAVE_PRI_DATETIME_SEND) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {

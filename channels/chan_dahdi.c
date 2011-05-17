@@ -12522,6 +12522,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #if defined(HAVE_PRI_MCID)
 						pris[span].pri.mcid_send = conf->pri.pri.mcid_send;
 #endif	/* defined(HAVE_PRI_MCID) */
+#if defined(HAVE_PRI_DATETIME_SEND)
+						pris[span].pri.datetime_send = conf->pri.pri.datetime_send;
+#endif	/* defined(HAVE_PRI_DATETIME_SEND) */
 
 						for (x = 0; x < PRI_MAX_TIMERS; x++) {
 							pris[span].pri.pritimers[x] = conf->pri.pri.pritimers[x];
@@ -16813,6 +16816,40 @@ static unsigned long dahdi_display_text_option(const char *value)
 #endif	/* defined(HAVE_PRI_DISPLAY_TEXT) */
 #endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
+#if defined(HAVE_PRI_DATETIME_SEND)
+/*!
+ * \internal
+ * \brief Determine the configured date/time send policy option.
+ * \since 1.10
+ *
+ * \param value Configuration value string.
+ *
+ * \return Configured date/time send policy option.
+ */
+static int dahdi_datetime_send_option(const char *value)
+{
+	int option;
+
+	option = PRI_DATE_TIME_SEND_DEFAULT;
+
+	if (ast_false(value)) {
+		option = PRI_DATE_TIME_SEND_NO;
+	} else if (!strcasecmp(value, "date")) {
+		option = PRI_DATE_TIME_SEND_DATE;
+	} else if (!strcasecmp(value, "date_hh")) {
+		option = PRI_DATE_TIME_SEND_DATE_HH;
+	} else if (!strcasecmp(value, "date_hhmm")) {
+		option = PRI_DATE_TIME_SEND_DATE_HHMM;
+	} else if (!strcasecmp(value, "date_hhmmss")) {
+		option = PRI_DATE_TIME_SEND_DATE_HHMMSS;
+	}
+
+	return option;
+}
+#endif	/* defined(HAVE_PRI_DATETIME_SEND) */
+#endif	/* defined(HAVE_PRI) */
+
 /*! process_dahdi() - ignore keyword 'channel' and similar */
 #define PROC_DAHDI_OPT_NOCHAN  (1 << 0)
 /*! process_dahdi() - No warnings on non-existing cofiguration keywords */
@@ -17633,6 +17670,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "mcid_send")) {
 				confp->pri.pri.mcid_send = ast_true(v->value);
 #endif	/* defined(HAVE_PRI_MCID) */
+#if defined(HAVE_PRI_DATETIME_SEND)
+			} else if (!strcasecmp(v->name, "datetime_send")) {
+				confp->pri.pri.datetime_send = dahdi_datetime_send_option(v->value);
+#endif	/* defined(HAVE_PRI_DATETIME_SEND) */
 #endif /* HAVE_PRI */
 #if defined(HAVE_SS7)
 			} else if (!strcasecmp(v->name, "ss7type")) {

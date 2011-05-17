@@ -236,6 +236,19 @@
 ;
 ;mcid_send=yes
 
+; Send ISDN date/time IE in CONNECT message option.  Only valid on NT spans.
+;
+; no:           Do not send date/time IE in CONNECT message.
+; date:         Send date only.
+; date_hh       Send date and hour.
+; date_hhmm     Send date, hour, and minute.
+; date_hhmmss   Send date, hour, minute, and second.
+;
+; Default is an empty string which lets libpri pick the default
+; date/time IE send policy.
+;
+;datetime_send=
+
 ; Allow inband audio (progress) when a call is DISCONNECTed by the far end of a PRI
 ;
 ;inbanddisconnect=yes
