@@ -1453,6 +1453,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	time(&start_time);
 	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion, ast_test_flag(&opts, OPT_PRIORITY_JUMP), &result);
 
+	/* The ast_channel_datastore_remove() function could fail here if the
+	 * datastore was moved to another channel during a masquerade. If this is
+	 * the case, don't free the datastore here because later, when the channel
+	 * to which the datastore was moved hangs up, it will attempt to free this
+	 * datastore again, causing a crash
+	 */
+	ast_channel_lock(chan);
+	if (!ast_channel_datastore_remove(chan, datastore)) {
+		ast_channel_datastore_free(datastore);
+	}
+	ast_channel_unlock(chan);
 	if (!peer) {
 		if (result) {
 			res = result;
