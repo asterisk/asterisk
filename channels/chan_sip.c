@@ -16105,6 +16105,10 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 				ast_log(LOG_DEBUG, "SIP attended transfer: Unlocking channel %s\n", targetcall_pvt->owner->name);
 			ast_channel_unlock(targetcall_pvt->owner);
 		}
+		ast_indicate(target.chan1, AST_CONTROL_UNHOLD);
+		if (target.chan2) {
+			ast_indicate(target.chan2, AST_CONTROL_UNHOLD);
+		}
 	}
 	return 1;
 }
