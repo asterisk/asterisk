@@ -26740,7 +26740,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		sip_cfg.allowsubscribe = TRUE;	/* No global ban any more */
 	}
 	/* If read-only RT backend, then refresh from local DB cache */
-	if (peer->host_dynamic && !sip_cfg.peer_rtupdate) {
+	if (peer->host_dynamic && (!peer->is_realtime || !sip_cfg.peer_rtupdate)) {
 		reg_source_db(peer);
 	}
 
