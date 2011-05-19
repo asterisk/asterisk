@@ -45,7 +45,7 @@ struct ast_bridge_technology {
 	/*! Unique name to this bridge technology */
 	const char *name;
 	/*! The capabilities that this bridge technology is capable of */
-	format_t capabilities;
+	int capabilities;
 	/*! Preference level that should be used when determining whether to use this bridge technology or not */
 	enum ast_bridge_preference preference;
 	/*! Callback for when a bridge is being created */
