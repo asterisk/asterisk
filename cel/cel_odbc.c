@@ -751,11 +751,15 @@ static int unload_module(void)
 
 	free_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
+	AST_RWLIST_HEAD_DESTROY(&odbc_tables);
+        
 	return 0;
 }
 
 static int load_module(void)
 {
+	AST_RWLIST_HEAD_INIT(&odbc_tables);
+
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock column list.  Load failed.\n");
 		return 0;
