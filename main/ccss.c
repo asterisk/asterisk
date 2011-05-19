@@ -1008,6 +1008,20 @@ static const struct ast_cc_agent_callbacks *find_agent_callbacks(struct ast_chan
 	return callbacks;
 }
 
+/*!
+ * \internal
+ * \brief Determine if the given device state is considered available by generic CCSS.
+ * \since 1.8
+ *
+ * \param state Device state to test.
+ *
+ * \return TRUE if the given device state is considered available by generic CCSS.
+ */
+static int cc_generic_is_device_available(enum ast_device_state state)
+{
+	return state == AST_DEVICE_NOT_INUSE || state == AST_DEVICE_UNKNOWN;
+}
+
 static int cc_generic_monitor_request_cc(struct ast_cc_monitor *monitor, int *available_timer_id);
 static int cc_generic_monitor_suspend(struct ast_cc_monitor *monitor);
 static int cc_generic_monitor_unsuspend(struct ast_cc_monitor *monitor);
@@ -1167,7 +1181,7 @@ static int generic_monitor_devstate_tp_cb(void *data)
 	previous_state = generic_list->current_state;
 	generic_list->current_state = new_state;
 
-	if ((new_state == AST_DEVICE_NOT_INUSE || new_state == AST_DEVICE_UNKNOWN) &&
+	if (cc_generic_is_device_available(new_state) &&
 			(previous_state == AST_DEVICE_INUSE || previous_state == AST_DEVICE_UNAVAILABLE ||
 			 previous_state == AST_DEVICE_BUSY)) {
 		AST_LIST_TRAVERSE(&generic_list->list, generic_instance, next) {
@@ -1304,7 +1318,7 @@ static int cc_generic_monitor_suspend(struct ast_cc_monitor *monitor)
 	/* If the device being suspended is currently in use, then we don't need to
 	 * take any further actions
 	 */
-	if (state != AST_DEVICE_NOT_INUSE && state != AST_DEVICE_UNKNOWN) {
+	if (!cc_generic_is_device_available(state)) {
 		cc_unref(generic_list, "Device is in use. Nothing to do. Unref generic list.");
 		return 0;
 	}
@@ -1336,7 +1350,7 @@ static int cc_generic_monitor_unsuspend(struct ast_cc_monitor *monitor)
 	/* If the device is currently available, we can immediately announce
 	 * its availability
 	 */
-	if (state == AST_DEVICE_NOT_INUSE || state == AST_DEVICE_UNKNOWN) {
+	if (cc_generic_is_device_available(state)) {
 		ast_cc_monitor_callee_available(monitor->core_id, "Generic monitored party has become available");
 	}
 
@@ -1422,8 +1436,8 @@ static void cc_generic_monitor_destructor(void *private_data)
 		/* First things first. We don't even want to consider this action if
 		 * the device in question isn't available right now.
 		 */
-		if (generic_list->fit_for_recall && (generic_list->current_state == AST_DEVICE_NOT_INUSE ||
-				generic_list->current_state == AST_DEVICE_UNKNOWN)) {
+		if (generic_list->fit_for_recall
+			&& cc_generic_is_device_available(generic_list->current_state)) {
 			AST_LIST_TRAVERSE(&generic_list->list, generic_instance, next) {
 				if (!generic_instance->is_suspended && generic_instance->monitoring) {
 					ast_cc_monitor_callee_available(generic_instance->core_id, "Signaling generic monitor "
@@ -2484,6 +2498,13 @@ static int generic_agent_devstate_unsubscribe(void *data)
 static void generic_agent_devstate_cb(const struct ast_event *event, void *userdata)
 {
 	struct ast_cc_agent *agent = userdata;
+	enum ast_device_state new_state;
+
+	new_state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
+	if (!cc_generic_is_device_available(new_state)) {
+		/* Not interested in this new state of the device.  It is still busy. */
+		return;
+	}
 
 	/* We can't unsubscribe from device state events here because it causes a deadlock */
 	if (ast_taskprocessor_push(cc_core_taskprocessor, generic_agent_devstate_unsubscribe,
@@ -2499,12 +2520,12 @@ static int cc_generic_agent_start_monitoring(struct ast_cc_agent *agent)
 	struct ast_str *str = ast_str_alloca(128);
 
 	ast_assert(generic_pvt->sub == NULL);
-	ast_str_set(&str, 0, "Starting to monitor %s device state since it is busy\n", agent->device_name);
+	ast_str_set(&str, 0, "Agent monitoring %s device state since it is busy\n",
+		agent->device_name);
 
 	if (!(generic_pvt->sub = ast_event_subscribe(
 			AST_EVENT_DEVICE_STATE, generic_agent_devstate_cb, ast_str_buffer(str), agent,
 			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, agent->device_name,
-			AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, AST_DEVICE_NOT_INUSE,
 			AST_EVENT_IE_END))) {
 		return -1;
 	}
@@ -2570,7 +2591,7 @@ static int cc_generic_agent_recall(struct ast_cc_agent *agent)
 	pthread_t clotho;
 	enum ast_device_state current_state = ast_device_state(agent->device_name);
 
-	if (current_state != AST_DEVICE_NOT_INUSE && current_state != AST_DEVICE_UNKNOWN) {
+	if (!cc_generic_is_device_available(current_state)) {
 		/* We can't try to contact the device right now because he's not available
 		 * Let the core know he's busy.
 		 */
