@@ -1047,42 +1047,60 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct as
 			ast_free(pu);
 			return NULL;
 		}
-	} else {
-		int start;
+	} else { /* parkingexten not length zero, so find a usable extension in the lot to park the call */
+		int start; /* The first slot we look in the parkinglot. It can be randomized. */
+		int start_checked = 0; /* flag raised once the first slot is checked */
 		struct parkeduser *cur = NULL;
 
+		/* If using randomize mode, set start to random position on parking range */
 		if (ast_test_flag(args, AST_PARK_OPT_RANDOMIZE)) {
 			start = ast_random() % (parkinglot->parking_stop - parkinglot->parking_start + 1);
-		} else {
+			start+=parkinglot->parking_start;
+		} else { /* Otherwise, just set it to the start position. */
 			start = parkinglot->parking_start;
 		}
 
+		/* free parking extension linear search: O(n^2) */
 		for (i = start; 1; i++) {
+			/* If we are past the end, wrap around to the first parking slot*/
 			if (i == parkinglot->parking_stop + 1) {
-				i = parkinglot->parking_start - 1;
-				break;
+				i = parkinglot->parking_start;
 			}
 
+			if (i == start) { /* At this point, if start_checked, we've exhausted all the possible slots. */
+				if (start_checked) {
+					i = -1;
+					break;
+				} else {
+					start_checked = 1;
+				}
+			}
+
+			/* Search the list of parked calls already in use for i. If we find it, it's in use. */
 			AST_LIST_TRAVERSE(&parkinglot->parkings, cur, list) {
 				if (cur->parkingnum == i) {
 					break;
 				}
 			}
+
+			/* If list traversal was successful, we can terminate the loop here at parkinglot i */
 			if (!cur) {
 				parking_space = i;
 				break;
 			}
 		}
 
-		if (i == start - 1 && cur) {
+		/* If we exited without a match, our i value was set to -1 and we still have an item in cur. */
+		if (i == -1 && cur) {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
 			ast_free(pu);
 			AST_LIST_UNLOCK(&parkinglot->parkings);
 			parkinglot_unref(parkinglot);
 			return NULL;
 		}
+
 		/* Set pointer for next parking */
-		if (parkinglot->parkfindnext) 
+		if (parkinglot->parkfindnext)
 			parkinglot->parking_offset = parking_space - parkinglot->parking_start + 1;
 		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", parking_space);
 	}
