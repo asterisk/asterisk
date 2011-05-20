@@ -2495,7 +2495,7 @@ static int sip_check_authtimeout(time_t start)
 */
 static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_session_instance *tcptls_session)
 {
-	int res, cl, timeout = -1, authenticated = 0, flags;
+	int res, cl, timeout = -1, authenticated = 0, flags, after_poll = 0, need_poll = 1;
 	time_t start;
 	struct sip_request req = { 0, } , reqcpy = { 0, };
 	struct sip_threadinfo *me = NULL;
@@ -2608,6 +2608,7 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 		/* handle the socket event, check for both reads from the socket fd,
 		 * and writes from alert_pipe fd */
 		if (fds[0].revents) { /* there is data on the socket to be read */
+			after_poll = 1;
 
 			fds[0].revents = 0;
 
@@ -2648,22 +2649,35 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 					timeout = -1;
 				}
 
-				res = ast_wait_for_input(tcptls_session->fd, timeout);
-				if (res < 0) {
-					ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
-					goto cleanup;
-				} else if (res == 0) {
-					/* timeout */
-					ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
-					goto cleanup;
+				/* special polling behavior is required for TLS
+				 * sockets because of the buffering done in the
+				 * TLS layer */
+				if (!tcptls_session->ssl || need_poll) {
+					need_poll = 0;
+					after_poll = 1;
+					res = ast_wait_for_input(tcptls_session->fd, timeout);
+					if (res < 0) {
+						ast_debug(2, "SIP TCP server :: ast_wait_for_input returned %d\n", res);
+						goto cleanup;
+					} else if (res == 0) {
+						/* timeout */
+						ast_debug(2, "SIP TCP server timed out\n");
+						goto cleanup;
+					}
 				}
 
 				ast_mutex_lock(&tcptls_session->lock);
 				if (!fgets(buf, sizeof(buf), tcptls_session->f)) {
 					ast_mutex_unlock(&tcptls_session->lock);
-					goto cleanup;
+					if (after_poll) {
+						goto cleanup;
+					} else {
+						need_poll = 1;
+						continue;
+					}
 				}
 				ast_mutex_unlock(&tcptls_session->lock);
+				after_poll = 0;
 				if (me->stop) {
 					 goto cleanup;
 				}
@@ -2682,30 +2696,40 @@ static void *_sip_tcp_helper_thread(struct sip_pvt *pvt, struct ast_tcptls_sessi
 						}
 
 						if (timeout == 0) {
-							ast_debug(2, "SIP %s server timed out", tcptls_session->ssl ? "SSL": "TCP");
+							ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "SSL": "TCP");
 							goto cleanup;
 						}
 					} else {
 						timeout = -1;
 					}
 
-					res = ast_wait_for_input(tcptls_session->fd, timeout);
-					if (res < 0) {
-						ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "SSL": "TCP", res);
-						goto cleanup;
-					} else if (res == 0) {
-						/* timeout */
-						ast_debug(2, "SIP %s server timed out", tcptls_session->ssl ? "SSL": "TCP");
-						goto cleanup;
+					if (!tcptls_session->ssl || need_poll) {
+						need_poll = 0;
+						after_poll = 1;
+						res = ast_wait_for_input(tcptls_session->fd, timeout);
+						if (res < 0) {
+							ast_debug(2, "SIP TCP server :: ast_wait_for_input returned %d\n", res);
+							goto cleanup;
+						} else if (res == 0) {
+							/* timeout */
+							ast_debug(2, "SIP TCP server timed out\n");
+							goto cleanup;
+						}
 					}
 
 					ast_mutex_lock(&tcptls_session->lock);
 					if (!(bytes_read = fread(buf, 1, MIN(sizeof(buf) - 1, cl), tcptls_session->f))) {
 						ast_mutex_unlock(&tcptls_session->lock);
-						goto cleanup;
+						if (after_poll) {
+							goto cleanup;
+						} else {
+							need_poll = 1;
+							continue;
+						}
 					}
 					buf[bytes_read] = '\0';
 					ast_mutex_unlock(&tcptls_session->lock);
+					after_poll = 0;
 					if (me->stop) {
 						goto cleanup;
 					}
