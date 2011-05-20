@@ -1099,6 +1099,7 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 				AST_LIST_UNLOCK(&confs);
 				return usr ? strdup(usrno) : NULL;
 			}
+			AST_LIST_UNLOCK(&confs);
 		} else if ( strstr(line, "list") && ( 0 == state ) )
 			return strdup("concise");
 	}
