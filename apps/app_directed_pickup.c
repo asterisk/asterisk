@@ -117,15 +117,15 @@ struct pickup_by_name_args {
 
 static int pickup_by_name_cb(void *obj, void *arg, void *data, int flags)
 {
-	struct ast_channel *chan = obj;
+	struct ast_channel *target = obj;/*!< Potential pickup target */
 	struct pickup_by_name_args *args = data;
 
-	ast_channel_lock(chan);
-	if (!strncasecmp(chan->name, args->name, args->len) && can_pickup(chan)) {
+	ast_channel_lock(target);
+	if (!strncasecmp(target->name, args->name, args->len) && can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
-	ast_channel_unlock(chan);
+	ast_channel_unlock(target);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ static struct ast_channel *my_ast_get_channel_by_name_locked(const char *channam
 static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 {
 	int res = -1;
-	struct ast_channel *target;
+	struct ast_channel *target;/*!< Potential pickup target */
 
 	target = my_ast_get_channel_by_name_locked(pickup);
 	if (target) {
@@ -180,7 +180,7 @@ static int pickup_by_channel(struct ast_channel *chan, char *pickup)
 /* Attempt to pick up specified extension with context */
 static int pickup_by_exten(struct ast_channel *chan, const char *exten, const char *context)
 {
-	struct ast_channel *target = NULL;
+	struct ast_channel *target = NULL;/*!< Potential pickup target */
 	struct ast_channel_iterator *iter;
 	int res = -1;
 
@@ -211,17 +211,17 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 
 static int find_by_mark(void *obj, void *arg, void *data, int flags)
 {
-	struct ast_channel *c = obj;
+	struct ast_channel *target = obj;/*!< Potential pickup target */
 	const char *mark = data;
 	const char *tmp;
 
-	ast_channel_lock(c);
-	tmp = pbx_builtin_getvar_helper(c, PICKUPMARK);
-	if (tmp && !strcasecmp(tmp, mark) && can_pickup(c)) {
+	ast_channel_lock(target);
+	tmp = pbx_builtin_getvar_helper(target, PICKUPMARK);
+	if (tmp && !strcasecmp(tmp, mark) && can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
-	ast_channel_unlock(c);
+	ast_channel_unlock(target);
 
 	return 0;
 }
@@ -229,7 +229,7 @@ static int find_by_mark(void *obj, void *arg, void *data, int flags)
 /* Attempt to pick up specified mark */
 static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 {
-	struct ast_channel *target;
+	struct ast_channel *target;/*!< Potential pickup target */
 	int res = -1;
 
 	/* The found channel is already locked. */
@@ -245,22 +245,22 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 
 static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 {
-	struct ast_channel *chan = obj;
-	struct ast_channel *c = data;
+	struct ast_channel *target = obj;/*!< Potential pickup target */
+	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
 
-	ast_channel_lock(chan);
-	if (c != chan && (c->pickupgroup & chan->callgroup) && can_pickup(chan)) {
+	ast_channel_lock(target);
+	if (chan != target && (chan->pickupgroup & target->callgroup) && can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
-	ast_channel_unlock(chan);
+	ast_channel_unlock(target);
 
 	return 0;
 }
 
 static int pickup_by_group(struct ast_channel *chan)
 {
-	struct ast_channel *target;
+	struct ast_channel *target;/*!< Potential pickup target */
 	int res = -1;
 
 	/* The found channel is already locked. */
@@ -310,16 +310,17 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 /* Find channel for pick up specified by partial channel name */ 
 static int find_by_part(void *obj, void *arg, void *data, int flags)
 {
-	struct ast_channel *c = obj; 
+	struct ast_channel *target = obj;/*!< Potential pickup target */
 	const char *part = data;
 	int len = strlen(part);
 
-	ast_channel_lock(c);
-	if (len <= strlen(c->name) && !strncmp(c->name, part, len) && can_pickup(c)) {
+	ast_channel_lock(target);
+	if (len <= strlen(target->name) && !strncmp(target->name, part, len)
+		&& can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
-	ast_channel_unlock(c);
+	ast_channel_unlock(target);
 
 	return 0;
 }
@@ -327,7 +328,7 @@ static int find_by_part(void *obj, void *arg, void *data, int flags)
 /* Attempt to pick up specified by partial channel name */ 
 static int pickup_by_part(struct ast_channel *chan, const char *part)
 {
-	struct ast_channel *target;
+	struct ast_channel *target;/*!< Potential pickup target */
 	int res = -1;
 
 	/* The found channel is already locked. */

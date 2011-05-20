@@ -5703,19 +5703,19 @@ static int manager_park(struct mansession *s, const struct message *m)
 
 static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 {
-	struct ast_channel *chan = obj;
-	struct ast_channel *c = data;
+	struct ast_channel *target = obj;/*!< Potential pickup target */
+	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
 
-	ast_channel_lock(chan);
-	if (c != chan && (c->pickupgroup & chan->callgroup) &&
-		!chan->pbx &&
-		((chan->_state == AST_STATE_RINGING) || (chan->_state == AST_STATE_RING)) &&
-		!chan->masq &&
-		!ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
+	ast_channel_lock(target);
+	if (chan != target && (chan->pickupgroup & target->callgroup) &&
+		!target->pbx &&
+		((target->_state == AST_STATE_RINGING) || (target->_state == AST_STATE_RING)) &&
+		!target->masq &&
+		!ast_test_flag(target, AST_FLAG_ZOMBIE)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
-	ast_channel_unlock(chan);
+	ast_channel_unlock(target);
 
 	return 0;
 }
@@ -5730,7 +5730,7 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
  */
 int ast_pickup_call(struct ast_channel *chan)
 {
-	struct ast_channel *target;
+	struct ast_channel *target;/*!< Potential pickup target */
 	int res = -1;
 	ast_debug(1, "pickup attempt by %s\n", chan->name);
 
