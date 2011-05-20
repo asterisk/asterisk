@@ -27,6 +27,36 @@
 
 	(closes issue 0018951)
 
+	r319142 | mnicholson | 2011-05-16 10:53:27 -0500 (Mon, 16 May 2011) | 8 lines
+
+	Make sure tcptls_session exists before dereferencing it.
+
+	(closes issue 0019192)
+	Reported by: stknob
+	Patches:
+	      10-tcptls-unreachable-peer-segfault.patch uploaded by Chainsaw
+	      (license 723)
+	      Tested by: vois, Chainsaw
+
+	r320180 | mnicholson | 2011-05-20 13:48:46 -0500 (Fri, 20 May 2011) |
+	16 lines
+
+	This commit modifies the way polling is done on TLS sockets.
+
+	Because of the buffering the TLS layer does, polling is unreliable. If
+	poll is called while there is data waiting to be read in the TLS layer but not
+	at the network layer, the messaging processing engine will not proceed until
+	something else writes data to the socket, which may not occur. This change
+	modifies the logic around TLS sockets to only poll after a failed read on a
+	non-blocking socket. This way we know that there is no data waiting to be read from
+	the buffering layer.
+
+	(closes issue #19182)
+	Reported by: st
+	Patches:
+	      ssl-poll-fix3.diff uploaded by mnicholson (license 96)
+	      Tested by: mnicholson
+
 2011-05-09  Leif Madsen <lmadsen@digium.com>
 
 	* Asteris 1.8.4 Released.
