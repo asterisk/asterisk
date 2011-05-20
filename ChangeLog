@@ -1,3 +1,32 @@
+2011-05-20  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.4.1 Released.
+
+	r315891 | mnicholson | 2011-04-27 13:57:56 -0500 (Wed, 27 Apr 2011) | 14 lines
+
+	Fix our compliance with RFC 3261 section 18.2.2.
+	This change optimizes the free_via() function and removes some redundant
+	null checking. It also fixes compliance with RFC 3261 section 18.2.2 by
+	always using the port specified in the Via header for routing responses
+	(even when maddr is not set). Also the htons() function is now used
+	when setting the port.	Additional documentation comments have been
+	added in various places to make the logic in the code clearer.
+		(closes issue 0018951)
+		Reported by: jmls
+		Patches:
+			issue18951_set_proper_port_from_via.patch uploaded by 
+			wdoekes (license 717) (modified)
+
+	r318720 | mnicholson | 2011-05-12 18:35:51 -0500 (Thu, 12 May 2011) |
+	6 lines
+
+	Handle ipv6 addresses in the sent-by Via: field.
+
+	This change fixes a regression in via header parsing and ipv6
+	handling.
+
+	(closes issue 0018951)
+
 2011-05-09  Leif Madsen <lmadsen@digium.com>
 
 	* Asteris 1.8.4 Released.

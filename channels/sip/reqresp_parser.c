@@ -2249,10 +2249,7 @@ void free_via(struct sip_via *v)
 		return;
 	}
 
-	if (v->via) {
-		ast_free(v->via);
-	}
-
+	ast_free(v->via);
 	ast_free(v);
 }
 
@@ -2301,8 +2298,9 @@ struct sip_via *parse_via(const char *header)
 	}
 	v->sent_by = ast_skip_blanks(v->sent_by);
 
-	/* store the port */
-	if ((parm = strchr(v->sent_by, ':'))) {
+	/* store the port, we have to handle ipv6 addresses containing ':'
+	 * characters gracefully */
+	if (((parm = strchr(v->sent_by, ']')) && *(++parm) == ':') || (parm = strchr(v->sent_by, ':'))) {
 		char *endptr;
 
 		v->port = strtol(++parm, &endptr, 10);
@@ -2388,6 +2386,13 @@ AST_TEST_DEFINE(parse_via_test)
 		.expected_maddr = "224.0.0.1",
 		.expected_ttl = 1,
 	};
+	struct testdata t7 = {
+		.in = "SIP/2.0/UDP [::1]:5060",
+		.expected_protocol = "SIP/2.0/UDP",
+		.expected_sent_by = "[::1]:5060",
+		.expected_port = 5060,
+		.expected_branch = "",
+	};
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "parse_via_test";
@@ -2407,6 +2412,7 @@ AST_TEST_DEFINE(parse_via_test)
 	AST_LIST_INSERT_TAIL(&testdatalist, &t4, list);
 	AST_LIST_INSERT_TAIL(&testdatalist, &t5, list);
 	AST_LIST_INSERT_TAIL(&testdatalist, &t6, list);
+	AST_LIST_INSERT_TAIL(&testdatalist, &t7, list);
 
 
 	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
