@@ -389,7 +389,8 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 		return NULL;
 	}
 
-	desc->old_address = desc->remote_address;
+	/* If we return early, there is no connection */
+	desc->old_address.sin_family = 0;
 
 	if (desc->accept_fd != -1)
 		close(desc->accept_fd);
@@ -424,6 +425,8 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	tcptls_session->parent->worker_fn = NULL;
 	memcpy(&tcptls_session->remote_address, &desc->remote_address, sizeof(tcptls_session->remote_address));
 
+	/* Set current info */
+	desc->old_address = desc->remote_address;
 	return tcptls_session;
 
 error:
@@ -445,7 +448,8 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 		return;
 	}
 	
-	desc->old_address = desc->local_address;
+	/* If we return early, there is no one listening */
+	desc->old_address.sin_family = 0;
 	
 	/* Shutdown a running server if there is one */
 	if (desc->master != AST_PTHREADT_NULL) {
@@ -490,6 +494,9 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 			strerror(errno));
 		goto error;
 	}
+
+	/* Set current info */
+	desc->old_address = desc->local_address;
 	return;
 
 error:
