@@ -10749,7 +10749,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 		ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 		if (sipmethod == SIP_INVITE) {
-			/* copy channel vars */
+			/* destroy old channel vars and copy new channel vars */
+			ast_variables_destroy(p->chanvars);
+			p->chanvars = NULL;
 			for (v = user->chanvars ; v ; v = v->next) {
 				if ((tmpvar = ast_variable_new(v->name, v->value))) {
 					tmpvar->next = p->chanvars; 
@@ -10909,7 +10911,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 				ast_string_field_set(p, authname, peer->name);
 
 				if (sipmethod == SIP_INVITE) {
-					/* copy channel vars */
+					/* destroy old channel vars and copy new channel vars */
+					ast_variables_destroy(p->chanvars);
+					p->chanvars = NULL;
 					for (v = peer->chanvars ; v ; v = v->next) {
 						if ((tmpvar = ast_variable_new(v->name, v->value))) {
 							tmpvar->next = p->chanvars; 
