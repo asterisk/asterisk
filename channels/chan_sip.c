@@ -13524,6 +13524,18 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	return TRUE;		
 }
 
+/*! \brief parse uri in a way that allows semicolon stripping if legacy mode is enabled */
+static int parse_uri_legacy_check(char *uri, const char *scheme, char **user, char **pass, char **domain, char **transport) {
+	int ret = parse_uri(uri, scheme, user, pass, domain, transport);
+	if (sip_cfg.legacy_useroption_parsing) { /* if legacy mode is active, strip semis from the user field */
+		char *p;
+		if ((p = strchr(uri, (int)';'))) {
+			*p = '\0';
+		}
+	}
+	return ret;
+}
+
 static int __set_address_from_contact(const char *fullcontact, struct ast_sockaddr *addr, int tcp)
 {
 	char *domain, *transport;
@@ -13541,7 +13553,7 @@ static int __set_address_from_contact(const char *fullcontact, struct ast_sockad
 	 * We still need to be able to send to the remote agent through the proxy.
 	 */
 
-	if (parse_uri(contact, "sip:,sips:", &contact, NULL, &domain,
+	if (parse_uri_legacy_check(contact, "sip:,sips:", &contact, NULL, &domain,
 		      &transport)) {
 		ast_log(LOG_WARNING, "Invalid contact uri %s (missing sip: or sips:), attempting to use anyway\n", fullcontact);
 	}
@@ -13670,7 +13682,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	if (parse_uri(curi, "sip:,sips:", &curi, NULL, &domain, &transport)) {
+	if (parse_uri_legacy_check(curi, "sip:,sips:", &curi, NULL, &domain, &transport)) {
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:/sips:) trying to use anyway\n");
 	}
 
@@ -14371,7 +14383,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	c = get_in_brackets(tmp);
 	c = remove_uri_parameters(c);
 
-	if (parse_uri(c, "sip:,sips:", &name, &dummy, &domain, NULL)) {
+	if (parse_uri_legacy_check(c, "sip:,sips:", &name, &dummy, &domain, NULL)) {
 		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_sockaddr_stringify_addr(addr));
 		return -1;
 	}
@@ -14952,7 +14964,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	
 	uri = ast_strdupa(get_in_brackets(tmp));
 
-	if (parse_uri(uri, "sip:,sips:", &uri, &dummy, &domain, NULL)) {
+	if (parse_uri_legacy_check(uri, "sip:,sips:", &uri, &dummy, &domain, NULL)) {
 		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
 		return SIP_GET_DEST_INVALID_URI;
 	}
@@ -14977,7 +14989,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
 	if (!ast_strlen_zero(tmpf)) {
 		from = get_in_brackets(tmpf);
-		if (parse_uri(from, "sip:,sips:", &from, NULL, &domain, NULL)) {
+		if (parse_uri_legacy_check(from, "sip:,sips:", &from, NULL, &domain, NULL)) {
 			ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", from);
 			return SIP_GET_DEST_INVALID_URI;
 		}
@@ -15388,7 +15400,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
 	c = get_in_brackets(tmp);
 
-	if (parse_uri(c, "sip:,sips:", &c, NULL, &a, NULL)) {
+	if (parse_uri_legacy_check(c, "sip:,sips:", &c, NULL, &a, NULL)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header in Also: transfer (%s)?\n", c);
 		return -1;
 	}
@@ -15764,7 +15776,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	ast_string_field_set(p, from, of);
 
 	/* ignore all fields but name */
-	if (parse_uri(of, "sip:,sips:", &of, &dummy, &domain, NULL)) {
+	if (parse_uri_legacy_check(of, "sip:,sips:", &of, &dummy, &domain, NULL)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
 
@@ -17619,6 +17631,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Regexten on Qualify:    %s\n", AST_CLI_YESNO(sip_cfg.regextenonqualify));
 	ast_cli(a->fd, "  Trust RPID:             %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_TRUSTRPID)));
 	ast_cli(a->fd, "  Send RPID:              %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_SENDRPID)));
+	ast_cli(a->fd, "  Legacy userfield parse: %s\n", AST_CLI_YESNO(sip_cfg.legacy_useroption_parsing));
 	ast_cli(a->fd, "  Caller ID:              %s\n", default_callerid);
 	if ((default_fromdomainport) && (default_fromdomainport != STANDARD_SIP_PORT)) {
 		ast_cli(a->fd, "  From: Domain:           %s:%d\n", default_fromdomain, default_fromdomainport);
@@ -27303,6 +27316,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.regcontext[0] = '\0';
 	sip_set_default_format_capabilities(sip_cfg.caps);
 	sip_cfg.regextenonqualify = DEFAULT_REGEXTENONQUALIFY;
+	sip_cfg.legacy_useroption_parsing = DEFAULT_LEGACY_USEROPTION_PARSING;
 	sip_cfg.notifyringing = DEFAULT_NOTIFYRINGING;
 	sip_cfg.notifycid = DEFAULT_NOTIFYCID;
 	sip_cfg.notifyhold = FALSE;		/*!< Keep track of hold status for a peer */
@@ -27576,6 +27590,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(sip_cfg.regcontext, v->value, sizeof(sip_cfg.regcontext));
 		} else if (!strcasecmp(v->name, "regextenonqualify")) {
 			sip_cfg.regextenonqualify = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "legacy_useroption_parsing")) {
+			sip_cfg.legacy_useroption_parsing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
 		} else if (!strcasecmp(v->name, "mwi_from")) {
