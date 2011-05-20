@@ -1241,6 +1241,7 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 				AST_LIST_UNLOCK(&confs);
 				return usr ? ast_strdup(usrno) : NULL;
 			}
+			AST_LIST_UNLOCK(&confs);
 		}
 	}
 
