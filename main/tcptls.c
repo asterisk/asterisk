@@ -417,7 +417,8 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 		return NULL;
 	}
 
-	ast_sockaddr_copy(&desc->old_address, &desc->remote_address);
+	/* If we return early, there is no connection */
+	ast_sockaddr_setnull(&desc->old_address);
 
 	if (desc->accept_fd != -1)
 		close(desc->accept_fd);
@@ -454,6 +455,8 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	ast_sockaddr_copy(&tcptls_session->remote_address,
 			  &desc->remote_address);
 
+	/* Set current info */
+	ast_sockaddr_copy(&desc->old_address, &desc->remote_address);
 	return tcptls_session;
 
 error:
@@ -475,7 +478,8 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 		return;
 	}
 
-	ast_sockaddr_copy(&desc->old_address, &desc->local_address);
+	/* If we return early, there is no one listening */
+	ast_sockaddr_setnull(&desc->old_address);
 
 	/* Shutdown a running server if there is one */
 	if (desc->master != AST_PTHREADT_NULL) {
@@ -521,6 +525,10 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 			strerror(errno));
 		goto error;
 	}
+
+	/* Set current info */
+	ast_sockaddr_copy(&desc->old_address, &desc->local_address);
+
 	return;
 
 error:
