@@ -389,9 +389,10 @@ static char *parkedcall = "ParkedCall";
 
 static char pickup_ext[AST_MAX_EXTENSION];                 /*!< Call pickup extension */
 
-/*! \brief Description of one parked call, added to a list while active, then removed.
-	The list belongs to a parkinglot 
-*/
+/*!
+ * \brief Description of one parked call, added to a list while active, then removed.
+ * The list belongs to a parkinglot.
+ */
 struct parkeduser {
 	struct ast_channel *chan;                   /*!< Parking channel */
 	struct timeval start;                       /*!< Time the parking started */
@@ -715,7 +716,7 @@ static int parkinglot_cmp_cb(void *obj, void *arg, int flags)
 /*!
  * \brief store context, extension and priority 
  * \param chan, context, ext, pri
-*/
+ */
 static void set_c_e_p(struct ast_channel *chan, const char *context, const char *ext, int pri)
 {
 	ast_copy_string(chan->context, context, sizeof(chan->context));
@@ -730,7 +731,7 @@ static void set_c_e_p(struct ast_channel *chan, const char *context, const char 
  * Check if channel has 'GOTO_ON_BLINDXFR' set, if not exit.
  * When found make sure the types are compatible. Check if channel is valid
  * if so start the new channel else hangup the call. 
-*/
+ */
 static void check_goto_on_transfer(struct ast_channel *chan) 
 {
 	struct ast_channel *xferchan;
@@ -779,7 +780,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
  * Set Last Data for respective channels, reset cdr for channels
  * bridge call, check if we're going back to dialplan
  * if not hangup both legs of the call
-*/
+ */
 static void *bridge_call_thread(void *data)
 {
 	struct ast_bridge_thread_obj *tobj = data;
@@ -822,7 +823,7 @@ static void *bridge_call_thread(void *data)
  * \param data
  *
  * Create thread and attributes, call bridge_call_thread
-*/
+ */
 static void bridge_call_thread_launch(void *data) 
 {
 	pthread_t thread;
@@ -844,7 +845,7 @@ static void bridge_call_thread_launch(void *data)
  * Create message to show for ADSI, display message.
  * \retval 0 on success.
  * \retval -1 on failure.
-*/
+ */
 static int adsi_announce_park(struct ast_channel *chan, char *parkingexten)
 {
 	int res;
@@ -1025,7 +1026,8 @@ static struct parkeduser *park_space_reserve(struct ast_channel *chan, struct as
 	parkingexten = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "PARKINGEXTEN"), ""));
 	ast_channel_unlock(chan);
 	if (!ast_strlen_zero(parkingexten)) {
-		/*!\note The API forces us to specify a numeric parking slot, even
+		/*!
+		 * \note The API forces us to specify a numeric parking slot, even
 		 * though the architecture would tend to support non-numeric extensions
 		 * (as are possible with SIP, for example).  Hence, we enforce that
 		 * limitation here.  If extout was not numeric, we could permit
@@ -1521,7 +1523,7 @@ exit_features_test:
  * \param caller, callee, peer, chan, sense
  *
  * Detect who triggered feature and set callee/caller variables accordingly
-*/
+ */
 static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
 	struct ast_channel *peer, struct ast_channel *chan, int sense)
 {
@@ -1577,14 +1579,15 @@ static int parkcall_helper(struct ast_channel *chan, struct ast_channel *peer, s
  * \param data
  * Setup channel, set return exten,priority to 's,1'
  * answer chan, sleep chan, park call
-*/
+ */
 static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	return parkcall_helper(chan, peer, config, code, sense, NULL);
 }
 
-/*! \brief Play message to both caller and callee in bridged call, plays synchronously, autoservicing the
-	other channel during the message, so please don't use this for very long messages
+/*!
+ * \brief Play message to both caller and callee in bridged call, plays synchronously, autoservicing the
+ * other channel during the message, so please don't use this for very long messages
  */
 static int play_message_in_bridged_call(struct ast_channel *caller_chan, struct ast_channel *callee_chan, const char *audiofile)
 {
@@ -1626,7 +1629,7 @@ static int play_message_in_bridged_call(struct ast_channel *caller_chan, struct 
  * get TOUCH_MONITOR variable for filename if exists, exec monitor app.
  * \retval AST_FEATURE_RETURN_SUCCESS on success.
  * \retval -1 on error.
-*/
+ */
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
@@ -1855,7 +1858,7 @@ static int finishup(struct ast_channel *chan)
  * 
  * Grab the TRANSFER_CONTEXT, if fails try grabbing macrocontext.
  * \return a context string
-*/
+ */
 static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *transferee)
 {
 	const char *s = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT");
@@ -1884,7 +1887,7 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
  * otherwise check extension exists and transfer caller.
  * \retval AST_FEATURE_RETURN_SUCCESS.
  * \retval -1 on failure.
-*/
+ */
 static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;
@@ -2010,7 +2013,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
  * \param newchan
  * \retval 0 on success.
  * \retval -1 on failure.
-*/
+ */
 static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
 {
 	if (ast_channel_make_compatible(c, newchan) < 0) {
@@ -2065,7 +2068,7 @@ static void atxfer_fail_cleanup(struct ast_channel *transferee, struct ast_chann
  * bridge call between transfer peer (taking them off hold) to attended transfer channel.
  *
  * \return -1 on failure
-*/
+ */
 static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;/* Party B */
@@ -2515,7 +2518,7 @@ void ast_register_feature(struct ast_call_feature *feature)
  *
  * Add new feature group to the feature group list insert at head of list.
  * \note This function MUST be called while feature_groups is locked.
-*/
+ */
 static struct feature_group *register_group(const char *fgname)
 {
 	struct feature_group *fg;
@@ -2546,7 +2549,7 @@ static struct feature_group *register_group(const char *fgname)
  *
  * Check fg and feature specified, add feature to list
  * \note This function MUST be called while feature_groups is locked. 
-*/
+ */
 static void register_group_feature(struct feature_group *fg, const char *exten, struct ast_call_feature *feature)
 {
 	struct feature_group_exten *fge;
@@ -2638,7 +2641,7 @@ static void ast_unregister_groups(void)
  * \param name feature name
  * \retval feature group on success.
  * \retval NULL on failure.
-*/
+ */
 static struct feature_group *find_group(const char *name)
 {
 	struct feature_group *fg = NULL;
@@ -2679,7 +2682,7 @@ struct ast_call_feature *ast_find_call_feature(const char *name)
  * \retval AST_FEATURE_RETURN_NO_HANGUP_PEER
  * \retval -1 error.
  * \retval -2 when an application cannot be found.
-*/
+ */
 static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data)
 {
 	struct ast_app *app;
@@ -2782,7 +2785,7 @@ static int remap_feature(const char *name, const char *value)
  * operation is executed.  The first feature found is copied to the feature parameter.
  * \retval res on success.
  * \retval -1 on failure.
-*/
+ */
 static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel *peer,
 	struct ast_bridge_config *config, const char *code, int sense, char *dynamic_features_buf,
 	struct ast_flags *features, feature_interpret_op operation, struct ast_call_feature *feature)
@@ -2897,8 +2900,7 @@ static int feature_interpret_helper(struct ast_channel *chan, struct ast_channel
  *
  * \retval res on success.
  * \retval -1 on failure.
-*/
-
+ */
 static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense) {
 
 	char dynamic_features_buf[128];
@@ -3347,7 +3349,7 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
 
 /*!
  * \brief return the first unlocked cdr in a possible chain
-*/
+ */
 static struct ast_cdr *pick_unlocked_cdr(struct ast_cdr *cdr)
 {
 	struct ast_cdr *cdr_orig = cdr;
@@ -3473,7 +3475,7 @@ static void clear_dialed_interfaces(struct ast_channel *chan)
  * check for feature activation, create new CDR
  * \retval res on success.
  * \retval -1 on failure to bridge.
-*/
+ */
 int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast_bridge_config *config)
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
@@ -3482,8 +3484,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_channel *who;
 	char chan_featurecode[FEATURE_MAX_LEN + 1]="";
 	char peer_featurecode[FEATURE_MAX_LEN + 1]="";
-	char orig_channame[AST_MAX_EXTENSION];
-	char orig_peername[AST_MAX_EXTENSION];
+	char orig_channame[AST_CHANNEL_NAME];
+	char orig_peername[AST_CHANNEL_NAME];
 	int res;
 	int diff;
 	int hasfeatures=0;
@@ -3813,7 +3815,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					ast_log(LOG_DEBUG, "Not passing DTMF through, since it may be a feature code\n");
 				}
 			}
-		} else if (f->frametype == AST_FRAME_DTMF) {
+		} else if (f->frametype == AST_FRAME_DTMF_END) {
 			char *featurecode;
 			int sense;
 
@@ -3866,7 +3868,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					config->feature_timer = 0;
 				} else if (hasfeatures) {
 					if (config->timelimit) {
-						/* No warning next time - we are waiting for future */
+						/* No warning next time - we are waiting for feature code */
 						ast_set_flag(config, AST_FEATURE_WARNING_ACTIVE);
 					}
 					config->feature_start_time = ast_tvnow();
@@ -3877,7 +3879,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 		if (f)
 			ast_frfree(f);
-
 	}
 	ast_cel_report_event(chan, AST_CEL_BRIDGE_END, NULL, NULL, NULL);
 
@@ -4362,7 +4363,7 @@ std:			for (x = 0; x < AST_MAX_FDS; x++) {	/* mark fds for next round */
  * Start inf loop, lock parking lot, check if any parked channels have gone above timeout
  * if so, remove channel from parking lot and return it to the extension that parked it.
  * Check if parked channel decided to hangup, wait until next FD via select().
-*/
+ */
 static void *do_parking_thread(void *ignore)
 {
 	struct pollfd *pfds = NULL, *new_pfds = NULL;
@@ -4723,8 +4724,10 @@ static int park_exec(struct ast_channel *chan, const char *data)
 	return park_exec_full(chan, data);
 }
 
-/*! \brief Unreference parkinglot object. If no more references,
-	then go ahead and delete it */
+/*!
+ * \brief Unreference parkinglot object. If no more references,
+ * then go ahead and delete it
+ */
 static void parkinglot_unref(struct ast_parkinglot *parkinglot) 
 {
 	int refcount = ao2_ref(parkinglot, -1);
@@ -4771,7 +4774,7 @@ static void parkinglot_destroy(void *obj)
  * \param context
  * \param start starting parkinglot number
  * \param stop ending parkinglot number
-*/
+ */
 static void park_add_hints(char *context, int start, int stop)
 {
 	int numext;
@@ -5427,7 +5430,7 @@ static char *handle_features_reload(struct ast_cli_entry *e, int cmd, struct ast
  * 
  * Stop hold music, lock both channels, masq channels,
  * after bridge return channel to next priority.
-*/
+ */
 static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tmpchan)
 {
 	ast_moh_stop(chan);
@@ -5459,7 +5462,7 @@ static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *t
  * 
  * \retval 0 on success or on incorrect use.
  * \retval 1 on failure to bridge channels.
-*/
+ */
 static int action_bridge(struct mansession *s, const struct message *m)
 {
 	const char *channela = astman_get_header(m, "Channel1");
@@ -5584,7 +5587,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
  * \retval CLI_SUCCESS on success.
  * \retval CLI_SHOWUSAGE on incorrect number of arguments.
  * \retval NULL when tab completion is used.
-*/
+ */
 static char *handle_parkedcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct parkeduser *cur;
@@ -5649,7 +5652,7 @@ static struct ast_cli_entry cli_features[] = {
  * 
  * Lock parking lot, iterate list and append parked calls status, unlock parking lot.
  * \return Always RESULT_SUCCESS 
-*/
+ */
 static int manager_parking_status(struct mansession *s, const struct message *m)
 {
 	struct parkeduser *cur;
@@ -5703,7 +5706,7 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
  *
  * Get channels involved in park, create event.
  * \return Always 0
-*/
+ */
 static int manager_park(struct mansession *s, const struct message *m)
 {
 	const char *channel = astman_get_header(m, "Channel");
@@ -6045,7 +6048,7 @@ int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *con
  * Split data, check we aren't bridging with ourself, check valid channel,
  * answer call if not already, check compatible channels, setup bridge config
  * now bridge call, if transfered party hangs up return to PBX extension.
-*/
+ */
 static int bridge_exec(struct ast_channel *chan, const char *data)
 {
 	struct ast_channel *current_dest_chan, *final_dest_chan, *chans[2];
