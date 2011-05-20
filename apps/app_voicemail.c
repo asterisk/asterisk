@@ -6708,7 +6708,21 @@ static int get_folder(struct ast_channel *chan, int start)
 		if (d)
 			return d;
 		snprintf(fn, sizeof(fn), "vm-%s", mbox(NULL, x));	/* Folder name */
-		d = vm_play_folder_name(chan, fn);
+
+		/* The inbox folder can have its name changed under certain conditions
+		 * so this checks if the sound file exists for the inbox folder name and
+		 * if it doesn't, plays the default name instead. */
+		if (x == 0) {
+			if (ast_fileexists(fn, NULL, NULL)) {
+				d = vm_play_folder_name(chan, fn);
+			} else {
+				ast_verb(1, "failed to find %s\n", fn);
+				d = vm_play_folder_name(chan, "vm-INBOX");
+			}
+		} else {
+			d = vm_play_folder_name(chan, fn);
+		}
+
 		if (d)
 			return d;
 		d = ast_waitfordigit(chan, 500);
