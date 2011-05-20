@@ -3660,7 +3660,17 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		struct ast_channel *other;	/* used later */
 	
 		res = ast_channel_bridge(chan, peer, config, &f, &who);
-		
+
+		if (ast_test_flag(chan, AST_FLAG_ZOMBIE)
+			|| ast_test_flag(peer, AST_FLAG_ZOMBIE)) {
+			/* Zombies are present time to leave! */
+			res = -1;
+			if (f) {
+				ast_frfree(f);
+			}
+			goto before_you_go;
+		}
+
 		/* When frame is not set, we are probably involved in a situation
 		   where we've timed out.
 		   When frame is set, we'll come this code twice; once for DTMF_BEGIN
