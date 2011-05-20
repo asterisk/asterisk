@@ -7063,6 +7063,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	char caller_warning = 0;
 	char callee_warning = 0;
 
+	*fo = NULL;
+
 	if (c0->_bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n",
 			c0->name, c0->_bridge->name);
@@ -7078,8 +7080,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
 	    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1))
 		return -1;
-
-	*fo = NULL;
 
 	if (ast_tvzero(config->start_time)) {
 		config->start_time = ast_tvnow();
