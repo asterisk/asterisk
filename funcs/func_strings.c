@@ -132,6 +132,24 @@ AST_THREADSTORAGE(tmp_buf);
 			altered.</para></note>
 		</description>
 	</function>
+	<function name="STRREPLACE" language="en_US">
+		<synopsis>
+			Replace instances of a substring within a string with another string.
+		</synopsis>
+		<syntax>
+			<parameter name="varname" required="true" />
+			<parameter name="find-string" required="true" />
+			<parameter name="replace-string" required="false" />
+			<parameter name="max-replacements" required="false" />
+		</syntax>
+		<description>
+			<para>Searches for all instances of the <replaceable>find-string</replaceable> in provided variable and
+			replaces them with <replaceable>replace-string</replaceable>.  If <replaceable>replace-string</replaceable>
+			is an empty string, this will effecively delete that substring.  If <replaceable>max-replacements</replaceable>
+			is specified, this function will stop after performing replacements <replaceable>max-replacements</replaceable> times.</para>
+			<note><para>The replacement only occurs in the output.  The original variable is not altered.</para></note>
+		</description>
+	</function>
 	<function name="PASSTHRU" language="en_US">
 		<synopsis>
 			Pass the given argument back as a value.
@@ -833,6 +851,97 @@ static int replace(struct ast_channel *chan, const char *cmd, char *data, struct
 static struct ast_custom_function replace_function = {
 	.name = "REPLACE",
 	.read2 = replace,
+};
+
+static int strreplace(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t len)
+{
+	char *starts[len]; /* marks starts of substrings */
+	char *varsubstr; /* substring for input var */
+	int count_len = 0; /* counter for starts */
+	char *p; /* tracks position of cursor for search and replace */
+	int find_size; /* length of given find-string */
+	int max_matches; /* number of matches we find before terminating search */
+
+	int x; /* loop counter */
+	struct ast_str *str = ast_str_thread_get(&result_buf, 16); /* Holds the data obtained from varname */
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(varname);
+		AST_APP_ARG(find_string);
+		AST_APP_ARG(replace_string);
+		AST_APP_ARG(max_replacements);
+	);
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!str) { /* If we failed to allocate str, forget it.  We failed. */
+		return -1;
+	}
+
+	if (args.argc < 2) { /* Didn't receive enough arguments to do anything */
+		ast_log(LOG_ERROR, "Usage: %s(<varname>,<find-string>[,<replace-string>, <max-replacements>])\n", cmd);
+		return -1;
+	}
+
+	/* No var name specified. Return failure, string is already empty. */
+	if (ast_strlen_zero(args.varname)) {
+		return -1;
+	}
+
+	/* set varsubstr to the matching variable */
+	varsubstr = alloca(strlen(args.varname) + 4);
+	sprintf(varsubstr, "${%s}", args.varname);
+	ast_str_substitute_variables(&str, 0, chan, varsubstr);
+
+	p = ast_str_buffer(str);
+
+	/* Zero length find strings are a no-no. Kill the function if we run into one. */
+	if (ast_strlen_zero(args.find_string)) {
+		ast_log(LOG_ERROR, "The <find-string> must have length > 0\n");
+		return -1;
+	}
+	find_size = strlen(args.find_string);
+
+	/* If the replace string is a null pointer, set it to an empty string */
+	if (!args.replace_string) {
+		args.replace_string = "";
+	}
+
+	/*
+	 * If max_replacements specified and is a number, max_matches will become that.
+	 * otherwise, just go the length of the input string
+	 */
+	if (!(args.max_replacements && (max_matches = atoi(args.max_replacements)))) {
+		max_matches = strlen(p);
+	}
+
+	/* Iterate through string finding matches until it is exhausted or we reach max_matches */
+	for (x = 0; x < max_matches; x++) {
+		if ((p = strstr(p, args.find_string))) {
+			starts[count_len++] = p;
+			*p++ = '\0';
+		} else {
+			break;
+		}
+	}
+
+	p = ast_str_buffer(str);
+
+	/* here we rebuild the string with the replaced words by using fancy ast_string_append on the buffer */
+	for (x = 0; x < count_len; x++) {
+		ast_str_append(buf, 0, "%s", p);
+		p = starts[x];
+		p += find_size;
+		ast_str_append(buf, 0, "%s", args.replace_string);
+	}
+	ast_str_append(buf, 0, "%s", p);
+
+	return 0;
+}
+
+static struct ast_custom_function strreplace_function = {
+	.name = "STRREPLACE",
+	.read2 = strreplace,
 };
 
 static int regex(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
@@ -1639,6 +1748,74 @@ AST_TEST_DEFINE(test_FILTER)
 	}
 	return res;
 }
+
+AST_TEST_DEFINE(test_STRREPLACE)
+{
+	int i, res = AST_TEST_PASS;
+	struct ast_channel *chan; /* dummy channel */
+	struct ast_str *str; /* fancy string for holding comparing value */
+
+	const char *test_strings[][5] = {
+		{"Weasels have eaten my telephone system", "have eaten my", "are eating our", "", "Weasels are eating our telephone system"}, /*Test normal conditions */
+		{"Did you know twenty plus two is twenty-two?", "twenty", "thirty", NULL, "Did you know thirty plus two is thirty-two?"}, /* Test no third comma */
+		{"My pet dog once ate a dog who sat on a dog while eating a corndog.", "dog", "cat", "3", "My pet cat once ate a cat who sat on a cat while eating a corndog."},
+		{"One and one and one is three", "and", "plus", "1", "One plus one and one is three"}, /* Test <max-replacements> = 1*/
+		{"", "fhqwagads", "spelunker", NULL, ""}, /* Empty primary string */
+		{"Part of this string is missing.", "missing", NULL, NULL, "Part of this string is ."}, /* Empty replace string */
+		{"'Accidentally' left off a bunch of stuff.", NULL, NULL, NULL, ""}, /* Deliberate error test from too few args */
+		{"This test will also error.", "", "", "", ""}, /* Deliberate error test from blank find string */
+		{"This is an \"escape character\" test.", "\\\"escape character\\\"", "evil", NULL, "This is an evil test."}
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "func_STRREPLACE_test";
+		info->category = "/funcs/func_strings/";
+		info->summary = "Test STRREPLACE function";
+		info->description = "Verify STRREPLACE behavior";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(chan = ast_dummy_channel_alloc())) {
+		ast_test_status_update(test, "Unable to allocate dummy channel\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(str = ast_str_create(64))) {
+		ast_test_status_update(test, "Unable to allocate dynamic string buffer\n");
+		ast_channel_release(chan);
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(test_strings); i++) {
+		char tmp[512], tmp2[512] = "";
+
+		struct ast_var_t *var = ast_var_assign("test_string", test_strings[i][0]);
+		AST_LIST_INSERT_HEAD(&chan->varshead, var, entries);
+
+		if (test_strings[i][3]) {
+			snprintf(tmp, sizeof(tmp), "${STRREPLACE(%s,%s,%s,%s)}", "test_string", test_strings[i][1], test_strings[i][2], test_strings[i][3]);
+		} else if (test_strings[i][2]) {
+			snprintf(tmp, sizeof(tmp), "${STRREPLACE(%s,%s,%s)}", "test_string", test_strings[i][1], test_strings[i][2]);
+		} else if (test_strings[i][1]) {
+			snprintf(tmp, sizeof(tmp), "${STRREPLACE(%s,%s)}", "test_string", test_strings[i][1]);
+		} else {
+			snprintf(tmp, sizeof(tmp), "${STRREPLACE(%s)}", "test_string");
+		}
+		ast_str_substitute_variables(&str, 0, chan, tmp);
+		if (strcmp(test_strings[i][4], ast_str_buffer(str))) {
+			ast_test_status_update(test, "Format string '%s' substituted to '%s'.  Expected '%s'.\n", test_strings[i][0], tmp2, test_strings[i][4]);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	ast_free(str);
+	ast_channel_release(chan);
+
+	return res;
+}
 #endif
 
 static int unload_module(void)
@@ -1647,10 +1824,12 @@ static int unload_module(void)
 
 	AST_TEST_UNREGISTER(test_FIELDNUM);
 	AST_TEST_UNREGISTER(test_FILTER);
+	AST_TEST_UNREGISTER(test_STRREPLACE);
 	res |= ast_custom_function_unregister(&fieldqty_function);
 	res |= ast_custom_function_unregister(&fieldnum_function);
 	res |= ast_custom_function_unregister(&filter_function);
 	res |= ast_custom_function_unregister(&replace_function);
+	res |= ast_custom_function_unregister(&strreplace_function);
 	res |= ast_custom_function_unregister(&listfilter_function);
 	res |= ast_custom_function_unregister(&regex_function);
 	res |= ast_custom_function_unregister(&array_function);
@@ -1681,10 +1860,12 @@ static int load_module(void)
 
 	AST_TEST_REGISTER(test_FIELDNUM);
 	AST_TEST_REGISTER(test_FILTER);
+	AST_TEST_REGISTER(test_STRREPLACE);
 	res |= ast_custom_function_register(&fieldqty_function);
 	res |= ast_custom_function_register(&fieldnum_function);
 	res |= ast_custom_function_register(&filter_function);
 	res |= ast_custom_function_register(&replace_function);
+	res |= ast_custom_function_register(&strreplace_function);
 	res |= ast_custom_function_register(&listfilter_function);
 	res |= ast_custom_function_register(&regex_function);
 	res |= ast_custom_function_register(&array_function);

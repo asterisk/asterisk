@@ -81,6 +81,9 @@ Dialplan Functions
    have the rx streams jitterbuffered before conference mixing occurs.
  * Added DB_KEYS, which lists the next set of keys in the Asterisk database
    hierarchy.
+ * Added STRREPLACE function.  This function let's the user search a variable
+   for a given string to replace with another string as many times as the
+   user specifies or just throughout the whole string.
 
 libpri channel driver (chan_dahdi) DAHDI changes
 --------------------------
