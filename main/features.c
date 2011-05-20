@@ -5759,21 +5759,21 @@ static int manager_park(struct mansession *s, const struct message *m)
 
 static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 {
-	struct ast_channel *c = data;
 	struct ast_channel *chan = obj;
-	int i;
+	struct ast_channel *c = data;
 
-	i = !chan->pbx &&
-		/* Accessing 'chan' here is safe without locking, because there is no way for
-		   the channel to disappear from under us at this point.  pickupgroup *could*
-		   change while we're here, but that isn't a problem. */
-		(c != chan) &&
-		(c->pickupgroup & chan->callgroup) &&
+	ast_channel_lock(chan);
+	if (c != chan && (c->pickupgroup & chan->callgroup) &&
+		!chan->pbx &&
 		((chan->_state == AST_STATE_RINGING) || (chan->_state == AST_STATE_RING)) &&
 		!chan->masq &&
-		!ast_test_flag(chan, AST_FLAG_ZOMBIE);
+		!ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
+		/* Return with the channel still locked on purpose */
+		return CMP_MATCH | CMP_STOP;
+	}
+	ast_channel_unlock(chan);
 
-	return i ? CMP_MATCH | CMP_STOP : 0;
+	return 0;
 }
 
 /*!
@@ -5790,35 +5790,26 @@ int ast_pickup_call(struct ast_channel *chan)
 	int res = -1;
 	ast_debug(1, "pickup attempt by %s\n", chan->name);
 
-	/* If 2 callers try to pickup the same call, allow 1 to win, and other to fail early.*/
-	if ((target = ast_channel_callback(find_channel_by_group, NULL, chan, 0))) {
-		ast_channel_lock(target);
+	/* The found channel is already locked. */
+	target = ast_channel_callback(find_channel_by_group, NULL, chan, 0);
+	if (target) {
+		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", target->name, chan->name);
 
-		/* We now have the target locked, but is the target still available to pickup */
-		if (!target->masq && !ast_test_flag(target, AST_FLAG_ZOMBIE) &&
-			((target->_state == AST_STATE_RINGING) || (target->_state == AST_STATE_RING))) {
-
-			ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", target->name, chan->name);
-
-			/* A 2nd pickup attempt will bail out when we unlock the target */
-			if (!(res = ast_do_pickup(chan, target))) {
-				ast_channel_unlock(target);
-				if (!(res = ast_do_masquerade(target))) {
-					if (!ast_strlen_zero(pickupsound)) {
-						ast_channel_lock(target);
-						ast_stream_and_wait(target, pickupsound, "");
-						ast_channel_unlock(target);
-					}
-				} else {
-					ast_log(LOG_WARNING, "Failed to perform masquerade\n");
-				}
-			} else {
-				ast_log(LOG_WARNING, "pickup %s failed by %s\n", target->name, chan->name);
-				ast_channel_unlock(target);
+		res = ast_do_pickup(chan, target);
+		if (!res) {
+			if (!ast_strlen_zero(pickupsound)) {
+				/*!
+				 * \todo We are not the bridge thread when we inject this sound
+				 * so we need to hold the target channel lock while the sound is
+				 * played.  A better way needs to be found as this pauses the
+				 * system.
+				 */
+				ast_stream_and_wait(target, pickupsound, "");
 			}
 		} else {
-			ast_channel_unlock(target);
+			ast_log(LOG_WARNING, "pickup %s failed by %s\n", target->name, chan->name);
 		}
+		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
 	}
 
@@ -5881,6 +5872,11 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
 		"Channel: %s\r\nTargetChannel: %s\r\n", chan->name, target->name);
+
+	/* Do the masquerade manually to make sure that is is completed. */
+	ast_channel_unlock(target);
+	ast_do_masquerade(target);
+	ast_channel_lock(target);
 
 	return 0;
 }
