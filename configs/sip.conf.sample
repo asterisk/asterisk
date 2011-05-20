@@ -432,6 +432,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; If you have qualify on and the peer becomes unreachable
                                 ; this setting will enforce inactivation of the regexten
                                 ; extension for the peer
+;legacy_useroption_parsing=yes	; Default "no"      ; If you have this option enabled and there are semicolons
+                                                    ; in the user field of a sip URI, the field be truncated
+                                                    ; at the first semicolon seen. This effectively makes
+                                                    ; semicolon a non-usable character for peer names, extensions,
+                                                    ; and maybe other, less tested things.  This can be useful
+                                                    ; for improving compatability with devices that like to use
+                                                    ; user options for whatever reason.  The behavior is similar to
+                                                    ; how SIP URI's were typically handled in 1.6.2, hence the name.
 
 ; The shrinkcallerid function removes '(', ' ', ')', non-trailing '.', and '-' not
 ; in square brackets.  For example, the caller id value 555.5555 becomes 5555555
