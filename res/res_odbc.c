@@ -1235,10 +1235,11 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 			class = NULL;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
+				ast_assert(ao2_ref(obj->parent, 0) > 0);
+				/* Because it was never within the container, we have to manually decrement the count here */
+				ast_atomic_fetchadd_int(&obj->parent->count, -1);
 				ao2_ref(obj, -1);
 				obj = NULL;
-				ast_assert(ao2_ref(class, 0) > 0);
-				ast_atomic_fetchadd_int(&class->count, -1);
 			} else {
 				obj->used = 1;
 				ao2_link(obj->parent->obj_container, obj);
