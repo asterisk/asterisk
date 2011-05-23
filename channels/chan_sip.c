@@ -13326,6 +13326,13 @@ static int __set_address_from_contact(const char *fullcontact, struct ast_sockad
 		assume that the domain part is a host name and only look for an A/AAAA record in DNS.
 	*/
 
+	/* If we took in an invalid URI, domain may not have been initialized */
+	/* ast_sockaddr_resolve requires an initialized domain string. */
+	if (ast_strlen_zero(domain)) {
+		ast_log(LOG_WARNING, "Invalid URI: parse_uri failed to acquire domain\n");
+		return -1;
+	}
+
 	if (ast_sockaddr_resolve_first(addr, domain, 0)) {
 		ast_log(LOG_WARNING, "Invalid host name in Contact: (can't "
 			"resolve in DNS) : '%s'\n", domain);
