@@ -3192,6 +3192,8 @@ static int action_status(struct mansession *s, const struct message *m)
 			"Channel: %s\r\n"
 			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
+			"ConnectedLineNum: %s\r\n"
+			"ConnectedLineName: %s\r\n"
 			"Accountcode: %s\r\n"
 			"ChannelState: %d\r\n"
 			"ChannelStateDesc: %s\r\n"
@@ -3205,8 +3207,10 @@ static int action_status(struct mansession *s, const struct message *m)
 			"%s"
 			"\r\n",
 			c->name,
-			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
-			S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
+			S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<unknown>"),
+			S_COR(c->caller.id.name.valid, c->caller.id.name.str, "<unknown>"),
+			S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
+			S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
 			c->accountcode,
 			c->_state,
 			ast_state2str(c->_state), c->context,
@@ -3218,6 +3222,8 @@ static int action_status(struct mansession *s, const struct message *m)
 				"Channel: %s\r\n"
 				"CallerIDNum: %s\r\n"
 				"CallerIDName: %s\r\n"
+				"ConnectedLineNum: %s\r\n"
+				"ConnectedLineName: %s\r\n"
 				"Account: %s\r\n"
 				"State: %s\r\n"
 				"%s"
@@ -3228,6 +3234,8 @@ static int action_status(struct mansession *s, const struct message *m)
 				c->name,
 				S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<unknown>"),
 				S_COR(c->caller.id.name.valid, c->caller.id.name.str, "<unknown>"),
+				S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
+				S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
 				c->accountcode,
 				ast_state2str(c->_state), bridge, c->uniqueid,
 				ast_str_buffer(str), idText);
