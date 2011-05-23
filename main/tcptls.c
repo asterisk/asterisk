@@ -542,6 +542,7 @@ void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc)
 		pthread_cancel(desc->master);
 		pthread_kill(desc->master, SIGURG);
 		pthread_join(desc->master, NULL);
+		desc->master = AST_PTHREADT_NULL;
 	}
 	if (desc->accept_fd != -1)
 		close(desc->accept_fd);
