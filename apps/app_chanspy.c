@@ -938,6 +938,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			}
 
 			if (!ienf) {
+				ast_channel_unlock(peer);
 				continue;
 			}
 
