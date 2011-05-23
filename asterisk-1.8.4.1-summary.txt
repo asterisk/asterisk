@@ -1,0 +1,103 @@
+                                Release Summary
+
+                                asterisk-1.8.4.1
+
+                                Date: 2011-05-23
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.4.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   4 lmadsen                
+   1 russell                
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   | 319995   | lmadsen | Create 1.8.4.1 from 1.8.4     |                   |
+   |----------+---------+-------------------------------+-------------------|
+   |          |         | Update .version, ChangeLog    |                   |
+   | 319996   | lmadsen | files. Remove old summary     | #18951            |
+   |          |         | files.                        |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 320171   | lmadsen | Merge changes per issue       | #19192            |
+   |          |         | #19192.                       |                   |
+   |----------+---------+-------------------------------+-------------------|
+   |          |         | Merge changes for issue       |                   |
+   | 320221   | lmadsen | #19182 and update the         | #19182            |
+   |          |         | ChangeLog.                    |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 320704   | russell | Importing release summary for |                   |
+   |          |         | 1.8.4.1 release.              |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                      |    2
+ ChangeLog                     |   59 ++
+ asterisk-1.8.4-summary.html   |  641 --------------------------------
+ asterisk-1.8.4-summary.txt    |  836 ------------------------------------------
+ asterisk-1.8.4.1-summary.html |   63 +++
+ channels/chan_sip.c           |   92 +++-
+ channels/sip/reqresp_parser.c |   18
+ 7 files changed, 200 insertions(+), 1511 deletions(-)
+
+     ----------------------------------------------------------------------
