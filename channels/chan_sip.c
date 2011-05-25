@@ -1910,6 +1910,7 @@ static int sip_cc_monitor_request_cc(struct ast_cc_monitor *monitor, int *availa
 		ast_get_ccnr_available_timer(monitor->interface->config_params);
 
 	sip_pvt_lock(monitor_instance->subscription_pvt);
+	ast_set_flag(&monitor_instance->subscription_pvt->flags[0], SIP_OUTGOING);
 	create_addr(monitor_instance->subscription_pvt, monitor_instance->peername, 0, 1, NULL);
 	ast_sip_ouraddrfor(&monitor_instance->subscription_pvt->sa, &monitor_instance->subscription_pvt->ourip, monitor_instance->subscription_pvt);
 	monitor_instance->subscription_pvt->subscribed = CALL_COMPLETION;
@@ -19685,6 +19686,27 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 /* \brief Handle SIP response in SUBSCRIBE transaction */
 static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
 {
+	if (p->subscribed == CALL_COMPLETION) {
+		struct sip_monitor_instance *monitor_instance;
+
+		if (resp < 300) {
+			return;
+		}
+
+		/* Final failure response received. */
+		monitor_instance = ao2_callback(sip_monitor_instances, 0,
+			find_sip_monitor_instance_by_subscription_pvt, p);
+		if (monitor_instance) {
+			ast_cc_monitor_failed(monitor_instance->core_id,
+				monitor_instance->device_name,
+				"Received error response to our SUBSCRIBE");
+		}
+		return;
+	}
+
+	if (p->subscribed != MWI_NOTIFICATION) {
+		return;
+	}
 	if (!p->mwi) {
 		return;
 	}
@@ -20412,16 +20434,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 
 			gettag(req, "To", tag, sizeof(tag));
 			ast_string_field_set(p, theirtag, tag);
-		}
-
-		if (sipmethod == SIP_SUBSCRIBE && resp >= 400) {
-			struct sip_monitor_instance *monitor_instance = ao2_callback(sip_monitor_instances,
-					0, find_sip_monitor_instance_by_subscription_pvt, p);
-			if (monitor_instance) {
-				ast_cc_monitor_failed(monitor_instance->core_id, monitor_instance->device_name,
-						"Received error response to our SUBSCRIBE");
-				return;
-			}
 		}
 
 		switch(resp) {
@@ -23570,6 +23582,8 @@ static int handle_cc_subscribe(struct sip_pvt *p, struct sip_request *req)
 		*param_separator = '\0';
 	}
 
+	p->subscribed = CALL_COMPLETION;
+
 	if (!(agent = find_sip_cc_agent_by_subscribe_uri(uri))) {
 		if (!expires) {
 			/* Typically, if a 0 Expires reaches us and we can't find
@@ -23601,7 +23615,6 @@ static int handle_cc_subscribe(struct sip_pvt *p, struct sip_request *req)
 	agent_pvt->subscribe_pvt = dialog_ref(p, "SIP CC agent gains reference to subscription dialog");
 	ast_cc_agent_accept_request(agent->core_id, "SIP caller %s has requested CC via SUBSCRIBE",
 			agent->device_name);
-	p->subscribed = CALL_COMPLETION;
 
 	/* We don't send a response here. That is done in the agent's ack callback or in the
 	 * agent destructor, should a failure occur before we have responded
