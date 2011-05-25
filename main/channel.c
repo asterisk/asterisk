@@ -2818,12 +2818,16 @@ int ast_hangup(struct ast_channel *chan)
 		"Uniqueid: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n"
+		"ConnectedLineNum: %s\r\n"
+		"ConnectedLineName: %s\r\n"
 		"Cause: %d\r\n"
 		"Cause-txt: %s\r\n",
 		chan->name,
 		chan->uniqueid,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>"),
+		S_COR(chan->connected.id.number.valid, chan->connected.id.number.str, "<unknown>"),
+		S_COR(chan->connected.id.name.valid, chan->connected.id.name.str, "<unknown>"),
 		chan->hangupcause,
 		ast_cause2str(chan->hangupcause)
 		);
@@ -6755,10 +6759,14 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 		"ChannelStateDesc: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n"
+		"ConnectedLineNum: %s\r\n"
+		"ConnectedLineName: %s\r\n"
 		"Uniqueid: %s\r\n",
 		chan->name, chan->_state, ast_state2str(chan->_state),
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, ""),
+		S_COR(chan->connected.id.number.valid, chan->connected.id.number.str, ""),
+		S_COR(chan->connected.id.name.valid, chan->connected.id.name.str, ""),
 		chan->uniqueid);
 
 	return 0;
