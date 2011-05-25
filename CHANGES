@@ -567,8 +567,8 @@ Asterisk Manager Interface
  * Added a new eventfilter option per user to allow whitelisting and blacklisting
    of events.
  * Added optional parkinglot variable for park command.
- * Added ConnectedLineNum and ConnectedLineName headers to the output of Status
-   manager action.
+ * Added ConnectedLineNum and ConnectedLineName headers to AMI events/responses
+   if CallerIDNum and CallerIDName headers are also present.
 
 Channel Event Logging
 ---------------------

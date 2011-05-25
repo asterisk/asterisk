@@ -255,6 +255,9 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 		"Channel: %s\r\n"
 		"Exten: %s\r\n"
 		"CallerID: %s\r\n"
+		"CallerIDName: %s\r\n"
+		"ConnectedLineNum: %s\r\n"
+		"ConnectedLineName: %s\r\n"
 		"RemoteStationID: %s\r\n"
 		"LocalStationID: %s\r\n"
 		"PagesTransferred: %d\r\n"
@@ -264,6 +267,9 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 		s->chan->name,
 		s->chan->exten,
 		S_COR(s->chan->caller.id.number.valid, s->chan->caller.id.number.str, ""),
+		S_COR(s->chan->caller.id.name.valid, s->chan->caller.id.name.str, ""),
+		S_COR(s->chan->connected.id.number.valid, s->chan->connected.id.number.str, ""),
+		S_COR(s->chan->connected.id.name.valid, s->chan->connected.id.name.str, ""),
 		far_ident,
 		local_ident,
 		pages_transferred,

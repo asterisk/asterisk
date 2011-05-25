@@ -2756,11 +2756,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			"Meetme: %s\r\n"
 			"Usernum: %d\r\n"
 			"CallerIDnum: %s\r\n"
-			"CallerIDname: %s\r\n",
+			"CallerIDname: %s\r\n"
+			"ConnectedLineNum: %s\r\n"
+			"ConnectedLineName: %s\r\n",
 			chan->name, chan->uniqueid, conf->confno,
 			user->user_no,
 			S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
-			S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>")
+			S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>"),
+			S_COR(user->chan->connected.id.number.valid, user->chan->connected.id.number.str, "<unknown>"),
+			S_COR(user->chan->connected.id.name.valid, user->chan->connected.id.name.str, "<unknown>")
 			);
 		sent_event = 1;
 	}
@@ -3817,11 +3821,15 @@ bailoutandtrynormal:
 				"Usernum: %d\r\n"
 				"CallerIDNum: %s\r\n"
 				"CallerIDName: %s\r\n"
+				"ConnectedLineNum: %s\r\n"
+				"ConnectedLineName: %s\r\n"
 				"Duration: %ld\r\n",
 				chan->name, chan->uniqueid, conf->confno,
 				user->user_no,
 				S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
 				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>"),
+				S_COR(user->chan->connected.id.number.valid, user->chan->connected.id.number.str, "<unknown>"),
+				S_COR(user->chan->connected.id.name.valid, user->chan->connected.id.name.str, "<unknown>"),
 				(long)(now.tv_sec - user->jointime));
 		}
 
@@ -4883,6 +4891,8 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 				"UserNumber: %d\r\n"
 				"CallerIDNum: %s\r\n"
 				"CallerIDName: %s\r\n"
+				"ConnectedLineNum: %s\r\n"
+				"ConnectedLineName: %s\r\n"
 				"Channel: %s\r\n"
 				"Admin: %s\r\n"
 				"Role: %s\r\n"
@@ -4895,6 +4905,8 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 				user->user_no,
 				S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
 				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<no name>"),
+				S_COR(user->chan->connected.id.number.valid, user->chan->connected.id.number.str, "<unknown>"),
+				S_COR(user->chan->connected.id.name.valid, user->chan->connected.id.name.str, "<no name>"),
 				user->chan->name,
 				ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "Yes" : "No",
 				ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "Listen only" : ast_test_flag64(&user->userflags, CONFFLAG_TALKER) ? "Talk only" : "Talk and listen",

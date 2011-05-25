@@ -2515,10 +2515,20 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		q->count++;
 		res = 0;
 		ast_manager_event(qe->chan, EVENT_FLAG_CALL, "Join",
-			"Channel: %s\r\nCallerIDNum: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\nUniqueid: %s\r\n",
+			"Channel: %s\r\n"
+			"CallerIDNum: %s\r\n"
+			"CallerIDName: %s\r\n"
+			"ConnectedLineNum: %s\r\n"
+			"ConnectedLineName: %s\r\n"
+			"Queue: %s\r\n"
+			"Position: %d\r\n"
+			"Count: %d\r\n"
+			"Uniqueid: %s\r\n",
 			qe->chan->name,
 			S_COR(qe->chan->caller.id.number.valid, qe->chan->caller.id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
 			S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
+			S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),/* XXX somewhere else it is <unknown> */
+			S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
 			q->name, qe->pos, q->count, qe->chan->uniqueid );
 		ast_debug(1, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 	}
@@ -3152,6 +3162,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			"DestinationChannel: %s\r\n"
 			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
+			"ConnectedLineNum: %s\r\n"
+			"ConnectedLineName: %s\r\n"
 			"Context: %s\r\n"
 			"Extension: %s\r\n"
 			"Priority: %d\r\n"
@@ -3160,6 +3172,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			qe->parent->name, tmp->interface, tmp->member->membername, qe->chan->name, tmp->chan->name,
 			S_COR(tmp->chan->caller.id.number.valid, tmp->chan->caller.id.number.str, "unknown"),
 			S_COR(tmp->chan->caller.id.name.valid, tmp->chan->caller.id.name.str, "unknown"),
+			S_COR(tmp->chan->connected.id.number.valid, tmp->chan->connected.id.number.str, "unknown"),
+			S_COR(tmp->chan->connected.id.name.valid, tmp->chan->connected.id.name.str, "unknown"),
 			qe->chan->context, qe->chan->exten, qe->chan->priority, qe->chan->uniqueid,
 			qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		ast_verb(3, "Called %s\n", tmp->interface);
@@ -7247,12 +7261,16 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					"Uniqueid: %s\r\n"
 					"CallerIDNum: %s\r\n"
 					"CallerIDName: %s\r\n"
+					"ConnectedLineNum: %s\r\n"
+					"ConnectedLineName: %s\r\n"
 					"Wait: %ld\r\n"
 					"%s"
 					"\r\n",
 					q->name, pos++, qe->chan->name, qe->chan->uniqueid,
 					S_COR(qe->chan->caller.id.number.valid, qe->chan->caller.id.number.str, "unknown"),
 					S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
+					S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),
+					S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
 					(long) (now - qe->start), idText);
 			}
 		}

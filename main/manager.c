@@ -4337,6 +4337,9 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"Application: %s\r\n"
 			"ApplicationData: %s\r\n"
 			"CallerIDnum: %s\r\n"
+			"CallerIDname: %s\r\n"
+			"ConnectedLineNum: %s\r\n"
+			"ConnectedLineName: %s\r\n"
 			"Duration: %s\r\n"
 			"AccountCode: %s\r\n"
 			"BridgedChannel: %s\r\n"
@@ -4344,6 +4347,9 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"\r\n", idText, c->name, c->uniqueid, c->context, c->exten, c->priority, c->_state,
 			ast_state2str(c->_state), c->appl ? c->appl : "", c->data ? S_OR(c->data, "") : "",
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
+			S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
+			S_COR(c->connected.id.number.valid, c->connected.id.number.str, ""),
+			S_COR(c->connected.id.name.valid, c->connected.id.name.str, ""),
 			durbuf, S_OR(c->accountcode, ""), bc ? bc->name : "", bc ? bc->uniqueid : "");
 
 		ast_channel_unlock(c);

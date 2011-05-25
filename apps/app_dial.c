@@ -768,12 +768,16 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst, cons
 		"Destination: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n"
+		"ConnectedLineNum: %s\r\n"
+		"ConnectedLineName: %s\r\n"
 		"UniqueID: %s\r\n"
 		"DestUniqueID: %s\r\n"
 		"Dialstring: %s\r\n",
 		src->name, dst->name,
 		S_COR(src->caller.id.number.valid, src->caller.id.number.str, "<unknown>"),
 		S_COR(src->caller.id.name.valid, src->caller.id.name.str, "<unknown>"),
+		S_COR(src->connected.id.number.valid, src->connected.id.number.str, "<unknown>"),
+		S_COR(src->connected.id.name.valid, src->connected.id.name.str, "<unknown>"),
 		src->uniqueid, dst->uniqueid,
 		dialstring ? dialstring : "");
 }
