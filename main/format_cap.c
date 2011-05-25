@@ -307,8 +307,11 @@ int ast_format_cap_iscompatible(const struct ast_format_cap *cap, const struct a
 {
 	struct ast_format *f;
 	struct ast_format_cap *tmp_cap = (struct ast_format_cap *) cap;
-	f = ao2_find(tmp_cap->formats, (struct ast_format *) format, OBJ_POINTER | tmp_cap->nolock);
 
+	if (!tmp_cap) {
+		return 0;
+	}
+	f = ao2_find(tmp_cap->formats, (struct ast_format *) format, OBJ_POINTER | tmp_cap->nolock);
 	if (f) {
 		ao2_ref(f, -1);
 		return 1;
