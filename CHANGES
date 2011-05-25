@@ -84,6 +84,7 @@ Dialplan Functions
  * Added STRREPLACE function.  This function let's the user search a variable
    for a given string to replace with another string as many times as the
    user specifies or just throughout the whole string.
+ * Added option to CHANNEL(pickupgroup) allow reading and setting the pickupgroup of channel.
 
 libpri channel driver (chan_dahdi) DAHDI changes
 --------------------------

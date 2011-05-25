@@ -85,6 +85,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="callgroup">
 						<para>R/W call groups for call pickup.</para>
 					</enum>
+					<enum name="pickupgroup">
+						<para>R/W call groups for call pickup.</para>
+					</enum>
 					<enum name="channeltype">
 						<para>R/O technology used for channel.</para>
 					</enum>
@@ -372,6 +375,9 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	} else if (!strcasecmp(data, "callgroup")) {
 		char groupbuf[256];
 		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), chan->callgroup), len);
+	} else if (!strcasecmp(data, "pickupgroup")) {
+		char groupbuf[256];
+		locked_copy_string(chan, buf,  ast_print_group(groupbuf, sizeof(groupbuf), chan->pickupgroup), len);
 	} else if (!strcasecmp(data, "amaflags")) {
 		char amabuf[256];
 		snprintf(amabuf,sizeof(amabuf), "%d", chan->amaflags);
@@ -457,9 +463,11 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 			ast_channel_unlock(chan);
 			new_zone = ast_tone_zone_unref(new_zone);
 		}
-	} else if (!strcasecmp(data, "callgroup"))
+	} else if (!strcasecmp(data, "callgroup")) {
 		chan->callgroup = ast_get_group(value);
-	else if (!strcasecmp(data, "txgain")) {
+	} else if (!strcasecmp(data, "pickupgroup")) {
+		chan->pickupgroup = ast_get_group(value);
+	} else if (!strcasecmp(data, "txgain")) {
 		sscanf(value, "%4hhd", &gainset);
 		ast_channel_setoption(chan, AST_OPTION_TXGAIN, &gainset, sizeof(gainset), 0);
 	} else if (!strcasecmp(data, "rxgain")) {
