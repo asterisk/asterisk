@@ -1188,7 +1188,7 @@ static int mbl_devicestate(void *data)
 	int res = AST_DEVICE_INVALID;
 	struct mbl_pvt *pvt;
 
-	device = ast_strdupa(S_OR(data, ""));
+	device = ast_strdupa(S_OR((char *) data, ""));
 
 	ast_debug(1, "Checking device state for device %s\n", device);
 
