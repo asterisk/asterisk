@@ -470,58 +470,15 @@ struct ast_dial_features {
 };
 
 #if defined(ATXFER_NULL_TECH)
-static struct ast_frame *null_read(struct ast_channel *chan)
-{
-	/* Hangup channel. */
-	return NULL;
-}
-
-static struct ast_frame *null_exception(struct ast_channel *chan)
-{
-	/* Hangup channel. */
-	return NULL;
-}
-
-static int null_write(struct ast_channel *chan, struct ast_frame *frame)
-{
-	/* Hangup channel. */
-	return -1;
-}
-
-static int null_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
-{
-	/* No problem fixing up the channel. */
-	return 0;
-}
-
-static int null_hangup(struct ast_channel *chan)
-{
-	chan->tech_pvt = NULL;
-	return 0;
-}
-
-static const struct ast_channel_tech null_tech = {
-	.type = "NULL",
-	.description = "NULL channel driver for atxfer",
-	.capabilities = -1,
-	.read = null_read,
-	.exception = null_exception,
-	.write = null_write,
-	.fixup = null_fixup,
-	.hangup = null_hangup,
-};
-#endif	/* defined(ATXFER_NULL_TECH) */
-
-#if defined(ATXFER_NULL_TECH)
 /*!
  * \internal
- * \brief Set the channel technology to the NULL technology.
+ * \brief Set the channel technology to the kill technology.
  *
  * \param chan Channel to change technology.
  *
  * \return Nothing
  */
-static void set_null_chan_tech(struct ast_channel *chan)
+static void set_kill_chan_tech(struct ast_channel *chan)
 {
 	int idx;
 
@@ -538,8 +495,8 @@ static void set_null_chan_tech(struct ast_channel *chan)
 		chan->tech_pvt = NULL;
 	}
 
-	/* Install the NULL technology and wake up anyone waiting on it. */
-	chan->tech = &null_tech;
+	/* Install the kill technology and wake up anyone waiting on it. */
+	chan->tech = &ast_kill_tech;
 	for (idx = 0; idx < AST_MAX_FDS; ++idx) {
 		switch (idx) {
 		case AST_ALERT_FD:
@@ -3115,7 +3072,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 				 * Get rid of caller's physical technology so it is free for
 				 * other calls.
 				 */
-				set_null_chan_tech(caller);
+				set_kill_chan_tech(caller);
 #endif	/* defined(ATXFER_NULL_TECH) */
 			} else {
 				/* caller is not hungup so monitor it. */

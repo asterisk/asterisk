@@ -629,6 +629,9 @@ struct ast_channel_tech {
 	int (* cc_callback)(struct ast_channel *inbound, const char *dest, ast_cc_callback_fn callback);
 };
 
+/*! Kill the channel channel driver technology descriptor. */
+extern const struct ast_channel_tech ast_kill_tech;
+
 struct ast_epoll_data;
 
 /*!
