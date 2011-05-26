@@ -43,12 +43,22 @@ enum {
 };
 
 /*!
- * Socket address structure. The first member is big enough to contain addresses
- * of any family. The second member contains the length (in bytes) used in the
- * first member.
+ * \brief Socket address structure.
  *
- * Some BSDs have the length embedded in sockaddr structs. We ignore them.
- * (This is the right thing to do.)
+ * \details
+ * The first member is big enough to contain addresses of any
+ * family. The second member contains the length (in bytes) used
+ * in the first member.
+ *
+ * \note
+ * Some BSDs have the length embedded in sockaddr structs. We
+ * ignore them. (This is the right thing to do.)
+ *
+ * \note
+ * It is important to always initialize ast_sockaddr before use
+ * -- even if they are passed to ast_sockaddr_copy() as the
+ * underlying storage could be bigger than what ends up being
+ * copied -- leaving part of the data unitialized.
  */
 struct ast_sockaddr {
 	struct sockaddr_storage	 ss;
