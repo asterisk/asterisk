@@ -1282,7 +1282,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 			*vinstance0 = NULL, *vinstance1 = NULL,
 			*tinstance0 = NULL, *tinstance1 = NULL;
 	struct ast_rtp_glue *glue0, *glue1;
-	struct ast_sockaddr addr1, addr2;
+	struct ast_sockaddr addr1 = { {0, }, }, addr2 = { {0, }, };
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
