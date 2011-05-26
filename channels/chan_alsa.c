@@ -383,7 +383,6 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 	static char sizbuf[8000];
 	static int sizpos = 0;
 	int len = sizpos;
-	int pos;
 	int res = 0;
 	/* size_t frames = 0; */
 	snd_pcm_state_t state;
@@ -397,7 +396,6 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 	} else {
 		memcpy(sizbuf + sizpos, f->data.ptr, f->datalen);
 		len += f->datalen;
-		pos = 0;
 		state = snd_pcm_state(alsa.ocard);
 		if (state == SND_PCM_STATE_XRUN)
 			snd_pcm_prepare(alsa.ocard);
