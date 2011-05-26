@@ -1118,7 +1118,7 @@ static struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 0
 __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
 		       const char *acctcode, const char *exten, const char *context,
 		       const char *linkedid, const int amaflag, const char *file, int line,
-		       const char *function, const char *name_fmt, va_list ap1, va_list ap2)
+		       const char *function, const char *name_fmt, va_list ap)
 {
 	struct ast_channel *tmp;
 	int x;
@@ -1263,7 +1263,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		 * uses them to build the string, instead of forming the va_lists internally from the vararg ... list.
 		 * This new function was written so this can be accomplished.
 		 */
-		ast_string_field_build_va(tmp, name, name_fmt, ap1, ap2);
+		ast_string_field_build_va(tmp, name, name_fmt, ap);
 		tech = ast_strdupa(tmp->name);
 		if ((slash = strchr(tech, '/'))) {
 			if ((slash2 = strchr(slash + 1, '/'))) {
@@ -1362,15 +1362,13 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 					const char *file, int line, const char *function,
 					const char *name_fmt, ...)
 {
-	va_list ap1, ap2;
+	va_list ap;
 	struct ast_channel *result;
 
-	va_start(ap1, name_fmt);
-	va_start(ap2, name_fmt);
+	va_start(ap, name_fmt);
 	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
-					linkedid, amaflag, file, line, function, name_fmt, ap1, ap2);
-	va_end(ap1);
-	va_end(ap2);
+					linkedid, amaflag, file, line, function, name_fmt, ap);
+	va_end(ap);
 
 	return result;
 }
@@ -9584,16 +9582,14 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 				      const char *linkedid, const int amaflag,
 				      const char *name_fmt, ...)
 {
-	va_list ap1, ap2;
+	va_list ap;
 	struct ast_channel *result;
 
 
-	va_start(ap1, name_fmt);
-	va_start(ap2, name_fmt);
+	va_start(ap, name_fmt);
 	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
-					linkedid, amaflag, __FILE__, __LINE__, __FUNCTION__, name_fmt, ap1, ap2);
-	va_end(ap1);
-	va_end(ap2);
+					linkedid, amaflag, __FILE__, __LINE__, __FUNCTION__, name_fmt, ap);
+	va_end(ap);
 
 	return result;
 }

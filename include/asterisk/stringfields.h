@@ -205,7 +205,7 @@ void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
 */
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 				     struct ast_string_field_pool **pool_head,
-				     ast_string_field *ptr, const char *format, va_list a1, va_list a2) __attribute__((format(printf, 4, 0)));
+				     ast_string_field *ptr, const char *format, va_list ap) __attribute__((format(printf, 4, 0)));
 
 /*!
   \brief Declare a string field
@@ -369,8 +369,8 @@ typedef uint16_t ast_string_field_allocation;
   \param args2 a second copy of the va_list for the sake of bsd, with no va_list copy operation
   \return nothing
 */
-#define ast_string_field_ptr_build_va(x, ptr, fmt, args1, args2) \
-	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args1, args2)
+#define ast_string_field_ptr_build_va(x, ptr, fmt, args) \
+	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args)
 
 /*!
   \brief Set a field to a complex (built) value
@@ -381,7 +381,7 @@ typedef uint16_t ast_string_field_allocation;
   \param args2 argument two
   \return nothing
 */
-#define ast_string_field_build_va(x, field, fmt, args1, args2) \
-	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args1, args2)
+#define ast_string_field_build_va(x, field, fmt, args) \
+	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args)
 
 #endif /* _ASTERISK_STRINGFIELDS_H */
