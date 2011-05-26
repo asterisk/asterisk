@@ -232,6 +232,10 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	char *s, *host, *port;
 	int	e, i, res_cnt;
 
+	if (!str) {
+		return 0;
+	}
+
 	s = ast_strdupa(str);
 	if (!ast_sockaddr_split_hostport(s, &host, &port, flags)) {
 		return 0;
