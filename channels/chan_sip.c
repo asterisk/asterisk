@@ -13287,21 +13287,8 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 }
 
 /*! \brief parse uri in a way that allows semicolon stripping if legacy mode is enabled */
-static int parse_uri_legacy_check(char *uri, const char *scheme, char **user, char **pass, char **domain, char **transport) {
-	/* Assume invalid to start */
-	if (user) {
-		*user = 0;
-	}
-	if (pass) {
-		*pass = 0;
-	}
-	if (domain) {
-		*domain = 0;
-	}
-	if (transport) {
-		*transport = 0;
-	}
-
+static int parse_uri_legacy_check(char *uri, const char *scheme, char **user, char **pass, char **domain, char **transport)
+{
 	int ret = parse_uri(uri, scheme, user, pass, domain, transport);
 	if (sip_cfg.legacy_useroption_parsing) { /* if legacy mode is active, strip semis from the user field */
 		char *p;
