@@ -42,25 +42,29 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 	char *c = NULL;
 	int error = 0;
 
+	/*
+	 * Initialize requested strings - some functions don't care if parse_uri fails
+	 * and will attempt to use string pointers passed into parse_uri even after a
+	 * parse_uri failure
+	 */
+	if (user) {
+		*user = "";
+	}
+	if (pass) {
+		*pass = "";
+	}
+	if (domain) {
+		*domain = "";
+	}
+	if (headers) {
+		*headers = "";
+	}
+	if (residue) {
+		*residue = "";
+	}
+
 	/* check for valid input */
 	if (ast_strlen_zero(uri)) {
-		/* make sure we leave nothing undefined after we exit */
-		if (user) {
-			*user = "";
-		}
-		if (pass) {
-			*pass = "";
-		}
-		if (domain) {
-			*domain = "";
-		}
-		if (headers) {
-			*headers = "";
-		}
-		if (residue) {
-			*residue = "";
-		}
-
 		return -1;
 	}
 
