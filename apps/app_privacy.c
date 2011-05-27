@@ -53,6 +53,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="minlength">
 				<para>Minimum allowable digits in the input callerid number. Defaults to <literal>10</literal>.</para>
 			</parameter>
+			<parameter name="options">
+				<para>Position reserved for options.</para>
+			</parameter>
 			<parameter name="context">
 				<para>Context to check the given callerid against patterns.</para>
 			</parameter>
@@ -92,10 +95,8 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(maxretries);
 		AST_APP_ARG(minlength);
-		AST_APP_ARG(checkcontext);
-
-		/* This must be last in the list until we actually have some options again. :) */
 		AST_APP_ARG(options);
+		AST_APP_ARG(checkcontext);
 	);
 
 	if (chan->caller.id.number.valid

@@ -134,10 +134,6 @@ pbx_lua
    stopped and restarted using the autoservice_stop() and autoservice_start()
    functions.
 
-PrivacyManager
---------------------------
- * Removed unused options position since there are no more options defined.
-
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
