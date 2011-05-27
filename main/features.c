@@ -4737,6 +4737,10 @@ static struct ast_parkinglot *build_parkinglot(char *name, struct ast_variable *
 			ast_copy_string(parkinglot->parking_con, confvar->value, sizeof(parkinglot->parking_con));
 		} else if (!strcasecmp(confvar->name, "parkext")) {
 			ast_copy_string(parkinglot->parkext, confvar->value, sizeof(parkinglot->parkext));
+		} else if (!strcasecmp(confvar->name, "parkinghints")) {
+			parkinglot->parkaddhints = ast_true(confvar->value);
+		} else if (!strcasecmp(confvar->name, "parkedmusicclass")) {
+			ast_copy_string(parkinglot->mohclass, confvar->value, sizeof(parkinglot->mohclass));
 		} else if (!strcasecmp(confvar->name, "parkingtime")) {
 			if ((sscanf(confvar->value, "%30d", &parkinglot->parkingtime) != 1) || (parkinglot->parkingtime < 1)) {
 				ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", confvar->value);
