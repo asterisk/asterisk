@@ -5074,14 +5074,15 @@ int ast_pickup_call(struct ast_channel *chan)
 	ast_debug(1, "pickup attempt by %s\n", chan->name);
 
 	if (target) {
-		if (!(res = ast_do_pickup(chan, target))) {
+		res = ast_do_pickup(chan, target);
+		ast_channel_unlock(target);
+		if (!res) {
 			if (!ast_strlen_zero(pickupsound)) {
-				ast_stream_and_wait(target, pickupsound, "");
+				pbx_builtin_setvar_helper(target, "BRIDGE_PLAY_SOUND", pickupsound);
 			}
 		} else {
 			ast_log(LOG_WARNING, "pickup %s failed by %s\n", target->name, chan->name);
 		}
-		ast_channel_unlock(target);
 	}
 
 	if (res < 0) {
