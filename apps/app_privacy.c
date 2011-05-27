@@ -54,8 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Minimum allowable digits in the input callerid number. Defaults to <literal>10</literal>.</para>
 			</parameter>
 			<parameter name="options">
-				<para>Position reserved for options.  Since there are no remaining options
-				this position will be removed in v1.10.</para>
+				<para>Position reserved for options.</para>
 			</parameter>
 			<parameter name="context">
 				<para>Context to check the given callerid against patterns.</para>
