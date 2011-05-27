@@ -278,6 +278,7 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_PNG        (1ULL << 17)
 /*! H.261 Video */
 #define AST_FORMAT_H261       (1ULL << 18)
+#define AST_FORMAT_FIRST_VIDEO_BIT AST_FORMAT_H261
 /*! H.263 Video */
 #define AST_FORMAT_H263       (1ULL << 19)
 /*! H.263+ Video */
