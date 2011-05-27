@@ -5726,20 +5726,14 @@ int ast_pickup_call(struct ast_channel *chan)
 		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", target->name, chan->name);
 
 		res = ast_do_pickup(chan, target);
+		ast_channel_unlock(target);
 		if (!res) {
 			if (!ast_strlen_zero(pickupsound)) {
-				/*!
-				 * \todo We are not the bridge thread when we inject this sound
-				 * so we need to hold the target channel lock while the sound is
-				 * played.  A better way needs to be found as this pauses the
-				 * system.
-				 */
-				ast_stream_and_wait(target, pickupsound, "");
+				pbx_builtin_setvar_helper(target, "BRIDGE_PLAY_SOUND", pickupsound);
 			}
 		} else {
 			ast_log(LOG_WARNING, "pickup %s failed by %s\n", target->name, chan->name);
 		}
-		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
 	}
 
