@@ -92,8 +92,10 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(maxretries);
 		AST_APP_ARG(minlength);
-		AST_APP_ARG(options);
 		AST_APP_ARG(checkcontext);
+
+		/* This must be last in the list until we actually have some options again. :) */
+		AST_APP_ARG(options);
 	);
 
 	if (chan->caller.id.number.valid
