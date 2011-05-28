@@ -1461,21 +1461,21 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 	}
 	if (!(hp = ast_gethostbyname(host, &ahp))) {
 		ast_log(LOG_WARNING, "Unable to locate host '%s'\n", host);
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	if ((flags = fcntl(s, F_GETFL)) < 0) {
 		ast_log(LOG_WARNING, "Fcntl(F_GETFL) failed: %s\n", strerror(errno));
 		close(s);
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
 		ast_log(LOG_WARNING, "Fnctl(F_SETFL) failed: %s\n", strerror(errno));
 		close(s);
-		return -1;
+		return AGI_RESULT_FAILURE;
 	}
 	memset(&addr_in, 0, sizeof(addr_in));
 	addr_in.sin_family = AF_INET;
@@ -1542,7 +1542,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 static enum agi_result launch_ha_netscript(char *agiurl, char *argv[], int *fds)
 {
 	char *host, *script;
-	enum agi_result result = AGI_RESULT_FAILURE;
+	enum agi_result result;
 	struct srv_context *context = NULL;
 	int srv_ret;
 	char service[256];
@@ -1576,16 +1576,20 @@ static enum agi_result launch_ha_netscript(char *agiurl, char *argv[], int *fds)
 		if (result == AGI_RESULT_FAILURE || result == AGI_RESULT_NOTFOUND) {
 			ast_log(LOG_WARNING, "AGI request failed for host '%s' (%s:%d)\n", host, srvhost, srvport);
 		} else {
-			break;
+			/* The script launched so we must cleanup the context. */
+			ast_srv_cleanup(&context);
+			return result;
 		}
 	}
+	/*
+	 * The DNS SRV lookup failed or we ran out of servers to check.
+	 * ast_srv_lookup() has already cleaned up the context for us.
+	 */
 	if (srv_ret < 0) {
 		ast_log(LOG_WARNING, "SRV lookup failed for %s\n", agiurl);
-	} else {
-        ast_srv_cleanup(&context);
-    }
+	}
 
-	return result;
+	return AGI_RESULT_FAILURE;
 }
 
 static enum agi_result launch_script(struct ast_channel *chan, char *script, char *argv[], int *fds, int *efd, int *opid)
