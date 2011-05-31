@@ -68,11 +68,13 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
  * \brief Allocate and initialize a DNS manager entry
  *
  * \param name the hostname
- * \param result where to store the IP address as the DNS manager refreshes it. The address family
- * is used as an input parameter to filter the returned adresses. if it is 0, both IPv4 * and IPv6 addresses can be returned.
+ * \param result where to store the IP address as the DNS manager refreshes it.
+ * The address family is used as an input parameter to filter the returned addresses.
+ * If it is 0, both IPv4 and IPv6 addresses can be returned.
  * \param dnsmgr Where to store the allocate DNS manager entry
  * \param service
  *
+ * \note
  * This function allocates a new DNS manager entry object, and fills it with
  * the provided hostname and IP address.  This function _does_ force an initial
  * lookup, so it may block for some period of time.
