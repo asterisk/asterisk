@@ -22185,9 +22185,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					char *decoded_exten = ast_strdupa(p->exten);
 					transmit_response_reliable(p, "404 Not Found", req);
 					ast_uri_decode(decoded_exten, ast_uri_sip_user);
-					ast_log(LOG_NOTICE, "Call from '%s' to extension"
+					ast_log(LOG_NOTICE, "Call from '%s' (%s) to extension"
 						" '%s' rejected because extension not found in context '%s'.\n",
-						S_OR(p->username, p->peername), decoded_exten, p->context);
+						S_OR(p->username, p->peername), ast_sockaddr_stringify(&p->recv), decoded_exten, p->context);
 				}
 			} /* end switch */
 
