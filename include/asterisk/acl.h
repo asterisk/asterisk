@@ -143,7 +143,7 @@ int ast_get_ip(struct ast_sockaddr *addr, const char *value);
  * then this function acts exactly like a call to ast_get_ip.
  *
  * \param addr The IP address found.  The address family is used as an input parameter to
- * filter the returned adresses. if it is 0, both IPv4 and IPv6 addresses
+ * filter the returned addresses. if it is 0, both IPv4 and IPv6 addresses
  * can be returned.
  *
  * \param value The hostname to look up
