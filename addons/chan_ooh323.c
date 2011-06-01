@@ -1044,6 +1044,7 @@ static int ooh323_hangup(struct ast_channel *ast)
 static int ooh323_answer(struct ast_channel *ast)
 {
 	struct ooh323_pvt *p = ast->tech_pvt;
+	char *callToken = (char *)NULL;
 
 	if (gH323Debug)
 		ast_verbose("--- ooh323_answer\n");
@@ -1051,8 +1052,18 @@ static int ooh323_answer(struct ast_channel *ast)
 	if (p) {
 
 		ast_mutex_lock(&p->lock);
+		callToken = (p->callToken ? strdup(p->callToken) : NULL);
 		if (ast->_state != AST_STATE_UP) {
 			ast_channel_lock(ast);
+			if (!p->alertsent) {
+	    			if (gH323Debug) {
+					ast_debug(1, "Sending forced ringback for %s, res = %d\n", 
+						callToken, ooManualRingback(callToken));
+				} else {
+	    				ooManualRingback(callToken);
+				}
+				p->alertsent = 1;
+			}
 			ast_setstate(ast, AST_STATE_UP);
       			if (option_debug)
 				ast_debug(1, "ooh323_answer(%s)\n", ast->name);
@@ -1220,6 +1231,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 				}
 				p->alertsent = 1;
 			}
+			p->alertsent = 1;
 		}
 	 break;
 	case AST_CONTROL_SRCUPDATE:

@@ -682,10 +682,11 @@ int ooProcessCallFDSETsAndTimers
 
     if (0 != call->pH245Channel && 0 != call->pH245Channel->sock)
     {
-     if(call->pH245Channel->outQueue.count>0)
-     {                           
-      if(ooPDWrite(pfds, nfds, call->pH245Channel->sock))
-       ooSendMsg(call, OOH245MSG);
+     if(ooPDWrite(pfds, nfds, call->pH245Channel->sock)) {
+      while (call->pH245Channel->outQueue.count>0) {
+       if (ooSendMsg(call, OOH245MSG) != OO_OK)
+	break;
+      }
      }
     }
     else if(call->h245listener)
@@ -702,20 +703,23 @@ int ooProcessCallFDSETsAndTimers
     {
      if(ooPDWrite(pfds, nfds, call->pH225Channel->sock))
      {
-      if(call->pH225Channel->outQueue.count>0)
+      while (call->pH225Channel->outQueue.count>0)
       {
        OOTRACEDBGC3("Sending H225 message (%s, %s)\n", 
                         call->callType, call->callToken);
-       ooSendMsg(call, OOQ931MSG);
+       if (ooSendMsg(call, OOQ931MSG) != OO_OK)
+	break;
       }
       if(call->pH245Channel && 
          call->pH245Channel->outQueue.count>0 && 
-        OO_TESTFLAG (call->flags, OO_M_TUNNELING))
-      {
+        OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
+       while (call->pH245Channel->outQueue.count>0) {
         OOTRACEDBGC3("H245 message needs to be tunneled. "
                           "(%s, %s)\n", call->callType, 
                                call->callToken);
-        ooSendMsg(call, OOH245MSG);
+        if (ooSendMsg(call, OOH245MSG) != OO_OK)
+	 break;
+       }
       }
      }                                
     }
@@ -1330,7 +1334,7 @@ int ooSendMsg(OOH323CallData *call, int type)
    {
       OOTRACEDBGA3("Warning:Call marked for cleanup. Can not send message."
                    "(%s, %s)\n", call->callType, call->callToken);
-      return OO_OK;
+      return OO_FAILED;
    }
 
    if(type == OOQ931MSG)

@@ -2126,6 +2126,8 @@ int ooHandleH245Command(OOH323CallData *call,
                ooClearAllLogicalChannels(call);
             }
             ooSendEndSessionCommand(call);
+	    if (call->callState < OO_CALL_CLEAR)
+	        call->callState = OO_CALL_CLEAR;
          }
             
             
