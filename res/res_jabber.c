@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/event.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/message.h"
 
 /*** DOCUMENTATION
 	<application name="JabberSend" language="en_US">
@@ -372,6 +373,13 @@ static int aji_create_transport(char *label, struct aji_client *client);
 static int aji_register_transport(void *data, ikspak *pak);
 static int aji_register_transport2(void *data, ikspak *pak);
 */
+
+static int msg_send_cb(const struct ast_msg *msg, const char *to, const char *from);
+
+static const struct ast_msg_tech msg_tech = {
+	.name = "xmpp",
+	.msg_send = msg_send_cb,
+};
 
 static struct ast_cli_entry aji_cli[] = {
 	AST_CLI_DEFINE(aji_do_set_debug, "Enable/Disable Jabber debug"),
@@ -1134,6 +1142,44 @@ static int aji_send_exec(struct ast_channel *chan, const char *data)
 		ast_aji_send_chat(client, args.recipient, args.message);
 	}
 	return 0;
+}
+
+static int msg_send_cb(const struct ast_msg *msg, const char *to, const char *from)
+{
+	struct aji_client *client;
+	char *sender;
+	char *dest;
+	int res;
+
+	sender = ast_strdupa(from);
+	strsep(&sender, ":");
+	dest = ast_strdupa(to);
+	strsep(&dest, ":");
+
+	if (ast_strlen_zero(sender)) {
+		ast_log(LOG_ERROR, "MESSAGE(from) of '%s' invalid for xmpp\n", from);
+		return -1;
+	}
+
+	if (!(client = ast_aji_get_client(sender))) {
+		ast_log(LOG_WARNING, "Could not finder account to send from as '%s'\n", sender);
+		return -1;
+	}
+
+
+	ast_debug(1, "Sending message to '%s' from '%s'\n", dest, client->name);
+
+	res = ast_aji_send_chat(client, dest, ast_msg_get_body(msg));
+	if (res != IKS_OK) {
+		ast_log(LOG_WARNING, "Failed to send xmpp message (%d).\n", res);
+	}
+
+	/* 
+	 * XXX Reference leak here.  See note with ast_aji_get_client() about the problems
+	 * with that function.
+	 */
+
+	return res == IKS_OK ? 0 : -1;
 }
 
 /*!
@@ -2218,6 +2264,7 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 {
 	struct aji_message *insert;
 	int deleted = 0;
+	struct ast_msg *msg;
 
 	ast_debug(3, "client %s received a message\n", client->name);
 
@@ -2246,6 +2293,23 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 			return;
 		}
 		ast_debug(3, "message comes from %s\n", insert->from);
+	}
+
+	if ((msg = ast_msg_alloc())) {
+		int res;
+
+		res = ast_msg_set_to(msg, "xmpp:%s", client->user);
+		res |= ast_msg_set_from(msg, "xmpp:%s", insert->from);
+		res |= ast_msg_set_body(msg, "%s", insert->message);
+		res |= ast_msg_set_context(msg, "%s", client->context);
+
+		if (res) {
+			ast_msg_destroy(msg);
+		} else {
+			ast_msg_queue(msg);
+		}
+
+		msg = NULL;
 	}
 
 	/* remove old messages received from this JID
@@ -4248,6 +4312,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	ASTOBJ_CONTAINER_MARKALL(&client->buddies);
 	ast_copy_string(client->name, label, sizeof(client->name));
 	ast_copy_string(client->mid, "aaaaa", sizeof(client->mid));
+	ast_copy_string(client->context, "default", sizeof(client->context));
 
 	/* Set default values for the client object */
 	client->debug = debug;
@@ -4265,6 +4330,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	ast_copy_string(client->statusmessage, "Online and Available", sizeof(client->statusmessage));
 	client->priority = 0;
 	client->status = IKS_SHOW_AVAILABLE;
+	client->send_to_dialplan = 0;
 
 	if (flag) {
 		client->authorized = 0;
@@ -4356,6 +4422,10 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 			} else {
 				ast_log(LOG_WARNING, "Unknown presence status: %s\n", var->value);
 			}
+		} else if (!strcasecmp(var->name, "context")) {
+			ast_copy_string(client->context, var->value, sizeof(client->context));
+		} else if (!strcasecmp(var->name, "sendtodialplan")) {
+			client->send_to_dialplan = ast_true(var->value) ? 1 : 0;
 		}
 	/* no transport support in this version */
 	/*	else if (!strcasecmp(var->name, "transport"))
@@ -4553,6 +4623,13 @@ static int aji_load_config(int reload)
  * (without the resource string)
  * \param name label or JID
  * \return aji_client.
+ *
+ * XXX \bug This function leads to reference leaks all over the place.
+ *          ASTOBJ_CONTAINER_FIND() returns a reference, but if the
+ *          client is found via the traversal, no reference is returned.
+ *          None of the calling code releases references.  This code needs
+ *          to be changed to always return a reference, and all of the users
+ *          need to be fixed to release them.
  */
 struct aji_client *ast_aji_get_client(const char *name)
 {
@@ -4668,7 +4745,7 @@ static int aji_reload(int reload)
  */
 static int unload_module(void)
 {
-
+	ast_msg_tech_unregister(&msg_tech);
 	ast_cli_unregister_multiple(aji_cli, ARRAY_LEN(aji_cli));
 	ast_unregister_application(app_ajisend);
 	ast_unregister_application(app_ajisendgroup);
@@ -4721,6 +4798,7 @@ static int load_module(void)
 	ast_cli_register_multiple(aji_cli, ARRAY_LEN(aji_cli));
 	ast_custom_function_register(&jabberstatus_function);
 	ast_custom_function_register(&jabberreceive_function);
+	ast_msg_tech_register(&msg_tech);
 
 	ast_mutex_init(&messagelock);
 	ast_cond_init(&message_received_condition, NULL);

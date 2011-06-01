@@ -385,6 +385,16 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;auth_options_requests = yes    ; Enabling this option will authenticate OPTIONS requests just like
                                 ; INVITE requests are.  By default this option is disabled.
 
+;accept_outofcall_message = no  ; Disable this option to reject all MESSAGE requests outside of a
+                                ; call.  By default, this option is enabled.  When enabled, MESSAGE
+                                ; requests are passed in to the dialplan.
+
+;auth_message_requests = yes    ; Enabling this option will authenticate MESSAGE requests.
+                                ; By default this option is enabled.  However, it can be disabled
+                                ; should an application desire to not load the Asterisk server with
+                                ; doing authentication and implement end to end security in the
+                                ; message body.
+
 ;g726nonstandard = yes          ; If the peer negotiates G726-32 audio, use AAL2 packing
                                 ; order instead of RFC3551 packing order (this is required
                                 ; for Sipura and Grandstream ATAs, among others). This is

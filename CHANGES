@@ -12,6 +12,19 @@
 --- Functionality changes from Asterisk 1.8 to Asterisk 1.10 -----------------
 ------------------------------------------------------------------------------
 
+Text Messaging
+--------------
+ * Asterisk now has protocol independent support for processing text messages
+   outside of a call.  Messages are routed through the Asterisk dialplan.
+   SIP MESSAGE and XMPP are currently supported.  There are options in
+   jabber.conf and sip.conf to allow enabling these features.
+     -> jabber.conf: see the "sendtodialplan" and "context" options.
+     -> sip.conf: see the "accept_outofcall_message" and "auth_message_requests"
+        options.
+   The MESSAGE() dialplan function and MessageSend() application have been
+   added to go along with this functionality.  More detailed usage information
+   can be found on the Asterisk wiki (http://wiki.asterisk.org/).
+
 Parking
 -------
  * parkedmusicclass can now be set for non-default parking lots.

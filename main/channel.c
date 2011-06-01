@@ -9593,3 +9593,8 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 
 	return result;
 }
+
+void ast_channel_unlink(struct ast_channel *chan)
+{
+	ao2_unlink(channels, chan);
+}

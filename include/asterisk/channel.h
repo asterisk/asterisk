@@ -3496,4 +3496,14 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
 }
 #endif
 
+/*!
+ * \brief Remove a channel from the global channels container
+ *
+ * \param chan channel to remove
+ *
+ * In a case where it is desired that a channel not be available in any lookups
+ * in the global channels conatiner, use this function.
+ */
+void ast_channel_unlink(struct ast_channel *chan);
+
 #endif /* _ASTERISK_CHANNEL_H */

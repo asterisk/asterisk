@@ -3750,6 +3750,11 @@ int main(int argc, char *argv[])
 	ast_xmldoc_load_documentation();
 #endif
 
+	if (ast_msg_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	/* initialize the data retrieval API */
 	if (ast_data_init()) {
 		printf ("%s", term_quit());
