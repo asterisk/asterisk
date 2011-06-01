@@ -2177,11 +2177,16 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	int ret; /* for better error checking */
 	char *imap_flags = NIL;
 	int msgcount = (messagecount(vmu->context, vmu->mailbox, "INBOX") + messagecount(vmu->context, vmu->mailbox, "Old"));
+	int box = NEW_FOLDER;
 
-    /* Back out early if this is a greeting and we don't want to store greetings in IMAP */
-    if (msgnum < 0 && !imapgreetings) {
-        return 0;
-    }
+	/* Back out early if this is a greeting and we don't want to store greetings in IMAP */
+	if (msgnum < 0) {
+		if(!imapgreetings) {
+			return 0;
+		} else {
+			box = GREETINGS_FOLDER;
+		}
+	}
 
 	if (imap_check_limits(chan, vms, vmu, msgcount)) {
 		return -1;
@@ -2264,9 +2269,9 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	}
 	((char *) buf)[len] = '\0';
 	INIT(&str, mail_string, buf, len);
-	ret = init_mailstream(vms, NEW_FOLDER);
+	ret = init_mailstream(vms, box);
 	if (ret == 0) {
-		imap_mailbox_name(mailbox, sizeof(mailbox), vms, NEW_FOLDER, 1);
+		imap_mailbox_name(mailbox, sizeof(mailbox), vms, box, 1);
 		ast_mutex_lock(&vms->lock);
 		if(!mail_append_full(vms->mailstream, mailbox, imap_flags, NIL, &str))
 			ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
