@@ -111,14 +111,16 @@ AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 static ast_cond_t cdr_pending_cond;
 
-int check_cdr_enabled()
+int check_cdr_enabled(void)
 {
 	return enabled;
 }
 
-/*! Register a CDR driver. Each registered CDR driver generates a CDR
-	\return 0 on success, -1 on failure
-*/
+/*!
+ * \brief Register a CDR driver. Each registered CDR driver generates a CDR
+ * \retval 0 on success.
+ * \retval -1 on error
+ */
 int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 {
 	struct ast_cdr_beitem *i = NULL;
