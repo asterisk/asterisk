@@ -16044,10 +16044,11 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		return;
 	}
 
+	copy_request(&p->initreq, req);
+
 	if (sip_cfg.auth_message_requests) {
 		int res;
 
-		copy_request(&p->initreq, req);
 		set_pvt_allowed_methods(p, req);
 		res = check_user(p, req, SIP_MESSAGE, e, XMIT_UNRELIABLE, addr);
 		if (res == AUTH_CHALLENGE_SENT) {
@@ -16084,6 +16085,8 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 			peer = unref_peer(peer, "from find_peer() in receive_message");
 		}
 	}
+
+	get_destination(p, NULL, NULL);
 
 	if (!(msg = ast_msg_alloc())) {
 		transmit_response(p, "500 Internal Server Error", req);
