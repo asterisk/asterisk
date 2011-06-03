@@ -318,6 +318,8 @@ monitor-type = MixMonitor
 ;queue-callswaiting = queue-callswaiting
 			;	("The current est. holdtime is")
 ;queue-holdtime = queue-holdtime
+			;	("minute.")
+;queue-minute = queue-minute
 			;	("minutes.")
 ;queue-minutes = queue-minutes
 			;	("seconds.")
