@@ -224,6 +224,10 @@ return_cleanup:
 static int unload_module(void)
 {
 	ast_cdr_unregister(name);
+	if (rh) {
+		rc_destroy(rh);
+		rh = NULL;
+	}
 	return 0;
 }
 
@@ -243,8 +247,17 @@ static int load_module(void)
 	} else
 		return AST_MODULE_LOAD_DECLINE;
 
-	/* start logging */
-	rc_openlog("asterisk");
+	/*
+	 * start logging
+	 *
+	 * NOTE: Yes this causes a slight memory leak if the module is
+	 * unloaded.  However, it is better than a crash if cdr_radius
+	 * and cel_radius are both loaded.
+	 */
+	tmp = ast_strdup("asterisk");
+	if (tmp) {
+		rc_openlog((char *) tmp);
+	}
 
 	/* read radiusclient-ng config file */
 	if (!(rh = rc_read_config(radiuscfg))) {
@@ -255,11 +268,18 @@ static int load_module(void)
 	/* read radiusclient-ng dictionaries */
 	if (rc_read_dictionary(rh, rc_conf_str(rh, "dictionary"))) {
 		ast_log(LOG_NOTICE, "Cannot load radiusclient-ng dictionary file.\n");
+		rc_destroy(rh);
+		rh = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_cdr_register(name, desc, radius_log);
-	return AST_MODULE_LOAD_SUCCESS;
+	if (ast_cdr_register(name, desc, radius_log)) {
+		rc_destroy(rh);
+		rh = NULL;
+		return AST_MODULE_LOAD_DECLINE;
+	} else {
+		return AST_MODULE_LOAD_SUCCESS;
+	}
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "RADIUS CDR Backend",
