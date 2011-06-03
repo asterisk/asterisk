@@ -364,16 +364,148 @@ AST_TEST_DEFINE(astobj2_test_1)
 	return res;
 }
 
+AST_TEST_DEFINE(astobj2_test_2)
+{
+	int res = AST_TEST_PASS;
+	struct ao2_container *c;
+	struct ao2_iterator i;
+	struct test_obj *obj;
+	int num;
+	static const int NUM_OBJS = 5;
+	int destructor_count = NUM_OBJS;
+	struct test_obj tmp_obj = { "", };
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "astobj2_test2";
+		info->category = "/main/astobj2/";
+		info->summary = "Test a certain scenario using ao2 iterators";
+		info->description =
+			"This test is aimed at testing for a specific regression that occurred. "
+			"Add some objects into a container.  Mix finds and iteration and make "
+			"sure that the iterator still sees all objects.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	c = ao2_container_alloc(1, NULL, test_cmp_cb);
+	if (!c) {
+		ast_test_status_update(test, "ao2_container_alloc failed.\n");
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+
+	for (num = 1; num <= NUM_OBJS; num++) {
+		if (!(obj = ao2_alloc(sizeof(struct test_obj), test_obj_destructor))) {
+			ast_test_status_update(test, "ao2_alloc failed.\n");
+			res = AST_TEST_FAIL;
+			goto cleanup;
+		}
+		obj->destructor_count = &destructor_count;
+		obj->i = num;
+		ao2_link(c, obj);
+		ao2_ref(obj, -1);
+		if (ao2_container_count(c) != num) {
+			ast_test_status_update(test, "container did not link correctly\n");
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	/*
+	 * Iteration take 1.  Just make sure we see all NUM_OBJS objects.
+	 */
+	num = 0;
+	i = ao2_iterator_init(c, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		num++;
+		ao2_ref(obj, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	if (num != NUM_OBJS) {
+		ast_test_status_update(test, "iterate take 1, expected '%d', only saw '%d' objects\n",
+				NUM_OBJS, num);
+		res = AST_TEST_FAIL;
+	}
+
+	/*
+	 * Iteration take 2.  Do a find for the last object, then iterate and make
+	 * sure we find all NUM_OBJS objects.
+	 */
+	tmp_obj.i = NUM_OBJS;
+	obj = ao2_find(c, &tmp_obj, OBJ_POINTER);
+	if (!obj) {
+		ast_test_status_update(test, "ao2_find() failed.\n");
+		res = AST_TEST_FAIL;
+	} else {
+		ao2_ref(obj, -1);
+	}
+
+	num = 0;
+	i = ao2_iterator_init(c, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		num++;
+		ao2_ref(obj, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	if (num != NUM_OBJS) {
+		ast_test_status_update(test, "iterate take 2, expected '%d', only saw '%d' objects\n",
+				NUM_OBJS, num);
+		res = AST_TEST_FAIL;
+	}
+
+	/*
+	 * Iteration take 3.  Do a find for an object while in the middle
+	 * of iterating;
+	 */
+	num = 0;
+	i = ao2_iterator_init(c, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		if (num == 1) {
+			struct test_obj *obj2;
+			tmp_obj.i = NUM_OBJS - 1;
+			obj2 = ao2_find(c, &tmp_obj, OBJ_POINTER);
+			if (!obj2) {
+				ast_test_status_update(test, "ao2_find() failed.\n");
+				res = AST_TEST_FAIL;
+			} else {
+				ao2_ref(obj2, -1);
+			}
+		}
+		num++;
+		ao2_ref(obj, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	if (num != NUM_OBJS) {
+		ast_test_status_update(test, "iterate take 3, expected '%d', only saw '%d' objects\n",
+				NUM_OBJS, num);
+		res = AST_TEST_FAIL;
+	}
+
+
+cleanup:
+	if (c) {
+		ao2_ref(c, -1);
+	}
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(astobj2_test_1);
+	AST_TEST_UNREGISTER(astobj2_test_2);
 	return 0;
 }
 
 static int load_module(void)
 {
 	AST_TEST_REGISTER(astobj2_test_1);
+	AST_TEST_REGISTER(astobj2_test_2);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ASTOBJ2 Unit Test");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ASTOBJ2 Unit Tests");
