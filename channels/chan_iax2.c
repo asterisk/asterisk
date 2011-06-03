@@ -1282,10 +1282,7 @@ static void network_change_event_subscribe(void)
 {
 	if (!network_change_event_subscription) {
 		network_change_event_subscription = ast_event_subscribe(AST_EVENT_NETWORK_CHANGE,
-			network_change_event_cb,
-			"SIP Network Change ",
-			NULL,
-			AST_EVENT_IE_END);
+			network_change_event_cb, "IAX2 Network Change", NULL, AST_EVENT_IE_END);
 	}
 }
 
