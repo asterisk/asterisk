@@ -1241,9 +1241,11 @@ static struct generic_monitor_instance_list *create_new_generic_list(struct ast_
 		return NULL;
 	}
 
-	if (!(generic_list->sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, generic_monitor_devstate_cb,
-				"Requesting CC", NULL, AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
-				monitor->interface->device_name, AST_EVENT_IE_END))) {
+	if (!(generic_list->sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE,
+		generic_monitor_devstate_cb, "Requesting CC", NULL,
+		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, monitor->interface->device_name,
+		AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_EXISTS,
+		AST_EVENT_IE_END))) {
 		cc_unref(generic_list, "Failed to subscribe to device state");
 		return NULL;
 	}
@@ -2629,10 +2631,11 @@ static int cc_generic_agent_start_monitoring(struct ast_cc_agent *agent)
 	ast_str_set(&str, 0, "Agent monitoring %s device state since it is busy\n",
 		agent->device_name);
 
-	if (!(generic_pvt->sub = ast_event_subscribe(
-			AST_EVENT_DEVICE_STATE, generic_agent_devstate_cb, ast_str_buffer(str), agent,
-			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, agent->device_name,
-			AST_EVENT_IE_END))) {
+	if (!(generic_pvt->sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE,
+		generic_agent_devstate_cb, ast_str_buffer(str), agent,
+		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, agent->device_name,
+		AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_EXISTS,
+		AST_EVENT_IE_END))) {
 		return -1;
 	}
 	return 0;
