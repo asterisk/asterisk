@@ -840,7 +840,7 @@ int ast_event_sub_activate(struct ast_event_sub *sub)
 }
 
 struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb_t cb,
-	char *description, void *userdata, ...)
+	const char *description, void *userdata, ...)
 {
 	va_list ap;
 	enum ast_event_ie_type ie_type;
