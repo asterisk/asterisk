@@ -2082,7 +2082,6 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 	int paused  = 0;
 	int found = 0;
 
-	const char *config_val;
 	const char *rt_uniqueid = ast_variable_retrieve(member_config, interface, "uniqueid");
 	const char *membername = S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface);
 	const char *state_interface = S_OR(ast_variable_retrieve(member_config, interface, "state_interface"), interface);
