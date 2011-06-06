@@ -2072,15 +2072,22 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
  * \brief Find rt member record to update otherwise create one.
  *
  * Search for member in queue, if found update penalty/paused state,
- * if no member exists create one flag it as a RT member and add to queue member list. 
+ * if no member exists create one flag it as a RT member and add to queue member list.
 */
-static void rt_handle_member_record(struct call_queue *q, char *interface, const char *rt_uniqueid, const char *membername, const char *penalty_str, const char *paused_str, const char* state_interface)
+static void rt_handle_member_record(struct call_queue *q, char *interface, struct ast_config *member_config)
 {
 	struct member *m;
 	struct ao2_iterator mem_iter;
 	int penalty = 0;
 	int paused  = 0;
 	int found = 0;
+
+	const char *config_val;
+	const char *rt_uniqueid = ast_variable_retrieve(member_config, interface, "uniqueid");
+	const char *membername = S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface);
+	const char *state_interface = S_OR(ast_variable_retrieve(member_config, interface, "state_interface"), interface);
+	const char *penalty_str = ast_variable_retrieve(member_config, interface, "penalty");
+	const char *paused_str = ast_variable_retrieve(member_config, interface, "paused");
 
 	if (ast_strlen_zero(rt_uniqueid)) {
 		ast_log(LOG_WARNING, "Realtime field uniqueid is empty for member %s\n", S_OR(membername, "NULL"));
@@ -2299,12 +2306,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	ao2_iterator_destroy(&mem_iter);
 
 	while ((interface = ast_category_browse(member_config, interface))) {
-		rt_handle_member_record(q, interface,
-			ast_variable_retrieve(member_config, interface, "uniqueid"),
-			S_OR(ast_variable_retrieve(member_config, interface, "membername"),interface),
-			ast_variable_retrieve(member_config, interface, "penalty"),
-			ast_variable_retrieve(member_config, interface, "paused"),
-			S_OR(ast_variable_retrieve(member_config, interface, "state_interface"),interface));
+		rt_handle_member_record(q, interface, member_config);
 	}
 
 	/* Delete all realtime members that have been deleted in DB. */
@@ -2426,12 +2428,7 @@ static void update_realtime_members(struct call_queue *q)
 	ao2_iterator_destroy(&mem_iter);
 
 	while ((interface = ast_category_browse(member_config, interface))) {
-		rt_handle_member_record(q, interface,
-			ast_variable_retrieve(member_config, interface, "uniqueid"),
-			S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface),
-			ast_variable_retrieve(member_config, interface, "penalty"),
-			ast_variable_retrieve(member_config, interface, "paused"),
-			S_OR(ast_variable_retrieve(member_config, interface, "state_interface"), interface));
+		rt_handle_member_record(q, interface, member_config);
 	}
 
 	/* Delete all realtime members that have been deleted in DB. */
