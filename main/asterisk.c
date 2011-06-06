@@ -1082,12 +1082,19 @@ int ast_safe_system(const char *s)
 	return res;
 }
 
+/*!
+ * \brief enable or disable a logging level to a specified console
+ */
 void ast_console_toggle_loglevel(int fd, int level, int state)
 {
 	int x;
 	for (x = 0;x < AST_MAX_CONNECTS; x++) {
 		if (fd == consoles[x].fd) {
-			consoles[x].levels[level] = state;
+			/*
+			 * Since the logging occurs when levels are false, set to
+			 * flipped iinput because this function accepts 0 as off and 1 as on
+			 */
+			consoles[x].levels[level] = state ? 0 : 1;
 			return;
 		}
 	}
