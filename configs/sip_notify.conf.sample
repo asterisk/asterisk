@@ -44,7 +44,7 @@ Event=>report
 Event=>check-sync\;reboot=false
 
 [snom-reboot]
-Event=>reboot
+Event=>check-sync\;reboot=true
 
 ; Cisco
 
