@@ -49,17 +49,17 @@ struct ast_msg;
  * A message technology is capable of transmitting text messages.
  */
 struct ast_msg_tech {
-        /*!
-         * \brief Name of this message technology
-         *
-         * This is the name that comes at the beginning of a URI for messages
-         * that should be sent to this message technology implementation.
-         * For example, messages sent to "xmpp:rbryant@digium.com" would be
-         * passed to the ast_msg_tech with a name of "xmpp".
-         */
-        const char * const name;
-        /*!
-         * \brief Send a message.
+	/*!
+	 * \brief Name of this message technology
+	 *
+	 * This is the name that comes at the beginning of a URI for messages
+	 * that should be sent to this message technology implementation.
+	 * For example, messages sent to "xmpp:rbryant@digium.com" would be
+	 * passed to the ast_msg_tech with a name of "xmpp".
+	 */
+	const char * const name;
+	/*!
+	 * \brief Send a message.
 	 *
 	 * \param msg the message to send
 	 * \param to the URI of where the message is being sent
@@ -70,8 +70,8 @@ struct ast_msg_tech {
 	 *
 	 * \retval 0 success
 	 * \retval non-zero failure
-         */
-        int (* const msg_send)(const struct ast_msg *msg, const char *to, const char *from);
+	 */
+	int (* const msg_send)(const struct ast_msg *msg, const char *to, const char *from);
 };
 
 /*!

@@ -7411,7 +7411,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		p->peercaps = ast_format_cap_destroy(p->peercaps);
 		p->redircaps = ast_format_cap_destroy(p->redircaps);
 		p->prefcaps = ast_format_cap_destroy(p->prefcaps);
-		ao2_t_ref(p, -1, "Yuck, couldn't allocate cc_params struct. Get rid o' p");
+		ao2_t_ref(p, -1, "Yuck, couldn't allocate format capabilities. Get rid o' p");
 		return NULL;
 	}
 
