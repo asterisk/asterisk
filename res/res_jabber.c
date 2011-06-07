@@ -2295,21 +2295,23 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 		ast_debug(3, "message comes from %s\n", insert->from);
 	}
 
-	if ((msg = ast_msg_alloc())) {
-		int res;
+	if (client->send_to_dialplan) {
+		if ((msg = ast_msg_alloc())) {
+			int res;
 
-		res = ast_msg_set_to(msg, "xmpp:%s", client->user);
-		res |= ast_msg_set_from(msg, "xmpp:%s", insert->from);
-		res |= ast_msg_set_body(msg, "%s", insert->message);
-		res |= ast_msg_set_context(msg, "%s", client->context);
+			res = ast_msg_set_to(msg, "xmpp:%s", client->user);
+			res |= ast_msg_set_from(msg, "xmpp:%s", insert->from);
+			res |= ast_msg_set_body(msg, "%s", insert->message);
+			res |= ast_msg_set_context(msg, "%s", client->context);
 
-		if (res) {
-			ast_msg_destroy(msg);
-		} else {
-			ast_msg_queue(msg);
+			if (res) {
+				ast_msg_destroy(msg);
+			} else {
+				ast_msg_queue(msg);
+			}
+
+			msg = NULL;
 		}
-
-		msg = NULL;
 	}
 
 	/* remove old messages received from this JID
