@@ -1164,17 +1164,9 @@ static const char * const skinny_cxmodes[] = {
 
 /* driver scheduler */
 static struct ast_sched_context *sched = NULL;
-static struct io_context *io;
 
-/* Protect the monitoring thread, so only one process can kill or start it, and not
-   when it's doing something critical. */
-AST_MUTEX_DEFINE_STATIC(monlock);
 /* Protect the network socket */
 AST_MUTEX_DEFINE_STATIC(netlock);
-
-/* This is the thread for the monitor which checks for input on the channels
-   which are not currently in use. */
-static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 /* Wait up to 16 seconds for first digit */
 static int firstdigittimeout = 16000;
@@ -6499,59 +6491,6 @@ static void *accept_thread(void *ignore)
 	return 0;
 }
 
-static void *do_monitor(void *data)
-{
-	int res;
-
-	/* This thread monitors all the interfaces which are not yet in use
-	   (and thus do not have a separate thread) indefinitely */
-	/* From here on out, we die whenever asked */
-	for(;;) {
-		pthread_testcancel();
-		/* Wait for sched or io */
-		res = ast_sched_wait(sched);
-		if ((res < 0) || (res > 1000)) {
-			res = 1000;
-		}
-		res = ast_io_wait(io, res);
-		ast_mutex_lock(&monlock);
-		if (res >= 0) {
-			ast_sched_runq(sched);
-		}
-		ast_mutex_unlock(&monlock);
-	}
-	/* Never reached */
-	return NULL;
-
-}
-
-static int restart_monitor(void)
-{
-	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == AST_PTHREADT_STOP)
-		return 0;
-
-	ast_mutex_lock(&monlock);
-	if (monitor_thread == pthread_self()) {
-		ast_mutex_unlock(&monlock);
-		ast_log(LOG_WARNING, "Cannot kill myself\n");
-		return -1;
-	}
-	if (monitor_thread != AST_PTHREADT_NULL) {
-		/* Wake up the thread */
-		pthread_kill(monitor_thread, SIGURG);
-	} else {
-		/* Start a new monitor */
-		if (ast_pthread_create_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
-			ast_mutex_unlock(&monlock);
-			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
-			return -1;
-		}
-	}
-	ast_mutex_unlock(&monlock);
-	return 0;
-}
-
 static int skinny_devicestate(void *data)
 {
 	struct skinny_line *l;
@@ -6591,7 +6530,6 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 	if (!tmpc) {
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	}
-	restart_monitor();
 	return tmpc;
 }
 
@@ -7425,13 +7363,13 @@ static int load_module(void)
 	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+		return AST_MODULE_LOAD_FAILURE;
 	}
-	io = io_context_create();
-	if (!io) {
-		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	if (ast_sched_start_thread(sched)) {
+		ast_sched_context_destroy(sched);
+		sched = NULL;
+		return AST_MODULE_LOAD_FAILURE;
 	}
-	/* And start the monitor for the first time */
-	restart_monitor();
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -7482,15 +7420,6 @@ static int unload_module(void)
 	AST_LIST_UNLOCK(&sessions);
 
 	delete_devices();
-
-	ast_mutex_lock(&monlock);
-	if ((monitor_thread != AST_PTHREADT_NULL) && (monitor_thread != AST_PTHREADT_STOP)) {
-		pthread_cancel(monitor_thread);
-		pthread_kill(monitor_thread, SIGURG);
-		pthread_join(monitor_thread, NULL);
-	}
-	monitor_thread = AST_PTHREADT_STOP;
-	ast_mutex_unlock(&monlock);
 
 	ast_mutex_lock(&netlock);
 	if (accept_t && (accept_t != AST_PTHREADT_STOP)) {
