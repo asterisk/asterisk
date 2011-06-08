@@ -131,6 +131,14 @@ int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_
 		return 0;
 	}
 
+	/*
+	 * If it's actually an IP address and not a name, there's no
+	 * need for a managed lookup.
+	 */
+	if (ast_sockaddr_parse(result, name, 0)) {
+		return 0;
+	}
+
 	ast_verb(4, "doing dnsmgr_lookup for '%s'\n", name);
 
 	/* do a lookup now but add a manager so it will automagically get updated in the background */
