@@ -3482,7 +3482,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				if (o->stillgoing) {	/* Keep track of important channels */
 					stillgoing = 1;
 					if (o->chan) {
-						watchers[pos++] = o->chan;
+						if (pos < AST_MAX_WATCHERS) {
+							watchers[pos++] = o->chan;
+						}
 						if (!start)
 							start = o;
 						else
