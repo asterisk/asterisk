@@ -24092,11 +24092,13 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 
 	if (ast_strlen_zero(event)) {
 		transmit_response(p, "489 Bad Event", req);
+		pvt_set_needdestroy(p, "missing Event: header");
 		return -1;
 	}
 
 	if (!(esc = get_esc(event))) {
 		transmit_response(p, "489 Bad Event", req);
+		pvt_set_needdestroy(p, "unknown event package in publish");
 		return -1;
 	}
 
@@ -24122,6 +24124,15 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 
 	publish_type = determine_sip_publish_type(req, event, etag, expires_str, &expires_int);
 
+	if (expires_int > max_expiry) {
+		expires_int = max_expiry;
+	} else if (expires_int < min_expiry && expires_int > 0) {
+		transmit_response_with_minexpires(p, "423 Interval too small", req);
+		pvt_set_needdestroy(p, "Expires is less that the min expires allowed.");
+		return 0;
+	}
+	p->expiry = expires_int;
+
 	/* It is the responsibility of these handlers to formulate any response
 	 * sent for a PUBLISH
 	 */
@@ -24144,6 +24155,11 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 	default:
 		transmit_response(p, "400 Impossible Condition", req);
 		break;
+	}
+	if (!handler_result && p->expiry > 0) {
+		sip_scheddestroy(p, (p->expiry + 10) * 1000);
+	} else {
+		pvt_set_needdestroy(p, "forcing expiration");
 	}
 
 	return handler_result;
@@ -24527,8 +24543,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_log(LOG_WARNING, "Received subscription for extension \"%s\" context \"%s\" "
 				"with Expire header less that 'minexpire' limit. Received \"Expire: %d\" min is %d\n",
 				p->exten, p->context, p->expiry, min_expiry);
-			p->expiry = min_expiry;
-			pvt_set_needdestroy(p, "Expires is less that the min expires allowed. ");
+			pvt_set_needdestroy(p, "Expires is less that the min expires allowed.");
 			return 0;
 		}
 
