@@ -577,7 +577,7 @@ static const struct ast_datastore_info dial_features_info = {
  	.type = "dial-features",
  	.destroy = dial_features_destroy,
  	.duplicate = dial_features_duplicate,
- };
+};
  
 /* Forward declarations */
 static struct ast_parkinglot *parkinglot_addref(struct ast_parkinglot *parkinglot);
@@ -5747,17 +5747,42 @@ static int manager_park(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+/*!
+ * The presence of this datastore on the channel indicates that
+ * someone is attemting to pickup or has picked up the channel.
+ * The purpose is to prevent a race between two channels
+ * attempting to pickup the same channel.
+ */
+static const struct ast_datastore_info pickup_active = {
+ 	.type = "pickup-active",
+};
+
+int ast_can_pickup(struct ast_channel *chan)
+{
+	if (!chan->pbx && !chan->masq && !ast_test_flag(chan, AST_FLAG_ZOMBIE)
+		&& (chan->_state == AST_STATE_RINGING
+			|| chan->_state == AST_STATE_RING
+			/*
+			 * Check the down state as well because some SIP devices do not
+			 * give 180 ringing when they can just give 183 session progress
+			 * instead.  Issue 14005.  (Some ISDN switches as well for that
+			 * matter.)
+			 */
+			|| chan->_state == AST_STATE_DOWN)
+		&& !ast_channel_datastore_find(chan, &pickup_active, NULL)) {
+		return 1;
+	}
+	return 0;
+}
+
 static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *target = obj;/*!< Potential pickup target */
 	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
 
 	ast_channel_lock(target);
-	if (chan != target && (chan->pickupgroup & target->callgroup) &&
-		!target->pbx &&
-		((target->_state == AST_STATE_RINGING) || (target->_state == AST_STATE_RING)) &&
-		!target->masq &&
-		!ast_test_flag(target, AST_FLAG_ZOMBIE)) {
+	if (chan != target && (chan->pickupgroup & target->callgroup)
+		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
@@ -5808,23 +5833,30 @@ int ast_pickup_call(struct ast_channel *chan)
 	return res;
 }
 
-/*!
- * \brief Pickup a call target, Common Code.
- * \param chan channel that initiated pickup.
- * \param target channel.
- *
- * Answer calling channel, flag channel as answered on queue, masq channels together.
- */
 int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 {
 	struct ast_party_connected_line connected_caller;
 	struct ast_channel *chans[2] = { chan, target };
+	struct ast_datastore *ds_pickup;
+	const char *chan_name;/*!< A masquerade changes channel names. */
+	const char *target_name;/*!< A masquerade changes channel names. */
+	int res = -1;
 
-	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
-	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
+	target_name = ast_strdupa(target->name);
+	ast_debug(1, "Call pickup on '%s' by '%s'\n", target_name, chan->name);
+
+	/* Mark the target to block any call pickup race. */
+	ds_pickup = ast_datastore_alloc(&pickup_active, NULL);
+	if (!ds_pickup) {
+		ast_log(LOG_WARNING,
+			"Unable to create channel datastore on '%s' for call pickup\n", target_name);
+		return -1;
+	}
+	ast_channel_datastore_add(target, ds_pickup);
 
 	ast_party_connected_line_init(&connected_caller);
 	ast_party_connected_line_copy(&connected_caller, &target->connected);
+	ast_channel_unlock(target);/* The pickup race is avoided so we do not need the lock anymore. */
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	if (ast_channel_connected_line_macro(NULL, chan, &connected_caller, 0, 0)) {
 		ast_channel_update_connected_line(chan, &connected_caller, NULL);
@@ -5832,37 +5864,48 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	ast_party_connected_line_free(&connected_caller);
 
 	ast_channel_lock(chan);
+	chan_name = ast_strdupa(chan->name);
 	ast_connected_line_copy_from_caller(&connected_caller, &chan->caller);
 	ast_channel_unlock(chan);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 	ast_channel_queue_connected_line_update(chan, &connected_caller, NULL);
 	ast_party_connected_line_free(&connected_caller);
 
+	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
+
 	if (ast_answer(chan)) {
-		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		return -1;
+		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan_name);
+		goto pickup_failed;
 	}
 
 	if (ast_queue_control(chan, AST_CONTROL_ANSWER)) {
-		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
-		return -1;
+		ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan_name);
+		goto pickup_failed;
 	}
 
 	if (ast_channel_masquerade(target, chan)) {
-		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
-		return -1;
+		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan_name,
+			target_name);
+		goto pickup_failed;
 	}
 
 	/* If you want UniqueIDs, set channelvars in manager.conf to CHANNEL(uniqueid) */
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "Pickup", 2, chans,
-		"Channel: %s\r\nTargetChannel: %s\r\n", chan->name, target->name);
+		"Channel: %s\r\n"
+		"TargetChannel: %s\r\n",
+		chan_name, target_name);
 
-	/* Do the masquerade manually to make sure that is is completed. */
-	ast_channel_unlock(target);
+	/* Do the masquerade manually to make sure that it is completed. */
 	ast_do_masquerade(target);
-	ast_channel_lock(target);
+	res = 0;
 
-	return 0;
+pickup_failed:
+	ast_channel_lock(target);
+	if (!ast_channel_datastore_remove(target, ds_pickup)) {
+		ast_datastore_free(ds_pickup);
+	}
+
+	return res;
 }
 
 static char *app_bridge = "Bridge";

@@ -97,19 +97,6 @@ static const char app[] = "Pickup";
 static const char app2[] = "PickupChan";
 /*! \todo This application should return a result code, like PICKUPRESULT */
 
-/* Helper function that determines whether a channel is capable of being picked up */
-static int can_pickup(struct ast_channel *chan)
-{
-	if (!chan->pbx && !chan->masq &&
-		!ast_test_flag(chan, AST_FLAG_ZOMBIE) &&
-		(chan->_state == AST_STATE_RINGING ||
-		 chan->_state == AST_STATE_RING ||
-		 chan->_state == AST_STATE_DOWN)) {
-		return 1;
-	}
-	return 0;
-}
-
 struct pickup_by_name_args {
 	const char *name;
 	size_t len;
@@ -121,7 +108,7 @@ static int pickup_by_name_cb(void *obj, void *arg, void *data, int flags)
 	struct pickup_by_name_args *args = data;
 
 	ast_channel_lock(target);
-	if (!strncasecmp(target->name, args->name, args->len) && can_pickup(target)) {
+	if (!strncasecmp(target->name, args->name, args->len) && ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
@@ -190,7 +177,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 
 	while ((target = ast_channel_iterator_next(iter))) {
 		ast_channel_lock(target);
-		if ((chan != target) && can_pickup(target)) {
+		if ((chan != target) && ast_can_pickup(target)) {
 			ast_log(LOG_NOTICE, "%s pickup by %s\n", target->name, chan->name);
 			break;
 		}
@@ -217,7 +204,7 @@ static int find_by_mark(void *obj, void *arg, void *data, int flags)
 
 	ast_channel_lock(target);
 	tmp = pbx_builtin_getvar_helper(target, PICKUPMARK);
-	if (tmp && !strcasecmp(tmp, mark) && can_pickup(target)) {
+	if (tmp && !strcasecmp(tmp, mark) && ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
@@ -249,7 +236,8 @@ static int find_channel_by_group(void *obj, void *arg, void *data, int flags)
 	struct ast_channel *chan = data;/*!< Channel wanting to pickup call */
 
 	ast_channel_lock(target);
-	if (chan != target && (chan->pickupgroup & target->callgroup) && can_pickup(target)) {
+	if (chan != target && (chan->pickupgroup & target->callgroup)
+		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
@@ -316,7 +304,7 @@ static int find_by_part(void *obj, void *arg, void *data, int flags)
 
 	ast_channel_lock(target);
 	if (len <= strlen(target->name) && !strncmp(target->name, part, len)
-		&& can_pickup(target)) {
+		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}

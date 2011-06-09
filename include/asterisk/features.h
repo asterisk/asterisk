@@ -119,12 +119,28 @@ const char *ast_pickup_ext(void);
 /*! \brief Bridge a call, optionally allowing redirection */
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
 
+/*!
+ * \brief Test if a channel can be picked up.
+ *
+ * \param chan Channel to test if can be picked up.
+ *
+ * \note This function assumes that chan is locked.
+ *
+ * \return TRUE if channel can be picked up.
+ */
+int ast_can_pickup(struct ast_channel *chan);
+
 /*! \brief Pickup a call */
 int ast_pickup_call(struct ast_channel *chan);
 
 /*!
- * \brief Pickup a call target
- * \note This function assumes that target is locked
+ * \brief Pickup a call target.
+ *
+ * \param chan channel that initiated pickup.
+ * \param target channel to be picked up.
+ *
+ * \note This function assumes that target is locked.
+ *
  * \retval 0 on success.
  * \retval -1 on failure.
  */
