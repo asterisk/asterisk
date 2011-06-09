@@ -6344,7 +6344,11 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 		if (p) {
 			sip_pvt_lock(p);
-			if (p->rtp) {
+			if (p->t38.state == T38_ENABLED) {
+				/* drop frame, can't sent VOICE frames while in T.38 mode */
+				sip_pvt_unlock(p);
+				break;
+			} else if (p->rtp) {
 				/* If channel is not up, activate early media session */
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
@@ -6355,12 +6359,9 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 						transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
 						ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 					}
-				} else if (p->t38.state == T38_ENABLED) {
-					/* drop frame, can't sent VOICE frames while in T.38 mode */
-				} else {
-					p->lastrtptx = time(NULL);
-					res = ast_rtp_instance_write(p->rtp, frame);
 				}
+				p->lastrtptx = time(NULL);
+				res = ast_rtp_instance_write(p->rtp, frame);
 			}
 			sip_pvt_unlock(p);
 		}
