@@ -4064,6 +4064,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 			ast_mutex_lock(&p->lock);
 			if (p->t38.state == T38_ENABLED && !p->t38.direct) {
 				/* drop frame, can't sent VOICE frames while in T.38 mode */
+				ast_mutex_unlock(&p->lock);
 				break;
 			} else if (p->rtp) {
 				/* If channel is not up, activate early media session */
