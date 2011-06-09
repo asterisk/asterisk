@@ -47,8 +47,8 @@ int ast_db_del(const char *family, const char *key);
  * only keytree is NULL, all entries within the family will be purged.
  * It is an error for keytree to have a value when family is NULL.
  *
- * \retval 0 Entries were deleted
  * \retval -1 An error occurred
+ * \retval >= 0 Number of records deleted
  */
 int ast_db_deltree(const char *family, const char *keytree);
 
