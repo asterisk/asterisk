@@ -4065,7 +4065,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 			if (p->t38.state == T38_ENABLED && !p->t38.direct) {
 				/* drop frame, can't sent VOICE frames while in T.38 mode */
 				break;
-			} else  if (p->rtp) {
+			} else if (p->rtp) {
 				/* If channel is not up, activate early media session */
 				if ((ast->_state != AST_STATE_UP) &&
 				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
