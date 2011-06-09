@@ -11537,7 +11537,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		ast_string_field_set(p, fromname, n);
 
 	if (sip_cfg.pedanticsipchecking) {
-		ast_uri_encode(n, tmp_n, sizeof(tmp_n), 0);
+		ast_escape_quoted(n, tmp_n, sizeof(tmp_n));
 		n = tmp_n;
 		ast_uri_encode(l, tmp_l, sizeof(tmp_l), 0);
 		l = tmp_l;

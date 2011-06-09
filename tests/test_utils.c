@@ -102,6 +102,54 @@ AST_TEST_DEFINE(uri_encode_decode_test)
 	return res;
 }
 
+AST_TEST_DEFINE(quoted_escape_test)
+{
+	int res = AST_TEST_PASS;
+	const char *in = "a\"bcdefg\"hijkl\\mnopqrs tuv\twxyz";
+	char out[256] = { 0 };
+	char small[4] = { 0 };
+	int i;
+
+	static struct {
+		char *buf;
+		const size_t buflen;
+
+		const char *output;
+	} tests[] = {
+		{0, sizeof(out),
+			"a\\\"bcdefg\\\"hijkl\\\\mnopqrs tuv\twxyz"},
+		{0, sizeof(small),
+			"a\\\""},
+	};
+
+	tests[0].buf = out;
+	tests[1].buf = small;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "quoted_escape_test";
+		info->category = "/main/utils/";
+		info->summary = "escape a quoted string";
+		info->description = "Escape a string to be quoted and check the result.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(tests); i++) {
+		ast_escape_quoted(in, tests[i].buf, tests[i].buflen);
+		if (strcmp(tests[i].output, tests[i].buf)) {
+			ast_test_status_update(test, "ESCAPED DOES NOT MATCH EXPECTED, FAIL\n");
+			ast_test_status_update(test, "original: %s\n", in);
+			ast_test_status_update(test, "expected: %s\n", tests[i].output);
+			ast_test_status_update(test, "result: %s\n", tests[i].buf);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	return res;
+}
+
 AST_TEST_DEFINE(md5_test)
 {
 	static const struct {
@@ -348,6 +396,7 @@ AST_TEST_DEFINE(agi_loaded_test)
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(uri_encode_decode_test);
+	AST_TEST_UNREGISTER(quoted_escape_test);
 	AST_TEST_UNREGISTER(md5_test);
 	AST_TEST_UNREGISTER(sha1_test);
 	AST_TEST_UNREGISTER(base64_test);
@@ -360,6 +409,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(uri_encode_decode_test);
+	AST_TEST_REGISTER(quoted_escape_test);
 	AST_TEST_REGISTER(md5_test);
 	AST_TEST_REGISTER(sha1_test);
 	AST_TEST_REGISTER(base64_test);
