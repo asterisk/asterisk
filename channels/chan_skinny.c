@@ -1126,6 +1126,10 @@ static int callnums = 1;
 #define SKINNY_ALERT 0x24
 #define SKINNY_REORDER 0x25
 #define SKINNY_CALLWAITTONE 0x2D
+#define SKINNY_ZIPZIP 0x31
+#define SKINNY_ZIP 0x32
+#define SKINNY_BEEPBONK 0x33
+#define SKINNY_BARGIN 0x43
 #define SKINNY_NOTONE 0x7F
 
 #define SKINNY_LAMP_OFF 1
@@ -1207,7 +1211,9 @@ struct skinny_subchannel {
 	int blindxfer;
 	int xferor;
 	int substate;
-
+	int aa_sched;
+	int aa_beep;
+	int aa_mute;
 
 	AST_LIST_ENTRY(skinny_subchannel) list;
 	struct skinny_subchannel *related;
@@ -1702,6 +1708,16 @@ static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
 		}
 	}
 	return list;
+}
+
+static int skinny_sched_del(int sched_id)
+{
+	return ast_sched_del(sched, sched_id);
+}
+
+static int skinny_sched_add(int when, ast_sched_cb callback, const void *data)
+{
+	return ast_sched_add(sched, when, callback, data);
 }
 
 /* It's quicker/easier to find the subchannel when we know the instance number too */
@@ -2227,7 +2243,7 @@ static void transmit_speaker_mode(struct skinny_device *d, int mode)
 	req->data.setspeaker.mode = htolel(mode);
 	transmit_response(d, req);
 }
-/*
+
 static void transmit_microphone_mode(struct skinny_device *d, int mode)
 {
 	struct skinny_req *req;
@@ -2238,7 +2254,6 @@ static void transmit_microphone_mode(struct skinny_device *d, int mode)
 	req->data.setmicrophone.mode = htolel(mode);
 	transmit_response(d, req);
 }
-*/
 
 static void transmit_callinfo(struct skinny_subchannel *sub)
 {
@@ -4036,7 +4051,13 @@ static void *skinny_ss(void *data)
 	return NULL;
 }
 
-
+static int skinny_autoanswer_cb(const void *data)
+{
+	struct skinny_subchannel *sub = (struct skinny_subchannel *)data;
+	sub->aa_sched = 0;
+	setsubstate(sub, SKINNY_CONNECTED);
+	return 0;
+}
 
 static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 {
@@ -4044,6 +4065,8 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
+	struct ast_var_t *current;
+	int doautoanswer = 0;
 
 	if (!d->registered) {
 		ast_log(LOG_ERROR, "Device not registered, cannot call %s\n", dest);
@@ -4067,8 +4090,40 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_queue_control(ast, AST_CONTROL_BUSY);
 		return -1;
 	}
-	
+
+	AST_LIST_TRAVERSE(&ast->varshead, current, entries) {
+		if (!(strcasecmp(ast_var_name(current),"SKINNY_AUTOANSWER"))) {
+			if (d->hookstate == SKINNY_ONHOOK && !sub->aa_sched) {
+				char buf[24];
+				int aatime;
+				char *stringp = buf, *curstr;
+				ast_copy_string(buf, ast_var_value(current), sizeof(buf));
+				curstr = strsep(&stringp, ":");
+				ast_verb(3, "test %s\n", curstr);
+				aatime = atoi(curstr);
+				while ((curstr = strsep(&stringp, ":"))) {
+					if (!(strcasecmp(curstr,"BEEP"))) {
+						sub->aa_beep = 1;
+					} else if (!(strcasecmp(curstr,"MUTE"))) {
+						sub->aa_mute = 1;
+					}
+				}
+				if (skinnydebug)
+					ast_verb(3, "Sub %d - setting autoanswer time=%dms %s%s\n", sub->callid, aatime, sub->aa_beep?"BEEP ":"", sub->aa_mute?"MUTE":"");
+				if (aatime) {
+					//sub->aa_sched = ast_sched_add(sched, aatime, skinny_autoanswer_cb, sub);
+					sub->aa_sched = skinny_sched_add(aatime, skinny_autoanswer_cb, sub);
+				} else {
+					doautoanswer = 1;
+				}
+			}
+		}
+	}
+
 	setsubstate(sub, SUBSTATE_RINGIN);
+	if (doautoanswer) {
+		setsubstate(sub, SUBSTATE_CONNECTED);
+	}
 	return res;
 }
 
@@ -4629,6 +4684,13 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 	if (sub->substate == SUBSTATE_ONHOOK) {
 		return;
 	}
+
+	if (state != SUBSTATE_RINGIN && sub->aa_sched) {
+		skinny_sched_del(sub->aa_sched);
+		sub->aa_sched = 0;
+		sub->aa_beep = 0;
+		sub->aa_mute = 0;
+	}
 	
 	if ((state == SUBSTATE_RINGIN) && ((d->hookstate == SKINNY_OFFHOOK) || (AST_LIST_NEXT(AST_LIST_FIRST(&l->sub), list)))) {
 		actualstate = SUBSTATE_CALLWAIT;
@@ -4781,6 +4843,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			ast_queue_control(sub->owner, AST_CONTROL_UNHOLD);
 			transmit_connect(d, sub);
 		}
+		transmit_ringer_mode(d, SKINNY_RING_OFF);
 		transmit_activatecallplane(d, l);
 		transmit_stop_tone(d, l->instance, sub->callid);
 		transmit_callinfo(sub);
@@ -4789,6 +4852,12 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		transmit_selectsoftkeys(d, l->instance, sub->callid, KEYDEF_CONNECTED);
 		if (!sub->rtp) {
 			start_rtp(sub);
+		}
+		if (sub->aa_beep) {
+			transmit_start_tone(d, SKINNY_ZIP, l->instance, sub->callid);
+		}
+		if (sub->aa_mute) {
+			transmit_microphone_mode(d, SKINNY_MICOFF);
 		}
 		if (sub->substate == SUBSTATE_RINGIN || sub->substate == SUBSTATE_CALLWAIT) {
 			ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
