@@ -7369,11 +7369,18 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 
 	/* If we detect a CNG tone and fax detection is enabled then send us off to the fax extension */
 	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_CNG)) {
-		ast_channel_lock(ast);
 		if (strcmp(ast->exten, "fax")) {
 			const char *target_context = S_OR(ast->macrocontext, ast->context);
+			/* We need to unlock 'ast' here because
+			 * ast_exists_extension has the potential to start and
+			 * stop an autoservice on the channel. Such action is
+			 * prone to deadlock if the channel is locked.
+			 */
+			sip_pvt_unlock(p);
 			ast_channel_unlock(ast);
 			if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
+				ast_channel_lock(ast);
+				sip_pvt_lock(p);
 				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to CNG detection\n", ast->name);
 				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
 				if (ast_async_goto(ast, target_context, "fax", 1)) {
@@ -7381,10 +7388,10 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 				}
 				fr = &ast_null_frame;
 			} else {
+				ast_channel_lock(ast);
+				sip_pvt_lock(p);
 				ast_log(LOG_NOTICE, "FAX CNG detected but no fax extension\n");
                         }
-		} else {
-			ast_channel_unlock(ast);
                 }
         }
 
