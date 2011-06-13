@@ -1192,14 +1192,22 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 1 && !ast_strlen_zero(args.b_profile_name)) {
 		b_profile_name = args.b_profile_name;
 	}
-	conf_find_bridge_profile(chan, b_profile_name, &conference_bridge_user.b_profile);
+	if (!conf_find_bridge_profile(chan, b_profile_name, &conference_bridge_user.b_profile)) {
+		ast_log(LOG_WARNING, "Conference bridge profile %s does not exist\n", b_profile_name);
+		res = -1;
+		goto confbridge_cleanup;
+	}
 
 	/* user profile name */
 	if (args.argc > 2 && !ast_strlen_zero(args.u_profile_name)) {
 		u_profile_name = args.u_profile_name;
 	}
 
-	conf_find_user_profile(chan, u_profile_name, &conference_bridge_user.u_profile);
+	if (!conf_find_user_profile(chan, u_profile_name, &conference_bridge_user.u_profile)) {
+		ast_log(LOG_WARNING, "Conference user profile %s does not exist\n", u_profile_name);
+		res = -1;
+		goto confbridge_cleanup;
+	}
 	quiet = ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_QUIET);
 
 	/* ask for a PIN immediately after finding user profile.  This has to be
