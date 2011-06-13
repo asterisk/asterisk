@@ -15757,8 +15757,12 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 				p->callingpres = peer->callingpres;
 		}
 		ast_string_field_set(p, fullcontact, peer->fullcontact);
-		if (!ast_strlen_zero(peer->context))
+		if (!ast_strlen_zero(peer->context)) {
 			ast_string_field_set(p, context, peer->context);
+		}
+		if (!ast_strlen_zero(peer->messagecontext)) {
+			ast_string_field_set(p, messagecontext, peer->messagecontext);
+		}
 		ast_string_field_set(p, peersecret, peer->secret);
 		ast_string_field_set(p, peermd5secret, peer->md5secret);
 		ast_string_field_set(p, language, peer->language);
@@ -16088,6 +16092,9 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 			if (ast_strlen_zero(peer->secret) && ast_strlen_zero(peer->md5secret)) {
 				ast_string_field_set(p, context, peer->context);
 			}
+			if (!ast_strlen_zero(peer->messagecontext)) {
+				ast_string_field_set(p, messagecontext, peer->messagecontext);
+			}
 			peer = unref_peer(peer, "from find_peer() in receive_message");
 		}
 	}
@@ -16108,7 +16115,15 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	res = ast_msg_set_to(msg, "%s", to);
 	res |= ast_msg_set_from(msg, "%s", get_in_brackets(from));
 	res |= ast_msg_set_body(msg, "%s", ast_str_buffer(buf));
-	res |= ast_msg_set_context(msg, "%s", p->context);
+
+	if (!ast_strlen_zero(p->messagecontext)) {
+		res |= ast_msg_set_context(msg, "%s", p->messagecontext);
+	} else if (!ast_strlen_zero(sip_cfg.messagecontext)) {
+		res |= ast_msg_set_context(msg, "%s", sip_cfg.messagecontext);
+	} else {
+		res |= ast_msg_set_context(msg, "%s", p->context);
+	}
+
 	res |= ast_msg_set_exten(msg, "%s", p->exten);
 
 	if (res) {
@@ -26679,6 +26694,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	ast_copy_flags(&peer->flags[1], &global_flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	ast_copy_flags(&peer->flags[2], &global_flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 	ast_string_field_set(peer, context, sip_cfg.default_context);
+	ast_string_field_set(peer, messagecontext, sip_cfg.messagecontext);
 	ast_string_field_set(peer, subscribecontext, sip_cfg.default_subscribecontext);
 	ast_string_field_set(peer, language, default_language);
 	ast_string_field_set(peer, mohinterpret, default_mohinterpret);
@@ -26973,6 +26989,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "context")) {
 				ast_string_field_set(peer, context, v->value);
 				ast_set_flag(&peer->flags[1], SIP_PAGE2_HAVEPEERCONTEXT);
+			} else if (!strcasecmp(v->name, "outofcall_message_context")) {
+				ast_string_field_set(peer, messagecontext, v->value);
 			} else if (!strcasecmp(v->name, "subscribecontext")) {
 				ast_string_field_set(peer, subscribecontext, v->value);
 			} else if (!strcasecmp(v->name, "fromdomain")) {
@@ -27661,6 +27679,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.alwaysauthreject = DEFAULT_ALWAYSAUTHREJECT;
 	sip_cfg.auth_options_requests = DEFAULT_AUTH_OPTIONS;
 	sip_cfg.auth_message_requests = DEFAULT_AUTH_MESSAGE;
+	sip_cfg.messagecontext[0] = '\0';
 	sip_cfg.accept_outofcall_message = DEFAULT_ACCEPT_OUTOFCALL_MESSAGE;
 	sip_cfg.allowsubscribe = FALSE;
 	sip_cfg.disallowed_methods = SIP_UNKNOWN;
@@ -27914,6 +27933,8 @@ static int reload_config(enum channelreloadreason reason)
 			sip_cfg.auth_message_requests = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "accept_outofcall_message")) {
 			sip_cfg.accept_outofcall_message = ast_true(v->value) ? 1 : 0;
+		} else if (!strcasecmp(v->name, "outofcall_message_context")) {
+			ast_copy_string(sip_cfg.messagecontext, v->value, sizeof(sip_cfg.messagecontext));
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
 			ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {

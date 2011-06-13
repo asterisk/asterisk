@@ -691,6 +691,7 @@ struct sip_settings {
 	int legacy_useroption_parsing; /*!< Whether to strip useroptions in URI via semicolons */
 	int matchexternaddrlocally;   /*!< Match externaddr/externhost setting against localnet setting */
 	char regcontext[AST_MAX_CONTEXT];  /*!< Context for auto-extensions */
+	char messagecontext[AST_MAX_CONTEXT];  /*!< Default context for out of dialog msgs. */
 	unsigned int disallowed_methods;   /*!< methods that we should never try to use */
 	int notifyringing;          /*!< Send notifications on ringing */
 	int notifyhold;             /*!< Send notifications on hold */
@@ -939,6 +940,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(useragent);    /*!< User agent in SIP request */
 		AST_STRING_FIELD(exten);        /*!< Extension where to start */
 		AST_STRING_FIELD(context);      /*!< Context for this call */
+		AST_STRING_FIELD(messagecontext); /*!< Default context for outofcall messages. */
 		AST_STRING_FIELD(subscribecontext); /*!< Subscribecontext */
 		AST_STRING_FIELD(subscribeuri); /*!< Subscribecontext */
 		AST_STRING_FIELD(fromdomain);   /*!< Domain to show in the from field */
@@ -1172,6 +1174,7 @@ struct sip_peer {
 		AST_STRING_FIELD(description);	/*!< Description of this peer */
 		AST_STRING_FIELD(remotesecret); /*!< Remote secret (trunks, remote devices) */
 		AST_STRING_FIELD(context);      /*!< Default context for incoming calls */
+		AST_STRING_FIELD(messagecontext); /*!< Default context for outofcall messages. */
 		AST_STRING_FIELD(subscribecontext); /*!< Default context for subscriptions */
 		AST_STRING_FIELD(username);     /*!< Temporary username until registration */
 		AST_STRING_FIELD(accountcode);  /*!< Account code */

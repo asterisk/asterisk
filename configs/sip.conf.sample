@@ -389,6 +389,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; call.  By default, this option is enabled.  When enabled, MESSAGE
                                 ; requests are passed in to the dialplan.
 
+;outofcall_message_context = messages ; Context all out of dialog msgs are sent to. When this
+                                      ; option is not set, the context used during peer matching
+                                      ; is used. This option can be defined at both the peer and
+                                      ; global level.
+
 ;auth_message_requests = yes    ; Enabling this option will authenticate MESSAGE requests.
                                 ; By default this option is enabled.  However, it can be disabled
                                 ; should an application desire to not load the Asterisk server with
