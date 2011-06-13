@@ -147,6 +147,10 @@ allowoverlap=no                 ; Disable overlap dialing support. (Default is y
 ; (Note that using bindaddr=:: will show only a single IPv6 socket in netstat.
 ;  IPv4 is supported at the same time using IPv4-mapped IPv6 addresses.)
 ;
+; Using bindaddr will only enable UDP support in order to be backwards compatible with those systems
+; that were upgraded prior to TCP support. Use udpbindaddr and tcpbindaddr to bind to UDP and TCP
+; independently.
+;
 ; You may optionally add a port number. (The default is port 5060 for UDP and TCP, 5061
 ; for TLS).
 ;   IPv4 example: bindaddr=0.0.0.0:5062
