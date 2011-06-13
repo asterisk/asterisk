@@ -582,7 +582,7 @@ static int add_action_to_menu_entry(struct conf_menu_entry *menu_entry, enum con
 
 static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *action_names)
 {
-	struct conf_menu_entry *menu_entry = NULL;
+	struct conf_menu_entry *menu_entry = NULL, *cur = NULL;
 	int res = 0;
 	char *tmp_action_names = ast_strdupa(action_names);
 	char *action = NULL;
@@ -690,6 +690,16 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 		ast_free(menu_entry);
 		return -1;
 	}
+
+	/* remove any list entry with an identical DTMF sequence for overrides */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&menu->entries, cur, entry) {
+		if (!strcasecmp(cur->dtmf, menu_entry->dtmf)) {
+			AST_LIST_REMOVE_CURRENT(entry);
+			ast_free(cur);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	AST_LIST_INSERT_TAIL(&menu->entries, menu_entry, entry);
 
