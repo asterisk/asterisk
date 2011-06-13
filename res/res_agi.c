@@ -297,7 +297,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</agi>
 	<agi name="hangup" language="en_US">
 		<synopsis>
-			Hangup the current channel.
+			Hangup a channel.
 		</synopsis>
 		<syntax>
 			<parameter name="channelname" />
