@@ -215,6 +215,7 @@ struct conference_bridge_user {
 	struct ast_bridge_features features;         /*!< Bridge features structure */
 	struct ast_bridge_tech_optimizations tech_args; /*!< Bridge technology optimizations for talk detection */
 	unsigned int kicked:1;                       /*!< User has been kicked from the conference */
+	unsigned int playing_moh:1;                  /*!< MOH is currently being played to the user */
 	AST_LIST_ENTRY(conference_bridge_user) list; /*!< Linked list information */
 };
 
