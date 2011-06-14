@@ -26753,7 +26753,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		 * specified, use that address instead. */
 		/* XXX May need to revisit the final argument; does the realtime DB store whether
 		 * the original contact was over TLS or not? XXX */
-		if (!ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT) || ast_sockaddr_isnull(&peer->addr)) {
+		if (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) || ast_sockaddr_isnull(&peer->addr)) {
 			__set_address_from_contact(fullcontact->str, &peer->addr, 0);
 		}
 	}
