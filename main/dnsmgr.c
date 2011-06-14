@@ -135,7 +135,7 @@ int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_
 	 * If it's actually an IP address and not a name, there's no
 	 * need for a managed lookup.
 	 */
-	if (ast_sockaddr_parse(result, name, 0)) {
+	if (ast_sockaddr_parse(result, name, PARSE_PORT_FORBID)) {
 		return 0;
 	}
 
