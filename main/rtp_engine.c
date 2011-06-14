@@ -65,6 +65,8 @@ struct ast_rtp_instance {
 	int timeout;
 	/*! RTP timeout when on hold (negative or zero means disabled, negative value means temporarily disabled). */
 	int holdtimeout;
+	/*! RTP keepalive interval */
+	int keepalive;
 	/*! DTMF mode in use */
 	enum ast_rtp_dtmf_mode dtmf_mode;
 	/*! Glue currently in use */
@@ -1710,6 +1712,11 @@ void ast_rtp_instance_set_hold_timeout(struct ast_rtp_instance *instance, int ti
 	instance->holdtimeout = timeout;
 }
 
+void ast_rtp_instance_set_keepalive(struct ast_rtp_instance *instance, int interval)
+{
+	instance->keepalive = interval;
+}
+
 int ast_rtp_instance_get_timeout(struct ast_rtp_instance *instance)
 {
 	return instance->timeout;
@@ -1718,6 +1725,11 @@ int ast_rtp_instance_get_timeout(struct ast_rtp_instance *instance)
 int ast_rtp_instance_get_hold_timeout(struct ast_rtp_instance *instance)
 {
 	return instance->holdtimeout;
+}
+
+int ast_rtp_instance_get_keepalive(struct ast_rtp_instance *instance)
+{
+	return instance->keepalive;
 }
 
 struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *instance)
@@ -1777,4 +1789,13 @@ int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct a
 struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance)
 {
 	return instance->srtp;
+}
+
+int ast_rtp_instance_sendcng(struct ast_rtp_instance *instance, int level)
+{
+	if (instance->engine->sendcng) {
+		return instance->engine->sendcng(instance, level);
+	}
+
+	return -1;
 }

@@ -5020,6 +5020,7 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		}
 		ast_rtp_instance_set_timeout(dialog->vrtp, global_rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->vrtp, global_rtpholdtimeout);
+		ast_rtp_instance_set_keepalive(dialog->vrtp, global_rtpholdtimeout);
 
 		ast_rtp_instance_set_prop(dialog->vrtp, AST_RTP_PROPERTY_RTCP, 1);
 	}
@@ -5030,12 +5031,14 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		}
 		ast_rtp_instance_set_timeout(dialog->trtp, global_rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->trtp, global_rtpholdtimeout);
+		ast_rtp_instance_set_keepalive(dialog->trtp, global_rtpholdtimeout);
 
 		ast_rtp_instance_set_prop(dialog->trtp, AST_RTP_PROPERTY_RTCP, 1);
 	}
 
 	ast_rtp_instance_set_timeout(dialog->rtp, global_rtptimeout);
 	ast_rtp_instance_set_hold_timeout(dialog->rtp, global_rtpholdtimeout);
+	ast_rtp_instance_set_keepalive(dialog->rtp, global_rtpkeepalive);
 
 	ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_RTCP, 1);
 	ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF, ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
@@ -5103,6 +5106,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF_COMPENSATE, ast_test_flag(&dialog->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 		ast_rtp_instance_set_timeout(dialog->rtp, peer->rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->rtp, peer->rtpholdtimeout);
+		ast_rtp_instance_set_keepalive(dialog->rtp, peer->rtpkeepalive);
 		/* Set Frame packetization */
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(dialog->rtp), dialog->rtp, &dialog->prefs);
 		dialog->autoframing = peer->autoframing;
@@ -5110,10 +5114,12 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (dialog->vrtp) { /* Video */
 		ast_rtp_instance_set_timeout(dialog->vrtp, peer->rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->vrtp, peer->rtpholdtimeout);
+		ast_rtp_instance_set_keepalive(dialog->vrtp, peer->rtpkeepalive);
 	}
 	if (dialog->trtp) { /* Realtime text */
 		ast_rtp_instance_set_timeout(dialog->trtp, peer->rtptimeout);
 		ast_rtp_instance_set_hold_timeout(dialog->trtp, peer->rtpholdtimeout);
+		ast_rtp_instance_set_keepalive(dialog->trtp, peer->rtpkeepalive);
 	}
 
 	/* XXX TODO: get fields directly from peer only as they are needed using dialog->relatedpeer */
@@ -24771,8 +24777,16 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		return;
 
 	/* If we have no timers set, return now */
-	if (!ast_rtp_instance_get_timeout(dialog->rtp) && !ast_rtp_instance_get_hold_timeout(dialog->rtp)) {
+	if (!ast_rtp_instance_get_keepalive(dialog->rtp) && !ast_rtp_instance_get_timeout(dialog->rtp) && !ast_rtp_instance_get_hold_timeout(dialog->rtp)) {
 		return;
+	}
+
+	/* Check AUDIO RTP keepalives */
+	if (dialog->lastrtptx && ast_rtp_instance_get_keepalive(dialog->rtp) &&
+		    (t > dialog->lastrtptx + ast_rtp_instance_get_keepalive(dialog->rtp))) {
+		/* Need to send an empty RTP packet */
+		dialog->lastrtptx = time(NULL);
+		ast_rtp_instance_sendcng(dialog->rtp, 0);
 	}
 
 	/*! \todo Check video RTP keepalives
