@@ -381,12 +381,12 @@ static int match_sub_ie_val_to_event(const struct ast_event_ie_val *sub_ie_val, 
 	int res = 0;
 
 	AST_LIST_TRAVERSE(&check_ie_vals->ie_vals, event_ie_val, entry) {
-		if (event_ie_val->ie_type == sub_ie_val->ie_type) {
+		if (sub_ie_val->ie_type == event_ie_val->ie_type) {
 			break;
 		}
 	}
 	if (!event_ie_val) {
-		/* The did not find the event ie the subscriber cares about. */
+		/* We did not find the event ie the subscriber cares about. */
 		return 0;
 	}
 
@@ -1340,6 +1340,7 @@ struct ast_event *ast_event_get_cached(enum ast_event_type type, ...)
 			void *data = va_arg(ap, void *);
 			size_t datalen = va_arg(ap, size_t);
 			ast_event_append_ie_raw(&cache_arg_event, ie_type, data, datalen);
+			break;
 		}
 		case AST_EVENT_IE_PLTYPE_EXISTS:
 			ast_log(LOG_WARNING, "PLTYPE_EXISTS not supported by this function\n");
