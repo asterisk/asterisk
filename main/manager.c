@@ -2895,6 +2895,7 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	char *c = workspace;
 	char *retval = NULL;
 	struct ast_variable *v;
+	char template[] = "/tmp/ast-http-XXXXXX";
 
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
@@ -2942,8 +2943,9 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 	ss.session = s;
 	ast_mutex_unlock(&s->__lock);
 
-	ss.f = tmpfile();
-	ss.fd = fileno(ss.f);
+	if ((ss.fd = mkstemp(template)) > -1) {
+		unlink(template);
+	}
 
 	if (s) {
 		struct message m = { 0 };
@@ -2989,13 +2991,21 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 		if (ss.fd > -1) {
 			char *buf;
 			size_t l;
+			ssize_t res;
 
-			if ((l = lseek(ss.fd, 0, SEEK_END)) > 0) {
-				if (MAP_FAILED == (buf = mmap(NULL, l + 1, PROT_READ | PROT_WRITE, MAP_SHARED, ss.fd, 0))) {
+			/* Make sure that our buffer is NULL terminated */
+			while ((res = write(ss.fd, "", 1)) < 1) {
+				if (res == -1) {
+					ast_log(LOG_ERROR, "Failed to terminate manager response output: %s\n", strerror(errno));
+					break;
+				}
+			}
+
+			if (res == 1 && (l = lseek(ss.fd, 0, SEEK_END)) > 0) {
+				if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, ss.fd, 0))) {
 					ast_log(LOG_WARNING, "mmap failed.  Manager request output was not processed\n");
 				} else {
 					char *tmpbuf;
-					buf[l] = '\0';
 					if (format == FORMAT_XML)
 						tmpbuf = xml_translate(buf, params);
 					else if (format == FORMAT_HTML)
@@ -3016,11 +3026,10 @@ static char *generic_http_callback(int format, struct sockaddr_in *requestor, co
 						free(tmpbuf);
 					free(s->outputstr);
 					s->outputstr = NULL;
-					munmap(buf, l + 1);
+					munmap(buf, l);
 				}
 			}
-			fclose(ss.f);
-			ss.f = NULL;
+			close(ss.fd);
 			ss.fd = -1;
 		} else if (s->outputstr) {
 			char *tmp;
