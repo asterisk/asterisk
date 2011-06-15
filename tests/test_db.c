@@ -193,12 +193,12 @@ AST_TEST_DEFINE(gettree_deltree)
 	ast_db_freetree(dbes);
 
 	if ((num_deleted = ast_db_deltree(BASE, SUB2)) != ARRAY_LEN(inputs) / 2) {
-		ast_test_status_update(test, "Failed to deltree %s/%s, expected %lu deletions and got %d\n", BASE, SUB2, ARRAY_LEN(inputs) / 2, num_deleted);
+		ast_test_status_update(test, "Failed to deltree %s/%s, expected %zu deletions and got %d\n", BASE, SUB2, (size_t) ARRAY_LEN(inputs) / 2, num_deleted);
 		res = AST_TEST_FAIL;
 	}
 
 	if ((num_deleted = ast_db_deltree(BASE, NULL)) != ARRAY_LEN(inputs) / 2) {
-		ast_test_status_update(test, "Failed to deltree %s, expected %lu deletions and got %d\n", BASE, ARRAY_LEN(inputs) / 2, num_deleted);
+		ast_test_status_update(test, "Failed to deltree %s, expected %zu deletions and got %d\n", BASE, (size_t) ARRAY_LEN(inputs) / 2, num_deleted);
 		res = AST_TEST_FAIL;
 	}
 
