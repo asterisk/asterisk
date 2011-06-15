@@ -667,7 +667,7 @@ void ast_enable_packet_fragmentation(int sock);
  */
 int ast_mkdir(const char *path, int mode);
 
-#define ARRAY_LEN(a) (sizeof(a) / sizeof(0[a]))
+#define ARRAY_LEN(a) (size_t) (sizeof(a) / sizeof(0[a]))
 
 
 /* Definition for Digest authorization */
