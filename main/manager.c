@@ -4051,8 +4051,12 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		char *buf;
 		size_t l;
 
+		/* Ensure buffer is NULL-terminated */
+		fprintf(s.f, "%c", 0);
+		fflush(s.f);
+
 		if ((l = ftell(s.f))) {
-			if (MAP_FAILED == (buf = mmap(NULL, l + 1, PROT_READ | PROT_WRITE, MAP_PRIVATE, s.fd, 0))) {
+			if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, s.fd, 0))) {
 				ast_log(LOG_WARNING, "mmap failed.  Manager output was not processed\n");
 			} else {
 				buf[l] = '\0';
@@ -4061,13 +4065,14 @@ static struct ast_str *generic_http_callback(enum output_format format,
 				} else {
 					ast_str_append(&out, 0, "%s", buf);
 				}
-				munmap(buf, l + 1);
+				munmap(buf, l);
 			}
 		} else if (format == FORMAT_XML || format == FORMAT_HTML) {
 			xml_translate(&out, "", params, format);
 		}
 		fclose(s.f);
 		s.f = NULL;
+		close(s.fd);
 		s.fd = -1;
 	}
 
