@@ -5468,6 +5468,39 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *g
 	}
 }
 
+static void process_output(struct mansession *s, struct ast_str *out, struct ast_variable *params, enum output_format format)
+{
+	char *buf;
+	size_t l;
+
+	if (!s->f)
+		return;
+
+	/* Ensure buffer is NULL-terminated */
+	fprintf(s->f, "%c", 0);
+	fflush(s->f);
+
+	if ((l = ftell(s->f))) {
+		if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, s->fd, 0))) {
+			ast_log(LOG_WARNING, "mmap failed.  Manager output was not processed\n");
+		} else {
+			if (format == FORMAT_XML || format == FORMAT_HTML) {
+				xml_translate(&out, buf, params, format);
+			} else {
+				ast_str_append(&out, 0, "%s", buf);
+			}
+			munmap(buf, l);
+		}
+	} else if (format == FORMAT_XML || format == FORMAT_HTML) {
+		xml_translate(&out, "", params, format);
+	}
+
+	fclose(s->f);
+	s->f = NULL;
+	close(s->fd);
+	s->fd = -1;
+}
+
 static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 					     enum ast_http_method method,
 					     enum output_format format,
@@ -5617,29 +5650,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		ast_str_append(&out, 0, ROW_FMT, TEST_STRING);
 	}
 
-	if (s.f != NULL) {	/* have temporary output */
-		char *buf;
-		size_t l;
-
-		if ((l = ftell(s.f))) {
-			if (MAP_FAILED == (buf = mmap(NULL, l + 1, PROT_READ | PROT_WRITE, MAP_PRIVATE, s.fd, 0))) {
-				ast_log(LOG_WARNING, "mmap failed.  Manager output was not processed\n");
-			} else {
-				buf[l] = '\0';
-				if (format == FORMAT_XML || format == FORMAT_HTML) {
-					xml_translate(&out, buf, params, format);
-				} else {
-					ast_str_append(&out, 0, "%s", buf);
-				}
-				munmap(buf, l + 1);
-			}
-		} else if (format == FORMAT_XML || format == FORMAT_HTML) {
-			xml_translate(&out, "", params, format);
-		}
-		fclose(s.f);
-		s.f = NULL;
-		s.fd = -1;
-	}
+	process_output(&s, out, params, format);
 
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "</ajax-response>\n");
@@ -5951,26 +5962,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		"<input type=\"submit\" value=\"Send request\" /></th></tr>\r\n");
 	}
 
-	if (s.f != NULL) {	/* have temporary output */
-		char *buf;
-		size_t l = ftell(s.f);
-
-		if (l) {
-			if ((buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, s.fd, 0))) {
-				if (format == FORMAT_XML || format == FORMAT_HTML) {
-					xml_translate(&out, buf, params, format);
-				} else {
-					ast_str_append(&out, 0, "%s", buf);
-				}
-				munmap(buf, l);
-			}
-		} else if (format == FORMAT_XML || format == FORMAT_HTML) {
-			xml_translate(&out, "", params, format);
-		}
-		fclose(s.f);
-		s.f = NULL;
-		s.fd = -1;
-	}
+	process_output(&s, out, params, format);
 
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "</ajax-response>\n");
