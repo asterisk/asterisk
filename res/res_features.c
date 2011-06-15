@@ -1653,8 +1653,12 @@ int ast_feature_detect(struct ast_channel *chan, struct ast_flags *features, cha
 
 /*! \brief Check if a feature exists */
 static int feature_check(struct ast_channel *chan, struct ast_flags *features, char *code) {
+	char *chan_dynamic_features;
+	ast_channel_lock(chan);
+	chan_dynamic_features = ast_strdupa(S_OR(pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES"),""));
+	ast_channel_unlock(chan);
 
-	return feature_interpret_helper(chan, NULL, NULL, code, 0, NULL, features, FEATURE_INTERPRET_CHECK, NULL);
+	return feature_interpret_helper(chan, NULL, NULL, code, 0, chan_dynamic_features, features, FEATURE_INTERPRET_CHECK, NULL);
 }
 
 static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config)
