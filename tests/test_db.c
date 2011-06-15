@@ -158,7 +158,7 @@ AST_TEST_DEFINE(gettree_deltree)
 	}
 
 	if (x != ARRAY_LEN(inputs)) {
-		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %zu\n", x, (size_t) ARRAY_LEN(inputs));
+		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %zu\n", x, ARRAY_LEN(inputs));
 		res = AST_TEST_FAIL;
 	}
 
@@ -186,19 +186,19 @@ AST_TEST_DEFINE(gettree_deltree)
 	}
 
 	if (x != (ARRAY_LEN(inputs) / 2)) {
-		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %zu\n", x, (size_t) ARRAY_LEN(inputs) / 2);
+		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %zu\n", x, ARRAY_LEN(inputs) / 2);
 		res = AST_TEST_FAIL;
 	}
 
 	ast_db_freetree(dbes);
 
 	if ((num_deleted = ast_db_deltree(BASE, SUB2)) != ARRAY_LEN(inputs) / 2) {
-		ast_test_status_update(test, "Failed to deltree %s/%s, expected %zu deletions and got %d\n", BASE, SUB2, (size_t) ARRAY_LEN(inputs) / 2, num_deleted);
+		ast_test_status_update(test, "Failed to deltree %s/%s, expected %zu deletions and got %d\n", BASE, SUB2, ARRAY_LEN(inputs) / 2, num_deleted);
 		res = AST_TEST_FAIL;
 	}
 
 	if ((num_deleted = ast_db_deltree(BASE, NULL)) != ARRAY_LEN(inputs) / 2) {
-		ast_test_status_update(test, "Failed to deltree %s, expected %zu deletions and got %d\n", BASE, (size_t) ARRAY_LEN(inputs) / 2, num_deleted);
+		ast_test_status_update(test, "Failed to deltree %s, expected %zu deletions and got %d\n", BASE, ARRAY_LEN(inputs) / 2, num_deleted);
 		res = AST_TEST_FAIL;
 	}
 
