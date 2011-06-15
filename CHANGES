@@ -79,6 +79,9 @@ ConfBridge
    mixing audio at sample rates ranging from 8khz-96khz.
  * CONFBRIDGE dialplan function capable of creating dynamic ConfBridge user
    and bridge profiles on a channel.
+ * CONFBRIDGE_INFO dialplan function capable of retreiving information 
+   about a conference such as locked status and number of parties, admins,
+   and marked users.
 
 Dialplan Variables
 ------------------

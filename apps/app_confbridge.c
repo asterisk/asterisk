@@ -106,6 +106,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>exten => 1,n,ConfBridge(1)</para>
 		</description>
 	</function>
+	<function name="CONFBRIDGE_INFO" language="en_US">
+		<synopsis>
+			Get information about a ConfBridge conference.
+		</synopsis>
+		<syntax>
+			<parameter name="type" required="true">
+				<para>Type can be <literal>parties</literal>, <literal>admins</literal>, <literal>marked</literal>, or <literal>locked</literal>.</para>
+			</parameter>
+			<parameter name="conf" required="true">
+				<para>Conf refers to the name of the conference being referenced.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function returns a non-negative integer for valid conference identifiers (0 or 1 for <literal>locked</literal>) and "" for invalid conference identifiers.</para> 
+		</description>
+	</function>
 	<manager name="ConfbridgeList" language="en_US">
 		<synopsis>
 			List participants in a conference.
@@ -2079,6 +2095,12 @@ static struct ast_custom_function confbridge_function = {
 	.write = func_confbridge_helper,
 };
 
+static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len);
+static struct ast_custom_function confbridge_info_function = {
+	.name = "CONFBRIDGE_INFO",
+	.read = func_confbridge_info,
+};
+
 static int action_confbridgelist(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
@@ -2390,7 +2412,68 @@ static int action_confbridgestoprecord(struct mansession *s, const struct messag
 	return 0;
 }
 
+static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	char *parse = NULL;
+	struct conference_bridge *bridge = NULL;
+	struct conference_bridge_user *participant = NULL;
+	struct conference_bridge tmp;
+	int count = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(type);
+		AST_APP_ARG(confno);
+	);
 
+	/* parse all the required arguments and make sure they exist. */
+	if (ast_strlen_zero(data)) {
+		return -1;
+	}
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+	if (ast_strlen_zero(args.confno) || ast_strlen_zero(args.type)) {
+		return -1;
+	}
+	if (!ao2_container_count(conference_bridges)) {
+		ast_log(LOG_ERROR, "No active conferneces.\n");
+		return -1;
+	}
+	ast_copy_string(tmp.name, args.confno, sizeof(tmp.name));
+	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!bridge) {
+		ast_log(LOG_ERROR, "Confernece '%s' not found.\n", args.confno);
+		return -1;
+	}
+
+	/* get the correct count for the type requested */
+	ao2_lock(bridge);
+	if (!strncasecmp(args.type, "parties", 7)) {
+		AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
+			count++;
+		}
+	} else if (!strncasecmp(args.type, "admins", 6)) {
+		AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
+			if (ast_test_flag(&participant->u_profile, USER_OPT_ADMIN)) {
+				count++;
+			}
+		}
+	} else if (!strncasecmp(args.type, "marked", 6)) {
+		AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
+			if (ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER)) {
+				count++;
+			}
+		}
+	} else if (!strncasecmp(args.type, "locked", 6)) {
+		count = bridge->locked;
+	} else {
+		ao2_unlock(bridge);
+		ao2_ref(bridge, -1);
+		return -1;
+	}
+	snprintf(buf, len, "%d", count);
+	ao2_unlock(bridge);
+	ao2_ref(bridge, -1);
+	return 0;
+}
 
 /*! \brief Called when module is being unloaded */
 static int unload_module(void)
@@ -2398,6 +2481,7 @@ static int unload_module(void)
 	int res = ast_unregister_application(app);
 
 	ast_custom_function_unregister(&confbridge_function);
+	ast_custom_function_unregister(&confbridge_info_function);
 
 	ast_cli_unregister_multiple(cli_confbridge, sizeof(cli_confbridge) / sizeof(struct ast_cli_entry));
 
@@ -2427,6 +2511,9 @@ static int load_module(void)
 {
 	int res = 0;
 	if ((ast_custom_function_register(&confbridge_function))) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	if ((ast_custom_function_register(&confbridge_info_function))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	if (!(record_tech.capabilities = ast_format_cap_alloc())) {
