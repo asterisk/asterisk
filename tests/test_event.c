@@ -312,7 +312,7 @@ AST_TEST_DEFINE(event_sub_test)
 			.expected_count = 2,
 		},
 		[TEST_SUBS_CUSTOM_RAW] = {
-			.expected_count = 1,
+			.expected_count = 2,
 		},
 		[TEST_SUBS_CUSTOM_UINT] = {
 			.expected_count = 1,
@@ -344,28 +344,13 @@ AST_TEST_DEFINE(event_sub_test)
 		break;
 	}
 
-	/*
-	 * Subscription TEST_SUBS_ALL_STR:
-	 *  - allocate normally
-	 *  - subscribe to ALL events with a DEVICE STR IE check
-	 */
-	ast_test_status_update(test, "Adding TEST_SUBS_ALL_STR subscription\n");
-	test_subs[TEST_SUBS_ALL_STR].sub = ast_event_subscribe(AST_EVENT_ALL, event_sub_cb,
-		test_subs_class_type_str(TEST_SUBS_ALL_STR), &test_subs[TEST_SUBS_ALL_STR].data,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
+	ast_test_status_update(test, "Check that NO CUSTOM subscribers exist\n");
+	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
 		AST_EVENT_IE_END);
-	if (!test_subs[TEST_SUBS_ALL_STR].sub) {
-		ast_test_status_update(test, "Failed to create TEST_SUBS_ALL_STR subscription\n");
+	if (sub_res != AST_EVENT_SUB_NONE) {
+		ast_test_status_update(test, "CUSTOM subscriptions should not exist! (%d)\n",
+			sub_res);
 		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_ALL_STR].sub),
-		test_subs_class_type_str(TEST_SUBS_ALL_STR))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_ALL_STR subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
 	}
 
 	/*
@@ -388,6 +373,39 @@ AST_TEST_DEFINE(event_sub_test)
 		test_subs_class_type_str(TEST_SUBS_CUSTOM_STR))) {
 		ast_test_status_update(test,
 			"Unexpected subscription description on TEST_SUBS_CUSTOM_STR subscription\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+
+	ast_test_status_update(test, "Check that a CUSTOM subscriber exists\n");
+	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
+		AST_EVENT_IE_END);
+	if (sub_res != AST_EVENT_SUB_EXISTS) {
+		ast_test_status_update(test, "A CUSTOM subscription should exist! (%d)\n",
+			sub_res);
+		res = AST_TEST_FAIL;
+	}
+
+	/*
+	 * Subscription TEST_SUBS_ALL_STR:
+	 *  - allocate normally
+	 *  - subscribe to ALL events with a DEVICE STR IE check
+	 */
+	ast_test_status_update(test, "Adding TEST_SUBS_ALL_STR subscription\n");
+	test_subs[TEST_SUBS_ALL_STR].sub = ast_event_subscribe(AST_EVENT_ALL, event_sub_cb,
+		test_subs_class_type_str(TEST_SUBS_ALL_STR), &test_subs[TEST_SUBS_ALL_STR].data,
+		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
+		AST_EVENT_IE_END);
+	if (!test_subs[TEST_SUBS_ALL_STR].sub) {
+		ast_test_status_update(test, "Failed to create TEST_SUBS_ALL_STR subscription\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+
+	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_ALL_STR].sub),
+		test_subs_class_type_str(TEST_SUBS_ALL_STR))) {
+		ast_test_status_update(test,
+			"Unexpected subscription description on TEST_SUBS_ALL_STR subscription\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
@@ -576,7 +594,7 @@ AST_TEST_DEFINE(event_sub_test)
 	/*
 	 * Exercise the API call to check for existing subscriptions.
 	 */
-	ast_test_status_update(test, "Checking for subscribers to events\n");
+	ast_test_status_update(test, "Checking for subscribers to specific events\n");
 
 	/* Check STR matching. */
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
@@ -676,6 +694,31 @@ AST_TEST_DEFINE(event_sub_test)
 		ast_test_status_update(test, "EXISTS subscription should not exist! (%d)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
+	}
+
+	ast_test_status_update(test, "Special event posting test\n");
+
+	/*
+	 * Event to check if event is even posted.
+	 *
+	 * Matching subscriptions:
+	 * TEST_SUBS_CUSTOM_RAW
+	 */
+	event = ast_event_new(AST_EVENT_CUSTOM,
+		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "Mula",
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
+		AST_EVENT_IE_END);
+	if (!event) {
+		ast_test_status_update(test, "Failed to create event\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
+	}
+	if (ast_event_queue(event)) {
+		ast_event_destroy(event);
+		event = NULL;
+		ast_test_status_update(test, "Failed to queue event\n");
+		res = AST_TEST_FAIL;
+		goto return_cleanup;
 	}
 
 	/*
