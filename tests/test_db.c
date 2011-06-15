@@ -158,7 +158,7 @@ AST_TEST_DEFINE(gettree_deltree)
 	}
 
 	if (x != ARRAY_LEN(inputs)) {
-		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %lu\n", x, ARRAY_LEN(inputs));
+		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %zu\n", x, (size_t) ARRAY_LEN(inputs));
 		res = AST_TEST_FAIL;
 	}
 
@@ -186,7 +186,7 @@ AST_TEST_DEFINE(gettree_deltree)
 	}
 
 	if (x != (ARRAY_LEN(inputs) / 2)) {
-		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %lu\n", x, ARRAY_LEN(inputs) / 2);
+		ast_test_status_update(test, "ast_db_gettree returned %zu entries when we expected %zu\n", x, (size_t) ARRAY_LEN(inputs) / 2);
 		res = AST_TEST_FAIL;
 	}
 
