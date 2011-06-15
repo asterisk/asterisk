@@ -125,7 +125,7 @@ static void destroy_table(struct tables *table)
 	ast_free(table);
 }
 
-static struct tables *find_table(const char *orig_tablename)
+static struct tables *find_table(const char *database, const char *orig_tablename)
 {
 	struct columns *column;
 	struct tables *table;
@@ -209,6 +209,13 @@ static struct tables *find_table(const char *orig_tablename)
 		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", orig_tablename);
 	}
 
+	ast_mutex_lock(&pgsql_lock);
+	if (!pgsql_reconnect(database)) {
+		AST_LIST_UNLOCK(&psql_tables);
+		ast_mutex_unlock(&pgsql_lock);
+		return NULL;
+	}
+
 	result = PQexec(pgsqlConn, ast_str_buffer(sql));
 	ast_debug(1, "Query of table structure complete.  Now retrieving results.\n");
 	if (PQresultStatus(result) != PGRES_TUPLES_OK) {
@@ -216,6 +223,7 @@ static struct tables *find_table(const char *orig_tablename)
 		ast_log(LOG_ERROR, "Failed to query database columns: %s\n", pgerror);
 		PQclear(result);
 		AST_LIST_UNLOCK(&psql_tables);
+		ast_mutex_unlock(&pgsql_lock);
 		return NULL;
 	}
 
@@ -223,6 +231,7 @@ static struct tables *find_table(const char *orig_tablename)
 		ast_log(LOG_ERROR, "Unable to allocate memory for new table structure\n");
 		PQclear(result);
 		AST_LIST_UNLOCK(&psql_tables);
+		ast_mutex_unlock(&pgsql_lock);
 		return NULL;
 	}
 	strcpy(table->name, orig_tablename); /* SAFE */
@@ -243,6 +252,7 @@ static struct tables *find_table(const char *orig_tablename)
 			PQclear(result);
 			destroy_table(table);
 			AST_LIST_UNLOCK(&psql_tables);
+			ast_mutex_unlock(&pgsql_lock);
 			return NULL;
 		}
 
@@ -275,6 +285,7 @@ static struct tables *find_table(const char *orig_tablename)
 	AST_LIST_INSERT_TAIL(&psql_tables, table, list);
 	ast_rwlock_rdlock(&table->lock);
 	AST_LIST_UNLOCK(&psql_tables);
+	ast_mutex_unlock(&pgsql_lock);
 	return table;
 }
 
@@ -603,7 +614,7 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 		return -1;
 	}
 
-	if (!(table = find_table(tablename))) {
+	if (!(table = find_table(database, tablename))) {
 		ast_log(LOG_ERROR, "Table '%s' does not exist!!\n", tablename);
 		return -1;
 	}
@@ -746,7 +757,7 @@ static int update2_pgsql(const char *database, const char *tablename, va_list ap
 		return -1;
 	}
 
-	if (!(table = find_table(tablename))) {
+	if (!(table = find_table(database, tablename))) {
 		ast_log(LOG_ERROR, "Table '%s' does not exist!!\n", tablename);
 		return -1;
 	}
@@ -1141,7 +1152,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 static int require_pgsql(const char *database, const char *tablename, va_list ap)
 {
 	struct columns *column;
-	struct tables *table = find_table(tablename);
+	struct tables *table = find_table(database, tablename);
 	char *elm;
 	int type, size, res = 0;
 
@@ -1543,7 +1554,7 @@ static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, s
 		AST_LIST_UNLOCK(&psql_tables);
 	} else if (a->argc == 5) {
 		/* List of columns */
-		if ((cur = find_table(a->argv[4]))) {
+		if ((cur = find_table(NULL, a->argv[4]))) {
 			struct columns *col;
 			ast_cli(a->fd, "Columns for Table Cache '%s':\n", a->argv[4]);
 			ast_cli(a->fd, "%-20.20s %-20.20s %-3.3s %-8.8s\n", "Name", "Type", "Len", "Nullable");
