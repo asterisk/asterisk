@@ -444,12 +444,14 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 	};
 	const enum ast_event_type event_types[] = { type, AST_EVENT_ALL };
 	int i;
+	int want_specific_event;/* TRUE if looking for subscribers wanting specific parameters. */
 
 	if (type >= AST_EVENT_TOTAL) {
 		ast_log(LOG_ERROR, "%u is an invalid type!\n", type);
 		return res;
 	}
 
+	want_specific_event = 0;
 	va_start(ap, type);
 	for (ie_type = va_arg(ap, enum ast_event_ie_type);
 		ie_type != AST_EVENT_IE_END;
@@ -492,6 +494,7 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 		}
 
 		if (insert) {
+			want_specific_event = 1;
 			AST_LIST_INSERT_TAIL(&check_ie_vals.ie_vals, ie_value, entry);
 		} else {
 			ast_log(LOG_WARNING, "Unsupported PLTYPE(%d)\n", ie_value->ie_pltype);
@@ -501,17 +504,22 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 
 	for (i = 0; i < ARRAY_LEN(event_types); i++) {
 		AST_RWDLLIST_RDLOCK(&ast_event_subs[event_types[i]]);
-		AST_RWDLLIST_TRAVERSE(&ast_event_subs[event_types[i]], sub, entry) {
-			AST_LIST_TRAVERSE(&sub->ie_vals, ie_val, entry) {
-				if (!match_sub_ie_val_to_event(ie_val, &check_ie_vals)) {
-					/* The current subscription ie did not match an event ie. */
+		if (want_specific_event) {
+			AST_RWDLLIST_TRAVERSE(&ast_event_subs[event_types[i]], sub, entry) {
+				AST_LIST_TRAVERSE(&sub->ie_vals, ie_val, entry) {
+					if (!match_sub_ie_val_to_event(ie_val, &check_ie_vals)) {
+						/* The current subscription ie did not match an event ie. */
+						break;
+					}
+				}
+				if (!ie_val) {
+					/* Everything matched.  A subscriber is looking for this event. */
 					break;
 				}
 			}
-			if (!ie_val) {
-				/* Everything matched.  A subscriber is looking for this event. */
-				break;
-			}
+		} else {
+			/* Just looking to see if there are ANY subscribers to the event type. */
+			sub = AST_RWLIST_FIRST(&ast_event_subs[event_types[i]]);
 		}
 		AST_RWDLLIST_UNLOCK(&ast_event_subs[event_types[i]]);
 		if (sub) {
