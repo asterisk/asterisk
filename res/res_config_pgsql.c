@@ -345,6 +345,7 @@ static struct tables *find_table(const char *database, const char *orig_tablenam
 
 	if (!(table = ast_calloc(1, sizeof(*table) + strlen(orig_tablename) + 1))) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for new table structure\n");
+		PQclear(result);
 		AST_LIST_UNLOCK(&psql_tables);
 		return NULL;
 	}
@@ -363,6 +364,7 @@ static struct tables *find_table(const char *database, const char *orig_tablenam
 
 		if (!(column = ast_calloc(1, sizeof(*column) + strlen(fname) + strlen(ftype) + 2))) {
 			ast_log(LOG_ERROR, "Unable to allocate column element for %s, %s\n", orig_tablename, fname);
+			PQclear(result);
 			destroy_table(table);
 			AST_LIST_UNLOCK(&psql_tables);
 			return NULL;
@@ -479,6 +481,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	ast_mutex_lock(&pgsql_lock);
 
         if (pgsql_exec(database, tablename, ast_str_buffer(sql), &result) != 0) {
+		PQclear(result);
 		ast_mutex_unlock(&pgsql_lock);
 		return NULL;
         }
@@ -494,8 +497,8 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		ast_debug(1, "PostgreSQL RealTime: Found %d rows.\n", num_rows);
 
 		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
-			ast_mutex_unlock(&pgsql_lock);
 			PQclear(result);
+			ast_mutex_unlock(&pgsql_lock);
 			return NULL;
 		}
 		for (i = 0; i < numFields; i++)
@@ -523,8 +526,8 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		ast_debug(1, "Postgresql RealTime: Could not find any rows in table %s@%s.\n", tablename, database);
 	}
 
-	ast_mutex_unlock(&pgsql_lock);
 	PQclear(result);
+	ast_mutex_unlock(&pgsql_lock);
 
 	return var;
 }
@@ -614,8 +617,22 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 
         if (pgsql_exec(database, table, ast_str_buffer(sql), &result) != 0) {
 		ast_mutex_unlock(&pgsql_lock);
-                return NULL;
-        }
+		return NULL;
+	} else {
+		ExecStatusType result_status = PQresultStatus(result);
+		if (result_status != PGRES_COMMAND_OK
+			&& result_status != PGRES_TUPLES_OK
+			&& result_status != PGRES_NONFATAL_ERROR) {
+			ast_log(LOG_WARNING,
+					"PostgreSQL RealTime: Failed to query %s@%s. Check debug for more info.\n", table, database);
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", ast_str_buffer(sql));
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
+						PQresultErrorMessage(result), PQresStatus(result_status));
+			PQclear(result);
+			ast_mutex_unlock(&pgsql_lock);
+			return NULL;
+		}
+	}
 
 	ast_debug(1, "PostgreSQL RealTime: Result=%p Query: %s\n", result, ast_str_buffer(sql));
 
@@ -628,8 +645,8 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ast_debug(1, "PostgreSQL RealTime: Found %d rows.\n", num_rows);
 
 		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
-			ast_mutex_unlock(&pgsql_lock);
 			PQclear(result);
+			ast_mutex_unlock(&pgsql_lock);
 			return NULL;
 		}
 		for (i = 0; i < numFields; i++)
@@ -659,8 +676,8 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ast_debug(1, "PostgreSQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
-	ast_mutex_unlock(&pgsql_lock);
 	PQclear(result);
+	ast_mutex_unlock(&pgsql_lock);
 
 	return cfg;
 }
@@ -763,6 +780,20 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 	if (pgsql_exec(database, tablename, ast_str_buffer(sql), &result) != 0) {
 		ast_mutex_unlock(&pgsql_lock);
 		return -1;
+	} else {
+		ExecStatusType result_status = PQresultStatus(result);
+		if (result_status != PGRES_COMMAND_OK
+			&& result_status != PGRES_TUPLES_OK
+			&& result_status != PGRES_NONFATAL_ERROR) {
+			ast_log(LOG_WARNING,
+					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", ast_str_buffer(sql));
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
+						PQresultErrorMessage(result), PQresStatus(result_status));
+			PQclear(result);
+			ast_mutex_unlock(&pgsql_lock);
+			return -1;
+		}
 	}
 
 	numrows = atoi(PQcmdTuples(result));
@@ -950,6 +981,7 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
         }
 
 	insertid = PQoidValue(result);
+	PQclear(result);
 	ast_mutex_unlock(&pgsql_lock);
 
 	ast_debug(1, "PostgreSQL RealTime: row inserted on table: %s, id: %u\n", table, insertid);
