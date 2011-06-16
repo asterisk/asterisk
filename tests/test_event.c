@@ -721,6 +721,9 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
+	ast_test_status_update(test, "Sleeping a few seconds to allow event propagation...\n");
+	sleep(3);
+
 	/*
 	 * Subscription TEST_SUBS_CUSTOM_ANY:
 	 *  - allocate normally
