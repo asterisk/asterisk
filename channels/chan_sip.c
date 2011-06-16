@@ -4262,15 +4262,23 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 	int res = -1;
 	struct sip_pvt *p = chan->tech_pvt;
 
+	sip_pvt_lock(p);
+
 	switch (option) {
 	case AST_OPTION_FORMAT_READ:
-		res = ast_rtp_instance_set_read_format(p->rtp, (struct ast_format *) data);
+		if (p->rtp) {
+			res = ast_rtp_instance_set_read_format(p->rtp, (struct ast_format *) data);
+		}
 		break;
 	case AST_OPTION_FORMAT_WRITE:
-		res = ast_rtp_instance_set_write_format(p->rtp, (struct ast_format *) data);
+		if (p->rtp) {
+			res = ast_rtp_instance_set_write_format(p->rtp, (struct ast_format *) data);
+		}
 		break;
 	case AST_OPTION_MAKE_COMPATIBLE:
-		res = ast_rtp_instance_make_compatible(chan, p->rtp, (struct ast_channel *) data);
+		if (p->rtp) {
+			res = ast_rtp_instance_make_compatible(chan, p->rtp, (struct ast_channel *) data);
+		}
 		break;
 	case AST_OPTION_DIGIT_DETECT:
 		if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) ||
@@ -4298,6 +4306,8 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 		break;
 	}
 
+	sip_pvt_unlock(p);
+
 	return res;
 }
 
@@ -4309,15 +4319,15 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 	struct sip_pvt *p = (struct sip_pvt *) chan->tech_pvt;
 	char *cp;
 
+	sip_pvt_lock(p);
+
 	switch (option) {
 	case AST_OPTION_T38_STATE:
 		/* Make sure we got an ast_t38_state enum passed in */
 		if (*datalen != sizeof(enum ast_t38_state)) {
 			ast_log(LOG_ERROR, "Invalid datalen for AST_OPTION_T38_STATE option. Expected %d, got %d\n", (int)sizeof(enum ast_t38_state), *datalen);
-			return -1;
+			break;
 		}
-
-		sip_pvt_lock(p);
 
 		/* Now if T38 support is enabled we need to look and see what the current state is to get what we want to report back */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
@@ -4336,8 +4346,6 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 				state = T38_STATE_UNKNOWN;
 			}
 		}
-
-		sip_pvt_unlock(p);
 
 		*((enum ast_t38_state *) data) = state;
 		res = 0;
@@ -4369,6 +4377,8 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 	default:
 		break;
 	}
+
+	sip_pvt_unlock(p);
 
 	return res;
 }

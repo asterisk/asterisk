@@ -217,6 +217,7 @@ static void awesome_locking(struct local_pvt *p, struct ast_channel **outchan, s
 	*outchan = p->chan;
 }
 
+/* Called with ast locked */
 static int local_setoption(struct ast_channel *ast, int option, void * data, int datalen)
 {
 	int res = 0;
@@ -225,27 +226,22 @@ static int local_setoption(struct ast_channel *ast, int option, void * data, int
 	ast_chan_write_info_t *write_info;
 
 	if (option != AST_OPTION_CHANNEL_WRITE) {
-		res = -1;
-		goto setoption_cleanup;
+		return -1;
 	}
 
 	write_info = data;
 
 	if (write_info->version != AST_CHAN_WRITE_INFO_T_VERSION) {
 		ast_log(LOG_ERROR, "The chan_write_info_t type has changed, and this channel hasn't been updated!\n");
-		res = -1;
-		goto setoption_cleanup;
+		return -1;
 	}
 
 	/* get the tech pvt */
-	ast_channel_lock(ast);
 	if (!(p = ast->tech_pvt)) {
-		ast_channel_unlock(ast);
-		res = -1;
-		goto setoption_cleanup;
+		return -1;
 	}
 	ao2_ref(p, 1);
-	ast_channel_unlock(ast);
+	ast_channel_unlock(ast); /* Held when called, unlock before locking another channel */
 
 	/* get the channel we are supposed to write to */
 	ao2_lock(p);
@@ -272,6 +268,7 @@ setoption_cleanup:
 	if (otherchan) {
 		ast_channel_unref(otherchan);
 	}
+	ast_channel_lock(ast); /* Lock back before we leave */
 	return res;
 }
 
@@ -348,6 +345,7 @@ static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct
 	return bridged;
 }
 
+/* Called with ast locked */
 static int local_queryoption(struct ast_channel *ast, int option, void *data, int *datalen)
 {
 	struct local_pvt *p;
@@ -361,21 +359,18 @@ static int local_queryoption(struct ast_channel *ast, int option, void *data, in
 	}
 
 	/* for some reason the channel is not locked in channel.c when this function is called */
-	ast_channel_lock(ast);
 	if (!(p = ast->tech_pvt)) {
-		ast_channel_unlock(ast);
 		return -1;
 	}
 
 	ao2_lock(p);
 	if (!(tmp = IS_OUTBOUND(ast, p) ? p->owner : p->chan)) {
 		ao2_unlock(p);
-		ast_channel_unlock(ast);
 		return -1;
 	}
 	ast_channel_ref(tmp);
 	ao2_unlock(p);
-	ast_channel_unlock(ast);
+	ast_channel_unlock(ast); /* Held when called, unlock before locking another channel */
 
 	ast_channel_lock(tmp);
 	if (!(bridged = ast_bridged_channel(tmp))) {
@@ -394,6 +389,7 @@ query_cleanup:
 	if (tmp) {
 		tmp = ast_channel_unref(tmp);
 	}
+	ast_channel_lock(ast); /* Lock back before we leave */
 
 	return res;
 }
