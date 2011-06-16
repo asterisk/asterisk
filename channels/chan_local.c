@@ -234,7 +234,7 @@ static int local_setoption(struct ast_channel *ast, int option, void * data, int
 
 	if (write_info->version != AST_CHAN_WRITE_INFO_T_VERSION) {
 		ast_log(LOG_ERROR, "The chan_write_info_t type has changed, and this channel hasn't been updated!\n");
-		return -1
+		return -1;
 	}
 
 	/* get the tech pvt */
