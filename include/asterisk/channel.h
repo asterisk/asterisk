@@ -572,10 +572,10 @@ struct ast_channel_tech {
 	/*! \brief Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links */
 	int (* const fixup)(struct ast_channel *oldchan, struct ast_channel *newchan);
 
-	/*! \brief Set a given option */
+	/*! \brief Set a given option. Called with chan locked */
 	int (* const setoption)(struct ast_channel *chan, int option, void *data, int datalen);
 
-	/*! \brief Query a given option */
+	/*! \brief Query a given option. Called with chan locked */
 	int (* const queryoption)(struct ast_channel *chan, int option, void *data, int *datalen);
 
 	/*! \brief Blind transfer other side (see app_transfer.c and ast_transfer() */
