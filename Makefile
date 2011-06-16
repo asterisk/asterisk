@@ -543,6 +543,7 @@ installdirs:
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http"
 	$(INSTALL) -d "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -d "$(DESTDIR)$(AGI_DIR)"
+	$(INSTALL) -d "$(DESTDIR)$(ASTDBDIR)"
 
 bininstall: _all installdirs $(SUBDIRS_INSTALL)
 	$(INSTALL) -m 755 main/asterisk $(DESTDIR)$(ASTSBINDIR)/
