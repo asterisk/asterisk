@@ -134,6 +134,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="ActionID">
 				<para>ActionID for this transaction. Will be returned.</para>
 			</parameter>
+			<parameter name="Username" required="true">
+				<para>Username to login with as specified in manager.conf.</para>
+			</parameter>
+			<parameter name="Secret">
+				<para>Secret to login with as specified in manager.conf.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Login Manager.</para>
