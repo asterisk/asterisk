@@ -364,7 +364,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Run admin <replaceable>command</replaceable> for a specific
-			<replaceable>channel</replaceable> in any coference.</para>
+			<replaceable>channel</replaceable> in any conference.</para>
 		</description>
 	</application>
 	<application name="SLAStation" language="en_US">
