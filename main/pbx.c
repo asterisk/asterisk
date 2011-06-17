@@ -252,7 +252,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>If the location that is put into the channel information is bogus, and asterisk cannot
 			find that location in the dialplan, then the execution engine will try to find and execute the code in
 			the <literal>i</literal> (invalid) extension in the current context. If that does not exist, it will try to execute the
-			<literal>h</literal> extension. If either or neither the <literal>h</literal> or <literal>i</literal> extensions
+			<literal>h</literal> extension. If neither the <literal>h</literal> nor <literal>i</literal> extensions
 			have been defined, the channel is hung up, and the execution of instructions on the channel is terminated.
 			What this means is that, for example, you specify a context that does not exist, then
 			it will not be possible to find the <literal>h</literal> or <literal>i</literal> extensions,
@@ -289,7 +289,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			next instruction. If the target location is bogus, and does not exist, the execution engine will try
 			to find and execute the code in the <literal>i</literal> (invalid) extension in the current context.
 			If that does not exist, it will try to execute the <literal>h</literal> extension.
-			If either or neither the <literal>h</literal> or <literal>i</literal> extensions have been defined,
+			If neither the <literal>h</literal> nor <literal>i</literal> extensions have been defined,
 			the channel is hung up, and the execution of instructions on the channel is terminated.
 			Remember that this command can set the current context, and if the context specified
 			does not exist, then it will not be able to find any 'h' or 'i' extensions there, and
