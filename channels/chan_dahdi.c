@@ -13826,17 +13826,22 @@ static void *mfcr2_monitor(void *data)
 #endif
 static void dahdi_pri_message(struct pri *pri, char *s)
 {
-	int x, y;
-	int dchan = -1, span = -1, dchancount = 0;
+	int x;
+	int y;
+	int dchan = -1;
+	int span = -1;
+	int dchancount = 0;
 
 	if (pri) {
 		for (x = 0; x < NUM_SPANS; x++) {
 			for (y = 0; y < SIG_PRI_NUM_DCHANS; y++) {
-				if (pris[x].pri.dchans[y])
+				if (pris[x].pri.dchans[y]) {
 					dchancount++;
+				}
 
-				if (pris[x].pri.dchans[y] == pri)
+				if (pris[x].pri.dchans[y] == pri) {
 					dchan = y;
+				}
 			}
 			if (dchan >= 0) {
 				span = x;
@@ -13844,14 +13849,18 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 			}
 			dchancount = 0;
 		}
-		if (dchancount > 1 && (span > -1))
-			ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
-		else if (span > -1)
-			ast_verbose("%d %s", span+1, s);
-		else
-			ast_verbose("%s", s);
-	} else
-		ast_verbose("%s", s);
+		if (-1 < span) {
+			if (1 < dchancount) {
+				ast_verbose("[PRI Span: %d D-Channel: %d] %s", span + 1, dchan, s);
+			} else {
+				ast_verbose("PRI Span: %d %s", span + 1, s);
+			}
+		} else {
+			ast_verbose("PRI Span: ? %s", s);
+		}
+	} else {
+		ast_verbose("PRI Span: ? %s", s);
+	}
 
 	ast_mutex_lock(&pridebugfdlock);
 
@@ -13868,18 +13877,22 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 #if defined(HAVE_PRI)
 static void dahdi_pri_error(struct pri *pri, char *s)
 {
-	int x, y;
-	int dchan = -1, span = -1;
+	int x;
+	int y;
+	int dchan = -1;
+	int span = -1;
 	int dchancount = 0;
 
 	if (pri) {
 		for (x = 0; x < NUM_SPANS; x++) {
 			for (y = 0; y < SIG_PRI_NUM_DCHANS; y++) {
-				if (pris[x].pri.dchans[y])
+				if (pris[x].pri.dchans[y]) {
 					dchancount++;
+				}
 
-				if (pris[x].pri.dchans[y] == pri)
+				if (pris[x].pri.dchans[y] == pri) {
 					dchan = y;
+				}
 			}
 			if (dchan >= 0) {
 				span = x;
@@ -13887,14 +13900,18 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 			}
 			dchancount = 0;
 		}
-		if ((dchancount > 1) && (span > -1))
-			ast_log(LOG_ERROR, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
-		else if (span > -1)
-			ast_log(LOG_ERROR, "%d %s", span+1, s);
-		else
-			ast_log(LOG_ERROR, "%s", s);
-	} else
-		ast_log(LOG_ERROR, "%s", s);
+		if (-1 < span) {
+			if (1 < dchancount) {
+				ast_log(LOG_ERROR, "[PRI Span: %d D-Channel: %d] %s", span + 1, dchan, s);
+			} else {
+				ast_log(LOG_ERROR, "PRI Span: %d %s", span + 1, s);
+			}
+		} else {
+			ast_log(LOG_ERROR, "PRI Span: ? %s", s);
+		}
+	} else {
+		ast_log(LOG_ERROR, "PRI Span: ? %s", s);
+	}
 
 	ast_mutex_lock(&pridebugfdlock);
 
