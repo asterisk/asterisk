@@ -1,0 +1,150 @@
+                                Release Summary
+
+                              asterisk-1.4.42-rc2
+
+                                Date: 2011-06-17
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.42-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   3 mnicholson                                      1 mspuhler               
+   2 twilson                                         1 wdoekes                
+   1 elguero                                         1 zvision                
+   1 pabelanger             
+   1 seanbright             
+   1 wdoekes                
+   1 zvision                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_dial
+
+   ASTERISK-17874: [patch] [regression] Revision 315643 app_dial breaks ring
+   groups
+   Revision: 319527
+   Reporter: mspuhler
+   Coders: elguero
+
+  Category: Applications/app_meetme
+
+   ASTERISK-17896: [patch] meetme cli cmd completion leaves conferences mutex
+   locked
+   Revision: 320235
+   Reporter: zvision
+   Coders: zvision
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-17771: [patch] switching From-address mid-register breaks channel
+   variables
+   Revision: 320055
+   Reporter: wdoekes
+   Coders: wdoekes
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                    | Issues Referenced |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Make sure everyone gets an |                   |
+   | 319652   | twilson    | unhold when a transfer     |                   |
+   |          |            | succeeds                   |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 320393   | pabelanger | Solaris compatibility      |                   |
+   |          |            | fixes                      |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | don't drop any voice       |                   |
+   | 322646   | mnicholson | frames when checking for   | ASTERISK-17705    |
+   |          |            | T.38 during early media    |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 322657   | mnicholson | whitespace                 |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | unlock pvt when we drop    |                   |
+   | 322698   | mnicholson | voice frames received in   |                   |
+   |          |            | early media when in t.38   |                   |
+   |          |            | mode                       |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Resolve a segfault/bus     |                   |
+   | 323559   | seanbright | error when we try to map   | ASTERISK-15359,   |
+   |          |            | memory that falls on a     | ASTERISK-16460    |
+   |          |            | page                       |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 323732   | twilson    | Fix DYNAMIC_FEATURES       | ASTERISK-17914    |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_dial.c     |   11 +++++++++++
+ apps/app_meetme.c   |    1 +
+ cdr/cdr_pgsql.c     |    8 ++++++++
+ channels/chan_sip.c |   25 +++++++++++++++++--------
+ main/manager.c      |   25 +++++++++++++++++--------
+ res/res_features.c  |    6 +++++-
+ 6 files changed, 59 insertions(+), 17 deletions(-)
+
+     ----------------------------------------------------------------------
