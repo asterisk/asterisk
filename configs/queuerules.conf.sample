@@ -7,7 +7,7 @@
 ;
 ; Note: There is a limitation to these rules; a caller will follow the penaltychange rules for
 ; the queue that were defined at the time the caller entered the queue. If an update to the rules is
-; made during the the caller's stay in the queue, these will not be reflected for that caller.
+; made during the caller's stay in the queue, these will not be reflected for that caller.
 ;
 ; The syntax for these rules is
 ; penaltychange => <number of seconds into the call>,<absolute or relative change to QUEUE_MAX_PENALTY>[,absolute or relative change to QUEUE_MIN_PENALTY]
