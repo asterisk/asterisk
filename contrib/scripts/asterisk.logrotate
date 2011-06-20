@@ -5,6 +5,8 @@ __LOGDIR__/debug __LOGDIR__/console __LOGDIR__/full __LOGDIR__/messages __LOGDIR
 	compress
 	delaycompress
 	notifempty
+	#
+	# make sure the user and group matches what Asterisk is running as
 	create 640 root root 
 	sharedscripts
 	postrotate
