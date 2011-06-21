@@ -16116,6 +16116,15 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		}
 	}
 
+	/* Override the context with the message context _BEFORE_
+	 * getting the destination.  This way we can guarantee the correct
+	 * extension is used in the message context when it is present. */
+	if (!ast_strlen_zero(p->messagecontext)) {
+		ast_string_field_set(p, context, p->messagecontext);
+	} else if (!ast_strlen_zero(sip_cfg.messagecontext)) {
+		ast_string_field_set(p, context, sip_cfg.messagecontext);
+	}
+
 	get_destination(p, NULL, NULL);
 
 	if (!(msg = ast_msg_alloc())) {
@@ -16132,14 +16141,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	res = ast_msg_set_to(msg, "%s", to);
 	res |= ast_msg_set_from(msg, "%s", get_in_brackets(from));
 	res |= ast_msg_set_body(msg, "%s", ast_str_buffer(buf));
-
-	if (!ast_strlen_zero(p->messagecontext)) {
-		res |= ast_msg_set_context(msg, "%s", p->messagecontext);
-	} else if (!ast_strlen_zero(sip_cfg.messagecontext)) {
-		res |= ast_msg_set_context(msg, "%s", sip_cfg.messagecontext);
-	} else {
-		res |= ast_msg_set_context(msg, "%s", p->context);
-	}
+	res |= ast_msg_set_context(msg, "%s", p->context);
 
 	if (!ast_strlen_zero(p->peername)) {
 		res |= ast_msg_set_var(msg, "SIP_PEERNAME", p->peername);
