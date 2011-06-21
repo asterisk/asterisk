@@ -7818,55 +7818,82 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority)
 {
 	int res = 0;
+	struct ast_channel *tmpchan;
+	struct {
+		char *accountcode;
+		char *exten;
+		char *context;
+		char *linkedid;
+		char *name;
+		struct ast_cdr *cdr;
+		int amaflags;
+		int state;
+		format_t readformat;
+		format_t writeformat;
+	} tmpvars = { 0, };
 
 	ast_channel_lock(chan);
-
 	if (chan->pbx) { /* This channel is currently in the PBX */
 		ast_explicit_goto(chan, context, exten, priority + 1);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
-	} else {
-		/* In order to do it when the channel doesn't really exist within
-		   the PBX, we have to make a new channel, masquerade, and start the PBX
-		   at the new location */
-		struct ast_channel *tmpchan = ast_channel_alloc(0, chan->_state, 0, 0, chan->accountcode, chan->exten, chan->context, chan->linkedid, chan->amaflags, "AsyncGoto/%s", chan->name);
-		if (!tmpchan) {
-			res = -1;
-		} else {
-			if (chan->cdr) {
-				ast_cdr_discard(tmpchan->cdr);
-				tmpchan->cdr = ast_cdr_dup(chan->cdr);  /* share the love */
-			}
-			/* Make formats okay */
-			tmpchan->readformat = chan->readformat;
-			tmpchan->writeformat = chan->writeformat;
-			/* Setup proper location */
-			ast_explicit_goto(tmpchan,
-				S_OR(context, chan->context), S_OR(exten, chan->exten), priority);
+		ast_channel_unlock(chan);
+		return res;
+	}
 
-			/* Masquerade into temp channel */
-			if (ast_channel_masquerade(tmpchan, chan)) {
-				/* Failed to set up the masquerade.  It's probably chan_local
-				 * in the middle of optimizing itself out.  Sad. :( */
-				ast_hangup(tmpchan);
-				tmpchan = NULL;
-				res = -1;
-			} else {
-				/* it may appear odd to unlock chan here since the masquerade is on
-				 * tmpchan, but no channel locks should be held when doing a masquerade
-				 * since a masquerade requires a lock on the channels ao2 container. */
-				ast_channel_unlock(chan);
-				ast_do_masquerade(tmpchan);
-				ast_channel_lock(chan);
-				/* Start the PBX going on our stolen channel */
-				if (ast_pbx_start(tmpchan)) {
-					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
-					ast_hangup(tmpchan);
-					res = -1;
-				}
-			}
+	/* In order to do it when the channel doesn't really exist within
+	 * the PBX, we have to make a new channel, masquerade, and start the PBX
+	 * at the new location */
+	tmpvars.accountcode = ast_strdupa(chan->accountcode);
+	tmpvars.exten = ast_strdupa(chan->exten);
+	tmpvars.context = ast_strdupa(chan->context);
+	tmpvars.linkedid = ast_strdupa(chan->linkedid);
+	tmpvars.name = ast_strdupa(chan->name);
+	tmpvars.amaflags = chan->amaflags;
+	tmpvars.state = chan->_state;
+	tmpvars.writeformat = chan->writeformat;
+	tmpvars.readformat = chan->readformat;
+	tmpvars.cdr = chan->cdr ? ast_cdr_dup(chan->cdr) : NULL;
+
+	ast_channel_unlock(chan);
+
+	/* Do not hold any channel locks while calling channel_alloc() since the function
+	 * locks the channel container when linking the new channel in. */
+	if (!(tmpchan = ast_channel_alloc(0, tmpvars.state, 0, 0, tmpvars.accountcode, tmpvars.exten, tmpvars.context, tmpvars.linkedid, tmpvars.amaflags, "AsyncGoto/%s", tmpvars.name))) {
+		ast_cdr_discard(tmpvars.cdr);
+		return -1;
+	}
+
+	/* copy the cdr info over */
+	if (tmpvars.cdr) {
+		ast_cdr_discard(tmpchan->cdr);
+		tmpchan->cdr = tmpvars.cdr;
+		tmpvars.cdr = NULL;
+	}
+
+	/* Make formats okay */
+	tmpchan->readformat = tmpvars.readformat;
+	tmpchan->writeformat = tmpvars.writeformat;
+
+	/* Setup proper location. Never hold another channel lock while calling this function. */
+	ast_explicit_goto(tmpchan, S_OR(context, tmpvars.context), S_OR(exten, tmpvars.exten), priority);
+
+	/* Masquerade into tmp channel */
+	if (ast_channel_masquerade(tmpchan, chan)) {
+		/* Failed to set up the masquerade.  It's probably chan_local
+		 * in the middle of optimizing itself out.  Sad. :( */
+		ast_hangup(tmpchan);
+		tmpchan = NULL;
+		res = -1;
+	} else {
+		ast_do_masquerade(tmpchan);
+		/* Start the PBX going on our stolen channel */
+		if (ast_pbx_start(tmpchan)) {
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
+			ast_hangup(tmpchan);
+			res = -1;
 		}
 	}
-	ast_channel_unlock(chan);
+
 	return res;
 }
 
