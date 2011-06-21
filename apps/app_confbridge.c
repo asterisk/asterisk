@@ -1362,12 +1362,12 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 			ast_moh_stop(chan);
 		}
 		ast_stream_and_wait(chan, join_sound, "");
-		if (conference_bridge_user.playing_moh) {
-			ast_moh_start(chan, conference_bridge_user.u_profile.moh_class, NULL);
-		}
 		ast_autoservice_start(chan);
 		play_sound_file(conference_bridge, join_sound);
 		ast_autoservice_stop(chan);
+		if (conference_bridge_user.playing_moh) {
+			ast_moh_start(chan, conference_bridge_user.u_profile.moh_class, NULL);
+		}
 	}
 
 	/* Join our conference bridge for real */
