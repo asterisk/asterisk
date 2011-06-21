@@ -877,6 +877,8 @@ int ast_context_unlockmacro(const char *macrocontext);
 /*!
  * \brief Set the channel to next execute the specified dialplan location.
  * \see ast_async_parseable_goto, ast_async_goto_if_exists
+ *
+ * \note Do _NOT_ hold any channel locks when calling this function.
  */
 int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
