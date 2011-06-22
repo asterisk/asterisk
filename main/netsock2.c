@@ -95,7 +95,14 @@ char *ast_sockaddr_stringify_fmt(const struct ast_sockaddr *sa, int format)
 		return "";
 	}
 
-	switch (format)  {
+	if ((format & AST_SOCKADDR_STR_REMOTE) == AST_SOCKADDR_STR_REMOTE) {
+		char *p;
+		if (ast_sockaddr_is_ipv6_link_local(sa) && (p = strchr(host, '%'))) {
+			*p = '\0';
+		}
+	}
+
+	switch ((format & AST_SOCKADDR_STR_FORMAT_MASK))  {
 	case AST_SOCKADDR_STR_DEFAULT:
 		ast_str_set(&str, 0, sa_tmp->ss.ss_family == AF_INET6 ?
 				"[%s]:%s" : "%s:%s", host, port);
@@ -395,6 +402,12 @@ int ast_sockaddr_is_ipv4_mapped(const struct ast_sockaddr *addr)
 int ast_sockaddr_is_ipv4_multicast(const struct ast_sockaddr *addr)
 {
 	return ((ast_sockaddr_ipv4(addr) & 0xf0000000) == 0xe0000000);
+}
+
+int ast_sockaddr_is_ipv6_link_local(const struct ast_sockaddr *addr)
+{
+	const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&addr->ss;
+	return ast_sockaddr_is_ipv6(addr) && IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr);
 }
 
 int ast_sockaddr_is_ipv6(const struct ast_sockaddr *addr)

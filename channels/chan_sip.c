@@ -3398,7 +3398,7 @@ static void build_via(struct sip_pvt *p)
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/%s %s;branch=z9hG4bK%08x%s",
 		 get_transport_pvt(p),
-		 ast_sockaddr_stringify(&p->ourip),
+		 ast_sockaddr_stringify_remote(&p->ourip),
 		 (int) p->branch, rport);
 }
 
@@ -5215,7 +5215,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->disallowed_methods = peer->disallowed_methods;
 	ast_cc_copy_config_params(dialog->cc_params, peer->cc_params);
 	if (ast_strlen_zero(dialog->tohost))
-		ast_string_field_set(dialog, tohost, ast_sockaddr_stringify_host(&dialog->sa));
+		ast_string_field_set(dialog, tohost, ast_sockaddr_stringify_host_remote(&dialog->sa));
 	if (!ast_strlen_zero(peer->fromdomain)) {
 		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
 		if (!dialog->initreq.headers) {
@@ -7361,7 +7361,7 @@ static char *generate_uri(struct sip_pvt *pvt, char *buf, size_t size)
 	 * use the handy random string generation function we already have
 	 */
 	ast_str_append(&uri, 0, "%s", generate_random_string(buf, size));
-	ast_str_append(&uri, 0, "@%s", ast_sockaddr_stringify(&pvt->ourip));
+	ast_str_append(&uri, 0, "@%s", ast_sockaddr_stringify_remote(&pvt->ourip));
 	ast_copy_string(buf, ast_str_buffer(uri), size);
 	return buf;
 }
@@ -7371,7 +7371,7 @@ static void build_callid_pvt(struct sip_pvt *pvt)
 {
 	char buf[33];
 
-	const char *host = S_OR(pvt->fromdomain, ast_sockaddr_stringify(&pvt->ourip));
+	const char *host = S_OR(pvt->fromdomain, ast_sockaddr_stringify_remote(&pvt->ourip));
 	
 	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 
@@ -7382,7 +7382,7 @@ static void build_callid_registry(struct sip_registry *reg, const struct ast_soc
 {
 	char buf[33];
 
-	const char *host = S_OR(fromdomain, ast_sockaddr_stringify_host(ourip));
+	const char *host = S_OR(fromdomain, ast_sockaddr_stringify_host_remote(ourip));
 
 	ast_string_field_build(reg, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 }
@@ -9850,13 +9850,13 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 
 				/* Add rport to first VIA header if requested */
 				snprintf(new, sizeof(new), "%s;received=%s;rport=%d%s%s",
-					leftmost, ast_sockaddr_stringify_addr(&p->recv),
+					leftmost, ast_sockaddr_stringify_addr_remote(&p->recv),
 					ast_sockaddr_port(&p->recv),
 					others ? "," : "", others ? others : "");
 			} else {
 				/* We should *always* add a received to the topmost via */
 				snprintf(new, sizeof(new), "%s;received=%s%s%s",
-					leftmost, ast_sockaddr_stringify_addr(&p->recv),
+					leftmost, ast_sockaddr_stringify_addr_remote(&p->recv),
 					others ? "," : "", others ? others : "");
 			}
 			oh = new;	/* the header to copy */
@@ -10730,7 +10730,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		return 0;
 	if (ast_strlen_zero(lid_name))
 		lid_name = lid_num;
-	fromdomain = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
+	fromdomain = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 
 	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), ast_uri_sip_user);
 
@@ -11211,12 +11211,12 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		 p->sessionid, p->sessionversion,
 		 (ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
 			"IP6" : "IP4",
-		 ast_sockaddr_stringify_addr(&dest));
+		 ast_sockaddr_stringify_addr_remote(&dest));
 
 	snprintf(connection, sizeof(connection), "c=IN %s %s\r\n",
 		 (ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
 			"IP6" : "IP4",
-		 ast_sockaddr_stringify_addr(&dest));
+		 ast_sockaddr_stringify_addr_remote(&dest));
 
 	if (add_audio) {
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_ONEDIR) {
@@ -11399,7 +11399,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (!ast_sockaddr_cmp(&udptldest, &dest)) {
 			ast_str_append(&m_modem, 0, "c=IN %s %s\r\n",
 					(ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
-					"IP6" : "IP4", ast_sockaddr_stringify_addr(&udptldest));
+					"IP6" : "IP4", ast_sockaddr_stringify_addr_remote(&udptldest));
 		}
 
 		ast_str_append(&a_modem, 0, "a=T38FaxVersion:%d\r\n", p->t38.our_parms.version);
@@ -11754,10 +11754,10 @@ static void build_contact(struct sip_pvt *p)
 
 	if (p->socket.type == SIP_TRANSPORT_UDP) {
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", user,
-			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify(&p->ourip));
+			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify_remote(&p->ourip));
 	} else {
 		ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", user,
-			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify(&p->ourip),
+			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify_remote(&p->ourip),
 			get_transport(p->socket.type));
 	}
 }
@@ -11798,7 +11798,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", sip_methods[sipmethod].text);
 
-	d = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
+	d = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 	if (p->owner) {
 		if ((ast_party_id_presentation(&p->owner->connected.id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 			l = p->owner->connected.id.number.valid ? p->owner->connected.id.number.str : NULL;
@@ -11962,11 +11962,11 @@ static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt)
 	if (!pvt->owner->redirecting.from.name.valid
 		|| ast_strlen_zero(diverting_name)) {
 		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s", diverting_number,
-				ast_sockaddr_stringify_host(&pvt->ourip), reason);
+				ast_sockaddr_stringify_host_remote(&pvt->ourip), reason);
 	} else {
 		snprintf(header_text, sizeof(header_text), "\"%s\" <sip:%s@%s>;reason=%s",
 				diverting_name, diverting_number,
-				ast_sockaddr_stringify_host(&pvt->ourip), reason);
+				ast_sockaddr_stringify_host_remote(&pvt->ourip), reason);
 	}
 
 	add_header(req, "Diversion", header_text);
@@ -12593,7 +12593,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	struct sip_request req;
 	struct ast_str *out = ast_str_alloca(500);
 	int ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
-	const char *domain = S_OR(p->fromdomain, ast_sockaddr_stringify_host(&p->ourip));
+	const char *domain = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 	const char *exten = S_OR(vmexten, default_vmexten);
 
 	initreqprep(&req, p, SIP_NOTIFY, NULL);
@@ -12923,6 +12923,19 @@ static int sip_reg_timeout(const void *data)
 	return 0;
 }
 
+static const char *sip_sanitized_host(const char *host)
+{
+	struct ast_sockaddr addr = { { 0, 0, }, };
+
+	/* peer/sip_pvt->tohost and sip_registry->hostname should never have a port
+	 * in them, so we use PARSE_PORT_FORBID here. If this lookup fails, we return
+	 * the original host which is most likely a host name and not an IP. */
+	if (!ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID)) {
+		return host;
+	}
+	return ast_sockaddr_stringify_host_remote(&addr);
+}
+
 /*! \brief Transmit register to SIP proxy or UA
  * auth = NULL on the initial registration (from sip_reregister())
  */
@@ -13076,19 +13089,19 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_debug(1, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
 	}
 
-	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, S_OR(r->regdomain,p->tohost), p->tag);
+	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, S_OR(r->regdomain, sip_sanitized_host(p->tohost)), p->tag);
 	if (!ast_strlen_zero(p->theirtag)) {
-		snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, S_OR(r->regdomain,p->tohost), p->theirtag);
+		snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, S_OR(r->regdomain, sip_sanitized_host(p->tohost)), p->theirtag);
 	} else {
-		snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, S_OR(r->regdomain,p->tohost));
+		snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, S_OR(r->regdomain, sip_sanitized_host(p->tohost)));
 	}
 
 	/* Fromdomain is what we are registering to, regardless of actual
   	   host name from SRV */
 	if (portno && portno != STANDARD_SIP_PORT) {
-		snprintf(addr, sizeof(addr), "sip:%s:%d", S_OR(p->fromdomain,S_OR(r->regdomain,r->hostname)), portno);
+		snprintf(addr, sizeof(addr), "sip:%s:%d", S_OR(p->fromdomain,S_OR(r->regdomain, sip_sanitized_host(r->hostname))), portno);
 	} else {
-		snprintf(addr, sizeof(addr), "sip:%s", S_OR(p->fromdomain,S_OR(r->regdomain,r->hostname)));
+		snprintf(addr, sizeof(addr), "sip:%s", S_OR(p->fromdomain,S_OR(r->regdomain, sip_sanitized_host(r->hostname))));
 	}
 
 	ast_string_field_set(p, uri, addr);
@@ -19068,7 +19081,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else if (!ast_strlen_zero(p->uri))
 		ast_copy_string(uri, p->uri, sizeof(uri));
 	else
-		snprintf(uri, sizeof(uri), "sip:%s@%s", p->username, ast_sockaddr_stringify_host(&p->sa));
+		snprintf(uri, sizeof(uri), "sip:%s@%s", p->username, ast_sockaddr_stringify_host_remote(&p->sa));
 
 	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
@@ -26072,7 +26085,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	if (!ast_strlen_zero(peer->tohost))
 		ast_string_field_set(p, tohost, peer->tohost);
 	else
-		ast_string_field_set(p, tohost, ast_sockaddr_stringify_host(&peer->addr));
+		ast_string_field_set(p, tohost, ast_sockaddr_stringify_host_remote(&peer->addr));
 
 	/* Recalculate our side, and recalculate Call ID */
 	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
