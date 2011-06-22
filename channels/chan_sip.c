@@ -3306,12 +3306,17 @@ static inline const char *get_transport_pvt(struct sip_pvt *p)
 	return get_transport(p->socket.type);
 }
 
-/*! \brief Transmit SIP message
-	Sends a SIP request or response on a given socket (in the pvt)
-	Called by retrans_pkt, send_request, send_response and
-	__sip_reliable_xmit
-	\return length of transmitted message, XMIT_ERROR on known network failures -1 on other failures.
-*/
+/*!
+ * \internal
+ * \brief Transmit SIP message
+ *
+ * \details
+ * Sends a SIP request or response on a given socket (in the pvt)
+ * \note
+ * Called by retrans_pkt, send_request, send_response and __sip_reliable_xmit
+ *
+ * \return length of transmitted message, XMIT_ERROR on known network failures -1 on other failures.
+ */
 static int __sip_xmit(struct sip_pvt *p, struct ast_str *data, int len)
 {
 	int res = 0;
@@ -3709,9 +3714,11 @@ static int retrans_pkt(const void *data)
 	return 0;
 }
 
-/*! \brief Transmit packet with retransmits
-	\return 0 on success, -1 on failure to allocate packet
-*/
+/*!
+ * \internal
+ * \brief Transmit packet with retransmits
+ * \return 0 on success, -1 on failure to allocate packet
+ */
 static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, struct ast_str *data, int len, int fatal, int sipmethod)
 {
 	struct sip_pkt *pkt = NULL;
@@ -4143,9 +4150,11 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 	return res;
 }
 
-/*! \brief Send SIP Request to the other part of the dialogue 
-	\return see \ref __sip_xmit
-*/
+/*!
+ * \internal
+ * \brief Send SIP Request to the other part of the dialogue
+ * \return see \ref __sip_xmit
+ */
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
 	int res;
@@ -4399,8 +4408,11 @@ static const char *sip_get_callid(struct ast_channel *chan)
 	return chan->tech_pvt ? ((struct sip_pvt *) chan->tech_pvt)->callid : "";
 }
 
-/*! \brief Send SIP MESSAGE text within a call
-	Called from PBX core sendtext() application */
+/*!
+ * \internal
+ * \brief Send SIP MESSAGE text within a call
+ * \note Called from PBX core sendtext() application
+ */
 static int sip_sendtext(struct ast_channel *ast, const char *text)
 {
 	struct sip_pvt *dialog = ast->tech_pvt;
@@ -20352,7 +20364,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				pvt_set_needdestroy(p, "received 491 response");
 			}
 			break;
-		case 405:
+		case 405: /* Method not allowed */
 		case 501: /* Not Implemented */
 			mark_method_unallowed(&p->allowed_methods, sipmethod);
 			if (p->relatedpeer) {
@@ -20363,7 +20375,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			else
 				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_sockaddr_stringify(&p->sa), msg);
 			break;
-			/* Fallthrough */
 		default:
 			if ((resp >= 300) && (resp < 700)) {
 				/* Fatal response */
@@ -20379,17 +20390,17 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				case 301: /* Moved permanently */
 				case 302: /* Moved temporarily */
 				case 305: /* Use Proxy */
-				if (p->owner) {
-					struct ast_party_redirecting redirecting;
-					struct ast_set_party_redirecting update_redirecting;
+					if (p->owner) {
+						struct ast_party_redirecting redirecting;
+						struct ast_set_party_redirecting update_redirecting;
 
-					ast_party_redirecting_init(&redirecting);
-					change_redirecting_information(p, req, &redirecting,
-						&update_redirecting, TRUE);
-					ast_channel_set_redirecting(p->owner, &redirecting,
-						&update_redirecting);
-					ast_party_redirecting_free(&redirecting);
-				}
+						ast_party_redirecting_init(&redirecting);
+						change_redirecting_information(p, req, &redirecting,
+							&update_redirecting, TRUE);
+						ast_channel_set_redirecting(p->owner, &redirecting,
+							&update_redirecting);
+						ast_party_redirecting_free(&redirecting);
+					}
 					/* Fall through */
 				case 486: /* Busy here */
 				case 600: /* Busy everywhere */
