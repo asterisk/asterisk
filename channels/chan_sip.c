@@ -1549,7 +1549,6 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static int handle_response_register(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
-static void handle_response_message(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 static void handle_response(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno);
 
 /*------ SRTP Support -------- */
@@ -20600,6 +20599,131 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 			ref_peer(peer, "adding poke peer ref"));
 }
 
+/*!
+ * \internal
+ * \brief Handle responses to INFO messages
+ *
+ * \note The INFO method MUST NOT change the state of calls or
+ * related sessions (RFC 2976).
+ */
+static void handle_response_info(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
+{
+	int sipmethod = SIP_INFO;
+
+	switch (resp) {
+	case 401: /* Not www-authorized on SIP method */
+	case 407: /* Proxy auth required */
+		ast_log(LOG_WARNING, "Host '%s' requests authentication (%d) for '%s'\n",
+			ast_sockaddr_stringify(&p->sa), resp, sip_methods[sipmethod].text);
+		break;
+	case 405: /* Method not allowed */
+	case 501: /* Not Implemented */
+		mark_method_unallowed(&p->allowed_methods, sipmethod);
+		if (p->relatedpeer) {
+			mark_method_allowed(&p->relatedpeer->disallowed_methods, sipmethod);
+		}
+		ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n",
+			ast_sockaddr_stringify(&p->sa), sip_methods[sipmethod].text);
+		break;
+	default:
+		if (300 <= resp && resp < 700) {
+			ast_verb(3, "Got SIP %s response %d \"%s\" back from host '%s'\n",
+				sip_methods[sipmethod].text, resp, rest, ast_sockaddr_stringify(&p->sa));
+		}
+		break;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Handle auth requests to a MESSAGE request
+ * \return TRUE if authentication failed.
+ */
+static int do_message_auth(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
+{
+	char *header;
+	char *respheader;
+	char digest[1024];
+
+	if (p->options) {
+		p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
+	}
+
+	if (p->authtries == MAX_AUTHTRIES) {
+		ast_log(LOG_NOTICE, "Failed to authenticate MESSAGE with host '%s'\n",
+			ast_sockaddr_stringify(&p->sa));
+		return -1;
+	}
+
+	++p->authtries;
+	auth_headers((resp == 401 ? WWW_AUTH : PROXY_AUTH), &header, &respheader);
+	memset(digest, 0, sizeof(digest));
+	if (reply_digest(p, req, header, SIP_MESSAGE, digest, sizeof(digest))) {
+		/* There's nothing to use for authentication */
+		ast_debug(1, "Nothing to use for MESSAGE authentication\n");
+		return -1;
+	}
+
+	if (p->do_history) {
+		append_history(p, "MessageAuth", "Try: %d", p->authtries);
+	}
+
+	transmit_message_with_text(p, p->msg_body, 0, 1);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Handle responses to MESSAGE messages
+ *
+ * \note The MESSAGE method should not change the state of calls
+ * or related sessions if associated with a dialog. (Implied by
+ * RFC 3428 Section 2).
+ */
+static void handle_response_message(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
+{
+	int sipmethod = SIP_MESSAGE;
+	int in_dialog = ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+
+	switch (resp) {
+	case 401: /* Not www-authorized on SIP method */
+	case 407: /* Proxy auth required */
+		if (do_message_auth(p, resp, rest, req, seqno) && !in_dialog) {
+			pvt_set_needdestroy(p, "MESSAGE authentication failed");
+		}
+		break;
+	case 405: /* Method not allowed */
+	case 501: /* Not Implemented */
+		mark_method_unallowed(&p->allowed_methods, sipmethod);
+		if (p->relatedpeer) {
+			mark_method_allowed(&p->relatedpeer->disallowed_methods, sipmethod);
+		}
+		ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n",
+			ast_sockaddr_stringify(&p->sa), sip_methods[sipmethod].text);
+		if (!in_dialog) {
+			pvt_set_needdestroy(p, "MESSAGE not implemented or allowed");
+		}
+		break;
+	default:
+		if (100 <= resp && resp < 200) {
+			/* Must allow provisional responses for out-of-dialog requests. */
+		} else if (200 <= resp && resp < 300) {
+			p->authtries = 0;	/* Reset authentication counter */
+			if (!in_dialog) {
+				pvt_set_needdestroy(p, "MESSAGE delivery accepted");
+			}
+		} else if (300 <= resp && resp < 700) {
+			ast_verb(3, "Got SIP %s response %d \"%s\" back from host '%s'\n",
+				sip_methods[sipmethod].text, resp, rest, ast_sockaddr_stringify(&p->sa));
+			if (!in_dialog) {
+				pvt_set_needdestroy(p, (300 <= resp && resp < 600)
+					? "MESSAGE delivery failed" : "MESSAGE delivery refused");
+			}
+		}
+		break;
+	}
+}
+
 /*! \brief Immediately stop RTP, VRTP and UDPTL as applicable */
 static void stop_media_flows(struct sip_pvt *p)
 {
@@ -20720,6 +20844,12 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		 * we just always call the response handler. Good gravy!
 		 */
 		handle_response_publish(p, resp, rest, req, seqno);
+	} else if (sipmethod == SIP_INFO) {
+		/* More good gravy! */
+		handle_response_info(p, resp, rest, req, seqno);
+	} else if (sipmethod == SIP_MESSAGE) {
+		/* More good gravy! */
+		handle_response_message(p, resp, rest, req, seqno);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		switch(resp) {
 		case 100:	/* 100 Trying */
@@ -20733,11 +20863,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			break;
 		case 200:	/* 200 OK */
 			p->authtries = 0;	/* Reset authentication counter */
-			if (sipmethod == SIP_MESSAGE || sipmethod == SIP_INFO) {
-				/* We successfully transmitted a message
-					or a video update request in INFO */
-				/* Nothing happens here - the message is inside a dialog */
-			} else if (sipmethod == SIP_INVITE) {
+			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_NOTIFY) {
 				handle_response_notify(p, resp, rest, req, seqno);
@@ -20763,8 +20889,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_UPDATE) {
 				handle_response_update(p, resp, rest, req, seqno);
-			} else if (sipmethod == SIP_MESSAGE) {
-				handle_response_message(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_BYE) {
 				if (p->options)
 					p->options->auth_type = resp;
@@ -20935,15 +21059,14 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 					break;
 				default:
 					/* Send hangup */	
-					if (owner && sipmethod != SIP_MESSAGE && sipmethod != SIP_INFO && sipmethod != SIP_BYE)
+					if (owner && sipmethod != SIP_BYE)
 						ast_queue_hangup_with_cause(p->owner, AST_CAUSE_PROTOCOL_ERROR);
 					break;
 				}
 				/* ACK on invite */
 				if (sipmethod == SIP_INVITE)
 					transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-				if (sipmethod != SIP_MESSAGE && sipmethod != SIP_INFO)
-					sip_alreadygone(p);
+				sip_alreadygone(p);
 				if (!p->owner) {
 					pvt_set_needdestroy(p, "transaction completed");
 				}
@@ -21004,10 +21127,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				}
 			} else if (sipmethod == SIP_BYE) {
 				pvt_set_needdestroy(p, "transaction completed");
-			} else if (sipmethod == SIP_MESSAGE || sipmethod == SIP_INFO) {
-				/* We successfully transmitted a message or
-					a video update request in INFO */
-				;
 			}
 			break;
 		case 401:	/* www-auth */
@@ -23593,42 +23712,6 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	return 1;
 }
 
-/*!
- * \internal
- * \brief Handle auth requests to a MESSAGE request
- */
-static void handle_response_message(struct sip_pvt *p, int resp, const char *rest, struct sip_request *req, int seqno)
-{
-	char *header, *respheader;
-	char digest[1024];
-
-	if (p->options) {
-		p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
-	}
-
-	if ((p->authtries == MAX_AUTHTRIES)) {
-		ast_log(LOG_NOTICE, "Failed to authenticate on MESSAGE to '%s'\n", get_header(&p->initreq, "From"));
-		pvt_set_needdestroy(p, "MESSAGE authentication failed");
-		return;
-	}
-
-	p->authtries++;
-	auth_headers((resp == 401 ? WWW_AUTH : PROXY_AUTH), &header, &respheader);
-	memset(digest, 0, sizeof(digest));
-	if (reply_digest(p, req, header, SIP_MESSAGE, digest, sizeof(digest))) {
-		/* There's nothing to use for authentication */
-		ast_debug(1, "Nothing to use for MESSAGE authentication\n");
-		pvt_set_needdestroy(p, "MESSAGE authentication failed");
-		return;
-	}
-
-	if (p->do_history) {
-		append_history(p, "MessageAuth", "Try: %d", p->authtries);
-	}
-
-	transmit_message_with_text(p, p->msg_body, 0, 1);
-}
-
 /*! \brief Handle incoming MESSAGE request */
 static int handle_request_message(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, const char *e)
 {
@@ -23667,6 +23750,8 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	}
 	if (ast_strlen_zero(peer)) {
 		ast_log(LOG_WARNING, "MESSAGE(to) is invalid for SIP - '%s'\n", to);
+		dialog_unlink_all(pvt, TRUE, TRUE);
+		dialog_unref(pvt, "MESSAGE(to) is invalid for SIP");
 		return -1;
 	}
 
