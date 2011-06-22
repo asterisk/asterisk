@@ -5475,7 +5475,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			return -1;
 		}
 
-		if (p->trtp && !p->vsrtp && setup_srtp(&p->tsrtp) < 0) {
+		if (p->trtp && !p->tsrtp && setup_srtp(&p->tsrtp) < 0) {
 			ast_log(LOG_WARNING, "SRTP text setup failed\n");
 			return -1;
 		}
