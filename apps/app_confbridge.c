@@ -1400,9 +1400,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	leave_conference_bridge(conference_bridge, &conference_bridge_user);
 	conference_bridge = NULL;
 
-	/* Can't forget to clean up the features structure, or else we risk a memory leak */
-	ast_bridge_features_cleanup(&conference_bridge_user.features);
-
 	/* If the user was kicked from the conference play back the audio prompt for it */
 	if (!quiet && conference_bridge_user.kicked) {
 		res = ast_stream_and_wait(chan,
