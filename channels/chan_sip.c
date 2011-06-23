@@ -22706,7 +22706,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		return -1;
 	}
 
-	req.len = res;
+	/* req.data will have the correct length in case of nulls */
+	req.len = ast_str_strlen(req.data);
 	req.socket.fd = sipsock;
 	set_socket_transport(&req.socket, SIP_TRANSPORT_UDP);
 	req.socket.tcptls_session	= NULL;
