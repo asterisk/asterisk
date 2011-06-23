@@ -1029,14 +1029,14 @@ int get_in_brackets_full(char *tmp,char **out,char **residue)
 	only affects token based display-names there is no danger of brackets being in quotes */
 	if (first_bracket) {
 		parse = first_bracket;
-		} else {
+	} else {
 		parse = tmp;
 	}
 
 	if ((second_bracket = strchr(parse, '>'))) {
 		*second_bracket++ = '\0';
 		if (out) {
-			*out = first_bracket;
+			*out = (char *) parse;
 		}
 		if (residue) {
 			*residue = second_bracket;
@@ -1045,9 +1045,9 @@ int get_in_brackets_full(char *tmp,char **out,char **residue)
 	}
 
 	if ((first_bracket)) {
-			ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
+		ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
 		return -1;
-		}
+	}
 
 	if (out) {
 		*out = tmp;
@@ -1076,6 +1076,7 @@ AST_TEST_DEFINE(get_in_brackets_test)
 	char name_no_quotes[] = "name not in quotes <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
 	char no_end_bracket[] = "name not in quotes <sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah";
 	char no_name_no_brackets[] = "sip:name@host";
+	char missing_start_bracket[] = "name not in quotes sip:name:secret@host:port;transport=tcp?headers=testblah&headers2=blahblah>";
 	char *uri = NULL;
 
 	switch (cmd) {
@@ -1137,6 +1138,13 @@ AST_TEST_DEFINE(get_in_brackets_test)
 	if (!(uri = get_in_brackets(no_name_no_brackets)) || (strcmp(uri, "sip:name@host"))) {
 
 		ast_test_status_update(test, "Test 7 failed. %s\n", uri);
+		res = AST_TEST_FAIL;
+	}
+
+	/* Test 8, no start bracket, but with ending bracket. */
+	if (!(uri = get_in_brackets(missing_start_bracket)) || !(strcmp(uri, in_brackets))) {
+
+		ast_test_status_update(test, "Test 8 failed. %s\n", uri);
 		res = AST_TEST_FAIL;
 	}
 
