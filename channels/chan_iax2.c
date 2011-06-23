@@ -5081,7 +5081,14 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 	case AST_OPTION_OPRMODE:
 		errno = EINVAL;
 		return -1;
-	default:
+ 	/* These options are sent to the other side across the network where
+ 	 * they will be passed to whatever channel is bridged there. Don't
+ 	 * do anything silly like pass an option that transmits pointers to
+ 	 * memory on this machine to a remote machine to use */
+ 	case AST_OPTION_TONE_VERIFY:
+ 	case AST_OPTION_TDD:
+ 	case AST_OPTION_RELAXDTMF:
+ 	case AST_OPTION_AUDIO_MODE:
 	{
 		unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 		struct chan_iax2_pvt *pvt;
@@ -5109,7 +5116,12 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		ast_free(h);
 		return res;
 	}
+	default:
+		return -1;
 	}
+
+	/* Just in case someone does a break instead of a return */
+	return -1;
 }
 
 static struct ast_frame *iax2_read(struct ast_channel *c) 
