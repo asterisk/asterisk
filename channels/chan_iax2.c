@@ -5267,10 +5267,6 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		/* these two cannot be sent, because they require a result */
 		errno = ENOSYS;
 		return -1;
-	case AST_OPTION_FORMAT_READ:
-	case AST_OPTION_FORMAT_WRITE:
-	case AST_OPTION_MAKE_COMPATIBLE:
-		return -1;
 	case AST_OPTION_OPRMODE:
 		errno = EINVAL;
 		return -1;
@@ -5287,7 +5283,16 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		ast_mutex_unlock(&iaxsl[callno]);
 		return 0;
 	}
-	default:
+	/* These options are sent to the other side across the network where
+	 * they will be passed to whatever channel is bridged there. Don't
+	 * do anything silly like pass an option that transmits pointers to
+	 * memory on this machine to a remote machine to use */
+	case AST_OPTION_TONE_VERIFY:
+	case AST_OPTION_TDD:
+	case AST_OPTION_RELAXDTMF:
+	case AST_OPTION_AUDIO_MODE:
+	case AST_OPTION_DIGIT_DETECT:
+	case AST_OPTION_FAX_DETECT:
 	{
 		unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 		struct chan_iax2_pvt *pvt;
@@ -5315,7 +5320,12 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		ast_free(h);
 		return res;
 	}
+	default:
+		return -1;
 	}
+
+	/* Just in case someone does a break instead of a return */
+	return -1;
 }
 
 static int iax2_queryoption(struct ast_channel *c, int option, void *data, int *datalen)
