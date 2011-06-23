@@ -3051,10 +3051,19 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				break;
 			case AST_CONTROL_OPTION:
 				aoh = f->data.ptr;
-				/* Forward option Requests */
+				/* Forward option Requests, but only ones we know are safe
+				 * These are ONLY sent by chan_iax2 and I'm not convinced that
+				 * they are useful. I haven't deleted them entirely because I
+				 * just am not sure of the ramifications of removing them. */
 				if (aoh && aoh->flag == AST_OPTION_FLAG_REQUEST) {
-					ast_channel_setoption(other, ntohs(aoh->option), aoh->data, 
-						f->datalen - sizeof(struct ast_option_header), 0);
+				   	switch (ntohs(aoh->option)) {
+					case AST_OPTION_TONE_VERIFY:
+					case AST_OPTION_TDD:
+					case AST_OPTION_RELAXDTMF:
+					case AST_OPTION_AUDIO_MODE:
+						ast_channel_setoption(other, ntohs(aoh->option), aoh->data, 
+							f->datalen - sizeof(struct ast_option_header), 0);
+					}
 				}
 				break;
 			}
