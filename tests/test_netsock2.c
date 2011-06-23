@@ -54,7 +54,6 @@ AST_TEST_DEFINE(parsing)
 		{ "1.256.3.4", 0 },
 		{ "256.0.0.1", 0 },
 		{ "1.2.3.4:5060", 1 },
-		{ "1.2.3.4:99999", 0},
 		{ "::ffff:5.6.7.8", 1 },
 		{ "fdf8:f53b:82e4::53", 1 },
 		{ "fe80::200:5aee:feaa:20a2", 1 },
@@ -70,7 +69,6 @@ AST_TEST_DEFINE(parsing)
 		{ "[2001::1]", 1 },
 		{ "[2001:0000:4136:e378:8000:63bf:3fff:fdd2]:5060", 1 },
 		{ "2001:0000:4136:e378:8000:63bf:3fff:fdd2:5060", 0 }, /* port, but no brackets */
-		{ "[2001:0000:4136:e378:8000:63bf:3fff:fdd2]:90000", 0 },
 		{ "[fe80::200:5aee:feaa:20a2%eth0]", 1 }, /* link-local with scope id */
 		{ "[fe80::200::abcd", 0 }, /* multiple zero expansions */
 	};
