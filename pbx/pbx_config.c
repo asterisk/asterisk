@@ -1439,10 +1439,16 @@ static int pbx_load_config(const char *config_file)
 			char *tc = NULL;
 			char realext[256] = "";
 			char *stringp, *ext;
+			const char *vfile;
+
+			/* get filename for error reporting from top level or an #include */
+			vfile = !*v->file ? config_file : v->file;
 
 			if (!strncasecmp(v->name, "same", 4)) {
 				if (ast_strlen_zero(lastextension)) {
-					ast_log(LOG_ERROR, "No previous pattern in the first entry of context '%s' to match '%s' at line %d!\n", cxt, v->name, v->lineno);
+					ast_log(LOG_ERROR,
+						"No previous pattern in the first entry of context '%s' to match '%s' at line %d of %s!\n",
+						cxt, v->name, v->lineno, vfile);
 					continue;
 				}
 				if ((stringp = tc = ast_strdup(v->value))) {
@@ -1473,7 +1479,9 @@ process_extension:
 					if ((end = strchr(label, ')'))) {
 						*end = '\0';
 					} else {
-						ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+						ast_log(LOG_WARNING,
+							"Label missing trailing ')' at line %d of %s\n",
+							v->lineno, vfile);
 						ast_free(tc);
 						continue;
 					}
@@ -1487,7 +1495,9 @@ process_extension:
 					if (lastpri > -2) {
 						ipri = lastpri + 1;
 					} else {
-						ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry at line %d!\n", v->lineno);
+						ast_log(LOG_WARNING,
+							"Can't use 'next' priority on the first entry at line %d of %s!\n",
+							v->lineno, vfile);
 						ast_free(tc);
 						continue;
 					}
@@ -1495,18 +1505,23 @@ process_extension:
 					if (lastpri > -2) {
 						ipri = lastpri;
 					} else {
-						ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry at line %d!\n", v->lineno);
+						ast_log(LOG_WARNING,
+							"Can't use 'same' priority on the first entry at line %d of %s!\n",
+							v->lineno, vfile);
 						ast_free(tc);
 						continue;
 					}
 				} else if (sscanf(pri, "%30d", &ipri) != 1 &&
 					   (ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
-					ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
+					ast_log(LOG_WARNING,
+						"Invalid priority/label '%s' at line %d of %s\n",
+						pri, v->lineno, vfile);
 					ipri = 0;
 					ast_free(tc);
 					continue;
 				} else if (ipri < 1) {
-					ast_log(LOG_WARNING, "Invalid priority '%s' at line %d\n", pri, v->lineno);
+					ast_log(LOG_WARNING, "Invalid priority '%s' at line %d of %s\n",
+						pri, v->lineno, vfile);
 					ast_free(tc);
 					continue;
 				}
@@ -1537,7 +1552,9 @@ process_extension:
 						if ((end = strrchr(data, ')'))) {
 							*end = '\0';
 						} else {
-							ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s' at line %d\n", appl, data, v->lineno);
+							ast_log(LOG_WARNING,
+								"No closing parenthesis found? '%s(%s' at line %d of %s\n",
+								appl, data, v->lineno, vfile);
 						}
 					}
 					ast_free(orig_appl);
@@ -1550,10 +1567,14 @@ process_extension:
 					}
 					lastpri = ipri;
 					if (!ast_opt_dont_warn && (!strcmp(realext, "_.") || !strcmp(realext, "_!"))) {
-						ast_log(LOG_WARNING, "The use of '%s' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X%c' instead at line %d\n", realext, realext[1], v->lineno);
+						ast_log(LOG_WARNING,
+							"The use of '%s' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X%c' instead at line %d of %s\n",
+							realext, realext[1], v->lineno, vfile);
 					}
 					if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free_ptr, registrar)) {
-						ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+						ast_log(LOG_WARNING,
+							"Unable to register extension at line %d of %s\n",
+							v->lineno, vfile);
 					}
 				}
 				free(tc);
@@ -1561,35 +1582,40 @@ process_extension:
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_include2(con, realvalue, registrar)) {
 					switch (errno) {
-						case ENOMEM:
-							ast_log(LOG_WARNING, "Out of memory for context addition\n");
-							break;
+					case ENOMEM:
+						ast_log(LOG_WARNING, "Out of memory for context addition\n");
+						break;
 
-						case EBUSY:
-							ast_log(LOG_WARNING, "Failed to lock context(s) list, please try again later\n");
-							break;
+					case EBUSY:
+						ast_log(LOG_WARNING, "Failed to lock context(s) list, please try again later\n");
+						break;
 
-						case EEXIST:
-							ast_log(LOG_WARNING, "Context '%s' already included in '%s' context on include at line %d\n",
-									v->value, cxt, v->lineno);
-							break;
+					case EEXIST:
+						ast_log(LOG_WARNING,
+							"Context '%s' already included in '%s' context on include at line %d of %s\n",
+							v->value, cxt, v->lineno, vfile);
+						break;
 
-						case ENOENT:
-						case EINVAL:
-							ast_log(LOG_WARNING, "There is no existence of context '%s' included at line %d\n",
-									errno == ENOENT ? v->value : cxt, v->lineno);
-							break;
+					case ENOENT:
+					case EINVAL:
+						ast_log(LOG_WARNING,
+							"There is no existence of context '%s' included at line %d of %s\n",
+							errno == ENOENT ? v->value : cxt, v->lineno, vfile);
+						break;
 
-						default:
-							ast_log(LOG_WARNING, "Failed to include '%s' in '%s' context at line %d\n",
-									v->value, cxt, v->lineno);
-							break;
+					default:
+						ast_log(LOG_WARNING,
+							"Failed to include '%s' in '%s' context at line %d of %s\n",
+							v->value, cxt, v->lineno, vfile);
+						break;
 					}
 				}
 			} else if (!strcasecmp(v->name, "ignorepat")) {
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_ignorepat2(con, realvalue, registrar)) {
-					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s' at line %d\n", v->value, cxt, v->lineno);
+					ast_log(LOG_WARNING,
+						"Unable to include ignorepat '%s' in context '%s' at line %d of %s\n",
+						v->value, cxt, v->lineno, vfile);
 				}
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 				char *stringp = realvalue;
@@ -1603,10 +1629,14 @@ process_extension:
 				appl = strsep(&stringp, "/");
 				data = S_OR(stringp, "");
 				if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar)) {
-					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s' at line %d\n", v->value, cxt, v->lineno);
+					ast_log(LOG_WARNING,
+						"Unable to include switch '%s' in context '%s' at line %d of %s\n",
+						v->value, cxt, v->lineno, vfile);
 				}
 			} else {
-				ast_log(LOG_WARNING, "==!!== Unknown directive: %s at line %d -- IGNORING!!!\n", v->name, v->lineno);
+				ast_log(LOG_WARNING,
+					"==!!== Unknown directive: %s at line %d of %s -- IGNORING!!!\n",
+					v->name, v->lineno, vfile);
 			}
 		}
 	}
