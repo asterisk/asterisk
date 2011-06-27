@@ -1484,7 +1484,7 @@ static struct sigaction urg_handler = {
 
 static void _hup_handler(int num)
 {
-	int a = 0;
+	int a = 0, save_errno = errno;
 	if (option_verbose > 1) 
 		printf("Received HUP signal -- Reloading configs\n");
 	if (restartnow)
@@ -1495,6 +1495,7 @@ static void _hup_handler(int num)
 			fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
 		}
 	}
+	errno = save_errno;
 }
 
 static struct sigaction hup_handler = {
@@ -1505,7 +1506,7 @@ static struct sigaction hup_handler = {
 static void _child_handler(int sig)
 {
 	/* Must not ever ast_log or ast_verbose within signal handler */
-	int n, status;
+	int n, status, save_errno = errno;
 
 	/*
 	 * Reap all dead children -- not just one
@@ -1514,6 +1515,7 @@ static void _child_handler(int sig)
 		;
 	if (n == 0 && option_debug)	
 		printf("Huh?  Child handler, but nobody there?\n");
+	errno = save_errno;
 }
 
 static struct sigaction child_handler = {
