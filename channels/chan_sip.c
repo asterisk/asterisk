@@ -25408,13 +25408,14 @@ create_tcptls_session_fail:
 
 /*!
  * \brief Get cached MWI info
- * \retval 0 At least one message is waiting
- * \retval 1 no messages waiting
+ * \return TRUE if found MWI in cache
  */
 static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 {
 	struct sip_mailbox *mailbox;
+	int in_cache;
 
+	in_cache = 0;
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 		struct ast_event *event;
 		event = ast_event_get_cached(AST_EVENT_MWI,
@@ -25426,9 +25427,10 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 		*new += ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 		*old += ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
 		ast_event_destroy(event);
+		in_cache = 1;
 	}
 
-	return (*new || *old) ? 0 : 1;
+	return in_cache;
 }
 
 /*! \brief Send message waiting indication to alert peer that they've got voicemail */
@@ -25448,12 +25450,11 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	if (event) {
 		newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 		oldmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
-	} else if (!cache_only) { /* Fall back to manually checking the mailbox */
+	} else if (!get_cached_mwi(peer, &newmsgs, &oldmsgs) && !cache_only) {
+		/* Fall back to manually checking the mailbox */
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
-	} else {
-		get_cached_mwi(peer, &newmsgs, &oldmsgs);
 	}
 	
 	if (peer->mwipvt) {
