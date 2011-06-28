@@ -13353,9 +13353,9 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 {
 	/* We have to emulate EXACTLY what we'd get with a good peer
 	 * and a bad password, or else we leak information. */
-	const char *response = "407 Proxy Authentication Required";
-	const char *reqheader = "Proxy-Authorization";
-	const char *respheader = "Proxy-Authenticate";
+	const char *response = "401 Unauthorized";
+	const char *reqheader = "Authorization";
+	const char *respheader = "WWW-Authenticate";
 	const char *authtoken;
 	struct ast_str *buf;
 	char *c;
@@ -13370,23 +13370,18 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 		[K_LAST] = { NULL, NULL}
 	};
 
-	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
-		response = "401 Unauthorized";
-		reqheader = "Authorization";
-		respheader = "WWW-Authenticate";
-	}
 	authtoken = get_header(req, reqheader);
 	if (req->ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
 		 * information */
-		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
+		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
 		/* We have no auth, so issue challenge and request authentication */
 		set_nonce_randdata(p, 1);
-		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
+		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
@@ -13645,7 +13640,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			}
 		}
 	}
-	if (!peer && sip_cfg.alwaysauthreject) {
+	if (!peer && sip_cfg.alwaysauthreject && ast_test_flag(&p->flags[1], SIP_PAGE2_REGISTERTRYING)) {
 		/* If we found a peer, we transmit a 100 Trying.  Therefore, if we're
 		 * trying to avoid leaking information, we MUST also transmit the same
 		 * response when we DON'T find a peer. */
