@@ -1123,7 +1123,9 @@ static void moh_rescan_files(void) {
 	i = ao2_iterator_init(mohclasses, 0);
 
 	while ((c = ao2_iterator_next(&i))) {
-		moh_scan_files(c);
+		if (!strcasecmp(c->mode, "files")) {
+			moh_scan_files(c);
+		}
 		ao2_ref(c, -1);
 	}
 
