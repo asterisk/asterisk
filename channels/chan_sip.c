@@ -8719,11 +8719,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	memset(p->offered_media, 0, sizeof(p->offered_media));
 
-
-	/* default: novideo and notext set */
-	p->novideo = TRUE;
-	p->notext = TRUE;
-
 	if (p->vrtp) {
 		ast_rtp_codecs_payloads_clear(&newvideortp, NULL);
 	}
@@ -8781,7 +8776,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		ast_debug(3, "Processing session-level SDP %c=%s... %s\n", type, value, (processed == TRUE)? "OK." : "UNSUPPORTED.");
 	}
 
-
+	/* default: novideo and notext set */
+	p->novideo = TRUE;
+	p->notext = TRUE;
 
 	/* Scan media stream (m=) specific parameters loop */
 	while (!ast_strlen_zero(nextm)) {
