@@ -13175,6 +13175,7 @@ static int transmit_message_with_msg(struct sip_pvt *p, const struct ast_msg *ms
 	struct ast_msg_var_iterator *i;
 	const char *var, *val;
 
+	build_via(p);
 	initreqprep(&req, p, SIP_MESSAGE, NULL);
 	ast_string_field_set(p, msg_body, ast_msg_get_body(msg));
 	initialize_initreq(p, &req);
