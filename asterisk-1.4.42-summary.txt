@@ -1,0 +1,527 @@
+                                Release Summary
+
+                                asterisk-1.4.42
+
+                                Date: 2011-06-28
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.4.41.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   11 mnicholson            8 rmudgett               2 alecdavis              
+   8 rmudgett               4 astmiv                 2 destiny6628            
+   8 twilson                3 alecdavis              2 tzafrir                
+   6 alecdavis              2 globalnetinc           2 vrban                  
+   6 tilghman               2 jde                    1 alexandrekeller        
+   3 seanbright             2 nivek                  1 andy11                 
+   3 wdoekes                2 twilson                1 devmod                 
+   2 dvossel                1 alexandrekeller        1 docent                 
+   2 elguero                1 amilcar                1 elguero                
+   2 pabelanger             1 chris-mac              1 feyfre                 
+   2 vrban                  1 elguero                1 igorg                  
+   1 andy11                 1 FeyFre                 1 jamicque               
+   1 enegaard               1 francesco_r            1 jasonshugart           
+   1 FeyFre                 1 IgorG                  1 jcromes                
+   1 IgorG                  1 irroot                 1 jhirsch                
+   1 jhirsch                1 isis242                1 jmls                   
+   1 jrose                  1 jcromes                1 johnz                  
+   1 kkm                    1 jrose                  1 jpokorny               
+   1 nivek                  1 kkm                    1 kkm                    
+   1 russell                1 lefoyer                1 kobaz                  
+   1 tzafrir                1 lmadsen                1 lefoyer                
+   1 zvision                1 loloski                1 mn3250                 
+                            1 mnicholson             1 mspuhler               
+                            1 oej                    1 nivek                  
+                            1 rymkus                 1 nvitaly                
+                            1 seanbright             1 oej                    
+                            1 tilghman               1 pabelanger             
+                            1 vrban                  1 pnlarsson              
+                            1 wdoekes                1 pruiz                  
+                                                     1 sharvanek              
+                                                     1 siby                   
+                                                     1 sysreq                 
+                                                     1 wdoekes                
+                                                     1 zvision                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_dial
+
+   ASTERISK-16649: [patch] Peer does not hang up when caller hangup while
+   app_dial is executing - Deadagi
+   Revision: 313545
+   Reporter: mn3250
+   Testers: rmudgett, astmiv
+   Coders: rmudgett
+
+   ASTERISK-17874: [patch] [regression] Revision 315643 app_dial breaks ring
+   groups
+   Revision: 319527
+   Reporter: mspuhler
+   Coders: elguero
+
+  Category: Applications/app_externalivr
+
+   ASTERISK-17496: [patch] Small leak in app_externalivr
+   Revision: 309355
+   Reporter: andy11
+   Coders: andy11
+
+  Category: Applications/app_meetme
+
+   ASTERISK-17896: [patch] meetme cli cmd completion leaves conferences mutex
+   locked
+   Revision: 320235
+   Reporter: zvision
+   Coders: zvision
+
+  Category: Applications/app_mixmonitor
+
+   ASTERISK-17038: [patch] Mixmonitor does not parse file path proper if it
+   contain a . (period)
+   Revision: 309856
+   Reporter: pabelanger
+   Testers: jrose
+   Coders: jrose
+
+  Category: Applications/app_voicemail
+
+   ASTERISK-16784: [patch] Message lost when sox fails to re-encode with
+   'volgain'
+   Revision: 316707
+   Reporter: sysreq
+   Testers: seanbright
+   Coders: seanbright
+
+   ASTERISK-17299: [patch] Compile Error - odbc_storage enabled
+   Revision: 312174
+   Reporter: elguero
+   Testers: elguero, nivek, alecdavis
+   Coders: elguero
+
+   ASTERISK-17714: [patch] app_voicemail.c does not compile in 1.4 branch
+   Revision: 314300
+   Reporter: vrban
+   Testers: vrban, alecdavis
+   Coders: vrban
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-14611: [patch] Stuck channel using FEATD_MF if caller hangs up at
+   the right time
+   Revision: 313188
+   Reporter: jcromes
+   Testers: jcromes
+   Coders: pabelanger
+
+   ASTERISK-16892: [patch] Asterisk gets killed during the live calling
+   Revision: 312573
+   Reporter: destiny6628
+   Testers: rmudgett
+   Coders: rmudgett
+
+   ASTERISK-16964: Asterisk does not send release message when channel
+   requested during SETUP gets changed during Procedding Message from TELCO
+   Revision: 312573
+   Reporter: destiny6628
+   Testers: rmudgett
+   Coders: rmudgett
+
+   ASTERISK-17107: [patch] "Caller*ID failed checksum" on Wildcard TDM2400P
+   and TDM410
+   Revision: 310633
+   Reporter: nivek
+   Testers: nivek
+   Coders: nivek
+
+   ASTERISK-17120: Asterisk does not end call properly and stops reacting to
+   following SETUP messages
+   Revision: 312573
+   Reporter: jpokorny
+   Testers: rmudgett
+   Coders: rmudgett
+
+  Category: Channels/chan_iax2
+
+   ASTERISK-15449: RFC2833 DTMF is not passed correctly when going
+   SIP->IAX2->SIP
+   Revision: 310888
+   Reporter: sharvanek
+   Testers: globalnetinc, jde
+   Coders: twilson
+
+  Category: Channels/chan_local
+
+   ASTERISK-17633: [patch] Chan_local crashes in fixup
+   Revision: 316328
+   Reporter: oej
+   Testers: oej
+   Coders: dvossel
+
+   ASTERISK-17747: [patch] check_bridge(): misplaced ast_mutex_unlock
+   Revision: 315051
+   Reporter: alecdavis
+   Coders: alecdavis
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-17124: Asterisk does not hangup a channel after endpoint hangs up
+   when using FastAGI
+   Revision: 313545
+   Reporter: devmod
+   Testers: rmudgett, astmiv
+   Coders: rmudgett
+
+   ASTERISK-17682: [patch] [regression] "sip prune" does not clean the
+   relevant peer objects -> memleak
+   Revision: 317211
+   Reporter: vrban
+   Coders: vrban
+
+   ASTERISK-17771: [patch] switching From-address mid-register breaks channel
+   variables
+   Revision: 320055
+   Reporter: wdoekes
+   Coders: wdoekes
+
+  Category: Channels/chan_sip/Registration
+
+   ASTERISK-14953: [patch] Autocreated peers not deleted when unregister
+   explicitly, become zombies
+   Revision: 315671
+   Reporter: kkm
+   Testers: kkm, tilghman, twilson
+   Coders: kkm
+
+   ASTERISK-17382: [patch] Regression after r297603 (Improve handling of
+   REGISTER requests with multiple contact headers.)
+   Revision: 317719
+   Reporter: pnlarsson
+   Coders: enegaard
+
+   ASTERISK-17535: [patch] [regression] Cisco phones do not register
+   Revision: 315891
+   Reporter: jmls
+   Coders: wdoekes
+
+  Category: Core/BuildSystem
+
+   ASTERISK-17668: [patch] fix detection of openssl 1.0
+   Revision: 313277
+   Reporter: tzafrir
+   Coders: tzafrir
+
+  Category: Core/General
+
+   ASTERISK-17370: [patch] FD 32767 exceeds the maximum size of ast_fdset
+   Revision: 315501
+   Reporter: jamicque
+   Testers: chris-mac
+   Coders: tilghman
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-16837: [patch] Duplicated event on AMI interface
+   Revision: 308813
+   Reporter: feyfre
+   Testers: FeyFre, twilson
+   Coders: FeyFre
+
+   ASTERISK-17384: [patch] Security issue in originate, system permission
+   bypassed if using async
+   Revision: 314607
+   Reporter: kobaz
+   Coders: mnicholson
+
+   ASTERISK-17578: [patch] DoS through manager interface: no timeout for
+   unauthenticated logins
+   Revision: 312761
+   Reporter: tzafrir
+   Testers: mnicholson
+   Coders: mnicholson
+
+  Category: Core/RTP
+
+   ASTERISK-14589: [patch] Fix for Sonus DTMF issues
+   Revision: 310888
+   Reporter: jasonshugart
+   Testers: globalnetinc, jde
+   Coders: twilson
+
+  Category: Features
+
+   ASTERISK-17264: [patch] [regression] Call Pickup Hangs Asterisk
+   (deadlock?)
+   Revision: 318734
+   Reporter: docent
+   Testers: lmadsen, francesco_r, amilcar, isis242, alecdavis, irroot,
+   rymkus, loloski, rmudgett
+   Coders: rmudgett, alecdavis
+
+  Category: Formats/format_wav
+
+   ASTERISK-16957: [patch] Asterisk does not play wav files with unknown
+   chunk types
+   Revision: 315257
+   Reporter: jhirsch
+   Coders: jhirsch
+
+  Category: Functions/func_odbc
+
+   ASTERISK-16946: [patch] Call to SQLDescribeCol returns an invalid
+   ColumnSize paramenter on x64 (Patch included)
+   Revision: 310140
+   Reporter: pruiz
+   Coders: tilghman
+
+  Category: Functions/func_shell
+
+   ASTERISK-17630: [patch] Concatenates uninitialized buffer causes garbage
+   data prior result also may cause crash
+   Revision: 314822
+   Reporter: johnz
+   Coders: russell
+
+  Category: General
+
+   ASTERISK-17552: [patch] 'core show locks' should show Thread ID in HEX,
+   then would match up with GDB's backtrace
+   Revision: 310779
+   Reporter: alecdavis
+   Coders: alecdavis
+
+   ASTERISK-17555: [patch] Remove extra quote in indications.conf
+   Revision: 311048
+   Reporter: igorg
+   Testers: IgorG
+   Coders: IgorG
+
+   ASTERISK-17782: [patch] bug in contrib/scripts/safe_asterisk
+   Revision: 317102
+   Reporter: lefoyer
+   Testers: wdoekes, lefoyer
+   Coders: wdoekes
+
+  Category: PBX/pbx_ael
+
+   ASTERISK-17497: [patch] AELsub() for calling routines that will remain
+   stable between internal changes
+   Revision: 310435
+   Reporter: alexandrekeller
+   Testers: alexandrekeller
+   Coders: tilghman
+
+  Category: Resources/res_agi
+
+   ASTERISK-16144: [patch] AGISTATUS bug in Asterisk 1.6.2.7
+   Revision: 313545
+   Reporter: siby
+   Testers: rmudgett, astmiv
+   Coders: rmudgett
+
+   ASTERISK-17520: [patch] HANGUP is not sent to AGI in time
+   Revision: 313545
+   Reporter: nvitaly
+   Testers: rmudgett, astmiv
+   Coders: rmudgett
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                      | Issues          |
+   |          |            |                              | Referenced      |
+   |----------+------------+------------------------------+-----------------|
+   | 308721   | mnicholson | silence gcc 4.2 compiler     |                 |
+   |          |            | warning                      |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 309947   | twilson    | Don't try to free statically |                 |
+   |          |            | allocated memory.            |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Remove the provisional       |                 |
+   | 311199   | mnicholson | keepalive scheduler entry's  |                 |
+   |          |            | reference to the pvt when we |                 |
+   |          |            | remove the scheduler entry.  |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 311201   | mnicholson | Don't dec the usecount of an |                 |
+   |          |            | eventqent then use it.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 311203   | mnicholson | Don't hold the pvt lock      |                 |
+   |          |            | while streaming a file.      |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | app_voicemail: close_mailbox |                 |
+   | 312070   | alecdavis  | needs to respect additional  |                 |
+   |          |            | messages while mailbox is    |                 |
+   |          |            | open.                        |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | app_voicemail:close_mailbox  |                 |
+   | 312119   | alecdavis  | imap_storage doesn't use     |                 |
+   |          |            | last_msg_index               |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Found some leaking file      |                 |
+   | 312285   | tilghman   | descriptors while looking at | ASTERISK-17553  |
+   |          |            | ast_FD_SETSIZE dead code.    |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | app_voicemail:               |                 |
+   | 312290   | alecdavis  | leave_vociemail doesn't use  | ASTERISK-17580  |
+   |          |            | last_message_index to store  |                 |
+   |          |            | next message                 |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Prevent the login thread and |                 |
+   | 314908   | mnicholson | the app threads from using   |                 |
+   |          |            | the asterisk channel at the  |                 |
+   |          |            | same time.                   |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Reverted part of r314607, as |                 |
+   | 315147   | mnicholson | it can introduce a           |                 |
+   |          |            | regression.                  |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 315596   | twilson    | Allow transfer loops without |                 |
+   |          |            | allowing forwarding loops    |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Partial revert of r315671    |                 |
+   | 315989   | seanbright | which removed a logging      | ASTERISK-14953  |
+   |          |            | statement and not a manager  |                 |
+   |          |            | event.                       |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Backport the use of curl     |                 |
+   | 316006   | tilghman   | from 1.6.2 to make the 1.4   |                 |
+   |          |            | target work on Bamboo.       |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Breakage from slightly       |                 |
+   | 316089   | tilghman   | before the outage; would     |                 |
+   |          |            | have fixed sooner but for    |                 |
+   |          |            | the outage.                  |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 317574   | twilson    | Re-fix queue round-robin     |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Make sure everyone gets an   |                 |
+   | 319652   | twilson    | unhold when a transfer       |                 |
+   |          |            | succeeds                     |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 320393   | pabelanger | Solaris compatibility fixes  |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | don't drop any voice frames  |                 |
+   | 322646   | mnicholson | when checking for T.38       | ASTERISK-17705  |
+   |          |            | during early media           |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 322657   | mnicholson | whitespace                   |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | unlock pvt when we drop      |                 |
+   | 322698   | mnicholson | voice frames received in     |                 |
+   |          |            | early media when in t.38     |                 |
+   |          |            | mode                         |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Resolve a segfault/bus error | ASTERISK-15359, |
+   | 323559   | seanbright | when we try to map memory    | ASTERISK-16460  |
+   |          |            | that falls on a page         |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 323732   | twilson    | Fix DYNAMIC_FEATURES         | ASTERISK-17914  |
+   |----------+------------+------------------------------+-----------------|
+   | 324627   | dvossel    | Addresses AST-2011-010,      |                 |
+   |          |            | remote crash in IAX2 driver  |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 325275   | twilson    | Don't leak SIP username      |                 |
+   |          |            | information                  |                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_dial.c                  |    5
+ apps/app_directed_pickup.c       |   26
+ apps/app_meetme.c                |    1
+ apps/app_mixmonitor.c            |    4
+ apps/app_voicemail.c             |  108 +-
+ cdr/cdr_pgsql.c                  |    8
+ channels/chan_agent.c            |  181 ++-
+ channels/chan_dahdi.c            | 2007 ++++++++++++++++++++++++---------------
+ channels/chan_iax2.c             |   14
+ channels/chan_local.c            |    4
+ channels/chan_sip.c              |  106 +-
+ channels/chan_skinny.c           |   75 +
+ configs/http.conf.sample         |    7
+ configs/indications.conf.sample  |    2
+ configs/manager.conf.sample      |   11
+ configs/skinny.conf.sample       |    9
+ configure.ac                     |   10
+ contrib/scripts/safe_asterisk    |    2
+ formats/format_wav.c             |   84 -
+ include/asterisk/autoconfig.h.in |    3
+ include/asterisk/select.h        |   15
+ main/asterisk.c                  |    6
+ main/callerid.c                  |   19
+ main/channel.c                   |   32
+ main/http.c                      |   25
+ main/manager.c                   |  122 ++
+ main/udptl.c                     |    6
+ main/utils.c                     |    2
+ pbx/pbx_ael.c                    |   30
+ res/res_agi.c                    |   46
+ res/res_config_odbc.c            |    2
+ res/res_features.c               |  273 +++--
+ 32 files changed, 2133 insertions(+), 1112 deletions(-)
+
+     ----------------------------------------------------------------------
