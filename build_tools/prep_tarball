@@ -6,7 +6,6 @@
 # It will be executed from the top-level directory of the project.
 
 make -C sounds MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-OPSOUND-WAV WGET=wget DOWNLOAD=wget all
-make AWK=awk GREP=grep menuselect-tree
 
 if ! which wikiexport.py 2>&1 > /dev/null ; then
 	echo
