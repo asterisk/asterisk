@@ -22885,13 +22885,21 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	}
 	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
+	{
+		char *refer_to_context = ast_strdupa(p->refer->refer_to_context);
+		char *refer_to = ast_strdupa(p->refer->refer_to);
 
-	/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
-	   servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
-	/* indicate before masquerade so the indication actually makes it to the real channel
-	   when using local channels with MOH passthru */
-	ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
-	res = ast_async_goto(current.chan2, p->refer->refer_to_context, p->refer->refer_to, 1);
+		/* Do not hold the pvt lock during the indicate and async_goto. Those functions
+		 * lock channels which will invalidate locking order if the pvt lock is held.*/
+		ao2_unlock(p);
+		/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
+	   	 * servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
+		/* indicate before masquerade so the indication actually makes it to the real channel
+	   	 *when using local channels with MOH passthru */
+		ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
+		res = ast_async_goto(current.chan2, refer_to_context, refer_to, 1);
+		ao2_lock(p);
+	}
 
 	if (!res) {
 		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
