@@ -1759,7 +1759,7 @@ static void clear_queue(struct call_queue *q)
  * \retval 0 on success 
  * \note Call this with the rule_lists locked 
 */
-static int insert_penaltychange (const char *list_name, const char *content, const int linenum)
+static int insert_penaltychange(const char *list_name, const char *content, const int linenum)
 {
 	char *timestr, *maxstr, *minstr, *contentdup;
 	struct penalty_rule *rule = NULL, *rule_iter;
@@ -5772,7 +5772,6 @@ static void copy_rules(struct queue_ent *qe, const char *rulename)
 			struct penalty_rule *new_pr = ast_calloc(1, sizeof(*new_pr));
 			if (!new_pr) {
 				ast_log(LOG_ERROR, "Memory allocation error when copying penalty rules! Aborting!\n");
-				AST_LIST_UNLOCK(&rule_lists);
 				break;
 			}
 			new_pr->time = pr_iter->time;
@@ -6497,6 +6496,7 @@ static int reload_queue_rules(int reload)
 	while ((rulecat = ast_category_browse(cfg, rulecat))) {
 		if (!(new_rl = ast_calloc(1, sizeof(*new_rl)))) {
 			AST_LIST_UNLOCK(&rule_lists);
+			ast_config_destroy(cfg);
 			return AST_MODULE_LOAD_FAILURE;
 		} else {
 			ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
