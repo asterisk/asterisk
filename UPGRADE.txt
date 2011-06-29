@@ -50,5 +50,9 @@ pbx_lua:
  - the autoservice now defaults to being on by default
  - autoservice_start() and autoservice_start() no longer return a value.
 
+Queue:
+ - Mark QUEUE_MEMBER_PENALTY Deprecated it never worked for realtime members
+ - QUEUE_MEMBER is now R/W supporting setting paused, ignorebusy and penalty.
+
 ===========================================================
 ===========================================================

@@ -439,6 +439,15 @@ Queue changes
    supports sending the event arguments to 5 individual fields, although it
    will fallback to the previous data definition, if the new table layout is
    not found.
+ * Added general option negative_penalty_invalid default off. when set
+   members are seen as invalid/logged out when there penalty is negative.
+   for realtime members when set remove from queue will set penalty to -1.
+ * Added queue option autopausedelay when autopause is enabled it will be
+   delayed for this number of seconds since last successful call if there
+   was no prior call the agent will be autopaused immediately.
+ * Added member option ignorebusy this when set and ringinuse is not
+   will allow per member control of multiple calls as ringinuse does for
+   the Queue.
 
 mISDN channel driver (chan_misdn) changes
 ----------------------------------------

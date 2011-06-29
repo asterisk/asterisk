@@ -61,6 +61,10 @@ monitor-type = MixMonitor
 ;
 ;shared_lastcall=no
 ;
+; Negative_penalty_invalid will treat members with a negative penalty as logged off
+;
+;negative_penalty_invalid = no
+;
 ;[markq]
 ;
 ; A sample call queue
@@ -195,6 +199,10 @@ monitor-type = MixMonitor
 ; yes: Member will be paused only in the queue where the timeout took place
 ; all: Memeber will be paused in all queues he/she is a member
 ;autopause=yes
+;
+; Autopausedelay delay autopause for autopausedelay seconds from the
+; last call if a member has not taken a call the delay has no effect.
+;autopausedelay=60
 ;
 ; Maximum number of people waiting in the queue (0 for unlimited)
 ;
@@ -458,6 +466,9 @@ monitor-type = MixMonitor
 ; known to be 'in use' (via the channel driver supporting that device state)
 ; uncomment this option. (Note: only the SIP channel driver currently is able
 ; to report 'in use'.)
+;
+; A member can have the ignorebusy flag set or unset when ringinuse is set to
+; allow a per member control.
 ;
 ; ringinuse = no
 ;
