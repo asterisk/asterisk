@@ -7499,6 +7499,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !c0->monitor && !c1->monitor &&
 		    !c0->audiohooks && !c1->audiohooks &&
+		    ast_framehook_list_is_empty(c0->framehooks) && ast_framehook_list_is_empty(c1->framehooks) &&
 		    !c0->masq && !c0->masqr && !c1->masq && !c1->masqr) {
 			int timeoutms = to - 1000 > 0 ? to - 1000 : to;
 			/* Looks like they share a bridge method and nothing else is in the way */
