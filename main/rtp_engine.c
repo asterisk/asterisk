@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/translate.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/framehook.h"
 
 struct ast_srtp_res *res_srtp = NULL;
 struct ast_srtp_policy_res *res_srtp_policy = NULL;
@@ -853,7 +854,8 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
-		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks)) {
+		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks) ||
+		    (!ast_framehook_list_is_empty(c0->framehooks) || !ast_framehook_list_is_empty(c1->framehooks))) {
 			ast_debug(1, "rtp-engine-local-bridge: Oooh, something is weird, backing out\n");
 			/* If a masquerade needs to happen we have to try to read in a frame so that it actually happens. Without this we risk being called again and going into a loop */
 			if ((c0->masq || c0->masqr) && (fr = ast_read(c0))) {
@@ -1026,7 +1028,8 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
-		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks)) {
+		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks) ||
+		    (!ast_framehook_list_is_empty(c0->framehooks) || !ast_framehook_list_is_empty(c1->framehooks))) {
 			ast_debug(1, "Oooh, something is weird, backing out\n");
 			res = AST_BRIDGE_RETRY;
 			break;
