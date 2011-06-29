@@ -14067,9 +14067,9 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 {
 	/* We have to emulate EXACTLY what we'd get with a good peer
 	 * and a bad password, or else we leak information. */
-	const char *response = "407 Proxy Authentication Required";
-	const char *reqheader = "Proxy-Authorization";
-	const char *respheader = "Proxy-Authenticate";
+	const char *response = "401 Unauthorized";
+	const char *reqheader = "Authorization";
+	const char *respheader = "WWW-Authenticate";
 	const char *authtoken;
 	struct ast_str *buf;
 	char *c;
@@ -14084,23 +14084,18 @@ static void transmit_fake_auth_response(struct sip_pvt *p, int sipmethod, struct
 		[K_LAST] = { NULL, NULL}
 	};
 
-	if (sipmethod == SIP_REGISTER || sipmethod == SIP_SUBSCRIBE) {
-		response = "401 Unauthorized";
-		reqheader = "Authorization";
-		respheader = "WWW-Authenticate";
-	}
 	authtoken = get_header(req, reqheader);
 	if (req->ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
 		 * information */
-		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
+		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
 		/* We have no auth, so issue challenge and request authentication */
 		set_nonce_randdata(p, 1);
-		transmit_response_with_auth(p, response, req, p->randdata, 0, respheader, 0);
+		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
@@ -14346,7 +14341,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			ao2_unlock(peer);
 		}
 	}
-	if (!peer && sip_cfg.alwaysauthreject) {
+	if (!peer && sip_cfg.alwaysauthreject && ast_test_flag(&p->flags[1], SIP_PAGE2_REGISTERTRYING)) {
 		/* If we found a peer, we transmit a 100 Trying.  Therefore, if we're
 		 * trying to avoid leaking information, we MUST also transmit the same
 		 * response when we DON'T find a peer. */
@@ -17410,7 +17405,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Allow unknown access:   %s\n", AST_CLI_YESNO(sip_cfg.allowguest));
 	ast_cli(a->fd, "  Allow subscriptions:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
 	ast_cli(a->fd, "  Allow overlap dialing:  %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)));
-	ast_cli(a->fd, "  Allow promsic. redir:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
+	ast_cli(a->fd, "  Allow promisc. redir:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
 	ast_cli(a->fd, "  Enable call counters:   %s\n", AST_CLI_YESNO(global_callcounter));
 	ast_cli(a->fd, "  SIP domain support:     %s\n", AST_CLI_YESNO(!AST_LIST_EMPTY(&domain_list)));
 	ast_cli(a->fd, "  Realm. auth:            %s\n", AST_CLI_YESNO(authl != NULL));
@@ -22890,13 +22885,21 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	}
 	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
+	{
+		char *refer_to_context = ast_strdupa(p->refer->refer_to_context);
+		char *refer_to = ast_strdupa(p->refer->refer_to);
 
-	/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
-	   servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
-	/* indicate before masquerade so the indication actually makes it to the real channel
-	   when using local channels with MOH passthru */
-	ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
-	res = ast_async_goto(current.chan2, p->refer->refer_to_context, p->refer->refer_to, 1);
+		/* Do not hold the pvt lock during the indicate and async_goto. Those functions
+		 * lock channels which will invalidate locking order if the pvt lock is held.*/
+		ao2_unlock(p);
+		/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
+	   	 * servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
+		/* indicate before masquerade so the indication actually makes it to the real channel
+	   	 *when using local channels with MOH passthru */
+		ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
+		res = ast_async_goto(current.chan2, refer_to_context, refer_to, 1);
+		ao2_lock(p);
+	}
 
 	if (!res) {
 		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
@@ -24780,13 +24783,14 @@ create_tcptls_session_fail:
 
 /*!
  * \brief Get cached MWI info
- * \retval 0 At least one message is waiting
- * \retval 1 no messages waiting
+ * \return TRUE if found MWI in cache
  */
 static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 {
 	struct sip_mailbox *mailbox;
+	int in_cache;
 
+	in_cache = 0;
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 		struct ast_event *event;
 		event = ast_event_get_cached(AST_EVENT_MWI,
@@ -24798,9 +24802,10 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 		*new += ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 		*old += ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
 		ast_event_destroy(event);
+		in_cache = 1;
 	}
 
-	return (*new || *old) ? 0 : 1;
+	return in_cache;
 }
 
 /*! \brief Send message waiting indication to alert peer that they've got voicemail */
@@ -24820,12 +24825,11 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	if (event) {
 		newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 		oldmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
-	} else if (!cache_only) { /* Fall back to manually checking the mailbox */
+	} else if (!get_cached_mwi(peer, &newmsgs, &oldmsgs) && !cache_only) {
+		/* Fall back to manually checking the mailbox */
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
-	} else {
-		get_cached_mwi(peer, &newmsgs, &oldmsgs);
 	}
 	
 	if (peer->mwipvt) {

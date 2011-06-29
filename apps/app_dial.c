@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/aoc.h"
 #include "asterisk/ccss.h"
 #include "asterisk/indications.h"
+#include "asterisk/framehook.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -631,7 +632,8 @@ END_OPTIONS );
 	OPT_CALLER_HANGUP | OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER | \
 	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK |  \
 	OPT_CALLER_PARK | OPT_ANNOUNCE | OPT_CALLEE_MACRO | OPT_CALLEE_GOSUB) && \
-	!chan->audiohooks && !peer->audiohooks)
+	!chan->audiohooks && !peer->audiohooks && \
+	ast_framehook_list_is_empty(chan->framehooks) && ast_framehook_list_is_empty(peer->framehooks))
 
 /*
  * The list of active channels

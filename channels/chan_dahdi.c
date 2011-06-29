@@ -9409,6 +9409,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	int features;
 	struct ast_str *chan_name;
 	struct ast_variable *v;
+	char *dashptr;
+	char device_name[AST_CHANNEL_NAME];
 
 	if (i->subs[idx].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[idx]);
@@ -9589,7 +9591,13 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	/* Configure the new channel jb */
 	ast_jb_configure(tmp, &global_jbconf);
 
-	ast_devstate_changed_literal(ast_state_chan2dev(state), tmp->name);
+	/* Set initial device state */
+	ast_copy_string(device_name, tmp->name, sizeof(device_name));
+	dashptr = strrchr(device_name, '-');
+	if (dashptr) {
+		*dashptr = '\0';
+	}
+	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, device_name);
 
 	for (v = i->vars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp, v->name, v->value);
