@@ -740,7 +740,6 @@ struct sip_socket {
 struct sip_request {
 	ptrdiff_t rlPart1;      /*!< Offset of the SIP Method Name or "SIP/2.0" protocol version */
 	ptrdiff_t rlPart2;      /*!< Offset of the Request URI or Response Status */
-	int len;                /*!< bytes used in data[], excluding trailing null terminator. Rarely used. */
 	int headers;            /*!< # of SIP Headers */
 	int method;             /*!< Method of this request */
 	int lines;              /*!< Body Content */
@@ -1137,7 +1136,6 @@ struct sip_pkt {
 	struct timeval time_sent;  /*!< When pkt was sent */
 	int64_t retrans_stop_time; /*!< Time in ms after 'now' that retransmission must stop */
 	int retrans_stop;         /*!< Timeout is reached, stop retransmission  */
-	int packetlen;            /*!< Length of packet */
 	struct ast_str *data;
 };
 
