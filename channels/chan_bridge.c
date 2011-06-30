@@ -229,6 +229,9 @@ static struct ast_channel *bridge_request(const char *type, struct ast_format_ca
 	ast_format_copy(&p->input->rawwriteformat, &slin);
 	ast_format_copy(&p->output->rawwriteformat, &slin);
 
+	ast_answer(p->output);
+	ast_answer(p->input);
+
 	return p->input;
 }
 
