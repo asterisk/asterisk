@@ -1319,7 +1319,6 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 
 /*--- Misc functions */
 static void check_rtp_timeout(struct sip_pvt *dialog, time_t t);
-static int sip_do_reload(enum channelreloadreason reason);
 static int reload_config(enum channelreloadreason reason);
 static int expire_register(const void *data);
 static void *do_monitor(void *data);
@@ -13088,7 +13087,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
 
-/*! \brief return the request and response heade for a 401 or 407 code */
+/*! \brief return the request and response header for a 401 or 407 code */
 static void auth_headers(enum sip_auth_type code, char **header, char **respheader)
 {
 	if (code == WWW_AUTH) {			/* 401 */
@@ -16892,13 +16891,13 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));
 		ast_cli(fd, "%s\n", status);
- 		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
- 		ast_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
+		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
+		ast_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
 		ast_cli(fd, "  Qualify Freq : %d ms\n", peer->qualifyfreq);
 		if (peer->chanvars) {
- 			ast_cli(fd, "  Variables    :\n");
+			ast_cli(fd, "  Variables    :\n");
 			for (v = peer->chanvars ; v ; v = v->next)
- 				ast_cli(fd, "                 %s = %s\n", v->name, v->value);
+				ast_cli(fd, "                 %s = %s\n", v->name, v->value);
 		}
 
 		ast_cli(fd, "  Sess-Timers  : %s\n", stmode2str(peer->stimer.st_mode_oper));
@@ -16992,13 +16991,13 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "Status: ");
 		peer_status(peer, status, sizeof(status));
 		astman_append(s, "%s\r\n", status);
- 		astman_append(s, "SIP-Useragent: %s\r\n", peer->useragent);
- 		astman_append(s, "Reg-Contact: %s\r\n", peer->fullcontact);
+		astman_append(s, "SIP-Useragent: %s\r\n", peer->useragent);
+		astman_append(s, "Reg-Contact: %s\r\n", peer->fullcontact);
 		astman_append(s, "QualifyFreq: %d ms\r\n", peer->qualifyfreq);
 		astman_append(s, "Parkinglot: %s\r\n", peer->parkinglot);
 		if (peer->chanvars) {
 			for (v = peer->chanvars ; v ; v = v->next) {
- 				astman_append(s, "ChanVariable: %s=%s\r\n", v->name, v->value);
+				astman_append(s, "ChanVariable: %s=%s\r\n", v->name, v->value);
 			}
 		}
 		astman_append(s, "SIP-Use-Reason-Header : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON)) ? "Y" : "N");
@@ -18596,7 +18595,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
  		username = p->authname;
  		secret = p->relatedpeer 
 			&& !ast_strlen_zero(p->relatedpeer->remotesecret)
-			? p->relatedpeer->remotesecret : p->peersecret;
+				? p->relatedpeer->remotesecret : p->peersecret;
  		md5secret = p->peermd5secret;
  	}
 	if (ast_strlen_zero(username))	/* We have no authentication */
@@ -18620,7 +18619,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 
 	/* only include the opaque string if it's set */
 	if (!ast_strlen_zero(p->opaque)) {
-	  snprintf(opaque, sizeof(opaque), ", opaque=\"%s\"", p->opaque);
+		snprintf(opaque, sizeof(opaque), ", opaque=\"%s\"", p->opaque);
 	}
 
 	/* XXX We hard code our qop to "auth" for now.  XXX */
@@ -29308,13 +29307,18 @@ static const struct ast_data_entry sip_data_providers[] = {
 static int load_module(void)
 {
 	ast_verbose("SIP channel loading...\n");
+
 	/* the fact that ao2_containers can't resize automatically is a major worry! */
 	/* if the number of objects gets above MAX_XXX_BUCKETS, things will slow down */
 	peers = ao2_t_container_alloc(HASH_PEER_SIZE, peer_hash_cb, peer_cmp_cb, "allocate peers");
 	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, peer_ipcmp_cb, "allocate peers_by_ip");
 	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
 	threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
-	
+	if (!peers || !peers_by_ip || !dialogs || !threadt) {
+		ast_log(LOG_ERROR, "Unable to create primary SIP container(s)\n");
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	ASTOBJ_CONTAINER_INIT(&regl); /* Registry object list -- not searched for anything */
 	ASTOBJ_CONTAINER_INIT(&submwil); /* MWI subscription object list */
 
@@ -29332,7 +29336,7 @@ static int load_module(void)
 	sip_reloadreason = CHANNEL_MODULE_LOAD;
 
 	can_parse_xml = sip_is_xml_parsable();
-	if(reload_config(sip_reloadreason)) {	/* Load the configuration from sip.conf */
+	if (reload_config(sip_reloadreason)) {	/* Load the configuration from sip.conf */
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
