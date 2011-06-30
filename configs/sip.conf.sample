@@ -130,7 +130,7 @@ allowoverlap=no                 ; Disable overlap dialing support. (Default is y
                                 ; asterisk.conf, it defaults to that system name
                                 ; Realms MUST be globally unique according to RFC 3261
                                 ; Set this to your host name or domain name
-;domainsasrealm=no              ; Use domans list as realms
+;domainsasrealm=no              ; Use domains list as realms
                                 ; You can serve multiple Realms specifying several
                                 ; 'domain=...' directives (see below). 
                                 ; In this case Realm will be based on request 'From'/'To' header
