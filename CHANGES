@@ -150,6 +150,16 @@ pbx_lua
    stopped and restarted using the autoservice_stop() and autoservice_start()
    functions.
 
+res_fax
+--------------------------
+ * The ReceiveFAXStatus and SendFAXStatus manager events have been consolidated
+   into a FAXStatus event with an 'Operation' header that will be either
+   'send', 'receive', and 'gateway'.
+ * T.38 gateway functionality has been added to res_fax (and res_fax_spandsp).
+   Set FAXOPT(gateway)=yes to enable this functionality on a channel. This
+   feature will handle converting a fax call between an audio T.30 fax terminal
+   and an IFP T.38 fax terminal.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
