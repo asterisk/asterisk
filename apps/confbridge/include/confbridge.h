@@ -61,6 +61,9 @@ enum user_profile_flags {
 
 enum bridge_profile_flags {
 	BRIDGE_OPT_RECORD_CONFERENCE = (1 << 0), /*!< Set if the conference should be recorded */
+	BRIDGE_OPT_VIDEO_SRC_LAST_MARKED = (1 << 1), /*!< Set if conference should feed video of last marked user to all participants. */
+	BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED = (1 << 2), /*!< Set if conference should feed video of first marked user to all participants. */
+	BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER = (1 << 3), /*!< Set if conference set the video feed to follow the loudest talker.  */
 };
 
 enum conf_menu_action_id {
@@ -78,6 +81,7 @@ enum conf_menu_action_id {
 	MENU_ACTION_ADMIN_KICK_LAST,
 	MENU_ACTION_LEAVE,
 	MENU_ACTION_NOOP,
+	MENU_ACTION_SET_SINGLE_VIDEO_SRC,
 };
 
 /*! The conference menu action contains both

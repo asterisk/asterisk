@@ -70,6 +70,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_SOFTMIX_SILENCE_THRESHOLD 2500
 #define DEFAULT_SOFTMIX_TALKING_THRESHOLD 160
 
+#define DEFAULT_ENERGY_HISTORY_LEN 150
+
+struct video_follow_talker_data {
+	/*! audio energy history */
+	int energy_history[DEFAULT_ENERGY_HISTORY_LEN];
+	/*! The current slot being used in the history buffer, this
+	 *  increments and wraps around */
+	int energy_history_cur_slot;
+	/*! The current energy sum used for averages. */
+	int energy_accum;
+	/*! The current energy average */
+	int energy_average;
+};
+
 /*! \brief Structure which contains per-channel mixing information */
 struct softmix_channel {
 	/*! Lock to protect this structure */
@@ -93,6 +107,8 @@ struct softmix_channel {
 	short final_buf[MAX_DATALEN];
 	/*! Buffer containing only the audio from the channel */
 	short our_buf[MAX_DATALEN];
+	/*! Data pertaining to talker mode for video conferencing */
+	struct video_follow_talker_data video_talker;
 };
 
 struct softmix_bridge_data {
@@ -419,12 +435,24 @@ static void softmix_pass_dtmf(struct ast_bridge *bridge, struct ast_bridge_chann
 	}
 }
 
+static void softmix_pass_video(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+{
+	struct ast_bridge_channel *tmp;
+	AST_LIST_TRAVERSE(&bridge->channels, tmp, entry) {
+		if (tmp->suspended) {
+			continue;
+		}
+		ast_write(tmp->chan, frame);
+	}
+}
+
 /*! \brief Function called when a channel writes a frame into the bridge */
 static enum ast_bridge_write_result softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	struct softmix_channel *sc = bridge_channel->bridge_pvt;
 	struct softmix_bridge_data *softmix_data = bridge->bridge_pvt;
 	int totalsilence = 0;
+	int cur_energy = 0;
 	int silence_threshold = bridge_channel->tech_args.silence_threshold ?
 		bridge_channel->tech_args.silence_threshold :
 		DEFAULT_SOFTMIX_SILENCE_THRESHOLD;
@@ -434,18 +462,52 @@ static enum ast_bridge_write_result softmix_bridge_write(struct ast_bridge *brid
 	/* Only accept audio frames, all others are unsupported */
 	if (frame->frametype == AST_FRAME_DTMF_END || frame->frametype == AST_FRAME_DTMF_BEGIN) {
 		softmix_pass_dtmf(bridge, bridge_channel, frame);
-		goto no_audio;
-	} else if (frame->frametype != AST_FRAME_VOICE) {
+		goto bridge_write_cleanup;
+	} else if (frame->frametype != AST_FRAME_VOICE && frame->frametype != AST_FRAME_VIDEO) {
 		res = AST_BRIDGE_WRITE_UNSUPPORTED;
-		goto no_audio;
+		goto bridge_write_cleanup;
 	} else if (frame->datalen == 0) {
-		goto no_audio;
+		goto bridge_write_cleanup;
+	}
+
+	/* Determine if this video frame should be distributed or not */
+	if (frame->frametype == AST_FRAME_VIDEO) {
+		switch (bridge->video_mode.mode) {
+		case AST_BRIDGE_VIDEO_MODE_NONE:
+			break;
+		case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
+			if (ast_bridge_is_video_src(bridge, bridge_channel->chan)) {
+				softmix_pass_video(bridge, bridge_channel, frame);
+			}
+			break;
+		case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
+			ast_mutex_lock(&sc->lock);
+			ast_bridge_update_talker_src_video_mode(bridge, bridge_channel->chan, sc->video_talker.energy_average, ast_format_get_video_mark(&frame->subclass.format));
+			ast_mutex_unlock(&sc->lock);
+			if (ast_bridge_is_video_src(bridge, bridge_channel->chan)) {
+				softmix_pass_video(bridge, bridge_channel, frame);
+			}
+			break;
+		}
+		goto bridge_write_cleanup;
 	}
 
 	/* If we made it here, we are going to write the frame into the conference */
 	ast_mutex_lock(&sc->lock);
+	ast_dsp_silence_with_energy(sc->dsp, frame, &totalsilence, &cur_energy);
 
-	ast_dsp_silence(sc->dsp, frame, &totalsilence);
+	if (bridge->video_mode.mode == AST_BRIDGE_VIDEO_MODE_TALKER_SRC) {
+		int cur_slot = sc->video_talker.energy_history_cur_slot;
+		sc->video_talker.energy_accum -= sc->video_talker.energy_history[cur_slot];
+		sc->video_talker.energy_accum += cur_energy;
+		sc->video_talker.energy_history[cur_slot] = cur_energy;
+		sc->video_talker.energy_average = sc->video_talker.energy_accum / DEFAULT_ENERGY_HISTORY_LEN;
+		sc->video_talker.energy_history_cur_slot++;
+		if (sc->video_talker.energy_history_cur_slot == DEFAULT_ENERGY_HISTORY_LEN) {
+			sc->video_talker.energy_history_cur_slot = 0; /* wrap around */
+		}
+	}
+
 	if (totalsilence < silence_threshold) {
 		if (!sc->talking) {
 			update_talking = 1;
@@ -487,7 +549,7 @@ static enum ast_bridge_write_result softmix_bridge_write(struct ast_bridge *brid
 
 	return res;
 
-no_audio:
+bridge_write_cleanup:
 	/* Even though the frame is not being written into the conference because it is not audio,
 	 * we should use this opportunity to check to see if a frame is ready to be written out from
 	 * the conference to the channel. */
@@ -817,7 +879,7 @@ softmix_cleanup:
 
 static struct ast_bridge_technology softmix_bridge = {
 	.name = "softmix",
-	.capabilities = AST_BRIDGE_CAPABILITY_MULTIMIX | AST_BRIDGE_CAPABILITY_THREAD | AST_BRIDGE_CAPABILITY_MULTITHREADED | AST_BRIDGE_CAPABILITY_OPTIMIZE,
+	.capabilities = AST_BRIDGE_CAPABILITY_MULTIMIX | AST_BRIDGE_CAPABILITY_THREAD | AST_BRIDGE_CAPABILITY_MULTITHREADED | AST_BRIDGE_CAPABILITY_OPTIMIZE | AST_BRIDGE_CAPABILITY_VIDEO,
 	.preference = AST_BRIDGE_PREFERENCE_LOW,
 	.create = softmix_bridge_create,
 	.destroy = softmix_bridge_destroy,

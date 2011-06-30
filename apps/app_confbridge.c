@@ -77,6 +77,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
             <description>
                     <para>Enters the user into a specified conference bridge. The user can exit the conference by hangup or DTMF menu option.</para>
             </description>
+			<see-also>
+				<ref type="application">ConfBridge</ref>
+				<ref type="function">CONFBRIDGE</ref>
+				<ref type="function">CONFBRIDGE_INFO</ref>
+			</see-also>
     </application>
 	<function name="CONFBRIDGE" language="en_US">
 		<synopsis>
@@ -233,6 +238,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 		</description>
 	</manager>
+	<manager name="ConfbridgeSetSingleVideoSrc" language="en_US">
+		<synopsis>
+			Set a conference user as the single video source distributed to all other participants.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Conference" required="true" />
+			<parameter name="Channel" required="true" />
+		</syntax>
+		<description>
+		</description>
+	</manager>
+
 ***/
 
 /*!
@@ -614,6 +632,68 @@ static int play_prompt_to_channel(struct conference_bridge *conference_bridge, s
 	return res;
 }
 
+static void handle_video_on_join(struct conference_bridge *conference_bridge, struct conference_bridge_user *conference_bridge_user)
+{
+	/* only automatically set video source for marked users */
+	if (!ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_MARKEDUSER)) {
+		return;
+	}
+
+	if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED)) {
+		int set = 1;
+		struct conference_bridge_user *tmp_user = NULL;
+		ao2_lock(conference_bridge);
+		/* see if anyone is already the video src */
+		AST_LIST_TRAVERSE(&conference_bridge->users_list, tmp_user, list) {
+			if (tmp_user == conference_bridge_user) {
+				continue;
+			}
+			if (ast_bridge_is_video_src(conference_bridge->bridge, tmp_user->chan)) {
+				set = 0;
+				break;
+			}
+		}
+		ao2_unlock(conference_bridge);
+		if (set) {
+			ast_bridge_set_single_src_video_mode(conference_bridge->bridge, conference_bridge_user->chan);
+		}
+	} else if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED)) {
+		/* we joined and are video capable, we override anyone else that may have already been the video feed */
+		ast_bridge_set_single_src_video_mode(conference_bridge->bridge, conference_bridge_user->chan);
+	}
+}
+
+static void handle_video_on_exit(struct conference_bridge *conference_bridge, struct conference_bridge_user *conference_bridge_user)
+{
+	struct conference_bridge_user *tmp_user = NULL;
+
+	/* if this isn't a video source, nothing to update */
+	if (!ast_bridge_is_video_src(conference_bridge->bridge, conference_bridge_user->chan)) {
+		return;
+	}
+
+	ast_bridge_remove_video_src(conference_bridge->bridge, conference_bridge_user->chan);
+
+	/* if the video_mode isn't set to automatically pick the video source, do nothing on exit. */
+	if (!ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED) &&
+		!ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED)) {
+		return;
+	}
+
+	/* Make the next avaliable marked user the video src.  */
+	ao2_lock(conference_bridge);
+	AST_LIST_TRAVERSE(&conference_bridge->users_list, tmp_user, list) {
+		if (tmp_user == conference_bridge_user) {
+			continue;
+		}
+		if (ast_test_flag(&tmp_user->u_profile, USER_OPT_MARKEDUSER)) {
+			ast_bridge_set_single_src_video_mode(conference_bridge->bridge, tmp_user->chan);
+			break;
+		}
+	}
+	ao2_unlock(conference_bridge);
+}
+
 /*!
  * \brief Perform post-joining marked specific actions
  *
@@ -627,7 +707,8 @@ static int post_join_marked(struct conference_bridge *conference_bridge, struct 
 	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_MARKEDUSER)) {
 		struct conference_bridge_user *other_conference_bridge_user = NULL;
 
-		/* If we are not the first marked user to join just bail out now */
+		/* If we are not the first user to join, then the users are already
+		 * in the conference so we do not need to update them. */
 		if (conference_bridge->markedusers >= 2) {
 			return 0;
 		}
@@ -664,7 +745,6 @@ static int post_join_marked(struct conference_bridge *conference_bridge, struct 
 				other_conference_bridge_user->features.mute = 0;
 			}
 		}
-
 	} else {
 		/* If a marked user already exists in the conference bridge we can just bail out now */
 		if (conference_bridge->markedusers) {
@@ -858,6 +938,10 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 		ast_bridge_set_internal_sample_rate(conference_bridge->bridge, conference_bridge->b_profile.internal_sample_rate);
 		/* Set the internal mixing interval on the bridge from the bridge profile */
 		ast_bridge_set_mixing_interval(conference_bridge->bridge, conference_bridge->b_profile.mix_interval);
+
+		if (ast_test_flag(&conference_bridge->b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
+			ast_bridge_set_talker_src_video_mode(conference_bridge->bridge);
+		}
 
 		/* Setup lock for playback channel */
 		ast_mutex_init(&conference_bridge->playback_lock);
@@ -1370,6 +1454,8 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
+	handle_video_on_join(conference_bridge, &conference_bridge_user);
+
 	/* Join our conference bridge for real */
 	send_join_event(conference_bridge_user.chan, conference_bridge->name);
 	ast_bridge_join(conference_bridge->bridge,
@@ -1378,6 +1464,9 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		&conference_bridge_user.features,
 		&conference_bridge_user.tech_args);
 	send_leave_event(conference_bridge_user.chan, conference_bridge->name);
+
+
+	handle_video_on_exit(conference_bridge, &conference_bridge_user);
 
 	/* if this user has a intro, play it when leaving */
 	if (!quiet && !ast_strlen_zero(conference_bridge_user.name_rec_location)) {
@@ -1680,6 +1769,11 @@ static int execute_menu_entry(struct conference_bridge *conference_bridge,
 			ao2_unlock(conference_bridge);
 			break;
 		case MENU_ACTION_NOOP:
+			break;
+		case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
+			ao2_lock(conference_bridge);
+			ast_bridge_set_single_src_video_mode(conference_bridge->bridge, bridge_channel->chan);
+			ao2_unlock(conference_bridge);
 			break;
 		}
 	}
@@ -2436,6 +2530,55 @@ static int action_confbridgestoprecord(struct mansession *s, const struct messag
 	return 0;
 }
 
+static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct message *m)
+{
+	const char *conference = astman_get_header(m, "Conference");
+	const char *channel = astman_get_header(m, "Channel");
+	struct conference_bridge_user *participant = NULL;
+	struct conference_bridge *bridge = NULL;
+	struct conference_bridge tmp;
+
+	if (ast_strlen_zero(conference)) {
+		astman_send_error(s, m, "No Conference name provided.");
+		return 0;
+	}
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "No channel name provided.");
+		return 0;
+	}
+	if (!ao2_container_count(conference_bridges)) {
+		astman_send_error(s, m, "No active conferences.");
+		return 0;
+	}
+
+	ast_copy_string(tmp.name, conference, sizeof(tmp.name));
+	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
+	if (!bridge) {
+		astman_send_error(s, m, "No Conference by that name found.");
+		return 0;
+	}
+
+	/* find channel and set as video src. */
+	ao2_lock(bridge);
+	AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
+		if (!strncmp(channel, participant->chan->name, strlen(channel))) {
+			ast_bridge_set_single_src_video_mode(bridge->bridge, participant->chan);
+			break;
+		}
+	}
+	ao2_unlock(bridge);
+	ao2_ref(bridge, -1);
+
+	/* do not access participant after bridge unlock.  We are just
+	 * using this check to see if it was found or not */
+	if (!participant) {
+		astman_send_error(s, m, "No channel by that name found in conference.");
+		return 0;
+	}
+	astman_send_ack(s, m, "Conference single video source set.");
+	return 0;
+}
+
 static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *parse = NULL;
@@ -2567,6 +2710,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeLock", EVENT_FLAG_CALL, action_confbridgelock);
 	res |= ast_manager_register_xml("ConfbridgeStartRecord", EVENT_FLAG_CALL, action_confbridgestartrecord);
 	res |= ast_manager_register_xml("ConfbridgeStopRecord", EVENT_FLAG_CALL, action_confbridgestoprecord);
+	res |= ast_manager_register_xml("ConfbridgeSetSingleVideoSrc", EVENT_FLAG_CALL, action_confbridgesetsinglevideosrc);
 
 	conf_load_config(0);
 	return res;

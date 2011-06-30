@@ -167,12 +167,48 @@ struct ast_bridge_channel {
 	AST_LIST_ENTRY(ast_bridge_channel) entry;
 };
 
+enum ast_bridge_video_mode_type {
+	/*! Video is not allowed in the bridge */
+	AST_BRIDGE_VIDEO_MODE_NONE = 0,
+	/*! A single user is picked as the only distributed of video across the bridge */
+	AST_BRIDGE_VIDEO_MODE_SINGLE_SRC,
+	/*! A single user's video feed is distributed to all bridge channels, but
+	 *  that feed is automatically picked based on who is talking the most. */
+	AST_BRIDGE_VIDEO_MODE_TALKER_SRC,
+};
+
+/*! This is used for both SINGLE_SRC mode to set what channel
+ *  should be the current single video feed */
+struct ast_bridge_video_single_src_data {
+	/*! Only accept video coming from this channel */
+	struct ast_channel *chan_vsrc;
+};
+
+/*! This is used for both SINGLE_SRC_TALKER mode to set what channel
+ *  should be the current single video feed */
+struct ast_bridge_video_talker_src_data {
+	/*! Only accept video coming from this channel */
+	struct ast_channel *chan_vsrc;
+	int average_talking_energy;
+};
+
+struct ast_bridge_video_mode {
+	enum ast_bridge_video_mode_type mode;
+	/* Add data for all the video modes here. */
+	union {
+		struct ast_bridge_video_single_src_data single_src_data;
+		struct ast_bridge_video_talker_src_data talker_src_data;
+	} mode_data;
+};
+
 /*!
  * \brief Structure that contains information about a bridge
  */
 struct ast_bridge {
 	/*! Number of channels participating in the bridge */
 	int num;
+	/*! The video mode this bridge is using */
+	struct ast_bridge_video_mode video_mode;
 	/*! The internal sample rate this bridge is mixed at when multiple channels are being mixed.
 	 *  If this value is 0, the bridge technology may auto adjust the internal mixing rate. */
 	unsigned int internal_sample_rate;
@@ -475,6 +511,31 @@ void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int
  */
 void ast_bridge_set_mixing_interval(struct ast_bridge *bridge, unsigned int mixing_interval);
 
+/*!
+ * \brief Set a bridge to feed a single video source to all participants.
+ */
+void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_channel *video_src_chan);
+
+/*!
+ * \brief Set the bridge to pick the strongest talker supporting
+ * video as the single source video feed
+ */
+void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge);
+
+/*!
+ * \brief Update information about talker energy for talker src video mode.
+ */
+void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyfame);
+
+/*!
+ * \brief Determine if a channel is a video src for the bridge
+ */
+int ast_bridge_is_video_src(struct ast_bridge *bridge, struct ast_channel *chan);
+
+/*!
+ * \brief remove a channel as a source of video for the bridge.
+ */
+void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *chan);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

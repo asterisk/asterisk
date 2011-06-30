@@ -284,6 +284,14 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		}
 	} else if (!strcasecmp(name, "record_conference")) {
 		ast_set2_flag(b_profile, ast_true(value), BRIDGE_OPT_RECORD_CONFERENCE);
+	} else if (!strcasecmp(name, "video_mode")) {
+		if (!strcasecmp(value, "first_marked")) {
+			ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED);
+		} else if (!strcasecmp(value, "last_marked")) {
+			ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_LAST_MARKED);
+		} else if (!strcasecmp(value, "follow_talker")) {
+			ast_set_flag(b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
+		}
 	} else if (!strcasecmp(name, "max_members")) {
 		if (sscanf(value, "%30u", &b_profile->max_members) != 1) {
 			return -1;
@@ -534,6 +542,7 @@ static int add_action_to_menu_entry(struct conf_menu_entry *menu_entry, enum con
 	case MENU_ACTION_ADMIN_TOGGLE_LOCK:
 	case MENU_ACTION_ADMIN_KICK_LAST:
 	case MENU_ACTION_LEAVE:
+	case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
 		break;
 	case MENU_ACTION_PLAYBACK:
 	case MENU_ACTION_PLAYBACK_AND_CONTINUE:
@@ -649,6 +658,8 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_ADMIN_KICK_LAST, NULL);
 		} else if (!strcasecmp(action, "leave_conference")) {
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_LEAVE, NULL);
+		} else if (!strcasecmp(action, "set_as_single_video_src")) {
+			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_SET_SINGLE_VIDEO_SRC, NULL);
 		} else if (!strncasecmp(action, "dialplan_exec(", 14)) {
 			ast_copy_string(buf, action, sizeof(buf));
 			action_args = buf;
@@ -983,6 +994,16 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		ast_cli(a->fd,"Max Members:          No Limit\n");
 	}
 
+	if (b_profile.flags & BRIDGE_OPT_VIDEO_SRC_LAST_MARKED) {
+		ast_cli(a->fd, "Video Mode:           last_marked\n");
+	} else if (b_profile.flags & BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED) {
+		ast_cli(a->fd, "Video Mode:           first_marked\n");
+	} else if (b_profile.flags & BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER) {
+		ast_cli(a->fd, "Video Mode:           follow_talker\n");
+	} else {
+		ast_cli(a->fd, "Video Mode:           no video\n");
+	}
+
 	ast_cli(a->fd,"sound_join:           %s\n", conf_get_sound(CONF_SOUND_JOIN, b_profile.sounds));
 	ast_cli(a->fd,"sound_leave:          %s\n", conf_get_sound(CONF_SOUND_LEAVE, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
@@ -1141,6 +1162,9 @@ static char *handle_cli_confbridge_show_menu(struct ast_cli_entry *e, int cmd, s
 				break;
 			case MENU_ACTION_LEAVE:
 				ast_cli(a->fd, "leave_conference");
+				break;
+			case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
+				ast_cli(a->fd, "set_as_single_video_src");
 				break;
 			}
 			action_num++;

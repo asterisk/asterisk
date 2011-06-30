@@ -903,8 +903,6 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 static int is_valid_dtmf(const char *key);
 static void read_password_from_file(const char *secretfn, char *password, int passwordlen);
 static int write_password_to_file(const char *secretfn, const char *password);
-static const char *substitute_escapes(const char *value);
-static void free_user(struct ast_vm_user *vmu);
 
 struct ao2_container *inprocess_container;
 
@@ -996,8 +994,7 @@ static char *strip_control_and_high(const char *input, char *buf, size_t buflen)
  * - the dialcontext
  * - the exitcontext
  * - vmmaxsecs, vmmaxmsg, maxdeletedmsg
- * - volume gain
- * - emailsubject, emailbody set to NULL
+ * - volume gain.
  */
 static void populate_defaults(struct ast_vm_user *vmu)
 {
@@ -1048,10 +1045,6 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->attachfmt, value, sizeof(vmu->attachfmt));
 	} else if (!strcasecmp(var, "serveremail")) {
 		ast_copy_string(vmu->serveremail, value, sizeof(vmu->serveremail));
-	} else if (!strcasecmp(var, "emailbody")) {
-		vmu->emailbody = ast_strdup(substitute_escapes(value));
-	} else if (!strcasecmp(var, "emailsubject")) {
-		vmu->emailsubject = ast_strdup(substitute_escapes(value));
 	} else if (!strcasecmp(var, "language")) {
 		ast_copy_string(vmu->language, value, sizeof(vmu->language));
 	} else if (!strcasecmp(var, "tz")) {
@@ -1389,7 +1382,7 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 			ast_variables_destroy(var);
 		} else { 
 			if (!ivm) 
-				free_user(retval);
+				ast_free(retval);
 			retval = NULL;
 		}	
 	} 
@@ -10644,9 +10637,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 		"envelope=yes|moveheard=yes|sayduration=yes|saydurationm=5|forcename=yes|"
 		"forcegreetings=yes|callback=somecontext|dialout=somecontext2|"
 		"exitcontext=somecontext3|minsecs=10|maxsecs=100|nextaftercmd=yes|"
-		"backupdeleted=50|volgain=1.3|passwordlocation=spooldir|emailbody="
-		"Dear ${VM_NAME}:\n\n\tYou were just left a ${VM_DUR} long message|emailsubject="
-		"[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}";
+		"backupdeleted=50|volgain=1.3|passwordlocation=spooldir";
 #ifdef IMAP_STORAGE
 	static const char option_string2[] = "imapuser=imapuser|imappassword=imappasswd|"
 		"imapfolder=INBOX|imapvmshareid=6000";
@@ -10668,7 +10659,6 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 		return AST_TEST_NOT_RUN;
 	}
 	ast_set_flag(vmu, VM_ALLOCED);
-	populate_defaults(vmu);
 
 	apply_options(vmu, options_string);
 
@@ -10682,14 +10672,6 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	}
 	if (strcasecmp(vmu->serveremail, "someguy@digium.com")) {
 		ast_test_status_update(test, "Parse failure for serveremail option\n");
-		res = 1;
-	}
-	if (!vmu->emailsubject || strcasecmp(vmu->emailsubject, "[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}")) {
-		ast_test_status_update(test, "Parse failure for emailsubject option\n");
-		res = 1;
-	}
-	if (!vmu->emailbody || strcasecmp(vmu->emailbody, "Dear ${VM_NAME}:\n\n\tYou were just left a ${VM_DUR} long message")) {
-		ast_test_status_update(test, "Parse failure for emailbody option\n");
 		res = 1;
 	}
 	if (strcasecmp(vmu->zonetag, "central")) {

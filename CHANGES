@@ -82,6 +82,8 @@ ConfBridge
  * CONFBRIDGE_INFO dialplan function capable of retreiving information 
    about a conference such as locked status and number of parties, admins,
    and marked users.
+ * Addition of video_mode option in confbridge.conf for adding video support
+   into a bridge profile.
 
 Dialplan Variables
 ------------------

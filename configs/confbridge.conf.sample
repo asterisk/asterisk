@@ -168,6 +168,26 @@ type=bridge
                         ; larger amounts of delay into the bridge.  Valid values here are 10, 20, 40,
                         ; or 80.  By default 20ms is used.
 
+;video_mode = follow_talker ; Sets how confbridge handles video distribution to the conference participants.
+                           ; Note that participants wanting to view and be the source of a video feed
+                           ; _MUST_ be sharing the same video codec.
+                           ; --- MODES ---
+                           ; none: No video sources are set by default in the conference. It is still
+                           ;       possible for a user to be set as a video source via AMI or DTMF action
+                           ;       at any time.
+                           ;
+                           ; follow_talker: The video feed will follow whoever is talking and providing video.
+                           ;
+                           ; last_marked: The last marked user to join the conference with video capabilities
+                           ;              will be the single source of video distributed to all participants.
+                           ;              If multiple marked users are capable of video, the last one to join
+                           ;              is always the source, when that user leaves it goes to the one who
+                           ;              joined before them.
+                           ;
+                           ; first_marked: The first marked user to join the conference with video capabilities
+                           ;               is the single source of video distribution among all participants. If
+                           ;               that user leaves, the marked user to join after them becomes the source.
+
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after
 ; the option.  Example: sound_had_joined=conf-hasjoin  This will play the conf-hasjoin
@@ -264,6 +284,8 @@ type=bridge
 ; admin_toggle_conference_lock ; This action allows an Admin to toggle locking and
                                ; unlocking the conference.  Non admins can not use
                                ; this action even if it is in their menu.
+; set_as_single_video_src   ; This action allows any user to set themselves as the
+                            ; single video source distributed to all participants.
 
 [sample_user_menu]
 type=menu
