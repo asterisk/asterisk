@@ -381,7 +381,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out->samples = fr->samples;
 		out->offset = fr->offset;
 		/* Copy the timing data */
-		ast_copy_flags(out, fr, AST_FRFLAG_HAS_TIMING_INFO);
+		ast_copy_flags(out, fr, AST_FLAGS_ALL);
 		if (ast_test_flag(fr, AST_FRFLAG_HAS_TIMING_INFO)) {
 			out->ts = fr->ts;
 			out->len = fr->len;
@@ -505,7 +505,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 		/* Must have space since we allocated for it */
 		strcpy(src, f->src);
 	}
-	ast_copy_flags(out, f, AST_FRFLAG_HAS_TIMING_INFO);
+	ast_copy_flags(out, f, AST_FLAGS_ALL);
 	out->ts = f->ts;
 	out->len = f->len;
 	out->seqno = f->seqno;
