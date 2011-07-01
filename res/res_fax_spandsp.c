@@ -37,6 +37,7 @@
  * \brief Spandsp T.38 and G.711 FAX Resource
  *
  * \author Matthew Nicholson <mnicholson@digium.com>
+ * \author Gregory H. Nietsky <gregory@distrotech.co.za>
  *
  * This module registers the Spandsp FAX technology with the res_fax module.
  */

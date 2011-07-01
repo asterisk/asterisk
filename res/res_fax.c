@@ -13,7 +13,7 @@
  * Sponsored by IPEX a.s. http://www.ipex.cz
  *
  * T.38-gateway integration into asterisk app_fax and rework
- * 2008, Gregory Hinton Nietsky <gregory@dnstelecom.co.za>
+ * 2008-2011, Gregory Hinton Nietsky <gregory@distrotech.co.za>
  * dns Telecom http://www.dnstelecom.co.za
  *
  * Modified to make T.38-gateway compatible with Asterisk 1.6.2
@@ -45,6 +45,7 @@
  * \author Dwayne M. Hubbard <dhubbard@digium.com>
  * \author Kevin P. Fleming <kpfleming@digium.com>
  * \author Matthew Nicholson <mnicholson@digium.com>
+ * \author Gregory H. Nietsky  <gregory@distrotech.co.za>
  * 
  * A generic FAX resource module that provides SendFAX and ReceiveFAX applications.
  * This module requires FAX technology modules, like res_fax_spandsp, to register with it
