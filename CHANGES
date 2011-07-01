@@ -178,6 +178,13 @@ Queue changes
    will allow per member control of multiple calls as ringinuse does for
    the Queue.
 
+Applications
+------------
+ * Added 'v' option to MeetMe to play voicemail greetings when a user joins/leaves
+   a MeetMe conference
+ * Added ability to include '@parkinglot' to ParkedCall extension in order to specify
+   a specific parkinglot on which to search the extension.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
@@ -351,10 +358,6 @@ Applications
    notices a change.
  * Voicemail now includes rdnis within msgXXXX.txt file.
  * Added 'D' command to ExternalIVR full details in doc/externalivr.txt
- * Added 'v' option to MeetMe to play voicemail greetings when a user joins/leaves
-   a MeetMe conference
- * Added ability to include '@parkinglot' to ParkedCall extension in order to specify
-   a specific parkinglot on which to search the extension.
 
 Dialplan Functions
 ------------------
