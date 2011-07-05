@@ -34,7 +34,7 @@
 /*** MODULEINFO
 	<depend>iksemel</depend>
 	<depend>res_jabber</depend>
-	<use>openssl</use>
+	<use type="external">openssl</use>
  ***/
 
 

@@ -57,7 +57,7 @@
  */
 
 /*** MODULEINFO
-	<use>res_monitor</use>
+	<use type="module">res_monitor</use>
  ***/
 
 #include "asterisk.h"

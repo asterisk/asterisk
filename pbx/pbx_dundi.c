@@ -23,7 +23,7 @@
 
 /*** MODULEINFO
 	<depend>zlib</depend>
-	<use>crypto</use>
+	<use type="external">crypto</use>
  ***/
 
 #include "asterisk.h"

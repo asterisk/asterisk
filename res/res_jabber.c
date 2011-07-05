@@ -32,7 +32,7 @@
 
 /*** MODULEINFO
 	<depend>iksemel</depend>
-	<use>openssl</use>
+	<use type="external">openssl</use>
  ***/
 
 #include "asterisk.h"
