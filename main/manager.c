@@ -812,6 +812,52 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Generates an AOC-D or AOC-E message on a channel.</para>
 		</description>
 	</manager>
+	<manager name="Filter" language="en_US">
+		<synopsis>
+			Dynamically add filters for the current manager session.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Operation">
+				<enumlist>
+					<enum name="Add">
+						<para>Add a filter.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="Filter">
+				<para>Filters can be whitelist or blacklist</para>
+				<para>Example whitelist filter: "Event: Newchannel"</para>
+				<para>Example blacklist filter: "!Channel: DAHDI.*"</para>
+				<para>This filter option is used to whitelist or blacklist events per user to be
+				reported with regular expressions and are allowed if both the regex matches
+				and the user has read access as defined in manager.conf. Filters are assumed to be for whitelisting
+				unless preceeded by an exclamation point, which marks it as being black.
+				Evaluation of the filters is as follows:</para>
+				<para>- If no filters are configured all events are reported as normal.</para>
+				<para>- If there are white filters only: implied black all filter processed first, then white filters.</para>
+				<para>- If there are black filters only: implied white all filter processed first, then black filters.</para>
+				<para>- If there are both white and black filters: implied black all filter processed first, then white
+				filters, and lastly black filters.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The filters added are only used for the current session.
+			Once the connection is closed the filters are removed.</para>
+			<para>This comand requires the system permission because
+			this command can be used to create filters that may bypass
+			filters defined in manager.conf</para>
+		</description>
+	</manager>
+	<manager name="FilterList" language="en_US">
+		<synopsis>
+			Show current event filters for this session
+		</synopsis>
+		<description>
+			<para>The filters displayed are for the current session.  Only those filters defined in
+                        manager.conf will be present upon starting a new session.</para>
+		</description>
+	</manager>
  ***/
 
 enum error_type {
@@ -828,6 +874,11 @@ enum error_type {
 	FAILURE_APPEND
 };
 
+enum add_filter_result {
+	FILTER_SUCCESS,
+        FILTER_ALLOC_FAILED,
+        FILTER_COMPILE_FAIL,
+};
 
 /*!
  * Linked list of events.
@@ -1018,6 +1069,8 @@ static AST_RWLIST_HEAD_STATIC(actions, manager_action);
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
 static void free_channelvars(void);
+
+static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
 /*! \brief Add a custom hook to be called when an event is fired */
 void ast_manager_register_hook(struct manager_custom_hook *hook)
@@ -4122,6 +4175,88 @@ static int blackfilter_cmp_fn(void *obj, void *arg, void *data, int flags)
 	return 0;
 }
 
+/*
+ * \brief Manager command to add an event filter to a manager session
+ * \see For more details look at manager_add_filter
+ */
+static int action_filter(struct mansession *s, const struct message *m)
+{
+	const char *filter = astman_get_header(m, "Filter");
+        const char *operation = astman_get_header(m, "Operation");
+        int res;
+
+        if (!strcasecmp(operation, "Add")) {
+		res = manager_add_filter(filter, s->session->whitefilters, s->session->blackfilters);
+
+	        if (res != FILTER_SUCCESS) {
+		        if (res == FILTER_ALLOC_FAILED) {
+				astman_send_error(s, m, "Internal Error. Failed to allocate regex for filter");
+		                return 0;
+		        } else if (res == FILTER_COMPILE_FAIL) {
+				astman_send_error(s, m, "Filter did not compile.  Check the syntax of the filter given.");
+		                return 0;
+		        } else {
+				astman_send_error(s, m, "Internal Error. Failed adding filter.");
+		                return 0;
+	                }
+		}
+
+		astman_send_ack(s, m, "Success");
+                return 0;
+        }
+
+	astman_send_error(s, m, "Unknown operation");
+	return 0;
+}
+
+/*
+ * \brief Add an event filter to a manager session
+ *
+ * \param s               manager session to modify filters on
+ * \param filter_pattern  Filter syntax to add, see below for syntax
+ *
+ * \return FILTER_ALLOC_FAILED   Memory allocation failure
+ * \return FILTER_COMPILE_FAIL   If the filter did not compile
+ * \return FILTER_SUCCESS        Success
+ *
+ * Filter will be used to match against each line of a manager event
+ * Filter can be any valid regular expression
+ * Filter can be a valid regular expression prefixed with !, which will add the filter as a black filter
+ *
+ * \example filter_pattern = "Event: Newchannel"
+ * \example filter_pattern = "Event: New.*"
+ * \example filter_pattern = "!Channel: DAHDI.*"
+ *
+ */
+static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters) {
+	regex_t *new_filter = ao2_t_alloc(sizeof(*new_filter), event_filter_destructor, "event_filter allocation");
+	int is_blackfilter;
+
+	if (!new_filter) {
+		return FILTER_ALLOC_FAILED;
+	}
+
+	if (filter_pattern[0] == '!') {
+		is_blackfilter = 1;
+		filter_pattern++;
+	} else {
+		is_blackfilter = 0;
+	}
+
+	if (regcomp(new_filter, filter_pattern, 0)) {
+		ao2_t_ref(new_filter, -1, "failed to make regx");
+		return FILTER_COMPILE_FAIL;
+	}
+
+	if (is_blackfilter) {
+		ao2_t_link(blackfilters, new_filter, "link new filter into black user container");
+	} else {
+		ao2_t_link(whitefilters, new_filter, "link new filter into white user container");
+	}
+
+        return FILTER_SUCCESS;
+}
+
 static int match_filter(struct mansession *s, char *eventdata)
 {
 	int result = 0;
@@ -6284,6 +6419,7 @@ static int __init_manager(int reload)
 		ast_manager_register_xml("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
 		ast_manager_register_xml("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);
 		ast_manager_register_xml("AOCMessage", EVENT_FLAG_AOC, action_aocmessage);
+		ast_manager_register_xml("Filter", EVENT_FLAG_SYSTEM, action_filter);
 
 		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
@@ -6563,25 +6699,7 @@ static int __init_manager(int reload)
 				}
 			} else if (!strcasecmp(var->name, "eventfilter")) {
 				const char *value = var->value;
-				regex_t *new_filter = ao2_t_alloc(sizeof(*new_filter), event_filter_destructor, "event_filter allocation");
-				if (new_filter) {
-					int is_blackfilter;
-					if (value[0] == '!') {
-						is_blackfilter = 1;
-						value++;
-					} else {
-						is_blackfilter = 0;
-					}
-					if (regcomp(new_filter, value, 0)) {
-						ao2_t_ref(new_filter, -1, "failed to make regx");
-					} else {
-						if (is_blackfilter) {
-							ao2_t_link(user->blackfilters, new_filter, "link new filter into black user container");
-						} else {
-							ao2_t_link(user->whitefilters, new_filter, "link new filter into white user container");
-						}
-					}
-				}
+                                manager_add_filter(value, user->whitefilters, user->blackfilters);
 			} else {
 				ast_debug(1, "%s is an unknown option.\n", var->name);
 			}

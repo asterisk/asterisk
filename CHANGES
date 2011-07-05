@@ -41,6 +41,9 @@ Asterisk Manager Interface
    Description field that is set by 'description' in the channel configuration
    file.
  * Added Uniqueid header to UserEvent.
+ * Added new action FilterAdd to control event filters for the current session.
+   This requires the system permission and uses the same filter syntax as
+   filters that can be defined in manager.conf
 
 Asterisk HTTP Server
 --------------------------
