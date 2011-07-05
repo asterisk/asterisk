@@ -38,12 +38,12 @@
  */
 
 /*** MODULEINFO
-	<use>res_smdi</use>
+	<use type="module">res_smdi</use>
 	<depend>dahdi</depend>
 	<depend>tonezone</depend>
-	<use>pri</use>
-	<use>ss7</use>
-	<use>openr2</use>
+	<use type="external">pri</use>
+	<use type="external">ss7</use>
+	<use type="external">openr2</use>
  ***/
 
 #include "asterisk.h"
