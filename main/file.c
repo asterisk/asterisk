@@ -29,6 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <math.h>
 
 #include "asterisk/_private.h"	/* declare ast_file_init() */
@@ -291,6 +292,8 @@ static int exts_compare(const char *exts, const char *type)
 static void filestream_destructor(void *arg)
 {
 	struct ast_filestream *f = arg;
+	int status;
+	int pid = -1;
 
 	/* Stop a running stream if there is one */
 	if (f->owner) {
@@ -308,8 +311,14 @@ static void filestream_destructor(void *arg)
 		ast_translator_free_path(f->trans);
 
 	if (f->realfilename && f->filename) {
-		if (ast_safe_fork(0) == 0) {
+		pid = ast_safe_fork(0);
+		if (!pid) {
 			execl("/bin/mv", "mv", "-f", f->filename, f->realfilename, SENTINEL);
+			_exit(1);
+		}
+		else if (pid > 0) {
+			/* Block the parent until the move is complete.*/
+			waitpid(pid, &status, 0);
 		}
 	}
 
