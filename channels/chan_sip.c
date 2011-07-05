@@ -1121,9 +1121,10 @@ static void temp_pvt_cleanup(void *);
 /*! \brief A per-thread temporary pvt structure */
 AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
-/*! \brief Authentication list for realm authentication
- * \todo Move the sip_auth list to AST_LIST */
-static struct sip_auth *authl = NULL;
+/*! \brief Authentication container for realm authentication */
+static struct sip_auth_container *authl = NULL;
+/*! \brief Global authentication container protection while adjusting the references. */
+AST_MUTEX_DEFINE_STATIC(authl_lock);
 
 /* --- Sockets and networking --------------*/
 
@@ -1329,9 +1330,8 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
 static void clear_sip_domains(void);
 
 /*--- SIP realm authentication */
-static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, const char *configuration, int lineno);
-static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
-static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);
+static void add_realm_authentication(struct sip_auth_container **credentials, const char *configuration, int lineno);
+static struct sip_auth *find_realm_authentication(struct sip_auth_container *credentials, const char *realm);
 
 /*--- Misc functions */
 static void check_rtp_timeout(struct sip_pvt *dialog, time_t t);
@@ -4615,8 +4615,10 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ast_debug(3, "-REALTIME- peer Destroyed. Name: %s. Realtime Peer objects: %d\n", peer->name, rpeerobjs);
 	} else
 		ast_atomic_fetchadd_int(&speerobjs, -1);
-	clear_realm_authentication(peer->auth);
-	peer->auth = NULL;
+	if (peer->auth) {
+		ao2_t_ref(peer->auth, -1, "Removing peer authentication");
+		peer->auth = NULL;
+	}
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
 	clear_peer_mailboxes(peer);
@@ -5117,6 +5119,8 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
  */
 static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 {
+	struct sip_auth_container *credentials;
+
 	/* this checks that the dialog is contacting the peer on a valid
 	 * transport type based on the peers transport configuration,
 	 * otherwise, this function bails out */
@@ -5205,7 +5209,21 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->allowtransfer = peer->allowtransfer;
 	dialog->jointnoncodeccapability = dialog->noncodeccapability;
 	dialog->rtptimeout = peer->rtptimeout;
-	dialog->peerauth = peer->auth;
+
+	/* Update dialog authorization credentials */
+	ao2_lock(peer);
+	credentials = peer->auth;
+	if (credentials) {
+		ao2_t_ref(credentials, +1, "Ref peer auth for dialog");
+	}
+	ao2_unlock(peer);
+	ao2_lock(dialog);
+	if (dialog->peerauth) {
+		ao2_t_ref(dialog->peerauth, -1, "Unref old dialog peer auth");
+	}
+	dialog->peerauth = credentials;
+	ao2_unlock(dialog);
+
 	dialog->maxcallbitrate = peer->maxcallbitrate;
 	dialog->disallowed_methods = peer->disallowed_methods;
 	ast_cc_copy_config_params(dialog->cc_params, peer->cc_params);
@@ -5732,6 +5750,12 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ao2_ref(p->socket.tcptls_session, -1);
 		p->socket.tcptls_session = NULL;
 	}
+
+	if (p->peerauth) {
+		ao2_t_ref(p->peerauth, -1, "Removing active peer authentication");
+		p->peerauth = NULL;
+	}
+
 	p->caps = ast_format_cap_destroy(p->caps);
 	p->jointcaps = ast_format_cap_destroy(p->jointcaps);
 	p->peercaps = ast_format_cap_destroy(p->peercaps);
@@ -17227,7 +17251,6 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 	char codec_buf[512];
 	struct ast_codec_pref *pref;
 	struct ast_variable *v;
-	struct sip_auth *auth;
 	int x = 0, load_realtime;
 	struct ast_format codec;
 	int realtimepeers;
@@ -17255,6 +17278,15 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 	}
 	if (peer && type==0 ) { /* Normal listing */
 		struct ast_str *mailbox_str = ast_str_alloca(512);
+		struct sip_auth_container *credentials;
+
+		ao2_lock(peer);
+		credentials = peer->auth;
+		if (credentials) {
+			ao2_t_ref(credentials, +1, "Ref peer auth for show");
+		}
+		ao2_unlock(peer);
+
 		ast_cli(fd, "\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
 		ast_cli(fd, "  Description  : %s\n", peer->description);
@@ -17264,9 +17296,19 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  Remote Secret: %s\n", ast_strlen_zero(peer->remotesecret)?"<Not set>":"<Set>");
-		for (auth = peer->auth; auth; auth = auth->next) {
-			ast_cli(fd, "  Realm-auth   : Realm %-15.15s User %-10.20s ", auth->realm, auth->username);
-			ast_cli(fd, "%s\n", !ast_strlen_zero(auth->secret)?"<Secret set>":(!ast_strlen_zero(auth->md5secret)?"<MD5secret set>" : "<Not set>"));
+		if (credentials) {
+			struct sip_auth *auth;
+
+			AST_LIST_TRAVERSE(&credentials->list, auth, node) {
+				ast_cli(fd, "  Realm-auth   : Realm %-15.15s User %-10.20s %s\n",
+					auth->realm,
+					auth->username,
+					!ast_strlen_zero(auth->secret)
+						? "<Secret set>"
+						: (!ast_strlen_zero(auth->md5secret)
+							? "<MD5secret set>" : "<Not set>"));
+			}
+			ao2_t_ref(credentials, -1, "Unref peer auth for show");
 		}
 		ast_cli(fd, "  Context      : %s\n", peer->context);
 		ast_cli(fd, "  Subscr.Cont. : %s\n", S_OR(peer->subscribecontext, "<Not set>") );
@@ -17823,6 +17865,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	int realtimeregs;
 	char codec_buf[SIPBUFSIZE];
 	const char *msg;	/* temporary msg pointer */
+	struct sip_auth_container *credentials;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -17835,12 +17878,19 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return NULL;
 	}
 
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	realtimepeers = ast_check_realtime("sippeers");
 	realtimeregs = ast_check_realtime("sipregs");
 
-	if (a->argc != 3)
-		return CLI_SHOWUSAGE;
+	ast_mutex_lock(&authl_lock);
+	credentials = authl;
+	if (credentials) {
+		ao2_t_ref(credentials, +1, "Ref global auth for show");
+	}
+	ast_mutex_unlock(&authl_lock);
+
 	ast_cli(a->fd, "\n\nGlobal Settings:\n");
 	ast_cli(a->fd, "----------------\n");
 	ast_cli(a->fd, "  UDP Bindaddress:        %s\n", ast_sockaddr_stringify(&bindaddr));
@@ -17867,7 +17917,21 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Allow promisc. redir:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
 	ast_cli(a->fd, "  Enable call counters:   %s\n", AST_CLI_YESNO(global_callcounter));
 	ast_cli(a->fd, "  SIP domain support:     %s\n", AST_CLI_YESNO(!AST_LIST_EMPTY(&domain_list)));
-	ast_cli(a->fd, "  Realm. auth:            %s\n", AST_CLI_YESNO(authl != NULL));
+	ast_cli(a->fd, "  Realm. auth:            %s\n", AST_CLI_YESNO(credentials != NULL));
+	if (credentials) {
+		struct sip_auth *auth;
+
+		AST_LIST_TRAVERSE(&credentials->list, auth, node) {
+			ast_cli(a->fd, "  Realm. auth entry:      Realm %-15.15s User %-10.20s %s\n",
+				auth->realm,
+				auth->username,
+				!ast_strlen_zero(auth->secret)
+					? "<Secret set>"
+					: (!ast_strlen_zero(auth->md5secret)
+						? "<MD5secret set>" : "<Not set>"));
+		}
+		ao2_t_ref(credentials, -1, "Unref global auth for show");
+	}
 	ast_cli(a->fd, "  Our auth realm          %s\n", sip_cfg.realm);
 	ast_cli(a->fd, "  Use domains as realms:  %s\n", AST_CLI_YESNO(sip_cfg.domainsasrealm));
 	ast_cli(a->fd, "  Call to non-local dom.: %s\n", AST_CLI_YESNO(sip_cfg.allow_external_domains));
@@ -19065,7 +19129,8 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	const char *username;
 	const char *secret;
 	const char *md5secret;
-	struct sip_auth *auth = NULL;	/* Realm authentication */
+	struct sip_auth *auth;	/* Realm authentication credential */
+	struct sip_auth_container *credentials;
 
 	if (!ast_strlen_zero(p->domain))
 		ast_copy_string(uri, p->domain, sizeof(uri));
@@ -19076,9 +19141,27 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 
 	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
 
-	/* Check if we have separate auth credentials */
-	if(!(auth = find_realm_authentication(p->peerauth, p->realm)))	/* Start with peer list */
-		auth = find_realm_authentication(authl, p->realm);	/* If not, global list */
+	/* Check if we have peer credentials */
+	ao2_lock(p);
+	credentials = p->peerauth;
+	if (credentials) {
+		ao2_t_ref(credentials, +1, "Ref peer auth for digest");
+	}
+	ao2_unlock(p);
+	auth = find_realm_authentication(credentials, p->realm);
+	if (!auth) {
+		/* If not, check global credentials */
+		if (credentials) {
+			ao2_t_ref(credentials, -1, "Unref peer auth for digest");
+		}
+		ast_mutex_lock(&authl_lock);
+		credentials = authl;
+		if (credentials) {
+			ao2_t_ref(credentials, +1, "Ref global auth for digest");
+		}
+		ast_mutex_unlock(&authl_lock);
+		auth = find_realm_authentication(credentials, p->realm);
+	}
 
 	if (auth) {
 		ast_debug(3, "use realm [%s] from peer [%s][%s]\n", auth->username, p->peername, p->username);
@@ -19095,8 +19178,13 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 				? p->relatedpeer->remotesecret : p->peersecret;
 		md5secret = p->peermd5secret;
 	}
-	if (ast_strlen_zero(username))	/* We have no authentication */
+	if (ast_strlen_zero(username)) {
+		/* We have no authentication */
+		if (credentials) {
+			ao2_t_ref(credentials, -1, "Unref auth for digest");
+		}
 		return -1;
+	}
 
 	/* Calculate SIP digest response */
 	snprintf(a1, sizeof(a1), "%s:%s:%s", username, p->realm, secret);
@@ -19127,6 +19215,9 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 
 	append_history(p, "AuthResp", "Auth response sent for %s in realm %s - nc %d", username, p->realm, p->noncecount);
 
+	if (credentials) {
+		ao2_t_ref(credentials, -1, "Unref auth for digest");
+	}
 	return 0;
 }
 	
@@ -26715,20 +26806,48 @@ static void clear_sip_domains(void)
 	AST_LIST_UNLOCK(&domain_list);
 }
 
-
-/*! \brief Add realm authentication in list */
-static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, const char *configuration, int lineno)
+/*!
+ * \internal
+ * \brief Realm authentication container destructor.
+ *
+ * \param obj Container object to destroy.
+ *
+ * \return Nothing
+ */
+static void destroy_realm_authentication(void *obj)
 {
-	char authcopy[256];
-	char *username=NULL, *realm=NULL, *secret=NULL, *md5secret=NULL;
-	struct sip_auth *a, *b, *auth;
+	struct sip_auth_container *credentials = obj;
+	struct sip_auth *auth;
 
-	if (ast_strlen_zero(configuration))
-		return authlist;
+	while ((auth = AST_LIST_REMOVE_HEAD(&credentials->list, node))) {
+		ast_free(auth);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Add realm authentication to credentials.
+ *
+ * \param credentials Realm authentication container to create/add authentication credentials.
+ * \param configuration Credential configuration value.
+ * \param lineno Line number in config file.
+ *
+ * \return Nothing
+ */
+static void add_realm_authentication(struct sip_auth_container **credentials, const char *configuration, int lineno)
+{
+	char *authcopy;
+	char *username=NULL, *realm=NULL, *secret=NULL, *md5secret=NULL;
+	struct sip_auth *auth;
+
+	if (ast_strlen_zero(configuration)) {
+		/* Nothing to add */
+		return;
+	}
 
 	ast_debug(1, "Auth config ::  %s\n", configuration);
 
-	ast_copy_string(authcopy, configuration, sizeof(authcopy));
+	authcopy = ast_strdupa(configuration);
 	username = authcopy;
 
 	/* split user[:secret] and relm */
@@ -26737,7 +26856,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, cons
 		*realm++ = '\0';
 	if (ast_strlen_zero(username) || ast_strlen_zero(realm)) {
 		ast_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d\n", lineno);
-		return authlist;
+		return;
 	}
 
 	/* parse username at ':' for secret, or '#" for md5secret */
@@ -26747,9 +26866,21 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, cons
 		*md5secret++ = '\0';
 	}
 
-	if (!(auth = ast_calloc(1, sizeof(*auth))))
-		return authlist;
+	/* Create the continer if needed. */
+	if (!*credentials) {
+		*credentials = ao2_t_alloc(sizeof(**credentials), destroy_realm_authentication,
+			"Create realm auth container.");
+		if (!*credentials) {
+			/* Failed to create the credentials container. */
+			return;
+		}
+	}
 
+	/* Create the authentication credential entry. */
+	auth = ast_calloc(1, sizeof(*auth));
+	if (!auth) {
+		return;
+	}
 	ast_copy_string(auth->realm, realm, sizeof(auth->realm));
 	ast_copy_string(auth->username, username, sizeof(auth->username));
 	if (secret)
@@ -26757,46 +26888,36 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, cons
 	if (md5secret)
 		ast_copy_string(auth->md5secret, md5secret, sizeof(auth->md5secret));
 
-	/* find the end of the list */
-	for (b = NULL, a = authlist; a ; b = a, a = a->next)
-		;
-	if (b)
-		b->next = auth;	/* Add structure add end of list */
-	else
-		authlist = auth;
+	/* Add credential to container list. */
+	AST_LIST_INSERT_TAIL(&(*credentials)->list, auth, node);
 
 	ast_verb(3, "Added authentication for realm %s\n", realm);
-
-	return authlist;
-
 }
 
-/*! \brief Clear realm authentication list (at reload) */
-static int clear_realm_authentication(struct sip_auth *authlist)
+/*!
+ * \internal
+ * \brief Find authentication for a specific realm.
+ *
+ * \param credentials Realm authentication container to search.
+ * \param realm Authentication realm to find.
+ *
+ * \return Found authentication credential or NULL.
+ */
+static struct sip_auth *find_realm_authentication(struct sip_auth_container *credentials, const char *realm)
 {
-	struct sip_auth *a = authlist;
-	struct sip_auth *b;
+	struct sip_auth *auth;
 
-	while (a) {
-		b = a;
-		a = a->next;
-		ast_free(b);
+	if (credentials) {
+		AST_LIST_TRAVERSE(&credentials->list, auth, node) {
+			if (!strcasecmp(auth->realm, realm)) {
+				break;
+			}
+		}
+	} else {
+		auth = NULL;
 	}
 
-	return 1;
-}
-
-/*! \brief Find authentication for a specific realm */
-static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm)
-{
-	struct sip_auth *a;
-
-	for (a = authlist; a; a = a->next) {
-		if (!strcasecmp(a->realm, realm))
-			break;
-	}
-
-	return a;
+	return auth;
 }
 
 /*! \brief
@@ -27042,8 +27163,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		peer->portinuri = 0;
 
 	/* If we have realm authentication information, remove them (reload) */
-	clear_realm_authentication(peer->auth);
-	peer->auth = NULL;
+	ao2_lock(peer);
+	if (peer->auth) {
+		ao2_t_ref(peer->auth, -1, "Removing old peer authentication");
+		peer->auth = NULL;
+	}
+	ao2_unlock(peer);
+
 	/* clear the transport information.  We will detect if a default value is required after parsing the config */
 	peer->default_outbound_transport = 0;
 	peer->transports = 0;
@@ -27107,7 +27233,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "md5secret")) {
 				ast_string_field_set(peer, md5secret, v->value);
 			} else if (!strcasecmp(v->name, "auth")) {
-				peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
+				add_realm_authentication(&peer->auth, v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				char cid_name[80] = { '\0' }, cid_num[80] = { '\0' };
 
@@ -27719,9 +27845,13 @@ static int reload_config(enum channelreloadreason reason)
 	if (reason != CHANNEL_MODULE_LOAD) {
 		ast_debug(4, "--------------- SIP reload started\n");
 
-		clear_realm_authentication(authl);
 		clear_sip_domains();
-		authl = NULL;
+		ast_mutex_lock(&authl_lock);
+		if (authl) {
+			ao2_t_ref(authl, -1, "Removing old global authentication");
+			authl = NULL;
+		}
+		ast_mutex_unlock(&authl_lock);
 
 		/* First, destroy all outstanding registry calls */
 		/* This is needed, since otherwise active registry entries will not be destroyed */
@@ -28450,12 +28580,12 @@ static int reload_config(enum channelreloadreason reason)
 	}
 
 	/* Build list of authentication to various SIP realms, i.e. service providers */
- 	for (v = ast_variable_browse(cfg, "authentication"); v ; v = v->next) {
- 		/* Format for authentication is auth = username:password@realm */
- 		if (!strcasecmp(v->name, "auth")) {
- 			authl = add_realm_authentication(authl, v->value, v->lineno);
+	for (v = ast_variable_browse(cfg, "authentication"); v ; v = v->next) {
+		/* Format for authentication is auth = username:password@realm */
+		if (!strcasecmp(v->name, "auth")) {
+			add_realm_authentication(&authl, v->value, v->lineno);
 		}
- 	}
+	}
 
 	if (bindport) {
 		if (ast_sockaddr_port(&bindaddr)) {
@@ -30243,7 +30373,12 @@ static int unload_module(void)
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);
 
-	clear_realm_authentication(authl);
+	ast_mutex_lock(&authl_lock);
+	if (authl) {
+		ao2_t_ref(authl, -1, "Removing global authentication");
+		authl = NULL;
+	}
+	ast_mutex_unlock(&authl_lock);
 
 	destroy_escs();
 
