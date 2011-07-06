@@ -38,8 +38,8 @@
  */
 
 /*** MODULEINFO
-	<use type="module">res_adsi</use>
-	<use type="module">res_smdi</use>
+	<use>res_adsi</use>
+	<use>res_smdi</use>
  ***/
 
 /*** MAKEOPTS
@@ -60,7 +60,7 @@
 		<depend>imap_tk</depend>
 		<conflict>ODBC_STORAGE</conflict>
 		<conflict>FILE_STORAGE</conflict>
-		<use type="external">openssl</use>
+		<use>openssl</use>
 		<defaultenabled>no</defaultenabled>
 	</member>
 </category>

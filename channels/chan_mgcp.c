@@ -30,7 +30,7 @@
  */
 
 /*** MODULEINFO
-        <use type="module">res_pktccops</use>
+        <use>res_pktccops</use>
  ***/
 
 #include "asterisk.h"

@@ -23,7 +23,7 @@
  */
 
 /*** MODULEINFO
-	<use type="external">crypto</use>
+	<use>crypto</use>
  ***/
 
 #include "asterisk.h"
