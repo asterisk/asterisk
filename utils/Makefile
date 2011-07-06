@@ -89,6 +89,8 @@ clean:
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c lock.c
 	rm -f aelparse.c aelbison.c conf2ael
 	rm -f utils.c strings.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest refcounter
+	rm -f db1-ast/.*.d
+	@$(MAKE) -C db1-ast clean
 
 md5.c: $(ASTTOPDIR)/main/md5.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
@@ -205,6 +207,14 @@ streamplayer: streamplayer.o
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
 muted: _ASTCFLAGS:=$(filter-out -Werror,$(_ASTCFLAGS))
+
+CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
+db1-ast/libdb1.a: CHECK_SUBDIR
+	_ASTCFLAGS="$(_ASTCFLAGS) -Wno-strict-aliasing" ASTCFLAGS="$(ASTCFLAGS)" $(MAKE) -C db1-ast libdb1.a
+
+astdb2sqlite3: LIBS+=$(SQLITE3_LIB)
+astdb2sqlite3: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
+astdb2sqlite3: db1-ast/libdb1.a 
 
 ifneq ($(wildcard .*.d),)
    include .*.d

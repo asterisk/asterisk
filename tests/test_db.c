@@ -205,10 +205,37 @@ AST_TEST_DEFINE(gettree_deltree)
 	return res;
 }
 
+AST_TEST_DEFINE(perftest)
+{
+	int res = AST_TEST_PASS;
+	size_t x;
+	char buf[10];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "perftest";
+		info->category = "/main/astdb/";
+		info->summary = "astdb performance unit test";
+		info->description =
+			"Measure astdb performance";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (x = 0; x < 100000; x++) {
+		sprintf(buf, "%zu", x);
+		ast_db_put("astdbtest", buf, buf);
+	}
+	ast_db_deltree("astdbtest", NULL);
+
+	return res;
+}
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(put_get_del);
 	AST_TEST_UNREGISTER(gettree_deltree);
+	AST_TEST_UNREGISTER(perftest);
 	return 0;
 }
 
@@ -216,6 +243,7 @@ static int load_module(void)
 {
 	AST_TEST_REGISTER(put_get_del);
 	AST_TEST_REGISTER(gettree_deltree);
+	AST_TEST_REGISTER(perftest);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

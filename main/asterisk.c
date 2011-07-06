@@ -3759,6 +3759,11 @@ int main(int argc, char *argv[])
 	ast_xmldoc_load_documentation();
 #endif
 
+	if (astdb_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_msg_init()) {
 		printf("%s", term_quit());
 		exit(1);
@@ -3830,11 +3835,6 @@ int main(int argc, char *argv[])
 	ast_features_init();
 
 	if (init_framer()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (astdb_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

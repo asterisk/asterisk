@@ -188,6 +188,14 @@ Applications
  * Added ability to include '@parkinglot' to ParkedCall extension in order to specify
    a specific parkinglot on which to search the extension.
 
+Asterisk Database
+-----------------
+ * The internal Asterisk database has been switched from Berkeley DB 1.86 to
+   SQLite 3. An existing Berkeley astdb file can be converted with the astdb2sqlite3
+   utility in the UTILS section of menuselect. If an existing astdb is found and no
+   astdb.sqlite3 exists, astdb2sqlite3 will be compiled automatically. Asterisk will
+   convert an existing astdb to the SQLite3 version automatically at runtime.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------

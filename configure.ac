@@ -1970,6 +1970,12 @@ AST_EXT_LIB_CHECK([SQLITE], [sqlite], [sqlite_exec], [sqlite.h])
 
 AST_EXT_LIB_CHECK([SQLITE3], [sqlite3], [sqlite3_open], [sqlite3.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
 
+if test "${PBX_SQLITE3}" != 1; then
+	AC_MSG_WARN(*** Asterisk now uses SQLite3 for the internal Asterisk database.)
+	AC_MSG_WARN(*** Please install the SQLite3 development package.)
+	exit 1
+fi
+
 AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
 
 if test "$PBX_CRYPTO" = "1";

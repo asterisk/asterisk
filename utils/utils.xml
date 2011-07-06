@@ -5,6 +5,9 @@
   <member name="astcanary">
 	<defaultenabled>yes</defaultenabled>
   </member>
+  <member name="astdb2sqlite3">
+	<defaultenabled>yes</defaultenabled>
+  </member>
   <member name="astman">
 	<defaultenabled>no</defaultenabled>
 	<depend>newt</depend>
