@@ -162,35 +162,7 @@ static void timerfd_timer_ack(int handle, unsigned int quantity)
 	uint64_t expirations;
 	int read_result = 0;
 
-	struct timerfd_timer *our_timer, find_helper = {
-		.handle = handle,
-	};
-
-	if (!(our_timer = ao2_find(timerfd_timers, &find_helper, OBJ_POINTER))) {
-		ast_log(LOG_ERROR, "Couldn't find timer with handle %d\n", handle);
-		return;
-	}
-
-	if (our_timer->saved_timer.it_value.tv_nsec == 0L) {
-		ast_log(LOG_DEBUG, "Reading attempt on idle timerfd.\n");
-		return;
-	}
-
 	do {
-		struct itimerspec timer_status;
-
-		if (timerfd_gettime(handle, &timer_status)) {
-			ast_log(LOG_ERROR, "Call to timerfd_gettime() error: %s\n", strerror(errno));
-			expirations = 0;
-			break;
-		}
-
-		if ((timer_status.it_value.tv_sec == 0) && (timer_status.it_value.tv_nsec == 0)) {
-			ast_log(LOG_DEBUG, "Call to timerfd_timer_ack() with disarmed timer - break now.\n");
-			expirations = 0;
-			break;
-		}
-
 		read_result = read(handle, &expirations, sizeof(expirations));
 		if (read_result == -1) {
 			if (errno == EINTR || errno == EAGAIN) {
