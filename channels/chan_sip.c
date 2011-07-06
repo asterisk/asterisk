@@ -16079,7 +16079,11 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		return;
 	}
 
-	if (get_msg_text2(&buf, req, FALSE)) {
+	/* If this is an out of dialog msg, add back newlines, otherwise strip the new lines.
+	 * In dialog msg's newlines are stripped to preserve the behavior of how Asterisk has worked
+	 * in the past.  If it is found later that new lines can be added into in dialog msgs as well,
+	 * then change this. */
+	if (get_msg_text2(&buf, req, p->owner ? FALSE : TRUE)) {
 		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
 		transmit_response(p, "202 Accepted", req);
 		if (!p->owner)
