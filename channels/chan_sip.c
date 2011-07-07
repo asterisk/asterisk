@@ -9468,6 +9468,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 
 		if ((format = ast_rtp_codecs_get_payload_format(newaudiortp, codec))) {
 			unsigned int bit_rate;
+			int val = 0;
 
 			switch ((int) format->id) {
 			case AST_FORMAT_SIREN7:
@@ -9500,20 +9501,21 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 					}
 				}
 				break;
-			case AST_FORMAT_SILK:
-				{
-					int val = 0;
-					if (sscanf(fmtp_string, "maxaveragebitrate=%30u", &val) == 1) {
-						ast_format_append(format, SILK_ATTR_KEY_MAX_BITRATE, val, AST_FORMAT_ATTR_END);
-					}
-					if (sscanf(fmtp_string, "usedtx=%30u", &val) == 1) {
-						ast_format_append(format, SILK_ATTR_KEY_DTX, val ? 1 : 0, AST_FORMAT_ATTR_END);
-					}
-					if (sscanf(fmtp_string, "useinbandfec=%30u", &val) == 1) {
-						ast_format_append(format, SILK_ATTR_KEY_FEC, val ? 1 : 0, AST_FORMAT_ATTR_END);
-					}
-					break;
+			case AST_FORMAT_CELT:
+				if (sscanf(fmtp_string, "framesize=%30u", &val) == 1) {
+					ast_format_append(format, CELT_ATTR_KEY_FRAME_SIZE, val, AST_FORMAT_ATTR_END);
 				}
+			case AST_FORMAT_SILK:
+				if (sscanf(fmtp_string, "maxaveragebitrate=%30u", &val) == 1) {
+					ast_format_append(format, SILK_ATTR_KEY_MAX_BITRATE, val, AST_FORMAT_ATTR_END);
+				}
+				if (sscanf(fmtp_string, "usedtx=%30u", &val) == 1) {
+					ast_format_append(format, SILK_ATTR_KEY_DTX, val ? 1 : 0, AST_FORMAT_ATTR_END);
+				}
+				if (sscanf(fmtp_string, "useinbandfec=%30u", &val) == 1) {
+					ast_format_append(format, SILK_ATTR_KEY_FEC, val ? 1 : 0, AST_FORMAT_ATTR_END);
+				}
+				break;
 			}
 		}
 	}
@@ -10829,7 +10831,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 {
 	int rtp_code;
 	struct ast_format_list fmt;
-
+	int val = 0;
 
 	if (debug)
 		ast_verbose("Adding codec %d (%s) to SDP\n", format->id, ast_getformatname(format));
@@ -10872,20 +10874,22 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 		/* Indicate that we only expect 64Kbps */
 		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=64000\r\n", rtp_code);
 		break;
-	case AST_FORMAT_SILK:
-		{
-			int val = 0;
-			if (!ast_format_get_value(format, SILK_ATTR_KEY_MAX_BITRATE, &val) && val > 5000 && val < 40000) {
-				ast_str_append(a_buf, 0, "a=fmtp:%d maxaveragebitrate=%u\r\n", rtp_code, val);
-			}
-			if (!ast_format_get_value(format, SILK_ATTR_KEY_DTX, &val)) {
-				ast_str_append(a_buf, 0, "a=fmtp:%d usedtx=%u\r\n", rtp_code, val ? 1 : 0);
-			}
-			if (!ast_format_get_value(format, SILK_ATTR_KEY_FEC, &val)) {
-				ast_str_append(a_buf, 0, "a=fmtp:%d useinbandfec=%u\r\n", rtp_code, val ? 1 : 0);
-			}
-			break;
+	case AST_FORMAT_CELT:
+		if (!ast_format_get_value(format, CELT_ATTR_KEY_FRAME_SIZE, &val) && val > 0) {
+			ast_str_append(a_buf, 0, "a=fmtp:%d framesize=%u\r\n", rtp_code, val);
 		}
+		break;
+	case AST_FORMAT_SILK:
+		if (!ast_format_get_value(format, SILK_ATTR_KEY_MAX_BITRATE, &val) && val > 5000 && val < 40000) {
+			ast_str_append(a_buf, 0, "a=fmtp:%d maxaveragebitrate=%u\r\n", rtp_code, val);
+		}
+		if (!ast_format_get_value(format, SILK_ATTR_KEY_DTX, &val)) {
+			ast_str_append(a_buf, 0, "a=fmtp:%d usedtx=%u\r\n", rtp_code, val ? 1 : 0);
+		}
+		if (!ast_format_get_value(format, SILK_ATTR_KEY_FEC, &val)) {
+			ast_str_append(a_buf, 0, "a=fmtp:%d useinbandfec=%u\r\n", rtp_code, val ? 1 : 0);
+		}
+		break;
 	}
 
 	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size))

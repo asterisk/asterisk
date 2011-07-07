@@ -748,6 +748,15 @@ int ast_format_rate(const struct ast_format *format)
 		} else {
 			return 8000;
 		}
+	case AST_FORMAT_CELT:
+	{
+		int samplerate;
+		if (!(ast_format_get_value(format,
+			CELT_ATTR_KEY_SAMP_RATE,
+			&samplerate))) {
+			return samplerate;
+		}
+	}
 	default:
 		return 8000;
 	}
@@ -1085,6 +1094,32 @@ init_cleanup:
 	return -1;
 }
 
+static int custom_celt_format(struct ast_format_list *entry, unsigned int maxbitrate, unsigned int framesize)
+{
+	if (!entry->samplespersecond) {
+		ast_log(LOG_WARNING, "Custom CELT format definition '%s' requires sample rate to be defined.\n", entry->name);
+	}
+	ast_format_set(&entry->format, AST_FORMAT_CELT, 0);
+	if (!has_interface(&entry->format)) {
+		return -1;
+	}
+
+	snprintf(entry->desc, sizeof(entry->desc), "CELT Custom Format %dkhz", entry->samplespersecond/1000);
+
+	ast_format_append(&entry->format,
+		CELT_ATTR_KEY_SAMP_RATE, entry->samplespersecond,
+		CELT_ATTR_KEY_MAX_BITRATE, maxbitrate,
+		CELT_ATTR_KEY_FRAME_SIZE, framesize,
+		AST_FORMAT_ATTR_END);
+
+	entry->fr_len = 80;
+	entry->min_ms = 20;
+	entry->max_ms = 20;
+	entry->inc_ms = 20;
+	entry->def_ms = 20;
+	return 0;
+}
+
 static int custom_silk_format(struct ast_format_list *entry, unsigned int maxbitrate, int usedtx, int usefec, int packetloss_percentage)
 {
 	if (!entry->samplespersecond) {
@@ -1144,6 +1179,8 @@ static int conf_process_format_name(const char *name, enum ast_format_id *id)
 {
 	if (!strcasecmp(name, "silk")) {
 		*id = AST_FORMAT_SILK;
+	} else if (!strcasecmp(name, "celt")) {
+		*id = AST_FORMAT_CELT;
 	} else {
 		*id = 0;
 		return -1;
@@ -1163,8 +1200,14 @@ static int conf_process_sample_rate(const char *rate, unsigned int *result)
 		*result = 24000;
 	} else if (!strcasecmp(rate, "32000")) {
 		*result = 32000;
+	} else if (!strcasecmp(rate, "44100")) {
+		*result = 44100;
 	} else if (!strcasecmp(rate, "48000")) {
 		*result = 48000;
+	} else if (!strcasecmp(rate, "96000")) {
+		*result = 96000;
+	} else if (!strcasecmp(rate, "192000")) {
+		*result = 192000;
 	} else {
 		*result = 0;
 		return -1;
@@ -1184,6 +1227,7 @@ static int load_format_config(void)
 	struct {
 		enum ast_format_id id;
 		unsigned int maxbitrate;
+		unsigned int framesize;
 		unsigned int packetloss_percentage;
 		int usefec;
 		int usedtx;
@@ -1221,6 +1265,11 @@ static int load_format_config(void)
 					ast_log(LOG_WARNING, "maxbitrate '%s' at line %d of %s is not supported.\n",
 						var->value, var->lineno, FORMAT_CONFIG);
 				}
+			} else if (!strcasecmp(var->name, "framesize")) {
+				if (sscanf(var->value, "%30u", &settings.framesize) != 1) {
+					ast_log(LOG_WARNING, "framesize '%s' at line %d of %s is not supported.\n",
+						var->value, var->lineno, FORMAT_CONFIG);
+				}
 			} else if (!strcasecmp(var->name, "dtx")) {
 				settings.usedtx = ast_true(var->value) ? 1 : 0;
 			} else if (!strcasecmp(var->name, "fec")) {
@@ -1236,6 +1285,11 @@ static int load_format_config(void)
 		switch (settings.id) {
 		case AST_FORMAT_SILK:
 			if (!(custom_silk_format(&entry, settings.maxbitrate, settings.usedtx, settings.usefec, settings.packetloss_percentage))) {
+				add_it = 1;
+			}
+			break;
+		case AST_FORMAT_CELT:
+			if (!(custom_celt_format(&entry, settings.maxbitrate, settings.framesize))) {
 				add_it = 1;
 			}
 			break;

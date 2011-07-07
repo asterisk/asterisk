@@ -126,7 +126,6 @@ maxbitrate=20000
 fec=true
 packetloss_percentage=10;
 
-
 [silk24]
 type=silk
 samprate=24000
@@ -134,3 +133,21 @@ maxbitrate=30000
 fec=true
 packetloss_percentage=10;
 
+
+; Default custom CELT codec definitions. Only one custom CELT definition is allowed
+; per a sample rate.
+;[celt44]
+;type=celt
+;samprate=44100  ; The samplerate in hz. This option is required.
+;framesize=480   ; The framesize option represents the duration of each frame in samples.
+                 ; This must be a factor of 2.  This option is only advertised in an SDP
+                 ; when it is set.  Otherwise a default of framesize of 480 is assumed
+                 ; internally
+
+;[celt48]
+;type=celt
+;samprate=48000
+
+;[celt32]
+;type=celt
+;samprate=32000

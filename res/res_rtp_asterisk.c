@@ -1254,6 +1254,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		case AST_FORMAT_SPEEX16:
 		case AST_FORMAT_SPEEX32:
 		case AST_FORMAT_SILK:
+		case AST_FORMAT_CELT:
 		case AST_FORMAT_G723_1:
 		case AST_FORMAT_SIREN7:
 		case AST_FORMAT_SIREN14:

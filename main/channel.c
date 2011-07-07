@@ -1081,6 +1081,8 @@ struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format 
 		AST_FORMAT_SPEEX,
 		/*! SILK is pretty awesome. */
 		AST_FORMAT_SILK,
+		/*! CELT supports crazy high sample rates */
+		AST_FORMAT_CELT,
 		/*! Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
 		    to use it */
 		AST_FORMAT_LPC10,
@@ -5019,12 +5021,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		   from the single frame we passed in; if so, feed each one of them to the
 		   channel, freeing each one after it has been written */
 		if ((f != fr) && AST_LIST_NEXT(f, frame_list)) {
-			struct ast_frame *cur, *next;
+			struct ast_frame *cur, *next = NULL;
 			unsigned int skip = 0;
 
-			for (cur = f, next = AST_LIST_NEXT(cur, frame_list);
-			     cur;
-			     cur = next, next = cur ? AST_LIST_NEXT(cur, frame_list) : NULL) {
+			cur = f;
+			while (cur) {
+				next = AST_LIST_NEXT(cur, frame_list);
+				AST_LIST_NEXT(cur, frame_list) = NULL;
 				if (!skip) {
 					if ((res = chan->tech->write(chan, cur)) < 0) {
 						chan->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -5037,6 +5040,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 					}
 				}
 				ast_frfree(cur);
+				cur = next;
 			}
 
 			/* reset f so the code below doesn't attempt to free it */

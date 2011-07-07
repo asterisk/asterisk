@@ -1931,6 +1931,10 @@ int ast_rtp_engine_load_format(const struct ast_format *format)
 		set_next_mime_type(format, 0, "audio", "SILK", ast_format_rate(format));
 		add_static_payload(-1, format, 0);
 		break;
+	case AST_FORMAT_CELT:
+		set_next_mime_type(format, 0, "audio", "CELT", ast_format_rate(format));
+		add_static_payload(-1, format, 0);
+		break;
 	default:
 		break;
 	}
