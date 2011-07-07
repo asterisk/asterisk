@@ -75,6 +75,8 @@ CODECS
 --------------------------
  * Ability to define custom SILK formats in codecs.conf.
  * Addition of speex32 audio format with translation.
+ * CELT codec pass-through support and ability to define
+   custom CELT formats in codecs.conf.
 
 ConfBridge
 --------------------------
@@ -82,11 +84,14 @@ ConfBridge
    mixing audio at sample rates ranging from 8khz-96khz.
  * CONFBRIDGE dialplan function capable of creating dynamic ConfBridge user
    and bridge profiles on a channel.
- * CONFBRIDGE_INFO dialplan function capable of retreiving information 
+ * CONFBRIDGE_INFO dialplan function capable of retrieving information 
    about a conference such as locked status and number of parties, admins,
    and marked users.
  * Addition of video_mode option in confbridge.conf for adding video support
    into a bridge profile.
+ * Addition of the follow_talker video_mode in confbridge.conf.  This video
+   mode dynamically switches the video feed to always display the loudest talker
+   supplying video in the conference.
 
 Dialplan Variables
 ------------------
@@ -148,7 +153,7 @@ pbx_lua
    in the sample extensions.lua file for syntax details.
  * Applications that perform jumps in the dialplan such as Goto will now
    execute properly.  When pbx_lua detects that the context, extension, or
-   priority we are executing on has changed it will immediatly return control
+   priority we are executing on has changed it will immediately return control
    to the asterisk PBX engine.  Currently the engine cannot detect a Goto to
    the priority after the currently executing priority.
  * An autoservice is now started by default for pbx_lua channels.  It can be
