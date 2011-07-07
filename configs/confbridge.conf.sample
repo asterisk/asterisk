@@ -168,9 +168,13 @@ type=bridge
                         ; larger amounts of delay into the bridge.  Valid values here are 10, 20, 40,
                         ; or 80.  By default 20ms is used.
 
-;video_mode = follow_talker ; Sets how confbridge handles video distribution to the conference participants.
+;video_mode = follow_talker; Sets how confbridge handles video distribution to the conference participants.
                            ; Note that participants wanting to view and be the source of a video feed
-                           ; _MUST_ be sharing the same video codec.
+                           ; _MUST_ be sharing the same video codec.  Also, using video in conjunction with
+                           ; with the jitterbuffer currently results in the audio being slightly out of sync
+                           ; with the video.  This is a result of the jitterbuffer only working on the audio
+                           ; stream.  It is recommended to disable the jitterbuffer when video is used.
+                           ;
                            ; --- MODES ---
                            ; none: No video sources are set by default in the conference. It is still
                            ;       possible for a user to be set as a video source via AMI or DTMF action
@@ -284,8 +288,23 @@ type=bridge
 ; admin_toggle_conference_lock ; This action allows an Admin to toggle locking and
                                ; unlocking the conference.  Non admins can not use
                                ; this action even if it is in their menu.
+
 ; set_as_single_video_src   ; This action allows any user to set themselves as the
                             ; single video source distributed to all participants.
+                            ; This will make the video feed stick to them regardless
+                            ; of what the video_mode is set to.
+
+; release_as_single_video_src ; This action allows a user to release themselves as
+                              ; the video source.  If video_mode is not set to "none"
+                              ; this action will result in the conference returning to
+                              ; whatever video mode the bridge profile is using.
+                              ;
+                              ; Note that this action will have no effect if the user
+                              ; is not currently the video source.  Also, the user is
+                              ; not guaranteed by using this action that they will not
+                              ; become the video source again.  The bridge will return
+                              ; to whatever operation the video_mode option is set to
+                              ; upon release of the video src.
 
 [sample_user_menu]
 type=menu

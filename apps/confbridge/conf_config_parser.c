@@ -543,6 +543,7 @@ static int add_action_to_menu_entry(struct conf_menu_entry *menu_entry, enum con
 	case MENU_ACTION_ADMIN_KICK_LAST:
 	case MENU_ACTION_LEAVE:
 	case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
+	case MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC:
 		break;
 	case MENU_ACTION_PLAYBACK:
 	case MENU_ACTION_PLAYBACK_AND_CONTINUE:
@@ -660,6 +661,8 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_LEAVE, NULL);
 		} else if (!strcasecmp(action, "set_as_single_video_src")) {
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_SET_SINGLE_VIDEO_SRC, NULL);
+		} else if (!strcasecmp(action, "release_as_single_video_src")) {
+			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC, NULL);
 		} else if (!strncasecmp(action, "dialplan_exec(", 14)) {
 			ast_copy_string(buf, action, sizeof(buf));
 			action_args = buf;
@@ -1165,6 +1168,9 @@ static char *handle_cli_confbridge_show_menu(struct ast_cli_entry *e, int cmd, s
 				break;
 			case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
 				ast_cli(a->fd, "set_as_single_video_src");
+				break;
+			case MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC:
+				ast_cli(a->fd, "release_as_single_video_src");
 				break;
 			}
 			action_num++;

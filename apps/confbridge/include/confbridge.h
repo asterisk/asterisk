@@ -82,6 +82,7 @@ enum conf_menu_action_id {
 	MENU_ACTION_LEAVE,
 	MENU_ACTION_NOOP,
 	MENU_ACTION_SET_SINGLE_VIDEO_SRC,
+	MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC,
 };
 
 /*! The conference menu action contains both
