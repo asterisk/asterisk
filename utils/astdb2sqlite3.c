@@ -134,7 +134,7 @@ static int convert_bdb_to_sqlite3(const char *bdb_dbname)
 
 static int init_stmt(sqlite3_stmt **stmt, const char *sql, size_t len)
 {
-	if (sqlite3_prepare_v2(astdb, sql, len, stmt, NULL) != SQLITE_OK) {
+	if (sqlite3_prepare(astdb, sql, len, stmt, NULL) != SQLITE_OK) {
 		fprintf(stderr, "Couldn't prepare statement '%s': %s\n", sql, sqlite3_errmsg(astdb));
 		return -1;
 	}
@@ -171,7 +171,7 @@ static int init_statements(void)
 
 static int db_open(const char *dbname)
 {
-	if (sqlite3_open_v2(dbname, &astdb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, NULL) != SQLITE_OK) {
+	if (sqlite3_open(dbname, &astdb) != SQLITE_OK) {
 		fprintf(stderr, "Unable to open Asterisk database '%s': %s\n", dbname, sqlite3_errmsg(astdb));
 		sqlite3_close(astdb);
 		return -1;

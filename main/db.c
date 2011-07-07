@@ -127,7 +127,7 @@ DEFINE_SQL_STATEMENT(create_astdb_stmt, "CREATE TABLE IF NOT EXISTS astdb(key VA
 static int init_stmt(sqlite3_stmt **stmt, const char *sql, size_t len)
 {
 	ast_mutex_lock(&dblock);
-	if (sqlite3_prepare_v2(astdb, sql, len, stmt, NULL) != SQLITE_OK) {
+	if (sqlite3_prepare(astdb, sql, len, stmt, NULL) != SQLITE_OK) {
 		ast_log(LOG_WARNING, "Couldn't prepare statement '%s': %s\n", sql, sqlite3_errmsg(astdb));
 		ast_mutex_unlock(&dblock);
 		return -1;
@@ -211,7 +211,7 @@ static int db_open(void)
 	}
 
 	ast_mutex_lock(&dblock);
-	if (sqlite3_open_v2(dbname, &astdb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, NULL) != SQLITE_OK) {
+	if (sqlite3_open(dbname, &astdb) != SQLITE_OK) {
 		ast_log(LOG_WARNING, "Unable to open Asterisk database '%s': %s\n", dbname, sqlite3_errmsg(astdb));
 		sqlite3_close(astdb);
 		ast_mutex_unlock(&dblock);
