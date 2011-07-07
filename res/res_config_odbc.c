@@ -481,7 +481,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	va_list aq;
 	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
 	struct odbc_cache_tables *tableptr;
-	struct odbc_cache_columns *column;
+	struct odbc_cache_columns *column = NULL;
 	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	if (!table) {
@@ -519,7 +519,16 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	while((newparam = va_arg(aq, const char *))) {
 		va_arg(aq, const char *);
 		if ((tableptr && (column = ast_odbc_find_column(tableptr, newparam))) || count > 63) {
-			snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
+			/* NULL test for integer-based columns */
+			if (ast_strlen_zero(newparam) && tableptr && column && column->nullable && count < 64 &&
+				(column->type == SQL_INTEGER || column->type == SQL_BIGINT ||
+				 column->type == SQL_SMALLINT || column->type == SQL_TINYINT ||
+				 column->type == SQL_NUMERIC || column->type == SQL_DECIMAL)) {
+				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=NULL", newparam);
+				cps.skip |= (1LL << count);
+			} else {
+				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
+			}
 		} else { /* the column does not exist in the table */
 			cps.skip |= (1LL << count);
 		}
