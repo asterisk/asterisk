@@ -21958,7 +21958,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 			p->invitestate = INV_COMPLETED;
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			ast_string_field_set(p, theirtag, NULL);
 			res = 0;
 			goto request_invite_cleanup;
 		}
