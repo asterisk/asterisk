@@ -921,15 +921,18 @@ struct ast_state_cb {
 	int id;
 	void *data;
 	ast_state_cb_type callback;
+	/*! \note Only used by ast_merge_contexts_and_delete */
 	AST_LIST_ENTRY(ast_state_cb) entry;
 };
 
-/*! \brief Structure for dial plan hints
-
-  \note Hints are pointers from an extension in the dialplan to one or
-  more devices (tech/name)
-	- See \ref AstExtState
-*/
+/*!
+ * \brief Structure for dial plan hints
+ *
+ * \note Hints are pointers from an extension in the dialplan to
+ * one or more devices (tech/name)
+ *
+ * See \ref AstExtState
+ */
 struct ast_hint {
 	struct ast_exten *exten;	/*!< Extension */
 	int laststate;			/*!< Last known state */
@@ -1022,12 +1025,12 @@ static void __ast_internal_context_destroy( struct ast_context *con);
 static int ast_add_extension_nolock(const char *context, int replace, const char *extension,
 	int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
-static int add_pri_lockopt(struct ast_context *con, struct ast_exten *tmp,
-	struct ast_exten *el, struct ast_exten *e, int replace, int lockhints);
 static int ast_add_extension2_lockopt(struct ast_context *con,
 	int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *),
-	const char *registrar, int lockconts, int lockhints);
+	const char *registrar, int lock_context);
+static struct ast_context *find_context_locked(const char *context);
+static struct ast_context *find_context(const char *context);
 
 /* a func for qsort to use to sort a char array */
 static int compare_char(const void *a, const void *b)
@@ -1171,7 +1174,9 @@ static struct pbx_builtin {
 static struct ast_context *contexts;
 static struct ast_hashtab *contexts_table = NULL;
 
-/*!\brief Lock for the ast_context list
+/*!
+ * \brief Lock for the ast_context list
+ * \note
  * This lock MUST be recursive, or a deadlock on reload may result.  See
  * https://issues.asterisk.org/view.php?id=17643
  */
@@ -1182,12 +1187,14 @@ static AST_RWLIST_HEAD_STATIC(apps, ast_app);
 static AST_RWLIST_HEAD_STATIC(switches, ast_switch);
 
 static int stateid = 1;
-/* WARNING:
-   When holding this container's lock, do _not_ do anything that will cause conlock
-   to be taken, unless you _already_ hold it. The ast_merge_contexts_and_delete
-   function will take the locks in conlock/hints order, so any other
-   paths that require both locks must also take them in that order.
-*/
+/*!
+ * \note When holding this container's lock, do _not_ do
+ * anything that will cause conlock to be taken, unless you
+ * _already_ hold it.  The ast_merge_contexts_and_delete function
+ * will take the locks in conlock/hints order, so any other
+ * paths that require both locks must also take them in that
+ * order.
+ */
 static struct ao2_container *hints;
 
 static struct ao2_container *statecbs;
@@ -1214,8 +1221,6 @@ void check_contexts_trouble(void)
 	x = 2;
 }
 
-static struct ast_context *find_context_locked(const char *context);
-static struct ast_context *find_context(const char *context);
 int check_contexts(char *, int);
 
 int check_contexts(char *file, int line )
@@ -1261,9 +1266,7 @@ int check_contexts(char *file, int line )
 	   hashtab structure */
 	for(c2=contexts;c2;c2=c2->next) {
 		c1 = find_context_locked(c2->name);
-		if (c1)
-		{
-
+		if (c1) {
 			ast_unlock_contexts();
 
 			/* is every entry in the root list also in the root_table? */
@@ -2510,17 +2513,20 @@ struct fake_context /* this struct is purely for matching in the hashtab */
 
 struct ast_context *ast_context_find(const char *name)
 {
-	struct ast_context *tmp = NULL;
+	struct ast_context *tmp;
 	struct fake_context item;
 
-	ast_copy_string(item.name, name, sizeof(item.name));
-
+	if (!name) {
+		return NULL;
+	}
 	ast_rdlock_contexts();
-	if( contexts_table ) {
-		tmp = ast_hashtab_lookup(contexts_table,&item);
+	if (contexts_table) {
+		ast_copy_string(item.name, name, sizeof(item.name));
+		tmp = ast_hashtab_lookup(contexts_table, &item);
 	} else {
-		while ( (tmp = ast_walk_contexts(tmp)) ) {
-			if (!name || !strcasecmp(name, tmp->name)) {
+		tmp = NULL;
+		while ((tmp = ast_walk_contexts(tmp))) {
+			if (!strcasecmp(name, tmp->name)) {
 				break;
 			}
 		}
@@ -2587,11 +2593,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	if (bypass) { /* bypass means we only look there */
 		tmp = bypass;
 	} else {      /* look in contexts */
-		struct fake_context item;
-
-		ast_copy_string(item.name, context, sizeof(item.name));
-
-		tmp = ast_hashtab_lookup(contexts_table, &item);
+		tmp = find_context(context);
 		if (!tmp) {
 			return NULL;
 		}
@@ -4269,14 +4271,12 @@ static int handle_statechange(void *datap)
 				break;
 			}
 		}
-
 		if (!cur) {
 			continue;
 		}
 
 		/* Get device state for this hint */
 		state = ast_extension_state2(hint->exten);
-
 		if ((state == -1) || (state == hint->laststate)) {
 			continue;
 		}
@@ -4319,7 +4319,7 @@ static int handle_statechange(void *datap)
 
 /*! \brief  Add watcher for extension states */
 int ast_extension_state_add(const char *context, const char *exten,
-			    ast_state_cb_type callback, void *data)
+	ast_state_cb_type callback, void *data)
 {
 	struct ast_hint *hint;
 	struct ast_state_cb *state_cb;
@@ -5144,36 +5144,33 @@ void pbx_set_overrideswitch(const char *newval)
 /*!
  * \brief lookup for a context with a given name,
  * \retval found context or NULL if not found.
-*/
+ */
 static struct ast_context *find_context(const char *context)
 {
-	struct ast_context *c = NULL;
 	struct fake_context item;
 
 	ast_copy_string(item.name, context, sizeof(item.name));
 
-	c = ast_hashtab_lookup(contexts_table,&item);
-
-	return c;
+	return ast_hashtab_lookup(contexts_table, &item);
 }
 
 /*!
  * \brief lookup for a context with a given name,
  * \retval with conlock held if found.
  * \retval NULL if not found.
-*/
+ */
 static struct ast_context *find_context_locked(const char *context)
 {
-	struct ast_context *c = NULL;
+	struct ast_context *c;
 	struct fake_context item;
 
 	ast_copy_string(item.name, context, sizeof(item.name));
 
 	ast_rdlock_contexts();
-	c = ast_hashtab_lookup(contexts_table,&item);
-
-	if (!c)
+	c = ast_hashtab_lookup(contexts_table, &item);
+	if (!c) {
 		ast_unlock_contexts();
+	}
 
 	return c;
 }
@@ -5183,12 +5180,13 @@ static struct ast_context *find_context_locked(const char *context)
  * This function locks contexts list by &conlist, search for the right context
  * structure, leave context list locked and call ast_context_remove_include2
  * which removes include, unlock contexts list and return ...
-*/
+ */
 int ast_context_remove_include(const char *context, const char *include, const char *registrar)
 {
 	int ret = -1;
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) {
 		/* found, remove include from this context ... */
 		ret = ast_context_remove_include2(c, include, registrar);
@@ -5244,8 +5242,9 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 int ast_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar)
 {
 	int ret = -1; /* default error return */
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) {
 		/* remove switch from this context ... */
 		ret = ast_context_remove_switch2(c, sw, data, registrar);
@@ -5288,11 +5287,7 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
 	return ret;
 }
 
-/*
- * \note This functions lock contexts list, search for the right context,
- * call ast_context_remove_extension2, unlock contexts list and return.
- * In this function we are using
- */
+/*! \note This function will lock conlock. */
 int ast_context_remove_extension(const char *context, const char *extension, int priority, const char *registrar)
 {
 	return ast_context_remove_extension_callerid(context, extension, priority, NULL, 0, registrar);
@@ -5301,12 +5296,15 @@ int ast_context_remove_extension(const char *context, const char *extension, int
 int ast_context_remove_extension_callerid(const char *context, const char *extension, int priority, const char *callerid, int matchcallerid, const char *registrar)
 {
 	int ret = -1; /* default error return */
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) { /* ... remove extension ... */
-		ret = ast_context_remove_extension_callerid2(c, extension, priority, callerid, matchcallerid, registrar, 1);
+		ret = ast_context_remove_extension_callerid2(c, extension, priority, callerid,
+			matchcallerid, registrar, 0);
 		ast_unlock_contexts();
 	}
+
 	return ret;
 }
 
@@ -5487,21 +5485,14 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
  */
 int ast_context_lockmacro(const char *context)
 {
-	struct ast_context *c = NULL;
+	struct ast_context *c;
 	int ret = -1;
-	struct fake_context item;
 
-	ast_rdlock_contexts();
+	c = find_context_locked(context);
+	if (c) {
+		ast_unlock_contexts();
 
-	ast_copy_string(item.name, context, sizeof(item.name));
-
-	c = ast_hashtab_lookup(contexts_table,&item);
-	if (c)
-		ret = 0;
-	ast_unlock_contexts();
-
-	/* if we found context, lock macrolock */
-	if (ret == 0) {
+		/* if we found context, lock macrolock */
 		ret = ast_mutex_lock(&c->macrolock);
 	}
 
@@ -5515,21 +5506,14 @@ int ast_context_lockmacro(const char *context)
  */
 int ast_context_unlockmacro(const char *context)
 {
-	struct ast_context *c = NULL;
+	struct ast_context *c;
 	int ret = -1;
-	struct fake_context item;
 
-	ast_rdlock_contexts();
+	c = find_context_locked(context);
+	if (c) {
+		ast_unlock_contexts();
 
-	ast_copy_string(item.name, context, sizeof(item.name));
-
-	c = ast_hashtab_lookup(contexts_table,&item);
-	if (c)
-		ret = 0;
-	ast_unlock_contexts();
-
-	/* if we found context, unlock macrolock */
-	if (ret == 0) {
+		/* if we found context, unlock macrolock */
 		ret = ast_mutex_unlock(&c->macrolock);
 	}
 
@@ -5823,8 +5807,8 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			ast_extension_state2str(hint->laststate), watchers);
 		num++;
 	}
-
 	ao2_iterator_destroy(&i);
+
 	ast_cli(a->fd, "----------------\n");
 	ast_cli(a->fd, "- %d hints registered\n", num);
 	return CLI_SUCCESS;
@@ -7082,7 +7066,8 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar)
 {
 	double ft;
-	struct ast_context *tmp, *oldcontextslist;
+	struct ast_context *tmp;
+	struct ast_context *oldcontextslist;
 	struct ast_hashtab *oldtable;
 	struct store_hints store = AST_LIST_HEAD_INIT_VALUE;
 	struct store_hint *this;
@@ -7092,17 +7077,22 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	struct ast_state_cb *thiscb;
 	struct ast_hashtab_iter *iter;
 	struct ao2_iterator i;
+	struct timeval begintime;
+	struct timeval writelocktime;
+	struct timeval endlocktime;
+	struct timeval enddeltime;
 
-	/* it is very important that this function hold the hint list lock _and_ the conlock
-	   during its operation; not only do we need to ensure that the list of contexts
-	   and extensions does not change, but also that no hint callbacks (watchers) are
-	   added or removed during the merge/delete process
-
-	   in addition, the locks _must_ be taken in this order, because there are already
-	   other code paths that use this order
-	*/
-
-	struct timeval begintime, writelocktime, endlocktime, enddeltime;
+	/*
+	 * It is very important that this function hold the hints
+	 * container lock _and_ the conlock during its operation; not
+	 * only do we need to ensure that the list of contexts and
+	 * extensions does not change, but also that no hint callbacks
+	 * (watchers) are added or removed during the merge/delete
+	 * process
+	 *
+	 * In addition, the locks _must_ be taken in this order, because
+	 * there are already other code paths that use this order
+	 */
 
 	begintime = ast_tvnow();
 	ast_rdlock_contexts();
@@ -7199,13 +7189,17 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	ast_unlock_contexts();
 	endlocktime = ast_tvnow();
 
-	/* the old list and hashtab no longer are relevant, delete them while the rest of asterisk
-	   is now freely using the new stuff instead */
+	/*
+	 * The old list and hashtab no longer are relevant, delete them
+	 * while the rest of asterisk is now freely using the new stuff
+	 * instead.
+	 */
 
 	ast_hashtab_destroy(oldtable, NULL);
 
 	for (tmp = oldcontextslist; tmp; ) {
 		struct ast_context *next;	/* next starting point */
+
 		next = tmp->next;
 		__ast_internal_context_destroy(tmp);
 		tmp = next;
@@ -7227,7 +7221,6 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	ft = ast_tvdiff_us(enddeltime, begintime);
 	ft /= 1000000.0;
 	ast_verb(3,"Total time merge_contexts_delete: %8.6f sec\n", ft);
-	return;
 }
 
 /*
@@ -7238,8 +7231,9 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 int ast_context_add_include(const char *context, const char *include, const char *registrar)
 {
 	int ret = -1;
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) {
 		ret = ast_context_add_include2(c, include, registrar);
 		ast_unlock_contexts();
@@ -7569,8 +7563,9 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 int ast_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar)
 {
 	int ret = -1;
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) { /* found, add switch to this context */
 		ret = ast_context_add_switch2(c, sw, data, eval, registrar);
 		ast_unlock_contexts();
@@ -7648,8 +7643,9 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 int ast_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar)
 {
 	int ret = -1;
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) {
 		ret = ast_context_remove_ignorepat2(c, ignorepat, registrar);
 		ast_unlock_contexts();
@@ -7691,8 +7687,9 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
 int ast_context_add_ignorepat(const char *context, const char *value, const char *registrar)
 {
 	int ret = -1;
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) {
 		ret = ast_context_add_ignorepat2(c, value, registrar);
 		ast_unlock_contexts();
@@ -7741,8 +7738,10 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 int ast_ignore_pattern(const char *context, const char *pattern)
 {
 	struct ast_context *con = ast_context_find(context);
+
 	if (con) {
 		struct ast_ignorepat *pat;
+
 		for (pat = con->ignorepats; pat; pat = pat->next) {
 			if (ast_extension_match(pat->pattern, pattern))
 				return 1;
@@ -7762,11 +7761,12 @@ static int ast_add_extension_nolock(const char *context, int replace, const char
 	const char *application, void *data, void (*datad)(void *), const char *registrar)
 {
 	int ret = -1;
-	struct ast_context *c = find_context(context);
+	struct ast_context *c;
 
+	c = find_context(context);
 	if (c) {
 		ret = ast_add_extension2_lockopt(c, replace, extension, priority, label, callerid,
-			application, data, datad, registrar, 0, 0);
+			application, data, datad, registrar, 1);
 	}
 
 	return ret;
@@ -7781,8 +7781,9 @@ int ast_add_extension(const char *context, int replace, const char *extension,
 	const char *application, void *data, void (*datad)(void *), const char *registrar)
 {
 	int ret = -1;
-	struct ast_context *c = find_context_locked(context);
+	struct ast_context *c;
 
+	c = find_context_locked(context);
 	if (c) {
 		ret = ast_add_extension2(c, replace, extension, priority, label, callerid,
 			application, data, datad, registrar);
@@ -7940,19 +7941,8 @@ static int ext_strncpy(char *dst, const char *src, int len)
  * \retval 0 on success.
  * \retval -1 on failure.
 */
-static int add_pri(struct ast_context *con, struct ast_exten *tmp,
+static int add_priority(struct ast_context *con, struct ast_exten *tmp,
 	struct ast_exten *el, struct ast_exten *e, int replace)
-{
-	return add_pri_lockopt(con, tmp, el, e, replace, 1);
-}
-
-/*!
- * \brief add the extension in the priority chain.
- * \retval 0 on success.
- * \retval -1 on failure.
-*/
-static int add_pri_lockopt(struct ast_context *con, struct ast_exten *tmp,
-	struct ast_exten *el, struct ast_exten *e, int replace, int lockhints)
 {
 	struct ast_exten *ep;
 	struct ast_exten *eh=e;
@@ -8089,11 +8079,7 @@ static int add_pri_lockopt(struct ast_context *con, struct ast_exten *tmp,
 		}
 		/* And immediately return success. */
 		if (tmp->priority == PRIORITY_HINT) {
-			if (lockhints) {
-				ast_add_hint(tmp);
-			} else {
-				ast_add_hint(tmp);
-			}
+			ast_add_hint(tmp);
 		}
 	}
 	return 0;
@@ -8129,18 +8115,21 @@ int ast_add_extension2(struct ast_context *con,
 	const char *application, void *data, void (*datad)(void *),
 	const char *registrar)
 {
-	return ast_add_extension2_lockopt(con, replace, extension, priority, label, callerid, application, data, datad, registrar, 1, 1);
+	return ast_add_extension2_lockopt(con, replace, extension, priority, label, callerid,
+		application, data, datad, registrar, 1);
 }
 
-/*! \brief
- * Does all the work of ast_add_extension2, but adds two args, to determine if
- * context and hint locking should be done. In merge_and_delete, we need to do
- * this without locking, as the locks are already held.
+/*!
+ * \brief Same as ast_add_extension2() but controls the context locking.
+ *
+ * \details
+ * Does all the work of ast_add_extension2, but adds an arg to
+ * determine if context locking should be done.
  */
 static int ast_add_extension2_lockopt(struct ast_context *con,
 	int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *),
-	const char *registrar, int lockconts, int lockhints)
+	const char *registrar, int lock_context)
 {
 	/*
 	 * Sort extensions (or patterns) according to the rules indicated above.
@@ -8217,7 +8206,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	tmp->datad = datad;
 	tmp->registrar = registrar;
 
-	if (lockconts) {
+	if (lock_context) {
 		ast_wrlock_context(con);
 	}
 
@@ -8250,9 +8239,9 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		if (res >= 0)
 			break;
 	}
-	if (e && res == 0) { /* exact match, insert in the pri chain */
-		res = add_pri(con, tmp, el, e, replace);
-		if (lockconts) {
+	if (e && res == 0) { /* exact match, insert in the priority chain */
+		res = add_priority(con, tmp, el, e, replace);
+		if (lock_context) {
 			ast_unlock_context(con);
 		}
 		if (res < 0) {
@@ -8311,15 +8300,11 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 
 		}
 		ast_hashtab_insert_safe(con->root_table, tmp);
-		if (lockconts) {
+		if (lock_context) {
 			ast_unlock_context(con);
 		}
 		if (tmp->priority == PRIORITY_HINT) {
-			if (lockhints) {
-				ast_add_hint(tmp);
-			} else {
-				ast_add_hint(tmp);
-			}
+			ast_add_hint(tmp);
 		}
 	}
 	if (option_debug) {
@@ -9971,17 +9956,17 @@ int load_pbx(void)
 /*
  * Lock context list functions ...
  */
-int ast_wrlock_contexts()
+int ast_wrlock_contexts(void)
 {
 	return ast_mutex_lock(&conlock);
 }
 
-int ast_rdlock_contexts()
+int ast_rdlock_contexts(void)
 {
 	return ast_mutex_lock(&conlock);
 }
 
-int ast_unlock_contexts()
+int ast_unlock_contexts(void)
 {
 	return ast_mutex_unlock(&conlock);
 }
