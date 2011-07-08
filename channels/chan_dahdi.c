@@ -3036,9 +3036,9 @@ static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)
 #if defined(HAVE_PRI)
 static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 {
-	int x, res;
+	int x;
 
-	res = ioctl(pri->fds[index], DAHDI_GETEVENT, &x);
+	ioctl(pri->fds[index], DAHDI_GETEVENT, &x);
 	if (x) {
 		ast_log(LOG_NOTICE, "PRI got event: %s (%d) on D-channel of span %d\n", event2str(x), x, pri->span);
 	}
@@ -10990,7 +10990,7 @@ quit_no_clean:
 */
 static int mwi_send_init(struct dahdi_pvt * pvt)
 {
-	int x, res;
+	int x;
 
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	/* Determine how this spill is to be sent */
@@ -11026,7 +11026,7 @@ static int mwi_send_init(struct dahdi_pvt * pvt)
 		return -1;
 	}
 	x = DAHDI_FLUSH_BOTH;
-	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_FLUSH, &x);
+	ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_FLUSH, &x);
 	x = 3000;
 	ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_ONHOOKTRANSFER, &x);
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
