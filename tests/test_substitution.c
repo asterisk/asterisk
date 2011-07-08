@@ -261,6 +261,8 @@ AST_TEST_DEFINE(test_substitution)
 	TEST(test_expected_result(test, c, "A${${baz}o:-2:-1}A", "A2A"));
 	pbx_builtin_setvar_helper(c, "list1", "ab&cd&ef");
 	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,cd)}", "ab&ef"));
+	TEST(test_expected_result(test, c, "${SHELL(echo -n 123)},${SHELL(echo -n 456)}", "123,456"));
+	TEST(test_expected_result(test, c, "${foo},${CDR(answer)},${SHELL(echo -n 456)}", "123,,456"));
 #undef TEST
 
 	/* For testing dialplan functions */

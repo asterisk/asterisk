@@ -3551,9 +3551,9 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 		if (acfptr->mod) {
 			u = __ast_module_user_add(acfptr->mod, chan);
 		}
+		ast_str_reset(*str);
 		if (acfptr->read2) {
 			/* ast_str enabled */
-			ast_str_reset(*str);
 			res = acfptr->read2(chan, copy, args, str, maxlen);
 		} else {
 			/* Legacy function pointer, allocate buffer for result */
