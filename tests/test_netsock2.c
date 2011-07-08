@@ -101,7 +101,9 @@ AST_TEST_DEFINE(parsing)
 			tmp = ast_sockaddr_stringify(&addr);
 			ast_sockaddr_parse(&tmp_addr, tmp, 0);
 			if (ast_sockaddr_cmp_addr(&addr, &tmp_addr)) {
-				ast_test_status_update(test, "Re-parsed stringification did not match: '%s' vs '%s'\n", ast_sockaddr_stringify(&addr), ast_sockaddr_stringify(&tmp_addr));
+				char buf[64];
+				ast_copy_string(buf, ast_sockaddr_stringify(&addr), sizeof(buf));
+				ast_test_status_update(test, "Re-parsed stringification of '%s' did not match: '%s' vs '%s'\n", test_vals[x].address, buf, ast_sockaddr_stringify(&tmp_addr));
 				res = AST_TEST_FAIL;
 			}
 		}
