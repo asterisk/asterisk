@@ -29,6 +29,12 @@ ConfBridge
  - ConfBridge's dialplan arguments have changed and are not
    backwards compatible.
 
+File Interpreters
+ - The format interpreter formats/format_sln16.c for the file extension
+   '.sln16' has been removed. The '.sln16' file interpreter now exists
+   in the formats/format_sln.c module along with new support for sln12,
+   sln24, sln32, sln44, sln48, sln96, and sln192 file extensions.
+
 HTTP:
  - A bindaddr must be specified in order for the HTTP server
    to run. Previous versions would default to 0.0.0.0 if no

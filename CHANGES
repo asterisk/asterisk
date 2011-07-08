@@ -79,7 +79,7 @@ CODECS
    custom CELT formats in codecs.conf.
  * Ability to read raw signed linear files with sample rates
    ranging from 8khz - 192khz.  The new file extensions introduced
-   are .sln12, .sln24, .slin32, .slin44, .slin48, .slin96, .slin192.
+   are .sln12, .sln24, .sln32, .sln44, .sln48, .sln96, .sln192.
 
 ConfBridge
 --------------------------
