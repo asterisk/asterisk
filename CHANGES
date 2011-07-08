@@ -77,6 +77,9 @@ CODECS
  * Addition of speex32 audio format with translation.
  * CELT codec pass-through support and ability to define
    custom CELT formats in codecs.conf.
+ * Ability to read raw signed linear files with sample rates
+   ranging from 8khz - 192khz.  The new file extensions introduced
+   are .sln12, .sln24, .slin32, .slin44, .slin48, .slin96, .slin192.
 
 ConfBridge
 --------------------------
