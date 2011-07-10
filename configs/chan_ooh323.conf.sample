@@ -122,6 +122,18 @@ dtmfmode=rfc2833
 ;
 ;roundtrip=x,y
 
+;
+; FAX detection will cause the OOH323 channel to jump to the 'fax' extension (if it exists)
+; based one or more events being detected. The events that can be detected are an incoming
+; CNG tone or an incoming T.38 RequestMode packet
+;
+; yes - enable both detection (CNG & T.38)
+; no - disable both 
+; cng - enable CNG detection (default)
+; t38 - enable T.38 request detection
+;
+faxdetect = cng
+
 ; User/peer/friend definitions:
 ; User config options                    Peer config options
 ; ------------------                     -------------------
