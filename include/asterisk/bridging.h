@@ -190,6 +190,9 @@ struct ast_bridge_video_talker_src_data {
 	/*! Only accept video coming from this channel */
 	struct ast_channel *chan_vsrc;
 	int average_talking_energy;
+
+	/*! Current talker see's this person */
+	struct ast_channel *chan_old_vsrc;
 };
 
 struct ast_bridge_video_mode {
@@ -528,7 +531,17 @@ void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge);
 void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyfame);
 
 /*!
+ * \brief Returns the number of video sources currently active in the bridge
+ */
+int ast_bridge_number_video_src(struct ast_bridge *bridge);
+
+/*!
  * \brief Determine if a channel is a video src for the bridge
+ *
+ * \retval 0 Not a current video source of the bridge.
+ * \retval None 0, is a video source of the bridge, The number
+ *         returned represents the priority this video stream has
+ *         on the bridge where 1 is the highest priority.
  */
 int ast_bridge_is_video_src(struct ast_bridge *bridge, struct ast_channel *chan);
 

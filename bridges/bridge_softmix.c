@@ -435,11 +435,28 @@ static void softmix_pass_dtmf(struct ast_bridge *bridge, struct ast_bridge_chann
 	}
 }
 
-static void softmix_pass_video(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+static void softmix_pass_video_top_priority(struct ast_bridge *bridge, struct ast_frame *frame)
 {
 	struct ast_bridge_channel *tmp;
 	AST_LIST_TRAVERSE(&bridge->channels, tmp, entry) {
 		if (tmp->suspended) {
+			continue;
+		}
+		if (ast_bridge_is_video_src(bridge, tmp->chan) == 1) {
+			ast_write(tmp->chan, frame);
+			break;
+		}
+	}
+}
+
+static void softmix_pass_video_all(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame, int echo)
+{
+	struct ast_bridge_channel *tmp;
+	AST_LIST_TRAVERSE(&bridge->channels, tmp, entry) {
+		if (tmp->suspended) {
+			continue;
+		}
+		if ((tmp->chan == bridge_channel->chan) && !echo) {
 			continue;
 		}
 		ast_write(tmp->chan, frame);
@@ -472,20 +489,26 @@ static enum ast_bridge_write_result softmix_bridge_write(struct ast_bridge *brid
 
 	/* Determine if this video frame should be distributed or not */
 	if (frame->frametype == AST_FRAME_VIDEO) {
+		int num_src = ast_bridge_number_video_src(bridge);
+		int video_src_priority = ast_bridge_is_video_src(bridge, bridge_channel->chan);
+
 		switch (bridge->video_mode.mode) {
 		case AST_BRIDGE_VIDEO_MODE_NONE:
 			break;
 		case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
-			if (ast_bridge_is_video_src(bridge, bridge_channel->chan)) {
-				softmix_pass_video(bridge, bridge_channel, frame);
+			if (video_src_priority == 1) {
+				softmix_pass_video_all(bridge, bridge_channel, frame, 1);
 			}
 			break;
 		case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
 			ast_mutex_lock(&sc->lock);
 			ast_bridge_update_talker_src_video_mode(bridge, bridge_channel->chan, sc->video_talker.energy_average, ast_format_get_video_mark(&frame->subclass.format));
 			ast_mutex_unlock(&sc->lock);
-			if (ast_bridge_is_video_src(bridge, bridge_channel->chan)) {
-				softmix_pass_video(bridge, bridge_channel, frame);
+			if (video_src_priority == 1) {
+				int echo = num_src > 1 ? 0 : 1;
+				softmix_pass_video_all(bridge, bridge_channel, frame, echo);
+			} else if (video_src_priority == 2) {
+				softmix_pass_video_top_priority(bridge, frame);
 			}
 			break;
 		}
