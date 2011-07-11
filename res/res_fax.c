@@ -2925,7 +2925,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	/* in gateway mode, gateway some packets */
 	if (gateway->t38_state == T38_STATE_NEGOTIATED) {
 		/* framehooks are called in __ast_read() before frame format
-		 * translation is does, so we need to translate here */
+		 * translation is done, so we need to translate here */
 		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id != AST_FORMAT_SLINEAR)) {
 			if (active->readtrans && (f = ast_translate(active->readtrans, f, 1)) == NULL) {
 				f = &ast_null_frame;
