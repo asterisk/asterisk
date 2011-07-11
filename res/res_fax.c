@@ -2470,7 +2470,7 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	return 0;
 }
 
-static struct ast_frame *fax_gateway_send_ced(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_frame *f)
+static struct ast_frame *fax_gateway_request_t38(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_frame *f)
 {
 	struct ast_frame *fp;
 	struct ast_control_t38_parameters t38_parameters = {
@@ -2506,7 +2506,7 @@ static struct ast_frame *fax_gateway_send_ced(struct fax_gateway *gateway, struc
 	gateway->ced_timeout_start.tv_sec = 0;
 	gateway->ced_timeout_start.tv_usec = 0;
 
-	ast_debug(1, "detected CED tone; requesting T.38 for gateway session for %s\n", chan->name);
+	ast_debug(1, "requesting T.38 for gateway session for %s\n", chan->name);
 	return fp;
 }
 
@@ -2536,7 +2536,7 @@ static struct ast_frame *fax_gateway_detect_ced(struct fax_gateway *gateway, str
 				gateway->ced_chan = (active == chan);
 				ast_debug(1, "detected CED tone from %s; will schedule T.38 request on %s\n", active->name, other->name);
 			} else {
-				return fax_gateway_send_ced(gateway, chan, f);
+				return fax_gateway_request_t38(gateway, chan, f);
 			}
 		} else {
 			ast_debug(1, "detected CED tone on %s, but %s does not support T.38 for T.38 gateway session\n", active->name, other->name);
@@ -2948,9 +2948,9 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	if (!ast_tvzero(gateway->ced_timeout_start)) {
 		if (ast_tvdiff_ms(ast_tvnow(), gateway->ced_timeout_start) > FAX_GATEWAY_CED_TIMEOUT) {
 			if (gateway->ced_chan && chan == active) {
-				return fax_gateway_send_ced(gateway, chan, f);
+				return fax_gateway_request_t38(gateway, chan, f);
 			} else if (!gateway->ced_chan && peer == active) {
-				return fax_gateway_send_ced(gateway, chan, f);
+				return fax_gateway_request_t38(gateway, chan, f);
 			}
 		}
 	} else if (gateway->t38_state == T38_STATE_UNAVAILABLE && f->frametype == AST_FRAME_VOICE) {
