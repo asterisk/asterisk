@@ -44,6 +44,7 @@
 #define JINGLE_DTMF_NS "urn:xmpp:tmp:jingle:dtmf"
 
 #define GOOGLE_NS "http://www.google.com/session"
+#define GOOGLE_JINGLE_NS "urn:xmpp:jingle:1"
 #define GOOGLE_AUDIO_NS "http://www.google.com/session/phone"
 #define GOOGLE_VIDEO_NS "http://www.google.com/session/video"
 #define GOOGLE_TRANSPORT_NS "http://www.google.com/transport/p2p"
