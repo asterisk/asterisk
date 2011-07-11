@@ -263,6 +263,7 @@ AST_TEST_DEFINE(test_substitution)
 	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,cd)}", "ab&ef"));
 	TEST(test_expected_result(test, c, "${SHELL(echo -n 123)},${SHELL(echo -n 456)}", "123,456"));
 	TEST(test_expected_result(test, c, "${foo},${CDR(answer)},${SHELL(echo -n 456)}", "123,,456"));
+	TEST(test_expected_result(test, c, "${foo},${this_does_not_exist},${THIS_DOES_NOT_EXIST(either)}", "123,,"));
 #undef TEST
 
 	/* For testing dialplan functions */

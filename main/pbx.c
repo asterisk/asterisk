@@ -3732,6 +3732,9 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 	ast_str_reset(*buf);
 	whereweare = tmp = templ;
 	while (!ast_strlen_zero(whereweare)) {
+		/* reset our buffer */
+		ast_str_reset(substr3);
+
 		/* Assume we're copying the whole remaining string */
 		pos = strlen(whereweare);
 		nextvar = NULL;
