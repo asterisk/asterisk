@@ -2516,6 +2516,11 @@ static struct ast_frame *fax_gateway_detect_ced(struct fax_gateway *gateway, str
 	struct ast_dsp *active_dsp = (active == chan) ? gateway->chan_dsp : gateway->peer_dsp;
 	struct ast_channel *other = (active == chan) ? peer : chan;
 
+	/* if we have already detected a CED tone, don't waste time here */
+	if (!ast_tvzero(gateway->ced_timeout_start)) {
+		return f;
+	}
+
 	if (!dfr) {
 		return f;
 	}
@@ -2525,10 +2530,11 @@ static struct ast_frame *fax_gateway_detect_ced(struct fax_gateway *gateway, str
 	}
 
 	if (dfr->frametype == AST_FRAME_DTMF && dfr->subclass.integer == 'e') {
-		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN && ast_tvzero(gateway->ced_timeout_start)) {
+		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN) {
 			if (ast_channel_get_t38_state(active) == T38_STATE_UNKNOWN) {
 				gateway->ced_timeout_start = ast_tvnow();
 				gateway->ced_chan = (active == chan);
+				ast_debug(1, "detected CED tone from %s; will schedule T.38 request on %s\n", active->name, other->name);
 			} else {
 				return fax_gateway_send_ced(gateway, chan, f);
 			}
@@ -2938,12 +2944,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		return fax_gateway_detect_t38(gateway, chan, peer, active, f);
 	}
 
-	/* not in gateway mode yet, listen for CED */
-	/* XXX this should detect a v21 preamble instead of CED */
-	if (gateway->t38_state == T38_STATE_UNAVAILABLE && f->frametype == AST_FRAME_VOICE) {
-		return fax_gateway_detect_ced(gateway, chan, peer, active, f);
-	}
-
 	/* handle the ced timeout delay */
 	if (!ast_tvzero(gateway->ced_timeout_start)) {
 		if (ast_tvdiff_ms(ast_tvnow(), gateway->ced_timeout_start) > FAX_GATEWAY_CED_TIMEOUT) {
@@ -2953,6 +2953,11 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 				return fax_gateway_send_ced(gateway, chan, f);
 			}
 		}
+	} else if (gateway->t38_state == T38_STATE_UNAVAILABLE && f->frametype == AST_FRAME_VOICE) {
+		/* not in gateway mode and have not detected CED yet, listen
+		 * for CED */
+		/* XXX this should detect a v21 preamble instead of CED */
+		return fax_gateway_detect_ced(gateway, chan, peer, active, f);
 	}
 
 	/* in gateway mode, gateway some packets */
