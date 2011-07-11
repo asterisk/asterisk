@@ -1,3 +1,17 @@
+2011-07-11  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.5.0 Released.
+
+	* r326484 | dvossel | 2011-07-06 10:26:49 -0500 (Wed, 06 Jul 2011)
+
+	  Reverts fix for timerfd locking issue.
+
+	  jrose discovered a performance issue with this
+	  fix that prevents his analog phones from working
+	  when using timerfd as a timing source.  Until
+	  it is understood what is causing this performance
+	  problem, this patch is being reverted.
+
 2011-06-29  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.5-rc1 Released.
