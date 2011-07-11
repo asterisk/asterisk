@@ -1295,7 +1295,7 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 	ast_copy_string(p->sid, sid, sizeof(p->sid));
 
 	/* codec points to the first <payload-type/> tag */
-	codec = iks_first_tag(iks_first_tag(iks_first_tag(pak->x)));
+	codec = iks_first_tag(iks_first_tag(pak->query));
 
 	while (codec) {
 		char *codec_id = iks_find_attrib(codec, "id");
@@ -1972,6 +1972,12 @@ static int gtalk_parser(void *data, ikspak *pak)
 {
 	struct gtalk *client = ASTOBJ_REF((struct gtalk *) data);
 	int res;
+	iks *tmp;
+
+	if (!strcasecmp(iks_name(pak->query), "jin:jingle") && (tmp = iks_next(pak->query)) && !strcasecmp(iks_name(tmp), "ses:session")) {
+		ast_debug(1, "New method detected. Skipping jingle offer and using old gtalk method.\n");
+		pak->query = tmp;
+	}
 
 	if (!strcmp(S_OR(iks_find_attrib(pak->x, "type"), ""), "error")) {
 		ast_log(LOG_NOTICE, "Remote peer reported an error, trying to establish the call anyway\n");
@@ -2151,6 +2157,7 @@ static int gtalk_load_config(void)
 						ASTOBJ_WRLOCK(member);
 						member->connection = NULL;
 						iks_filter_add_rule(iterator->f, gtalk_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS, GOOGLE_NS, IKS_RULE_DONE);
+						iks_filter_add_rule(iterator->f, gtalk_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS, GOOGLE_JINGLE_NS, IKS_RULE_DONE);
 						iks_filter_add_rule(iterator->f, gtalk_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS, "http://jabber.org/protocol/gtalk", IKS_RULE_DONE);
 						ASTOBJ_UNLOCK(member);
 						ASTOBJ_UNLOCK(iterator);
