@@ -246,6 +246,8 @@ struct fax_gateway {
 	struct ast_fax_tech_token *token;
 	/*! \brief the start of our timeout counter */
 	struct timeval timeout_start;
+	/*! \brief the start of our ced timeout */
+	struct timeval ced_timeout_start;
 	/*! \brief DSP Processor */
 	struct ast_dsp *chan_dsp;
 	struct ast_dsp *peer_dsp;
@@ -253,6 +255,8 @@ struct fax_gateway {
 	int framehook;
 	/*! \brief bridged */
 	int bridged:1;
+	/*! \brief 1 if the ced tone came from chan, 0 if it came from peer */
+	int ced_chan:1;
 	/*! \brief a flag to track the state of our negotiation */
 	enum ast_t38_state t38_state;
 	/*! \brief original audio formats */
@@ -269,6 +273,7 @@ static int fax_logger_level = -1;
 
 #define RES_FAX_TIMEOUT 10000
 #define FAX_GATEWAY_TIMEOUT RES_FAX_TIMEOUT
+#define FAX_GATEWAY_CED_TIMEOUT 3000
 
 /*! \brief The faxregistry is used to manage information and statistics for all FAX sessions. */
 static struct {
@@ -2465,6 +2470,46 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	return 0;
 }
 
+static struct ast_frame *fax_gateway_send_ced(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_frame *f)
+{
+	struct ast_frame *fp;
+	struct ast_control_t38_parameters t38_parameters = {
+		.request_response = AST_T38_REQUEST_NEGOTIATE,
+	};
+	struct ast_frame control_frame = {
+		.src = "res_fax",
+		.frametype = AST_FRAME_CONTROL,
+		.datalen = sizeof(t38_parameters),
+		.subclass.integer = AST_CONTROL_T38_PARAMETERS,
+		.data.ptr = &t38_parameters,
+	};
+
+	struct ast_fax_session_details *details = find_details(chan);
+
+	if (!details) {
+		ast_log(LOG_ERROR, "no FAX session details found on chan %s for T.38 gateway session, odd\n", chan->name);
+		ast_framehook_detach(chan, gateway->framehook);
+		return f;
+	}
+
+	t38_parameters_fax_to_ast(&t38_parameters, &details->our_t38_parameters);
+	ao2_ref(details, -1);
+
+	if (!(fp = ast_frisolate(&control_frame))) {
+		ast_log(LOG_ERROR, "error generating T.38 request control frame on chan %s for T.38 gateway session\n", chan->name);
+		return f;
+	}
+
+	gateway->t38_state = T38_STATE_NEGOTIATING;
+	gateway->timeout_start = ast_tvnow();
+
+	gateway->ced_timeout_start.tv_sec = 0;
+	gateway->ced_timeout_start.tv_usec = 0;
+
+	ast_debug(1, "detected CED tone; requesting T.38 for gateway session for %s\n", chan->name);
+	return fp;
+}
+
 static struct ast_frame *fax_gateway_detect_ced(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *active, struct ast_frame *f)
 {
 	struct ast_frame *dfr = ast_frdup(f);
@@ -2480,40 +2525,13 @@ static struct ast_frame *fax_gateway_detect_ced(struct fax_gateway *gateway, str
 	}
 
 	if (dfr->frametype == AST_FRAME_DTMF && dfr->subclass.integer == 'e') {
-		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN) {
-			struct ast_control_t38_parameters t38_parameters = {
-				.request_response = AST_T38_REQUEST_NEGOTIATE,
-			};
-			struct ast_frame control_frame = {
-				.src = "res_fax",
-				.frametype = AST_FRAME_CONTROL,
-				.datalen = sizeof(t38_parameters),
-				.subclass.integer = AST_CONTROL_T38_PARAMETERS,
-				.data.ptr = &t38_parameters,
-			};
-
-			struct ast_fax_session_details *details = find_details(chan);
-			ast_frfree(dfr);
-
-			if (!details) {
-				ast_log(LOG_ERROR, "no FAX session details found on chan %s for T.38 gateway session, odd\n", chan->name);
-				ast_framehook_detach(chan, gateway->framehook);
-				return f;
+		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN && ast_tvzero(gateway->ced_timeout_start)) {
+			if (ast_channel_get_t38_state(active) == T38_STATE_UNKNOWN) {
+				gateway->ced_timeout_start = ast_tvnow();
+				gateway->ced_chan = (active == chan);
+			} else {
+				return fax_gateway_send_ced(gateway, chan, f);
 			}
-
-			t38_parameters_fax_to_ast(&t38_parameters, &details->our_t38_parameters);
-			ao2_ref(details, -1);
-
-			if (!(dfr = ast_frisolate(&control_frame))) {
-				ast_log(LOG_ERROR, "error generating T.38 request control frame on chan %s for T.38 gateway session\n", chan->name);
-				return f;
-			}
-
-			gateway->t38_state = T38_STATE_NEGOTIATING;
-			gateway->timeout_start = ast_tvnow();
-
-			ast_debug(1, "detected CED tone on %s, requesting T.38 on %s for T.38 gateway session\n", active->name, other->name);
-			return dfr;
 		} else {
 			ast_debug(1, "detected CED tone on %s, but %s does not support T.38 for T.38 gateway session\n", active->name, other->name);
 		}
@@ -2568,6 +2586,10 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 
 	if (control_params->request_response == AST_T38_REQUEST_NEGOTIATE) {
 		enum ast_t38_state state = ast_channel_get_t38_state(other);
+
+		gateway->ced_timeout_start.tv_sec = 0;
+		gateway->ced_timeout_start.tv_usec = 0;
+
 		if (state == T38_STATE_UNKNOWN) {
 			/* we detected a request to negotiate T.38 and the
 			 * other channel appears to support T.38, we'll pass
@@ -2922,6 +2944,17 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		return fax_gateway_detect_ced(gateway, chan, peer, active, f);
 	}
 
+	/* handle the ced timeout delay */
+	if (!ast_tvzero(gateway->ced_timeout_start)) {
+		if (ast_tvdiff_ms(ast_tvnow(), gateway->ced_timeout_start) > FAX_GATEWAY_CED_TIMEOUT) {
+			if (gateway->ced_chan && chan == active) {
+				return fax_gateway_send_ced(gateway, chan, f);
+			} else if (!gateway->ced_chan && peer == active) {
+				return fax_gateway_send_ced(gateway, chan, f);
+			}
+		}
+	}
+
 	/* in gateway mode, gateway some packets */
 	if (gateway->t38_state == T38_STATE_NEGOTIATED) {
 		/* framehooks are called in __ast_read() before frame format
@@ -2940,6 +2973,12 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		gateway->s->tech->write(gateway->s, f);
 		f = &ast_null_frame;
 		return f;
+	}
+
+	/* force silence on the line if T.38 negotiation might be taking place */
+	if (!ast_tvzero(gateway->ced_timeout_start) || (gateway->t38_state != T38_STATE_UNAVAILABLE && gateway->t38_state != T38_STATE_REJECTED)) {
+		/* XXX may need to return a silence frame here */
+		return &ast_null_frame;
 	}
 
 	return f;
