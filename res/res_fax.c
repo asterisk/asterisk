@@ -2977,8 +2977,21 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 	/* force silence on the line if T.38 negotiation might be taking place */
 	if (!ast_tvzero(gateway->ced_timeout_start) || (gateway->t38_state != T38_STATE_UNAVAILABLE && gateway->t38_state != T38_STATE_REJECTED)) {
-		/* XXX may need to return a silence frame here */
-		return &ast_null_frame;
+		if (f->frametype == AST_FRAME_VOICE && f->subclass.format.id == AST_FORMAT_SLINEAR) {
+			short silence_buf[f->samples];
+			struct ast_frame silence_frame = {
+				.frametype = AST_FRAME_VOICE,
+				.data.ptr = silence_buf,
+				.samples = f->samples,
+				.datalen = sizeof(silence_buf),
+			};
+			ast_format_set(&silence_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
+			memset(silence_buf, 0, sizeof(silence_buf));
+
+			return ast_frisolate(&silence_frame);
+		} else {
+			return &ast_null_frame;
+		}
 	}
 
 	return f;
