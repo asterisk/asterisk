@@ -246,6 +246,20 @@ typedef struct
 
 typedef struct
 {
+	int block_size;
+	goertzel_state_t tone;
+	float energy;		/* Accumulated energy of the current block */
+	int samples_pending;	/* Samples remain to complete the current block */
+
+	float threshold;	/* Energy of the tone relative to energy from all other signals to consider a hit */
+
+	int hit_count;
+	int miss_count;
+
+} v21_detect_state_t;
+
+typedef struct
+{
 	goertzel_state_t row_out[4];
 	goertzel_state_t col_out[4];
 	int hits_to_begin;		/* How many successive hits needed to consider begin of a digit */
@@ -391,6 +405,7 @@ struct ast_dsp {
 	digit_detect_state_t digit_state;
 	tone_detect_state_t cng_tone_state;
 	tone_detect_state_t ced_tone_state;
+	v21_detect_state_t v21_state;
 };
 
 static void mute_fragment(struct ast_dsp *dsp, fragment_t *fragment)
@@ -463,10 +478,55 @@ static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration,
 	ast_debug(1, "Setup tone %d Hz, %d ms, block_size=%d, hits_required=%d\n", freq, duration, s->block_size, s->hits_required);
 }
 
+static void ast_v21_detect_init(v21_detect_state_t *s, unsigned int sample_rate)
+{
+	float x;
+	int periods_in_block;
+
+	/* If we want to remove tone, it is important to have block size not
+	   to exceed frame size. Otherwise by the moment tone is detected it is too late
+	   to squelch it from previous frames. Block size is 20ms at the given sample rate.*/
+	s->block_size = (20 * sample_rate) / 1000;
+
+	periods_in_block = s->block_size * 1850 / sample_rate;
+
+	/* Make sure we will have at least 5 periods at target frequency for analisys.
+	   This may make block larger than expected packet and will make squelching impossible
+	   but at least we will be detecting the tone */
+	if (periods_in_block < 5)
+		periods_in_block = 5;
+
+	/* Now calculate final block size. It will contain integer number of periods */
+	s->block_size = periods_in_block * sample_rate / 1850;
+
+	goertzel_init(&s->tone, 1850.0, s->block_size, sample_rate);
+
+	s->samples_pending = s->block_size;
+	s->hit_count = 0;
+	s->miss_count = 0;
+	s->energy = 0.0;
+
+	/* We want tone energy to be amp decibels above the rest of the signal (the noise).
+	   According to Parseval's theorem the energy computed in time domain equals to energy
+	   computed in frequency domain. So subtracting energy in the frequency domain (Goertzel result)
+	   from the energy in the time domain we will get energy of the remaining signal (without the tone
+	   we are detecting). We will be checking that
+		10*log(Ew / (Et - Ew)) > amp
+	   Calculate threshold so that we will be actually checking
+		Ew > Et * threshold
+	*/
+
+	x = pow(10.0, 16 / 10.0);
+	s->threshold = x / (x + 1);
+
+	ast_debug(1, "Setup v21 detector, block_size=%d\n", s->block_size);
+}
+
 static void ast_fax_detect_init(struct ast_dsp *s)
 {
 	ast_tone_detect_init(&s->cng_tone_state, FAX_TONE_CNG_FREQ, FAX_TONE_CNG_DURATION, FAX_TONE_CNG_DB, s->sample_rate);
 	ast_tone_detect_init(&s->ced_tone_state, FAX_TONE_CED_FREQ, FAX_TONE_CED_DURATION, FAX_TONE_CED_DB, s->sample_rate);
+	ast_v21_detect_init(&s->v21_state, s->sample_rate);
 }
 
 static void ast_dtmf_detect_init (dtmf_detect_state_t *s, unsigned int sample_rate)
@@ -511,6 +571,89 @@ static void ast_digit_detect_init(digit_detect_state_t *s, int mf, unsigned int 
 	} else {
 		ast_dtmf_detect_init(&s->td.dtmf, sample_rate);
 	}
+}
+
+/*! \brief Detect a v21 preamble.
+ * This code is derived from the tone_detect code and detects a pattern of 1850
+ * Hz tone found in a v21 preamble.
+ */
+static int v21_detect(struct ast_dsp *dsp, v21_detect_state_t *s, int16_t *amp, int samples)
+{
+	float tone_energy;
+	int i;
+	int hit = 0;
+	int limit;
+	int res = 0;
+	int16_t *ptr;
+	int start, end;
+
+	for (start = 0;  start < samples;  start = end) {
+		/* Process in blocks. */
+		limit = samples - start;
+		if (limit > s->samples_pending) {
+			limit = s->samples_pending;
+		}
+		end = start + limit;
+
+		for (i = limit, ptr = amp ; i > 0; i--, ptr++) {
+			/* signed 32 bit int should be enough to suqare any possible signed 16 bit value */
+			s->energy += (int32_t) *ptr * (int32_t) *ptr;
+
+			goertzel_sample(&s->tone, *ptr);
+		}
+
+		s->samples_pending -= limit;
+
+		if (s->samples_pending) {
+			/* Finished incomplete (last) block */
+			break;
+		}
+
+		tone_energy = goertzel_result(&s->tone);
+
+		/* Scale to make comparable */
+		tone_energy *= 2.0;
+		s->energy *= s->block_size;
+
+		ast_debug(10, "v21 1850 Ew=%.2E, Et=%.2E, s/n=%10.2f\n", tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
+
+		hit = 0;
+		if (tone_energy > s->energy * s->threshold) {
+			ast_debug(10, "Hit! count=%d; miss_count=%d\n", s->hit_count, s->miss_count);
+			hit = 1;
+		}
+
+		if (hit) {
+			if (s->hit_count == 0 || s->miss_count == 3) {
+				s->hit_count++;
+			} else {
+				s->hit_count = 0;
+			}
+
+			s->miss_count = 0;
+		} else {
+			s->miss_count++;
+			if (s->miss_count > 3) {
+				s->hit_count = 0;
+			}
+		}
+
+		if (s->hit_count == 4) {
+			ast_debug(1, "v21 preamble detected\n");
+			res = 1;
+		}
+
+		/* Reinitialise the detector for the next block */
+		goertzel_reset(&s->tone);
+
+		/* Advance to the next block */
+		s->energy = 0.0;
+		s->samples_pending = s->block_size;
+
+		amp += limit;
+	}
+
+	return res;
 }
 
 static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp, int samples)
@@ -1440,6 +1583,10 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 
 		if ((dsp->faxmode & DSP_FAXMODE_DETECT_CED) && tone_detect(dsp, &dsp->ced_tone_state, shortdata, len)) {
 			fax_digit = 'e';
+		}
+
+		if ((dsp->faxmode & DSP_FAXMODE_DETECT_V21) && v21_detect(dsp, &dsp->v21_state, shortdata, len)) {
+			fax_digit = 'g';
 		}
 	}
 

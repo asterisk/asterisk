@@ -246,8 +246,6 @@ struct fax_gateway {
 	struct ast_fax_tech_token *token;
 	/*! \brief the start of our timeout counter */
 	struct timeval timeout_start;
-	/*! \brief the start of our ced timeout */
-	struct timeval ced_timeout_start;
 	/*! \brief DSP Processor */
 	struct ast_dsp *chan_dsp;
 	struct ast_dsp *peer_dsp;
@@ -255,8 +253,8 @@ struct fax_gateway {
 	int framehook;
 	/*! \brief bridged */
 	int bridged:1;
-	/*! \brief 1 if the ced tone came from chan, 0 if it came from peer */
-	int ced_chan:1;
+	/*! \brief 1 if a v21 preamble has been detected */
+	int detected_v21:1;
 	/*! \brief a flag to track the state of our negotiation */
 	enum ast_t38_state t38_state;
 	/*! \brief original audio formats */
@@ -273,7 +271,6 @@ static int fax_logger_level = -1;
 
 #define RES_FAX_TIMEOUT 10000
 #define FAX_GATEWAY_TIMEOUT RES_FAX_TIMEOUT
-#define FAX_GATEWAY_CED_TIMEOUT 3000
 
 /*! \brief The faxregistry is used to manage information and statistics for all FAX sessions. */
 static struct {
@@ -2412,10 +2409,10 @@ static struct fax_gateway *fax_gateway_new(struct ast_fax_session_details *detai
 	gateway->framehook = -1;
 
 	ast_dsp_set_features(gateway->chan_dsp, DSP_FEATURE_FAX_DETECT);
-	ast_dsp_set_faxmode(gateway->chan_dsp, DSP_FAXMODE_DETECT_CED);
+	ast_dsp_set_faxmode(gateway->chan_dsp, DSP_FAXMODE_DETECT_V21);
 
 	ast_dsp_set_features(gateway->peer_dsp, DSP_FEATURE_FAX_DETECT);
-	ast_dsp_set_faxmode(gateway->peer_dsp, DSP_FAXMODE_DETECT_CED);
+	ast_dsp_set_faxmode(gateway->peer_dsp, DSP_FAXMODE_DETECT_V21);
 
 	details->caps = AST_FAX_TECH_GATEWAY;
 	if (!(gateway->s = fax_session_reserve(details, &gateway->token))) {
@@ -2503,21 +2500,17 @@ static struct ast_frame *fax_gateway_request_t38(struct fax_gateway *gateway, st
 	gateway->t38_state = T38_STATE_NEGOTIATING;
 	gateway->timeout_start = ast_tvnow();
 
-	gateway->ced_timeout_start.tv_sec = 0;
-	gateway->ced_timeout_start.tv_usec = 0;
-
 	ast_debug(1, "requesting T.38 for gateway session for %s\n", chan->name);
 	return fp;
 }
 
-static struct ast_frame *fax_gateway_detect_ced(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *active, struct ast_frame *f)
+static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *active, struct ast_frame *f)
 {
 	struct ast_frame *dfr = ast_frdup(f);
 	struct ast_dsp *active_dsp = (active == chan) ? gateway->chan_dsp : gateway->peer_dsp;
 	struct ast_channel *other = (active == chan) ? peer : chan;
 
-	/* if we have already detected a CED tone, don't waste time here */
-	if (!ast_tvzero(gateway->ced_timeout_start)) {
+	if (gateway->detected_v21) {
 		return f;
 	}
 
@@ -2529,17 +2522,13 @@ static struct ast_frame *fax_gateway_detect_ced(struct fax_gateway *gateway, str
 		return f;
 	}
 
-	if (dfr->frametype == AST_FRAME_DTMF && dfr->subclass.integer == 'e') {
+	if (dfr->frametype == AST_FRAME_DTMF && dfr->subclass.integer == 'g') {
+		gateway->detected_v21 = 1;
 		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN) {
-			if (ast_channel_get_t38_state(active) == T38_STATE_UNKNOWN) {
-				gateway->ced_timeout_start = ast_tvnow();
-				gateway->ced_chan = (active == chan);
-				ast_debug(1, "detected CED tone from %s; will schedule T.38 request on %s\n", active->name, other->name);
-			} else {
-				return fax_gateway_request_t38(gateway, chan, f);
-			}
+			ast_debug(1, "detected v21 preamble from %s\n", active->name);
+			return fax_gateway_request_t38(gateway, chan, f);
 		} else {
-			ast_debug(1, "detected CED tone on %s, but %s does not support T.38 for T.38 gateway session\n", active->name, other->name);
+			ast_debug(1, "detected v21 preamble on %s, but %s does not support T.38 for T.38 gateway session\n", active->name, other->name);
 		}
 	}
 
@@ -2593,9 +2582,6 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 	if (control_params->request_response == AST_T38_REQUEST_NEGOTIATE) {
 		enum ast_t38_state state = ast_channel_get_t38_state(other);
 
-		gateway->ced_timeout_start.tv_sec = 0;
-		gateway->ced_timeout_start.tv_usec = 0;
-
 		if (state == T38_STATE_UNKNOWN) {
 			/* we detected a request to negotiate T.38 and the
 			 * other channel appears to support T.38, we'll pass
@@ -2635,7 +2621,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 			return &ast_null_frame;
 		} else if (gateway->t38_state == T38_STATE_NEGOTIATING) {
 			/* we got a request to negotiate T.38 after we already
-			 * sent one to the other party based on CED tone
+			 * sent one to the other party based on v21 preamble
 			 * detection. We'll just pretend we passed this request
 			 * through in the first place. */
 
@@ -2643,12 +2629,12 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 			gateway->t38_state = T38_STATE_UNKNOWN;
 			gateway->timeout_start = ast_tvnow();
 
-			ast_debug(1, "%s is attempting to negotiate T.38 after we already sent a negotiation request based on CED detection\n", active->name);
+			ast_debug(1, "%s is attempting to negotiate T.38 after we already sent a negotiation request based on v21 preamble detection\n", active->name);
 			ao2_ref(details, -1);
 			return &ast_null_frame;
 		} else if (gateway->t38_state == T38_STATE_NEGOTIATED) {
 			/* we got a request to negotiate T.38 after we already
-			 * sent one to the other party based on CED tone
+			 * sent one to the other party based on v21 preamble
 			 * detection and received a response. We need to
 			 * respond to this and shut down the gateway. */
 
@@ -2869,7 +2855,8 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 		gateway->timeout_start = ast_tvnow();
 
-		/* we are bridged, change r/w formats to SLIN for CED detection and T.30 */
+		/* we are bridged, change r/w formats to SLIN for v21 preamble
+		 * detection and T.30 */
 		ast_format_copy(&gateway->chan_read_format, &chan->readformat);
 		ast_format_copy(&gateway->chan_write_format, &chan->readformat);
 
@@ -2944,20 +2931,10 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		return fax_gateway_detect_t38(gateway, chan, peer, active, f);
 	}
 
-	/* handle the ced timeout delay */
-	if (!ast_tvzero(gateway->ced_timeout_start)) {
-		if (ast_tvdiff_ms(ast_tvnow(), gateway->ced_timeout_start) > FAX_GATEWAY_CED_TIMEOUT) {
-			if (gateway->ced_chan && chan == active) {
-				return fax_gateway_request_t38(gateway, chan, f);
-			} else if (!gateway->ced_chan && peer == active) {
-				return fax_gateway_request_t38(gateway, chan, f);
-			}
-		}
-	} else if (gateway->t38_state == T38_STATE_UNAVAILABLE && f->frametype == AST_FRAME_VOICE) {
-		/* not in gateway mode and have not detected CED yet, listen
-		 * for CED */
-		/* XXX this should detect a v21 preamble instead of CED */
-		return fax_gateway_detect_ced(gateway, chan, peer, active, f);
+	if (!gateway->detected_v21 && gateway->t38_state == T38_STATE_UNAVAILABLE && f->frametype == AST_FRAME_VOICE) {
+		/* not in gateway mode and have not detected v21 yet, listen
+		 * for v21 */
+		return fax_gateway_detect_v21(gateway, chan, peer, active, f);
 	}
 
 	/* in gateway mode, gateway some packets */
@@ -2981,7 +2958,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	}
 
 	/* force silence on the line if T.38 negotiation might be taking place */
-	if (!ast_tvzero(gateway->ced_timeout_start) || (gateway->t38_state != T38_STATE_UNAVAILABLE && gateway->t38_state != T38_STATE_REJECTED)) {
+	if (gateway->t38_state != T38_STATE_UNAVAILABLE && gateway->t38_state != T38_STATE_REJECTED) {
 		if (f->frametype == AST_FRAME_VOICE && f->subclass.format.id == AST_FORMAT_SLINEAR) {
 			short silence_buf[f->samples];
 			struct ast_frame silence_frame = {
