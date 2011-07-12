@@ -844,7 +844,7 @@ $(SUBDIRS_UNINSTALL):
 	+@$(SUBMAKE) -C $(@:-uninstall=) uninstall
 
 _uninstall: $(SUBDIRS_UNINSTALL)
-	rm -f "$(DESTDIR)$(MODULES_DIR)/*"
+	rm -f "$(DESTDIR)$(MODULES_DIR)/"*
 	rm -f $(DESTDIR)$(ASTSBINDIR)/*asterisk*
 	rm -f $(DESTDIR)$(ASTSBINDIR)/astgenkey
 	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
