@@ -1473,6 +1473,13 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		&conference_bridge_user.tech_args);
 	send_leave_event(conference_bridge_user.chan, conference_bridge->name);
 
+	/* if we're shutting down, don't attempt to do further processing */
+	if (ast_shutting_down()) {
+		leave_conference_bridge(conference_bridge, &conference_bridge_user);
+		conference_bridge = NULL;
+		goto confbridge_cleanup;
+	}
+
 	/* If this user was a video source, we need to clean up and possibly pick a new source. */
 	handle_video_on_exit(conference_bridge, conference_bridge_user.chan);
 
