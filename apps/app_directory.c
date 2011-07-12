@@ -57,7 +57,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="dial-context" required="false">
 				<para>This is the dialplan context to use when looking for an
 				extension that the user has selected, or when jumping to the
-				<literal>o</literal> or <literal>a</literal> extension.</para>
+				<literal>o</literal> or <literal>a</literal> extension. If not
+				specified, the current context will be used.</para>
 			</parameter>
 			<parameter name="options" required="false">
 				<optionlist>
@@ -246,7 +247,7 @@ static int compare(const char *text, const char *template)
 
 static int goto_exten(struct ast_channel *chan, const char *dialcontext, char *ext)
 {
-	if (!ast_goto_if_exists(chan, dialcontext, ext, 1) ||
+	if (!ast_goto_if_exists(chan, S_OR(dialcontext, chan->context), ext, 1) ||
 		(!ast_strlen_zero(chan->macrocontext) &&
 		!ast_goto_if_exists(chan, chan->macrocontext, ext, 1))) {
 		return 0;
@@ -685,11 +686,11 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	int count, i;
 	char ext[10] = "";
 
-	if (digit == '0' && !goto_exten(chan, S_OR(dialcontext, "default"), "o")) {
+	if (digit == '0' && !goto_exten(chan, dialcontext, "o")) {
 		return digit;
 	}
 
-	if (digit == '*' && !goto_exten(chan, S_OR(dialcontext, "default"), "a")) {
+	if (digit == '*' && !goto_exten(chan, dialcontext, "a")) {
 		return digit;
 	}
 
