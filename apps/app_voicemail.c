@@ -1215,6 +1215,9 @@ static int check_password(struct ast_vm_user *vmu, char *password)
 	/* check minimum length */
 	if (strlen(password) < minpassword)
 		return 1;
+	/* check that password does not contain '*' character */
+	if (!ast_strlen_zero(password) && password[0] == '*')
+		return 1;
 	if (!ast_strlen_zero(ext_pass_check_cmd)) {
 		char cmd[255], buf[255];
 
@@ -1294,8 +1297,14 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 		if (!strcasecmp(var->name, "vmsecret")) {
 			ast_copy_string(retval->password, var->value, sizeof(retval->password));
 		} else if (!strcasecmp(var->name, "secret") || !strcasecmp(var->name, "password")) { /* don't overwrite vmsecret if it exists */
-			if (ast_strlen_zero(retval->password))
-				ast_copy_string(retval->password, var->value, sizeof(retval->password));
+			if (ast_strlen_zero(retval->password)) {
+				if (!ast_strlen_zero(var->value) && var->value[0] == '*') {
+					ast_log(LOG_WARNING, "Invalid password detected for mailbox %s.  The password"
+						"\n\tmust be reset in voicemail.conf.\n", retval->mailbox);
+				} else {
+					ast_copy_string(retval->password, var->value, sizeof(retval->password));
+				}
+			}
 		} else if (!strcasecmp(var->name, "uniqueid")) {
 			ast_copy_string(retval->uniqueid, var->value, sizeof(retval->uniqueid));
 		} else if (!strcasecmp(var->name, "pager")) {
@@ -9662,10 +9671,12 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			}
 		} else if (mailbox[0] == '*') {
 			/* user entered '*' */
+			ast_verb(4, "Mailbox begins with '*', attempting jump to extension 'a'\n");
 			if (ast_exists_extension(chan, chan->context, "a", 1,
 				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 				return -1;
 			}
+			ast_verb(4, "Jump to extension 'a' failed; setting mailbox to NULL\n");
 			mailbox[0] = '\0';
 		}
 
@@ -9694,12 +9705,16 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 				return -1;
 			} else if (password[0] == '*') {
 				/* user entered '*' */
+				ast_verb(4, "Password begins with '*', attempting jump to extension 'a'\n");
 				if (ast_exists_extension(chan, chan->context, "a", 1,
 					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 					mailbox[0] = '*';
 					return -1;
 				}
+				ast_verb(4, "Jump to extension 'a' failed; setting mailbox and user to NULL\n");
 				mailbox[0] = '\0';
+				/* if the password entered was '*', do not let a user mailbox be created if the extension 'a' is not defined */
+				vmu = NULL;
 			}
 		}
 
@@ -10546,6 +10561,14 @@ static struct ast_vm_user *find_or_create(const char *context, const char *box)
 {
 	struct ast_vm_user *vmu;
 
+	if (!ast_strlen_zero(box) && box[0] == '*') {
+		ast_log(LOG_WARNING, "Mailbox %s in context %s begins with '*' character.  The '*' character,"
+				"\n\twhen it is the first character in a mailbox or password, is used to jump to a"
+				"\n\tpredefined extension 'a'.  A mailbox or password beginning with '*' is not valid"
+				"\n\tand will be ignored.\n", box, context);
+		return NULL;
+	}
+
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(box, vmu->mailbox)) {
 			if (strcasecmp(vmu->context, context)) {
@@ -10594,6 +10617,11 @@ static int append_mailbox(const char *context, const char *box, const char *data
 
 	stringp = tmp;
 	if ((s = strsep(&stringp, ","))) {
+		if (!ast_strlen_zero(s) && s[0] == '*') {
+			ast_log(LOG_WARNING, "Invalid password detected for mailbox %s.  The password"
+				"\n\tmust be reset in voicemail.conf.\n", box);
+		}
+		/* assign password regardless of validity to prevent NULL password from being assigned */
 		ast_copy_string(vmu->password, s, sizeof(vmu->password));
 	}
 	if (stringp && (s = strsep(&stringp, ","))) {
