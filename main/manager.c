@@ -5474,7 +5474,7 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *g
 	}
 }
 
-static void process_output(struct mansession *s, struct ast_str *out, struct ast_variable *params, enum output_format format)
+static void process_output(struct mansession *s, struct ast_str **out, struct ast_variable *params, enum output_format format)
 {
 	char *buf;
 	size_t l;
@@ -5491,14 +5491,14 @@ static void process_output(struct mansession *s, struct ast_str *out, struct ast
 			ast_log(LOG_WARNING, "mmap failed.  Manager output was not processed\n");
 		} else {
 			if (format == FORMAT_XML || format == FORMAT_HTML) {
-				xml_translate(&out, buf, params, format);
+				xml_translate(out, buf, params, format);
 			} else {
-				ast_str_append(&out, 0, "%s", buf);
+				ast_str_append(out, 0, "%s", buf);
 			}
 			munmap(buf, l);
 		}
 	} else if (format == FORMAT_XML || format == FORMAT_HTML) {
-		xml_translate(&out, "", params, format);
+		xml_translate(out, "", params, format);
 	}
 
 	fclose(s->f);
@@ -5656,7 +5656,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		ast_str_append(&out, 0, ROW_FMT, TEST_STRING);
 	}
 
-	process_output(&s, out, params, format);
+	process_output(&s, &out, params, format);
 
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "</ajax-response>\n");
@@ -5968,7 +5968,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		"<input type=\"submit\" value=\"Send request\" /></th></tr>\r\n");
 	}
 
-	process_output(&s, out, params, format);
+	process_output(&s, &out, params, format);
 
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "</ajax-response>\n");
