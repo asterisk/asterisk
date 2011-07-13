@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/autochan.h"
 #include "asterisk/manager.h"
+#include "asterisk/mod_format.h"
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
@@ -225,6 +226,8 @@ struct mixmonitor_ds {
 	struct ast_filestream *fs_write;
 
 	struct ast_audiohook *audiohook;
+
+	unsigned int samp_rate;
 };
 
 /*!
@@ -334,7 +337,7 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 		if (!*fs && !*errflag && !mixmonitor->mixmonitor_ds->fs_quit) {
 			*oflags = O_CREAT | O_WRONLY;
 			*oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
-			
+
 			last_slash = strrchr(filename, '/');
 
 			if ((ext = strrchr(filename, '.')) && (ext > last_slash)) {
@@ -346,6 +349,9 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 			if (!(*fs = ast_writefile(filename, ext, NULL, *oflags, 0, 0666))) {
 				ast_log(LOG_ERROR, "Cannot open %s.%s\n", filename, ext);
 				*errflag = 1;
+			} else {
+				struct ast_filestream *tmp = *fs;
+				mixmonitor->mixmonitor_ds->samp_rate = MAX(mixmonitor->mixmonitor_ds->samp_rate, ast_format_rate(&tmp->fmt->format));
 			}
 		}
 	}
@@ -363,12 +369,21 @@ static void *mixmonitor_thread(void *obj)
 	int errflag = 0;
 	struct ast_format format_slin;
 
-	ast_format_set(&format_slin, AST_FORMAT_SLINEAR, 0);
 	ast_verb(2, "Begin MixMonitor Recording %s\n", mixmonitor->name);
 
 	fs = &mixmonitor->mixmonitor_ds->fs;
 	fs_read = &mixmonitor->mixmonitor_ds->fs_read;
 	fs_write = &mixmonitor->mixmonitor_ds->fs_write;
+
+	ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
+	mixmonitor_save_prep(mixmonitor, mixmonitor->filename, fs, &oflags, &errflag);
+	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_read, fs_read, &oflags, &errflag);
+	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_write, fs_write, &oflags, &errflag);
+
+	ast_format_set(&format_slin, ast_format_slin_by_rate(mixmonitor->mixmonitor_ds->samp_rate), 0);
+
+	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
+
 
 	/* The audiohook must enter and exit the loop locked */
 	ast_audiohook_lock(&mixmonitor->audiohook);
@@ -393,9 +408,6 @@ static void *mixmonitor_thread(void *obj)
 
 		if (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) || (mixmonitor->autochan->chan && ast_bridged_channel(mixmonitor->autochan->chan))) {
 			ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
-			mixmonitor_save_prep(mixmonitor, mixmonitor->filename, fs, &oflags, &errflag);
-			mixmonitor_save_prep(mixmonitor, mixmonitor->filename_read, fs_read, &oflags, &errflag);
-			mixmonitor_save_prep(mixmonitor, mixmonitor->filename_write, fs_write, &oflags, &errflag);
 
 			/* Write out the frame(s) */
 			if ((*fs_read) && (fr_read)) {
@@ -484,6 +496,8 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 		return -1;
 	}
 
+
+	mixmonitor_ds->samp_rate = 8000;
 	mixmonitor_ds->audiohook = &mixmonitor->audiohook;
 	datastore->data = mixmonitor_ds;
 
