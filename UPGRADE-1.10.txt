@@ -1,0 +1,71 @@
+===========================================================
+===
+=== Information for upgrading between Asterisk versions
+===
+=== These files document all the changes that MUST be taken
+=== into account when upgrading between the Asterisk
+=== versions listed below. These changes may require that
+=== you modify your configuration files, dialplan or (in
+=== some cases) source code if you have your own Asterisk
+=== modules or patches. These files also include advance
+=== notice of any functionality that has been marked as
+=== 'deprecated' and may be removed in a future release,
+=== along with the suggested replacement functionality.
+===
+=== UPGRADE-1.2.txt -- Upgrade info for 1.0 to 1.2
+=== UPGRADE-1.4.txt -- Upgrade info for 1.2 to 1.4
+=== UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
+=== UPGRADE-1.8.txt -- Upgrade info for 1.6 to 1.8
+===
+===========================================================
+
+From 1.8 to 1.10:
+
+cel_pgsql:
+ - This module now expects an 'extra' column in the database for data added
+   using the CELGenUserEvent() application.
+
+ConfBridge
+ - ConfBridge's dialplan arguments have changed and are not
+   backwards compatible.
+
+File Interpreters
+ - The format interpreter formats/format_sln16.c for the file extension
+   '.sln16' has been removed. The '.sln16' file interpreter now exists
+   in the formats/format_sln.c module along with new support for sln12,
+   sln24, sln32, sln44, sln48, sln96, and sln192 file extensions.
+
+HTTP:
+ - A bindaddr must be specified in order for the HTTP server
+   to run. Previous versions would default to 0.0.0.0 if no
+   bindaddr was specified.
+
+Gtalk:
+ - The default value for 'context' and 'parkinglots' in gtalk.conf has
+   been changed to 'default', previously they were empty.
+
+chan_dahdi:
+ - The mohinterpret=passthrough setting is deprecated in favor of
+   moh_signaling=notify.
+
+pbx_lua:
+ - Execution no longer continues after applications that do dialplan jumps
+   (such as app.goto).  Now when an application such as app.goto() is called,
+   control is returned back to the pbx engine and the current extension
+   function stops executing.
+ - the autoservice now defaults to being on by default
+ - autoservice_start() and autoservice_start() no longer return a value.
+
+Queue:
+ - Mark QUEUE_MEMBER_PENALTY Deprecated it never worked for realtime members
+ - QUEUE_MEMBER is now R/W supporting setting paused, ignorebusy and penalty.
+
+ Asterisk Database:
+ - The internal Asterisk database has been switched from Berkeley DB 1.86 to
+   SQLite 3. An existing Berkeley astdb file can be converted with the astdb2sqlite3
+   utility in the UTILS section of menuselect. If an existing astdb is found and no
+   astdb.sqlite3 exists, astdb2sqlite3 will be compiled automatically. Asterisk will
+   convert an existing astdb to the SQLite3 version automatically at runtime.
+
+===========================================================
+===========================================================
