@@ -16,13 +16,8 @@
 === UPGRADE-1.4.txt -- Upgrade info for 1.2 to 1.4
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 === UPGRADE-1.8.txt -- Upgrade info for 1.6 to 1.8
-=== UPGRADE-1.10.txt -- Upgrade info for 1.8 to 1.10
 ===
 ===========================================================
-
-From 1.10 to 1.12:
-
-* No significant changes as of yet.
 
 From 1.8 to 1.10:
 
