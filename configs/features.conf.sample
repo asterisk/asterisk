@@ -73,6 +73,10 @@ context => parkedcalls		; Which context parked calls are in (default parking lot
                             ; caller is connected, then by default, the system will try to call back the
                             ; person that did the transfer.  If this is set to "yes", the callback will
                             ; not be attempted and the transfer will just fail.
+                            ; For atxferdropcall=no to work properly, you also need to
+                            ; define ATXFER_NULL_TECH in main/features.c.  The reason the
+                            ; code is not enabled by default is spelled out in the comment
+                            ; block near the top of main/features.c describing ATXFER_NULL_TECH.
 ;atxferloopdelay = 10       ; Number of seconds to sleep between retries (if atxferdropcall = no)
 ;atxfercallbackretries = 2  ; Number of times to attempt to send the call back to the transferer.
                             ; By default, this is 2.
