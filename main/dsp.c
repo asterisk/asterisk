@@ -624,10 +624,10 @@ static int v21_detect(struct ast_dsp *dsp, v21_detect_state_t *s, int16_t *amp, 
 		}
 
 		if (hit) {
-			if (s->hit_count == 0 || s->miss_count == 3) {
+			if (s->miss_count == 3) {
 				s->hit_count++;
 			} else {
-				s->hit_count = 0;
+				s->hit_count = 1;
 			}
 
 			s->miss_count = 0;
