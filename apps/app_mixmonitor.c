@@ -33,6 +33,10 @@
  * Anthony Minessale II <anthmct@yahoo.com>
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

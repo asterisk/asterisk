@@ -31,6 +31,9 @@
 
 /*** MODULEINFO
 	<depend>dahdi</depend>
+	<defaultenabled>no</defaultenabled>
+	<support_level>deprecated</support_level>
+	<replacement>app_confbridge</replacement>
  ***/
 
 #include "asterisk.h"

@@ -23,7 +23,9 @@
 /*** MODULEINFO
 	<depend>neon</depend>
 	<depend>ical</depend>
+	<support_level>core</support_level>
 ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

@@ -36,6 +36,7 @@
 	<depend>format_sln</depend>
 	<depend>format_wav</depend>
 	<depend>format_wav_gsm</depend>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

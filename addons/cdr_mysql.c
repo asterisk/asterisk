@@ -36,6 +36,8 @@
 /*** MODULEINFO
 	<depend>mysqlclient</depend>
 	<defaultenabled>no</defaultenabled>
+	<support_level>deprecated</support_level>
+	<replacement>cdr_adaptive_odbc</replacement>
  ***/
 
 #include "asterisk.h"

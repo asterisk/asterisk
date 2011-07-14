@@ -16,6 +16,7 @@
 	<defaultenabled>no</defaultenabled>
 	<depend>spandsp</depend>
 	<conflict>res_fax</conflict>
+	<support_level>extended</support_level>
 ***/
 
 #include "asterisk.h"

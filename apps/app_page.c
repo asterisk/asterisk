@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>dahdi</depend>
 	<depend>app_meetme</depend>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

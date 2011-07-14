@@ -6,6 +6,11 @@
  *   it was copied from;
  * - fixing the formatting
  */
+
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #include <locale.h>

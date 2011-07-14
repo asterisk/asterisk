@@ -25,6 +25,11 @@
  * \ingroup codecs
  */
 
+/*** MODULEINFO
+	<depend>resample</depend>
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 #include "speex/speex_resampler.h"
 

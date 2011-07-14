@@ -26,6 +26,10 @@
  * \author Terry Wilson <twilson@digium.com>
  */
 
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #include <sys/ioctl.h>

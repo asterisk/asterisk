@@ -22,6 +22,8 @@
 
 /*** MODULEINFO
 	<defaultenabled>no</defaultenabled>
+	<support_level>deprecated</support_level>
+	<replacement>say.conf</replacement>
  ***/
 
 #include "asterisk.h"

@@ -16,6 +16,10 @@
  * at the top of the source tree.
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
