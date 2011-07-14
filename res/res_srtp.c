@@ -29,7 +29,8 @@
  */
 
 /*** MODULEINFO
-         <depend>srtp</depend>
+	<depend>srtp</depend>
+	<support_level>core</support_level>
 ***/
 
 /* See https://wiki.asterisk.org/wiki/display/AST/Secure+Calling */

@@ -164,6 +164,7 @@
 /*** MODULEINFO
 	<use type="module">res_crypto</use>
 	<depend>chan_local</depend>
+	<support_level>core</support_level>
  ***/
 
 /*!  \page sip_session_timers SIP Session Timers in Asterisk Chan_sip

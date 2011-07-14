@@ -28,7 +28,8 @@
  */
 
 /*** MODULEINFO
-	 <depend>syslog</depend>
+	<depend>syslog</depend>
+	<support_level>core</support_level>
 ***/
 
 #include "asterisk.h"

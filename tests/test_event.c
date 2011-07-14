@@ -44,6 +44,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

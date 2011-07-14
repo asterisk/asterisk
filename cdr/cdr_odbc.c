@@ -30,6 +30,7 @@
 
 /*** MODULEINFO
 	<depend>res_odbc</depend>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

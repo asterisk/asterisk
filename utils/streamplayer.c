@@ -42,6 +42,10 @@
  * not work.  :)
  */
 
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

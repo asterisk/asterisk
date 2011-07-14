@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>vorbis</depend>
 	<depend>ogg</depend>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

@@ -23,6 +23,11 @@
  * for operations outside of asterisk. A huge, awful hack.
  *
  */
+
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #undef DEBUG_THREADS

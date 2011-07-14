@@ -19,6 +19,7 @@
 
 /*** MODULEINFO
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
  ***/
 
 #include "chan_ooh323.h"

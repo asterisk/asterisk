@@ -25,7 +25,8 @@
  */
 
 /*** MODULEINFO
-    <depend>iconv</depend>
+	<depend>iconv</depend>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"
