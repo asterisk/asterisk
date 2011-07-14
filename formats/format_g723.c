@@ -24,6 +24,10 @@
  * \arg Extensions: g723, g723sf
  * \ingroup formats
  */
+
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
  
 #include "asterisk.h"
 

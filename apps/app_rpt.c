@@ -155,6 +155,7 @@
 	<depend>dahdi</depend>
 	<depend>tonezone</depend>
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
  ***/
 
 /* Un-comment the following to include support for MDC-1200 digital tone

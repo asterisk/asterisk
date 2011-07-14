@@ -18,6 +18,9 @@
  * \author Tilghman Lesher <res_limit_200607@the-tilghman.com>
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
 
 #include "asterisk.h"
 

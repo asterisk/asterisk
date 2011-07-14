@@ -22,6 +22,10 @@
  * \arg File name extension: gsm
  * \ingroup formats
  */
+
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
  
 #include "asterisk.h"
 

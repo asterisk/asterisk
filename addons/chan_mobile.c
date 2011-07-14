@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>bluetooth</depend>
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

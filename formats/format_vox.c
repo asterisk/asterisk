@@ -23,6 +23,10 @@
  * 
  * \ingroup formats
  */
+
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
  
 #include "asterisk.h"
 

@@ -37,6 +37,7 @@
 /*** MODULEINFO
 	<depend>jack</depend>
 	<depend>resample</depend>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

@@ -26,6 +26,7 @@
 
 /*** MODULEINFO
 	<depend>lua</depend>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

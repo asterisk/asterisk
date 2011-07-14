@@ -40,6 +40,7 @@
 /*** MODULEINFO
 	<use>res_adsi</use>
 	<use>res_smdi</use>
+	<support_level>core</support_level>
  ***/
 
 /*** MAKEOPTS

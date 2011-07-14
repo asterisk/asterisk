@@ -38,6 +38,7 @@
 	<depend>alsa</depend>
 	<depend>usb</depend>
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
  ***/
 
 /*** MAKEOPTS

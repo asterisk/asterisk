@@ -22,6 +22,10 @@
  *
  * \author Mark Spencer <markster@digium.com>
  */
+
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
  
 #include "asterisk.h"
 
@@ -650,6 +654,12 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(fname_base);
 		AST_APP_ARG(options);
 	);
+	
+	/* Parse arguments. */
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "Monitor requires an argument\n");
+		return 0;
+	}
 
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -665,9 +675,7 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 			stream_action &= ~X_REC_OUT;
 	}
 
-	if (args.format) {
-		arg = strchr(args.format, ':');
-	}
+	arg = strchr(args.format, ':');
 	if (arg) {
 		*arg++ = 0;
 		urlprefix = arg;

@@ -35,6 +35,7 @@
 
 /*** MODULEINFO
 	<depend>pgsql</depend>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

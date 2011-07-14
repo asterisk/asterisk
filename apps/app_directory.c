@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<depend>app_voicemail</depend>
+	<support_level>core</support_level>
  ***/
 #include "asterisk.h"
 

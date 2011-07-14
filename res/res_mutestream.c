@@ -29,6 +29,10 @@
  * When we know and understands what happens if we zero out video, we can do that too.
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision: 89545 $")

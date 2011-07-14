@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<use>res_agi</use>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

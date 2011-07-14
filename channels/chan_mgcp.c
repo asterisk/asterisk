@@ -31,6 +31,7 @@
 
 /*** MODULEINFO
         <use>res_pktccops</use>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

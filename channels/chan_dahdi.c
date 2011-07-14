@@ -44,6 +44,7 @@
 	<use>pri</use>
 	<use>ss7</use>
 	<use>openr2</use>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

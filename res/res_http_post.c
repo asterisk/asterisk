@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<depend>gmime</depend>
+	<support_level>core</support_level>
  ***/
 
 

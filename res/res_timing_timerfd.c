@@ -25,6 +25,7 @@
 
 /*** MODULEINFO
 	<depend>timerfd</depend>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

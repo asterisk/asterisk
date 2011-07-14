@@ -53,6 +53,7 @@
 	<depend>isdnnet</depend>
 	<depend>misdn</depend>
 	<depend>suppserv</depend>
+	<support_level>extended</support_level>
  ***/
 #include "asterisk.h"
 

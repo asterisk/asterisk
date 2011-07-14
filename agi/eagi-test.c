@@ -5,6 +5,10 @@
  * with no warranty of any kind
  */
 
+/*** MODULEINFO
+	<support_level>extended</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)

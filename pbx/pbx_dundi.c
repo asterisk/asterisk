@@ -24,6 +24,7 @@
 /*** MODULEINFO
 	<depend>zlib</depend>
 	<use>crypto</use>
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"

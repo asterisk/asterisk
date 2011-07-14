@@ -27,6 +27,10 @@
  * \arg 16 kbps: g726-16
  * \ingroup formats
  */
+
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
  
 #include "asterisk.h"
 

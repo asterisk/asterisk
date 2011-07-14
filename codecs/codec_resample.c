@@ -29,6 +29,7 @@
 
 /*** MODULEINFO
 	<depend>resample</depend>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

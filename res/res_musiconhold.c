@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<conflict>win32</conflict>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

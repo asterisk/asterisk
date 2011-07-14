@@ -28,6 +28,10 @@
  * \ingroup functions
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 #include "asterisk/datastore.h"
 #include "asterisk/channel.h"

@@ -33,6 +33,7 @@
 /*** MODULEINFO
 	<depend>generic_odbc</depend>
 	<depend>ltdl</depend>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

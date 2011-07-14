@@ -33,6 +33,9 @@
 
 /*** MODULEINFO
 	<depend>dahdi</depend>
+	<defaultenabled>no</defaultenabled>
+	<support_level>deprecated</support_level>
+	<replacement>app_chanspy</replacement>
  ***/
 
 #include "asterisk.h"

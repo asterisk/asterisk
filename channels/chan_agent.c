@@ -33,6 +33,7 @@
 /*** MODULEINFO
         <depend>chan_local</depend>
         <depend>res_monitor</depend>
+	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"

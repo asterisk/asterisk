@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>spandsp</depend>
 	<depend>res_fax</depend>
+	<support_level>extended</support_level>
 ***/
 
 #include "asterisk.h"
