@@ -29075,7 +29075,9 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	if ((instance || vinstance || tinstance) &&
 		!ast_bridged_channel(chan) &&
 		!sip_cfg.directrtpsetup) {
-			return 0;
+		sip_pvt_unlock(p);
+		ast_channel_unlock(chan);
+		return 0;
 	}
 
 	if (p->alreadygone) {
