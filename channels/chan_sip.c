@@ -1351,7 +1351,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
 
 /*--- Device monitoring and Device/extension state/event handling */
-static int cb_extensionstate(char *context, char* exten, int state, void *data);
+static int cb_extensionstate(const char *context, const char *exten, enum ast_extension_states state, void *data);
 static int sip_devicestate(void *data);
 static int sip_poke_noanswer(const void *data);
 static int sip_poke_peer(struct sip_peer *peer, int force);
@@ -14346,7 +14346,7 @@ static void network_change_event_cb(const struct ast_event *event, void *userdat
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
 \note	If you add an "hint" priority to the extension in the dial plan,
 	you will get notifications on device state changes */
-static int cb_extensionstate(char *context, char* exten, int state, void *data)
+static int cb_extensionstate(const char *context, const char *exten, enum ast_extension_states state, void *data)
 {
 	struct sip_pvt *p = data;
 

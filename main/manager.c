@@ -5140,7 +5140,7 @@ int ast_manager_unregister(char *action)
 	return 0;
 }
 
-static int manager_state_cb(char *context, char *exten, int state, void *data)
+static int manager_state_cb(const char *context, const char *exten, enum ast_extension_states state, void *data)
 {
 	/* Notify managers of change */
 	char hint[512];
