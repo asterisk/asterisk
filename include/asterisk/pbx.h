@@ -76,7 +76,7 @@ struct ast_ignorepat;
 struct ast_sw;
 
 /*! \brief Typedef for devicestate and hint callbacks */
-typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_states state, void *data);
+typedef int (*ast_state_cb_type)(const char *context, const char *exten, enum ast_extension_states state, void *data);
 
 /*! \brief Data structure associated with a custom dialplan function */
 struct ast_custom_function {

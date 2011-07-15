@@ -111,7 +111,7 @@ struct ast_exten {
 	char stuff[0];
 };
 /* from pbx.h */
-typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_states state, void *data);
+typedef int (*ast_state_cb_type)(const char *context, const char *exten, enum ast_extension_states state, void *data);
 struct ast_timing {
 	int hastime;				/*!< If time construct exists */
 	unsigned int monthmask;			/*!< Mask for month */
