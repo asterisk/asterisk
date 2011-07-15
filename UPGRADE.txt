@@ -65,12 +65,22 @@ Queue:
  - Mark QUEUE_MEMBER_PENALTY Deprecated it never worked for realtime members
  - QUEUE_MEMBER is now R/W supporting setting paused, ignorebusy and penalty.
 
- Asterisk Database:
+Asterisk Database:
  - The internal Asterisk database has been switched from Berkeley DB 1.86 to
    SQLite 3. An existing Berkeley astdb file can be converted with the astdb2sqlite3
    utility in the UTILS section of menuselect. If an existing astdb is found and no
    astdb.sqlite3 exists, astdb2sqlite3 will be compiled automatically. Asterisk will
    convert an existing astdb to the SQLite3 version automatically at runtime.
+
+Module Support Level
+ - All modules in the addons, apps, bridge, cdr, cel, channels, codecs, 
+   formats, funcs, pbx, and res have been updated to include MODULEINFO data
+   that includes <support_level> tags with a value of core, extended, or deprecated.
+   More information is available on the Asterisk wiki at 
+   https://wiki.asterisk.org/wiki/display/AST/Asterisk+Module+Support+States
+
+   Deprecated modules are now marked to not build by default and must be explicitly
+   enabled in menuselect.
 
 ===========================================================
 ===========================================================
