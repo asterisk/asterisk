@@ -1210,8 +1210,11 @@ int ooGkClientHandleRegistrationConfirm
 
       if(pGkClient->regTimeout > DEFAULT_TTL_OFFSET)
          regTTL = pGkClient->regTimeout - DEFAULT_TTL_OFFSET;
-      else
-         regTTL = pGkClient->regTimeout;
+      else {
+         regTTL = pGkClient->regTimeout - 1; /* -1 due to some ops expire us few earlier */
+	 if (regTTL <= 0)
+		regTTL = 1;
+      }
 
       cbData = (ooGkClientTimerCb*) memAlloc
                                 (&pGkClient->ctxt, sizeof(ooGkClientTimerCb));
@@ -1259,7 +1262,6 @@ int ooGkClientHandleRegistrationConfirm
          memFreePtr(&pGkClient->ctxt, pTimer->cbData);
          ooTimerDelete(&pGkClient->ctxt, &pGkClient->timerList, pTimer);
          OOTRACEDBGA1("Deleted RRQ Timer.\n");
-         break;
       }
    }
    pGkClient->state = GkClientRegistered;
@@ -1504,8 +1506,10 @@ int ooGkClientSendURQ(ooGkClient *pGkClient, ooAliases *aliases)
 int ooGkClientHandleUnregistrationRequest
    (ooGkClient *pGkClient, H225UnregistrationRequest * punregistrationRequest)
 {
-   int iRet=0;
-
+   int iRet=0, x;
+   OOTimer *pTimer = NULL;
+   DListNode *pNode = NULL;
+ 
    /* Lets first send unregistration confirm message back to gatekeeper*/
    ooGkClientSendUnregistrationConfirm(pGkClient, 
                                       punregistrationRequest->requestSeqNum);
@@ -1526,6 +1530,24 @@ int ooGkClientHandleUnregistrationRequest
       OOTRACEINFO1("Sending fresh RRQ - as unregistration request received\n");
       pGkClient->rrqRetries = 0;
       pGkClient->state = GkClientDiscovered;
+
+
+      /* delete the corresponding RRQ & REG timers */
+	pNode = NULL;
+	for(x=0; x<pGkClient->timerList.count; x++) {
+		pNode =  dListFindByIndex(&pGkClient->timerList, x);
+		pTimer = (OOTimer*)pNode->data;
+		if(((ooGkClientTimerCb*)pTimer->cbData)->timerType & OO_RRQ_TIMER) {
+         		memFreePtr(&pGkClient->ctxt, pTimer->cbData);
+         		ooTimerDelete(&pGkClient->ctxt, &pGkClient->timerList, pTimer);
+         		OOTRACEDBGA1("Deleted RRQ Timer.\n");
+      		}
+		if(((ooGkClientTimerCb*)pTimer->cbData)->timerType & OO_REG_TIMER) {
+         		memFreePtr(&pGkClient->ctxt, pTimer->cbData);
+         		ooTimerDelete(&pGkClient->ctxt, &pGkClient->timerList, pTimer);
+         		OOTRACEDBGA1("Deleted REG Timer.\n");
+      		}
+ 	}
 
       iRet = ooGkClientSendRRQ(pGkClient, 0); 
       if(iRet != OO_OK)
