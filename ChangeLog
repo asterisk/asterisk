@@ -1,3 +1,13 @@
+2011-07-15  Leif Madsen <lmadsen@digium.com>
+
+	* Asterisk 1.8.5.1 Released.
+
+	* r328302 | rmudgett | 2011-07-14 18:12:06 -0500 (Thu, 14 Jul 2011) | 6 lines
+
+	  Missing SIP pvt and channel unlock in sip_set_rtp_peer().
+	  Regression introduced by -r326144.
+	  Add missing SIP pvt and channel unlock in sip_set_rtp_peer().
+
 2011-07-11  Leif Madsen <lmadsen@digium.com>
 
 	* Asterisk 1.8.5.0 Released.
