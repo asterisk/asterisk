@@ -36,7 +36,7 @@
 
 /*** MODULEINFO
 	<depend>openh323</depend>
-	<defaultenabled>no</defaultenabled>
+	<defaultenabled>yes</defaultenabled>
 	<support_level>deprecated</support_level>
 	<replacement>chan_ooh323</replacement>
  ***/
