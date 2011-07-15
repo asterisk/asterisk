@@ -204,6 +204,11 @@ Asterisk Database
    astdb.sqlite3 exists, astdb2sqlite3 will be compiled automatically. Asterisk will
    convert an existing astdb to the SQLite3 version automatically at runtime.
 
+Asterisk Modules
+----------------
+ * Modules marked as deprecated are no longer marked as building by default. Enabling
+   these modules is still available via menuselect.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
