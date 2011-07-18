@@ -1131,7 +1131,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	}
 
 	if (ast_strlen_zero(query->sql_read)) {
-		ast_cli(a->fd, "The function %s has no writesql parameter.\n", a->argv[2]);
+		ast_cli(a->fd, "The function %s has no readsql parameter.\n", a->argv[2]);
 		AST_RWLIST_UNLOCK(&queries);
 		return CLI_SUCCESS;
 	}
