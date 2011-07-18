@@ -291,6 +291,7 @@ static int sig_alert_pipe[2] = { -1, -1 };
 static struct {
 	 unsigned int need_reload:1;
 	 unsigned int need_quit:1;
+	 unsigned int need_quit_handler:1;
 } sig_flags;
 
 #if !defined(LOW_MEMORY)
@@ -1657,20 +1658,23 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 			ast_module_shutdown();
 	}
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
-		pthread_t thisthread = pthread_self();
 		if (getenv("HOME")) {
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 		}
 		if (!ast_strlen_zero(filename)) {
 			ast_el_write_history(filename);
 		}
-		if (consolethread == AST_PTHREADT_NULL || consolethread == thisthread || mon_sig_flags == thisthread) {
-			/* Only end if we are the consolethread or signal handler, otherwise there's a race with that thread. */
+		if (consolethread == AST_PTHREADT_NULL || consolethread == pthread_self()) {
+			/* Only end if we are the consolethread, otherwise there's a race with that thread. */
 			if (el != NULL) {
 				el_end(el);
 			}
 			if (el_hist != NULL) {
 				history_end(el_hist);
+			}
+		} else if (mon_sig_flags == pthread_self()) {
+			if (consolethread != AST_PTHREADT_NULL) {
+				pthread_kill(consolethread, SIGURG);
 			}
 		}
 	}
@@ -2150,7 +2154,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 		}
 		res = ast_poll(fds, max, -1);
 		if (res < 0) {
-			if (sig_flags.need_quit)
+			if (sig_flags.need_quit || sig_flags.need_quit_handler)
 				break;
 			if (errno == EINTR)
 				continue;
@@ -2707,7 +2711,7 @@ static void ast_remotecontrol(char *data)
 		sprintf(tmp, "%s%s", prefix, data);
 		if (write(ast_consock, tmp, strlen(tmp) + 1) < 0) {
 			ast_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
-			if (sig_flags.need_quit == 1) {
+			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
 				return;
 			}
 		}
@@ -2745,7 +2749,7 @@ static void ast_remotecontrol(char *data)
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
 
-			if (sig_flags.need_quit == 1) {
+			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
 				break;
 			}
 
@@ -2793,7 +2797,7 @@ static void ast_remotecontrol(char *data)
 	for (;;) {
 		ebuf = (char *)el_gets(el, &num);
 
-		if (sig_flags.need_quit == 1) {
+		if (sig_flags.need_quit || sig_flags.need_quit_handler) {
 			break;
 		}
 
@@ -3115,7 +3119,12 @@ static void *monitor_sig_flags(void *unused)
 		}
 		if (sig_flags.need_quit) {
 			sig_flags.need_quit = 0;
-			quit_handler(0, 0, 1, 0);
+			if (consolethread != AST_PTHREADT_NULL) {
+				sig_flags.need_quit_handler = 1;
+				pthread_kill(consolethread, SIGURG);
+			} else {
+				quit_handler(0, 0, 1, 0);
+			}
 		}
 		if (read(sig_alert_pipe[0], &a, sizeof(a)) != sizeof(a)) {
 		}
@@ -3900,7 +3909,13 @@ int main(int argc, char *argv[])
 		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %ld)", hostname, (long)ast_mainpid);
 		set_title(title);
 
+		el_set(el, EL_GETCFN, ast_el_read_char);
+
 		for (;;) {
+			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
+				quit_handler(0, 0, 0, 0);
+				break;
+			}
 			buf = (char *) el_gets(el, &num);
 
 			if (!buf && write(1, "", 1) < 0)
