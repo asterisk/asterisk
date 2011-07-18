@@ -2409,7 +2409,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	 * datastore again, causing a crash
 	 */
 	ast_channel_lock(chan);
-	if (!ast_channel_datastore_remove(chan, datastore)) {
+	datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL); /* make sure we weren't cleaned up already */
+	if (datastore && !ast_channel_datastore_remove(chan, datastore)) {
 		ast_datastore_free(datastore);
 	}
 	ast_channel_unlock(chan);
