@@ -4231,6 +4231,11 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 	int res = -1;
 	struct sip_pvt *p = chan->tech_pvt;
 
+        if (!p) {
+        	ast_log(LOG_ERROR, "Attempt to Ref a null pointer.  sip private structure is gone!\n");
+        	return -1;
+        }
+
 	sip_pvt_lock(p);
 
 	switch (option) {
