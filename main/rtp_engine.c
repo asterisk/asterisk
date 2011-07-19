@@ -69,8 +69,6 @@ struct ast_rtp_instance {
 	int holdtimeout;
 	/*! RTP keepalive interval */
 	int keepalive;
-	/*! DTMF mode in use */
-	enum ast_rtp_dtmf_mode dtmf_mode;
 	/*! Glue currently in use */
 	struct ast_rtp_glue *glue;
 	/*! Channel associated with the instance */
@@ -745,18 +743,12 @@ int ast_rtp_instance_dtmf_end_with_duration(struct ast_rtp_instance *instance, c
 
 int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode)
 {
-	if (!instance->engine->dtmf_mode_set || instance->engine->dtmf_mode_set(instance, dtmf_mode)) {
-		return -1;
-	}
-
-	instance->dtmf_mode = dtmf_mode;
-
-	return 0;
+	return (!instance->engine->dtmf_mode_set || instance->engine->dtmf_mode_set(instance, dtmf_mode)) ? -1 : 0;
 }
 
 enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *instance)
 {
-	return instance->dtmf_mode;
+	return instance->engine->dtmf_mode_get ? instance->engine->dtmf_mode_get(instance) : 0;
 }
 
 void ast_rtp_instance_update_source(struct ast_rtp_instance *instance)
@@ -1291,6 +1283,7 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
+	enum ast_rtp_dtmf_mode dmode;
 	struct ast_format_cap *cap0 = ast_format_cap_alloc_nolock();
 	struct ast_format_cap *cap1 = ast_format_cap_alloc_nolock();
 	int unlock_chans = 1;
@@ -1352,11 +1345,13 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 	}
 
 	/* If we need to get DTMF see if we can do it outside of the RTP stream itself */
-	if ((flags & AST_BRIDGE_DTMF_CHANNEL_0) && instance0->properties[AST_RTP_PROPERTY_DTMF]) {
+	dmode = ast_rtp_instance_dtmf_mode_get(instance0);
+	if ((flags & AST_BRIDGE_DTMF_CHANNEL_0) && dmode) {
 		res = AST_BRIDGE_FAILED_NOWARN;
 		goto done;
 	}
-	if ((flags & AST_BRIDGE_DTMF_CHANNEL_1) && instance1->properties[AST_RTP_PROPERTY_DTMF]) {
+	dmode = ast_rtp_instance_dtmf_mode_get(instance1);
+	if ((flags & AST_BRIDGE_DTMF_CHANNEL_1) && dmode) {
 		res = AST_BRIDGE_FAILED_NOWARN;
 		goto done;
 	}
