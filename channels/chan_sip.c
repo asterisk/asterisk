@@ -4193,10 +4193,11 @@ static void enable_dsp_detect(struct sip_pvt *p)
 	}
 
 	if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) ||
-            (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
-		if (!p->rtp || ast_rtp_instance_dtmf_mode_set(p->rtp, AST_RTP_DTMF_MODE_INBAND)) {
-			features |= DSP_FEATURE_DIGIT_DETECT;
-                }
+	    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
+		if (p->rtp) {
+			ast_rtp_instance_dtmf_mode_set(p->rtp, AST_RTP_DTMF_MODE_INBAND);
+		}
+		features |= DSP_FEATURE_DIGIT_DETECT;
 	}
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_CNG)) {
@@ -6886,8 +6887,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	if ((ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) ||
 	    (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
-		if (!i->rtp || ast_rtp_instance_dtmf_mode_set(i->rtp, AST_RTP_DTMF_MODE_INBAND)) {
-			enable_dsp_detect(i);
+		if (i->rtp) {
+			ast_rtp_instance_dtmf_mode_set(i->rtp, AST_RTP_DTMF_MODE_INBAND);
 		}
 	} else if (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) {
 		if (i->rtp) {

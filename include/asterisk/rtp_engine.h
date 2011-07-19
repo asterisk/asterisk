@@ -345,6 +345,8 @@ struct ast_rtp_engine {
 	void (*alt_remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
 	/*! Callback for changing DTMF mode */
 	int (*dtmf_mode_set)(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode);
+	/*! Callback for getting DTMF mode */
+	enum ast_rtp_dtmf_mode (*dtmf_mode_get)(struct ast_rtp_instance *instance);
 	/*! Callback for retrieving statistics */
 	int (*get_stat)(struct ast_rtp_instance *instance, struct ast_rtp_instance_stats *stats, enum ast_rtp_instance_stat stat);
 	/*! Callback for setting QoS values */

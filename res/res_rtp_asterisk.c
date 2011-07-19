@@ -147,6 +147,7 @@ struct ast_rtp {
 	unsigned int dtmf_duration;     /*!< Total duration in samples since the digit start event */
 	unsigned int dtmf_timeout;      /*!< When this timestamp is reached we consider END frame lost and forcibly abort digit */
 	unsigned int dtmfsamples;
+	enum ast_rtp_dtmf_mode dtmfmode;/*!< The current DTMF mode of the RTP stream */
 	/* DTMF Transmission Variables */
 	unsigned int lastdigitts;
 	char sending_digit;	/*!< boolean - are we sending digits */
@@ -260,6 +261,8 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance);
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit);
 static int ast_rtp_dtmf_end(struct ast_rtp_instance *instance, char digit);
 static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, char digit, unsigned int duration);
+static int ast_rtp_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode);
+static enum ast_rtp_dtmf_mode ast_rtp_dtmf_mode_get(struct ast_rtp_instance *instance);
 static void ast_rtp_update_source(struct ast_rtp_instance *instance);
 static void ast_rtp_change_source(struct ast_rtp_instance *instance);
 static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame);
@@ -286,6 +289,8 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.dtmf_begin = ast_rtp_dtmf_begin,
 	.dtmf_end = ast_rtp_dtmf_end,
 	.dtmf_end_with_duration = ast_rtp_dtmf_end_with_duration,
+	.dtmf_mode_set = ast_rtp_dtmf_mode_set,
+	.dtmf_mode_get = ast_rtp_dtmf_mode_get,
 	.update_source = ast_rtp_update_source,
 	.change_source = ast_rtp_change_source,
 	.write = ast_rtp_write,
@@ -532,6 +537,19 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	ast_free(rtp);
 
 	return 0;
+}
+
+static int ast_rtp_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	rtp->dtmfmode = dtmf_mode;
+	return 0;
+}
+
+static enum ast_rtp_dtmf_mode ast_rtp_dtmf_mode_get(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	return rtp->dtmfmode;
 }
 
 static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
