@@ -467,9 +467,9 @@ datafiles: _all doc/core-en_US.xml
 # improved a lot.  I'll put it here for now.
 
 	for x in static-http/*; do \
-		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/static-http" ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
 	done
-	$(INSTALL) -m 644 doc/core-en_US.xml "$(DESTDIR)$(ASTDATADIR)/static-http";
+	$(INSTALL) -m 644 doc/core-en_US.xml $(DESTDIR)$(ASTDATADIR)/static-http;
 	if [ -d doc/tex/asterisk ] ; then \
 		$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http/docs" ; \
 		for n in doc/tex/asterisk/* ; do \
@@ -477,7 +477,7 @@ datafiles: _all doc/core-en_US.xml
 		done \
 	fi
 	for x in images/*.jpg; do \
-		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/images" ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/images ; \
 	done
 	$(MAKE) -C sounds install
 
@@ -576,21 +576,21 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL)
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
 
-	$(INSTALL) -m 644 doc/core-*.xml "$(DESTDIR)$(ASTDATADIR)/documentation"
-	$(INSTALL) -m 644 doc/appdocsxml.dtd "$(DESTDIR)$(ASTDATADIR)/documentation"
-	$(INSTALL) -m 644 doc/asterisk.8 "$(DESTDIR)$(ASTMANDIR)/man8"
-	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 "$(DESTDIR)$(ASTMANDIR)/man8"
-	$(INSTALL) -m 644 contrib/scripts/autosupport.8 "$(DESTDIR)$(ASTMANDIR)/man8"
-	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 "$(DESTDIR)$(ASTMANDIR)/man8"
+	$(INSTALL) -m 644 doc/core-*.xml $(DESTDIR)$(ASTDATADIR)/documentation
+	$(INSTALL) -m 644 doc/appdocsxml.dtd $(DESTDIR)$(ASTDATADIR)/documentation
+	$(INSTALL) -m 644 doc/asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	if [ -f contrib/firmware/iax/iaxy.bin ] ; then \
-		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin "$(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin"; \
+		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin; \
 	fi
 
 $(SUBDIRS_INSTALL):
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(SUBMAKE) -C $(@:-install=) install 
 
 NEWMODS:=$(foreach d,$(MOD_SUBDIRS),$(notdir $(wildcard $(d)/*.so)))
-OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard "$(DESTDIR)$(MODULES_DIR)/*.so")))
+OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
 
 oldmodcheck:
 	@if [ -n "$(OLDMODS)" ]; then \
@@ -698,33 +698,33 @@ samples: adsi
 		rm -f $(DESTDIR)$(ASTCONFPATH).tmp ; \
 	fi ; \
 	$(INSTALL) -d $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
-	build_tools/make_sample_voicemail "$(DESTDIR)$(ASTDATADIR)" "$(DESTDIR)$(ASTSPOOLDIR)"
+	build_tools/make_sample_voicemail $(DESTDIR)/$(ASTDATADIR) $(DESTDIR)/$(ASTSPOOLDIR)
 
 	@for x in phoneprov/*; do \
 		dst="$(DESTDIR)$(ASTDATADIR)/$$x" ;	\
-		if [ -f "$${dst}" ]; then \
+		if [ -f $${dst} ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
-				if cmp -s "$${dst}" $$x ; then \
+				if cmp -s $${dst} $$x ; then \
 					echo "Config file $$x is unchanged"; \
 					continue; \
 				fi ; \
-				mv -f "$${dst}" "$${dst}.old" ; \
+				mv -f $${dst} $${dst}.old ; \
 			else \
 				echo "Skipping config file $$x"; \
 				continue; \
 			fi ;\
 		fi ; \
 		echo "Installing file $$x"; \
-		$(INSTALL) -m 644 $$x "$${dst}" ;\
+		$(INSTALL) -m 644 $$x $${dst} ;\
 	done
 
 webvmail:
 	@[ -d $(DESTDIR)$(HTTP_DOCSDIR)/ ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
 	@[ -d $(DESTDIR)$(HTTP_CGIDIR) ] || ( printf "cgi-bin directory not found.\nUpdate assignment of variable HTTP_CGIDIR in Makefile!\n" && exit 1 )
-	$(INSTALL) -m 4755 contrib/scripts/vmail.cgi "$(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi"
+	$(INSTALL) -m 4755 contrib/scripts/vmail.cgi $(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi
 	$(INSTALL) -d $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk
 	for x in images/*.gif; do \
-		$(INSTALL) -m 644 $$x "$(DESTDIR)$(HTTP_DOCSDIR)/_asterisk/"; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk/; \
 	done
 	@echo " +--------- Asterisk Web Voicemail ----------+"  
 	@echo " +                                           +"
@@ -844,12 +844,12 @@ $(SUBDIRS_UNINSTALL):
 	+@$(SUBMAKE) -C $(@:-uninstall=) uninstall
 
 _uninstall: $(SUBDIRS_UNINSTALL)
-	rm -f "$(DESTDIR)$(MODULES_DIR)/"*
+	rm -f $(DESTDIR)$(MODULES_DIR)/*
 	rm -f $(DESTDIR)$(ASTSBINDIR)/*asterisk*
 	rm -f $(DESTDIR)$(ASTSBINDIR)/astgenkey
 	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
 	rm -rf $(DESTDIR)$(ASTHEADERDIR)
-	rm -rf "$(DESTDIR)$(ASTDATADIR)/firmware"
+	rm -rf $(DESTDIR)$(ASTDATADIR)/firmware
 	rm -f $(DESTDIR)$(ASTMANDIR)/man8/asterisk.8
 	rm -f $(DESTDIR)$(ASTMANDIR)/man8/astgenkey.8
 	rm -f $(DESTDIR)$(ASTMANDIR)/man8/autosupport.8
@@ -871,12 +871,12 @@ uninstall: _uninstall
 	@echo " +-------------------------------------------+"  
 
 uninstall-all: _uninstall
-	rm -rf "$(DESTDIR)$(ASTLIBDIR)"
-	rm -rf "$(DESTDIR)$(ASTVARLIBDIR)"
-	rm -rf "$(DESTDIR)$(ASTDATADIR)"
-	rm -rf "$(DESTDIR)$(ASTSPOOLDIR)"
-	rm -rf "$(DESTDIR)$(ASTETCDIR)"
-	rm -rf "$(DESTDIR)$(ASTLOGDIR)"
+	rm -rf $(DESTDIR)$(ASTLIBDIR)
+	rm -rf $(DESTDIR)$(ASTVARLIBDIR)
+	rm -rf $(DESTDIR)$(ASTDATADIR)
+	rm -rf $(DESTDIR)$(ASTSPOOLDIR)
+	rm -rf $(DESTDIR)$(ASTETCDIR)
+	rm -rf $(DESTDIR)$(ASTLOGDIR)
 
 menuconfig: menuselect
 

@@ -15,19 +15,10 @@
 
 -include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/makeopts
 
-# Make doesn't tolerate spaces in pathnames well.  I hate to hardcode the OS X
-# path, but Make doesn't allow spaces as arguments, either.
-ifneq ($(findstring Application Support,$(ASTDATADIR)),)
-TMPDATADIR=/tmp/astdatadir
-PREFIXCMD=ln -sf "$(ASTDATADIR)/" /tmp/astdatadir
-else
-TMPDATADIR=$(ASTDATADIR)
-endif
-
 CMD_PREFIX?=@
-SOUNDS_DIR:=$(DESTDIR)$(TMPDATADIR)/sounds
+SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 SOUNDS_CACHE_DIR?=
-MOH_DIR:=$(DESTDIR)$(TMPDATADIR)/moh
+MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
 CORE_SOUNDS_VERSION:=1.4.21
 EXTRA_SOUNDS_VERSION:=1.4.11
 MOH_VERSION:=2.03
@@ -142,13 +133,7 @@ endef
 
 endif
 
-all: prefixcmd $(SOUNDS_CACHE_DIR) $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
-
-prefixcmd:
-	if [ -d /tmp/astdatadir ] ; then \
-		rm -rf /tmp/astdatadir ; \
-	fi
-	@$(PREFIXCMD)
+all: $(SOUNDS_CACHE_DIR) $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
 have_download:
 	@if test "$(DOWNLOAD)" = ":" ; then \
@@ -196,7 +181,7 @@ dist-clean:
 $(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_DIR)/ru $(SOUNDS_CACHE_DIR):
 	mkdir -p $@
 
-install: prefixcmd $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(SOUNDS_DIR)/ru $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
+install: $(SOUNDS_CACHE_DIR) $(SOUNDS_DIR)/en $(SOUNDS_DIR)/en_AU $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
 uninstall:
 	rm -rf $(SOUNDS_DIR)
