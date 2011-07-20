@@ -20,6 +20,8 @@
 
 From 1.6.2 to 1.8:
 
+* Asterisk now requires libpri 1.4.11+ for PRI support.
+
 * A couple of CLI commands in res_ais were changed back to their original form:
     "ais show clm members" --> "ais clm show members"
     "ais show evt event channels" --> "ais evt show event channels"
