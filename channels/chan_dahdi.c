@@ -14128,6 +14128,7 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 }
 #endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a, int changestatus)
 {
@@ -14271,6 +14272,39 @@ static char *handle_pri_service_disable_channel(struct ast_cli_entry *e, int cmd
 	return handle_pri_service_generic(e, cmd, a, 2);
 }
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
+static char *handle_pri_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int span;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri show channels";
+		e->usage =
+			"Usage: pri show channels\n"
+			"       Displays PRI channel information such as the current mapping\n"
+			"       of DAHDI B channels to Asterisk channel names and which calls\n"
+			"       are on hold or call-waiting.  Calls on hold or call-waiting\n"
+			"       are not associated with any B channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	sig_pri_cli_show_channels_header(a->fd);
+	for (span = 0; span < NUM_SPANS; ++span) {
+		if (pris[span].pri.pri) {
+			sig_pri_cli_show_channels(a->fd, &pris[span].pri);
+		}
+	}
+	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
 static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -14282,7 +14316,7 @@ static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_
 		e->command = "pri show spans";
 		e->usage =
 			"Usage: pri show spans\n"
-			"       Displays PRI Information\n";
+			"       Displays PRI span information\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -14403,8 +14437,9 @@ static struct ast_cli_entry dahdi_pri_cli[] = {
  	AST_CLI_DEFINE(handle_pri_service_enable_channel, "Return a channel to service"),
  	AST_CLI_DEFINE(handle_pri_service_disable_channel, "Remove a channel from service"),
 #endif	/* defined(HAVE_PRI_SERVICE_MESSAGES) */
-	AST_CLI_DEFINE(handle_pri_show_spans, "Displays PRI Information"),
-	AST_CLI_DEFINE(handle_pri_show_span, "Displays PRI Information"),
+	AST_CLI_DEFINE(handle_pri_show_channels, "Displays PRI channel information"),
+	AST_CLI_DEFINE(handle_pri_show_spans, "Displays PRI span information"),
+	AST_CLI_DEFINE(handle_pri_show_span, "Displays PRI span information"),
 	AST_CLI_DEFINE(handle_pri_show_debug, "Displays current PRI debug settings"),
 	AST_CLI_DEFINE(handle_pri_set_debug_file, "Sends PRI debug output to the specified file"),
 	AST_CLI_DEFINE(handle_pri_version, "Displays libpri version"),
@@ -14995,7 +15030,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 				}
 				break;
 			default:
-				;
+				break;
 			}
 		}
 		if (tmp->channel > 0) {
