@@ -410,8 +410,6 @@ static struct dahdi_ring_cadence AS_RP_cadence = {{250, 10000}};
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
-static char parkinglot[AST_MAX_EXTENSION] = "";		/*!< Default parking lot for this channel */
-
 /*! Run this script when the MWI state changes on an FXO line, if mwimonitor is enabled */
 static char mwimonitornotify[PATH_MAX] = "";
 #ifndef HAVE_DAHDI_LINEREVERSE_VMWI
@@ -16927,11 +16925,6 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
 
-		/* must have parkinglot in confp before build_channels is called */
-		if (!strcasecmp(v->name, "parkinglot")) {
-			ast_copy_string(confp->chan.parkinglot, v->value, sizeof(confp->chan.parkinglot));
-		}
-
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "channel") || !strcasecmp(v->name, "channels")) {
 			if (options & PROC_DAHDI_OPT_NOCHAN) {
@@ -17095,7 +17088,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(confp->chan.mohsuggest, v->value, sizeof(confp->chan.mohsuggest));
 		} else if (!strcasecmp(v->name, "parkinglot")) {
-			ast_copy_string(parkinglot, v->value, sizeof(parkinglot));
+			ast_copy_string(confp->chan.parkinglot, v->value, sizeof(confp->chan.parkinglot));
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			ast_log(LOG_NOTICE, "Configuration option \"%s\" has been deprecated. Please use dialplan instead\n", v->name);
 			confp->chan.stripmsd = atoi(v->value);
