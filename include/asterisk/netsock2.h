@@ -453,7 +453,7 @@ int ast_sockaddr_is_ipv4(const struct ast_sockaddr *addr);
 int ast_sockaddr_is_ipv4_mapped(const struct ast_sockaddr *addr);
 
 /*!
- * \since 1.10
+ * \since 10.0
  *
  * \brief
  * Determine if an IPv4 address is a multicast address

@@ -1191,7 +1191,7 @@ static void pri_queue_control(struct sig_pri_span *pri, int chanpos, int subclas
 /*!
  * \internal
  * \brief Find the channel associated with the libpri call.
- * \since 1.10
+ * \since 10.0
  *
  * \param pri PRI span control structure.
  * \param call LibPRI opaque call pointer to find.
@@ -1221,7 +1221,7 @@ static int pri_find_principle_by_call(struct sig_pri_span *pri, q931_call *call)
 /*!
  * \internal
  * \brief Kill the call.
- * \since 1.10
+ * \since 10.0
  *
  * \param pri PRI span control structure.
  * \param call LibPRI opaque call pointer to find.
@@ -4358,7 +4358,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 /*!
  * \internal
  * \brief Convert the MOH state to string.
- * \since 1.10
+ * \since 10.0
  *
  * \param state MOH state to process.
  *
@@ -4409,7 +4409,7 @@ static const char *sig_pri_moh_state_str(enum sig_pri_moh_state state)
 /*!
  * \internal
  * \brief Convert the MOH event to string.
- * \since 1.10
+ * \since 10.0
  *
  * \param event MOH event to process.
  *
@@ -4458,7 +4458,7 @@ static const char *sig_pri_moh_event_str(enum sig_pri_moh_event event)
 /*!
  * \internal
  * \brief Retrieve a call that was placed on hold by the HOLD message.
- * \since 1.10
+ * \since 10.0
  *
  * \param pvt Channel private control structure.
  * 
@@ -4500,7 +4500,7 @@ static enum sig_pri_moh_state sig_pri_moh_retrieve_call(struct sig_pri_chan *pvt
 /*!
  * \internal
  * \brief MOH FSM state idle.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4564,7 +4564,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_idle(struct ast_channel *chan, str
 /*!
  * \internal
  * \brief MOH FSM state notify remote party.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4598,7 +4598,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_notify(struct ast_channel *chan, s
 /*!
  * \internal
  * \brief MOH FSM state generate moh.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4631,7 +4631,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_moh(struct ast_channel *chan, stru
 /*!
  * \internal
  * \brief MOH FSM state hold requested.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4676,7 +4676,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_hold_req(struct ast_channel *chan,
 /*!
  * \internal
  * \brief MOH FSM state hold requested with pending unhold.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4717,7 +4717,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_pend_unhold(struct ast_channel *ch
 /*!
  * \internal
  * \brief MOH FSM state hold.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4759,7 +4759,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_hold(struct ast_channel *chan, str
 /*!
  * \internal
  * \brief MOH FSM state retrieve requested.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4801,7 +4801,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_retrieve_req(struct ast_channel *c
 /*!
  * \internal
  * \brief MOH FSM state retrieve requested with pending hold.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4879,7 +4879,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_pend_hold(struct ast_channel *chan
 /*!
  * \internal
  * \brief MOH FSM state retrieve failed.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4919,7 +4919,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_retrieve_fail(struct ast_channel *
 /*!
  * \internal
  * \brief MOH FSM state function type.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4952,7 +4952,7 @@ static const sig_pri_moh_fsm_state sig_pri_moh_fsm[SIG_PRI_MOH_STATE_NUM] = {
 /*!
  * \internal
  * \brief Send an event to the MOH FSM.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
@@ -4994,7 +4994,7 @@ static void sig_pri_moh_fsm_event(struct ast_channel *chan, struct sig_pri_chan 
 /*!
  * \internal
  * \brief Post an AMI hold event.
- * \since 1.10
+ * \since 10.0
  *
  * \param chan Channel to post event to
  * \param is_held TRUE if the call was placed on hold.
@@ -5093,7 +5093,7 @@ done_with_private:;
 /*!
  * \internal
  * \brief Handle the hold acknowledge event from libpri.
- * \since 1.10
+ * \since 10.0
  *
  * \param pri PRI span control structure.
  * \param ev Hold acknowledge event received.
@@ -5139,7 +5139,7 @@ static void sig_pri_handle_hold_ack(struct sig_pri_span *pri, pri_event *ev)
 /*!
  * \internal
  * \brief Handle the hold reject event from libpri.
- * \since 1.10
+ * \since 10.0
  *
  * \param pri PRI span control structure.
  * \param ev Hold reject event received.
@@ -5254,7 +5254,7 @@ static void sig_pri_handle_retrieve(struct sig_pri_span *pri, pri_event *ev)
 /*!
  * \internal
  * \brief Handle the retrieve acknowledge event from libpri.
- * \since 1.10
+ * \since 10.0
  *
  * \param pri PRI span control structure.
  * \param ev Retrieve acknowledge event received.
@@ -5287,7 +5287,7 @@ static void sig_pri_handle_retrieve_ack(struct sig_pri_span *pri, pri_event *ev)
 /*!
  * \internal
  * \brief Handle the retrieve reject event from libpri.
- * \since 1.10
+ * \since 10.0
  *
  * \param pri PRI span control structure.
  * \param ev Retrieve reject event received.
@@ -7055,7 +7055,7 @@ static void *pri_dchannel(void *vpri)
 
 /*!
  * \brief Output AMI show spans response events for the given PRI span.
- * \since 1.10
+ * \since 10.0
  *
  * \param show_cmd AMI command name
  * \param s AMI session to output span information.
@@ -8844,7 +8844,7 @@ void sig_pri_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, str
 #if defined(HAVE_PRI_DISPLAY_TEXT)
 /*!
  * \brief Send display text.
- * \since 1.10
+ * \since 10.0
  *
  * \param p Channel to send text over
  * \param text Text to send.

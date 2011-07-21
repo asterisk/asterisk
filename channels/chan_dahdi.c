@@ -16798,7 +16798,7 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 /*!
  * \internal
  * \brief Determine the configured display text options.
- * \since 1.10
+ * \since 10.0
  *
  * \param value Configuration value string.
  *
@@ -16845,7 +16845,7 @@ static unsigned long dahdi_display_text_option(const char *value)
 /*!
  * \internal
  * \brief Determine the configured date/time send policy option.
- * \since 1.10
+ * \since 10.0
  *
  * \param value Configuration value string.
  *
