@@ -80,9 +80,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<synopsis>
 			Pickup a ringing channel.
 		</synopsis>
-		<syntax>
-			<parameter name="channel" required="true" />
-			<parameter name="channel2" multiple="true" />
+		<syntax >
+			<parameter name="Technology/Resource" argsep="&amp;" required="true">
+				<argument name="Technology/Resource" required="true" />
+				<argument name="Technology2/Resource2" required="false" multiple="true" />
+			</parameter>
 			<parameter name="options" required="false">
 				<optionlist>
 					<option name="p">
