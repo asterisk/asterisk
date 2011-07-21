@@ -6093,8 +6093,6 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 					"Channel2: %s\r\n", chan->name, args.dest_chan);
 	}
 
-	ast_channel_unlock(current_dest_chan);
-
 	do_bridge_masquerade(current_dest_chan, final_dest_chan);
 
 	chans[0] = current_dest_chan;
