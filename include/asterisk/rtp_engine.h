@@ -1061,7 +1061,7 @@ struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs 
  * \retval pointer to format structure on success
  * \retval NULL on failure
  *
- * \since 1.10
+ * \since 10.0
  */
 struct ast_format *ast_rtp_codecs_get_payload_format(struct ast_rtp_codecs *codecs, int payload);
 

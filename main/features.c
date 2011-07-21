@@ -1993,7 +1993,7 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
 /*!
  * \internal
  * \brief Builtin attended transfer failed cleanup.
- * \since 1.10
+ * \since 10.0
  *
  * \param transferee Party A in the transfer.
  * \param transferer Party B in the transfer.
