@@ -19,7 +19,7 @@
 ===
 ===========================================================
 
-From 1.8 to 1.10:
+From 1.8 to 10:
 
 cel_pgsql:
  - This module now expects an 'extra' column in the database for data added
