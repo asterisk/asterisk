@@ -664,6 +664,13 @@ transfer=yes
 ; ('canpark=no' is overridden by 'transfer=yes')
 ;
 canpark=yes
+
+; Sets the default parking lot for call parking.
+; This is setable per channel.
+; Parkinglots are configured in features.conf
+;
+;parkinglot=plaza
+
 ;
 ; Support call forward variable
 ;
