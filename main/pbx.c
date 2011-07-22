@@ -4280,12 +4280,13 @@ static int handle_statechange(void *datap)
 
 	hint_app = ast_str_create(1024);
 	if (!hint_app) {
+		ast_free(sc);
 		return -1;
 	}
 
 	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
 	i = ao2_iterator_init(hints, 0);
-	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
+	for (; (hint = ao2_iterator_next(&i)); ao2_ref(hint, -1)) {
 		struct ast_state_cb *state_cb;
 		char *cur, *parse;
 		int state;
@@ -4299,7 +4300,7 @@ static int handle_statechange(void *datap)
 
 		/* Does this hint monitor the device that changed state? */
 		ast_str_set(&hint_app, 0, "%s", ast_get_extension_app(hint->exten));
-		parse = hint_app->str;
+		parse = ast_str_buffer(hint_app);
 		while ((cur = strsep(&parse, "&"))) {
 			if (!strcasecmp(cur, sc->dev)) {
 				/* The hint monitors the device. */
@@ -4321,7 +4322,6 @@ static int handle_statechange(void *datap)
 			sizeof(context_name));
 		ast_copy_string(exten_name, ast_get_extension_name(hint->exten),
 			sizeof(exten_name));
-
 		ast_str_set(&hint_app, 0, "%s", ast_get_extension_app(hint->exten));
 		ao2_unlock(hint);
 
@@ -5917,7 +5917,7 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
 
 	i = ao2_iterator_init(hints, 0);
-	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
+	for (; (hint = ao2_iterator_next(&i)); ao2_ref(hint, -1)) {
 		ao2_lock(hint);
 		if (!hint->exten) {
 			/* The extension has already been destroyed */
@@ -5956,7 +5956,7 @@ static char *complete_core_show_hint(const char *line, const char *word, int pos
 
 	/* walk through all hints */
 	i = ao2_iterator_init(hints, 0);
-	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
+	for (; (hint = ao2_iterator_next(&i)); ao2_ref(hint, -1)) {
 		ao2_lock(hint);
 		if (!hint->exten) {
 			/* The extension has already been destroyed */
@@ -6005,7 +6005,7 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	
 	extenlen = strlen(a->argv[3]);
 	i = ao2_iterator_init(hints, 0);
-	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
+	for (; (hint = ao2_iterator_next(&i)); ao2_ref(hint, -1)) {
 		ao2_lock(hint);
 		if (!hint->exten) {
 			/* The extension has already been destroyed */
@@ -7247,7 +7247,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 
 	/* preserve all watchers for hints */
 	i = ao2_iterator_init(hints, AO2_ITERATOR_DONTLOCK);
-	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
+	for (; (hint = ao2_iterator_next(&i)); ao2_ref(hint, -1)) {
 		if (ao2_container_count(hint->callbacks)) {
 			ao2_lock(hint);
 			if (!hint->exten) {
@@ -10040,7 +10040,7 @@ static int hints_data_provider_get(const struct ast_data_search *search,
 	}
 
 	i = ao2_iterator_init(hints, 0);
-	for (hint = ao2_iterator_next(&i); hint; ao2_ref(hint, -1), hint = ao2_iterator_next(&i)) {
+	for (; (hint = ao2_iterator_next(&i)); ao2_ref(hint, -1)) {
 		watchers = ao2_container_count(hint->callbacks);
 		data_hint = ast_data_add_node(data_root, "hint");
 		if (!data_hint) {
