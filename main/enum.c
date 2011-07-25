@@ -644,13 +644,13 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	int z = 0;
 	int spaceleft = 0;
 	struct timeval time_start, time_end;
- 
+
 	if (ast_strlen_zero(suffix)) {
 		ast_log(LOG_WARNING, "ast_get_enum need a suffix parameter now.\n");
 		return -1;
 	}
 
-	ast_verb(2, "ast_get_enum(num='%s', tech='%s', suffix='%s', options='%s', record=%d\n", number, tech, suffix, options, record);
+	ast_debug(2, "num='%s', tech='%s', suffix='%s', options='%s', record=%d\n", number, tech, suffix, options, record);
 
 /*
   We don't need that any more, that "n" preceding the number has been replaced by a flag
@@ -668,11 +668,12 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		number++;
 	}
 
-	if (!(context = ast_calloc(1, sizeof(*context))))
+	if (!(context = ast_calloc(1, sizeof(*context)))) {
 		return -1;
+	}
 
-	if((p3 = strchr(naptrinput, '*'))) {
-		*p3='\0';		
+	if ((p3 = strchr(naptrinput, '*'))) {
+		*p3='\0';
 	}
 
 	context->naptrinput = naptrinput;	/* The number */
@@ -710,8 +711,8 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			context->options |= ENUMLOOKUP_OPTIONS_ISN;
 		}
 	}
-	ast_verb(2, "ENUM options(%s): pos=%d, options='%d'\n", options, context->position, context->options);
-	ast_debug(1, "ast_get_enum(): n='%s', tech='%s', suffix='%s', options='%d', record='%d'\n",
+	ast_debug(2, "ENUM options(%s): pos=%d, options='%d'\n", options, context->position, context->options);
+	ast_debug(1, "n='%s', tech='%s', suffix='%s', options='%d', record='%d'\n",
 			number, tech, suffix, context->options, context->position);
 
 	/*
@@ -742,15 +743,13 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		ast_copy_string(left, number, sizeof(left));
 		ast_copy_string(middle, p1, sizeof(middle) - 1);
 		strcat(middle, ".");
-
-		ast_verb(2, "ISN ENUM: left=%s, middle='%s'\n", left, middle);
+		ast_debug(2, "ISN ENUM: left=%s, middle='%s'\n", left, middle);
 	/* Direct DNS lookup rewrite */
 	} else if (context->options & ENUMLOOKUP_OPTIONS_DIRECT) {
 		left[0] = 0; /* nothing to flip around */
 		ast_copy_string(middle, number, sizeof(middle) - 1);
 		strcat(middle, ".");
- 
-		ast_verb(2, "DIRECT ENUM:  middle='%s'\n", middle);
+		ast_debug(2, "DIRECT ENUM:  middle='%s'\n", middle);
 	/* Infrastructure ENUM rewrite */
 	} else if (context->options & ENUMLOOKUP_OPTIONS_IENUM) {
 		int sdl = 0;
@@ -769,7 +768,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 
 			if (sdl >= 0) {
 				ast_copy_string(apex, n_apex, sizeof(apex));
-				ast_verb(2, "EBL ENUM: sep=%s, apex='%s'\n", sep, n_apex);
+				ast_debug(2, "EBL ENUM: sep=%s, apex='%s'\n", sep, n_apex);
 			} else {
 				sdl = cc_len;
 			}
@@ -778,8 +777,9 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			ast_copy_string(cc, number, cc_len); /* cclen() never returns more than 3 */
 			sdl = blr_txt(cc, suffix);
 
-			if (sdl < 0) 
+			if (sdl < 0) {
 				sdl = cc_len;
+			}
 			break;
 
 		case ENUMLOOKUP_BLR_CC:	/* BLR is at the country-code level */
@@ -814,7 +814,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		}
 		*p1 = '\0';
 
-		ast_verb(2, "I-ENUM: cclen=%d, left=%s, middle='%s', apex='%s'\n", cc_len, left, middle, apex);
+		ast_debug(2, "I-ENUM: cclen=%d, left=%s, middle='%s', apex='%s'\n", cc_len, left, middle, apex);
 	}
 
 	if (strlen(left) * 2 + 2 > sizeof(domain)) {
@@ -851,7 +851,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	ret = ast_search_dns(context, tmp, C_IN, T_NAPTR, enum_callback);
 	time_end = ast_tvnow();
 
-	ast_verb(2, "ast_get_enum() profiling: %s, %s, %" PRIi64 " ms\n", 
+	ast_debug(2, "profiling: %s, %s, %" PRIi64 " ms\n",
 			(ret == 0) ? "OK" : "FAIL", tmp, ast_tvdiff_ms(time_end, time_start));
 
 	if (ret < 0) {
@@ -896,11 +896,12 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	} else if (!(context->options & ENUMLOOKUP_OPTIONS_COUNT)) {
 		context->dst[0] = 0;
 	} else if ((context->options & ENUMLOOKUP_OPTIONS_COUNT)) {
-		snprintf(context->dst,context->dstlen,"%d",context->count);
+		snprintf(context->dst, context->dstlen, "%d", context->count);
 	}
 
-	if (chan)
+	if (chan) {
 		ret |= ast_autoservice_stop(chan);
+	}
 
 	if (!argcontext) {
 		for (k = 0; k < context->naptr_rrs_count; k++) {
@@ -909,8 +910,9 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		}
 		ast_free(context->naptr_rrs);
 		ast_free(context);
-	} else
+	} else {
 		*argcontext = context;
+	}
 
 	return ret;
 }
