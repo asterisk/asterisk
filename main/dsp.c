@@ -527,6 +527,11 @@ static void ast_fax_detect_init(struct ast_dsp *s)
 	ast_tone_detect_init(&s->cng_tone_state, FAX_TONE_CNG_FREQ, FAX_TONE_CNG_DURATION, FAX_TONE_CNG_DB, s->sample_rate);
 	ast_tone_detect_init(&s->ced_tone_state, FAX_TONE_CED_FREQ, FAX_TONE_CED_DURATION, FAX_TONE_CED_DB, s->sample_rate);
 	ast_v21_detect_init(&s->v21_state, s->sample_rate);
+	if (s->faxmode & DSP_FAXMODE_DETECT_SQUELCH) {
+		s->cng_tone_state.squelch = 1;
+		s->ced_tone_state.squelch = 1;
+	}
+
 }
 
 static void ast_dtmf_detect_init (dtmf_detect_state_t *s, unsigned int sample_rate)
@@ -1449,58 +1454,65 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	return res;
 }
 
-int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
+static int ast_dsp_silence_noise_with_energy(struct ast_dsp *dsp, struct ast_frame *f, int *total, int *frames_energy, int noise)
 {
 	short *s;
 	int len;
-	
+	int x;
+	unsigned char *odata;
+
+	if (!f) {
+		return 0;
+	}
+
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
 		return 0;
 	}
 	if (!ast_format_is_slinear(&f->subclass.format)) {
-		ast_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
-		return 0;
+		odata = f->data.ptr;
+		len = f->datalen;
+		switch (f->subclass.format.id) {
+			case AST_FORMAT_ULAW:
+				s = alloca(len * 2);
+				for (x = 0;x < len; x++) {
+					s[x] = AST_MULAW(odata[x]);
+				}
+				break;
+			case AST_FORMAT_ALAW:
+				s = alloca(len * 2);
+				for (x = 0;x < len; x++) {
+					s[x] = AST_ALAW(odata[x]);
+				}
+				break;
+			default:
+				ast_log(LOG_WARNING, "Can only calculate silence on signed-linear, alaw or ulaw frames :(\n");
+			return 0;
+		}
+	} else {
+		s = f->data.ptr;
+		len = f->datalen/2;
 	}
-	s = f->data.ptr;
-	len = f->datalen/2;
-	return __ast_dsp_silence_noise(dsp, s, len, totalsilence, NULL, NULL);
+	if (noise) {
+		return __ast_dsp_silence_noise(dsp, s, len, NULL, total, frames_energy);
+	} else {
+		return __ast_dsp_silence_noise(dsp, s, len, total, NULL, frames_energy);
+	}
 }
 
 int ast_dsp_silence_with_energy(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence, int *frames_energy)
 {
-	short *s;
-	int len;
+	return ast_dsp_silence_noise_with_energy(dsp, f, totalsilence, frames_energy, 0);
+}
 
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
-		return 0;
-	}
-	if (!ast_format_is_slinear(&f->subclass.format)) {
-		ast_log(LOG_WARNING, "Can only calculate silence on signed-linear frames :(\n");
-		return 0;
-	}
-	s = f->data.ptr;
-	len = f->datalen/2;
-	return __ast_dsp_silence_noise(dsp, s, len, totalsilence, NULL, frames_energy);
+int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
+{
+	return ast_dsp_silence_noise_with_energy(dsp, f, totalsilence, NULL, 0);
 }
 
 int ast_dsp_noise(struct ast_dsp *dsp, struct ast_frame *f, int *totalnoise)
 {
-       short *s;
-       int len;
-
-       if (f->frametype != AST_FRAME_VOICE) {
-               ast_log(LOG_WARNING, "Can't calculate noise on a non-voice frame\n");
-               return 0;
-       }
-       if (!ast_format_is_slinear(&f->subclass.format)) {
-               ast_log(LOG_WARNING, "Can only calculate noise on signed-linear frames :(\n");
-               return 0;
-       }
-       s = f->data.ptr;
-       len = f->datalen/2;
-       return __ast_dsp_silence_noise(dsp, s, len, NULL, totalnoise, NULL);
+	return ast_dsp_silence_noise_with_energy(dsp, f, totalnoise, NULL, 1);
 }
 
 
@@ -1858,9 +1870,9 @@ int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode)
 int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode)
 {
 	if (dsp->faxmode != faxmode) {
+		dsp->faxmode = faxmode;
 		ast_fax_detect_init(dsp);
 	}
-	dsp->faxmode = faxmode;
 	return 0;
 }
 
