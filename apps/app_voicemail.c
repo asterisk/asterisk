@@ -863,6 +863,18 @@ static char vm_mismatch[80] = "vm-mismatch";
 static char vm_invalid_password[80] = "vm-invalid-password";
 static char vm_pls_try_again[80] = "vm-pls-try-again";
 
+/*
+ * XXX If we have the time, motivation, etc. to fix up this prompt, one of the following would be appropriate:
+ * 1. create a sound along the lines of "Please try again.  When done, press the pound key" which could be spliced
+ * from existing sound clips.  This would require some programming changes in the area of vm_forward options and also
+ * app.c's __ast_play_and_record function
+ * 2. create a sound prompt saying "Please try again.  When done recording, press any key to stop and send the prepended
+ * message."  At the time of this comment, I think this would require new voice work to be commissioned.
+ * 3. Something way different like providing instructions before a time out or a post-recording menu.  This would require
+ * more effort than either of the other two.
+ */
+static char vm_prepend_timeout[80] = "then-press-pound";
+
 static struct ast_flags globalflags = {0};
 
 static int saydurationminfo;
@@ -6883,7 +6895,10 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
 
 			cmd = ast_play_and_prepend(chan, NULL, msgfile, 0, vm_fmts, &prepend_duration, 1, silencethreshold, maxsilence);
-			if (cmd == 'S') {
+
+			if (cmd == 'S') { /* If we timed out, tell the user it didn't work properly and clean up the files */
+				ast_stream_and_wait(chan, vm_pls_try_again, ""); /* this might be removed if a proper vm_prepend_timeout is ever recorded */
+				ast_stream_and_wait(chan, vm_prepend_timeout, "");
 				ast_filerename(backup, msgfile, NULL);
 			}
 
@@ -6920,6 +6935,9 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			cmd = '*';
 			break;
 		default: 
+			/* If time_out and return to menu, reset already_recorded */
+			already_recorded = 0;
+
 			cmd = ast_play_and_wait(chan, "vm-forwardoptions");
 				/* "Press 1 to prepend a message or 2 to forward the message without prepending" */
 			if (!cmd)
@@ -6929,8 +6947,9 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				cmd = ast_waitfordigit(chan, 6000);
 			if (!cmd)
 				retries++;
-			if (retries > 3)
-				cmd = 't';
+			if (retries > 3) {
+				cmd = '*'; /* Let's cancel this beast */
+			}
 		}
 	}
 
@@ -6945,7 +6964,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 		rename(backup_textfile, textfile);
 	}
 
-	if (cmd == 't' || cmd == 'S')
+	if (cmd == 't' || cmd == 'S') /* XXX entering this block with a value of 'S' is probably no longer possible. */
 		cmd = 0;
 	return cmd;
 }
@@ -12166,6 +12185,9 @@ static int load_config(int reload)
 			ast_copy_string(vm_mismatch, val, sizeof(vm_mismatch));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-pls-try-again"))) {
 			ast_copy_string(vm_pls_try_again, val, sizeof(vm_pls_try_again));
+		}
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-prepend-timeout"))) {
+			ast_copy_string(vm_prepend_timeout, val, sizeof(vm_prepend_timeout));
 		}
 		/* load configurable audio prompts */
 		if ((val = ast_variable_retrieve(cfg, "general", "listen-control-forward-key")) && is_valid_dtmf(val))
