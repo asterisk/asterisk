@@ -318,6 +318,12 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 ; vm-pls-try-again=custom_sound
                         ; Customize which sound file is used instead of the
                         ; default prompt that says "Please try again."
+; vm-prepend-timeout=custom_sound
+                        ; Customize which sound file is used when the user
+                        ; times out while recording a prepend message instead
+                        ; of the default prompt that says "then press pound"
+                        ; note that this will currently follow vm-pls-try-again.
+                        ; this behavior is subject to change in the near future.
 ; listen-control-forward-key=#	; Customize the key that fast-forwards message playback
 ; listen-control-reverse-key=*	; Customize the key that rewinds message playback
 ; listen-control-pause-key=0	; Customize the key that pauses/unpauses message playback
