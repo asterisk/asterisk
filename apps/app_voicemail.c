@@ -873,7 +873,7 @@ static char vm_pls_try_again[80] = "vm-pls-try-again";
  * 3. Something way different like providing instructions before a time out or a post-recording menu.  This would require
  * more effort than either of the other two.
  */
-static char vm_prepend_timeout[80] = "then-press-pound";
+static char vm_prepend_timeout[80] = "vm-then-pound";
 
 static struct ast_flags globalflags = {0};
 
