@@ -870,6 +870,12 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		res = start_resource(mod);
 	}
 
+	/* Now make sure that the list is sorted */
+	AST_LIST_LOCK(&module_list);
+	AST_LIST_REMOVE(&module_list, mod, entry);
+	AST_LIST_INSERT_SORTALPHA(&module_list, mod, entry, resource);
+	AST_LIST_UNLOCK(&module_list);
+
 	return res;
 }
 
