@@ -469,13 +469,12 @@ stutter = 470/400,425/400
 
 [nz]
 description = New Zealand
-;NOTE - the ITU has different tonesets for NZ, but according to some residents there,
-;      this is, indeed, the correct way to do it.
+; Reference = http://www.telepermit.co.nz/TNA102.pdf
 ringcadence = 400,200,400,2000
 dial = 400
-busy = 400/250,0/250
+busy = 400/500,0/500
 ring = 400+450/400,0/200,400+450/400,0/2000
-congestion = 400/375,0/375
+congestion = 400/250,0/250
 callwaiting = !400/200,!0/3000,!400/200,!0/3000,!400/200,!0/3000,!400/200
 dialrecall = !400/100,!0/100,!400/100,!0/100,!400/100,!0/100,400
 record = 1400/425,0/15000
