@@ -141,7 +141,7 @@ dist-clean::
 	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $< >> $@
 	echo "</member>" >> $@
 
-.moduleinfo:: $(addsuffix .moduleinfo,$(addprefix .,$(ALL_C_MODS) $(ALL_CC_MODS)))
+.moduleinfo:: $(addsuffix .moduleinfo,$(addprefix .,$(sort $(ALL_C_MODS) $(ALL_CC_MODS))))
 	@echo "<category name=\"MENUSELECT_$(MENUSELECT_CATEGORY)\" displayname=\"$(MENUSELECT_DESCRIPTION)\" remove_on_change=\"$(SUBDIR)/modules.link\">" > $@
 	@cat $^ >> $@
 	@echo "</category>" >> $@
