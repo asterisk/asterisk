@@ -108,8 +108,8 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 		}
 		hrduration = (double) ast_tvdiff_us(cdr->end, cdr->start) / 1000000.0;
 
-		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_FLOAT, 0, 0, &hrbillsec, 0, NULL);
-		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_FLOAT, 0, 0, &hrduration, 0, NULL);
+		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_FLOAT, 0, 0, &hrduration, 0, NULL);
+		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_FLOAT, 0, 0, &hrbillsec, 0, NULL);
 	} else {
 		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
 		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
