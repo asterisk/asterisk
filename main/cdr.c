@@ -776,6 +776,26 @@ void ast_cdr_noanswer(struct ast_cdr *cdr)
 	}
 }
 
+void ast_cdr_congestion(struct ast_cdr *cdr)
+{
+	char *chan;
+
+	while (cdr) {
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+
+			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED)) {
+				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+			}
+
+			if (cdr->disposition < AST_CDR_CONGESTION) {
+				cdr->disposition = AST_CDR_CONGESTION;
+			}
+		}
+		cdr = cdr->next;
+	}
+}
+
 /* everywhere ast_cdr_disposition is called, it will call ast_cdr_failed()
    if ast_cdr_disposition returns a non-zero value */
 
@@ -791,6 +811,9 @@ int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 			break;
 		case AST_CAUSE_NO_ANSWER:
 			ast_cdr_noanswer(cdr);
+			break;
+		case AST_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+			ast_cdr_congestion(cdr);
 			break;
 		case AST_CAUSE_NORMAL:
 			break;
@@ -961,6 +984,8 @@ char *ast_cdr_disp2str(int disposition)
 		return "BUSY";
 	case AST_CDR_ANSWERED:
 		return "ANSWERED";
+	case AST_CDR_CONGESTION:
+		return "CONGESTION";
 	}
 	return "UNKNOWN";
 }

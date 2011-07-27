@@ -58,6 +58,7 @@ enum {
 	AST_CDR_FAILED   = (1 << 1),
 	AST_CDR_BUSY     = (1 << 2),
 	AST_CDR_ANSWERED = (1 << 3),
+	AST_CDR_CONGESTION = (1 << 4),
 };
 
 /*!
@@ -265,6 +266,15 @@ void ast_cdr_answer(struct ast_cdr *cdr);
  * forkCDR() application.
  */
 extern void ast_cdr_noanswer(struct ast_cdr *cdr);
+
+/*!
+ * \brief A call was set to congestion
+ * \param cdr the cdr you wish to associate with the call
+ * Markst he channel disposition as "CONGESTION"
+ * Will skip CDR's in chain with ANS_LOCK bit set. (see
+ * forkCDR() application
+ */
+extern void ast_cdr_congestion(struct ast_cdr *cdr);
 
 /*!
  * \brief Busy a call

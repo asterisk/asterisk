@@ -9321,8 +9321,10 @@ static int pbx_builtin_congestion(struct ast_channel *chan, const char *data)
 	ast_indicate(chan, AST_CONTROL_CONGESTION);
 	/* Don't change state of an UP channel, just indicate
 	   congestion in audio */
-	if (chan->_state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP) {
 		ast_setstate(chan, AST_STATE_BUSY);
+		ast_cdr_congestion(chan->cdr);
+	}
 	wait_for_hangup(chan, data);
 	return -1;
 }
