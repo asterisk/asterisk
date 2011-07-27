@@ -70,7 +70,6 @@ CDR
 --------------------------
  * The filter option in cdr_adaptive_odbc now supports negating the argument,
    thus allowing records which do NOT match the specified filter.
- * Added ability to log CONGESTION calls to CDR
 
 CODECS
 --------------------------
