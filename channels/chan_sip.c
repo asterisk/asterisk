@@ -17530,7 +17530,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		msg = "Enabled using externaddr";
 	ast_cli(a->fd, "  SIP address remapping:  %s\n", msg);
 	ast_cli(a->fd, "  Externhost:             %s\n", S_OR(externhost, "<none>"));
-	ast_cli(a->fd, "  externaddr:               %s\n", ast_sockaddr_stringify(&externaddr));
+	ast_cli(a->fd, "  Externaddr:             %s\n", ast_sockaddr_stringify(&externaddr));
 	ast_cli(a->fd, "  Externrefresh:          %d\n", externrefresh);
 	{
 		struct ast_ha *d;
