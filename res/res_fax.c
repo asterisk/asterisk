@@ -3353,6 +3353,12 @@ static int set_config(const char *config_file)
 		ast_log(LOG_NOTICE, "Configuration file '%s' not found, using default options.\n", config_file);
 		return 0;
 	}
+
+	if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_NOTICE, "Configuration file '%s' is invalid, using default options.\n", config_file);
+		return 0;
+	}
+
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		cfg = ast_config_load2(config_file, "res_fax", config_flags);
