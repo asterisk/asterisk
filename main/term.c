@@ -144,6 +144,8 @@ int ast_term_init(void)
 			vt100compat = 1;
 		} else if (!strcmp(term, "xterm-color")) {
 			vt100compat = 1;
+		} else if (!strcmp(term, "xterm-256color")) {
+			vt100compat = 1;
 		} else if (!strncmp(term, "Eterm", 5)) {
 			/* Both entries which start with Eterm support color */
 			vt100compat = 1;
