@@ -317,8 +317,8 @@ type=menu
 6=increase_listening_volume
 *7=decrease_talking_volume
 7=decrease_talking_volume
-*8=no_op
-8=no_op
+*8=leave_conference
+8=leave_conference
 *9=increase_talking_volume
 9=increase_talking_volume
 
