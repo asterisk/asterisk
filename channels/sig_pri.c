@@ -4483,6 +4483,7 @@ static void *pri_dchannel(void *vpri)
 	int res;
 	int chanpos = 0;
 	int x;
+	int law;
 	struct ast_channel *c;
 	struct timeval tv, lowest, *next;
 	int doidling=0;
@@ -5112,7 +5113,20 @@ static void *pri_dchannel(void *vpri)
 				/* Make sure extension exists (or in overlap dial mode, can exist) */
 				if (((pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING) && ast_canmatch_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) ||
 					ast_exists_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
-					/* Setup law */
+					/* Select audio companding mode. */
+					switch (e->ring.layer1) {
+					case PRI_LAYER_1_ALAW:
+						law = SIG_PRI_ALAW;
+						break;
+					case PRI_LAYER_1_ULAW:
+						law = SIG_PRI_ULAW;
+						break;
+					default:
+						/* This is a data call to us. */
+						law = SIG_PRI_DEFLAW;
+						break;
+					}
+
 					if (e->ring.complete || !(pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
 						/* Just announce proceeding */
 						pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_PROCEEDING;
@@ -5138,10 +5152,8 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 						ast_mutex_unlock(&pri->lock);
 						c = sig_pri_new_ast_channel(pri->pvts[chanpos],
-							AST_STATE_RESERVED,
-							(e->ring.layer1 == PRI_LAYER_1_ALAW)
-								? SIG_PRI_ALAW : SIG_PRI_ULAW,
-							e->ring.ctype, pri->pvts[chanpos]->exten, NULL);
+							AST_STATE_RESERVED, law, e->ring.ctype,
+							pri->pvts[chanpos]->exten, NULL);
 						ast_mutex_lock(&pri->lock);
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						if (c) {
@@ -5257,9 +5269,7 @@ static void *pri_dchannel(void *vpri)
 						sig_pri_unlock_private(pri->pvts[chanpos]);
 						ast_mutex_unlock(&pri->lock);
 						c = sig_pri_new_ast_channel(pri->pvts[chanpos],
-							AST_STATE_RING,
-							(e->ring.layer1 == PRI_LAYER_1_ALAW)
-								? SIG_PRI_ALAW : SIG_PRI_ULAW, e->ring.ctype,
+							AST_STATE_RING, law, e->ring.ctype,
 							pri->pvts[chanpos]->exten, NULL);
 						ast_mutex_lock(&pri->lock);
 						sig_pri_lock_private(pri->pvts[chanpos]);
