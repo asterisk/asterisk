@@ -340,6 +340,10 @@ static void wav_close(struct ast_filestream *s)
 	char zero = 0;
 	struct wav_desc *fs = (struct wav_desc *)s->_private;
 
+	if ((s->mode & O_RDONLY) == O_RDONLY) {
+		return;
+	}
+
 	if (s->filename) {
 		update_header(s->f);
 	}
