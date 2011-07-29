@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 
 struct test_obj {
-	char c[20];
 	int i;
 	int *destructor_count;
 };
@@ -75,20 +74,35 @@ static int multiple_cb(void *obj, void *arg, int flag)
 static int test_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct test_obj *cmp_obj = (struct test_obj *) obj;
-	struct test_obj *test_obj = (struct test_obj *) arg;
+
 	if (!arg) {
 		return 0;
 	}
-	return (cmp_obj->i == test_obj->i) ? CMP_MATCH | CMP_STOP : 0;
+
+	if (flags & OBJ_KEY) {
+		int *i = (int *) arg;
+		return (cmp_obj->i == *i) ? CMP_MATCH | CMP_STOP : 0;
+	} else {
+		struct test_obj *test_obj = (struct test_obj *) arg;
+		return (cmp_obj->i == test_obj->i) ? CMP_MATCH | CMP_STOP : 0;
+	}
 }
 
 static int test_hash_cb(const void *obj, const int flags)
 {
-	struct test_obj *test_obj = (struct test_obj *) obj;
-	if (!test_obj || ast_strlen_zero(test_obj->c)) {
+	if (!obj) {
 		return 0;
 	}
-	return ast_str_hash(test_obj->c);
+
+	if (flags & OBJ_KEY) {
+		const int *i = obj;
+
+		return *i;
+	} else {
+		const struct test_obj *test_obj = obj;
+
+		return test_obj->i;
+	}
 }
 
 static int astobj2_test_helper(int use_hash, int use_cmp, unsigned int lim, struct ast_test *test)
@@ -128,7 +142,6 @@ static int astobj2_test_helper(int use_hash, int use_cmp, unsigned int lim, stru
 			res = AST_TEST_FAIL;
 			goto cleanup;
 		}
-		snprintf(obj->c, sizeof(obj->c), "zombie #%d", num);
 		obj->destructor_count = &destructor_count;
 		obj->i = num;
 		ao2_link(c1, obj);
@@ -163,11 +176,27 @@ static int astobj2_test_helper(int use_hash, int use_cmp, unsigned int lim, stru
 	num = 75;
 	for (; num; num--) {
 		int i = (ast_random() % ((lim / 2)) + 1); /* find a random object */
-		snprintf(tmp_obj.c, sizeof(tmp_obj.c), "zombie #%d", i);
 		tmp_obj.i = i;
 		if (!(obj = ao2_find(c1, &tmp_obj, OBJ_POINTER))) {
 			res = AST_TEST_FAIL;
 			ast_test_status_update(test, "COULD NOT FIND:%d, ao2_find() with OBJ_POINTER flag failed.\n", i);
+		} else {
+			/* a correct match will only take place when the custom cmp function is used */
+			if (use_cmp && obj->i != i) {
+				ast_test_status_update(test, "object %d does not match object %d\n", obj->i, tmp_obj.i);
+				res = AST_TEST_FAIL;
+			}
+			ao2_t_ref(obj, -1, "test");
+		}
+	}
+
+	/* Testing ao2_find with OBJ_KEY */
+	num = 75;
+	for (; num; num--) {
+		int i = (ast_random() % ((lim / 2)) + 1); /* find a random object */
+		if (!(obj = ao2_find(c1, &i, OBJ_KEY))) {
+			res = AST_TEST_FAIL;
+			ast_test_status_update(test, "COULD NOT FIND:%d, ao2_find() with OBJ_KEY flag failed.\n", i);
 		} else {
 			/* a correct match will only take place when the custom cmp function is used */
 			if (use_cmp && obj->i != i) {
@@ -374,7 +403,7 @@ AST_TEST_DEFINE(astobj2_test_2)
 	int num;
 	static const int NUM_OBJS = 5;
 	int destructor_count = NUM_OBJS;
-	struct test_obj tmp_obj = { "", };
+	struct test_obj tmp_obj = { 0, };
 
 	switch (cmd) {
 	case TEST_INIT:

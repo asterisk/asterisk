@@ -1726,8 +1726,9 @@ static int iax2_data_add_codecs(struct ast_data *root, const char *node_name, ia
 static int peer_hash_cb(const void *obj, const int flags)
 {
 	const struct iax2_peer *peer = obj;
+	const char *name = obj;
 
-	return ast_str_hash(peer->name);
+	return ast_str_hash(flags & OBJ_KEY ? name : peer->name);
 }
 
 /*!
@@ -1736,8 +1737,10 @@ static int peer_hash_cb(const void *obj, const int flags)
 static int peer_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct iax2_peer *peer = obj, *peer2 = arg;
+	const char *name = arg;
 
-	return !strcmp(peer->name, peer2->name) ? CMP_MATCH | CMP_STOP : 0;
+	return !strcmp(peer->name, flags & OBJ_KEY ? name : peer2->name) ?
+			CMP_MATCH | CMP_STOP : 0;
 }
 
 /*!
@@ -1746,8 +1749,9 @@ static int peer_cmp_cb(void *obj, void *arg, int flags)
 static int user_hash_cb(const void *obj, const int flags)
 {
 	const struct iax2_user *user = obj;
+	const char *name = obj;
 
-	return ast_str_hash(user->name);
+	return ast_str_hash(flags & OBJ_KEY ? name : user->name);
 }
 
 /*!
@@ -1756,8 +1760,10 @@ static int user_hash_cb(const void *obj, const int flags)
 static int user_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct iax2_user *user = obj, *user2 = arg;
+	const char *name = arg;
 
-	return !strcmp(user->name, user2->name) ? CMP_MATCH | CMP_STOP : 0;
+	return !strcmp(user->name, flags & OBJ_KEY ? name : user2->name) ?
+			CMP_MATCH | CMP_STOP : 0;
 }
 
 /*!
@@ -1767,11 +1773,8 @@ static int user_cmp_cb(void *obj, void *arg, int flags)
 static struct iax2_peer *find_peer(const char *name, int realtime) 
 {
 	struct iax2_peer *peer = NULL;
-	struct iax2_peer tmp_peer = {
-		.name = name,
-	};
 
-	peer = ao2_find(peers, &tmp_peer, OBJ_POINTER);
+	peer = ao2_find(peers, name, OBJ_KEY);
 
 	/* Now go for realtime if applicable */
 	if(!peer && realtime)
@@ -1794,11 +1797,7 @@ static inline struct iax2_peer *peer_unref(struct iax2_peer *peer)
 
 static struct iax2_user *find_user(const char *name)
 {
-	struct iax2_user tmp_user = {
-		.name = name,
-	};
-
-	return ao2_find(users, &tmp_user, OBJ_POINTER);
+	return ao2_find(users, name, OBJ_KEY);
 }
 static inline struct iax2_user *user_ref(struct iax2_user *user)
 {
@@ -1854,11 +1853,8 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 	/* Decrement AUTHREQ count if needed */
 	if (ast_test_flag64(pvt, IAX_MAXAUTHREQ)) {
 		struct iax2_user *user;
-		struct iax2_user tmp_user = {
-			.name = pvt->username,
-		};
 
-		user = ao2_find(users, &tmp_user, OBJ_POINTER);
+		user = ao2_find(users, pvt->username, OBJ_KEY);
 		if (user) {
 			ast_atomic_fetchadd_int(&user->curauthreq, -1);
 			user_unref(user);
@@ -6943,12 +6939,9 @@ static char *handle_cli_iax2_unregister(struct ast_cli_entry *e, int cmd, struct
 	p = find_peer(a->argv[2], 1);
 	if (p) {
 		if (p->expire > 0) {
-			struct iax2_peer tmp_peer = {
-				.name = a->argv[2],
-			};
 			struct iax2_peer *peer;
 
-			peer = ao2_find(peers, &tmp_peer, OBJ_POINTER);
+			peer = ao2_find(peers, a->argv[2], OBJ_KEY);
 			if (peer) {
 				expire_registry(peer_ref(peer)); /* will release its own reference when done */
 				peer_unref(peer); /* ref from ao2_find() */
@@ -7887,11 +7880,9 @@ static int authenticate_request(int call_num)
 
 	/* If an AUTHREQ restriction is in place, make sure we can send an AUTHREQ back */
 	if (ast_test_flag64(p, IAX_MAXAUTHREQ)) {
-		struct iax2_user *user, tmp_user = {
-			.name = p->username,	
-		};
+		struct iax2_user *user;
 
-		user = ao2_find(users, &tmp_user, OBJ_POINTER);
+		user = ao2_find(users, p->username, OBJ_KEY);
 		if (user) {
 			if (user->curauthreq == user->maxauthreq)
 				authreq_restrict = 1;
@@ -7937,14 +7928,12 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	char rsasecret[256] = "";
 	int res = -1; 
 	int x;
-	struct iax2_user *user, tmp_user = {
-		.name = p->username,	
-	};
+	struct iax2_user *user;
 
 	if (p->authrej) {
 		return res;
 	}
-	user = ao2_find(users, &tmp_user, OBJ_POINTER);
+	user = ao2_find(users, p->username, OBJ_KEY);
 	if (user) {
 		if (ast_test_flag64(p, IAX_MAXAUTHREQ)) {
 			ast_atomic_fetchadd_int(&user->curauthreq, -1);
@@ -12400,12 +12389,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 	int maskfound = 0;
 	int found = 0;
 	int firstpass = 1;
-	struct iax2_peer tmp_peer = {
-		.name = name,
-	};
 
 	if (!temponly) {
-		peer = ao2_find(peers, &tmp_peer, OBJ_POINTER);
+		peer = ao2_find(peers, name, OBJ_KEY);
 		if (peer && !ast_test_flag64(peer, IAX_DELME))
 			firstpass = 0;
 	}
@@ -12697,12 +12683,9 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 	int oldcurauthreq = 0;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
-	struct iax2_user tmp_user = {
-		.name = name,
-	};
 
 	if (!temponly) {
-		user = ao2_find(users, &tmp_user, OBJ_POINTER);
+		user = ao2_find(users, name, OBJ_KEY);
 		if (user && !ast_test_flag64(user, IAX_DELME))
 			firstpass = 0;
 	}

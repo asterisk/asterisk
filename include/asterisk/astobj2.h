@@ -680,6 +680,16 @@ enum search_flags {
 	 * by another mechanism other that the internal ao2_lock.
 	 */
 	OBJ_NOLOCK     = (1 << 5),
+	/*!
+	 * \brief The data is hashable, but is not an object.
+	 *
+	 * This can be used when you want to be able to pass custom data
+	 * to a hash function that is not a full object, but perhaps just
+	 * a string.
+	 *
+	 * \note OBJ_KEY and OBJ_POINTER are mutually exclusive options.
+	 */
+	OBJ_KEY        = (1 << 6),
 };
 
 /*!
@@ -964,9 +974,9 @@ void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 
 #endif
 
-void *__ao2_find_debug(struct ao2_container *c, void *arg, enum search_flags flags, char *tag,
+void *__ao2_find_debug(struct ao2_container *c, const void *arg, enum search_flags flags, char *tag,
 		       char *file, int line, const char *funcname);
-void *__ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
+void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags);
 
 /*! \brief
  *

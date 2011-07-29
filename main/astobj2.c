@@ -648,8 +648,8 @@ static void *internal_ao2_callback(struct ao2_container *c,
 	 * run the hash function. Otherwise, scan the whole container
 	 * (this only for the time being. We need to optimize this.)
 	 */
-	if ((flags & OBJ_POINTER))	/* we know hash can handle this case */
-		start = i = c->hash_fn(arg, flags & OBJ_POINTER) % c->n_buckets;
+	if ((flags & (OBJ_POINTER | OBJ_KEY)))	/* we know hash can handle this case */
+		start = i = c->hash_fn(arg, flags & (OBJ_POINTER | OBJ_KEY)) % c->n_buckets;
 	else			/* don't know, let's scan all buckets */
 		start = i = -1;		/* XXX this must be fixed later. */
 
@@ -801,14 +801,14 @@ void *__ao2_callback_data(struct ao2_container *c, const enum search_flags flags
 /*!
  * the find function just invokes the default callback with some reasonable flags.
  */
-void *__ao2_find_debug(struct ao2_container *c, void *arg, enum search_flags flags, char *tag, char *file, int line, const char *funcname)
+void *__ao2_find_debug(struct ao2_container *c, const void *arg, enum search_flags flags, char *tag, char *file, int line, const char *funcname)
 {
-	return __ao2_callback_debug(c, flags, c->cmp_fn, arg, tag, file, line, funcname);
+	return __ao2_callback_debug(c, flags, c->cmp_fn, (void *) arg, tag, file, line, funcname);
 }
 
-void *__ao2_find(struct ao2_container *c, void *arg, enum search_flags flags)
+void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags)
 {
-	return __ao2_callback(c, flags, c->cmp_fn, arg);
+	return __ao2_callback(c, flags, c->cmp_fn, (void *) arg);
 }
 
 /*!
