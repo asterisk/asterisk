@@ -2224,7 +2224,7 @@ static struct ast_cli_entry cli_confbridge[] = {
 	AST_CLI_DEFINE(handle_cli_confbridge_list, "List conference bridges and participants."),
 	AST_CLI_DEFINE(handle_cli_confbridge_kick, "Kick participants out of conference bridges."),
 	AST_CLI_DEFINE(handle_cli_confbridge_mute, "Mute a participant."),
-	AST_CLI_DEFINE(handle_cli_confbridge_unmute, "Mute a participant."),
+	AST_CLI_DEFINE(handle_cli_confbridge_unmute, "Unmute a participant."),
 	AST_CLI_DEFINE(handle_cli_confbridge_lock, "Lock a conference."),
 	AST_CLI_DEFINE(handle_cli_confbridge_unlock, "Unlock a conference."),
 	AST_CLI_DEFINE(handle_cli_confbridge_start_record, "Start recording a conference"),
