@@ -6299,37 +6299,40 @@ int ast_do_masquerade(struct ast_channel *original)
 	 */
 	ao2_lock(channels);
 
-	/* lock the original channel to determine if the masquerade is require or not */
+	/* lock the original channel to determine if the masquerade is required or not */
 	ast_channel_lock(original);
 
-	/* This checks to see if the masquerade has already happened or not.  There is a
-	 * race condition that exists for this function. Since all pvt and channel locks
-	 * must be let go before calling do_masquerade, it is possible that it could be
-	 * called multiple times for the same channel.  This check verifies whether
-	 * or not the masquerade has already been completed by another thread */
-	if (!original->masq) {
-		ast_channel_unlock(original);
-		ao2_unlock(channels);
-		return 0; /* masq already completed by another thread, or never needed to be done to begin with */
-	}
-
-	/* now that we have verified no race condition exists, set the clone channel */
-	clonechan = original->masq;
-
-	/* since this function already holds the global container lock, unlocking original
-	 * for deadlock avoidance will not result in any sort of masquerade race condition.
-	 * If masq is called by a different thread while this happens, it will be stuck waiting
-	 * until we unlock the container. */
+	/*
+	 * This checks to see if the masquerade has already happened or
+	 * not.  There is a race condition that exists for this
+	 * function.  Since all pvt and channel locks must be let go
+	 * before calling do_masquerade, it is possible that it could be
+	 * called multiple times for the same channel.  This check
+	 * verifies whether or not the masquerade has already been
+	 * completed by another thread.
+	 */
 	while ((clonechan = original->masq) && ast_channel_trylock(clonechan)) {
+		/*
+		 * A masq is needed but we could not get the clonechan lock
+		 * immediately.  Since this function already holds the global
+		 * container lock, unlocking original for deadlock avoidance
+		 * will not result in any sort of masquerade race condition.  If
+		 * masq is called by a different thread while this happens, it
+		 * will be stuck waiting until we unlock the container.
+		 */
 		CHANNEL_DEADLOCK_AVOIDANCE(original);
 	}
 
-	/* recheck if masq has been done the deadlock avoidance above could cause a double masq
-	 * this is posible with at least ast_hangup*/
-	if (!original->masq) {
+	/*
+	 * A final masq check must be done after deadlock avoidance for
+	 * clonechan above or we could get a double masq.  This is
+	 * posible with ast_hangup at least.
+	 */
+	if (!clonechan) {
+		/* masq already completed by another thread, or never needed to be done to begin with */
 		ast_channel_unlock(original);
 		ao2_unlock(channels);
-		return 0; /* masq already completed by another thread, or never needed to be done to begin with */
+		return 0;
 	}
 
 	/* Get any transfer masquerade connected line exchange data. */
