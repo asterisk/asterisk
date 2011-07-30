@@ -6320,8 +6320,16 @@ int ast_do_masquerade(struct ast_channel *original)
 	 * for deadlock avoidance will not result in any sort of masquerade race condition.
 	 * If masq is called by a different thread while this happens, it will be stuck waiting
 	 * until we unlock the container. */
-	while (ast_channel_trylock(clonechan)) {
+	while ((clonechan = original->masq) && ast_channel_trylock(clonechan)) {
 		CHANNEL_DEADLOCK_AVOIDANCE(original);
+	}
+
+	/* recheck if masq has been done the deadlock avoidance above could cause a double masq
+	 * this is posible with at least ast_hangup*/
+	if (!original->masq) {
+		ast_channel_unlock(original);
+		ao2_unlock(channels);
+		return 0; /* masq already completed by another thread, or never needed to be done to begin with */
 	}
 
 	/* Get any transfer masquerade connected line exchange data. */
