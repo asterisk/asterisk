@@ -770,16 +770,15 @@ static void *internal_ao2_callback(struct ao2_container *c,
 	}
 }
 
-void *__ao2_callback_debug(struct ao2_container *c,
-			   const enum search_flags flags,
-			   ao2_callback_fn *cb_fn, void *arg,
-			   char *tag, char *file, int line, const char *funcname)
+void *__ao2_callback_debug(struct ao2_container *c, enum search_flags flags,
+	ao2_callback_fn *cb_fn, void *arg, char *tag, char *file, int line,
+	const char *funcname)
 {
 	return internal_ao2_callback(c,flags, cb_fn, arg, NULL, DEFAULT, tag, file, line, funcname);
 }
 
-void *__ao2_callback(struct ao2_container *c, const enum search_flags flags,
-		     ao2_callback_fn *cb_fn, void *arg)
+void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
+	ao2_callback_fn *cb_fn, void *arg)
 {
 	return internal_ao2_callback(c,flags, cb_fn, arg, NULL, DEFAULT, NULL, NULL, 0, NULL);
 }
@@ -803,12 +802,16 @@ void *__ao2_callback_data(struct ao2_container *c, const enum search_flags flags
  */
 void *__ao2_find_debug(struct ao2_container *c, const void *arg, enum search_flags flags, char *tag, char *file, int line, const char *funcname)
 {
-	return __ao2_callback_debug(c, flags, c->cmp_fn, (void *) arg, tag, file, line, funcname);
+	void *arged = (void *) arg;/* Done to avoid compiler const warning */
+
+	return __ao2_callback_debug(c, flags, c->cmp_fn, arged, tag, file, line, funcname);
 }
 
 void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags)
 {
-	return __ao2_callback(c, flags, c->cmp_fn, (void *) arg);
+	void *arged = (void *) arg;/* Done to avoid compiler const warning */
+
+	return __ao2_callback(c, flags, c->cmp_fn, arged);
 }
 
 /*!
