@@ -4251,8 +4251,10 @@ static int load_config(void)
 		struct ast_parkinglot *p;
 		struct ao2_iterator iter = ao2_iterator_init(parkinglots, 0);
 		while ((p = ao2_iterator_next(&iter))) {
-			ao2_unlink(parkinglots, p);
-			ao2_ref(p,-1);
+			if (p != default_parkinglot) {
+				ao2_unlink(parkinglots, p);
+				ao2_ref(p,-1);
+			}
 		}
 		ao2_iterator_destroy(&iter);
 	}
