@@ -4725,6 +4725,8 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t t, const char *
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
+				else if (tm.tm_hour == 1 || tm.tm_hour == 13)
+					snprintf(nextmsg,sizeof(nextmsg), "digits/1F");
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
