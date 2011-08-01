@@ -4253,8 +4253,8 @@ static int load_config(void)
 		while ((p = ao2_iterator_next(&iter))) {
 			if (p != default_parkinglot) {
 				ao2_unlink(parkinglots, p);
-				ao2_ref(p,-1);
 			}
+			ao2_ref(p, -1);
 		}
 		ao2_iterator_destroy(&iter);
 	}
