@@ -18608,7 +18608,7 @@ static void sip_dump_history(struct sip_pvt *dialog)
 /*! \brief  Receive SIP INFO Message */
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
-	char buf[1024] = { 0, };
+	char buf[1024] = "";
 	unsigned int event;
 	const char *c = get_header(req, "Content-Type");
 
