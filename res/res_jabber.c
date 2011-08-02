@@ -1654,7 +1654,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 		case IKS_NODE_START:
 			if (client->usetls && !aji_is_secure(client)) {
 #ifndef HAVE_OPENSSL
-				ast_log(LOG_ERROR, "OpenSSL not installed. You need to install OpenSSL on this system, or disable the TLS option in your configuration file\n");
+				ast_log(LOG_ERROR, "TLS connection cannot be established. Please install OpenSSL and its development libraries on this system, or disable the TLS option in your configuration file\n");
 				ASTOBJ_UNREF(client, aji_client_destroy);
 				return IKS_HOOK;
 #else
