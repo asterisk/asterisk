@@ -1818,7 +1818,9 @@ static int scheduled_destroy(const void *vid)
 
 static void free_signaling_queue_entry(struct signaling_queue_entry *s)
 {
-	ast_free(s->f.data.ptr);
+	if (s->f.datalen) {
+		ast_free(s->f.data.ptr);
+	}
 	ast_free(s);
 }
 
