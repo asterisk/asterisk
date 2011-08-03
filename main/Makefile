@@ -105,6 +105,7 @@ ASTLINK+=-Wl,--version-script,asterisk.exports
   endif
 endif
 
+.PHONY: CHECK_SUBDIR
 CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
 
 editline/libedit.a: CHECK_SUBDIR
