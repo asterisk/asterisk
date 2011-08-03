@@ -1699,6 +1699,33 @@ static int analog_get_sub_fd(struct analog_pvt *p, enum analog_sub sub)
 
 #define ANALOG_NEED_MFDETECT(p) (((p)->sig == ANALOG_SIG_FEATDMF) || ((p)->sig == ANALOG_SIG_FEATDMF_TA) || ((p)->sig == ANALOG_SIG_E911) || ((p)->sig == ANALOG_SIG_FGC_CAMA) || ((p)->sig == ANALOG_SIG_FGC_CAMAMF) || ((p)->sig == ANALOG_SIG_FEATB))
 
+static int analog_canmatch_featurecode(const char *exten)
+{
+	int extlen = strlen(exten);
+	const char *pickup_ext;
+	if (!extlen) {
+		return 1;
+	}
+	pickup_ext = ast_pickup_ext();
+	if (extlen < strlen(pickup_ext) && !strncmp(pickup_ext, exten, extlen)) {
+		return 1;
+	}
+	/* hardcoded features are *60, *67, *69, *70, *72, *73, *78, *79, *82, *0 */
+	if (exten[0] == '*' && extlen < 3) {
+		if (extlen == 1) {
+			return 1;
+		}
+		/* "*0" should be processed before it gets here */
+		switch (exten[1]) {
+		case '6':
+		case '7':
+		case '8':
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void *__analog_ss_thread(void *data)
 {
 	struct analog_pvt *p = data;
@@ -2293,7 +2320,7 @@ static void *__analog_ss_thread(void *data)
 				}
 			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1,
 				chan->caller.id.number.valid ? chan->caller.id.number.str : NULL)
-				&& ((exten[0] != '*') || (strlen(exten) > 2))) {
+				&& !analog_canmatch_featurecode(exten)) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
 					chan->caller.id.number.valid && chan->caller.id.number.str
 						? chan->caller.id.number.str : "<Unknown Caller>",
