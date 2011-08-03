@@ -9772,6 +9772,33 @@ static int dahdi_dnd(struct dahdi_pvt *dahdichan, int flag)
 	return 0;
 }
 
+static int canmatch_featurecode(const char *exten)
+{
+	int extlen = strlen(exten);
+	const char *pickup_ext;
+	if (!extlen) {
+		return 1;
+	}
+	pickup_ext = ast_pickup_ext();
+	if (extlen < strlen(pickup_ext) && !strncmp(pickup_ext, exten, extlen)) {
+		return 1;
+	}
+	/* hardcoded features are *60, *67, *69, *70, *72, *73, *78, *79, *82, *0 */
+	if (exten[0] == '*' && extlen < 3) {
+		if (extlen == 1) {
+			return 1;
+		}
+		/* "*0" should be processed before it gets here */
+		switch (exten[1]) {
+		case '6':
+		case '7':
+		case '8':
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void *analog_ss_thread(void *data)
 {
 	struct ast_channel *chan = data;
@@ -10316,7 +10343,7 @@ static void *analog_ss_thread(void *data)
 				}
 			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1,
 				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
-				&& ((exten[0] != '*') || (strlen(exten) > 2))) {
+				&& !canmatch_featurecode(exten)) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
 					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<Unknown Caller>"),
 					chan->context);
