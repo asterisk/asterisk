@@ -2009,14 +2009,16 @@ then
     [ AC_MSG_RESULT(yes) ],
     [
         AC_MSG_RESULT(no)
-        AC_MSG_NOTICE(***)
-        AC_MSG_NOTICE(*** libsrtp could not be linked as a shared object)
-        AC_MSG_NOTICE(*** try compiling libsrtp manually and configuring with)
-        AC_MSG_NOTICE(*** ./configure CFLAGS=-fPIC --prefix=/usr)
-        AC_MSG_NOTICE(*** replacing /usr with the prefix of your choice)
-        AC_MSG_NOTICE(***)
-        AC_MSG_NOTICE(*** If you do not need SRTP support re-run configure)
-        AC_MSG_NOTICE(*** with the --without-srtp option.)
+        AC_MSG_WARN(***)
+        AC_MSG_WARN(*** libsrtp could not be linked as a shared object.)
+        AC_MSG_WARN(*** Try compiling libsrtp manually. Configure libsrtp)
+        AC_MSG_WARN(*** with ./configure CFLAGS=-fPIC --prefix=/usr)
+        AC_MSG_WARN(*** replacing /usr with the prefix of your choice.)
+        AC_MSG_WARN(*** After re-installing libsrtp, re-run the Asterisk)
+        AC_MSG_WARN(*** configure script.)
+        AC_MSG_WARN(***)
+        AC_MSG_WARN(*** If you do not need SRTP support re-run configure)
+        AC_MSG_WARN(*** with the --without-srtp option.)
         exit 1
     ]
     )
