@@ -171,7 +171,7 @@ int ooReadAndProcessStackCommand()
       if(cmd.type == OO_CMD_NOOP)
          continue;
 
-      if(gH323ep.gkClient && gH323ep.gkClient->state != GkClientRegistered)
+      if(gH323ep.gkClient && gH323ep.gkClient->state != GkClientRegistered && cmd.type != OO_CMD_STOPMONITOR)
       {
          OOTRACEINFO1("Ignoring stack command as Gk Client is not registered"
                       " yet\n");
