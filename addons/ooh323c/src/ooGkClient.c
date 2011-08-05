@@ -2570,7 +2570,43 @@ int ooGkClientRRQTimerExpired(void*pdata)
    }
    memFreePtr(&pGkClient->ctxt, cbData);
    OOTRACEERR1("Error:Failed to register with gatekeeper\n");
-   pGkClient->state = GkClientGkErr;
+   pGkClient->state = GkClientUnregistered;
+
+
+/* Create timer to re-register after default timeout */
+/* network failure is one of cases here */
+
+   ast_mutex_lock(&pGkClient->Lock);
+
+   cbData = (ooGkClientTimerCb*) memAlloc
+				(&pGkClient->ctxt, sizeof(ooGkClientTimerCb));
+   if(!cbData)
+   {
+      OOTRACEERR1("Error:Failed to allocate memory to RRQ timer callback\n");
+      pGkClient->state = GkClientFailed;
+      ast_mutex_unlock(&pGkClient->Lock);
+      return OO_FAILED;
+   }
+
+
+   cbData->timerType = OO_RRQ_TIMER;
+   cbData->pGkClient = pGkClient;
+   if(!ooTimerCreate(&pGkClient->ctxt, &pGkClient->timerList,
+                     &ooGkClientRRQTimerExpired, pGkClient->regTimeout,
+                     cbData, FALSE))
+   {
+      OOTRACEERR1("Error:Unable to create GRQ timer.\n ");
+      memFreePtr(&pGkClient->ctxt, cbData);
+      pGkClient->state = GkClientFailed;
+      ast_mutex_unlock(&pGkClient->Lock);
+      return OO_FAILED;
+   }
+
+/* clear rrq count for re-register after regTimeout */
+   pGkClient->rrqRetries = 0;
+
+   ast_mutex_unlock(&pGkClient->Lock);
+
    return OO_FAILED;
 }
 
@@ -2598,7 +2634,37 @@ int ooGkClientGRQTimerExpired(void* pdata)
    }
 
    OOTRACEERR1("Error:Gatekeeper could not be found\n");
-   pGkClient->state = GkClientGkErr;
+   pGkClient->state = GkClientUnregistered;
+/* setup timer to re-send grq after timeout */
+
+   ast_mutex_lock(&pGkClient->Lock);
+   cbData = (ooGkClientTimerCb*) memAlloc
+                               (&pGkClient->ctxt, sizeof(ooGkClientTimerCb));
+   if(!cbData)
+   {
+      OOTRACEERR1("Error:Failed to allocate memory to GRQ timer callback\n");
+      pGkClient->state = GkClientFailed;
+      ast_mutex_unlock(&pGkClient->Lock);
+      return OO_FAILED;
+   }
+   cbData->timerType = OO_GRQ_TIMER;
+   cbData->pGkClient = pGkClient;
+   if(!ooTimerCreate(&pGkClient->ctxt, &pGkClient->timerList,
+                     &ooGkClientGRQTimerExpired, pGkClient->grqTimeout,
+                     cbData, FALSE))
+   {
+      OOTRACEERR1("Error:Unable to create GRQ timer.\n ");
+      memFreePtr(&pGkClient->ctxt, cbData);
+      pGkClient->state = GkClientFailed;
+      ast_mutex_unlock(&pGkClient->Lock);
+      return OO_FAILED;
+   }
+ 
+/* clear grq counter */
+
+   pGkClient->grqRetries = 0;
+   ast_mutex_unlock(&pGkClient->Lock);
+
    return OO_FAILED;
 }
    
