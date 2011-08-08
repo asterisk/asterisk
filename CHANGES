@@ -44,6 +44,9 @@ Asterisk Manager Interface
  * Added new action FilterAdd to control event filters for the current session.
    This requires the system permission and uses the same filter syntax as
    filters that can be defined in manager.conf
+ * The Unlink event is now a Bridge event with Bridgestatus: Unlink. Previous
+   versions had some instances of the event converted, but others were left
+   as-is. All Unlink events should now be converted to Bridge events.
 
 Asterisk HTTP Server
 --------------------------

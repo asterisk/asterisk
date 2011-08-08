@@ -7340,7 +7340,6 @@ static void bridge_play_sounds(struct ast_channel *c0, struct ast_channel *c1)
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
 {
-	struct ast_channel *chans[2] = { c0, c1 };
 	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	struct ast_format_cap *o0nativeformats;
 	struct ast_format_cap *o1nativeformats;
@@ -7521,18 +7520,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, timeoutms)) == AST_BRIDGE_COMPLETE) {
-				ast_manager_event_multichan(EVENT_FLAG_CALL, "Unlink", 2, chans,
-					"Channel1: %s\r\n"
-					"Channel2: %s\r\n"
-					"Uniqueid1: %s\r\n"
-					"Uniqueid2: %s\r\n"
-					"CallerID1: %s\r\n"
-					"CallerID2: %s\r\n",
-					c0->name, c1->name,
-					c0->uniqueid, c1->uniqueid,
-					S_COR(c0->caller.id.number.valid, c0->caller.id.number.str, "<unknown>"),
-					S_COR(c1->caller.id.number.valid, c1->caller.id.number.str, "<unknown>"));
-
+				manager_bridge_event(0, 1, c0, c1);
 				ast_debug(1, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
 
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
@@ -7603,17 +7591,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
 
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Unlink", 2, chans,
-		"Channel1: %s\r\n"
-		"Channel2: %s\r\n"
-		"Uniqueid1: %s\r\n"
-		"Uniqueid2: %s\r\n"
-		"CallerID1: %s\r\n"
-		"CallerID2: %s\r\n",
-		c0->name, c1->name,
-		c0->uniqueid, c1->uniqueid,
-		S_COR(c0->caller.id.number.valid, c0->caller.id.number.str, "<unknown>"),
-		S_COR(c1->caller.id.number.valid, c1->caller.id.number.str, "<unknown>"));
+	manager_bridge_event(0, 1, c0, c1);
 	ast_debug(1, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
 
 	ast_format_cap_destroy(o0nativeformats);
