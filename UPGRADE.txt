@@ -72,6 +72,12 @@ Asterisk Database:
    astdb.sqlite3 exists, astdb2sqlite3 will be compiled automatically. Asterisk will
    convert an existing astdb to the SQLite3 version automatically at runtime.
 
+Manager:
+ - The AMI protocol version was incremented to 1.2 as a result of changing two
+   instances of the Unlink event to Bridge events. This change was documented
+   as part of the AMI 1.1 update, but two Unlink events were inadvertently left
+   unchanged.
+
 Module Support Level
  - All modules in the addons, apps, bridge, cdr, cel, channels, codecs, 
    formats, funcs, pbx, and res have been updated to include MODULEINFO data
