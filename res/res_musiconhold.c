@@ -338,7 +338,16 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	ast_debug(1, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
 
 	if (state->samples) {
+		size_t loc;
+		/* seek *SHOULD* be good since it's from a known location */
 		ast_seekstream(chan->stream, state->samples, SEEK_SET);
+		/* if the seek failed then recover because if there is not a valid read,
+		 * moh_files_generate will return -1 and MOH will stop */
+		loc = ast_tellstream(chan->stream);
+		if (state->samples > loc && loc) {
+			/* seek one sample from the end for one guaranteed valid read */
+			ast_seekstream(chan->stream, 1, SEEK_END);
+		}
 	}
 
 	return 0;
