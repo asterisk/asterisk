@@ -65,6 +65,12 @@ monitor-type = MixMonitor
 ;
 ;negative_penalty_invalid = no
 ;
+; log_membername_as_agent will cause app_queue to log the membername rather than
+; the interface for the ADDMEMBER and REMOVEMEMBER events when a state_interface
+; is set.  The default value (no) maintains backward compatibility.
+;
+;log_membername_as_agent = no
+;
 ;[markq]
 ;
 ; A sample call queue
