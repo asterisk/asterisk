@@ -46,7 +46,8 @@ Asterisk Manager Interface
    filters that can be defined in manager.conf
  * The Unlink event is now a Bridge event with Bridgestatus: Unlink. Previous
    versions had some instances of the event converted, but others were left
-   as-is. All Unlink events should now be converted to Bridge events.
+   as-is. All Unlink events should now be converted to Bridge events. The AMI
+   protocol version number was incremented to 1.2 as a result of this change.
 
 Asterisk HTTP Server
 --------------------------
