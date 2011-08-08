@@ -1457,13 +1457,14 @@ static int update_status(struct call_queue *q, struct member *m, const int statu
 		"Queue: %s\r\n"
 		"Location: %s\r\n"
 		"MemberName: %s\r\n"
+		"StateInterface: %s\r\n"
 		"Membership: %s\r\n"
 		"Penalty: %d\r\n"
 		"CallsTaken: %d\r\n"
 		"LastCall: %d\r\n"
 		"Status: %d\r\n"
 		"Paused: %d\r\n",
-		q->name, m->interface, m->membername, m->dynamic ? "dynamic" : m->realtime ? "realtime" : "static",
+		q->name, m->interface, m->membername, m->state_interface, m->dynamic ? "dynamic" : m->realtime ? "realtime" : "static",
 		m->penalty, m->calls, (int)m->lastcall, m->status, m->paused
 	);
 
@@ -5321,13 +5322,14 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
 				"MemberName: %s\r\n"
+				"StateInterface: %s\r\n"
 				"Membership: %s\r\n"
 				"Penalty: %d\r\n"
 				"CallsTaken: %d\r\n"
 				"LastCall: %d\r\n"
 				"Status: %d\r\n"
 				"Paused: %d\r\n",
-				q->name, new_member->interface, new_member->membername,
+				q->name, new_member->interface, new_member->membername, state_interface,
 				"dynamic",
 				new_member->penalty, new_member->calls, (int) new_member->lastcall,
 				new_member->status, new_member->paused);
@@ -7149,7 +7151,11 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 			while ((mem = ao2_iterator_next(&mem_iter))) {
 				ast_str_set(&out, 0, "      %s", mem->membername);
 				if (strcasecmp(mem->membername, mem->interface)) {
-					ast_str_append(&out, 0, " (%s)", mem->interface);
+					ast_str_append(&out, 0, " (%s", mem->interface);
+					if (mem->state_interface) {
+						ast_str_append(&out, 0, " from %s", mem->state_interface);
+					}
+					ast_str_append(&out, 0, ")");
 				}
 				if (mem->penalty)
 					ast_str_append(&out, 0, " with penalty %d", mem->penalty);
@@ -7417,6 +7423,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"Queue: %s\r\n"
 						"Name: %s\r\n"
 						"Location: %s\r\n"
+						"StateInterface: %s\r\n"
 						"Membership: %s\r\n"
 						"Penalty: %d\r\n"
 						"CallsTaken: %d\r\n"
@@ -7425,7 +7432,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"Paused: %d\r\n"
 						"%s"
 						"\r\n",
-						q->name, mem->membername, mem->interface, mem->dynamic ? "dynamic" : "static",
+						q->name, mem->membername, mem->interface, mem->state_interface, mem->dynamic ? "dynamic" : "static",
 						mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, idText);
 				}
 				ao2_ref(mem, -1);
