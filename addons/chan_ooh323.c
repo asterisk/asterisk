@@ -1123,6 +1123,9 @@ static int ooh323_answer(struct ast_channel *ast)
 			ast_channel_unlock(ast);
 			ooAnswerCall(p->callToken);
 		}
+		if (callToken) {
+			free(callToken);
+		}
 		ast_mutex_unlock(&p->lock);
 	}
 

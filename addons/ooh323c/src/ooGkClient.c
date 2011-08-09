@@ -1947,8 +1947,11 @@ int ooGkClientHandleAdmissionConfirm
                                     ipAddress->ip.data[1],
                                     ipAddress->ip.data[2],
                                     ipAddress->ip.data[3]);
-         if(strcmp(ip, "0.0.0.0"))
+         if(strcmp(ip, "0.0.0.0")) {
+/* fix this when gk client will adopt to work with IPv6 */
+	    pCallAdmInfo->call->versionIP = 4;
             strcpy(pCallAdmInfo->call->remoteIP, ip);
+	 }
          pCallAdmInfo->call->remotePort = ipAddress->port;
          /* Update call model */
          if(pAdmissionConfirm->callModel.t == T_H225CallModel_direct)
@@ -1997,13 +2000,13 @@ int ooGkClientHandleAdmissionConfirm
                        pCallAdmInfo->call->callToken);
 
 	 pCallAdmInfo->call->callState = OO_CALL_CONNECTING;
-	 ast_cond_signal(&pCallAdmInfo->call->gkWait);
          /* ooH323CallAdmitted( pCallAdmInfo->call); */
 
          dListRemove(&pGkClient->callsPendingList, pNode);
          dListAppend(&pGkClient->ctxt, &pGkClient->callsAdmittedList, 
                                                         pNode->data);
          memFreePtr(&pGkClient->ctxt, pNode);
+	 ast_cond_signal(&pCallAdmInfo->call->gkWait);
          return OO_OK;
          break;
       }
