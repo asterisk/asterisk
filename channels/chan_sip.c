@@ -20764,7 +20764,7 @@ static void *sip_park_thread(void *stuff)
 	
 
 #ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
-	if (!res) {
+	if (res) {
 		transmit_message_with_text(transferer->tech_pvt, "Unable to park call.\n");
 	} else {
 		/* Then tell the transferer what happened */
