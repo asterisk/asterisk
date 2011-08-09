@@ -22,7 +22,10 @@
 
 From 10 to 12:
 
-* No significant changes as of yet.
+func_enum:
+ - ENUM query functions now return a count of -1 on lookup error to
+   differentiate between a failed query and a successful query with 0 results
+   matching the specified type.
 
 From 1.8 to 10:
 

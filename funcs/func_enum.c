@@ -82,7 +82,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>The number of the result that you want to retrieve.</para>
 				<para>Results start at <literal>1</literal>. If this argument is specified
 				as <literal>getnum</literal>, then it will return the total number of results 
-				that are available.</para>
+				that are available or -1 on error.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -105,7 +105,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="c">
 						<para>Returns an integer count of the number of NAPTRs of a certain RR type.</para>
 						<para>Combination of <literal>c</literal> and Method-type of <literal>ALL</literal> will
-						return a count of all NAPTRs for the record.</para>
+						return a count of all NAPTRs for the record or -1 on error.</para>
 					</option>
 					<option name="u">
 						<para>Returns the full URI and does not strip off the URI-scheme.</para>
@@ -363,7 +363,7 @@ static int enum_result_read(struct ast_channel *chan, const char *cmd, char *dat
 	erds = datastore->data;
 
 	if (!strcasecmp(args.resultnum, "getnum")) {
-		snprintf(buf, len, "%u", erds->context->naptr_rrs_count);
+		snprintf(buf, len, "%d", erds->context->naptr_rrs_count);
 		res = 0;
 		goto finish;
 	}
