@@ -1997,13 +1997,13 @@ int ooGkClientHandleAdmissionConfirm
                        pCallAdmInfo->call->callToken);
 
 	 pCallAdmInfo->call->callState = OO_CALL_CONNECTING;
-	 ast_cond_signal(&pCallAdmInfo->call->gkWait);
          /* ooH323CallAdmitted( pCallAdmInfo->call); */
 
          dListRemove(&pGkClient->callsPendingList, pNode);
          dListAppend(&pGkClient->ctxt, &pGkClient->callsAdmittedList, 
                                                         pNode->data);
          memFreePtr(&pGkClient->ctxt, pNode);
+	 ast_cond_signal(&pCallAdmInfo->call->gkWait);
          return OO_OK;
          break;
       }
