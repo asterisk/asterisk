@@ -21319,7 +21319,7 @@ static void *sip_park_thread(void *stuff)
 	res = ast_park_call(transferee, transferer, 0, d->parkexten, &ext);
 
 #ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
-	if (!res) {
+	if (res) {
 		transmit_message_with_text(transferer->tech_pvt, "Unable to park call.\n", 0, 0);
 	} else {
 		/* Then tell the transferer what happened */

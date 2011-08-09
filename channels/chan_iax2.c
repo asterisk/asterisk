@@ -9349,7 +9349,8 @@ static void *iax_park_thread(void *stuff)
 	struct ast_channel *chan1, *chan2;
 	struct iax_dual *d;
 	struct ast_frame *f;
-	int ext;
+	int ext = 0;
+
 	d = stuff;
 	chan1 = d->chan1;
 	chan2 = d->chan2;
@@ -10794,7 +10795,7 @@ static int socket_process(struct iax2_thread *thread)
 					pbx_builtin_setvar_helper(owner, "BLINDTRANSFER", bridged_chan->name);
 					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", owner->name);
 
-					if (ast_parking_ext_valid(ies.called_number, c, iaxs[fr->callno]->context)) {
+					if (ast_parking_ext_valid(ies.called_number, owner, iaxs[fr->callno]->context)) {
 						ast_debug(1, "Parking call '%s'\n", bridged_chan->name);
 						if (iax_park(bridged_chan, owner, ies.called_number)) {
 							ast_log(LOG_WARNING, "Failed to park call '%s'\n",

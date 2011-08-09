@@ -7177,12 +7177,17 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 	int length = sizeof(struct ast_context) + strlen(name) + 1;
 
 	if (!contexts_table) {
-		contexts_table = ast_hashtab_create(17,
-										   ast_hashtab_compare_contexts,
-										   ast_hashtab_resize_java,
-										   ast_hashtab_newsize_java,
-										   ast_hashtab_hash_contexts,
-										   0);
+		/* Protect creation of contexts_table from reentrancy. */
+		ast_wrlock_contexts();
+		if (!contexts_table) {
+			contexts_table = ast_hashtab_create(17,
+				ast_hashtab_compare_contexts,
+				ast_hashtab_resize_java,
+				ast_hashtab_newsize_java,
+				ast_hashtab_hash_contexts,
+				0);
+		}
+		ast_unlock_contexts();
 	}
 
 	ast_copy_string(search.name, name, sizeof(search.name));
@@ -7402,7 +7407,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 
 	begintime = ast_tvnow();
 	ast_mutex_lock(&context_merge_lock);/* Serialize ast_merge_contexts_and_delete */
-	ast_rdlock_contexts();
+	ast_wrlock_contexts();
 	iter = ast_hashtab_start_traversal(contexts_table);
 	while ((tmp = ast_hashtab_next(iter))) {
 		context_merge(extcontexts, exttable, tmp, registrar);
