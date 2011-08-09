@@ -61,10 +61,6 @@ astlogdir => /var/log/asterisk
 ;rungroup = asterisk		; The group to run as.
 ;lightbackground = yes		; If your terminal is set for a light-colored
 				; background.
-;forceblackbackground = yes     ; Force the background of the terminal to be 
-                                ; black, in order for terminal colors to show
-                                ; up properly.
-;defaultlanguage = en           ; Default language
 documentation_language = en_US	; Set the language you want documentation
 				; displayed in. Value is in the same format as
 				; locale names.

@@ -1,508 +1,234 @@
-.TH "		\fBasterisk\fP 	" "8" 
-<<<<<<< .working 
-.SH "NAME" 
-\fBasterisk\fP 	 	 \(em 	All-purpose telephony server. 
- 
-.SH "SYNOPSIS" 
- 
-.PP 
-\fBasterisk\fR\fB-BcdfFghiImnpqRtTvVW\fP \fB-C \fP\fIfile\fR \fB-e \fP\fImemory\fR \fB-G \fP\fIgroup\fR \fB-L \fP\fIloadaverage\fR \fB-M \fP\fIvalue\fR \fB-U \fP\fIuser\fR \fB-s \fP\fIsocket-file\fR \fB-x \fP\fIcommand\fR  	 
- 
-.PP 
-\fBasterisk \-r\fR 	\fB-v\fP \fB-x \fP\fIcommand\fR  	 
-.SH "DESCRIPTION" 
-2011-02-08;  	 	 	 
-.PP 
-\fBasterisk\fR is a full-featured telephony server which 
-provides Private Branch eXchange (PBX), Interactive Voice Response (IVR), 
-Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying,  
-Conferencing, and a plethora of other telephony applications to a broad 
-range of telephony devices including packet voice (SIP, IAX2, MGCP, Skinny, 
-H.323, Unistim) devices (both endpoints and proxies), as well as traditional TDM 
-hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart, 
-ISDN BRI and many more. 
- 
-.PP 
-At start, Asterisk reads the /etc/asterisk/asterisk.conf main configuration 
-file and locates the rest of the configuration files from the configuration 
-in that file. The \-C option specifies an alternate main configuration file. 
-Virtually all aspects of the operation of asterisk's configuration files 
-can be found in the sample configuration files.  The format for those files 
-is generally beyond the scope of this man page. 
- 
-.PP 
-When running with \fB-c\fR, \fB-r\fR or \fB-R\fR 	options, Asterisk supplies a powerful command line, including command 
-completion, which may be used to monitors its status, perform a variety 
-of administrative actions and even explore the applications that are 
-currently loaded into the system. 
- 
-.PP 
-Asterisk is a trademark of Digium, Inc. 
- 
-.SH "OPTIONS" 
- 
-.IP "\-B" 10 
-Force the background of the terminal to be black, in order for 
-terminal colors to show up properly. 
- 
-.IP "\-C \fIfile\fR" 10 
-Use \fBfile\fP as master configuration file 
-instead of the default, /etc/asterisk/asterisk.conf 
- 
-.IP "\-c" 10 
-Provide a control console on the calling terminal. 
-Specifying this option implies \fB-f\fR and will cause 
-asterisk to no longer fork or detach from the controlling terminal. 
- 
-.IP "\-d" 10 
-Enable extra debugging statements. 
- 
-.IP "" 10 
-Note: This always sets the debug level in the asterisk process, 
-even if it is running in the background. This may affect the size 
-of your log files, if the debug level is specified in logger.conf. 
- 
-.IP "\-e \fImemory\fR" 10 
-Limit the generation of new channels when the amount of free memory has decreased to under \fImemory\fR megabytes. 
- 
-.IP "\-f" 10 
-Do not fork or detach from controlling terminal.  Overrides any preceding specification of \fB-F\fR on the command line. 
- 
-.IP "\-F" 10 
-Always fork and detach from controlling terminal.  Overrides any preceding specification of \fB-f\fR on the command line. 
- 
-.IP "\-g" 10 
-Remove resource limit on core size, thus forcing Asterisk to dump 
-core in the unlikely event of a segmentation fault or abort signal. 
-\fBNOTE:\fR in some cases this may be incompatible 
-with the \fB-U\fR or \fB-G\fR flags. 
- 
-.IP "\-G \fIgroup\fR" 10 
-Run as group \fIgroup\fR instead of the 
-calling group.  \fBNOTE:\fR this requires substantial work 
-to be sure that Asterisk's environment has permission to write 
-the files required for its operation, including logs, its comm 
-socket, the asterisk database, etc. 
- 
-.IP "\-h" 10 
-Provide brief summary of command line arguments and terminate. 
- 
-.IP "\-i" 10 
-Prompt user to intialize any encrypted private keys for IAX2 
-secure authentication during startup. 
- 
-.IP "\-I" 10 
-Enable internal timing if DAHDI timing is available. 
-The default behaviour is that outbound packets are phase locked 
-to inbound packets. Enabling this switch causes them to be 
-locked to the internal DAHDI timer instead. 
- 
-.IP "\-L \fIloadaverage\fR" 10 
-Limits the maximum load average before rejecting new calls.  This can 
-be useful to prevent a system from being brought down by terminating 
-too many simultaneous calls. 
- 
-.IP "\-m" 10 
-Temporarily mutes output to the console and logs.  To return to normal, 
-use \fBlogger mute\fR. 
- 
-.IP "\-M \fIvalue\fR" 10 
-Limits the maximum number of calls to the specified value.  This can 
-be useful to prevent a system from being brought down by terminating 
-too many simultaneous calls. 
- 
-.IP "\-n" 10 
-Disable ANSI colors even on terminals capable of displaying them. 
- 
-.IP "\-p" 10 
-If supported by the operating system (and executing as root), 
-attempt to run with realtime priority for increased performance and 
-responsiveness within the Asterisk process, at the expense of other 
-programs running on the same machine. 
- 
-.IP "" 10 
-Note: \fBastcanary\fR will run concurrently with 
-\fBasterisk\fR. If \fBastcanary\fR stops 
-running or is killed, \fBasterisk\fR will slow down to 
-normal process priority, to avoid locking up the machine. 
- 
-.IP "\-q" 10 
-Reduce default console output when running in conjunction with 
-console mode (\fB-c\fR). 
- 
-.IP "\-r" 10 
-Instead of running a new Asterisk process, attempt to connect 
-to a running Asterisk process and provide a console interface 
-for controlling it. 
- 
-.IP "\-R" 10 
-Much like \fB-r\fR.  Instead of running a new Asterisk process, attempt to connect 
-to a running Asterisk process and provide a console interface 
-for controlling it. Additionally, if connection to the Asterisk  
-process is lost, attempt to reconnect for as long as 30 seconds. 
- 
-.IP "\-s \fIsocket file name\fR" 10 
-In combination with \fB-r\fR, connect directly to a specified 
-Asterisk server socket. 
- 
-.IP "\-t" 10 
-When recording files, write them first into a temporary holding directory,  
-then move them into the final location when done. 
- 
-.IP "\-T" 10 
-Add timestamp to all non-command related output going to the console 
-when running with verbose and/or logging to the console. 
- 
-.IP "\-U \fIuser\fR" 10 
-Run as user \fIuser\fR instead of the 
-calling user.  \fBNOTE:\fR this requires substantial work 
-to be sure that Asterisk's environment has permission to write 
-the files required for its operation, including logs, its comm 
-socket, the asterisk database, etc. 
- 
-.IP "\-v" 10 
-Increase the level of verboseness on the console.  The more times 
-\fB-v\fR is specified, the more verbose the output is. 
-Specifying this option implies \fB-f\fR and will cause 
-asterisk to no longer fork or detach from the controlling terminal. 
-This option may also be used in conjunction with \fB-r\fR 			and \fB-R\fR. 
- 
-.IP "" 10 
-Note: This always sets the verbose level in the asterisk process, 
-even if it is running in the background. This will affect the size 
-of your log files. 
- 
-.IP "\-V" 10 
-Display version information and exit immediately. 
- 
-.IP "\-W" 10 
-Display colored terminal text as if the background were white 
-or otherwise light in color.  Normally, terminal text is displayed 
-as if the background were black or otherwise dark in color. 
- 
-.IP "\-x \fIcommand\fR" 10 
-Connect to a running Asterisk process and execute a command on 
-a command line, passing any output through to standard out and 
-then terminating when the command execution completes.  Implies 
-\fB-r\fR when \fB-R\fR is not explicitly 
-supplied. 
- 
-.IP "\-X" 10 
-Enables executing of includes via \fB#exec\fR directive. 
-This can be useful if You want to do \fB#exec\fR inside 
-\fBasterisk.conf\fP 			 		 	 	 
-.SH "EXAMPLES" 
- 
-.PP 
-\fBasterisk\fR \- Begin Asterisk as a daemon 
- 
-.PP 
-\fBasterisk \-vvvgc\fR \- Run on controlling terminal 
- 
-.PP 
-\fBasterisk \-rx "core show channels"\fR \- Display channels on running server 
- 
-.SH "BUGS" 
- 
-.PP 
-Bug reports and feature requests may be filed at https://issues.asterisk.org 
- 
-.SH "SEE ALSO" 
- 
-.PP 
-*CLI \fBhelp\fR \- Help on Asterisk CLI 
- 
-.PP 
-*CLI \fBcore show applications\fR \- Show loaded dialplan applications 
- 
-.PP 
-*CLI \fBcore show functions\fR \- Show loaded dialplan functions 
- 
-.PP 
-*CLI \fBdialplan show\fR \- Show current dialplan 
- 
-.PP 
-http://www.asterisk.org \- The Asterisk Home Page 
- 
-.PP 
-http://www.asteriskdocs.org \- The Asterisk Documentation Project 
- 
-.PP 
-http://wiki.asterisk.org \- The Asterisk Wiki 
- 
-.PP 
-http://www.digium.com/ \- Asterisk sponsor and hardware supplier 
- 
-.SH "AUTHOR" 
- 
-.PP 
-Mark Spencer markster@digium.com   
- 
-.PP 
-Countless other contributors, see CREDITS with distribution for more information.   
- 
-======= 
- 
-.SH "NAME" 
-,    \fBasterisk\fP      \fBasterisk\fP       \(em    All-purpose telephony server. 
- 
- 
-.SH "SYNOPSIS" 
- 
-.PP 
-\fBasterisk\fR    \fB-BcdfFghiImnpqRtTvVW\fP     \fB-C \fP\fIfile\fR     \fB-e \fP\fImemory\fR     \fB-G \fP\fIgroup\fR     \fB-L \fP\fIloadaverage\fR     \fB-M \fP\fIvalue\fR     \fB-U \fP\fIuser\fR     \fB-s \fP\fIsocket-file\fR     
- 
-.PP 
-\fBasterisk \-r\fR    \fB-v\fP     \fB-d\fP     \fB-x \fP\fIcommand\fR     
- 
-.PP 
-\fBasterisk \-R\fR    \fB-v\fP     \fB-d\fP     \fB-x \fP\fIcommand\fR     
- 
- 
-.SH "DESCRIPTION" 
-2011-02-08;           
-.PP 
-\fBasterisk\fR is a full-featured telephony server which 
-provides Private Branch eXchange (PBX), Interactive Voice Response (IVR), 
-Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying,  
-Conferencing, and a plethora of other telephony applications to a broad 
-range of telephony devices including packet voice (SIP, IAX2, MGCP, Skinny, 
-H.323, Unistim) devices (both endpoints and proxies), as well as traditional TDM 
-hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart, 
-ISDN BRI and many more. 
- 
-.PP 
-At start, Asterisk reads the /etc/asterisk/asterisk.conf main configuration 
-file and locates the rest of the configuration files from the configuration 
-in that file. The \-C option specifies an alternate main configuration file. 
-Virtually all aspects of the operation of asterisk's configuration files 
-can be found in the sample configuration files.  The format for those files 
-is generally beyond the scope of this man page. 
- 
-.PP 
-When running with \fB-c\fR, \fB-r\fR or \fB-R\fR    options, Asterisk supplies a powerful command line, including command 
-completion, which may be used to monitors its status, perform a variety 
-of administrative actions and even explore the applications that are 
-currently loaded into the system. 
- 
-.PP 
-Asterisk is a trademark of Digium, Inc. 
- 
- 
-.SH "OPTIONS" 
- 
-.PP 
-Running Asterisk starts the asterisk daemon (optionally running it 
-in the foreground). However running it with \fB-r\fP or 
-\fB-R\fP connects to an existing Asterisk instance through 
-a remote console. 
- 
-.IP "\-B" 10 
-Force the background of the terminal to be black, in order for 
-terminal colors to show up properly. Equivalent to 
-\fBforceblackbackground = yes\fP in 
-\fBasterisk.conf\fP. See also 
-\fB-n\fP and \fB-W\fP. 
- 
-.IP "\-C \fIfile\fR" 10 
-Use \fBfile\fP as master configuration file 
-instead of the default, /etc/asterisk/asterisk.conf 
- 
-.IP "\-c" 10 
-Provide a control console on the calling terminal. The 
-console is similar to the remote console provided by 
-\fB-r\fP. Specifying this option implies  
-\fB-f\fR and will cause asterisk to no longer  
-fork or detach from the controlling terminal. Equivalent  
-to \fBconsole = yes\fP in \fBasterisk.conf\fP. 
- 
-.IP "\-d" 10 
-Enable extra debugging statements. This parameter may be used several 
-times, and each increases the debug level.  Equivalent to \fBdebug = \fInum\fR\fP       in \fBasterisk.conf\fP to explicitly set the initian debug 
-level to \fInum\fR. When given at startup, this 
-option also implies \fB-f\fP (no forking). However when 
-connecting to an existing Asterisk instance (\fB-r\fP or 
-\fB-R\fP), it may only increase the debug level. 
- 
-.IP "\-e \fImemory\fR" 10 
-Limit the generation of new channels when the amount of free memory  
-has decreased to under \fImemory\fR megabytes. 
-Equivalent to \fBminmemfree = \fImemory\fR\fP in 
-\fBasterisk.conf\fP. 
- 
-.IP "\-f" 10 
-Do not fork or detach from controlling terminal.  Overrides any 
-preceding specification of \fB-F\fR on the command line. 
-Equivalent to \fBnofork = yes\fP in \fBasterisk.conf\fP. 
-See also \fB-c\fP. 
- 
-.IP "\-F" 10 
-Always fork and detach from controlling terminal.  Overrides any 
-preceding specification of \fB-f\fR on the command line. 
-May also be used to prevent \fB-d\fP and \fB-v\fP to imply 
-no forking. Equivalent to \fBalwaysfork = yes\fP in \fBasterisk.conf\fP. 
- 
-.IP "\-g" 10 
-Remove resource limit on core size, thus forcing Asterisk to dump 
-core in the unlikely event of a segmentation fault or abort signal. 
-\fBNOTE:\fR in some cases this may be incompatible 
-with the \fB-U\fR or \fB-G\fR flags. 
- 
-.IP "\-G \fIgroup\fR" 10 
-Run as group \fIgroup\fR instead of the 
-calling group.  \fBNOTE:\fR this requires substantial work 
-to be sure that Asterisk's environment has permission to write 
-the files required for its operation, including logs, its comm 
-socket, the asterisk database, etc. 
- 
-.IP "\-h" 10 
-Provide brief summary of command line arguments and terminate. 
- 
-.IP "\-i" 10 
-Prompt user to intialize any encrypted private keys for IAX2 
-secure authentication during startup. 
- 
-.IP "\-I" 10 
-Enable internal timing if DAHDI timing is available. 
-The default behaviour is that outbound packets are phase locked 
-to inbound packets. Enabling this switch causes them to be 
-locked to the internal DAHDI timer instead. 
- 
-.IP "\-L \fIloadaverage\fR" 10 
-Limits the maximum load average before rejecting new calls.  This can 
-be useful to prevent a system from being brought down by terminating 
-too many simultaneous calls. 
- 
-.IP "\-m" 10 
-Temporarily mutes output to the console and logs.  To return to normal, 
-use \fBlogger mute\fR. 
- 
-.IP "\-M \fIvalue\fR" 10 
-Limits the maximum number of calls to the specified value.  This can 
-be useful to prevent a system from being brought down by terminating 
-too many simultaneous calls. 
- 
-.IP "\-n" 10 
-Disable ANSI colors even on terminals capable of displaying them. 
- 
-.IP "\-p" 10 
-If supported by the operating system (and executing as root), 
-attempt to run with realtime priority for increased performance and 
-responsiveness within the Asterisk process, at the expense of other 
-programs running on the same machine. 
- 
-.IP "" 10 
-Note: \fBastcanary\fR will run concurrently with 
-\fBasterisk\fR. If \fBastcanary\fR stops 
-running or is killed, \fBasterisk\fR will slow down to 
-normal process priority, to avoid locking up the machine. 
- 
-.IP "\-q" 10 
-Reduce default console output when running in conjunction with 
-console mode (\fB-c\fR). 
- 
-.IP "\-r" 10 
-Instead of running a new Asterisk process, attempt to connect 
-to a running Asterisk process and provide a console interface 
-for controlling it. 
- 
-.IP "\-R" 10 
-Much like \fB-r\fR.  Instead of running a new Asterisk process, attempt to connect 
-to a running Asterisk process and provide a console interface 
-for controlling it. Additionally, if connection to the Asterisk  
-process is lost, attempt to reconnect for as long as 30 seconds. 
- 
-.IP "\-s \fIsocket file name\fR" 10 
-In combination with \fB-r\fR, connect directly to a specified 
-Asterisk server socket. 
- 
-.IP "\-t" 10 
-When recording files, write them first into a temporary holding directory,  
-then move them into the final location when done. 
- 
-.IP "\-T" 10 
-Add timestamp to all non-command related output going to the console 
-when running with verbose and/or logging to the console. 
- 
-.IP "\-U \fIuser\fR" 10 
-Run as user \fIuser\fR instead of the 
-calling user.  \fBNOTE:\fR this requires substantial work 
-to be sure that Asterisk's environment has permission to write 
-the files required for its operation, including logs, its comm 
-socket, the asterisk database, etc. 
- 
-.IP "\-v" 10 
-Increase the level of verboseness on the console.  The more times 
-\fB-v\fR is specified, the more verbose the output is. 
-Specifying this option implies \fB-f\fR and will cause 
-asterisk to no longer fork or detach from the controlling terminal. 
-This option may also be used in conjunction with \fB-r\fR       and \fB-R\fR. 
- 
-.IP "" 10 
-Note: This always sets the verbose level in the asterisk process, 
-even if it is running in the background. This will affect the size 
-of your log files. 
- 
-.IP "\-V" 10 
-Display version information and exit immediately. 
- 
-.IP "\-W" 10 
-Display colored terminal text as if the background were white 
-or otherwise light in color.  Normally, terminal text is displayed 
-as if the background were black or otherwise dark in color. 
- 
-.IP "\-x \fIcommand\fR" 10 
-Connect to a running Asterisk process and execute a command on 
-a command line, passing any output through to standard out and 
-then terminating when the command execution completes.  Implies 
-\fB-r\fR when \fB-R\fR is not explicitly 
-supplied. 
- 
-.IP "\-X" 10 
-Enables executing of includes via \fB#exec\fR directive. 
-This can be useful if You want to do \fB#exec\fR inside 
-\fBasterisk.conf\fP                     
- 
-.SH "EXAMPLES" 
- 
-.PP 
-\fBasterisk\fR \- Begin Asterisk as a daemon 
- 
-.PP 
-\fBasterisk \-vvvgc\fR \- Run on controlling terminal 
- 
-.PP 
-\fBasterisk \-rx "core show channels"\fR \- Display channels on running server 
- 
- 
-.SH "BUGS" 
- 
-.PP 
-Bug reports and feature requests may be filed at https://issues.asterisk.org 
- 
- 
-.SH "SEE ALSO" 
- 
-.PP 
-http://www.asterisk.org \- The Asterisk Home Page 
- 
-.PP 
-http://www.asteriskdocs.org \- The Asterisk Documentation Project 
- 
-.PP 
-http://wiki.asterisk.org \- The Asterisk Wiki 
- 
-.PP 
-http://www.digium.com/ \- Asterisk is sponsored by Digium 
- 
- 
-.SH "AUTHOR" 
- 
-.PP 
-Mark Spencer markster@digium.com   
- 
-.PP 
-Countless other contributors, see CREDITS with distribution for more information.   
- 
->>>>>>> .merge-right.r306999 
-.\" created by instant / docbook-to-man, Tue 08 Feb 2011, 17:30 
+'\" -*- coding: us-ascii -*-
+.if \n(.g .ds T< \\FC
+.if \n(.g .ds T> \\F[\n[.fam]]
+.de URL
+\\$2 \(la\\$1\(ra\\$3
+..
+.if \n(.g .mso www.tmac
+.TH &#10;&#9;&#9;asterisk&#10;&#9; 8 2010-08-03 "asterisk 1.6" ""
+.SH NAME
+asterisk
+\- All-purpose telephony server. 
+.SH SYNOPSIS
+'nh
+.fi
+.ad l
+\fBasterisk\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+[\fB-BcdfFghiImnpqRtTvVW\fR] [\fB-C \fR\fIfile\fR] [\fB-e \fR\fImemory\fR] [\fB-G \fR\fIgroup\fR] [\fB-L \fR\fIloadaverage\fR] [\fB-M \fR\fIvalue\fR] [\fB-U \fR\fIuser\fR] [\fB-s \fR\fIsocket-file\fR] [\fB-x \fR\fIcommand\fR]
+'in \n(.iu-\nxu
+.ad b
+'hy
+'nh
+.fi
+.ad l
+\fBasterisk -r\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+[\fB-v\fR] [\fB-x \fR\fIcommand\fR]
+'in \n(.iu-\nxu
+.ad b
+'hy
+.SH DESCRIPTION
+\fBasterisk\fR is a full-featured telephony server which
+provides Private Branch eXchange (PBX), Interactive Voice Response (IVR),
+Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying, 
+Conferencing, and a plethora of other telephony applications to a broad
+range of telephony devices including packet voice (SIP, IAX2, MGCP, Skinny,
+H.323, Unistim) devices (both endpoints and proxies), as well as traditional TDM
+hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart,
+ISDN BRI and many more.
+.PP
+At start, Asterisk reads the /etc/asterisk/asterisk.conf main configuration
+file and locates the rest of the configuration files from the configuration
+in that file. The -C option specifies an alternate main configuration file.
+Virtually all aspects of the operation of asterisk's configuration files
+can be found in the sample configuration files. The format for those files
+is generally beyond the scope of this man page.
+.PP
+When running with \fB-c\fR, \fB-r\fR or \fB-R\fR
+options, Asterisk supplies a powerful command line, including command
+completion, which may be used to monitors its status, perform a variety
+of administrative actions and even explore the applications that are
+currently loaded into the system.
+.PP
+Asterisk is a trademark of Digium, Inc.
+.SH OPTIONS
+.TP 
+-B
+Force the background of the terminal to be black, in order for
+terminal colors to show up properly.
+.TP 
+-C \fIfile\fR
+Use \*(T<\fIfile\fR\*(T> as master configuration file
+instead of the default, /etc/asterisk/asterisk.conf
+.TP 
+-c
+Provide a control console on the calling terminal.
+Specifying this option implies \fB-f\fR and will cause
+asterisk to no longer fork or detach from the controlling terminal.
+.TP 
+-d
+Enable extra debugging statements.
+
+Note: This always sets the debug level in the asterisk process,
+even if it is running in the background. This may affect the size
+of your log files, if the debug level is specified in logger.conf.
+.TP 
+-e \fImemory\fR
+Limit the generation of new channels when the amount of free memory has decreased to under \fImemory\fR megabytes.
+.TP 
+-f
+Do not fork or detach from controlling terminal. Overrides any preceding specification of \fB-F\fR on the command line.
+.TP 
+-F
+Always fork and detach from controlling terminal. Overrides any preceding specification of \fB-f\fR on the command line.
+.TP 
+-g
+Remove resource limit on core size, thus forcing Asterisk to dump
+core in the unlikely event of a segmentation fault or abort signal.
+\fBNOTE:\fR in some cases this may be incompatible
+with the \fB-U\fR or \fB-G\fR flags.
+.TP 
+-G \fIgroup\fR
+Run as group \fIgroup\fR instead of the
+calling group. \fBNOTE:\fR this requires substantial work
+to be sure that Asterisk's environment has permission to write
+the files required for its operation, including logs, its comm
+socket, the asterisk database, etc.
+.TP 
+-h
+Provide brief summary of command line arguments and terminate.
+.TP 
+-i
+Prompt user to intialize any encrypted private keys for IAX2
+secure authentication during startup.
+.TP 
+-I
+Enable internal timing if DAHDI timing is available.
+The default behaviour is that outbound packets are phase locked
+to inbound packets. Enabling this switch causes them to be
+locked to the internal DAHDI timer instead.
+.TP 
+-L \fIloadaverage\fR
+Limits the maximum load average before rejecting new calls. This can
+be useful to prevent a system from being brought down by terminating
+too many simultaneous calls.
+.TP 
+-m
+Temporarily mutes output to the console and logs. To return to normal,
+use \fBlogger mute\fR.
+.TP 
+-M \fIvalue\fR
+Limits the maximum number of calls to the specified value. This can
+be useful to prevent a system from being brought down by terminating
+too many simultaneous calls.
+.TP 
+-n
+Disable ANSI colors even on terminals capable of displaying them.
+.TP 
+-p
+If supported by the operating system (and executing as root),
+attempt to run with realtime priority for increased performance and
+responsiveness within the Asterisk process, at the expense of other
+programs running on the same machine.
+
+Note: \fBastcanary\fR will run concurrently with
+\fBasterisk\fR. If \fBastcanary\fR stops
+running or is killed, \fBasterisk\fR will slow down to
+normal process priority, to avoid locking up the machine.
+.TP 
+-q
+Reduce default console output when running in conjunction with
+console mode (\fB-c\fR).
+.TP 
+-r
+Instead of running a new Asterisk process, attempt to connect
+to a running Asterisk process and provide a console interface
+for controlling it.
+.TP 
+-R
+Much like \fB-r\fR. Instead of running a new Asterisk process, attempt to connect
+to a running Asterisk process and provide a console interface
+for controlling it. Additionally, if connection to the Asterisk 
+process is lost, attempt to reconnect for as long as 30 seconds.
+.TP 
+-s \fIsocket file name\fR
+In combination with \fB-r\fR, connect directly to a specified
+Asterisk server socket.
+.TP 
+-t
+When recording files, write them first into a temporary holding directory, 
+then move them into the final location when done.
+.TP 
+-T
+Add timestamp to all non-command related output going to the console
+when running with verbose and/or logging to the console.
+.TP 
+-U \fIuser\fR
+Run as user \fIuser\fR instead of the
+calling user. \fBNOTE:\fR this requires substantial work
+to be sure that Asterisk's environment has permission to write
+the files required for its operation, including logs, its comm
+socket, the asterisk database, etc.
+.TP 
+-v
+Increase the level of verboseness on the console. The more times
+\fB-v\fR is specified, the more verbose the output is.
+Specifying this option implies \fB-f\fR and will cause
+asterisk to no longer fork or detach from the controlling terminal.
+This option may also be used in conjunction with \fB-r\fR
+and \fB-R\fR.
+
+Note: This always sets the verbose level in the asterisk process,
+even if it is running in the background. This will affect the size
+of your log files.
+.TP 
+-V
+Display version information and exit immediately.
+.TP 
+-W
+Display colored terminal text as if the background were white
+or otherwise light in color. Normally, terminal text is displayed
+as if the background were black or otherwise dark in color.
+.TP 
+-x \fIcommand\fR
+Connect to a running Asterisk process and execute a command on
+a command line, passing any output through to standard out and
+then terminating when the command execution completes. Implies
+\fB-r\fR when \fB-R\fR is not explicitly
+supplied.
+.TP 
+-X
+Enables executing of includes via \fB#exec\fR directive.
+This can be useful if You want to do \fB#exec\fR inside
+\*(T<\fIasterisk.conf\fR\*(T>
+.SH EXAMPLES
+\fBasterisk\fR - Begin Asterisk as a daemon
+.PP
+\fBasterisk -vvvgc\fR - Run on controlling terminal
+.PP
+\fBasterisk -rx "core show channels"\fR - Display channels on running server
+.SH BUGS
+Bug reports and feature requests may be filed at https://issues.asterisk.org
+.SH "SEE ALSO"
+*CLI> \fBhelp\fR - Help on Asterisk CLI
+.PP
+*CLI> \fBcore show applications\fR - Show loaded dialplan applications
+.PP
+*CLI> \fBcore show functions\fR - Show loaded dialplan functions
+.PP
+*CLI> \fBdialplan show\fR - Show current dialplan
+.PP
+http://www.asterisk.org - The Asterisk Home Page
+.PP
+http://www.asteriskdocs.org - The Asterisk Documentation Project
+.PP
+http://www.voip-info.org/wiki-Asterisk - The Asterisk Wiki
+.PP
+http://www.digium.com/ - Asterisk sponsor and hardware supplier
+.SH AUTHOR
+Mark Spencer <markster@digium.com>
+.PP
+Countless other contributors, see CREDITS with distribution for more information.
