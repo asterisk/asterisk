@@ -3624,7 +3624,8 @@ int ooParseDestination
       return OO_OK;
    }
 
-   if (!ast_parse_arg(dest, PARSE_ADDR, &tmpaddr)) {
+   /* parse direct IP dest */
+   if ((strchr(dest, ':') || strchr(dest,'[') || strchr(dest,'.')) && !ast_parse_arg(dest, PARSE_ADDR, &tmpaddr)) {
       if(strlen(dest)+7>len)
       {
          OOTRACEERR1("Error:Insufficient buffer space for parsed ip - "

@@ -1947,8 +1947,11 @@ int ooGkClientHandleAdmissionConfirm
                                     ipAddress->ip.data[1],
                                     ipAddress->ip.data[2],
                                     ipAddress->ip.data[3]);
-         if(strcmp(ip, "0.0.0.0"))
+         if(strcmp(ip, "0.0.0.0")) {
+/* fix this when gk client will adopt to work with IPv6 */
+	    pCallAdmInfo->call->versionIP = 4;
             strcpy(pCallAdmInfo->call->remoteIP, ip);
+	 }
          pCallAdmInfo->call->remotePort = ipAddress->port;
          /* Update call model */
          if(pAdmissionConfirm->callModel.t == T_H225CallModel_direct)
