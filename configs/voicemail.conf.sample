@@ -181,7 +181,7 @@ pagerdateformat=%A, %B %d, %Y at %r
 ;                    ;   Examples of situations that would require this option are
 ;                    ; web interfaces to voicemail or an email client in the case
 ;                    ; of using IMAP storage.
-;                    ; Default: no
+;
 ;pollfreq=30         ;   If the "pollmailboxes" option is enabled, this option
 ;                    ; sets the polling frequency.  The default is once every
 ;                    ; 30 seconds.
