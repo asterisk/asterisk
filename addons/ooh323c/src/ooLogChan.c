@@ -284,7 +284,7 @@ int ooClearLogicalChannel(OOH323CallData *call, int channelNo)
                  call->callType, call->callToken);
 
    pLogicalChannel = ooFindLogicalChannelByLogicalChannelNo(call,channelNo);
-   if(!pLogicalChannel)
+   do { if(!pLogicalChannel)
    {
       OOTRACEWARN4("Logical Channel %d doesn't exist, in clearLogicalChannel."
                    " (%s, %s)\n",
@@ -326,6 +326,7 @@ int ooClearLogicalChannel(OOH323CallData *call, int channelNo)
    ooRemoveLogicalChannel(call, channelNo);/* TODO: efficiency - This causes re-search of
                                                     of logical channel in the list. Can be
                                                     easily improved.*/
+   }  while ((pLogicalChannel = ooFindLogicalChannelByLogicalChannelNo(call,channelNo)));
    return OO_OK;
 }
 
