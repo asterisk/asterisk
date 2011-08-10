@@ -11792,6 +11792,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	const char *d = NULL;	/* domain in from header */
 	const char *urioptions = "";
 	int ourport;
+	int cid_has_name = 1;
+	int cid_has_num = 1;
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
 	 	const char *s = p->username;	/* being a string field, cannot be NULL */
@@ -11838,10 +11840,15 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = p->mwi_from;
 	}
 
-	if (ast_strlen_zero(l))
+	if (ast_strlen_zero(l)) {
+		cid_has_num = 0;
 		l = default_callerid;
-	if (ast_strlen_zero(n))
+	}
+	if (ast_strlen_zero(n)) {
+		cid_has_name = 0;
 		n = l;
+	}
+
 	/* Allow user to be overridden */
 	if (!ast_strlen_zero(p->fromuser))
 		l = p->fromuser;
@@ -11862,10 +11869,20 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
-	if (!sip_standard_port(p->socket.type, ourport)) {
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, d, ourport, p->tag);
+
+	/* If a caller id name was specified, add a display name. */
+	if (cid_has_name || !cid_has_num) {
+		snprintf(from, sizeof(from), "\"%s\" ", n);
 	} else {
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, d, p->tag);
+		from[0] = '\0';
+	}
+
+	if (!sip_standard_port(p->socket.type, ourport)) {
+		size_t offset = strlen(from);
+		snprintf(&from[offset], sizeof(from) - offset, "<sip:%s@%s:%d>;tag=%s", l, d, ourport, p->tag);
+	} else {
+		size_t offset = strlen(from);
+		snprintf(&from[offset], sizeof(from) - offset, "<sip:%s@%s>;tag=%s", l, d, p->tag);
 	}
 
 	if (!ast_strlen_zero(explicit_uri)) {

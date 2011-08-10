@@ -9,6 +9,17 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
+------------------------------------------------------------------------------
+
+SIP Changes
+-----------
+ * Asterisk will no longer substitute CID number for CID name into display
+   name field if CID number exists without a CID name. This change improves
+   compatibility with certain device features such as Avaya IP500's directory
+   lookup service.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
 
