@@ -3012,6 +3012,9 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 
 	tmp_cap = ast_format_cap_alloc_nolock();
 	if (!tmp_cap) {
+		if (outstate) {
+			*outstate = 0;
+		}
 		return NULL;
 	}
 	ast_best_codec(cap, &best_audio_fmt);
