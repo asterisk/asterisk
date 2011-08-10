@@ -4586,7 +4586,7 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
 			astman_send_ack(s, m, "Module unloaded.");
 		}
 	} else if (!strcasecmp(loadtype, "reload")) {
-		if (module != NULL) {
+		if (!ast_strlen_zero(module)) {
 			res = ast_module_reload(module);
 			if (res == 0) {
 				astman_send_error(s, m, "No such module.");
