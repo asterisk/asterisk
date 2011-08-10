@@ -12460,9 +12460,9 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		}
 	}
 
-	dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
 	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 	transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
+	dialog_unref(p, "bump down the count of p since we're done with it.");
 
 	astman_send_ack(s, m, "Notify Sent");
 	ast_variables_destroy(vars);
@@ -18453,9 +18453,9 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 		/* Recalculate our side, and recalculate Call ID */
 		ast_cli(a->fd, "Sending NOTIFY of type '%s' to '%s'\n", a->argv[2], a->argv[i]);
-		dialog_ref(p, "bump the count of p, which transmit_sip_request will decrement.");
 		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 		transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
+		dialog_unref(p, "bump down the count of p since we're done with it.");
 	}
 
 	return CLI_SUCCESS;
