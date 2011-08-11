@@ -553,18 +553,19 @@ enum {
 	OPT_CALLEE_GOSUB =      (1 << 28),
 	OPT_CALLEE_MIXMONITOR = (1 << 29),
 	OPT_CALLER_MIXMONITOR = (1 << 30),
-	OPT_CALLER_ANSWER =	(1 << 31),
 };
 
-#define DIAL_STILLGOING      (1 << 31)
-#define DIAL_NOFORWARDHTML   ((uint64_t)1 << 32) /* flags are now 64 bits, so keep it up! */
-#define DIAL_CALLERID_ABSENT ((uint64_t)1 << 33) /* TRUE if caller id is not available for connected line. */
-#define OPT_CANCEL_ELSEWHERE ((uint64_t)1 << 34)
-#define OPT_PEER_H           ((uint64_t)1 << 35)
-#define OPT_CALLEE_GO_ON     ((uint64_t)1 << 36)
-#define OPT_CANCEL_TIMEOUT   ((uint64_t)1 << 37)
-#define OPT_FORCE_CID_TAG    ((uint64_t)1 << 38)
-#define OPT_FORCE_CID_PRES   ((uint64_t)1 << 39)
+/* flags are now 64 bits, so keep it up! */
+#define DIAL_STILLGOING      (1LU << 31)
+#define DIAL_NOFORWARDHTML   (1LU << 32)
+#define DIAL_CALLERID_ABSENT (1LU << 33) /* TRUE if caller id is not available for connected line. */
+#define OPT_CANCEL_ELSEWHERE (1LU << 34)
+#define OPT_PEER_H           (1LU << 35)
+#define OPT_CALLEE_GO_ON     (1LU << 36)
+#define OPT_CANCEL_TIMEOUT   (1LU << 37)
+#define OPT_FORCE_CID_TAG    (1LU << 38)
+#define OPT_FORCE_CID_PRES   (1LU << 39)
+#define OPT_CALLER_ANSWER    (1LU << 40)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
