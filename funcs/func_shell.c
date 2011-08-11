@@ -42,29 +42,38 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int shell_helper(struct ast_channel *chan, const char *cmd, char *data,
 		                         char *buf, size_t len)
 {
+	int res = 0;
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Missing Argument!  Example:  Set(foo=${SHELL(echo \"bar\")})\n");
 		return -1;
 	}
 
-	if (chan)
+	if (chan) {
 		ast_autoservice_start(chan);
+	}
 
 	if (len >= 1) {
 		FILE *ptr;
 		char plbuff[4096];
 
 		ptr = popen(data, "r");
-		while (fgets(plbuff, sizeof(plbuff), ptr)) {
-			strncat(buf, plbuff, len - strlen(buf) - 1);
+		if (ptr) {
+			while (fgets(plbuff, sizeof(plbuff), ptr)) {
+				strncat(buf, plbuff, len - strlen(buf) - 1);
+			}
+			pclose(ptr);
+		} else {
+			ast_log(LOG_WARNING, "Failed to execute shell command '%s'\n", data);
+			res = -1;
 		}
-		pclose(ptr);
 	}
 
-	if (chan)
+	if (chan) {
 		ast_autoservice_stop(chan);
+	}
 
-	return 0;
+	return res;
 }
 
 /*** DOCUMENTATION
