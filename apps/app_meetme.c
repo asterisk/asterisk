@@ -604,12 +604,12 @@ enum {
 	CONFFLAG_KICK_CONTINUE = (1 << 28),
 	CONFFLAG_DURATION_STOP = (1 << 29),
 	CONFFLAG_DURATION_LIMIT = (1 << 30),
-	/*! Do not write any audio to this channel until the state is up. */
-	CONFFLAG_NO_AUDIO_UNTIL_UP = (1 << 31),
 };
 
-/* !If set play an intro announcement at start of conference */
-#define CONFFLAG_INTROMSG ((uint64_t)1 << 32)
+/*! Do not write any audio to this channel until the state is up. */
+#define CONFFLAG_NO_AUDIO_UNTIL_UP  (1UL << 31)
+/*! If set play an intro announcement at start of conference */
+#define CONFFLAG_INTROMSG           (1UL << 32)
 
 enum {
 	OPT_ARG_WAITMARKED = 0,
