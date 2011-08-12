@@ -8927,8 +8927,11 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		return &p->subs[idx].f;
 	}
 
-	/* If we have a fake_event, fake an exception to handle it */
-	if (p->fake_event) {
+	/*
+	 * If we have a fake_event, fake an exception to handle it only
+	 * if this channel owns the private.
+	 */
+	if (p->fake_event && p->owner == ast) {
 		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 			struct analog_pvt *analog_p = p->sig_pvt;
 
