@@ -69,7 +69,7 @@ AST_TEST_DEFINE(parsing)
 		{ "[2001::1]", 1 },
 		{ "[2001:0000:4136:e378:8000:63bf:3fff:fdd2]:5060", 1 },
 		{ "2001:0000:4136:e378:8000:63bf:3fff:fdd2:5060", 0 }, /* port, but no brackets */
-		{ "[fe80::200::abcd", 0 }, /* multiple zero expansions */
+		{ "fe80::200::abcd", 0 }, /* multiple zero expansions */
 	};
 
 	size_t x;
