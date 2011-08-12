@@ -274,9 +274,16 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 				 channel[0] != '/' ? ast_config_AST_LOG_DIR : "", channel);
 		}
 		if (!(chan->fileptr = fopen(chan->filename, "a"))) {
-			/* Can't log here, since we're called with a lock */
-			fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", chan->filename, strerror(errno));
-		} 
+			/* Can't do real logging here since we're called with a lock
+			 * so log to any attached consoles */
+			ast_console_puts_mutable("ERROR: Unable to open log file '", __LOG_ERROR);
+			ast_console_puts_mutable(chan->filename, __LOG_ERROR);
+			ast_console_puts_mutable("': ", __LOG_ERROR);
+			ast_console_puts_mutable(strerror(errno), __LOG_ERROR);
+			ast_console_puts_mutable("'\n", __LOG_ERROR);
+			ast_free(chan);
+			return NULL;
+		}
 		chan->type = LOGTYPE_FILE;
 	}
 	chan->logmask = make_components(chan->components, lineno);
@@ -384,6 +391,11 @@ static void init_logger_chain(int locked, const char *altconf)
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
 		if (!(chan = make_logchannel(var->name, var->value, var->lineno))) {
+			/* Print error message directly to the consoles since the lock is held
+			 * and we don't want to unlock with the list partially built */
+			ast_console_puts_mutable("ERROR: Unable to create log channel '", __LOG_ERROR);
+			ast_console_puts_mutable(var->name, __LOG_ERROR);
+			ast_console_puts_mutable("'\n", __LOG_ERROR);
 			continue;
 		}
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
