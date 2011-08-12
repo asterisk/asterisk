@@ -175,11 +175,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="DAHDIChannel" required="true">
-				<para>DAHDI channel name to transfer.</para>
+				<para>DAHDI channel number to transfer.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>Transfer a DAHDI channel.</para>
+			<para>Simulate a flash hook event by the user connected to the channel.</para>
+			<note><para>Valid only for analog channels.</para></note>
 		</description>
 	</manager>
 	<manager name="DAHDIHangup" language="en_US">
@@ -189,11 +190,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="DAHDIChannel" required="true">
-				<para>DAHDI channel name to hangup.</para>
+				<para>DAHDI channel number to hangup.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>Hangup a DAHDI channel.</para>
+			<para>Simulate an on-hook event by the user connected to the channel.</para>
+			<note><para>Valid only for analog channels.</para></note>
 		</description>
 	</manager>
 	<manager name="DAHDIDialOffhook" language="en_US">
@@ -202,10 +204,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="DAHDIChannel" required="true" />
-			<parameter name="Number" required="true" />
+			<parameter name="DAHDIChannel" required="true">
+				<para>DAHDI channel number to dial digits.</para>
+			</parameter>
+			<parameter name="Number" required="true">
+				<para>Digits to dial.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Generate DTMF control frames to the bridged peer.</para>
 		</description>
 	</manager>
 	<manager name="DAHDIDNDon" language="en_US">
@@ -214,9 +221,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="DAHDIChannel" required="true" />
+			<parameter name="DAHDIChannel" required="true">
+				<para>DAHDI channel number to set DND on.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Equivalent to the CLI command "dahdi set dnd <variable>channel</variable> on".</para>
+			<note><para>Feature only supported by analog channels.</para></note>
 		</description>
 	</manager>
 	<manager name="DAHDIDNDoff" language="en_US">
@@ -225,22 +236,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="DAHDIChannel" required="true" />
+			<parameter name="DAHDIChannel" required="true">
+				<para>DAHDI channel number to set DND off.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Equivalent to the CLI command "dahdi set dnd <variable>channel</variable> off".</para>
+			<note><para>Feature only supported by analog channels.</para></note>
 		</description>
 	</manager>
 	<manager name="DAHDIShowChannels" language="en_US">
 		<synopsis>
-			Show status DAHDI channels.
+			Show status of DAHDI channels.
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="DAHDIChannel">
-				<para>Specify the specific channel to show.  Show all channels if zero or not present.</para>
+				<para>Specify the specific channel number to show.  Show all channels if zero or not present.</para>
 			</parameter>
 		</syntax>
 		<description>
+			<para>Similar to the CLI command "dahdi show channels".</para>
 		</description>
 	</manager>
 	<manager name="DAHDIRestart" language="en_US">
@@ -251,6 +267,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 		</syntax>
 		<description>
+			<para>Equivalent to the CLI command "dahdi restart".</para>
 		</description>
 	</manager>
 	<manager name="PRIShowSpans" language="en_US">
@@ -264,6 +281,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
+			<para>Similar to the CLI command "pri show spans".</para>
 		</description>
 	</manager>
  ***/
@@ -8992,6 +9010,19 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		return &p->subs[idx].f;
 	}
 
+	/* If we have a fake_event, fake an exception to handle it */
+	if (p->fake_event) {
+		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+			struct analog_pvt *analog_p = p->sig_pvt;
+
+			f = analog_exception(analog_p, ast);
+		} else {
+			f = __dahdi_exception(ast);
+		}
+		ast_mutex_unlock(&p->lock);
+		return f;
+	}
+
 	if (ast->rawreadformat.id == AST_FORMAT_SLINEAR) {
 		if (!p->subs[idx].linear) {
 			p->subs[idx].linear = 1;
@@ -9222,10 +9253,6 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 			break;
 		}
 	}
-
-	/* If we have a fake_event, trigger exception to handle it */
-	if (p->fake_event)
-		ast_set_flag(ast, AST_FLAG_EXCEPTION);
 
 	ast_mutex_unlock(&p->lock);
 	return f;
@@ -15777,16 +15804,37 @@ static struct dahdi_pvt *find_channel(int channel)
 	return p;
 }
 
+/*!
+ * \internal
+ * \brief Get private struct using given numeric channel string.
+ *
+ * \param channel Numeric channel number string get private struct.
+ *
+ * \retval pvt on success.
+ * \retval NULL on error.
+ */
+static struct dahdi_pvt *find_channel_from_str(const char *channel)
+{
+	int chan_num;
+
+	if (sscanf(channel, "%30d", &chan_num) != 1) {
+		/* Not numeric string. */
+		return NULL;
+	}
+
+	return find_channel(chan_num);
+}
+
 static int action_dahdidndon(struct mansession *s, const struct message *m)
 {
-	struct dahdi_pvt *p = NULL;
+	struct dahdi_pvt *p;
 	const char *channel = astman_get_header(m, "DAHDIChannel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
+	p = find_channel_from_str(channel);
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -15798,14 +15846,14 @@ static int action_dahdidndon(struct mansession *s, const struct message *m)
 
 static int action_dahdidndoff(struct mansession *s, const struct message *m)
 {
-	struct dahdi_pvt *p = NULL;
+	struct dahdi_pvt *p;
 	const char *channel = astman_get_header(m, "DAHDIChannel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
+	p = find_channel_from_str(channel);
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -15817,16 +15865,20 @@ static int action_dahdidndoff(struct mansession *s, const struct message *m)
 
 static int action_transfer(struct mansession *s, const struct message *m)
 {
-	struct dahdi_pvt *p = NULL;
+	struct dahdi_pvt *p;
 	const char *channel = astman_get_header(m, "DAHDIChannel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
+	p = find_channel_from_str(channel);
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	if (!analog_lib_handles(p->sig, 0, 0)) {
+		astman_send_error(s, m, "Channel signaling is not analog");
 		return 0;
 	}
 	dahdi_fake_event(p,TRANSFER);
@@ -15836,16 +15888,20 @@ static int action_transfer(struct mansession *s, const struct message *m)
 
 static int action_transferhangup(struct mansession *s, const struct message *m)
 {
-	struct dahdi_pvt *p = NULL;
+	struct dahdi_pvt *p;
 	const char *channel = astman_get_header(m, "DAHDIChannel");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
+	p = find_channel_from_str(channel);
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	if (!analog_lib_handles(p->sig, 0, 0)) {
+		astman_send_error(s, m, "Channel signaling is not analog");
 		return 0;
 	}
 	dahdi_fake_event(p,HANGUP);
@@ -15855,7 +15911,7 @@ static int action_transferhangup(struct mansession *s, const struct message *m)
 
 static int action_dahdidialoffhook(struct mansession *s, const struct message *m)
 {
-	struct dahdi_pvt *p = NULL;
+	struct dahdi_pvt *p;
 	const char *channel = astman_get_header(m, "DAHDIChannel");
 	const char *number = astman_get_header(m, "Number");
 	int i;
@@ -15868,7 +15924,7 @@ static int action_dahdidialoffhook(struct mansession *s, const struct message *m
 		astman_send_error(s, m, "No number specified");
 		return 0;
 	}
-	p = find_channel(atoi(channel));
+	p = find_channel_from_str(channel);
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -15892,9 +15948,11 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	const char *dahdichannel = astman_get_header(m, "DAHDIChannel");
 	char idText[256] = "";
 	int channels = 0;
-	int dahdichanquery = -1;
-	if (!ast_strlen_zero(dahdichannel)) {
-		dahdichanquery = atoi(dahdichannel);
+	int dahdichanquery;
+
+	if (!dahdichannel || sscanf(dahdichannel, "%30d", &dahdichanquery) != 1) {
+		/* Not numeric string. */
+		dahdichanquery = -1;
 	}
 
 	astman_send_ack(s, m, "DAHDI channel status will follow");
