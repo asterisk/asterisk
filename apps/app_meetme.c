@@ -607,9 +607,9 @@ enum {
 };
 
 /*! Do not write any audio to this channel until the state is up. */
-#define CONFFLAG_NO_AUDIO_UNTIL_UP  (1UL << 31)
+#define CONFFLAG_NO_AUDIO_UNTIL_UP  (1ULL << 31)
 /*! If set play an intro announcement at start of conference */
-#define CONFFLAG_INTROMSG           (1UL << 32)
+#define CONFFLAG_INTROMSG           (1ULL << 32)
 
 enum {
 	OPT_ARG_WAITMARKED = 0,

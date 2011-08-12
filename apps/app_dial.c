@@ -556,16 +556,16 @@ enum {
 };
 
 /* flags are now 64 bits, so keep it up! */
-#define DIAL_STILLGOING      (1LU << 31)
-#define DIAL_NOFORWARDHTML   (1LU << 32)
-#define DIAL_CALLERID_ABSENT (1LU << 33) /* TRUE if caller id is not available for connected line. */
-#define OPT_CANCEL_ELSEWHERE (1LU << 34)
-#define OPT_PEER_H           (1LU << 35)
-#define OPT_CALLEE_GO_ON     (1LU << 36)
-#define OPT_CANCEL_TIMEOUT   (1LU << 37)
-#define OPT_FORCE_CID_TAG    (1LU << 38)
-#define OPT_FORCE_CID_PRES   (1LU << 39)
-#define OPT_CALLER_ANSWER    (1LU << 40)
+#define DIAL_STILLGOING      (1LLU << 31)
+#define DIAL_NOFORWARDHTML   (1LLU << 32)
+#define DIAL_CALLERID_ABSENT (1LLU << 33) /* TRUE if caller id is not available for connected line. */
+#define OPT_CANCEL_ELSEWHERE (1LLU << 34)
+#define OPT_PEER_H           (1LLU << 35)
+#define OPT_CALLEE_GO_ON     (1LLU << 36)
+#define OPT_CANCEL_TIMEOUT   (1LLU << 37)
+#define OPT_FORCE_CID_TAG    (1LLU << 38)
+#define OPT_FORCE_CID_PRES   (1LLU << 39)
+#define OPT_CALLER_ANSWER    (1LLU << 40)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
