@@ -17007,7 +17007,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	struct dahdi_pvt *tmp;
 	int y;
 	int found_pseudo = 0;
-	char dahdichan[MAX_CHANLIST_LEN] = {};
+	struct ast_variable *dahdichan = NULL;
 
 	for (; v; v = v->next) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
@@ -17040,8 +17040,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			if (!parse_buffers_policy(v->value, &confp->chan.faxbuf_no, &confp->chan.faxbuf_policy)) {
 				confp->chan.usefaxbuffers = 1;
 			}
-		} else if (!strcasecmp(v->name, "dahdichan")) {
-			ast_copy_string(dahdichan, v->value, sizeof(dahdichan));
+ 		} else if (!strcasecmp(v->name, "dahdichan")) {
+			/* Only process the last dahdichan value. */
+			dahdichan = v;
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
 			usedistinctiveringdetection = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "distinctiveringaftercid")) {
@@ -18104,11 +18105,17 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		confp->chan.vars = NULL;
 	}
 
-	if (dahdichan[0]) {
-		/* The user has set 'dahdichan' */
-		/*< \todo pass proper line number instead of 0 */
-		if (build_channels(confp, dahdichan, reload, 0, &found_pseudo)) {
-			return -1;
+	if (dahdichan) {
+		/* Process the deferred dahdichan value. */
+		if (build_channels(confp, dahdichan->value, reload, dahdichan->lineno,
+			&found_pseudo)) {
+			if (confp->ignore_failed_channels) {
+				ast_log(LOG_WARNING,
+					"Dahdichan '%s' failure ignored: ignore_failed_channels.\n",
+					dahdichan->value);
+			} else {
+				return -1;
+			}
 		}
 	}
 
@@ -18124,7 +18131,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 
 	/*< \todo why check for the pseudo in the per-channel section.
 	 * Any actual use for manual setup of the pseudo channel? */
-	if (!found_pseudo && reload != 1) {
+	if (!found_pseudo && reload != 1 && !(options & PROC_DAHDI_OPT_NOCHAN)) {
 		/* use the default configuration for a channel, so
 		   that any settings from real configured channels
 		   don't "leak" into the pseudo channel config
@@ -18184,6 +18191,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 	struct ast_config *ucfg;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload == 1 ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	const char *chans;
 	const char *cat;
 	int res;
 
@@ -18297,7 +18305,9 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 	mwimonitornotify[0] = '\0';
 
 	v = ast_variable_browse(cfg, "channels");
-	if ((res = process_dahdi(base_conf, "", v, reload, 0))) {
+	if ((res = process_dahdi(base_conf,
+		"" /* Must be empty for the channels category.  Silly voicemail mailbox. */,
+		v, reload, 0))) {
 		ast_mutex_unlock(&iflock);
 		ast_config_destroy(cfg);
 		if (ucfg) {
@@ -18318,6 +18328,12 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 			continue;
 		}
 
+		chans = ast_variable_retrieve(ucfg, cat, "dahdichan");
+		if (ast_strlen_zero(chans)) {
+			/* Section is useless without a dahdichan value present. */
+			continue;
+		}
+
 		/* Copy base_conf to conf. */
 		deep_copy_dahdi_chan_conf(conf, base_conf);
 
@@ -18334,11 +18350,11 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 	ast_config_destroy(cfg);
 
 	if (ucfg) {
-		const char *chans;
-
-		/* Reset base_conf, so things don't leak from dahdi_chan.conf */
+		/* Reset base_conf, so things don't leak from chan_dahdi.conf */
 		deep_copy_dahdi_chan_conf(base_conf, default_conf);
-		process_dahdi(base_conf, "", ast_variable_browse(ucfg, "general"), 1, 0);
+		process_dahdi(base_conf,
+			"" /* Must be empty for the general category.  Silly voicemail mailbox. */,
+			ast_variable_browse(ucfg, "general"), 1, 0);
 
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 			if (!strcasecmp(cat, "general")) {
@@ -18346,8 +18362,8 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 			}
 
 			chans = ast_variable_retrieve(ucfg, cat, "dahdichan");
-
 			if (ast_strlen_zero(chans)) {
+				/* Section is useless without a dahdichan value present. */
 				continue;
 			}
 
