@@ -23257,15 +23257,26 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	*/
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, int *nounlock)
 {
-	struct sip_dual current;	/* Chan1: Call between asterisk and transferer */
-					/* Chan2: Call between asterisk and transferee */
-
+	/*!
+	 * Chan1: Call between asterisk and transferer
+	 * Chan2: Call between asterisk and transferee
+	 */
+	struct sip_dual current = { 0, };
+	struct ast_channel *chans[2] = { 0, };
+	char *refer_to = NULL;
+	char *refer_to_domain = NULL;
+	char *refer_to_context = NULL;
+	char *referred_by = NULL;
+	char *callid = NULL;
+	int localtransfer = 0;
+	int attendedtransfer = 0;
 	int res = 0;
-	struct ast_channel *chans[2];
-	current.req.data = NULL;
 
-	if (req->debug)
-		ast_verbose("Call %s got a SIP call transfer from %s: (REFER)!\n", p->callid, ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "callee" : "caller");
+	if (req->debug) {
+		ast_verbose("Call %s got a SIP call transfer from %s: (REFER)!\n",
+			p->callid,
+			ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "callee" : "caller");
+	}
 
 	if (!p->owner) {
 		/* This is a REFER outside of an existing SIP dialog */
@@ -23277,9 +23288,9 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			sip_alreadygone(p);
 			pvt_set_needdestroy(p, "outside of dialog");
 		}
-		return 0;
+		res = 0;
+		goto handle_refer_cleanup;
 	}
-
 
 	/* Check if transfer is allowed from this device */
 	if (p->allowtransfer == TRANSFER_CLOSED ) {
@@ -23287,21 +23298,24 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		transmit_response(p, "603 Declined (policy)", req);
 		append_history(p, "Xfer", "Refer failed. Allowtransfer == closed.");
 		/* Do not destroy SIP session */
-		return 0;
+		res = 0;
+		goto handle_refer_cleanup;
 	}
 
 	if (!req->ignore && ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		/* Already have a pending REFER */
 		transmit_response(p, "491 Request pending", req);
 		append_history(p, "Xfer", "Refer failed. Request pending.");
-		return 0;
+		res = 0;
+		goto handle_refer_cleanup;
 	}
 
 	/* Allocate memory for call transfer data */
 	if (!p->refer && !sip_refer_allocate(p)) {
 		transmit_response(p, "500 Internal Server Error", req);
 		append_history(p, "Xfer", "Refer failed. Memory allocation error.");
-		return -3;
+		res = -3;
+		goto handle_refer_cleanup;
 	}
 
 	res = get_refer_info(p, req);	/* Extract headers */
@@ -23313,14 +23327,16 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		case -2:	/* Syntax error */
 			transmit_response(p, "400 Bad Request (Refer-to missing)", req);
 			append_history(p, "Xfer", "Refer failed. Refer-to missing.");
-			if (req->debug)
+			if (req->debug) {
 				ast_debug(1, "SIP transfer to black hole can't be handled (no refer-to: )\n");
+			}
 			break;
 		case -3:
 			transmit_response(p, "603 Declined (Non sip: uri)", req);
 			append_history(p, "Xfer", "Refer failed. Non SIP uri");
-			if (req->debug)
+			if (req->debug) {
 				ast_debug(1, "SIP transfer to non-SIP uri denied\n");
+			}
 			break;
 		default:
 			/* Refer-to extension not found, fake a failed transfer */
@@ -23328,30 +23344,36 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			append_history(p, "Xfer", "Refer failed. Bad extension.");
 			transmit_notify_with_sipfrag(p, seqno, "404 Not found", TRUE);
 			ast_clear_flag(&p->flags[0], SIP_GOTREFER);
-			if (req->debug)
+			if (req->debug) {
 				ast_debug(1, "SIP transfer to bad extension: %s\n", p->refer->refer_to);
+			}
 			break;
 		}
-		return 0;
+		res = 0;
+		goto handle_refer_cleanup;
 	}
-	if (ast_strlen_zero(p->context))
+	if (ast_strlen_zero(p->context)) {
 		ast_string_field_set(p, context, sip_cfg.default_context);
+	}
 
 	/* If we do not support SIP domains, all transfers are local */
 	if (sip_cfg.allow_external_domains && check_sip_domain(p->refer->refer_to_domain, NULL, 0)) {
 		p->refer->localtransfer = 1;
-		if (sipdebug)
+		if (sipdebug) {
 			ast_debug(3, "This SIP transfer is local : %s\n", p->refer->refer_to_domain);
+		}
 	} else if (AST_LIST_EMPTY(&domain_list) || check_sip_domain(p->refer->refer_to_domain, NULL, 0)) {
 		/* This PBX doesn't bother with SIP domains or domain is local, so this transfer is local */
 		p->refer->localtransfer = 1;
-	} else if (sipdebug)
-			ast_debug(3, "This SIP transfer is to a remote SIP extension (remote domain %s)\n", p->refer->refer_to_domain);
+	} else if (sipdebug) {
+		ast_debug(3, "This SIP transfer is to a remote SIP extension (remote domain %s)\n", p->refer->refer_to_domain);
+	}
 
 	/* Is this a repeat of a current request? Ignore it */
 	/* Don't know what else to do right now. */
-	if (req->ignore)
-		return res;
+	if (req->ignore) {
+		goto handle_refer_cleanup;
+	}
 
 	/* If this is a blind transfer, we have the following
 	channels to work with:
@@ -23377,32 +23399,42 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	header in the INVITE.
 	*/
 
-
 	/* Get the transferer's channel */
 	chans[0] = current.chan1 = p->owner;
 
 	/* Find the other part of the bridge (2) - transferee */
 	chans[1] = current.chan2 = ast_bridged_channel(current.chan1);
 
-	if (sipdebug)
-		ast_debug(3, "SIP %s transfer: Transferer channel %s, transferee channel %s\n", p->refer->attendedtransfer ? "attended" : "blind", current.chan1->name, current.chan2 ? current.chan2->name : "<none>");
+	ast_channel_ref(current.chan1);
+	if (current.chan2) {
+		ast_channel_ref(current.chan2);
+	}
+
+	if (sipdebug) {
+		ast_debug(3, "SIP %s transfer: Transferer channel %s, transferee channel %s\n",
+			p->refer->attendedtransfer ? "attended" : "blind",
+			current.chan1->name,
+			current.chan2 ? current.chan2->name : "<none>");
+	}
 
 	if (!current.chan2 && !p->refer->attendedtransfer) {
 		/* No bridged channel, propably IVR or echo or similar... */
 		/* Guess we should masquerade or something here */
 		/* Until we figure it out, refuse transfer of such calls */
-		if (sipdebug)
+		if (sipdebug) {
 			ast_debug(3, "Refused SIP transfer on non-bridged channel.\n");
+		}
 		p->refer->status = REFER_FAILED;
 		append_history(p, "Xfer", "Refer failed. Non-bridged channel.");
 		transmit_response(p, "603 Declined", req);
-		return -1;
+		res = -1;
+		goto handle_refer_cleanup;
 	}
 
 	if (current.chan2) {
-		if (sipdebug)
+		if (sipdebug) {
 			ast_debug(4, "Got SIP transfer, applying to bridged peer '%s'\n", current.chan2->name);
-
+		}
 		ast_queue_control(current.chan1, AST_CONTROL_UNHOLD);
 	}
 
@@ -23413,32 +23445,42 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	/* Attended transfer: Find all call legs and bridge transferee with target*/
 	if (p->refer->attendedtransfer) {
-		if ((res = local_attended_transfer(p, &current, req, seqno, nounlock)))
-			return res;	/* We're done with the transfer */
+		/* both p and p->owner _MUST_ be locked while calling local_attended_transfer */
+		if ((res = local_attended_transfer(p, &current, req, seqno, nounlock))) {
+			goto handle_refer_cleanup; /* We're done with the transfer */
+		}
 		/* Fall through for remote transfers that we did not find locally */
-		if (sipdebug)
+		if (sipdebug) {
 			ast_debug(4, "SIP attended transfer: Still not our call - generating INVITE with replaces\n");
+		}
 		/* Fallthrough if we can't find the call leg internally */
 	}
 
-	/* Must release lock now, because it will not longer
-	   be accessible after the transfer! */
-	*nounlock = 1;
-	/*
-	 * Increase ref count so that we can delay channel destruction until after
-	 * we get a chance to fire off some events.
-	 */
-	ast_channel_ref(current.chan1);
+	/* Copy data we can not safely access after letting the pvt lock go. */
+	refer_to = ast_strdupa(p->refer->refer_to);
+	refer_to_domain = ast_strdupa(p->refer->refer_to_domain);
+	refer_to_context = ast_strdupa(p->refer->refer_to_context);
+	referred_by = ast_strdupa(p->refer->referred_by);
+	callid = ast_strdupa(p->callid);
+	localtransfer = p->refer->localtransfer;
+	attendedtransfer = p->refer->attendedtransfer;
+	if (!*nounlock) {
+		ast_channel_unlock(p->owner);
+		*nounlock = 1;
+	}
 	sip_pvt_unlock(p);
-	ast_channel_unlock(current.chan1);
 
-	/* Parking a call */
-	if (p->refer->localtransfer && ast_parking_ext_valid(p->refer->refer_to, p->owner, p->owner->context)) {
-		sip_pvt_lock(p);
+	/* Parking a call.  DO NOT hold any locks while calling ast_parking_ext_valid() */
+	if (localtransfer && ast_parking_ext_valid(refer_to, current.chan1, current.chan1->context)) {
+
 		copy_request(&current.req, req);
+
+		sip_pvt_lock(p);
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);
 		p->refer->status = REFER_200OK;
 		append_history(p, "Xfer", "REFER to call parking.");
+		sip_pvt_unlock(p);
+
 		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
 			"TransferMethod: SIP\r\n"
 			"TransferType: Blind\r\n"
@@ -23451,54 +23493,68 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			"Transfer2Parking: Yes\r\n",
 			current.chan1->name,
 			current.chan1->uniqueid,
-			p->callid,
+			callid,
 			current.chan2->name,
 			current.chan2->uniqueid,
-			p->refer->refer_to);
-		if (sipdebug)
+			refer_to);
+
+		if (sipdebug) {
 			ast_debug(4, "SIP transfer to parking: trying to park %s. Parked by %s\n", current.chan2->name, current.chan1->name);
-		if (sip_park(current.chan2, current.chan1, req, seqno, p->refer->refer_to)) {
-			transmit_notify_with_sipfrag(p, seqno, "500 Internal Server Error", TRUE);
 		}
-		ast_channel_unref(current.chan1);
-		return res;
+
+		/* DO NOT hold any locks while calling sip_park */
+		if (sip_park(current.chan2, current.chan1, req, seqno, refer_to)) {
+			sip_pvt_lock(p);
+			transmit_notify_with_sipfrag(p, seqno, "500 Internal Server Error", TRUE);
+		} else {
+			sip_pvt_lock(p);
+		}
+		goto handle_refer_cleanup;
 	}
 
-	/* Blind transfers and remote attended xfers */
+	/* Blind transfers and remote attended xfers.
+	 * Locks should not be held while calling pbx_builtin_setvar_helper. This function
+	 * locks the channel being passed into it.*/
 	if (current.chan1 && current.chan2) {
 		ast_debug(3, "chan1->name: %s\n", current.chan1->name);
 		pbx_builtin_setvar_helper(current.chan1, "BLINDTRANSFER", current.chan2->name);
 	}
 
-	sip_pvt_lock(p);
-
 	if (current.chan2) {
 		pbx_builtin_setvar_helper(current.chan2, "BLINDTRANSFER", current.chan1->name);
-		pbx_builtin_setvar_helper(current.chan2, "SIPDOMAIN", p->refer->refer_to_domain);
+		pbx_builtin_setvar_helper(current.chan2, "SIPDOMAIN", refer_to_domain);
 		pbx_builtin_setvar_helper(current.chan2, "SIPTRANSFER", "yes");
 		/* One for the new channel */
 		pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER", "yes");
 		/* Attended transfer to remote host, prepare headers for the INVITE */
-		if (p->refer->referred_by)
-			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", p->refer->referred_by);
+		if (!ast_strlen_zero(referred_by)) {
+			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", referred_by);
+		}
 	}
+
+	sip_pvt_lock(p);
 	/* Generate a Replaces string to be used in the INVITE during attended transfer */
 	if (!ast_strlen_zero(p->refer->replaces_callid)) {
 		char tempheader[SIPBUFSIZE];
 		snprintf(tempheader, sizeof(tempheader), "%s%s%s%s%s", p->refer->replaces_callid,
-				p->refer->replaces_callid_totag ? ";to-tag=" : "",
-				p->refer->replaces_callid_totag,
-				p->refer->replaces_callid_fromtag ? ";from-tag=" : "",
-				p->refer->replaces_callid_fromtag);
-		if (current.chan2)
+			p->refer->replaces_callid_totag ? ";to-tag=" : "",
+			p->refer->replaces_callid_totag,
+			p->refer->replaces_callid_fromtag ? ";from-tag=" : "",
+			p->refer->replaces_callid_fromtag);
+
+		if (current.chan2) {
+			sip_pvt_unlock(p);
 			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REPLACES", tempheader);
+			sip_pvt_lock(p);
+		}
 	}
 
 	/* Connect the call */
 
 	/* FAKE ringing if not attended transfer */
-	if (!p->refer->attendedtransfer)
+	if (!p->refer->attendedtransfer) {
 		transmit_notify_with_sipfrag(p, seqno, "183 Ringing", FALSE);
+	}
 
 	/* For blind transfer, this will lead to a new call */
 	/* For attended transfer to remote host, this will lead to
@@ -23516,26 +23572,20 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		transmit_notify_with_sipfrag(p, seqno, "503 Service Unavailable (can't handle one-legged xfers)", TRUE);
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
 		append_history(p, "Xfer", "Refer failed (only bridged calls).");
-		ast_channel_unref(current.chan1);
-		return -1;
+		res = -1;
+		goto handle_refer_cleanup;
 	}
 	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
-	{
-		char *refer_to_context = ast_strdupa(p->refer->refer_to_context);
-		char *refer_to = ast_strdupa(p->refer->refer_to);
-
-		/* Do not hold the pvt lock during the indicate and async_goto. Those functions
-		 * lock channels which will invalidate locking order if the pvt lock is held.*/
-		ao2_unlock(p);
-		/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
-	   	 * servers - generate an INVITE with Replaces. Either way, let the dial plan decided  */
-		/* indicate before masquerade so the indication actually makes it to the real channel
-	   	 *when using local channels with MOH passthru */
-		ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
-		res = ast_async_goto(current.chan2, refer_to_context, refer_to, 1);
-		ao2_lock(p);
-	}
+	/* Do not hold the pvt lock during the indicate and async_goto. Those functions
+	 * lock channels which will invalidate locking order if the pvt lock is held.*/
+	/* For blind transfers, move the call to the new extensions. For attended transfers on multiple
+	 * servers - generate an INVITE with Replaces. Either way, let the dial plan decided
+	 * indicate before masquerade so the indication actually makes it to the real channel
+	 * when using local channels with MOH passthru */
+	sip_pvt_unlock(p);
+	ast_indicate(current.chan2, AST_CONTROL_UNHOLD);
+	res = ast_async_goto(current.chan2, refer_to_context, refer_to, 1);
 
 	if (!res) {
 		ast_manager_event_multichan(EVENT_FLAG_CALL, "Transfer", 2, chans,
@@ -23550,34 +23600,34 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			"TransferContext: %s\r\n",
 			current.chan1->name,
 			current.chan1->uniqueid,
-			p->callid,
+			callid,
 			current.chan2->name,
 			current.chan2->uniqueid,
-			p->refer->refer_to, p->refer->refer_to_context);
+			refer_to,
+			refer_to_context);
 		/* Success  - we have a new channel */
-		ast_debug(3, "%s transfer succeeded. Telling transferer.\n", p->refer->attendedtransfer? "Attended" : "Blind");
-
-		while (ast_channel_trylock(current.chan1)) {
-			sip_pvt_unlock(p);
-			sched_yield();
-			sip_pvt_lock(p);
-		}
+		ast_debug(3, "%s transfer succeeded. Telling transferer.\n", attendedtransfer? "Attended" : "Blind");
 
 		/* XXX - what to we put in CEL 'extra' for attended transfers to external systems? NULL for now */
+		ast_channel_lock(current.chan1);
 		ast_cel_report_event(current.chan1, p->refer->attendedtransfer? AST_CEL_ATTENDEDTRANSFER : AST_CEL_BLINDTRANSFER, NULL, p->refer->attendedtransfer ? NULL : p->refer->refer_to, current.chan2);
 		ast_channel_unlock(current.chan1);
 
+		sip_pvt_lock(p);
 		transmit_notify_with_sipfrag(p, seqno, "200 Ok", TRUE);
-		if (p->refer->localtransfer)
+		if (p->refer->localtransfer) {
 			p->refer->status = REFER_200OK;
-		if (p->owner)
+		}
+		if (p->owner) {
 			p->owner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+		}
 		append_history(p, "Xfer", "Refer succeeded.");
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);
 		/* Do not hangup call, the other side do that when we say 200 OK */
 		/* We could possibly implement a timer here, auto congestion */
 		res = 0;
 	} else {
+		sip_pvt_lock(p);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Don't delay hangup */
 		ast_debug(3, "%s transfer failed. Resuming original call.\n", p->refer->attendedtransfer? "Attended" : "Blind");
 		append_history(p, "Xfer", "Refer failed.");
@@ -23588,8 +23638,15 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		res = -1;
 	}
 
-	ast_channel_unref(current.chan1);
+handle_refer_cleanup:
+	if (current.chan1) {
+		ast_channel_unref(current.chan1);
+	}
+	if (current.chan2) {
+		ast_channel_unref(current.chan2);
+	}
 
+	/* Make sure we exit with the pvt locked */
 	return res;
 }
 
