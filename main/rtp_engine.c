@@ -1336,10 +1336,10 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 
 	/* Depending on the end result for bridging either do a local bridge or remote bridge */
 	if (audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL || audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL) {
-		ast_verbose(VERBOSE_PREFIX_3 "Locally bridging %s and %s\n", c0->name, c1->name);
+		ast_verb(3, "Locally bridging %s and %s\n", c0->name, c1->name);
 		res = local_bridge_loop(c0, c1, instance0, instance1, timeoutms, flags, fo, rc, c0->tech_pvt, c1->tech_pvt);
 	} else {
-		ast_verbose(VERBOSE_PREFIX_3 "Remotely bridging %s and %s\n", c0->name, c1->name);
+		ast_verb(3, "Remotely bridging %s and %s\n", c0->name, c1->name);
 		res = remote_bridge_loop(c0, c1, instance0, instance1, vinstance0, vinstance1,
 				tinstance0, tinstance1, glue0, glue1, codec0, codec1, timeoutms, flags,
 				fo, rc, c0->tech_pvt, c1->tech_pvt);
