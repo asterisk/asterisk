@@ -25697,8 +25697,9 @@ static void *do_monitor(void *data)
 	int reloading;
 
 	/* Add an I/O event to our SIP UDP socket */
-	if (sipsock > -1)
+	if (sipsock > -1) {
 		sipsock_read_id = ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
+	}
 
 	/* From here on out, we die whenever asked */
 	for(;;) {
@@ -25713,10 +25714,11 @@ static void *do_monitor(void *data)
 
 			/* Change the I/O fd of our UDP socket */
 			if (sipsock > -1) {
-				if (sipsock_read_id)
+				if (sipsock_read_id) {
 					sipsock_read_id = ast_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
-				else
+				} else {
 					sipsock_read_id = ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
+				}
 			} else if (sipsock_read_id) {
 				ast_io_remove(io, sipsock_read_id);
 				sipsock_read_id = NULL;
@@ -25744,15 +25746,18 @@ static void *do_monitor(void *data)
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
-		if ((res < 0) || (res > 1000))
+		if ((res < 0) || (res > 1000)) {
 			res = 1000;
+		}
 		res = ast_io_wait(io, res);
-		if (res > 20)
+		if (res > 20) {
 			ast_debug(1, "chan_sip: ast_io_wait ran %d all at once\n", res);
+		}
 		ast_mutex_lock(&monlock);
 		res = ast_sched_runq(sched);
-		if (res >= 20)
+		if (res >= 20) {
 			ast_debug(1, "chan_sip: ast_sched_runq ran %d all at once\n", res);
+		}
 		ast_mutex_unlock(&monlock);
 	}
 
