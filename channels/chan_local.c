@@ -719,8 +719,9 @@ static int local_digit_begin(struct ast_channel *ast, char digit)
 	struct ast_frame f = { AST_FRAME_DTMF_BEGIN, };
 	int isoutbound;
 
-	if (!p)
+	if (!p) {
 		return -1;
+	}
 
 	ao2_ref(p, 1); /* ref for local_queue_frame */
 	ao2_lock(p);
@@ -740,8 +741,9 @@ static int local_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 	struct ast_frame f = { AST_FRAME_DTMF_END, };
 	int isoutbound;
 
-	if (!p)
+	if (!p) {
 		return -1;
+	}
 
 	ao2_ref(p, 1); /* ref for local_queue_frame */
 	ao2_lock(p);
@@ -762,8 +764,9 @@ static int local_sendtext(struct ast_channel *ast, const char *text)
 	struct ast_frame f = { AST_FRAME_TEXT, };
 	int isoutbound;
 
-	if (!p)
+	if (!p) {
 		return -1;
+	}
 
 	ao2_lock(p);
 	ao2_ref(p, 1); /* ref for local_queue_frame */
@@ -783,8 +786,9 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	struct ast_frame f = { AST_FRAME_HTML, };
 	int isoutbound;
 
-	if (!p)
+	if (!p) {
 		return -1;
+	}
 
 	ao2_lock(p);
 	ao2_ref(p, 1); /* ref for local_queue_frame */
