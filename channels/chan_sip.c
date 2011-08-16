@@ -27405,7 +27405,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_shrinkcallerid = 1;
 	authlimit = DEFAULT_AUTHLIMIT;
 	authtimeout = DEFAULT_AUTHTIMEOUT;
-	global_store_sip_cause = TRUE;
+	global_store_sip_cause = DEFAULT_STORE_SIP_CAUSE;
 
 	sip_cfg.matchexternaddrlocally = DEFAULT_MATCHEXTERNADDRLOCALLY;
 

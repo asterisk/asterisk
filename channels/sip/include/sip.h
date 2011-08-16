@@ -221,6 +221,7 @@
 #define DEFAULT_SDPOWNER   "root"          /*!< Default SDP username field in (o=) header unless re-defined in sip.conf */
 #define DEFAULT_ENGINE     "asterisk"      /*!< Default RTP engine to use for sessions */
 #define DEFAULT_CAPABILITY (AST_FORMAT_ULAW | AST_FORMAT_TESTLAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263);
+#define DEFAULT_STORE_SIP_CAUSE TRUE      /*!< Store HASH(SIP_CAUSE,<channel name>) for channels by default */
 #endif
 /*@}*/
 
