@@ -746,6 +746,8 @@ static enum st_refresher global_st_refresher; /*!< Session-Timer refresher      
 static int global_min_se;                     /*!< Lowest threshold for session refresh interval  */
 static int global_max_se;                     /*!< Highest threshold for session refresh interval */
 
+static int global_store_sip_cause;    /*!< Whether the MASTER_CHANNEL(HASH(SIP_CAUSE,[chan_name])) var should be set */
+
 static int global_dynamic_exclude_static = 0; /*!< Exclude static peers from contact registrations */
 /*@}*/
 
@@ -17979,6 +17981,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "  SIP realtime:           Enabled\n" );
 	ast_cli(a->fd, "  Qualify Freq :          %d ms\n", global_qualifyfreq);
 	ast_cli(a->fd, "  Q.850 Reason header:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_Q850_REASON)));
+	ast_cli(a->fd, "  Store SIP_CAUSE:        %s\n", AST_CLI_YESNO(global_store_sip_cause));
 	ast_cli(a->fd, "\nNetwork QoS Settings:\n");
 	ast_cli(a->fd, "---------------------------\n");
 	ast_cli(a->fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
@@ -25072,7 +25075,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 
 			handle_response(p, respid, e + len, req, seqno);
 
-			if (p->owner) {
+			if (global_store_sip_cause && p->owner) {
 				struct ast_channel *owner = p->owner;
 
 				snprintf(causevar, sizeof(causevar), "MASTER_CHANNEL(HASH(SIP_CAUSE,%s))", owner->name);
@@ -28108,6 +28111,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_shrinkcallerid = 1;
 	authlimit = DEFAULT_AUTHLIMIT;
 	authtimeout = DEFAULT_AUTHTIMEOUT;
+	global_store_sip_cause = FALSE;
 
 	sip_cfg.matchexternaddrlocally = DEFAULT_MATCHEXTERNADDRLOCALLY;
 
@@ -28585,6 +28589,8 @@ static int reload_config(enum channelreloadreason reason)
 			} else {
 				global_st_refresher = i;
 			}
+		} else if (!strcasecmp(v->name, "storesipcause")) {
+			global_store_sip_cause = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "qualifygap")) {
 			if (sscanf(v->value, "%30d", &global_qualify_gap) != 1) {
 				ast_log(LOG_WARNING, "Invalid qualifygap '%s' at line %d of %s\n", v->value, v->lineno, config);
