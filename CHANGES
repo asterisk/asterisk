@@ -179,9 +179,6 @@ res_fax
 SIP Changes
 -----------
  * Add T38 support for REJECTED state where T.38 Negotiation is explicitly rejected.
- * Setting of HASH(SIP_CAUSE,<slave-channel-name>) on channels is now disabled
-   by default. It can be enabled using the 'storesipcause' option. This feature
-   has a significant performance penalty.
 
 Queue changes
 -------------
