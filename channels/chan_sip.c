@@ -1253,7 +1253,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 static void copy_request(struct sip_request *dst, const struct sip_request *src);
 static void receive_message(struct sip_pvt *p, struct sip_request *req);
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char **name, char **number, int set_call_forward);
-static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *event, int cache_only);
+static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only);
 
 /* Misc dialog routines */
 static int __sip_autodestruct(const void *data);
@@ -14003,7 +14003,7 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 	struct sip_peer *peer = userdata;
 
 	ao2_lock(peer);
-	sip_send_mwi_to_peer(peer, event, 0);
+	sip_send_mwi_to_peer(peer, 0);
 	ao2_unlock(peer);
 }
 
@@ -24235,7 +24235,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response(p, "200 OK", req);
 			if (p->relatedpeer) {	/* Send first notification */
 				ao2_lock(p->relatedpeer); /* was WRLOCK */
-				sip_send_mwi_to_peer(p->relatedpeer, NULL, 0);
+				sip_send_mwi_to_peer(p->relatedpeer, 0);
 				ao2_unlock(p->relatedpeer);
 			}
 		} else if (p->subscribed != CALL_COMPLETION) {
@@ -24948,7 +24948,7 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 }
 
 /*! \brief Send message waiting indication to alert peer that they've got voicemail */
-static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *event, int cache_only)
+static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 {
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
@@ -24961,16 +24961,14 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	if (ast_sockaddr_isnull(&peer->addr) && ast_sockaddr_isnull(&peer->defaddr))
 		return 0;
 
-	if (event) {
-		newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
-		oldmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
-	} else if (!get_cached_mwi(peer, &newmsgs, &oldmsgs) && !cache_only) {
-		/* Fall back to manually checking the mailbox */
+	/* Attempt to use cached mwi to get message counts. */
+	if (!get_cached_mwi(peer, &newmsgs, &oldmsgs) && !cache_only) {
+		/* Fall back to manually checking the mailbox if not cache_only and get_cached_mwi failed */
 		struct ast_str *mailbox_str = ast_str_alloca(512);
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
 	}
-	
+
 	if (peer->mwipvt) {
 		/* Base message on subscription */
 		p = dialog_ref(peer->mwipvt, "sip_send_mwi_to_peer: Setting dialog ptr p from peer->mwipvt-- should this be done?");
@@ -26452,7 +26450,8 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 	while ((mbox = context = strsep(&next, ","))) {
 		struct sip_mailbox *mailbox;
 		int duplicate = 0;
-
+		/* remove leading/trailing whitespace from mailbox string */
+		mbox = ast_strip(mbox);
 		strsep(&context, "@");
 
 		if (ast_strlen_zero(mbox)) {
@@ -27135,7 +27134,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		/* Send MWI from the event cache only.  This is so we can send initial
 		 * MWI if app_voicemail got loaded before chan_sip.  If it is the other
 		 * way, then we will get events when app_voicemail gets loaded. */
-		sip_send_mwi_to_peer(peer, NULL, 1);
+		sip_send_mwi_to_peer(peer, 1);
 	}
 
 	peer->the_mark = 0;
