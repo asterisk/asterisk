@@ -396,6 +396,7 @@ Applications
    notices a change.
  * Voicemail now includes rdnis within msgXXXX.txt file.
  * Added 'D' command to ExternalIVR full details in doc/externalivr.txt
+ * ParkedCall and Park can now specify the parking lot to use.
 
 Dialplan Functions
 ------------------
@@ -476,6 +477,8 @@ Dialplan Variables
  * Added PARKINGDYNAMIC which represents the template parkinglot defined in
    features.conf that should be the base for dynamic parkinglots.
  * Added PARKINGDYNCONTEXT which tells what context a newly created dynamic
+   parkinglot should have.
+ * Added PARKINGDYNEXTEN which tells what parking exten a newly created dynamic
    parkinglot should have.
  * Added PARKINGDYNPOS which holds what parking positions a dynamic parkinglot
    should have.
