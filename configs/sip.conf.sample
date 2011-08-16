@@ -1005,6 +1005,17 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                               ; but occasionally has spikes.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+
+;----------------------------- SIP_CAUSE reporting ---------------------------------
+; storesipcause = yes         ; This option causes chan_sip to set the
+			      ; HASH(SIP_CAUSE,<channel name>) channel variable
+			      ; to the value of the last sip response.
+			      ; WARNING: enabling this option carries a
+			      ; significant performance burden. It should only
+			      ; be used in low call volume situations. For
+			      ; historical reasons, this option defaults to
+			      ; "yes".
+
 ;-----------------------------------------------------------------------------------
 
 [authentication]

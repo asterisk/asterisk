@@ -43,7 +43,9 @@ SIP Changes
    and enables symmetric RTP support.
  * Slave SIP channels now set HASH(SIP_CAUSE,<slave-channel-name>) on each
    response.  This permits the master channel to know how each channel dialled
-   in a multi-channel setup resolved in an individual way.
+   in a multi-channel setup resolved in an individual way. This carries a
+   performance penalty and can be disabled in sip.conf using the
+   'storesipcause' option.
  * Added 'externtcpport' and 'externtlsport' options to allow custom port
    configuration for the externip and externhost options when tcp or tls is used.
  * Added support for message body (stored in content variable) to SIP NOTIFY message
