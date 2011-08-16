@@ -91,5 +91,10 @@ Module Support Level
    Deprecated modules are now marked to not build by default and must be explicitly
    enabled in menuselect.
 
+chan_sip:
+ - Setting of HASH(SIP_CAUSE,<slave-channel-name>) on channels is now disabled
+   by default. It can be enabled using the 'storesipcause' option. This feature
+   has a significant performance penalty.
+
 ===========================================================
 ===========================================================
