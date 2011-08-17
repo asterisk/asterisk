@@ -8593,6 +8593,9 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 #if defined(HAVE_PRI_DATETIME_SEND)
 	pri_date_time_send_option(pri->pri, pri->datetime_send);
 #endif	/* defined(HAVE_PRI_DATETIME_SEND) */
+#if defined(HAVE_PRI_L2_PERSISTENCE)
+	pri_persistent_layer2_option(pri->pri, pri->l2_persistence);
+#endif	/* defined(HAVE_PRI_L2_PERSISTENCE) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {

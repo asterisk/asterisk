@@ -405,6 +405,10 @@ struct sig_pri_span {
 	int qsigchannelmapping;							/*!< QSIG channel mapping type */
 	int discardremoteholdretrieval;					/*!< shall remote hold or remote retrieval notifications be discarded? */
 	int facilityenable;								/*!< Enable facility IEs */
+#if defined(HAVE_PRI_L2_PERSISTENCE)
+	/*! Layer 2 persistence option. */
+	int l2_persistence;
+#endif	/* defined(HAVE_PRI_L2_PERSISTENCE) */
 	int dchan_logical_span[SIG_PRI_NUM_DCHANS];		/*!< Logical offset the DCHAN sits in */
 	int fds[SIG_PRI_NUM_DCHANS];					/*!< FD's for d-channels */
 
