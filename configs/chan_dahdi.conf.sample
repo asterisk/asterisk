@@ -188,7 +188,18 @@
 ; transfer feature of an analog phone.
 ; The default is no.
 ;hold_disconnect_transfer=yes
+
+; BRI PTMP layer 2 persistence.
+; You should normally not need to set this option.
+; You may need to set this option if your telco brings layer 1 down when
+; the line is idle.
+; <blank>:       Use libpri default.
+; keep_up:       Bring layer 2 back up if peer takes it down.
+; leave_down:    Leave layer 2 down if peer takes it down. (Libpri default)
+;                (Layer 2 will be brought back up for an outgoing call.)
 ;
+;layer2_persistence=leave_down
+
 ; PRI Out of band indications.
 ; Enable this to report Busy and Congestion on a PRI using out-of-band
 ; notification. Inband indication, as used by Asterisk doesn't seem to work

@@ -12461,6 +12461,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 						pris[span].pri.transfer = conf->chan.transfer;
 						pris[span].pri.facilityenable = conf->pri.pri.facilityenable;
+#if defined(HAVE_PRI_L2_PERSISTENCE)
+						pris[span].pri.l2_persistence = conf->pri.pri.l2_persistence;
+#endif	/* defined(HAVE_PRI_L2_PERSISTENCE) */
 #if defined(HAVE_PRI_AOC_EVENTS)
 						pris[span].pri.aoc_passthrough_flag = conf->pri.pri.aoc_passthrough_flag;
 						pris[span].pri.aoce_delayhangup = conf->pri.pri.aoce_delayhangup;
@@ -17438,6 +17441,16 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #endif	/* defined(HAVE_PRI_MWI) */
 			} else if (!strcasecmp(v->name, "append_msn_to_cid_tag")) {
 				confp->pri.pri.append_msn_to_user_tag = ast_true(v->value);
+#if defined(HAVE_PRI_L2_PERSISTENCE)
+			} else if (!strcasecmp(v->name, "layer2_persistence")) {
+				if (!strcasecmp(v->value, "keep_up")) {
+					confp->pri.pri.l2_persistence = PRI_L2_PERSISTENCE_KEEP_UP;
+				} else if (!strcasecmp(v->value, "leave_down")) {
+					confp->pri.pri.l2_persistence = PRI_L2_PERSISTENCE_LEAVE_DOWN;
+				} else {
+					confp->pri.pri.l2_persistence = PRI_L2_PERSISTENCE_DEFAULT;
+				}
+#endif	/* defined(HAVE_PRI_L2_PERSISTENCE) */
 #endif /* HAVE_PRI */
 #if defined(HAVE_SS7)
 			} else if (!strcasecmp(v->name, "ss7type")) {

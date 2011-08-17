@@ -7573,6 +7573,9 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 #if defined(HAVE_PRI_MCID)
 	pri_mcid_enable(pri->pri, 1);
 #endif	/* defined(HAVE_PRI_MCID) */
+#if defined(HAVE_PRI_L2_PERSISTENCE)
+	pri_persistent_layer2_option(pri->pri, pri->l2_persistence);
+#endif	/* defined(HAVE_PRI_L2_PERSISTENCE) */
 
 	pri->resetpos = -1;
 	if (ast_pthread_create_background(&pri->master, NULL, pri_dchannel, pri)) {
