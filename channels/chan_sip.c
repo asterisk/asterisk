@@ -25145,6 +25145,8 @@ static void *do_monitor(void *data)
 		res = ast_sched_runq(sched);
 		if (res >= 20)
 			ast_debug(1, "chan_sip: ast_sched_runq ran %d all at once\n", res);
+		if (global_store_sip_cause && res >= 100)
+			ast_log(LOG_WARNING, "scheduler delays detected, setting 'storesipcause' to 'no' in %s will improve performance\n", config);
 		ast_mutex_unlock(&monlock);
 	}
 
