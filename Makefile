@@ -155,8 +155,8 @@ LINKER_SYMBOL_PREFIX=
 GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
 USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
-MOD_SUBDIR_CFLAGS=-I$(ASTTOPDIR)/include
-OTHER_SUBDIR_CFLAGS=-I$(ASTTOPDIR)/include
+MOD_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
+OTHER_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
 
 # Create OPTIONS variable, but probably we can assign directly to ASTCFLAGS
 OPTIONS=
@@ -461,15 +461,15 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -f build_tools/menuselect-deps
 
 datafiles: _all doc/core-en_US.xml
-	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig $(DESTDIR)$(libdir)/pkgconfig;
+	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig "$(DESTDIR)$(libdir)/pkgconfig";
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
 # improved a lot.  I'll put it here for now.
 
 	for x in static-http/*; do \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/static-http ; \
+		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/static-http" ; \
 	done
-	$(INSTALL) -m 644 doc/core-en_US.xml $(DESTDIR)$(ASTDATADIR)/static-http;
+	$(INSTALL) -m 644 doc/core-en_US.xml "$(DESTDIR)$(ASTDATADIR)/static-http";
 	if [ -d doc/tex/asterisk ] ; then \
 		$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http/docs" ; \
 		for n in doc/tex/asterisk/* ; do \
@@ -477,7 +477,7 @@ datafiles: _all doc/core-en_US.xml
 		done \
 	fi
 	for x in images/*.jpg; do \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTDATADIR)/images ; \
+		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/images" ; \
 	done
 	$(MAKE) -C sounds install
 
@@ -526,7 +526,7 @@ update:
 	fi
 
 NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
-OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
+OLDHEADERS=$(filter-out $(NEWHEADERS) $(notdir $(DESTDIR)$(ASTHEADERDIR)),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
 
 installdirs:
 	$(INSTALL) -d "$(DESTDIR)$(MODULES_DIR)"
@@ -560,37 +560,37 @@ installdirs:
 	$(INSTALL) -d "$(DESTDIR)$(ASTDBDIR)"
 
 bininstall: _all installdirs $(SUBDIRS_INSTALL)
-	$(INSTALL) -m 755 main/asterisk $(DESTDIR)$(ASTSBINDIR)/
-	$(LN) -sf asterisk $(DESTDIR)$(ASTSBINDIR)/rasterisk
-	$(INSTALL) -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
-	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/
-	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk -a ! -f /sbin/launchd ]; then \
+	$(INSTALL) -m 755 main/asterisk "$(DESTDIR)$(ASTSBINDIR)/"
+	$(LN) -sf asterisk "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
+	$(INSTALL) -m 755 contrib/scripts/astgenkey "$(DESTDIR)$(ASTSBINDIR)/"
+	$(INSTALL) -m 755 contrib/scripts/autosupport "$(DESTDIR)$(ASTSBINDIR)/"
+	if [ ! -f "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk" -a ! -f /sbin/launchd ]; then \
 		cat contrib/scripts/safe_asterisk | sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;s|__ASTERISK_LOG_DIR__|$(ASTLOGDIR)|;' > contrib/scripts/safe.tmp ; \
-		$(INSTALL) -m 755 contrib/scripts/safe.tmp $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ; \
+		$(INSTALL) -m 755 contrib/scripts/safe.tmp "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk" ; \
 		rm -f contrib/scripts/safe.tmp ; \
 	fi
-	$(INSTALL) -m 644 include/asterisk.h $(DESTDIR)$(includedir)
-	$(INSTALL) -m 644 include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
-	$(INSTALL) -m 644 include/asterisk/doxygen/*.h $(DESTDIR)$(ASTHEADERDIR)/doxygen
+	$(INSTALL) -m 644 include/asterisk.h "$(DESTDIR)$(includedir)"
+	$(INSTALL) -m 644 include/asterisk/*.h "$(DESTDIR)$(ASTHEADERDIR)"
+	$(INSTALL) -m 644 include/asterisk/doxygen/*.h "$(DESTDIR)$(ASTHEADERDIR)/doxygen"
 	if [ -n "$(OLDHEADERS)" ]; then \
-		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
+		for h in $(OLDHEADERS); do rm -f "$(DESTDIR)$(ASTHEADERDIR)/$$h"; done \
 	fi
 
-	$(INSTALL) -m 644 doc/core-*.xml $(DESTDIR)$(ASTDATADIR)/documentation
-	$(INSTALL) -m 644 doc/appdocsxml.dtd $(DESTDIR)$(ASTDATADIR)/documentation
-	$(INSTALL) -m 644 doc/asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
-	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
-	$(INSTALL) -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
-	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 doc/core-*.xml "$(DESTDIR)$(ASTDATADIR)/documentation"
+	$(INSTALL) -m 644 doc/appdocsxml.dtd "$(DESTDIR)$(ASTDATADIR)/documentation"
+	$(INSTALL) -m 644 doc/asterisk.8 "$(DESTDIR)$(ASTMANDIR)/man8"
+	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 "$(DESTDIR)$(ASTMANDIR)/man8"
+	$(INSTALL) -m 644 contrib/scripts/autosupport.8 "$(DESTDIR)$(ASTMANDIR)/man8"
+	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 "$(DESTDIR)$(ASTMANDIR)/man8"
 	if [ -f contrib/firmware/iax/iaxy.bin ] ; then \
-		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin; \
+		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin "$(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin"; \
 	fi
 
 $(SUBDIRS_INSTALL):
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(SUBMAKE) -C $(@:-install=) install 
 
 NEWMODS:=$(foreach d,$(MOD_SUBDIRS),$(notdir $(wildcard $(d)/*.so)))
-OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
+OLDMODS=$(filter-out $(NEWMODS) $(notdir $(DESTDIR)$(MODULES_DIR)),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
 
 oldmodcheck:
 	@if [ -n "$(OLDMODS)" ]; then \
@@ -617,9 +617,19 @@ ifneq ($(findstring ~,$(DESTDIR)),)
 	@exit 1
 endif
 
-install: badshell bininstall datafiles
+preinstall_spaces:
+ifneq ($(MAKE_PREINSTALL),)
+	$(MAKE_PREINSTALL)
+endif
+
+postinstall_spaces:
+ifneq ($(MAKE_POSTINSTALL),)
+	$(MAKE_POSTINSTALL)
+endif
+
+install: preinstall_spaces badshell bininstall datafiles postinstall_spaces
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
-		/usr/sbin/asterisk-post-install $(DESTDIR) . ; \
+		/usr/sbin/asterisk-post-install "$(DESTDIR)" . ; \
 	fi
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
@@ -651,7 +661,7 @@ upgrade: bininstall
 # XXX why *.adsi is installed first ?
 adsi:
 	@echo Installing adsi config files...
-	$(INSTALL) -d $(DESTDIR)$(ASTETCDIR)
+	$(INSTALL) -d "$(DESTDIR)$(ASTETCDIR)"
 	@for x in configs/*.adsi; do \
 		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
 		if [ -f $${dst} ] ; then \
@@ -659,7 +669,7 @@ adsi:
 		else \
 			echo "Installing $$x" ; \
 		fi ; \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x` ; \
+		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
 	done
 
 samples: adsi
@@ -693,38 +703,38 @@ samples: adsi
 			-e 's|^astspooldir.*$$|astspooldir => $(ASTSPOOLDIR)|' \
 			-e 's|^astrundir.*$$|astrundir => $(ASTVARRUNDIR)|' \
 			-e 's|^astlogdir.*$$|astlogdir => $(ASTLOGDIR)|' \
-			$(DESTDIR)$(ASTCONFPATH) > $(DESTDIR)$(ASTCONFPATH).tmp ; \
-		$(INSTALL) -m 644 $(DESTDIR)$(ASTCONFPATH).tmp $(DESTDIR)$(ASTCONFPATH) ; \
-		rm -f $(DESTDIR)$(ASTCONFPATH).tmp ; \
+			"$(DESTDIR)$(ASTCONFPATH)" > "$(DESTDIR)$(ASTCONFPATH).tmp" ; \
+		$(INSTALL) -m 644 "$(DESTDIR)$(ASTCONFPATH).tmp" "$(DESTDIR)$(ASTCONFPATH)" ; \
+		rm -f "$(DESTDIR)$(ASTCONFPATH).tmp" ; \
 	fi ; \
-	$(INSTALL) -d $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
-	build_tools/make_sample_voicemail $(DESTDIR)/$(ASTDATADIR) $(DESTDIR)/$(ASTSPOOLDIR)
+	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX"
+	build_tools/make_sample_voicemail "$(DESTDIR)/$(ASTDATADIR)" "$(DESTDIR)/$(ASTSPOOLDIR)"
 
 	@for x in phoneprov/*; do \
 		dst="$(DESTDIR)$(ASTDATADIR)/$$x" ;	\
-		if [ -f $${dst} ]; then \
+		if [ -f "$${dst}" ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
-				if cmp -s $${dst} $$x ; then \
+				if cmp -s "$${dst}" "$$x" ; then \
 					echo "Config file $$x is unchanged"; \
 					continue; \
 				fi ; \
-				mv -f $${dst} $${dst}.old ; \
+				mv -f "$${dst}" "$${dst}.old" ; \
 			else \
 				echo "Skipping config file $$x"; \
 				continue; \
 			fi ;\
 		fi ; \
 		echo "Installing file $$x"; \
-		$(INSTALL) -m 644 $$x $${dst} ;\
+		$(INSTALL) -m 644 "$$x" "$${dst}" ;\
 	done
 
 webvmail:
-	@[ -d $(DESTDIR)$(HTTP_DOCSDIR)/ ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
-	@[ -d $(DESTDIR)$(HTTP_CGIDIR) ] || ( printf "cgi-bin directory not found.\nUpdate assignment of variable HTTP_CGIDIR in Makefile!\n" && exit 1 )
-	$(INSTALL) -m 4755 contrib/scripts/vmail.cgi $(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi
-	$(INSTALL) -d $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk
+	@[ -d "$(DESTDIR)$(HTTP_DOCSDIR)/" ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
+	@[ -d "$(DESTDIR)$(HTTP_CGIDIR)" ] || ( printf "cgi-bin directory not found.\nUpdate assignment of variable HTTP_CGIDIR in Makefile!\n" && exit 1 )
+	$(INSTALL) -m 4755 contrib/scripts/vmail.cgi "$(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi"
+	$(INSTALL) -d "$(DESTDIR)$(HTTP_DOCSDIR)/_asterisk"
 	for x in images/*.gif; do \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk/; \
+		$(INSTALL) -m 644 $$x "$(DESTDIR)$(HTTP_DOCSDIR)/_asterisk/"; \
 	done
 	@echo " +--------- Asterisk Web Voicemail ----------+"  
 	@echo " +                                           +"
@@ -749,75 +759,75 @@ progdocs:
 	echo "PROJECT_NUMBER=$(ASTERISKVERSION)") | doxygen - 
 
 install-logrotate:
-	if [ ! -d $(ASTETCDIR)/../logrotate.d ]; then \
-		$(INSTALL) -d $(ASTETCDIR)/../logrotate.d ; \
+	if [ ! -d "$(DESTDIR)$(ASTETCDIR)/../logrotate.d" ]; then \
+		$(INSTALL) -d "$(DESTDIR)$(ASTETCDIR)/../logrotate.d" ; \
 	fi
 	sed 's#__LOGDIR__#$(ASTLOGDIR)#g' < contrib/scripts/asterisk.logrotate | sed 's#__SBINDIR__#$(ASTSBINDIR)#g' > contrib/scripts/asterisk.logrotate.tmp
-	$(INSTALL) -m 0644 contrib/scripts/asterisk.logrotate.tmp $(ASTETCDIR)/../logrotate.d/asterisk
+	$(INSTALL) -m 0644 contrib/scripts/asterisk.logrotate.tmp "$(DESTDIR)$(ASTETCDIR)/../logrotate.d/asterisk"
 	rm -f contrib/scripts/asterisk.logrotate.tmp
 
 config:
 	@if [ "${OSARCH}" = "linux-gnu" ]; then \
 		if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
 			cat contrib/init.d/rc.redhat.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp "$(DESTDIR)/etc/rc.d/init.d/asterisk" ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
-			if [ ! -f $(DESTDIR)/etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
+			if [ ! -f "$(DESTDIR)/etc/sysconfig/asterisk" ] ; then \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/chkconfig --add asterisk ; \
 			fi ; \
 		elif [ -f /etc/debian_version ] ; then \
 			cat contrib/init.d/rc.debian.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp "$(DESTDIR)/etc/init.d/asterisk" ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
-			if [ ! -f $(DESTDIR)/etc/default/asterisk ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/default/asterisk ; \
+			if [ ! -f "$(DESTDIR)/etc/default/asterisk" ] ; then \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/default/asterisk" ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/usr/sbin/update-rc.d asterisk defaults 50 91 ; \
 			fi ; \
 		elif [ -f /etc/gentoo-release ] ; then \
 			cat contrib/init.d/rc.gentoo.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp "$(DESTDIR)/etc/init.d/asterisk" ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/rc-update add asterisk default ; \
 			fi ; \
 		elif [ -f /etc/mandrake-release -o -f /etc/mandriva-release ] ; then \
 			cat contrib/init.d/rc.mandriva.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/init.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp "$(DESTDIR)/etc/rc.d/init.d/asterisk" ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ ! -f /etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/chkconfig --add asterisk ; \
 			fi ; \
 		elif [ -f /etc/SuSE-release -o -f /etc/novell-release ] ; then \
 			cat contrib/init.d/rc.suse.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/init.d/asterisk ;\
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp "$(DESTDIR)/etc/init.d/asterisk" ;\
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
 			if [ ! -f /etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk $(DESTDIR)/etc/sysconfig/asterisk ; \
+				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
 			fi ; \
 			if [ -z "$(DESTDIR)" ] ; then \
 				/sbin/chkconfig --add asterisk ; \
 			fi ; \
 		elif [ -f /etc/arch-release -o -f /etc/arch-release ] ; then \
 			cat contrib/init.d/rc.archlinux.asterisk | sed 's|__ASTERISK_ETC_DIR__|$(ASTETCDIR)|;s|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > contrib/init.d/rc.asterisk.tmp ; \
-			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp $(DESTDIR)/etc/rc.d/asterisk ; \
+			$(INSTALL) -m 755 contrib/init.d/rc.asterisk.tmp "$(DESTDIR)/etc/rc.d/asterisk" ; \
 			rm -f contrib/init.d/rc.asterisk.tmp ; \
-		elif [ -d $(DESTDIR)/Library/LaunchDaemons ]; then \
-			if [ ! -f $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist ]; then \
+		elif [ -d "$(DESTDIR)/Library/LaunchDaemons" ]; then \
+			if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist" ]; then \
 				sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;' < contrib/init.d/org.asterisk.asterisk.plist > asterisk.plist ; \
-				$(INSTALL) -m 644 asterisk.plist $(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist; \
+				$(INSTALL) -m 644 asterisk.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist"; \
 				rm -f asterisk.plist; \
 			fi; \
-			if [ ! -f $(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist ]; then \
+			if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist" ]; then \
 				sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;' < contrib/init.d/org.asterisk.muted.plist > muted.plist ; \
-				$(INSTALL) -m 644 muted.plist $(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist; \
+				$(INSTALL) -m 644 muted.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist"; \
 				rm -f muted.plist; \
 			fi; \
 		elif [ -f /etc/slackware-version ]; then \
@@ -844,19 +854,19 @@ $(SUBDIRS_UNINSTALL):
 	+@$(SUBMAKE) -C $(@:-uninstall=) uninstall
 
 _uninstall: $(SUBDIRS_UNINSTALL)
-	rm -f $(DESTDIR)$(MODULES_DIR)/*
-	rm -f $(DESTDIR)$(ASTSBINDIR)/*asterisk*
-	rm -f $(DESTDIR)$(ASTSBINDIR)/astgenkey
-	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
-	rm -rf $(DESTDIR)$(ASTHEADERDIR)
-	rm -rf $(DESTDIR)$(ASTDATADIR)/firmware
-	rm -f $(DESTDIR)$(ASTMANDIR)/man8/asterisk.8
-	rm -f $(DESTDIR)$(ASTMANDIR)/man8/astgenkey.8
-	rm -f $(DESTDIR)$(ASTMANDIR)/man8/autosupport.8
-	rm -f $(DESTDIR)$(ASTMANDIR)/man8/safe_asterisk.8
+	rm -f "$(DESTDIR)$(MODULES_DIR)/"*
+	rm -f "$(DESTDIR)$(ASTSBINDIR)/"*asterisk*
+	rm -f "$(DESTDIR)$(ASTSBINDIR)/astgenkey"
+	rm -f "$(DESTDIR)$(ASTSBINDIR)/autosupport"
+	rm -rf "$(DESTDIR)$(ASTHEADERDIR)"
+	rm -rf "$(DESTDIR)$(ASTDATADIR)/firmware"
+	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/asterisk.8"
+	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/astgenkey.8"
+	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/autosupport.8"
+	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/safe_asterisk.8"
 	$(MAKE) -C sounds uninstall
 
-uninstall: _uninstall
+uninstall: preinstall_spaces _uninstall postinstall_spaces
 	@echo " +--------- Asterisk Uninstall Complete -----+"  
 	@echo " + Asterisk binaries, sounds, man pages,     +"  
 	@echo " + headers, modules, and firmware builds,    +"  
@@ -871,12 +881,12 @@ uninstall: _uninstall
 	@echo " +-------------------------------------------+"  
 
 uninstall-all: _uninstall
-	rm -rf $(DESTDIR)$(ASTLIBDIR)
-	rm -rf $(DESTDIR)$(ASTVARLIBDIR)
-	rm -rf $(DESTDIR)$(ASTDATADIR)
-	rm -rf $(DESTDIR)$(ASTSPOOLDIR)
-	rm -rf $(DESTDIR)$(ASTETCDIR)
-	rm -rf $(DESTDIR)$(ASTLOGDIR)
+	rm -rf "$(DESTDIR)$(ASTLIBDIR)"
+	rm -rf "$(DESTDIR)$(ASTVARLIBDIR)"
+	rm -rf "$(DESTDIR)$(ASTDATADIR)"
+	rm -rf "$(DESTDIR)$(ASTSPOOLDIR)"
+	rm -rf "$(DESTDIR)$(ASTETCDIR)"
+	rm -rf "$(DESTDIR)$(ASTLOGDIR)"
 
 menuconfig: menuselect
 
