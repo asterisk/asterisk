@@ -15477,7 +15477,7 @@ static char *dahdi_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(a->fd, "No DAHDI found. Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
 		return CLI_FAILURE;
 	}
-	ast_cli(a->fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4", "Framing", "Coding", "Options", "LBO");
+	ast_cli(a->fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC", "Framing", "Coding", "Options", "LBO");
 
 	for (span = 1; span < DAHDI_MAX_SPANS; ++span) {
 		s.spanno = span;
