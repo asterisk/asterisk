@@ -17,6 +17,11 @@
 		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
+		<member name="BETTER_BACKTRACES" displayname="Use libbfd (GPL) to generate better inline backtraces">
+			<depend>BFD</depend>
+			<depend>DLADDR</depend>
+			<defaultenabled>no</defaultenabled>
+		</member>
 		<member name="USE_HOARD_ALLOCATOR" displayname="Use the Hoard Memory Allocator instead of the default system one">
 			<defaultenabled>no</defaultenabled>
 			<depend>hoard</depend>
