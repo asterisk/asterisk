@@ -22,9 +22,4 @@
 		</member>
 		<member name="TEST_FRAMEWORK" displayname="Enable Test Framework API">
 		</member>
-		<member name="BETTER_BACKTRACES" displayname="Use libbfd to generate better inline backtraces">
-			<depend>BFD</depend>
-			<depend>DLADDR</depend>
-			<defaultenabled>no</defaultenabled>
-		</member>
 	</category>
