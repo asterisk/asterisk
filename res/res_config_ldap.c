@@ -609,16 +609,16 @@ static struct ast_variable *ldap_loadentry(struct ldap_table_config *table_confi
 		/* Chopping \a vars down to one variable */
 		if (vars != NULL) {
 			struct ast_variable **p = vars;
-			p++;
-			var = *p;
-			while (var) {
-				ast_variables_destroy(var);
-				p++;
-			}
-			vars = ast_realloc(vars, sizeof(struct ast_variable *));
-		}
 
-		var = *vars;
+			/* Only take the first one. */
+			var = *vars;
+
+			/* Destroy the rest. */
+			while (*++p) {
+				ast_variables_destroy(*p);
+			}
+			ast_free(vars);
+		}
 
 		return var;
 	}
@@ -864,6 +864,11 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 								ast_variables_destroy(base_var);
 								base_var = next;
 							} else {
+								/*!
+								 * \todo XXX The interactions with base_var and append_var may
+								 * cause a memory leak of base_var nodes.  Also the append_var
+								 * list and base_var list may get cross linked.
+								 */
 								if (append_var) {
 									base_var->next = append_var;
 								} else {
@@ -926,6 +931,8 @@ static struct ast_variable *realtime_ldap(const char *basedn,
 	if (vars) {
 		struct ast_variable *last_var = NULL;
 		struct ast_variable **p = vars;
+
+		/* Chain the vars array of lists into one list to return. */
 		while (*p) {
 			if (last_var) {
 				while (last_var->next) {
