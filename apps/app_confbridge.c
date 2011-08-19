@@ -2623,14 +2623,14 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 		return -1;
 	}
 	if (!ao2_container_count(conference_bridges)) {
-		ast_log(LOG_ERROR, "No active conferences.\n");
-		return -1;
+		snprintf(buf, len, "0");
+		return 0;
 	}
 	ast_copy_string(tmp.name, args.confno, sizeof(tmp.name));
 	bridge = ao2_find(conference_bridges, &tmp, OBJ_POINTER);
 	if (!bridge) {
-		ast_log(LOG_ERROR, "Conference '%s' not found.\n", args.confno);
-		return -1;
+		snprintf(buf, len, "0");
+		return 0;
 	}
 
 	/* get the correct count for the type requested */
@@ -2654,9 +2654,7 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 	} else if (!strncasecmp(args.type, "locked", 6)) {
 		count = bridge->locked;
 	} else {
-		ao2_unlock(bridge);
-		ao2_ref(bridge, -1);
-		return -1;
+		ast_log(LOG_ERROR, "Invalid keyword.\n");
 	}
 	snprintf(buf, len, "%d", count);
 	ao2_unlock(bridge);
