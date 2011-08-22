@@ -61,7 +61,6 @@ static char *extconfig_conf = "extconfig.conf";
 /*! \brief Structure to keep comments for rewriting configuration files */
 struct ast_comment {
 	struct ast_comment *next;
-	/*! Comment body allocated after struct. */
 	char cmt[0];
 };
 
@@ -73,17 +72,13 @@ struct cache_file_include {
 
 struct cache_file_mtime {
 	AST_LIST_ENTRY(cache_file_mtime) list;
-	AST_LIST_HEAD_NOLOCK(includes, cache_file_include) includes;
+	AST_LIST_HEAD(includes, cache_file_include) includes;
 	unsigned int has_exec:1;
 	time_t mtime;
-
-	/*! String stuffed in filename[] after the filename string. */
-	const char *who_asked;
-	/*! Filename and who_asked stuffed after it. */
+	char *who_asked;
 	char filename[0];
 };
 
-/*! Cached file mtime list. */
 static AST_LIST_HEAD_STATIC(cfmtime_head, cache_file_mtime);
 
 static int init_appendbuf(void *data)
@@ -169,15 +164,10 @@ static int hashtab_compare_strings(void *a, void *b, int flags)
 static struct ast_config_map {
 	struct ast_config_map *next;
 	int priority;
-	/*! Stored in stuff[] at struct end. */
-	const char *name;
-	/*! Stored in stuff[] at struct end. */
-	const char *driver;
-	/*! Stored in stuff[] at struct end. */
-	const char *database;
-	/*! Stored in stuff[] at struct end. */
-	const char *table;
-	/*! Contents of name, driver, database, and table in that order stuffed here. */
+	char *name;
+	char *driver;
+	char *database;
+	char *table;
 	char stuff[0];
 } *config_maps = NULL;
 
@@ -196,28 +186,19 @@ struct ast_category {
 	char name[80];
 	int ignored;			/*!< do not let user of the config see this category -- set by (!) after the category decl; a template */
 	int include_level;
-	/*!
-	 * \brief The file name from whence this declaration was read
-	 * \note Will never be NULL
-	 */
-	char *file;
+	char *file;	           /*!< the file name from whence this declaration was read */
 	int lineno;
 	AST_LIST_HEAD_NOLOCK(template_instance_list, ast_category_template_instance) template_instances;
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_comment *trailing; /*!< the last object in the list will get assigned any trailing comments when EOF is hit */
-	/*! First category variable in the list. */
 	struct ast_variable *root;
-	/*! Last category variable in the list. */
 	struct ast_variable *last;
-	/*! Next node in the list. */
 	struct ast_category *next;
 };
 
 struct ast_config {
-	/*! First config category in the list. */
 	struct ast_category *root;
-	/*! Last config category in the list. */
 	struct ast_category *last;
 	struct ast_category *current;
 	struct ast_category *last_browse;     /*!< used to cache the last category supplied via category_browse */
@@ -227,31 +208,16 @@ struct ast_config {
 };
 
 struct ast_config_include {
-	/*!
-	 * \brief file name in which the include occurs
-	 * \note Will never be NULL
-	 */
-	char *include_location_file;
+	char *include_location_file;     /*!< file name in which the include occurs */
 	int  include_location_lineno;    /*!< lineno where include occurred */
-	int  exec;                       /*!< set to non-zero if its a #exec statement */
-	/*!
-	 * \brief if it's an exec, you'll have both the /var/tmp to read, and the original script
-	 * \note Will never be NULL if exec is non-zero
-	 */
-	char *exec_file;
-	/*!
-	 * \brief file name included
-	 * \note Will never be NULL
-	 */
-	char *included_file;
+	int  exec;                       /*!< set to non-zero if itsa #exec statement */
+	char *exec_file;                 /*!< if it's an exec, you'll have both the /var/tmp to read, and the original script */
+	char *included_file;             /*!< file name included */
 	int inclusion_count;             /*!< if the file is included more than once, a running count thereof -- but, worry not,
 	                                      we explode the instances and will include those-- so all entries will be unique */
 	int output;                      /*!< a flag to indicate if the inclusion has been output */
 	struct ast_config_include *next; /*!< ptr to next inclusion in the list */
 };
-
-static void ast_variable_destroy(struct ast_variable *doomed);
-static void ast_includes_destroy(struct ast_config_include *incls);
 
 #ifdef MALLOC_DEBUG
 struct ast_variable *_ast_variable_new(const char *name, const char *value, const char *filename, const char *file, const char *func, int lineno) 
@@ -264,50 +230,19 @@ struct ast_variable *ast_variable_new(const char *name, const char *value, const
 	int val_len = strlen(value) + 1;	
 	int fn_len = strlen(filename) + 1;	
 
-	/* Ensure a minimum length in case the filename is changed later. */
-	if (fn_len < 80) {
-		fn_len = 80;
-	}
-
-	if (
 #ifdef MALLOC_DEBUG
-		(variable = __ast_calloc(1, fn_len + name_len + val_len + sizeof(*variable), file, lineno, func))
+	if ((variable = __ast_calloc(1, name_len + val_len + fn_len + sizeof(*variable), file, lineno, func))) {
 #else
-		(variable = ast_calloc(1, fn_len + name_len + val_len + sizeof(*variable)))
+	if ((variable = ast_calloc(1, name_len + val_len + fn_len + sizeof(*variable)))) {
 #endif
-		) {
 		char *dst = variable->stuff;	/* writable space starts here */
-
-		/* Put file first so ast_include_rename() can calculate space available. */
-		variable->file = strcpy(dst, filename);
-		dst += fn_len;
 		variable->name = strcpy(dst, name);
 		dst += name_len;
 		variable->value = strcpy(dst, value);
+		dst += val_len;
+		variable->file = strcpy(dst, filename);
 	}
 	return variable;
-}
-
-/*!
- * \internal
- * \brief Move the contents from the source to the destination variable.
- *
- * \param dst_var Destination variable node
- * \param src_var Source variable node
- *
- * \return Nothing
- */
-static void ast_variable_move(struct ast_variable *dst_var, struct ast_variable *src_var)
-{
-	dst_var->lineno = src_var->lineno;
-	dst_var->object = src_var->object;
-	dst_var->blanklines = src_var->blanklines;
-	dst_var->precomments = src_var->precomments;
-	src_var->precomments = NULL;
-	dst_var->sameline = src_var->sameline;
-	src_var->sameline = NULL;
-	dst_var->trailing = src_var->trailing;
-	src_var->trailing = NULL;
 }
 
 struct ast_config_include *ast_include_new(struct ast_config *conf, const char *from_file, const char *included_file, int is_exec, const char *exec_file, int from_lineno, char *real_included_file_name, int real_included_file_name_size)
@@ -330,9 +265,6 @@ struct ast_config_include *ast_include_new(struct ast_config *conf, const char *
 		*real_included_file_name = 0;
 	
 	inc = ast_calloc(1,sizeof(struct ast_config_include));
-	if (!inc) {
-		return NULL;
-	}
 	inc->include_location_file = ast_strdup(from_file);
 	inc->include_location_lineno = from_lineno;
 	if (!ast_strlen_zero(real_included_file_name))
@@ -343,14 +275,7 @@ struct ast_config_include *ast_include_new(struct ast_config *conf, const char *
 	inc->exec = is_exec;
 	if (is_exec)
 		inc->exec_file = ast_strdup(exec_file);
-
-	if (!inc->include_location_file
-		|| !inc->included_file
-		|| (is_exec && !inc->exec_file)) {
-		ast_includes_destroy(inc);
-		return NULL;
-	}
-
+	
 	/* attach this new struct to the conf struct */
 	inc->next = conf->includes;
 	conf->includes = inc;
@@ -362,8 +287,8 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 {
 	struct ast_config_include *incl;
 	struct ast_category *cat;
-	char *str;
-
+	struct ast_variable *v;
+	
 	int from_len = strlen(from_file);
 	int to_len = strlen(to_file);
 	
@@ -384,67 +309,29 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 			if (from_len >= to_len)
 				strcpy(incl->include_location_file, to_file);
 			else {
-				/* Keep the old filename if the allocation fails. */
-				str = ast_strdup(to_file);
-				if (str) {
-					ast_free(incl->include_location_file);
-					incl->include_location_file = str;
-				}
+				free(incl->include_location_file);
+				incl->include_location_file = strdup(to_file);
 			}
 		}
 	}
 	for (cat = conf->root; cat; cat = cat->next) {
-		struct ast_variable **prev;
-		struct ast_variable *v;
-		struct ast_variable *new_var;
-
 		if (strcmp(cat->file,from_file) == 0) {
 			if (from_len >= to_len)
 				strcpy(cat->file, to_file);
 			else {
-				/* Keep the old filename if the allocation fails. */
-				str = ast_strdup(to_file);
-				if (str) {
-					ast_free(cat->file);
-					cat->file = str;
-				}
+				free(cat->file);
+				cat->file = strdup(to_file);
 			}
 		}
-		for (prev = &cat->root, v = cat->root; v; prev = &v->next, v = v->next) {
-			if (strcmp(v->file, from_file)) {
-				continue;
+		for (v = cat->root; v; v = v->next) {
+			if (strcmp(v->file,from_file) == 0) {
+				if (from_len >= to_len)
+					strcpy(v->file, to_file);
+				else {
+					free(v->file);
+					v->file = strdup(to_file);
+				}
 			}
-
-			/*
-			 * Calculate actual space available.  The file string is
-			 * intentionally stuffed before the name string just so we can
-			 * do this.
-			 */
-			if (v->name - v->file > to_len) {
-				str = (char *) v->file;/* Stupid compiler complains about discarding qualifiers even though I used a cast. */
-				strcpy(str, to_file);
-				continue;
-			}
-
-			/* Keep the old filename if the allocation fails. */
-			new_var = ast_variable_new(v->name, v->value, to_file);
-			if (!new_var) {
-				continue;
-			}
-
-			/* Move items from the old list node to the replacement node. */
-			ast_variable_move(new_var, v);
-
-			/* Replace the old node in the list with the new node. */
-			new_var->next = v->next;
-			if (cat->last == v) {
-				cat->last = new_var;
-			}
-			*prev = new_var;
-
-			ast_variable_destroy(v);
-
-			v = new_var;
 		}
 	}
 }
@@ -604,16 +491,9 @@ struct ast_category *ast_category_new(const char *name, const char *in_file, int
 {
 	struct ast_category *category;
 
-	category = ast_calloc(1, sizeof(*category));
-	if (!category) {
-		return NULL;
-	}
-	category->file = ast_strdup(in_file);
-	if (!category->file) {
-		ast_category_destroy(category);
-		return NULL;
-	}
-	ast_copy_string(category->name, name, sizeof(category->name));
+	if ((category = ast_calloc(1, sizeof(*category))))
+		ast_copy_string(category->name, name, sizeof(category->name));
+	category->file = strdup(in_file);
 	category->lineno = lineno; /* if you don't know the lineno, set it to 999999 or something real big */
 	return category;
 }
@@ -682,19 +562,20 @@ static void ast_destroy_template_list(struct ast_category *cat)
 	struct ast_category_template_instance *x;
 
 	while ((x = AST_LIST_REMOVE_HEAD(&cat->template_instances, next)))
-		ast_free(x);
+		free(x);
 }
 
 void ast_category_destroy(struct ast_category *cat)
 {
 	ast_variables_destroy(cat->root);
-	cat->root = NULL;
-	cat->last = NULL;
+	if (cat->file) {
+		free(cat->file);
+		cat->file = 0;
+	}
 	ast_comment_destroy(&cat->precomments);
 	ast_comment_destroy(&cat->sameline);
 	ast_comment_destroy(&cat->trailing);
 	ast_destroy_template_list(cat);
-	ast_free(cat->file);
 	ast_free(cat);
 }
 
@@ -704,10 +585,13 @@ static void ast_includes_destroy(struct ast_config_include *incls)
 	
 	for (incl=incls; incl; incl = inclnext) {
 		inclnext = incl->next;
-		ast_free(incl->include_location_file);
-		ast_free(incl->exec_file);
-		ast_free(incl->included_file);
-		ast_free(incl);
+		if (incl->include_location_file)
+			free(incl->include_location_file);
+		if (incl->exec_file)
+			free(incl->exec_file);
+		if (incl->included_file)
+			free(incl->included_file);
+		free(incl);
 	}
 }
 
@@ -798,12 +682,8 @@ void ast_category_rename(struct ast_category *cat, const char *name)
 static void inherit_category(struct ast_category *new, const struct ast_category *base)
 {
 	struct ast_variable *var;
-	struct ast_category_template_instance *x;
+	struct ast_category_template_instance *x = ast_calloc(1,sizeof(struct ast_category_template_instance));
 
-	x = ast_calloc(1, sizeof(*x));
-	if (!x) {
-		return;
-	}
 	strcpy(x->name, base->name);
 	x->inst = base;
 	AST_LIST_INSERT_TAIL(&new->template_instances, x, next);
@@ -877,12 +757,17 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 
 		if (!(newer = ast_variable_new(variable, value, cur->file)))
 			return -1;
-
-		ast_variable_move(newer, cur);
-		newer->object = newer->object || object;
-
-		/* Replace the old node in the list with the new node. */
+	
 		newer->next = cur->next;
+		newer->object = cur->object || object;
+
+		/* Preserve everything */
+		newer->lineno = cur->lineno;
+		newer->blanklines = cur->blanklines;
+		newer->precomments = cur->precomments; cur->precomments = NULL;
+		newer->sameline = cur->sameline; cur->sameline = NULL;
+		newer->trailing = cur->trailing; cur->trailing = NULL;
+
 		if (prev)
 			prev->next = newer;
 		else
@@ -890,7 +775,8 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 		if (category->last == cur)
 			category->last = newer;
 
-		ast_variable_destroy(cur);
+		cur->next = NULL;
+		ast_variables_destroy(cur);
 
 		return 0;
 	}
@@ -989,37 +875,6 @@ void ast_config_set_current_category(struct ast_config *cfg, const struct ast_ca
 	cfg->current = (struct ast_category *) cat;
 }
 
-/*!
- * \internal
- * \brief Create a new cfmtime list node.
- *
- * \param filename Config filename caching.
- * \param who_asked Who wanted to know.
- *
- * \retval cfmtime New node on success.
- * \retval NULL on error.
- */
-static struct cache_file_mtime *cfmtime_new(const char *filename, const char *who_asked)
-{
-	struct cache_file_mtime *cfmtime;
-	char *dst;
-
-	cfmtime = ast_calloc(1,
-		sizeof(*cfmtime) + strlen(filename) + 1 + strlen(who_asked) + 1);
-	if (!cfmtime) {
-		return NULL;
-	}
-#if 0	/* No need to do this since ast_calloc() effectively already did it */
-	AST_LIST_HEAD_INIT_NOLOCK(&cfmtime->includes);
-#endif
-	dst = cfmtime->filename;	/* writable space starts here */
-	strcpy(dst, filename);
-	dst += strlen(dst) + 1;
-	cfmtime->who_asked = strcpy(dst, who_asked);
-
-	return cfmtime;
-}
-
 enum config_cache_attribute_enum {
 	ATTRIBUTE_INCLUDE = 0,
 	ATTRIBUTE_EXEC = 1,
@@ -1038,11 +893,15 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 			break;
 	}
 	if (!cfmtime) {
-		cfmtime = cfmtime_new(configfile, who_asked);
+		cfmtime = ast_calloc(1, sizeof(*cfmtime) + strlen(configfile) + 1 + strlen(who_asked) + 1);
 		if (!cfmtime) {
 			AST_LIST_UNLOCK(&cfmtime_head);
 			return;
 		}
+		AST_LIST_HEAD_INIT(&cfmtime->includes);
+		strcpy(cfmtime->filename, configfile);
+		cfmtime->who_asked = cfmtime->filename + strlen(configfile) + 1;
+		strcpy(cfmtime->who_asked, who_asked);
 		/* Note that the file mtime is initialized to 0, i.e. 1970 */
 		AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 	}
@@ -1367,7 +1226,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		if (comment_buffer)
 			lline_buffer = ast_str_create(CB_SIZE);
 		if (!lline_buffer) {
-			ast_free(comment_buffer);
+			if (comment_buffer)
+				ast_free(comment_buffer);
 			ast_log(LOG_ERROR, "Failed to initialize the comment buffer!\n");
 			return NULL;
 		}
@@ -1412,9 +1272,13 @@ static struct ast_config *config_text_file_load(const char *database, const char
 					break;
 			}
 			if (!cfmtime) {
-				cfmtime = cfmtime_new(fn, who_asked);
+				cfmtime = ast_calloc(1, sizeof(*cfmtime) + strlen(fn) + 1 + strlen(who_asked) + 1);
 				if (!cfmtime)
 					continue;
+				AST_LIST_HEAD_INIT(&cfmtime->includes);
+				strcpy(cfmtime->filename, fn);
+				cfmtime->who_asked = cfmtime->filename + strlen(fn) + 1;
+				strcpy(cfmtime->who_asked, who_asked);
 				/* Note that the file mtime is initialized to 0, i.e. 1970 */
 				AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 			}
@@ -1463,11 +1327,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			AST_LIST_UNLOCK(&cfmtime_head);
 
 		/* If cfg is NULL, then we just want an answer */
-		if (cfg == NULL) {
-			ast_free(comment_buffer);
-			ast_free(lline_buffer);
+		if (cfg == NULL)
 			return NULL;
-		}
 
 		if (cfmtime)
 			cfmtime->mtime = statbuf.st_mtime;
@@ -1609,8 +1470,10 @@ static struct ast_config *config_text_file_load(const char *database, const char
 #endif
 
 	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID && cfg->include_level == 1 && ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-		ast_free(comment_buffer);
-		ast_free(lline_buffer);
+		if (comment_buffer)
+			ast_free(comment_buffer);
+		if (lline_buffer)
+			ast_free(lline_buffer);
 		comment_buffer = NULL;
 		lline_buffer = NULL;
 	}
@@ -1661,52 +1524,38 @@ static void gen_header(FILE *f1, const char *configfile, const char *fn, const c
 	fprintf(f1, ";!\n");
 }
 
-static void inclfile_destroy(void *obj)
+static void   inclfile_destroy(void *obj)
 {
 	const struct inclfile *o = obj;
 
-	ast_free(o->fname);
+	if (o->fname)
+		free(o->fname);
 }
 
 
-static struct inclfile *set_fn(char *fn, int fn_size, const char *file, const char *configfile, struct ao2_container *fileset)
+static void set_fn(char *fn, int fn_size, const char *file, const char *configfile, struct ao2_container *fileset, struct inclfile **fi)
 {
 	struct inclfile lookup;
-	struct inclfile *fi;
-
-	if (ast_strlen_zero(file)) {
+	
+	if (!file || file[0] == 0) {
 		if (configfile[0] == '/')
 			ast_copy_string(fn, configfile, fn_size);
 		else
 			snprintf(fn, fn_size, "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
-	} else if (file[0] == '/')
+	} else if (file[0] == '/') 
 		ast_copy_string(fn, file, fn_size);
 	else
 		snprintf(fn, fn_size, "%s/%s", ast_config_AST_CONFIG_DIR, file);
 	lookup.fname = fn;
-	fi = ao2_find(fileset, &lookup, OBJ_POINTER);
-	if (fi) {
-		/* Found existing include file scratch pad. */
-		return fi;
+	*fi = ao2_find(fileset, &lookup, OBJ_POINTER);
+	if (!(*fi)) {
+		/* set up a file scratch pad */
+		struct inclfile *fx = ao2_alloc(sizeof(struct inclfile), inclfile_destroy);
+		fx->fname = ast_strdup(fn);
+		fx->lineno = 1;
+		*fi = fx;
+		ao2_link(fileset, fx);
 	}
-
-	/* set up a file scratch pad */
-	fi = ao2_alloc(sizeof(struct inclfile), inclfile_destroy);
-	if (!fi) {
-		/* Scratch pad creation failed. */
-		return NULL;
-	}
-	fi->fname = ast_strdup(fn);
-	if (!fi->fname) {
-		/* Scratch pad creation failed. */
-		ao2_ref(fi, -1);
-		return NULL;
-	}
-	fi->lineno = 1;
-
-	ao2_link(fileset, fi);
-
-	return fi;
 }
 
 static int count_linefeeds(char *str)
@@ -1734,15 +1583,8 @@ static int count_linefeeds_in_comments(struct ast_comment *x)
 
 static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast_comment *precomments, int lineno)
 {
-	int precomment_lines;
+	int precomment_lines = count_linefeeds_in_comments(precomments);
 	int i;
-
-	if (!fi) {
-		/* No file scratch pad object so insert no blank lines. */
-		return;
-	}
-
-	precomment_lines = count_linefeeds_in_comments(precomments);
 
 	/* I don't have to worry about those ;! comments, they are
 	   stored in the precomments, but not printed back out.
@@ -1776,76 +1618,65 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 int ast_config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
 	FILE *f;
-	char fn[PATH_MAX];
+	char fn[256];
 	struct ast_variable *var;
 	struct ast_category *cat;
 	struct ast_comment *cmt;
 	struct ast_config_include *incl;
 	int blanklines = 0;
-	struct ao2_container *fileset;
-	struct inclfile *fi;
-
-	fileset = ao2_container_alloc(1023, hash_string, hashtab_compare_strings);
-	if (!fileset) {
-		/* Container creation failed. */
-		return -1;
-	}
+	struct ao2_container *fileset = ao2_container_alloc(180000, hash_string, hashtab_compare_strings);
+	struct inclfile *fi = 0;
 
 	/* reset all the output flags, in case this isn't our first time saving this data */
-	for (incl = cfg->includes; incl; incl = incl->next) {
+
+	for (incl=cfg->includes; incl; incl = incl->next)
 		incl->output = 0;
-	}
 
 	/* go thru all the inclusions and make sure all the files involved (configfile plus all its inclusions)
 	   are all truncated to zero bytes and have that nice header*/
-	for (incl = cfg->includes; incl; incl = incl->next) {
+
+	for (incl=cfg->includes; incl; incl = incl->next)
+	{
 		if (!incl->exec) { /* leave the execs alone -- we'll write out the #exec directives, but won't zero out the include files or exec files*/
-			/* normally, fn is just set to incl->included_file, prepended with config dir if relative */
-			fi = set_fn(fn, sizeof(fn), incl->included_file, configfile, fileset);
-			f = fopen(fn, "w");
-			if (f) {
-				gen_header(f, configfile, fn, generator);
-				fclose(f); /* this should zero out the file */
+			FILE *f1;
+
+			set_fn(fn, sizeof(fn), incl->included_file, configfile, fileset, &fi); /* normally, fn is just set to incl->included_file, prepended with config dir if relative */
+			f1 = fopen(fn,"w");
+			if (f1) {
+				gen_header(f1, configfile, fn, generator);
+				fclose(f1); /* this should zero out the file */
 			} else {
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
 				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
 			}
-			if (fi) {
-				ao2_ref(fi, -1);
-			}
+			ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+			fi = 0;
 		}
 	}
 
-	/* just set fn to absolute ver of configfile */
-	fi = set_fn(fn, sizeof(fn), 0, configfile, fileset);
-	if (
-#ifdef __CYGWIN__
-		(f = fopen(fn, "w+"))
+	set_fn(fn, sizeof(fn), 0, configfile, fileset, &fi); /* just set fn to absolute ver of configfile */
+#ifdef __CYGWIN__	
+	if ((f = fopen(fn, "w+"))) {
 #else
-		(f = fopen(fn, "w"))
-#endif
-		) {
+	if ((f = fopen(fn, "w"))) {
+#endif	    
 		ast_verb(2, "Saving '%s': ", fn);
 		gen_header(f, configfile, fn, generator);
 		cat = cfg->root;
 		fclose(f);
-		if (fi) {
-			ao2_ref(fi, -1);
-		}
-
+		ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+		
 		/* from here out, we open each involved file and concat the stuff we need to add to the end and immediately close... */
-		/* since each var, cat, and associated comments can come from any file, we have to be
+		/* since each var, cat, and associated comments can come from any file, we have to be 
 		   mobile, and open each file, print, and close it on an entry-by-entry basis */
 
 		while (cat) {
-			fi = set_fn(fn, sizeof(fn), cat->file, configfile, fileset);
+			set_fn(fn, sizeof(fn), cat->file, configfile, fileset, &fi);
 			f = fopen(fn, "a");
-			if (!f) {
+			if (!f)
+			{
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
 				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
-				if (fi) {
-					ao2_ref(fi, -1);
-				}
 				ao2_ref(fileset, -1);
 				return -1;
 			}
@@ -1906,10 +1737,9 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 					fprintf(f,"%s", cmt->cmt);
 			}
 			fclose(f);
-			if (fi) {
-				ao2_ref(fi, -1);
-			}
-
+			ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+			fi = 0;
+			
 			var = cat->root;
 			while (var) {
 				struct ast_category_template_instance *x;
@@ -1929,18 +1759,18 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 					var = var->next;
 					continue;
 				}
-				fi = set_fn(fn, sizeof(fn), var->file, configfile, fileset);
+				set_fn(fn, sizeof(fn), var->file, configfile, fileset, &fi);
 				f = fopen(fn, "a");
-				if (!f) {
+				if (!f)
+				{
 					ast_debug(1, "Unable to open for writing: %s\n", fn);
 					ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
-					if (fi) {
-						ao2_ref(fi, -1);
-					}
+					ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+					fi = 0;
 					ao2_ref(fileset, -1);
 					return -1;
 				}
-
+				
 				/* dump any includes that happen before this category header */
 				for (incl=cfg->includes; incl; incl = incl->next) {
 					if (strcmp(incl->include_location_file, var->file) == 0){
@@ -1953,15 +1783,15 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 						}
 					}
 				}
-
+				
 				insert_leading_blank_lines(f, fi, var->precomments, var->lineno);
 				for (cmt = var->precomments; cmt; cmt=cmt->next) {
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
 						fprintf(f,"%s", cmt->cmt);
 				}
-				if (var->sameline)
+				if (var->sameline) 
 					fprintf(f, "%s %s %s  %s", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
-				else
+				else	
 					fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="), var->value);
 				for (cmt = var->trailing; cmt; cmt=cmt->next) {
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
@@ -1972,12 +1802,11 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 					while (blanklines--)
 						fprintf(f, "\n");
 				}
-
+				
 				fclose(f);
-				if (fi) {
-					ao2_ref(fi, -1);
-				}
-
+				ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+				fi = 0;
+				
 				var = var->next;
 			}
 			cat = cat->next;
@@ -1987,30 +1816,29 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 	} else {
 		ast_debug(1, "Unable to open for writing: %s\n", fn);
 		ast_verb(2, "Unable to write (%s)", strerror(errno));
-		if (fi) {
-			ao2_ref(fi, -1);
-		}
+		ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
 		ao2_ref(fileset, -1);
 		return -1;
 	}
 
 	/* Now, for files with trailing #include/#exec statements,
 	   we have to make sure every entry is output */
+
 	for (incl=cfg->includes; incl; incl = incl->next) {
 		if (!incl->output) {
 			/* open the respective file */
-			fi = set_fn(fn, sizeof(fn), incl->include_location_file, configfile, fileset);
+			set_fn(fn, sizeof(fn), incl->include_location_file, configfile, fileset, &fi);
 			f = fopen(fn, "a");
-			if (!f) {
+			if (!f)
+			{
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
 				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
-				if (fi) {
-					ao2_ref(fi, -1);
-				}
+				ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+				fi = 0;
 				ao2_ref(fileset, -1);
 				return -1;
 			}
-
+			
 			/* output the respective include */
 			if (incl->exec)
 				fprintf(f,"#exec \"%s\"\n", incl->exec_file);
@@ -2018,13 +1846,12 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 				fprintf(f,"#include \"%s\"\n", incl->included_file);
 			fclose(f);
 			incl->output = 1;
-			if (fi) {
-				ao2_ref(fi, -1);
-			}
+			ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+			fi = 0;
 		}
 	}
 	ao2_ref(fileset, -1); /* this should destroy the hash container */
-
+				
 	return 0;
 }
 
@@ -2046,7 +1873,6 @@ static void clear_config_maps(void)
 static int append_mapping(const char *name, const char *driver, const char *database, const char *table, int priority)
 {
 	struct ast_config_map *map;
-	char *dst;
 	int length;
 
 	length = sizeof(*map);
@@ -2059,22 +1885,22 @@ static int append_mapping(const char *name, const char *driver, const char *data
 	if (!(map = ast_calloc(1, length)))
 		return -1;
 
-	dst = map->stuff;	/* writable space starts here */
-	map->name = strcpy(dst, name);
-	dst += strlen(dst) + 1;
-	map->driver = strcpy(dst, driver);
-	dst += strlen(dst) + 1;
-	map->database = strcpy(dst, database);
+	map->name = map->stuff;
+	strcpy(map->name, name);
+	map->driver = map->name + strlen(map->name) + 1;
+	strcpy(map->driver, driver);
+	map->database = map->driver + strlen(map->driver) + 1;
+	strcpy(map->database, database);
 	if (table) {
-		dst += strlen(dst) + 1;
-		map->table = strcpy(dst, table);
+		map->table = map->database + strlen(map->database) + 1;
+		strcpy(map->table, table);
 	}
 	map->priority = priority;
 	map->next = config_maps;
-	config_maps = map;
 
 	ast_verb(2, "Binding %s to %s/%s/%s\n", map->name, map->driver, map->database, map->table ? map->table : map->name);
 
+	config_maps = map;
 	return 0;
 }
 
