@@ -172,6 +172,8 @@ struct ast_fax_session_details {
 	struct ast_fax_t38_parameters their_t38_parameters;
 	/*! the id of the t.38 gateway framehook for this channel */
 	int gateway_id;
+	/*! the timeout for this gateway in seconds */
+	int gateway_timeout;
 };
 
 struct ast_fax_tech;
