@@ -419,7 +419,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
 				ast_category_destroy(cat);
-				continue;
+				goto next_sql_fetch;
 			}
 
 			indicator = 0;
@@ -430,7 +430,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 				ast_category_destroy(cat);
-				continue;
+				goto next_sql_fetch;
 			}
 			stringp = rowdata;
 			while (stringp) {
@@ -448,6 +448,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			}
 		}
 		ast_category_append(cfg, cat);
+next_sql_fetch:;
 	}
 
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
