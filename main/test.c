@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/version.h"
 #include "asterisk/paths.h"
 #include "asterisk/time.h"
+#include "asterisk/manager.h"
 
 /*! This array corresponds to the values defined in the ast_test_state enum */
 static const char * const test_result2str[] = {
@@ -884,6 +885,48 @@ static struct ast_cli_entry test_cli[] = {
 	AST_CLI_DEFINE(test_cli_show_results,              "show last test results"),
 	AST_CLI_DEFINE(test_cli_generate_results,          "generate test results to file"),
 };
+
+int __ast_test_suite_event_notify(const char *file, const char *func, int line,
+		const char *state, const char *fmt, ...)
+{
+	struct ast_str *buf = NULL;
+	va_list ap;
+
+	if (!(buf = ast_str_create(128))) {
+		return -1;
+	}
+
+	va_start(ap, fmt);
+	ast_str_set_va(&buf, 0, fmt, ap);
+	va_end(ap);
+
+	manager_event(EVENT_FLAG_TEST, "TestEvent",
+		"Type: StateChange\r\n"
+		"State: %s\r\n"
+		"AppFile: %s\r\n"
+		"AppFunction: %s\r\n"
+		"AppLine: %d\r\n%s\r\n",
+		state, file, func, line, ast_str_buffer(buf));
+
+	ast_free(buf);
+
+	return 0;
+}
+
+int __ast_test_suite_assert_notify(const char *file, const char *func, int line,
+		const char *exp)
+{
+	manager_event(EVENT_FLAG_TEST, "TestEvent",
+		"Type: Assert\r\n"
+		"AppFile: %s\r\n"
+		"AppFunction: %s\r\n"
+		"AppLine: %d\r\n"
+		"Expression: %s\r\n",
+		file, func, line, exp);
+
+	return 0;
+}
+
 #endif /* TEST_FRAMEWORK */
 
 int ast_test_init()

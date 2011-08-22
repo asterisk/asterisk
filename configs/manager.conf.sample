@@ -138,6 +138,9 @@ bindaddr = 0.0.0.0
 ; cc        - Call Completion events.  Read-only.
 ; aoc       - Permission to send Advice Of Charge messages and receive Advice
 ;           - Of Charge events.
+; test      - Ability to read TestEvent notifications sent to the Asterisk Test
+;             Suite.  Note that this is only enabled when the TEST_FRAMEWORK
+;             compiler flag is defined.
 ;
 ;read = system,call,log,verbose,agent,user,config,dtmf,reporting,cdr,dialplan
 ;write = system,call,agent,user,config,command,reporting,originate
