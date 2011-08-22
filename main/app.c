@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/test.h"
 
 AST_THREADSTORAGE_PUBLIC(ast_str_thread_global_buf);
 
@@ -698,6 +699,7 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 {
 	int d = 0;
 
+	ast_test_suite_event_notify("PLAYBACK", "Message: %s", fn);
 	if ((d = ast_streamfile(chan, fn, chan->language))) {
 		return d;
 	}

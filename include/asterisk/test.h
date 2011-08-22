@@ -130,6 +130,62 @@
 
 #endif
 
+/*! Macros used for the Asterisk Test Suite AMI events */
+#ifdef TEST_FRAMEWORK
+
+/*!
+ * \brief Notifies the test suite of a change in application state
+ *
+ * \details
+ * Raises a TestEvent manager event with a subtype of StateChange.  Additional parameters
+ * The fmt parameter allows additional parameters to be added to the manager event using
+ * printf style statement formatting.
+ *
+ * \param state		The state the application has changed to
+ * \param fmt		The message with format parameters to add to the manager event
+ *
+ * \returns 0 on success
+ * \returns any other value on failure
+ */
+int __ast_test_suite_event_notify(const char *file, const char *func, int line,
+		const char *state, const char *fmt, ...)
+		__attribute__((format(printf, 5, 6)));
+
+/*!
+ * \brief Notifies the test suite of a failed assert on an expression
+ *
+ * \details
+ * If the expression provided evaluates to true, no action is taken.  If the expression
+ * evaluates to a false, a TestEvent manager event is raised with a subtype of Assert, notifying
+ * the test suite that the expression failed to evaluate to true.
+ *
+ * \param exp	The expression to evaluate
+ *
+ * \returns 0 on success
+ * \returns any other value on failure
+ */
+int __ast_test_suite_assert_notify(const char *file, const char *func, int line,
+		const char *exp);
+
+/*!
+ * \ref __ast_test_suite_event_notify()
+ */
+#define ast_test_suite_event_notify(s, f, ...) \
+	__ast_test_suite_event_notify(__FILE__, __PRETTY_FUNCTION__, __LINE__, (s), (f), ## __VA_ARGS__)
+
+/*!
+ * \ref __ast_test_suite_assert_notify()
+ */
+#define ast_test_suite_assert(exp) \
+	( (exp) ? (void)0 : __ast_test_suite_assert_notify(__FILE__, __PRETTY_FUNCTION__, __LINE__, #exp))
+
+#else
+
+#define ast_test_suite_event_notify(s, f, ...) (void)0;
+#define ast_test_suite_assert(exp) (void)0;
+
+#endif
+
 enum ast_test_result_state {
 	AST_TEST_NOT_RUN,
 	AST_TEST_PASS,
