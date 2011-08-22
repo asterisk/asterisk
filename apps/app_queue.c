@@ -1305,7 +1305,7 @@ static inline struct call_queue *queue_ref(struct call_queue *q)
 static inline struct call_queue *queue_unref(struct call_queue *q)
 {
 	ao2_ref(q, -1);
-	return q;
+	return NULL;
 }
 #endif
 
@@ -2362,6 +2362,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	return q;
 }
 
+/*! \note Returns a reference to the loaded realtime queue. */
 static struct call_queue *load_realtime_queue(const char *queuename)
 {
 	struct ast_variable *queue_vars;
@@ -2395,17 +2396,15 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 		}
 		if (q) {
 			prev_weight = q->weight ? 1 : 0;
+			queue_t_unref(q, "Need to find realtime queue");
 		}
 
 		ao2_lock(queues);
 
 		q = find_queue_by_name_rt(queuename, queue_vars, member_config);
-		if (member_config) {
-			ast_config_destroy(member_config);
-		}
-		if (queue_vars) {
-			ast_variables_destroy(queue_vars);
-		}
+		ast_config_destroy(member_config);
+		ast_variables_destroy(queue_vars);
+
 		/* update the use_weight value if the queue's has gained or lost a weight */ 
 		if (q) {
 			if (!q->weight && prev_weight) {
@@ -2504,6 +2503,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			*reason = QUEUE_JOINEMPTY;
 			ao2_unlock(q);
 			ao2_unlock(queues);
+			queue_t_unref(q, "Done with realtime queue");
 			return res;
 		}
 	}
@@ -2567,6 +2567,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	}
 	ao2_unlock(q);
 	ao2_unlock(queues);
+	queue_t_unref(q, "Done with realtime queue");
 
 	return res;
 }
@@ -7115,13 +7116,16 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		 * queues which have been deleted from realtime but which have not yet
 		 * been deleted from the in-core container
 		 */
-		if (q->realtime && !(realtime_queue = load_realtime_queue(q->name))) {
-			ao2_unlock(q);
-			queue_t_unref(q, "Done with iterator");
-			continue;
-		} else if (q->realtime) {
+		if (q->realtime) {
+			realtime_queue = load_realtime_queue(q->name);
+			if (!realtime_queue) {
+				ao2_unlock(q);
+				queue_t_unref(q, "Done with iterator");
+				continue;
+			}
 			queue_t_unref(realtime_queue, "Queue is already in memory");
 		}
+
 		if (argc == 3 && strcasecmp(q->name, argv[2])) {
 			ao2_unlock(q);
 			queue_t_unref(q, "Done with iterator");
@@ -8414,11 +8418,13 @@ static int queues_data_provider_get(const struct ast_data_search *search,
 	i = ao2_iterator_init(queues, 0);
 	while ((queue = ao2_iterator_next(&i))) {
 		ao2_lock(queue);
-		if (queue->realtime && !(queue_realtime = load_realtime_queue(queue->name))) {
-			ao2_unlock(queue);
-			queue_unref(queue);
-			continue;
-		} else if (queue->realtime) {
+		if (queue->realtime) {
+			queue_realtime = load_realtime_queue(queue->name);
+			if (!queue_realtime) {
+				ao2_unlock(queue);
+				queue_unref(queue);
+				continue;
+			}
 			queue_unref(queue_realtime);
 		}
 
@@ -8426,6 +8432,7 @@ static int queues_data_provider_get(const struct ast_data_search *search,
 		ao2_unlock(queue);
 		queue_unref(queue);
 	}
+	ao2_iterator_destroy(&i);
 
 	return 0;
 }
