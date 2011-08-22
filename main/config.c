@@ -396,6 +396,14 @@ static void ast_comment_destroy(struct ast_comment **comment)
 	*comment = NULL;
 }
 
+static void ast_variable_destroy(struct ast_variable *doomed)
+{
+	ast_comment_destroy(&doomed->precomments);
+	ast_comment_destroy(&doomed->sameline);
+	ast_comment_destroy(&doomed->trailing);
+	ast_free(doomed);
+}
+
 void ast_variables_destroy(struct ast_variable *v)
 {
 	struct ast_variable *vn;
@@ -403,10 +411,7 @@ void ast_variables_destroy(struct ast_variable *v)
 	while (v) {
 		vn = v;
 		v = v->next;
-		ast_comment_destroy(&vn->precomments);
-		ast_comment_destroy(&vn->sameline);
-		ast_comment_destroy(&vn->trailing);
-		ast_free(vn);
+		ast_variable_destroy(vn);
 	}
 }
 
@@ -2142,32 +2147,37 @@ struct ast_variable *ast_load_realtime_all(const char *family, ...)
 
 struct ast_variable *ast_load_realtime(const char *family, ...)
 {
-	struct ast_variable *res, *cur, *prev = NULL, *freeme = NULL;
+	struct ast_variable *res;
+	struct ast_variable *cur;
+	struct ast_variable **prev;
 	va_list ap;
 
 	va_start(ap, family);
 	res = ast_load_realtime_helper(family, ap);
 	va_end(ap);
 
-	/* Eliminate blank entries */
-	for (cur = res; cur; cur = cur->next) {
-		if (freeme) {
-			ast_free(freeme);
-			freeme = NULL;
-		}
-
+	/* Filter the list. */
+	prev = &res;
+	cur = res;
+	while (cur) {
 		if (ast_strlen_zero(cur->value)) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				res = cur->next;
-			freeme = cur;
-		} else if (cur->value[0] == ' ' && cur->value[1] == '\0') {
-			char *vptr = (char *) cur->value;
-			vptr[0] = '\0';
-			prev = cur;
+			/* Eliminate empty entries */
+			struct ast_variable *next;
+
+			next = cur->next;
+			*prev = next;
+			ast_variable_destroy(cur);
+			cur = next;
 		} else {
-			prev = cur;
+			/* Make blank entries empty and keep them. */
+			if (cur->value[0] == ' ' && cur->value[1] == '\0') {
+				char *vptr = (char *) cur->value;
+
+				vptr[0] = '\0';
+			}
+
+			prev = &cur->next;
+			cur = cur->next;
 		}
 	}
 	return res;
