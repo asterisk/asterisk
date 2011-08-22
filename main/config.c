@@ -619,22 +619,36 @@ struct ast_variable *ast_category_root(struct ast_config *config, char *cat)
 
 char *ast_category_browse(struct ast_config *config, const char *prev)
 {	
-	struct ast_category *cat = NULL;
+	struct ast_category *cat;
 
-	if (prev && config->last_browse && (config->last_browse->name == prev))
-		cat = config->last_browse->next;
-	else if (!prev && config->root)
+	if (!prev) {
+		/* First time browse. */
 		cat = config->root;
-	else if (prev) {
+	} else if (config->last_browse && (config->last_browse->name == prev)) {
+		/* Simple last browse found. */
+		cat = config->last_browse->next;
+	} else {
+		/*
+		 * Config changed since last browse.
+		 *
+		 * First try cheap last browse search. (Rebrowsing a different
+		 * previous category?)
+		 */
 		for (cat = config->root; cat; cat = cat->next) {
 			if (cat->name == prev) {
+				/* Found it. */
 				cat = cat->next;
 				break;
 			}
 		}
 		if (!cat) {
+			/*
+			 * Have to do it the hard way. (Last category was deleted and
+			 * re-added?)
+			 */
 			for (cat = config->root; cat; cat = cat->next) {
 				if (!strcasecmp(cat->name, prev)) {
+					/* Found it. */
 					cat = cat->next;
 					break;
 				}
@@ -690,33 +704,27 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 {
 	struct ast_variable *cur, *prev=NULL, *curn;
 	int res = -1;
-	int lineno = 0;
+	int num_item = 0;
+	int req_item;
 
-	cur = category->root;
-	while (cur) {
-		if (cur->name == variable) {
-			if (prev) {
-				prev->next = cur->next;
-				if (cur == category->last)
-					category->last = prev;
-			} else {
-				category->root = cur->next;
-				if (cur == category->last)
-					category->last = NULL;
-			}
-			cur->next = NULL;
-			ast_variables_destroy(cur);
-			return 0;
+	req_item = -1;
+	if (!ast_strlen_zero(line)) {
+		/* Requesting to delete by item number. */
+		if (sscanf(line, "%30d", &req_item) != 1
+			|| req_item < 0) {
+			/* Invalid item number to delete. */
+			return -1;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
 
 	prev = NULL;
 	cur = category->root;
 	while (cur) {
 		curn = cur->next;
-		if ((!ast_strlen_zero(line) && lineno == atoi(line)) || (ast_strlen_zero(line) && !strcasecmp(cur->name, variable) && (ast_strlen_zero(match) || !strcasecmp(cur->value, match)))) {
+		/* Delete by item number or by variable name with optional value. */
+		if ((0 <= req_item && num_item == req_item)
+			|| (req_item < 0 && !strcasecmp(cur->name, variable)
+				&& (ast_strlen_zero(match) || !strcasecmp(cur->value, match)))) {
 			if (prev) {
 				prev->next = cur->next;
 				if (cur == category->last)
@@ -726,14 +734,13 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 				if (cur == category->last)
 					category->last = NULL;
 			}
-			cur->next = NULL;
-			ast_variables_destroy(cur);
+			ast_variable_destroy(cur);
 			res = 0;
 		} else
 			prev = cur;
 
 		cur = curn;
-		lineno++;
+		++num_item;
 	}
 	return res;
 }
@@ -2198,7 +2205,7 @@ int ast_check_realtime(const char *family)
 }
 
 /*! \brief Check if there's any realtime engines loaded */
-int ast_realtime_enabled()
+int ast_realtime_enabled(void)
 {
 	return config_maps ? 1 : 0;
 }
@@ -2680,7 +2687,7 @@ static struct ast_cli_entry cli_config[] = {
 	AST_CLI_DEFINE(handle_cli_config_list, "Show all files that have loaded a configuration file"),
 };
 
-int register_config_cli() 
+int register_config_cli(void)
 {
 	ast_cli_register_multiple(cli_config, ARRAY_LEN(cli_config));
 	return 0;
