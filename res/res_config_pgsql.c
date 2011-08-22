@@ -474,6 +474,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
 		}
+		ast_config_destroy(cfg);
 		return NULL;
 	}
 
@@ -494,6 +495,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	if (pgresult) {
 		ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 		va_end(ap);
+		ast_config_destroy(cfg);
 		return NULL;
 	}
 
@@ -509,6 +511,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		if (pgresult) {
 			ast_log(LOG_ERROR, "Postgres detected invalid input: '%s'\n", newval);
 			va_end(ap);
+			ast_config_destroy(cfg);
 			return NULL;
 		}
 
@@ -525,6 +528,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	ast_mutex_lock(&pgsql_lock);
 	if (!pgsql_reconnect(database)) {
 		ast_mutex_unlock(&pgsql_lock);
+		ast_config_destroy(cfg);
 		return NULL;
 	}
 
@@ -534,6 +538,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", ast_str_buffer(sql));
 		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
+		ast_config_destroy(cfg);
 		return NULL;
 	} else {
 		ExecStatusType result_status = PQresultStatus(result);
@@ -547,6 +552,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			PQclear(result);
 			ast_mutex_unlock(&pgsql_lock);
+			ast_config_destroy(cfg);
 			return NULL;
 		}
 	}
@@ -564,6 +570,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
 			PQclear(result);
 			ast_mutex_unlock(&pgsql_lock);
+			ast_config_destroy(cfg);
 			return NULL;
 		}
 		for (i = 0; i < numFields; i++)
