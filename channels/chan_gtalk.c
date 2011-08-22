@@ -496,7 +496,7 @@ static int gtalk_ringing_ack(void *data, ikspak *pak)
 				break;
 			}
 			if (!strcasecmp(name, "error") &&
-				(redirect = iks_find_cdata(traversenodes, "sta:redirect")) &&
+				(redirect = iks_find_cdata(traversenodes, "redirect")) &&
 				(redirect = strstr(redirect, "xmpp:"))) {
 				redirect += 5;
 				ast_debug(1, "redirect %s\n", redirect);
