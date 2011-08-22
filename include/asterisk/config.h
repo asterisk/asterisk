@@ -73,11 +73,15 @@ typedef enum {
 
 /*! \brief Structure for variables, used for configurations and for channel variables */
 struct ast_variable {
+	/*! Variable name.  Stored in stuff[] at struct end. */
 	const char *name;
+	/*! Variable value.  Stored in stuff[] at struct end. */
 	const char *value;
-	struct ast_variable *next;
+	/*! Filename where variable found.  Stored in stuff[] at struct end. */
+	const char *file;
 
-	char *file;
+	/*! Next node in the list. */
+	struct ast_variable *next;
 
 	int lineno;
 	int object;		/*!< 0 for variable, 1 for object */
@@ -85,6 +89,10 @@ struct ast_variable {
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_comment *trailing; /*!< the last object in the list will get assigned any trailing comments when EOF is hit */
+	/*!
+	 * \brief Contents of file, name, and value in that order stuffed here.
+	 * \note File must be stuffed before name because of ast_include_rename().
+	 */
 	char stuff[0];
 };
 

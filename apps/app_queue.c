@@ -1168,6 +1168,7 @@ struct call_queue {
 	int autofill;                       /*!< Ignore the head call status and ring an available agent */
 	
 	struct ao2_container *members;             /*!< Head of the list of members */
+/* BUGBUG membercount cannot be very reliable since it is changed inconsistently and many times unconditionally. */
 	/*! 
 	 * \brief Number of members _logged in_
 	 * \note There will be members in the members container that are not logged
