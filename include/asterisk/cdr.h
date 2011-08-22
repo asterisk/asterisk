@@ -58,6 +58,7 @@ enum {
 	AST_CDR_FAILED   = (1 << 1),
 	AST_CDR_BUSY     = (1 << 2),
 	AST_CDR_ANSWERED = (1 << 3),
+	AST_CDR_CONGESTION = (1 << 4),
 };
 
 /*!
@@ -133,6 +134,7 @@ struct ast_cdr {
 };
 
 int ast_cdr_isset_unanswered(void);
+int ast_cdr_isset_congestion(void);
 void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur, int raw);
 int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur);
 int ast_cdr_serialize_variables(struct ast_cdr *cdr, struct ast_str **buf, char delim, char sep, int recur);
@@ -265,6 +267,15 @@ void ast_cdr_answer(struct ast_cdr *cdr);
  * forkCDR() application.
  */
 extern void ast_cdr_noanswer(struct ast_cdr *cdr);
+
+/*!
+ * \brief A call was set to congestion
+ * \param cdr the cdr you wish to associate with the call
+ * Markst he channel disposition as "CONGESTION"
+ * Will skip CDR's in chain with ANS_LOCK bit set. (see
+ * forkCDR() application
+ */
+extern void ast_cdr_congestion(struct ast_cdr *cdr);
 
 /*!
  * \brief Busy a call

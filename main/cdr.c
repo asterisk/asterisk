@@ -93,6 +93,9 @@ static const int BATCHMODE_DEFAULT = 0;
 static int unanswered;
 static const int UNANSWERED_DEFAULT = 0;
 
+static int congestion;
+static const int CONGESTION_DEFAULT = 0;
+
 static int batchsize;
 static const int BATCH_SIZE_DEFAULT = 100;
 
@@ -179,6 +182,11 @@ void ast_cdr_unregister(const char *name)
 int ast_cdr_isset_unanswered(void)
 {
 	return unanswered;
+}
+
+int ast_cdr_isset_congestion(void)
+{
+	return congestion;
 }
 
 struct ast_cdr *ast_cdr_dup_unique(struct ast_cdr *cdr)
@@ -776,6 +784,34 @@ void ast_cdr_noanswer(struct ast_cdr *cdr)
 	}
 }
 
+void ast_cdr_congestion(struct ast_cdr *cdr)
+{
+	char *chan;
+
+	ast_verb (1, "congestion value: %d\n  INYOURFACE", congestion);
+
+
+	/* if congestion log is disabled, pass the buck to ast_cdr_failed */
+	if (!congestion) {
+		ast_cdr_failed(cdr);
+	}
+
+	while (cdr && congestion) {
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+
+			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED)) {
+				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+			}
+
+			if (cdr->disposition < AST_CDR_CONGESTION) {
+				cdr->disposition = AST_CDR_CONGESTION;
+			}
+		}
+		cdr = cdr->next;
+	}
+}
+
 /* everywhere ast_cdr_disposition is called, it will call ast_cdr_failed()
    if ast_cdr_disposition returns a non-zero value */
 
@@ -791,6 +827,9 @@ int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 			break;
 		case AST_CAUSE_NO_ANSWER:
 			ast_cdr_noanswer(cdr);
+			break;
+		case AST_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+			ast_cdr_congestion(cdr);
 			break;
 		case AST_CAUSE_NORMAL:
 			break;
@@ -961,6 +1000,8 @@ char *ast_cdr_disp2str(int disposition)
 		return "BUSY";
 	case AST_CDR_ANSWERED:
 		return "ANSWERED";
+	case AST_CDR_CONGESTION:
+		return "CONGESTION";
 	}
 	return "UNKNOWN";
 }
@@ -1416,7 +1457,8 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Logging:                    %s\n", enabled ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Mode:                       %s\n", batchmode ? "Batch" : "Simple");
 	if (enabled) {
-		ast_cli(a->fd, "  Log unanswered calls:       %s\n\n", unanswered ? "Yes" : "No");
+		ast_cli(a->fd, "  Log unanswered calls:       %s\n", unanswered ? "Yes" : "No");
+		ast_cli(a->fd, "  Log congestion:             %s\n\n", congestion ? "Yes" : "No");
 		if (batchmode) {
 			ast_cli(a->fd, "* Batch Mode Settings\n");
 			ast_cli(a->fd, "  -------------------\n");
@@ -1477,6 +1519,7 @@ static int do_reload(int reload)
 	struct ast_config *config;
 	const char *enabled_value;
 	const char *unanswered_value;
+	const char *congestion_value;
 	const char *batched_value;
 	const char *scheduleronly_value;
 	const char *batchsafeshutdown_value;
@@ -1507,6 +1550,7 @@ static int do_reload(int reload)
 	enabled = ENABLED_DEFAULT;
 	batchmode = BATCHMODE_DEFAULT;
 	unanswered = UNANSWERED_DEFAULT;
+	congestion = CONGESTION_DEFAULT;
 
 	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_mutex_unlock(&cdr_batch_lock);
@@ -1522,6 +1566,10 @@ static int do_reload(int reload)
 		}
 		if ((unanswered_value = ast_variable_retrieve(config, "general", "unanswered"))) {
 			unanswered = ast_true(unanswered_value);
+		}
+		if ((congestion_value = ast_variable_retrieve(config, "general", "congestion"))) {
+			ast_verb(1, "INTHEFACEPUNCH!\n");
+			congestion = ast_true(congestion_value);
 		}
 		if ((batched_value = ast_variable_retrieve(config, "general", "batch"))) {
 			batchmode = ast_true(batched_value);

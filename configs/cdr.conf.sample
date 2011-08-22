@@ -29,6 +29,11 @@
 ; channel.)
 ;unanswered = no
 
+; Define whether or not to log congested calls. Setting this to "yes" will
+; report each call that fails to complete due to congestion conditions. Default
+; is "no".
+;congestion = no
+
 ; Normally, CDR's are not closed out until after all extensions are finished
 ; executing.  By enabling this option, the CDR will be ended before executing
 ; the "h" extension so that CDR values such as "end" and "billsec" may be
