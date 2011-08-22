@@ -1,3 +1,44 @@
+2011-08-22  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.6.0-rc2 Released.
+
+	------------------------------------------------------------------------
+	r331575 | rmudgett | 2011-08-11 16:39:58 -0500 (Thu, 11 Aug 2011) | 9 lines
+
+	Segfault in shell_helper in func_shell.c.
+
+	The return value of popen() was not checked for failure to open.
+
+	(closes issue ASTERISK-18109)
+	JIRA SWP-3633
+	Reported by: Michael Myles
+	Tested by: rmudgett
+	------------------------------------------------------------------------
+	r332355 | tilghman | 2011-08-17 14:21:36 -0500 (Wed, 17 Aug 2011) | 13 lines
+
+	Re-add support for spaces in pathnames, including now spaces in DESTDIR.
+
+	This was initially added to 1.8 prior to release, primarily to support the
+	standard paths on Mac OS X, but was partially reverted recently in Subversion,
+	due to the lack of support for spaces in DESTDIR.  This commit restores support
+	for the standard paths on Mac OS X, and also includes support for spaces in
+	DESTDIR.
+
+	(closes issue ASTERISK-18290)
+	Reported by: pabelanger
+
+	Review: https://reviewboard.asterisk.org/r/1326/
+	------------------------------------------------------------------------
+	r332559 | twilson | 2011-08-18 16:26:01 -0500 (Thu, 18 Aug 2011) | 7 lines
+
+	Fix possible error on stringification of IPv4-mapped addrs
+
+	The FreeBSD netsock2 test has been failing for a while. We were
+	pasing sa->len to getnameinfo instead of sa_tmp->len.
+
+	ASTERISK-18289
+	------------------------------------------------------------------------
+
 2011-08-10  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.6.0-rc1 Released.
