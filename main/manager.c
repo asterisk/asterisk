@@ -1178,6 +1178,7 @@ static const struct permalias {
 	{ EVENT_FLAG_AGI, "agi" },
 	{ EVENT_FLAG_CC, "cc" },
 	{ EVENT_FLAG_AOC, "aoc" },
+	{ EVENT_FLAG_TEST, "test" },
 	{ INT_MAX, "all" },
 	{ 0, "none" },
 };
