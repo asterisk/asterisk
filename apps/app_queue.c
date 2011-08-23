@@ -1719,8 +1719,13 @@ static void init_queue(struct call_queue *q)
 	ast_string_field_set(q, sound_thanks, "queue-thankyou");
 	ast_string_field_set(q, sound_reporthold, "queue-reporthold");
 
-	if ((q->sound_periodicannounce[0] = ast_str_create(32)))
+	if (!q->sound_periodicannounce[0]) {
+		q->sound_periodicannounce[0] = ast_str_create(32);
+	}
+
+	if (q->sound_periodicannounce[0]) {
 		ast_str_set(&q->sound_periodicannounce[0], 0, "queue-periodic-announce");
+	}
 
 	for (i = 1; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
 		if (q->sound_periodicannounce[i])
