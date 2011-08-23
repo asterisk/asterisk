@@ -20,6 +20,10 @@
 
 From 1.6.2 to 1.8:
 
+* chan_sip no longer sets HASH(SIP_CAUSE,<chan name>) on channels by default.
+  This must now be enabled by setting 'sipstorecause' to 'yes' in sip.conf.
+  This carries a performance penalty.
+
 * Asterisk now requires libpri 1.4.11+ for PRI support.
 
 * A couple of CLI commands in res_ais were changed back to their original form:
