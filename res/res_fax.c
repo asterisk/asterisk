@@ -192,7 +192,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="gateway">
 						<para>R/W T38 Gateway Enabled (yes/no)</para>
 					</enum>
-					<enum name="timeout">
+					<enum name="gwtimeout">
 						<para>R/W Gateway fax activity timeout in seconds (yes/no/seconds)</para>
 					</enum>
 					<enum name="pages">
@@ -3472,7 +3472,7 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 	} else if (!strcasecmp(data, "t38gateway") || !strcasecmp(data, "gateway") ||
 		   !strcasecmp(data, "t38_gateway") || !strcasecmp(data, "faxgateway")) {
 		ast_copy_string(buf, details->gateway_id != -1 ? "yes" : "no", len);
-	} else if (!strcasecmp(data, "timeout")) {
+	} else if (!strcasecmp(data, "gwtimeout")) {
 		snprintf(buf, len, "%d", details->gateway_timeout / 1000);
 	} else if (!strcasecmp(data, "error")) {
 		ast_copy_string(buf, details->error, len);
@@ -3569,7 +3569,7 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		} else {
 			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
 		}
-	} else if (!strcasecmp(data, "timeout")) {
+	} else if (!strcasecmp(data, "gwtimeout")) {
 		const char *val = ast_skip_blanks(value);
 		int timeout;
 		if (ast_true(val)) {
