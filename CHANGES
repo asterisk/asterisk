@@ -19,6 +19,11 @@ SIP Changes
    compatibility with certain device features such as Avaya IP500's directory
    lookup service.
 
+Chan_local changes
+------------------
+ * Added a manager event "LocalBridge" for local channel call bridges between
+   the two pseudo-channels created.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
@@ -159,6 +164,11 @@ FollowMe
    channels involved with the FollowMe thread.  Use this option to improve
    compatability for a FollowMe call with certain dialplan apps, options, and
    functions.
+
+Meetme
+--------------------------
+ * Added option "k" that will automatically close the conference when there's
+   only one person left when a user exits the conference.
 
 CEL
 --------------------------
