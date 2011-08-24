@@ -916,7 +916,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		      "Uniqueid2: %s\r\n"
 		      "Context: %s\r\n"
 		      "Exten: %s\r\n"
-		      "LocalOptimization: %s\n",
+		      "LocalOptimization: %s\r\n",
 			p->owner->name, p->chan->name, p->owner->uniqueid, p->chan->uniqueid,
 			p->context, p->exten,
 			ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "Yes" : "No");
