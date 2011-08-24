@@ -905,6 +905,19 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		goto return_cleanup;
 	}
 
+	manager_event(EVENT_FLAG_CALL, "LocalBridge",
+		      "Channel1: %s\r\n"
+		      "Channel2: %s\r\n"
+		      "Uniqueid1: %s\r\n"
+		      "Uniqueid2: %s\r\n"
+		      "Context: %s\r\n"
+		      "Exten: %s\r\n"
+		      "LocalOptimization: %s\n",
+			p->owner->name, p->chan->name, p->owner->uniqueid, p->chan->uniqueid,
+			p->context, p->exten,
+			ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "Yes" : "No");
+
+
 	/* Start switch on sub channel */
 	if (!(res = ast_pbx_start(chan))) {
 		ao2_lock(p);
