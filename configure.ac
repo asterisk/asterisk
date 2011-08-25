@@ -133,78 +133,6 @@ if test ${prefix} = ${ac_default_prefix} || test ${prefix} = 'NONE'; then
      fi
 fi
 
-# $HOME is preferred as our substitute path, unless $HOME contains a space
-for i in ${HOME} /tmp; do
-	if test "${i}" = ""; then continue; fi
-	if test "${i}" = "/"; then continue; fi
-	__ac_path_has_spaces=`echo $HOME | grep ' '`
-	if test "$ac_path_has_spaces" = ""; then :; else continue; fi
-	__ac_substitute_path=${i}
-	break
-done
-
-AC_PROG_LN_S
-__sub_ordinal=1
-MAKE_PREINSTALL=""
-MAKE_POSTINSTALL=""
-
-# It may initially seem a trifle bit excessive to evaluate all of these paths.
-# However, consider that many of these may invoke another variable, such as
-# ${prefix}, by default, which is not resolved until compile time.  If that
-# variable contains a space, then each of the dependent variables will also
-# contain a space and thus will need the special treatment.
-for stdpath in prefix exec_prefix datarootdir datadir includedir infodir libdir libexecdir localstatedir mandir sbindir sharedstatedir sysconfdir astetcdir astsbindir astlibdir astheaderdir astmandir astvarlibdir astspooldir astlogdir astvarrundir astdatadir astdbdir astkeydir; do
-	eval "__ac_path_sub=\${$stdpath}"
-	#echo "__ac_path_sub=$__ac_path_sub"
-	__ac_path_has_var=`sh -c "echo '$__ac_path_sub' | grep '{'"`
-	if test "$__ac_path_has_var" = ""; then :; else
-		__ac_path_sub=`echo $__ac_path_sub | sed 's/{/{MAKE_/'`
-	fi
-
-	__ac_path_has_spaces=`sh -c "echo '$__ac_path_sub' | grep ' '"`
-	if test "$__ac_path_has_spaces" = ""; then
-		eval "MAKE_$stdpath=\$__ac_path_sub"
-	else
-		# Substitute path for a path without a space
-		eval "MAKE_$stdpath=\"$__ac_substitute_path/.asterisk_install_path_${__sub_ordinal}\""
-		MAKE_POSTINSTALL="${MAKE_POSTINSTALL} rm -f \"$__ac_substitute_path/.asterisk_install_path_${__sub_ordinal}\";"
-		MAKE_PREINSTALL="${MAKE_PREINSTALL} rm -f \"$__ac_substitute_path/.asterisk_install_path_${__sub_ordinal}\";"
-		MAKE_PREINSTALL="${MAKE_PREINSTALL} ${LN_S} -f \"\$(DESTDIR)$__ac_path_sub\" \"$__ac_substitute_path/.asterisk_install_path_${__sub_ordinal}\";"
-		__sub_ordinal=$((${__sub_ordinal}+1))
-	fi
-done
-AC_SUBST(MAKE_PREINSTALL)
-AC_SUBST(MAKE_POSTINSTALL)
-AC_SUBST(MAKE_prefix)
-AC_SUBST(MAKE_exec_prefix)
-AC_SUBST(MAKE_datarootdir)
-AC_SUBST(MAKE_datadir)
-AC_SUBST(MAKE_includedir)
-AC_SUBST(MAKE_infodir)
-AC_SUBST(MAKE_libdir)
-AC_SUBST(MAKE_libexecdir)
-AC_SUBST(MAKE_localstatedir)
-AC_SUBST(MAKE_mandir)
-AC_SUBST(MAKE_sbindir)
-AC_SUBST(MAKE_sharedstatedir)
-AC_SUBST(MAKE_sysconfdir)
-AC_SUBST(MAKE_astetcdir)
-AC_SUBST(MAKE_astsbindir)
-AC_SUBST(MAKE_astlibdir)
-AC_SUBST(MAKE_astheaderdir)
-AC_SUBST(MAKE_astmandir)
-AC_SUBST(MAKE_astvarlibdir)
-AC_SUBST(MAKE_astspooldir)
-AC_SUBST(MAKE_astlogdir)
-AC_SUBST(MAKE_astvarrundir)
-AC_SUBST(MAKE_astdatadir)
-AC_SUBST(MAKE_astdbdir)
-AC_SUBST(MAKE_astkeydir)
-
-test "x$MAKE_prefix" = xNONE && MAKE_prefix=$ac_default_prefix
-# Let make expand exec_prefix.
-test "x$MAKE_exec_prefix" = xNONE && MAKE_exec_prefix='${prefix}'
-
 BUILD_PLATFORM=${build}
 BUILD_CPU=${build_cpu}
 BUILD_VENDOR=${build_vendor}
@@ -299,6 +227,7 @@ AC_PROG_CXXCPP
 AST_PROG_LD	# note, does not work on FreeBSD
 AC_PROG_AWK
 AC_PROG_INSTALL
+AC_PROG_LN_S
 AC_PROG_RANLIB
 AST_CHECK_GNU_MAKE
 AC_PROG_EGREP
