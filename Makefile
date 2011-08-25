@@ -541,7 +541,6 @@ installdirs:
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/keys"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/phoneprov"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http"
-	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/sounds"
 	$(INSTALL) -d "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -d "$(DESTDIR)$(AGI_DIR)"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDBDIR)"
@@ -604,7 +603,17 @@ ifneq ($(findstring ~,$(DESTDIR)),)
 	@exit 1
 endif
 
-install: badshell bininstall datafiles
+preinstall_spaces:
+ifneq ($(MAKE_PREINSTALL),)
+	$(MAKE_PREINSTALL)
+endif
+
+postinstall_spaces:
+ifneq ($(MAKE_POSTINSTALL),)
+	$(MAKE_POSTINSTALL)
+endif
+
+install: preinstall_spaces badshell bininstall datafiles postinstall_spaces
 	@if [ -x /usr/sbin/asterisk-post-install ]; then \
 		/usr/sbin/asterisk-post-install "$(DESTDIR)" . ; \
 	fi
@@ -641,32 +650,32 @@ adsi:
 	$(INSTALL) -d "$(DESTDIR)$(ASTETCDIR)"
 	@for x in configs/*.adsi; do \
 		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
-		if [ -f "$${dst}" ] ; then \
+		if [ -f $${dst} ] ; then \
 			echo "Overwriting $$x" ; \
 		else \
 			echo "Installing $$x" ; \
 		fi ; \
-		$(INSTALL) -m 644 "$$x" "$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
+		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
 	done
 
 samples: adsi
 	@echo Installing other config files...
 	@for x in configs/*.sample; do \
 		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample`" ;	\
-		if [ -f "$${dst}" ]; then \
+		if [ -f $${dst} ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
-				if cmp -s "$${dst}" "$$x" ; then \
+				if cmp -s $${dst} $$x ; then \
 					echo "Config file $$x is unchanged"; \
 					continue; \
 				fi ; \
-				mv -f "$${dst}" "$${dst}.old" ; \
+				mv -f $${dst} $${dst}.old ; \
 			else \
 				echo "Skipping config file $$x"; \
 				continue; \
 			fi ;\
 		fi ; \
 		echo "Installing file $$x"; \
-		$(INSTALL) -m 644 "$$x" "$${dst}" ;\
+		$(INSTALL) -m 644 $$x $${dst} ;\
 	done
 	if [ "$(OVERWRITE)" = "y" ]; then \
 		echo "Updating asterisk.conf" ; \
@@ -842,7 +851,7 @@ _uninstall: $(SUBDIRS_UNINSTALL)
 	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/safe_asterisk.8"
 	$(MAKE) -C sounds uninstall
 
-uninstall: _uninstall
+uninstall: preinstall_spaces _uninstall postinstall_spaces
 	@echo " +--------- Asterisk Uninstall Complete -----+"  
 	@echo " + Asterisk binaries, sounds, man pages,     +"  
 	@echo " + headers, modules, and firmware builds,    +"  

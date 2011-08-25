@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-1.8.6.0-rc3
+                              asterisk-1.8.6.0-rc2
 
-                                Date: 2011-08-25
+                                Date: 2011-08-22
 
                            <asteriskteam@digium.com>
 
@@ -30,7 +30,7 @@
    release series.
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-1.8.6.0-rc2.
+   previous release, asterisk-1.8.6.0-rc1.
 
      ----------------------------------------------------------------------
 
@@ -61,18 +61,18 @@
    marked as being related to an issue. If that is the case, the issue
    numbers are listed here, as well.
 
-   +------------------------------------------------------------------------+
-   | Revision | Author | Summary                        | Issues Referenced |
-   |----------+--------+--------------------------------+-------------------|
-   | 333205   | qwell  | Create tag for Asterisk        |                   |
-   |          |        | 1.8.6.0-rc3.                   |                   |
-   |----------+--------+--------------------------------+-------------------|
-   | 333206   | qwell  | Update .version, ChangeLog,    |                   |
-   |          |        | merge r333201.                 |                   |
-   |----------+--------+--------------------------------+-------------------|
-   | 333207   | qwell  | Remove old release summary     |                   |
-   |          |        | files.                         |                   |
-   +------------------------------------------------------------------------+
++--------------------------------------------------------------------------------------------------------+
+|Revision|Author|Summary                                                                 |Issues         |
+|        |      |                                                                        |Referenced     |
+|--------+------+------------------------------------------------------------------------+---------------|
+|332893  |qwell |Creating tag for the release of asterisk-1.8.6.0-rc2                    |               |
+|--------+------+------------------------------------------------------------------------+---------------|
+|        |      |                                                                        |ASTERISK-18109,|
+|332928  |qwell |------------------------------------------------------------------------|ASTERISK-18290,|
+|        |      |                                                                        |ASTERISK-18289 |
+|--------+------+------------------------------------------------------------------------+---------------|
+|332936  |qwell |Update .version, ChangeLog                                              |               |
++--------------------------------------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
 
@@ -84,14 +84,18 @@
    release that was generated using the diffstat utility.
 
  .version                          |    2
- ChangeLog                         |   16 +++++
- Makefile                          |   25 ++------
- asterisk-1.8.6.0-rc2-summary.html |   69 -----------------------
- asterisk-1.8.6.0-rc2-summary.txt  |  101 ---------------------------------
- build_tools/mkpkgconfig           |    6 +-
- configure                         |   73 ------------------------
- makeopts.in                       |   31 ----------
- sounds/Makefile                   |  114 ++++++++++++++------------------------
- 9 files changed, 73 insertions(+), 364 deletions(-)
+ ChangeLog                         |   41 ++
+ Makefile                          |  170 +++++----
+ Makefile.moddir_rules             |    2
+ agi/Makefile                      |    6
+ asterisk-1.8.6.0-rc1-summary.html |  495 ---------------------------
+ asterisk-1.8.6.0-rc1-summary.txt  |  684 --------------------------------------
+ configure.ac                      |   73 ++++
+ funcs/func_shell.c                |   21 -
+ main/netsock2.c                   |    2
+ makeopts.in                       |   31 +
+ sounds/Makefile                   |    4
+ utils/Makefile                    |    4
+ 13 files changed, 259 insertions(+), 1276 deletions(-)
 
      ----------------------------------------------------------------------
