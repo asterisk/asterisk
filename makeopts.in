@@ -34,8 +34,6 @@ XMLSTARLET=@XMLSTARLET@
 MD5=@MD5@
 SHA1SUM=@SHA1SUM@
 OPENSSL=@OPENSSL@
-MAKE_PREINSTALL=@MAKE_PREINSTALL@
-MAKE_POSTINSTALL=@MAKE_POSTINSTALL@
 
 BUILD_PLATFORM=@BUILD_PLATFORM@
 BUILD_CPU=@BUILD_CPU@
@@ -92,35 +90,6 @@ ASTKEYDIR = @astkeydir@
 ASTSPOOLDIR = @astspooldir@
 ASTLOGDIR = @astlogdir@
 ASTVARRUNDIR = @astvarrundir@
-
-MAKE_prefix = @MAKE_prefix@
-MAKE_exec_prefix = @MAKE_exec_prefix@
-
-MAKE_datarootdir = @MAKE_datarootdir@
-MAKE_datadir = @MAKE_datadir@
-MAKE_includedir = @MAKE_includedir@
-MAKE_infodir = @MAKE_infodir@
-MAKE_libdir = @MAKE_libdir@
-MAKE_libexecdir = @MAKE_libexecdir@
-MAKE_localstatedir = @MAKE_localstatedir@
-MAKE_mandir = @MAKE_mandir@
-MAKE_sbindir = @MAKE_sbindir@
-MAKE_sharedstatedir = @MAKE_sharedstatedir@
-MAKE_sysconfdir = @MAKE_sysconfdir@
-
-MAKE_ASTSBINDIR = @MAKE_astsbindir@
-MAKE_ASTETCDIR = @MAKE_astetcdir@
-MAKE_ASTHEADERDIR = @MAKE_astheaderdir@
-MAKE_ASTLIBDIR = @MAKE_astlibdir@
-MAKE_ASTMANDIR = @MAKE_astmandir@
-MAKE_astvarlibdir = @MAKE_astvarlibdir@
-MAKE_ASTVARLIBDIR = @MAKE_astvarlibdir@
-MAKE_ASTDATADIR = @MAKE_astdatadir@
-MAKE_ASTDBDIR = @MAKE_astdbdir@
-MAKE_ASTKEYDIR = @MAKE_astkeydir@
-MAKE_ASTSPOOLDIR = @MAKE_astspooldir@
-MAKE_ASTLOGDIR = @MAKE_astlogdir@
-MAKE_ASTVARRUNDIR = @MAKE_astvarrundir@
 
 AST_DEVMODE=@AST_DEVMODE@
 NOISY_BUILD=@NOISY_BUILD@
