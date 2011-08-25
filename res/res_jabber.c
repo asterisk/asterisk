@@ -1511,7 +1511,15 @@ static int aji_send_raw(struct aji_client *client, const char *xmlstr)
 #endif
 	/* If needed, data will be sent unencrypted, and logHook will
 	   be called inside iks_send_raw */
-	ret = iks_send_raw(client->p, xmlstr);
+	if((client->timeout != 0 && client->status == AJI_CONNECTED) || (client->status == AJI_CONNECTING))
+	{
+	    ret = iks_send_raw(client->p, xmlstr);
+	}
+	else {
+		ast_log(LOG_WARNING, "JABBER: Unable to send message to %s, we are not connected", client->name);
+		return -1;
+	}
+
 	if (ret != IKS_OK) {
 		return ret;
 	}
