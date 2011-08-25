@@ -842,7 +842,7 @@ _uninstall: $(SUBDIRS_UNINSTALL)
 	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/safe_asterisk.8"
 	$(MAKE) -C sounds uninstall
 
-uninstall: preinstall_spaces _uninstall postinstall_spaces
+uninstall: _uninstall
 	@echo " +--------- Asterisk Uninstall Complete -----+"  
 	@echo " + Asterisk binaries, sounds, man pages,     +"  
 	@echo " + headers, modules, and firmware builds,    +"  
