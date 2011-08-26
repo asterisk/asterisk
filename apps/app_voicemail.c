@@ -1454,7 +1454,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	if (cur) {
 		/* Make a copy, so that on a reload, we have no race */
 		if ((vmu = (ivm ? ivm : ast_malloc(sizeof(*vmu))))) {
-			vmu = cur;
+			*vmu = *cur;
 			if (!ivm) {
 				vmu->emailbody = ast_strdup(cur->emailbody);
 				vmu->emailsubject = ast_strdup(cur->emailsubject);
