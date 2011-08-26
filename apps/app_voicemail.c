@@ -1014,7 +1014,7 @@ static char *strip_control_and_high(const char *input, char *buf, size_t buflen)
  */
 static void populate_defaults(struct ast_vm_user *vmu)
 {
-	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
+	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);
 	vmu->passwordlocation = passwordlocation;
 	if (saydurationminfo) {
 		vmu->saydurationm = saydurationminfo;
@@ -1037,7 +1037,9 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		vmu->maxdeletedmsg = maxdeletedmsg;
 	}
 	vmu->volgain = volgain;
+	ast_free(vmu->emailsubject);
 	vmu->emailsubject = NULL;
+	ast_free(vmu->emailbody);
 	vmu->emailbody = NULL;
 #ifdef IMAP_STORAGE
 	ast_copy_string(vmu->imapfolder, imapfolder, sizeof(vmu->imapfolder));
@@ -1337,9 +1339,11 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 		} else if (!strcasecmp(var->name, "context")) {
 			ast_copy_string(retval->context, var->value, sizeof(retval->context));
 		} else if (!strcasecmp(var->name, "emailsubject")) {
-			retval->emailsubject = ast_strdup(var->value);
+			ast_free(retval->emailsubject);
+			retval->emailsubject = ast_strdup(substitute_escapes(var->value));
 		} else if (!strcasecmp(var->name, "emailbody")) {
-			retval->emailbody = ast_strdup(var->value);
+			ast_free(retval->emailbody);
+			retval->emailbody = ast_strdup(substitute_escapes(var->value));
 #ifdef IMAP_STORAGE
 		} else if (!strcasecmp(var->name, "imapuser")) {
 			ast_copy_string(retval->imapuser, var->value, sizeof(retval->imapuser));
@@ -1450,7 +1454,11 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	if (cur) {
 		/* Make a copy, so that on a reload, we have no race */
 		if ((vmu = (ivm ? ivm : ast_malloc(sizeof(*vmu))))) {
-			memcpy(vmu, cur, sizeof(*vmu));
+			vmu = cur;
+			if (!ivm) {
+				vmu->emailbody = ast_strdup(cur->emailbody);
+				vmu->emailsubject = ast_strdup(cur->emailsubject);
+			}
 			ast_set2_flag(vmu, !ivm, VM_ALLOCED);
 			AST_LIST_NEXT(vmu, list) = NULL;
 		}
@@ -1729,14 +1737,13 @@ static int get_folder_by_name(const char *name)
 static void free_user(struct ast_vm_user *vmu)
 {
 	if (ast_test_flag(vmu, VM_ALLOCED)) {
-		if (vmu->emailbody != NULL) {
-			ast_free(vmu->emailbody);
-			vmu->emailbody = NULL;
-		}
-		if (vmu->emailsubject != NULL) {
-			ast_free(vmu->emailsubject);
-			vmu->emailsubject = NULL;
-		}
+
+		ast_free(vmu->emailbody);
+		vmu->emailbody = NULL;
+
+		ast_free(vmu->emailsubject);
+		vmu->emailsubject = NULL;
+
 		ast_free(vmu);
 	}
 }
@@ -10784,7 +10791,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 		"exitcontext=somecontext3|minsecs=10|maxsecs=100|nextaftercmd=yes|"
 		"backupdeleted=50|volgain=1.3|passwordlocation=spooldir|emailbody="
 		"Dear ${VM_NAME}:\n\n\tYou were just left a ${VM_DUR} long message|emailsubject="
-		"[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}";
+		"[PBX]: New message \\\\${VM_MSGNUM}\\\\ in mailbox ${VM_MAILBOX}";
 #ifdef IMAP_STORAGE
 	static const char option_string2[] = "imapuser=imapuser|imappassword=imappasswd|"
 		"imapfolder=INBOX|imapvmshareid=6000";
@@ -10822,7 +10829,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 		ast_test_status_update(test, "Parse failure for serveremail option\n");
 		res = 1;
 	}
-	if (!vmu->emailsubject || strcasecmp(vmu->emailsubject, "[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}")) {
+	if (!vmu->emailsubject || strcasecmp(vmu->emailsubject, "[PBX]: New message \\${VM_MSGNUM}\\ in mailbox ${VM_MAILBOX}")) {
 		ast_test_status_update(test, "Parse failure for emailsubject option\n");
 		res = 1;
 	}
@@ -11729,6 +11736,9 @@ static const char *substitute_escapes(const char *value)
 				break;
 			}
 			switch (*current) {
+			case '\\':
+				ast_str_append(&str, 0, "\\");
+				break;
 			case 'r':
 				ast_str_append(&str, 0, "\r");
 				break;
@@ -12420,13 +12430,13 @@ static int load_config(int reload)
 			ast_copy_string(locale, val, sizeof(locale));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "emailsubject"))) {
-			emailsubject = ast_strdup(val);
+			emailsubject = ast_strdup(substitute_escapes(val));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "emailbody"))) {
 			emailbody = ast_strdup(substitute_escapes(val));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "pagersubject"))) {
-			pagersubject = ast_strdup(val);
+			pagersubject = ast_strdup(substitute_escapes(val));
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "pagerbody"))) {
 			pagerbody = ast_strdup(substitute_escapes(val));
