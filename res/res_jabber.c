@@ -3058,10 +3058,12 @@ static int aji_filter_roster(void *data, ikspak *pak)
 			if (ast_test_flag(&client->flags, AJI_AUTOPRUNE)) {
 				ast_set_flag(&buddy->flags, AJI_AUTOPRUNE);
 				ASTOBJ_MARK(buddy);
-			} else if (!iks_strcmp(iks_find_attrib(x, "subscription"), "none") || !iks_strcmp(iks_find_attrib(x, "subscription"), "from")) {
-				/* subscribe to buddy's presence only
-				   if we really need to */
-				ast_set_flag(&buddy->flags, AJI_AUTOREGISTER);
+			} else if (ast_test_flag(&client->flags, AJI_AUTOREGISTER)) {
+				if (!iks_strcmp(iks_find_attrib(x, "subscription"), "none") || !iks_strcmp(iks_find_attrib(x, "subscription"), "from")) {
+					/* subscribe to buddy's presence only
+					   if we really need to */
+					ast_set_flag(&buddy->flags, AJI_AUTOREGISTER);
+				}
 			}
 			ASTOBJ_UNLOCK(buddy);
 			if (buddy) {
