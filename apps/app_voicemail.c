@@ -10118,7 +10118,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 		}
 #endif
 
-	ast_test_suite_event_notify("INTRO", "playing intro menu");
+	ast_test_suite_event_notify("INTRO", "Message: playing intro menu");
 	if (play_auto) {
 		cmd = '1';
 	} else {
