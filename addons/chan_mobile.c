@@ -1318,21 +1318,10 @@ static int mbl_queue_hangup(struct mbl_pvt *pvt)
 
 static int mbl_ast_hangup(struct mbl_pvt *pvt)
 {
-	int res = 0;
-	for (;;) {
-		if (pvt->owner) {
-			if (ast_channel_trylock(pvt->owner)) {
-				DEADLOCK_AVOIDANCE(&pvt->lock);
-			} else {
-				res = ast_hangup(pvt->owner);
-				/* no need to unlock, ast_hangup() frees the
-				 * channel */
-				break;
-			}
-		} else
-			break;
+	if (pvt->owner) {
+		ast_hangup(pvt->owner);
 	}
-	return res;
+	return 0;
 }
 
 /*!
