@@ -1465,7 +1465,7 @@ static int aji_send_raw(struct aji_client *client, const char *xmlstr)
 #endif
 	/* If needed, data will be sent unencrypted, and logHook will
 	   be called inside iks_send_raw */
-	if((client->timeout != 0 && client->status == AJI_CONNECTED) || (client->status == AJI_CONNECTING))
+	if((client->timeout != 0 && client->state == AJI_CONNECTED) || (client->state == AJI_CONNECTING))
 	{
 	    ret = iks_send_raw(client->p, xmlstr);
 	}
