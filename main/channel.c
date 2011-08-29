@@ -4586,9 +4586,29 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 		ast_channel_unlock(chan);
 		return -1;
 	}
+
+	if (ast_strlen_zero(text)) {
+		ast_channel_unlock(chan);
+		return 0;
+	}
+
 	CHECK_BLOCKING(chan);
-	if (chan->tech->send_text)
+	if (chan->tech->write_text && (ast_format_cap_has_type(chan->nativeformats, AST_FORMAT_TYPE_TEXT))) {
+		struct ast_frame f;
+
+		f.frametype = AST_FRAME_TEXT;
+		f.src = "DIALPLAN";
+		f.mallocd = AST_MALLOCD_DATA;
+		f.datalen = strlen(text);
+		f.data.ptr = ast_strdup(text);
+		f.offset = 0;
+		f.seqno = 0;
+
+		ast_format_set(&f.subclass.format, AST_FORMAT_T140, 0);
+		res = chan->tech->write_text(chan, &f);
+	} else if (chan->tech->send_text) {
 		res = chan->tech->send_text(chan, text);
+	}
 	ast_clear_flag(chan, AST_FLAG_BLOCKING);
 	ast_channel_unlock(chan);
 	return res;
