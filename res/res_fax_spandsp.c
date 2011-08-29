@@ -683,6 +683,13 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s) {
 		ast_channel_unlock(s->chan);
 		return -1;
 	}
+
+	/* we can be in T38_STATE_NEGOTIATING or T38_STATE_NEGOTIATED when the
+	 * gateway is started. We treat both states the same. */
+	if (p->ast_t38_state == T38_STATE_NEGOTIATING) {
+		p->ast_t38_state = T38_STATE_NEGOTIATED;
+	}
+
 	ast_activate_generator(p->ast_t38_state == T38_STATE_NEGOTIATED ? peer : s->chan, &t30_gen , s);
 
 	set_logging(&p->t38_gw_state.logging, s->details);
