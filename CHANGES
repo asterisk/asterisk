@@ -40,6 +40,10 @@ Text Messaging
    The MESSAGE() dialplan function and MessageSend() application have been
    added to go along with this functionality.  More detailed usage information
    can be found on the Asterisk wiki (http://wiki.asterisk.org/).
+ * If real-time text support (T.140) is negotiated, it will be preferred for
+   sending text via the SendText application. For example, via SIP, messages
+   that were once sent via the SIP MESSAGE request would be sent via RTP if
+   T.140 text is negotiated for a call.
 
 Parking
 -------
