@@ -12632,8 +12632,17 @@ static int sip_reg_timeout(const void *data)
 	}
 
 	if (r->dnsmgr) {
+		struct sip_peer *peer;
 		/* If the registration has timed out, maybe the IP changed.  Force a refresh. */
 		ast_dnsmgr_refresh(r->dnsmgr);
+		/* If we are resolving a peer, we have to make sure the refreshed address gets copied */
+		if ((peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE, 0))) {
+			ast_sockaddr_copy(&peer->addr, &r->us);
+			if (r->portno) {
+				ast_sockaddr_set_port(&peer->addr, r->portno);
+			}
+			peer = unref_peer(peer, "unref after find_peer");
+		}
 	}
 
 	/* If the initial tranmission failed, we may not have an existing dialog,
@@ -12750,6 +12759,16 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		/* Use port number specified if no SRV record was found */
 		if (!ast_sockaddr_port(&r->us) && r->portno) {
 			ast_sockaddr_set_port(&r->us, r->portno);
+		}
+
+		/* It is possible that DNS is unavailable at the time the peer is created. Here, if
+		 * we've updated the address in the registry, we copy it to the peer so that
+		 * create_addr() can copy it to the dialog via create_addr_from_peer */
+		if ((peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE, 0))) {
+			if (ast_sockaddr_isnull(&peer->addr) && !(ast_sockaddr_isnull(&r->us))) {
+				ast_sockaddr_copy(&peer->addr, &r->us);
+			}
+			peer = unref_peer(peer, "unref after find_peer");
 		}
 
 		/* Find address to hostname */
