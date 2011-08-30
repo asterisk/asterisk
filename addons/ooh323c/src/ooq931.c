@@ -2266,19 +2266,24 @@ int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
 
    if(gH323ep.gkClient && !OO_TESTFLAG(call->flags, OO_M_DISABLEGK))
    {
-     /* No need to check registration status here as it is already checked for
-        MakeCall command */
-
-     call->callState = OO_CALL_WAITING_ADMISSION;
-     ast_mutex_lock(&call->Lock);
-     ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, call, FALSE);
-	 tv = ast_tvnow();
-     ts.tv_sec = tv.tv_sec + 24;
-	 ts.tv_nsec = tv.tv_usec * 1000;
-     ast_cond_timedwait(&call->gkWait, &call->Lock, &ts);
-     if (call->callState == OO_CALL_WAITING_ADMISSION)
+     if(gH323ep.gkClient->state == GkClientRegistered) {
+       call->callState = OO_CALL_WAITING_ADMISSION;
+       ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, call, FALSE);
+       tv = ast_tvnow();
+       ts.tv_sec = tv.tv_sec + 24;
+       ts.tv_nsec = tv.tv_usec * 1000;
+       ast_mutex_lock(&call->GkLock);
+       if (call->callState == OO_CALL_WAITING_ADMISSION)
+          ast_cond_timedwait(&call->gkWait, &call->GkLock, &ts);
+       if (call->callState == OO_CALL_WAITING_ADMISSION)
 		call->callState = OO_CALL_CLEAR;
-     ast_mutex_unlock(&call->Lock);
+       ast_mutex_unlock(&call->GkLock);
+     } else {
+       OOTRACEERR1("Error:Aborting outgoing call as not yet"
+                   "registered with Gk\n");
+       call->callState = OO_CALL_CLEAR;
+       call->callEndReason = OO_REASON_GK_UNREACHABLE;
+     }
 
    }
 

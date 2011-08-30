@@ -431,7 +431,7 @@ int ooGkClientReceive(ooGkClient *pGkClient)
       if(iRet != OO_OK)
       {
          OOTRACEERR1("Error: Failed to handle received RAS message\n");
-         //pGkClient->state = GkClientFailed;
+         pGkClient->state = GkClientFailed;
       }
       memReset(pctxt);
    }
@@ -1921,6 +1921,8 @@ int ooGkClientHandleAdmissionConfirm
    OOTimer *pTimer = NULL;
    char ip[20];
 
+   ast_mutex_lock(&pGkClient->Lock);
+
    /* Search call in pending calls list */
    for(x=0 ; x<pGkClient->callsPendingList.count; x++)
    {
@@ -1931,6 +1933,9 @@ int ooGkClientHandleAdmissionConfirm
          OOTRACEDBGC3("Found Pending call(%s, %s)\n", 
                       pCallAdmInfo->call->callType, 
                       pCallAdmInfo->call->callToken);
+
+         ast_mutex_lock(&pCallAdmInfo->call->GkLock);
+
          /* Populate Remote IP */
          if(pAdmissionConfirm->destCallSignalAddress.t != 
                                       T_H225TransportAddress_ipAddress)
@@ -1939,6 +1944,9 @@ int ooGkClientHandleAdmissionConfirm
                         "Gatekeeper is not an IPv4 address\n");
             OOTRACEINFO1("Ignoring ACF, will wait for timeout and retransmit "
                          "ARQ\n");
+            ast_mutex_unlock(&pCallAdmInfo->call->GkLock);
+            ast_mutex_unlock(&pGkClient->Lock);
+            ast_cond_signal(&pCallAdmInfo->call->gkWait);
             return OO_FAILED;
          }
          ipAddress = pAdmissionConfirm->destCallSignalAddress.u.ipAddress;
@@ -2000,15 +2008,15 @@ int ooGkClientHandleAdmissionConfirm
                        pCallAdmInfo->call->callToken);
 
 	 pCallAdmInfo->call->callState = OO_CALL_CONNECTING;
-         /* ooH323CallAdmitted( pCallAdmInfo->call); */
 
          dListRemove(&pGkClient->callsPendingList, pNode);
          dListAppend(&pGkClient->ctxt, &pGkClient->callsAdmittedList, 
                                                         pNode->data);
          memFreePtr(&pGkClient->ctxt, pNode);
+         ast_mutex_unlock(&pCallAdmInfo->call->GkLock);
+	 ast_mutex_unlock(&pGkClient->Lock);
 	 ast_cond_signal(&pCallAdmInfo->call->gkWait);
          return OO_OK;
-         break;
       }
       else
       {
@@ -2017,6 +2025,7 @@ int ooGkClientHandleAdmissionConfirm
    }
    OOTRACEERR1("Error: Failed to process ACF as there is no corresponding "
                "pending call\n");
+   ast_mutex_unlock(&pGkClient->Lock);
    return OO_OK;
 }
 
@@ -2029,6 +2038,8 @@ int ooGkClientHandleAdmissionReject
    DListNode *pNode=NULL, *pNode1=NULL;
    OOH323CallData *call=NULL;
    OOTimer *pTimer = NULL;
+
+   ast_mutex_lock(&pGkClient->Lock);
 
    /* Search call in pending calls list */
    for(x=0 ; x<pGkClient->callsPendingList.count; x++)
@@ -2046,6 +2057,7 @@ int ooGkClientHandleAdmissionReject
       OOTRACEWARN2("Received admission reject with request number %d can not"
                    " be matched with any pending call.\n", 
                    pAdmissionReject->requestSeqNum);
+      ast_mutex_unlock(&pGkClient->Lock);
       return OO_OK;
    }
    else{
@@ -2054,6 +2066,7 @@ int ooGkClientHandleAdmissionReject
       memFreePtr(&pGkClient->ctxt, pCallAdmInfo);
       memFreePtr(&pGkClient->ctxt, pNode);
    }
+   ast_mutex_lock(&pCallAdmInfo->call->GkLock);
 
    /* Delete ARQ timer */
    for(y=0; y<pGkClient->timerList.count; y++)
@@ -2118,6 +2131,8 @@ int ooGkClientHandleAdmissionReject
          break;
    }
 
+   ast_mutex_unlock(&pCallAdmInfo->call->GkLock);
+   ast_mutex_unlock(&pGkClient->Lock);
    ast_cond_signal(&pCallAdmInfo->call->gkWait);
    return OO_OK;   
 }

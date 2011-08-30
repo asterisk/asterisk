@@ -371,7 +371,7 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
    H225TransportAddress_ip6Address_ip *ip6 = NULL;
    Q931InformationElement* pDisplayIE=NULL;
    OOAliases *pAlias=NULL;
-   char remoteIP[2+8*4+7];
+   char remoteIP[2+8*4+7] = "";
 
    call->callReference = q931Msg->callReference;
  
@@ -529,6 +529,7 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
      OOTRACEERR5("ERROR: Security denial remote sig IP isn't a socket ip, %s not %s "
 		     "(%s, %s)\n", remoteIP, call->remoteIP, call->callType, 
 		     call->callToken);
+     return OO_FAILED;
    }
    
    /* check for fast start */
@@ -1638,12 +1639,15 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
       case Q931SetupMsg: /* SETUP message is received */
          OOTRACEINFO3("Received SETUP message (%s, %s)\n", call->callType,
                        call->callToken);
-         ooOnReceivedSetup(call, q931Msg);
-
+         ret = ooOnReceivedSetup(call, q931Msg);
+         if (ret != OO_OK) {
+           call->callState = OO_CALL_CLEAR;
+         } else {
+           
          /* H225 message callback */
-         if(gH323ep.h225Callbacks.onReceivedSetup)
-            ret = gH323ep.h225Callbacks.onReceivedSetup(call, q931Msg);
-
+            if(gH323ep.h225Callbacks.onReceivedSetup)
+               ret = gH323ep.h225Callbacks.onReceivedSetup(call, q931Msg);
+         }
          /* Free up the mem used by the received message, as it's processing 
             is done. 
          */
@@ -1661,23 +1665,24 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
             if(gH323ep.gkClient->state == GkClientRegistered)
             {
                call->callState = OO_CALL_WAITING_ADMISSION;
-	       ast_mutex_lock(&call->Lock);
                ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, call, 
                                                     FALSE);
-				tv = ast_tvnow();
+		tv = ast_tvnow();
                 ts.tv_sec = tv.tv_sec + 24;
-				ts.tv_nsec = tv.tv_usec * 1000;
-                ast_cond_timedwait(&call->gkWait, &call->Lock, &ts);
+		ts.tv_nsec = tv.tv_usec * 1000;
+	        ast_mutex_lock(&call->GkLock);
+		if (call->callState == OO_CALL_WAITING_ADMISSION)
+                   ast_cond_timedwait(&call->gkWait, &call->GkLock, &ts);
                 if (call->callState == OO_CALL_WAITING_ADMISSION)
 			call->callState = OO_CALL_CLEAR;
-                ast_mutex_unlock(&call->Lock);
+                ast_mutex_unlock(&call->GkLock);
 
             }
             else {
-               /* TODO: Should send Release complete with reject reason */
                OOTRACEERR1("Error:Ignoring incoming call as not yet"
                            "registered with Gk\n");
 	       call->callState = OO_CALL_CLEAR;
+               call->callEndReason = OO_REASON_GK_UNREACHABLE;
             }
          }
 	 if (call->callState < OO_CALL_CLEAR) {
