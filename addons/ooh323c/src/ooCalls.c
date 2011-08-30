@@ -63,6 +63,7 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
    } 
    memset(call, 0, sizeof(OOH323CallData));
    ast_cond_init(&call->gkWait, NULL);
+   ast_mutex_init(&call->GkLock);
    ast_mutex_init(&call->Lock);
    call->pctxt = pctxt;
    call->msgctxt = msgctxt;

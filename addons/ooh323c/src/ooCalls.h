@@ -151,6 +151,7 @@ typedef struct OOH323CallData {
    OOCTXT               *msgctxt;
    pthread_t		callThread;
    ast_cond_t		gkWait;
+   ast_mutex_t		GkLock;
    ast_mutex_t		Lock;
    OOBOOL 		Monitor;
    OOBOOL		fsSent;
