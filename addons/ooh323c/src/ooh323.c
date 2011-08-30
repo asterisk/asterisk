@@ -371,7 +371,7 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
    H225TransportAddress_ip6Address_ip *ip6 = NULL;
    Q931InformationElement* pDisplayIE=NULL;
    OOAliases *pAlias=NULL;
-   char remoteIP[2+8*4+7];
+   char remoteIP[2+8*4+7] = "";
 
    call->callReference = q931Msg->callReference;
  
@@ -529,6 +529,7 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
      OOTRACEERR5("ERROR: Security denial remote sig IP isn't a socket ip, %s not %s "
 		     "(%s, %s)\n", remoteIP, call->remoteIP, call->callType, 
 		     call->callToken);
+     return OO_FAILED;
    }
    
    /* check for fast start */
