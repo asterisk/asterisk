@@ -190,10 +190,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>R/W Modem type (v17/v27/v29).</para>
 					</enum>
 					<enum name="gateway">
-						<para>R/W T38 Gateway Enabled (yes/no)</para>
-					</enum>
-					<enum name="gwtimeout">
-						<para>R/W Gateway fax activity timeout in seconds (yes/no/seconds)</para>
+						<para>R/W T38 fax gateway, with optional fax activity timeout in seconds (yes[,timeout]/no)</para>
 					</enum>
 					<enum name="pages">
 						<para>R/O Number of pages transferred.</para>
@@ -455,7 +452,7 @@ static struct ast_fax_session_details *session_details_new(void)
 	d->minrate = general_options.minrate;
 	d->maxrate = general_options.maxrate;
 	d->gateway_id = -1;
-	d->gateway_timeout = FAX_GATEWAY_TIMEOUT;
+	d->gateway_timeout = 0;
 
 	return d;
 }
@@ -2906,12 +2903,12 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 	if (gateway->bridged && !ast_tvzero(gateway->timeout_start)) {
 		if (ast_tvdiff_ms(ast_tvnow(), gateway->timeout_start) > details->gateway_timeout) {
-			ast_debug(1, "no fax activity between %s and %s after %d ms, disabling gateway\n", chan->name, peer->name, FAX_GATEWAY_TIMEOUT);
+			ast_debug(1, "no fax activity between %s and %s after %d ms, disabling gateway\n", chan->name, peer->name, details->gateway_timeout);
 			ast_framehook_detach(chan, gateway->framehook);
 			details->gateway_id = -1;
 
 			ast_string_field_set(details, result, "FAILED");
-			ast_string_field_build(details, resultstr, "no fax activity after %d ms", FAX_GATEWAY_TIMEOUT);
+			ast_string_field_build(details, resultstr, "no fax activity after %d ms", details->gateway_timeout);
 			ast_string_field_set(details, error, "TIMEOUT");
 			set_channel_variables(chan, details);
 			ao2_ref(details, -1);
@@ -3472,8 +3469,6 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 	} else if (!strcasecmp(data, "t38gateway") || !strcasecmp(data, "gateway") ||
 		   !strcasecmp(data, "t38_gateway") || !strcasecmp(data, "faxgateway")) {
 		ast_copy_string(buf, details->gateway_id != -1 ? "yes" : "no", len);
-	} else if (!strcasecmp(data, "gwtimeout")) {
-		snprintf(buf, len, "%d", details->gateway_timeout / 1000);
 	} else if (!strcasecmp(data, "error")) {
 		ast_copy_string(buf, details->error, len);
 	} else if (!strcasecmp(data, "filename")) {
@@ -3551,6 +3546,19 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 	} else if (!strcasecmp(data, "t38gateway") || !strcasecmp(data, "gateway") ||
 		   !strcasecmp(data, "t38_gateway") || !strcasecmp(data, "faxgateway")) {
 		const char *val = ast_skip_blanks(value);
+		char *timeout = strchr(val, ',');
+
+		details->gateway_timeout = 0;
+		if (timeout) {
+			unsigned int gwtimeout;
+			*timeout++ = '\0';
+			if (sscanf(timeout, "%u", &gwtimeout) == 1) {
+				details->gateway_timeout = gwtimeout * 1000;
+			} else {
+				ast_log(LOG_WARNING, "Unsupported timeout '%s' passed to FAXOPT(%s).\n", timeout, data);
+			}
+		}
+
 		if (ast_true(val)) {
 			if (details->gateway_id < 0) {
 				details->gateway_id = fax_gateway_attach(chan, details);
@@ -3566,18 +3574,6 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		} else if (ast_false(val)) {
 			ast_framehook_detach(chan, details->gateway_id);
 			details->gateway_id = -1;
-		} else {
-			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
-		}
-	} else if (!strcasecmp(data, "gwtimeout")) {
-		const char *val = ast_skip_blanks(value);
-		int timeout;
-		if (ast_true(val)) {
-			details->gateway_timeout = FAX_GATEWAY_TIMEOUT;
-		} else if (ast_false(val)) {
-			details->gateway_timeout = 0;
-		} else if (sscanf(val, "%d", &timeout) == 1 && timeout > 0) {
-			details->gateway_timeout = timeout * 1000;
 		} else {
 			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
 		}
