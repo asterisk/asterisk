@@ -3548,19 +3548,22 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		const char *val = ast_skip_blanks(value);
 		char *timeout = strchr(val, ',');
 
-		details->gateway_timeout = 0;
 		if (timeout) {
-			unsigned int gwtimeout;
 			*timeout++ = '\0';
-			if (sscanf(timeout, "%u", &gwtimeout) == 1) {
-				details->gateway_timeout = gwtimeout * 1000;
-			} else {
-				ast_log(LOG_WARNING, "Unsupported timeout '%s' passed to FAXOPT(%s).\n", timeout, data);
-			}
 		}
 
 		if (ast_true(val)) {
 			if (details->gateway_id < 0) {
+				details->gateway_timeout = 0;
+				if (timeout) {
+					unsigned int gwtimeout;
+					if (sscanf(timeout, "%u", &gwtimeout) == 1) {
+						details->gateway_timeout = gwtimeout * 1000;
+					} else {
+						ast_log(LOG_WARNING, "Unsupported timeout '%s' passed to FAXOPT(%s).\n", timeout, data);
+					}
+				}
+
 				details->gateway_id = fax_gateway_attach(chan, details);
 				if (details->gateway_id < 0) {
 					ast_log(LOG_ERROR, "Error attaching T.38 gateway to channel %s.\n", chan->name);
