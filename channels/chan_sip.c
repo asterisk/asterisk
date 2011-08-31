@@ -17173,7 +17173,7 @@ static int manager_sip_show_peer(struct mansession *s, const struct message *m)
 	a[3] = peer;
 
 	_sip_show_peer(1, -1, s, m, 4, a);
-	astman_append(s, "\r\n\r\n" );
+	astman_append(s, "\r\n" );
 	return 0;
 }
 
