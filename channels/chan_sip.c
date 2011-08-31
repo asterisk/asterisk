@@ -25688,6 +25688,10 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 /*! \brief helper function for the monitoring thread -- seems to be called with the assumption that the dialog is locked */
 static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 {
+	int timeout;
+	int hold_timeout;
+	int keepalive;
+
 	/* If we have no active owner, no need to check timers */
 	if (!dialog->owner) {
 		dialog_unlink_rtpcheck(dialog);
@@ -25710,15 +25714,19 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 		return;
 	}
 
+	/* Store these values locally to avoid multiple function calls */
+	timeout = ast_rtp_instance_get_timeout(dialog->rtp);
+	hold_timeout = ast_rtp_instance_get_hold_timeout(dialog->rtp);
+	keepalive = ast_rtp_instance_get_keepalive(dialog->rtp);
+
 	/* If we have no timers set, return now */
-	if (!ast_rtp_instance_get_keepalive(dialog->rtp) && !ast_rtp_instance_get_timeout(dialog->rtp) && !ast_rtp_instance_get_hold_timeout(dialog->rtp)) {
+	if (!keepalive && !timeout && !hold_timeout) {
 		dialog_unlink_rtpcheck(dialog);
 		return;
 	}
 
 	/* Check AUDIO RTP keepalives */
-	if (dialog->lastrtptx && ast_rtp_instance_get_keepalive(dialog->rtp) &&
-		    (t > dialog->lastrtptx + ast_rtp_instance_get_keepalive(dialog->rtp))) {
+	if (dialog->lastrtptx && keepalive && (t > dialog->lastrtptx + keepalive)) {
 		/* Need to send an empty RTP packet */
 		dialog->lastrtptx = time(NULL);
 		ast_rtp_instance_sendcng(dialog->rtp, 0);
@@ -25731,10 +25739,10 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 	*/
 
 	/* Check AUDIO RTP timers */
-	if (dialog->lastrtprx && (ast_rtp_instance_get_timeout(dialog->rtp) || ast_rtp_instance_get_hold_timeout(dialog->rtp)) && (t > dialog->lastrtprx + ast_rtp_instance_get_timeout(dialog->rtp))) {
-		if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD) || (ast_rtp_instance_get_hold_timeout(dialog->rtp) && (t > dialog->lastrtprx + ast_rtp_instance_get_hold_timeout(dialog->rtp)))) {
+	if (dialog->lastrtprx && (timeout || hold_timeout) && (t > dialog->lastrtprx + timeout)) {
+		if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD) || (hold_timeout && (t > dialog->lastrtprx + hold_timeout))) {
 			/* Needs a hangup */
-			if (ast_rtp_instance_get_timeout(dialog->rtp)) {
+			if (timeout) {
 				if (!dialog->owner || ast_channel_trylock(dialog->owner)) {
 					/*
 					 * Don't block, just try again later.
