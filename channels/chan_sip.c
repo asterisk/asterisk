@@ -9030,6 +9030,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 			}
 		} else {
+			change_t38_state(p, T38_DISABLED);
 			ast_udptl_stop(p->udptl);
 			if (debug)
 				ast_debug(1, "Peer doesn't provide T.38 UDPTL\n");
