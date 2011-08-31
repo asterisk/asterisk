@@ -1301,10 +1301,8 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				ast_setstate(parent, AST_STATE_UP);
 				ast_setstate(chan, AST_STATE_UP);
 				ast_copy_string(parent->context, chan->context, sizeof(parent->context));
-				/* Go ahead and mark the channel as a zombie so that masquerade will
-				   destroy it for us, and we need not call ast_hangup */
-				ast_set_flag(chan, AST_FLAG_ZOMBIE);
 				ast_channel_masquerade(parent, chan);
+				ast_hangup(chan);
 				p->abouttograb = 0;
 			} else {
 				ast_debug(1, "Sneaky, parent disappeared in the mean time...\n");
