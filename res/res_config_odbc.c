@@ -1131,6 +1131,11 @@ static int require_odbc(const char *database, const char *table, va_list ap)
 #undef warn_length
 #undef warn_type
 
+static int unload_odbc(const char *a, const char *b)
+{
+	return ast_odbc_clear_cache(a, b);
+}
+
 static struct ast_config_engine odbc_engine = {
 	.name = "odbc",
 	.load_func = config_odbc,
@@ -1141,7 +1146,7 @@ static struct ast_config_engine odbc_engine = {
 	.update_func = update_odbc,
 	.update2_func = update2_odbc,
 	.require_func = require_odbc,
-	.unload_func = ast_odbc_clear_cache,
+	.unload_func = unload_odbc,
 };
 
 static int unload_module (void)
