@@ -3489,7 +3489,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	struct odbc_obj *obj;
 	obj = ast_odbc_request_obj(odbc_database, 0);
 	if (obj) {
-		snprintf(sql, sizeof(sql), "SELECT msgnum FROM %s WHERE dir=? order by msgnum desc limit 1", odbc_table);
+		snprintf(sql, sizeof(sql), "SELECT msgnum FROM %s WHERE dir=? order by msgnum desc", odbc_table);
 
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 		if (!stmt) {
