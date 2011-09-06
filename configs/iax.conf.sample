@@ -254,10 +254,10 @@ forcejitterbuffer=no
 ;
 ; subscribe_network_change_event = yes ; on by default
 ;
-; You can disable authentication debugging to reduce the amount of
+; You can enable authentication debugging to increase the amount of
 ; debugging traffic.
 ;
-;authdebug=no
+;authdebug = yes
 ;
 ; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
 ;tos=ef
