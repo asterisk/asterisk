@@ -214,6 +214,11 @@ Asterisk Modules
  * Modules marked as deprecated are no longer marked as building by default. Enabling
    these modules is still available via menuselect.
 
+IAX2 Changes
+------------
+* authdebug is now disabled by default. To enable this functionaility again
+   set authdebug = yes in iax.conf.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------

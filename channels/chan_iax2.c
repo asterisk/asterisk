@@ -287,7 +287,7 @@ static int jittertargetextra = 40; /* number of milliseconds the new jitter buff
 static int trunkfreq = 20;
 static int trunkmaxsize = MAX_TRUNKDATA;
 
-static int authdebug = 1;
+static int authdebug = 0;
 static int autokill = 0;
 static int iaxcompat = 0;
 static int last_authmethod = 0;
