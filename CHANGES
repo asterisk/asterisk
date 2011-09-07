@@ -24,6 +24,13 @@ Chan_local changes
  * Added a manager event "LocalBridge" for local channel call bridges between
    the two pseudo-channels created.
 
+Codec changes
+-------------
+ * Codec lists may now be modified by the '!' character, to allow succinct
+   specification of a list of codecs allowed and disallowed, without the
+   requirement to use two different keywords.  For example, to specify all
+   codecs except g729 and g723, one need only specify allow=all,!g729,!g723.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------

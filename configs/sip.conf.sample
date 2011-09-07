@@ -1216,10 +1216,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
         allow=gsm
         allow=g723
         allow=ulaw
+        ; Or, more simply:
+        ;allow=!all,ilbc,g729,gsm,g723,ulaw
 
 [ulaw-phone](!)                   ; and another one for ulaw-only
         disallow=all
         allow=ulaw
+        ; Again, more simply:
+        ;allow=!all,ulaw
 
 ; and finally instantiate a few phones
 ;

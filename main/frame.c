@@ -730,13 +730,18 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 
 int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing) 
 {
-	int errors = 0, framems = 0, all = 0;
+	int errors = 0, framems = 0, all = 0, iter_allowing;
 	char *parse = NULL, *this = NULL, *psize = NULL;
 	struct ast_format format;
 
 	parse = ast_strdupa(list);
 	while ((this = strsep(&parse, ","))) {
+		iter_allowing = allowing;
 		framems = 0;
+		if (*this == '!') {
+			this++;
+			iter_allowing = !allowing;
+		}
 		if ((psize = strrchr(this, ':'))) {
 			*psize++ = '\0';
 			ast_debug(1, "Packetization for codec: %s is %s\n", this, psize);
@@ -750,13 +755,13 @@ int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap 
 		all = strcasecmp(this, "all") ? 0 : 1;
 
 		if (!all && !ast_getformatbyname(this, &format)) {
-			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", this);
+			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", iter_allowing ? "allow" : "disallow", this);
 			errors++;
 			continue;
 		}
 
 		if (cap) {
-			if (allowing) {
+			if (iter_allowing) {
 				if (all) {
 					ast_format_cap_add_all(cap);
 				} else {
@@ -773,13 +778,13 @@ int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap 
 
 		if (pref) {
 			if (!all) {
-				if (allowing) {
+				if (iter_allowing) {
 					ast_codec_pref_append(pref, &format);
 					ast_codec_pref_setsize(pref, &format, framems);
 				} else {
 					ast_codec_pref_remove(pref, &format);
 				}
-			} else if (!allowing) {
+			} else if (!iter_allowing) {
 				memset(pref, 0, sizeof(*pref));
 			}
 		}

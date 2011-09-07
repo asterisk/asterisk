@@ -37,8 +37,7 @@ CREATE TABLE `iaxfriends` (
   `transfer` varchar(10) NULL, -- mediaonly/yes/no
   `jitterbuffer` varchar(3) NULL, -- yes/no
   `forcejitterbuffer` varchar(3) NULL, -- yes/no
-  `disallow` varchar(40) NULL, -- all/{list-of-codecs}
-  `allow` varchar(40) NULL, -- all/{list-of-codecs}
+  `allow` varchar(200) NULL, -- all/{list-of-codecs}
   `codecpriority` varchar(40) NULL, 
   `qualify` varchar(10) NULL, -- yes/no/{number of milliseconds}
   `qualifysmoothing` varchar(10) NULL, -- yes/no
