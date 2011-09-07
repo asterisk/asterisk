@@ -341,7 +341,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Channel name to park.</para>
 			</parameter>
 			<parameter name="Channel2" required="true">
-				<para>Channel to announce park info to (and return to if timeout).</para>
+				<para>Channel to return to if timeout.</para>
 			</parameter>
 			<parameter name="Timeout">
 				<para>Number of milliseconds to wait before callback.</para>
@@ -1549,12 +1549,14 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 		rchan->context, rchan->linkedid, rchan->amaflags, "Parked/%s", rchan->name);
 	if (!chan) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
-		if (peer == rchan) {
-			/* Only have one channel to worry about. */
-			ast_stream_and_wait(peer, "pbx-parkingfailed", "");
-		} else if (peer) {
-			/* Have two different channels to worry about. */
-			play_message_on_chan(peer, rchan, "failure message", "pbx-parkingfailed");
+		if (!ast_test_flag(args, AST_PARK_OPT_SILENCE)) {
+			if (peer == rchan) {
+				/* Only have one channel to worry about. */
+				ast_stream_and_wait(peer, "pbx-parkingfailed", "");
+			} else if (peer) {
+				/* Have two different channels to worry about. */
+				play_message_on_chan(peer, rchan, "failure message", "pbx-parkingfailed");
+			}
 		}
 		return -1;
 	}
@@ -1563,12 +1565,14 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, i
 	if (!args->pu) {
 		chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 		ast_hangup(chan);
-		if (peer == rchan) {
-			/* Only have one channel to worry about. */
-			ast_stream_and_wait(peer, "pbx-parkingfailed", "");
-		} else if (peer) {
-			/* Have two different channels to worry about. */
-			play_message_on_chan(peer, rchan, "failure message", "pbx-parkingfailed");
+		if (!ast_test_flag(args, AST_PARK_OPT_SILENCE)) {
+			if (peer == rchan) {
+				/* Only have one channel to worry about. */
+				ast_stream_and_wait(peer, "pbx-parkingfailed", "");
+			} else if (peer) {
+				/* Have two different channels to worry about. */
+				play_message_on_chan(peer, rchan, "failure message", "pbx-parkingfailed");
+			}
 		}
 		return -1;
 	}
@@ -1688,7 +1692,9 @@ static int xfer_park_call_helper(struct ast_channel *park_me, struct ast_channel
 		parkinglot_unref(args.parkinglot);
 	} else {
 		/* Parking failed because parking lot does not exist. */
-		ast_stream_and_wait(parker, "pbx-parkingfailed", "");
+		if (!ast_test_flag(&args, AST_PARK_OPT_SILENCE)) {
+			ast_stream_and_wait(parker, "pbx-parkingfailed", "");
+		}
 		finishup(park_me);
 		res = -1;
 	}
@@ -4802,7 +4808,9 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 		parkinglot_unref(args.parkinglot);
 	} else {
 		/* Parking failed because the parking lot does not exist. */
-		ast_stream_and_wait(chan, "pbx-parkingfailed", "");
+		if (!ast_test_flag(&args, AST_PARK_OPT_SILENCE)) {
+			ast_stream_and_wait(chan, "pbx-parkingfailed", "");
+		}
 		res = -1;
 	}
 	if (res) {
@@ -6865,6 +6873,9 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
  *
  * Get channels involved in park, create event.
  * \return Always 0
+ *
+ * \note ADSI is not compatible with this AMI action for the
+ * same reason ch2 can no longer announce the parking space.
  */
 static int manager_park(struct mansession *s, const struct message *m)
 {
@@ -6875,7 +6886,28 @@ static int manager_park(struct mansession *s, const struct message *m)
 	char buf[BUFSIZ];
 	int res = 0;
 	struct ast_channel *ch1, *ch2;
-	struct ast_park_call_args args = {0,};
+	struct ast_park_call_args args = {
+			/*
+			 * Don't say anything to ch2 since AMI is a third party parking
+			 * a call and we will likely crash if we do.
+			 *
+			 * XXX When the AMI action was originally implemented, the
+			 * parking space was announced to ch2.  Unfortunately, grabbing
+			 * the ch2 lock and holding it while the announcement is played
+			 * was not really a good thing to do to begin with since it
+			 * could hold up the system.  Also holding the lock is no longer
+			 * possible with a masquerade.
+			 *
+			 * Restoring the announcement to ch2 is not easily doable for
+			 * the following reasons:
+			 *
+			 * 1) The AMI manager is not the thread processing ch2.
+			 *
+			 * 2) ch2 could be the same as ch1, bridged to ch1, or some
+			 * random uninvolved channel.
+			 */
+			.flags = AST_PARK_OPT_SILENCE,
+		};
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "Channel not specified");
