@@ -7067,6 +7067,9 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	/* setting this flag to generate a reason header in the cancel message to the ringing channel */
 	ast_set_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE);
 
+	/* setting this flag to generate a reason header in the cancel message to the ringing channel */
+	ast_set_flag(chan, AST_FLAG_ANSWERED_ELSEWHERE);
+
 	if (ast_channel_masquerade(target, chan)) {
 		ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan_name,
 			target_name);
