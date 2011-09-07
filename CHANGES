@@ -284,7 +284,7 @@ Queue changes
  * A new option, 'I' has been added to both app_queue and app_dial.
    By setting this option, Asterisk will not update the caller with
    connected line changes or redirecting party changes when they occur.
- * A 'relative-peroidic-announce' option has been added to queues.conf.  When
+ * A 'relative-periodic-announce' option has been added to queues.conf.  When
    enabled, this option will cause periodic announce times to be calculated
    from the end of announcements rather than from the beginning.
  * The autopause option in queues.conf can be passed a new value, "all." The
