@@ -8513,12 +8513,15 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	struct sockaddr_in reg_addr;
 
 	memset(&us, 0, sizeof(us));
-	if (ies->apparent_addr)
+	if (ies->apparent_addr) {
 		memmove(&us, ies->apparent_addr, sizeof(us));
-	if (ies->username)
+	}
+	if (ies->username) {
 		ast_copy_string(peer, ies->username, sizeof(peer));
-	if (ies->refresh)
+	}
+	if (ies->refresh) {
 		refresh = ies->refresh;
+	}
 	if (ies->calling_number) {
 		/* We don't do anything with it really, but maybe we should */
 	}
@@ -8535,24 +8538,26 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		return -1;
 	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
-	if (ies->msgcount >= 0)
+	if (ies->msgcount >= 0) {
 		reg->messages = ies->msgcount & 0xffff;		/* only low 16 bits are used in the transmission of the IE */
+	}
 	/* always refresh the registration at the interval requested by the server
 	   we are registering to
 	*/
 	reg->refresh = refresh;
-	reg->expire = iax2_sched_replace(reg->expire, sched, 
+	reg->expire = iax2_sched_replace(reg->expire, sched,
 		(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	if (inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) {
-			if (reg->messages > 255)
-				snprintf(msgstatus, sizeof(msgstatus), " with %d new and %d old messages waiting", reg->messages & 0xff, reg->messages >> 8);
-			else if (reg->messages > 1)
-				snprintf(msgstatus, sizeof(msgstatus), " with %d new messages waiting\n", reg->messages);
-			else if (reg->messages > 0)
-				ast_copy_string(msgstatus, " with 1 new message waiting\n", sizeof(msgstatus));
-			else
-				ast_copy_string(msgstatus, " with no messages waiting\n", sizeof(msgstatus));
-			snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
+		if (reg->messages > 255) {
+			snprintf(msgstatus, sizeof(msgstatus), " with %d new and %d old messages waiting", reg->messages & 0xff, reg->messages >> 8);
+		} else if (reg->messages > 1) {
+			snprintf(msgstatus, sizeof(msgstatus), " with %d new messages waiting", reg->messages);
+		} else if (reg->messages > 0) {
+			ast_copy_string(msgstatus, " with 1 new message waiting", sizeof(msgstatus));
+		} else {
+			ast_copy_string(msgstatus, " with no messages waiting", sizeof(msgstatus));
+		}
+		snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
 		ast_verb(3, "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(sin->sin_addr), ourip, msgstatus);
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", ast_inet_ntoa(sin->sin_addr));
 	}
