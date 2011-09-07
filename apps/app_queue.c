@@ -3377,7 +3377,7 @@ static int store_next_lin(struct queue_ent *qe, struct callattempt *outgoing)
 	return 0;
 }
 
-/*! \brief Playback announcement to queued members if peroid has elapsed */
+/*! \brief Playback announcement to queued members if period has elapsed */
 static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 {
 	int res = 0;
