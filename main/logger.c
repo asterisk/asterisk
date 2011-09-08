@@ -1661,7 +1661,7 @@ void ast_logger_unregister_level(const char *name)
 
 		global_logmask &= ~(1 << x);
 
-		free(levels[x]);
+		ast_free(levels[x]);
 		levels[x] = NULL;
 		AST_RWLIST_UNLOCK(&logchannels);
 
