@@ -788,9 +788,6 @@ void ast_cdr_congestion(struct ast_cdr *cdr)
 {
 	char *chan;
 
-	ast_verb (1, "congestion value: %d\n  INYOURFACE", congestion);
-
-
 	/* if congestion log is disabled, pass the buck to ast_cdr_failed */
 	if (!congestion) {
 		ast_cdr_failed(cdr);
@@ -1568,7 +1565,6 @@ static int do_reload(int reload)
 			unanswered = ast_true(unanswered_value);
 		}
 		if ((congestion_value = ast_variable_retrieve(config, "general", "congestion"))) {
-			ast_verb(1, "INTHEFACEPUNCH!\n");
 			congestion = ast_true(congestion_value);
 		}
 		if ((batched_value = ast_variable_retrieve(config, "general", "batch"))) {

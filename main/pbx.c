@@ -9332,14 +9332,11 @@ static int pbx_builtin_busy(struct ast_channel *chan, const char *data)
  */
 static int pbx_builtin_congestion(struct ast_channel *chan, const char *data)
 {
-	ast_verb(1, "pbx_builtin_congestion HITINTHEFACE!\n");
-	ast_verb(1, "AST_STATE = %d INTHEFACE\n", chan->_state);
 	ast_indicate(chan, AST_CONTROL_CONGESTION);
 	/* Don't change state of an UP channel, just indicate
 	   congestion in audio */
 	if (chan->_state != AST_STATE_UP) {
 		ast_setstate(chan, AST_STATE_BUSY);
-		ast_verb(1, "ast_cdr_congestion INTHEFACE\n");
 		ast_cdr_congestion(chan->cdr);
 	}
 	wait_for_hangup(chan, data);
