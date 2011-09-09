@@ -2120,7 +2120,9 @@ static int usbradio_indicate(struct ast_channel *c, int cond, const void *data, 
 		case AST_CONTROL_RINGING:
 			res = cond;
 			break;
-
+		case AST_CONTROL_INCOMPLETE:
+			res = AST_CONTROL_CONGESTION;
+			break;
 		case -1:
 #ifndef	NEW_ASTERISK
 			o->cursound = -1;

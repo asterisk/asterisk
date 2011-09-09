@@ -1456,6 +1456,10 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 	case AST_CONTROL_BUSY:
 		transmit_notify_request(sub, "L/bz");
 		break;
+	case AST_CONTROL_INCOMPLETE:
+		/* We do not currently support resetting of the Interdigit Timer, so treat
+		 * Incomplete control frames as a congestion response
+		 */
 	case AST_CONTROL_CONGESTION:
 		transmit_notify_request(sub, sub->parent->ncs ? "L/cg" : "G/cg");
 		break;

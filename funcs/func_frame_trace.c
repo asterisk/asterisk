@@ -315,6 +315,9 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_MCID:
 			ast_verbose("SubClass: MCID\n");
 			break;
+		case AST_CONTROL_INCOMPLETE:
+			ast_verbose("SubClass: INCOMPLETE\n");
+			break;
 		}
 		if (frame->subclass.integer == -1) {
 			ast_verbose("SubClass: %d\n", frame->subclass.integer);

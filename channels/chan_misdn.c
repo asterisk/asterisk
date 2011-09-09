@@ -6985,6 +6985,19 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tproceeding pid:%d\n", p->bc->pid);
 		misdn_lib_send_event(p->bc, EVENT_PROCEEDING);
 		break;
+	case AST_CONTROL_INCOMPLETE:
+		chan_misdn_log(1, p->bc->port, " --> *\tincomplete pid:%d\n", p->bc->pid);
+		if (!p->overlap_dial) {
+			/* Overlapped dialing not enabled - send hangup */
+			p->bc->out_cause = AST_CAUSE_INVALID_NUMBER_FORMAT;
+			start_bc_tones(p);
+			misdn_lib_send_event(p->bc, EVENT_DISCONNECT);
+
+			if (p->bc->nt) {
+				hanguptone_indicate(p);
+			}
+		}
+		break;
 	case AST_CONTROL_CONGESTION:
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tcongestion pid:%d\n", p->bc->pid);
 

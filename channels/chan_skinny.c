@@ -4640,6 +4640,8 @@ static char *control2str(int ind) {
 		return "CC Not Possible";
 	case AST_CONTROL_SRCCHANGE:
 		return "Media Source Change";
+	case AST_CONTROL_INCOMPLETE:
+		return "Incomplete";
 	case -1:
 		return "Stop tone";
 	default:
@@ -4743,6 +4745,8 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	case AST_CONTROL_BUSY:
 		setsubstate(sub, SUBSTATE_BUSY);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
+	case AST_CONTROL_INCOMPLETE:
+		/* Support for incomplete not supported for chan_skinny; treat as congestion */
 	case AST_CONTROL_CONGESTION:
 		setsubstate(sub, SUBSTATE_CONGESTION);
 		return (d->earlyrtp ? -1 : 0); /* Tell asterisk to provide inband signalling if rtp started */
