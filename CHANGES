@@ -121,6 +121,7 @@ Dialplan Functions
    for a given string to replace with another string as many times as the
    user specifies or just throughout the whole string.
  * Added option to CHANNEL(pickupgroup) allow reading and setting the pickupgroup of channel.
+ * Mark VALID_EXTEN() deprecated in favor of DIALPLAN_EXISTS()
 
 libpri channel driver (chan_dahdi) DAHDI changes
 --------------------------
