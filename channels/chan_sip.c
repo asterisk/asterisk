@@ -6727,6 +6727,20 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		}
 		res = -1;
 		break;
+	case AST_CONTROL_INCOMPLETE:
+		if (ast->_state != AST_STATE_UP) {
+			if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+				transmit_response_reliable(p, "484 Address Incomplete", &p->initreq);
+			} else {
+				transmit_response_reliable(p, "404 Not Found", &p->initreq);
+			}
+			p->invitestate = INV_COMPLETED;
+			sip_alreadygone(p);
+			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
+			break;
+		}
+		res = 0;
+		break;
 	case AST_CONTROL_PROCEEDING:
 		if ((ast->_state != AST_STATE_UP) &&
 		    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
@@ -21188,6 +21202,15 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				case 504: /* Server Timeout */
 					if (owner)
 						ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+					break;
+				case 484: /* Address Incomplete */
+					if (owner && sipmethod != SIP_BYE) {
+						if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+							ast_queue_hangup_with_cause(p->owner, hangup_sip2cause(resp));
+						} else {
+							ast_queue_hangup_with_cause(p->owner, hangup_sip2cause(404));
+						}
+					}
 					break;
 				default:
 					/* Send hangup */	

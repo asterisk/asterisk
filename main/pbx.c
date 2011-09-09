@@ -9395,6 +9395,8 @@ static int pbx_builtin_incomplete(struct ast_channel *chan, const char *data)
 		__ast_answer(chan, 0, 1);
 	}
 
+	ast_indicate(chan, AST_CONTROL_INCOMPLETE);
+
 	return AST_PBX_INCOMPLETE;
 }
 

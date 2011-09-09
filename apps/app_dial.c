@@ -2423,14 +2423,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		} else { /* Nobody answered, next please? */
 			res = 0;
 		}
-
-		/* SIP, in particular, sends back this error code to indicate an
-		 * overlap dialled number needs more digits. */
-		if (chan->hangupcause == AST_CAUSE_INVALID_NUMBER_FORMAT) {
-			res = AST_PBX_INCOMPLETE;
-		}
-
-		/* almost done, although the 'else' block is 400 lines */
 	} else {
 		const char *number;
 
