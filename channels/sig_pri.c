@@ -6922,6 +6922,15 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		/* don't continue in ast_indicate */
 		res = 0;
 		break;
+	case AST_CONTROL_INCOMPLETE:
+		/* If we are connected or if we support overlap dialing, wait for additional digits */
+		if (p->call_level == SIG_PRI_CALL_LEVEL_CONNECT || (p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)) {
+			res = 0;
+			break;
+		}
+		/* Otherwise, treat as congestion */
+		chan->hangupcause = AST_CAUSE_INVALID_NUMBER_FORMAT;
+		/* Falls through */
 	case AST_CONTROL_CONGESTION:
 		if (p->priindication_oob || p->no_b_channel) {
 			/* There are many cause codes that generate an AST_CONTROL_CONGESTION. */

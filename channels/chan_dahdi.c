@@ -9315,13 +9315,18 @@ static int dahdi_indicate(struct ast_channel *chan, int condition, const void *d
 				ast_setstate(chan, AST_STATE_RINGING);
 			}
 			break;
+		case AST_CONTROL_INCOMPLETE:
+			ast_debug(1, "Received AST_CONTROL_INCOMPLETE on %s\n", chan->name);
+			/* act as a progress or proceeding, allowing the caller to enter additional numbers */
+			res = 0;
+			break;
 		case AST_CONTROL_PROCEEDING:
-			ast_debug(1,"Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
+			ast_debug(1, "Received AST_CONTROL_PROCEEDING on %s\n", chan->name);
 			/* don't continue in ast_indicate */
 			res = 0;
 			break;
 		case AST_CONTROL_PROGRESS:
-			ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
+			ast_debug(1, "Received AST_CONTROL_PROGRESS on %s\n", chan->name);
 			/* don't continue in ast_indicate */
 			res = 0;
 			break;

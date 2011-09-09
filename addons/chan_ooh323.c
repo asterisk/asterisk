@@ -1226,21 +1226,24 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 	 
    	ast_mutex_lock(&p->lock);
 	switch (condition) {
+	case AST_CONTROL_INCOMPLETE:
+		/* While h323 does support overlapped dialing, this channel driver does not
+		 * at this time.  Treat a response of Incomplete as if it were congestion.
+		 */
 	case AST_CONTROL_CONGESTION:
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
-            		ooHangCall(callToken, OO_REASON_LOCAL_CONGESTED, 
-						AST_CAUSE_SWITCH_CONGESTION);
+			ooHangCall(callToken, OO_REASON_LOCAL_CONGESTED, AST_CAUSE_SWITCH_CONGESTION);
 			ast_set_flag(p, H323_ALREADYGONE);
 		}
 		break;
 	case AST_CONTROL_BUSY:
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
-            		ooHangCall(callToken, OO_REASON_LOCAL_BUSY, AST_CAUSE_USER_BUSY);
+			ooHangCall(callToken, OO_REASON_LOCAL_BUSY, AST_CAUSE_USER_BUSY);
 			ast_set_flag(p, H323_ALREADYGONE);
 		}
 		break;
 	case AST_CONTROL_HOLD:
-		ast_moh_start(ast, data, NULL);		
+		ast_moh_start(ast, data, NULL);
 		break;
 	case AST_CONTROL_UNHOLD:
 		ast_moh_stop(ast);

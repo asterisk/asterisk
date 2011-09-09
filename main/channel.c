@@ -4293,6 +4293,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_END_OF_Q:
 		break;
 
+	case AST_CONTROL_INCOMPLETE:
 	case AST_CONTROL_CONGESTION:
 	case AST_CONTROL_BUSY:
 	case AST_CONTROL_RINGING:
@@ -4449,6 +4450,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_BUSY:
 		ts = ast_get_indication_tone(chan->zone, "busy");
 		break;
+	case AST_CONTROL_INCOMPLETE:
 	case AST_CONTROL_CONGESTION:
 		ts = ast_get_indication_tone(chan->zone, "congestion");
 		break;
@@ -5343,6 +5345,12 @@ struct ast_channel *__ast_request_and_dial(const char *type, format_t format, co
 				case AST_CONTROL_BUSY:
 					ast_cdr_busy(chan->cdr);
 					*outstate = f->subclass.integer;
+					timeout = 0;
+					break;
+
+				case AST_CONTROL_INCOMPLETE:
+					ast_cdr_failed(chan->cdr);
+					*outstate = AST_CONTROL_CONGESTION;
 					timeout = 0;
 					break;
 

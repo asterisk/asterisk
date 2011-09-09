@@ -4290,6 +4290,8 @@ static char *control2str(int ind) {
 		return "Connected Line";
 	case AST_CONTROL_REDIRECTING:
 		return "Redirecting";
+	case AST_CONTROL_INCOMPLETE:
+		return "Incomplete";
 	case -1:
 		return "Stop tone";
 	default:
@@ -4423,6 +4425,8 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			}
 		}
 		return -1; /* Tell asterisk to provide inband signalling */
+	case AST_CONTROL_INCOMPLETE:
+		/* Support for incomplete not supported for chan_skinny; treat as congestion */
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
 			if (!d->earlyrtp) {

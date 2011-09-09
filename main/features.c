@@ -3411,6 +3411,8 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 					ast_indicate(caller, AST_CONTROL_BUSY);
 					ast_frfree(f);
 					break;
+				} else if (f->subclass.integer == AST_CONTROL_INCOMPLETE) {
+					ast_verb(3, "%s dialed incomplete extension %s; ignoring\n", chan->name, chan->exten);
 				} else if (f->subclass.integer == AST_CONTROL_CONGESTION) {
 					state = f->subclass.integer;
 					ast_verb(3, "%s is congested\n", chan->name);

@@ -900,6 +900,10 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 			res = 0;
 		}
 		break;
+	case AST_CONTROL_INCOMPLETE:
+		/* While h323 does support overlapped dialing, this channel driver does not
+		 * at this time.  Treat a response of Incomplete as if it were congestion.
+		 */
 	case AST_CONTROL_CONGESTION:
 		if (c->_state != AST_STATE_UP) {
 			h323_answering_call(token, 1);

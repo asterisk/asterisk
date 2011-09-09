@@ -1559,6 +1559,14 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		/* don't continue in ast_indicate */
 		res = 0;
 		break;
+	case AST_CONTROL_INCOMPLETE:
+		/* If the channel is connected, wait for additional input */
+		if (p->call_level == SIG_SS7_CALL_LEVEL_CONNECT) {
+			res = 0;
+			break;
+		}
+		chan->hangupcause = AST_CAUSE_INVALID_NUMBER_FORMAT;
+		break;
 	case AST_CONTROL_CONGESTION:
 		chan->hangupcause = AST_CAUSE_CONGESTION;
 		break;
