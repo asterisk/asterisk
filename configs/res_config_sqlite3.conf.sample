@@ -1,0 +1,31 @@
+; Define a realtime database name to use in extconfig.conf
+;
+;[asterisk]
+;dbfile => /var/lib/asterisk/realtime.sqlite3
+;
+; debug - Turn on debugging information
+;debug=yes
+;
+; requirements - At startup, each realtime family will make requirements
+;   on the backend.  There are several strategies for handling requirements:
+;     warn        - Warn if the required column does not exist.
+;     createclose - Create columns as close to the requirements as possible.
+;     createchar  - Create char columns only
+;
+;requirements=warn
+;
+; batch - SQLite 3 write performance can be greatly improved by wrapping
+;   multiple writes in transactions. This option specifies the duration in
+;   milliseconds of auto-generated transactions. Any changes made during an
+;   unfinished transaction will be immediately available to the same database
+;   connection, but any external connections could see a delay up to the value
+;   of this setting. It is also possible that if asterisk crashes, any changes
+;   made during this time could be lost. Due to the nearly 100x performance
+;   benefit, the default is 100 ms. Set to 0 to disable batching.
+;
+;   PLEASE NOTE: If you need to write to the database from another connection
+;   you will need to set batch=0 as the transactions will cause the database
+;   to lock for writing.
+;
+;batch=1000
+
