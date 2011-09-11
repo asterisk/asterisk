@@ -1514,21 +1514,12 @@ static struct ast_cli_entry cli_status = AST_CLI_DEFINE(handle_cli_status, "Disp
 static int do_reload(int reload)
 {
 	struct ast_config *config;
-	const char *enabled_value;
-	const char *unanswered_value;
-	const char *congestion_value;
-	const char *batched_value;
-	const char *scheduleronly_value;
-	const char *batchsafeshutdown_value;
-	const char *size_value;
-	const char *time_value;
-	const char *end_before_h_value;
-	const char *initiatedseconds_value;
+	struct ast_variable *v;
 	int cfg_size;
 	int cfg_time;
 	int was_enabled;
 	int was_batchmode;
-	int res=0;
+	int res = 0;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	if ((config = ast_config_load2("cdr.conf", "cdr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
@@ -1557,45 +1548,40 @@ static int do_reload(int reload)
 	/* don't run the next scheduled CDR posting while reloading */
 	AST_SCHED_DEL(sched, cdr_sched);
 
-	if (config) {
-		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
-			enabled = ast_true(enabled_value);
-		}
-		if ((unanswered_value = ast_variable_retrieve(config, "general", "unanswered"))) {
-			unanswered = ast_true(unanswered_value);
-		}
-		if ((congestion_value = ast_variable_retrieve(config, "general", "congestion"))) {
-			congestion = ast_true(congestion_value);
-		}
-		if ((batched_value = ast_variable_retrieve(config, "general", "batch"))) {
-			batchmode = ast_true(batched_value);
-		}
-		if ((scheduleronly_value = ast_variable_retrieve(config, "general", "scheduleronly"))) {
-			batchscheduleronly = ast_true(scheduleronly_value);
-		}
-		if ((batchsafeshutdown_value = ast_variable_retrieve(config, "general", "safeshutdown"))) {
-			batchsafeshutdown = ast_true(batchsafeshutdown_value);
-		}
-		if ((size_value = ast_variable_retrieve(config, "general", "size"))) {
-			if (sscanf(size_value, "%30d", &cfg_size) < 1)
-				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", size_value);
-			else if (cfg_size < 0)
+	for (v = ast_variable_browse(config, "general"); v; v = v->next) {
+		if (!strcasecmp(v->name, "enable")) {
+			enabled = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "unanswered")) {
+			unanswered = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "congestion")) {
+			congestion = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "batch")) {
+			batchmode = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "scheduleronly")) {
+			batchscheduleronly = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "safeshutdown")) {
+			batchsafeshutdown = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "size")) {
+			if (sscanf(v->value, "%30d", &cfg_size) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if (cfg_size < 0) {
 				ast_log(LOG_WARNING, "Invalid maximum batch size '%d' specified, using default\n", cfg_size);
-			else
+			} else {
 				batchsize = cfg_size;
-		}
-		if ((time_value = ast_variable_retrieve(config, "general", "time"))) {
-			if (sscanf(time_value, "%30d", &cfg_time) < 1)
-				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", time_value);
-			else if (cfg_time < 0)
+			}
+		} else if (!strcasecmp(v->name, "time")) {
+			if (sscanf(v->value, "%30d", &cfg_time) < 1) {
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if (cfg_time < 0) {
 				ast_log(LOG_WARNING, "Invalid maximum batch time '%d' specified, using default\n", cfg_time);
-			else
+			} else {
 				batchtime = cfg_time;
+			}
+		} else if (!strcasecmp(v->name, "endbeforehexten")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN);
+		} else if (!strcasecmp(v->name, "initiatedseconds")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_INITIATED_SECONDS);
 		}
-		if ((end_before_h_value = ast_variable_retrieve(config, "general", "endbeforehexten")))
-			ast_set2_flag(&ast_options, ast_true(end_before_h_value), AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN);
-		if ((initiatedseconds_value = ast_variable_retrieve(config, "general", "initiatedseconds")))
-			ast_set2_flag(&ast_options, ast_true(initiatedseconds_value), AST_OPT_FLAG_INITIATED_SECONDS);
 	}
 
 	if (enabled && !batchmode) {

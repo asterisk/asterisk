@@ -27,6 +27,13 @@ func_enum:
    differentiate between a failed query and a successful query with 0 results
    matching the specified type.
 
+Configuration Files:
+ - Files listed below have been updated to be more consistent with how Asterisk
+   parses configuration files.  This makes configuration files more consistent
+   with what is expected across modules.
+
+   - cdr.conf
+
 From 1.8 to 10:
 
 cel_pgsql:
