@@ -1351,7 +1351,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_FRAME_VOICE:
 				case AST_FRAME_IMAGE:
 				case AST_FRAME_TEXT:
-					if (ast_write(in, f)) {
+					if (!ast_test_flag64(outgoing, OPT_RINGBACK | OPT_MUSICBACK) && ast_write(in, f)) {
 						ast_log(LOG_WARNING, "Unable to write frametype: %d\n",
 							f->frametype);
 					}
