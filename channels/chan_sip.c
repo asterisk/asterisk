@@ -26562,6 +26562,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (peer) {
 		/* Already in the list, remove it and it will be added back (or FREE'd)  */
 		found++;
+		/* we've unlinked the peer from the peers container but not unlinked from the peers_by_ip container yet
+		  this leads to a wrong refcounter and the peer object is never destroyed */
+		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink peer from peers_by_ip table");
 		if (!(peer->the_mark))
 			firstpass = 0;
 	} else {
