@@ -14036,9 +14036,7 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	struct sip_peer *peer = userdata;
 
-	ao2_lock(peer);
 	sip_send_mwi_to_peer(peer, 0);
-	ao2_unlock(peer);
 }
 
 static void network_change_event_subscribe(void)
@@ -24277,9 +24275,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 			transmit_response(p, "200 OK", req);
 			if (p->relatedpeer) {	/* Send first notification */
-				ao2_lock(p->relatedpeer); /* was WRLOCK */
 				sip_send_mwi_to_peer(p->relatedpeer, 0);
-				ao2_unlock(p->relatedpeer);
 			}
 		} else if (p->subscribed != CALL_COMPLETION) {
 			if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
@@ -25011,14 +25007,18 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
 	}
+	ao2_lock(peer);
 
 	if (peer->mwipvt) {
 		/* Base message on subscription */
 		p = dialog_ref(peer->mwipvt, "sip_send_mwi_to_peer: Setting dialog ptr p from peer->mwipvt-- should this be done?");
 	} else {
 		/* Build temporary dialog for this message */
-		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL)))
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL))) {
+			ao2_unlock(peer);
 			return -1;
+		}
+
 		/* If we don't set the socket type to 0, then create_addr_from_peer will fail immediately if the peer
 		 * uses any transport other than UDP. We set the type to 0 here and then let create_addr_from_peer copy
 		 * the peer's socket information to the sip_pvt we just allocated
@@ -25046,11 +25046,17 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 
+	/* We have multiple threads (mwi events and monitor retransmits) working with this PVT and as we modify the sip history if that's turned on,
+	   we really need to have a lock on it */
+	sip_pvt_lock(p);
+
 	/* Send MWI */
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 	/* the following will decrement the refcount on p as it finishes */
 	transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
+	sip_pvt_unlock(p);
 	dialog_unref(p, "unref dialog ptr p just before it goes out of scope at the end of sip_send_mwi_to_peer.");
+	ao2_unlock(peer);
 	return 0;
 }
 
