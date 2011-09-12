@@ -8584,6 +8584,7 @@ static int iax2_append_register(const char *hostname, const char *username,
 	if (!(reg = ast_calloc(1, sizeof(*reg))))
 		return -1;
 
+	reg->addr.ss.ss_family = AF_INET;
 	if (ast_dnsmgr_lookup(hostname, &reg->addr, &reg->dnsmgr, srvlookup ? "_iax._udp" : NULL) < 0) {
 		ast_free(reg);
 		return -1;
@@ -12429,6 +12430,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		peer->expire = -1;
 		peer->pokeexpire = -1;
 		peer->sockfd = defaultsockfd;
+		peer->addr.ss.ss_family = AF_INET;
 		if (ast_string_field_init(peer, 32))
 			peer = peer_unref(peer);
 	}
