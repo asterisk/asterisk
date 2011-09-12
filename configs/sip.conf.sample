@@ -307,6 +307,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; Parkinglots are configured in features.conf
 ;language=en                    ; Default language setting for all users/peers
                                 ; This may also be set for individual users/peers
+;tonezone=se			; Default tonezone for all users/peers
+                                ; This may also be set for individual users/peers
+
 ;relaxdtmf=yes                  ; Relax dtmf handling
 ;trustrpid = no                 ; If Remote-Party-ID should be trusted
 ;sendrpid = yes                 ; If Remote-Party-ID should be sent (defaults to no)

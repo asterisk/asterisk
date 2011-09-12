@@ -34,6 +34,11 @@ Configuration Files:
 
    - cdr.conf: [general] section
 
+SIP
+===
+ - A new option "tonezone" for setting default tonezone for the channel driver
+   or individual devices
+
 From 1.8 to 10:
 
 cel_pgsql:

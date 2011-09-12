@@ -692,6 +692,7 @@ static char default_parkinglot[AST_MAX_CONTEXT];   /*!< Parkinglot */
 static char default_engine[256];                   /*!< Default RTP engine */
 static int default_maxcallbitrate;                 /*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;        /*!< Default codec prefs */
+static char default_zone[MAX_TONEZONE_COUNTRY];        /*!< Default tone zone for channels created from the SIP driver */
 static unsigned int default_transports;            /*!< Default Transports (enum sip_transport) that are acceptable */
 static unsigned int default_primary_transport;     /*!< Default primary Transport (enum sip_transport) for outbound connections to devices */
 /*@}*/
@@ -5215,6 +5216,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ref_proxy(dialog, obproxy_get(dialog, peer));
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
+	ast_copy_string(dialog->zone, peer->zone, sizeof(dialog->zone));
 	dialog->allowtransfer = peer->allowtransfer;
 	dialog->jointnoncodeccapability = dialog->noncodeccapability;
 	dialog->rtptimeout = peer->rtptimeout;
@@ -6997,6 +6999,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_strlen_zero(i->language)) {
 		ast_string_field_set(tmp, language, i->language);
 	}
+	if (!ast_strlen_zero(i->zone)) {
+		if (!(tmp->zone = ast_get_indication_zone(i->zone))) {
+			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", i->zone);
+		} 
+	}
 	i->owner = tmp;
 	ast_module_ref(ast_module_info->self);
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
@@ -7529,6 +7536,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	p->session_modify = TRUE;
 	p->stimer = NULL;
 	p->prefs = default_prefs;		/* Set default codecs for this call */
+	ast_copy_string(p->zone, default_zone, sizeof(p->zone));
 	p->maxforwards = sip_cfg.default_max_forwards;
 
 	if (intended_method != SIP_OPTIONS) {	/* Peerpoke has it's own system */
@@ -15874,6 +15882,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		ast_format_cap_copy(p->caps, peer->caps);
 		ast_format_cap_copy(p->jointcaps, peer->caps);
 		p->prefs = peer->prefs;
+		ast_copy_string(p->zone, peer->zone, sizeof(p->zone));
  		if (peer->maxforwards > 0) {
 			p->maxforwards = peer->maxforwards;
 		}
@@ -17363,6 +17372,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Context      : %s\n", peer->context);
 		ast_cli(fd, "  Subscr.Cont. : %s\n", S_OR(peer->subscribecontext, "<Not set>") );
 		ast_cli(fd, "  Language     : %s\n", peer->language);
+		ast_cli(fd, "  Tonezone     : %s\n", peer->zone[0] != '\0' ? peer->zone : "<Not set>");
 		if (!ast_strlen_zero(peer->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", peer->accountcode);
 		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(peer->amaflags));
@@ -17477,6 +17487,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "MD5SecretExist: %s\r\n", ast_strlen_zero(peer->md5secret)?"N":"Y");
 		astman_append(s, "Context: %s\r\n", peer->context);
 		astman_append(s, "Language: %s\r\n", peer->language);
+		astman_append(s, "ToneZone: %s\r\n", peer->zone[0] != '\0' ? peer->zone : "<Not set>");
 		if (!ast_strlen_zero(peer->accountcode))
 			astman_append(s, "Accountcode: %s\r\n", peer->accountcode);
 		astman_append(s, "AMAflags: %s\r\n", ast_cdr_flags2str(peer->amaflags));
@@ -17644,6 +17655,7 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		if (!ast_strlen_zero(user->accountcode))
 			ast_cli(a->fd, "  Accountcode  : %s\n", user->accountcode);
 		ast_cli(a->fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
+		ast_cli(a->fd, "  Tonezone     : %s\n", user->zone[0] != '\0' ? user->zone : "<Not set>");
 		ast_cli(a->fd, "  Transfer mode: %s\n", transfermode2str(user->allowtransfer));
 		ast_cli(a->fd, "  MaxCallBR    : %d kbps\n", user->maxcallbitrate);
 		ast_cli(a->fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(user->callingpres));
@@ -18117,6 +18129,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Use ClientCode:         %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_USECLIENTCODE)));
 	ast_cli(a->fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROG_INBAND) != SIP_PROG_INBAND_NO)));
 	ast_cli(a->fd, "  Language:               %s\n", default_language);
+	ast_cli(a->fd, "  Tone zone:              %s\n", default_zone[0] != '\0' ? default_zone : "<Not set>");
 	ast_cli(a->fd, "  MOH Interpret:          %s\n", default_mohinterpret);
 	ast_cli(a->fd, "  MOH Suggest:            %s\n", default_mohsuggest);
 	ast_cli(a->fd, "  Voice Mail Extension:   %s\n", default_vmexten);
@@ -27129,6 +27142,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->pickupgroup = 0;
 	peer->maxms = default_qualify;
 	peer->prefs = default_prefs;
+	ast_string_field_set(peer, zone, default_zone);
 	peer->stimer.st_mode_oper = global_st_mode;	/* Session-Timers */
 	peer->stimer.st_ref = global_st_refresher;
 	peer->stimer.st_min_se = global_min_se;
@@ -27517,6 +27531,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 						deprecation_warning = 0;
 					}
 					peer->deprecated_username = 1;
+				}
+			} else if (!strcasecmp(v->name, "tonezone")) {
+				struct ast_tone_zone *new_zone;
+				if (!(new_zone = ast_get_indication_zone(v->value))) {
+					ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone in device [%s] at line %d. Check indications.conf for available country codes.\n", v->value, peer->name, v->lineno);
+				} else {
+					ast_tone_zone_unref(new_zone);
+					ast_string_field_set(peer, zone, v->value);
 				}
 			} else if (!strcasecmp(v->name, "language")) {
 				ast_string_field_set(peer, language, v->value);
@@ -28144,6 +28166,7 @@ static int reload_config(enum channelreloadreason reason)
 	default_fromdomain[0] = '\0';
 	default_fromdomainport = 0;
 	default_qualify = DEFAULT_QUALIFY;
+	default_zone[0] = '\0';
 	default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 	ast_copy_string(default_mohinterpret, DEFAULT_MOHINTERPRET, sizeof(default_mohinterpret));
 	ast_copy_string(default_mohsuggest, DEFAULT_MOHSUGGEST, sizeof(default_mohsuggest));
@@ -28353,6 +28376,14 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(default_mohsuggest, v->value, sizeof(default_mohsuggest));
+		} else if (!strcasecmp(v->name, "tonezone")) {
+			struct ast_tone_zone *new_zone;
+			if (!(new_zone = ast_get_indication_zone(v->value))) {
+				ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone in [general] at line %d. Check indications.conf for available country codes.\n", v->value, v->lineno);
+			} else {
+				ast_tone_zone_unref(new_zone);
+				ast_copy_string(default_zone, v->value, sizeof(default_zone));
+			}
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(default_language, v->value, sizeof(default_language));
 		} else if (!strcasecmp(v->name, "regcontext")) {

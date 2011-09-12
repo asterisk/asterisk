@@ -32,6 +32,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
 #include "asterisk/astobj.h"
+#include "asterisk/indications.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -1030,6 +1031,7 @@ struct sip_pvt {
 	struct t38properties t38;             /*!< T38 settings */
 	struct ast_sockaddr udptlredirip;     /*!< Where our T.38 UDPTL should be going if not to us */
 	struct ast_udptl *udptl;              /*!< T.38 UDPTL session */
+	char zone[MAX_TONEZONE_COUNTRY];      /*!< Default tone zone for channels created by this dialog */
 	int callingpres;                      /*!< Calling presentation */
 	int expiry;                         /*!< How long we take to expire */
 	int sessionversion;                 /*!< SDP Session Version */
@@ -1199,6 +1201,7 @@ struct sip_peer {
 		AST_STRING_FIELD(mwi_from);     /*!< Name to place in From header for outgoing NOTIFY requests */
 		AST_STRING_FIELD(engine);       /*!<  RTP Engine to use */
 		AST_STRING_FIELD(unsolicited_mailbox);  /*!< Mailbox to store received unsolicited MWI NOTIFY messages information in */
+		AST_STRING_FIELD(zone);         /*!< Tonezone for this device */
 		);
 	struct sip_socket socket;       /*!< Socket used for this peer */
 	enum sip_transport default_outbound_transport;   /*!< Peer Registration may change the default outbound transport.
