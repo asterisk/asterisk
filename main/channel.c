@@ -7216,6 +7216,9 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1))
 		return -1;
 
+	caller_warning = ast_test_flag(&config->features_caller, AST_FEATURE_PLAY_WARNING);
+	callee_warning = ast_test_flag(&config->features_callee, AST_FEATURE_PLAY_WARNING);
+
 	if (ast_tvzero(config->start_time)) {
 		config->start_time = ast_tvnow();
 		if (config->start_sound) {
@@ -7241,8 +7244,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		config->nexteventts = ast_tvadd(config->feature_start_time, ast_samp2tv(config->feature_timer, 1000));
 	} else if (config->timelimit) {
 		time_left_ms = config->timelimit - ast_tvdiff_ms(ast_tvnow(), config->start_time);
-		caller_warning = ast_test_flag(&config->features_caller, AST_FEATURE_PLAY_WARNING);
-		callee_warning = ast_test_flag(&config->features_callee, AST_FEATURE_PLAY_WARNING);
 		config->nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
 		if ((caller_warning || callee_warning) && config->play_warning) {
 			long next_warn = config->play_warning;
