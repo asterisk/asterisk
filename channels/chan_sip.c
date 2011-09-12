@@ -340,7 +340,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<function name="SIP_HEADER" language="en_US">
 		<synopsis>
-			Gets the specified SIP header.
+			Gets the specified SIP header from an incoming INVITE message.
 		</synopsis>
 		<syntax>
 			<parameter name="name" required="true" />
@@ -352,6 +352,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Since there are several headers (such as Via) which can occur multiple
 			times, SIP_HEADER takes an optional second argument to specify which header with
 			that name to retrieve. Headers start at offset <literal>1</literal>.</para>
+			<para>Please observe that contents of the SDP (an attachment to the 
+			SIP request) can't be accessed with this function.</para>
 		</description>
 	</function>
 	<function name="SIPPEER" language="en_US">
@@ -363,7 +365,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="item">
 				<enumlist>
 					<enum name="ip">
-						<para>(default) The ip address.</para>
+						<para>(default) The IP address.</para>
 					</enum>
 					<enum name="port">
 						<para>The port number.</para>
