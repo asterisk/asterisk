@@ -32,7 +32,7 @@ Configuration Files:
    parses configuration files.  This makes configuration files more consistent
    with what is expected across modules.
 
-   - cdr.conf: [general] section
+   - cdr.conf: [general] and [csv] sections
    - dnsmgr.conf
 
 SIP
