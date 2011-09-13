@@ -33,6 +33,7 @@ Configuration Files:
    with what is expected across modules.
 
    - cdr.conf: [general] section
+   - dnsmgr.conf
 
 SIP
 ===
