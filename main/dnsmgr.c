@@ -386,11 +386,9 @@ static int do_reload(int loading)
 	struct ast_flags config_flags = { loading ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int interval;
 	int was_enabled;
-	int res = 0;
 
-	config = ast_config_load2("dnsmgr.conf", "dnsmgr", config_flags);
-	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEUNCHANGED || config == CONFIG_STATUS_FILEINVALID) {
-		return res;
+	if ((config = ast_config_load2("dnsmgr.conf", "dnsmgr", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
+		return 0;
 	}
 
 	/* ensure that no refresh cycles run while the reload is in progress */
@@ -400,6 +398,11 @@ static int do_reload(int loading)
 	refresh_interval = REFRESH_DEFAULT;
 	was_enabled = enabled;
 	enabled = 0;
+
+	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
+		ast_mutex_unlock(&refresh_lock);
+		return 0;
+	}
 
 	AST_SCHED_DEL(sched, refresh_sched);
 
@@ -444,5 +447,5 @@ static int do_reload(int loading)
 	ast_mutex_unlock(&refresh_lock);
 	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: DNSmgr\r\nStatus: %s\r/nMessage: DNSmgr reload Requested\r\n", enabled ? "Enabled" : "Disabled");
 
-	return res;
+	return 0;
 }
