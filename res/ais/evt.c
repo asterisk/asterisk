@@ -135,6 +135,13 @@ void evt_event_deliver_cb(SaEvtSubscriptionIdT sub_id,
 		return;
 	}
 
+	if (event_datalen < ast_event_minimum_length()) {
+		ast_debug(1, "Ignoring event that's too small. %u < %u\n",
+			(unsigned int) event_datalen,
+			(unsigned int) ast_event_minimum_length());
+		return;
+	}
+
 	ais_res = saEvtEventDataGet(event_handle, event, &len);
 	if (ais_res != SA_AIS_OK) {
 		ast_log(LOG_ERROR, "Error retrieving event payload: %s\n",

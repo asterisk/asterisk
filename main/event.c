@@ -1769,3 +1769,8 @@ int ast_event_init(void)
 
 	return 0;
 }
+
+size_t ast_event_minimum_length(void)
+{
+	return sizeof(struct ast_event);
+}
