@@ -101,7 +101,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char app[] = "Pickup";
 static const char app2[] = "PickupChan";
-/*! \todo This application should return a result code, like PICKUPRESULT */
 
 struct pickup_by_name_args {
 	const char *name;
