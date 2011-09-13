@@ -59,7 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 enum gsamp_size {
 	GSAMP_SIZE_NA = 183,			/*!< North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
 	GSAMP_SIZE_CR = 188,			/*!< Costa Rica, Brazil - Only care about 425 Hz */
-	GSAMP_SIZE_UK = 160 			/*!< UK disconnect goertzel feed - should trigger 400hz */
+	GSAMP_SIZE_UK = 160			/*!< UK disconnect goertzel feed - should trigger 400hz */
 };
 
 enum prog_mode {
@@ -68,7 +68,7 @@ enum prog_mode {
 	PROG_MODE_UK
 };
 
-enum freq_index { 
+enum freq_index {
 	/*! For US modes { */
 	HZ_350 = 0,
 	HZ_440,
@@ -103,8 +103,8 @@ static struct progress {
 	int freqs[7];
 } modes[] = {
 	{ GSAMP_SIZE_NA, { 350, 440, 480, 620, 950, 1400, 1800 } },	/*!< North America */
-	{ GSAMP_SIZE_CR, { 425 } },                                	/*!< Costa Rica, Brazil */
-	{ GSAMP_SIZE_UK, { 350, 400, 440 } },                                	/*!< UK */
+	{ GSAMP_SIZE_CR, { 425 } },					/*!< Costa Rica, Brazil */
+	{ GSAMP_SIZE_UK, { 350, 400, 440 } },				/*!< UK */
 };
 
 /*!\brief This value is the minimum threshold, calculated by averaging all
@@ -117,26 +117,26 @@ static struct progress {
 #define DEFAULT_THRESHOLD	512
 
 enum busy_detect {
-	BUSY_PERCENT = 10,   	/*!< The percentage difference between the two last silence periods */
+	BUSY_PERCENT = 10,	/*!< The percentage difference between the two last silence periods */
 	BUSY_PAT_PERCENT = 7,	/*!< The percentage difference between measured and actual pattern */
 	BUSY_THRESHOLD = 100,	/*!< Max number of ms difference between max and min times in busy */
-	BUSY_MIN = 75,       	/*!< Busy must be at least 80 ms in half-cadence */
-	BUSY_MAX =3100       	/*!< Busy can't be longer than 3100 ms in half-cadence */
+	BUSY_MIN = 75,		/*!< Busy must be at least 80 ms in half-cadence */
+	BUSY_MAX =3100		/*!< Busy can't be longer than 3100 ms in half-cadence */
 };
 
 /*! Remember last 15 units */
-#define DSP_HISTORY 		15
+#define DSP_HISTORY		15
 
 #define TONE_THRESH		10.0	/*!< How much louder the tone should be than channel energy */
-#define TONE_MIN_THRESH 	1e8	/*!< How much tone there should be at least to attempt */
+#define TONE_MIN_THRESH		1e8	/*!< How much tone there should be at least to attempt */
 
 /*! All THRESH_XXX values are in GSAMP_SIZE chunks (us = 22ms) */
 enum gsamp_thresh {
-	THRESH_RING = 8,        	/*!< Need at least 150ms ring to accept */
-	THRESH_TALK = 2,        	/*!< Talk detection does not work continuously */
-	THRESH_BUSY = 4,        	/*!< Need at least 80ms to accept */
-	THRESH_CONGESTION = 4,  	/*!< Need at least 80ms to accept */
-	THRESH_HANGUP = 60,     	/*!< Need at least 1300ms to accept hangup */
+	THRESH_RING = 8,		/*!< Need at least 150ms ring to accept */
+	THRESH_TALK = 2,		/*!< Talk detection does not work continuously */
+	THRESH_BUSY = 4,		/*!< Need at least 80ms to accept */
+	THRESH_CONGESTION = 4,		/*!< Need at least 80ms to accept */
+	THRESH_HANGUP = 60,		/*!< Need at least 1300ms to accept hangup */
 	THRESH_RING2ANSWER = 300	/*!< Timeout from start of ring to answer (about 6600 ms) */
 };
 
@@ -312,10 +312,10 @@ static int thresholds[THRESHOLD_MAX];
 static inline void goertzel_sample(goertzel_state_t *s, short sample)
 {
 	int v1;
-	
+
 	v1 = s->v2;
 	s->v2 = s->v3;
-	
+
 	s->v3 = (s->fac * s->v2) >> 15;
 	s->v3 = s->v3 - v1 + (sample >> s->chunky);
 	if (abs(s->v3) > 32768) {
@@ -329,7 +329,7 @@ static inline void goertzel_sample(goertzel_state_t *s, short sample)
 static inline void goertzel_update(goertzel_state_t *s, short *samps, int count)
 {
 	int i;
-	
+
 	for (i = 0; i < count; i++) {
 		goertzel_sample(s, samps[i]);
 	}
@@ -433,7 +433,7 @@ static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration,
 
 	/* If we want to remove tone, it is important to have block size not
 	   to exceed frame size. Otherwise by the moment tone is detected it is too late
- 	   to squelch it from previous frames. Block size is 20ms at the given sample rate.*/
+	   to squelch it from previous frames. Block size is 20ms at the given sample rate.*/
 	s->block_size = (20 * sample_rate) / 1000;
 
 	periods_in_block = s->block_size * freq / sample_rate;
@@ -441,8 +441,9 @@ static void ast_tone_detect_init(tone_detect_state_t *s, int freq, int duration,
 	/* Make sure we will have at least 5 periods at target frequency for analisys.
 	   This may make block larger than expected packet and will make squelching impossible
 	   but at least we will be detecting the tone */
-	if (periods_in_block < 5)
+	if (periods_in_block < 5) {
 		periods_in_block = 5;
+	}
 
 	/* Now calculate final block size. It will contain integer number of periods */
 	s->block_size = periods_in_block * sample_rate / freq;
@@ -493,8 +494,9 @@ static void ast_v21_detect_init(v21_detect_state_t *s, unsigned int sample_rate)
 	/* Make sure we will have at least 5 periods at target frequency for analisys.
 	   This may make block larger than expected packet and will make squelching impossible
 	   but at least we will be detecting the tone */
-	if (periods_in_block < 5)
+	if (periods_in_block < 5) {
 		periods_in_block = 5;
+	}
 
 	/* Now calculate final block size. It will contain integer number of periods */
 	s->block_size = periods_in_block * sample_rate / 1850;
@@ -842,7 +844,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		}
 		hit = 0;
 		/* Basic signal level test and the twist test */
-		if (row_energy[best_row] >= DTMF_THRESHOLD && 
+		if (row_energy[best_row] >= DTMF_THRESHOLD &&
 		    col_energy[best_col] >= DTMF_THRESHOLD &&
 		    col_energy[best_col] < row_energy[best_row] * DTMF_REVERSE_TWIST &&
 		    col_energy[best_col] * DTMF_NORMAL_TWIST > row_energy[best_row]) {
@@ -850,7 +852,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 			for (i = 0;  i < 4;  i++) {
 				if ((i != best_col &&
 				    col_energy[i] * DTMF_RELATIVE_PEAK_COL > col_energy[best_col]) ||
-				    (i != best_row 
+				    (i != best_row
 				     && row_energy[i] * DTMF_RELATIVE_PEAK_ROW > row_energy[best_row])) {
 					break;
 				}
@@ -861,7 +863,7 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 				/* Got a hit */
 				hit = dtmf_positions[(best_row << 2) + best_col];
 			}
-		} 
+		}
 
 		if (s->td.dtmf.current_hit) {
 			/* We are in the middle of a digit already */
@@ -1001,8 +1003,8 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 		/* Basic signal level and twist tests */
 		hit = 0;
 		if (energy[best] >= BELL_MF_THRESHOLD && energy[second_best] >= BELL_MF_THRESHOLD
-	            && energy[best] < energy[second_best]*BELL_MF_TWIST
-	            && energy[best] * BELL_MF_TWIST > energy[second_best]) {
+		    && energy[best] < energy[second_best]*BELL_MF_TWIST
+		    && energy[best] * BELL_MF_TWIST > energy[second_best]) {
 			/* Relative peak test */
 			hit = -1;
 			for (i = 0; i < 6; i++) {
@@ -1032,7 +1034,7 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 			   two blocks of something different preceeding it. */
 			if (hit == s->td.mf.hits[4] && hit == s->td.mf.hits[3] &&
 			   ((hit != '*' && hit != s->td.mf.hits[2] && hit != s->td.mf.hits[1])||
-			    (hit == '*' && hit == s->td.mf.hits[2] && hit != s->td.mf.hits[1] && 
+			    (hit == '*' && hit == s->td.mf.hits[2] && hit != s->td.mf.hits[1] &&
 			    hit != s->td.mf.hits[0]))) {
 				store_digit(s, hit);
 			}
@@ -1061,8 +1063,9 @@ static int mf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp[]
 		}
 
 		/* Reinitialise the detector for the next block */
-		for (i = 0;  i < 6;  i++)
+		for (i = 0;  i < 6;  i++) {
 			goertzel_reset(&s->td.mf.tone_out[i]);
+		}
 		s->td.mf.current_sample = 0;
 	}
 
@@ -1365,8 +1368,8 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 		}
 	}
 #ifndef BUSYDETECT_TONEONLY
-	if ((hittone >= dsp->busycount - 1) && (hitsilence >= dsp->busycount - 1) && 
-	    (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX) && 
+	if ((hittone >= dsp->busycount - 1) && (hitsilence >= dsp->busycount - 1) &&
+	    (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX) &&
 	    (avgsilence >= BUSY_MIN && avgsilence <= BUSY_MAX)) {
 #else
 	if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX)) {
@@ -1603,10 +1606,11 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	}
 
 	if (dsp->features & (DSP_FEATURE_DIGIT_DETECT | DSP_FEATURE_BUSY_DETECT)) {
-		if (dsp->digitmode & DSP_DIGITMODE_MF)
+		if (dsp->digitmode & DSP_DIGITMODE_MF) {
 			digit = mf_detect(dsp, &dsp->digit_state, shortdata, len, (dsp->digitmode & DSP_DIGITMODE_NOQUELCH) == 0, (dsp->digitmode & DSP_DIGITMODE_RELAXDTMF));
-		else
+		} else {
 			digit = dtmf_detect(dsp, &dsp->digit_state, shortdata, len, (dsp->digitmode & DSP_DIGITMODE_NOQUELCH) == 0, (dsp->digitmode & DSP_DIGITMODE_RELAXDTMF));
+		}
 
 		if (dsp->digit_state.current_digits) {
 			int event = 0, event_len = 0;
@@ -1634,7 +1638,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 				dsp->dtmf_began = 0;
 
 				if (dsp->features & DSP_FEATURE_BUSY_DETECT) {
-					/* Reset Busy Detector as we have some confirmed activity */ 
+					/* Reset Busy Detector as we have some confirmed activity */
 					memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
 					memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));
 					ast_debug(1, "DTMF Detected - Reset busydetector\n");
@@ -1675,8 +1679,9 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 				dsp->f.frametype = AST_FRAME_CONTROL;
 				dsp->f.subclass.integer = res;
 				dsp->f.src = "dsp_progress";
-				if (chan) 
+				if (chan) {
 					ast_queue_frame(chan, &dsp->f);
+				}
 				break;
 			default:
 				ast_log(LOG_WARNING, "Don't know how to represent call progress message %d\n", res);
@@ -1722,7 +1727,7 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 {
 	int max = 0;
 	int x;
-	
+
 	dsp->gsamp_size = modes[dsp->progmode].size;
 	dsp->gsamps = 0;
 	for (x = 0; x < ARRAY_LEN(modes[dsp->progmode].freqs); x++) {
@@ -1743,8 +1748,8 @@ unsigned int ast_dsp_get_sample_rate(const struct ast_dsp *dsp)
 static struct ast_dsp *__ast_dsp_new(unsigned int sample_rate)
 {
 	struct ast_dsp *dsp;
-	
-	if ((dsp = ast_calloc(1, sizeof(*dsp)))) {		
+
+	if ((dsp = ast_calloc(1, sizeof(*dsp)))) {
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
 		dsp->busycount = DSP_HISTORY;
@@ -1810,7 +1815,7 @@ void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, const struct ast_dsp_busy_pat
 void ast_dsp_digitreset(struct ast_dsp *dsp)
 {
 	int i;
-	
+
 	dsp->dtmf_began = 0;
 	if (dsp->digitmode & DSP_DIGITMODE_MF) {
 		mf_detect_state_t *s = &dsp->digit_state.td.mf;
@@ -1841,14 +1846,14 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 void ast_dsp_reset(struct ast_dsp *dsp)
 {
 	int x;
-	
+
 	dsp->totalsilence = 0;
 	dsp->gsamps = 0;
 	for (x = 0; x < 4; x++) {
 		dsp->freqs[x].v2 = dsp->freqs[x].v3 = 0.0;
 	}
 	memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
-	memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));	
+	memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));
 	dsp->ringtimeout= 0;
 }
 
@@ -1856,7 +1861,7 @@ int ast_dsp_set_digitmode(struct ast_dsp *dsp, int digitmode)
 {
 	int new;
 	int old;
-	
+
 	old = dsp->digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
 	new = digitmode & (DSP_DIGITMODE_DTMF | DSP_DIGITMODE_MF | DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX);
 	if (old != new) {
@@ -1879,7 +1884,7 @@ int ast_dsp_set_faxmode(struct ast_dsp *dsp, int faxmode)
 int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone)
 {
 	int x;
-	
+
 	for (x = 0; x < ARRAY_LEN(aliases); x++) {
 		if (!strcasecmp(aliases[x].name, zone)) {
 			dsp->progmode = aliases[x].mode;
@@ -1895,45 +1900,46 @@ int ast_dsp_was_muted(struct ast_dsp *dsp)
 	return (dsp->mute_fragments > 0);
 }
 
-int ast_dsp_get_tstate(struct ast_dsp *dsp) 
+int ast_dsp_get_tstate(struct ast_dsp *dsp)
 {
 	return dsp->tstate;
 }
 
-int ast_dsp_get_tcount(struct ast_dsp *dsp) 
+int ast_dsp_get_tcount(struct ast_dsp *dsp)
 {
 	return dsp->tcount;
 }
 
 static int _dsp_init(int reload)
 {
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	int cfg_threshold;
 
-	cfg = ast_config_load2(CONFIG_FILE_NAME, "dsp", config_flags);
+	if ((cfg = ast_config_load2(CONFIG_FILE_NAME, "dsp", config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
+		return 0;
+	}
+
+	thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
+
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_verb(5, "Can't find dsp config file %s. Assuming default silencethreshold of %d.\n", CONFIG_FILE_NAME, DEFAULT_SILENCE_THRESHOLD);
-		thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
 		return 0;
 	}
 
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		return 0;
-	}
-
-	if (cfg) {
-		const char *value;
-
-		value = ast_variable_retrieve(cfg, "default", "silencethreshold");
-		if (value && sscanf(value, "%30d", &thresholds[THRESHOLD_SILENCE]) != 1) {
-			ast_verb(5, "%s: '%s' is not a valid silencethreshold value\n", CONFIG_FILE_NAME, value);
-			thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
-		} else if (!value) {
-			thresholds[THRESHOLD_SILENCE] = DEFAULT_SILENCE_THRESHOLD;
+	for (v = ast_variable_browse(cfg, "default"); v; v = v->next) {
+		if (!strcasecmp(v->name, "silencethreshold")) {
+			if (sscanf(v->value, "%30d", &cfg_threshold) < 1) {
+                                ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", v->value);
+			} else if (cfg_threshold < 0) {
+				ast_log(LOG_WARNING, "Invalid silence threshold '%d' specified, using default\n", cfg_threshold);
+			} else {
+				thresholds[THRESHOLD_SILENCE] = cfg_threshold;
+			}
 		}
-
-		ast_config_destroy(cfg);
 	}
+	ast_config_destroy(cfg);
+
 	return 0;
 }
 
@@ -1951,4 +1957,3 @@ int ast_dsp_reload(void)
 {
 	return _dsp_init(1);
 }
-
