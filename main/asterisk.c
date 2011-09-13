@@ -3032,6 +3032,8 @@ static void ast_readconfig(void)
 			}
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "defaultlanguage")) {
+			ast_copy_string(defaultlanguage, v->value, MAX_LANGUAGE);
  		} else if (!strcasecmp(v->name, "lockmode")) {
  			if (!strcasecmp(v->value, "lockfile")) {
  				ast_set_lock_type(AST_LOCK_TYPE_LOCKFILE);
