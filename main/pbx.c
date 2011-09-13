@@ -8905,10 +8905,12 @@ outgoing_exten_cleanup:
 }
 
 struct app_tmp {
-	char app[256];
-	char data[256];
 	struct ast_channel *chan;
 	pthread_t t;
+	AST_DECLARE_STRING_FIELDS (
+		AST_STRING_FIELD(app);
+		AST_STRING_FIELD(data);
+	);
 };
 
 /*! \brief run the application and free the descriptor once done */
@@ -8923,6 +8925,7 @@ static void *ast_pbx_run_app(void *data)
 	} else
 		ast_log(LOG_WARNING, "No such application '%s'\n", tmp->app);
 	ast_hangup(tmp->chan);
+	ast_string_field_free_memory(tmp);
 	ast_free(tmp);
 	return NULL;
 }
@@ -8954,12 +8957,14 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, void *dat
 				res = 0;
 				ast_verb(4, "Channel %s was answered.\n", chan->name);
 				tmp = ast_calloc(1, sizeof(*tmp));
-				if (!tmp)
+				if (!tmp || ast_string_field_init(tmp, 252)) {
+					if (tmp) {
+						ast_free(tmp);
+					}
 					res = -1;
-				else {
-					ast_copy_string(tmp->app, app, sizeof(tmp->app));
-					if (appdata)
-						ast_copy_string(tmp->data, appdata, sizeof(tmp->data));
+				} else {
+					ast_string_field_set(tmp, app, app);
+					ast_string_field_set(tmp, data, appdata);
 					tmp->chan = chan;
 					if (synchronous > 1) {
 						if (locked_channel)
@@ -8970,6 +8975,7 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, void *dat
 							ast_channel_lock(chan);
 						if (ast_pthread_create_detached(&tmp->t, NULL, ast_pbx_run_app, tmp)) {
 							ast_log(LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
+							ast_string_field_free_memory(tmp);
 							ast_free(tmp);
 							if (locked_channel)
 								ast_channel_unlock(chan);

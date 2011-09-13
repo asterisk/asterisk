@@ -81,6 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/security_events.h"
 #include "asterisk/aoc.h"
+#include "asterisk/stringfields.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -3604,14 +3605,16 @@ struct fast_originate_helper {
 	char data[512];
 	int timeout;
 	struct ast_format_cap *cap;				/*!< Codecs used for a call */
-	char app[AST_MAX_APP];
-	char appdata[AST_MAX_EXTENSION];
-	char cid_name[AST_MAX_EXTENSION];
-	char cid_num[AST_MAX_EXTENSION];
-	char context[AST_MAX_CONTEXT];
-	char exten[AST_MAX_EXTENSION];
-	char idtext[AST_MAX_EXTENSION];
-	char account[AST_MAX_ACCOUNT_CODE];
+	AST_DECLARE_STRING_FIELDS (
+		AST_STRING_FIELD(app);
+		AST_STRING_FIELD(appdata);
+		AST_STRING_FIELD(cid_name);
+		AST_STRING_FIELD(cid_num);
+		AST_STRING_FIELD(context);
+		AST_STRING_FIELD(exten);
+		AST_STRING_FIELD(idtext);
+		AST_STRING_FIELD(account);
+	);
 	int priority;
 	struct ast_variable *vars;
 };
@@ -3663,6 +3666,7 @@ static void *fast_originate(void *data)
 		ast_channel_unlock(chan);
 	}
 	in->cap = ast_format_cap_destroy(in->cap);
+	ast_string_field_free_memory(in);
 	ast_free(in);
 	return NULL;
 }
@@ -3998,31 +4002,32 @@ static int action_originate(struct mansession *s, const struct message *m)
 
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast = ast_calloc(1, sizeof(*fast));
-		if (!fast) {
+		if (!fast || ast_string_field_init(fast, 252)) {
+			if (fast) {
+				ast_free(fast);
+			}
 			res = -1;
 		} else {
-			if (!ast_strlen_zero(id))
-				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s", id);
-			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
-			ast_copy_string(fast->data, data, sizeof(fast->data));
-			ast_copy_string(fast->app, app, sizeof(fast->app));
-			ast_copy_string(fast->appdata, appdata, sizeof(fast->appdata));
-			if (l) {
-				ast_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
+			if (!ast_strlen_zero(id)) {
+				ast_string_field_build(fast, idtext, "ActionID: %s", id);
 			}
-			if (n) {
-				ast_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
-			}
+			ast_string_field_set(fast, tech, tech);
+			ast_string_field_set(fast, data, data);
+			ast_string_field_set(fast, app, app);
+			ast_string_field_set(fast, appdata, appdata);
+			ast_string_field_set(fast, cid_num, l);
+			ast_string_field_set(fast, cid_name, n);
+			ast_string_field_set(fast, context, context);
+			ast_string_field_set(fast, exten, exten);
+			ast_string_field_set(fast, account, account);
 			fast->vars = vars;
-			ast_copy_string(fast->context, context, sizeof(fast->context));
-			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
-			ast_copy_string(fast->account, account, sizeof(fast->account));
 			fast->cap = cap;
 			cap = NULL; /* transfered originate helper the capabilities structure.  It is now responsible for freeing it. */
 			fast->timeout = to;
 			fast->priority = pi;
 			if (ast_pthread_create_detached(&th, NULL, fast_originate, fast)) {
 				ast_format_cap_destroy(fast->cap);
+				ast_string_field_free_memory(fast);
 				ast_free(fast);
 				res = -1;
 			} else {
