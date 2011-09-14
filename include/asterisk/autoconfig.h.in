@@ -557,59 +557,6 @@
 /* Define to 1 if you have the ISDN PRI library. */
 #undef HAVE_PRI
 
-/* Define to 1 if you have the ISDN PRI advice of charge supplementary service
-   events library. */
-#undef HAVE_PRI_AOC_EVENTS
-
-/* Define to 1 if you have the ISDN PRI call hold library. */
-#undef HAVE_PRI_CALL_HOLD
-
-/* Define to 1 if you have the ISDN PRI call rerouting and call deflection
-   library. */
-#undef HAVE_PRI_CALL_REROUTING
-
-/* Define to 1 if you have the ISDN PRI call waiting supplementary service
-   library. */
-#undef HAVE_PRI_CALL_WAITING
-
-/* Define to 1 if you have the ISDN PRI call completion supplementary service
-   library. */
-#undef HAVE_PRI_CCSS
-
-/* Define to 1 if you have the ISDN PRI hangup fix library. */
-#undef HAVE_PRI_HANGUP_FIX
-
-/* Define to 1 if you have the ISDN PRI set_inbanddisconnect library. */
-#undef HAVE_PRI_INBANDDISCONNECT
-
-/* Define to 1 if you have the ISDN Layer 2 persistence option library. */
-#undef HAVE_PRI_L2_PERSISTENCE
-
-/* Define to 1 if you have the ISDN PRI Malicious Call ID library. */
-#undef HAVE_PRI_MCID
-
-/* Define to 1 if you have the ISDN PRI Message Waiting Indication library. */
-#undef HAVE_PRI_MWI
-
-/* Define to 1 if you have the ISDN progress with cause library. */
-#undef HAVE_PRI_PROG_W_CAUSE
-
-/* Define to 1 if you have the ISDN reverse charge library. */
-#undef HAVE_PRI_REVERSE_CHARGE
-
-/* Define to 1 if you have the ISDN service messages library. */
-#undef HAVE_PRI_SERVICE_MESSAGES
-
-/* Define to 1 if you have the ISDN PRI keypad facility in SETUP library. */
-#undef HAVE_PRI_SETUP_KEYPAD
-
-/* Define to 1 if you have the ISDN PRI subaddressing library. */
-#undef HAVE_PRI_SUBADDR
-
-/* Define to 1 if you have the ISDN PRI call transfer supplementary service
-   library. */
-#undef HAVE_PRI_TRANSFER
-
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 
@@ -822,16 +769,16 @@
 /* Define to 1 if you have the `strtoq' function. */
 #undef HAVE_STRTOQ
 
-/* Define to 1 if `ifr_ifru.ifru_hwaddr' is a member of `struct ifreq'. */
+/* Define to 1 if `ifr_ifru.ifru_hwaddr' is member of `struct ifreq'. */
 #undef HAVE_STRUCT_IFREQ_IFR_IFRU_IFRU_HWADDR
 
-/* Define to 1 if `st_blksize' is a member of `struct stat'. */
+/* Define to 1 if `st_blksize' is member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
-/* Define to 1 if `cr_uid' is a member of `struct ucred'. */
+/* Define to 1 if `cr_uid' is member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_CR_UID
 
-/* Define to 1 if `uid' is a member of `struct ucred'. */
+/* Define to 1 if `uid' is member of `struct ucred'. */
 #undef HAVE_STRUCT_UCRED_UID
 
 /* Define to 1 if you have the mISDN Supplemental Services library. */
@@ -1105,9 +1052,6 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
-
-/* Define to the home page for this package. */
-#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
