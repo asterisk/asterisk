@@ -18381,7 +18381,7 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 			continue;
 		}
 
-		chans = ast_variable_retrieve(ucfg, cat, "dahdichan");
+		chans = ast_variable_retrieve(cfg, cat, "dahdichan");
 		if (ast_strlen_zero(chans)) {
 			/* Section is useless without a dahdichan value present. */
 			continue;
