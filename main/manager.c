@@ -3952,8 +3952,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 			if (!ast_strlen_zero(id)) {
 				ast_string_field_build(fast, idtext, "ActionID: %s", id);
 			}
-			ast_string_field_set(fast, tech, tech);
-			ast_string_field_set(fast, data, data);
+			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
+			ast_copy_string(fast->data, data, sizeof(fast->data));
 			ast_string_field_set(fast, app, app);
 			ast_string_field_set(fast, appdata, appdata);
 			ast_string_field_set(fast, cid_num, l);
