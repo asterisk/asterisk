@@ -230,6 +230,8 @@ Applications
 ------------
  * Added 'v' option to MeetMe to play voicemail greetings when a user joins/leaves
    a MeetMe conference
+ * Added 'k' option to MeetMe to automatically kill the conference when there's only
+   one participant left (much like a normal call bridge)
 
 Asterisk Database
 -----------------
