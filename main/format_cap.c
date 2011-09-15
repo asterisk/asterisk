@@ -521,8 +521,6 @@ struct ast_format_cap *ast_format_cap_get_type(const struct ast_format_cap *cap,
 	}
 	result = ast_format_cap_destroy(result);
 
-	/* Remember to always free the NULL before returning it. */
-	ast_free(NULL);
 	return NULL;
 }
 
