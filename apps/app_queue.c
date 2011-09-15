@@ -2404,13 +2404,11 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 			queue_t_unref(q, "Need to find realtime queue");
 		}
 
-		ao2_lock(queues);
-
 		q = find_queue_by_name_rt(queuename, queue_vars, member_config);
 		ast_config_destroy(member_config);
 		ast_variables_destroy(queue_vars);
 
-		/* update the use_weight value if the queue's has gained or lost a weight */ 
+		/* update the use_weight value if the queue's has gained or lost a weight */
 		if (q) {
 			if (!q->weight && prev_weight) {
 				ast_atomic_fetchadd_int(&use_weight, -1);
@@ -2420,8 +2418,6 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 			}
 		}
 		/* Other cases will end up with the proper value for use_weight */
-		ao2_unlock(queues);
-
 	} else {
 		update_realtime_members(q);
 	}
@@ -2455,10 +2451,9 @@ static void update_realtime_members(struct call_queue *q)
 		return;
 	}
 
-	ao2_lock(queues);
 	ao2_lock(q);
-	
-	/* Temporarily set realtime  members dead so we can detect deleted ones.*/ 
+
+	/* Temporarily set realtime  members dead so we can detect deleted ones.*/
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((m = ao2_iterator_next(&mem_iter))) {
 		if (m->realtime)
@@ -2483,7 +2478,6 @@ static void update_realtime_members(struct call_queue *q)
 	}
 	ao2_iterator_destroy(&mem_iter);
 	ao2_unlock(q);
-	ao2_unlock(queues);
 	ast_config_destroy(member_config);
 }
 
@@ -2498,7 +2492,6 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	if (!(q = load_realtime_queue(queuename)))
 		return res;
 
-	ao2_lock(queues);
 	ao2_lock(q);
 
 	/* This is our one */
@@ -2507,7 +2500,6 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		if ((status = get_member_status(q, qe->max_penalty, qe->min_penalty, q->joinempty))) {
 			*reason = QUEUE_JOINEMPTY;
 			ao2_unlock(q);
-			ao2_unlock(queues);
 			queue_t_unref(q, "Done with realtime queue");
 			return res;
 		}
@@ -2571,7 +2563,6 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 		ast_debug(1, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 	}
 	ao2_unlock(q);
-	ao2_unlock(queues);
 	queue_t_unref(q, "Done with realtime queue");
 
 	return res;
@@ -2964,9 +2955,7 @@ static int compare_weight(struct call_queue *rq, struct member *member)
 	struct member *mem;
 	int found = 0;
 	struct ao2_iterator queue_iter;
-	
-	/* q's lock and rq's lock already set by try_calling()
-	 * to solve deadlock */
+
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 		if (q == rq) { /* don't check myself, could deadlock */
@@ -4430,7 +4419,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
 	struct queue_end_bridge *queue_end_bridge = NULL;
-	const int need_weight = use_weight;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -4513,9 +4501,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		qe->cancel_answered_elsewhere = 1;
 	}
 
-	/* Hold the lock while we setup the outgoing calls */
-	if (need_weight)
-		ao2_lock(queues);
 	ao2_lock(qe->parent);
 	ast_debug(1, "%s is trying to call a queue member.\n",
 							qe->chan->name);
@@ -4534,8 +4519,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ao2_ref(cur, -1);
 			ao2_unlock(qe->parent);
 			ao2_iterator_destroy(&memi);
-			if (need_weight)
-				ao2_unlock(queues);
 			goto out;
 		}
 		if (!datastore) {
@@ -4543,8 +4526,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
 				ao2_iterator_destroy(&memi);
-				if (need_weight)
-					ao2_unlock(queues);
 				callattempt_free(tmp);
 				goto out;
 			}
@@ -4553,8 +4534,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_ref(cur, -1);
 				ao2_unlock(&qe->parent);
 				ao2_iterator_destroy(&memi);
-				if (need_weight)
-					ao2_unlock(queues);
 				callattempt_free(tmp);
 				goto out;
 			}
@@ -4591,8 +4570,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ao2_ref(cur, -1);
 				ao2_unlock(qe->parent);
 				ao2_iterator_destroy(&memi);
-				if (need_weight)
-					ao2_unlock(queues);
 				callattempt_free(tmp);
 				goto out;
 			}
@@ -4655,8 +4632,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	++qe->pending;
 	ao2_unlock(qe->parent);
 	ring_one(qe, outgoing, &numbusies);
-	if (need_weight)
-		ao2_unlock(queues);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed, update_connectedline);
 	/* The ast_channel_datastore_remove() function could fail here if the
 	 * datastore was moved to another channel during a masquerade. If this is
@@ -5261,7 +5236,6 @@ static int remove_from_queue(const char *queuename, const char *interface)
 
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Temporary reference for interface removal"))) {
-		ao2_lock(queues);
 		ao2_lock(q);
 		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER))) {
 			/* XXX future changes should beware of this assumption!! */
@@ -5272,7 +5246,6 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				ao2_ref(mem, -1);
 				ao2_unlock(q);
 				queue_t_unref(q, "Interface wasn't dynamic, expiring temporary reference");
-				ao2_unlock(queues);
 				return RES_NOT_DYNAMIC;
 			}
 			q->membercount--;
@@ -5292,7 +5265,6 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			res = RES_EXISTS;
 		}
 		ao2_unlock(q);
-		ao2_unlock(queues);
 		queue_t_unref(q, "Expiring temporary reference");
 	}
 
@@ -5316,8 +5288,6 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	 * short-circuits if the queue is already in memory. */
 	if (!(q = load_realtime_queue(queuename)))
 		return res;
-
-	ao2_lock(queues);
 
 	ao2_lock(q);
 	if ((old_member = interface_exists(q, interface)) == NULL) {
@@ -5355,7 +5325,6 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 		res = RES_EXISTS;
 	}
 	ao2_unlock(q);
-	ao2_unlock(queues);
 	queue_t_unref(q, "Expiring temporary reference");
 
 	return res;
@@ -5535,8 +5504,6 @@ static void reload_queue_members(void)
 	struct call_queue *cur_queue;
 	char queue_data[PM_MAX_LEN];
 
-	ao2_lock(queues);
-
 	/* Each key in 'pm_family' is the name of a queue */
 	db_tree = ast_db_gettree(pm_family, NULL);
 	for (entry = db_tree; entry; entry = entry->next) {
@@ -5607,7 +5574,6 @@ static void reload_queue_members(void)
 		queue_t_unref(cur_queue, "Expire reload reference");
 	}
 
-	ao2_unlock(queues);
 	if (db_tree) {
 		ast_log(LOG_NOTICE, "Queue members successfully reloaded from database.\n");
 		ast_db_freetree(db_tree);
@@ -6976,14 +6942,11 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 		return -1;
 	}
 
-	/* We've made it here, so it looks like we're doing operations on all queues. */
-	ao2_lock(queues);
-	
 	/* Mark all queues as dead for the moment if we're reloading queues.
 	 * For clarity, we could just be reloading members, in which case we don't want to mess
 	 * with the other queue parameters at all*/
 	if (queue_reload) {
-		ao2_callback(queues, OBJ_NODATA, mark_dead_and_unfound, (char *) queuename);
+		ao2_callback(queues, OBJ_NODATA | OBJ_NOLOCK, mark_dead_and_unfound, (char *) queuename);
 	}
 
 	/* Chug through config file */
@@ -7000,17 +6963,16 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 	ast_config_destroy(cfg);
 	/* Unref all the dead queues if we were reloading queues */
 	if (queue_reload) {
-		ao2_callback(queues, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, kill_dead_queues, (char *) queuename);
+		ao2_callback(queues, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK | OBJ_NOLOCK, kill_dead_queues, (char *) queuename);
 	}
-	ao2_unlock(queues);
 	return 0;
 }
-  
+
 /*! \brief Facilitates resetting statistics for a queue
  *
  * This function actually does not reset any statistics, but
  * rather finds a call_queue struct which corresponds to the
- * passed-in queue name and passes that structure to the 
+ * passed-in queue name and passes that structure to the
  * clear_queue function. If no queuename is passed in, then
  * all queues will have their statistics reset.
  *
