@@ -318,7 +318,7 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_INCOMPLETE:
 			ast_verbose("SubClass: INCOMPLETE\n");
 			break;
-		 case AST_CONTROL_END_OF_Q:
+		case AST_CONTROL_END_OF_Q:
 			ast_verbose("SubClass: END_OF_Q\n");
 			break;
 		case AST_CONTROL_UPDATE_RTP_PEER:
