@@ -1134,7 +1134,8 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 			    (fr->subclass.integer == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass.integer == AST_CONTROL_VIDUPDATE) ||
 			    (fr->subclass.integer == AST_CONTROL_SRCUPDATE) ||
-			    (fr->subclass.integer == AST_CONTROL_T38_PARAMETERS)) {
+			    (fr->subclass.integer == AST_CONTROL_T38_PARAMETERS) ||
+				(fr->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER)) {
 				if (fr->subclass.integer == AST_CONTROL_HOLD) {
 					/* If we someone went on hold we want the other side to reinvite back to us */
 					if (who == c0) {
@@ -1142,8 +1143,10 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 					} else {
 						glue0->update_peer(c0, NULL, NULL, NULL, 0, 0);
 					}
-				} else if (fr->subclass.integer == AST_CONTROL_UNHOLD) {
-					/* If they went off hold they should go back to being direct */
+				} else if (fr->subclass.integer == AST_CONTROL_UNHOLD ||
+					fr->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER) {
+					/* If they went off hold they should go back to being direct, or if we have
+					 * been told to force a peer update, go ahead and do it. */
 					if (who == c0) {
 						glue1->update_peer(c1, instance0, vinstance0, tinstance0, codec0, 0);
 					} else {
@@ -1162,7 +1165,10 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 				if (glue1->get_codec && c1->tech_pvt) {
 					oldcodec1 = codec1 = glue1->get_codec(c1);
 				}
-				ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
+				/* Since UPDATE_BRIDGE_PEER is only used by the bridging code, don't forward it */
+				if (fr->subclass.integer != AST_CONTROL_UPDATE_RTP_PEER) {
+					ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
+				}
 				ast_frfree(fr);
 			} else if (fr->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
 				if (ast_channel_connected_line_macro(who, other, fr, other == c0, 1)) {

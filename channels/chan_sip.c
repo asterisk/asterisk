@@ -19608,7 +19608,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
 						p->owner->name, "SIP", p->owner->uniqueid, p->callid, p->fullcontact, p->peername);
 			} else {	/* RE-invite */
-				ast_queue_frame(p->owner, &ast_null_frame);
+				ast_queue_control(p->owner, AST_CONTROL_UPDATE_RTP_PEER);
 			}
 		} else {
 			 /* It's possible we're getting an 200 OK after we've tried to disconnect
@@ -22437,6 +22437,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				} else {
 					ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 					transmit_response_with_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)), p->session_modify == TRUE ? FALSE : TRUE, FALSE);
+					ast_queue_control(p->owner, AST_CONTROL_UPDATE_RTP_PEER);
 				}
 			}
 
