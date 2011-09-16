@@ -4345,6 +4345,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_AOC:
 	case AST_CONTROL_END_OF_Q:
 	case AST_CONTROL_MCID:
+	case AST_CONTROL_UPDATE_RTP_PEER:
 		break;
 
 	case AST_CONTROL_INCOMPLETE:
@@ -4533,6 +4534,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_AOC:
 	case AST_CONTROL_END_OF_Q:
 	case AST_CONTROL_MCID:
+	case AST_CONTROL_UPDATE_RTP_PEER:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;
