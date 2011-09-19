@@ -7124,10 +7124,6 @@ void sig_pri_init_pri(struct sig_pri_span *pri)
 
 int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 {
-#ifdef SUPPORT_USERUSER
-	const char *useruser = pbx_builtin_getvar_helper(ast, "USERUSERINFO");
-#endif
-
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 	if (!ast->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
@@ -7151,43 +7147,43 @@ int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast)
 	p->exten[0] = '\0';
 	sig_pri_set_dialing(p, 0);
 
-	/* Make sure we have a call (or REALLY have a call in the case of a PRI) */
+	/* Make sure we really have a call */
 	pri_grab(p, p->pri);
 	sig_pri_moh_fsm_event(ast, p, SIG_PRI_MOH_EVENT_RESET);
 	if (p->call) {
+#if defined(SUPPORT_USERUSER)
+		const char *useruser = pbx_builtin_getvar_helper(ast, "USERUSERINFO");
+
+		if (!ast_strlen_zero(useruser)) {
+			pri_call_set_useruser(p->call, useruser);
+		}
+#endif	/* defined(SUPPORT_USERUSER) */
+
+#if defined(HAVE_PRI_AOC_EVENTS)
+		if (p->holding_aoce) {
+			pri_aoc_e_send(p->pri->pri, p->call, &p->aoc_e);
+		}
+#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+
 		if (p->alreadyhungup) {
 			ast_debug(1, "Already hungup...  Calling hangup once, and clearing call\n");
 
-#ifdef SUPPORT_USERUSER
-			pri_call_set_useruser(p->call, useruser);
-#endif
-
-#if defined(HAVE_PRI_AOC_EVENTS)
-			if (p->holding_aoce) {
-				pri_aoc_e_send(p->pri->pri, p->call, &p->aoc_e);
-			}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
 			pri_hangup(p->pri->pri, p->call, -1);
 			p->call = NULL;
 		} else {
 			const char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
 			int icause = ast->hangupcause ? ast->hangupcause : -1;
-			ast_debug(1, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
-
-#ifdef SUPPORT_USERUSER
-			pri_call_set_useruser(p->call, useruser);
-#endif
 
 			p->alreadyhungup = 1;
-			if (cause) {
-				if (atoi(cause))
+			if (!ast_strlen_zero(cause)) {
+				if (atoi(cause)) {
 					icause = atoi(cause);
+				}
 			}
-#if defined(HAVE_PRI_AOC_EVENTS)
-			if (p->holding_aoce) {
-				pri_aoc_e_send(p->pri->pri, p->call, &p->aoc_e);
-			}
-#endif	/* defined(HAVE_PRI_AOC_EVENTS) */
+			ast_debug(1,
+				"Not yet hungup...  Calling hangup with cause %d, and clearing call\n",
+				icause);
+
 			pri_hangup(p->pri->pri, p->call, icause);
 		}
 	}
