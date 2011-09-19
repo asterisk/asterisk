@@ -873,6 +873,7 @@ static const int DEFAULT_HTTPTIMEOUT 		= 60;	/*!< Default manager http timeout *
 static const int DEFAULT_BROKENEVENTSACTION	= 0;	/*!< Default setting for brokeneventsaction */
 static const int DEFAULT_AUTHTIMEOUT		= 30;	/*!< Default setting for authtimeout */
 static const int DEFAULT_AUTHLIMIT		= 50;	/*!< Default setting for authlimit */
+static const int DEFAULT_MANAGERDEBUG		= 0;	/*!< Default setting for manager debug */
 
 static int displayconnects;
 static int allowmultiplelogin = 1;
@@ -881,6 +882,7 @@ static int httptimeout;
 static int broken_events_action;
 static int manager_enabled = 0;
 static int webmanager_enabled = 0;
+static int manager_debug = 0;	/*!< enable some debugging code in the manager */
 static int authtimeout;
 static int authlimit;
 static char *manager_channelvars;
@@ -891,7 +893,6 @@ static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
 static int block_sockets;
 static int unauth_sessions = 0;
 
-static int manager_debug;	/*!< enable some debugging code in the manager */
 
 /*! \brief
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
@@ -6293,6 +6294,7 @@ static int __init_manager(int reload)
 
 	manager_enabled = DEFAULT_ENABLED;
 	webmanager_enabled = DEFAULT_WEBENABLED;
+	manager_debug = DEFAULT_MANAGERDEBUG;
 	displayconnects = DEFAULT_DISPLAYCONNECTS;
 	broken_events_action = DEFAULT_BROKENEVENTSACTION;
 	block_sockets = DEFAULT_BLOCKSOCKETS;
