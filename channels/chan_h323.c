@@ -988,6 +988,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 			return -1;
 		}
 	}
+	our_addr.ss.ss_family = AF_INET;
 	pvt->rtp = ast_rtp_instance_new("asterisk", sched, &our_addr, NULL);
 	if (!pvt->rtp) {
 		ast_mutex_unlock(&pvt->lock);
