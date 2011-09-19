@@ -120,6 +120,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					a call to be answered. Exit to that extension if it exists in the
 					current context, or the context defined in the <variable>EXITCONTEXT</variable> variable,
 					if it exists.</para>
+					<note>
+						<para>Many SIP and ISDN phones cannot send DTMF digits until the call is
+						connected.  If you wish to use this option with these phones, you
+						can use the <literal>Answer</literal> application before dialing.</para>
+					</note>
 				</option>
 				<option name="D" argsep=":">
 					<argument name="called" />
@@ -170,10 +175,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</note>
 				</option>
 				<option name="h">
-					<para>Allow the called party to hang up by sending the <literal>*</literal> DTMF digit.</para>
+					<para>Allow the called party to hang up by sending the DTMF sequence
+					defined for disconnect in <filename>features.conf</filename>.</para>
 				</option>
 				<option name="H">
-					<para>Allow the calling party to hang up by hitting the <literal>*</literal> DTMF digit.</para>
+					<para>Allow the calling party to hang up by sending the DTMF sequence
+					defined for disconnect in <filename>features.conf</filename>.</para>
+					<note>
+						<para>Many SIP and ISDN phones cannot send DTMF digits until the call is
+						connected.  If you wish to allow DTMF disconnect before the dialed
+						party answers with these phones, you can use the <literal>Answer</literal>
+						application before dialing.</para>
+					</note>
 				</option>
 				<option name="i">
 					<para>Asterisk will ignore any forwarding requests it may receive on this dial attempt.</para>
@@ -2068,10 +2081,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if (res <= 0)
 			goto out;
 		res = -1; /* reset default */
-	}
-
-	if (ast_test_flag64(&opts, OPT_DTMF_EXIT) || ast_test_flag64(&opts, OPT_CALLER_HANGUP)) {
-		__ast_answer(chan, 0, 0);
 	}
 
 	if (continue_exec)

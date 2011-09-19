@@ -143,6 +143,12 @@ From 1.6.2 to 1.8:
   events/responses output the connected line ID as caller ID.  These party ID's
   are now separate.
 
+* The Dial application d and H options do not automatically answer the call
+  anymore.  It broke DTMF attended transfers.  Since many SIP and ISDN phones
+  cannot send DTMF before a call is connected, you need to answer the call
+  leg to those phones before using Dial with these options for them to have
+  any effect before the dialed party answers.
+
 * The outgoing directory (where .call files are read) now uses inotify to
   detect file changes instead of polling the directory on a regular basis.
   If your outgoing folder is on a NFS mount or another network file system,
