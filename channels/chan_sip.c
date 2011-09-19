@@ -19614,7 +19614,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
 						p->owner->name, "SIP", p->owner->uniqueid, p->callid, p->fullcontact, p->peername);
 			} else {	/* RE-invite */
-				ast_queue_control(p->owner, AST_CONTROL_UPDATE_RTP_PEER);
+				if (p->t38.state == T38_DISABLED) {
+					ast_queue_control(p->owner, AST_CONTROL_UPDATE_RTP_PEER);
+				} else {
+					ast_queue_frame(p->owner, &ast_null_frame);
+				}
 			}
 		} else {
 			 /* It's possible we're getting an 200 OK after we've tried to disconnect
