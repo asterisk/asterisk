@@ -25030,6 +25030,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 			dialog_unlink_all(p, TRUE, TRUE);
 			dialog_unref(p, "unref dialog p just created via sip_alloc");
 			/* sip_destroy(p); */
+			ao2_unlock(peer);
 			return 0;
 		}
 		/* Recalculate our side, and recalculate Call ID */
