@@ -923,7 +923,8 @@ static int strreplace(struct ast_channel *chan, const char *cmd, char *data, str
 	for (x = 0; x < max_matches; x++) {
 		if ((p = strstr(p, args.find_string))) {
 			starts[count_len++] = p;
-			*p++ = '\0';
+			*p = '\0';
+			p += find_size;
 		} else {
 			break;
 		}
@@ -933,12 +934,12 @@ static int strreplace(struct ast_channel *chan, const char *cmd, char *data, str
 
 	/* here we rebuild the string with the replaced words by using fancy ast_string_append on the buffer */
 	for (x = 0; x < count_len; x++) {
-		ast_str_append(buf, 0, "%s", p);
+		ast_str_append(buf, len, "%s", p);
 		p = starts[x];
 		p += find_size;
-		ast_str_append(buf, 0, "%s", args.replace_string);
+		ast_str_append(buf, len, "%s", args.replace_string);
 	}
-	ast_str_append(buf, 0, "%s", p);
+	ast_str_append(buf, len, "%s", p);
 
 	return 0;
 }
@@ -1762,6 +1763,7 @@ AST_TEST_DEFINE(test_STRREPLACE)
 	const char *test_strings[][5] = {
 		{"Weasels have eaten my telephone system", "have eaten my", "are eating our", "", "Weasels are eating our telephone system"}, /*Test normal conditions */
 		{"Did you know twenty plus two is twenty-two?", "twenty", "thirty", NULL, "Did you know thirty plus two is thirty-two?"}, /* Test no third comma */
+		{"foofoofoofoofoofoofoo", "foofoo", "bar", NULL, "barbarbarfoo"}, /* Found string within previous match */
 		{"My pet dog once ate a dog who sat on a dog while eating a corndog.", "dog", "cat", "3", "My pet cat once ate a cat who sat on a cat while eating a corndog."},
 		{"One and one and one is three", "and", "plus", "1", "One plus one and one is three"}, /* Test <max-replacements> = 1*/
 		{"", "fhqwagads", "spelunker", NULL, ""}, /* Empty primary string */
