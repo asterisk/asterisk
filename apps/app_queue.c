@@ -224,6 +224,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			up by another user.</para>
 			<para>This application will return to the dialplan if the queue does not exist, or
 			any of the join options cause the caller to not enter the queue.</para>
+			<para>This application does not automatically answer and should be preceeded
+			by an application such as Answer(), Progress(), or Ringing().</para>
 			<para>This application sets the following channel variable upon completion:</para>
 			<variablelist>
 				<variable name="QUEUESTATUS">

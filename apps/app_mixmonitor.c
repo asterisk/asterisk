@@ -103,6 +103,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Records the audio on the current channel to the specified file.</para>
+			<para>This application does not automatically answer and should be preceeded by
+			an application such as Answer or Progress().</para>
 			<variablelist>
 				<variable name="MIXMONITOR_FILENAME">
 					<para>Will contain the filename used to record.</para>
