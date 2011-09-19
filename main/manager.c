@@ -922,6 +922,7 @@ static int httptimeout = 60;
 static int broken_events_action = 0;
 static int manager_enabled = 0;
 static int webmanager_enabled = 0;
+static int manager_debug = 0;	/*!< enable some debugging code in the manager */
 static int authtimeout;
 static int authlimit;
 static char *manager_channelvars;
@@ -932,7 +933,6 @@ static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
 static int block_sockets;
 static int unauth_sessions = 0;
 
-static int manager_debug;	/*!< enable some debugging code in the manager */
 
 /*! \brief
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
@@ -6445,6 +6445,8 @@ static int __init_manager(int reload)
 	broken_events_action = 0;
 	authtimeout = 30;
 	authlimit = 50;
+	manager_debug = 0;		/* Debug disabled by default */
+
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_NOTICE, "Unable to open AMI configuration manager.conf, or configuration is invalid. Asterisk management interface (AMI) disabled.\n");
 		return 0;
