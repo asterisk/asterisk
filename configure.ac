@@ -867,6 +867,7 @@ AST_GCC_ATTRIBUTE(deprecated)
 AST_GCC_ATTRIBUTE(sentinel)
 AST_GCC_ATTRIBUTE(warn_unused_result)
 AST_GCC_ATTRIBUTE(weak_import, [], [], PBX_WEAKREF)
+AST_GCC_ATTRIBUTE(weak, [], [], PBX_WEAKREF)
 AST_GCC_ATTRIBUTE(weakref, [weakref("foo")], static, PBX_WEAKREF)
 
 AC_MSG_CHECKING(for -ffunction-sections support)

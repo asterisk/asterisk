@@ -103,11 +103,11 @@
 #define AST_OPTIONAL_API_UNAVAILABLE	INT_MIN
 
 
-#if defined(HAVE_ATTRIBUTE_weak_import)
+#if defined(HAVE_ATTRIBUTE_weak_import) || defined(HAVE_ATTRIBUTE_weak)
 
 /*
- * This is the Darwin (Mac OS/X) implementation, that only provides the
- * 'weak_import' compiler attribute for weak symbols. On this platform,
+ * This is the Darwin (Mac OS/X) implementation, that only provides the 'weak'
+ * or 'weak_import' compiler attribute for weak symbols. On this platform,
  *
  * - The module providing the API will only provide a '__' prefixed version
  *   of the API function to other modules (this will be hidden from the other
@@ -117,12 +117,18 @@
  * - In the API module itself, access to the API function without using a
  *   prefixed name is provided by a static pointer variable that holds the
  *   function address.
- * - 'Consumer' modules of the API will use a combination of a weak_import
- *   symbol, a local stub function, a pointer variable and a constructor function
- *   (which initializes that pointer variable as the module is being loaded)
- *   to provide safe, optional access to the API function without any special
- *   code being required.
+ * - 'Consumer' modules of the API will use a combination of a weak_import or
+ *   weak symbol, a local stub function, a pointer variable and a constructor
+ *   function (which initializes that pointer variable as the module is being
+ *   loaded) to provide safe, optional access to the API function without any
+ *   special code being required.
  */
+
+#if defined(HAVE_ATTRIBUTE_weak_import)
+#define	__default_attribute	weak_import /* pre-Lion */
+#else
+#define	__default_attribute	weak        /* Lion-onwards */
+#endif
 
 #define AST_OPTIONAL_API_NAME(name) __##name
 
@@ -140,16 +146,15 @@
 
 #define AST_OPTIONAL_API(result, name, proto, stub) \
 	static result __stub__##name proto stub; \
-	__attribute__((weak_import)) typeof(__stub__##name) AST_OPTIONAL_API_NAME(name); \
+	__attribute__((__default_attribute)) typeof(__stub__##name) AST_OPTIONAL_API_NAME(name); \
 	static attribute_unused typeof(__stub__##name) * name; \
 	static void __attribute__((constructor)) __init__##name(void) { name = AST_OPTIONAL_API_NAME(name) ? : __stub__##name; }
 
 #define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub) \
 	static __attribute__((attr)) result __stub__##name proto stub; \
-	__attribute__((attr, weak_import)) typeof(__stub__##name) AST_OPTIONAL_API_NAME(name); \
+	__attribute__((attr, __default_attribute)) typeof(__stub__##name) AST_OPTIONAL_API_NAME(name); \
 	static attribute_unused __attribute__((attr)) typeof(__stub__##name) * name; \
 	static void __attribute__((constructor)) __init__##name(void) { name = AST_OPTIONAL_API_NAME(name) ? : __stub__##name; }
-
 
 #endif
 
