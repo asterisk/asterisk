@@ -57,8 +57,8 @@ ifeq ($(findstring -march,$(_ASTCFLAGS) $(ASTCFLAGS)),)
     endif
   else
     ifneq (,$(findstring $(OSARCH),Darwin))
-      ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)
-        # Snow Leopard reports i386, even though it's really x86_64
+      ifeq ($(shell if test `/usr/bin/sw_vers -productVersion | cut -c4` -gt 5; then echo 6; else echo 0; fi),6)
+        # Snow Leopard/Lion reports i386, even though it's really x86_64
         OPTIMIZE+=-mtune=native
       endif
     endif
