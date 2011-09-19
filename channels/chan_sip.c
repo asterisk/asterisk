@@ -1323,6 +1323,7 @@ static struct sip_auth *find_realm_authentication(struct sip_auth_container *cre
 /*--- Misc functions */
 static void check_rtp_timeout(struct sip_pvt *dialog, time_t t);
 static int reload_config(enum channelreloadreason reason);
+static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt);
 static int expire_register(const void *data);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
@@ -10140,6 +10141,11 @@ static int __transmit_response(struct sip_pvt *p, const char *msg, const struct 
 	}
 	if (ast_test_flag(&p->flags[0], SIP_OFFER_CC)) {
 		add_cc_call_info_to_response(p, &resp);
+	}
+
+	/* If we are sending a 302 Redirect we can add a diversion header if the redirect information is set */
+	if (!strncmp(msg, "302", 3)) {
+		add_diversion_header(&resp, p);
 	}
 
 	/* If we are cancelling an incoming invite for some reason, add information
