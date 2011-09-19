@@ -1,3 +1,54 @@
+2011-09-19  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.7.0-rc2 Released.
+
+	* r335851 | rmudgett | 2011-09-14 10:53:25 -0500 (Wed, 14 Sep 2011) |
+	11 lines
+
+	Fixed cut-n-paste regression using the wrong variable.
+
+	Fixes the missing DAHDI channels when using the newer chan_dahdi.conf
+	sections for channel configuration.
+
+	(closes issue ASTERISK-18496)
+
+	* r335911 | rmudgett | 2011-09-14 13:21:35 -0500 (Wed, 14 Sep 2011) |
+	13 lines
+
+	Remove unnecessary libpri dependency checks in the configure script.
+
+	Using the --with-pri option with the configure script generated an
+	error
+	about not having PRI_L2_PERSISTENCE if you did not have the absolute
+	latest libpri SVN checkout installed.
+
+	The AST_EXT_LIB_SETUP_DEPENDENT macro in the configure.ac script seems
+	to
+	be for libraries that are dependent upon other libraries and not
+	necessarily for optional/added features within a library.
+
+	(closes issue ASTERISK-18535)
+
+	* r336572 | lmadsen | 2011-09-19 10:41:16 -0500 (Mon, 19 Sep 2011) | 7
+	lines
+
+	Update get_ilbc_source.sh script to work again.
+
+	Recently iLBC support in Asterisk has changed after the acquisition of
+	GIPS
+	by Google. More information about how this may affect you is available
+	in a
+	blog post at:
+
+	  http://blogs.asterisk.org/2011/09/19/ilbc-support-in-asterisk-after-googles-acquisition-of-gips/
+
+	* r335714 | pabelanger | 2011-09-13 16:30:18 -0500 (Tue, 13 Sep 2011)
+	| 4 lines
+
+	Meetme should have 'core' support level
+
+	(closes issue ASTERISK-18542)
+
 2011-09-07  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.7.0-rc1 Released.
