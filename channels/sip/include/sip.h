@@ -353,9 +353,10 @@
 
 
 #define SIP_PAGE3_SNOM_AOC               (1 << 0)  /*!< DPG: Allow snom aoc messages */
+#define SIP_PAGE3_SRTP_TAG_32            (1 << 1)  /*!< DP: Use a 32bit auth tag in INVITE not 80bit */
 
 #define SIP_PAGE3_FLAGS_TO_COPY \
-	(SIP_PAGE3_SNOM_AOC)
+	(SIP_PAGE3_SNOM_AOC | SIP_PAGE3_SRTP_TAG_32)
 
 /*@}*/
 

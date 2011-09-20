@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
 #include "include/sdp_crypto.h"
+#include "include/srtp.h"
 
 #define SRTP_MASTER_LEN 30
 #define SRTP_MASTERKEY_LEN 16
@@ -188,7 +189,7 @@ err:
 	return res;
 }
 
-int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_instance *rtp)
+int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_instance *rtp, struct sip_srtp *srtp)
 {
 	char *str = NULL;
 	char *tag = NULL;
@@ -228,8 +229,10 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 
 	if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_80")) {
 		suite_val = AST_AES_CM_128_HMAC_SHA1_80;
+		ast_set_flag(srtp, SRTP_CRYPTO_TAG_80);
 	} else if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_32")) {
 		suite_val = AST_AES_CM_128_HMAC_SHA1_32;
+		ast_set_flag(srtp, SRTP_CRYPTO_TAG_32);
 	} else {
 		ast_log(LOG_WARNING, "Unsupported crypto suite: %s\n", suite);
 		return -1;
@@ -283,16 +286,16 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 	return 0;
 }
 
-int sdp_crypto_offer(struct sdp_crypto *p)
+int sdp_crypto_offer(struct sdp_crypto *p, int taglen)
 {
 	char crypto_buf[128];
-	const char *crypto_suite = "AES_CM_128_HMAC_SHA1_80"; /* Crypto offer */
 
 	if (p->a_crypto) {
 		ast_free(p->a_crypto);
 	}
 
-	if (snprintf(crypto_buf, sizeof(crypto_buf), "a=crypto:1 %s inline:%s\r\n",  crypto_suite, p->local_key64) < 1) {
+	if (snprintf(crypto_buf, sizeof(crypto_buf), "a=crypto:1 AES_CM_128_HMAC_SHA1_%i inline:%s\r\n",
+			taglen, p->local_key64) < 1) {
 		return -1;
 	}
 
