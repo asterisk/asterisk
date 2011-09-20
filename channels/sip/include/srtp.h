@@ -34,6 +34,8 @@
 #define SRTP_ENCR_OPTIONAL	(1 << 1)	/* SRTP encryption optional */
 #define SRTP_CRYPTO_ENABLE	(1 << 2)
 #define SRTP_CRYPTO_OFFER_OK	(1 << 3)
+#define SRTP_CRYPTO_TAG_32	(1 << 4)
+#define SRTP_CRYPTO_TAG_80	(1 << 5)
 
 /*! \brief structure for secure RTP audio */
 struct sip_srtp {

@@ -11127,14 +11127,25 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 	}
 }
 
-static void get_crypto_attrib(struct sip_srtp *srtp, const char **a_crypto)
+static void get_crypto_attrib(struct sip_pvt *p, struct sip_srtp *srtp, const char **a_crypto)
 {
+	int taglen = 80;
+
 	/* Set encryption properties */
 	if (srtp) {
 		if (!srtp->crypto) {
 			srtp->crypto = sdp_crypto_setup();
 		}
-		if (srtp->crypto && (sdp_crypto_offer(srtp->crypto) >= 0)) {
+
+		/* set the key length based on INVITE or settings */
+		if (ast_test_flag(srtp, SRTP_CRYPTO_TAG_80)) {
+			taglen = 80;
+		} else if (ast_test_flag(&p->flags[2], SIP_PAGE3_SRTP_TAG_32) ||
+		    ast_test_flag(srtp, SRTP_CRYPTO_TAG_32)) {
+			taglen = 32;
+		}
+
+		if (srtp->crypto && (sdp_crypto_offer(srtp->crypto, taglen) >= 0)) {
 			*a_crypto = sdp_crypto_attrib(srtp->crypto);
 		}
 
@@ -11302,7 +11313,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Ok, we need video. Let's add what we need for video and set codecs.
 		   Video is handled differently than audio since we can not transcode. */
 		if (needvideo) {
-			get_crypto_attrib(p->vsrtp, &v_a_crypto);
+			get_crypto_attrib(p, p->vsrtp, &v_a_crypto);
 			ast_str_append(&m_video, 0, "m=video %d RTP/%s", ast_sockaddr_port(&vdest),
 				v_a_crypto ? "SAVP" : "AVP");
 
@@ -11319,7 +11330,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (needtext) {
 			if (sipdebug_text)
 				ast_verbose("Lets set up the text sdp\n");
-			get_crypto_attrib(p->tsrtp, &t_a_crypto);
+			get_crypto_attrib(p, p->tsrtp, &t_a_crypto);
 			ast_str_append(&m_text, 0, "m=text %d RTP/%s", ast_sockaddr_port(&tdest),
 				t_a_crypto ? "SAVP" : "AVP");
 			if (debug) {  /* XXX should I use tdest below ? */
@@ -11332,7 +11343,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* We break with the "recommendation" and send our IP, in order that our
 		   peer doesn't have to ast_gethostbyname() us */
 
-		get_crypto_attrib(p->srtp, &a_crypto);
+		get_crypto_attrib(p, p->srtp, &a_crypto);
 		ast_str_append(&m_audio, 0, "m=audio %d RTP/%s", ast_sockaddr_port(&dest),
 			a_crypto ? "SAVP" : "AVP");
 
@@ -27701,6 +27712,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_Q850_REASON);
 			} else if (!strcasecmp(v->name, "encryption")) {
 				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_USE_SRTP);
+			} else if (!strcasecmp(v->name, "encryption_taglen")) {
+				ast_set2_flag(&peer->flags[2], !strcasecmp(v->value, "32"), SIP_PAGE3_SRTP_TAG_32);
 			} else if (!strcasecmp(v->name, "snom_aoc_enabled")) {
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_SNOM_AOC);
 			}
@@ -29647,7 +29660,7 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 		return FALSE;
 	}
 
-	if (sdp_crypto_process((*srtp)->crypto, a, rtp) < 0) {
+	if (sdp_crypto_process((*srtp)->crypto, a, rtp, *srtp) < 0) {
 		return FALSE;
 	}
 
