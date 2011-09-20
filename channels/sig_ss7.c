@@ -207,6 +207,9 @@ static struct ast_channel *sig_ss7_new_ast_channel(struct sig_ss7_chan *p, int s
 	} else {
 		return NULL;
 	}
+	if (!ast) {
+		return NULL;
+	}
 
 	if (!p->owner) {
 		p->owner = ast;
@@ -608,8 +611,12 @@ void *ss7_linkset(void *data)
 	unsigned int dpc;
 	int nextms = 0;
 
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 	ss7_set_debug(ss7, SIG_SS7_DEBUG_DEFAULT);
+	ast_mutex_lock(&linkset->lock);
 	ss7_start(ss7);
+	ast_mutex_unlock(&linkset->lock);
 
 	for (;;) {
 		ast_mutex_lock(&linkset->lock);
@@ -628,15 +635,20 @@ void *ss7_linkset(void *data)
 			nextms = tv.tv_sec * 1000;
 			nextms += tv.tv_usec / 1000;
 		}
-		ast_mutex_unlock(&linkset->lock);
 
 		for (i = 0; i < linkset->numsigchans; i++) {
 			pollers[i].fd = linkset->fds[i];
 			pollers[i].events = ss7_pollflags(ss7, linkset->fds[i]);
 			pollers[i].revents = 0;
 		}
+		ast_mutex_unlock(&linkset->lock);
 
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel();
 		res = poll(pollers, linkset->numsigchans, nextms);
+		pthread_testcancel();
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 		if ((res < 0) && (errno != EINTR)) {
 			ast_log(LOG_ERROR, "poll(%s)\n", strerror(errno));
 		} else if (!res) {
@@ -1537,8 +1549,11 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		ast_debug(1,"Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
 		/* This IF sends the FAR for an answered ALEG call */
 		if (chan->_state == AST_STATE_UP && (p->rlt != 1)){
-			if ((isup_far(p->ss7->ss7, p->ss7call)) != -1)
+			ss7_grab(p, p->ss7);
+			if ((isup_far(p->ss7->ss7, p->ss7call)) != -1) {
 				p->rlt = 1;
+			}
+			ss7_rel(p->ss7);
 		}
 
 		if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING && !p->outgoing) {
