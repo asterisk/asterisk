@@ -1283,6 +1283,7 @@ static int conf_rec_name(struct conference_bridge_user *user, const char *conf_n
 		10,
 		"sln",
 		&duration,
+		NULL,
 		ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE),
 		0,
 		NULL);

@@ -1123,7 +1123,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			ast_stream_and_wait(chan, targs.statusprompt, "");
 
 		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) 
-			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0)
+			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0)
 				goto outrun;
 
 		if (!ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
