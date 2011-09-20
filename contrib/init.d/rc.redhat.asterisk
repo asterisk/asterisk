@@ -74,7 +74,7 @@ start() {
 	VERSION=`${AST_SBIN}/asterisk -rx 'core show version'`
 	if [ "`echo $VERSION | cut -c 1-8`" = "Asterisk" ]; then
 		echo "Asterisk is already running."
-		exit 1
+		exit 0
 	fi
 
 	# Start daemons.
