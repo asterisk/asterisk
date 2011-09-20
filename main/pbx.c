@@ -1752,7 +1752,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 								return; /* the first match is all we need */                                                 \
 							}												                                                 \
 						}                                                                                                    \
-					} else if (p->next_char && !*(str + 1)) {                                                                  \
+					} else if ((p->next_char || action == E_CANMATCH) && !*(str + 1)) {                                                                  \
 						score->canmatch = 1;                                                                                 \
 						score->canmatch_exten = get_canmatch_exten(p);                                                       \
 						if (action == E_CANMATCH || action == E_MATCHMORE) {                                                 \

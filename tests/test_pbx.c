@@ -153,29 +153,35 @@ struct pbx_test_pattern {
 	const struct exten_info *exten;
 };
 
-static int test_exten(const struct pbx_test_pattern *test_pattern, struct ast_test *test)
+static int test_exten(const struct pbx_test_pattern *test_pattern, struct ast_test *test, int new_engine)
 {
 	struct pbx_find_info pfi = { { 0 }, };
 	struct ast_exten *exten;
 	if (!(exten = pbx_find_extension(NULL, NULL, &pfi, test_pattern->context,
 					test_pattern->test_exten, test_pattern->priority, NULL,
 					test_pattern->test_cid, E_MATCH))) {
-		ast_test_status_update(test, "Cannot find extension %s in context %s."
-				"Test failed.\n", test_pattern->test_exten, test_pattern->context);
+		ast_test_status_update(test, "Cannot find extension %s in context %s with the %s pattern match engine. "
+				"Test failed.\n", test_pattern->test_exten, test_pattern->context, (new_engine ? "new" : "old"));
 		return -1;
 	}
 	if (strcmp(ast_get_extension_name(exten), test_pattern->exten->exten)) {
-		ast_test_status_update(test, "Expected extension %s but got extension %s instead."
-				"Test failed.\n", test_pattern->exten->exten, ast_get_extension_name(exten));
+		ast_test_status_update(test, "Expected extension %s but got extension %s instead with the %s pattern match engine. "
+				"Test failed.\n", test_pattern->exten->exten, ast_get_extension_name(exten), (new_engine ? "new" : "old"));
 		return -1;
 	}
 	if (test_pattern->test_cid && strcmp(ast_get_extension_cidmatch(exten), test_pattern->test_cid)) {
-		ast_test_status_update(test, "Expected CID match %s but got CID match %s instead."
-				"Test failed.\n", test_pattern->exten->cid, ast_get_extension_cidmatch(exten));
+		ast_test_status_update(test, "Expected CID match %s but got CID match %s instead with the %s pattern match engine. "
+				"Test failed.\n", test_pattern->exten->cid, ast_get_extension_cidmatch(exten), (new_engine ? "new" : "old"));
 		return -1;
 	}
-	ast_test_status_update(test, "Successfully matched %s to exten %s in context %s\n",
-			test_pattern->test_exten, test_pattern->exten->exten, test_pattern->context);
+	if (!ast_canmatch_extension(NULL, test_pattern->context, test_pattern->test_exten,
+					test_pattern->priority, test_pattern->test_cid)) {
+		ast_test_status_update(test, "Partial match failed for extension %s in context %s with the %s pattern match engine. "
+				"Test failed.\n", test_pattern->test_exten, test_pattern->context, (new_engine ? "new" : "old"));
+		return -1;
+	}
+	ast_test_status_update(test, "Successfully matched %s to exten %s in context %s with the %s pattern match engine\n",
+			test_pattern->test_exten, test_pattern->exten->exten, test_pattern->context, (new_engine ? "new" : "old"));
 	return 0;
 }
 
@@ -185,7 +191,7 @@ AST_TEST_DEFINE(pattern_match_test)
 	enum ast_test_result_state res = AST_TEST_PASS;
 	static const char TEST_PATTERN[] = "test_pattern";
 	static const char TEST_PATTERN_INCLUDE[] = "test_pattern_include";
-	int i;
+	int i, j;
 
 	/* The array of contexts to register for our test.
 	 * To add more contexts, just add more rows to this array.
@@ -300,12 +306,15 @@ AST_TEST_DEFINE(pattern_match_test)
 
 	/* At this stage, the dialplan is built. Now we iterate over
 	 * the tests array to attempt to find each of the specified
-	 * extensions.
+	 * extensions with the old and new pattern matching engines.
 	 */
-	for (i = 0; i < ARRAY_LEN(tests); ++i) {
-		if (test_exten(&tests[i], test)) {
-			res = AST_TEST_FAIL;
-			break;
+	for (j = 0; j < 2; j++) {
+		pbx_set_extenpatternmatchnew(j);
+		for (i = 0; i < ARRAY_LEN(tests); ++i) {
+			if (test_exten(&tests[i], test, j)) {
+				res = AST_TEST_FAIL;
+				break;
+			}
 		}
 	}
 
