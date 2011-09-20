@@ -444,19 +444,26 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	}
 
 	/*
-	 * Release the SS7 lock while we create the channel
-	 * so other threads can send messages.
+	 * Release the SS7 lock while we create the channel so other
+	 * threads can send messages.  We must also release the private
+	 * lock to prevent deadlock while creating the channel.
 	 */
 	ast_mutex_unlock(&linkset->lock);
+	sig_ss7_unlock_private(p);
 	c = sig_ss7_new_ast_channel(p, AST_STATE_RING, law, 0, p->exten, NULL);
 	if (!c) {
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
 		ast_mutex_lock(&linkset->lock);
+		sig_ss7_lock_private(p);
 		isup_rel(linkset->ss7, p->ss7call, -1);
 		p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
 		p->alreadyhungup = 1;
 		return;
 	}
+
+	/* Hold the channel and private lock while we setup the channel. */
+	ast_channel_lock(c);
+	sig_ss7_lock_private(p);
 
 	sig_ss7_set_echocanceller(p, 1);
 
@@ -539,13 +546,19 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		p->generic_name[0] = 0;
 	}
 
+	sig_ss7_unlock_private(p);
+	ast_channel_unlock(c);
+
 	if (ast_pbx_start(c)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s (CIC %d)\n", c->name, p->cic);
 		ast_hangup(c);
 	} else {
 		ast_verb(3, "Accepting call to '%s' on CIC %d\n", p->exten, p->cic);
 	}
+
+	/* Must return with linkset and private lock. */
 	ast_mutex_lock(&linkset->lock);
+	sig_ss7_lock_private(p);
 }
 
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct sig_ss7_linkset *ss7, const char *number, const unsigned nai)
@@ -729,9 +742,12 @@ void *ss7_linkset(void *data)
 				sig_ss7_set_remotelyblocked(p, 0);
 				dpc = p->dpc;
 				isup_set_call_dpc(e->rsc.call, dpc);
+				sig_ss7_lock_owner(linkset, chanpos);
 				p->ss7call = NULL;
-				if (p->owner)
-					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+				if (p->owner) {
+					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+					ast_channel_unlock(p->owner);
+				}
 				sig_ss7_unlock_private(p);
 				isup_rlc(ss7, e->rsc.call);
 				break;
@@ -902,9 +918,11 @@ void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
+				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {
 					p->owner->hangupcause = e->rel.cause;
-					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+					ast_channel_unlock(p->owner);
 				} else {
 					ast_log(LOG_WARNING, "REL on channel (CIC %d) without owner!\n", p->cic);
 				}
@@ -1078,8 +1096,8 @@ void *ss7_linkset(void *data)
 					else
 						ast_log(LOG_NOTICE, "Received RLC out and we haven't sent REL.  Ignoring.\n");
 					sig_ss7_unlock_private(p);
-					}
-					break;
+				}
+				break;
 			case ISUP_EVENT_FAA:
 				chanpos = ss7_find_cic(linkset, e->faa.cic, e->faa.opc);
 				if (chanpos < 0) {
@@ -1112,7 +1130,7 @@ static inline void ss7_rel(struct sig_ss7_linkset *ss7)
 	ast_mutex_unlock(&ss7->lock);
 }
 
-static inline int ss7_grab(struct sig_ss7_chan *pvt, struct sig_ss7_linkset *ss7)
+static void ss7_grab(struct sig_ss7_chan *pvt, struct sig_ss7_linkset *ss7)
 {
 	int res;
 	/* Grab the lock first */
@@ -1125,7 +1143,6 @@ static inline int ss7_grab(struct sig_ss7_chan *pvt, struct sig_ss7_linkset *ss7
 	/* Then break the poll */
 	if (ss7->master != AST_PTHREADT_NULL)
 		pthread_kill(ss7->master, SIGURG);
-	return 0;
 }
 
 /*!
@@ -1292,10 +1309,7 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, char *rdest)
 		l = NULL;
 	}
 
-	if (ss7_grab(p, p->ss7)) {
-		ast_log(LOG_WARNING, "Failed to grab SS7!\n");
-		return -1;
-	}
+	ss7_grab(p, p->ss7);
 
 	p->ss7call = isup_new_call(p->ss7->ss7);
 	if (!p->ss7call) {
@@ -1418,24 +1432,22 @@ int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast)
 	p->exten[0] = '\0';
 	/* Perform low level hangup if no owner left */
 	if (p->ss7call) {
-		if (!ss7_grab(p, p->ss7)) {
-			if (!p->alreadyhungup) {
-				const char *cause = pbx_builtin_getvar_helper(ast,"SS7_CAUSE");
-				int icause = ast->hangupcause ? ast->hangupcause : -1;
+		ss7_grab(p, p->ss7);
+		if (!p->alreadyhungup) {
+			const char *cause = pbx_builtin_getvar_helper(ast,"SS7_CAUSE");
+			int icause = ast->hangupcause ? ast->hangupcause : -1;
 
-				if (cause) {
-					if (atoi(cause))
-						icause = atoi(cause);
+			if (cause) {
+				if (atoi(cause)) {
+					icause = atoi(cause);
 				}
-				isup_rel(p->ss7->ss7, p->ss7call, icause);
-				ss7_rel(p->ss7);
-				p->alreadyhungup = 1;
-			} else
-				ast_log(LOG_WARNING, "Trying to hangup twice!\n");
+			}
+			isup_rel(p->ss7->ss7, p->ss7call, icause);
+			p->alreadyhungup = 1;
 		} else {
-			ast_log(LOG_WARNING, "Unable to grab SS7 on CIC %d\n", p->cic);
-			res = -1;
+			ast_log(LOG_WARNING, "Trying to hangup twice!\n");
 		}
+		ss7_rel(p->ss7);
 	}
 
 	return res;
@@ -1455,16 +1467,12 @@ int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast)
 {
 	int res;
 
-	if (!ss7_grab(p, p->ss7)) {
-		if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
-			p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
-		}
-		res = isup_anm(p->ss7->ss7, p->ss7call);
-		ss7_rel(p->ss7);
-	} else {
-		ast_log(LOG_WARNING, "Unable to grab SS7 on span %d\n", p->ss7->span);
-		res = -1;
+	ss7_grab(p, p->ss7);
+	if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+		p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
 	}
+	res = isup_anm(p->ss7->ss7, p->ss7call);
+	ss7_rel(p->ss7);
 	return res;
 }
 
