@@ -2457,7 +2457,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			 "%s/meetme-username-%s-%d", destdir,
 			 conf->confno, user->user_no);
 		if (ast_test_flag64(confflags, CONFFLAG_INTROUSERNOREVIEW))
-			res = ast_play_and_record(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL);
+			res = ast_play_and_record(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL);
 		else
 			res = ast_record_review(chan, "vm-rec-name", user->namerecloc, 10, "sln", &duration, NULL);
 		if (res == -1)

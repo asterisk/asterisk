@@ -280,6 +280,7 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn);
  * \param maxtime_sec Longest possible message length in seconds
  * \param fmt string containing all formats to be recorded delimited by '|'
  * \param duration pointer to integer for storing length of the recording
+ * \param sound_duration pointer to integer for storing length of the recording minus all silence
  * \param silencethreshold tolerance of noise levels that can be considered silence for the purpose of silence timeout, -1 for default
  * \param maxsilence_ms Length of time in milliseconds which will trigger a timeout from silence, -1 for default
  * \param path Optional filesystem path to unlock
@@ -291,7 +292,7 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn);
  * \retval 't' Recording ended from the message exceeding the maximum duration
  * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
  */
-int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf);
+int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf);
 
 /*!
  * \brief Record a file based on input from a channel. Use default accept and cancel DTMF.
@@ -303,6 +304,7 @@ int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, con
  * \param maxtime_sec Longest possible message length in seconds
  * \param fmt string containing all formats to be recorded delimited by '|'
  * \param duration pointer to integer for storing length of the recording
+ * \param sound_duration pointer to integer for storing length of the recording minus all silence
  * \param silencethreshold tolerance of noise levels that can be considered silence for the purpose of silence timeout, -1 for default
  * \param maxsilence_ms length of time in milliseconds which will trigger a timeout from silence, -1 for default
  * \param path Optional filesystem path to unlock
@@ -312,7 +314,7 @@ int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, con
  * \retval 't' Recording ended from the message exceeding the maximum duration
  * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
  */
-int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
+int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence_ms, const char *path);
 
 /*!
  * \brief Record a file based on input frm a channel. Recording is performed in 'prepend' mode which works a little differently from normal recordings
@@ -324,6 +326,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
  * \param maxtime_sec Longest possible message length in seconds
  * \param fmt string containing all formats to be recorded delimited by '|'
  * \param duration pointer to integer for storing length of the recording
+ * \param sound_duration pointer to integer for storing length of the recording minus all silence
  * \param beep whether to play a beep to prompt the recording
  * \param silencethreshold tolerance of noise levels that can be considered silence for the purpose of silence timeout, -1 for default
  * \param maxsilence_ms length of time in milliseconds which will trigger a timeout from silence, -1 for default.
@@ -332,7 +335,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
  * \retval 'S' Recording ended from silence timeout
  * \retval 't' Recording either exceeded maximum duration or the call was ended via DTMF
  */
-int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
+int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence_ms);
 
 enum ast_getdata_result {
 	AST_GETDATA_FAILED = -1,
