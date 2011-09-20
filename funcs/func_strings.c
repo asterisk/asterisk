@@ -859,14 +859,12 @@ static struct ast_custom_function replace_function = {
 
 static int strreplace(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **buf, ssize_t len)
 {
-	char *starts[len]; /* marks starts of substrings */
 	char *varsubstr; /* substring for input var */
-	int count_len = 0; /* counter for starts */
-	char *p; /* tracks position of cursor for search and replace */
+	char *start; /* Starting pos of substring search. */
+	char *end; /* Ending pos of substring search. */
 	int find_size; /* length of given find-string */
-	int max_matches; /* number of matches we find before terminating search */
-
-	int x; /* loop counter */
+	unsigned max_matches; /* number of matches we find before terminating search */
+	unsigned count; /* loop counter */
 	struct ast_str *str = ast_str_thread_get(&result_buf, 16); /* Holds the data obtained from varname */
 
 	AST_DECLARE_APP_ARGS(args,
@@ -874,16 +872,25 @@ static int strreplace(struct ast_channel *chan, const char *cmd, char *data, str
 		AST_APP_ARG(find_string);
 		AST_APP_ARG(replace_string);
 		AST_APP_ARG(max_replacements);
+		AST_APP_ARG(other);	/* Any remining unused arguments */
 	);
 
-	AST_STANDARD_APP_ARGS(args, data);
+	/* Guarantee output string is empty to start with. */
+	ast_str_reset(*buf);
 
-	if (!str) { /* If we failed to allocate str, forget it.  We failed. */
+	if (!str) {
+		/* We failed to allocate str, forget it.  We failed. */
 		return -1;
 	}
 
-	if (args.argc < 2) { /* Didn't receive enough arguments to do anything */
-		ast_log(LOG_ERROR, "Usage: %s(<varname>,<find-string>[,<replace-string>, <max-replacements>])\n", cmd);
+	/* Parse the arguments. */
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc < 2) {
+		/* Didn't receive enough arguments to do anything */
+		ast_log(LOG_ERROR,
+			"Usage: %s(<varname>,<find-string>[,<replace-string>,[<max-replacements>]])\n",
+			cmd);
 		return -1;
 	}
 
@@ -892,54 +899,44 @@ static int strreplace(struct ast_channel *chan, const char *cmd, char *data, str
 		return -1;
 	}
 
+	/* Zero length find strings are a no-no. Kill the function if we run into one. */
+	if (ast_strlen_zero(args.find_string)) {
+		ast_log(LOG_ERROR, "No <find-string> specified\n");
+		return -1;
+	}
+	find_size = strlen(args.find_string);
+
 	/* set varsubstr to the matching variable */
 	varsubstr = alloca(strlen(args.varname) + 4);
 	sprintf(varsubstr, "${%s}", args.varname);
 	ast_str_substitute_variables(&str, 0, chan, varsubstr);
 
-	p = ast_str_buffer(str);
-
-	/* Zero length find strings are a no-no. Kill the function if we run into one. */
-	if (ast_strlen_zero(args.find_string)) {
-		ast_log(LOG_ERROR, "The <find-string> must have length > 0\n");
-		return -1;
-	}
-	find_size = strlen(args.find_string);
-
-	/* If the replace string is a null pointer, set it to an empty string */
-	if (!args.replace_string) {
-		args.replace_string = "";
+	/* Determine how many replacements are allowed. */
+	if (!args.max_replacements
+		|| (max_matches = atoi(args.max_replacements)) <= 0) {
+		/* Unlimited replacements are allowed. */
+		max_matches = -1;
 	}
 
-	/*
-	 * If max_replacements specified and is a number, max_matches will become that.
-	 * otherwise, just go the length of the input string
-	 */
-	if (!(args.max_replacements && (max_matches = atoi(args.max_replacements)))) {
-		max_matches = strlen(p);
-	}
-
-	/* Iterate through string finding matches until it is exhausted or we reach max_matches */
-	for (x = 0; x < max_matches; x++) {
-		if ((p = strstr(p, args.find_string))) {
-			starts[count_len++] = p;
-			*p = '\0';
-			p += find_size;
-		} else {
+	/* Generate the search and replaced string. */
+	start = ast_str_buffer(str);
+	for (count = 0; count < max_matches; ++count) {
+		end = strstr(start, args.find_string);
+		if (!end) {
+			/* Did not find a matching substring in the remainder. */
 			break;
 		}
-	}
 
-	p = ast_str_buffer(str);
-
-	/* here we rebuild the string with the replaced words by using fancy ast_string_append on the buffer */
-	for (x = 0; x < count_len; x++) {
-		ast_str_append(buf, len, "%s", p);
-		p = starts[x];
-		p += find_size;
-		ast_str_append(buf, len, "%s", args.replace_string);
+		/* Replace the found substring. */
+		*end = '\0';
+		ast_str_append(buf, len, "%s", start);
+		if (args.replace_string) {
+			/* Append the replacement string */
+			ast_str_append(buf, len, "%s", args.replace_string);
+		}
+		start = end + find_size;
 	}
-	ast_str_append(buf, len, "%s", p);
+	ast_str_append(buf, len, "%s", start);
 
 	return 0;
 }
