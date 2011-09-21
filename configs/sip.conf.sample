@@ -901,7 +901,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;encryption=no                  ; Whether to offer SRTP encrypted media (and only SRTP encrypted media)
                                 ; on outgoing calls to a peer. Calls will fail with HANGUPCAUSE=58 if
                                 ; the peer does not support SRTP. Defaults to no.
-;encryption_taglen=80              ; Set the auth tag length offered in the INVITE either 32/80 default 80
+;encryption_taglen=80           ; Set the auth tag length offered in the INVITE either 32/80 default 80
 
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
