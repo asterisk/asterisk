@@ -444,9 +444,11 @@ static void curl_instance_cleanup(void *data)
 }
 
 AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanup);
+AST_THREADSTORAGE(thread_escapebuf);
 
 static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info, char *buf, struct ast_str **input_str, ssize_t len)
 {
+	struct ast_str *escapebuf = ast_str_thread_get(&thread_escapebuf, 16);
 	struct ast_str *str = ast_str_create(16);
 	int ret = -1;
 	AST_DECLARE_APP_ARGS(args,
@@ -464,6 +466,11 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 	}
 
 	if (!str) {
+		return -1;
+	}
+
+	if (!escapebuf) {
+		ast_free(str);
 		return -1;
 	}
 
@@ -540,8 +547,8 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 					ast_uri_decode(piece);
 				}
 				ast_uri_decode(name);
-				ast_str_append(&fields, 0, "%s%s", rowcount ? "," : "", name);
-				ast_str_append(&values, 0, "%s%s", rowcount ? "," : "", S_OR(piece, ""));
+				ast_str_append(&fields, 0, "%s%s", rowcount ? "," : "", ast_str_set_escapecommas(&escapebuf, 0, name, INT_MAX));
+				ast_str_append(&values, 0, "%s%s", rowcount ? "," : "", ast_str_set_escapecommas(&escapebuf, 0, S_OR(piece, ""), INT_MAX));
 				rowcount++;
 			}
 			pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", ast_str_buffer(fields));
