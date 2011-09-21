@@ -285,6 +285,10 @@ include => dundi-e164-switch
 ; In macros, it is the start extension. In most other cases,
 ; you have to goto "s" to execute that extension.
 ;
+; Note: In old versions of Asterisk the PBX in some cases defaulted to
+; extension "s" when a given extension was wrong (like in AMI originate).
+; This is no longer the case.
+;
 ; For wildcard matches, see above - all pattern matches start with
 ; an underscore.
 exten => s,1,Goto(${ARG1},1)

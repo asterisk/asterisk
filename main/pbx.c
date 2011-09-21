@@ -4977,23 +4977,16 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 	ast_set_flag(c, AST_FLAG_IN_AUTOLOOP);
 
-	/* Start by trying whatever the channel is set to */
-	if (!ast_exists_extension(c, c->context, c->exten, c->priority,
-		S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-		/* If not successful fall back to 's' */
+	if (ast_strlen_zero(c->exten)) {
+		/* If not successful fall back to 's' - but only if there is no given exten  */
 		ast_verb(2, "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
 		/* XXX the original code used the existing priority in the call to
 		 * ast_exists_extension(), and reset it to 1 afterwards.
 		 * I believe the correct thing is to set it to 1 immediately.
-		 */
+		*/
 		set_ext_pri(c, "s", 1);
-		if (!ast_exists_extension(c, c->context, c->exten, c->priority,
-			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-			/* JK02: And finally back to default if everything else failed */
-			ast_verb(2, "Starting %s at %s,%s,%d still failed so falling back to context 'default'\n", c->name, c->context, c->exten, c->priority);
-			ast_copy_string(c->context, "default", sizeof(c->context));
-		}
 	}
+
 	if (c->cdr) {
 		/* allow CDR variables that have been collected after channel was created to be visible during call */
 		ast_cdr_update(c);

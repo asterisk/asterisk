@@ -220,13 +220,28 @@ Asterisk Modules
 
 IAX2 Changes
 ------------
-* authdebug is now disabled by default. To enable this functionaility again
+ * authdebug is now disabled by default. To enable this functionaility again
    set authdebug = yes in iax.conf.
 
 RTP Changes
 -----------
  * The rtp.conf setting "strictrtp" is now enabled by default. In previous
    releases it was disabled.
+
+PBX Core
+--------
+ * The PBX core previously made a call with a non-existing extension test for
+   extension s@default and jump there if the extension existed.
+   This was a bad default behaviour and violated the principle of least surprise.
+   It has therefore been changed in this release. It may affect some
+   applications and configurations that rely on this behaviour. Most channel
+   drivers have avoided this for many releases by testing whether the extension
+   called exists before starting the PBX and generating a local error.
+   This behaviour still exists and works as before.
+
+   Extension "s" is used when no extension is given in a channel driver,
+   like immediate answer in DAHDI or calling to a domain with no user part
+   in a SIP uri.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
