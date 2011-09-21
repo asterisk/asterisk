@@ -3245,9 +3245,9 @@ static void check_quota(struct vm_state *vms, char *mailbox) {
 #endif /* IMAP_STORAGE */
 
 /*! \brief Lock file path
-    only return failure if ast_lock_path returns 'timeout',
-   not if the path does not exist or any other reason
-*/
+ * only return failure if ast_lock_path returns 'timeout',
+ * not if the path does not exist or any other reason
+ */
 static int vm_lock_path(const char *path)
 {
 	switch (ast_lock_path(path)) {
