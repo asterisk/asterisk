@@ -435,8 +435,8 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define ASTERISK_USERNAME "asterisk"
 
 /* Define fast-forward, pause, restart, and reverse keys
-   while listening to a voicemail message - these are
-   strings, not characters */
+ * while listening to a voicemail message - these are
+ * strings, not characters */
 #define DEFAULT_LISTEN_CONTROL_FORWARD_KEY "#"
 #define DEFAULT_LISTEN_CONTROL_REVERSE_KEY "*"
 #define DEFAULT_LISTEN_CONTROL_PAUSE_KEY "0"
@@ -445,7 +445,7 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define VALID_DTMF "1234567890*#" /* Yes ABCD are valid dtmf but what phones have those? */
 
 /* Default mail command to mail voicemail. Change it with the
-    mailcmd= command in voicemail.conf */
+ * mailcmd= command in voicemail.conf */
 #define SENDMAIL "/usr/sbin/sendmail -t"
 
 #define INTRO "vm-intro"
@@ -6134,30 +6134,31 @@ leave_vm_out:
 #if !defined(IMAP_STORAGE)
 static int resequence_mailbox(struct ast_vm_user *vmu, char *dir, int stopcount)
 {
-    /* we know the actual number of messages, so stop process when number is hit */
+	/* we know the actual number of messages, so stop process when number is hit */
 
-    int x, dest;
-    char sfn[PATH_MAX];
-    char dfn[PATH_MAX];
+	int x, dest;
+	char sfn[PATH_MAX];
+	char dfn[PATH_MAX];
 
-    if (vm_lock_path(dir))
-        return ERROR_LOCK_PATH;
+	if (vm_lock_path(dir)) {
+		return ERROR_LOCK_PATH;
+	}
 
-    for (x = 0, dest = 0; dest != stopcount && x < vmu->maxmsg + 10; x++) {
-        make_file(sfn, sizeof(sfn), dir, x);
-        if (EXISTS(dir, x, sfn, NULL)) {
+	for (x = 0, dest = 0; dest != stopcount && x < vmu->maxmsg + 10; x++) {
+		make_file(sfn, sizeof(sfn), dir, x);
+		if (EXISTS(dir, x, sfn, NULL)) {
 
-            if (x != dest) {
-                make_file(dfn, sizeof(dfn), dir, dest);
-                RENAME(dir, x, vmu->mailbox, vmu->context, dir, dest, sfn, dfn);
-            }
+			if (x != dest) {
+				make_file(dfn, sizeof(dfn), dir, dest);
+				RENAME(dir, x, vmu->mailbox, vmu->context, dir, dest, sfn, dfn);
+			}
 
-            dest++;
-        }
-    }
-    ast_unlock_path(dir);
+			dest++;
+		}
+	}
+	ast_unlock_path(dir);
 
-    return dest;
+	return dest;
 }
 #endif
 
