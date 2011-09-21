@@ -223,6 +223,11 @@ IAX2 Changes
 * authdebug is now disabled by default. To enable this functionaility again
    set authdebug = yes in iax.conf.
 
+RTP Changes
+-----------
+ * The rtp.conf setting "strictrtp" is now enabled by default. In previous
+   releases it was disabled.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------

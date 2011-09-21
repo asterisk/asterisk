@@ -2829,7 +2829,7 @@ static int rtp_reload(int reload)
 	rtpstart = DEFAULT_RTP_START;
 	rtpend = DEFAULT_RTP_END;
 	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
-	strictrtp = STRICT_RTP_OPEN;
+	strictrtp = STRICT_RTP_CLOSED;
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
 			rtpstart = atoi(s);

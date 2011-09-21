@@ -23,5 +23,5 @@ rtpend=20000
 ;
 ; Enable strict RTP protection. This will drop RTP packets that
 ; do not come from the source of the RTP stream. This option is
-; disabled by default.
+; enabled by default.
 ; strictrtp=yes
