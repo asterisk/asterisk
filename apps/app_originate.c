@@ -70,6 +70,9 @@ static const char app_originate[] = "Originate";
 			<parameter name="arg3" required="false">
 				<para>If the type is <literal>exten</literal>, then this is the priority that the channel is sent to.  If the type is <literal>app</literal>, then this parameter is ignored.</para>
 			</parameter>
+			<parameter name="timeout" required="false">
+				<para>Timeout in seconds. Default is 30 seconds.</para>
+			</parameter>
 		</syntax>
 		<description>
 		<para>This application originates an outbound call and connects it to a specified extension or application.  This application will block until the outgoing call fails or gets answered.  At that point, this application will exit with the status variable set and dialplan processing will continue.</para>
@@ -101,12 +104,13 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(arg1);
 		AST_APP_ARG(arg2);
 		AST_APP_ARG(arg3);
+		AST_APP_ARG(timeout);
 	);
 	char *parse;
 	char *chantech, *chandata;
 	int res = -1;
 	int outgoing_status = 0;
-	static const unsigned int timeout = 30;
+	unsigned int timeout = 30;
 	static const char default_exten[] = "s";
 	struct ast_format tmpfmt;
 	struct ast_format_cap *cap_slin = ast_format_cap_alloc_nolock();
@@ -129,6 +133,13 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	if (args.argc < 3) {
 		ast_log(LOG_ERROR, "Incorrect number of arguments\n");
 		goto return_cleanup;
+	}
+
+	if (!ast_strlen_zero(args.timeout)) {
+		if(sscanf(args.timeout, "%u", &timeout) != 1) {
+			ast_log(LOG_NOTICE, "Invalid timeout: '%s'. Setting timeout to 30 seconds\n", args.timeout);
+			timeout = 30;
+		}
 	}
 
 	chandata = ast_strdupa(args.tech_data);

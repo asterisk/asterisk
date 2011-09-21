@@ -204,6 +204,7 @@ Applications
    a MeetMe conference
  * Added 'k' option to MeetMe to automatically kill the conference when there's only
    one participant left (much like a normal call bridge)
+ * Added extra argument to Originate to set timeout.
 
 Asterisk Database
 -----------------
