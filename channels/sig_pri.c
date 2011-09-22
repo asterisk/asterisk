@@ -1541,7 +1541,19 @@ static char *dialplan2str(int dialplan)
 	return (pri_plan2str(dialplan));
 }
 
-static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_span *pri, const char *number, const int plan)
+/*!
+ * \internal
+ * \brief Apply numbering plan prefix to the given number.
+ *
+ * \param buf Buffer to put number into.
+ * \param size Size of given buffer.
+ * \param pri PRI span control structure.
+ * \param number Number to apply numbering plan.
+ * \param plan Numbering plan to apply.
+ *
+ * \return Nothing
+ */
+static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_span *pri, const char *number, int plan)
 {
 	switch (plan) {
 	case PRI_INTERNATIONAL_ISDN:		/* Q.931 dialplan == 0x11 international dialplan => prepend international prefix digits */
@@ -1563,6 +1575,30 @@ static void apply_plan_to_number(char *buf, size_t size, const struct sig_pri_sp
 		snprintf(buf, size, "%s", number);
 		break;
 	}
+}
+
+/*!
+ * \internal
+ * \brief Apply numbering plan prefix to the given number if the number exists.
+ *
+ * \param buf Buffer to put number into.
+ * \param size Size of given buffer.
+ * \param pri PRI span control structure.
+ * \param number Number to apply numbering plan.
+ * \param plan Numbering plan to apply.
+ *
+ * \return Nothing
+ */
+static void apply_plan_to_existing_number(char *buf, size_t size, const struct sig_pri_span *pri, const char *number, int plan)
+{
+	/* Make sure a number exists so the prefix isn't placed on an empty string. */
+	if (ast_strlen_zero(number)) {
+		if (size) {
+			*buf = '\0';
+		}
+		return;
+	}
+	apply_plan_to_number(buf, size, pri, number, plan);
 }
 
 /*!
@@ -1947,7 +1983,8 @@ static void sig_pri_party_number_convert(struct ast_party_number *ast_number, co
 {
 	char number[AST_MAX_EXTENSION];
 
-	apply_plan_to_number(number, sizeof(number), pri, pri_number->str, pri_number->plan);
+	apply_plan_to_existing_number(number, sizeof(number), pri, pri_number->str,
+		pri_number->plan);
 	ast_number->str = ast_strdup(number);
 	ast_number->plan = pri_number->plan;
 	ast_number->presentation = pri_to_ast_presentation(pri_number->presentation);
@@ -4690,7 +4727,7 @@ static void *pri_dchannel(void *vpri)
 
 		if (e) {
 			if (pri->debug) {
-				ast_verbose("Span: %d Processing event: %s\n",
+				ast_verbose("Span %d: Processing event %s\n",
 					pri->span, pri_event2str(e->e));
 			}
 
@@ -5020,24 +5057,23 @@ static void *pri_dchannel(void *vpri)
 				pri->pvts[chanpos]->call = e->ring.call;
 
 				/* Use plancallingnum as a scratch buffer since it is initialized next. */
-				apply_plan_to_number(plancallingnum, sizeof(plancallingnum), pri,
+				apply_plan_to_existing_number(plancallingnum, sizeof(plancallingnum), pri,
 					e->ring.redirectingnum, e->ring.callingplanrdnis);
 				sig_pri_set_rdnis(pri->pvts[chanpos], plancallingnum);
 
 				/* Setup caller-id info */
-				apply_plan_to_number(plancallingnum, sizeof(plancallingnum), pri, e->ring.callingnum, e->ring.callingplan);
+				apply_plan_to_existing_number(plancallingnum, sizeof(plancallingnum), pri,
+					e->ring.callingnum, e->ring.callingplan);
 				pri->pvts[chanpos]->cid_ani2 = 0;
 				if (pri->pvts[chanpos]->use_callerid) {
 					ast_shrink_phone_number(plancallingnum);
 					ast_copy_string(pri->pvts[chanpos]->cid_num, plancallingnum, sizeof(pri->pvts[chanpos]->cid_num));
 #ifdef PRI_ANI
-					if (!ast_strlen_zero(e->ring.callingani)) {
-						apply_plan_to_number(plancallingani, sizeof(plancallingani), pri, e->ring.callingani, e->ring.callingplanani);
-						ast_shrink_phone_number(plancallingani);
-						ast_copy_string(pri->pvts[chanpos]->cid_ani, plancallingani, sizeof(pri->pvts[chanpos]->cid_ani));
-					} else {
-						pri->pvts[chanpos]->cid_ani[0] = '\0';
-					}
+					apply_plan_to_existing_number(plancallingani, sizeof(plancallingani),
+						pri, e->ring.callingani, e->ring.callingplanani);
+					ast_shrink_phone_number(plancallingani);
+					ast_copy_string(pri->pvts[chanpos]->cid_ani, plancallingani,
+						sizeof(pri->pvts[chanpos]->cid_ani));
 #endif
 					pri->pvts[chanpos]->cid_subaddr[0] = '\0';
 #if defined(HAVE_PRI_SUBADDR)
