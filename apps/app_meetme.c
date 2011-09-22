@@ -124,9 +124,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="I">
 						<para>Announce user join/leave without review.</para>
 					</option>
-					<option name="k">
-						<para>Close the conference if there's only one active participant left at exit.</para>
-					</option>
 					<option name="l">
 						<para>Set listen only mode (Listen only, no talking).</para>
 					</option>
@@ -545,7 +542,6 @@ enum {
 	ADMINFLAG_KICKME =    (1 << 3),  /*!< User has been kicked */
 	/*! User has requested to speak */
 	ADMINFLAG_T_REQUEST = (1 << 4),
-	ADMINFLAG_HANGUP = (1 << 5),	/*!< User will be leaving the conference */
 };
 
 #define MEETME_DELAYDETECTTALK     300
@@ -637,8 +633,6 @@ enum {
 #define CONFFLAG_NO_AUDIO_UNTIL_UP  (1ULL << 31)
 #define CONFFLAG_INTROMSG           (1ULL << 32) /*!< If set play an intro announcement at start of conference */
 #define CONFFLAG_INTROUSER_VMREC    (1ULL << 33)
-/*! If there's only one person left in a conference when someone leaves, kill the conference */
-#define CONFFLAG_KILL_LAST_MAN_STANDING ((uint64_t)1 << 34)
 
 enum {
 	OPT_ARG_WAITMARKED = 0,
@@ -666,7 +660,6 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION_ARG('v', CONFFLAG_INTROUSER_VMREC , OPT_ARG_INTROUSER_VMREC),
 	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
 	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
-	AST_APP_OPTION('k', CONFFLAG_KILL_LAST_MAN_STANDING ),
 	AST_APP_OPTION_ARG('M', CONFFLAG_MOH, OPT_ARG_MOH_CLASS ),
 	AST_APP_OPTION('m', CONFFLAG_STARTMUTED ),
 	AST_APP_OPTION('o', CONFFLAG_OPTIMIZETALKER ),
@@ -2199,17 +2192,6 @@ static void set_user_talking(struct ast_channel *chan, struct ast_conference *co
 	}
 }
 
-static int user_set_hangup_cb(void *obj, void *check_admin_arg, int flags)
-{
-	struct ast_conf_user *user = obj;
-	/* actual pointer contents of check_admin_arg is irrelevant */
-
-	if (!check_admin_arg || (check_admin_arg && !ast_test_flag64(&user->userflags, CONFFLAG_ADMIN))) {
-		user->adminflags |= ADMINFLAG_HANGUP;
-	}
-	return 0;
-}
-
 static int user_set_kickme_cb(void *obj, void *check_admin_arg, int flags)
 {
 	struct ast_conf_user *user = obj;
@@ -3189,13 +3171,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 							      "Status: off\r\n",
 							     chan->name, chan->uniqueid, conf->confno, user->user_no);
 			}
-
-			/* If user have been hung up, exit the conference */
-			if (user->adminflags & ADMINFLAG_HANGUP) {
-				ret = 0;
-				break;
-			}
-
+			
 			/* If I have been kicked, exit the conference */
 			if (user->adminflags & ADMINFLAG_KICKME) {
 				/* You have been kicked. */
@@ -3882,11 +3858,6 @@ bailoutandtrynormal:
 		if (!conf->users) {
 			ast_devstate_changed(AST_DEVICE_NOT_INUSE, "meetme:%s", conf->confno);
 		}
-
- 		/* This flag is meant to kill a conference with only one participant remaining.  */
-		if (conf->users == 1 && ast_test_flag64(confflags, CONFFLAG_KILL_LAST_MAN_STANDING)) {
- 			ao2_callback(conf->usercontainer, 0, user_set_hangup_cb, NULL);
- 		}
 
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
