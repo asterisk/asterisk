@@ -265,6 +265,7 @@ static const struct {
 		{ AST_EVENT_IE_SESSION_ID, SEC_EVT_FIELD(common, session_id) },
 		{ AST_EVENT_IE_LOCAL_ADDR, SEC_EVT_FIELD(common, local_addr) },
 		{ AST_EVENT_IE_REMOTE_ADDR, SEC_EVT_FIELD(common, remote_addr) },
+		{ AST_EVENT_IE_USING_PASSWORD, SEC_EVT_FIELD(successful_auth, using_password) },
 		{ AST_EVENT_IE_END, 0 }
 	},
 	.optional_ies = {
@@ -335,6 +336,55 @@ static const struct {
 		{ AST_EVENT_IE_SESSION_ID, SEC_EVT_FIELD(common, session_id) },
 		{ AST_EVENT_IE_LOCAL_ADDR, SEC_EVT_FIELD(common, local_addr) },
 		{ AST_EVENT_IE_REMOTE_ADDR, SEC_EVT_FIELD(common, remote_addr) },
+		{ AST_EVENT_IE_CHALLENGE, SEC_EVT_FIELD(inval_password, challenge) },
+		{ AST_EVENT_IE_RECEIVED_CHALLENGE, SEC_EVT_FIELD(inval_password, received_challenge) },
+		{ AST_EVENT_IE_RECEIVED_HASH, SEC_EVT_FIELD(inval_password, received_hash) },
+		{ AST_EVENT_IE_END, 0 }
+	},
+	.optional_ies = {
+		{ AST_EVENT_IE_MODULE, SEC_EVT_FIELD(common, module) },
+		{ AST_EVENT_IE_SESSION_TV, SEC_EVT_FIELD(common, session_tv) },
+		{ AST_EVENT_IE_END, 0 }
+	},
+},
+
+[AST_SECURITY_EVENT_CHAL_SENT] = {
+	.name     = "ChallengeSent",
+	.version  = AST_SECURITY_EVENT_CHAL_SENT_VERSION,
+	.severity = AST_SECURITY_EVENT_SEVERITY_INFO,
+	.required_ies = {
+		{ AST_EVENT_IE_EVENT_TV, 0 },
+		{ AST_EVENT_IE_SEVERITY, 0 },
+		{ AST_EVENT_IE_SERVICE, SEC_EVT_FIELD(common, service) },
+		{ AST_EVENT_IE_EVENT_VERSION, SEC_EVT_FIELD(common, version) },
+		{ AST_EVENT_IE_ACCOUNT_ID, SEC_EVT_FIELD(common, account_id) },
+		{ AST_EVENT_IE_SESSION_ID, SEC_EVT_FIELD(common, session_id) },
+		{ AST_EVENT_IE_LOCAL_ADDR, SEC_EVT_FIELD(common, local_addr) },
+		{ AST_EVENT_IE_REMOTE_ADDR, SEC_EVT_FIELD(common, remote_addr) },
+		{ AST_EVENT_IE_CHALLENGE, SEC_EVT_FIELD(chal_sent, challenge) },
+		{ AST_EVENT_IE_END, 0 }
+	},
+	.optional_ies = {
+		{ AST_EVENT_IE_MODULE, SEC_EVT_FIELD(common, module) },
+		{ AST_EVENT_IE_SESSION_TV, SEC_EVT_FIELD(common, session_tv) },
+		{ AST_EVENT_IE_END, 0 }
+	},
+},
+
+[AST_SECURITY_EVENT_INVAL_TRANSPORT] = {
+	.name     = "InvalidTransport",
+	.version  = AST_SECURITY_EVENT_INVAL_TRANSPORT_VERSION,
+	.severity = AST_SECURITY_EVENT_SEVERITY_ERROR,
+	.required_ies = {
+		{ AST_EVENT_IE_EVENT_TV, 0 },
+		{ AST_EVENT_IE_SEVERITY, 0 },
+		{ AST_EVENT_IE_SERVICE, SEC_EVT_FIELD(common, service) },
+		{ AST_EVENT_IE_EVENT_VERSION, SEC_EVT_FIELD(common, version) },
+		{ AST_EVENT_IE_ACCOUNT_ID, SEC_EVT_FIELD(common, account_id) },
+		{ AST_EVENT_IE_SESSION_ID, SEC_EVT_FIELD(common, session_id) },
+		{ AST_EVENT_IE_LOCAL_ADDR, SEC_EVT_FIELD(common, local_addr) },
+		{ AST_EVENT_IE_REMOTE_ADDR, SEC_EVT_FIELD(common, remote_addr) },
+		{ AST_EVENT_IE_ATTEMPTED_TRANSPORT, SEC_EVT_FIELD(inval_transport, transport) },
 		{ AST_EVENT_IE_END, 0 }
 	},
 	.optional_ies = {
@@ -500,6 +550,9 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 	case AST_EVENT_IE_CHALLENGE:
 	case AST_EVENT_IE_RESPONSE:
 	case AST_EVENT_IE_EXPECTED_RESPONSE:
+	case AST_EVENT_IE_RECEIVED_CHALLENGE:
+	case AST_EVENT_IE_RECEIVED_HASH:
+	case AST_EVENT_IE_ATTEMPTED_TRANSPORT:
 	{
 		const char *str;
 
@@ -519,6 +572,7 @@ static int add_ie(struct ast_event **event, const struct ast_security_event_comm
 		break;
 	}
 	case AST_EVENT_IE_EVENT_VERSION:
+	case AST_EVENT_IE_USING_PASSWORD:
 	{
 		uint32_t val;
 		val = *((const uint32_t *)(((const char *) sec) + ie_type->offset));

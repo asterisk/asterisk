@@ -111,7 +111,17 @@ enum ast_security_event_type {
 	 * \brief An attempt at basic password authentication failed
 	 */
 	AST_SECURITY_EVENT_INVAL_PASSWORD,
-	/* \brief This _must_ stay at the end. */
+	/*!
+	 * \brief Challenge was sent out, informational
+	 */
+	AST_SECURITY_EVENT_CHAL_SENT,
+	/*!
+	 * \brief An attempt to contact a peer on an invalid transport.
+	 */
+	AST_SECURITY_EVENT_INVAL_TRANSPORT,
+	/*!
+	 * \brief This _must_ stay at the end.
+	 */
 	AST_SECURITY_EVENT_NUM_TYPES
 };
 
@@ -393,6 +403,11 @@ struct ast_security_event_successful_auth {
 	 * \note Account ID required
 	 */
 	struct ast_security_event_common common;
+	/*!
+	 * \brief Using password - if a password was used or not
+	 * \note required, 0 = no, 1 = yes
+	 */
+	uint32_t *using_password;
 };
 
 /*!
@@ -455,12 +470,69 @@ struct ast_security_event_inval_password {
 	 * \brief Event descriptor version
 	 * \note This _must_ be changed if this event descriptor is changed.
 	 */
-	#define AST_SECURITY_EVENT_INVAL_PASSWORD_VERSION 1
+	#define AST_SECURITY_EVENT_INVAL_PASSWORD_VERSION 2
 	/*!
 	 * \brief Common security event descriptor elements
 	 * \note Account ID required
 	 */
 	struct ast_security_event_common common;
+	/*!
+	 * \brief Challenge provided
+	 * \note required
+	 */
+	const char *challenge;
+	/*!
+	 * \brief Challenge received
+	 * \note required
+	 */
+	const char *received_challenge;
+	/*!
+	 * \brief Hash received
+	 * \note required
+	 */
+	const char *received_hash;
+};
+
+/*!
+ * \brief A challenge was sent out
+ */
+struct ast_security_event_chal_sent {
+	/*!
+	 * \brief Event descriptor version
+	 * \note This _must_ be changed if this event descriptor is changed.
+	 */
+	#define AST_SECURITY_EVENT_CHAL_SENT_VERSION 1
+	/*!
+	 * \brief Common security event descriptor elements
+	 * \note Account ID required
+	 */
+	struct ast_security_event_common common;
+	/*!
+	 * \brief Challenge sent
+	 * \note required
+	 */
+	const char *challenge;
+};
+
+/*!
+ * \brief Attempt to contact peer on invalid transport
+ */
+struct ast_security_event_inval_transport {
+        /*!
+         * \brief Event descriptor version
+         * \note This _must_ be changed if this event descriptor is changed.
+         */
+        #define AST_SECURITY_EVENT_INVAL_TRANSPORT_VERSION 1
+        /*!
+         * \brief Common security event descriptor elements
+         * \note Account ID required
+         */
+	struct ast_security_event_common common;
+	/*!
+	 * \brief Attempted transport
+	 * \note required
+	 */
+	const char *transport;
 };
 
 #if defined(__cplusplus) || defined(c_plusplus)

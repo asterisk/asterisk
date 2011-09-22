@@ -283,8 +283,13 @@ enum ast_event_ie_type {
 	AST_EVENT_IE_CHALLENGE           = 0x0032,
 	AST_EVENT_IE_RESPONSE            = 0x0033,
 	AST_EVENT_IE_EXPECTED_RESPONSE   = 0x0034,
+	AST_EVENT_IE_RECEIVED_CHALLENGE  = 0x0035,
+	AST_EVENT_IE_RECEIVED_HASH       = 0x0036,
+	AST_EVENT_IE_USING_PASSWORD      = 0x0037,
+	AST_EVENT_IE_ATTEMPTED_TRANSPORT = 0x0038,
+
 	/*! \brief Must be the last IE value +1 */
-	AST_EVENT_IE_TOTAL               = 0x0035,
+	AST_EVENT_IE_TOTAL               = 0x0039,
 };
 
 /*!
