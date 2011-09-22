@@ -76,6 +76,7 @@
 ;    verbose
 ;    dtmf
 ;    fax
+;    security
 ;
 ; Special filename "console" represents the system console
 ;
@@ -104,6 +105,7 @@
 ; you are in the process of debugging a specific issue.
 ;
 ;debug => debug
+;security => security
 console => notice,warning,error
 ;console => notice,warning,error,debug
 messages => notice,warning,error

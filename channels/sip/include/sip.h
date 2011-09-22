@@ -33,6 +33,7 @@
 #include "asterisk/app.h"
 #include "asterisk/astobj.h"
 #include "asterisk/indications.h"
+#include "asterisk/security_events.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -42,7 +43,7 @@
 #define TRUE     1
 #endif
 
-/* Arguments for find_peer */
+/* Arguments for sip_find_peer */
 #define FINDUSERS (1 << 0)
 #define FINDPEERS (1 << 1)
 #define FINDALLDEVICES (FINDUSERS | FINDPEERS)
@@ -359,6 +360,8 @@
 #define SIP_PAGE3_FLAGS_TO_COPY \
 	(SIP_PAGE3_SNOM_AOC | SIP_PAGE3_SRTP_TAG_32)
 
+#define CHECK_AUTH_BUF_INITLEN   256
+
 /*@}*/
 
 /*----------------------------------------------------------*/
@@ -379,6 +382,19 @@ enum transfermodes {
 enum sip_result {
 	AST_SUCCESS = 0,		/*!< FALSE means success, funny enough */
 	AST_FAILURE = -1,		/*!< Failure code */
+};
+
+/*! \brief The results from handling an invite request
+ *
+ * \note Start at these values so we do not conflict with
+ * check_auth_results values when returning from
+ * handle_request_invite.  check_auth_results only returned during
+ * authentication routines
+ * */
+enum inv_req_result {
+	INV_REQ_SUCCESS = 11,    /*!< Success code */
+	INV_REQ_FAILED  = 10,    /*!< Failure code */
+	INV_REQ_ERROR   = 9,     /*!< Error code */
 };
 
 /*! \brief States for the INVITE transaction, not the dialog
@@ -472,7 +488,8 @@ enum check_auth_result {
 	AUTH_PEER_NOT_DYNAMIC = -6,
 	AUTH_ACL_FAILED = -7,
 	AUTH_BAD_TRANSPORT = -8,
-	AUTH_RTP_FAILED = 9,
+	AUTH_RTP_FAILED = -9,
+	AUTH_SESSION_LIMIT = -10,
 };
 
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
@@ -633,6 +650,13 @@ enum sip_tcptls_alert {
 	TCPTLS_ALERT_STOP,  /*!< \brief A request to stop the tcp_handler thread */
 };
 
+enum digest_keys {
+        K_RESP,
+        K_URI,
+        K_USER,
+        K_NONCE,
+        K_LAST
+};
 
 /*----------------------------------------------------------*/
 /*----                    STRUCTS                       ----*/
@@ -1796,5 +1820,23 @@ static const struct cfsip_options {
 	/* RFC4538: Target-dialog */
 	{ SIP_OPT_TARGET_DIALOG,NOT_SUPPORTED,	"tdialog" },
 };
+
+struct digestkeys {
+	const char *key;
+	const char *s;
+};
+
+AST_THREADSTORAGE(check_auth_buf);
+
+/*----------------------------------------------------------*/
+/*----                    FUNCTIONS                     ----*/
+/*----------------------------------------------------------*/
+
+struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int realtime, int which_objects, int devstate_only, int transport);
+void sip_auth_headers(enum sip_auth_type code, char **header, char **respheader);
+const char *sip_get_header(const struct sip_request *req, const char *name);
+const char *sip_get_transport(enum sip_transport t);
+void *sip_unref_peer(struct sip_peer *peer, char *tag);
+struct sip_peer *sip_ref_peer(struct sip_peer *peer, char *tag);
 
 #endif

@@ -214,6 +214,7 @@ SIP Changes
 -----------
  * Add T38 support for REJECTED state where T.38 Negotiation is explicitly rejected.
  * Add option encryption_taglen to set auth taglen only 32 and 80 are supported currently.
+ * SIP now generates security events using the Security Events Framework for REGISTER and INVITE.
 
 Queue changes
 -------------
