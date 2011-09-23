@@ -1,32 +1,32 @@
-; Sample res_pktccops.conf
-
-[general]
-gateinfoperiod => 60 ; default 60s
-gatetimeout = 150 ; default 150
-t1 => 250 ; default 250s
-t7 => 200 ; default 200s
-t8 => 300 ; default 300s
-keepalive => 60 ; default 60s
-
-[teszt]
-host => 192.168.0.24
-pool => 10.0.1.0 10.0.1.255
-pool => 10.0.3.0 10.0.3.255
-pool => 10.0.7.0 10.0.8.255
-pool => 10.0.10.0 10.0.11.255
-
-[general]
-gateinfoperiod => 60 ; default 60s
-gatetimeout = 150 ; default 150
-t1 => 250 ; default 250s
-t7 => 200 ; default 200s
-t8 => 300 ; default 300s
-keepalive => 60 ; default 60s
-
-[test]
-host => 192.168.0.24
-pool => 10.0.1.0 10.0.1.255
-pool => 10.0.3.0 10.0.3.255
-pool => 10.0.7.0 10.0.8.255
-pool => 10.0.10.0 10.0.11.255
-
+;; Sample res_pktccops.conf
+;
+;[general]
+;gateinfoperiod => 60 ; default 60s
+;gatetimeout = 150 ; default 150
+;t1 => 250 ; default 250s
+;t7 => 200 ; default 200s
+;t8 => 300 ; default 300s
+;keepalive => 60 ; default 60s
+;
+;[teszt]
+;host => 192.168.0.24
+;pool => 10.0.1.0 10.0.1.255
+;pool => 10.0.3.0 10.0.3.255
+;pool => 10.0.7.0 10.0.8.255
+;pool => 10.0.10.0 10.0.11.255
+;
+;[general]
+;gateinfoperiod => 60 ; default 60s
+;gatetimeout = 150 ; default 150
+;t1 => 250 ; default 250s
+;t7 => 200 ; default 200s
+;t8 => 300 ; default 300s
+;keepalive => 60 ; default 60s
+;
+;[test]
+;host => 192.168.0.24
+;pool => 10.0.1.0 10.0.1.255
+;pool => 10.0.3.0 10.0.3.255
+;pool => 10.0.7.0 10.0.8.255
+;pool => 10.0.10.0 10.0.11.255
+;
