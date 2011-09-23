@@ -5077,8 +5077,34 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		qe->handled++;
 		ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "CONNECT", "%ld|%s|%ld", (long) time(NULL) - qe->start, peer->uniqueid,
 													(long)(orig - to > 0 ? (orig - to) / 1000 : 0));
-		if (update_cdr && qe->chan->cdr) 
-			ast_copy_string(qe->chan->cdr->dstchannel, member->membername, sizeof(qe->chan->cdr->dstchannel));
+
+		if (qe->chan->cdr) {
+			struct ast_cdr *cdr;
+			struct ast_cdr *newcdr;
+
+			/* Only work with the last CDR in the stack*/
+			cdr = qe->chan->cdr;
+			while (cdr->next) {
+				cdr = cdr->next;
+			}
+
+			/* If this CDR is not related to us add new one*/
+			if ((strcasecmp(cdr->uniqueid, qe->chan->uniqueid)) &&
+			    (strcasecmp(cdr->linkedid, qe->chan->uniqueid)) &&
+			    (newcdr = ast_cdr_dup(cdr))) {
+				ast_cdr_init(newcdr, qe->chan);
+				ast_cdr_reset(newcdr, 0);
+				ast_channel_lock(qe->chan);
+				cdr = ast_cdr_append(cdr, newcdr);
+				cdr = cdr->next;
+				ast_channel_unlock(qe->chan);
+			}
+
+			if (update_cdr) {
+				ast_copy_string(cdr->dstchannel, member->membername, sizeof(cdr->dstchannel));
+			}
+		}
+
 		if (qe->parent->eventwhencalled)
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
 					"Queue: %s\r\n"
