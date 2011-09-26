@@ -2325,7 +2325,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_copy_string(tc->exten, chan->exten, sizeof(tc->exten));
 
 		ast_channel_unlock(tc);
+		ast_channel_unlock(chan);
 		res = ast_call(tc, numsubst, 0); /* Place the call, but don't wait on the answer */
+		ast_channel_lock(chan);
 
 		/* Save the info in cdr's that we called them */
 		if (chan->cdr)

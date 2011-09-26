@@ -167,7 +167,7 @@ static int manager_log(struct ast_cdr *cdr)
 		}
 		dummy->cdr = ast_cdr_dup(cdr);
 		pbx_substitute_variables_helper(dummy, ast_str_buffer(customfields), buf, sizeof(buf) - 1);
-		ast_channel_release(dummy);
+		ast_channel_unref(dummy);
 	}
 	ast_rwlock_unlock(&customfields_lock);
 

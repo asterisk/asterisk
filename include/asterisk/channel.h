@@ -1134,6 +1134,7 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
 	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, \
 			    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
+#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
 /*!
  * \brief Create a fake channel structure
  *
@@ -1143,11 +1144,32 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
  * \note This function should ONLY be used to create a fake channel
  *       that can then be populated with data for use in variable
  *       substitution when a real channel does not exist.
+ *
+ * \note The created dummy channel should be destroyed by
+ * ast_channel_unref().  Using ast_channel_release() needlessly
+ * grabs the channel container lock and can cause a deadlock as
+ * a result.  Also grabbing the channel container lock reduces
+ * system performance.
  */
-#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
 #define ast_dummy_channel_alloc()	__ast_dummy_channel_alloc(__FILE__, __LINE__, __PRETTY_FUNCTION__)
 struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const char *function);
 #else
+/*!
+ * \brief Create a fake channel structure
+ *
+ * \retval NULL failure
+ * \retval non-NULL successfully allocated channel
+ *
+ * \note This function should ONLY be used to create a fake channel
+ *       that can then be populated with data for use in variable
+ *       substitution when a real channel does not exist.
+ *
+ * \note The created dummy channel should be destroyed by
+ * ast_channel_unref().  Using ast_channel_release() needlessly
+ * grabs the channel container lock and can cause a deadlock as
+ * a result.  Also grabbing the channel container lock reduces
+ * system performance.
+ */
 struct ast_channel *ast_dummy_channel_alloc(void);
 #endif
 
@@ -1593,6 +1615,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer);
 
 /*!
  * \brief Make a call
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \param chan which channel to make the call on
  * \param addr destination of the call
  * \param timeout time to wait on for connect

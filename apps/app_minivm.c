@@ -1313,6 +1313,9 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	}
 	/* Allocate channel used for chanvar substitution */
 	ast = ast_dummy_channel_alloc();
+	if (!ast) {
+		return -1;
+	}
 
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
 
@@ -1473,8 +1476,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	ast_safe_system(tmp2);
 	ast_debug(1, "Sent message to %s with command '%s' - %s\n", vmu->email, global_mailcmd, template->attachment ? "(media attachment)" : "");
 	ast_debug(3, "Actual command used: %s\n", tmp2);
-	if (ast)
-		ast = ast_channel_release(ast);
+	ast = ast_channel_unref(ast);
 	ast_free(str1);
 	ast_free(str2);
 	return 0;
