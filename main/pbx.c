@@ -3721,7 +3721,7 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 						cp4 = ast_func_read2(c, finalvars, &substr3, 0) ? NULL : ast_str_buffer(substr3);
 						/* Don't deallocate the varshead that was passed in */
 						memcpy(&bogus->varshead, &old, sizeof(bogus->varshead));
-						ast_channel_release(bogus);
+						ast_channel_unref(bogus);
 					} else {
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 					}
@@ -3920,7 +3920,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 						cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 						/* Don't deallocate the varshead that was passed in */
 						memcpy(&c->varshead, &old, sizeof(c->varshead));
-						c = ast_channel_release(c);
+						c = ast_channel_unref(c);
 					} else {
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 					}
@@ -8321,12 +8321,16 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	/* If we are adding a hint evalulate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && !strstr(extension, "_")) {
 		struct ast_channel *c = ast_dummy_channel_alloc();
-		ast_copy_string(c->exten, extension, sizeof(c->exten));
-		ast_copy_string(c->context, con->name, sizeof(c->context));
 
+		if (c) {
+			ast_copy_string(c->exten, extension, sizeof(c->exten));
+			ast_copy_string(c->context, con->name, sizeof(c->context));
+		}
 		pbx_substitute_variables_helper(c, application, expand_buf, sizeof(expand_buf));
 		application = expand_buf;
-		ast_channel_release(c);
+		if (c) {
+			ast_channel_unref(c);
+		}
 	}
 
 	length = sizeof(struct ast_exten);
@@ -8578,7 +8582,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	chan->cdr = ast_cdr_alloc();
 	if (!chan->cdr) {
 		/* allocation of the cdr failed */
-		chan = ast_channel_release(chan);   /* free the channel */
+		chan = ast_channel_unref(chan);   /* free the channel */
 		return -1;                /* return failure */
 	}
 
@@ -8589,7 +8593,7 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	ast_cdr_failed(chan->cdr);      /* set the status to failed */
 	ast_cdr_detach(chan->cdr);      /* post and free the record */
 	chan->cdr = NULL;
-	chan = ast_channel_release(chan);         /* free the channel */
+	chan = ast_channel_unref(chan);         /* free the channel */
 
 	return 0;  /* success */
 }

@@ -183,8 +183,11 @@ void ast_cel_check_retire_linkedid(struct ast_channel *chan);
 /*!
  * \brief Create a fake channel from data in a CEL event
  *
- * This function creates a fake channel containing the serialized channel data 
- * in the given cel event.  It must be released with ast_channel_release.
+ * \note
+ * This function creates a fake channel containing the
+ * serialized channel data in the given cel event.  It should be
+ * released with ast_channel_unref() but could be released with
+ * ast_channel_release().
  *
  * \param event the CEL event
  *

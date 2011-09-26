@@ -3078,7 +3078,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	const char *name = astman_get_header(m, "Channel");
 	const char *varname = astman_get_header(m, "Variable");
 	char *varval;
-	char workspace[1024] = "";
+	char workspace[1024];
 
 	if (ast_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
@@ -3092,12 +3092,12 @@ static int action_getvar(struct mansession *s, const struct message *m)
 		}
 	}
 
+	workspace[0] = '\0';
 	if (varname[strlen(varname) - 1] == ')') {
 		if (!c) {
 			c = ast_dummy_channel_alloc();
 			if (c) {
 				ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
-				c = ast_channel_release(c);
 			} else
 				ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 		} else {

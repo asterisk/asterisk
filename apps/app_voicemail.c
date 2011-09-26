@@ -4581,7 +4581,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			} else {
 				fprintf(p, "From: %s <%s>" ENDL, ast_str_quote(&str2, 0, ast_str_buffer(str1)), who);
 			}
-			ast = ast_channel_release(ast);
+			ast = ast_channel_unref(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -4626,7 +4626,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			} else {
 				fprintf(p, "Subject: %s" ENDL, ast_str_buffer(str1));
 			}
-			ast = ast_channel_release(ast);
+			ast = ast_channel_unref(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -4712,7 +4712,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #else
 			fprintf(p, "%s" ENDL, ast_str_buffer(str1));
 #endif
-			ast = ast_channel_release(ast);
+			ast = ast_channel_unref(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -4939,7 +4939,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			} else {
 				fprintf(p, "From: %s <%s>" ENDL, ast_str_quote(&str2, 0, ast_str_buffer(str1)), who);
 			}
-			ast = ast_channel_release(ast);
+			ast = ast_channel_unref(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -4983,7 +4983,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			} else {
 				fprintf(p, "Subject: %s" ENDL, ast_str_buffer(str1));
 			}
-			ast = ast_channel_release(ast);
+			ast = ast_channel_unref(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -5001,7 +5001,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
 			ast_str_substitute_variables(&str1, 0, ast, pagerbody);
 			fprintf(p, "%s" ENDL, ast_str_buffer(str1));
-			ast = ast_channel_release(ast);
+			ast = ast_channel_unref(ast);
 		} else {
 			ast_log(AST_LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		}
@@ -12699,6 +12699,9 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
 		ast_unreplace_sigchld();
+#ifdef IMAP_STORAGE
+		chan = ast_channel_unref(chan);
+#endif
 		return AST_TEST_FAIL;
 	}
 
@@ -12718,6 +12721,9 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 				ast_test_status_update(test, "Unable to create test voicemail: %s\n",
 					syserr > 0 ? strerror(syserr) : "unable to fork()");
 				ast_unreplace_sigchld();
+#ifdef IMAP_STORAGE
+				chan = ast_channel_unref(chan);
+#endif
 				return AST_TEST_FAIL;
 			}
 		}
@@ -12791,7 +12797,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 
 #ifdef IMAP_STORAGE
-	chan = ast_channel_release(chan);
+	chan = ast_channel_unref(chan);
 #endif
 
 	/* And remove test directory */
