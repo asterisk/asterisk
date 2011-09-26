@@ -102,7 +102,7 @@ AST_TEST_DEFINE(test_gosub)
 
 	if (!(str = ast_str_create(16))) {
 		ast_test_status_update(test, "Unable to allocate dynamic string buffer\n");
-		ast_channel_release(chan);
+		ast_channel_unref(chan);
 		return AST_TEST_FAIL;
 	}
 
@@ -110,7 +110,7 @@ AST_TEST_DEFINE(test_gosub)
 	if (!(con = ast_context_find_or_create(NULL, NULL, "tests_test_gosub_virtual_context", "test_gosub"))) {
 		ast_test_status_update(test, "Unable to create test dialplan context");
 		ast_free(str);
-		ast_channel_release(chan);
+		ast_channel_unref(chan);
 		return AST_TEST_FAIL;
 	}
 
@@ -144,7 +144,7 @@ AST_TEST_DEFINE(test_gosub)
 	}
 
 	ast_free(str);
-	ast_channel_release(chan);
+	ast_channel_unref(chan);
 	ast_context_remove_extension2(con, "s", 1, NULL, 0);
 	ast_context_destroy(con, "test_gosub");
 

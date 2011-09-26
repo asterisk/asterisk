@@ -637,12 +637,15 @@ static int rotate_file(const char *filename)
 	if (!ast_strlen_zero(exec_after_rotate)) {
 		struct ast_channel *c = ast_dummy_channel_alloc();
 		char buf[512];
+
 		pbx_builtin_setvar_helper(c, "filename", filename);
 		pbx_substitute_variables_helper(c, exec_after_rotate, buf, sizeof(buf));
+		if (c) {
+			c = ast_channel_unref(c);
+		}
 		if (ast_safe_system(buf) == -1) {
 			ast_log(LOG_WARNING, "error executing '%s'\n", buf);
 		}
-		c = ast_channel_release(c);
 	}
 	return res;
 }

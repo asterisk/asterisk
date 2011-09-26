@@ -417,7 +417,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 
 	/* first, get the variables from the event */
 	if (ast_cel_fill_record(event, &record)) {
-		ast_channel_release(tchan);
+		ast_channel_unref(tchan);
 		return NULL;
 	}
 

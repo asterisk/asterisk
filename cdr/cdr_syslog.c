@@ -116,7 +116,7 @@ static int syslog_log(struct ast_cdr *cdr)
 
 	AST_RWLIST_UNLOCK(&sinks);
 
-	ast_channel_release(dummy);
+	ast_channel_unref(dummy);
 
 	return 0;
 }

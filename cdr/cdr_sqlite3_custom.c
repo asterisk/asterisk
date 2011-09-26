@@ -261,7 +261,7 @@ static int write_cdr(struct ast_cdr *cdr)
 		}
 		sql = sqlite3_mprintf("INSERT INTO %q (%s) VALUES (%s)", table, columns, ast_str_buffer(value_string));
 		ast_debug(1, "About to log: %s\n", sql);
-		ast_channel_release(dummy);
+		ast_channel_unref(dummy);
 		ast_free(value_string);
 	}
 
