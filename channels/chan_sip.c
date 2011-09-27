@@ -158,7 +158,7 @@
  *	  channel variable in the dialplan.
  * get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req)
  *	- As above, if we have a SIPS: uri in the refer-to header
- * 	- Does not check transport in refer_to uri.
+ *	- Does not check transport in refer_to uri.
  */
 
 /*** MODULEINFO
@@ -1182,7 +1182,7 @@ static struct ast_sockaddr media_address; /*!< External RTP IP address if we are
 static char externhost[MAXHOSTNAMELEN];   /*!< External host name */
 static time_t externexpire;             /*!< Expiration counter for re-resolving external host name in dynamic DNS */
 static int externrefresh = 10;          /*!< Refresh timer for DNS-based external address (dyndns) */
-static uint16_t externtcpport;          /*!< external tcp port */ 
+static uint16_t externtcpport;          /*!< external tcp port */
 static uint16_t externtlsport;          /*!< external tls port */
 
 /*! \brief  List of local networks
@@ -3083,7 +3083,7 @@ static inline void pvt_set_needdestroy(struct sip_pvt *pvt, const char *reason)
 }
 
 /*! \brief Initialize the initital request packet in the pvt structure.
- 	This packet is used for creating replies and future requests in
+	This packet is used for creating replies and future requests in
 	a dialog */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 {
@@ -4274,8 +4274,8 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 	struct sip_pvt *p = chan->tech_pvt;
 
         if (!p) {
-        	ast_log(LOG_ERROR, "Attempt to Ref a null pointer.  sip private structure is gone!\n");
-        	return -1;
+		ast_log(LOG_ERROR, "Attempt to Ref a null pointer.  sip private structure is gone!\n");
+		return -1;
         }
 
 	sip_pvt_lock(p);
@@ -4502,7 +4502,6 @@ static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr
 	int realtimeregs = ast_check_realtime("sipregs");
 
 	tablename = realtimeregs ? "sipregs" : "sippeers";
-	
 
 	snprintf(str_lastms, sizeof(str_lastms), "%d", lastms);
 	snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
@@ -4518,7 +4517,7 @@ static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr
          *  must also add it to contrib/scripts/asterisk.ldap-schema,
          *  contrib/scripts/asterisk.ldif,
          *  and to configs/res_ldap.conf.sample as described in
-         *  bugs 15156 and 15895 
+         *  bugs 15156 and 15895
          */
 	if (fc) {
 		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
