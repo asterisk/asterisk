@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-	<support_level>deprecated</support_level>
+	<support_level>core</support_level>
 	<replacement>app_stack (GoSub)</replacement>
  ***/
 
