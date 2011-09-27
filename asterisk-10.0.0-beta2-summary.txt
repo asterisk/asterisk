@@ -1,0 +1,828 @@
+                                Release Summary
+
+                             asterisk-10.0.0-beta2
+
+                                Date: 2011-09-27
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.0.0-beta1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   37 rmudgett                                       1 gicc                   
+   18 irroot                                         1 ljimenez               
+   16 mnicholson                                     1 mickecarlsson          
+   13 kmoore                
+   12 jrose                 
+   12 twilson               
+   11 tilghman              
+   9 pabelanger             
+   8 oej                    
+   8 seanbright             
+   7 qwell                  
+   6 dvossel                
+   5 may                    
+   5 mjordan                
+   4 schmidts               
+   3 russell                
+   2 alecdavis              
+   2 lmadsen                
+   2 tzafrir                
+   1 kpfleming              
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: . I did not set the category correctly.
+
+   ASTERISK-18399: When using autoload=yes in modules.conf, res_odbc_conf.so
+   complaints about undefined symbol
+   Revision: 334230
+   Reporter: mickecarlsson
+   Coders: tilghman
+
+  Category: Applications/General
+
+   ASTERISK-15016: [patch] incorrect playback when using
+   say_date_with_format_es on one o'clock (spanish)
+   Revision: 330434
+   Reporter: ljimenez
+   Coders: kmoore
+
+  Category: CDR/General
+
+   ASTERISK-18024: Incorrect data in CDRs (billsec >> durration)
+   Revision: 329614
+   Reporter: gicc
+   Coders: tilghman
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+  +----------------------------------------------------------------------------+
+  |Revision|Author    |Summary                                 |Issues         |
+  |        |          |                                        |Referenced     |
+  |--------+----------+----------------------------------------+---------------|
+  |329331  |rmudgett  |Deadlocks dealing with dialplan hints   |ASTERISK-17666,|
+  |        |          |during reload.                          |ASTERISK-17760 |
+  |--------+----------+----------------------------------------+---------------|
+  |329334  |rmudgett  |Make use less redundant loop construct  |               |
+  |        |          |for iterating over hints.               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329430  |irroot    |                                        |ASTERISK-17866 |
+  |--------+----------+----------------------------------------+---------------|
+  |329431  |irroot    |                                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329472  |pabelanger|Decrease verbose messages to debug, to  |               |
+  |        |          |help clean up CLI.                      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329528  |jrose     |Fixes some voicemail forwarding behavior|               |
+  |        |          |based around prepend mode.              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Changes sound file for prepend          |               |
+  |329538  |jrose     |"then-press-pound" to "vm-then-pound"   |               |
+  |        |          |which is the same                       |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329670  |seanbright|Sort the module list so that 'module    |               |
+  |        |          |show' is alphabetical.                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Fix New Zealand indications profile     |               |
+  |329710  |jrose     |based on                                |ASTERISK-16263 |
+  |        |          |http://www.telepermit.co.nz/TNA102.pdf  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329771  |seanbright|Explicitly sort the module list so that |ASTERISK-18141 |
+  |        |          |the menuselect lists are sorted.        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329896  |seanbright|Make the output of Externhost in 'sip   |               |
+  |        |          |show settings' more consistent.         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329950  |seanbright|Correct the spelling of 'conference.'   |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329952  |seanbright|The default conf-usermenu says that '8' |               |
+  |        |          |can be used to leave the conference, so |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329992  |mnicholson|check for CONFIG_STATUS_FILE_INVALID    |ASTERISK-18161 |
+  |        |          |when loading the res_fax config file    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |329995  |qwell     |Fix a SIP transfer deadlock.            |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330051  |rmudgett  |Datacalls with B410P fail.              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330108  |twilson   |Make console colors work for            |               |
+  |        |          |TERM=xterm-256color                     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330162  |pabelanger|Fix typo pointed out on #asterisk       |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330204  |seanbright|Only write to wav files that were opened|               |
+  |        |          |to be written to.                       |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330217  |seanbright|Correct the check for O_RDONLY.         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |prevent double masqurading channels when|               |
+  |330312  |irroot    |one is been hung up and deadlock        |               |
+  |        |          |avoidance is used.                      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330369  |rmudgett  |Remove some redundant locking code in   |               |
+  |        |          |ast_do_masquerade().                    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330576  |dvossel   |Fixes uninitialized string buffer in log|ASTERISK-17200 |
+  |        |          |message.                                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330579  |dvossel   |Optimization to buffer initialization   |               |
+  |        |          |fix.                                    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330586  |dvossel   |Fixes crash in chan_iax2.               |ASTERISK-17610 |
+  |--------+----------+----------------------------------------+---------------|
+  |330649  |kpfleming |Convert an error message to actually be |               |
+  |        |          |helpful.                                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330706  |kmoore    |Call pickup broken for DAHDI channels   |               |
+  |        |          |when beginning with #                   |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330763  |kmoore    |editing files in main/editline does not |ASTERISK-16221 |
+  |        |          |ensure rebuild of libedit.a             |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330844  |twilson   |Make libsrtp instructions more explicit |ASTERISK-18139 |
+  |        |          |when linking fails                      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |330899  |may       |change gk client behaivour on rrq/grq   |               |
+  |        |          |failures to setup timers                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |The slin resampler is no longer         |               |
+  |330940  |dvossel   |dependent on an external library, but   |               |
+  |        |          |the dependency was not removed          |               |
+  |        |          |correctly.                              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331039  |kmoore    |In-queue MOH stops after a periodic     |ASTERISK-18077 |
+  |        |          |announcement                            |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331041  |twilson   |Replace AMI Unlink events with Bridge   |ASTERISK-17455 |
+  |        |          |events                                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331097  |twilson   |Bump the AMI protocol version to 1.2    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331138  |qwell     |Revert merge of r306999, due to merge   |               |
+  |        |          |conflict.                               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331139  |qwell     |Documentation Updates                   |ASTERISK-15358 |
+  |--------+----------+----------------------------------------+---------------|
+  |331143  |qwell     |Regenerate asterisk man page from sgml. |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331147  |may       |move ast_cond_signal for admitted call  |               |
+  |        |          |after all data filled/freed             |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331200  |may       |Setup IP proto version for call in GK   |ASTERISK-18218 |
+  |        |          |mode                                    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331265  |rmudgett  |Misc minor items found in code.         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331316  |kmoore    |AMI action ModuleReload returns Error if|               |
+  |        |          |Module: missing or empty                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331418  |rmudgett  |Revert -r318141. It was a band-aid that |ASTERISK-17374 |
+  |        |          |only partially fixed parking.           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331420  |rmudgett  |Make sure feature_request_and_dial()    |               |
+  |        |          |initializes outstate if passed in.      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Output of queue log not started until   |ASTERISK-15863,|
+  |331462  |rmudgett  |logger reloaded.                        |ASTERISK-17036,|
+  |        |          |                                        |ASTERISK-18208 |
+  |--------+----------+----------------------------------------+---------------|
+  |331518  |kmoore    |SIP Notify via AMI or CLI leaks SIP PVTs|ASTERISK-18091 |
+  |--------+----------+----------------------------------------+---------------|
+  |331576  |rmudgett  |Segfault in shell_helper in             |ASTERISK-18109 |
+  |        |          |func_shell.c.                           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331579  |qwell     |Use proper values for 64-bit option     |ASTERISK-18239 |
+  |        |          |flags.                                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331644  |jrose     |Fixes 32bit compilation warnings brought|               |
+  |        |          |on by 331634 in app_dial and app_meetme |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331654  |kmoore    |Logger does not warn of failure to open |ASTERISK-16231 |
+  |        |          |logging channels                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331659  |twilson   |Fix netsock2 multiple zero-expansion    |               |
+  |        |          |test                                    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331715  |rmudgett  |AMI actions DAHDIHangup and             |               |
+  |        |          |DAHDITransfer have no effect.           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331772  |rmudgett  |Suppress warning message when using     |               |
+  |        |          |DAHDITransfer or DAHDIHangup.           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331775  |mnicholson|Unlock the channel before calling       |               |
+  |        |          |update_queue.                           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |331868  |dvossel   |Fixes locking inversion issues present  |ASTERISK-18082 |
+  |        |          |in the handling of the sip REFER method.|               |
+  |--------+----------+----------------------------------------+---------------|
+  |331894  |pabelanger|Fix noisy message when briding channels |ASTERISK-18270 |
+  |--------+----------+----------------------------------------+---------------|
+  |331956  |rmudgett  |Fix some minor chan_dahdi config load   |               |
+  |        |          |issues.                                 |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332022  |mnicholson|In 10 and trunk this option is disabled |               |
+  |        |          |by default.                             |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |use DEFAULT_STORE_SIP_CAUSE to set the  |               |
+  |332027  |mnicholson|default value for the 'storesipcause'   |               |
+  |        |          |option                                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332029  |mnicholson|Moved notes about 'storesipcause' to    |               |
+  |        |          |UPGRADE.txt from CHANGES                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332042  |mnicholson|fix a code comment                      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |                                        |ASTERISK-17183,|
+  |        |          |                                        |ASTERISK-17870,|
+  |332101  |rmudgett  |Fix multiple parking issues.            |ASTERISK-17430,|
+  |        |          |                                        |ASTERISK-17452,|
+  |        |          |                                        |ASTERISK-15792 |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |ASTERISK-18067 ASTERISK-15479 - White   |ASTERISK-18067,|
+  |332119  |jrose     |Space affects mailbox value, multiple   |ASTERISK-15479 |
+  |        |          |MWI subs                                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332177  |pabelanger|Flag test modules as 'core'             |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Outgoing BRI calls fail when using      |               |
+  |332265  |rmudgett  |Asterisk 1.8 with HA8, HB8, and B410P   |               |
+  |        |          |cards.                                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Don't read from a disarmed or invalid   |ASTERISK-18142,|
+  |332321  |twilson   |timerfd                                 |ASTERISK-18166,|
+  |        |          |                                        |ASTERISK-18197 |
+  |--------+----------+----------------------------------------+---------------|
+  |332369  |tilghman  |Re-add support for spaces in pathnames, |ASTERISK-18290 |
+  |        |          |including now spaces in DESTDIR.        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Move BETTER_BACKTRACES out of           |               |
+  |332447  |tilghman  |development mode, as it's useful when   |               |
+  |        |          |DEBUG_THREADS is enabled.               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332504  |kmoore    |CRC4 in "dahdi show status" gives wrong |               |
+  |        |          |impression to T1 users                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332560  |twilson   |Fix possible error on stringification of|ASTERISK-18289 |
+  |        |          |IPv4-mapped addrs                       |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332654  |kmoore    |Make CONFBRIDGE_INFO behave more nicely |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332700  |pabelanger|Fix outgoing calls in chan_gtalk        |ASTERISK-18301 |
+  |--------+----------+----------------------------------------+---------------|
+  |332756  |mnicholson|add a way to disable and/or modify the  |ASTERISK-18219 |
+  |        |          |gateway timeout                         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332761  |rmudgett  |Memory leak reading realtime database   |ASTERISK-18277,|
+  |        |          |variable list.                          |ASTERISK-18265 |
+  |--------+----------+----------------------------------------+---------------|
+  |332830  |rmudgett  |Memory leaks in realtime_multi_xxx()    |               |
+  |        |          |when database access returns error.     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332832  |mjordan   |Review:                                 |               |
+  |        |          |https://reviewboard.asterisk.org/r/1364/|               |
+  |--------+----------+----------------------------------------+---------------|
+  |332875  |rmudgett  |Fix merge property.                     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |332877  |pabelanger|Revert previous commit                  |ASTERISK-18301 |
+  |--------+----------+----------------------------------------+---------------|
+  |332878  |rmudgett  |Reference leaks in app_queue.           |ASTERISK-18265 |
+  |--------+----------+----------------------------------------+---------------|
+  |332940  |rmudgett  |Minor code optimizations.               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333011  |rmudgett  |Memory Leak in app_queue                |ASTERISK-15862,|
+  |        |          |                                        |ASTERISK-18265 |
+  |--------+----------+----------------------------------------+---------------|
+  |333115  |mnicholson|Changed the "timeout" option to         |ASTERISK-18219 |
+  |        |          |"gwtimeout".                            |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333203  |qwell     |Fix installation into directories       |ASTERISK-18290 |
+  |        |          |containing spaces.                      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333266  |jrose     |Segfault when publishing device states  |ASTERISK-18078 |
+  |        |          |via XMPP and not connected              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333268  |qwell     |Fix for DESTDIR spaces patch.           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333370  |mjordan   |Bug fixes for voicemail user            |ASTERISK-16795,|
+  |        |          |emailsubject / emailbody.               |ASTERISK-16781 |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |[patch] Buddies are always              |               |
+  |333410  |jrose     |auto-registered when processing the     |ASTERISK-14233 |
+  |        |          |roster                                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333508  |tzafrir   |chan_vpb: remove unused variables       |ASTERISK-18336 |
+  |        |          |(gcc4.6)                                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Accidental use of variable              |               |
+  |333570  |jrose     |client->status instead of client->state |ASTERISK-18078 |
+  |        |          |in from ASTERISK-18078                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333631  |mjordan   |Fixed improperly formatted TestEvent AMI|               |
+  |        |          |message in app_voicemail                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333681  |twilson   |Use realtime text when it is negotiated |ASTERISK-17937 |
+  |--------+----------+----------------------------------------+---------------|
+  |333716  |mnicholson|It is possible for the gateway to be    |ASTERISK-18329 |
+  |        |          |attached when the channel is still      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333786  |rmudgett  |Fix deadlock potential of               |               |
+  |        |          |chan_mobile.c:mbl_ast_hangup().         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333837  |twilson   |Refresh peer address if DNS unavailable |ASTERISK-18000 |
+  |        |          |at peer creation                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333895  |mnicholson|Replaced FAXOPT(gwtimeout) with a second|ASTERISK-18219 |
+  |        |          |parameter to FAXOPT(gateway).           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333961  |may       |cleanups in ACF/ARJ GK replies          |               |
+  |        |          |processing                              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |333962  |may       |security fix. really drop call if       |               |
+  |        |          |signalling addr is not same as socket   |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334007  |kmoore    |Correct an AMI protocol violation with  |ASTERISK-17486 |
+  |        |          |SIPshowpeer                             |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334010  |rmudgett  |Call pickup race leaves orphaned        |ASTERISK-18222,|
+  |        |          |channels or crashes.                    |ASTERISK-18273 |
+  |--------+----------+----------------------------------------+---------------|
+  |334013  |rmudgett  |No DAHDI channel available for          |ASTERISK-17398 |
+  |        |          |conference, user introduction disabled. |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334064  |mnicholson|only alter the gateway_timeout when     |ASTERISK-18219 |
+  |        |          |attching the gateway to a channel       |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334157  |mnicholson|Disable T.38 when we get a invite with  |ASTERISK-17678 |
+  |        |          |image media port set to 0               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334233  |mnicholson|fixed a typo                            |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334235  |tilghman  |Remove 1.6 compatibility documentation  |               |
+  |        |          |from 1.8, as it no longer applies.      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334297  |rmudgett  |Fix potential memory allocation failure |               |
+  |        |          |crashes in config.c.                    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334357  |rmudgett  |MusicOnHold has extra unref which may   |ASTERISK-18346 |
+  |        |          |lead to memory corruption and crash.    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334455  |irroot    |                                        |ASTERISK-18255 |
+  |--------+----------+----------------------------------------+---------------|
+  |334514  |pabelanger|authdebug is now disabled by default    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334617  |alecdavis |Prevent segfault if call arrives before |               |
+  |        |          |Asterisk is fully booted.               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334621  |alecdavis |peroid typo                             |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Adding the Feature to sent a Reason     |               |
+  |        |          |Header in a SIP Cancel message by set   |               |
+  |334682  |schmidts  |the flag AST_FLAG_ANSWERED_ELSEWHERE    |               |
+  |        |          |before doing a masquerade in the pickup |               |
+  |        |          |function.                               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334746  |schmidts  |another clean up                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Adding the Feature to sent a Reason     |               |
+  |        |          |Header in a SIP Cancel message by set   |               |
+  |334747  |schmidts  |the flag AST_FLAG_ANSWERED_ELSEWHERE    |               |
+  |        |          |before doing a masquerade in the pickup |               |
+  |        |          |function.                               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334841  |rmudgett  |Fix AMI action Park crash.              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334844  |pabelanger|Cleanup chan_iax2.c log messages        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |334954  |rmudgett  |Fix crash with res_fax when MALLOC_DEBUG|               |
+  |        |          |and "core stop gracefully" are used.    |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335014  |irroot    |                                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335078  |mjordan   |Updated SIP 484 handling; added         |ASTERISK-17288 |
+  |        |          |Incomplete control frame                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |build_peer doesnt unlink a peer object  |               |
+  |335260  |schmidts  |from peers_by_ip container which leads  |               |
+  |        |          |to a wrong refcounter value.            |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335321  |kmoore    |Prevent IAX2 from getting IPv6 addresses|ASTERISK-18090 |
+  |        |          |via DNS                                 |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335323  |oej       |Lock the peer->mvipvt to avoid crashes  |ASTERISK-18288 |
+  |        |          |with SIP history enabled                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335346  |kmoore    |Ensure frames are not written to dialed |ASTERISK-18083 |
+  |        |          |channel if ringback is requested        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Properly set caller_warning and         |               |
+  |335434  |mnicholson|callee_warning before we try to use     |ASTERISK-18199 |
+  |        |          |them.                                   |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335510  |russell   |Fix a crash in res_ais.                 |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335653  |mnicholson|Don't limit the size of appdata for     |ASTERISK-17709 |
+  |        |          |manager originate actions.              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335656  |tilghman  |Move mandatory checks closer to the     |               |
+  |        |          |beginning of the file.                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335717  |tzafrir   |do parse defaultlanguage from           |               |
+  |        |          |asterisk.conf                           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335721  |rmudgett  |Remove obsolete todo comment about      |               |
+  |        |          |PICKUPRESULT.                           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |The tech and data members of            |               |
+  |335791  |mnicholson|fast_originate_helper are not string    |ASTERISK-17709 |
+  |        |          |fields.                                 |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335852  |rmudgett  |Fixed cut-n-paste regression using the  |ASTERISK-18496 |
+  |        |          |wrong variable.                         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |335912  |rmudgett  |Remove unnecessary libpri dependency    |ASTERISK-18535 |
+  |        |          |checks in the configure script.         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |lock the channel before calling         |               |
+  |335991  |irroot    |ast_bridged_channel() to prevent a seg  |ASTERISK-18092 |
+  |        |          |fault.                                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Meetme: Introducing a new option "k" to |               |
+  |336042  |oej       |kill a conference if there's only a     |ASTERISK-18234 |
+  |        |          |single member left.                     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336091  |dvossel   |Removes some no-op code found in        |               |
+  |        |          |format_cap.c.                           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336094  |irroot    |                                        |ASTERISK-18101,|
+  |        |          |                                        |ASTERISK-18487 |
+  |--------+----------+----------------------------------------+---------------|
+  |336167  |irroot    |The round robin routing routine in      |ASTERISK-18413 |
+  |        |          |chan_misdn.c is broken.                 |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336235  |seanbright|Make a note that inotify won't work with|               |
+  |        |          |an NFS mounted spooler directory.       |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Fix bad RTP media bridges in directmedia|ASTERISK-18340,|
+  |336307  |jrose     |calls on peers separated by multiple    |ASTERISK-17725 |
+  |        |          |Asterisk nodes.                         |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336313  |twilson   |Add missing frame types to              |               |
+  |        |          |func_frame_trace                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336316  |twilson   |Whitespace fix                          |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336381  |oej       |Add missing unlock at MWI message       |ASTERISK-18573 |
+  |        |          |sending time                            |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336441  |oej       |Make sure manager_debug option is reset |               |
+  |        |          |at reload                               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336500  |irroot    |A long time ago in a galaxy far far away|ASTERISK-17278,|
+  |        |          |a IPv6 update was made,                 |ASTERISK-17500 |
+  |--------+----------+----------------------------------------+---------------|
+  |336502  |oej       |Add diversion header to a 302 redirect  |ASTERISK-18143 |
+  |        |          |response if we have diversion data      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336504  |oej       |Revert accidental change                |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336570  |rmudgett  |Rework sig_pri_hangup() to be simpler   |               |
+  |        |          |and clearer.                            |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336573  |lmadsen   |Update get_ilbc_source.sh script to work|               |
+  |        |          |again.                                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336659  |rmudgett  |Made Dial d and H options no longer     |ASTERISK-13294,|
+  |        |          |immediately auto-answer the calling leg.|ASTERISK-11067 |
+  |--------+----------+----------------------------------------+---------------|
+  |336717  |jrose     |Document applications that play audio   |               |
+  |        |          |and do not answer unanswered calls.     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336734  |tilghman  |Various changes to allow 1.8 to compile |               |
+  |        |          |on Mac OS X Lion (10.7)                 |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336789  |tilghman  |Ensure substring will not be found in   |               |
+  |        |          |the previous match.                     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |336792  |twilson   |Don't interfere with T.38 reinvites     |ASTERISK-18340,|
+  |        |          |                                        |ASTERISK-17725 |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |                                        |ASTERISK-18570,|
+  |        |          |                                        |ASTERISK-17560,|
+  |        |          |                                        |ASTERISK-15406,|
+  |336878  |russell   |Fix crashes in ast_rtcp_write().        |ASTERISK-15257,|
+  |        |          |                                        |ASTERISK-13334,|
+  |        |          |                                        |ASTERISK-9977, |
+  |        |          |                                        |ASTERISK-9716  |
+  |--------+----------+----------------------------------------+---------------|
+  |336936  |irroot    |                                        |ASTERISK-17895 |
+  |--------+----------+----------------------------------------+---------------|
+  |336978  |rmudgett  |Fix deadlock from not releasing SS7     |               |
+  |        |          |linkset lock.                           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |Check if a channel was created before   |ASTERISK-17955,|
+  |337008  |rmudgett  |using the pointer in                    |ASTERISK-17966 |
+  |        |          |sig_ss7_new_ast_channel().              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337062  |kmoore    |Make CANMATCH with the new pattern match|ASTERISK-18044 |
+  |        |          |engine behave more like the old one     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337116  |lmadsen   |Update RedHat Init script to work with  |ASTERISK-18253 |
+  |        |          |Heartbeat.                              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337119  |rmudgett  |Fix crash with STRREPLACE function.     |ASTERISK-18545 |
+  |--------+----------+----------------------------------------+---------------|
+  |337120  |mjordan   |Fix for incorrect voicemail duration in |ASTERISK-2234, |
+  |        |          |external notifications                  |ASTERISK-16981 |
+  |--------+----------+----------------------------------------+---------------|
+  |337178  |oej       |Change strictrtp option to default to   |ASTERISK-18587 |
+  |        |          |yes in the RTP module                   |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337219  |oej       |Make ast_pbx_run() not default to       |ASTERISK-18578 |
+  |        |          |s@default if extension is not found     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337261  |irroot    |Adds a timeout argument to app_originate|               |
+  |--------+----------+----------------------------------------+---------------|
+  |337263  |irroot    |Whitespace fixup from SRTP patch        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337342  |tilghman  |                                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337345  |tilghman  |                                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337380  |tilghman  |                                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |                                        |ASTERISK-17541,|
+  |        |          |Its possible to loose audio on ast_write|ASTERISK-18063,|
+  |337431  |irroot    |when the channel is not transcoded      |ASTERISK-14384,|
+  |        |          |correctly.                              |ASTERISK-17502,|
+  |        |          |                                        |ASTERISK-18325,|
+  |        |          |                                        |ASTERISK-18422 |
+  |--------+----------+----------------------------------------+---------------|
+  |337433  |irroot    |Revert commit r337261                   |               |
+  |--------+----------+----------------------------------------+---------------|
+  |        |          |If IP address is used in chan_h323 host |ASTERISK-18237,|
+  |337487  |irroot    |parameter of peer configuration.        |ASTERISK-17278,|
+  |        |          |                                        |ASTERISK-17500 |
+  |--------+----------+----------------------------------------+---------------|
+  |337542  |irroot    |Add warned to ast_srtp to prevent errors|               |
+  |        |          |on each frame from libsrtp              |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337595  |jrose     |Generate Security events in chan_sip    |ASTERISK-18264 |
+  |        |          |using new Security Events Framework     |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337597  |jrose     |Forgot to svn add new files to r337595  |ASTERISK-18264 |
+  |--------+----------+----------------------------------------+---------------|
+  |337640  |pabelanger|Revert previous commit                  |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337721  |rmudgett  |Made ISDN not add numbering plan prefix |ASTERISK-18577 |
+  |        |          |strings to empty numbers.               |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337775  |russell   |Comment out entries in sample           |               |
+  |        |          |res_pktccops.conf.                      |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337840  |irroot    |Make sure a CDR is on the stack for call|ASTERISK-18567 |
+  |        |          |in the Queue.                           |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337902  |irroot    |                                        |               |
+  |--------+----------+----------------------------------------+---------------|
+  |337974  |rmudgett  |Fix deadlock when using dummy channels. |ASTERISK-18613 |
+  +----------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                 |   50
+ Makefile                                |  169 -
+ Makefile.moddir_rules                   |    4
+ Makefile.rules                          |    4
+ UPGRADE-1.8.txt                         |   12
+ UPGRADE.txt                             |   11
+ addons/chan_mobile.c                    |   17
+ addons/chan_ooh323.c                    |   14
+ addons/ooh323c/src/ooCalls.c            |    1
+ addons/ooh323c/src/ooCalls.h            |    1
+ addons/ooh323c/src/ooCmdChannel.c       |    2
+ addons/ooh323c/src/ooGkClient.c         |   98
+ addons/ooh323c/src/ooLogChan.c          |    3
+ addons/ooh323c/src/oochannels.c         |    1
+ addons/ooh323c/src/ooh323.c             |   29
+ addons/ooh323c/src/ooq931.c             |   32
+ agi/Makefile                            |    6
+ apps/app_confbridge.c                   |   15
+ apps/app_dial.c                         |   56
+ apps/app_directed_pickup.c              |    1
+ apps/app_echo.c                         |    2
+ apps/app_followme.c                     |    2
+ apps/app_meetme.c                       |   12
+ apps/app_minivm.c                       |   19
+ apps/app_mixmonitor.c                   |    2
+ apps/app_morsecode.c                    |    3
+ apps/app_mp3.c                          |    4
+ apps/app_parkandannounce.c              |    4
+ apps/app_queue.c                        |  140 -
+ apps/app_readexten.c                    |   62
+ apps/app_saycounted.c                   |    5
+ apps/app_voicemail.c                    |  361 +-
+ build_tools/cflags-devmode.xml          |    5
+ build_tools/cflags.xml                  |    5
+ build_tools/mkpkgconfig                 |    6
+ cdr/cdr_custom.c                        |    3
+ cdr/cdr_manager.c                       |    2
+ cdr/cdr_odbc.c                          |    4
+ cdr/cdr_sqlite3_custom.c                |    2
+ cdr/cdr_syslog.c                        |    2
+ cel/cel_custom.c                        |    3
+ cel/cel_sqlite3_custom.c                |    2
+ channels/chan_agent.c                   |   14
+ channels/chan_alsa.c                    |    1
+ channels/chan_console.c                 |    1
+ channels/chan_dahdi.c                   |  263 +
+ channels/chan_h323.c                    |    6
+ channels/chan_iax2.c                    |   46
+ channels/chan_mgcp.c                    |    4
+ channels/chan_misdn.c                   |  106
+ channels/chan_oss.c                     |    1
+ channels/chan_sip.c                     | 1133 ++++----
+ channels/chan_skinny.c                  |    4
+ channels/chan_unistim.c                 |    4
+ channels/chan_usbradio.c                |    4
+ channels/chan_vpb.cc                    |   55
+ channels/sig_analog.c                   |   29
+ channels/sig_pri.c                      |  142 -
+ channels/sig_pri.h                      |    4
+ channels/sig_ss7.c                      |  107
+ channels/sip/include/sdp_crypto.h       |    6
+ channels/sip/include/security_events.h  |   43
+ channels/sip/include/sip.h              |   51
+ channels/sip/include/srtp.h             |    2
+ channels/sip/sdp_crypto.c               |   11
+ channels/sip/security_events.c          |  398 ++
+ codecs/codec_resample.c                 |    1
+ codecs/gsm/Makefile                     |    4
+ configs/chan_dahdi.conf.sample          |   11
+ configs/confbridge.conf.sample          |    4
+ configs/extensions.conf.sample          |    4
+ configs/features.conf.sample            |  117
+ configs/iax.conf.sample                 |    4
+ configs/indications.conf.sample         |    7
+ configs/logger.conf.sample              |    2
+ configs/manager.conf.sample             |    3
+ configs/res_pktccops.conf.sample        |   64
+ configs/rtp.conf.sample                 |    2
+ configs/sip.conf.sample                 |   11
+ configs/voicemail.conf.sample           |    6
+ configure.ac                            |  129
+ contrib/init.d/rc.archlinux.asterisk    |    2
+ contrib/init.d/rc.redhat.asterisk       |    2
+ contrib/scripts/get_ilbc_source.sh      |    2
+ doc/asterisk.8                          |  765 +----
+ doc/asterisk.sgml                       |  437 ---
+ formats/format_wav.c                    |    4
+ funcs/func_curl.c                       |   11
+ funcs/func_dialplan.c                   |   75
+ funcs/func_frame_trace.c                |   12
+ funcs/func_odbc.c                       |   33
+ funcs/func_shell.c                      |   21
+ funcs/func_strings.c                    |   87
+ include/asterisk/app.h                  |   75
+ include/asterisk/autoconfig.h.in        |   64
+ include/asterisk/cel.h                  |    7
+ include/asterisk/channel.h              |   43
+ include/asterisk/config.h               |   11
+ include/asterisk/dsp.h                  |    7
+ include/asterisk/event.h                |    7
+ include/asterisk/event_defs.h           |    7
+ include/asterisk/frame.h                |    4
+ include/asterisk/manager.h              |    3
+ include/asterisk/optional_api.h         |   27
+ include/asterisk/res_fax.h              |    2
+ include/asterisk/security_events_defs.h |   76
+ include/asterisk/test.h                 |   56
+ main/Makefile                           |    3
+ main/app.c                              |   50
+ main/asterisk.c                         |    7
+ main/cel.c                              |    2
+ main/channel.c                          |  308 +-
+ main/config.c                           |  616 +++-
+ main/dial.c                             |    4
+ main/dsp.c                              |   82
+ main/enum.c                             |   38
+ main/event.c                            |    9
+ main/features.c                         | 4324 ++++++++++++++++++++++----------
+ main/file.c                             |    1
+ main/format_cap.c                       |    2
+ main/loader.c                           |    6
+ main/logger.c                           |  211 +
+ main/manager.c                          |   60
+ main/netsock2.c                         |    2
+ main/pbx.c                              |  662 +++-
+ main/rtp_engine.c                       |   18
+ main/say.c                              |    2
+ main/security_events.c                  |   54
+ main/term.c                             |    2
+ main/test.c                             |   43
+ res/ais/evt.c                           |    7
+ res/res_config_odbc.c                   |   12
+ res/res_config_pgsql.c                  |    8
+ res/res_fax.c                           |   91
+ res/res_fax_spandsp.c                   |    7
+ res/res_jabber.c                        |   22
+ res/res_musiconhold.c                   |   50
+ res/res_rtp_asterisk.c                  |   57
+ res/res_srtp.c                          |   10
+ res/res_timing_timerfd.c                |   27
+ sounds/Makefile                         |  110
+ tests/test_acl.c                        |    2
+ tests/test_amihooks.c                   |    2
+ tests/test_aoc.c                        |    2
+ tests/test_app.c                        |    2
+ tests/test_ast_format_str_reduce.c      |    2
+ tests/test_astobj2.c                    |    2
+ tests/test_db.c                         |    1
+ tests/test_devicestate.c                |    2
+ tests/test_dlinklists.c                 |    2
+ tests/test_event.c                      |    2
+ tests/test_expr.c                       |    2
+ tests/test_func_file.c                  |    2
+ tests/test_gosub.c                      |    8
+ tests/test_heap.c                       |    2
+ tests/test_linkedlists.c                |    2
+ tests/test_locale.c                     |    2
+ tests/test_logger.c                     |    2
+ tests/test_netsock2.c                   |    3
+ tests/test_pbx.c                        |   41
+ tests/test_poll.c                       |    2
+ tests/test_sched.c                      |    2
+ tests/test_security_events.c            |    2
+ tests/test_skel.c                       |    2
+ tests/test_stringfields.c               |    2
+ tests/test_strings.c                    |    2
+ tests/test_substitution.c               |    2
+ tests/test_time.c                       |    2
+ tests/test_utils.c                      |    2
+ utils/Makefile                          |    4
+ 170 files changed, 8144 insertions(+), 4688 deletions(-)
+
+     ----------------------------------------------------------------------
