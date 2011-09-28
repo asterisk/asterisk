@@ -12211,7 +12211,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 	struct dahdi_bufferinfo bi;
 
 	int res;
+#if defined(HAVE_PRI)
 	int span = 0;
+#endif	/* defined(HAVE_PRI) */
 	int here = 0;/*!< TRUE if the channel interface already exists. */
 	int x;
 	struct analog_pvt *analog_p = NULL;
@@ -12303,7 +12305,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				tmp->law_default = p.curlaw;
 				tmp->law = p.curlaw;
 				tmp->span = p.spanno;
+#if defined(HAVE_PRI)
 				span = p.spanno - 1;
+#endif	/* defined(HAVE_PRI) */
 			} else {
 				chan_sig = 0;
 			}
@@ -13577,7 +13581,9 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 	struct dahdi_pvt *exitpvt;
 	int channelmatched = 0;
 	int groupmatched = 0;
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int transcapdigital = 0;
+#endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 	struct dahdi_starting_point start;
 
 	ast_mutex_lock(&iflock);
@@ -13633,8 +13639,10 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				p->distinctivering = start.cadance;
 				break;
 			case 'd':
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 				/* If this is an ISDN call, make it digital */
 				transcapdigital = AST_TRANS_CAP_DIGITAL;
+#endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 				break;
 			default:
 				ast_log(LOG_WARNING, "Unknown option '%c' in '%s'\n", start.opt, (char *)data);
