@@ -1158,6 +1158,8 @@ struct call_queue {
 	unsigned int realtime:1;
 	unsigned int found:1;
 	unsigned int relativeperiodicannounce:1;
+	unsigned int autopausebusy:1;
+	unsigned int autopauseunavail:1;
 	enum empty_conditions joinempty;
 	enum empty_conditions leavewhenempty;
 	int announcepositionlimit;          /*!< How many positions we announce? */
@@ -2040,6 +2042,10 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->autopause = autopause2int(val);
 	} else if (!strcasecmp(param, "autopausedelay")) {
 		q->autopausedelay = atoi(val);
+	} else if (!strcasecmp(param, "autopausebusy")) {
+		q->autopausebusy = ast_true(val);
+	} else if (!strcasecmp(param, "autopauseunavail")) {
+		q->autopauseunavail = ast_true(val);
 	} else if (!strcasecmp(param, "maxlen")) {
 		q->maxlen = atoi(val);
 		if (q->maxlen < 0)
@@ -3782,7 +3788,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							do_hang(o);
 							endtime = (long) time(NULL);
 							endtime -= starttime;
-							rna(endtime * 1000, qe, on, membername, 0);
+							rna(endtime * 1000, qe, on, membername, qe->parent->autopausebusy);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)
 									*to = orig;
@@ -3800,7 +3806,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_cdr_busy(in->cdr);
 							endtime = (long) time(NULL);
 							endtime -= starttime;
-							rna(endtime * 1000, qe, on, membername, 0);
+							rna(endtime * 1000, qe, on, membername, qe->parent->autopauseunavail);
 							do_hang(o);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart)

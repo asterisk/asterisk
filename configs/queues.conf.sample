@@ -210,6 +210,16 @@ monitor-type = MixMonitor
 ; last call if a member has not taken a call the delay has no effect.
 ;autopausedelay=60
 ;
+; Autopausebusy controls whether or not a queue member is set as paused
+; automatically upon the member device reporting busy. The autopausedelay
+; option applies. Defaults to 'no'.
+;autopausebusy=no
+;
+; Autopauseunavail controls whether or not a queue member is set as paused
+; automatically upon the member device reporting congestion. The autopausedely
+; option applies. Defaults to 'no'.
+;autopauseunavail=no
+;
 ; Maximum number of people waiting in the queue (0 for unlimited)
 ;
 ;maxlen = 0
