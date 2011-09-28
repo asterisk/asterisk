@@ -31,6 +31,11 @@ Codec changes
    requirement to use two different keywords.  For example, to specify all
    codecs except g729 and g723, one need only specify allow=all,!g729,!g723.
 
+Queue changes
+-------------
+ * Added queue options autopausebusy and autopauseunavail for automatically
+   pausing a queue member when their device reports busy or congestion.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
@@ -227,8 +232,6 @@ Queue changes
  * Added member option ignorebusy this when set and ringinuse is not
    will allow per member control of multiple calls as ringinuse does for
    the Queue.
- * Added queue options autopausebusy and autopauseunavail for automatically
-   pausing a queue member when their device reports busy or congestion.
 
 Applications
 ------------
