@@ -1,6 +1,7 @@
 <category name="MENUSELECT_UTILS" displayname="Utilities" positive_output="yes">
   <member name="aelparse">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="astcanary">
 	<defaultenabled>yes</defaultenabled>
@@ -8,36 +9,47 @@
   <member name="astman">
 	<defaultenabled>no</defaultenabled>
 	<depend>newt</depend>
+	<support_level>extended</support_level>
   </member>
   <member name="check_expr">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="check_expr2">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="conf2ael">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="hashtest">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="hashtest2">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="muted">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="refcounter">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="smsq">
 	<defaultenabled>no</defaultenabled>
 	<depend>popt</depend>
+	<support_level>extended</support_level>
   </member>
   <member name="stereorize">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
   <member name="streamplayer">
 	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
   </member>
 </category>
