@@ -4988,8 +4988,8 @@ static void *pri_dchannel(void *vpri)
 				if (-1 < chanpos) {
 					/* Libpri has already filtered out duplicate SETUPs. */
 					ast_log(LOG_WARNING,
-						"Span %d: Got SETUP with duplicate call ptr.  Dropping call.\n",
-						pri->span);
+						"Span %d: Got SETUP with duplicate call ptr (%p).  Dropping call.\n",
+						pri->span, e->ring.call);
 					pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_NORMAL_TEMPORARY_FAILURE);
 					break;
 				}
