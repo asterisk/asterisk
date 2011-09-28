@@ -168,7 +168,7 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 #ifdef AST_LOG_VERBOSE
 #undef AST_LOG_VERBOSE
 #endif
-#define LOG_VERBOSE    __LOG_VERBOSE, _A_
+#define AST_LOG_VERBOSE    __LOG_VERBOSE, _A_
 
 #ifdef LOG_DTMF
 #undef LOG_DTMF
