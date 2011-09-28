@@ -4,6 +4,7 @@
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 		</member>
 		<member name="STATIC_BUILD" displayname="Build static binaries">
+			<support_level>extended</support_level>
 		</member>
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
@@ -14,49 +15,63 @@
 			<depend>bison</depend>
 			<depend>flex</depend>
 			<defaultenabled>no</defaultenabled>
+			<support_level>extended</support_level>
 		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
+			<support_level>extended</support_level>
 		</member>
 		<member name="BETTER_BACKTRACES" displayname="Use libbfd (GPL) to generate better inline backtraces">
 			<depend>BFD</depend>
 			<depend>DLADDR</depend>
 			<defaultenabled>no</defaultenabled>
+			<support_level>extended</support_level>
 		</member>
 		<member name="USE_HOARD_ALLOCATOR" displayname="Use the Hoard Memory Allocator instead of the default system one">
 			<defaultenabled>no</defaultenabled>
 			<depend>hoard</depend>
+			<support_level>extended</support_level>
 		</member>
 		<member name="LOTS_OF_SPANS" displayname="More than 32 DAHDI spans">
 		</member>
 		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
+			<support_level>extended</support_level>
 		</member>
 		<member name="G711_NEW_ALGORITHM" displayname="Use the NEW ulaw/alaw codecs (slower, but cleaner)">
 			<defaultenabled>no</defaultenabled>
+			<support_level>extended</support_level>
 		</member>
 		<member name="G711_REDUCED_BRANCHING" displayname="New ulaw/alaw codec, reduced branching (might help it run faster in some architectures)">
 			<depend>G711_NEW_ALGORITHM</depend>
+			<support_level>extended</support_level>
 		</member>
 		<member name="TEST_CODING_TABLES" displayname="New ulaw/alaw codec, turn on table tests on init">
 			<depend>G711_NEW_ALGORITHM</depend>
+			<support_level>extended</support_level>
 		</member>
 		<member name="TEST_TANDEM_TRANSCODING" displayname="New ulaw/alaw codec, turn on transcoding tests on init">
 			<depend>G711_NEW_ALGORITHM</depend>
+			<support_level>extended</support_level>
 		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 		</member>
 		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparision of only the tone duration not the silence part">
 			<conflict>BUSYDETECT_COMPARE_TONE_AND_SILENCE</conflict>
 			<defaultenabled>no</defaultenabled>
+			<support_level>extended</support_level>
 		</member>
 		<member name="BUSYDETECT_COMPARE_TONE_AND_SILENCE" displayname="Assume that tone and silence have the same duration">
 			<conflict>BUSYDETECT_TONEONLY</conflict>
 			<defaultenabled>no</defaultenabled>
+			<support_level>extended</support_level>
 		</member>
 		<member name="BUSYDETECT_DEBUG" displayname="Enable additional busy detection debugging">
 			<defaultenabled>no</defaultenabled>
+			<support_level>extended</support_level>
 		</member>
 		<member name="IAX_OLD_FIND" displayname="Use the old, slow method of searching for IAX callnos">
+			<support_level>extended</support_level>
 		</member>
 		<member name="INTEGER_CALLERID" displayname="Use the (less accurate) integer-based method for decoding FSK tones (for embedded systems)">
+			<support_level>extended</support_level>
 		</member>
 	</category>
