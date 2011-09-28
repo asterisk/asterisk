@@ -1982,7 +1982,7 @@ fi
 
 if test "$PBX_OPENSSL" = "1";
 then
-    AST_CHECK_OSPTK([3], [6], [0])
+    AST_CHECK_OSPTK([4], [0], [0])
 fi
 
 AST_EXT_LIB_CHECK([SRTP], [srtp], [srtp_init], [srtp/srtp.h])
