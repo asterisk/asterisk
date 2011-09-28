@@ -46,10 +46,12 @@
 	<member name="RADIO_RTX" displayname="Build RTX/DTX Radio Programming" touch_on_change="channels/chan_usbradio.c channels/xpmr/xpmr.h">
 		<defaultenabled>no</defaultenabled>
 		<depend>chan_usbradio</depend>
+		<support_level>extended</support_level>
 	</member>
 	<member name="RADIO_XPMRX" displayname="Build Experimental Radio Protocols" touch_on_change="channels/chan_usbradio.c">
 		<defaultenabled>no</defaultenabled>
 		<depend>chan_usbradio</depend>
+		<support_level>extended</support_level>
 	</member>
 </category>
  ***/
