@@ -1935,22 +1935,26 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 	long sample_offset = 0, max_length;
 	const char *edigits = "";
 
-	if (argc < 4 || argc > 5)
+	if (argc < 4 || argc > 5) {
 		return RESULT_SHOWUSAGE;
+	}
 
-	if (argv[3])
+	if (argv[3]) {
 		edigits = argv[3];
+	}
 
-	if ((argc > 4) && (sscanf(argv[4], "%30ld", &sample_offset) != 1))
+	if ((argc > 4) && (sscanf(argv[4], "%30ld", &sample_offset) != 1)) {
 		return RESULT_SHOWUSAGE;
+	}
 
 	if (!(fs = ast_openstream(chan, argv[2], chan->language))) {
 		ast_agi_send(agi->fd, chan, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		return RESULT_SUCCESS;
 	}
 
-	if ((vfs = ast_openvstream(chan, argv[2], chan->language)))
+	if ((vfs = ast_openvstream(chan, argv[2], chan->language))) {
 		ast_debug(1, "Ooh, found a video stream, too\n");
+	}
 
 	ast_verb(3, "Playing '%s' (escape_digits=%s) (sample_offset %ld)\n", argv[2], edigits, sample_offset);
 
@@ -1958,11 +1962,13 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 	max_length = ast_tellstream(fs);
 	ast_seekstream(fs, sample_offset, SEEK_SET);
 	res = ast_applystream(chan, fs);
-	if (vfs)
+	if (vfs) {
 		ast_applystream(chan, vfs);
+	}
 	ast_playstream(fs);
-	if (vfs)
+	if (vfs) {
 		ast_playstream(vfs);
+	}
 
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
