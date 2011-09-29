@@ -5087,9 +5087,9 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		if (!(dialog->vrtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 			return -1;
 		}
-		ast_rtp_instance_set_timeout(dialog->vrtp, global_rtptimeout);
-		ast_rtp_instance_set_hold_timeout(dialog->vrtp, global_rtpholdtimeout);
-		ast_rtp_instance_set_keepalive(dialog->vrtp, global_rtpholdtimeout);
+		ast_rtp_instance_set_timeout(dialog->vrtp, dialog->rtptimeout);
+		ast_rtp_instance_set_hold_timeout(dialog->vrtp, dialog->rtpholdtimeout);
+		ast_rtp_instance_set_keepalive(dialog->vrtp, dialog->rtpkeepalive);
 
 		ast_rtp_instance_set_prop(dialog->vrtp, AST_RTP_PROPERTY_RTCP, 1);
 	}
@@ -5098,16 +5098,15 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		if (!(dialog->trtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 			return -1;
 		}
-		ast_rtp_instance_set_timeout(dialog->trtp, global_rtptimeout);
-		ast_rtp_instance_set_hold_timeout(dialog->trtp, global_rtpholdtimeout);
-		ast_rtp_instance_set_keepalive(dialog->trtp, global_rtpholdtimeout);
+		/* Do not timeout text as its not constant*/
+		ast_rtp_instance_set_keepalive(dialog->trtp, dialog->rtpkeepalive);
 
 		ast_rtp_instance_set_prop(dialog->trtp, AST_RTP_PROPERTY_RTCP, 1);
 	}
 
-	ast_rtp_instance_set_timeout(dialog->rtp, global_rtptimeout);
-	ast_rtp_instance_set_hold_timeout(dialog->rtp, global_rtpholdtimeout);
-	ast_rtp_instance_set_keepalive(dialog->rtp, global_rtpkeepalive);
+	ast_rtp_instance_set_timeout(dialog->rtp, dialog->rtptimeout);
+	ast_rtp_instance_set_hold_timeout(dialog->rtp, dialog->rtpholdtimeout);
+	ast_rtp_instance_set_keepalive(dialog->rtp, dialog->rtpkeepalive);
 
 	ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_RTCP, 1);
 	ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF, ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
@@ -5168,6 +5167,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 
 	ast_string_field_set(dialog, engine, peer->engine);
 
+	dialog->rtptimeout = peer->rtptimeout;
+	dialog->rtpholdtimeout = peer->rtpholdtimeout;
+	dialog->rtpkeepalive = peer->rtpkeepalive;
 	if (dialog_initialize_rtp(dialog)) {
 		return -1;
 	}
@@ -5175,22 +5177,9 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (dialog->rtp) { /* Audio */
 		ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF, ast_test_flag(&dialog->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 		ast_rtp_instance_set_prop(dialog->rtp, AST_RTP_PROPERTY_DTMF_COMPENSATE, ast_test_flag(&dialog->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
-		ast_rtp_instance_set_timeout(dialog->rtp, peer->rtptimeout);
-		ast_rtp_instance_set_hold_timeout(dialog->rtp, peer->rtpholdtimeout);
-		ast_rtp_instance_set_keepalive(dialog->rtp, peer->rtpkeepalive);
 		/* Set Frame packetization */
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(dialog->rtp), dialog->rtp, &dialog->prefs);
 		dialog->autoframing = peer->autoframing;
-	}
-	if (dialog->vrtp) { /* Video */
-		ast_rtp_instance_set_timeout(dialog->vrtp, peer->rtptimeout);
-		ast_rtp_instance_set_hold_timeout(dialog->vrtp, peer->rtpholdtimeout);
-		ast_rtp_instance_set_keepalive(dialog->vrtp, peer->rtpkeepalive);
-	}
-	if (dialog->trtp) { /* Realtime text */
-		ast_rtp_instance_set_timeout(dialog->trtp, peer->rtptimeout);
-		ast_rtp_instance_set_hold_timeout(dialog->trtp, peer->rtpholdtimeout);
-		ast_rtp_instance_set_keepalive(dialog->trtp, peer->rtpkeepalive);
 	}
 
 	/* XXX TODO: get fields directly from peer only as they are needed using dialog->relatedpeer */
@@ -5218,7 +5207,6 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->pickupgroup = peer->pickupgroup;
 	dialog->allowtransfer = peer->allowtransfer;
 	dialog->jointnoncodeccapability = dialog->noncodeccapability;
-	dialog->rtptimeout = peer->rtptimeout;
 
 	/* Update dialog authorization credentials */
 	ao2_lock(peer);
@@ -5331,10 +5319,13 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 		dialog->relatedpeer = sip_ref_peer(peer, "create_addr: setting dialog's relatedpeer pointer");
 		sip_unref_peer(peer, "create_addr: unref peer from sip_find_peer hashtab lookup");
 		return res;
-	}
-
-	if (dialog_initialize_rtp(dialog)) {
-		return -1;
+	} else {
+		dialog->rtptimeout = global_rtptimeout;
+		dialog->rtpholdtimeout = global_rtpholdtimeout;
+		dialog->rtpkeepalive = global_rtpkeepalive;
+		if (dialog_initialize_rtp(dialog)) {
+			return -1;
+		}
 	}
 
 	ast_string_field_set(dialog, tohost, hostport.host);
@@ -15895,6 +15886,9 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		else
 			p->noncodeccapability &= ~AST_RTP_DTMF;
 		p->jointnoncodeccapability = p->noncodeccapability;
+		p->rtptimeout = peer->rtptimeout;
+		p->rtpholdtimeout = peer->rtpholdtimeout;
+		p->rtpkeepalive = peer->rtpkeepalive;
 		if (!dialog_initialize_rtp(p)) {
 			if (p->rtp) {
 				ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &peer->prefs);
@@ -16016,6 +16010,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	/* Finally, apply the guest policy */
 	if (sip_cfg.allowguest) {
 		get_rpid(p, req);
+		p->rtptimeout = global_rtptimeout;
+		p->rtpholdtimeout = global_rtpholdtimeout;
+		p->rtpkeepalive = global_rtpkeepalive;
 		if (!dialog_initialize_rtp(p)) {
 			res = AUTH_SUCCESSFUL;
 		} else {
