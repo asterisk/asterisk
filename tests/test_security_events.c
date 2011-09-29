@@ -24,7 +24,7 @@
  */
 
 /*** MODULEINFO
-	<defaultenabled>no</defaultenabled>
+	<depend>TEST_FRAMEWORK</depend>
 	<support_level>core</support_level>
  ***/
 
