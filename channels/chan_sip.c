@@ -339,7 +339,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<function name="SIP_HEADER" language="en_US">
 		<synopsis>
-			Gets the specified SIP header.
+			Gets the specified SIP header from an incoming INVITE message.
 		</synopsis>
 		<syntax>
 			<parameter name="name" required="true" />
