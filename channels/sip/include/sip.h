@@ -1038,6 +1038,8 @@ struct sip_pvt {
 	time_t lastrtprx;                   /*!< Last RTP received */
 	time_t lastrtptx;                   /*!< Last RTP sent */
 	int rtptimeout;                     /*!< RTP timeout time */
+	int rtpholdtimeout;                 /*!< RTP timeout time on hold*/
+	int rtpkeepalive;                   /*!< RTP send packets for keepalive */
 	struct ast_ha *directmediaha;		/*!< Which IPs are allowed to interchange direct media with this peer - copied from sip_peer */
 	struct ast_sockaddr recv;            /*!< Received as */
 	struct ast_sockaddr ourip;           /*!< Our IP (as seen from the outside) */
