@@ -10610,9 +10610,14 @@ static void *analog_ss_thread(void *data)
 						ast_log(LOG_WARNING, "DTMFCID timed out waiting for ring. "
 							"Exiting simple switch\n");
 						ast_hangup(chan);
-						return NULL;
+						goto quit;
 					}
 					f = ast_read(chan);
+					if (!f) {
+						/* Hangup received waiting for DTMFCID. Exiting simple switch. */
+						ast_hangup(chan);
+						goto quit;
+					}
 					if (f->frametype == AST_FRAME_DTMF) {
 						dtmfbuf[k++] = f->subclass.integer;
 						ast_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass.integer);
