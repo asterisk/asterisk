@@ -17077,7 +17077,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 				astman_append(s, "ChanVariable: %s=%s\r\n", v->name, v->value);
 			}
 		}
-		astman_append(s, "SIP-Use-Reason-Header : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON)) ? "Y" : "N");
+		astman_append(s, "SIP-Use-Reason-Header: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_Q850_REASON)) ? "Y" : "N");
 
 		peer = unref_peer(peer, "sip_show_peer: unref_peer: done with peer");
 
