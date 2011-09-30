@@ -138,9 +138,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<variable name="OSPINPEERIP">
 					<para>The last hop IP address.</para>
 				</variable>
-				<variable name="OSPINTECH">
-					<para>The inbound channel technology for the call.</para>
-				</variable>
 				<variable name="OSPINHANDLE">
 					<para>The inbound call OSP transaction handle.</para>
 				</variable>
@@ -180,20 +177,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<variable name="OSPINTOHOST">
 					<para>The inbound To header host part.</para>
 				</variable>
-				<variable name="OSPINRPIDUSER">
-					<para>The inbound Remote-Party-ID header user part.</para>
-				</variable>
-				<variable name="OSPINPAIUSER">
-					<para>The inbound P-Asserted-Identify header user part.</para>
-				</variable>
 				<variable name="OSPINDIVUSER">
 					<para>The inbound Diversion header user part.</para>
 				</variable>
 				<variable name="OSPINDIVHOST">
 					<para>The inbound Diversion header host part.</para>
-				</variable>
-				<variable name="OSPINPCIUSER">
-					<para>The inbound P-Charge-Info header user part.</para>
 				</variable>
 				<variable name="OSPINCUSTOMINFOn">
 					<para>The inbound custom information, where <literal>n</literal> is the index beginning with <literal>1</literal>
@@ -522,7 +510,7 @@ enum osp_srvtype {
 #define OSP_DEVICE_ID			((const char*)"")			/* OSP device ID */
 #define OSP_DEF_MAXDESTS		((unsigned int)5)			/* OSP default max number of destinations */
 #define OSP_DEF_TIMELIMIT		((unsigned int)0)			/* OSP default duration limit, no limit */
-#define OSP_DEF_PROTOCOL		OSP_PROT_SIP				/* OSP default signaling protocol, SIP */
+#define OSP_DEF_PROTOCOL		OSP_PROT_SIP				/* OSP default destination protocol, SIP */
 #define OSP_DEF_WORKMODE		OSP_MODE_DIRECT				/* OSP default work mode, direct */
 #define OSP_DEF_SRVTYPE			OSP_SRV_VOICE				/* OSP default service type, voice */
 #define OSP_MAX_CUSTOMINFO		((unsigned int)8)			/* OSP max number of custom info */
@@ -545,7 +533,7 @@ struct osp_provider {
 	unsigned int timeout;							/* Timeout in ms */
 	char source[OSP_SIZE_NORSTR];					/* IP of self */
 	enum osp_authpolicy authpolicy;					/* OSP authentication policy */
-	const char* defprotocol;						/* OSP default signaling protocol */
+	const char* defprotocol;						/* OSP default destination protocol */
 	enum osp_workmode workmode;						/* OSP work mode */
 	enum osp_srvtype srvtype;						/* OSP service type */
 	struct osp_provider* next;						/* Pointer to next OSP provider */
@@ -565,13 +553,10 @@ struct osp_npdata {
 	const char* opname[OSPC_OPNAME_NUMBER];	/* Operator Names */
 };
 
-/* SIP Header Parameters */
-struct osp_headers {
-	const char* rpiduser;					/* Remote-Party-ID header user info */
-	const char* paiuser;					/* P-Asserted-Identity header user info */
-	const char* divuser;					/* Diversion header user info */
-	const char* divhost;					/* Diversion header host info */
-	const char* pciuser;					/* P-Charge-Info header user info */
+/* SIP Diversion Header Parameters */
+struct osp_diversion {
+	const char* user;						/* Diversion header user info */
+	const char* host;						/* Diversion header host info */
 };
 
 /* OSP Application In/Output Results */
@@ -580,8 +565,7 @@ struct osp_results {
 	int outhandle;										/* Outbound transaction handle */
 	unsigned int intimelimit;							/* Inbound duration limit */
 	unsigned int outtimelimit;							/* Outbound duration limit */
-	char intech[OSP_SIZE_TECHSTR];						/* Inbound Asterisk TECH string */
-	char outtech[OSP_SIZE_TECHSTR];						/* Outbound Asterisk TECH string */
+	char tech[OSP_SIZE_TECHSTR];						/* Outbound Asterisk TECH string */
 	char dest[OSP_SIZE_NORSTR];							/* Outbound destination IP address */
 	char calling[OSP_SIZE_NORSTR];						/* Outbound calling number, may be translated */
 	char called[OSP_SIZE_NORSTR];						/* Outbound called number, may be translated */
@@ -1178,7 +1162,7 @@ static int osp_check_destination(
 {
 	int res;
 	OSPE_DEST_OSPENABLED enabled;
-	OSPE_PROTOCOL_NAME protocol;
+	OSPE_DEST_PROTOCOL protocol;
 	char dest[OSP_SIZE_NORSTR];
 	OSPE_OPERATOR_NAME type;
 	int error;
@@ -1243,48 +1227,48 @@ static int osp_check_destination(
 	res = OSP_OK;
 	osp_convert_outin(destination, dest, sizeof(dest));
 	switch(protocol) {
-	case OSPC_PROTNAME_SIP:
+	case OSPC_DPROT_SIP:
 		ast_debug(1, "OSP: protocol SIP\n");
-		ast_copy_string(results->outtech, OSP_TECH_SIP, sizeof(results->outtech));
+		ast_copy_string(results->tech, OSP_TECH_SIP, sizeof(results->tech));
 		ast_copy_string(results->dest, dest, sizeof(results->dest));
 		ast_copy_string(results->calling, calling, sizeof(results->calling));
 		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
-	case OSPC_PROTNAME_Q931:
+	case OSPC_DPROT_Q931:
 		ast_debug(1, "OSP: protocol Q.931\n");
-		ast_copy_string(results->outtech, OSP_TECH_H323, sizeof(results->outtech));
+		ast_copy_string(results->tech, OSP_TECH_H323, sizeof(results->tech));
 		ast_copy_string(results->dest, dest, sizeof(results->dest));
 		ast_copy_string(results->calling, calling, sizeof(results->calling));
 		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
-	case OSPC_PROTNAME_IAX:
+	case OSPC_DPROT_IAX:
 		ast_debug(1, "OSP: protocol IAX\n");
-		ast_copy_string(results->outtech, OSP_TECH_IAX, sizeof(results->outtech));
+		ast_copy_string(results->tech, OSP_TECH_IAX, sizeof(results->tech));
 		ast_copy_string(results->dest, dest, sizeof(results->dest));
 		ast_copy_string(results->calling, calling, sizeof(results->calling));
 		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
-	case OSPC_PROTNAME_SKYPE:
+	case OSPC_DPROT_SKYPE:
 		ast_debug(1, "OSP: protocol Skype\n");
-		ast_copy_string(results->outtech, OSP_TECH_SKYPE, sizeof(results->outtech));
+		ast_copy_string(results->tech, OSP_TECH_SKYPE, sizeof(results->tech));
 		ast_copy_string(results->dest, dest, sizeof(results->dest));
 		ast_copy_string(results->calling, calling, sizeof(results->calling));
 		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
-	case OSPC_PROTNAME_UNDEFINED:
-	case OSPC_PROTNAME_UNKNOWN:
+	case OSPC_DPROT_UNDEFINED:
+	case OSPC_DPROT_UNKNOWN:
 		ast_debug(1, "OSP: unknown/undefined protocol '%d'\n", protocol);
 		ast_debug(1, "OSP: use default protocol '%s'\n", provider->defprotocol);
-		ast_copy_string(results->outtech, provider->defprotocol, sizeof(results->outtech));
+		ast_copy_string(results->tech, provider->defprotocol, sizeof(results->tech));
 		ast_copy_string(results->dest, dest, sizeof(results->dest));
 		ast_copy_string(results->calling, calling, sizeof(results->calling));
 		ast_copy_string(results->called, called, sizeof(results->called));
 		break;
-	case OSPC_PROTNAME_LRQ:
-	case OSPC_PROTNAME_T37:
-	case OSPC_PROTNAME_T38:
-	case OSPC_PROTNAME_SMPP:
-	case OSPC_PROTNAME_XMPP:
+	case OSPC_DPROT_LRQ:
+	case OSPC_DPROT_T37:
+	case OSPC_DPROT_T38:
+	case OSPC_DPROT_SMPP:
+	case OSPC_DPROT_XMPP:
 	default:
 		ast_log(LOG_WARNING, "OSP: unsupported protocol '%d'\n", protocol);
 		*reason = OSPC_FAIL_PROTOCOL_ERROR;
@@ -1486,7 +1470,7 @@ static int osp_create_callid(
  * \param called Called number
  * \param snetid Source network ID
  * \param np NP parameters
- * \param headers SIP header parameters
+ * \param div SIP Diversion header parameters
  * \param cinfo Custom info
  * \param results Lookup results
  * \return OSP_OK Found , OSP_FAILED No route, OSP_ERROR Error
@@ -1500,13 +1484,12 @@ static int osp_lookup(
 	const char* called,
 	const char* snetid,
 	struct osp_npdata* np,
-	struct osp_headers* headers,
+	struct osp_diversion* div,
 	const char* cinfo[],
 	struct osp_results* results)
 {
 	int res;
 	struct osp_provider* provider = NULL;
-	OSPE_PROTOCOL_NAME protocol;
 	char source[OSP_SIZE_NORSTR];
 	char callingnum[OSP_SIZE_NORSTR];
 	char callednum[OSP_SIZE_NORSTR];
@@ -1535,7 +1518,7 @@ static int osp_lookup(
 	osp_convert_inout(results->dest, dest, sizeof(dest));
 
 	results->outhandle = OSP_INVALID_HANDLE;
-	results->outtech[0] = '\0';
+	results->tech[0] = '\0';
 	results->calling[0] = '\0';
 	results->called[0] = '\0';
 	results->token[0] = '\0';
@@ -1563,19 +1546,6 @@ static int osp_lookup(
 		return OSP_ERROR;
 	}
 
-	if (!strcasecmp(results->intech, OSP_TECH_SIP)) {
-		protocol = OSPC_PROTNAME_SIP;
-	} else if (!strcasecmp(results->intech, OSP_TECH_H323)) {
-		protocol = OSPC_PROTNAME_Q931;
-	} else if (!strcasecmp(results->intech, OSP_TECH_IAX)) {
-		protocol = OSPC_PROTNAME_IAX;
-	} else if (!strcasecmp(results->intech, OSP_TECH_SKYPE)) {
-		protocol = OSPC_PROTNAME_SKYPE;
-	} else {
-		protocol = OSPC_PROTNAME_SIP;
-	}
-	OSPPTransactionSetProtocol(results->outhandle, OSPC_PROTTYPE_SOURCE, protocol);
-
 	if (!ast_strlen_zero(snetid)) {
 		OSPPTransactionSetNetworkIds(results->outhandle, snetid, "");
 	}
@@ -1586,11 +1556,8 @@ static int osp_lookup(
 		OSPPTransactionSetOperatorName(results->outhandle, type, np->opname[type]);
 	}
 
-    OSPPTransactionSetRemotePartyId(results->outhandle, OSPC_NFORMAT_E164, headers->rpiduser);
-    OSPPTransactionSetAssertedId(results->outhandle, OSPC_NFORMAT_E164, headers->paiuser);
-	osp_convert_inout(headers->divhost, host, sizeof(host));
-	OSPPTransactionSetDiversion(results->outhandle, headers->divuser, host);
-    OSPPTransactionSetChargeInfo(results->outhandle, OSPC_NFORMAT_E164, headers->pciuser);
+	osp_convert_inout(div->host, host, sizeof(host));
+	OSPPTransactionSetDiversion(results->outhandle, div->user, host);
 
 	if (cinfo != NULL) {
 		for (i = 0; i < OSP_MAX_CUSTOMINFO; i++) {
@@ -1640,7 +1607,6 @@ static int osp_lookup(
 		OSPPTransactionSetServiceType(results->outhandle, OSPC_SERVICE_VOICE);
 		results->numdests = OSP_DEF_MAXDESTS;
 	}
-
 	error = OSPPTransactionRequestAuthorisation(results->outhandle,
 		src,
 		dev,
@@ -1812,7 +1778,7 @@ static int osp_next(
 		res = OSP_ERROR;
 	}
 
-	results->outtech[0] = '\0';
+	results->tech[0] = '\0';
 	results->dest[0] = '\0';
 	results->calling[0] = '\0';
 	results->called[0] = '\0';
@@ -2095,20 +2061,20 @@ static int osp_report_qos(
 		ast_debug(1, "OSP: stdevrtt '%f'\n", rtt.sdev);
 
 		if (leg == OSP_CALL_INBOUND) {
-			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTP, OSPC_SDIR_SRCREP, totalpackets[OSP_DIR_RX]);
-			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTCP, OSPC_SDIR_DESTREP, totalpackets[OSP_DIR_TX]);
+			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTP, OSPC_SFLOW_DOWNSTREAM, totalpackets[OSP_DIR_RX]);
+			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTCP, OSPC_SFLOW_UPSTREAM, totalpackets[OSP_DIR_TX]);
 			if (lost[OSP_DIR_RX].value >= 0) {
 				value = lost[OSP_DIR_RX].value;
 			} else {
 				value = (int)lost[OSP_DIR_RX].avg;
 			}
-			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTP, OSPC_SDIR_SRCREP, value, OSP_DEF_INTSTATS);
+			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTP, OSPC_SFLOW_DOWNSTREAM, value, OSP_DEF_INTSTATS);
 			if (lost[OSP_DIR_TX].value >= 0) {
 				value = lost[OSP_DIR_TX].value;
 			} else {
 				value = (int)lost[OSP_DIR_TX].avg;
 			}
-			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTCP, OSPC_SDIR_DESTREP, value, OSP_DEF_INTSTATS);
+			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTCP, OSPC_SFLOW_UPSTREAM, value, OSP_DEF_INTSTATS);
 			if (jitter[OSP_DIR_RX].value >= 0) {
 				value = jitter[OSP_DIR_RX].value;
 			} else {
@@ -2116,7 +2082,7 @@ static int osp_report_qos(
 			}
 			OSPPTransactionSetJitter(trans,
 				OSPC_SMETRIC_RTP,
-				OSPC_SDIR_SRCREP,
+				OSPC_SFLOW_DOWNSTREAM,
 				OSP_DEF_INTSTATS,
 				(int)jitter[OSP_DIR_RX].min,
 				(int)jitter[OSP_DIR_RX].max,
@@ -2126,13 +2092,13 @@ static int osp_report_qos(
 			} else {
 				value = (int)jitter[OSP_DIR_TX].avg;
 			}
-			OSPPTransactionSetJitter(trans, OSPC_SMETRIC_RTCP, OSPC_SDIR_DESTREP,
+			OSPPTransactionSetJitter(trans, OSPC_SMETRIC_RTCP, OSPC_SFLOW_UPSTREAM,
 				OSP_DEF_INTSTATS, (int)jitter[OSP_DIR_TX].min, (int)jitter[OSP_DIR_TX].max, value, jitter[OSP_DIR_TX].sdev);
 		} else {
-			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTP, OSPC_SDIR_DESTREP, totalpackets[OSP_DIR_RX]);
-			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTCP, OSPC_SDIR_SRCREP, totalpackets[OSP_DIR_TX]);
-			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTP, OSPC_SDIR_DESTREP, lost[OSP_DIR_RX].value, OSP_DEF_INTSTATS);
-			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTCP, OSPC_SDIR_SRCREP, lost[OSP_DIR_TX].value, OSP_DEF_INTSTATS);
+			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTP, OSPC_SFLOW_UPSTREAM, totalpackets[OSP_DIR_RX]);
+			OSPPTransactionSetPackets(trans, OSPC_SMETRIC_RTCP, OSPC_SFLOW_DOWNSTREAM, totalpackets[OSP_DIR_TX]);
+			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTP, OSPC_SFLOW_UPSTREAM, lost[OSP_DIR_RX].value, OSP_DEF_INTSTATS);
+			OSPPTransactionSetLost(trans, OSPC_SMETRIC_RTCP, OSPC_SFLOW_DOWNSTREAM, lost[OSP_DIR_TX].value, OSP_DEF_INTSTATS);
 			if (jitter[OSP_DIR_RX].value >= 0) {
 				value = jitter[OSP_DIR_RX].value;
 			} else {
@@ -2140,7 +2106,7 @@ static int osp_report_qos(
 			}
 			OSPPTransactionSetJitter(trans,
 				OSPC_SMETRIC_RTP,
-				OSPC_SDIR_DESTREP,
+				OSPC_SFLOW_UPSTREAM,
 				OSP_DEF_INTSTATS,
 				(int)jitter[OSP_DIR_RX].min,
 				(int)jitter[OSP_DIR_RX].max,
@@ -2153,13 +2119,19 @@ static int osp_report_qos(
 			}
 			OSPPTransactionSetJitter(trans,
 				OSPC_SMETRIC_RTCP,
-				OSPC_SDIR_SRCREP,
+				OSPC_SFLOW_DOWNSTREAM,
 				OSP_DEF_INTSTATS,
 				(int)jitter[OSP_DIR_TX].min,
 				(int)jitter[OSP_DIR_TX].max,
 				value,
 				jitter[OSP_DIR_TX].sdev);
 		}
+		if (rtt.value >= 0) {
+			value = rtt.value;
+		} else {
+			value = (int)rtt.avg;
+		}
+		OSPPTransactionSetRoundTripDelay(trans, OSP_DEF_INTSTATS, (int)rtt.min, (int)rtt.max, value, rtt.sdev);
 
 		res = OSP_OK;
 	}
@@ -2202,8 +2174,6 @@ static int osp_finish(
 	if (trans == OSP_INVALID_HANDLE) {
 		return OSP_FAILED;
 	}
-
-	OSPPTransactionSetRoleInfo(trans, OSPC_RSTATE_STOP, OSPC_RFORMAT_OSP, OSPC_RVENDOR_ASTERISK);
 
 	if (!recorded) {
 		reason = asterisk2osp(cause);
@@ -2346,7 +2316,7 @@ static int osplookup_exec(
 	const char* snetid = "";
 	struct osp_npdata np;
 	OSPE_OPERATOR_NAME type;
-	struct osp_headers headers;
+	struct osp_diversion div;
 	unsigned int i;
 	const char* cinfo[OSP_MAX_CUSTOMINFO] = { NULL };
 	char buffer[OSP_SIZE_TOKSTR];
@@ -2403,11 +2373,8 @@ static int osplookup_exec(
 		np.opname[type] = "";
 	}
 
-	headers.rpiduser = "";
-	headers.paiuser = "";
-	headers.divuser = "";
-	headers.divhost = "";
-	headers.pciuser = "";
+	div.user = "";
+	div.host = "";
 
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
@@ -2415,8 +2382,6 @@ static int osplookup_exec(
 			actualsrc = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINPEERIP")) {
 			srcdev = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current), "OSPINTECH")) {
-			ast_copy_string(results.intech, ast_var_value(current), sizeof(results.intech));
 		} else if (!strcasecmp(ast_var_name(current), "OSPINHANDLE")) {
 			if (sscanf(ast_var_value(current), "%30d", &results.inhandle) != 1) {
 				results.inhandle = OSP_INVALID_HANDLE;
@@ -2449,16 +2414,10 @@ static int osplookup_exec(
 			np.opname[OSPC_OPNAME_MNC] = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINTOHOST")) {
 			ast_copy_string(results.dest, ast_var_value(current), sizeof(results.dest));
-		} else if (!strcasecmp(ast_var_name(current), "OSPINRPIDUSER")) {
-			headers.rpiduser = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current), "OSPINPAIUSER")) {
-			headers.paiuser = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINDIVUSER")) {
-			headers.divuser = ast_var_value(current);
+			div.user = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINDIVHOST")) {
-			headers.divhost = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current), "OSPINPCIUSER")) {
-			headers.pciuser = ast_var_value(current);
+			div.host = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO1")) {
 			cinfo[0] = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "OSPINCUSTOMINFO2")) {
@@ -2479,7 +2438,6 @@ static int osplookup_exec(
 	}
 	ast_debug(1, "OSPLookup: actual source device '%s'\n", actualsrc);
 	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
-	ast_debug(1, "OSPLookup: OSPINTECH '%s'\n", results.intech);
 	ast_debug(1, "OSPLookup: OSPINHANDLE '%d'\n", results.inhandle);
 	ast_debug(1, "OSPLookup: OSPINTIMELIMIT '%d'\n", results.intimelimit);
 	ast_debug(1, "OSPLookup: OSPINNETWORKID '%s'\n", snetid);
@@ -2493,11 +2451,8 @@ static int osplookup_exec(
 	ast_debug(1, "OSPLookup: OSPINMCC '%s'\n", np.opname[OSPC_OPNAME_MCC]);
 	ast_debug(1, "OSPLookup: OSPINMNC '%s'\n", np.opname[OSPC_OPNAME_MNC]);
 	ast_debug(1, "OSPLookup: OSPINTOHOST '%s'\n", results.dest);
-	ast_debug(1, "OSPLookup: OSPINRPIDUSER '%s'\n", headers.rpiduser);
-	ast_debug(1, "OSPLookup: OSPINPAIUSER '%s'\n", headers.paiuser);
-	ast_debug(1, "OSPLookup: OSPINDIVUSER '%s'\n", headers.divuser);
-	ast_debug(1, "OSPLookup: OSPINDIVHOST'%s'\n", headers.divhost);
-	ast_debug(1, "OSPLookup: OSPINPCIUSER '%s'\n", headers.pciuser);
+	ast_debug(1, "OSPLookup: OSPINDIVUSER '%s'\n", div.user);
+	ast_debug(1, "OSPLookup: OSPINDIVHOST'%s'\n", div.host);
 	for (i = 0; i < OSP_MAX_CUSTOMINFO; i++) {
 		if (!ast_strlen_zero(cinfo[i])) {
 			ast_debug(1, "OSPLookup: OSPINCUSTOMINFO%d '%s'\n", i, cinfo[i]);
@@ -2510,11 +2465,11 @@ static int osplookup_exec(
 
 	res = osp_lookup(provider, callidtypes, actualsrc, srcdev,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
-		args.exten, snetid, &np, &headers, cinfo, &results);
+		args.exten, snetid, &np, &div, cinfo, &results);
 	if (res > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
-		results.outtech[0] = '\0';
+		results.tech[0] = '\0';
 		results.dest[0] = '\0';
 		results.calling[0] = '\0';
 		results.called[0] = '\0';
@@ -2540,8 +2495,8 @@ static int osplookup_exec(
 	snprintf(buffer, sizeof(buffer), "%d", results.outhandle);
 	pbx_builtin_setvar_helper(chan, "OSPOUTHANDLE", buffer);
 	ast_debug(1, "OSPLookup: OSPOUTHANDLE '%s'\n", buffer);
-	pbx_builtin_setvar_helper(chan, "OSPOUTTECH", results.outtech);
-	ast_debug(1, "OSPLookup: OSPOUTTECH '%s'\n", results.outtech);
+	pbx_builtin_setvar_helper(chan, "OSPOUTTECH", results.tech);
+	ast_debug(1, "OSPLookup: OSPOUTTECH '%s'\n", results.tech);
 	pbx_builtin_setvar_helper(chan, "OSPDESTINATION", results.dest);
 	ast_debug(1, "OSPLookup: OSPDESTINATION '%s'\n", results.dest);
 	pbx_builtin_setvar_helper(chan, "OSPOUTCALLING", results.calling);
@@ -2583,28 +2538,28 @@ static int osplookup_exec(
 	pbx_builtin_setvar_helper(chan, "OSPLOOKUPSTATUS", status);
 	ast_debug(1, "OSPLookup: %s\n", status);
 
-	if (!strcasecmp(results.outtech, OSP_TECH_SIP)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.outtech, results.called, results.dest);
+	if (!strcasecmp(results.tech, OSP_TECH_SIP)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
 		if (!ast_strlen_zero(results.token)) {
 			snprintf(buffer, sizeof(buffer), "%s: %s", OSP_SIP_HEADER, results.token);
 			pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
 			ast_debug(1, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
 		}
-	} else if (!strcasecmp(results.outtech, OSP_TECH_H323)) {
+	} else if (!strcasecmp(results.tech, OSP_TECH_H323)) {
 		if ((callidtypes & OSP_CALLID_H323) && (results.outcallid.len != 0)) {
 			osp_uuid2str(results.outcallid.buf, buffer, sizeof(buffer));
 		} else {
 			buffer[0] = '\0';
 		}
 		pbx_builtin_setvar_helper(chan, "OSPOUTCALLID", buffer);
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.outtech, results.called, results.dest);
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-	} else if (!strcasecmp(results.outtech, OSP_TECH_IAX)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s/%s", results.outtech, results.dest, results.called);
+	} else if (!strcasecmp(results.tech, OSP_TECH_IAX)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s/%s", results.tech, results.dest, results.called);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-	} else if (!strcasecmp(results.outtech, OSP_TECH_SKYPE)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s", results.outtech, results.called);
+	} else if (!strcasecmp(results.tech, OSP_TECH_SKYPE)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s", results.tech, results.called);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
 	}
 
@@ -2709,7 +2664,7 @@ static int ospnext_exec(
 	if ((res = osp_next(provider, cause, &results)) > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {
-		results.outtech[0] = '\0';
+		results.tech[0] = '\0';
 		results.dest[0] = '\0';
 		results.calling[0] = '\0';
 		results.called[0] = '\0';
@@ -2732,8 +2687,8 @@ static int ospnext_exec(
 		}
 	}
 
-	pbx_builtin_setvar_helper(chan, "OSPOUTTECH", results.outtech);
-	ast_debug(1, "OSPNext: OSPOUTTECH '%s'\n", results.outtech);
+	pbx_builtin_setvar_helper(chan, "OSPOUTTECH", results.tech);
+	ast_debug(1, "OSPNext: OSPOUTTECH '%s'\n", results.tech);
 	pbx_builtin_setvar_helper(chan, "OSPDESTINATION", results.dest);
 	ast_debug(1, "OSPNext: OSPDESTINATION '%s'\n", results.dest);
 	pbx_builtin_setvar_helper(chan, "OSPOUTCALLING", results.calling);
@@ -2772,28 +2727,28 @@ static int ospnext_exec(
 	pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", status);
 	ast_debug(1, "OSPNext: %s\n", status);
 
-	if (!strcasecmp(results.outtech, OSP_TECH_SIP)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.outtech, results.called, results.dest);
+	if (!strcasecmp(results.tech, OSP_TECH_SIP)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
 		if (!ast_strlen_zero(results.token)) {
 			snprintf(buffer, sizeof(buffer), "%s: %s", OSP_SIP_HEADER, results.token);
 			pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
 			ast_debug(1, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
 		}
-	} else if (!strcasecmp(results.outtech, OSP_TECH_H323)) {
+	} else if (!strcasecmp(results.tech, OSP_TECH_H323)) {
 		if ((callidtypes & OSP_CALLID_H323) && (results.outcallid.len != 0)) {
 			osp_uuid2str(results.outcallid.buf, buffer, sizeof(buffer));
 		} else {
 			buffer[0] = '\0';
 		}
 		pbx_builtin_setvar_helper(chan, "OSPOUTCALLID", buffer);
-		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.outtech, results.called, results.dest);
+		snprintf(buffer, sizeof(buffer), "%s/%s@%s", results.tech, results.called, results.dest);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-	} else if (!strcasecmp(results.outtech, OSP_TECH_IAX)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s/%s", results.outtech, results.dest, results.called);
+	} else if (!strcasecmp(results.tech, OSP_TECH_IAX)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s/%s", results.tech, results.dest, results.called);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
-	} else if (!strcasecmp(results.outtech, OSP_TECH_SKYPE)) {
-		snprintf(buffer, sizeof(buffer), "%s/%s", results.outtech, results.called);
+	} else if (!strcasecmp(results.tech, OSP_TECH_SKYPE)) {
+		snprintf(buffer, sizeof(buffer), "%s/%s", results.tech, results.called);
 		pbx_builtin_setvar_helper(chan, "OSPDIALSTR", buffer);
 	}
 
