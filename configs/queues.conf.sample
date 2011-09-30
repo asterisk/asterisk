@@ -470,6 +470,7 @@ monitor-type = MixMonitor
 ; If this is set to yes, the following manager events will be generated:
 ; QueueMemberStatus
 ; (may generate a WHOLE LOT of extra manager events)
+; The default value is yes and this can not be set globally.
 ;
 ; eventmemberstatus = no
 ;
