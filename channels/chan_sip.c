@@ -19921,10 +19921,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	struct ast_party_connected_line connected;
 	struct ast_set_party_connected_line update_connected;
 
-	if (reinvite)
+	if (reinvite) {
 		ast_debug(4, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
-	else
+	} else {
 		ast_debug(4, "SIP response %d to standard invite\n", resp);
+	}
 
 	if (p->alreadygone) { /* This call is already gone */
 		ast_debug(1, "Got response on call that is already terminated: %s (ignoring)\n", p->callid);
@@ -19938,8 +19939,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	/* RFC3261 says we must treat every 1xx response (but not 100)
 	   that we don't recognize as if it was 183.
 	*/
-	if (resp > 100 && resp < 200 && resp!=101 && resp != 180 && resp != 181 && resp != 182 && resp != 183)
+	if (resp > 100 && resp < 200 && resp!=101 && resp != 180 && resp != 181 && resp != 182 && resp != 183) {
 		resp = 183;
+	}
 
 	/* For INVITE, treat all 2XX responses as we would a 200 response */
 	if ((resp >= 200) && (resp < 300)) {
@@ -19947,16 +19949,19 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	}
 
  	/* Any response between 100 and 199 is PROCEEDING */
- 	if (resp >= 100 && resp < 200 && p->invitestate == INV_CALLING)
+ 	if (resp >= 100 && resp < 200 && p->invitestate == INV_CALLING) {
  		p->invitestate = INV_PROCEEDING;
+	}
 
  	/* Final response, not 200 ? */
- 	if (resp >= 300 && (p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA ))
+ 	if (resp >= 300 && (p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA )) {
  		p->invitestate = INV_COMPLETED;
+	}
  	
 	/* Final response, clear out pending invite */
-	if ((resp == 200 || resp >= 300) && p->pendinginvite && seqno == p->pendinginvite)
+	if ((resp == 200 || resp >= 300) && p->pendinginvite && seqno == p->pendinginvite) {
 		p->pendinginvite = 0;
+	}
 
 	/* If this is a response to our initial INVITE, we need to set what we can use
 	 * for this peer.
@@ -19968,15 +19973,17 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	switch (resp) {
 	case 100:	/* Trying */
 	case 101:	/* Dialog establishment */
-		if (!req->ignore && p->invitestate != INV_CANCELLED && sip_cancel_destroy(p))
+		if (!req->ignore && p->invitestate != INV_CANCELLED && sip_cancel_destroy(p)) {
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		}
 		check_pendings(p);
 		break;
 
 	case 180:	/* 180 Ringing */
 	case 182:       /* 182 Queued */
-		if (!req->ignore && p->invitestate != INV_CANCELLED && sip_cancel_destroy(p))
+		if (!req->ignore && p->invitestate != INV_CANCELLED && sip_cancel_destroy(p)) {
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		}
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
 				/* Queue a connected line update */
@@ -20005,8 +20012,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			}
 		}
 		if (find_sdp(req)) {
-			if (p->invitestate != INV_CANCELLED)
+			if (p->invitestate != INV_CANCELLED) {
 				p->invitestate = INV_EARLY_MEDIA;
+			}
 			res = process_sdp(p, req, SDP_T38_NONE);
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 or 182 */
@@ -20037,8 +20045,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		break;
 
 	case 183:	/* Session progress */
-		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
+		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p)) {
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		}
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
 				/* Queue a connected line update */
@@ -20063,8 +20072,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			sip_handle_cc(p, req, AST_CC_CCNR);
 		}
 		if (find_sdp(req)) {
-			if (p->invitestate != INV_CANCELLED)
+			if (p->invitestate != INV_CANCELLED) {
 				p->invitestate = INV_EARLY_MEDIA;
+			}
 			res = process_sdp(p, req, SDP_T38_NONE);
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame */
@@ -20084,8 +20094,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		break;
 
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
+		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p)) {
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		}
 		p->authtries = 0;
 		if (find_sdp(req)) {
 			if ((res = process_sdp(p, req, SDP_T38_ACCEPT)) && !req->ignore)
@@ -20136,14 +20147,16 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			update_call_counter(p, DEC_CALL_RINGING);
 			parse_ok_contact(p, req);
 			/* Save Record-Route for any later requests we make on this dialogue */
-			if (!reinvite)
+			if (!reinvite) {
 				build_route(p, req, 1);
+			}
 
 			if(set_address_from_contact(p)) {
 				/* Bad contact - we don't know how to reach this device */
 				/* We need to ACK, but then send a bye */
-				if (!p->route && !req->ignore)
+				if (!p->route && !req->ignore) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
+				}
 			}
 
 		}
@@ -20151,10 +20164,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (!req->ignore && p->owner) {
 			if (!reinvite) {
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
-				if (sip_cfg.callevents)
+				if (sip_cfg.callevents) {
 					manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
 						p->owner->name, "SIP", p->owner->uniqueid, p->callid, p->fullcontact, p->peername);
+				}
 			} else {	/* RE-invite */
 				if (p->t38.state == T38_DISABLED || p->t38.state == T38_REJECTED) {
 					ast_queue_control(p->owner, AST_CONTROL_UPDATE_RTP_PEER);
@@ -20166,8 +20180,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			 /* It's possible we're getting an 200 OK after we've tried to disconnect
 				  by sending CANCEL */
 			/* First send ACK, then send bye */
-			if (!req->ignore)
+			if (!req->ignore) {
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
+			}
 		}
 
 		/* Check for Session-Timers related headers */
@@ -20213,20 +20228,23 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	case 401: /* Www auth */
 		/* First we ACK */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->options)
+		if (p->options) {
 			p->options->auth_type = resp;
+		}
 
 		/* Then we AUTH */
 		ast_string_field_set(p, theirtag, NULL);	/* forget their old tag, so we don't match tags when getting response */
 		if (!req->ignore) {
-			if (p->authtries < MAX_AUTHTRIES)
+			if (p->authtries < MAX_AUTHTRIES) {
 				p->invitestate = INV_CALLING;
+			}
 			if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, resp, SIP_INVITE, 1)) {
 				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", sip_get_header(&p->initreq, "From"));
 				pvt_set_needdestroy(p, "failed to authenticate on INVITE");
 				sip_alreadygone(p);
-				if (p->owner)
+				if (p->owner) {
 					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				}
 			}
 		}
 		break;
@@ -20257,8 +20275,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		/* Could be REFER caused INVITE with replaces */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner)
+		if (p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		}
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		break;
 
@@ -20272,8 +20291,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		append_history(p, "Identity", "SIP identity is required. Not supported by Asterisk.");
 		ast_log(LOG_WARNING, "SIP identity required by proxy. SIP dialog '%s'. Giving up.\n", p->callid);
-		if (p->owner)
+		if (p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		}
 		break;
 
 		
@@ -20300,18 +20320,21 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
 			change_t38_state(p, T38_REJECTED);
 			/* Try to reset RTP timers */
+			/* XXX Why is this commented away??? */
 			//ast_rtp_set_rtptimers_onhold(p->rtp);
 
 			/* Trigger a reinvite back to audio */
 			transmit_reinvite_with_sdp(p, FALSE, FALSE);
 		} else {
 			/* We can't set up this call, so give up */
-			if (p->owner && !req->ignore)
+			if (p->owner && !req->ignore) {
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+			}
 			pvt_set_needdestroy(p, "received 488 response");
 			/* If there's no dialog to end, then mark p as already gone */
-			if (!reinvite)
+			if (!reinvite) {
 				sip_alreadygone(p);
+			}
 		}
 		break;
 	case 491: /* Pending */
@@ -20342,12 +20365,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	case 405: /* Not allowed */
 	case 501: /* Not implemented */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner)
+		if (p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		}
 		break;
 	}
-	if (xmitres == XMIT_ERROR)
+	if (xmitres == XMIT_ERROR) {
 		ast_log(LOG_WARNING, "Could not transmit message in dialog %s\n", p->callid);
+	}
 }
 
 /* \brief Handle SIP response in NOTIFY transaction
