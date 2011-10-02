@@ -2843,6 +2843,8 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			}
 		}
 
+		details->caps &= ~AST_FAX_TECH_GATEWAY;
+
 		ao2_ref(details, -1);
 		return NULL;
 	}
