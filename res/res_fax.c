@@ -2377,7 +2377,7 @@ static void destroy_gateway(void *data)
 	if (gateway->s) {
 		fax_session_release(gateway->s, gateway->token);
 		gateway->token = NULL;
-		gateway->s->details->caps |= ~AST_FAX_TECH_GATEWAY;
+		gateway->s->details->caps &= ~AST_FAX_TECH_GATEWAY;
 
 		ao2_lock(faxregistry.container);
 		ao2_unlink(faxregistry.container, gateway->s);
@@ -2421,7 +2421,7 @@ static struct fax_gateway *fax_gateway_new(struct ast_fax_session_details *detai
 
 	details->caps = AST_FAX_TECH_GATEWAY;
 	if (details->gateway_timeout && !(gateway->s = fax_session_reserve(details, &gateway->token))) {
-		details->caps |= ~AST_FAX_TECH_GATEWAY;
+		details->caps &= ~AST_FAX_TECH_GATEWAY;
 		ast_log(LOG_ERROR, "Can't reserve a FAX session, gateway attempt failed.\n");
 		ao2_ref(gateway, -1);
 		return NULL;
