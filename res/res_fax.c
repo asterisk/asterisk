@@ -2224,16 +2224,16 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		file_count++;
 	}
 
-	if (file_count > 1) {
-		details->caps |= AST_FAX_TECH_MULTI_DOC;
-	}
-
 	ast_verb(3, "Channel '%s' sending FAX:\n", chan->name);
 	AST_LIST_TRAVERSE(&details->documents, doc, next) {
 		ast_verb(3, "   %s\n", doc->filename);
 	}
 
 	details->caps = AST_FAX_TECH_SEND;
+
+	if (file_count > 1) {
+		details->caps |= AST_FAX_TECH_MULTI_DOC;
+	}
 
 	/* check for debug */
 	if (ast_test_flag(&opts, OPT_DEBUG) || global_fax_debug) {
