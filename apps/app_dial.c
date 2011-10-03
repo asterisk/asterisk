@@ -152,12 +152,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<argument name="context" required="false" />
 					<argument name="exten" required="false" />
 					<argument name="priority" required="true" />
-					<para>When the caller hangs up, transfer the called party
-					to the specified destination and continue execution at that location.</para>
+					<para>When the caller hangs up, transfer the <emphasis>called</emphasis> party
+					to the specified destination and <emphasis>start</emphasis> execution at that location.</para>
+					<note>
+						<para>Any channel variables you want the called channel to inherit from the caller channel must be
+						prefixed with one or two underbars ('_').</para>
+					</note>
 				</option>
 				<option name="F">
-					<para>Proceed with dialplan execution at the next priority in the current extension if the
-					source channel hangs up.</para>
+					<para>When the caller hangs up, transfer the <emphasis>called</emphasis> party to the next priority of the current extension
+					and <emphasis>start</emphasis> execution at that location.</para>
+					<note>
+						<para>Any channel variables you want the called channel to inherit from the caller channel must be
+						prefixed with one or two underbars ('_').</para>
+						<para>Additionally, using this option from a Macro() or GoSub() might not make sense as there would be no return points</para>
+					</note>
 				</option>
 				<option name="g">
 					<para>Proceed with dialplan execution at the next priority in the current extension if the
