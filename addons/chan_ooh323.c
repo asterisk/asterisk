@@ -25,42 +25,6 @@
 #include "chan_ooh323.h"
 #include <math.h>
 
-/*** DOCUMENTATION
-	<function name="OOH323" language="en_US">
-		<synopsis>
-			Allow Setting / Reading OOH323 Settings
-		</synopsis>
-		<syntax>
-			<parameter name="name" required="true">
-				<enumlist>
-					<enum name="faxdetect">
-						<para>Fax Detect [R/W]</para>
-						<para>Returns 0 or 1</para>
-						<para>Write yes or no</para>
-					</enum>
-				</enumlist>
-				<enumlist>
-					<enum name="t38support">
-						<para>t38support [R/W]</para>
-						<para>Returns 0 or 1</para>
-						<para>Write yes or no</para>
-					</enum>
-				</enumlist>
-				<enumlist>
-					<enum name="h323id">
-						<para>Returns h323id [R]</para>
-					</enum>
-				</enumlist>
-			</parameter>
-		</syntax>
-		<description>
-			<para>Read and set channel parameters in the dialplan.
-			<replaceable>name</replaceable> is one of the above only those with a [W] can be writen to.
-			</para>
-		</description>
-	</function>
-***/
-
 #define FORMAT_STRING_SIZE	512
 
 /* Defaults */
@@ -118,6 +82,8 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f);
 static int ooh323_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, int *datalen);
 static int ooh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static int function_ooh323_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len);
+static int function_ooh323_write(struct ast_channel *chan, const char *cmd, char *data, const char *value);
 
 static enum ast_rtp_glue_result ooh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **rtp);
 static enum ast_rtp_glue_result ooh323_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp_instance **rtp);
@@ -151,7 +117,8 @@ static struct ast_channel_tech ooh323_tech = {
 	.queryoption = ooh323_queryoption,
 	.bridge = ast_rtp_instance_bridge,		/* XXX chan unlocked ? */
 	.early_bridge = ast_rtp_instance_early_bridge,
-
+	.func_channel_read = function_ooh323_read,
+	.func_channel_write = function_ooh323_write,
 };
 
 static struct ast_rtp_glue ooh323_rtp = {
@@ -3518,13 +3485,6 @@ static int function_ooh323_write(struct ast_channel *chan, const char *cmd, char
 	return res;
 }
 
-/*! \brief Structure to declare a dialplan function: OOH323 */
-static struct ast_custom_function ooh323_function = {
-        .name = "OOH323",
-        .read = function_ooh323_read,
-        .write = function_ooh323_write,
-};
-
 static int load_module(void)
 {
 	int res;
@@ -3692,9 +3652,6 @@ static int load_module(void)
 		/* And start the monitor for the first time */
 		restart_monitor();
 	}
-
-	/* Register dialplan functions */
-	ast_custom_function_register(&ooh323_function);
 
 	return 0;
 }
@@ -4085,9 +4042,6 @@ static int unload_module(void)
 		ast_verbose("	unload_module- destroying OOH323 endpoint \n");
 	}
 	ooH323EpDestroy();
-
-	/* Unregister dial plan functions */
-	ast_custom_function_unregister(&ooh323_function);
 
 	if (gH323Debug) {
 		ast_verbose("+++ ooh323  unload_module \n");

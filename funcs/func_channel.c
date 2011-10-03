@@ -254,6 +254,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						The channel is either on hold or a call waiting call.</para>
 					</enum>
 				</enumlist>
+				<para><emphasis>chan_ooh323</emphasis> provides the following additional options:</para>
+				<enumlist>
+					<enum name="faxdetect">
+						<para>Fax Detect [R/W]</para>
+						<para>Returns 0 or 1</para>
+						<para>Write yes or no</para>
+					</enum>
+					<enum name="t38support">
+						<para>t38support [R/W]</para>
+						<para>Returns 0 or 1</para>
+						<para>Write yes or no</para>
+					</enum>
+					<enum name="h323id">
+						<para>Returns h323id [R]</para>
+					</enum>
+				</enumlist>
 			</parameter>
 		</syntax>
 		<description>
