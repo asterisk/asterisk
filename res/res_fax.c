@@ -563,6 +563,58 @@ static int update_modem_bits(enum ast_fax_modems *bits, const char *value)
 	}
 	return 0;
 }
+static char *ast_fax_caps_to_str(enum ast_fax_capabilities caps, char *buf, size_t bufsize)
+{
+	char *out = buf;
+	size_t size = bufsize;
+	int first = 1;
+
+	if (caps & AST_FAX_TECH_SEND) {
+		if (!first) {
+			ast_build_string(&buf, &size, ",");
+		}
+		ast_build_string(&buf, &size, "SEND");
+		first = 0;
+	}
+	if (caps & AST_FAX_TECH_RECEIVE) {
+		if (!first) {
+			ast_build_string(&buf, &size, ",");
+		}
+		ast_build_string(&buf, &size, "RECEIVE");
+		first = 0;
+	}
+	if (caps & AST_FAX_TECH_AUDIO) {
+		if (!first) {
+			ast_build_string(&buf, &size, ",");
+		}
+		ast_build_string(&buf, &size, "AUDIO");
+		first = 0;
+	}
+	if (caps & AST_FAX_TECH_T38) {
+		if (!first) {
+			ast_build_string(&buf, &size, ",");
+		}
+		ast_build_string(&buf, &size, "T38");
+		first = 0;
+	}
+	if (caps & AST_FAX_TECH_MULTI_DOC) {
+		if (!first) {
+			ast_build_string(&buf, &size, ",");
+		}
+		ast_build_string(&buf, &size, "MULTI_DOC");
+		first = 0;
+	}
+	if (caps & AST_FAX_TECH_GATEWAY) {
+		if (!first) {
+			ast_build_string(&buf, &size, ",");
+		}
+		ast_build_string(&buf, &size, "GATEWAY");
+		first = 0;
+	}
+
+
+	return out;
+}
 
 static int ast_fax_modem_to_str(enum ast_fax_modems bits, char *tbuf, size_t bufsize)
 {
@@ -836,7 +888,8 @@ static struct ast_fax_session *fax_session_reserve(struct ast_fax_session_detail
 	AST_RWLIST_UNLOCK(&faxmodules);
 
 	if (!faxmod) {
-		ast_log(LOG_ERROR, "Could not locate a FAX technology module with capabilities (0x%X)\n", details->caps);
+		char caps[128] = "";
+		ast_log(LOG_ERROR, "Could not locate a FAX technology module with capabilities (%s)\n", ast_fax_caps_to_str(details->caps, caps, sizeof(caps)));
 		ao2_ref(s, -1);
 		return NULL;
 	}
@@ -952,7 +1005,8 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 		AST_RWLIST_UNLOCK(&faxmodules);
 
 		if (!faxmod) {
-			ast_log(LOG_ERROR, "Could not locate a FAX technology module with capabilities (0x%X)\n", details->caps);
+			char caps[128] = "";
+			ast_log(LOG_ERROR, "Could not locate a FAX technology module with capabilities (%s)\n", ast_fax_caps_to_str(details->caps, caps, sizeof(caps)));
 			ao2_ref(s, -1);
 			return NULL;
 		}
