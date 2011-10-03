@@ -6828,6 +6828,8 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 			ast_aoc_destroy_decoded(decoded);
 		}
 		break;
+	case AST_CONTROL_UPDATE_RTP_PEER: /* Absorb this since it is handled by the bridge */
+		break;
 	case -1:
 		res = -1;
 		break;
