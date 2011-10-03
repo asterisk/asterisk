@@ -1650,7 +1650,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	ast_string_field_set(details, error, "INIT_ERROR");
 	set_channel_variables(chan, details);
 
-	if (details->caps & AST_FAX_TECH_GATEWAY) {
+	if ((details->caps & AST_FAX_TECH_GATEWAY) && (details->gateway_id > 0)) {
 		ast_string_field_set(details, resultstr, "can't receive a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing ReceiveFAX on a channel with a T.38 Gateway is not supported\n");
@@ -2120,7 +2120,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	ast_string_field_set(details, error, "INIT_ERROR");
 	set_channel_variables(chan, details);
 
-	if (details->caps & AST_FAX_TECH_GATEWAY) {
+	if ((details->caps & AST_FAX_TECH_GATEWAY) && (details->gateway_id > 0)) {
 		ast_string_field_set(details, resultstr, "can't send a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing SendFAX on a channel with a T.38 Gateway is not supported\n");
@@ -2842,8 +2842,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 				ast_channel_make_compatible(chan, peer);
 			}
 		}
-
-		details->caps &= ~AST_FAX_TECH_GATEWAY;
 
 		ao2_ref(details, -1);
 		return NULL;
@@ -3673,7 +3671,7 @@ static int load_module(void)
 	}
 
 	ast_cli_register_multiple(fax_cli, ARRAY_LEN(fax_cli));
-	res = ast_custom_function_register(&acf_faxopt);	
+	res = ast_custom_function_register(&acf_faxopt);
 	fax_logger_level = ast_logger_register_level("FAX");
 
 	return res;
