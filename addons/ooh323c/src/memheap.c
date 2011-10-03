@@ -1078,9 +1078,10 @@ void memHeapRelease (void** ppvMemHeap)
          free (pMemLink2);
       }
 
-      if ((*ppMemHeap)->flags & RT_MH_FREEHEAPDESC)
+      if ((*ppMemHeap)->flags & RT_MH_FREEHEAPDESC) {
+         ast_mutex_destroy(&pMemHeap->pLock);
          free (*ppMemHeap);
-
+      }
       *ppMemHeap = 0;
    }
 }
