@@ -1062,6 +1062,7 @@ void memHeapAddRef (void** ppvMemHeap)
 void memHeapRelease (void** ppvMemHeap)
 {
    OSMemHeap** ppMemHeap = (OSMemHeap**)ppvMemHeap;
+   OSMemHeap* pMemHeap = *ppMemHeap;
 
    if (ppMemHeap != 0 && *ppMemHeap != 0 && --(*ppMemHeap)->refCnt == 0) {
       OSMemLink* pMemLink, *pMemLink2;
