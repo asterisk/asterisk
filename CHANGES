@@ -40,6 +40,10 @@ CDR postgresql driver changes
 -----------------------------
  * Added command "cdr show pgsql status" to check connection status
 
+AMI (Asterisk Manager Interface) changes
+----------------------------------------
+ * Originate now generates an error response if the extension given
+   is not found in the dialplan
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------

@@ -3997,6 +3997,16 @@ static int action_originate(struct mansession *s, const struct message *m)
 		}
 	}
 
+	/* Check early if the extension exists. If not, we need to bail out here. */
+	if (exten && context && pi) {
+		if (! ast_exists_extension(NULL, context, exten, pi, l)) {
+			/* The extension does not exist. */
+			astman_send_error(s, m, "Extension does not exist.");
+			res = 0;
+			goto fast_orig_cleanup;
+		}
+	}
+
 	/* Allocate requested channel variables */
 	vars = astman_get_variables(m);
 
