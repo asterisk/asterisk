@@ -556,6 +556,7 @@ installdirs:
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/phoneprov"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/sounds"
+	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/moh"
 	$(INSTALL) -d "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -d "$(DESTDIR)$(AGI_DIR)"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDBDIR)"
