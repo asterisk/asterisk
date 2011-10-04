@@ -837,6 +837,9 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 		* - 1000 is 'tausend', however all other instances are 'ein tausend'
 		* - 1000000 is always 'eine million'
 		* - "million" is different in singular and plural form
+		* - 'and' should not go between a hundreds place value and any
+		*   tens/ones place values that follows it. i.e 136 is ein hundert
+		*   sechs und dreizig, not ein hundert und sechs und dreizig.
 		*/
 		if (num < 0) {
 			ast_copy_string(fn, "digits/minus", sizeof(fn));
@@ -844,10 +847,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 				num = -num;
 			} else {
 				num = 0;
-			}	
-		} else if (num < 100 && t) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
-			t = 0;
+			}
 		} else if (num == 1 && mf == -1) {
 			snprintf(fn, sizeof(fn), "digits/%dF", num);
 			num = 0;
@@ -875,7 +875,6 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 				snprintf(fn, sizeof(fn), "digits/%d", hundreds);
 			}
 			ast_copy_string(fna, "digits/hundred", sizeof(fna));
-			t = 1;
 		} else if (num == 1000 && t == 0) {
 			ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			num = 0;
