@@ -64,7 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ast_version.h"
 
 /*** DOCUMENTATION
-	<application name="ReceiveFax" language="en_US">
+	<application name="ReceiveFAX" language="en_US">
 		<synopsis>
 			Receive a FAX and save as a TIFF/F file.
 		</synopsis>
@@ -93,7 +93,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">FAXOPT</ref>
 		</see-also>
 	</application>
-	<application name="SendFax" language="en_US">
+	<application name="SendFAX" language="en_US">
 		<synopsis>
 			Sends a specified TIFF/F file as a FAX.
 		</synopsis>
