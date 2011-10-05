@@ -174,6 +174,8 @@ struct ast_fax_session_details {
 	int gateway_id;
 	/*! the timeout for this gateway in seconds */
 	int gateway_timeout;
+	/*! the id of the faxdetect framehook for this channel */
+	int faxdetect_id;
 };
 
 struct ast_fax_tech;

@@ -192,6 +192,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="gateway">
 						<para>R/W T38 fax gateway, with optional fax activity timeout in seconds (yes[,timeout]/no)</para>
 					</enum>
+					<enum name="faxdetect">
+						<para>R/W Enable FAX detect with optional timeout in seconds (yes,t38,cng[,timeout]/no)</para>
+					</enum>
 					<enum name="pages">
 						<para>R/O Number of pages transferred.</para>
 					</enum>
@@ -267,6 +270,27 @@ struct fax_gateway {
 	struct ast_format peer_read_format;
 	struct ast_format peer_write_format;
 };
+
+/*! \brief used for fax detect framehook */
+struct fax_detect {
+	/*! \brief the start of our timeout counter */
+	struct timeval timeout_start;
+	/*! \brief faxdetect timeout */
+	int timeout;
+	/*! \brief DSP Processor */
+	struct ast_dsp *dsp;
+	/*! \brief original audio formats */
+	struct ast_format orig_format;
+	/*! \brief fax session details */
+	struct ast_fax_session_details *details;
+	/*! \brief mode */
+	int flags;
+};
+
+/*! \brief FAX Detect flags */
+#define FAX_DETECT_MODE_CNG	(1 << 0)
+#define FAX_DETECT_MODE_T38	(1 << 1)
+#define	FAX_DETECT_MODE_BOTH	(FAX_DETECT_MODE_CNG | FAX_DETECT_MODE_T38)
 
 static int fax_logger_level = -1;
 
@@ -452,6 +476,7 @@ static struct ast_fax_session_details *session_details_new(void)
 	d->minrate = general_options.minrate;
 	d->maxrate = general_options.maxrate;
 	d->gateway_id = -1;
+	d->faxdetect_id = -1;
 	d->gateway_timeout = 0;
 
 	return d;
@@ -3124,6 +3149,242 @@ static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_d
 	return gateway->framehook;
 }
 
+/*! \brief destroy a FAX detect structure */
+static void destroy_faxdetect(void *data)
+{
+	struct fax_detect *faxdetect = data;
+
+	if (faxdetect->dsp) {
+		ast_dsp_free(faxdetect->dsp);
+		faxdetect->dsp = NULL;
+	}
+	ao2_ref(faxdetect->details, -1);
+}
+
+/*! \brief Create a new fax detect object.
+ * \param chan the channel attaching to
+ * \param timeout remove framehook in this time if set
+ * \param flags required options
+ * \return NULL or a fax gateway object
+ */
+static struct fax_detect *fax_detect_new(struct ast_channel *chan, int timeout, int flags)
+{
+	struct fax_detect *faxdetect = ao2_alloc(sizeof(*faxdetect), destroy_faxdetect);
+	if (!faxdetect) {
+		return NULL;
+	}
+
+	faxdetect->flags = flags;
+
+	if (timeout) {
+		faxdetect->timeout_start = ast_tvnow();
+	} else {
+		faxdetect->timeout_start.tv_sec = 0;
+		faxdetect->timeout_start.tv_usec = 0;
+	}
+
+	if (faxdetect->flags & FAX_DETECT_MODE_CNG) {
+		faxdetect->dsp = ast_dsp_new();
+		if (!faxdetect->dsp) {
+			ao2_ref(faxdetect, -1);
+			return NULL;
+		}
+		ast_dsp_set_features(faxdetect->dsp, DSP_FEATURE_FAX_DETECT);
+		ast_dsp_set_faxmode(faxdetect->dsp, DSP_FAXMODE_DETECT_CNG | DSP_FAXMODE_DETECT_SQUELCH);
+	} else {
+		faxdetect->dsp = NULL;
+	}
+
+	return faxdetect;
+}
+
+/*! \brief Deref the faxdetect data structure when the faxdetect framehook is detached
+ * \param data framehook data (faxdetect data)*/
+static void fax_detect_framehook_destroy(void *data) {
+	struct fax_detect *faxdetect = data;
+
+	ao2_ref(faxdetect, -1);
+}
+
+/*! \brief Fax Detect Framehook
+ *
+ * Listen for fax tones in audio path and enable jumping to a extension when detected.
+ *
+ * \param chan channel
+ * \param f frame to handle may be NULL
+ * \param event framehook event
+ * \param data framehook data (struct fax_detect *)
+ *
+ * \return processed frame or NULL when f is NULL or a null frame
+ */
+static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data) {
+	struct fax_detect *faxdetect = data;
+	struct ast_fax_session_details *details;
+	struct ast_control_t38_parameters *control_params;
+	struct ast_channel *peer;
+	int result = 0;
+
+	details = faxdetect->details;
+
+	switch (event) {
+	case AST_FRAMEHOOK_EVENT_ATTACHED:
+		/* Setup format for DSP on ATTACH*/
+		ast_format_copy(&faxdetect->orig_format, &chan->readformat);
+		switch (chan->readformat.id) {
+			case AST_FORMAT_SLINEAR:
+			case AST_FORMAT_ALAW:
+			case AST_FORMAT_ULAW:
+				break;
+			default:
+				if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+					ast_framehook_detach(chan, details->faxdetect_id);
+					details->faxdetect_id = -1;
+					return f;
+				}
+		}
+		return NULL;
+	case AST_FRAMEHOOK_EVENT_DETACHED:
+		/* restore audio formats when we are detached */
+		ast_set_read_format(chan, &faxdetect->orig_format);
+		if ((peer = ast_bridged_channel(chan))) {
+			ast_channel_make_compatible(chan, peer);
+		}
+		return NULL;
+	case AST_FRAMEHOOK_EVENT_READ:
+		if (f) {
+			break;
+		}
+	default:
+		return f;
+	};
+
+	if (details->faxdetect_id < 0) {
+		return f;
+	}
+
+	if ((!ast_tvzero(faxdetect->timeout_start) &&
+	    (ast_tvdiff_ms(ast_tvnow(), faxdetect->timeout_start) > faxdetect->timeout))) {
+		ast_framehook_detach(chan, details->faxdetect_id);
+		details->faxdetect_id = -1;
+		return f;
+	}
+
+	/* only handle VOICE and CONTROL frames*/
+	switch (f->frametype) {
+	case AST_FRAME_VOICE:
+		/* we have no DSP this means we not detecting CNG */
+		if (!faxdetect->dsp) {
+			break;
+		}
+		/* We can only process some formats*/
+		switch (f->subclass.format.id) {
+			case AST_FORMAT_SLINEAR:
+			case AST_FORMAT_ALAW:
+			case AST_FORMAT_ULAW:
+				break;
+			default:
+				return f;
+		}
+		break;
+	case AST_FRAME_CONTROL:
+		if ((f->subclass.integer == AST_CONTROL_T38_PARAMETERS) &&
+		    (faxdetect->flags & FAX_DETECT_MODE_T38)) {
+			break;
+		}
+		return f;
+	default:
+		return f;
+	}
+
+	if (f->frametype == AST_FRAME_VOICE) {
+		f = ast_dsp_process(chan, faxdetect->dsp, f);
+		if (f->frametype == AST_FRAME_DTMF) {
+			result = f->subclass.integer;
+		}
+	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->datalen == sizeof(struct ast_control_t38_parameters))) {
+		control_params = f->data.ptr;
+		switch (control_params->request_response) {
+		case AST_T38_NEGOTIATED:
+		case AST_T38_REQUEST_NEGOTIATE:
+			result = 't';
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (result) {
+		const char *target_context = S_OR(chan->macrocontext, chan->context);
+		switch (result) {
+		case 'f':
+		case 't':
+			ast_channel_unlock(chan);
+			if (ast_exists_extension(chan, target_context, "fax", 1,
+			    S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+				ast_channel_lock(chan);
+				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to %s detection\n",
+					chan->name, (result == 'f') ? "CNG" : "T38");
+				pbx_builtin_setvar_helper(chan, "FAXEXTEN", chan->exten);
+				if (ast_async_goto(chan, target_context, "fax", 1)) {
+					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", chan->name, target_context);
+				}
+				ast_frfree(f);
+				f = &ast_null_frame;
+			} else {
+				ast_channel_lock(chan);
+				ast_log(LOG_NOTICE, "FAX %s detected but no fax extension in context (%s)\n",
+					(result == 'f') ? "CNG" : "T38", target_context);
+			}
+		}
+		ast_framehook_detach(chan, details->faxdetect_id);
+		details->faxdetect_id = -1;
+	}
+
+	return f;
+}
+
+/*! \brief Attach a faxdetect framehook object to a channel.
+ * \param chan the channel to attach to
+ * \param timeout remove framehook in this time if set
+ * \return the faxdetect structure or NULL on error
+ * \param flags required options
+ * \retval -1 error
+ */
+static int fax_detect_attach(struct ast_channel *chan, int timeout, int flags)
+{
+	struct fax_detect *faxdetect;
+	struct ast_fax_session_details *details;
+	struct ast_framehook_interface fr_hook = {
+		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
+		.event_cb = fax_detect_framehook,
+		.destroy_cb = fax_detect_framehook_destroy,
+	};
+
+	if (!(details = find_or_create_details(chan))) {
+		ast_log(LOG_ERROR, "System cannot provide memory for session requirements.\n");
+		return -1;
+	}
+
+	/* set up the frame hook*/
+	faxdetect = fax_detect_new(chan, timeout, flags);
+	if (!faxdetect) {
+		ao2_ref(details, -1);
+		return -1;
+	}
+
+	fr_hook.data = faxdetect;
+	faxdetect->details = details;
+	ast_channel_lock(chan);
+	details->faxdetect_id = ast_framehook_attach(chan, &fr_hook);
+	ast_channel_unlock(chan);
+
+	if (details->faxdetect_id < 0) {
+		ao2_ref(faxdetect, -1);
+	}
+
+	return details->faxdetect_id;
+}
+
 /*! \brief hash callback for ao2 */
 static int session_hash_cb(const void *obj, const int flags)
 {
@@ -3525,6 +3786,8 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 	} else if (!strcasecmp(data, "t38gateway") || !strcasecmp(data, "gateway") ||
 		   !strcasecmp(data, "t38_gateway") || !strcasecmp(data, "faxgateway")) {
 		ast_copy_string(buf, details->gateway_id != -1 ? "yes" : "no", len);
+	} else if (!strcasecmp(data, "faxdetect")) {
+		ast_copy_string(buf, details->faxdetect_id != -1 ? "yes" : "no", len);
 	} else if (!strcasecmp(data, "error")) {
 		ast_copy_string(buf, details->error, len);
 	} else if (!strcasecmp(data, "filename")) {
@@ -3633,6 +3896,51 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		} else if (ast_false(val)) {
 			ast_framehook_detach(chan, details->gateway_id);
 			details->gateway_id = -1;
+		} else {
+			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
+		}
+	} else if (!strcasecmp(data, "faxdetect")) {
+		const char *val = ast_skip_blanks(value);
+		char *timeout = strchr(val, ',');
+		unsigned int fdtimeout = 0;
+		int flags;
+		int faxdetect;
+
+		if (timeout) {
+			*timeout++ = '\0';
+		}
+
+		if (ast_true(val) || !strcasecmp(val, "t38") || !strcasecmp(val, "cng")) {
+			if (details->faxdetect_id < 0) {
+				if (timeout && (sscanf(timeout, "%u", &fdtimeout) == 1)) {
+					if (fdtimeout > 0) {
+						fdtimeout = fdtimeout * 1000;
+					} else {
+						ast_log(LOG_WARNING, "Timeout cannot be negative ignoring timeout\n");
+					}
+				}
+
+				if (!strcasecmp(val, "t38")) {
+					flags = FAX_DETECT_MODE_T38;
+				} else if (!strcasecmp(val, "cng")) {
+					flags = FAX_DETECT_MODE_CNG;
+				} else {
+					flags = FAX_DETECT_MODE_BOTH;
+				}
+
+				faxdetect = fax_detect_attach(chan, fdtimeout, flags);
+				if (faxdetect < 0) {
+					ast_log(LOG_ERROR, "Error attaching FAX detect to channel %s.\n", chan->name);
+					res = -1;
+				} else {
+					ast_debug(1, "Attached FAX detect to channel %s.\n", chan->name);
+				}
+			} else {
+				ast_log(LOG_WARNING, "Attempt to attach a FAX detect on channel (%s) with FAX detect already running.\n", chan->name);
+			}
+		} else if (ast_false(val)) {
+			ast_framehook_detach(chan, details->faxdetect_id);
+			details->faxdetect_id = -1;
 		} else {
 			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
 		}

@@ -45,6 +45,11 @@ AMI (Asterisk Manager Interface) changes
  * Originate now generates an error response if the extension given
    is not found in the dialplan
 
+FAX changes
+-----------
+ * FAXOPT(faxdetect) will enable a generic fax detect framehook for dialplan
+   control of faxdetect.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
