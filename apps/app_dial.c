@@ -165,7 +165,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<note>
 						<para>Any channel variables you want the called channel to inherit from the caller channel must be
 						prefixed with one or two underbars ('_').</para>
-						<para>Additionally, using this option from a Macro() or GoSub() might not make sense as there would be no return points</para>
+					</note>
+					<note>
+						<para>Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
 					</note>
 				</option>
 				<option name="g">
