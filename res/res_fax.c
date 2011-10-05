@@ -826,6 +826,9 @@ static void destroy_session(void *session)
 	}
 
 	if (s->details) {
+		if (s->details->caps & AST_FAX_TECH_GATEWAY) {
+			s->details->caps &= ~AST_FAX_TECH_GATEWAY;
+		}
 		ao2_ref(s->details, -1);
 	}
 	
@@ -1704,7 +1707,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	ast_string_field_set(details, error, "INIT_ERROR");
 	set_channel_variables(chan, details);
 
-	if ((details->caps & AST_FAX_TECH_GATEWAY) && (details->gateway_id > 0)) {
+	if (details->gateway_id > 0) {
 		ast_string_field_set(details, resultstr, "can't receive a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing ReceiveFAX on a channel with a T.38 Gateway is not supported\n");
@@ -2174,7 +2177,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	ast_string_field_set(details, error, "INIT_ERROR");
 	set_channel_variables(chan, details);
 
-	if ((details->caps & AST_FAX_TECH_GATEWAY) && (details->gateway_id > 0)) {
+	if (details->gateway_id > 0) {
 		ast_string_field_set(details, resultstr, "can't send a fax on a channel with a T.38 gateway");
 		set_channel_variables(chan, details);
 		ast_log(LOG_ERROR, "executing SendFAX on a channel with a T.38 Gateway is not supported\n");
@@ -2431,7 +2434,6 @@ static void destroy_gateway(void *data)
 	if (gateway->s) {
 		fax_session_release(gateway->s, gateway->token);
 		gateway->token = NULL;
-		gateway->s->details->caps &= ~AST_FAX_TECH_GATEWAY;
 
 		ao2_lock(faxregistry.container);
 		ao2_unlink(faxregistry.container, gateway->s);
