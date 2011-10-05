@@ -156,6 +156,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="AuthType" required="true">
+				<para>Digest algorithm to use in the challenge. Valid values are:</para>
+				<enumlist>
+					<enum name="MD5" />
+				</enumlist>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Generate a challenge for MD5 authentication.</para>
