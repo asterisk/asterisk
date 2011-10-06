@@ -1280,9 +1280,7 @@ struct skinny_subchannel {
 	int amaflags;					\
 	int instance;					\
 	int group;					\
-	struct ast_format_cap *confcap;				\
 	struct ast_codec_pref confprefs;		\
-	struct ast_format_cap *cap;					\
 	struct ast_codec_pref prefs;			\
 	int nonCodecCapability;				\
 	int immediate;					\
@@ -1301,6 +1299,8 @@ struct skinny_line {
 	AST_LIST_ENTRY(skinny_line) list;
 	AST_LIST_ENTRY(skinny_line) all;
 	struct skinny_device *device;
+	struct ast_format_cap *cap;
+	struct ast_format_cap *confcap;
 	struct ast_variable *chanvars; /*!< Channel variables to set for inbound call */
 	int newmsgs;
 };
@@ -1386,9 +1386,7 @@ struct skinny_addon {
 	int hookstate;					\
 	int lastlineinstance;					\
 	int lastcallreference;					\
-	struct ast_format_cap *confcap;					\
 	struct ast_codec_pref confprefs;			\
-	struct ast_format_cap *cap;						\
 	int earlyrtp;						\
 	int transfer;						\
 	int callwaiting;					\
@@ -1406,6 +1404,8 @@ struct skinny_device {
 	struct ast_ha *ha;
 	struct skinnysession *session;
 	struct skinny_line *activeline;
+	struct ast_format_cap *cap;
+	struct ast_format_cap *confcap;
 	AST_LIST_HEAD(, skinny_line) lines;
 	AST_LIST_HEAD(, skinny_speeddial) speeddials;
 	AST_LIST_HEAD(, skinny_addon) addons;
@@ -7347,20 +7347,20 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
  			}
  		} else if (!strcasecmp(v->name, "allow")) {
  			if (type & (TYPE_DEF_DEVICE | TYPE_DEVICE)) {
- 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, CDEV_OPTS->confcap, v->value, 1);
+ 				ast_parse_allow_disallow(&CDEV->confprefs, CDEV->confcap, v->value, 1);
  				continue;
  			}
  			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
- 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, CLINE_OPTS->confcap, v->value, 1);
+ 				ast_parse_allow_disallow(&CLINE->confprefs, CLINE->confcap, v->value, 1);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "disallow")) {
  			if (type & (TYPE_DEF_DEVICE | TYPE_DEVICE)) {
- 				ast_parse_allow_disallow(&CDEV_OPTS->confprefs, CDEV_OPTS->confcap, v->value, 0);
+ 				ast_parse_allow_disallow(&CDEV->confprefs, CDEV->confcap, v->value, 0);
  				continue;
  			}
  			if (type & (TYPE_DEF_LINE | TYPE_LINE)) {
- 				ast_parse_allow_disallow(&CLINE_OPTS->confprefs, CLINE_OPTS->confcap, v->value, 0);
+ 				ast_parse_allow_disallow(&CLINE->confprefs, CLINE->confcap, v->value, 0);
  				continue;
  			}
  		} else if (!strcasecmp(v->name, "version")) {
@@ -7545,6 +7545,7 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
  	memcpy(l, default_line, sizeof(*default_line));
  	ast_mutex_init(&l->lock);
  	ast_copy_string(l->name, lname, sizeof(l->name));
+	ast_format_cap_copy(l->confcap, default_cap);
  	AST_LIST_INSERT_TAIL(&lines, l, all);
 
  	ast_mutex_lock(&l->lock);
@@ -7602,6 +7603,7 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
  	memcpy(d, default_device, sizeof(*default_device));
  	ast_mutex_init(&d->lock);
  	ast_copy_string(d->name, dname, sizeof(d->name));
+	ast_format_cap_copy(d->confcap, default_cap);
  	AST_LIST_INSERT_TAIL(&devices, d, list);
 
  	ast_mutex_lock(&d->lock);
@@ -7714,7 +7716,6 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 	bindaddr.sin_family = AF_INET;
 
 	/* load the lines sections */
-	ast_format_cap_copy(default_line->confcap, default_cap);
 	default_line->confprefs = default_prefs;
 	config_parse_variables(TYPE_DEF_LINE, default_line, ast_variable_browse(cfg, "lines"));
 	cat = ast_category_browse(cfg, "lines");
@@ -7724,7 +7725,6 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 	}
 		
 	/* load the devices sections */
-	ast_format_cap_copy(default_device->confcap, default_cap);
 	default_device->confprefs = default_prefs;
 	config_parse_variables(TYPE_DEF_DEVICE, default_device, ast_variable_browse(cfg, "devices"));
 	cat = ast_category_browse(cfg, "devices");
@@ -7795,6 +7795,7 @@ static void delete_devices(void)
 		/* Delete all lines for this device */
 		while ((l = AST_LIST_REMOVE_HEAD(&d->lines, list))) {
 			AST_LIST_REMOVE(&lines, l, all);
+			AST_LIST_REMOVE(&d->lines, l, list);
 			l = skinny_line_destroy(l);
 		}
 		/* Delete all speeddials for this device */
@@ -7904,26 +7905,10 @@ static int load_module(void)
 	if (!(skinny_tech.capabilities = ast_format_cap_alloc())) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (!(default_line->confcap = ast_format_cap_alloc())) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-	if (!(default_line->cap = ast_format_cap_alloc())) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-	if (!(default_device->confcap = ast_format_cap_alloc())) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-	if (!(default_device->cap = ast_format_cap_alloc())) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
 
 	ast_format_cap_add_all_by_type(skinny_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
 	ast_format_cap_add(default_cap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
 	ast_format_cap_add(default_cap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
-	ast_format_cap_add(default_line->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
-	ast_format_cap_add(default_line->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
-	ast_format_cap_add(default_device->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
-	ast_format_cap_add(default_device->confcap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
 
 	for (; res < ARRAY_LEN(soft_key_template_default); res++) {
 		soft_key_template_default[res].softKeyEvent = htolel(soft_key_template_default[res].softKeyEvent);
@@ -8029,10 +8014,6 @@ static int unload_module(void)
 
 	default_cap = ast_format_cap_destroy(default_cap);
 	skinny_tech.capabilities = ast_format_cap_destroy(skinny_tech.capabilities);
-	default_line->confcap = ast_format_cap_destroy(default_line->confcap);
-	default_line->cap = ast_format_cap_destroy(default_line->cap);
-	default_device->confcap = ast_format_cap_destroy(default_device->confcap);
-	default_device->cap = ast_format_cap_destroy(default_device->cap);
 	return 0;
 }
 
