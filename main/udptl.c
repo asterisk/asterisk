@@ -172,7 +172,6 @@ struct ast_udptl {
 
 	unsigned int tx_seq_no;
 	unsigned int rx_seq_no;
-	unsigned int rx_expected_seq_no;
 
 	udptl_fec_tx_buffer_t tx[UDPTL_BUF_MASK + 1];
 	udptl_fec_rx_buffer_t rx[UDPTL_BUF_MASK + 1];
@@ -289,7 +288,7 @@ static int encode_open_type(const struct ast_udptl *udptl, uint8_t *buf, unsigne
 		if ((enclen = encode_length(buf, len, num_octets)) < 0)
 			return -1;
 		if (enclen + *len > buflen) {
-			ast_log(LOG_ERROR, "(%s): Buffer overflow detected (%d + %d > %d)\n",
+			ast_log(LOG_ERROR, "UDPTL (%s): Buffer overflow detected (%d + %d > %d)\n",
 				LOG_TAG(udptl), enclen, *len, buflen);
 			return -1;
 		}
@@ -577,7 +576,7 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, unsigned int bu
 		for (i = 0; i < entries; i++) {
 			j = (entry - i - 1) & UDPTL_BUF_MASK;
 			if (encode_open_type(s, buf, buflen, &len, s->tx[j].buf, s->tx[j].buf_len) < 0) {
-				ast_debug(1, "(%s): Encoding failed at i=%d, j=%d\n",
+				ast_debug(1, "UDPTL (%s): Encoding failed at i=%d, j=%d\n",
 					  LOG_TAG(s), i, j);
 				return -1;
 			}
@@ -663,17 +662,19 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 {
 	int res;
 	struct ast_sockaddr addr;
-	uint16_t seqno = 0;
-	
+	uint8_t *buf;
+
+	buf = udptl->rawdata + AST_FRIENDLY_OFFSET;
+
 	/* Cache where the header will go */
 	res = ast_recvfrom(udptl->fd,
-			udptl->rawdata + AST_FRIENDLY_OFFSET,
+			buf,
 			sizeof(udptl->rawdata) - AST_FRIENDLY_OFFSET,
 			0,
 			&addr);
 	if (res < 0) {
 		if (errno != EAGAIN)
-			ast_log(LOG_WARNING, "(%s): UDPTL read error: %s\n",
+			ast_log(LOG_WARNING, "UDPTL (%s): read error: %s\n",
 				LOG_TAG(udptl), strerror(errno));
 		ast_assert(errno != EBADF);
 		return &ast_null_frame;
@@ -688,17 +689,28 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 		/* Send to whoever sent to us */
 		if (ast_sockaddr_cmp(&udptl->them, &addr)) {
 			ast_sockaddr_copy(&udptl->them, &addr);
-			ast_debug(1, "UDPTL NAT (%s): Using address %s\n",
+			ast_debug(1, "UDPTL (%s): NAT, Using address %s\n",
 				  LOG_TAG(udptl), ast_sockaddr_stringify(&udptl->them));
 		}
 	}
 
 	if (udptl_debug_test_addr(&addr)) {
-		ast_verb(1, "UDPTL (%s): packet from %s (type %d, seq %d, len %d)\n",
-			 LOG_TAG(udptl), ast_sockaddr_stringify(&addr), 0, seqno, res);
+		int seq_no;
+
+		/* Decode sequence number just for verbose message. */
+		if (res < 2) {
+			/* Short packet. */
+			seq_no = -1;
+		} else {
+			seq_no = (buf[0] << 8) | buf[1];
+		}
+
+		ast_verb(1, "UDPTL (%s): packet from %s (seq %d, len %d)\n",
+			LOG_TAG(udptl), ast_sockaddr_stringify(&addr), seq_no, res);
 	}
-	if (udptl_rx_packet(udptl, udptl->rawdata + AST_FRIENDLY_OFFSET, res) < 1)
+	if (udptl_rx_packet(udptl, buf, res) < 1) {
 		return &ast_null_frame;
+	}
 
 	return &udptl->f[0];
 }
@@ -708,7 +720,7 @@ static void calculate_local_max_datagram(struct ast_udptl *udptl)
 	unsigned int new_max = 0;
 
 	if (udptl->local_max_ifp == -1) {
-		ast_log(LOG_WARNING, "(%s): Cannot calculate local_max_datagram before local_max_ifp has been set.\n",
+		ast_log(LOG_WARNING, "UDPTL (%s): Cannot calculate local_max_datagram before local_max_ifp has been set.\n",
 			LOG_TAG(udptl));
 		udptl->local_max_datagram = -1;
 		return;
@@ -749,7 +761,7 @@ static void calculate_far_max_ifp(struct ast_udptl *udptl)
 	unsigned new_max = 0;
 
 	if (udptl->far_max_datagram == -1) {
-		ast_log(LOG_WARNING, "(%s): Cannot calculate far_max_ifp before far_max_datagram has been set.\n",
+		ast_log(LOG_WARNING, "UDPTL (%s): Cannot calculate far_max_ifp before far_max_datagram has been set.\n",
 			LOG_TAG(udptl));
 		udptl->far_max_ifp = -1;
 		return;
@@ -981,10 +993,8 @@ void ast_udptl_set_tag(struct ast_udptl *udptl, const char *format, ...)
 {
 	va_list ap;
 
-	if (udptl->tag) {
-		ast_free(udptl->tag);
-		udptl->tag = NULL;
-	}
+	ast_free(udptl->tag);
+	udptl->tag = NULL;
 	va_start(ap, format);
 	if (ast_vasprintf(&udptl->tag, format, ap) == -1) {
 		udptl->tag = NULL;
@@ -1050,14 +1060,14 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	
 	if ((f->frametype != AST_FRAME_MODEM) ||
 	    (f->subclass.integer != AST_MODEM_T38)) {
-		ast_log(LOG_WARNING, "(%s): UDPTL can only send T.38 data.\n",
+		ast_log(LOG_WARNING, "UDPTL (%s): UDPTL can only send T.38 data.\n",
 			LOG_TAG(s));
 		return -1;
 	}
 
 	if (len > s->far_max_ifp) {
 		ast_log(LOG_WARNING,
-			"(%s): UDPTL asked to send %d bytes of IFP when far end only prepared to accept %d bytes; data loss will occur."
+			"UDPTL (%s): UDPTL asked to send %d bytes of IFP when far end only prepared to accept %d bytes; data loss will occur."
 			"You may need to override the T38FaxMaxDatagram value for this endpoint in the channel driver configuration.\n",
 			LOG_TAG(s), len, s->far_max_ifp);
 		len = s->far_max_ifp;
@@ -1071,11 +1081,11 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 
 	if ((signed int) len > 0 && !ast_sockaddr_isnull(&s->them)) {
 		if ((res = ast_sendto(s->fd, buf, len, 0, &s->them)) < 0)
-			ast_log(LOG_NOTICE, "(%s): UDPTL Transmission error to %s: %s\n",
+			ast_log(LOG_NOTICE, "UDPTL (%s): Transmission error to %s: %s\n",
 				LOG_TAG(s), ast_sockaddr_stringify(&s->them), strerror(errno));
 		if (udptl_debug_test_addr(&s->them))
-			ast_verb(1, "UDPTL (%s): packet to %s (type %d, seq %d, len %d)\n",
-				 LOG_TAG(s), ast_sockaddr_stringify(&s->them), 0, seq, len);
+			ast_verb(1, "UDPTL (%s): packet to %s (seq %d, len %d)\n",
+				LOG_TAG(s), ast_sockaddr_stringify(&s->them), seq, len);
 	}
 		
 	return 0;
