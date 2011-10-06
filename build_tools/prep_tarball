@@ -7,27 +7,23 @@
 
 make -C sounds MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-OPSOUND-WAV WGET=wget DOWNLOAD=wget all
 
-if ! which wikiexport.py 2>&1 > /dev/null ; then
-	echo
-	echo "wikiexport.py not found in \${PATH}."
-	echo
-	echo "Please add repotools into PATH."
-	echo "    $ svn co http://svn.asterisk.org/svn/repotools"
-	echo
+branch=$1
+
+if [ -z "$branch" ]
+then
+	echo "No branch specified. Exiting."
 	exit 1
 fi
 
-if ! which pdftotext 2>&1 > /dev/null ; then
-	echo
-	echo "pdftotext not found.  Please install it."
-	echo
-	echo "On Debian/Ubuntu/Fedora/CentOS, install the poppler-utils package."
-	echo
-	exit 1
-fi
+hash unzip 2>&- || { echo >&2 "The unzip application is required but was not found. Aborting."; exit 1; }
 
 cd doc
-echo "Exporting Asterisk wiki to a PDF (this will take a minute) ..."
-wikiexport.py
-echo "Converting wiki export PDF to plain text ..."
-pdftotext AST.pdf
+echo "Downloading the PDF and HTML documentation from the Asterisk wiki (this will take a minute) ..."
+wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin-Guide-$branch.pdf
+wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin-Guide-$branch.html.zip
+echo "Extracting HTML Admin Guide"
+unzip Asterisk-Admin-Guide-$branch.html.zip
+mv AST/ Asterisk-Admin-Guide/
+mv Asterisk-Admin-Guide-1.8.pdf Asterisk-Admin-Guide.pdf
+rm -f Asterisk-Admin-Guide-$branch.html.zip
+echo "Documentation downloaded. Goodbye!"
