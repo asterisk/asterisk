@@ -5014,13 +5014,13 @@ static void change_t38_state(struct sip_pvt *p, int state)
 		parameters = p->t38.their_parms;
 		parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
 		parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
-		ast_udptl_set_tag(p->udptl, "SIP/%s", p->username);
+		ast_udptl_set_tag(p->udptl, "%s", chan->name);
 		break;
 	case T38_ENABLED:
 		parameters = p->t38.their_parms;
 		parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
 		parameters.request_response = AST_T38_NEGOTIATED;
-		ast_udptl_set_tag(p->udptl, "SIP/%s", p->username);
+		ast_udptl_set_tag(p->udptl, "%s", chan->name);
 		break;
 	case T38_REJECTED:
 	case T38_DISABLED:
