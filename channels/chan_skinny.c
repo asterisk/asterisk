@@ -273,6 +273,9 @@ struct register_message {
 	uint32_t ip;
 	uint32_t type;
 	uint32_t maxStreams;
+	uint32_t space;
+	uint8_t protocolVersion;
+	char space2[3] ;
 };
 
 #define IP_PORT_MESSAGE 0x0002
@@ -2048,6 +2051,11 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	struct sockaddr_in sin;
 	socklen_t slen;
 	int instance;
+
+	if (letohl(req->data.reg.protocolVersion) >= 17) {
+		ast_log(LOG_WARNING, "Asterisk10 does not support skinny protocol 17 and above. Rejecting device.\n");
+		return 0;
+	}
 
 	AST_LIST_LOCK(&devices);
 	AST_LIST_TRAVERSE(&devices, d, list){
