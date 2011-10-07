@@ -101,7 +101,7 @@ static int sendurl_exec(struct ast_channel *chan, const char *data)
 	struct ast_frame *f;
 	char *status = "FAILURE";
 	char *opts[0];
-	struct ast_flags flags;
+	struct ast_flags flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(url);
 		AST_APP_ARG(options);
