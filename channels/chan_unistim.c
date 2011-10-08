@@ -882,6 +882,7 @@ static struct unistimsession *create_client(const struct sockaddr_in *addr_from)
 
 	memcpy(&s->sin, addr_from, sizeof(struct sockaddr_in));
 	get_to_address(unistimsock, &s->sout);
+	sout.sin_family = AF_INET;
 	if (unistimdebug) {
 		ast_verb(0, "Creating a new entry for the phone from %s received via server ip %s\n",
 			 ast_inet_ntoa(addr_from->sin_addr), ast_inet_ntoa(s->sout.sin_addr));
