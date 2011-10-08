@@ -802,7 +802,7 @@ static void send_client(int size, const unsigned char *data, struct unistimsessi
 {
 	unsigned int tick;
 	int buf_pos;
-	unsigned short *sdata = (unsigned short *) data;
+	unsigned short seq = ntohs(++pte->seq_server);
 
 	ast_mutex_lock(&pte->lock);
 	buf_pos = pte->last_buf_available;
@@ -812,7 +812,7 @@ static void send_client(int size, const unsigned char *data, struct unistimsessi
 		ast_mutex_unlock(&pte->lock);
 		return;
 	}
-	sdata[1] = ntohs(++(pte->seq_server));
+	memcpy((void *)data + sizeof(unsigned short), (void *)&seq, sizeof(unsigned short));
 	pte->wsabufsend[buf_pos].len = size;
 	memcpy(pte->wsabufsend[buf_pos].buf, data, size);
 
