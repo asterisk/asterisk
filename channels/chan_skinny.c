@@ -6607,6 +6607,8 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 			transmit_capabilitiesreq(s->device);
 		} else {
 			transmit_registerrej(s);
+			ast_free(req);
+			return -1;
 		}
 	case IP_PORT_MESSAGE:
 		res = handle_ip_port_message(req, s);
@@ -6926,6 +6928,7 @@ static void *skinny_session(void *data)
 			res = handle_message(req, s);
 			if (res < 0) {
 				destroy_session(s);
+				ast_verb(3, "Ending Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 				return NULL;
 			}
 		}
