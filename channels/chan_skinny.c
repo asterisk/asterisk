@@ -6773,8 +6773,6 @@ static void destroy_session(struct skinnysession *s)
 			ast_mutex_destroy(&s->lock);
 			
 			ast_free(s);
-		} else {
-			ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
