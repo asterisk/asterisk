@@ -87,7 +87,9 @@ Asterisk Database:
    SQLite 3. An existing Berkeley astdb file can be converted with the astdb2sqlite3
    utility in the UTILS section of menuselect. If an existing astdb is found and no
    astdb.sqlite3 exists, astdb2sqlite3 will be compiled automatically. Asterisk will
-   convert an existing astdb to the SQLite3 version automatically at runtime.
+   convert an existing astdb to the SQLite3 version automatically at runtime. If
+   moving back from Asterisk 10 to Asterisk 1.8, the astdb2bdb utility can be used
+   to create a Berkeley DB copy of the SQLite3 astdb that Asterisk 10 uses.
 
 Manager:
  - The AMI protocol version was incremented to 1.2 as a result of changing two
