@@ -46,7 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 
 /*** DOCUMENTATION
-	<application name="SendFAX" language="en_US">
+	<application name="SendFAX" language="en_US" module="app_fax">
 		<synopsis>
 			Send a Fax
 		</synopsis>
@@ -91,7 +91,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</variablelist>
 		</description>
 	</application>
-	<application name="ReceiveFAX" language="en_US">
+	<application name="ReceiveFAX" language="en_US" module="app_fax">
 		<synopsis>
 			Receive a Fax
 		</synopsis>

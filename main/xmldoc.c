@@ -456,46 +456,96 @@ static void xmldoc_string_cleanup(const char *text, struct ast_str **output, int
 }
 
 /*! \internal
+ * \brief Check if the given attribute on the given node matches the given value.
+ * \param node the node to match
+ * \param attr the name of the attribute
+ * \param value the expected value of the attribute
+ * \retval true if the given attribute contains the given value
+ * \retval false if the given attribute does not exist or does not contain the given value
+ */
+static int xmldoc_attribute_match(struct ast_xml_node *node, const char *attr, const char *value)
+{
+	const char *attr_value = ast_xml_get_attribute(node, attr);
+	int match = attr_value && !strcmp(attr_value, value);
+	ast_xml_free_attr(attr_value);
+	return match;
+}
+
+/*! \internal
  *  \brief Get the application/function node for 'name' application/function with language 'language'
- *         if we don't find any, get the first application with 'name' no matter which language with.
+ *         and module 'module' if we don't find any, get the first application
+ *         with 'name' no matter which language or module.
  *  \param type 'application', 'function', ...
  *  \param name Application or Function name.
+ *  \param module Module item is in.
  *  \param language Try to get this language (if not found try with en_US)
  *  \retval NULL on error.
  *  \retval A node of type ast_xml_node.
  */
-static struct ast_xml_node *xmldoc_get_node(const char *type, const char *name, const char *language)
+static struct ast_xml_node *xmldoc_get_node(const char *type, const char *name, const char *module, const char *language)
 {
 	struct ast_xml_node *node = NULL;
+	struct ast_xml_node *first_match = NULL;
+	struct ast_xml_node *lang_match = NULL;
 	struct documentation_tree *doctree;
-	const char *lang;
 
 	AST_RWLIST_RDLOCK(&xmldoc_tree);
 	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
 		/* the core xml documents have priority over thirdparty document. */
 		node = ast_xml_get_root(doctree->doc);
-		while ((node = ast_xml_find_element(node, type, "name", name))) {
-			/* Check language */
-			lang = ast_xml_get_attribute(node, "language");
-			if (lang && !strcmp(lang, language)) {
-				ast_xml_free_attr(lang);
-				break;
-			} else if (lang) {
-				ast_xml_free_attr(lang);
-			}
-		}
-
-		if (node && ast_xml_node_get_children(node)) {
+		if (!node) {
 			break;
 		}
 
-		/* We didn't find the application documentation for the specified language,
-		so, try to load documentation for any language */
-		node = ast_xml_get_root(doctree->doc);
-		if (ast_xml_node_get_children(node)) {
-			if ((node = ast_xml_find_element(ast_xml_node_get_children(node), type, "name", name))) {
-				break;
+		node = ast_xml_node_get_children(node);
+		while ((node = ast_xml_find_element(node, type, "name", name))) {
+			if (!ast_xml_node_get_children(node)) {
+				/* ignore empty nodes */
+				node = ast_xml_node_get_next(node);
+				continue;
 			}
+
+			if (!first_match) {
+				first_match = node;
+			}
+
+			/* Check language */
+			if (xmldoc_attribute_match(node, "language", language)) {
+				if (!lang_match) {
+					lang_match = node;
+				}
+
+				/* if module is empty we have a match */
+				if (ast_strlen_zero(module)) {
+					break;
+				}
+
+				/* Check module */
+				if (xmldoc_attribute_match(node, "module", module)) {
+					break;
+				}
+			}
+
+			node = ast_xml_node_get_next(node);
+		}
+
+		/* if we matched lang and module return this match */
+		if (node) {
+			break;
+		}
+
+		/* we didn't match lang and module, just return the first
+		 * result with a matching language if we have one */
+		if (lang_match) {
+			node = lang_match;
+			break;
+		}
+
+		/* we didn't match with only the language, just return the
+		 * first match */
+		if (first_match) {
+			node = first_match;
+			break;
 		}
 	}
 	AST_RWLIST_UNLOCK(&xmldoc_tree);
@@ -1077,12 +1127,12 @@ static enum syntaxtype xmldoc_get_syntax_type(const char *type)
 	return FUNCTION_SYNTAX;
 }
 
-char *ast_xmldoc_build_syntax(const char *type, const char *name)
+char *ast_xmldoc_build_syntax(const char *type, const char *name, const char *module)
 {
 	struct ast_xml_node *node;
 	char *syntax = NULL;
 
-	node = xmldoc_get_node(type, name, documentation_language);
+	node = xmldoc_get_node(type, name, module, documentation_language);
 	if (!node) {
 		return NULL;
 	}
@@ -1383,7 +1433,7 @@ static int xmldoc_parse_variablelist(struct ast_xml_node *node, const char *tabs
 	return ret;
 }
 
-char *ast_xmldoc_build_seealso(const char *type, const char *name)
+char *ast_xmldoc_build_seealso(const char *type, const char *name, const char *module)
 {
 	struct ast_str *outputstr;
 	char *output;
@@ -1397,7 +1447,7 @@ char *ast_xmldoc_build_seealso(const char *type, const char *name)
 	}
 
 	/* get the application/function root node. */
-	node = xmldoc_get_node(type, name, documentation_language);
+	node = xmldoc_get_node(type, name, module, documentation_language);
 	if (!node || !ast_xml_node_get_children(node)) {
 		return NULL;
 	}
@@ -1677,7 +1727,7 @@ static void xmldoc_parse_parameter(struct ast_xml_node *fixnode, const char *tab
 	ast_free(internaltabs);
 }
 
-char *ast_xmldoc_build_arguments(const char *type, const char *name)
+char *ast_xmldoc_build_arguments(const char *type, const char *name, const char *module)
 {
 	struct ast_xml_node *node;
 	struct ast_str *ret = ast_str_create(128);
@@ -1687,7 +1737,7 @@ char *ast_xmldoc_build_arguments(const char *type, const char *name)
 		return NULL;
 	}
 
-	node = xmldoc_get_node(type, name, documentation_language);
+	node = xmldoc_get_node(type, name, module, documentation_language);
 
 	if (!node || !ast_xml_node_get_children(node)) {
 		return NULL;
@@ -1772,7 +1822,7 @@ static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_o
  *  \retval NULL On error.
  *  \retval Field text content on success.
  */
-static char *xmldoc_build_field(const char *type, const char *name, const char *var, int raw)
+static char *xmldoc_build_field(const char *type, const char *name, const char *module, const char *var, int raw)
 {
 	struct ast_xml_node *node;
 	char *ret = NULL;
@@ -1783,7 +1833,7 @@ static char *xmldoc_build_field(const char *type, const char *name, const char *
 		return ret;
 	}
 
-	node = xmldoc_get_node(type, name, documentation_language);
+	node = xmldoc_get_node(type, name, module, documentation_language);
 
 	if (!node) {
 		ast_log(LOG_WARNING, "Couldn't find %s %s in XML documentation\n", type, name);
@@ -1806,14 +1856,14 @@ static char *xmldoc_build_field(const char *type, const char *name, const char *
 	return ret;
 }
 
-char *ast_xmldoc_build_synopsis(const char *type, const char *name)
+char *ast_xmldoc_build_synopsis(const char *type, const char *name, const char *module)
 {
-	return xmldoc_build_field(type, name, "synopsis", 1);
+	return xmldoc_build_field(type, name, module, "synopsis", 1);
 }
 
-char *ast_xmldoc_build_description(const char *type, const char *name)
+char *ast_xmldoc_build_description(const char *type, const char *name, const char *module)
 {
-	return xmldoc_build_field(type, name, "description", 0);
+	return xmldoc_build_field(type, name, module, "description", 0);
 }
 
 #if !defined(HAVE_GLOB_NOMAGIC) || !defined(HAVE_GLOB_BRACE) || defined(DEBUG_NONGNU)
