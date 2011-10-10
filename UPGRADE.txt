@@ -36,6 +36,10 @@ Configuration Files:
    - dnsmgr.conf
    - dsp.conf
 
+AMI:
+  - DBDelTree now correctly returns an error when 0 rows are deleted just as
+    the DBDel action does.
+
 SIP
 ===
  - A new option "tonezone" for setting default tonezone for the channel driver

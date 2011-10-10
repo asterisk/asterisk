@@ -840,7 +840,7 @@ static int manager_dbdeltree(struct mansession *s, const struct message *m)
 	else
 		res = ast_db_deltree(family, NULL);
 
-	if (res < 0)
+	if (res <= 0)
 		astman_send_error(s, m, "Database entry not found");
 	else
 		astman_send_ack(s, m, "Key tree deleted successfully");
