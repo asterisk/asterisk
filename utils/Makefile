@@ -214,7 +214,11 @@ db1-ast/libdb1.a: CHECK_SUBDIR
 
 astdb2sqlite3: LIBS+=$(SQLITE3_LIB)
 astdb2sqlite3: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
-astdb2sqlite3: db1-ast/libdb1.a 
+astdb2sqlite3: db1-ast/libdb1.a
+
+astdb2bdb: LIBS+=$(SQLITE3_LIB)
+astdb2bdb: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
+astdb2bdb: db1-ast/libdb1.a
 
 ifneq ($(wildcard .*.d),)
    include .*.d
