@@ -84,7 +84,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 
 /*** DOCUMENTATION
-	<application name="ReceiveFAX" language="en_US">
+	<application name="ReceiveFAX" language="en_US" module="res_fax">
 		<synopsis>
 			Receive a FAX and save as a TIFF/F file.
 		</synopsis>
@@ -116,7 +116,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">FAXOPT</ref>
 		</see-also>
 	</application>
-	<application name="SendFAX" language="en_US">
+	<application name="SendFAX" language="en_US" module="res_fax">
 		<synopsis>
 			Sends a specified TIFF/F file as a FAX.
 		</synopsis>
@@ -155,7 +155,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">FAXOPT</ref>
 		</see-also>
 	</application>
-	<function name="FAXOPT" language="en_US">
+	<function name="FAXOPT" language="en_US" module="res_fax">
 		<synopsis>
 			Gets/sets various pieces of information about a fax session.
 		</synopsis>

@@ -96,6 +96,15 @@ struct ast_module {
 
 static AST_LIST_HEAD_STATIC(module_list, ast_module);
 
+const char *ast_module_name(const struct ast_module *mod)
+{
+	if (!mod || !mod->info) {
+		return NULL;
+	}
+
+	return mod->info->name;
+}
+
 /*
  * module_list is cleared by its constructor possibly after
  * we start accumulating embedded modules, so we need to

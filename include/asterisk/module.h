@@ -175,6 +175,14 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 
 struct ast_module;
 
+/*!
+ * \brief Get the name of a module.
+ * \param mod A pointer to the module.
+ * \return the name of the module
+ * \retval NULL if mod or mod->info is NULL
+ */
+const char *ast_module_name(const struct ast_module *mod);
+
 /* User count routines keep track of which channels are using a given module
    resource.  They can help make removing modules safer, particularly if
    they're in use at the time they have been requested to be removed */
