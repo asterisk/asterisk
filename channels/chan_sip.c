@@ -8666,6 +8666,17 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 	return 0;
 }
 
+/*! \internal
+ * \brief Returns whether or not the address is null or ANY / unspecified (0.0.0.0 or ::)
+ * \retval TRUE if the address is null or any
+ * \retval FALSE if the address it not null or any
+ * \note In some circumstances, calls should be placed on hold if either of these conditions exist.
+ */
+static int sockaddr_is_null_or_any(const struct ast_sockaddr *addr)
+{
+	return ast_sockaddr_isnull(addr) || ast_sockaddr_is_any(addr);
+}
+
 /*! \brief Process SIP SDP offer, select formats and activate RTP channels
 	If offer is rejected, we will not change any properties of the call
  	Return 0 on success, a negative value on errors.
@@ -9283,7 +9294,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
 		change_hold_state(p, req, FALSE, sendonly);
-	} else if ((ast_sockaddr_isnull(sa) && ast_sockaddr_isnull(vsa) && ast_sockaddr_isnull(tsa) && ast_sockaddr_isnull(isa)) || (sendonly && sendonly != -1)) {
+	} else if ((sockaddr_is_null_or_any(sa) && sockaddr_is_null_or_any(vsa) && sockaddr_is_null_or_any(tsa) && sockaddr_is_null_or_any(isa)) || (sendonly && sendonly != -1)) {
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD,
 				       S_OR(p->mohsuggest, NULL),
 				       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
