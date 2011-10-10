@@ -166,7 +166,7 @@ enum skinny_codecs {
 
 #define DEFAULT_SKINNY_PORT 2000
 #define DEFAULT_SKINNY_BACKLOG 2
-#define SKINNY_MAX_PACKET 1000
+#define SKINNY_MAX_PACKET 2000
 #define DEFAULT_AUTH_TIMEOUT 30
 #define DEFAULT_AUTH_LIMIT 50
 
@@ -6862,6 +6862,7 @@ static int get_input(struct skinnysession *s)
 			return -1;
 		}
 		if (dlen+8 > sizeof(s->inbuf)) {
+			ast_log(LOG_WARNING, "Skinny packet too large (%d bytes), max length(%d bytes)\n", dlen+8, SKINNY_MAX_PACKET);
 			dlen = sizeof(s->inbuf) - 8;
 		}
 		*bufaddr = htolel(dlen);
@@ -6915,6 +6916,7 @@ static void *skinny_session(void *data)
 	for (;;) {
 		res = get_input(s);
 		if (res < 0) {
+			ast_verb(3, "Ending Skinny session from %s (bad input)\n", ast_inet_ntoa(s->sin.sin_addr));
 			break;
 		}
 
@@ -6922,6 +6924,7 @@ static void *skinny_session(void *data)
 		{
 			if (!(req = skinny_req_parse(s))) {
 				destroy_session(s);
+				ast_verb(3, "Ending Skinny session from %s (failed parse)\n", ast_inet_ntoa(s->sin.sin_addr));
 				return NULL;
 			}
 
