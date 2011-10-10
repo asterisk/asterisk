@@ -5225,23 +5225,23 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->func = func;
 #ifdef AST_XML_DOCS
 	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
-		tmpxml = ast_xmldoc_build_synopsis("manager", action);
+		tmpxml = ast_xmldoc_build_synopsis("manager", action, NULL);
 		ast_string_field_set(cur, synopsis, tmpxml);
 		ast_free(tmpxml);
 
-		tmpxml = ast_xmldoc_build_syntax("manager", action);
+		tmpxml = ast_xmldoc_build_syntax("manager", action, NULL);
 		ast_string_field_set(cur, syntax, tmpxml);
 		ast_free(tmpxml);
 
-		tmpxml = ast_xmldoc_build_description("manager", action);
+		tmpxml = ast_xmldoc_build_description("manager", action, NULL);
 		ast_string_field_set(cur, description, tmpxml);
 		ast_free(tmpxml);
 
-		tmpxml = ast_xmldoc_build_seealso("manager", action);
+		tmpxml = ast_xmldoc_build_seealso("manager", action, NULL);
 		ast_string_field_set(cur, seealso, tmpxml);
 		ast_free(tmpxml);
 
-		tmpxml = ast_xmldoc_build_arguments("manager", action);
+		tmpxml = ast_xmldoc_build_arguments("manager", action, NULL);
 		ast_string_field_set(cur, arguments, tmpxml);
 		ast_free(tmpxml);
 

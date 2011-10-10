@@ -14,10 +14,12 @@
   <!ELEMENT application (synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST application name CDATA #REQUIRED>
   <!ATTLIST application language CDATA #REQUIRED>
+  <!ATTLIST application module CDATA #IMPLIED>
 
   <!ELEMENT function (synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST function name CDATA #REQUIRED>
   <!ATTLIST function language CDATA #REQUIRED>
+  <!ATTLIST function module CDATA #IMPLIED>
 
   <!ELEMENT agi (synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST agi name CDATA #REQUIRED>

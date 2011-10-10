@@ -3147,10 +3147,10 @@ int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command 
 		*((enum ast_doc_src *) &cmd->docsrc) = AST_STATIC_DOC;
 		if (ast_strlen_zero(cmd->summary) && ast_strlen_zero(cmd->usage)) {
 #ifdef AST_XML_DOCS
-			*((char **) &cmd->summary) = ast_xmldoc_build_synopsis("agi", fullcmd);
-			*((char **) &cmd->usage) = ast_xmldoc_build_description("agi", fullcmd);
-			*((char **) &cmd->syntax) = ast_xmldoc_build_syntax("agi", fullcmd);
-			*((char **) &cmd->seealso) = ast_xmldoc_build_seealso("agi", fullcmd);
+			*((char **) &cmd->summary) = ast_xmldoc_build_synopsis("agi", fullcmd, NULL);
+			*((char **) &cmd->usage) = ast_xmldoc_build_description("agi", fullcmd, NULL);
+			*((char **) &cmd->syntax) = ast_xmldoc_build_syntax("agi", fullcmd, NULL);
+			*((char **) &cmd->seealso) = ast_xmldoc_build_seealso("agi", fullcmd, NULL);
 			*((enum ast_doc_src *) &cmd->docsrc) = AST_XML_DOC;
 #endif
 #ifndef HAVE_NULLSAFE_PRINTF

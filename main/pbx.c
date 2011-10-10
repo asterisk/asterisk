@@ -3552,27 +3552,27 @@ static int acf_retrieve_docs(struct ast_custom_function *acf)
 	}
 
 	/* load synopsis */
-	tmpxml = ast_xmldoc_build_synopsis("function", acf->name);
+	tmpxml = ast_xmldoc_build_synopsis("function", acf->name, ast_module_name(acf->mod));
 	ast_string_field_set(acf, synopsis, tmpxml);
 	ast_free(tmpxml);
 
 	/* load description */
-	tmpxml = ast_xmldoc_build_description("function", acf->name);
+	tmpxml = ast_xmldoc_build_description("function", acf->name, ast_module_name(acf->mod));
 	ast_string_field_set(acf, desc, tmpxml);
 	ast_free(tmpxml);
 
 	/* load syntax */
-	tmpxml = ast_xmldoc_build_syntax("function", acf->name);
+	tmpxml = ast_xmldoc_build_syntax("function", acf->name, ast_module_name(acf->mod));
 	ast_string_field_set(acf, syntax, tmpxml);
 	ast_free(tmpxml);
 
 	/* load arguments */
-	tmpxml = ast_xmldoc_build_arguments("function", acf->name);
+	tmpxml = ast_xmldoc_build_arguments("function", acf->name, ast_module_name(acf->mod));
 	ast_string_field_set(acf, arguments, tmpxml);
 	ast_free(tmpxml);
 
 	/* load seealso */
-	tmpxml = ast_xmldoc_build_seealso("function", acf->name);
+	tmpxml = ast_xmldoc_build_seealso("function", acf->name, ast_module_name(acf->mod));
 	ast_string_field_set(acf, seealso, tmpxml);
 	ast_free(tmpxml);
 
@@ -5842,31 +5842,35 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 		return -1;
 	}
 
+	strcpy(tmp->name, app);
+	tmp->execute = execute;
+	tmp->module = mod;
+
 #ifdef AST_XML_DOCS
 	/* Try to lookup the docs in our XML documentation database */
 	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
 		/* load synopsis */
-		tmpxml = ast_xmldoc_build_synopsis("application", app);
+		tmpxml = ast_xmldoc_build_synopsis("application", app, ast_module_name(tmp->module));
 		ast_string_field_set(tmp, synopsis, tmpxml);
 		ast_free(tmpxml);
 
 		/* load description */
-		tmpxml = ast_xmldoc_build_description("application", app);
+		tmpxml = ast_xmldoc_build_description("application", app, ast_module_name(tmp->module));
 		ast_string_field_set(tmp, description, tmpxml);
 		ast_free(tmpxml);
 
 		/* load syntax */
-		tmpxml = ast_xmldoc_build_syntax("application", app);
+		tmpxml = ast_xmldoc_build_syntax("application", app, ast_module_name(tmp->module));
 		ast_string_field_set(tmp, syntax, tmpxml);
 		ast_free(tmpxml);
 
 		/* load arguments */
-		tmpxml = ast_xmldoc_build_arguments("application", app);
+		tmpxml = ast_xmldoc_build_arguments("application", app, ast_module_name(tmp->module));
 		ast_string_field_set(tmp, arguments, tmpxml);
 		ast_free(tmpxml);
 
 		/* load seealso */
-		tmpxml = ast_xmldoc_build_seealso("application", app);
+		tmpxml = ast_xmldoc_build_seealso("application", app, ast_module_name(tmp->module));
 		ast_string_field_set(tmp, seealso, tmpxml);
 		ast_free(tmpxml);
 		tmp->docsrc = AST_XML_DOC;
@@ -5878,10 +5882,6 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 		tmp->docsrc = AST_STATIC_DOC;
 	}
 #endif
-
-	strcpy(tmp->name, app);
-	tmp->execute = execute;
-	tmp->module = mod;
 
 	/* Store in alphabetical order */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
