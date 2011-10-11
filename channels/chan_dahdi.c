@@ -16248,9 +16248,11 @@ static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		ast_cli(a->fd, "No SS7 running on linkset %d\n", span);
 	} else {
 		if (!strcasecmp(a->argv[3], "on")) {
+			linksets[span - 1].ss7.debug = 1;
 			ss7_set_debug(linksets[span-1].ss7.ss7, SIG_SS7_DEBUG);
 			ast_cli(a->fd, "Enabled debugging on linkset %d\n", span);
 		} else {
+			linksets[span - 1].ss7.debug = 0;
 			ss7_set_debug(linksets[span-1].ss7.ss7, 0);
 			ast_cli(a->fd, "Disabled debugging on linkset %d\n", span);
 		}
@@ -16509,6 +16511,35 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 #endif	/* defined(HAVE_SS7) */
 
 #if defined(HAVE_SS7)
+static char *handle_ss7_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int linkset;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 show channels";
+		e->usage =
+			"Usage: ss7 show channels\n"
+			"       Displays SS7 channel information at a glance.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	sig_ss7_cli_show_channels_header(a->fd);
+	for (linkset = 0; linkset < NUM_SPANS; ++linkset) {
+		if (linksets[linkset].ss7.ss7) {
+			sig_ss7_cli_show_channels(a->fd, &linksets[linkset].ss7);
+		}
+	}
+	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
 static char *handle_ss7_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -16536,6 +16567,7 @@ static struct ast_cli_entry dahdi_ss7_cli[] = {
 	AST_CLI_DEFINE(handle_ss7_block_linkset, "Blocks all CICs on a linkset"),
 	AST_CLI_DEFINE(handle_ss7_unblock_linkset, "Unblocks all CICs on a linkset"),
 	AST_CLI_DEFINE(handle_ss7_show_linkset, "Shows the status of a linkset"),
+	AST_CLI_DEFINE(handle_ss7_show_channels, "Displays SS7 channel information"),
 	AST_CLI_DEFINE(handle_ss7_version, "Displays libss7 version"),
 };
 #endif	/* defined(HAVE_SS7) */
