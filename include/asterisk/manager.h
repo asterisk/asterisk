@@ -152,6 +152,13 @@ struct manager_action {
 	enum ast_doc_src docsrc;
 	/*! For easy linking */
 	AST_RWLIST_ENTRY(manager_action) list;
+	/*!
+	 * \brief TRUE if the AMI action is registered and the callback can be called.
+	 *
+	 * \note Needed to prevent a race between calling the callback
+	 * function and unregestring the AMI action object.
+	 */
+	unsigned int registered:1;
 };
 
 /*! \brief External routines may register/unregister manager callbacks this way 
