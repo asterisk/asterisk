@@ -58,7 +58,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/transcap.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/sha1.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/audiohook.h"
