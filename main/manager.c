@@ -887,8 +887,8 @@ enum error_type {
 
 enum add_filter_result {
 	FILTER_SUCCESS,
-        FILTER_ALLOC_FAILED,
-        FILTER_COMPILE_FAIL,
+	FILTER_ALLOC_FAILED,
+	FILTER_COMPILE_FAIL,
 };
 
 /*!
@@ -1083,6 +1083,30 @@ static void free_channelvars(void);
 
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
+/*!
+ * \internal
+ * \brief Find a registered action object.
+ *
+ * \param name Name of AMI action to find.
+ *
+ * \return Reffed action found or NULL
+ */
+static struct manager_action *action_find(const char *name)
+{
+	struct manager_action *act;
+
+	AST_RWLIST_RDLOCK(&actions);
+	AST_RWLIST_TRAVERSE(&actions, act, list) {
+		if (!strcasecmp(name, act->action)) {
+			ao2_t_ref(act, +1, "found action object");
+			break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&actions);
+
+	return act;
+}
+
 /*! \brief Add a custom hook to be called when an event is fired */
 void ast_manager_register_hook(struct manager_custom_hook *hook)
 {
@@ -1099,12 +1123,12 @@ void ast_manager_unregister_hook(struct manager_custom_hook *hook)
 	AST_RWLIST_UNLOCK(&manager_hooks);
 }
 
-int check_manager_enabled()
+int check_manager_enabled(void)
 {
 	return manager_enabled;
 }
 
-int check_webmanager_enabled()
+int check_webmanager_enabled(void)
 {
 	return (webmanager_enabled && manager_enabled);
 }
@@ -1484,15 +1508,14 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 						ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1),
 						seealso_title,
 						ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1));
-				} else {
+				} else
 #endif
+				{
 					ast_cli(a->fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
-							cur->action, cur->synopsis,
-							authority_to_str(cur->authority, &authority),
-							S_OR(cur->description, ""));
-#ifdef AST_XML_DOCS
+						cur->action, cur->synopsis,
+						authority_to_str(cur->authority, &authority),
+						S_OR(cur->description, ""));
 				}
-#endif
 			}
 		}
 	}
@@ -1653,8 +1676,9 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd, HSMC_FORMAT, "------", "---------", "--------");
 
 	AST_RWLIST_RDLOCK(&actions);
-	AST_RWLIST_TRAVERSE(&actions, cur, list)
+	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		ast_cli(a->fd, HSMC_FORMAT, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
+	}
 	AST_RWLIST_UNLOCK(&actions);
 
 	return CLI_SUCCESS;
@@ -1762,11 +1786,18 @@ static struct eventqent *advance_event(struct eventqent *e)
 #define	GET_HEADER_LAST_MATCH	1
 #define	GET_HEADER_SKIP_EMPTY	2
 
-/*! \brief
- * Generic function to return either the first or the last matching header
- * from a list of variables, possibly skipping empty strings.
- * At the moment there is only one use of this function in this file,
- * so we make it static.
+/*!
+ * \brief Return a matching header value.
+ *
+ * \details
+ * Generic function to return either the first or the last
+ * matching header from a list of variables, possibly skipping
+ * empty strings.
+ *
+ * \note At the moment there is only one use of this function in
+ * this file, so we make it static.
+ *
+ * \note Never returns NULL.
  */
 static const char *__astman_get_header(const struct message *m, char *var, int mode)
 {
@@ -1779,65 +1810,101 @@ static const char *__astman_get_header(const struct message *m, char *var, int m
 			const char *value = h + l + 1;
 			value = ast_skip_blanks(value); /* ignore leading spaces in the value */
 			/* found a potential candidate */
-			if (mode & GET_HEADER_SKIP_EMPTY && ast_strlen_zero(value))
+			if ((mode & GET_HEADER_SKIP_EMPTY) && ast_strlen_zero(value)) {
 				continue;	/* not interesting */
-			if (mode & GET_HEADER_LAST_MATCH)
+			}
+			if (mode & GET_HEADER_LAST_MATCH) {
 				result = value;	/* record the last match so far */
-			else
+			} else {
 				return value;
+			}
 		}
 	}
 
 	return result;
 }
 
-/*! \brief
- * Return the first matching variable from an array.
- * This is the legacy function and is implemented in therms of
- * __astman_get_header().
+/*!
+ * \brief Return the first matching variable from an array.
+ *
+ * \note This is the legacy function and is implemented in
+ * therms of __astman_get_header().
+ *
+ * \note Never returns NULL.
  */
 const char *astman_get_header(const struct message *m, char *var)
 {
 	return __astman_get_header(m, var, GET_HEADER_FIRST_MATCH);
 }
 
-
-struct ast_variable *astman_get_variables(const struct message *m)
+/*!
+ * \internal
+ * \brief Process one "Variable:" header value string.
+ *
+ * \param head Current list of AMI variables to get new values added.
+ * \param hdr_val Header value string to process.
+ *
+ * \return New variable list head.
+ */
+static struct ast_variable *man_do_variable_value(struct ast_variable *head, const char *hdr_val)
 {
-	int varlen, x, y;
-	struct ast_variable *head = NULL, *cur;
-
+	char *parse;
 	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(vars)[32];
+		AST_APP_ARG(vars)[64];
 	);
 
-	varlen = strlen("Variable: ");
+	hdr_val = ast_skip_blanks(hdr_val); /* ignore leading spaces in the value */
+	parse = ast_strdupa(hdr_val);
 
-	for (x = 0; x < m->hdrcount; x++) {
-		char *parse, *var, *val;
+	/* Break the header value string into name=val pair items. */
+	AST_STANDARD_APP_ARGS(args, parse);
+	if (args.argc) {
+		int y;
 
-		if (strncasecmp("Variable: ", m->headers[x], varlen)) {
-			continue;
-		}
-		parse = ast_strdupa(m->headers[x] + varlen);
-
-		AST_STANDARD_APP_ARGS(args, parse);
-		if (!args.argc) {
-			continue;
-		}
+		/* Process each name=val pair item. */
 		for (y = 0; y < args.argc; y++) {
+			struct ast_variable *cur;
+			char *var;
+			char *val;
+
 			if (!args.vars[y]) {
 				continue;
 			}
-			var = val = ast_strdupa(args.vars[y]);
+			var = val = args.vars[y];
 			strsep(&val, "=");
+
+			/* XXX We may wish to trim whitespace from the strings. */
 			if (!val || ast_strlen_zero(var)) {
 				continue;
 			}
+
+			/* Create new variable list node and prepend it to the list. */
 			cur = ast_variable_new(var, val, "");
-			cur->next = head;
-			head = cur;
+			if (cur) {
+				cur->next = head;
+				head = cur;
+			}
 		}
+	}
+
+	return head;
+}
+
+struct ast_variable *astman_get_variables(const struct message *m)
+{
+	int varlen;
+	int x;
+	struct ast_variable *head = NULL;
+
+	static const char var_hdr[] = "Variable:";
+
+	/* Process all "Variable:" headers. */
+	varlen = strlen(var_hdr);
+	for (x = 0; x < m->hdrcount; x++) {
+		if (strncasecmp(var_hdr, m->headers[x], varlen)) {
+			continue;
+		}
+		head = man_do_variable_value(head, m->headers[x] + varlen);
 	}
 
 	return head;
@@ -1848,11 +1915,11 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 {
 	const char *action;
 	int ret = 0;
-	struct manager_action *tmp;
+	struct manager_action *act_found;
 	struct mansession s = {.session = NULL, };
 	struct message m = { 0 };
-	char header_buf[1025] = { '\0' };
-	const char *src = msg;
+	char *dup_str;
+	char *src;
 	int x = 0;
 	int curlen;
 
@@ -1860,8 +1927,14 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 		return -1;
 	}
 
+	/* Create our own copy of the AMI action msg string. */
+	src = dup_str = ast_strdup(msg);
+	if (!dup_str) {
+		return -1;
+	}
+
 	/* convert msg string to message struct */
-	curlen = strlen(msg);
+	curlen = strlen(src);
 	for (x = 0; x < curlen; x++) {
 		int cr;	/* set if we have \r */
 		if (src[x] == '\r' && x+1 < curlen && src[x+1] == '\n')
@@ -1870,11 +1943,11 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 			cr = 1;	/* also accept \n only */
 		else
 			continue;
-		/* don't copy empty lines */
-		if (x) {
-			memmove(header_buf, src, x);	/*... but trim \r\n */
-			header_buf[x] = '\0';		/* terminate the string */
-			m.headers[m.hdrcount++] = ast_strdupa(header_buf);
+		/* don't keep empty lines */
+		if (x && m.hdrcount < ARRAY_LEN(m.headers)) {
+			/* ... but trim \r\n and terminate the header string */
+			src[x] = '\0';
+			m.headers[m.hdrcount++] = src;
 		}
 		x += cr;
 		curlen -= x;		/* remaining size */
@@ -1882,25 +1955,29 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 		x = -1;			/* reset loop */
 	}
 
-	action = astman_get_header(&m,"Action");
-	if (action && strcasecmp(action,"login")) {
-
-		AST_RWLIST_RDLOCK(&actions);
-		AST_RWLIST_TRAVERSE(&actions, tmp, list) {
-			if (strcasecmp(action, tmp->action))
-				continue;
+	action = astman_get_header(&m, "Action");
+	if (strcasecmp(action, "login")) {
+		act_found = action_find(action);
+		if (act_found) {
 			/*
-			* we have to simulate a session for this action request
-			* to be able to pass it down for processing
-			* This is necessary to meet the previous design of manager.c
-			*/
+			 * we have to simulate a session for this action request
+			 * to be able to pass it down for processing
+			 * This is necessary to meet the previous design of manager.c
+			 */
 			s.hook = hook;
 			s.f = (void*)1; /* set this to something so our request will make it through all functions that test it*/
-			ret = tmp->func(&s, &m);
-			break;
+
+			ao2_lock(act_found);
+			if (act_found->registered && act_found->func) {
+				ret = act_found->func(&s, &m);
+			} else {
+				ret = -1;
+			}
+			ao2_unlock(act_found);
+			ao2_t_ref(act_found, -1, "done with found action object");
 		}
-		AST_RWLIST_UNLOCK(&actions);
 	}
+	ast_free(dup_str);
 	return ret;
 }
 
@@ -2512,6 +2589,24 @@ static void json_escape(char *out, const char *in)
 	*out = '\0';
 }
 
+/*!
+ * \internal
+ * \brief Append a JSON escaped string to the manager stream.
+ *
+ * \param s AMI stream to append a string.
+ * \param str String to append to the stream after JSON escaping it.
+ *
+ * \return Nothing
+ */
+static void astman_append_json(struct mansession *s, const char *str)
+{
+	char *buf;
+
+	buf = alloca(2 * strlen(str) + 1);
+	json_escape(buf, str);
+	astman_append(s, "%s", buf);
+}
+
 static int action_getconfigjson(struct mansession *s, const struct message *m)
 {
 	struct ast_config *cfg;
@@ -2519,8 +2614,6 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 	char *category = NULL;
 	struct ast_variable *v;
 	int comma1 = 0;
-	char *buf = NULL;
-	unsigned int buf_len = 0;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 
 	if (ast_strlen_zero(fn)) {
@@ -2536,41 +2629,22 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	buf_len = 512;
-	buf = alloca(buf_len);
-
 	astman_start_ack(s, m);
 	astman_append(s, "JSON: {");
 	while ((category = ast_category_browse(cfg, category))) {
 		int comma2 = 0;
-		if (buf_len < 2 * strlen(category) + 1) {
-			buf_len *= 2;
-			buf = alloca(buf_len);
-		}
-		json_escape(buf, category);
-		astman_append(s, "%s\"%s\":[", comma1 ? "," : "", buf);
-		if (!comma1) {
-			comma1 = 1;
-		}
+
+		astman_append(s, "%s\"", comma1 ? "," : "");
+		astman_append_json(s, category);
+		astman_append(s, "\":[");
+		comma1 = 1;
 		for (v = ast_variable_browse(cfg, category); v; v = v->next) {
-			if (comma2) {
-				astman_append(s, ",");
-			}
-			if (buf_len < 2 * strlen(v->name) + 1) {
-				buf_len *= 2;
-				buf = alloca(buf_len);
-			}
-			json_escape(buf, v->name);
-			astman_append(s, "\"%s", buf);
-			if (buf_len < 2 * strlen(v->value) + 1) {
-				buf_len *= 2;
-				buf = alloca(buf_len);
-			}
-			json_escape(buf, v->value);
-			astman_append(s, "%s\"", buf);
-			if (!comma2) {
-				comma2 = 1;
-			}
+			astman_append(s, "%s\"", comma2 ? "," : "");
+			astman_append_json(s, v->name);
+			astman_append(s, "\":\"");
+			astman_append_json(s, v->value);
+			astman_append(s, "\"");
+			comma2 = 1;
 		}
 		astman_append(s, "]");
 	}
@@ -2929,19 +3003,20 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-/*! \note The actionlock is read-locked by the caller of this function */
 static int action_listcommands(struct mansession *s, const struct message *m)
 {
 	struct manager_action *cur;
-	struct ast_str *temp = ast_str_alloca(BUFSIZ); /* XXX very large ? */
+	struct ast_str *temp = ast_str_alloca(256);
 
 	astman_start_ack(s, m);
+	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		if (s->session->writeperm & cur->authority || cur->authority == 0) {
+		if ((s->session->writeperm & cur->authority) || cur->authority == 0) {
 			astman_append(s, "%s: %s (Priv: %s)\r\n",
 				cur->action, cur->synopsis, authority_to_str(cur->authority, &temp));
 		}
 	}
+	AST_RWLIST_UNLOCK(&actions);
 	astman_append(s, "\r\n");
 
 	return 0;
@@ -4641,14 +4716,12 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
  */
 static int process_message(struct mansession *s, const struct message *m)
 {
-	char action[80] = "";
 	int ret = 0;
-	struct manager_action *tmp;
-	const char *user = astman_get_header(m, "Username");
-	int (*call_func)(struct mansession *s, const struct message *m) = NULL;
+	struct manager_action *act_found;
+	const char *user;
+	const char *action;
 
-	ast_copy_string(action, __astman_get_header(m, "Action", GET_HEADER_SKIP_EMPTY), sizeof(action));
-
+	action = __astman_get_header(m, "Action", GET_HEADER_SKIP_EMPTY);
 	if (ast_strlen_zero(action)) {
 		report_req_bad_format(s, "NONE");
 		mansession_lock(s);
@@ -4657,7 +4730,10 @@ static int process_message(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!s->session->authenticated && strcasecmp(action, "Login") && strcasecmp(action, "Logoff") && strcasecmp(action, "Challenge")) {
+	if (!s->session->authenticated
+		&& strcasecmp(action, "Login")
+		&& strcasecmp(action, "Logoff")
+		&& strcasecmp(action, "Challenge")) {
 		if (!s->session->authenticated) {
 			report_req_not_allowed(s, action);
 		}
@@ -4667,8 +4743,12 @@ static int process_message(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!allowmultiplelogin && !s->session->authenticated && user &&
-		(!strcasecmp(action, "Login") || !strcasecmp(action, "Challenge"))) {
+	if (!allowmultiplelogin
+		&& !s->session->authenticated
+		&& (!strcasecmp(action, "Login")
+			|| !strcasecmp(action, "Challenge"))) {
+		user = astman_get_header(m, "Username");
+
 		if (check_manager_session_inuse(user)) {
 			report_session_limit(s);
 			sleep(1);
@@ -4679,37 +4759,38 @@ static int process_message(struct mansession *s, const struct message *m)
 		}
 	}
 
-	AST_RWLIST_RDLOCK(&actions);
-	AST_RWLIST_TRAVERSE(&actions, tmp, list) {
-		if (strcasecmp(action, tmp->action)) {
-			continue;
-		}
-		if (s->session->writeperm & tmp->authority || tmp->authority == 0) {
-			call_func = tmp->func;
-		}
-		break;
-	}
-	AST_RWLIST_UNLOCK(&actions);
+	act_found = action_find(action);
+	if (act_found) {
+		/* Found the requested AMI action. */
+		int acted = 0;
 
-	if (tmp) {
-		if (call_func) {
-			/* Call our AMI function after we unlock our actions lists */
-			ast_debug(1, "Running action '%s'\n", tmp->action);
-			ret = call_func(s, m);
-		} else {
-			/* If we found our action but don't have a function pointer, access
-			 * was denied, so bail out.
+		if ((s->session->writeperm & act_found->authority)
+			|| act_found->authority == 0) {
+			/* We have the authority to execute the action. */
+			ao2_lock(act_found);
+			if (act_found->registered && act_found->func) {
+				ast_debug(1, "Running action '%s'\n", act_found->action);
+				ret = act_found->func(s, m);
+				acted = 1;
+			}
+			ao2_unlock(act_found);
+		}
+		if (!acted) {
+			/*
+			 * We did not execute the action because access was denied, it
+			 * was no longer registered, or no action was really registered.
+			 * Complain about it and leave.
 			 */
 			report_req_not_allowed(s, action);
 			mansession_lock(s);
 			astman_send_error(s, m, "Permission denied");
 			mansession_unlock(s);
 		}
+		ao2_t_ref(act_found, -1, "done with found action object");
 	} else {
 		char buf[512];
-		if (!tmp) {
-			report_req_bad_format(s, action);
-		}
+
+		report_req_bad_format(s, action);
 		snprintf(buf, sizeof(buf), "Invalid/unknown command: %s. Use Action: ListCommands to show available commands.", action);
 		mansession_lock(s);
 		astman_send_error(s, m, buf);
@@ -4825,44 +4906,85 @@ static int get_input(struct mansession *s, char *output)
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief Read and process an AMI action request.
+ *
+ * \param s AMI session to process action request.
+ *
+ * \retval 0 Retain AMI connection for next command.
+ * \retval -1 Drop AMI connection due to logoff or connection error.
+ */
 static int do_message(struct mansession *s)
 {
 	struct message m = { 0 };
 	char header_buf[sizeof(s->session->inbuf)] = { '\0' };
 	int res;
+	int idx;
+	int hdr_loss;
 	time_t now;
 
+	hdr_loss = 0;
 	for (;;) {
 		/* Check if any events are pending and do them if needed */
 		if (process_events(s)) {
-			return -1;
+			res = -1;
+			break;
 		}
 		res = get_input(s, header_buf);
 		if (res == 0) {
+			/* No input line received. */
 			if (!s->session->authenticated) {
-				if(time(&now) == -1) {
+				if (time(&now) == -1) {
 					ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
-					return -1;
+					res = -1;
+					break;
 				}
 
 				if (now - s->session->authstart > authtimeout) {
 					if (displayconnects) {
 						ast_verb(2, "Client from %s, failed to authenticate in %d seconds\n", ast_inet_ntoa(s->session->sin.sin_addr), authtimeout);
 					}
-					return -1;
+					res = -1;
+					break;
 				}
 			}
 			continue;
 		} else if (res > 0) {
+			/* Input line received. */
 			if (ast_strlen_zero(header_buf)) {
-				return process_message(s, &m) ? -1 : 0;
-			} else if (m.hdrcount < (AST_MAX_MANHEADERS - 1)) {
-				m.headers[m.hdrcount++] = ast_strdupa(header_buf);
+				if (hdr_loss) {
+					mansession_lock(s);
+					astman_send_error(s, &m, "Too many lines in message or allocation failure");
+					mansession_unlock(s);
+					res = 0;
+				} else {
+					res = process_message(s, &m) ? -1 : 0;
+				}
+				break;
+			} else if (m.hdrcount < ARRAY_LEN(m.headers)) {
+				m.headers[m.hdrcount] = ast_strdup(header_buf);
+				if (!m.headers[m.hdrcount]) {
+					/* Allocation failure. */
+					hdr_loss = 1;
+				} else {
+					++m.hdrcount;
+				}
+			} else {
+				/* Too many lines in message. */
+				hdr_loss = 1;
 			}
 		} else {
-			return res;
+			/* Input error. */
+			break;
 		}
 	}
+
+	/* Free AMI request headers. */
+	for (idx = 0; idx < m.hdrcount; ++idx) {
+		ast_free((void *) m.headers[idx]);
+	}
+	return res;
 }
 
 /*! \brief The body of the individual manager session.
@@ -5030,14 +5152,18 @@ AST_THREADSTORAGE(manager_event_funcbuf);
 static void append_channel_vars(struct ast_str **pbuf, struct ast_channel *chan)
 {
 	struct manager_channel_variable *var;
+
 	AST_RWLIST_RDLOCK(&channelvars);
 	AST_LIST_TRAVERSE(&channelvars, var, entry) {
-		const char *val = "";
+		const char *val;
+		struct ast_str *res;
+
 		if (var->isfunc) {
-			struct ast_str *res = ast_str_thread_get(&manager_event_funcbuf, 16);
-			int ret;
-			if (res && (ret = ast_func_read2(chan, var->name, &res, 0)) == 0) {
+			res = ast_str_thread_get(&manager_event_funcbuf, 16);
+			if (res && ast_func_read2(chan, var->name, &res, 0) == 0) {
 				val = ast_str_buffer(res);
+			} else {
+				val = NULL;
 			}
 		} else {
 			val = pbx_builtin_getvar_helper(chan, var->name);
@@ -5141,23 +5267,29 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 int ast_manager_unregister(char *action)
 {
 	struct manager_action *cur;
-	struct timespec tv = { 5, };
 
-	if (AST_RWLIST_TIMEDWRLOCK(&actions, &tv)) {
-		ast_log(LOG_ERROR, "Could not obtain lock on manager list\n");
-		return -1;
-	}
+	AST_RWLIST_WRLOCK(&actions);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&actions, cur, list) {
 		if (!strcasecmp(action, cur->action)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_string_field_free_memory(cur);
-			ast_free(cur);
-			ast_verb(2, "Manager unregistered action %s\n", action);
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&actions);
+
+	if (cur) {
+		/*
+		 * We have removed the action object from the container so we
+		 * are no longer in a hurry.
+		 */
+		ao2_lock(cur);
+		cur->registered = 0;
+		ao2_unlock(cur);
+
+		ao2_t_ref(cur, -1, "action object removed from list");
+		ast_verb(2, "Manager unregistered action %s\n", action);
+	}
 
 	return 0;
 }
@@ -5175,14 +5307,12 @@ static int manager_state_cb(const char *context, const char *exten, enum ast_ext
 static int ast_manager_register_struct(struct manager_action *act)
 {
 	struct manager_action *cur, *prev = NULL;
-	struct timespec tv = { 5, };
 
-	if (AST_RWLIST_TIMEDWRLOCK(&actions, &tv)) {
-		ast_log(LOG_ERROR, "Could not obtain lock on manager list\n");
-		return -1;
-	}
+	AST_RWLIST_WRLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		int ret = strcasecmp(cur->action, act->action);
+		int ret;
+
+		ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
 			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
 			AST_RWLIST_UNLOCK(&actions);
@@ -5194,6 +5324,8 @@ static int ast_manager_register_struct(struct manager_action *act)
 		}
 	}
 
+	ao2_t_ref(act, +1, "action object added to list");
+	act->registered = 1;
 	if (prev) {
 		AST_RWLIST_INSERT_AFTER(&actions, prev, act, list);
 	} else {
@@ -5207,16 +5339,36 @@ static int ast_manager_register_struct(struct manager_action *act)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Destroy the registered AMI action object.
+ *
+ * \param obj Object to destroy.
+ *
+ * \return Nothing
+ */
+static void action_destroy(void *obj)
+{
+	struct manager_action *doomed = obj;
+
+	if (doomed->synopsis) {
+		/* The string fields were initialized. */
+		ast_string_field_free_memory(doomed);
+	}
+}
+
 /*! \brief register a new command with manager, including online help. This is
 	the preferred way to register a manager command */
 int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, const struct message *m), const char *synopsis, const char *description)
 {
-	struct manager_action *cur = NULL;
-#ifdef AST_XML_DOCS
-	char *tmpxml;
-#endif
+	struct manager_action *cur;
 
-	if (!(cur = ast_calloc_with_stringfields(1, struct manager_action, 128))) {
+	cur = ao2_alloc(sizeof(*cur), action_destroy);
+	if (!cur) {
+		return -1;
+	}
+	if (ast_string_field_init(cur, 128)) {
+		ao2_t_ref(cur, -1, "action object creation failed");
 		return -1;
 	}
 
@@ -5225,6 +5377,8 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->func = func;
 #ifdef AST_XML_DOCS
 	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
+		char *tmpxml;
+
 		tmpxml = ast_xmldoc_build_synopsis("manager", action, NULL);
 		ast_string_field_set(cur, synopsis, tmpxml);
 		ast_free(tmpxml);
@@ -5246,19 +5400,21 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 		ast_free(tmpxml);
 
 		cur->docsrc = AST_XML_DOC;
-	} else {
+	} else
 #endif
+	{
 		ast_string_field_set(cur, synopsis, synopsis);
 		ast_string_field_set(cur, description, description);
 #ifdef AST_XML_DOCS
 		cur->docsrc = AST_STATIC_DOC;
-	}
 #endif
+	}
 	if (ast_manager_register_struct(cur)) {
-		ast_free(cur);
+		ao2_t_ref(cur, -1, "action object registration failed");
 		return -1;
 	}
 
+	ao2_t_ref(cur, -1, "action object registration successful");
 	return 0;
 }
 /*! @}
@@ -5695,7 +5851,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
 	struct ast_str *http_header = NULL, *out = NULL;
 	struct message m = { 0 };
-	unsigned int x;
+	unsigned int idx;
 	size_t hdrlen;
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD && method != AST_HTTP_POST) {
@@ -5770,12 +5926,16 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		params = ast_http_get_post_vars(ser, headers);
 	}
 
-	for (x = 0, v = params; v && (x < AST_MAX_MANHEADERS); x++, v = v->next) {
+	for (v = params; v && m.hdrcount < ARRAY_LEN(m.headers); v = v->next) {
 		hdrlen = strlen(v->name) + strlen(v->value) + 3;
-		m.headers[m.hdrcount] = alloca(hdrlen);
+		m.headers[m.hdrcount] = ast_malloc(hdrlen);
+		if (!m.headers[m.hdrcount]) {
+			/* Allocation failure */
+			continue;
+		}
 		snprintf((char *) m.headers[m.hdrcount], hdrlen, "%s: %s", v->name, v->value);
 		ast_debug(1, "HTTP Manager add header %s\n", m.headers[m.hdrcount]);
-		m.hdrcount = x + 1;
+		++m.hdrcount;
 	}
 
 	if (process_message(&s, &m)) {
@@ -5789,6 +5949,12 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 			}
 		}
 		session->needdestroy = 1;
+	}
+
+	/* Free request headers. */
+	for (idx = 0; idx < m.hdrcount; ++idx) {
+		ast_free((void *) m.headers[idx]);
+		m.headers[idx] = NULL;
 	}
 
 	ast_str_append(&http_header, 0,
@@ -5899,7 +6065,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	struct ast_str *http_header = NULL, *out = NULL;
 	size_t result_size = 512;
 	struct message m = { 0 };
-	unsigned int x;
+	unsigned int idx;
 	size_t hdrlen;
 
 	time_t time_now = time(NULL);
@@ -6096,12 +6262,16 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		params = ast_http_get_post_vars(ser, headers);
 	}
 
-	for (x = 0, v = params; v && (x < AST_MAX_MANHEADERS); x++, v = v->next) {
+	for (v = params; v && m.hdrcount < ARRAY_LEN(m.headers); v = v->next) {
 		hdrlen = strlen(v->name) + strlen(v->value) + 3;
-		m.headers[m.hdrcount] = alloca(hdrlen);
+		m.headers[m.hdrcount] = ast_malloc(hdrlen);
+		if (!m.headers[m.hdrcount]) {
+			/* Allocation failure */
+			continue;
+		}
 		snprintf((char *) m.headers[m.hdrcount], hdrlen, "%s: %s", v->name, v->value);
 		ast_verb(4, "HTTP Manager add header %s\n", m.headers[m.hdrcount]);
-		m.hdrcount = x + 1;
+		++m.hdrcount;
 	}
 
 	if (process_message(&s, &m)) {
@@ -6110,6 +6280,12 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		}
 
 		session->needdestroy = 1;
+	}
+
+	/* Free request headers. */
+	for (idx = 0; idx < m.hdrcount; ++idx) {
+		ast_free((void *) m.headers[idx]);
+		m.headers[idx] = NULL;
 	}
 
 	if (s.f) {
@@ -6394,6 +6570,43 @@ static struct ast_cli_entry cli_manager[] = {
 	AST_CLI_DEFINE(handle_manager_show_settings, "Show manager global settings"),
 };
 
+/*!
+ * \internal
+ * \brief Load the config channelvars variable.
+ *
+ * \param var Config variable to load.
+ *
+ * \return Nothing
+ */
+static void load_channelvars(struct ast_variable *var)
+{
+	struct manager_channel_variable *mcv;
+	char *remaining = ast_strdupa(var->value);
+	char *next;
+
+	ast_free(manager_channelvars);
+	manager_channelvars = ast_strdup(var->value);
+
+	/*
+	 * XXX TODO: To allow dialplan functions to have more than one
+	 * parameter requires eliminating the '|' as a separator so we
+	 * could use AST_STANDARD_APP_ARGS() to separate items.
+	 */
+	free_channelvars();
+	AST_RWLIST_WRLOCK(&channelvars);
+	while ((next = strsep(&remaining, ",|"))) {
+		if (!(mcv = ast_calloc(1, sizeof(*mcv) + strlen(next) + 1))) {
+			break;
+		}
+		strcpy(mcv->name, next); /* SAFE */
+		if (strchr(next, '(')) {
+			mcv->isfunc = 1;
+		}
+		AST_RWLIST_INSERT_TAIL(&channelvars, mcv, entry);
+	}
+	AST_RWLIST_UNLOCK(&channelvars);
+}
+
 static int __init_manager(int reload)
 {
 	struct ast_config *ucfg = NULL, *cfg = NULL;
@@ -6541,22 +6754,7 @@ static int __init_manager(int reload)
 				authlimit = limit;
 			}
 		} else if (!strcasecmp(var->name, "channelvars")) {
-			struct manager_channel_variable *mcv;
-			char *remaining = ast_strdupa(val), *next;
-			ast_free(manager_channelvars);
-			manager_channelvars = ast_strdup(val);
-			AST_RWLIST_WRLOCK(&channelvars);
-			while ((next = strsep(&remaining, ",|"))) {
-				if (!(mcv = ast_calloc(1, sizeof(*mcv) + strlen(next) + 1))) {
-					break;
-				}
-				strcpy(mcv->name, next); /* SAFE */
-				if (strchr(next, '(')) {
-					mcv->isfunc = 1;
-				}
-				AST_RWLIST_INSERT_TAIL(&channelvars, mcv, entry);
-			}
-			AST_RWLIST_UNLOCK(&channelvars);
+			load_channelvars(var);
 		} else {
 			ast_log(LOG_NOTICE, "Invalid keyword <%s> = <%s> in manager.conf [general]\n",
 				var->name, val);
