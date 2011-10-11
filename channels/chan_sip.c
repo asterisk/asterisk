@@ -1330,6 +1330,7 @@ static int restart_monitor(void);
 static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer *peer);
 static struct ast_variable *copy_vars(struct ast_variable *src);
 static int dialog_find_multiple(void *obj, void *arg, int flags);
+static struct ast_channel *sip_pvt_lock_full(struct sip_pvt *pvt);
 /* static int sip_addrcmp(char *name, struct sockaddr_in *sin);	Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
 static int sip_notify_allocate(struct sip_pvt *p);
@@ -2923,31 +2924,26 @@ static void ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
 	}
 }
 
-/*!
- * \brief Unlink a dialog from the dialogs container, as well as any other places
- * that it may be currently stored.
- *
- * \note A reference to the dialog must be held before calling this function, and this
- * function does not release that reference.
- */
-void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglist)
+void dialog_unlink_all(struct sip_pvt *dialog)
 {
 	struct sip_pkt *cp;
+	struct ast_channel *owner;
 
 	dialog_ref(dialog, "Let's bump the count in the unlink so it doesn't accidentally become dead before we are done");
 
 	ao2_t_unlink(dialogs, dialog, "unlinking dialog via ao2_unlink");
 
 	/* Unlink us from the owner (channel) if we have one */
-	if (dialog->owner) {
-		if (lockowner)
-			ast_channel_lock(dialog->owner);
-		ast_debug(1, "Detaching from channel %s\n", dialog->owner->name);
-		dialog->owner->tech_pvt = dialog_unref(dialog->owner->tech_pvt, "resetting channel dialog ptr in unlink_all");
-		if (lockowner) {
-			ast_channel_unlock(dialog->owner);
-		}
+	owner = sip_pvt_lock_full(dialog);
+	if (owner) {
+		ast_debug(1, "Detaching from channel %s\n", owner->name);
+		owner->tech_pvt = dialog_unref(owner->tech_pvt, "resetting channel dialog ptr in unlink_all");
+		ast_channel_unlock(owner);
+		ast_channel_unref(owner);
+		dialog->owner = NULL;
 	}
+	sip_pvt_unlock(dialog);
+
 	if (dialog->registry) {
 		if (dialog->registry->call == dialog) {
 			dialog->registry->call = dialog_unref(dialog->registry->call, "nulling out the registry's call dialog field in unlink_all");
@@ -3001,7 +2997,6 @@ void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglis
 	}
 
 	dialog_unref(dialog, "Let's unbump the count in the unlink so the poor pvt can disappear if it is time");
-	return NULL;
 }
 
 void *registry_unref(struct sip_registry *reg, char *tag)
@@ -3814,6 +3809,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 static int __sip_autodestruct(const void *data)
 {
 	struct sip_pvt *p = (struct sip_pvt *)data;
+	struct ast_channel *owner;
 
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (p->subscribed && p->subscribed != MWI_NOTIFICATION && p->subscribed != CALL_COMPLETION) {
@@ -3849,17 +3845,12 @@ static int __sip_autodestruct(const void *data)
 	/*
 	 * Lock both the pvt and the channel safely so that we can queue up a frame.
 	 */
-	sip_pvt_lock(p);
-	while (p->owner && ast_channel_trylock(p->owner)) {
-		sip_pvt_unlock(p);
-		sched_yield();
-		sip_pvt_lock(p);
-	}
-
-	if (p->owner) {
+	owner = sip_pvt_lock_full(p);
+	if (owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
-		ast_queue_hangup_with_cause(p->owner, AST_CAUSE_PROTOCOL_ERROR);
-		ast_channel_unlock(p->owner);
+		ast_queue_hangup_with_cause(owner, AST_CAUSE_PROTOCOL_ERROR);
+		ast_channel_unlock(owner);
+		ast_channel_unref(owner);
 	} else if (p->refer && !p->alreadygone) {
 		ast_debug(3, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
@@ -3868,7 +3859,9 @@ static int __sip_autodestruct(const void *data)
 	} else {
 		append_history(p, "AutoDestroy", "%s", p->callid);
 		ast_debug(3, "Auto destroying SIP dialog '%s'\n", p->callid);
-		dialog_unlink_all(p, TRUE, TRUE); /* once it's unlinked and unrefd everywhere, it'll be freed automagically */
+		sip_pvt_unlock(p);
+		dialog_unlink_all(p); /* once it's unlinked and unrefd everywhere, it'll be freed automagically */
+		sip_pvt_lock(p);
 		/* dialog_unref(p, "unref dialog-- no other matching conditions"); -- unlink all now should finish off the dialog's references and free it. */
 		/* sip_destroy(p); */		/* Go ahead and destroy dialog. All attempts to recover is done */
 		/* sip_destroy also absorbs the reference */
@@ -4563,13 +4556,13 @@ static void sip_destroy_peer(struct sip_peer *peer)
 
 	/* Delete it, it needs to disappear */
 	if (peer->call) {
-		dialog_unlink_all(peer->call, TRUE, TRUE);
+		dialog_unlink_all(peer->call);
 		peer->call = dialog_unref(peer->call, "peer->call is being unset");
 	}
 	
 
 	if (peer->mwipvt) {	/* We have an active subscription, delete it */
-		dialog_unlink_all(peer->mwipvt, TRUE, TRUE);
+		dialog_unlink_all(peer->mwipvt);
 		peer->mwipvt = dialog_unref(peer->mwipvt, "unreffing peer->mwipvt");
 	}
 	
@@ -5547,7 +5540,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 		   we don't get reentered trying to grab the registry lock */
 		reg->call->registry = registry_unref(reg->call->registry, "destroy reg->call->registry");
 		ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
-		dialog_unlink_all(reg->call, TRUE, TRUE);
+		dialog_unlink_all(reg->call);
 		reg->call = dialog_unref(reg->call, "unref reg->call");
 		/* reg->call = sip_destroy(reg->call); */
 	}
@@ -6789,11 +6782,17 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	return res;
 }
 
-/*! \brief Initiate a call in the SIP channel
-	called from sip_request_call (calls from the pbx ) for outbound channels
-	and from handle_request_invite for inbound channels
-	
-*/
+/*!
+ * \brief Initiate a call in the SIP channel
+ *
+ * \note called from sip_request_call (calls from the pbx ) for
+ * outbound channels and from handle_request_invite for inbound
+ * channels
+ *
+ * \pre i is locked
+ *
+ * \return New ast_channel locked.
+ */
 static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *title, const char *linkedid)
 {
 	struct ast_channel *tmp;
@@ -6983,15 +6982,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	for (v = i->chanvars ; v ; v = v->next) {
 		char valuebuf[1024];
 		pbx_builtin_setvar_helper(tmp, v->name, ast_get_encoded_str(v->value, valuebuf, sizeof(valuebuf)));
-	}
-
-	ast_channel_unlock(tmp); /* ast_hangup requires the channel to be unlocked */
-
-	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
-		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
-		ast_hangup(tmp);
-		tmp = NULL;
 	}
 
 	if (i->do_history)
@@ -7745,7 +7735,7 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
  * \note This function will never let you down.
  * \note This function will run around and desert you.
  *
- * \pre vpt is not locked
+ * \pre pvt is not locked
  * \post pvt is locked
  * \post pvt->owner is locked and its reference count is increased (if pvt->owner is not NULL)
  *
@@ -11764,7 +11754,7 @@ static int transmit_publish(struct sip_epa_entry *epa_entry, enum sip_publish_ty
 
 	if (create_addr(pvt, epa_entry->destination, NULL, TRUE, NULL)) {
 		sip_pvt_unlock(pvt);
-		dialog_unlink_all(pvt, TRUE, TRUE);
+		dialog_unlink_all(pvt);
 		dialog_unref(pvt, "create_addr failed in transmit_publish. Unref dialog");
 		return -1;
 	}
@@ -12006,7 +11996,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	
 	/* Setup the destination of our subscription */
 	if (create_addr(mwi->call, mwi->hostname, &mwi->us, 0, NULL)) {
-		dialog_unlink_all(mwi->call, TRUE, TRUE);
+		dialog_unlink_all(mwi->call);
 		mwi->call = dialog_unref(mwi->call, "unref dialog after unlink_all");
 		return 0;
 	}
@@ -12461,7 +12451,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 
 	if (create_addr(p, channame, NULL, 0, NULL)) {
 		/* Maybe they're not registered, etc. */
-		dialog_unlink_all(p, TRUE, TRUE);
+		dialog_unlink_all(p);
 		dialog_unref(p, "unref dialog inside for loop" );
 		/* sip_destroy(p); */
 		astman_send_error(s, m, "Could not create address");
@@ -12800,7 +12790,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		if (create_addr(p, S_OR(r->peername, r->hostname), &r->us, 0, NULL)) {
 			/* we have what we hope is a temporary network error,
 			 * probably DNS.  We need to reschedule a registration try */
-			dialog_unlink_all(p, TRUE, TRUE);
+			dialog_unlink_all(p);
 			p = dialog_unref(p, "unref dialog after unlink_all");
 			if (r->timeout > -1) {
 				AST_SCHED_REPLACE_UNREF(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r,
@@ -16488,7 +16478,7 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		sip_pvt_unlock(dialog);
 		/* no, the unlink should handle this: dialog_unref(dialog, "needdestroy: one more refcount decrement to allow dialog to be destroyed"); */
 		/* the CMP_MATCH will unlink this dialog from the dialog hash table */
-		dialog_unlink_all(dialog, TRUE, FALSE);
+		dialog_unlink_all(dialog);
 		return 0; /* the unlink_all should unlink this from the table, so.... no need to return a match */
 	}
 
@@ -18473,7 +18463,7 @@ static char *sip_cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 		if (create_addr(p, a->argv[i], NULL, 1, NULL)) {
 			/* Maybe they're not registered, etc. */
-			dialog_unlink_all(p, TRUE, TRUE);
+			dialog_unlink_all(p);
 			dialog_unref(p, "unref dialog inside for loop" );
 			/* sip_destroy(p); */
 			ast_cli(a->fd, "Could not create address for '%s'\n", a->argv[i]);
@@ -22153,8 +22143,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (c) {
 				ast_party_redirecting_init(&redirecting);
 				memset(&update_redirecting, 0, sizeof(update_redirecting));
-				/* Pre-lock the call */
-				ast_channel_lock(c);
 				change_redirecting_information(p, req, &redirecting, &update_redirecting,
 					FALSE); /*Will return immediately if no Diversion header is present */
 				ast_channel_set_redirecting(c, &redirecting, &update_redirecting);
@@ -24223,7 +24211,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 		if (authpeer->mwipvt && authpeer->mwipvt != p) {	/* Destroy old PVT if this is a new one */
 			/* We only allow one subscription per peer */
-			dialog_unlink_all(authpeer->mwipvt, TRUE, TRUE);
+			dialog_unlink_all(authpeer->mwipvt);
 			authpeer->mwipvt = dialog_unref(authpeer->mwipvt, "unref dialog authpeer->mwipvt");
 			/* sip_destroy(authpeer->mwipvt); */
 		}
@@ -25046,7 +25034,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		set_socket_transport(&p->socket, 0);
 		if (create_addr_from_peer(p, peer)) {
 			/* Maybe they're not registered, etc. */
-			dialog_unlink_all(p, TRUE, TRUE);
+			dialog_unlink_all(p);
 			dialog_unref(p, "unref dialog p just created via sip_alloc");
 			/* sip_destroy(p); */
 			ao2_unlock(peer);
@@ -25587,7 +25575,7 @@ static int sip_poke_noanswer(const void *data)
 	}
 
 	if (peer->call) {
-		dialog_unlink_all(peer->call, TRUE, TRUE);
+		dialog_unlink_all(peer->call);
 		peer->call = dialog_unref(peer->call, "unref dialog peer->call");
 		/* peer->call = sip_destroy(peer->call);*/
 	}
@@ -25637,7 +25625,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 		if (sipdebug) {
 			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
 		}
-		dialog_unlink_all(peer->call, TRUE, TRUE);
+		dialog_unlink_all(peer->call);
 		peer->call = dialog_unref(peer->call, "unref dialog peer->call");
 		/* peer->call = sip_destroy(peer->call); */
 	}
@@ -25864,7 +25852,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	ast_string_field_set(p, dialstring, dialstring);
 
 	if (!(p->options = ast_calloc(1, sizeof(*p->options)))) {
-		dialog_unlink_all(p, TRUE, TRUE);
+		dialog_unlink_all(p);
 		dialog_unref(p, "unref dialog p from mem fail");
 		/* sip_destroy(p); */
 		ast_log(LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
@@ -25953,7 +25941,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	if (create_addr(p, host, NULL, 1, &remote_address_sa)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		ast_debug(3, "Cant create SIP call - target device not registered\n");
-		dialog_unlink_all(p, TRUE, TRUE);
+		dialog_unlink_all(p);
 		dialog_unref(p, "unref dialog p UNREGISTERED");
 		/* sip_destroy(p); */
 		return NULL;
@@ -25997,8 +25985,10 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 			p->owner? p->owner->name : "", "SIP", p->callid, p->fullcontact, p->peername);
 	sip_pvt_unlock(p);
 	if (!tmpc) {
-		dialog_unlink_all(p, TRUE, TRUE);
+		dialog_unlink_all(p);
 		/* sip_destroy(p); */
+	} else {
+		ast_channel_unlock(tmpc);
 	}
 	dialog_unref(p, "toss pvt ptr at end of sip_request_call");
 	ast_update_use_count();
@@ -27317,7 +27307,7 @@ static int reload_config(enum channelreloadreason reason)
 				if (iterator->call) {
 					ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
 					/* This will also remove references to the registry */
-					dialog_unlink_all(iterator->call, TRUE, TRUE);
+					dialog_unlink_all(iterator->call);
 					iterator->call = dialog_unref(iterator->call, "remove iterator->call from registry traversal");
 				}
 				if (iterator->expire > -1) {
@@ -29791,7 +29781,7 @@ static int unload_module(void)
 	/* Destroy all the dialogs and free their memory */
 	i = ao2_iterator_init(dialogs, 0);
 	while ((p = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
-		dialog_unlink_all(p, TRUE, TRUE);
+		dialog_unlink_all(p);
 		ao2_t_ref(p, -1, "throw away iterator result");
 	}
 	ao2_iterator_destroy(&i);

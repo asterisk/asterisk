@@ -57,10 +57,13 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
  * \brief Unlink a dialog from the dialogs container, as well as any other places
  * that it may be currently stored.
  *
- * \note A reference to the dialog must be held before calling this function, and this
- * function does not release that reference.
+ * \note A reference to the dialog must be held before calling
+ * this function, and this function does not release that
+ * reference.
+ *
+ * \note The dialog must not be locked when called.
  */
-void *dialog_unlink_all(struct sip_pvt *dialog, int lockowner, int lockdialoglist);
+void dialog_unlink_all(struct sip_pvt *dialog);
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission
  * called with p locked*/
