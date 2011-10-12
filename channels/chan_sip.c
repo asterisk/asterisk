@@ -19985,6 +19985,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (!req->ignore && p->invitestate != INV_CANCELLED && sip_cancel_destroy(p)) {
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
 		}
+		/* Store Route-set from provisional SIP responses so
+		 * early-dialog request can be routed properly
+		 * */
+		parse_ok_contact(p, req);
+		if (!reinvite) {
+			build_route(p, req, 1);
+		}
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
 				/* Queue a connected line update */
@@ -20048,6 +20055,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	case 183:	/* Session progress */
 		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p)) {
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		}
+		/* Store Route-set from provisional SIP responses so
+		 * early-dialog request can be routed properly
+		 * */
+		parse_ok_contact(p, req);
+		if (!reinvite) {
+			build_route(p, req, 1);
 		}
 		if (!req->ignore && p->owner) {
 			if (get_rpid(p, req)) {
