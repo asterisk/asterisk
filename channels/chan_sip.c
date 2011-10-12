@@ -11299,7 +11299,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			needaudio = TRUE;
 
 		if (debug) {
-			ast_verbose("Audio is at %s\n", ast_sockaddr_stringify_port(&p->ourip));
+			ast_verbose("Audio is at %s\n", ast_sockaddr_stringify_port(&addr));
 		}
 
 		/* Ok, we need video. Let's add what we need for video and set codecs.
@@ -11313,7 +11313,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			if (p->maxcallbitrate)
 				snprintf(bandwidth, sizeof(bandwidth), "b=CT:%d\r\n", p->maxcallbitrate);
 			if (debug) {
-				ast_verbose("Video is at %s\n", ast_sockaddr_stringify(&p->ourip));
+				ast_verbose("Video is at %s\n", ast_sockaddr_stringify(&vdest));
 			}
 		}
 
@@ -11326,7 +11326,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			ast_str_append(&m_text, 0, "m=text %d RTP/%s", ast_sockaddr_port(&tdest),
 				t_a_crypto ? "SAVP" : "AVP");
 			if (debug) {  /* XXX should I use tdest below ? */
-				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&p->ourip));
+				ast_verbose("Text is at %s\n", ast_sockaddr_stringify(&taddr));
 			}
 		}
 
