@@ -4645,7 +4645,7 @@ static void update_peer(struct sip_peer *p, int expire)
 	int rtcachefriends = ast_test_flag(&p->flags[1], SIP_PAGE2_RTCACHEFRIENDS);
 	if (sip_cfg.peer_rtupdate &&
 	    (p->is_realtime || rtcachefriends)) {
-		realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, p->useragent, expire, p->deprecated_username, p->lastms);
+		realtime_update_peer(p->name, &p->addr, p->username, p->fullcontact, p->useragent, expire, p->deprecated_username, p->lastms);
 	}
 }
 
