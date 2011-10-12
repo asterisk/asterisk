@@ -147,10 +147,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</option>
 					<option name="p" hasparams="optional">
 						<para>Allow user to exit the conference by pressing <literal>#</literal> (default)
-						or any of the defined keys. If keys contain <literal>*</literal> this will override
-						option <literal>s</literal>. The key used is set to channel variable
+						or any of the defined keys.  The key used is set to channel variable
 						<variable>MEETME_EXIT_KEY</variable>.</para>
 						<argument name="keys" required="true" />
+						<note>
+							<para>Option <literal>s</literal> has priority for <literal>*</literal>
+							since it cannot change its activation code.</para>
+						</note>
 					</option>
 					<option name="P">
 						<para>Always prompt for the pin even if it is specified.</para>
@@ -192,6 +195,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Allow user to exit the conference by entering a valid single digit
 						extension <variable>MEETME_EXIT_CONTEXT</variable> or the current context
 						if that variable is not defined.</para>
+						<note>
+							<para>Option <literal>s</literal> has priority for <literal>*</literal>
+							since it cannot change its activation code.</para>
+						</note>
 					</option>
 					<option name="1">
 						<para>Do not play message when first person enters</para>
@@ -3636,7 +3643,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					}
 
 					conf_flush(fd, chan);
-				/* Since this option could absorb DTMF meant for the previous (menu), we have to check this one last */
+				/*
+				 * Since options using DTMF could absorb DTMF meant for the
+				 * conference menu, we have to check them after the menu.
+				 */
 				} else if ((f->frametype == AST_FRAME_DTMF) && ast_test_flag64(confflags, CONFFLAG_EXIT_CONTEXT) && ast_exists_extension(chan, exitcontext, dtmfstr, 1, "")) {
 					if (ast_test_flag64(confflags, CONFFLAG_PASS_DTMF)) {
 						conf_queue_dtmf(conf, user, f);
