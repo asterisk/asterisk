@@ -14554,6 +14554,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 					      struct sip_request *req, const char *uri)
 {
 	enum check_auth_result res = AUTH_NOT_FOUND;
+	int sendmwi = 0;
 	struct sip_peer *peer;
 	char tmp[256];
 	char *name = NULL, *c, *domain = NULL, *dummy = NULL;
@@ -14650,6 +14651,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 						ast_string_field_set(p, fullcontact, peer->fullcontact);
 						transmit_response_with_date(p, "200 OK", req);
 						res = 0;
+						sendmwi = 1;
 						break;
 					case PARSE_REGISTER_UPDATE:
 						ast_string_field_set(p, fullcontact, peer->fullcontact);
@@ -14657,6 +14659,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 						/* Say OK and ask subsystem to retransmit msg counter */
 						transmit_response_with_date(p, "200 OK", req);
 						res = 0;
+						sendmwi = 1;
 						break;
 					}
 				}
@@ -14691,6 +14694,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 				ast_string_field_set(p, fullcontact, peer->fullcontact);
 				transmit_response_with_date(p, "200 OK", req);
 				res = 0;
+				sendmwi = 1;
 				break;
 			case PARSE_REGISTER_UPDATE:
 				ast_string_field_set(p, fullcontact, peer->fullcontact);
@@ -14698,6 +14702,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 				transmit_response_with_date(p, "200 OK", req);
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name, ast_sockaddr_stringify(addr));
 				res = 0;
+				sendmwi = 1;
 				break;
 			}
 			ao2_unlock(peer);
@@ -14712,7 +14717,9 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		sched_yield();
 	}
 	if (!res) {
-		sip_send_mwi_to_peer(peer, 0);
+		if (sendmwi) {
+			sip_send_mwi_to_peer(peer, 0);
+		}
 		ast_devstate_changed(AST_DEVICE_UNKNOWN, "SIP/%s", peer->name);
 	}
 	if (res < 0) {
