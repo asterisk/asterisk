@@ -20036,6 +20036,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	case 181:	/* Call Is Being Forwarded */
 		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
 			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		/* Store Route-set from provisional SIP responses so
+		 * early-dialog request can be routed properly
+		 * */
+		parse_ok_contact(p, req);
+		if (!reinvite) {
+			build_route(p, req, 1);
+		}
 		if (!req->ignore && p->owner) {
 			struct ast_party_redirecting redirecting;
 			struct ast_set_party_redirecting update_redirecting;
