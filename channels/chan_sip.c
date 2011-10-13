@@ -15685,7 +15685,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[512];
 	char *c, *maddr;
-	struct ast_sockaddr tmp;
+	struct ast_sockaddr tmp = { { 0, } };
 	uint16_t port;
 
 	ast_copy_string(via, sip_get_header(req, "Via"), sizeof(via));
