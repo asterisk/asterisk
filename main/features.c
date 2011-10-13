@@ -845,35 +845,49 @@ static void set_c_e_p(struct ast_channel *chan, const char *context, const char 
 static void check_goto_on_transfer(struct ast_channel *chan) 
 {
 	struct ast_channel *xferchan;
-	const char *val = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
-	char *x, *goto_on_transfer;
-	struct ast_frame *f;
+	const char *val;
+	char *goto_on_transfer;
+	char *x;
 
-	if (ast_strlen_zero(val))
+	ast_channel_lock(chan);
+	val = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
+	if (ast_strlen_zero(val)) {
+		ast_channel_unlock(chan);
 		return;
-
-	goto_on_transfer = ast_strdupa(val);
-
-	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", chan->linkedid, 0, "%s", chan->name)))
-		return;
-
-	for (x = goto_on_transfer; x && *x; x++) {
-		if (*x == '^')
-			*x = ',';
 	}
+	goto_on_transfer = ast_strdupa(val);
+	ast_channel_unlock(chan);
+
+	ast_debug(1, "Attempting GOTO_ON_BLINDXFR=%s for %s.\n", val, chan->name);
+
+	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", chan->linkedid, 0,
+		"%s", chan->name);
+	if (!xferchan) {
+		return;
+	}
+
 	/* Make formats okay */
 	xferchan->readformat = chan->readformat;
 	xferchan->writeformat = chan->writeformat;
-	ast_channel_masquerade(xferchan, chan);
+
+	if (ast_channel_masquerade(xferchan, chan)) {
+		/* Failed to setup masquerade. */
+		ast_hangup(xferchan);
+		return;
+	}
+
+	for (x = goto_on_transfer; *x; ++x) {
+		if (*x == '^') {
+			*x = ',';
+		}
+	}
 	ast_parseable_goto(xferchan, goto_on_transfer);
 	xferchan->_state = AST_STATE_UP;
 	ast_clear_flag(xferchan, AST_FLAGS_ALL);	
 	ast_channel_clear_softhangup(xferchan, AST_SOFTHANGUP_ALL);
-	if ((f = ast_read(xferchan))) {
-		ast_frfree(f);
-		f = NULL;
-		ast_pbx_start(xferchan);
-	} else {
+
+	if (ast_do_masquerade(xferchan) || ast_pbx_start(xferchan)) {
+		/* Failed to do masquerade or could not start PBX. */
 		ast_hangup(xferchan);
 	}
 }
@@ -2115,6 +2129,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	char xferto[256] = "";
 	int res;
 
+	ast_debug(1, "Executing Blind Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
 	transferer_real_context = real_ctx(transferer, transferee);
 
@@ -2157,10 +2172,12 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	}
 
 	/* Do blind transfer. */
+	ast_verb(3, "Blind transferring %s to '%s' (context %s) priority 1\n",
+		transferee->name, xferto, transferer_real_context);
 	ast_cel_report_event(transferer, AST_CEL_BLINDTRANSFER, NULL, xferto, transferee);
 	pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", transferee->name);
 	pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", transferer->name);
-	res = finishup(transferee);
+	finishup(transferee);
 	if (!transferer->cdr) { /* this code should never get called (in a perfect world) */
 		transferer->cdr = ast_cdr_alloc();
 		if (transferer->cdr) {
@@ -2187,21 +2204,24 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	}
 	if (!transferee->pbx) {
 		/* Doh!  Use our handy async_goto functions */
-		ast_verb(3, "Transferring %s to '%s' (context %s) priority 1\n",
-			transferee->name, xferto, transferer_real_context);
+		ast_debug(1, "About to ast_async_goto %s.\n", transferee->name);
 		if (ast_async_goto(transferee, transferer_real_context, xferto, 1)) {
 			ast_log(LOG_WARNING, "Async goto failed :-(\n");
 		}
+
+		/* The transferee is masqueraded and the original bridged channels can be hungup. */
+		res = -1;
 	} else {
-		/* Set the channel's new extension, since it exists, using transferer context */
+		/* Set the transferee's new extension, since it exists, using transferer context */
+		ast_debug(1, "About to explicit goto %s, it has a PBX.\n", transferee->name);
 		ast_set_flag(transferee, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
-		ast_debug(1,
-			"ABOUT TO AST_ASYNC_GOTO, have a pbx... set HANGUP_DONT on chan=%s\n",
-			transferee->name);
-		if (ast_channel_connected_line_macro(transferee, transferer, &transferer->connected, 1, 0)) {
-			ast_channel_update_connected_line(transferer, &transferer->connected, NULL);
-		}
 		set_c_e_p(transferee, transferer_real_context, xferto, 0);
+
+		/*
+		 * Break the bridge.  The transferee needs to resume executing
+		 * dialplan at the xferto location.
+		 */
+		res = AST_FEATURE_RETURN_SUCCESSBREAK;
 	}
 	check_goto_on_transfer(transferer);
 	return res;
