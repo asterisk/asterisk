@@ -9127,6 +9127,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 
 			ast_rtp_codecs_payloads_copy(&newaudiortp, ast_rtp_instance_get_codecs(p->rtp), p->rtp);
+			/* Ensure RTCP is enabled since it may be inactive
+			   if we're coming back from a T.38 session */
+			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 1);
 
 			if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) {
 				ast_clear_flag(&p->flags[0], SIP_DTMF);
@@ -9143,6 +9146,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if (udptlportno > 0) {
 			if (debug)
 				ast_verbose("Got T.38 Re-invite without audio. Keeping RTP active during T.38 session.\n");
+			/* Silence RTCP while audio RTP is inactive */
+			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 0);
 		} else {
 			ast_rtp_instance_stop(p->rtp);
 			if (debug)
