@@ -1,6 +1,6 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
-# 
+#
 # Makefile rules for subdirectories containing modules
 #
 # Copyright (C) 2006, Digium, Inc.
@@ -46,7 +46,7 @@ endif
 C_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_C_MODS))
 CC_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_CC_MODS))
 
-ifneq ($(findstring $(MENUSELECT_CATEGORY),$(MENUSELECT_EMBED)),)
+ifneq ($(findstring EMBED_$(MENUSELECT_CATEGORY),$(MENUSELECT_EMBED)),)
     EMBEDDED_MODS:=$(C_MODS) $(CC_MODS)
 else
     LOADABLE_MODS:=$(C_MODS) $(CC_MODS)
