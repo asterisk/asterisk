@@ -18,6 +18,7 @@
  */
 
 /*** MODULEINFO
+	<support_level>core</support_level>
 	<conflict>app_fax</conflict>
 ***/
 
@@ -27,16 +28,12 @@
  *
  * \author Dwayne M. Hubbard <dhubbard@digium.com>
  * \author Kevin P. Fleming <kpfleming@digium.com>
- * 
+ *
  * A generic FAX resource module that provides SendFAX and ReceiveFAX applications.
  * This module requires FAX technology modules, like res_fax_spandsp, to register with it
  * so it can use the technology modules to perform the actual FAX transmissions.
  * \ingroup applications
  */
-
-/*** MODULEINFO
-	<support_level>core</support_level>
- ***/
 
 #include "asterisk.h"
 
