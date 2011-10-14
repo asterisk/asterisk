@@ -27,6 +27,7 @@
  */
 
 /*** MODULEINFO
+	<support_level>core</support_level>
 	<depend>dahdi</depend>
  ***/
 

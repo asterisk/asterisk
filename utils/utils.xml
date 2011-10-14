@@ -5,6 +5,7 @@
   </member>
   <member name="astcanary">
 	<defaultenabled>yes</defaultenabled>
+	<support_level>core</support_level>
   </member>
   <member name="astdb2sqlite3">
 	<defaultenabled>yes</defaultenabled>

@@ -15,6 +15,10 @@
  *
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 /*! \file
  *
  * \brief REALTIME dialplan function
