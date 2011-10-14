@@ -4309,7 +4309,9 @@ static void *skinny_ss(void *data)
 					}
 					return NULL;
 				} else {
-					dialandactivatesub(sub, sub->exten);
+					if (sub->substate == SUBSTATE_OFFHOOK) {
+						dialandactivatesub(sub, sub->exten);
+					}
 					return NULL;
 				}
 			} else {
@@ -5463,6 +5465,9 @@ static void activatesub(struct skinny_subchannel *sub, int state)
 
 static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION])
 {
+	if (skinnydebug) {
+		ast_verb(3, "Sub %d - Dial %s and Activate\n", sub->callid, exten);
+	}
 	ast_copy_string(sub->exten, exten, sizeof(sub->exten));
 	activatesub(sub, SUBSTATE_DIALING);
 }
