@@ -2382,44 +2382,65 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	if (property == AST_RTP_PROPERTY_RTCP) {
-		if (rtp->rtcp) {
-			ast_debug(1, "Ignoring duplicate RTCP property on RTP instance '%p'\n", instance);
+		if (value) {
+			if (rtp->rtcp) {
+				ast_debug(1, "Ignoring duplicate RTCP property on RTP instance '%p'\n", instance);
+				return;
+			}
+			/* Setup RTCP to be activated on the next RTP write */
+			if (!(rtp->rtcp = ast_calloc(1, sizeof(*rtp->rtcp)))) {
+				return;
+			}
+
+			/* Grab the IP address and port we are going to use */
+			ast_rtp_instance_get_local_address(instance, &rtp->rtcp->us);
+			ast_sockaddr_set_port(&rtp->rtcp->us,
+					      ast_sockaddr_port(&rtp->rtcp->us) + 1);
+
+			if ((rtp->rtcp->s =
+			     create_new_socket("RTCP",
+					       ast_sockaddr_is_ipv4(&rtp->rtcp->us) ?
+					       AF_INET :
+					       ast_sockaddr_is_ipv6(&rtp->rtcp->us) ?
+					       AF_INET6 : -1)) < 0) {
+				ast_debug(1, "Failed to create a new socket for RTCP on instance '%p'\n", instance);
+				ast_free(rtp->rtcp);
+				rtp->rtcp = NULL;
+				return;
+			}
+
+			/* Try to actually bind to the IP address and port we are going to use for RTCP, if this fails we have to bail out */
+			if (ast_bind(rtp->rtcp->s, &rtp->rtcp->us)) {
+				ast_debug(1, "Failed to setup RTCP on RTP instance '%p'\n", instance);
+				close(rtp->rtcp->s);
+				ast_free(rtp->rtcp);
+				rtp->rtcp = NULL;
+				return;
+			}
+
+			ast_debug(1, "Setup RTCP on RTP instance '%p'\n", instance);
+			rtp->rtcp->schedid = -1;
+
+			return;
+		} else {
+			if (rtp->rtcp) {
+				if (rtp->rtcp->schedid > 0) {
+					if (!ast_sched_del(rtp->sched, rtp->rtcp->schedid)) {
+						/* Successfully cancelled scheduler entry. */
+						ao2_ref(instance, -1);
+					} else {
+						/* Unable to cancel scheduler entry */
+						ast_debug(1, "Failed to tear down RTCP on RTP instance '%p'\n", instance);
+						return;
+					}
+					rtp->rtcp->schedid = -1;
+				}
+				close(rtp->rtcp->s);
+				ast_free(rtp->rtcp);
+				rtp->rtcp = NULL;
+			}
 			return;
 		}
-		if (!(rtp->rtcp = ast_calloc(1, sizeof(*rtp->rtcp)))) {
-			return;
-		}
-
-		/* Grab the IP address and port we are going to use */
-		ast_rtp_instance_get_local_address(instance, &rtp->rtcp->us);
-		ast_sockaddr_set_port(&rtp->rtcp->us,
-				      ast_sockaddr_port(&rtp->rtcp->us) + 1);
-
-		if ((rtp->rtcp->s =
-		     create_new_socket("RTCP",
-				       ast_sockaddr_is_ipv4(&rtp->rtcp->us) ?
-				       AF_INET :
-				       ast_sockaddr_is_ipv6(&rtp->rtcp->us) ?
-				       AF_INET6 : -1)) < 0) {
-			ast_debug(1, "Failed to create a new socket for RTCP on instance '%p'\n", instance);
-			ast_free(rtp->rtcp);
-			rtp->rtcp = NULL;
-			return;
-		}
-
-		/* Try to actually bind to the IP address and port we are going to use for RTCP, if this fails we have to bail out */
-		if (ast_bind(rtp->rtcp->s, &rtp->rtcp->us)) {
-			ast_debug(1, "Failed to setup RTCP on RTP instance '%p'\n", instance);
-			close(rtp->rtcp->s);
-			ast_free(rtp->rtcp);
-			rtp->rtcp = NULL;
-			return;
-		}
-
-		ast_debug(1, "Setup RTCP on RTP instance '%p'\n", instance);
-		rtp->rtcp->schedid = -1;
-
-		return;
 	}
 
 	return;
