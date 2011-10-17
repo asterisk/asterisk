@@ -44,7 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
-#include "asterisk/md5.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/sched.h"
