@@ -49,6 +49,7 @@
 		<conflict>ODBC_STORAGE</conflict>
 		<conflict>IMAP_STORAGE</conflict>
 		<defaultenabled>yes</defaultenabled>
+		<support_level>core</support_level>
 	</member>
 	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
 		<depend>generic_odbc</depend>
@@ -56,6 +57,7 @@
 		<conflict>IMAP_STORAGE</conflict>
 		<conflict>FILE_STORAGE</conflict>
 		<defaultenabled>no</defaultenabled>
+		<support_level>core</support_level>
 	</member>
 	<member name="IMAP_STORAGE" displayname="Storage of Voicemail using IMAP4">
 		<depend>imap_tk</depend>
@@ -63,6 +65,7 @@
 		<conflict>FILE_STORAGE</conflict>
 		<use type="external">openssl</use>
 		<defaultenabled>no</defaultenabled>
+		<support_level>core</support_level>
 	</member>
 </category>
 ***/
