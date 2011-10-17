@@ -49,7 +49,7 @@
 		<conflict>ODBC_STORAGE</conflict>
 		<conflict>IMAP_STORAGE</conflict>
 		<defaultenabled>yes</defaultenabled>
-	<support_level>core</support_level>
+		<support_level>core</support_level>
 	</member>
 	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
 		<depend>generic_odbc</depend>
