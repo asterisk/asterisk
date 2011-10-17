@@ -130,6 +130,13 @@ CODECS
  * Ability to read raw signed linear files with sample rates
    ranging from 8khz - 192khz.  The new file extensions introduced
    are .sln12, .sln24, .sln32, .sln44, .sln48, .sln96, .sln192.
+ * Due to protocol limitations, channel drivers other than SIP (eg. IAX2, MGCP,
+   Skinny, H.323, etc) can still only support the following codecs:
+   Audio: ulaw, alaw, slin, slin16, g719, g722, g723, g726, g726aal2, g729, gsm,
+          siren7, siren14, speex, speex16, ilbc, lpc10, adpcm
+   Video: h261, h263, h263p, h264, mpeg4
+   Image: jpeg, png
+   Text:  red, t140
 
 ConfBridge
 --------------------------
