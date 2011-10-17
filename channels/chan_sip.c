@@ -13820,7 +13820,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	char data[SIPBUFSIZE];
 	const char *expires = sip_get_header(req, "Expires");
 	int expire = atoi(expires);
-	char *curi, *domain, *transport;
+	char *curi = NULL, *domain = NULL, *transport = NULL;
 	int transport_type;
 	const char *useragent;
 	struct ast_sockaddr oldsin, testsa;
@@ -13898,7 +13898,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	if (parse_uri_legacy_check(curi, "sip:,sips:", &curi, NULL, &domain, &transport)) {
+	if (ast_strlen_zero(curi) || parse_uri_legacy_check(curi, "sip:,sips:", &curi, NULL, &domain, &transport)) {
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:/sips:) trying to use anyway\n");
 	}
 
