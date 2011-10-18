@@ -58,7 +58,8 @@ AC_ARG_WITH([$1], AC_HELP_STRING([--with-$1=PATH], [use $3 in PATH]),
 AC_SUBST($2)
 ])
 
-# AST_EXT_LIB_SETUP_DEPENDENT([package symbol name], [package friendly name], [master package symbol name], [master package option name])
+# Setup required dependent package
+# AST_EXT_LIB_SETUP_DEPENDENT([dependent package symbol name], [dependent package friendly name], [master package symbol name], [master package name])
 
 AC_DEFUN([AST_EXT_LIB_SETUP_DEPENDENT],
 [
@@ -75,6 +76,23 @@ $1_DIR=${$3_DIR}
 ])
 PBX_$1=0
 AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
+AC_SUBST([$1_LIB])
+AC_SUBST([$1_INCLUDE])
+AC_SUBST([$1_DIR])
+AC_SUBST([PBX_$1])
+])
+
+# Setup optional dependent package
+# AST_EXT_LIB_SETUP_OPTIONAL([optional package symbol name], [optional package friendly name], [master package symbol name], [master package name])
+
+AC_DEFUN([AST_EXT_LIB_SETUP_OPTIONAL],
+[
+$1_DESCRIP="$2"
+m4_ifval([$4], [$1_OPTION=$4])
+m4_ifval([$3], [$1_DIR=${$3_DIR}
+])
+PBX_$1=0
+AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if $3 has the $2 feature.])
 AC_SUBST([$1_LIB])
 AC_SUBST([$1_INCLUDE])
 AC_SUBST([$1_DIR])

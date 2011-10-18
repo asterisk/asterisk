@@ -2,9 +2,46 @@
 
 	* Asterisk 1.8.8.0-rc2 Released.
 
-2011-10-07 15:58:07 +0000 [r943]  Jason Parker <jparker@digium.com>
-
 	* menuselect/menuselect.c: Fix --enable/--enable-category.
+
+	------------------------------------------------------------------------
+	r339719 | rmudgett | 2011-10-06 17:47:50 -0500 (Thu, 06 Oct 2011) | 20 lines
+	Fix regression in configure script for libpri capability checks.
+
+	JIRA AST-598 added the PRI_L2_PERSISTENCE option to fix BRI PTMP TE layer
+	2 persistence issues with some telcos.  ASTERISK-18535 attempted to fix
+	the unexpected requirement that libpri *must* have that feature to work
+	with Asterisk.  The AST_EXT_LIB_SETUP_DEPENDENT lines made the PRI
+	optional features required.  Unfortunately, I thought
+	AST_EXT_LIB_SETUP_DEPENDENT didn't do anything useful for libpri and
+	deleted those lines for libpri.  The result was the HAVE_PRI_xxx defines
+	that control the ability to use optional libpri features were also
+	deleted.
+
+	* Created AST_EXT_LIB_SETUP_OPTIONAL configuration macro to allow optional
+	features in a library that the source code could take advantage of if the
+	code supports the feature.
+	
+	(closes issue ASTERISK-18687)
+	Reported by: Norbert
+	Tested by: rmudgett
+	------------------------------------------------------------------------
+	r340878 | twilson | 2011-10-14 11:33:28 -0500 (Fri, 14 Oct 2011) | 8 lines
+
+	Avoid unnecessary WARNING message
+
+	Add AST_CONTROL_UPDATE_RTP_PEER frame to be ignored here to avoid
+	displaying a WARNING message.
+
+	(closes issue ASTERISK-18610)
+	 Patch by: Kristijan_Vrban
+	------------------------------------------------------------------------
+	r341088 | twilson | 2011-10-17 10:35:05 -0500 (Mon, 17 Oct 2011) | 4 lines
+
+	Don't try to remove peers without IPs from peers_by_ip
+
+	(closes issue ASTERISK-18696)
+	------------------------------------------------------------------------
 
 2011-10-05  Asterisk Development Team <asteriskteam@digium.com>
 
