@@ -78,33 +78,87 @@ struct ast_call_feature {
 };
 
 /*!
- * \brief Park a call and read back parked location 
- * \param chan the channel to actually be parked
- * \param host the channel which will have the parked location read to.
+ * \brief Park a call and read back parked location
+ *
+ * \param park_me Channel to be parked.
+ * \param parker Channel parking the call.
  * \param timeout is a timeout in milliseconds
+ * \param park_exten Parking lot access extension (Not used)
  * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
- * 
- * Park the channel chan, and read back the parked location to the host. 
- * If the call is not picked up within a specified period of time, 
- * then the call will return to the last step that it was in 
- * (in terms of exten, priority and context)
+ *
+ * \details
+ * Park the park_me channel, and read back the parked location
+ * to the parker channel.  If the call is not picked up within a
+ * specified period of time, then the call will return to the
+ * last step that it was in (in terms of exten, priority and
+ * context).
+ *
+ * \note Use ast_park_call_exten() instead.
+ *
  * \retval 0 on success.
  * \retval -1 on failure.
-*/
-int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeout, const char *parkexten, int *extout);
+ */
+int ast_park_call(struct ast_channel *park_me, struct ast_channel *parker, int timeout, const char *park_exten, int *extout);
 
-/*! 
- * \brief Park a call via a masqueraded channel
- * \param rchan the real channel to be parked
- * \param host the channel to have the parking read to.
+/*!
+ * \brief Park a call and read back parked location
+ * \since 1.8.9
+ *
+ * \param park_me Channel to be parked.
+ * \param parker Channel parking the call.
+ * \param park_exten Parking lot access extension
+ * \param park_context Parking lot context
  * \param timeout is a timeout in milliseconds
  * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
- * 
- * Masquerade the channel rchan into a new, empty channel which is then parked with ast_park_call
+ *
+ * \details
+ * Park the park_me channel, and read back the parked location
+ * to the parker channel.  If the call is not picked up within a
+ * specified period of time, then the call will return to the
+ * last step that it was in (in terms of exten, priority and
+ * context).
+ *
  * \retval 0 on success.
  * \retval -1 on failure.
-*/
-int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *host, int timeout, int *extout);
+ */
+int ast_park_call_exten(struct ast_channel *park_me, struct ast_channel *parker, const char *park_exten, const char *park_context, int timeout, int *extout);
+
+/*!
+ * \brief Park a call via a masqueraded channel
+ *
+ * \param park_me Channel to be parked.
+ * \param parker Channel parking the call.
+ * \param timeout is a timeout in milliseconds
+ * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
+ *
+ * \details
+ * Masquerade the park_me channel into a new, empty channel which is then parked.
+ *
+ * \note Use ast_masq_park_call_exten() instead.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.
+ */
+int ast_masq_park_call(struct ast_channel *park_me, struct ast_channel *parker, int timeout, int *extout);
+
+/*!
+ * \brief Park a call via a masqueraded channel
+ * \since 1.8.9
+ *
+ * \param park_me Channel to be parked.
+ * \param parker Channel parking the call.
+ * \param park_exten Parking lot access extension
+ * \param park_context Parking lot context
+ * \param timeout is a timeout in milliseconds
+ * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
+ *
+ * \details
+ * Masquerade the park_me channel into a new, empty channel which is then parked.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.
+ */
+int ast_masq_park_call_exten(struct ast_channel *park_me, struct ast_channel *parker, const char *park_exten, const char *park_context, int timeout, int *extout);
 
 /*! 
  * \brief Determine if parking extension exists in a given context
