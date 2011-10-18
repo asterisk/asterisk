@@ -48,8 +48,8 @@
    release.
 
      Coders                   Testers                  Reporters              
-   4 qwell                  
-   1 bebuild                
+   6 qwell                  
+   2 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -78,6 +78,14 @@
    |          |         | Update ChangeLog. Merge revisions    |            |
    | 341282   | qwell   | 339719,340878,341088 from            |            |
    |          |         | branches/1.8/                        |            |
+   |----------+---------+--------------------------------------+------------|
+   | 341289   | bebuild | Importing release summary for        |            |
+   |          |         | 1.8.8.0-rc2 release.                 |            |
+   |----------+---------+--------------------------------------+------------|
+   | 341309   | qwell   | Merge r341189 from branches/1.8/ for |            |
+   |          |         | AST-2011-012                         |            |
+   |----------+---------+--------------------------------------+------------|
+   | 341310   | qwell   | Update ChangeLog                     |            |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -90,14 +98,14 @@
    release that was generated using the diffstat utility.
 
  .version                          |    2
- ChangeLog                         |   45 +++++++++++++++++++
- asterisk-1.8.8.0-rc2-summary.html |   58 +++++++++++++++++++++++++
- asterisk-1.8.8.0-rc2-summary.txt  |   88 ++++++++++++++++++++++++++++++++++++++
- autoconf/ast_ext_lib.m4           |   20 ++++++++
- channels/chan_sip.c               |    4 +
- configure.ac                      |   20 ++++++++
- include/asterisk/autoconfig.h.in  |   64 ++++++++++++++++++++++++---
+ ChangeLog                         |   47 +++++++++++++++++
+ asterisk-1.8.8.0-rc2-summary.html |   68 +++++++++++++++++++++++++
+ asterisk-1.8.8.0-rc2-summary.txt  |  103 ++++++++++++++++++++++++++++++++++++++
+ autoconf/ast_ext_lib.m4           |   20 +++++++
+ channels/chan_sip.c               |    8 +-
+ configure.ac                      |   20 +++++++
+ include/asterisk/autoconfig.h.in  |   64 +++++++++++++++++++++--
  main/channel.c                    |    1
- 9 files changed, 292 insertions(+), 10 deletions(-)
+ 9 files changed, 321 insertions(+), 12 deletions(-)
 
      ----------------------------------------------------------------------
