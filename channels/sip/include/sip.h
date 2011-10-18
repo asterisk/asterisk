@@ -805,7 +805,8 @@ struct sip_dual {
 	struct ast_channel *chan2;   /*!< Second channel involved */
 	struct sip_request req;      /*!< Request that caused the transfer (REFER) */
 	int seqno;                   /*!< Sequence number */
-	const char *parkexten;
+	char *park_exten;
+	char *park_context;
 };
 
 /*! \brief Parameters to the transmit_invite function */

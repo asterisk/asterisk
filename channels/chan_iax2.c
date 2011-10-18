@@ -9347,78 +9347,125 @@ static void spawn_dp_lookup(int callno, const char *context, const char *calledn
 struct iax_dual {
 	struct ast_channel *chan1;
 	struct ast_channel *chan2;
-	const char *parkexten;
+	char *park_exten;
+	char *park_context;
 };
 
 static void *iax_park_thread(void *stuff)
 {
-	struct ast_channel *chan1, *chan2;
 	struct iax_dual *d;
-	struct ast_frame *f;
+	int res;
 	int ext = 0;
 
 	d = stuff;
-	chan1 = d->chan1;
-	chan2 = d->chan2;
+
+	ast_debug(4, "IAX Park: Transferer channel %s, Transferee %s\n",
+		d->chan2->name, d->chan1->name);
+
+	res = ast_park_call_exten(d->chan1, d->chan2, d->park_exten, d->park_context, 0, &ext);
+	if (res) {
+		/* Parking failed. */
+		ast_hangup(d->chan1);
+	} else {
+		ast_log(LOG_NOTICE, "Parked on extension '%d'\n", ext);
+	}
+	ast_hangup(d->chan2);
+
+	ast_free(d->park_exten);
+	ast_free(d->park_context);
 	ast_free(d);
-	f = ast_read(chan1);
-	if (f)
-		ast_frfree(f);
-	ast_park_call(chan1, chan2, 0, d->parkexten, &ext);
-	ast_hangup(chan2);
-	ast_log(LOG_NOTICE, "Parked on extension '%d'\n", ext);
 	return NULL;
 }
 
-static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const char *parkexten)
+/*! DO NOT hold any locks while calling iax_park */
+static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const char *park_exten, const char *park_context)
 {
 	struct iax_dual *d;
-	struct ast_channel *chan1m, *chan2m;
+	struct ast_channel *chan1m, *chan2m;/* Chan2m: The transferer, chan1m: The transferee */
 	pthread_t th;
+
 	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan1->exten, chan1->context, chan1->linkedid, chan1->amaflags, "Parking/%s", chan1->name);
 	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan2->exten, chan2->context, chan2->linkedid, chan2->amaflags, "IAXPeer/%s", chan2->name);
-	if (chan2m && chan1m) {
-		/* Make formats okay */
-		chan1m->readformat = chan1->readformat;
-		chan1m->writeformat = chan1->writeformat;
-		ast_channel_masquerade(chan1m, chan1);
-		/* Setup the extensions and such */
-		ast_copy_string(chan1m->context, chan1->context, sizeof(chan1m->context));
-		ast_copy_string(chan1m->exten, chan1->exten, sizeof(chan1m->exten));
-		chan1m->priority = chan1->priority;
-		
-		/* We make a clone of the peer channel too, so we can play
-		   back the announcement */
-		/* Make formats okay */
-		chan2m->readformat = chan2->readformat;
-		chan2m->writeformat = chan2->writeformat;
-		ast_channel_masquerade(chan2m, chan2);
-		/* Setup the extensions and such */
-		ast_copy_string(chan2m->context, chan2->context, sizeof(chan2m->context));
-		ast_copy_string(chan2m->exten, chan2->exten, sizeof(chan2m->exten));
-		chan2m->priority = chan2->priority;
-		if (ast_do_masquerade(chan2m)) {
-			ast_log(LOG_WARNING, "Masquerade failed :(\n");
-			ast_hangup(chan2m);
-			return -1;
-		}
-	} else {
-		if (chan1m)
+	d = ast_calloc(1, sizeof(*d));
+	if (!chan1m || !chan2m || !d) {
+		if (chan1m) {
 			ast_hangup(chan1m);
-		if (chan2m)
+		}
+		if (chan2m) {
 			ast_hangup(chan2m);
-		return -1;
-	}
-	if ((d = ast_calloc(1, sizeof(*d)))) {
-		d->chan1 = chan1m;
-		d->chan2 = chan2m;
-		d->parkexten = parkexten;
-		if (!ast_pthread_create_detached_background(&th, NULL, iax_park_thread, d)) {
-			return 0;
 		}
 		ast_free(d);
+		return -1;
 	}
-	return -1;
+	d->park_exten = ast_strdup(park_exten);
+	d->park_context = ast_strdup(park_context);
+	if (!d->park_exten || !d->park_context) {
+		ast_hangup(chan1m);
+		ast_hangup(chan2m);
+		ast_free(d->park_exten);
+		ast_free(d->park_context);
+		ast_free(d);
+		return -1;
+	}
+
+	/* Make formats okay */
+	chan1m->readformat = chan1->readformat;
+	chan1m->writeformat = chan1->writeformat;
+
+	/* Prepare for taking over the channel */
+	if (ast_channel_masquerade(chan1m, chan1)) {
+		ast_hangup(chan1m);
+		ast_hangup(chan2m);
+		ast_free(d->park_exten);
+		ast_free(d->park_context);
+		ast_free(d);
+		return -1;
+	}
+
+	/* Setup the extensions and such */
+	ast_copy_string(chan1m->context, chan1->context, sizeof(chan1m->context));
+	ast_copy_string(chan1m->exten, chan1->exten, sizeof(chan1m->exten));
+	chan1m->priority = chan1->priority;
+
+	ast_do_masquerade(chan1m);
+
+	/* We make a clone of the peer channel too, so we can play
+	   back the announcement */
+
+	/* Make formats okay */
+	chan2m->readformat = chan2->readformat;
+	chan2m->writeformat = chan2->writeformat;
+	ast_string_field_set(chan2m, parkinglot, chan2->parkinglot);
+
+	/* Prepare for taking over the channel */
+	if (ast_channel_masquerade(chan2m, chan2)) {
+		ast_hangup(chan1m);
+		ast_hangup(chan2m);
+		ast_free(d->park_exten);
+		ast_free(d->park_context);
+		ast_free(d);
+		return -1;
+	}
+
+	/* Setup the extensions and such */
+	ast_copy_string(chan2m->context, chan2->context, sizeof(chan2m->context));
+	ast_copy_string(chan2m->exten, chan2->exten, sizeof(chan2m->exten));
+	chan2m->priority = chan2->priority;
+
+	ast_do_masquerade(chan2m);
+
+	d->chan1 = chan1m;	/* Transferee */
+	d->chan2 = chan2m;	/* Transferer */
+	if (ast_pthread_create_detached_background(&th, NULL, iax_park_thread, d) < 0) {
+		/* Could not start thread */
+		ast_hangup(chan1m);
+		ast_hangup(chan2m);
+		ast_free(d->park_exten);
+		ast_free(d->park_context);
+		ast_free(d);
+		return -1;
+	}
+	return 0;
 }
 
 static int check_provisioning(struct sockaddr_in *sin, int sockfd, char *si, unsigned int ver)
@@ -10795,43 +10842,45 @@ static int socket_process(struct iax2_thread *thread)
 				owner = iaxs[fr->callno]->owner;
 				bridged_chan = owner ? ast_bridged_channel(owner) : NULL;
 				if (bridged_chan && ies.called_number) {
+					const char *context;
+
+					context = ast_strdupa(iaxs[fr->callno]->context);
+
+					ast_channel_ref(owner);
+					ast_channel_ref(bridged_chan);
+					ast_channel_unlock(owner);
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 
 					/* Set BLINDTRANSFER channel variables */
 					pbx_builtin_setvar_helper(owner, "BLINDTRANSFER", bridged_chan->name);
 					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", owner->name);
 
-					if (ast_parking_ext_valid(ies.called_number, owner, iaxs[fr->callno]->context)) {
+					/* DO NOT hold any locks while calling ast_parking_ext_valid() */
+					if (ast_parking_ext_valid(ies.called_number, owner, context)) {
 						ast_debug(1, "Parking call '%s'\n", bridged_chan->name);
-						if (iax_park(bridged_chan, owner, ies.called_number)) {
+						if (iax_park(bridged_chan, owner, ies.called_number, context)) {
 							ast_log(LOG_WARNING, "Failed to park call '%s'\n",
 								bridged_chan->name);
 						}
-						ast_mutex_lock(&iaxsl[fr->callno]);
 					} else {
-						ast_mutex_lock(&iaxsl[fr->callno]);
-
-						if (iaxs[fr->callno]) {
-							if (ast_async_goto(bridged_chan, iaxs[fr->callno]->context,
-								ies.called_number, 1)) {
-								ast_log(LOG_WARNING,
-									"Async goto of '%s' to '%s@%s' failed\n",
-									bridged_chan->name, ies.called_number,
-									iaxs[fr->callno]->context);
-							} else {
-								ast_debug(1, "Async goto of '%s' to '%s@%s' started\n",
-									bridged_chan->name, ies.called_number,
-									iaxs[fr->callno]->context);
-							}
+						if (ast_async_goto(bridged_chan, context, ies.called_number, 1)) {
+							ast_log(LOG_WARNING,
+								"Async goto of '%s' to '%s@%s' failed\n",
+								bridged_chan->name, ies.called_number, context);
 						} else {
-							/* Initiating call went away before we could transfer. */
+							ast_debug(1, "Async goto of '%s' to '%s@%s' started\n",
+								bridged_chan->name, ies.called_number, context);
 						}
 					}
+					ast_channel_unref(owner);
+					ast_channel_unref(bridged_chan);
+
+					ast_mutex_lock(&iaxsl[fr->callno]);
 				} else {
 					ast_debug(1, "Async goto not applicable on call %d\n", fr->callno);
-				}
-				if (owner) {
-					ast_channel_unlock(owner);
+					if (owner) {
+						ast_channel_unlock(owner);
+					}
 				}
 
 				break;

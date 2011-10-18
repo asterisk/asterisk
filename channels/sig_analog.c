@@ -2261,7 +2261,9 @@ static void *__analog_ss_thread(void *data)
 						ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
 				/* This is a three way call, the main call being a real channel,
 					and we're parking the first call. */
-				ast_masq_park_call(ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner), chan, 0, NULL);
+				ast_masq_park_call_exten(
+					ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner), chan, exten,
+					chan->context, 0, NULL);
 				ast_verb(3, "Parking call to '%s'\n", chan->name);
 				break;
 			} else if (!ast_strlen_zero(p->lastcid_num) && !strcmp(exten, "*60")) {
