@@ -1,3 +1,11 @@
+2011-10-18  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.8.0-rc2 Released.
+
+2011-10-07 15:58:07 +0000 [r943]  Jason Parker <jparker@digium.com>
+
+	* menuselect/menuselect.c: Fix --enable/--enable-category.
+
 2011-10-05  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.8.0-rc1 Released.
