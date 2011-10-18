@@ -367,10 +367,10 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 	ast_format_clear(&tmpfmt);
 	/* Don't hold a h323 pvt lock while we allocate a channel */
 	ast_mutex_unlock(&i->lock);
+   	ast_mutex_lock(&ooh323c_cn_lock);
    	ch = ast_channel_alloc(1, state, i->callerid_num, i->callerid_name, 
 				i->accountcode, i->exten, i->context, linkedid, i->amaflags,
 				"OOH323/%s-%ld", host, callnumber);
-   	ast_mutex_lock(&ooh323c_cn_lock);
    	callnumber++;
    	ast_mutex_unlock(&ooh323c_cn_lock);
    
