@@ -2,6 +2,8 @@
 
 	* Asterisk 1.8.8.0-rc2 Released.
 
+	* AST-2011-012
+
 	* menuselect/menuselect.c: Fix --enable/--enable-category.
 
 	------------------------------------------------------------------------
