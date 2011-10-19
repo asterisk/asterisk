@@ -264,7 +264,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cel.h"
 #include "asterisk/data.h"
 #include "asterisk/aoc.h"
-#include "asterisk/pval.h"
 #include "sip/include/sip.h"
 #include "sip/include/globals.h"
 #include "sip/include/config_parser.h"
@@ -5273,7 +5272,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 		dialog->relatedpeer = ref_peer(peer, "create_addr: setting dialog's relatedpeer pointer");
 		unref_peer(peer, "create_addr: unref peer from find_peer hashtab lookup");
 		return res;
-	} else if (is_int(peername)) {
+	} else if (ast_check_digits(peername)) {
 		/* Although an IPv4 hostname *could* be represented as a 32-bit integer, it is uncommon and
 		 * it makes dialing SIP/${EXTEN} for a peer that isn't defined resolve to an IP that is
 		 * almost certainly not intended. It is much better to just reject purely numeric hostnames */
