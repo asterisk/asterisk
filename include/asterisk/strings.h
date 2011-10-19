@@ -872,6 +872,25 @@ int __attribute__((format(printf, 3, 4))) ast_str_append(
 )
 
 /*!
+ * \brief Check if a string is only digits
+ *
+ * \retval 1 The string contains only digits
+ * \retval 0 The string contains non-digit characters
+ */
+AST_INLINE_API(
+int ast_check_digits(char *arg),
+{
+	char *s;
+	for (s=arg; *s; s++) {
+		if (*s < '0' || *s > '9') {
+			return 0;
+		}
+	}
+	return 1;
+}
+)
+
+/*!
  * \brief Compute a hash value on a string
  *
  * This famous hash algorithm was written by Dan Bernstein and is
