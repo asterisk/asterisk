@@ -3076,7 +3076,6 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	char tech[256];
 	char *location;
 	const char *macrocontext, *macroexten;
-	enum ast_device_state newstate;
 
 	/* on entry here, we know that tmp->chan == NULL */
 	if (tmp->member->paused) {
@@ -3101,14 +3100,6 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	}
 
 	if (!qe->parent->ringinuse || !tmp->member->ignorebusy) {
-		if ((tmp->member->status == AST_DEVICE_UNKNOWN) || (tmp->member->status == AST_DEVICE_NOT_INUSE)) {
-			newstate = ast_parse_device_state(tmp->member->interface);
-			if (newstate != tmp->member->status) {
-				ast_log(LOG_ERROR, "Found a channel matching iterface %s while status was %i changed to %i\n",
-					tmp->member->interface, tmp->member->status, newstate);
-				update_status(qe->parent, tmp->member, newstate);
-			}
-		}
 		if ((tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
 			ast_debug(1, "%s in use, can't receive call\n", tmp->interface);
 			if (qe->chan->cdr) {
