@@ -120,7 +120,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</enumlist>
 			</parameter>
 			<parameter name="CID">
-				<para>Optional Caller*ID</para>
+				<para>Optional Caller*ID to parse instead of using the Caller*ID from the
+				channel. This paramater is only optional when reading the Caller*ID.</para>
 			</parameter>
 		</syntax>
 		<description>
