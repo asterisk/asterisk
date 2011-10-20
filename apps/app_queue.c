@@ -957,6 +957,9 @@ static int negative_penalty_invalid = 0;
 /*! \brief queues.conf [general] option */
 static int log_membername_as_agent = 0;
 
+/*! \brief queues.conf [general] option */
+static int check_state_unknown = 0;
+
 enum queue_result {
 	QUEUE_UNKNOWN = 0,
 	QUEUE_TIMEOUT = 1,
@@ -3076,6 +3079,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	char tech[256];
 	char *location;
 	const char *macrocontext, *macroexten;
+	enum ast_device_state newstate;
 
 	/* on entry here, we know that tmp->chan == NULL */
 	if (tmp->member->paused) {
@@ -3100,6 +3104,14 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	}
 
 	if (!qe->parent->ringinuse || !tmp->member->ignorebusy) {
+		if (check_state_unknown && (tmp->member->status == AST_DEVICE_UNKNOWN)) {
+			newstate = ast_device_state(tmp->member->interface);
+			if (newstate != tmp->member->status) {
+				ast_log(LOG_WARNING, "Found a channel matching iterface %s while status was %s changed to %s\n",
+					tmp->member->interface, ast_devstate2str(tmp->member->status), ast_devstate2str(newstate));
+				ast_devstate_changed_literal(newstate, tmp->member->interface);
+			}
+		}
 		if ((tmp->member->status != AST_DEVICE_NOT_INUSE) && (tmp->member->status != AST_DEVICE_UNKNOWN)) {
 			ast_debug(1, "%s in use, can't receive call\n", tmp->interface);
 			if (qe->chan->cdr) {
@@ -6721,25 +6733,34 @@ static void queue_set_global_params(struct ast_config *cfg)
 		queue_persistent_members = ast_true(general_val);
 	}
 	autofill_default = 0;
-	if ((general_val = ast_variable_retrieve(cfg, "general", "autofill")))
+	if ((general_val = ast_variable_retrieve(cfg, "general", "autofill"))) {
 		autofill_default = ast_true(general_val);
+	}
 	montype_default = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type"))) {
 		if (!strcasecmp(general_val, "mixmonitor"))
 			montype_default = 1;
 	}
 	update_cdr = 0;
-	if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr")))
+	if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr"))) {
 		update_cdr = ast_true(general_val);
+	}
 	shared_lastcall = 0;
-	if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall")))
+	if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall"))) {
 		shared_lastcall = ast_true(general_val);
+	}
 	negative_penalty_invalid = 0;
-	if ((general_val = ast_variable_retrieve(cfg, "general", "negative_penalty_invalid")))
+	if ((general_val = ast_variable_retrieve(cfg, "general", "negative_penalty_invalid"))) {
 		negative_penalty_invalid = ast_true(general_val);
+	}
 	log_membername_as_agent = 0;
-	if ((general_val = ast_variable_retrieve(cfg, "general", "log_membername_as_agent")))
+	if ((general_val = ast_variable_retrieve(cfg, "general", "log_membername_as_agent"))) {
 		log_membername_as_agent = ast_true(general_val);
+	}
+	check_state_unknown = 0;
+	if ((general_val = ast_variable_retrieve(cfg, "general", "check_state_unknown"))) {
+		check_state_unknown = ast_true(general_val);
+	}
 }
 
 /*! \brief reload information pertaining to a single member
