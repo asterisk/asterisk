@@ -34,7 +34,6 @@
 #define FEATURE_EXTEN_LEN	32
 #define FEATURE_MOH_LEN		80  /* same as MAX_MUSICCLASS from channel.h */
 
-#define PARK_APP_NAME "Park"
 #define DEFAULT_PARKINGLOT "default"	/*!< Default parking lot */
 
 #define AST_FEATURE_RETURN_HANGUP           -1
