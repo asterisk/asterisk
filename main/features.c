@@ -416,7 +416,7 @@ typedef enum {
 	FEATURE_INTERPRET_CHECK,  /* Used by feature_check */
 } feature_interpret_op;
 
-static char *parkedcall = "ParkedCall";
+static const char *parkedcall = "ParkedCall";
 
 static char pickup_ext[AST_MAX_EXTENSION];                 /*!< Call pickup extension */
 
@@ -630,7 +630,7 @@ AST_DEFINE_APP_ARGS_TYPE(park_app_args,
 	);
 
 /* module and CLI command definitions */
-static char *parkcall = PARK_APP_NAME;
+static const char *parkcall = "Park";
 
 static struct ast_app *monitor_app = NULL;
 static int monitor_ok = 1;
@@ -783,7 +783,7 @@ static struct ast_exten *get_parking_exten(const char *exten_str, struct ast_cha
 	}
 
 	app_at_exten = ast_get_extension_app(exten);
-	if (!app_at_exten || strcasecmp(PARK_APP_NAME, app_at_exten)) {
+	if (!app_at_exten || strcasecmp(parkcall, app_at_exten)) {
 		return NULL;
 	}
 
@@ -4968,7 +4968,7 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 		res = 0;
 	} else {
 		/* Park succeeded. */
-		res = 1;
+		res = -1;
 	}
 
 	return res;
