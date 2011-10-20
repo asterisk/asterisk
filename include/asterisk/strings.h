@@ -878,13 +878,13 @@ int __attribute__((format(printf, 3, 4))) ast_str_append(
  * \retval 0 The string contains non-digit characters
  */
 AST_INLINE_API(
-int ast_check_digits(char *arg),
+int ast_check_digits(const char *arg),
 {
-	char *s;
-	for (s=arg; *s; s++) {
-		if (*s < '0' || *s > '9') {
+	while (*arg) {
+		if (*arg < '0' || *arg > '9') {
 			return 0;
 		}
+		arg++;
 	}
 	return 1;
 }
