@@ -46,7 +46,7 @@
  * \author Kevin P. Fleming <kpfleming@digium.com>
  * \author Matthew Nicholson <mnicholson@digium.com>
  * \author Gregory H. Nietsky  <gregory@distrotech.co.za>
- * 
+ *
  * A generic FAX resource module that provides SendFAX and ReceiveFAX applications.
  * This module requires FAX technology modules, like res_fax_spandsp, to register with it
  * so it can use the technology modules to perform the actual FAX transmissions.
@@ -290,7 +290,7 @@ struct fax_detect {
 /*! \brief FAX Detect flags */
 #define FAX_DETECT_MODE_CNG	(1 << 0)
 #define FAX_DETECT_MODE_T38	(1 << 1)
-#define	FAX_DETECT_MODE_BOTH	(FAX_DETECT_MODE_CNG | FAX_DETECT_MODE_T38)
+#define FAX_DETECT_MODE_BOTH	(FAX_DETECT_MODE_CNG | FAX_DETECT_MODE_T38)
 
 static int fax_logger_level = -1;
 
