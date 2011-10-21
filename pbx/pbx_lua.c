@@ -599,7 +599,7 @@ static void lua_concat_args(lua_State *L, int start, int nargs) {
 	int concat = 0;
 	int i = start + 1;
 
-	if (!lua_isnil(L, start)) {
+	if (start <= nargs && !lua_isnil(L, start)) {
 		lua_pushvalue(L, start);
 		concat += 1;
 	}
