@@ -3498,8 +3498,10 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 				time_t idletime = time(&idletime)-mem->lastcall;
 				if ((mem->lastcall != 0) && (qe->parent->autopausedelay > idletime)) {
 					ao2_unlock(qe->parent);
+					ao2_ref(mem, -1);
 					return;
 				}
+				ao2_ref(mem, -1);
 			}
 			ao2_unlock(qe->parent);
 		}
@@ -5759,7 +5761,7 @@ static int rqm_exec(struct ast_channel *chan, const char *data)
 
 	switch (remove_from_queue(args.queuename, args.interface)) {
 	case RES_OKAY:
-		if (!mem || ast_strlen_zero(mem->membername) || !log_membername_as_agent) {
+		if (!mem || ast_strlen_zero(mem->membername)) {
 			ast_queue_log(args.queuename, chan->uniqueid, args.interface, "REMOVEMEMBER", "%s", "");
 		} else {
 			ast_queue_log(args.queuename, chan->uniqueid, mem->membername, "REMOVEMEMBER", "%s", "");
@@ -5783,6 +5785,10 @@ static int rqm_exec(struct ast_channel *chan, const char *data)
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTDYNAMIC");
 		res = 0;
 		break;
+	}
+
+	if (mem) {
+		ao2_ref(mem, -1);
 	}
 
 	return res;
@@ -6360,12 +6366,15 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 		} else if (!strcasecmp(args.option, "penalty") && !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->penalty;
+			ao2_ref(m, -1);
 		} else if (!strcasecmp(args.option, "paused") && !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->paused;
+			ao2_ref(m, -1);
 		} else if (!strcasecmp(args.option, "ignorebusy") && !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->ignorebusy;
+			ao2_ref(m, -1);
 		}
 		ao2_unlock(q);
 		queue_t_unref(q, "Done with temporary reference in QUEUE_MEMBER()");
@@ -6435,13 +6444,20 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 				}
 			} else {
 				ast_log(LOG_ERROR, "Invalid option, only penalty , paused or ignorebusy are valid\n");
+				ao2_ref(m, -1);
+				ao2_unlock(q);
+				ao2_ref(q, -1);
 				return -1;
 			}
+			ao2_ref(m, -1);
 		} else {
-			ast_log(LOG_ERROR, "Invalid interface or queue\n");
+			ao2_unlock(q);
+			ao2_ref(q, -1);
+			ast_log(LOG_ERROR, "Invalid interface for queue\n");
 			return -1;
 		}
 		ao2_unlock(q);
+		ao2_ref(q, -1);
         } else {
 		ast_log(LOG_ERROR, "Invalid queue\n");
 		return -1;
@@ -7619,7 +7635,7 @@ static int manager_remove_queue_member(struct mansession *s, const struct messag
 
 	switch (remove_from_queue(queuename, interface)) {
 	case RES_OKAY:
-		if (!mem || ast_strlen_zero(mem->membername) || !log_membername_as_agent) {
+		if (!mem || ast_strlen_zero(mem->membername)) {
 			ast_queue_log(queuename, "MANAGER", interface, "REMOVEMEMBER", "%s", "");
 		} else {
 			ast_queue_log(queuename, "MANAGER", mem->membername, "REMOVEMEMBER", "%s", "");
@@ -7638,6 +7654,10 @@ static int manager_remove_queue_member(struct mansession *s, const struct messag
 	case RES_NOT_DYNAMIC:
 		astman_send_error(s, m, "Member not dynamic");
 		break;
+	}
+
+	if (mem) {
+		ao2_ref(mem, -1);
 	}
 
 	return 0;
@@ -7939,16 +7959,18 @@ static char *handle_queue_remove_member(struct ast_cli_entry *e, int cmd, struct
 	queuename = a->argv[5];
 	interface = a->argv[3];
 
-	if (log_membername_as_agent) {
-		mem = find_member_by_queuename_and_interface(queuename, interface);
-	}
-
 	switch (remove_from_queue(queuename, interface)) {
 	case RES_OKAY:
-		if (!mem || ast_strlen_zero(mem->membername) || !log_membername_as_agent) {
+		if (log_membername_as_agent) {
+			mem = find_member_by_queuename_and_interface(queuename, interface);
+		}
+		if (!mem || ast_strlen_zero(mem->membername)) {
 			ast_queue_log(queuename, "CLI", interface, "REMOVEMEMBER", "%s", "");
 		} else {
 			ast_queue_log(queuename, "CLI", mem->membername, "REMOVEMEMBER", "%s", "");
+		}
+		if (mem) {
+			ao2_ref(mem, -1);
 		}
 		ast_cli(a->fd, "Removed interface %s from queue '%s'\n", interface, queuename);
 		return CLI_SUCCESS;
