@@ -3465,8 +3465,10 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 				time_t idletime = time(&idletime)-mem->lastcall;
 				if ((mem->lastcall != 0) && (qe->parent->autopausedelay > idletime)) {
 					ao2_unlock(qe->parent);
+					ao2_ref(mem, -1);
 					return;
 				}
+				ao2_ref(mem, -1);
 			}
 			ao2_unlock(qe->parent);
 		}
@@ -6308,12 +6310,15 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 		} else if (!strcasecmp(args.option, "penalty") && !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->penalty;
+			ao2_ref(m, -1);
 		} else if (!strcasecmp(args.option, "paused") && !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->paused;
+			ao2_ref(m, -1);
 		} else if (!strcasecmp(args.option, "ignorebusy") && !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->ignorebusy;
+			ao2_ref(m, -1);
 		}
 		ao2_unlock(q);
 		queue_t_unref(q, "Done with temporary reference in QUEUE_MEMBER()");
@@ -6383,13 +6388,20 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 				}
 			} else {
 				ast_log(LOG_ERROR, "Invalid option, only penalty , paused or ignorebusy are valid\n");
+				ao2_ref(m, -1);
+				ao2_unlock(q);
+				ao2_ref(q, -1);
 				return -1;
 			}
+			ao2_ref(m, -1);
 		} else {
-			ast_log(LOG_ERROR, "Invalid interface or queue\n");
+			ao2_unlock(q);
+			ao2_ref(q, -1);
+			ast_log(LOG_ERROR, "Invalid interface for queue\n");
 			return -1;
 		}
 		ao2_unlock(q);
+		ao2_ref(q, -1);
         } else {
 		ast_log(LOG_ERROR, "Invalid queue\n");
 		return -1;
