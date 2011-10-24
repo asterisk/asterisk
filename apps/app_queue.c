@@ -7054,6 +7054,9 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 		return -1;
 	}
 
+	/* We've made it here, so it looks like we're doing operations on all queues. */
+	ao2_lock(queues);
+
 	/* Mark all queues as dead for the moment if we're reloading queues.
 	 * For clarity, we could just be reloading members, in which case we don't want to mess
 	 * with the other queue parameters at all*/
@@ -7077,6 +7080,7 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 	if (queue_reload) {
 		ao2_callback(queues, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK | OBJ_NOLOCK, kill_dead_queues, (char *) queuename);
 	}
+	ao2_unlock(queues);
 	return 0;
 }
 
