@@ -26401,7 +26401,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 		return -1;
 	}
 	peer->call = dialog_ref(p, "copy sip alloc from p to peer->call");
-	
+
 	p->sa = peer->addr;
 	p->recv = peer->addr;
 	copy_socket_data(&p->socket, &peer->socket);
@@ -26410,13 +26410,19 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	ast_copy_flags(&p->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 
 	/* Send OPTIONs to peer's fullcontact */
-	if (!ast_strlen_zero(peer->fullcontact))
+	if (!ast_strlen_zero(peer->fullcontact)) {
 		ast_string_field_set(p, fullcontact, peer->fullcontact);
+	}
 
-	if (!ast_strlen_zero(peer->tohost))
+	if (!ast_strlen_zero(peer->fromuser)) {
+		ast_string_field_set(p, fromuser, peer->fromuser);
+	}
+
+	if (!ast_strlen_zero(peer->tohost)) {
 		ast_string_field_set(p, tohost, peer->tohost);
-	else
+	} else {
 		ast_string_field_set(p, tohost, ast_sockaddr_stringify_host_remote(&peer->addr));
+	}
 
 	/* Recalculate our side, and recalculate Call ID */
 	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
