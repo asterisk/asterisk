@@ -1678,19 +1678,26 @@ static int compress_char(const char c)
 static int member_hash_fn(const void *obj, const int flags)
 {
 	const struct member *mem = obj;
-	const char *chname = strchr(mem->interface, '/');
+	const char *interface = (flags & OBJ_KEY) ? obj : mem->interface;
+	const char *chname = strchr(interface, '/');
 	int ret = 0, i;
-	if (!chname)
-		chname = mem->interface;
-	for (i = 0; i < 5 && chname[i]; i++)
+
+	if (!chname) {
+		chname = interface;
+	}
+	for (i = 0; i < 5 && chname[i]; i++) {
 		ret += compress_char(chname[i]) << (i * 6);
+	}
 	return ret;
 }
 
 static int member_cmp_fn(void *obj1, void *obj2, int flags)
 {
-	struct member *mem1 = obj1, *mem2 = obj2;
-	return strcasecmp(mem1->interface, mem2->interface) ? 0 : CMP_MATCH | CMP_STOP;
+	struct member *mem1 = obj1;
+	struct member *mem2 = obj2;
+	const char *interface = (flags & OBJ_KEY) ? obj2 : mem2->interface;
+
+	return strcasecmp(mem1->interface, interface) ? 0 : CMP_MATCH | CMP_STOP;
 }
 
 /*!
