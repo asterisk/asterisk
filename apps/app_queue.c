@@ -6869,9 +6869,12 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 
 	if (cur) {
 		ao2_ref(cur, -1);
-	} else {
-		q->membercount++;
 	}
+
+	/* Since this function is only called in a loop parsing all members after setting
+	 * q->membercount = 0 if we are reloading, we must increment the membercount whether
+	 * we add or reload, otherwise q->membercount stays 0 after a reload */
+	q->membercount++;
 }
 
 static int mark_member_dead(void *obj, void *arg, int flags)
