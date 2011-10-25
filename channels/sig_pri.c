@@ -1012,7 +1012,7 @@ int pri_is_up(struct sig_pri_span *pri)
 	return 0;
 }
 
-static char *pri_order(int level)
+static const char *pri_order(int level)
 {
 	switch (level) {
 	case 0:
@@ -1042,37 +1042,74 @@ static int pri_active_dchan_index(struct sig_pri_span *pri)
 	return -1;
 }
 
-static int pri_find_dchan(struct sig_pri_span *pri)
+static void pri_find_dchan(struct sig_pri_span *pri)
 {
-	int oldslot = -1;
 	struct pri *old;
+	int oldslot = -1;
 	int newslot = -1;
-	int x;
+	int idx;
+
 	old = pri->pri;
-	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
-		if ((pri->dchanavail[x] == DCHAN_AVAILABLE) && (newslot < 0))
-			newslot = x;
-		if (pri->dchans[x] == old) {
-			oldslot = x;
+	for (idx = 0; idx < SIG_PRI_NUM_DCHANS; ++idx) {
+		if (!pri->dchans[idx]) {
+			/* No more D channels defined on the span. */
+			break;
+		}
+		if (pri->dchans[idx] == old) {
+			oldslot = idx;
+		}
+		if (newslot < 0 && pri->dchanavail[idx] == DCHAN_AVAILABLE) {
+			newslot = idx;
 		}
 	}
-	if (newslot < 0) {
-		newslot = 0;
-		/* This is annoying to see on non persistent layer 2 connections.  Let's not complain in that case */
-		if (pri->sig != SIG_BRI_PTMP && !pri->no_d_channels) {
-			pri->no_d_channels = 1;
-			ast_log(LOG_WARNING,
-				"Span %d: No D-channels available!  Using Primary channel as D-channel anyway!\n",
-				pri->span);
+	/* At this point, idx is a count of how many D-channels are defined on the span. */
+
+	if (1 < idx) {
+		/* We have several D-channels defined on the span.  (NFAS PRI setup) */
+		if (newslot < 0) {
+			/* No D-channels available.  Default to the primary D-channel. */
+			newslot = 0;
+
+			if (!pri->no_d_channels) {
+				pri->no_d_channels = 1;
+				if (old && oldslot != newslot) {
+					ast_log(LOG_WARNING,
+						"Span %d: No D-channels up!  Switching selected D-channel from %s to %s.\n",
+						pri->span, pri_order(oldslot), pri_order(newslot));
+				} else {
+					ast_log(LOG_WARNING, "Span %d: No D-channels up!\n", pri->span);
+				}
+			}
+		} else {
+			pri->no_d_channels = 0;
+		}
+		if (old && oldslot != newslot) {
+			ast_log(LOG_NOTICE,
+				"Switching selected D-channel from %s (fd %d) to %s (fd %d)!\n",
+				pri_order(oldslot), pri->fds[oldslot],
+				pri_order(newslot), pri->fds[newslot]);
 		}
 	} else {
-		pri->no_d_channels = 0;
+		if (newslot < 0) {
+			/* The only D-channel is not up. */
+			newslot = 0;
+
+			if (!pri->no_d_channels) {
+				pri->no_d_channels = 1;
+
+				/*
+				 * This is annoying to see on non-persistent layer 2
+				 * connections.  Let's not complain in that case.
+				 */
+				if (pri->sig != SIG_BRI_PTMP) {
+					ast_log(LOG_WARNING, "Span %d: D-channel is down!\n", pri->span);
+				}
+			}
+		} else {
+			pri->no_d_channels = 0;
+		}
 	}
-	if (old && (oldslot != newslot))
-		ast_log(LOG_NOTICE, "Switching from d-channel fd %d to fd %d!\n",
-			pri->fds[oldslot], pri->fds[newslot]);
 	pri->pri = pri->dchans[newslot];
-	return 0;
 }
 
 /*!
@@ -1936,8 +1973,9 @@ static void *pri_ss_thread(void *data)
 void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri)
 {
 	pri->dchanavail[index] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
-	if (!before_start_pri)
+	if (!before_start_pri) {
 		pri_find_dchan(pri);
+	}
 }
 
 void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri)
@@ -5601,7 +5639,9 @@ static void *pri_dchannel(void *vpri)
 			switch (e->e) {
 			case PRI_EVENT_DCHAN_UP:
 				pri->no_d_channels = 0;
-				if (!pri->pri) pri_find_dchan(pri);
+				if (!pri->pri) {
+					pri_find_dchan(pri);
+				}
 
 				/* Note presense of D-channel */
 				time(&pri->lastreset);
@@ -5624,8 +5664,10 @@ static void *pri_dchannel(void *vpri)
 				pri_find_dchan(pri);
 				if (!pri_is_up(pri)) {
 					if (pri->sig == SIG_BRI_PTMP) {
-						/* For PTMP connections with non persistent layer 2 we want
-						 * to *not* declare inalarm unless there actually is an alarm */
+						/*
+						 * For PTMP connections with non-persistent layer 2 we want to
+						 * *not* declare inalarm unless there actually is an alarm.
+						 */
 						break;
 					}
 					/* Hangup active channels and put them in alarm mode */
