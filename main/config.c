@@ -2446,6 +2446,11 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
 			if (eng->realtime_multi_func && (res = eng->realtime_multi_func(db, table, ap))) {
+				/* If we were returned an empty cfg, destroy it and return NULL */
+				if (!res->root) {
+					ast_config_destroy(res);
+					res = NULL;
+				}
 				break;
 			}
 		} else {
