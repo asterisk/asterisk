@@ -1198,12 +1198,6 @@ struct call_queue {
 	int autofill;                       /*!< Ignore the head call status and ring an available agent */
 	
 	struct ao2_container *members;             /*!< Head of the list of members */
-	/*! 
-	 * \brief Number of members _logged in_
-	 * \note There will be members in the members container that are not logged
-	 *       in, so this can not simply be replaced with ao2_container_count(). 
-	 */
-	int membercount;
 	struct queue_ent *head;             /*!< Head of the list of callers */
 	AST_LIST_ENTRY(call_queue) list;    /*!< Next call queue */
 	AST_LIST_HEAD_NOLOCK(, penalty_rule) rules; /*!< The list of penalty rules to invoke */
@@ -2210,7 +2204,6 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 			ao2_link(q->members, m);
 			ao2_ref(m, -1);
 			m = NULL;
-			q->membercount++;
 		}
 	}
 }
@@ -2225,7 +2218,6 @@ static void free_members(struct call_queue *q, int all)
 	while ((cur = ao2_iterator_next(&mem_iter))) {
 		if (all || !cur->dynamic) {
 			ao2_unlink(q->members, cur);
-			q->membercount--;
 		}
 		ao2_ref(cur, -1);
 	}
@@ -2329,7 +2321,6 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		ao2_lock(q);
 		clear_queue(q);
 		q->realtime = 1;
-		q->membercount = 0;
 		/*Before we initialize the queue, we need to set the strategy, so that linear strategy
 		 * will allocate the members properly
 		 */
@@ -2370,11 +2361,9 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		queue_set_param(q, tmp_name, v->value, -1, 0);
 	}
 
-	/* Temporarily set realtime members dead so we can detect deleted ones.
-	 * Also set the membercount correctly for realtime*/
+	/* Temporarily set realtime members dead so we can detect deleted ones. */
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((m = ao2_iterator_next(&mem_iter))) {
-		q->membercount++;
 		if (m->realtime) {
 			m->dead = 1;
 		}
@@ -2396,7 +2385,6 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 				ast_queue_log(q->name, "REALTIME", m->membername, "REMOVEMEMBER", "%s", "");
 			}
 			ao2_unlink(q->members, m);
-			q->membercount--;
 		}
 		ao2_ref(m, -1);
 	}
@@ -2516,7 +2504,6 @@ static void update_realtime_members(struct call_queue *q)
 				ast_queue_log(q->name, "REALTIME", m->membername, "REMOVEMEMBER", "%s", "");
 			}
 			ao2_unlink(q->members, m);
-			q->membercount--;
 		}
 		ao2_ref(m, -1);
 	}
@@ -4169,7 +4156,8 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct callattempt *tmp)
 {
 	/* disregarding penalty on too few members? */
-	unsigned char usepenalty = (q->membercount <= q->penaltymemberslimit) ? 0 : 1;
+	size_t membercount = ao2_container_count(q->members);
+	unsigned char usepenalty = (membercount <= q->penaltymemberslimit) ? 0 : 1;
 
 	if (usepenalty) {
 		if ((qe->max_penalty && (mem->penalty > qe->max_penalty)) ||
@@ -4178,7 +4166,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		}
 	} else {
 		ast_debug(1, "Disregarding penalty, %d members and %d in penaltymemberslimit.\n",
-			  q->membercount, q->penaltymemberslimit);
+			  membercount, q->penaltymemberslimit);
 	}
 
 	switch (q->strategy) {
@@ -4521,7 +4509,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_LINEAR || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED)
 				(*tries)++;
 			else
-				*tries = qe->parent->membercount;
+				*tries = ao2_container_count(qe->parent->members);
 			*noption = 1;
 			break;
 		case 'i':
@@ -5321,7 +5309,6 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				queue_t_unref(q, "Interface wasn't dynamic, expiring temporary reference");
 				return RES_NOT_DYNAMIC;
 			}
-			q->membercount--;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
@@ -5368,7 +5355,6 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 		if ((new_member = create_queue_member(interface, membername, penalty, paused, state_interface))) {
 			new_member->dynamic = 1;
 			ao2_link(q->members, new_member);
-			q->membercount++;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
@@ -6152,7 +6138,7 @@ check_turns:
 		}
 
 		/* exit after 'timeout' cycle if 'n' option enabled */
-		if (noption && tries >= qe.parent->membercount) {
+		if (noption && tries >= ao2_container_count(qe.parent->members)) {
 			ast_verb(3, "Exiting on time-out cycle\n");
 			ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 			record_abandoned(&qe);
@@ -6369,7 +6355,7 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 			}
 			ao2_iterator_destroy(&mem_iter);
 		} else if (!strcasecmp(args.option, "count") || ast_strlen_zero(args.option)) {
-			count = q->membercount;
+			count = ao2_container_count(q->members);
 		} else if (!strcasecmp(args.option, "penalty") && !ast_strlen_zero(args.interface) &&
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->penalty;
@@ -6870,11 +6856,6 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 	if (cur) {
 		ao2_ref(cur, -1);
 	}
-
-	/* Since this function is only called in a loop parsing all members after setting
-	 * q->membercount = 0 if we are reloading, we must increment the membercount whether
-	 * we add or reload, otherwise q->membercount stays 0 after a reload */
-	q->membercount++;
 }
 
 static int mark_member_dead(void *obj, void *arg, int flags)
@@ -6889,19 +6870,11 @@ static int mark_member_dead(void *obj, void *arg, int flags)
 static int kill_dead_members(void *obj, void *arg, int flags)
 {
 	struct member *member = obj;
-	struct call_queue *q = arg;
 
 	if (!member->delme) {
-		if (member->dynamic) {
-			/* dynamic members were not counted toward the member count
-			 * when reloading members from queues.conf, so we do that here
-			 */
-			q->membercount++;
-		}
 		member->status = get_queue_member_status(member);
 		return 0;
 	} else {
-		q->membercount--;
 		return CMP_MATCH;
 	}
 }
@@ -6980,7 +6953,6 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 		init_queue(q);
 	}
 	if (member_reload) {
-		q->membercount = 0;
 		ao2_callback(q->members, OBJ_NODATA, mark_member_dead, NULL);
 	}
 	for (var = ast_variable_browse(cfg, queuename); var; var = var->next) {
@@ -8371,8 +8343,7 @@ static struct ast_cli_entry cli_queue[] = {
 	MEMBER(call_queue, rrpos, AST_DATA_INTEGER)			\
 	MEMBER(call_queue, memberdelay, AST_DATA_INTEGER)		\
 	MEMBER(call_queue, autofill, AST_DATA_INTEGER)			\
-	MEMBER(call_queue, members, AST_DATA_CONTAINER)			\
-	MEMBER(call_queue, membercount, AST_DATA_INTEGER)
+	MEMBER(call_queue, members, AST_DATA_CONTAINER)
 
 AST_DATA_STRUCTURE(call_queue, DATA_EXPORT_CALL_QUEUE);
 
@@ -8440,6 +8411,7 @@ static void queues_data_provider_get_helper(const struct ast_data_search *search
 	ast_data_add_structure(call_queue, data_queue, queue);
 
 	ast_data_add_str(data_queue, "strategy", int2strat(queue->strategy));
+	ast_data_add_int(data_queue, "membercount", ao2_container_count(queue->members));
 
 	/* announce position */
 	enum_node = ast_data_add_node(data_queue, "announceposition");
