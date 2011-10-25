@@ -358,6 +358,9 @@ int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
  * is thus stored inside a traditional ast_config structure rather than
  * just returning a linked list of variables.
  *
+ * \return An ast_config with one or more results
+ * \retval NULL Error or no results returned
+ *
  * \note You should use the constant SENTINEL to terminate arguments, in
  * order to preserve cross-platform compatibility.
  */
