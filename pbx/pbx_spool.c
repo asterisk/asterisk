@@ -718,6 +718,9 @@ static void *scan_thread(void *unused)
 			} else if (res < 0 && errno != EINTR && errno != EAGAIN) {
 				ast_debug(1, "Got an error back from %s(2): %s\n", stage ? "read" : "poll", strerror(errno));
 			}
+			time(&now);
+		}
+		queue_created_files();
 #else
 			struct timespec ts2 = { next - now, 0 };
 			if (kevent(inotify_fd, NULL, 0, &kev, 1, &ts2) <= 0) {
@@ -730,11 +733,10 @@ static void *scan_thread(void *unused)
 					queue_file(de->d_name, 0);
 				}
 			}
-#endif
 			time(&now);
 		}
+#endif
 
-		queue_created_files();
 		/* Empty the list of all entries ready to be processed */
 		AST_LIST_LOCK(&dirlist);
 		while (!AST_LIST_EMPTY(&dirlist) && AST_LIST_FIRST(&dirlist)->mtime <= now) {
