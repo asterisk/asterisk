@@ -2118,6 +2118,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 	resource = aji_find_resource(buddy, pak->from->resource);
 	if (pak->subtype == IKS_TYPE_ERROR) {
 		ast_log(LOG_WARNING, "Received error from a client, turn on jabber debug!\n");
+		ASTOBJ_UNREF(client, aji_client_destroy);
 		return IKS_FILTER_EAT;
 	}
 	if (pak->subtype == IKS_TYPE_RESULT) {
@@ -3041,6 +3042,7 @@ static int aji_filter_roster(void *data, ikspak *pak)
 			buddy = ast_calloc(1, sizeof(*buddy));
 			if (!buddy) {
 				ast_log(LOG_WARNING, "Out of memory\n");
+				ASTOBJ_UNREF(client, aji_client_destroy);
 				return 0;
 			}
 			ASTOBJ_INIT(buddy);
@@ -3238,6 +3240,7 @@ static void aji_mwi_cb(const struct ast_event *ast_event, void *data)
 	snprintf(newmsgs, sizeof(newmsgs), "%d",
 		ast_event_get_ie_uint(ast_event, AST_EVENT_IE_NEWMSGS));
 	aji_publish_mwi(client, mailbox, context, oldmsgs, newmsgs);
+	ASTOBJ_UNREF(client, aji_client_destroy);
 
 }
 /*!
@@ -3262,6 +3265,7 @@ static void aji_devstate_cb(const struct ast_event *ast_event, void *data)
 	device = ast_event_get_ie_str(ast_event, AST_EVENT_IE_DEVICE);
 	device_state = ast_devstate_str(ast_event_get_ie_uint(ast_event, AST_EVENT_IE_STATE));
 	aji_publish_device_state(client, device, device_state);
+	ASTOBJ_UNREF(client, aji_client_destroy);
 }
 
 /*!
@@ -3515,7 +3519,7 @@ static int aji_handle_pubsub_error(void *data, ikspak *pak)
 	int error_num;
 	iks *orig_request;
 	iks *orig_pubsub = iks_find(pak->x, "pubsub");
-	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
+	struct aji_client *client;
 	if (!orig_pubsub) {
 		ast_log(LOG_ERROR, "Error isn't a PubSub error, why are we here?\n");
 		return IKS_FILTER_EAT;
@@ -3535,6 +3539,8 @@ static int aji_handle_pubsub_error(void *data, ikspak *pak)
 		return IKS_FILTER_EAT;
 	}
 
+	client = ASTOBJ_REF((struct aji_client *) data);
+
 	if (!strcasecmp(iks_name(orig_request), "publish")) {
 		iks *request;
 		if (ast_test_flag(&pubsubflags, AJI_XEP0248)) {
@@ -3550,6 +3556,7 @@ static int aji_handle_pubsub_error(void *data, ikspak *pak)
 		iks_insert_node(request, orig_pubsub);
 		ast_aji_send(client, request);
 		iks_delete(request);
+		ASTOBJ_UNREF(client, aji_client_destroy);
 		return IKS_FILTER_EAT;
 	} else if (!strcasecmp(iks_name(orig_request), "subscribe")) {
 		if (ast_test_flag(&pubsubflags, AJI_XEP0248)) {
@@ -3558,7 +3565,7 @@ static int aji_handle_pubsub_error(void *data, ikspak *pak)
 			aji_create_pubsub_node(client, NULL, node_name, NULL);
 		}
 	}
-
+	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
 }
 
@@ -3620,6 +3627,7 @@ static int aji_receive_node_list(void *data, ikspak* pak)
 	if (item) {
 		iks_delete(item);
 	}
+	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
 }
 
