@@ -48,9 +48,9 @@ static struct test_val b = { "B" };
 static struct test_val c = { "C" };
 static struct test_val d = { "D" };
 
-AST_LIST_HEAD_NOLOCK(test_list, test_val);
+AST_LIST_HEAD_NOLOCK(test_llist, test_val);
 
-static int list_expect(struct test_list *test_list, char *expect, struct ast_str **buf)
+static int list_expect(struct test_llist *test_list, const char *expect, struct ast_str **buf)
 {
 	struct test_val *i;
 
@@ -75,19 +75,20 @@ static int list_expect(struct test_list *test_list, char *expect, struct ast_str
 		return AST_TEST_FAIL; \
 	}
 
-AST_TEST_DEFINE(ll_tests)
+AST_TEST_DEFINE(single_ll_tests)
 {
 	struct ast_str *buf;
-	struct test_list test_list = { 0, };
+	struct test_llist test_list = { 0, };
+	struct test_llist other_list = { 0, };
 	struct test_val *bogus;
 
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "ll_tests";
 		info->category = "/main/linkedlists";
-		info->summary = "linked list unit test";
+		info->summary = "single linked list unit test";
 		info->description =
-			"Test the linked list API";
+			"Test the single linked list API";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -111,28 +112,24 @@ AST_TEST_DEFINE(ll_tests)
 	MATCH_OR_FAIL(&test_list, "A", buf);
 	AST_LIST_INSERT_HEAD(&test_list, &b, list);
 	MATCH_OR_FAIL(&test_list, "BA", buf);
-	AST_LIST_INSERT_HEAD(&test_list, &c, list);
-	MATCH_OR_FAIL(&test_list, "CBA", buf);
-	AST_LIST_INSERT_HEAD(&test_list, &d, list);
-	MATCH_OR_FAIL(&test_list, "DCBA", buf);
-	AST_LIST_REMOVE_HEAD(&test_list, list);
-	MATCH_OR_FAIL(&test_list, "CBA", buf);
-	AST_LIST_REMOVE_HEAD(&test_list, list);
-	MATCH_OR_FAIL(&test_list, "BA", buf);
 	AST_LIST_REMOVE_HEAD(&test_list, list);
 	MATCH_OR_FAIL(&test_list, "A", buf);
 	AST_LIST_REMOVE_HEAD(&test_list, list);
 	MATCH_OR_FAIL(&test_list, "", buf);
-
 	if (AST_LIST_REMOVE_HEAD(&test_list, list)) {
 		ast_test_status_update(test, "Somehow removed an item from the head of a list that didn't exist\n");
 		return AST_TEST_FAIL;
 	}
+	MATCH_OR_FAIL(&test_list, "", buf);
+
+	/* ** */
 
 	if (!AST_LIST_EMPTY(&test_list)) {
 		ast_test_status_update(test, "List should be empty\n");
 		return AST_TEST_FAIL;
 	}
+
+	/* ** */
 
 	AST_LIST_INSERT_TAIL(&test_list, &a, list);
 	MATCH_OR_FAIL(&test_list, "A", buf);
@@ -142,19 +139,15 @@ AST_TEST_DEFINE(ll_tests)
 	MATCH_OR_FAIL(&test_list, "ABC", buf);
 	AST_LIST_INSERT_TAIL(&test_list, &d, list);
 	MATCH_OR_FAIL(&test_list, "ABCD", buf);
-
 	if (AST_LIST_REMOVE(&test_list, bogus, list)) {
 		ast_test_status_update(test, "AST_LIST_REMOVE should safely return NULL for missing element\n");
 		return AST_TEST_FAIL;
 	}
-
 	bogus = NULL;
-
 	if (AST_LIST_REMOVE(&test_list, bogus, list)) {
 		ast_test_status_update(test, "AST_LIST_REMOVE should safely return NULL for element set to NULL\n");
 		return AST_TEST_FAIL;
 	}
-
 	AST_LIST_REMOVE(&test_list, &b, list);
 	MATCH_OR_FAIL(&test_list, "ACD", buf);
 	AST_LIST_REMOVE(&test_list, &d, list);
@@ -163,29 +156,29 @@ AST_TEST_DEFINE(ll_tests)
 	MATCH_OR_FAIL(&test_list, "C", buf);
 	AST_LIST_REMOVE(&test_list, &c, list);
 	MATCH_OR_FAIL(&test_list, "", buf);
-
 	if (!AST_LIST_EMPTY(&test_list)) {
 		ast_test_status_update(test, "List should be empty\n");
 		return AST_TEST_FAIL;
 	}
-
 	if (AST_LIST_REMOVE(&test_list, bogus, list)) {
 		ast_test_status_update(test, "AST_LIST_REMOVE should safely return NULL asked to remove a NULL pointer from an empty list\n");
 		return AST_TEST_FAIL;
 	}
 
+	/* ** */
+
 	AST_LIST_INSERT_HEAD(&test_list, &a, list);
 	MATCH_OR_FAIL(&test_list, "A", buf);
-	AST_LIST_INSERT_TAIL(&test_list, &b, list);
-	MATCH_OR_FAIL(&test_list, "AB", buf);
-	AST_LIST_INSERT_AFTER(&test_list, &a, &c, list);
-	MATCH_OR_FAIL(&test_list, "ACB", buf);
-	AST_LIST_INSERT_AFTER(&test_list, &b, &d, list);
-	MATCH_OR_FAIL(&test_list, "ACBD", buf);
+	AST_LIST_INSERT_TAIL(&test_list, &c, list);
+	MATCH_OR_FAIL(&test_list, "AC", buf);
+	AST_LIST_INSERT_AFTER(&test_list, &a, &b, list);
+	MATCH_OR_FAIL(&test_list, "ABC", buf);
+	AST_LIST_INSERT_AFTER(&test_list, &c, &d, list);
+	MATCH_OR_FAIL(&test_list, "ABCD", buf);
 
 	ELEM_OR_FAIL(AST_LIST_FIRST(&test_list), &a);
 	ELEM_OR_FAIL(AST_LIST_LAST(&test_list), &d);
-	ELEM_OR_FAIL(AST_LIST_NEXT(&a, list), &c);
+	ELEM_OR_FAIL(AST_LIST_NEXT(&a, list), &b);
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&test_list, bogus, list) {
 		AST_LIST_REMOVE_CURRENT(list);
@@ -197,18 +190,111 @@ AST_TEST_DEFINE(ll_tests)
 		return AST_TEST_FAIL;
 	}
 
+	/* ** */
+
+	AST_LIST_INSERT_HEAD(&test_list, &a, list);
+	MATCH_OR_FAIL(&test_list, "A", buf);
+	AST_LIST_INSERT_TAIL(&test_list, &b, list);
+	MATCH_OR_FAIL(&test_list, "AB", buf);
+	AST_LIST_INSERT_HEAD(&other_list, &c, list);
+	MATCH_OR_FAIL(&other_list, "C", buf);
+	AST_LIST_INSERT_TAIL(&other_list, &d, list);
+	MATCH_OR_FAIL(&other_list, "CD", buf);
+	AST_LIST_APPEND_LIST(&test_list, &other_list, list);
+	MATCH_OR_FAIL(&test_list, "ABCD", buf);
+	MATCH_OR_FAIL(&other_list, "", buf);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&test_list, bogus, list) {
+		AST_LIST_REMOVE_CURRENT(list);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	if (!AST_LIST_EMPTY(&test_list)) {
+		ast_test_status_update(test, "List should be empty after traversing and removal. It wasn't.\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* ** */
+
+	AST_LIST_INSERT_HEAD(&test_list, &a, list);
+	MATCH_OR_FAIL(&test_list, "A", buf);
+	AST_LIST_INSERT_TAIL(&test_list, &d, list);
+	MATCH_OR_FAIL(&test_list, "AD", buf);
+	AST_LIST_INSERT_HEAD(&other_list, &b, list);
+	MATCH_OR_FAIL(&other_list, "B", buf);
+	AST_LIST_INSERT_TAIL(&other_list, &c, list);
+	MATCH_OR_FAIL(&other_list, "BC", buf);
+	AST_LIST_INSERT_LIST_AFTER(&test_list, &other_list, &a, list);
+	MATCH_OR_FAIL(&test_list, "ABCD", buf);
+	MATCH_OR_FAIL(&other_list, "", buf);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&test_list, bogus, list) {
+		AST_LIST_REMOVE_CURRENT(list);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	if (!AST_LIST_EMPTY(&test_list)) {
+		ast_test_status_update(test, "List should be empty after traversing and removal. It wasn't.\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* ** */
+
+	AST_LIST_INSERT_HEAD(&test_list, &a, list);
+	MATCH_OR_FAIL(&test_list, "A", buf);
+	AST_LIST_INSERT_TAIL(&test_list, &b, list);
+	MATCH_OR_FAIL(&test_list, "AB", buf);
+	AST_LIST_INSERT_HEAD(&other_list, &c, list);
+	MATCH_OR_FAIL(&other_list, "C", buf);
+	AST_LIST_INSERT_TAIL(&other_list, &d, list);
+	MATCH_OR_FAIL(&other_list, "CD", buf);
+	AST_LIST_INSERT_LIST_AFTER(&test_list, &other_list, &b, list);
+	MATCH_OR_FAIL(&test_list, "ABCD", buf);
+	MATCH_OR_FAIL(&other_list, "", buf);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&test_list, bogus, list) {
+		AST_LIST_REMOVE_CURRENT(list);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	if (!AST_LIST_EMPTY(&test_list)) {
+		ast_test_status_update(test, "List should be empty after traversing and removal. It wasn't.\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* ** */
+
+	AST_LIST_INSERT_HEAD(&test_list, &a, list);
+	MATCH_OR_FAIL(&test_list, "A", buf);
+	AST_LIST_INSERT_TAIL(&test_list, &d, list);
+	MATCH_OR_FAIL(&test_list, "AD", buf);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&test_list, bogus, list) {
+		if (bogus == &d) {
+			AST_LIST_INSERT_BEFORE_CURRENT(&b, list);
+			MATCH_OR_FAIL(&test_list, "ABD", buf);
+			AST_LIST_INSERT_BEFORE_CURRENT(&c, list);
+			MATCH_OR_FAIL(&test_list, "ABCD", buf);
+			AST_LIST_REMOVE_CURRENT(list);
+			MATCH_OR_FAIL(&test_list, "ABC", buf);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	MATCH_OR_FAIL(&test_list, "ABC", buf);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&test_list, bogus, list) {
+		AST_LIST_REMOVE_CURRENT(list);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	if (!AST_LIST_EMPTY(&test_list)) {
+		ast_test_status_update(test, "List should be empty after traversing and removal. It wasn't.\n");
+		return AST_TEST_FAIL;
+	}
+
 	return AST_TEST_PASS;
 }
 
 static int unload_module(void)
 {
-	AST_TEST_UNREGISTER(ll_tests);
+	AST_TEST_UNREGISTER(single_ll_tests);
 	return 0;
 }
 
 static int load_module(void)
 {
-	AST_TEST_REGISTER(ll_tests);
+	AST_TEST_REGISTER(single_ll_tests);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

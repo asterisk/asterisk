@@ -589,7 +589,7 @@ struct {								\
 		(elm)->field.next = __list_head->first;			\
 		__list_head->first = (elm);				\
 	}								\
-	__new_prev = (elm);						\
+	__list_prev = (elm);						\
 } while (0)
 
 #define AST_RWLIST_INSERT_BEFORE_CURRENT AST_LIST_INSERT_BEFORE_CURRENT
