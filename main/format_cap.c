@@ -470,7 +470,7 @@ static int joint_copy_helper(const struct ast_format_cap *cap1, const struct ast
 	if (!append) {
 		ast_format_cap_remove_all(result);
 	}
-	it = ao2_iterator_init(cap1->formats, cap2->nolock ? AO2_ITERATOR_DONTLOCK : 0);
+	it = ao2_iterator_init(cap1->formats, cap1->nolock ? AO2_ITERATOR_DONTLOCK : 0);
 	while ((tmp = ao2_iterator_next(&it))) {
 		data.format = tmp;
 		ao2_callback(cap2->formats,
