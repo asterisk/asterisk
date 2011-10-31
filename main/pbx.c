@@ -2176,8 +2176,11 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 		if (already && (m2 = already_in_tree(m1, buf, pattern)) && m2->next_char) {
 			if (!(*(s1 + 1))) {  /* if this is the end of the pattern, but not the end of the tree, then mark this node with the exten...
 								a shorter pattern might win if the longer one doesn't match */
+				if (findonly) {
+					return m2;
+				}
 				if (m2->exten) {
-					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n", m2->exten->exten, e1->exten);
+					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n", m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
 				}
 				m2->exten = e1;
 				m2->deleted = 0;
@@ -2201,7 +2204,7 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 			}
 			if (!(*(s1 + 1))) {
 				if (m2 && m2->exten) {
-					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n", m2->exten->exten, e1->exten);
+					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n", m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
 				}
 				m1->deleted = 0;
 				m1->exten = e1;

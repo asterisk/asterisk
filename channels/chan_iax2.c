@@ -8675,6 +8675,10 @@ static void __expire_registry(const void *data)
 
 	if (!peer)
 		return;
+	if (peer->expire == -1) {
+		/* Removed already (possibly through CLI), ignore */
+		return;
+	}
 
 	peer->expire = -1;
 
