@@ -17,8 +17,7 @@
 # and res_config_curl.so in modules.conf and configure extconfig.conf:
 #
 # voicemail => curl,http://server/path/to/dbsep.cgi/voicemail
-# sippeers => curl,http://server/path/to/dbsep.cgi/sipfriends
-# sipusers => curl,http://server/path/to/dbsep.cgi/sipfriends
+# sippeers => curl,http://server/path/to/dbsep.cgi/sippeers
 #
 
 # The Data Source Name, as specified by the Perl DBI module.

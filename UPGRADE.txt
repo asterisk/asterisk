@@ -159,6 +159,9 @@ From 1.6.2 to 1.8:
   changes to the files will not be detected.  You can revert to polling the
   directory by specifying --without-inotify to configure before compiling.
 
+* The 'sipusers' realtime table has been removed completely. Use the 'sippeers'
+  table with type 'user' for user type objects.
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by

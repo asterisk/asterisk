@@ -1,8 +1,8 @@
 #
-# Table structure for table `sipfriends`
+# Table structure for table `sippeers`
 #
 
-CREATE TABLE IF NOT EXISTS `sipfriends` (
+CREATE TABLE IF NOT EXISTS `sippeers` (
       `id` int(11) NOT NULL AUTO_INCREMENT,
       `name` varchar(10) NOT NULL,
       `ipaddr` varchar(15) DEFAULT NULL,
