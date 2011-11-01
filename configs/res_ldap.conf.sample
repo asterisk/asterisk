@@ -7,7 +7,6 @@
 ; In order to use this module, you start 
 ; in extconfig.conf with a configuration like this:
 ;
-; 	sipusers = ldap,"dc=myDomain,dc=myDomainExt",sip
 ; 	sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
 ; 	extensions = ldap,"dc=myDomain,dc=myDomainExt",extensions
 ; 	sip.conf = ldap,"dc=myDomain,dc=myDomainExt",config

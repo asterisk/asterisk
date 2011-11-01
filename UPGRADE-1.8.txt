@@ -311,3 +311,6 @@ From 1.6.0.x to 1.6.1:
   which should be a char(8) or larger.  This field specifies whether or not a
   message has been designated to be "Urgent", "PRIORITY", or not.
 
+* The 'sipusers' realtime table has been removed completely. Use the 'sippeers'
+  table with type 'user' for user type objects.
+
