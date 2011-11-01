@@ -525,6 +525,28 @@ static void ast_variable_destroy(struct ast_variable *doomed)
 	ast_free(doomed);
 }
 
+struct ast_variable *ast_variables_dup(struct ast_variable *var)
+{
+	struct ast_variable *cloned;
+	struct ast_variable *tmp;
+
+	if (!(cloned = ast_variable_new(var->name, var->value, var->file))) {
+		return NULL;
+	}
+
+	tmp = cloned;
+
+	while ((var = var->next)) {
+		if (!(tmp->next = ast_variable_new(var->name, var->value, var->file))) {
+			ast_variables_destroy(cloned);
+			return NULL;
+		}
+		tmp = tmp->next;
+	}
+
+	return cloned;
+}
+
 void ast_variables_destroy(struct ast_variable *v)
 {
 	struct ast_variable *vn;
