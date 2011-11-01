@@ -2146,8 +2146,7 @@ int read_config_maps(void)
 		if (!driver || !database)
 			continue;
 		if (!strcasecmp(v->name, "sipfriends")) {
-			ast_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
-			append_mapping("sipusers", driver, database, table ? table : "sipfriends", pri);
+			ast_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sippeers instead.\n");
 			append_mapping("sippeers", driver, database, table ? table : "sipfriends", pri);
 		} else if (!strcasecmp(v->name, "iaxfriends")) {
 			ast_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");

@@ -17,7 +17,7 @@
 ; and writes should be performed to the same database.
 ;
 ; For example, in extconfig.conf, you could specify a line like:
-;    sippeers => mysql,readhost.asterisk/writehost.asterisk,sipfriends
+;    sippeers => mysql,readhost.asterisk/writehost.asterisk,sippeers
 ; and then define the contexts [readhost.asterisk] and [writehost.asterisk]
 ; below.
 ;

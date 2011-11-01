@@ -1,8 +1,8 @@
 #
-# Table structure for table `sipfriends`
+# Table structure for table `sippeers`
 #
 
-CREATE TABLE IF NOT EXISTS `sipfriends` (
+CREATE TABLE IF NOT EXISTS `sippeers` (
       `id` int(11) NOT NULL AUTO_INCREMENT,
       `name` varchar(10) NOT NULL,
       `ipaddr` varchar(15) DEFAULT NULL,
@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS `sipfriends` (
       `callgroup` varchar(40) DEFAULT NULL,
       `pickupgroup` varchar(40) DEFAULT NULL,
       `language` varchar(40) DEFAULT NULL,
-      `allow` varchar(200) DEFAULT NULL,
+      `allow` varchar(40) DEFAULT NULL,
+      `disallow` varchar(40) DEFAULT NULL,
       `insecure` varchar(40) DEFAULT NULL,
       `trustrpid` enum('yes','no') DEFAULT NULL,
       `progressinband` enum('yes','no','never') DEFAULT NULL,
