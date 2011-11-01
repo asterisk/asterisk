@@ -450,6 +450,17 @@ int ast_check_realtime(const char *family);
 int ast_realtime_enabled(void);
 
 /*!
+ * \brief Duplicate variable list
+ * \param var the linked list of variables to clone
+ * \return A duplicated list which you'll need to free with
+ * ast_variables_destroy or NULL when out of memory.
+ *
+ * \note Do not depend on this to copy more than just name, value and filename
+ * (the arguments to ast_variables_new).
+ */
+struct ast_variable *ast_variables_dup(struct ast_variable *var);
+
+/*!
  * \brief Free variable list
  * \param var the linked list of variables to free
  *
