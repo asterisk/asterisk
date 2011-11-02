@@ -14759,8 +14759,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			res = AUTH_PEER_NOT_DYNAMIC;
 		} else {
 			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT_FORCE_RPORT);
-			if (ast_test_flag(&p->flags[1], SIP_PAGE2_REGISTERTRYING))
-				transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri2, XMIT_UNRELIABLE, req->ignore))) {
 				if (sip_cancel_destroy(p))
 					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
@@ -14840,14 +14838,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			}
 			ao2_unlock(peer);
 		}
-	}
-	if (!peer && sip_cfg.alwaysauthreject) {
-		/* If we found a peer, we transmit a 100 Trying.  Therefore, if we're
-		 * trying to avoid leaking information, we MUST also transmit the same
-		 * response when we DON'T find a peer. */
-		transmit_response(p, "100 Trying", req);
-		/* Insert a fake delay between the 100 and the subsequent failure. */
-		sched_yield();
 	}
 	if (!res) {
 		sip_send_mwi_to_peer(peer, 0);
@@ -17584,7 +17574,6 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, ")\n");
 
 		ast_cli(fd, "  Auto-Framing :  %s \n", AST_CLI_YESNO(peer->autoframing));
-		ast_cli(fd, "  100 on REG   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_REGISTERTRYING)));
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));
 		ast_cli(fd, "%s\n", status);
@@ -27795,8 +27784,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				}
 			} else if (!strcasecmp(v->name, "preferred_codec_only")) {
 				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_PREFERRED_CODEC);
-			} else if (!strcasecmp(v->name, "registertrying")) {
-				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_REGISTERTRYING);
 			} else if (!strcasecmp(v->name, "autoframing")) {
 				peer->autoframing = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
