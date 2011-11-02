@@ -233,7 +233,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Enters the user into a specified MeetMe conference.  If the <replaceable>confno</replaceable>
 			is omitted, the user will be prompted to enter one.  User can exit the conference by hangup, or
 			if the <literal>p</literal> option is specified, by pressing <literal>#</literal>.</para>
-			<note><para>The DAHDI kernel modules and at least one hardware driver (or dahdi_dummy)
+			<note><para>The DAHDI kernel modules and a functional DAHDI timing source (see dahdi_test)
 			must be present for conferencing to operate properly. In addition, the chan_dahdi channel driver
 			must be loaded for the <literal>i</literal> and <literal>r</literal> options to operate at
 			all.</para></note>
