@@ -73,7 +73,13 @@ static const char app[] = "Authenticate";
 						<para>Set the channels' account code to the password that is entered</para>
 					</option>
 					<option name="d">
-						<para>Interpret the given path as database key, not a literal file</para>
+						<para>Interpret the given path as database key, not a literal file.</para>
+						<note>
+							<para>The value is not used at all in the authentication when using this option.
+							If the family/key is set to <literal>/pin/100</literal> (value does not matter)
+							then the password field needs to be set to <literal>/pin</literal> and the pin entered
+							by the user would be authenticated against <literal>100</literal>.</para>
+						</note>
 					</option>
 					<option name="m">
 						<para>Interpret the given path as a file which contains a list of account
