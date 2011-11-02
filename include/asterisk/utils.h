@@ -741,6 +741,38 @@ static void force_inline _ast_assert(int condition, const char *condition_str,
 #include "asterisk/strings.h"
 
 /*!
+ * \brief Add space and let result be a multiple of space.
+ * \param initial A number to add space to.
+ * \param space The space to add, this would typically be sizeof(sometype).
+ * \return The sum of initial plus space plus at most space-1.
+ *
+ * Many systems prefer integers to be stored on aligned on memory locations.
+ * A use case for this is when prepending length fields of type int to a buffer.
+ * If you keep the total used bytes a multiple of the size of the integer type,
+ * a next block of length+buffer will have the length field automatically
+ * aligned.
+ *
+ * It looks kind of ugly, but the compiler will optimize this down to 4 or 5
+ * inexpensive instructions (on x86_64).
+ *
+ * Examples:
+ * ast_add_and_make_multiple_of(0x18, sizeof(int64_t)) ==> 0x20
+ * ast_add_and_make_multiple_of(0x19, sizeof(int64_t)) ==> 0x28
+ */
+#define ast_add_and_make_multiple_of(initial, space) (((initial + (2 * space - 1)) / space) * space)
+
+/*!
+ * \brief Add bytes so that result is a multiple of size.
+ * \param initial A number to enlarge.
+ * \param size The block size the number should be a multiple of.
+ * \return The sum of initial plus at most size-1.
+ *
+ * Similar ast_add_and_make_multiple_of, except that this doesn't add the room
+ * for the length object, it only ensures that the total is aligned.
+ */
+#define ast_make_multiple_of(initial, size) (((initial + size - 1) / size) * size)
+
+/*!
  * \brief An Entity ID is essentially a MAC address, brief and unique 
  */
 struct ast_eid {
