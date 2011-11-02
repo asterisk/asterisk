@@ -4740,10 +4740,21 @@ done:
 
 static const char *get_name_from_variable(const struct ast_variable *var)
 {
+	/* Don't expect this to return non-NULL. Both NULL and empty
+	 * values can cause the option to get removed from the variable
+	 * list. This is called on ast_variables gotten from both
+	 * ast_load_realtime and ast_load_realtime_multientry.
+	 * - ast_load_realtime removes options with empty values
+	 * - ast_load_realtime_multientry does not!
+	 * For consistent behaviour, we check for the empty name and
+	 * return NULL instead. */
 	const struct ast_variable *tmp;
 	for (tmp = var; tmp; tmp = tmp->next) {
 		if (!strcasecmp(tmp->name, "name")) {
-			return tmp->value;
+			if (!ast_strlen_zero(tmp->value)) {
+				return tmp->value;
+			}
+			break;
 		}
 	}
 	return NULL;
@@ -4806,10 +4817,13 @@ static int realtime_peer_by_name(const char *const *name, struct ast_sockaddr *a
  * the sippeer also had it continue look for another match, so we do
  * the same. */
 static struct ast_variable *realtime_peer_get_sippeer_helper(const char **name, struct ast_variable **varregs) {
-	struct ast_variable *var;
+	struct ast_variable *var = NULL;
 	const char *old_name = *name;
 	*name = get_name_from_variable(*varregs);
-	if (!(var = ast_load_realtime("sippeers", "name", *name, SENTINEL))) {
+	if (!*name || !(var = ast_load_realtime("sippeers", "name", *name, SENTINEL))) {
+		if (!*name) {
+			ast_log(LOG_WARNING, "Found sipreg but it has no name\n");
+		}
 		ast_variables_destroy(*varregs);
 		*varregs = NULL;
 		*name = old_name;
@@ -4852,21 +4866,32 @@ static int realtime_peer_by_addr(const char **name, struct ast_sockaddr *addr, c
 		;
 	}
 
-	/* Did we find anything? */
-	if (*var) {
-		/* Make sure name is populated. */
-		if (!*name) {
-			*name = get_name_from_variable(*var);
-		}
-		/* Make sure varregs is populated if var is. Ensuring
-		 * that var is set when varregs is, is taken care of by
-		 * realtime_peer_get_sippeer_helper(). */
-		if (varregs && !*varregs) {
-			*varregs = ast_load_realtime("sipregs", "name", *name, SENTINEL);
-		}
-		return 1;
+	/* Nothing found? */
+	if (!*var) {
+		return 0;
 	}
-	return 0;
+
+	/* Check peer name. It must not be empty. There may exist a
+	 * different match that does have a name, but it's too late for
+	 * that now. */
+	if (!*name && !(*name = get_name_from_variable(*var))) {
+		ast_log(LOG_WARNING, "Found peer for IP %s but it has no name\n", ipaddr);
+		ast_variables_destroy(*var);
+		*var = NULL;
+		if (varregs && *varregs) {
+			ast_variables_destroy(*varregs);
+			*varregs = NULL;
+		}
+		return 0;
+	}
+
+	/* Make sure varregs is populated if var is. The inverse,
+	 * ensuring that var is set when varregs is, is taken
+	 * care of by realtime_peer_get_sippeer_helper(). */
+	if (varregs && !*varregs) {
+		*varregs = ast_load_realtime("sipregs", "name", *name, SENTINEL);
+	}
+	return 1;
 }
 
 /*! \brief  realtime_peer: Get peer from realtime storage
@@ -4897,7 +4922,6 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockad
 	} else if (addr && realtime_peer_by_addr(&newpeername, addr, ipaddr, &var, realtimeregs ? &varregs : NULL)) {
 		;
 	} else {
-		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", ipaddr);
 		return NULL;
 	}
 
