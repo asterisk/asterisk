@@ -62,7 +62,6 @@ CREATE TABLE IF NOT EXISTS `sippeers` (
       `sendrpid` enum('yes','no') DEFAULT NULL,
       `outboundproxy` varchar(40) DEFAULT NULL,
       `callbackextension` varchar(40) DEFAULT NULL,
-      `registertrying` enum('yes','no') DEFAULT NULL,
       `timert1` int(11) DEFAULT NULL,
       `timerb` int(11) DEFAULT NULL,
       `qualifyfreq` int(11) DEFAULT NULL,
