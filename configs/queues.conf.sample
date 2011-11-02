@@ -100,7 +100,7 @@ monitor-type = MixMonitor
 ; A strategy may be specified.  Valid strategies include:
 ;
 ; ringall - ring all available channels until one answers (default)
-; leastrecent - ring interface which was least recently called by this queue
+; leastrecent - ring interface which was least recently hung up by this queue
 ; fewestcalls - ring the one with fewest completed calls from this queue
 ; random - ring random interface
 ; rrmemory - round robin with memory, remember where we left off last ring pass
