@@ -114,6 +114,10 @@
 */
 typedef const char * ast_string_field;
 
+/* the type of storage used to track how many bytes were allocated for a field */
+
+typedef uint16_t ast_string_field_allocation;
+
 /*!
   \internal
   \brief A constant empty string used for fields that have no other value
@@ -123,13 +127,15 @@ extern const char *__ast_string_field_empty;
 /*!
   \internal
   \brief Structure used to hold a pool of space for string fields
+  \note base is aligned so base+used can stay aligned by incrementing used with
+        aligned numbers only
 */
 struct ast_string_field_pool {
 	struct ast_string_field_pool *prev;	/*!< pointer to the previous pool, if any */
 	size_t size;				/*!< the total size of the pool */
 	size_t used;				/*!< the space used in the pool */
 	size_t active;				/*!< the amount of space actively in use by fields */
-	char base[0];				/*!< storage space for the fields */
+	char base[0] __attribute__((aligned(sizeof(ast_string_field_allocation)))); /*!< storage space for the fields */
 };
 
 /*!
@@ -292,10 +298,6 @@ void * attribute_malloc __ast_calloc_with_stringfields(unsigned int num_structs,
  */
 void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 				       const ast_string_field ptr);
-
-/* the type of storage used to track how many bytes were allocated for a field */
-
-typedef uint16_t ast_string_field_allocation;
 
 /*!
   \brief Macro to provide access to the allocation field that lives immediately in front of a string field
