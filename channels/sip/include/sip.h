@@ -339,10 +339,10 @@
 #define SIP_PAGE2_FAX_DETECT_T38		(2 << 23)  /*!< DP: Fax Detection support - detect T.38 reinvite from peer */
 #define SIP_PAGE2_FAX_DETECT_BOTH		(3 << 23)  /*!< DP: Fax Detection support - detect both */
 
-#define SIP_PAGE2_UDPTL_DESTINATION		(1 << 24)  /*!< DP: Use source IP of RTP as destination if NAT is enabled */
-#define SIP_PAGE2_VIDEOSUPPORT_ALWAYS		(1 << 25)  /*!< DP: Always set up video, even if endpoints don't support it */
-#define SIP_PAGE2_HAVEPEERCONTEXT	(1 << 26)	/*< Are we associated with a configured peer context? */
-#define SIP_PAGE2_USE_SRTP              (1 << 27)    /*!< DP: Whether we should offer (only)  SRTP */
+#define SIP_PAGE2_UDPTL_DESTINATION		(1 << 25)  /*!< DP: Use source IP of RTP as destination if NAT is enabled */
+#define SIP_PAGE2_VIDEOSUPPORT_ALWAYS		(1 << 26)  /*!< DP: Always set up video, even if endpoints don't support it */
+#define SIP_PAGE2_HAVEPEERCONTEXT	(1 << 27)	/*< Are we associated with a configured peer context? */
+#define SIP_PAGE2_USE_SRTP              (1 << 28)    /*!< DP: Whether we should offer (only)  SRTP */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
