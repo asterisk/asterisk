@@ -1055,7 +1055,7 @@ static struct ast_variable * realtime_handler(const char *database, const char *
 #define QUERY "SELECT * FROM '%q' WHERE%s %q%s '%q'"
 /* \endcond */
 
-	query = sqlite_mprintf(QUERY, table, !strcmp(config_table, table) ? " commented = 0 AND" : "", params[0], op, vals[0]);
+	query = sqlite_mprintf(QUERY, table, (config_table && !strcmp(config_table, table)) ? " commented = 0 AND" : "", params[0], op, vals[0]);
 
 	if (!query) {
 		ast_log(LOG_WARNING, "Unable to allocate SQL query\n");
@@ -1216,10 +1216,10 @@ static struct ast_config *realtime_multi_handler(const char *database,
 
 /* \cond DOXYGEN_CAN_PARSE_THIS */
 #undef QUERY
-#define QUERY "SELECT * FROM '%q' WHERE commented = 0 AND %q%s '%q'"
+#define QUERY "SELECT * FROM '%q' WHERE%s %q%s '%q'"
 /* \endcond */
 
-	if (!(query = sqlite_mprintf(QUERY, table, params[0], op, tmp_str))) {
+	if (!(query = sqlite_mprintf(QUERY, table, (config_table && !strcmp(config_table, table)) ? " commented = 0 AND" : "", params[0], op, tmp_str))) {
 		ast_log(LOG_WARNING, "Unable to allocate SQL query\n");
 		ast_config_destroy(cfg);
 		ast_free(params);
