@@ -364,7 +364,7 @@ void ooGkClientFillVendor
 
 int ooGkClientReceive(ooGkClient *pGkClient)
 {
-   ASN1OCTET recvBuf[1024];
+   ASN1OCTET recvBuf[ASN_K_ENCBUFSIZ];
    int recvLen;
    char remoteHost[32];
    int iFromPort=0;
@@ -375,7 +375,7 @@ int ooGkClientReceive(ooGkClient *pGkClient)
    ast_mutex_lock(&pGkClient->Lock);
    pctxt = &pGkClient->msgCtxt;
 
-   recvLen = ooSocketRecvFrom(pGkClient->rasSocket, recvBuf, 1024, remoteHost,
+   recvLen = ooSocketRecvFrom(pGkClient->rasSocket, recvBuf, 2048, remoteHost,
                               32, &iFromPort);
    if(recvLen <0)
    {
@@ -858,7 +858,6 @@ int ooGkClientHandleGatekeeperConfirm
          memFreePtr(&pGkClient->ctxt, pTimer->cbData);
          ooTimerDelete(&pGkClient->ctxt, &pGkClient->timerList, pTimer);
          OOTRACEDBGA1("Deleted GRQ Timer.\n");
-         break;
       }
    }
 
@@ -1063,7 +1062,7 @@ int ooGkClientSendRRQ(ooGkClient *pGkClient, ASN1BOOL keepAlive)
          allocate storage for endpoint-identifier, and populate it from what the
          GK told us from the previous RCF. Only allocate on the first pass thru here */
       pRegReq->endpointIdentifier.data = 
-           (ASN116BITCHAR*)memAlloc(pctxt, pGkClient->gkId.nchars*sizeof(ASN116BITCHAR));
+           (ASN116BITCHAR*)memAlloc(pctxt, pGkClient->endpointId.nchars*sizeof(ASN116BITCHAR));
       if (pRegReq->endpointIdentifier.data) {
          pRegReq->endpointIdentifier.nchars = pGkClient->endpointId.nchars;
          pRegReq->m.endpointIdentifierPresent = TRUE;
@@ -1136,6 +1135,8 @@ int ooGkClientHandleRegistrationConfirm
    ooGkClientTimerCb *cbData;
    ASN1UINT regTTL=0;
    /* Extract Endpoint Id */
+   if (pGkClient->endpointId.data)
+	memFreePtr(&pGkClient->ctxt, pGkClient->endpointId.data);
    pGkClient->endpointId.nchars = 
                               pRegistrationConfirm->endpointIdentifier.nchars;
    pGkClient->endpointId.data = (ASN116BITCHAR*)memAlloc(&pGkClient->ctxt,
@@ -1288,7 +1289,6 @@ int ooGkClientHandleRegistrationReject
          memFreePtr(&pGkClient->ctxt, pTimer->cbData);
          ooTimerDelete(&pGkClient->ctxt, &pGkClient->timerList, pTimer);
          OOTRACEDBGA1("Deleted RRQ Timer.\n");
-         break;
       }
    }
 
