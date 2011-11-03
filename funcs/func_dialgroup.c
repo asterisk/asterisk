@@ -144,7 +144,7 @@ static int dialgroup_read(struct ast_channel *chan, const char *cmd, char *data,
 
 	buf[0] = '\0';
 
-	i = ao2_iterator_init(grhead->entries, OBJ_POINTER);
+	i = ao2_iterator_init(grhead->entries, 0);
 	while ((entry = ao2_iterator_next(&i))) {
 		int tmp = strlen(entry->name);
 		/* Ensure that we copy only complete names, not partials */
