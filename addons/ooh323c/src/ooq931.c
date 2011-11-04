@@ -512,7 +512,7 @@ int ooFreeQ931Message(OOCTXT* pctxt, Q931Message *q931Msg)
 
 int ooEncodeUUIE(OOCTXT* pctxt, Q931Message *q931msg)
 {
-   ASN1OCTET msgbuf[1024];
+   ASN1OCTET msgbuf[ASN_K_ENCBUFSIZ];
    ASN1OCTET * msgptr=NULL;
    int  len;
    ASN1BOOL aligned = TRUE;

@@ -79,7 +79,7 @@ void ooTimerComputeExpireTime (OOTimer* pTimer)
 
 void ooTimerDelete (OOCTXT* pctxt, DList *pList, OOTimer* pTimer)
 {
-   dListFindAndRemove (pList, pTimer);
+   dListFindAndRemove (pctxt, pList, pTimer);
    memFreePtr (pctxt, pTimer);
 }
 
@@ -115,7 +115,7 @@ void ooTimerFireExpired (OOCTXT* pctxt, DList *pList)
 
          stat = (*pTimer->timeoutCB)(pTimer->cbData);
 
-         if (0 != stat || !pTimer->reRegister) {
+         if (!pTimer->reRegister) {
             ooTimerDelete (pctxt, pList, pTimer);
          }
       }
@@ -175,7 +175,7 @@ struct timeval* ooTimerNextTimeout (DList *pList, struct timeval* ptimeout)
 void ooTimerReset (OOCTXT* pctxt, DList *pList, OOTimer* pTimer)
 {
    if (pTimer->reRegister) {
-      dListFindAndRemove (pList, pTimer);
+      dListFindAndRemove (pctxt, pList, pTimer);
       ooTimerComputeExpireTime (pTimer);
       ooTimerInsertEntry (pctxt, pList, pTimer);
    }
