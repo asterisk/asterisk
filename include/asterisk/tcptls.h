@@ -25,8 +25,10 @@
  * in or out the DO_SSL macro.
  *
  * TLS/SSL support is basically implemented by reading from a config file
- * (currently http.conf and sip.conf) the names of the certificate and cipher to use,
- * and then run ssl_setup() to create an appropriate SSL_CTX (ssl_ctx)
+ * (currently manager.conf, http.conf and sip.conf) the names of the certificate
+ * files and cipher to use, and then run ssl_setup() to create an appropriate 
+ * data structure named ssl_ctx.
+ *
  * If we support multiple domains, presumably we need to read multiple
  * certificates.
  *
@@ -42,6 +44,11 @@
  * and their setup should be moved to a more central place, e.g. asterisk.conf
  * and the source files that processes it. Similarly, ssl_setup() should
  * be run earlier in the startup process so modules have it available.
+ * 
+ * \ref AstTlsOverview
+ *
+ * \todo For SIP, the SubjectAltNames should be checked on verification
+ *       of the certificate. (Check RFC 5922)
  *
  */
 
@@ -93,7 +100,8 @@ struct ast_tls_config {
 	SSL_CTX *ssl_ctx;
 };
 
-/*!
+/*! \page AstTlsOverview TLS Implementation Overview
+ *
  * The following code implements a generic mechanism for starting
  * services on a TCP or TLS socket.
  * The service is configured in the struct session_args, and
@@ -135,13 +143,13 @@ struct ast_tcptls_session_args {
 	const char *name;
 };
 
-/*
+/*! \brief 
  * describes a server instance
  */
 struct ast_tcptls_session_instance {
-	FILE *f;    /* fopen/funopen result */
-	int fd;     /* the socket returned by accept() */
-	SSL *ssl;   /* ssl state */
+	FILE *f;    /*!< fopen/funopen result */
+	int fd;     /*!< the socket returned by accept() */
+	SSL *ssl;   /*!< ssl state */
 /*	iint (*ssl_setup)(SSL *); */
 	int client;
 	struct ast_sockaddr remote_address;
