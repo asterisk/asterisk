@@ -79,8 +79,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define LOG_TAG(u) S_OR(u->tag, "no tag")
 
-static int udptlstart = 4500;
-static int udptlend = 4599;
+#define DEFAULT_UDPTLSTART 4000
+#define DEFAULT_UDPTLEND 4999
+
+static int udptlstart = DEFAULT_UDPTLSTART;
+static int udptlend = DEFAULT_UDPTLEND;
 static int udptldebug;	                    /*!< Are we debugging? */
 static struct ast_sockaddr udptldebugaddr;   /*!< Debug packets to/from this host */
 #ifdef SO_NO_CHECK
@@ -1315,8 +1318,8 @@ static void __ast_udptl_reload(int reload)
 		return;
 	}
 
-	udptlstart = 4500;
-	udptlend = 4999;
+	udptlstart = DEFAULT_UDPTLSTART;
+	udptlend = DEFAULT_UDPTLEND;
 	udptlfecentries = 0;
 	udptlfecspan = 0;
 	use_even_ports = 0;
@@ -1388,18 +1391,18 @@ static void __ast_udptl_reload(int reload)
 		}
 		ast_config_destroy(cfg);
 	}
-	if (udptlstart >= udptlend) {
-		ast_log(LOG_WARNING, "Unreasonable values for UDPTL start/end ports; defaulting to 4500-4999.\n");
-		udptlstart = 4500;
-		udptlend = 4999;
-	}
 	if (use_even_ports && (udptlstart & 1)) {
 		++udptlstart;
 		ast_log(LOG_NOTICE, "Odd numbered udptlstart specified but use_even_ports enabled. udptlstart is now %d\n", udptlstart);
 	}
+	if (udptlstart > udptlend) {
+		ast_log(LOG_WARNING, "Unreasonable values for UDPTL start/end ports; defaulting to %d-%d.\n", DEFAULT_UDPTLSTART, DEFAULT_UDPTLEND);
+		udptlstart = DEFAULT_UDPTLSTART;
+		udptlend = DEFAULT_UDPTLEND;
+	}
 	if (use_even_ports && (udptlend & 1)) {
 		--udptlend;
-		ast_log(LOG_NOTICE, "Odd numbered udptlend specified but use_event_ports enabled. udptlend is now %d\n", udptlend);
+		ast_log(LOG_NOTICE, "Odd numbered udptlend specified but use_even_ports enabled. udptlend is now %d\n", udptlend);
 	}
 	ast_verb(2, "UDPTL allocating from port range %d -> %d\n", udptlstart, udptlend);
 }
