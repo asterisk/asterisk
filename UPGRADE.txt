@@ -116,5 +116,10 @@ chan_sip:
    by default. It can be enabled using the 'storesipcause' option. This feature
    has a significant performance penalty.
 
+UDPTL:
+ - The default UDPTL port range in udptl.conf.sample differed from the defaults
+   in the source. If you didn't have a config file, you got 4500 to 4599. Now the
+   default is 4000 to 4999.
+
 ===========================================================
 ===========================================================
