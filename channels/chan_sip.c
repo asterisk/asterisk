@@ -2956,6 +2956,13 @@ static void *dialog_unlink_rtpcheck(struct sip_pvt *dialog)
 	return NULL;
 }
 
+/*!
+ * \brief Unlink a dialog from the dialogs container, as well as any other places
+ * that it may be currently stored.
+ *
+ * \note A reference to the dialog must be held before calling this function, and this
+ * function does not release that reference.
+ */
 void dialog_unlink_all(struct sip_pvt *dialog)
 {
 	struct sip_pkt *cp;
@@ -4589,9 +4596,18 @@ static void sip_destroy_peer_fn(void *peer)
 static void sip_destroy_peer(struct sip_peer *peer)
 {
 	ast_debug(3, "Destroying SIP peer %s\n", peer->name);
-	if (peer->outboundproxy)
+
+	/*
+	 * Remove any mailbox event subscriptions for this peer before
+	 * we destroy anything.  An event subscription callback may be
+	 * happening right now.
+	 */
+	clear_peer_mailboxes(peer);
+
+	if (peer->outboundproxy) {
 		ao2_ref(peer->outboundproxy, -1);
-	peer->outboundproxy = NULL;
+		peer->outboundproxy = NULL;
+	}
 
 	/* Delete it, it needs to disappear */
 	if (peer->call) {
@@ -4625,7 +4641,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	}
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
-	clear_peer_mailboxes(peer);
 
 	if (peer->socket.tcptls_session) {
 		ao2_ref(peer->socket.tcptls_session, -1);
@@ -17045,14 +17060,12 @@ static int dialog_checkrtp_cb(void *dialogobj, void *arg, int flags)
  * \brief Match dialogs that need to be destroyed
  *
  * \details This is used with ao2_callback to unlink/delete all dialogs that
- * are marked needdestroy. It will return CMP_MATCH for candidates, and they
- * will be unlinked.
+ * are marked needdestroy.
  *
  * \todo Re-work this to improve efficiency.  Currently, this function is called
  * on _every_ dialog after processing _every_ incoming SIP/UDP packet, or
  * potentially even more often when the scheduler has entries to run.
  */
-
 static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 {
 	struct sip_pvt *dialog = dialogobj;
