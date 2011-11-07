@@ -143,6 +143,10 @@ autokill=yes
 ;    in a response shouuld be.
 ;testmap3 => context3,${SHELL(echo 123)},IAX2,guest@peer3/${NUMBER}
 ;
+; The built in variables ${SECRET}, ${IPADDR} and ${NUMBER} can also be
+; passed to the weight. For example, you could pass the ${NUMBER} value
+; to your SHELL() script and use that to dynamically return a weight.
+;
 ; Note than when using a global variable or dialplan function to set the
 ; weight for a mapping, that response caching should be disabled if you
 ; plan for these values to change frequently at all.  If the results are

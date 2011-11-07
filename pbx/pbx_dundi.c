@@ -545,13 +545,18 @@ struct dundi_query_state {
 	char fluffy[0];
 };
 
-static int get_mapping_weight(struct dundi_mapping *map)
+static int get_mapping_weight(struct dundi_mapping *map, struct varshead *headp)
 {
 	char buf[32];
 
 	buf[0] = 0;
 	if (map->weightstr) {
-		pbx_substitute_variables_helper(NULL, map->weightstr, buf, sizeof(buf) - 1);
+		if (headp) {
+			pbx_substitute_variables_varshead(headp, map->weightstr, buf, sizeof(buf) - 1);
+		} else {                
+			pbx_substitute_variables_helper(NULL, map->weightstr, buf, sizeof(buf) - 1);
+		}
+
 		if (sscanf(buf, "%30d", &map->_weight) != 1)
 			map->_weight = MAX_WEIGHT;
 	}
@@ -587,7 +592,6 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			ast_set_flag(&flags, map->options & 0xffff);
 			ast_copy_flags(dr + anscnt, &flags, AST_FLAGS_ALL);
 			dr[anscnt].techint = map->tech;
-			dr[anscnt].weight = get_mapping_weight(map);
 			dr[anscnt].expiration = dundi_cache_time;
 			ast_copy_string(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
 			dr[anscnt].eid = *us_eid;
@@ -603,10 +607,13 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 				newvariable = ast_var_assign("IPADDR", ipaddr);
 				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
 				pbx_substitute_variables_varshead(&headp, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
+				dr[anscnt].weight = get_mapping_weight(map, &headp);
 				while ((newvariable = AST_LIST_REMOVE_HEAD(&headp, entries)))
 					ast_var_delete(newvariable);
-			} else
+			} else {
 				dr[anscnt].dest[0] = '\0';
+				dr[anscnt].weight = get_mapping_weight(map, NULL);
+			}
 			anscnt++;
 		} else {
 			/* No answers...  Find the fewest number of digits from the
@@ -2836,7 +2843,7 @@ static char *dundi_show_mappings(struct ast_cli_entry *e, int cmd, struct ast_cl
 	AST_LIST_LOCK(&peers);
 	ast_cli(a->fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
 	AST_LIST_TRAVERSE(&mappings, map, list) {
-		snprintf(weight, sizeof(weight), "%d", get_mapping_weight(map));
+		snprintf(weight, sizeof(weight), "%d", get_mapping_weight(map, NULL));
 		ast_cli(a->fd, FORMAT, map->dcontext, weight,
 			ast_strlen_zero(map->lcontext) ? "<none>" : map->lcontext,
 			dundi_flags2str(fs, sizeof(fs), map->options), tech2str(map->tech), map->dest);

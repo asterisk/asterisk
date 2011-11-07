@@ -50,6 +50,11 @@ FAX changes
  * FAXOPT(faxdetect) will enable a generic fax detect framehook for dialplan
    control of faxdetect.
 
+DUNDi changes
+-------------
+ * Allow the built in variables ${NUMBER}, ${IPADDR} and ${SECRET} to be
+   used within the dynamic weight attribute when specifying a mapping.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
