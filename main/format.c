@@ -860,7 +860,6 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		if (f_list[x].format.id == format_id) {
 			found = 1;
 			ast_cli(a->fd, "%11u %s\n", (unsigned int) format_id, f_list[x].desc);
-			break;
 		}
 	}
 
