@@ -27590,8 +27590,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		set_peer_defaults(peer);	/* Set peer defaults */
 		peer->type = 0;
 	}
-	if (!found && name)
-		ast_copy_string(peer->name, name, sizeof(peer->name));
+
+	/* in case the case of the peer name has changed, update the name */
+	ast_copy_string(peer->name, name, sizeof(peer->name));
 
 	/* If we have channel variables, remove them (reload) */
 	if (peer->chanvars) {
