@@ -1514,6 +1514,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer);
 static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_sockaddr *addr, int newdialog, struct ast_sockaddr *remote_address);
 static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
+static void change_callid_pvt(struct sip_pvt *pvt, const char *callid);
 static void build_callid_registry(struct sip_registry *reg, const struct ast_sockaddr *ourip, const char *fromdomain);
 static void make_our_tag(char *tagbuf, size_t len);
 static int add_header(struct sip_request *req, const char *var, const char *value);
@@ -5340,15 +5341,20 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (!ast_strlen_zero(peer->fromdomain)) {
 		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
 		if (!dialog->initreq.headers) {
-			char *c;
+			char *new_callid;
 			char *tmpcall = ast_strdupa(dialog->callid);
 			/* this sure looks to me like we are going to change the callid on this dialog!! */
-			c = strchr(tmpcall, '@');
-			if (c) {
-				*c = '\0';
-				ao2_t_unlink(dialogs, dialog, "About to change the callid -- remove the old name");
-				ast_string_field_build(dialog, callid, "%s@%s", tmpcall, peer->fromdomain);
-				ao2_t_link(dialogs, dialog, "New dialog callid -- inserted back into table");
+			new_callid = strchr(tmpcall, '@');
+			if (new_callid) {
+				int callid_size;
+
+				*new_callid = '\0';
+
+				/* Change the dialog callid. */
+				callid_size = strlen(tmpcall) + strlen(peer->fromdomain) + 2;
+				new_callid = alloca(callid_size);
+				snprintf(new_callid, callid_size, "%s@%s", tmpcall, peer->fromdomain);
+				change_callid_pvt(dialog, new_callid);
 			}
 		}
 	}
@@ -7513,15 +7519,68 @@ static char *generate_uri(struct sip_pvt *pvt, char *buf, size_t size)
 	return buf;
 }
 
-/*! \brief Build SIP Call-ID value for a non-REGISTER transaction */
+/*!
+ * \brief Build SIP Call-ID value for a non-REGISTER transaction
+ *
+ * \note The passed in pvt must not be in a dialogs container
+ * since this function changes the hash key used by the
+ * container.
+ */
 static void build_callid_pvt(struct sip_pvt *pvt)
 {
 	char buf[33];
-
 	const char *host = S_OR(pvt->fromdomain, ast_sockaddr_stringify_remote(&pvt->ourip));
-	
-	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 
+	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
+}
+
+/*! \brief Unlink the given object from the container and return TRUE if it was in the container. */
+#define CONTAINER_UNLINK(container, obj, tag)								\
+	({																		\
+		int found = 0;														\
+		typeof((obj)) __removed_obj;										\
+		__removed_obj = ao2_t_callback((container),							\
+			OBJ_UNLINK | OBJ_POINTER, ao2_match_by_addr, (obj), (tag));		\
+		if (__removed_obj) {												\
+			ao2_ref(__removed_obj, -1);										\
+			found = 1;														\
+		}																	\
+		found;																\
+	})
+
+/*!
+ * \internal
+ * \brief Safely change the callid of the given SIP dialog.
+ *
+ * \param pvt SIP private structure to change callid
+ * \param callid Specified new callid to use.  NULL if generate new callid.
+ *
+ * \return Nothing
+ */
+static void change_callid_pvt(struct sip_pvt *pvt, const char *callid)
+{
+	int in_dialog_container;
+	int in_rtp_container;
+
+	ao2_lock(dialogs);
+	ao2_lock(dialogs_rtpcheck);
+	in_dialog_container = CONTAINER_UNLINK(dialogs, pvt,
+		"About to change the callid -- remove the old name");
+	in_rtp_container = CONTAINER_UNLINK(dialogs_rtpcheck, pvt,
+		"About to change the callid -- remove the old name");
+	if (callid) {
+		ast_string_field_set(pvt, callid, callid);
+	} else {
+		build_callid_pvt(pvt);
+	}
+	if (in_dialog_container) {
+		ao2_t_link(dialogs, pvt, "New dialog callid -- inserted back into table");
+	}
+	if (in_rtp_container) {
+		ao2_t_link(dialogs_rtpcheck, pvt, "New dialog callid -- inserted back into table");
+	}
+	ao2_unlock(dialogs_rtpcheck);
+	ao2_unlock(dialogs);
 }
 
 /*! \brief Build SIP Call-ID value for a REGISTER transaction */
@@ -12459,7 +12518,10 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	ast_sip_ouraddrfor(&mwi->call->sa, &mwi->call->ourip, mwi->call);
 	build_contact(mwi->call);
 	build_via(mwi->call);
-	build_callid_pvt(mwi->call);
+
+	/* Change the dialog callid. */
+	change_callid_pvt(mwi->call, NULL);
+
 	ast_set_flag(&mwi->call->flags[0], SIP_OUTGOING);
 	
 	/* Associate the call with us */
@@ -25909,8 +25971,6 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		/* Recalculate our side, and recalculate Call ID */
 		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 		build_via(p);
-		ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
-		build_callid_pvt(p);
 
 		ao2_lock(peer);
 		if (!ast_strlen_zero(peer->mwi_from)) {
@@ -25920,7 +25980,9 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		}
 		ao2_unlock(peer);
 
-		ao2_t_link(dialogs, p, "Linking in under new name");
+		/* Change the dialog callid. */
+		change_callid_pvt(p, NULL);
+
 		/* Destroy this session after 32 secs */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
@@ -26551,9 +26613,9 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	/* Recalculate our side, and recalculate Call ID */
 	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 	build_via(p);
-	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
-	build_callid_pvt(p);
-	ao2_t_link(dialogs, p, "Linking in under new name");
+
+	/* Change the dialog callid. */
+	change_callid_pvt(p, NULL);
 
 	AST_SCHED_DEL_UNREF(sched, peer->pokeexpire,
 			sip_unref_peer(peer, "removing poke peer ref"));
@@ -26850,9 +26912,9 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	/* Recalculate our side, and recalculate Call ID */
 	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
 	build_via(p);
-	ao2_t_unlink(dialogs, p, "About to change the callid -- remove the old name");
-	build_callid_pvt(p);
-	ao2_t_link(dialogs, p, "Linking in under new name");
+
+	/* Change the dialog callid. */
+	change_callid_pvt(p, NULL);
 
 	/* We have an extension to call, don't use the full contact here */
 	/* This to enable dialing registered peers with extension dialling,
@@ -30533,7 +30595,7 @@ static int load_module(void)
 	peers = ao2_t_container_alloc(HASH_PEER_SIZE, peer_hash_cb, peer_cmp_cb, "allocate peers");
 	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, peer_ipcmp_cb, "allocate peers_by_ip");
 	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
-	dialogs_needdestroy = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs_needdestroy");
+	dialogs_needdestroy = ao2_t_container_alloc(1, NULL, NULL, "allocate dialogs_needdestroy");
 	dialogs_rtpcheck = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs for rtpchecks");
 	threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
 	if (!peers || !peers_by_ip || !dialogs || !dialogs_needdestroy || !dialogs_rtpcheck
@@ -30807,8 +30869,8 @@ static int unload_module(void)
 	ao2_t_ref(peers, -1, "unref the peers table");
 	ao2_t_ref(peers_by_ip, -1, "unref the peers_by_ip table");
 	ao2_t_ref(dialogs, -1, "unref the dialogs table");
-	ao2_t_ref(dialogs_needdestroy, -1, "unref the dialogs table");
-	ao2_t_ref(dialogs_rtpcheck, -1, "unref the dialogs table");
+	ao2_t_ref(dialogs_needdestroy, -1, "unref dialogs_needdestroy");
+	ao2_t_ref(dialogs_rtpcheck, -1, "unref dialogs_rtpcheck");
 	ao2_t_ref(threadt, -1, "unref the thread table");
 	ao2_t_ref(sip_monitor_instances, -1, "unref the sip_monitor_instances table");
 
