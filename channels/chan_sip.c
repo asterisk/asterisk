@@ -1078,21 +1078,24 @@ static void destroy_escs(void)
 	}
 }
 
-/*! \brief
+/*!
+ * \details
  * Here we implement the container for dialogs which are in the
  * dialog_needdestroy state to iterate only through the dialogs
  * unlink them instead of iterate through all dialogs
  */
 struct ao2_container *dialogs_needdestroy;
 
-/*! \brief
+/*!
+ * \details
  * Here we implement the container for dialogs which have rtp
  * traffic and rtptimeout, rtpholdtimeout or rtpkeepalive
  * set. We use this container instead the whole dialog list.
  */
 struct ao2_container *dialogs_rtpcheck;
 
-/*! \brief
+/*!
+ * \details
  * Here we implement the container for dialogs (sip_pvt), defining
  * generic wrapper functions to ease the transition from the current
  * implementation (a single linked list) to a different container.
@@ -1341,7 +1344,7 @@ static void add_realm_authentication(struct sip_auth_container **credentials, co
 static struct sip_auth *find_realm_authentication(struct sip_auth_container *credentials, const char *realm);
 
 /*--- Misc functions */
-static void check_rtp_timeout(struct sip_pvt *dialog, time_t t);
+static int check_rtp_timeout(struct sip_pvt *dialog, time_t t);
 static int reload_config(enum channelreloadreason reason);
 static void add_diversion_header(struct sip_request *req, struct sip_pvt *pvt);
 static int expire_register(const void *data);
@@ -2948,15 +2951,6 @@ static void ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
 	}
 }
 
- /*!
- * \brief Unlink a dialog from the dialogs_checkrtp container
- */
-static void *dialog_unlink_rtpcheck(struct sip_pvt *dialog)
-{
-	ao2_t_unlink(dialogs_rtpcheck, dialog, "unlinking dialog_rtpcheck via ao2_unlink");
-	return NULL;
-}
-
 /*!
  * \brief Unlink a dialog from the dialogs container, as well as any other places
  * that it may be currently stored.
@@ -3077,11 +3071,11 @@ static inline void pvt_set_needdestroy(struct sip_pvt *pvt, const char *reason)
 	if (pvt->final_destruction_scheduled) {
 		return; /* This is already scheduled for final destruction, let the scheduler take care of it. */
 	}
-	if(pvt->needdestroy != 1) {
+	append_history(pvt, "NeedDestroy", "Setting needdestroy because %s", reason);
+	if (!pvt->needdestroy) {
+		pvt->needdestroy = 1;
 		ao2_t_link(dialogs_needdestroy, pvt, "link pvt into dialogs_needdestroy container");
 	}
-	append_history(pvt, "NeedDestroy", "Setting needdestroy because %s", reason);
-	pvt->needdestroy = 1;
 }
 
 /*! \brief Initialize the initital request packet in the pvt structure.
@@ -6268,7 +6262,6 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_debug(4, "SIP Transfer: Not hanging up right now... Rescheduling hangup for %s.\n", p->callid);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
-		p->needdestroy = 0;
 		p->owner->tech_pvt = dialog_unref(p->owner->tech_pvt, "unref p->owner->tech_pvt");
 		sip_pvt_lock(p);
 		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
@@ -11731,9 +11724,14 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	/* Update lastrtprx when we send our SDP */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
-	/* we unlink this dialog and link again into the dialogs_rtpcheck container to doesnt add it twice */
+	/*
+	 * We unlink this dialog and link again into the
+	 * dialogs_rtpcheck container so its not in there twice.
+	 */
+	ao2_lock(dialogs_rtpcheck);
 	ao2_t_unlink(dialogs_rtpcheck, p, "unlink pvt into dialogs_rtpcheck container");
 	ao2_t_link(dialogs_rtpcheck, p, "link pvt into dialogs_rtpcheck container");
+	ao2_unlock(dialogs_rtpcheck);
 
 	ast_debug(3, "Done building SDP. Settling with this capability: %s\n", ast_getformatname_multiple(buf, SIPBUFSIZE, tmpcap));
 
@@ -17096,28 +17094,33 @@ static void cleanup_stale_contexts(char *new, char *old)
 	}
 }
 
-/*! \brief Check RTP Timeout on dialogs
+/*!
+ * \brief Check RTP Timeout on dialogs
+ *
  * \details This is used with ao2_callback to check rtptimeout
- * rtponholdtimeout and send rtpkeepalive packets
+ * rtponholdtimeout and send rtpkeepalive packets.
+ *
+ * \return CMP_MATCH for items to be unlinked from dialogs_rtpcheck.
  */
 static int dialog_checkrtp_cb(void *dialogobj, void *arg, int flags)
 {
 	struct sip_pvt *dialog = dialogobj;
 	time_t *t = arg;
+	int match_status;
 
 	if (sip_pvt_trylock(dialog)) {
 		return 0;
 	}
 
 	if (dialog->rtp || dialog->vrtp) {
-		check_rtp_timeout(dialog, *t);
+		match_status = check_rtp_timeout(dialog, *t);
 	} else {
-		/* Dialog has no active RTP or VRTP. unlink it from the checkrtp container */
-		dialog_unlink_rtpcheck(dialog);
+		/* Dialog has no active RTP or VRTP. unlink it from dialogs_rtpcheck. */
+		match_status = CMP_MATCH;
 	}
 	sip_pvt_unlock(dialog);
 
-	return 0;
+	return match_status;
 }
 
 /*!
@@ -17139,7 +17142,6 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		 * that we can wait for the next time around. */
 		return 0;
 	}
-
 
 	/* If we have sessions that needs to be destroyed, do it now */
 	/* Check if we have outstanding requests not responsed to or an active call
@@ -26002,33 +26004,42 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 	return 0;
 }
 
-/*! \brief helper function for the monitoring thread -- seems to be called with the assumption that the dialog is locked */
-static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
+/*!
+ * \brief helper function for the monitoring thread -- seems to be called with the assumption that the dialog is locked
+ *
+ * \return CMP_MATCH for items to be unlinked from dialogs_rtpcheck.
+ */
+static int check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 {
 	int timeout;
 	int hold_timeout;
 	int keepalive;
 
+	if (!dialog->rtp) {
+		/*
+		 * We have no RTP.  Since we don't do much with video RTP for
+		 * now, stop checking this dialog.
+		 */
+		return CMP_MATCH;
+	}
+
 	/* If we have no active owner, no need to check timers */
 	if (!dialog->owner) {
-		dialog_unlink_rtpcheck(dialog);
-		return;
+		return CMP_MATCH;
 	}
-	/* If the call is redirected outside Asterisk, no need to check timers */
 
+	/* If the call is redirected outside Asterisk, no need to check timers */
 	if (!ast_sockaddr_isnull(&dialog->redirip)) {
-		dialog_unlink_rtpcheck(dialog);
-		return;
+		return CMP_MATCH;
 	}
 
 	/* If the call is involved in a T38 fax session do not check RTP timeout */
 	if (dialog->t38.state == T38_ENABLED) {
-		dialog_unlink_rtpcheck(dialog);
-		return;
+		return CMP_MATCH;
 	}
 	/* If the call is not in UP state return for later check. */
 	if (dialog->owner->_state != AST_STATE_UP) {
-		return;
+		return 0;
 	}
 
 	/* Store these values locally to avoid multiple function calls */
@@ -26038,8 +26049,7 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 
 	/* If we have no timers set, return now */
 	if (!keepalive && !timeout && !hold_timeout) {
-		dialog_unlink_rtpcheck(dialog);
-		return;
+		return CMP_MATCH;
 	}
 
 	/* Check AUDIO RTP keepalives */
@@ -26065,7 +26075,7 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 					 * Don't block, just try again later.
 					 * If there was no owner, the call is dead already.
 					 */
-					return;
+					return 0;
 				}
 				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
 					dialog->owner->name, (long) (t - dialog->lastrtprx));
@@ -26082,10 +26092,12 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 					ast_rtp_instance_set_timeout(dialog->vrtp, 0);
 					ast_rtp_instance_set_hold_timeout(dialog->vrtp, 0);
 				}
-				dialog_unlink_rtpcheck(dialog); /* finally unlink the dialog from the checkrtp container */
+				/* finally unlink the dialog from dialogs_rtpcheck. */
+				return CMP_MATCH;
 			}
 		}
 	}
+	return 0;
 }
 
 /*! \brief The SIP monitoring thread
@@ -26129,15 +26141,20 @@ static void *do_monitor(void *data)
 
 		/* Check for dialogs needing to be killed */
 		t = time(NULL);
-		/* Check for dialogs with rtp and rtptimeout
-		 * All Dialogs which have rtp are in dialogs_rtpcheck container*/
-		ao2_t_callback(dialogs_rtpcheck, OBJ_NODATA | OBJ_MULTIPLE, dialog_checkrtp_cb, &t,
-				"callback to check rtptimeout and hangup calls if necessary");
 
-		/* Check for dialogs marked to be destroyed
-		 * All Dialogs which need Destroy are in dialogs_needdestroy container*/
-		ao2_t_callback(dialogs_needdestroy, OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t,
-				"callback to check rtptimeout and hangup calls if necessary");
+		/*
+		 * Check dialogs with rtp and rtptimeout.
+		 * All dialogs which have rtp are in dialogs_rtpcheck.
+		 */
+		ao2_t_callback(dialogs_rtpcheck, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
+			dialog_checkrtp_cb, &t,
+			"callback to check rtptimeout and hangup calls if necessary");
+		/*
+		 * Check dialogs marked to be destroyed.
+		 * All dialogs with needdestroy set are in dialogs_needdestroy.
+		 */
+		ao2_t_callback(dialogs_needdestroy, OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy,
+			NULL, "callback to check dialogs which need to be destroyed");
 
 		/* XXX TODO The scheduler usage in this module does not have sufficient
 		 * synchronization being done between running the scheduler and places
