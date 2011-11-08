@@ -87,7 +87,7 @@ static char *handle_cli_dialplan_remove_include(struct ast_cli_entry *e, int cmd
 		return complete_dialplan_remove_include(a);
 	}
 
-	if (strcmp(a->argv[4], "from"))
+	if (a->argc != 6 || strcmp(a->argv[4], "from"))
 		return CLI_SHOWUSAGE;
 
 	if (!ast_context_remove_include(a->argv[5], a->argv[3], registrar)) {
