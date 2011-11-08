@@ -25938,6 +25938,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		/* if there is no mailbox do nothing */
 		if (ast_strlen_zero(mailbox_str->str)) {
+			ao2_unlock(peer);
 			return -1;
 		}
 		ao2_unlock(peer);
