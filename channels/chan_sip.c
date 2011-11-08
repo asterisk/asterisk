@@ -25889,6 +25889,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 		peer_mailboxes_to_str(&mailbox_str, peer);
 		/* if there is no mailbox do nothing */
 		if (ast_strlen_zero(mailbox_str->str)) {
+			ao2_unlock(peer);
 			return -1;
 		}
 		ao2_unlock(peer);
@@ -28048,11 +28049,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		ast_string_field_set(peer, tohost, srvlookup);
 
 		if (global_dynamic_exclude_static) {
-			int err = 0;
+			int ha_error = 0;
 			sip_cfg.contact_ha = ast_append_ha("deny", ast_sockaddr_stringify_addr(&peer->addr), 
-							sip_cfg.contact_ha, &err);
-			if (err) {
-				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+							sip_cfg.contact_ha, &ha_error);
+			if (ha_error) {
+				ast_log(LOG_ERROR, "Bad or unresolved host/IP entry in configuration for peer %s, cannot add to contact ACL\n", peer->name);
 			}
 		}
 	} else if (peer->dnsmgr && !peer->host_dynamic) {
