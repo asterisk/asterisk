@@ -24,6 +24,6 @@ wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin
 echo "Extracting HTML Admin Guide"
 unzip Asterisk-Admin-Guide-$branch.html.zip
 mv AST/ Asterisk-Admin-Guide/
-mv Asterisk-Admin-Guide-1.8.pdf Asterisk-Admin-Guide.pdf
+mv Asterisk-Admin-Guide-$branch.pdf Asterisk-Admin-Guide.pdf
 rm -f Asterisk-Admin-Guide-$branch.html.zip
 echo "Documentation downloaded. Goodbye!"
