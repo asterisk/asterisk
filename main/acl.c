@@ -408,6 +408,9 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 	}
 
 	if (!(ha = ast_calloc(1, sizeof(*ha)))) {
+		if (error) {
+			*error = 1;
+		}
 		return ret;
 	}
 
