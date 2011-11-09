@@ -33,7 +33,7 @@ locale_t c_locale;
 
 /*! \brief * parses a URI in its components.*/
 int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
-		   char **domain, struct uriparams *params, char **headers,
+		   char **hostport, struct uriparams *params, char **headers,
 		   char **residue)
 {
 	char *userinfo = NULL;
@@ -53,8 +53,8 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 	if (pass) {
 		*pass = "";
 	}
-	if (domain) {
-		*domain = "";
+	if (hostport) {
+		*hostport = "";
 	}
 	if (headers) {
 		*headers = "";
@@ -85,8 +85,8 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 		}
 	}
 
-	if (!domain) {
-		/* if we don't want to split around domain, keep everything as a
+	if (!hostport) {
+		/* if we don't want to split around hostport, keep everything as a
 		 * userinfo - cos thats how old parse_uri operated*/
 		userinfo = uri;
 	} else {
@@ -102,7 +102,7 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 			userinfo = "";
 		}
 
-		*domain = dom;
+		*hostport = dom;
 	}
 
 	if (pass && (c = strchr(userinfo, ':'))) {	  /* user:password */
@@ -221,7 +221,7 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 {
 	int res = AST_TEST_PASS;
 	char uri[1024];
-	char *user, *pass, *domain, *headers, *residue;
+	char *user, *pass, *hostport, *headers, *residue;
 	struct uriparams params;
 
 	struct testdata {
@@ -229,13 +229,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		char *uri;
 		char **userptr;
 		char **passptr;
-		char **domainptr;
+		char **hostportptr;
 		char **headersptr;
 		char **residueptr;
 		struct uriparams *paramsptr;
 		char *user;
 		char *pass;
-		char *domain;
+		char *hostport;
 		char *headers;
 		char *residue;
 		struct uriparams params;
@@ -252,13 +252,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;param2=residue",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "",
 		.residue = "param2=residue",
 		.params.transport = "tcp",
@@ -271,13 +271,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@host:5060;param=discard;transport=tcp;param2=discard2?header=blah&header2=blah2;param3=residue",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "header=blah&header2=blah2",
 		.residue = "param3=residue",
 		.params.transport = "tcp",
@@ -290,13 +290,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:-_.!~*'()&=+$,;?/:secret@host:5060;transport=tcp",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "-_.!~*'()&=+$,;?/",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "",
 		.residue = "",
 		.params.transport = "tcp",
@@ -309,13 +309,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:-_.!~*'()&=+$,@host:5060;transport=tcp",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "-_.!~*'()&=+$,",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "",
 		.residue = "",
 		.params.transport = "tcp",
@@ -328,13 +328,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@1-1.a-1.:5060;transport=tcp",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "1-1.a-1.:5060",
+		.hostport = "1-1.a-1.:5060",
 		.headers = "",
 		.residue = "",
 		.params.transport = "tcp",
@@ -347,13 +347,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@host:5060;-_.!~*'()[]/:&+$=-_.!~*'()[]/:&+$;transport=tcp",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "",
 		.residue = "",
 		.params.transport = "tcp",
@@ -366,13 +366,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@host:5060;-_.!~*'()[]/:&+$=-_.!~*'()[]/:&+$?header=blah&header2=blah2;-_.!~*'()[]/:&+$=residue",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "header=blah&header2=blah2",
 		.residue = "-_.!~*'()[]/:&+$=residue",
 		.params.transport = "",
@@ -385,13 +385,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@host:5060;param=discard;lr?header=blah",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "header=blah",
 		.residue = "",
 		.params.transport = "",
@@ -404,13 +404,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@host:5060;param=discard;lr=yes?header=blah",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "header=blah",
 		.residue = "",
 		.params.transport = "",
@@ -423,13 +423,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 		.uri = "sip:user:secret@host:5060;paramlr=lr;lr=no;lr=off;lr=0;lr=;=lr;lrextra;lrparam2=lr?header=blah",
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "header=blah",
 		.residue = "",
 		.params.transport = "",
@@ -464,19 +464,19 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 	}
 
 	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
-		user = pass = domain = headers = residue = NULL;
+		user = pass = hostport = headers = residue = NULL;
 		params.transport = params.user = params.method = params.ttl = params.maddr = NULL;
 		params.lr = 0;
 
 		ast_copy_string(uri,testdataptr->uri,sizeof(uri));
 		if (parse_uri_full(uri, "sip:,sips:", testdataptr->userptr,
-				   testdataptr->passptr, testdataptr->domainptr,
+				   testdataptr->passptr, testdataptr->hostportptr,
 				   testdataptr->paramsptr,
 				   testdataptr->headersptr,
 				   testdataptr->residueptr) ||
 			((testdataptr->userptr) && strcmp(testdataptr->user, user)) ||
 			((testdataptr->passptr) && strcmp(testdataptr->pass, pass)) ||
-			((testdataptr->domainptr) && strcmp(testdataptr->domain, domain)) ||
+			((testdataptr->hostportptr) && strcmp(testdataptr->hostport, hostport)) ||
 			((testdataptr->headersptr) && strcmp(testdataptr->headers, headers)) ||
 			((testdataptr->residueptr) && strcmp(testdataptr->residue, residue)) ||
 			((testdataptr->paramsptr) && strcmp(testdataptr->params.transport,params.transport)) ||
@@ -494,13 +494,13 @@ AST_TEST_DEFINE(sip_parse_uri_fully_test)
 
 
 int parse_uri(char *uri, const char *scheme, char **user, char **pass,
-	      char **domain, char **transport) {
+	      char **hostport, char **transport) {
 	int ret;
 	char *headers;
 	struct uriparams params;
 
 	headers = NULL;
-	ret = parse_uri_full(uri, scheme, user, pass, domain, &params, &headers, NULL);
+	ret = parse_uri_full(uri, scheme, user, pass, hostport, &params, &headers, NULL);
 	if (transport) {
 		*transport=params.transport;
 	}
@@ -510,7 +510,7 @@ int parse_uri(char *uri, const char *scheme, char **user, char **pass,
 AST_TEST_DEFINE(sip_parse_uri_test)
 {
 	int res = AST_TEST_PASS;
-	char *name, *pass, *domain, *transport;
+	char *name, *pass, *hostport, *transport;
 	char uri1[] = "sip:name@host";
 	char uri2[] = "sip:name@host;transport=tcp";
 	char uri3[] = "sip:name:secret@host;transport=tcp";
@@ -537,114 +537,114 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 	}
 
 	/* Test 1, simple URI */
-	name = pass = domain = transport = NULL;
-	if (parse_uri(uri1, "sip:,sips:", &name, &pass, &domain, &transport) ||
+	name = pass = hostport = transport = NULL;
+	if (parse_uri(uri1, "sip:,sips:", &name, &pass, &hostport, &transport) ||
 			strcmp(name, "name")        ||
 			!ast_strlen_zero(pass)      ||
-			strcmp(domain, "host")      ||
+			strcmp(hostport, "host")      ||
 			!ast_strlen_zero(transport)) {
 		ast_test_status_update(test, "Test 1: simple uri failed. \n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 2, add tcp transport */
-	name = pass = domain = transport = NULL;
-	if (parse_uri(uri2, "sip:,sips:", &name, &pass, &domain, &transport) ||
+	name = pass = hostport = transport = NULL;
+	if (parse_uri(uri2, "sip:,sips:", &name, &pass, &hostport, &transport) ||
 			strcmp(name, "name")        ||
 			!ast_strlen_zero(pass)      ||
-			strcmp(domain, "host")    ||
+			strcmp(hostport, "host")    ||
 			strcmp(transport, "tcp")) {
 		ast_test_status_update(test, "Test 2: uri with addtion of tcp transport failed. \n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 3, add secret */
-	name = pass = domain = transport = NULL;
-	if (parse_uri(uri3, "sip:,sips:", &name, &pass, &domain, &transport) ||
+	name = pass = hostport = transport = NULL;
+	if (parse_uri(uri3, "sip:,sips:", &name, &pass, &hostport, &transport) ||
 			strcmp(name, "name")        ||
 			strcmp(pass, "secret")      ||
-			strcmp(domain, "host")    ||
+			strcmp(hostport, "host")    ||
 			strcmp(transport, "tcp")) {
 		ast_test_status_update(test, "Test 3: uri with addition of secret failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 4, add port and unparsed header field*/
-	name = pass = domain = transport = NULL;
-	if (parse_uri(uri4, "sip:,sips:", &name, &pass, &domain, &transport) ||
+	name = pass = hostport = transport = NULL;
+	if (parse_uri(uri4, "sip:,sips:", &name, &pass, &hostport, &transport) ||
 			strcmp(name, "name")        ||
 			strcmp(pass, "secret")      ||
-			strcmp(domain, "host:port") ||
+			strcmp(hostport, "host:port") ||
 			strcmp(transport, "tcp")) {
 		ast_test_status_update(test, "Test 4: add port and unparsed header field failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 5, verify parse_uri does not crash when given a NULL uri */
-	name = pass = domain = transport = NULL;
-	if (!parse_uri(NULL, "sip:,sips:", &name, &pass, &domain, &transport)) {
+	name = pass = hostport = transport = NULL;
+	if (!parse_uri(NULL, "sip:,sips:", &name, &pass, &hostport, &transport)) {
 		ast_test_status_update(test, "Test 5: passing a NULL uri failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 6, verify parse_uri does not crash when given a NULL output parameters */
-	name = pass = domain = transport = NULL;
+	name = pass = hostport = transport = NULL;
 	if (parse_uri(uri6, "sip:,sips:", NULL, NULL, NULL, NULL)) {
 		ast_test_status_update(test, "Test 6: passing NULL output parameters failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
-	/* Test 7, verify parse_uri returns user:secret and domain when no port or secret output parameters are supplied. */
-	name = pass = domain = transport = NULL;
-	if (parse_uri(uri7, "sip:,sips:", &name, NULL, &domain, NULL) ||
+	/* Test 7, verify parse_uri returns user:secret and hostport when no port or secret output parameters are supplied. */
+	name = pass = hostport = transport = NULL;
+	if (parse_uri(uri7, "sip:,sips:", &name, NULL, &hostport, NULL) ||
 			strcmp(name, "name:secret")        ||
-			strcmp(domain, "host:port")) {
+			strcmp(hostport, "host:port")) {
 
 		ast_test_status_update(test, "Test 7: providing no port and secret output parameters failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
-	/* Test 8, verify parse_uri can handle a domain only uri */
-	name = pass = domain = transport = NULL;
-	if (parse_uri(uri8, "sip:,sips:", &name, &pass, &domain, &transport) ||
-			strcmp(domain, "host") ||
+	/* Test 8, verify parse_uri can handle a hostport only uri */
+	name = pass = hostport = transport = NULL;
+	if (parse_uri(uri8, "sip:,sips:", &name, &pass, &hostport, &transport) ||
+			strcmp(hostport, "host") ||
 			!ast_strlen_zero(name)) {
 		ast_test_status_update(test, "Test 8: add port and unparsed header field failed.\n");
 		res = AST_TEST_FAIL;
 	}
 
-	/* Test 9, add port and unparsed header field with domain only uri*/
-	name = pass = domain = transport = NULL;
-	if (parse_uri(uri9, "sip:,sips:", &name, &pass, &domain, &transport) ||
+	/* Test 9, add port and unparsed header field with hostport only uri*/
+	name = pass = hostport = transport = NULL;
+	if (parse_uri(uri9, "sip:,sips:", &name, &pass, &hostport, &transport) ||
 			!ast_strlen_zero(name)        ||
 			!ast_strlen_zero(pass)      ||
-			strcmp(domain, "host:port")    ||
+			strcmp(hostport, "host:port")    ||
 			strcmp(transport, "tcp")) {
-		ast_test_status_update(test, "Test 9: domain only uri failed \n");
+		ast_test_status_update(test, "Test 9: hostport only uri failed \n");
 		res = AST_TEST_FAIL;
 	}
 
 	/* Test 10, handle invalid/missing "sip:,sips:" scheme
 	 * we expect parse_uri to return an error, but still parse
 	 * the results correctly here */
-	name = pass = domain = transport = NULL;
-	if (!parse_uri(uri10, "sip:,sips:", &name, &pass, &domain, &transport) ||
+	name = pass = hostport = transport = NULL;
+	if (!parse_uri(uri10, "sip:,sips:", &name, &pass, &hostport, &transport) ||
 			!ast_strlen_zero(name)        ||
 			!ast_strlen_zero(pass)      ||
-			strcmp(domain, "host:port")    ||
+			strcmp(hostport, "host:port")    ||
 			strcmp(transport, "tcp")) {
 		ast_test_status_update(test, "Test 10: missing \"sip:sips:\" scheme failed\n");
 		res = AST_TEST_FAIL;
 	}
 
-	/* Test 11, simple domain only URI with missing scheme
+	/* Test 11, simple hostport only URI with missing scheme
 	 * we expect parse_uri to return an error, but still parse
 	 * the results correctly here */
-	name = pass = domain = transport = NULL;
-	if (!parse_uri(uri11, "sip:,sips:", &name, &pass, &domain, &transport) ||
+	name = pass = hostport = transport = NULL;
+	if (!parse_uri(uri11, "sip:,sips:", &name, &pass, &hostport, &transport) ||
 			!ast_strlen_zero(name)      ||
 			!ast_strlen_zero(pass)      ||
-			strcmp(domain, "host")      ||
+			strcmp(hostport, "host")      ||
 			!ast_strlen_zero(transport)) {
 		ast_test_status_update(test, "Test 11: simple uri with missing scheme failed. \n");
 		res = AST_TEST_FAIL;
@@ -848,7 +848,7 @@ int get_name_and_number(const char *hdr, char **name, char **number)
 	char header[256];
 	char tmp_name[50] = { 0, };
 	char *tmp_number = NULL;
-	char *domain = NULL;
+	char *hostport = NULL;
 	char *dummy = NULL;
 
 	if (!name || !number || ast_strlen_zero(hdr)) {
@@ -866,7 +866,7 @@ int get_name_and_number(const char *hdr, char **name, char **number)
 	tmp_number = get_in_brackets(header);
 
 	/* parse out the number here */
-	if (parse_uri(tmp_number, "sip:,sips:", &tmp_number, &dummy, &domain, NULL) || ast_strlen_zero(tmp_number)) {
+	if (parse_uri(tmp_number, "sip:,sips:", &tmp_number, &dummy, &hostport, NULL) || ast_strlen_zero(tmp_number)) {
 		ast_log(LOG_ERROR, "can not parse name and number from sip header.\n");
 		return -1;
 	}
@@ -1153,7 +1153,7 @@ AST_TEST_DEFINE(get_in_brackets_test)
 
 
 int parse_name_andor_addr(char *uri, const char *scheme, char **name,
-			  char **user, char **pass, char **domain,
+			  char **user, char **pass, char **hostport,
 			  struct uriparams *params, char **headers,
 			  char **residue)
 {
@@ -1170,7 +1170,7 @@ int parse_name_andor_addr(char *uri, const char *scheme, char **name,
 		residue2 = NULL;
 	}
 
-	return parse_uri_full(uri, scheme, user, pass, domain, params, headers,
+	return parse_uri_full(uri, scheme, user, pass, hostport, params, headers,
 			      residue2);
 }
 
@@ -1178,7 +1178,7 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 {
 	int res = AST_TEST_PASS;
 	char uri[1024];
-	char *name, *user, *pass, *domain, *headers, *residue;
+	char *name, *user, *pass, *hostport, *headers, *residue;
 	struct uriparams params;
 
 	struct testdata {
@@ -1187,14 +1187,14 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 		char **nameptr;
 		char **userptr;
 		char **passptr;
-		char **domainptr;
+		char **hostportptr;
 		char **headersptr;
 		char **residueptr;
 		struct uriparams *paramsptr;
 		char *name;
 		char *user;
 		char *pass;
-		char *domain;
+		char *hostport;
 		char *headers;
 		char *residue;
 		struct uriparams params;
@@ -1211,14 +1211,14 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 		.nameptr = &name,
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.name =  "name :@ ",
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "",
 		.residue = "tag=tag",
 		.params.transport = "tcp",
@@ -1232,14 +1232,14 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 		.nameptr = &name,
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.name = "givenname familyname",
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "",
 		.residue = "expires=3600",
 		.params.transport = "tcp",
@@ -1253,14 +1253,14 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 		.nameptr = &name,
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.name = "",
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5060",
+		.hostport = "host:5060",
 		.headers = "",
 		.residue = "q=1",
 		.params.transport = "tcp",
@@ -1274,14 +1274,14 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 		.nameptr = &name,
 		.userptr = &user,
 		.passptr = &pass,
-		.domainptr = &domain,
+		.hostportptr = &hostport,
 		.headersptr = &headers,
 		.residueptr = &residue,
 		.paramsptr = &params,
 		.name = "",
 		.user = "",
 		.pass = "",
-		.domain = "host",
+		.hostport = "host",
 		.headers = "",
 		.residue = "",
 		.params.transport = "",
@@ -1310,7 +1310,7 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 	}
 
 	AST_LIST_TRAVERSE(&testdatalist, testdataptr, list) {
-		name = user = pass = domain = headers = residue = NULL;
+		name = user = pass = hostport = headers = residue = NULL;
 		params.transport = params.user = params.method = params.ttl = params.maddr = NULL;
 		params.lr = 0;
 	ast_copy_string(uri,testdataptr->uri,sizeof(uri));
@@ -1318,14 +1318,14 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 					  testdataptr->nameptr,
 					  testdataptr->userptr,
 					  testdataptr->passptr,
-					  testdataptr->domainptr,
+					  testdataptr->hostportptr,
 					  testdataptr->paramsptr,
 					  testdataptr->headersptr,
 					  testdataptr->residueptr) ||
 			((testdataptr->nameptr) && strcmp(testdataptr->name, name)) ||
 			((testdataptr->userptr) && strcmp(testdataptr->user, user)) ||
 			((testdataptr->passptr) && strcmp(testdataptr->pass, pass)) ||
-			((testdataptr->domainptr) && strcmp(testdataptr->domain, domain)) ||
+			((testdataptr->hostportptr) && strcmp(testdataptr->hostport, hostport)) ||
 			((testdataptr->headersptr) && strcmp(testdataptr->headers, headers)) ||
 			((testdataptr->residueptr) && strcmp(testdataptr->residue, residue)) ||
 			((testdataptr->paramsptr) && strcmp(testdataptr->params.transport,params.transport)) ||
@@ -1396,7 +1396,7 @@ int parse_contact_header(char *contactheader, struct contactliststruct *contactl
 
 		res = parse_name_andor_addr(contactheader, "sip:,sips:",
 					    &contact->name, &contact->user,
-					    &contact->pass, &contact->domain,
+					    &contact->pass, &contact->hostport,
 					    &contact->params, &contact->headers,
 					    &residue);
 		if (res == -1) {
@@ -1469,7 +1469,7 @@ AST_TEST_DEFINE(parse_contact_header_test)
 		.name = "name :@;?&,",
 		.user = "user",
 		.pass = "secret",
-		.domain = "host:5082",
+		.hostport = "host:5082",
 		.params.transport = "tcp",
 		.params.ttl = "",
 		.params.lr = 0,
@@ -1488,7 +1488,7 @@ AST_TEST_DEFINE(parse_contact_header_test)
 		.name = "",
 		.user = ",user1,",
 		.pass = ",secret1,",
-		.domain = "host1",
+		.hostport = "host1",
 		.params.transport = "",
 		.params.ttl = "7",
 		.params.lr = 0,
@@ -1500,7 +1500,7 @@ AST_TEST_DEFINE(parse_contact_header_test)
 		.name = "",
 		.user = "",
 		.pass = "",
-		.domain = "host2",
+		.hostport = "host2",
 		.params.transport = "",
 		.params.ttl = "",
 		.params.lr = 0,
@@ -1556,7 +1556,7 @@ AST_TEST_DEFINE(parse_contact_header_test)
 					strcmp(tdcontactptr->name, contactptr->name) ||
 					strcmp(tdcontactptr->user, contactptr->user) ||
 					strcmp(tdcontactptr->pass, contactptr->pass) ||
-					strcmp(tdcontactptr->domain, contactptr->domain) ||
+					strcmp(tdcontactptr->hostport, contactptr->hostport) ||
 					strcmp(tdcontactptr->headers, contactptr->headers) ||
 					strcmp(tdcontactptr->expires, contactptr->expires) ||
 					strcmp(tdcontactptr->q, contactptr->q) ||

@@ -43,7 +43,7 @@
  * \endverbatim
  */
 int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass,
-	      char **domain, char **transport);
+	      char **hostport, char **transport);
 
 /*!
  * \brief parses a URI in to all of its components and any trailing residue
@@ -53,7 +53,7 @@ int parse_uri(char *uri, const char *scheme, char **ret_name, char **pass,
  *
  */
 int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
-		   char **domain, struct uriparams *params, char **headers,
+		   char **hostport, struct uriparams *params, char **headers,
 		   char **residue);
 
 /*!
