@@ -1792,6 +1792,7 @@ int ooHandleH2250Message(OOH323CallData *call, Q931Message *q931Msg)
       case Q931StatusEnquiryMsg:
          OOTRACEINFO3("H.225 Status Inquiry message Received (%s, %s)\n",
                        call->callType, call->callToken);
+	 ooSendStatus(call);
          ooFreeQ931Message(call->msgctxt, q931Msg);
          break;
       case Q931SetupAckMsg:
