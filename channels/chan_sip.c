@@ -6975,7 +6975,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	int needvideo = 0;
 	int needtext = 0;
 	char buf[SIPBUFSIZE];
-	char *decoded_exten;
+	char *exten;
 
 	{
 		const char *my_name;	/* pick a good name */
@@ -7125,14 +7125,15 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	 * we should decode the uri before storing it in the channel, but leave it encoded in the sip_pvt
 	 * structure so that there aren't issues when forming URI's
 	 */
-	if (ast_exists_extension(NULL, i->context, i->exten, 1, i->cid_num)) {
-		/* encoded in dialplan, so keep extension encoded */
-		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-	} else {
-		decoded_exten = ast_strdupa(i->exten);
-		ast_uri_decode(decoded_exten, ast_uri_sip_user);
-		ast_copy_string(tmp->exten, decoded_exten, sizeof(tmp->exten));
+	exten = ast_strdupa(i->exten);
+	sip_pvt_unlock(i);
+	ast_channel_unlock(tmp);
+	if (!ast_exists_extension(NULL, i->context, i->exten, 1, i->cid_num)) {
+		ast_uri_decode(exten, ast_uri_sip_user);
 	}
+	ast_channel_lock(tmp);
+	sip_pvt_lock(i);
+	ast_copy_string(tmp->exten, exten, sizeof(tmp->exten));
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
