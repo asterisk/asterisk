@@ -1,3 +1,44 @@
+2011-11-09  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.8.0-rc3 Released.
+
+	* Prevent BLF subscriptions from causing deadlocks
+
+	  Fix a locking inversion in sip_send_mwi_to_peer that was causing
+	  deadlocks.
+	  This function now requires that both the peer and associated pvt be
+	  unlocked
+	  before it is called for cases where peer and peer->mwipvt form a
+	  circular
+	  reference.
+
+	  (closes issue ASTERISK-18663)
+	  Review: https://reviewboard.asterisk.org/r/1563/
+
+	* Fix deadlock if peer is destroyed while sending MWI notice.
+
+	  A dialog cannot be destroyed by the ao2_callback dialog_needdestroy
+	  because of a deadlock between the dialogs container lock and the
+	  RWLOCK of the events subscription list.
+
+	  * Create dialogs_to_destroy container to hold dialogs that will be
+	  destroyed.
+
+	  * Ensure that the event subscription callback will never happen with
+	  an invalid peer pointer by making the event callback removal the first
+	  thing in the peer destructor callback.
+
+	  (closes issue ASTERISK-18747)
+	  Reported by: Gregory Hinton Nietsky
+
+	  Review: https://reviewboard.asterisk.org/r/1564/
+
+	* Fix issue with setting defaultenabled on categories that are already
+	  enabled by default.
+
+	  (closes issue ASTERISK-18738)
+	  Reported by: Paul Belanger
+
 2011-10-18  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.8.0-rc2 Released.
