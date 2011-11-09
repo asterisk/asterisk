@@ -1725,7 +1725,7 @@ struct contact {
 	char *name;
 	char *user;
 	char *pass;
-	char *domain;
+	char *hostport;
 	struct uriparams params;
 	char *headers;
 	char *expires;
