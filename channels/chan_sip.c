@@ -13915,9 +13915,9 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 }
 
 /*! \brief parse uri in a way that allows semicolon stripping if legacy mode is enabled */
-static int parse_uri_legacy_check(char *uri, const char *scheme, char **user, char **pass, char **domain, char **transport)
+static int parse_uri_legacy_check(char *uri, const char *scheme, char **user, char **pass, char **hostport, char **transport)
 {
-	int ret = parse_uri(uri, scheme, user, pass, domain, transport);
+	int ret = parse_uri(uri, scheme, user, pass, hostport, transport);
 	if (sip_cfg.legacy_useroption_parsing) { /* if legacy mode is active, strip semis from the user field */
 		char *p;
 		if ((p = strchr(uri, (int)';'))) {
@@ -13929,7 +13929,7 @@ static int parse_uri_legacy_check(char *uri, const char *scheme, char **user, ch
 
 static int __set_address_from_contact(const char *fullcontact, struct ast_sockaddr *addr, int tcp)
 {
-	char *domain, *transport;
+	char *hostport, *transport;
 	char contact_buf[256];
 	char *contact;
 
@@ -13944,7 +13944,7 @@ static int __set_address_from_contact(const char *fullcontact, struct ast_sockad
 	 * We still need to be able to send to the remote agent through the proxy.
 	 */
 
-	if (parse_uri_legacy_check(contact, "sip:,sips:", &contact, NULL, &domain,
+	if (parse_uri_legacy_check(contact, "sip:,sips:", &contact, NULL, &hostport,
 		      &transport)) {
 		ast_log(LOG_WARNING, "Invalid contact uri %s (missing sip: or sips:), attempting to use anyway\n", fullcontact);
 	}
@@ -13953,19 +13953,19 @@ static int __set_address_from_contact(const char *fullcontact, struct ast_sockad
 	/* We should only do this if it's a name, not an IP */
 	/* \todo - if there's no PORT number in contact - we are required to check NAPTR/SRV records
 		to find transport, port address and hostname. If there's a port number, we have to
-		assume that the domain part is a host name and only look for an A/AAAA record in DNS.
+		assume that the hostport part is a host name and only look for an A/AAAA record in DNS.
 	*/
 
-	/* If we took in an invalid URI, domain may not have been initialized */
-	/* ast_sockaddr_resolve requires an initialized domain string. */
-	if (ast_strlen_zero(domain)) {
-		ast_log(LOG_WARNING, "Invalid URI: parse_uri failed to acquire domain\n");
+	/* If we took in an invalid URI, hostport may not have been initialized */
+	/* ast_sockaddr_resolve requires an initialized hostport string. */
+	if (ast_strlen_zero(hostport)) {
+		ast_log(LOG_WARNING, "Invalid URI: parse_uri failed to acquire hostport\n");
 		return -1;
 	}
 
-	if (ast_sockaddr_resolve_first(addr, domain, 0)) {
+	if (ast_sockaddr_resolve_first(addr, hostport, 0)) {
 		ast_log(LOG_WARNING, "Invalid host name in Contact: (can't "
-			"resolve in DNS) : '%s'\n", domain);
+			"resolve in DNS) : '%s'\n", hostport);
 		return -1;
 	}
 
@@ -14002,7 +14002,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	char data[SIPBUFSIZE];
 	const char *expires = sip_get_header(req, "Expires");
 	int expire = atoi(expires);
-	char *curi = NULL, *domain = NULL, *transport = NULL;
+	char *curi = NULL, *hostport = NULL, *transport = NULL;
 	int transport_type;
 	const char *useragent;
 	struct ast_sockaddr oldsin, testsa;
@@ -14080,7 +14080,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	ast_string_field_build(pvt, our_contact, "<%s>", curi);
 
 	/* Make sure it's a SIP URL */
-	if (ast_strlen_zero(curi) || parse_uri_legacy_check(curi, "sip:,sips:", &curi, NULL, &domain, &transport)) {
+	if (ast_strlen_zero(curi) || parse_uri_legacy_check(curi, "sip:,sips:", &curi, NULL, &hostport, &transport)) {
 		ast_log(LOG_NOTICE, "Not a valid SIP contact (missing sip:/sips:) trying to use anyway\n");
 	}
 
@@ -14108,15 +14108,15 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_debug(1, "Store REGISTER's Contact header for call routing.\n");
 		/* XXX This could block for a long time XXX */
 		/*! \todo Check NAPTR/SRV if we have not got a port in the URI */
-		if (ast_sockaddr_resolve_first(&testsa, domain, 0)) {
-			ast_log(LOG_WARNING, "Invalid domain '%s'\n", domain);
+		if (ast_sockaddr_resolve_first(&testsa, hostport, 0)) {
+			ast_log(LOG_WARNING, "Invalid hostport '%s'\n", hostport);
 			ast_string_field_set(peer, fullcontact, "");
 			ast_string_field_set(pvt, our_contact, "");
 			return PARSE_REGISTER_FAILED;
 		}
 
 		/* If we have a port number in the given URI, make sure we do remember to not check for NAPTR/SRV records.
-		   The domain part is actually a host. */
+		   The hostport part is actually a host. */
 		peer->portinuri = ast_sockaddr_port(&testsa) ? TRUE : FALSE;
 
 		if (!ast_sockaddr_port(&testsa)) {
@@ -14136,7 +14136,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	/* Check that they're allowed to register at this IP */
 	if (ast_apply_ha(sip_cfg.contact_ha, &peer->addr) != AST_SENSE_ALLOW ||
 			ast_apply_ha(peer->contactha, &peer->addr) != AST_SENSE_ALLOW) {
-		ast_log(LOG_WARNING, "Domain '%s' disallowed by contact ACL (violating IP %s)\n", domain,
+		ast_log(LOG_WARNING, "Domain '%s' disallowed by contact ACL (violating IP %s)\n", hostport,
 			ast_sockaddr_stringify_addr(&testsa));
 		ast_string_field_set(peer, fullcontact, "");
 		ast_string_field_set(pvt, our_contact, "");
@@ -14758,6 +14758,18 @@ static char *terminate_uri(char *uri)
 	return uri;
 }
 
+/*! \brief Terminate a host:port at the ':'
+ * \param hostport The address of the hostport string
+ *
+ * \note In the case of a bracket-enclosed IPv6 address, the hostport variable
+ * will contain the non-bracketed host as a result of calling this function.
+ */
+static void extract_host_from_hostport(char **hostport)
+{
+	char *dont_care;
+	ast_sockaddr_split_hostport(*hostport, hostport, &dont_care, PARSE_PORT_IGNORE);
+}
+
 /*! \brief Verify registration of user
 	- Registration is done in several steps, first a REGISTER without auth
 	  to get a challenge (nonce) then a second one with auth
@@ -14786,6 +14798,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 
 	SIP_PEDANTIC_DECODE(name);
 	SIP_PEDANTIC_DECODE(domain);
+
+	extract_host_from_hostport(&domain);
 
 	/*! \todo XXX here too we interpret a missing @domain as a name-only
 	 * URI, whereas the RFC says this is a domain-only uri.
@@ -15351,6 +15365,9 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 
 	SIP_PEDANTIC_DECODE(domain);
 	SIP_PEDANTIC_DECODE(uri);
+
+	extract_host_from_hostport(&domain);
+
 	if (ast_strlen_zero(uri)) {
 		/*
 		 * Either there really was no extension found or the request
@@ -15376,6 +15393,8 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 
 		SIP_PEDANTIC_DECODE(from);
 		SIP_PEDANTIC_DECODE(domain);
+
+		extract_host_from_hostport(&domain);
 
 		ast_string_field_set(p, fromdomain, domain);
 	}
@@ -16178,6 +16197,8 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		 * For backward compatibility, we keep this block, but it is
 		 * really a mistake and should go away.
 		 */
+
+		extract_host_from_hostport(&domain);
 		of = domain;
 	} else {
 		char *tmp = ast_strdupa(of);
@@ -24227,6 +24248,9 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 			ast_string_field_set(pvt, fromname, name);
 			if (strchr(location, ':')) { /* Must be a URI */
 				parse_uri(location, "sip:,sips:", &user, NULL, &domain, NULL);
+				SIP_PEDANTIC_DECODE(user);
+				SIP_PEDANTIC_DECODE(domain);
+				extract_host_from_hostport(&domain);
 				ast_string_field_set(pvt, fromuser, user);
 				ast_string_field_set(pvt, fromdomain, domain);
 			} else { /* Treat it as an exten/user */
@@ -27234,8 +27258,9 @@ static int check_sip_domain(const char *domain, char *context, size_t len)
 
 	AST_LIST_LOCK(&domain_list);
 	AST_LIST_TRAVERSE(&domain_list, d, list) {
-		if (strcasecmp(d->domain, domain))
+		if (strcasecmp(d->domain, domain)) {
 			continue;
+		}
 
 		if (len && !ast_strlen_zero(d->context))
 			ast_copy_string(context, d->context, len);
