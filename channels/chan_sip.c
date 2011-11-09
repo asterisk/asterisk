@@ -1073,6 +1073,12 @@ static void destroy_escs(void)
 	}
 }
 
+/*!
+ * \details
+ * This container holds the dialogs that will be destroyed immediately.
+ */
+struct ao2_container *dialogs_to_destroy;
+
 /*! \brief
  * Here we implement the container for dialogs (sip_pvt), defining
  * generic wrapper functions to ease the transition from the current
@@ -4557,16 +4563,24 @@ static void sip_destroy_peer_fn(void *peer)
 static void sip_destroy_peer(struct sip_peer *peer)
 {
 	ast_debug(3, "Destroying SIP peer %s\n", peer->name);
-	if (peer->outboundproxy)
+
+	/*
+	 * Remove any mailbox event subscriptions for this peer before
+	 * we destroy anything.  An event subscription callback may be
+	 * happening right now.
+	 */
+	clear_peer_mailboxes(peer);
+
+	if (peer->outboundproxy) {
 		ao2_ref(peer->outboundproxy, -1);
-	peer->outboundproxy = NULL;
+		peer->outboundproxy = NULL;
+	}
 
 	/* Delete it, it needs to disappear */
 	if (peer->call) {
 		dialog_unlink_all(peer->call, TRUE, TRUE);
 		peer->call = dialog_unref(peer->call, "peer->call is being unset");
 	}
-	
 
 	if (peer->mwipvt) {	/* We have an active subscription, delete it */
 		dialog_unlink_all(peer->mwipvt, TRUE, TRUE);
@@ -4594,7 +4608,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	}
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
-	clear_peer_mailboxes(peer);
 
 	if (peer->socket.tcptls_session) {
 		ao2_ref(peer->socket.tcptls_session, -1);
@@ -16422,14 +16435,12 @@ static void cleanup_stale_contexts(char *new, char *old)
  * \brief Match dialogs that need to be destroyed
  *
  * \details This is used with ao2_callback to unlink/delete all dialogs that
- * are marked needdestroy. It will return CMP_MATCH for candidates, and they
- * will be unlinked.
+ * are marked needdestroy.
  *
  * \todo Re-work this to improve efficiency.  Currently, this function is called
  * on _every_ dialog after processing _every_ incoming SIP/UDP packet, or
  * potentially even more often when the scheduler has entries to run.
  */
-
 static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 {
 	struct sip_pvt *dialog = dialogobj;
@@ -16475,15 +16486,34 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		}
 
 		sip_pvt_unlock(dialog);
-		/* no, the unlink should handle this: dialog_unref(dialog, "needdestroy: one more refcount decrement to allow dialog to be destroyed"); */
-		/* the CMP_MATCH will unlink this dialog from the dialog hash table */
-		dialog_unlink_all(dialog, TRUE, FALSE);
-		return 0; /* the unlink_all should unlink this from the table, so.... no need to return a match */
+
+		/* This dialog needs to be destroyed. */
+		ao2_t_link(dialogs_to_destroy, dialog, "Link dialog for destruction");
+		return 0;
 	}
 
 	sip_pvt_unlock(dialog);
 
 	return 0;
+}
+
+/*!
+ * \internal
+ * \brief ao2_callback to unlink the specified dialog object.
+ *
+ * \param obj Ptr to dialog to unlink.
+ * \param arg Don't care.
+ * \param flags Don't care.
+ *
+ * \retval CMP_MATCH
+ */
+static int dialog_unlink_callback(void *obj, void *arg, int flags)
+{
+	struct sip_pvt *dialog = obj;
+
+	dialog_unlink_all(dialog, TRUE, TRUE);
+
+	return CMP_MATCH;
 }
 
 /*! \brief Remove temporary realtime objects from memory (CLI) */
@@ -25202,12 +25232,19 @@ static void *do_monitor(void *data)
 		   of time since the last time we did it (when MWI is being sent, we can
 		   get back to this point every millisecond or less)
 		*/
-		ao2_t_callback(dialogs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t,
-				"callback to remove dialogs w/needdestroy");
-
-		/* the old methodology would be to restart the search for dialogs to delete with every
-		   dialog that was found and destroyed, probably because the list contents would change,
-		   so we'd need to restart. This isn't the best thing to do with callbacks. */
+		/*
+		 * We cannot hold the dialogs container lock when we destroy a
+		 * dialog because of potential deadlocks.  Instead we link the
+		 * doomed dialog into dialogs_to_destroy and then iterate over
+		 * that container destroying the dialogs.
+		 */
+		ao2_t_callback(dialogs, OBJ_NODATA | OBJ_MULTIPLE, dialog_needdestroy, &t,
+			"callback to monitor dialog status");
+		if (ao2_container_count(dialogs_to_destroy)) {
+			/* Now destroy the found dialogs that need to be destroyed. */
+			ao2_t_callback(dialogs_to_destroy, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
+				dialog_unlink_callback, NULL, "callback to dialog_unlink_all");
+		}
 
 		/* XXX TODO The scheduler usage in this module does not have sufficient
 		 * synchronization being done between running the scheduler and places
@@ -29587,8 +29624,9 @@ static int load_module(void)
 	peers = ao2_t_container_alloc(HASH_PEER_SIZE, peer_hash_cb, peer_cmp_cb, "allocate peers");
 	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, peer_ipcmp_cb, "allocate peers_by_ip");
 	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
+	dialogs_to_destroy = ao2_t_container_alloc(1, NULL, NULL, "allocate dialogs_to_destroy");
 	threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
-	if (!peers || !peers_by_ip || !dialogs || !threadt) {
+	if (!peers || !peers_by_ip || !dialogs || !dialogs_to_destroy || !threadt) {
 		ast_log(LOG_ERROR, "Unable to create primary SIP container(s)\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
@@ -29846,6 +29884,7 @@ static int unload_module(void)
 	ao2_t_ref(peers, -1, "unref the peers table");
 	ao2_t_ref(peers_by_ip, -1, "unref the peers_by_ip table");
 	ao2_t_ref(dialogs, -1, "unref the dialogs table");
+	ao2_t_ref(dialogs_to_destroy, -1, "unref dialogs_to_destroy");
 	ao2_t_ref(threadt, -1, "unref the thread table");
 	ao2_t_ref(sip_monitor_instances, -1, "unref the sip_monitor_instances table");
 
