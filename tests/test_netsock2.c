@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "")
 #include "asterisk/module.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/logger.h"
+#include "asterisk/config.h" /* PARSE_PORT_* */
 struct parse_test {
 	const char *address;
 	int expected_result;
@@ -112,15 +113,85 @@ AST_TEST_DEFINE(parsing)
 	return res;
 }
 
+AST_TEST_DEFINE(split_hostport)
+{
+	int res = AST_TEST_PASS;
+	char *host, *port, buf[128];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "split_hostport";
+		info->category = "/main/netsock2/";
+		info->summary = "netsock2 ast_sockaddr_split_hostport() unit test";
+		info->description =
+			"Test splitting of IPv4 and IPv6 host:port strings";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+/* Assumes res, host, and port variables */
+#define TEST_SPLIT_HOSTPORT(str, flags, expected_host, expected_port, expected_result) { \
+	int __res; \
+	ast_copy_string(buf, str, sizeof(buf)); \
+	if ((__res = ast_sockaddr_split_hostport(buf, &host, &port, flags)) != expected_result || ( \
+			expected_result && ( \
+				strcmp(host, expected_host) || ( \
+					ast_strlen_zero(expected_port) ? !ast_strlen_zero(port) : (!ast_strlen_zero(port) && strcmp(port, expected_port)) \
+				) \
+			) \
+		) \
+	) { \
+		res = AST_TEST_FAIL; \
+		if (__res != expected_result) { \
+			ast_test_status_update(test, "Expected %d, got %d\n", expected_result, __res); \
+		} else { \
+			ast_test_status_update(test, "Failed parsing '%s' into expected host '%s' (got '%s') and port '%s' (got '%s')\n", \
+				str, S_OR(expected_host, ""), host, expected_port, S_OR(port, "")); \
+		} \
+	} \
+}
+
+	/* Test various situations with flags = 0 */
+	TEST_SPLIT_HOSTPORT("192.168.1.1", 0, "192.168.1.1", "", 1);
+	TEST_SPLIT_HOSTPORT("192.168.1.1:5060", 0, "192.168.1.1", "5060", 1);
+	TEST_SPLIT_HOSTPORT("::ffff:5.6.7.8", 0, "::ffff:5.6.7.8", "", 1);
+	TEST_SPLIT_HOSTPORT("[::ffff:5.6.7.8]:5060", 0, "::ffff:5.6.7.8", "5060", 1);
+	TEST_SPLIT_HOSTPORT("fdf8:f53b:82e4::53", 0, "fdf8:f53b:82e4::53", "", 1);
+	TEST_SPLIT_HOSTPORT("fe80::200:5aee:feaa:20a2", 0, "fe80::200:5aee:feaa:20a2", "", 1);
+	TEST_SPLIT_HOSTPORT("[fdf8:f53b:82e4::53]", 0, "fdf8:f53b:82e4::53", "", 1);
+	TEST_SPLIT_HOSTPORT("[fe80::200:5aee:feaa:20a2]:5060", 0, "fe80::200:5aee:feaa:20a2", "5060", 1);
+	TEST_SPLIT_HOSTPORT("host:port", 0, "host", "port", 1);
+	TEST_SPLIT_HOSTPORT("host", 0, "host", "", 1);
+
+	/* Make sure that flag conditions work when they should */
+	TEST_SPLIT_HOSTPORT("192.168.1.1:5060", PARSE_PORT_IGNORE, "192.168.1.1", "", 1);
+	TEST_SPLIT_HOSTPORT("192.168.1.1:5060", PARSE_PORT_REQUIRE, "192.168.1.1", "5060", 1);
+	TEST_SPLIT_HOSTPORT("192.168.1.1", PARSE_PORT_FORBID, "192.168.1.1", "", 1);
+	TEST_SPLIT_HOSTPORT("[::ffff:5.6.7.8]:5060", PARSE_PORT_IGNORE, "::ffff:5.6.7.8", "", 1);
+	TEST_SPLIT_HOSTPORT("[::ffff:5.6.7.8]:5060", PARSE_PORT_REQUIRE, "::ffff:5.6.7.8", "5060", 1);
+	TEST_SPLIT_HOSTPORT("::ffff:5.6.7.8", PARSE_PORT_FORBID, "::ffff:5.6.7.8", "", 1);
+
+	/* Make sure it fails when flag requirements are not met */
+	TEST_SPLIT_HOSTPORT("192.168.1.1", PARSE_PORT_REQUIRE, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("192.168.1.1:5060", PARSE_PORT_FORBID, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("::ffff:5.6.7.8", PARSE_PORT_REQUIRE, "<undefined>", "<undefined>", 0);
+	TEST_SPLIT_HOSTPORT("[::ffff:5.6.7.8]:5060", PARSE_PORT_FORBID, "<undefined>", "<undefined>", 0);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(parsing);
+	AST_TEST_UNREGISTER(split_hostport);
 	return 0;
 }
 
 static int load_module(void)
 {
 	AST_TEST_REGISTER(parsing);
+	AST_TEST_REGISTER(split_hostport);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
