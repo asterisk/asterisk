@@ -81,7 +81,7 @@ static int check_header_fmt(FILE *f, int hsize, int hz)
 	int bysec;
 	int freq;
 	if (hsize < 16) {
-		ast_log(LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
+		ast_log(LOG_WARNING, "Unexpected header size %d\n", hsize);
 		return -1;
 	}
 	if (fread(&format, 1, 2, f) != 2) {
@@ -129,8 +129,8 @@ static int check_header_fmt(FILE *f, int hsize, int hz)
 		return -1;
 	}
 	/* Skip any additional header */
-	if (fseek(f,ltohl(hsize)-16,SEEK_CUR) == -1 ) {
-		ast_log(LOG_WARNING, "Failed to skip remaining header bytes: %d\n", ltohl(hsize)-16 );
+	if (fseek(f,hsize-16,SEEK_CUR) == -1 ) {
+		ast_log(LOG_WARNING, "Failed to skip remaining header bytes: %d\n", hsize-16 );
 		return -1;
 	}
 	return 0;
