@@ -190,8 +190,9 @@ typedef enum OOCallClearReason {
 #define OORequestMode			   133
 #define OORequestDelayResponse		   134
 #define OORequestDelayRequest		   135
+#define OOStatus			   136
 
-#define OO_MSGTYPE_MAX                     135
+#define OO_MSGTYPE_MAX                     136
 
 /* Timer types */
 #define OO_CALLESTB_TIMER  (1<<0)
