@@ -3255,10 +3255,10 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			"Uniqueid: %s\r\n"
 			"%s",
 			qe->parent->name, tmp->interface, tmp->member->membername, qe->chan->name, tmp->chan->name,
-			S_COR(tmp->chan->caller.id.number.valid, tmp->chan->caller.id.number.str, "unknown"),
-			S_COR(tmp->chan->caller.id.name.valid, tmp->chan->caller.id.name.str, "unknown"),
-			S_COR(tmp->chan->connected.id.number.valid, tmp->chan->connected.id.number.str, "unknown"),
-			S_COR(tmp->chan->connected.id.name.valid, tmp->chan->connected.id.name.str, "unknown"),
+			S_COR(qe->chan->caller.id.number.valid, qe->chan->caller.id.number.str, "unknown"),
+			S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
+			S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),
+			S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
 			qe->chan->context, qe->chan->exten, qe->chan->priority, qe->chan->uniqueid,
 			qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		ast_verb(3, "Called %s\n", tmp->interface);
