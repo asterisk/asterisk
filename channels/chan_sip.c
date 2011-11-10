@@ -9019,9 +9019,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_log(LOG_WARNING, "unknown SDP media protocol in offer: %s\n", protocol);
 				continue;
 			}
+			if (p->offered_media[SDP_AUDIO].order_offered) {
+				ast_log(LOG_WARNING, "Multiple audio streams are not supported\n");
+				res = -3;
+				goto process_sdp_cleanup;
+			}
 			audio = TRUE;
-			p->offered_media[SDP_AUDIO].offered = TRUE;
-			numberofmediastreams++;
+			p->offered_media[SDP_AUDIO].order_offered = ++numberofmediastreams;
 			portno = x;
 
 			/* Scan through the RTP payload types specified in a "m=" line: */
@@ -9047,10 +9051,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				ast_log(LOG_WARNING, "unknown SDP media protocol in offer: %s\n", protocol);
 				continue;
 			}
+			if (p->offered_media[SDP_VIDEO].order_offered) {
+				ast_log(LOG_WARNING, "Multiple video streams are not supported\n");
+				res = -3;
+				goto process_sdp_cleanup;
+			}
 			video = TRUE;
 			p->novideo = FALSE;
-			p->offered_media[SDP_VIDEO].offered = TRUE;
-			numberofmediastreams++;
+			p->offered_media[SDP_VIDEO].order_offered = ++numberofmediastreams;
 			vportno = x;
 
 			/* Scan through the RTP payload types specified in a "m=" line: */
@@ -9069,10 +9077,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* Search for text media definition */
 		} else if ((sscanf(m, "text %30u/%30u RTP/AVP %n", &x, &numberofports, &len) == 2 && len > 0 && x) ||
 			   (sscanf(m, "text %30u RTP/AVP %n", &x, &len) == 1 && len > 0 && x)) {
+			if (p->offered_media[SDP_TEXT].order_offered) {
+				ast_log(LOG_WARNING, "Multiple text streams are not supported\n");
+				res = -3;
+				goto process_sdp_cleanup;
+			}
 			text = TRUE;
 			p->notext = FALSE;
-			p->offered_media[SDP_TEXT].offered = TRUE;
-			numberofmediastreams++;
+			p->offered_media[SDP_TEXT].order_offered = ++numberofmediastreams;
 			tportno = x;
 
 			/* Scan through the RTP payload types specified in a "m=" line: */
@@ -9091,12 +9103,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* Search for image media definition */
 		} else if (p->udptl && ((sscanf(m, "image %30u udptl t38%n", &x, &len) == 1 && len > 0 && x) ||
 					(sscanf(m, "image %30u UDPTL t38%n", &x, &len) == 1 && len > 0 && x) )) {
+			if (p->offered_media[SDP_IMAGE].order_offered) {
+				ast_log(LOG_WARNING, "Multiple T.38 streams are not supported\n");
+				res = -3;
+				goto process_sdp_cleanup;
+			}
 			image = TRUE;
 			if (debug)
 				ast_verbose("Got T.38 offer in SDP in dialog %s\n", p->callid);
-			p->offered_media[SDP_IMAGE].offered = TRUE;
+			p->offered_media[SDP_IMAGE].order_offered = ++numberofmediastreams;
 			udptlportno = x;
-			numberofmediastreams++;
 
 			if (p->t38.state != T38_ENABLED) {
 				memset(&p->t38.their_parms, 0, sizeof(p->t38.their_parms));
@@ -9199,13 +9215,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		goto process_sdp_cleanup;
 	}
 
-	if (numberofmediastreams > 3) {
-		/* We have too many fax, audio and/or video and/or text media streams, fail this offer */
-		ast_log(LOG_WARNING, "Faling due to too many media streams\n");
-		res = -3;
-		goto process_sdp_cleanup;
-	}
-
 	if (secure_audio && !(p->srtp && (ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)))) {
 		ast_log(LOG_WARNING, "Can't provide secure audio requested in SDP offer\n");
 		res = -4;
@@ -9250,7 +9259,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	ast_format_cap_append(newpeercapability, tpeercapability);
 
 	ast_format_cap_joint_copy(p->caps, newpeercapability, newjointcapability);
-	if (ast_format_cap_is_empty(newjointcapability) && (portno != -1)) {
+	if (ast_format_cap_is_empty(newjointcapability) && udptlportno == -1) {
 		ast_log(LOG_NOTICE, "No compatible codecs, not accepting this offer!\n");
 		/* Do NOT Change current setting */
 		res = -1;
@@ -9281,6 +9290,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			    ast_rtp_lookup_mime_multiple2(s3, NULL, newnoncodeccapability, 0, 0));
 	}
 
+	/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
+	   they are acceptable */
+	ast_format_cap_copy(p->jointcaps, newjointcapability);                /* Our joint codec profile for this call */
+	ast_format_cap_copy(p->peercaps, newpeercapability);                  /* The other sides capability in latest offer */
+	p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
+
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) { /* respond with single most preferred joint codec, limiting the other side's choice */
+		ast_codec_choose(&p->prefs, p->jointcaps, 1, &tmp_fmt);
+		ast_format_cap_set(p->jointcaps, &tmp_fmt);
+	}
+
 	/* Setup audio address and port */
 	if (p->rtp) {
 		if (portno > 0) {
@@ -9289,16 +9309,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			if (debug) {
 				ast_verbose("Peer audio RTP is at port %s\n",
 					    ast_sockaddr_stringify(sa));
-			}
-			/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
-			   they are acceptable */
-			ast_format_cap_copy(p->jointcaps, newjointcapability);                /* Our joint codec profile for this call */
-			ast_format_cap_copy(p->peercaps, newpeercapability);                  /* The other sides capability in latest offer */
-			p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
-
-			if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) { /* respond with single most preferred joint codec, limiting the other side's choice */
-				ast_codec_choose(&p->prefs, p->jointcaps, 1, &tmp_fmt);
-				ast_format_cap_set(p->jointcaps, &tmp_fmt);
 			}
 
 			ast_rtp_codecs_payloads_copy(&newaudiortp, ast_rtp_instance_get_codecs(p->rtp), p->rtp);
@@ -11679,47 +11689,94 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	add_content(resp, owner);
 	add_content(resp, subject);
 	add_content(resp, connection);
-	if (needvideo)	 	/* only if video response is appropriate */
+	/* only if video response is appropriate */
+	if (needvideo) {
 		add_content(resp, bandwidth);
+	}
 	add_content(resp, session_time);
-	if (needaudio) {
-		add_content(resp, m_audio->str);
-		add_content(resp, a_audio->str);
-		add_content(resp, hold);
-		if (a_crypto) {
-			add_content(resp, a_crypto);
+	/* if this is a response to an invite, order our offers properly */
+	if (p->offered_media[SDP_AUDIO].order_offered ||
+		p->offered_media[SDP_VIDEO].order_offered ||
+		p->offered_media[SDP_TEXT].order_offered ||
+		p->offered_media[SDP_IMAGE].order_offered) {
+		int i;
+		/* we have up to 3 streams as limited by process_sdp */
+		for (i = 1; i <= 3; i++) {
+			if (p->offered_media[SDP_AUDIO].order_offered == i) {
+				if (needaudio) {
+					add_content(resp, m_audio->str);
+					add_content(resp, a_audio->str);
+					add_content(resp, hold);
+					if (a_crypto) {
+						add_content(resp, a_crypto);
+					}
+				} else {
+					snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].codecs);
+					add_content(resp, dummy_answer);
+				}
+			} else if (p->offered_media[SDP_VIDEO].order_offered == i) {
+				if (needvideo) { /* only if video response is appropriate */
+					add_content(resp, m_video->str);
+					add_content(resp, a_video->str);
+					add_content(resp, hold);	/* Repeat hold for the video stream */
+					if (v_a_crypto) {
+						add_content(resp, v_a_crypto);
+					}
+				} else {
+					snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].codecs);
+					add_content(resp, dummy_answer);
+				}
+			} else if (p->offered_media[SDP_TEXT].order_offered == i) {
+				if (needtext) { /* only if text response is appropriate */
+					add_content(resp, m_text->str);
+					add_content(resp, a_text->str);
+					add_content(resp, hold);	/* Repeat hold for the text stream */
+					if (t_a_crypto) {
+						add_content(resp, t_a_crypto);
+					}
+				} else {
+					snprintf(dummy_answer, sizeof(dummy_answer), "m=text 0 RTP/AVP %s\r\n", p->offered_media[SDP_TEXT].codecs);
+					add_content(resp, dummy_answer);
+				}
+			} else if (p->offered_media[SDP_IMAGE].order_offered == i) {
+				if (add_t38) {
+					add_content(resp, m_modem->str);
+					add_content(resp, a_modem->str);
+				} else {
+					add_content(resp, "m=image 0 udptl t38\r\n");
+				}
+			}
 		}
-	} else if (p->offered_media[SDP_AUDIO].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=audio 0 RTP/AVP %s\r\n", p->offered_media[SDP_AUDIO].codecs);
-		add_content(resp, dummy_answer);
-	}
-	if (needvideo) { /* only if video response is appropriate */
-		add_content(resp, m_video->str);
-		add_content(resp, a_video->str);
-		add_content(resp, hold);	/* Repeat hold for the video stream */
-		if (v_a_crypto) {
-			add_content(resp, v_a_crypto);
+	} else {
+		/* generate new SDP from scratch, no offers */
+		if (needaudio) {
+			add_content(resp, m_audio->str);
+			add_content(resp, a_audio->str);
+			add_content(resp, hold);
+			if (a_crypto) {
+				add_content(resp, a_crypto);
+			}
 		}
-	} else if (p->offered_media[SDP_VIDEO].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=video 0 RTP/AVP %s\r\n", p->offered_media[SDP_VIDEO].codecs);
-		add_content(resp, dummy_answer);
-	}
-	if (needtext) { /* only if text response is appropriate */
-		add_content(resp, m_text->str);
-		add_content(resp, a_text->str);
-		add_content(resp, hold);	/* Repeat hold for the text stream */
-		if (t_a_crypto) {
-			add_content(resp, t_a_crypto);
+		if (needvideo) { /* only if video response is appropriate */
+			add_content(resp, m_video->str);
+			add_content(resp, a_video->str);
+			add_content(resp, hold);	/* Repeat hold for the video stream */
+			if (v_a_crypto) {
+				add_content(resp, v_a_crypto);
+			}
 		}
-	} else if (p->offered_media[SDP_TEXT].offered) {
-		snprintf(dummy_answer, sizeof(dummy_answer), "m=text 0 RTP/AVP %s\r\n", p->offered_media[SDP_TEXT].codecs);
-		add_content(resp, dummy_answer);
-	}
-	if (add_t38) {
-		add_content(resp, m_modem->str);
-		add_content(resp, a_modem->str);
-	} else if (p->offered_media[SDP_IMAGE].offered) {
-		add_content(resp, "m=image 0 udptl t38\r\n");
+		if (needtext) { /* only if text response is appropriate */
+			add_content(resp, m_text->str);
+			add_content(resp, a_text->str);
+			add_content(resp, hold);	/* Repeat hold for the text stream */
+			if (t_a_crypto) {
+				add_content(resp, t_a_crypto);
+			}
+		}
+		if (add_t38) {
+			add_content(resp, m_modem->str);
+			add_content(resp, a_modem->str);
+		}
 	}
 
 	/* Update lastrtprx when we send our SDP */

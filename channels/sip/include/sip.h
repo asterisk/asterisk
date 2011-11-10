@@ -944,7 +944,7 @@ struct sip_st_cfg {
 /*! \brief Structure for remembering offered media in an INVITE, to make sure we reply
 	to all media streams. In theory. In practise, we try our best. */
 struct offered_media {
-	int offered;
+	int order_offered;		/*!< Order the media was offered in. Not offered is 0 */
 	char codecs[128];
 };
 
