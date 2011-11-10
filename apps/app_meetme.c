@@ -4458,14 +4458,27 @@ static int conf_exec(struct ast_channel *chan, const char *data)
 					res = -1;
 				}
 			} else {
-				/* Check to see if the conference requires pin
-				 * validation and check for exemptions to that
-				 * requirement. */
-				if ((!ast_strlen_zero(cnf->pin) ||
+				/* Conference requires a pin for specified access level */
+				int req_pin = !ast_strlen_zero(cnf->pin) ||
 					(!ast_strlen_zero(cnf->pinadmin) &&
-						ast_test_flag64(&confflags, CONFFLAG_ADMIN))) &&
-				    (ast_test_flag64(&confflags, CONFFLAG_ALWAYSPROMPT) ||
-						ast_strlen_zero(args.pin) || !cnf->isdynamic)) {
+						ast_test_flag64(&confflags, CONFFLAG_ADMIN));
+				/* The following logic was derived from a
+				 * 4 variable truth table and defines which
+				 * circumstances are not exempt from pin
+				 * checking.
+				 * If this needs to be modified, write the
+				 * truth table back out from the boolean
+				 * expression AB+A'D+C', change the erroneous
+				 * result, and rederive the expression.
+				 * Variables:
+				 *  A: pin provided?
+				 *  B: always prompt?
+				 *  C: dynamic?
+				 *  D: has users? */
+				int not_exempt = !cnf->isdynamic;
+				not_exempt = not_exempt || (!ast_strlen_zero(args.pin) && ast_test_flag64(&confflags, CONFFLAG_ALWAYSPROMPT));
+				not_exempt = not_exempt || (ast_strlen_zero(args.pin) && cnf->users);
+				if (req_pin && not_exempt) {
 					char pin[MAX_PIN] = "";
 					int j;
 
