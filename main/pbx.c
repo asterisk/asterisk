@@ -2614,7 +2614,7 @@ static int extension_match_core(const char *pattern, const char *data, enum ext_
 		prof_id = ast_add_profile("ext_match", 0);
 	}
 	ast_mark(prof_id, 1);
-	i = _extension_match_core(pattern, data, mode);
+	i = _extension_match_core(ast_strlen_zero(pattern) ? "" : pattern, ast_strlen_zero(data) ? "" : data, mode);
 	ast_mark(prof_id, 0);
 	return i;
 }
