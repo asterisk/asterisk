@@ -1385,11 +1385,12 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 {
 	struct ast_channel *c=NULL;
 	struct timeval now;
-	struct ast_str *out = ast_str_thread_get(&ast_str_thread_global_buf, 16);
 	char cdrtime[256];
 	char nf[256], wf[256], rf[256];
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
+	struct ast_str *obuf;/*!< Buffer for variable, CDR variable, and trace output. */
+	struct ast_str *output;/*!< Accumulation buffer for all output. */
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 #ifdef CHANNEL_TRACE
@@ -1418,6 +1419,15 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_SUCCESS;
 	}
 
+	obuf = ast_str_thread_get(&ast_str_thread_global_buf, 16);
+	if (!obuf) {
+		return CLI_FAILURE;
+	}
+	output = ast_str_create(8192);
+	if (!output) {
+		return CLI_FAILURE;
+	}
+
 	ast_channel_lock(c);
 
 	if (c->cdr) {
@@ -1430,7 +1440,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		strcpy(cdrtime, "N/A");
 	}
 
-	ast_cli(a->fd, 
+	ast_str_append(&output, 0,
 		" -- General --\n"
 		"           Name: %s\n"
 		"           Type: %s\n"
@@ -1489,24 +1499,28 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
-	if (pbx_builtin_serialize_variables(c, &out)) {
-		ast_cli(a->fd,"      Variables:\n%s\n", ast_str_buffer(out));
+	if (pbx_builtin_serialize_variables(c, &obuf)) {
+		ast_str_append(&output, 0, "      Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 
-	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1)) {
-		ast_cli(a->fd,"  CDR Variables:\n%s\n", ast_str_buffer(out));
+	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &obuf, '=', '\n', 1)) {
+		ast_str_append(&output, 0, "  CDR Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 
 #ifdef CHANNEL_TRACE
 	trace_enabled = ast_channel_trace_is_enabled(c);
-	ast_cli(a->fd, "  Context Trace: %s\n", trace_enabled ? "Enabled" : "Disabled");
-	if (trace_enabled && ast_channel_trace_serialize(c, &out))
-		ast_cli(a->fd, "          Trace:\n%s\n", ast_str_buffer(out));
+	ast_str_append(&output, 0, "  Context Trace: %s\n",
+		trace_enabled ? "Enabled" : "Disabled");
+	if (trace_enabled && ast_channel_trace_serialize(c, &obuf)) {
+		ast_str_append(&output, 0, "          Trace:\n%s\n", ast_str_buffer(obuf));
+	}
 #endif
 
 	ast_channel_unlock(c);
 	c = ast_channel_unref(c);
 
+	ast_cli(a->fd, "%s", ast_str_buffer(output));
+	ast_free(output);
 	return CLI_SUCCESS;
 }
 
