@@ -27939,7 +27939,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					peer->amaflags = format;
 				}
 			} else if (!strcasecmp(v->name, "maxforwards")) {
-				if ((sscanf(v->value, "%30d", &peer->maxforwards) != 1) || (peer->maxforwards < 1)) {
+				if (sscanf(v->value, "%30d", &peer->maxforwards) != 1
+					|| peer->maxforwards < 1 || 255 < peer->maxforwards) {
 					ast_log(LOG_WARNING, "'%s' is not a valid maxforwards value at line %d.  Using default.\n", v->value, v->lineno);
 					peer->maxforwards = sip_cfg.default_max_forwards;
 				}
