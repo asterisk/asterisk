@@ -135,7 +135,7 @@ struct ast_string_field_pool {
 	size_t size;				/*!< the total size of the pool */
 	size_t used;				/*!< the space used in the pool */
 	size_t active;				/*!< the amount of space actively in use by fields */
-	char base[0] __attribute__((aligned(sizeof(ast_string_field_allocation)))); /*!< storage space for the fields */
+	char base[0] __attribute__((aligned(__alignof__(ast_string_field_allocation)))); /*!< storage space for the fields */
 };
 
 /*!
@@ -302,8 +302,11 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 /*!
   \brief Macro to provide access to the allocation field that lives immediately in front of a string field
   \param x Pointer to the string field
+
+  Note that x must be a pointer to a byte-sized type -- normally (char *) -- or this calculation
+  would break horribly
 */
-#define AST_STRING_FIELD_ALLOCATION(x) *((ast_string_field_allocation *) (x - sizeof(ast_string_field_allocation)))
+#define AST_STRING_FIELD_ALLOCATION(x) *((ast_string_field_allocation *) (x - __alignof__(ast_string_field_allocation)))
 
 /*!
   \brief Set a field to a simple string value

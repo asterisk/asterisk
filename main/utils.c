@@ -1655,8 +1655,8 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 	size_t to_alloc;
 
 	/* Make room for ast_string_field_allocation and make it a multiple of that. */
-	to_alloc = ast_add_and_make_multiple_of(needed, sizeof(ast_string_field_allocation));
-	ast_assert(to_alloc % sizeof(ast_string_field_allocation) == 0);
+	to_alloc = ast_make_room_for(needed, ast_string_field_allocation);
+	ast_assert(to_alloc % ast_alignof(ast_string_field_allocation) == 0);
 
 	if (__builtin_expect(to_alloc > space, 0)) {
 		size_t new_size = (*pool_head)->size;
@@ -1675,13 +1675,13 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 	}
 
 	/* pool->base is always aligned (gcc aligned attribute). We ensure that
-	 * to_alloc is also a multiple of sizeof(ast_string_field_allocation)
+	 * to_alloc is also a multiple of ast_alignof(ast_string_field_allocation)
 	 * causing result to always be aligned as well; which in turn fixes that
 	 * AST_STRING_FIELD_ALLOCATION(result) is aligned. */
 	result = (*pool_head)->base + (*pool_head)->used;
 	(*pool_head)->used += to_alloc;
 	(*pool_head)->active += needed;
-	result += sizeof(ast_string_field_allocation);
+	result += ast_alignof(ast_string_field_allocation);
 	AST_STRING_FIELD_ALLOCATION(result) = needed;
 	mgr->last_alloc = result;
 
@@ -1753,11 +1753,11 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 			available += space;
 		}
 	} else {
-		/* pool->used is always a multiple of sizeof(ast_string_field_allocation)
+		/* pool->used is always a multiple of ast_alignof(ast_string_field_allocation)
 		 * so we don't need to re-align anything here.
 		 */
-		target = (*pool_head)->base + (*pool_head)->used + sizeof(ast_string_field_allocation);
-		available = space - sizeof(ast_string_field_allocation);
+		target = (*pool_head)->base + (*pool_head)->used + ast_alignof(ast_string_field_allocation);
+		available = space - ast_alignof(ast_string_field_allocation);
 	}
 
 	va_copy(ap2, ap);
@@ -1783,14 +1783,14 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 		__ast_string_field_release_active(*pool_head, *ptr);
 		mgr->last_alloc = *ptr = target;
 		AST_STRING_FIELD_ALLOCATION(target) = needed;
-		(*pool_head)->used += ast_add_and_make_multiple_of(needed, sizeof(ast_string_field_allocation));
+		(*pool_head)->used += ast_make_room_for(needed, ast_string_field_allocation);
 		(*pool_head)->active += needed;
 	} else if ((grow = (needed - AST_STRING_FIELD_ALLOCATION(*ptr))) > 0) {
 		/* the allocation was satisfied by using available space in the pool *and*
 		   the field was the last allocated field from the pool, so it grew
 		*/
 		AST_STRING_FIELD_ALLOCATION(*ptr) += grow;
-		(*pool_head)->used += ast_make_multiple_of(grow, sizeof(ast_string_field_allocation));
+		(*pool_head)->used += ast_align_for(grow, ast_string_field_allocation);
 		(*pool_head)->active += grow;
 	}
 }
