@@ -176,23 +176,23 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 			}
 
 			if (!strcmp(label, "transport")) {
-				if (params) {params->transport=value;}
+				params->transport = value;
 				rem = parameters;
 			} else if (!strcmp(label, "user")) {
-				if (params) {params->user=value;}
+				params->user = value;
 				rem = parameters;
 			} else if (!strcmp(label, "method")) {
-				if (params) {params->method=value;}
+				params->method = value;
 				rem = parameters;
 			} else if (!strcmp(label, "ttl")) {
-				if (params) {params->ttl=value;}
+				params->ttl = value;
 				rem = parameters;
 			} else if (!strcmp(label, "maddr")) {
-				if (params) {params->maddr=value;}
+				params->maddr = value;
 				rem = parameters;
 			/* Treat "lr", "lr=yes", "lr=on", "lr=1", "lr=almostanything" as lr enabled and "", "lr=no", "lr=off", "lr=0", "lr=" and "lranything" as lr disabled */
 			} else if ((!strcmp(label, "lr") && strcmp(value, "no") && strcmp(value, "off") && strcmp(value, "0") && strcmp(value, "")) || ((lr) && strcmp(value, "lr"))) {
-				if (params) {params->lr=1;}
+				params->lr = 1;
 				rem = parameters;
 			} else {
 				value--;
