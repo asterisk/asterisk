@@ -287,6 +287,33 @@ static int exts_compare(const char *exts, const char *type)
 	return 0;
 }
 
+/*! \internal \brief Close the file stream by canceling any pending read / write callbacks */
+static void filestream_close(struct ast_filestream *f)
+{
+	enum ast_format_type format_type = AST_FORMAT_GET_TYPE(f->fmt->format.id);
+
+	if (!f->owner) {
+		return;
+	}
+
+	/* Stop a running stream if there is one */
+	switch (format_type)
+	{
+	case AST_FORMAT_TYPE_AUDIO:
+		f->owner->stream = NULL;
+		AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
+		ast_settimeout(f->owner, 0, NULL, NULL);
+		break;
+	case AST_FORMAT_TYPE_VIDEO:
+		f->owner->vstream = NULL;
+		AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
+		break;
+	default:
+		ast_log(AST_LOG_WARNING, "Unable to schedule deletion of filestream with unsupported type %s\n", f->fmt->name);
+		break;
+	}
+}
+
 static void filestream_destructor(void *arg)
 {
 	struct ast_filestream *f = arg;
@@ -294,16 +321,8 @@ static void filestream_destructor(void *arg)
 	int pid = -1;
 
 	/* Stop a running stream if there is one */
-	if (f->owner) {
-		if (AST_FORMAT_GET_TYPE(f->fmt->format.id) == AST_FORMAT_TYPE_AUDIO) {
-			f->owner->stream = NULL;
-			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
-			ast_settimeout(f->owner, 0, NULL, NULL);
-		} else {
-			f->owner->vstream = NULL;
-			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
-		}
-	}
+	filestream_close(f);
+
 	/* destroy the translator on exit */
 	if (f->trans)
 		ast_translator_free_path(f->trans);
@@ -947,22 +966,10 @@ int ast_stream_rewind(struct ast_filestream *fs, off_t ms)
 int ast_closestream(struct ast_filestream *f)
 {
 	/* This used to destroy the filestream, but it now just decrements a refcount.
-	 * We need to force the stream to quit queuing frames now, because we might
+	 * We close the stream in order to quit queuing frames now, because we might
 	 * change the writeformat, which could result in a subsequent write error, if
 	 * the format is different. */
-
-	/* Stop a running stream if there is one */
-	if (f->owner) {
-		if (AST_FORMAT_GET_TYPE(f->fmt->format.id) == AST_FORMAT_TYPE_AUDIO) {
-			f->owner->stream = NULL;
-			AST_SCHED_DEL(f->owner->sched, f->owner->streamid);
-			ast_settimeout(f->owner, 0, NULL, NULL);
-		} else {
-			f->owner->vstream = NULL;
-			AST_SCHED_DEL(f->owner->sched, f->owner->vstreamid);
-		}
-	}
-
+	filestream_close(f);
 	ao2_ref(f, -1);
 	return 0;
 }
