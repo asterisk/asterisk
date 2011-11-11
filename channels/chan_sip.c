@@ -9290,15 +9290,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			    ast_rtp_lookup_mime_multiple2(s3, NULL, newnoncodeccapability, 0, 0));
 	}
 
-	/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
-	   they are acceptable */
-	ast_format_cap_copy(p->jointcaps, newjointcapability);                /* Our joint codec profile for this call */
-	ast_format_cap_copy(p->peercaps, newpeercapability);                  /* The other sides capability in latest offer */
-	p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
-
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) { /* respond with single most preferred joint codec, limiting the other side's choice */
-		ast_codec_choose(&p->prefs, p->jointcaps, 1, &tmp_fmt);
-		ast_format_cap_set(p->jointcaps, &tmp_fmt);
+	if (portno != -1 || vportno != -1 || tportno != -1) {
+		/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
+		   they are acceptable */
+		ast_format_cap_copy(p->jointcaps, newjointcapability);                /* Our joint codec profile for this call */
+		ast_format_cap_copy(p->peercaps, newpeercapability);                  /* The other sides capability in latest offer */
+		p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
+	
+		/* respond with single most preferred joint codec, limiting the other side's choice */
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) {
+			ast_codec_choose(&p->prefs, p->jointcaps, 1, &tmp_fmt);
+			ast_format_cap_set(p->jointcaps, &tmp_fmt);
+		}
 	}
 
 	/* Setup audio address and port */
