@@ -9093,15 +9093,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		return -1;
 	}
 
-	/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
-	   they are acceptable */
-	p->jointcapability = newjointcapability;                /* Our joint codec profile for this call */
-	p->peercapability = newpeercapability;                  /* The other sides capability in latest offer */
-	p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
-
-	/* respond with single most preferred joint codec, limiting the other side's choice */
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) {
-		p->jointcapability = ast_codec_choose(&p->prefs, p->jointcapability, 1);
+	if (portno != -1 || vportno != -1 || tportno != -1) {
+		/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
+		   they are acceptable */
+		p->jointcapability = newjointcapability;                /* Our joint codec profile for this call */
+		p->peercapability = newpeercapability;                  /* The other sides capability in latest offer */
+		p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
+	
+		/* respond with single most preferred joint codec, limiting the other side's choice */
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) {
+			p->jointcapability = ast_codec_choose(&p->prefs, p->jointcapability, 1);
+		}
 	}
 
 	/* Setup audio address and port */
