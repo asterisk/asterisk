@@ -7891,6 +7891,7 @@ static struct ast_channel *misdn_request(const char *type, struct ast_format_cap
 			int port_up;
 			int check;
 			int maxbchans;
+			int wraped = 0;
 
 			if (!rr->port) {
 				rr->port = misdn_cfg_get_next_port_spin(0);
@@ -7905,6 +7906,7 @@ static struct ast_channel *misdn_request(const char *type, struct ast_format_cap
 			do {
 				misdn_cfg_get(rr->port, MISDN_CFG_GROUPNAME, cfg_group, sizeof(cfg_group));
 				if (strcasecmp(cfg_group, group)) {
+					wraped = 1;
 					rr->port = misdn_cfg_get_next_port_spin(rr->port);
 					rr->channel = 1;
 					continue;
@@ -7926,6 +7928,11 @@ static struct ast_channel *misdn_request(const char *type, struct ast_format_cap
 					maxbchans = misdn_lib_get_maxchans(rr->port);
 
 					for (;rr->channel <= maxbchans;rr->channel++) {
+						/* ive come full circle and can stop now */
+						if (wraped && (rr->port == port_start) && (rr->channel == bchan_start)) {
+							break;
+						}
+
 						chan_misdn_log(4, rr->port, "Checking channel %d\n",  rr->channel);
 
 						if ((newbc = misdn_lib_get_free_bc(rr->port, rr->channel, 0, 0))) {
@@ -7934,15 +7941,16 @@ static struct ast_channel *misdn_request(const char *type, struct ast_format_cap
 							break;
 						}
 					}
-					if (!newbc || (rr->channel > maxbchans)) {
+					if (wraped && (rr->port == port_start) && (rr->channel <= bchan_start)) {
+						break;
+					} else if (!newbc || (rr->channel == maxbchans)) {
 						rr->port = misdn_cfg_get_next_port_spin(rr->port);
 						rr->channel = 1;
 					}
 
 				}
-			} while (!newbc && (rr->port > 0) &&
-				 ((rr->port != port_start) || ((rr->port == port_start) && (rr->channel < bchan_start))));
-
+				wraped = 1;
+			} while (!newbc && (rr->port > 0));
 		} else {
 			for (port = misdn_cfg_get_next_port(0); port > 0;
 				port = misdn_cfg_get_next_port(port)) {
