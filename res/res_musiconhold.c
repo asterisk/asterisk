@@ -1522,11 +1522,20 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 			}
 		} else {
 			ast_variables_destroy(var);
+			var = NULL;
 		}
 	}
 
 	if (!mohclass) {
 		return -1;
+	}
+
+	/* If we are using a cached realtime class with files, re-scan the files */
+	if (!var && ast_test_flag(global_flags, MOH_CACHERTCLASSES) && mohclass->realtime && !strcasecmp(mohclass->mode, "files")) {
+		if (!moh_scan_files(mohclass)) {
+			mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (moh_scan_files failed)");
+			return -1;
+		}
 	}
 
 	ast_manager_event(chan, EVENT_FLAG_CALL, "MusicOnHold",
