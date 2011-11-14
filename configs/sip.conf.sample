@@ -122,6 +122,13 @@ context=default                 ; Default context for incoming calls
                                 ; 'username' field from the authentication line
                                 ; instead of the From: field.
 allowoverlap=no                 ; Disable overlap dialing support. (Default is yes)
+;allowoverlap=yes               ; Enable RFC3578 overlap dialing support.
+                                ; Can use the Incomplete application to collect the
+                                ; needed digits from an ambiguous dialplan match.
+;allowoverlap=dtmf              ; Enable overlap dialing support using DTMF delivery
+                                ; methods (inband, RFC2833, SIP INFO) in the early
+                                ; media phase.  Uses the Incomplete application to
+                                ; collect the needed digits.
 ;allowtransfer=no               ; Disable all transfers (unless enabled in peers or users)
                                 ; Default is enabled. The Dial() options 't' and 'T' are not
                                 ; related as to whether SIP transfers are allowed or not.
