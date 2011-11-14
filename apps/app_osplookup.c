@@ -520,7 +520,7 @@ enum osp_srvtype {
 #define OSP_HTTP_PERSISTENCE	((int)1)					/* In seconds */
 #define OSP_CUSTOMER_ID			((const char*)"")			/* OSP customer ID */
 #define OSP_DEVICE_ID			((const char*)"")			/* OSP device ID */
-#define OSP_DEF_MAXDESTS		((unsigned int)5)			/* OSP default max number of destinations */
+#define OSP_DEF_MAXDESTS		((unsigned int)12)			/* OSP default max number of destinations */
 #define OSP_DEF_TIMELIMIT		((unsigned int)0)			/* OSP default duration limit, no limit */
 #define OSP_DEF_PROTOCOL		OSP_PROT_SIP				/* OSP default signaling protocol, SIP */
 #define OSP_DEF_WORKMODE		OSP_MODE_DIRECT				/* OSP default work mode, direct */
