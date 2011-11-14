@@ -29,11 +29,13 @@
  * - Multiple scheme's can be specified ',' delimited. ex: "sip:,sips:"
  * - If a component is not requested, do not split around it. This means
  *   that if we don't have domain, we cannot split name:pass.
- * - It is safe to call with ret_name, pass, domain, port pointing all to
+ * - It is safe to call with ret_name, pass, hostport pointing all to
  *   the same place.
- * - If no secret parameter is provided, ret_name will return with both parts, user:secret
- * - If no port parameter is provided, domain will return with both parts, domain:port
- * - This function overwrites the the uri string.
+ * - If no secret parameter is provided, ret_name will return with both
+ *   parts, user:secret.
+ * - If the URI contains a port number, hostport will return with both
+ *   parts, host:port.
+ * - This function overwrites the the URI string.
  * 
  * \retval 0 on success
  * \retval -1 on error.
