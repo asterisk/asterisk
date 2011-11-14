@@ -303,46 +303,52 @@
 	a second page of flags (for flags[1] */
 /*@{*/
 /* realtime flags */
-#define SIP_PAGE2_RTCACHEFRIENDS		(1 <<  0)    /*!< GP: Should we keep RT objects in memory for extended time? */
-#define SIP_PAGE2_RTAUTOCLEAR			(1 <<  1)    /*!< GP: Should we clean memory from peers after expiry? */
-#define SIP_PAGE2_RPID_UPDATE			(1 <<  2)
-#define SIP_PAGE2_Q850_REASON			(1 <<  3)    /*!< DP: Get/send cause code via Reason header */
-#define SIP_PAGE2_SYMMETRICRTP			(1 <<  4)    /*!< GDP: Whether symmetric RTP is enabled or not */
-#define SIP_PAGE2_STATECHANGEQUEUE		(1 <<  5)    /*!< D: Unsent state pending change exists */
-#define SIP_PAGE2_CONNECTLINEUPDATE_PEND	(1 <<  6)
-#define SIP_PAGE2_RPID_IMMEDIATE		(1 <<  7)
-#define SIP_PAGE2_RPORT_PRESENT			(1 <<  8)   /*!< Was rport received in the Via header? */
-#define SIP_PAGE2_PREFERRED_CODEC		(1 <<  9)   /*!< GDP: Only respond with single most preferred joint codec */
-#define SIP_PAGE2_VIDEOSUPPORT			(1 << 10)   /*!< DP: Video supported if offered? */
-#define SIP_PAGE2_TEXTSUPPORT			(1 << 11)   /*!< GDP: Global text enable */
-#define SIP_PAGE2_ALLOWSUBSCRIBE		(1 << 12)   /*!< GP: Allow subscriptions from this peer? */
-#define SIP_PAGE2_ALLOWOVERLAP			(1 << 13)   /*!< DP: Allow overlap dialing ? */
-#define SIP_PAGE2_SUBSCRIBEMWIONLY		(1 << 14)   /*!< GP: Only issue MWI notification if subscribed to */
-#define SIP_PAGE2_IGNORESDPVERSION		(1 << 15)   /*!< GDP: Ignore the SDP session version number we receive and treat all sessions as new */
+#define SIP_PAGE2_RTCACHEFRIENDS            (1 <<  0)   /*!< GP: Should we keep RT objects in memory for extended time? */
+#define SIP_PAGE2_RTAUTOCLEAR               (1 <<  1)   /*!< GP: Should we clean memory from peers after expiry? */
+#define SIP_PAGE2_RPID_UPDATE               (1 <<  2)
+#define SIP_PAGE2_Q850_REASON               (1 <<  3)   /*!< DP: Get/send cause code via Reason header */
+#define SIP_PAGE2_SYMMETRICRTP              (1 <<  4)   /*!< GDP: Whether symmetric RTP is enabled or not */
+#define SIP_PAGE2_STATECHANGEQUEUE          (1 <<  5)   /*!< D: Unsent state pending change exists */
+#define SIP_PAGE2_CONNECTLINEUPDATE_PEND    (1 <<  6)
+#define SIP_PAGE2_RPID_IMMEDIATE            (1 <<  7)
+#define SIP_PAGE2_RPORT_PRESENT             (1 <<  8)   /*!< Was rport received in the Via header? */
+#define SIP_PAGE2_PREFERRED_CODEC           (1 <<  9)   /*!< GDP: Only respond with single most preferred joint codec */
+#define SIP_PAGE2_VIDEOSUPPORT              (1 << 10)   /*!< DP: Video supported if offered? */
+#define SIP_PAGE2_TEXTSUPPORT               (1 << 11)   /*!< GDP: Global text enable */
+#define SIP_PAGE2_ALLOWSUBSCRIBE            (1 << 12)   /*!< GP: Allow subscriptions from this peer? */
 
-#define SIP_PAGE2_T38SUPPORT			(3 << 16)    /*!< GDP: T.38 Fax Support */
-#define SIP_PAGE2_T38SUPPORT_UDPTL		(1 << 16)    /*!< GDP: T.38 Fax Support (no error correction) */
-#define SIP_PAGE2_T38SUPPORT_UDPTL_FEC		(2 << 16)    /*!< GDP: T.38 Fax Support (FEC error correction) */
-#define SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY	(3 << 16)    /*!< GDP: T.38 Fax Support (redundancy error correction) */
+#define SIP_PAGE2_ALLOWOVERLAP              (3 << 13)   /*!< DP: Allow overlap dialing ? */
+#define SIP_PAGE2_ALLOWOVERLAP_NO           (0 << 13)   /*!< No, terminate with 404 Not found */
+#define SIP_PAGE2_ALLOWOVERLAP_YES          (1 << 13)   /*!< Yes, using the 484 Address Incomplete response */
+#define SIP_PAGE2_ALLOWOVERLAP_DTMF         (2 << 13)   /*!< Yes, using the DTMF transmission through Early Media */
+#define SIP_PAGE2_ALLOWOVERLAP_SPARE        (3 << 13)   /*!< Spare (reserved for another dialling transmission mechanisms like KPML) */
 
-#define SIP_PAGE2_CALL_ONHOLD			(3 << 18)  /*!< D: Call hold states: */
-#define SIP_PAGE2_CALL_ONHOLD_ACTIVE		(1 << 18)  /*!< D: Active hold */
-#define SIP_PAGE2_CALL_ONHOLD_ONEDIR		(2 << 18)  /*!< D: One directional hold */
-#define SIP_PAGE2_CALL_ONHOLD_INACTIVE		(3 << 18)  /*!< D: Inactive hold */
+#define SIP_PAGE2_SUBSCRIBEMWIONLY          (1 << 15)   /*!< GP: Only issue MWI notification if subscribed to */
+#define SIP_PAGE2_IGNORESDPVERSION          (1 << 16)   /*!< GDP: Ignore the SDP session version number we receive and treat all sessions as new */
 
-#define SIP_PAGE2_RFC2833_COMPENSATE		(1 << 20)  /*!< DP: Compensate for buggy RFC2833 implementations */
-#define SIP_PAGE2_BUGGY_MWI			(1 << 21)  /*!< DP: Buggy CISCO MWI fix */
-#define SIP_PAGE2_DIALOG_ESTABLISHED		(1 << 22)  /*!< 29: Has a dialog been established? */
+#define SIP_PAGE2_T38SUPPORT                (3 << 17)   /*!< GDP: T.38 Fax Support */
+#define SIP_PAGE2_T38SUPPORT_UDPTL          (1 << 17)   /*!< GDP: T.38 Fax Support (no error correction) */
+#define SIP_PAGE2_T38SUPPORT_UDPTL_FEC      (2 << 17)   /*!< GDP: T.38 Fax Support (FEC error correction) */
+#define SIP_PAGE2_T38SUPPORT_UDPTL_REDUNDANCY   (3 << 17)   /*!< GDP: T.38 Fax Support (redundancy error correction) */
 
-#define SIP_PAGE2_FAX_DETECT			(3 << 23)  /*!< DP: Fax Detection support */
-#define SIP_PAGE2_FAX_DETECT_CNG		(1 << 23)  /*!< DP: Fax Detection support - detect CNG in audio */
-#define SIP_PAGE2_FAX_DETECT_T38		(2 << 23)  /*!< DP: Fax Detection support - detect T.38 reinvite from peer */
-#define SIP_PAGE2_FAX_DETECT_BOTH		(3 << 23)  /*!< DP: Fax Detection support - detect both */
+#define SIP_PAGE2_CALL_ONHOLD               (3 << 19)   /*!< D: Call hold states: */
+#define SIP_PAGE2_CALL_ONHOLD_ACTIVE        (1 << 19)   /*!< D: Active hold */
+#define SIP_PAGE2_CALL_ONHOLD_ONEDIR        (2 << 19)   /*!< D: One directional hold */
+#define SIP_PAGE2_CALL_ONHOLD_INACTIVE      (3 << 19)   /*!< D: Inactive hold */
 
-#define SIP_PAGE2_UDPTL_DESTINATION		(1 << 25)  /*!< DP: Use source IP of RTP as destination if NAT is enabled */
-#define SIP_PAGE2_VIDEOSUPPORT_ALWAYS		(1 << 26)  /*!< DP: Always set up video, even if endpoints don't support it */
-#define SIP_PAGE2_HAVEPEERCONTEXT	(1 << 27)	/*< Are we associated with a configured peer context? */
-#define SIP_PAGE2_USE_SRTP              (1 << 28)    /*!< DP: Whether we should offer (only)  SRTP */
+#define SIP_PAGE2_RFC2833_COMPENSATE        (1 << 21)   /*!< DP: Compensate for buggy RFC2833 implementations */
+#define SIP_PAGE2_BUGGY_MWI                 (1 << 22)   /*!< DP: Buggy CISCO MWI fix */
+#define SIP_PAGE2_DIALOG_ESTABLISHED        (1 << 23)   /*!< 29: Has a dialog been established? */
+
+#define SIP_PAGE2_FAX_DETECT                (3 << 24)   /*!< DP: Fax Detection support */
+#define SIP_PAGE2_FAX_DETECT_CNG            (1 << 24)   /*!< DP: Fax Detection support - detect CNG in audio */
+#define SIP_PAGE2_FAX_DETECT_T38            (2 << 24)   /*!< DP: Fax Detection support - detect T.38 reinvite from peer */
+#define SIP_PAGE2_FAX_DETECT_BOTH           (3 << 24)   /*!< DP: Fax Detection support - detect both */
+
+#define SIP_PAGE2_UDPTL_DESTINATION         (1 << 26)   /*!< DP: Use source IP of RTP as destination if NAT is enabled */
+#define SIP_PAGE2_VIDEOSUPPORT_ALWAYS       (1 << 27)   /*!< DP: Always set up video, even if endpoints don't support it */
+#define SIP_PAGE2_HAVEPEERCONTEXT           (1 << 28)   /*< Are we associated with a configured peer context? */
+#define SIP_PAGE2_USE_SRTP                  (1 << 29)   /*!< DP: Whether we should offer (only)  SRTP */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_IGNORESDPVERSION | \
@@ -466,7 +472,7 @@ enum sip_auth_type {
 
 /*! \brief Result from get_destination function */
 enum sip_get_dest_result {
-	SIP_GET_DEST_PICKUP_EXTEN_FOUND = 1,
+	SIP_GET_DEST_EXTEN_MATCHMORE = 1,
 	SIP_GET_DEST_EXTEN_FOUND = 0,
 	SIP_GET_DEST_EXTEN_NOT_FOUND = -1,
 	SIP_GET_DEST_REFUSED = -2,

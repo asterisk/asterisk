@@ -1384,6 +1384,7 @@ static void  print_group(int fd, ast_group_t group, int crlf);
 static const char *dtmfmode2str(int mode) attribute_const;
 static int str2dtmfmode(const char *str) attribute_unused;
 static const char *insecure2str(int mode) attribute_const;
+static const char *allowoverlap2str(int mode) attribute_const;
 static void cleanup_stale_contexts(char *new, char *old);
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
 static const char *domain_mode_to_text(const enum domain_mode mode);
@@ -6837,17 +6838,25 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	case AST_CONTROL_INCOMPLETE:
 		if (ast->_state != AST_STATE_UP) {
-			if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+			switch (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+			case SIP_PAGE2_ALLOWOVERLAP_YES:
 				transmit_response_reliable(p, "484 Address Incomplete", &p->initreq);
-			} else {
+				p->invitestate = INV_COMPLETED;
+				sip_alreadygone(p);
+				ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
+				break;
+			case SIP_PAGE2_ALLOWOVERLAP_DTMF:
+				/* Just wait for inband DTMF digits */
+				break;
+			default:
+				/* it actually means no support for overlap */
 				transmit_response_reliable(p, "404 Not Found", &p->initreq);
+				p->invitestate = INV_COMPLETED;
+				sip_alreadygone(p);
+				ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
+				break;
 			}
-			p->invitestate = INV_COMPLETED;
-			sip_alreadygone(p);
-			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
-			break;
 		}
-		res = 0;
 		break;
 	case AST_CONTROL_PROCEEDING:
 		if ((ast->_state != AST_STATE_UP) &&
@@ -15506,18 +15515,23 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 		}
 	} else {
 		struct ast_cc_agent *agent;
-		int which = 0;
 		/* Check the dialplan for the username part of the request URI,
 		   the domain will be stored in the SIPDOMAIN variable
 		   Return 0 if we have a matching extension */
-		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) ||
-		    (ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from)) && (which = 1)) ||
-		    !strcmp(decoded_uri, ast_pickup_ext())) {
+		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from))) {
 			if (!oreq) {
-				ast_string_field_set(p, exten, which ? decoded_uri : uri);
+				ast_string_field_set(p, exten, uri);
 			}
 			return SIP_GET_DEST_EXTEN_FOUND;
-		} else if ((agent = find_sip_cc_agent_by_notify_uri(tmp))) {
+		}
+		if (ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from))
+			|| !strcmp(decoded_uri, ast_pickup_ext())) {
+			if (!oreq) {
+				ast_string_field_set(p, exten, decoded_uri);
+			}
+			return SIP_GET_DEST_EXTEN_FOUND;
+		}
+		if ((agent = find_sip_cc_agent_by_notify_uri(tmp))) {
 			struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
 			/* This is a CC recall. We can set p's extension to the exten from
 			 * the original INVITE
@@ -15536,11 +15550,12 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 		}
 	}
 
-	/* Return 1 for pickup extension or overlap dialling support (if we support it) */
-	if((ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP) &&
- 	    ast_canmatch_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from))) ||
-	    !strncmp(decoded_uri, ast_pickup_ext(), strlen(decoded_uri))) {
-		return SIP_GET_DEST_PICKUP_EXTEN_FOUND;
+	if (ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)
+		&& (ast_canmatch_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from))
+			|| ast_canmatch_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from))
+			|| !strncmp(decoded_uri, ast_pickup_ext(), strlen(decoded_uri)))) {
+		/* Overlap dialing is enabled and we need more digits to match an extension. */
+		return SIP_GET_DEST_EXTEN_MATCHMORE;
 	}
 
 	return SIP_GET_DEST_EXTEN_NOT_FOUND;
@@ -17150,6 +17165,19 @@ static const char *insecure2str(int mode)
 	return map_x_s(insecurestr, mode, "<error>");
 }
 
+static const struct _map_x_s allowoverlapstr[] = {
+	{ SIP_PAGE2_ALLOWOVERLAP_YES,   "Yes" },
+	{ SIP_PAGE2_ALLOWOVERLAP_DTMF,  "DTMF" },
+	{ SIP_PAGE2_ALLOWOVERLAP_NO,    "No" },
+	{ -1,                           NULL }, /* terminator */
+};
+
+/*! \brief Convert AllowOverlap setting to printable string */
+static const char *allowoverlap2str(int mode)
+{
+	return map_x_s(allowoverlapstr, mode, "<error>");
+}
+
 /*! \brief Destroy disused contexts between reloads
 	Only used in reload_config so the code for regcontext doesn't get ugly
 */
@@ -17696,7 +17724,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Trust RPID   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_TRUSTRPID)));
 		ast_cli(fd, "  Send RPID    : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_SENDRPID)));
 		ast_cli(fd, "  Subscriptions: %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
-		ast_cli(fd, "  Overlap dial : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP)));
+		ast_cli(fd, "  Overlap dial : %s\n", allowoverlap2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP)));
 		if (peer->outboundproxy)
 			ast_cli(fd, "  Outb. proxy  : %s %s\n", ast_strlen_zero(peer->outboundproxy->name) ? "<not set>" : peer->outboundproxy->name,
 							peer->outboundproxy->force ? "(forced)" : "");
@@ -18253,7 +18281,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Match Auth Username:    %s\n", AST_CLI_YESNO(global_match_auth_username));
 	ast_cli(a->fd, "  Allow unknown access:   %s\n", AST_CLI_YESNO(sip_cfg.allowguest));
 	ast_cli(a->fd, "  Allow subscriptions:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
-	ast_cli(a->fd, "  Allow overlap dialing:  %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)));
+	ast_cli(a->fd, "  Allow overlap dialing:  %s\n", allowoverlap2str(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP)));
 	ast_cli(a->fd, "  Allow promisc. redir:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[0], SIP_PROMISCREDIR)));
 	ast_cli(a->fd, "  Enable call counters:   %s\n", AST_CLI_YESNO(global_callcounter));
 	ast_cli(a->fd, "  SIP domain support:     %s\n", AST_CLI_YESNO(!AST_LIST_EMPTY(&domain_list)));
@@ -21546,10 +21574,13 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 					break;
 				case 484: /* Address Incomplete */
 					if (owner && sipmethod != SIP_BYE) {
-						if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+						switch (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+						case SIP_PAGE2_ALLOWOVERLAP_YES:
 							ast_queue_hangup_with_cause(p->owner, hangup_sip2cause(resp));
-						} else {
+							break;
+						default:
 							ast_queue_hangup_with_cause(p->owner, hangup_sip2cause(404));
+							break;
 						}
 					}
 					break;
@@ -22262,7 +22293,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 		case SIP_GET_DEST_INVALID_URI:
 			msg = "416 Unsupported URI scheme";
 			break;
-		case SIP_GET_DEST_PICKUP_EXTEN_FOUND:
+		case SIP_GET_DEST_EXTEN_MATCHMORE:
 		case SIP_GET_DEST_REFUSED:
 		case SIP_GET_DEST_EXTEN_NOT_FOUND:
 			//msg = "404 Not Found";
@@ -22983,12 +23014,21 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			case SIP_GET_DEST_INVALID_URI:
 				transmit_response_reliable(p, "416 Unsupported URI scheme", req);
 				break;
-			case SIP_GET_DEST_PICKUP_EXTEN_FOUND:
-				if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+			case SIP_GET_DEST_EXTEN_MATCHMORE:
+				if (ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)
+					== SIP_PAGE2_ALLOWOVERLAP_YES) {
 					transmit_response_reliable(p, "484 Address Incomplete", req);
 					break;
 				}
-			/* INTENTIONAL FALL THROUGH */
+				/*
+				 * XXX We would have to implement collecting more digits in
+				 * chan_sip for any other schemes of overlap dialing.
+				 *
+				 * For SIP_PAGE2_ALLOWOVERLAP_DTMF it is better to do this in
+				 * the dialplan using the Incomplete application rather than
+				 * having the channel driver do it.
+				 */
+				/* Fall through */
 			case SIP_GET_DEST_EXTEN_NOT_FOUND:
 			case SIP_GET_DEST_REFUSED:
 			default:
@@ -27244,7 +27284,12 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		res = 1;
 	} else if (!strcasecmp(v->name, "allowoverlap")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_ALLOWOVERLAP);
-		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_ALLOWOVERLAP);
+		ast_clear_flag(&flags[1], SIP_PAGE2_ALLOWOVERLAP);
+		if (ast_true(v->value)) {
+			ast_set_flag(&flags[1], SIP_PAGE2_ALLOWOVERLAP_YES);
+		} else if (!strcasecmp(v->value, "dtmf")){
+			ast_set_flag(&flags[1], SIP_PAGE2_ALLOWOVERLAP_DTMF);
+		}
 	} else if (!strcasecmp(v->name, "allowsubscribe")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_ALLOWSUBSCRIBE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_ALLOWSUBSCRIBE);
@@ -28459,6 +28504,7 @@ static int reload_config(enum channelreloadreason reason)
 	sipdebug &= sip_debug_console;
 	ast_clear_flag(&global_flags[0], AST_FLAGS_ALL);
 	ast_clear_flag(&global_flags[1], AST_FLAGS_ALL);
+	ast_clear_flag(&global_flags[2], AST_FLAGS_ALL);
 
 	/* Reset IP addresses  */
 	ast_sockaddr_parse(&bindaddr, "0.0.0.0:0", 0);
@@ -28534,7 +28580,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.allowtransfer = TRANSFER_OPENFORALL;	/* Merrily accept all transfers by default */
 	sip_cfg.rtautoclear = 120;
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE);	/* Default for all devices: TRUE */
-	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for all devices: TRUE */
+	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP_YES);	/* Default for all devices: Yes */
 	sip_cfg.peer_rtupdate = TRUE;
 	global_dynamic_exclude_static = 0;	/* Exclude static peers */
 	sip_cfg.tcp_enabled = FALSE;
