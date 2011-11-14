@@ -182,7 +182,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">Congestion</ref>
-			<ref type="application">Progess</ref>
+			<ref type="application">Progress</ref>
 			<ref type="application">Playtones</ref>
 			<ref type="application">Hangup</ref>
 		</see-also>
@@ -202,7 +202,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</description>
 		<see-also>
 			<ref type="application">Busy</ref>
-			<ref type="application">Progess</ref>
+			<ref type="application">Progress</ref>
 			<ref type="application">Playtones</ref>
 			<ref type="application">Hangup</ref>
 		</see-also>
