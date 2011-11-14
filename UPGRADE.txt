@@ -162,6 +162,10 @@ From 1.6.2 to 1.8:
 * The 'sipusers' realtime table has been removed completely. Use the 'sippeers'
   table with type 'user' for user type objects.
 
+* The sip.conf allowoverlap option now accepts 'dtmf' as a value.  If you
+  are using the early media DTMF overlap dialing method you now need to set
+  allowoverlap=dtmf.
+
 From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by
