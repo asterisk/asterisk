@@ -26001,11 +26001,13 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
 	int newmsgs = 0, oldmsgs = 0;
-	const char *vmexten;
+	const char *vmexten = NULL;
 
 	ao2_lock(peer);
 
-	vmexten = ast_strdupa(peer->vmexten);
+	if (peer->vmexten) {
+		vmexten = ast_strdupa(peer->vmexten);
+	}
 
 	if (ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY) && !peer->mwipvt) {
 		ao2_unlock(peer);
