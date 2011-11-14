@@ -2126,7 +2126,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 			m->dead = 0;
 			m->realtime = 1;
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
-			ast_queue_log(q->name, "REALTIME", m->interface, "ADDMEMBER", "%s", "");
+			ast_queue_log(q->name, "REALTIME", m->interface, "ADDMEMBER", "%s", paused ? "PAUSED" : "");
 			ao2_link(q->members, m);
 			ao2_ref(m, -1);
 			m = NULL;
@@ -7312,7 +7312,7 @@ static int manager_add_queue_member(struct mansession *s, const struct message *
 
 	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members, state_interface)) {
 	case RES_OKAY:
-		ast_queue_log(queuename, "MANAGER", interface, "ADDMEMBER", "%s", "");
+		ast_queue_log(queuename, "MANAGER", interface, "ADDMEMBER", "%s", paused ? "PAUSED" : "");
 		astman_send_ack(s, m, "Added interface to queue");
 		break;
 	case RES_EXISTS:
