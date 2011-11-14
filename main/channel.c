@@ -1413,7 +1413,6 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 {
 	struct ast_frame *f;
 	struct ast_frame *cur;
-	int blah = 1;
 	unsigned int new_frames = 0;
 	unsigned int new_voice_frames = 0;
 	unsigned int queued_frames = 0;
@@ -1512,7 +1511,10 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 	}
 
 	if (chan->alertpipe[1] > -1) {
-		if (write(chan->alertpipe[1], &blah, new_frames * sizeof(blah)) != (new_frames * sizeof(blah))) {
+		int blah[new_frames];
+
+		memset(blah, 1, sizeof(blah));
+		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != (sizeof(blah))) {
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s (qlen = %d): %s!\n",
 				chan->name, queued_frames, strerror(errno));
 		}
