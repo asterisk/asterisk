@@ -739,12 +739,13 @@ static enum ast_bridge_channel_state bridge_channel_join_multithreaded(struct as
 
 	ao2_unlock(bridge_channel->bridge);
 
+	ao2_lock(bridge_channel);
 	/* Wait for data to either come from the channel or us to be signalled */
 	if (!bridge_channel->suspended) {
+		ao2_unlock(bridge_channel);
 		ast_debug(10, "Going into a multithreaded waitfor for bridge channel %p of bridge %p\n", bridge_channel, bridge_channel->bridge);
 		chan = ast_waitfor_nandfds(&bridge_channel->chan, 1, fds, nfds, NULL, &outfd, &ms);
 	} else {
-		ao2_lock(bridge_channel);
 		ast_debug(10, "Going into a multithreaded signal wait for bridge channel %p of bridge %p\n", bridge_channel, bridge_channel->bridge);
 		ast_cond_wait(&bridge_channel->cond, ao2_object_get_lockaddr(bridge_channel));
 		ao2_unlock(bridge_channel);
@@ -777,9 +778,10 @@ static enum ast_bridge_channel_state bridge_channel_join_singlethreaded(struct a
 /*! \brief Internal function that suspends a channel from a bridge */
 static void bridge_channel_suspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
+	ao2_lock(bridge_channel);
 	bridge_channel->suspended = 1;
-
 	bridge_array_remove(bridge, bridge_channel->chan);
+	ao2_unlock(bridge_channel);
 
 	if (bridge->technology->suspend) {
 		bridge->technology->suspend(bridge, bridge_channel);
@@ -791,13 +793,17 @@ static void bridge_channel_suspend(struct ast_bridge *bridge, struct ast_bridge_
 /*! \brief Internal function that unsuspends a channel from a bridge */
 static void bridge_channel_unsuspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	bridge_channel->suspended =0;
-
+	ao2_lock(bridge_channel);
+	bridge_channel->suspended = 0;
 	bridge_array_add(bridge, bridge_channel->chan);
+	ast_cond_signal(&bridge_channel->cond);
+	ao2_unlock(bridge_channel);
 
 	if (bridge->technology->unsuspend) {
 		bridge->technology->unsuspend(bridge, bridge_channel);
 	}
+
+
 
 	return;
 }
@@ -865,6 +871,12 @@ static void bridge_channel_feature(struct ast_bridge *bridge, struct ast_bridge_
 	/* If a hook was actually matched execute it on this channel, otherwise stream up the DTMF to the other channels */
 	if (hook) {
 		hook->callback(bridge, bridge_channel, hook->hook_pvt);
+		/* If we are handing the channel off to an external hook for ownership,
+		 * we are not guaranteed what kind of state it will come back in.  If
+		 * the channel hungup, we need to detect that here. */
+		if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
+			ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+		}
 	} else {
 		ast_bridge_dtmf_stream(bridge, dtmf, bridge_channel->chan);
 	}

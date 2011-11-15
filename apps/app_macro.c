@@ -28,7 +28,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
 	<replacement>app_stack (GoSub)</replacement>
- */
+ ***/
 
 #include "asterisk.h"
 
