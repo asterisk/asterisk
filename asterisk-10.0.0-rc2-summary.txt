@@ -49,7 +49,7 @@
 
      Coders                   Testers                  Reporters              
    3 mjordan                
-   1 bebuild                
+   2 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -75,6 +75,9 @@
    |----------+---------+-------------------------------+-------------------|
    | 345416   | bebuild | Remove summary files for      |                   |
    |          |         | release                       |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 345418   | bebuild | Importing release summary for |                   |
+   |          |         | 10.0.0-rc2 release.           |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -91,8 +94,10 @@
  apps/app_macro.c                 |    2
  asterisk-10.0.0-rc1-summary.html |  315 -------------------
  asterisk-10.0.0-rc1-summary.txt  |  617 ---------------------------------------
+ asterisk-10.0.0-rc2-summary.html |   65 ++++
+ asterisk-10.0.0-rc2-summary.txt  |   98 ++++++
  channels/chan_sip.c              |    6
  main/bridging.c                  |   20 +
- 7 files changed, 56 insertions(+), 940 deletions(-)
+ 9 files changed, 219 insertions(+), 940 deletions(-)
 
      ----------------------------------------------------------------------
