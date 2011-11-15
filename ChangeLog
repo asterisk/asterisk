@@ -1,3 +1,37 @@
+2011-11-15  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.0.0-rc2 Released.
+
+	* Test results: http://bamboo.asterisk.org/browse/TESTING-ASTERISK10RCS-3
+
+	* Ensure that a null vmexten does not cause a segfault
+	  
+	  Ensure that a null vmexten does not cause a segfault.  When 
+	  sip_send_mwi_to_peer was modified recently to avoid 
+	  deadlocks, vmexten was not expected to be null.  This change handles 
+	  that situation to avoid a segfault
+	  
+	  Merged revisions 345063 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+	* Fixes issue with ConfBridge participants hanging up during DTMF feature 
+	  menu usage getting stuck in conference forever.
+
+	  When a conference user enters the DTMF menu they are suspended from the
+	  bridge while the channel is handed off to the DTMF feature code.  If a
+	  user entered this state and hungup, there existed a race condition where
+	  the channel could not exit the conference because it was waiting on a
+	  signal that would never arrive.  This patch fixes that, because it would
+	  stupid for me to talk about the problem and commit a patch for something
+	  else.
+
+	  (closes issue ASTERISK-18829)
+	  Reported by: zvision
+
+	* Fix app_macro.c MODULEINFO section termination.
+
+	  (closes issue ASTERISK-18848)
+	  Reported by: Tony Mountifield
+
 2011-11-08  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.0.0-rc1 Released.
