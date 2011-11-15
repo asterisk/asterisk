@@ -3495,7 +3495,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				if (pid > -1) {
 					kill(pid, SIGHUP);
 				} else if (agi->fast) {
-					send(agi->ctrl, "HANGUP\n", 7, 0);
+					ast_agi_send(agi->fd, chan, "HANGUP\n");
 				}
 			}
 		}
@@ -3610,7 +3610,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			}
 			waitpid(pid, status, WNOHANG);
 		} else if (agi->fast) {
-			send(agi->ctrl, "HANGUP\n", 7, 0);
+			ast_agi_send(agi->fd, chan, "HANGUP\n");
 		}
 	}
 	fclose(readf);
