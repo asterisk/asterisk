@@ -5692,7 +5692,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_RESTART:
-				if (e->restart.channel > -1 && PRI_CHANNEL(e->ring.channel) != 0xFF) {
+				if (e->restart.channel > -1 && PRI_CHANNEL(e->restart.channel) != 0xFF) {
 					chanpos = pri_find_principle(pri, e->restart.channel, NULL);
 					if (chanpos < 0)
 						ast_log(LOG_WARNING,
