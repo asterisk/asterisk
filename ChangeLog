@@ -1,3 +1,15 @@
+2011-11-16  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.8.0-rc4 Released.
+
+	* Ensure that a null vmexten does not cause a segfault.
+
+	  When sip_send_mwi_to_peer was modified recently to avoid deadlocks,
+	  vmexten was not expected to be null.  This change handles that
+	  situation to avoid a segfault.
+
+	  (closes issue ASTERISK-18663)
+
 2011-11-09  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.8.0-rc3 Released.
