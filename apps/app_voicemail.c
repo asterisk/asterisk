@@ -5303,24 +5303,27 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 {
 	char fromdir[PATH_MAX], todir[PATH_MAX], frompath[PATH_MAX], topath[PATH_MAX];
 	const char *frombox = mbox(vmu, imbox);
+	const char *userfolder;
 	int recipmsgnum;
 	int res = 0;
 
 	ast_log(AST_LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
 
 	if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) { /* If urgent, copy to Urgent folder */
-		create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, "Urgent");
+		userfolder = "Urgent";
 	} else {
-		create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
+		userfolder = "INBOX";
 	}
-	
+
+	create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, userfolder);
+
 	if (!dir)
 		make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	else
 		ast_copy_string(fromdir, dir, sizeof(fromdir));
 
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
-	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
+	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, userfolder);
 
 	if (vm_lock_path(todir))
 		return ERROR_LOCK_PATH;
@@ -6037,7 +6040,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					while (tmpptr) {
 						struct ast_vm_user recipu, *recip;
 						char *exten, *cntx;
-					
+
 						exten = strsep(&tmpptr, "&");
 						cntx = strchr(exten, '@');
 						if (cntx) {
