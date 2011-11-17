@@ -86,7 +86,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
                                                 <para>Do not play message when first person enters</para>
                                         </option>
                                         <option name="s">
-                                                <para>Present menu (user or admin) when <literal>*</literal> is received
+                                                <para>Present menu (user or admin) when <literal>#</literal> is received
                                                 (send to menu).</para>
                                         </option>
                                         <option name="w">
