@@ -12,6 +12,15 @@
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
 
+ConfBridge
+-------------------
+ * Added menu action admin_toggle_mute_participants.  This will mute / unmute
+   all non-admin participants on a conference.  The confbridge configuration file
+   also allows for the default sounds played to all conference users when this
+   occurs to be overriden using sound_participants_unmuted and sound_participants_muted.
+ * Added menu action participant_count.  This will playback the number of current
+   participants in a conference.
+
 SIP Changes
 -----------
  * Asterisk will no longer substitute CID number for CID name into display

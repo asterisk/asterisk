@@ -253,6 +253,10 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 		ast_string_field_set(sounds, join, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_leave")) {
 		ast_string_field_set(sounds, leave, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_participants_muted")) {
+		ast_string_field_set(sounds, participantsmuted, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_participants_unmuted")) {
+		ast_string_field_set(sounds, participantsunmuted, sound_file);
 	} else {
 		return -1;
 	}
@@ -315,7 +319,7 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		}
 		/* Using a bridge profile as a template is a little complicated due to the sounds. Since the sounds
 		 * structure of a dynamic profile will need to be altered, a completely new sounds structure must be
-		 * create instead of simply holding a reference to the one built by the config file. */
+		 * created instead of simply holding a reference to the one built by the config file. */
 		ast_string_field_set(sounds, onlyperson, tmp->sounds->onlyperson);
 		ast_string_field_set(sounds, hasjoin, tmp->sounds->hasjoin);
 		ast_string_field_set(sounds, hasleft, tmp->sounds->hasleft);
@@ -332,6 +336,8 @@ static int set_bridge_option(const char *name, const char *value, struct bridge_
 		ast_string_field_set(sounds, unlockednow, tmp->sounds->unlockednow);
 		ast_string_field_set(sounds, lockednow, tmp->sounds->lockednow);
 		ast_string_field_set(sounds, errormenu, tmp->sounds->errormenu);
+		ast_string_field_set(sounds, participantsmuted, tmp->sounds->participantsmuted);
+		ast_string_field_set(sounds, participantsunmuted, tmp->sounds->participantsunmuted);
 
 		ao2_ref(tmp->sounds, -1); /* sounds struct copied over to it from the template by reference only. */
 		ao2_ref(oldsounds,-1);    /* original sounds struct we don't need anymore */
@@ -540,6 +546,8 @@ static int add_action_to_menu_entry(struct conf_menu_entry *menu_entry, enum con
 	case MENU_ACTION_RESET_LISTENING:
 	case MENU_ACTION_RESET_TALKING:
 	case MENU_ACTION_ADMIN_TOGGLE_LOCK:
+	case MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS:
+	case MENU_ACTION_PARTICIPANT_COUNT:
 	case MENU_ACTION_ADMIN_KICK_LAST:
 	case MENU_ACTION_LEAVE:
 	case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
@@ -655,6 +663,10 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_DECREASE_TALKING, NULL);
 		} else if (!strcasecmp(action, "admin_toggle_conference_lock")) {
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_ADMIN_TOGGLE_LOCK, NULL);
+		} else if (!strcasecmp(action, "admin_toggle_mute_participants")) {
+			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS, NULL);
+		} else if (!strcasecmp(action, "participant_count")) {
+			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_PARTICIPANT_COUNT, NULL);
 		} else if (!strcasecmp(action, "admin_kick_last")) {
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_ADMIN_KICK_LAST, NULL);
 		} else if (!strcasecmp(action, "leave_conference")) {
@@ -1025,6 +1037,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"sound_unlocked_now:   %s\n", conf_get_sound(CONF_SOUND_UNLOCKED_NOW, b_profile.sounds));
 	ast_cli(a->fd,"sound_lockednow:      %s\n", conf_get_sound(CONF_SOUND_LOCKED_NOW, b_profile.sounds));
 	ast_cli(a->fd,"sound_error_menu:     %s\n", conf_get_sound(CONF_SOUND_ERROR_MENU, b_profile.sounds));
+	ast_cli(a->fd,"sound_participants_muted:     %s\n", conf_get_sound(CONF_SOUND_PARTICIPANTS_MUTED, b_profile.sounds));
+	ast_cli(a->fd,"sound_participants_unmuted:     %s\n", conf_get_sound(CONF_SOUND_PARTICIPANTS_UNMUTED, b_profile.sounds));
 	ast_cli(a->fd,"\n");
 
 	conf_bridge_profile_destroy(&b_profile);
@@ -1159,6 +1173,12 @@ static char *handle_cli_confbridge_show_menu(struct ast_cli_entry *e, int cmd, s
 				break;
 			case MENU_ACTION_ADMIN_TOGGLE_LOCK:
 				ast_cli(a->fd, "admin_toggle_conference_lock");
+				break;
+			case MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS:
+				ast_cli(a->fd, "admin_toggle_mute_participants");
+				break;
+			case MENU_ACTION_PARTICIPANT_COUNT:
+				ast_cli(a->fd, "participant_count");
 				break;
 			case MENU_ACTION_ADMIN_KICK_LAST:
 				ast_cli(a->fd, "admin_kick_last");
@@ -1360,8 +1380,9 @@ const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, 
 				conf_bridge_profile_copy(result, &b_data->b_profile);
 				return result;
 			}
+		} else {
+			ast_channel_unlock(chan);
 		}
-		ast_channel_unlock(chan);
 	}
 	if (ast_strlen_zero(bridge_profile_name)) {
 		bridge_profile_name = DEFAULT_BRIDGE_PROFILE;

@@ -83,6 +83,8 @@ enum conf_menu_action_id {
 	MENU_ACTION_NOOP,
 	MENU_ACTION_SET_SINGLE_VIDEO_SRC,
 	MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC,
+	MENU_ACTION_PARTICIPANT_COUNT,
+	MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS,
 };
 
 /*! The conference menu action contains both
@@ -156,6 +158,8 @@ enum conf_sounds {
 	CONF_SOUND_ERROR_MENU,
 	CONF_SOUND_JOIN,
 	CONF_SOUND_LEAVE,
+	CONF_SOUND_PARTICIPANTS_MUTED,
+	CONF_SOUND_PARTICIPANTS_UNMUTED,
 };
 
 struct bridge_profile_sounds {
@@ -180,6 +184,8 @@ struct bridge_profile_sounds {
 		AST_STRING_FIELD(errormenu);
 		AST_STRING_FIELD(leave);
 		AST_STRING_FIELD(join);
+		AST_STRING_FIELD(participantsmuted);
+		AST_STRING_FIELD(participantsunmuted);
 	);
 };
 
@@ -202,6 +208,7 @@ struct conference_bridge {
 	unsigned int users;                                               /*!< Number of users present */
 	unsigned int markedusers;                                         /*!< Number of marked users present */
 	unsigned int locked:1;                                            /*!< Is this conference bridge locked? */
+	unsigned int muted:1;                                            /*!< Is this conference bridge muted? */
 	struct ast_channel *playback_chan;                                /*!< Channel used for playback into the conference bridge */
 	struct ast_channel *record_chan;                                  /*!< Channel used for recording the conference */
 	pthread_t record_thread;                                          /*!< The thread the recording chan lives in */

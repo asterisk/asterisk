@@ -306,6 +306,15 @@ type=bridge
                               ; to whatever operation the video_mode option is set to
                               ; upon release of the video src.
 
+; admin_toggle_mute_participants ; This action allows an administrator to toggle the mute
+                                 ; state for all non-admins within a conference.  All
+                                 ; admin users are unaffected by this option.  Note that all
+                                 ; users, regardless of their admin status, are notified
+                                 ; that the conference is muted.
+
+; participant_count        ; This action plays back the number of participants currently
+                           ; in a conference
+
 [sample_user_menu]
 type=menu
 *=playback_and_continue(conf-usermenu)

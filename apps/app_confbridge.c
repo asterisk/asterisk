@@ -340,6 +340,10 @@ const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds 
 		return S_OR(custom_sounds->join, "confbridge-join");
 	case CONF_SOUND_LEAVE:
 		return S_OR(custom_sounds->leave, "confbridge-leave");
+	case CONF_SOUND_PARTICIPANTS_MUTED:
+		return S_OR(custom_sounds->participantsmuted, "conf-now-muted");
+	case CONF_SOUND_PARTICIPANTS_UNMUTED:
+		return S_OR(custom_sounds->participantsunmuted, "conf-now-unmuted");
 	}
 
 	return "";
@@ -1548,6 +1552,37 @@ static int action_toggle_mute(struct conference_bridge *conference_bridge,
 		"");
 }
 
+static int action_toggle_mute_participants(struct conference_bridge *conference_bridge, struct conference_bridge_user *conference_bridge_user)
+{
+	struct conference_bridge_user *participant = NULL;
+	const char *sound_to_play;
+
+	ao2_lock(conference_bridge);
+
+	/* If already muted, then unmute */
+	conference_bridge->muted = conference_bridge->muted ? 0 : 1;
+	sound_to_play = conf_get_sound((conference_bridge->muted ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED),
+		conference_bridge_user->b_profile.sounds);
+
+	AST_LIST_TRAVERSE(&conference_bridge->users_list, participant, list) {
+		if (!ast_test_flag(&participant->u_profile, USER_OPT_ADMIN)) {
+			participant->features.mute = conference_bridge->muted;
+		}
+	}
+
+	ao2_unlock(conference_bridge);
+
+	/* The host needs to hear it seperately, as they don't get the audio from play_sound_helper */
+	ast_stream_and_wait(conference_bridge_user->chan, sound_to_play, "");
+
+	/* Announce to the group that all participants are muted */
+	ast_autoservice_start(conference_bridge_user->chan);
+	play_sound_helper(conference_bridge, sound_to_play, 0);
+	ast_autoservice_stop(conference_bridge_user->chan);
+
+	return 0;
+}
+
 static int action_playback(struct ast_bridge_channel *bridge_channel, const char *playback_file)
 {
 	char *file_copy = ast_strdupa(playback_file);
@@ -1726,6 +1761,15 @@ static int execute_menu_entry(struct conference_bridge *conference_bridge,
 			res |= action_toggle_mute(conference_bridge,
 				conference_bridge_user,
 				bridge_channel->chan);
+			break;
+		case MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS:
+			if (!isadmin) {
+				break;
+			}
+			action_toggle_mute_participants(conference_bridge, conference_bridge_user);
+			break;
+		case MENU_ACTION_PARTICIPANT_COUNT:
+			announce_user_count(conference_bridge, conference_bridge_user);
 			break;
 		case MENU_ACTION_PLAYBACK:
 			if (!stop_prompts) {
@@ -1944,14 +1988,15 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 			ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 			return CLI_SUCCESS;
 		}
-		ast_cli(a->fd, "Channel                       User Profile     Bridge Profile   Menu\n");
-		ast_cli(a->fd, "============================= ================ ================ ================\n");
+		ast_cli(a->fd, "Channel                       User Profile     Bridge Profile   Menu             CallerID\n");
+		ast_cli(a->fd, "============================= ================ ================ ================ ================\n");
 		ao2_lock(bridge);
 		AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
 			ast_cli(a->fd, "%-29s ", participant->chan->name);
 			ast_cli(a->fd, "%-17s", participant->u_profile.name);
 			ast_cli(a->fd, "%-17s", participant->b_profile.name);
 			ast_cli(a->fd, "%-17s", participant->menu_name);
+			ast_cli(a->fd, "%-17s", S_COR(participant->chan->caller.id.number.valid, participant->chan->caller.id.number.str, "<unknown>"));
 			ast_cli(a->fd, "\n");
 		}
 		ao2_unlock(bridge);
