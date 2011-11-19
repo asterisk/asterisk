@@ -364,16 +364,16 @@ int ast_db_del(const char *family, const char *key)
 	return res;
 }
 
-int ast_db_deltree(const char *family, const char *subfamily)
+int ast_db_deltree(const char *family, const char *keytree)
 {
 	sqlite3_stmt *stmt = deltree_stmt;
 	char prefix[MAX_DB_FIELD];
 	int res = 0;
 
 	if (!ast_strlen_zero(family)) {
-		if (!ast_strlen_zero(subfamily)) {
+		if (!ast_strlen_zero(keytree)) {
 			/* Family and key tree */
-			snprintf(prefix, sizeof(prefix), "/%s/%s", family, subfamily);
+			snprintf(prefix, sizeof(prefix), "/%s/%s", family, keytree);
 		} else {
 			/* Family only */
 			snprintf(prefix, sizeof(prefix), "/%s", family);
@@ -399,16 +399,16 @@ int ast_db_deltree(const char *family, const char *subfamily)
 	return res;
 }
 
-struct ast_db_entry *ast_db_gettree(const char *family, const char *subfamily)
+struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 {
 	char prefix[MAX_DB_FIELD];
 	sqlite3_stmt *stmt = gettree_stmt;
 	struct ast_db_entry *cur, *last = NULL, *ret = NULL;
 
 	if (!ast_strlen_zero(family)) {
-		if (!ast_strlen_zero(subfamily)) {
+		if (!ast_strlen_zero(keytree)) {
 			/* Family and key tree */
-			snprintf(prefix, sizeof(prefix), "/%s/%s", family, subfamily);
+			snprintf(prefix, sizeof(prefix), "/%s/%s", family, keytree);
 		} else {
 			/* Family only */
 			snprintf(prefix, sizeof(prefix), "/%s", family);
@@ -554,9 +554,11 @@ static char *handle_cli_database_deltree(struct ast_cli_entry *e, int cmd, struc
 	case CLI_INIT:
 		e->command = "database deltree";
 		e->usage =
-			"Usage: database deltree <family> [subfamily]\n"
-			"       Deletes a family or specific subfamily within a family\n"
-			"       in the Asterisk database.\n";
+			"Usage: database deltree <family> [keytree]\n"
+			"   OR: database deltree <family>[/keytree]\n"
+			"       Deletes a family or specific keytree within a family\n"
+			"       in the Asterisk database.  The two arguments may be\n"
+			"       separated by either a space or a slash.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -587,9 +589,11 @@ static char *handle_cli_database_show(struct ast_cli_entry *e, int cmd, struct a
 	case CLI_INIT:
 		e->command = "database show";
 		e->usage =
-			"Usage: database show [family [subfamily]]\n"
+			"Usage: database show [family [keytree]]\n"
+			"   OR: database show [family[/keytree]]\n"
 			"       Shows Asterisk database contents, optionally restricted\n"
-			"       to a given family, or family and subfamily.\n";
+			"       to a given family, or family and keytree. The two arguments\n"
+			"       may be separated either by a space or by a slash.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -647,7 +651,7 @@ static char *handle_cli_database_showkey(struct ast_cli_entry *e, int cmd, struc
 	case CLI_INIT:
 		e->command = "database showkey";
 		e->usage =
-			"Usage: database showkey <subfamily>\n"
+			"Usage: database showkey <keytree>\n"
 			"       Shows Asterisk database contents, restricted to a given key.\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -729,7 +733,7 @@ static struct ast_cli_entry cli_database[] = {
 	AST_CLI_DEFINE(handle_cli_database_get,     "Gets database value"),
 	AST_CLI_DEFINE(handle_cli_database_put,     "Adds/updates database value"),
 	AST_CLI_DEFINE(handle_cli_database_del,     "Removes database key/value"),
-	AST_CLI_DEFINE(handle_cli_database_deltree, "Removes database subfamily/values"),
+	AST_CLI_DEFINE(handle_cli_database_deltree, "Removes database keytree/values"),
 	AST_CLI_DEFINE(handle_cli_database_query,   "Run a user-specified query on the astdb"),
 };
 
