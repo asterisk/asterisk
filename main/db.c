@@ -430,8 +430,10 @@ static char *handle_cli_database_deltree(struct ast_cli_entry *e, int cmd, struc
 		e->command = "database deltree";
 		e->usage =
 			"Usage: database deltree <family> [keytree]\n"
+			"   OR: database deltree <family>[/keytree]\n"
 			"       Deletes a family or specific keytree within a family\n"
-			"       in the Asterisk database.\n";
+			"       in the Asterisk database.  The two arguments may be\n"
+			"       separated by either a space or a slash.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -476,8 +478,10 @@ static char *handle_cli_database_show(struct ast_cli_entry *e, int cmd, struct a
 		e->command = "database show";
 		e->usage =
 			"Usage: database show [family [keytree]]\n"
+			"   OR: database show [family[/keytree]]\n"
 			"       Shows Asterisk database contents, optionally restricted\n"
-			"       to a given family, or family and keytree.\n";
+			"       to a given family, or family and keytree. The two arguments\n"
+			"       may be separated either by a space or by a slash.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
