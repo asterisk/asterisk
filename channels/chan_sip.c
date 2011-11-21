@@ -25350,7 +25350,6 @@ static int reload_config(enum channelreloadreason reason)
 	ast_copy_string(default_mohsuggest, DEFAULT_MOHSUGGEST, sizeof(default_mohsuggest));
 	ast_copy_string(default_vmexten, DEFAULT_VMEXTEN, sizeof(default_vmexten));
 	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833); /*!< Default DTMF setting: RFC2833 */
-	ast_set_flag(&global_flags[0], SIP_NAT_RFC3581);  /*!< NAT support if requested by device with rport */
 	ast_set_flag(&global_flags[0], SIP_DIRECT_MEDIA); /*!< Allow re-invites */
 	ast_set_flag(&global_flags[0], SIP_NAT_ALWAYS);   /*!< Default to nat=yes */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_FORWARD_LOOP_DETECTED); /*!< Set up call forward on 482 Loop Detected */
