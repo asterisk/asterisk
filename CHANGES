@@ -9,6 +9,18 @@
 ======================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 1.8.7.1 -----------------------------
+------------------------------------------------------------------------------
+
+SIP Changes
+-----------
+    * Due to potential username discovery vulnerabilities, the 'nat' setting in sip.conf
+      now defaults to yes. It is very important that phones requiring nat=no be
+      specifically set as such instead of relying on the default setting. If at all
+      possible, all devices should have nat settings configured in the general section as
+      opposed to configuring nat per-device.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.6.2 to Asterisk 1.8 ----------------
 ------------------------------------------------------------------------------
 
