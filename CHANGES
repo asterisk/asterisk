@@ -389,6 +389,12 @@ SIP Changes
  * Addition of the 'auth_options_requests' option for turning on and off
    authentication for OPTIONS requests in chan_sip.
 
+Configuration files
+-------------------
+ * Add #tryinclude statement for config files.  This provides the same
+   functionality as the #include statement however an asterisk module will
+   still load if the filename does not exist.  Using the #include statement
+   Asterisk will not allow the module to load.
 
 IAX2 Changes
 -----------

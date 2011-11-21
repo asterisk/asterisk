@@ -1202,6 +1202,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		char *cur2;
 		char real_inclusion_name[256];
 		int do_include = 0;	/* otherwise, it is exec */
+		int try_include = 0;
 
 		cur++;
 		c = cur;
@@ -1221,6 +1222,9 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		}
 		if (!strcasecmp(cur, "include")) {
 			do_include = 1;
+		} else if (!strcasecmp(cur, "tryinclude")) {
+			do_include = 1;
+			try_include = 1;
 		} else if (!strcasecmp(cur, "exec")) {
 			if (!ast_opt_exec_includes) {
 				ast_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in asterisk.conf (options section)!\n");
@@ -1232,8 +1236,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		}
 
 		if (c == NULL) {
-			ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
-					do_include ? "include" : "exec",
+			ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n",
+					do_include ? "include / tryinclude" : "exec",
 					do_include ? "filename" : "/path/to/executable",
 					lineno,
 					configfile);
@@ -1278,7 +1282,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		do_include = ast_config_internal_load(cur, cfg, flags, real_inclusion_name, who_asked) ? 1 : 0;
 		if (!ast_strlen_zero(exec_file))
 			unlink(exec_file);
-		if (!do_include) {
+		if (!do_include && !try_include) {
 			ast_log(LOG_ERROR, "The file '%s' was listed as a #include but it does not exist.\n", cur);
 			return -1;
 		}
