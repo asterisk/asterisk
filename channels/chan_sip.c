@@ -18206,15 +18206,14 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		}
 	} else if (!strcasecmp(v->name, "nat")) {
 		ast_set_flag(&mask[0], SIP_NAT);
-		ast_clear_flag(&flags[0], SIP_NAT);
-		if (!strcasecmp(v->value, "never"))
-			ast_set_flag(&flags[0], SIP_NAT_NEVER);
-		else if (!strcasecmp(v->value, "route"))
-			ast_set_flag(&flags[0], SIP_NAT_ROUTE);
-		else if (ast_true(v->value))
-			ast_set_flag(&flags[0], SIP_NAT_ALWAYS);
-		else
-			ast_set_flag(&flags[0], SIP_NAT_RFC3581);
+		ast_set_flag(&flags[0], SIP_NAT_ALWAYS);
+		if (!strcasecmp(v->value, "never")) {
+			ast_set_flags_to(&flags[0], SIP_NAT, SIP_NAT_NEVER);
+		} else if (!strcasecmp(v->value, "route")) {
+			ast_set_flags_to(&flags[0], SIP_NAT, SIP_NAT_ROUTE);
+		} else if (ast_false(v->value)) {
+			ast_set_flags_to(&flags[0], SIP_NAT, SIP_NAT_RFC3581);
+		}
 	} else if (!strcasecmp(v->name, "canreinvite")) {
 		ast_set_flag(&mask[0], SIP_REINVITE);
 		ast_clear_flag(&flags[0], SIP_REINVITE);
@@ -18956,6 +18955,18 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	return peer;
 }
 
+static void display_nat_warning(const char *cat, int reason, struct ast_flags *flags) {
+	int global_nat, specific_nat;
+
+	if (reason == CHANNEL_MODULE_LOAD && (specific_nat = ast_test_flag(&flags[0], SIP_NAT)) != (global_nat = ast_test_flag(&global_flags[0], SIP_NAT))) {
+		ast_log(LOG_WARNING, "!!! PLEASE NOTE: Setting 'nat' for a peer/user that differs from the  global setting can make\n");
+		ast_log(LOG_WARNING, "!!! the name of that peer/user discoverable by an attacker. Replies for non-existent peers/users\n");
+		ast_log(LOG_WARNING, "!!! will be sent to a different port than replies for an existing peer/user. If at all possible,\n");
+		ast_log(LOG_WARNING, "!!! use the global 'nat' setting and do not set 'nat' per peer/user.\n");
+		ast_log(LOG_WARNING, "!!! (config category='%s' global='%s' peer/user='%s')\n", cat, nat2str(global_nat), nat2str(specific_nat));
+	}
+}
+
 /*! \brief Re-read SIP.conf config file
 \note	This function reloads all config data, except for
 	active peers (with registrations). They will only
@@ -19095,9 +19106,10 @@ static int reload_config(enum channelreloadreason reason)
 	ast_copy_string(default_mohinterpret, DEFAULT_MOHINTERPRET, sizeof(default_mohinterpret));
 	ast_copy_string(default_mohsuggest, DEFAULT_MOHSUGGEST, sizeof(default_mohsuggest));
 	ast_copy_string(default_vmexten, DEFAULT_VMEXTEN, sizeof(default_vmexten));
-	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
-	ast_set_flag(&global_flags[0], SIP_NAT_RFC3581);			/*!< NAT support if requested by device with rport */
-	ast_set_flag(&global_flags[0], SIP_CAN_REINVITE);			/*!< Allow re-invites */
+	ast_set_flag(&global_flags[0], SIP_DTMF_RFC2833); /*!< Default DTMF setting: RFC2833 */
+	ast_set_flag(&global_flags[0], SIP_NAT_RFC3581);  /*!< NAT support if requested by device with rport */
+	ast_set_flag(&global_flags[0], SIP_CAN_REINVITE); /*!< Allow re-invites */
+	ast_set_flag(&global_flags[0], SIP_NAT_ALWAYS);   /*!< Default to nat=yes */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_FORWARD_LOOP_DETECTED); /*!< Set up call forward on 482 Loop Detected */
 
 	/* Debugging settings, always default to off */
@@ -19477,6 +19489,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (is_user) {
 				user = build_user(cat, ast_variable_browse(cfg, cat), NULL, 0);
 				if (user) {
+					display_nat_warning(cat, reason, &user->flags[0]);
 					ASTOBJ_CONTAINER_LINK(&userl,user);
 					ASTOBJ_UNREF(user, sip_destroy_user);
 					user_count++;
@@ -19485,6 +19498,9 @@ static int reload_config(enum channelreloadreason reason)
 			if (is_peer) {
 				peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0, 0);
 				if (peer) {
+					if (!is_user) {
+						display_nat_warning(cat, reason, &peer->flags[0]);
+					}
 					ASTOBJ_CONTAINER_LINK(&peerl,peer);
 					ASTOBJ_UNREF(peer, sip_destroy_peer);
 					peer_count++;
@@ -19492,6 +19508,7 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		}
 	}
+
 	if (ast_find_ourip(&__ourip, bindaddr)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
 		ast_config_destroy(cfg);

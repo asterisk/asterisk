@@ -1,3 +1,11 @@
+Changes since Asterisk 1.4.42
+
+    * Due to potential username discovery vulnerabilities, the 'nat' setting in sip.conf
+      now defaults to yes. It is very important that phones requiring nat=no be
+      specifically set as such instead of relying on the default setting. If at all
+      possible, all devices should have nat settings configured in the general section as
+      opposed to configuring nat per-device.
+
 Changes since Asterisk 1.2:
 
     * over 4,000 commits since 1.2
