@@ -54,6 +54,8 @@ struct ast_dnsmgr_entry {
 	struct ast_sockaddr *result;
 	/*! SRV record to lookup, if provided. Composed of service, protocol, and domain name: _Service._Proto.Name */
 	char *service;
+	/*! Address family to filter DNS responses. */
+	unsigned int family;
 	/*! Set to 1 if the entry changes */
 	unsigned int changed:1;
 	ast_mutex_t lock;
@@ -83,7 +85,7 @@ static struct refresh_info master_refresh_info = {
 	.verbose = 0,
 };
 
-struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct ast_sockaddr *result, const char *service)
+struct ast_dnsmgr_entry *ast_dnsmgr_get_family(const char *name, struct ast_sockaddr *result, const char *service, unsigned int family)
 {
 	struct ast_dnsmgr_entry *entry;
 	int total_size = sizeof(*entry) + strlen(name) + (service ? strlen(service) + 1 : 0);
@@ -99,12 +101,18 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct ast_sockaddr *r
 		entry->service = ((char *) entry) + sizeof(*entry) + strlen(name);
 		strcpy(entry->service, service);
 	}
+	entry->family = family;
 
 	AST_RWLIST_WRLOCK(&entry_list);
 	AST_RWLIST_INSERT_HEAD(&entry_list, entry, list);
 	AST_RWLIST_UNLOCK(&entry_list);
 
 	return entry;
+}
+
+struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct ast_sockaddr *result, const char *service)
+{
+	return ast_dnsmgr_get_family(name, result, service, 0);
 }
 
 void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
@@ -124,6 +132,8 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 
 int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service)
 {
+	unsigned int family;
+
 	if (ast_strlen_zero(name) || !result || !dnsmgr) {
 		return -1;
 	}
@@ -131,6 +141,9 @@ int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_
 	if (*dnsmgr && !strcasecmp((*dnsmgr)->name, name)) {
 		return 0;
 	}
+
+	/* Lookup address family filter. */
+	family = result->ss.ss_family;
 
 	/*
 	 * If it's actually an IP address and not a name, there's no
@@ -151,7 +164,7 @@ int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_
 	}
 
 	ast_verb(3, "adding dns manager for '%s'\n", name);
-	*dnsmgr = ast_dnsmgr_get(name, result, service);
+	*dnsmgr = ast_dnsmgr_get_family(name, result, service, family);
 	return !*dnsmgr;
 }
 
@@ -169,6 +182,7 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 		ast_verb(3, "refreshing '%s'\n", entry->name);
 	}
 
+	tmp.ss.ss_family = entry->family;
 	if (!ast_get_ip_or_srv(&tmp, entry->name, entry->service)) {
 		if (!ast_sockaddr_port(&tmp)) {
 			ast_sockaddr_set_port(&tmp, ast_sockaddr_port(entry->result));
