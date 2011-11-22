@@ -219,6 +219,8 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 
 	if (!strcasecmp(sound_name, "sound_only_person")) {
 		ast_string_field_set(sounds, onlyperson, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_only_one")) {
+		ast_string_field_set(sounds, onlyone, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_has_joined")) {
 		ast_string_field_set(sounds, hasjoin, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_has_left")) {
