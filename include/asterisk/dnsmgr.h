@@ -44,6 +44,7 @@ struct ast_dnsmgr_entry;
  * \param result where the DNS manager should store the IP address as it refreshes it.
  * \param service
  *
+ * \details
  * This function allocates a new DNS manager entry object, and fills it with the
  * provided hostname and IP address.  This function does not force an initial lookup
  * of the IP address.  So, generally, this should be used when the initial address
@@ -54,6 +55,24 @@ struct ast_dnsmgr_entry;
  * \version 1.8.0 result changed from struct ast_sockaddr_in to ast_sockaddr for IPv6 support
  */
 struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct ast_sockaddr *result, const char *service);
+
+/*!
+ * \brief Allocate a new DNS manager entry
+ *
+ * \param name the hostname
+ * \param result where the DNS manager should store the IP address as it refreshes it.
+ * \param service
+ * \param family Address family to filter DNS addresses.
+ *
+ * \details
+ * This function allocates a new DNS manager entry object, and fills it with the
+ * provided hostname and IP address.  This function does not force an initial lookup
+ * of the IP address.  So, generally, this should be used when the initial address
+ * is already known.
+ *
+ * \return a DNS manager entry
+ */
+struct ast_dnsmgr_entry *ast_dnsmgr_get_family(const char *name, struct ast_sockaddr *result, const char *service, unsigned int family);
 
 /*!
  * \brief Free a DNS manager entry
