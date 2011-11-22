@@ -107,8 +107,8 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 
 /* Note: The AST_LOG_* macros below are the same as
  * the LOG_* macros and are intended to eventually replace
- * the LOG_* macros to avoid name collisions as has been
- * seen in app_voicemail. However, please do NOT remove
+ * the LOG_* macros to avoid name collisions with the syslog(3)
+ * log levels. However, please do NOT remove
  * the LOG_* macros from the source since these may be still
  * needed for third-party modules
  */
