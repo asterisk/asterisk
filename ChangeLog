@@ -1,3 +1,49 @@
+2011-11-23  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.0.0-rc3 Released.
+
+	* Fix a change in behavior in 'database show' from 1.8.
+
+	  In 1.8 and previous versions, one could use any fullword portion of
+	  the key name, including the full key, to obtain the record. Until this
+	  patch, this did not work for the full key.
+
+	   (closes issue ASTERISK-18886)
+
+	* Default to nat=yes; warn when nat in general and peer differ
+
+	  It is possible to enumerate SIP usernames when the general and
+	  user/peer nat settings differ in whether to respond to the port a request is
+	  sent from or the port listed for responses in the Via header. In 1.4 and
+	  1.6.2, this would mean if one setting was nat=yes or nat=route and the other
+	  was either nat=no or nat=never. In 1.8 and 10, this would mean when one
+	  was nat=force_rport and the other was nat=no.
+
+	  In order to address this problem, it was decided to switch the default
+	  behavior to nat=yes/force_rport as it is the most commonly used option
+	  and to strongly discourage setting nat per-peer/user when at all
+	  possible.
+
+	  For more discussion of the issue, please see:
+	    http://lists.digium.com/pipermail/asterisk-dev/2011-November/052191.html
+
+	    (closes issue ASTERISK-18862)
+	    Review: https://reviewboard.asterisk.org/r/1591/
+
+	* Fixed SendMessage stripping extension from To: header in SIP MESSAGE
+
+	  When using the MessageSend application to send a SIP MESSAGE to a
+	  non-peer, chan_sip attempted to validate the hostname or IP Address. In the
+	  process, it stripped off the extension and failed to add it back to the sip_pvt
+	  structure before transmitting. This patch adds the full URI passed in
+	  from the message core to the sip_pvt structure.
+
+	    (closes issue ASTERISK-18903)
+	      Reported by: Shaun Clark
+	      Tested by: Matt Jordan
+
+	    Review: https://reviewboard.asterisk.org/r/1597/
+
 2011-11-15  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.0.0-rc2 Released.
