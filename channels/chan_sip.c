@@ -1477,7 +1477,7 @@ static void check_via(struct sip_pvt *p, struct sip_request *req);
 static int get_rpid(struct sip_pvt *p, struct sip_request *oreq);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, char **number, int *reason);
 static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id);
-static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewline);
+static int get_msg_text(char *buf, int len, struct sip_request *req);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 static void update_connectedline(struct sip_pvt *p, const void *data, size_t datalen);
 static void update_redirecting(struct sip_pvt *p, const void *data, size_t datalen);
@@ -15986,25 +15986,32 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod,
 	return check_user_full(p, req, sipmethod, uri, reliable, addr, NULL);
 }
 
-/*! \brief  Get text out of a SIP MESSAGE packet */
-static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewline)
+/*! \brief Get message body from a SIP request
+ * \param buf Destination buffer
+ * \param len Destination buffer size
+ * \param req The SIP request
+ *
+ * When parsing the request originally, the lines are split by LF or CRLF.
+ * This function adds a single LF after every line.
+ */
+static int get_msg_text(char *buf, int len, struct sip_request *req)
 {
 	int x;
-	int y;
+	int linelen;
 
 	buf[0] = '\0';
-	/*XXX isn't strlen(buf) going to always be 0? */
-	y = len - strlen(buf) - 5;
-	if (y < 0)
-		y = 0;
-	for (x = 0; x < req->lines; x++) {
+	--len; /* reserve strncat null */
+	for (x = 0; len && x < req->lines; ++x) {
 		const char *line = REQ_OFFSET_TO_STR(req, line[x]);
-		strncat(buf, line, y); /* safe */
-		y -= strlen(line) + 1;
-		if (y < 0)
-			y = 0;
-		if (y != 0 && addnewline)
+		strncat(buf, line, len); /* safe */
+		linelen = strlen(buf);
+		buf += linelen;
+		len -= linelen;
+		if (len) {
 			strcat(buf, "\n"); /* safe */
+			++buf;
+			--len;
+		}
 	}
 	return 0;
 }
@@ -16016,6 +16023,7 @@ static int get_msg_text(char *buf, int len, struct sip_request *req, int addnewl
 static void receive_message(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1400];	
+	char *bufp;
 	struct ast_frame f;
 	const char *content_type = get_header(req, "Content-Type");
 
@@ -16026,12 +16034,19 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		return;
 	}
 
-	if (get_msg_text(buf, sizeof(buf), req, FALSE)) {
+	if (get_msg_text(buf, sizeof(buf), req)) {
 		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
 		transmit_response(p, "202 Accepted", req);
 		if (!p->owner)
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
+	}
+
+	/* Strip trailing line feeds from message body. (get_msg_text may add
+	 * a trailing linefeed and we don't need any at the end) */
+	bufp = buf + strlen(buf);
+	while (--bufp >= buf && *bufp == '\n') {
+		*bufp = '\0';
 	}
 
 	if (p->owner) {
@@ -18543,7 +18558,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			return;
 		}
 
-		get_msg_text(buf, sizeof(buf), req, TRUE);
+		get_msg_text(buf, sizeof(buf), req);
 		duration = 100; /* 100 ms */
 
 		if (ast_strlen_zero(buf)) {
@@ -21493,7 +21508,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		}
 
 		/* Get the text of the attachment */
-		if (get_msg_text(buf, sizeof(buf), req, TRUE)) {
+		if (get_msg_text(buf, sizeof(buf), req)) {
 			ast_log(LOG_WARNING, "Unable to retrieve attachment from NOTIFY %s\n", p->callid);
 			transmit_response(p, "400 Bad request", req);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
