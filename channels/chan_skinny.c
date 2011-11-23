@@ -6926,6 +6926,7 @@ static struct ast_channel *skinny_request(const char *type, format_t format, con
  			if (type & (TYPE_DEVICE)) {
 				struct ast_sockaddr CDEV_addr_tmp;
 
+				CDEV_addr_tmp.ss.ss_family = AF_INET;
 				if (ast_get_ip(&CDEV_addr_tmp, v->value)) {
  					ast_log(LOG_WARNING, "Bad IP '%s' at line %d.\n", v->value, v->lineno);
  				}

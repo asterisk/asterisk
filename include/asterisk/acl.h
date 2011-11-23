@@ -123,36 +123,39 @@ int ast_apply_ha(const struct ast_ha *ha, const struct ast_sockaddr *addr);
  * \details
  * Similar in nature to ast_gethostbyname, except that instead
  * of getting an entire hostent structure, you instead are given
- * only the IP address inserted into a sockaddr_in structure.
+ * only the IP address inserted into a ast_sockaddr structure.
  *
- * \param[out] addr The IP address is written into sin->sin_addr
- * \param value The hostname to look up
+ * \param addr The IP address found.  The address family is used
+ * as an input parameter to filter the returned addresses.  If
+ * it is 0, both IPv4 and IPv6 addresses can be returned.
+ * \param hostname The hostname to look up
+ *
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_get_ip(struct ast_sockaddr *addr, const char *value);
+int ast_get_ip(struct ast_sockaddr *addr, const char *hostname);
 
 /*!
  * \brief Get the IP address given a hostname and optional service
  *
  * \details
  * If the service parameter is non-NULL, then an SRV lookup will be made by
- * prepending the service to the value parameter, separated by a '.'
- * For example, if value is "example.com" and service is "_sip._udp" then
+ * prepending the service to the hostname parameter, separated by a '.'
+ * For example, if hostname is "example.com" and service is "_sip._udp" then
  * an SRV lookup will be done for "_sip._udp.example.com". If service is NULL,
  * then this function acts exactly like a call to ast_get_ip.
  *
- * \param addr The IP address found.  The address family is used as an input parameter to
- * filter the returned addresses. if it is 0, both IPv4 and IPv6 addresses
- * can be returned.
+ * \param addr The IP address found.  The address family is used
+ * as an input parameter to filter the returned addresses.  If
+ * it is 0, both IPv4 and IPv6 addresses can be returned.
  *
- * \param value The hostname to look up
+ * \param hostname The hostname to look up
  * \param service A specific service provided by the host. A NULL service results
  * in an A-record lookup instead of an SRV lookup
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *value, const char *service);
+int ast_get_ip_or_srv(struct ast_sockaddr *addr, const char *hostname, const char *service);
 
 /*!
  * \brief Get our local IP address when contacting a remote host
