@@ -228,9 +228,17 @@ static struct jingle_container jingle_list;
 static void jingle_member_destroy(struct jingle *obj)
 {
 	obj->cap = ast_format_cap_destroy(obj->cap);
+	if (obj->connection) {
+		ASTOBJ_UNREF(obj->connection, ast_aji_client_destroy);
+	}
+	if (obj->buddy) {
+		ASTOBJ_UNREF(obj->buddy, ast_aji_buddy_destroy);
+	}
 	ast_free(obj);
 }
 
+/* XXX This could be a source of reference leaks given that the CONTAINER_FIND
+ * macros bump the refcount while the traversal does not. */
 static struct jingle *find_jingle(char *name, char *connection)
 {
 	struct jingle *jingle = NULL;
@@ -744,7 +752,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 {
 	struct jingle_pvt *tmp = NULL;
 	struct aji_resource *resources = NULL;
-	struct aji_buddy *buddy;
+	struct aji_buddy *buddy = NULL;
 	char idroster[200];
 	struct ast_sockaddr bindaddr_tmp;
 
@@ -752,8 +760,9 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 	if (!sid && !strchr(from, '/')) {	/* I started call! */
 		if (!strcasecmp(client->name, "guest")) {
 			buddy = ASTOBJ_CONTAINER_FIND(&client->connection->buddies, from);
-			if (buddy)
+			if (buddy) {
 				resources = buddy->resources;
+			}
 		} else if (client->buddy)
 			resources = client->buddy->resources;
 		while (resources) {
@@ -766,7 +775,13 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 			snprintf(idroster, sizeof(idroster), "%s/%s", from, resources->resource);
 		else {
 			ast_log(LOG_ERROR, "no jingle capable clients to talk to.\n");
+			if (buddy) {
+				ASTOBJ_UNREF(buddy, ast_aji_buddy_destroy);
+			}
 			return NULL;
+		}
+		if (buddy) {
+			ASTOBJ_UNREF(buddy, ast_aji_buddy_destroy);
 		}
 	}
 	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
@@ -1007,15 +1022,18 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		tmp = tmp->next;
 	}
 
- 	if (!strcasecmp(client->name, "guest")){
- 		/* the guest account is not tied to any configured XMPP client,
- 		   let's set it now */
- 		client->connection = ast_aji_get_client(from);
- 		if (!client->connection) {
- 			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", from);
- 			return -1;
- 		}
- 	}
+	if (!strcasecmp(client->name, "guest")){
+		/* the guest account is not tied to any configured XMPP client,
+		   let's set it now */
+		if (client->connection) {
+			ASTOBJ_UNREF(client->connection, ast_aji_client_destroy);
+		}
+		client->connection = ast_aji_get_client(from);
+		if (!client->connection) {
+			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", from);
+			return -1;
+		}
+	}
 
 	p = jingle_alloc(client, pak->from->partial, iks_find_attrib(pak->query, JINGLE_SID));
 	if (!p) {
@@ -1552,6 +1570,9 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 	if (!strcasecmp(client->name, "guest")){
 		/* the guest account is not tied to any configured XMPP client,
 		   let's set it now */
+		if (client->connection) {
+			ASTOBJ_UNREF(client->connection, ast_aji_client_destroy);
+		}
 		client->connection = ast_aji_get_client(sender);
 		if (!client->connection) {
 			ast_log(LOG_ERROR, "No XMPP client to talk to, us (partial JID) : %s\n", sender);
@@ -1882,6 +1903,9 @@ static int jingle_load_config(void)
 					ASTOBJ_CONTAINER_TRAVERSE(clients, 1, {
 						ASTOBJ_WRLOCK(iterator);
 						ASTOBJ_WRLOCK(member);
+						if (member->connection) {
+							ASTOBJ_UNREF(member->connection, ast_aji_client_destroy);
+						}
 						member->connection = NULL;
 						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,	JINGLE_NS, IKS_RULE_DONE);
 						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,	JINGLE_DTMF_NS, IKS_RULE_DONE);
