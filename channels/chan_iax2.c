@@ -12367,7 +12367,8 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 		if (port < 1)
 			port = IAX_DEFAULT_PORTNO;
 	}
-	
+
+	sin_tmp.ss.ss_family = AF_INET;
 	if (!ast_get_ip(&sin_tmp, addr)) {
 		struct ast_netsock *sock;
 		int res;
@@ -12583,6 +12584,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				struct ast_sockaddr peer_defaddr_tmp;
 
+				peer_defaddr_tmp.ss.ss_family = AF_INET;
 				if (ast_get_ip(&peer_defaddr_tmp, v->value)) {
 					return peer_unref(peer);
 				}

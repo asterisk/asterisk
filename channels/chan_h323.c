@@ -1463,6 +1463,7 @@ static struct oh323_user *build_user(const char *name, struct ast_variable *v, s
 			} else {
 				struct ast_sockaddr tmp;
 
+				tmp.ss.ss_family = AF_INET;
 				if (ast_get_ip(&tmp, v->value)) {
 					ASTOBJ_UNREF(user, oh323_destroy_user);
 					return NULL;
