@@ -163,7 +163,7 @@ struct moh_files_state {
 	int pos;
 	int save_pos;
 	int save_total;
-	char *save_pos_filename;
+	char save_pos_filename[PATH_MAX];
 };
 
 #define MOH_QUIET		(1 << 0)
@@ -298,10 +298,10 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		return -1;
 	}
 
-	if (state->pos == 0 && state->save_pos_filename == NULL) {
+	if (state->pos == 0 && ast_strlen_zero(state->save_pos_filename)) {
 		/* First time so lets play the file. */
 		state->save_pos = -1;
-	} else if (state->save_pos >= 0 && state->save_pos < state->class->total_files && state->class->filearray[state->save_pos] == state->save_pos_filename) {
+	} else if (state->save_pos >= 0 && state->save_pos < state->class->total_files && !strcmp(state->class->filearray[state->save_pos], state->save_pos_filename)) {
 		/* If a specific file has been saved confirm it still exists and that it is still valid */
 		state->pos = state->save_pos;
 		state->save_pos = -1;
@@ -338,7 +338,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	}
 
 	/* Record the pointer to the filename for position resuming later */
-	state->save_pos_filename = state->class->filearray[state->pos];
+	ast_copy_string(state->save_pos_filename, state->class->filearray[state->pos], sizeof(state->save_pos_filename));
 
 	ast_debug(1, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
 
