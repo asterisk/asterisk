@@ -91,6 +91,8 @@ static int rtcpstats;			/*!< Are we debugging RTCP? */
 static int rtcpinterval = RTCP_DEFAULT_INTERVALMS; /*!< Time between rtcp reports in millisecs */
 static struct ast_sockaddr rtpdebugaddr;	/*!< Debug packets to/from this host */
 static struct ast_sockaddr rtcpdebugaddr;	/*!< Debug RTCP packets to/from this host */
+static int rtpdebugport;		/*< Debug only RTP packets from IP or IP+Port if port is > 0 */
+static int rtcpdebugport;		/*< Debug only RTCP packets from IP or IP+Port if port is > 0 */
 #ifdef SO_NO_CHECK
 static int nochecksums;
 #endif
@@ -315,8 +317,15 @@ static inline int rtp_debug_test_addr(struct ast_sockaddr *addr)
 	if (!rtpdebug) {
 		return 0;
 	}
+	if (!ast_sockaddr_isnull(&rtpdebugaddr)) {
+		if (rtpdebugport) {
+			return (ast_sockaddr_cmp(&rtpdebugaddr, addr) == 0); /* look for RTP packets from IP+Port */
+		} else {
+			return (ast_sockaddr_cmp_addr(&rtpdebugaddr, addr) == 0); /* only look for RTP packets from IP */
+		}
+	}
 
-	return ast_sockaddr_isnull(&rtpdebugaddr) ? 1 : ast_sockaddr_cmp(&rtpdebugaddr, addr) == 0;
+	return 1;
 }
 
 static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
@@ -324,8 +333,15 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 	if (!rtcpdebug) {
 		return 0;
 	}
+	if (!ast_sockaddr_isnull(&rtcpdebugaddr)) {
+		if (rtcpdebugport) {
+			return (ast_sockaddr_cmp(&rtcpdebugaddr, addr) == 0); /* look for RTCP packets from IP+Port */
+		} else {
+			return (ast_sockaddr_cmp_addr(&rtcpdebugaddr, addr) == 0); /* only look for RTCP packets from IP */
+		}
+	}
 
-	return ast_sockaddr_isnull(&rtcpdebugaddr) ? 1 : ast_sockaddr_cmp(&rtcpdebugaddr, addr) == 0;
+	return 1;
 }
 
 static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp)
@@ -2723,11 +2739,14 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 static char *rtp_do_debug_ip(struct ast_cli_args *a)
 {
 	char *arg = ast_strdupa(a->argv[4]);
+	char *debughost = NULL;
+	char *debugport = NULL;
 
-	if (!ast_sockaddr_parse(&rtpdebugaddr, arg, 0)) {
+	if (!ast_sockaddr_parse(&rtpdebugaddr, arg, 0) || !ast_sockaddr_split_hostport(arg, &debughost, &debugport, 0)) {
 		ast_cli(a->fd, "Lookup failed for '%s'\n", arg);
 		return CLI_FAILURE;
 	}
+	rtpdebugport = (!ast_strlen_zero(debugport) && debugport[0] != '0');
 	ast_cli(a->fd, "RTP Debugging Enabled for address: %s\n",
 		ast_sockaddr_stringify(&rtpdebugaddr));
 	rtpdebug = 1;
@@ -2737,11 +2756,14 @@ static char *rtp_do_debug_ip(struct ast_cli_args *a)
 static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 {
 	char *arg = ast_strdupa(a->argv[4]);
+	char *debughost = NULL;
+	char *debugport = NULL;
 
-	if (!ast_sockaddr_parse(&rtcpdebugaddr, arg, 0)) {
+	if (!ast_sockaddr_parse(&rtcpdebugaddr, arg, 0) || !ast_sockaddr_split_hostport(arg, &debughost, &debugport, 0)) {
 		ast_cli(a->fd, "Lookup failed for '%s'\n", arg);
 		return CLI_FAILURE;
 	}
+	rtcpdebugport = (!ast_strlen_zero(debugport) && debugport[0] != '0');
 	ast_cli(a->fd, "RTCP Debugging Enabled for address: %s\n",
 		ast_sockaddr_stringify(&rtcpdebugaddr));
 	rtcpdebug = 1;
