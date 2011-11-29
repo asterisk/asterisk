@@ -268,9 +268,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		chan->stream = NULL;
 	}
 	
-	if (option_verbose > 2) {
-		ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
-	}
+	ast_verb(3, "Stopped music on hold on %s\n", chan->name);
 
 	ast_format_clear(&state->mohwfmt); /* make sure to clear this format before restoring the original format. */
 	if (state->origwfmt.id && ast_set_write_format(chan, &state->origwfmt)) {
@@ -1154,10 +1152,8 @@ static int init_files_class(struct mohclass *class)
 	}
 
 	if (!res) {
-		if (option_verbose > 2) {
-			ast_verbose(VERBOSE_PREFIX_3 "Files not found in %s for moh class:%s\n",
-					class->dir, class->name);
-		}
+		ast_verb(3, "Files not found in %s for moh class:%s\n",
+			class->dir, class->name);
 		return -1;
 	}
 

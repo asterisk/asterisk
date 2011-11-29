@@ -103,19 +103,19 @@ static int verbose_exec(struct ast_channel *chan, const char *data)
 	if (option_verbose >= vsize) {
 		switch (vsize) {
 		case 0:
-			ast_verbose("%s\n", args.msg);
+			ast_verb(0, "%s\n", args.msg);
 			break;
 		case 1:
-			ast_verbose(VERBOSE_PREFIX_1 "%s\n", args.msg);
+			ast_verb(1, "%s\n", args.msg);
 			break;
 		case 2:
-			ast_verbose(VERBOSE_PREFIX_2 "%s\n", args.msg);
+			ast_verb(2, "%s\n", args.msg);
 			break;
 		case 3:
-			ast_verbose(VERBOSE_PREFIX_3 "%s\n", args.msg);
+			ast_verb(3, "%s\n", args.msg);
 			break;
 		default:
-			ast_verbose(VERBOSE_PREFIX_4 "%s\n", args.msg);
+			ast_verb(4, "%s\n", args.msg);
 		}
 	}
 

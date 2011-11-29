@@ -603,8 +603,7 @@ static int find_transcoders(void)
 	}
 
 	for (info.tcnum = 0; !(res = ioctl(fd, DAHDI_TC_GETINFO, &info)); info.tcnum++) {
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
+		ast_verb(2, "Found transcoder '%s'.\n", info.name);
 
 		/* Complex codecs need to support signed linear.  If the
 		 * hardware transcoder does not natively support signed linear
@@ -628,8 +627,9 @@ static int find_transcoders(void)
 
 	close(fd);
 
-	if (!info.tcnum && (option_verbose > 1))
-		ast_verbose(VERBOSE_PREFIX_2 "No hardware transcoders found.\n");
+	if (!info.tcnum) {
+		ast_verb(2, "No hardware transcoders found.\n");
+	}
 
 	for (x = 0; x < 32; x++) {
 		for (y = 0; y < 32; y++) {

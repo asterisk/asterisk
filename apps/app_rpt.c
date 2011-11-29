@@ -2254,8 +2254,7 @@ char s1[256];
 static char *cs_keywords[] = {"rptena","rptdis","apena","apdis","lnkena","lnkdis","totena","totdis","skena","skdis",
 				"ufena","ufdis","atena","atdis",NULL};
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "%s config for repeater %s\n",
+	ast_verb(3, "%s config for repeater %s\n",
 			(init) ? "Loading initial" : "Re-Loading",rpt_vars[n].name);
 	ast_mutex_lock(&rpt_vars[n].lock);
 	if (rpt_vars[n].cfg) ast_config_destroy(rpt_vars[n].cfg);
@@ -10411,9 +10410,8 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 #endif
 		l->chan->appl = "Apprpt";
 		l->chan->data = "(Remote Rx)";
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
-				deststr, tele, l->chan->name);
+		ast_verb(3, "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
+			deststr, tele, l->chan->name);
 		l->chan->caller.id.number.valid = 1;
 		ast_free(l->chan->caller.id.number.str);
 		l->chan->caller.id.number.str = ast_strdup(myrpt->name);
@@ -10422,9 +10420,8 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	}
 	else 
 	{
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
-				deststr,tele,l->chan->name);
+		ast_verb(3, "Unable to place call to %s/%s on %s\n",
+			deststr,tele,l->chan->name);
 		return -1;
 	}
 	rpt_mutex_lock(&myrpt->lock);
@@ -10848,8 +10845,7 @@ struct ast_format_cap *cap = NULL;
 #endif
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Repeater Rx)";
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
+		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
 				tmpstr,tele,myrpt->rxchannel->name);
 		ast_call(myrpt->rxchannel,tele,999);
 		if (myrpt->rxchannel->_state != AST_STATE_UP)
@@ -10907,8 +10903,7 @@ struct ast_format_cap *cap = NULL;
 #endif
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Repeater Tx)";
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
+			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
 					tmpstr,tele,myrpt->txchannel->name);
 			ast_call(myrpt->txchannel,tele,999);
 			if (myrpt->rxchannel->_state != AST_STATE_UP)
@@ -13447,14 +13442,12 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			chan->priority++;
 		}
 
-		if(option_verbose > 2) {
-			ast_verbose(VERBOSE_PREFIX_3 "Return Context: (%s,%s,%d) ID: %s\n",
-				chan->context, chan->exten, chan->priority,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
-			if(!ast_exists_extension(chan, chan->context, chan->exten, chan->priority,
-				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
-				ast_verbose( VERBOSE_PREFIX_3 "Warning: Return Context Invalid, call will return to default|s\n");
-			}
+		ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n",
+			chan->context, chan->exten, chan->priority,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
+		if (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority,
+			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
+			ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 		}
   
 		/* we are using masq_park here to protect * from touching the channel once we park it.  If the channel comes out of timeout
@@ -13462,7 +13455,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 
 		ast_masq_park_call(chan, NULL, timeout, &lot);
 
-		if (option_verbose > 2) ast_verbose( VERBOSE_PREFIX_3 "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, return_context);
+		ast_verb(3, "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, return_context);
 
 		snprintf(buffer, sizeof(buffer) - 1, "%d,%s", lot, template + 1);
 
@@ -13833,9 +13826,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 #endif
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Link Rx)";
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
-				myrpt->rxchanname,tele,myrpt->rxchannel->name);
+		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
+			myrpt->rxchanname,tele,myrpt->rxchannel->name);
 		rpt_mutex_unlock(&myrpt->lock);
 		ast_call(myrpt->rxchannel,tele,999);
 		rpt_mutex_lock(&myrpt->lock);
@@ -13876,9 +13868,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 #endif
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Link Tx)";
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
-					myrpt->txchanname,tele,myrpt->txchannel->name);
+			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
+				myrpt->txchanname,tele,myrpt->txchannel->name);
 			rpt_mutex_unlock(&myrpt->lock);
 			ast_call(myrpt->txchannel,tele,999);
 			rpt_mutex_lock(&myrpt->lock);

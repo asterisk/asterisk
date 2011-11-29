@@ -361,8 +361,9 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 	struct ast_format tmpfmt;
 	int features = 0;
 
-	if (gH323Debug)
-		ast_verbose("---   ooh323_new - %s\n", host);
+	if (gH323Debug) {
+		ast_verb(0, "---   ooh323_new - %s\n", host);
+	}
 
 	ast_format_clear(&tmpfmt);
 	/* Don't hold a h323 pvt lock while we allocate a channel */
@@ -480,8 +481,9 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 
    	if(ch)   ast_channel_unlock(ch);
 
-	if (gH323Debug)
-		ast_verbose("+++   h323_new\n");
+	if (gH323Debug) {
+		ast_verb(0, "+++   h323_new\n");
+	}
 
 	return ch;
 }
@@ -492,8 +494,9 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 {
 	struct ooh323_pvt *pvt = NULL;
 
-	if (gH323Debug)
-		ast_verbose("---   ooh323_alloc\n");
+	if (gH323Debug) {
+		ast_verb(0, "---   ooh323_alloc\n");
+	}
 
 	if (!(pvt = ast_calloc(1, sizeof(*pvt)))) {
 		ast_log(LOG_ERROR, "Couldn't allocate private ooh323 structure\n");
@@ -542,8 +545,9 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	iflist = pvt;
 	ast_mutex_unlock(&iflock);
 
-	if (gH323Debug)
-		ast_verbose("+++   ooh323_alloc\n");
+	if (gH323Debug) {
+		ast_verb(0, "+++   ooh323_alloc\n");
+	}
 
 	return pvt;
 }
@@ -566,7 +570,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 	int port = 0;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_request - data %s format %s\n", (char*)data,  
+		ast_verb(0, "---   ooh323_request - data %s format %s\n", (char*)data,  
 										ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,cap));
 
 	if (!(ast_format_cap_has_type(cap, AST_FORMAT_TYPE_AUDIO))) {
@@ -719,7 +723,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 
 	restart_monitor();
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_request\n");
+		ast_verb(0, "+++   ooh323_request\n");
 
 	return chan;
 
@@ -731,7 +735,7 @@ static struct ooh323_pvt* find_call(ooCallData *call)
 	struct ooh323_pvt *p;
 
 	if (gH323Debug)
-		ast_verbose("---   find_call\n");
+		ast_verb(0, "---   find_call\n");
 
 	ast_mutex_lock(&iflock);
 
@@ -743,7 +747,7 @@ static struct ooh323_pvt* find_call(ooCallData *call)
 	ast_mutex_unlock(&iflock);
 
 	if (gH323Debug)
-		ast_verbose("+++   find_call\n");
+		ast_verb(0, "+++   find_call\n");
 
 	return p;
 }
@@ -753,7 +757,7 @@ struct ooh323_user *find_user(const char * name, const char* ip)
 	struct ooh323_user *user;
 
 	if (gH323Debug)
-      ast_verbose("---   find_user: %s, %s\n",name,ip);
+      ast_verb(0, "---   find_user: %s, %s\n",name,ip);
 
 	ast_mutex_lock(&userl.lock);
 
@@ -769,7 +773,7 @@ struct ooh323_user *find_user(const char * name, const char* ip)
 	ast_mutex_unlock(&userl.lock);
 
 	if (gH323Debug)
-		ast_verbose("+++   find_user\n");
+		ast_verb(0, "+++   find_user\n");
 
 	return user;
 }
@@ -779,13 +783,13 @@ struct ooh323_peer *find_friend(const char *name, int port)
 	struct ooh323_peer *peer;  
 
 	if (gH323Debug)
-		ast_verbose("---   find_friend \"%s\"\n", name);
+		ast_verb(0, "---   find_friend \"%s\"\n", name);
 
 
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next) {
 		if (gH323Debug) {
-			ast_verbose("		comparing with \"%s\"\n", peer->ip);
+			ast_verb(0, "		comparing with \"%s\"\n", peer->ip);
 		}
 		if (!strcmp(peer->ip, name)) {
 			if (port <= 0 || (port > 0 && peer->port == port)) {
@@ -797,9 +801,9 @@ struct ooh323_peer *find_friend(const char *name, int port)
 
 	if (gH323Debug) {
 		if (peer) {
-			ast_verbose("		found matching friend\n");
+			ast_verb(0, "		found matching friend\n");
 		}
-		ast_verbose("+++   find_friend \"%s\"\n", name);
+		ast_verb(0, "+++   find_friend \"%s\"\n", name);
 	}
 
 	return peer;		
@@ -811,13 +815,13 @@ struct ooh323_peer *find_peer(const char * name, int port)
 	struct ooh323_peer *peer;
 
 	if (gH323Debug)
-		ast_verbose("---   find_peer \"%s\"\n", name);
+		ast_verb(0, "---   find_peer \"%s\"\n", name);
 
 
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next) {
 		if (gH323Debug) {
-			ast_verbose("		comparing with \"%s\"\n", peer->ip);
+			ast_verb(0, "		comparing with \"%s\"\n", peer->ip);
 		}
 		if (!strcasecmp(peer->name, name))
 			break;
@@ -836,9 +840,9 @@ struct ooh323_peer *find_peer(const char * name, int port)
 
 	if (gH323Debug) {
 		if (peer) {
-			ast_verbose("		found matching peer\n");
+			ast_verb(0, "		found matching peer\n");
 		}
-		ast_verbose("+++   find_peer \"%s\"\n", name);
+		ast_verb(0, "+++   find_peer \"%s\"\n", name);
 	}
 
 	return peer;		
@@ -850,7 +854,7 @@ static int ooh323_digit_begin(struct ast_channel *chan, char digit)
 	struct ooh323_pvt *p = (struct ooh323_pvt *) chan->tech_pvt;
 	
 	if (gH323Debug)
-		ast_verbose("---   ooh323_digit_begin\n");
+		ast_verb(0, "---   ooh323_digit_begin\n");
 
 	if (!p) {
 		ast_log(LOG_ERROR, "No private structure for call\n");
@@ -869,7 +873,7 @@ static int ooh323_digit_begin(struct ast_channel *chan, char digit)
 	}
 	ast_mutex_unlock(&p->lock);
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_digit_begin\n");
+		ast_verb(0, "+++   ooh323_digit_begin\n");
 
 	return 0;
 }
@@ -879,7 +883,7 @@ static int ooh323_digit_end(struct ast_channel *chan, char digit, unsigned int d
 	struct ooh323_pvt *p = (struct ooh323_pvt *) chan->tech_pvt;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_digit_end\n");
+		ast_verb(0, "---   ooh323_digit_end\n");
 
 	if (!p) {
 		ast_log(LOG_ERROR, "No private structure for call\n");
@@ -891,7 +895,7 @@ static int ooh323_digit_end(struct ast_channel *chan, char digit, unsigned int d
 
 	ast_mutex_unlock(&p->lock);
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_digit_end\n");
+		ast_verb(0, "+++   ooh323_digit_end\n");
 
 	return 0;
 }
@@ -912,7 +916,7 @@ static int ooh323_call(struct ast_channel *ast, char *dest, int timeout)
 	};
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_call- %s\n", dest);
+		ast_verb(0, "---   ooh323_call- %s\n", dest);
 
 
    	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
@@ -989,7 +993,7 @@ static int ooh323_call(struct ast_channel *ast, char *dest, int timeout)
       		return -1; /* ToDO: cleanup */
 	}
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_call\n");
+		ast_verb(0, "+++   ooh323_call\n");
 
   return 0;
 }
@@ -1000,7 +1004,7 @@ static int ooh323_hangup(struct ast_channel *ast)
    	int q931cause = AST_CAUSE_NORMAL_CLEARING;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_hangup\n");
+		ast_verb(0, "---   ooh323_hangup\n");
 
 	if (p) {
 		ast_mutex_lock(&p->lock);
@@ -1027,7 +1031,7 @@ static int ooh323_hangup(struct ast_channel *ast)
 
 
 		if (gH323Debug)
-			ast_verbose("    hanging %s with cause: %d\n", p->username, q931cause);
+			ast_verb(0, "    hanging %s with cause: %d\n", p->username, q931cause);
 		ast->tech_pvt = NULL; 
 		if (!ast_test_flag(p, H323_ALREADYGONE)) {
          		ooHangCall(p->callToken, 
@@ -1056,7 +1060,7 @@ static int ooh323_hangup(struct ast_channel *ast)
 	}
 	
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_hangup\n");
+		ast_verb(0, "+++   ooh323_hangup\n");
 
   return 0;
 }
@@ -1067,7 +1071,7 @@ static int ooh323_answer(struct ast_channel *ast)
 	char *callToken = (char *)NULL;
 
 	if (gH323Debug)
-		ast_verbose("--- ooh323_answer\n");
+		ast_verb(0, "--- ooh323_answer\n");
 
 	if (p) {
 
@@ -1097,7 +1101,7 @@ static int ooh323_answer(struct ast_channel *ast)
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++ ooh323_answer\n");
+		ast_verb(0, "+++ ooh323_answer\n");
 
   return 0;
 }
@@ -1201,12 +1205,12 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
 
 	if (!callToken) {
 		if (gH323Debug)
-			ast_verbose("	ooh323_indicate - No callToken\n");
+			ast_verb(0, "	ooh323_indicate - No callToken\n");
 		return -1;
 	}
 
 	if (gH323Debug)
-		ast_verbose("----- ooh323_indicate %d on call %s\n", condition, callToken);
+		ast_verb(0, "----- ooh323_indicate %d on call %s\n", condition, callToken);
 	 
    	ast_mutex_lock(&p->lock);
 	switch (condition) {
@@ -1359,7 +1363,7 @@ static int ooh323_indicate(struct ast_channel *ast, int condition, const void *d
    	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("++++  ooh323_indicate %d on %s\n", condition, callToken);
+		ast_verb(0, "++++  ooh323_indicate %d on %s\n", condition, callToken);
 
    	free(callToken);
 	return res;
@@ -1378,7 +1382,7 @@ static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, i
 	ast_mutex_lock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("----- ooh323_queryoption %d on channel %s\n", option, ast->name);
+		ast_verb(0, "----- ooh323_queryoption %d on channel %s\n", option, ast->name);
 	 
 	switch (option) {
 
@@ -1418,7 +1422,7 @@ static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, i
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++++ ooh323_queryoption %d on channel %s\n", option, ast->name);
+		ast_verb(0, "+++++ ooh323_queryoption %d on channel %s\n", option, ast->name);
 	 
    	ast_mutex_unlock(&p->lock);
 
@@ -1434,7 +1438,7 @@ static int ooh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 	if (!p) return -1;
 
 	if (gH323Debug)
-		ast_verbose("--- ooh323c ooh323_fixup\n");
+		ast_verb(0, "--- ooh323c ooh323_fixup\n");
 
 	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
@@ -1452,7 +1456,7 @@ static int ooh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("+++ ooh323c ooh323_fixup \n");
+		ast_verb(0, "+++ ooh323c ooh323_fixup \n");
 
 	return 0;
 }
@@ -1464,7 +1468,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 	char formats[FORMAT_STRING_SIZE];
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_update_writeformat %s/%d\n", 
+		ast_verb(0, "---   ooh323_update_writeformat %s/%d\n", 
 				ast_getformatname(fmt), txframes);
 	
 	p = find_call(call);
@@ -1488,7 +1492,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 			return;
 		}
 		if (gH323Debug)
-	  		ast_verbose("Writeformat before update %s/%s\n", 
+	  		ast_verb(0, "Writeformat before update %s/%s\n", 
 			  ast_getformatname(&p->owner->writeformat),
 			  ast_getformatname_multiple(formats, sizeof(formats), p->owner->nativeformats));
 		if (txframes)
@@ -1514,7 +1518,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_update_writeformat\n");
+		ast_verb(0, "+++   ooh323_update_writeformat\n");
 }
 
 void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
@@ -1522,7 +1526,7 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 	struct ooh323_pvt *p = NULL;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_update_readformat %s\n", 
+		ast_verb(0, "---   ooh323_update_readformat %s\n", 
 				ast_getformatname(fmt));
 	
 	p = find_call(call);
@@ -1547,7 +1551,7 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 		}
 
 		if (gH323Debug)
-	  		ast_verbose("Readformat before update %s\n", 
+	  		ast_verb(0, "Readformat before update %s\n", 
 				  ast_getformatname(&p->owner->readformat));
 		ast_format_cap_set(p->owner->nativeformats, fmt);
 	  	ast_set_read_format(p->owner, &p->owner->readformat);
@@ -1558,7 +1562,7 @@ void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt)
 	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_update_readformat\n");
+		ast_verb(0, "+++   ooh323_update_readformat\n");
 }
 
 
@@ -1568,7 +1572,7 @@ int onAlerting(ooCallData *call)
 	struct ast_channel *c = NULL;
 
 	if (gH323Debug)
-		ast_verbose("--- onAlerting %s\n", call->callToken);
+		ast_verb(0, "--- onAlerting %s\n", call->callToken);
 
    	p = find_call(call);
 
@@ -1613,7 +1617,7 @@ int onAlerting(ooCallData *call)
       	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("+++ onAlerting %s\n", call->callToken);
+		ast_verb(0, "+++ onAlerting %s\n", call->callToken);
 
 	return OO_OK;
 }
@@ -1624,7 +1628,7 @@ int onProgress(ooCallData *call)
 	struct ast_channel *c = NULL;
 
 	if (gH323Debug)
-		ast_verbose("--- onProgress %s\n", call->callToken);
+		ast_verb(0, "--- onProgress %s\n", call->callToken);
 
    	p = find_call(call);
 
@@ -1669,7 +1673,7 @@ int onProgress(ooCallData *call)
       	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("+++ onProgress %s\n", call->callToken);
+		ast_verb(0, "+++ onProgress %s\n", call->callToken);
 
 	return OO_OK;
 }
@@ -1730,7 +1734,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 	char number [OO_MAX_NUMBER_LENGTH];
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_onReceivedSetup %s\n", call->callToken);
+		ast_verb(0, "---   ooh323_onReceivedSetup %s\n", call->callToken);
 
 
 	if (!(p = ooh323_alloc(call->callReference, call->callToken))) {
@@ -1877,7 +1881,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 	ast_mutex_unlock(&p->lock);
 
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_onReceivedSetup - Determined context %s, "
+		ast_verb(0, "+++   ooh323_onReceivedSetup - Determined context %s, "
 						"extension %s\n", p->context, p->exten);
 
 	return OO_OK;
@@ -1891,7 +1895,7 @@ int onOutgoingCall(ooCallData *call)
 	int i = 0;
 
 	if (gH323Debug)
-		ast_verbose("---   onOutgoingCall %lx: %s\n", (long unsigned int) call, call->callToken);
+		ast_verb(0, "---   onOutgoingCall %lx: %s\n", (long unsigned int) call, call->callToken);
 
 	if (!strcmp(call->callType, "outgoing")) {
 		p = find_call(call);
@@ -1923,13 +1927,13 @@ int onOutgoingCall(ooCallData *call)
 
 		if (!ast_strlen_zero(p->caller_dialedDigits)) {
 			if (gH323Debug) {
-				ast_verbose("Setting dialed digits %s\n", p->caller_dialedDigits);
+				ast_verb(0, "Setting dialed digits %s\n", p->caller_dialedDigits);
 			}
 			ooCallAddAliasDialedDigits(call, p->caller_dialedDigits);
 		} else if (!ast_strlen_zero(p->callerid_num)) {
 			if (ooIsDailedDigit(p->callerid_num)) {
 				if (gH323Debug) {
-					ast_verbose("setting callid number %s\n", p->callerid_num);
+					ast_verb(0, "setting callid number %s\n", p->callerid_num);
 				}
 				ooCallAddAliasDialedDigits(call, p->callerid_num);
 			} else if (ast_strlen_zero(p->caller_h323id)) {
@@ -1953,7 +1957,7 @@ int onOutgoingCall(ooCallData *call)
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++   onOutgoingCall %s\n", call->callToken);
+		ast_verb(0, "+++   onOutgoingCall %s\n", call->callToken);
 	return OO_OK;
 }
 
@@ -1964,7 +1968,7 @@ int onNewCallCreated(ooCallData *call)
 	int i = 0;
 
 	if (gH323Debug)
-		ast_verbose("---   onNewCallCreated %lx: %s\n", (long unsigned int) call, call->callToken);
+		ast_verb(0, "---   onNewCallCreated %lx: %s\n", (long unsigned int) call, call->callToken);
 
    	ast_mutex_lock(&call->Lock);
    	if (ooh323c_start_call_thread(call)) {
@@ -2004,13 +2008,13 @@ int onNewCallCreated(ooCallData *call)
 
 		if (!ast_strlen_zero(p->caller_dialedDigits)) {
 			if (gH323Debug) {
-				ast_verbose("Setting dialed digits %s\n", p->caller_dialedDigits);
+				ast_verb(0, "Setting dialed digits %s\n", p->caller_dialedDigits);
 			}
 			ooCallAddAliasDialedDigits(call, p->caller_dialedDigits);
 		} else if (!ast_strlen_zero(p->callerid_num)) {
 			if (ooIsDailedDigit(p->callerid_num)) {
 				if (gH323Debug) {
-					ast_verbose("setting callid number %s\n", p->callerid_num);
+					ast_verb(0, "setting callid number %s\n", p->callerid_num);
 				}
 				ooCallAddAliasDialedDigits(call, p->callerid_num);
 			} else if (ast_strlen_zero(p->caller_h323id)) {
@@ -2031,7 +2035,7 @@ int onNewCallCreated(ooCallData *call)
 		if (gH323Debug) {
 			char prefsBuf[256];
 			ast_codec_pref_string(&p->prefs, prefsBuf, sizeof(prefsBuf));
-			ast_verbose(" Outgoing call %s(%s) - Codec prefs - %s\n", 
+			ast_verb(0, " Outgoing call %s(%s) - Codec prefs - %s\n", 
 				p->username?p->username:"NULL", call->callToken, prefsBuf);
 		}
 
@@ -2044,7 +2048,7 @@ int onNewCallCreated(ooCallData *call)
 
    	ast_mutex_unlock(&call->Lock);
 	if (gH323Debug)
-		ast_verbose("+++   onNewCallCreated %s\n", call->callToken);
+		ast_verb(0, "+++   onNewCallCreated %s\n", call->callToken);
 	return OO_OK;
 }
 
@@ -2053,7 +2057,7 @@ int onCallEstablished(ooCallData *call)
 	struct ooh323_pvt *p = NULL;
 
 	if (gH323Debug)
-		ast_verbose("---   onCallEstablished %s\n", call->callToken);
+		ast_verb(0, "---   onCallEstablished %s\n", call->callToken);
 
 
 	if (!(p = find_call(call))) {
@@ -2099,7 +2103,7 @@ int onCallEstablished(ooCallData *call)
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++   onCallEstablished %s\n", call->callToken);
+		ast_verb(0, "+++   onCallEstablished %s\n", call->callToken);
 
 	return OO_OK;
 }
@@ -2110,7 +2114,7 @@ int onCallCleared(ooCallData *call)
 	int ownerLock = 0;
 
 	if (gH323Debug)
-		ast_verbose("---   onCallCleared %s \n", call->callToken);
+		ast_verb(0, "---   onCallCleared %s \n", call->callToken);
 
 
    if ((p = find_call(call))) {
@@ -2155,7 +2159,7 @@ int onCallCleared(ooCallData *call)
     }
 
 	if (gH323Debug)
-		ast_verbose("+++   onCallCleared\n");
+		ast_verb(0, "+++   onCallCleared\n");
 
 	return OO_OK;
 }
@@ -2165,7 +2169,7 @@ int onCallCleared(ooCallData *call)
 	struct ooh323_user *prev = NULL, *cur = NULL;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_delete_user\n");
+		ast_verb(0, "---   ooh323_delete_user\n");
 
 	if (user) {	
 		cur = userl.users;
@@ -2188,7 +2192,7 @@ int onCallCleared(ooCallData *call)
 	}  
 
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_delete_user\n");
+		ast_verb(0, "+++   ooh323_delete_user\n");
 
 } */
 
@@ -2197,7 +2201,7 @@ void ooh323_delete_peer(struct ooh323_peer *peer)
 	struct ooh323_peer *prev = NULL, *cur = NULL;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_delete_peer\n");
+		ast_verb(0, "---   ooh323_delete_peer\n");
 
 	if (peer) {	
       cur = peerl.peers;
@@ -2226,7 +2230,7 @@ void ooh323_delete_peer(struct ooh323_peer *peer)
 	}  
 
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_delete_peer\n");
+		ast_verb(0, "+++   ooh323_delete_peer\n");
 
 }
 
@@ -2237,7 +2241,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 	struct ooh323_user *user = NULL;
 
 	if (gH323Debug)
-		ast_verbose("---   build_user\n");
+		ast_verb(0, "---   build_user\n");
 
    	user = ast_calloc(1,sizeof(struct ooh323_user));
 	if (user) {
@@ -2366,7 +2370,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++   build_user\n");
+		ast_verb(0, "+++   build_user\n");
 
 	return user;
 }
@@ -2376,7 +2380,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 	struct ooh323_peer *peer = NULL;
 
 	if (gH323Debug)
-		ast_verbose("---   build_peer\n");
+		ast_verb(0, "---   build_peer\n");
 
 	peer = ast_calloc(1, sizeof(*peer));
 	if (peer) {
@@ -2534,7 +2538,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++   build_peer\n");
+		ast_verb(0, "+++   build_peer\n");
 
 	return peer;
 }
@@ -2542,13 +2546,13 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 static int ooh323_do_reload(void)
 {
 	if (gH323Debug) {
-		ast_verbose("---   ooh323_do_reload\n");
+		ast_verb(0, "---   ooh323_do_reload\n");
 	}
 
    	reload_config(1);
 
 	if (gH323Debug) {
-		ast_verbose("+++   ooh323_do_reload\n");
+		ast_verb(0, "+++   ooh323_do_reload\n");
 	}
 
 	return 0;
@@ -2574,11 +2578,11 @@ char *handle_cli_ooh323_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_
                return CLI_SHOWUSAGE;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_reload\n");
+		ast_verb(0, "---   ooh323_reload\n");
 
 	ast_mutex_lock(&h323_reload_lock);
 	if (h323_reloading) {
-		ast_verbose("Previous OOH323 reload not yet done\n");
+		ast_verb(0, "Previous OOH323 reload not yet done\n");
    } else {
 		h323_reloading = 1;
 	}
@@ -2586,7 +2590,7 @@ char *handle_cli_ooh323_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	restart_monitor();
 
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_reload\n");
+		ast_verb(0, "+++   ooh323_reload\n");
 
 	return 0;
 }
@@ -2605,7 +2609,7 @@ int reload_config(int reload)
 	struct ast_format tmpfmt;
 
 	if (gH323Debug)
-		ast_verbose("---   reload_config\n");
+		ast_verb(0, "---   reload_config\n");
 
 	cfg = ast_config_load((char*)config, config_flags);
 
@@ -2620,7 +2624,7 @@ int reload_config(int reload)
 		delete_users();
 		delete_peers();
 		if (gH323Debug) {
-			ast_verbose("  reload_config - Freeing up alias list\n");
+			ast_verb(0, "  reload_config - Freeing up alias list\n");
 		}
 		cur = gAliasList;
 		while (cur) {
@@ -2788,8 +2792,7 @@ int reload_config(int reload)
          strncpy(gLogFile, v->value, sizeof(gLogFile)-1);
 		} else if (!strcasecmp(v->name, "context")) {
          strncpy(gContext, v->value, sizeof(gContext)-1);
-         ast_verbose(VERBOSE_PREFIX_3 "  == Setting default context to %s\n", 
-                                                      gContext);
+         ast_verb(3, "  == Setting default context to %s\n", gContext);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
 			gRTPTimeout = atoi(v->value);
 			if (gRTPTimeout <= 0)
@@ -2926,7 +2929,7 @@ int reload_config(int reload)
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++   reload_config\n");
+		ast_verb(0, "+++   reload_config\n");
 
 	return 0;
 
@@ -3760,10 +3763,10 @@ int ooh323_destroy(struct ooh323_pvt *p)
 	struct ooh323_user *user = NULL;
 
 	if (gH323Debug) {
-		ast_verbose("---   ooh323_destroy \n");
+		ast_verb(0, "---   ooh323_destroy \n");
 
 		if (p)
-			ast_verbose(" Destroying %s\n", p->username);
+			ast_verb(0, " Destroying %s\n", p->username);
 	}
 
 	cur = iflist;
@@ -3782,7 +3785,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
 
 		if (cur->callToken) {
 	 		if (gH323Debug) 
-				ast_verbose(" Destroying %s\n", cur->callToken);
+				ast_verb(0, " Destroying %s\n", cur->callToken);
 			ast_free(cur->callToken);
 			cur->callToken = 0;
 		}
@@ -3858,7 +3861,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++   ooh323_destroy\n");
+		ast_verb(0, "+++   ooh323_destroy\n");
 
 	return 0;
 }
@@ -3935,7 +3938,7 @@ static int unload_module(void)
 	struct ooAliases *cur = NULL, *prev = NULL;
 
 	if (gH323Debug) {
-		ast_verbose("--- ooh323  unload_module \n");
+		ast_verb(0, "--- ooh323  unload_module \n");
 	}
 	/* First, take us out of the channel loop */
 	ast_cli_unregister_multiple(cli_ooh323, sizeof(cli_ooh323) / sizeof(struct ast_cli_entry));
@@ -3947,7 +3950,7 @@ static int unload_module(void)
 #endif
 
 	if (gH323Debug) {
-		ast_verbose("  unload_module - hanging up all interfaces\n");
+		ast_verb(0, "  unload_module - hanging up all interfaces\n");
 	}
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
@@ -3967,7 +3970,7 @@ static int unload_module(void)
 
 
 	if (gH323Debug) {
-		ast_verbose("  unload_module - stopping monitor thread\n");
+		ast_verb(0, "  unload_module - stopping monitor thread\n");
 	}  
 	if (monitor_thread != AST_PTHREADT_NULL) {
 		if (!ast_mutex_lock(&monlock)) {
@@ -3986,13 +3989,13 @@ static int unload_module(void)
 
 
 	if (gH323Debug) {
-		ast_verbose("   unload_module - stopping stack thread\n");
+		ast_verb(0, "   unload_module - stopping stack thread\n");
 	}
 	ooh323c_stop_stack_thread();
 
 
 	if (gH323Debug) {
-		ast_verbose("   unload_module - freeing up memory used by interfaces\n");
+		ast_verb(0, "   unload_module - freeing up memory used by interfaces\n");
 	}
 	if (!ast_mutex_lock(&iflock)) {
 		struct ooh323_pvt *pl;
@@ -4014,19 +4017,19 @@ static int unload_module(void)
  
 
 	if (gH323Debug) {
-		ast_verbose("  unload_module - deleting users\n");
+		ast_verb(0, "  unload_module - deleting users\n");
 	}
 	delete_users();
 
 
 	if (gH323Debug) {
-		ast_verbose("  unload_module - deleting peers\n");
+		ast_verb(0, "  unload_module - deleting peers\n");
 	}
 	delete_peers();
 
 
 	if (gH323Debug) {
-		ast_verbose("  unload_module - Freeing up alias list\n");
+		ast_verb(0, "  unload_module - Freeing up alias list\n");
 	}
 	cur = gAliasList;
 	while (cur) {
@@ -4039,12 +4042,12 @@ static int unload_module(void)
 
 
 	if (gH323Debug) {
-		ast_verbose("	unload_module- destroying OOH323 endpoint \n");
+		ast_verb(0, "	unload_module- destroying OOH323 endpoint \n");
 	}
 	ooH323EpDestroy();
 
 	if (gH323Debug) {
-		ast_verbose("+++ ooh323  unload_module \n");
+		ast_verb(0, "+++ ooh323  unload_module \n");
 	}
 
 	gCap = ast_format_cap_destroy(gCap);
@@ -4158,7 +4161,7 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 	int mode;
 
 	if (gH323Debug)
-		ast_verbose("---   ooh323_set_peer - %s\n", chan->name);
+		ast_verb(0, "---   ooh323_set_peer - %s\n", chan->name);
 
 	if (!rtp) {
 		return 0;
@@ -4194,7 +4197,7 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 	ast_format_clear(&tmpfmt);
 
 	if (gH323Debug)
-		ast_verbose("---   configure_local_rtp\n");
+		ast_verb(0, "---   configure_local_rtp\n");
 
 
 	if (ast_parse_arg(call->localIP, PARSE_ADDR, &tmp)) {
@@ -4262,7 +4265,7 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 
 	if (p->rtdrcount) {
 		if (gH323Debug)
-			ast_verbose("Setup RTDR info: %d, %d\n", p->rtdrinterval, p->rtdrcount);
+			ast_verb(0, "Setup RTDR info: %d, %d\n", p->rtdrinterval, p->rtdrcount);
 		call->rtdrInterval = p->rtdrinterval;
 		call->rtdrCount = p->rtdrcount;
 	}
@@ -4307,7 +4310,7 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 	}
 
 	if (gH323Debug)
-		ast_verbose("+++   configure_local_rtp\n");
+		ast_verb(0, "+++   configure_local_rtp\n");
 
 	return 1;
 }
@@ -4319,7 +4322,7 @@ void setup_rtp_connection(ooCallData *call, const char *remoteIp,
 	struct ast_sockaddr tmp;
 
 	if (gH323Debug)
-		ast_verbose("---   setup_rtp_connection %s:%d\n", remoteIp, remotePort);
+		ast_verb(0, "---   setup_rtp_connection %s:%d\n", remoteIp, remotePort);
 
 	/* Find the call or allocate a private structure if call not found */
 	p = find_call(call); 
@@ -4338,7 +4341,7 @@ void setup_rtp_connection(ooCallData *call, const char *remoteIp,
 							"audio", "G726-32", AST_RTP_OPT_G726_NONSTANDARD);
 
 	if(gH323Debug)
-		ast_verbose("+++   setup_rtp_connection\n");
+		ast_verb(0, "+++   setup_rtp_connection\n");
 
 	return;
 }
@@ -4348,7 +4351,7 @@ void close_rtp_connection(ooCallData *call)
 	struct ooh323_pvt *p = NULL;
 
    if(gH323Debug)
-		ast_verbose("---   close_rtp_connection\n");
+		ast_verb(0, "---   close_rtp_connection\n");
 
 	p = find_call(call);
 	if (!p) {
@@ -4363,7 +4366,7 @@ void close_rtp_connection(ooCallData *call)
 	ast_mutex_unlock(&p->lock);
 
    if(gH323Debug)
-		ast_verbose("+++   close_rtp_connection\n");
+		ast_verb(0, "+++   close_rtp_connection\n");
 
 	return;
 }
@@ -4414,7 +4417,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 	struct ast_sockaddr them;
 
 	if (gH323Debug)
-		ast_verbose("---   setup_udptl_connection\n");
+		ast_verb(0, "---   setup_udptl_connection\n");
 
 	/* Find the call or allocate a private structure if call not found */
 	p = find_call(call); 
@@ -4463,7 +4466,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 	ast_mutex_unlock(&p->lock);
 
 	if(gH323Debug)
-		ast_verbose("+++   setup_udptl_connection\n");
+		ast_verb(0, "+++   setup_udptl_connection\n");
 
 	return;
 }
@@ -4473,7 +4476,7 @@ void close_udptl_connection(ooCallData *call)
 	struct ooh323_pvt *p = NULL;
 
    	if(gH323Debug)
-		ast_verbose("---   close_udptl_connection\n");
+		ast_verb(0, "---   close_udptl_connection\n");
 
 	p = find_call(call);
 	if (!p) {
@@ -4509,7 +4512,7 @@ void close_udptl_connection(ooCallData *call)
 	ast_mutex_unlock(&p->lock);
 
    	if(gH323Debug)
-		ast_verbose("+++   close_udptl_connection\n");
+		ast_verb(0, "+++   close_udptl_connection\n");
 
 	return;
 }
@@ -4600,7 +4603,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		/* Switch to T.38 ON CED*/
 		if (!p->faxmode && !p->chmodepend && (dfr->subclass.integer == 'e') && (p->t38support != T38_DISABLED)) {
 			if (gH323Debug)
-				ast_verbose("request to change %s to t.38 because fax ced\n", p->callToken);
+				ast_verb(0, "request to change %s to t.38 because fax ced\n", p->callToken);
 			p->chmodepend = 1;
 			p->faxdetected = 1;
 			ooRequestChangeMode(p->callToken, 1);

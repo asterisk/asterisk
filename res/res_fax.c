@@ -3322,7 +3322,7 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 			if (ast_exists_extension(chan, target_context, "fax", 1,
 			    S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 				ast_channel_lock(chan);
-				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to %s detection\n",
+				ast_verb(2, "Redirecting '%s' to fax extension due to %s detection\n",
 					chan->name, (result == 'f') ? "CNG" : "T38");
 				pbx_builtin_setvar_helper(chan, "FAXEXTEN", chan->exten);
 				if (ast_async_goto(chan, target_context, "fax", 1)) {

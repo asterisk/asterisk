@@ -13044,16 +13044,14 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 		}
 		
 	} else {
-		if (option_verbose > 2)
-			ast_verbose( VERBOSE_PREFIX_3 "Destination number is CID number '%s'\n", num);
+		ast_verb(3, "Destination number is CID number '%s'\n", num);
 		ast_copy_string(destination, num, sizeof(destination));
 	}
 
 	if (!ast_strlen_zero(destination)) {
 		if (destination[strlen(destination) -1 ] == '*')
 			return 0; 
-		if (option_verbose > 2)
-			ast_verbose( VERBOSE_PREFIX_3 "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
+		ast_verb(3, "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
 		ast_copy_string(chan->exten, destination, sizeof(chan->exten));
 		ast_copy_string(chan->context, outgoing_context, sizeof(chan->context));
 		chan->priority = 0;
@@ -13388,11 +13386,11 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			if (outsidecaller) {  /* only mark vm messages */
 				/* Mark Urgent */
 				if ((flag && ast_strlen_zero(flag)) || (!ast_strlen_zero(flag) && strcmp(flag, "Urgent"))) {
-					ast_verbose(VERBOSE_PREFIX_3 "marking message as Urgent\n");
+					ast_verb(3, "marking message as Urgent\n");
 					res = ast_play_and_wait(chan, "vm-marked-urgent");
 					strcpy(flag, "Urgent");
 				} else if (flag) {
-					ast_verbose(VERBOSE_PREFIX_3 "UNmarking message as Urgent\n");
+					ast_verb(3, "UNmarking message as Urgent\n");
 					res = ast_play_and_wait(chan, "vm-urgent-removed");
 					strcpy(flag, "");
 				} else {

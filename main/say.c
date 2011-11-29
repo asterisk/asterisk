@@ -1233,7 +1233,7 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num, const char 
 
 	char fn[SAY_NUM_BUF_SIZE] = "";
 
-	ast_verbose(VERBOSE_PREFIX_3 "ast_say_digits_full: started. num: %d, options=\"%s\"\n", num, options);
+	ast_verb(3, "ast_say_digits_full: started. num: %d, options=\"%s\"\n", num, options);
 
 	if (!num) {
 		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
@@ -1241,7 +1241,7 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num, const char 
 	if (options && !strncasecmp(options, "m", 1)) {
 		mf = 1;
 	}
-	ast_verbose(VERBOSE_PREFIX_3 "ast_say_digits_full: num: %d, state=%d, options=\"%s\", mf=%d\n", num, state, options, mf);
+	ast_verb(3, "ast_say_digits_full: num: %d, state=%d, options=\"%s\", mf=%d\n", num, state, options, mf);
 
 	/* Do we have work to do? */
 	while (!res && (num || (state > 0))) {
@@ -1252,7 +1252,7 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num, const char 
 		 * state==0 is the normal mode and it means that we continue
 		 * to check if the number num has yet anything left.
 		 */
-		ast_verbose(VERBOSE_PREFIX_3 "ast_say_digits_full: num: %d, state=%d, options=\"%s\", mf=%d, tmpnum=%d\n", num, state, options, mf, tmpnum);
+		ast_verb(3, "ast_say_digits_full: num: %d, state=%d, options=\"%s\", mf=%d, tmpnum=%d\n", num, state, options, mf, tmpnum);
 
 		if (state == 1) {
 			state = 0;
@@ -3200,13 +3200,13 @@ static int ast_say_enumeration_full_he(struct ast_channel *chan, int num, const 
 	int res = 0;
 	char fn[256] = "";
 	int mf = -1;				/* +1 = Masculin; -1 = Feminin */
-	ast_verbose(VERBOSE_PREFIX_3 "ast_say_digits_full: started. num: %d, options=\"%s\"\n", num, options);
+	ast_verb(3, "ast_say_digits_full: started. num: %d, options=\"%s\"\n", num, options);
 
 	if (options && !strncasecmp(options, "m", 1)) {
 		mf = -1;
 	}
 
-	ast_verbose(VERBOSE_PREFIX_3 "ast_say_digits_full: num: %d, options=\"%s\", mf=%d\n", num, options, mf);
+	ast_verb(3, "ast_say_digits_full: num: %d, options=\"%s\", mf=%d\n", num, options, mf);
 
 	while (!res && num) {
 		if (num < 0) {

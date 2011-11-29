@@ -2615,9 +2615,7 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 			ASTOBJ_UNREF(buddy, ast_aji_buddy_destroy);
 		}
 	default:
-		if (option_verbose > 4) {
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
-		}
+		ast_verb(5, "JABBER: This is a subcription of type %i\n", pak->subtype);
 	}
 }
 

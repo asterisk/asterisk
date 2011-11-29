@@ -1546,8 +1546,7 @@ static int setformat(struct chan_usbradio_pvt *o, int mode)
 			/* Check to see if duplex set (FreeBSD Bug) */
 			res = ioctl(fd, SNDCTL_DSP_GETCAPS, &fmt);
 			if (res == 0 && (fmt & DSP_CAP_DUPLEX)) {
-				if (option_verbose > 1)
-					ast_verbose(VERBOSE_PREFIX_2 "Console is full duplex\n");
+				ast_verb(2, "Console is full duplex\n");
 				o->duplex = M_FULL;
 			};
 			break;

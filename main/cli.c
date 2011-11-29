@@ -382,6 +382,20 @@ static char *complete_number(const char *partial, unsigned int min, unsigned int
 	return NULL;
 }
 
+static char *handle_localverbose(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "remote set verbose";
+		e->usage = "Usage: remote set verbose <level>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	ast_cli(a->fd, "This is the main console.  Use 'core set verbose' instead.\n");
+	return CLI_FAILURE;
+}
+
 static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int oldval;
@@ -1667,6 +1681,8 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_showcalls, "Display information on calls"),
 
 	AST_CLI_DEFINE(handle_showchan, "Display information on a specific channel"),
+
+	AST_CLI_DEFINE(handle_localverbose, "Set level of remote console verbosity"),
 
 	AST_CLI_DEFINE(handle_core_set_debug_channel, "Enable/disable debugging on a channel"),
 

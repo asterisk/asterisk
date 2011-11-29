@@ -5927,9 +5927,9 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 	SKINNY_DEVONLY(if (skinnydebug > 1) {
 		ast_verb(4, "Received OFFHOOK_MESSAGE from %s, instance=%d, callid=%d\n", d->name, instance, reference);
 	})
-	
+
 	if (d->hookstate == SKINNY_OFFHOOK) {
-		ast_verbose(VERBOSE_PREFIX_3 "Got offhook message when device (%s) already offhook\n", d->name);
+		ast_verb(3, "Got offhook message when device (%s) already offhook\n", d->name);
 		return 0;
 	}
 

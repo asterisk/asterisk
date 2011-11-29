@@ -7471,7 +7471,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 				S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
 				ast_channel_lock(ast);
 				sip_pvt_lock(p);
-				ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to CNG detection\n", ast->name);
+				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast->name);
 				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
 				if (ast_async_goto(ast, target_context, "fax", 1)) {
 					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
@@ -9426,7 +9426,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						ast_channel_unlock(p->owner);
 						if (ast_exists_extension(p->owner, target_context, "fax", 1,
 							S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
-							ast_verbose(VERBOSE_PREFIX_2 "Redirecting '%s' to fax extension due to peer T.38 re-INVITE\n", p->owner->name);
+							ast_verb(2, "Redirecting '%s' to fax extension due to peer T.38 re-INVITE\n", p->owner->name);
 							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
 							if (ast_async_goto(p->owner, target_context, "fax", 1)) {
 								ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", p->owner->name, target_context);
@@ -14260,13 +14260,13 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: SIP\r\nPeer: SIP/%s\r\nPeerStatus: Registered\r\nAddress: %s\r\n", peer->name,  ast_sockaddr_stringify(&peer->addr));
 
 	/* Is this a new IP address for us? */
-	if (VERBOSITY_ATLEAST(2) && ast_sockaddr_cmp(&peer->addr, &oldsin)) {
-		ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s\n", peer->name,
-				ast_sockaddr_stringify(&peer->addr));
+	if (ast_sockaddr_cmp(&peer->addr, &oldsin)) {
+		ast_verb(3, "Registered SIP '%s' at %s\n", peer->name,
+			ast_sockaddr_stringify(&peer->addr));
 	}
 	sip_poke_peer(peer, 0);
 	register_peer_exten(peer, 1);
-	
+
 	/* Save User agent */
 	useragent = sip_get_header(req, "User-Agent");
 	if (strcasecmp(useragent, peer->useragent)) {
