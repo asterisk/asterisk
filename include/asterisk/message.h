@@ -173,7 +173,8 @@ int ast_msg_set_var(struct ast_msg *msg, const char *name, const char *value);
 /*!
  * \brief Get the specified variable on the message
  * \note The return value is valid only as long as the ast_message is valid. Hold a reference
- *       to the message if you plan on storing the return value. 
+ *       to the message if you plan on storing the return value. Do re-set the same
+ *       message var name while holding a pointer to the result of this function.
  *
  * \return The value associated with variable "name". NULL if variable not found.
  */
