@@ -2268,6 +2268,8 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 				if (state->prev_line_full && VERBOSE_HASMAGIC(curline)) {
 					level = VERBOSE_MAGIC2LEVEL(curline);
 					curline++;
+				} else {
+					level = state->prev_line_verbosity;
 				}
 				if ((!state->prev_line_full && state->prev_line_verbosity <= option_verbose) || (state->prev_line_full && level <= option_verbose)) {
 					if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
