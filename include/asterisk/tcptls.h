@@ -177,6 +177,13 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 void *ast_tcptls_server_root(void *);
 
 /*!
+ * \brief Closes a tcptls session instance's file and/or file descriptor.
+ * The tcptls_session will be set to NULL and it's file descriptor will be set to -1
+ * by this function.
+ */
+void ast_tcptls_close_session_file(struct ast_tcptls_session_instance *tcptls_session);
+
+/*!
  * \brief This is a generic (re)start routine for a TCP server,
  * which does the socket/bind/listen and starts a thread for handling
  * accept().
