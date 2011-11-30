@@ -7372,16 +7372,23 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	case 4:
 		f = ast_rtp_instance_read(p->trtp, 0);	/* RTP Text */
 		if (sipdebug_text) {
+			struct ast_str *out = ast_str_create(f->datalen * 4 + 6);
 			int i;
 			unsigned char* arr = f->data.ptr;
-			for (i=0; i < f->datalen; i++) {
-				ast_verbose("%c", (arr[i] > ' ' && arr[i] < '}') ? arr[i] : '.');
-			}
-			ast_verbose(" -> ");
-			for (i=0; i < f->datalen; i++) {
-				ast_verbose("%02X ", arr[i]);
-			}
-			ast_verbose("\n");
+			do {
+				if (!out) {
+					break;
+				}
+				for (i = 0; i < f->datalen; i++) {
+					ast_str_append(&out, 0, "%c", (arr[i] > ' ' && arr[i] < '}') ? arr[i] : '.');
+				}
+				ast_str_append(&out, 0, " -> ");
+				for (i = 0; i < f->datalen; i++) {
+					ast_str_append(&out, 0, "%02X ", arr[i]);
+				}
+				ast_verb(0, "%s\n", ast_str_buffer(out));
+				ast_free(out);
+			} while (0);
 		}
 		break;
 	case 5:

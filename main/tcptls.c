@@ -359,7 +359,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		if (SSL_CTX_use_certificate_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0) {
 			if (!client) {
 				/* Clients don't need a certificate, but if its setup we can use it */
-				ast_verb(0, "SSL error loading cert file. <%s>", cfg->certfile);
+				ast_verb(0, "SSL error loading cert file. <%s>\n", cfg->certfile);
 				sleep(2);
 				cfg->enabled = 0;
 				return 0;
@@ -368,7 +368,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		if ((SSL_CTX_use_PrivateKey_file(cfg->ssl_ctx, tmpprivate, SSL_FILETYPE_PEM) == 0) || (SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 )) {
 			if (!client) {
 				/* Clients don't need a private key, but if its setup we can use it */
-				ast_verb(0, "SSL error loading private key file. <%s>", tmpprivate);
+				ast_verb(0, "SSL error loading private key file. <%s>\n", tmpprivate);
 				sleep(2);
 				cfg->enabled = 0;
 				return 0;
@@ -378,7 +378,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (!ast_strlen_zero(cfg->cipher)) {
 		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
 			if (!client) {
-				ast_verb(0, "SSL cipher error <%s>", cfg->cipher);
+				ast_verb(0, "SSL cipher error <%s>\n", cfg->cipher);
 				sleep(2);
 				cfg->enabled = 0;
 				return 0;

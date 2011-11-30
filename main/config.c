@@ -1503,18 +1503,16 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		if (cfmtime)
 			cfmtime->mtime = statbuf.st_mtime;
 
-		ast_verb(2, "Parsing '%s': ", fn);
-			fflush(stdout);
 		if (!(f = fopen(fn, "r"))) {
 			ast_debug(1, "No file to parse: %s\n", fn);
-			ast_verb(2, "Not found (%s)\n", strerror(errno));
+			ast_verb(2, "Parsing '%s': Not found (%s)\n", fn, strerror(errno));
 			continue;
 		}
 		count++;
 		/* If we get to this point, then we're loading regardless */
 		ast_clear_flag(&flags, CONFIG_FLAG_FILEUNCHANGED);
 		ast_debug(1, "Parsing %s\n", fn);
-		ast_verb(2, "Found\n");
+		ast_verb(2, "Parsing '%s': Found\n", fn);
 		while (!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
@@ -1839,7 +1837,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 				fclose(f); /* this should zero out the file */
 			} else {
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
-				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
+				ast_verb(2, "Unable to write %s (%s)\n", fn, strerror(errno));
 			}
 			if (fi) {
 				ao2_ref(fi, -1);
@@ -1856,7 +1854,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 		(f = fopen(fn, "w"))
 #endif
 		) {
-		ast_verb(2, "Saving '%s': ", fn);
+		ast_verb(2, "Saving '%s'\n", fn);
 		gen_header(f, configfile, fn, generator);
 		cat = cfg->root;
 		fclose(f);
@@ -1873,7 +1871,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 			f = fopen(fn, "a");
 			if (!f) {
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
-				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
+				ast_verb(2, "Unable to write %s (%s)\n", fn, strerror(errno));
 				if (fi) {
 					ao2_ref(fi, -1);
 				}
@@ -1964,7 +1962,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 				f = fopen(fn, "a");
 				if (!f) {
 					ast_debug(1, "Unable to open for writing: %s\n", fn);
-					ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
+					ast_verb(2, "Unable to write %s (%s)\n", fn, strerror(errno));
 					if (fi) {
 						ao2_ref(fi, -1);
 					}
@@ -2013,11 +2011,12 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 			}
 			cat = cat->next;
 		}
-		if (!option_debug)
-			ast_verb(2, "Saved\n");
+		if (!option_debug) {
+			ast_verb(2, "Saving '%s': saved\n", fn);
+		}
 	} else {
 		ast_debug(1, "Unable to open for writing: %s\n", fn);
-		ast_verb(2, "Unable to write (%s)", strerror(errno));
+		ast_verb(2, "Unable to write '%s' (%s)\n", fn, strerror(errno));
 		if (fi) {
 			ao2_ref(fi, -1);
 		}
@@ -2034,7 +2033,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 			f = fopen(fn, "a");
 			if (!f) {
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
-				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
+				ast_verb(2, "Unable to write %s (%s)\n", fn, strerror(errno));
 				if (fi) {
 					ao2_ref(fi, -1);
 				}

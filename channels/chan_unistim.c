@@ -1558,14 +1558,14 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 	int tmp, i = 0;
 	char addrmac[19];
 	int res = 0;
-	if (unistimdebug)
-		ast_verb(0, "Mac Address received : ");
 	for (tmp = 15; tmp < 15 + SIZE_HEADER; tmp++) {
 		sprintf(&addrmac[i], "%.2x", (unsigned char) buf[tmp]);
 		i += 2;
 	}
-	if (unistimdebug)
-		ast_verb(0, "%s\n", addrmac);
+	if (unistimdebug) {
+		ast_verb(0, "Mac Address received : %s\n", addrmac);
+	}
+
 	strcpy(pte->macaddr, addrmac);
 	res = unistim_register(pte);
 	if (!res) {
