@@ -2813,7 +2813,14 @@ cleanup:
 
 	if (tcptls_session) {
 		ast_mutex_lock(&tcptls_session->lock);
-		ast_tcptls_close_session_file(tcptls_session);
+		if (tcptls_session->f) {
+			fclose(tcptls_session->f);
+			tcptls_session->f = NULL;
+		}
+		if (tcptls_session->fd != -1) {
+			close(tcptls_session->fd);
+			tcptls_session->fd = -1;
+		}
 		tcptls_session->parent = NULL;
 		ast_mutex_unlock(&tcptls_session->lock);
 
@@ -26012,8 +26019,8 @@ create_tcptls_session_fail:
 		ao2_t_ref(ca, -1, "failed to create client, getting rid of client tcptls_session arguments");
 	}
 	if (s->tcptls_session) {
-		ast_tcptls_close_session_file(tcptls_session);
-		s->fd = -1;
+		close(tcptls_session->fd);
+		s->fd = tcptls_session->fd = -1;
 		ao2_ref(s->tcptls_session, -1);
 		s->tcptls_session = NULL;
 	}
