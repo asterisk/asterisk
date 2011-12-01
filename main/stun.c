@@ -234,6 +234,21 @@ static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
 		      (struct sockaddr *)dst, sizeof(*dst));
 }
 
+/*!
+ * \internal
+ * \brief Compare the STUN tranaction IDs.
+ *
+ * \param left Transaction ID.
+ * \param right Transaction ID.
+ *
+ * \retval 0 if match.
+ * \retval non-zero if not match.
+ */
+static int stun_id_cmp(stun_trans_id *left, stun_trans_id *right)
+{
+	return memcmp(left, right, sizeof(*left));
+}
+
 /*! \brief helper function to generate a random request id */
 static void stun_req_id(struct stun_header *req)
 {
@@ -242,14 +257,6 @@ static void stun_req_id(struct stun_header *req)
 		req->id.id[x] = ast_random();
 }
 
-/*! \brief handle an incoming STUN message.
- *
- * Do some basic sanity checks on packet size and content,
- * try to extract a bit of information, and possibly reply.
- * At the moment this only processes BIND requests, and returns
- * the externally visible address of the request.
- * If a callback is specified, invoke it with the attribute.
- */
 int ast_stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len, stun_cb_f *stun_cb, void *arg)
 {
 	struct stun_header *hdr = (struct stun_header *)data;
@@ -359,75 +366,98 @@ static int stun_get_mapped(struct stun_attr *attr, void *arg)
 	return 0;
 }
 
-/*! \brief Generic STUN request
- * Send a generic stun request to the server specified,
- * possibly waiting for a reply and filling the 'reply' field with
- * the externally visible address. Note that in this case the request
- * will be blocking.
- * (Note, the interface may change slightly in the future).
- *
- * \param s the socket used to send the request
- * \param dst the address of the STUN server
- * \param username if non null, add the username in the request
- * \param answer if non null, the function waits for a response and
- *    puts here the externally visible address.
- * \return 0 on success, other values on error.
- */
 int ast_stun_request(int s, struct sockaddr_in *dst,
 	const char *username, struct sockaddr_in *answer)
 {
 	struct stun_header *req;
-	unsigned char reqdata[1024];
+	struct stun_header *rsp;
+	unsigned char req_buf[1024];
+	unsigned char rsp_buf[1024];
 	int reqlen, reqleft;
 	struct stun_attr *attr;
-	int res = 0;
+	int res = -1;
 	int retry;
 
-	req = (struct stun_header *)reqdata;
+	if (answer) {
+		/* Always clear answer in case the request fails. */
+		memset(answer, 0, sizeof(struct sockaddr_in));
+	}
+
+	/* Create STUN bind request */
+	req = (struct stun_header *) req_buf;
 	stun_req_id(req);
 	reqlen = 0;
-	reqleft = sizeof(reqdata) - sizeof(struct stun_header);
+	reqleft = sizeof(req_buf) - sizeof(struct stun_header);
 	req->msgtype = 0;
 	req->msglen = 0;
-	attr = (struct stun_attr *)req->ies;
-	if (username)
+	attr = (struct stun_attr *) req->ies;
+	if (username) {
 		append_attr_string(&attr, STUN_USERNAME, username, &reqlen, &reqleft);
+	}
 	req->msglen = htons(reqlen);
 	req->msgtype = htons(STUN_BINDREQ);
-	for (retry = 0; retry < 3; retry++) {	/* XXX make retries configurable */
+
+	for (retry = 0; retry++ < 3;) {	/* XXX make retries configurable */
 		/* send request, possibly wait for reply */
-		unsigned char reply_buf[1024];
-		struct pollfd pfds = { .fd = s, .events = POLLIN };
 		struct sockaddr_in src;
 		socklen_t srclen;
 
+		/* Send STUN message. */
 		res = stun_send(s, dst, req);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "ast_stun_request send #%d failed error %d, retry\n",
-				retry, res);
-			continue;
-		}
-		if (answer == NULL)
+			ast_debug(1, "stun_send try %d failed: %s\n", retry, strerror(errno));
 			break;
-		res = ast_poll(&pfds, 1, 3000);
-		if (res <= 0)	/* timeout or error */
-			continue;
+		}
+		if (!answer) {
+			/* Successful send since we don't care about any response. */
+			res = 0;
+			break;
+		}
+
+try_again:
+		/* Wait for response. */
+		{
+			struct pollfd pfds = { .fd = s, .events = POLLIN };
+
+			res = ast_poll(&pfds, 1, 3000);
+			if (res < 0) {
+				/* Error */
+				continue;
+			}
+			if (!res) {
+				/* No response, timeout */
+				res = 1;
+				continue;
+			}
+		}
+
+		/* Read STUN response. */
 		memset(&src, 0, sizeof(src));
 		srclen = sizeof(src);
-		/* XXX pass -1 in the size, because stun_handle_packet might
+		/* XXX pass sizeof(rsp_buf) - 1 in the size, because stun_handle_packet might
 		 * write past the end of the buffer.
 		 */
-		res = recvfrom(s, reply_buf, sizeof(reply_buf) - 1,
-			0, (struct sockaddr *)&src, &srclen);
+		res = recvfrom(s, rsp_buf, sizeof(rsp_buf) - 1,
+			0, (struct sockaddr *) &src, &srclen);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "ast_stun_request recvfrom #%d failed error %d, retry\n",
-				retry, res);
-			continue;
+			ast_debug(1, "recvfrom try %d failed: %s\n", retry, strerror(errno));
+			break;
 		}
-		memset(answer, 0, sizeof(struct sockaddr_in));
-		ast_stun_handle_packet(s, &src, reply_buf, res,
-			stun_get_mapped, answer);
-		res = 0; /* signal regular exit */
+
+		/* Process the STUN response. */
+		rsp = (struct stun_header *) rsp_buf;
+		if (ast_stun_handle_packet(s, &src, rsp_buf, res, stun_get_mapped, answer)
+			|| (rsp->msgtype != htons(STUN_BINDRESP)
+				&& rsp->msgtype != htons(STUN_BINDERR))
+			|| stun_id_cmp(&req->id, &rsp->id)) {
+			/* Bad STUN packet, not right type, or transaction ID did not match. */
+			memset(answer, 0, sizeof(struct sockaddr_in));
+
+			/* Was not a resonse to our request. */
+			goto try_again;
+		}
+		/* Success.  answer contains the external address if available. */
+		res = 0;
 		break;
 	}
 	return res;
