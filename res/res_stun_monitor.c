@@ -38,104 +38,134 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stun.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/lock.h"
+#include "asterisk/acl.h"
 #include <fcntl.h>
 
-static const int DEFAULT_MONITOR_REFRESH = 30;
+#define DEFAULT_MONITOR_REFRESH 30	/*!< Default refresh period in seconds */
 
 static const char stun_conf_file[] = "res_stun_monitor.conf";
 static struct ast_sched_context *sched;
 
 static struct {
-	struct sockaddr_in stunaddr;      /*!< The stun address we send requests to*/
-	struct sockaddr_in externaladdr;  /*!< current perceived external address. */
+	/*! STUN monitor protection lock. */
 	ast_mutex_t lock;
+	/*! Current perceived external address. */
+	struct sockaddr_in external_addr;
+	/*! STUN server host name. */
+	const char *server_hostname;
+	/*! Port of STUN server to use */
+	unsigned int stun_port;
+	/*! Number of seconds between polls to the STUN server for the external address. */
 	unsigned int refresh;
-	int stunsock;
+	/*! Monitoring STUN socket. */
+	int stun_sock;
+	/*! TRUE if the STUN monitor is enabled. */
 	unsigned int monitor_enabled:1;
-	unsigned int externaladdr_known:1;
+	/*! TRUE if the perceived external address is valid/known. */
+	unsigned int external_addr_known:1;
+	/*! TRUE if we have already griped about a STUN poll failing. */
+	unsigned int stun_poll_failed_gripe:1;
 } args;
 
-static inline void stun_close_sock(void)
+static void stun_close_sock(void)
 {
-	if (args.stunsock != -1) {
-		close(args.stunsock);
-		args.stunsock = -1;
-		memset(&args.externaladdr, 0, sizeof(args.externaladdr));
-		args.externaladdr_known = 0;
+	if (0 <= args.stun_sock) {
+		close(args.stun_sock);
+		args.stun_sock = -1;
 	}
-}
-
-/* \brief purge the stun socket's receive buffer before issuing a new request
- *
- * XXX Note that this is somewhat of a hack.  This function is essentially doing
- * a cleanup on the socket rec buffer to handle removing any STUN responses we have not
- * handled.  This is called before sending out a new STUN request so we don't read
- * a latent previous response thinking it is new.
- */
-static void stun_purge_socket(void)
-{
-	int flags = fcntl(args.stunsock, F_GETFL);
-	int res = 0;
-	unsigned char reply_buf[1024];
-
-	fcntl(args.stunsock, F_SETFL, flags | O_NONBLOCK);
-	while (res != -1) {
-		/* throw away everything in the buffer until we reach the end. */
-		res = recv(args.stunsock, reply_buf, sizeof(reply_buf), 0);
-	}
-	fcntl(args.stunsock, F_SETFL, flags & ~O_NONBLOCK);
 }
 
 /* \brief called by scheduler to send STUN request */
 static int stun_monitor_request(const void *blarg)
 {
 	int res;
-	int generate_event = 0;
-	struct sockaddr_in answer = { 0, };
+	struct sockaddr_in answer;
+	static const struct sockaddr_in no_addr = { 0, };
 
-
-	/* once the stun socket goes away, this scheduler item will go away as well */
 	ast_mutex_lock(&args.lock);
-	if (args.stunsock == -1) {
-		ast_log(LOG_ERROR, "STUN monitor: can not send STUN request, socket is not open\n");
+	if (!args.monitor_enabled) {
 		goto monitor_request_cleanup;
 	}
 
-	stun_purge_socket();
+	if (args.stun_sock < 0) {
+		struct ast_sockaddr stun_addr;
 
-	if (!(ast_stun_request(args.stunsock, &args.stunaddr, NULL, &answer)) &&
-		(memcmp(&args.externaladdr, &answer, sizeof(args.externaladdr)))) {
-		const char *newaddr = ast_strdupa(ast_inet_ntoa(answer.sin_addr));
-		int newport = ntohs(answer.sin_port);
+		/* STUN socket not open.  Refresh the server DNS address resolution. */
+		if (!args.server_hostname) {
+			/* No STUN hostname? */
+			goto monitor_request_cleanup;
+		}
 
-		ast_log(LOG_NOTICE, "STUN MONITOR: Old external address/port %s:%d now seen as %s:%d \n",
-			ast_inet_ntoa(args.externaladdr.sin_addr), ntohs(args.externaladdr.sin_port),
-			newaddr, newport);
+		/* Lookup STUN address. */
+		memset(&stun_addr, 0, sizeof(stun_addr));
+		stun_addr.ss.ss_family = AF_INET;
+		if (ast_get_ip(&stun_addr, args.server_hostname)) {
+			/* Lookup failed. */
+			ast_log(LOG_WARNING, "Unable to lookup STUN server '%s'\n",
+				args.server_hostname);
+			goto monitor_request_cleanup;
+		}
+		ast_sockaddr_set_port(&stun_addr, args.stun_port);
 
-		memcpy(&args.externaladdr, &answer, sizeof(args.externaladdr));
-
-		if (args.externaladdr_known) {
-			/* the external address was already known, and has changed... generate event. */
-			generate_event = 1;
-
-		} else {
-			/* this was the first external address we found, do not alert listeners
-			 * until this address changes to something else. */
-			args.externaladdr_known = 1;
+		/* open socket binding */
+		args.stun_sock = socket(AF_INET, SOCK_DGRAM, 0);
+		if (args.stun_sock < 0) {
+			ast_log(LOG_WARNING, "Unable to create STUN socket: %s\n", strerror(errno));
+			goto monitor_request_cleanup;
+		}
+		if (ast_connect(args.stun_sock, &stun_addr)) {
+			ast_log(LOG_WARNING, "STUN Failed to connect to %s: %s\n",
+				ast_sockaddr_stringify(&stun_addr), strerror(errno));
+			stun_close_sock();
+			goto monitor_request_cleanup;
 		}
 	}
 
-	if (generate_event) {
-		struct ast_event *event = ast_event_new(AST_EVENT_NETWORK_CHANGE, AST_EVENT_IE_END);
-		if (!event) {
-			ast_log(LOG_ERROR, "STUN monitor: could not create AST_EVENT_NETWORK_CHANGE event.\n");
-			goto monitor_request_cleanup;
+	res = ast_stun_request(args.stun_sock, NULL, NULL, &answer);
+	if (res) {
+		/*
+		 * STUN request timed out or errored.
+		 *
+		 * Refresh the server DNS address resolution next time around.
+		 */
+		if (!args.stun_poll_failed_gripe) {
+			args.stun_poll_failed_gripe = 1;
+			ast_log(LOG_WARNING, "STUN poll %s. Re-evaluating STUN server address.\n",
+				res < 0 ? "failed" : "got no response");
 		}
-		if (ast_event_queue(event)) {
-			ast_event_destroy(event);
-			event = NULL;
-			ast_log(LOG_ERROR, "STUN monitor: could not queue AST_EVENT_NETWORK_CHANGE event.\n");
-			goto monitor_request_cleanup;
+		stun_close_sock();
+	} else {
+		args.stun_poll_failed_gripe = 0;
+		if (memcmp(&no_addr, &answer, sizeof(no_addr))
+			&& memcmp(&args.external_addr, &answer, sizeof(args.external_addr))) {
+			const char *newaddr = ast_strdupa(ast_inet_ntoa(answer.sin_addr));
+			int newport = ntohs(answer.sin_port);
+
+			ast_log(LOG_NOTICE, "Old external address/port %s:%d now seen as %s:%d.\n",
+				ast_inet_ntoa(args.external_addr.sin_addr),
+				ntohs(args.external_addr.sin_port), newaddr, newport);
+
+			args.external_addr = answer;
+
+			if (args.external_addr_known) {
+				struct ast_event *event;
+
+				/*
+				 * The external address was already known, and has changed...
+				 * generate event.
+				 */
+				event = ast_event_new(AST_EVENT_NETWORK_CHANGE, AST_EVENT_IE_END);
+				if (!event) {
+					ast_log(LOG_ERROR, "Could not create AST_EVENT_NETWORK_CHANGE event.\n");
+				} else if (ast_event_queue(event)) {
+					ast_event_destroy(event);
+					ast_log(LOG_ERROR, "Could not queue AST_EVENT_NETWORK_CHANGE event.\n");
+				}
+			} else {
+				/* this was the first external address we found, do not alert listeners
+				 * until this address changes to something else. */
+				args.external_addr_known = 1;
+			}
 		}
 	}
 
@@ -148,46 +178,40 @@ monitor_request_cleanup:
 	return res;
 }
 
-/* \brief stops the stun monitor thread
+/*!
+ * \internal
+ * \brief Stops the STUN monitor thread.
+ *
  * \note do not hold the args->lock while calling this
+ *
+ * \return Nothing
  */
 static void stun_stop_monitor(void)
 {
+	ast_mutex_lock(&args.lock);
+	args.monitor_enabled = 0;
+	ast_free((char *) args.server_hostname);
+	args.server_hostname = NULL;
+	stun_close_sock();
+	ast_mutex_unlock(&args.lock);
+
 	if (sched) {
 		ast_sched_context_destroy(sched);
 		sched = NULL;
 		ast_log(LOG_NOTICE, "STUN monitor stopped\n");
 	}
-	/* it is only safe to destroy the socket without holding arg->lock
-	 * after the sched thread is destroyed */
-	stun_close_sock();
 }
 
-/* \brief starts the stun monitor thread
+/*!
+ * \internal
+ * \brief Starts the STUN monitor thread.
+ *
  * \note The args->lock MUST be held when calling this function
+ *
+ * \return Nothing
  */
 static int stun_start_monitor(void)
 {
-	struct ast_sockaddr dst;
-	/* clean up any previous open socket */
-	stun_close_sock();
-
-	/* create destination ast_sockaddr */
-	ast_sockaddr_from_sin(&dst, &args.stunaddr);
-
-	/* open new socket binding */
-	args.stunsock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (args.stunsock < 0) {
-		ast_log(LOG_WARNING, "Unable to create STUN socket: %s\n", strerror(errno));
-		return -1;
-	}
-
-	if (ast_connect(args.stunsock, &dst) != 0) {
-		ast_log(LOG_WARNING, "SIP STUN Failed to connect to %s\n", ast_sockaddr_stringify(&dst));
-		stun_close_sock();
-		return -1;
-	}
-
 	/* if scheduler thread is not started, make sure to start it now */
 	if (sched) {
 		return 0; /* already started */
@@ -195,7 +219,6 @@ static int stun_start_monitor(void)
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Failed to create stun monitor scheduler context\n");
-		stun_close_sock();
 		return -1;
 	}
 
@@ -210,12 +233,70 @@ static int stun_start_monitor(void)
 		ast_log(LOG_ERROR, "Unable to schedule STUN network monitor \n");
 		ast_sched_context_destroy(sched);
 		sched = NULL;
-		stun_close_sock();
 		return -1;
 	}
 
 	ast_log(LOG_NOTICE, "STUN monitor started\n");
 
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Parse and setup the stunaddr parameter.
+ *
+ * \param value Configuration parameter variable value.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int setup_stunaddr(const char *value)
+{
+	char *val;
+	char *host_str;
+	char *port_str;
+	unsigned int port;
+	struct ast_sockaddr stun_addr;
+
+	if (ast_strlen_zero(value)) {
+		/* Setting to an empty value disables STUN monitoring. */
+		args.monitor_enabled = 0;
+		return 0;
+	}
+
+	val = ast_strdupa(value);
+	if (!ast_sockaddr_split_hostport(val, &host_str, &port_str, 0)
+		|| ast_strlen_zero(host_str)) {
+		return -1;
+	}
+
+	/* Determine STUN port */
+	if (ast_strlen_zero(port_str)
+		|| 1 != sscanf(port_str, "%30u", &port)) {
+		port = STANDARD_STUN_PORT;
+	}
+
+	host_str = ast_strdup(host_str);
+	if (!host_str) {
+		return -1;
+	}
+
+	/* Lookup STUN address. */
+	memset(&stun_addr, 0, sizeof(stun_addr));
+	stun_addr.ss.ss_family = AF_INET;
+	if (ast_get_ip(&stun_addr, host_str)) {
+		ast_log(LOG_WARNING, "Unable to lookup STUN server '%s'\n", host_str);
+		ast_free(host_str);
+		return -1;
+	}
+
+	/* Save STUN server information. */
+	ast_free((char *) args.server_hostname);
+	args.server_hostname = host_str;
+	args.stun_port = port;
+
+	/* Enable STUN monitor */
+	args.monitor_enabled = 1;
 	return 0;
 }
 
@@ -229,39 +310,37 @@ static int load_config(int startup)
 		ast_set_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 	}
 
-	if (!(cfg = ast_config_load2(stun_conf_file, "res_stun_monitor", config_flags)) ||
-		cfg == CONFIG_STATUS_FILEINVALID) {
+	cfg = ast_config_load2(stun_conf_file, "res_stun_monitor", config_flags);
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load config %s\n", stun_conf_file);
 		return -1;
 	}
-
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED && !startup) {
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		return 0;
 	}
 
+	/* clean up any previous open socket */
+	stun_close_sock();
+	args.stun_poll_failed_gripe = 0;
+
 	/* set defaults */
 	args.monitor_enabled = 0;
-	memset(&args.stunaddr, 0, sizeof(args.stunaddr));
 	args.refresh = DEFAULT_MONITOR_REFRESH;
 
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
 		if (!strcasecmp(v->name, "stunaddr")) {
-			args.stunaddr.sin_port = htons(STANDARD_STUN_PORT);
-			if (ast_parse_arg(v->value, PARSE_INADDR, &args.stunaddr)) {
-				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", v->value);
-			} else {
-				ast_log(LOG_NOTICE, "STUN monitor enabled: %s\n", v->value);
-				args.monitor_enabled = 1;
+			if (setup_stunaddr(v->value)) {
+				ast_log(LOG_WARNING, "Invalid STUN server address: %s at line %d\n",
+					v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "stunrefresh")) {
 			if ((sscanf(v->value, "%30u", &args.refresh) != 1) || !args.refresh) {
 				ast_log(LOG_WARNING, "Invalid stunrefresh value '%s', must be an integer > 0 at line %d\n", v->value, v->lineno);
 				args.refresh = DEFAULT_MONITOR_REFRESH;
-			} else {
-				ast_log(LOG_NOTICE, "STUN Monitor set to refresh every %d seconds\n", args.refresh);
 			}
 		} else {
-			ast_log(LOG_WARNING, "SIP STUN: invalid config option %s at line %d\n", v->value, v->lineno);
+			ast_log(LOG_WARNING, "Invalid config option %s at line %d\n",
+				v->value, v->lineno);
 		}
 	}
 
@@ -280,8 +359,7 @@ static int __reload(int startup)
 	}
 	ast_mutex_unlock(&args.lock);
 
-	if ((res == -1) || !args.monitor_enabled) {
-		args.monitor_enabled = 0;
+	if (res < 0 || !args.monitor_enabled) {
 		stun_stop_monitor();
 	}
 
@@ -303,12 +381,8 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_mutex_init(&args.lock);
-	args.stunsock = -1;
-	memset(&args.externaladdr, 0, sizeof(args.externaladdr));
-	args.externaladdr_known = 0;
-	sched = NULL;
+	args.stun_sock = -1;
 	if (__reload(1)) {
-		stun_stop_monitor();
 		ast_mutex_destroy(&args.lock);
 		return AST_MODULE_LOAD_DECLINE;
 	}
