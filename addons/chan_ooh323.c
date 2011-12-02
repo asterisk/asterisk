@@ -4286,7 +4286,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		f = &null_frame;
 	}
 
-	if (p->owner) {
+	if (f && p->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE && !p->faxmode) {
 			if (f->subclass.codec != p->owner->nativeformats) {

@@ -764,7 +764,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 	if (f && (f->frametype == AST_FRAME_DTMF) && !(pvt->options.dtmfmode & (H323_DTMF_RFC2833 | H323_DTMF_CISCO))) {
 		return &ast_null_frame;
 	}
-	if (pvt->owner) {
+	if (f && pvt->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass.codec != pvt->owner->nativeformats) {
