@@ -4579,7 +4579,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		f = &null_frame;
 	}
 
-	if (p->owner && !p->faxmode && (f->frametype == AST_FRAME_VOICE)) {
+	if (f && p->owner && !p->faxmode && (f->frametype == AST_FRAME_VOICE)) {
 		/* We already hold the channel lock */
 		if (!(ast_format_cap_iscompatible(p->owner->nativeformats, &f->subclass.format))) {
 			ast_debug(1, "Oooh, voice format changed to %s\n", ast_getformatname(&f->subclass.format));
