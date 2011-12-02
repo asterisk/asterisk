@@ -24332,25 +24332,17 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 {
 	struct sip_pvt *pvt;
 	int res;
-	char *uri, *host;
+	char *to_uri, *to_host, *to_user;
 	struct sip_peer *peer_ptr;
 
 	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_MESSAGE, NULL))) {
 		return -1;
 	}
 
-	uri = ast_strdupa(to);
-	if (!strncasecmp(uri, "sip:", 4)) {
-		uri += 4;
-	} else if (!strncasecmp(uri, "sips:", 5)) {
-		uri += 5;
-	}
-	host = ast_strdupa(uri);
-	if (strchr(host, '@')) {
-		strsep(&host, "@");
-	}
+	to_uri = ast_strdupa(to);
+	parse_uri(to_uri, "sip:,sips:", &to_user, NULL, &to_host, NULL);
 
-	if (ast_strlen_zero(host)) {
+	if (ast_strlen_zero(to_host)) {
 		ast_log(LOG_WARNING, "MESSAGE(to) is invalid for SIP - '%s'\n", to);
 		dialog_unlink_all(pvt);
 		dialog_unref(pvt, "MESSAGE(to) is invalid for SIP");
@@ -24387,15 +24379,16 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	sip_pvt_lock(pvt);
 
 	/* Look up the host to contact */
-	if (create_addr(pvt, host, NULL, TRUE, NULL)) {
+	if (create_addr(pvt, to_host, NULL, TRUE, NULL)) {
 		sip_pvt_unlock(pvt);
 		dialog_unlink_all(pvt);
 		dialog_unref(pvt, "create_addr failed sending a MESSAGE");
 		return -1;
 	}
 
-	/* Set the tohost to the full URI provided */
-	ast_string_field_set(pvt, tohost, uri);
+	if (!ast_strlen_zero(to_user)) {
+		ast_string_field_set(pvt, username, to_user);
+	}
 	ast_sip_ouraddrfor(&pvt->sa, &pvt->ourip, pvt);
 	ast_set_flag(&pvt->flags[0], SIP_OUTGOING);
 
