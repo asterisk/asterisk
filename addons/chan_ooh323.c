@@ -226,6 +226,7 @@ struct ooh323_user{
 	struct OOH323Regex *rtpmask;
 	char		rtpmaskstr[120];
 	int		rtdrcount, rtdrinterval;
+	int		nat;
 	int		faststart, h245tunneling;
 	int		g729onlyA;
 	struct ooh323_user *next;
@@ -256,6 +257,7 @@ struct ooh323_peer{
 	struct OOH323Regex	    *rtpmask;
 	char	    rtpmaskstr[120];
 	int	    rtdrcount,rtdrinterval;
+	int	    nat;
 	int	    faststart, h245tunneling;
 	int	    g729onlyA;
 	struct ooh323_peer *next;
@@ -327,6 +329,7 @@ static int  gOutgoingLimit = 1024;
 OOBOOL gH323Debug = FALSE;
 static int gTRCLVL = OOTRCLVLERR;
 static int gRTDRCount = 0, gRTDRInterval = 0;
+static int gNat = FALSE;
 
 static int t35countrycode = 0;
 static int t35extensions = 0;
@@ -517,6 +520,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	pvt->faxdetect = gFAXdetect;
 	pvt->t38support = gT38Support;
 	pvt->rtptimeout = gRTPTimeout;
+	pvt->nat = gNat;
 	pvt->rtdrinterval = gRTDRInterval;
 	pvt->rtdrcount = gRTDRCount;
 	pvt->g729onlyA = g729onlyA;
@@ -645,6 +649,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 		p->faxdetect = peer->faxdetect;
 		p->t38support = peer->t38support;
 		p->rtptimeout = peer->rtptimeout;
+		p->nat = peer->nat;
 		p->faststart = peer->faststart;
 		p->h245tunneling = peer->h245tunneling;
 		if (peer->rtpmask && peer->rtpmaskstr[0]) {
@@ -675,6 +680,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 		p->faxdetect = gFAXdetect;
 		p->t38support = gT38Support;
 		p->rtptimeout = gRTPTimeout;
+		p->nat = gNat;
 		ast_format_cap_copy(p->cap, gCap);
 		p->rtdrinterval = gRTDRInterval;
 		p->rtdrcount = gRTDRCount;
@@ -1819,6 +1825,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 		p->faxdetect = user->faxdetect;
 		p->t38support = user->t38support;
 		p->rtptimeout = user->rtptimeout;
+		p->nat = user->nat;
 		p->h245tunneling = user->h245tunneling;
 		p->faststart = user->faststart;
 
@@ -2255,6 +2262,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 		ast_format_cap_copy(user->cap, gCap);
 		memcpy(&user->prefs, &gPrefs, sizeof(user->prefs));
 		user->rtptimeout = gRTPTimeout;
+		user->nat = gNat;
 		user->dtmfmode = gDTMFMode;
 		user->dtmfcodec = gDTMFCodec;
 		user->faxdetect = gFAXdetect;
@@ -2285,6 +2293,8 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 				user->h245tunneling = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "g729onlyA")) {
 				user->g729onlyA = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "nat")) {
+				user->nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
 				user->rtptimeout = atoi(v->value);
 				if (user->rtptimeout < 0)
@@ -2394,6 +2404,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 		ast_format_cap_copy(peer->cap, gCap);
       		memcpy(&peer->prefs, &gPrefs, sizeof(peer->prefs));
 		peer->rtptimeout = gRTPTimeout;
+		peer->nat = gNat;
 		ast_copy_string(peer->accountcode, gAccountcode, sizeof(peer->accountcode));
 		peer->amaflags = gAMAFLAGS;
 		peer->dtmfmode = gDTMFMode;
@@ -2459,6 +2470,8 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 				peer->h245tunneling = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "g729onlyA")) {
 				peer->g729onlyA = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "nat")) {
+				peer->nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
             			peer->rtptimeout = atoi(v->value);
             			if(peer->rtptimeout < 0)
@@ -2651,6 +2664,7 @@ int reload_config(int reload)
 	gRasGkMode = RasNoGatekeeper;
 	gGatekeeper[0] = '\0';
 	gRTPTimeout = 60;
+	gNat = FALSE;
 	gRTDRInterval = 0;
 	gRTDRCount = 0;
 	strcpy(gAccountcode, DEFAULT_H323ACCNT);
@@ -2789,10 +2803,12 @@ int reload_config(int reload)
             			strncpy(gGatekeeper, v->value, sizeof(gGatekeeper)-1);
 			}
 		} else if (!strcasecmp(v->name, "logfile")) {
-         strncpy(gLogFile, v->value, sizeof(gLogFile)-1);
+         		strncpy(gLogFile, v->value, sizeof(gLogFile)-1);
 		} else if (!strcasecmp(v->name, "context")) {
-         strncpy(gContext, v->value, sizeof(gContext)-1);
-         ast_verb(3, "  == Setting default context to %s\n", gContext);
+         		strncpy(gContext, v->value, sizeof(gContext)-1);
+         		ast_verb(3, "  == Setting default context to %s\n", gContext);
+		} else if (!strcasecmp(v->name, "nat")) {
+			gNat = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
 			gRTPTimeout = atoi(v->value);
 			if (gRTPTimeout <= 0)
@@ -3017,6 +3033,7 @@ static char *handle_cli_ooh323_show_peer(struct ast_cli_entry *e, int cmd, struc
 		ast_cli(a->fd, "%-15.15s%s\n", "IP:Port: ", ip_port);
 		ast_cli(a->fd, "%-15.15s%d\n", "OutgoingLimit: ", peer->outgoinglimit);
 		ast_cli(a->fd, "%-15.15s%d\n", "rtptimeout: ", peer->rtptimeout);
+		ast_cli(a->fd, "%-15.15s%s\n", "nat: ", peer->nat?"yes":"no");
 		if (peer->rtpmaskstr[0]) {
 			ast_cli(a->fd, "%-15.15s%s\n", "rtpmask: ", peer->rtpmaskstr);
 		}
@@ -3174,6 +3191,7 @@ static char *handle_cli_ooh323_show_user(struct ast_cli_entry *e, int cmd, struc
 		ast_cli(a->fd, "%-15.15s%d\n", "IncomingLimit: ", user->incominglimit);
 		ast_cli(a->fd, "%-15.15s%d\n", "InUse: ", user->inUse);
 		ast_cli(a->fd, "%-15.15s%d\n", "rtptimeout: ", user->rtptimeout);
+		ast_cli(a->fd, "%-15.15s%s\n", "nat: ", user->nat?"yes":"no");
 		if (user->rtpmaskstr[0]) {
 			ast_cli(a->fd, "%-15.15s%s\n", "rtpmask: ", user->rtpmaskstr);
 		}
@@ -4241,6 +4259,9 @@ int configure_local_rtp(struct ooh323_pvt *p, ooCallData *call)
 
 	if (p->rtp) {
 		ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(p->rtp), p->rtp, &p->prefs);
+		if (p->nat) {
+			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_NAT, 1);
+		}
 		if (p->dtmfmode & H323_DTMF_RFC2833 && p->dtmfcodec) {
 			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_DTMF, 1);
 			ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(p->rtp),
