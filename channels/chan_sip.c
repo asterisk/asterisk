@@ -13984,7 +13984,12 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	return TRUE;		
 }
 
-/*! \brief parse uri in a way that allows semicolon stripping if legacy mode is enabled */
+/*! \brief parse uri in a way that allows semicolon stripping if legacy mode is enabled
+ *
+ * \note This calls parse_uri which has the unexpected property that passing more
+ *       arguments results in more splitting. Most common is to leave out the pass
+ *       argument, causing user to contain user:pass if available.
+ */
 static int parse_uri_legacy_check(char *uri, const char *scheme, char **user, char **pass, char **hostport, char **transport)
 {
 	int ret = parse_uri(uri, scheme, user, pass, hostport, transport);
@@ -14851,7 +14856,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	enum check_auth_result res = AUTH_NOT_FOUND;
 	struct sip_peer *peer;
 	char tmp[256];
-	char *name = NULL, *c, *domain = NULL, *dummy = NULL;
+	char *c, *name, *unused_password, *domain;
 	char *uri2 = ast_strdupa(uri);
 
 	terminate_uri(uri2);
@@ -14861,7 +14866,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	c = get_in_brackets(tmp);
 	c = remove_uri_parameters(c);
 
-	if (parse_uri_legacy_check(c, "sip:,sips:", &name, &dummy, &domain, NULL)) {
+	if (parse_uri_legacy_check(c, "sip:,sips:", &name, &unused_password, &domain, NULL)) {
 		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_sockaddr_stringify_addr(addr));
 		return -1;
 	}
@@ -14871,12 +14876,34 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 
 	extract_host_from_hostport(&domain);
 
-	/*! \todo XXX here too we interpret a missing @domain as a name-only
-	 * URI, whereas the RFC says this is a domain-only uri.
-	 */
-	if (!ast_strlen_zero(domain) && !AST_LIST_EMPTY(&domain_list)) {
+	if (ast_strlen_zero(domain)) {
+		/* <sip:name@[EMPTY]>, never good */
+		transmit_response(p, "404 Not found", &p->initreq);
+		return AUTH_UNKNOWN_DOMAIN;
+	}
+
+	if (ast_strlen_zero(name)) {
+		/* <sip:[EMPTY][@]hostport>, unsure whether valid for
+		 * registration. RFC 3261, 10.2 states:
+		 * "The To header field and the Request-URI field typically
+		 * differ, as the former contains a user name."
+		 * But, Asterisk has always treated the domain-only uri as a
+		 * username: we allow admins to create accounts described by
+		 * domain name. */
+		name = domain;
+	}
+
+	/* This here differs from 1.4 and 1.6: the domain matching ACLs were
+	 * skipped if it was a domain-only URI (used as username). Here we treat
+	 * <sip:hostport> as <sip:host@hostport> and won't forget to test the
+	 * domain ACLs against host. */
+	if (!AST_LIST_EMPTY(&domain_list)) {
 		if (!check_sip_domain(domain, NULL, 0)) {
-			transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
+			if (sip_cfg.alwaysauthreject) {
+				transmit_fake_auth_response(p, SIP_REGISTER, &p->initreq, XMIT_UNRELIABLE);
+			} else {
+				transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
+			}
 			return AUTH_UNKNOWN_DOMAIN;
 		}
 	}
@@ -15412,7 +15439,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
  */
 static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id)
 {
-	char tmp[256] = "", *uri, *domain, *dummy = NULL;
+	char tmp[256] = "", *uri, *unused_password, *domain;
 	char tmpf[256] = "", *from = NULL;
 	struct sip_request *req;
 	char *decoded_uri;
@@ -15428,7 +15455,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	
 	uri = ast_strdupa(get_in_brackets(tmp));
 
-	if (parse_uri_legacy_check(uri, "sip:,sips:", &uri, &dummy, &domain, NULL)) {
+	if (parse_uri_legacy_check(uri, "sip:,sips:", &uri, &unused_password, &domain, NULL)) {
 		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
 		return SIP_GET_DEST_INVALID_URI;
 	}
@@ -16215,10 +16242,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      int sipmethod, const char *uri, enum xmittype reliable,
 					      struct ast_sockaddr *addr, struct sip_peer **authpeer)
 {
-	char from[256] = { 0, };
-	char *dummy = NULL;	/* dummy return value for parse_uri */
-	char *domain = NULL;	/* dummy return value for parse_uri */
-	char *of;
+	char from[256] = "", *of, *name, *unused_password, *domain;
 	enum check_auth_result res = AUTH_DONT_KNOW;
 	char calleridname[50];
 	char *uri2 = ast_strdupa(uri);
@@ -16235,8 +16259,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		return res;
 	}
 
-	if (calleridname[0])
+	if (calleridname[0]) {
 		ast_string_field_set(p, cid_name, calleridname);
+	}
 
 	if (ast_strlen_zero(p->exten)) {
 		char *t = uri2;
@@ -16258,32 +16283,36 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	/* save the URI part of the From header */
 	ast_string_field_set(p, from, of);
 
-	/* ignore all fields but name */
-	if (parse_uri_legacy_check(of, "sip:,sips:", &of, &dummy, &domain, NULL)) {
+	if (parse_uri_legacy_check(of, "sip:,sips:", &name, &unused_password, &domain, NULL)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
 
-	SIP_PEDANTIC_DECODE(of);
+	SIP_PEDANTIC_DECODE(name);
 	SIP_PEDANTIC_DECODE(domain);
 
-	if (ast_strlen_zero(of)) {
-		/* XXX note: the original code considered a missing @host
-		 * as a username-only URI. The SIP RFC (19.1.1) says that
-		 * this is wrong, and it should be considered as a domain-only URI.
-		 * For backward compatibility, we keep this block, but it is
-		 * really a mistake and should go away.
-		 */
+	extract_host_from_hostport(&domain);
 
-		extract_host_from_hostport(&domain);
-		of = domain;
+	if (ast_strlen_zero(domain)) {
+		/* <sip:name@[EMPTY]>, never good */
+		ast_log(LOG_ERROR, "Empty domain name in FROM header\n");
+		return res;
+	}
+
+	if (ast_strlen_zero(name)) {
+		/* <sip:[EMPTY][@]hostport>. Asterisk 1.4 and 1.6 have always
+		 * treated that as a username, so we continue the tradition:
+		 * uri is now <sip:host@hostport>. */
+		name = domain;
 	} else {
-		char *tmp = ast_strdupa(of);
-		/* We need to be able to handle auth-headers looking like
+		/* Non-empty name, try to get caller id from it */
+		char *tmp = ast_strdupa(name);
+		/* We need to be able to handle from-headers looking like
 			<sip:8164444422;phone-context=+1@1.2.3.4:5060;user=phone;tag=SDadkoa01-gK0c3bdb43>
 		*/
 		tmp = strsep(&tmp, ";");
-		if (global_shrinkcallerid && ast_is_shrinkable_phonenumber(tmp))
+		if (global_shrinkcallerid && ast_is_shrinkable_phonenumber(tmp)) {
 			ast_shrink_phone_number(tmp);
+		}
 		ast_string_field_set(p, cid_num, tmp);
 	}
 
@@ -16297,20 +16326,22 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		 * pick one or another depending on the request ? XXX
 		 */
 		const char *hdr = sip_get_header(req, "Authorization");
-		if (ast_strlen_zero(hdr))
+		if (ast_strlen_zero(hdr)) {
 			hdr = sip_get_header(req, "Proxy-Authorization");
+		}
 
-		if ( !ast_strlen_zero(hdr) && (hdr = strstr(hdr, "username=\"")) ) {
+		if (!ast_strlen_zero(hdr) && (hdr = strstr(hdr, "username=\""))) {
 			ast_copy_string(from, hdr + strlen("username=\""), sizeof(from));
-			of = from;
-			of = strsep(&of, "\"");
+			name = from;
+			name = strsep(&name, "\"");
 		}
 	}
 
-	res = check_peer_ok(p, of, req, sipmethod, addr,
+	res = check_peer_ok(p, name, req, sipmethod, addr,
 			authpeer, reliable, calleridname, uri2);
-	if (res != AUTH_DONT_KNOW)
+	if (res != AUTH_DONT_KNOW) {
 		return res;
+	}
 
 	/* Finally, apply the guest policy */
 	if (sip_cfg.allowguest) {
@@ -16323,11 +16354,11 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		} else {
 			res = AUTH_RTP_FAILED;
 		}
-	} else if (sip_cfg.alwaysauthreject)
+	} else if (sip_cfg.alwaysauthreject) {
 		res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
-	else
+	} else {
 		res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
-
+	}
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_RPORT_PRESENT)) {
 		ast_set_flag(&p->flags[0], SIP_NAT_RPORT_PRESENT);
