@@ -235,6 +235,7 @@ struct analog_callback {
 	void (* const set_new_owner)(void *pvt, struct ast_channel *new_owner);
 
 	const char *(* const get_orig_dialstring)(void *pvt);
+	int (* const have_progressdetect)(void *pvt);
 };
 
 

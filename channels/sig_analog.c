@@ -200,6 +200,15 @@ static int analog_wait_event(struct analog_pvt *p)
 	return -1;
 }
 
+static int analog_have_progressdetect(struct analog_pvt *p)
+{
+	if (p->calls->have_progressdetect) {
+		return p->calls->have_progressdetect(p->chan_pvt);
+	}
+	/* Don't have progress detection. */
+	return 0;
+}
+
 enum analog_cid_start analog_str_to_cidstart(const char *value)
 {
 	if (!strcasecmp(value, "ring")) {
@@ -2744,7 +2753,9 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					}
 				}
 				if (ast->_state == AST_STATE_DIALING) {
-					if (analog_check_confirmanswer(p) || (!p->dialednone
+					if (analog_have_progressdetect(p)) {
+						ast_debug(1, "Done dialing, but waiting for progress detection before doing more...\n");
+					} else if (analog_check_confirmanswer(p) || (!p->dialednone
 						&& ((mysig == ANALOG_SIG_EM) || (mysig == ANALOG_SIG_EM_E1)
 							|| (mysig == ANALOG_SIG_EMWINK) || (mysig == ANALOG_SIG_FEATD)
 							|| (mysig == ANALOG_SIG_FEATDMF_TA) || (mysig == ANALOG_SIG_FEATDMF)

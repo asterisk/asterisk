@@ -3615,7 +3615,18 @@ static void my_handle_notify_message(struct ast_channel *chan, void *pvt, int ci
 	}
 }
 
+static int my_have_progressdetect(void *pvt)
+{
+	struct dahdi_pvt *p = pvt;
 
+	if ((p->callprogress & CALLPROGRESS_PROGRESS)
+		&& CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
+		return 1;
+	} else {
+		/* Don't have progress detection. */
+		return 0;
+	}
+}
 
 static struct analog_callback dahdi_analog_callbacks =
 {
@@ -3683,6 +3694,7 @@ static struct analog_callback dahdi_analog_callbacks =
 	.start_polarityswitch = my_start_polarityswitch,
 	.answer_polarityswitch = my_answer_polarityswitch,
 	.hangup_polarityswitch = my_hangup_polarityswitch,
+	.have_progressdetect = my_have_progressdetect,
 };
 
 /*! Round robin search locations. */
