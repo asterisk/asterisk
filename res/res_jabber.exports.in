@@ -9,6 +9,8 @@
 		LINKER_SYMBOL_PREFIXast_aji_join_chat;
 		LINKER_SYMBOL_PREFIXast_aji_send;
 		LINKER_SYMBOL_PREFIXast_aji_send_chat;
+		LINKER_SYMBOL_PREFIXast_aji_client_destroy;
+		LINKER_SYMBOL_PREFIXast_aji_buddy_destroy;
 	local:
 		*;
 };
