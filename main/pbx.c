@@ -8276,11 +8276,23 @@ static int add_priority(struct ast_context *con, struct ast_exten *tmp,
 {
 	struct ast_exten *ep;
 	struct ast_exten *eh=e;
+	int repeated_label = 0; /* Track if this label is a repeat, assume no. */
 
 	for (ep = NULL; e ; ep = e, e = e->peer) {
-		if (e->priority >= tmp->priority)
+		if (e->label && tmp->label && e->priority != tmp->priority && !strcmp(e->label, tmp->label)) {
+			ast_log(LOG_WARNING, "Extension '%s', priority %d in '%s', label '%s' already in use at "
+					"priority %d\n", tmp->exten, tmp->priority, con->name, tmp->label, e->priority);
+			repeated_label = 1;
+		}
+		if (e->priority >= tmp->priority) {
 			break;
+		}
 	}
+
+	if (repeated_label) {	/* Discard the label since it's a repeat. */
+		tmp->label = NULL;
+	}
+
 	if (!e) {	/* go at the end, and ep is surely set because the list is not empty */
 		ast_hashtab_insert_safe(eh->peer_table, tmp);
 
