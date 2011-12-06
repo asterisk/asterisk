@@ -474,7 +474,7 @@ enum check_auth_result {
 	AUTH_PEER_NOT_DYNAMIC = -6,
 	AUTH_ACL_FAILED = -7,
 	AUTH_BAD_TRANSPORT = -8,
-	AUTH_RTP_FAILED = 9,
+	AUTH_RTP_FAILED = -9,
 };
 
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
