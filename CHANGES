@@ -74,6 +74,13 @@ Core changes
    affect the core console verbosity, 'remote set verbose' will now set a
    separate level for each remote console without affecting any other console.
 
+Dialplan functions
+------------------
+ * Addition of the VM_INFO function that can be used to retrieve voicemail
+   user information, such as the email address and full name.
+   The MAILBOX_EXISTS dialplan function has been deprecated in favour of
+   VM_INFO.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------

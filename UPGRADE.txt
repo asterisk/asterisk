@@ -22,6 +22,10 @@
 
 From 10 to 11:
 
+Dialplan Functions:
+ - MAILBOX_EXISTS has been deprecated. Use VM_INFO with the 'exists' parameter
+   instead.
+
 func_enum:
  - ENUM query functions now return a count of -1 on lookup error to
    differentiate between a failed query and a successful query with 0 results
