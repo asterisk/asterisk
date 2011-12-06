@@ -10918,14 +10918,20 @@ static int add_digit(struct sip_request *req, char digit, unsigned int duration,
 	int event;
 	if (mode) {
 		/* Application/dtmf short version used by some implementations */
-		if (digit == '*')
+		if ('0' <= digit && digit <= '9') {
+			event = digit - '0';
+		} else if (digit == '*') {
 			event = 10;
-		else if (digit == '#')
+		} else if (digit == '#') {
 			event = 11;
-		else if ((digit >= 'A') && (digit <= 'D'))
+		} else if ('A' <= digit && digit <= 'D') {
 			event = 12 + digit - 'A';
-		else
-			event = atoi(&digit);
+		} else if ('a' <= digit && digit <= 'd') {
+			event = 12 + digit - 'a';
+		} else {
+			/* Unknown digit */
+			event = 0;
+		}
 		snprintf(tmp, sizeof(tmp), "%d\r\n", event);
 		add_header(req, "Content-Type", "application/dtmf");
 		add_content(req, tmp);
@@ -19066,16 +19072,21 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			return;
 		}
 
-		if (buf[0] == '*') {
+		if ('0' <= buf[0] && buf[0] <= '9') {
+			event = buf[0] - '0';
+		} else if (buf[0] == '*') {
 			event = 10;
 		} else if (buf[0] == '#') {
 			event = 11;
-		} else if ((buf[0] >= 'A') && (buf[0] <= 'D')) {
+		} else if ('A' <= buf[0] && buf[0] <= 'D') {
 			event = 12 + buf[0] - 'A';
+		} else if ('a' <= buf[0] && buf[0] <= 'd') {
+			event = 12 + buf[0] - 'a';
 		} else if (buf[0] == '!') {
 			event = 16;
 		} else {
-			event = atoi(buf);
+			/* Unknown digit */
+			event = 0;
 		}
 		if (event == 16) {
 			/* send a FLASH event */
@@ -19140,6 +19151,9 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 				f.subclass.integer = '#';
 			} else if (event < 16) {
 				f.subclass.integer = 'A' + (event - 12);
+			} else {
+				/* Unknown digit. */
+				f.subclass.integer = '0';
 			}
 			f.len = duration;
 			ast_queue_frame(p->owner, &f);
