@@ -671,7 +671,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="m">
 						<para>Provide music on hold to the caller while waiting for an extension.</para>
 						<argument name="x">
-							<para>Specify the class for music on hold.</para>
+							<para>Specify the class for music on hold. <emphasis>CHANNEL(musicclass) will
+							be used instead if set</emphasis></para>
 						</argument>
 					</option>
 				</optionlist>
