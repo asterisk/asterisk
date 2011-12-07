@@ -220,6 +220,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Set a global or local channel variable.</para>
+			<note>
+				<para>If a channel name is not provided then the variable is global.</para>
+			</note>
 		</description>
 	</manager>
 	<manager name="Getvar" language="en_US">
@@ -237,6 +240,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Get the value of a global or local channel variable.</para>
+			<note>
+				<para>If a channel name is not provided then the variable is global.</para>
+			</note>
 		</description>
 	</manager>
 	<manager name="GetConfig" language="en_US">
