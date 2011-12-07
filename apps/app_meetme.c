@@ -4043,8 +4043,12 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			cnf->useropts = ast_strdup(useropts);
 			cnf->adminopts = ast_strdup(adminopts);
 			cnf->bookid = ast_strdup(bookid);
-			cnf->recordingfilename = ast_strdup(recordingfilename);
-			cnf->recordingformat = ast_strdup(recordingformat);
+			if (!ast_strlen_zero(recordingfilename)) {
+				cnf->recordingfilename = ast_strdup(recordingfilename);
+			}
+			if (!ast_strlen_zero(recordingformat)) {
+				cnf->recordingformat = ast_strdup(recordingformat);
+			}
 
 			/* Parse the other options into confflags -- need to do this in two
 			 * steps, because the parse_options routine zeroes the buffer. */
