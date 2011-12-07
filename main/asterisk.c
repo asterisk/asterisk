@@ -242,6 +242,7 @@ struct _cfg_paths {
 
 	char config_file[PATH_MAX];
 	char db_path[PATH_MAX];
+	char sbin_dir[PATH_MAX];
 	char pid_path[PATH_MAX];
 	char socket_path[PATH_MAX];
 	char run_user[PATH_MAX];
@@ -262,6 +263,7 @@ const char *ast_config_AST_LOG_DIR	= cfg_paths.log_dir;
 const char *ast_config_AST_AGI_DIR	= cfg_paths.agi_dir;
 const char *ast_config_AST_KEY_DIR	= cfg_paths.key_dir;
 const char *ast_config_AST_RUN_DIR	= cfg_paths.run_dir;
+const char *ast_config_AST_SBIN_DIR = cfg_paths.sbin_dir;
 
 const char *ast_config_AST_DB		= cfg_paths.db_path;
 const char *ast_config_AST_PID		= cfg_paths.pid_path;
@@ -2968,6 +2970,7 @@ static void ast_readconfig(void)
 	ast_copy_string(cfg_paths.log_dir, DEFAULT_LOG_DIR, sizeof(cfg_paths.log_dir));
 	ast_copy_string(cfg_paths.agi_dir, DEFAULT_AGI_DIR, sizeof(cfg_paths.agi_dir));
 	ast_copy_string(cfg_paths.db_path, DEFAULT_DB, sizeof(cfg_paths.db_path));
+	ast_copy_string(cfg_paths.sbin_dir, DEFAULT_SBIN_DIR, sizeof(cfg_paths.sbin_dir));
 	ast_copy_string(cfg_paths.key_dir, DEFAULT_KEY_DIR, sizeof(cfg_paths.key_dir));
 	ast_copy_string(cfg_paths.pid_path, DEFAULT_PID, sizeof(cfg_paths.pid_path));
 	ast_copy_string(cfg_paths.socket_path, DEFAULT_SOCKET, sizeof(cfg_paths.socket_path));
@@ -3021,6 +3024,8 @@ static void ast_readconfig(void)
 			ast_copy_string(cfg_paths.run_dir, v->value, sizeof(cfg_paths.run_dir));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
 			ast_copy_string(cfg_paths.module_dir, v->value, sizeof(cfg_paths.module_dir));
+		} else if (!strcasecmp(v->name, "astsbindir")) {
+			ast_copy_string(cfg_paths.sbin_dir, v->value, sizeof(cfg_paths.sbin_dir));
 		}
 	}
 
@@ -3738,7 +3743,7 @@ int main(int argc, char *argv[])
 
 		canary_pid = fork();
 		if (canary_pid == 0) {
-			char canary_binary[128], *lastslash, ppid[12];
+			char canary_binary[PATH_MAX], ppid[12];
 
 			/* Reset signal handler */
 			signal(SIGCHLD, SIG_DFL);
@@ -3748,14 +3753,9 @@ int main(int argc, char *argv[])
 			ast_set_priority(0);
 			snprintf(ppid, sizeof(ppid), "%d", (int) ast_mainpid);
 
-			execlp("astcanary", "astcanary", canary_filename, ppid, (char *)NULL);
-
-			/* If not found, try the same path as used to execute asterisk */
-			ast_copy_string(canary_binary, argv[0], sizeof(canary_binary));
-			if ((lastslash = strrchr(canary_binary, '/'))) {
-				ast_copy_string(lastslash + 1, "astcanary", sizeof(canary_binary) + canary_binary - (lastslash + 1));
-				execl(canary_binary, "astcanary", canary_filename, ppid, (char *)NULL);
-			}
+			/* Use the astcanary binary that we installed */
+			snprintf(canary_binary, sizeof(canary_binary), "%s/astcanary", ast_config_AST_SBIN_DIR);
+			execl(canary_binary, "astcanary", canary_filename, ppid, (char *)NULL);
 
 			/* Should never happen */
 			_exit(1);
