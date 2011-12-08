@@ -4294,7 +4294,13 @@ before_you_go:
 		int  save_prio;
 		int  found = 0;	/* set if we find at least one match */
 		int  spawn_error = 0;
-		
+
+		/*
+		 * Make sure that the channel is marked as hungup since we are
+		 * going to run the "h" exten on it.
+		 */
+		ast_softhangup(chan, AST_SOFTHANGUP_APPUNLOAD);
+
 		autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 		ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 		if (bridge_cdr && ast_opt_end_cdr_before_h_exten) {
