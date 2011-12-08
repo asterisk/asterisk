@@ -2395,8 +2395,18 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	return q;
 }
 
-/*! \note Returns a reference to the loaded realtime queue. */
-static struct call_queue *load_realtime_queue(const char *queuename)
+/*!
+ * note  */
+
+/*!
+ * \internal
+ * \brief Returns reference to the named queue. If the queue is realtime, it will load the queue as well.
+ * \param queuename - name of the desired queue
+ *
+ * \retval the queue
+ * \retval NULL if it doesn't exist
+ */
+static struct call_queue *find_load_queue_rt_friendly(const char *queuename)
 {
 	struct ast_variable *queue_vars;
 	struct ast_config *member_config = NULL;
@@ -2520,7 +2530,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	int pos = 0;
 	int inserted = 0;
 
-	if (!(q = load_realtime_queue(queuename))) {
+	if (!(q = find_load_queue_rt_friendly(queuename))) {
 		return res;
 	}
 	ao2_lock(q);
@@ -5345,7 +5355,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 
 	/*! \note Ensure the appropriate realtime queue is loaded.  Note that this
 	 * short-circuits if the queue is already in memory. */
-	if (!(q = load_realtime_queue(queuename))) {
+	if (!(q = find_load_queue_rt_friendly(queuename))) {
 		return res;
 	}
 
@@ -5467,45 +5477,95 @@ static int set_member_paused(const char *queuename, const char *interface, const
 	return found ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
-/* \brief Sets members penalty, if queuename=NULL we set member penalty in all the queues. */
+/*!
+ * \internal
+ * \brief helper function for set_member_penalty - given a queue, sets all member penalties with the interface
+ * \param[in] q queue which is having its member's penalty changed - must be unlocked prior to calling
+ * \param[in] interface String of interface used to search for queue members being changed
+ * \param[in] penalty Value penalty is being changed to for the member.
+ * \retval 0 if the there is no member with interface belonging to q and no change is made
+ * \retval 1 if the there is a member with interface belonging to q and changes are made
+ */
+static int set_member_penalty_help_members(struct call_queue *q, const char *interface, int penalty)
+{
+	struct member *mem;
+	int foundinterface = 0;
+	char rtpenalty[80];
+
+	ao2_lock(q);
+	if ((mem = interface_exists(q, interface))) {
+		foundinterface++;
+		if (!mem->realtime) {
+			mem->penalty = penalty;
+		} else {
+			sprintf(rtpenalty, "%i", penalty);
+			update_realtime_member_field(mem, q->name, "penalty", rtpenalty);
+		}
+		ast_queue_log(q->name, "NONE", interface, "PENALTY", "%d", penalty);
+		manager_event(EVENT_FLAG_AGENT, "QueueMemberPenalty",
+			"Queue: %s\r\n"
+			"Location: %s\r\n"
+			"Penalty: %d\r\n",
+			q->name, mem->interface, penalty);
+		ao2_ref(mem, -1);
+	}
+	ao2_unlock(q);
+
+	return foundinterface;
+}
+
+/*!
+ * \internal
+ * \brief Sets members penalty, if queuename=NULL we set member penalty in all the queues.
+ * \param[in] queuename If specified, only act on a member if it belongs to this queue
+ * \param[in] interface Interface of queue member(s) having priority set.
+ * \param[in] penalty Value penalty is being changed to for each member
+ */
 static int set_member_penalty(const char *queuename, const char *interface, int penalty)
 {
 	int foundinterface = 0, foundqueue = 0;
 	struct call_queue *q;
-	struct member *mem;
-	char rtpenalty[80];
+	struct ast_config *queue_config = NULL;
+	struct ao2_iterator queue_iter;
 
 	if (penalty < 0 && !negative_penalty_invalid) {
 		ast_log(LOG_ERROR, "Invalid penalty (%d)\n", penalty);
 		return RESULT_FAILURE;
 	}
 
-	if ((q = load_realtime_queue(queuename))) {
-		foundqueue++;
-		ao2_lock(q);
-		if ((mem = interface_exists(q, interface))) {
-			foundinterface++;
-			if (!mem->realtime) {
-				mem->penalty = penalty;
-			} else {
-				sprintf(rtpenalty,"%i", penalty);
-				update_realtime_member_field(mem, q->name, "penalty", rtpenalty);
+	if (ast_strlen_zero(queuename)) { /* This means we need to iterate through all the queues. */
+		if (ast_check_realtime("queues")) {
+			char *queuename;
+			queue_config = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
+			if (queue_config) {
+				for (queuename = ast_category_browse(queue_config, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(queue_config, queuename)) {
+					if ((q = find_load_queue_rt_friendly(queuename))) {
+						foundqueue++;
+						foundinterface += set_member_penalty_help_members(q, interface, penalty);
+					}
+				}
 			}
-			ast_queue_log(q->name, "NONE", interface, "PENALTY", "%d", penalty);
-			manager_event(EVENT_FLAG_AGENT, "QueueMemberPenalty",
-				"Queue: %s\r\n"
-				"Location: %s\r\n"
-				"Penalty: %d\r\n",
-				q->name, mem->interface, penalty);
-			ao2_ref(mem, -1);
 		}
-		ao2_unlock(q);
+
+		/* After hitting realtime queues, go back and get the regular ones. */
+		queue_iter = ao2_iterator_init(queues, 0);
+
+		while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
+			foundqueue++;
+			foundinterface += set_member_penalty_help_members(q, interface, penalty);
+		}
+
+	} else { /* We actually have a queuename, so we can just act on the single queue. */
+		if ((q = find_load_queue_rt_friendly(queuename))) {
+			foundqueue++;
+			foundinterface += set_member_penalty_help_members(q, interface, penalty);
+		}
 	}
 
 	if (foundinterface) {
 		return RESULT_SUCCESS;
 	} else if (!foundqueue) {
-		ast_log (LOG_ERROR, "Invalid queuename\n"); 
+		ast_log (LOG_ERROR, "Invalid queuename\n");
 	} else {
 		ast_log (LOG_ERROR, "Invalid interface\n");
 	}
@@ -5580,7 +5640,7 @@ static void reload_queue_members(void)
 		}
 
 		if (!cur_queue) {
-			cur_queue = load_realtime_queue(queue_name);
+			cur_queue = find_load_queue_rt_friendly(queue_name);
 		}
 
 		if (!cur_queue) {
@@ -6281,7 +6341,7 @@ static int queue_function_exists(struct ast_channel *chan, const char *cmd, char
 		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
 		return -1;
 	}
-	q = load_realtime_queue(data);
+	q = find_load_queue_rt_friendly(data);
 	snprintf(buf, len, "%d", q != NULL? 1 : 0);
 	if (q) {
 		queue_t_unref(q, "Done with temporary reference in QUEUE_EXISTS()");
@@ -6318,7 +6378,7 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 
 	AST_STANDARD_APP_ARGS(args, data);
 
-	if ((q = load_realtime_queue(args.queuename))) {
+	if ((q = find_load_queue_rt_friendly(args.queuename))) {
 		ao2_lock(q);
 		if (!strcasecmp(args.option, "logged")) {
 			mem_iter = ao2_iterator_init(q->members, 0);
@@ -6418,7 +6478,7 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 			ast_log(LOG_ERROR, "Invalid interface, queue or penalty\n");
 			return -1;
 		}
-	} else if ((q = load_realtime_queue(args.queuename))) {
+	} else if ((q = find_load_queue_rt_friendly(args.queuename))) {
 		ao2_lock(q);
 		if ((m = interface_exists(q, args.interface))) {
 			sprintf(rtvalue, "%s",(memvalue <= 0) ? "0" : "1");
@@ -6480,7 +6540,7 @@ static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, cha
 		return -1;
 	}
 	
-	if ((q = load_realtime_queue(data))) {
+	if ((q = find_load_queue_rt_friendly(data))) {
 		ao2_lock(q);
 		mem_iter = ao2_iterator_init(q->members, 0);
 		while ((m = ao2_iterator_next(&mem_iter))) {
@@ -7151,7 +7211,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 	}
 
 	if (argc == 3)	{ /* specific queue */
-		if ((q = load_realtime_queue(argv[2]))) {
+		if ((q = find_load_queue_rt_friendly(argv[2]))) {
 			queue_t_unref(q, "Done with temporary pointer");
 		}
 	} else if (ast_check_realtime("queues")) {
@@ -7162,7 +7222,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		char *queuename;
 		if (cfg) {
 			for (queuename = ast_category_browse(cfg, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(cfg, queuename)) {
-				if ((q = load_realtime_queue(queuename))) {
+				if ((q = find_load_queue_rt_friendly(queuename))) {
 					queue_t_unref(q, "Done with temporary pointer");
 				}
 			}
@@ -7182,7 +7242,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		 * been deleted from the in-core container
 		 */
 		if (q->realtime) {
-			realtime_queue = load_realtime_queue(q->name);
+			realtime_queue = find_load_queue_rt_friendly(q->name);
 			if (!realtime_queue) {
 				ao2_unlock(q);
 				queue_t_unref(q, "Done with iterator");
@@ -8512,7 +8572,7 @@ static int queues_data_provider_get(const struct ast_data_search *search,
 		for (queuename = ast_category_browse(cfg, NULL);
 				!ast_strlen_zero(queuename);
 				queuename = ast_category_browse(cfg, queuename)) {
-			if ((queue = load_realtime_queue(queuename))) {
+			if ((queue = find_load_queue_rt_friendly(queuename))) {
 				queue_unref(queue);
 			}
 		}
@@ -8524,7 +8584,7 @@ static int queues_data_provider_get(const struct ast_data_search *search,
 	while ((queue = ao2_iterator_next(&i))) {
 		ao2_lock(queue);
 		if (queue->realtime) {
-			queue_realtime = load_realtime_queue(queue->name);
+			queue_realtime = find_load_queue_rt_friendly(queue->name);
 			if (!queue_realtime) {
 				ao2_unlock(queue);
 				queue_unref(queue);
@@ -8688,7 +8748,7 @@ static struct member *find_member_by_queuename_and_interface(const char *queuena
 	struct member *mem = NULL;
 	struct call_queue *q;
 
-	if ((q = load_realtime_queue(queuename))) {
+	if ((q = find_load_queue_rt_friendly(queuename))) {
 		ao2_lock(q);
 		mem = ao2_find(q->members, interface, OBJ_KEY);
 		ao2_unlock(q);
