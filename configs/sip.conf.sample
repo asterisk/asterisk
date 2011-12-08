@@ -660,10 +660,18 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; The following settings are allowed (both globally and in individual sections):
 ;
 ;        nat = no                ; default. Use NAT mode only according to RFC3581 (;rport)
-;        nat = yes               ; Always ignore info and assume NAT
+;        nat = yes               ; Always ignore info and assume NAT (default)
 ;        nat = never             ; Never attempt NAT mode or RFC3581 support
 ;        nat = route             ; route = Assume NAT, don't send rport 
 ;                                ; (work around more UNIDEN bugs)
+;
+; IT IS IMPORTANT TO NOTE that if the nat setting in the general section differs from
+; the nat setting in a peer definition, then the peer username will be discoverable
+; by outside parties as Asterisk will respond to different ports for defined and
+; undefined peers. For this reason it is recommended to ONLY DEFINE NAT SETTINGS IN THE
+; GENERAL SECTION. Specifically, if nat=route or nat=yes in one section and nat=no or
+; nat=never in the other, then valid users with settings differing from those in the
+; general section will be discoverable.
 
 ;----------------------------------- MEDIA HANDLING --------------------------------
 ; By default, Asterisk tries to re-invite media streams to an optimal path. If there's
@@ -990,12 +998,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
         type=friend
 
 [natted-phone](!,basic-options)   ; another template inheriting basic-options
-        nat=yes
         directmedia=no
         host=dynamic
 
 [public-phone](!,basic-options)   ; another template inheriting basic-options
-        nat=no
         directmedia=yes
 
 [my-codecs](!)                    ; a template for my preferred codecs
@@ -1030,7 +1036,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                  ; on incoming calls to Asterisk
 ;host=192.168.0.23               ; we have a static but private IP address
                                  ; No registration allowed
-;nat=no                          ; there is not NAT between phone and Asterisk
 ;directmedia=yes                 ; allow RTP voice traffic to bypass Asterisk
 ;dtmfmode=info                   ; either RFC2833 or INFO for the BudgeTone
 ;call-limit=1                    ; permit only 1 outgoing call and 1 incoming call at a time
@@ -1060,7 +1065,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;regexten=1234                   ; When they register, create extension 1234
 ;callerid="Jane Smith" <5678>
 ;host=dynamic                    ; This device needs to register
-;nat=yes                         ; X-Lite is behind a NAT router
 ;directmedia=no                  ; Typically set to NO if behind NAT
 ;disallow=all
 ;allow=gsm                       ; GSM consumes far less bandwidth than ulaw
@@ -1131,9 +1135,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;type=friend
 ;secret=blah
 ;qualify=200                     ; Qualify peer is no more than 200ms away
-;nat=yes                         ; This phone may be natted
-                                 ; Send SIP and RTP to the IP address that packet is 
-                                 ; received from instead of trusting SIP headers 
 ;host=dynamic                    ; This device registers with us
 ;directmedia=no                  ; Asterisk by default tries to redirect the
                                  ; RTP media stream (audio) to go directly from
