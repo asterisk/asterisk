@@ -1,0 +1,12 @@
+
+context workext {
+	ignorepat => 8;
+	ignorepat => 9;
+	793 => {
+		Set(QUERYSTRING=SELECT\ foo\,\ bar\ FROM\ foobar);
+		Verbose(2|${QUERYSTRING});
+	    query="SELECT foo\, bar FROM foobar" ;
+    		Verbose(2|${query}) ;
+	}
+}
+

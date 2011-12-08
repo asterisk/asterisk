@@ -1,0 +1,383 @@
+;
+; language configuration
+;
+
+[general]
+mode=old	; method for playing numbers and dates
+		; old - using asterisk core function
+		; new - using this configuration file
+
+; The new language routines produce strings of the form
+;	prefix:[format:]data
+; that are matched against the rules in this file to produce
+; an output.
+;
+; The data is generally the string to be spelled (either a number,
+; an ascii string or a date/time in the format specified below).
+; It is available, in the right hand side of a rule, as variable ${SAY}.
+;
+; The format is optional and normally used only for date/time.
+; The prefix is used to select the pronunciation - standard
+; prefixes are
+;	num		used for numbers
+;	enum		used for enumerations
+;	date 		for dates
+;	time 		for times
+;	datetime	for dates and times
+;	char		for character strings
+;	phonetic	for phonetic strings
+;	digit		for digit strings
+;
+; but others can be used at will.
+;
+; Processing occurs as follows:
+; If the format is empty, or there is no format, the entire
+; string is matched against one of the pattern on the left hand side.
+; On the first match, the various comma-separated components on the right
+; hand side are pronounced, as follows:
+; + a component starting with a prefix: (i.e. with a ':' in it)
+;   is re-processed according to these rules;
+; + a component without a ':' in it is considered a filename and
+;   the corresponding file is played.
+;
+; If the format is non-empty, the format is split into its components
+; (individual characters, or filenames in single quotes), and then
+; filenames are played, whereas single characters are used to
+; generate a new string format:pat:data to be processed.
+;
+; DATES/AND TIMES assume that the date info is available in
+; the form	 YYYYMMDDHHmm.ss-dow-doy
+; with 4 digits for the year, 2 for month, day, hour, minutes, seconds,
+; one digit for the day-of-week, and 3 digits for the day-of-year.
+;
+; Example:
+;     datetime::200604172030.00-4-102
+; (typical format for a date) is first matched against the line
+;	datetime::. => date:AdBY 'digits/at' IMp:${SAY}
+; which is normally present with the default format for dates.
+; In turn, the format string "AdBY 'digits/at' IMp" results in
+; the sequence
+;	date:A:200604172030.00-4-102
+;	date:d:200604172030.00-4-102
+;	date:B:200604172030.00-4-102
+;	date:Y:200604172030.00-4-102
+;	digits/at
+;	date:I:200604172030.00-4-102
+;	date:M:200604172030.00-4-102
+;	date:p:200604172030.00-4-102
+;
+;
+; Remember, normally X Z N are special, and the search is
+; case insensitive, so you must use [X] [N] [Z] .. if you
+; want exact match.
+
+; We start with the basic rules that might be more-or-less
+; language-independent
+
+[digit-base](!)		; base rule for digit strings
+			; XXX incomplete yet
+    _digit:[0-9] => digits/${SAY}
+    _digit:[-] => letters/dash
+    _digit:[*] => letters/star
+    _digit:[@] => letters/at
+    _digit:[0-9]. => digit:${SAY:0:1}, digit:${SAY:1}
+
+[date-base](!)		; base rules for dates and times
+    ; the 'SAY' variable contains YYYYMMDDHHmm.ss-dow-doy
+    ; these rule map the strftime attributes.
+    _date:Y:. => num:${SAY:0:4}	; year, 19xx
+    _date:[Bbh]:. => digits/mon-$[${SAY:4:2}-1]			; month name, 0..11
+    _date:[Aa]:. => digits/day-${SAY:16:1}	; day of week
+    _date:[de]:. => num:${SAY:6:2}		; day of month
+    _date:[H]:. => digits/oh, num:${SAY:8:2}			; hour (oh one, oh two, ..., oh nine, ten, eleven, ..., twenty-three)
+    _date:[I]:. => num:$[${SAY:8:2} % 12]	; hour 0-12
+    _date:[M]:. => num:${SAY:10:2}		; minute
+    ; XXX too bad the '?' function does not remove the quotes
+    ; _date:[pP]:. => digits/$[ ${SAY:10:2} > 12 ? "p-m" :: "a-m"]	; am pm
+    _date:[pP]:. => digits/p-m	; am pm
+    _date:[S]:. => num:${SAY:13:2}		; seconds
+    _date:[Ii]:. => num:$[${SAY:8:2} % 12]			; hour 0-12
+    _date:[k]:. => num:${SAY:8:2}				; hour (one, two. three, ...,twenty three
+    _date:[m]:. => num:${SAY:4:2}				; month number
+    _date:[Q]:. => date:dby ;incompleat				; "today", "yesterday" or ABdY
+    _date:[q]:. => date:dby ;incompleat				; "" (for today), "yesterday", weekday, or ABdY
+    _date:[R]:. => date:HM${SAY}				; 24 hour time, including minute
+    _date:[T]:. => date:HMS${SAY}				; 24 hour, minure, seconds
+
+[en-base](!)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 =>  digits/${SAY}
+    _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:X00 => num:${SAY:0:1}, digits/hundred
+    _[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:X000 => num:${SAY:0:1}, digits/thousand
+    _[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+
+    _[n]um:X000000 => num:${SAY:0:1}, digits/million
+    _[n]um:XXXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/million
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/million
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
+
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
+
+    ; enumeration
+    _e[n]um:X => digits/h-${SAY}
+    _e[n]um:1X => digits/h-${SAY}
+    _e[n]um:[2-9]0 => digits/h-${SAY}
+    _e[n]um:[2-9][1-9] => num:${SAY:0:1}0, digits/h-${SAY:1}
+    _e[n]um:[1-9]00 => num:${SAY:0:1}, digits/h-hundred
+    _e[n]um:[1-9]XX => num:${SAY:0:1}, digits/h-hundred, enum:${SAY:1}
+
+[en_GB](date-base,digit-base,en-base)
+    _[n]um:XXX => num:${SAY:0:1}, digits/hundred, vm-and, num:${SAY:1}
+
+[it](digit-base,date-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 =>  digits/${SAY}
+    _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:100 => digits/hundred
+    _[n]um:1XX => digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => num:${SAY:0:1}, digits/hundred
+    _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:1000 => digits/thousand
+    _[n]um:1XXX => digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => num:${SAY:0:1}, digits/thousands
+    _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousands, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousands
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousands, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousands
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousands, num:${SAY:3}
+
+    _[n]um:1000000 => num:${SAY:0:1}, digits/million
+    _[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:[2-9]000000 => num:${SAY:0:1}, digits/millions
+    _[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/millions, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/millions
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/millions
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
+
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
+
+    _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:IMp:${SAY}
+
+[en](en-base,date-base,digit-base)
+    _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:IMp:${SAY}
+
+[de](date-base,digit-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 => digits/${SAY}
+    _[n]um:[2-9][1-9] => digits/${SAY:1}-and, digits/${SAY:0:1}0
+    _[n]um:100 => digits/ein, digits/hundred
+    _[n]um:1XX => digits/ein, digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => digits/${SAY:0:1}, digits/hundred
+    _[n]um:[2-9]XX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:1000 => digits/ein, digits/thousand
+    _[n]um:1XXX => digits/ein, digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => digits/${SAY:0:1}, digits/thousand
+    _[n]um:[2-9]XXX => digits/${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:1}
+
+    _[n]um:1000000 => digits/eine, digits/million
+    _[n]um:1XXXXXX => digits/eine, digits/million, num:${SAY:1}
+    _[n]um:[2-9]000000 => digits/${SAY:0:1}, digits/millions
+    _[n]um:[2-9]XXXXXX => digits/${SAY:0:1}, digits/millions, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/millions
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/millions
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
+
+    _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:IMp:${SAY}
+
+[hu](digit-base,date-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1[1-9] => digits/10en, digits/${SAY:1}
+    _[n]um:2[1-9] => digits/20on, digits/${SAY:1}
+    _[n]um:[1-9]0 =>  digits/${SAY}
+    _[n]um:[3-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:X000 => num:${SAY:0:1}, digits/thousand
+    _[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+
+    _[n]um:X000000 => num:${SAY:0:1}, digits/million
+    _[n]um:XXXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/million
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/million
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
+
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
+
+    _datetime::. => date:YBdA k 'ora' M 'perc':${SAY}
+    _date::. => date:YBdA:${SAY}
+    _time::. => date:k 'ora' M 'perc':${SAY}
+
+[fr](date-base,digit-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 =>  digits/${SAY}
+    _[n]um:[2-6]1 => digits/${SAY:0:1}0, vm-and, digits/${SAY:1}
+    _[n]um:71 => digits/60, vm-and, num:1${SAY:1}
+    _[n]um:7X => digits/60, num:1${SAY:1}
+    _[n]um:9X => digits/80, num:1${SAY:1}
+    _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:100 => digits/hundred
+    _[n]um:1XX => digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => num:${SAY:0:1}, digits/hundred
+    _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+    
+    _[n]um:1000 => digits/thousand
+    _[n]um:1XXX => digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => num:${SAY:0:1}, digits/thousand
+    _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+    
+    _[n]um:1000000 => num:${SAY:0:1}, digits/million
+    _[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:[2-9]000000 => num:${SAY:0:1}, digits/million
+    _[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/million
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/million
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
+    
+    _datetime::. => date:AdBY 'digits/at' H 'hours' M 'perc':${SAY}  
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:H 'hours' M 'perc':${SAY}
+    
+    _pho[n]e:XXXX => num:${SAY:0:2}, num:${SAY:2:2}
+    _pho[n]e:0[1-9]XXXXXXXX => num:${SAY:0:1}, num:${SAY:1:1}, num:${SAY:2:2}, num:${SAY:4:2}, num:${SAY:6:2}, num:${SAY:8:2}
+    _pho[n]e:. => digit:${SAY}
+
+[es](date-base,digit-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 => digits/${SAY}
+    _[n]um:2[1-9] => digits/20-and, digits/${SAY:1}
+    _[n]um:[3-9][1-9] =>  digits/${SAY:0:1}0, vm-and, digits/${SAY:1}
+    _[n]um:100 => digits/hundred
+    _[n]um:1XX => digits/100-and, num:${SAY:1}
+    _[n]um:[2-9]00 => digits/${SAY}
+    _[n]um:[2-9]XX => digits/${SAY:0:1}00, num:${SAY:1}
+
+    _[n]um:1000 => digits/thousand
+    _[n]um:1XXX => digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => num:${SAY:0:1}, digits/thousand
+    _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+
+    _[n]um:1000000 => digits/1M, digits/million
+    _[n]um:1XXXXXX => digits/1M, digits/million, num:${SAY:1}
+    _[n]um:[2-9]000000 => num:${SAY:0:1}, digits/millions
+    _[n]um:[2-9]XXXXXX => num:${SAY:0:1}, digits/millions, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/millions
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/millions
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
+    _[n]um:XXXX000000 => num:${SAY:0:4}, digits/millions
+    _[n]um:XXXXXXXXXX => num:${SAY:0:4}, digits/millions, num:${SAY:4}
+
+    _datetime::. => date:Ad 'letters/d' B 'letters/d' Y 'digits/at' HMp:${SAY}
+    _date::. => date:Ad 'letters/d' B 'letters/d' Y:${SAY}
+    _time::. => date:HMp:${SAY}
+
+[da](date-base,digit-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1X => digits/${SAY}
+    _[n]um:[2-9]0 => digits/${SAY}
+    _[n]um:[2-9][1-9] => digits/${SAY:1}-and, digits/${SAY:0:1}0
+    _[n]um:100 => digits/1N, digits/hundred
+    _[n]um:1XX => digits/1N, digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]00 => digits/${SAY:0:1}, digits/hundred
+    _[n]um:[2-9]XX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:1000 => digits/1N, digits/thousand
+    _[n]um:1XXX => digits/1N, digits/thousand, num:${SAY:1}
+    _[n]um:[2-9]000 => digits/${SAY:0:1}, digits/thousand
+    _[n]um:[2-9]XXX => digits/${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XX000 => num:${SAY:0:2}, digits/thousand
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+
+    _[n]um:X000000 => digits/${SAY:0:1}, digits/million
+    _[n]um:XXXXXXX => digits/${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XX000000 => num:${SAY:0:2}, digits/millions
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXX000000 => num:${SAY:0:3}, digits/millions
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
+
+    _[n]um:X000000000 => num:${SAY:0:1}, digits/billion
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XX000000000 => num:${SAY:0:2}, digits/billion
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXX000000000 => num:${SAY:0:3}, digits/billion
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
+
+    _datetime::. => date:AdBY 'digits/at' kM:${SAY}
+    _date::. => date:AdBY:${SAY}
+    _time::. => date:HM:${SAY}
+
+    ; enumeration
+    _e[n]um:X => digits/h-${SAY}
+    _e[n]um:1X => digits/h-${SAY}
+    _e[n]um:[2-9]0 => digits/h-${SAY}
+    _e[n]um:[2-9][1-9] => digits/${SAY:1}-and, digits/h-${SAY:0:1}0
+    _e[n]um:100 => digits/1N, digits/h-hundred
+    _e[n]um:1XX => digits/1N, digits/h-hundred, enum:${SAY:1}
+    _e[n]um:[2-9]00 => num:${SAY:0:1}, digits/h-hundred
+    _e[n]um:[2-9]XX => num:${SAY:0:1}, digits/h-hundred, enum:${SAY:1}

@@ -1,0 +1,36 @@
+#!/bin/sh
+if test ! -f .flavor ; then
+    EXTRA=""
+elif test ! -f .version ; then
+	aadkflavor=`cat .flavor`
+    EXTRA=" (${aadkflavor})"
+else
+    aadkver=`cat .version`
+    aadkflavor=`cat .flavor`
+    EXTRA=" (${aadkflavor} ${aadkver})"
+fi
+cat << END
+/*
+ * version.c
+ * Automatically generated
+ */
+
+#include "asterisk.h"
+
+#include "asterisk/ast_version.h"
+
+static const char asterisk_version[] = "${ASTERISKVERSION}${EXTRA}";
+
+static const char asterisk_version_num[] = "${ASTERISKVERSIONNUM}";
+
+const char *ast_get_version(void)
+{
+	return asterisk_version;
+}
+
+const char *ast_get_version_num(void)
+{
+	return asterisk_version_num;
+}
+
+END

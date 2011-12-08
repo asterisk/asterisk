@@ -1,0 +1,29 @@
+#!/bin/sh -e
+
+# This script will be executed by the 'mkrelease' script to do any tasks
+# necessary during tarball creation of this project.
+#
+# It will be executed from the top-level directory of the project.
+
+make -C sounds MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-OPSOUND-WAV WGET=wget DOWNLOAD=wget all
+
+branch=$1
+
+if [ -z "$branch" ]
+then
+	echo "No branch specified. Exiting."
+	exit 1
+fi
+
+hash unzip 2>&- || { echo >&2 "The unzip application is required but was not found. Aborting."; exit 1; }
+
+cd doc
+echo "Downloading the PDF and HTML documentation from the Asterisk wiki (this will take a minute) ..."
+wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin-Guide-$branch.pdf
+wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin-Guide-$branch.html.zip
+echo "Extracting HTML Admin Guide"
+unzip Asterisk-Admin-Guide-$branch.html.zip
+mv AST/ Asterisk-Admin-Guide/
+mv Asterisk-Admin-Guide-$branch.pdf Asterisk-Admin-Guide.pdf
+rm -f Asterisk-Admin-Guide-$branch.html.zip
+echo "Documentation downloaded. Goodbye!"

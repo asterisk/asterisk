@@ -1,0 +1,109 @@
+;[calendar1]
+;type = ical              ;  type of calendar--currently supported: ical, caldav, exchange, or ews
+;url = https://example.com/home/jdoe/Calendar/   ; URL to shared calendar (Zimbra example)
+;user = jdoe              ; web username
+;secret = supersecret     ; web password
+;refresh = 15             ; refresh calendar every n minutes
+;timeframe = 60           ; number of minutes of calendar data to pull for each refresh period
+;                         ; should always be >= refresh
+;
+; You can set up res_calendar to execute a call upon an upcoming busy status
+; The following fields are available from the ${CALENDAR_EVENT(<field>)} dialplan function:
+;
+; summary     : The VEVENT Summary property or Exchange subject
+; description : The text description of the vent
+; organizer   : The organizer of the event
+; location    : The location field of the event
+; calendar    : The name of the calendar tied to the event
+; uid         : The unique ID for this event
+; start       : Start time of the event
+; end         : The end time of the event
+; busystate   : 0=FREE, 1=TENTATIVE, 2=BUSY
+;
+;autoreminder = 10        ; Override event-defined reminder before each busy status (in mins)
+;
+;channel = SIP/60001      ; Channel to dial
+;context = default        ; Context to connect to on answer
+;extension = 123          ; Extension to connect to on answer
+;
+; or
+;
+;app = Playback          ; Application to execute on answer (instead of context/extension)
+;appdata = tt-weasels    ; Data part of application to execute on answer
+;
+;waittime = 30            ; How long to wait for an answer, defaults to 30 seconds
+;
+; Channel variables can be set on the notification channel. The format is
+; setvar=name=value. Variable subsitution is done on the value to allow the use of dialplan
+; functions like CALENDAR_EVENT. The variables are set in order, so one can use the value
+; of earlier variables in the definition of later ones.
+;
+;setvar = CALLERID(name)=${CALENDAR_EVENT(summary)}
+
+;[calendar2]
+; Note: Support for Exchange Server 2003 
+;
+;type = exchange          ;  type of calendar--currently supported: ical, caldav, exchange, or ews
+;url = https://example.com/exchange/jdoe   ; URL to MS Exchange OWA for user (usually includes exchange/user)
+;user = jdoe              ; Exchange username
+;secret = mysecret        ; Exchange password
+;refresh = 15             ; refresh calendar every n minutes
+;timeframe = 60           ; number of minutes of calendar data to pull for each refresh period
+;                         ; should always be >= refresh
+;
+; You can set up res_calendar to execute a call upon an upcoming busy status
+;autoreminder = 10        ; Override event-defined reminder before each busy status (in mins)
+;
+;channel = SIP/1234       ; Channel to dial
+;context = default        ; Context to connect to on answer
+;extension = 1234         ; Extension to connect to on answer
+;
+; or
+;
+;[calendar3]
+; Note: Support for Exchange Server 2007+
+;
+;type = ews               ; type of calendar--currently supported: ical, caldav, exchange, or ews
+;url = https://example.com/ews/Exchange.asmx ; URL to MS Exchange EWS
+;user = jdoe              ; Exchange username
+;secret = mysecret        ; Exchange password
+;refresh = 15             ; refresh calendar every n minutes
+;timeframe = 60           ; number of minutes of calendar data to pull for each refresh period
+;                         ; should always be >= refresh
+;
+; You can set up res_calendar to execute a call upon an upcoming busy status
+;autoreminder = 10        ; Override event-defined reminder before each busy status (in mins)
+;
+;channel = SIP/1234       ; Channel to dial
+;context = default        ; Context to connect to on answer
+;extension = 1234         ; Extension to connect to on answer
+;
+; or
+;
+;app = Playback          ; Application to execute on answer (instead of context/extension)
+;appdata = tt-weasels    ; Data part of application to execute on answer
+;
+;waittime = 30            ; How long to wait for an answer, defaults to 30 seconds
+
+;[calendar4]
+;type = caldav            ;  type of calendar--currently supported: ical, caldav, exchange, or ews
+;url = https://www.google.com/calendar/dav/username@gmail.com/events/  ; Main GMail calendar (the trailing slash is significant!)
+;user = jdoe@gmail.com    ; username
+;secret = mysecret        ; password
+;refresh = 15             ; refresh calendar every n minutes
+;timeframe = 60           ; number of minutes of calendar data to pull for each refresh period
+;                         ; should always be >= refresh
+;
+; You can set up res_calendar to execute a call upon an upcoming busy status
+;autoreminder = 10        ; Override event-defined reminder before each busy status (in mins)
+;
+;channel = SIP/1234       ; Channel to dial
+;context = default        ; Context to connect to on answer
+;extension = 1234         ; Extension to connect to on answer
+;
+; or
+;
+;app = Playback          ; Application to execute on answer (instead of context/extension)
+;appdata = tt-weasels    ; Data part of application to execute on answer
+;
+;waittime = 30            ; How long to wait for an answer, defaults to 30 seconds

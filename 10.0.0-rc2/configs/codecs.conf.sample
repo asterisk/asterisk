@@ -1,0 +1,153 @@
+[speex]
+; CBR encoding quality [0..10]
+; used only when vbr = false
+quality => 3
+
+; codec complexity [0..10]
+; tradeoff between cpu/quality
+complexity => 2
+
+; perceptual enhancement [true / false]
+; improves clarity of decoded speech
+enhancement => true
+
+; voice activity detection [true / false]
+; reduces bitrate when no voice detected, used only for CBR
+; (implicit in VBR/ABR)
+vad => true
+
+; variable bit rate [true / false]
+; uses bit rate proportionate to voice complexity
+vbr => true
+
+; available bit rate [bps, 0 = off]
+; encoding quality modulated to match this target bit rate
+; not recommended with dtx or pp_vad - may cause bandwidth spikes
+abr => 0
+
+; VBR encoding quality [0-10]
+; floating-point values allowed
+vbr_quality => 4
+
+; discontinuous transmission [true / false]
+; stops transmitting completely when silence is detected
+; pp_vad is far more effective but more CPU intensive
+dtx => false
+
+; preprocessor configuration
+; these options only affect Speex v1.1.8 or newer
+
+; enable preprocessor [true / false]
+; allows dsp functionality below but incurs CPU overhead
+preprocess => false
+
+; preproc voice activity detection [true / false]
+; more advanced equivalent of DTX, based on voice frequencies
+pp_vad => false
+
+; preproc automatic gain control [true / false]
+pp_agc => false
+pp_agc_level => 8000
+
+; preproc denoiser [true / false]
+pp_denoise => false
+
+; preproc dereverb [true / false]
+pp_dereverb => false
+pp_dereverb_decay => 0.4
+pp_dereverb_level => 0.3
+
+
+[plc]
+; for all codecs which do not support native PLC
+; this determines whether to perform generic PLC
+; there is a minor performance penalty for this
+genericplc => true
+
+; Generate custom formats for formats requiring attributes.
+; After defining the custom format, the name used in defining
+; the format can be used throughout Asterisk in the format 'allow'
+; and 'disallow' options.
+;
+; Example: silk8 is a predefined custom format in this config file.
+; Once this config file is loaded, silk8 can be used anywhere a
+; peer's codec capabilities are defined.
+;
+; In sip.conf 'silk8' can be defined as a capability for a peer.
+; [peer1]
+; type=peer
+; host=dynamic
+; disallow=all
+; allow=silk8 ;custom codec defined in codecs.conf
+;
+; LIMITATIONS
+; Custom formats can only be defined at startup.  Any changes to this
+; file made after startup will not take into effect until after Asterisk
+; is restarted.
+;
+
+; Default Custom SILK format definitions, only one custom SILK format per
+; sample rate is allowed.
+[silk8]
+type=silk
+samprate=8000
+fec=true           ; turn on or off encoding with forward error correction.
+                   ; On recommended, off by default.
+packetloss_percentage=10   ; Estimated packet loss percentage in uplink direction.  This
+                           ; affects how much redundancy is built in when using fec.
+                           ; The higher the percentage, the larger amount of bandwidth is
+                           ; used. Default is 0%, 10% is recommended when fec is in use.
+
+maxbitrate=10000    ; Use the table below to make sure a useful bitrate is choosen
+                    ; for maxbitrate.  If not set or value is not within the bounds
+                    ; of the encoder, a default value is chosen.
+                    ;
+                    ;  sample rate | bitrate range
+                    ;  8khz        | 5000 - 20000 bps
+                    ;  12khz       | 7000 - 25000 bps
+                    ;  16khz       | 8000 - 30000 bps
+                    ;  24khz       | 20000- 40000 bps
+                    ;
+;dtx=true       ; Encode using discontinuous transmission mode or not. Turning this
+                ; on will save bandwidth during periods of silence at the cost of
+                ; increased computational complexity.  Off by default.
+
+[silk12]
+type=silk
+samprate=12000
+maxbitrate=12000
+fec=true
+packetloss_percentage=10;
+
+[silk16]
+type=silk
+samprate=16000
+maxbitrate=20000
+fec=true
+packetloss_percentage=10;
+
+[silk24]
+type=silk
+samprate=24000
+maxbitrate=30000
+fec=true
+packetloss_percentage=10;
+
+
+; Default custom CELT codec definitions. Only one custom CELT definition is allowed
+; per a sample rate.
+;[celt44]
+;type=celt
+;samprate=44100  ; The samplerate in hz. This option is required.
+;framesize=480   ; The framesize option represents the duration of each frame in samples.
+                 ; This must be a factor of 2.  This option is only advertised in an SDP
+                 ; when it is set.  Otherwise a default of framesize of 480 is assumed
+                 ; internally
+
+;[celt48]
+;type=celt
+;samprate=48000
+
+;[celt32]
+;type=celt
+;samprate=32000

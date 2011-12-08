@@ -1,0 +1,186 @@
+#!/bin/sh -e
+DEFAULT_ORG="Asterisk"
+DEFAULT_CA_CN="Asterisk Private CA"
+DEFAULT_CLIENT_CN="asterisk"
+DEFAULT_SERVER_CN=`hostname -f`
+
+# arguments
+# $1 "ca" if we are to generate a CA cert
+# $2 alternate config file name (for ca)
+# $3 alternate common name
+# $4 alternate org name
+create_config () {
+	if [ "$1" = "ca" ]
+	then
+castring="
+[ext]
+basicConstraints=CA:TRUE"
+	fi
+
+cat > ${2:-"${CONFIG_FILE}"} << EOF
+[req]
+distinguished_name = req_distinguished_name
+prompt = no
+
+[req_distinguished_name]
+CN=${3:-"${COMMON_NAME}"}
+O=${4:-"${ORG_NAME}"}
+${castring}
+EOF
+}
+
+create_ca () {
+	echo "Creating ${CAKEY}"
+	openssl genrsa -des3 -out ${CAKEY} 4096 > /dev/null
+	echo "Creating ${CACERT}"
+	openssl req -new -config ${CACFG} -x509 -days 365 -key ${CAKEY} -out ${CACERT} > /dev/null
+}
+
+create_cert () {
+	local base=${OUTPUT_DIR}/${OUTPUT_BASE}
+	echo "Creating ${base}.key"
+	openssl genrsa -out ${base}.key 1024 > /dev/null
+	echo "Creating signing request"
+	openssl req -batch -new -config ${CONFIG_FILE} -key ${base}.key -out ${base}.csr > /dev/null
+	echo "Creating ${base}.crt"
+	openssl x509 -req -days 365 -in ${base}.csr -CA ${CACERT} -CAkey ${CAKEY} -set_serial 01 -out ${base}.crt > /dev/null
+	echo "Combining key and crt into ${base}.pem"
+	cat ${base}.key > ${base}.pem
+	cat ${base}.crt >> ${base}.pem
+}
+
+usage () {
+cat << EOF
+This script is useful for quickly generating self-signed CA, server, and client
+certificates for use with Asterisk. It is still recommended to obtain
+certificates from a recognized Certificate Authority and to develop an
+understanding how SSL certificates work. Real security is hard work.
+
+OPTIONS:
+  -h  Show this message
+  -m  Type of cert "client" or "server". Defaults to server.
+  -f  Config filename (openssl config file format)
+  -c  CA cert filename (creates new CA cert/key as ca.crt/ca.key if not passed)
+  -k  CA key filename
+  -C  Common name (cert field)
+        This should be the fully qualified domain name or IP address for
+        the client or server. Make sure your certs have unique common
+        names.
+  -O  Org name (cert field)
+        An informational string (company name)
+  -o  Output filename base (defaults to asterisk) 
+  -d  Output directory (defaults to the current directory)
+
+Example:
+
+To create a CA and a server (pbx.mycompany.com) cert with output in /tmp:
+  ast_tls_cert -C pbx.mycompany.com -O "My Company" -d /tmp
+
+This will create a CA cert and key as well as asterisk.pem and the the two
+files that it is made from: asterisk.crt and asterisk.key. Copy asterisk.pem
+and ca.crt somewhere (like /etc/asterisk) and set tlscertfile=/etc/asterisk.pem
+and tlscafile=/etc/ca.crt. Since this is a self-signed key, many devices will
+require you to import the ca.crt file as a trusted cert.
+
+To create a client cert using the CA cert created by the example above:
+  ast_tls_cert -m client -c /tmp/ca.crt -k /tmp/ca.key -C phone1.mycompany.com \\
+    -O "My Company" -d /tmp -o joe_user
+
+This will create client.crt/key/pem in /tmp. Use this if your device supports
+a client certificate. Make sure that you have the ca.crt file set up as
+a tlscafile in the necessary Asterisk configs. Make backups of all .key files
+in case you need them later.
+EOF
+}
+
+if ! type openssl >/dev/null 2>&1
+then
+	echo "This script requires openssl to be in the path"
+	exit 1
+fi
+
+OUTPUT_BASE=asterisk # Our default cert basename
+CERT_MODE=server
+ORG_NAME=${DEFAULT_ORG}
+
+while getopts "hf:c:k:o:d:m:C:O:" OPTION
+do
+	case ${OPTION} in
+		h)
+			usage
+			exit 1
+			;;
+		f)
+			CONFIG_FILE=${OPTARG}
+			;;
+		c)
+			CACERT=${OPTARG}
+			;;
+		k)
+			CAKEY=${OPTARG}
+			;;
+		o)
+			OUTPUT_BASE=${OPTARG}
+			;;
+		d)
+			OUTPUT_DIR=${OPTARG}
+			;;
+		m)
+			CERT_MODE=${OPTARG}
+			;;
+		C)
+			COMMON_NAME=${OPTARG}
+			;;
+		O)
+			ORG_NAME=${OPTARG}
+			;;
+		?)
+			usage
+			exit
+			;;
+	esac
+done
+
+if [ -z "${OUTPUT_DIR}" ]
+then
+	OUTPUT_DIR=.
+else
+	mkdir -p "${OUTPUT_DIR}"
+fi
+
+umask 177
+
+case "${CERT_MODE}" in
+	server)
+		COMMON_NAME=${COMMON_NAME:-"${DEFAULT_SERVER_CN}"}
+		;;
+	client)
+		COMMON_NAME=${COMMON_NAME:-"${DEFAULT_CLIENT_CN}"}
+		;;
+	*)
+		echo
+		echo "Unknown mode. Exiting."
+		exit 1
+		;;
+esac
+
+if [ -z "${CONFIG_FILE}" ]
+then
+	CONFIG_FILE="${OUTPUT_DIR}/tmp.cfg"
+	echo
+	echo "No config file specified, creating '${CONFIG_FILE}'"
+	echo "You can use this config file to create additional certs without"
+	echo "re-entering the information for the fields in the certificate"
+	create_config
+fi
+
+if [ -z ${CACERT} ]
+then
+	CAKEY=${OUTPUT_DIR}/ca.key
+	CACERT=${OUTPUT_DIR}/ca.crt
+	CACFG=${OUTPUT_DIR}/ca.cfg
+	create_config ca "${CACFG}" "${DEFAULT_CA_CN}" "${DEFAULT_CA_ORG}"
+	create_ca
+fi
+
+create_cert

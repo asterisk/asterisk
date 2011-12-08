@@ -1,0 +1,377 @@
+context dialextens
+{
+	/* 
+		101 thru 123, 149 thru 152
+        */
+	_10X => Dial(Zap/${EXTEN:2},30,Ttw);
+	_1ZX => Dial(Zap/${EXTEN:1},30,Ttw);
+}
+/* 
+    Due to extenal wiring:
+
+  dialing 125 will ring 101
+  dialing 126 will ring 102
+   and so on until
+  dialing 147 will ring 123
+
+We can dial out on zap 69 thru 72; and 25-47
+
+*/
+
+context dialthrus
+{
+	/*  369-372; 325-347 */
+	_3XX => Dial(Zap/${EXTEN:1},30,Ttw);
+}
+
+context t1incoming
+{
+	includes
+	{
+		dialextens;
+		parkedcalls;
+	}
+	s => {
+		Answer();
+		Background(welcome-to-test-machine);
+	}
+
+}
+
+context t1extension
+{
+	includes
+	{
+		dialextens;
+		dialthrus;
+	}
+
+}
+
+context incoming
+{
+	includes
+	{
+		dialextens;
+		parkedcalls;
+	}
+	s => {
+		Answer();
+		Background(welcome-to-test-machine);
+	}
+}
+
+context incoming
+{
+	s => {
+		Answer();
+	}
+}
+
+macro std-priv-exten( dev, ext , timeout, opts, torcont, dontcont )
+{
+        // &increment_chosecount();
+        dial_again:
+        Dial(${dev},${timeout},${opts});
+        switch(${DIALSTATUS})
+                {
+        case TORTURE:
+                goto ${torcont}|s|begin;
+                break;
+
+        case DONTCALL:
+                goto ${dontcont}|s|begin;
+                break;
+
+        case BUSY:
+        label_busy:
+                Read(reply|work-exten-busy|1||2|15);
+		if ("${reply}"=="")
+			goto label_busy; // infinite loop if Read has probs!!
+                switch(${reply})
+                {
+                case 1:
+                       Set(time1=${EPOCH});
+
+                  label_redial:
+
+                       WaitMusicOnHold(5);
+                       Dial(${dev},${timeout},${opts});
+
+                       switch(${DIALSTATUS})
+                       {
+                       case BUSY:
+                                if(${EPOCH}-${time1} >= 20)
+                                        goto label_busy;
+                                goto label_redial;
+
+                       default:
+                                return;// goto work_line|s|loopback;
+                       }
+                       break;
+                case 2:
+                       Voicemail(${ext}|b);
+                       break;
+                case 3:
+                       return; // goto work_line|s|loopback;
+                default:
+                       Background(invalid);
+                        goto label_busy;
+                }
+                break;
+
+        case ANSWER:
+                break;
+
+        case NOANSWER:
+        noanswer_label:
+                Read(reply|work-exten-noanswer|1|skip|2|15);
+                switch(${reply})
+                {
+                case 1:
+                       switch(${ext})
+                       {
+                       case 10:
+                                Background(no-cell);
+                                break;
+                       case 11:
+                                // &ciddial(2729495,3072729495,30,tw,${GRAMS_TELCO},${WORK_TELCO});
+                                break;
+                       case 12:
+                                // &ciddial(2725560,3072725560,30,tw,${GRAMS_TELCO},${WORK_TELCO});
+                                break;
+                       case 13:
+                                // &ciddial(2720197,3072720197,30,tw,${GRAMS_TELCO},${WORK_TELCO});
+                                break;
+                       case 14:
+                                // &ciddial(2501174,3072501174,30,tw,${GRAMS_TELCO},${WORK_TELCO});
+                                break;
+                       case 15:
+                                Background(no-cell);
+                                break;
+                       case 16:
+                                Background(no-cell);
+                                break;
+                       default:
+                                Background(invalid);
+                                break;
+                       }
+                       goto noanswer_label;
+                       break;
+                case 2:
+                       Voicemail(${ext}|u);
+                       break;
+                case 3:
+                       return; // goto work_line|s|loopback;
+                default:
+                       Background(invalid);
+                       goto noanswer_label;
+                }
+                Voicemail(${ext}|u);
+                break;
+        default:
+                Voicemail(${ext}|u);
+        }
+}
+/* Putting these 3 funcs in extensions.conf!
+macro funcC(a,b)
+{
+	Set(Key=);
+      menu:
+	Read(Key,main-menu,1,n,1,5);
+	if("${Key}" = "2")
+		goto y,lab1;
+	catch y
+	{	lab1:
+		&funcB(${a},${b});	
+	}
+}
+
+macro funcB(a,b)
+{
+	Set(Key=);
+      menu:
+	Read(Key,tt-monkeys,1,n,1,5);
+	if("${Key}" = "2")
+		goto z,lab2;
+	catch z
+	{	lab2:
+		&funcC(${a},${b});	
+	}
+}
+
+macro funcA()
+{
+	&funcB(1,2);
+}
+*/
+
+context extension
+{
+	includes
+	{
+		dialextens;
+		dialthrus;
+		parkedcalls;
+	}
+	5 => {
+		Record(recording:wav);
+		Background(recording);
+	}
+
+	81 => {
+		iterations=1000000;
+		Set(time1=${EPOCH});
+		for(i=1; ${i}<${iterations}; i=${i}+1)
+		{
+			NoOp(Hello);
+		}
+		Set(time2=${EPOCH});
+		Verbose(The time diff is $[${time2} - ${time1} ] seconds);
+		Verbose(Which means that the priorities/sec = $[4* ${iterations} / (${time2} - ${time1}) ]);
+		SayNumber($[4 * ${iterations} / (${time2} - ${time1}) ]);
+	}
+	82 => {
+			&ndeep(100000);
+			Verbose(Finished 100000 levels deep call!);
+		}
+	83 => {
+		switch (${EXTEN}) 
+		{
+		pattern 8X:
+    			Verbose(do something to prepare it);
+		pattern 9X:
+    			Verbose(handle both 1xx and 2xx calls);
+		pattern [4-7]X:
+			Verbose(and this too!);
+		}
+		Set(junky=${RAND(0|99999)});
+		Verbose(Here is a random number: ${junky}.);
+	}
+	84 => {
+		agi(agi://192.168.134.252/|hello|goodbye|whatever|whoknows,hell2,hello3);
+	}
+	85 => {
+		&std-priv-exten( Zap/50, 150 , 25, mtw, torcont, dontcont );
+	}
+	86 => {
+		Verbose(The version is: ${VERSION()} );
+		Verbose(The versionnum is: ${VERSION(ASTERISK_VERSION_NUM)} );
+		Verbose(The user is: ${VERSION(BUILD_USER)} );
+		Verbose(The hostname is: ${VERSION(BUILD_HOSTNAME)} );
+		Verbose(The machine is: ${VERSION(BUILD_MACHINE)} );
+		Verbose(The OS is: ${VERSION(BUILD_OS)} );
+		Verbose(The date is: ${VERSION(BUILD_DATE)} );
+		Verbose(The kernel is: ${VERSION(BUILD_KERNEL)} );
+		Set(vinf=${VERSION()});
+		Set(vrand=${RAND()});
+		if( ${ISNULL(${vinf})} )
+		{
+			if( ${ISNULL(${vrand})} )
+				Verbose(Version 1.2 or earlier);
+			else
+				Verbose(Version 1.4!!!);
+		}
+		else
+			Verbose(${vinf} indicates version pre-1.6 or higher);
+	}
+	871 => {
+		NoOp(                                                                                                    1         1         1          1         1         1         1);
+		NoOp(          1         2         3         4         5         6         7         8         9         0         1         2          3         4         5         6);
+		NoOp(012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678890123456789012345678901234567890);
+		NoOp(${EXTEN:1:2}   ${EXTEN}   ${EXTEN:1}                                                                                                    1         1         1          1         1     1         1);
+		&dialoutpstn(${TDIRECTCALL-PST}/0${EXTEN},${E${CALLERID(num)}-OPT},${TDIRECTCALL-CID},${TDIRECTCALL-MAX},RotaPadrao) ;
+
+	}
+	872 => {
+		Set(ChannelOnly=${CUT(CHANNEL||1)});
+		Verbose(ChannelOnly=${ChannelOnly}; neat huh?);
+		Set(ChannelOnly=${CUT(CHANNEL,,1)});
+		Verbose(ChannelOnly=${ChannelOnly}; neat huh?);
+	}	
+	873 => {
+		NOOP(this is a forkcdr test);
+		Set(CALLERID(num)=1234567890);
+		Set(CALLERID(name)=before fork);
+		Forkcdr(v);
+		Set(CALLERID(num)=0987654321);
+		Set(CALLERID(name)=after fork);
+		Answer();
+		Echo();
+		Hangup();
+	}
+        874 => {
+		SayDigits(307-754-5675);
+                SayPhoneNumber(307-754-5675);
+                SayDigits(--);
+                SayPhoneNumber(123-456-7890);
+                SayDigits(++);
+                SayPhoneNumber(307-754-4454);
+        }
+	875 => {
+		&funcA();
+		&funcD();
+	}
+	876 => {
+		NoOp(Query resultid ${connid} SELECT var1\, var2 FROM did);
+		NoOp($["Query resultid ${connid} SELECT var1\, var2 FROM did"]);
+		NoOp($["Query resultid ${connid} SELECT var1, var2 FROM did"]);
+		goto test5,s,1;
+	}
+	88 => {
+		SET(LIMIT_PLAYAUDIO_CALLER=yes);
+		SET(LIMIT_PLAYAUDIO_CALLEE=no);
+		SET(LIMIT_TIMEOUT_FILE=timeup);
+		SET(LIMIT_CONNECT_FILE=limit60);
+		SET(LIMIT_WARNING_FILE=almostup);
+		Dial(Zap/51,20,L(60000:30000:8000));
+	}
+	89 => {
+		goto callbackmenu|100|1;
+	}
+}
+
+context income1
+{
+	s => {
+		Answer();
+		Dial(Zap/50,20,m);
+	}
+	150 => Dial(Zap/50,20,m);
+}
+
+context callbackmenu
+{
+	_X. => {
+			Answer();
+			Wait(1);
+			Set(TIMEOUT(digit)=5);
+			Set(TIMEOUT(response)=30);
+			DISA(no-password,callbackdialout);
+	}
+}
+
+context callbackdialout
+{
+	_X. => {
+			Dial(Zap/51,20,w);
+		}
+
+}
+
+
+macro dialoutpstn(something1, something2, something3, something4, something5)
+{
+	Verbose(${something1}--- ${something2}--- ${something3}--- ${something4}--- ${something5});
+}
+
+macro ndeep(level)
+{
+        if( ${level} == 0)
+        {
+                Verbose(2|Got to Level 0);
+                return;
+        }
+        &ndeep($[${level}-1]);
+        return;
+}

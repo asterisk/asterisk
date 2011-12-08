@@ -1,0 +1,152 @@
+	<category name="MENUSELECT_CORE_SOUNDS" displayname="Core Sound Packages" positive_output="yes">
+		<member name="CORE-SOUNDS-EN-WAV" displayname="English, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-EN-ULAW" displayname="English, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN-ALAW" displayname="English, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN-GSM" displayname="English, GSM format" >
+			<defaultenabled>yes</defaultenabled>
+		</member>
+		<member name="CORE-SOUNDS-EN-G729" displayname="English, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-EN-G722" displayname="English, G.722 format">
+		</member>
+		<member name="CORE-SOUNDS-EN-SLN16" displayname="English, Signed-linear 16kHz format">
+		</member>
+		<member name="CORE-SOUNDS-EN-SIREN7" displayname="English, G.722.1 (Siren7) format">
+		</member>
+		<member name="CORE-SOUNDS-EN-SIREN14" displayname="English, G.722.1C (Siren14) format">
+		</member>
+		<member name="CORE-SOUNDS-ES-WAV" displayname="Spanish, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-ES-ULAW" displayname="Spanish, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-ES-ALAW" displayname="Spanish, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-ES-GSM" displayname="Spanish, GSM format">
+		</member>
+		<member name="CORE-SOUNDS-ES-G729" displayname="Spanish, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-ES-G722" displayname="Spanish, G.722 format">
+		</member>
+		<member name="CORE-SOUNDS-ES-SLN16" displayname="Spanish, Signed-linear 16kHz format">
+		</member>
+		<member name="CORE-SOUNDS-ES-SIREN7" displayname="Spanish, G.722.1 (Siren7) format">
+		</member>
+		<member name="CORE-SOUNDS-ES-SIREN14" displayname="Spanish, G.722.1C (Siren14) format">
+		</member>
+		<member name="CORE-SOUNDS-FR-WAV" displayname="French, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-FR-ULAW" displayname="French, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-FR-ALAW" displayname="French, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-FR-GSM" displayname="French, GSM format">
+		</member>
+		<member name="CORE-SOUNDS-FR-G729" displayname="French, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-FR-G722" displayname="French, G.722 format">
+		</member>
+		<member name="CORE-SOUNDS-FR-SLN16" displayname="French, Signed-linear 16kHz format">
+		</member>
+		<member name="CORE-SOUNDS-FR-SIREN7" displayname="French, G.722.1 (Siren7) format">
+		</member>
+		<member name="CORE-SOUNDS-FR-SIREN14" displayname="French, G.722.1C (Siren14) format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-WAV" displayname="English (Australian Accent), WAV format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-ULAW" displayname="English (Australian Accent), mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-ALAW" displayname="English (Australian Accent), a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-GSM" displayname="English (Australian Accent), GSM format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-G729" displayname="English (Australian Accent), G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-G722" displayname="English (Australian Accent), G.722 format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-SLN16" displayname="English (Australian Accent), Signed-linear 16kHz format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-SIREN7" displayname="English (Australian Accent), G.722.1 (Siren7) format">
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-SIREN14" displayname="English (Australian Accent), G.722.1C (Siren14) format">
+		</member>
+		<member name="CORE-SOUNDS-RU-WAV" displayname="Russian, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-RU-ULAW" displayname="Russian, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-RU-ALAW" displayname="Russian, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-RU-GSM" displayname="Russian, GSM format" >
+		</member>
+		<member name="CORE-SOUNDS-RU-G729" displayname="Russian, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-RU-G722" displayname="Russian, G.722 format">
+		</member>
+		<member name="CORE-SOUNDS-RU-SLN16" displayname="Russian, Signed-linear 16kHz format">
+		</member>
+		<member name="CORE-SOUNDS-RU-SIREN7" displayname="Russian, G.722.1 (Siren7) format">
+		</member>
+		<member name="CORE-SOUNDS-RU-SIREN14" displayname="Russian, G.722.1C (Siren14) format">
+		</member>
+	</category>
+	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
+		<member name="MOH-OPSOUND-WAV" displayname="opsound.org Music On Hold Files, WAV format" >
+			<defaultenabled>yes</defaultenabled>
+		</member>
+		<member name="MOH-OPSOUND-ULAW" displayname="opsound.org Music On Hold Files, mu-Law format" >
+		</member>
+		<member name="MOH-OPSOUND-ALAW" displayname="opsound.org Music On Hold Files, a-Law format" >
+		</member>
+		<member name="MOH-OPSOUND-GSM" displayname="opsound.org Music On Hold Files, GSM format" >
+		</member>
+		<member name="MOH-OPSOUND-G729" displayname="opsound.org Music On Hold Files, G.729 format" >
+		</member>
+		<member name="MOH-OPSOUND-G722" displayname="opsound.org Music On Hold Files, G.722 format" >
+		</member>
+		<member name="MOH-OPSOUND-SLN16" displayname="opsound.org Music On Hold Files, Signed-linear 16kHz format" >
+		</member>
+		<member name="MOH-OPSOUND-SIREN7" displayname="opsound.org Music On Hold Files, G.722.1 (Siren7) format" >
+		</member>
+		<member name="MOH-OPSOUND-SIREN14" displayname="opsound.org Music On Hold Files, G.722.1C (Siren14) format" >
+		</member>
+	</category>
+	<category name="MENUSELECT_EXTRA_SOUNDS" displayname="Extras Sound Packages" positive_output="yes">
+		<member name="EXTRA-SOUNDS-EN-WAV" displayname="English, WAV format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-ULAW" displayname="English, mu-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-ALAW" displayname="English, a-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-GSM" displayname="English, GSM format" >
+		</member>
+		<member name="EXTRA-SOUNDS-EN-G729" displayname="English, G.729 format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-G722" displayname="English, G.722 format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-SLN16" displayname="English, Signed-linear 16kHz format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-SIREN7" displayname="English, G.722.1 (Siren7) format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-SIREN14" displayname="English, G.722.1C (Siren14) format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-WAV" displayname="French, WAV format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-ULAW" displayname="French, mu-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-ALAW" displayname="French, a-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-GSM" displayname="French, GSM format" >
+		</member>
+		<member name="EXTRA-SOUNDS-FR-G729" displayname="French, G.729 format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-G722" displayname="French, G.722 format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-SLN16" displayname="French, Signed-linear 16kHz format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-SIREN7" displayname="French, G.722.1 (Siren7) format">
+		</member>
+		<member name="EXTRA-SOUNDS-FR-SIREN14" displayname="French, G.722.1C (Siren14) format">
+		</member>
+	</category>

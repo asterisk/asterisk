@@ -1,0 +1,33 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_adsi_available;
+		LINKER_SYMBOL_PREFIX*ast_adsi_begin_download;
+		LINKER_SYMBOL_PREFIX*ast_adsi_channel_restore;
+		LINKER_SYMBOL_PREFIX*ast_adsi_clear_screen;
+		LINKER_SYMBOL_PREFIX*ast_adsi_clear_soft_keys;
+		LINKER_SYMBOL_PREFIX*ast_adsi_connect_session;
+		LINKER_SYMBOL_PREFIX*ast_adsi_data_mode;
+		LINKER_SYMBOL_PREFIX*ast_adsi_disconnect_session;
+		LINKER_SYMBOL_PREFIX*ast_adsi_display;
+		LINKER_SYMBOL_PREFIX*ast_adsi_download_connect;
+		LINKER_SYMBOL_PREFIX*ast_adsi_download_disconnect;
+		LINKER_SYMBOL_PREFIX*ast_adsi_end_download;
+		LINKER_SYMBOL_PREFIX*ast_adsi_get_cpeid;
+		LINKER_SYMBOL_PREFIX*ast_adsi_get_cpeinfo;
+		LINKER_SYMBOL_PREFIX*ast_adsi_input_control;
+		LINKER_SYMBOL_PREFIX*ast_adsi_input_format;
+		LINKER_SYMBOL_PREFIX*ast_adsi_load_session;
+		LINKER_SYMBOL_PREFIX*ast_adsi_load_soft_key;
+		LINKER_SYMBOL_PREFIX*ast_adsi_print;
+		LINKER_SYMBOL_PREFIX*ast_adsi_query_cpeid;
+		LINKER_SYMBOL_PREFIX*ast_adsi_query_cpeinfo;
+		LINKER_SYMBOL_PREFIX*ast_adsi_read_encoded_dtmf;
+		LINKER_SYMBOL_PREFIX*ast_adsi_set_keys;
+		LINKER_SYMBOL_PREFIX*ast_adsi_set_line;
+		LINKER_SYMBOL_PREFIX*ast_adsi_transmit_message;
+		LINKER_SYMBOL_PREFIX*ast_adsi_transmit_message_full;
+		LINKER_SYMBOL_PREFIX*ast_adsi_unload_session;
+		LINKER_SYMBOL_PREFIX*ast_adsi_voice_mode;
+	local:
+		*;
+};

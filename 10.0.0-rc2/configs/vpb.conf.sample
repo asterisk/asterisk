@@ -1,0 +1,248 @@
+;
+; Voicetronix Voice Processing Board (VPB) telephony interface
+;
+; Configuration file
+;
+
+[general]
+;
+; Total number of Voicetronix cards in this machine
+;
+cards=0
+
+;
+; Which indication functions to use
+;    1 = use Asterisk functions
+;    0 = use VPB functions
+;
+indication=1
+
+;
+; Echo Canceller suppression threshold
+;    0    = no suppression threshold
+;    2048 = -18dB
+;    4096 = -24dB
+;
+;ecsuppthres=0
+
+;
+; Inter-digit delay timeout, used when collecting DTMF tones for dialling
+; from a station port.  Measured in milliseconds.
+;
+dtmfidd=3000
+
+;
+; How to play DTMF tones
+;    any value     = use Asterisk functions
+;    commented out = use VPB functions
+;
+;ast-dtmf=1
+
+;
+; How to detect DTMF tones
+;    any value     = use Asterisk functions
+;    commented out = use VPB functions
+;
+; NOTE: this setting is currently broken, and uncommenting it will
+; stop dialling from working.  Any volunteers to fix it?
+;ast-dtmf-det=1
+
+;
+; Use relaxed DTMF detection (ignored unless ast-dtmf-det is set)
+;
+relaxdtmf=1
+
+;
+; When we do a native bridge between two VPB channels:
+;    yes = only break the connection for '#' and '*'
+;    no  = break the connection for any DTMF
+;
+; NOTE: this is currently broken, and setting to no will segfault
+; Asterisk while dialling.  Any volunteers to fix it?
+;
+break-for-dtmf=yes
+
+;
+; The maximum period between received rings.  Measures in milliseconds.
+;
+timer_period_ring=4000
+
+
+[interfaces]
+;
+; Default language
+;
+language=en
+
+;
+; Default context
+;
+context=default
+
+;
+; Echo cancellation
+;     off  = no not use echo cancellation
+;     on   = use echo cancellation
+;
+echocancel=off
+
+;
+; Caller ID routines/signalling
+;   For FXO ports, select one of:
+;     on   = collect caller ID between 1st/2nd rings using VPB routines
+;     off  = do not use caller ID
+;     bell = bell202 as used in US, using Asterisk's caller ID routines
+;     v23  = v23 as used in the UK, using Asterisk's caller ID routines
+;   For FXS ports, set the channel's CID in '"name" <number>' format
+;
+; NOTE that other caller ID standards are supported in Asterisk, but are
+; not yet active in chan_vpb.  It should be reasonably trivial to add
+; support for the other standards (see the default chan_dahdi.conf for a
+; list of them) that Asterisk already handles.
+;
+callerid=bell
+
+;
+; Use a polarity reversal as the trigger for the start of caller ID,
+; rather than triggering after the first ring.
+;
+usepolaritycid=0
+
+;
+; Use loop drop to detect the end of a call.  On by default, but if you
+; experience unexpected hangups, try turning it off.
+;
+useloopdrop=1
+
+;
+; Use in-kernel bridging.  This will generally give lower delay audio if
+; bridging between two VPB channels.  It will not affect bridging
+; between VPB channels and other technologies.
+;
+usenativebridge=1
+
+;
+; Software transmit and receive gain.  Adjusting these will change the
+; volume of audio files that are played (tx) and recorded (rx).  It will
+; _not_ affect audio between channels in a native bridge.  It will,
+; however, affect the volume of audio between VPB channels and channels
+; using other technologies (such as VoIP channels).  Usually it's best to
+; leave these as they are.  If you're looking to get rid of echo, the
+; first thing to do is match your line impedance with the bal1/bal2/bal3
+; settings.
+;
+;txgain=0.0
+;rxgain=0.0
+
+;
+; Hardware transmit and receive gain.  Adjusting these will change the
+; volume of all audio on a channel.  The allowed range of settings is
+; -12.0 to 12.0 (measured in dB).
+;
+;txhwgain=0.0
+;rxhwgain=0.0
+
+;
+; Balance register settings, for matching the impedance of the card to
+; that of the connected equipment.  Only relevant for OpenLine and
+; OpenSwitch series cards.  Values should be in the range 0 - 255.
+;
+; We (Voicetronix) have determined the best codec balance values for
+; standard interfaces based on their US, Australian and European
+; specifications, shown below.
+;
+; US (600 ohm)
+;bal1=0xf8
+;bal2=0x1a
+;bal3=0x0c
+;
+; Australia (complex impedance)
+;bal1=0xf0
+;bal2=0x5d
+;bal3=0x79
+;
+; Europe (CTR-21)
+;bal1=0xf0
+;bal2=0x6e
+;bal3=0x75
+
+;
+; Logical groups can be assigned to allow outgoing rollover.  Groups range
+; from 0 to 63, and multiple groups can be specified.
+;
+group=1
+
+;
+; Ring groups (a.k.a. call groups) and pickup groups.  If a phone is
+; ringing and it is a member of a group which is one of your pickup
+; groups, then you can answer it by picking up and dialling *8#.  For
+; simple offices, just make these both the same.  Groups range from 0 to
+; 63.
+;
+callgroup=1
+pickupgroup=1
+
+;
+; If we haven't had a "grunt" (voice activity detection) for this many
+; seconds, then we hang up the line due to inactivity.  Default is one
+; hour.
+;
+grunttimeout=3600
+
+;
+; Type of line and line handling.  This setting will usually be overridden
+; on a per channel basis.  Valid settings are:
+;     fxo       = this is an FXO port
+;     immediate = this is an FXS port, with no dialtone or dialling
+;                   required (ie it is a "hotline")
+;     dialtone  = this is an FXS port, providing dialtone and dialling
+;
+mode=immediate
+
+;-------------------------------------------------------------------------
+; Channel definitions
+;
+; Each channel inherits the settings specified above, unless the are
+; overridden.  As a minimum, the board number and channel number must be
+; set, starting from 0 for the first board, and for the channels on each
+; board.  For example, board 0, channels 0 to 11, then board 1, channels
+; 0 to 11 for two OpenSwitch12 cards.
+;
+
+;
+; First board is an OpenSwitch12 card (jumpers at factory defaults)
+;
+;board=0
+;
+;mode=dialtone
+;context=from-handset
+;group=1
+;channel=0
+;channel=1
+;channel=2
+;channel=3
+;channel=4
+;channel=5
+;channel=6
+;channel=7
+;
+;mode=fxo
+;context=from-pstn
+;group=2
+;channel=8
+;channel=9
+;channel=10
+;channel=11
+
+;
+; Second board is an OpenLine4
+;
+;board=1
+;
+;mode=fxo
+;group=2
+;context=from-pstn
+;channel=0
+;channel=1
+;channel=2
+;channel=3

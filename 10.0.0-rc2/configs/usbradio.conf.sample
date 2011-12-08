@@ -1,0 +1,61 @@
+[general]
+
+; General config options, with default values shown.
+; You should use one section per device, with [general] being used
+; for the device.
+
+; debug = 0x0               ; misc debug flags, default is 0
+
+; Set the device to use for I/O
+; devicenum = 0
+; Set hardware type here
+; hdwtype=0               ; 0=limey, 1=sph
+
+; rxboost=0               ; no rx gain boost
+; rxctcssrelax=1        ; reduce talkoff from radios w/o CTCSS Tx HPF
+; rxctcssfreq=100.0      ; rx ctcss freq in floating point. must be in table
+; txctcssfreq=100.0      ; tx ctcss freq, any frequency permitted
+
+; carrierfrom=dsp     ;no,usb,usbinvert,dsp,vox
+; ctcssfrom=dsp       ;no,usb,dsp
+
+; rxdemod=flat            ; input type from radio: no,speaker,flat
+; txprelim=yes            ; output is pre-emphasised and limited
+; txtoctype=no            ; no,phase,notone
+
+; txmixa=composite        ;no,voice,tone,composite,auxvoice
+; txmixb=no               ;no,voice,tone,composite,auxvoice
+
+; invertptt=0
+
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
+                              ; USBRADIO channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The USBRADIO channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive USBRADIO side will always
+                              ; be used if the sending side can create jitter.
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usualy sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of an USBRADIO
+                              ; channel. Two implementations are currenlty available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jbtargetextra = 40          ; This option only affects the jb when 'jbimpl = adaptive' is set.
+                              ; The option represents the number of milliseconds by which the new
+                              ; jitter buffer will pad its size. the default is 40, so without
+                              ; modification, the new jitter buffer will set its size to the jitter
+                              ; value plus 40 milliseconds. increasing this value may help if your
+                              ; network normally has low jitter, but occasionally has spikes.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+
+

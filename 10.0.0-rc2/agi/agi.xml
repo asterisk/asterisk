@@ -1,0 +1,18 @@
+<category name="MENUSELECT_AGIS" displayname="AGI Samples" positive_output="yes">
+  <member name="agi-test.agi">
+	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
+  </member>
+  <member name="eagi-test">
+	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
+  </member>
+  <member name="eagi-sphinx-test">
+	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
+  </member>
+  <member name="jukebox.agi">
+	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
+  </member>
+</category>

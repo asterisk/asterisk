@@ -1,0 +1,110 @@
+#!/bin/bash
+# vim:textwidth=80:tabstop=4:shiftwidth=4:smartindent
+#
+# this scripts prompts the user thrice, then tells asterisk to please shut down,
+# then kills asterisk and related processes with SIGTERM, then kills asterisk
+# and related processes with SIGKILL, and then starts asterisk with
+# safe_asterisk. Three arguments are currently supported, --no-countdown,
+# --no-prompt and --no-stop-now-first
+
+LOGFILE=/var/log/asterisk/safe_asterisk_restart.log
+ASTERISK=/usr/sbin/asterisk
+SAFE_ASTERISK=/usr/sbin/safe_asterisk
+
+DELAY=1					# Seconds between steps in countdown
+COUNTDOWN_FROM=5			# Steps to count down
+DO_COUNTDOWN=1				# Should I do a countdown before restarting asterisk?
+DO_PROMPT=1				# Should I prompt the user?
+TRY_STOP_NOW_FIRST=1			# Attempt a 'stop now' before killing processes. Note
+					# that this might make this script hang if asterisk
+					# can't respond to the command.
+
+# processes to kill. Please list all AGI scripts here as well as the asterisk
+# processes, since asterisk may leave them unkilled.
+PROCVICTIMS="safe_asterisk asterisk mpg123"
+
+# helper functions
+# die ["string to print"]
+function die {
+	if [[ "$1" != "" ]]; then
+		echo $1
+	else
+		echo "ok. no harm done..."
+	fi
+	exit
+}
+
+# docmd "string to print" "cmd"
+function docmd {
+	printf "$1..."
+	`$2 >> $LOGFILE 2>&1`
+	RETCODE=$?
+	sleep $DELAY
+	if [[ "$RETCODE" == "0" ]]; then
+		echo " OK"
+	else
+		echo " FAILED"
+	fi
+}
+
+# prompt "string" "positive answer"
+function prompt {
+	printf "$1"
+	read answer
+	if [[ "$answer" != "$2" ]]; then
+		die
+	fi
+}
+
+# countdown secs
+function countdown {
+	echo -n "$1 "
+	if [[ $1 > 0 ]]; then
+		sleep 1
+		countdown $[ $1 - 1 ]
+	else
+		echo "boom!"
+	fi
+}
+
+# am I really root?
+if [[ "$UID" != "0" ]]; then
+	echo "Sorry, only root can do this." >&2
+	exit;
+fi
+
+echo "`date`: $0 invoked" >> $LOGFILE
+
+# bash
+for i
+do
+	if [[ "$i" == "--no-countdown" ]]
+	then
+		unset DO_COUNTDOWN
+	fi
+	if [[ "$i" == "--no-prompt" ]]
+	then
+		unset DO_PROMPT
+	fi
+	if [[ "$i" == "--no-stop-now-first" ]]
+	then
+		unset TRY_STOP_NOW_FIRST
+	fi
+done
+
+[[ $DO_PROMPT ]] && prompt "Are you sure you want to restart asterisk? (yes/no)? " "yes"
+[[ $DO_PROMPT ]] && prompt "Really sure? (yes/no)? " "yes"
+[[ $DO_PROMPT ]] && prompt "Absolutely positive? (YES/no)? " "YES"
+
+[[ $DO_COUNTDOWN ]] && echo "OK, I'll do it, but if you're not sure about this, press ctrl+c now."
+[[ $DO_COUNTDOWN ]] && countdown $COUNTDOWN_FROM
+
+# doing the dirty work
+[[ $TRY_STOP_NOW_FIRST ]] && docmd "Asking asterisk kindly to shutdown" "$ASTERISK -rx 'stop now'"
+docmd "Sending asterisk processes the TERM signal" "pkill -15 $PROCVICTIMS"
+docmd "Sending asterisk processes KILL signal" "pkill -9 $PROCVICTIMS"
+docmd "Starting safe_asterisk" "$SAFE_ASTERISK"
+for i in $PROCVICTIMS
+do
+	ps axf | grep -w $i | grep -v grep
+done

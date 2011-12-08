@@ -1,0 +1,28 @@
+; Generic Fax Application configuration 
+
+[general]
+; Maximum Transmission Rate
+; Possible values are { 2400 | 4800 | 7200 | 9600 | 12000 | 14400 }
+; Set this value to the maximum desired transfer rate.  Default: 14400
+maxrate=14400
+
+; Minimum Transmission Rate
+; Possible values are { 2400 | 4800 | 7200 | 9600 | 12000 | 14400 }
+; Set this value to the minimum desired transfer rate.  Default: 2400
+minrate=2400
+
+; Send Progress/Status events to manager session
+; Manager events with 'call' class permissions will receive events indicating the
+; steps to initiate a fax session.  Fax completion events are always sent to manager
+; sessions with 'call' class permissions, regardless of the value of this option.
+; Default: no
+statusevents=yes
+
+; modem capabilities
+; Possible values are { v17 | v27 | v29 }
+; Set this value to modify the default modem options.  Default: v17,v27,v29
+modems=v17,v27,v29
+
+; Enable/disable T.30 ECM (error correction mode) by default.
+; Default: Enabled
+ecm=yes

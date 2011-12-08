@@ -1,0 +1,31 @@
+;
+; Asterisk Channel Event Logging (CEL) - Custom CSV Backend
+;
+
+; This is the configuration file for the customizable CSV backend for CEL
+; logging.
+;
+; In order to create custom CSV logs for CEL, uncomment the template below
+; (Master.csv) and start Asterisk.  Once CEL events are generated, a file will
+; appear in the following location:
+;
+;                 /var/log/asterisk/cel-custom/Master.csv
+;
+; (Note that /var/log/asterisk is the default and may differ on your system)
+;
+; You can also create more than one template if desired.  All logs will appear
+; in the cel-custom directory under your Asterisk logs directory.
+;
+
+;
+; Within a mapping, use the CALLERID() and CHANNEL() functions to retrieve
+; details from the CEL event.  There are also a few variables created by this
+; module that can be used in a mapping:
+;
+;    eventtype  - The name of the CEL event.
+;    eventtime  - The timestamp of the CEL event.
+;    eventextra - Extra data included with this CEL event, typically along with
+;                 an event of type USER_DEFINED from CELGenUserEvent().
+;
+[mappings]
+;Master.csv => ${CSV_QUOTE(${eventtype})},${CSV_QUOTE(${eventtime})},${CSV_QUOTE(${CALLERID(name)})},${CSV_QUOTE(${CALLERID(num)})},${CSV_QUOTE(${CALLERID(ANI)})},${CSV_QUOTE(${CALLERID(RDNIS)})},${CSV_QUOTE(${CALLERID(DNID)})},${CSV_QUOTE(${CHANNEL(exten)})},${CSV_QUOTE(${CHANNEL(context)})},${CSV_QUOTE(${CHANNEL(channame)})},${CSV_QUOTE(${CHANNEL(appname)})},${CSV_QUOTE(${CHANNEL(appdata)})},${CSV_QUOTE(${CHANNEL(amaflags)})},${CSV_QUOTE(${CHANNEL(accountcode)})},${CSV_QUOTE(${CHANNEL(uniqueid)})},${CSV_QUOTE(${CHANNEL(linkedid)})},${CSV_QUOTE(${CHANNEL(peer)})},${CSV_QUOTE(${CHANNEL(userfield)})},${CSV_QUOTE(${eventextra})}

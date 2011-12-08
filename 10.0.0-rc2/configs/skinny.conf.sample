@@ -1,0 +1,191 @@
+;
+; Skinny Configuration for Asterisk
+;
+[general]
+bindaddr=0.0.0.0	; Address to bind to
+bindport=2000		; Port to bind to, default tcp/2000
+dateformat=M-D-Y	; M,D,Y in any order (6 chars max)
+			; "A" may also be used, but it must be at the end.
+			; Use M for month, D for day, Y for year, A for 12-hour time.
+keepalive=120
+
+;authtimeout = 30       ; authtimeout specifies the maximum number of seconds a
+			; client has to authenticate.  If the client does not
+			; authenticate beofre this timeout expires, the client
+                        ; will be disconnected.  (default: 30 seconds)
+
+;authlimit = 50         ; authlimit specifies the maximum number of
+			; unauthenticated sessions that will be allowed to
+                        ; connect at any given time. (default: 50)
+
+;vmexten=8500		; Systemwide voicemailmain pilot number
+			; It must be in the same context as the calling
+			; device/line
+
+; If regcontext is specified, Asterisk will dynamically create and destroy a
+; NoOp priority 1 extension for a given line which registers or unregisters with
+; us and have a "regexten=" configuration item.
+; Multiple contexts may be specified by separating them with '&'. The
+; actual extension is the 'regexten' parameter of the registering line or its
+; name if 'regexten' is not provided.  If more than one context is provided,
+; the context must be specified within regexten by appending the desired
+; context after '@'.  More than one regexten may be supplied if they are
+; separated by '&'.  Patterns may be used in regexten.
+;
+;regcontext=skinnyregistrations
+
+;allow=all		; see https://wiki.asterisk.org/wiki/display/AST/RTP+Packetization
+			; for framing options
+;disallow=
+
+; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of these parameters.
+;tos=cs3		; Sets TOS for signaling packets.
+;tos_audio=ef		; Sets TOS for RTP audio packets.
+;tos_video=af41		; Sets TOS for RTP video packets.
+;cos=3			; Sets 802.1p priority for signaling packets.
+;cos_audio=5		; Sets 802.1p priority for RTP audio packets.
+;cos_video=4		; Sets 802.1p priority for RTP video packets.
+
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+;jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
+                             ; skinny channel. Defaults to "no". An enabled jitterbuffer will
+                             ; be used only if the sending side can create and the receiving
+                             ; side can not accept jitter. The skinny channel can accept
+                             ; jitter, thus a jitterbuffer on the receive skinny side will be
+                             ; used only if it is forced and enabled.
+
+;jbforce = no                ; Forces the use of a jitterbuffer on the receive side of a skinny
+                             ; channel. Defaults to "no".
+
+;jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+;jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                             ; resynchronized. Useful to improve the quality of the voice, with
+                             ; big jumps in/broken timestamps, usually sent from exotic devices
+                             ; and programs. Defaults to 1000.
+
+;jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a
+                             ; skinny channel. Two implementations are currently available
+                             ; - "fixed" (with size always equals to jbmaxsize)
+                             ; - "adaptive" (with variable size, actually the new jb of IAX2).
+                             ; Defaults to fixed.
+
+;jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+
+[lines]
+;----------------------------------- LINES SECTION --------------------------------
+; Options set under [lines] apply to all lines unless explicitly set for a particular
+; device. The options that can be set under lines are specified in GENERAL LINE OPTIONS.
+; These options can also be set for each individual device as well as those under SPECIFIC
+; LINE OPTIONS.
+;
+; Each label below [lines] in [] is a new line with the specific options specified below
+; it. Config stops reading new lines when one of the following is found: [general], [devices]
+; or the end of skinny.conf.
+;
+; Where options are common to both lines and devices, the results typically take that of
+; the least permission. ie if a no is set for either line or device, the call will not be
+; able to use that permission
+;-------------------------------- GENERAL LINE OPTIONS -----------------------------
+;earlyrtp=1                  ; whether audio signalling should be provided by asterisk
+;                            ; (earlyrtp=1) or device generated (earlyrtp=0). default=yes
+;transfer=1                  ; whether the device is allowed to transfer. default=yes
+;context=default             ; context to use for this line.
+;------------------------------- SPECIFIC LINE OPTIONS -----------------------------
+;setvar=        	     ; allows for the setting of chanvars.
+;-----------------------------------------------------------------------------------
+
+;[100]
+;nat=yes
+;callerid="Customer Support" <810-234-1212>
+;mailbox=100
+;vmexten=8500			; Device level voicemailmain pilot number
+;regexten=100
+;context=inbound
+;linelabel="Support Line"	; Displays next to the line
+				; button on 7940's and 7960s
+;[110]
+;callerid="John Chambers" <408-526-4000>
+;context=did
+;regexten=110
+;linelabel="John"
+;mailbox=110
+
+;[120]
+;Nothing set, so all the defaults are used
+
+;[500]
+;nat=yes
+;callerid="George W. Bush" <202-456-1414>
+;setvar=CUSTID=5678	; Channel variable to be set for all calls from this device
+;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
+                                                ; cause the given audio file to
+                                                ; be played upon completion of
+                                                ; an attended transfer.
+;mailbox=500
+;callwaiting=yes
+;transfer=yes
+;threewaycalling=yes
+;context=default
+;mohinterpret=default	; This option specifies a default music on hold class to
+			; use when put on hold if the channel's moh class was not
+			; explicitly set with Set(CHANNEL(musicclass)=whatever) and
+			; the peer channel did not suggest a class to use.
+;mohsuggest=default	; This option specifies which music on hold class to suggest to the peer channel
+			; when this channel places the peer on hold. It may be specified globally or on
+			; a per-user or per-peer basis.
+
+
+[devices]
+;---------------------------------- DEVICES SECTION -------------------------------
+; Options set under [devices] apply to all devices unless explicitly set for a particular
+; device. The options that can be set under devices are specified in GENERAL DEVICE OPTIONS.
+; These options can also be set for each individual device as well as those under SPECIFIC
+; DEVICE OPTIONS.
+;
+; Each label below [devices] in [] is a new device with the specific options specified below
+; it. Config stop reading new devices when one of the following is found: [general], [lines]
+; or the end of skinny.conf.
+;
+; Where options are common to both lines and devices, the results typically take that of
+; the least permission. ie if a no is set for either line or device, the call will not be
+; able to use that permission
+;------------------------------- GENERAL DEVICE OPTIONS ----------------------------
+;earlyrtp=1                  ; whether audio signalling should be provided by asterisk
+;                            ; (earlyrtp=1) or device generated (earlyrtp=0). default=yes
+;transfer=1                  ; whether the device is allowed to transfer. default=yes
+;------------------------------ SPECIFIC DEVICE OPTIONS ----------------------------
+;device="SEPxxxxxxxxxxxx     ; id of the device. Must be set.
+;version=P002G204	     ; firmware version to be loaded. If this version is different
+;                            ; to the one on the device, the device will try to load this
+;                            ; version from the tftp server. Set to device firmware version.
+;-----------------------------------------------------------------------------------
+
+; Typical config for 12SP+
+;[florian]
+;device=SEP00D0BA847E6B
+;version=P002G204	; Thanks critch
+;context=did
+;directmedia=yes	; Allow media to go directly between two RTP endpoints.
+;line=120		; Dial(Skinny/120@florian)
+
+; Typical config for a 7910
+;[duba]			; Device name
+;device=SEP0007EB463101	; Official identifier
+;version=P002F202	; Firmware version identifier
+;host=192.168.1.144
+;permit=192.168.0/24	; Optional, used for authentication
+;line=500
+
+
+; Typical config for a 7940 with dual 7914s
+;[support]
+;device=SEP0007EB463121
+;line=100
+;line=110
+;speeddial => 111,Jack Smith         ; Adds a speeddial button to a device.
+;speeddial => 112@hints,Bob Peterson ; When a context is specified, the speeddial watches a dialplan hint.
+;addon => 7914
+;addon => 7914
+

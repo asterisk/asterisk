@@ -1,0 +1,188 @@
+;
+; CLI Aliases configuration
+;
+; This module also registers a "cli show aliases" CLI command to list
+; configured CLI aliases.
+
+[general]
+; Here you define what alias templates you want to use. You can also define
+; multiple templates to use as well. If you do, and there is a conflict, then
+; the first alias defined will win.
+;
+template = friendly		; By default, include friendly aliases
+;template = asterisk12		; Asterisk 1.2 style syntax
+;template = asterisk14		; Asterisk 1.4 style syntax
+;template = individual_custom	; see [individual_custom] example below which
+				; includes a list of aliases from an external
+				; file
+
+
+; Because the Asterisk CLI syntax follows a "module verb argument" syntax,
+; sometimes we run into an issue between being consistant with this format
+; in the core system, and maintaining system friendliness. In order to get
+; around this we're providing some useful aliases by default.
+;
+[friendly]
+hangup request=channel request hangup
+originate=channel originate
+help=core show help
+pri intense debug span=pri set debug 2 span
+reload=module reload
+
+; CLI Alias Templates
+; -------------------
+;
+; You can define several alias templates.
+; It works with context templates like all other configuration files
+;
+;[asterisk](!)
+; To create an alias you simply set the variable name as the alias and variable
+; value as the real CLI command you want executed
+;
+;die die die=stop now
+
+;[asterisk16](asterisk)
+; Alias for making voicemail reload actually do module reload app_voicemail.so
+;voicemail reload=module reload app_voicemail.so
+; This will make the CLI command "mr" behave as though it is "module reload".
+;mr=module reload
+;
+;
+; In addition, you could also include a flat file of aliases which is loaded by
+; the [individual_custom] template in the [general] section.
+;
+;[individual_custom]
+;#include "/etc/asterisk/aliases"
+
+; Implemented CLI Alias Templates
+; -------------------------------
+;
+; Below here we have provided you with some templates, easily allowing you to
+; utilize previous Asterisk CLI commands with any version of Asterisk. In this
+; way you will be able to use Asterisk 1.2 and 1.4 style CLI syntax with any
+; version Asterisk going forward into the future.
+;
+; We have also separated out the vanilla syntax into a context template which
+; allows you to keep your custom changes separate of the standard templates
+; we have provided you. In this way you can clearly see your custom changes,
+; and also allowing you to combine various templates as you see fit.
+;
+; The naming scheme we have used is recommended, but certainly is not enforced
+; by Asterisk. If you wish to use the provided templates, simply define the
+; context name which does not utilize the '_tpl' at the end. For example,
+; if you would like to use the Asterisk 1.2 style syntax, define in the
+; [general] section
+
+[asterisk12_tpl](!)
+show channeltypes=core show channeltypes
+show channeltype=core show channeltype
+show manager command=manager show command
+show manager commands=manager show commands
+show manager connected=manager show connected
+show manager eventq=manager show eventq
+rtp no debug=rtp set debug off
+rtp rtcp debug ip=rtcp debug ip
+rtp rtcp debug=rtcp debug
+rtp rtcp no debug=rtcp debug off
+rtp rtcp stats=rtcp stats
+rtp rtcp no stats=rtcp stats off
+stun no debug=stun debug off
+udptl no debug=udptl debug off
+show image formats=core show image formats
+show file formats=core show file formats
+show applications=core show applications
+show functions=core show functions
+show switches=core show switches
+show hints=core show hints
+show globals=core show globals
+show function=core show function
+show application=core show application
+set global=core set global
+show dialplan=dialplan show
+show codecs=core show codecs
+show audio codecs=core show audio codecs
+show video codecs=core show video codecs
+show image codecs=core show image codecs
+show codec=core show codec
+moh classes show=moh show classes
+moh files show=moh show files
+agi no debug=agi debug off
+show agi=agi show
+dump agihtml=agi dumphtml
+show features=feature show
+show indications=indication show
+answer=console answer
+hangup=console hangup
+flash=console flash
+dial=console dial
+mute=console mute
+unmute=console unmute
+transfer=console transfer
+send text=console send text
+autoanswer=console autoanswer
+oss boost=console boost
+console=console active
+save dialplan=dialplan save
+add extension=dialplan add extension
+remove extension=dialplan remove extension
+add ignorepat=dialplan add ignorepat
+remove ignorepat=dialplan remove ignorepat
+include context=dialplan add include
+dont include=dialplan remove include
+extensions reload=dialplan reload
+show translation=core show translation
+convert=file convert
+show queue=queue show
+add queue member=queue add member
+remove queue member=queue remove member
+ael no debug=ael nodebug
+sip debug=sip set debug
+sip no debug=sip set debug off
+show voicemail users=voicemail show users
+show voicemail zones=voicemail show zones
+iax2 trunk debug=iax2 set debug trunk
+iax2 jb debug=iax2 set debug jb
+iax2 no debug=iax2 set debug off
+iax2 no trunk debug=iax2 set debug trunk off
+iax2 no jb debug=iax2 set debug jb off
+show agents=agent show
+show agents online=agent show online
+show memory allocations=memory show allocations
+show memory summary=memory show summary
+show version=core show version
+show version files=core show file version
+show profile=core show profile
+clear profile=core clear profile
+soft hangup=channel request hangup
+
+[asterisk12](asterisk12_tpl)
+; add any additional custom commands you want below here, for example:
+;die quickly=stop now
+
+[asterisk14_tpl](!)
+cdr status=cdr show status
+rtp debug=rtp set debug on
+rtcp debug=rtcp set debug on
+rtcp stats=rtcp set stats on
+stun debug=stun set debug on
+udptl debug=udptl set debug on
+core show globals=dialplan show globals
+core set global=dialplan set global
+core set chanvar=dialplan set chanvar
+agi dumphtml=agi dump html
+ael debug=ael set debug
+funcdevstate list=devstate list
+sip history=sip set history on
+skinny debug=skinny set debug on
+mgcp set debug=mgcp set debug on
+abort shutdown=core abort shutdown
+stop now=core stop now
+stop gracefully=core stop gracefully
+stop when convenient=core stop when convenient
+restart now=core restart now
+restart gracefully=core restart gracefully
+restart when convenient=core restart when convenient
+soft hangup=channel request hangup
+
+[asterisk14](asterisk14_tpl)
+; add any additional custom commands you want below here.

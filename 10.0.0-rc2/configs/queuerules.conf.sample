@@ -1,0 +1,20 @@
+; It is possible to change the value of the QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY
+; channel variables in mid-call by defining rules in the queue for when to do so. This can allow for
+; a call to be opened to more members or potentially a different set of members.
+; The advantage to changing members this way as opposed to inserting the caller into a
+; different queue with more members or reinserting the caller into the same queue with a different
+; QUEUE_MAX_PENALTY or QUEUE_MIN_PENALTY set is that the caller does not lose his place in the queue.
+;
+; Note: There is a limitation to these rules; a caller will follow the penaltychange rules for
+; the queue that were defined at the time the caller entered the queue. If an update to the rules is
+; made during the caller's stay in the queue, these will not be reflected for that caller.
+;
+; The syntax for these rules is
+; penaltychange => <number of seconds into the call>,<absolute or relative change to QUEUE_MAX_PENALTY>[,absolute or relative change to QUEUE_MIN_PENALTY]
+;
+; Example:
+; [myrule]
+; penaltychange => 30,+3   ; 30 seconds into the call increase the QUEUE_MAX_PENALTY by 3, no change to QUEUE_MIN_PENALTY
+; penaltychange => 60,10,5 ; 60 seconds into the call increase the QUEUE_MAX_PENALTY to 10 and increase the QUEUE_MIN_PENALTY to 5
+; penaltychange => 75,,7   ; 75 seconds into the call keep the QUEUE_MAX_PENALTY the same and increase the QUEUE_MIN_PENALTY to 7
+

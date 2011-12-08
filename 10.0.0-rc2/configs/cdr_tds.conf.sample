@@ -1,0 +1,78 @@
+;
+; Asterisk Call Detail Records (CDR) - FreeTDS Backend
+;
+
+;[global]
+
+; Connection
+;
+; Use the 'connection' keyword to specify one of the instance names from your
+; 'freetds.conf' file.  Note that 'freetds.conf' is not an Asterisk
+; configuration file, but one specific to the FreeTDS library.  See the FreeTDS
+; documentation on 'freetds.conf' for more information:
+;
+;         http://www.freetds.org/userguide/freetdsconf.htm
+;
+; Accepted values: One of the connections specified in freetds.conf
+
+;connection=ConnectionFromFreeTDSConf
+
+; Database Name
+;
+; The 'dbname' keyword specifies the database name to use when logging CDRs.
+;
+; Accepted values: Any valid database name
+
+;dbname=AsteriskCDRs
+
+; Database Table Name
+;
+; The 'table' keyword identifies which database table is used to log CDRs.
+;
+; Accepted value: Any valid table name
+; Default value:  If not specified, a table named 'cdr' is assumed
+
+;table=cdr
+
+; Credentials
+;
+; The 'username' and 'password' keywords specify the user credentials that
+; Asterisk should use when connecting to the database.
+;
+; Accepted value: Any valid username and password
+
+;username=mangUsr
+;password=
+
+; Language
+;
+; The 'language' keyword changes the language which are used for error and
+; information messages returned by SQL Server.  Each database and user has their
+; own default value, and this default can be overriden here.
+;
+; Accepted value: Any language installed on the target SQL Server.
+; Default value:  us_english
+
+;language=us_english
+
+; Character Set
+;
+; The 'charset' setting is used to change the character set used when connecting
+; to the database server.  Each database and database user has their own
+; character set setting, and this default can be overriden here.
+;
+; Accepted value: Any valid character set available on the target SQL server.
+; Default value:  iso_1
+
+;charset=BIG5
+
+; High Resolution Times
+;
+; The 'hrtime' setting is used to store high resolution (sub second) times for
+; billsec and duration fields.
+;
+; Accepted value: true or false
+; Default value: false
+
+;hrtime=false
+

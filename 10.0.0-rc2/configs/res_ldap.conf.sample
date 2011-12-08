@@ -1,0 +1,196 @@
+;
+; Configuration file for res_config_ldap
+;
+
+; Realtime configuration
+; ----------------------
+; In order to use this module, you start 
+; in extconfig.conf with a configuration like this:
+;
+; 	sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
+; 	extensions = ldap,"dc=myDomain,dc=myDomainExt",extensions
+; 	sip.conf = ldap,"dc=myDomain,dc=myDomainExt",config
+;
+; In the case of LDAP the last keyword in each line above specifies
+; a section in this file.
+
+; TLS support
+; -----------
+; Note that you can configure an ldaps: url here to get TLS support.
+; Detailed configuration of certificates and supported CAs is done in your 
+; ldap.conf file for OpenLDAP clients on your system.
+; This requires that you have OpenLDAP libraries compiled with TLS support
+
+; *********************************************************************************
+; NOTE: res_ldap.conf should be chmod 600 because it contains the plain-text LDAP
+;       password to an account with WRITE access to the asterisk configuration. 
+; *********************************************************************************
+
+[_general]
+;
+; Specify one of either host and port OR url.  URL is preferred, as you can
+; use more options.
+;host=192.168.1.1                    ; LDAP host
+;port=389
+;url=ldap://ldap3.mydomain.com:3890
+;protocol=3                          ; Version of the LDAP protocol to use; default is 3.
+;basedn=dc=example,dc=tld            ; Base DN
+;user=cn=asterisk,dc=example,dc=tld  ; Bind DN
+;pass=MyPassword                     ; Bind password
+
+; Configuration Table
+[config]
+;
+; additionalFilter - This specifies an additional set of criteria to be used
+; when querying the LDAP server.
+;
+additionalFilter=(objectClass=AstConfig)
+;
+; Attributes mapping (asterisk variable name = ldap attribute name)
+; When Asterisk requests the variable by the name of the value on the left,
+; this module will look up the attribute listed on the right.
+;
+filename = AstConfigFilename
+category = AstConfigCategory
+variable_name = AstConfigVariableName
+variable_value = AstConfigVariableValue
+cat_metric = AstConfigCategoryMetric
+commented = AstConfigCommented
+
+;
+; Extensions Table
+;
+[extensions]
+context  =  AstExtensionContext
+exten  =  AstExtensionExten
+priority = AstExtensionPriority
+app = AstExtensionApplication
+appdata = AstExtensionApplicationData
+additionalFilter=(objectClass=AstExtension)
+
+;
+; Sip Users Table
+;
+[sip]
+name = cn       ; We use the "cn" as the default value for name on the line above
+                ; because objectClass=AsteriskSIPUser does not include a uid as an allowed field
+                ; If your entry combines other objectClasses and uid is available, you may
+                ; prefer to change the line to be name = uid, especially if your LDAP entries
+                ; contain spaces in the cn field.
+                ; You may also find it appropriate to use something completely different.
+                ; This is possible by changing the line above to name = AstAccountName (or whatever you
+                ; prefer).
+                ;
+amaflags = AstAccountAMAFlags
+callgroup = AstAccountCallGroup
+callerid = AstAccountCallerID
+directmedia = AstAccountDirectMedia
+context = AstAccountContext
+dtmfmode = AstAccountDTMFMode
+fromuser = AstAccountFromUser
+fromdomain = AstAccountFromDomain
+fullcontact = AstAccountFullContact
+fullcontact = gecos
+host = AstAccountHost
+insecure = AstAccountInsecure
+mailbox = AstAccountMailbox
+md5secret = AstAccountRealmedPassword           ; Must be an MD5 hash. Field value can start with
+                                                ; {md5} but it is not required.
+                                                ; Generate the password via the md5sum command, e.g.
+                                                ; echo "my_password" | md5sum
+nat = AstAccountNAT
+deny = AstAccountDeny
+permit = AstAccountPermit
+pickupgroup = AstAccountPickupGroup
+port = AstAccountPort
+qualify = AstAccountQualify
+restrictcid = AstAccountRestrictCID
+rtptimeout = AstAccountRTPTimeout
+rtpholdtimeout = AstAccountRTPHoldTimeout
+type = AstAccountType
+disallow = AstAccountDisallowedCodec
+allow = AstAccountAllowedCodec
+MusicOnHold = AstAccountMusicOnHold
+regseconds = AstAccountExpirationTimestamp
+regcontext = AstAccountRegistrationContext
+regexten = AstAccountRegistrationExten
+CanCallForward = AstAccountCanCallForward
+ipaddr = AstAccountIPAddress
+defaultuser = AstAccountDefaultUser
+regserver = AstAccountRegistrationServer
+lastms = AstAccountLastQualifyMilliseconds
+additionalFilter=(objectClass=AsteriskSIPUser)
+
+;
+; IAX Users Table
+;
+[iax]
+amaflags = AstAccountAMAFlags
+callerid = AstAccountCallerID
+context = AstAccountContext
+fullcontact = AstAccountFullContact
+fullcontact = gecos
+host = AstAccountHost
+mailbox = AstAccountMailbox
+md5secret = AstAccountRealmedPassword           ; Must be an MD5 hash. Field value can start with
+                                                ; {md5} but it is not required.
+                                                ; Generate the password via the md5sum command, e.g.
+                                                ; echo "my_password" | md5sum
+deny = AstAccountDeny
+permit = AstAccountPermit
+port = AstAccountPort
+qualify = AstAccountQualify
+type = AstAccountType
+disallow = AstAccountDisallowedCodec
+allow = AstAccountAllowedCodec
+regseconds = AstAccountExpirationTimestamp
+regcontext = AstAccountRegistrationContext
+regexten = AstAccountRegistrationExten
+notransfer = AstAccountNoTransfer
+lastms = AstAccountLastQualifyMilliseconds
+additionalFilter=(objectClass=AstAccountIAX)
+
+;
+; A Test Family
+;
+[testfamily]
+MyUSERID = uid
+additionalFilter=(objectClass=*)
+
+[accounts]
+amaflags = AstAccountAMAFlags
+callgroup = AstAccountCallGroup
+callerid = AstAccountCallerID
+directmedia = AstAccountDirectMedia
+context = AstAccountContext
+dtmfmode = AstAccountDTMFMode
+fromuser = AstAccountFromUser
+fromdomain = AstAccountFromDomain
+fullcontact = AstAccountFullContact
+fullcontact = gecos
+host = AstAccountHost
+insecure = AstAccountInsecure
+mailbox = AstAccountMailbox
+md5secret = AstAccountRealmedPassword           ; Must be an MD5 hash. Field value can start with
+                                                ; {md5} but it is not required.
+                                                ; Generate the password via the md5sum command, e.g.
+                                                ; echo "my_password" | md5sum
+nat = AstAccountNAT
+deny = AstAccountDeny
+permit = AstAccountPermit
+pickupgroup = AstAccountPickupGroup
+port = AstAccountPort
+qualify = AstAccountQualify
+restrictcid = AstAccountRestrictCID
+rtptimeout = AstAccountRTPTimeout
+rtpholdtimeout = AstAccountRTPHoldTimeout
+type = AstAccountType
+disallow = AstAccountDisallowedCodec
+allow = AstAccountAllowedCodec
+MusicOnHold = AstAccountMusicOnHold
+regseconds = AstAccountExpirationTimestamp
+regcontext = AstAccountRegistrationContext
+regexten = AstAccountRegistrationExten
+CanCallForward = AstAccountCanCallForward
+additionalFilter=(objectClass=AstAccount)
+

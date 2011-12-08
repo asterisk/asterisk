@@ -1,0 +1,460 @@
+//
+// Example AEL config file
+//
+
+globals {
+	CONSOLE=Console/dsp;
+	TRUNKMSD=0;					//MSD digits to strip (usually 1 or 0)
+	TRUNCPROTO=SIP;
+	TRUNK=sunrocket;
+	PSTN=pstn-spa3k;
+	PSTNPROTO=SIP;
+	TARIOPROTO=SIP;
+	TARIO=tario;
+	CPPROTO=SIP;
+	CPACKET1=callpacket1;
+	CPACKET2=callpacket2;
+	SELLVOIP=1577040314;
+	SVPROTO=IAX2;
+};
+
+
+macro stdexten (ext , dev ) {
+	PrivacyManager(3,10);
+	if("${PRIVACYMGRSTATUS}" = "FAILED") {
+		Playback(vm-goodbye);
+		Hangup();
+	};
+
+	AGI(calleridnamelookup.agi);
+        Dial(${dev}/${ext},30,t);
+        switch(${DIALSTATUS}) {
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        };
+        catch a {
+                VoiceMailMain(${ext});
+                return;
+        };
+};
+
+macro announce_minutes(minutes) {
+	Playback(vm-youhave);
+	SayNumber(${minutes});
+	Playback(vm-minutes);
+	Wait(1);
+};
+
+// Check if given provider allows only some free minutes per month
+// and announce number of free minutes remaining.
+// The limit will be reset monthly by cron job.
+// The macro sets the following variables:
+// MINUTES_LIMIT - number of free minutes per month
+// MINUTES_USED - number of free minutes used in the current month
+// PROVIDER - provider name
+
+macro checkanddial(prov,proto,ext,arg1,arg2,arg3,arg4) {
+	Set(MINUTES_LIMIT=0);
+	Set(MINUTES_USED=0);
+	Set(PROVIDER=${prov});
+
+	if(${DB_EXISTS(Provider/${prov}/used)})
+		Set(MINUTES_USED=${DB_RESULT});
+	
+	country_c = 0;
+	switch(${LEN(${ext})}) {	//assuming all international numbers are 11 digits long.
+	case 10:			//NXXNXXXXXX
+		country_c=1;
+		break;
+	case 11:			//XNXXNXXXXXX
+		country_c = ${ext:0:1};
+		break;
+	default:			//011XNXXNXXXXXX
+		country_c = ${ext:3:1};
+		break;
+	};
+		
+	if("${prov}" = "${TRUNK}" & ${country_c} != 1) {	// SunRocket international calls
+		Set(MINUTES_LIMIT=${DB(Provider/${prov}/limit)});
+		&announce_minutes($[${MINUTES_LIMIT} - ${MINUTES_USED}]);
+	};
+	if("${prov}" = "${CPACKET1}" | "${prov}" = "${CPACKET2}") {			// Callpacket has a limit on domestic calls
+		Set(MINUTES_LIMIT=${DB(Provider/${prov}/limit)});
+		&announce_minutes($[${MINUTES_LIMIT} - ${MINUTES_USED}]);
+	};
+	DeadAGI(dial.agi,${proto}/${ext}@${prov},${arg1},${arg2},${arg3},${arg4});
+};
+
+macro trunkdial(ext) {	// Dial sunrocket and set correct collerid
+	if("${CALLERID(num)}" = "1") {
+		Set(CALLERID(num)=7322271653);
+	} else {
+		Set(CALLERID(num)=7326260100);
+	};
+	Set(CALLERID(name)=Sergey Okhapkin);
+	&checkanddial(${TRUNK},${TRUNCPROTO},${ext},60,T);
+	Hangup;
+};
+
+macro checklocal(ext) {	// lookup the number in DB and call the number via pstn or sunrocket
+	Set(AREACODE=${ext:0:3});
+	Set(EXCHANGE=${ext:3:3});
+	Set(IS_LOCAL=${DB_EXISTS(localnum/${AREACODE}/${EXCHANGE})});
+	if(${IS_LOCAL}) {
+		&checkanddial(${PSTN},${PSTNPROTO},${ext},60,T);
+		if ("${DIALSTATUS}" = "BUSY")
+			&trunkdial(${ext});
+	} else
+		&trunkdial(${ext});
+};
+
+macro autodial(ext) {	// Find Least Cost Route
+	LCDial(${ext},60,T);
+	if("${DIALSTATUS}" = "NOPROVIDER")
+		Playback(invalid);
+	Hangup();
+};
+
+context default {	// Calls to us
+	s => {
+		Wait(1);
+		Answer;
+start:
+		Set(TIMEOUT(digit)=3);
+		Set(TIMEOUT(response)=10);
+repeat:
+		for (x=0; ${x} < 5; x=${x} + 1) {
+			Background(home/greeting);
+			WaitExten();
+		};
+	};
+	t => jump *;
+	i => {	// invalid extension
+		Playback(invalid);
+		goto s|repeat;
+	};
+	_* => {
+		Playback(vm-goodbye);
+		Wait(1);
+		Hangup;
+	};
+	1 => &stdexten(1,SIP/1);
+	2 => &stdexten(2,SIP/2);
+	3 => &stdexten(3,SIP/3);
+
+	2271653 => jump 1;
+	7322271653 => jump 1;
+	17322271653 => jump 1;
+
+	6260100 => jump 2;
+	7326260100 => jump 2;
+	17326260100 => jump 2;
+	8058701100 => jump 2;
+	3103622835 => jump 2;
+	sos => jump 2;
+	1400898 => jump 2;
+
+	6260101 => jump s;
+	7326260101 => jump s;
+	17326260101 => jump s;
+
+	2271677 => jump 3;
+	7322271677 => jump 3;
+	17322271677 => jump 3;
+	galka => jump 3;
+	911 => Dial(${PSTNPROTO}/911@${PSTN},60,);
+	380 => Dial(SIP/topspeen@212.40.38.70,60,T);
+
+	// Fun stuff
+	100 => {
+		SayUnixTime();
+		goto s|start;
+	};
+	101 => {	// Voicemail
+		VoicemailMain(${CALLERID(num)});
+		Hangup;
+	};
+	102 => MusicOnHold();
+//	103 => {
+//		Wait(1);
+//start:
+//		Read(NUMBER,vm-enter-num-to-call);
+//		LCDial(${NUMBER},T);
+//		goto start;
+//	};
+	105 => jump s@phrase-menu;
+	7312 => {
+		ForkCDR;
+		Set(CALLERID(name)=Sergey Okhapkin);
+		Set(CALLERID(num)=7326260100);
+		DISA(1111|home);
+	};
+};
+
+context goiax {
+	s => {
+		Answer();
+		Ringing();
+		Wait(1);
+start:
+		Read(NUMBER,vm-enter-num-to-call);
+		Set(CALLERID(name)=Central NJ);
+		Dial(IAX2/14301@fwdOUT/q${NUMBER},60,T);
+		goto start;
+	};
+
+};
+
+context phrase-menu {
+
+	s => {
+		Answer;			// Answer the line
+		TIMEOUT(digit)=2; 	// Set Digit Timeout to 5 seconds
+		TIMEOUT(response)=10; 	// Set Response Timeout to 10 seconds
+		BackGround(custom/phrase-menu);	//  Play main menu.
+	};
+	1 => {				// Phrase Recording
+		Wait(1);
+		Read(PHRASEID|custom/enter-phrase-num);
+		Wait(2); 		// give yourself 2 secs to take a breath and wait for beep
+		Record(custom/${PHRASEID}:gsm);
+		Wait(2);
+		Playback(custom/${PHRASEID});
+		Wait(1);
+		jump s;
+	};
+	2 => {				// Phrase review
+		Wait(1);
+		Read(PHRASEID|custom/enter-phrase-num);
+		Wait(1);
+		Playback(custom/${PHRASEID});
+		Wait(1);
+		jump s;
+	};
+	t => Hangup;
+	i => {
+		Playback(custom/invalid-option);
+		jump s;
+	};
+};
+
+context outbound {
+	// North America seven-, ten- and eleven digits
+	_NXXXXXX => &autodial(1732${EXTEN});
+	_NXXNXXXXXX => &autodial(1${EXTEN});
+	_ZNXXNXXXXX. => &autodial(${EXTEN});
+	// Toll free numbers via PSTN
+//	_1800NXXXXXX => &checkanddial(${PSTN},${PSTNPROTO},${EXTEN},60,T);
+//	_1888NXXXXXX => &checkanddial(${PSTN},${PSTNPROTO},${EXTEN},60,T);
+//	_1877NXXXXXX => &checkanddial(${PSTN},${PSTNPROTO},${EXTEN},60,T);
+//	_1866NXXXXXX => &checkanddial(${PSTN},${PSTNPROTO},${EXTEN},60,T);
+
+	_011. => {	//International context accessed through trunk
+		&trunkdial(${EXTEN});
+	};
+	_012. => {	//fwdOUT
+		Set(CALLERID(name)=Central NJ);
+		Dial(IAX2/14301@fwdOUT/q${EXTEN:3},60,T);
+	};                     
+	_013X. => {	//NECC
+		Dial(${PSTNPROTO}/011${EXTEN:3}@${PSTN},60,T);
+	};
+	_0131. => {	//NECC to US
+		Dial(${PSTNPROTO}/${EXTEN:3}@${PSTN},60,T);
+	};
+	_014. => {	//TARIO by SIP ID
+		Set(CALLERID(name)=Sergey Okhapkin);
+		Set(CALLERID(num)=1400898);
+		Dial(${TARIOPROTO}/${EXTEN:3}@${TARIO},60,T);
+	};
+	_0157. => {	//TARIO outbound Russia
+		Set(CALLERID(name)=Sergey Okhapkin);
+		Set(CALLERID(num)=1400898);
+		Dial(${TARIOPROTO}/8${EXTEN:4}@${TARIO},60,T);
+	};
+//	_015. => {	//TARIO outbound international
+//		CALLERID(name)="Sergey Okhapkin";
+//		CALLERID(num)=1400898;
+//		Dial(${TARIOPROTO}/810${EXTEN:3}@${TARIO},60,T);
+//	};
+	_0161NXXNXXXXXX => {	//Callpacket outbound USA/Canada
+		&checkanddial(${CPACKET1},${CPPROTO},${EXTEN:3},60,T);
+	};
+	_0171NXXNXXXXXX => {	//Callpacket outbound USA/Canada
+		&checkanddial(${CPACKET2},${CPPROTO},${EXTEN:3},60,T);
+	};
+	_0181NXXNXXXXXX => {	//sellvoip outbound USA/Canada
+		Dial(${SVPROTO}/${SELLVOIP}@${SELLVOIP}/${EXTEN:3},60,T);
+	};
+	_019. => {	//Voipbuster
+		Dial(IAX2/sokhapkin@voipbuster/00${EXTEN:3},60,T);
+	};
+};
+
+context home {		//calls from us
+	includes {
+		default;
+		outbound;
+	};
+};
+
+context sunrocket-in {
+	7322271653 => jump s;
+	7326260100 => jump 2@default;
+	s => {
+		if("${CALLERID(num)}" = "sunrocketcom")
+			Set(CALLERID(num)=);
+		switch(${CALLERID(RDNIS)}) {
+		case 7326260100:
+			jump 2@default;
+			break;
+		case 7326260101:
+			jump s@default;
+			break;
+		default:
+			jump 1@default;
+			break;
+		};
+	};
+};
+
+context pstn-in {
+	3 => {
+		if ("${CALLERID(num)}" = "7322271677")
+			Set(CALLERID(num)=);
+		jump 3@default;
+	};
+};
+
+context tario.net-in {
+	_X. => {
+		Set(CALLERID(name)=);
+		if("${CALLERID(num):-11:1}" = "8")
+			Set(CALLERID(num)=7${CALLERID(num):1});
+		if("${SIP_HEADER(To)}" = "<sip:2271677@sipnet.ru>") {
+			jump 3@default;
+		} else if("${SIP_HEADER(To)}" = "<sip:2271653@sipnet.ru>") {
+			jump 1@default;
+		} else
+			jump 2@default;                                                     
+	};
+};
+
+context from-callpacket {
+	8058701100 => jump 2@default;
+	3103622835 => {
+		Answer;
+		Ringing;
+		Wait(10);
+		Voicemail(b3103622835);
+		Hangup;
+	};
+	a => Hangup;
+};
+
+context fromfwdOUT {	//  make sure we only accept US and Canada calls, limit to 30 minutes
+	includes {
+		fromfwdOUT-catchbad;
+		fromfwdOUT-isgood;
+		fromfwdOUT-catchall;
+	};
+};
+
+context fromfwdOUT-isgood {
+	_17326260100 => jump 2@default;
+	_17326260101 => jump s@default;
+	_17322271653 => jump 1@default;
+	_17322271677 => jump 3@default;
+	_1NXXNXXXXXX => {
+		Set(CALLERID(name)=Sergey Okhapkin);
+//		Set(CALLERID(num)=7326260100);
+//		Dial(${TRUNCPROTO}/*67${EXTEN:${TRUNKMSD}}@${TRUNK},60,,L(1800000:60000));
+		Dial(${CPPROTO}/${EXTEN}@${CPACKET2},60,,L(1800000:60000));
+	};
+};
+
+context fromfwdOUT-catchbad {	//block bahamas, etc
+	_1900. => congestion    ; //N11
+	_1XXX976. => congestion ; //N11
+	_1XXX555. => congestion ; //N11
+	_1X11. => congestion    ; //N11
+	_1867. => congestion    ; //Yukon (sorry mike)
+
+		// exten => _1NPA Country
+	_1242. => congestion;   //BAHAMAS
+	_1246. => congestion;   //BARBADOS
+	_1264. => congestion;   //ANGUILLA
+	_1268. => congestion;   //ANTIGUA/BARBUDA
+	_1284. => congestion;   //BRITISH VIRGIN ISLANDS
+	_1345. => congestion;   //CAYMAN ISLANDS
+	_1441. => congestion;   //BERMUDA
+	_1473. => congestion;   //GRENADA
+	_1649. => congestion;   //TURKS & CAICOS ISLANDS
+	_1664. => congestion;   //MONTSERRAT
+	_1758. => congestion;   //ST. LUCIA
+	_1767. => congestion;   //DOMINICA
+	_1784. => congestion;   //ST. VINCENT & GRENADINES
+	_1809. => congestion;   //DOMINICAN REPUBLIC
+	_1829. => congestion;   //DOMINICAN REPUBLIC
+	_1868. => congestion;   //TRINIDAD AND TOBAGO
+	_1869. => congestion;   //ST. KITTS AND NEVIS
+	_1876. => congestion;   //JAMAICA
+	_1787. => congestion;   //Puerto Rico 787, 939 $0.07
+	_1939. => congestion;   //Puerto Rico 787, 939 $0.07
+	_1671. => congestion;   //Guam 671 $0.08
+	_1340. => congestion;   //U.S. Virgin Islands 340 $0.06
+};
+
+context fromfwdOUT-catchall {
+	_X. => Congestion;
+	h => Hangup    ;	//hangup event
+	i => Hangup    ;	//invalid event
+	t => Hangup    ;	//timeout event
+};
+
+context ael-demo {
+	s => {
+		Wait(1);
+		Answer();
+		TIMEOUT(digit)=5;
+		TIMEOUT(response)=10;
+restart:
+		Background(demo-congrats);
+instructions:
+		for (x=0; ${x} < 3; x=${x} + 1) {
+			Background(demo-instruct);
+			WaitExten();
+		};
+	};
+	2 => {
+		Background(demo-moreinfo);
+		goto s|instructions;
+	};
+	3 => {
+		LANGUAGE()=fr;
+		goto s|restart;
+	};
+	500 => {
+		Playback(demo-abouttotry);
+		Dial(IAX2/guest@misery.digium.com);
+		Playback(demo-nogo);
+		goto s|instructions;
+	};
+	600 => {
+		Playback(demo-echotest);
+		Echo();
+		Playback(demo-echodone);
+		goto s|instructions;
+	};
+	_1234 => &std-exten-ael(${EXTEN}, "IAX2");
+	# => {
+		Playback(demo-thanks);
+		Hangup();
+	};
+	t => jump #;
+	i => Playback(invalid);
+};
+

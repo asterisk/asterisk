@@ -1,0 +1,88 @@
+;
+; Static and realtime external configuration
+; engine configuration
+;
+; See https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
+; for basic table formatting information.
+;
+[settings]
+;
+; Static configuration files:
+;
+; file.conf => driver,database[,table[,priority]]
+;
+; maps a particular configuration file to the given
+; database driver, database and table (or uses the
+; name of the file as the table if not specified)
+;
+;uncomment to load queues.conf via the odbc engine.
+;
+;queues.conf => odbc,asterisk,ast_config
+;extensions.conf => sqlite,asterisk,ast_config
+;
+; The following files CANNOT be loaded from Realtime storage:
+;	asterisk.conf
+;	extconfig.conf (this file)
+;	logger.conf
+;
+; Additionally, the following files cannot be loaded from
+; Realtime storage unless the storage driver is loaded
+; early using 'preload' statements in modules.conf:
+;	manager.conf
+;	cdr.conf
+;	rtp.conf
+;
+;
+; Realtime configuration engine
+;
+; maps a particular family of realtime
+; configuration to a given database driver,
+; database and table (or uses the name of
+; the family if the table is not specified
+;
+;example => odbc,asterisk,alttable,1
+;example => mysql,asterisk,alttable,2
+;example2 => ldap,"dc=oxymium,dc=net",example2
+;
+; Additionally, priorities are now supported for use as failover methods
+; for retrieving realtime data.  If one connection fails to retrieve any
+; information, the next sequential priority will be tried next.  This
+; especially works well with ODBC connections, since res_odbc now caches
+; when connection failures occur and prevents immediately retrying those
+; connections until after a specified timeout.  Note:  priorities must
+; start at 1 and be sequential (i.e. if you have only priorities 1, 2,
+; and 4, then 4 will be ignored, because there is no 3).
+;
+; "odbc" is shown in the examples below, but is not the only valid realtime
+; engine.  There is:
+;    odbc ... res_config_odbc
+;    sqlite ... res_config_sqlite
+;    pgsql ... res_config_pgsql
+;    curl ... res_config_curl
+;    ldap ... res_config_ldap
+;
+;iaxusers => odbc,asterisk
+;iaxpeers => odbc,asterisk
+;sippeers => odbc,asterisk
+;sipregs => odbc,asterisk ; (avoid sipregs if possible, e.g. by using a view)
+;voicemail => odbc,asterisk
+;extensions => odbc,asterisk
+;meetme => mysql,general
+;queues => odbc,asterisk
+;queue_members => odbc,asterisk
+;musiconhold => mysql,general
+;queue_log => mysql,general
+;
+;
+; While most dynamic realtime engines are automatically used when defined in
+; this file, 'extensions', distinctively, is not.  To activate dynamic realtime
+; extensions, you must turn them on in each respective context within
+; extensions.conf with a switch statement.  The syntax is:
+;      switch => Realtime/[[db_context@]tablename]/<opts>
+; The only option available currently is the 'p' option, which disallows
+; extension pattern queries to the database.  If you have no patterns defined
+; in a particular context, this will save quite a bit of CPU time.  However,
+; note that using dynamic realtime extensions is not recommended anymore as a
+; best practice; instead, you should consider writing a static dialplan with
+; proper data abstraction via a tool like func_odbc.
+

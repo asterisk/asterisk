@@ -1,0 +1,158 @@
+#
+# Asterisk -- A telephony toolkit for Linux.
+# 
+# Makefile rules
+#
+# Copyright (C) 2006-2010, Digium, Inc.
+#
+# Kevin P. Fleming <kpfleming@digium.com>
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License
+#
+
+# Each command is preceded by a short comment on what to do.
+# Prefixing one or the other with @\# or @ or nothing makes the desired
+# behaviour. ECHO_PREFIX prefixes the comment, CMD_PREFIX prefixes the command.
+
+-include $(ASTTOPDIR)/makeopts
+
+.PHONY: dist-clean
+
+# If 'make' decides to create intermediate files to satisfy a build requirement
+# (like producing a .i from a .c), we want to keep them, so tell make to keep
+# all intermediate files
+.SECONDARY:
+
+# extra cflags to build dependencies. Recursively expanded.
+MAKE_DEPS=-MD -MT $@ -MF .$(subst /,_,$@).d -MP
+
+ifeq ($(NOISY_BUILD),)
+    ECHO_PREFIX=@
+    CMD_PREFIX=@
+else
+    ECHO_PREFIX=@\# 
+    CMD_PREFIX=
+endif
+
+OPTIMIZE?=-O6
+ifneq ($(findstring darwin,$(OSARCH)),)
+  ifeq ($(shell if test `/usr/bin/sw_vers -productVersion | cut -c4` -gt 5; then echo 6; else echo 0; fi),6)
+    # Snow Leopard/Lion has an issue with this optimization flag on large files (like chan_sip)
+    OPTIMIZE+=-fno-inline-functions
+  endif
+endif
+
+ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_CODE_COVERAGE),no)
+    _ASTCFLAGS+=$(OPTIMIZE)
+else
+    _ASTCFLAGS+=-O0
+endif
+
+ifeq ($(AST_CODE_COVERAGE),yes)
+    _ASTCFLAGS+=-ftest-coverage -fprofile-arcs
+    _ASTLDFLAGS+=-ftest-coverage -fprofile-arcs
+endif
+
+ifeq ($(findstring $(CONFIG_CFLAGS),$(_ASTCFLAGS)),)
+    _ASTCFLAGS+=$(CONFIG_CFLAGS)
+endif
+
+# shortcuts for common combinations of flags; these must be recursively expanded so that
+# per-target settings will be applied
+CC_CFLAGS=$(PTHREAD_CFLAGS) $(_ASTCFLAGS) $(ASTCFLAGS)
+CXX_CFLAGS=$(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(_ASTCFLAGS) $(ASTCFLAGS))
+
+ifeq ($(GNU_LD),1)
+SO_SUPPRESS_SYMBOLS=-Wl,--version-script,$(subst .so,.exports,$@),--warn-common
+ifneq ($(wildcard $(subst .so,.dynamics,$@)),)
+SO_SUPPRESS_SYMBOLS+=-Wl,--dynamic-list,$(subst .so,.dynamics,$@)
+endif
+endif
+
+CC_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS) $(ASTLDFLAGS)
+CXX_LDFLAGS_SO=$(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $(SOLINK) $(SO_SUPPRESS_SYMBOLS) $(ASTLDFLAGS)
+CC_LIBS=$(PTHREAD_LIBS) $(LIBS)
+CXX_LIBS=$(PTHREAD_LIBS) $(LIBS)
+
+# determine whether to double-compile so that the optimizer can report code path problems
+# this is only done when developer mode and DONT_OPTIMIZE are both enabled
+# in that case, we run the preprocessor to produce a .i or .ii file from the source
+# code, then compile once with optimizer enabled (and the output to /dev/null),
+# and if that doesn't fail then compile again with optimizer disabled
+ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_DEVMODE),DONT_OPTIMIZEyes)
+COMPILE_DOUBLE=yes
+endif
+
+%.o: %.s
+	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(OPTIMIZE) $(CC_CFLAGS)
+endif
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
+
+%.o: %.i
+	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(OPTIMIZE) $(CC_CFLAGS)
+endif
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
+
+ifneq ($(COMPILE_DOUBLE),yes)
+%.o: %.c
+	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(MAKE_DEPS) $(CC_CFLAGS)
+endif
+
+%.i: %.c
+	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(MAKE_DEPS) $(CC_CFLAGS)
+
+%.oo: %.ii
+	$(ECHO_PREFIX) echo "   [CXXi] $< -> $@"
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CXX) -o /dev/null -c $< $(OPTIMIZE) $(CXX_CFLAGS)
+endif
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS)
+
+ifneq ($(COMPILE_DOUBLE),yes)
+%.oo: %.cc
+	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(MAKE_DEPS) $(CXX_CFLAGS)
+endif
+
+%.ii: %.cc
+	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
+	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(MAKE_DEPS) $(CXX_CFLAGS)
+
+%.so: %.o
+ifeq ($(GNU_LD),1)
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_version_script $* "$(LINKER_SYMBOL_PREFIX)" "$(ASTTOPDIR)"
+endif
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $^ $(CC_LIBS)
+
+%.so: %.oo
+ifeq ($(GNU_LD),1)
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_version_script $* "$(LINKER_SYMBOL_PREFIX)" "$(ASTTOPDIR)"
+endif
+	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(CXX_LDFLAGS_SO) $^ $(CXX_LIBS)
+
+%.eo: %.o
+	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_eo_script $* > .$@.ld
+	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<
+	$(CMD_PREFIX) rm -f .$@.ld
+
+%.eo: %.oo
+	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_eo_script $* > .$@.ld
+	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<
+	$(CMD_PREFIX) rm -f .$@.ld
+
+%: %.o
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $^ $(CXX_LIBS) $(ASTLDFLAGS)
+
+dist-clean:: clean

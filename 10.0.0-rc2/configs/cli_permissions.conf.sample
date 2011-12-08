@@ -1,0 +1,82 @@
+;
+; CLI permissions configuration example for Asterisk
+;
+; All the users that you want to connect with asterisk using
+; rasterisk, should have write/read access to the
+; asterisk socket (asterisk.ctl). You could change the permissions
+; of this file in 'asterisk.conf' config parameter: 'astctlpermissions' (0666)
+; found on the [files] section.
+;
+; general options:
+;
+; default_perm = permit | deny
+;                This is the default permissions to apply for a user that
+;                does not has a permissions definided.
+;
+; user options:
+; permit = <command name> | all		; allow the user to run 'command' |
+;					; allow the user to run 'all' the commands
+; deny = <command name> | all		; disallow the user to run 'command' |
+;					; disallow the user to run 'all' commands.
+;
+
+[general]
+
+default_perm=permit	; To leave asterisk working as normal
+			; we should set this parameter to 'permit'
+;
+; Follows the per-users permissions configs.
+;
+; This list is read in the sequence that is being written, so
+; In this example the user 'eliel' is allow to run only the following
+; commands:
+;          sip show peer
+;          core set debug
+;          core set verbose
+; If the user is not specified, the default_perm option will be apply to
+; every command.
+;
+; Notice that you can also use regular expressions to allow or deny access to a
+; certain command like: 'core show application D*'. In this example the user will be
+; allowed to view the documentation for all the applications starting with 'D'.
+; Another regular expression could be: 'channel originate SIP/[0-9]* extension *'
+; allowing the user to use 'channel originate' on a sip channel and with the 'extension'
+; parameter and avoiding the use of the 'application' parameter.
+;
+; We can also use the templates syntax:
+; [supportTemplate](!)
+; deny=all
+; permit=sip show       ; all commands starting with 'sip show' will be allowed
+; permit=core show
+;
+; You can specify permissions for a local group instead of a user,
+; just put a '@' and we will know that is a group.
+; IMPORTANT NOTE: Users permissions overwrite group permissions.
+;
+;[@adm]
+;deny=all
+;permit=sip
+;permit=core
+;
+;
+;[eliel]
+;deny=all
+;permit=sip show peer
+;deny=sip show peers
+;permit=core set
+;
+;
+;User 'tommy' inherits from template 'supportTemplate':
+;	deny=all
+;	permit=sip show
+;	permit=core show
+;[tommy](supportTemplate)
+;permit=core set debug
+;permit=dialplan show
+;
+;
+;[mark]
+;deny=all
+;permit=all
+;
+;

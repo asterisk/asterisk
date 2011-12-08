@@ -1,0 +1,1520 @@
+;
+; DAHDI Telephony Configuration file
+;
+; You need to restart Asterisk to re-configure the DAHDI channel
+; CLI> module reload chan_dahdi.so
+;      will reload the configuration file, but not all configuration options
+;      are re-configured during a reload (signalling, as well as PRI and
+;      SS7-related settings cannot be changed on a reload).
+;
+; This file documents many configuration variables.  Normally unless you know
+; what a variable means or that it should be changed, there's no reason to
+; un-comment those lines.
+;
+; Examples below that are commented out (those lines that begin with a ';' but
+; no space afterwards) typically show a value that is not the default value,
+; but would make sense under certain circumstances. The default values are
+; usually sane. Thus you should typically not touch them unless you know what
+; they mean or you know you should change them.
+
+[trunkgroups]
+;
+; Trunk groups are used for NFAS connections.
+;
+; Group: Defines a trunk group.
+;        trunkgroup => <trunkgroup>,<dchannel>[,<backup1>...]
+;
+;        trunkgroup  is the numerical trunk group to create
+;        dchannel    is the DAHDI channel which will have the
+;                    d-channel for the trunk.
+;        backup1     is an optional list of backup d-channels.
+;
+;trunkgroup => 1,24,48
+;trunkgroup => 1,24
+;
+; Spanmap: Associates a span with a trunk group
+;        spanmap => <dahdispan>,<trunkgroup>[,<logicalspan>]
+;
+;        dahdispan   is the DAHDI span number to associate
+;        trunkgroup  is the trunkgroup (specified above) for the mapping
+;        logicalspan is the logical span number within the trunk group to use.
+;                    if unspecified, no logical span number is used.
+;
+;spanmap => 1,1,1
+;spanmap => 2,1,2
+;spanmap => 3,1,3
+;spanmap => 4,1,4
+
+[channels]
+;
+; Default language
+;
+;language=en
+;
+; Context for calls. Defaults to 'default'
+;
+;context=incoming
+;
+; Switchtype:  Only used for PRI.
+;
+; national:    National ISDN 2 (default)
+; dms100:      Nortel DMS100
+; 4ess:        AT&T 4ESS
+; 5ess:        Lucent 5ESS
+; euroisdn:    EuroISDN (common in Europe)
+; ni1:         Old National ISDN 1
+; qsig:        Q.SIG
+;
+;switchtype=euroisdn
+;
+; MSNs for ISDN spans.  Asterisk will listen for the listed numbers on
+; incoming calls and ignore any calls not listed.
+; Here you can give a comma separated list of numbers or dialplan extension
+; patterns.  An empty list disables MSN matching to allow any incoming call.
+; Only set on PTMP CPE side of ISDN span if needed.
+; The default is an empty list.
+;msn=
+;
+; Some switches (AT&T especially) require network specific facility IE.
+; Supported values are currently 'none', 'sdn', 'megacom', 'tollfreemegacom', 'accunet'
+;
+; nsf cannot be changed on a reload.
+;
+;nsf=none
+;
+;service_message_support=yes
+; Enable service message support for channel. Must be set after switchtype.
+;
+; Dialing options for ISDN (i.e., Dial(DAHDI/g1/exten/options)):
+; R      Reverse Charge Indication
+;          Indicate to the called party that the call will be reverse charged.
+; K(n)   Keypad digits n
+;          Send out the specified digits as keypad digits.
+;
+; PRI Dialplan: The ISDN-level Type Of Number (TON) or numbering plan, used for
+; the dialed number.  Leaving this as 'unknown' (the default) works for most
+; cases.  In some very unusual circumstances, you may need to set this to
+; 'dynamic' or 'redundant'.
+;
+; unknown:        Unknown
+; private:        Private ISDN
+; local:          Local ISDN
+; national:       National ISDN
+; international:  International ISDN
+; dynamic:        Dynamically selects the appropriate dialplan using the
+;                 prefix settings.
+; redundant:      Same as dynamic, except that the underlying number is not
+;                 changed (not common)
+;
+; pridialplan cannot be changed on reload.
+;pridialplan=unknown
+;
+; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's
+; numbering plan).  In North America, the typical use is sending the 10 digit
+; callerID number and setting the prilocaldialplan to 'national' (the default).
+; Only VERY rarely will you need to change this.
+;
+; unknown:        Unknown
+; private:        Private ISDN
+; local:          Local ISDN
+; national:       National ISDN
+; international:  International ISDN
+; from_channel:   Use the CALLERID(ton) value from the channel.
+; dynamic:        Dynamically selects the appropriate dialplan using the
+;                 prefix settings.
+; redundant:      Same as dynamic, except that the underlying number is not
+;                 changed (not common)
+;
+; prilocaldialplan cannot be changed on reload.
+;prilocaldialplan=national
+;
+; PRI Connected Line Dialplan:  Sets the connected party number's numbering plan.
+;
+; unknown:        Unknown
+; private:        Private ISDN
+; local:          Local ISDN
+; national:       National ISDN
+; international:  International ISDN
+; from_channel:   Use the CONNECTEDLINE(ton) value from the channel.
+; dynamic:        Dynamically selects the appropriate dialplan using the
+;                 prefix settings.
+; redundant:      Same as dynamic, except that the underlying number is not
+;                 changed (not common)
+;
+; pricpndialplan cannot be changed on reload.
+;pricpndialplan=from_channel
+;
+; pridialplan may be also set at dialtime, by prefixing the dialed number with
+; one of the following letters:
+; U - Unknown
+; I - International
+; N - National
+; L - Local (Net Specific)
+; S - Subscriber
+; V - Abbreviated
+; R - Reserved (should probably never be used but is included for completeness)
+;
+; Additionally, you may also set the following NPI bits (also by prefixing the
+; dialed string with one of the following letters):
+; u - Unknown
+; e - E.163/E.164 (ISDN/telephony)
+; x - X.121 (Data)
+; f - F.69 (Telex)
+; n - National
+; p - Private
+; r - Reserved (should probably never be used but is included for completeness)
+;
+; You may also set the prilocaldialplan in the same way, but by prefixing the
+; Caller*ID Number rather than the dialed number.
+
+; Please note that telcos which require this kind of additional manipulation
+; of the TON/NPI are *rare*.  Most telco PRIs will work fine simply by
+; setting pridialplan to unknown or dynamic.
+;
+;
+; PRI caller ID prefixes based on the given TON/NPI (dialplan)
+; This is especially needed for EuroISDN E1-PRIs
+;
+; None of the prefix settings can be changed on reload.
+;
+; sample 1 for Germany
+;internationalprefix = 00
+;nationalprefix = 0
+;localprefix = 0711
+;privateprefix = 07115678
+;unknownprefix =
+;
+; sample 2 for Germany
+;internationalprefix = +
+;nationalprefix = +49
+;localprefix = +49711
+;privateprefix = +497115678
+;unknownprefix =
+;
+; PRI resetinterval: sets the time in seconds between restart of unused
+; B channels; defaults to 'never'.
+;
+;resetinterval = 3600
+;
+; Overlap dialing mode (sending overlap digits)
+; Cannot be changed on a reload.
+;
+; incoming: incoming direction only
+; outgoing: outgoing direction only
+; no: neither direction
+; yes or both: both directions
+;
+;overlapdial=yes
+
+; Send/receive ISDN display IE options.  The display options are a comma separated
+; list of the following options:
+;
+; block:        Do not pass display text data.
+;               Q.SIG: Default for send/receive.
+;               ETSI CPE: Default for send.
+; name_initial: Use display text in SETUP/CONNECT messages as the party name.
+;               Default for all other modes.
+; name_update:  Use display text in other messages (NOTIFY/FACILITY) for COLP name
+;               update.
+; name:         Combined name_initial and name_update options.
+; text:         Pass any unused display text data as an arbitrary display message
+;               during a call.  Sent text goes out in an INFORMATION message.
+;
+; * Default is an empty string for legacy behavior.
+; * The name options are not recommended for Q.SIG since Q.SIG already
+;   supports names.
+; * The send block is the only recommended setting for CPE mode since Q.931 uses
+;   the display IE only in the network to user direction.
+;
+; display_send and display_receive cannot be changed on reload.
+;
+;display_send=
+;display_receive=
+
+; Allow sending an ISDN Malicious Caller ID (MCID) request on this span.
+; Default disabled
+;
+;mcid_send=yes
+
+; Send ISDN date/time IE in CONNECT message option.  Only valid on NT spans.
+;
+; no:           Do not send date/time IE in CONNECT message.
+; date:         Send date only.
+; date_hh       Send date and hour.
+; date_hhmm     Send date, hour, and minute.
+; date_hhmmss   Send date, hour, minute, and second.
+;
+; Default is an empty string which lets libpri pick the default
+; date/time IE send policy.
+;
+;datetime_send=
+
+; Allow inband audio (progress) when a call is DISCONNECTed by the far end of a PRI
+;
+;inbanddisconnect=yes
+;
+; Allow a held call to be transferred to the active call on disconnect.
+; This is useful on BRI PTMP NT lines where an ISDN phone can simulate the
+; transfer feature of an analog phone.
+; The default is no.
+;hold_disconnect_transfer=yes
+
+; BRI PTMP layer 2 persistence.
+; You should normally not need to set this option.
+; You may need to set this option if your telco brings layer 1 down when
+; the line is idle.
+; <blank>:       Use libpri default.
+; keep_up:       Bring layer 2 back up if peer takes it down.
+; leave_down:    Leave layer 2 down if peer takes it down. (Libpri default)
+;                (Layer 2 will be brought back up for an outgoing call.)
+;
+;layer2_persistence=leave_down
+
+; PRI Out of band indications.
+; Enable this to report Busy and Congestion on a PRI using out-of-band
+; notification. Inband indication, as used by Asterisk doesn't seem to work
+; with all telcos.
+;
+; outofband:      Signal Busy/Congestion out of band with RELEASE/DISCONNECT
+; inband:         Signal Busy/Congestion using in-band tones (default)
+;
+; priindication cannot be changed on a reload.
+;
+;priindication = outofband
+;
+; If you need to override the existing channels selection routine and force all
+; PRI channels to be marked as exclusively selected, set this to yes.
+;
+; priexclusive cannot be changed on a reload.
+;
+;priexclusive = yes
+;
+;
+; If you need to use the logical channel mapping with your Q.SIG PRI instead
+; of the physical mapping you must use the qsigchannelmapping option.
+;
+; logical:  Use the logical channel mapping
+; physical: Use physical channel mapping (default)
+;
+;qsigchannelmapping=logical
+;
+; If you wish to ignore remote hold indications (and use MOH that is supplied over
+; the B channel) enable this option.
+;
+;discardremoteholdretrieval=yes
+;
+; ISDN Timers
+; All of the ISDN timers and counters that are used are configurable.  Specify
+; the timer name, and its value (in ms for timers).
+; K:    Layer 2 max number of outstanding unacknowledged I frames (default 7)
+; N200: Layer 2 max number of retransmissions of a frame (default 3)
+; T200: Layer 2 max time before retransmission of a frame (default 1000 ms)
+; T203: Layer 2 max time without frames being exchanged (default 10000 ms)
+; T305: Wait for DISCONNECT acknowledge (default 30000 ms)
+; T308: Wait for RELEASE acknowledge (default 4000 ms)
+; T309: Maintain active calls on Layer 2 disconnection (default 6000 ms)
+;       EuroISDN: 6000 to 12000 ms, according to (N200 + 1) x T200 + 2s
+;       May vary in other ISDN standards (Q.931 1993 : 90000 ms)
+; T313: Wait for CONNECT acknowledge, CPE side only (default 3000 ms)
+;
+; T-RESPONSE:   Maximum time to wait for a typical APDU response. (default 4000 ms)
+;               This is an implementation timer when the standard does not specify one.
+; T-ACTIVATE:   Request supervision timeout. (default 10000 ms)
+; T-RETENTION:  Maximum  time to wait for user A to activate call-completion. (default 30000 ms)
+;               Used by ETSI PTP, ETSI PTMP, and Q.SIG as the cc_offer_timer.
+; T-CCBS1:      T-STATUS timer equivalent for CC user A status. (default 4000 ms)
+; T-CCBS2:      Maximum  time the CCBS service will be active (default 45 min in ms)
+; T-CCBS3:      Maximum  time to wait for user A to respond to user B availability. (default 20000 ms)
+; T-CCBS5:      Network B CCBS supervision timeout. (default 60 min in ms)
+; T-CCBS6:      Network A CCBS supervision timeout. (default 60 min in ms)
+; T-CCNR2:      Maximum  time the CCNR service will be active (default 180 min in ms)
+; T-CCNR5:      Network B CCNR supervision timeout. (default 195 min in ms)
+; T-CCNR6:      Network A CCNR supervision timeout. (default 195 min in ms)
+; CC-T1:        Q.SIG CC request supervision timeout. (default 30000 ms)
+; CCBS-T2:      Q.SIG CCBS supervision timeout. (default 60 min in ms)
+; CCNR-T2:      Q.SIG CCNR supervision timeout. (default 195 min in ms)
+; CC-T3:        Q.SIG CC Maximum time to wait for user A to respond to user B availability. (default 30000 ms)
+;
+;pritimer => t200,1000
+;pritimer => t313,4000
+;
+; CC PTMP recall mode:
+; specific - Only the CC original party A can participate in the CC callback
+; global - Other compatible endpoints on the PTMP line can be party A in the CC callback
+;
+; cc_ptmp_recall_mode cannot be changed on a reload.
+;
+;cc_ptmp_recall_mode = specific
+;
+; CC Q.SIG Party A (requester) retain signaling link option
+; retain       Require that the signaling link be retained.
+; release      Request that the signaling link be released.
+; do_not_care  The responder is free to choose if the signaling link will be retained.
+;
+;cc_qsig_signaling_link_req = retain
+;
+; CC Q.SIG Party B (responder) retain signaling link option
+; retain       Prefer that the signaling link be retained.
+; release      Prefer that the signaling link be released.
+;
+;cc_qsig_signaling_link_rsp = retain
+;
+; See ccss.conf.sample for more options.  The timers described by ccss.conf.sample
+; are not used by ISDN for the native protocol since they are defined by the
+; standards and set by pritimer above.
+;
+; To enable transmission of facility-based ISDN supplementary services (such
+; as caller name from CPE over facility), enable this option.
+; Cannot be changed on a reload.
+;
+;facilityenable = yes
+;
+
+; This option enables Advice of Charge pass-through between the ISDN PRI and
+; Asterisk.  This option can be set to any combination of 's', 'd', and 'e' which
+; represent the different variants of Advice of Charge, AOC-S, AOC-D, and AOC-E.
+; Advice of Charge pass-through is currently only supported for ETSI.  Since most
+; AOC messages are sent on facility messages, the 'facilityenable' option must
+; also be enabled to fully support AOC pass-through.
+;
+;aoc_enable=s,d,e
+;
+; When this option is enabled, a hangup initiated by the ISDN PRI side of the
+; asterisk channel will result in the channel delaying its hangup in an
+; attempt to receive the final AOC-E message from its bridge.  The delay
+; period is configured as one half the T305 timer length. If the channel
+; is not bridged the hangup will occur immediatly without delay.
+;
+;aoce_delayhangup=yes
+
+; pritimer cannot be changed on a reload.
+;
+; Signalling method. The default is "auto". Valid values:
+; auto:           Use the current value from DAHDI.
+; em:             E & M
+; em_e1:          E & M E1
+; em_w:           E & M Wink
+; featd:          Feature Group D (The fake, Adtran style, DTMF)
+; featdmf:        Feature Group D (The real thing, MF (domestic, US))
+; featdmf_ta:     Feature Group D (The real thing, MF (domestic, US)) through
+;                 a Tandem Access point
+; featb:          Feature Group B (MF (domestic, US))
+; fgccama:        Feature Group C-CAMA (DP DNIS, MF ANI)
+; fgccamamf:      Feature Group C-CAMA MF (MF DNIS, MF ANI)
+; fxs_ls:         FXS (Loop Start)
+; fxs_gs:         FXS (Ground Start)
+; fxs_ks:         FXS (Kewl Start)
+; fxo_ls:         FXO (Loop Start)
+; fxo_gs:         FXO (Ground Start)
+; fxo_ks:         FXO (Kewl Start)
+; pri_cpe:        PRI signalling, CPE side
+; pri_net:        PRI signalling, Network side
+; bri_cpe:        BRI PTP signalling, CPE side
+; bri_net:        BRI PTP signalling, Network side
+; bri_cpe_ptmp:   BRI PTMP signalling, CPE side
+; bri_net_ptmp:   BRI PTMP signalling, Network side
+; sf:             SF (Inband Tone) Signalling
+; sf_w:           SF Wink
+; sf_featd:       SF Feature Group D (The fake, Adtran style, DTMF)
+; sf_featdmf:     SF Feature Group D (The real thing, MF (domestic, US))
+; sf_featb:       SF Feature Group B (MF (domestic, US))
+; e911:           E911 (MF) style signalling
+; ss7:            Signalling System 7
+; mfcr2:          MFC/R2 Signalling. To specify the country variant see 'mfcr2_variant'
+;
+; The following are used for Radio interfaces:
+; fxs_rx:         Receive audio/COR on an FXS kewlstart interface (FXO at the
+;                 channel bank)
+; fxs_tx:         Transmit audio/PTT on an FXS loopstart interface (FXO at the
+;                 channel bank)
+; fxo_rx:         Receive audio/COR on an FXO loopstart interface (FXS at the
+;                 channel bank)
+; fxo_tx:         Transmit audio/PTT on an FXO groundstart interface (FXS at
+;                 the channel bank)
+; em_rx:          Receive audio/COR on an E&M interface (1-way)
+; em_tx:          Transmit audio/PTT on an E&M interface (1-way)
+; em_txrx:        Receive audio/COR AND Transmit audio/PTT on an E&M interface
+;                 (2-way)
+; em_rxtx:        Same as em_txrx (for our dyslexic friends)
+; sf_rx:          Receive audio/COR on an SF interface (1-way)
+; sf_tx:          Transmit audio/PTT on an SF interface (1-way)
+; sf_txrx:        Receive audio/COR AND Transmit audio/PTT on an SF interface
+;                 (2-way)
+; sf_rxtx:        Same as sf_txrx (for our dyslexic friends)
+; ss7:            Signalling System 7
+;
+; signalling of a channel can not be changed on a reload.
+;
+;signalling=fxo_ls
+;
+; If you have an outbound signalling format that is different from format
+; specified above (but compatible), you can specify outbound signalling format,
+; (see below). The 'signalling' format specified will be the inbound signalling
+; format. If you only specify 'signalling', then it will be the format for
+; both inbound and outbound.
+;
+; outsignalling can only be one of:
+;   em, em_e1, em_w, sf, sf_w, sf_featd, sf_featdmf, sf_featb, featd,
+;   featdmf, featdmf_ta, e911, fgccama, fgccamamf
+;
+; outsignalling cannot be changed on a reload.
+;
+;signalling=featdmf
+;
+;outsignalling=featb
+;
+; For Feature Group D Tandem access, to set the default CIC and OZZ use these
+; parameters (Will not be updated on reload):
+;
+;defaultozz=0000
+;defaultcic=303
+;
+; A variety of timing parameters can be specified as well
+; The default values for those are "-1", which is to use the
+; compile-time defaults of the DAHDI kernel modules. The timing
+; parameters, (with the standard default from DAHDI):
+;
+;    prewink:     Pre-wink time (default 50ms)
+;    preflash:    Pre-flash time (default 50ms)
+;    wink:        Wink time (default 150ms)
+;    flash:       Flash time (default 750ms)
+;    start:       Start time (default 1500ms)
+;    rxwink:      Receiver wink time (default 300ms)
+;    rxflash:     Receiver flashtime (default 1250ms)
+;    debounce:    Debounce timing (default 600ms)
+;
+; None of them will update on a reload.
+;
+; How long generated tones (DTMF and MF) will be played on the channel
+; (in milliseconds).
+;
+; This is a global, rather than a per-channel setting. It will not be
+; updated on a reload.
+;
+;toneduration=100
+;
+; Whether or not to do distinctive ring detection on FXO lines:
+;
+;usedistinctiveringdetection=yes
+;
+; enable dring detection after caller ID for those countries like Australia
+; where the ring cadence is changed *after* the caller ID spill:
+;
+;distinctiveringaftercid=yes
+;
+; Whether or not to use caller ID:
+;
+usecallerid=yes
+;
+; Type of caller ID signalling in use
+;     bell     = bell202 as used in US (default)
+;     v23      = v23 as used in the UK
+;     v23_jp   = v23 as used in Japan
+;     dtmf     = DTMF as used in Denmark, Sweden and Netherlands
+;     smdi     = Use SMDI for caller ID.  Requires SMDI to be enabled (usesmdi).
+;
+;cidsignalling=v23
+;
+; What signals the start of caller ID
+;     ring        = a ring signals the start (default)
+;     polarity    = polarity reversal signals the start
+;     polarity_IN = polarity reversal signals the start, for India,
+;                   for dtmf dialtone detection; using DTMF.
+;     (see https://wiki.asterisk.org/wiki/display/AST/Caller+ID+in+India)
+;     dtmf        = causes monitor loop to look for dtmf energy on the
+;                   incoming channel to initate cid acquisition
+;
+;cidstart=polarity
+;
+; When cidstart=dtmf, the energy level on the line used to trigger dtmf cid
+; acquisition. This number is compared to the average over a packet of audio
+; of the absolute values of 16 bit signed linear samples. The default is set
+; to 256. The choice of 256 is arbitrary. The value you should select should
+; be high enough to prevent false detections while low enough to insure that
+; no dtmf spills are missed.
+;
+;dtmfcidlevel=256
+;
+; Whether or not to hide outgoing caller ID (Override with *67 or *82)
+; (If your dialplan doesn't catch it)
+;
+;hidecallerid=yes
+;
+; Enable if you need to hide just the name and not the number for legacy PBX use.
+; Only applies to PRI channels.
+;hidecalleridname=yes
+;
+; On UK analog lines, the caller hanging up determines the end of calls.  So
+; Asterisk hanging up the line may or may not end a call (DAHDI could just as
+; easily be re-attaching to a prior incoming call that was not yet hung up).
+; This option changes the hangup to wait for a dialtone on the line, before
+; marking the line as once again available for use with outgoing calls.
+;waitfordialtone=yes
+;
+; The following option enables receiving MWI on FXO lines.  The default
+; value is no.
+; 	The mwimonitor can take the following values
+;		no - No mwimonitoring occurs. (default)
+; 		yes - The same as specifying fsk
+; 		fsk - the FXO line is monitored for MWI FSK spills
+;		fsk,rpas - the FXO line is monitored for MWI FSK spills preceded
+;			by a ring pulse alert signal.
+;		neon - The fxo line is monitored for the presence of NEON pulses
+;			indicating MWI.
+; When detected, an internal Asterisk MWI event is generated so that any other
+; part of Asterisk that cares about MWI state changes is notified, just as if
+; the state change came from app_voicemail.
+; For FSK MWI Spills, the energy level that must be seen before starting the
+; MWI detection process can be set with 'mwilevel'.
+;
+;mwimonitor=no
+;mwilevel=512
+;
+; This option is used in conjunction with mwimonitor.  This will get executed
+; when incoming MWI state changes.  The script is passed 2 arguments.  The
+; first is the corresponding mailbox, and the second is 1 or 0, indicating if
+; there are messages waiting or not.
+;
+;mwimonitornotify=/usr/local/bin/dahdinotify.sh
+;
+; The following keyword 'mwisendtype' enables various VMWI methods on FXS lines (if supported).
+; The default is to send FSK only.
+; The following options are available;
+; 'rpas' Ring Pulse Alert Signal, alerts intelligent phones that a FSK message is about to be sent.
+; 'lrev' Line reversed to indicate messages waiting.
+; 'hvdc' 90Vdc OnHook DC voltage to indicate messages waiting.
+; 'hvac' or 'neon' 90Vac OnHook AC voltage to light Neon bulb.
+; 'nofsk' Disables FSK MWI spills from being sent out.
+; It is feasible that multiple options can be enabled.
+;mwisendtype=rpas,lrev
+;
+; Whether or not to enable call waiting on internal extensions
+; With this set to 'yes', busy extensions will hear the call-waiting
+; tone, and can use hook-flash to switch between callers. The Dial()
+; app will not return the "BUSY" result for extensions.
+;
+callwaiting=yes
+;
+; Configure the number of outstanding call waiting calls for internal ISDN
+; endpoints before bouncing the calls as busy.  This option is equivalent to
+; the callwaiting option for analog ports.
+; A call waiting call is a SETUP message with no B channel selected.
+; The default is zero to disable call waiting for ISDN endpoints.
+;max_call_waiting_calls=0
+;
+; Allow incoming ISDN call waiting calls.
+; A call waiting call is a SETUP message with no B channel selected.
+;allow_call_waiting_calls=no
+
+; Configure the ISDN span to indicate MWI for the list of mailboxes.
+; You can give a comma separated list of up to 8 mailboxes per span.
+; An empty list disables MWI.
+; The default is an empty list.
+;mwi_mailboxes=mailbox_number[@context]{,mailbox_number[@context]}
+;
+; Configure the ISDN span voicemail numbers for MWI mailboxes.  What number
+; to call for a user to retrieve voicemail messages.
+;
+; You can give a comma separated list of numbers.  The position of the number
+; corresponds to the position in mwi_mailboxes.  If a position is empty then
+; the last number is reused.
+;
+; For example:
+;  mwi_vm_numbers=700,,800,,900
+; is equivalent to:
+;  mwi_vm_numbers=700,700,800,800,900
+;
+; The default is no number.
+;mwi_vm_numbers=
+
+; Whether or not restrict outgoing caller ID (will be sent as ANI only, not
+; available for the user)
+; Mostly use with FXS ports
+; Does nothing.  Use hidecallerid instead.
+;
+;restrictcid=no
+;
+; Whether or not to use the caller ID presentation from the Asterisk channel
+; for outgoing calls.
+; See dialplan function CALLERID(pres) for more information.
+; Only applies to PRI and SS7 channels.
+;
+usecallingpres=yes
+;
+; Some countries (UK) have ring tones with different ring tones (ring-ring),
+; which means the caller ID needs to be set later on, and not just after
+; the first ring, as per the default (1).
+;
+;sendcalleridafter = 2
+;
+;
+; Support caller ID on Call Waiting
+;
+callwaitingcallerid=yes
+;
+; Support three-way calling
+;
+threewaycalling=yes
+;
+; For FXS ports (either direct analog or over T1/E1):
+;   Support flash-hook call transfer (requires three way calling)
+;   Also enables call parking (overrides the 'canpark' parameter)
+;
+; For digital ports using ISDN PRI protocols:
+;   Support switch-side transfer (called 2BCT, RLT or other names)
+;   This setting must be enabled on both ports involved, and the
+;   'facilityenable' setting must also be enabled to allow sending
+;   the transfer to the ISDN switch, since it sent in a FACILITY
+;   message.
+;   NOTE:  This should be disabled for NT PTMP mode.  Phones cannot
+;   have tromboned calls pushed down to them.
+;
+transfer=yes
+;
+; Allow call parking
+; ('canpark=no' is overridden by 'transfer=yes')
+;
+canpark=yes
+
+; Sets the default parking lot for call parking.
+; This is setable per channel.
+; Parkinglots are configured in features.conf
+;
+;parkinglot=plaza
+
+;
+; Support call forward variable
+;
+cancallforward=yes
+;
+; Whether or not to support Call Return (*69, if your dialplan doesn't
+; catch this first)
+;
+callreturn=yes
+;
+; Stutter dialtone support: If a mailbox is specified without a voicemail
+; context, then when voicemail is received in a mailbox in the default
+; voicemail context in voicemail.conf, taking the phone off hook will cause a
+; stutter dialtone instead of a normal one.
+;
+; If a mailbox is specified *with* a voicemail context, the same will result
+; if voicemail received in mailbox in the specified voicemail context.
+;
+; for default voicemail context, the example below is fine:
+;
+;mailbox=1234
+;
+; for any other voicemail context, the following will produce the stutter tone:
+;
+;mailbox=1234@context
+;
+; Enable echo cancellation
+; Use either "yes", "no", or a power of two from 32 to 256 if you wish to
+; actually set the number of taps of cancellation.
+;
+; Note that when setting the number of taps, the number 256 does not translate
+; to 256 ms of echo cancellation.  echocancel=256 means 256 / 8 = 32 ms.
+;
+; Note that if any of your DAHDI cards have hardware echo cancellers,
+; then this setting only turns them on and off; numeric settings will
+; be treated as "yes". There are no special settings required for
+; hardware echo cancellers; when present and enabled in their kernel
+; modules, they take precedence over the software echo canceller compiled
+; into DAHDI automatically.
+;
+;
+echocancel=yes
+;
+; Some DAHDI echo cancellers (software and hardware) support adjustable
+; parameters; these parameters can be supplied as additional options to
+; the 'echocancel' setting. Note that Asterisk does not attempt to
+; validate the parameters or their values, so if you supply an invalid
+; parameter you will not know the specific reason it failed without
+; checking the kernel message log for the error(s) put there by DAHDI.
+;
+;echocancel=128,param1=32,param2=0,param3=14
+;
+; Generally, it is not necessary (and in fact undesirable) to echo cancel when
+; the circuit path is entirely TDM.  You may, however, change this behavior
+; by enabling the echo canceller during pure TDM bridging below.
+;
+echocancelwhenbridged=yes
+;
+; In some cases, the echo canceller doesn't train quickly enough and there
+; is echo at the beginning of the call.  Enabling echo training will cause
+; DAHDI to briefly mute the channel, send an impulse, and use the impulse
+; response to pre-train the echo canceller so it can start out with a much
+; closer idea of the actual echo.  Value may be "yes", "no", or a number of
+; milliseconds to delay before training (default = 400)
+;
+; WARNING:  In some cases this option can make echo worse!  If you are
+; trying to debug an echo problem, it is worth checking to see if your echo
+; is better with the option set to yes or no.  Use whatever setting gives
+; the best results.
+;
+; Note that these parameters do not apply to hardware echo cancellers.
+;
+;echotraining=yes
+;echotraining=800
+;
+; If you are having trouble with DTMF detection, you can relax the DTMF
+; detection parameters.  Relaxing them may make the DTMF detector more likely
+; to have "talkoff" where DTMF is detected when it shouldn't be.
+;
+;relaxdtmf=yes
+;
+; You may also set the default receive and transmit gains (in dB)
+;
+; Gain Settings: increasing / decreasing the volume level on a channel.
+;                The values are in db (decibells). A positive number
+;                increases the volume level on a channel, and a
+;                negavive value decreases volume level.
+;
+; Dynamic Range Compression: you can also enable dynamic range compression
+;                on a channel. This will amplify quiet sounds while leaving
+;                louder sounds untouched. This is useful in situations where
+;                a linear gain setting would cause clipping. Acceptable values
+;                are in the range of 0.0 to around 6.0 with higher values
+;                causing more compression to be done.
+;
+;                There are several independent gain settings:
+;   rxgain: gain for the rx (receive - into Asterisk) channel. Default: 0.0
+;   txgain: gain for the tx (transmit - out of Asterisk Asterisk) channel.
+;           Default: 0.0
+;   cid_rxgain: set the gain just for the caller ID sounds Asterisk
+;               emits. Default: 5.0 .
+;   rxdrc: dynamic range compression for the rx channel. Default: 0.0
+;   txdrc: dynamic range compression for the tx channel. Default: 0.0
+
+;rxgain=2.0
+;txgain=3.0
+;
+;rxdrc=1.0
+;txdrc=4.0
+;
+; Logical groups can be assigned to allow outgoing roll-over.  Groups range
+; from 0 to 63, and multiple groups can be specified. By default the
+; channel is not a member of any group.
+;
+; Note that an explicit empty value for 'group' is invalid, and will not
+; override a previous non-empty one. The same applies to callgroup and
+; pickupgroup as well.
+;
+group=1
+;
+; Ring groups (a.k.a. call groups) and pickup groups.  If a phone is ringing
+; and it is a member of a group which is one of your pickup groups, then
+; you can answer it by picking up and dialing *8#.  For simple offices, just
+; make these both the same.  Groups range from 0 to 63.
+;
+callgroup=1
+pickupgroup=1
+
+; Channel variable to be set for all calls from this channel
+;setvar=CHANNEL=42
+;setvar=ATTENDED_TRANSFER_COMPLETE_SOUND=beep   ; This channel variable will
+                                                ; cause the given audio file to
+                                                ; be played upon completion of
+                                                ; an attended transfer.
+
+;
+; Specify whether the channel should be answered immediately or if the simple
+; switch should provide dialtone, read digits, etc.
+; Note: If immediate=yes the dialplan execution will always start at extension
+; 's' priority 1 regardless of the dialed number!
+;
+;immediate=yes
+;
+; Specify whether flash-hook transfers to 'busy' channels should complete or
+; return to the caller performing the transfer (default is yes).
+;
+;transfertobusy=no
+
+; Calls will have the party id user tag set to this string value.
+;
+;cid_tag=
+
+; With this set, you can automatically append the MSN of a party
+; to the cid_tag.  An '_' is used to separate the tag from the MSN.
+; Applies to ISDN spans.
+; Default is no.
+;
+; Table of what number is appended:
+;      outgoing  incoming
+; net  dialed    caller
+; cpe  caller    dialed
+;
+;append_msn_to_cid_tag=no
+
+; caller ID can be set to "asreceived" or a specific number if you want to
+; override it.  Note that "asreceived" only applies to trunk interfaces.
+; fullname sets just the
+;
+; fullname: sets just the name part.
+; cid_number: sets just the number part:
+;
+;callerid = 123456
+;
+;callerid = My Name <2564286000>
+; Which can also be written as:
+;cid_number = 2564286000
+;fullname = My Name
+;
+;callerid = asreceived
+;
+; should we use the caller ID from incoming call on DAHDI transfer?
+;
+;useincomingcalleridondahditransfer = yes
+;
+; Add a description for the channel which can be shown through the Asterisk
+; console  when executing the 'dahdi show channels' command is run.
+;
+;description=Phone located in lobby
+;
+; AMA flags affects the recording of Call Detail Records.  If specified
+; it may be 'default', 'omit', 'billing', or 'documentation'.
+;
+;amaflags=default
+;
+; Channels may be associated with an account code to ease
+; billing
+;
+;accountcode=lss0101
+;
+; ADSI (Analog Display Services Interface) can be enabled on a per-channel
+; basis if you have (or may have) ADSI compatible CPE equipment
+;
+;adsi=yes
+;
+; SMDI (Simplified Message Desk Interface) can be enabled on a per-channel
+; basis if you would like that channel to behave like an SMDI message desk.
+; The SMDI port specified should have already been defined in smdi.conf.  The
+; default port is /dev/ttyS0.
+;
+;usesmdi=yes
+;smdiport=/dev/ttyS0
+;
+; On trunk interfaces (FXS) and E&M interfaces (E&M, Wink, Feature Group D
+; etc, it can be useful to perform busy detection either in an effort to
+; detect hangup or for detecting busies.  This enables listening for
+; the beep-beep busy pattern.
+;
+;busydetect=yes
+;
+; If busydetect is enabled, it is also possible to specify how many busy tones
+; to wait for before hanging up.  The default is 3, but it might be
+; safer to set to 6 or even 8.  Mind that the higher the number, the more
+; time that will be needed to hangup a channel, but lowers the probability
+; that you will get random hangups.
+;
+;busycount=6
+;
+; If busydetect is enabled, it is also possible to specify the cadence of your
+; busy signal.  In many countries, it is 500msec on, 500msec off.  Without
+; busypattern specified, we'll accept any regular sound-silence pattern that
+; repeats <busycount> times as a busy signal.  If you specify busypattern,
+; then we'll further check the length of the sound (tone) and silence, which
+; will further reduce the chance of a false positive.
+;
+;busypattern=500,500
+;
+; NOTE: In make menuselect, you'll find further options to tweak the busy
+; detector.  If your country has a busy tone with the same length tone and
+; silence (as many countries do), consider enabling the
+; BUSYDETECT_COMPARE_TONE_AND_SILENCE option.
+;
+; To further detect which hangup tone your telco provider is sending, it is
+; useful to use the dahdi_monitor utility to record the audio that main/dsp.c
+; is receiving after the caller hangs up.
+;
+; For FXS (FXO signalled) ports
+;   switch the line polarity to signal the connected PBX that an outgoing
+;   call was answered by the remote party.
+; For FXO (FXS signalled) ports
+;   watch for a polarity reversal to mark when a outgoing call is
+;   answered by the remote party.
+;
+;answeronpolarityswitch=yes
+;
+; For FXS (FXO signalled) ports
+;   switch the line polarity to signal the connected PBX that the current
+;   call was "hung up" by the remote party
+; For FXO (FXS signalled) ports
+;   In some countries, a polarity reversal is used to signal the disconnect of a
+;   phone line.  If the hanguponpolarityswitch option is selected, the call will
+;   be considered "hung up" on a polarity reversal.
+;
+;hanguponpolarityswitch=yes
+;
+; polarityonanswerdelay: minimal time period (ms) between the answer
+;                        polarity switch and hangup polarity switch.
+;                        (default: 600ms)
+;
+; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
+; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
+; progress attempts to determine answer, busy, and ringing on phone lines.
+; This feature is HIGHLY EXPERIMENTAL and can easily detect false answers,
+; so don't count on it being very accurate.
+;
+; Few zones are supported at the time of this writing, but may be selected
+; with "progzone".
+;
+; progzone also affects the pattern used for buzydetect (unless
+; busypattern is set explicitly). The possible values are:
+;   us (default)
+;   ca (alias for 'us')
+;   cr (Costa Rica)
+;   br (Brazil, alias for 'cr')
+;   uk
+;
+; This feature can also easily detect false hangups. The symptoms of this is
+; being disconnected in the middle of a call for no reason.
+;
+;callprogress=yes
+;progzone=uk
+;
+; Set the tonezone. Equivalent of the defaultzone settings in
+; /etc/dahdi/system.conf. This sets the tone zone by number.
+; Note that you'd still need to load tonezones (loadzone in
+; /etc/dahdi/system.conf).
+; The default is -1: not to set anything.
+;tonezone = 0 ; 0 is US
+;
+; FXO (FXS signalled) devices must have a timeout to determine if there was a
+; hangup before the line was answered.  This value can be tweaked to shorten
+; how long it takes before DAHDI considers a non-ringing line to have hungup.
+;
+; ringtimeout will not update on a reload.
+;
+;ringtimeout=8000
+;
+; For FXO (FXS signalled) devices, whether to use pulse dial instead of DTMF
+; Pulse digits from phones (FXS devices, FXO signalling) are always
+; detected.
+;
+;pulsedial=yes
+;
+; For fax detection, uncomment one of the following lines.  The default is *OFF*
+;
+;faxdetect=both
+;faxdetect=incoming
+;faxdetect=outgoing
+;faxdetect=no
+;
+; When 'faxdetect' is used, one could use 'faxbuffers' to configure the DAHDI
+; transmit buffer policy.  The default is *OFF*.  When this configuration
+; option is used, the faxbuffer policy will be used for the life of the call
+; after a fax tone is detected.  The faxbuffer policy is reverted after the
+; call is torn down.  The sample below will result in 6 buffers and a full
+; buffer policy.
+;
+;faxbuffers=>6,full
+;
+; This option specifies what to do when the channel's bridged peer puts the
+; ISDN channel on hold.  Settable per logical ISDN span.
+; moh:          Generate music-on-hold to the remote party.
+; notify:       Send hold notification signaling to the remote party.
+;               For ETSI PTP and ETSI PTMP NT links.
+;               (The notify setting deprecates the mohinterpret=passthrough setting.)
+; hold:         Use HOLD/RETRIEVE signaling to release the B channel while on hold.
+;               For ETSI PTMP TE links.
+;
+;moh_signaling=moh
+;
+; This option specifies a preference for which music on hold class this channel
+; should listen to when put on hold if the music class has not been set on the
+; channel with Set(CHANNEL(musicclass)=whatever) in the dialplan, and the peer
+; channel putting this one on hold did not suggest a music class.
+;
+; This option may be set globally or on a per-channel basis.
+;
+;mohinterpret=default
+;
+; This option specifies which music on hold class to suggest to the peer channel
+; when this channel places the peer on hold.  This option may be set globally,
+; or on a per-channel basis.
+;
+;mohsuggest=default
+;
+; PRI channels can have an idle extension and a minunused number.  So long as
+; at least "minunused" channels are idle, chan_dahdi will try to call "idledial"
+; on them, and then dump them into the PBX in the "idleext" extension (which
+; is of the form exten@context).  When channels are needed the "idle" calls
+; are disconnected (so long as there are at least "minidle" calls still
+; running, of course) to make more channels available.  The primary use of
+; this is to create a dynamic service, where idle channels are bundled through
+; multilink PPP, thus more efficiently utilizing combined voice/data services
+; than conventional fixed mappings/muxings.
+;
+; Those settings cannot be changed on reload.
+;
+;idledial=6999
+;idleext=6999@dialout
+;minunused=2
+;minidle=1
+;
+;
+; ignore_failed_channels: Continue even if some channels failed to configure.
+; False by default, as if even a single channel failed to configure, it might
+; mean other channels are misplaced and having them work may not be a good
+; idea. If enabled (set to true), chan_dahdi will nevertheless attempt to
+; configure other channels rather than giving up. This normally makes sense
+; only if you use names (<subdir>!<number>) for DAHDI channels.
+;ignore_failed_channels = true
+;
+; Configure jitter buffers in DAHDI (each one is 20ms, default is 4)
+; This is set globally, rather than per-channel.
+;
+;jitterbuffers=4
+;
+;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
+                              ; DAHDI channel. Defaults to "no". An enabled jitterbuffer will
+                              ; be used only if the sending side can create and the receiving
+                              ; side can not accept jitter. The DAHDI channel can't accept jitter,
+                              ; thus an enabled jitterbuffer on the receive DAHDI side will always
+                              ; be used if the sending side can create jitter.
+
+; jbmaxsize = 200             ; Max length of the jitterbuffer in milliseconds.
+
+; jbresyncthreshold = 1000    ; Jump in the frame timestamps over which the jitterbuffer is
+                              ; resynchronized. Useful to improve the quality of the voice, with
+                              ; big jumps in/broken timestamps, usually sent from exotic devices
+                              ; and programs. Defaults to 1000.
+
+; jbimpl = fixed              ; Jitterbuffer implementation, used on the receiving side of a DAHDI
+                              ; channel. Two implementations are currently available - "fixed"
+                              ; (with size always equals to jbmax-size) and "adaptive" (with
+                              ; variable size, actually the new jb of IAX2). Defaults to fixed.
+
+; jbtargetextra = 40          ; This option only affects the jb when 'jbimpl = adaptive' is set.
+                              ; The option represents the number of milliseconds by which the new
+                              ; jitter buffer will pad its size. the default is 40, so without
+                              ; modification, the new jitter buffer will set its size to the jitter
+                              ; value plus 40 milliseconds. increasing this value may help if your
+                              ; network normally has low jitter, but occasionally has spikes.
+
+; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
+;-----------------------------------------------------------------------------------
+;
+; You can define your own custom ring cadences here.  You can define up to 8
+; pairs.  If the silence is negative, it indicates where the caller ID spill is
+; to be placed.  Also, if you define any custom cadences, the default cadences
+; will be turned off.
+;
+; This setting is global, rather than per-channel. It will not update on
+; a reload.
+;
+; Syntax is:  cadence=ring,silence[,ring,silence[...]]
+;
+; These are the default cadences:
+;
+;cadence=125,125,2000,-4000
+;cadence=250,250,500,1000,250,250,500,-4000
+;cadence=125,125,125,125,125,-4000
+;cadence=1000,500,2500,-5000
+;
+; Each channel consists of the channel number or range.  It inherits the
+; parameters that were specified above its declaration.
+;
+;
+;callerid="Green Phone"<(256) 428-6121>
+;description=Reception Phone			; add a description for 'dahdi show channels'
+;channel => 1
+;callerid="Black Phone"<(256) 428-6122>
+;description=Courtesy Phone
+;channel => 2
+;callerid="CallerID Phone" <(630) 372-1564>
+;description=					; reset the description for following channels
+;channel => 3
+;callerid="Pac Tel Phone" <(256) 428-6124>
+;channel => 4
+;callerid="Uniden Dead" <(256) 428-6125>
+;channel => 5
+;callerid="Cortelco 2500" <(256) 428-6126>
+;channel => 6
+;callerid="Main TA 750" <(256) 428-6127>
+;channel => 44
+;
+; For example, maybe we have some other channels which start out in a
+; different context and use E & M signalling instead.
+;
+;context=remote
+;signaling=em
+;channel => 15
+;channel => 16
+
+;signalling=em_w
+;
+; All those in group 0 I'll use for outgoing calls
+;
+; Strip most significant digit (9) before sending
+;
+;stripmsd=1
+;callerid=asreceived
+;group=0
+;signalling=fxs_ls
+;channel => 45
+
+;signalling=fxo_ls
+;group=1
+;callerid="Joe Schmoe" <(256) 428-6131>
+;channel => 25
+;callerid="Megan May" <(256) 428-6132>
+;channel => 26
+;callerid="Suzy Queue" <(256) 428-6233>
+;channel => 27
+;callerid="Larry Moe" <(256) 428-6234>
+;channel => 28
+;
+; Sample PRI (CPE) config:  Specify the switchtype, the signalling as either
+; pri_cpe or pri_net for CPE or Network termination, and generally you will
+; want to create a single "group" for all channels of the PRI.
+;
+; switchtype cannot be changed on a reload.
+;
+; switchtype = national
+; signalling = pri_cpe
+; group = 2
+; channel => 1-23
+;
+; Alternatively, the number of the channel may be replaced with a relative
+; path to a device file under /dev/dahdi . The final element of that file
+; must be a number, though. The directory separator is '!', as we can't
+; use '/' in a dial string. So if we have
+;
+;   /dev/dahdi/span-name/pstn/00/1
+;   /dev/dahdi/span-name/pstn/00/2
+;   /dev/dahdi/span-name/pstn/00/3
+;   /dev/dahdi/span-name/pstn/00/4
+;
+; we could use:
+;channel => span-name!pstn!00!1-4
+;
+; or:
+;channel => span-name!pstn!00!1,2,3,4
+;
+; See also ignore_failed_channels above.
+
+;  Used for distinctive ring support for x100p.
+;  You can see the dringX patterns is to set any one of the dringXcontext fields
+;  and they will be printed on the console when an inbound call comes in.
+;
+;  dringXrange is used to change the acceptable ranges for "tone offsets".  Defaults to 10.
+;  Note: a range of 0 is NOT what you might expect - it instead forces it to the default.
+;  A range of -1 will force it to always match.
+;  Anything lower than -1 would presumably cause it to never match.
+;
+;dring1=95,0,0
+;dring1context=internal1
+;dring1range=10
+;dring2=325,95,0
+;dring2context=internal2
+;dring2range=10
+; If no pattern is matched here is where we go.
+;context=default
+;channel => 1
+
+; AMI alarm event reporting
+;reportalarms=channels
+;Possible values are:
+;channels - report each channel alarms (current behavior, default for backward compatibility)
+;spans - report an "SpanAlarm" event when the span of any configured channel is alarmed
+;all - report channel and span alarms (aggregated behavior)
+;none - do not report any alarms.
+
+; ---------------- Options for use with signalling=ss7 -----------------
+; None of them can be changed by a reload.
+;
+; Variant of SS7 signalling:
+; Options are itu and ansi
+;ss7type = itu
+
+; SS7 Called Nature of Address Indicator
+;
+; unknown:        Unknown
+; subscriber:     Subscriber
+; national:       National
+; international:  International
+; dynamic:        Dynamically selects the appropriate dialplan
+;
+;ss7_called_nai=dynamic
+;
+; SS7 Calling Nature of Address Indicator
+;
+; unknown:        Unknown
+; subscriber:     Subscriber
+; national:       National
+; international:  International
+; dynamic:        Dynamically selects the appropriate dialplan
+;
+;ss7_calling_nai=dynamic
+;
+;
+; sample 1 for Germany
+;ss7_internationalprefix = 00
+;ss7_nationalprefix = 0
+;ss7_subscriberprefix =
+;ss7_unknownprefix =
+;
+
+; This option is used to disable automatic sending of ACM when the call is started
+; in the dialplan.  If you do use this option, you will need to use the Proceeding()
+; application in the dialplan to send ACM.
+;ss7_explictacm=yes
+
+; All settings apply to linkset 1
+;linkset = 1
+
+; Point code of the linkset.  For ITU, this is the decimal number
+; format of the point code.  For ANSI, this can either be in decimal
+; number format or in the xxx-xxx-xxx format
+;pointcode = 1
+
+; Point code of node adjacent to this signalling link (Possibly the STP between you and
+; your destination).  Point code format follows the same rules as above.
+;adjpointcode = 2
+
+; Default point code that you would like to assign to outgoing messages (in case of
+; routing through STPs, or using A links).  Point code format follows the same rules
+; as above.
+;defaultdpc = 3
+
+; Begin CIC (Circuit indication codes) count with this number
+;cicbeginswith = 1
+
+; What the MTP3 network indicator bits should be set to.  Choices are
+; national, national_spare, international, international_spare
+;networkindicator=international
+
+; First signalling channel
+;sigchan = 48
+
+; Additional signalling channel for this linkset (So you can have a linkset
+; with two signalling links in it).  It seems like a silly way to do it, but
+; for linksets with multiple signalling links, you add an additional sigchan
+; line for every additional signalling link on the linkset.
+;sigchan = 96
+
+; Channels to associate with CICs on this linkset
+;channel = 25-47
+;
+; For more information on setting up SS7, see the README file in libss7 or
+; https://wiki.asterisk.org/wiki/display/AST/Signaling+System+Number+7
+; ----------------- SS7 Options ----------------------------------------
+
+; ---------------- Options for use with signalling=mfcr2 --------------
+
+; MFC-R2 signaling has lots of variants from country to country and even sometimes
+; minor variants inside the same country. The only mandatory parameters here are:
+; mfcr2_variant, mfcr2_max_ani and mfcr2_max_dnis.
+; IT IS RECOMMENDED that you leave the default values (leaving it commented) for the 
+; other parameters unless you have problems or you have been instructed to change some 
+; parameter. OpenR2 library uses the mfcr2_variant parameter to try to determine the 
+; best defaults for your country, also refer to the OpenR2 package directory 
+; doc/asterisk/ where you can find sample configurations for some countries. If you 
+; want to contribute your configs for a particular country send them to the e-mail 
+; of the primary OpenR2 developer that you can find in the AUTHORS file of the OpenR2 package
+
+; MFC/R2 variant. This depends on the OpenR2 supported variants
+; A list of values can be found by executing the openr2 command r2test -l
+; some valid values are:
+; ar (Argentina)
+; br (Brazil)
+; mx (Mexico)
+; ph (Philippines)
+; itu (per ITU spec)
+; mfcr2_variant=mx
+
+; Max amount of ANI to ask for
+; mfcr2_max_ani=10
+
+; Max amount of DNIS to ask for
+; mfcr2_max_dnis=4
+
+; whether or not to get the ANI before getting DNIS.
+; some telcos require ANI first some others do not care
+; if this go wrong, change this value
+; mfcr2_get_ani_first=no
+
+; Caller Category to send
+; national_subscriber
+; national_priority_subscriber
+; international_subscriber
+; international_priority_subscriber
+; collect_call
+; usually national_subscriber works just fine
+; you can change this setting from the dialplan
+; by setting the variable MFCR2_CATEGORY
+; (remember to set _MFCR2_CATEGORY from originating channels)
+; MFCR2_CATEGORY will also be a variable available in your context
+; on incoming calls set to the value received from the far end
+; mfcr2_category=national_subscriber
+
+; Call logging is stored at the Asterisk
+; logging directory specified in asterisk.conf
+; plus mfcr2/<whatever you put here>
+; if you specify 'span1' here and asterisk.conf has
+; as logging directory /var/log/asterisk then the full
+; path to your MFC/R2 call logs will be /var/log/asterisk/mfcr2/span1
+; (the directory will be automatically created if not present already)
+; remember to set mfcr2_call_files=yes
+; mfcr2_logdir=span1
+
+; whether or not to drop call files into mfcr2_logdir
+; mfcr2_call_files=yes|no
+
+; MFC/R2 valid logging values are: all,error,warning,debug,notice,cas,mf,stack,nothing
+; error,warning,debug and notice are self-descriptive
+; 'cas' is for logging ABCD CAS tx and rx
+; 'mf' is for logging of the Multi Frequency tones
+; 'stack' is for very verbose output of the channel and context call stack, only useful
+; if you are debugging a crash or want to learn how the library works. The stack logging
+; will be only enabled if the openr2 library was compiled with -DOR2_TRACE_STACKS
+; You can mix up values, like: loglevel=error,debug,mf to log just error, debug and
+; multi frequency messages
+; 'all' is a special value to log all the activity
+; 'nothing' is a clean-up value, in case you want to not log any activity for
+; a channel or group of channels
+; BE AWARE that the level of output logged will ALSO depend on
+; the value you have in logger.conf, if you disable output in logger.conf
+; then it does not matter you specify 'all' here, nothing will be logged
+; so logger.conf has the last word on what is going to be logged
+; mfcr2_logging=all
+
+; MFC/R2 value in milliseconds for the MF timeout. Any negative value
+; means 'default', smaller values than 500ms are not recommended
+; and can cause malfunctioning. If you experience protocol error
+; due to MF timeout try incrementing this value in 500ms steps
+; mfcr2_mfback_timeout=-1
+
+; MFC/R2 value in milliseconds for the metering pulse timeout.
+; Metering pulses are sent by some telcos for some R2 variants
+; during a call presumably for billing purposes to indicate costs,
+; however this pulses use the same signal that is used to indicate
+; call hangup, therefore a timeout is sometimes required to distinguish
+; between a *real* hangup and a billing pulse that should not
+; last more than 500ms, If you experience call drops after some
+; minutes of being stablished try setting a value of some ms here,
+; values greater than 500ms are not recommended.
+; BE AWARE that choosing the proper protocol mfcr2_variant parameter
+; implicitly sets a good recommended value for this timer, use this
+; parameter only when you *really* want to override the default, otherwise
+; just comment out this value or put a -1
+; Any negative value means 'default'.
+; mfcr2_metering_pulse_timeout=-1
+
+; Brazil uses a special calling party category for collect calls (llamadas por cobrar)
+; instead of using the operator (as in Mexico). The R2 spec in Brazil says a special GB tone
+; should be used to reject collect calls. If you want to ALLOW collect calls specify 'yes',
+; if you want to BLOCK collect calls then say 'no'. Default is to block collect calls.
+; (see also 'mfcr2_double_answer')
+; mfcr2_allow_collect_calls=no
+
+; This feature is related but independent of mfcr2_allow_collect_calls
+; Some PBX's require a double-answer process to block collect calls, if
+; you ever have problems blocking collect calls using Group B signals (mfcr2_allow_collect_calls=no)
+; then you may want to try with mfcr2_double_answer=yes, this will cause that every answer signal
+; is changed by answer->clear back->answer (sort of a flash)
+; (see also 'mfcr2_allow_collect_calls')
+; mfcr2_double_answer=no
+
+; This feature allows to skip the use of Group B/II signals and go directly
+; to the accepted state for incoming calls
+; mfcr2_immediate_accept=no
+
+; You most likely dont need this feature. Default is yes.
+; When this is set to yes, all calls that are offered (incoming calls) which
+; DNIS is valid (exists in extensions.conf) and pass collect call validation
+; will be accepted with a Group B tone (either call with charge or not, depending on mfcr2_charge_calls)
+; with this set to 'no' then the call will NOT be accepted on offered, and the call will start its
+; execution in extensions.conf without being accepted until the channel is answered (either with Answer() or
+; any other application resulting in the channel being answered).
+; This can be set to 'no' if your telco or PBX needs the hangup cause to be set accurately
+; when this option is set to no you must explicitly accept the call with DAHDIAcceptR2Call
+; or implicitly through the Answer() application.
+; mfcr2_accept_on_offer=yes
+
+; Skip request of calling party category and ANI
+; you need openr2 >= 1.2.0 to use this feature
+; mfcr2_skip_category=no
+
+; WARNING: advanced users only! I really mean it
+; this parameter is commented by default because
+; YOU DON'T NEED IT UNLESS YOU REALLY GROK MFC/R2
+; READ COMMENTS on doc/r2proto.conf in openr2 package
+; for more info
+; mfcr2_advanced_protocol_file=/path/to/r2proto.conf
+
+; Brazil use a special signal to force the release of the line (hangup) from the
+; backward perspective. When mfcr2_forced_release=no, the normal clear back signal
+; will be sent on hangup, which is OK for all mfcr2 variants I know of, except for
+; Brazilian variant, where the central will leave the line up for several seconds (30, 60)
+; which sometimes is not what people really want. When mfcr2_forced_release=yes, a different
+; signal will be sent to hangup the call indicating that the line should be released immediately
+; mfcr2_forced_release=no
+
+; Whether or not report to the other end 'accept call with charge'
+; This setting has no effect with most telecos, usually is safe
+; leave the default (yes), but once in a while when interconnecting with
+; old PBXs this may be useful.
+; Concretely this affects the Group B signal used to accept calls
+; The application DAHDIAcceptR2Call can also be used to decide this
+; in the dial plan in a per-call basis instead of doing it here for all calls
+; mfcr2_charge_calls=yes
+
+; ---------------- END of options to be used with signalling=mfcr2
+
+; Configuration Sections
+; ~~~~~~~~~~~~~~~~~~~~~~
+; You can also configure channels in a separate chan_dahdi.conf section. In
+; this case the keyword 'channel' is not used. Instead the keyword
+; 'dahdichan' is used (as in users.conf) - configuration is only processed
+; in a section where the keyword dahdichan is used. It will only be
+; processed in the end of the section. Thus the following section:
+;
+;[phones]
+;echocancel = 64
+;dahdichan = 1-8
+;group = 1
+;
+; Is somewhat equivalent to the following snippet in the section
+; [channels]:
+;
+;echocancel = 64
+;group = 1
+;channel => 1-8
+;
+; When starting a new section almost all of the configuration values are
+; copied from their values at the end of the section [channels] in
+; chan_dahdi.conf and [general] in users.conf - one section's configuration
+; does not affect another one's.
+;
+; Instead of letting common configuration values "slide through" you can
+; use configuration templates to easily keep the common part in one
+; place and override where needed.
+;
+;[phones](!)
+;echocancel = yes
+;group = 0,4
+;callgroup = 3
+;pickupgroup = 3
+;threewaycalling = yes
+;transfer = yes
+;context = phones
+;faxdetect = incoming
+;
+;[phone-1](phones)
+;dahdichan = 1
+;callerid = My Name <501>
+;mailbox = 501@mailboxes
+;
+;
+;[fax](phones)
+;dahdichan = 2
+;faxdetect = no
+;context = fax
+;
+;[phone-3](phones)
+;dahdichan = 3
+;pickupgroup = 3,4

@@ -1,0 +1,159 @@
+; MINI-VOICEMAIL dialplan example
+; ---------------------------------------------------------------------------------------
+; ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+;
+;
+; This is an example on how to use the Mini-Voicemail system to build
+; voicemail systems.
+;
+;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+; A macro to test the MINIVMACCOUNT dialplan function
+; 	Currently, accountcode and pincode is not used in the application
+; 	They where added to be used in dialplan scripting
+;
+;
+[macro-minivmfunctest]
+exten => s,1,set(account=${ARGV1})
+exten => minivm,n,verbose(1,-------------------- Minivm Function test - Accoutn ${account}  -------------)
+exten => s,n,verbose(1,---- Has account:       ${MINIVMACCOUNT(${account}:hasaccount)})
+exten => s,n,verbose(1,---- Fullname:          ${MINIVMACCOUNT(${account}:fullname)})
+exten => s,n,verbose(1,---- Email:             ${MINIVMACCOUNT(${account}:email)})
+exten => s,n,verbose(1,---- Pager:             ${MINIVMACCOUNT(${account}:pager)})
+exten => s,n,verbose(1,---- E-mail template:   ${MINIVMACCOUNT(${account}:etemplate)})
+exten => s,n,verbose(1,---- Pager template:    ${MINIVMACCOUNT(${account}:ptemplate)})
+exten => s,n,verbose(1,---- Account code:      ${MINIVMACCOUNT(${account}:accountcode)})
+exten => s,n,verbose(1,---- Path:              ${MINIVMACCOUNT(${account}:path)})
+exten => s,n,verbose(1,---- Pincode:           ${MINIVMACCOUNT(${account}:pincode)})
+exten => s,n,verbose(1,---- Time zone:         ${MINIVMACCOUNT(${account}:timezone)})
+exten => s,n,verbose(1,---- Language:          ${MINIVMACCOUNT(${account}:language)})
+; This requires setvar=customerclass=gold in the account configuration
+exten => s,n,verbose(1,---- Var:customerclass: ${MINIVMACCOUNT(${account}:customerclass)})
+
+[minivm-scenario1]
+; minivmtest tests the dialplan function MINIVMACCOUNT
+; Check the output in the console with verbose set
+exten => minivmtest,1,answer
+exten => minivmtest,n,wait(0.5)
+exten => minivmtest,n,set(ACCOUNT=do-not-spam-me@example.com)
+exten => minivmtest,n,macro(minivmfunctest, ${ACCOUNT})
+exten => minivmtest,n,playback(beep)
+exten => minivmtest,n,hangup
+
+;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+; "minivm" tests a full scenario
+; Remember that users may hangup
+; This works both for users with accounts in minivm.conf and by just giving an e-mail address
+; without configuring an account
+exten => minivm,1,answer
+exten => minivm,n,wait(0.5)	; Wait for Voip channels to settle
+exten => minivm,n,set(account=oej@example.com)
+exten => minivm,n,noop(------------------------------------------- Minivm Greet   -------------)
+exten => minivm,n,minivmgreet(${account})
+exten => minivm,n,verbose(1,-- MINIVM_GREET_STATUS = ${MINIVM_GREET_STATUS} )
+exten => minivm,n,noop(------------------------------------------- Minivm Record  -------------)
+exten => minivm,n,minivmRecord(${account},b)
+exten => minivm,n,goto(minivmcleanup,1)
+
+; Cleanup after recording or hangup
+exten => minivmcleanup,1,noop(------------------------------------------- Minivm Notify  -------------)
+;Increment voicemail counter with 1. The counter will be used in the e-mail message
+;and in the filename
+exten => minivmcleanup,n,gotoif($[${MINIVM_RECORD_STATUS} != SUCCESS]?minivmrecordfailure,1)
+exten => minivmcleanup,n,set(MINIVMCOUNTER(${account}:voicemailcounter:inc)=1)
+exten => minivmcleanup,n,set(MVM_COUNTER = ${MINIVMCOUNTER(${account}:voicemailcounter)})
+exten => minivmcleanup,n,minivmNotify(${account})
+exten => minivmcleanup,n,verbose(1,-- MINIVM_NOTIFY_STATUS = ${MINIVM_NOTIFY_STATUS} )
+; Now, clean up after sending voicemail
+exten => minivmcleanup,n,noop(------------------------------------------- Minivm Delete  -------------)
+exten => minivmcleanup,n,minivmdelete()
+exten => minivmcleanup,n,verbose(1,-- MINIVM_DELETE_STATUS = ${MINIVM_DELETE_STATUS} )
+
+;Recording failed
+exten => minivmrecordfailure,1,playback(vm-sorry)
+exten => minivmrecordfailure,n,wait(1)
+exten => minivmrecordfailure,n,hangup
+
+; If the user hangs up during the recording, we need to clean up
+; And send notifications
+exten => h,1,gotoif($[x${MINIVM_DELETE_STATUS} != x] ?h,stop)
+exten => h,n,noop(------------------------------------------- HANGUP during voicemail recording   -------------)
+exten => h,n,goto(minivmcleanup,1)
+exten => h,n(stop),noop(---Minivm DONE----)
+
+;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+; Extension to record a greeting message
+; Call this like:
+;	macro(recordgreetings,alice@atlanta.example.com)
+;
+[macro-recordgreetings]
+exten => s,1,answer
+exten => s,n,wait(0.5)
+exten => s,n,set(account=${ARGV1])
+; This file give extra options not available here, needs to be edited
+; Change of password does not work
+exten => s,n(menu),background(vm-options)
+exten => 1,1,setvar(option=u)
+exten => 1,n,macro(minivmrec,${account},${option})
+exten => 1,n,goto(menu)
+exten => 2,1,setvar(option=b)
+exten => 2,n,macro(minivmrec,${account},${option})
+exten => 2,n,goto(menu)
+exten => 3,1,setvar(option=n)
+exten => 3,n,macro(minivmrec,${account},${option})
+exten => 3,n,goto(menu)
+exten => 4,1,setvar(option=t)
+exten => 4,n,macro(minivmrec,${account},${option})
+exten => 4,n,goto(menu)
+exten => *,1,playback(vm-thankyou)
+exten => *,n,wait(1)
+exten => *,n,hangup
+
+exten => i,1,playback(invalid)
+exten => i,n,goto(menu)
+
+[macro-minivmrec]
+exten => s,1,gotoif(${MINIVMACCOUNT(${account}:hasaccount)}?record)
+; Account is not configured in minivm.conf or realtime
+; Phony message, add something useful here
+exten => s,n,playback(privacy-incorrect)
+exten => s,n,macroreturn
+exten => record,1,minivmappmess(${ARGV1},${ARGV2})
+exten => record,n,noop(Recording status: ${MINIVM_APPMESS_STATUS})
+exten => record,n,macroreturn
+
+;.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+; To set a counter and use a template for voicemail to users without acounts
+; use something like this
+;
+; email address is in the "account" channel variable. Set from ast_db or a script
+; based on called ID
+
+exten => sendvoicemail,1,answer
+exten => sendvoicemail,n,wait(0.5)
+exten => sendvoicemail,n,set(domain=${CUT(account,@,2)})
+exten => sendvoicemail,n,set(country=${CUT(domain,.,2)})
+exten => sendvoicemail,n,minivmgreet(${account})
+exten => sendvoicemail,n,minivmRecord(${account},b)
+exten => sendvoicemail,n,goto(sendvmcleanup)
+
+exten => sendvmcleanup,1,gotoif($[${MINIVM_RECORD_STATUS} != SUCCESS]?done)
+; The counter is set in the domain directory, so we don't create one directory per user
+; The counter has the email in the name of the counter, increase it
+; Set the MVM_COUNTER variable that we use in the template
+exten => sendvmcleanup,n,set(MINIVMCOUNTER(${account}:voicemailcounter:inc)=1)
+exten => sendvmcleanup,n,set(MVM_COUNTER = ${MINIVMCOUNTER(${account}:voicemailcounter)})
+; Increase a domain counter too, to see how many voicemails are sent to this domain
+; This is just for statistics
+exten => sendvmcleanup,n,set(MINIVMCOUNTER(${domain}:${domain}-all:inc) = 1)
+
+; Send voicemail in e-mail with country-specific template
+; The template need to be defined in minivm.conf
+;
+exten => sendvmcleanup,n,minivmNotify(${account}, ${country}_email)
+exten => sendvmcleanup,n,minivmDelete()
+
+exten => sendvmcleanup,n(done),wait(0.5)
+exten => sendvmcleanup,n,hangup
+
+exten => h,1,gotoif($[${MINIVM_RECORD_STATUS} = SUCCESS]?sendvmcleanup,1))
+

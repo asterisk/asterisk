@@ -1,0 +1,88 @@
+  <!ELEMENT docs (application|function|agi|manager)*>
+  <!ATTLIST docs xmlns:xi CDATA #FIXED "http://www.w3.org/2001/XInclude">
+
+  <!ELEMENT xi:include (xi:fallback?) >
+  <!ATTLIST xi:include 
+  xmlns:xi	CDATA       #FIXED    "http://www.w3.org/2001/XInclude"
+  href		CDATA       #IMPLIED
+  parse		(xml|text)  "xml"
+  xpointer	CDATA       #IMPLIED
+  encoding	CDATA       #IMPLIED 
+  accept	CDATA       #IMPLIED
+  accept-language CDATA  #IMPLIED >
+
+  <!ELEMENT application (synopsis?,syntax?,description?,see-also?)>
+  <!ATTLIST application name CDATA #REQUIRED>
+  <!ATTLIST application language CDATA #REQUIRED>
+  <!ATTLIST application module CDATA #IMPLIED>
+
+  <!ELEMENT function (synopsis?,syntax?,description?,see-also?)>
+  <!ATTLIST function name CDATA #REQUIRED>
+  <!ATTLIST function language CDATA #REQUIRED>
+  <!ATTLIST function module CDATA #IMPLIED>
+
+  <!ELEMENT agi (synopsis?,syntax?,description?,see-also?)>
+  <!ATTLIST agi name CDATA #REQUIRED>
+  <!ATTLIST agi language CDATA #REQUIRED>
+
+  <!ELEMENT manager (synopsis?,syntax?,description?,see-also?)>
+  <!ATTLIST manager name CDATA #REQUIRED>
+  <!ATTLIST manager language CDATA #REQUIRED>
+
+  <!ELEMENT see-also (ref|xi:include)*>
+
+  <!ELEMENT ref (#PCDATA)>
+  <!ATTLIST ref type (application|function|astcli|link|manpage|filename|agi) #REQUIRED>
+
+  <!ELEMENT synopsis (#PCDATA)>
+
+  <!ELEMENT syntax (parameter|xi:include)*>
+  <!ATTLIST syntax argsep CDATA ",">
+
+  <!ELEMENT description (para|note|warning|variablelist|enumlist|xi:include)*>
+
+  <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning|parameter|xi:include)*>
+  <!ATTLIST parameter name CDATA "">
+  <!ATTLIST parameter required (yes|no|true|false) "false">
+  <!ATTLIST parameter multiple (yes|no|true|false) "false">
+  <!ATTLIST parameter hasparams (yes|no|true|false|optional) "false">
+  <!ATTLIST parameter literal (yes|no|true|false) "false">
+  <!ATTLIST parameter default CDATA "">
+  <!ATTLIST parameter argsep CDATA ",">
+
+  <!ELEMENT optionlist (option+)>
+  <!ELEMENT option (argument|para|note|warning|variablelist|enumlist|xi:include)*>
+  <!ATTLIST option name CDATA #REQUIRED>
+  <!ATTLIST option argsep CDATA ",">
+  <!ATTLIST option implies CDATA "">
+  <!ATTLIST option hasparams CDATA "">
+
+  <!ELEMENT enumlist (enum+)>
+  <!ELEMENT enum (para|note|warning|parameter|enumlist|xi:include)*>
+  <!ATTLIST enum name CDATA "">
+
+  <!ELEMENT argument (para|note|warning|variablelist|argument|xi:include)*>
+  <!ATTLIST argument name CDATA #REQUIRED>
+  <!ATTLIST argument multiple (yes|no|true|false) "false">
+  <!ATTLIST argument required (yes|no|true|false) "false">
+  <!ATTLIST argument hasparams (yes|no|true|false|optional) "false">
+  <!ATTLIST argument argsep CDATA ",">
+
+  <!ELEMENT para (#PCDATA|astcli|literal|emphasis|filename|directory|replaceable|variable|xi:include)*>
+  <!ELEMENT literal (#PCDATA)>
+  <!ELEMENT emphasis (#PCDATA)>
+  <!ELEMENT filename (#PCDATA)>
+  <!ELEMENT replaceable (#PCDATA)>
+  <!ELEMENT directory (#PCDATA)>
+  <!ELEMENT astcli (#PCDATA)>
+ 
+  <!ELEMENT note (para+|xi:include*)>
+  <!ELEMENT warning (para+|xi:include*)>
+
+  <!ELEMENT variablelist (variable+|xi:include*)>
+  <!ELEMENT variable (#PCDATA|value|para|xi:include)*>
+  <!ATTLIST variable name CDATA "">
+
+  <!ELEMENT value (#PCDATA)>
+  <!ATTLIST value name CDATA #REQUIRED>
+  <!ATTLIST value default CDATA "">

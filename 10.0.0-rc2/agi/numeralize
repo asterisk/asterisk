@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+#
+# Build a database linking filenames to their numerical representations
+# using a keypad for the DialAnMp3 application
+#
+
+$mp3dir="/usr/media/mpeg3";
+
+dbmopen(%DIGITS, "/var/lib/asterisk/mp3list", 0644) || die("Unable to open mp3list");;
+sub process_dir {
+	my ($dir) = @_;
+	my $file;
+	my $digits;
+	my @entries;
+	opendir(DIR, $dir);
+	@entries = readdir(DIR);
+	closedir(DIR);
+	foreach $_ (@entries) {
+		if (!/^\./) {
+			$file = "$dir/$_";
+			if (-d "$file") {
+				process_dir("$file");
+			} else {
+				$digits = $_;
+				$digits =~ s/[^ \w]+//g;
+				$digits =~ s/\_/ /g;
+				$digits =~ tr/[a-z]/[A-Z]/;
+				$digits =~ tr/[A-C]/2/;
+				$digits =~ tr/[D-F]/3/;
+				$digits =~ tr/[G-I]/4/;
+				$digits =~ tr/[J-L]/5/;
+				$digits =~ tr/[M-O]/6/;
+				$digits =~ tr/[P-S]/7/;
+				$digits =~ tr/[T-V]/8/;
+				$digits =~ tr/[W-Z]/9/;
+				$digits =~ s/\s+/ /;
+				print "File: $file, digits: $digits\n";
+				$DIGITS{$file} = $digits;
+			}
+		}
+	}
+}
+
+process_dir($mp3dir);

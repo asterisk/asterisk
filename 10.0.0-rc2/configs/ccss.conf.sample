@@ -1,0 +1,199 @@
+;
+; --- Call Completion Supplementary Services ---
+;
+; For more information about CCSS, see the CCSS user documentation
+; https://wiki.asterisk.org/wiki/display/AST/Call+Completion+Supplementary+Services+(CCSS)
+;
+
+[general]
+; The cc_max_requests option is a global limit on the number of
+; CC requests that may be in the Asterisk system at any time.
+;
+;cc_max_requests = 20
+;
+; The cc_STATE_devstate variables listed below can be used to change the
+; default mapping of the internal state machine tracking the state of
+; call completion to an Asterisk Device State value. The acceptable values
+; that can be provided are as follows, with a description of what the
+; equivalent device BLF that this maps to:
+;
+;	UNKNOWN      ; Device is valid but channel didn't know state
+;	NOT_INUSE    ; Device is not used
+;	INUSE        ; Device is in use
+;	BUSY         ; Device is busy
+;	INVALID      ; Device is invalid
+;	UNAVAILABLE  ; Device is unavailable
+;	RINGING      ; Device is ringing
+;	RINGINUSE    ; Device is ringing *and* in use
+;	ONHOLD       ; Device is on hold
+;
+; These states are used to generate DEVICE_STATE information that can be
+; included with Asterisk hints for phones to subscribe to the state information
+; or dialplan to check the state using the EXTENSION_STATE() function or
+; the DEVICE_STATE() function.
+;
+; The states are in the format of: "ccss:TECH/ID" so an example of device
+; SIP/3000 making a CallCompletionRequest() could be checked  by looking at
+; DEVICE_STATE(ccss:SIP/3000) or an Asterisk Hint could be generated such as
+;
+; [hint-context]
+; exten => *843000,hint,ccss:SIP/3000
+;
+; and then accessed with EXTENSION_STATE(*843000@hint-context)
+; or subscribed to with a BLF button on a phone.
+;
+; The available state mapping and default values are:
+;
+; cc_available_devstate = NOT_INUSE
+; cc_offered_devstate = NOT_INUSE
+; cc_caller_requested_devstate = NOT_INUSE
+; cc_active_devstate = INUSE
+; cc_callee_ready_devstate = INUSE
+; cc_caller_busy_devstate = ONHOLD
+; cc_recalling_devstate = RINGING
+; cc_complete_devstate = NOT_INUSE
+; cc_failed_devstate = NOT_INUSE
+
+;
+;============================================
+;           PLEASE READ THIS!!!
+; The options described below should NOT be
+; set in this file. Rather, they should be
+; set per-device in a channel driver
+; configuration file.
+;           PLEASE READ THIS!!!
+;===========================================
+;
+;---------------------------------------------------------------------
+;                                Timers
+;---------------------------------------------------------------------
+;There are three configurable timers for all types of CC: the
+;cc_offer_timer, the ccbs_available_timer, and the ccnr_available_timer.
+;In addition, when using a generic agent, there is a fourth timer,
+;the cc_recall_timer. All timers are configured in seconds, and the
+;values shown below are the defaults.
+;
+;When a caller is offered CCBS or CCNR, the cc_offer_timer will
+;be started. If the caller does not request CC before the
+;cc_offer_timer expires, then the caller will be unable to request
+;CC for this call.
+;
+;cc_offer_timer = 20
+;
+;Once a caller has requested CC, then either the ccbs_available_timer
+;or the ccnr_available_timer will run, depending on the service
+;requested. The reason why there are two separate timers for CCBS
+;and CCNR is that it is reasonable to want to have a shorter timeout
+;configured for CCBS than for CCNR. If the available timer expires
+;before the called party becomes available, then the CC attempt
+;will have failed and monitoring of the called party will stop.
+;
+;ccbs_available_timer = 4800
+;ccnr_available_timer = 7200
+;
+; When using a generic agent, the original caller is called back
+; when one of the original called parties becomes available. The
+; cc_recall_timer tells Asterisk how long it should let the original
+; caller's phone ring before giving up. Please note that this parameter
+; only affects operation when using a generic agent.
+;
+;cc_recall_timer = 20
+;---------------------------------------------------------------------
+;                                Policies
+;---------------------------------------------------------------------
+; Policy settings tell Asterisk how to behave and what sort of
+; resources to allocate in order to facilitate CC. There are two
+; settings to control the actions Asterisk will take.
+;
+; The cc_agent_policy describes the behavior that Asterisk will
+; take when communicating with the caller during CC. There are
+; three possible options.
+;
+;never:   Never offer CC to the caller. Setting the cc_agent_policy
+;         to this value is the way to disable CC for a call.
+;
+;generic: A generic CC agent is one which uses no protocol-specific
+;         mechanisms to offer CC to the caller. Instead, the caller
+;         requests CC using a dialplan function. Due to internal
+;         restrictions, you should only use a generic CC agent on
+;         phones (i.e. not "trunks"). If you are using phones which
+;         do not support a protocol-specific method of using CC, then
+;         generic CC agents are what you should use.
+;
+;native:  A native CC agent is one which uses protocol-specific
+;         signaling to offer CC to the caller and accept CC requests
+;         from the caller. The supported protocols for native CC
+;         agents are SIP, ISDN ETSI PTP, ISDN ETSI PTMP, and Q.SIG
+;cc_agent_policy=never
+;
+; The cc_monitor_policy describes the behavior that Asterisk will
+; take when communicating with the called party during CC. There
+; are four possible options.
+;
+;never:   Analogous to the cc_agent_policy setting. We will never
+;         attempt to request CC services on this interface.
+;
+;generic: Analogous to the cc_agent_policy setting. We will monitor
+;         the called party's progress using protocol-agnostic
+;         capabilities. Like with generic CC agents, generic CC
+;         monitors should only be used for phones.
+;
+;native:  Analogous to the cc_agent_policy setting. We will use
+;         protocol-specific methods to request CC from this interface
+;         and to monitor the interface for availability.
+;
+;always:  If an interface is set to "always," then we will accept
+;         protocol-specific CC offers from the caller and use
+;         a native CC monitor for the remainder of the CC transaction.
+;         However, if the interface does not offer protocol-specific
+;         CC, then we will fall back to using a generic CC monitor
+;         instead. This is a good setting to use for phones for which
+;         you do not know if they support protocol-specific CC
+;         methodologies.
+;cc_monitor_policy=never
+;
+;
+;---------------------------------------------------------------------
+;                              Limits
+;---------------------------------------------------------------------
+;
+; The use of CC requires Asterisk to potentially use more memory than
+; some administrators would like. As such, it is a good idea to limit
+; the number of CC requests that can be in the system at a given time.
+; The values shown below are the defaults.
+;
+; The cc_max_agents setting limits the number of outstanding CC
+; requests a caller may have at any given time. Please note that due
+; to implementation restrictions, this setting is ignored when using
+; generic CC agents. Generic CC agents may only have one outstanding
+; CC request.
+;
+;cc_max_agents = 5
+;
+; The cc_max_monitors setting limits the number of outstanding CC
+; requests can be made to a specific interface at a given time.
+;
+;cc_max_monitors = 5
+;
+;---------------------------------------------------------------------
+;                            Other
+;---------------------------------------------------------------------
+;
+; When using a generic CC agent, the caller who requested CC will be
+; called back when a called party becomes available. When the caller
+; answers his phone, the administrator may opt to have a macro run.
+; What this macro does is up to the administrator. By default there
+; is no callback macro configured.
+;
+;cc_callback_macro=
+;
+; When using an ISDN phone and a generic CC agent, Asterisk is unable
+; to determine the dialstring that should be used when calling back
+; the original caller. Furthermore, if you desire to use any dialstring-
+; specific options, such as distinctive ring, you must set this
+; configuration option. For non-ISDN phones, it is not necessary to
+; set this, since Asterisk can determine the dialstring to use since
+; it is identical to the name of the calling device. By default, there
+; is no cc_agent_dialstring set.
+;
+;cc_agent_dialstring=

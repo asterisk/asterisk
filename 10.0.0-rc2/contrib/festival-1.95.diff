@@ -1,0 +1,107 @@
+diff -ur festival-195orig/festival/lib/multisyn/multisyn_pauses.scm festival-195/festival/lib/multisyn/multisyn_pauses.scm
+--- festival-195orig/festival/lib/multisyn/multisyn_pauses.scm	2004-06-21 08:19:30.000000000 -0600
++++ festival-195/festival/lib/multisyn/multisyn_pauses.scm	2005-01-12 18:53:27.000000000 -0700
+@@ -85,8 +85,8 @@
+ (let ((silence (car (cadr (car (PhoneSet.description '(silences))))))
+       (seg (item.relation (find_last_seg word) 'Segment))
+       pause_item)
+-  (format t "  inserting pause after: %s.\n" (item.name seg))
+-  (format t "  Inserting pause\n")
++;  (format t "  inserting pause after: %s.\n" (item.name seg))
++;  (format t "  Inserting pause\n")
+ ; if next seg is not silence insert one.
+   (if (or (not (item.next seg))
+ 	  (not (string-equal (item.name (item.next seg)) silence)))
+diff -ur festival-195orig/festival/lib/tts.scm festival-195/festival/lib/tts.scm
+--- festival-195orig/festival/lib/tts.scm	2003-04-20 10:42:28.000000000 -0600
++++ festival-195/festival/lib/tts.scm	2005-01-04 09:21:31.000000000 -0700
+@@ -235,6 +235,17 @@
+        (utt.synth
+ 	(eval (list 'Utterance 'Text string))))))
+ 
++;; begin tts_textasterisk
++(define (tts_textasterisk string mode)
++  "(tts_textasterisk STRING MODE)
++Apply tts to STRING.  This function is specifically designed for
++use in server mode so a single function call may synthesize the string.
++This function name may be added to the server safe functions."
++  (utt.send.wave.asterisk
++   (utt.synth
++    (eval (list 'Utterance 'Text string)))))
++;; end tts_textasterisk
++
+ (define (tts_return_to_client)
+   "(tts_return_to_client)
+ This function is called by clients who wish to return waveforms of
+diff -ur festival-195orig/festival/src/arch/festival/wave.cc festival-195/festival/src/arch/festival/wave.cc
+--- festival-195orig/festival/src/arch/festival/wave.cc	2004-06-21 14:52:42.000000000 -0600
++++ festival-195/festival/src/arch/festival/wave.cc	2005-01-04 09:26:24.000000000 -0700
+@@ -482,6 +482,7 @@
+ 	type = "nist";
+     else
+ 	type = get_c_string(ltype);
++
+     w->save(tmpfile,type);
+ #ifdef WIN32
+     send(ft_server_socket,"WV\n",3,0);
+@@ -494,6 +495,44 @@
+     return utt;
+ }
+ 
++// begin utt_send_wave_asterisk()
++static LISP utt_send_wave_asterisk(LISP utt)
++{
++    // Send the waveform to a client (must be acting as server)
++    EST_Utterance *u = utterance(utt);
++    EST_Wave *w;
++    EST_String tmpfile = make_tmp_filename();
++    LISP ltype;
++    EST_String type;
++
++    w = get_utt_wave(u);
++    if (ft_server_socket == -1)
++    {
++       cerr << "utt_send_wave_asterisk: not in server mode" << endl;
++       festival_error();
++    }
++       
++    ltype = ft_get_param("Wavefiletype");
++    if (ltype == NIL)
++       type = "nist";
++    else
++       type = get_c_string(ltype);
++    w->resample(8000);
++    w->rescale(5);
++
++    w->save(tmpfile,type);
++#ifdef WIN32
++    send(ft_server_socket,"WV\n",3,0);
++#else
++    write(ft_server_socket,"WV\n",3);
++#endif
++    socket_send_file(ft_server_socket,tmpfile);
++    unlink(tmpfile);
++
++    return utt;
++}
++// end utt_send_wave_asterisk()
++
+ static LISP send_sexpr_to_client(LISP l)
+ {
+     EST_String tmpfile = make_tmp_filename();
+@@ -595,6 +634,15 @@
+  "(utt.send.wave.client UTT)\n\
+   Sends wave in UTT to client.  If not in server mode gives an error\n\
+   Note the client must be expecting to receive the waveform.");
++
++// begin asterisk mod
++    init_subr_1("utt.send.wave.asterisk",utt_send_wave_asterisk,
++ "(utt.send.wave.asterisk UTT)\n\
++  Sends wave in UTT to client.  If not in server mode gives an error\n\
++  Note the client must be expecting to receive the waveform. The waveform\n\
++  is rescaled and resampled according to what asterisk needs");
++// end asterisk mod
++
+     init_subr_1("send_sexpr_to_client", send_sexpr_to_client,
+  "(send_sexpr_to_client SEXPR)\n\
+ Sends given sexpression to currently connected client.");

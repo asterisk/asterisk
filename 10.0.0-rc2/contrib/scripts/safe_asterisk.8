@@ -1,0 +1,69 @@
+.TH SAFE_ASTERISK 8 "Jun 30th, 2005" "Asterisk" "Linux Programmer's Manual"
+.SH NAME
+.B safe_asterisk
+\(em A wrapper to run the asterisk executable in a loop
+.SH SYNOPSIS
+.PP 
+.B safe_asterisk
+.I [ asterisk_params ]
+
+.SH DESCRIPTION
+.B safe_asterisk 
+is a script that runs asterisk in a loop, which can be useful if you 
+fear asterisk may crash.
+
+The script does not run in the background like a standard service. Rather, 
+it runs in its own linux virtual console (9, by default).
+It also uses the option '\-c' of asterisk(8) to avoid detaching asterisk 
+from that terminal.
+
+safe_asterisk also runs asterisk with unlimited core file size, and thus 
+asterisk will dump core in case of a crash.
+
+To get a "picture" of console 9, from another terminal (e.g: from a 
+remote shell session) you can use:
+
+  screendump 9
+
+The init script of the Debian package should be able to run safe_asterisk 
+as the asterisk service, if so configured. See coments in 
+/etc/default/asterisk
+
+.SH FILES
+.B /tmp
+.RS
+safe_asterisk runs in that directory, rather than in / as usual.
+.RE
+
+.B /tmp/core
+.RS
+If core files were generated there, they may be 
+.RE
+
+.B /etc/asterisk/startup.d
+.RS
+Files in this directory will be 'source'd by the safe_asterisk script before
+it starts Asterisk proper, allowing them to set additional environment variables
+or run any other steps that are needed for your system.
+.RE
+
+.SH BUGS
+While showing the output on a console is useful, using screen(1) as 
+the terminal may be better.
+
+The script does not read configuration from standard location under /etc
+
+It uses fixed locations under /tmp , and thus may be exposed to a 
+symlink attacks.
+
+.SH SEE ALSO
+asterisk(8), screendump(9)
+
+.SH "AUTHOR" 
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 
+Permission is granted to copy, distribute and/or modify this document under 
+the terms of the GNU General Public License, Version 2 any  
+later version published by the Free Software Foundation. 
+
+On Debian systems, the complete text of the GNU General Public 
+License can be found in /usr/share/common\-licenses/GPL\-2. 

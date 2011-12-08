@@ -1,0 +1,202 @@
+#!/bin/sh
+# vim:textwidth=80:tabstop=4:shiftwidth=4:smartindent:autoindent
+
+ASTSBINDIR=__ASTERISK_SBIN_DIR__
+ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
+ASTVARLOGDIR=__ASTERISK_LOG_DIR__
+
+CLIARGS="$*"					# Grab any args passed to safe_asterisk
+TTY=9						# TTY (if you want one) for Asterisk to run on
+CONSOLE=yes					# Whether or not you want a console
+#NOTIFY=root@localhost.localdomain		# Who to notify about crashes
+#EXEC=/path/to/somescript			# Run this command if Asterisk crashes
+#LOGFILE=${ASTVARLOGDIR}/safe_asterisk.log	# Where to place the normal logfile (disabled if blank)
+#SYSLOG=local0					# Which syslog facility to use (disabled if blank)
+MACHINE=`hostname`				# To specify which machine has crashed when getting the mail
+DUMPDROP=/tmp
+SLEEPSECS=4
+ASTPIDFILE=${ASTVARRUNDIR}/asterisk.pid
+
+# comment this line out to have this script _not_ kill all mpg123 processes when
+# asterisk exits
+KILLALLMPG123=1
+
+# run asterisk with this priority
+PRIORITY=0
+
+# set system filemax on supported OSes if this variable is set
+# SYSMAXFILES=262144
+
+# Asterisk allows full permissions by default, so set a umask, if you want
+# restricted permissions.
+#UMASK=022
+
+# set max files open with ulimit. On linux systems, this will be automatically
+# set to the system's maximum files open devided by two, if not set here.
+# MAXFILES=32768
+
+message() {
+	echo "$1" >&2
+	if test "x$SYSLOG" != "x" ; then
+	    logger -p "${SYSLOG}.warn" -t safe_asterisk[$$] "$1"
+	fi
+	if test "x$LOGFILE" != "x" ; then
+	    echo "safe_asterisk[$$]: $1" >> "$LOGFILE"
+	fi
+}
+
+# Check if Asterisk is already running.  If it is, then bug out, because
+# starting safe_asterisk when Asterisk is running is very bad.
+VERSION=`${ASTSBINDIR}/asterisk -nrx 'core show version'`
+if test "`echo $VERSION | cut -c 1-8`" = "Asterisk" ; then
+	message "Asterisk is already running.  $0 will exit now."
+	exit 1
+fi
+
+# since we're going to change priority and open files limits, we need to be
+# root. if running asterisk as other users, pass that to asterisk on the command
+# line.
+# if we're not root, fall back to standard everything.
+if test `id -u` != 0 ; then
+	echo "Oops. I'm not root. Falling back to standard prio and file max." >&2
+	echo "This is NOT suitable for large systems." >&2
+	PRIORITY=0
+	message "safe_asterisk was started by `id -n` (uid `id -u`)."
+else
+	if `uname -s | grep Linux >/dev/null 2>&1`; then
+		# maximum number of open files is set to the system maximum divided by two if
+		# MAXFILES is not set.
+		if test "x$MAXFILES" = "x" ; then
+			# just check if file-max is readable
+			if test -r /proc/sys/fs/file-max ; then
+				MAXFILES=$(( `cat /proc/sys/fs/file-max` / 2 ))
+			fi
+		fi
+		SYSCTL_MAXFILES="fs.file-max"
+	elif `uname -s | grep Darwin /dev/null 2>&1`; then
+		SYSCTL_MAXFILES="kern.maxfiles"
+	fi
+
+
+	if test "x$SYSMAXFILES" != "x"; then
+		if test "x$SYSCTL_MAXFILES" != "x"; then
+			sysctl -w $SYSCTL_MAXFILES=$SYSMAXFILES
+		fi
+	fi
+
+	# set the process's filemax to whatever set above
+	ulimit -n $MAXFILES
+
+	if test ! -d ${ASTVARRUNDIR} ; then
+		mkdir -p ${ASTVARRUNDIR}
+		chmod 770 ${ASTVARRUNDIR}
+	fi
+
+fi
+
+if test "x$UMASK" != "x"; then
+	umask $UMASK
+fi
+
+#
+# Let Asterisk dump core
+#
+ulimit -c unlimited
+
+#
+# Don't fork when running "safely"
+#
+ASTARGS=""
+if test "x$TTY" != "x" ; then
+	if test -c /dev/tty${TTY} ; then
+		TTY=tty${TTY}
+	elif test -c /dev/vc/${TTY} ; then
+		TTY=vc/${TTY}
+	else
+		message "Cannot find specified TTY (${TTY})"
+		exit 1
+	fi
+	ASTARGS="${ASTARGS} -vvvg"
+	if test "x$CONSOLE" != "xno" ; then
+		ASTARGS="${ASTARGS} -c"
+	fi
+fi
+if test ! -w "${DUMPDROP}" ; then	
+	message "Cannot write to ${DUMPDROP}"
+	exit 1
+fi
+
+#
+# Don't die if stdout/stderr can't be written to
+#
+trap '' PIPE
+
+#
+# Run scripts to set any environment variables or do any other system-specific setup needed
+#
+
+if test -d /etc/asterisk/startup.d ; then
+	for script in /etc/asterisk/startup.d/*.sh; do
+		if test -r ${script} ; then
+			. ${script}
+		fi
+	done
+fi
+
+run_asterisk()
+{
+	while :; do 
+
+		if test "x$TTY" != "x" ; then
+			cd /tmp
+			stty sane < /dev/${TTY}
+			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
+		else
+			cd /tmp
+			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS}
+		fi
+		EXITSTATUS=$?
+		message "Asterisk ended with exit status $EXITSTATUS"
+		if test "x$EXITSTATUS" = "x0" ; then
+			# Properly shutdown....
+			message "Asterisk shutdown normally."
+			exit 0
+		elif test "0$EXITSTATUS" -gt "128" ; then
+			EXITSIGNAL=$(($EXITSTATUS - 128))
+			echo "Asterisk exited on signal $EXITSIGNAL."
+			if test "x$NOTIFY" != "x" ; then
+				echo "Asterisk on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
+				mail -s "Asterisk Died" $NOTIFY
+				message "Exited on signal $EXITSIGNAL"
+			fi
+			if test "x$EXEC" != "x" ; then
+				$EXEC
+			fi
+
+			PID=`cat ${ASTPIDFILE}`
+			DATE=`date "+%Y-%m-%dT%H:%M:%S%z"`
+			if test -f /tmp/core.${PID} ; then
+				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
+			elif test -f /tmp/core ; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-$DATE &
+			fi
+		else
+			message "Asterisk died with code $EXITSTATUS."
+
+			PID=`cat ${ASTPIDFILE}`
+			DATE=`date "+%Y-%m-%dT%H:%M:%S%z"`
+			if test -f /tmp/core.${PID} ; then
+				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
+			elif test -f /tmp/core ; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-$DATE &
+			fi
+		fi
+		message "Automatically restarting Asterisk."
+		sleep $SLEEPSECS
+		if test "0$KILLALLMPG123" -gt "0" ; then
+			pkill -9 mpg123
+		fi
+	done
+}
+
+run_asterisk &

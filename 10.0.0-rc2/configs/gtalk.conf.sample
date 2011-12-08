@@ -1,0 +1,27 @@
+[general]
+;context=default		; Context to dump call into
+;bindaddr=0.0.0.0		; Address to bind to
+;externip=127.0.0.1		; Set your external ip if you are behind a NAT.
+;stunaddr=mystunserver.com	; Get your external ip from a STUN server.
+				; Note, if the STUN query is successful, this will
+				; replace any value placed in externip;
+;allowguest=yes			; Allow calls from people not in list of peers
+;disallow=all
+;allow=gsm
+;allow=ulaw
+;parkinglot=soccer		; Sets the default parking lot for call parking
+				; Parkinglots are configured in features.conf
+
+;[guest]			; special account for options on guest account
+;disallow=all
+;allow=ulaw
+;context=guest
+
+;[ogorman]
+;username=ogorman@gmail.com	; username of the peer your 
+				; calling or accepting calls from
+;disallow=all
+;allow=ulaw
+;context=default
+;connection=asterisk		; client or component in jabber.conf for the
+				; call to leave on.

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<settings>
+ <phone-settings>
+  <utc_offset perm="">${TZOFFSET}</utc_offset>
+  <dst perm="">3600 ${DST_START_MONTH}.${DST_START_MDAY}.${DST_START_HOUR} 00:00:00 ${DST_END_MONTH}.${DST_END_MDAY}.${DST_END_HOUR} 00:00:00</dst>
+  <challenge_response perm="">off</challenge_response>
+  <filter_registrar perm="">off</filter_registrar>
+  <publish_presence perm="">on</publish_presence>
+  <user_realname idx="1" perm="">${DISPLAY_NAME}</user_realname>
+  <user_name idx="1" perm="">${USERNAME}</user_name>
+  <user_host idx="1" perm="">${SERVER}</user_host>
+  <user_pname idx="1" perm="">${USERNAME}</user_pname>
+  <user_pass idx="1" perm="">${SECRET}</user_pass>
+  <user_outbound idx="1" perm="">${SERVER}</user_outbound>
+  <user_server_type idx="1" perm="">asterisk</user_server_type>
+ </phone-settings>
+ <functionKeys></functionKeys>
+ <tbook>${PP_EACH_USER(
+  <item context="active" type="none" index="">
+   <name>%{DISPLAY_NAME}</name>
+   <number>%{CALLERID}</number>
+  </item>,${MAC})}
+ </tbook>
+</settings>

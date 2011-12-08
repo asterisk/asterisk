@@ -1,0 +1,137 @@
+[general]
+; The default behavior of res_phoneprov will be to set the SERVER template variable to
+; the IP address that the phone uses to contact the provisioning server and the
+; SERVER_PORT variable to the bindport setting in sip.conf.  Unless you have a very
+; unusual setup, you should not need to set serveraddr, serveriface, or serverport.
+
+;serveraddr=192.168.1.1 ; Override address to send to the phone to use as server address.
+;serveriface=eth0       ; Same as above, except an ethernet interface.
+                        ; Useful for when the interface uses DHCP and the asterisk http
+                        ; server listens on a different IP than chan_sip.
+;serverport=5060        ; Override port to send to the phone to use as server port.
+default_profile=polycom ; The default profile to use if none specified in users.conf
+
+; You can define profiles for different phones specifying what files to register
+; with the provisioning server.  You can define either static files, or dynamically
+; generated files that can have dynamic names and point to templates that variables
+; can be substituted into.  You can also set arbitrary variables for the profiles
+; templates to have access to.  Example:
+
+;[example]
+;mime_type => application/octet-stream
+;static_file => example/firmware
+;static_file => example/default.cfg,text/xml
+;${TOUPPER(${MAC})}.cfg => templates/example-mac.cfg
+;setvar => DB_CIDNAME=${ODBC_CID_NAME_LOOKUP(${USERNAME})}
+
+; Dynamically generated files have a filename registered with variable substitution
+; with variables obtained while reading users.conf.
+
+; Built in variables and the options in users.conf that they come from
+;   MAC (macaddress)
+;   USERNAME (username)
+;   DISPLAY_NAME (fullname)
+;   SECRET (secret)
+;   LABEL (label)
+;   CALLERID (cid_number)
+;   VOCIEMAIL_EXTEN (vmexten)
+;   EXTENSION_LENGTH (localextenlength)
+;   LINE
+;   LINEKEYS
+
+; Built-in variables and the options in phoneprov.conf that they come from
+;   SERVER (server)
+;   SERVER_PORT (serverport)
+
+
+; Built-in variables for managing timezones and daylight savings time.
+;   TZOFFSET
+;   DST_ENABLE
+;   DST_START_MONTH
+;   DST_START_MDAY
+;   DST_START_HOUR
+;   DST_END_MONTH
+;   DST_END_MDAY
+;   DST_END_HOUR
+;   TIMEZONE
+
+[polycom]
+staticdir => configs/ ; Sub directory of AST_DATA_DIR/phoneprov that static files reside
+                      ; in. This allows a request to /phoneprov/sip.cfg to pull the file
+                      ; from /phoneprov/configs/sip.cfg
+mime_type => text/xml ; Default mime type to use if one isn't specified or the
+                      ; extension isn't recognized
+static_file => bootrom.ld,application/octet-stream ; Static files the phone will download
+static_file => bootrom.ver,plain/text              ; static_file => filename,mime-type
+static_file => sip.ld,application/octet-stream
+static_file => sip.ver,plain/text
+static_file => sip.cfg
+static_file => custom.cfg
+static_file => 2201-06642-001.bootrom.ld,application/octet-stream
+static_file => 2201-06642-001.sip.ld,application/octet-stream
+static_file => 2345-11000-001.bootrom.ld,application/octet-stream
+static_file => 2345-11300-001.bootrom.ld,application/octet-stream
+static_file => 2345-11300-010.bootrom.ld,application/octet-stream
+static_file => 2345-11300-010.sip.ld,application/octet-stream
+static_file => 2345-11402-001.bootrom.ld,application/octet-stream
+static_file => 2345-11402-001.sip.ld,application/octet-stream
+static_file => 2345-11500-001.bootrom.ld,application/octet-stream
+static_file => 2345-11500-010.bootrom.ld,application/octet-stream
+static_file => 2345-11500-020.bootrom.ld,application/octet-stream
+static_file => 2345-11500-030.bootrom.ld,application/octet-stream
+static_file => 2345-11500-030.sip.ld,application/octet-stream
+static_file => 2345-11500-040.bootrom.ld,application/octet-stream
+static_file => 2345-11500-040.sip.ld,application/octet-stream
+static_file => 2345-11600-001.bootrom.ld,application/octet-stream
+static_file => 2345-11600-001.sip.ld,application/octet-stream
+static_file => 2345-11605-001.bootrom.ld,application/octet-stream
+static_file => 2345-11605-001.sip.ld,application/octet-stream
+static_file => 2345-12200-001.bootrom.ld,application/octet-stream
+static_file => 2345-12200-001.sip.ld,application/octet-stream
+static_file => 2345-12200-002.bootrom.ld,application/octet-stream
+static_file => 2345-12200-002.sip.ld,application/octet-stream
+static_file => 2345-12200-004.bootrom.ld,application/octet-stream
+static_file => 2345-12200-004.sip.ld,application/octet-stream
+static_file => 2345-12200-005.bootrom.ld,application/octet-stream
+static_file => 2345-12200-005.sip.ld,application/octet-stream
+static_file => 2345-12365-001.bootrom.ld,application/octet-stream
+static_file => 2345-12365-001.sip.ld,application/octet-stream
+static_file => 2345-12500-001.bootrom.ld,application/octet-stream
+static_file => 2345-12500-001.sip.ld,application/octet-stream
+static_file => 2345-12560-001.bootrom.ld,application/octet-stream
+static_file => 2345-12560-001.sip.ld,application/octet-stream
+static_file => 2345-12600-001.bootrom.ld,application/octet-stream
+static_file => 2345-12600-001.sip.ld,application/octet-stream
+static_file => 2345-12670-001.bootrom.ld,application/octet-stream
+static_file => 2345-12670-001.sip.ld,application/octet-stream
+static_file => 3111-15600-001.bootrom.ld,application/octet-stream
+static_file => 3111-15600-001.sip.ld,application/octet-stream
+static_file => 3111-40000-001.bootrom.ld,application/octet-stream
+static_file => 3111-40000-001.sip.ld,application/octet-stream
+static_file => SoundPointIPWelcome.wav,application/octet-stream
+static_file => SoundPointIPLocalization/Japanese_Japan/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Norwegian_Norway/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Spanish_Spain/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Portuguese_Portugal/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/English_United_Kingdom/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/English_United_States/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Russian_Russia/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Italian_Italy/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Chinese_China/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Swedish_Sweden/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/English_Canada/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/German_Germany/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/French_France/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Danish_Denmark/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Dutch_Netherlands/SoundPointIP-dictionary.xml
+static_file => SoundPointIPLocalization/Korean_Korea/SoundPointIP-dictionary.xml
+
+${MAC}.cfg => 000000000000.cfg               ; Dynamically generated files.
+${MAC}-phone.cfg => 000000000000-phone.cfg   ; (relative to AST_DATA_DIR/phoneprov)
+config/${MAC} => polycom.xml                 ; Dynamic Filename => template file
+${MAC}-directory.xml => 000000000000-directory.xml
+setvar => CUSTOM_CONFIG=/var/lib/asterisk/phoneprov/configs/custom.cfg  ; Custom variable
+
+;snom 300, 320, 360, 370, 820, 821, 870 support
+snom-${MAC}.xml => snom-mac.xml
+
