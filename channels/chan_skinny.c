@@ -5935,7 +5935,9 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 
 	if (reference) {
 		sub = find_subchannel_by_instance_reference(d, instance, reference);
-		l = sub->line;
+		if (sub) {
+			l = sub->line;
+		}
 	}
 	if (!sub) {
 		if (instance) {
