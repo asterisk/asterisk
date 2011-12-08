@@ -1,3 +1,0 @@
-/\/\*\*\* DOCUMENTATION/ {printit=1; next}
-/\*\*\*\// {if (printit) exit}
-{if (printit) print}
