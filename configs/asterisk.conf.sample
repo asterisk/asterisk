@@ -9,6 +9,7 @@ astagidir => /var/lib/asterisk/agi-bin
 astspooldir => /var/spool/asterisk
 astrundir => /var/run/asterisk
 astlogdir => /var/log/asterisk
+astsbindir => /usr/sbin
 
 [options]
 ;verbose = 3

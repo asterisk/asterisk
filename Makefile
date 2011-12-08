@@ -40,6 +40,8 @@ export ASTERISKVERSIONNUM
 # DESTDIR is the staging (or final) directory where files are copied
 # during the install process. Define it before 'export', otherwise
 # export will set it to the empty string making ?= fail.
+# Trying to run asterisk from the DESTDIR is completely unsupported
+# behavior.
 # WARNING: do not put spaces or comments after the value.
 DESTDIR?=$(INSTALL_PATH)
 export DESTDIR
@@ -405,7 +407,7 @@ $(MOD_SUBDIRS):
 $(OTHER_SUBDIRS):
 	+@_ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(_ASTCFLAGS)" ASTCFLAGS="$(ASTCFLAGS)" _ASTLDFLAGS="$(_ASTLDFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(SUBMAKE) --no-builtin-rules -C $@ SUBDIR=$@ all
 
-defaults.h: makeopts
+defaults.h: makeopts build_tools/make_defaults_h
 	@build_tools/make_defaults_h > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp

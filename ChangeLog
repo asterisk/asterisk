@@ -1,6 +1,34 @@
-2011-11-23  Asterisk Development Team <asteriskteam@digium.com>
+2011-12-08  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.0.0-rc3 Released.
+
+	* Add ASTSBINDIR to the list of configurable paths
+
+	  This patch also makes astdb2sqlite3 and astcanary use the configured
+	  directory instead of relying on $PATH.
+
+	  (closes issue ASTERISK-18959)
+	  Review: https://reviewboard.asterisk.org/r/1613/
+
+	* Don't crash on INFO automon request with no channel
+
+	  AST-2011-014. When automon was enabled in features.conf, it was possible
+	  to crash Asterisk by sending an INFO request if no channel had been
+	  created yet.
+
+	  (closes issue ASTERISK-18805)
+
+	* Fixed crash from orphaned MWI subscriptions in chan_sip
+
+	  This patch resolves the issue where MWI subscriptions are orphaned
+	  by subsequent SIP SUBSCRIBE messages.  When a peer is removed, either
+	  by pruning realtime SIP peers or by unloading / loading chan_sip, the
+	  MWI subscriptions that were orphaned would still be on the event engine
+	  list of valid subscriptions but have a pointer to a peer that no longer
+	  was valid.  When an MWI event would occur, this would cause a seg fault.
+
+	  (closes issue ASTERISK-18663)
+	  Review: https://reviewboard.asterisk.org/r/1610/
 
 	* Fix a change in behavior in 'database show' from 1.8.
 
@@ -12,7 +40,7 @@
 
 	* Default to nat=yes; warn when nat in general and peer differ
 
-	  It is possible to enumerate SIP usernames when the general and
+	  AST-2011-013.  It is possible to enumerate SIP usernames when the general and
 	  user/peer nat settings differ in whether to respond to the port a request is
 	  sent from or the port listed for responses in the Via header. In 1.4 and
 	  1.6.2, this would mean if one setting was nat=yes or nat=route and the other
