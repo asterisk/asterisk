@@ -27893,10 +27893,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 						peer->transports |= SIP_TRANSPORT_UDP;
 					} else if (sip_cfg.tcp_enabled && !strncasecmp(trans, "tcp", 3)) {
 						peer->transports |= SIP_TRANSPORT_TCP;
-					} else if (sip_cfg.tcp_enabled && !strncasecmp(trans, "tls", 3)) {
+					} else if (default_tls_cfg.enabled && !strncasecmp(trans, "tls", 3)) {
 						peer->transports |= SIP_TRANSPORT_TLS;
-					} else if (!sip_cfg.tcp_enabled && (!strncasecmp(trans, "tcp", 3) || !strncasecmp(trans, "tls", 3))) {
-						ast_log(LOG_WARNING, "'%s' is not a valid transport type when tcpenabled=no. if no other is specified, the defaults from general will be used.\n", trans);
+					} else if (!strncasecmp(trans, "tcp", 3) || !strncasecmp(trans, "tls", 3)) {
+						ast_log(LOG_WARNING, "'%.3s' is not a valid transport type when %.3senabled=no. If no other is specified, the defaults from general will be used.\n", trans, trans);
 					} else {
 						ast_log(LOG_NOTICE, "'%s' is not a valid transport type. if no other is specified, the defaults from general will be used.\n", trans);
 					}
@@ -29305,11 +29305,22 @@ static int reload_config(enum channelreloadreason reason)
 		sip_cfg.allow_external_domains = 1;
 	}
 	/* If not or badly configured, set default transports */
-	if (!sip_cfg.tcp_enabled && ((default_transports & SIP_TRANSPORT_TCP) || (default_transports & SIP_TRANSPORT_TLS))) {
-		ast_log(LOG_WARNING, "Cannot use 'tcp' or 'tls' transport with tcpenable=no. Falling back to 'udp'.\n");
+	if (!sip_cfg.tcp_enabled && (default_transports & SIP_TRANSPORT_TCP)) {
+		ast_log(LOG_WARNING, "Cannot use 'tcp' transport with tcpenable=no. Removing from available transports.\n");
+		default_primary_transport &= ~SIP_TRANSPORT_TCP;
+		default_transports &= ~SIP_TRANSPORT_TCP;
+	}
+	if (!default_tls_cfg.enabled && (default_transports & SIP_TRANSPORT_TLS)) {
+		ast_log(LOG_WARNING, "Cannot use 'tls' transport with tlsenable=no. Removing from available transports.\n");
+		default_primary_transport &= ~SIP_TRANSPORT_TLS;
+		default_transports &= ~SIP_TRANSPORT_TLS;
+	}
+	if (!default_transports) {
+		ast_log(LOG_WARNING, "No valid transports available, falling back to 'udp'.\n");
 		default_transports = default_primary_transport = SIP_TRANSPORT_UDP;
-	} else if (default_transports == 0) {
-		default_transports = default_primary_transport = SIP_TRANSPORT_UDP;
+	} else if (!default_primary_transport) {
+		ast_log(LOG_WARNING, "No valid default transport. Selecting 'udp' as default.\n");
+		default_primary_transport = SIP_TRANSPORT_UDP;
 	}
 
 	/* Build list of authentication to various SIP realms, i.e. service providers */
