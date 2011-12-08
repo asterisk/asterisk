@@ -1,3 +1,36 @@
+2011-12-08  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.0.0-rc4 Released.
+
+	* Don't crash on INFO automon request with no channel
+
+	  AST-2011-014. When automon was enabled in features.conf, it was possible
+	  to crash Asterisk by sending an INFO request if no channel had been
+	  created yet.
+
+	  (closes issue ASTERISK-18805)
+	  
+	  Merged revisions 347530 from http://svn.asterisk.org/svn/asterisk/branches/1.6.2
+
+	  Merged revisions 347531 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+
+	* Fixed crash from orphaned MWI subscriptions in chan_sip
+
+	  This patch resolves the issue where MWI subscriptions are orphaned
+	  by subsequent SIP SUBSCRIBE messages.  When a peer is removed, either
+	  by pruning realtime SIP peers or by unloading / loading chan_sip, the
+	  MWI subscriptions that were orphaned would still be on the event engine
+	  list of valid subscriptions but have a pointer to a peer that no longer
+	  was valid.  When an MWI event would occur, this would cause a seg fault.
+
+	  (closes issue ASTERISK-18663)
+	  Reported by: Ross Beer
+	  Tested by: Ross Beer, Matt Jordan
+	  Review: https://reviewboard.asterisk.org/r/1610/
+
+	  Merged revisions 347058 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+
 2011-11-23  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.0.0-rc3 Released.
