@@ -19192,11 +19192,18 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			per device. I don't want incoming callers to record calls in my
 			pbx.
 		*/
-		/* first, get the feature string, if it exists */
+		
 		struct ast_call_feature *feat;
 		int j;
 		struct ast_frame f = { AST_FRAME_DTMF, };
 
+		if (!p->owner) {        /* not a PBX call */
+			transmit_response(p, "481 Call leg/transaction does not exist", req);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			return;
+		}
+
+		/* first, get the feature string, if it exists */
 		ast_rdlock_call_features();
 		feat = ast_find_call_feature("automon");
 		if (!feat || ast_strlen_zero(feat->exten)) {
