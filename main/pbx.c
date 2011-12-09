@@ -1138,9 +1138,6 @@ static void new_find_extension(const char *str, struct scoreboard *score,
 static struct match_char *already_in_tree(struct match_char *current, char *pat, int is_pattern);
 static struct match_char *add_exten_to_pattern_tree(struct ast_context *con,
 		struct ast_exten *e1, int findonly);
-static struct match_char *add_pattern_node(struct ast_context *con,
-		struct match_char *current, char *pattern, int is_pattern,
-		int already, int specificity, struct match_char **parent);
 static void create_match_char_tree(struct ast_context *con);
 static struct ast_exten *get_canmatch_exten(struct match_char *node);
 static void destroy_pattern_tree(struct match_char *pattern_tree);
@@ -1161,17 +1158,23 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 static struct ast_context *find_context_locked(const char *context);
 static struct ast_context *find_context(const char *context);
 
-/* a func for qsort to use to sort a char array */
+/*!
+ * \internal
+ * \brief Character array comparison function for qsort.
+ *
+ * \param a Left side object.
+ * \param b Right side object.
+ *
+ * \retval <0 if a < b
+ * \retval =0 if a = b
+ * \retval >0 if a > b
+ */
 static int compare_char(const void *a, const void *b)
 {
-	const char *ac = a;
-	const char *bc = b;
-	if ((*ac) < (*bc))
-		return -1;
-	else if ((*ac) == (*bc))
-		return 0;
-	else
-		return 1;
+	const unsigned char *ac = a;
+	const unsigned char *bc = b;
+
+	return *ac - *bc;
 }
 
 /* labels, contexts are case sensitive  priority numbers are ints */
@@ -2035,34 +2038,42 @@ static void insert_in_next_chars_alt_char_list(struct match_char **parent_ptr, s
 
 }
 
-static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity, struct match_char **nextcharptr)
+struct pattern_node {
+	/*! Pattern node specificity */
+	int specif;
+	/*! Pattern node match characters. */
+	char buf[256];
+};
+
+static struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, const struct pattern_node *pattern, int is_pattern, int already, struct match_char **nextcharptr)
 {
 	struct match_char *m;
-	
-	if (!(m = ast_calloc(1, sizeof(*m) + strlen(pattern)))) {
+
+	if (!(m = ast_calloc(1, sizeof(*m) + strlen(pattern->buf)))) {
 		return NULL;
 	}
 
 	/* strcpy is safe here since we know its size and have allocated
 	 * just enough space for when we allocated m
 	 */
-	strcpy(m->x, pattern);
+	strcpy(m->x, pattern->buf);
 
 	/* the specificity scores are the same as used in the old
 	   pattern matcher. */
 	m->is_pattern = is_pattern;
-	if (specificity == 1 && is_pattern && pattern[0] == 'N')
+	if (pattern->specif == 1 && is_pattern && pattern->buf[0] == 'N') {
 		m->specificity = 0x0832;
-	else if (specificity == 1 && is_pattern && pattern[0] == 'Z')
+	} else if (pattern->specif == 1 && is_pattern && pattern->buf[0] == 'Z') {
 		m->specificity = 0x0931;
-	else if (specificity == 1 && is_pattern && pattern[0] == 'X')
+	} else if (pattern->specif == 1 && is_pattern && pattern->buf[0] == 'X') {
 		m->specificity = 0x0a30;
-	else if (specificity == 1 && is_pattern && pattern[0] == '.')
+	} else if (pattern->specif == 1 && is_pattern && pattern->buf[0] == '.') {
 		m->specificity = 0x18000;
-	else if (specificity == 1 && is_pattern && pattern[0] == '!')
+	} else if (pattern->specif == 1 && is_pattern && pattern->buf[0] == '!') {
 		m->specificity = 0x28000;
-	else
-		m->specificity = specificity;
+	} else {
+		m->specificity = pattern->specif;
+	}
 
 	if (!con->pattern_tree) {
 		insert_in_next_chars_alt_char_list(&con->pattern_tree, m);
@@ -2077,111 +2088,220 @@ static struct match_char *add_pattern_node(struct ast_context *con, struct match
 	return m;
 }
 
+/*!
+ * \internal
+ * \brief Extract the next exten pattern node.
+ *
+ * \param node Pattern node to fill.
+ * \param src Next source character to read.
+ * \param pattern TRUE if the exten is a pattern.
+ * \param extenbuf Original exten buffer to use in diagnostic messages.
+ *
+ * \retval Ptr to next extenbuf pos to read.
+ */
+static const char *get_pattern_node(struct pattern_node *node, const char *src, int pattern, const char *extenbuf)
+{
+#define INC_DST_OVERFLOW_CHECK							\
+	do {												\
+		if (dst - node->buf < sizeof(node->buf) - 1) {	\
+			++dst;										\
+		} else {										\
+			overflow = 1;								\
+		}												\
+	} while (0)
+
+	node->specif = 0;
+	node->buf[0] = '\0';
+	while (*src) {
+		if (*src == '[' && pattern) {
+			char *dst = node->buf;
+			const char *src_next;
+			int length;
+			int overflow = 0;
+
+			/* get past the '[' */
+			++src;
+			for (;;) {
+				if (*src == '\\') {
+					/* Escaped character. */
+					++src;
+					if (*src == '[' || *src == '\\' || *src == '-' || *src == ']') {
+						*dst = *src++;
+						INC_DST_OVERFLOW_CHECK;
+					}
+				} else if (*src == '-') {
+					unsigned char first;
+					unsigned char last;
+
+					src_next = src;
+					first = *(src_next - 1);
+					last = *++src_next;
+
+					if (last == '\\') {
+						/* Escaped character. */
+						last = *++src_next;
+					}
+
+					/* Possible char range. */
+					if (node->buf[0] && last) {
+						/* Expand the char range. */
+						while (++first <= last) {
+							*dst = first;
+							INC_DST_OVERFLOW_CHECK;
+						}
+						src = src_next + 1;
+					} else {
+						/*
+						 * There was no left or right char for the range.
+						 * It is just a '-'.
+						 */
+						*dst = *src++;
+						INC_DST_OVERFLOW_CHECK;
+					}
+				} else if (*src == '\0') {
+					ast_log(LOG_WARNING,
+						"A matching ']' was not found for '[' in exten pattern '%s'\n",
+						extenbuf);
+					break;
+				} else if (*src == ']') {
+					++src;
+					break;
+				} else {
+					*dst = *src++;
+					INC_DST_OVERFLOW_CHECK;
+				}
+			}
+			/* null terminate the exploded range */
+			*dst = '\0';
+
+			if (overflow) {
+				ast_log(LOG_ERROR,
+					"Expanded character set too large to deal with in exten pattern '%s'. Ignoring character set.\n",
+					extenbuf);
+				node->buf[0] = '\0';
+				continue;
+			}
+
+			/* Sort the characters in character set. */
+			length = strlen(node->buf);
+			if (!length) {
+				ast_log(LOG_WARNING, "Empty character set in exten pattern '%s'. Ignoring.\n",
+					extenbuf);
+				node->buf[0] = '\0';
+				continue;
+			}
+			qsort(node->buf, length, 1, compare_char);
+
+			/* Remove duplicate characters from character set. */
+			dst = node->buf;
+			src_next = node->buf;
+			while (*src_next++) {
+				if (*dst != *src_next) {
+					*++dst = *src_next;
+				}
+			}
+
+			length = strlen(node->buf);
+			length <<= 8;
+			node->specif = length | (unsigned char) node->buf[0];
+			break;
+		} else if (*src == '-') {
+			/* Skip dashes in all extensions. */
+			++src;
+		} else {
+			if (*src == '\\') {
+				/*
+				 * XXX The escape character here does not remove any special
+				 * meaning to characters except the '[', '\\', and '-'
+				 * characters since they are special only in this function.
+				 */
+				node->buf[0] = *++src;
+				if (!node->buf[0]) {
+					break;
+				}
+			} else {
+				node->buf[0] = *src;
+				if (pattern) {
+					/* make sure n,x,z patterns are canonicalized to N,X,Z */
+					if (node->buf[0] == 'n') {
+						node->buf[0] = 'N';
+					} else if (node->buf[0] == 'x') {
+						node->buf[0] = 'X';
+					} else if (node->buf[0] == 'z') {
+						node->buf[0] = 'Z';
+					}
+				}
+			}
+			node->buf[1] = '\0';
+			node->specif = 1;
+			++src;
+			break;
+		}
+	}
+	return src;
+
+#undef INC_DST_OVERFLOW_CHECK
+}
+
 static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1, int findonly)
 {
-	struct match_char *m1 = NULL, *m2 = NULL, **m0;
-	int specif;
+	struct match_char *m1 = NULL;
+	struct match_char *m2 = NULL;
+	struct match_char **m0;
+	const char *pos;
 	int already;
 	int pattern = 0;
-	char buf[256];
+	int idx_cur;
+	int idx_next;
 	char extenbuf[512];
-	char *s1 = extenbuf;
-	int l1 = strlen(e1->exten) + strlen(e1->cidmatch) + 2;
+	struct pattern_node pat_node[2];
 
-
-	ast_copy_string(extenbuf, e1->exten, sizeof(extenbuf));
-
-	if (e1->matchcid &&  l1 <= sizeof(extenbuf)) {
-		strcat(extenbuf, "/");
-		strcat(extenbuf, e1->cidmatch);
-	} else if (l1 > sizeof(extenbuf)) {
-		ast_log(LOG_ERROR, "The pattern %s/%s is too big to deal with: it will be ignored! Disaster!\n", e1->exten, e1->cidmatch);
-		return 0;
+	if (e1->matchcid) {
+		if (sizeof(extenbuf) < strlen(e1->exten) + strlen(e1->cidmatch) + 2) {
+			ast_log(LOG_ERROR,
+				"The pattern %s/%s is too big to deal with: it will be ignored! Disaster!\n",
+				e1->exten, e1->cidmatch);
+			return NULL;
+		}
+		sprintf(extenbuf, "%s/%s", e1->exten, e1->cidmatch);/* Safe.  We just checked. */
+	} else {
+		ast_copy_string(extenbuf, e1->exten, sizeof(extenbuf));
 	}
+
 #ifdef NEED_DEBUG
-	ast_debug(1, "Adding exten %s%c%s to tree\n", s1, e1->matchcid ? '/' : ' ', e1->matchcid ? e1->cidmatch : "");
+	ast_debug(1, "Adding exten %s to tree\n", extenbuf);
 #endif
 	m1 = con->pattern_tree; /* each pattern starts over at the root of the pattern tree */
 	m0 = &con->pattern_tree;
 	already = 1;
 
-	if ( *s1 == '_') {
+	pos = extenbuf;
+	if (*pos == '_') {
 		pattern = 1;
-		s1++;
+		++pos;
 	}
-	while (*s1) {
-		if (pattern && *s1 == '[' && *(s1 - 1) != '\\') {
-			char *s2 = buf;
-			buf[0] = 0;
-			s1++; /* get past the '[' */
-			while (*s1 != ']' && *(s1 - 1) != '\\') {
-				if (*s1 == '\\') {
-					if (*(s1 + 1) == ']') {
-						*s2++ = ']';
-						s1 += 2;
-					} else if (*(s1 + 1) == '\\') {
-						*s2++ = '\\';
-						s1 += 2;
-					} else if (*(s1 + 1) == '-') {
-						*s2++ = '-';
-						s1 += 2;
-					} else if (*(s1 + 1) == '[') {
-						*s2++ = '[';
-						s1 += 2;
-					}
-				} else if (*s1 == '-') { /* remember to add some error checking to all this! */
-					char s3 = *(s1 - 1);
-					char s4 = *(s1 + 1);
-					for (s3++; s3 <= s4; s3++) {
-						*s2++ = s3;
-					}
-					s1 += 2;
-				} else if (*s1 == '\0') {
-					ast_log(LOG_WARNING, "A matching ']' was not found for '[' in pattern string '%s'\n", extenbuf);
-					break;
-				} else {
-					*s2++ = *s1++;
-				}
-			}
-			*s2 = 0; /* null terminate the exploded range */
-			/* sort the characters */
+	idx_cur = 0;
+	pos = get_pattern_node(&pat_node[idx_cur], pos, pattern, extenbuf);
+	for (; pat_node[idx_cur].buf[0]; idx_cur = idx_next) {
+		idx_next = (idx_cur + 1) % ARRAY_LEN(pat_node);
+		pos = get_pattern_node(&pat_node[idx_next], pos, pattern, extenbuf);
 
-			specif = strlen(buf);
-			qsort(buf, specif, 1, compare_char);
-			specif <<= 8;
-			specif += buf[0];
-		} else if (*s1 == '-') {
-			/* Skip dashes in patterns */
-			s1++;
-			continue;
-		} else {
-			if (*s1 == '\\') {
-				s1++;
-				buf[0] = *s1;
-			} else {
-				if (pattern) {
-					if (*s1 == 'n') { /* make sure n,x,z patterns are canonicalized to N,X,Z */
-						*s1 = 'N';
-					} else if (*s1 == 'x') {
-						*s1 = 'X';
-					} else if (*s1 == 'z') {
-						*s1 = 'Z';
-					}
-				}
-				buf[0] = *s1;
-			}
-			buf[1] = 0;
-			specif = 1;
-		}
-		m2 = 0;
-		if (already && (m2 = already_in_tree(m1, buf, pattern)) && m2->next_char) {
-			if (!(*(s1 + 1))) {  /* if this is the end of the pattern, but not the end of the tree, then mark this node with the exten...
-								a shorter pattern might win if the longer one doesn't match */
+		/* See about adding node to tree. */
+		m2 = NULL;
+		if (already && (m2 = already_in_tree(m1, pat_node[idx_cur].buf, pattern))
+			&& m2->next_char) {
+			if (!pat_node[idx_next].buf[0]) {
+				/*
+				 * This is the end of the pattern, but not the end of the tree.
+				 * Mark this node with the exten... a shorter pattern might win
+				 * if the longer one doesn't match.
+				 */
 				if (findonly) {
 					return m2;
 				}
 				if (m2->exten) {
-					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n", m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
+					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n",
+						m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
 				}
 				m2->exten = e1;
 				m2->deleted = 0;
@@ -2198,14 +2318,16 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 				if (findonly) {
 					return m1;
 				}
-				if (!(m1 = add_pattern_node(con, m1, buf, pattern, already,specif, m0))) { /* m1 is the node just added */
+				m1 = add_pattern_node(con, m1, &pat_node[idx_cur], pattern, already, m0);
+				if (!m1) { /* m1 is the node just added */
 					return NULL;
 				}
 				m0 = &m1->next_char;
 			}
-			if (!(*(s1 + 1))) {
+			if (!pat_node[idx_next].buf[0]) {
 				if (m2 && m2->exten) {
-					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n", m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
+					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n",
+						m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
 				}
 				m1->deleted = 0;
 				m1->exten = e1;
@@ -2216,7 +2338,6 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 			 */
 			already = 0;
 		}
-		s1++; /* advance to next char */
 	}
 	return m1;
 }
