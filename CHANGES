@@ -45,6 +45,15 @@ Queue changes
  * Added queue options autopausebusy and autopauseunavail for automatically
    pausing a queue member when their device reports busy or congestion.
 
+Applications
+------------
+ * Added 'j' option to SayUnixTime. SayUnixTime no longer auto jumps to extension
+   when receiving DTMF.  Use the 'j' option to enable extension jumping. Also
+   changed arguments to SayUnixTime so that every option is truly optional even
+   when using multiple options (so that j option could be used without having to
+   manually specify timezone and format) There are other beneftis eg. format can
+   now be used without specifying time zone as well.
+
 CDR postgresql driver changes
 -----------------------------
  * Added command "cdr show pgsql status" to check connection status

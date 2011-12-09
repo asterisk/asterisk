@@ -46,15 +46,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Says a specified time in a custom format.
 		</synopsis>
 		<syntax>
-			<parameter name="unixtime">
+			<parameter name="unixtime" required="false">
 				<para>time, in seconds since Jan 1, 1970.  May be negative. Defaults to now.</para>
 			</parameter>
-			<parameter name="timezone">
+			<parameter name="timezone" required="false" >
 				<para>timezone, see <directory>/usr/share/zoneinfo</directory> for a list. Defaults to machine default.</para>
 			</parameter>
-			<parameter name="format">
+			<parameter name="format" required="false" >
 				<para>a format the time is to be said in.  See <filename>voicemail.conf</filename>.
 				Defaults to <literal>ABdY "digits/at" IMp</literal></para>
+			</parameter>
+			<parameter name="options" required="false">
+				 <optionlist>
+					<option name="j">
+						<para>Allow the calling user to dial digits to jump to that extension.</para>
+					</option>
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
@@ -90,6 +97,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  ***/
 
+enum {
+	OPT_JUMP =          (1 << 0),
+};
+
+enum {
+	OPT_ARG_JUMP = 0,
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE,
+};
+
+AST_APP_OPTIONS(sayunixtime_exec_options, BEGIN_OPTIONS
+	AST_APP_OPTION_ARG('j', OPT_JUMP, OPT_ARG_JUMP),
+END_OPTIONS );
+
 static char *app_sayunixtime = "SayUnixTime";
 static char *app_datetime = "DateTime";
 
@@ -99,26 +120,42 @@ static int sayunixtime_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(timeval);
 		AST_APP_ARG(timezone);
 		AST_APP_ARG(format);
+		AST_APP_ARG(options);
 	);
 	char *parse;
 	int res = 0;
 	time_t unixtime;
-	
-	if (!data)
+	/* New default behavior is do not jump on key pressed */
+	const char * haltondigits = AST_DIGIT_NONE;
+	struct ast_flags64 opts = { 0, };
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+
+	if (!data) {
 		return 0;
+	}
 
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_get_time_t(args.timeval, &unixtime, time(NULL), NULL);
+	/* check if we had the 'j' jump flag in option list */
+	if (!ast_strlen_zero(args.options))	{
+		ast_app_parse_options64(sayunixtime_exec_options, &opts, opt_args, args.options);
+		if (ast_test_flag64(&opts, OPT_JUMP)){
+			haltondigits = AST_DIGIT_ANY;
+		}
+	}
 
-	if (chan->_state != AST_STATE_UP)
+	ast_get_time_t(ast_strlen_zero(args.timeval) ? NULL : args.timeval, &unixtime, time(NULL), NULL);
+
+	if (chan->_state != AST_STATE_UP) {
 		res = ast_answer(chan);
+	}
 
-	if (!res)
-		res = ast_say_date_with_format(chan, unixtime, AST_DIGIT_ANY,
-					       chan->language, args.format, args.timezone);
+	if (!res) {
+		res = ast_say_date_with_format(chan, unixtime, haltondigits,
+					       chan->language, ast_strlen_zero(args.format) ? NULL : args.format, ast_strlen_zero(args.timezone) ? NULL : args.timezone);
+	}
 
 	return res;
 }
