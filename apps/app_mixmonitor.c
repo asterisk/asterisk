@@ -165,6 +165,54 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This action may be used to mute a MixMonitor recording.</para>
 		</description>
 	</manager>
+	<manager name="MixMonitor" language="en_US">
+		<synopsis>
+			Record a call and mix the audio during the recording.  Use of StopMixMonitor is required
+			to guarantee the audio file is available for processing during dialplan execution.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>Used to specify the channel to record.</para>
+			</parameter>
+			<parameter name="File">
+				<para>Is the name of the file created in the monitor spool directory.
+				Defaults to the same name as the channel (with slashes replaced with dashes).
+				This argument is optional if you specify to record unidirectional audio with
+				either the r(filename) or t(filename) options in the options field. If
+				neither MIXMONITOR_FILENAME or this parameter is set, the mixed stream won't
+				be recorded.</para>
+			</parameter>
+			<parameter name="options">
+				<para>Options that apply to the MixMonitor in the same way as they
+				would apply if invoked from the MixMonitor application. For a list of
+				available options, see the documentation for the mixmonitor application. </para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action records the audio on the current channel to the specified file.</para>
+			<variablelist>
+				<variable name="MIXMONITOR_FILENAME">
+					<para>Will contain the filename used to record the mixed stream.</para>
+				</variable>
+			</variablelist>
+		</description>
+	</manager>
+	<manager name="StopMixMonitor" language="en_US">
+		<synopsis>
+			Stop recording a call through MixMonitor, and free the recording's file handle.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The name of the channel monitored.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This action stops the audio recording that was started with the <literal>MixMonitor</literal>
+			action on the current channel.</para>
+		</description>
+	</manager>
 
  ***/
 
@@ -852,6 +900,95 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 	return AMI_SUCCESS;
 }
 
+static int manager_mixmonitor(struct mansession *s, const struct message *m)
+{
+	struct ast_channel *c = NULL;
+
+	const char *name = astman_get_header(m, "Channel");
+	const char *id = astman_get_header(m, "ActionID");
+	const char *file = astman_get_header(m, "File");
+	const char *options = astman_get_header(m, "Options");
+
+	int res;
+	char args[PATH_MAX] = "";
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return AMI_SUCCESS;
+	}
+
+	c = ast_channel_get_by_name(name);
+
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return AMI_SUCCESS;
+	}
+
+	strcpy(args, file);
+	strcat(args, ",");
+	strcat(args, options);
+
+	ast_channel_lock(c);
+	res = mixmonitor_exec(c, args);
+	ast_channel_unlock(c);
+
+	if (res) {
+		astman_send_error(s, m, "Could not start monitoring channel");
+		return AMI_SUCCESS;
+	}
+
+	astman_append(s, "Response: Success\r\n");
+
+	if (!ast_strlen_zero(id)) {
+		astman_append(s, "ActionID: %s\r\n", id);
+	}
+
+	astman_append(s, "\r\n");
+
+	c = ast_channel_unref(c);
+
+	return AMI_SUCCESS;
+}
+
+static int manager_stop_mixmonitor(struct mansession *s, const struct message *m)
+{
+	struct ast_channel *c = NULL;
+
+	const char *name = astman_get_header(m, "Channel");
+	const char *id = astman_get_header(m, "ActionID");
+
+	int res;
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return AMI_SUCCESS;
+	}
+
+	c = ast_channel_get_by_name(name);
+
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return AMI_SUCCESS;
+	}
+
+	res = stop_mixmonitor_exec(c, NULL);
+
+	if (res) {
+		astman_send_error(s, m, "Could not stop monitoring channel");
+		return AMI_SUCCESS;
+	}
+
+	astman_append(s, "Response: Success\r\n");
+
+	if (!ast_strlen_zero(id)) {
+		astman_append(s, "ActionID: %s\r\n", id);
+	}
+
+	astman_append(s, "\r\n");
+
+	c = ast_channel_unref(c);
+
+	return AMI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_mixmonitor[] = {
 	AST_CLI_DEFINE(handle_cli_mixmonitor, "Execute a MixMonitor command")
 };
@@ -864,7 +1001,9 @@ static int unload_module(void)
 	res = ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
 	res |= ast_manager_unregister("MixMonitorMute");
-	
+	res |= ast_manager_unregister("MixMonitor");
+	res |= ast_manager_unregister("StopMixMonitor");
+
 	return res;
 }
 
@@ -876,6 +1015,8 @@ static int load_module(void)
 	res = ast_register_application_xml(app, mixmonitor_exec);
 	res |= ast_register_application_xml(stop_app, stop_mixmonitor_exec);
 	res |= ast_manager_register_xml("MixMonitorMute", 0, manager_mute_mixmonitor);
+	res |= ast_manager_register_xml("MixMonitor", 0, manager_mixmonitor);
+	res |= ast_manager_register_xml("StopMixMonitor", 0, manager_stop_mixmonitor);
 
 	return res;
 }
