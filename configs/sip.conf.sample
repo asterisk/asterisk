@@ -112,7 +112,7 @@
 ; "setvar" to set variables that can be used in the dialplan for various limits.
 
 [general]
-context=default                 ; Default context for incoming calls
+context=public                  ; Default context for incoming calls. Defaults to 'default'
 ;allowguest=no                  ; Allow or reject guest calls (default is yes)
 				; If your Asterisk is connected to the Internet
 				; and you have allowguest=yes
