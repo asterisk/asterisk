@@ -1751,6 +1751,11 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp
 {
 	const char *c;
 
+	/* Check for verboser preamble */
+	if (*s == 127) {
+		s++;
+	}
+
 	if (!strncmp(s, cmp, strlen(cmp))) {
 		c = s + strlen(cmp);
 		term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
@@ -1759,25 +1764,10 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp
 	return NULL;
 }
 
-/* These gymnastics are due to platforms which designate char as unsigned by
- * default. Level is the negative character -- offset by 1, because \0 is the
- * EOS delimiter. */
-#define VERBOSE_MAGIC2LEVEL(x) (((char) -*(signed char *) (x)) - 1)
-#define VERBOSE_HASMAGIC(x)	(*(signed char *) (x) < 0)
-
 static void console_verboser(const char *s)
 {
 	char tmp[80];
 	const char *c = NULL;
-	char level = 0;
-
-	if (VERBOSE_HASMAGIC(s)) {
-		level = VERBOSE_MAGIC2LEVEL(s);
-		s++;
-		if (level > option_verbose) {
-			return;
-		}
-	}
 
 	if ((c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_4)) ||
 	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_3)) ||
@@ -1786,11 +1776,14 @@ static void console_verboser(const char *s)
 		fputs(tmp, stdout);
 		fputs(c, stdout);
 	} else {
+		if (*s == 127) {
+			s++;
+		}
 		fputs(s, stdout);
 	}
 
 	fflush(stdout);
-
+	
 	/* Wake up a poll()ing console */
 	if (ast_opt_console && consolethread != AST_PTHREADT_NULL) {
 		pthread_kill(consolethread, SIGURG);
@@ -1839,26 +1832,8 @@ static int remoteconsolehandler(char *s)
 		else
 			ast_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		ret = 1;
-	} else if (strncasecmp(s, "remote set verbose ", 19) == 0) {
-		if (strncasecmp(s + 19, "atleast ", 8) == 0) {
-			int tmp;
-			if (sscanf(s + 27, "%d", &tmp) != 1) {
-				fprintf(stderr, "Usage: remote set verbose [atleast] <level>\n");
-			} else {
-				if (tmp > option_verbose) {
-					option_verbose = tmp;
-				}
-				fprintf(stdout, "Set remote console verbosity to %d\n", option_verbose);
-			}
-		} else {
-			if (sscanf(s + 19, "%d", &option_verbose) != 1) {
-				fprintf(stderr, "Usage: remote set verbose [atleast] <level>\n");
-			} else {
-				fprintf(stdout, "Set remote console verbosity to %d\n", option_verbose);
-			}
-		}
-		ret = 1;
-	} else if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
+	}
+	if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
 	    (s[4] == '\0' || isspace(s[4]))) {
 		quit_handler(0, 0, 0, 0);
 		ret = 1;
@@ -2161,23 +2136,6 @@ static struct ast_cli_entry cli_asterisk[] = {
 #endif /* ! LOW_MEMORY */
 };
 
-struct el_read_char_state_struct {
-	unsigned int line_full:1;
-	unsigned int prev_line_full:1;
-	char prev_line_verbosity;
-};
-
-static int el_read_char_state_init(void *ptr)
-{
-	struct el_read_char_state_struct *state = ptr;
-	state->line_full = 1;
-	state->prev_line_full = 1;
-	state->prev_line_verbosity = 0;
-	return 0;
-}
-
-AST_THREADSTORAGE_CUSTOM(el_read_char_state, el_read_char_state_init, ast_free_ptr);
-
 static int ast_el_read_char(EditLine *editline, char *cp)
 {
 	int num_read = 0;
@@ -2187,7 +2145,6 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 	int max;
 #define EL_BUF_SIZE 512
 	char buf[EL_BUF_SIZE];
-	struct el_read_char_state_struct *state = ast_threadstorage_get(&el_read_char_state, sizeof(*state));
 
 	for (;;) {
 		max = 1;
@@ -2217,8 +2174,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			}
 		}
 		if (fds[0].revents) {
-			char level = 0;
-			char *curline = buf, *nextline;
+			char *tmp;
 			res = read(ast_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
 			if (res < 1) {
@@ -2251,37 +2207,22 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 
 			buf[res] = '\0';
 
+			/* Strip preamble from asynchronous events, too */
+			for (tmp = buf; *tmp; tmp++) {
+				if (*tmp == 127) {
+					memmove(tmp, tmp + 1, strlen(tmp));
+					tmp--;
+					res--;
+				}
+			}
+
 			/* Write over the CLI prompt */
 			if (!ast_opt_exec && !lastpos) {
 				if (write(STDOUT_FILENO, "\r[0K", 5) < 0) {
 				}
 			}
-
-			do {
-				state->prev_line_full = state->line_full;
-				if ((nextline = strchr(curline, '\n'))) {
-					state->line_full = 1;
-					nextline++;
-				} else {
-					state->line_full = 0;
-					nextline = strchr(curline, '\0');
-				}
-
-				if (state->prev_line_full && VERBOSE_HASMAGIC(curline)) {
-					level = VERBOSE_MAGIC2LEVEL(curline);
-					curline++;
-				} else {
-					level = state->prev_line_verbosity;
-				}
-				if ((!state->prev_line_full && state->prev_line_verbosity <= option_verbose) || (state->prev_line_full && level <= option_verbose)) {
-					if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
-					}
-				}
-
-				state->prev_line_verbosity = level;
-				curline = nextline;
-			} while (!ast_strlen_zero(curline));
-
+			if (write(STDOUT_FILENO, buf, res) < 0) {
+			}
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (buf[res-2] == '\n'))) {
 				*cp = CC_REFRESH;
 				return(1);
@@ -2792,20 +2733,22 @@ static void ast_remotecontrol(char *data)
 	else
 		pid = -1;
 	if (!data) {
-		if (!ast_opt_mute) {
+		char tmp[80];
+		snprintf(tmp, sizeof(tmp), "core set verbose atleast %d", option_verbose);
+		fdsend(ast_consock, tmp);
+		snprintf(tmp, sizeof(tmp), "core set debug atleast %d", option_debug);
+		fdsend(ast_consock, tmp);
+		if (!ast_opt_mute)
 			fdsend(ast_consock, "logger mute silent");
-		} else {
+		else 
 			printf("log and verbose output currently muted ('logger mute' to unmute)\n");
-		}
 	}
 
 	if (ast_opt_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
-		int linefull = 1, prev_linefull = 1, prev_line_verbose = 0;
 		struct pollfd fds;
 		fds.fd = ast_consock;
 		fds.events = POLLIN;
 		fds.revents = 0;
-
 		while (ast_poll(&fds, 1, 60000) > 0) {
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
@@ -2819,34 +2762,18 @@ static void ast_remotecontrol(char *data)
 			}
 
 			do {
-				prev_linefull = linefull;
 				if ((nextline = strchr(curline, '\n'))) {
-					linefull = 1;
 					nextline++;
 				} else {
-					linefull = 0;
 					nextline = strchr(curline, '\0');
 				}
 
 				/* Skip verbose lines */
-				/* Prev line full? | Line is verbose | Last line verbose? | Print
-				 * TRUE            | TRUE*           | TRUE               | FALSE
-				 * TRUE            | TRUE*           | FALSE              | FALSE
-				 * TRUE            | FALSE*          | TRUE               | TRUE
-				 * TRUE            | FALSE*          | FALSE              | TRUE
-				 * FALSE           | TRUE            | TRUE*              | FALSE
-				 * FALSE           | TRUE            | FALSE*             | TRUE
-				 * FALSE           | FALSE           | TRUE*              | FALSE
-				 * FALSE           | FALSE           | FALSE*             | TRUE
-				 */
-				if ((!prev_linefull && !prev_line_verbose) || (prev_linefull && *curline > 0)) {
-					prev_line_verbose = 0;
+				if (*curline != 127) {
 					not_written = 0;
 					if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
 						ast_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
 					}
-				} else {
-					prev_line_verbose = 1;
 				}
 				curline = nextline;
 			} while (!ast_strlen_zero(curline));
@@ -2885,6 +2812,14 @@ static void ast_remotecontrol(char *data)
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
+				/* Strip preamble from output */
+				char *temp;
+				for (temp = ebuf; *temp; temp++) {
+					if (*temp == 127) {
+						memmove(temp, temp + 1, strlen(temp));
+						temp--;
+					}
+				}
 				res = write(ast_consock, ebuf, strlen(ebuf) + 1);
 				if (res < 1) {
 					ast_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));

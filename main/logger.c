@@ -101,8 +101,6 @@ struct logchannel {
 	int disabled;
 	/*! syslog facility */
 	int facility;
-	/*! Verbosity level */
-	int verbosity;
 	/*! Type of log channel */
 	enum logtypes type;
 	/*! logfile logging file pointer */
@@ -211,23 +209,18 @@ AST_THREADSTORAGE(log_buf);
 
 static void logger_queue_init(void);
 
-static unsigned int make_components(const char *s, int lineno, int *verbosity)
+static unsigned int make_components(const char *s, int lineno)
 {
 	char *w;
 	unsigned int res = 0;
 	char *stringp = ast_strdupa(s);
 	unsigned int x;
 
-	*verbosity = 3;
-
 	while ((w = strsep(&stringp, ","))) {
 		w = ast_skip_blanks(w);
 
 		if (!strcmp(w, "*")) {
 			res = 0xFFFFFFFF;
-			break;
-		} else if (!strncasecmp(w, "verbose(", 8) && sscanf(w + 8, "%d)", verbosity) == 1) {
-			res |= (1 << __LOG_VERBOSE);
 			break;
 		} else for (x = 0; x < ARRAY_LEN(levels); x++) {
 			if (levels[x] && !strcasecmp(w, levels[x])) {
@@ -307,7 +300,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 		}
 		chan->type = LOGTYPE_FILE;
 	}
-	chan->logmask = make_components(chan->components, lineno, &chan->verbosity);
+	chan->logmask = make_components(chan->components, lineno);
 
 	return chan;
 }
@@ -440,6 +433,11 @@ void ast_child_verbose(int level, const char *fmt, ...)
 	char *msg = NULL, *emsg = NULL, *sptr, *eptr;
 	va_list ap, aq;
 	int size;
+
+	/* Don't bother, if the level isn't that high */
+	if (option_verbose < level) {
+		return;
+	}
 
 	va_start(ap, fmt);
 	va_copy(aq, ap);
@@ -970,23 +968,15 @@ static void ast_log_vsyslog(struct logmsg *msg)
 	syslog(syslog_level, "%s", buf);
 }
 
-/* These gymnastics are due to platforms which designate char as unsigned by
- * default. Level is the negative character -- offset by 1, because \0 is the
- * EOS delimiter. */
-#define VERBOSE_MAGIC2LEVEL(x) (((char) -*(signed char *) (x)) - 1)
-#define VERBOSE_HASMAGIC(x)	(*(signed char *) (x) < 0)
-
 /*! \brief Print a normal log message to the channels */
 static void logger_print_normal(struct logmsg *logmsg)
 {
 	struct logchannel *chan = NULL;
 	char buf[BUFSIZ];
 	struct verb *v = NULL;
-	int level = 0;
 
 	if (logmsg->level == __LOG_VERBOSE) {
 		char *tmpmsg = ast_strdupa(logmsg->message + 1);
-		level = VERBOSE_MAGIC2LEVEL(logmsg->message);
 		/* Iterate through the list of verbosers and pass them the log message string */
 		AST_RWLIST_RDLOCK(&verbosers);
 		AST_RWLIST_TRAVERSE(&verbosers, v, list)
@@ -1000,13 +990,8 @@ static void logger_print_normal(struct logmsg *logmsg)
 	if (!AST_RWLIST_EMPTY(&logchannels)) {
 		AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
 			/* If the channel is disabled, then move on to the next one */
-			if (chan->disabled) {
+			if (chan->disabled)
 				continue;
-			}
-			if (logmsg->level == __LOG_VERBOSE && level > chan->verbosity) {
-				continue;
-			}
-
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << logmsg->level))) {
 				ast_log_vsyslog(logmsg);
@@ -1234,11 +1219,20 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		}
 		return;
 	}
+	
+	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
+	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
+	   is zero, if option_verbose is non-zero (this allows for 'level zero'
+	   LOG_DEBUG messages to be displayed, if the logmask on any channel
+	   allows it)
+	*/
+	if (!option_verbose && !option_debug && (level == __LOG_DEBUG))
+		return;
 
 	/* Ignore anything that never gets logged anywhere */
 	if (level != __LOG_VERBOSE && !(global_logmask & (1 << level)))
 		return;
-
+	
 	/* Build string */
 	va_start(ap, fmt);
 	res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
@@ -1498,31 +1492,13 @@ void ast_backtrace(void)
 #endif /* defined(HAVE_BKTR) */
 }
 
-void __ast_verbose_ap(const char *file, int line, const char *func, int level, const char *fmt, va_list ap)
+void __ast_verbose_ap(const char *file, int line, const char *func, const char *fmt, va_list ap)
 {
 	struct ast_str *buf = NULL;
 	int res = 0;
-	const char *prefix = level >= 4 ? VERBOSE_PREFIX_4 : level == 3 ? VERBOSE_PREFIX_3 : level == 2 ? VERBOSE_PREFIX_2 : level == 1 ? VERBOSE_PREFIX_1 : "";
-	signed char magic = level > 127 ? -128 : -level - 1; /* 0 => -1, 1 => -2, etc.  Can't pass NUL, as it is EOS-delimiter */
 
-	/* For compatibility with modules still calling ast_verbose() directly instead of using ast_verb() */
-	if (level < 0) {
-		if (!strncmp(fmt, VERBOSE_PREFIX_4, strlen(VERBOSE_PREFIX_4))) {
-			magic = -5;
-		} else if (!strncmp(fmt, VERBOSE_PREFIX_3, strlen(VERBOSE_PREFIX_3))) {
-			magic = -4;
-		} else if (!strncmp(fmt, VERBOSE_PREFIX_2, strlen(VERBOSE_PREFIX_2))) {
-			magic = -3;
-		} else if (!strncmp(fmt, VERBOSE_PREFIX_1, strlen(VERBOSE_PREFIX_1))) {
-			magic = -2;
-		} else {
-			magic = -1;
-		}
-	}
-
-	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE))) {
+	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
 		return;
-	}
 
 	if (ast_opt_timestamp) {
 		struct timeval now;
@@ -1533,12 +1509,12 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, c
 		now = ast_tvnow();
 		ast_localtime(&now, &tm, NULL);
 		ast_strftime(date, sizeof(date), dateformat, &tm);
-		datefmt = alloca(strlen(date) + 3 + strlen(prefix) + strlen(fmt) + 1);
-		sprintf(datefmt, "%c[%s] %s%s", (char) magic, date, prefix, fmt);
+		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
+		sprintf(datefmt, "%c[%s] %s", 127, date, fmt);
 		fmt = datefmt;
 	} else {
-		char *tmp = alloca(strlen(prefix) + strlen(fmt) + 2);
-		sprintf(tmp, "%c%s%s", (char) magic, prefix, fmt);
+		char *tmp = alloca(strlen(fmt) + 2);
+		sprintf(tmp, "%c%s", 127, fmt);
 		fmt = tmp;
 	}
 
@@ -1546,19 +1522,18 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, c
 	res = ast_str_set_va(&buf, 0, fmt, ap);
 
 	/* If the build failed then we can drop this allocated message */
-	if (res == AST_DYNSTR_BUILD_FAILED) {
+	if (res == AST_DYNSTR_BUILD_FAILED)
 		return;
-	}
 
 	ast_log(__LOG_VERBOSE, file, line, func, "%s", ast_str_buffer(buf));
 }
 
-void __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...)
+void __ast_verbose(const char *file, int line, const char *func, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	__ast_verbose_ap(file, line, func, level, fmt, ap);
+	__ast_verbose_ap(file, line, func, fmt, ap);
 	va_end(ap);
 }
 
@@ -1570,7 +1545,7 @@ void ast_verbose(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	__ast_verbose_ap("", 0, "", 0, fmt, ap);
+	__ast_verbose_ap("", 0, "", fmt, ap);
 	va_end(ap);
 }
 
@@ -1617,7 +1592,7 @@ static void update_logchannels(void)
 	global_logmask = 0;
 
 	AST_RWLIST_TRAVERSE(&logchannels, cur, list) {
-		cur->logmask = make_components(cur->components, cur->lineno, &cur->verbosity);
+		cur->logmask = make_components(cur->components, cur->lineno);
 		global_logmask |= cur->logmask;
 	}
 
