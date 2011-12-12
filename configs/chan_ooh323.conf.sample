@@ -88,7 +88,7 @@ gatekeeper = DISABLE
 
 ;Sets default context all clients will be placed in.
 ;Default - default
-context=default
+context=public
 
 ;Sets rtptimeout for all clients, unless overridden
 ;Default - 60 seconds

@@ -77,7 +77,7 @@ language=en
 ;
 ; Default context
 ;
-context=default
+context=public
 
 ;
 ; Echo cancellation

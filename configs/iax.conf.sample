@@ -409,7 +409,7 @@ autokill=yes
 ;
 [guest]
 type=user
-context=default
+context=public
 callerid="Guest IAX User"
 
 ;

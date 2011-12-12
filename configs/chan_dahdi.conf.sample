@@ -51,9 +51,9 @@
 ;
 ;language=en
 ;
-; Context for calls. Defaults to 'default'
+; Context for incoming calls. Defaults to 'default'
 ;
-;context=incoming
+context=public
 ;
 ; Switchtype:  Only used for PRI.
 ;
