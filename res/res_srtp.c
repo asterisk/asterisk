@@ -56,6 +56,7 @@ struct ast_srtp {
 	void *data;
 	int warned;
 	unsigned char buf[8192 + AST_FRIENDLY_OFFSET];
+	unsigned char rtcpbuf[8192 + AST_FRIENDLY_OFFSET];
 };
 
 struct ast_srtp_policy {
@@ -401,19 +402,22 @@ static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int rt
 static int ast_srtp_protect(struct ast_srtp *srtp, void **buf, int *len, int rtcp)
 {
 	int res;
+	unsigned char *localbuf;
 
 	if ((*len + SRTP_MAX_TRAILER_LEN) > sizeof(srtp->buf)) {
 		return -1;
 	}
+	
+	localbuf = rtcp ? srtp->rtcpbuf : srtp->buf;
 
-	memcpy(srtp->buf, *buf, *len);
+	memcpy(localbuf, *buf, *len);
 
-	if ((res = rtcp ? srtp_protect_rtcp(srtp->session, srtp->buf, len) : srtp_protect(srtp->session, srtp->buf, len)) != err_status_ok && res != err_status_replay_fail) {
+	if ((res = rtcp ? srtp_protect_rtcp(srtp->session, localbuf, len) : srtp_protect(srtp->session, localbuf, len)) != err_status_ok && res != err_status_replay_fail) {
 		ast_log(LOG_WARNING, "SRTP protect: %s\n", srtp_errstr(res));
 		return -1;
 	}
 
-	*buf = srtp->buf;
+	*buf = localbuf;
 	return *len;
 }
 
