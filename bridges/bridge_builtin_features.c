@@ -69,10 +69,10 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 }
 
 /*! \brief Helper function that creates an outgoing channel and returns it immediately */
-static struct ast_channel *dial_transfer(const struct ast_channel *caller, const char *exten, const char *context)
+static struct ast_channel *dial_transfer(struct ast_channel *caller, const char *exten, const char *context)
 {
-	char destination[AST_MAX_EXTENSION+AST_MAX_CONTEXT+1] = "";
-	struct ast_channel *chan = NULL;
+	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 1];
+	struct ast_channel *chan;
 	int cause;
 
 	/* Fill the variable with the extension and context we want to call */
@@ -83,8 +83,13 @@ static struct ast_channel *dial_transfer(const struct ast_channel *caller, const
 		return NULL;
 	}
 
-	/* Before we actually dial out let's inherit the appropriate dialplan variables */
+	/* Before we actually dial out let's inherit appropriate information. */
+	ast_channel_lock_both(caller, chan);
+	ast_connected_line_copy_from_caller(&chan->connected, &caller->caller);
 	ast_channel_inherit_variables(caller, chan);
+	ast_channel_datastore_inherit(caller, chan);
+	ast_channel_unlock(chan);
+	ast_channel_unlock(caller);
 
 	/* Since the above worked fine now we actually call it and return the channel */
 	if (ast_call(chan, destination, 0)) {
