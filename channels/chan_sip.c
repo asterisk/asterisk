@@ -21140,8 +21140,14 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	 * -1 means did not respond, 0 means unknown,
 	 * 1..maxms is a valid response, >maxms means late response.
 	 */
-	if (pingtime < 1)	/* zero = unknown, so round up to 1 */
+	if (pingtime < 1) {	/* zero = unknown, so round up to 1 */
 		pingtime = 1;
+	}
+
+	if (!peer->maxms) { /* this should never happens */
+		pvt_set_needdestroy(p, "got OPTIONS response but qualify is not enabled");
+		return;
+	}
 
 	/* Now determine new state and whether it has changed.
 	 * Use some helper variables to simplify the writing
@@ -21415,7 +21421,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		return;
 	}
 
-	if (p->relatedpeer && p->method == SIP_OPTIONS) {
+	if (p->relatedpeer && sipmethod == SIP_OPTIONS) {
 		/* We don't really care what the response is, just that it replied back.
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "definitive" */
