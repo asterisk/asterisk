@@ -43,8 +43,8 @@ context => parkedcalls          ; Which context parked calls are in (default par
                                 ;         created in the 'park-dial' context.  This extension will be set up to do a
                                 ;         Dial() to 'SIP/0004F2040001'.
                                 ;
-								;         During the timeout procedure, the following variable is set
-								;         PARKINGSLOT - extension that the call was parked in prior to timing out
+                                ;         During the timeout procedure, the following variable is set
+                                ;         PARKINGSLOT - extension that the call was parked in prior to timing out
 
 ;courtesytone = beep            ; Sound file to play to when someone picks up a parked call
                                 ; and also when the Touch Monitor is activated/deactivated.
