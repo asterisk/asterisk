@@ -1713,7 +1713,6 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	/* initialize output channel variables */
 	pbx_builtin_setvar_helper(chan, "FAXSTATUS", "FAILED");
 	pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", NULL);
-	pbx_builtin_setvar_helper(chan, "LOCALSTATIONID", NULL);
 	pbx_builtin_setvar_helper(chan, "FAXPAGES", "0");
 	pbx_builtin_setvar_helper(chan, "FAXBITRATE", NULL);
 	pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", NULL);
@@ -2183,7 +2182,6 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	/* initialize output channel variables */
 	pbx_builtin_setvar_helper(chan, "FAXSTATUS", "FAILED");
 	pbx_builtin_setvar_helper(chan, "REMOTESTATIONID", NULL);
-	pbx_builtin_setvar_helper(chan, "LOCALSTATIONID", NULL);
 	pbx_builtin_setvar_helper(chan, "FAXPAGES", "0");
 	pbx_builtin_setvar_helper(chan, "FAXBITRATE", NULL);
 	pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", NULL);
