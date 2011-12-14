@@ -6372,11 +6372,16 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 	buf[0] = '\0';
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
+		ast_log(LOG_ERROR, "Missing required argument. %s(<queuename>,<option>[<interface>])\n", cmd);
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc < 2) {
+		ast_log(LOG_ERROR, "Missing required argument. %s(<queuename>,<option>[<interface>])\n", cmd);
+		return -1;
+	}
 
 	if ((q = find_load_queue_rt_friendly(args.queuename))) {
 		ao2_lock(q);
@@ -6427,6 +6432,9 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 			   ((m = interface_exists(q, args.interface)))) {
 			count = m->ignorebusy;
 			ao2_ref(m, -1);
+		} else {
+			ast_log(LOG_ERROR, "Unknown option %s provided to %s, valid values are: "
+				"logged, free, ready, count, penalty, paused, ignorebusy\n", args.option, cmd);
 		}
 		ao2_unlock(q);
 		queue_t_unref(q, "Done with temporary reference in QUEUE_MEMBER()");
