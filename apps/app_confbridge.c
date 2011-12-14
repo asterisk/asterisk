@@ -2700,7 +2700,8 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 	} else if (!strncasecmp(args.type, "locked", 6)) {
 		count = bridge->locked;
 	} else {
-		ast_log(LOG_ERROR, "Invalid keyword.\n");
+		ast_log(LOG_ERROR, "Invalid keyword '%s' passed to CONFBRIDGE_INFO.  Should be one of: "
+			"parties, admins, marked, or locked.\n", args.type);
 	}
 	snprintf(buf, len, "%d", count);
 	ao2_unlock(bridge);
