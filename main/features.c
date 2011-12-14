@@ -4632,6 +4632,7 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 
 				snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
 				pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
+				pbx_builtin_setvar_helper(chan, "PARKEDLOT", pu->parkinglot->name);
 				set_c_e_p(chan, "parkedcallstimeout", peername_flat, 1);
 			}
 		} else {
