@@ -45,6 +45,13 @@ Queue changes
  * Added queue options autopausebusy and autopauseunavail for automatically
    pausing a queue member when their device reports busy or congestion.
 
+Voicemail changes
+-----------------
+ * When voicemail plays a message's envelope with saycid set to yes, when reaching
+   the caller id field it will play a recording of a file with the same base name
+   as the sender's callerid if there is a similarly named file in
+   <astspooldir>/recordings/callerids/
+
 Applications
 ------------
  * Added 'j' option to SayUnixTime. SayUnixTime no longer auto jumps to extension

@@ -224,7 +224,10 @@ pagerdateformat=%A, %B %d, %Y at %r
 			; Useful if Windows users want wav49, but Linux users want gsm.
 			; [per-mailbox only]
 ; saycid=yes 		; Say the caller id information before the message. If not described,
-			;     or set to no, it will be in the envelope
+			;     or set to no, it will be in the envelope. When enabled, if a recorded file 
+			;     with the same name as the caller id exists in 
+			;     <astspooldir>/recordings/callerids, then that file will be played as a name
+			;     rather than saying each digit as a phone number.
 ; cidinternalcontexts=intern	; Internal Context for Name Playback instead of
 			; extension digits when saying caller id.
 ; sayduration=no 	; Turn on/off the duration information before the message. [ON by default]

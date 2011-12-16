@@ -7605,7 +7605,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 
 
 
-static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms, char *cid, const char *context, int callback)
+static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms, char *cid, const char *context, int callback, int saycidnumber)
 {
 	int res = 0;
 	int i;
@@ -7637,7 +7637,8 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 			if (!res) {
 				snprintf(prefile, sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, context, callerid);
 				if (!ast_strlen_zero(prefile)) {
-				/* See if we can find a recorded name for this person instead of their extension number */
+					/* See if we can find a recorded name for this callerid
+					 * and if found, use that instead of saying number. */
 					if (ast_fileexists(prefile, NULL, NULL) > 0) {
 						ast_verb(3, "Playing envelope info: CID number '%s' matches mailbox number, playing recorded name\n", callerid);
 						if (!callback)
@@ -7654,10 +7655,23 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 			}
 		} else if (!res) {
 			ast_debug(1, "VM-CID: Numeric caller id: (%s)\n", callerid);
-			/* Since this is all nicely figured out, why not say "from phone number" in this case? */
-			if (!callback)
-				res = wait_file2(chan, vms, "vm-from-phonenumber");
-			res = ast_say_digit_str(chan, callerid, AST_DIGIT_ANY, chan->language);
+			/* If there is a recording for this numeric callerid then play that */
+			if (!callback) {
+				/* See if we can find a recorded name for this person instead of their extension number */
+				snprintf(prefile, sizeof(prefile), "%s/recordings/callerids/%s", ast_config_AST_SPOOL_DIR, callerid);
+				if (!saycidnumber && ast_fileexists(prefile, NULL, NULL) > 0) {
+					ast_verb(3, "Playing recorded name for CID number '%s' - '%s'\n", callerid,prefile);
+					wait_file2(chan, vms, "vm-from");
+					res = ast_stream_and_wait(chan, prefile, "");
+					ast_verb(3, "Played recorded name result '%d'\n", res);
+				} else {
+					/* Since this is all nicely figured out, why not say "from phone number" in this case" */
+					wait_file2(chan, vms, "vm-from-phonenumber");
+					res = ast_say_digit_str(chan, callerid, AST_DIGIT_ANY, chan->language);
+				}
+			} else {
+				res = ast_say_digit_str(chan, callerid, AST_DIGIT_ANY, chan->language);
+			}
 		}
 	} else {
 		/* Number unknown */
@@ -7842,7 +7856,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		res = play_message_datetime(chan, vmu, origtime, filename);
 	}
 	if ((!res) && (ast_test_flag(vmu, VM_SAYCID))) {
-		res = play_message_callerid(chan, vms, cid, context, 0);
+		res = play_message_callerid(chan, vms, cid, context, 0, 0);
 	}
 	if ((!res) && (ast_test_flag(vmu, VM_SAYDURATION))) {
 		res = play_message_duration(chan, vms, duration, vmu->saydurationm);
@@ -13452,10 +13466,12 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		context = ast_variable_retrieve(msg_cfg, "message", "macrocontext");
 	switch (option) {
 	case 3: /* Play message envelope */
-		if (!res)
+		if (!res) {
 			res = play_message_datetime(chan, vmu, origtime, filename);
-		if (!res)
-			res = play_message_callerid(chan, vms, cid, context, 0);
+		}
+		if (!res) {
+			res = play_message_callerid(chan, vms, cid, context, 0, 1);
+		}
 
 		res = 't';
 		break;
@@ -13515,7 +13531,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 					ast_verb(3, "Confirm CID number '%s' is number to use for callback\n", num);
 					res = ast_play_and_wait(chan, "vm-num-i-have");
 					if (!res)
-						res = play_message_callerid(chan, vms, num, vmu->context, 1);
+						res = play_message_callerid(chan, vms, num, vmu->context, 1, 1);
 					if (!res)
 						res = ast_play_and_wait(chan, "vm-tocallnum");
 					/* Only prompt for a caller-specified number if there is a dialout context specified */
