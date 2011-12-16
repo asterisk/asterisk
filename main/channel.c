@@ -5437,7 +5437,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 		if (oh->account) {
 			ast_channel_lock(new);
 			ast_cdr_setaccount(new, oh->account);
-			ast_channel_lock(new);
+			ast_channel_unlock(new);
 		}
 	} else if (caller) { /* no outgoing helper so use caller if avaliable */
 		ast_channel_update_redirecting(caller, apr, NULL);
