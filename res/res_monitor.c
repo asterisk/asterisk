@@ -684,9 +684,13 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 	if (urlprefix) {
 		snprintf(tmp, sizeof(tmp), "%s/%s.%s", urlprefix, args.fname_base,
 			((strcmp(args.format, "gsm")) ? "wav" : "gsm"));
-		if (!chan->cdr && !(chan->cdr = ast_cdr_alloc()))
+		ast_channel_lock(chan);
+		if (!chan->cdr && !(chan->cdr = ast_cdr_alloc())) {
+			ast_channel_unlock(chan);
 			return -1;
+		}
 		ast_cdr_setuserfield(chan, tmp);
+		ast_channel_unlock(chan);
 	}
 	if (waitforbridge) {
 		/* We must remove the "b" option if listed.  In principle none of

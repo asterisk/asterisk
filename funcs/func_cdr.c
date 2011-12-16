@@ -197,17 +197,21 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 {
 	char *ret;
 	struct ast_flags flags = { 0 };
-	struct ast_cdr *cdr = chan ? chan->cdr : NULL;
+	struct ast_cdr *cdr;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(variable);
 			     AST_APP_ARG(options);
 	);
 
-	if (ast_strlen_zero(parse))
+	if (ast_strlen_zero(parse) || !chan)
 		return -1;
 
-	if (!cdr)
+	ast_channel_lock(chan);
+	cdr = chan->cdr;
+	if (!cdr) {
+		ast_channel_unlock(chan);
 		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -255,13 +259,14 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 				   ast_test_flag(&flags, OPT_UNPARSED));
 	}
 
+	ast_channel_unlock(chan);
 	return ret ? 0 : -1;
 }
 
 static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 		     const char *value)
 {
-	struct ast_cdr *cdr = chan ? chan->cdr : NULL;
+	struct ast_cdr *cdr;
 	struct ast_flags flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(variable);
@@ -271,8 +276,12 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 	if (ast_strlen_zero(parse) || !value || !chan)
 		return -1;
 
-	if (!cdr)
+	ast_channel_lock(chan);
+	cdr = chan->cdr;
+	if (!cdr) {
+		ast_channel_unlock(chan);
 		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -296,6 +305,7 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 		/* No need to worry about the u flag, as all fields for which setting
 		 * 'u' would do anything are marked as readonly. */
 
+	ast_channel_unlock(chan);
 	return 0;
 }
 
