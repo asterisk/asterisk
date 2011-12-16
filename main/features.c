@@ -2303,6 +2303,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	pbx_builtin_setvar_helper(transferer, "BLINDTRANSFER", transferee->name);
 	pbx_builtin_setvar_helper(transferee, "BLINDTRANSFER", transferer->name);
 	finishup(transferee);
+	ast_channel_lock(transferer);
 	if (!transferer->cdr) { /* this code should never get called (in a perfect world) */
 		transferer->cdr = ast_cdr_alloc();
 		if (transferer->cdr) {
@@ -2310,6 +2311,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_cdr_start(transferer->cdr);
 		}
 	}
+	ast_channel_unlock(transferer);
 	if (transferer->cdr) {
 		struct ast_cdr *swap = transferer->cdr;
 
@@ -3911,11 +3913,15 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 	/* copy the userfield from the B-leg to A-leg if applicable */
 	if (chan->cdr && peer->cdr && !ast_strlen_zero(peer->cdr->userfield)) {
 		char tmp[256];
+
+		ast_channel_lock(chan);
 		if (!ast_strlen_zero(chan->cdr->userfield)) {
 			snprintf(tmp, sizeof(tmp), "%s;%s", chan->cdr->userfield, peer->cdr->userfield);
 			ast_cdr_appenduserfield(chan, tmp);
-		} else
+		} else {
 			ast_cdr_setuserfield(chan, peer->cdr->userfield);
+		}
+		ast_channel_unlock(chan);
 		/* Don't delete the CDR; just disable it. */
 		ast_set_flag(peer->cdr, AST_CDR_FLAG_POST_DISABLED);
 		we_disabled_peer_cdr = 1;
@@ -3924,7 +3930,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 	ast_copy_string(orig_peername,peer->name,sizeof(orig_peername));
 
 	if (!chan_cdr || (chan_cdr && !ast_test_flag(chan_cdr, AST_CDR_FLAG_POST_DISABLED))) {
-		
+		ast_channel_lock_both(chan, peer);
 		if (chan_cdr) {
 			ast_set_flag(chan_cdr, AST_CDR_FLAG_MAIN);
 			ast_cdr_update(chan);
@@ -3939,7 +3945,6 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 				ast_copy_string(bridge_cdr->userfield, peer_cdr->userfield, sizeof(bridge_cdr->userfield));
 			}
 			ast_cdr_setaccount(peer, chan->accountcode);
-
 		} else {
 			/* better yet, in a xfer situation, find out why the chan cdr got zapped (pun unintentional) */
 			bridge_cdr = ast_cdr_alloc(); /* this should be really, really rare/impossible? */
@@ -3962,6 +3967,9 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 				ast_cdr_start(bridge_cdr);
 			}
 		}
+		ast_channel_unlock(chan);
+		ast_channel_unlock(peer);
+
 		ast_debug(4, "bridge answer set, chan answer set\n");
 		/* peer_cdr->answer will be set when a macro runs on the peer;
 		   in that case, the bridge answer will be delayed while the

@@ -5116,9 +5116,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if ((strcasecmp(cdr->uniqueid, qe->chan->uniqueid)) &&
 			    (strcasecmp(cdr->linkedid, qe->chan->uniqueid)) &&
 			    (newcdr = ast_cdr_dup(cdr))) {
+				ast_channel_lock(qe->chan);
 				ast_cdr_init(newcdr, qe->chan);
 				ast_cdr_reset(newcdr, 0);
-				ast_channel_lock(qe->chan);
 				cdr = ast_cdr_append(cdr, newcdr);
 				cdr = cdr->next;
 				ast_channel_unlock(qe->chan);

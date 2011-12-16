@@ -5112,10 +5112,12 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		set_ext_pri(c, "s", 1);
 	}
 
+	ast_channel_lock(c);
 	if (c->cdr) {
 		/* allow CDR variables that have been collected after channel was created to be visible during call */
 		ast_cdr_update(c);
 	}
+	ast_channel_unlock(c);
 	for (;;) {
 		char dst_exten[256];	/* buffer to accumulate digits */
 		int pos = 0;		/* XXX should check bounds */
@@ -5222,8 +5224,11 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					}
 					/* Call timed out with no special extension to jump to. */
 				}
-				if (c->cdr)
+				ast_channel_lock(c);
+				if (c->cdr) {
 					ast_cdr_update(c);
+				}
+				ast_channel_unlock(c);
 				error = 1;
 				break;
 			}
@@ -5327,10 +5332,12 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					}
 				}
 			}
+			ast_channel_lock(c);
 			if (c->cdr) {
 				ast_verb(2, "CDR updated on %s\n",c->name);
 				ast_cdr_update(c);
 			}
+			ast_channel_unlock(c);
 		}
 	}
 
@@ -9571,7 +9578,9 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, const char *data)
 static int pbx_builtin_setamaflags(struct ast_channel *chan, const char *data)
 {
 	/* Copy the AMA Flags as specified */
+	ast_channel_lock(chan);
 	ast_cdr_setamaflags(chan, data ? data : "");
+	ast_channel_unlock(chan);
 	return 0;
 }
 
