@@ -211,6 +211,7 @@ void ast_cdr_discard(struct ast_cdr *cdr);
  * \param cdr Call Detail Record to use for channel
  * \param chan Channel to bind CDR with
  * Initializes a CDR and associates it with a particular channel
+ * \note The channel should be locked before calling.
  * \return 0 by default
  */
 int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *chan);
@@ -220,6 +221,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *chan);
  * \param cdr Call Detail Record to use for channel
  * \param chan Channel to bind CDR with
  * Initializes a CDR and associates it with a particular channel
+ * \note The channel should be locked before calling.
  * \return 0 by default
  */
 int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *chan);
@@ -403,22 +405,40 @@ char *ast_cdr_flags2str(int flags);
  */
 void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from);
 
-/*! \brief Set account code, will generate AMI event */
+/*!
+ * \brief Set account code, will generate AMI event
+ * \note The channel should be locked before calling.
+ */
 int ast_cdr_setaccount(struct ast_channel *chan, const char *account);
 
-/*! \brief Set the peer account */
+/*!
+ * \brief Set the peer account
+ * \note The channel should be locked before calling.
+ */
 int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account);
 
-/*! \brief Set AMA flags for channel */
+/*!
+ * \brief Set AMA flags for channel
+ * \note The channel should be locked before calling.
+ */
 int ast_cdr_setamaflags(struct ast_channel *chan, const char *amaflags);
 
-/*! \brief Set CDR user field for channel (stored in CDR) */
+/*!
+ * \brief Set CDR user field for channel (stored in CDR)
+ * \note The channel should be locked before calling.
+ */
 int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield);
-/*! \brief Append to CDR user field for channel (stored in CDR) */
+/*!
+ * \brief Append to CDR user field for channel (stored in CDR)
+ * \note The channel should be locked before calling.
+ */
 int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield);
 
 
-/*! Update CDR on a channel */
+/*!
+ * \brief Update CDR on a channel
+ * \note The channel should be locked before calling.
+ */
 int ast_cdr_update(struct ast_channel *chan);
 
 

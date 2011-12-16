@@ -492,10 +492,12 @@ static void clear_caller(struct findme_user *tmpuser)
 
 	if (tmpuser && tmpuser->ochan && tmpuser->state >= 0) {
 		outbound = tmpuser->ochan;
+		ast_channel_lock(outbound);
 		if (!outbound->cdr) {
 			outbound->cdr = ast_cdr_alloc();
-			if (outbound->cdr)
+			if (outbound->cdr) {
 				ast_cdr_init(outbound->cdr, outbound);
+			}
 		}
 		if (outbound->cdr) {
 			char tmp[256];
@@ -506,11 +508,15 @@ static void clear_caller(struct findme_user *tmpuser)
 			ast_cdr_start(outbound->cdr);
 			ast_cdr_end(outbound->cdr);
 			/* If the cause wasn't handled properly */
-			if (ast_cdr_disposition(outbound->cdr, outbound->hangupcause))
+			if (ast_cdr_disposition(outbound->cdr, outbound->hangupcause)) {
 				ast_cdr_failed(outbound->cdr);
-		} else
+			}
+		} else {
 			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
-		ast_hangup(tmpuser->ochan);
+		}
+		ast_channel_unlock(outbound);
+		ast_hangup(outbound);
+		tmpuser->ochan = NULL;
 	}
 }
 
@@ -890,6 +896,7 @@ static void findmeexec(struct fm_args *tpargs)
 					AST_LIST_INSERT_TAIL(findme_user_list, tmpuser, entry);
 				} else {
 					ast_verb(3, "couldn't reach at this number.\n");
+					ast_channel_lock(outbound);
 					if (!outbound->cdr) {
 						outbound->cdr = ast_cdr_alloc();
 					}
@@ -909,6 +916,7 @@ static void findmeexec(struct fm_args *tpargs)
 					} else {
 						ast_log(LOG_ERROR, "Unable to create Call Detail Record\n");
 					}
+					ast_channel_unlock(outbound);
 					ast_hangup(outbound);
 					ast_free(tmpuser);
 				}

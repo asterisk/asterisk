@@ -5435,7 +5435,9 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 			ast_channel_datastore_inherit(oh->parent_channel, new);
 		}
 		if (oh->account) {
+			ast_channel_lock(new);
 			ast_cdr_setaccount(new, oh->account);
+			ast_channel_lock(new);
 		}
 	} else if (caller) { /* no outgoing helper so use caller if avaliable */
 		ast_channel_update_redirecting(caller, apr, NULL);
@@ -5501,8 +5503,11 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 			ast_channel_inherit_variables(oh->parent_channel, chan);
 			ast_channel_datastore_inherit(oh->parent_channel, chan);
 		}
-		if (oh->account)
-			ast_cdr_setaccount(chan, oh->account);	
+		if (oh->account) {
+			ast_channel_lock(chan);
+			ast_cdr_setaccount(chan, oh->account);
+			ast_channel_unlock(chan);
+		}
 	}
 
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
@@ -5614,21 +5619,27 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 		*outstate = AST_CONTROL_ANSWER;
 
 	if (res <= 0) {
-		if ( AST_CONTROL_RINGING == last_subclass ) 
+		ast_channel_lock(chan);
+		if (AST_CONTROL_RINGING == last_subclass) {
 			chan->hangupcause = AST_CAUSE_NO_ANSWER;
-		if (!chan->cdr && (chan->cdr = ast_cdr_alloc()))
+		}
+		if (!chan->cdr && (chan->cdr = ast_cdr_alloc())) {
 			ast_cdr_init(chan->cdr, chan);
+		}
 		if (chan->cdr) {
 			char tmp[256];
+
 			snprintf(tmp, sizeof(tmp), "%s/%s", type, (char *)data);
-			ast_cdr_setapp(chan->cdr,"Dial",tmp);
+			ast_cdr_setapp(chan->cdr, "Dial", tmp);
 			ast_cdr_update(chan);
 			ast_cdr_start(chan->cdr);
 			ast_cdr_end(chan->cdr);
 			/* If the cause wasn't handled properly */
-			if (ast_cdr_disposition(chan->cdr,chan->hangupcause))
+			if (ast_cdr_disposition(chan->cdr, chan->hangupcause)) {
 				ast_cdr_failed(chan->cdr);
+			}
 		}
+		ast_channel_unlock(chan);
 		ast_hangup(chan);
 		chan = NULL;
 	}
