@@ -3538,7 +3538,9 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 		} else if (chan == active_channel) {
 			if (!ast_strlen_zero(chan->call_forward)) {
 				state = 0;
+				ast_autoservice_start(transferee);
 				chan = ast_call_forward(caller, chan, NULL, tmp_cap, NULL, &state);
+				ast_autoservice_stop(transferee);
 				if (!chan) {
 					break;
 				}
@@ -3613,7 +3615,9 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 						}
 						ast_autoservice_stop(transferee);
 					}
-				} else if (f->subclass.integer != -1 && f->subclass.integer != AST_CONTROL_PROGRESS) {
+				} else if (f->subclass.integer != -1
+					&& f->subclass.integer != AST_CONTROL_PROGRESS
+					&& f->subclass.integer != AST_CONTROL_PROCEEDING) {
 					ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass.integer);
 				}
 				/* else who cares */
