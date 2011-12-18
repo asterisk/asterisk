@@ -811,8 +811,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; However, this is only useful if the external traffic can reach us.
 ; The following settings are allowed (both globally and in individual sections):
 ;
-;        nat = no                ; Default. Use rport if the remote side says to use it.
-;        nat = force_rport       ; Force rport to always be on.
+;        nat = no                ; Use rport if the remote side says to use it.
+;        nat = force_rport       ; Force rport to always be on. (default)
 ;        nat = yes               ; Force rport to always be on and perform comedia RTP handling.
 ;        nat = comedia           ; Use rport if the remote side says to use it and perform comedia RTP handling.
 ;
@@ -829,7 +829,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; by outside parties as Asterisk will respond to different ports for defined and
 ; undefined peers. For this reason it is recommended to ONLY DEFINE NAT SETTINGS IN THE
 ; GENERAL SECTION. Specifically, if nat=force_rport in one section and nat=no in the
-; other, then valid users with settings differing from those in the general section will
+; other, then valid peers with settings differing from those in the general section will
 ; be discoverable.
 ;
 ; In addition to these settings, Asterisk *always* uses 'symmetric RTP' mode as defined by
