@@ -659,7 +659,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; However, this is only useful if the external traffic can reach us.
 ; The following settings are allowed (both globally and in individual sections):
 ;
-;        nat = no                ; default. Use NAT mode only according to RFC3581 (;rport)
+;        nat = no                ; Use NAT mode only according to RFC3581 (;rport)
 ;        nat = yes               ; Always ignore info and assume NAT (default)
 ;        nat = never             ; Never attempt NAT mode or RFC3581 support
 ;        nat = route             ; route = Assume NAT, don't send rport 
@@ -670,7 +670,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; by outside parties as Asterisk will respond to different ports for defined and
 ; undefined peers. For this reason it is recommended to ONLY DEFINE NAT SETTINGS IN THE
 ; GENERAL SECTION. Specifically, if nat=route or nat=yes in one section and nat=no or
-; nat=never in the other, then valid users with settings differing from those in the
+; nat=never in the other, then valid peers with settings differing from those in the
 ; general section will be discoverable.
 
 ;----------------------------------- MEDIA HANDLING --------------------------------
