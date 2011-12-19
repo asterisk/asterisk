@@ -115,7 +115,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application sets the following channel variables:</para>
 			<variablelist>
 				<variable name="MESSAGE_SEND_STATUS">
-					<para>This is the time from dialing a channel until when it is disconnected.</para>
+					<para>This is the message delivery status returned by this application.</para>
 					<value name="INVALID_PROTOCOL">
 						No handler for the technology part of the URI was found.
 					</value>
