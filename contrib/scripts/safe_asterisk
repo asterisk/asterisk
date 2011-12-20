@@ -9,11 +9,13 @@ CLIARGS="$*"					# Grab any args passed to safe_asterisk
 TTY=9						# TTY (if you want one) for Asterisk to run on
 CONSOLE=yes					# Whether or not you want a console
 #NOTIFY=root@localhost.localdomain		# Who to notify about crashes
+NOTIFY=${NOTIFY:-}				# Who to notify about crashes
 #EXEC=/path/to/somescript			# Run this command if Asterisk crashes
 #LOGFILE=${ASTVARLOGDIR}/safe_asterisk.log	# Where to place the normal logfile (disabled if blank)
-#SYSLOG=local0					# Which syslog facility to use (disabled if blank)
+SYSLOG=${SYSLOG:-}				# Which syslog facility to use (disabled if blank)
 MACHINE=`hostname`				# To specify which machine has crashed when getting the mail
-DUMPDROP=/tmp
+DUMPDROP=${DUMPDROP:-/tmp}
+RUNDIR=${RUNDIR:-/tmp}
 SLEEPSECS=4
 ASTPIDFILE=${ASTVARRUNDIR}/asterisk.pid
 
@@ -121,6 +123,16 @@ if test "x$TTY" != "x" ; then
 		ASTARGS="${ASTARGS} -c"
 	fi
 fi
+
+if test ! -d "${RUNDIR}" ; then
+	message "${RUNDIR} does not exist, creating"
+	mkdir -p "${RUNDIR}"
+	if test ! -d "${RUNDIR}" ; then
+		message "Unable to create ${RUNDIR}"
+		exit 1
+	fi
+fi
+
 if test ! -w "${DUMPDROP}" ; then	
 	message "Cannot write to ${DUMPDROP}"
 	exit 1
@@ -148,11 +160,11 @@ run_asterisk()
 	while :; do 
 
 		if test "x$TTY" != "x" ; then
-			cd /tmp
+			cd "${RUNDIR}"
 			stty sane < /dev/${TTY}
 			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
 		else
-			cd /tmp
+			cd "${RUNDIR}"
 			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS}
 		fi
 		EXITSTATUS=$?
@@ -175,20 +187,20 @@ run_asterisk()
 
 			PID=`cat ${ASTPIDFILE}`
 			DATE=`date "+%Y-%m-%dT%H:%M:%S%z"`
-			if test -f /tmp/core.${PID} ; then
-				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
-			elif test -f /tmp/core ; then
-				mv /tmp/core ${DUMPDROP}/core.`hostname`-$DATE &
+			if test -f ${RUNDIR}/core.${PID} ; then
+				mv ${RUNDIR}/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
+			elif test -f ${RUNDIR}/core ; then
+				mv ${RUNDIR}/core ${DUMPDROP}/core.`hostname`-$DATE &
 			fi
 		else
 			message "Asterisk died with code $EXITSTATUS."
 
 			PID=`cat ${ASTPIDFILE}`
 			DATE=`date "+%Y-%m-%dT%H:%M:%S%z"`
-			if test -f /tmp/core.${PID} ; then
-				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
-			elif test -f /tmp/core ; then
-				mv /tmp/core ${DUMPDROP}/core.`hostname`-$DATE &
+			if test -f ${RUNDIR}/core.${PID} ; then
+				mv ${RUNDIR}/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
+			elif test -f ${RUNDIR}/core ; then
+				mv ${RUNDIR}/core ${DUMPDROP}/core.`hostname`-$DATE &
 			fi
 		fi
 		message "Automatically restarting Asterisk."
