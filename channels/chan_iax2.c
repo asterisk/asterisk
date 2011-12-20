@@ -5835,8 +5835,10 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		tmp->caller.ani.number.str = ast_strdup(i->cid_num);
 	}
 	tmp->dialed.number.str = ast_strdup(i->dnid);
-	tmp->redirecting.from.number.valid = 1;
-	tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
+	if (!ast_strlen_zero(i->rdnis)) {
+		tmp->redirecting.from.number.valid = 1;
+		tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
+	}
 	tmp->caller.id.name.presentation = i->calling_pres;
 	tmp->caller.id.number.presentation = i->calling_pres;
 	tmp->caller.id.number.plan = i->calling_ton;
