@@ -145,13 +145,7 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 		int first = 1;
 
 		if (!sql || !sql2) {
-			if (sql) {
-				ast_free(sql);
-			}
-			if (sql2) {
-				ast_free(sql2);
-			}
-			return;
+			goto ast_log_cleanup;
 		}
 
 		ast_str_set(&sql, 0, "INSERT INTO %s (", table);
@@ -291,10 +285,10 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 		if (PQstatus(conn) == CONNECTION_OK) {
 			connected = 1;
 		} else {
-			ast_log(LOG_ERROR, "Connection was lost... attempting to reconnect.\n");
+			ast_log(LOG_WARNING, "Connection was lost... attempting to reconnect.\n");
 			PQreset(conn);
 			if (PQstatus(conn) == CONNECTION_OK) {
-				ast_log(LOG_ERROR, "Connection reestablished.\n");
+				ast_log(LOG_NOTICE, "Connection reestablished.\n");
 				connected = 1;
 			} else {
 				pgerror = PQerrorMessage(conn);
@@ -303,21 +297,18 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 				PQfinish(conn);
 				conn = NULL;
 				connected = 0;
-				ast_mutex_unlock(&pgsql_lock);
-				ast_free(sql);
-				ast_free(sql2);
-				return;
+				goto ast_log_cleanup;
 			}
 		}
 		result = PQexec(conn, ast_str_buffer(sql));
 		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
 			pgerror = PQresultErrorMessage(result);
-			ast_log(LOG_ERROR, "Failed to insert call detail record into database!\n");
-			ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
-			ast_log(LOG_ERROR, "Connection may have been lost... attempting to reconnect.\n");
+			ast_log(LOG_WARNING, "Failed to insert call detail record into database!\n");
+			ast_log(LOG_WARNING, "Reason: %s\n", pgerror);
+			ast_log(LOG_WARNING, "Connection may have been lost... attempting to reconnect.\n");
 			PQreset(conn);
 			if (PQstatus(conn) == CONNECTION_OK) {
-				ast_log(LOG_ERROR, "Connection reestablished.\n");
+				ast_log(LOG_NOTICE, "Connection reestablished.\n");
 				connected = 1;
 				PQclear(result);
 				result = PQexec(conn, ast_str_buffer(sql));
@@ -327,14 +318,16 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 					ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
 				}
 			}
-			ast_mutex_unlock(&pgsql_lock);
 			PQclear(result);
-			ast_free(sql);
-			ast_free(sql2);
-			return;
+			goto ast_log_cleanup;
 		}
-		ast_mutex_unlock(&pgsql_lock);
+
+ast_log_cleanup:
+		ast_free(sql);
+		ast_free(sql2);
 	}
+
+	ast_mutex_unlock(&pgsql_lock);
 }
 
 static int my_unload_module(void)
