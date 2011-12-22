@@ -57,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "confbridge/include/confbridge.h"
 #include "asterisk/paths.h"
 #include "asterisk/manager.h"
+#include "asterisk/test.h"
 
 /*** DOCUMENTATION
     <application name="ConfBridge" language="en_US">
@@ -468,6 +469,7 @@ static int conf_stop_record(struct conference_bridge *conference_bridge)
 
 		chan = ast_channel_unref(chan);
 		pthread_join(thread, NULL);
+		ast_test_suite_event_notify("CONF_STOP_RECORD", "Message: stopped conference recording channel\r\nConference: %s", conference_bridge->b_profile.name);
 
 		ao2_lock(conference_bridge);
 	}
@@ -520,6 +522,7 @@ static int conf_start_record(struct conference_bridge *conference_bridge)
 		return -1;
 	}
 
+	ast_test_suite_event_notify("CONF_START_RECORD", "Message: started conference recording channel\r\nConference: %s", conference_bridge->b_profile.name);
 	ao2_unlock(conference_bridge);
 	return 0;
 }
@@ -1545,6 +1548,7 @@ static int action_toggle_mute(struct conference_bridge *conference_bridge,
 	/* Mute or unmute yourself, note we only allow manipulation if they aren't waiting for a marked user or if marked users exist */
 	if (!ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_WAITMARKED) || conference_bridge->markedusers) {
 		conference_bridge_user->features.mute = (!conference_bridge_user->features.mute ? 1 : 0);
+		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", chan->name, conference_bridge_user->features.mute ? "muted" : "unmuted", conference_bridge_user->b_profile.name, chan->name);
 	}
 	return ast_stream_and_wait(chan, (conference_bridge_user->features.mute ?
 		conf_get_sound(CONF_SOUND_MUTED, conference_bridge_user->b_profile.sounds) :
@@ -2026,6 +2030,7 @@ static int generic_lock_unlock_helper(int lock, const char *conference)
 	}
 	ao2_lock(bridge);
 	bridge->locked = lock;
+	ast_test_suite_event_notify("CONF_LOCK", "Message: conference %s\r\nConference: %s", bridge->locked ? "locked" : "unlocked", bridge->b_profile.name);
 	ao2_unlock(bridge);
 	ao2_ref(bridge, -1);
 
@@ -2058,6 +2063,7 @@ static int generic_mute_unmute_helper(int mute, const char *conference, const ch
 	}
 	if (participant) {
 		participant->features.mute = mute;
+		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", participant->chan->name, participant->features.mute ? "muted" : "unmuted", bridge->b_profile.name, participant->chan->name);
 	} else {
 		res = -2;;
 	}

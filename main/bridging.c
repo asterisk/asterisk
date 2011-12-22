@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/test.h"
 
 static AST_RWLIST_HEAD_STATIC(bridge_technologies, ast_bridge_technology);
 
@@ -1510,6 +1511,7 @@ void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_
 	cleanup_video_mode(bridge);
 	bridge->video_mode.mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
 	bridge->video_mode.mode_data.single_src_data.chan_vsrc = ast_channel_ref(video_src_chan);
+	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %d\r\nVideo Channel: %s", bridge->video_mode.mode, video_src_chan->name);
 	ast_indicate(video_src_chan, AST_CONTROL_VIDUPDATE);
 	ao2_unlock(bridge);
 }
@@ -1519,6 +1521,7 @@ void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge)
 	ao2_lock(bridge);
 	cleanup_video_mode(bridge);
 	bridge->video_mode.mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
+	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to talker source\r\nVideo Mode: %d", bridge->video_mode.mode);
 	ao2_unlock(bridge);
 }
 
@@ -1545,12 +1548,14 @@ void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct a
 		}
 		data->chan_vsrc = ast_channel_ref(chan);
 		data->average_talking_energy = talker_energy;
+		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", data->chan_vsrc->name);
 		ast_indicate(data->chan_vsrc, AST_CONTROL_VIDUPDATE);
 	} else if ((data->average_talking_energy < talker_energy) && !is_keyframe) {
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 	} else if (!data->chan_vsrc && is_keyframe) {
 		data->chan_vsrc = ast_channel_ref(chan);
 		data->average_talking_energy = talker_energy;
+		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", data->chan_vsrc->name);
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 	} else if (!data->chan_old_vsrc && is_keyframe) {
 		data->chan_old_vsrc = ast_channel_ref(chan);
