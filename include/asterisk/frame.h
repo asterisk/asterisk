@@ -37,7 +37,7 @@ extern "C" {
 
 struct ast_codec_pref {
 	char order[sizeof(format_t) * 8];
-	char framing[sizeof(format_t) * 8];
+	int framing[64]; /*!< Magic numbers are bad, but this just needs to be bigger than ARRAY_LEN(AST_FORMAT_LIST) */
 };
 
 /*!
