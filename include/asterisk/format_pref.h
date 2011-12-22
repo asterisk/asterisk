@@ -34,7 +34,7 @@ struct ast_codec_pref {
 	/*! This array represents the format id's index in the global format list. */
 	char order[AST_CODEC_PREF_SIZE];
 	/*! This array represents the format's framing size if present. */
-	char framing[AST_CODEC_PREF_SIZE];
+	int framing[AST_CODEC_PREF_SIZE];
 };
 
 /*! \page AudioCodecPref Audio Codec Preferences
