@@ -183,6 +183,7 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 
 	filename = ast_strdupa(prompt);
 	while ((front = strsep(&filename, "&"))) {
+		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", front, c->name);
 		if (!ast_strlen_zero(front)) {
 			res = ast_streamfile(c, front, c->language);
 			if (res)
@@ -699,7 +700,7 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 {
 	int d = 0;
 
-	ast_test_suite_event_notify("PLAYBACK", "Message: %s", fn);
+	ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", fn, chan->name);
 	if ((d = ast_streamfile(chan, fn, chan->language))) {
 		return d;
 	}
