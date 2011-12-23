@@ -143,6 +143,16 @@ allowoverlap=no                 ; Disable overlap dialing support. (Default is y
                                 ; In this case Realm will be based on request 'From'/'To' header
                                 ; and should match one of domain names.
                                 ; Otherwise default 'realm=...' will be used.
+;recordonfeature=automixmon	; Default feature to use when receiving 'Record: on' header
+				; from an INFO message. Defaults to 'automon'. Works with
+				; dynamic features. Feature must be usable on requesting
+				; channel for it to work. Setting this value to a blank
+				; will disable it.
+;recordofffeature=automixmon	; Default feature to use when receiving 'Record: off' header
+				; from an INFO message. Defaults to 'automon'. Works with
+				; dynamic features. Feature must be usable on requesting
+				; channel for it to work. Setting this value to a blank
+				; will disable it.
 
 ; With the current situation, you can do one of four things:
 ;  a) Listen on a specific IPv4 address.      Example: bindaddr=192.0.2.1
@@ -1268,6 +1278,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;[grandstream1]
 ;type=friend
 ;context=from-sip                ; Where to start in the dialplan when this phone calls
+;recordonfeature=dynamicfeature1 ; Feature to use when INFO with Record: on is received.
+;recordofffeature=dynamicfeature2 ; Feature to use when INFO with Record: off is received.
 ;callerid=John Doe <1234>        ; Full caller ID, to override the phones config
                                  ; on incoming calls to Asterisk
 ;description=Courtesy Phone      ; Description of the peer. Shown when doing 'sip show peers'.

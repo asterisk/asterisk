@@ -3015,7 +3015,8 @@ struct ast_call_feature *ast_find_call_feature(const char *name)
 		if (!strcasecmp(name, builtin_features[x].sname))
 			return &builtin_features[x];
 	}
-	return NULL;
+
+	return find_dynamic_feature(name);
 }
 
 /*!
