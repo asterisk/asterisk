@@ -60,5 +60,11 @@ CREATE TABLE voicemail (
 	imapuser VARCHAR(80),
 	-- IMAP password for authentication (if using IMAP storage)
 	imappassword VARCHAR(80),
+	-- IMAP server location (if using IMAP storage)
+	imapsever VARCHAR(80),
+	-- IMAP port (if using IMAP storage)
+	imapport VARCHAR(8),
+	-- IMAP flags (if using IMAP storage)
+	imapflags VARCHAR(80),
 	stamp timestamp
 );

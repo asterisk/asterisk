@@ -466,7 +466,7 @@ static void vmstate_delete(struct vm_state *vms);
 static void set_update(MAILSTREAM * stream);
 static void init_vm_state(struct vm_state *vms);
 static int save_body(BODY *body, struct vm_state *vms, char *section, char *format, int is_intro);
-static void get_mailbox_delimiter(MAILSTREAM *stream);
+static void get_mailbox_delimiter(struct vm_state *vms, MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int box, int target);
 static int imap_store_file(const char *dir, const char *mailboxuser, const char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms, const char *flag);
@@ -726,6 +726,9 @@ struct ast_vm_user {
 	int maxsecs;                     /*!< Maximum number of seconds per message for this mailbox */
 	int passwordlocation;            /*!< Storage location of the password */
 #ifdef IMAP_STORAGE
+	char imapserver[48];             /*!< IMAP server address */
+	char imapport[8];                /*!< IMAP server port */
+	char imapflags[128];             /*!< IMAP optional flags */
 	char imapuser[80];               /*!< IMAP server login */
 	char imappassword[80];           /*!< IMAP server password if authpassword not defined */
 	char imapfolder[64];             /*!< IMAP voicemail folder */
@@ -773,6 +776,9 @@ struct vm_state {
 	int vmArrayIndex;
 	char imapuser[80];                   /*!< IMAP server login */
 	char imapfolder[64];                 /*!< IMAP voicemail folder */
+	char imapserver[48];                 /*!< IMAP server address */
+	char imapport[8];                    /*!< IMAP server port */
+	char imapflags[128];                 /*!< IMAP optional flags */
 	int imapversion;
 	int interactive;
 	char introfn[PATH_MAX];              /*!< Name of prepended file */
@@ -1110,6 +1116,9 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	vmu->emailbody = NULL;
 #ifdef IMAP_STORAGE
 	ast_copy_string(vmu->imapfolder, imapfolder, sizeof(vmu->imapfolder));
+	ast_copy_string(vmu->imapserver, imapserver, sizeof(vmu->imapserver));
+	ast_copy_string(vmu->imapport, imapport, sizeof(vmu->imapport));
+	ast_copy_string(vmu->imapflags, imapflags, sizeof(vmu->imapflags));
 #endif
 }
 
@@ -1146,11 +1155,21 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	} else if (!strcasecmp(var, "imapuser")) {
 		ast_copy_string(vmu->imapuser, value, sizeof(vmu->imapuser));
 		vmu->imapversion = imapversion;
+	} else if (!strcasecmp(var, "imapserver")) {
+		ast_copy_string(vmu->imapserver, value, sizeof(vmu->imapserver));
+		vmu->imapversion = imapversion;
+	} else if (!strcasecmp(var, "imapport")) {
+		ast_copy_string(vmu->imapport, value, sizeof(vmu->imapport));
+		vmu->imapversion = imapversion;
+	} else if (!strcasecmp(var, "imapflags")) {
+		ast_copy_string(vmu->imapflags, value, sizeof(vmu->imapflags));
+		vmu->imapversion = imapversion;
 	} else if (!strcasecmp(var, "imappassword") || !strcasecmp(var, "imapsecret")) {
 		ast_copy_string(vmu->imappassword, value, sizeof(vmu->imappassword));
 		vmu->imapversion = imapversion;
 	} else if (!strcasecmp(var, "imapfolder")) {
 		ast_copy_string(vmu->imapfolder, value, sizeof(vmu->imapfolder));
+		vmu->imapversion = imapversion;
 	} else if (!strcasecmp(var, "imapvmshareid")) {
 		ast_copy_string(vmu->imapvmshareid, value, sizeof(vmu->imapvmshareid));
 		vmu->imapversion = imapversion;
@@ -1417,11 +1436,21 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 		} else if (!strcasecmp(var->name, "imapuser")) {
 			ast_copy_string(retval->imapuser, var->value, sizeof(retval->imapuser));
 			retval->imapversion = imapversion;
+		} else if (!strcasecmp(var->name, "imapserver")) {
+			ast_copy_string(retval->imapserver, var->value, sizeof(retval->imapserver));
+			retval->imapversion = imapversion;
+		} else if (!strcasecmp(var->name, "imapport")) {
+			ast_copy_string(retval->imapport, var->value, sizeof(retval->imapport));
+			retval->imapversion = imapversion;
+		} else if (!strcasecmp(var->name, "imapflags")) {
+			ast_copy_string(retval->imapflags, var->value, sizeof(retval->imapflags));
+			retval->imapversion = imapversion;
 		} else if (!strcasecmp(var->name, "imappassword") || !strcasecmp(var->name, "imapsecret")) {
 			ast_copy_string(retval->imappassword, var->value, sizeof(retval->imappassword));
 			retval->imapversion = imapversion;
 		} else if (!strcasecmp(var->name, "imapfolder")) {
 			ast_copy_string(retval->imapfolder, var->value, sizeof(retval->imapfolder));
+			retval->imapversion = imapversion;
 		} else if (!strcasecmp(var->name, "imapvmshareid")) {
 			ast_copy_string(retval->imapvmshareid, var->value, sizeof(retval->imapvmshareid));
 			retval->imapversion = imapversion;
@@ -2584,15 +2613,16 @@ static void imap_mailbox_name(char *spec, size_t len, struct vm_state *vms, int 
 	}
 
 	/* Build up server information */
-	ast_build_string(&t, &left, "{%s:%s/imap", imapserver, imapport);
+	ast_build_string(&t, &left, "{%s:%s/imap", S_OR(vms->imapserver, imapserver), S_OR(vms->imapport, imapport));
 
 	/* Add authentication user if present */
 	if (!ast_strlen_zero(authuser))
 		ast_build_string(&t, &left, "/authuser=%s", authuser);
 
 	/* Add flags if present */
-	if (!ast_strlen_zero(imapflags))
-		ast_build_string(&t, &left, "/%s", imapflags);
+	if (!ast_strlen_zero(imapflags) || !(ast_strlen_zero(vms->imapflags))) {
+		ast_build_string(&t, &left, "/%s", S_OR(vms->imapflags, imapflags));
+	}
 
 	/* End with username */
 #if 1
@@ -2651,7 +2681,7 @@ static int init_mailstream(struct vm_state *vms, int box)
 			ast_log(LOG_ERROR, "Can't connect to imap server %s\n", tmp);
 			return -1;
 		}
-		get_mailbox_delimiter(stream);
+		get_mailbox_delimiter(vms, stream);
 		/* update delimiter in imapfolder */
 		for (cp = vms->imapfolder; *cp; cp++)
 			if (*cp == '/')
@@ -2684,6 +2714,9 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	ast_copy_string(vms->imapuser, vmu->imapuser, sizeof(vms->imapuser));
 	ast_copy_string(vms->imapfolder, vmu->imapfolder, sizeof(vms->imapfolder));
+	ast_copy_string(vms->imapserver, vmu->imapserver, sizeof(vms->imapserver));
+	ast_copy_string(vms->imapport, vmu->imapport, sizeof(vms->imapport));
+	ast_copy_string(vms->imapflags, vmu->imapflags, sizeof(vms->imapflags));
 	vms->imapversion = vmu->imapversion;
 	ast_debug(3, "Before init_mailstream, user is %s\n", vmu->imapuser);
 
@@ -3049,6 +3082,9 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 		return NULL;
 	ast_copy_string(vms_p->imapuser, vmu->imapuser, sizeof(vms_p->imapuser));
 	ast_copy_string(vms_p->imapfolder, vmu->imapfolder, sizeof(vms_p->imapfolder));
+	ast_copy_string(vms_p->imapserver, vmu->imapserver, sizeof(vms_p->imapserver));
+	ast_copy_string(vms_p->imapport, vmu->imapport, sizeof(vms_p->imapport));
+	ast_copy_string(vms_p->imapflags, vmu->imapflags, sizeof(vms_p->imapflags));
 	ast_copy_string(vms_p->username, vmu->mailbox, sizeof(vms_p->username)); /* save for access from interactive entry point */
 	ast_copy_string(vms_p->context, vmu->context, sizeof(vms_p->context));
 	vms_p->mailstream = NIL; /* save for access from interactive entry point */
@@ -3280,14 +3316,15 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 
 /*! 
  * \brief Get delimiter via mm_list callback 
+ * \param vms		The voicemail state object
  * \param stream
  *
  * Determines the delimiter character that is used by the underlying IMAP based mail store.
  */
 /* MUTEX should already be held */
-static void get_mailbox_delimiter(MAILSTREAM *stream) {
+static void get_mailbox_delimiter(struct vm_state *vms, MAILSTREAM *stream) {
 	char tmp[50];
-	snprintf(tmp, sizeof(tmp), "{%s}", imapserver);
+	snprintf(tmp, sizeof(tmp), "{%s}", S_OR(vms->imapserver, imapserver));
 	mail_list(stream, tmp, "*");
 }
 
@@ -10877,7 +10914,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 		"[PBX]: New message \\\\${VM_MSGNUM}\\\\ in mailbox ${VM_MAILBOX}";
 #ifdef IMAP_STORAGE
 	static const char option_string2[] = "imapuser=imapuser|imappassword=imappasswd|"
-		"imapfolder=INBOX|imapvmshareid=6000";
+		"imapfolder=INBOX|imapvmshareid=6000|imapserver=imapserver|imapport=1234|imapflags=flagged";
 #endif
 
 	switch (cmd) {
@@ -11029,6 +11066,18 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	}
 	if (strcasecmp(vmu->imapvmshareid, "6000")) {
 		ast_test_status_update(test, "Parse failure for imapvmshareid option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->imapserver, "imapserver")) {
+		ast_test_status_update(test, "Parse failure for imapserver option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->imapport, "1234")) {
+		ast_test_status_update(test, "Parse failure for imapport option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->imapflags, "flagged")) {
+		ast_test_status_update(test, "Parse failure for imapflags option\n");
 		res = 1;
 	}
 #endif
@@ -11823,6 +11872,9 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 #ifdef IMAP_STORAGE
 			"OldMessageCount: %d\r\n"
 			"IMAPUser: %s\r\n"
+			"IMAPServer: %s\r\n"
+			"IMAPPort: %s\r\n"
+			"IMAPFlags: %s\r\n"
 #endif
 			"\r\n",
 			actionid,
@@ -11851,7 +11903,11 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			vmu->maxmsg,
 			vmu->maxsecs,
 #ifdef IMAP_STORAGE
-			new, old, vmu->imapuser
+			new, old,
+			vmu->imapuser,
+			vmu->imapserver,
+			vmu->imapport,
+			vmu->imapflags
 #else
 			count_messages(vmu, dirname)
 #endif

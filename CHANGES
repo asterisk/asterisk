@@ -21,6 +21,12 @@ ConfBridge
  * Added menu action participant_count.  This will playback the number of current
    participants in a conference.
 
+Voicemail
+------------------
+ * Addition of the VM_INFO function - see Dialplan function changes
+ * The imapserver, imapport, and imapflags configuration options can now be
+   overriden on a user by user basis.
+
 SIP Changes
 -----------
  * Asterisk will no longer substitute CID number for CID name into display

@@ -185,20 +185,43 @@ pagerdateformat=%A, %B %d, %Y at %r
 ;pollfreq=30         ;   If the "pollmailboxes" option is enabled, this option
 ;                    ; sets the polling frequency.  The default is once every
 ;                    ; 30 seconds.
-; If using IMAP storage, specify whether voicemail greetings should be stored
-; via IMAP. If no, then greetings are stored as if IMAP storage were not enabled
-;imapgreetings=no
-; If imapgreetings=yes, then specify which folder to store your greetings in. If
-; you do not specify a folder, then INBOX will be used
-;greetingsfolder=INBOX
-; Some IMAP server implementations store folders under INBOX instead of
-; using a top level folder (ex. INBOX/Friends).  In this case, user
-; imapparentfolder to set the parent folder. For example, Cyrus IMAP does
-; NOT use INBOX as the parent. Default is to have no parent folder set.
-;imapparentfolder=INBOX
 ;
+
+; -----------------------------------------------------------------------------
+; IMAP configuration settings only
+;   These settings are only applicable when Asterisk is compiled with IMAP support.
 ;
+;imapgreetings=no        ; If using IMAP storage, specify whether voicemail greetings
+                         ; should be stored via IMAP. If no, then greetings are stored
+                         ; as if IMAP storage were not enabled.
+;greetingsfolder=INBOX   ; If imapgreetings=yes, then specify which folder to store
+                         ; your greetings in. If you do not specify a folder, then INBOX
+                         ; will be used
+;imapparentfolder=INBOX  ; Some IMAP server implementations store folders under INBOX
+                         ; instead of using a top level folder (ex. INBOX/Friends).  In
+                         ; this case, user imapparentfolder to set the parent folder. For
+                         ; example, Cyrus IMAP does NOT use INBOX as the parent. Default
+                         ; is to have no parent folder set.
+;imapserver=localhost    ; The address of the IMAP server
+;imapport=143            ; The port of the IMAP server
+;imapflags=ssl           ; Optional flags to pass to the IMAP server in the IMAP mailbox
+                         ; name.  For example, setting this to 'ssl' will enable OpenSSL
+                         ; encryption, assuming the IMAP libraries were compiled with
+                         ; OpenSSL support.
+;imapfolder=INBOX        ; The folder in which to store voicemail messages on the IMAP
+                         ; server.  By default, they are stored in INBOX.
+;authuser=user           ; The master user to use for connecting to the IMAP server, if
+                         ; the server is configured with a single user that has access to
+                         ; all mailboxes
+;authpassword=password   ; The password for the authuser, if used
+;imapopentimeout=60      ; The TCP open timeout (in seconds)
+;imapclosetimeout=60     ; The TCP close timeout (in seconds)
+;imapreadtimeout=60      ; The TCP read timeout (in seconds)
+;imapwritetimeout=60     ; The TCP write timeout (in seconds)
+
+; -----------------------------------------------------------------------------
 ;
+
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; if the e-mail is specified, a message will be sent when a message is
 ; received, to the given mailbox. If pager is specified, a message will be
@@ -413,9 +436,19 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ;112 => 6262,Nancy,nancy@acme-widgets.com
 ;
 
+; ---------------------------------------------------------------------------
+; IMAP user settings and overrides.  These are only applicable when Asterisk is
+; compiled with IMAP support.
 ;
-; When using IMAP storage, imapuser, imappassword, and imapfolder can be used to specify the
-; user's credentials.
+; imapuser=username                ; The IMAP username of the mailbox to access
+; imappassword=password            ; The IMAP password of the user
+; imapvmshareid=xxxx               ; A shared mailbox ID to use for the IMAP mailbox
+                                   ; login, as opposed to the mailbox dialed
+; imapfolder                       ; Overrides the global imapfolder setting
+; imapserver                       ; Overrides the global imapserver setting
+; imapport                         ; Overrides the global imapport setting
+; imapflags                        ; Overrides the global imapflags setting
+
 ;
 ;[imapvm]
 ;4324 => 7764,Ellis Redding,red@buxton.us,,imapuser=eredding|imappassword=g3tbusy|imapfolder=notinbox
