@@ -918,9 +918,14 @@ struct ast_app {
 
 /*! \brief ast_state_cb: An extension state notify register item */
 struct ast_state_cb {
+	/*! Watcher ID returned when registered. */
 	int id;
+	/*! Arbitrary data passed for callbacks. */
 	void *data;
-	ast_state_cb_type callback;
+	/*! Callback when state changes. */
+	ast_state_cb_type change_cb;
+	/*! Callback when destroyed so any resources given by the registerer can be freed. */
+	ast_state_cb_destroy_type destroy_cb;
 	/*! \note Only used by ast_merge_contexts_and_delete */
 	AST_LIST_ENTRY(ast_state_cb) entry;
 };
@@ -953,9 +958,9 @@ AST_THREADSTORAGE(hintdevice_data);
 
 /* --- Hash tables of various objects --------*/
 #ifdef LOW_MEMORY
-static const int HASH_EXTENHINT_SIZE = 17;
+#define HASH_EXTENHINT_SIZE 17
 #else
-static const int HASH_EXTENHINT_SIZE = 563;
+#define HASH_EXTENHINT_SIZE 563
 #endif
 
 
@@ -4618,27 +4623,16 @@ static int handle_statechange(void *datap)
 		hint->laststate = state;	/* record we saw the change */
 
 		/* For general callbacks */
-		ao2_lock(statecbs);
 		cb_iter = ao2_iterator_init(statecbs, 0);
 		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
-			void *data;
-
-			/*
-			 * Protect the data ptr because it could get updated by
-			 * ast_extension_state_add().
-			 */
-			data = state_cb->data;
-			ao2_unlock(statecbs);
-			state_cb->callback(context_name, exten_name, state, data);
-			ao2_lock(statecbs);
+			state_cb->change_cb(context_name, exten_name, state, state_cb->data);
 		}
-		ao2_unlock(statecbs);
 		ao2_iterator_destroy(&cb_iter);
 
 		/* For extension callbacks */
 		cb_iter = ao2_iterator_init(hint->callbacks, 0);
 		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
-			state_cb->callback(context_name, exten_name, state, state_cb->data);
+			state_cb->change_cb(context_name, exten_name, state, state_cb->data);
 		}
 		ao2_iterator_destroy(&cb_iter);
 	}
@@ -4650,9 +4644,26 @@ static int handle_statechange(void *datap)
 	return 0;
 }
 
-/*! \brief  Add watcher for extension states */
-int ast_extension_state_add(const char *context, const char *exten,
-	ast_state_cb_type callback, void *data)
+/*!
+ * \internal
+ * \brief Destroy the given state callback object.
+ *
+ * \param doomed State callback to destroy.
+ *
+ * \return Nothing
+ */
+static void destroy_state_cb(void *doomed)
+{
+	struct ast_state_cb *state_cb = doomed;
+
+	if (state_cb->destroy_cb) {
+		state_cb->destroy_cb(state_cb->id, state_cb->data);
+	}
+}
+
+/*! \brief Add watcher for extension states with destructor */
+int ast_extension_state_add_destroy(const char *context, const char *exten,
+	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data)
 {
 	struct ast_hint *hint;
 	struct ast_state_cb *state_cb;
@@ -4661,24 +4672,20 @@ int ast_extension_state_add(const char *context, const char *exten,
 
 	/* If there's no context and extension:  add callback to statecbs list */
 	if (!context && !exten) {
-		/* Prevent multiple adds from adding the same callback at the same time. */
+		/* Prevent multiple adds from adding the same change_cb at the same time. */
 		ao2_lock(statecbs);
 
-		state_cb = ao2_find(statecbs, callback, 0);
-		if (state_cb) {
-			state_cb->data = data;
-			ao2_ref(state_cb, -1);
-			ao2_unlock(statecbs);
-			return 0;
-		}
+		/* Remove any existing change_cb. */
+		ao2_find(statecbs, change_cb, OBJ_UNLINK | OBJ_NODATA);
 
-		/* Now insert the callback */
-		if (!(state_cb = ao2_alloc(sizeof(*state_cb), NULL))) {
+		/* Now insert the change_cb */
+		if (!(state_cb = ao2_alloc(sizeof(*state_cb), destroy_state_cb))) {
 			ao2_unlock(statecbs);
 			return -1;
 		}
 		state_cb->id = 0;
-		state_cb->callback = callback;
+		state_cb->change_cb = change_cb;
+		state_cb->destroy_cb = destroy_cb;
 		state_cb->data = data;
 		ao2_link(statecbs, state_cb);
 
@@ -4719,14 +4726,18 @@ int ast_extension_state_add(const char *context, const char *exten,
 	}
 
 	/* Now insert the callback in the callback list  */
-	if (!(state_cb = ao2_alloc(sizeof(*state_cb), NULL))) {
+	if (!(state_cb = ao2_alloc(sizeof(*state_cb), destroy_state_cb))) {
 		ao2_ref(hint, -1);
 		ao2_unlock(hints);
 		return -1;
 	}
-	id = stateid++;		/* Unique ID for this callback */
+	do {
+		id = stateid++;		/* Unique ID for this callback */
+		/* Do not allow id to ever be -1 or 0. */
+	} while (id == -1 || id == 0);
 	state_cb->id = id;
-	state_cb->callback = callback;	/* Pointer to callback routine */
+	state_cb->change_cb = change_cb;	/* Pointer to callback routine */
+	state_cb->destroy_cb = destroy_cb;
 	state_cb->data = data;		/* Data for the callback */
 	ao2_link(hint->callbacks, state_cb);
 
@@ -4735,6 +4746,13 @@ int ast_extension_state_add(const char *context, const char *exten,
 	ao2_unlock(hints);
 
 	return id;
+}
+
+/*! \brief Add watcher for extension states */
+int ast_extension_state_add(const char *context, const char *exten,
+	ast_state_cb_type change_cb, void *data)
+{
+	return ast_extension_state_add_destroy(context, exten, change_cb, NULL, data);
 }
 
 /*! \brief Find Hint by callback id */
@@ -4753,16 +4771,16 @@ static int find_hint_by_cb_id(void *obj, void *arg, int flags)
 }
 
 /*! \brief  ast_extension_state_del: Remove a watcher from the callback list */
-int ast_extension_state_del(int id, ast_state_cb_type callback)
+int ast_extension_state_del(int id, ast_state_cb_type change_cb)
 {
-	struct ast_state_cb *p_cur = NULL;
+	struct ast_state_cb *p_cur;
 	int ret = -1;
 
 	if (!id) {	/* id == 0 is a callback without extension */
-		if (!callback) {
+		if (!change_cb) {
 			return ret;
 		}
-		p_cur = ao2_find(statecbs, callback, OBJ_UNLINK);
+		p_cur = ao2_find(statecbs, change_cb, OBJ_UNLINK);
 		if (p_cur) {
 			ret = 0;
 			ao2_ref(p_cur, -1);
@@ -4823,9 +4841,8 @@ static void destroy_hint(void *obj)
 		}
 		while ((state_cb = ao2_callback(hint->callbacks, OBJ_UNLINK, NULL, NULL))) {
 			/* Notify with -1 and remove all callbacks */
-			/* NOTE: The casts will not be needed for v1.10 and later */
-			state_cb->callback((char *) context_name, (char *) exten_name,
-				AST_EXTENSION_DEACTIVATED, state_cb->data);
+			state_cb->change_cb(context_name, exten_name, AST_EXTENSION_DEACTIVATED,
+				state_cb->data);
 			ao2_ref(state_cb, -1);
 		}
 		ao2_ref(hint->callbacks, -1);
@@ -7389,7 +7406,7 @@ struct store_hint {
 	char data[1];
 };
 
-AST_LIST_HEAD(store_hints, store_hint);
+AST_LIST_HEAD_NOLOCK(store_hints, store_hint);
 
 static void context_merge_incls_swits_igps_other_registrars(struct ast_context *new, struct ast_context *old, const char *registrar)
 {
@@ -7514,7 +7531,8 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	struct ast_context *tmp;
 	struct ast_context *oldcontextslist;
 	struct ast_hashtab *oldtable;
-	struct store_hints store = AST_LIST_HEAD_INIT_VALUE;
+	struct store_hints hints_stored = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+	struct store_hints hints_removed = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 	struct store_hint *saved_hint;
 	struct ast_hint *hint;
 	struct ast_exten *exten;
@@ -7584,7 +7602,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 			saved_hint->exten = saved_hint->data + strlen(saved_hint->context) + 1;
 			strcpy(saved_hint->exten, hint->exten->exten);
 			ao2_unlock(hint);
-			AST_LIST_INSERT_HEAD(&store, saved_hint, list);
+			AST_LIST_INSERT_HEAD(&hints_stored, saved_hint, list);
 		}
 	}
 
@@ -7600,7 +7618,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	 * Restore the watchers for hints that can be found; notify
 	 * those that cannot be restored.
 	 */
-	while ((saved_hint = AST_LIST_REMOVE_HEAD(&store, list))) {
+	while ((saved_hint = AST_LIST_REMOVE_HEAD(&hints_stored, list))) {
 		struct pbx_find_info q = { .stacklen = 0 };
 
 		exten = pbx_find_extension(NULL, NULL, &q, saved_hint->context, saved_hint->exten,
@@ -7622,13 +7640,11 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 		/* Find the hint in the hints container */
 		hint = exten ? ao2_find(hints, exten, 0) : NULL;
 		if (!hint) {
-			/* this hint has been removed, notify the watchers */
-			while ((thiscb = AST_LIST_REMOVE_HEAD(&saved_hint->callbacks, entry))) {
-				thiscb->callback(saved_hint->context, saved_hint->exten,
-					AST_EXTENSION_REMOVED, thiscb->data);
-				/* Ref that we added when putting into saved_hint->callbacks */
-				ao2_ref(thiscb, -1);
-			}
+			/*
+			 * Notify watchers of this removed hint later when we aren't
+			 * encumberd by so many locks.
+			 */
+			AST_LIST_INSERT_HEAD(&hints_removed, saved_hint, list);
 		} else {
 			ao2_lock(hint);
 			while ((thiscb = AST_LIST_REMOVE_HEAD(&saved_hint->callbacks, entry))) {
@@ -7639,12 +7655,28 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 			hint->laststate = saved_hint->laststate;
 			ao2_unlock(hint);
 			ao2_ref(hint, -1);
+			ast_free(saved_hint);
 		}
-		ast_free(saved_hint);
 	}
 
 	ao2_unlock(hints);
 	ast_unlock_contexts();
+
+	/*
+	 * Notify watchers of all removed hints with the same lock
+	 * environment as handle_statechange().
+	 */
+	while ((saved_hint = AST_LIST_REMOVE_HEAD(&hints_removed, list))) {
+		/* this hint has been removed, notify the watchers */
+		while ((thiscb = AST_LIST_REMOVE_HEAD(&saved_hint->callbacks, entry))) {
+			thiscb->change_cb(saved_hint->context, saved_hint->exten,
+				AST_EXTENSION_REMOVED, thiscb->data);
+			/* Ref that we added when putting into saved_hint->callbacks */
+			ao2_ref(thiscb, -1);
+		}
+		ast_free(saved_hint);
+	}
+
 	ast_mutex_unlock(&context_merge_lock);
 	endlocktime = ast_tvnow();
 
@@ -10792,16 +10824,16 @@ static int hint_cmp(void *obj, void *arg, int flags)
 static int statecbs_cmp(void *obj, void *arg, int flags)
 {
 	const struct ast_state_cb *state_cb = obj;
-	const struct ast_state_cb *callback = arg;
+	ast_state_cb_type change_cb = arg;
 
-	return (state_cb == callback) ? CMP_MATCH | CMP_STOP : 0;
+	return (state_cb->change_cb == change_cb) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 int ast_pbx_init(void)
 {
 	hints = ao2_container_alloc(HASH_EXTENHINT_SIZE, hint_hash, hint_cmp);
 	hintdevices = ao2_container_alloc(HASH_EXTENHINT_SIZE, hintdevice_hash_cb, hintdevice_cmp_multiple);
-	statecbs = ao2_container_alloc(HASH_EXTENHINT_SIZE, NULL, statecbs_cmp);
+	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
 
 	return (hints && hintdevices && statecbs) ? 0 : -1;
 }

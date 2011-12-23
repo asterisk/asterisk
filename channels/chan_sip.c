@@ -2980,10 +2980,9 @@ void dialog_unlink_all(struct sip_pvt *dialog)
 		}
 		dialog->registry = registry_unref(dialog->registry, "delete dialog->registry");
 	}
-	if (dialog->stateid > -1) {
-		ast_extension_state_del(dialog->stateid, NULL);
-		dialog_unref(dialog, "removing extension_state, should unref the associated dialog ptr that was stored there.");
-		dialog->stateid = -1; /* shouldn't we 'zero' this out? */
+	if (dialog->stateid != -1) {
+		ast_extension_state_del(dialog->stateid, cb_extensionstate);
+		dialog->stateid = -1;
 	}
 	/* Remove link from peer to subscription of MWI */
 	if (dialog->relatedpeer && dialog->relatedpeer->mwipvt == dialog) {
@@ -14681,6 +14680,13 @@ static void network_change_event_cb(const struct ast_event *event, void *userdat
 	}
 }
 
+static void cb_extensionstate_destroy(int id, void *data)
+{
+	struct sip_pvt *p = data;
+
+	dialog_unref(p, "the extensionstate containing this dialog ptr was destroyed");
+}
+
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
 \note	If you add an "hint" priority to the extension in the dial plan,
 	you will get notifications on device state changes */
@@ -14695,7 +14701,6 @@ static int cb_extensionstate(const char *context, const char *exten, enum ast_ex
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);	/* Delete subscription in 32 secs */
 		ast_verb(2, "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
-		p->stateid = -1;
 		p->subscribed = NONE;
 		append_history(p, "Subscribestatus", "%s", state == AST_EXTENSION_REMOVED ? "HintRemoved" : "Deactivated");
 		break;
@@ -25052,7 +25057,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 {
 	int gotdest = 0;
 	int res = 0;
-	int firststate = AST_EXTENSION_REMOVED;
+	int firststate;
 	struct sip_peer *authpeer = NULL;
 	const char *eventheader = sip_get_header(req, "Event");	/* Get Event package name */
 	int resubscribe = (p->subscribed != NONE) && !req->ignore;
@@ -25346,12 +25351,15 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	/* Add subscription for extension state from the PBX core */
 	if (p->subscribed != MWI_NOTIFICATION  && p->subscribed != CALL_COMPLETION && !resubscribe) {
-		if (p->stateid > -1) {
+		if (p->stateid != -1) {
 			ast_extension_state_del(p->stateid, cb_extensionstate);
-			/* we need to dec the refcount, now that the extensionstate is removed */
-			dialog_unref(p, "the extensionstate containing this dialog ptr was deleted");
 		}
-		p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, dialog_ref(p,"copying dialog ptr into extension state struct"));
+		dialog_ref(p, "copying dialog ptr into extension state struct");
+		p->stateid = ast_extension_state_add_destroy(p->context, p->exten,
+			cb_extensionstate, cb_extensionstate_destroy, p);
+		if (p->stateid == -1) {
+			dialog_unref(p, "copying dialog ptr into extension state struct failed");
+		}
 	}
 
 	if (!req->ignore && p)
