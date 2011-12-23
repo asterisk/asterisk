@@ -478,6 +478,16 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 
 ;use_q850_reason = no ; Default "no"
                       ; Set to yes add Reason header and use Reason header if it is available.
+
+;autocreatepeers=no             ; Allow any not exsplicitly defined here UAC to register
+                                ; WITHOUT AUTHENTICATION. Enabling this options poses a high
+                                ; potential security risk and should be avoided unless the 
+                                ; server is behind a trusted firewall. 
+                                ; When enabled by setting to "yes", the autocreated peers are
+                                ; pruned immediately when the "sip reload" command is issued
+                                ; through CLI. When enabled by setting to "persist", the auto-
+                                ; created peers survive the "sip reload" command.
+
 ;
 ;------------------------ TLS settings ------------------------------------------------------------
 ;tlscertfile=</path/to/certificate.pem> ; Certificate file (*.pem format only) to use for TLS connections

@@ -27,6 +27,8 @@ SIP Changes
    name field if CID number exists without a CID name. This change improves
    compatibility with certain device features such as Avaya IP500's directory
    lookup service.
+ * A new setting for autocreatepeer (autocreatepeer=persistent) allows peers
+   created using that setting to not be removed during SIP reload.
 
 Chan_local changes
 ------------------

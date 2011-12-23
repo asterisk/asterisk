@@ -207,7 +207,7 @@
 #define DEFAULT_NOTIFYRINGING  TRUE     /*!< Notify devicestate system on ringing state */
 #define DEFAULT_NOTIFYCID      DISABLED	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC       TRUE     /*!< Follow SIP standards for dialog matching */
-#define DEFAULT_AUTOCREATEPEER FALSE    /*!< Don't create peers automagically */
+#define DEFAULT_AUTOCREATEPEER AUTOPEERS_DISABLED    /*!< Don't create peers automagically */
 #define	DEFAULT_MATCHEXTERNADDRLOCALLY FALSE /*!< Match extern IP locally default setting */
 #define DEFAULT_QUALIFY        FALSE    /*!< Don't monitor devices */
 #define DEFAULT_CALLEVENTS     FALSE    /*!< Extra manager SIP call events */
@@ -556,6 +556,14 @@ enum sip_transport {
 	SIP_TRANSPORT_TLS = 1 << 2,    /*!< TCP/TLS - reliable and secure transport for signalling */
 };
 
+/*! \brief Automatic peer registration behavior
+*/
+enum autocreatepeer_mode {
+	AUTOPEERS_DISABLED = 0,		/*!< Automatic peer creation disabled */
+	AUTOPEERS_VOLATILE,			/*!< Automatic peers dropped on sip reload (pre-1.8 behavior) */
+	AUTOPEERS_PERSIST			/*!< Automatic peers survive sip configuration reload */
+};
+
 /*! \brief States whether a SIP message can create a dialog in Asterisk. */
 enum can_create_dialog {
 	CAN_NOT_CREATE_DIALOG,
@@ -709,7 +717,7 @@ struct sip_settings {
 	int rtautoclear;            /*!< Realtime ?? */
 	int directrtpsetup;         /*!< Enable support for Direct RTP setup (no re-invites) */
 	int pedanticsipchecking;    /*!< Extra checking ?  Default off */
-	int autocreatepeer;         /*!< Auto creation of peers at registration? Default off. */
+	enum autocreatepeer_mode autocreatepeer;  /*!< Auto creation of peers at registration? Default off. */
 	int srvlookup;              /*!< SRV Lookup on or off. Default is on */
 	int allowguest;             /*!< allow unauthenticated peers to connect? */
 	int alwaysauthreject;       /*!< Send 401 Unauthorized for all failing requests */

@@ -14998,7 +14998,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		}
 		ao2_unlock(peer);
 	}
-	if (!peer && sip_cfg.autocreatepeer) {
+	if (!peer && sip_cfg.autocreatepeer != AUTOPEERS_DISABLED) {
 		/* Create peer if we have autocreate mode enabled */
 		peer = temp_peer(name);
 		if (peer) {
@@ -16715,6 +16715,18 @@ static enum st_refresher str2strefresher(const char *s)
 	return map_s_x(strefreshers, s, -1);
 }
 
+/* Autocreatepeer modes */
+static struct _map_x_s autopeermodes[] = {
+        { AUTOPEERS_DISABLED, "Off"},
+        { AUTOPEERS_VOLATILE, "Volatile"},
+        { AUTOPEERS_PERSIST,  "Persisted"},
+        { -1, NULL},
+};
+
+static const char *autocreatepeer2str(enum autocreatepeer_mode r)
+{
+	return map_x_s(autopeermodes, r, "Unknown");
+}
 
 static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 {
@@ -18336,7 +18348,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Videosupport:           %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 	ast_cli(a->fd, "  Textsupport:            %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
 	ast_cli(a->fd, "  Ignore SDP sess. ver.:  %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION)));
-	ast_cli(a->fd, "  AutoCreate Peer:        %s\n", AST_CLI_YESNO(sip_cfg.autocreatepeer));
+	ast_cli(a->fd, "  AutoCreate Peer:        %s\n", autocreatepeer2str(sip_cfg.autocreatepeer));
 	ast_cli(a->fd, "  Match Auth Username:    %s\n", AST_CLI_YESNO(global_match_auth_username));
 	ast_cli(a->fd, "  Allow unknown access:   %s\n", AST_CLI_YESNO(sip_cfg.allowguest));
 	ast_cli(a->fd, "  Allow subscriptions:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
@@ -28477,7 +28489,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 static int peer_markall_func(void *device, void *arg, int flags)
 {
 	struct sip_peer *peer = device;
-	peer->the_mark = 1;
+	if (!peer->selfdestruct || sip_cfg.autocreatepeer != AUTOPEERS_PERSIST) {
+		peer->the_mark = 1;
+	}
 	return 0;
 }
 
@@ -28602,11 +28616,6 @@ static int reload_config(enum channelreloadreason reason)
 				}
 				ASTOBJ_UNLOCK(iterator);
 		} while(0));
-
-		/* Then, actually destroy users and registry */
-		ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
-		ast_debug(4, "--------------- Done destroying registry list\n");
-		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
 	}
 
 	/* Reset certificate handling for TLS sessions */
@@ -29012,7 +29021,11 @@ static int reload_config(enum channelreloadreason reason)
 
 			proxy_update(&sip_cfg.outboundproxy);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
-			sip_cfg.autocreatepeer = ast_true(v->value);
+			if (!strcasecmp(v->value, "persist")) {
+				sip_cfg.autocreatepeer = AUTOPEERS_PERSIST;
+			} else {
+				sip_cfg.autocreatepeer = ast_true(v->value) ? AUTOPEERS_VOLATILE : AUTOPEERS_DISABLED;
+			}
 		} else if (!strcasecmp(v->name, "match_auth_username")) {
 			global_match_auth_username = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
@@ -29288,6 +29301,13 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "parkinglot")) {
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		}
+	}
+
+	if (reason != CHANNEL_MODULE_LOAD) {
+		/* Then, actually destroy users and registry */
+		ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+		ast_debug(4, "--------------- Done destroying registry list\n");
+		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
 	}
 
 	if (subscribe_network_change) {
