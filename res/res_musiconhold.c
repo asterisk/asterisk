@@ -671,7 +671,7 @@ static void *monmp3thread(void *data)
 			}
 		}
 		if (class->timer) {
-			struct pollfd pfd = { .fd = ast_timer_fd(class->timer), .events = POLLIN, };
+			struct pollfd pfd = { .fd = ast_timer_fd(class->timer), .events = POLLIN | POLLPRI, };
 
 #ifdef SOLARIS
 			thr_yield();
@@ -681,7 +681,7 @@ static void *monmp3thread(void *data)
 				ast_timer_ack(class->timer, 1);
 				res = 320;
 			} else {
-				ast_log(LOG_ERROR, "poll() failed: %s\n", strerror(errno));
+				ast_log(LOG_WARNING, "poll() failed: %s\n", strerror(errno));
 				res = 0;
 			}
 			pthread_testcancel();
@@ -1218,6 +1218,7 @@ static int init_app_class(struct mohclass *class)
 
 	if (!(class->timer = ast_timer_open())) {
 		ast_log(LOG_WARNING, "Unable to create timer: %s\n", strerror(errno));
+		return -1;
 	}
 	if (class->timer && ast_timer_set_rate(class->timer, 25)) {
 		ast_log(LOG_WARNING, "Unable to set 40ms frame rate: %s\n", strerror(errno));
@@ -1245,7 +1246,9 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 {
 	struct mohclass *mohclass = NULL;
 
-	if ((mohclass = _get_mohbyname(moh->name, 0, MOH_NOTDELETED, file, line, funcname)) && !moh_diff(mohclass, moh)) {
+	mohclass = _get_mohbyname(moh->name, 0, MOH_NOTDELETED, file, line, funcname);
+
+	if (mohclass && !moh_diff(mohclass, moh)) {
 		ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 		mohclass = mohclass_unref(mohclass, "unreffing mohclass we just found by name");
 		if (unref) {
@@ -1584,6 +1587,12 @@ static void moh_class_destructor(void *obj)
 
 	ast_debug(1, "Destroying MOH class '%s'\n", class->name);
 
+	ao2_lock(class);
+	while ((member = AST_LIST_REMOVE_HEAD(&class->members, list))) {
+		free(member);
+	}
+	ao2_unlock(class);
+
 	/* Kill the thread first, so it cannot restart the child process while the
 	 * class is being destroyed */
 	if (class->thread != AST_PTHREADT_NULL && class->thread != 0) {
@@ -1635,10 +1644,7 @@ static void moh_class_destructor(void *obj)
 		ast_debug(1, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 
 		close(class->srcfd);
-	}
-
-	while ((member = AST_LIST_REMOVE_HEAD(&class->members, list))) {
-		free(member);
+		class->srcfd = -1;
 	}
 
 	if (class->filearray) {
@@ -1659,6 +1665,7 @@ static void moh_class_destructor(void *obj)
 	if (tid > 0) {
 		pthread_join(tid, NULL);
 	}
+
 }
 
 static int moh_class_mark(void *obj, void *arg, int flags)
