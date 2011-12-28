@@ -784,9 +784,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	int removed = 0;
 
 	/* Don't translate our frame if we aren't going to bother to use it */
-	if (AST_LIST_EMPTY(&audiohook_list->spy_list)
-		&& AST_LIST_EMPTY(&audiohook_list->whisper_list)
-		&& AST_LIST_EMPTY(&audiohook_list->manipulate_list))
+	if (ast_audiohook_write_list_empty(audiohook_list))
 		return end_frame;
 
 	/* ---Part_1. translate start_frame to SLINEAR if necessary. */
