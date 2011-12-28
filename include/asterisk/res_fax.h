@@ -44,6 +44,8 @@ enum ast_fax_capabilities {
 	AST_FAX_TECH_MULTI_DOC = (1 << 4),
 	/*! T.38 - T.30 Gateway */
 	AST_FAX_TECH_GATEWAY = (1 << 5),
+	/*! V21 detection is supported */
+	AST_FAX_TECH_V21_DETECT = (1 << 6),
 };
 
 /*! \brief fax modem capabilities */
@@ -160,6 +162,8 @@ struct ast_fax_session_details {
 			uint32_t send_cng:1;
 			/*! send a T.38 reinvite */
 			uint32_t request_t38:1;
+			/*! a V.21 preamble was detected */
+			uint32_t v21_detected:1;
 		};
 	} option;
 	/*! override the minimum transmission rate with a channel variable */
