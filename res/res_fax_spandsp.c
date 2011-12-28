@@ -80,6 +80,9 @@ static int spandsp_fax_switch_to_t38(struct ast_fax_session *s);
 static int spandsp_fax_gateway_start(struct ast_fax_session *s);
 static int spandsp_fax_gateway_process(struct ast_fax_session *s, const struct ast_frame *f);
 static void spandsp_fax_gateway_cleanup(struct ast_fax_session *s);
+static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame *f);
+static void spandsp_v21_cleanup(struct ast_fax_session *s);
+static void spandsp_v21_tone(void *data, int code, int level, int delay);
 
 static char *spandsp_fax_cli_show_capabilities(int fd);
 static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd);
@@ -98,7 +101,9 @@ static struct ast_fax_tech spandsp_fax_tech = {
 	 */
 	.version = "pre-20090220",
 #endif
-	.caps = AST_FAX_TECH_AUDIO | AST_FAX_TECH_T38 | AST_FAX_TECH_SEND | AST_FAX_TECH_RECEIVE | AST_FAX_TECH_GATEWAY,
+	.caps = AST_FAX_TECH_AUDIO | AST_FAX_TECH_T38 | AST_FAX_TECH_SEND
+		| AST_FAX_TECH_RECEIVE | AST_FAX_TECH_GATEWAY
+		| AST_FAX_TECH_V21_DETECT,
 	.new_session = spandsp_fax_new,
 	.destroy_session = spandsp_fax_destroy,
 	.read = spandsp_fax_read,
@@ -150,8 +155,12 @@ struct spandsp_pvt {
 
 	struct ast_timer *timer;
 	AST_LIST_HEAD(frame_queue, ast_frame) read_frames;
+
+	int v21_detected;
+	modem_connect_tones_rx_state_t *tone_state;
 };
 
+static int spandsp_v21_new(struct spandsp_pvt *p);
 static void session_destroy(struct spandsp_pvt *p);
 static int t38_tx_packet_handler(t38_core_state_t *t38_core_state, void *data, const uint8_t *buf, int len, int count);
 static void t30_phase_e_handler(t30_state_t *t30_state, void *data, int completion_code);
@@ -450,6 +459,20 @@ static void set_ecm(t30_state_t *t30_state, struct ast_fax_session_details *deta
 	t30_set_supported_compressions(t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
 }
 
+static int spandsp_v21_new(struct spandsp_pvt *p)
+{
+	/* XXX Here we use MODEM_CONNECT_TONES_FAX_CED_OR_PREAMBLE even though
+	 * we don't care about CED tones. Using MODEM_CONNECT_TONES_PREAMBLE
+	 * doesn't seem to work right all the time.
+	 */
+	p->tone_state = modem_connect_tones_rx_init(NULL, MODEM_CONNECT_TONES_FAX_CED_OR_PREAMBLE, spandsp_v21_tone, p);
+	if (!p->tone_state) {
+		return -1;
+	}
+
+	return 0;
+}
+
 /*! \brief create an instance of the spandsp tech_pvt for a fax session */
 static void *spandsp_fax_new(struct ast_fax_session *s, struct ast_fax_tech_token *token)
 {
@@ -459,6 +482,15 @@ static void *spandsp_fax_new(struct ast_fax_session *s, struct ast_fax_tech_toke
 	if ((!(p = ast_calloc(1, sizeof(*p))))) {
 		ast_log(LOG_ERROR, "Cannot initialize the spandsp private FAX technology structure.\n");
 		goto e_return;
+	}
+
+	if (s->details->caps & AST_FAX_TECH_V21_DETECT) {
+		if (spandsp_v21_new(p)) {
+			ast_log(LOG_ERROR, "Cannot initialize the spandsp private v21 technology structure.\n");
+			goto e_return;
+		}
+		s->state = AST_FAX_STATE_ACTIVE;
+		return p;
 	}
 
 	if (s->details->caps & AST_FAX_TECH_GATEWAY) {
@@ -513,6 +545,11 @@ e_return:
 	return NULL;
 }
 
+static void spandsp_v21_cleanup(struct ast_fax_session *s) {
+	struct spandsp_pvt *p = s->tech_pvt;
+	modem_connect_tones_rx_free(p->tone_state);
+}
+
 /*! \brief Destroy a spandsp fax session.
  */
 static void spandsp_fax_destroy(struct ast_fax_session *s)
@@ -521,6 +558,8 @@ static void spandsp_fax_destroy(struct ast_fax_session *s)
 
 	if (s->details->caps & AST_FAX_TECH_GATEWAY) {
 		spandsp_fax_gateway_cleanup(s);
+	} else if (s->details->caps & AST_FAX_TECH_V21_DETECT) {
+		spandsp_v21_cleanup(s);
 	} else {
 		session_destroy(p);
 	}
@@ -571,6 +610,36 @@ static struct ast_frame *spandsp_fax_read(struct ast_fax_session *s)
 	return &ast_null_frame;
 }
 
+static void spandsp_v21_tone(void *data, int code, int level, int delay)
+{
+	struct spandsp_pvt *p = data;
+
+	if (code == MODEM_CONNECT_TONES_FAX_PREAMBLE) {
+		p->v21_detected = 1;
+	}
+}
+
+static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame *f) {
+	struct spandsp_pvt *p = s->tech_pvt;
+
+	if (p->v21_detected) {
+		return 0;
+	}
+
+	/*invalid frame*/
+	if (!f->data.ptr || !f->datalen) {
+		return -1;
+	}
+
+	modem_connect_tones_rx(p->tone_state, f->data.ptr, f->samples);
+
+	if (p->v21_detected) {
+		s->details->option.v21_detected = 1;
+	}
+
+	return 0;
+}
+
 /*! \brief Write a frame to the spandsp fax stack.
  * \param s a fax session
  * \param f the frame to write
@@ -584,6 +653,10 @@ static struct ast_frame *spandsp_fax_read(struct ast_fax_session *s)
 static int spandsp_fax_write(struct ast_fax_session *s, const struct ast_frame *f)
 {
 	struct spandsp_pvt *p = s->tech_pvt;
+
+	if (s->details->caps & AST_FAX_TECH_V21_DETECT) {
+		return spandsp_v21_detect(s, f);
+	}
 
 	if (s->details->caps & AST_FAX_TECH_GATEWAY) {
 		return spandsp_fax_gateway_process(s, f);
@@ -906,10 +979,10 @@ static char *spandsp_fax_cli_show_capabilities(int fd)
 /*! \brief */
 static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd)
 {
-	struct spandsp_pvt *p = s->tech_pvt;
-
 	ao2_lock(s);
 	if (s->details->caps & AST_FAX_TECH_GATEWAY) {
+		struct spandsp_pvt *p = s->tech_pvt;
+
 		ast_cli(fd, "%-22s : %d\n", "session", s->id);
 		ast_cli(fd, "%-22s : %s\n", "operation", "Gateway");
 		ast_cli(fd, "%-22s : %s\n", "state", ast_fax_state_to_str(s->state));
@@ -920,7 +993,13 @@ static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd)
 			ast_cli(fd, "%-22s : %d\n", "Data Rate", stats.bit_rate);
 			ast_cli(fd, "%-22s : %d\n", "Page Number", stats.pages_transferred + 1);
 		}
+	} else if (s->details->caps & AST_FAX_TECH_V21_DETECT) {
+		ast_cli(fd, "%-22s : %d\n", "session", s->id);
+		ast_cli(fd, "%-22s : %s\n", "operation", "V.21 Detect");
+		ast_cli(fd, "%-22s : %s\n", "state", ast_fax_state_to_str(s->state));
 	} else {
+		struct spandsp_pvt *p = s->tech_pvt;
+
 		ast_cli(fd, "%-22s : %d\n", "session", s->id);
 		ast_cli(fd, "%-22s : %s\n", "operation", (s->details->caps & AST_FAX_TECH_RECEIVE) ? "Receive" : "Transmit");
 		ast_cli(fd, "%-22s : %s\n", "state", ast_fax_state_to_str(s->state));

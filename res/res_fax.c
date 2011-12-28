@@ -249,13 +249,12 @@ struct ast_fax_debug_info {
 struct fax_gateway {
 	/*! \brief FAX Session */
 	struct ast_fax_session *s;
+	struct ast_fax_session *peer_v21_session;
+	struct ast_fax_session *chan_v21_session;
 	/*! \brief reserved fax session token */
 	struct ast_fax_tech_token *token;
 	/*! \brief the start of our timeout counter */
 	struct timeval timeout_start;
-	/*! \brief DSP Processor */
-	struct ast_dsp *chan_dsp;
-	struct ast_dsp *peer_dsp;
 	/*! \brief framehook used in gateway mode */
 	int framehook;
 	/*! \brief bridged */
@@ -336,7 +335,7 @@ static struct {
 	enum ast_fax_modems modems;
 	uint32_t statusevents:1;
 	uint32_t ecm:1;
-	unsigned int minrate;	
+	unsigned int minrate;
 	unsigned int maxrate;
 } general_options;
 
@@ -371,7 +370,7 @@ struct manager_event_info {
 };
 
 static void debug_check_frame_for_silence(struct ast_fax_session *s, unsigned int c2s, struct ast_frame *frame)
-{	
+{
 	struct debug_info_history *history = c2s ? &s->debug_info->c2s : &s->debug_info->s2c;
 	int dspsilence;
 	unsigned int last_consec_frames, last_consec_ms;
@@ -403,7 +402,7 @@ static void debug_check_frame_for_silence(struct ast_fax_session *s, unsigned in
 	history->consec_ms += (frame->samples / 8);
 }
 
-static void destroy_callback(void *data) 
+static void destroy_callback(void *data)
 {
 	if (data) {
 		ao2_ref(data, -1);
@@ -421,9 +420,9 @@ static struct ast_fax_session_details *find_details(struct ast_channel *chan)
 	struct ast_fax_session_details *details;
 	struct ast_datastore *datastore;
 
-	ast_channel_lock(chan);	
+	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &fax_datastore, NULL))) {
-		ast_channel_unlock(chan);	
+		ast_channel_unlock(chan);
 		return NULL;
 	}
 	if (!(details = datastore->data)) {
@@ -431,8 +430,8 @@ static struct ast_fax_session_details *find_details(struct ast_channel *chan)
 		ast_channel_unlock(chan);
 		return NULL;
 	}
-	ao2_ref(details, 1);	
-	ast_channel_unlock(chan);	
+	ao2_ref(details, 1);
+	ast_channel_unlock(chan);
 
 	return details;
 }
@@ -442,11 +441,11 @@ static void destroy_session_details(void *details)
 {
 	struct ast_fax_session_details *d = details;
 	struct ast_fax_document *doc;
-	
+
 	while ((doc = AST_LIST_REMOVE_HEAD(&d->documents, next))) {
 		ast_free(doc);
 	}
-	ast_string_field_free_memory(d);	
+	ast_string_field_free_memory(d);
 }
 
 /*! \brief create a FAX session details structure */
@@ -457,7 +456,7 @@ static struct ast_fax_session_details *session_details_new(void)
 	if (!(d = ao2_alloc(sizeof(*d), destroy_session_details))) {
 		return NULL;
 	}
-	
+
 	if (ast_string_field_init(d, 512)) {
 		ao2_ref(d, -1);
 		return NULL;
@@ -512,7 +511,7 @@ static void t38_parameters_fax_to_ast(struct ast_control_t38_parameters *dst, co
 }
 
 /*! \brief returns a reference counted details structure from the channel's fax datastore.  If the datastore
- * does not exist it will be created */	
+ * does not exist it will be created */
 static struct ast_fax_session_details *find_or_create_details(struct ast_channel *chan)
 {
 	struct ast_fax_session_details *details;
@@ -556,7 +555,7 @@ unsigned int ast_fax_minrate(void)
 }
 
 static int update_modem_bits(enum ast_fax_modems *bits, const char *value)
-{		
+{
 	char *m[5], *tok, *v = (char *)value;
 	int i = 0, j;
 
@@ -636,7 +635,13 @@ static char *ast_fax_caps_to_str(enum ast_fax_capabilities caps, char *buf, size
 		ast_build_string(&buf, &size, "GATEWAY");
 		first = 0;
 	}
-
+	if (caps & AST_FAX_TECH_V21_DETECT) {
+		if (!first) {
+			ast_build_string(&buf, &size, ",");
+		}
+		ast_build_string(&buf, &size, "V21");
+		first = 0;
+	}
 
 	return out;
 }
@@ -748,7 +753,7 @@ void ast_fax_tech_unregister(struct ast_fax_tech *tech)
 		ast_module_unref(ast_module_info->self);
 		ast_free(fax);
 		ast_verb(4, "Unregistered FAX module type '%s'\n", tech->type);
-		break;	
+		break;
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&faxmodules);
@@ -856,7 +861,7 @@ static void destroy_session(void *session)
 		}
 		ao2_ref(s->details, -1);
 	}
-	
+
 	if (s->debug_info) {
 		ast_dsp_free(s->debug_info->dsp);
 		ast_free(s->debug_info);
@@ -996,7 +1001,7 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 			return NULL;
 		}
 		ast_dsp_set_threshold(s->debug_info->dsp, 128);
-	}	
+	}
 
 	if (!(s->channame = ast_strdup(chan->name))) {
 		fax_session_release(s, token);
@@ -1311,7 +1316,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	}
 
 	ast_channel_lock(chan);
-	/* update session details */	
+	/* update session details */
 	if (ast_strlen_zero(details->headerinfo) && (tempvar = pbx_builtin_getvar_helper(chan, "LOCALHEADERINFO"))) {
 		ast_string_field_set(details, headerinfo, tempvar);
 	}
@@ -1409,7 +1414,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 			    (frame->datalen == sizeof(t38_parameters))) {
 				unsigned int was_t38 = t38negotiated;
 				struct ast_control_t38_parameters *parameters = frame->data.ptr;
-				
+
 				switch (parameters->request_response) {
 				case AST_T38_REQUEST_NEGOTIATE:
 					/* the other end has requested a switch to T.38, so reply that we are willing, if we can
@@ -1435,15 +1440,15 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 						ast_smoother_free(fax->smoother);
 						fax->smoother = NULL;
 					}
-					
+
 					report_fax_status(chan, details, "T.38 Negotiated");
-					
+
 					ast_verb(3, "Channel '%s' switched to T.38 FAX session '%d'.\n", chan->name, fax->id);
 				}
 			} else if ((frame->frametype == expected_frametype) &&
 				   (!memcmp(&frame->subclass, &expected_framesubclass, sizeof(frame->subclass)))) {
 				struct ast_frame *f;
-				
+
 				if (fax->smoother) {
 					/* push the frame into a smoother */
 					if (ast_smoother_feed(fax->smoother, frame) < 0) {
@@ -1805,7 +1810,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ao2_ref(details, -1);
 		return -1;
 	}
-	
+
 	ast_atomic_fetchadd_int(&faxregistry.fax_rx_attempts, 1);
 
 	pbx_builtin_setvar_helper(chan, "FAXERROR", "Channel Problems");
@@ -1909,7 +1914,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 
 	get_manager_event_info(chan, &info);
 	manager_event(EVENT_FLAG_CALL,
-		      "ReceiveFAX", 
+		      "ReceiveFAX",
 		      "Channel: %s\r\n"
 		      "Context: %s\r\n"
 		      "Exten: %s\r\n"
@@ -2265,7 +2270,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ao2_ref(details, -1);
 		return -1;
 	}
-	
+
 	/* check for unsupported FAX application options */
 	if (ast_test_flag(&opts, OPT_CALLERMODE) || ast_test_flag(&opts, OPT_CALLEDMODE)) {
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
@@ -2407,7 +2412,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	ast_channel_lock(chan);
 	get_manager_event_info(chan, &info);
 	manager_event(EVENT_FLAG_CALL,
-		      "SendFAX", 
+		      "SendFAX",
 		      "Channel: %s\r\n"
 		      "Context: %s\r\n"
 		      "Exten: %s\r\n"
@@ -2439,20 +2444,34 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	return (!channel_alive) ? -1 : 0;
 }
 
+/*! \brief destroy the v21 detection parts of a fax gateway session */
+static void destroy_v21_sessions(struct fax_gateway *gateway)
+{
+	if (gateway->chan_v21_session) {
+		ao2_lock(faxregistry.container);
+		ao2_unlink(faxregistry.container, gateway->chan_v21_session);
+		ao2_unlock(faxregistry.container);
+
+		ao2_ref(gateway->chan_v21_session, -1);
+		gateway->chan_v21_session = NULL;
+	}
+
+	if (gateway->peer_v21_session) {
+		ao2_lock(faxregistry.container);
+		ao2_unlink(faxregistry.container, gateway->peer_v21_session);
+		ao2_unlock(faxregistry.container);
+
+		ao2_ref(gateway->peer_v21_session, -1);
+		gateway->peer_v21_session = NULL;
+	}
+}
+
 /*! \brief destroy a FAX gateway session structure */
 static void destroy_gateway(void *data)
 {
 	struct fax_gateway *gateway = data;
 
-	if (gateway->chan_dsp) {
-		ast_dsp_free(gateway->chan_dsp);
-		gateway->chan_dsp = NULL;
-	}
-
-	if (gateway->peer_dsp) {
-		ast_dsp_free(gateway->peer_dsp);
-		gateway->peer_dsp = NULL;
-	}
+	destroy_v21_sessions(gateway);
 
 	if (gateway->s) {
 		fax_session_release(gateway->s, gateway->token);
@@ -2468,35 +2487,38 @@ static void destroy_gateway(void *data)
 }
 
 /*! \brief Create a new fax gateway object.
+ * \param chan the channel the gateway object will be attached to
  * \param details the fax session details
  * \return NULL or a fax gateway object
  */
-static struct fax_gateway *fax_gateway_new(struct ast_fax_session_details *details)
+static struct fax_gateway *fax_gateway_new(struct ast_channel *chan, struct ast_fax_session_details *details)
 {
 	struct fax_gateway *gateway = ao2_alloc(sizeof(*gateway), destroy_gateway);
+	struct ast_fax_session_details *v21_details;
 	if (!gateway) {
 		return NULL;
 	}
 
-	gateway->chan_dsp = ast_dsp_new();
-	if (!gateway->chan_dsp) {
+	if (!(v21_details = session_details_new())) {
 		ao2_ref(gateway, -1);
 		return NULL;
 	}
 
-	gateway->peer_dsp = ast_dsp_new();
-	if (!gateway->peer_dsp) {
+	v21_details->caps = AST_FAX_TECH_V21_DETECT;
+	if (!(gateway->chan_v21_session = fax_session_new(v21_details, chan, NULL, NULL))) {
+		ao2_ref(v21_details, -1);
 		ao2_ref(gateway, -1);
 		return NULL;
 	}
+
+	if (!(gateway->peer_v21_session = fax_session_new(v21_details, chan, NULL, NULL))) {
+		ao2_ref(v21_details, -1);
+		ao2_ref(gateway, -1);
+		return NULL;
+	}
+	ao2_ref(v21_details, -1);
 
 	gateway->framehook = -1;
-
-	ast_dsp_set_features(gateway->chan_dsp, DSP_FEATURE_FAX_DETECT);
-	ast_dsp_set_faxmode(gateway->chan_dsp, DSP_FAXMODE_DETECT_V21);
-
-	ast_dsp_set_features(gateway->peer_dsp, DSP_FEATURE_FAX_DETECT);
-	ast_dsp_set_faxmode(gateway->peer_dsp, DSP_FAXMODE_DETECT_V21);
 
 	details->caps = AST_FAX_TECH_GATEWAY;
 	if (details->gateway_timeout && !(gateway->s = fax_session_reserve(details, &gateway->token))) {
@@ -2591,24 +2613,20 @@ static struct ast_frame *fax_gateway_request_t38(struct fax_gateway *gateway, st
 
 static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *active, struct ast_frame *f)
 {
-	struct ast_frame *dfr = ast_frdup(f);
-	struct ast_dsp *active_dsp = (active == chan) ? gateway->chan_dsp : gateway->peer_dsp;
 	struct ast_channel *other = (active == chan) ? peer : chan;
+	struct ast_fax_session *active_v21_session = (active == chan) ? gateway->chan_v21_session : gateway->peer_v21_session;
+
+	if (!active_v21_session || gateway->detected_v21) {
+		return f;
+	}
+
+	if (active_v21_session->tech->write(active_v21_session, f) == 0 &&
+	    active_v21_session->details->option.v21_detected) {
+		gateway->detected_v21 = 1;
+	}
 
 	if (gateway->detected_v21) {
-		return f;
-	}
-
-	if (!dfr) {
-		return f;
-	}
-
-	if (!(dfr = ast_dsp_process(active, active_dsp, dfr))) {
-		return f;
-	}
-
-	if (dfr->frametype == AST_FRAME_DTMF && dfr->subclass.integer == 'g') {
-		gateway->detected_v21 = 1;
+		destroy_v21_sessions(gateway);
 		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN) {
 			ast_debug(1, "detected v21 preamble from %s\n", active->name);
 			return fax_gateway_request_t38(gateway, chan, f);
@@ -2617,7 +2635,6 @@ static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, str
 		}
 	}
 
-	ast_frfree(dfr);
 	return f;
 }
 
@@ -3120,7 +3137,7 @@ static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_d
 	set_channel_variables(chan, details);
 
 	/* set up the frame hook*/
-	gateway = fax_gateway_new(details);
+	gateway = fax_gateway_new(chan, details);
 	if (!gateway) {
 		ast_string_field_set(details, result, "FAILED");
 		ast_string_field_set(details, resultstr, "error initializing gateway session");
@@ -3468,7 +3485,7 @@ static char *cli_fax_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "fax set debug {on|off}";
-		e->usage = 
+		e->usage =
 			"Usage: fax set debug { on | off }\n"
 			"       Enable/Disable FAX debugging on new FAX sessions.  The basic FAX debugging will result in\n"
 			"       additional events sent to manager sessions with 'call' class permissions.  When\n"
@@ -3499,11 +3516,11 @@ static char *cli_fax_show_capabilities(struct ast_cli_entry *e, int cmd, struct 
 {
 	struct fax_module *fax;
 	unsigned int num_modules = 0;
-	
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "fax show capabilities";
-		e->usage = 
+		e->usage =
 			"Usage: fax show capabilities\n"
 			"       Shows the capabilities of the registered FAX technology modules\n";
 		return NULL;
@@ -3594,12 +3611,12 @@ static char *cli_fax_show_session(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	return CLI_SUCCESS;
 }
-	
+
 /*! \brief display fax stats */
 static char *cli_fax_show_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct fax_module *fax;
-	
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "fax show stats";
@@ -3626,6 +3643,36 @@ static char *cli_fax_show_stats(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd, "\n\n");
 
 	return CLI_SUCCESS;
+}
+
+static const char *cli_session_type(struct ast_fax_session *s)
+{
+	if (s->details->caps & AST_FAX_TECH_AUDIO) {
+		return "G.711";
+	}
+	if (s->details->caps & AST_FAX_TECH_T38) {
+		return "T.38";
+	}
+
+	return "none";
+}
+
+static const char *cli_session_operation(struct ast_fax_session *s)
+{
+	if (s->details->caps & AST_FAX_TECH_GATEWAY) {
+		return "gateway";
+	}
+	if (s->details->caps & AST_FAX_TECH_SEND) {
+		return "send";
+	}
+	if (s->details->caps & AST_FAX_TECH_RECEIVE) {
+		return "receive";
+	}
+	if (s->details->caps & AST_FAX_TECH_V21_DETECT) {
+		return "V.21";
+	}
+
+	return "none";
 }
 
 /*! \brief display fax sessions */
@@ -3658,10 +3705,8 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 
 		ast_cli(a->fd, "%-20.20s %-10.10s %-10d %-5.5s %-10.10s %-15.15s %-30s\n",
 			s->channame, s->tech->type, s->id,
-			(s->details->caps & AST_FAX_TECH_AUDIO) ? "G.711" : "T.38",
-			(s->details->caps & AST_FAX_TECH_GATEWAY)
-				? "gateway"
-				: (s->details->caps & AST_FAX_TECH_SEND) ? "send" : "receive",
+			cli_session_type(s),
+			cli_session_operation(s),
 			ast_fax_state_to_str(s->state), S_OR(filenames, ""));
 
 		ast_free(filenames);
@@ -3693,9 +3738,9 @@ static int set_config(const char *config_file)
 	struct ast_flags config_flags = { 0 };
 	char modems[128] = "";
 
-	/* set defaults */	
+	/* set defaults */
 	general_options.minrate = RES_FAX_MINRATE;
-	general_options.maxrate = RES_FAX_MAXRATE;	
+	general_options.maxrate = RES_FAX_MAXRATE;
 	general_options.statusevents = RES_FAX_STATUSEVENTS;
 	general_options.modems = RES_FAX_MODEM;
 	general_options.ecm = AST_FAX_OPTFLAG_TRUE;
@@ -3979,7 +4024,7 @@ struct ast_custom_function acf_faxopt = {
 static int unload_module(void)
 {
 	ast_cli_unregister_multiple(fax_cli, ARRAY_LEN(fax_cli));
-	
+
 	if (ast_custom_function_unregister(&acf_faxopt) < 0) {
 		ast_log(LOG_WARNING, "failed to unregister function '%s'\n", acf_faxopt.name);
 	}
@@ -4012,7 +4057,7 @@ static int load_module(void)
 	if (!(faxregistry.container = ao2_container_alloc(FAX_MAXBUCKETS, session_hash_cb, session_cmp_cb))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	
+
 	if (set_config(config) < 0) {
 		ast_log(LOG_ERROR, "failed to load configuration file '%s'\n", config);
 		ao2_ref(faxregistry.container, -1);
