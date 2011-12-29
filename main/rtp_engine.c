@@ -889,7 +889,8 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 			    (fr->subclass.integer == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass.integer == AST_CONTROL_VIDUPDATE) ||
 			    (fr->subclass.integer == AST_CONTROL_SRCUPDATE) ||
-			    (fr->subclass.integer == AST_CONTROL_T38_PARAMETERS)) {
+			    (fr->subclass.integer == AST_CONTROL_T38_PARAMETERS) ||
+			    (fr->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER)) {
 				/* If we are going on hold, then break callback mode and P2P bridging */
 				if (fr->subclass.integer == AST_CONTROL_HOLD) {
 					if (instance0->engine->local_bridge) {
@@ -910,7 +911,10 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 					instance0->bridged = instance1;
 					instance1->bridged = instance0;
 				}
-				ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
+				/* Since UPDATE_BRIDGE_PEER is only used by the bridging code, don't forward it */
+				if (fr->subclass.integer != AST_CONTROL_UPDATE_RTP_PEER) {
+					ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
+				}
 				ast_frfree(fr);
 			} else if (fr->subclass.integer == AST_CONTROL_CONNECTED_LINE) {
 				if (ast_channel_connected_line_macro(who, other, fr, other == c0, 1)) {
