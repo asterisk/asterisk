@@ -1,0 +1,228 @@
+                                Release Summary
+
+                              asterisk-1.8.9.0-rc1
+
+                                Date: 2011-12-29
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.8.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   12 rmudgett              
+   4 jrose                  
+   3 mjordan                
+   3 seanbright             
+   3 twilson                
+   2 wdoekes                
+   1 kmoore                 
+   1 kpfleming              
+   1 mnicholson             
+   1 schmidts               
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   |Revision|Author    |Summary                           |Issues Referenced|
+   |--------+----------+----------------------------------+-----------------|
+   |347166  |wdoekes   |Don't allow transport=tcp when    |ASTERISK-18837   |
+   |        |          |tcpenable=no.                     |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Documents CHANNEL(musicclass)     |                 |
+   |347239  |jrose     |taking priority over m([x]) in    |ASTERISK-18804   |
+   |        |          |waitExten                         |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Make SIP INFO messages for        |                 |
+   |347292  |rmudgett  |dtmf-relay signals case           |ASTERISK-18924   |
+   |        |          |insensitive.                      |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Fix: Meetme recording variables   |                 |
+   |347369  |jrose     |from realtime DB use null entries |ASTERISK-18873   |
+   |        |          |over channel variables            |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Update AMI Getvar and Setvar      |                 |
+   |347438  |rmudgett  |documentation about supplying a   |ASTERISK-18958   |
+   |        |          |channel name.                     |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |347531  |twilson   |Don't crash on INFO automon       |ASTERISK-18805   |
+   |        |          |request with no channel           |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |347595  |rmudgett  |Mark channel running the h exten  |ASTERISK-18811   |
+   |        |          |with the soft-hangup flag.        |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |347718  |wdoekes   |Fix regression when using         |                 |
+   |        |          |tcpenable=no and tlsenable=yes.   |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |347811  |rmudgett  |Fix some parsing issues in        |ASTERISK-18909   |
+   |        |          |add_exten_to_pattern_tree().      |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |347995  |twilson   |Add a separate buffer for SRTCP   |ASTERISK-18889   |
+   |        |          |packets                           |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Fix possible misshandling of an   |                 |
+   |348048  |schmidts  |incoming SIP response as a peer   |ASTERISK-18940   |
+   |        |          |poke response.                    |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |348101  |rmudgett  |Fix FollowMe CallerID on outgoing |ASTERISK-17557   |
+   |        |          |calls.                            |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |348154  |jrose     |Document PARKINGSLOT variable in  |ASTERISK-16239   |
+   |        |          |features.conf.sample              |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Fix accidental use of tabs instead|                 |
+   |348157  |jrose     |of spaces from previous           |                 |
+   |        |          |features.conf.sample change       |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Don't clear LOCALSTATIONID before |                 |
+   |348212  |mnicholson|sending or receiving. The user may|ASTERISK-18921   |
+   |        |          |set that                          |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Fix ParkAndAnnounce to pass the   |                 |
+   |348310  |rmudgett  |CallerID to the announcing        |                 |
+   |        |          |channel.                          |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |348362  |rmudgett  |Fix crash during CDR update.      |ASTERISK-18836   |
+   |--------+----------+----------------------------------+-----------------|
+   |348401  |rmudgett  |Fix cut and past error in         |ASTERISK-18836   |
+   |        |          |ast_call_forward().               |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Clean-up on isle five for         |                 |
+   |348464  |rmudgett  |__ast_request_and_dial() and      |                 |
+   |        |          |ast_call_forward().               |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Correct two flaws in              |                 |
+   |348516  |kpfleming |sip.conf.sample related to        |                 |
+   |        |          |AST-2011-013.                     |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Fix crashes on other platforms    |                 |
+   |348647  |rmudgett  |caused by interference from Darwin|ASTERISK-18728   |
+   |        |          |weak symbol support.              |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |348735  |rmudgett  |Fix chan_iax2 to not report an    |ASTERISK-17152   |
+   |        |          |RDNIS number if it is blank.      |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |348833  |twilson   |Allow packetization vaules > 127  |ASTERISK-18876   |
+   |--------+----------+----------------------------------+-----------------|
+   |348888  |mjordan   |Fix for memory leaks / cleanup in |ASTERISK-18879   |
+   |        |          |cel_pgsql                         |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |348940  |rmudgett  |Fix extension state callback      |ASTERISK-17760,  |
+   |        |          |references in chan_sip.           |ASTERISK-18844   |
+   |--------+----------+----------------------------------+-----------------|
+   |348992  |kmoore    |Fix missing doc tags found while  |ASTERISK-18689   |
+   |        |          |fixing ASTERISK-18689             |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |In ChanSpy, don't create          |                 |
+   |349044  |seanbright|audiohooks that will never be     |                 |
+   |        |          |used.                             |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Once an audiohook is attached to a|                 |
+   |349144  |seanbright|channel, we continue to transcode |                 |
+   |        |          |all of the                        |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |349194  |mjordan   |Fix timing source dependency      |ASTERISK-17474   |
+   |        |          |issues with MOH                   |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |Use ast_audiohook_write_list_empty|                 |
+   |349289  |seanbright|to determine if our lists are     |                 |
+   |        |          |empty instead                     |                 |
+   |--------+----------+----------------------------------+-----------------|
+   |        |          |                                  |ASTERISK-19040,  |
+   |        |          |Handle AST_CONTROL_UPDATE_RTP_PEER|ASTERISK-19128,  |
+   |349339  |mjordan   |frames in local bridge loop       |ASTERISK-17725,  |
+   |        |          |                                  |ASTERISK-18340,  |
+   |        |          |                                  |ASTERISK-19095   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_authenticate.c           |   15 -
+ apps/app_chanspy.c                |   56 ++--
+ apps/app_dial.c                   |    2
+ apps/app_followme.c               |  201 ++++++++-------
+ apps/app_meetme.c                 |    8
+ apps/app_parkandannounce.c        |   19 +
+ apps/app_queue.c                  |    2
+ bridges/bridge_builtin_features.c |   13 -
+ cel/cel_pgsql.c                   |   37 +-
+ channels/chan_iax2.c              |    6
+ channels/chan_sip.c               |  110 ++++++--
+ configs/features.conf.sample      |    2
+ configs/sip.conf.sample           |    6
+ configure.ac                      |   34 ++
+ funcs/func_cdr.c                  |   20 +
+ include/asterisk/cdr.h            |   32 ++
+ include/asterisk/frame.h          |    2
+ include/asterisk/module.h         |    1
+ include/asterisk/pbx.h            |   42 ++-
+ main/audiohook.c                  |    4
+ main/channel.c                    |  122 ++++++---
+ main/features.c                   |   28 +-
+ main/manager.c                    |    6
+ main/pbx.c                        |  492 +++++++++++++++++++++++++-------------
+ main/rtp_engine.c                 |    8
+ res/res_fax.c                     |    2
+ res/res_monitor.c                 |    6
+ res/res_musiconhold.c             |   21 +
+ res/res_srtp.c                    |   10
+ res/res_timing_dahdi.c            |    2
+ res/res_timing_pthread.c          |    2
+ res/res_timing_timerfd.c          |    2
+ 32 files changed, 876 insertions(+), 437 deletions(-)
+
+     ----------------------------------------------------------------------
