@@ -1,3 +1,22 @@
+2011-12-29  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.8.1 Released.
+
+	* Handle AST_CONTROL_UPDATE_RTP_PEER frames in local bridge loop
+
+	  Failing to handle AST_CONTROL_UPDATE_RTP_PEER frames in the local bridge loop
+ 	  causes the loop to exit prematurely.  This causes a variety of negative side
+	  effects, depending on when the loop exits.  This patch handles the frame by
+	  essentially swallowing the frame in the local loop, as the current channel
+	  drivers expect the RTP bridge to handle the frame, and, in the case of the
+	  local bridge loop, no additional action is necessary.
+
+	  (closes issue ASTERISK-19095)
+	  Reported by: Stefan Schmidt
+	  Tested by: Matt Jordan
+
+	  Review: https://reviewboard.asterisk.org/r/1640/
+
 2011-12-15  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.8.0 Released.
