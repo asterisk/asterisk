@@ -1,3 +1,10 @@
+2011-12-29  Asterisk Development Team <asteriskteam@digium.com>
+
+        * Asterisk 1.8.9.0-rc1 Released.
+
+        * Test results:
+          http://bamboo.asterisk.org/browse/TESTING-ASTERISK1890RCS-2
+
 2011-12-29 15:13 +0000 [r349339]  Matthew Jordan <mjordan@digium.com>
 
 	* main/rtp_engine.c: Handle AST_CONTROL_UPDATE_RTP_PEER frames in
