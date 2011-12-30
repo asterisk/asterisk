@@ -1,6 +1,9 @@
-2011-12-29  Asterisk Development Team <asteriskteam@digium.com>
+2011-12-30  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.8.1 Released.
+
+	* Test result:
+	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1881RCS-4	  
 
 	* Handle AST_CONTROL_UPDATE_RTP_PEER frames in local bridge loop
 
