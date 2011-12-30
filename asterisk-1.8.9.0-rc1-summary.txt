@@ -2,7 +2,7 @@
 
                               asterisk-1.8.9.0-rc1
 
-                                Date: 2011-12-29
+                                Date: 2011-12-30
 
                            <asteriskteam@digium.com>
 
