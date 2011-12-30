@@ -1,3 +1,10 @@
+2011-12-29  Asterisk Development Team <asteriskteam@digium.com>
+
+        * Asterisk 10.1.0-rc1 Released.
+
+        * Test results:
+          http://bamboo.asterisk.org/browse/TESTING-ASTERISK1010RCS-1
+
 2011-12-29 15:14 +0000 [r349340]  Matthew Jordan <mjordan@digium.com>
 
 
