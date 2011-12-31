@@ -207,7 +207,7 @@ were called to appear in /tmp/refs, you can do this sort of thing:
 #ifdef REF_DEBUG
 #define dialog_ref(arg1,arg2) dialog_ref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define dialog_unref(arg1,arg2) dialog_unref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-static struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, const char *file, int line, const char *func)
+static struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, const char *tag, const char *file, int line, const char *func)
 {
 	if (p)
 		ao2_ref_debug(p, 1, tag, file, line, func);
@@ -216,14 +216,14 @@ static struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, const char
 	return p;
 }
 
-static struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, char *tag, const char *file, int line, const char *func)
+static struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, const char *tag, const char *file, int line, const char *func)
 {
 	if (p)
 		ao2_ref_debug(p, -1, tag, file, line, func);
 	return NULL;
 }
 #else
-static struct sip_pvt *dialog_ref(struct sip_pvt *p, char *tag)
+static struct sip_pvt *dialog_ref(struct sip_pvt *p, const char *tag)
 {
 	if (p)
 		ao2_ref(p, 1);
@@ -232,7 +232,7 @@ static struct sip_pvt *dialog_ref(struct sip_pvt *p, char *tag)
 	return p;
 }
 
-static struct sip_pvt *dialog_unref(struct sip_pvt *p, char *tag)
+static struct sip_pvt *dialog_unref(struct sip_pvt *p, const char *tag)
 {
 	if (p)
 		ao2_ref(p, -1);
@@ -420,7 +420,7 @@ typedef void (*ao2_destructor_fn)(void *);
 
 #endif
 
-void *__ao2_alloc_debug(const size_t data_size, ao2_destructor_fn destructor_fn, char *tag,
+void *__ao2_alloc_debug(const size_t data_size, ao2_destructor_fn destructor_fn, const char *tag,
 			const char *file, int line, const char *funcname, int ref_debug);
 void *__ao2_alloc(const size_t data_size, ao2_destructor_fn destructor_fn);
 
@@ -462,7 +462,7 @@ void *__ao2_alloc(const size_t data_size, ao2_destructor_fn destructor_fn);
 
 #endif
 
-int __ao2_ref_debug(void *o, int delta, char *tag, char *file, int line, const char *funcname);
+int __ao2_ref_debug(void *o, int delta, const char *tag, char *file, int line, const char *funcname);
 int __ao2_ref(void *o, int delta);
 
 /*! @} */
@@ -743,7 +743,7 @@ struct ao2_container *__ao2_container_alloc(const unsigned int n_buckets,
 					    ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
 struct ao2_container *__ao2_container_alloc_debug(const unsigned int n_buckets,
 						  ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn,
-						  char *tag, char *file, int line, const char *funcname,
+						  const char *tag, char *file, int line, const char *funcname,
 						  int ref_debug);
 
 /*! \brief
@@ -794,7 +794,7 @@ int ao2_container_count(struct ao2_container *c);
 
 #endif
 
-void *__ao2_link_debug(struct ao2_container *c, void *new_obj, int flags, char *tag, char *file, int line, const char *funcname);
+void *__ao2_link_debug(struct ao2_container *c, void *new_obj, int flags, const char *tag, char *file, int line, const char *funcname);
 void *__ao2_link(struct ao2_container *c, void *newobj, int flags);
 
 /*!
@@ -830,7 +830,7 @@ void *__ao2_link(struct ao2_container *c, void *newobj, int flags);
 
 #endif
 
-void *__ao2_unlink_debug(struct ao2_container *c, void *obj, int flags, char *tag, char *file, int line, const char *funcname);
+void *__ao2_unlink_debug(struct ao2_container *c, void *obj, int flags, const char *tag, char *file, int line, const char *funcname);
 void *__ao2_unlink(struct ao2_container *c, void *obj, int flags);
 
 
@@ -924,7 +924,7 @@ void *__ao2_unlink(struct ao2_container *c, void *obj, int flags);
 #endif
 
 void *__ao2_callback_debug(struct ao2_container *c, enum search_flags flags, ao2_callback_fn *cb_fn,
-			   void *arg, char *tag, char *file, int line, const char *funcname);
+			   void *arg, const char *tag, char *file, int line, const char *funcname);
 void *__ao2_callback(struct ao2_container *c, enum search_flags flags, ao2_callback_fn *cb_fn, void *arg);
 
 /*! @} */
@@ -957,7 +957,7 @@ void *__ao2_callback(struct ao2_container *c, enum search_flags flags, ao2_callb
 #endif
 
 void *__ao2_callback_data_debug(struct ao2_container *c, enum search_flags flags,
-				ao2_callback_data_fn *cb_fn, void *arg, void *data, char *tag,
+				ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag,
 				char *file, int line, const char *funcname);
 void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 			  ao2_callback_data_fn *cb_fn, void *arg, void *data);
@@ -977,7 +977,7 @@ void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 
 #endif
 
-void *__ao2_find_debug(struct ao2_container *c, const void *arg, enum search_flags flags, char *tag,
+void *__ao2_find_debug(struct ao2_container *c, const void *arg, enum search_flags flags, const char *tag,
 		       char *file, int line, const char *funcname);
 void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags);
 
@@ -1139,7 +1139,7 @@ void ao2_iterator_destroy(struct ao2_iterator *i);
 
 #endif
 
-void *__ao2_iterator_next_debug(struct ao2_iterator *a, char *tag, char *file, int line, const char *funcname);
+void *__ao2_iterator_next_debug(struct ao2_iterator *a, const char *tag, char *file, int line, const char *funcname);
 void *__ao2_iterator_next(struct ao2_iterator *a);
 
 /* extra functions */

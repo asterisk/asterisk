@@ -2222,7 +2222,7 @@ static struct ast_tcptls_session_args sip_tls_desc = {
 	\return Always returns 0 */
 #define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
 
-struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
+struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func)
 {
 	if (p)
 #ifdef REF_DEBUG
@@ -2235,7 +2235,7 @@ struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file, int l
 	return p;
 }
 
-struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func)
+struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func)
 {
 	if (p)
 #ifdef REF_DEBUG

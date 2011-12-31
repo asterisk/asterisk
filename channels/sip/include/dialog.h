@@ -31,8 +31,8 @@
  */
 #define dialog_ref(arg1,arg2) dialog_ref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define dialog_unref(arg1,arg2) dialog_unref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func);
-struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, char *tag, char *file, int line, const char *func);
+struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func);
+struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func);
 
 struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *sin,
 				 int useglobal_nat, const int intended_method, struct sip_request *req);
