@@ -4116,14 +4116,16 @@ static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
 	return 0;
 }
 
-static int send_provisional_keepalive(const void *data) {
+static int send_provisional_keepalive(const void *data)
+{
 	struct sip_pvt *pvt = (struct sip_pvt *) data;
 
 	return send_provisional_keepalive_full(pvt, 0);
 }
 
-static int send_provisional_keepalive_with_sdp(const void *data) {
-	struct sip_pvt *pvt = (void *)data;
+static int send_provisional_keepalive_with_sdp(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
 
 	return send_provisional_keepalive_full(pvt, 1);
 }
