@@ -6655,7 +6655,7 @@ static int dahdi_queryoption(struct ast_channel *chan, int option, void *data, i
 	struct dahdi_pvt *p = chan->tech_pvt;
 
 	/* all supported options require data */
-	if (!data || (*datalen < 1)) {
+	if (!p || !data || (*datalen < 1)) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -6701,7 +6701,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 
 
 	/* all supported options require data */
-	if (!data || (datalen < 1)) {
+	if (!p || !data || (datalen < 1)) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -6914,6 +6914,12 @@ static int dahdi_func_read(struct ast_channel *chan, const char *function, char 
 	struct dahdi_pvt *p = chan->tech_pvt;
 	int res = 0;
 
+	if (!p) {
+		/* No private structure! */
+		*buf = '\0';
+		return -1;
+	}
+
 	if (!strcasecmp(data, "rxgain")) {
 		ast_mutex_lock(&p->lock);
 		snprintf(buf, len, "%f", p->rxgain);
@@ -7046,6 +7052,11 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 {
 	struct dahdi_pvt *p = chan->tech_pvt;
 	int res = 0;
+
+	if (!p) {
+		/* No private structure! */
+		return -1;
+	}
 
 	if (!strcasecmp(data, "buffers")) {
 		int num_bufs, policy;
