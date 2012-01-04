@@ -1312,8 +1312,9 @@ const struct user_profile *conf_find_user_profile(struct ast_channel *chan, cons
 				conf_user_profile_copy(result, &b_data->u_profile);
 				return result;
 			}
+		} else {
+			ast_channel_unlock(chan);
 		}
-		ast_channel_unlock(chan);
 	}
 
 	if (ast_strlen_zero(user_profile_name)) {
@@ -1362,8 +1363,9 @@ const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, 
 				conf_bridge_profile_copy(result, &b_data->b_profile);
 				return result;
 			}
+		} else {
+			ast_channel_unlock(chan);
 		}
-		ast_channel_unlock(chan);
 	}
 	if (ast_strlen_zero(bridge_profile_name)) {
 		bridge_profile_name = DEFAULT_BRIDGE_PROFILE;
