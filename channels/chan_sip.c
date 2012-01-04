@@ -12811,6 +12811,7 @@ static int transmit_cc_notify(struct ast_cc_agent *agent, struct sip_pvt *subscr
 	struct sip_cc_agent_pvt *agent_pvt = agent->private_data;
 	char uri[SIPBUFSIZE];
 	char state_str[64];
+	char subscription_state_hdr[64];
 
 	if (state < CC_QUEUED || state > CC_READY) {
 		ast_log(LOG_WARNING, "Invalid state provided for transmit_cc_notify (%d)\n", state);
@@ -12821,6 +12822,8 @@ static int transmit_cc_notify(struct ast_cc_agent *agent, struct sip_pvt *subscr
 	snprintf(state_str, sizeof(state_str), "%s\r\n", sip_cc_notify_state_map[state].state_string);
 	add_header(&req, "Event", "call-completion");
 	add_header(&req, "Content-Type", "application/call-completion");
+	snprintf(subscription_state_hdr, sizeof(subscription_state_hdr), "active;expires=%d", subscription->expiry);
+	add_header(&req, "Subscription-State", subscription_state_hdr);
 	if (state == CC_READY) {
 		generate_uri(subscription, agent_pvt->notify_uri, sizeof(agent_pvt->notify_uri));
 		snprintf(uri, sizeof(uri) - 1, "cc-URI: %s\r\n", agent_pvt->notify_uri);
