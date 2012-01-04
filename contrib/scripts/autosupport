@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# Autosupport Version 2.0.15
+# Autosupport Version 2.0.18
 # Collect support information
 #
-# Copyright (C) 2005-2010, Digium, Inc.
+# Copyright (C) 2005-2011, Digium, Inc.
 #
 # Written by John Bigelow (support@digium.com)
 #            Charles Moye (cmoye@digium.com)
@@ -28,6 +28,7 @@ VAR_LIB_LIST_FILE="list-of-varlibasterisk.txt"
 FILE_PREFIX=
 FOLDER_PREFIX="${HOME}/"
 files="n";
+NONINTERACTIVE=0
 
 # If a prefix is specified on command-line, add it.
 if (set -u; : $1) 2> /dev/null
@@ -40,9 +41,10 @@ then
     echo
     echo "usage: autosupport [prefix]"
     echo "Valid Options:"
-    echo "   [prefix]		Prefix to apply to output files"
-    echo "			May be your existing Digium Technical Support Ticket ID"
-    echo "   -h, --help		Show help about options"
+    echo "   [prefix]			Prefix to apply to output files"
+    echo "				May be your existing Digium Technical Support Ticket ID"
+    echo "   -n, --non-interactive	Run without requiring user input"
+    echo "   -h, --help			Show help about options"
     echo
     echo "Example:"
     echo "    autosupport XXXXXXXX"
@@ -51,8 +53,12 @@ then
     echo "    XXXXXXXX_${TARBALL_OUTPUT_FILE}"
     echo
     exit
+  elif [ $1 == "-n" ] || [ $1 == "--non-interactive" ]; then
+    FILE_PREFIX=
+    NONINTERACTIVE=1
+  else
+    FILE_PREFIX="${FILE_PREFIX}${1}_";
   fi
-  FILE_PREFIX="${FILE_PREFIX}${1}_";
 fi
 
 MYUID=$(id -u);
@@ -100,6 +106,22 @@ grep "Autosupport Version" $0 | head -n1 >> $OUTPUT
 echo >> $OUTPUT;
 echo >> $OUTPUT;
 echo -n "Working";
+
+echo "------------------" >> $OUTPUT;
+echo "UPTIME : uptime" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+uptime >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
+
+echo "------------------" >> $OUTPUT;
+echo "MEMORY : free" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+free >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
 
 echo "------------------" >> $OUTPUT;
 echo "KERNEL VERSION : uname -a" >> $OUTPUT;
@@ -162,9 +184,10 @@ echo >> $OUTPUT;
 # Add check to see if asterisk is running.
 if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
   for command in "show version" "core show version" "pri show version" "dahdi show version" "transcoder show" \
-      "core show uptime" "pri show spans" "misdn show stacks" "zap show channels" "dahdi show channels" \
+      "core show uptime" "pri show spans" "misdn show stacks" "zap show channels" "dahdi show status" "dahdi show channels" \
       "dahdi show channel 1" "core show channels" "skype show version" "skype show licenses" "skype show users" \
-      "show g729" "g729 show version" "g729 show licenses" "fax show version" "fax show licenses" "fax show stats" ; do
+      "skype show hostid" "show g729" "g729 show version" "g729 show licenses" "g729 show hostid" "fax show version" \
+      "fax show licenses" "fax show hostid" "fax show stats"; do
     echo "asterisk -rx \"$command\"" >> $OUTPUT;
     asterisk -rx "$command" >> $OUTPUT;
     echo >> $OUTPUT;
@@ -187,6 +210,14 @@ for file in $(ls /etc/*issue* /etc/*release* /etc/*version* \
   fi
 done
 echo >> $OUTPUT;
+
+echo "------------------" >> $OUTPUT;
+echo "TOP : top -bn1" >> $OUTPUT;
+echo "------------------" >> $OUTPUT;
+top -bn1 >> $OUTPUT;
+echo >> $OUTPUT;
+echo >> $OUTPUT;
+echo -n "."
 
 echo "------------------" >> $OUTPUT;
 echo "RUNNING PROCESSES : ps aux" >> $OUTPUT;
@@ -322,7 +353,7 @@ echo >> $OUTPUT;
 echo -n "."
 
 echo "------------------" >> $OUTPUT;
-echo "NETWORK INFO : route -n; iptables -L; ifconfig" >> $OUTPUT;
+echo "NETWORK INFO : route -n; iptables -L; ifconfig -a" >> $OUTPUT;
 echo "------------------" >> $OUTPUT;
 route -n 2> /dev/null >> $OUTPUT;
 echo >> $OUTPUT;
@@ -330,7 +361,7 @@ echo "------------------" >> $OUTPUT;
 iptables -L 2> /dev/null >> $OUTPUT;
 echo >> $OUTPUT;
 echo "------------------" >> $OUTPUT;
-ifconfig 2> /dev/null >> $OUTPUT;
+ifconfig -a 2> /dev/null >> $OUTPUT;
 echo >> $OUTPUT;
 echo >> $OUTPUT;
 echo -n "."
@@ -457,23 +488,8 @@ collect_config_backup()
   gzip $TARBALL_OUTPUT
 }
 
-clear;
-
-echo
-echo "This script will try to collect the following pieces of"
-echo "information from your system."
-echo
-echo "1. Information about your system such as:"
-echo "pci listing, dmesg, running processes, and kernel version"
-echo
-echo "2. A backup of elements of your configuration such as:"
-echo "asterisk config files, license files, loaded dahdi/zaptel module"
-echo "parameters, and other asterisk/dahdi/zaptel related files."
-echo
-echo "Collect this information [y/n] ? "
-read files;
-
-if [ "$files" = "y" ] || [ "$files" = "yes" ]; then
+collect()
+{
   echo "This may take up to half a minute to run. Please be patient."
   collect_digiuminfo;
   collect_config_backup;
@@ -496,9 +512,33 @@ if [ "$files" = "y" ] || [ "$files" = "yes" ]; then
     echo "Please investigate your system, and send the output"
     echo "above to your Digium Technical Support Ticket."
   fi
+}
+
+clear;
+
+if [ $NONINTERACTIVE -eq 1 ]; then
+  collect;
 else
-  clear;
-  echo;
-  echo "User selected not to continue."
+  echo
+  echo "This script will try to collect the following pieces of"
+  echo "information from your system."
+  echo
+  echo "1. Information about your system such as:"
+  echo "pci listing, dmesg, running processes, and kernel version"
+  echo
+  echo "2. A backup of elements of your configuration such as:"
+  echo "asterisk config files, license files, loaded dahdi/zaptel module"
+  echo "parameters, and other asterisk/dahdi/zaptel related files."
+  echo
+  echo "Collect this information [y/n] ? "
+  read files;
+
+  if [ "$files" = "y" ] || [ "$files" = "yes" ]; then
+    collect;
+  else
+    clear;
+    echo;
+    echo "User selected not to continue."
+  fi
 fi
 exit

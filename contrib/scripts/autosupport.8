@@ -1,10 +1,10 @@
-.TH AUTOSUPPORT 8 "Aug 8th, 2010" "Asterisk" "Linux Programmer's Manual"
+.TH AUTOSUPPORT 8 "Dec 14th, 2011" "autosupport" "Linux Programmer's Manual"
 .SH NAME
 .B autosupport
 \(em interactive script to provide Digium[tm]'s support with information
 .SH SYNOPSIS
 .PP 
-.B autosupport [-h] [prefix]
+.B autosupport [OPTION] [prefix]
 
 .SH DESCRIPTION
 \fBautosupport\fR is a script that is normally run by a user contacting Digium's Technical
@@ -30,7 +30,10 @@ least is expected to be attached to a support ticket with Digium.
 \fBprefix\fR
 Used to prefix the file names. Typically a Digium Technical Support Ticket ID
 .SS Options:
-.TP 15
+.TP 25
+\fB\-n, \-\-non-interactive\fR
+Run without requiring user input
+.TP 25
 \fB\-h, \-\-help\fR
 Show help about options
 .SH FILES
