@@ -3086,6 +3086,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		 * write would fail, or even if a failure would be fatal so for
 		 * now we'll just ignore the return value. */
 		gateway->s->tech->write(gateway->s, f);
+		ast_frfree(f);
 		f = &ast_null_frame;
 		ao2_ref(details, -1);
 		return f;
