@@ -1332,8 +1332,9 @@ const struct user_profile *conf_find_user_profile(struct ast_channel *chan, cons
 				conf_user_profile_copy(result, &b_data->u_profile);
 				return result;
 			}
+		} else {
+			ast_channel_unlock(chan);
 		}
-		ast_channel_unlock(chan);
 	}
 
 	if (ast_strlen_zero(user_profile_name)) {
