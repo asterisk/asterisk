@@ -543,7 +543,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will play the sounds that correspond to the given <replaceable>digits</replaceable>.
 			Optionally, a <replaceable>gender</replaceable> may be specified. This will use the language that is currently
-			set for the channel. See the LANGUAGE() function for more information on setting the language for the channel.</para>
+			set for the channel. See the CHANNEL() function for more information on setting the language for the channel.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
