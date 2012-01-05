@@ -1743,8 +1743,8 @@ static void pbx_load_users(void)
 			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, NULL, NULL, registrar);
 			/* If voicemail, use "stdexten" else use plain old dial */
 			if (hasvoicemail) {
-				snprintf(tmp, sizeof(tmp), "stdexten,%s,${HINT}", cat);
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", strdup(tmp), ast_free_ptr, registrar);
+				snprintf(tmp, sizeof(tmp), "%s,stdexten(${HINT})", cat);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", strdup(tmp), ast_free_ptr, registrar);
 			} else {
 				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", strdup("${HINT}"), ast_free_ptr, registrar);
 			}
