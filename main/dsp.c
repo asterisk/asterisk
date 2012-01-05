@@ -209,9 +209,9 @@ enum gsamp_thresh {
 #define DTMF_GSIZE		102
 
 /* How many successive hits needed to consider begin of a digit */
-#define DTMF_HITS_TO_BEGIN	2
+#define DTMF_HITS_TO_BEGIN	4
 /* How many successive misses needed to consider end of a digit */
-#define DTMF_MISSES_TO_END	3
+#define DTMF_MISSES_TO_END	4
 
 /*!
  * \brief The default silence threshold we will use if an alternate
@@ -723,41 +723,40 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 			}
 		} 
 
-		if (s->td.dtmf.current_hit) {
-			/* We are in the middle of a digit already */
-			if (hit != s->td.dtmf.current_hit) {
-				s->td.dtmf.misses++;
-				if (s->td.dtmf.misses == s->td.dtmf.misses_to_end) {
-					/* There were enough misses to consider digit ended */
-					s->td.dtmf.current_hit = 0;
+		if (hit == s->td.dtmf.lasthit) {
+			if (s->td.dtmf.current_hit) {
+				/* We are in the middle of a digit already */
+				if (hit) {
+					if (hit != s->td.dtmf.current_hit) {
+						/* Look for a start of a new digit.
+						   This is because hits_to_begin may be smaller than misses_to_end
+						   and we may find the beginning of new digit before we consider last one ended. */
+						s->td.dtmf.current_hit = 0;
+					} else {
+						/* Current hit was same as last, so increment digit duration (of last digit) */
+						s->digitlen[s->current_digits - 1] += DTMF_GSIZE;
+					}
+				} else {
+					/* No Digit */
+					s->td.dtmf.misses++;
+					if (s->td.dtmf.misses == s->td.dtmf.misses_to_end) {
+						/* There were enough misses to consider digit ended */
+						s->td.dtmf.current_hit = 0;
+					}
 				}
-			} else {
-				s->td.dtmf.misses = 0;
-				/* Current hit was same as last, so increment digit duration (of last digit) */
-				s->digitlen[s->current_digits - 1] += DTMF_GSIZE;
-			}
-		}
-
-		/* Look for a start of a new digit no matter if we are already in the middle of some
-		   digit or not. This is because hits_to_begin may be smaller than misses_to_end
-		   and we may find begin of new digit before we consider last one ended. */
-		if (hit) {
-			if (hit == s->td.dtmf.lasthit) {
+			} else if (hit) {
+				/* Detecting new digit */
 				s->td.dtmf.hits++;
-			} else {
-				s->td.dtmf.hits = 1;
-			}
-
-			if (s->td.dtmf.hits == s->td.dtmf.hits_to_begin && hit != s->td.dtmf.current_hit) {
-				store_digit(s, hit);
-				s->td.dtmf.current_hit = hit;
-				s->td.dtmf.misses = 0;
+				if (s->td.dtmf.hits == s->td.dtmf.hits_to_begin) {
+					store_digit(s, hit);
+					s->td.dtmf.current_hit = hit;
+				}
 			}
 		} else {
-			s->td.dtmf.hits = 0;
+			s->td.dtmf.hits = 1;
+			s->td.dtmf.misses = 1;
+			s->td.dtmf.lasthit = hit;
 		}
-
-		s->td.dtmf.lasthit = hit;
 
 		/* If we had a hit in this block, include it into mute fragment */
 		if (squelch && hit) {
