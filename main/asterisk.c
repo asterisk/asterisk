@@ -3128,7 +3128,7 @@ static void *monitor_sig_flags(void *unused)
 		}
 		if (sig_flags.need_quit) {
 			sig_flags.need_quit = 0;
-			if (consolethread != AST_PTHREADT_NULL) {
+			if ((consolethread != AST_PTHREADT_NULL) && (consolethread != pthread_self())) {
 				sig_flags.need_quit_handler = 1;
 				pthread_kill(consolethread, SIGURG);
 			} else {
