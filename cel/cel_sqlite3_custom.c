@@ -321,7 +321,7 @@ static int load_module(void)
 	}
 
 	/* is the table there? */
-	sql = sqlite3_mprintf("SELECT COUNT(AcctId) FROM %q;", table);
+	sql = sqlite3_mprintf("SELECT COUNT(*) FROM %q;", table);
 	res = sqlite3_exec(db, sql, NULL, NULL, NULL);
 	sqlite3_free(sql);
 	if (res != SQLITE_OK) {
