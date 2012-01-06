@@ -12119,8 +12119,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		if ((ast_party_id_presentation(&p->owner->connected.id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 			l = p->owner->connected.id.number.valid ? p->owner->connected.id.number.str : NULL;
 			n = p->owner->connected.id.name.valid ? p->owner->connected.id.name.str : NULL;
-		} else if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
-			/* if we are not sending RPID and user wants his callerid restricted */		
+		} else {
+			/* Even if we are using RPID, we shouldn't leak information in the From if the user wants
+			 * their callerid restricted */
 			l = CALLERID_UNKNOWN;
 			n = l;
 			d = FROMDOMAIN_INVALID;
