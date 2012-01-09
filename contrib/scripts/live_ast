@@ -99,9 +99,9 @@
 # is run.
 #LIVE_AST_BRISTUFFED_LIBPRI=yes
 #
-# LIVE_AST_VALGRIND_ARGS
-# Extra parameters to be passed to valgrind in the 'valgrind' subcommand.
-#LIVE_AST_VALGRIND_ARGS="-v --leak-check=full --suppressions=$PWD/contrib/valgrind.supp"
+# LIVE_AST_VALGRIND_ARGS:
+# Parameters to pass to valgrind if using the 'valgrind' command.
+#LIVE_AST_VALGRIND_ARGS="-v --leak-check=full --suppressions=contrib/valgrind.supp --log-file=valgrind.log"
 #
 # LIVE_AST_FOR_SYSTEM
 # When generating asterisk.conf, use most components from the installed 
@@ -241,7 +241,7 @@ run)
   ;;
 valgrind)
   set_ld_env
-  valgrind $LIVE_AST_VALGRIND_ARGS --log-fd=9 -- $AST_BIN -C $AST_CONF "$@" 9>$PWD/live/valgrind.txt
+  valgrind $LIVE_AST_VALGRIND_ARGS $AST_BIN -C $AST_CONF "$@"
   ;;
 rsync)
   remote_host="$1"
@@ -269,8 +269,8 @@ gdb)
   echo "$0 install              make install"
   echo "$0 samples              make samples"
   echo "$0 run [params]         asterisk [params]"
-  echo "$0 valgrind [params]    valgrind -- asterisk [params]"
   echo "$0 gdb                  gdb asterisk"
+  echo "$0 valgrind             valgrind asterisk"
   echo "$0 rsync [user@]host dir  copy files over to [user@]host:dir"
   echo "$0 gen-live-asterisk    regenerate the wrapper ./live/asterisk"
   echo "$0 conf-file            create live.conf if it does not exist"
