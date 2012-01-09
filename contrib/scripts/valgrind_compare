@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# compare_valgrind: diff two valgrinf memory usage logs. Masks out PIDs,
+# addresses and such that should normally be different.
+#
+# Usage: ./compare_valgrind file1.log file2.log | less
+#
+# (Requires /bin/bash due to usage of '<()' )
+
+log1="$1"
+log2="$2"
+
+pipe_log() {
+	sed \
+		-e 's/^--[0-9]\+-- //' -e 's/^==[0-9]\+== //' "$1" \
+		-e 's/ record [0-9]\+ of [0-9]\+$/ <snipped>/' \
+		-e 's/^ Address 0x[0-9a-f]\+/ Address 0x<snipped>/' \
+
+}
+
+diff -u -L "$log1" <(pipe_log "$log1") -L "$log2" <(pipe_log "$log2")
