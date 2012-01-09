@@ -891,6 +891,15 @@ static void *db_sync_thread(void *data)
 		ast_mutex_unlock(&dblock);
 		sleep(1);
 		ast_mutex_lock(&dblock);
+		/* Unfortunately, it is possible for signaling to happen
+		 * when we're not waiting: in the bit when we're unlocked
+		 * above. Do the do-exit check here again. (We could do
+		 * it once, but that would impose a forced delay of 1
+		 * second always.) */
+		if (doexit) {
+			ast_mutex_unlock(&dblock);
+			break;
+		}
 	}
 
 	return NULL;
@@ -898,8 +907,13 @@ static void *db_sync_thread(void *data)
 
 static void astdb_atexit(void)
 {
+	/* Set doexit to 1 to kill thread. db_sync must be called with
+	 * mutex held. */
 	doexit = 1;
+	ast_mutex_lock(&dblock);
 	db_sync();
+	ast_mutex_unlock(&dblock);
+
 	pthread_join(syncthread, NULL);
 	ast_mutex_lock(&dblock);
 	sqlite3_close(astdb);
