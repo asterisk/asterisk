@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2010, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -39,7 +39,7 @@
  *
  * \section copyright Copyright and Author
  *
- * Copyright (C) 1999 - 2009, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  * Asterisk is a <a href="http://www.digium.com/en/company/view-policy.php?id=Trademark-Policy">registered trademark</a>
  * of <a href="http://www.digium.com">Digium, Inc</a>.
  *
@@ -159,7 +159,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
-    ast_verbose("Asterisk %s, Copyright (C) 1999 - 2011 Digium, Inc. and others.\n" \
+    ast_verbose("Asterisk %s, Copyright (C) 1999 - 2012 Digium, Inc. and others.\n" \
                 "Created by Mark Spencer <markster@digium.com>\n" \
                 "Asterisk comes with ABSOLUTELY NO WARRANTY; type 'core show warranty' for details.\n" \
                 "This is free software, with components licensed under the GNU General Public\n" \
@@ -986,7 +986,6 @@ static int fdprint(int fd, const char *s)
 /*! \brief NULL handler so we can collect the child exit status */
 static void _null_sig_handler(int sig)
 {
-
 }
 
 static struct sigaction null_sig_handler = {
@@ -1111,7 +1110,8 @@ void ast_console_toggle_loglevel(int fd, int level, int state)
 /*!
  * \brief mute or unmute a console from logging
  */
-void ast_console_toggle_mute(int fd, int silent) {
+void ast_console_toggle_mute(int fd, int silent)
+{
 	int x;
 	for (x = 0;x < AST_MAX_CONNECTS; x++) {
 		if (fd == consoles[x].fd) {
@@ -2837,8 +2837,9 @@ static int show_version(void)
 	return 0;
 }
 
-static int show_cli_help(void) {
-	printf("Asterisk %s, Copyright (C) 1999 - 2010, Digium, Inc. and others.\n", ast_get_version());
+static int show_cli_help(void)
+{
+	printf("Asterisk %s, Copyright (C) 1999 - 2012, Digium, Inc. and others.\n", ast_get_version());
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");
@@ -2869,7 +2870,7 @@ static int show_cli_help(void) {
 	printf("   -T              Display the time in [Mmm dd hh:mm:ss] format for each line\n");
 	printf("                   of output to the CLI\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
-	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
+	printf("   -x <cmd>        Execute command <cmd> (implies -r)\n");
 	printf("   -X              Execute includes by default (allows #exec in asterisk.conf)\n");
 	printf("   -W              Adjust terminal colors to compensate for a light background\n");
 	printf("\n");
@@ -3154,7 +3155,14 @@ static void *canary_thread(void *unused)
 		stat(canary_filename, &canary_stat);
 		now = ast_tvnow();
 		if (now.tv_sec > canary_stat.st_mtime + 60) {
-			ast_log(LOG_WARNING, "The canary is no more.  He has ceased to be!  He's expired and gone to meet his maker!  He's a stiff!  Bereft of life, he rests in peace.  His metabolic processes are now history!  He's off the twig!  He's kicked the bucket.  He's shuffled off his mortal coil, run down the curtain, and joined the bleeding choir invisible!!  THIS is an EX-CANARY.  (Reducing priority)\n");
+			ast_log(LOG_WARNING,
+				"The canary is no more.  He has ceased to be!  "
+				"He's expired and gone to meet his maker!  "
+				"He's a stiff!  Bereft of life, he rests in peace.  "
+				"His metabolic processes are now history!  He's off the twig!  "
+				"He's kicked the bucket.  He's shuffled off his mortal coil, "
+				"run down the curtain, and joined the bleeding choir invisible!!  "
+				"THIS is an EX-CANARY.  (Reducing priority)\n");
 			ast_set_priority(0);
 			pthread_exit(NULL);
 		}
@@ -3366,6 +3374,9 @@ int main(int argc, char *argv[])
 			ast_clear_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
 			break;
 		case 'x':
+			/* -r is implied by -x so set the flags -r sets as well. */
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
+
 			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC | AST_OPT_FLAG_NO_COLOR);
 			xarg = ast_strdupa(optarg);
 			break;
