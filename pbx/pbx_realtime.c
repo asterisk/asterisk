@@ -354,7 +354,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
 						chan->exten, chan->context, chan->priority,
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
-						 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
+						 term_color(tmp2, ast_channel_name(chan), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
 				manager_event(EVENT_FLAG_DIALPLAN, "Newexten",
 							  "Channel: %s\r\n"
@@ -364,7 +364,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 							  "Application: %s\r\n"
 							  "AppData: %s\r\n"
 							  "Uniqueid: %s\r\n",
-							  chan->name, chan->context, chan->exten, chan->priority, app, !ast_strlen_zero(appdata) ? appdata : "(NULL)", chan->uniqueid);
+							  ast_channel_name(chan), chan->context, chan->exten, chan->priority, app, !ast_strlen_zero(appdata) ? appdata : "(NULL)", chan->uniqueid);
 				
 				res = pbx_exec(chan, a, appdata);
 			} else

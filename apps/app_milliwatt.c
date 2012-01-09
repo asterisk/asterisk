@@ -109,7 +109,7 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 	}
 
 	if (ast_write(chan,&wf) < 0) {
-		ast_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",chan->name,strerror(errno));
+		ast_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",ast_channel_name(chan),strerror(errno));
 		return -1;
 	}
 
@@ -132,7 +132,7 @@ static int old_milliwatt_exec(struct ast_channel *chan)
 	}
 
 	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0) {
-		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
+		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",ast_channel_name(chan));
 		return -1;
 	}
 

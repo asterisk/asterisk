@@ -205,13 +205,13 @@ static void *lock_broker(void *unused)
 static int ast_channel_hash_cb(const void *obj, const int flags)
 {
 	const struct ast_channel *chan = obj;
-	return ast_str_case_hash(chan->name);
+	return ast_str_case_hash(ast_channel_name(chan));
 }
 
 static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_channel *chan = obj, *cmp_args = arg;
-	return strcasecmp(chan->name, cmp_args->name) ? 0 : CMP_MATCH;
+	return strcasecmp(ast_channel_name(chan), ast_channel_name(cmp_args)) ? 0 : CMP_MATCH;
 }
 
 static int get_lock(struct ast_channel *chan, char *lockname, int try)
@@ -224,7 +224,7 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 	struct timespec three_seconds = { .tv_sec = 3 };
 
 	if (!lock_store) {
-		ast_debug(1, "Channel %s has no lock datastore, so we're allocating one.\n", chan->name);
+		ast_debug(1, "Channel %s has no lock datastore, so we're allocating one.\n", ast_channel_name(chan));
 		lock_store = ast_datastore_alloc(&lock_info, NULL);
 		if (!lock_store) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  No locks will be obtained.\n");

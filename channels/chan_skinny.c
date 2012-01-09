@@ -3234,7 +3234,7 @@ static enum ast_rtp_glue_result skinny_get_rtp_peer(struct ast_channel *c, struc
 	enum ast_rtp_glue_result res = AST_RTP_GLUE_RESULT_REMOTE;
 
 	if (skinnydebug)
-		ast_verb(1, "skinny_get_rtp_peer() Channel = %s\n", c->name);
+		ast_verb(1, "skinny_get_rtp_peer() Channel = %s\n", ast_channel_name(c));
 
 
 	if (!(sub = c->tech_pvt))
@@ -3863,8 +3863,8 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 				AST_LIST_TRAVERSE(&l->sub, sub, list) {
 					ast_cli(fd, "  %s> %s to %s\n",
 						(sub == l->activesub?"Active  ":"Inactive"),
-						sub->owner->name,
-						(ast_bridged_channel(sub->owner)?ast_bridged_channel(sub->owner)->name:"")
+						ast_channel_name(sub->owner),
+						(ast_bridged_channel(sub->owner)?ast_channel_name(ast_bridged_channel(sub->owner)):"")
 					);
 				}
 			}
@@ -4293,7 +4293,7 @@ static void *skinny_ss(void *data)
 					/* Record this as the forwarding extension */
 					set_callforwards(l, sub->exten, l->getforward);
 					ast_verb(3, "Setting call forward (%d) to '%s' on channel %s\n",
-							l->cfwdtype, sub->exten, c->name);
+							l->cfwdtype, sub->exten, ast_channel_name(c));
 					transmit_start_tone(d, SKINNY_DIALTONE, l->instance, sub->callid);
 					transmit_lamp_indication(d, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
 					transmit_displaynotify(d, "CFwd enabled", 10);
@@ -4377,12 +4377,12 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "skinny_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "skinny_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
 
 	if (skinnydebug)
-		ast_verb(3, "skinny_call(%s)\n", ast->name);
+		ast_verb(3, "skinny_call(%s)\n", ast_channel_name(ast));
 
 	if (l->dnd) {
 		ast_queue_control(ast, AST_CONTROL_BUSY);
@@ -4467,7 +4467,7 @@ static int skinny_answer(struct ast_channel *ast)
 	if (sub->blindxfer) {
 		if (skinnydebug)
 			ast_debug(1, "skinny_answer(%s) on %s@%s-%d with BlindXFER, transferring\n",
-				ast->name, l->name, d->name, sub->callid);
+				ast_channel_name(ast), l->name, d->name, sub->callid);
 		ast_setstate(ast, AST_STATE_UP);
 		skinny_transfer(sub);
 		return 0;
@@ -4476,7 +4476,7 @@ static int skinny_answer(struct ast_channel *ast)
 	sub->cxmode = SKINNY_CX_SENDRECV;
 
 	if (skinnydebug)
-		ast_verb(1, "skinny_answer(%s) on %s@%s-%d\n", ast->name, l->name, d->name, sub->callid);
+		ast_verb(1, "skinny_answer(%s) on %s@%s-%d\n", ast_channel_name(ast), l->name, d->name, sub->callid);
 	
 	setsubstate(sub, SUBSTATE_CONNECTED);
 
@@ -4576,7 +4576,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct skinny_subchannel *sub = newchan->tech_pvt;
-	ast_log(LOG_NOTICE, "skinny_fixup(%s, %s)\n", oldchan->name, newchan->name);
+	ast_log(LOG_NOTICE, "skinny_fixup(%s, %s)\n", ast_channel_name(oldchan), ast_channel_name(newchan));
 	if (sub->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
 		return -1;
@@ -4716,9 +4716,9 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 
 		if (skinnydebug) {
 			ast_debug(1, "Transferee channels (local/remote): %s and %s\n",
-				xferee->owner->name, ast_bridged_channel(xferee->owner)?ast_bridged_channel(xferee->owner)->name:"");
+				ast_channel_name(xferee->owner), ast_bridged_channel(xferee->owner)?ast_channel_name(ast_bridged_channel(xferee->owner)):"");
 			ast_debug(1, "Transferor channels (local/remote): %s and %s\n",
-				xferor->owner->name, ast_bridged_channel(xferor->owner)?ast_bridged_channel(xferor->owner)->name:"");
+				ast_channel_name(xferor->owner), ast_bridged_channel(xferor->owner)?ast_channel_name(ast_bridged_channel(xferor->owner)):"");
 		}
 		if (ast_bridged_channel(xferor->owner)) {
 			if (ast_bridged_channel(xferee->owner)) {
@@ -4733,10 +4733,10 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			}
 			if (skinnydebug)
 				ast_debug(1, "Transfer Masquerading %s to %s\n",
-					xferee->owner->name, ast_bridged_channel(xferor->owner)?ast_bridged_channel(xferor->owner)->name:"");
+					ast_channel_name(xferee->owner), ast_bridged_channel(xferor->owner)?ast_channel_name(ast_bridged_channel(xferor->owner)):"");
 			if (ast_channel_masquerade(xferee->owner, ast_bridged_channel(xferor->owner))) {
 				ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_bridged_channel(xferor->owner)->name, xferee->owner->name);
+					ast_channel_name(ast_bridged_channel(xferor->owner)), ast_channel_name(xferee->owner));
 				return -1;
 			}
 		} else if (ast_bridged_channel(xferee->owner)) {
@@ -4750,16 +4750,16 @@ static int skinny_transfer(struct skinny_subchannel *sub)
 			}
 			if (skinnydebug)
 				ast_debug(1, "Transfer Masquerading %s to %s\n",
-					xferor->owner->name, ast_bridged_channel(xferee->owner)?ast_bridged_channel(xferee->owner)->name:"");
+					ast_channel_name(xferor->owner), ast_bridged_channel(xferee->owner)?ast_channel_name(ast_bridged_channel(xferee->owner)):"");
 			if (ast_channel_masquerade(xferor->owner, ast_bridged_channel(xferee->owner))) {
 				ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					ast_bridged_channel(xferee->owner)->name, xferor->owner->name);
+					ast_channel_name(ast_bridged_channel(xferee->owner)), ast_channel_name(xferor->owner));
 				return -1;
 			}
 			return 0;
 		} else {
 			ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-				xferor->owner->name, xferee->owner->name);
+				ast_channel_name(xferor->owner), ast_channel_name(xferee->owner));
 		}
 	}
 	return 0;
@@ -4773,17 +4773,17 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	struct skinnysession *s = d->session;
 
 	if (!s) {
-		ast_log(LOG_NOTICE, "Asked to indicate '%s' condition on channel %s, but session does not exist.\n", control2str(ind), ast->name);
+		ast_log(LOG_NOTICE, "Asked to indicate '%s' condition on channel %s, but session does not exist.\n", control2str(ind), ast_channel_name(ast));
 		return -1;
 	}
 
 	if (skinnydebug)
-		ast_verb(3, "Asked to indicate '%s' condition on channel %s\n", control2str(ind), ast->name);
+		ast_verb(3, "Asked to indicate '%s' condition on channel %s\n", control2str(ind), ast_channel_name(ast));
 	switch(ind) {
 	case AST_CONTROL_RINGING:
 		if (sub->blindxfer) {
 			if (skinnydebug)
-				ast_debug(1, "Channel %s set up for Blind Xfer, so Xfer rather than ring device\n", ast->name);
+				ast_debug(1, "Channel %s set up for Blind Xfer, so Xfer rather than ring device\n", ast_channel_name(ast));
 			skinny_transfer(sub);
 			break;
 		}
@@ -4951,7 +4951,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 				ast_hangup(tmp);
 				tmp = NULL;
 			}
@@ -5895,7 +5895,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			setsubstate(sub, SUBSTATE_CONNECTED);
 		} else {
 			if (sub && sub->owner) {
-				ast_debug(1, "Current subchannel [%s] already has owner\n", sub->owner->name);
+				ast_debug(1, "Current subchannel [%s] already has owner\n", ast_channel_name(sub->owner));
 			} else {
 				c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
 				if (c) {
@@ -5970,7 +5970,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		transmit_definetimedate(d);
 
 		if (sub && sub->owner) {
-			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
+			ast_debug(1, "Current sub [%s] already has owner\n", ast_channel_name(sub->owner));
 		} else {
 			c = skinny_new(l, NULL, AST_STATE_DOWN, NULL, SKINNY_OUTGOING);
 			if (c) {

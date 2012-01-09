@@ -537,7 +537,7 @@ static int gtalk_answer(struct ast_channel *ast)
 	ast_mutex_lock(&p->lock);
 	gtalk_invite(p, p->them, p->us,p->sid, 0);
 	manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate", "Channel: %s\r\nChanneltype: %s\r\nGtalk-SID: %s\r\n",
-		ast->name, "GTALK", p->sid);
+		ast_channel_name(ast), "GTALK", p->sid);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
@@ -1202,14 +1202,14 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	if (i->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
-		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 		ast_hangup(tmp);
 		tmp = NULL;
 	} else {
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 			"Channel: %s\r\nChanneltype: %s\r\nGtalk-SID: %s\r\n",
-			i->owner ? i->owner->name : "", "Gtalk", i->sid);
+			i->owner ? ast_channel_name(i->owner) : "", "Gtalk", i->sid);
 	}
 	return tmp;
 }
@@ -1857,7 +1857,7 @@ static int gtalk_call(struct ast_channel *ast, char *dest, int timeout)
 	struct gtalk_pvt *p = ast->tech_pvt;
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "gtalk_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "gtalk_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
 
@@ -1989,7 +1989,7 @@ static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 			}
 			if (chan)
 				ast_cli(a->fd, FORMAT,
-					chan->name,
+					ast_channel_name(chan),
 					jid,
 					resource,
 					ast_getformatname(&chan->readformat),

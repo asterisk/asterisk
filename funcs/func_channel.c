@@ -333,7 +333,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	else if (!strcasecmp(data, "musicclass"))
 		locked_copy_string(chan, buf, chan->musicclass, len);
 	else if (!strcasecmp(data, "name")) {
-		locked_copy_string(chan, buf, chan->name, len);
+		locked_copy_string(chan, buf, ast_channel_name(chan), len);
 	} else if (!strcasecmp(data, "parkinglot"))
 		locked_copy_string(chan, buf, chan->parkinglot, len);
 	else if (!strcasecmp(data, "state"))
@@ -361,7 +361,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	else if (!strcasecmp(data, "userfield") && chan->data)
 		locked_copy_string(chan, buf, chan->userfield, len);
 	else if (!strcasecmp(data, "channame") && chan->data)
-		locked_copy_string(chan, buf, chan->name, len);
+		locked_copy_string(chan, buf, ast_channel_name(chan), len);
 	else if (!strcasecmp(data, "linkedid")) {
 		ast_channel_lock(chan);
 		if (ast_strlen_zero(chan->linkedid)) {
@@ -377,7 +377,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		ast_channel_lock(chan);
 		p = ast_bridged_channel(chan);
 		if (p || chan->tech || chan->cdr) /* dummy channel? if so, we hid the peer name in the language */
-			ast_copy_string(buf, (p ? p->name : ""), len);
+			ast_copy_string(buf, (p ? ast_channel_name(p) : ""), len);
 		else {
 			/* a dummy channel can still pass along bridged peer info via
                            the BRIDGEPEER variable */
@@ -593,14 +593,14 @@ static int func_channels_read(struct ast_channel *chan, const char *function, ch
 
 	while ((c = ast_channel_iterator_next(iter))) {
 		ast_channel_lock(c);
-		if (ast_strlen_zero(data) || regexec(&re, c->name, 0, NULL, 0) == 0) {
-			size_t namelen = strlen(c->name);
+		if (ast_strlen_zero(data) || regexec(&re, ast_channel_name(c), 0, NULL, 0) == 0) {
+			size_t namelen = strlen(ast_channel_name(c));
 			if (buflen + namelen + (ast_strlen_zero(buf) ? 0 : 1) + 1 < maxlen) {
 				if (!ast_strlen_zero(buf)) {
 					strcat(buf, " ");
 					buflen++;
 				}
-				strcat(buf, c->name);
+				strcat(buf, ast_channel_name(c));
 				buflen += namelen;
 			} else {
 				ast_log(LOG_WARNING, "Number of channels exceeds the available buffer space.  Output will be truncated!\n");

@@ -90,16 +90,16 @@ static int nbs_call(struct ast_channel *ast, char *dest, int timeout)
 	p = ast->tech_pvt;
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "nbs_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "nbs_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
 	/* When we call, it just works, really, there's no destination...  Just
 	   ring the phone and wait for someone to answer */
-	ast_debug(1, "Calling %s on %s\n", dest, ast->name);
+	ast_debug(1, "Calling %s on %s\n", dest, ast_channel_name(ast));
 
 	/* If we can't connect, return congestion */
 	if (nbs_connect(p->nbs)) {
-		ast_log(LOG_WARNING, "NBS Connection failed on %s\n", ast->name);
+		ast_log(LOG_WARNING, "NBS Connection failed on %s\n", ast_channel_name(ast));
 		ast_queue_control(ast, AST_CONTROL_CONGESTION);
 	} else {
 		ast_setstate(ast, AST_STATE_RINGING);
@@ -165,7 +165,7 @@ static int nbs_hangup(struct ast_channel *ast)
 {
 	struct nbs_pvt *p;
 	p = ast->tech_pvt;
-	ast_debug(1, "nbs_hangup(%s)\n", ast->name);
+	ast_debug(1, "nbs_hangup(%s)\n", ast_channel_name(ast));
 	if (!ast->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
@@ -191,7 +191,7 @@ static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 	p->fr.delivery.tv_sec = 0;
 	p->fr.delivery.tv_usec = 0;
 
-	ast_debug(1, "Returning null frame on %s\n", ast->name);
+	ast_debug(1, "Returning null frame on %s\n", ast_channel_name(ast));
 
 	return &p->fr;
 }
@@ -241,7 +241,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 		i->u = ast_module_user_add(tmp);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 				ast_hangup(tmp);
 			}
 		}

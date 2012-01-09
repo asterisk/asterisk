@@ -1658,7 +1658,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 		}
 	}
 	if (ast_write(chan, &f) < 0) {
-		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", ast_channel_name(chan), strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -2015,7 +2015,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if ( (res = ast_activate_generator(chan, &smsgen, &h)) < 0) {
-		ast_log(LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
+		ast_log(LOG_ERROR, "Failed to activate generator on '%s'\n", ast_channel_name(chan));
 		goto done;
 	}
 

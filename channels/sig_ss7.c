@@ -624,7 +624,7 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	ast_channel_unlock(c);
 
 	if (ast_pbx_start(c)) {
-		ast_log(LOG_WARNING, "Unable to start PBX on %s (CIC %d)\n", c->name, p->cic);
+		ast_log(LOG_WARNING, "Unable to start PBX on %s (CIC %d)\n", ast_channel_name(c), p->cic);
 		ast_hangup(c);
 	} else {
 		ast_verb(3, "Accepting call to '%s' on CIC %d\n", p->exten, p->cic);
@@ -1679,7 +1679,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		}
 		break;
 	case AST_CONTROL_PROCEEDING:
-		ast_debug(1,"Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
+		ast_debug(1,"Received AST_CONTROL_PROCEEDING on %s\n",ast_channel_name(chan));
 		ss7_grab(p, p->ss7);
 		/* This IF sends the FAR for an answered ALEG call */
 		if (chan->_state == AST_STATE_UP && (p->rlt != 1)){
@@ -1697,7 +1697,7 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		res = 0;
 		break;
 	case AST_CONTROL_PROGRESS:
-		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
+		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",ast_channel_name(chan));
 		ss7_grab(p, p->ss7);
 		if (!p->progress && p->call_level < SIG_SS7_CALL_LEVEL_ALERTING && !p->outgoing) {
 			p->progress = 1;/* No need to send inband-information progress again. */
@@ -1812,7 +1812,7 @@ void sig_ss7_cli_show_channels(int fd, struct sig_ss7_linkset *linkset)
 			pvt->remotelyblocked ? "Yes" : "No",
 			sig_ss7_call_level2str(pvt->call_level),
 			pvt->ss7call ? "Yes" : "No",
-			pvt->owner ? pvt->owner->name : "");
+			pvt->owner ? ast_channel_name(pvt->owner) : "");
 
 		if (pvt->owner) {
 			ast_channel_unlock(pvt->owner);

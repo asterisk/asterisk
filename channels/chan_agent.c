@@ -606,7 +606,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		case AST_FRAME_CONTROL:
 			if (f->subclass.integer == AST_CONTROL_ANSWER) {
 				if (p->ackcall) {
-					ast_verb(3, "%s answered, waiting for '%c' to acknowledge\n", p->chan->name, p->acceptdtmf);
+					ast_verb(3, "%s answered, waiting for '%c' to acknowledge\n", ast_channel_name(p->chan), p->acceptdtmf);
 					/* Don't pass answer along */
 					ast_frfree(f);
 					f = &ast_null_frame;
@@ -628,7 +628,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			break;
 		case AST_FRAME_DTMF_END:
 			if (!p->acknowledged && (f->subclass.integer == p->acceptdtmf)) {
-				ast_verb(3, "%s acknowledged\n", p->chan->name);
+				ast_verb(3, "%s acknowledged\n", ast_channel_name(p->chan));
 				p->acknowledged = 1;
 				ast_frfree(f);
 				f = &answer_frame;
@@ -656,7 +656,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		if (strcasecmp(p->chan->tech->type, "Local")) {
 			p->chan->_bridge = ast;
 			if (p->chan)
-				ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
+				ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", ast_channel_name(p->chan), ast_channel_name(p->chan->_bridge));
 		}
 	}
 	ast_mutex_unlock(&p->lock);
@@ -703,7 +703,7 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 		} else {
 			ast_debug(1, "Dropping one incompatible %s frame on '%s' to '%s'\n", 
 				f->frametype == AST_FRAME_VOICE ? "audio" : "video",
-				ast->name, p->chan->name);
+				ast_channel_name(ast), ast_channel_name(p->chan));
 			res = 0;
 		}
 	}
@@ -794,7 +794,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_mutex_unlock(&p->lock);
 		return res;
 	}
-	ast_verb(3, "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
+	ast_verb(3, "agent_call, call to agent '%s' call on '%s'\n", p->agent, ast_channel_name(p->chan));
 	ast_debug(3, "Playing beep, lang '%s'\n", p->chan->language);
 	
 	chan = p->chan;
@@ -878,7 +878,7 @@ int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base)
 	}
 	p = chan->tech_pvt;
 	if (!p) {
-		ast_log(LOG_ERROR, "whoa, channel %s is missing his tech_pvt structure!!.\n", chan->name);
+		ast_log(LOG_ERROR, "whoa, channel %s is missing his tech_pvt structure!!.\n", ast_channel_name(chan));
 		return -1;
 	}
 	p->chan = base;
@@ -1035,7 +1035,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 			ret = p->chan;
 	}
 
-	ast_debug(1, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
+	ast_debug(1, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", ast_channel_name(chan), ast_channel_name(bridge), ret ? ast_channel_name(ret) : "<none>");
 	return ret;
 }
 
@@ -1268,7 +1268,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		}
 		ast_mutex_lock(&p->lock);
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
-			ast_debug(1, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
+			ast_debug(1, "Call '%s' looks like a winner for agent '%s'\n", ast_channel_name(p->owner), newlyavailable->agent);
 			/* We found a pending call, time to merge */
 			chan = agent_new(newlyavailable, AST_STATE_DOWN, p->owner ? p->owner->linkedid : NULL);
 			parent = p->owner;
@@ -1330,7 +1330,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 		}
 		ast_mutex_lock(&p->lock);
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
-			ast_debug(1, "Call '%s' looks like a would-be winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
+			ast_debug(1, "Call '%s' looks like a would-be winner for agent '%s'\n", ast_channel_name(p->owner), newlyavailable->agent);
 			ast_mutex_unlock(&p->lock);
 			break;
 		}
@@ -1528,13 +1528,13 @@ static int action_agents(struct mansession *s, const struct message *m)
 		status = "AGENT_UNKNOWN";
 
 		if (p->chan) {
-			loginChan = ast_strdupa(p->chan->name);
+			loginChan = ast_strdupa(ast_channel_name(p->chan));
 			if (p->owner && p->owner->_bridge) {
 				talkingto = S_COR(p->chan->caller.id.number.valid,
 					p->chan->caller.id.number.str, "n/a");
 				ast_channel_lock(p->owner);
 				if ((bridge = ast_bridged_channel(p->owner))) {
-					talkingtoChan = ast_strdupa(bridge->name);
+					talkingtoChan = ast_strdupa(ast_channel_name(bridge));
 				} else {
 					talkingtoChan = "n/a";
 				}
@@ -1739,9 +1739,9 @@ static char *agents_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			else
 				username[0] = '\0';
 			if (p->chan) {
-				snprintf(location, sizeof(location), "logged in on %s", p->chan->name);
+				snprintf(location, sizeof(location), "logged in on %s", ast_channel_name(p->chan));
 				if (p->owner && ast_bridged_channel(p->owner))
-					snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_bridged_channel(p->owner)->name);
+					snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_channel_name(ast_bridged_channel(p->owner)));
 				 else 
 					strcpy(talkingto, " is idle");
 				online_agents++;
@@ -1803,9 +1803,9 @@ static char *agents_show_online(struct ast_cli_entry *e, int cmd, struct ast_cli
 		else
 			username[0] = '\0';
 		if (p->chan) {
-			snprintf(location, sizeof(location), "logged in on %s", p->chan->name);
+			snprintf(location, sizeof(location), "logged in on %s", ast_channel_name(p->chan));
 			if (p->owner && ast_bridged_channel(p->owner)) 
-				snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_bridged_channel(p->owner)->name);
+				snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_channel_name(ast_bridged_channel(p->owner)));
 			else 
 				strcpy(talkingto, " is idle");
 			agent_status = 1;
@@ -1887,7 +1887,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 		if (max_login_tries < 0)
 			max_login_tries = 0;
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES");
-		ast_verb(3, "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,chan->name);
+		ast_verb(3, "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,ast_channel_name(chan));
 	}
 	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR"))) {
 		if (ast_true(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR")))
@@ -1895,12 +1895,12 @@ static int login_exec(struct ast_channel *chan, const char *data)
 		else
 			update_cdr = 0;
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR");
-		ast_verb(3, "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,chan->name);
+		ast_verb(3, "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,ast_channel_name(chan));
 	}
 	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"))) {
 		strcpy(agent_goodbye, pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"));
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTGOODBYE");
-		ast_verb(3, "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,chan->name);
+		ast_verb(3, "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,ast_channel_name(chan));
 	}
 	ast_channel_unlock(chan);
 	/* End Channel Specific Login Overrides */
@@ -2043,10 +2043,10 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							      "Agent: %s\r\n"
 							      "Channel: %s\r\n"
 							      "Uniqueid: %s\r\n",
-							      p->agent, chan->name, chan->uniqueid);
+							      p->agent, ast_channel_name(chan), chan->uniqueid);
 						if (update_cdr && chan->cdr)
 							snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
-						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
+						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", ast_channel_name(chan));
 						ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", p->agent,
 								    ast_getformatname(&chan->readformat), ast_getformatname(&chan->writeformat));
 						/* Login this channel and wait for it to go away */
@@ -2136,7 +2136,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							      "Logintime: %ld\r\n"
 							      "Uniqueid: %s\r\n",
 							      p->agent, logintime, chan->uniqueid);
-						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", chan->name, logintime);
+						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", ast_channel_name(chan), logintime);
 						ast_verb(2, "Agent '%s' logged out\n", p->agent);
 						/* If there is no owner, go ahead and kill it now */
 						ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Agent/%s", p->agent);
@@ -2345,7 +2345,7 @@ static int function_agent(struct ast_channel *chan, const char *cmd, char *data,
 	else if (!strcasecmp(args.item, "channel")) {
 		if (agent->chan) {
 			ast_channel_lock(agent->chan);
-			ast_copy_string(buf, agent->chan->name, len);
+			ast_copy_string(buf, ast_channel_name(agent->chan), len);
 			ast_channel_unlock(agent->chan);
 			tmp = strrchr(buf, '-');
 			if (tmp)
@@ -2354,7 +2354,7 @@ static int function_agent(struct ast_channel *chan, const char *cmd, char *data,
 	} else if (!strcasecmp(args.item, "fullchannel")) {
 		if (agent->chan) {
 			ast_channel_lock(agent->chan);
-			ast_copy_string(buf, agent->chan->name, len);
+			ast_copy_string(buf, ast_channel_name(agent->chan), len);
 			ast_channel_unlock(agent->chan);
 		} 
 	} else if (!strcasecmp(args.item, "exten")) {

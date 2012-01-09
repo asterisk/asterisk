@@ -681,7 +681,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 				if (f->frametype == AST_FRAME_CONTROL) {
 					switch (f->subclass.integer) {
 					case AST_CONTROL_HANGUP:
-						ast_verb(3, "%s received a hangup frame.\n", winner->name);
+						ast_verb(3, "%s received a hangup frame.\n", ast_channel_name(winner));
 						if (f->data.uint32) {
 							winner->hangupcause = f->data.uint32;
 						}
@@ -692,7 +692,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						}
 						break;
 					case AST_CONTROL_ANSWER:
-						ast_verb(3, "%s answered %s\n", winner->name, caller->name);
+						ast_verb(3, "%s answered %s\n", ast_channel_name(winner), ast_channel_name(caller));
 						/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
 						winner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 						caller->hangupcause = AST_CAUSE_NORMAL_CLEARING;
@@ -720,38 +720,38 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						}
 						break;
 					case AST_CONTROL_BUSY:
-						ast_verb(3, "%s is busy\n", winner->name);
+						ast_verb(3, "%s is busy\n", ast_channel_name(winner));
 						break;
 					case AST_CONTROL_CONGESTION:
-						ast_verb(3, "%s is circuit-busy\n", winner->name);
+						ast_verb(3, "%s is circuit-busy\n", ast_channel_name(winner));
 						break;
 					case AST_CONTROL_RINGING:
-						ast_verb(3, "%s is ringing\n", winner->name);
+						ast_verb(3, "%s is ringing\n", ast_channel_name(winner));
 						break;
 					case AST_CONTROL_PROGRESS:
-						ast_verb(3, "%s is making progress passing it to %s\n", winner->name, caller->name);
+						ast_verb(3, "%s is making progress passing it to %s\n", ast_channel_name(winner), ast_channel_name(caller));
 						break;
 					case AST_CONTROL_VIDUPDATE:
-						ast_verb(3, "%s requested a video update, passing it to %s\n", winner->name, caller->name);
+						ast_verb(3, "%s requested a video update, passing it to %s\n", ast_channel_name(winner), ast_channel_name(caller));
 						break;
 					case AST_CONTROL_SRCUPDATE:
-						ast_verb(3, "%s requested a source update, passing it to %s\n", winner->name, caller->name);
+						ast_verb(3, "%s requested a source update, passing it to %s\n", ast_channel_name(winner), ast_channel_name(caller));
 						break;
 					case AST_CONTROL_PROCEEDING:
-						ast_verb(3, "%s is proceeding passing it to %s\n", winner->name,caller->name);
+						ast_verb(3, "%s is proceeding passing it to %s\n", ast_channel_name(winner),ast_channel_name(caller));
 						break;
 					case AST_CONTROL_HOLD:
-						ast_verb(3, "Call on %s placed on hold\n", winner->name);
+						ast_verb(3, "Call on %s placed on hold\n", ast_channel_name(winner));
 						break;
 					case AST_CONTROL_UNHOLD:
-						ast_verb(3, "Call on %s left from hold\n", winner->name);
+						ast_verb(3, "Call on %s left from hold\n", ast_channel_name(winner));
 						break;
 					case AST_CONTROL_OFFHOOK:
 					case AST_CONTROL_FLASH:
 						/* Ignore going off hook and flash */
 						break;
 					case -1:
-						ast_verb(3, "%s stopped sounds\n", winner->name);
+						ast_verb(3, "%s stopped sounds\n", ast_channel_name(winner));
 						break;
 					default:
 						ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
@@ -1206,7 +1206,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		/* Make sure channels are compatible */
 		res = ast_channel_make_compatible(caller, outbound);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", caller->name, outbound->name);
+			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", ast_channel_name(caller), ast_channel_name(outbound));
 			ast_hangup(outbound);
 			goto outrun;
 		}

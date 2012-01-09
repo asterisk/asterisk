@@ -426,8 +426,8 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 				res = 0;
 				goto out;
 			default:
-				ast_debug(2, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+				ast_debug(2, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, ast_channel_name(chan), macro);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, ast_channel_name(chan), macro);
 				goto out;
 			}
 		}
@@ -494,7 +494,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 		}
 
 		if (gosub_level == 0 && strcasecmp(chan->context, fullmacro)) {
-			ast_verb(2, "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
+			ast_verb(2, "Channel '%s' jumping out of macro '%s'\n", ast_channel_name(chan), macro);
 			break;
 		}
 

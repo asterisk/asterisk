@@ -204,7 +204,7 @@ static int phone_indicate(struct ast_channel *chan, int condition, const void *d
 {
 	struct phone_pvt *p = chan->tech_pvt;
 	int res=-1;
-	ast_debug(1, "Requested indication %d on channel %s\n", condition, chan->name);
+	ast_debug(1, "Requested indication %d on channel %s\n", condition, ast_channel_name(chan));
 	switch(condition) {
 	case AST_CONTROL_FLASH:
 		ioctl(p->fd, IXJCTL_PSTN_SET_STATE, PSTN_ON_HOOK);
@@ -223,7 +223,7 @@ static int phone_indicate(struct ast_channel *chan, int condition, const void *d
 		res = 0;
 		break;
 	default:
-		ast_log(LOG_WARNING, "Condition %d is not supported on channel %s\n", condition, chan->name);
+		ast_log(LOG_WARNING, "Condition %d is not supported on channel %s\n", condition, ast_channel_name(chan));
 	}
 	return res;
 }
@@ -315,10 +315,10 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	p = ast->tech_pvt;
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
-	ast_debug(1, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fds[0]);
+	ast_debug(1, "Ringing %s on %s (%d)\n", dest, ast_channel_name(ast), ast->fds[0]);
 
 	start = IXJ_PHONE_RING_START(cid);
 	if (start == -1)
@@ -343,7 +343,7 @@ static int phone_hangup(struct ast_channel *ast)
 {
 	struct phone_pvt *p;
 	p = ast->tech_pvt;
-	ast_debug(1, "phone_hangup(%s)\n", ast->name);
+	ast_debug(1, "phone_hangup(%s)\n", ast_channel_name(ast));
 	if (!ast->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
@@ -362,7 +362,7 @@ static int phone_hangup(struct ast_channel *ast)
 	/* If it's an FXO, hang them up */
 	if (p->mode == MODE_FXO) {
 		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_ON_HOOK))
-			ast_debug(1, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",ast->name, strerror(errno));
+			ast_debug(1, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",ast_channel_name(ast), strerror(errno));
 	}
 
 	/* If they're off hook, give a busy signal */
@@ -379,7 +379,7 @@ static int phone_hangup(struct ast_channel *ast)
 	memset(p->ext, 0, sizeof(p->ext));
 	((struct phone_pvt *)(ast->tech_pvt))->owner = NULL;
 	ast_module_unref(ast_module_info->self);
-	ast_verb(3, "Hungup '%s'\n", ast->name);
+	ast_verb(3, "Hungup '%s'\n", ast_channel_name(ast));
 	ast->tech_pvt = NULL;
 	ast_setstate(ast, AST_STATE_DOWN);
 	restart_monitor();
@@ -460,12 +460,12 @@ static int phone_answer(struct ast_channel *ast)
 	/* In case it's a LineJack, take it off hook */
 	if (p->mode == MODE_FXO) {
 		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_OFF_HOOK))
-			ast_debug(1, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n", ast->name, strerror(errno));
+			ast_debug(1, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n", ast_channel_name(ast), strerror(errno));
 		else
 			ast_debug(1, "Took linejack off hook\n");
 	}
 	phone_setup(ast);
-	ast_debug(1, "phone_answer(%s)\n", ast->name);
+	ast_debug(1, "phone_answer(%s)\n", ast_channel_name(ast));
 	ast->rings = 0;
 	ast_setstate(ast, AST_STATE_UP);
 	return 0;
@@ -897,7 +897,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 				i->cpt = 1;
 			}
 			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 				ast_hangup(tmp);
 			}
 		}

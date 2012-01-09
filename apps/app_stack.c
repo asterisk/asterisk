@@ -231,7 +231,7 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 		"Variable: LOCAL(%s)\r\n"
 		"Value: %s\r\n"
 		"Uniqueid: %s\r\n",
-		chan->name, var, value, chan->uniqueid);
+		ast_channel_name(chan), var, value, chan->uniqueid);
 	return 0;
 }
 
@@ -358,7 +358,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!stack_store) {
-		ast_debug(1, "Channel %s has no datastore, so we're allocating one.\n", chan->name);
+		ast_debug(1, "Channel %s has no datastore, so we're allocating one.\n", ast_channel_name(chan));
 		stack_store = ast_datastore_alloc(&stack_info, NULL);
 		if (!stack_store) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Gosub will fail.\n");

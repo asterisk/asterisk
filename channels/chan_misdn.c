@@ -762,7 +762,7 @@ static struct chan_list *get_chan_by_ast_name(const char *name)
 
 	ast_mutex_lock(&cl_te_lock);
 	for (tmp = cl_te; tmp; tmp = tmp->next) {
-		if (tmp->ast && strcmp(tmp->ast->name, name) == 0) {
+		if (tmp->ast && strcmp(ast_channel_name(tmp->ast), name) == 0) {
 			chan_list_ref(tmp, "Found chan_list by ast name");
 			ast_mutex_unlock(&cl_te_lock);
 			return tmp;
@@ -3682,7 +3682,7 @@ static void send_digit_to_chan(struct chan_list *cl, char digit)
 		ast_playtones_start(chan, 0, dtmf_tones[15], 0);
 	} else {
 		/* not handled */
-		ast_debug(1, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
+		ast_debug(1, "Unable to handle DTMF tone '%c' for '%s'\n", digit, ast_channel_name(chan));
 	}
 }
 
@@ -4178,7 +4178,7 @@ static void print_bc_info(int fd, struct chan_list *help, struct misdn_bchannel 
 #endif
 			"  --> notone : rx %d tx:%d\n"
 			"  --> bc_hold: %d\n",
-			help->ast->name,
+			ast_channel_name(help->ast),
 			help->l3id,
 			help->addr,
 			bc->addr,
@@ -4296,7 +4296,7 @@ static char *handle_cli_misdn_show_channel(struct ast_cli_entry *e, int cmd, str
 		struct ast_channel *ast = help->ast;
 
 		if (bc && ast) {
-			if (!strcasecmp(ast->name, a->argv[3])) {
+			if (!strcasecmp(ast_channel_name(ast), a->argv[3])) {
 				print_bc_info(a->fd, help, bc);
 				break;
 			}
@@ -6507,7 +6507,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if (((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) || !dest) {
-		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", ast->name);
+		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, neither down nor reserved (or dest==NULL)\n", ast_channel_name(ast));
 		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
@@ -6515,7 +6515,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 
 	ch = MISDN_ASTERISK_TECH_PVT(ast);
 	if (!ch) {
-		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, chan_list *ch==NULL\n", ast->name);
+		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, chan_list *ch==NULL\n", ast_channel_name(ast));
 		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
@@ -6523,7 +6523,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 
 	newbc = ch->bc;
 	if (!newbc) {
-		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, newbc==NULL\n", ast->name);
+		ast_log(LOG_WARNING, " --> ! misdn_call called on %s, newbc==NULL\n", ast_channel_name(ast));
 		ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
@@ -6545,7 +6545,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		cc_record = misdn_cc_find_by_id(ch->record_id);
 		if (!cc_record) {
 			AST_LIST_UNLOCK(&misdn_cc_records_db);
-			ast_log(LOG_WARNING, " --> ! misdn_call called on %s, cc_record==NULL\n", ast->name);
+			ast_log(LOG_WARNING, " --> ! misdn_call called on %s, cc_record==NULL\n", ast_channel_name(ast));
 			ast->hangupcause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 			ast_setstate(ast, AST_STATE_DOWN);
 			return -1;
@@ -6572,7 +6572,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_copy_string(ast->exten, newbc->dialed.number, sizeof(ast->exten));
 
 		chan_misdn_log(1, port, "* Call completion to: %s\n", newbc->dialed.number);
-		chan_misdn_log(2, port, " --> * tech:%s context:%s\n", ast->name, ast->context);
+		chan_misdn_log(2, port, " --> * tech:%s context:%s\n", ast_channel_name(ast), ast->context);
 	} else
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	{
@@ -6591,7 +6591,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 
 		chan_misdn_log(1, port, "* CALL: %s\n", dest);
-		chan_misdn_log(2, port, " --> * dialed:%s tech:%s context:%s\n", args.ext, ast->name, ast->context);
+		chan_misdn_log(2, port, " --> * dialed:%s tech:%s context:%s\n", args.ext, ast_channel_name(ast), ast->context);
 
 		ast_copy_string(ast->exten, args.ext, sizeof(ast->exten));
 		ast_copy_string(newbc->dialed.number, args.ext, sizeof(newbc->dialed.number));
@@ -6915,16 +6915,16 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 	if (!p->bc) {
 		if (p->hold.state == MISDN_HOLD_IDLE) {
 			chan_misdn_log(1, 0, "* IND : Indication [%d] ignored on %s\n", cond,
-				ast->name);
+				ast_channel_name(ast));
 			ast_log(LOG_WARNING, "Private Pointer but no bc ?\n");
 		} else {
 			chan_misdn_log(1, 0, "* IND : Indication [%d] ignored on hold %s\n",
-				cond, ast->name);
+				cond, ast_channel_name(ast));
 		}
 		return -1;
 	}
 
-	chan_misdn_log(5, p->bc->port, "* IND : Indication [%d] on %s\n\n", cond, ast->name);
+	chan_misdn_log(5, p->bc->port, "* IND : Indication [%d] on %s\n\n", cond, ast_channel_name(ast));
 
 	switch (cond) {
 	case AST_CONTROL_BUSY:
@@ -7052,7 +7052,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		return -1;
 	}
 
-	ast_debug(1, "misdn_hangup(%s)\n", ast->name);
+	ast_debug(1, "misdn_hangup(%s)\n", ast_channel_name(ast));
 
 	/* Take the ast_channel's tech_pvt reference. */
 	ast_mutex_lock(&release_lock);
@@ -7076,7 +7076,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		bc = misdn_lib_find_held_bc(p->hold.port, p->l3id);
 		if (!bc) {
 			chan_misdn_log(4, p->hold.port,
-				"misdn_hangup: Could not find held bc for (%s)\n", ast->name);
+				"misdn_hangup: Could not find held bc for (%s)\n", ast_channel_name(ast));
 			release_chan_early(p);
 			ast_mutex_unlock(&release_lock);
 			chan_list_unref(p, "Release ast_channel reference");
@@ -7234,7 +7234,7 @@ static int misdn_hangup(struct ast_channel *ast)
 	}
 
 	p->state = MISDN_CLEANING;
-	chan_misdn_log(3, bc->port, " --> Channel: %s hungup new state:%s\n", ast->name,
+	chan_misdn_log(3, bc->port, " --> Channel: %s hungup new state:%s\n", ast_channel_name(ast),
 		misdn_get_ch_state(p));
 
 	ast_mutex_unlock(&release_lock);
@@ -7265,7 +7265,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 		if (!tmp->faxhandled) {
 			struct ast_channel *ast = tmp->ast;
 			tmp->faxhandled++;
-			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", ast->name);
+			chan_misdn_log(0, tmp->bc->port, "Fax detected, preparing %s for fax transfer.\n", ast_channel_name(ast));
 			tmp->bc->rxgain = 0;
 			isdn_lib_update_rxgain(tmp->bc);
 			tmp->bc->txgain = 0;
@@ -7286,11 +7286,11 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
 					if (ast_exists_extension(ast, context, "fax", 1,
 						S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
-						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
+						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast_channel_name(ast), context);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
 						if (ast_async_goto(ast, context, "fax", 1)) {
-							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, context);
+							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), context);
 						}
 					} else {
 						ast_log(LOG_NOTICE, "Fax detected but no fax extension, context:%s exten:%s\n", context, ast->exten);
@@ -7300,7 +7300,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 				}
 				break;
 			case 2:
-				ast_verb(3, "Not redirecting %s to fax extension, nojump is set.\n", ast->name);
+				ast_verb(3, "Not redirecting %s to fax extension, nojump is set.\n", ast_channel_name(ast));
 				break;
 			default:
 				break;
@@ -7554,7 +7554,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 		misdn_lib_bridge(ch1->bc, ch2->bc);
 	}
 
-	ast_verb(3, "Native bridging %s and %s\n", c0->name, c1->name);
+	ast_verb(3, "Native bridging %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
 
 	chan_misdn_log(1, ch1->bc->port, "* Making Native Bridge between \"%s\" <%s> and \"%s\" <%s>\n",
 		ch1->bc->caller.name,
@@ -8100,10 +8100,10 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 	}
 
 	snprintf(newname, sizeof(newname), "%s/%d-", misdn_type, chan_offset + c);
-	if (strncmp(tmp->name, newname, strlen(newname))) {
+	if (strncmp(ast_channel_name(tmp), newname, strlen(newname))) {
 		snprintf(newname, sizeof(newname), "%s/%d-u%d", misdn_type, chan_offset + c, glob_channel++);
 		ast_change_name(tmp, newname);
-		chan_misdn_log(3, port, " --> updating channel name to [%s]\n", tmp->name);
+		chan_misdn_log(3, port, " --> updating channel name to [%s]\n", ast_channel_name(tmp));
 	}
 }
 
@@ -8578,7 +8578,7 @@ static int misdn_attempt_transfer(struct chan_list *active_ch, struct chan_list 
 
 	target = active_ch->ast;
 	chan_misdn_log(1, held_ch->hold.port, "TRANSFERRING %s to %s\n",
-		held_ch->ast->name, target->name);
+		ast_channel_name(held_ch->ast), ast_channel_name(target));
 
 	ast_party_connected_line_init(&target_colp);
 	ast_party_connected_line_copy(&target_colp, &target->connected);
@@ -8929,10 +8929,10 @@ static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *no
 	chan->dialed.number.str = ast_strdup(notify->exten);
 
 	if (ast_pbx_start(chan)) {
-		ast_log(LOG_WARNING, "Unable to start pbx channel %s!\n", chan->name);
+		ast_log(LOG_WARNING, "Unable to start pbx channel %s!\n", ast_channel_name(chan));
 		ast_channel_release(chan);
 	} else {
-		ast_verb(1, "Started pbx for call completion notify channel %s\n", chan->name);
+		ast_verb(1, "Started pbx for call completion notify channel %s\n", ast_channel_name(chan));
 	}
 }
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
@@ -11587,7 +11587,7 @@ static int misdn_command_cc_deactivate(struct ast_channel *chan, struct misdn_co
 	AST_LIST_UNLOCK(&misdn_cc_records_db);
 	if (error_str) {
 		ast_verb(1, "%s(%s) diagnostic '%s' on channel %s\n",
-			misdn_command_name, subcommand->name, error_str, chan->name);
+			misdn_command_name, subcommand->name, error_str, ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan, MISDN_ERROR_MSG, error_str);
 	}
 
@@ -11907,7 +11907,7 @@ static int misdn_command_cc_request(struct ast_channel *chan, struct misdn_comma
 	AST_LIST_UNLOCK(&misdn_cc_records_db);
 	if (error_str) {
 		ast_verb(1, "%s(%s) diagnostic '%s' on channel %s\n",
-			misdn_command_name, subcommand->name, error_str, chan->name);
+			misdn_command_name, subcommand->name, error_str, ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan, MISDN_ERROR_MSG, error_str);
 		pbx_builtin_setvar_helper(chan, MISDN_CC_STATUS, "ERROR");
 	} else {

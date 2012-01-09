@@ -1442,7 +1442,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		dsp->f.frametype = AST_FRAME_CONTROL;
 		dsp->f.subclass.integer = AST_CONTROL_BUSY;
 		ast_frfree(af);
-		ast_debug(1, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
+		ast_debug(1, "Requesting Hangup because the busy tone was detected on channel %s\n", ast_channel_name(chan));
 		return ast_frisolate(&dsp->f);
 	}
 

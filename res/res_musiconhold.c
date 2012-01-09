@@ -268,11 +268,11 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		chan->stream = NULL;
 	}
 	
-	ast_verb(3, "Stopped music on hold on %s\n", chan->name);
+	ast_verb(3, "Stopped music on hold on %s\n", ast_channel_name(chan));
 
 	ast_format_clear(&state->mohwfmt); /* make sure to clear this format before restoring the original format. */
 	if (state->origwfmt.id && ast_set_write_format(chan, &state->origwfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%s'\n", chan->name, ast_getformatname(&state->origwfmt));
+		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%s'\n", ast_channel_name(chan), ast_getformatname(&state->origwfmt));
 	}
 
 	state->save_pos = state->pos;
@@ -338,7 +338,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	/* Record the pointer to the filename for position resuming later */
 	ast_copy_string(state->save_pos_filename, state->class->filearray[state->pos], sizeof(state->save_pos_filename));
 
-	ast_debug(1, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
+	ast_debug(1, "%s Opened file %d '%s'\n", ast_channel_name(chan), state->pos, state->class->filearray[state->pos]);
 
 	if (state->samples) {
 		size_t loc;
@@ -413,7 +413,7 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 			res = ast_write(chan, f);
 			ast_frfree(f);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+				ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", ast_channel_name(chan), strerror(errno));
 				return -1;
 			}
 		} else {
@@ -463,7 +463,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	ast_copy_string(state->name, class->name, sizeof(state->name));
 	state->save_total = class->total_files;
 
-	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, chan->name);
+	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, ast_channel_name(chan));
 	
 	return chan->music_state;
 }
@@ -782,7 +782,7 @@ static int play_moh_exec(struct ast_channel *chan, const char *data)
 
 	class = S_OR(args.class, NULL);
 	if (ast_moh_start(chan, class, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold class '%s' on channel %s\n", class, chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold class '%s' on channel %s\n", class, ast_channel_name(chan));
 		return 0;
 	}
 
@@ -812,7 +812,7 @@ static int wait_moh_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 	if (ast_moh_start(chan, NULL, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), ast_channel_name(chan));
 		return 0;
 	}
 	res = ast_safe_sleep(chan, atoi(data) * 1000);
@@ -851,7 +851,7 @@ static int start_moh_exec(struct ast_channel *chan, const char *data)
 
 	class = S_OR(args.class, NULL);
 	if (ast_moh_start(chan, class, NULL)) 
-		ast_log(LOG_WARNING, "Unable to start music on hold class '%s' on channel %s\n", class, chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold class '%s' on channel %s\n", class, ast_channel_name(chan));
 
 	return 0;
 }
@@ -948,10 +948,10 @@ static void moh_release(struct ast_channel *chan, void *data)
 		}
 		if (oldwfmt.id && ast_set_write_format(chan, &oldwfmt)) {
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n",
-					chan->name, ast_getformatname(&oldwfmt));
+					ast_channel_name(chan), ast_getformatname(&oldwfmt));
 		}
 
-		ast_verb(3, "Stopped music on hold on %s\n", chan->name);
+		ast_verb(3, "Stopped music on hold on %s\n", ast_channel_name(chan));
 	}
 }
 
@@ -980,13 +980,13 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	if ((res = mohalloc(class))) {
 		ast_format_copy(&res->origwfmt, &chan->writeformat);
 		if (ast_set_write_format(chan, &class->format)) {
-			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", chan->name, ast_codec2str(&class->format));
+			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", ast_channel_name(chan), ast_codec2str(&class->format));
 			moh_release(NULL, res);
 			res = NULL;
 		} else {
 			state->class = mohclass_ref(class, "Placing reference into state container");
 		}
-		ast_verb(3, "Started music on hold, class '%s', on channel '%s'\n", class->name, chan->name);
+		ast_verb(3, "Started music on hold, class '%s', on channel '%s'\n", class->name, ast_channel_name(chan));
 	}
 	return res;
 }
@@ -1000,7 +1000,7 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 	len = ast_codec_get_len(&moh->parent->format, samples);
 
 	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
-		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), len, chan->name);
+		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), len, ast_channel_name(chan));
 		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
 	}
 	res = read(moh->pipe[0], buf + AST_FRIENDLY_OFFSET/2, len);
@@ -1012,7 +1012,7 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 	moh->f.samples = ast_codec_get_samples(&moh->f);
 
 	if (ast_write(chan, &moh->f) < 0) {
-		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", ast_channel_name(chan), strerror(errno));
 		return -1;
 	}
 
@@ -1542,7 +1542,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n"
 		"Class: %s\r\n",
-		chan->name, chan->uniqueid,
+		ast_channel_name(chan), chan->uniqueid,
 		mohclass->name);
 
 	ast_set_flag(chan, AST_FLAG_MOH);
@@ -1575,7 +1575,7 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 		"State: Stop\r\n"
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n",
-		chan->name, chan->uniqueid);
+		ast_channel_name(chan), chan->uniqueid);
 	ast_channel_unlock(chan);
 }
 

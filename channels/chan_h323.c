@@ -344,14 +344,14 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 	h323_format chan_nativeformats_bits = ast_format_cap_to_old_bitfield(c->nativeformats);
 	if (chan_nativeformats_bits != pvt->nativeformats) {
 		if (h323debug)
-			ast_debug(1, "Preparing %s for new native format\n", c->name);
+			ast_debug(1, "Preparing %s for new native format\n", ast_channel_name(c));
 		ast_format_cap_from_old_bitfield(c->nativeformats, pvt->nativeformats);
 		ast_set_read_format(c, &c->readformat);
 		ast_set_write_format(c, &c->writeformat);
 	}
 	if (pvt->needhangup) {
 		if (h323debug)
-			ast_debug(1, "Process pending hangup for %s\n", c->name);
+			ast_debug(1, "Process pending hangup for %s\n", ast_channel_name(c));
 		c->_softhangup |= AST_SOFTHANGUP_DEV;
 		c->hangupcause = pvt->hangupcause;
 		ast_queue_hangup_with_cause(c, pvt->hangupcause);
@@ -471,7 +471,7 @@ static void __oh323_destroy(struct oh323_pvt *pvt)
 	if (pvt->owner) {
 		ast_channel_lock(pvt->owner);
 		if (h323debug)
-			ast_debug(1, "Detaching from %s\n", pvt->owner->name);
+			ast_debug(1, "Detaching from %s\n", ast_channel_name(pvt->owner));
 		pvt->owner->tech_pvt = NULL;
 		ast_channel_unlock(pvt->owner);
 	}
@@ -499,7 +499,7 @@ static void __oh323_destroy(struct oh323_pvt *pvt)
 static void oh323_destroy(struct oh323_pvt *pvt)
 {
 	if (h323debug) {
-		ast_debug(1, "Destroying channel %s\n", (pvt->owner ? pvt->owner->name : "<unknown>"));
+		ast_debug(1, "Destroying channel %s\n", (pvt->owner ? ast_channel_name(pvt->owner) : "<unknown>"));
 	}
 	ast_mutex_lock(&iflock);
 	ast_mutex_lock(&pvt->lock);
@@ -522,14 +522,14 @@ static int oh323_digit_begin(struct ast_channel *c, char digit)
 		 /*|| ((pvt->options.dtmfmode & H323_DTMF_CISCO) && pvt->dtmf_pt[1]))*/)) {
 		/* out-of-band DTMF */
 		if (h323debug) {
-			ast_log(LOG_DTMF, "Begin sending out-of-band digit %c on %s\n", digit, c->name);
+			ast_log(LOG_DTMF, "Begin sending out-of-band digit %c on %s\n", digit, ast_channel_name(c));
 		}
 		ast_rtp_instance_dtmf_begin(pvt->rtp, digit);
 		ast_mutex_unlock(&pvt->lock);
 	} else if (pvt->txDtmfDigit != digit) {
 		/* in-band DTMF */
 		if (h323debug) {
-			ast_log(LOG_DTMF, "Begin sending inband digit %c on %s\n", digit, c->name);
+			ast_log(LOG_DTMF, "Begin sending inband digit %c on %s\n", digit, ast_channel_name(c));
 		}
 		pvt->txDtmfDigit = digit;
 		token = pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL;
@@ -561,14 +561,14 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
 	if (pvt->rtp && (pvt->options.dtmfmode & H323_DTMF_RFC2833) && ((pvt->dtmf_pt[0] > 0) || (pvt->dtmf_pt[0] > 0))) {
 		/* out-of-band DTMF */
 		if (h323debug) {
-			ast_log(LOG_DTMF, "End sending out-of-band digit %c on %s, duration %d\n", digit, c->name, duration);
+			ast_log(LOG_DTMF, "End sending out-of-band digit %c on %s, duration %d\n", digit, ast_channel_name(c), duration);
 		}
 		ast_rtp_instance_dtmf_end(pvt->rtp, digit);
 		ast_mutex_unlock(&pvt->lock);
 	} else {
 		/* in-band DTMF */
 		if (h323debug) {
-			ast_log(LOG_DTMF, "End sending inband digit %c on %s, duration %d\n", digit, c->name, duration);
+			ast_log(LOG_DTMF, "End sending inband digit %c on %s, duration %d\n", digit, ast_channel_name(c), duration);
 		}
 		pvt->txDtmfDigit = ' ';
 		token = pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL;
@@ -595,10 +595,10 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	char called_addr[1024];
 
 	if (h323debug) {
-		ast_debug(1, "Calling to %s on %s\n", dest, c->name);
+		ast_debug(1, "Calling to %s on %s\n", dest, ast_channel_name(c));
 	}
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
+		ast_log(LOG_WARNING, "Line is already in use (%s)\n", ast_channel_name(c));
 		return -1;
 	}
 	ast_mutex_lock(&pvt->lock);
@@ -660,7 +660,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	ast_mutex_unlock(&pvt->lock);
 	res = h323_make_call(called_addr, &(pvt->cd), &pvt->options);
 	if (res) {
-		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
+		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", ast_channel_name(c));
 		return -1;
 	}
 	oh323_update_info(c);
@@ -674,7 +674,7 @@ static int oh323_answer(struct ast_channel *c)
 	char *token;
 
 	if (h323debug)
-		ast_debug(1, "Answering on %s\n", c->name);
+		ast_debug(1, "Answering on %s\n", ast_channel_name(c));
 
 	ast_mutex_lock(&pvt->lock);
 	token = pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL;
@@ -698,7 +698,7 @@ static int oh323_hangup(struct ast_channel *c)
 
 
 	if (h323debug)
-		ast_debug(1, "Hanging up and scheduling destroy of call %s\n", c->name);
+		ast_debug(1, "Hanging up and scheduling destroy of call %s\n", ast_channel_name(c));
 
 	if (!c->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
@@ -831,7 +831,7 @@ static struct ast_frame *oh323_read(struct ast_channel *c)
 			fr = &ast_null_frame;
 		break;
 	default:
-		ast_log(LOG_ERROR, "Unable to handle fd %d on channel %s\n", c->fdno, c->name);
+		ast_log(LOG_ERROR, "Unable to handle fd %d on channel %s\n", c->fdno, ast_channel_name(c));
 		fr = &ast_null_frame;
 		break;
 	}
@@ -886,7 +886,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 	ast_mutex_unlock(&pvt->lock);
 
 	if (h323debug)
-		ast_debug(1, "OH323: Indicating %d on %s (%s)\n", condition, token, c->name);
+		ast_debug(1, "OH323: Indicating %d on %s (%s)\n", condition, token, ast_channel_name(c));
 
 	switch(condition) {
 	case AST_CONTROL_RINGING:
@@ -1127,7 +1127,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 			ch->transfercapability = pvt->cd.transfer_capability;
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ch->name);
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(ch));
 				ast_hangup(ch);
 				ch = NULL;
 			}

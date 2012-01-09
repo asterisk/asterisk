@@ -222,7 +222,7 @@ static int lua_pbx_exec(lua_State *L)
 	ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
 			exten, context, priority,
 			term_color(tmp, app_name, COLOR_BRCYAN, 0, sizeof(tmp)),
-			term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
+			term_color(tmp2, ast_channel_name(chan), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 			term_color(tmp3, data, COLOR_BRMAGENTA, 0, sizeof(tmp3)));
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
@@ -1298,7 +1298,7 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 
 			if (lua_load_extensions(L, chan)) {
 				const char *error = lua_tostring(L, -1);
-				ast_log(LOG_ERROR, "Error loading extensions.lua for %s: %s\n", chan->name, error);
+				ast_log(LOG_ERROR, "Error loading extensions.lua for %s: %s\n", ast_channel_name(chan), error);
 
 				ast_channel_lock(chan);
 				ast_channel_datastore_remove(chan, datastore);

@@ -477,7 +477,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 				res = ast_waitstream(chan, "");	
 				ast_stopstream(chan);
 			} else {
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
+				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", ast_channel_name(chan), (char *)data);
 				res = 0;
 				mres = 1;
 			}

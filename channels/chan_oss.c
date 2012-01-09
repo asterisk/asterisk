@@ -775,7 +775,7 @@ static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_
 		ast_moh_stop(c);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);
+		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, ast_channel_name(c));
 		return -1;
 	}
 
@@ -824,7 +824,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	ast_jb_configure(c, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {
-			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", c->name);
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(c));
 			ast_hangup(c);
 			o->owner = c = NULL;
 		}
@@ -1198,7 +1198,7 @@ static char *console_transfer(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		S_COR(b->caller.id.number.valid, b->caller.id.number.str, NULL))) {
 		ast_cli(a->fd, "No such extension exists\n");
 	} else {
-		ast_cli(a->fd, "Whee, transferring %s to %s@%s.\n", b->name, ext, ctx);
+		ast_cli(a->fd, "Whee, transferring %s to %s@%s.\n", ast_channel_name(b), ext, ctx);
 		if (ast_async_goto(b, ctx, ext, 1))
 			ast_cli(a->fd, "Failed to transfer :(\n");
 	}

@@ -141,7 +141,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 	
 	res = ioctl(chan->fds[0], DAHDI_GET_BUFINFO, &savebi);
 	if(res) {
-		ast_log(LOG_WARNING, "Unable to check buffer policy on channel %s\n", chan->name);
+		ast_log(LOG_WARNING, "Unable to check buffer policy on channel %s\n", ast_channel_name(chan));
 		return;
 	}
 
@@ -154,7 +154,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 			if (!res) {
 				/* Check for hangup */
 				if (ast_check_hangup(chan) && !signalled) {
-					ast_debug(1, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
+					ast_debug(1, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", ast_channel_name(chan), pid);
 					kill(pid, SIGTERM);
 					signalled=1;
 				}
@@ -166,12 +166,12 @@ static void run_ras(struct ast_channel *chan, char *args)
 				ast_log(LOG_WARNING, "wait4 returned %d: %s\n", res, strerror(errno));
 			}
 			if (WIFEXITED(status)) {
-				ast_verb(3, "RAS on %s terminated with status %d\n", chan->name, WEXITSTATUS(status));
+				ast_verb(3, "RAS on %s terminated with status %d\n", ast_channel_name(chan), WEXITSTATUS(status));
 			} else if (WIFSIGNALED(status)) {
 				ast_verb(3, "RAS on %s terminated with signal %d\n", 
-					 chan->name, WTERMSIG(status));
+					 ast_channel_name(chan), WTERMSIG(status));
 			} else {
-				ast_verb(3, "RAS on %s terminated weirdly.\n", chan->name);
+				ast_verb(3, "RAS on %s terminated weirdly.\n", ast_channel_name(chan));
 			}
 			/* Throw back into audio mode */
 			x = 1;
@@ -180,7 +180,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 			/* Restore saved values */
 			res = ioctl(chan->fds[0], DAHDI_SET_BUFINFO, &savebi);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Unable to set buffer policy on channel %s\n", chan->name);
+				ast_log(LOG_WARNING, "Unable to set buffer policy on channel %s\n", ast_channel_name(chan));
 			}
 			break;
 		}
@@ -205,17 +205,17 @@ static int dahdiras_exec(struct ast_channel *chan, const char *data)
 	if (strcasecmp(chan->tech->type, "DAHDI")) {
 		/* If it's not a DAHDI channel, we're done.  Wait a couple of
 		   seconds and then hangup... */
-		ast_verb(2, "Channel %s is not a DAHDI channel\n", chan->name);
+		ast_verb(2, "Channel %s is not a DAHDI channel\n", ast_channel_name(chan));
 		sleep(2);
 	} else {
 		memset(&dahdip, 0, sizeof(dahdip));
 		if (ioctl(chan->fds[0], DAHDI_GET_PARAMS, &dahdip)) {
 			ast_log(LOG_WARNING, "Unable to get DAHDI parameters\n");
 		} else if (dahdip.sigtype != DAHDI_SIG_CLEAR) {
-			ast_verb(2, "Channel %s is not a clear channel\n", chan->name);
+			ast_verb(2, "Channel %s is not a clear channel\n", ast_channel_name(chan));
 		} else {
 			/* Everything should be okay.  Run PPP. */
-			ast_verb(3, "Starting RAS on %s\n", chan->name);
+			ast_verb(3, "Starting RAS on %s\n", ast_channel_name(chan));
 			/* Execute RAS */
 			run_ras(chan, args);
 		}

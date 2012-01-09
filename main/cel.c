@@ -455,7 +455,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 
 	ast_copy_string(tchan->exten, record.extension, sizeof(tchan->exten));
 	ast_copy_string(tchan->context, record.context, sizeof(tchan->context));
-	ast_string_field_set(tchan, name, record.channel_name);
+	ast_channel_name_set(tchan, record.channel_name);
 	ast_string_field_set(tchan, uniqueid, record.unique_id);
 	ast_string_field_set(tchan, linkedid, record.linked_id);
 	ast_string_field_set(tchan, accountcode, record.account_code);
@@ -515,11 +515,11 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 
 	if (peer) {
 		ast_channel_lock(peer);
-		peername = ast_strdupa(peer->name);
+		peername = ast_strdupa(ast_channel_name(peer));
 		ast_channel_unlock(peer);
 	} else if (peer2) {
 		ast_channel_lock(peer2);
-		peername = ast_strdupa(peer2->name);
+		peername = ast_strdupa(ast_channel_name(peer2));
 		ast_channel_unlock(peer2);
 	}
 
@@ -552,7 +552,7 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 			S_OR(chan->dialed.number.str, ""),
 		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, chan->exten,
 		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, chan->context,
-		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, chan->name,
+		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, ast_channel_name(chan),
 		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->appl, ""),
 		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->data, ""),
 		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, chan->amaflags,

@@ -210,8 +210,8 @@ static int send_tone_burst(struct ast_channel *chan, float freq, int duration, i
 				break;
 			}
 			if (ast_write(chan, &wf)) {
-				ast_verb(4, "AlarmReceiver: Failed to write frame on %s\n", chan->name);
-				ast_log(LOG_WARNING, "AlarmReceiver Failed to write frame on %s\n",chan->name);
+				ast_verb(4, "AlarmReceiver: Failed to write frame on %s\n", ast_channel_name(chan));
+				ast_log(LOG_WARNING, "AlarmReceiver Failed to write frame on %s\n",ast_channel_name(chan));
 				res = -1;
 				ast_frfree(f);
 				break;
@@ -245,8 +245,8 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 	for (;;) {
 		/* if outa time, leave */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > ((i > 0) ? sdto : fdto)) {
-			ast_verb(4, "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
-			ast_debug(1,"AlarmReceiver: DTMF timeout on chan %s\n",chan->name);
+			ast_verb(4, "AlarmReceiver: DTMF Digit Timeout on %s\n", ast_channel_name(chan));
+			ast_debug(1,"AlarmReceiver: DTMF timeout on chan %s\n",ast_channel_name(chan));
 			res = 1;
 			break;
 		}
@@ -583,12 +583,12 @@ static int alarmreceiver_exec(struct ast_channel *chan, const char *data)
 	ast_verb(4, "AlarmReceiver: Setting read and write formats to ULAW\n");
 
 	if (ast_set_write_format_by_id(chan,AST_FORMAT_ULAW)) {
-		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
+		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",ast_channel_name(chan));
 		return -1;
 	}
 
 	if (ast_set_read_format_by_id(chan,AST_FORMAT_ULAW)) {
-		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",chan->name);
+		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",ast_channel_name(chan));
 		return -1;
 	}
 

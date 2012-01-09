@@ -1647,7 +1647,7 @@ static const char* dtmf_tones[] = {
 				ast_playtones_start(myrpt->txchannel, 0, dtmf_tones[15], 0);
 			else {
 				/* not handled */
-				ast_debug(1, "Unable to generate DTMF tone '%c' for '%s'\n", digit, myrpt->txchannel->name);
+				ast_debug(1, "Unable to generate DTMF tone '%c' for '%s'\n", digit, ast_channel_name(myrpt->txchannel));
 			}
 			rpt_mutex_lock(&myrpt->lock);
 		}
@@ -3708,7 +3708,7 @@ int	res;
 	if (!res) 
 		res = ast_waitstream(mychannel, "");
 	else
-		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 	ast_stopstream(mychannel);
 	return res;
 }
@@ -3721,7 +3721,7 @@ int	res;
 	if (!res) 
 		res = ast_waitstream(mychannel, "");
 	else
-		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 	ast_stopstream(mychannel);
 	return res;
 }
@@ -3733,7 +3733,7 @@ static int saynum(struct ast_channel *mychannel, int num)
 	if(!res)
 		res = ast_waitstream(mychannel, "");
 	else
-		ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+		ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 	ast_stopstream(mychannel);
 	return res;
 }
@@ -4229,7 +4229,7 @@ struct ast_format_cap *cap = NULL;
 
 			res = telem_lookup(myrpt,mychannel, myrpt->name, (!hastx) ? "remotemon" : "remotetx");
 			if(res)
-				ast_log(LOG_WARNING, "telem_lookup:remotexx failed on %s\n", mychannel->name);
+				ast_log(LOG_WARNING, "telem_lookup:remotexx failed on %s\n", ast_channel_name(mychannel));
 			
 		
 			/* if in remote cmd mode, indicate it */
@@ -4238,7 +4238,7 @@ struct ast_format_cap *cap = NULL;
 				ast_safe_sleep(mychannel,200);
 				res = telem_lookup(myrpt,mychannel, myrpt->name, "cmdmode");
 				if(res)
-				 	ast_log(LOG_WARNING, "telem_lookup:cmdmode failed on %s\n", mychannel->name);
+				 	ast_log(LOG_WARNING, "telem_lookup:cmdmode failed on %s\n", ast_channel_name(mychannel));
 				ast_stopstream(mychannel);
 			}
 		}
@@ -4252,7 +4252,7 @@ struct ast_format_cap *cap = NULL;
 			else
 				res = -1;
 			if(res)
-			 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
+			 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", ast_channel_name(mychannel));		
 		}	
 		if (hasremote && (!myrpt->cmdnode[0]))
 		{
@@ -4287,7 +4287,7 @@ struct ast_format_cap *cap = NULL;
 					res = -1;
 		
 				if(res)
-				 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
+				 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", ast_channel_name(mychannel));		
 			}	
 		}
 #if	defined(_MDC_DECODE_H_) && defined(MDC_SAY_WHEN_DOING_CT)
@@ -4383,7 +4383,7 @@ struct ast_format_cap *cap = NULL;
 			else
 				res = -1;
 			if(res)
-			 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
+			 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", ast_channel_name(mychannel));		
 		}	
 		imdone = 1;
 		break;
@@ -4446,13 +4446,13 @@ struct ast_format_cap *cap = NULL;
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		ast_stopstream(mychannel);
 		res = ast_streamfile(mychannel, "digits/2", mychannel->language);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		ast_stopstream(mychannel);
 		res = saynode(myrpt,mychannel,myrpt->name);
 		imdone = 1;
@@ -4826,7 +4826,7 @@ struct ast_format_cap *cap = NULL;
 			l1 = ast_malloc(sizeof(struct rpt_link));
 			if (!l1)
 			{
-				ast_log(LOG_WARNING, "Cannot alloc memory on %s\n", mychannel->name);
+				ast_log(LOG_WARNING, "Cannot alloc memory on %s\n", ast_channel_name(mychannel));
 				remque((struct qelem *)mytele);
 				myrpt->active_telem = NULL;
 				rpt_mutex_unlock(&myrpt->lock);
@@ -4851,7 +4851,7 @@ struct ast_format_cap *cap = NULL;
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
-				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 			ast_stopstream(mychannel);
 		}
 		l = linkbase.next;
@@ -4868,7 +4868,7 @@ struct ast_format_cap *cap = NULL;
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 			ast_stopstream(mychannel);
 			l = l->next;
 		}			
@@ -4878,7 +4878,7 @@ struct ast_format_cap *cap = NULL;
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
-				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 			ast_stopstream(mychannel);
 		}
 		/* destroy our local link queue */
@@ -4912,7 +4912,7 @@ struct ast_format_cap *cap = NULL;
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
-				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 			ast_stopstream(mychannel);
 		}
 		/* go thru all the nodes in list */
@@ -4936,7 +4936,7 @@ struct ast_format_cap *cap = NULL;
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 			ast_stopstream(mychannel);
 		}			
 		if (!hastx)
@@ -4945,7 +4945,7 @@ struct ast_format_cap *cap = NULL;
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
-				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+				 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 			ast_stopstream(mychannel);
 		}
 		imdone = 1;
@@ -4980,7 +4980,7 @@ struct ast_format_cap *cap = NULL;
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		ast_stopstream(mychannel);
 		imdone = 1;
 		break;
@@ -5000,7 +5000,7 @@ struct ast_format_cap *cap = NULL;
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		ast_stopstream(mychannel);
 		sprintf(mystr,PARROTFILE,myrpt->name,(unsigned int)mytele->parrot);
 		strcat(mystr,".wav");
@@ -5023,7 +5023,7 @@ struct ast_format_cap *cap = NULL;
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		ast_stopstream(mychannel);
 		if(!res) /* Say number of seconds */
 			ast_say_number(mychannel, myrpt->p.remotetimeout - 
@@ -5043,7 +5043,7 @@ struct ast_format_cap *cap = NULL;
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		ast_stopstream(mychannel);
 		if(!res) /* Say number of seconds */
 			ast_say_number(mychannel, myrpt->p.remoteinacttimeout - 
@@ -5115,7 +5115,7 @@ struct ast_format_cap *cap = NULL;
 			ast_stopstream(mychannel);
 		}	
 		else
-			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		imdone = 1;
 	    	break;
 	    case ARB_ALPHA:
@@ -5154,7 +5154,7 @@ struct ast_format_cap *cap = NULL;
 					if(!dres) {
 						dres = ast_waitstream(mychannel, "");
 					} else {
-						ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", tmp[idx], mychannel->name);
+						ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", tmp[idx], ast_channel_name(mychannel));
 						dres = 0;
 					}
 				}
@@ -5186,7 +5186,7 @@ struct ast_format_cap *cap = NULL;
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 			res = 0;
 		}
 	}
@@ -5829,7 +5829,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 		l->chan->data = "(Remote Rx)";
 		if (debug > 3)
 			ast_log(LOG_NOTICE, "rpt (remote) initiating call to %s/%s on %s\n",
-		deststr, tele, l->chan->name);
+		deststr, tele, ast_channel_name(l->chan));
 		l->chan->caller.id.number.valid = 1;
 		ast_free(l->chan->caller.id.number.str);
 		l->chan->caller.id.number.str = ast_strdup(myrpt->name);
@@ -5838,7 +5838,7 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	else {
 		if(debug > 3) 
 			ast_log(LOG_NOTICE, "Unable to place call to %s/%s on %s\n",
-		deststr,tele,l->chan->name);
+		deststr,tele,ast_channel_name(l->chan));
 		if (myrpt->p.archivedir)
 		{
 			char str[100];
@@ -7427,7 +7427,7 @@ struct dahdi_radio_param r;
 	memcpy(&r.data,data,5);
 	if (ioctl(myrpt->dahdirxchannel->fds[0],DAHDI_RADIO_SETPARAM,&r) == -1)
 	{
-		ast_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",myrpt->dahdirxchannel->name);
+		ast_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",ast_channel_name(myrpt->dahdirxchannel));
 		return;
 	}
 }
@@ -10411,7 +10411,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 		l->chan->appl = "Apprpt";
 		l->chan->data = "(Remote Rx)";
 		ast_verb(3, "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
-			deststr, tele, l->chan->name);
+			deststr, tele, ast_channel_name(l->chan));
 		l->chan->caller.id.number.valid = 1;
 		ast_free(l->chan->caller.id.number.str);
 		l->chan->caller.id.number.str = ast_strdup(myrpt->name);
@@ -10421,7 +10421,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 	else 
 	{
 		ast_verb(3, "Unable to place call to %s/%s on %s\n",
-			deststr,tele,l->chan->name);
+			deststr,tele,ast_channel_name(l->chan));
 		return -1;
 	}
 	rpt_mutex_lock(&myrpt->lock);
@@ -13335,12 +13335,12 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 	{
 #ifdef ALLOW_LOCAL_CHANNELS
 	        /* Check to insure the connection is IAX2 or Local*/
-	        if ( (strncmp(chan->name,"IAX2",4)) && (strncmp(chan->name,"Local",5)) ) {
+	        if ( (strncmp(ast_channel_name(chan),"IAX2",4)) && (strncmp(ast_channel_name(chan),"Local",5)) ) {
 	            ast_log(LOG_WARNING, "We only accept links via IAX2 or Local!!\n");
 	            return -1;
 	        }
 #else
-		if (strncmp(chan->name,"IAX2",4))
+		if (strncmp(ast_channel_name(chan),"IAX2",4))
 		{
 			ast_log(LOG_WARNING, "We only accept links via IAX2!!\n");
 			return -1;
@@ -13485,7 +13485,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		memset(hisip,0,sizeof(hisip));
 #ifdef ALLOW_LOCAL_CHANNELS
         /* set IP address if this is a local connection*/
-        if (strncmp(chan->name,"Local",5)==0) {
+        if (strncmp(ast_channel_name(chan),"Local",5)==0) {
             strcpy(hisip,"127.0.0.1");
         } else {
 			pbx_substitute_variables_helper(chan,"${IAXPEER(CURRENTCHANNEL)}",hisip,sizeof(hisip) - 1);
@@ -13827,7 +13827,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Link Rx)";
 		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
-			myrpt->rxchanname,tele,myrpt->rxchannel->name);
+			myrpt->rxchanname,tele,ast_channel_name(myrpt->rxchannel));
 		rpt_mutex_unlock(&myrpt->lock);
 		ast_call(myrpt->rxchannel,tele,999);
 		rpt_mutex_lock(&myrpt->lock);
@@ -13869,7 +13869,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Link Tx)";
 			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
-				myrpt->txchanname,tele,myrpt->txchannel->name);
+				myrpt->txchanname,tele,ast_channel_name(myrpt->txchannel));
 			rpt_mutex_unlock(&myrpt->lock);
 			ast_call(myrpt->txchannel,tele,999);
 			rpt_mutex_lock(&myrpt->lock);
@@ -14058,7 +14058,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 		time(&myt);
 		strftime(mydate,sizeof(mydate) - 1,"%Y%m%d%H%M%S",
 			localtime(&myt));
-		sprintf(mycmd,"mixmonitor start %s %s/%s/%s.wav49 a",chan->name,
+		sprintf(mycmd,"mixmonitor start %s %s/%s/%s.wav49 a",ast_channel_name(chan),
 			myrpt->p.archivedir,myrpt->name,mydate);
 		if (myrpt->p.monminblocks)
 		{
@@ -14596,7 +14596,7 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 	}
 	/* wait for telem to be done */
 	while(myrpt->tele.next != &myrpt->tele) usleep(100000);
-	sprintf(tmp,"mixmonitor stop %s",chan->name);
+	sprintf(tmp,"mixmonitor stop %s",ast_channel_name(chan));
 	ast_cli_command(nullfd,tmp);
 	close(nullfd);
 	rpt_mutex_lock(&myrpt->lock);

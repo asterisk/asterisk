@@ -183,7 +183,7 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 
 	filename = ast_strdupa(prompt);
 	while ((front = strsep(&filename, "&"))) {
-		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", front, c->name);
+		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", front, ast_channel_name(c));
 		if (!ast_strlen_zero(front)) {
 			res = ast_streamfile(c, front, c->language);
 			if (res)
@@ -455,7 +455,7 @@ static void linear_release(struct ast_channel *chan, void *params)
 	struct linear_state *ls = params;
 
 	if (ls->origwfmt.id && ast_set_write_format(chan, &ls->origwfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt.id);
+		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", ast_channel_name(chan), ls->origwfmt.id);
 	}
 
 	if (ls->autoclose) {
@@ -513,7 +513,7 @@ static void *linear_alloc(struct ast_channel *chan, void *params)
 	ast_format_copy(&ls->origwfmt, &chan->writeformat);
 
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
+		ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", ast_channel_name(chan));
 		ast_free(ls);
 		ls = params = NULL;
 	}
@@ -700,7 +700,7 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 {
 	int d = 0;
 
-	ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", fn, chan->name);
+	ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", fn, ast_channel_name(chan));
 	if ((d = ast_streamfile(chan, fn, chan->language))) {
 		return d;
 	}
@@ -771,7 +771,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	}
 
 	ast_debug(1, "play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
-	snprintf(comment, sizeof(comment), "Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
+	snprintf(comment, sizeof(comment), "Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, ast_channel_name(chan));
 
 	if (playfile || beep) {
 		if (!beep) {
@@ -853,7 +853,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 				ast_debug(1, "One waitfor failed, trying another\n");
 				/* Try one more time in case of masq */
 				if (!(res = ast_waitfor(chan, 2000))) {
-					ast_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
+					ast_log(LOG_WARNING, "No audio available on %s??\n", ast_channel_name(chan));
 					res = -1;
 				}
 			}
@@ -1031,7 +1031,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		}
 	}
 	if (rfmt.id && ast_set_read_format(chan, &rfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(&rfmt), chan->name);
+		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(&rfmt), ast_channel_name(chan));
 	}
 	if ((outmsg == 2) && (!skip_confirmation_sound)) {
 		ast_stream_and_wait(chan, "auth-thankyou", "");

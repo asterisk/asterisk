@@ -127,7 +127,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		"Application=        %s\n"
 		"Data=               %s\n"
 		"Blocking_in=        %s\n",
-		c->name,
+		ast_channel_name(c),
 		c->tech->type,
 		c->uniqueid,
 		c->linkedid,
@@ -158,8 +158,8 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		hour,
 		min,
 		sec,
-		c->_bridge ? c->_bridge->name : "<none>",
-		ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
+		c->_bridge ? ast_channel_name(c->_bridge) : "<none>",
+		ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
 		c->context,
 		c->exten,
 		c->priority,
@@ -191,7 +191,7 @@ static int dumpchan_exec(struct ast_channel *chan, const char *data)
 			"Info:\n"
 			"%s\n"
 			"Variables:\n"
-			"%s%s\n", chan->name, line, info, ast_str_buffer(vars), line);
+			"%s%s\n", ast_channel_name(chan), line, info, ast_str_buffer(vars), line);
 	}
 
 	return 0;

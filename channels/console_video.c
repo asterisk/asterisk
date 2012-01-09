@@ -991,7 +991,7 @@ static void *video_thread(void *arg)
 			for (p = f; p; p = AST_LIST_NEXT(p, frame_list)) {
 				if (write(fd, &blah, l) != l)
 					ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d: %s!\n",
-						chan->name, f->frametype, f->subclass, strerror(errno));
+						ast_channel_name(chan), f->frametype, f->subclass, strerror(errno));
 			}
 		}
 		ast_channel_unlock(chan);

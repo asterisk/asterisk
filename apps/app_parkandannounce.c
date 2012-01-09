@@ -182,10 +182,10 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	ast_party_id_free(&caller_id);
 	if (dchan) {
 		if (dchan->_state == AST_STATE_UP) {
-			ast_verb(4, "Channel %s was answered.\n", dchan->name);
+			ast_verb(4, "Channel %s was answered.\n", ast_channel_name(dchan));
 		} else {
-			ast_verb(4, "Channel %s was never answered.\n", dchan->name);
-			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
+			ast_verb(4, "Channel %s was never answered.\n", ast_channel_name(dchan));
+			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", ast_channel_name(dchan));
 			ast_hangup(dchan);
 			res = -1;
 			goto parkcleanup;
@@ -218,7 +218,7 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 			if (!dres) {
 				dres = ast_waitstream(dchan, "");
 			} else {
-				ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", tmp[i], dchan->name);
+				ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", tmp[i], ast_channel_name(dchan));
 			}
 		}
 	}

@@ -926,7 +926,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
+			ast_copy_string(cdr->channel, ast_channel_name(c), sizeof(cdr->channel));
 			set_one_cid(cdr, c);
 			cdr_seq_inc(cdr);
 
@@ -1038,7 +1038,7 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 			"Uniqueid: %s\r\n"
 			"AccountCode: %s\r\n"
 			"OldAccountCode: %s\r\n",
-			chan->name, chan->uniqueid, chan->accountcode, old_acct);
+			ast_channel_name(chan), chan->uniqueid, chan->accountcode, old_acct);
 
 	return 0;
 }
@@ -1064,7 +1064,7 @@ int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account)
 			"Uniqueid: %s\r\n"
 			"PeerAccount: %s\r\n"
 			"OldPeerAccount: %s\r\n",
-			chan->name, chan->uniqueid, chan->peeraccount, old_acct);
+			ast_channel_name(chan), chan->uniqueid, chan->peeraccount, old_acct);
 
 	return 0;
 }

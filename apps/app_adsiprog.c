@@ -1469,7 +1469,7 @@ static int adsi_prog(struct ast_channel *chan, const char *script)
 	if (ast_adsi_begin_download(chan, scr->desc, scr->fdn, scr->sec, scr->ver)) {
 		/* User rejected us for some reason */
 		ast_verb(3, "User rejected download attempt\n");
-		ast_log(LOG_NOTICE, "User rejected download on channel %s\n", chan->name);
+		ast_log(LOG_NOTICE, "User rejected download on channel %s\n", ast_channel_name(chan));
 		ast_free(scr);
 		return -1;
 	}
@@ -1554,7 +1554,7 @@ static int adsi_prog(struct ast_channel *chan, const char *script)
 	if (ast_adsi_end_download(chan)) {
 		/* Download failed for some reason */
 		ast_verb(3, "Download attempt failed\n");
-		ast_log(LOG_NOTICE, "Download failed on %s\n", chan->name);
+		ast_log(LOG_NOTICE, "Download failed on %s\n", ast_channel_name(chan));
 		ast_free(scr);
 		return -1;
 	}

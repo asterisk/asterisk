@@ -770,7 +770,7 @@ struct ast_channel {
 #endif
 
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(name);			/*!< ASCII unique channel name */
+		AST_STRING_FIELD(__do_not_use_name); /*!< ASCII unique channel name */
 		AST_STRING_FIELD(language);		/*!< Language requested for voice prompts */
 		AST_STRING_FIELD(musicclass);		/*!< Default music class */
 		AST_STRING_FIELD(accountcode);		/*!< Account code for billing */
@@ -2435,7 +2435,7 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 
 #define CHECK_BLOCKING(c) do { 	 \
 	if (ast_test_flag(c, AST_FLAG_BLOCKING)) {\
-		ast_debug(1, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), (c)->name, (long) (c)->blocker, (c)->blockproc); \
+		ast_debug(1, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), ast_channel_name(c), (long) (c)->blocker, (c)->blockproc); \
 	} else { \
 		(c)->blocker = pthread_self(); \
 		(c)->blockproc = __PRETTY_FUNCTION__; \
@@ -3544,5 +3544,15 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
  * in the global channels conatiner, use this function.
  */
 void ast_channel_unlink(struct ast_channel *chan);
+
+/* ACCESSOR FUNTIONS */
+/*! \brief Get the channel name */
+const char *ast_channel_name(const struct ast_channel *chan);
+
+/*! \brief Set the channel name */
+void ast_channel_name_set(struct ast_channel *chan, const char *name);
+
+/*! \brief Set the channel name with a format string */
+void ast_channel_name_set_va(struct ast_channel *chan, const char *name_fmt, va_list ap) __attribute__((format(printf, 2, 0)));
 
 #endif /* _ASTERISK_CHANNEL_H */

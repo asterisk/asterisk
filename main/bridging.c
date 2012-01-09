@@ -155,7 +155,7 @@ static void bridge_array_add(struct ast_bridge *bridge, struct ast_channel *chan
 
 	bridge->array[bridge->array_num++] = chan;
 
-	ast_debug(1, "Added channel %s(%p) to bridge array on %p, new count is %d\n", chan->name, chan, bridge, (int)bridge->array_num);
+	ast_debug(1, "Added channel %s(%p) to bridge array on %p, new count is %d\n", ast_channel_name(chan), chan, bridge, (int)bridge->array_num);
 
 	/* If the next addition of a channel will exceed our array size grow it out */
 	if (bridge->array_num == bridge->array_size) {
@@ -570,12 +570,12 @@ static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_c
 		}
 		/* Switch read format to the best one chosen */
 		if (ast_set_read_format(bridge_channel->chan, &best_format)) {
-			ast_log(LOG_WARNING, "Failed to set channel %s to read format %s\n", bridge_channel->chan->name, ast_getformatname(&best_format));
+			ast_log(LOG_WARNING, "Failed to set channel %s to read format %s\n", ast_channel_name(bridge_channel->chan), ast_getformatname(&best_format));
 			return -1;
 		}
-		ast_debug(1, "Bridge %p put channel %s into read format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&best_format));
+		ast_debug(1, "Bridge %p put channel %s into read format %s\n", bridge, ast_channel_name(bridge_channel->chan), ast_getformatname(&best_format));
 	} else {
-		ast_debug(1, "Bridge %p is happy that channel %s already has read format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&formats[0]));
+		ast_debug(1, "Bridge %p is happy that channel %s already has read format %s\n", bridge, ast_channel_name(bridge_channel->chan), ast_getformatname(&formats[0]));
 	}
 
 	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, &formats[1])) {
@@ -591,12 +591,12 @@ static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_c
 		}
 		/* Switch write format to the best one chosen */
 		if (ast_set_write_format(bridge_channel->chan, &best_format)) {
-			ast_log(LOG_WARNING, "Failed to set channel %s to write format %s\n", bridge_channel->chan->name, ast_getformatname(&best_format));
+			ast_log(LOG_WARNING, "Failed to set channel %s to write format %s\n", ast_channel_name(bridge_channel->chan), ast_getformatname(&best_format));
 			return -1;
 		}
-		ast_debug(1, "Bridge %p put channel %s into write format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&best_format));
+		ast_debug(1, "Bridge %p put channel %s into write format %s\n", bridge, ast_channel_name(bridge_channel->chan), ast_getformatname(&best_format));
 	} else {
-		ast_debug(1, "Bridge %p is happy that channel %s already has write format %s\n", bridge, bridge_channel->chan->name, ast_getformatname(&formats[1]));
+		ast_debug(1, "Bridge %p is happy that channel %s already has write format %s\n", bridge, ast_channel_name(bridge_channel->chan), ast_getformatname(&formats[1]));
 	}
 
 	return 0;
@@ -1511,7 +1511,7 @@ void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_
 	cleanup_video_mode(bridge);
 	bridge->video_mode.mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
 	bridge->video_mode.mode_data.single_src_data.chan_vsrc = ast_channel_ref(video_src_chan);
-	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %d\r\nVideo Channel: %s", bridge->video_mode.mode, video_src_chan->name);
+	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %d\r\nVideo Channel: %s", bridge->video_mode.mode, ast_channel_name(video_src_chan));
 	ast_indicate(video_src_chan, AST_CONTROL_VIDUPDATE);
 	ao2_unlock(bridge);
 }
@@ -1548,14 +1548,14 @@ void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct a
 		}
 		data->chan_vsrc = ast_channel_ref(chan);
 		data->average_talking_energy = talker_energy;
-		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", data->chan_vsrc->name);
+		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", ast_channel_name(data->chan_vsrc));
 		ast_indicate(data->chan_vsrc, AST_CONTROL_VIDUPDATE);
 	} else if ((data->average_talking_energy < talker_energy) && !is_keyframe) {
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 	} else if (!data->chan_vsrc && is_keyframe) {
 		data->chan_vsrc = ast_channel_ref(chan);
 		data->average_talking_energy = talker_energy;
-		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", data->chan_vsrc->name);
+		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", ast_channel_name(data->chan_vsrc));
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 	} else if (!data->chan_old_vsrc && is_keyframe) {
 		data->chan_old_vsrc = ast_channel_ref(chan);

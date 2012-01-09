@@ -1279,7 +1279,7 @@ static int calendar_query_result_exec(struct ast_channel *chan, const char *cmd,
 
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &eventlist_datastore_info, args.id))) {
-		ast_log(LOG_WARNING, "There is no event notification datastore with id '%s' on '%s'!\n", args.id, chan->name);
+		ast_log(LOG_WARNING, "There is no event notification datastore with id '%s' on '%s'!\n", args.id, ast_channel_name(chan));
 		ast_channel_unlock(chan);
 		return -1;
 	}
@@ -1647,7 +1647,7 @@ static int calendar_event_read(struct ast_channel *chan, const char *cmd, char *
 
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &event_notification_datastore, NULL))) {
-		ast_log(LOG_WARNING, "There is no event notification datastore on '%s'!\n", chan->name);
+		ast_log(LOG_WARNING, "There is no event notification datastore on '%s'!\n", ast_channel_name(chan));
 		ast_channel_unlock(chan);
 		return -1;
 	}

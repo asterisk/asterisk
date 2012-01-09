@@ -333,7 +333,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 			seq++;
 			ast_mutex_unlock(&monitorlock);
 
-			channel_name = ast_strdupa(chan->name);
+			channel_name = ast_strdupa(ast_channel_name(chan));
 			while ((p = strchr(channel_name, '/'))) {
 				*p = '-';
 			}
@@ -392,10 +392,10 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 		ast_manager_event(chan, EVENT_FLAG_CALL, "MonitorStart",
 			                "Channel: %s\r\n"
 					        "Uniqueid: %s\r\n",
-	                        chan->name,
+	                        ast_channel_name(chan),
 			                chan->uniqueid);
 	} else {
-		ast_debug(1,"Cannot start monitoring %s, already monitored\n", chan->name);
+		ast_debug(1,"Cannot start monitoring %s, already monitored\n", ast_channel_name(chan));
 		res = -1;
 	}
 
@@ -510,7 +510,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 		ast_manager_event(chan, EVENT_FLAG_CALL, "MonitorStop",
 			                "Channel: %s\r\n"
 	                        "Uniqueid: %s\r\n",
-	                        chan->name,
+	                        ast_channel_name(chan),
 	                        chan->uniqueid
 	                        );
 		pbx_builtin_setvar_helper(chan, "MONITORED", NULL);
@@ -558,7 +558,7 @@ static int unpause_monitor_exec(struct ast_channel *chan, const char *data)
 int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, const char *fname_base, int need_lock)
 {
 	if (ast_strlen_zero(fname_base)) {
-		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
+		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", ast_channel_name(chan));
 		return -1;
 	}
 
@@ -621,7 +621,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, co
 		ast_copy_string(chan->monitor->filename_base, tmpstring, sizeof(chan->monitor->filename_base));
 		chan->monitor->filename_changed = 1;
 	} else {
-		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
+		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", ast_channel_name(chan), fname_base);
 	}
 
 	UNLOCK_IF_NEEDED(chan, need_lock);
@@ -759,7 +759,7 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 	if (ast_strlen_zero(fname)) {
 		/* No filename base specified, default to channel name as per CLI */
 		ast_channel_lock(c);
-		fname = ast_strdupa(c->name);
+		fname = ast_strdupa(ast_channel_name(c));
 		ast_channel_unlock(c);
 		/* Channels have the format technology/channel_name - have to replace that /  */
 		if ((d = strchr(fname, '/'))) {

@@ -467,7 +467,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 	ast_mutex_unlock(&bridge_lock); 
 
 	if (i == max_bridges) {
-		ast_log(LOG_WARNING, "%s: vpb_bridge: Failed to bridge %s and %s!\n", p0->dev, c0->name, c1->name);
+		ast_log(LOG_WARNING, "%s: vpb_bridge: Failed to bridge %s and %s!\n", p0->dev, ast_channel_name(c0), ast_channel_name(c1));
 		ast_mutex_unlock(&p0->lock);
 		ast_mutex_unlock(&p1->lock);
 		return AST_BRIDGE_FAILED_NOWARN;
@@ -481,14 +481,14 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 		p1->bridge = &bridges[i];
 		ast_mutex_unlock(&p1->lock);
 
-		ast_verb(2, "%s: vpb_bridge: Bridging call entered with [%s, %s]\n", p0->dev, c0->name, c1->name);
+		ast_verb(2, "%s: vpb_bridge: Bridging call entered with [%s, %s]\n", p0->dev, ast_channel_name(c0), ast_channel_name(c1));
 	}
 
-	ast_verb(3, "Native bridging %s and %s\n", c0->name, c1->name);
+	ast_verb(3, "Native bridging %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
 
 	#ifdef HALF_DUPLEX_BRIDGE
 
-	ast_debug(2, "%s: vpb_bridge: Starting half-duplex bridge [%s, %s]\n", p0->dev, c0->name, c1->name);
+	ast_debug(2, "%s: vpb_bridge: Starting half-duplex bridge [%s, %s]\n", p0->dev, ast_channel_name(c0), ast_channel_name(c1));
 
 	int dir = 0;
 
@@ -520,7 +520,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 	vpb_play_buf_finish(p0->handle);
 	vpb_play_buf_finish(p1->handle);
 
-	ast_debug(2, "%s: vpb_bridge: Finished half-duplex bridge [%s, %s]\n", p0->dev, c0->name, c1->name);
+	ast_debug(2, "%s: vpb_bridge: Finished half-duplex bridge [%s, %s]\n", p0->dev, ast_channel_name(c0), ast_channel_name(c1));
 
 	res = VPB_OK;
 
@@ -602,7 +602,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 	p1->bridge = NULL;
 
 
-	ast_verb(2, "Bridging call done with [%s, %s] => %d\n", c0->name, c1->name, res);
+	ast_verb(2, "Bridging call done with [%s, %s] => %d\n", ast_channel_name(c0), ast_channel_name(c1), res);
 
 /*
 	ast_mutex_unlock(&p0->lock);
@@ -901,11 +901,11 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 					if (ast_exists_extension(p->owner, target_context, "fax", 1,
 						S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
-						ast_verb(3, "Redirecting %s to fax extension\n", p->owner->name);
+						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(p->owner));
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
 						if (ast_async_goto(p->owner, target_context, "fax", 1)) {
-							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", p->owner->name, target_context);
+							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner), target_context);
 						}
 					} else {
 						ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
@@ -1062,7 +1062,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	}
 
 	ast_verb(4, "%s: handle_owned: Prepared frame type[%d]subclass[%d], bridge=%p owner=[%s]\n",
-			p->dev, f.frametype, f.subclass.integer, (void *)p->bridge, p->owner->name);
+			p->dev, f.frametype, f.subclass.integer, (void *)p->bridge, ast_channel_name(p->owner));
 
 	/* Trylock used here to avoid deadlock that can occur if we
 	 * happen to be in here handling an event when hangup is called
@@ -1072,7 +1072,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		if (ast_channel_trylock(p->owner) == 0) {
 			ast_queue_frame(p->owner, &f);
 			ast_channel_unlock(p->owner);
-			ast_verb(4, "%s: handled_owned: Queued Frame to [%s]\n", p->dev, p->owner->name);
+			ast_verb(4, "%s: handled_owned: Queued Frame to [%s]\n", p->dev, ast_channel_name(p->owner));
 		} else {
 			ast_verbose("%s: handled_owned: Missed event %d/%d \n",
 				p->dev, f.frametype, f.subclass.integer);
@@ -1731,7 +1731,7 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
-	ast_debug(1, "New owner for channel %s is %s\n", p->dev, newchan->name);
+	ast_debug(1, "New owner for channel %s is %s\n", p->dev, ast_channel_name(newchan));
 
 	if (p->owner == oldchan) {
 		p->owner = newchan;
@@ -1814,7 +1814,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if (ast->_state != AST_STATE_DOWN && ast->_state != AST_STATE_RESERVED) {
-		ast_log(LOG_WARNING, "vpb_call on %s neither down nor reserved!\n", ast->name);
+		ast_log(LOG_WARNING, "vpb_call on %s neither down nor reserved!\n", ast_channel_name(ast));
 		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
@@ -1840,15 +1840,15 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		memcpy(&call.tone_map,  DialToneMap, sizeof(DialToneMap));
 		vpb_set_call(p->handle, &call);
 
-		ast_verb(2, "%s: Calling %s on %s \n",p->dev, dialstring, ast->name);
+		ast_verb(2, "%s: Calling %s on %s \n",p->dev, dialstring, ast_channel_name(ast));
 
 		ast_verb(2, "%s: Dial parms for %s %d/%dms/%dms/%dms/%dms\n", p->dev,
-				ast->name, call.dialtones, call.dialtone_timeout,
+				ast_channel_name(ast), call.dialtones, call.dialtone_timeout,
 				call.ringback_timeout, call.inter_ringback_timeout,
 				call.answer_timeout);
 		for (j = 0; !call.tone_map[j].terminate; j++) {
 			ast_verb(2, "%s: Dial parms for %s tone %d->%d\n", p->dev,
-					ast->name, call.tone_map[j].tone_id, call.tone_map[j].call_id); 
+					ast_channel_name(ast), call.tone_map[j].tone_id, call.tone_map[j].call_id); 
 		}
 
 		ast_verb(4, "%s: Disabling Loop Drop detection\n", p->dev);
@@ -1868,13 +1868,13 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		#endif
 
 		if (res != VPB_OK) {
-			ast_debug(1, "Call on %s to %s failed: %d\n", ast->name, s, res);
+			ast_debug(1, "Call on %s to %s failed: %d\n", ast_channel_name(ast), s, res);
 			res = -1;
 		} else
 			res = 0;
 	}
 
-	ast_verb(3, "%s: VPB Calling %s [t=%d] on %s returned %d\n", p->dev , s, timeout, ast->name, res);
+	ast_verb(3, "%s: VPB Calling %s [t=%d] on %s returned %d\n", p->dev , s, timeout, ast_channel_name(ast), res);
 	if (res == 0) {
 		ast_setstate(ast, AST_STATE_RINGING);
 		ast_queue_control(ast, AST_CONTROL_RINGING);
@@ -1900,10 +1900,10 @@ static int vpb_hangup(struct ast_channel *ast)
 	ast_verb(4, "%s: LOCKING pthread_self(%d)\n", p->dev,pthread_self());
 	ast_mutex_lock(&p->lock);
 */
-	ast_verb(2, "%s: Hangup requested\n", ast->name);
+	ast_verb(2, "%s: Hangup requested\n", ast_channel_name(ast));
 
 	if (!ast->tech || !ast->tech_pvt) {
-		ast_log(LOG_WARNING, "%s: channel not connected?\n", ast->name);
+		ast_log(LOG_WARNING, "%s: channel not connected?\n", ast_channel_name(ast));
 		ast_mutex_unlock(&p->lock);
 		/* Free up ast dsp if we have one */
 		if (use_ast_dtmfdet && p->vad) {
@@ -1919,19 +1919,19 @@ static int vpb_hangup(struct ast_channel *ast)
 	p->stopreads = 1;
 	if (p->readthread) {
 		pthread_join(p->readthread, NULL); 
-		ast_verb(4, "%s: stopped record thread \n", ast->name);
+		ast_verb(4, "%s: stopped record thread \n", ast_channel_name(ast));
 	}
 
 	/* Stop play */
 	if (p->lastoutput != -1) {
-		ast_verb(2, "%s: Ending play mode \n", ast->name);
+		ast_verb(2, "%s: Ending play mode \n", ast_channel_name(ast));
 		vpb_play_terminate(p->handle);
 		ast_mutex_lock(&p->play_lock);
 		vpb_play_buf_finish(p->handle);
 		ast_mutex_unlock(&p->play_lock);
 	}
 
-	ast_verb(4, "%s: Setting state down\n", ast->name);
+	ast_verb(4, "%s: Setting state down\n", ast_channel_name(ast));
 	ast_setstate(ast, AST_STATE_DOWN);
 
 
@@ -1967,7 +1967,7 @@ static int vpb_hangup(struct ast_channel *ast)
 	}
 	while (VPB_OK == vpb_get_event_ch_async(p->handle, &je)) {
 		vpb_translate_event(&je, str);
-		ast_verb(4, "%s: Flushing event [%d]=>%s\n", ast->name, je.type, str);
+		ast_verb(4, "%s: Flushing event [%d]=>%s\n", ast_channel_name(ast), je.type, str);
 	}
 
 	p->readthread = 0;
@@ -1986,7 +1986,7 @@ static int vpb_hangup(struct ast_channel *ast)
 		p->vad = NULL;
 	}
 
-	ast_verb(2, "%s: Hangup complete\n", ast->name);
+	ast_verb(2, "%s: Hangup complete\n", ast_channel_name(ast));
 
 	restart_monitor();
 	ast_mutex_unlock(&p->lock);
@@ -2026,7 +2026,7 @@ static int vpb_answer(struct ast_channel *ast)
 		ast_setstate(ast, AST_STATE_UP);
 
 		ast_verb(2, "%s: Answered call on %s [%s]\n", p->dev,
-					 ast->name, (p->mode == MODE_FXO) ? "FXO" : "FXS");
+					 ast_channel_name(ast), (p->mode == MODE_FXO) ? "FXO" : "FXS");
 
 		ast->rings = 0;
 		if (!p->readthread) {
@@ -2136,11 +2136,11 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	ast_verb(6, "%s: vpb_write: Writing to channel\n", p->dev);
 
 	if (frame->frametype != AST_FRAME_VOICE) {
-		ast_verb(4, "%s: vpb_write: Don't know how to handle from type %d\n", ast->name, frame->frametype);
+		ast_verb(4, "%s: vpb_write: Don't know how to handle from type %d\n", ast_channel_name(ast), frame->frametype);
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
 	} else if (ast->_state != AST_STATE_UP) {
-		ast_verb(4, "%s: vpb_write: Attempt to Write frame type[%d]subclass[%s] on not up chan(state[%d])\n", ast->name, frame->frametype, ast_getformatname(&frame->subclass.format), ast->_state);
+		ast_verb(4, "%s: vpb_write: Attempt to Write frame type[%d]subclass[%s] on not up chan(state[%d])\n", ast_channel_name(ast), frame->frametype, ast_getformatname(&frame->subclass.format), ast->_state);
 		p->lastoutput = -1;
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
@@ -2150,7 +2150,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	fmt = ast2vpbformat(&frame->subclass.format);
 	if (fmt < 0) {
-		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %s format!\n", ast->name, ast_getformatname(&frame->subclass.format));
+		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %s format!\n", ast_channel_name(ast), ast_getformatname(&frame->subclass.format));
 		return -1;
 	}
 
@@ -2258,7 +2258,7 @@ static void *do_chanreads(void *pvt)
 		} else {
 			ast_verb(5, "%s: chanreads: No native bridge.\n", p->dev);
 			if (p->owner->_bridge) {
-				ast_verb(5, "%s: chanreads: Got Asterisk bridge with [%s].\n", p->dev, p->owner->_bridge->name);
+				ast_verb(5, "%s: chanreads: Got Asterisk bridge with [%s].\n", p->dev, ast_channel_name(p->owner->_bridge));
 				bridgerec = 1;
 			} else {
 				bridgerec = 0;
@@ -2495,7 +2495,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 				vpb_answer(tmp);
 			}
 			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 				ast_hangup(tmp);
 		   	}
 		}
@@ -2552,7 +2552,7 @@ static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *
 	ast_mutex_unlock(&iflock);
 
 
-	ast_verb(2, " %s requested, got: [%s]\n", name, tmp ? tmp->name : "None");
+	ast_verb(2, " %s requested, got: [%s]\n", name, tmp ? ast_channel_name(tmp) : "None");
 
 	ast_free(name);
 

@@ -2278,7 +2278,7 @@ int ast_cc_call_init(struct ast_channel *chan, int *ignore_cc)
 		 */
 		*ignore_cc = 1;
 		ast_channel_unlock(chan);
-		ast_log_dynamic_level(cc_logger_level, "Agent policy for %s is 'never'. CC not possible\n", chan->name);
+		ast_log_dynamic_level(cc_logger_level, "Agent policy for %s is 'never'. CC not possible\n", ast_channel_name(chan));
 		return 0;
 	}
 
@@ -3608,7 +3608,7 @@ int ast_cc_offer(struct ast_channel *caller_chan)
 	ast_channel_unlock(caller_chan);
 
 	if (cc_is_offerable) {
-		res = cc_offer(core_id, "CC offered to caller %s", caller_chan->name);
+		res = cc_offer(core_id, "CC offered to caller %s", ast_channel_name(caller_chan));
 	}
 	return res;
 }

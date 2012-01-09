@@ -123,12 +123,12 @@ static void audiohook_inheritance_fixup(void *data, struct ast_channel *old_chan
 	struct inheritable_audiohook *audiohook = NULL;
 	struct audiohook_inheritance_datastore *datastore = data;
 
-	ast_debug(2, "inheritance fixup occurring for channels %s(%p) and %s(%p)", old_chan->name, old_chan, new_chan->name, new_chan);
+	ast_debug(2, "inheritance fixup occurring for channels %s(%p) and %s(%p)", ast_channel_name(old_chan), old_chan, ast_channel_name(new_chan), new_chan);
 
 	AST_LIST_TRAVERSE(&datastore->allowed_list, audiohook, list) {
 		ast_audiohook_move_by_source(old_chan, new_chan, audiohook->source);
 		ast_debug(3, "Moved audiohook %s from %s(%p) to %s(%p)\n",
-			audiohook->source, old_chan->name, old_chan, new_chan->name, new_chan);
+			audiohook->source, ast_channel_name(old_chan), old_chan, ast_channel_name(new_chan), new_chan);
 	}
 	return;
 }
@@ -234,10 +234,10 @@ static int func_inheritance_write(struct ast_channel *chan, const char *function
 		ast_channel_unlock(chan);
 		/* In the case where we cannot find the datastore, we can take a few shortcuts */
 		if (!allow) {
-			ast_debug(1, "Audiohook %s is already set to not be inheritable on channel %s\n", data, chan->name);
+			ast_debug(1, "Audiohook %s is already set to not be inheritable on channel %s\n", data, ast_channel_name(chan));
 			return 0;
 		} else if (!(inheritance_datastore = setup_inheritance_datastore(chan))) {
-			ast_log(LOG_WARNING, "Unable to set up audiohook inheritance datastore on channel %s\n", chan->name);
+			ast_log(LOG_WARNING, "Unable to set up audiohook inheritance datastore on channel %s\n", ast_channel_name(chan));
 			return -1;
 		} else {
 			return setup_inheritable_audiohook(inheritance_datastore, data);
@@ -252,10 +252,10 @@ static int func_inheritance_write(struct ast_channel *chan, const char *function
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&inheritance_datastore->allowed_list, inheritable_audiohook, list) {
 		if (!strcasecmp(inheritable_audiohook->source, data)) {
 			if (allow) {
-				ast_debug(2, "Audiohook source %s is already set up to be inherited from channel %s\n", data, chan->name);
+				ast_debug(2, "Audiohook source %s is already set up to be inherited from channel %s\n", data, ast_channel_name(chan));
 				return 0;
 			} else {
-				ast_debug(2, "Removing inheritability of audiohook %s from channel %s\n", data, chan->name);
+				ast_debug(2, "Removing inheritability of audiohook %s from channel %s\n", data, ast_channel_name(chan));
 				AST_LIST_REMOVE_CURRENT(list);
 				ast_free(inheritable_audiohook);
 				return 0;
@@ -273,7 +273,7 @@ static int func_inheritance_write(struct ast_channel *chan, const char *function
 	if (allow) {
 		return setup_inheritable_audiohook(inheritance_datastore, data);
 	} else {
-		ast_debug(1, "Audiohook %s is already set to not be inheritable on channel %s\n", data, chan->name);
+		ast_debug(1, "Audiohook %s is already set to not be inheritable on channel %s\n", data, ast_channel_name(chan));
 		return 0;
 	}
 }

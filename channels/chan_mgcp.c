@@ -842,7 +842,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	struct varshead *headp;
 	struct ast_var_t *current;
 
-	ast_debug(3, "MGCP mgcp_call(%s)\n", ast->name);
+	ast_debug(3, "MGCP mgcp_call(%s)\n", ast_channel_name(ast));
 	sub = ast->tech_pvt;
 	p = sub->parent;
 	headp = &ast->varshead;
@@ -877,7 +877,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "mgcp_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "mgcp_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		ast_mutex_unlock(&sub->lock);
 		return -1;
 	}
@@ -923,7 +923,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	struct mgcp_endpoint *p = sub->parent;
 	struct ast_channel *bridged;
 
-	ast_debug(1, "mgcp_hangup(%s)\n", ast->name);
+	ast_debug(1, "mgcp_hangup(%s)\n", ast_channel_name(ast));
 	if (!ast->tech_pvt) {
 		ast_debug(1, "Asked to hangup channel not connected\n");
 		return 0;
@@ -933,7 +933,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	ast_mutex_lock(&sub->lock);
-	ast_debug(3, "MGCP mgcp_hangup(%s) on %s@%s\n", ast->name, p->name, p->parent->name);
+	ast_debug(3, "MGCP mgcp_hangup(%s) on %s@%s\n", ast_channel_name(ast), p->name, p->parent->name);
 
 	if ((p->dtmfmode & MGCP_DTMF_INBAND) && p->dsp) {
 		/* check whether other channel is active. */
@@ -1017,16 +1017,16 @@ static int mgcp_hangup(struct ast_channel *ast)
 	if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
 		p->hidecallerid = 0;
 		if (p->hascallwaiting && !p->callwaiting) {
-			ast_verb(3, "Enabling call waiting on %s\n", ast->name);
+			ast_verb(3, "Enabling call waiting on %s\n", ast_channel_name(ast));
 			p->callwaiting = -1;
 		}
 		if (has_voicemail(p)) {
 			ast_debug(3, "MGCP mgcp_hangup(%s) on %s@%s set vmwi(+)\n",
-				ast->name, p->name, p->parent->name);
+				ast_channel_name(ast), p->name, p->parent->name);
 			transmit_notify_request(sub, "L/vmwi(+)");
 		} else {
 			ast_debug(3, "MGCP mgcp_hangup(%s) on %s@%s set vmwi(-)\n",
-				ast->name, p->name, p->parent->name);
+				ast_channel_name(ast), p->name, p->parent->name);
 			transmit_notify_request(sub, "L/vmwi(-)");
 		}
 	}
@@ -1186,10 +1186,10 @@ static int mgcp_answer(struct ast_channel *ast)
 		transmit_modify_request(sub);
 	}
 	ast_verb(3, "MGCP mgcp_answer(%s) on %s@%s-%d\n",
-			ast->name, p->name, p->parent->name, sub->id);
+			ast_channel_name(ast), p->name, p->parent->name, sub->id);
 	if (ast->_state != AST_STATE_UP) {
 		ast_setstate(ast, AST_STATE_UP);
-		ast_debug(1, "mgcp_answer(%s)\n", ast->name);
+		ast_debug(1, "mgcp_answer(%s)\n", ast_channel_name(ast));
 		transmit_notify_request(sub, "");
 		transmit_modify_request(sub);
 	}
@@ -1284,7 +1284,7 @@ static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	struct mgcp_subchannel *sub = newchan->tech_pvt;
 
 	ast_mutex_lock(&sub->lock);
-	ast_log(LOG_NOTICE, "mgcp_fixup(%s, %s)\n", oldchan->name, newchan->name);
+	ast_log(LOG_NOTICE, "mgcp_fixup(%s, %s)\n", ast_channel_name(oldchan), ast_channel_name(newchan));
 	if (sub->owner != oldchan) {
 		ast_mutex_unlock(&sub->lock);
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
@@ -1441,7 +1441,7 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 	int res = 0;
 
 	ast_debug(3, "MGCP asked to indicate %d '%s' condition on channel %s\n",
-		ind, control2str(ind), ast->name);
+		ind, control2str(ind), ast_channel_name(ast));
 	ast_mutex_lock(&sub->lock);
 	switch(ind) {
 	case AST_CONTROL_RINGING:
@@ -1560,13 +1560,13 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 		}
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 				ast_hangup(tmp);
 				tmp = NULL;
 			}
 		}
 		ast_verb(3, "MGCP mgcp_new(%s) created in state: %s\n",
-				tmp->name, ast_state2str(state));
+				ast_channel_name(tmp), ast_state2str(state));
 	} else {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}
@@ -3004,7 +3004,7 @@ static void *mgcp_ss(void *data)
 					/* Record this as the forwarding extension */
 					ast_copy_string(p->call_forward, p->dtmf_buf, sizeof(p->call_forward));
 					ast_verb(3, "Setting call forward to '%s' on channel %s\n",
-							p->call_forward, chan->name);
+							p->call_forward, ast_channel_name(chan));
 					/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 					transmit_notify_request(sub, "L/sl");
 					if (res)
@@ -3057,7 +3057,7 @@ static void *mgcp_ss(void *data)
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			return NULL;
 		} else if (p->hascallwaiting && p->callwaiting && !strcmp(p->dtmf_buf, "*70")) {
-			ast_verb(3, "Disabling call waiting on %s\n", chan->name);
+			ast_verb(3, "Disabling call waiting on %s\n", ast_channel_name(chan));
 			/* Disable call waiting if enabled */
 			p->callwaiting = 0;
 			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
@@ -3079,7 +3079,7 @@ static void *mgcp_ss(void *data)
 			ast_hangup(chan);
 			return NULL;
 		} else if (!p->hidecallerid && !strcmp(p->dtmf_buf, "*67")) {
-			ast_verb(3, "Disabling Caller*ID on %s\n", chan->name);
+			ast_verb(3, "Disabling Caller*ID on %s\n", ast_channel_name(chan));
 			/* Disable Caller*ID if enabled */
 			p->hidecallerid = 1;
 			ast_set_callerid(chan, "", "", NULL);
@@ -3099,7 +3099,7 @@ static void *mgcp_ss(void *data)
 			break;
 		} else if (!strcmp(p->dtmf_buf, "*78")) {
 			/* Do not disturb */
-			ast_verb(3, "Enabled DND on channel %s\n", chan->name);
+			ast_verb(3, "Enabled DND on channel %s\n", ast_channel_name(chan));
 			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 1;
@@ -3108,7 +3108,7 @@ static void *mgcp_ss(void *data)
 			len = 0;
 		} else if (!strcmp(p->dtmf_buf, "*79")) {
 			/* Do not disturb */
-			ast_verb(3, "Disabled DND on channel %s\n", chan->name);
+			ast_verb(3, "Disabled DND on channel %s\n", ast_channel_name(chan));
 			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 0;
@@ -3122,7 +3122,7 @@ static void *mgcp_ss(void *data)
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			len = 0;
 		} else if (p->cancallforward && !strcmp(p->dtmf_buf, "*73")) {
-			ast_verb(3, "Cancelling call forwarding on channel %s\n", chan->name);
+			ast_verb(3, "Cancelling call forwarding on channel %s\n", ast_channel_name(chan));
 			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			memset(p->call_forward, 0, sizeof(p->call_forward));
@@ -3135,7 +3135,7 @@ static void *mgcp_ss(void *data)
 			   and we're parking the first call. */
 			ast_masq_park_call_exten(ast_bridged_channel(sub->next->owner), chan,
 				p->dtmf_buf, chan->context, 0, NULL);
-			ast_verb(3, "Parking call to '%s'\n", chan->name);
+			ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
 			break;
 		} else if (!ast_strlen_zero(p->lastcallerid) && !strcmp(p->dtmf_buf, "*60")) {
 			ast_verb(3, "Blacklisting number %s\n", p->lastcallerid);
@@ -3147,7 +3147,7 @@ static void *mgcp_ss(void *data)
 				len = 0;
 			}
 		} else if (p->hidecallerid && !strcmp(p->dtmf_buf, "*82")) {
-			ast_verb(3, "Enabling Caller*ID on %s\n", chan->name);
+			ast_verb(3, "Enabling Caller*ID on %s\n", ast_channel_name(chan));
 			/* Enable Caller*ID if enabled */
 			p->hidecallerid = 0;
 			ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
@@ -3234,7 +3234,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		}
 		if (ast_channel_masquerade(p->sub->next->owner, ast_bridged_channel(p->sub->owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-				ast_bridged_channel(p->sub->owner)->name, p->sub->next->owner->name);
+				ast_channel_name(ast_bridged_channel(p->sub->owner)), ast_channel_name(p->sub->next->owner));
 			return -1;
 		}
 		/* Orphan the channel */
@@ -3246,7 +3246,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		ast_queue_control(p->sub->next->owner, AST_CONTROL_UNHOLD);
 		if (ast_channel_masquerade(p->sub->owner, ast_bridged_channel(p->sub->next->owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-				ast_bridged_channel(p->sub->next->owner)->name, p->sub->owner->name);
+				ast_channel_name(ast_bridged_channel(p->sub->next->owner)), ast_channel_name(p->sub->owner));
 			return -1;
 		}
 		/*swap_subs(p, SUB_THREEWAY, SUB_REAL);*/
@@ -3257,7 +3257,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		return 1;
 	} else {
 		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-			p->sub->owner->name, p->sub->next->owner->name);
+			ast_channel_name(p->sub->owner), ast_channel_name(p->sub->next->owner));
 		p->sub->next->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 		if (p->sub->next->owner) {
 			p->sub->next->alreadygone = 1;

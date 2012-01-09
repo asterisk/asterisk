@@ -282,7 +282,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 #endif
 		while ((x < 6) && msg[x]) {
 			if ((res = adsi_generate(buf + pos, msgtype[x], msg[x], msglen[x], x+1 - start, (x == 5) || !msg[x+1], ast_format_set(&tmpfmt, AST_FORMAT_ULAW,0))) < 0) {
-				ast_log(LOG_WARNING, "Failed to generate ADSI message %d on channel %s\n", x + 1, chan->name);
+				ast_log(LOG_WARNING, "Failed to generate ADSI message %d on channel %s\n", x + 1, ast_channel_name(chan));
 				return -1;
 			}
 			ast_debug(1, "Message %d, of %d input bytes, %d output bytes\n", x + 1, msglen[x], res);

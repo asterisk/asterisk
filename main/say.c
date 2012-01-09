@@ -434,7 +434,7 @@ static int wait_file(struct ast_channel *chan, const char *ints, const char *fil
      \note Called from AGI */
 static int say_number_full(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
-	ast_test_suite_event_notify("SAYNUM", "Message: saying number %d\r\nNumber: %d\r\nChannel: %s", num, num, chan->name);
+	ast_test_suite_event_notify("SAYNUM", "Message: saying number %d\r\nNumber: %d\r\nChannel: %s", num, num, ast_channel_name(chan));
 	if (!strncasecmp(language, "en_GB", 5)) {     /* British syntax */
 	   return ast_say_number_full_en_GB(chan, num, ints, language, audiofd, ctrlfd);
 	} else if (!strncasecmp(language, "en", 2)) { /* English syntax */

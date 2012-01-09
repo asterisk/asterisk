@@ -396,7 +396,7 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 		client_name = jack_data->client_name;
 	} else {
 		ast_channel_lock(chan);
-		client_name = ast_strdupa(chan->name);
+		client_name = ast_strdupa(ast_channel_name(chan));
 		ast_channel_unlock(chan);
 	}
 
@@ -833,7 +833,7 @@ static int jack_hook_callback(struct ast_audiohook *audiohook, struct ast_channe
 	ast_channel_lock(chan);
 
 	if (!(datastore = ast_channel_datastore_find(chan, &jack_hook_ds_info, NULL))) {
-		ast_log(LOG_ERROR, "JACK_HOOK datastore not found for '%s'\n", chan->name);
+		ast_log(LOG_ERROR, "JACK_HOOK datastore not found for '%s'\n", ast_channel_name(chan));
 		ast_channel_unlock(chan);
 		return -1;
 	}
@@ -863,7 +863,7 @@ static int enable_jack_hook(struct ast_channel *chan, char *data)
 	ast_channel_lock(chan);
 
 	if ((datastore = ast_channel_datastore_find(chan, &jack_hook_ds_info, NULL))) {
-		ast_log(LOG_ERROR, "JACK_HOOK already enabled for '%s'\n", chan->name);
+		ast_log(LOG_ERROR, "JACK_HOOK already enabled for '%s'\n", ast_channel_name(chan));
 		goto return_error;
 	}
 

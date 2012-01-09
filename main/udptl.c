@@ -1158,13 +1158,13 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
 	if (!pr0) {
-		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
+		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", ast_channel_name(c0));
 		ast_channel_unlock(c0);
 		ast_channel_unlock(c1);
 		return -1;
 	}
 	if (!pr1) {
-		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
+		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", ast_channel_name(c1));
 		ast_channel_unlock(c0);
 		ast_channel_unlock(c1);
 		return -1;
@@ -1180,14 +1180,14 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		return -2;
 	}
 	if (pr0->set_udptl_peer(c0, p1)) {
-		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 		memset(&ac1, 0, sizeof(ac1));
 	} else {
 		/* Store UDPTL peer */
 		ast_udptl_get_peer(p1, &ac1);
 	}
 	if (pr1->set_udptl_peer(c1, p0)) {
-		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
+		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", ast_channel_name(c1), ast_channel_name(c0));
 		memset(&ac0, 0, sizeof(ac0));
 	} else {
 		/* Store UDPTL peer */
@@ -1211,16 +1211,16 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		ast_udptl_get_peer(p0, &t0);
 		if (ast_sockaddr_cmp(&t1, &ac1)) {
 			ast_debug(1, "Oooh, '%s' changed end address to %s\n", 
-				c1->name, ast_sockaddr_stringify(&t1));
+				ast_channel_name(c1), ast_sockaddr_stringify(&t1));
 			ast_debug(1, "Oooh, '%s' was %s\n", 
-				c1->name, ast_sockaddr_stringify(&ac1));
+				ast_channel_name(c1), ast_sockaddr_stringify(&ac1));
 			ast_sockaddr_copy(&ac1, &t1);
 		}
 		if (ast_sockaddr_cmp(&t0, &ac0)) {
 			ast_debug(1, "Oooh, '%s' changed end address to %s\n", 
-				c0->name, ast_sockaddr_stringify(&t0));
+				ast_channel_name(c0), ast_sockaddr_stringify(&t0));
 			ast_debug(1, "Oooh, '%s' was %s\n", 
-				c0->name, ast_sockaddr_stringify(&ac0));
+				ast_channel_name(c0), ast_sockaddr_stringify(&ac0));
 			ast_sockaddr_copy(&ac0, &t0);
 		}
 		who = ast_waitfor_n(cs, 2, &to);

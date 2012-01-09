@@ -1946,7 +1946,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 			chan->macrocontext, 
 			chan->exten,
 			chan->priority,
-			chan->name,
+			ast_channel_name(chan),
 			callerid,
 			date, 
 			timebuf,

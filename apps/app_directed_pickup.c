@@ -113,7 +113,7 @@ static int pickup_by_name_cb(void *obj, void *arg, void *data, int flags)
 	struct pickup_by_name_args *args = data;
 
 	ast_channel_lock(target);
-	if (!strncasecmp(target->name, args->name, args->len) && ast_can_pickup(target)) {
+	if (!strncasecmp(ast_channel_name(target), args->name, args->len) && ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
@@ -183,7 +183,7 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 	while ((target = ast_channel_iterator_next(iter))) {
 		ast_channel_lock(target);
 		if ((chan != target) && ast_can_pickup(target)) {
-			ast_log(LOG_NOTICE, "%s pickup by %s\n", target->name, chan->name);
+			ast_log(LOG_NOTICE, "%s pickup by %s\n", ast_channel_name(target), ast_channel_name(chan));
 			break;
 		}
 		ast_channel_unlock(target);
@@ -259,7 +259,7 @@ static int pickup_by_group(struct ast_channel *chan)
 	/* The found channel is already locked. */
 	target = ast_channel_callback(find_channel_by_group, NULL, chan, 0);
 	if (target) {
-		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", target->name, chan->name);
+		ast_log(LOG_NOTICE, "pickup %s attempt by %s\n", ast_channel_name(target), ast_channel_name(chan));
 		res = ast_do_pickup(chan, target);
 		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
@@ -308,7 +308,7 @@ static int find_by_part(void *obj, void *arg, void *data, int flags)
 	int len = strlen(part);
 
 	ast_channel_lock(target);
-	if (len <= strlen(target->name) && !strncmp(target->name, part, len)
+	if (len <= strlen(ast_channel_name(target)) && !strncmp(ast_channel_name(target), part, len)
 		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
@@ -359,7 +359,7 @@ static int pickupchan_exec(struct ast_channel *chan, const char *data)
 
 	/* Parse channel */
 	while (!ast_strlen_zero(args.channel) && (pickup = strsep(&args.channel, "&"))) {
-		if (!strncasecmp(chan->name, pickup, strlen(pickup))) {
+		if (!strncasecmp(ast_channel_name(chan), pickup, strlen(pickup))) {
 			ast_log(LOG_NOTICE, "Cannot pickup your own channel %s.\n", pickup);
 		} else {
 			if (partial_pickup) {

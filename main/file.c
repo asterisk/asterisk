@@ -818,7 +818,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 	while (!whennext) {
 		struct ast_frame *fr;
 
-		if (s->orig_chan_name && strcasecmp(s->owner->name, s->orig_chan_name)) {
+		if (s->orig_chan_name && strcasecmp(ast_channel_name(s->owner), s->orig_chan_name)) {
 			goto return_failure;
 		}
 
@@ -1044,7 +1044,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	}
 
 	if (ast_test_flag(chan, AST_FLAG_MASQ_NOSTREAM))
-		fs->orig_chan_name = ast_strdup(chan->name);
+		fs->orig_chan_name = ast_strdup(ast_channel_name(chan));
 	if (ast_applystream(chan, fs))
 		return -1;
 	if (vfs && ast_applystream(chan, vfs))
@@ -1052,7 +1052,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	res = ast_playstream(fs);
 	if (!res && vfs)
 		res = ast_playstream(vfs);
-	ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", chan->name, filename, ast_getformatname(&chan->writeformat), preflang ? preflang : "default");
+	ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", ast_channel_name(chan), filename, ast_getformatname(&chan->writeformat), preflang ? preflang : "default");
 
 	return res;
 }
@@ -1258,13 +1258,13 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
 
 	if (ast_test_flag(c, AST_FLAG_MASQ_NOSTREAM))
-		orig_chan_name = ast_strdupa(c->name);
+		orig_chan_name = ast_strdupa(ast_channel_name(c));
 
 	while (c->stream) {
 		int res;
 		int ms;
 
-		if (orig_chan_name && strcasecmp(orig_chan_name, c->name)) {
+		if (orig_chan_name && strcasecmp(orig_chan_name, ast_channel_name(c))) {
 			ast_stopstream(c);
 			err = 1;
 			break;
@@ -1424,7 +1424,7 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *
 {
 	int res = 0;
 	if (!ast_strlen_zero(file)) {
-		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", file, chan->name);
+		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", file, ast_channel_name(chan));
 		res = ast_streamfile(chan, file, chan->language);
 		if (!res) {
 			res = ast_waitstream(chan, digits);

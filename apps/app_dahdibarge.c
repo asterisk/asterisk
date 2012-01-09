@@ -117,13 +117,13 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 
 	/* Set it into U-law mode (write) */
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
+		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", ast_channel_name(chan));
 		goto outrun;
 	}
 
 	/* Set it into U-law mode (read) */
 	if (ast_set_read_format_by_id(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
+		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", ast_channel_name(chan));
 		goto outrun;
 	}
 	ast_indicate(chan, -1);
@@ -192,7 +192,7 @@ dahdiretry:
 		close(fd);
 		goto outrun;
 	}
-	ast_debug(1, "Placed channel %s in DAHDI channel %d monitor\n", chan->name, confno);
+	ast_debug(1, "Placed channel %s in DAHDI channel %d monitor\n", ast_channel_name(chan), confno);
 
 	for(;;) {
 		outfd = -1;

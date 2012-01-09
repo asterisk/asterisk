@@ -3673,7 +3673,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 		ast_waitfor_n_fd(dr.pfds, 1, &ms, NULL);
 	}
 	if (chan && ast_check_hangup(chan))
-		ast_debug(1, "Hrm, '%s' hungup before their query for %s@%s finished\n", chan->name, dr.number, dr.dcontext);
+		ast_debug(1, "Hrm, '%s' hungup before their query for %s@%s finished\n", ast_channel_name(chan), dr.number, dr.dcontext);
 	cancel_request(&dr);
 	unregister_request(&dr);
 	res = dr.respcount;

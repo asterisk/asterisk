@@ -4757,7 +4757,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		/* flag added for Urgent */
 		fprintf(p, "X-Asterisk-VM-Flag: %s" ENDL, flag);
 		fprintf(p, "X-Asterisk-VM-Priority: %d" ENDL, chan->priority);
-		fprintf(p, "X-Asterisk-VM-Caller-channel: %s" ENDL, chan->name);
+		fprintf(p, "X-Asterisk-VM-Caller-channel: %s" ENDL, ast_channel_name(chan));
 		fprintf(p, "X-Asterisk-VM-Caller-ID-Num: %s" ENDL, enc_cidnum);
 		fprintf(p, "X-Asterisk-VM-Caller-ID-Name: %s" ENDL, enc_cidname);
 		fprintf(p, "X-Asterisk-VM-Duration: %d" ENDL, duration);
@@ -6024,7 +6024,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				"macrocontext", chan->macrocontext,
 				"exten", chan->exten,
 				"priority", priority,
-				"callerchan", chan->name,
+				"callerchan", ast_channel_name(chan),
 				"callerid", callerid,
 				"origdate", date,
 				"origtime", origtime,
@@ -6064,7 +6064,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				S_COR(chan->redirecting.from.number.valid,
 					chan->redirecting.from.number.str, "unknown"),
 				chan->priority,
-				chan->name,
+				ast_channel_name(chan),
 				callerid,
 				date, (long) time(NULL),
 				category ? category : "");

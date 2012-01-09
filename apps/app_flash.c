@@ -80,7 +80,7 @@ static int flash_exec(struct ast_channel *chan, const char *data)
 	struct dahdi_params dahdip;
 
 	if (strcasecmp(chan->tech->type, "DAHDI")) {
-		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", chan->name);
+		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
 		return -1;
 	}
 	
@@ -96,13 +96,13 @@ static int flash_exec(struct ast_channel *chan, const char *data)
 					dahdi_wait_event(chan->fds[0]);
 				}
 				res = ast_safe_sleep(chan, 1000);
-				ast_verb(3, "Flashed channel %s\n", chan->name);
+				ast_verb(3, "Flashed channel %s\n", ast_channel_name(chan));
 			} else
-				ast_log(LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
+				ast_log(LOG_WARNING, "Unable to flash channel %s: %s\n", ast_channel_name(chan), strerror(errno));
 		} else
-			ast_log(LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
+			ast_log(LOG_WARNING, "%s is not an FXO Channel\n", ast_channel_name(chan));
 	} else
-		ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", ast_channel_name(chan), strerror(errno));
 
 	return res;
 }

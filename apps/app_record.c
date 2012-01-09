@@ -272,7 +272,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (res) {
-		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
+		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
 		goto out;
 	}
@@ -283,7 +283,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		if (!res) {
 			res = ast_waitstream(chan, "");
 		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(chan));
 		}
 		ast_stopstream(chan);
 	}
@@ -416,7 +416,7 @@ out:
 	if ((silence > 0) && rfmt.id) {
 		res = ast_set_read_format(chan, &rfmt);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", ast_channel_name(chan));
 		if (sildet)
 			ast_dsp_free(sildet);
 	}

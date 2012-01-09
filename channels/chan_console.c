@@ -621,7 +621,7 @@ static int console_indicate(struct ast_channel *chan, int cond, const void *data
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", 
-			cond, chan->name);
+			cond, ast_channel_name(chan));
 		/* The core will play inband indications for us if appropriate */
 		res = -1;
 	}

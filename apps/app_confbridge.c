@@ -545,7 +545,7 @@ static void send_join_event(struct ast_channel *chan, const char *conf_name)
 		"Conference: %s\r\n"
 		"CallerIDnum: %s\r\n"
 		"CallerIDname: %s\r\n",
-		chan->name,
+		ast_channel_name(chan),
 		chan->uniqueid,
 		conf_name,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
@@ -561,7 +561,7 @@ static void send_leave_event(struct ast_channel *chan, const char *conf_name)
 		"Conference: %s\r\n"
 		"CallerIDnum: %s\r\n"
 		"CallerIDname: %s\r\n",
-		chan->name,
+		ast_channel_name(chan),
 		chan->uniqueid,
 		conf_name,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
@@ -1165,7 +1165,7 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 		ast_say_number(conference_bridge->playback_chan, say_number, "", conference_bridge->playback_chan->language, NULL);
 	}
 
-	ast_debug(1, "Departing underlying channel '%s' from bridge '%p'\n", underlying_channel->name, conference_bridge->bridge);
+	ast_debug(1, "Departing underlying channel '%s' from bridge '%p'\n", ast_channel_name(underlying_channel), conference_bridge->bridge);
 	ast_bridge_depart(conference_bridge->bridge, underlying_channel);
 
 	ast_mutex_unlock(&conference_bridge->playback_lock);
@@ -1228,7 +1228,7 @@ static void conf_handle_talker_cb(struct ast_bridge *bridge, struct ast_bridge_c
 	      "Uniqueid: %s\r\n"
 	      "Conference: %s\r\n"
 	      "TalkingStatus: %s\r\n",
-	      bridge_channel->chan->name, bridge_channel->chan->uniqueid, conf_name, talking ? "on" : "off");
+	      ast_channel_name(bridge_channel->chan), bridge_channel->chan->uniqueid, conf_name, talking ? "on" : "off");
 }
 
 static int conf_get_pin(struct ast_channel *chan, struct conference_bridge_user *conference_bridge_user)
@@ -1548,7 +1548,7 @@ static int action_toggle_mute(struct conference_bridge *conference_bridge,
 	/* Mute or unmute yourself, note we only allow manipulation if they aren't waiting for a marked user or if marked users exist */
 	if (!ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_WAITMARKED) || conference_bridge->markedusers) {
 		conference_bridge_user->features.mute = (!conference_bridge_user->features.mute ? 1 : 0);
-		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", chan->name, conference_bridge_user->features.mute ? "muted" : "unmuted", conference_bridge_user->b_profile.name, chan->name);
+		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(chan), conference_bridge_user->features.mute ? "muted" : "unmuted", conference_bridge_user->b_profile.name, ast_channel_name(chan));
 	}
 	return ast_stream_and_wait(chan, (conference_bridge_user->features.mute ?
 		conf_get_sound(CONF_SOUND_MUTED, conference_bridge_user->b_profile.sounds) :
@@ -1684,7 +1684,7 @@ static int action_kick_last(struct conference_bridge *conference_bridge,
 			conf_get_sound(CONF_SOUND_ERROR_MENU, conference_bridge_user->b_profile.sounds),
 			"");
 		ast_log(LOG_WARNING, "Only admin users can use the kick_last menu action. Channel %s of conf %s is not an admin.\n",
-			bridge_channel->chan->name,
+			ast_channel_name(bridge_channel->chan),
 			conference_bridge->name);
 		return -1;
 	}
@@ -1938,12 +1938,12 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 	}
 	ao2_lock(bridge);
 	AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
-		if (!strncmp(a->argv[3], participant->chan->name, strlen(participant->chan->name))) {
+		if (!strncmp(a->argv[3], ast_channel_name(participant->chan), strlen(ast_channel_name(participant->chan)))) {
 			break;
 		}
 	}
 	if (participant) {
-		ast_cli(a->fd, "Kicking %s from confbridge %s\n", participant->chan->name, bridge->name);
+		ast_cli(a->fd, "Kicking %s from confbridge %s\n", ast_channel_name(participant->chan), bridge->name);
 		participant->kicked = 1;
 		ast_bridge_remove(bridge->bridge, participant->chan);
 	}
@@ -1996,7 +1996,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "============================= ================ ================ ================ ================\n");
 		ao2_lock(bridge);
 		AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
-			ast_cli(a->fd, "%-29s ", participant->chan->name);
+			ast_cli(a->fd, "%-29s ", ast_channel_name(participant->chan));
 			ast_cli(a->fd, "%-17s", participant->u_profile.name);
 			ast_cli(a->fd, "%-17s", participant->b_profile.name);
 			ast_cli(a->fd, "%-17s", participant->menu_name);
@@ -2057,13 +2057,13 @@ static int generic_mute_unmute_helper(int mute, const char *conference, const ch
 	}
 	ao2_lock(bridge);
 	AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
-		if (!strncmp(user, participant->chan->name, strlen(user))) {
+		if (!strncmp(user, ast_channel_name(participant->chan), strlen(user))) {
 			break;
 		}
 	}
 	if (participant) {
 		participant->features.mute = mute;
-		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", participant->chan->name, participant->features.mute ? "muted" : "unmuted", bridge->b_profile.name, participant->chan->name);
+		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(participant->chan), participant->features.mute ? "muted" : "unmuted", bridge->b_profile.name, ast_channel_name(participant->chan));
 	} else {
 		res = -2;;
 	}
@@ -2340,7 +2340,7 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 			bridge->name,
 			S_COR(participant->chan->caller.id.number.valid, participant->chan->caller.id.number.str, "<unknown>"),
 			S_COR(participant->chan->caller.id.name.valid, participant->chan->caller.id.name.str, "<no name>"),
-			participant->chan->name,
+			ast_channel_name(participant->chan),
 			ast_test_flag(&participant->u_profile, USER_OPT_ADMIN) ? "Yes" : "No",
 			ast_test_flag(&participant->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No");
 	}
@@ -2508,7 +2508,7 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 
 	ao2_lock(bridge);
 	AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
-		if (!strcasecmp(participant->chan->name, channel)) {
+		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
 			participant->kicked = 1;
 			ast_bridge_remove(bridge->bridge, participant->chan);
 			found = 1;
@@ -2635,7 +2635,7 @@ static int action_confbridgesetsinglevideosrc(struct mansession *s, const struct
 	/* find channel and set as video src. */
 	ao2_lock(bridge);
 	AST_LIST_TRAVERSE(&bridge->users_list, participant, list) {
-		if (!strncmp(channel, participant->chan->name, strlen(channel))) {
+		if (!strncmp(channel, ast_channel_name(participant->chan), strlen(channel))) {
 			ast_bridge_set_single_src_video_mode(bridge->bridge, participant->chan);
 			break;
 		}

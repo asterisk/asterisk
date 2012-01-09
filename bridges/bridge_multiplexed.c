@@ -318,7 +318,7 @@ static int multiplexed_bridge_join(struct ast_bridge *bridge, struct ast_bridge_
 	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan, *c1 = AST_LIST_LAST(&bridge->channels)->chan;
 	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Adding channel '%s' to multiplexed thread '%p' for monitoring\n", bridge_channel->chan->name, multiplexed_thread);
+	ast_debug(1, "Adding channel '%s' to multiplexed thread '%p' for monitoring\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
 
 	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 1);
 
@@ -341,7 +341,7 @@ static int multiplexed_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 {
 	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Removing channel '%s' from multiplexed thread '%p'\n", bridge_channel->chan->name, multiplexed_thread);
+	ast_debug(1, "Removing channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
 
 	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 0);
 
@@ -353,7 +353,7 @@ static void multiplexed_bridge_suspend(struct ast_bridge *bridge, struct ast_bri
 {
 	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Suspending channel '%s' from multiplexed thread '%p'\n", bridge_channel->chan->name, multiplexed_thread);
+	ast_debug(1, "Suspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
 
 	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 0);
 
@@ -365,7 +365,7 @@ static void multiplexed_bridge_unsuspend(struct ast_bridge *bridge, struct ast_b
 {
 	struct multiplexed_thread *multiplexed_thread = bridge->bridge_pvt;
 
-	ast_debug(1, "Unsuspending channel '%s' from multiplexed thread '%p'\n", bridge_channel->chan->name, multiplexed_thread);
+	ast_debug(1, "Unsuspending channel '%s' from multiplexed thread '%p'\n", ast_channel_name(bridge_channel->chan), multiplexed_thread);
 
 	multiplexed_add_or_remove(multiplexed_thread, bridge_channel->chan, 1);
 

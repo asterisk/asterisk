@@ -279,14 +279,14 @@ int ast_jb_put(struct ast_channel *chan, struct ast_frame *f)
 	if (!ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO) || f->len < 2 || f->ts < 0) {
 		ast_log(LOG_WARNING, "%s received frame with invalid timing info: "
 			"has_timing_info=%d, len=%ld, ts=%ld, src=%s\n",
-			chan->name, ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO), f->len, f->ts, f->src);
+			ast_channel_name(chan), ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO), f->len, f->ts, f->src);
 		return -1;
 	}
 
 	frr = ast_frdup(f);
 
 	if (!frr) {
-		ast_log(LOG_ERROR, "Failed to isolate frame for the jitterbuffer on channel '%s'\n", chan->name);
+		ast_log(LOG_ERROR, "Failed to isolate frame for the jitterbuffer on channel '%s'\n", ast_channel_name(chan));
 		return -1;
 	}
 
@@ -411,7 +411,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 
 	jbobj = jb->jbobj = jbimpl->create(jbconf, jbconf->resync_threshold);
 	if (!jbobj) {
-		ast_log(LOG_WARNING, "Failed to create jitterbuffer on channel '%s'\n", chan->name);
+		ast_log(LOG_WARNING, "Failed to create jitterbuffer on channel '%s'\n", ast_channel_name(chan));
 		return -1;
 	}
 
@@ -421,7 +421,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 	/* The result of putting the first frame should not differ from OK. However, its possible
 	   some implementations (i.e. adaptive's when resynch_threshold is specified) to drop it. */
 	if (res != AST_JB_IMPL_OK) {
-		ast_log(LOG_WARNING, "Failed to put first frame in the jitterbuffer on channel '%s'\n", chan->name);
+		ast_log(LOG_WARNING, "Failed to put first frame in the jitterbuffer on channel '%s'\n", ast_channel_name(chan));
 		/*
 		jbimpl->destroy(jbobj);
 		return -1;
@@ -438,7 +438,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 	if (ast_test_flag(jbconf, AST_JB_LOG)) {
 		char safe_logfile[30] = "/tmp/logfile-XXXXXX";
 		int safe_fd;
-		snprintf(name2, sizeof(name2), "%s", chan->name);
+		snprintf(name2, sizeof(name2), "%s", ast_channel_name(chan));
 		if ((tmp = strchr(name2, '/'))) {
 			*tmp = '#';
 		}
@@ -447,7 +447,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 		/* We should always have bridged chan if a jitterbuffer is in use */
 		ast_assert(bridged != NULL);
 
-		snprintf(name1, sizeof(name1), "%s", bridged->name);
+		snprintf(name1, sizeof(name1), "%s", ast_channel_name(bridged));
 		if ((tmp = strchr(name1, '/'))) {
 			*tmp = '#';
 		}
@@ -473,7 +473,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 		}
 	}
 
-	ast_verb(3, "%s jitterbuffer created on channel %s\n", jbimpl->name, chan->name);
+	ast_verb(3, "%s jitterbuffer created on channel %s\n", jbimpl->name, ast_channel_name(chan));
 
 	/* Free the frame if it has not been queued in the jb */
 	if (res != AST_JB_IMPL_OK) {
@@ -507,7 +507,7 @@ void ast_jb_destroy(struct ast_channel *chan)
 
 		ast_clear_flag(jb, JB_CREATED);
 
-		ast_verb(3, "%s jitterbuffer destroyed on channel %s\n", jbimpl->name, chan->name);
+		ast_verb(3, "%s jitterbuffer destroyed on channel %s\n", jbimpl->name, ast_channel_name(chan));
 	}
 }
 

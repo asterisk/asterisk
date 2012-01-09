@@ -469,7 +469,7 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 		ast_setstate(ch, state);
 		if (state != AST_STATE_DOWN) {
          		if (ast_pbx_start(ch)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ch->name);
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(ch));
             			ast_channel_unlock(ch);
 				ast_hangup(ch);
 				ch = NULL;
@@ -477,7 +477,7 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 	 	}
 
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate", "Channel: %s\r\nChanneltype: %s\r\n"
-				"CallRef: %d\r\n", ch->name, "OOH323", i->call_reference);
+				"CallRef: %d\r\n", ast_channel_name(ch), "OOH323", i->call_reference);
 	} else
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 
@@ -927,7 +927,7 @@ static int ooh323_call(struct ast_channel *ast, char *dest, int timeout)
 
    	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "ooh323_call called on %s, neither down nor "
-								"reserved\n", ast->name);
+								"reserved\n", ast_channel_name(ast));
 		return -1;
 	}
 	ast_mutex_lock(&p->lock);
@@ -1096,7 +1096,7 @@ static int ooh323_answer(struct ast_channel *ast)
 			}
 			ast_setstate(ast, AST_STATE_UP);
       			if (option_debug)
-				ast_debug(1, "ooh323_answer(%s)\n", ast->name);
+				ast_debug(1, "ooh323_answer(%s)\n", ast_channel_name(ast));
 			ast_channel_unlock(ast);
 			ooAnswerCall(p->callToken);
 		}
@@ -1141,7 +1141,7 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 
 		if (f->frametype == AST_FRAME_MODEM) {
 			ast_debug(1, "Send UDPTL %d/%d len %d for %s\n",
-				f->frametype, f->subclass.integer, f->datalen, ast->name);
+				f->frametype, f->subclass.integer, f->datalen, ast_channel_name(ast));
 			if (p->udptl)
 				res = ast_udptl_write(p->udptl, f);
 			ast_mutex_unlock(&p->lock);
@@ -1388,7 +1388,7 @@ static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, i
 	ast_mutex_lock(&p->lock);
 
 	if (gH323Debug)
-		ast_verb(0, "----- ooh323_queryoption %d on channel %s\n", option, ast->name);
+		ast_verb(0, "----- ooh323_queryoption %d on channel %s\n", option, ast_channel_name(ast));
 	 
 	switch (option) {
 
@@ -1418,7 +1418,7 @@ static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, i
 			cp = (char *) data;
 			*cp = p->vad ? 1 : 0;
 			ast_debug(1, "Reporting digit detection %sabled on %s\n",
-							 *cp ? "en" : "dis", ast->name);
+							 *cp ? "en" : "dis", ast_channel_name(ast));
 
 			res = 0;
 			break;
@@ -1428,7 +1428,7 @@ static int ooh323_queryoption(struct ast_channel *ast, int option, void *data, i
 	}
 
 	if (gH323Debug)
-		ast_verb(0, "+++++ ooh323_queryoption %d on channel %s\n", option, ast->name);
+		ast_verb(0, "+++++ ooh323_queryoption %d on channel %s\n", option, ast_channel_name(ast));
 	 
    	ast_mutex_unlock(&p->lock);
 
@@ -2103,7 +2103,7 @@ int onCallEstablished(ooCallData *call)
 			ast_queue_control(c, AST_CONTROL_ANSWER);
    			ast_channel_unlock(p->owner);
 			manager_event(EVENT_FLAG_SYSTEM,"ChannelUpdate","Channel: %s\r\nChanneltype: %s\r\n"
-				"CallRef: %d\r\n", c->name, "OOH323", p->call_reference);
+				"CallRef: %d\r\n", ast_channel_name(c), "OOH323", p->call_reference);
 		}
 		ast_mutex_unlock(&p->lock);
 
@@ -3844,7 +3844,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
             			ast_debug(1, "Failed to grab lock, trying again\n");
 				DEADLOCK_AVOIDANCE(&cur->lock);
          		}           
-			ast_debug(1, "Detaching from %s\n", cur->owner->name);
+			ast_debug(1, "Detaching from %s\n", ast_channel_name(cur->owner));
 			cur->owner->tech_pvt = NULL;
 			ast_channel_unlock(cur->owner);
 			cur->owner = NULL;
@@ -4179,7 +4179,7 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 	int mode;
 
 	if (gH323Debug)
-		ast_verb(0, "---   ooh323_set_peer - %s\n", chan->name);
+		ast_verb(0, "---   ooh323_set_peer - %s\n", ast_channel_name(chan));
 
 	if (!rtp) {
 		return 0;
@@ -4469,7 +4469,7 @@ void setup_udptl_connection(ooCallData *call, const char *remoteIp,
 	ast_sockaddr_set_port(&them, remotePort);
 
 	ast_udptl_set_peer(p->udptl, &them);
-	ast_udptl_set_tag(p->udptl, "%s", p->owner->name);
+	ast_udptl_set_tag(p->udptl, "%s", ast_channel_name(p->owner));
 	p->t38_tx_enable = 1;
 	p->lastTxT38 = time(NULL);
 	if (p->t38support == T38_ENABLED) {
@@ -4592,7 +4592,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 		f = ast_udptl_read(p->udptl);		/* UDPTL t.38 data */
 		if (gH323Debug) {
 			 ast_debug(1, "Got UDPTL %d/%d len %d for %s\n",
-				f->frametype, f->subclass.integer, f->datalen, ast->name);
+				f->frametype, f->subclass.integer, f->datalen, ast_channel_name(ast));
 		}
 		break;
 
@@ -4633,10 +4633,10 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 			if ((strcmp(p->owner->exten, "fax")) &&
 			    (ast_exists_extension(p->owner, target_context, "fax", 1,
 		            S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL)))) {
-				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", p->owner->name);
+				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(p->owner));
 				pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
 				if (ast_async_goto(p->owner, target_context, "fax", 1)) {
-					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", p->owner->name,target_context);
+					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner),target_context);
 				}
 				p->faxdetected = 1;
 				if (dfr) {
@@ -4711,10 +4711,10 @@ void onModeChanged(ooCallData *call, int t38mode) {
                         	if ((strcmp(p->owner->exten, "fax")) &&
                             		(ast_exists_extension(p->owner, target_context, "fax", 1,
                             		S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL)))) {
-                                	ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", p->owner->name);
+                                	ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(p->owner));
                                 	pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
                                 	if (ast_async_goto(p->owner, target_context, "fax", 1)) {
-                                        	ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", p->owner->name,target_context);
+                                        	ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner),target_context);
 					}
                                 }
                                 p->faxdetected = 1;

@@ -200,7 +200,7 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 
 
 	if (rfmt.id && ast_set_read_format(chan, &rfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(&rfmt), chan->name);
+		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(&rfmt), ast_channel_name(chan));
 	}
 	ast_dsp_free(sildet);
 	return res;

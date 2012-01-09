@@ -192,7 +192,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	);
 
 	ast_format_clear(&readFormat);
-	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", chan->name,
+	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", ast_channel_name(chan),
 		S_COR(chan->caller.ani.number.valid, chan->caller.ani.number.str, "(N/A)"),
 		S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, "(N/A)"),
 		ast_getformatname(&chan->readformat));
@@ -246,7 +246,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	/* Set read format to signed linear so we get signed linear frames in */
 	ast_format_copy(&readFormat, &chan->readformat);
 	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0 ) {
-		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to set to linear mode, giving up\n", chan->name );
+		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to set to linear mode, giving up\n", ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan , "AMDSTATUS", "");
 		pbx_builtin_setvar_helper(chan , "AMDCAUSE", "");
 		return;
@@ -254,7 +254,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 	/* Create a new DSP that will detect the silence */
 	if (!(silenceDetector = ast_dsp_new())) {
-		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to create silence detector :(\n", chan->name );
+		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to create silence detector :(\n", ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan , "AMDSTATUS", "");
 		pbx_builtin_setvar_helper(chan , "AMDCAUSE", "");
 		return;
@@ -268,7 +268,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 		/* If we fail to read in a frame, that means they hung up */
 		if (!(f = ast_read(chan))) {
-			ast_verb(3, "AMD: Channel [%s]. HANGUP\n", chan->name);
+			ast_verb(3, "AMD: Channel [%s]. HANGUP\n", ast_channel_name(chan));
 			ast_debug(1, "Got hangup\n");
 			strcpy(amdStatus, "HANGUP");
 			res = 1;
@@ -285,7 +285,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 			iTotalTime += framelength;
 			if (iTotalTime >= totalAnalysisTime) {
-				ast_verb(3, "AMD: Channel [%s]. Too long...\n", chan->name );
+				ast_verb(3, "AMD: Channel [%s]. Too long...\n", ast_channel_name(chan));
 				ast_frfree(f);
 				strcpy(amdStatus , "NOTSURE");
 				sprintf(amdCause , "TOOLONG-%d", iTotalTime);
@@ -305,11 +305,11 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 				
 				if (silenceDuration >= betweenWordsSilence) {
 					if (currentState != STATE_IN_SILENCE ) {
-						ast_verb(3, "AMD: Channel [%s]. Changed state to STATE_IN_SILENCE\n", chan->name);
+						ast_verb(3, "AMD: Channel [%s]. Changed state to STATE_IN_SILENCE\n", ast_channel_name(chan));
 					}
 					/* Find words less than word duration */
 					if (consecutiveVoiceDuration < minimumWordLength && consecutiveVoiceDuration > 0){
-						ast_verb(3, "AMD: Channel [%s]. Short Word Duration: %d\n", chan->name, consecutiveVoiceDuration);
+						ast_verb(3, "AMD: Channel [%s]. Short Word Duration: %d\n", ast_channel_name(chan), consecutiveVoiceDuration);
 					}
 					currentState  = STATE_IN_SILENCE;
 					consecutiveVoiceDuration = 0;
@@ -317,7 +317,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 				if (inInitialSilence == 1  && silenceDuration >= initialSilence) {
 					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: silenceDuration:%d initialSilence:%d\n",
-						chan->name, silenceDuration, initialSilence);
+						ast_channel_name(chan), silenceDuration, initialSilence);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "INITIALSILENCE-%d-%d", silenceDuration, initialSilence);
@@ -327,7 +327,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 				
 				if (silenceDuration >= afterGreetingSilence  &&  inGreeting == 1) {
 					ast_verb(3, "AMD: Channel [%s]. HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
-						chan->name, silenceDuration, afterGreetingSilence);
+						ast_channel_name(chan), silenceDuration, afterGreetingSilence);
 					ast_frfree(f);
 					strcpy(amdStatus , "HUMAN");
 					sprintf(amdCause , "HUMAN-%d-%d", silenceDuration, afterGreetingSilence);
@@ -343,18 +343,18 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 				   number of words if my previous state was Silence, which means that I moved into a word. */
 				if (consecutiveVoiceDuration >= minimumWordLength && currentState == STATE_IN_SILENCE) {
 					iWordsCount++;
-					ast_verb(3, "AMD: Channel [%s]. Word detected. iWordsCount:%d\n", chan->name, iWordsCount);
+					ast_verb(3, "AMD: Channel [%s]. Word detected. iWordsCount:%d\n", ast_channel_name(chan), iWordsCount);
 					currentState = STATE_IN_WORD;
 				}
 				if (consecutiveVoiceDuration >= maximumWordLength){
-					ast_verb(3, "AMD: Channel [%s]. Maximum Word Length detected. [%d]\n", chan->name, consecutiveVoiceDuration);
+					ast_verb(3, "AMD: Channel [%s]. Maximum Word Length detected. [%d]\n", ast_channel_name(chan), consecutiveVoiceDuration);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "MAXWORDLENGTH-%d", consecutiveVoiceDuration);
 					break;
 				}
 				if (iWordsCount >= maximumNumberOfWords) {
-					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: iWordsCount:%d\n", chan->name, iWordsCount);
+					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: iWordsCount:%d\n", ast_channel_name(chan), iWordsCount);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "MAXWORDS-%d-%d", iWordsCount, maximumNumberOfWords);
@@ -363,7 +363,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 				}
 
 				if (inGreeting == 1 && voiceDuration >= greeting) {
-					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", chan->name, voiceDuration, greeting);
+					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", ast_channel_name(chan), voiceDuration, greeting);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "LONGGREETING-%d-%d", voiceDuration, greeting);
@@ -373,13 +373,13 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 				if (voiceDuration >= minimumWordLength ) {
 					if (silenceDuration > 0)
-						ast_verb(3, "AMD: Channel [%s]. Detected Talk, previous silence duration: %d\n", chan->name, silenceDuration);
+						ast_verb(3, "AMD: Channel [%s]. Detected Talk, previous silence duration: %d\n", ast_channel_name(chan), silenceDuration);
 					silenceDuration = 0;
 				}
 				if (consecutiveVoiceDuration >= minimumWordLength && inGreeting == 0) {
 					/* Only go in here once to change the greeting flag when we detect the 1st word */
 					if (silenceDuration > 0)
-						ast_verb(3, "AMD: Channel [%s]. Before Greeting Time:  silenceDuration: %d voiceDuration: %d\n", chan->name, silenceDuration, voiceDuration);
+						ast_verb(3, "AMD: Channel [%s]. Before Greeting Time:  silenceDuration: %d voiceDuration: %d\n", ast_channel_name(chan), silenceDuration, voiceDuration);
 					inInitialSilence = 0;
 					inGreeting = 1;
 				}
@@ -391,7 +391,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	
 	if (!res) {
 		/* It took too long to get a frame back. Giving up. */
-		ast_verb(3, "AMD: Channel [%s]. Too long...\n", chan->name);
+		ast_verb(3, "AMD: Channel [%s]. Too long...\n", ast_channel_name(chan));
 		strcpy(amdStatus , "NOTSURE");
 		sprintf(amdCause , "TOOLONG-%d", iTotalTime);
 	}
@@ -402,7 +402,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 	/* Restore channel read format */
 	if (readFormat.id && ast_set_read_format(chan, &readFormat))
-		ast_log(LOG_WARNING, "AMD: Unable to restore read format on '%s'\n", chan->name);
+		ast_log(LOG_WARNING, "AMD: Unable to restore read format on '%s'\n", ast_channel_name(chan));
 
 	/* Free the DSP used to detect silence */
 	ast_dsp_free(silenceDetector);

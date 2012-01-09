@@ -1511,7 +1511,7 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					user->user_no,
 					S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
 					S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<no name>"),
-					user->chan->name,
+					ast_channel_name(user->chan),
 					ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "(Admin)" : "",
 					ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "(Listen only)" : "",
 					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
@@ -1522,7 +1522,7 @@ static char *meetme_show_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					user->user_no,
 					S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, ""),
 					S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, ""),
-					user->chan->name,
+					ast_channel_name(user->chan),
 					ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "1" : "",
 					ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "1" : "",
 					user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED) ? "1" : "",
@@ -1922,7 +1922,7 @@ static void conf_queue_dtmf(const struct ast_conference *conf,
 			continue;
 		}
 		if (ast_write(user->chan, f) < 0)
-			ast_log(LOG_WARNING, "Error writing frame to channel %s\n", user->chan->name);
+			ast_log(LOG_WARNING, "Error writing frame to channel %s\n", ast_channel_name(user->chan));
 		ao2_ref(user, -1);
 	}
 	ao2_iterator_destroy(&user_iter);
@@ -2185,7 +2185,7 @@ static void send_talking_event(struct ast_channel *chan, struct ast_conference *
 	      "Meetme: %s\r\n"
 	      "Usernum: %d\r\n"
 	      "Status: %s\r\n",
-	      chan->name, chan->uniqueid, conf->confno, user->user_no, talking ? "on" : "off");
+	      ast_channel_name(chan), chan->uniqueid, conf->confno, user->user_no, talking ? "on" : "off");
 }
 
 static void set_user_talking(struct ast_channel *chan, struct ast_conference *conf, struct ast_conf_user *user, int talking, int monitor)
@@ -2663,12 +2663,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	}
 
 	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
+		ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", ast_channel_name(chan));
 		goto outrun;
 	}
 
 	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
+		ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", ast_channel_name(chan));
 		goto outrun;
 	}
 
@@ -2775,7 +2775,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		close(fd);
 		goto outrun;
 	}
-	ast_debug(1, "Placed channel %s in DAHDI conf %d\n", chan->name, conf->dahdiconf);
+	ast_debug(1, "Placed channel %s in DAHDI conf %d\n", ast_channel_name(chan), conf->dahdiconf);
 
 	if (!sent_event) {
 		ast_manager_event(chan, EVENT_FLAG_CALL, "MeetmeJoin",
@@ -2787,7 +2787,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 			"CallerIDname: %s\r\n"
 			"ConnectedLineNum: %s\r\n"
 			"ConnectedLineName: %s\r\n",
-			chan->name, chan->uniqueid, conf->confno,
+			ast_channel_name(chan), chan->uniqueid, conf->confno,
 			user->user_no,
 			S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
 			S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>"),
@@ -3150,7 +3150,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						"Meetme: %s\r\n"
 						"Usernum: %i\r\n"
 						"Status: on\r\n",
-						chan->name, chan->uniqueid, conf->confno, user->user_no);
+						ast_channel_name(chan), chan->uniqueid, conf->confno, user->user_no);
 			}
 
 			/* If I should be un-muted but am not talker, un-mute me */
@@ -3168,7 +3168,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						"Meetme: %s\r\n"
 						"Usernum: %i\r\n"
 						"Status: off\r\n",
-						chan->name, chan->uniqueid, conf->confno, user->user_no);
+						ast_channel_name(chan), chan->uniqueid, conf->confno, user->user_no);
 			}
 			
 			if ((user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && 
@@ -3181,7 +3181,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 							      "Meetme: %s\r\n"
 							      "Usernum: %i\r\n"
 							      "Status: on\r\n",
-							      chan->name, chan->uniqueid, conf->confno, user->user_no);
+							      ast_channel_name(chan), chan->uniqueid, conf->confno, user->user_no);
 			}
 
 			
@@ -3194,7 +3194,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 							      "Meetme: %s\r\n"
 							      "Usernum: %i\r\n"
 							      "Status: off\r\n",
-							     chan->name, chan->uniqueid, conf->confno, user->user_no);
+							     ast_channel_name(chan), chan->uniqueid, conf->confno, user->user_no);
 			}
 
 			/* If user have been hung up, exit the conference */
@@ -3505,7 +3505,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 								ao2_callback(conf->usercontainer, OBJ_NODATA, user_max_cmp, &max_no);
 								menu_active = 0;
 								usr = ao2_find(conf->usercontainer, &max_no, 0);
-								if ((usr->chan->name == chan->name) || ast_test_flag64(&usr->userflags, CONFFLAG_ADMIN)) {
+								if ((ast_channel_name(usr->chan) == ast_channel_name(chan)) || ast_test_flag64(&usr->userflags, CONFFLAG_ADMIN)) {
 									if (!ast_streamfile(chan, "conf-errormenu", chan->language)) {
 										ast_waitstream(chan, "");
 									}
@@ -3693,12 +3693,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					default:
 						ast_debug(1,
 							"Got ignored control frame on channel %s, f->frametype=%d,f->subclass=%d\n",
-							chan->name, f->frametype, f->subclass.integer);
+							ast_channel_name(chan), f->frametype, f->subclass.integer);
 					}
 				} else {
 					ast_debug(1,
 						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
-						chan->name, f->frametype, f->subclass.integer);
+						ast_channel_name(chan), f->frametype, f->subclass.integer);
 				}
 				ast_frfree(f);
 			} else if (outfd > -1) {
@@ -3756,7 +3756,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 								*/
 								for (cur = conf->transframe[idx]; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
 									if (ast_write(chan, cur)) {
-										ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
+										ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", ast_channel_name(chan));
 										break;
 									}
 								}
@@ -3780,7 +3780,7 @@ bailoutandtrynormal:
 							ast_frame_adjust_volume(&fr, user->listen.actual);
 						}
 						if (can_write(chan, confflags) && ast_write(chan, &fr) < 0) {
-							ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
+							ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", ast_channel_name(chan));
 						}
 						if (musiconhold && mohtempstopped && confsilence > MEETME_DELAYDETECTENDTALK) {
 							mohtempstopped = 0;
@@ -3861,7 +3861,7 @@ bailoutandtrynormal:
 				"ConnectedLineNum: %s\r\n"
 				"ConnectedLineName: %s\r\n"
 				"Duration: %ld\r\n",
-				chan->name, chan->uniqueid, conf->confno,
+				ast_channel_name(chan), chan->uniqueid, conf->confno,
 				user->user_no,
 				S_COR(user->chan->caller.id.number.valid, user->chan->caller.id.number.str, "<unknown>"),
 				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<unknown>"),
@@ -4629,7 +4629,7 @@ static int user_chan_cb(void *obj, void *args, int flags)
 	struct ast_conf_user *user = obj;
 	const char *channel = args;
 
-	if (!strcmp(user->chan->name, channel)) {
+	if (!strcmp(ast_channel_name(user->chan), channel)) {
 		return (CMP_MATCH | CMP_STOP);
 	}
 
@@ -4894,7 +4894,7 @@ static int meetmemute(struct mansession *s, const struct message *m, int mute)
 
 	AST_LIST_UNLOCK(&confs);
 
-	ast_log(LOG_NOTICE, "Requested to %smute conf %s user %d userchan %s uniqueid %s\n", mute ? "" : "un", conf->confno, user->user_no, user->chan->name, user->chan->uniqueid);
+	ast_log(LOG_NOTICE, "Requested to %smute conf %s user %d userchan %s uniqueid %s\n", mute ? "" : "un", conf->confno, user->user_no, ast_channel_name(user->chan), user->chan->uniqueid);
 
 	ao2_ref(user, -1);
 	astman_send_ack(s, m, mute ? "User muted" : "User unmuted");
@@ -4965,7 +4965,7 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 				S_COR(user->chan->caller.id.name.valid, user->chan->caller.id.name.str, "<no name>"),
 				S_COR(user->chan->connected.id.number.valid, user->chan->connected.id.number.str, "<unknown>"),
 				S_COR(user->chan->connected.id.name.valid, user->chan->connected.id.name.str, "<no name>"),
-				user->chan->name,
+				ast_channel_name(user->chan),
 				ast_test_flag64(&user->userflags, CONFFLAG_ADMIN) ? "Yes" : "No",
 				ast_test_flag64(&user->userflags, CONFFLAG_MONITOR) ? "Listen only" : ast_test_flag64(&user->userflags, CONFFLAG_TALKER) ? "Talk only" : "Talk and listen",
 				ast_test_flag64(&user->userflags, CONFFLAG_MARKEDUSER) ? "Yes" : "No",

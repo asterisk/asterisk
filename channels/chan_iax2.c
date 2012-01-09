@@ -1323,7 +1323,7 @@ static void iax2_ami_channelupdate(struct chan_iax2_pvt *pvt)
 {
 	manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 		"Channel: %s\r\nChanneltype: IAX2\r\nIAX2-callno-local: %d\r\nIAX2-callno-remote: %d\r\nIAX2-peer: %s\r\n",
-		pvt->owner ? pvt->owner->name : "",
+		pvt->owner ? ast_channel_name(pvt->owner) : "",
 		pvt->callno, pvt->peercallno, pvt->peer ? pvt->peer : "");
 }
 
@@ -3560,7 +3560,7 @@ static void __attempt_transmit(const void *data)
 						iax2_destroy(callno);
 					} else {
 						if (iaxs[callno]->owner)
-							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %u, ts=%d, seqno=%d)\n", ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->af.frametype, f->af.subclass.integer, f->ts, f->oseqno);
+							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %u, ts=%d, seqno=%d)\n", ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),ast_channel_name(iaxs[f->callno]->owner), f->af.frametype, f->af.subclass.integer, f->ts, f->oseqno);
 						iaxs[callno]->error = ETIMEDOUT;
 						if (iaxs[callno]->owner) {
 							struct ast_frame fr = { AST_FRAME_CONTROL, { AST_CONTROL_HANGUP }, .data.uint32 = AST_CAUSE_DESTINATION_OUT_OF_ORDER };
@@ -5092,7 +5092,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	iax2_format iax2_tmpfmt;
 
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "Channel is already in use (%s)?\n", c->name);
+		ast_log(LOG_WARNING, "Channel is already in use (%s)?\n", ast_channel_name(c));
 		return -1;
 	}
 
@@ -5292,7 +5292,7 @@ static int iax2_hangup(struct ast_channel *c)
 	memset(&ied, 0, sizeof(ied));
 	ast_mutex_lock(&iaxsl[callno]);
 	if (callno && iaxs[callno]) {
-		ast_debug(1, "We're hanging up %s now...\n", c->name);
+		ast_debug(1, "We're hanging up %s now...\n", ast_channel_name(c));
 		alreadygone = ast_test_flag64(iaxs[callno], IAX_ALREADYGONE);
 		/* Send the hangup unless we have had a transmission error or are already gone */
 		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, (unsigned char)c->hangupcause);
@@ -5309,7 +5309,7 @@ static int iax2_hangup(struct ast_channel *c)
 		iax2_predestroy(callno);
 		/* If we were already gone to begin with, destroy us now */
 		if (iaxs[callno] && alreadygone) {
-			ast_debug(1, "Really destroying %s now...\n", c->name);
+			ast_debug(1, "Really destroying %s now...\n", ast_channel_name(c));
 			iax2_destroy(callno);
 		} else if (iaxs[callno]) {
 			if (ast_sched_add(sched, 10000, scheduled_destroy, CALLNO_TO_PTR(callno)) < 0) {
@@ -5325,7 +5325,7 @@ static int iax2_hangup(struct ast_channel *c)
 		c->tech_pvt = NULL;
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
-	ast_verb(3, "Hungup '%s'\n", c->name);
+	ast_verb(3, "Hungup '%s'\n", ast_channel_name(c));
 	return 0;
 }
 
@@ -5752,7 +5752,7 @@ static int iax2_transfer(struct ast_channel *c, const char *dest)
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, tmp);
 	if (context)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, context);
-	ast_debug(1, "Transferring '%s' to '%s'\n", c->name, dest);
+	ast_debug(1, "Transferring '%s' to '%s'\n", ast_channel_name(c), dest);
 	ast_queue_control_data(c, AST_CONTROL_TRANSFER, &message, sizeof(message));
 	return send_command_locked(callno, AST_FRAME_IAX, IAX_COMMAND_TRANSFER, 0, ied.buf, ied.pos, -1);
 }
@@ -5902,7 +5902,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
-			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 			ast_hangup(tmp);
 			i->owner = NULL;
 			return NULL;
@@ -7275,7 +7275,7 @@ static char *handle_cli_iax2_show_channels(struct ast_cli_entry *e, int cmd, str
 			iax_frame_subclass2str(iaxs[x]->last_iax_message & ~MARK_IAX_SUBCLASS_TX, last_message, sizeof(last_message));
 			lag = iaxs[x]->remote_rr.delay;
 			ast_cli(a->fd, FORMAT,
-				iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+				iaxs[x]->owner ? ast_channel_name(iaxs[x]->owner) : "(None)",
 				ast_inet_ntoa(iaxs[x]->addr.sin_addr),
 				S_OR(iaxs[x]->username, "(None)"),
 				iaxs[x]->callno, iaxs[x]->peercallno,
@@ -7333,7 +7333,7 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 			}
 			if (s)
 				astman_append(s, limit_fmt ? ACN_FORMAT1 : ACN_FORMAT2,
-					iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+					iaxs[x]->owner ? ast_channel_name(iaxs[x]->owner) : "(None)",
 					iaxs[x]->pingtime,
 					localjitter,
 					localdelay,
@@ -7355,7 +7355,7 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 					last_message);
 			else
 				ast_cli(fd, limit_fmt ? ACN_FORMAT1 : ACN_FORMAT2,
-					iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+					iaxs[x]->owner ? ast_channel_name(iaxs[x]->owner) : "(None)",
 					iaxs[x]->pingtime,
 					localjitter,
 					localdelay,
@@ -9366,7 +9366,7 @@ static void *iax_park_thread(void *stuff)
 	d = stuff;
 
 	ast_debug(4, "IAX Park: Transferer channel %s, Transferee %s\n",
-		d->chan2->name, d->chan1->name);
+		ast_channel_name(d->chan2), ast_channel_name(d->chan1));
 
 	res = ast_park_call_exten(d->chan1, d->chan2, d->park_exten, d->park_context, 0, &ext);
 	if (res) {
@@ -9390,8 +9390,8 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	struct ast_channel *chan1m, *chan2m;/* Chan2m: The transferer, chan1m: The transferee */
 	pthread_t th;
 
-	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan1->exten, chan1->context, chan1->linkedid, chan1->amaflags, "Parking/%s", chan1->name);
-	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan2->exten, chan2->context, chan2->linkedid, chan2->amaflags, "IAXPeer/%s", chan2->name);
+	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan1->exten, chan1->context, chan1->linkedid, chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
+	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan2->exten, chan2->context, chan2->linkedid, chan2->amaflags, "IAXPeer/%s", ast_channel_name(chan2));
 	d = ast_calloc(1, sizeof(*d));
 	if (!chan1m || !chan2m || !d) {
 		if (chan1m) {
@@ -9550,7 +9550,7 @@ static void log_jitterstats(unsigned short callno)
 	jb_info jbinfo;
 
 	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno] && iaxs[callno]->owner && iaxs[callno]->owner->name) {
+	if (iaxs[callno] && iaxs[callno]->owner && ast_channel_name(iaxs[callno]->owner)) {
 		if(ast_test_flag64(iaxs[callno], IAX_USEJITTERBUF)) {
 			jb_getinfo(iaxs[callno]->jb, &jbinfo);
 			localjitter = jbinfo.jitter;
@@ -9562,7 +9562,7 @@ static void log_jitterstats(unsigned short callno)
 			localpackets = jbinfo.frames_in;
 		}
 		ast_debug(3, "JB STATS:%s ping=%d ljitterms=%d ljbdelayms=%d ltotlost=%d lrecentlosspct=%d ldropped=%d looo=%d lrecvd=%d rjitterms=%d rjbdelayms=%d rtotlost=%d rrecentlosspct=%d rdropped=%d rooo=%d rrecvd=%d\n",
-			iaxs[callno]->owner->name,
+			ast_channel_name(iaxs[callno]->owner),
 			iaxs[callno]->pingtime,
 			localjitter,
 			localdelay,
@@ -9579,7 +9579,7 @@ static void log_jitterstats(unsigned short callno)
 			iaxs[callno]->remote_rr.ooo,
 			iaxs[callno]->remote_rr.packets);
 		manager_event(EVENT_FLAG_REPORTING, "JitterBufStats", "Owner: %s\r\nPing: %d\r\nLocalJitter: %d\r\nLocalJBDelay: %d\r\nLocalTotalLost: %d\r\nLocalLossPercent: %d\r\nLocalDropped: %d\r\nLocalooo: %d\r\nLocalReceived: %d\r\nRemoteJitter: %d\r\nRemoteJBDelay: %d\r\nRemoteTotalLost: %d\r\nRemoteLossPercent: %d\r\nRemoteDropped: %d\r\nRemoteooo: %d\r\nRemoteReceived: %d\r\n",
-			iaxs[callno]->owner->name,
+			ast_channel_name(iaxs[callno]->owner),
 			iaxs[callno]->pingtime,
 			localjitter,
 			localdelay,
@@ -9946,7 +9946,7 @@ static void set_hangup_source_and_cause(int callno, unsigned char causecode)
 		if (causecode) {
 			iaxs[callno]->owner->hangupcause = causecode;
 		}
-		ast_set_hangupsource(iaxs[callno]->owner, iaxs[callno]->owner->name, 0);
+		ast_set_hangupsource(iaxs[callno]->owner, ast_channel_name(iaxs[callno]->owner), 0);
 		ast_channel_unlock(iaxs[callno]->owner);
 	}
 }
@@ -10495,7 +10495,7 @@ static int socket_process(struct iax2_thread *thread)
 							"Status: On\r\n"
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
-							iaxs[fr->callno]->owner->name,
+							ast_channel_name(iaxs[fr->callno]->owner),
 							iaxs[fr->callno]->owner->uniqueid);
 					}
 
@@ -10532,7 +10532,7 @@ static int socket_process(struct iax2_thread *thread)
 							"Status: Off\r\n"
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
-							iaxs[fr->callno]->owner->name,
+							ast_channel_name(iaxs[fr->callno]->owner),
 							iaxs[fr->callno]->owner->uniqueid);
 					}
 
@@ -10858,24 +10858,24 @@ static int socket_process(struct iax2_thread *thread)
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 
 					/* Set BLINDTRANSFER channel variables */
-					pbx_builtin_setvar_helper(owner, "BLINDTRANSFER", bridged_chan->name);
-					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", owner->name);
+					pbx_builtin_setvar_helper(owner, "BLINDTRANSFER", ast_channel_name(bridged_chan));
+					pbx_builtin_setvar_helper(bridged_chan, "BLINDTRANSFER", ast_channel_name(owner));
 
 					/* DO NOT hold any locks while calling ast_parking_ext_valid() */
 					if (ast_parking_ext_valid(ies.called_number, owner, context)) {
-						ast_debug(1, "Parking call '%s'\n", bridged_chan->name);
+						ast_debug(1, "Parking call '%s'\n", ast_channel_name(bridged_chan));
 						if (iax_park(bridged_chan, owner, ies.called_number, context)) {
 							ast_log(LOG_WARNING, "Failed to park call '%s'\n",
-								bridged_chan->name);
+								ast_channel_name(bridged_chan));
 						}
 					} else {
 						if (ast_async_goto(bridged_chan, context, ies.called_number, 1)) {
 							ast_log(LOG_WARNING,
 								"Async goto of '%s' to '%s@%s' failed\n",
-								bridged_chan->name, ies.called_number, context);
+								ast_channel_name(bridged_chan), ies.called_number, context);
 						} else {
 							ast_debug(1, "Async goto of '%s' to '%s@%s' started\n",
-								bridged_chan->name, ies.called_number, context);
+								ast_channel_name(bridged_chan), ies.called_number, context);
 						}
 					}
 					ast_channel_unref(owner);
@@ -11040,7 +11040,7 @@ static int socket_process(struct iax2_thread *thread)
 				break;
 			case IAX_COMMAND_AUTHREQ:
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
-					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr->callno]->owner ? ast_channel_name(iaxs[fr->callno]->owner) : "<Unknown>");
 					break;
 				}
 				if (authenticate_reply(iaxs[fr->callno], &iaxs[fr->callno]->addr, &ies, iaxs[fr->callno]->secret, iaxs[fr->callno]->outkey)) {
@@ -11059,7 +11059,7 @@ static int socket_process(struct iax2_thread *thread)
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 				/* Ignore once we've started */
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
-					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr->callno]->owner ? ast_channel_name(iaxs[fr->callno]->owner) : "<Unknown>");
 					break;
 				}
 				if (authenticate_verify(iaxs[fr->callno], &ies)) {
@@ -11417,7 +11417,7 @@ immediatedial:
 				break;
 			case IAX_COMMAND_TXREJ:
 				iaxs[fr->callno]->transferring = 0;
-				ast_verb(3, "Channel '%s' unable to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+				ast_verb(3, "Channel '%s' unable to transfer\n", iaxs[fr->callno]->owner ? ast_channel_name(iaxs[fr->callno]->owner) : "<Unknown>");
 				memset(&iaxs[fr->callno]->transfer, 0, sizeof(iaxs[fr->callno]->transfer));
 				if (iaxs[fr->callno]->bridgecallno) {
 					if (iaxs[iaxs[fr->callno]->bridgecallno]->transferring) {
@@ -11433,14 +11433,14 @@ immediatedial:
 						iaxs[fr->callno]->transferring = TRANSFER_MREADY;
 					else
 						iaxs[fr->callno]->transferring = TRANSFER_READY;
-					ast_verb(3, "Channel '%s' ready to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+					ast_verb(3, "Channel '%s' ready to transfer\n", iaxs[fr->callno]->owner ? ast_channel_name(iaxs[fr->callno]->owner) : "<Unknown>");
 					if (iaxs[fr->callno]->bridgecallno) {
 						if ((iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_READY) ||
 						    (iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_MREADY)) {
 							/* They're both ready, now release them. */
 							if (iaxs[fr->callno]->transferring == TRANSFER_MREADY) {
-								ast_verb(3, "Attempting media bridge of %s and %s\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>",
-										iaxs[iaxs[fr->callno]->bridgecallno]->owner ? iaxs[iaxs[fr->callno]->bridgecallno]->owner->name : "<Unknown>");
+								ast_verb(3, "Attempting media bridge of %s and %s\n", iaxs[fr->callno]->owner ? ast_channel_name(iaxs[fr->callno]->owner) : "<Unknown>",
+										iaxs[iaxs[fr->callno]->bridgecallno]->owner ? ast_channel_name(iaxs[iaxs[fr->callno]->bridgecallno]->owner) : "<Unknown>");
 
 								iaxs[iaxs[fr->callno]->bridgecallno]->transferring = TRANSFER_MEDIA;
 								iaxs[fr->callno]->transferring = TRANSFER_MEDIA;
@@ -11452,8 +11452,8 @@ immediatedial:
 								send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_TXMEDIA, 0, ied0.buf, ied0.pos, -1);
 								send_command(iaxs[iaxs[fr->callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXMEDIA, 0, ied1.buf, ied1.pos, -1);
 							} else {
-								ast_verb(3, "Releasing %s and %s\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>",
-										iaxs[iaxs[fr->callno]->bridgecallno]->owner ? iaxs[iaxs[fr->callno]->bridgecallno]->owner->name : "<Unknown>");
+								ast_verb(3, "Releasing %s and %s\n", iaxs[fr->callno]->owner ? ast_channel_name(iaxs[fr->callno]->owner) : "<Unknown>",
+										iaxs[iaxs[fr->callno]->bridgecallno]->owner ? ast_channel_name(iaxs[iaxs[fr->callno]->bridgecallno]->owner) : "<Unknown>");
 
 								iaxs[iaxs[fr->callno]->bridgecallno]->transferring = TRANSFER_RELEASED;
 								iaxs[fr->callno]->transferring = TRANSFER_RELEASED;
@@ -12238,7 +12238,7 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 				char tmp[256];
 				char tmp2[256];
 				ast_log(LOG_WARNING, "Unable to create translator path for %s to %s on %s\n",
-					ast_getformatname_multiple(tmp, sizeof(tmp), c->nativeformats), ast_getformatname_multiple(tmp2, sizeof(tmp2), cap), c->name);
+					ast_getformatname_multiple(tmp, sizeof(tmp), c->nativeformats), ast_getformatname_multiple(tmp2, sizeof(tmp2), cap), ast_channel_name(c));
 				ast_hangup(c);
 				return NULL;
 			}

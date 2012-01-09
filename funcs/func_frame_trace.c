@@ -140,7 +140,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 	}
 
 	if (show_frame) {
-		ast_verbose("%s on Channel %s\n", event == AST_FRAMEHOOK_EVENT_READ ? "<--Read" : "--> Write", chan->name);
+		ast_verbose("%s on Channel %s\n", event == AST_FRAMEHOOK_EVENT_READ ? "<--Read" : "--> Write", ast_channel_name(chan));
 		print_frame(frame);
 	}
 	return frame;

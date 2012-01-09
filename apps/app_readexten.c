@@ -246,7 +246,7 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 			pbx_builtin_setvar_helper(chan, arglist.variable, exten);
 			status = "OK";
 		} else {
-			ast_debug(3, "User dialed invalid extension '%s' in context '%s' on %s\n", exten, arglist.context, chan->name);
+			ast_debug(3, "User dialed invalid extension '%s' in context '%s' on %s\n", exten, arglist.context, ast_channel_name(chan));
 			pbx_builtin_setvar_helper(chan, arglist.variable, "i");
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
 			status = "INVALID";

@@ -960,11 +960,11 @@ static int mbl_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "mbl_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "mbl_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
 
-	ast_debug(1, "Calling %s on %s\n", dest, ast->name);
+	ast_debug(1, "Calling %s on %s\n", dest, ast_channel_name(ast));
 
 	ast_mutex_lock(&pvt->lock);
 	if (pvt->type == MBL_TYPE_PHONE) {

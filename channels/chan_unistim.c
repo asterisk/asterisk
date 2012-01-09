@@ -1972,8 +1972,8 @@ static int attempt_transfer(struct unistim_subchannel *p1, struct unistim_subcha
 		peerc->cdr = NULL;
 
 		if (ast_channel_masquerade(peerb, peerc)) {
-			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name,
-					peerc->name);
+			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", ast_channel_name(peerb),
+					ast_channel_name(peerc));
 			res = -1;
 		}
 		return res;
@@ -2507,10 +2507,10 @@ static void HandleCallOutgoing(struct unistimsession *s)
 			}
 			if (unistimdebug)
 				ast_verb(0, "Started three way call on channel %p (%s) subchan %d\n",
-					 p->subs[SUB_THREEWAY]->owner, p->subs[SUB_THREEWAY]->owner->name,
+					 p->subs[SUB_THREEWAY]->owner, ast_channel_name(p->subs[SUB_THREEWAY]->owner),
 					 p->subs[SUB_THREEWAY]->subtype);
 		} else
-			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
+			ast_debug(1, "Current sub [%s] already has owner\n", ast_channel_name(sub->owner));
 	}
 	return;
 }
@@ -3759,12 +3759,12 @@ static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
 	sub = ast->tech_pvt;
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "unistim_call called on %s, neither down nor reserved\n",
-				ast->name);
+				ast_channel_name(ast));
 		return -1;
 	}
 
 	if (unistimdebug)
-		ast_verb(3, "unistim_call(%s)\n", ast->name);
+		ast_verb(3, "unistim_call(%s)\n", ast_channel_name(ast));
 
 	session->state = STATE_RINGING;
 	Sendicon(TEXT_LINE0, FAV_ICON_NONE, session);
@@ -3839,7 +3839,7 @@ static int unistim_hangup(struct ast_channel *ast)
 	}
 	l = sub->parent;
 	if (unistimdebug)
-		ast_verb(0, "unistim_hangup(%s) on %s@%s\n", ast->name, l->name, l->parent->name);
+		ast_verb(0, "unistim_hangup(%s) on %s@%s\n", ast_channel_name(ast), l->name, l->parent->name);
 
 	if ((l->subs[SUB_THREEWAY]) && (sub->subtype == SUB_REAL)) {
 		if (unistimdebug)
@@ -3938,7 +3938,7 @@ static int unistim_answer(struct ast_channel *ast)
 	if ((!sub->rtp) && (!l->subs[SUB_THREEWAY]))
 		start_rtp(sub);
 	if (unistimdebug)
-		ast_verb(0, "unistim_answer(%s) on %s@%s-%d\n", ast->name, l->name,
+		ast_verb(0, "unistim_answer(%s) on %s@%s-%d\n", ast_channel_name(ast), l->name,
 					l->parent->name, sub->subtype);
 	send_text(TEXT_LINE2, TEXT_NORMAL, l->parent->session, "is now on-line");
 	if (l->subs[SUB_THREEWAY])
@@ -4115,11 +4115,11 @@ static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newcha
 	ast_mutex_lock(&p->lock);
 
 	ast_debug(1, "New owner for channel USTM/%s@%s-%d is %s\n", l->name,
-			l->parent->name, p->subtype, newchan->name);
+			l->parent->name, p->subtype, ast_channel_name(newchan));
 
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %s (%p) but was %s (%p)\n",
-				oldchan->name, oldchan, p->owner->name, p->owner);
+				ast_channel_name(oldchan), oldchan, ast_channel_name(p->owner), p->owner);
 		return -1;
 	}
 
@@ -4188,7 +4188,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 
 	if (unistimdebug) {
 		ast_verb(3, "Asked to indicate '%s' condition on channel %s\n",
-					control2str(ind), ast->name);
+					control2str(ind), ast_channel_name(ast));
 	}
 
 	s = channel_to_session(ast);
@@ -4621,7 +4621,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		if (unistimdebug)
 			ast_verb(0, "Starting pbx in unistim_new\n");
 		if (ast_pbx_start(tmp)) {
-			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 			ast_hangup(tmp);
 			tmp = NULL;
 		}

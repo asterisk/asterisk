@@ -395,7 +395,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 	if (fr->frametype == AST_FRAME_CONTROL) {
 		switch (fr->subclass.integer) {
 		case AST_CONTROL_ANSWER:
-			ast_verb(3, "%s answered %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s answered %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			AST_LIST_LOCK(&dial->channels);
 			AST_LIST_REMOVE(&dial->channels, channel, list);
 			AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
@@ -403,61 +403,61 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			set_state(dial, AST_DIAL_RESULT_ANSWERED);
 			break;
 		case AST_CONTROL_BUSY:
-			ast_verb(3, "%s is busy\n", channel->owner->name);
+			ast_verb(3, "%s is busy\n", ast_channel_name(channel->owner));
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_CONGESTION:
-			ast_verb(3, "%s is circuit-busy\n", channel->owner->name);
+			ast_verb(3, "%s is circuit-busy\n", ast_channel_name(channel->owner));
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_INCOMPLETE:
-			ast_verb(3, "%s dialed Incomplete extension %s\n", channel->owner->name, channel->owner->exten);
+			ast_verb(3, "%s dialed Incomplete extension %s\n", ast_channel_name(channel->owner), channel->owner->exten);
 			ast_indicate(chan, AST_CONTROL_INCOMPLETE);
 			break;
 		case AST_CONTROL_RINGING:
-			ast_verb(3, "%s is ringing\n", channel->owner->name);
+			ast_verb(3, "%s is ringing\n", ast_channel_name(channel->owner));
 			if (!dial->options[AST_DIAL_OPTION_MUSIC])
 				ast_indicate(chan, AST_CONTROL_RINGING);
 			set_state(dial, AST_DIAL_RESULT_RINGING);
 			break;
 		case AST_CONTROL_PROGRESS:
-			ast_verb(3, "%s is making progress, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s is making progress, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_PROGRESS);
 			set_state(dial, AST_DIAL_RESULT_PROGRESS);
 			break;
 		case AST_CONTROL_VIDUPDATE:
-			ast_verb(3, "%s requested a video update, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s requested a video update, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 			break;
 		case AST_CONTROL_SRCUPDATE:
-			ast_verb(3, "%s requested a source update, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s requested a source update, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_SRCUPDATE);
 			break;
 		case AST_CONTROL_CONNECTED_LINE:
-			ast_verb(3, "%s connected line has changed, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s connected line has changed, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			if (ast_channel_connected_line_macro(channel->owner, chan, fr, 1, 1)) {
 				ast_indicate_data(chan, AST_CONTROL_CONNECTED_LINE, fr->data.ptr, fr->datalen);
 			}
 			break;
 		case AST_CONTROL_REDIRECTING:
-			ast_verb(3, "%s redirecting info has changed, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			if (ast_channel_redirecting_macro(channel->owner, chan, fr, 1, 1)) {
 				ast_indicate_data(chan, AST_CONTROL_REDIRECTING, fr->data.ptr, fr->datalen);
 			}
 			break;
 		case AST_CONTROL_PROCEEDING:
-			ast_verb(3, "%s is proceeding, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s is proceeding, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_PROCEEDING);
 			set_state(dial, AST_DIAL_RESULT_PROCEEDING);
 			break;
 		case AST_CONTROL_HOLD:
-			ast_verb(3, "Call on %s placed on hold\n", chan->name);
+			ast_verb(3, "Call on %s placed on hold\n", ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_HOLD);
 			break;
 		case AST_CONTROL_UNHOLD:
-			ast_verb(3, "Call on %s left from hold\n", chan->name);
+			ast_verb(3, "Call on %s left from hold\n", ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_UNHOLD);
 			break;
 		case AST_CONTROL_OFFHOOK:
@@ -484,7 +484,7 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 
 	switch (fr->subclass.integer) {
 	case AST_CONTROL_ANSWER:
-		ast_verb(3, "%s answered\n", channel->owner->name);
+		ast_verb(3, "%s answered\n", ast_channel_name(channel->owner));
 		AST_LIST_LOCK(&dial->channels);
 		AST_LIST_REMOVE(&dial->channels, channel, list);
 		AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
@@ -492,25 +492,25 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 		set_state(dial, AST_DIAL_RESULT_ANSWERED);
 		break;
 	case AST_CONTROL_BUSY:
-		ast_verb(3, "%s is busy\n", channel->owner->name);
+		ast_verb(3, "%s is busy\n", ast_channel_name(channel->owner));
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 		break;
 	case AST_CONTROL_CONGESTION:
-		ast_verb(3, "%s is circuit-busy\n", channel->owner->name);
+		ast_verb(3, "%s is circuit-busy\n", ast_channel_name(channel->owner));
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 		break;
 	case AST_CONTROL_RINGING:
-		ast_verb(3, "%s is ringing\n", channel->owner->name);
+		ast_verb(3, "%s is ringing\n", ast_channel_name(channel->owner));
 		set_state(dial, AST_DIAL_RESULT_RINGING);
 		break;
 	case AST_CONTROL_PROGRESS:
-		ast_verb(3, "%s is making progress\n", channel->owner->name);
+		ast_verb(3, "%s is making progress\n", ast_channel_name(channel->owner));
 		set_state(dial, AST_DIAL_RESULT_PROGRESS);
 		break;
 	case AST_CONTROL_PROCEEDING:
-		ast_verb(3, "%s is proceeding\n", channel->owner->name);
+		ast_verb(3, "%s is proceeding\n", ast_channel_name(channel->owner));
 		set_state(dial, AST_DIAL_RESULT_PROCEEDING);
 		break;
 	default:

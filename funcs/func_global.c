@@ -259,7 +259,7 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 		"Variable: SHARED(%s)\r\n"
 		"Value: %s\r\n"
 		"Uniqueid: %s\r\n", 
-		chan ? chan->name : "none", args.var, value, 
+		chan ? ast_channel_name(chan) : "none", args.var, value, 
 		chan ? chan->uniqueid : "none");
 
 	ast_channel_unlock(chan);

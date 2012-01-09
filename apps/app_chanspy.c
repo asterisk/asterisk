@@ -484,7 +484,7 @@ static int start_spying(struct ast_autochan *autochan, const char *spychan_name,
 	int res = 0;
 	struct ast_channel *peer = NULL;
 
-	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, autochan->chan->name);
+	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, ast_channel_name(autochan->chan));
 
 	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC | AST_AUDIOHOOK_SMALL_QUEUE);
 	res = ast_audiohook_attach(autochan->chan, audiohook);
@@ -524,7 +524,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	struct ast_channel *chans[] = { chan, spyee_autochan->chan };
 
 	ast_channel_lock(chan);
-	spyer_name = ast_strdupa(chan->name);
+	spyer_name = ast_strdupa(ast_channel_name(chan));
 	ast_channel_unlock(chan);
 
 	/* We now hold the channel lock on spyee */
@@ -534,7 +534,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	}
 
 	ast_channel_lock(spyee_autochan->chan);
-	name = ast_strdupa(spyee_autochan->chan->name);
+	name = ast_strdupa(ast_channel_name(spyee_autochan->chan));
 	ast_channel_unlock(spyee_autochan->chan);
 
 	ast_verb(2, "Spying on channel %s\n", name);
@@ -685,7 +685,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 			(*volfactor)++;
 			if (*volfactor > 4)
 				*volfactor = -4;
-			ast_verb(3, "Setting spy volume on %s to %d\n", chan->name, *volfactor);
+			ast_verb(3, "Setting spy volume on %s to %d\n", ast_channel_name(chan), *volfactor);
 
 			csth.volfactor = *volfactor;
 			csth.spy_audiohook.options.read_volume = csth.volfactor;
@@ -747,7 +747,7 @@ redo:
 		return NULL;
 	}
 
-	if (!strncmp(next->name, "DAHDI/pseudo", pseudo_len)) {
+	if (!strncmp(ast_channel_name(next), "DAHDI/pseudo", pseudo_len)) {
 		goto redo;
 	} else if (next == chan) {
 		goto redo;
@@ -925,7 +925,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 				snprintf(buffer, sizeof(buffer) - 1, ":%s:", myenforced);
 
-				ast_copy_string(ext + 1, autochan->chan->name, sizeof(ext) - 1);
+				ast_copy_string(ext + 1, ast_channel_name(autochan->chan), sizeof(ext) - 1);
 				if ((end = strchr(ext, '-'))) {
 					*end++ = ':';
 					*end = '\0';
@@ -943,7 +943,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			}
 
 			strcpy(peer_name, "spy-");
-			strncat(peer_name, autochan->chan->name, AST_NAME_STRLEN - 4 - 1);
+			strncat(peer_name, ast_channel_name(autochan->chan), AST_NAME_STRLEN - 4 - 1);
 			ptr = strchr(peer_name, '/');
 			*ptr++ = '\0';
 			ptr = strsep(&ptr, "-");

@@ -210,7 +210,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 		  /* if outa time, give em reorder */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > ((k&2) ? digittimeout : firstdigittimeout)) {
 			ast_debug(1,"DISA %s entry timeout on chan %s\n",
-				((k&1) ? "extension" : "password"),chan->name);
+				((k&1) ? "extension" : "password"),ast_channel_name(chan));
 			break;
 		}
 
@@ -256,7 +256,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 					if (sscanf(args.passcode,"%30d",&j) < 1) { /* nope, it must be a filename */
 						fp = fopen(args.passcode,"r");
 						if (!fp) {
-							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",args.passcode,chan->name);
+							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",args.passcode,ast_channel_name(chan));
 							ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
 							return -1;
 						}
@@ -294,12 +294,12 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 					}
 					/* compare the two */
 					if (strcmp(exten,args.passcode)) {
-						ast_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
+						ast_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",ast_channel_name(chan),exten);
 						goto reorder;
 
 					}
 					 /* password good, set to dial state */
-					ast_debug(1,"DISA on chan %s password is good\n",chan->name);
+					ast_debug(1,"DISA on chan %s password is good\n",ast_channel_name(chan));
 					play_dialtone(chan, args.mailbox);
 
 					k|=1; /* In number mode */
@@ -307,7 +307,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 					exten[sizeof(acctcode)] = 0;
 					ast_copy_string(acctcode, exten, sizeof(acctcode));
 					exten[0] = 0;
-					ast_debug(1,"Successful DISA log-in on chan %s\n", chan->name);
+					ast_debug(1,"Successful DISA log-in on chan %s\n", ast_channel_name(chan));
 					continue;
 				}
 			} else {

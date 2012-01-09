@@ -554,7 +554,7 @@ static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, s
 		ast_moh_stop(chan);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
+		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, ast_channel_name(chan));
 		res = -1;
 	}
 
@@ -588,7 +588,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
-			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 			ast_hangup(tmp);
 			tmp = NULL;
 		}

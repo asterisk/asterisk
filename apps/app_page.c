@@ -171,7 +171,7 @@ static int page_exec(struct ast_channel *chan, const char *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_copy_string(originator, chan->name, sizeof(originator));
+	ast_copy_string(originator, ast_channel_name(chan), sizeof(originator));
 	if ((tmp = strchr(originator, '-'))) {
 		*tmp = '\0';
 	}

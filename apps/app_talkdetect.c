@@ -145,7 +145,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 		}
 		ast_stopstream(chan);
 		if (ast_streamfile(chan, tmp, chan->language)) {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", ast_channel_name(chan), (char *)data);
 			break;
 		}
 		detection_start = ast_tvnow();
@@ -160,7 +160,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 			}
 			res = ast_waitfor(chan, res);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Waitfor failed on %s\n", chan->name);
+				ast_log(LOG_WARNING, "Waitfor failed on %s\n", ast_channel_name(chan));
 				break;
 			} else if (res > 0) {
 				fr = ast_read(chan);
@@ -169,7 +169,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 					 * frames and the time has not expired */
 					if (ast_tvdiff_ms(ast_tvnow(), detection_start) >= analysistime) {
 						continue_analysis = 0;
-						ast_verb(3, "BackgroundDetect: Talk analysis time complete on %s.\n", chan->name);
+						ast_verb(3, "BackgroundDetect: Talk analysis time complete on %s.\n", ast_channel_name(chan));
 					}
 				}
 				
@@ -235,7 +235,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 	if (res > -1) {
 		if (origrformat.id && ast_set_read_format(chan, &origrformat)) {
 			ast_log(LOG_WARNING, "Failed to restore read format for %s to %s\n", 
-				chan->name, ast_getformatname(&origrformat));
+				ast_channel_name(chan), ast_getformatname(&origrformat));
 		}
 	}
 	if (dsp) {

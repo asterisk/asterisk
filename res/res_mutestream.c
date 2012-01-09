@@ -191,11 +191,11 @@ static int mute_add_audiohook(struct ast_channel *chan, struct mute_information 
 	/* Activate the settings */
 	ast_channel_datastore_add(chan, datastore);
 	if (ast_audiohook_attach(chan, &mute->audiohook)) {
-		ast_log(LOG_ERROR, "Failed to attach audiohook for muting channel %s\n", chan->name);
+		ast_log(LOG_ERROR, "Failed to attach audiohook for muting channel %s\n", ast_channel_name(chan));
 		return -1;
 	}
 	ast_module_ref(ast_module_info->self);
-	ast_debug(2, "Initialized audiohook on channel %s\n", chan->name);
+	ast_debug(2, "Initialized audiohook on channel %s\n", ast_channel_name(chan));
 	return 0;
 }
 

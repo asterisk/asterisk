@@ -1845,13 +1845,13 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 		if(!o->pmrChan->txPttIn)
 		{
 			o->pmrChan->txPttIn=1;
-			if(o->debuglevel) ast_log(LOG_NOTICE,"txPttIn = %i, chan %s\n",o->pmrChan->txPttIn,o->owner->name);
+			if(o->debuglevel) ast_log(LOG_NOTICE,"txPttIn = %i, chan %s\n",o->pmrChan->txPttIn,ast_channel_name(o->owner));
 		}
 	}
 	else if(o->pmrChan->txPttIn)
 	{
 		o->pmrChan->txPttIn=0;
-		if(o->debuglevel) ast_log(LOG_NOTICE,"txPttIn = %i, chan %s\n",o->pmrChan->txPttIn,o->owner->name);
+		if(o->debuglevel) ast_log(LOG_NOTICE,"txPttIn = %i, chan %s\n",o->pmrChan->txPttIn,ast_channel_name(o->owner));
 	}
 	oldpttout = o->pmrChan->txPttOut;
 
@@ -1862,7 +1862,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 
 	if (oldpttout != o->pmrChan->txPttOut)
 	{
-		if(o->debuglevel) ast_log(LOG_NOTICE,"txPttOut = %i, chan %s\n",o->pmrChan->txPttOut,o->owner->name);
+		if(o->debuglevel) ast_log(LOG_NOTICE,"txPttOut = %i, chan %s\n",o->pmrChan->txPttOut,ast_channel_name(o->owner));
 		kickptt(o);
 	}
 
@@ -1960,13 +1960,13 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 	if(cd!=o->rxcarrierdetect)
 	{
 		o->rxcarrierdetect=cd;
-		if(o->debuglevel) ast_log(LOG_NOTICE,"rxcarrierdetect = %i, chan %s\n",cd,o->owner->name);
+		if(o->debuglevel) ast_log(LOG_NOTICE,"rxcarrierdetect = %i, chan %s\n",cd,ast_channel_name(o->owner));
 		// printf("rxcarrierdetect = %i, chan %s\n",res,o->owner->name);
 	}
 
 	if(o->pmrChan->b.ctcssRxEnable && o->pmrChan->rxCtcss->decode!=o->rxctcssdecode)
 	{
-		if(o->debuglevel)ast_log(LOG_NOTICE,"rxctcssdecode = %i, chan %s\n",o->pmrChan->rxCtcss->decode,o->owner->name);
+		if(o->debuglevel)ast_log(LOG_NOTICE,"rxctcssdecode = %i, chan %s\n",o->pmrChan->rxCtcss->decode,ast_channel_name(o->owner));
 		// printf("rxctcssdecode = %i, chan %s\n",o->pmrChan->rxCtcss->decode,o->owner->name);
 		o->rxctcssdecode=o->pmrChan->rxCtcss->decode;
 		strcpy(o->rxctcssfreq, o->pmrChan->rxctcssfreq);
@@ -2004,7 +2004,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 
 	if(o->pmrChan->decDcs->decode!=o->rxdcsdecode)
 	{													
-		if(o->debuglevel)ast_log(LOG_NOTICE,"rxdcsdecode = %s, chan %s\n",o->pmrChan->rxctcssfreq,o->owner->name);
+		if(o->debuglevel)ast_log(LOG_NOTICE,"rxdcsdecode = %s, chan %s\n",o->pmrChan->rxctcssfreq,ast_channel_name(o->owner));
 		// printf("rxctcssdecode = %i, chan %s\n",o->pmrChan->rxCtcss->decode,o->owner->name);
 		o->rxdcsdecode=o->pmrChan->decDcs->decode;
 		strcpy(o->rxctcssfreq, o->pmrChan->rxctcssfreq);
@@ -2012,7 +2012,7 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 
 	if(o->pmrChan->rptnum && (o->pmrChan->pLsdCtl->cs[o->pmrChan->rptnum].b.rxkeyed != o->rxlsddecode))
 	{								
-		if(o->debuglevel)ast_log(LOG_NOTICE,"rxLSDecode = %s, chan %s\n",o->pmrChan->rxctcssfreq,o->owner->name);
+		if(o->debuglevel)ast_log(LOG_NOTICE,"rxLSDecode = %s, chan %s\n",o->pmrChan->rxctcssfreq,ast_channel_name(o->owner));
 		o->rxlsddecode=o->pmrChan->pLsdCtl->cs[o->pmrChan->rptnum].b.rxkeyed;
 		strcpy(o->rxctcssfreq, o->pmrChan->rxctcssfreq);
 	}
@@ -2027,13 +2027,13 @@ static struct ast_frame *usbradio_read(struct ast_channel *c)
 	if ( cd && sd )
 	{
 		//if(!o->rxkeyed)o->pmrChan->dd.b.doitnow=1;
-		if(!o->rxkeyed && o->debuglevel)ast_log(LOG_NOTICE,"o->rxkeyed = 1, chan %s\n", o->owner->name);
+		if(!o->rxkeyed && o->debuglevel)ast_log(LOG_NOTICE,"o->rxkeyed = 1, chan %s\n", ast_channel_name(o->owner));
 		o->rxkeyed = 1;
 	}
 	else 
 	{
 		//if(o->rxkeyed)o->pmrChan->dd.b.doitnow=1;
-		if(o->rxkeyed && o->debuglevel)ast_log(LOG_NOTICE,"o->rxkeyed = 0, chan %s\n",o->owner->name);
+		if(o->rxkeyed && o->debuglevel)ast_log(LOG_NOTICE,"o->rxkeyed = 0, chan %s\n",ast_channel_name(o->owner));
 		o->rxkeyed = 0;
 	}
 
@@ -2159,7 +2159,7 @@ static int usbradio_indicate(struct ast_channel *c, int cond, const void *data, 
 			if(o->debuglevel)ast_verbose(" << AST_CONTROL_RADIO_UNKEY Radio Transmit Off. >> \n");
 			break;
 		default:
-			ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, c->name);
+			ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, ast_channel_name(c));
 			return -1;
 	}
 
@@ -2205,7 +2205,7 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 	ast_jb_configure(c, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {
-			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", c->name);
+			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(c));
 			ast_hangup(c);
 			o->owner = c = NULL;
 			/* XXX what about the channel itself ? */

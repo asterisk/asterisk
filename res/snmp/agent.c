@@ -268,8 +268,8 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANNAME:
-		if (!ast_strlen_zero(chan->name)) {
-			strncpy(string_ret, chan->name, sizeof(string_ret));
+		if (!ast_strlen_zero(ast_channel_name(chan))) {
+			strncpy(string_ret, ast_channel_name(chan), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
@@ -299,23 +299,23 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		break;
 	case ASTCHANBRIDGE:
 		if ((bridge = ast_bridged_channel(chan)) != NULL) {
-			strncpy(string_ret, bridge->name, sizeof(string_ret));
+			strncpy(string_ret, ast_channel_name(bridge), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANMASQ:
-		if (chan->masq && !ast_strlen_zero(chan->masq->name)) {
-			strncpy(string_ret, chan->masq->name, sizeof(string_ret));
+		if (chan->masq && !ast_strlen_zero(ast_channel_name(chan->masq))) {
+			strncpy(string_ret, ast_channel_name(chan->masq), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANMASQR:
-		if (chan->masqr && !ast_strlen_zero(chan->masqr->name)) {
-			strncpy(string_ret, chan->masqr->name, sizeof(string_ret));
+		if (chan->masqr && !ast_strlen_zero(ast_channel_name(chan->masqr))) {
+			strncpy(string_ret, ast_channel_name(chan->masqr), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;

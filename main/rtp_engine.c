@@ -807,13 +807,13 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 
 	/* Start locally bridging both instances */
 	if (instance0->engine->local_bridge && instance0->engine->local_bridge(instance0, instance1)) {
-		ast_debug(1, "Failed to locally bridge %s to %s, backing out.\n", c0->name, c1->name);
+		ast_debug(1, "Failed to locally bridge %s to %s, backing out.\n", ast_channel_name(c0), ast_channel_name(c1));
 		ast_channel_unlock(c0);
 		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
 	}
 	if (instance1->engine->local_bridge && instance1->engine->local_bridge(instance1, instance0)) {
-		ast_debug(1, "Failed to locally bridge %s to %s, backing out.\n", c1->name, c0->name);
+		ast_debug(1, "Failed to locally bridge %s to %s, backing out.\n", ast_channel_name(c1), ast_channel_name(c0));
 		if (instance0->engine->local_bridge) {
 			instance0->engine->local_bridge(instance0, NULL);
 		}
@@ -929,7 +929,7 @@ static enum ast_bridge_result local_bridge_loop(struct ast_channel *c0, struct a
 			} else {
 				*fo = fr;
 				*rc = who;
-				ast_debug(1, "rtp-engine-local-bridge: Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, who->name);
+				ast_debug(1, "rtp-engine-local-bridge: Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, ast_channel_name(who));
 				res = AST_BRIDGE_COMPLETE;
 				break;
 			}
@@ -1011,7 +1011,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 			ast_rtp_instance_get_remote_address(tinstance1, &tac1);
 		}
 	} else {
-		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 	}
 
 	/* Test the second channel */
@@ -1024,7 +1024,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 			ast_rtp_instance_get_remote_address(instance0, &tac0);
 		}
 	} else {
-		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c1->name, c0->name);
+		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", ast_channel_name(c1), ast_channel_name(c0));
 	}
 
 	ast_channel_unlock(c0);
@@ -1082,29 +1082,29 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 		    (!ast_format_cap_identical(cap1, oldcap1))) {
 			char tmp_buf[512] = { 0, };
 			ast_debug(1, "Oooh, '%s' changed end address to %s (format %s)\n",
-				  c1->name, ast_sockaddr_stringify(&t1),
+				  ast_channel_name(c1), ast_sockaddr_stringify(&t1),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), cap1));
 			ast_debug(1, "Oooh, '%s' changed end vaddress to %s (format %s)\n",
-				  c1->name, ast_sockaddr_stringify(&vt1),
+				  ast_channel_name(c1), ast_sockaddr_stringify(&vt1),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), cap1));
 			ast_debug(1, "Oooh, '%s' changed end taddress to %s (format %s)\n",
-				  c1->name, ast_sockaddr_stringify(&tt1),
+				  ast_channel_name(c1), ast_sockaddr_stringify(&tt1),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), cap1));
 			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
-				  c1->name, ast_sockaddr_stringify(&ac1),
+				  ast_channel_name(c1), ast_sockaddr_stringify(&ac1),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), oldcap1));
 			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
-				  c1->name, ast_sockaddr_stringify(&vac1),
+				  ast_channel_name(c1), ast_sockaddr_stringify(&vac1),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), oldcap1));
 			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
-				  c1->name, ast_sockaddr_stringify(&tac1),
+				  ast_channel_name(c1), ast_sockaddr_stringify(&tac1),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), oldcap1));
 			if (glue0->update_peer(c0,
 					       ast_sockaddr_isnull(&t1)  ? NULL : instance1,
 					       ast_sockaddr_isnull(&vt1) ? NULL : vinstance1,
 					       ast_sockaddr_isnull(&tt1) ? NULL : tinstance1,
 					       cap1, 0)) {
-				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
+				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 			}
 			ast_sockaddr_copy(&ac1, &t1);
 			ast_sockaddr_copy(&vac1, &vt1);
@@ -1117,16 +1117,16 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 		    (!ast_format_cap_identical(cap0, oldcap0))) {
 			char tmp_buf[512] = { 0, };
 			ast_debug(1, "Oooh, '%s' changed end address to %s (format %s)\n",
-				  c0->name, ast_sockaddr_stringify(&t0),
+				  ast_channel_name(c0), ast_sockaddr_stringify(&t0),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), cap0));
 			ast_debug(1, "Oooh, '%s' was %s/(format %s)\n",
-				  c0->name, ast_sockaddr_stringify(&ac0),
+				  ast_channel_name(c0), ast_sockaddr_stringify(&ac0),
 				  ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), oldcap0));
 			if (glue1->update_peer(c1, t0.len ? instance0 : NULL,
 						vt0.len ? vinstance0 : NULL,
 						tt0.len ? tinstance0 : NULL,
 						cap0, 0)) {
-				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
+				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", ast_channel_name(c1), ast_channel_name(c0));
 			}
 			ast_sockaddr_copy(&ac0, &t0);
 			ast_sockaddr_copy(&vac0, &vt0);
@@ -1218,7 +1218,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 			} else {
 				*fo = fr;
 				*rc = who;
-				ast_debug(1, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, who->name);
+				ast_debug(1, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, ast_channel_name(who));
 				res = AST_BRIDGE_COMPLETE;
 				goto remote_bridge_cleanup;
 			}
@@ -1242,22 +1242,22 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 	}
 
 	if (ast_test_flag(c0, AST_FLAG_ZOMBIE)) {
-		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", c0->name);
+		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", ast_channel_name(c0));
 	} else if (c0->tech_pvt != pvt0) {
-		ast_debug(1, "Channel c0->'%s' pvt changed, in bridge with c1->'%s'\n", c0->name, c1->name);
+		ast_debug(1, "Channel c0->'%s' pvt changed, in bridge with c1->'%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 	} else if (glue0 != ast_rtp_instance_get_glue(c0->tech->type)) {
-		ast_debug(1, "Channel c0->'%s' technology changed, in bridge with c1->'%s'\n", c0->name, c1->name);
+		ast_debug(1, "Channel c0->'%s' technology changed, in bridge with c1->'%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 	} else if (glue0->update_peer(c0, NULL, NULL, NULL, 0, 0)) {
-		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
+		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", ast_channel_name(c0));
 	}
 	if (ast_test_flag(c1, AST_FLAG_ZOMBIE)) {
-		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", c1->name);
+		ast_debug(1, "Channel '%s' Zombie cleardown from bridge\n", ast_channel_name(c1));
 	} else if (c1->tech_pvt != pvt1) {
-		ast_debug(1, "Channel c1->'%s' pvt changed, in bridge with c0->'%s'\n", c1->name, c0->name);
+		ast_debug(1, "Channel c1->'%s' pvt changed, in bridge with c0->'%s'\n", ast_channel_name(c1), ast_channel_name(c0));
 	} else if (glue1 != ast_rtp_instance_get_glue(c1->tech->type)) {
-		ast_debug(1, "Channel c1->'%s' technology changed, in bridge with c0->'%s'\n", c1->name, c0->name);
+		ast_debug(1, "Channel c1->'%s' technology changed, in bridge with c0->'%s'\n", ast_channel_name(c1), ast_channel_name(c0));
 	} else if (glue1->update_peer(c1, NULL, NULL, NULL, 0, 0)) {
-		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", ast_channel_name(c1));
 	}
 
 	instance0->bridged = NULL;
@@ -1313,13 +1313,13 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 
 	/* Ensure neither channel got hungup during lock avoidance */
 	if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
-		ast_log(LOG_WARNING, "Got hangup while attempting to bridge '%s' and '%s'\n", c0->name, c1->name);
+		ast_log(LOG_WARNING, "Got hangup while attempting to bridge '%s' and '%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 		goto done;
 	}
 
 	/* Grab glue that binds each channel to something using the RTP engine */
 	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
-		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
+		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? ast_channel_name(c1) : ast_channel_name(c0));
 		goto done;
 	}
 
@@ -1396,10 +1396,10 @@ enum ast_bridge_result ast_rtp_instance_bridge(struct ast_channel *c0, struct as
 
 	/* Depending on the end result for bridging either do a local bridge or remote bridge */
 	if (audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL || audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL) {
-		ast_verb(3, "Locally bridging %s and %s\n", c0->name, c1->name);
+		ast_verb(3, "Locally bridging %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
 		res = local_bridge_loop(c0, c1, instance0, instance1, timeoutms, flags, fo, rc, c0->tech_pvt, c1->tech_pvt);
 	} else {
-		ast_verb(3, "Remotely bridging %s and %s\n", c0->name, c1->name);
+		ast_verb(3, "Remotely bridging %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
 		res = remote_bridge_loop(c0, c1, instance0, instance1, vinstance0, vinstance1,
 				tinstance0, tinstance1, glue0, glue1, cap0, cap1, timeoutms, flags,
 				fo, rc, c0->tech_pvt, c1->tech_pvt);
@@ -1461,7 +1461,7 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 
 	/* Grab glue that binds each channel to something using the RTP engine */
 	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
-		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
+		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? ast_channel_name(c1) : ast_channel_name(c0));
 		goto done;
 	}
 
@@ -1521,7 +1521,7 @@ done:
 	unref_instance_cond(&tinstance1);
 
 	if (!res) {
-		ast_debug(1, "Seeded SDP of '%s' with that of '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+		ast_debug(1, "Seeded SDP of '%s' with that of '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
 	}
 }
 
@@ -1558,7 +1558,7 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 
 	/* Grab glue that binds each channel to something using the RTP engine */
 	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
-		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
+		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", glue0 ? ast_channel_name(c1) : ast_channel_name(c0));
 		goto done;
 	}
 
@@ -1594,7 +1594,7 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 
 	/* Bridge media early */
 	if (glue0->update_peer(c0, instance1, vinstance1, tinstance1, cap1, 0)) {
-		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
 	}
 
 	res = 0;
@@ -1614,7 +1614,7 @@ done:
 	unref_instance_cond(&tinstance1);
 
 	if (!res) {
-		ast_debug(1, "Setting early bridge SDP of '%s' with that of '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+		ast_debug(1, "Setting early bridge SDP of '%s' with that of '%s'\n", ast_channel_name(c0), c1 ? ast_channel_name(c1) : "<unspecified>");
 	}
 
 	return res;

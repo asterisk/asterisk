@@ -51,7 +51,7 @@ struct ast_autochan *ast_autochan_setup(struct ast_channel *chan)
 	AST_LIST_INSERT_TAIL(&autochan->chan->autochans, autochan, list);
 	ast_channel_unlock(autochan->chan);
 
-	ast_debug(1, "Created autochan %p to hold channel %s (%p)\n", autochan, chan->name, chan);
+	ast_debug(1, "Created autochan %p to hold channel %s (%p)\n", autochan, ast_channel_name(chan), chan);
 
 	return autochan;
 }
@@ -88,7 +88,7 @@ void ast_autochan_new_channel(struct ast_channel *old_chan, struct ast_channel *
 			autochan->chan = ast_channel_ref(new_chan);
 
 			ast_debug(1, "Autochan %p used to hold channel %s (%p) but now holds channel %s (%p)\n",
-					autochan, old_chan->name, old_chan, new_chan->name, new_chan);
+					autochan, ast_channel_name(old_chan), old_chan, ast_channel_name(new_chan), new_chan);
 		}
 	}
 }

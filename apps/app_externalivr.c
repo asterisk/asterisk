@@ -97,7 +97,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char app[] = "ExternalIVR";
 
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space between 'name' and the comma */
-#define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel->name , ## __VA_ARGS__)
+#define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, ast_channel_name(channel) , ## __VA_ARGS__)
 
 /* Commands */
 #define EIVR_CMD_APND 'A' /* append to prompt queue */

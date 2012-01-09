@@ -326,7 +326,7 @@ static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct
 
 	if (!p) {
 		ast_debug(1, "Asked for bridged channel on '%s'/'%s', returning <none>\n",
-			chan->name, bridge->name);
+			ast_channel_name(chan), ast_channel_name(bridge));
 		return NULL;
 	}
 
@@ -607,7 +607,7 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	if (!ast_test_flag(p, LOCAL_ALREADY_MASQED)) {
 		res = local_queue_frame(p, isoutbound, f, ast, 1);
 	} else {
-		ast_debug(1, "Not posting to queue since already masked on '%s'\n", ast->name);
+		ast_debug(1, "Not posting to queue since already masked on '%s'\n", ast_channel_name(ast));
 		res = 0;
 	}
 	ao2_unlock(p);
@@ -917,7 +917,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		      "Context: %s\r\n"
 		      "Exten: %s\r\n"
 		      "LocalOptimization: %s\r\n",
-			p->owner->name, p->chan->name, p->owner->uniqueid, p->chan->uniqueid,
+			ast_channel_name(p->owner), ast_channel_name(p->chan), p->owner->uniqueid, p->chan->uniqueid,
 			p->context, p->exten,
 			ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "Yes" : "No");
 
@@ -1234,7 +1234,7 @@ static char *locals_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	it = ao2_iterator_init(locals, 0);
 	while ((p = ao2_iterator_next(&it))) {
 		ao2_lock(p);
-		ast_cli(a->fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
+		ast_cli(a->fd, "%s -- %s@%s\n", p->owner ? ast_channel_name(p->owner) : "<unowned>", p->exten, p->context);
 		ao2_unlock(p);
 		ao2_ref(p, -1);
 	}

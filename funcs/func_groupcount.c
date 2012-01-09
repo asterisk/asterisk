@@ -127,7 +127,7 @@ static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 	}
 
 	if ((count = ast_app_group_get_count(group, category)) == -1) {
-		ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);
+		ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", ast_channel_name(chan));
 	} else {
 		snprintf(buf, len, "%d", count);
 		ret = 0;

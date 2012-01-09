@@ -1395,12 +1395,12 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 		sig_pri_lock_private(new_chan);
 
 		ast_verb(3, "Moving call (%s) from channel %d to %d.\n",
-			old_chan->owner ? old_chan->owner->name : "",
+			old_chan->owner ? ast_channel_name(old_chan->owner) : "",
 			old_chan->channel, new_chan->channel);
 		if (!sig_pri_is_chan_available(new_chan)) {
 			ast_log(LOG_WARNING,
 				"Can't move call (%s) from channel %d to %d.  It is already in use.\n",
-				old_chan->owner ? old_chan->owner->name : "",
+				old_chan->owner ? ast_channel_name(old_chan->owner) : "",
 				old_chan->channel, new_chan->channel);
 			sig_pri_unlock_private(new_chan);
 			if (old_chan->owner) {
@@ -1802,10 +1802,10 @@ static void *do_idle_thread(void *v_pvt)
 	/* Wait up to 30 seconds for an answer */
 	int newms, ms = 30000;
 
-	ast_verb(3, "Initiating idle call on channel %s\n", chan->name);
+	ast_verb(3, "Initiating idle call on channel %s\n", ast_channel_name(chan));
 	snprintf(ex, sizeof(ex), "%d/%s", pvt->channel, pvt->pri->idledial);
 	if (ast_call(chan, ex, 0)) {
-		ast_log(LOG_WARNING, "Idle dial failed on '%s' to '%s'\n", chan->name, ex);
+		ast_log(LOG_WARNING, "Idle dial failed on '%s' to '%s'\n", ast_channel_name(chan), ex);
 		ast_hangup(chan);
 		return NULL;
 	}
@@ -1822,15 +1822,15 @@ static void *do_idle_thread(void *v_pvt)
 				ast_copy_string(chan->exten, pvt->pri->idleext, sizeof(chan->exten));
 				ast_copy_string(chan->context, pvt->pri->idlecontext, sizeof(chan->context));
 				chan->priority = 1;
-				ast_verb(4, "Idle channel '%s' answered, sending to %s@%s\n", chan->name, chan->exten, chan->context);
+				ast_verb(4, "Idle channel '%s' answered, sending to %s@%s\n", ast_channel_name(chan), chan->exten, chan->context);
 				ast_pbx_run(chan);
 				/* It's already hungup, return immediately */
 				return NULL;
 			case AST_CONTROL_BUSY:
-				ast_verb(4, "Idle channel '%s' busy, waiting...\n", chan->name);
+				ast_verb(4, "Idle channel '%s' busy, waiting...\n", ast_channel_name(chan));
 				break;
 			case AST_CONTROL_CONGESTION:
-				ast_verb(4, "Idle channel '%s' congested, waiting...\n", chan->name);
+				ast_verb(4, "Idle channel '%s' congested, waiting...\n", ast_channel_name(chan));
 				break;
 			};
 		}
@@ -1861,12 +1861,12 @@ static void *pri_ss_thread(void *data)
 	 * even get started here, abort safely.
 	 */
 	if (!chan->tech_pvt) {
-		ast_log(LOG_WARNING, "Channel became a zombie before simple switch could be started (%s)\n", chan->name);
+		ast_log(LOG_WARNING, "Channel became a zombie before simple switch could be started (%s)\n", ast_channel_name(chan));
 		ast_hangup(chan);
 		return NULL;
 	}
 
-	ast_verb(3, "Starting simple switch on '%s'\n", chan->name);
+	ast_verb(3, "Starting simple switch on '%s'\n", ast_channel_name(chan));
 
 	sig_pri_dsp_reset_and_flush_digits(p);
 
@@ -2216,7 +2216,7 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 		 */
 		ast_queue_control(owner, AST_CONTROL_MCID);
 
-		ast_str_append(&msg, 0, "Channel: %s\r\n", owner->name);
+		ast_str_append(&msg, 0, "Channel: %s\r\n", ast_channel_name(owner));
 		ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
 
 		sig_pri_event_party_id(&msg, "CallerID", &owner->connected.id);
@@ -2405,7 +2405,7 @@ static int sig_pri_attempt_transfer(struct sig_pri_span *pri, q931_call *call_1_
 		return -1;
 	}
 
-	ast_verb(3, "TRANSFERRING %s to %s\n", call_1->ast->name, call_2->ast->name);
+	ast_verb(3, "TRANSFERRING %s to %s\n", ast_channel_name(call_1->ast), ast_channel_name(call_2->ast));
 
 	/*
 	 * Setup transfer masquerade.
@@ -3769,7 +3769,7 @@ static void sig_pri_send_aoce_termination_request(struct sig_pri_span *pri, int 
 
 	pvt->waiting_for_aoce = 1;
 	ast_channel_setwhentohangup_tv(pvt->owner, whentohangup);
-	ast_debug(1, "Delaying hangup on %s for aoc-e msg\n", pvt->owner->name);
+	ast_debug(1, "Delaying hangup on %s for aoc-e msg\n", ast_channel_name(pvt->owner));
 
 cleanup_termination_request:
 	ast_channel_unlock(pvt->owner);
@@ -4175,14 +4175,14 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				if (!call_rsp) {
 					ast_log(LOG_WARNING,
 						"Span %d: %s tried CallRerouting/CallDeflection to '%s' without call!\n",
-						pri->span, owner->name, subcmd->u.rerouting.deflection.to.number.str);
+						pri->span, ast_channel_name(owner), subcmd->u.rerouting.deflection.to.number.str);
 					ast_channel_unlock(owner);
 					break;
 				}
 				if (ast_strlen_zero(subcmd->u.rerouting.deflection.to.number.str)) {
 					ast_log(LOG_WARNING,
 						"Span %d: %s tried CallRerouting/CallDeflection to empty number!\n",
-						pri->span, owner->name);
+						pri->span, ast_channel_name(owner));
 					pri_rerouting_rsp(pri->pri, call_rsp, subcmd->u.rerouting.invoke_id,
 						PRI_REROUTING_RSP_INVALID_NUMBER);
 					ast_channel_unlock(owner);
@@ -4190,7 +4190,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				}
 
 				ast_verb(3, "Span %d: %s is CallRerouting/CallDeflection to '%s'.\n",
-					pri->span, owner->name, subcmd->u.rerouting.deflection.to.number.str);
+					pri->span, ast_channel_name(owner), subcmd->u.rerouting.deflection.to.number.str);
 
 				/*
 				 * Send back positive ACK to CallRerouting/CallDeflection.
@@ -5042,7 +5042,7 @@ static void sig_pri_moh_fsm_event(struct ast_channel *chan, struct sig_pri_chan 
 	const char *chan_name;
 
 	if (chan) {
-		chan_name = ast_strdupa(chan->name);
+		chan_name = ast_strdupa(ast_channel_name(chan));
 	} else {
 		chan_name = "Unknown";
 	}
@@ -5080,7 +5080,7 @@ static void sig_pri_ami_hold_event(struct ast_channel *chan, int is_held)
 		"Channel: %s\r\n"
 		"Uniqueid: %s\r\n",
 		is_held ? "On" : "Off",
-		chan->name,
+		ast_channel_name(chan),
 		chan->uniqueid);
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
@@ -5515,7 +5515,7 @@ static void *pri_dchannel(void *vpri)
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
 						if (ast_pthread_create_background(&p, NULL, do_idle_thread, pri->pvts[nextidle])) {
-							ast_log(LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
+							ast_log(LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", ast_channel_name(idle));
 							ast_mutex_unlock(&pri->lock);
 							ast_hangup(idle);
 							ast_mutex_lock(&pri->lock);
@@ -7405,7 +7405,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	}
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "sig_pri_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "sig_pri_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
 
@@ -7846,7 +7846,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		}
 		break;
 	case AST_CONTROL_PROCEEDING:
-		ast_debug(1, "Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
+		ast_debug(1, "Received AST_CONTROL_PROCEEDING on %s\n",ast_channel_name(chan));
 		if (p->call_level < SIG_PRI_CALL_LEVEL_PROCEEDING && !p->outgoing) {
 			p->call_level = SIG_PRI_CALL_LEVEL_PROCEEDING;
 			if (p->pri && p->pri->pri) {
@@ -7863,7 +7863,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		res = 0;
 		break;
 	case AST_CONTROL_PROGRESS:
-		ast_debug(1, "Received AST_CONTROL_PROGRESS on %s\n",chan->name);
+		ast_debug(1, "Received AST_CONTROL_PROGRESS on %s\n",ast_channel_name(chan));
 		sig_pri_set_digital(p, 0);	/* Digital-only calls isn't allowing any inband progress messages */
 		if (!p->progress && p->call_level < SIG_PRI_CALL_LEVEL_ALERTING && !p->outgoing
 			&& !p->no_b_channel) {
@@ -7960,7 +7960,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		res = sig_pri_play_tone(p, -1);
 		break;
 	case AST_CONTROL_CONNECTED_LINE:
-		ast_debug(1, "Received AST_CONTROL_CONNECTED_LINE on %s\n", chan->name);
+		ast_debug(1, "Received AST_CONTROL_CONNECTED_LINE on %s\n", ast_channel_name(chan));
 		if (p->pri) {
 			struct pri_party_connected_line connected;
 			int dialplan;
@@ -8009,7 +8009,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		}
 		break;
 	case AST_CONTROL_REDIRECTING:
-		ast_debug(1, "Received AST_CONTROL_REDIRECTING on %s\n", chan->name);
+		ast_debug(1, "Received AST_CONTROL_REDIRECTING on %s\n", ast_channel_name(chan));
 		if (p->pri) {
 			pri_grab(p, p->pri);
 			sig_pri_redirecting_update(p, chan);
@@ -8021,7 +8021,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 		{
 			struct ast_aoc_decoded *decoded
 				= ast_aoc_decode((struct ast_aoc_encoded *) data, datalen, chan);
-			ast_debug(1, "Received AST_CONTROL_AOC on %s\n", chan->name);
+			ast_debug(1, "Received AST_CONTROL_AOC on %s\n", ast_channel_name(chan));
 			if (decoded && p->pri) {
 				pri_grab(p, p->pri);
 				switch (ast_aoc_get_msg_type(decoded)) {
@@ -8047,7 +8047,7 @@ int sig_pri_indicate(struct sig_pri_chan *p, struct ast_channel *chan, int condi
 						p->waiting_for_aoce = 0;
 						ast_debug(1,
 							"Received final AOC-E msg, continue with hangup on %s\n",
-							chan->name);
+							ast_channel_name(chan));
 						ast_softhangup_nolock(chan, AST_SOFTHANGUP_DEV);
 					}
 					break;
@@ -8776,7 +8776,7 @@ void sig_pri_cli_show_channels(int fd, struct sig_pri_span *pri)
 			sig_pri_is_chan_available(pvt) ? "Yes" : "No",
 			sig_pri_call_level2str(pvt->call_level),
 			pvt->call ? "Yes" : "No",
-			pvt->owner ? pvt->owner->name : "");
+			pvt->owner ? ast_channel_name(pvt->owner) : "");
 
 		if (pvt->owner) {
 			ast_channel_unlock(pvt->owner);

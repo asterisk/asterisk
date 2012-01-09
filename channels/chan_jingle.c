@@ -916,7 +916,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	if (i->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
-		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 		tmp->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 		ast_hangup(tmp);
 		tmp = NULL;
@@ -1503,7 +1503,7 @@ static int jingle_call(struct ast_channel *ast, char *dest, int timeout)
 	struct jingle_pvt *p = ast->tech_pvt;
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "jingle_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "jingle_call called on %s, neither down nor reserved\n", ast_channel_name(ast));
 		return -1;
 	}
 
@@ -1632,7 +1632,7 @@ static char *jingle_show_channels(struct ast_cli_entry *e, int cmd, struct ast_c
 			}
 			if (chan)
 				ast_cli(a->fd, FORMAT, 
-					chan->name,
+					ast_channel_name(chan),
 					jid,
 					resource,
 					ast_getformatname(&chan->readformat),
