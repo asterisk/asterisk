@@ -6093,19 +6093,6 @@ static void sla_check_reload(void)
 		return;
 	}
 
-	/* We need to actually delete the previous versions of trunks and stations now */
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&sla_stations, station, entry) {
-		AST_RWLIST_REMOVE_CURRENT(entry);
-		ast_free(station);
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&sla_trunks, trunk, entry) {
-		AST_RWLIST_REMOVE_CURRENT(entry);
-		ast_free(trunk);
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-
 	/* yay */
 	sla_load_config(1);
 	sla.reload = 0;
@@ -7002,6 +6989,24 @@ static int sla_load_config(int reload)
 	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Config file " SLA_CONFIG_FILE " is in an invalid format.  Aborting.\n");
 		return 0;
+	}
+
+	if (reload) {
+		struct sla_station *station;
+		struct sla_trunk *trunk;
+
+		/* We need to actually delete the previous versions of trunks and stations now */
+		AST_RWLIST_TRAVERSE_SAFE_BEGIN(&sla_stations, station, entry) {
+			AST_RWLIST_REMOVE_CURRENT(entry);
+			ast_free(station);
+		}
+		AST_RWLIST_TRAVERSE_SAFE_END;
+
+		AST_RWLIST_TRAVERSE_SAFE_BEGIN(&sla_trunks, trunk, entry) {
+			AST_RWLIST_REMOVE_CURRENT(entry);
+			ast_free(trunk);
+		}
+		AST_RWLIST_TRAVERSE_SAFE_END;
 	}
 
 	if ((val = ast_variable_retrieve(cfg, "general", "attemptcallerid")))
