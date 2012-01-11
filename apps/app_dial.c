@@ -203,8 +203,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Asterisk will ignore any forwarding requests it may receive on this dial attempt.</para>
 				</option>
 				<option name="I">
-					<para>Asterisk will ignore any connected line update requests or redirecting party update
-					requests it may receiveon this dial attempt.</para>
+					<para>Asterisk will ignore any connected line update requests or any redirecting party
+					update requests it may receive on this dial attempt.</para>
 				</option>
 				<option name="k">
 					<para>Allow the called party to enable parking of the call by sending

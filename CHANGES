@@ -95,6 +95,14 @@ Dialplan functions
    The MAILBOX_EXISTS dialplan function has been deprecated in favour of
    VM_INFO.
 
+Followme changes
+-------------
+ * A new option, 'I' has been added to app_followme.
+   By setting this option, Asterisk will not update the caller with
+   connected line changes when they occur.  This is similar to app_dial
+   and app_queue.
+ * The 'N' option is now ignored if the call is already answered.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
