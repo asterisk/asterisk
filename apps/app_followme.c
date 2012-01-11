@@ -67,20 +67,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="followmeid" required="true" />
 			<parameter name="options">
 				<optionlist>
-					<option name="s">
-						<para>Playback the incoming status message prior to starting
-						the follow-me step(s)</para>
-					</option>
 					<option name="a">
 						<para>Record the caller's name so it can be announced to the
 						callee on each step.</para>
+					</option>
+					<option name="d">
+						<para>Disable the 'Please hold while we try to connect your call' announcement.</para>
+					</option>
+					<option name="I">
+						<para>Asterisk will ignore any connected line update requests
+						it may receive on this dial attempt.</para>
 					</option>
 					<option name="n">
 						<para>Playback the unreachable status message if we've run out
 						of steps to reach the or the callee has elected not to be reachable.</para>
 					</option>
-					<option name="d">
-						<para>Disable the 'Please hold while we try to connect your call' announcement.</para>
+					<option name="s">
+						<para>Playback the incoming status message prior to starting
+						the follow-me step(s)</para>
 					</option>
 				</optionlist>
 			</parameter>
@@ -130,13 +134,23 @@ struct call_followme {
 };
 
 struct fm_args {
+	/*! Inbound (caller) channel */
 	struct ast_channel *chan;
 	char *mohclass;
 	AST_LIST_HEAD_NOLOCK(cnumbers, number) cnumbers;
+	/*! Winning outbound (callee) channel */
+	struct ast_channel *outbound;
+	/*! Accumulated connected line information from inbound call. */
+	struct ast_party_connected_line connected_in;
+	/*! Accumulated connected line information from outbound call. */
+	struct ast_party_connected_line connected_out;
+	/*! TRUE if connected line information from inbound call changed. */
+	int pending_in_connected_update:1;
+	/*! TRUE if connected line information from outbound call is available. */
+	int pending_out_connected_update:1;
 	int status;
 	char context[AST_MAX_CONTEXT];
 	char namerecloc[AST_MAX_CONTEXT];
-	struct ast_channel *outbound;
 	char takecall[20];		/*!< Digit mapping to take a call */
 	char nextindp[20];		/*!< Digit mapping to decline a call */
 	char callfromprompt[PATH_MAX];	/*!< Sound prompt name and path */
@@ -150,12 +164,17 @@ struct fm_args {
 
 struct findme_user {
 	struct ast_channel *ochan;
+	/*! Accumulated connected line information from outgoing call. */
+	struct ast_party_connected_line connected;
+	long digts;
+	int ynidx;
 	int state;
 	char dialarg[256];
 	char yn[10];
-	int ynidx; 
-	long digts;
-	int cleared;
+	/*! TRUE if call cleared. */
+	int cleared:1;
+	/*! TRUE if connected line information is available. */
+	int pending_connected_update:1;
 	AST_LIST_ENTRY(findme_user) entry;
 };
 
@@ -163,14 +182,16 @@ enum {
 	FOLLOWMEFLAG_STATUSMSG = (1 << 0),
 	FOLLOWMEFLAG_RECORDNAME = (1 << 1),
 	FOLLOWMEFLAG_UNREACHABLEMSG = (1 << 2),
-	FOLLOWMEFLAG_DISABLEHOLDPROMPT = (1 << 3)
+	FOLLOWMEFLAG_DISABLEHOLDPROMPT = (1 << 3),
+	FOLLOWMEFLAG_IGNORE_CONNECTEDLINE = (1 << 4),
 };
 
 AST_APP_OPTIONS(followme_opts, {
-	AST_APP_OPTION('s', FOLLOWMEFLAG_STATUSMSG ),
-	AST_APP_OPTION('a', FOLLOWMEFLAG_RECORDNAME ),
-	AST_APP_OPTION('n', FOLLOWMEFLAG_UNREACHABLEMSG ),
-	AST_APP_OPTION('d', FOLLOWMEFLAG_DISABLEHOLDPROMPT ),
+	AST_APP_OPTION('a', FOLLOWMEFLAG_RECORDNAME),
+	AST_APP_OPTION('d', FOLLOWMEFLAG_DISABLEHOLDPROMPT),
+	AST_APP_OPTION('I', FOLLOWMEFLAG_IGNORE_CONNECTEDLINE),
+	AST_APP_OPTION('n', FOLLOWMEFLAG_UNREACHABLEMSG),
+	AST_APP_OPTION('s', FOLLOWMEFLAG_STATUSMSG),
 });
 
 static int ynlongest = 0;
@@ -524,13 +545,15 @@ static void destroy_calling_tree(struct findme_user_listptr *findme_user_list)
 		if (!fmuser->cleared) {
 			clear_caller(fmuser);
 		}
+		ast_party_connected_line_free(&fmuser->connected);
 		ast_free(fmuser);
 	}
 	ast_free(findme_user_list);
 }
 
-static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_user_list, struct number *nm, struct ast_channel *caller, char *namerecloc, int *status, struct fm_args *tpargs) 
+static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_user_list, struct number *nm, struct ast_channel *caller, char *namerecloc, struct fm_args *tpargs)
 {
+	struct ast_party_connected_line connected;
 	struct ast_channel *watchers[256];
 	int pos;
 	struct ast_channel *winner;
@@ -656,12 +679,21 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 		}
 		if (winner) {
 			/* Need to find out which channel this is */
-			dg = 0;
-			while ((winner != watchers[dg]) && (dg < 256))
-				dg++;
-			AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry)
-				if (tmpuser->ochan == winner)
+			for (dg = 0; dg < ARRAY_LEN(watchers); ++dg) {
+				if (winner == watchers[dg]) {
 					break;
+				}
+			}
+			if (dg) {
+				/* The winner is an outgoing channel. */
+				AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry) {
+					if (tmpuser->ochan == winner) {
+						break;
+					}
+				}
+			} else {
+				tmpuser = NULL;
+			}
 			f = ast_read(winner);
 			if (f) {
 				if (f->frametype == AST_FRAME_CONTROL) {
@@ -715,32 +747,73 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_verb(3, "%s is ringing\n", winner->name);
 						break;
 					case AST_CONTROL_PROGRESS:
-						ast_verb(3, "%s is making progress passing it to %s\n", winner->name, caller->name);
+						ast_verb(3, "%s is making progress\n", winner->name);
 						break;
 					case AST_CONTROL_VIDUPDATE:
-						ast_verb(3, "%s requested a video update, passing it to %s\n", winner->name, caller->name);
+						ast_verb(3, "%s requested a video update\n", winner->name);
 						break;
 					case AST_CONTROL_SRCUPDATE:
-						ast_verb(3, "%s requested a source update, passing it to %s\n", winner->name, caller->name);
+						ast_verb(3, "%s requested a source update\n", winner->name);
 						break;
 					case AST_CONTROL_PROCEEDING:
-						ast_verb(3, "%s is proceeding passing it to %s\n", winner->name,caller->name);
+						ast_verb(3, "%s is proceeding\n", winner->name);
 						break;
 					case AST_CONTROL_HOLD:
-						ast_verb(3, "Call on %s placed on hold\n", winner->name);
+						ast_verb(3, "%s placed call on hold\n", winner->name);
 						break;
 					case AST_CONTROL_UNHOLD:
-						ast_verb(3, "Call on %s left from hold\n", winner->name);
+						ast_verb(3, "%s removed call from hold\n", winner->name);
 						break;
 					case AST_CONTROL_OFFHOOK:
 					case AST_CONTROL_FLASH:
 						/* Ignore going off hook and flash */
 						break;
+					case AST_CONTROL_CONNECTED_LINE:
+						if (!tmpuser) {
+							/*
+							 * Hold connected line update from caller until we have a
+							 * winner.
+							 */
+							ast_verb(3,
+								"%s connected line has changed. Saving it until we have a winner.\n",
+								winner->name);
+							ast_party_connected_line_set_init(&connected, &tpargs->connected_in);
+							if (!ast_connected_line_parse_data(f->data.ptr, f->datalen, &connected)) {
+								ast_party_connected_line_set(&tpargs->connected_in,
+									&connected, NULL);
+								tpargs->pending_in_connected_update = 1;
+							}
+							ast_party_connected_line_free(&connected);
+							break;
+						}
+						if (ast_test_flag(&tpargs->followmeflags, FOLLOWMEFLAG_IGNORE_CONNECTEDLINE)) {
+							ast_verb(3, "Connected line update from %s prevented.\n",
+								winner->name);
+						} else {
+							ast_verb(3,
+								"%s connected line has changed. Saving it until answer.\n",
+								winner->name);
+							ast_party_connected_line_set_init(&connected, &tmpuser->connected);
+							if (!ast_connected_line_parse_data(f->data.ptr, f->datalen, &connected)) {
+								ast_party_connected_line_set(&tmpuser->connected,
+									&connected, NULL);
+								tmpuser->pending_connected_update = 1;
+							}
+							ast_party_connected_line_free(&connected);
+						}
+						break;
+					case AST_CONTROL_REDIRECTING:
+						/*
+						 * Always ignore because the caller is already answered
+						 * and is likely listening to MOH.
+						 */
+						break;
 					case -1:
 						ast_verb(3, "%s stopped sounds\n", winner->name);
 						break;
 					default:
-						ast_debug(1, "Dunno what to do with control type %d\n", f->subclass.integer);
+						ast_debug(1, "Dunno what to do with control type %d from %s\n",
+							f->subclass.integer, winner->name);
 						break;
 					}
 				} 
@@ -761,36 +834,35 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						}
 						if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
 							ast_debug(1, "Next in dial plan step requested.\n");
-							*status = 1;
 							ast_frfree(f);
 							return NULL;
 						}
-
 					}
 				}
 
 				ast_frfree(f);
 			} else {
-				if (winner) {
-					ast_debug(1, "we didn't get a frame. hanging up. dg is %d\n",dg);					      
-					if (!dg) {
-						clear_calling_tree(findme_user_list);
+				ast_debug(1, "we didn't get a frame. hanging up. dg is %d\n", dg);
+				if (!dg) {
+					/* Caller hung up. */
+					clear_calling_tree(findme_user_list);
+					return NULL;
+				} else {
+					/* Outgoing channel hung up. */
+					tmpuser->state = -1;
+					tmpuser->ochan = NULL;
+					ast_hangup(winner);
+					--livechannels;
+					ast_debug(1, "live channels left %d\n", livechannels);
+					if (!livechannels) {
+						ast_verb(3, "no live channels left. exiting.\n");
 						return NULL;
-					} else {
-						tmpuser->state = -1;
-						ast_hangup(winner);  
-						livechannels--;
-						ast_debug(1, "live channels left %d\n", livechannels);
-						if (!livechannels) {
-							ast_verb(3, "no live channels left. exiting.\n");
-							return NULL;
-						}
 					}
 				}
 			}
-
-		} else
+		} else {
 			ast_debug(1, "timed out waiting for action\n");
+		}
 	}
 
 	/* --- WAIT FOR WINNER NUMBER END! -----------*/
@@ -810,7 +882,6 @@ static void findmeexec(struct fm_args *tpargs)
 	struct findme_user *tmpuser;
 	struct findme_user *fmuser;
 	struct findme_user_listptr *findme_user_list;
-	int status;
 
 	findme_user_list = ast_calloc(1, sizeof(*findme_user_list));
 	AST_LIST_HEAD_INIT_NOLOCK(findme_user_list);
@@ -825,7 +896,7 @@ static void findmeexec(struct fm_args *tpargs)
 	}
 
 	caller = tpargs->chan;
-	for (idx = 1; !winner && !ast_check_hangup(caller); ++idx) {
+	for (idx = 1; !ast_check_hangup(caller); ++idx) {
 		/* Find next followme numbers to dial. */
 		AST_LIST_TRAVERSE(&tpargs->cnumbers, nm, entry) {
 			if (nm->order == idx) {
@@ -916,16 +987,29 @@ static void findmeexec(struct fm_args *tpargs)
 			continue;
 		}
 
-		status = 0;
-		winner = wait_for_winner(findme_user_list, nm, caller, tpargs->namerecloc, &status, tpargs);
-
-		/* Clean up all calls but winner. */
-		while ((fmuser = AST_LIST_REMOVE_HEAD(findme_user_list, entry))) {
-			if (!fmuser->cleared && fmuser->ochan != winner) {
-				clear_caller(fmuser);
-			}
-			ast_free(fmuser);
+		winner = wait_for_winner(findme_user_list, nm, caller, tpargs->namerecloc, tpargs);
+		if (!winner) {
+			continue;
 		}
+
+		/* Destroy losing calls up to the winner.  The rest will be destroyed later. */
+		while ((fmuser = AST_LIST_REMOVE_HEAD(findme_user_list, entry))) {
+			if (fmuser->ochan == winner) {
+				/* Pass any connected line info up. */
+				tpargs->connected_out = fmuser->connected;
+				tpargs->pending_out_connected_update = fmuser->pending_connected_update;
+				ast_free(fmuser);
+				break;
+			} else {
+				/* Destroy losing call. */
+				if (!fmuser->cleared) {
+					clear_caller(fmuser);
+				}
+				ast_party_connected_line_free(&fmuser->connected);
+				ast_free(fmuser);
+			}
+		}
+		break;
 	}
 	destroy_calling_tree(findme_user_list);
 	if (!winner) {
@@ -1147,6 +1231,9 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	targs.status = 0;
 	targs.chan = chan;
 	ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
+	ast_channel_lock(chan);
+	ast_connected_line_copy_from_caller(&targs.connected_in, &chan->caller);
+	ast_channel_unlock(chan);
 
 	findmeexec(&targs);
 
@@ -1184,12 +1271,28 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			ast_hangup(outbound);
 			goto outrun;
 		}
+
+		/* Update connected line to caller if available. */
+		if (targs.pending_out_connected_update) {
+			if (ast_channel_connected_line_macro(outbound, caller, &targs.connected_out, 1, 0)) {
+				ast_channel_update_connected_line(caller, &targs.connected_out, NULL);
+			}
+		}
+
+		/* Update connected line to winner if changed. */
+		if (targs.pending_in_connected_update) {
+			if (ast_channel_connected_line_macro(caller, outbound, &targs.connected_in, 0, 0)) {
+				ast_channel_update_connected_line(outbound, &targs.connected_in, NULL);
+			}
+		}
+
 		res = ast_bridge_call(caller, outbound, &config);
 		ast_hangup(outbound);
 	}
 
 outrun:
-
+	ast_party_connected_line_free(&targs.connected_in);
+	ast_party_connected_line_free(&targs.connected_out);
 	if (f->realtime) {
 		/* Not in list */
 		free_numbers(f);

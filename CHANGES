@@ -9,6 +9,17 @@
 ======================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 1.8.9.0 -----------------------------
+------------------------------------------------------------------------------
+
+Followme changes
+-------------
+ * A new option, 'I' has been added to app_followme.
+   By setting this option, Asterisk will not update the caller with
+   connected line changes when they occur.  This is similar to app_dial
+   and app_queue.
+
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 1.8.7.1 -----------------------------
 ------------------------------------------------------------------------------
 
