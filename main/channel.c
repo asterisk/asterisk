@@ -1420,7 +1420,7 @@ struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
 static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
-	const char *name = (flags & OBJ_KEY) ? arg : ast_channel_name((struct ast_channel *)arg);
+	const char *name = arg;
 	size_t name_len = *(size_t *)data;
 	int ret = CMP_MATCH;
 
@@ -1430,7 +1430,8 @@ static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
 	}
 
 	ast_channel_lock(chan);
-	if (!name_len && (strcasecmp(ast_channel_name(chan), name) || (name_len && strncasecmp(ast_channel_name(chan), name, name_len)))) {
+
+	if ((!name_len && strcasecmp(ast_channel_name(chan), name)) || (name_len && strncasecmp(ast_channel_name(chan), name, name_len))) {
 		ret = 0; /* name match failed, keep looking */
 	}
 	ast_channel_unlock(chan);
@@ -1473,8 +1474,8 @@ static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flag
 	}
 
 	ast_channel_lock(chan);
-	if (!name_len && (strcasecmp(chan->uniqueid, uniqueid) ||
-			(name_len && strncasecmp(chan->uniqueid, uniqueid, name_len)))) {
+	if ((!name_len && strcasecmp(chan->uniqueid, uniqueid)) ||
+			(name_len && strncasecmp(chan->uniqueid, uniqueid, name_len))) {
 		ret = 0;
 	}
 	ast_channel_unlock(chan);
