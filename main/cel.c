@@ -462,7 +462,9 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	ast_string_field_set(tchan, peeraccount, record.peer_account);
 	ast_string_field_set(tchan, userfield, record.user_field);
 
-	pbx_builtin_setvar_helper(tchan, "BRIDGEPEER", record.peer);
+	if ((newvariable = ast_var_assign("BRIDGEPEER", record.peer))) {
+		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+	}
 
 	tchan->appl = ast_strdup(record.application_name);
 	tchan->data = ast_strdup(record.application_data);
