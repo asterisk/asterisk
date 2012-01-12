@@ -4018,7 +4018,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 		 * present. */
 		ast_clear_flag(bridge_cdr, AST_CDR_FLAG_DIALED);
 	}
-	ast_cel_report_event(chan, AST_CEL_BRIDGE_START, NULL, NULL, NULL);
+	ast_cel_report_event(chan, AST_CEL_BRIDGE_START, NULL, NULL, peer);
 
 	/* If we are bridging a call, stop worrying about forwarding loops. We presume that if
 	 * a call is being bridged, that the humans in charge know what they're doing. If they
@@ -4260,7 +4260,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 		if (f)
 			ast_frfree(f);
 	}
-	ast_cel_report_event(chan, AST_CEL_BRIDGE_END, NULL, NULL, NULL);
+	ast_cel_report_event(chan, AST_CEL_BRIDGE_END, NULL, NULL, peer);
 
 before_you_go:
 	/* Just in case something weird happened and we didn't clean up the silence generator... */
