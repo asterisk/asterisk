@@ -19,32 +19,32 @@
 ; table names, you will get duplicate records in that table.  So be careful.
 ;
 ; CEL FIELDS:
-;  	eventtype
-;	  CEL_CHANNEL_START = 1
-;	  CEL_CHANNEL_END = 2
-;	  CEL_HANGUP = 3
-;	  CEL_ANSWER = 4
-;	  CEL_APP_START = 5
-;	  CEL_APP_END = 6
-;	  CEL_BRIDGE_START = 7
-;	  CEL_BRIDGE_END = 8
-;	  CEL_CONF_START = 9
-;	  CEL_CONF_END = 10
-;	  CEL_PARK_START = 11
-;	  CEL_PARK_END = 12
-;	  CEL_BLINDTRANSFER = 13
-;	  CEL_ATTENDEDTRANSFER = 14
-;	  CEL_TRANSFER = 15
-;	  CEL_HOOKFLASH = 16
-;	  CEL_3WAY_START = 17
-;	  CEL_3WAY_END = 18
-;	  CEL_CONF_ENTER = 19
-;	  CEL_CONF_EXIT = 20
-;	  CEL_USER_DEFINED = 21
-;	  CEL_LINKEDID_END = 22
-;	  CEL_BRIDGE_UPDATE = 23
-;	  CEL_PICKUP = 24
-;	  CEL_FORWARD = 25
+;	eventtype
+;	  CHANNEL_START = 1
+;	  CHANNEL_END = 2
+;	  HANGUP = 3
+;	  ANSWER = 4
+;	  APP_START = 5
+;	  APP_END = 6
+;	  BRIDGE_START = 7
+;	  BRIDGE_END = 8
+;	  CONF_START = 9
+;	  CONF_END = 10
+;	  PARK_START = 11
+;	  PARK_END = 12
+;	  BLINDTRANSFER = 13
+;	  ATTENDEDTRANSFER = 14
+;	  TRANSFER = 15
+;	  HOOKFLASH = 16
+;	  3WAY_START = 17
+;	  3WAY_END = 18
+;	  CONF_ENTER = 19
+;	  CONF_EXIT = 20
+;	  USER_DEFINED = 21
+;	  LINKEDID_END = 22
+;	  BRIDGE_UPDATE = 23
+;	  PICKUP = 24
+;	  FORWARD = 25
 ;	eventtime  (timeval, includes microseconds)
 ;	userdeftype (set only if eventtype == USER_DEFINED)
 ;	cid_name
