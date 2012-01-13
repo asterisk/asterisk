@@ -22,10 +22,13 @@
 ; details from the CEL event.  There are also a few variables created by this
 ; module that can be used in a mapping:
 ;
-;    eventtype  - The name of the CEL event.
-;    eventtime  - The timestamp of the CEL event.
-;    eventextra - Extra data included with this CEL event, typically along with
-;                 an event of type USER_DEFINED from CELGenUserEvent().
+;    eventtype   - The name of the CEL event.
+;    eventtime   - The timestamp of the CEL event.
+;    userdeftype - User defined event type name from CELGenUserEvent().
+;    eventextra  - Extra data included with this CEL event, typically along with
+;                  an event of type USER_DEFINED from CELGenUserEvent().
+;    BRIDGEPEER  - Bridged peer channel name at the time of the CEL event.
+;                  CHANNEL(peer) could also be used.
 ;
 [mappings]
-;Master.csv => ${CSV_QUOTE(${eventtype})},${CSV_QUOTE(${eventtime})},${CSV_QUOTE(${CALLERID(name)})},${CSV_QUOTE(${CALLERID(num)})},${CSV_QUOTE(${CALLERID(ANI)})},${CSV_QUOTE(${CALLERID(RDNIS)})},${CSV_QUOTE(${CALLERID(DNID)})},${CSV_QUOTE(${CHANNEL(exten)})},${CSV_QUOTE(${CHANNEL(context)})},${CSV_QUOTE(${CHANNEL(channame)})},${CSV_QUOTE(${CHANNEL(appname)})},${CSV_QUOTE(${CHANNEL(appdata)})},${CSV_QUOTE(${CHANNEL(amaflags)})},${CSV_QUOTE(${CHANNEL(accountcode)})},${CSV_QUOTE(${CHANNEL(uniqueid)})},${CSV_QUOTE(${CHANNEL(linkedid)})},${CSV_QUOTE(${CHANNEL(peer)})},${CSV_QUOTE(${CHANNEL(userfield)})},${CSV_QUOTE(${eventextra})}
+;Master.csv => ${CSV_QUOTE(${eventtype})},${CSV_QUOTE(${eventtime})},${CSV_QUOTE(${CALLERID(name)})},${CSV_QUOTE(${CALLERID(num)})},${CSV_QUOTE(${CALLERID(ANI)})},${CSV_QUOTE(${CALLERID(RDNIS)})},${CSV_QUOTE(${CALLERID(DNID)})},${CSV_QUOTE(${CHANNEL(exten)})},${CSV_QUOTE(${CHANNEL(context)})},${CSV_QUOTE(${CHANNEL(channame)})},${CSV_QUOTE(${CHANNEL(appname)})},${CSV_QUOTE(${CHANNEL(appdata)})},${CSV_QUOTE(${CHANNEL(amaflags)})},${CSV_QUOTE(${CHANNEL(accountcode)})},${CSV_QUOTE(${CHANNEL(uniqueid)})},${CSV_QUOTE(${CHANNEL(linkedid)})},${CSV_QUOTE(${BRIDGEPEER})},${CSV_QUOTE(${CHANNEL(userfield)})},${CSV_QUOTE(${userdeftype})},${CSV_QUOTE(${eventextra})}

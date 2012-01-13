@@ -61,11 +61,11 @@ static void manager_log(const struct ast_event *event, void *userdata)
 		.version = AST_CEL_EVENT_RECORD_VERSION,
 	};
 
-	if (ast_cel_fill_record(event, &record)) {
+	if (!enablecel) {
 		return;
 	}
 
-	if (!enablecel) {
+	if (ast_cel_fill_record(event, &record)) {
 		return;
 	}
 
@@ -90,13 +90,29 @@ static void manager_log(const struct ast_event *event, void *userdata)
 		"UniqueID: %s\r\n"
 		"LinkedID: %s\r\n"
 		"Userfield: %s\r\n"
-		"Peer: %s\r\n",
-		record.event_name, record.account_code, record.caller_id_num,
-		record.caller_id_name, record.caller_id_ani, record.caller_id_rdnis,
-		record.caller_id_dnid, record.extension, record.context, record.channel_name,
-		record.application_name, record.application_data, start_time,
-		ast_cel_get_ama_flag_name(record.amaflag), record.unique_id, record.linked_id,
-		record.user_field, record.peer);
+		"Peer: %s\r\n"
+		"PeerAccount: %s\r\n"
+		"Extra: %s\r\n",
+		record.event_name,
+		record.account_code,
+		record.caller_id_num,
+		record.caller_id_name,
+		record.caller_id_ani,
+		record.caller_id_rdnis,
+		record.caller_id_dnid,
+		record.extension,
+		record.context,
+		record.channel_name,
+		record.application_name,
+		record.application_data,
+		start_time,
+		ast_cel_get_ama_flag_name(record.amaflag),
+		record.unique_id,
+		record.linked_id,
+		record.user_field,
+		record.peer,
+		record.peer_account,
+		record.extra);
 }
 
 static int load_config(int reload)

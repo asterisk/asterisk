@@ -438,6 +438,8 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					ast_copy_string(colbuf, record.peer, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "amaflags") == 0) {
 					snprintf(colbuf, sizeof(colbuf), "%d", record.amaflag);
+				} else if (strcmp(entry->celname, "extra") == 0) {
+					ast_copy_string(colbuf, record.extra, sizeof(colbuf));
 				} else {
 					colbuf[0] = 0;
 				}
