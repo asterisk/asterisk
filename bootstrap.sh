@@ -17,6 +17,10 @@ case `uname -sr` in
 		MY_AC_VER=259
 		MY_AM_VER=19
 		;;
+	OpenBSD*)
+		export AUTOCONF_VERSION=2.63
+		export AUTOMAKE_VERSION=1.9
+		;;
 	*'BSD'*)
 		MY_AC_VER=-2.62
 		MY_AM_VER=-1.9
