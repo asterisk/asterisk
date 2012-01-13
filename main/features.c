@@ -3290,7 +3290,7 @@ static int feature_check(struct ast_channel *chan, struct ast_flags *features, c
 	return feature_interpret_helper(chan, NULL, NULL, code, 0, chan_dynamic_features, features, FEATURE_INTERPRET_CHECK, NULL);
 }
 
-static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config)
+static void set_config_flags(struct ast_channel *chan, struct ast_bridge_config *config)
 {
 	int x;
 
@@ -3309,7 +3309,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 	}
 	ast_rwlock_unlock(&features_lock);
 
-	if (chan && peer && !(ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_0) && ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_1))) {
+	if (!(ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_0) && ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_1))) {
 		const char *dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
 
 		if (dynamic_features) {
@@ -3689,19 +3689,21 @@ void ast_channel_log(char *title, struct ast_channel *chan);
 
 void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this is handy enough to justify keeping it in the source */
 {
-       ast_log(LOG_NOTICE, "______ %s (%lx)______\n", title, (unsigned long)chan);
-       ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
-		       ast_channel_name(chan), chan->appl, chan->data, chan->context, chan->exten, chan->priority);
-       ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
-		       chan->accountcode, chan->dialcontext, chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
-       ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
-		       chan->masq, chan->masqr,
-		       chan->_bridge, chan->uniqueid, chan->linkedid);
-       if (chan->masqr)
-	       ast_log(LOG_NOTICE, "CHAN: masquerading as: %s;  cdr: %p;\n",
-		               ast_channel_name(chan->masqr), chan->masqr->cdr);
-       if (chan->_bridge)
-	       ast_log(LOG_NOTICE, "CHAN: Bridged to %s\n", ast_channel_name(chan->_bridge));
+	ast_log(LOG_NOTICE, "______ %s (%lx)______\n", title, (unsigned long) chan);
+	ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
+		ast_channel_name(chan), chan->appl, chan->data, chan->context, chan->exten, chan->priority);
+	ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
+		chan->accountcode, chan->dialcontext, chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
+	ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
+		chan->masq, chan->masqr,
+		chan->_bridge, chan->uniqueid, chan->linkedid);
+	if (chan->masqr) {
+		ast_log(LOG_NOTICE, "CHAN: masquerading as: %s;  cdr: %p;\n",
+			ast_channel_name(chan->masqr), chan->masqr->cdr);
+	}
+	if (chan->_bridge) {
+		ast_log(LOG_NOTICE, "CHAN: Bridged to %s\n", ast_channel_name(chan->_bridge));
+	}
 
 	ast_log(LOG_NOTICE, "===== done ====\n");
 }
@@ -3864,12 +3866,8 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 	struct ast_silence_generator *silgen = NULL;
 	const char *h_context;
 
-	if (chan && peer) {
-		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", ast_channel_name(peer));
-		pbx_builtin_setvar_helper(peer, "BRIDGEPEER", ast_channel_name(chan));
-	} else if (chan) {
-		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
-	}
+	pbx_builtin_setvar_helper(chan, "BRIDGEPEER", ast_channel_name(peer));
+	pbx_builtin_setvar_helper(peer, "BRIDGEPEER", ast_channel_name(chan));
 
 	set_bridge_features_on_config(config, pbx_builtin_getvar_helper(chan, "BRIDGE_FEATURES"));
 	add_features_datastores(chan, peer, config);
@@ -3898,7 +3896,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 		}
 	}
 
-	set_config_flags(chan, peer, config);
+	set_config_flags(chan, config);
 
 	/* Answer if need be */
 	if (chan->_state != AST_STATE_UP) {
