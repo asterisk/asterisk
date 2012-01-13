@@ -874,7 +874,9 @@ static void destroy_conference_bridge(void *obj)
 
 	if (conference_bridge->playback_chan) {
 		struct ast_channel *underlying_channel = conference_bridge->playback_chan->tech->bridged_channel(conference_bridge->playback_chan, NULL);
-		ast_hangup(underlying_channel);
+		if (underlying_channel) {
+			ast_hangup(underlying_channel);
+		}
 		ast_hangup(conference_bridge->playback_chan);
 		conference_bridge->playback_chan = NULL;
 	}
@@ -1155,7 +1157,7 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 	} else {
 		/* Channel was already available so we just need to add it back into the bridge */
 		underlying_channel = conference_bridge->playback_chan->tech->bridged_channel(conference_bridge->playback_chan, NULL);
-		ast_bridge_impart(conference_bridge->bridge, underlying_channel, NULL, NULL);
+		ast_bridge_impart(conference_bridge->bridge, underlying_channel, NULL, NULL, 0);
 	}
 
 	/* The channel is all under our control, in goes the prompt */

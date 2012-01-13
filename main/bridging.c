@@ -1121,7 +1121,7 @@ static void *bridge_channel_thread(void *data)
 	state = bridge_channel_join(bridge_channel);
 
 	/* If no other thread is going to take the channel then hang it up, or else we would have to service it until something else came along */
-	if (state == AST_BRIDGE_CHANNEL_STATE_END || state == AST_BRIDGE_CHANNEL_STATE_HANGUP) {
+	if (bridge_channel->allow_impart_hangup && (state == AST_BRIDGE_CHANNEL_STATE_END || state == AST_BRIDGE_CHANNEL_STATE_HANGUP)) {
 		ast_hangup(bridge_channel->chan);
 	}
 
@@ -1137,7 +1137,7 @@ static void *bridge_channel_thread(void *data)
 	return NULL;
 }
 
-int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features)
+int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int allow_hangup)
 {
 	struct ast_bridge_channel *bridge_channel = bridge_channel_alloc(bridge);
 	/* Try to allocate a structure for the bridge channel */
@@ -1149,6 +1149,8 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
 	bridge_channel->chan = chan;
 	bridge_channel->swap = swap;
 	bridge_channel->features = features;
+	bridge_channel->allow_impart_hangup = allow_hangup;
+
 
 	/* Actually create the thread that will handle the channel */
 	if (ast_pthread_create(&bridge_channel->thread, NULL, bridge_channel_thread, bridge_channel)) {

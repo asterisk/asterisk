@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
 #include "asterisk/bridging.h"
+#include "asterisk/astobj2.h"
 
 static struct ast_channel *bridge_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 static int bridge_call(struct ast_channel *ast, char *dest, int timeout);
@@ -71,7 +72,6 @@ static struct ast_channel_tech bridge_tech = {
 };
 
 struct bridge_pvt {
-	ast_mutex_t lock;           /*!< Lock that protects this structure */
 	struct ast_channel *input;  /*!< Input channel - talking to source */
 	struct ast_channel *output; /*!< Output channel - talking to bridge */
 };
@@ -93,27 +93,24 @@ static struct ast_frame  *bridge_read(struct ast_channel *ast)
 static int bridge_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct bridge_pvt *p = ast->tech_pvt;
-	struct ast_channel *other;
+	struct ast_channel *other = NULL;
 
-	ast_mutex_lock(&p->lock);
-
-	other = (p->input == ast ? p->output : p->input);
-
-	while (other && ast_channel_trylock(other)) {
-		ast_mutex_unlock(&p->lock);
-		do {
-			CHANNEL_DEADLOCK_AVOIDANCE(ast);
-		} while (ast_mutex_trylock(&p->lock));
-		other = (p->input == ast ? p->output : p->input);
+	ao2_lock(p);
+	/* only write frames to output. */
+	if (p->input == ast) {
+		other = p->output;
+		if (other) {
+			ast_channel_ref(other);
+		}
 	}
+	ao2_unlock(p);
 
-	/* We basically queue the frame up on the other channel if present */
 	if (other) {
+		ast_channel_unlock(ast);
 		ast_queue_frame(other, f);
-		ast_channel_unlock(other);
+		ast_channel_lock(ast);
+		other = ast_channel_unref(other);
 	}
-
-	ast_mutex_unlock(&p->lock);
 
 	return 0;
 }
@@ -129,31 +126,9 @@ static int bridge_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	/* Impart the output channel upon the given bridge of the input channel */
-	ast_bridge_impart(p->input->bridge, p->output, NULL, NULL);
+	ast_bridge_impart(p->input->bridge, p->output, NULL, NULL, 0);
 
 	return 0;
-}
-
-/*! \brief Helper function to not deadlock when queueing the hangup frame */
-static void bridge_queue_hangup(struct bridge_pvt *p, struct ast_channel *us)
-{
-	struct ast_channel *other = (p->input == us ? p->output : p->input);
-
-	while (other && ast_channel_trylock(other)) {
-		ast_mutex_unlock(&p->lock);
-		do {
-			CHANNEL_DEADLOCK_AVOIDANCE(us);
-		} while (ast_mutex_trylock(&p->lock));
-		other = (p->input == us ? p->output : p->input);
-	}
-
-	/* We basically queue the frame up on the other channel if present */
-	if (other) {
-		ast_queue_hangup(other);
-		ast_channel_unlock(other);
-	}
-
-	return;
 }
 
 /*! \brief Called when a channel should be hung up */
@@ -161,32 +136,20 @@ static int bridge_hangup(struct ast_channel *ast)
 {
 	struct bridge_pvt *p = ast->tech_pvt;
 
-	ast_mutex_lock(&p->lock);
+	if (!p) {
+		return 0;
+	}
 
-	/* Figure out which channel this is... and set it to NULL as it has gone, but also queue up a hangup frame. */
+	ao2_lock(p);
 	if (p->input == ast) {
-		if (p->output) {
-			bridge_queue_hangup(p, ast);
-		}
 		p->input = NULL;
 	} else if (p->output == ast) {
-		if (p->input) {
-			bridge_queue_hangup(p, ast);
-		}
 		p->output = NULL;
 	}
+	ao2_unlock(p);
 
-	/* Deal with the Asterisk portion of it */
 	ast->tech_pvt = NULL;
-
-	/* If both sides have been terminated free the structure and be done with things */
-	if (!p->input && !p->output) {
-		ast_mutex_unlock(&p->lock);
-		ast_mutex_destroy(&p->lock);
-		ast_free(p);
-	} else {
-		ast_mutex_unlock(&p->lock);
-	}
+	ao2_ref(p, -1);
 
 	return 0;
 }
@@ -198,26 +161,25 @@ static struct ast_channel *bridge_request(const char *type, struct ast_format_ca
 	struct ast_format slin;
 
 	/* Try to allocate memory for our very minimal pvt structure */
-	if (!(p = ast_calloc(1, sizeof(*p)))) {
+	if (!(p = ao2_alloc(sizeof(*p), NULL))) {
 		return NULL;
 	}
 
 	/* Try to grab two Asterisk channels to use as input and output channels */
 	if (!(p->input = ast_channel_alloc(1, AST_STATE_UP, 0, 0, "", "", "", requestor ? requestor->linkedid : NULL, 0, "Bridge/%p-input", p))) {
-		ast_free(p);
+		ao2_ref(p, -1);
 		return NULL;
 	}
 	if (!(p->output = ast_channel_alloc(1, AST_STATE_UP, 0, 0, "", "", "", requestor ? requestor->linkedid : NULL, 0, "Bridge/%p-output", p))) {
 		p->input = ast_channel_release(p->input);
-		ast_free(p);
+		ao2_ref(p, -1);
 		return NULL;
 	}
 
-	/* Setup the lock on the pvt structure, we will need that */
-	ast_mutex_init(&p->lock);
-
 	/* Setup parameters on both new channels */
 	p->input->tech = p->output->tech = &bridge_tech;
+
+	ao2_ref(p, 2);
 	p->input->tech_pvt = p->output->tech_pvt = p;
 
 	ast_format_set(&slin, AST_FORMAT_SLINEAR, 0);
@@ -236,6 +198,8 @@ static struct ast_channel *bridge_request(const char *type, struct ast_format_ca
 	ast_answer(p->output);
 	ast_answer(p->input);
 
+	/* remove the reference from the alloc. The channels now own the pvt. */
+	ao2_ref(p, -1);
 	return p->input;
 }
 

@@ -156,6 +156,8 @@ struct ast_bridge_channel {
 	int fds[4];
 	/*! Bit to indicate whether the channel is suspended from the bridge or not */
 	unsigned int suspended:1;
+	/*! Bit to indicate if a imparted channel is allowed to get hungup after leaving the bridge by the bridging core. */
+	unsigned int allow_impart_hangup:1;
 	/*! Features structure for features that are specific to this channel */
 	struct ast_bridge_features *features;
 	/*! Technology optimization parameters used by bridging technologies capable of
@@ -339,6 +341,7 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
  * \param chan Channel to impart
  * \param swap Channel to swap out if swapping
  * \param features Bridge features structure
+ * \param allow_hangup  Indicates if the bridge thread should manage hanging up of the channel or not.
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -346,7 +349,7 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
  * Example usage:
  *
  * \code
- * ast_bridge_impart(bridge, chan, NULL, NULL);
+ * ast_bridge_impart(bridge, chan, NULL, NULL, 0);
  * \endcode
  *
  * This adds a channel pointed to by the chan pointer to the bridge pointed to by
@@ -360,7 +363,7 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
  * If channel specific features are enabled a pointer to the features structure
  * can be specified in the features parameter.
  */
-int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features);
+int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int allow_hangup);
 
 /*! \brief Depart a channel from a bridge
  *
