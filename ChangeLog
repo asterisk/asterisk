@@ -1,3 +1,18 @@
+2012-01-13  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.9.0-rc2 Released.
+
+	* Test results:
+	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1890RCS-3
+
+	* apps/app_queue.c: Realtime queues failed to load queue
+	  information without queue member table.  Revision 342223 
+	  broke this when it changed the return value for 
+	  realtime_multientry to return NULL when no results are
+	  returned.  (closes issue ASTERISK-19170) Reported by: Rene
+	  Mendoza Tested by: Rene Mendoza
+
+
 2011-12-30  Asterisk Development Team <asteriskteam@digium.com>
 
         * Asterisk 1.8.9.0-rc1 Released.
