@@ -540,7 +540,8 @@ AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_CHECK_MEMBERS([struct stat.st_blksize])
-AC_CHECK_MEMBERS([struct ucred.uid, struct ucred.cr_uid], [], [], [#include <sys/socket.h>])
+AC_CHECK_MEMBERS([struct ucred.uid, struct ucred.cr_uid, struct sockpeercred.uid], [], [], [#include <sys/types.h>
+#include <sys/socket.h> ])
 AC_CHECK_MEMBERS([struct ifreq.ifr_ifru.ifru_hwaddr], [], [], [#include <net/if.h>])
 AC_HEADER_TIME
 AC_STRUCT_TM
