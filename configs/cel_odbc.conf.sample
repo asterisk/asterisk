@@ -47,7 +47,6 @@
 ;	  CEL_FORWARD = 25
 ;	eventtime  (timeval, includes microseconds)
 ;	userdeftype (set only if eventtype == USER_DEFINED)
-;	eventextra
 ;	cid_name
 ;	cid_num
 ;	cid_ani
@@ -65,6 +64,7 @@
 ;	amaflags  (an int)
 ;	userfield
 ;	peer
+;	extra
 
 ; The point of this module is to allow you log whatever you like in terms of the
 ; CEL variables.  Do you want to log uniqueid?  Then simply ensure that your

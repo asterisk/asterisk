@@ -34,7 +34,6 @@
 ;	  CEL_FORWARD = 25
 ;	eventtime  (timeval, includes microseconds)
 ;	userdeftype (set only if eventtype == USER_DEFINED)
-;	eventextra
 ;	cid_name
 ;	cid_num
 ;	cid_ani
@@ -52,6 +51,7 @@
 ;	amaflags  (an int)
 ;	userfield
 ;	peer
+;	extra
 
 
 [global]

@@ -92,7 +92,7 @@ static void manager_log(const struct ast_event *event, void *userdata)
 		"Userfield: %s\r\n"
 		"Peer: %s\r\n"
 		"PeerAccount: %s\r\n"
-		"EventExtra: %s\r\n",
+		"Extra: %s\r\n",
 		record.event_name,
 		record.account_code,
 		record.caller_id_num,
