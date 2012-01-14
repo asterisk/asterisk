@@ -15662,7 +15662,7 @@ main ()
 	struct rlimit rlim = { FD_SETSIZE * 2, FD_SETSIZE * 2 };
 	int fd0, fd1;
 	struct timeval tv = { 0, };
-	struct ast_fdset { long fds_bits[1024]; } fds = { { 0, } };
+	struct ast_fdset { long fds_bits[[1024]]; } fds = { { 0, } };
 	if (setrlimit(RLIMIT_NOFILE, &rlim)) { exit(1); }
 	if ((fd0 = open("/dev/null", O_RDONLY)) < 0) { exit(1); }
 	if (dup2(fd0, (fd1 = FD_SETSIZE + 1)) < 0) { exit(1); }
