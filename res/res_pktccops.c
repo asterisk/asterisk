@@ -1029,7 +1029,7 @@ static int load_pktccops_config(void)
 	struct cops_cmts *cmts;
 	struct cops_ippool *new_ippool;
 	const char *host, *cat, *port;
-	int sfd, update;
+	int update;
 	int res = 0;
 	uint16_t t1_temp, t7_temp, t8_temp;
 	uint32_t keepalive_temp;
@@ -1063,7 +1063,6 @@ static int load_pktccops_config(void)
 			/* Defaults */
 			host = NULL;
 			port = NULL;
-			sfd = 0;
 			t1_temp = t1;
 			t7_temp = t7;
 			t8_temp = t8;
@@ -1333,7 +1332,6 @@ static char *pktccops_gateset(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	unsigned int an,bn,cn,dn;
 	uint32_t mta, ssip;
 	struct cops_cmts *cmts;
-	struct cops_gate *gate;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1380,7 +1378,7 @@ static char *pktccops_gateset(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	ssip = an << 24 | bn << 16 | cn << 8 | dn;
 
-	gate = cops_gate_cmd(GATE_SET, cmts, trid, mta, atoi(a->argv[4]), atof(a->argv[5]), atoi(a->argv[6]), ssip, atoi(a->argv[8]), NULL);
+	cops_gate_cmd(GATE_SET, cmts, trid, mta, atoi(a->argv[4]), atof(a->argv[5]), atoi(a->argv[6]), ssip, atoi(a->argv[8]), NULL);
 	return CLI_SUCCESS;
 }
 
