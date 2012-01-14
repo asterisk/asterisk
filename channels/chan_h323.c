@@ -3234,6 +3234,7 @@ static enum ast_rtp_glue_result oh323_get_rtp_peer(struct ast_channel *chan, str
 	return res;
 }
 
+#if 0
 static char *convertcap(struct ast_format *format)
 {
 	switch (format->id) {
@@ -3260,6 +3261,7 @@ static char *convertcap(struct ast_format *format)
 		return NULL;
 	}
 }
+#endif
 
 static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, const struct ast_format_cap *codecs, int nat_active)
 {
@@ -3267,13 +3269,18 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance 
 	struct oh323_pvt *pvt;
 	struct sockaddr_in them = { 0, };
 	struct sockaddr_in us = { 0, };
+#if 0	/* Native bridge still isn't ready */
 	char *mode;
+#endif
 
 	if (!rtp) {
 		return 0;
 	}
 
+#if 0	/* Native bridge still isn't ready */
 	mode = convertcap(&chan->writeformat);
+#endif
+
 	pvt = (struct oh323_pvt *) chan->tech_pvt;
 	if (!pvt) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
