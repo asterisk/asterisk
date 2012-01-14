@@ -143,7 +143,7 @@ AC_DEFUN([AST_LIBCURL_CHECK_CONFIG],
            _libcurl_save_libs=$LIBS
            LIBS="$CURL_LIB $LIBS"
 
-           AC_LINK_IFELSE(AC_LANG_PROGRAM([#include <curl/curl.h>],[
+           AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <curl/curl.h>],[
 /* Try and use a few common options to force a failure if we are
    missing symbols or can't link. */
 int x;
@@ -154,7 +154,7 @@ x=CURLOPT_FILE;
 x=CURLOPT_ERRORBUFFER;
 x=CURLOPT_STDERR;
 x=CURLOPT_VERBOSE;
-]),libcurl_cv_lib_curl_usable=yes,libcurl_cv_lib_curl_usable=no)
+])],libcurl_cv_lib_curl_usable=yes,libcurl_cv_lib_curl_usable=no)
 
            CPPFLAGS=$_libcurl_save_cppflags
            LIBS=$_libcurl_save_libs

@@ -587,8 +587,8 @@ fi
 
 AC_MSG_CHECKING(for LLONG_MAX in limits.h)
 AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([#include <limits.h>],
-		[long long foo = LLONG_MAX]),
+	[AC_LANG_PROGRAM([#include <limits.h>],
+		[long long foo = LLONG_MAX])],
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([HAVE_LLONG_MAX], 1, [Define to 1 if limits.h includes a LLONG_MAX definition.]),
 	AC_MSG_RESULT(no)
@@ -596,8 +596,8 @@ AC_LINK_IFELSE(
 
 AC_MSG_CHECKING(for timersub in time.h)
 AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([#include <sys/time.h>],
-		[struct timeval *a; timersub(a, a, a);]),
+	[AC_LANG_PROGRAM([#include <sys/time.h>],
+		[struct timeval *a; timersub(a, a, a);])],
 	AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_TIMERSUB], 1, [Define to 1 if your system defines timersub.]),
 	AC_MSG_RESULT(no)
@@ -613,7 +613,7 @@ _ACEOF
 LDFLAGS="${LDFLAGS} -Wl,--dynamic-list,conftest.dynamics"
 PBX_DYNAMIC_LIST=0
 AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([], []),
+	[AC_LANG_PROGRAM([], [])],
 	PBX_DYNAMIC_LIST=1
 	AC_MSG_RESULT(yes),
 	AC_MSG_RESULT(no)
@@ -648,8 +648,8 @@ AC_CHECK_FUNCS([inet_aton])
 # check if we have IP_PKTINFO constant defined
 AC_MSG_CHECKING(for IP_PKTINFO)
 AC_LINK_IFELSE(
-		AC_LANG_PROGRAM([#include <netinet/in.h>],
-						[int pi = IP_PKTINFO;]),
+		[AC_LANG_PROGRAM([#include <netinet/in.h>],
+						[int pi = IP_PKTINFO;])],
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_PKTINFO], 1, [Define to 1 if your system defines IP_PKTINFO.]),
 		AC_MSG_RESULT(no)
@@ -660,9 +660,9 @@ AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
 
 AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
 AC_LINK_IFELSE(
-        AC_LANG_PROGRAM([#include <stdlib.h>
+        [AC_LANG_PROGRAM([#include <stdlib.h>
                          #include <netdb.h>],
-                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);]),
+                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);])],
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
         AC_MSG_RESULT(no)
@@ -670,9 +670,9 @@ AC_LINK_IFELSE(
 
 AC_MSG_CHECKING(for gethostbyname_r with 5 arguments)
 AC_LINK_IFELSE(
-        AC_LANG_PROGRAM([#include <stdlib.h>
+        [AC_LANG_PROGRAM([#include <stdlib.h>
 	                 #include <netdb.h>],
-                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);]),
+                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);])],
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
         AC_MSG_RESULT(no)
@@ -682,7 +682,7 @@ AC_CHECK_HEADER([byteswap.h], [AC_DEFINE_UNQUOTED([HAVE_BYTESWAP_H], 1, [Define 
 
 AC_MSG_CHECKING(for __swap16 variant of <sys/endian.h> byteswapping macros)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <sys/endian.h>], [int a = 1; int b = __swap16(a);]),
+[AC_LANG_PROGRAM([#include <sys/endian.h>], [int a = 1; int b = __swap16(a);])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_SYS_ENDIAN_SWAP16], 1, [Define to 1 if your sys/endian.h header file provides the __swap16 macro.]),
 AC_MSG_RESULT(no)
@@ -690,7 +690,7 @@ AC_MSG_RESULT(no)
 
 AC_MSG_CHECKING(for bswap16 variant of <sys/endian.h> byteswapping macros)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <sys/endian.h>], [int a = 1; int b = bswap16(a);]),
+[AC_LANG_PROGRAM([#include <sys/endian.h>], [int a = 1; int b = bswap16(a);])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_SYS_ENDIAN_BSWAP16], 1, [Define to 1 if your sys/endian.h header file provides the bswap16 macro.]),
 AC_MSG_RESULT(no)
@@ -703,13 +703,13 @@ fi
 
 AC_MSG_CHECKING(for locale_t in locale.h)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <locale.h>], [locale_t lt = NULL]),
+[AC_LANG_PROGRAM([#include <locale.h>], [locale_t lt = NULL])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_LOCALE_T_IN_LOCALE_H], 1, [Define to 1 if your system defines the locale_t type in locale.h]),
 AC_MSG_RESULT(no)
   AC_MSG_CHECKING(for locale_t in xlocale.h)
   AC_LINK_IFELSE(
-  AC_LANG_PROGRAM([#include <xlocale.h>], [locale_t lt = NULL]),
+  [AC_LANG_PROGRAM([#include <xlocale.h>], [locale_t lt = NULL])],
   AC_MSG_RESULT(yes)
   AC_DEFINE([HAVE_LOCALE_T_IN_XLOCALE_H], 1, [Define to 1 if your system defines the locale_t type in xlocale.h]),
   AC_MSG_RESULT(no)
@@ -718,7 +718,7 @@ AC_MSG_RESULT(no)
 
 AC_MSG_CHECKING(for O_EVTONLY in fcntl.h)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <fcntl.h>], [int a = O_EVTONLY;]),
+[AC_LANG_PROGRAM([#include <fcntl.h>], [int a = O_EVTONLY;])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_O_EVTONLY], 1, [Define to 1 if your system defines the file flag O_EVTONLY in fcntl.h]),
 AC_MSG_RESULT(no)
@@ -726,7 +726,7 @@ AC_MSG_RESULT(no)
 
 AC_MSG_CHECKING(for O_SYMLINK in fcntl.h)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <fcntl.h>], [int a = O_SYMLINK;]),
+[AC_LANG_PROGRAM([#include <fcntl.h>], [int a = O_SYMLINK;])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_O_SYMLINK], 1, [Define to 1 if your system defines the file flag O_SYMLINK in fcntl.h]),
 AC_MSG_RESULT(no)
@@ -736,7 +736,7 @@ AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_INITIALIZER], [PTHREAD_RWLOCK_INITIALIZER], [
 
 AC_MSG_CHECKING(for PTHREAD_RWLOCK_PREFER_WRITER_NP in pthread.h)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <pthread.h>], [int a = PTHREAD_RWLOCK_PREFER_WRITER_NP;]),
+[AC_LANG_PROGRAM([#include <pthread.h>], [int a = PTHREAD_RWLOCK_PREFER_WRITER_NP;])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP], 1, [Define to 1 if your system defines PTHREAD_RWLOCK_PREFER_WRITER_NP in pthread.h]),
 AC_MSG_RESULT(no)
@@ -744,7 +744,7 @@ AC_MSG_RESULT(no)
 
 AC_MSG_CHECKING(for PTHREAD_MUTEX_RECURSIVE_NP in pthread.h)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <pthread.h>], [int a = PTHREAD_MUTEX_RECURSIVE_NP;]),
+[AC_LANG_PROGRAM([#include <pthread.h>], [int a = PTHREAD_MUTEX_RECURSIVE_NP;])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_PTHREAD_MUTEX_RECURSIVE_NP], 1, [Define to 1 if your system defines PTHREAD_MUTEX_RECURSIVE_NP in pthread.h]),
 AC_MSG_RESULT(no)
@@ -801,11 +801,11 @@ AST_C_DEFINE_CHECK([PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP], [PTHREAD_RECURSIVE_
 # Generally yes on OpenBSD/FreeBSD and no on Mac OS X.
 AC_MSG_CHECKING(whether we can compare a mutex to its initial value)
 AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([#include <pthread.h>], [pthread_mutex_t lock;
+	[AC_LANG_PROGRAM([#include <pthread.h>], [pthread_mutex_t lock;
 	if ((lock) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		return 0;
 	}
-	return 0]),
+	return 0])],
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([CAN_COMPARE_MUTEX_TO_INIT_VALUE], 1, [Define to 1 if your system's implementation of mutexes supports comparison of a mutex to its initializer.]),
 	AC_MSG_RESULT(no)
@@ -831,7 +831,7 @@ AC_CHECK_HEADERS([sys/thr.h])
 
 AC_MSG_CHECKING(for compiler atomic operations)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),
+[AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);])],
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides atomic operations.]),
 AC_MSG_RESULT(no)
@@ -840,8 +840,8 @@ AC_MSG_RESULT(no)
 # glibc, AFAIK, is the only C library that makes printing a NULL to a string safe.
 AC_MSG_CHECKING([if your system printf is NULL-safe.])
 AC_RUN_IFELSE(
-	AC_LANG_PROGRAM([#include <stdio.h>],
-		[printf("%s", NULL)]),
+	[AC_LANG_PROGRAM([#include <stdio.h>],
+		[printf("%s", NULL)])],
 	AC_DEFINE([HAVE_NULLSAFE_PRINTF], 1, [Define to 1 if your C library can safely print NULL to string formats.])
 	AC_MSG_RESULT(yes),
 	AC_MSG_RESULT(no),
@@ -851,7 +851,7 @@ AC_RUN_IFELSE(
 
 AC_MSG_CHECKING(if we can increase the maximum select-able file descriptor)
 AC_RUN_IFELSE(
-AC_LANG_PROGRAM([
+[AC_LANG_PROGRAM([
 #include <stdio.h>
 #include <sys/select.h>
 #include <sys/time.h>
@@ -874,7 +874,7 @@ AC_LANG_PROGRAM([
 	FD_SET(fd0, (fd_set *) &fds);
 	FD_SET(fd1, (fd_set *) &fds);
 	if (select(FD_SETSIZE + 2, (fd_set *) &fds, NULL, NULL, &tv) < 0) { exit(1); }
-	exit(0)]]),
+	exit(0)]])],
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([HAVE_VARIABLE_FDSET], 1, [Define to 1 if your system can support larger than default select bitmasks.]),
 	AC_MSG_RESULT(no),
@@ -883,11 +883,11 @@ AC_LANG_PROGRAM([
 
 if test "${ac_cv_have_variable_fdset}x" = "0x"; then
 	AC_RUN_IFELSE(
-		AC_LANG_PROGRAM([
+		[AC_LANG_PROGRAM([
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
-], [if (getuid() != 0) { exit(1); }]),
+], [if (getuid() != 0) { exit(1); }])],
 		AC_DEFINE([CONFIGURE_RAN_AS_ROOT], 1, [Some configure tests will unexpectedly fail if configure is run by a non-root user.  These may be able to be tested at runtime.]))
 fi
 
@@ -935,13 +935,13 @@ AC_MSG_CHECKING(for -ffunction-sections support)
 saved_CFLAGS="${CFLAGS}"
 CFLAGS="${CFLAGS} -ffunction-sections"
 AC_COMPILE_IFELSE(
-	AC_LANG_PROGRAM([], [int x = 1;]),
+	[AC_LANG_PROGRAM([], [int x = 1;])],
 	AC_MSG_RESULT(yes)
 	[saved_LDFLAGS="${LDFLAGS}"]
 	[LDFLAGS="${LDFLAGS} -Wl,--gc-sections"]
 	AC_MSG_CHECKING(for --gc-sections support)
 	AC_LINK_IFELSE(
-		AC_LANG_PROGRAM([], [int x = 1;]),
+		[AC_LANG_PROGRAM([], [int x = 1;])],
 		AC_MSG_RESULT(yes)
 		[GC_CFLAGS="-ffunction-sections"]
 		[[GC_LDFLAGS="-Wl,--gc-sections"]],
@@ -1006,8 +1006,8 @@ AC_SUBST(AST_MARCH_NATIVE)
 
 AC_MSG_CHECKING(for sysinfo)
 AC_LINK_IFELSE(
-        AC_LANG_PROGRAM([#include <sys/sysinfo.h>],
-                        [struct sysinfo sys_info; int uptime = sys_info.uptime]),
+        [AC_LANG_PROGRAM([#include <sys/sysinfo.h>],
+                        [struct sysinfo sys_info; int uptime = sys_info.uptime])],
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_SYSINFO], 1, [Define to 1 if your system has sysinfo support]),
         AC_MSG_RESULT(no)
@@ -1016,7 +1016,7 @@ AC_LINK_IFELSE(
 AC_SEARCH_LIBS(res_9_ninit, resolv)
 AC_MSG_CHECKING(for res_ninit)
 AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([
+	[AC_LANG_PROGRAM([
 			#ifdef HAVE_SYS_SOCKET_H
 			#include <sys/socket.h>
 			#endif
@@ -1027,13 +1027,13 @@ AC_LINK_IFELSE(
 			#include <arpa/nameser.h>
 			#endif
 			#include <resolv.h>],
-			[int foo = res_ninit(NULL);]),
+			[int foo = res_ninit(NULL);])],
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([HAVE_RES_NINIT], 1, [Define to 1 if your system has the re-entrant resolver functions.])
 	AC_SEARCH_LIBS(res_9_ndestroy, resolv)
 	AC_MSG_CHECKING(for res_ndestroy)
 	AC_LINK_IFELSE(
-		AC_LANG_PROGRAM([
+		[AC_LANG_PROGRAM([
 				#ifdef HAVE_SYS_SOCKET_H
 				#include <sys/socket.h>
 				#endif
@@ -1044,7 +1044,7 @@ AC_LINK_IFELSE(
 				#include <arpa/nameser.h>
 				#endif
 				#include <resolv.h>],
-				[res_ndestroy(NULL);]),
+				[res_ndestroy(NULL);])],
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_RES_NDESTROY], 1, [Define to 1 if your system has the ndestroy resolver function.]),
 		AC_MSG_RESULT(no)
@@ -1052,7 +1052,7 @@ AC_LINK_IFELSE(
 	AC_SEARCH_LIBS(res_9_close, resolv)
 	AC_MSG_CHECKING(for res_close)
 	AC_LINK_IFELSE(
-		AC_LANG_PROGRAM([
+		[AC_LANG_PROGRAM([
 				#ifdef HAVE_SYS_SOCKET_H
 				#include <sys/socket.h>
 				#endif
@@ -1063,7 +1063,7 @@ AC_LINK_IFELSE(
 				#include <arpa/nameser.h>
 				#endif
 				#include <resolv.h>],
-				[res_close();]),
+				[res_close();])],
 		AC_MSG_RESULT(yes)
 		AC_DEFINE([HAVE_RES_CLOSE], 1, [Define to 1 if your system has the close resolver function.]),
 		AC_MSG_RESULT(no)
@@ -1108,10 +1108,10 @@ PBX_DLADDR=0
 old_LIBS=${LIBS}
 LIBS="${LIBS} -ldl"
 AC_LINK_IFELSE(
-	AC_LANG_PROGRAM([#define _GNU_SOURCE 1
+	[AC_LANG_PROGRAM([#define _GNU_SOURCE 1
 #include <dlfcn.h>],
 		[dladdr((void *)0, (void *)0)]
-	),
+	)],
 	AC_MSG_RESULT(yes)
 	PBX_DLADDR=1
 	AC_SUBST([PBX_DLADDR])
@@ -1242,7 +1242,7 @@ if test "${USE_IMAP_TK}" != "no"; then
       	CPPFLAGS="${CPPFLAGS} ${imap_include}"
 	  	LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
 	  	AC_LINK_IFELSE(
-	    	AC_LANG_PROGRAM(
+	    	[AC_LANG_PROGRAM(
 				[#include "c-client.h"
 				void mm_searched (MAILSTREAM *stream,unsigned long number)
 				{
@@ -1292,13 +1292,13 @@ if test "${USE_IMAP_TK}" != "no"; then
 				[
 				MAILSTREAM *foo = mail_open(NULL, "", 0);
 				]
-			),
+			)],
 			[ac_cv_imap_tk="yes"],
 			[ac_cv_imap_tk="no"]
 	   	)
 		if test "${ac_cv_imap_tk}" = "yes"; then
 			AC_LINK_IFELSE(
-				AC_LANG_PROGRAM(
+				[AC_LANG_PROGRAM(
 					[#include "c-client.h"
 					void mm_searched (MAILSTREAM *stream,unsigned long number)
 					{
@@ -1348,7 +1348,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 					[
 					long check = mail_expunge_full(NULL, "", 0);
 					]
-				),
+				)],
 				[ac_cv_imap_tk2006="yes"],
 				[ac_cv_imap_tk2006="no"]
 			)
@@ -1369,7 +1369,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 				CPPFLAGS="${CPPFLAGS} ${imap_include}"
 				LIBS="${LIBS} ${imap_libs} ${imap_ldflags}"
 				AC_LINK_IFELSE(
-	    			AC_LANG_PROGRAM(
+	    			[AC_LANG_PROGRAM(
 						[#include "c-client.h"
 						void mm_searched (MAILSTREAM *stream,unsigned long number)
 						{
@@ -1419,13 +1419,13 @@ if test "${USE_IMAP_TK}" != "no"; then
 						[
 						MAILSTREAM *foo = mail_open(NULL, "", 0);
 						]
-					),
+					)],
 					[ac_cv_imap_tk="yes"],
 					[ac_cv_imap_tk="no"]
 	   			)
 				if test "${ac_cv_imap_tk}" = "yes"; then
 					AC_LINK_IFELSE(
-						AC_LANG_PROGRAM(
+						[AC_LANG_PROGRAM(
 							[#include "c-client.h"
 							void mm_searched (MAILSTREAM *stream,unsigned long number)
 							{
@@ -1475,7 +1475,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 							[
 							long check = mail_expunge_full(NULL, "", 0);
 							]
-						),
+						)],
 						[ac_cv_imap_tk2006="yes"],
 						[ac_cv_imap_tk2006="no"]
 					)
@@ -1494,7 +1494,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 		CPPFLAGS="${CPPFLAGS} ${imap_include}"
 		LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
 		AC_LINK_IFELSE(
-	    	AC_LANG_PROGRAM(
+	    	[AC_LANG_PROGRAM(
 				[#include <stdio.h>
 				#include <imap/c-client.h>
 				void mm_searched (MAILSTREAM *stream,unsigned long number)
@@ -1545,13 +1545,13 @@ if test "${USE_IMAP_TK}" != "no"; then
 				[
 				MAILSTREAM *foo = mail_open(NULL, "", 0);
 				]
-			),
+			)],
 			[ac_cv_imap_tk="yes"],
 			[ac_cv_imap_tk="no"]
 	   	)
 		if test "${ac_cv_imap_tk}" = "yes"; then
 			AC_LINK_IFELSE(
-				AC_LANG_PROGRAM(
+				[AC_LANG_PROGRAM(
 					[#include <stdio.h>
 					#include <imap/c-client.h>
 					void mm_searched (MAILSTREAM *stream,unsigned long number)
@@ -1602,7 +1602,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 					[
 					long check = mail_expunge_full(NULL, "", 0);
 					]
-				),
+				)],
 				[ac_cv_imap_tk2006="yes"],
 				[ac_cv_imap_tk2006="no"]
 			)
@@ -1615,7 +1615,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 			CPPFLAGS="${CPPFLAGS} ${imap_include}"
 			LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
 			AC_LINK_IFELSE(
-	    		AC_LANG_PROGRAM(
+	    		[AC_LANG_PROGRAM(
 					[#include <stdio.h>
 					#include <c-client/c-client.h>
 					void mm_searched (MAILSTREAM *stream,unsigned long number)
@@ -1666,13 +1666,13 @@ if test "${USE_IMAP_TK}" != "no"; then
 					[
 					MAILSTREAM *foo = mail_open(NULL, "", 0);
 					]
-				),
+				)],
 				[ac_cv_imap_tk="yes"],
 				[ac_cv_imap_tk="no"]
 	   		)
 			if test "${ac_cv_imap_tk}" = "yes"; then
 				AC_LINK_IFELSE(
-					AC_LANG_PROGRAM(
+					[AC_LANG_PROGRAM(
 						[#include <stdio.h>
 						#include <c-client/c-client.h>
 						void mm_searched (MAILSTREAM *stream,unsigned long number)
@@ -1723,7 +1723,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 						[
 						long check = mail_expunge_full(NULL, "", 0);
 						]
-					),
+					)],
 					[ac_cv_imap_tk2006="yes"],
 					[ac_cv_imap_tk2006="no"]
 				)
@@ -2164,10 +2164,10 @@ if test "x${PBX_UNIXODBC}" = "x1" -o "x${PBX_IODBC}" = "x1"; then
 	# Does ODBC support wide characters?
 	AC_MSG_CHECKING(whether ODBC has support for Unicode types)
 	AC_LINK_IFELSE(
-		AC_LANG_PROGRAM(
+		[AC_LANG_PROGRAM(
 			[#include <sql.h>
 #include <sqlext.h>],
-			[int foo = SQL_WCHAR]),
+			[int foo = SQL_WCHAR])],
 		AC_MSG_RESULT(yes)
 			AC_DEFINE([HAVE_ODBC_WCHAR], [1], [Define to 1 if your ODBC library has wide (Unicode) types.]),
 		AC_MSG_RESULT(no)
