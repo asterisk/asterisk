@@ -1757,7 +1757,6 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 }
 static struct ast_channel *oh323_request(const char *type, format_t format, const struct ast_channel *requestor, void *data, int *cause)
 {
-	format_t oldformat;
 	struct oh323_pvt *pvt;
 	struct ast_channel *tmpc = NULL;
 	char *dest = (char *)data;
@@ -1773,7 +1772,6 @@ static struct ast_channel *oh323_request(const char *type, format_t format, cons
 		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", (char *)data);
 		return NULL;
 	}
-	oldformat = format;
 	format &= AST_FORMAT_AUDIO_MASK;
 	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), format));
@@ -3201,6 +3199,7 @@ static enum ast_rtp_glue_result oh323_get_rtp_peer(struct ast_channel *chan, str
 	return res;
 }
 
+#if 0
 static char *convertcap(format_t cap)
 {
 	switch (cap) {
@@ -3227,6 +3226,7 @@ static char *convertcap(format_t cap)
 		return NULL;
 	}
 }
+#endif
 
 static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active)
 {
@@ -3234,13 +3234,18 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance 
 	struct oh323_pvt *pvt;
 	struct sockaddr_in them = { 0, };
 	struct sockaddr_in us = { 0, };
+#if 0	/* Native bridge still isn't ready */
 	char *mode;
+#endif
 
 	if (!rtp) {
 		return 0;
 	}
 
+#if 0	/* Native bridge still isn't ready */
 	mode = convertcap(chan->writeformat);
+#endif
+
 	pvt = (struct oh323_pvt *) chan->tech_pvt;
 	if (!pvt) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
