@@ -280,7 +280,16 @@ static char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
 extern unsigned int ast_FD_SETSIZE;
 
 static char *_argv[256];
-static int shuttingdown;
+typedef enum {
+	NOT_SHUTTING_DOWN = -2,
+	SHUTTING_DOWN = -1,
+	/* Valid values for quit_handler niceness below: */
+	SHUTDOWN_FAST,
+	SHUTDOWN_NORMAL,
+	SHUTDOWN_NICE,
+	SHUTDOWN_REALLY_NICE
+} shutdown_nice_t;
+static shutdown_nice_t shuttingdown = NOT_SHUTTING_DOWN;
 static int restartnow;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 static pthread_t mon_sig_flags;
@@ -1614,57 +1623,92 @@ static void ast_run_atexits(void)
 	AST_RWLIST_UNLOCK(&atexits);
 }
 
-static void quit_handler(int num, int niceness, int safeshutdown, int restart)
+static int can_safely_quit(shutdown_nice_t niceness, int restart);
+static void really_quit(int num, shutdown_nice_t niceness, int restart);
+
+static void quit_handler(int num, shutdown_nice_t niceness, int restart)
 {
-	char filename[80] = "";
-	time_t s,e;
-	int x;
-	/* Try to get as many CDRs as possible submitted to the backend engines (if in batch mode) */
-	ast_cdr_engine_term();
-	if (safeshutdown) {
-		shuttingdown = 1;
-		if (!niceness) {
-			/* Begin shutdown routine, hanging up active channels */
-			ast_begin_shutdown(1);
-			if (option_verbose && ast_opt_console)
-				ast_verbose("Beginning asterisk %s....\n", restart ? "restart" : "shutdown");
-			time(&s);
-			for (;;) {
-				time(&e);
-				/* Wait up to 15 seconds for all channels to go away */
-				if ((e - s) > 15)
-					break;
-				if (!ast_active_channels())
-					break;
-				if (!shuttingdown)
-					break;
-				/* Sleep 1/10 of a second */
-				usleep(100000);
-			}
-		} else {
-			if (niceness < 2)
-				ast_begin_shutdown(0);
-			if (option_verbose && ast_opt_console)
-				ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
-			for (;;) {
-				if (!ast_active_channels())
-					break;
-				if (!shuttingdown)
-					break;
-				sleep(1);
-			}
-		}
-
-		if (!shuttingdown) {
-			if (option_verbose && ast_opt_console)
-				ast_verbose("Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
-			return;
-		}
-
-		if (niceness)
-			ast_module_shutdown();
+	if (can_safely_quit(niceness, restart)) {
+		really_quit(num, niceness, restart);
+		/* No one gets here. */
 	}
+	/* It wasn't our time. */
+}
+
+static int can_safely_quit(shutdown_nice_t niceness, int restart)
+{
+	/* Check if someone else isn't already doing this. */
+	ast_mutex_lock(&safe_system_lock);
+	if (shuttingdown != NOT_SHUTTING_DOWN && niceness >= shuttingdown) {
+		/* Already in progress and other request was less nice. */
+		ast_mutex_unlock(&safe_system_lock);
+		ast_verbose("Ignoring asterisk %s request, already in progress.\n", restart ? "restart" : "shutdown");
+		return 0;
+	}
+	shuttingdown = niceness;
+	ast_mutex_unlock(&safe_system_lock);
+
+	/* Try to get as many CDRs as possible submitted to the backend engines
+	 * (if in batch mode). really_quit happens to call it again when running
+	 * the atexit handlers, otherwise this would be a bit early. */
+	ast_cdr_engine_term();
+
+	if (niceness == SHUTDOWN_NORMAL) {
+		time_t s, e;
+		/* Begin shutdown routine, hanging up active channels */
+		ast_begin_shutdown(1);
+		if (option_verbose && ast_opt_console) {
+			ast_verbose("Beginning asterisk %s....\n", restart ? "restart" : "shutdown");
+		}
+		time(&s);
+		for (;;) {
+			time(&e);
+			/* Wait up to 15 seconds for all channels to go away */
+			if ((e - s) > 15 || !ast_active_channels() || shuttingdown != niceness) {
+				break;
+			}
+			/* Sleep 1/10 of a second */
+			usleep(100000);
+		}
+	} else if (niceness >= SHUTDOWN_NICE) {
+		if (niceness != SHUTDOWN_REALLY_NICE) {
+			ast_begin_shutdown(0);
+		}
+		if (option_verbose && ast_opt_console) {
+			ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
+		}
+		for (;;) {
+			if (!ast_active_channels() || shuttingdown != niceness) {
+				break;
+			}
+			sleep(1);
+		}
+	}
+
+	/* Re-acquire lock and check if someone changed the niceness, in which
+	 * case someone else has taken over the shutdown. */
+	ast_mutex_lock(&safe_system_lock);
+	if (shuttingdown != niceness) {
+		if (shuttingdown == NOT_SHUTTING_DOWN && option_verbose && ast_opt_console) {
+			ast_verbose("Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
+		}
+		ast_mutex_unlock(&safe_system_lock);
+		return 0;
+	}
+	shuttingdown = SHUTTING_DOWN;
+	ast_mutex_unlock(&safe_system_lock);
+
+	return 1;
+}
+
+static void really_quit(int num, shutdown_nice_t niceness, int restart)
+{
+	if (niceness >= SHUTDOWN_NICE) {
+		ast_module_shutdown();
+	}
+
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
+		char filename[80] = "";
 		if (getenv("HOME")) {
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 		}
@@ -1705,11 +1749,12 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 		unlink(ast_config_AST_PID);
 	printf("%s", term_quit());
 	if (restart) {
+		int i;
 		if (option_verbose || ast_opt_console)
 			ast_verbose("Preparing for Asterisk restart...\n");
 		/* Mark all FD's for closing on exec */
-		for (x=3; x < 32768; x++) {
-			fcntl(x, F_SETFD, FD_CLOEXEC);
+		for (i = 3; i < 32768; i++) {
+			fcntl(i, F_SETFD, FD_CLOEXEC);
 		}
 		if (option_verbose || ast_opt_console)
 			ast_verbose("Asterisk is now restarting...\n");
@@ -1731,6 +1776,7 @@ static void quit_handler(int num, int niceness, int safeshutdown, int restart)
 		/* close logger */
 		close_logger();
 	}
+
 	exit(0);
 }
 
@@ -1840,7 +1886,7 @@ static int remoteconsolehandler(char *s)
 	}
 	if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
 	    (s[4] == '\0' || isspace(s[4]))) {
-		quit_handler(0, 0, 0, 0);
+		quit_handler(0, SHUTDOWN_FAST, 0);
 		ret = 1;
 	}
 
@@ -1873,7 +1919,7 @@ static int handle_quit(int fd, int argc, char *argv[])
 {
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0, 0, 1, 0);
+	quit_handler(0, SHUTDOWN_NORMAL, 0);
 	return RESULT_SUCCESS;
 }
 #endif
@@ -1893,7 +1939,7 @@ static char *handle_stop_now(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	quit_handler(0, 0 /* Not nice */, 1 /* safely */, 0 /* not restart */);
+	quit_handler(0, SHUTDOWN_NORMAL, 0 /* not restart */);
 	return CLI_SUCCESS;
 }
 
@@ -1913,7 +1959,7 @@ static char *handle_stop_gracefully(struct ast_cli_entry *e, int cmd, struct ast
 
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	quit_handler(0, 1 /* nicely */, 1 /* safely */, 0 /* no restart */);
+	quit_handler(0, SHUTDOWN_NICE, 0 /* no restart */);
 	return CLI_SUCCESS;
 }
 
@@ -1933,7 +1979,7 @@ static char *handle_stop_when_convenient(struct ast_cli_entry *e, int cmd, struc
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "Waiting for inactivity to perform halt\n");
-	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 0 /* don't restart */);
+	quit_handler(0, SHUTDOWN_REALLY_NICE, 0 /* don't restart */);
 	return CLI_SUCCESS;
 }
 
@@ -1953,7 +1999,7 @@ static char *handle_restart_now(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	quit_handler(0, 0 /* not nicely */, 1 /* safely */, 1 /* restart */);
+	quit_handler(0, SHUTDOWN_NORMAL, 1 /* restart */);
 	return CLI_SUCCESS;
 }
 
@@ -1973,7 +2019,7 @@ static char *handle_restart_gracefully(struct ast_cli_entry *e, int cmd, struct 
 
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	quit_handler(0, 1 /* nicely */, 1 /* safely */, 1 /* restart */);
+	quit_handler(0, SHUTDOWN_NICE, 1 /* restart */);
 	return CLI_SUCCESS;
 }
 
@@ -1993,12 +2039,14 @@ static char *handle_restart_when_convenient(struct ast_cli_entry *e, int cmd, st
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, "Waiting for inactivity to perform restart\n");
-	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 1 /* restart */);
+	quit_handler(0, SHUTDOWN_REALLY_NICE, 1 /* restart */);
 	return CLI_SUCCESS;
 }
 
 static char *handle_abort_shutdown(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	int aborting_shutdown = 0;
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core abort shutdown";
@@ -2013,8 +2061,17 @@ static char *handle_abort_shutdown(struct ast_cli_entry *e, int cmd, struct ast_
 
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	ast_cancel_shutdown();
-	shuttingdown = 0;
+
+	ast_mutex_lock(&safe_system_lock);
+	if (shuttingdown >= SHUTDOWN_FAST) {
+		aborting_shutdown = 1;
+		shuttingdown = NOT_SHUTTING_DOWN;
+	}
+	ast_mutex_unlock(&safe_system_lock);
+
+	if (aborting_shutdown) {
+		ast_cancel_shutdown();
+	}
 	return CLI_SUCCESS;
 }
 
@@ -2185,7 +2242,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			if (res < 1) {
 				fprintf(stderr, "\nDisconnected from Asterisk server\n");
 				if (!ast_opt_reconnect) {
-					quit_handler(0, 0, 0, 0);
+					quit_handler(0, SHUTDOWN_FAST, 0);
 				} else {
 					int tries;
 					int reconnects_per_second = 20;
@@ -2205,7 +2262,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 					}
 					if (tries >= 30 * reconnects_per_second) {
 						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
-						quit_handler(0, 0, 0, 0);
+						quit_handler(0, SHUTDOWN_FAST, 0);
 					}
 				}
 			}
@@ -3138,7 +3195,7 @@ static void *monitor_sig_flags(void *unused)
 				sig_flags.need_quit_handler = 1;
 				pthread_kill(consolethread, SIGURG);
 			} else {
-				quit_handler(0, 0, 1, 0);
+				quit_handler(0, SHUTDOWN_NORMAL, 0);
 			}
 		}
 		if (read(sig_alert_pipe[0], &a, sizeof(a)) != sizeof(a)) {
@@ -3638,12 +3695,12 @@ int main(int argc, char *argv[])
 		if (ast_opt_remote) {
 			if (ast_opt_exec) {
 				ast_remotecontrol(xarg);
-				quit_handler(0, 0, 0, 0);
+				quit_handler(0, SHUTDOWN_FAST, 0);
 				exit(0);
 			}
 			printf("%s", term_quit());
 			ast_remotecontrol(NULL);
-			quit_handler(0, 0, 0, 0);
+			quit_handler(0, SHUTDOWN_FAST, 0);
 			exit(0);
 		} else {
 			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", ast_config_AST_SOCKET);
@@ -3936,7 +3993,7 @@ int main(int argc, char *argv[])
 
 		for (;;) {
 			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
-				quit_handler(0, 0, 0, 0);
+				quit_handler(0, SHUTDOWN_FAST, 0);
 				break;
 			}
 			buf = (char *) el_gets(el, &num);
