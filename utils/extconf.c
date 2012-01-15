@@ -3598,7 +3598,6 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 			if (c) {
 				char *cur2;
 				char real_inclusion_name[256];
-				struct ast_config_include *inclu;
                 
 				/* Strip off leading and trailing "'s and <>'s */
 				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
@@ -3625,7 +3624,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				/* ast_log(LOG_WARNING, "Reading in included file %s withcomments=%d\n", cur, withcomments); */
 				
 				/* record this inclusion */
-				inclu = ast_include_new(cfg, configfile, cur, do_exec, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+				ast_include_new(cfg, configfile, cur, do_exec, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
 				
 				do_include = ast_config_internal_load(cur, cfg, withcomments, real_inclusion_name) ? 1 : 0;
 				if(!ast_strlen_zero(exec_file))
@@ -4437,7 +4436,7 @@ int ast_build_timing(struct ast_timing *i, const char *info_in);
 
 int ast_build_timing(struct ast_timing *i, const char *info_in)
 {
-	char *info_save, *info;
+	char *info;
 	int j, num_fields, last_sep = -1;
 
 	/* Check for empty just in case */
@@ -4446,7 +4445,7 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 	}
 
 	/* make a copy just in case we were passed a static string */
-	info_save = info = ast_strdupa(info_in);
+	info = ast_strdupa(info_in);
 
 	/* count the number of fields in the timespec */
 	for (j = 0, num_fields = 1; info[j] != '\0'; j++) {
