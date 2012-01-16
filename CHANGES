@@ -12,6 +12,11 @@
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
 
+Core
+----
+ * The expression parser now recognizes the ABS() absolute value function,
+   which will convert negative floating point values to positive values.
+
 ConfBridge
 -------------------
  * Added menu action admin_toggle_mute_participants.  This will mute / unmute

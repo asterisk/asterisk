@@ -1029,6 +1029,15 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				return make_number(0.0);
 			}
 #endif
+		} else if (strcmp(funcname->u.s, "ABS") == 0) {
+			if (arglist && !arglist->right && arglist->val) {
+				to_number(arglist->val);
+				result = make_number(arglist->val->u.i < 0 ? arglist->val->u.i * -1 : arglist->val->u.i);
+				return result;
+			} else {
+				ast_log(LOG_WARNING, "Wrong args to %s() function\n", funcname->u.s);
+				return make_number(0.0);
+			}
 		} else {
 			/* is this a custom function we should execute and collect the results of? */
 #if !defined(STANDALONE) && !defined(STANDALONE2)
