@@ -121,7 +121,7 @@ DEFINE_SQL_STATEMENT(deltree_stmt, "DELETE FROM astdb WHERE key || '/' LIKE ? ||
 DEFINE_SQL_STATEMENT(deltree_all_stmt, "DELETE FROM astdb")
 DEFINE_SQL_STATEMENT(gettree_stmt, "SELECT key, value FROM astdb WHERE key || '/' LIKE ? || '/' || '%' ORDER BY key")
 DEFINE_SQL_STATEMENT(gettree_all_stmt, "SELECT key, value FROM astdb ORDER BY key")
-DEFINE_SQL_STATEMENT(showkey_stmt, "SELECT key, value FROM astdb WHERE key LIKE '%' || '/' || ?")
+DEFINE_SQL_STATEMENT(showkey_stmt, "SELECT key, value FROM astdb WHERE key LIKE '%' || '/' || ? ORDER BY key")
 DEFINE_SQL_STATEMENT(create_astdb_stmt, "CREATE TABLE IF NOT EXISTS astdb(key VARCHAR(256), value VARCHAR(256), PRIMARY KEY(key))")
 
 static int init_stmt(sqlite3_stmt **stmt, const char *sql, size_t len)
