@@ -25,3 +25,10 @@ rtpend=20000
 ; do not come from the source of the RTP stream. This option is
 ; enabled by default.
 ; strictrtp=yes
+;
+; Number of packets containing consecutive sequence values needed
+; to change the RTP source socket address. This option only comes
+; into play while using strictrtp=yes. Consider changing this value
+; if rtp packets are dropped from one or both ends after a call is
+; connected. This option is set to 4 by default.
+; probation=8

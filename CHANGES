@@ -108,6 +108,17 @@ Followme changes
    and app_queue.
  * The 'N' option is now ignored if the call is already answered.
 
+RTP changes
+-------------
+ * A new option, 'probation' has been added to rtp.conf
+   RTP in strictrtp mode can now require more than 1 packet to exit learning
+   mode with a new source (and by default requires 4). The probation option
+   allows the user to change the required number of packets in sequence to any
+   desired value. Use a value of 1 to essentially restore the old behavior.
+   Also, with strictrtp on, Asterisk will now drop all packets until learning
+   mode has successfully exited. These changes are based on how pjmedia handles
+   media sources and source changes.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------
