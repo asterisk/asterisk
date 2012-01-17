@@ -338,7 +338,7 @@ else
 	mK=" make"
 endif
 
-all: _all
+all: _cleantest_all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, and +"  
 	@echo " + can be installed by running:              +"
@@ -346,7 +346,12 @@ all: _all
 	@echo " +               $(mK) install               +"  
 	@echo " +-------------------------------------------+"  
 
-_all: cleantest makeopts $(SUBDIRS) doc/core-en_US.xml $(ADDL_TARGETS)
+# For parallel builds, we must call cleantest *before* running the
+# other dependencies on _all.
+_cleantest_all: cleantest
+	@$(MAKE) _all
+
+_all: makeopts $(SUBDIRS) doc/core-en_US.xml $(ADDL_TARGETS)
 
 makeopts: configure
 	@echo "****"
@@ -462,7 +467,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -rf doc/api
 	rm -f build_tools/menuselect-deps
 
-datafiles: _all doc/core-en_US.xml
+datafiles: _cleantest_all doc/core-en_US.xml
 	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig "$(DESTDIR)$(libdir)/pkgconfig";
 # Should static HTTP be installed during make samples or even with its own target ala
 # webvoicemail?  There are portions here that *could* be customized but might also be
@@ -563,7 +568,7 @@ installdirs:
 	$(INSTALL) -d "$(DESTDIR)$(AGI_DIR)"
 	$(INSTALL) -d "$(DESTDIR)$(ASTDBDIR)"
 
-bininstall: _all installdirs $(SUBDIRS_INSTALL)
+bininstall: _cleantest_all installdirs $(SUBDIRS_INSTALL)
 	$(INSTALL) -m 755 main/asterisk "$(DESTDIR)$(ASTSBINDIR)/"
 	$(LN) -sf asterisk "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
 	$(INSTALL) -m 755 contrib/scripts/astgenkey "$(DESTDIR)$(ASTSBINDIR)/"
@@ -954,6 +959,8 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 .PHONY: dist-clean
 .PHONY: distclean
 .PHONY: all
+.PHONY: _all
+.PHONY: _cleantest_all
 .PHONY: prereqs
 .PHONY: cleantest
 .PHONY: uninstall
