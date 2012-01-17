@@ -495,11 +495,9 @@ static void rtp_learning_seq_init(struct ast_rtp *rtp, uint16_t seq)
  */
 static int rtp_learning_rtp_seq_update(struct ast_rtp *rtp, uint16_t seq)
 {
-	int probation = 0;
+	int probation = 1;
 
 	ast_debug(1, "%p -- probation = %d, seq = %d\n", rtp, rtp->learning_probation, seq);
-
-	probation = 1;
 
 	if (seq == rtp->learning_max_seq + 1) {
 		/* packet is in sequence */
