@@ -4099,6 +4099,10 @@ static void add_blank(struct sip_request *req)
 static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
 {
 	const char *msg = NULL;
+	struct ast_channel *chan;
+	int res = 0;
+
+	chan = sip_pvt_lock_full(pvt);
 
 	if (!pvt->last_provisional || !strncasecmp(pvt->last_provisional, "100", 3)) {
 		msg = "183 Session Progress";
@@ -4110,10 +4114,35 @@ static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
 		} else {
 			transmit_response(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq);
 		}
-		return PROVIS_KEEPALIVE_TIMEOUT;
+		res = PROVIS_KEEPALIVE_TIMEOUT;
 	}
 
-	return 0;
+	if (chan) {
+		ast_channel_unlock(chan);
+		chan = ast_channel_unref(chan);
+	}
+
+	if (!res) {
+		pvt->provisional_keepalive_sched_id = -1;
+	}
+
+	sip_pvt_unlock(pvt);
+
+#if 0
+	/*
+	 * XXX BUG TODO
+	 *
+	 * Without this code, it appears as if this function is leaking its
+	 * reference to the sip_pvt.  However, adding it introduces a crash.
+	 * This points to some sort of reference count imbalance elsewhere,
+	 * but I'm not sure where ...
+	 */
+	if (!res) {
+		dialog_unref(pvt, "dialog ref for provisional keepalive");
+	}
+#endif
+
+	return res;
 }
 
 static int send_provisional_keepalive(const void *data)
@@ -10916,7 +10945,13 @@ static void get_realm(struct sip_pvt *p, const struct sip_request *req)
 	ast_string_field_set(p, realm, sip_cfg.realm);
 }
 
-/* Only use a static string for the msg, here! */
+/*!
+ * \internal
+ *
+ * \arg msg Only use a string constant for the msg, here, it is shallow copied
+ *
+ * \note assumes the sip_pvt is locked.
+ */
 static int transmit_provisional_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, int with_sdp)
 {
 	int res;
