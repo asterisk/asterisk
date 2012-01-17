@@ -6814,12 +6814,6 @@ static int initialize_udptl(struct sip_pvt *p)
 		return 1;
 	}
 
-	if (!p->owner) {
-		ast_log(AST_LOG_WARNING, "Attempted to create UDPTL for dialog with no channel - disabling T38 for this dialog\n");
-		ast_clear_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT);
-		return 1;
-	}
-
 	/* If we've already initialized T38, don't take any further action */
 	if (p->udptl) {
 		return 0;
@@ -6827,7 +6821,9 @@ static int initialize_udptl(struct sip_pvt *p)
 
 	/* T38 can be supported by this dialog, create it and set the derived properties */
 	if ((p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, &bindaddr))) {
-		ast_channel_set_fd(p->owner, 5, ast_udptl_fd(p->udptl));
+		if (p->owner) {
+			ast_channel_set_fd(p->owner, 5, ast_udptl_fd(p->udptl));
+		}
 
 		ast_udptl_setqos(p->udptl, global_tos_audio, global_cos_audio);
 		p->t38_maxdatagram = p->relatedpeer ? p->relatedpeer->t38_maxdatagram : global_t38_maxdatagram;
@@ -7146,6 +7142,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 	if (needtext && i->trtp) {
 		ast_channel_set_fd(tmp, 4, ast_rtp_instance_fd(i->trtp, 0));
+	}
+	if (i->udptl) {
+		ast_channel_set_fd(tmp, 5, ast_udptl_fd(i->udptl));
 	}
 
 	if (state == AST_STATE_RING) {
