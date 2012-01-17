@@ -14384,7 +14384,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	struct sip_route *thishop, *head, *tail;
 	int start = 0;
 	int len;
-	const char *rr, *contact, *c;
+	const char *rr, *c;
 
 	/* Once a persistent route is set, don't fool with it */
 	if (p->route && p->route_persistent) {
@@ -14410,17 +14410,22 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	/* 1st we pass through all the hops in any Record-Route headers */
 	for (;;) {
 		/* Each Record-Route header */
+		char rr_copy[256];
+		char *rr_copy_ptr;
+		char *rr_iter;
 		rr = __get_header(req, "Record-Route", &start);
 		if (*rr == '\0') {
 			break;
 		}
-		for (; (rr = strchr(rr, '<')) ; rr += len) { /* Each route entry */
-			++rr;
-			len = strcspn(rr, ">") + 1;
+		ast_copy_string(rr_copy, rr, sizeof(rr_copy));
+		rr_copy_ptr = rr_copy;
+		while ((rr_iter = strsep(&rr_copy_ptr, ","))) { /* Each route entry */
+			char *uri = get_in_brackets(rr_iter);
+			len = strlen(uri) + 1;
 			/* Make a struct route */
 			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
 				/* ast_calloc is not needed because all fields are initialized in this block */
-				ast_copy_string(thishop->hop, rr, len);
+				ast_copy_string(thishop->hop, uri, len);
 				ast_debug(2, "build_route: Record-Route hop: <%s>\n", thishop->hop);
 				/* Link in */
 				if (backwards) {
@@ -14449,20 +14454,12 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	if (!head || (!ast_strlen_zero(head->hop) && strstr(head->hop, ";lr") == NULL) ) {
 		/* 2nd append the Contact: if there is one */
 		/* Can be multiple Contact headers, comma separated values - we just take the first */
-		contact = sip_get_header(req, "Contact");
+		char *contact = ast_strdupa(sip_get_header(req, "Contact"));
 		if (!ast_strlen_zero(contact)) {
 			ast_debug(2, "build_route: Contact hop: %s\n", contact);
 			/* Look for <: delimited address */
-			c = strchr(contact, '<');
-			if (c) {
-				/* Take to > */
-				++c;
-				len = strcspn(c, ">") + 1;
-			} else {
-				/* No <> - just take the lot */
-				c = contact;
-				len = strlen(contact) + 1;
-			}
+			c = get_in_brackets(contact);
+			len = strlen(c) + 1;
 			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
 				/* ast_calloc is not needed because all fields are initialized in this block */
 				ast_copy_string(thishop->hop, c, len);
