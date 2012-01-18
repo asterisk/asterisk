@@ -10,9 +10,10 @@ if [ -f codecs/ilbc/iLBC_define.h ]; then
 fi
 
 echo "***"
-echo "This script will download the Global IP Solutions iLBC encoder/decoder"
-echo "source code from http://ilbcfreeware.org. Use of this code requires"
-echo "agreeing to the license agreement present at that site."
+echo "This script will download and extract the iLBC RFC from http://ilbcfreeware.org."
+echo "As Google acquired Global IP Solutions, usage of iLBC is bound by the same"
+echo "license as the WebRTC project (http://www.webrtc.org).  Usage of the iLBC codec"
+echo "entails agreeing to the license agreement present at that site."
 echo ""
 echo "This script assumes that you have already agreed to the license agreement."
 echo "If you have not done so, you can abort the script now."
