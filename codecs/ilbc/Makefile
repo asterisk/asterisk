@@ -1,11 +1,12 @@
 LIB=libilbc.a
 CFLAGS+=-fPIC
 
-OBJS=anaFilter.o iCBSearch.o packing.o \
-     constants.o gainquant.o iLBC_decode.o StateConstructW.o \
-     createCB.o getCBvec.o iLBC_encode.o StateSearchW.o doCPLC.o \
-     helpfun.o syntFilter.o enhancer.o hpInput.o LPCdecode.o \
-     filter.o hpOutput.o LPCencode.o FrameClassify.o iCBConstruct.o lsf.o
+OBJS=anaFilter.o constants.o createCB.o \
+     doCPLC.o enhancer.o filter.o FrameClassify.o \
+     gainquant.o getCBvec.o helpfun.o hpInput.o hpOutput.o \
+     iCBConstruct.o iCBSearch.o iLBC_decode.o iLBC_encode.o iLBC_test.o \
+     LPCdecode.o LPCencode.o lsf.o packing.o StateConstructW.o StateSearchW.o \
+     syntFilter.o \
 
 include $(ASTTOPDIR)/Makefile.rules
 
