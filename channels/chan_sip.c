@@ -12994,7 +12994,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	struct sip_request req;
 	struct ast_str *out = ast_str_alloca(500);
 	int ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
-	const char *domain = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
+	const char *domain;
 	const char *exten = S_OR(vmexten, default_vmexten);
 
 	initreqprep(&req, p, SIP_NOTIFY, NULL);
@@ -13002,6 +13002,8 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Content-Type", default_notifymime);
 	ast_str_append(&out, 0, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 
+	/* domain initialization occurs here because initreqprep changes ast_sockaddr_stringify string. */
+	domain = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 
 	if (!sip_standard_port(p->socket.type, ourport)) {
 		if (p->socket.type == SIP_TRANSPORT_UDP) {
