@@ -137,7 +137,7 @@ struct ast_rtp {
 	unsigned int txcount;           /*!< How many packets have we sent? */
 	unsigned int txoctetcount;      /*!< How many octets have we sent? (txcount*160)*/
 	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
-	double rxjitter;                /*!< Interarrival jitter at the moment */
+	double rxjitter;                /*!< Interarrival jitter at the moment in seconds */
 	double rxtransit;               /*!< Relative transit time for previous packet */
 	struct ast_format lasttxformat;
 	struct ast_format lastrxformat;
@@ -900,6 +900,7 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 	char bdata[1024];
 	struct timeval dlsr;
 	int fraction;
+	int rate = rtp_get_rate(&rtp->f.subclass.format);
 
 	double rxlost_current;
 
@@ -949,7 +950,7 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 	rtcpheader[2] = htonl(rtp->themssrc);
 	rtcpheader[3] = htonl(((fraction & 0xff) << 24) | (lost & 0xffffff));
 	rtcpheader[4] = htonl((rtp->cycles) | ((rtp->lastrxseqno & 0xffff)));
-	rtcpheader[5] = htonl((unsigned int)(rtp->rxjitter * 65536.));
+	rtcpheader[5] = htonl((unsigned int)(rtp->rxjitter * rate));
 	rtcpheader[6] = htonl(rtp->rtcp->themrxlsr);
 	rtcpheader[7] = htonl((((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000);
 
@@ -1003,6 +1004,7 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 	int fraction;
 	struct timeval dlsr;
 	char bdata[512];
+	int rate = rtp_get_rate(&rtp->f.subclass.format);
 
 	if (!rtp || !rtp->rtcp)
 		return 0;
@@ -1043,7 +1045,7 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 	rtcpheader[7] = htonl(rtp->themssrc);
 	rtcpheader[8] = htonl(((fraction & 0xff) << 24) | (lost & 0xffffff));
 	rtcpheader[9] = htonl((rtp->cycles) | ((rtp->lastrxseqno & 0xffff)));
-	rtcpheader[10] = htonl((unsigned int)(rtp->rxjitter * 65536.));
+	rtcpheader[10] = htonl((unsigned int)(rtp->rxjitter * rate));
 	rtcpheader[11] = htonl(rtp->rtcp->themrxlsr);
 	rtcpheader[12] = htonl((((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000);
 	len += 24;
