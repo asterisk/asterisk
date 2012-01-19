@@ -4480,20 +4480,26 @@ static const char *sip_get_callid(struct ast_channel *chan)
 static int sip_sendtext(struct ast_channel *ast, const char *text)
 {
 	struct sip_pvt *dialog = ast->tech_pvt;
-	int debug = sip_debug_test_pvt(dialog);
+	int debug;
 
-	if (!dialog)
+	if (!dialog) {
 		return -1;
+	}
 	/* NOT ast_strlen_zero, because a zero-length message is specifically
 	 * allowed by RFC 3428 (See section 10, Examples) */
-	if (!text)
+	if (!text) {
 		return 0;
+	}
 	if(!is_method_allowed(&dialog->allowed_methods, SIP_MESSAGE)) {
 		ast_debug(2, "Trying to send MESSAGE to device that does not support it.\n");
 		return(0);
 	}
-	if (debug)
+
+	debug = sip_debug_test_pvt(dialog);
+	if (debug) {
 		ast_verbose("Sending text %s on %s\n", text, ast_channel_name(ast));
+	}
+
 	transmit_message_with_text(dialog, text, 0, 0);
 	return 0;
 }
@@ -16318,7 +16324,6 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 	ast_copy_string(from, sip_get_header(req, "From"), sizeof(from));
 	/* XXX here tries to map the username for invite things */
-	memset(calleridname, 0, sizeof(calleridname));
 
 	/* strip the display-name portion off the beginning of the FROM header. */
 	if (!(of = (char *) get_calleridname(from, calleridname, sizeof(calleridname)))) {
@@ -16538,9 +16543,10 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 
 	if (get_msg_text2(&buf, req)) {
 		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
-		transmit_response(p, "202 Accepted", req);
-		if (!p->owner)
+		transmit_response(p, "500 Internal Server Error", req);
+		if (!p->owner) {
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		}
 		return;
 	}
 
