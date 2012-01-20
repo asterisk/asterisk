@@ -52,6 +52,9 @@ SIP
 ===
  - A new option "tonezone" for setting default tonezone for the channel driver
    or individual devices
+ - A new manager event, "SessionTimeout" has been added and is triggered when
+   a call is terminated due to RTP stream inactivity or SIP session timer
+   expiration.
 
 users.conf:
  - A defined user with hasvoicemail=yes now finally uses a Gosub to stdexten

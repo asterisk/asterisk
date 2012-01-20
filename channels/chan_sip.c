@@ -26395,6 +26395,8 @@ static int check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 				}
 				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
 					ast_channel_name(dialog->owner), (long) (t - dialog->lastrtprx));
+				manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: RTPTimeout\r\n"
+						"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(dialog->owner), dialog->owner->uniqueid);
 				/* Issue a softhangup */
 				ast_softhangup_nolock(dialog->owner, AST_SOFTHANGUP_DEV);
 				ast_channel_unlock(dialog->owner);
@@ -26647,6 +26649,8 @@ static int proc_session_timer(const void *vp)
 				sip_pvt_lock(p);
 			}
 
+			manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: SIPSessionTimer\r\n"
+					"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(p->owner), p->owner->uniqueid);
 			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 			ast_channel_unlock(p->owner);
 			sip_pvt_unlock(p);
