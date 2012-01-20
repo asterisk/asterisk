@@ -469,6 +469,7 @@ INPUT                  = ./ \
                          bridges \
                          cdr \
                          channels \
+                         channels/sip \
                          channels/misdn \
                          codecs \
                          formats \
