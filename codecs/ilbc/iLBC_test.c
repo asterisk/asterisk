@@ -248,7 +248,9 @@
 
            /* write byte file */
 
-           fwrite(encoded_data, sizeof(unsigned char), len, efileid);
+           if (fwrite(encoded_data, sizeof(unsigned char), len, efileid) != len) {
+               fprintf(stderr, "Failure in fwritef\n");
+           }
 
            /* get channel data if provided */
            if (argc==6) {
@@ -280,7 +282,9 @@
 
            /* write output file */
 
-           fwrite(decoded_data,sizeof(short),len,ofileid);
+           if (fwrite(decoded_data,sizeof(short),len,ofileid) != len) {
+               fprintf(stderr, "Failure in fwritef\n");
+           }
        }
 
        /* Runtime statistics */
