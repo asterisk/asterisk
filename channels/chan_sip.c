@@ -15905,7 +15905,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 			ast_string_field_set(p, context, peer->context);
 		}
 		if (!ast_strlen_zero(peer->mwi_from)) {
-			ast_string_field_set(p, mwi_from, peer->mwi_from)
+			ast_string_field_set(p, mwi_from, peer->mwi_from);
 		}
 
 		ast_string_field_set(p, peersecret, peer->secret);
