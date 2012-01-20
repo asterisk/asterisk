@@ -231,7 +231,7 @@
 
 
 
-
+       LSF_check(lsfdeq, LPC_FILTERORDER, iLBCenc_inst->lpc_n);
        SimpleInterpolateLSF(syntdenum, weightdenum,
            lsf, lsfdeq, iLBCenc_inst->lsfold,
            iLBCenc_inst->lsfdeqold, LPC_FILTERORDER, iLBCenc_inst);

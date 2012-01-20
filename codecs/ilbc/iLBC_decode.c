@@ -499,6 +499,8 @@
                /* decode the lsf */
 
                SimplelsfDEQ(lsfdeq, lsf_i, iLBCdec_inst->lpc_n);
+               LSF_check(lsfdeq, LPC_FILTERORDER,
+                   iLBCdec_inst->lpc_n);
                DecoderInterpolateLSF(syntdenum, weightdenum,
                    lsfdeq, LPC_FILTERORDER, iLBCdec_inst);
 
