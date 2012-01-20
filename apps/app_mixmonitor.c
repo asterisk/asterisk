@@ -923,9 +923,7 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 		return AMI_SUCCESS;
 	}
 
-	strcpy(args, file);
-	strcat(args, ",");
-	strcat(args, options);
+	snprintf(args, sizeof(args), "%s,%s", file, options);
 
 	ast_channel_lock(c);
 	res = mixmonitor_exec(c, args);
