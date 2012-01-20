@@ -339,7 +339,6 @@
        int lag, ilag;
        float cc, maxcc;
        int idxVec[STATE_LEN];
-       int check;
        int gain_index[NASUB_MAX*CB_NSTAGES],
            extra_gain_index[CB_NSTAGES];
        int cb_index[CB_NSTAGES*NASUB_MAX], extra_cb_index[CB_NSTAGES];
@@ -500,7 +499,7 @@
                /* decode the lsf */
 
                SimplelsfDEQ(lsfdeq, lsf_i, iLBCdec_inst->lpc_n);
-               check=LSF_check(lsfdeq, LPC_FILTERORDER,
+               LSF_check(lsfdeq, LPC_FILTERORDER,
                    iLBCdec_inst->lpc_n);
                DecoderInterpolateLSF(syntdenum, weightdenum,
                    lsfdeq, LPC_FILTERORDER, iLBCdec_inst);

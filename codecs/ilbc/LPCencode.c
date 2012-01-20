@@ -224,7 +224,6 @@
    ){
        float lsf[LPC_FILTERORDER * LPC_N_MAX];
        float lsfdeq[LPC_FILTERORDER * LPC_N_MAX];
-       int change=0;
 
        SimpleAnalysis(lsf, data, iLBCenc_inst);
        SimplelsfQ(lsfdeq, lsf_index, lsf, iLBCenc_inst->lpc_n);
@@ -233,7 +232,7 @@
 
 
 
-       change=LSF_check(lsfdeq, LPC_FILTERORDER, iLBCenc_inst->lpc_n);
+       LSF_check(lsfdeq, LPC_FILTERORDER, iLBCenc_inst->lpc_n);
        SimpleInterpolateLSF(syntdenum, weightdenum,
            lsf, lsfdeq, iLBCenc_inst->lsfold,
            iLBCenc_inst->lsfdeqold, LPC_FILTERORDER, iLBCenc_inst);
