@@ -18970,7 +18970,19 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "  Need Destroy:           %s\n", AST_CLI_YESNO(cur->needdestroy));
 			ast_cli(a->fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(a->fd, "  Promiscuous Redir:      %s\n", AST_CLI_YESNO(ast_test_flag(&cur->flags[0], SIP_PROMISCREDIR)));
-			ast_cli(a->fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
+			ast_cli(a->fd, "  Route:                  ");
+			if (cur->route) {
+				struct sip_route *route;
+				int first = 1;
+
+				for (route = cur->route; route; route = route->next) {
+					ast_cli(a->fd, "%s<%s>", first ? "" : ", ", route->hop);
+					first = 0;
+				}
+				ast_cli(a->fd, "\n");
+			} else {
+				ast_cli(a->fd, "N/A\n");
+			}
 			ast_cli(a->fd, "  DTMF Mode:              %s\n", dtmfmode2str(ast_test_flag(&cur->flags[0], SIP_DTMF)));
 			ast_cli(a->fd, "  SIP Options:            ");
 			if (cur->sipoptions) {
