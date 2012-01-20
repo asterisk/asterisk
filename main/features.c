@@ -388,6 +388,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_ATXFER_DROP_CALL					0		/*!< Do not drop call. */
 #define DEFAULT_ATXFER_LOOP_DELAY					10000	/*!< ms */
 #define DEFAULT_ATXFER_CALLBACK_RETRIES				2
+#define DEFAULT_COMEBACK_CONTEXT					"parkedcallstimeout"
+#define DEFAULT_COMEBACK_TO_ORIGIN					1
+#define DEFAULT_COMEBACK_DIAL_TIME					30
 
 #define AST_MAX_WATCHERS 256
 #define MAX_DIAL_FEATURE_OPTIONS 30
@@ -494,7 +497,9 @@ struct parkinglot_cfg {
 	/*! Extension to park calls in this parking lot. */
 	char parkext[AST_MAX_EXTENSION];
 	/*! Context for which parking is made accessible */
-	char parking_con[AST_MAX_EXTENSION];
+	char parking_con[AST_MAX_CONTEXT];
+	/*! Context that timed-out parked calls are called back on when comebacktoorigin=no */
+	char comebackcontext[AST_MAX_CONTEXT];
 	/*! First available extension for parking */
 	int parking_start;
 	/*! Last available extension for parking */
@@ -542,6 +547,8 @@ struct parkinglot_cfg {
 	 */
 	int parkedcallrecording;
 
+	/*! Time in seconds to dial the device that parked a timedout parked call */
+	unsigned int comebackdialtime;
 	/*! TRUE if findslot is set to next */
 	unsigned int parkfindnext:1;
 	/*! TRUE if the parking lot is exclusively accessed by parkext */
@@ -550,6 +557,8 @@ struct parkinglot_cfg {
 	unsigned int parkaddhints:1;
 	/*! TRUE if configuration is invalid and the parking lot should not be used. */
 	unsigned int is_invalid:1;
+	/*! TRUE if a timed out parked call goes back to the parker */
+	unsigned int comebacktoorigin:1;
 };
 
 /*! \brief Structure for parking lots which are put in a container. */
@@ -609,7 +618,6 @@ static int adsipark;
 
 static int transferdigittimeout;
 static int featuredigittimeout;
-static int comebacktoorigin = 1;
 
 static int atxfernoanswertimeout;
 static unsigned int atxferdropcall;
@@ -4600,6 +4608,7 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 					parking_con_dial);
 			} else {
 				char returnexten[AST_MAX_EXTENSION];
+				char comebackdialtime[AST_MAX_EXTENSION];
 				struct ast_datastore *features_datastore;
 				struct ast_dial_features *dialfeatures;
 
@@ -4613,15 +4622,23 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 				if (features_datastore && (dialfeatures = features_datastore->data)) {
 					char buf[MAX_DIAL_FEATURE_OPTIONS] = {0,};
 
-					snprintf(returnexten, sizeof(returnexten), "%s,30,%s", peername,
+					snprintf(returnexten, sizeof(returnexten), "%s,%u,%s", peername,
+						pu->parkinglot->cfg.comebackdialtime,
 						callback_dialoptions(&(dialfeatures->features_callee),
 							&(dialfeatures->features_caller), buf, sizeof(buf)));
 				} else { /* Existing default */
 					ast_log(LOG_NOTICE, "Dial features not found on %s, using default!\n",
 						ast_channel_name(chan));
-					snprintf(returnexten, sizeof(returnexten), "%s,30,t", peername);
+					snprintf(returnexten, sizeof(returnexten), "%s,%u,t", peername,
+						pu->parkinglot->cfg.comebackdialtime);
 				}
 				ast_channel_unlock(chan);
+
+				snprintf(comebackdialtime, sizeof(comebackdialtime), "%u",
+						pu->parkinglot->cfg.comebackdialtime);
+				pbx_builtin_setvar_helper(chan, "COMEBACKDIALTIME", comebackdialtime);
+
+				pbx_builtin_setvar_helper(chan, "PARKER", peername);
 
 				if (ast_add_extension(parking_con_dial, 1, peername_flat, 1, NULL, NULL,
 					"Dial", ast_strdup(returnexten), ast_free_ptr, registrar)) {
@@ -4636,7 +4653,7 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 				 * those arguments.
 				 */
 				set_c_e_p(chan, pu->context, pu->exten, pu->priority);
-			} else if (comebacktoorigin) {
+			} else if (pu->parkinglot->cfg.comebacktoorigin) {
 				set_c_e_p(chan, parking_con_dial, peername_flat, 1);
 			} else {
 				char parkingslot[AST_MAX_EXTENSION];
@@ -4644,7 +4661,7 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 				snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
 				pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parkingslot);
 				pbx_builtin_setvar_helper(chan, "PARKEDLOT", pu->parkinglot->name);
-				set_c_e_p(chan, "parkedcallstimeout", peername_flat, 1);
+				set_c_e_p(chan, pu->parkinglot->cfg.comebackcontext, peername_flat, 1);
 			}
 		} else {
 			/*
@@ -5331,12 +5348,18 @@ static const struct parkinglot_cfg parkinglot_cfg_default_default = {
 	.parking_start = 701,
 	.parking_stop = 750,
 	.parkingtime = DEFAULT_PARK_TIME,
+	.comebackdialtime = DEFAULT_COMEBACK_DIAL_TIME,
+	.comebackcontext = DEFAULT_COMEBACK_CONTEXT,
+	.comebacktoorigin = DEFAULT_COMEBACK_TO_ORIGIN,
 };
 
 /*! Default configuration for normal parking lots. */
 static const struct parkinglot_cfg parkinglot_cfg_default = {
 	.parkext = DEFAULT_PARK_EXTENSION,
 	.parkingtime = DEFAULT_PARK_TIME,
+	.comebackdialtime = DEFAULT_COMEBACK_DIAL_TIME,
+	.comebackcontext = DEFAULT_COMEBACK_CONTEXT,
+	.comebacktoorigin = DEFAULT_COMEBACK_TO_ORIGIN,
 };
 
 /*!
@@ -5423,6 +5446,16 @@ static int parkinglot_config_read(const char *pl_name, struct parkinglot_cfg *cf
 			parkinglot_feature_flag_cfg(pl_name, &cfg->parkedcallhangup, var);
 		} else if (!strcasecmp(var->name, "parkedcallrecording")) {
 			parkinglot_feature_flag_cfg(pl_name, &cfg->parkedcallrecording, var);
+		} else if (!strcasecmp(var->name, "comebackcontext")) {
+			ast_copy_string(cfg->comebackcontext, var->value, sizeof(cfg->comebackcontext));
+		} else if (!strcasecmp(var->name, "comebacktoorigin")) {
+			cfg->comebacktoorigin = ast_true(var->value);
+		} else if (!strcasecmp(var->name, "comebackdialtime")) {
+			if ((sscanf(var->value, "%30u", &cfg->comebackdialtime) != 1)
+					|| (cfg->comebackdialtime < 1)) {
+				ast_log(LOG_WARNING, "%s is not a valid comebackdialtime\n", var->value);
+				cfg->parkingtime = DEFAULT_COMEBACK_DIAL_TIME;
+			}
 		}
 		var = var->next;
 	}
@@ -5438,6 +5471,12 @@ static int parkinglot_config_read(const char *pl_name, struct parkinglot_cfg *cf
 	}
 	if (!cfg->parking_start) {
 		ast_log(LOG_WARNING, "Parking lot %s needs parkpos\n", pl_name);
+		error = -1;
+	}
+	if (!cfg->comebacktoorigin && ast_strlen_zero(cfg->comebackcontext)) {
+		ast_log(LOG_WARNING, "Parking lot %s has comebacktoorigin set false"
+				"but has no comebackcontext.\n",
+				pl_name);
 		error = -1;
 	}
 	if (error) {
@@ -5718,7 +5757,6 @@ static int process_config(struct ast_config *cfg)
 	atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
 
 	/* Set global call parking defaults. */
-	comebacktoorigin = 1;
 	courtesytone[0] = '\0';
 	parkedplay = 0;
 	adsipark = 0;
@@ -5784,8 +5822,6 @@ static int process_config(struct ast_config *cfg)
 			ast_copy_string(pickupsound, var->value, sizeof(pickupsound));
 		} else if (!strcasecmp(var->name, "pickupfailsound")) {
 			ast_copy_string(pickupfailsound, var->value, sizeof(pickupfailsound));
-		} else if (!strcasecmp(var->name, "comebacktoorigin")) {
-			comebacktoorigin = ast_true(var->value);
 		}
 	}
 
@@ -6688,6 +6724,13 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ast_cli(a->fd,"%-22s:      %d-%d\n", "Parked call extensions",
 			curlot->cfg.parking_start, curlot->cfg.parking_stop);
 		ast_cli(a->fd,"%-22s:      %d ms\n", "Parkingtime", curlot->cfg.parkingtime);
+		ast_cli(a->fd,"%-22s:      %s\n", "Comeback to origin",
+				(curlot->cfg.comebacktoorigin ? "yes" : "no"));
+		ast_cli(a->fd,"%-22s:      %s%s\n", "Comeback context",
+				curlot->cfg.comebackcontext, (curlot->cfg.comebacktoorigin ?
+					" (comebacktoorigin=yes, not used)" : ""));
+		ast_cli(a->fd,"%-22s:      %d\n", "Comeback dial time",
+				curlot->cfg.comebackdialtime);
 		ast_cli(a->fd,"%-22s:      %s\n", "MusicOnHold class", curlot->cfg.mohclass);
 		ast_cli(a->fd,"%-22s:      %s\n", "Enabled", AST_CLI_YESNO(!curlot->disabled));
 		ast_cli(a->fd,"\n");

@@ -74,6 +74,14 @@ Applications
    manually specify timezone and format) There are other beneftis eg. format can
    now be used without specifying time zone as well.
 
+Parking
+------------
+ * New per parking lot options: comebackcontext and comebackdialtime. See
+   configs/features.conf.sample for more details.
+ 
+ * Channel variable PARKER is now set when comebacktoorigin is disabled in
+   a parking lot.
+
 CDR postgresql driver changes
 -----------------------------
  * Added command "cdr show pgsql status" to check connection status
