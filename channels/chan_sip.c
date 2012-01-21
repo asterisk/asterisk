@@ -3885,6 +3885,7 @@ static int __sip_autodestruct(const void *data)
 		ast_channel_unref(owner);
 	} else if (p->refer && !p->alreadygone) {
 		ast_debug(3, "Finally hanging up channel after transfer: %s\n", p->callid);
+		stop_media_flows(p);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 		append_history(p, "ReferBYE", "Sending BYE on transferer call leg %s", p->callid);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -20866,15 +20867,22 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 	case 200:   /* Notify accepted */
 		/* They got the notify, this is the end */
 		if (p->owner) {
-			if (!p->refer) {
-				ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", ast_channel_name(p->owner));
-				ast_queue_hangup_with_cause(p->owner, AST_CAUSE_NORMAL_UNSPECIFIED);
+			if (p->refer) {
+				ast_log(LOG_NOTICE, "Got OK on REFER Notify message\n");
 			} else {
-				ast_debug(4, "Got OK on REFER Notify message\n");
+				ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", ast_channel_name(p->owner));
+				/*
+				 * XXX There is discrepancy on whether a hangup should be queued
+				 * or not. This code used to be duplicated in two places, and the more
+				 * frequently hit area had this disabled, making it the de facto
+				 * "correct" way to go.
+				 *
+				 * ast_queue_hangup_with_cause(p->owner, AST_CAUSE_NORMAL_UNSPECIFIED);
+				 */
 			}
 		} else {
-			if (p->subscribed == NONE) {
-				ast_debug(4, "Got 200 accepted on NOTIFY\n");
+			if (p->subscribed == NONE && !p->refer) {
+				ast_debug(4, "Got 200 accepted on NOTIFY %s\n", p->callid);
 				pvt_set_needdestroy(p, "received 200 response");
 			}
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
@@ -20898,6 +20906,9 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 			ast_log(LOG_NOTICE, "Failed to authenticate on NOTIFY to '%s'\n", sip_get_header(&p->initreq, "From"));
 			pvt_set_needdestroy(p, "failed to authenticate NOTIFY");
 		}
+		break;
+	case 481: /* Call leg does not exist */
+		pvt_set_needdestroy(p, "Received 481 response for NOTIFY");
 		break;
 	}
 }
@@ -21541,6 +21552,9 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	} else if (sipmethod == SIP_MESSAGE) {
 		/* More good gravy! */
 		handle_response_message(p, resp, rest, req, seqno);
+	} else if (sipmethod == SIP_NOTIFY) {
+		/* The gravy train continues to roll */
+		handle_response_notify(p, resp, rest, req, seqno);
 	} else if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 		switch(resp) {
 		case 100:	/* 100 Trying */
@@ -21556,8 +21570,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 			p->authtries = 0;	/* Reset authentication counter */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, seqno);
-			} else if (sipmethod == SIP_NOTIFY) {
-				handle_response_notify(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_REGISTER) {
 				handle_response_register(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_SUBSCRIBE) {
@@ -21572,8 +21584,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		case 407: /* Proxy auth required */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
-			else if (sipmethod == SIP_NOTIFY)
-				handle_response_notify(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_SUBSCRIBE)
 				handle_response_subscribe(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
@@ -21649,8 +21659,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_SUBSCRIBE) {
 				handle_response_subscribe(p, resp, rest, req, seqno);
-			} else if (sipmethod == SIP_NOTIFY) {
-				pvt_set_needdestroy(p, "received 481 response");
 			} else if (sipmethod == SIP_BYE) {
 				/* The other side has no transaction to bye,
 				just assume it's all right then */
@@ -21811,24 +21819,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				ast_debug(1, "Got 200 OK on CANCEL\n");
 
 				/* Wait for 487, then destroy */
-			} else if (sipmethod == SIP_NOTIFY) {
-				/* They got the notify, this is the end */
-				if (p->owner) {
-					if (p->refer) {
-						ast_debug(1, "Got 200 OK on NOTIFY for transfer\n");
-					} else
-						ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
-					/* ast_queue_hangup(p->owner); Disabled */
-				} else {
-					if (!p->subscribed && !p->refer) {
-						pvt_set_needdestroy(p, "transaction completed");
-					}
-					if (ast_test_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE)) {
-						/* Ready to send the next state we have on queue */
-						ast_clear_flag(&p->flags[1], SIP_PAGE2_STATECHANGEQUEUE);
-						cb_extensionstate((char *)p->context, (char *)p->exten, p->laststate, (void *) p);
-					}
-				}
 			} else if (sipmethod == SIP_BYE) {
 				pvt_set_needdestroy(p, "transaction completed");
 			}
@@ -21849,8 +21839,6 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				/* Re-invite failed */
 				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_BYE) {
-				pvt_set_needdestroy(p, "received 481 response");
-			} else if (sipmethod == SIP_NOTIFY) {
 				pvt_set_needdestroy(p, "received 481 response");
 			} else if (sipdebug) {
 				ast_debug(1, "Remote host can't match request %s to call '%s'. Giving up\n", sip_methods[sipmethod].text, p->callid);
