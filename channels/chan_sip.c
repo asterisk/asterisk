@@ -20871,14 +20871,6 @@ static void handle_response_notify(struct sip_pvt *p, int resp, const char *rest
 				ast_log(LOG_NOTICE, "Got OK on REFER Notify message\n");
 			} else {
 				ast_log(LOG_WARNING, "Notify answer on an owned channel? - %s\n", ast_channel_name(p->owner));
-				/*
-				 * XXX There is discrepancy on whether a hangup should be queued
-				 * or not. This code used to be duplicated in two places, and the more
-				 * frequently hit area had this disabled, making it the de facto
-				 * "correct" way to go.
-				 *
-				 * ast_queue_hangup_with_cause(p->owner, AST_CAUSE_NORMAL_UNSPECIFIED);
-				 */
 			}
 		} else {
 			if (p->subscribed == NONE && !p->refer) {
