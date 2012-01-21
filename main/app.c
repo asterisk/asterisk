@@ -108,7 +108,7 @@ static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);
  * \param collect
  * \param size
  * \param maxlen
- * \param timeout timeout in seconds
+ * \param timeout timeout in milliseconds
  *
  * \return 0 if extension does not exist, 1 if extension exists
 */
@@ -121,10 +121,12 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 		maxlen = size;
 	}
 
-	if (!timeout && chan->pbx) {
-		timeout = chan->pbx->dtimeoutms / 1000.0;
-	} else if (!timeout) {
-		timeout = 5;
+	if (!timeout) {
+		if (chan->pbx && chan->pbx->dtimeoutms) {
+			timeout = chan->pbx->dtimeoutms;
+		} else {
+			timeout = 5000;
+		}
 	}
 
 	if ((ts = ast_get_indication_tone(chan->zone, "dial"))) {
