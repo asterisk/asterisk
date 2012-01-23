@@ -17,6 +17,11 @@ Core
  * The expression parser now recognizes the ABS() absolute value function,
    which will convert negative floating point values to positive values.
 
+CLI Changes
+-------------------
+ * mixmonitor list <channel> command will now show MixMonitor ID, and the filenames
+   of all running mixmonitors on a channel.
+
 ConfBridge
 -------------------
  * Added menu action admin_toggle_mute_participants.  This will mute / unmute
@@ -82,6 +87,11 @@ Parking
  * Channel variable PARKER is now set when comebacktoorigin is disabled in
    a parking lot.
 
+ * MixMonitor hooks now have IDs associated with them which can be used to assign
+   a target to StopMixMonitor. Use of MixMonitor's i(variable) option will allow
+   storage of the MixMontior ID in a channel variable.  StopMixmonitor now accepts
+   that ID as an argument.
+
 CDR postgresql driver changes
 -----------------------------
  * Added command "cdr show pgsql status" to check connection status
@@ -90,6 +100,10 @@ AMI (Asterisk Manager Interface) changes
 ----------------------------------------
  * Originate now generates an error response if the extension given
    is not found in the dialplan
+
+ * MixMonitor will now show IDs associated with the mixmonitor upon creating them
+   if the i(variable) option is used. StopMixMonitor will accept MixMonitorID as
+   on option to close specific MixMonitors.
 
 FAX changes
 -----------
