@@ -58,6 +58,12 @@ Codec changes
    requirement to use two different keywords.  For example, to specify all
    codecs except g729 and g723, one need only specify allow=all,!g729,!g723.
 
+Music On Hold Changes
+---------------------
+ * Added 'announcement' option which will play at the start of MOH and between
+   songs in modes of MOH that can detect transitions between songs (eg.
+   files, mp3, etc).
+
 Queue changes
 -------------
  * Added queue options autopausebusy and autopauseunavail for automatically

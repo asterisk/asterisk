@@ -158,6 +158,7 @@ struct moh_files_state {
 	char name[MAX_MUSICCLASS];
 	struct ast_format origwfmt;
 	struct ast_format mohwfmt;
+	int announcement;
 	int samples;
 	int sample_queue;
 	int pos;
@@ -173,6 +174,7 @@ struct moh_files_state {
 #define MOH_SORTALPHA		(1 << 4)
 
 #define MOH_CACHERTCLASSES      (1 << 5)        /*!< Should we use a separate instance of MOH for each user or not */
+#define MOH_ANNOUNCEMENT	(1 << 6)			/*!< Do we play announcement files between songs on this channel? */
 
 /* Custom astobj2 flag */
 #define MOH_NOTDELETED          (1 << 30)       /*!< Find only records that aren't deleted? */
@@ -183,6 +185,7 @@ struct mohclass {
 	char name[MAX_MUSICCLASS];
 	char dir[256];
 	char args[256];
+	char announcement[256];
 	char mode[80];
 	char digit;
 	/*! A dynamically sized array to hold the list of filenames in "files" mode */
@@ -276,6 +279,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 	}
 
 	state->save_pos = state->pos;
+	state->announcement = 0;
 
 	state->class = mohclass_unref(state->class, "Unreffing channel's music class upon deactivation of generator");
 }
@@ -289,6 +293,16 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	if (chan->stream) {
 		ast_closestream(chan->stream);
 		chan->stream = NULL;
+	}
+
+	if (ast_test_flag(state->class, MOH_ANNOUNCEMENT) && state->announcement == 0) {
+		state->announcement = 1;
+		if (ast_openstream_full(chan, state->class->announcement, chan->language, 1)) {
+			ast_debug(1, "%s Opened announcement '%s'\n", ast_channel_name(chan), state->class->announcement);
+			return 0;
+		}
+	} else {
+		state->announcement = 0;
 	}
 
 	if (!state->class->total_files) {
@@ -1735,23 +1749,26 @@ static int load_moh_classes(int reload)
 			break;
 		}
 
-		ast_copy_string(class->name, cat, sizeof(class->name));	
+		ast_copy_string(class->name, cat, sizeof(class->name));
 		for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
-			if (!strcasecmp(var->name, "mode"))
-				ast_copy_string(class->mode, var->value, sizeof(class->mode)); 
-			else if (!strcasecmp(var->name, "directory"))
+			if (!strcasecmp(var->name, "mode")) {
+				ast_copy_string(class->mode, var->value, sizeof(class->mode));
+			} else if (!strcasecmp(var->name, "directory")) {
 				ast_copy_string(class->dir, var->value, sizeof(class->dir));
-			else if (!strcasecmp(var->name, "application"))
+			} else if (!strcasecmp(var->name, "application")) {
 				ast_copy_string(class->args, var->value, sizeof(class->args));
-			else if (!strcasecmp(var->name, "digit") && (isdigit(*var->value) || strchr("*#", *var->value)))
+			} else if (!strcasecmp(var->name, "announcement")) {
+				ast_copy_string(class->announcement, var->value, sizeof(class->announcement));
+				ast_set_flag(class, MOH_ANNOUNCEMENT);
+			} else if (!strcasecmp(var->name, "digit") && (isdigit(*var->value) || strchr("*#", *var->value))) {
 				class->digit = *var->value;
-			else if (!strcasecmp(var->name, "random"))
+			} else if (!strcasecmp(var->name, "random")) {
 				ast_set2_flag(class, ast_true(var->value), MOH_RANDOMIZE);
-			else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "random"))
+			} else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "random")) {
 				ast_set_flag(class, MOH_RANDOMIZE);
-			else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "alpha")) 
+			} else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "alpha")) {
 				ast_set_flag(class, MOH_SORTALPHA);
-			else if (!strcasecmp(var->name, "format")) {
+			} else if (!strcasecmp(var->name, "format")) {
 				ast_getformatbyname(var->value, &class->format);
 				if (!class->format.id) {
 					ast_log(LOG_WARNING, "Unknown format '%s' -- defaulting to SLIN\n", var->value);

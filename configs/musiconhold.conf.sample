@@ -52,6 +52,11 @@ directory=moh
 ;digit=#        ; If this option is set for a class, then when callers are
 ;               ; listening to music on hold, they can press this digit, and
 ;               ; they will switch to listening to this music class.
+;announcement=queue-thankyou	;If this option is set for a class, then
+;               ; when callers get put on hold, the specified sound will be
+;               ; be played to them. Also, if using modes that Asterisk
+;               ; controls the playlist for (files, mp3, etc), the same
+;               ; sound will also be played between MOH songs.
 ;sort=random    ; Sort the files in random order
 
 ;[native-alphabetical]
