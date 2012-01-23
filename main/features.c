@@ -4117,6 +4117,17 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 		if (!f || (f->frametype == AST_FRAME_CONTROL &&
 				(f->subclass.integer == AST_CONTROL_HANGUP || f->subclass.integer == AST_CONTROL_BUSY ||
 					f->subclass.integer == AST_CONTROL_CONGESTION))) {
+			/*
+			 * If the bridge was broken for a hangup that isn't real, then
+			 * then don't run the h extension, because the channel isn't
+			 * really hung up. This should really only happen with AST_SOFTHANGUP_ASYNCGOTO,
+			 * but it doesn't hurt to check AST_SOFTHANGUP_UNBRIDGE either.
+			 */
+			ast_channel_lock(chan);
+			if (chan->_softhangup & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE)) {
+				ast_set_flag(chan, AST_FLAG_BRIDGE_HANGUP_DONT);
+			}
+			ast_channel_unlock(chan);
 			res = -1;
 			break;
 		}
