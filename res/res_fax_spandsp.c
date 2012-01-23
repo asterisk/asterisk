@@ -166,6 +166,7 @@ static int t38_tx_packet_handler(t38_core_state_t *t38_core_state, void *data, c
 static void t30_phase_e_handler(t30_state_t *t30_state, void *data, int completion_code);
 static void spandsp_log(int level, const char *msg);
 static int update_stats(struct spandsp_pvt *p, int completion_code);
+static int spandsp_modems(struct ast_fax_session_details *details);
 
 static void set_logging(logging_state_t *state, struct ast_fax_session_details *details);
 static void set_local_info(t30_state_t *t30_state, struct ast_fax_session_details *details);
@@ -473,6 +474,31 @@ static int spandsp_v21_new(struct spandsp_pvt *p)
 	return 0;
 }
 
+static int spandsp_modems(struct ast_fax_session_details *details)
+{
+	int modems = 0;
+	if (AST_FAX_MODEM_V17 & details->modems) {
+		modems |= T30_SUPPORT_V17;
+	}
+	if (AST_FAX_MODEM_V27 & details->modems) {
+		modems |= T30_SUPPORT_V27TER;
+	}
+	if (AST_FAX_MODEM_V29 & details->modems) {
+		modems |= T30_SUPPORT_V29;
+	}
+	if (AST_FAX_MODEM_V34 & details->modems) {
+#if defined(T30_SUPPORT_V34)
+		modems |= T30_SUPPORT_V34;
+#elif defined(T30_SUPPORT_V34HDX)
+		modems |= T30_SUPPORT_V34HDX;
+#else
+		ast_log(LOG_WARNING, "v34 not supported in this version of spandsp\n");
+#endif
+	}
+
+	return modems;
+}
+
 /*! \brief create an instance of the spandsp tech_pvt for a fax session */
 static void *spandsp_fax_new(struct ast_fax_session *s, struct ast_fax_tech_token *token)
 {
@@ -730,7 +756,7 @@ static void spandsp_fax_gw_gen_release(struct ast_channel *chan, void *data) {
 static int spandsp_fax_gateway_start(struct ast_fax_session *s) {
 	struct spandsp_pvt *p = s->tech_pvt;
 	struct ast_fax_t38_parameters *t38_param;
-	int i, modems = 0;
+	int i;
 	struct ast_channel *peer;
 	static struct ast_generator t30_gen = {
 		alloc: spandsp_fax_gw_gen_alloc,
@@ -781,26 +807,8 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s) {
 	t38_gateway_set_transmit_on_idle(&p->t38_gw_state, TRUE);
 	t38_set_sequence_number_handling(p->t38_core_state, TRUE);
 
-	if (AST_FAX_MODEM_V17 & s->details->modems) {
-		modems |= T30_SUPPORT_V17;
-	}
-	if (AST_FAX_MODEM_V27 & s->details->modems) {
-		modems |= T30_SUPPORT_V27TER;
-	}
-	if (AST_FAX_MODEM_V29 & s->details->modems) {
-		modems |= T30_SUPPORT_V29;
-	}
-	if (AST_FAX_MODEM_V34 & s->details->modems) {
-#if defined(T30_SUPPORT_V34)
-		modems |= T30_SUPPORT_V34;
-#elif defined(T30_SUPPORT_V34HDX)
-		modems |= T30_SUPPORT_V34HDX;
-#else
-		ast_log(LOG_WARNING, "v34 not supported in this version of spandsp\n");
-#endif
-	}
 
-	t38_gateway_set_supported_modems(&p->t38_gw_state, modems);
+	t38_gateway_set_supported_modems(&p->t38_gw_state, spandsp_modems(s->details));
 
 	/* engage udptl nat on other side of T38 line 
 	 * (Asterisk changes media ports thus we send a few packets to reinitialize
@@ -895,6 +903,7 @@ static int spandsp_fax_start(struct ast_fax_session *s)
 	set_local_info(p->t30_state, s->details);
 	set_file(p->t30_state, s->details);
 	set_ecm(p->t30_state, s->details);
+	t30_set_supported_modems(p->t30_state, spandsp_modems(s->details));
 
 	/* perhaps set_transmit_on_idle() should be called */
 
