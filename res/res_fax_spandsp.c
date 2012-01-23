@@ -131,6 +131,7 @@ static int t38_tx_packet_handler(t38_core_state_t *t38_core_state, void *data, c
 static void t30_phase_e_handler(t30_state_t *t30_state, void *data, int completion_code);
 static void spandsp_log(int level, const char *msg);
 static int update_stats(struct spandsp_pvt *p, int completion_code);
+static int spandsp_modems(struct ast_fax_session_details *details);
 
 static void set_logging(logging_state_t *state, struct ast_fax_session_details *details);
 static void set_local_info(t30_state_t *t30_state, struct ast_fax_session_details *details);
@@ -412,6 +413,31 @@ static void set_ecm(t30_state_t *t30_state, struct ast_fax_session_details *deta
 	t30_set_supported_compressions(t30_state, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
 }
 
+static int spandsp_modems(struct ast_fax_session_details *details)
+{
+	int modems = 0;
+	if (AST_FAX_MODEM_V17 & details->modems) {
+		modems |= T30_SUPPORT_V17;
+	}
+	if (AST_FAX_MODEM_V27 & details->modems) {
+		modems |= T30_SUPPORT_V27TER;
+	}
+	if (AST_FAX_MODEM_V29 & details->modems) {
+		modems |= T30_SUPPORT_V29;
+	}
+	if (AST_FAX_MODEM_V34 & details->modems) {
+#if defined(T30_SUPPORT_V34)
+		modems |= T30_SUPPORT_V34;
+#elif defined(T30_SUPPORT_V34HDX)
+		modems |= T30_SUPPORT_V34HDX;
+#else
+		ast_log(LOG_WARNING, "v34 not supported in this version of spandsp\n");
+#endif
+	}
+
+	return modems;
+}
+
 /*! \brief create an instance of the spandsp tech_pvt for a fax session */
 static void *spandsp_fax_new(struct ast_fax_session *s, struct ast_fax_tech_token *token)
 {
@@ -584,6 +610,7 @@ static int spandsp_fax_start(struct ast_fax_session *s)
 	set_local_info(p->t30_state, s->details);
 	set_file(p->t30_state, s->details);
 	set_ecm(p->t30_state, s->details);
+	t30_set_supported_modems(p->t30_state, spandsp_modems(s->details));
 
 	/* perhaps set_transmit_on_idle() should be called */
 
