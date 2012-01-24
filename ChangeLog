@@ -1,3 +1,51 @@
+2012-01-24  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.1.0-rc2 Released.
+
+	* Test results:
+	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1010RCS-
+
+	* main/file.c: Allow playback of formats that don't support
+	  seeking.  ast_streamfile previously did unconditional seeking
+	  on files that broke playback of formats that don't support that
+	  functionality.  This patch avoids the seek that was causing the
+	  problem.  (closes issue ASTERISK-18994) Patch-by: Timo Teras
+
+	* channels/chan_sip.c: AST-2012-001: prevent crash when an SDP offer
+	  is received with an encrypted video stream when support for video
+	  is disabled and res_srtp is loaded.  (closes issue ASTERISK-19202)
+	  Reported by: Catalin Sanda
+
+	* channels/chan_sip.c: Fix RTP reference leak.  If a blind transfer
+	  were initiated using a REFER without a prior reINVITE to place the
+	  call on hold, AND if Asterisk were sending RTCP reports, then there
+	  was a reference leak for the RTP instance of the transferer.
+	  (closes issue ASERISK-19192) Reported by: Tyuta Vitali
+
+	* res/res_rtp_asterisk: Add pjmedia probation concepts to
+	  res_rtp_asterisk's learning mode.  In order to better handle RTP
+	  sources with strictrtp enabled (which is the default setting in 10)
+	  using the learning mode to figure out new sources when they change is
+	  handled by checking for a number of consecutive (by sequence number)
+	  packets received to an rtp struct based on a new configurable value
+	  called 'probation'.  Also, during learning mode instead of liberally
+	  accepting all packets received, we now reject packets until a clear
+	  source has been determined.
+
+	* main/features.c: Fix blind transfers from failing if an 'h' extension
+	  is present.  This prevents the 'h' extension from being run on the
+	  transferee channel when it is transferred via a native transfer
+	  mechanism such as SIP REFER.  (closes issue ASTERISK-19173) Reported
+	  by: Ross Beer Tested by: Kristjan Vrban Patches: ASTERISK-19173 by
+	  Mark Michelson (license 5049)
+
+	* apps/app_queue.c: Realtime queues failed to load queue
+	  information without queue member table.  Revision 342223 
+	  broke this when it changed the return value for 
+	  realtime_multientry to return NULL when no results are
+	  returned.  (closes issue ASTERISK-19170) Reported by: Rene
+	  Mendoza Tested by: Rene Mendoza
+
 2011-12-30  Asterisk Development Team <asteriskteam@digium.com>
 
         * Asterisk 10.1.0-rc1 Released.
