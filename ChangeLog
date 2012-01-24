@@ -3,7 +3,7 @@
 	* Asterisk 10.1.0-rc2 Released.
 
 	* Test results:
-	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1010RCS-
+	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1010RCS-3
 
 	* main/file.c: Allow playback of formats that don't support
 	  seeking.  ast_streamfile previously did unconditional seeking
