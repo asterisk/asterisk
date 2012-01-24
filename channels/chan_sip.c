@@ -16842,6 +16842,9 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		return 0;
 	}
 
+	/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
+	check_rtp_timeout(dialog, *t);
+
 	/* We absolutely cannot destroy the rtp struct while a bridge is active or we WILL crash */
 	if (dialog->rtp && ast_rtp_instance_get_bridged(dialog->rtp)) {
 		ast_debug(2, "Bridge still active.  Delaying destroy of SIP dialog '%s' Method: %s\n", dialog->callid, sip_methods[dialog->method].text);
@@ -16854,9 +16857,6 @@ static int dialog_needdestroy(void *dialogobj, void *arg, int flags)
 		sip_pvt_unlock(dialog);
 		return 0;
 	}
-
-	/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
-	check_rtp_timeout(dialog, *t);
 
 	/* If we have sessions that needs to be destroyed, do it now */
 	/* Check if we have outstanding requests not responsed to or an active call
