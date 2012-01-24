@@ -158,7 +158,7 @@ int ast_send_image(struct ast_channel *chan, const char *filename)
 	struct ast_frame *f;
 	int res = -1;
 	if (chan->tech->send_image) {
-		f = ast_read_image(filename, chan->language, NULL);
+		f = ast_read_image(filename, ast_channel_language(chan), NULL);
 		if (f) {
 			res = chan->tech->send_image(chan, f);
 			ast_frfree(f);

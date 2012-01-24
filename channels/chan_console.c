@@ -428,7 +428,7 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 	pvt->owner = chan;
 
 	if (!ast_strlen_zero(pvt->language))
-		ast_string_field_set(chan, language, pvt->language);
+		ast_channel_language_set(chan, pvt->language);
 
 	ast_jb_configure(chan, &global_jbconf);
 
@@ -467,7 +467,7 @@ static struct ast_channel *console_request(const char *type, struct ast_format_c
 	}
 
 	console_pvt_lock(pvt);
-	chan = console_new(pvt, NULL, NULL, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+	chan = console_new(pvt, NULL, NULL, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 	console_pvt_unlock(pvt);
 
 	if (!chan)

@@ -837,7 +837,7 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 	ast_dsp_digitreset(pvt->dsp);
 
 	chn = ast_channel_alloc(1, state, cid_num, pvt->id, 0, 0, pvt->context,
-			requestor ? requestor->linkedid : "", 0,
+			requestor ? ast_channel_linkedid(requestor) : "", 0,
 			"Mobile/%s-%04lx", pvt->id, ast_random() & 0xffff);
 	if (!chn) {
 		goto e_return;
@@ -854,7 +854,7 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 	if (state == AST_STATE_RING)
 		chn->rings = 1;
 
-	ast_string_field_set(chn, language, "en");
+	ast_channel_language_set(chn, "en");
 	pvt->owner = chn;
 
 	if (pvt->sco_socket != -1) {

@@ -231,7 +231,7 @@ static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *fra
 		"Variable: LOCAL(%s)\r\n"
 		"Value: %s\r\n"
 		"Uniqueid: %s\r\n",
-		ast_channel_name(chan), var, value, chan->uniqueid);
+		ast_channel_name(chan), var, value, ast_channel_uniqueid(chan));
 	return 0;
 }
 

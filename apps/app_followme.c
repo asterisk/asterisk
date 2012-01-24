@@ -623,7 +623,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					if (!ast_strlen_zero(namerecloc)) {
 						tmpuser->state = 1;
 						tmpuser->digts = 0;
-						if (!ast_streamfile(tmpuser->ochan, callfromname, tmpuser->ochan->language)) {
+						if (!ast_streamfile(tmpuser->ochan, callfromname, ast_channel_language(tmpuser->ochan))) {
 							ast_sched_runq(tmpuser->ochan->sched);
 						} else {
 							ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
@@ -632,7 +632,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					} else {
 						tmpuser->state = 2;
 						tmpuser->digts = 0;
-						if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, tmpuser->ochan->language))
+						if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, ast_channel_language(tmpuser->ochan)))
 							ast_sched_runq(tmpuser->ochan->sched);
 						else {
 							ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
@@ -649,13 +649,13 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_stopstream(tmpuser->ochan);
 						if (tmpuser->state == 1) {
 							ast_verb(3, "Playback of the call-from file appears to be done.\n");
-							if (!ast_streamfile(tmpuser->ochan, namerecloc, tmpuser->ochan->language)) {
+							if (!ast_streamfile(tmpuser->ochan, namerecloc, ast_channel_language(tmpuser->ochan))) {
 								tmpuser->state = 2;
 							} else {
 								ast_log(LOG_NOTICE, "Unable to playback %s. Maybe the caller didn't record their name?\n", namerecloc);
 								memset(tmpuser->yn, 0, sizeof(tmpuser->yn));
 								tmpuser->ynidx = 0;
-								if (!ast_streamfile(tmpuser->ochan, pressbuttonname, tmpuser->ochan->language))
+								if (!ast_streamfile(tmpuser->ochan, pressbuttonname, ast_channel_language(tmpuser->ochan)))
 									tmpuser->state = 3;
 								else {
 									ast_log(LOG_WARNING, "Unable to playback %s.\n", pressbuttonname);
@@ -666,7 +666,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							ast_verb(3, "Playback of name file appears to be done.\n");
 							memset(tmpuser->yn, 0, sizeof(tmpuser->yn));
 							tmpuser->ynidx = 0;
-							if (!ast_streamfile(tmpuser->ochan, pressbuttonname, tmpuser->ochan->language)) {
+							if (!ast_streamfile(tmpuser->ochan, pressbuttonname, ast_channel_language(tmpuser->ochan))) {
 								tmpuser->state = 3;
 							} else {
 								return NULL;
@@ -737,7 +737,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_verb(3, "Starting playback of %s\n", callfromname);
 						if (dg > 0) {
 							if (!ast_strlen_zero(namerecloc)) {
-								if (!ast_streamfile(winner, callfromname, winner->language)) {
+								if (!ast_streamfile(winner, callfromname, ast_channel_language(winner))) {
 									ast_sched_runq(winner->sched);
 									tmpuser->state = 1;
 								} else {
@@ -747,7 +747,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 								}
 							} else {
 								tmpuser->state = 2;
-								if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, tmpuser->ochan->language))
+								if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, ast_channel_language(tmpuser->ochan)))
 									ast_sched_runq(tmpuser->ochan->sched);
 								else {
 									ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
@@ -959,9 +959,9 @@ static void findmeexec(struct fm_args *tpargs)
 				ast_connected_line_copy_from_caller(&outbound->connected, &caller->caller);
 				ast_channel_inherit_variables(caller, outbound);
 				ast_channel_datastore_inherit(caller, outbound);
-				ast_string_field_set(outbound, language, caller->language);
-				ast_string_field_set(outbound, accountcode, caller->accountcode);
-				ast_string_field_set(outbound, musicclass, caller->musicclass);
+				ast_channel_language_set(outbound, ast_channel_language(caller));
+				ast_channel_accountcode_set(outbound, ast_channel_accountcode(caller));
+				ast_channel_musicclass_set(outbound, ast_channel_musicclass(caller));
 				ast_channel_unlock(outbound);
 				ast_channel_unlock(caller);
 				ast_verb(3, "calling Local/%s\n", dialarg);
@@ -1243,18 +1243,18 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			int duration = 5;
 
 			snprintf(namerecloc, sizeof(namerecloc), "%s/followme.%s",
-				ast_config_AST_SPOOL_DIR, chan->uniqueid);
+				ast_config_AST_SPOOL_DIR, ast_channel_uniqueid(chan));
 			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration,
 				NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0) {
 				goto outrun;
 			}
-			if (!ast_fileexists(namerecloc, NULL, chan->language)) {
+			if (!ast_fileexists(namerecloc, NULL, ast_channel_language(chan))) {
 				namerecloc[0] = '\0';
 			}
 		}
 
 		if (!ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_DISABLEHOLDPROMPT)) {
-			if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
+			if (ast_streamfile(chan, targs.plsholdprompt, ast_channel_language(chan)))
 				goto outrun;
 			if (ast_waitstream(chan, "") < 0)
 				goto outrun;

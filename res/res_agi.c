@@ -1722,9 +1722,9 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	   thing */
 	ast_agi_send(fd, chan, "agi_request: %s\n", request);
 	ast_agi_send(fd, chan, "agi_channel: %s\n", ast_channel_name(chan));
-	ast_agi_send(fd, chan, "agi_language: %s\n", chan->language);
+	ast_agi_send(fd, chan, "agi_language: %s\n", ast_channel_language(chan));
 	ast_agi_send(fd, chan, "agi_type: %s\n", chan->tech->type);
-	ast_agi_send(fd, chan, "agi_uniqueid: %s\n", chan->uniqueid);
+	ast_agi_send(fd, chan, "agi_uniqueid: %s\n", ast_channel_uniqueid(chan));
 	ast_agi_send(fd, chan, "agi_version: %s\n", ast_get_version());
 
 	/* ANI/DNIS */
@@ -1748,7 +1748,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	ast_agi_send(fd, chan, "agi_enhanced: %s\n", enhanced ? "1.0" : "0.0");
 
 	/* User information */
-	ast_agi_send(fd, chan, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
+	ast_agi_send(fd, chan, "agi_accountcode: %s\n", ast_channel_accountcode(chan) ? ast_channel_accountcode(chan) : "");
 	ast_agi_send(fd, chan, "agi_threadid: %ld\n", (long)pthread_self());
 
 	/* Send any parameters to the fastagi server that have been passed via the agi application */
@@ -1946,12 +1946,12 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 		return RESULT_SHOWUSAGE;
 	}
 
-	if (!(fs = ast_openstream(chan, argv[2], chan->language))) {
+	if (!(fs = ast_openstream(chan, argv[2], ast_channel_language(chan)))) {
 		ast_agi_send(agi->fd, chan, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		return RESULT_SUCCESS;
 	}
 
-	if ((vfs = ast_openvstream(chan, argv[2], chan->language))) {
+	if ((vfs = ast_openvstream(chan, argv[2], ast_channel_language(chan)))) {
 		ast_debug(1, "Ooh, found a video stream, too\n");
 	}
 
@@ -2004,13 +2004,13 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, const 
 		timeout = chan->pbx->dtimeoutms; /* in msec */
 	}
 
-	if (!(fs = ast_openstream(chan, argv[2], chan->language))) {
+	if (!(fs = ast_openstream(chan, argv[2], ast_channel_language(chan)))) {
 		ast_agi_send(agi->fd, chan, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
 		return RESULT_SUCCESS;
 	}
 
-	if ((vfs = ast_openvstream(chan, argv[2], chan->language)))
+	if ((vfs = ast_openvstream(chan, argv[2], ast_channel_language(chan))))
 		ast_debug(1, "Ooh, found a video stream, too\n");
 
 	ast_verb(3, "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
@@ -2060,7 +2060,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, const 
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_number_full(chan, num, argv[3], chan->language, argc > 4 ? argv[4] : NULL, agi->audio, agi->ctrl);
+	res = ast_say_number_full(chan, num, argv[3], ast_channel_language(chan), argc > 4 ? argv[4] : NULL, agi->audio, agi->ctrl);
 	if (res == 1)
 		return RESULT_SUCCESS;
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -2076,7 +2076,7 @@ static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, const 
 	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 
-	res = ast_say_digit_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
+	res = ast_say_digit_str_full(chan, argv[2], argv[3], ast_channel_language(chan), agi->audio, agi->ctrl);
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -2090,7 +2090,7 @@ static int handle_sayalpha(struct ast_channel *chan, AGI *agi, int argc, const c
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	res = ast_say_character_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
+	res = ast_say_character_str_full(chan, argv[2], argv[3], ast_channel_language(chan), agi->audio, agi->ctrl);
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -2105,7 +2105,7 @@ static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, const ch
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_date(chan, num, argv[3], chan->language);
+	res = ast_say_date(chan, num, argv[3], ast_channel_language(chan));
 	if (res == 1)
 		return RESULT_SUCCESS;
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -2120,7 +2120,7 @@ static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, const ch
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%30d", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_time(chan, num, argv[3], chan->language);
+	res = ast_say_time(chan, num, argv[3], ast_channel_language(chan));
 	if (res == 1)
 		return RESULT_SUCCESS;
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -2140,7 +2140,7 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, cons
 		format = argv[4];
 	} else {
 		/* XXX this doesn't belong here, but in the 'say' module */
-		if (!strcasecmp(chan->language, "de")) {
+		if (!strcasecmp(ast_channel_language(chan), "de")) {
 			format = "A dBY HMS";
 		} else {
 			format = "ABdY 'digits/at' IMp";
@@ -2153,7 +2153,7 @@ static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, cons
 	if (ast_get_time_t(argv[2], &unixtime, 0, NULL))
 		return RESULT_SHOWUSAGE;
 
-	res = ast_say_date_with_format(chan, unixtime, argv[3], chan->language, format, zone);
+	res = ast_say_date_with_format(chan, unixtime, argv[3], ast_channel_language(chan), format, zone);
 	if (res == 1)
 		return RESULT_SUCCESS;
 
@@ -2168,7 +2168,7 @@ static int handle_sayphonetic(struct ast_channel *chan, AGI *agi, int argc, cons
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	res = ast_say_phonetic_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
+	res = ast_say_phonetic_str_full(chan, argv[2], argv[3], ast_channel_language(chan), agi->audio, agi->ctrl);
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -2306,10 +2306,10 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	 * caught below and taken to be a beep, else if it is a digit then it is a
 	 * offset */
 	if ((argc >6) && (sscanf(argv[6], "%30ld", &sample_offset) != 1) && (!strchr(argv[6], '=')))
-		res = ast_streamfile(chan, "beep", chan->language);
+		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 
 	if ((argc > 7) && (!strchr(argv[7], '=')))
-		res = ast_streamfile(chan, "beep", chan->language);
+		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 
 	if (!res)
 		res = ast_waitstream(chan, argv[4]);
@@ -2947,7 +2947,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 	}
 
 	/* Start playing prompt */
-	speech_streamfile(chan, prompt, chan->language, offset);
+	speech_streamfile(chan, prompt, ast_channel_language(chan), offset);
 
 	/* Go into loop reading in frames, passing to speech thingy, checking for hangup, all that jazz */
 	while (ast_strlen_zero(reason)) {
@@ -3005,7 +3005,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 				ast_stopstream(chan);
 				/* If a processing sound exists, or is not none - play it */
 				if (!ast_strlen_zero(speech->processing_sound) && strcasecmp(speech->processing_sound, "none"))
-					speech_streamfile(chan, speech->processing_sound, chan->language, 0);
+					speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan), 0);
 			}
 			break;
 		case AST_SPEECH_STATE_DONE:

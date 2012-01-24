@@ -377,7 +377,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			}
 
 			if (!ast_strlen_zero(acctcode))
-				ast_string_field_set(chan, accountcode, acctcode);
+				ast_channel_accountcode_set(chan, acctcode);
 
 			if (special_noanswer) cdr_flags.flags = 0;
 			ast_cdr_reset(chan->cdr, &cdr_flags);

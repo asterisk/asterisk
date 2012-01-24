@@ -276,8 +276,8 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANLANGUAGE:
-		if (!ast_strlen_zero(chan->language)) {
-			strncpy(string_ret, chan->language, sizeof(string_ret));
+		if (!ast_strlen_zero(ast_channel_language(chan))) {
+			strncpy(string_ret, ast_channel_language(chan), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
@@ -290,8 +290,8 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANMUSICCLASS:
-		if (!ast_strlen_zero(chan->musicclass)) {
-			strncpy(string_ret, chan->musicclass, sizeof(string_ret));
+		if (!ast_strlen_zero(ast_channel_musicclass(chan))) {
+			strncpy(string_ret, ast_channel_musicclass(chan), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
@@ -377,23 +377,23 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANACCOUNTCODE:
-		if (!ast_strlen_zero(chan->accountcode)) {
-			strncpy(string_ret, chan->accountcode, sizeof(string_ret));
+		if (!ast_strlen_zero(ast_channel_accountcode(chan))) {
+			strncpy(string_ret, ast_channel_accountcode(chan), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANFORWARDTO:
-		if (!ast_strlen_zero(chan->call_forward)) {
-			strncpy(string_ret, chan->call_forward, sizeof(string_ret));
+		if (!ast_strlen_zero(ast_channel_call_forward(chan))) {
+			strncpy(string_ret, ast_channel_call_forward(chan), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANUNIQUEID:
-		strncpy(string_ret, chan->uniqueid, sizeof(string_ret));
+		strncpy(string_ret, ast_channel_uniqueid(chan), sizeof(string_ret));
 		string_ret[sizeof(string_ret) - 1] = '\0';
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;

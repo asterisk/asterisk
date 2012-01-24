@@ -3322,7 +3322,7 @@ static int action_status(struct mansession *s, const struct message *m)
 
 		channels++;
 		if (c->_bridge) {
-			snprintf(bridge, sizeof(bridge), "BridgedChannel: %s\r\nBridgedUniqueid: %s\r\n", ast_channel_name(c->_bridge), c->_bridge->uniqueid);
+			snprintf(bridge, sizeof(bridge), "BridgedChannel: %s\r\nBridgedUniqueid: %s\r\n", ast_channel_name(c->_bridge), ast_channel_uniqueid(c->_bridge));
 		} else {
 			bridge[0] = '\0';
 		}
@@ -3355,10 +3355,10 @@ static int action_status(struct mansession *s, const struct message *m)
 			S_COR(c->caller.id.name.valid, c->caller.id.name.str, "<unknown>"),
 			S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
 			S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
-			c->accountcode,
+			ast_channel_accountcode(c),
 			c->_state,
 			ast_state2str(c->_state), c->context,
-			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, ast_str_buffer(str), idText);
+			c->exten, c->priority, (long)elapsed_seconds, bridge, ast_channel_uniqueid(c), ast_str_buffer(str), idText);
 		} else {
 			astman_append(s,
 				"Event: Status\r\n"
@@ -3380,8 +3380,8 @@ static int action_status(struct mansession *s, const struct message *m)
 				S_COR(c->caller.id.name.valid, c->caller.id.name.str, "<unknown>"),
 				S_COR(c->connected.id.number.valid, c->connected.id.number.str, "<unknown>"),
 				S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
-				c->accountcode,
-				ast_state2str(c->_state), bridge, c->uniqueid,
+				ast_channel_accountcode(c),
+				ast_state2str(c->_state), bridge, ast_channel_uniqueid(c),
 				ast_str_buffer(str), idText);
 		}
 
@@ -3743,7 +3743,7 @@ static void *fast_originate(void *data)
 		"CallerIDName: %s\r\n",
 		in->idtext, ast_strlen_zero(in->idtext) ? "" : "\r\n", res ? "Failure" : "Success",
 		chan ? ast_channel_name(chan) : requested_channel, in->context, in->exten, reason,
-		chan ? chan->uniqueid : "<null>",
+		chan ? ast_channel_uniqueid(chan) : "<null>",
 		S_OR(in->cid_num, "<unknown>"),
 		S_OR(in->cid_name, "<unknown>")
 		);
@@ -4592,13 +4592,13 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"AccountCode: %s\r\n"
 			"BridgedChannel: %s\r\n"
 			"BridgedUniqueID: %s\r\n"
-			"\r\n", idText, ast_channel_name(c), c->uniqueid, c->context, c->exten, c->priority, c->_state,
+			"\r\n", idText, ast_channel_name(c), ast_channel_uniqueid(c), c->context, c->exten, c->priority, c->_state,
 			ast_state2str(c->_state), c->appl ? c->appl : "", c->data ? S_OR(c->data, "") : "",
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
 			S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
 			S_COR(c->connected.id.number.valid, c->connected.id.number.str, ""),
 			S_COR(c->connected.id.name.valid, c->connected.id.name.str, ""),
-			durbuf, S_OR(c->accountcode, ""), bc ? ast_channel_name(bc) : "", bc ? bc->uniqueid : "");
+			durbuf, S_OR(ast_channel_accountcode(c), ""), bc ? ast_channel_name(bc) : "", bc ? ast_channel_uniqueid(bc) : "");
 
 		ast_channel_unlock(c);
 

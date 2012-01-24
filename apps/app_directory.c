@@ -273,13 +273,13 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (ast_test_flag(flags, OPT_SAYEXTENSION)) {
 			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
-			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
+			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, ast_channel_language(chan));
 		}
 	} else {
-		res = ast_say_character_str(chan, S_OR(name, ext), AST_DIGIT_ANY, chan->language);
+		res = ast_say_character_str(chan, S_OR(name, ext), AST_DIGIT_ANY, ast_channel_language(chan));
 		if (!ast_strlen_zero(name) && ast_test_flag(flags, OPT_SAYEXTENSION)) {
 			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
-			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
+			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, ast_channel_language(chan));
 		}
 	}
 
@@ -383,15 +383,15 @@ static int select_item_menu(struct ast_channel *chan, struct directory_item **it
 
 			snprintf(buf, sizeof(buf), "digits/%d", i + 1);
 			/* Press <num> for <name>, [ extension <ext> ] */
-			res = ast_streamfile(chan, "dir-multi1", chan->language);
+			res = ast_streamfile(chan, "dir-multi1", ast_channel_language(chan));
 			if (!res)
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 			if (!res)
-				res = ast_streamfile(chan, buf, chan->language);
+				res = ast_streamfile(chan, buf, ast_channel_language(chan));
 			if (!res)
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 			if (!res)
-				res = ast_streamfile(chan, "dir-multi2", chan->language);
+				res = ast_streamfile(chan, "dir-multi2", ast_channel_language(chan));
 			if (!res)
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 			if (!res)
@@ -404,7 +404,7 @@ static int select_item_menu(struct ast_channel *chan, struct directory_item **it
 
 		/* Press "9" for more names. */
 		if (!res && count > limit) {
-			res = ast_streamfile(chan, "dir-multi9", chan->language);
+			res = ast_streamfile(chan, "dir-multi9", ast_channel_language(chan));
 			if (!res)
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 		}
@@ -710,7 +710,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	}
 
 	if (count < 1) {
-		res = ast_streamfile(chan, "dir-nomatch", chan->language);
+		res = ast_streamfile(chan, "dir-nomatch", ast_channel_language(chan));
 		goto exit;
 	}
 
@@ -742,7 +742,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	}
 
 	if (!res) {
-		res = ast_streamfile(chan, "dir-nomore", chan->language);
+		res = ast_streamfile(chan, "dir-nomore", ast_channel_language(chan));
 	}
 
 exit:

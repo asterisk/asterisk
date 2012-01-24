@@ -582,7 +582,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	if (!ast_strlen_zero(p->exten))
 		ast_copy_string(tmp->exten, p->exten, sizeof(tmp->exten));
 	if (!ast_strlen_zero(language))
-		ast_string_field_set(tmp, language, language);
+		ast_channel_language_set(tmp, language);
 	p->owner = tmp;
 	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(tmp, &global_jbconf);
@@ -615,7 +615,7 @@ static struct ast_channel *alsa_request(const char *type, struct ast_format_cap 
 	if (alsa.owner) {
 		ast_log(LOG_NOTICE, "Already have a call on the ALSA channel\n");
 		*cause = AST_CAUSE_BUSY;
-	} else if (!(tmp = alsa_new(&alsa, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL))) {
+	} else if (!(tmp = alsa_new(&alsa, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL))) {
 		ast_log(LOG_WARNING, "Unable to create new ALSA channel\n");
 	}
 

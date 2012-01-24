@@ -1181,15 +1181,15 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	tmp->caller.id.name.presentation = client->callingpres;
 	tmp->caller.id.number.presentation = client->callingpres;
 	if (!ast_strlen_zero(client->accountcode))
-		ast_string_field_set(tmp, accountcode, client->accountcode);
+		ast_channel_accountcode_set(tmp, client->accountcode);
 	if (client->amaflags)
 		tmp->amaflags = client->amaflags;
 	if (!ast_strlen_zero(client->language))
-		ast_string_field_set(tmp, language, client->language);
+		ast_channel_language_set(tmp, client->language);
 	if (!ast_strlen_zero(client->musicclass))
-		ast_string_field_set(tmp, musicclass, client->musicclass);
+		ast_channel_musicclass_set(tmp, client->musicclass);
 	if (!ast_strlen_zero(client->parkinglot))
-		ast_string_field_set(tmp, parkinglot, client->parkinglot);
+		ast_channel_parkinglot_set(tmp, client->parkinglot);
 	i->owner = tmp;
 	ast_module_ref(ast_module_info->self);
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
@@ -1940,7 +1940,7 @@ static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap
 	ASTOBJ_WRLOCK(client);
 	p = gtalk_alloc(client, strchr(sender, '@') ? sender : client->connection->jid->full, strchr(to, '@') ? to : client->user, NULL);
 	if (p) {
-		chan = gtalk_new(client, p, AST_STATE_DOWN, to, requestor ? requestor->linkedid : NULL);
+		chan = gtalk_new(client, p, AST_STATE_DOWN, to, requestor ? ast_channel_linkedid(requestor) : NULL);
 	}
 	ASTOBJ_UNLOCK(client);
 	return chan;

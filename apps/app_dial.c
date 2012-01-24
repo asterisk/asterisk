@@ -806,7 +806,7 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst, cons
 		S_COR(src->caller.id.name.valid, src->caller.id.name.str, "<unknown>"),
 		S_COR(src->connected.id.number.valid, src->connected.id.number.str, "<unknown>"),
 		S_COR(src->connected.id.name.valid, src->connected.id.name.str, "<unknown>"),
-		src->uniqueid, dst->uniqueid,
+		ast_channel_uniqueid(src), ast_channel_uniqueid(dst),
 		dialstring ? dialstring : "");
 }
 
@@ -817,7 +817,7 @@ static void senddialendevent(struct ast_channel *src, const char *dialstatus)
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n"
 		"DialStatus: %s\r\n",
-		ast_channel_name(src), src->uniqueid, dialstatus);
+		ast_channel_name(src), ast_channel_uniqueid(src), dialstatus);
 }
 
 /*!
@@ -841,7 +841,7 @@ static void do_forward(struct chanlist *o,
 	int cause;
 	struct ast_party_caller caller;
 
-	ast_copy_string(tmpchan, c->call_forward, sizeof(tmpchan));
+	ast_copy_string(tmpchan, ast_channel_call_forward(c), sizeof(tmpchan));
 	if ((stuff = strchr(tmpchan, '/'))) {
 		*stuff++ = '\0';
 		tech = tmpchan;
@@ -852,13 +852,13 @@ static void do_forward(struct chanlist *o,
 		if (ast_strlen_zero(forward_context)) {
 			forward_context = NULL;
 		}
-		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", c->call_forward, forward_context ? forward_context : c->context);
+		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(c), forward_context ? forward_context : c->context);
 		ast_channel_unlock(c);
 		stuff = tmpchan;
 		tech = "Local";
 	}
 
-	ast_cel_report_event(in, AST_CEL_FORWARD, NULL, c->call_forward, NULL);
+	ast_cel_report_event(in, AST_CEL_FORWARD, NULL, ast_channel_call_forward(c), NULL);
 
 	/* Before processing channel, go ahead and check for forwarding */
 	ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", ast_channel_name(in), tech, stuff, ast_channel_name(c));
@@ -943,7 +943,7 @@ static void do_forward(struct chanlist *o,
 			ast_connected_line_copy_from_caller(&c->connected, &in->caller);
 		}
 
-		ast_string_field_set(c, accountcode, in->accountcode);
+		ast_channel_accountcode_set(c, ast_channel_accountcode(in));
 
 		c->appl = "AppDial";
 		c->data = "(Outgoing Line)";
@@ -1133,7 +1133,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						OPT_CALLEE_PARK | OPT_CALLER_PARK |
 						OPT_CALLEE_MIXMONITOR | OPT_CALLER_MIXMONITOR |
 						DIAL_NOFORWARDHTML);
-					ast_string_field_set(c, dialcontext, "");
+					ast_channel_dialcontext_set(c, "");
 					ast_copy_string(c->exten, "", sizeof(c->exten));
 				}
 				continue;
@@ -1141,7 +1141,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			if (c != winner)
 				continue;
 			/* here, o->chan == c == winner */
-			if (!ast_strlen_zero(c->call_forward)) {
+			if (!ast_strlen_zero(ast_channel_call_forward(c))) {
 				pa->sentringing = 0;
 				if (!ignore_cc && (f = ast_read(c))) {
 					if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_CC) {
@@ -1207,7 +1207,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							OPT_CALLEE_PARK | OPT_CALLER_PARK |
 							OPT_CALLEE_MIXMONITOR | OPT_CALLER_MIXMONITOR |
 							DIAL_NOFORWARDHTML);
-						ast_string_field_set(c, dialcontext, "");
+						ast_channel_dialcontext_set(c, "");
 						ast_copy_string(c->exten, "", sizeof(c->exten));
 						if (CAN_EARLY_BRIDGE(peerflags, in, peer))
 							/* Setup early bridge if appropriate */
@@ -1581,11 +1581,11 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 	   time and make the caller believe the peer hasn't picked up yet */
 
 	if (ast_test_flag64(opts, OPT_MUSICBACK) && !ast_strlen_zero(opt_args[OPT_ARG_MUSICBACK])) {
-		char *original_moh = ast_strdupa(chan->musicclass);
+		char *original_moh = ast_strdupa(ast_channel_musicclass(chan));
 		ast_indicate(chan, -1);
-		ast_string_field_set(chan, musicclass, opt_args[OPT_ARG_MUSICBACK]);
+		ast_channel_musicclass_set(chan, opt_args[OPT_ARG_MUSICBACK]);
 		ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
-		ast_string_field_set(chan, musicclass, original_moh);
+		ast_channel_musicclass_set(chan, original_moh);
 	} else if (ast_test_flag64(opts, OPT_RINGBACK)) {
 		ast_indicate(chan, AST_CONTROL_RINGING);
 		pa->sentringing++;
@@ -1795,7 +1795,7 @@ static int setup_privacy_args(struct privacy_args *pa,
 					ast_verb(3, "Successfully deleted %s intro file\n", pa->privintro);
 				return -1;
 			}
-			if (!ast_streamfile(chan, "vm-dialout", chan->language) )
+			if (!ast_streamfile(chan, "vm-dialout", ast_channel_language(chan)) )
 				ast_waitstream(chan, "");
 		}
 	}
@@ -2306,11 +2306,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		tc->dialed.transit_network_select = chan->dialed.transit_network_select;
 
-		if (!ast_strlen_zero(chan->accountcode)) {
-			ast_string_field_set(tc, peeraccount, chan->accountcode);
+		if (!ast_strlen_zero(ast_channel_accountcode(chan))) {
+			ast_channel_peeraccount_set(tc, ast_channel_accountcode(chan));
 		}
-		if (ast_strlen_zero(tc->musicclass))
-			ast_string_field_set(tc, musicclass, chan->musicclass);
+		if (ast_strlen_zero(ast_channel_musicclass(tc)))
+			ast_channel_musicclass_set(tc, ast_channel_musicclass(chan));
 
 		/* Pass ADSI CPE and transfer capability */
 		tc->adsicpe = chan->adsicpe;
@@ -2329,7 +2329,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 
 		/* Inherit context and extension */
-		ast_string_field_set(tc, dialcontext, ast_strlen_zero(chan->macrocontext) ? chan->context : chan->macrocontext);
+		ast_channel_dialcontext_set(tc, ast_strlen_zero(chan->macrocontext) ? chan->context : chan->macrocontext);
 		if (!ast_strlen_zero(chan->macroexten))
 			ast_copy_string(tc->exten, chan->macroexten, sizeof(tc->exten));
 		else
@@ -2399,10 +2399,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if (ast_test_flag64(outgoing, OPT_MUSICBACK)) {
 			moh = 1;
 			if (!ast_strlen_zero(opt_args[OPT_ARG_MUSICBACK])) {
-				char *original_moh = ast_strdupa(chan->musicclass);
-				ast_string_field_set(chan, musicclass, opt_args[OPT_ARG_MUSICBACK]);
+				char *original_moh = ast_strdupa(ast_channel_musicclass(chan));
+				ast_channel_musicclass_set(chan, opt_args[OPT_ARG_MUSICBACK]);
 				ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
-				ast_string_field_set(chan, musicclass, original_moh);
+				ast_channel_musicclass_set(chan, original_moh);
 			} else {
 				ast_moh_start(chan, NULL, NULL);
 			}
@@ -2496,7 +2496,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			/* we need to stream the announcment while monitoring the caller for a hangup */
 
 			/* stream the file */
-			res = ast_streamfile(peer, opt_args[OPT_ARG_ANNOUNCE], peer->language);
+			res = ast_streamfile(peer, opt_args[OPT_ARG_ANNOUNCE], ast_channel_language(peer));
 			if (res) {
 				res = 0;
 				ast_log(LOG_ERROR, "error streaming file '%s' to callee\n", opt_args[OPT_ARG_ANNOUNCE]);
@@ -2988,8 +2988,8 @@ static int retrydial_exec(struct ast_channel *chan, const char *data)
 		if (res == 0) {
 			if (ast_test_flag64(&peerflags, OPT_DTMF_EXIT)) {
 				if (!ast_strlen_zero(args.announce)) {
-					if (ast_fileexists(args.announce, NULL, chan->language) > 0) {
-						if (!(res = ast_streamfile(chan, args.announce, chan->language)))
+					if (ast_fileexists(args.announce, NULL, ast_channel_language(chan)) > 0) {
+						if (!(res = ast_streamfile(chan, args.announce, ast_channel_language(chan))))
 							ast_waitstream(chan, AST_DIGIT_ANY);
 					} else
 						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);
@@ -3001,8 +3001,8 @@ static int retrydial_exec(struct ast_channel *chan, const char *data)
 				}
 			} else {
 				if (!ast_strlen_zero(args.announce)) {
-					if (ast_fileexists(args.announce, NULL, chan->language) > 0) {
-						if (!(res = ast_streamfile(chan, args.announce, chan->language)))
+					if (ast_fileexists(args.announce, NULL, ast_channel_language(chan)) > 0) {
+						if (!(res = ast_streamfile(chan, args.announce, ast_channel_language(chan))))
 							res = ast_waitstream(chan, "");
 					} else
 						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);

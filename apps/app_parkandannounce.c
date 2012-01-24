@@ -212,9 +212,9 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	for (i = 0; i < looptemp; i++) {
 		ast_verb(4, "Announce:%s\n", tmp[i]);
 		if (!strcmp(tmp[i], "PARKED")) {
-			ast_say_digits(dchan, lot, "", dchan->language);
+			ast_say_digits(dchan, lot, "", ast_channel_language(dchan));
 		} else {
-			dres = ast_streamfile(dchan, tmp[i], dchan->language);
+			dres = ast_streamfile(dchan, tmp[i], ast_channel_language(dchan));
 			if (!dres) {
 				dres = ast_waitstream(dchan, "");
 			} else {

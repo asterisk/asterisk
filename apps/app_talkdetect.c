@@ -144,7 +144,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 			break;
 		}
 		ast_stopstream(chan);
-		if (ast_streamfile(chan, tmp, chan->language)) {
+		if (ast_streamfile(chan, tmp, ast_channel_language(chan))) {
 			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", ast_channel_name(chan), (char *)data);
 			break;
 		}

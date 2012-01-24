@@ -219,7 +219,7 @@ static int gen_nextfile(struct gen_state *state)
 			u->playing_silence = 1;
 		}
 
-		if (!(state->stream = ast_openstream_full(u->chan, file_to_stream, u->chan->language, 1))) {
+		if (!(state->stream = ast_openstream_full(u->chan, file_to_stream, ast_channel_language(u->chan), 1))) {
 			ast_chan_log(LOG_WARNING, u->chan, "File '%s' could not be opened: %s\n", file_to_stream, strerror(errno));
 			AST_LIST_LOCK(&u->playlist);
 			AST_LIST_REMOVE_HEAD(&u->playlist, list);
@@ -761,7 +761,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 					send_eivr_event(eivr_events, 'Z', NULL, chan);
 					continue;
 				}
- 				if (!ast_fileexists(&input[2], NULL, u->chan->language)) {
+ 				if (!ast_fileexists(&input[2], NULL, ast_channel_language(u->chan))) {
  					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
  					send_eivr_event(eivr_events, 'Z', &input[2], chan);
  				} else {
@@ -791,7 +791,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 					send_eivr_event(eivr_events, 'Z', NULL, chan);
 					continue;
 				}
- 				if (!ast_fileexists(&input[2], NULL, u->chan->language)) {
+ 				if (!ast_fileexists(&input[2], NULL, ast_channel_language(u->chan))) {
  					ast_chan_log(LOG_WARNING, chan, "Unknown file requested '%s'\n", &input[2]);
  					send_eivr_event(eivr_events, 'Z', &input[2], chan);
  				} else {

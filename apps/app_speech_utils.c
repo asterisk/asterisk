@@ -725,7 +725,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 			/* Discard old stream information */
 			ast_stopstream(chan);
 			/* Start new stream */
-			speech_streamfile(chan, filename, chan->language);
+			speech_streamfile(chan, filename, ast_channel_language(chan));
 		}
 
 		/* Run scheduled stuff */
@@ -792,14 +792,14 @@ static int speech_background(struct ast_channel *chan, const char *data)
 				if (chan->stream == NULL) {
 					if (speech->processing_sound != NULL) {
 						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
-							speech_streamfile(chan, speech->processing_sound, chan->language);
+							speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan));
 						}
 					}
 				} else if (chan->streamid == -1 && chan->timingfunc == NULL) {
 					ast_stopstream(chan);
 					if (speech->processing_sound != NULL) {
 						if (strlen(speech->processing_sound) > 0 && strcasecmp(speech->processing_sound, "none")) {
-							speech_streamfile(chan, speech->processing_sound, chan->language);
+							speech_streamfile(chan, speech->processing_sound, ast_channel_language(chan));
 						}
 					}
 				}

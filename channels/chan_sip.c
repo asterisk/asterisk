@@ -7174,16 +7174,16 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	tmp->caller.id.name.presentation = i->callingpres;
 	tmp->caller.id.number.presentation = i->callingpres;
 	if (!ast_strlen_zero(i->parkinglot)) {
-		ast_string_field_set(tmp, parkinglot, i->parkinglot);
+		ast_channel_parkinglot_set(tmp, i->parkinglot);
 	}
 	if (!ast_strlen_zero(i->accountcode)) {
-		ast_string_field_set(tmp, accountcode, i->accountcode);
+		ast_channel_accountcode_set(tmp, i->accountcode);
 	}
 	if (i->amaflags) {
 		tmp->amaflags = i->amaflags;
 	}
 	if (!ast_strlen_zero(i->language)) {
-		ast_string_field_set(tmp, language, i->language);
+		ast_channel_language_set(tmp, i->language);
 	}
 	if (!ast_strlen_zero(i->zone)) {
 		if (!(tmp->zone = ast_get_indication_zone(i->zone))) {
@@ -7250,7 +7250,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (sip_cfg.callevents) {
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 			"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
-			ast_channel_name(tmp), tmp->uniqueid, "SIP", i->callid, i->fullcontact);
+			ast_channel_name(tmp), ast_channel_uniqueid(tmp), "SIP", i->callid, i->fullcontact);
 	}
 
 	return tmp;
@@ -8821,7 +8821,7 @@ static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, i
 			      "Uniqueid: %s\r\n",
 			      holdstate ? "On" : "Off",
 			      ast_channel_name(dialog->owner),
-			      dialog->owner->uniqueid);
+			      ast_channel_uniqueid(dialog->owner));
 	append_history(dialog, holdstate ? "Hold" : "Unhold", "%s", req->data->str);
 	if (!holdstate) {	/* Put off remote hold */
 		ast_clear_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
@@ -20148,11 +20148,11 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 			*host++ = '\0';
 			ast_debug(2, "Found promiscuous redirection to 'SIP/%s::::%s@%s'\n", contact_number, sip_get_transport(transport), host);
 			if (p->owner)
-				ast_string_field_build(p->owner, call_forward, "SIP/%s::::%s@%s", contact_number, sip_get_transport(transport), host);
+				ast_channel_call_forward_build(p->owner, "SIP/%s::::%s@%s", contact_number, sip_get_transport(transport), host);
 		} else {
 			ast_debug(2, "Found promiscuous redirection to 'SIP/::::%s@%s'\n", sip_get_transport(transport), contact_number);
 			if (p->owner)
-				ast_string_field_build(p->owner, call_forward, "SIP/::::%s@%s", sip_get_transport(transport), contact_number);
+				ast_channel_call_forward_build(p->owner, "SIP/::::%s@%s", sip_get_transport(transport), contact_number);
 		}
 	} else {
 		separator = strchr(contact, '@');
@@ -20179,7 +20179,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 			ast_debug(2, "Received 302 Redirect to extension '%s' (domain %s)\n", contact_number, domain);
 			if (p->owner) {
 				pbx_builtin_setvar_helper(p->owner, "SIPDOMAIN", domain);
-				ast_string_field_set(p->owner, call_forward, contact_number);
+				ast_channel_call_forward_set(p->owner, contact_number);
 			}
 		}
 	}
@@ -20663,7 +20663,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				if (sip_cfg.callevents) {
 					manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
-						ast_channel_name(p->owner), "SIP", p->owner->uniqueid, p->callid, p->fullcontact, p->peername);
+						ast_channel_name(p->owner), "SIP", ast_channel_uniqueid(p->owner), p->callid, p->fullcontact, p->peername);
 				}
 			} else {	/* RE-invite */
 				if (p->t38.state == T38_DISABLED || p->t38.state == T38_REJECTED) {
@@ -21933,8 +21933,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	struct ast_channel *transferee, *transferer;
 	pthread_t th;
 
-	transferee = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan1->accountcode, chan1->exten, chan1->context, chan1->linkedid, chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
-	transferer = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan2->exten, chan2->context, chan2->linkedid, chan2->amaflags, "SIPPeer/%s", ast_channel_name(chan2));
+	transferee = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan1), chan1->exten, chan1->context, ast_channel_linkedid(chan1), chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
+	transferer = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), chan2->exten, chan2->context, ast_channel_linkedid(chan2), chan2->amaflags, "SIPPeer/%s", ast_channel_name(chan2));
 	d = ast_calloc(1, sizeof(*d));
 	if (!transferee || !transferer || !d) {
 		if (transferee) {
@@ -21984,7 +21984,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	/* Make formats okay */
 	transferer->readformat = chan2->readformat;
 	transferer->writeformat = chan2->writeformat;
-	ast_string_field_set(transferer, parkinglot, chan2->parkinglot);
+	ast_channel_parkinglot_set(transferer, ast_channel_parkinglot(chan2));
 
 	/* Prepare for taking over the channel */
 	if (ast_channel_masquerade(transferer, chan2)) {
@@ -22804,7 +22804,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_string_field_set(p, theirtag, NULL);
 			/* Treat this as if there were a call forward instead...
 			 */
-			ast_string_field_set(p->owner, call_forward, peerorhost);
+			ast_channel_call_forward_set(p->owner, peerorhost);
 			ast_queue_control(p->owner, AST_CONTROL_BUSY);
 			res = INV_REQ_FAILED;
 			goto request_invite_cleanup;
@@ -23642,7 +23642,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 
 	ast_set_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Delay hangup */
 
-	ast_copy_string(transferer_linkedid, transferer->owner->linkedid, sizeof(transferer_linkedid));
+	ast_copy_string(transferer_linkedid, ast_channel_linkedid(transferer->owner), sizeof(transferer_linkedid));
 
 	/* Perform the transfer */
 	chans[0] = transferer->owner;
@@ -23656,10 +23656,10 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		"TargetChannel: %s\r\n"
 		"TargetUniqueid: %s\r\n",
 		ast_channel_name(transferer->owner),
-		transferer->owner->uniqueid,
+		ast_channel_uniqueid(transferer->owner),
 		transferer->callid,
 		ast_channel_name(target.chan1),
-		target.chan1->uniqueid);
+		ast_channel_uniqueid(target.chan1));
 	ast_party_connected_line_init(&connected_to_transferee);
 	ast_party_connected_line_init(&connected_to_target);
 	/* No need to lock current->chan1 here since it was locked in sipsock_read */
@@ -23687,7 +23687,7 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		transmit_notify_with_sipfrag(transferer, seqno, "200 OK", TRUE);
 		append_history(transferer, "Xfer", "Refer succeeded");
 		transferer->refer->status = REFER_200OK;
-		if (target.chan2 && !ast_strlen_zero(xfersound) && ast_streamfile(target.chan2, xfersound, target.chan2->language) >= 0) {
+		if (target.chan2 && !ast_strlen_zero(xfersound) && ast_streamfile(target.chan2, xfersound, ast_channel_language(target.chan2)) >= 0) {
 			ast_waitstream(target.chan2, "");
 		}
 
@@ -24062,10 +24062,10 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			"TransferExten: %s\r\n"
 			"Transfer2Parking: Yes\r\n",
 			ast_channel_name(current.chan1),
-			current.chan1->uniqueid,
+			ast_channel_uniqueid(current.chan1),
 			callid,
 			ast_channel_name(current.chan2),
-			current.chan2->uniqueid,
+			ast_channel_uniqueid(current.chan2),
 			refer_to);
 
 		if (sipdebug) {
@@ -24169,10 +24169,10 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			"TransferExten: %s\r\n"
 			"TransferContext: %s\r\n",
 			ast_channel_name(current.chan1),
-			current.chan1->uniqueid,
+			ast_channel_uniqueid(current.chan1),
 			callid,
 			ast_channel_name(current.chan2),
-			current.chan2->uniqueid,
+			ast_channel_uniqueid(current.chan2),
 			refer_to,
 			refer_to_context);
 		/* Success  - we have a new channel */
@@ -26388,7 +26388,7 @@ static int check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
 					ast_channel_name(dialog->owner), (long) (t - dialog->lastrtprx));
 				manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: RTPTimeout\r\n"
-						"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(dialog->owner), dialog->owner->uniqueid);
+						"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(dialog->owner), ast_channel_uniqueid(dialog->owner));
 				/* Issue a softhangup */
 				ast_softhangup_nolock(dialog->owner, AST_SOFTHANGUP_DEV);
 				ast_channel_unlock(dialog->owner);
@@ -26642,7 +26642,7 @@ static int proc_session_timer(const void *vp)
 			}
 
 			manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: SIPSessionTimer\r\n"
-					"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(p->owner), p->owner->uniqueid);
+					"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(p->owner), ast_channel_uniqueid(p->owner));
 			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 			ast_channel_unlock(p->owner);
 			sip_pvt_unlock(p);
@@ -27272,7 +27272,7 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	ast_format_cap_joint_copy(cap, p->caps, p->jointcaps);
 
 	sip_pvt_lock(p);
-	tmpc = sip_new(p, AST_STATE_DOWN, host, requestor ? requestor->linkedid : NULL);	/* Place the call */
+	tmpc = sip_new(p, AST_STATE_DOWN, host, requestor ? ast_channel_linkedid(requestor) : NULL);	/* Place the call */
 	if (sip_cfg.callevents)
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 			"Channel: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",

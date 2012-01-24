@@ -522,7 +522,7 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 	if (!p)
 		return -1;
 	if (!ast->monitor) {
-		snprintf(filename, sizeof(filename), "agent-%s-%s",p->agent, ast->uniqueid);
+		snprintf(filename, sizeof(filename), "agent-%s-%s",p->agent, ast_channel_uniqueid(ast));
 		/* substitute . for - */
 		if ((pointer = strchr(filename, '.')))
 			*pointer = '-';
@@ -795,12 +795,12 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		return res;
 	}
 	ast_verb(3, "agent_call, call to agent '%s' call on '%s'\n", p->agent, ast_channel_name(p->chan));
-	ast_debug(3, "Playing beep, lang '%s'\n", p->chan->language);
+	ast_debug(3, "Playing beep, lang '%s'\n", ast_channel_language(p->chan));
 	
 	chan = p->chan;
 	ast_mutex_unlock(&p->lock);
 
-	res = ast_streamfile(chan, beep, chan->language);
+	res = ast_streamfile(chan, beep, ast_channel_language(chan));
 	ast_debug(3, "Played beep, result '%d'\n", res);
 	if (!res) {
 		res = ast_waitstream(chan, "");
@@ -1065,7 +1065,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 		ast_format_copy(&tmp->rawwriteformat, &p->chan->writeformat);
 		ast_format_copy(&tmp->readformat, &p->chan->readformat);
 		ast_format_copy(&tmp->rawreadformat, &p->chan->readformat);
-		ast_string_field_set(tmp, language, p->chan->language);
+		ast_channel_language_set(tmp, ast_channel_language(p->chan));
 		ast_copy_string(tmp->context, p->chan->context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, p->chan->exten, sizeof(tmp->exten));
 		/* XXX Is this really all we copy form the originating channel?? */
@@ -1270,7 +1270,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			ast_debug(1, "Call '%s' looks like a winner for agent '%s'\n", ast_channel_name(p->owner), newlyavailable->agent);
 			/* We found a pending call, time to merge */
-			chan = agent_new(newlyavailable, AST_STATE_DOWN, p->owner ? p->owner->linkedid : NULL);
+			chan = agent_new(newlyavailable, AST_STATE_DOWN, p->owner ? ast_channel_linkedid(p->owner) : NULL);
 			parent = p->owner;
 			p->abouttograb = 1;
 			ast_mutex_unlock(&p->lock);
@@ -1285,8 +1285,8 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			/* Don't do beep here */
 			res = 0;
 		} else {
-			ast_debug(3, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
-			res = ast_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
+			ast_debug(3, "Playing beep, lang '%s'\n", ast_channel_language(newlyavailable->chan));
+			res = ast_streamfile(newlyavailable->chan, beep, ast_channel_language(newlyavailable->chan));
 			ast_debug(3, "Played beep, result '%d'\n", res);
 			if (!res) {
 				res = ast_waitstream(newlyavailable->chan, "");
@@ -1340,8 +1340,8 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 		AST_LIST_UNLOCK(&agents);
 	if (p) {
 		ast_mutex_unlock(&newlyavailable->lock);
-		ast_debug(3, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
-		res = ast_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
+		ast_debug(3, "Playing beep, lang '%s'\n", ast_channel_language(newlyavailable->chan));
+		res = ast_streamfile(newlyavailable->chan, beep, ast_channel_language(newlyavailable->chan));
 		ast_debug(1, "Played beep, result '%d'\n", res);
 		if (!res) {
 			res = ast_waitstream(newlyavailable->chan, "");
@@ -1386,7 +1386,7 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 				/* Agent must be registered, but not have any active call, and not be in a waiting state */
 				if (!p->owner && p->chan) {
 					/* Fixed agent */
-					chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+					chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 				}
 				if (chan) {
 					ast_mutex_unlock(&p->lock);
@@ -1409,7 +1409,7 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
 						/* Could still get a fixed agent */
-						chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+						chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 					}
 					if (chan) {
 						ast_mutex_unlock(&p->lock);
@@ -1428,7 +1428,7 @@ static struct ast_channel *agent_request(const char *type, struct ast_format_cap
 			ast_debug(1, "Creating place holder for '%s'\n", s);
 			p = add_agent(data, 1);
 			p->group = groupmatch;
-			chan = agent_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+			chan = agent_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 			if (!chan) 
 				ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
 		} else {
@@ -2011,7 +2011,7 @@ static int login_exec(struct ast_channel *chan, const char *data)
 					ast_mutex_unlock(&p->lock);
 					AST_LIST_UNLOCK(&agents);
 					if( !res && play_announcement==1 )
-						res = ast_streamfile(chan, filename, chan->language);
+						res = ast_streamfile(chan, filename, ast_channel_language(chan));
 					if (!res)
 						ast_waitstream(chan, "");
 					AST_LIST_LOCK(&agents);
@@ -2043,10 +2043,10 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							      "Agent: %s\r\n"
 							      "Channel: %s\r\n"
 							      "Uniqueid: %s\r\n",
-							      p->agent, ast_channel_name(chan), chan->uniqueid);
+							      p->agent, ast_channel_name(chan), ast_channel_uniqueid(chan));
 						if (update_cdr && chan->cdr)
 							snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
-						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", ast_channel_name(chan));
+						ast_queue_log("NONE", ast_channel_uniqueid(chan), agent, "AGENTLOGIN", "%s", ast_channel_name(chan));
 						ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", p->agent,
 								    ast_getformatname(&chan->readformat), ast_getformatname(&chan->writeformat));
 						/* Login this channel and wait for it to go away */
@@ -2135,8 +2135,8 @@ static int login_exec(struct ast_channel *chan, const char *data)
 							      "Agent: %s\r\n"
 							      "Logintime: %ld\r\n"
 							      "Uniqueid: %s\r\n",
-							      p->agent, logintime, chan->uniqueid);
-						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", ast_channel_name(chan), logintime);
+							      p->agent, logintime, ast_channel_uniqueid(chan));
+						ast_queue_log("NONE", ast_channel_uniqueid(chan), agent, "AGENTLOGOFF", "%s|%ld", ast_channel_name(chan), logintime);
 						ast_verb(2, "Agent '%s' logged out\n", p->agent);
 						/* If there is no owner, go ahead and kill it now */
 						ast_devstate_changed(AST_DEVICE_UNAVAILABLE, "Agent/%s", p->agent);

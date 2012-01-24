@@ -93,7 +93,7 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 			"UserEvent: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"%s",
-			args.eventname, chan->uniqueid, ast_str_buffer(body));
+			args.eventname, ast_channel_uniqueid(chan), ast_str_buffer(body));
 
 	ast_free(body);
 

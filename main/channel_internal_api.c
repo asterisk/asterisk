@@ -56,17 +56,17 @@ AST_DATA_STRUCTURE(ast_callerid, DATA_EXPORT_CALLERID);
 	MEMBER(ast_channel, appl, AST_DATA_STRING)				\
 	MEMBER(ast_channel, data, AST_DATA_STRING)				\
 	MEMBER(ast_channel, __do_not_use_name, AST_DATA_STRING) \
-	MEMBER(ast_channel, language, AST_DATA_STRING)				\
-	MEMBER(ast_channel, musicclass, AST_DATA_STRING)			\
-	MEMBER(ast_channel, accountcode, AST_DATA_STRING)			\
-	MEMBER(ast_channel, peeraccount, AST_DATA_STRING)			\
-	MEMBER(ast_channel, userfield, AST_DATA_STRING)				\
-	MEMBER(ast_channel, call_forward, AST_DATA_STRING)			\
-	MEMBER(ast_channel, uniqueid, AST_DATA_STRING)				\
-	MEMBER(ast_channel, linkedid, AST_DATA_STRING)				\
-	MEMBER(ast_channel, parkinglot, AST_DATA_STRING)			\
-	MEMBER(ast_channel, hangupsource, AST_DATA_STRING)			\
-	MEMBER(ast_channel, dialcontext, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_language, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_musicclass, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_accountcode, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_peeraccount, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_userfield, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_call_forward, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_uniqueid, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_linkedid, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_parkinglot, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_hangupsource, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_dialcontext, AST_DATA_STRING)			\
 	MEMBER(ast_channel, rings, AST_DATA_INTEGER)				\
 	MEMBER(ast_channel, priority, AST_DATA_INTEGER)				\
 	MEMBER(ast_channel, macropriority, AST_DATA_INTEGER)			\
@@ -245,17 +245,51 @@ int ast_channel_data_cmp_structure(const struct ast_data_search *tree,
 
 /* ACCESSORS */
 
-const char *ast_channel_name(const struct ast_channel *chan)
-{
-	return chan->__do_not_use_name;
+#define DEFINE_STRINGFIELD_SETTERS_FOR(field) \
+void ast_channel_##field##_set(struct ast_channel *chan, const char *value) \
+{ \
+	ast_string_field_set(chan, __do_not_use_##field, value); \
+} \
+  \
+void ast_channel_##field##_build_va(struct ast_channel *chan, const char *fmt, va_list ap) \
+{ \
+	ast_string_field_build_va(chan, __do_not_use_##field, fmt, ap); \
+} \
+void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...) \
+{ \
+	va_list ap; \
+	va_start(ap, fmt); \
+	ast_channel_##field##_build_va(chan, fmt, ap); \
+	va_end(ap); \
 }
 
-void ast_channel_name_set(struct ast_channel *chan, const char *name)
-{
-	ast_string_field_set(chan, __do_not_use_name, name);
+DEFINE_STRINGFIELD_SETTERS_FOR(name)
+DEFINE_STRINGFIELD_SETTERS_FOR(language)
+DEFINE_STRINGFIELD_SETTERS_FOR(musicclass)
+DEFINE_STRINGFIELD_SETTERS_FOR(accountcode)
+DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount)
+DEFINE_STRINGFIELD_SETTERS_FOR(userfield)
+DEFINE_STRINGFIELD_SETTERS_FOR(call_forward)
+DEFINE_STRINGFIELD_SETTERS_FOR(uniqueid)
+DEFINE_STRINGFIELD_SETTERS_FOR(linkedid)
+DEFINE_STRINGFIELD_SETTERS_FOR(parkinglot)
+DEFINE_STRINGFIELD_SETTERS_FOR(hangupsource)
+DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext)
+
+#define DEFINE_STRINGFIELD_GETTER_FOR(field) const char *ast_channel_##field(const struct ast_channel *chan) \
+{ \
+	return chan->__do_not_use_##field; \
 }
 
-void ast_channel_name_set_va(struct ast_channel *chan, const char *name_fmt, va_list ap)
-{
-	ast_string_field_build_va(chan, __do_not_use_name, name_fmt, ap);
-}
+DEFINE_STRINGFIELD_GETTER_FOR(name)
+DEFINE_STRINGFIELD_GETTER_FOR(language)
+DEFINE_STRINGFIELD_GETTER_FOR(musicclass)
+DEFINE_STRINGFIELD_GETTER_FOR(accountcode)
+DEFINE_STRINGFIELD_GETTER_FOR(peeraccount)
+DEFINE_STRINGFIELD_GETTER_FOR(userfield)
+DEFINE_STRINGFIELD_GETTER_FOR(call_forward)
+DEFINE_STRINGFIELD_GETTER_FOR(uniqueid)
+DEFINE_STRINGFIELD_GETTER_FOR(linkedid)
+DEFINE_STRINGFIELD_GETTER_FOR(parkinglot)
+DEFINE_STRINGFIELD_GETTER_FOR(hangupsource)
+DEFINE_STRINGFIELD_GETTER_FOR(dialcontext)

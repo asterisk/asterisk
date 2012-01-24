@@ -1036,17 +1036,17 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	tmp->fout = global_fout;
 
 	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
-		ast_string_field_build(tmp, uniqueid, "%li.%d", (long) time(NULL), 
+		ast_channel_uniqueid_build(tmp, "%li.%d", (long) time(NULL), 
 			ast_atomic_fetchadd_int(&uniqueint, 1));
 	} else {
-		ast_string_field_build(tmp, uniqueid, "%s-%li.%d", ast_config_AST_SYSTEM_NAME, 
+		ast_channel_uniqueid_build(tmp, "%s-%li.%d", ast_config_AST_SYSTEM_NAME, 
 			(long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
 	}
 
 	if (!ast_strlen_zero(linkedid)) {
-		ast_string_field_set(tmp, linkedid, linkedid);
+		ast_channel_linkedid_set(tmp, linkedid);
 	} else {
-		ast_string_field_set(tmp, linkedid, tmp->uniqueid);
+		ast_channel_linkedid_set(tmp, ast_channel_uniqueid(tmp));
 	}
 
 	if (!ast_strlen_zero(name_fmt)) {
@@ -1058,7 +1058,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		 * uses them to build the string, instead of forming the va_lists internally from the vararg ... list.
 		 * This new function was written so this can be accomplished.
 		 */
-		ast_channel_name_set_va(tmp, name_fmt, ap);
+		ast_channel_name_build_va(tmp, name_fmt, ap);
 		tech = ast_strdupa(ast_channel_name(tmp));
 		if ((slash = strchr(tech, '/'))) {
 			if ((slash2 = strchr(slash + 1, '/'))) {
@@ -1084,9 +1084,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		tmp->amaflags = ast_default_amaflags;
 	
 	if (!ast_strlen_zero(acctcode))
-		ast_string_field_set(tmp, accountcode, acctcode);
+		ast_channel_accountcode_set(tmp, acctcode);
 	else
-		ast_string_field_set(tmp, accountcode, ast_default_accountcode);
+		ast_channel_accountcode_set(tmp, ast_default_accountcode);
 		
 	if (!ast_strlen_zero(context))
 		ast_copy_string(tmp->context, context, sizeof(tmp->context));
@@ -1113,7 +1113,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	AST_LIST_HEAD_INIT_NOLOCK(&tmp->autochans);
 	
-	ast_string_field_set(tmp, language, defaultlanguage);
+	ast_channel_language_set(tmp, defaultlanguage);
 
 	tmp->tech = &null_tech;
 
@@ -1141,10 +1141,10 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 			ast_state2str(state),
 			S_OR(cid_num, ""),
 			S_OR(cid_name, ""),
-			tmp->accountcode,
+			ast_channel_accountcode(tmp),
 			S_OR(exten, ""),
 			S_OR(context, ""),
-			tmp->uniqueid);
+			ast_channel_uniqueid(tmp));
 	}
 
 	return tmp;
@@ -1344,7 +1344,7 @@ int ast_queue_hangup(struct ast_channel *chan)
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n",
 			ast_channel_name(chan),
-			chan->uniqueid);
+			ast_channel_uniqueid(chan));
 		ast_channel_unlock(chan);
 	}
 	return ast_queue_frame(chan, &f);
@@ -1369,7 +1369,7 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 			"Uniqueid: %s\r\n"
 			"Cause: %d\r\n",
 			ast_channel_name(chan),
-			chan->uniqueid,
+			ast_channel_uniqueid(chan),
 			cause);
 		ast_channel_unlock(chan);
 	}
@@ -1474,8 +1474,8 @@ static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flag
 	}
 
 	ast_channel_lock(chan);
-	if ((!name_len && strcasecmp(chan->uniqueid, uniqueid)) ||
-			(name_len && strncasecmp(chan->uniqueid, uniqueid, name_len))) {
+	if ((!name_len && strcasecmp(ast_channel_uniqueid(chan), uniqueid)) ||
+			(name_len && strncasecmp(ast_channel_uniqueid(chan), uniqueid, name_len))) {
 		ret = 0;
 	}
 	ast_channel_unlock(chan);
@@ -1572,8 +1572,8 @@ static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 		ret = ast_channel_by_name_cb(obj, arg, &name_len, flags);
 	} else if (!ast_strlen_zero(cmp_args->exten)) {
 		ret = ast_channel_by_exten_cb(obj, cmp_args->context, cmp_args->exten, flags);
-	} else if (!ast_strlen_zero(cmp_args->uniqueid)) {
-		ret = ast_channel_by_uniqueid_cb(obj, (void *) cmp_args->uniqueid, &name_len, flags);
+	} else if (!ast_strlen_zero(ast_channel_uniqueid(cmp_args))) {
+		ret = ast_channel_by_uniqueid_cb(obj, (void *) ast_channel_uniqueid(cmp_args), &name_len, flags);
 	} else {
 		ret = 0;
 	}
@@ -2548,7 +2548,7 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 		"Uniqueid: %s\r\n"
 		"Cause: %d\r\n",
 		ast_channel_name(chan),
-		chan->uniqueid,
+		ast_channel_uniqueid(chan),
 		cause);
 	ast_channel_unlock(chan);
 
@@ -2579,15 +2579,15 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 	struct ast_channel *bridge;
 
 	ast_channel_lock(chan);
-	if (force || ast_strlen_zero(chan->hangupsource)) {
-		ast_string_field_set(chan, hangupsource, source);
+	if (force || ast_strlen_zero(ast_channel_hangupsource(chan))) {
+		ast_channel_hangupsource_set(chan, source);
 	}
 	bridge = ast_bridged_channel(chan);
 	ast_channel_unlock(chan);
 
-	if (bridge && (force || ast_strlen_zero(bridge->hangupsource))) {
+	if (bridge && (force || ast_strlen_zero(ast_channel_hangupsource(bridge)))) {
 		ast_channel_lock(bridge);
-		ast_string_field_set(chan, hangupsource, source);
+		ast_channel_hangupsource_set(chan, source);
 		ast_channel_unlock(bridge);
 	}
 }
@@ -2670,7 +2670,7 @@ int ast_hangup(struct ast_channel *chan)
 	chan->generatordata = NULL;
 	chan->generator = NULL;
 
-	snprintf(extra_str, sizeof(extra_str), "%d,%s,%s", chan->hangupcause, chan->hangupsource, S_OR(pbx_builtin_getvar_helper(chan, "DIALSTATUS"), ""));
+	snprintf(extra_str, sizeof(extra_str), "%d,%s,%s", chan->hangupcause, ast_channel_hangupsource(chan), S_OR(pbx_builtin_getvar_helper(chan, "DIALSTATUS"), ""));
 	ast_cel_report_event(chan, AST_CEL_HANGUP, NULL, extra_str, NULL);
 
 	if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
@@ -2707,7 +2707,7 @@ int ast_hangup(struct ast_channel *chan)
 		"Cause: %d\r\n"
 		"Cause-txt: %s\r\n",
 		ast_channel_name(chan),
-		chan->uniqueid,
+		ast_channel_uniqueid(chan),
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>"),
 		S_COR(chan->connected.id.number.valid, chan->connected.id.number.str, "<unknown>"),
@@ -3475,7 +3475,7 @@ static void send_dtmf_event(struct ast_channel *chan, const char *direction, con
 			"Direction: %s\r\n"
 			"Begin: %s\r\n"
 			"End: %s\r\n",
-			ast_channel_name(chan), chan->uniqueid, digit, direction, begin, end);
+			ast_channel_name(chan), ast_channel_uniqueid(chan), digit, direction, begin, end);
 }
 
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
@@ -5256,7 +5256,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	int res;
 
 	/* gather data and request the new forward channel */
-	ast_copy_string(tmpchan, orig->call_forward, sizeof(tmpchan));
+	ast_copy_string(tmpchan, ast_channel_call_forward(orig), sizeof(tmpchan));
 	if ((data = strchr(tmpchan, '/'))) {
 		*data++ = '\0';
 		type = tmpchan;
@@ -5264,7 +5264,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 		const char *forward_context;
 		ast_channel_lock(orig);
 		forward_context = pbx_builtin_getvar_helper(orig, "FORWARD_CONTEXT");
-		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", orig->call_forward, S_OR(forward_context, orig->context));
+		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(orig), S_OR(forward_context, orig->context));
 		ast_channel_unlock(orig);
 		data = tmpchan;
 		type = "Local";
@@ -5295,7 +5295,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 
 	ast_channel_lock_both(orig, new_chan);
 	ast_copy_flags(new_chan->cdr, orig->cdr, AST_CDR_FLAG_ORIGINATED);
-	ast_string_field_set(new_chan, accountcode, orig->accountcode);
+	ast_channel_accountcode_set(new_chan, ast_channel_accountcode(orig));
 	ast_party_connected_line_copy(&new_chan->connected, &orig->connected);
 	ast_party_redirecting_copy(&new_chan->redirecting, &orig->redirecting);
 	ast_channel_unlock(new_chan);
@@ -5394,7 +5394,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 				break;
 			if (timeout > -1)
 				timeout = res;
-			if (!ast_strlen_zero(chan->call_forward)) {
+			if (!ast_strlen_zero(ast_channel_call_forward(chan))) {
 				if (!(chan = ast_call_forward(NULL, chan, NULL, cap, oh, outstate))) {
 					return NULL;
 				}
@@ -6098,7 +6098,7 @@ int ast_channel_transfer_masquerade(
  */
 static void __ast_change_name_nolink(struct ast_channel *chan, const char *newname)
 {
-	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", ast_channel_name(chan), newname, chan->uniqueid);
+	ast_manager_event(chan, EVENT_FLAG_CALL, "Rename", "Channel: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", ast_channel_name(chan), newname, ast_channel_uniqueid(chan));
 	ast_channel_name_set(chan, newname);
 }
 
@@ -6244,11 +6244,11 @@ static const char *oldest_linkedid(const char *a, const char *b)
 static void ast_channel_change_linkedid(struct ast_channel *chan, const char *linkedid)
 {
 	/* if the linkedid for this channel is being changed from something, check... */
-	if (!ast_strlen_zero(chan->linkedid) && 0 != strcmp(chan->linkedid, linkedid)) {
+	if (!ast_strlen_zero(ast_channel_linkedid(chan)) && 0 != strcmp(ast_channel_linkedid(chan), linkedid)) {
 		ast_cel_check_retire_linkedid(chan);
 	}
 
-	ast_string_field_set(chan, linkedid, linkedid);
+	ast_channel_linkedid_set(chan, linkedid);
 }
 
 
@@ -6261,21 +6261,21 @@ void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *pee
 	const char* linkedid=NULL;
 	struct ast_channel *bridged;
 
-	linkedid = oldest_linkedid(chan->linkedid, peer->linkedid);
-	linkedid = oldest_linkedid(linkedid, chan->uniqueid);
-	linkedid = oldest_linkedid(linkedid, peer->uniqueid);
+	linkedid = oldest_linkedid(ast_channel_linkedid(chan), ast_channel_linkedid(peer));
+	linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(chan));
+	linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(peer));
 	if (chan->_bridge) {
 		bridged = ast_bridged_channel(chan);
 		if (bridged != peer) {
-			linkedid = oldest_linkedid(linkedid, bridged->linkedid);
-			linkedid = oldest_linkedid(linkedid, bridged->uniqueid);
+			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
+			linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(bridged));
 		}
 	}
 	if (peer->_bridge) {
 		bridged = ast_bridged_channel(peer);
 		if (bridged != chan) {
-			linkedid = oldest_linkedid(linkedid, bridged->linkedid);
-			linkedid = oldest_linkedid(linkedid, bridged->uniqueid);
+			linkedid = oldest_linkedid(linkedid, ast_channel_linkedid(bridged));
+			linkedid = oldest_linkedid(linkedid, ast_channel_uniqueid(bridged));
 		}
 	}
 
@@ -6302,35 +6302,35 @@ void ast_channel_set_linkgroup(struct ast_channel *chan, struct ast_channel *pee
 static void ast_set_owners_and_peers(struct ast_channel *chan1,
 									 struct ast_channel *chan2)
 {
-	if (!ast_strlen_zero(chan1->accountcode) && ast_strlen_zero(chan2->peeraccount)) {
+	if (!ast_strlen_zero(ast_channel_accountcode(chan1)) && ast_strlen_zero(ast_channel_peeraccount(chan2))) {
 		ast_debug(1, "setting peeraccount to %s for %s from data on channel %s\n",
-				chan1->accountcode, ast_channel_name(chan2), ast_channel_name(chan1));
-		ast_string_field_set(chan2, peeraccount, chan1->accountcode);
+				ast_channel_accountcode(chan1), ast_channel_name(chan2), ast_channel_name(chan1));
+		ast_channel_peeraccount_set(chan2, ast_channel_accountcode(chan1));
 	}
-	if (!ast_strlen_zero(chan2->accountcode) && ast_strlen_zero(chan1->peeraccount)) {
+	if (!ast_strlen_zero(ast_channel_accountcode(chan2)) && ast_strlen_zero(ast_channel_peeraccount(chan1))) {
 		ast_debug(1, "setting peeraccount to %s for %s from data on channel %s\n",
-				chan2->accountcode, ast_channel_name(chan1), ast_channel_name(chan2));
-		ast_string_field_set(chan1, peeraccount, chan2->accountcode);
+				ast_channel_accountcode(chan2), ast_channel_name(chan1), ast_channel_name(chan2));
+		ast_channel_peeraccount_set(chan1, ast_channel_accountcode(chan2));
 	}
-	if (!ast_strlen_zero(chan1->peeraccount) && ast_strlen_zero(chan2->accountcode)) {
+	if (!ast_strlen_zero(ast_channel_peeraccount(chan1)) && ast_strlen_zero(ast_channel_accountcode(chan2))) {
 		ast_debug(1, "setting accountcode to %s for %s from data on channel %s\n",
-				chan1->peeraccount, ast_channel_name(chan2), ast_channel_name(chan1));
-		ast_string_field_set(chan2, accountcode, chan1->peeraccount);
+				ast_channel_peeraccount(chan1), ast_channel_name(chan2), ast_channel_name(chan1));
+		ast_channel_accountcode_set(chan2, ast_channel_peeraccount(chan1));
 	}
-	if (!ast_strlen_zero(chan2->peeraccount) && ast_strlen_zero(chan1->accountcode)) {
+	if (!ast_strlen_zero(ast_channel_peeraccount(chan2)) && ast_strlen_zero(ast_channel_accountcode(chan1))) {
 		ast_debug(1, "setting accountcode to %s for %s from data on channel %s\n",
-				chan2->peeraccount, ast_channel_name(chan1), ast_channel_name(chan2));
-		ast_string_field_set(chan1, accountcode, chan2->peeraccount);
+				ast_channel_peeraccount(chan2), ast_channel_name(chan1), ast_channel_name(chan2));
+		ast_channel_accountcode_set(chan1, ast_channel_peeraccount(chan2));
 	}
-	if (0 != strcmp(chan1->accountcode, chan2->peeraccount)) {
+	if (0 != strcmp(ast_channel_accountcode(chan1), ast_channel_peeraccount(chan2))) {
 		ast_debug(1, "changing peeraccount from %s to %s on %s to match channel %s\n",
-				chan2->peeraccount, chan1->peeraccount, ast_channel_name(chan2), ast_channel_name(chan1));
-		ast_string_field_set(chan2, peeraccount, chan1->accountcode);
+				ast_channel_peeraccount(chan2), ast_channel_peeraccount(chan1), ast_channel_name(chan2), ast_channel_name(chan1));
+		ast_channel_peeraccount_set(chan2, ast_channel_accountcode(chan1));
 	}
-	if (0 != strcmp(chan2->accountcode, chan1->peeraccount)) {
+	if (0 != strcmp(ast_channel_accountcode(chan2), ast_channel_peeraccount(chan1))) {
 		ast_debug(1, "changing peeraccount from %s to %s on %s to match channel %s\n",
-				chan1->peeraccount, chan2->peeraccount, ast_channel_name(chan1), ast_channel_name(chan2));
-		ast_string_field_set(chan1, peeraccount, chan2->accountcode);
+				ast_channel_peeraccount(chan1), ast_channel_peeraccount(chan2), ast_channel_name(chan1), ast_channel_name(chan2));
+		ast_channel_peeraccount_set(chan1, ast_channel_accountcode(chan2));
 	}
 }
 
@@ -6351,7 +6351,7 @@ static void report_new_callerid(struct ast_channel *chan)
 		ast_channel_name(chan),
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""),
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, ""),
-		chan->uniqueid,
+		ast_channel_uniqueid(chan),
 		pres,
 		ast_describe_caller_presentation(pres)
 		);
@@ -6660,7 +6660,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	clonechan->monitor = t_pvt;
 
 	/* Keep the same language.  */
-	ast_string_field_set(original, language, clonechan->language);
+	ast_channel_language_set(original, ast_channel_language(clonechan));
 	/* Copy the FD's other than the generator fd */
 	for (x = 0; x < AST_MAX_FDS; x++) {
 		if (x != AST_GENERATOR_FD)
@@ -6737,13 +6737,13 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_set_read_format(original, &rformat);
 
 	/* Copy the music class */
-	ast_string_field_set(original, musicclass, clonechan->musicclass);
+	ast_channel_musicclass_set(original, ast_channel_musicclass(clonechan));
 
 	/* copy over accuntcode and set peeraccount across the bridge */
-	ast_string_field_set(original, accountcode, S_OR(clonechan->accountcode, ""));
+	ast_channel_accountcode_set(original, S_OR(ast_channel_accountcode(clonechan), ""));
 	if (original->_bridge) {
 		/* XXX - should we try to lock original->_bridge here? */
-		ast_string_field_set(original->_bridge, peeraccount, S_OR(clonechan->accountcode, ""));
+		ast_channel_peeraccount_set(original->_bridge, S_OR(ast_channel_accountcode(clonechan), ""));
 		ast_cel_report_event(original, AST_CEL_BRIDGE_UPDATE, NULL, NULL, NULL);
 	}
 
@@ -6787,7 +6787,7 @@ int ast_do_masquerade(struct ast_channel *original)
 			"Cause: %d\r\n"
 			"Cause-txt: %s\r\n",
 			ast_channel_name(clonechan),
-			clonechan->uniqueid,
+			ast_channel_uniqueid(clonechan),
 			clonechan->hangupcause,
 			ast_cause2str(clonechan->hangupcause)
 			);
@@ -6942,7 +6942,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, ""),
 		S_COR(chan->connected.id.number.valid, chan->connected.id.number.str, ""),
 		S_COR(chan->connected.id.name.valid, chan->connected.id.name.str, ""),
-		chan->uniqueid);
+		ast_channel_uniqueid(chan));
 
 	return 0;
 }
@@ -6977,11 +6977,11 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	if (!strcmp(sound,"timeleft")) {	/* Queue support */
 		ast_stream_and_wait(chan, "vm-youhave", "");
 		if (min) {
-			ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, NULL);
+			ast_say_number(chan, min, AST_DIGIT_ANY, ast_channel_language(chan), NULL);
 			ast_stream_and_wait(chan, "queue-minutes", "");
 		}
 		if (sec) {
-			ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, NULL);
+			ast_say_number(chan, sec, AST_DIGIT_ANY, ast_channel_language(chan), NULL);
 			ast_stream_and_wait(chan, "queue-seconds", "");
 		}
 	} else {
@@ -7232,7 +7232,7 @@ static void manager_bridge_event(int onoff, int type, struct ast_channel *c0, st
 		onoff ? "Link" : "Unlink",
 		type == 1 ? "core" : "native",
 		ast_channel_name(c0), ast_channel_name(c1),
-		c0->uniqueid, c1->uniqueid,
+		ast_channel_uniqueid(c0), ast_channel_uniqueid(c1),
 		S_COR(c0->caller.id.number.valid, c0->caller.id.number.str, ""),
 		S_COR(c1->caller.id.number.valid, c1->caller.id.number.str, ""));
 }

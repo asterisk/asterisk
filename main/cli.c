@@ -918,20 +918,20 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					c->appl ? c->appl : "(None)",
 					S_OR(c->data, ""),	/* XXX different from verbose ? */
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
-					S_OR(c->accountcode, ""),
-					S_OR(c->peeraccount, ""),
+					S_OR(ast_channel_accountcode(c), ""),
+					S_OR(ast_channel_peeraccount(c), ""),
 					c->amaflags, 
 					durbuf,
 					bc ? ast_channel_name(bc) : "(None)",
-					c->uniqueid);
+					ast_channel_uniqueid(c));
 			} else if (verbose) {
 				ast_cli(a->fd, VERBOSE_FORMAT_STRING, ast_channel_name(c), c->context, c->exten, c->priority, ast_state2str(c->_state),
 					c->appl ? c->appl : "(None)",
 					c->data ? S_OR(c->data, "(Empty)" ): "(None)",
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
 					durbuf,
-					S_OR(c->accountcode, ""),
-					S_OR(c->peeraccount, ""),
+					S_OR(ast_channel_accountcode(c), ""),
+					S_OR(ast_channel_peeraccount(c), ""),
 					bc ? ast_channel_name(bc) : "(None)");
 			} else {
 				char locbuf[40] = "(None)";
@@ -1475,13 +1475,13 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"    Application: %s\n"
 		"           Data: %s\n"
 		"    Blocking in: %s\n",
-		ast_channel_name(c), c->tech->type, c->uniqueid, c->linkedid,
+		ast_channel_name(c), c->tech->type, ast_channel_uniqueid(c), ast_channel_linkedid(c),
 		S_COR(c->caller.id.number.valid, c->caller.id.number.str, "(N/A)"),
 		S_COR(c->caller.id.name.valid, c->caller.id.name.str, "(N/A)"),
 		S_COR(c->connected.id.number.valid, c->connected.id.number.str, "(N/A)"),
 		S_COR(c->connected.id.name.valid, c->connected.id.name.str, "(N/A)"),
 		S_OR(c->dialed.number.str, "(N/A)"),
-		c->language,	
+		ast_channel_language(c),	
 		ast_state2str(c->_state), c->_state, c->rings, 
 		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats),
 		ast_getformatname(&c->writeformat),

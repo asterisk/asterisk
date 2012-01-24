@@ -461,7 +461,7 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 		}
 
 		if (!ast_strlen_zero(i->accountcode))
-			ast_string_field_set(ch, accountcode, i->accountcode);
+			ast_channel_accountcode_set(ch, i->accountcode);
 		
 		if (i->amaflags)
 			ch->amaflags = i->amaflags;
@@ -701,7 +701,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 
 
 	chan = ooh323_new(p, AST_STATE_DOWN, p->username, cap,
-				 requestor ? requestor->linkedid : NULL);
+				 requestor ? ast_channel_linkedid(requestor) : NULL);
 	
 	ast_mutex_unlock(&p->lock);
 

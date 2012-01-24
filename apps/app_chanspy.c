@@ -800,7 +800,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		struct ast_channel *prev = NULL;
 
 		if (!ast_test_flag(flags, OPTION_QUIET) && num_spyed_upon) {
-			res = ast_streamfile(chan, "beep", chan->language);
+			res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 			if (!res)
 				res = ast_waitstream(chan, "");
 			else if (res < 0) {
@@ -960,7 +960,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				if (!ast_test_flag(flags, OPTION_NAME) || res < 0) {
 					if (!ast_test_flag(flags, OPTION_NOTECH)) {
 						if (ast_fileexists(peer_name, NULL, NULL) > 0) {
-							res = ast_streamfile(chan, peer_name, chan->language);
+							res = ast_streamfile(chan, peer_name, ast_channel_language(chan));
 							if (!res) {
 								res = ast_waitstream(chan, "");
 							}
@@ -969,11 +969,11 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 								break;
 							}
 						} else {
-							res = ast_say_character_str(chan, peer_name, "", chan->language);
+							res = ast_say_character_str(chan, peer_name, "", ast_channel_language(chan));
 						}
 					}
 					if ((num = atoi(ptr)))
-						ast_say_digits(chan, atoi(ptr), "", chan->language);
+						ast_say_digits(chan, atoi(ptr), "", ast_channel_language(chan));
 				}
 			}
 

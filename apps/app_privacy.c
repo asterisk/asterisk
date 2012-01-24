@@ -136,7 +136,7 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 		/* Play unidentified call */
 		res = ast_safe_sleep(chan, 1000);
 		if (!res) {
-			res = ast_streamfile(chan, "privacy-unident", chan->language);
+			res = ast_streamfile(chan, "privacy-unident", ast_channel_language(chan));
 		}
 		if (!res) {
 			res = ast_waitstream(chan, "");
@@ -145,7 +145,7 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 		/* Ask for 10 digit number, give 3 attempts */
 		for (retries = 0; retries < maxretries; retries++) {
 			if (!res) {
-				res = ast_streamfile(chan, "privacy-prompt", chan->language);
+				res = ast_streamfile(chan, "privacy-prompt", ast_channel_language(chan));
 			}
 			if (!res) {
 				res = ast_waitstream(chan, "");
@@ -164,7 +164,7 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 				/* if we have a checkcontext argument, do pattern matching */
 				if (!ast_strlen_zero(args.checkcontext)) {
 					if (!ast_exists_extension(NULL, args.checkcontext, phone, 1, NULL)) {
-						res = ast_streamfile(chan, "privacy-incorrect", chan->language);
+						res = ast_streamfile(chan, "privacy-incorrect", ast_channel_language(chan));
 						if (!res) {
 							res = ast_waitstream(chan, "");
 						}
@@ -175,7 +175,7 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 					break;
 				}
 			} else {
-				res = ast_streamfile(chan, "privacy-incorrect", chan->language);
+				res = ast_streamfile(chan, "privacy-incorrect", ast_channel_language(chan));
 				if (!res) {
 					res = ast_waitstream(chan, "");
 				}
@@ -184,7 +184,7 @@ static int privacy_exec(struct ast_channel *chan, const char *data)
 
 		/* Got a number, play sounds and send them on their way */
 		if ((retries < maxretries) && res >= 0) {
-			res = ast_streamfile(chan, "privacy-thankyou", chan->language);
+			res = ast_streamfile(chan, "privacy-thankyou", ast_channel_language(chan));
 			if (!res) {
 				res = ast_waitstream(chan, "");
 			}

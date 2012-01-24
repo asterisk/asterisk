@@ -2217,7 +2217,7 @@ static void sig_pri_mcid_event(struct sig_pri_span *pri, const struct pri_subcmd
 		ast_queue_control(owner, AST_CONTROL_MCID);
 
 		ast_str_append(&msg, 0, "Channel: %s\r\n", ast_channel_name(owner));
-		ast_str_append(&msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+		ast_str_append(&msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(owner));
 
 		sig_pri_event_party_id(&msg, "CallerID", &owner->connected.id);
 	} else {
@@ -4228,8 +4228,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 				ast_party_redirecting_free(&ast_redirecting);
 
 				/* Request the core to forward to the new number. */
-				ast_string_field_set(owner, call_forward,
-					subcmd->u.rerouting.deflection.to.number.str);
+				ast_channel_call_forward_set(owner, subcmd->u.rerouting.deflection.to.number.str);
 
 				/* Wake up the channel. */
 				ast_queue_frame(owner, &ast_null_frame);
@@ -5081,7 +5080,7 @@ static void sig_pri_ami_hold_event(struct ast_channel *chan, int is_held)
 		"Uniqueid: %s\r\n",
 		is_held ? "On" : "Off",
 		ast_channel_name(chan),
-		chan->uniqueid);
+		ast_channel_uniqueid(chan));
 }
 #endif	/* defined(HAVE_PRI_CALL_HOLD) */
 

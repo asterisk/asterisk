@@ -7295,7 +7295,7 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
  
 	if (!num) {
 		ast_copy_string(fn, "digits/0", sizeof(fn));
-		res = ast_streamfile(chan, fn, chan->language);
+		res = ast_streamfile(chan, fn, ast_channel_language(chan));
 		if (!res)
 			return  ast_waitstream(chan, ints);
 	}
@@ -7323,14 +7323,14 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 		} else {
 			/* num >  1000 */
 			if (num < 1000000) {
-				res = ast_say_number_full_gr(chan, (num / 1000), ints, chan->language, audiofd, ctrlfd);
+				res = ast_say_number_full_gr(chan, (num / 1000), ints, ast_channel_language(chan), audiofd, ctrlfd);
 				if (res)
 					return res;
 				num %= 1000;
 				snprintf(fn, sizeof(fn), "digits/thousands");
 			}  else {
 				if (num < 1000000000) { /* 1,000,000,000 */
-					res = ast_say_number_full_gr(chan, (num / 1000000), ints, chan->language, audiofd, ctrlfd);
+					res = ast_say_number_full_gr(chan, (num / 1000000), ints, ast_channel_language(chan), audiofd, ctrlfd);
 					if (res)
 						return res;
 					num %= 1000000;
@@ -7538,7 +7538,7 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t t, const
 		case 'Y':
 			/* Year */
 			
-			ast_say_number_full_gr(chan, 1900+tm.tm_year, ints, chan->language, -1, -1);
+			ast_say_number_full_gr(chan, 1900+tm.tm_year, ints, ast_channel_language(chan), -1, -1);
 			break;
 		case 'I':
 		case 'l':
@@ -8296,11 +8296,11 @@ int ast_say_counted_noun(struct ast_channel *chan, int num, const char noun[])
 	char *temp;
 	int temp_len;
 	const char *ending;
-	if (!strncasecmp(chan->language, "ru", 2)) {        /* Russian */
+	if (!strncasecmp(ast_channel_language(chan), "ru", 2)) {        /* Russian */
 		ending = counted_noun_ending_slavic(num);
-	} else if (!strncasecmp(chan->language, "ua", 2)) { /* Ukrainian */
+	} else if (!strncasecmp(ast_channel_language(chan), "ua", 2)) { /* Ukrainian */
 		ending = counted_noun_ending_slavic(num);
-	} else if (!strncasecmp(chan->language, "pl", 2)) { /* Polish */
+	} else if (!strncasecmp(ast_channel_language(chan), "pl", 2)) { /* Polish */
 		ending = counted_noun_ending_slavic(num);
 	} else {                                            /* English and default */
 		ending = counted_noun_ending_en(num);
@@ -8338,11 +8338,11 @@ int ast_say_counted_adjective(struct ast_channel *chan, int num, const char adje
 	char *temp;
 	int temp_len;
 	const char *ending;
-	if (!strncasecmp(chan->language, "ru", 2)) {           /* Russian */
+	if (!strncasecmp(ast_channel_language(chan), "ru", 2)) {           /* Russian */
 		ending = counted_adjective_ending_ru(num, gender);
-	} else if (!strncasecmp(chan->language, "ua", 2)) {    /* Ukrainian */
+	} else if (!strncasecmp(ast_channel_language(chan), "ua", 2)) {    /* Ukrainian */
 		ending = counted_adjective_ending_ru(num, gender);
-	} else if (!strncasecmp(chan->language, "pl", 2)) {    /* Polish */
+	} else if (!strncasecmp(ast_channel_language(chan), "pl", 2)) {    /* Polish */
 		ending = counted_adjective_ending_ru(num, gender);
 	} else {                                               /* English and default */
 		ending = "";

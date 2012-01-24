@@ -3319,7 +3319,7 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 		} else if (!strcmp(var, "CHANNEL")) {
 			s = ast_channel_name(c);
 		} else if (!strcmp(var, "UNIQUEID")) {
-			s = c->uniqueid;
+			s = ast_channel_uniqueid(c);
 		} else if (!strcmp(var, "HANGUPCAUSE")) {
 			ast_str_set(str, maxlen, "%d", c->hangupcause);
 			s = ast_str_buffer(*str);
@@ -4386,7 +4386,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					"Application: %s\r\n"
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
-					ast_channel_name(c), c->context, c->exten, c->priority, app->name, passdata, c->uniqueid);
+					ast_channel_name(c), c->context, c->exten, c->priority, app->name, passdata, ast_channel_uniqueid(c));
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
@@ -8335,10 +8335,10 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 	/* In order to do it when the channel doesn't really exist within
 	 * the PBX, we have to make a new channel, masquerade, and start the PBX
 	 * at the new location */
-	tmpvars.accountcode = ast_strdupa(chan->accountcode);
+	tmpvars.accountcode = ast_strdupa(ast_channel_accountcode(chan));
 	tmpvars.exten = ast_strdupa(chan->exten);
 	tmpvars.context = ast_strdupa(chan->context);
-	tmpvars.linkedid = ast_strdupa(chan->linkedid);
+	tmpvars.linkedid = ast_strdupa(ast_channel_linkedid(chan));
 	tmpvars.name = ast_strdupa(ast_channel_name(chan));
 	tmpvars.amaflags = chan->amaflags;
 	tmpvars.state = chan->_state;
@@ -9899,7 +9899,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.lang))
-		args.lang = (char *)chan->language;	/* XXX this is const */
+		args.lang = (char *)ast_channel_language(chan);	/* XXX this is const */
 
 	if (ast_strlen_zero(args.context)) {
 		const char *context;
@@ -10151,7 +10151,7 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 			"Value: %s\r\n"
 			"Uniqueid: %s\r\n",
 			chan ? ast_channel_name(chan) : "none", name, value,
-			chan ? chan->uniqueid : "none");
+			chan ? ast_channel_uniqueid(chan) : "none");
 	}
 
 	if (chan)
@@ -10336,7 +10336,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (ast_say_number(chan, atoi(tmp), "", chan->language, options)) {
+	if (ast_say_number(chan, atoi(tmp), "", ast_channel_language(chan), options)) {
 		ast_log(LOG_WARNING, "We were unable to say the number %s, is it too large?\n", tmp);
 	}
 
@@ -10348,7 +10348,7 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, const char *data)
 	int res = 0;
 
 	if (data)
-		res = ast_say_digit_str(chan, data, "", chan->language);
+		res = ast_say_digit_str(chan, data, "", ast_channel_language(chan));
 	return res;
 }
 
@@ -10357,7 +10357,7 @@ static int pbx_builtin_saycharacters(struct ast_channel *chan, const char *data)
 	int res = 0;
 
 	if (data)
-		res = ast_say_character_str(chan, data, "", chan->language);
+		res = ast_say_character_str(chan, data, "", ast_channel_language(chan));
 	return res;
 }
 
@@ -10366,7 +10366,7 @@ static int pbx_builtin_sayphonetic(struct ast_channel *chan, const char *data)
 	int res = 0;
 
 	if (data)
-		res = ast_say_phonetic_str(chan, data, "", chan->language);
+		res = ast_say_phonetic_str(chan, data, "", ast_channel_language(chan));
 	return res;
 }
 

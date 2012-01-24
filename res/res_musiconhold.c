@@ -297,7 +297,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 
 	if (ast_test_flag(state->class, MOH_ANNOUNCEMENT) && state->announcement == 0) {
 		state->announcement = 1;
-		if (ast_openstream_full(chan, state->class->announcement, chan->language, 1)) {
+		if (ast_openstream_full(chan, state->class->announcement, ast_channel_language(chan), 1)) {
 			ast_debug(1, "%s Opened announcement '%s'\n", ast_channel_name(chan), state->class->announcement);
 			return 0;
 		}
@@ -336,7 +336,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	}
 
 	for (tries = 0; tries < state->class->total_files; ++tries) {
-		if (ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
+		if (ast_openstream_full(chan, state->class->filearray[state->pos], ast_channel_language(chan), 1)) {
 			break;
 		}
 
@@ -504,7 +504,7 @@ static void moh_handle_digit(struct ast_channel *chan, char digit)
 	if ((class = get_mohbydigit(digit))) {
 		classname = ast_strdupa(class->name);
 		class = mohclass_unref(class, "Unreffing ao2_find from finding by digit");
-		ast_string_field_set(chan,musicclass,classname);
+		ast_channel_musicclass_set(chan, classname);
 		ast_moh_stop(chan);
 		ast_moh_start(chan, classname, NULL);
 	}
@@ -847,7 +847,7 @@ static int set_moh_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
 		return -1;
 	}
-	ast_string_field_set(chan, musicclass, data);
+	ast_channel_musicclass_set(chan, data);
 	return 0;
 }
 
@@ -1371,10 +1371,10 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	 *    option.
 	 * 4) The default class.
 	 */
-	if (!ast_strlen_zero(chan->musicclass)) {
-		mohclass = get_mohbyname(chan->musicclass, 1, 0);
+	if (!ast_strlen_zero(ast_channel_musicclass(chan))) {
+		mohclass = get_mohbyname(ast_channel_musicclass(chan), 1, 0);
 		if (!mohclass && realtime_possible) {
-			var = ast_load_realtime("musiconhold", "name", chan->musicclass, SENTINEL);
+			var = ast_load_realtime("musiconhold", "name", ast_channel_musicclass(chan), SENTINEL);
 		}
 	}
 	if (!mohclass && !var && !ast_strlen_zero(mclass)) {
@@ -1556,7 +1556,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n"
 		"Class: %s\r\n",
-		ast_channel_name(chan), chan->uniqueid,
+		ast_channel_name(chan), ast_channel_uniqueid(chan),
 		mohclass->name);
 
 	ast_set_flag(chan, AST_FLAG_MOH);
@@ -1589,7 +1589,7 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 		"State: Stop\r\n"
 		"Channel: %s\r\n"
 		"UniqueID: %s\r\n",
-		ast_channel_name(chan), chan->uniqueid);
+		ast_channel_name(chan), ast_channel_uniqueid(chan));
 	ast_channel_unlock(chan);
 }
 

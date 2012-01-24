@@ -286,10 +286,10 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 
 		ast_connected_line_copy_from_caller(&channel->owner->connected, &chan->caller);
 
-		ast_string_field_set(channel->owner, language, chan->language);
-		ast_string_field_set(channel->owner, accountcode, chan->accountcode);
-		if (ast_strlen_zero(channel->owner->musicclass))
-			ast_string_field_set(channel->owner, musicclass, chan->musicclass);
+		ast_channel_language_set(channel->owner, ast_channel_language(chan));
+		ast_channel_accountcode_set(channel->owner, ast_channel_accountcode(chan));
+		if (ast_strlen_zero(ast_channel_musicclass(channel->owner)))
+			ast_channel_musicclass_set(channel->owner, ast_channel_musicclass(chan));
 
 		channel->owner->adsicpe = chan->adsicpe;
 		channel->owner->transfercapability = chan->transfercapability;
@@ -331,7 +331,7 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan)
 static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *channel, struct ast_channel *chan)
 {
 	struct ast_channel *original = channel->owner;
-	char *tmp = ast_strdupa(channel->owner->call_forward);
+	char *tmp = ast_strdupa(ast_channel_call_forward(channel->owner));
 	char *tech = "Local", *device = tmp, *stuff;
 
 	/* If call forwarding is disabled just drop the original channel and don't attempt to dial the new one */
@@ -567,11 +567,11 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 			ast_indicate(chan, AST_CONTROL_RINGING);
 	} else if (chan && dial->options[AST_DIAL_OPTION_MUSIC] && 
 		!ast_strlen_zero(dial->options[AST_DIAL_OPTION_MUSIC])) {
-		char *original_moh = ast_strdupa(chan->musicclass);
+		char *original_moh = ast_strdupa(ast_channel_musicclass(chan));
 		ast_indicate(chan, -1);
-		ast_string_field_set(chan, musicclass, dial->options[AST_DIAL_OPTION_MUSIC]);
+		ast_channel_musicclass_set(chan, dial->options[AST_DIAL_OPTION_MUSIC]);
 		ast_moh_start(chan, dial->options[AST_DIAL_OPTION_MUSIC], NULL);
-		ast_string_field_set(chan, musicclass, original_moh);
+		ast_channel_musicclass_set(chan, original_moh);
 	}
 
 	/* Record start time for timeout purposes */
@@ -628,7 +628,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 			channel = find_relative_dial_channel(dial, who);
 
 		/* See if this channel has been forwarded elsewhere */
-		if (!ast_strlen_zero(who->call_forward)) {
+		if (!ast_strlen_zero(ast_channel_call_forward(who))) {
 			handle_call_forward(dial, channel, chan);
 			continue;
 		}

@@ -4593,7 +4593,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	tmp->tech_pvt = sub;
 	tmp->tech = &unistim_tech;
 	if (!ast_strlen_zero(l->language))
-		ast_string_field_set(tmp, language, l->language);
+		ast_channel_language_set(tmp, l->language);
 	sub->owner = tmp;
 	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -4601,7 +4601,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	ast_update_use_count();
 	tmp->callgroup = l->callgroup;
 	tmp->pickupgroup = l->pickupgroup;
-	ast_string_field_set(tmp, call_forward, l->parent->call_forward);
+	ast_channel_call_forward_set(tmp, l->parent->call_forward);
 	if (!ast_strlen_zero(l->cid_num)) {
 		char *name, *loc, *instr;
 		instr = ast_strdup(l->cid_num);
@@ -4778,7 +4778,7 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 		return NULL;
 	}
 	ast_format_cap_copy(sub->parent->cap, cap);
-	tmpc = unistim_new(sub, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+	tmpc = unistim_new(sub, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 	if (!tmpc)
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	if (unistimdebug)

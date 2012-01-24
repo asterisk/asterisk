@@ -1524,16 +1524,16 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 		ast_format_copy(&tmp->rawreadformat, &tmpfmt);
 		tmp->tech_pvt = sub;
 		if (!ast_strlen_zero(i->language))
-			ast_string_field_set(tmp, language, i->language);
+			ast_channel_language_set(tmp, i->language);
 		if (!ast_strlen_zero(i->accountcode))
-			ast_string_field_set(tmp, accountcode, i->accountcode);
+			ast_channel_accountcode_set(tmp, i->accountcode);
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		sub->owner = tmp;
 		ast_module_ref(ast_module_info->self);
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
-		ast_string_field_set(tmp, call_forward, i->call_forward);
+		ast_channel_call_forward_set(tmp, i->call_forward);
 		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 
@@ -3091,7 +3091,7 @@ static void *mgcp_ss(void *data)
 		} else if (p->callreturn && !strcmp(p->dtmf_buf, "*69")) {
 			res = 0;
 			if (!ast_strlen_zero(p->lastcallerid)) {
-				res = ast_say_digit_str(chan, p->lastcallerid, "", chan->language);
+				res = ast_say_digit_str(chan, p->lastcallerid, "", ast_channel_language(chan));
 			}
 			if (!res)
 				/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
@@ -3960,7 +3960,7 @@ static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap 
 		ast_mutex_unlock(&sub->lock);
 		return NULL;
 	}
-	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 	ast_mutex_unlock(&sub->lock);
 	if (!tmpc)
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);

@@ -364,7 +364,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 							  "Application: %s\r\n"
 							  "AppData: %s\r\n"
 							  "Uniqueid: %s\r\n",
-							  ast_channel_name(chan), chan->context, chan->exten, chan->priority, app, !ast_strlen_zero(appdata) ? appdata : "(NULL)", chan->uniqueid);
+							  ast_channel_name(chan), chan->context, chan->exten, chan->priority, app, !ast_strlen_zero(appdata) ? appdata : "(NULL)", ast_channel_uniqueid(chan));
 				
 				res = pbx_exec(chan, a, appdata);
 			} else

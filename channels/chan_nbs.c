@@ -236,7 +236,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 		tmp->tech_pvt = i;
 		ast_copy_string(tmp->context, context, sizeof(tmp->context));
 		ast_copy_string(tmp->exten, "s",  sizeof(tmp->exten));
-		ast_string_field_set(tmp, language, "");
+		ast_channel_language_set(tmp, "");
 		i->owner = tmp;
 		i->u = ast_module_user_add(tmp);
 		if (state != AST_STATE_DOWN) {
@@ -263,7 +263,7 @@ static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *
 	}
 	p = nbs_alloc(data);
 	if (p) {
-		tmp = nbs_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+		tmp = nbs_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 		if (!tmp)
 			nbs_destroy(p);
 	}

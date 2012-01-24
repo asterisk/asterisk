@@ -4904,11 +4904,11 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		ast_format_copy(&tmp->rawreadformat, &tmpfmt);
 
 		if (!ast_strlen_zero(l->language))
-			ast_string_field_set(tmp, language, l->language);
+			ast_channel_language_set(tmp, l->language);
 		if (!ast_strlen_zero(l->accountcode))
-			ast_string_field_set(tmp, accountcode, l->accountcode);
+			ast_channel_accountcode_set(tmp, l->accountcode);
 		if (!ast_strlen_zero(l->parkinglot))
-			ast_string_field_set(tmp, parkinglot, l->parkinglot);
+			ast_channel_parkinglot_set(tmp, l->parkinglot);
 		if (l->amaflags)
 			tmp->amaflags = l->amaflags;
 
@@ -4918,10 +4918,10 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 
 		/* XXX Need to figure out how to handle CFwdNoAnswer */
 		if (l->cfwdtype & SKINNY_CFWD_ALL) {
-			ast_string_field_set(tmp, call_forward, l->call_forward_all);
+			ast_channel_call_forward_set(tmp, l->call_forward_all);
 		} else if (l->cfwdtype & SKINNY_CFWD_BUSY) {
 			if (get_devicestate(l) != AST_DEVICE_NOT_INUSE) {
-				ast_string_field_set(tmp, call_forward, l->call_forward_busy);
+				ast_channel_call_forward_set(tmp, l->call_forward_busy);
 			}
 		}
 
@@ -7107,7 +7107,7 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 		l = subline->line;
 	}
 	ast_verb(3, "skinny_request(%s)\n", tmp);
-	tmpc = skinny_new(l, subline, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL, SKINNY_INCOMING);
+	tmpc = skinny_new(l, subline, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL, SKINNY_INCOMING);
 	if (!tmpc) {
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	} else if (subline) {

@@ -1289,7 +1289,7 @@ static void aoc_request_event(const struct ast_aoc_decoded *decoded, struct ast_
 {
 	if (chan) {
 		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(chan));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", chan->uniqueid);
+		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(chan));
 	}
 
 	if (decoded->request_flag) {
@@ -1318,7 +1318,7 @@ static void aoc_s_event(const struct ast_aoc_decoded *decoded, struct ast_channe
 
 	if (owner) {
 		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(owner));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", owner->uniqueid);
+		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(owner));
 	}
 
 	ast_str_append(msg, 0, "NumberRates: %d\r\n", decoded->aoc_s_count);
@@ -1391,7 +1391,7 @@ static void aoc_d_event(const struct ast_aoc_decoded *decoded, struct ast_channe
 
 	if (chan) {
 		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(chan));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", chan->uniqueid);
+		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(chan));
 	}
 
 	charge_str = aoc_charge_type_str(decoded->charge_type);
@@ -1445,7 +1445,7 @@ static void aoc_e_event(const struct ast_aoc_decoded *decoded, struct ast_channe
 
 	if (chan) {
 		ast_str_append(msg, 0, "Channel: %s\r\n", ast_channel_name(chan));
-		ast_str_append(msg, 0, "UniqueID: %s\r\n", chan->uniqueid);
+		ast_str_append(msg, 0, "UniqueID: %s\r\n", ast_channel_uniqueid(chan));
 	}
 
 	charge_str = "ChargingAssociation";

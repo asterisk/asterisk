@@ -1425,7 +1425,7 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *
 	int res = 0;
 	if (!ast_strlen_zero(file)) {
 		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", file, ast_channel_name(chan));
-		res = ast_streamfile(chan, file, chan->language);
+		res = ast_streamfile(chan, file, ast_channel_language(chan));
 		if (!res) {
 			res = ast_waitstream(chan, digits);
 		}

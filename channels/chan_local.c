@@ -860,9 +860,9 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	ast_connected_line_copy_to_caller(&chan->caller, &owner->connected);
 	ast_connected_line_copy_from_caller(&chan->connected, &owner->caller);
 
-	ast_string_field_set(chan, language, owner->language);
-	ast_string_field_set(chan, accountcode, owner->accountcode);
-	ast_string_field_set(chan, musicclass, owner->musicclass);
+	ast_channel_language_set(chan, ast_channel_language(owner));
+	ast_channel_accountcode_set(chan, ast_channel_accountcode(owner));
+	ast_channel_musicclass_set(chan, ast_channel_musicclass(owner));
 	ast_cdr_update(chan);
 
 	ast_channel_cc_params_init(chan, ast_channel_get_cc_config_params(owner));
@@ -917,7 +917,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		      "Context: %s\r\n"
 		      "Exten: %s\r\n"
 		      "LocalOptimization: %s\r\n",
-			ast_channel_name(p->owner), ast_channel_name(p->chan), p->owner->uniqueid, p->chan->uniqueid,
+			ast_channel_name(p->owner), ast_channel_name(p->chan), ast_channel_uniqueid(p->owner), ast_channel_uniqueid(p->chan),
 			p->context, p->exten,
 			ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "Yes" : "No");
 
@@ -1131,8 +1131,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 
 	/* Allocate two new Asterisk channels */
 	/* safe accountcode */
-	if (p->owner && p->owner->accountcode)
-		t = p->owner->accountcode;
+	if (p->owner && ast_channel_accountcode(p->owner))
+		t = ast_channel_accountcode(p->owner);
 	else
 		t = "";
 
@@ -1192,7 +1192,7 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 
 	/* Allocate a new private structure and then Asterisk channel */
 	if ((p = local_alloc(data, cap))) {
-		if (!(chan = local_new(p, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL))) {
+		if (!(chan = local_new(p, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL))) {
 			ao2_unlink(locals, p);
 		}
 		if (chan && ast_channel_cc_params_init(chan, requestor ? ast_channel_get_cc_config_params((struct ast_channel *)requestor) : NULL)) {

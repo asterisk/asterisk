@@ -546,7 +546,7 @@ static void send_join_event(struct ast_channel *chan, const char *conf_name)
 		"CallerIDnum: %s\r\n"
 		"CallerIDname: %s\r\n",
 		ast_channel_name(chan),
-		chan->uniqueid,
+		ast_channel_uniqueid(chan),
 		conf_name,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>")
@@ -562,7 +562,7 @@ static void send_leave_event(struct ast_channel *chan, const char *conf_name)
 		"CallerIDnum: %s\r\n"
 		"CallerIDname: %s\r\n",
 		ast_channel_name(chan),
-		chan->uniqueid,
+		ast_channel_uniqueid(chan),
 		conf_name,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<unknown>"),
 		S_COR(chan->caller.id.name.valid, chan->caller.id.name.str, "<unknown>")
@@ -606,7 +606,7 @@ static int announce_user_count(struct conference_bridge *conference_bridge, stru
 				"")) {
 				return -1;
 			}
-			if (ast_say_number(conference_bridge_user->chan, conference_bridge->users - 1, "", conference_bridge_user->chan->language, NULL)) {
+			if (ast_say_number(conference_bridge_user->chan, conference_bridge->users - 1, "", ast_channel_language(conference_bridge_user->chan), NULL)) {
 				return -1;
 			}
 			if (ast_stream_and_wait(conference_bridge_user->chan,
@@ -1164,7 +1164,7 @@ static int play_sound_helper(struct conference_bridge *conference_bridge, const 
 	if (!ast_strlen_zero(filename)) {
 		ast_stream_and_wait(conference_bridge->playback_chan, filename, "");
 	} else {
-		ast_say_number(conference_bridge->playback_chan, say_number, "", conference_bridge->playback_chan->language, NULL);
+		ast_say_number(conference_bridge->playback_chan, say_number, "", ast_channel_language(conference_bridge->playback_chan), NULL);
 	}
 
 	ast_debug(1, "Departing underlying channel '%s' from bridge '%p'\n", ast_channel_name(underlying_channel), conference_bridge->bridge);
@@ -1230,7 +1230,7 @@ static void conf_handle_talker_cb(struct ast_bridge *bridge, struct ast_bridge_c
 	      "Uniqueid: %s\r\n"
 	      "Conference: %s\r\n"
 	      "TalkingStatus: %s\r\n",
-	      ast_channel_name(bridge_channel->chan), bridge_channel->chan->uniqueid, conf_name, talking ? "on" : "off");
+	      ast_channel_name(bridge_channel->chan), ast_channel_uniqueid(bridge_channel->chan), conf_name, talking ? "on" : "off");
 }
 
 static int conf_get_pin(struct ast_channel *chan, struct conference_bridge_user *conference_bridge_user)
@@ -1252,7 +1252,7 @@ static int conf_get_pin(struct ast_channel *chan, struct conference_bridge_user 
 		}
 		ast_streamfile(chan,
 			conf_get_sound(CONF_SOUND_INVALID_PIN, conference_bridge_user->b_profile.sounds),
-			chan->language);
+			ast_channel_language(chan));
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
 		if (res > 0) {
 			/* Account for digit already read during ivalid pin playback
@@ -1284,7 +1284,7 @@ static int conf_rec_name(struct conference_bridge_user *user, const char *conf_n
 	}
 	snprintf(user->name_rec_location, sizeof(user->name_rec_location),
 		 "%s/confbridge-name-%s-%s", destdir,
-		 conf_name, user->chan->uniqueid);
+		 conf_name, ast_channel_uniqueid(user->chan));
 
 	res = ast_play_and_record(user->chan,
 		"vm-rec-name",
@@ -1619,7 +1619,7 @@ static int action_playback_and_continue(struct conference_bridge *conference_bri
 	char *file = NULL;
 
 	while ((file = strsep(&file_copy, "&"))) {
-		if (ast_streamfile(bridge_channel->chan, file, bridge_channel->chan->language)) {
+		if (ast_streamfile(bridge_channel->chan, file, ast_channel_language(bridge_channel->chan))) {
 			ast_log(LOG_WARNING, "Failed to playback file %s to channel\n", file);
 			return -1;
 		}

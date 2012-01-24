@@ -880,7 +880,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 		else
 			strcpy(tmp->exten, "s");
 		if (!ast_strlen_zero(i->language))
-			ast_string_field_set(tmp, language, i->language);
+			ast_channel_language_set(tmp, i->language);
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a NewCallerID event before the NewChannel event */
@@ -1249,7 +1249,7 @@ static struct ast_channel *phone_request(const char *type, struct ast_format_cap
     		if (strncmp(name, p->dev + 5, length) == 0 &&
     		    !isalnum(name[length])) {
     		    if (!p->owner) {
-                     tmp = phone_new(p, AST_STATE_DOWN, p->context, requestor ? requestor->linkedid : NULL);
+                     tmp = phone_new(p, AST_STATE_DOWN, p->context, requestor ? ast_channel_linkedid(requestor) : NULL);
                      break;
                 } else
                      *cause = AST_CAUSE_BUSY;

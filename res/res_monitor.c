@@ -393,7 +393,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 			                "Channel: %s\r\n"
 					        "Uniqueid: %s\r\n",
 	                        ast_channel_name(chan),
-			                chan->uniqueid);
+			                ast_channel_uniqueid(chan));
 	} else {
 		ast_debug(1,"Cannot start monitoring %s, already monitored\n", ast_channel_name(chan));
 		res = -1;
@@ -511,7 +511,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 			                "Channel: %s\r\n"
 	                        "Uniqueid: %s\r\n",
 	                        ast_channel_name(chan),
-	                        chan->uniqueid
+	                        ast_channel_uniqueid(chan)
 	                        );
 		pbx_builtin_setvar_helper(chan, "MONITORED", NULL);
 	}

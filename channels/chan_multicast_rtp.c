@@ -149,7 +149,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		goto failure;
 	}
 
-	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", requestor ? requestor->linkedid : "", 0, "MulticastRTP/%p", instance))) {
+	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, "", "", "", "", "", requestor ? ast_channel_linkedid(requestor) : "", 0, "MulticastRTP/%p", instance))) {
 		ast_rtp_instance_destroy(instance);
 		goto failure;
 	}

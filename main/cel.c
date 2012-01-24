@@ -373,7 +373,7 @@ static int linkedid_match(void *obj, void *arg, void *data, int flags)
 	int res;
 
 	ast_channel_lock(c);
-	res = (c != find_dat->chan && c->linkedid && !strcmp(find_dat->linkedid, c->linkedid));
+	res = (c != find_dat->chan && ast_channel_linkedid(c) && !strcmp(find_dat->linkedid, ast_channel_linkedid(c)));
 	ast_channel_unlock(c);
 
 	return res ? CMP_MATCH | CMP_STOP : 0;
@@ -381,7 +381,7 @@ static int linkedid_match(void *obj, void *arg, void *data, int flags)
 
 void ast_cel_check_retire_linkedid(struct ast_channel *chan)
 {
-	const char *linkedid = chan->linkedid;
+	const char *linkedid = ast_channel_linkedid(chan);
 	struct channel_find_data find_dat;
 
 	/* make sure we need to do all this work */
@@ -459,11 +459,11 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	ast_copy_string(tchan->exten, record.extension, sizeof(tchan->exten));
 	ast_copy_string(tchan->context, record.context, sizeof(tchan->context));
 	ast_channel_name_set(tchan, record.channel_name);
-	ast_string_field_set(tchan, uniqueid, record.unique_id);
-	ast_string_field_set(tchan, linkedid, record.linked_id);
-	ast_string_field_set(tchan, accountcode, record.account_code);
-	ast_string_field_set(tchan, peeraccount, record.peer_account);
-	ast_string_field_set(tchan, userfield, record.user_field);
+	ast_channel_uniqueid_set(tchan, record.unique_id);
+	ast_channel_linkedid_set(tchan, record.linked_id);
+	ast_channel_accountcode_set(tchan, record.account_code);
+	ast_channel_peeraccount_set(tchan, record.peer_account);
+	ast_channel_userfield_set(tchan, record.user_field);
 
 	if ((newvariable = ast_var_assign("BRIDGEPEER", record.peer))) {
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
@@ -561,11 +561,11 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->appl, ""),
 		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->data, ""),
 		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, chan->amaflags,
-		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, chan->accountcode,
-		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, chan->peeraccount,
-		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, chan->uniqueid,
-		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, chan->linkedid,
-		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, chan->userfield,
+		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, ast_channel_accountcode(chan),
+		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, ast_channel_peeraccount(chan),
+		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, ast_channel_uniqueid(chan),
+		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, ast_channel_linkedid(chan),
+		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, ast_channel_userfield(chan),
 		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, extra,
 		AST_EVENT_IE_CEL_PEER, AST_EVENT_IE_PLTYPE_STR, peername,
 		AST_EVENT_IE_END);

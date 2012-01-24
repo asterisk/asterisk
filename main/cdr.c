@@ -932,15 +932,15 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 
 			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
 			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
-			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
-			ast_copy_string(cdr->peeraccount, c->peeraccount, sizeof(cdr->peeraccount));
+			ast_copy_string(cdr->accountcode, ast_channel_accountcode(c), sizeof(cdr->accountcode));
+			ast_copy_string(cdr->peeraccount, ast_channel_peeraccount(c), sizeof(cdr->peeraccount));
 			/* Destination information */
 			ast_copy_string(cdr->dst, S_OR(c->macroexten,c->exten), sizeof(cdr->dst));
 			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext,c->context), sizeof(cdr->dcontext));
 			/* Unique call identifier */
-			ast_copy_string(cdr->uniqueid, c->uniqueid, sizeof(cdr->uniqueid));
+			ast_copy_string(cdr->uniqueid, ast_channel_uniqueid(c), sizeof(cdr->uniqueid));
 			/* Linked call identifier */
-			ast_copy_string(cdr->linkedid, c->linkedid, sizeof(cdr->linkedid));
+			ast_copy_string(cdr->linkedid, ast_channel_linkedid(c), sizeof(cdr->linkedid));
 		}
 	}
 	return 0;
@@ -1022,14 +1022,14 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 	struct ast_cdr *cdr = chan->cdr;
 	const char *old_acct = "";
 
-	if (!ast_strlen_zero(chan->accountcode)) {
-		old_acct = ast_strdupa(chan->accountcode);
+	if (!ast_strlen_zero(ast_channel_accountcode(chan))) {
+		old_acct = ast_strdupa(ast_channel_accountcode(chan));
 	}
 
-	ast_string_field_set(chan, accountcode, account);
+	ast_channel_accountcode_set(chan, account);
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			ast_copy_string(cdr->accountcode, chan->accountcode, sizeof(cdr->accountcode));
+			ast_copy_string(cdr->accountcode, ast_channel_accountcode(chan), sizeof(cdr->accountcode));
 		}
 	}
 
@@ -1038,7 +1038,7 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 			"Uniqueid: %s\r\n"
 			"AccountCode: %s\r\n"
 			"OldAccountCode: %s\r\n",
-			ast_channel_name(chan), chan->uniqueid, chan->accountcode, old_acct);
+			ast_channel_name(chan), ast_channel_uniqueid(chan), ast_channel_accountcode(chan), old_acct);
 
 	return 0;
 }
@@ -1048,14 +1048,14 @@ int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account)
 	struct ast_cdr *cdr = chan->cdr;
 	const char *old_acct = "";
 
-	if (!ast_strlen_zero(chan->peeraccount)) {
-		old_acct = ast_strdupa(chan->peeraccount);
+	if (!ast_strlen_zero(ast_channel_peeraccount(chan))) {
+		old_acct = ast_strdupa(ast_channel_peeraccount(chan));
 	}
 
-	ast_string_field_set(chan, peeraccount, account);
+	ast_channel_peeraccount_set(chan, account);
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			ast_copy_string(cdr->peeraccount, chan->peeraccount, sizeof(cdr->peeraccount));
+			ast_copy_string(cdr->peeraccount, ast_channel_peeraccount(chan), sizeof(cdr->peeraccount));
 		}
 	}
 
@@ -1064,7 +1064,7 @@ int ast_cdr_setpeeraccount(struct ast_channel *chan, const char *account)
 			"Uniqueid: %s\r\n"
 			"PeerAccount: %s\r\n"
 			"OldPeerAccount: %s\r\n",
-			ast_channel_name(chan), chan->uniqueid, chan->peeraccount, old_acct);
+			ast_channel_name(chan), ast_channel_uniqueid(chan), ast_channel_peeraccount(chan), old_acct);
 
 	return 0;
 }
@@ -1119,9 +1119,9 @@ int ast_cdr_update(struct ast_channel *c)
 			set_one_cid(cdr, c);
 
 			/* Copy account code et-al */
-			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
-			ast_copy_string(cdr->peeraccount, c->peeraccount, sizeof(cdr->peeraccount));
-			ast_copy_string(cdr->linkedid, c->linkedid, sizeof(cdr->linkedid));
+			ast_copy_string(cdr->accountcode, ast_channel_accountcode(c), sizeof(cdr->accountcode));
+			ast_copy_string(cdr->peeraccount, ast_channel_peeraccount(c), sizeof(cdr->peeraccount));
+			ast_copy_string(cdr->linkedid, ast_channel_linkedid(c), sizeof(cdr->linkedid));
 
 			/* Destination information */ /* XXX privilege macro* ? */
 			ast_copy_string(cdr->dst, S_OR(c->macroexten, c->exten), sizeof(cdr->dst));

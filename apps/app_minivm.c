@@ -1543,7 +1543,7 @@ static int invent_message(struct ast_channel *chan, char *domain, char *username
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", MVM_SPOOL_DIR, domain, username);
 
 	if (ast_fileexists(fn, NULL, NULL) > 0) {
-		res = ast_streamfile(chan, fn, chan->language);
+		res = ast_streamfile(chan, fn, ast_channel_language(chan));
 		if (res) 
 			return -1;
 		res = ast_waitstream(chan, ecodes);
@@ -1565,23 +1565,23 @@ static int invent_message(struct ast_channel *chan, char *domain, char *username
 		}
 
 		if (numericusername) {
-			if (ast_streamfile(chan, "vm-theperson", chan->language))
+			if (ast_streamfile(chan, "vm-theperson", ast_channel_language(chan)))
 				return -1;
 			if ((res = ast_waitstream(chan, ecodes)))
 				return res;
 
-			res = ast_say_digit_str(chan, username, ecodes, chan->language);
+			res = ast_say_digit_str(chan, username, ecodes, ast_channel_language(chan));
 			if (res)
 				return res;
 		} else {
-			if (ast_streamfile(chan, "vm-theextensionis", chan->language))
+			if (ast_streamfile(chan, "vm-theextensionis", ast_channel_language(chan)))
 				return -1;
 			if ((res = ast_waitstream(chan, ecodes)))
 				return res;
 		}
 	}
 
-	res = ast_streamfile(chan, busy ? "vm-isonphone" : "vm-isunavail", chan->language);
+	res = ast_streamfile(chan, busy ? "vm-isonphone" : "vm-isunavail", ast_channel_language(chan));
 	if (res)
 		return -1;
 	res = ast_waitstream(chan, ecodes);
@@ -1637,7 +1637,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		case '2':
 			/* Review */
 			ast_verb(3, "Reviewing the message\n");
-			ast_streamfile(chan, recordfile, chan->language);
+			ast_streamfile(chan, recordfile, ast_channel_language(chan));
 			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
 			break;
 		case '3':
@@ -1902,7 +1902,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 	txtdes = mkstemp(tmptxtfile);
 	if (txtdes < 0) {
 		ast_log(LOG_ERROR, "Unable to create message file %s: %s\n", tmptxtfile, strerror(errno));
-		res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+		res = ast_streamfile(chan, "vm-mailboxfull", ast_channel_language(chan));
 		if (!res)
 			res = ast_waitstream(chan, "");
 		pbx_builtin_setvar_helper(chan, "MVM_RECORD_STATUS", "FAILED");
@@ -1911,7 +1911,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 
 	if (res >= 0) {
 		/* Unless we're *really* silent, try to send the beep */
-		res = ast_streamfile(chan, "beep", chan->language);
+		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 		if (!res)
 			res = ast_waitstream(chan, "");
 	}
@@ -2339,7 +2339,7 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	res = 0;	/* Reset */
 	/* Play the beginning intro if desired */
 	if (!ast_strlen_zero(prefile)) {
-		if (ast_streamfile(chan, prefile, chan->language) > -1) 
+		if (ast_streamfile(chan, prefile, ast_channel_language(chan)) > -1) 
 			res = ast_waitstream(chan, ecodes);
 	} else {
 		ast_debug(2, "%s doesn't exist, doing what we can\n", prefile);
@@ -2358,7 +2358,7 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 		res = 0;
 	}
 	if (!res && !ast_test_flag(&leave_options, OPT_SILENT)) {
-		res = ast_streamfile(chan, SOUND_INTRO, chan->language);
+		res = ast_streamfile(chan, SOUND_INTRO, ast_channel_language(chan));
 		if (!res)
 			res = ast_waitstream(chan, ecodes);
 		if (res == '#') {

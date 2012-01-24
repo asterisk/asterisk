@@ -1098,7 +1098,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		ast_copy_string(ch->exten, pvt->exten, sizeof(ch->exten));
 		ch->priority = 1;
 		if (!ast_strlen_zero(pvt->accountcode)) {
-			ast_string_field_set(ch, accountcode, pvt->accountcode);
+			ast_channel_accountcode_set(ch, pvt->accountcode);
 		}
 		if (pvt->amaflags) {
 			ch->amaflags = pvt->amaflags;
@@ -1860,7 +1860,7 @@ static struct ast_channel *oh323_request(const char *type, struct ast_format_cap
 	ast_mutex_unlock(&caplock);
 
 	ast_mutex_lock(&pvt->lock);
-	tmpc = __oh323_new(pvt, AST_STATE_DOWN, tmp1, requestor ? requestor->linkedid : NULL);
+	tmpc = __oh323_new(pvt, AST_STATE_DOWN, tmp1, requestor ? ast_channel_linkedid(requestor) : NULL);
 	ast_mutex_unlock(&pvt->lock);
 	if (!tmpc) {
 		oh323_destroy(pvt);

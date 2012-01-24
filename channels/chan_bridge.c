@@ -166,11 +166,11 @@ static struct ast_channel *bridge_request(const char *type, struct ast_format_ca
 	}
 
 	/* Try to grab two Asterisk channels to use as input and output channels */
-	if (!(p->input = ast_channel_alloc(1, AST_STATE_UP, 0, 0, "", "", "", requestor ? requestor->linkedid : NULL, 0, "Bridge/%p-input", p))) {
+	if (!(p->input = ast_channel_alloc(1, AST_STATE_UP, 0, 0, "", "", "", requestor ? ast_channel_linkedid(requestor) : NULL, 0, "Bridge/%p-input", p))) {
 		ao2_ref(p, -1);
 		return NULL;
 	}
-	if (!(p->output = ast_channel_alloc(1, AST_STATE_UP, 0, 0, "", "", "", requestor ? requestor->linkedid : NULL, 0, "Bridge/%p-output", p))) {
+	if (!(p->output = ast_channel_alloc(1, AST_STATE_UP, 0, 0, "", "", "", requestor ? ast_channel_linkedid(requestor) : NULL, 0, "Bridge/%p-output", p))) {
 		p->input = ast_channel_release(p->input);
 		ao2_ref(p, -1);
 		return NULL;

@@ -5919,7 +5919,7 @@ static int read_config(struct chan_list *ch)
 	chan_misdn_log(1, port, "read_config: Getting Config\n");
 
 	misdn_cfg_get(port, MISDN_CFG_LANGUAGE, lang, sizeof(lang));
-	ast_string_field_set(ast, language, lang);
+	ast_channel_language_set(ast, lang);
 
 	misdn_cfg_get(port, MISDN_CFG_MUSICCLASS, ch->mohinterpret, sizeof(ch->mohinterpret));
 
@@ -8005,7 +8005,7 @@ static struct ast_channel *misdn_request(const char *type, struct ast_format_cap
 	}
 	cl->bc = newbc;
 
-	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, cap, requestor ? requestor->linkedid : NULL, port, channel);
+	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, cap, requestor ? ast_channel_linkedid(requestor) : NULL, port, channel);
 	if (!ast) {
 		chan_list_unref(cl, "Failed to create a new channel");
 		ast_log(LOG_ERROR, "Could not create Asterisk channel for Dial(%s)\n", dial_str);
@@ -9137,7 +9137,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 				bc->redirecting.reason = mISDN_REDIRECTING_REASON_DEFLECTION;
 
 				misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
-				ast_string_field_set(ch->ast, call_forward, bc->redirecting.to.number);
+				ast_channel_call_forward_set(ch->ast, bc->redirecting.to.number);
 
 				/* Send back positive ACK */
 #if 1
@@ -9296,7 +9296,7 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 			bc->redirecting.reason = mISDN_REDIRECTING_REASON_DEFLECTION;
 
 			misdn_copy_redirecting_to_ast(ch->ast, &bc->redirecting, bc->incoming_cid_tag);
-			ast_string_field_set(ch->ast, call_forward, bc->redirecting.to.number);
+			ast_channel_call_forward_set(ch->ast, bc->redirecting.to.number);
 
 			misdn_lib_send_event(bc, EVENT_DISCONNECT);
 

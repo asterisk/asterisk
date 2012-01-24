@@ -5177,8 +5177,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->connected.ani.number.str);
 	}
 
-	if (!ast_strlen_zero(c->language))
-		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
+	if (!ast_strlen_zero(ast_channel_language(c)))
+		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, ast_channel_language(c));
 	if (!ast_strlen_zero(c->dialed.number.str)) {
 		iax_ie_append_str(&ied, IAX_IE_DNID, c->dialed.number.str);
 	}
@@ -5824,7 +5824,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
 	if (!ast_strlen_zero(i->parkinglot))
-		ast_string_field_set(tmp, parkinglot, i->parkinglot);
+		ast_channel_parkinglot_set(tmp, i->parkinglot);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a NewCallerID event before the NewChannel event */
 	if (!ast_strlen_zero(i->ani)) {
@@ -5844,9 +5844,9 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	tmp->caller.id.number.plan = i->calling_ton;
 	tmp->dialed.transit_network_select = i->calling_tns;
 	if (!ast_strlen_zero(i->language))
-		ast_string_field_set(tmp, language, i->language);
+		ast_channel_language_set(tmp, i->language);
 	if (!ast_strlen_zero(i->accountcode))
-		ast_string_field_set(tmp, accountcode, i->accountcode);
+		ast_channel_accountcode_set(tmp, i->accountcode);
 	if (i->amaflags)
 		tmp->amaflags = i->amaflags;
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
@@ -9390,8 +9390,8 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	struct ast_channel *chan1m, *chan2m;/* Chan2m: The transferer, chan1m: The transferee */
 	pthread_t th;
 
-	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan1->exten, chan1->context, chan1->linkedid, chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
-	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan2->accountcode, chan2->exten, chan2->context, chan2->linkedid, chan2->amaflags, "IAXPeer/%s", ast_channel_name(chan2));
+	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), chan1->exten, chan1->context, ast_channel_linkedid(chan1), chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
+	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), chan2->exten, chan2->context, ast_channel_linkedid(chan2), chan2->amaflags, "IAXPeer/%s", ast_channel_name(chan2));
 	d = ast_calloc(1, sizeof(*d));
 	if (!chan1m || !chan2m || !d) {
 		if (chan1m) {
@@ -9441,7 +9441,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	/* Make formats okay */
 	chan2m->readformat = chan2->readformat;
 	chan2m->writeformat = chan2->writeformat;
-	ast_string_field_set(chan2m, parkinglot, chan2->parkinglot);
+	ast_channel_parkinglot_set(chan2m, ast_channel_parkinglot(chan2));
 
 	/* Prepare for taking over the channel */
 	if (ast_channel_masquerade(chan2m, chan2)) {
@@ -10496,7 +10496,7 @@ static int socket_process(struct iax2_thread *thread)
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
 							ast_channel_name(iaxs[fr->callno]->owner),
-							iaxs[fr->callno]->owner->uniqueid);
+							ast_channel_uniqueid(iaxs[fr->callno]->owner));
 					}
 
 					ast_set_flag64(iaxs[fr->callno], IAX_QUELCH);
@@ -10533,7 +10533,7 @@ static int socket_process(struct iax2_thread *thread)
 							"Channel: %s\r\n"
 							"Uniqueid: %s\r\n",
 							ast_channel_name(iaxs[fr->callno]->owner),
-							iaxs[fr->callno]->owner->uniqueid);
+							ast_channel_uniqueid(iaxs[fr->callno]->owner));
 					}
 
 					ast_clear_flag64(iaxs[fr->callno], IAX_QUELCH);
@@ -12219,7 +12219,7 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 	if (cai.found)
 		ast_string_field_set(iaxs[callno], host, pds.peer);
 
-	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability, requestor ? requestor->linkedid : NULL);
+	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability, requestor ? ast_channel_linkedid(requestor) : NULL);
 
 	ast_mutex_unlock(&iaxsl[callno]);
 

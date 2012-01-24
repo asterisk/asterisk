@@ -253,10 +253,10 @@ static int auth_exec(struct ast_channel *chan, const char *data)
 			ast_cdr_setaccount(chan, passwd);
 			ast_channel_unlock(chan);
 		}
-		if (!(res = ast_streamfile(chan, "auth-thankyou", chan->language)))
+		if (!(res = ast_streamfile(chan, "auth-thankyou", ast_channel_language(chan))))
 			res = ast_waitstream(chan, "");
 	} else {
-		if (!ast_streamfile(chan, "vm-goodbye", chan->language))
+		if (!ast_streamfile(chan, "vm-goodbye", ast_channel_language(chan)))
 			res = ast_waitstream(chan, "");
 		res = -1;
 	}

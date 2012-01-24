@@ -808,7 +808,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	c->tech_pvt = o;
 
 	if (!ast_strlen_zero(o->language))
-		ast_string_field_set(c, language, o->language);
+		ast_channel_language_set(c, o->language);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
 	if (!ast_strlen_zero(o->cid_num)) {
@@ -864,7 +864,7 @@ static struct ast_channel *oss_request(const char *type, struct ast_format_cap *
 		*cause = AST_CAUSE_BUSY;
 		return NULL;
 	}
-	c = oss_new(o, NULL, NULL, AST_STATE_DOWN, requestor ? requestor->linkedid : NULL);
+	c = oss_new(o, NULL, NULL, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
 	if (c == NULL) {
 		ast_log(LOG_WARNING, "Unable to create new OSS channel\n");
 		return NULL;

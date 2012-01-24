@@ -194,7 +194,7 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 		if (ts && ts->data[0]) {
 			res = ast_playtones_start(chan, 0, ts->data, 0);
 		} else if (arglist.filename) {
-			if (ast_test_flag(&flags, OPT_INDICATION) && ast_fileexists(arglist.filename, NULL, chan->language) <= 0) {
+			if (ast_test_flag(&flags, OPT_INDICATION) && ast_fileexists(arglist.filename, NULL, ast_channel_language(chan)) <= 0) {
 				/*
 				 * We were asked to play an indication that did not exist in the config.
 				 * If no such file exists, play it as a tonelist.  With any luck they won't
@@ -203,7 +203,7 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 				 */
 				res = ast_playtones_start(chan, 0, arglist.filename, 0);
 			} else {
-				res = ast_streamfile(chan, arglist.filename, chan->language);
+				res = ast_streamfile(chan, arglist.filename, ast_channel_language(chan));
 			}
 		}
 

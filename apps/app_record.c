@@ -254,7 +254,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 				ast_copy_string(tmp + tmplen, &(fname.piece[idx][1]), sizeof(tmp) - tmplen);
 			}
 			count++;
-		} while (ast_fileexists(tmp, ext, chan->language) > 0);
+		} while (ast_fileexists(tmp, ext, ast_channel_language(chan)) > 0);
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
 		ast_copy_string(tmp, args.filename, sizeof(tmp));
@@ -279,7 +279,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 	if (!ast_test_flag(&flags, OPTION_QUIET)) {
 		/* Some code to play a nice little beep to signify the start of the record operation */
-		res = ast_streamfile(chan, "beep", chan->language);
+		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 		if (!res) {
 			res = ast_waitstream(chan, "");
 		} else {

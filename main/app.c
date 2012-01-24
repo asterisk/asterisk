@@ -187,7 +187,7 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 	while ((front = strsep(&filename, "&"))) {
 		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", front, ast_channel_name(c));
 		if (!ast_strlen_zero(front)) {
-			res = ast_streamfile(c, front, c->language);
+			res = ast_streamfile(c, front, ast_channel_language(c));
 			if (res)
 				continue;
 		}
@@ -229,7 +229,7 @@ int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int
 	int res, to = 2000, fto = 6000;
 
 	if (!ast_strlen_zero(prompt)) {
-		res = ast_streamfile(c, prompt, c->language);
+		res = ast_streamfile(c, prompt, ast_channel_language(c));
 		if (res < 0) {
 			return res;
 		}
@@ -614,7 +614,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 
 	for (;;) {
 		ast_stopstream(chan);
-		res = ast_streamfile(chan, file, chan->language);
+		res = ast_streamfile(chan, file, ast_channel_language(chan));
 		if (!res) {
 			if (pause_restart_point) {
 				ast_seekstream(chan->stream, pause_restart_point, SEEK_SET);
@@ -703,7 +703,7 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 	int d = 0;
 
 	ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", fn, ast_channel_name(chan));
-	if ((d = ast_streamfile(chan, fn, chan->language))) {
+	if ((d = ast_streamfile(chan, fn, ast_channel_language(chan)))) {
 		return d;
 	}
 

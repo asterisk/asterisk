@@ -470,9 +470,9 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 		ast_stopstream(chan);
 		while (!res && (front = strsep(&back, "&"))) {
 			if (option_say)
-				res = say_full(chan, front, "", chan->language, NULL, -1, -1);
+				res = say_full(chan, front, "", ast_channel_language(chan), NULL, -1, -1);
 			else
-				res = ast_streamfile(chan, front, chan->language);
+				res = ast_streamfile(chan, front, ast_channel_language(chan));
 			if (!res) { 
 				res = ast_waitstream(chan, "");	
 				ast_stopstream(chan);

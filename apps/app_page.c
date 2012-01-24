@@ -266,7 +266,7 @@ static int page_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (!ast_test_flag(&flags, PAGE_QUIET)) {
-		res = ast_streamfile(chan, "beep", chan->language);
+		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
 		if (!res)
 			res = ast_waitstream(chan, "");
 	}

@@ -79,7 +79,7 @@ typedef enum {
 static int play_and_wait(struct ast_channel *chan, char *file, char *digits)
 {
 	int res = -1;
-	if (!ast_streamfile(chan, file, chan->language)) {
+	if (!ast_streamfile(chan, file, ast_channel_language(chan))) {
 		res = ast_waitstream(chan, digits);
 	}
 	return res;
@@ -188,7 +188,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 						if (speed > 4) {
 							speed = 1;
 						}
-						res = ast_say_number(chan, speed, AST_DIGIT_ANY, chan->language, NULL);
+						res = ast_say_number(chan, speed, AST_DIGIT_ANY, ast_channel_language(chan), NULL);
 						break;
 					case '7':
 						samples -= ffactor;
@@ -275,7 +275,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 						if (lastop != DFLAG_PLAY) {
 							lastop = DFLAG_PLAY;
 							ast_closestream(fs);
-							if (!(fs = ast_openstream(chan, path, chan->language)))
+							if (!(fs = ast_openstream(chan, path, ast_channel_language(chan))))
 								break;
 							ast_seekstream(fs, samples, SEEK_SET);
 							chan->stream = NULL;

@@ -770,18 +770,18 @@ struct ast_channel {
 #endif
 
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(__do_not_use_name); /*!< ASCII unique channel name */
-		AST_STRING_FIELD(language);		/*!< Language requested for voice prompts */
-		AST_STRING_FIELD(musicclass);		/*!< Default music class */
-		AST_STRING_FIELD(accountcode);		/*!< Account code for billing */
-		AST_STRING_FIELD(peeraccount);		/*!< Peer account code for billing */
-		AST_STRING_FIELD(userfield);		/*!< Userfield for CEL billing */
-		AST_STRING_FIELD(call_forward);		/*!< Where to forward to if asked to dial on this interface */
-		AST_STRING_FIELD(uniqueid);		/*!< Unique Channel Identifier */
-		AST_STRING_FIELD(linkedid);		/*!< Linked Channel Identifier -- gets propagated by linkage */
-		AST_STRING_FIELD(parkinglot);		/*! Default parking lot, if empty, default parking lot  */
-		AST_STRING_FIELD(hangupsource);		/*! Who is responsible for hanging up this channel */
-		AST_STRING_FIELD(dialcontext);		/*!< Dial: Extension context that we were called from */
+		AST_STRING_FIELD(__do_not_use_name);         /*!< ASCII unique channel name */
+		AST_STRING_FIELD(__do_not_use_language);     /*!< Language requested for voice prompts */
+		AST_STRING_FIELD(__do_not_use_musicclass);   /*!< Default music class */
+		AST_STRING_FIELD(__do_not_use_accountcode);  /*!< Account code for billing */
+		AST_STRING_FIELD(__do_not_use_peeraccount);  /*!< Peer account code for billing */
+		AST_STRING_FIELD(__do_not_use_userfield);    /*!< Userfield for CEL billing */
+		AST_STRING_FIELD(__do_not_use_call_forward); /*!< Where to forward to if asked to dial on this interface */
+		AST_STRING_FIELD(__do_not_use_uniqueid);     /*!< Unique Channel Identifier */
+		AST_STRING_FIELD(__do_not_use_linkedid);     /*!< Linked Channel Identifier -- gets propagated by linkage */
+		AST_STRING_FIELD(__do_not_use_parkinglot);   /*! Default parking lot, if empty, default parking lot  */
+		AST_STRING_FIELD(__do_not_use_hangupsource); /*! Who is responsible for hanging up this channel */
+		AST_STRING_FIELD(__do_not_use_dialcontext);  /*!< Dial: Extension context that we were called from */
 	);
 
 	struct timeval whentohangup;        		/*!< Non-zero, set to actual time when channel is to be hung up */
@@ -3546,13 +3546,37 @@ int ast_channel_get_cc_agent_type(struct ast_channel *chan, char *agent_type, si
 void ast_channel_unlink(struct ast_channel *chan);
 
 /* ACCESSOR FUNTIONS */
-/*! \brief Get the channel name */
-const char *ast_channel_name(const struct ast_channel *chan);
-
 /*! \brief Set the channel name */
 void ast_channel_name_set(struct ast_channel *chan, const char *name);
 
-/*! \brief Set the channel name with a format string */
-void ast_channel_name_set_va(struct ast_channel *chan, const char *name_fmt, va_list ap) __attribute__((format(printf, 2, 0)));
+#define DECLARE_STRINGFIELD_SETTERS_FOR(field) void ast_channel_##field##_set(struct ast_channel *chan, const char *field); \
+void ast_channel_##field##_build_va(struct ast_channel *chan, const char *fmt, va_list ap) __attribute__((format(printf, 2, 0))); \
+void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+
+DECLARE_STRINGFIELD_SETTERS_FOR(name)
+DECLARE_STRINGFIELD_SETTERS_FOR(language)
+DECLARE_STRINGFIELD_SETTERS_FOR(musicclass)
+DECLARE_STRINGFIELD_SETTERS_FOR(accountcode)
+DECLARE_STRINGFIELD_SETTERS_FOR(peeraccount)
+DECLARE_STRINGFIELD_SETTERS_FOR(userfield)
+DECLARE_STRINGFIELD_SETTERS_FOR(call_forward)
+DECLARE_STRINGFIELD_SETTERS_FOR(uniqueid)
+DECLARE_STRINGFIELD_SETTERS_FOR(linkedid)
+DECLARE_STRINGFIELD_SETTERS_FOR(parkinglot)
+DECLARE_STRINGFIELD_SETTERS_FOR(hangupsource)
+DECLARE_STRINGFIELD_SETTERS_FOR(dialcontext)
+	
+const char *ast_channel_name(const struct ast_channel *chan);
+const char *ast_channel_language(const struct ast_channel *chan);
+const char *ast_channel_musicclass(const struct ast_channel *chan);
+const char *ast_channel_accountcode(const struct ast_channel *chan);
+const char *ast_channel_peeraccount(const struct ast_channel *chan);
+const char *ast_channel_userfield(const struct ast_channel *chan);
+const char *ast_channel_call_forward(const struct ast_channel *chan);
+const char *ast_channel_uniqueid(const struct ast_channel *chan);
+const char *ast_channel_linkedid(const struct ast_channel *chan);
+const char *ast_channel_parkinglot(const struct ast_channel *chan);
+const char *ast_channel_hangupsource(const struct ast_channel *chan);
+const char *ast_channel_dialcontext(const struct ast_channel *chan);
 
 #endif /* _ASTERISK_CHANNEL_H */

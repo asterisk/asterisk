@@ -3704,7 +3704,7 @@ static int sayfile(struct ast_channel *mychannel,char *fname)
 {
 int	res;
 
-	res = ast_streamfile(mychannel, fname, mychannel->language);
+	res = ast_streamfile(mychannel, fname, ast_channel_language(mychannel));
 	if (!res) 
 		res = ast_waitstream(mychannel, "");
 	else
@@ -3717,7 +3717,7 @@ static int saycharstr(struct ast_channel *mychannel,char *str)
 {
 int	res;
 
-	res = ast_say_character_str(mychannel,str,NULL,mychannel->language);
+	res = ast_say_character_str(mychannel,str,NULL,ast_channel_language(mychannel));
 	if (!res) 
 		res = ast_waitstream(mychannel, "");
 	else
@@ -3729,7 +3729,7 @@ int	res;
 static int saynum(struct ast_channel *mychannel, int num)
 {
 	int res;
-	res = ast_say_number(mychannel, num, NULL, mychannel->language, NULL);
+	res = ast_say_number(mychannel, num, NULL, ast_channel_language(mychannel), NULL);
 	if(!res)
 		res = ast_waitstream(mychannel, "");
 	else
@@ -3749,11 +3749,11 @@ char	*val,fname[300];
 	val = (char *) ast_variable_retrieve(myrpt->cfg, myrpt->name, "nodenames");
 	if (!val) val = NODENAMES;
 	snprintf(fname,sizeof(fname) - 1,"%s/%s",val,name);
-	if (ast_fileexists(fname,NULL,mychannel->language) > 0)
+	if (ast_fileexists(fname,NULL,ast_channel_language(mychannel)) > 0)
 		return(sayfile(mychannel,fname));
 	res = sayfile(mychannel,"rpt/node");
 	if (!res) 
-		res = ast_say_character_str(mychannel,name,NULL,mychannel->language);
+		res = ast_say_character_str(mychannel,name,NULL,ast_channel_language(mychannel));
 	return res;
 }
 
@@ -4093,7 +4093,7 @@ struct ast_format_cap *cap = NULL;
 		break;
 		
 	    case TAILMSG:
-		res = ast_streamfile(mychannel, myrpt->p.tailmessages[myrpt->tailmessagen], mychannel->language); 
+		res = ast_streamfile(mychannel, myrpt->p.tailmessages[myrpt->tailmessagen], ast_channel_language(mychannel)); 
 		break;
 		
 	    case IDTALKOVER:
@@ -4108,7 +4108,7 @@ struct ast_format_cap *cap = NULL;
 		wait_interval(myrpt, DLY_TELEM, mychannel);
 		res = telem_lookup(myrpt, mychannel, myrpt->name, "patchup");
 		if(res < 0){ /* Then default message */
-			res = ast_streamfile(mychannel, "rpt/callproceeding", mychannel->language);
+			res = ast_streamfile(mychannel, "rpt/callproceeding", ast_channel_language(mychannel));
 		}
 		break;
 	    case TERM:
@@ -4116,7 +4116,7 @@ struct ast_format_cap *cap = NULL;
 		wait_interval(myrpt, DLY_CALLTERM, mychannel);
 		res = telem_lookup(myrpt, mychannel, myrpt->name, "patchdown");
 		if(res < 0){ /* Then default message */
-			res = ast_streamfile(mychannel, "rpt/callterminated", mychannel->language);
+			res = ast_streamfile(mychannel, "rpt/callterminated", ast_channel_language(mychannel));
 		}
 		break;
 	    case COMPLETE:
@@ -4127,12 +4127,12 @@ struct ast_format_cap *cap = NULL;
 	    case MACRO_NOTFOUND:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/macro_notfound", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/macro_notfound", ast_channel_language(mychannel));
 		break;
 	    case MACRO_BUSY:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/macro_busy", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/macro_busy", ast_channel_language(mychannel));
 		break;
 	    case UNKEY:
 		if(myrpt->patchnoct && myrpt->callmode){ /* If no CT during patch configured, then don't send one */
@@ -4317,7 +4317,7 @@ struct ast_format_cap *cap = NULL;
 			}
 			sprintf(mystr,"%04x",myrpt->lastunit);
 			myrpt->lastunit = 0;
-			ast_say_character_str(mychannel,mystr,NULL,mychannel->language);
+			ast_say_character_str(mychannel,mystr,NULL,ast_channel_language(mychannel));
 			break;
 		}
 #endif
@@ -4420,35 +4420,35 @@ struct ast_format_cap *cap = NULL;
 		res = saynode(myrpt,mychannel,mytele->mylink.name);
 		if (!res) 
 		    res = ast_streamfile(mychannel, ((mytele->mylink.hasconnected) ? 
-			"rpt/remote_disc" : "rpt/remote_busy"), mychannel->language);
+			"rpt/remote_disc" : "rpt/remote_busy"), ast_channel_language(mychannel));
 		break;
 	    case REMALREADY:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/remote_already", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/remote_already", ast_channel_language(mychannel));
 		break;
 	    case REMNOTFOUND:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/remote_notfound", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/remote_notfound", ast_channel_language(mychannel));
 		break;
 	    case REMGO:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/remote_go", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/remote_go", ast_channel_language(mychannel));
 		break;
 	    case CONNECTED:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM,  mychannel);
 		res = saynode(myrpt,mychannel,mytele->mylink.name);
 		if (!res)
-		    res = ast_streamfile(mychannel, "rpt/connected", mychannel->language);
+		    res = ast_streamfile(mychannel, "rpt/connected", ast_channel_language(mychannel));
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
 			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(mychannel));
 		ast_stopstream(mychannel);
-		res = ast_streamfile(mychannel, "digits/2", mychannel->language);
+		res = ast_streamfile(mychannel, "digits/2", ast_channel_language(mychannel));
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
@@ -4460,17 +4460,17 @@ struct ast_format_cap *cap = NULL;
 	    case CONNFAIL:
 		res = saynode(myrpt,mychannel,mytele->mylink.name);
 		if (!res) 
-		    res = ast_streamfile(mychannel, "rpt/connection_failed", mychannel->language);
+		    res = ast_streamfile(mychannel, "rpt/connection_failed", ast_channel_language(mychannel));
 		break;
 	    case MEMNOTFOUND:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/memory_notfound", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/memory_notfound", ast_channel_language(mychannel));
 		break;
 	    case PLAYBACK:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, mytele->param, mychannel->language);
+		res = ast_streamfile(mychannel, mytele->param, ast_channel_language(mychannel));
 		break;
 	    case TOPKEY:
 		/* wait a little bit */
@@ -4559,7 +4559,7 @@ struct ast_format_cap *cap = NULL;
 	    case INVFREQ:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/invalid-freq", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/invalid-freq", ast_channel_language(mychannel));
 		break;
 	    case REMMODE:
 		cp = 0;
@@ -4847,7 +4847,7 @@ struct ast_format_cap *cap = NULL;
 		if (myrpt->callmode)
 		{
 			hastx = 1;
-			res = ast_streamfile(mychannel, "rpt/autopatch_on", mychannel->language);
+			res = ast_streamfile(mychannel, "rpt/autopatch_on", ast_channel_language(mychannel));
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
@@ -4864,7 +4864,7 @@ struct ast_format_cap *cap = NULL;
 			s = "rpt/tranceive";
 			if (!l->mode) s = "rpt/monitor";
 			if (!l->thisconnected) s = "rpt/connecting";
-			res = ast_streamfile(mychannel, s, mychannel->language);
+			res = ast_streamfile(mychannel, s, ast_channel_language(mychannel));
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
@@ -4874,7 +4874,7 @@ struct ast_format_cap *cap = NULL;
 		}			
 		if (!hastx)
 		{
-			res = ast_streamfile(mychannel, "rpt/repeat_only", mychannel->language);
+			res = ast_streamfile(mychannel, "rpt/repeat_only", ast_channel_language(mychannel));
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
@@ -4908,7 +4908,7 @@ struct ast_format_cap *cap = NULL;
 		if (myrpt->callmode)
 		{
 			hastx = 1;
-			res = ast_streamfile(mychannel, "rpt/autopatch_on", mychannel->language);
+			res = ast_streamfile(mychannel, "rpt/autopatch_on", ast_channel_language(mychannel));
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
@@ -4932,7 +4932,7 @@ struct ast_format_cap *cap = NULL;
 			s = "rpt/tranceive";
 			if (mode == 'R') s = "rpt/monitor";
 			if (mode == 'C') s = "rpt/connecting";
-			res = ast_streamfile(mychannel, s, mychannel->language);
+			res = ast_streamfile(mychannel, s, ast_channel_language(mychannel));
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
@@ -4941,7 +4941,7 @@ struct ast_format_cap *cap = NULL;
 		}			
 		if (!hastx)
 		{
-			res = ast_streamfile(mychannel, "rpt/repeat_only", mychannel->language);
+			res = ast_streamfile(mychannel, "rpt/repeat_only", ast_channel_language(mychannel));
 			if (!res) 
 				res = ast_waitstream(mychannel, "");
 			else
@@ -4976,7 +4976,7 @@ struct ast_format_cap *cap = NULL;
 
 	    case UNAUTHTX: /* Say unauthorized transmit frequency */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
-		res = ast_streamfile(mychannel, "rpt/unauthtx", mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/unauthtx", ast_channel_language(mychannel));
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
@@ -4988,7 +4988,7 @@ struct ast_format_cap *cap = NULL;
 	    case PARROT: /* Repeat stuff */
 
 		sprintf(mystr,PARROTFILE,myrpt->name,(unsigned int)mytele->parrot);
-		if (ast_fileexists(mystr,NULL,mychannel->language) <= 0)
+		if (ast_fileexists(mystr,NULL,ast_channel_language(mychannel)) <= 0)
 		{
 			imdone = 1;
 			myrpt->parrotstate = 0;
@@ -4996,7 +4996,7 @@ struct ast_format_cap *cap = NULL;
 		}
 		wait_interval(myrpt, DLY_PARROT, mychannel);
 		sprintf(mystr,PARROTFILE,myrpt->name,(unsigned int)mytele->parrot);
-		res = ast_streamfile(mychannel, mystr, mychannel->language);
+		res = ast_streamfile(mychannel, mystr, ast_channel_language(mychannel));
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
@@ -5012,14 +5012,14 @@ struct ast_format_cap *cap = NULL;
 	    case TIMEOUT:
 		res = saynode(myrpt,mychannel,myrpt->name);
 		if (!res)
-		   res = ast_streamfile(mychannel, "rpt/timeout", mychannel->language);
+		   res = ast_streamfile(mychannel, "rpt/timeout", ast_channel_language(mychannel));
 		break;
 		
 	    case TIMEOUT_WARNING:
 		time(&t);
 		res = saynode(myrpt,mychannel,myrpt->name);
 		if (!res)
-		   res = ast_streamfile(mychannel, "rpt/timeout-warning", mychannel->language);
+		   res = ast_streamfile(mychannel, "rpt/timeout-warning", ast_channel_language(mychannel));
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
@@ -5028,18 +5028,18 @@ struct ast_format_cap *cap = NULL;
 		if(!res) /* Say number of seconds */
 			ast_say_number(mychannel, myrpt->p.remotetimeout - 
 			    (t - myrpt->last_activity_time), 
-				"", mychannel->language, (char *) NULL);
+				"", ast_channel_language(mychannel), (char *) NULL);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		ast_stopstream(mychannel);	
-		res = ast_streamfile(mychannel, "queue-seconds", mychannel->language);
+		res = ast_streamfile(mychannel, "queue-seconds", ast_channel_language(mychannel));
 		break;
 
 	    case ACT_TIMEOUT_WARNING:
 		time(&t);
 		res = saynode(myrpt,mychannel,myrpt->name);
 		if (!res)
-		    res = ast_streamfile(mychannel, "rpt/act-timeout-warning", mychannel->language);
+		    res = ast_streamfile(mychannel, "rpt/act-timeout-warning", ast_channel_language(mychannel));
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		else
@@ -5048,11 +5048,11 @@ struct ast_format_cap *cap = NULL;
 		if(!res) /* Say number of seconds */
 			ast_say_number(mychannel, myrpt->p.remoteinacttimeout - 
 			    (t - myrpt->last_activity_time), 
-				"", mychannel->language, (char *) NULL);
+				"", ast_channel_language(mychannel), (char *) NULL);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		ast_stopstream(mychannel);	
-		res = ast_streamfile(mychannel, "queue-seconds", mychannel->language);
+		res = ast_streamfile(mychannel, "queue-seconds", ast_channel_language(mychannel));
 		break;
 		
 	    case STATS_TIME:
@@ -5079,7 +5079,7 @@ struct ast_format_cap *cap = NULL;
 			break;
 		}
 		/* Say the time */				
-	    	res = ast_say_time(mychannel, t, "", mychannel->language);
+	    	res = ast_say_time(mychannel, t, "", ast_channel_language(mychannel));
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		ast_stopstream(mychannel);		
@@ -5099,7 +5099,7 @@ struct ast_format_cap *cap = NULL;
 			break;
 		}
 		if(!res) /* Say "X" */
-			ast_say_number(mychannel, vmajor, "", mychannel->language, (char *) NULL);
+			ast_say_number(mychannel, vmajor, "", ast_channel_language(mychannel), (char *) NULL);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		ast_stopstream(mychannel);	
@@ -5109,7 +5109,7 @@ struct ast_format_cap *cap = NULL;
 			break;
 		}
 		if(!res) /* Say "Y" */
-			ast_say_number(mychannel, vminor, "", mychannel->language, (char *) NULL);
+			ast_say_number(mychannel, vminor, "", ast_channel_language(mychannel), (char *) NULL);
 		if (!res){
 			res = ast_waitstream(mychannel, "");
 			ast_stopstream(mychannel);
@@ -5146,11 +5146,11 @@ struct ast_format_cap *cap = NULL;
 
 			for(idx=0; idx<looptemp; idx++) {
 				if(!strcmp(tmp[idx], "PARKED")) {
-					ast_say_digits(mychannel, atoi(myparm), "", mychannel->language);
+					ast_say_digits(mychannel, atoi(myparm), "", ast_channel_language(mychannel));
 				} else if(!strcmp(tmp[idx], "NODE")) {
-					ast_say_digits(mychannel, atoi(myrpt->name), "", mychannel->language);
+					ast_say_digits(mychannel, atoi(myrpt->name), "", ast_channel_language(mychannel));
 				} else {
-					dres = ast_streamfile(mychannel, tmp[idx], mychannel->language);
+					dres = ast_streamfile(mychannel, tmp[idx], ast_channel_language(mychannel));
 					if(!dres) {
 						dres = ast_waitstream(mychannel, "");
 					} else {
@@ -6382,7 +6382,7 @@ static int function_playback(struct rpt *myrpt, char *param, char *digitbuf, int
 	if(debug) 
 		printf("@@@@ playback param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
 	
-	if (ast_fileexists(param,NULL,myrpt->rxchannel->language) <= 0)
+	if (ast_fileexists(param,NULL,ast_channel_language(myrpt->rxchannel)) <= 0)
 		return DC_ERROR;
 
 	rpt_telemetry(myrpt,PLAYBACK,param);

@@ -154,7 +154,7 @@ static int sayunixtime_exec(struct ast_channel *chan, const char *data)
 
 	if (!res) {
 		res = ast_say_date_with_format(chan, unixtime, haltondigits,
-					       chan->language, ast_strlen_zero(args.format) ? NULL : args.format, ast_strlen_zero(args.timezone) ? NULL : args.timezone);
+					       ast_channel_language(chan), ast_strlen_zero(args.format) ? NULL : args.format, ast_strlen_zero(args.timezone) ? NULL : args.timezone);
 	}
 
 	return res;

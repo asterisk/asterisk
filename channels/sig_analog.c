@@ -439,7 +439,7 @@ static struct ast_channel * analog_new_ast_channel(struct analog_pvt *p, int sta
 
 	c = p->calls->new_ast_channel(p->chan_pvt, state, startpbx, sub, requestor);
 	if (c) {
-		ast_string_field_set(c, call_forward, p->call_forward);
+		ast_channel_call_forward_set(c, p->call_forward);
 	}
 	p->subs[sub].owner = c;
 	if (!p->owner) {
@@ -705,7 +705,7 @@ static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 			(owner_real->_state == AST_STATE_RINGING
 				|| owner_3way->_state == AST_STATE_RINGING)
 				? AST_CEL_BLINDTRANSFER : AST_CEL_ATTENDEDTRANSFER,
-			NULL, owner_3way->linkedid, NULL);
+			NULL, ast_channel_linkedid(owner_3way), NULL);
 
 		/*
 		 * The three-way party we're about to transfer is on hold if he
@@ -731,7 +731,7 @@ static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 			(owner_real->_state == AST_STATE_RINGING
 				|| owner_3way->_state == AST_STATE_RINGING)
 				? AST_CEL_BLINDTRANSFER : AST_CEL_ATTENDEDTRANSFER,
-			NULL, owner_3way->linkedid, NULL);
+			NULL, ast_channel_linkedid(owner_3way), NULL);
 
 		/*
 		 * The three-way party we're about to transfer is on hold if he
@@ -2078,7 +2078,7 @@ static void *__analog_ss_thread(void *data)
 			} else {
 				sleep(1);
 			}
-			res = ast_streamfile(chan, "ss-noservice", chan->language);
+			res = ast_streamfile(chan, "ss-noservice", ast_channel_language(chan));
 			if (res >= 0) {
 				ast_waitstream(chan, "");
 			}
@@ -2233,7 +2233,7 @@ static void *__analog_ss_thread(void *data)
 			} else if (p->callreturn && !strcmp(exten, "*69")) {
 				res = 0;
 				if (!ast_strlen_zero(p->lastcid_num)) {
-					res = ast_say_digit_str(chan, p->lastcid_num, "", chan->language);
+					res = ast_say_digit_str(chan, p->lastcid_num, "", ast_channel_language(chan));
 				}
 				if (!res) {
 					res = analog_play_tone(p, idx, ANALOG_TONE_DIALRECALL);

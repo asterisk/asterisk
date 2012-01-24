@@ -1009,7 +1009,7 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 		return NULL;
 	}
 
-	if (!(s->chan_uniqueid = ast_strdup(chan->uniqueid))) {
+	if (!(s->chan_uniqueid = ast_strdup(ast_channel_uniqueid(chan)))) {
 		fax_session_release(s, token);
 		ao2_ref(s, -1);
 		return NULL;

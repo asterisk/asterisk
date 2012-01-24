@@ -2173,7 +2173,7 @@ static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *cha
 		"DAHDISpan: %d\r\n"
 		"DAHDIChannel: %s\r\n",
 		ast_channel_name(chan),
-		chan->uniqueid,
+		ast_channel_uniqueid(chan),
 		p->span,
 		ch_name);
 }
@@ -2569,7 +2569,7 @@ static struct ast_channel *my_new_analog_ast_channel(void *pvt, int state, int s
 	struct dahdi_pvt *p = pvt;
 	int dsub = analogsub_to_dahdisub(sub);
 
-	return dahdi_new(p, state, startpbx, dsub, 0, requestor ? requestor->linkedid : "");
+	return dahdi_new(p, state, startpbx, dsub, 0, requestor ? ast_channel_linkedid(requestor) : "");
 }
 
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
@@ -2624,7 +2624,7 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, enum sig
 			newlaw = DAHDI_LAW_MULAW;
 			break;
 	}
-	return dahdi_new(p, state, 0, SUB_REAL, newlaw, requestor ? requestor->linkedid : "");
+	return dahdi_new(p, state, 0, SUB_REAL, newlaw, requestor ? ast_channel_linkedid(requestor) : "");
 }
 #endif	/* defined(HAVE_PRI) */
 
@@ -3484,7 +3484,7 @@ static struct ast_channel *my_new_ss7_ast_channel(void *pvt, int state, enum sig
 		newlaw = DAHDI_LAW_MULAW;
 		break;
 	}
-	return dahdi_new(p, state, 0, SUB_REAL, newlaw, requestor ? requestor->linkedid : "");
+	return dahdi_new(p, state, 0, SUB_REAL, newlaw, requestor ? ast_channel_linkedid(requestor) : "");
 }
 #endif	/* defined(HAVE_SS7) */
 
@@ -9675,19 +9675,19 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		tmp->pickupgroup = i->pickupgroup;
 	}
 	if (!ast_strlen_zero(i->parkinglot))
-		ast_string_field_set(tmp, parkinglot, i->parkinglot);
+		ast_channel_parkinglot_set(tmp, i->parkinglot);
 	if (!ast_strlen_zero(i->language))
-		ast_string_field_set(tmp, language, i->language);
+		ast_channel_language_set(tmp, i->language);
 	if (!i->owner)
 		i->owner = tmp;
 	if (!ast_strlen_zero(i->accountcode))
-		ast_string_field_set(tmp, accountcode, i->accountcode);
+		ast_channel_accountcode_set(tmp, i->accountcode);
 	if (i->amaflags)
 		tmp->amaflags = i->amaflags;
 	i->subs[idx].owner = tmp;
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	if (!analog_lib_handles(i->sig, i->radio, i->oprmode)) {
-		ast_string_field_set(tmp, call_forward, i->call_forward);
+		ast_channel_call_forward_set(tmp, i->call_forward);
 	}
 	/* If we've been told "no ADSI" then enforce it */
 	if (!i->adsi)
@@ -10167,7 +10167,7 @@ static void *analog_ss_thread(void *data)
 				ast_log(LOG_WARNING, "Unable to start special tone on %d\n", p->channel);
 			else
 				sleep(1);
-			res = ast_streamfile(chan, "ss-noservice", chan->language);
+			res = ast_streamfile(chan, "ss-noservice", ast_channel_language(chan));
 			if (res >= 0)
 				ast_waitstream(chan, "");
 			res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_CONGESTION);
@@ -13692,7 +13692,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				tmp = sig_ss7_request(p->sig_pvt, SIG_SS7_DEFLAW, requestor, transcapdigital);
 #endif	/* defined(HAVE_SS7) */
 			} else {
-				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, requestor ? requestor->linkedid : "");
+				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, requestor ? ast_channel_linkedid(requestor) : "");
 			}
 			if (!tmp) {
 				p->outgoing = 0;
@@ -16029,8 +16029,8 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 					"\r\n",
 					tmp->channel,
 					ast_channel_name(tmp->owner),
-					tmp->owner->uniqueid,
-					tmp->owner->accountcode,
+					ast_channel_uniqueid(tmp->owner),
+					ast_channel_accountcode(tmp->owner),
 					sig2str(tmp->sig),
 					tmp->sig,
 					tmp->context,

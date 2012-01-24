@@ -67,13 +67,13 @@ static int saywords(struct ast_channel *chan, char *word1, char *word2, char *wo
 
 	if (num > 0) {
 		if (num % 1000 == 1) {
-			ast_streamfile(chan, word1, chan->language);
+			ast_streamfile(chan, word1, ast_channel_language(chan));
 			d = ast_waitstream(chan,"");
 		} else if (((num % 10) >= 2) && ((num % 10) <= 4 ) && ((num % 100) < 10 || (num % 100) > 20)) {
-			ast_streamfile(chan, word2, chan->language);
+			ast_streamfile(chan, word2, ast_channel_language(chan));
 			d = ast_waitstream(chan, "");
 		} else {
-			ast_streamfile(chan, word5, chan->language);
+			ast_streamfile(chan, word5, ast_channel_language(chan));
 			d = ast_waitstream(chan, "");
 		}
 	}

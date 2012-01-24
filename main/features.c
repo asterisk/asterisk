@@ -868,7 +868,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 	ast_debug(1, "Attempting GOTO_ON_BLINDXFR=%s for %s.\n", val, ast_channel_name(chan));
 
-	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", chan->linkedid, 0,
+	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", ast_channel_linkedid(chan), 0,
 		"%s", ast_channel_name(chan));
 	if (!xferchan) {
 		return;
@@ -1003,9 +1003,9 @@ static const char *findparkinglotname(struct ast_channel *chan)
 
 	/* The channel variable overrides everything */
 	name = pbx_builtin_getvar_helper(chan, "PARKINGLOT");
-	if (!name && !ast_strlen_zero(chan->parkinglot)) {
+	if (!name && !ast_strlen_zero(ast_channel_parkinglot(chan))) {
 		/* Use the channel's parking lot. */
-		name = chan->parkinglot;
+		name = ast_channel_parkinglot(chan);
 	}
 	return name;
 }
@@ -1514,7 +1514,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
 		S_COR(pu->chan->connected.id.number.valid, pu->chan->connected.id.number.str, "<unknown>"),
 		S_COR(pu->chan->connected.id.name.valid, pu->chan->connected.id.name.str, "<unknown>"),
-		pu->chan->uniqueid
+		ast_channel_uniqueid(pu->chan)
 		);
 
 	if (peer && adsipark && ast_adsi_available(peer)) {
@@ -1544,7 +1544,7 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		 */
 		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		/* Tell the peer channel the number of the parking space */
-		ast_say_digits(peer, pu->parkingnum, "", peer->language);
+		ast_say_digits(peer, pu->parkingnum, "", ast_channel_language(peer));
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 	}
 	if (peer == chan) { /* pu->notquiteyet = 1 */
@@ -1635,8 +1635,8 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, s
 	struct ast_channel *chan;
 
 	/* Make a new, channel that we'll use to masquerade in the real one */
-	chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten,
-		rchan->context, rchan->linkedid, rchan->amaflags, "Parked/%s", ast_channel_name(rchan));
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(rchan), rchan->exten,
+		rchan->context, ast_channel_linkedid(rchan), rchan->amaflags, "Parked/%s", ast_channel_name(rchan));
 	if (!chan) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
 		if (!ast_test_flag(args, AST_PARK_OPT_SILENCE)) {
@@ -2533,7 +2533,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	/* Dial party C */
 	newchan = feature_request_and_dial(transferer, transferer_name_orig, transferer,
 		transferee, "Local", transferer->nativeformats, xferto,
-		atxfernoanswertimeout, &outstate, transferer->language);
+		atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
 	ast_debug(2, "Dial party C result: newchan:%d, outstate:%d\n", !!newchan, outstate);
 
 	if (!ast_check_hangup(transferer)) {
@@ -2640,7 +2640,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				newchan = feature_request_and_dial(transferer, transferer_name_orig,
 					transferee, transferee, transferer_tech,
 					transferee->nativeformats, transferer_name,
-					atxfernoanswertimeout, &outstate, transferer->language);
+					atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
 				ast_debug(2, "Dial party B result: newchan:%d, outstate:%d\n",
 					!!newchan, outstate);
 				if (newchan || ast_check_hangup(transferee)) {
@@ -2669,7 +2669,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				newchan = feature_request_and_dial(transferer, transferer_name_orig,
 					transferer, transferee, "Local",
 					transferee->nativeformats, xferto,
-					atxfernoanswertimeout, &outstate, transferer->language);
+					atxfernoanswertimeout, &outstate, ast_channel_language(transferer));
 				ast_debug(2, "Redial party C result: newchan:%d, outstate:%d\n",
 					!!newchan, outstate);
 				if (newchan || ast_check_hangup(transferee)) {
@@ -2710,7 +2710,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	/* Initiate the channel transfer of party A to party C (or recalled party B). */
 	ast_cel_report_event(transferee, AST_CEL_ATTENDEDTRANSFER, NULL, NULL, newchan);
 
-	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", transferee->linkedid, 0, "Transfered/%s", ast_channel_name(transferee));
+	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", ast_channel_linkedid(transferee), 0, "Transfered/%s", ast_channel_name(transferee));
 	if (!xferchan) {
 		ast_hangup(newchan);
 		ast_party_connected_line_free(&connected_line);
@@ -3444,7 +3444,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 		goto done;
 	}
 
-	ast_string_field_set(chan, language, language);
+	ast_channel_language_set(chan, language);
 	ast_channel_inherit_variables(caller, chan);
 	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller_name);
 
@@ -3545,7 +3545,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 				}
 			}
 		} else if (chan == active_channel) {
-			if (!ast_strlen_zero(chan->call_forward)) {
+			if (!ast_strlen_zero(ast_channel_call_forward(chan))) {
 				state = 0;
 				ast_autoservice_start(transferee);
 				chan = ast_call_forward(caller, chan, NULL, tmp_cap, NULL, &state);
@@ -3701,10 +3701,10 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
 	ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
 		ast_channel_name(chan), chan->appl, chan->data, chan->context, chan->exten, chan->priority);
 	ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
-		chan->accountcode, chan->dialcontext, chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
+		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
 	ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
 		chan->masq, chan->masqr,
-		chan->_bridge, chan->uniqueid, chan->linkedid);
+		chan->_bridge, ast_channel_uniqueid(chan), ast_channel_linkedid(chan));
 	if (chan->masqr) {
 		ast_log(LOG_NOTICE, "CHAN: masquerading as: %s;  cdr: %p;\n",
 			ast_channel_name(chan->masqr), chan->masqr->cdr);
@@ -3955,19 +3955,19 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 			if (peer_cdr && !ast_strlen_zero(peer_cdr->userfield)) {
 				ast_copy_string(bridge_cdr->userfield, peer_cdr->userfield, sizeof(bridge_cdr->userfield));
 			}
-			ast_cdr_setaccount(peer, chan->accountcode);
+			ast_cdr_setaccount(peer, ast_channel_accountcode(chan));
 		} else {
 			/* better yet, in a xfer situation, find out why the chan cdr got zapped (pun unintentional) */
 			bridge_cdr = ast_cdr_alloc(); /* this should be really, really rare/impossible? */
 			ast_copy_string(bridge_cdr->channel, ast_channel_name(chan), sizeof(bridge_cdr->channel));
 			ast_copy_string(bridge_cdr->dstchannel, ast_channel_name(peer), sizeof(bridge_cdr->dstchannel));
-			ast_copy_string(bridge_cdr->uniqueid, chan->uniqueid, sizeof(bridge_cdr->uniqueid));
+			ast_copy_string(bridge_cdr->uniqueid, ast_channel_uniqueid(chan), sizeof(bridge_cdr->uniqueid));
 			ast_copy_string(bridge_cdr->lastapp, S_OR(chan->appl, ""), sizeof(bridge_cdr->lastapp));
 			ast_copy_string(bridge_cdr->lastdata, S_OR(chan->data, ""), sizeof(bridge_cdr->lastdata));
 			ast_cdr_setcid(bridge_cdr, chan);
 			bridge_cdr->disposition = (chan->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NULL;
 			bridge_cdr->amaflags = chan->amaflags ? chan->amaflags :  ast_default_amaflags;
-			ast_copy_string(bridge_cdr->accountcode, chan->accountcode, sizeof(bridge_cdr->accountcode));
+			ast_copy_string(bridge_cdr->accountcode, ast_channel_accountcode(chan), sizeof(bridge_cdr->accountcode));
 			/* Destination information */
 			ast_copy_string(bridge_cdr->dst, chan->exten, sizeof(bridge_cdr->dst));
 			ast_copy_string(bridge_cdr->dcontext, chan->context, sizeof(bridge_cdr->dcontext));
@@ -4512,7 +4512,7 @@ static void post_manager_event(const char *s, struct parkeduser *pu)
 		S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
 		S_COR(pu->chan->connected.id.number.valid, pu->chan->connected.id.number.str, "<unknown>"),
 		S_COR(pu->chan->connected.id.name.valid, pu->chan->connected.id.name.str, "<unknown>"),
-		pu->chan->uniqueid
+		ast_channel_uniqueid(pu->chan)
 		);
 }
 
@@ -6868,7 +6868,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 
 	/* create the placeholder channels and grab the other channels */
 	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, chana->linkedid, 0, "Bridge/%s", ast_channel_name(chana)))) {
+		NULL, NULL, ast_channel_linkedid(chana), 0, "Bridge/%s", ast_channel_name(chana)))) {
 		astman_send_error(s, m, "Unable to create temporary channel!");
 		chana = ast_channel_unref(chana);
 		return 1;
@@ -6895,7 +6895,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 
 	/* create the placeholder channels and grab the other channels */
 	if (!(tmpchanb = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, chanb->linkedid, 0, "Bridge/%s", ast_channel_name(chanb)))) {
+		NULL, NULL, ast_channel_linkedid(chanb), 0, "Bridge/%s", ast_channel_name(chanb)))) {
 		astman_send_error(s, m, "Unable to create temporary channels!");
 		ast_hangup(tmpchana);
 		chanb = ast_channel_unref(chanb);
@@ -6929,7 +6929,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	tobj->return_to_pbx = 1;
 
 	if (ast_true(playtone)) {
-		if (!ast_strlen_zero(xfersound) && !ast_streamfile(tmpchanb, xfersound, tmpchanb->language)) {
+		if (!ast_strlen_zero(xfersound) && !ast_streamfile(tmpchanb, xfersound, ast_channel_language(tmpchanb))) {
 			if (ast_waitstream(tmpchanb, "") < 0)
 				ast_log(LOG_WARNING, "Failed to play a courtesy tone on chan %s\n", ast_channel_name(tmpchanb));
 		}
@@ -7559,7 +7559,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 
 	/* try to allocate a place holder where current_dest_chan will be placed */
 	if (!(final_dest_chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
-		NULL, NULL, current_dest_chan->linkedid, 0, "Bridge/%s", ast_channel_name(current_dest_chan)))) {
+		NULL, NULL, ast_channel_linkedid(current_dest_chan), 0, "Bridge/%s", ast_channel_name(current_dest_chan)))) {
 		ast_log(LOG_WARNING, "Cannot create placeholder channel for chan %s\n", args.dest_chan);
 		ast_manager_event(chan, EVENT_FLAG_CALL, "BridgeExec",
 					"Response: Failed\r\n"
@@ -7596,7 +7596,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 
 	/* we have 2 valid channels to bridge, now it is just a matter of setting up the bridge config and starting the bridge */	
 	if (ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE) && !ast_strlen_zero(xfersound)) {
-		if (!ast_streamfile(final_dest_chan, xfersound, final_dest_chan->language)) {
+		if (!ast_streamfile(final_dest_chan, xfersound, ast_channel_language(final_dest_chan))) {
 			if (ast_waitstream(final_dest_chan, "") < 0)
 				ast_log(LOG_WARNING, "Failed to play courtesy tone on %s\n", ast_channel_name(final_dest_chan));
 		}
