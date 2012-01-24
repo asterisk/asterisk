@@ -3,7 +3,7 @@
 	* Asterisk 1.8.9.0-rc3 Released.
 
 	* Test results:
-	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1890RCS-
+	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1890RCS-4
 
 	* main/file.c: Allow playback of formats that don't support
 	  seeking.  ast_streamfile previously did unconditional seeking
