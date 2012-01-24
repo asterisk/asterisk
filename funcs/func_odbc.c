@@ -727,8 +727,7 @@ end_acf_read:
 				ast_channel_lock(chan);
 				if ((odbc_store = ast_channel_datastore_find(chan, &odbc_info, buf))) {
 					ast_channel_datastore_remove(chan, odbc_store);
-					odbc_datastore_free(odbc_store->data);
-					ast_free(odbc_store);
+					ast_datastore_free(odbc_store);
 				}
 				ast_channel_unlock(chan);
 			}
@@ -745,7 +744,9 @@ end_acf_read:
 				return -1;
 			}
 			odbc_store->data = resultset;
+			ast_channel_lock(chan);
 			ast_channel_datastore_add(chan, odbc_store);
+			ast_channel_unlock(chan);
 		}
 	}
 	SQLCloseCursor(stmt);
@@ -791,8 +792,11 @@ static int acf_fetch(struct ast_channel *chan, const char *cmd, char *data, char
 	struct ast_datastore *store;
 	struct odbc_datastore *resultset;
 	struct odbc_datastore_row *row;
+
+	ast_channel_lock(chan);
 	store = ast_channel_datastore_find(chan, &odbc_info, data);
 	if (!store) {
+		ast_channel_unlock(chan);
 		pbx_builtin_setvar_helper(chan, "ODBC_FETCH_STATUS", "FAILURE");
 		return -1;
 	}
@@ -804,10 +808,12 @@ static int acf_fetch(struct ast_channel *chan, const char *cmd, char *data, char
 		/* Cleanup datastore */
 		ast_channel_datastore_remove(chan, store);
 		ast_datastore_free(store);
+		ast_channel_unlock(chan);
 		pbx_builtin_setvar_helper(chan, "ODBC_FETCH_STATUS", "FAILURE");
 		return -1;
 	}
 	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", resultset->names);
+	ast_channel_unlock(chan);
 	ast_copy_string(buf, row->data, len);
 	ast_free(row);
 	pbx_builtin_setvar_helper(chan, "ODBC_FETCH_STATUS", "SUCCESS");
@@ -824,11 +830,15 @@ static char *app_odbcfinish = "ODBCFinish";
 
 static int exec_odbcfinish(struct ast_channel *chan, const char *data)
 {
-	struct ast_datastore *store = ast_channel_datastore_find(chan, &odbc_info, data);
-	if (!store) /* Already freed; no big deal. */
-		return 0;
-	ast_channel_datastore_remove(chan, store);
-	ast_datastore_free(store);
+	struct ast_datastore *store;
+
+	ast_channel_lock(chan);
+	store = ast_channel_datastore_find(chan, &odbc_info, data);
+	if (store) {
+		ast_channel_datastore_remove(chan, store);
+		ast_datastore_free(store);
+	}
+	ast_channel_unlock(chan);
 	return 0;
 }
 
