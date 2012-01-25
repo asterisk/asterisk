@@ -2475,7 +2475,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		else
 			strcpy(tmp->exten, "s");
 		if (!ast_strlen_zero(me->language))
-			ast_string_field_set(tmp, language, me->language);
+			ast_channel_language_set(tmp, me->language);
 
 		me->owner = tmp;
 
@@ -2538,13 +2538,13 @@ static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *
 		if (group == -1) {
 			if (strncmp(s, p->dev + 4, sizeof p->dev) == 0) {
 				if (!p->owner) {
-					tmp = vpb_new(p, AST_STATE_DOWN, p->context, requestor ? requestor->linkedid : NULL);
+					tmp = vpb_new(p, AST_STATE_DOWN, p->context, requestor ? ast_channel_linkedid(requestor) : NULL);
 					break;
 				}
 			}
 		} else {
 			if ((p->group == group) && (!p->owner)) {
-				tmp = vpb_new(p, AST_STATE_DOWN, p->context, requestor ? requestor->linkedid : NULL);
+				tmp = vpb_new(p, AST_STATE_DOWN, p->context, requestor ? ast_channel_linkedid(requestor) : NULL);
 				break;
 			}
 		}
