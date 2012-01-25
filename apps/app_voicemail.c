@@ -1914,7 +1914,7 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 	struct vm_state *vms_p;
 	char *file, *filename;
 	char *attachment;
-	int ret = 0, i;
+	int i;
 	BODY *body;
 
 	/* This function is only used for retrieval of IMAP greetings
@@ -1944,12 +1944,12 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 			return -1;
 		}
 	}
-	
+
 	/* Greetings will never have a prepended message */
 	*vms_p->introfn = '\0';
 
 	ast_mutex_lock(&vms_p->lock);
-	ret = init_mailstream(vms_p, GREETINGS_FOLDER);
+	init_mailstream(vms_p, GREETINGS_FOLDER);
 	if (!vms_p->mailstream) {
 		ast_log(AST_LOG_ERROR, "IMAP mailstream is NULL\n");
 		ast_mutex_unlock(&vms_p->lock);
@@ -6943,9 +6943,6 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
 static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vm_fmts,
 			char *context, signed char record_gain, long *duration, struct vm_state *vms, char *flag)
 {
-#ifdef IMAP_STORAGE
-	int res;
-#endif
 	int cmd = 0;
 	int retries = 0, prepend_duration = 0, already_recorded = 0;
 	char msgfile[PATH_MAX], backup[PATH_MAX], backup_textfile[PATH_MAX];
@@ -6982,9 +6979,9 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			/* Record new intro file */
 			make_file(vms->introfn, sizeof(vms->introfn), curdir, curmsg);
 			strncat(vms->introfn, "intro", sizeof(vms->introfn));
-			res = ast_play_and_wait(chan, INTRO);
-			res = ast_play_and_wait(chan, "beep");
-			res = play_record_review(chan, NULL, vms->introfn, vmu->maxsecs, vm_fmts, 1, vmu, (int *) duration, NULL, NULL, record_gain, vms, flag);
+			ast_play_and_wait(chan, INTRO);
+			ast_play_and_wait(chan, "beep");
+			play_record_review(chan, NULL, vms->introfn, vmu->maxsecs, vm_fmts, 1, vmu, (int *) duration, NULL, NULL, record_gain, vms, flag);
 			cmd = 't';
 #else
 
@@ -7000,7 +6997,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				cmd = 0;
 				break;
 			}
-			
+
 			/* Back up the original file, so we can retry the prepend and restore it after forward. */
 #ifndef IMAP_STORAGE
 			if (already_recorded) {
