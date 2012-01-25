@@ -1087,15 +1087,25 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;------------------------------------------------------------------------------
 ; DEVICE CONFIGURATION
 ;
-; The SIP channel has two types of devices, the friend and the peer.
-; * The type=friend is a device type that accepts both incoming and outbound calls,
-;   where Asterisk match on the From: username on incoming calls.
-;   (A synonym for friend is "user"). This is a type you use for your local
-;   SIP phones.
-; * The type=peer also handles both incoming and outbound calls. On inbound calls,
-;   Asterisk only matches on IP/port, not on names. This is mostly used for SIP
-;   trunks.
-;
+; SIP entities have a 'type' which determines their roles within Asterisk.
+; * For entities with 'type=peer':
+;   Peers handle both inbound and outbound calls and are matched by ip/port, so for
+;   The case of incoming calls from the peer, the IP address must match in order for
+;   The invitation to work. This means calls made from either direction won't work if
+;   The peer is unregistered while host=dynamic or if the host is otherise not set to
+;   the correct IP of the sender.
+; * For entities with 'type=user':
+;   Asterisk users handle inbound calls only (meaning they call Asterisk, Asterisk can't
+;   call them) and are matched by their authorization information (authname and secret).
+;   Asterisk doesn't rely on their IP and will accept calls regardless of the host setting
+;   as long as the incoming SIP invite authorizes successfully.
+; * For entities with 'type=friend':
+;   Asterisk will create the entity as both a friend and a peer. Asterisk will accept
+;   calls from friends like it would for users, requiring only that the authorization
+;   matches rather than the IP address. Since it is also a peer, a friend entity can
+;   be called as long as its IP is known to Asterisk. In the case of host=dynamic,
+;   this means it is necessary for the entity to register before Asterisk can call it.
+; 
 ; Use remotesecret for outbound authentication, and secret for authenticating
 ; inbound requests. For historical reasons, if no remotesecret is supplied for an
 ; outbound registration or call, the secret will be used. 
