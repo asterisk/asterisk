@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/utils.h"
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
-#include "asterisk/version.h"
+#include "asterisk/ast_version.h"
 #include "asterisk/paths.h"
 #include "asterisk/time.h"
 #include "asterisk/manager.h"
@@ -386,14 +386,14 @@ static int test_generate_results(const char *name, const char *category, const c
 				last_results.total_time / 1000, last_results.total_time % 1000,
 				last_results.total_tests);
 		fprintf(f_xml, "\t<properties>\n");
-		fprintf(f_xml, "\t\t<property name=\"version\" value=\"%s\"/>\n", ASTERISK_VERSION);
+		fprintf(f_xml, "\t\t<property name=\"version\" value=\"%s\"/>\n", ast_get_version());
 		fprintf(f_xml, "\t</properties>\n");
 	}
 
 	/* txt header information */
 	if (f_txt) {
-		fprintf(f_txt, "Asterisk Version:         %s\n", ASTERISK_VERSION);
-		fprintf(f_txt, "Asterisk Version Number:  %d\n", ASTERISK_VERSION_NUM);
+		fprintf(f_txt, "Asterisk Version:         %s\n", ast_get_version());
+		fprintf(f_txt, "Asterisk Version Number:  %s\n", ast_get_version_num());
 		fprintf(f_txt, "Number of Tests:          %d\n", last_results.total_tests);
 		fprintf(f_txt, "Number of Tests Executed: %d\n", (last_results.total_passed + last_results.total_failed));
 		fprintf(f_txt, "Passed Tests:             %d\n", last_results.total_passed);
