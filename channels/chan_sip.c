@@ -28800,8 +28800,6 @@ static void cleanup_all_regs(void)
 		/* First, destroy all outstanding registry calls */
 		/* This is needed, since otherwise active registry entries will not be destroyed */
 		ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {  /* regl is locked */
-				char buf[1024];
-
 				ASTOBJ_RDLOCK(iterator); /* now regl is locked, and the object is also locked */
 				if (iterator->call) {
 					ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
@@ -28815,7 +28813,6 @@ static void cleanup_all_regs(void)
 				if (iterator->timeout > -1) {
 					AST_SCHED_DEL_UNREF(sched, iterator->timeout, registry_unref(iterator, "reg ptr unref from reload config"));
 				}
-				ASTOBJ_DUMP(buf, sizeof(buf), iterator);
 				ASTOBJ_UNLOCK(iterator);
 		} while(0));
 }
