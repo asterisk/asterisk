@@ -28,7 +28,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
 #include "asterisk/_private.h"
-#include "asterisk/version.h"
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
 #include "asterisk/frame.h"
