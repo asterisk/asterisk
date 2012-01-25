@@ -880,6 +880,17 @@ static int sip_epa_register(const struct epa_static_data *static_data)
 	return 0;
 }
 
+static void sip_epa_unregister_all(void)
+{
+	struct epa_backend *backend;
+
+	AST_LIST_LOCK(&epa_static_data_list);
+	while ((backend = AST_LIST_REMOVE_HEAD(&epa_static_data_list, next))) {
+		ast_free(backend);
+	}
+	AST_LIST_UNLOCK(&epa_static_data_list);
+}
+
 static void cc_handle_publish_error(struct sip_pvt *pvt, const int resp, struct sip_request *req, struct sip_epa_entry *epa_entry);
 
 static void cc_epa_destructor(void *data)
@@ -28596,6 +28607,31 @@ static void display_nat_warning(const char *cat, int reason, struct ast_flags *f
 	}
 }
 
+static void cleanup_all_regs(void)
+{
+		/* First, destroy all outstanding registry calls */
+		/* This is needed, since otherwise active registry entries will not be destroyed */
+		ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {  /* regl is locked */
+				char buf[1024];
+
+				ASTOBJ_RDLOCK(iterator); /* now regl is locked, and the object is also locked */
+				if (iterator->call) {
+					ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
+					/* This will also remove references to the registry */
+					dialog_unlink_all(iterator->call);
+					iterator->call = dialog_unref(iterator->call, "remove iterator->call from registry traversal");
+				}
+				if (iterator->expire > -1) {
+					AST_SCHED_DEL_UNREF(sched, iterator->expire, registry_unref(iterator, "reg ptr unref from reload config"));
+				}
+				if (iterator->timeout > -1) {
+					AST_SCHED_DEL_UNREF(sched, iterator->timeout, registry_unref(iterator, "reg ptr unref from reload config"));
+				}
+				ASTOBJ_DUMP(buf, sizeof(buf), iterator);
+				ASTOBJ_UNLOCK(iterator);
+		} while(0));
+}
+
 /*! \brief Re-read SIP.conf config file
 \note	This function reloads all config data, except for
 	active peers (with registrations). They will only
@@ -28670,25 +28706,7 @@ static int reload_config(enum channelreloadreason reason)
 		}
 		ast_mutex_unlock(&authl_lock);
 
-		/* First, destroy all outstanding registry calls */
-		/* This is needed, since otherwise active registry entries will not be destroyed */
-		ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {  /* regl is locked */
-
-				ASTOBJ_RDLOCK(iterator); /* now regl is locked, and the object is also locked */
-				if (iterator->call) {
-					ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
-					/* This will also remove references to the registry */
-					dialog_unlink_all(iterator->call);
-					iterator->call = dialog_unref(iterator->call, "remove iterator->call from registry traversal");
-				}
-				if (iterator->expire > -1) {
-					AST_SCHED_DEL_UNREF(sched, iterator->expire, registry_unref(iterator, "reg ptr unref from reload config"));
-				}
-				if (iterator->timeout > -1) {
-					AST_SCHED_DEL_UNREF(sched, iterator->timeout, registry_unref(iterator, "reg ptr unref from reload config"));
-				}
-				ASTOBJ_UNLOCK(iterator);
-		} while(0));
+		cleanup_all_regs();
 	}
 
 	/* Reset certificate handling for TLS sessions */
@@ -31246,6 +31264,7 @@ static int unload_module(void)
 	}
 	ast_mutex_unlock(&authl_lock);
 
+	sip_epa_unregister_all();
 	destroy_escs();
 
 	if (default_tls_cfg.certfile) {
@@ -31264,6 +31283,7 @@ static int unload_module(void)
 		ast_free(default_tls_cfg.capath);
 	}
 
+	cleanup_all_regs();
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&regl);
 	ASTOBJ_CONTAINER_DESTROYALL(&submwil, sip_subscribe_mwi_destroy);
