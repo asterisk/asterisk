@@ -966,6 +966,17 @@ struct offered_media {
 	char codecs[128];
 };
 
+/*! Additional headers to send with MESSAGE method packet. */
+struct sip_msg_hdr {
+	AST_LIST_ENTRY(sip_msg_hdr) next;
+	/*! Name of header to stick in MESSAGE */
+	const char *name;
+	/*! Value of header to stick in MESSAGE */
+	const char *value;
+	/*! The name and value strings are stuffed here in that order. */
+	char stuff[0];
+};
+
 /*! \brief Structure used for each SIP dialog, ie. a call, a registration, a subscribe.
  * Created and initialized by sip_alloc(), the descriptor goes into the list of
  * descriptors (dialoglist).
@@ -1134,6 +1145,7 @@ struct sip_pvt {
 	struct sip_history_head *history;   /*!< History of this SIP dialog */
 	size_t history_entries;             /*!< Number of entires in the history */
 	struct ast_variable *chanvars;      /*!< Channel variables to set for inbound call */
+	AST_LIST_HEAD_NOLOCK(, sip_msg_hdr) msg_headers; /*!< Additional MESSAGE headers to send. */
 	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
 	struct sip_invite_param *options;   /*!< Options for INVITE */
 	struct sip_st_dlg *stimer;          /*!< SIP Session-Timers */

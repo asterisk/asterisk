@@ -147,6 +147,12 @@ RTP changes
    mode has successfully exited. These changes are based on how pjmedia handles
    media sources and source changes.
 
+Text Messaging
+--------------
+ * MESSAGE(from) for incoming SIP messages now returns "display-name" <uri>
+   instead of simply the uri.  This is the format that MessageSend() can use
+   in the from parameter for outgoing SIP messages.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------

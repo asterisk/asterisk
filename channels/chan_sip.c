@@ -1275,8 +1275,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int old
 static int transmit_info_with_aoc(struct sip_pvt *p, struct ast_aoc_decoded *decoded);
 static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
-static int transmit_message_with_text(struct sip_pvt *p, const char *text, int init, int auth);
-static int transmit_message_with_msg(struct sip_pvt *p, const struct ast_msg *msg);
+static int transmit_message(struct sip_pvt *p, int init, int auth);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, const char *vmexten);
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *message, int terminate);
@@ -1536,7 +1535,8 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 static int add_header_max_forwards(struct sip_pvt *dialog, struct sip_request *req);
 static int add_content(struct sip_request *req, const char *line);
 static int finalize_content(struct sip_request *req);
-static int add_text(struct sip_request *req, const char *text);
+static void destroy_msg_headers(struct sip_pvt *pvt);
+static int add_text(struct sip_request *req, struct sip_pvt *p);
 static int add_digit(struct sip_request *req, char digit, unsigned int duration, int mode);
 static int add_rpid(struct sip_request *req, struct sip_pvt *p);
 static int add_vidupdate(struct sip_request *req);
@@ -4512,7 +4512,12 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 		ast_verbose("Sending text %s on %s\n", text, ast_channel_name(ast));
 	}
 
-	transmit_message_with_text(dialog, text, 0, 0);
+	/* Setup to send text message */
+	sip_pvt_lock(dialog);
+	destroy_msg_headers(dialog);
+	ast_string_field_set(dialog, msg_body, text);
+	transmit_message(dialog, 0, 0);
+	sip_pvt_unlock(dialog);
 	return 0;
 }
 
@@ -5605,7 +5610,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			/* We're replacing a call. */
 			p->options->replaces = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "SIP_MAX_FORWARDS")) {
-			if (sscanf(ast_var_value(current), "%d", &(p->maxforwards)) != 1) {
+			if (sscanf(ast_var_value(current), "%30d", &(p->maxforwards)) != 1) {
 				ast_log(LOG_WARNING, "The SIP_MAX_FORWARDS channel variable is not a valid integer.");
 			}
 		}
@@ -5862,6 +5867,8 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_variables_destroy(p->chanvars);
 		p->chanvars = NULL;
 	}
+
+	destroy_msg_headers(p);
 
 	if (p->srtp) {
 		sip_srtp_destroy(p->srtp);
@@ -7340,40 +7347,58 @@ static char *get_body(struct sip_request *req, char *name, char delimiter)
 	return "";
 }
 
+/*! \brief Structure for conversion between compressed SIP and "normal" SIP headers */
+struct cfalias {
+	const char *fullname;
+	const char *shortname;
+};
+static const struct cfalias aliases[] = {
+	{ "Content-Type",           "c" },
+	{ "Content-Encoding",       "e" },
+	{ "From",                   "f" },
+	{ "Call-ID",                "i" },
+	{ "Contact",                "m" },
+	{ "Content-Length",         "l" },
+	{ "Subject",                "s" },
+	{ "To",                     "t" },
+	{ "Supported",              "k" },
+	{ "Refer-To",               "r" },
+	{ "Referred-By",            "b" },
+	{ "Allow-Events",           "u" },
+	{ "Event",                  "o" },
+	{ "Via",                    "v" },
+	{ "Accept-Contact",         "a" },
+	{ "Reject-Contact",         "j" },
+	{ "Request-Disposition",    "d" },
+	{ "Session-Expires",        "x" },
+	{ "Identity",               "y" },
+	{ "Identity-Info",          "n" },
+};
+
 /*! \brief Find compressed SIP alias */
 static const char *find_alias(const char *name, const char *_default)
 {
-	/*! \brief Structure for conversion between compressed SIP and "normal" SIP */
-	static const struct cfalias {
-		char * const fullname;
-		char * const shortname;
-	} aliases[] = {
-		{ "Content-Type",	 "c" },
-		{ "Content-Encoding",	 "e" },
-		{ "From",		 "f" },
-		{ "Call-ID",		 "i" },
-		{ "Contact",		 "m" },
-		{ "Content-Length",	 "l" },
-		{ "Subject",		 "s" },
-		{ "To",			 "t" },
-		{ "Supported",		 "k" },
-		{ "Refer-To",		 "r" },
-		{ "Referred-By",	 "b" },
-		{ "Allow-Events",	 "u" },
-		{ "Event",		 "o" },
-		{ "Via",		 "v" },
-		{ "Accept-Contact",      "a" },
-		{ "Reject-Contact",      "j" },
-		{ "Request-Disposition", "d" },
-		{ "Session-Expires",     "x" },
-		{ "Identity",            "y" },
-		{ "Identity-Info",       "n" },
-	};
 	int x;
 
 	for (x = 0; x < ARRAY_LEN(aliases); x++) {
 		if (!strcasecmp(aliases[x].fullname, name))
 			return aliases[x].shortname;
+	}
+
+	return _default;
+}
+
+/*! \brief Find full SIP alias */
+static const char *find_full_alias(const char *name, const char *_default)
+{
+	int x;
+
+	if (strlen(name) == 1) {
+		/* We have a short header name to convert. */
+		for (x = 0; x < ARRAY_LEN(aliases); ++x) {
+			if (!strcasecmp(aliases[x].shortname, name))
+				return aliases[x].fullname;
+		}
 	}
 
 	return _default;
@@ -10981,12 +11006,80 @@ static int transmit_provisional_response(struct sip_pvt *p, const char *msg, con
 	return res;
 }
 
-/*! \brief Add text body to SIP message */
-static int add_text(struct sip_request *req, const char *text)
+/*!
+ * \internal
+ * \brief Destroy all additional MESSAGE headers.
+ *
+ * \param pvt SIP private dialog struct.
+ *
+ * \return Nothing
+ */
+static void destroy_msg_headers(struct sip_pvt *pvt)
 {
+	struct sip_msg_hdr *doomed;
+
+	while ((doomed = AST_LIST_REMOVE_HEAD(&pvt->msg_headers, next))) {
+		ast_free(doomed);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Add a MESSAGE header to the dialog.
+ *
+ * \param pvt SIP private dialog struct.
+ * \param hdr_name Name of header for MESSAGE.
+ * \param hdr_value Value of header for MESSAGE.
+ *
+ * \return Nothing
+ */
+static void add_msg_header(struct sip_pvt *pvt, const char *hdr_name, const char *hdr_value)
+{
+	size_t hdr_len_name;
+	size_t hdr_len_value;
+	struct sip_msg_hdr *node;
+	char *pos;
+
+	hdr_len_name = strlen(hdr_name) + 1;
+	hdr_len_value = strlen(hdr_value) + 1;
+
+	node = ast_calloc(1, sizeof(*node) + hdr_len_name + hdr_len_value);
+	if (!node) {
+		return;
+	}
+	pos = node->stuff;
+	node->name = pos;
+	strcpy(pos, hdr_name);
+	pos += hdr_len_name;
+	node->value = pos;
+	strcpy(pos, hdr_value);
+
+	AST_LIST_INSERT_TAIL(&pvt->msg_headers, node, next);
+}
+
+/*! \brief Add text body to SIP message */
+static int add_text(struct sip_request *req, struct sip_pvt *p)
+{
+	const char *content_type = NULL;
+	struct sip_msg_hdr *node;
+
+	/* Add any additional MESSAGE headers. */
+	AST_LIST_TRAVERSE(&p->msg_headers, node, next) {
+		if (!strcasecmp(node->name, "Content-Type")) {
+			/* Save content type */
+			content_type = node->value;
+		} else {
+			add_header(req, node->name, node->value);
+		}
+	}
+	if (ast_strlen_zero(content_type)) {
+		/* "Content-Type" not set - use default value */
+		content_type = "text/plain;charset=UTF-8";
+	}
+	add_header(req, "Content-Type", content_type);
+
 	/* XXX Convert \n's to \r\n's XXX */
-	add_header(req, "Content-Type", "text/plain;charset=UTF-8");
-	add_content(req, text);
+	add_content(req, p->msg_body);
 	return 0;
 }
 
@@ -13615,38 +13708,16 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	return res;
 }
 
-/*! \brief Transmit text with SIP MESSAGE method based on an ast_msg */
-static int transmit_message_with_msg(struct sip_pvt *p, const struct ast_msg *msg)
-{
-	struct sip_request req;
-	struct ast_msg_var_iterator *i;
-	const char *var, *val;
-
-	build_via(p);
-	initreqprep(&req, p, SIP_MESSAGE, NULL);
-	ast_string_field_set(p, msg_body, ast_msg_get_body(msg));
-	initialize_initreq(p, &req);
-
-	i = ast_msg_var_iterator_init(msg);
-	while (ast_msg_var_iterator_next(msg, i, &var, &val)) {
-		add_header(&req, var, val);
-		ast_msg_var_unref_current(i);
-	}
-	ast_msg_var_iterator_destroy(i);
-
-	add_text(&req, ast_msg_get_body(msg));
-
-	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
-}
-
-/*! \brief Transmit text with SIP MESSAGE method */
-static int transmit_message_with_text(struct sip_pvt *p, const char *text, int init, int auth)
+/*!
+ * \brief Transmit with SIP MESSAGE method
+ * \note The p->msg_headers and p->msg_body are already setup.
+ */
+static int transmit_message(struct sip_pvt *p, int init, int auth)
 {
 	struct sip_request req;
 
 	if (init) {
 		initreqprep(&req, p, SIP_MESSAGE, NULL);
-		ast_string_field_set(p, msg_body, text);
 		initialize_initreq(p, &req);
 	} else {
 		reqprep(&req, p, SIP_MESSAGE, 0, 1);
@@ -13654,7 +13725,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text, int i
 	if (auth) {
 		return transmit_request_with_auth(p, SIP_MESSAGE, p->ocseq, XMIT_RELIABLE, 0);
 	} else {
-		add_text(&req, text);
+		add_text(&req, p);
 		return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 	}
 }
@@ -13874,23 +13945,31 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 			ast_log(LOG_WARNING, "No authentication available for call %s\n", p->callid);
 		}
 	}
-	/* If we are hanging up and know a cause for that, send it in clear text to make
-		debugging easier. */
-	if (sipmethod == SIP_BYE)	{
+
+	switch (sipmethod) {
+	case SIP_BYE:
+	{
 		char buf[20];
 
+		/*
+		 * We are hanging up.  If we know a cause for that, send it in
+		 * clear text to make debugging easier.
+		 */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_Q850_REASON) && p->hangupcause) {
-			sprintf(buf, "Q.850;cause=%i", p->hangupcause & 0x7f);
+			snprintf(buf, sizeof(buf), "Q.850;cause=%d", p->hangupcause & 0x7f);
 			add_header(&resp, "Reason", buf);
 		}
 
 		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->hangupcause));
 		snprintf(buf, sizeof(buf), "%d", p->hangupcause);
 		add_header(&resp, "X-Asterisk-HangupCauseCode", buf);
+		break;
 	}
-
-	if (sipmethod == SIP_MESSAGE) {
-		add_text(&resp, p->msg_body);
+	case SIP_MESSAGE:
+		add_text(&resp, p);
+		break;
+	default:
+		break;
 	}
 
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
@@ -16514,22 +16593,33 @@ static int get_msg_text2(struct ast_str **buf, struct sip_request *req)
 	return res < 0 ? -1 : 0;
 }
 
-static void set_message_vars_from_req(struct ast_msg *msg, struct sip_request *req)
+static int set_message_vars_from_req(struct ast_msg *msg, struct sip_request *req)
 {
 	size_t x;
-	char name_buf[1024] = "";
-	char val_buf[1024] = "";
+	char name_buf[1024];
+	char val_buf[1024];
+	const char *name;
 	char *c;
+	int res = 0;
 
 	for (x = 0; x < req->headers; x++) {
 		const char *header = REQ_OFFSET_TO_STR(req, header[x]);
+
 		if ((c = strchr(header, ':'))) {
 			ast_copy_string(name_buf, header, MIN((c - header + 1), sizeof(name_buf)));
 			ast_copy_string(val_buf, ast_skip_blanks(c + 1), sizeof(val_buf));
 			ast_trim_blanks(name_buf);
-			ast_msg_set_var(msg, name_buf, val_buf);
+
+			/* Convert header name to full name alias. */
+			name = find_full_alias(name_buf, name_buf);
+
+			res = ast_msg_set_var(msg, name, val_buf);
+			if (res) {
+				break;
+			}
 		}
 	}
+	return res;
 }
 
 AST_THREADSTORAGE(sip_msg_buf);
@@ -16546,12 +16636,15 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	const char *content_type = sip_get_header(req, "Content-Type");
 	struct ast_msg *msg;
 	int res;
-	char *from, *to;
+	char *from;
+	char *to;
+	char from_name[50];
 
 	if (strncmp(content_type, "text/plain", strlen("text/plain"))) { /* No text/plain attachment */
 		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
-		if (!p->owner)
+		if (!p->owner) {
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		}
 		return;
 	}
 
@@ -16585,8 +16678,9 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	ast_str_truncate(buf, len);
 
 	if (p->owner) {
-		if (sip_debug_test_pvt(p))
+		if (sip_debug_test_pvt(p)) {
 			ast_verbose("SIP Text message received: '%s'\n", ast_str_buffer(buf));
+		}
 		memset(&f, 0, sizeof(f));
 		f.frametype = AST_FRAME_TEXT;
 		f.subclass.integer = 0;
@@ -16597,6 +16691,13 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		transmit_response(p, "202 Accepted", req); /* We respond 202 accepted, since we relay the message */
 		return;
 	}
+
+	/*
+	 * At this point MESSAGE is outside of a call.
+	 *
+	 * NOTE: p->owner is NULL so no additional check is needed after
+	 * this point.
+	 */
 
 	if (!sip_cfg.accept_outofcall_message) {
 		/* Message outside of a call, we do not support that */
@@ -16620,7 +16721,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		if (res < 0) { /* Something failed in authentication */
 			if (res == AUTH_FAKE_AUTH) {
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for device %s\n", sip_get_header(req, "From"));
-				transmit_fake_auth_response(p, SIP_OPTIONS, req, XMIT_UNRELIABLE);
+				transmit_fake_auth_response(p, SIP_MESSAGE, req, XMIT_UNRELIABLE);
 			} else {
 				ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
 				transmit_response(p, "403 Forbidden", req);
@@ -16665,9 +16766,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 
 	if (!(msg = ast_msg_alloc())) {
 		transmit_response(p, "500 Internal Server Error", req);
-		if (!p->owner) {
-			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-		}
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	}
 
@@ -16675,7 +16774,16 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	from = ast_strdupa(sip_get_header(req, "From"));
 
 	res = ast_msg_set_to(msg, "%s", to);
-	res |= ast_msg_set_from(msg, "%s", get_in_brackets(from));
+
+	/* Build "display" <uri> for from string. */
+	from = (char *) get_calleridname(from, from_name, sizeof(from_name));
+	from = get_in_brackets(from);
+	if (from_name[0]) {
+		res |= ast_msg_set_from(msg, "\"%s\" <%s>", from_name, from);
+	} else {
+		res |= ast_msg_set_from(msg, "<%s>", from);
+	}
+
 	res |= ast_msg_set_body(msg, "%s", ast_str_buffer(buf));
 	res |= ast_msg_set_context(msg, "%s", p->context);
 
@@ -16684,15 +16792,16 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	}
 
 	res |= ast_msg_set_exten(msg, "%s", p->exten);
+	res |= set_message_vars_from_req(msg, req);
 
 	if (res) {
 		ast_msg_destroy(msg);
+		transmit_response(p, "500 Internal Server Error", req);
 	} else {
-		set_message_vars_from_req(msg, req);
 		ast_msg_queue(msg);
+		transmit_response(p, "202 Accepted", req);
 	}
 
-	transmit_response(p, "202 Accepted", req);
 	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 }
 
@@ -20339,7 +20448,7 @@ static void cc_handle_publish_error(struct sip_pvt *pvt, const int resp, struct 
 			ao2_ref(monitor_instance, -1);
 			return;
 		}
-	} else if (sscanf(min_expires, "%d", &pvt->expiry) != 1) {
+	} else if (sscanf(min_expires, "%30d", &pvt->expiry) != 1) {
 		ast_cc_monitor_failed(cc_entry->core_id, monitor_instance->device_name,
 				"Min-Expires has non-numeric value");
 		ao2_ref(monitor_instance, -1);
@@ -21380,7 +21489,7 @@ static int do_message_auth(struct sip_pvt *p, int resp, const char *rest, struct
 		append_history(p, "MessageAuth", "Try: %d", p->authtries);
 	}
 
-	transmit_message_with_text(p, p->msg_body, 0, 1);
+	transmit_message(p, 0, 1);
 	return 0;
 }
 
@@ -21912,13 +22021,18 @@ static void *sip_park_thread(void *stuff)
 
 	res = ast_park_call_exten(transferee, transferer, d->park_exten, d->park_context, 0, &ext);
 
+	sip_pvt_lock(transferer->tech_pvt);
 #ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
 	if (res) {
-		transmit_message_with_text(transferer->tech_pvt, "Unable to park call.\n", 0, 0);
+		destroy_msg_headers(transferer->tech_pvt);
+		ast_string_field_set(transferer->tech_pvt, msg_body, "Unable to park call.");
+		transmit_message(transferer->tech_pvt, 0, 0);
 	} else {
 		/* Then tell the transferer what happened */
-		sprintf(buf, "Call parked on extension '%d'", ext);
-		transmit_message_with_text(transferer->tech_pvt, buf, 0, 0);
+		destroy_msg_headers(transferer->tech_pvt);
+		sprintf(buf, "Call parked on extension '%d'.", ext);
+		ast_string_field_set(transferer->tech_pvt, msg_body, buf);
+		transmit_message(transferer->tech_pvt, 0, 0);
 	}
 #endif
 
@@ -21928,12 +22042,14 @@ static void *sip_park_thread(void *stuff)
 		/* Transfer succeeded */
 		append_history(transferer->tech_pvt, "SIPpark", "Parked call on %d", ext);
 		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "200 OK", TRUE);
+		sip_pvt_unlock(transferer->tech_pvt);
 		transferer->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 		ast_hangup(transferer); /* This will cause a BYE */
 		ast_debug(1, "SIP Call parked on extension '%d'\n", ext);
 	} else {
 		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "503 Service Unavailable", TRUE);
 		append_history(transferer->tech_pvt, "SIPpark", "Parking failed\n");
+		sip_pvt_unlock(transferer->tech_pvt);
 		ast_debug(1, "SIP Call parked failed \n");
 		/* Do not hangup call */
 	}
@@ -24475,11 +24591,56 @@ static const struct ast_msg_tech sip_msg_tech = {
 	.msg_send = sip_msg_send,
 };
 
+/*!
+ * \internal
+ * \brief Check if the given header name is blocked.
+ *
+ * \details Determine if the given header name from the user is
+ * blocked for outgoing MESSAGE packets.
+ *
+ * \param header_name Name of header to see if it is blocked.
+ *
+ * \retval TRUE if the given header is blocked.
+ */
+static int block_msg_header(const char *header_name)
+{
+	int idx;
+
+	/*
+	 * Don't block Content-Type or Max-Forwards headers because the
+	 * user can override them.
+	 */
+	static const char *hdr[] = {
+		"To",
+		"From",
+		"Via",
+		"Route",
+		"Contact",
+		"Call-ID",
+		"CSeq",
+		"Allow",
+		"Content-Length",
+	};
+
+	for (idx = 0; idx < ARRAY_LEN(hdr); ++idx) {
+		if (!strcasecmp(header_name, hdr[idx])) {
+			/* Block addition of this header. */
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *from)
 {
 	struct sip_pvt *pvt;
 	int res;
-	char *to_uri, *to_host, *to_user;
+	char *to_uri;
+	char *to_host;
+	char *to_user;
+	const char *var;
+	const char *val;
+	struct ast_msg_var_iterator *iter;
 	struct sip_peer *peer_ptr;
 
 	if (!(pvt = sip_alloc(NULL, NULL, 0, SIP_MESSAGE, NULL))) {
@@ -24487,6 +24648,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	}
 
 	to_uri = ast_strdupa(to);
+	to_uri = get_in_brackets(to_uri);
 	parse_uri(to_uri, "sip:,sips:", &to_user, NULL, &to_host, NULL);
 
 	if (ast_strlen_zero(to_host)) {
@@ -24541,7 +24703,33 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 
 	/* XXX Does pvt->expiry need to be set? */
 
-	res = transmit_message_with_msg(pvt, msg);
+	/* Save additional MESSAGE headers in case of authentication request. */
+	for (iter = ast_msg_var_iterator_init(msg);
+		ast_msg_var_iterator_next(msg, iter, &var, &val);
+		ast_msg_var_unref_current(iter)) {
+		if (!strcasecmp(var, "Max-Forwards")) {
+			/* Decrement Max-Forwards for SIP loop prevention. */
+			if (sscanf(val, "%30d", &pvt->maxforwards) != 1 || pvt->maxforwards < 1) {
+				sip_pvt_unlock(pvt);
+				dialog_unlink_all(pvt);
+				dialog_unref(pvt, "MESSAGE(Max-Forwards) reached zero.");
+				ast_log(LOG_NOTICE,
+					"MESSAGE(Max-Forwards) reached zero.  MESSAGE not sent.\n");
+				return -1;
+			}
+			--pvt->maxforwards;
+			continue;
+		}
+		if (block_msg_header(var)) {
+			/* Block addition of this header. */
+			continue;
+		}
+		add_msg_header(pvt, var, val);
+	}
+	ast_msg_var_iterator_destroy(iter);
+
+	ast_string_field_set(pvt, msg_body, ast_msg_get_body(msg));
+	res = transmit_message(pvt, 1, 0);
 
 	sip_pvt_unlock(pvt);
 	sip_scheddestroy(pvt, DEFAULT_TRANS_TIMEOUT);
@@ -25088,7 +25276,7 @@ static int handle_cc_subscribe(struct sip_pvt *p, struct sip_request *req)
 	int expires = -1; /* Just need it to be non-zero */
 
 	if (!ast_strlen_zero(expires_str)) {
-		sscanf(expires_str, "%d", &expires);
+		sscanf(expires_str, "%30d", &expires);
 	}
 
 	if ((param_separator = strchr(uri, ';'))) {
