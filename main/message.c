@@ -88,15 +88,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This function will read from or write a value to a text message.
 			It is used both to read the data out of an incoming message, as well as
 			modify a message that will be sent outbound.</para>
-			<para>NOTE: If you want to set an outbound message to carry data in the
-			current message, do Set(MESSAGE_DATA(key)=${MESSAGE_DATA(key)}).</para>
+			<note>
+				<para>If you want to set an outbound message to carry data in the
+				current message, do
+				Set(MESSAGE_DATA(<replaceable>key</replaceable>)=${MESSAGE_DATA(<replaceable>key</replaceable>)}).</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="application">MessageSend</ref>
 		</see-also>
 	</function>
 	<application name="MessageSend" language="en_US">
- 		<synopsis>
+		<synopsis>
 			Send a text message.
 		</synopsis>
 		<syntax>
@@ -106,6 +109,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="from" required="false">
 				<para>A From URI for the message if needed for the
 				message technology being used to send this message.</para>
+				<note>
+					<para>For SIP the from parameter can be a configured peer name
+					or in the form of "display-name" &lt;URI&gt;.</para>
+				</note>
 			</parameter>
 		</syntax>
 		<description>
