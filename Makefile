@@ -386,7 +386,7 @@ makeopts.embed_rules: menuselect.makeopts
 	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LDFLAGS)
 	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LIBS)
 
-$(SUBDIRS): main/version.c include/asterisk/version.h include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
+$(SUBDIRS): main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
     # Non-windows:
@@ -422,11 +422,6 @@ main/version.c: FORCE
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
-include/asterisk/version.h: FORCE
-	@build_tools/make_version_h > $@.tmp
-	@cmp -s $@.tmp $@ || mv $@.tmp $@
-	@rm -f $@.tmp
-
 include/asterisk/buildopts.h: menuselect.makeopts
 	@build_tools/make_buildopts_h > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
@@ -449,7 +444,6 @@ _clean:
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
 	rm -f main/version.c
-	rm -f include/asterisk/version.h
 	@$(MAKE) -C menuselect clean
 	cp -f .cleancount .lastclean
 
