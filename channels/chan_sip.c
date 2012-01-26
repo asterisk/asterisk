@@ -12910,8 +12910,8 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 		ast_str_append(tmp, 0, "</tuple>\n</presence>\n");
 		break;
 	case DIALOG_INFO_XML: /* SNOM subscribes in this format */
-		ast_str_append(tmp, 0, "<?xml version=\"1.0\"?>");
-		ast_str_append(tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">", p->dialogver, full ? "full" : "partial", mto);
+		ast_str_append(tmp, 0, "<?xml version=\"1.0\"?>\n");
+		ast_str_append(tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver, full ? "full" : "partial", mto);
 		if ((state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
 			const char *local_display = exten;
 			char *local_target = ast_strdupa(mto);
@@ -12964,7 +12964,7 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 			}
 
 		} else {
-			ast_str_append(tmp, 0, "<dialog id=\"%s\">", exten);
+			ast_str_append(tmp, 0, "<dialog id=\"%s\">\n", exten);
 		}
 		ast_str_append(tmp, 0, "<state>%s</state>\n", statestring);
 		if (state == AST_EXTENSION_ONHOLD) {
