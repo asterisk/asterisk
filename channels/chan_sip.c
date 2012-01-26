@@ -5264,6 +5264,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_copy_flags(&dialog->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 	dialog->capability = peer->capability;
 	dialog->prefs = peer->prefs;
+	dialog->amaflags = peer->amaflags;
 
 	ast_string_field_set(dialog, engine, peer->engine);
 
