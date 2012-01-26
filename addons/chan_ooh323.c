@@ -854,6 +854,7 @@ static int ooh323_digit_begin(struct ast_channel *chan, char digit)
 {
 	char dtmf[2];
 	struct ooh323_pvt *p = (struct ooh323_pvt *) chan->tech_pvt;
+	int res = 0;
 	
 	if (gH323Debug)
 		ast_verbose("---   ooh323_digit_begin\n");
@@ -882,17 +883,21 @@ static int ooh323_digit_begin(struct ast_channel *chan, char digit)
 		dtmf[0] = digit;
 		dtmf[1] = '\0';
 		ooSendDTMFDigit(p->callToken, dtmf);
+	} else if (p->dtmfmode & H323_DTMF_INBAND) {
+		res = -1; // tell Asterisk to generate inband indications
 	}
 	ast_mutex_unlock(&p->lock);
-	if (gH323Debug)
-		ast_verbose("+++   ooh323_digit_begin\n");
+	if (gH323Debug) {
+		ast_verbose("+++   ooh323_digit_begin %d\n", res);
+	}
 
-	return 0;
+	return res;
 }
 
 static int ooh323_digit_end(struct ast_channel *chan, char digit, unsigned int duration)
 {
 	struct ooh323_pvt *p = (struct ooh323_pvt *) chan->tech_pvt;
+	int res = 0;
 
 	if (gH323Debug)
 		ast_verbose("---   ooh323_digit_end\n");
@@ -902,14 +907,18 @@ static int ooh323_digit_end(struct ast_channel *chan, char digit, unsigned int d
 		return -1;
 	}
 	ast_mutex_lock(&p->lock);
-	if (p->rtp && ((p->dtmfmode & H323_DTMF_RFC2833) || (p->dtmfmode & H323_DTMF_CISCO)) ) 
+	if (p->rtp && ((p->dtmfmode & H323_DTMF_RFC2833) || (p->dtmfmode & H323_DTMF_CISCO)) ) {
 		ast_rtp_instance_dtmf_end(p->rtp, digit);
+	} else if(p->dtmfmode & H323_DTMF_INBAND) {
+		res = -1; // tell Asterisk to stop inband indications
+	}
 
 	ast_mutex_unlock(&p->lock);
-	if (gH323Debug)
-		ast_verbose("+++   ooh323_digit_end\n");
+	if (gH323Debug) {
+		ast_verbose("+++   ooh323_digit_end, res = %d\n", res);
+	}
 
-	return 0;
+	return res;
 }
 
 
