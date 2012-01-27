@@ -5549,12 +5549,11 @@ static int set_member_penalty(const char *queuename, const char *interface, int 
 
 		/* After hitting realtime queues, go back and get the regular ones. */
 		queue_iter = ao2_iterator_init(queues, 0);
-
 		while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 			foundqueue++;
 			foundinterface += set_member_penalty_help_members(q, interface, penalty);
 		}
-
+		ao2_iterator_destroy(&queue_iter);
 	} else { /* We actually have a queuename, so we can just act on the single queue. */
 		if ((q = find_load_queue_rt_friendly(queuename))) {
 			foundqueue++;
