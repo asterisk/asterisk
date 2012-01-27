@@ -17639,8 +17639,8 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 			while ((pi = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 				ao2_lock(pi);
 				if (name && regexec(&regexbuf, pi->name, 0, NULL, 0)) {
-					sip_unref_peer(pi, "toss iterator peer ptr before continue");
 					ao2_unlock(pi);
+					sip_unref_peer(pi, "toss iterator peer ptr before continue");
 					continue;
 				};
 				if (ast_test_flag(&pi->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
@@ -31103,6 +31103,8 @@ static int peers_data_provider_get(const struct ast_data_search *search,
 		/* transfer mode */
 		enum_node = ast_data_add_node(data_peer, "allowtransfer");
 		if (!enum_node) {
+			ao2_unlock(peer);
+			ao2_ref(peer, -1);
 			continue;
 		}
 		ast_data_add_str(enum_node, "text", transfermode2str(peer->allowtransfer));
@@ -31142,6 +31144,8 @@ static int peers_data_provider_get(const struct ast_data_search *search,
 		/* amaflags */
 		enum_node = ast_data_add_node(data_peer, "amaflags");
 		if (!enum_node) {
+			ao2_unlock(peer);
+			ao2_ref(peer, -1);
 			continue;
 		}
 		ast_data_add_int(enum_node, "value", peer->amaflags);
@@ -31150,6 +31154,8 @@ static int peers_data_provider_get(const struct ast_data_search *search,
 		/* sip options */
 		data_sip_options = ast_data_add_node(data_peer, "sipoptions");
 		if (!data_sip_options) {
+			ao2_unlock(peer);
+			ao2_ref(peer, -1);
 			continue;
 		}
 		for (x = 0 ; x < ARRAY_LEN(sip_options); x++) {
@@ -31159,6 +31165,8 @@ static int peers_data_provider_get(const struct ast_data_search *search,
 		/* callingpres */
 		enum_node = ast_data_add_node(data_peer, "callingpres");
 		if (!enum_node) {
+			ao2_unlock(peer);
+			ao2_ref(peer, -1);
 			continue;
 		}
 		ast_data_add_int(enum_node, "value", peer->callingpres);

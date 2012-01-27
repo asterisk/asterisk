@@ -703,6 +703,7 @@ static u_char *ast_var_indications(struct variable *vp, oid *name, size_t *lengt
 			tz = ast_tone_zone_unref(tz);
 			long_ret++;
 		}
+		ao2_iterator_destroy(&i);
 
 		return (u_char *) &long_ret;
 	}
@@ -743,6 +744,7 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 		tz = ast_tone_zone_unref(tz);
 		i--;
 	}
+	ao2_iterator_destroy(&iter);
 
 	if (tz == NULL) {
 		return NULL;
@@ -750,24 +752,27 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 
 	switch (vp->magic) {
 	case ASTINDINDEX:
+		ast_tone_zone_unref(tz);
 		long_ret = name[*length - 1];
 		return (u_char *)&long_ret;
 	case ASTINDCOUNTRY:
 		ast_copy_string(ret_buf, tz->country, sizeof(ret_buf));
-		tz = ast_tone_zone_unref(tz);
+		ast_tone_zone_unref(tz);
 		*var_len = strlen(ret_buf);
 		return (u_char *) ret_buf;
 	case ASTINDALIAS:
 		/* No longer exists */
+		ast_tone_zone_unref(tz);
 		return NULL;
 	case ASTINDDESCRIPTION:
 		ast_tone_zone_lock(tz);
 		ast_copy_string(ret_buf, tz->description, sizeof(ret_buf));
 		ast_tone_zone_unlock(tz);
-		tz = ast_tone_zone_unref(tz);
+		ast_tone_zone_unref(tz);
 		*var_len = strlen(ret_buf);
 		return (u_char *) ret_buf;
 	default:
+		ast_tone_zone_unref(tz);
 		break;
 	}
 	return NULL;

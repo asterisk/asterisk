@@ -176,7 +176,8 @@ int ast_tone_zone_count(void);
 /*!
  * \brief Get an iterator for the available tone zones
  *
- * Use ao2_iterator_next() to iterate the tone zones.
+ * \note Use ao2_iterator_next() to iterate the tone zones.
+ * \note Use ao2_iterator_destroy() to clean up.
  *
  * \return an initialized iterator
  */

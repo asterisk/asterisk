@@ -1426,9 +1426,9 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 				ast_debug(4, "%s is unavailable because it has only been %d seconds since his last call (wrapup time is %d)\n", member->membername, (int) (time(NULL) - member->lastcall), q->wrapuptime);
 				break;
 			} else {
-				ao2_unlock(q);
 				ao2_ref(member, -1);
 				ao2_iterator_destroy(&mem_iter);
+				ao2_unlock(q);
 				ast_debug(4, "%s is available.\n", member->membername);
 				return 0;
 			}
@@ -4560,24 +4560,24 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		AST_LIST_HEAD(, ast_dialed_interface) *dialed_interfaces;
 		if (!tmp) {
 			ao2_ref(cur, -1);
-			ao2_unlock(qe->parent);
 			ao2_iterator_destroy(&memi);
+			ao2_unlock(qe->parent);
 			goto out;
 		}
 		if (!datastore) {
 			if (!(datastore = ast_datastore_alloc(&dialed_interface_info, NULL))) {
-				ao2_ref(cur, -1);
-				ao2_unlock(qe->parent);
-				ao2_iterator_destroy(&memi);
 				callattempt_free(tmp);
+				ao2_ref(cur, -1);
+				ao2_iterator_destroy(&memi);
+				ao2_unlock(qe->parent);
 				goto out;
 			}
 			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
 			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
-				ao2_ref(cur, -1);
-				ao2_unlock(&qe->parent);
-				ao2_iterator_destroy(&memi);
 				callattempt_free(tmp);
+				ao2_ref(cur, -1);
+				ao2_iterator_destroy(&memi);
+				ao2_unlock(&qe->parent);
 				goto out;
 			}
 			datastore->data = dialed_interfaces;
@@ -4601,6 +4601,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 		if (di) {
 			callattempt_free(tmp);
+			ao2_ref(cur, -1);
 			continue;
 		}
 
@@ -4610,10 +4611,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		 * it won't call one that has already been called. */
 		if (strncasecmp(cur->interface, "Local/", 6)) {
 			if (!(di = ast_calloc(1, sizeof(*di) + strlen(cur->interface)))) {
-				ao2_ref(cur, -1);
-				ao2_unlock(qe->parent);
-				ao2_iterator_destroy(&memi);
 				callattempt_free(tmp);
+				ao2_ref(cur, -1);
+				ao2_iterator_destroy(&memi);
+				ao2_unlock(qe->parent);
 				goto out;
 			}
 			strcpy(di->interface, cur->interface);
@@ -6623,9 +6624,10 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 
 	if ((q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Find for QUEUE_MEMBER_LIST()"))) {
 		int buflen = 0, count = 0;
-		struct ao2_iterator mem_iter = ao2_iterator_init(q->members, 0);
+		struct ao2_iterator mem_iter;
 
 		ao2_lock(q);
+		mem_iter = ao2_iterator_init(q->members, 0);
 		while ((m = ao2_iterator_next(&mem_iter))) {
 			/* strcat() is always faster than printf() */
 			if (count++) {
@@ -7148,7 +7150,9 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 static int clear_stats(const char *queuename)
 {
 	struct call_queue *q;
-	struct ao2_iterator queue_iter = ao2_iterator_init(queues, 0);
+	struct ao2_iterator queue_iter;
+
+	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 		ao2_lock(q);
 		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename))
@@ -7237,8 +7241,8 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		}
 	}
 
-	queue_iter = ao2_iterator_init(queues, AO2_ITERATOR_DONTLOCK);
 	ao2_lock(queues);
+	queue_iter = ao2_iterator_init(queues, AO2_ITERATOR_DONTLOCK);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 		float sl;
 		struct call_queue *realtime_queue = NULL;
@@ -7967,11 +7971,11 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 		while ((m = ao2_iterator_next(&mem_iter))) {
 			if (!strncasecmp(word, m->membername, wordlen) && ++which > state) {
 				char *tmp;
-				ao2_unlock(q);
 				tmp = ast_strdup(m->interface);
 				ao2_ref(m, -1);
-				queue_t_unref(q, "Done with iterator, returning interface name");
 				ao2_iterator_destroy(&mem_iter);
+				ao2_unlock(q);
+				queue_t_unref(q, "Done with iterator, returning interface name");
 				ao2_iterator_destroy(&queue_iter);
 				return tmp;
 			}
@@ -8524,6 +8528,7 @@ static void queues_data_provider_get_helper(const struct ast_data_search *search
 
 		ao2_ref(member, -1);
 	}
+	ao2_iterator_destroy(&im);
 
 	/* include the callers inside the result. */
 	if (queue->head) {

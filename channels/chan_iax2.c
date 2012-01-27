@@ -2636,6 +2636,7 @@ static char *handle_cli_iax2_show_callno_limits(struct ast_cli_entry *e, int cmd
 			sin.sin_addr.s_addr = peercnt->addr;
 			if (a->argc == 5 && (!strcasecmp(a->argv[4], ast_inet_ntoa(sin.sin_addr)))) {
 					ast_cli(a->fd, "%-15s %-12d %-12d\n", ast_inet_ntoa(sin.sin_addr), peercnt->cur, peercnt->limit);
+					ao2_ref(peercnt, -1);
 					found = 1;
 					break;
 			} else {
@@ -6680,8 +6681,7 @@ static char *handle_cli_iax2_show_users(struct ast_cli_entry *e, int cmd, struct
 
 	ast_cli(a->fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C","Codec Pref");
 	i = ao2_iterator_init(users, 0);
-	for (user = ao2_iterator_next(&i); user; 
-		user_unref(user), user = ao2_iterator_next(&i)) {
+	for (; (user = ao2_iterator_next(&i)); user_unref(user)) {
 		if (havepattern && regexec(&regexbuf, user->name, 0, NULL, 0))
 			continue;
 
@@ -6769,8 +6769,7 @@ static int __iax2_show_peers(int fd, int *total, struct mansession *s, const int
 		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", "Description");
 
 	i = ao2_iterator_init(peers, 0);
-	for (peer = ao2_iterator_next(&i); peer;
-		peer_unref(peer), peer = ao2_iterator_next(&i)) {
+	for (; (peer = ao2_iterator_next(&i)); peer_unref(peer)) {
 		char nm[20];
 		char status[20];
 		int retstatus;
@@ -7093,7 +7092,7 @@ static int manager_iax2_show_peer_list(struct mansession *s, const struct messag
 
 
 	i = ao2_iterator_init(peers, 0);
-	for (peer = ao2_iterator_next(&i); peer; peer_unref(peer), peer = ao2_iterator_next(&i)) {
+	for (; (peer = ao2_iterator_next(&i)); peer_unref(peer)) {
 		encmethods_to_str(peer->encmethods, encmethods);
 		astman_append(s, "Event: PeerEntry\r\n%sChanneltype: IAX\r\n", idtext);
 		if (!ast_strlen_zero(peer->username)) {
@@ -7676,8 +7675,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		return res;
 	}
 	/* Search the userlist for a compatible entry, and fill in the rest */
-	i = ao2_iterator_init(users, 0);
 	ast_sockaddr_from_sin(&addr, sin);
+	i = ao2_iterator_init(users, 0);
 	while ((user = ao2_iterator_next(&i))) {
 		if ((ast_strlen_zero(iaxs[callno]->username) ||				/* No username specified */
 			!strcmp(iaxs[callno]->username, user->name))	/* Or this username specified */
@@ -14681,10 +14680,9 @@ static int users_data_provider_get(const struct ast_data_search *search,
 	char *pstr = "";
 
 	i = ao2_iterator_init(users, 0);
-	while ((user = ao2_iterator_next(&i))) {
+	for (; (user = ao2_iterator_next(&i)); user_unref(user)) {
 		data_user = ast_data_add_node(data_root, "user");
 		if (!data_user) {
-			user_unref(user);
 			continue;
 		}
 
@@ -14732,8 +14730,6 @@ static int users_data_provider_get(const struct ast_data_search *search,
 			pstr = ast_test_flag64(user, IAX_CODEC_USER_FIRST) ? "caller" : "host";
 		}
 		ast_data_add_str(data_user, "codec-preferences", pstr);
-
-		user_unref(user);
 
 		if (!ast_data_search_match(search, data_user)) {
 			ast_data_remove_node(data_root, data_user);
