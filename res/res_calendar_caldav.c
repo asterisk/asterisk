@@ -125,6 +125,15 @@ static int auth_credentials(void *userdata, const char *realm, int attempts, cha
 	return 0;
 }
 
+static int debug_response_handler(void *userdata, ne_request *req, const ne_status *st)
+{
+	if (st->code < 200 || st->code > 299) {
+		ast_debug(1, "Unexpected response from server, %d: %s\n", st->code, st->reason_phrase);
+		return 0;
+	}
+	return 1;
+}
+
 static struct ast_str *caldav_request(struct caldav_pvt *pvt, const char *method, struct ast_str *req_body, struct ast_str *subdir, const char *content_type)
 {
 	struct ast_str *response;
@@ -145,17 +154,15 @@ static struct ast_str *caldav_request(struct caldav_pvt *pvt, const char *method
 	snprintf(buf, sizeof(buf), "%s%s", pvt->uri.path, subdir ? ast_str_buffer(subdir) : "");
 
 	req = ne_request_create(pvt->session, method, buf);
-	ne_add_response_body_reader(req, ne_accept_2xx, fetch_response_reader, &response);
+	ne_add_response_body_reader(req, debug_response_handler, fetch_response_reader, &response);
 	ne_set_request_body_buffer(req, ast_str_buffer(req_body), ast_str_strlen(req_body));
 	ne_add_request_header(req, "Content-type", ast_strlen_zero(content_type) ? "text/xml" : content_type);
 
 	ret = ne_request_dispatch(req);
 	ne_request_destroy(req);
 
-	if (ret != NE_OK || !ast_str_strlen(response)) {
-		if (ret != NE_OK) {
-			ast_log(LOG_WARNING, "Unknown response to CalDAV calendar %s, request %s to %s: %s\n", pvt->owner->name, method, buf, ne_get_error(pvt->session));
-		}
+	if (ret != NE_OK) {
+		ast_log(LOG_WARNING, "Unknown response to CalDAV calendar %s, request %s to %s: %s\n", pvt->owner->name, method, buf, ne_get_error(pvt->session));
 		ast_free(response);
 		return NULL;
 	}
@@ -244,9 +251,9 @@ static int caldav_write_event(struct ast_calendar_event *event)
 	ast_str_append(&body, 0, "%s", icalcomponent_as_ical_string(calendar));
 	ast_str_set(&subdir, 0, "%s%s.ics", pvt->url[strlen(pvt->url) - 1] == '/' ? "" : "/", event->uid);
 
-	response = caldav_request(pvt, "PUT", body, subdir, "text/calendar");
-
-	ret = 0;
+	if ((response = caldav_request(pvt, "PUT", body, subdir, "text/calendar"))) {
+		ret = 0;
+	}
 
 write_cleanup:
 	if (body) {
@@ -302,6 +309,10 @@ static struct ast_str *caldav_get_events_between(struct caldav_pvt *pvt, time_t 
 
 	response = caldav_request(pvt, "REPORT", body, NULL, NULL);
 	ast_free(body);
+	if (response && !ast_str_strlen(response)) {
+		ast_free(response);
+		return NULL;
+	}
 
 	return response;
 }

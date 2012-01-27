@@ -54,7 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="calendar" required="true" />
 		</syntax>
-    	<description>
+		<description>
 			<para>Check the specified calendar's current busy status.</para>
 		</description>
 		<see-also>
@@ -186,6 +186,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Example: CALENDAR_WRITE(calendar,field1,field2,field3)=val1,val2,val3</para>
 			<para>The field and value arguments can easily be set/passed using the HASHKEYS() and HASH() functions</para>
+			<variablelist>
+				<variable name="CALENDAR_SUCCESS">
+					<para>The status of the write operation to the calendar</para>
+					<value name="1" >
+						The event was successfully written to the calendar.
+					</value>
+					<value name="0" >
+						The event was not written to the calendar due to network issues, permissions, etc.
+					</value>
+				</variable>
+			</variablelist>
+
 		</description>
 		<see-also>
 			<ref type="function">CALENDAR_BUSY</ref>
@@ -1361,7 +1373,7 @@ static int calendar_write_exec(struct ast_channel *chan, const char *cmd, char *
 
 	if (!(val_dup = ast_strdup(value))) {
 		ast_log(LOG_ERROR, "Could not allocate memory for values\n");
-		return -1;
+		goto write_cleanup;
 	}
 
 	AST_STANDARD_APP_ARGS(fields, data);
@@ -1434,6 +1446,11 @@ static int calendar_write_exec(struct ast_channel *chan, const char *cmd, char *
 	}
 
 write_cleanup:
+	if (ret) {
+		pbx_builtin_setvar_helper(chan, "CALENDAR_SUCCESS", "0");
+	} else {
+		pbx_builtin_setvar_helper(chan, "CALENDAR_SUCCESS", "1");
+	}
 	if (cal) {
 		cal = unref_calendar(cal);
 	}

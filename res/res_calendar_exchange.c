@@ -505,9 +505,10 @@ static int exchangecal_write_event(struct ast_calendar_event *event)
 	ast_verb(0, "\n\n%s\n\n", ast_str_buffer(body));
 	ast_str_set(&subdir, 0, "/Calendar/%s.eml", ast_str_buffer(uid));
 
-	response = exchangecal_request(event->owner->tech_pvt, "PROPPATCH", body, subdir);
+	if ((response = exchangecal_request(event->owner->tech_pvt, "PROPPATCH", body, subdir))) {
+		ret = 0;
+	}
 
-	ret = 0;
 write_cleanup:
 	if (uid) {
 		ast_free(uid);
