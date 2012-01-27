@@ -748,12 +748,12 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	if (!(c = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "No such channel");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	if (ast_strlen_zero(fname)) {
@@ -771,7 +771,7 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 		if (ast_monitor_change_fname(c, fname, 1)) {
 			astman_send_error(s, m, "Could not start monitoring channel");
 			c = ast_channel_unref(c);
-			return 0;
+			return AMI_SUCCESS;
 		}
 	}
 
@@ -785,7 +785,7 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 
 	astman_send_ack(s, m, "Started monitoring channel");
 
-	return 0;
+	return AMI_SUCCESS;
 }
 
 /*! \brief Stop monitoring a channel by manager connection */
@@ -797,12 +797,12 @@ static int stop_monitor_action(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	if (!(c = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "No such channel");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	res = ast_monitor_stop(c, 1);
@@ -811,12 +811,12 @@ static int stop_monitor_action(struct mansession *s, const struct message *m)
 
 	if (res) {
 		astman_send_error(s, m, "Could not stop monitoring channel");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	astman_send_ack(s, m, "Stopped monitoring channel");
 
-	return 0;
+	return AMI_SUCCESS;
 }
 
 /*! \brief Change filename of a monitored channel by manager connection */
@@ -828,30 +828,30 @@ static int change_monitor_action(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	if (ast_strlen_zero(fname)) {
 		astman_send_error(s, m, "No filename specified");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	if (!(c = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "No such channel");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	if (ast_monitor_change_fname(c, fname, 1)) {
 		c = ast_channel_unref(c);
 		astman_send_error(s, m, "Could not change monitored filename of channel");
-		return 0;
+		return AMI_SUCCESS;
 	}
 
 	c = ast_channel_unref(c);
 
 	astman_send_ack(s, m, "Changed monitor filename");
 
-	return 0;
+	return AMI_SUCCESS;
 }
 
 void AST_OPTIONAL_API_NAME(ast_monitor_setjoinfiles)(struct ast_channel *chan, int turnon)
@@ -865,7 +865,7 @@ enum MONITOR_PAUSING_ACTION
 	MONITOR_ACTION_PAUSE,
 	MONITOR_ACTION_UNPAUSE
 };
- 
+
 static int do_pause_or_unpause(struct mansession *s, const struct message *m, int action)
 {
 	struct ast_channel *c = NULL;
@@ -873,12 +873,12 @@ static int do_pause_or_unpause(struct mansession *s, const struct message *m, in
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
-		return -1;
+		return AMI_SUCCESS;
 	}
 
 	if (!(c = ast_channel_get_by_name(name))) {
 		astman_send_error(s, m, "No such channel");
-		return -1;
+		return AMI_SUCCESS;
 	}
 
 	if (action == MONITOR_ACTION_PAUSE) {
@@ -891,7 +891,7 @@ static int do_pause_or_unpause(struct mansession *s, const struct message *m, in
 
 	astman_send_ack(s, m, (action == MONITOR_ACTION_PAUSE ? "Paused monitoring of the channel" : "Unpaused monitoring of the channel"));
 
-	return 0;
+	return AMI_SUCCESS;
 }
 
 static int pause_monitor_action(struct mansession *s, const struct message *m)
@@ -903,7 +903,6 @@ static int unpause_monitor_action(struct mansession *s, const struct message *m)
 {
 	return do_pause_or_unpause(s, m, MONITOR_ACTION_UNPAUSE);
 }
-	
 
 static int load_module(void)
 {
