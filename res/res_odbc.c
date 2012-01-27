@@ -911,7 +911,7 @@ static int load_odbc_config(void)
 
 static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ao2_iterator aoi = ao2_iterator_init(class_container, 0);
+	struct ao2_iterator aoi;
 	struct odbc_class *class;
 	struct odbc_obj *current;
 	int length = 0;
@@ -930,6 +930,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 		if (a->pos != 2)
 			return NULL;
 		length = strlen(a->word);
+		aoi = ao2_iterator_init(class_container, 0);
 		while ((class = ao2_iterator_next(&aoi))) {
 			if (!strncasecmp(a->word, class->name, length) && ++which > a->n) {
 				ret = ast_strdup(class->name);
@@ -1722,12 +1723,14 @@ static int data_odbc_provider_handler(const struct ast_data_search *search,
 
 			ao2_ref(current, -1);
 		}
+		ao2_iterator_destroy(&aoi2);
 		ao2_ref(class, -1);
 
 		if (!ast_data_search_match(search, data_odbc_class)) {
 			ast_data_remove_node(root, data_odbc_class);
 		}
 	}
+	ao2_iterator_destroy(&aoi);
 	return 0;
 }
 

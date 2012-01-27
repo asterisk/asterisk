@@ -173,6 +173,7 @@ static char *tps_taskprocessor_tab_complete(struct ast_taskprocessor *p, struct 
 		}
 		ao2_ref(p, -1);
 	}
+	ao2_iterator_destroy(&i);
 	return name;
 }
 
@@ -266,6 +267,7 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		ast_cli(a->fd, "\n%24s   %17ld %12ld %12ld", name, processed, qsize, maxqsize);
 		ao2_ref(p, -1);
 	}
+	ao2_iterator_destroy(&i);
 	tcount = ao2_container_count(tps_singletons); 
 	ast_cli(a->fd, "\n\t+---------------------+-----------------+------------+-------------+\n\t%d taskprocessors\n\n", tcount);
 	return CLI_SUCCESS;	

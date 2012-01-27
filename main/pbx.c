@@ -7446,6 +7446,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 			AST_LIST_INSERT_HEAD(&hints_stored, saved_hint, list);
 		}
 	}
+	ao2_iterator_destroy(&i);
 
 	/* save the old table and list */
 	oldtable = contexts_table;
