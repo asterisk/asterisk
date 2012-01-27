@@ -322,7 +322,7 @@ static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int rt
 	int retry = 0;
 	struct ast_rtp_instance_stats stats = {0,};
 
-	tryagain:
+tryagain:
 
 	for (i = 0; i < 2; i++) {
 		res = rtcp ? srtp_unprotect_rtcp(srtp->session, buf, len) : srtp_unprotect(srtp->session, buf, len);
@@ -348,38 +348,42 @@ static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int rt
 		if (srtp->session) {
 			struct ast_srtp_policy *policy;
 			struct ao2_iterator it;
-			int policies_count = 0;
-			
+			int policies_count;
+
 			// dealloc first
 			ast_log(LOG_WARNING, "SRTP destroy before re-create\n");
 			srtp_dealloc(srtp->session);
-			
+
 			// get the count
 			policies_count = ao2_container_count(srtp->policies);
-			
+
 			// get the first to build up
 			it = ao2_iterator_init(srtp->policies, 0);
 			policy = ao2_iterator_next(&it);
 
 			ast_log(LOG_WARNING, "SRTP try to re-create\n");
-        		if (srtp_create(&srtp->session, &policy->sp) == err_status_ok) {
-				ast_log(LOG_WARNING, "SRTP re-created with first policy\n");
-				
-				// unref first element
-				ao2_t_ref(policy, -1, "Unreffing first policy for re-creating srtp session");
-				
-				// if we have more than one policy, add them afterwards	
-				if (policies_count > 1) {
-					ast_log(LOG_WARNING, "Add all the other %d policies\n", policies_count-1);
-					while ((policy = ao2_iterator_next(&it))) {
-						srtp_add_stream(srtp->session, &policy->sp);
-						ao2_t_ref(policy, -1, "Unreffing n-th policy for re-creating srtp session");
+			if (policy) {
+				if (srtp_create(&srtp->session, &policy->sp) == err_status_ok) {
+					ast_log(LOG_WARNING, "SRTP re-created with first policy\n");
+
+					// unref first element
+					ao2_t_ref(policy, -1, "Unreffing first policy for re-creating srtp session");
+
+					// if we have more than one policy, add them afterwards
+					if (policies_count > 1) {
+						ast_log(LOG_WARNING, "Add all the other %d policies\n",
+							policies_count - 1);
+						while ((policy = ao2_iterator_next(&it))) {
+							srtp_add_stream(srtp->session, &policy->sp);
+							ao2_t_ref(policy, -1, "Unreffing n-th policy for re-creating srtp session");
+						}
 					}
+
+					retry++;
+					ao2_iterator_destroy(&it);
+					goto tryagain;
 				}
-				
-				retry++;
-				ao2_iterator_destroy(&it);
-				goto tryagain;
+				ao2_t_ref(policy, -1, "Unreffing first policy after srtp_create failed");
 			}
 			ao2_iterator_destroy(&it);
 		}

@@ -658,6 +658,7 @@ static char *complete_country(struct ast_cli_args *a)
 			break;
 		}
 	}
+	ao2_iterator_destroy(&i);
 
 	return res;
 }
@@ -835,6 +836,7 @@ static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct
 			ast_tone_zone_unlock(tz);
 			tz = ast_tone_zone_unref(tz);
 		}
+		ao2_iterator_destroy(&iter);
 		return CLI_SUCCESS;
 	}
 

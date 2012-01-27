@@ -828,11 +828,13 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		}
 
 		if (!iter) {
-			return -1;
+			res = -1;
+			goto exit;
 		}
 
 		res = ast_waitfordigit(chan, waitms);
 		if (res < 0) {
+			iter = ast_channel_iterator_destroy(iter);
 			ast_clear_flag(chan, AST_FLAG_SPYING);
 			break;
 		}
@@ -840,10 +842,12 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 			char tmp[2];
 			tmp[0] = res;
 			tmp[1] = '\0';
-			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1))
+			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
+				iter = ast_channel_iterator_destroy(iter);
 				goto exit;
-			else
+			} else {
 				ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+			}
 		}
 
 		/* reset for the next loop around, unless overridden later */
@@ -982,10 +986,12 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 			if (res == -1) {
 				ast_autochan_destroy(autochan);
+				iter = ast_channel_iterator_destroy(iter);
 				goto exit;
 			} else if (res == -2) {
 				res = 0;
 				ast_autochan_destroy(autochan);
+				iter = ast_channel_iterator_destroy(iter);
 				goto exit;
 			} else if (res > 1 && spec) {
 				struct ast_channel *next;
@@ -1005,6 +1011,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 					}
 				}
 			} else if (res == 0 && ast_test_flag(flags, OPTION_EXITONHANGUP)) {
+				iter = ast_channel_iterator_destroy(iter);
 				goto exit;
 			}
 		}
