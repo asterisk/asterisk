@@ -1131,7 +1131,7 @@ struct sip_pvt {
 	enum subscriptiontype subscribed;   /*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;                        /*!< SUBSCRIBE: ID for devicestate subscriptions */
 	int laststate;                      /*!< SUBSCRIBE: Last known extension state */
-	int dialogver;                      /*!< SUBSCRIBE: Version for subscription dialog-info */
+	uint32_t dialogver;                 /*!< SUBSCRIBE: Version for subscription dialog-info */
 
 	struct ast_dsp *dsp;                /*!< Inband DTMF or Fax CNG tone Detection dsp */
 

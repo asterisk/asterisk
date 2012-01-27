@@ -12912,7 +12912,7 @@ static void state_notify_build_xml(int state, int full, const char *exten, const
 		break;
 	case DIALOG_INFO_XML: /* SNOM subscribes in this format */
 		ast_str_append(tmp, 0, "<?xml version=\"1.0\"?>\n");
-		ast_str_append(tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver, full ? "full" : "partial", mto);
+		ast_str_append(tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%u\" state=\"%s\" entity=\"%s\">\n", p->dialogver, full ? "full" : "partial", mto);
 		if ((state & AST_EXTENSION_RINGING) && sip_cfg.notifyringing) {
 			const char *local_display = exten;
 			char *local_target = ast_strdupa(mto);
@@ -25503,7 +25503,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			if (p->subscribed == NONE) { /* if the subscribed field is not already set, and there is no accept header... */
 				transmit_response(p, "489 Bad Event", req);
 				ast_log(LOG_WARNING,"SUBSCRIBE failure: no Accept header: pvt: "
-					"stateid: %d, laststate: %d, dialogver: %d, subscribecont: "
+					"stateid: %d, laststate: %d, dialogver: %u, subscribecont: "
 					"'%s', subscribeuri: '%s'\n",
 					p->stateid,
 					p->laststate,
@@ -25529,7 +25529,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response(p, mybuf, req);
 			ast_log(LOG_WARNING,"SUBSCRIBE failure: unrecognized format:"
 				"'%s' pvt: subscribed: %d, stateid: %d, laststate: %d,"
-				"dialogver: %d, subscribecont: '%s', subscribeuri: '%s'\n",
+				"dialogver: %u, subscribecont: '%s', subscribeuri: '%s'\n",
 				unknown_acceptheader,
 				(int)p->subscribed,
 				p->stateid,
