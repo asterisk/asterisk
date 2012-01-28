@@ -1998,6 +1998,7 @@ int ast_rtp_engine_init()
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_ADPCM, 0), 0, "audio", "DVI4", 8000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0), 0, "audio", "L16", 8000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR16, 0), 0, "audio", "L16", 16000);
+	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR16, 0), 0, "audio", "L16-256", 16000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_LPC10, 0), 0, "audio", "LPC", 8000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_G729A, 0), 0, "audio", "G729", 8000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_G729A, 0), 0, "audio", "G729A", 8000);
