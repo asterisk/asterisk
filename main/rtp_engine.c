@@ -100,6 +100,7 @@ static const struct ast_rtp_mime_type {
 	{{1, AST_FORMAT_ADPCM}, "audio", "DVI4", 8000},
 	{{1, AST_FORMAT_SLINEAR}, "audio", "L16", 8000},
 	{{1, AST_FORMAT_SLINEAR16}, "audio", "L16", 16000},
+	{{1, AST_FORMAT_SLINEAR16}, "audio", "L16-256", 16000},
 	{{1, AST_FORMAT_LPC10}, "audio", "LPC", 8000},
 	{{1, AST_FORMAT_G729A}, "audio", "G729", 8000},
 	{{1, AST_FORMAT_G729A}, "audio", "G729A", 8000},
