@@ -245,10 +245,22 @@ void ast_set_default_eid(struct ast_eid *eid)
 	if (s < 0)
 		return;
 	for (x = 0; x < 10; x++) {
+		static const char *prefixes[] = { "eth", "em", "pci" };
+		unsigned int i;
+
 		memset(&ifr, 0, sizeof(ifr));
-		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", x);
-		if (ioctl(s, SIOCGIFHWADDR, &ifr))
+
+		for (i = 0; i < ARRAY_LEN(prefixes); i++) {
+			snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s%d", prefixes[i], x);
+			if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
+				break;
+			}
+		}
+
+		if (i == ARRAY_LEN(prefixes)) {
 			continue;
+		}
+
 		memcpy(eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(*eid));
 		ast_debug(1, "Seeding global EID '%s' from '%s' using 'siocgifhwaddr'\n", ast_eid_to_str(eid_str, sizeof(eid_str), eid), ifr.ifr_name);
 		close(s);
