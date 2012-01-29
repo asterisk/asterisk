@@ -6507,13 +6507,6 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		if (skinnydebug)
 			ast_verb(1, "Received Softkey Event: End Call(%d/%d)\n", instance, callreference);
 
-		if (d->hookstate == SKINNY_ONHOOK) {
-			/* Something else already put us back on hook */
-			/* Not ideal, but let's send updated time anyway, as it clears the display */
-			transmit_definetimedate(d);
-			return 0;
-		}
-
 		if (l->transfer && sub && sub->xferor && sub->owner->_state >= AST_STATE_RING) {
 			/* We're allowed to transfer, we have two active calls and
 			    we made at least one of the calls.  Let's try and transfer */
