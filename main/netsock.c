@@ -240,17 +240,17 @@ void ast_set_default_eid(struct ast_eid *eid)
 	int s, x = 0;
 	char eid_str[20];
 	struct ifreq ifr;
+	static const unsigned int MAXIF = 10;
 
 	s = socket(AF_INET, SOCK_STREAM, 0);
 	if (s < 0)
 		return;
-	for (x = 0; x < 10; x++) {
-		static const char *prefixes[] = { "eth", "em", "pci" };
+	for (x = 0; x < MAXIF; x++) {
+		static const char *prefixes[] = { "eth", "em" };
 		unsigned int i;
 
-		memset(&ifr, 0, sizeof(ifr));
-
 		for (i = 0; i < ARRAY_LEN(prefixes); i++) {
+			memset(&ifr, 0, sizeof(ifr));
 			snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s%d", prefixes[i], x);
 			if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
 				break;
@@ -258,7 +258,17 @@ void ast_set_default_eid(struct ast_eid *eid)
 		}
 
 		if (i == ARRAY_LEN(prefixes)) {
-			continue;
+			/* Try pciX#[1..N] */
+			for (i = 0; i < MAXIF; i++) {
+				memset(&ifr, 0, sizeof(ifr));
+				snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "pci%u#%u", x, i);
+				if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
+					break;
+				}
+			}
+			if (i == MAXIF) {
+				continue;
+			}
 		}
 
 		memcpy(eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(*eid));
