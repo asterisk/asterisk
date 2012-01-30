@@ -778,7 +778,7 @@ struct sip_dual {
 	struct ast_channel *chan1;   /*!< First channel involved */
 	struct ast_channel *chan2;   /*!< Second channel involved */
 	struct sip_request req;      /*!< Request that caused the transfer (REFER) */
-	int seqno;                   /*!< Sequence number */
+	uint32_t seqno;              /*!< Sequence number */
 	char *park_exten;
 	char *park_context;
 };
@@ -981,9 +981,9 @@ struct sip_pvt {
 	char via[128];                          /*!< Via: header */
 	int maxforwards;                        /*!< SIP Loop prevention */
 	struct sip_socket socket;               /*!< The socket used for this dialog */
-	unsigned int ocseq;                     /*!< Current outgoing seqno */
-	unsigned int icseq;                     /*!< Current incoming seqno */
-	unsigned int init_icseq;                /*!< Initial incoming seqno from first request */
+	uint32_t ocseq;                         /*!< Current outgoing seqno */
+	uint32_t icseq;                         /*!< Current incoming seqno */
+	uint32_t init_icseq;                    /*!< Initial incoming seqno from first request */
 	ast_group_t callgroup;                  /*!< Call group */
 	ast_group_t pickupgroup;                /*!< Pickup group */
 	int lastinvite;                         /*!< Last Cseq of invite */
@@ -1058,8 +1058,8 @@ struct sip_pvt {
 	unsigned int stalenonce:1;          /*!< Marks the current nonce as responded too */
 	char lastmsg[256];                  /*!< Last Message sent/received */
 	int amaflags;                       /*!< AMA Flags */
-	int pendinginvite;    /*!< Any pending INVITE or state NOTIFY (in subscribe pvt's) ? (seqno of this) */
-	int glareinvite;      /*!< A invite received while a pending invite is already present is stored here.  Its seqno is the
+	uint32_t pendinginvite; /*!< Any pending INVITE or state NOTIFY (in subscribe pvt's) ? (seqno of this) */
+	uint32_t glareinvite;      /*!< A invite received while a pending invite is already present is stored here.  Its seqno is the
 	                           value. Since this glare invite's seqno is not the same as the pending invite's, it must be
 	                           held in order to properly process acknowledgements for our 491 response. */
 	struct sip_request initreq;         /*!< Latest request that opened a new transaction
@@ -1139,7 +1139,7 @@ struct sip_pkt {
 	struct sip_pkt *next;     /*!< Next packet in linked list */
 	int retrans;              /*!< Retransmission number */
 	int method;               /*!< SIP method for this packet */
-	int seqno;                /*!< Sequence number */
+	uint32_t seqno;           /*!< Sequence number */
 	char is_resp;             /*!< 1 if this is a response packet (e.g. 200 OK), 0 if it is a request */
 	char is_fatal;            /*!< non-zero if there is a fatal error */
 	int response_code;        /*!< If this is a response, the response code */
@@ -1313,7 +1313,7 @@ struct sip_registry {
 	enum sipregistrystate regstate; /*!< Registration state (see above) */
 	struct timeval regtime;         /*!< Last successful registration time */
 	int callid_valid;       /*!< 0 means we haven't chosen callid for this registry yet. */
-	unsigned int ocseq;     /*!< Sequence number we got to for REGISTERs for this registry */
+	uint32_t ocseq;         /*!< Sequence number we got to for REGISTERs for this registry */
 	struct ast_dnsmgr_entry *dnsmgr;  /*!<  DNS refresh manager for register */
 	struct ast_sockaddr us;  /*!< Who the server thinks we are */
 	int noncecount;         /*!< Nonce-count */
