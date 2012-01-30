@@ -58,6 +58,10 @@ struct ast_dnsmgr_entry {
 	unsigned int family;
 	/*! Set to 1 if the entry changes */
 	unsigned int changed:1;
+	/*! Data to pass back to update_func */
+	void *data;
+	/*! The callback function to execute on address update */
+	dns_update_func update_func;
 	ast_mutex_t lock;
 	AST_RWLIST_ENTRY(ast_dnsmgr_entry) list;
 	/*! just 1 here, but we use calloc to allocate the correct size */
@@ -130,7 +134,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 	ast_free(entry);
 }
 
-int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service)
+static int internal_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service, dns_update_func func, void *data)
 {
 	unsigned int family;
 
@@ -165,7 +169,19 @@ int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_
 
 	ast_verb(3, "adding dns manager for '%s'\n", name);
 	*dnsmgr = ast_dnsmgr_get_family(name, result, service, family);
+	(*dnsmgr)->update_func = func;
+	(*dnsmgr)->data = data;
 	return !*dnsmgr;
+}
+
+int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service)
+{
+	return internal_dnsmgr_lookup(name, result, dnsmgr, service, NULL, NULL);
+}
+
+int ast_dnsmgr_lookup_cb(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service, dns_update_func func, void *data)
+{
+	return internal_dnsmgr_lookup(name, result, dnsmgr, service, func, data);
 }
 
 /*
@@ -187,16 +203,19 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 		if (!ast_sockaddr_port(&tmp)) {
 			ast_sockaddr_set_port(&tmp, ast_sockaddr_port(entry->result));
 		}
-
 		if (ast_sockaddr_cmp(&tmp, entry->result)) {
 			const char *old_addr = ast_strdupa(ast_sockaddr_stringify(entry->result));
 			const char *new_addr = ast_strdupa(ast_sockaddr_stringify(&tmp));
 
-			ast_log(LOG_NOTICE, "dnssrv: host '%s' changed from %s to %s\n",
-					entry->name, old_addr, new_addr);
+			if (entry->update_func) {
+				entry->update_func(entry->result, &tmp, entry->data);
+			} else {
+				ast_log(LOG_NOTICE, "dnssrv: host '%s' changed from %s to %s\n",
+						entry->name, old_addr, new_addr);
 
-			ast_sockaddr_copy(entry->result, &tmp);
-			changed = entry->changed = 1;
+				ast_sockaddr_copy(entry->result, &tmp);
+				changed = entry->changed = 1;
+			}
 		}
 	}
 
