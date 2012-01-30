@@ -4008,7 +4008,7 @@ int __sip_ack(struct sip_pvt *p, uint32_t seqno, int resp, int sipmethod)
 			res = TRUE;
 			msg = "Found";
 			if (!resp && (seqno == p->pendinginvite)) {
-				ast_debug(1, "Acked pending invite %d\n", p->pendinginvite);
+				ast_debug(1, "Acked pending invite %u\n", p->pendinginvite);
 				p->pendinginvite = 0;
 			}
 			if (cur->retransid > -1) {
@@ -25885,7 +25885,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 			return 0;
 		}
 		if (p->ocseq && (p->ocseq < seqno)) {
-			ast_debug(1, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
+			ast_debug(1, "Ignoring out of order response %u (expecting %u)\n", seqno, p->ocseq);
 			return -1;
 		} else {
 			char causevar[256], causeval[256];
@@ -25924,7 +25924,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		if (p->pendinginvite && seqno == p->pendinginvite && (req->method == SIP_ACK || req->method == SIP_CANCEL)) {
 			ast_debug(2, "Got CANCEL or ACK on INVITE with transactions in between.\n");
 		} else {
-			ast_debug(1, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
+			ast_debug(1, "Ignoring too old SIP packet packet %u (expecting >= %u)\n", seqno, p->icseq);
 			if (req->method == SIP_INVITE) {
 				unsigned int ran = (ast_random() % 10) + 1;
 				char seconds[4];
@@ -25943,7 +25943,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		   respond appropriately.  We do this if we receive a repeat of
 		   the last sequence number  */
 		req->ignore = 1;
-		ast_debug(3, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
+		ast_debug(3, "Ignoring SIP message because of retransmit (%s Seqno %u, ours %u)\n", sip_methods[p->method].text, p->icseq, seqno);
 	}
 
 	/* RFC 3261 section 9. "CANCEL has no effect on a request to which a UAS has
