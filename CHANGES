@@ -16,6 +16,13 @@ Core
 ----
  * The expression parser now recognizes the ABS() absolute value function,
    which will convert negative floating point values to positive values.
+ * The Asterisk build system will now build and install a shared library
+   (libasteriskssl.so) used to wrap various initialization and shutdown functions
+   from the libssl and libcrypto libraries provided by OpenSSL. This is done so
+   that Asterisk can ensure that these functions do *not* get called by any
+   modules that are loaded into Asterisk, since they should only be called once
+   in any single process. If desired, this feature can be disabled by supplying
+   the "--disable-asteriskssl" option to the configure script.
 
 CLI Changes
 -------------------
@@ -89,7 +96,7 @@ Parking
 ------------
  * New per parking lot options: comebackcontext and comebackdialtime. See
    configs/features.conf.sample for more details.
- 
+
  * Channel variable PARKER is now set when comebacktoorigin is disabled in
    a parking lot.
 

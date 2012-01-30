@@ -39,7 +39,7 @@ varrundir=$ASTVARRUNDIR
 spooldir=$ASTSPOOLDIR
 logdir=$ASTLOGDIR
 confpath=$ASTCONFPATH
-moddir=$MODULES_DIR
+moddir=$ASTMODDIR
 agidir=$AGI_DIR
 
 Name: asterisk

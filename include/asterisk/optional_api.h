@@ -89,9 +89,6 @@
  * WARNING WARNING WARNING WARNING WARNING
  */
 
-#define __stringify_1(x)	#x
-#define __stringify(x)		__stringify_1(x)
-
 /*!
  * \brief A common value for optional API stub functions to return
  *

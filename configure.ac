@@ -47,7 +47,8 @@ AC_USE_SYSTEM_EXTENSIONS	dnl note- does not work on FreeBSD
 AC_SUBST([astsbindir],        ['${sbindir}'])dnl
 AC_SUBST([astetcdir],         ['${sysconfdir}/asterisk'])dnl
 AC_SUBST([astheaderdir],      ['${includedir}/asterisk'])dnl
-AC_SUBST([astlibdir],         ['${libdir}/asterisk'])dnl
+AC_SUBST([astlibdir],         ['${libdir}'])dnl
+AC_SUBST([astmoddir],         ['${libdir}/asterisk/modules'])dnl
 AC_SUBST([astmandir],         ['${mandir}'])dnl
 AC_SUBST([astvarlibdir],      ['${localstatedir}/lib/asterisk'])dnl
 AC_SUBST([astdatadir],        ['${astvarlibdir}'])dnl
@@ -93,7 +94,7 @@ case "${host_os}" in
      darwin*)
      ac_default_prefix=/usr/local
      if test ${prefix} = 'NONE'; then
-        astlibdir='/Library/Application Support/Asterisk/Modules'
+        astmoddir='/Library/Application Support/Asterisk/Modules'
         astvarlibdir='/Library/Application Support/Asterisk'
         astlogdir=/Library/Logs/Asterisk
         astvarrundir='/Library/Application Support/Asterisk/Run'
@@ -106,6 +107,7 @@ case "${host_os}" in
         astetcdir=/var/etc/asterisk
         astsbindir=/opt/asterisk/sbin
         astlibdir=/opt/asterisk/lib
+        astmoddir=/opt/asterisk/lib/modules
         astheaderdir=/opt/asterisk/include
         astmandir=/opt/asterisk/man
         astvarlibdir=/var/opt/asterisk
@@ -210,7 +212,7 @@ AH_BOTTOM(
 )
 
 # cross-compile checks
-if test "${cross_compiling}" = "yes"; 
+if test "${cross_compiling}" = "yes";
 then
    AC_CHECK_TOOL(CC, gcc, :)
    AC_CHECK_TOOL(CXX, g++, :)
@@ -234,8 +236,6 @@ AC_PROG_EGREP
 
 AC_CHECK_TOOLS([STRIP], [strip gstrip], :)
 AC_CHECK_TOOLS([AR], [ar gar], :)
-AC_CHECK_TOOLS([SHA1SUM], [sha1sum], $ac_aux_dir/build_tools/sha1sum-sh)
-AC_CHECK_TOOLS([OPENSSL], [openssl], :)
 
 GNU_LD=0
 if test "x$with_gnu_ld" = "xyes" ; then
@@ -271,6 +271,9 @@ else
 fi
 fi
 AC_SUBST(DOWNLOAD)
+AC_PATH_PROG([LDCONFIG], [ldconfig], :)
+AC_PATH_PROG([SHA1SUM], [sha1sum], $ac_aux_dir/build_tools/sha1sum-sh)
+AC_PATH_PROG([OPENSSL], [openssl], :)
 
 AC_CACHE_CHECK([for bison that supports parse-param], [ac_cv_path_BISON2], [
 	if test "x$BISON" != "x:" ; then
@@ -323,7 +326,7 @@ fi
 AC_CHECK_PROGS([MD5], [md5 md5sum gmd5sum digest])
 
 if test "${MD5}" = "digest" ; then
-   MD5="${MD5} -a md5"   
+   MD5="${MD5} -a md5"
 fi
 
 ACX_PTHREAD
@@ -498,7 +501,7 @@ AC_SUBST(EDITLINE_LIB)
 # Another mandatory item (unless it's explicitly disabled)
 AC_ARG_ENABLE([xmldoc],
 	[AS_HELP_STRING([--disable-xmldoc],
-		[Explicity disable XML documentation])],
+		[Explicitly disable XML documentation])],
 	[case "${enableval}" in
 		y|ye|yes) disable_xmldoc=no ;;
 		n|no)  disable_xmldoc=yes ;;
@@ -622,7 +625,7 @@ AC_SUBST(PBX_DYNAMIC_LIST)
 LDFLAGS=${old_LDFLAGS}
 rm -f conftest.dynamics
 
-AC_CHECK_HEADER([sys/poll.h], 
+AC_CHECK_HEADER([sys/poll.h],
    [HAS_POLL=1]
    AC_DEFINE([HAVE_SYS_POLL_H], 1, [Define to 1 if your system has working sys/poll.h]),
    )
@@ -637,7 +640,15 @@ AC_ARG_ENABLE([internal-poll],
 	esac])
 AC_SUBST(HAS_POLL)
 
-
+AC_ARG_ENABLE([asteriskssl],
+	[AS_HELP_STRING([--disable-asteriskssl],
+		[Disable Asterisk's SSL wrapper library])],
+	[case "${enableval}" in
+		y|ye|yes) AST_ASTERISKSSL=yes ;;
+		n|no)  AST_ASTERISKSSL=no ;;
+		*) AC_MSG_ERROR(bad value ${enableval} for --disable-asteriskssl)  ;;
+	esac], [AST_ASTERISKSSL=yes])
+AC_SUBST(AST_ASTERISKSSL)
 
 # https support (in main/http.c) uses funopen on BSD systems,
 # fopencookie on linux
@@ -1482,7 +1493,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 				fi
 			fi
 		fi
-	fi 
+	fi
 	if test "${IMAP_TK_DIR}" = "system"; then
 		#We will enter here if user specified "system" or if any of above checks failed
 		AC_MSG_CHECKING([for system c-client library...])
@@ -1740,7 +1751,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 			AC_DEFINE([HAVE_IMAP_TK2006], 1, [Define if your system has the UW IMAP Toolkit c-client library version 2006 or greater.])
 		fi
 	else
-		AC_MSG_RESULT(no) 
+		AC_MSG_RESULT(no)
 	fi
 	CPPFLAGS="${saved_cppflags}"
 	LIBS="${saved_libs}"
@@ -1811,7 +1822,7 @@ AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [sys/soundcard.h])
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
 
 PG_CONFIG=No
-if test "${USE_PGSQL}" != "no"; then	
+if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
       AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PGSQL_DIR}/bin])
       if test x"${PG_CONFIG}" = xNo; then
@@ -1837,7 +1848,7 @@ if test "${PG_CONFIG}" != No; then
          AC_MSG_NOTICE([*** including --without-postgres])
          exit 1
 	  fi
-   else 
+   else
       AC_CHECK_LIB([pq], [PQescapeStringConn], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
       [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
 
@@ -1930,7 +1941,7 @@ if test "${USE_PWLIB}" != "no"; then
 	fi
 	AST_CHECK_PWLIB()
 	AST_CHECK_PWLIB_VERSION([PWLib], [PWLIB], [ptbuildopts.h], [1], [9], [2], [P[[WT]]LIB_VERSION])
-		
+
 	if test "${HAS_PWLIB:-unset}" != "unset"; then
 		AST_CHECK_PWLIB_PLATFORM()
 
@@ -1960,7 +1971,7 @@ if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
 		[${PWLIB_INCLUDE}], [${PWLIB_LIB}])
 fi
 
-AST_EXT_LIB_CHECK([LUA], [lua5.1], [luaL_newstate], [lua5.1/lua.h], [-lm]) 
+AST_EXT_LIB_CHECK([LUA], [lua5.1], [luaL_newstate], [lua5.1/lua.h], [-lm])
 if test "x${PBX_LUA}" = "x1" ; then
 	if test x"${LUA_DIR}" = x; then
 		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.1"
@@ -1968,9 +1979,9 @@ if test "x${PBX_LUA}" = "x1" ; then
 		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.1"
 	fi
 fi
-	
+
 # Some distributions (like SuSE) remove the 5.1 suffix.
-AST_EXT_LIB_CHECK([LUA], [lua], [luaL_register], [lua.h], [-lm]) 
+AST_EXT_LIB_CHECK([LUA], [lua], [luaL_register], [lua.h], [-lm])
 
 AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
 
@@ -2136,11 +2147,11 @@ if test "${USE_VPB}" != "no"; then
 	[#include <vpbapi.h>],
 	[int q = vpb_open(0,0);])
 	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_lib_vpb_vpb_open="yes" 
+	[	AC_MSG_RESULT(yes)
+		ac_cv_lib_vpb_vpb_open="yes"
 	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_lib_vpb_vpb_open="no" 
+	[	AC_MSG_RESULT(no)
+		ac_cv_lib_vpb_vpb_open="no"
 	]
 	)
    LIBS="${saved_libs}"
@@ -2322,8 +2333,8 @@ fi
 AC_MSG_NOTICE(Package configured for: )
 AC_MSG_NOTICE( OS type  : $host_os)
 AC_MSG_NOTICE( Host CPU : $host_cpu)
-AC_MSG_NOTICE( build-cpu:vendor:os: $build_cpu : $build_vendor : $build_os :) 
-AC_MSG_NOTICE( host-cpu:vendor:os: $host_cpu : $host_vendor : $host_os :) 
+AC_MSG_NOTICE( build-cpu:vendor:os: $build_cpu : $build_vendor : $build_os :)
+AC_MSG_NOTICE( host-cpu:vendor:os: $host_cpu : $host_vendor : $host_os :)
 if test "${cross_compiling}" = "yes"; then
    AC_MSG_NOTICE( Cross Compilation = YES)
 fi

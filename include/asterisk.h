@@ -224,4 +224,8 @@ struct ast_sched_context;
 #define bzero  0x__dont_use_bzero__use_memset_instead""
 #define bcopy  0x__dont_use_bcopy__use_memmove_instead()
 
+/* Some handy macros for turning a preprocessor token into (effectively) a quoted string */
+#define __stringify_1(x)	#x
+#define __stringify(x)		__stringify_1(x)
+
 #endif /* _ASTERISK_H */
