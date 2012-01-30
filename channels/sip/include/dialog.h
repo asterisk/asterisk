@@ -67,13 +67,13 @@ void dialog_unlink_all(struct sip_pvt *dialog);
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission
  * called with p locked*/
-int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
+int __sip_ack(struct sip_pvt *p, uint32_t seqno, int resp, int sipmethod);
 
 /*! \brief Pretend to ack all packets
  * called with p locked */
 void __sip_pretend_ack(struct sip_pvt *p);
 
 /*! \brief Acks receipt of packet, keep it around (used for provisional responses) */
-int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
+int __sip_semi_ack(struct sip_pvt *p, uint32_t seqno, int resp, int sipmethod);
 
 #endif /* defined(_SIP_DIALOG_H) */
