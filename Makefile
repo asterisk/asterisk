@@ -892,7 +892,7 @@ uninstall: _uninstall
 	@echo " +-------------------------------------------+"
 
 uninstall-all: _uninstall
-	rm -rf "$(DESTDIR)$(ASTLIBDIR)"
+	rm -rf "$(DESTDIR)$(ASTMODDIR)"
 	rm -rf "$(DESTDIR)$(ASTVARLIBDIR)"
 	rm -rf "$(DESTDIR)$(ASTDATADIR)"
 	rm -rf "$(DESTDIR)$(ASTSPOOLDIR)"
