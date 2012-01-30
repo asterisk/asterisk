@@ -37,6 +37,8 @@ extern "C" {
  */
 struct ast_dnsmgr_entry;
 
+typedef void (*dns_update_func)(struct ast_sockaddr *old_addr, struct ast_sockaddr *new_addr, void *data);
+
 /*!
  * \brief Allocate a new DNS manager entry
  *
@@ -103,6 +105,31 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry);
  * \version 1.6.1 result changed from struct in_addr to struct aockaddr_in to store port number
  */
 int ast_dnsmgr_lookup(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service);
+
+/*!
+ * \brief Allocate and initialize a DNS manager entry, with update callback
+ *
+ * \param name the hostname
+ * \param result The addr which is intended to be updated in the update callback when DNS manager calls it on refresh.
+ * The address family is used as an input parameter to filter the returned addresses.
+ * If it is 0, both IPv4 and IPv6 addresses can be returned.
+ * \param dnsmgr Where to store the allocate DNS manager entry
+ * \param service
+ * \param func The update callback function
+ * The update callback will be called when DNS manager detects that an IP address has been changed.
+ * Instead of updating the addr itself, DNS manager will call this callback function with the old
+ * and new addresses. It is the responsibility of the callback to perform any updates
+ * \param data A pointer to data that will be passed through to the callback function
+ *
+ * \note
+ * This function allocates a new DNS manager entry object, and fills it with
+ * the provided hostname and IP address.  This function _does_ force an initial
+ * lookup, so it may block for some period of time.
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ */
+int ast_dnsmgr_lookup_cb(const char *name, struct ast_sockaddr *result, struct ast_dnsmgr_entry **dnsmgr, const char *service, dns_update_func func, void *data);
 
 /*!
  * \brief Force a refresh of a dnsmgr entry
