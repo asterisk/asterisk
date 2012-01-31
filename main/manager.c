@@ -3687,12 +3687,12 @@ static int action_command(struct mansession *s, const struct message *m)
 
 /*! \brief helper function for originate */
 struct fast_originate_helper {
-	char tech[AST_MAX_EXTENSION];
-	/*! data can contain a channel name, extension number, username, password, etc. */
-	char data[512];
 	int timeout;
 	struct ast_format_cap *cap;				/*!< Codecs used for a call */
 	AST_DECLARE_STRING_FIELDS (
+		AST_STRING_FIELD(tech);
+		/*! data can contain a channel name, extension number, username, password, etc. */
+		AST_STRING_FIELD(data);
 		AST_STRING_FIELD(app);
 		AST_STRING_FIELD(appdata);
 		AST_STRING_FIELD(cid_name);
@@ -3706,6 +3706,21 @@ struct fast_originate_helper {
 	struct ast_variable *vars;
 };
 
+/*!
+ * \internal
+ *
+ * \param doomed Struct to destroy.
+ *
+ * \return Nothing
+ */
+static void destroy_fast_originate_helper(struct fast_originate_helper *doomed)
+{
+	ast_format_cap_destroy(doomed->cap);
+	ast_variables_destroy(doomed->vars);
+	ast_string_field_free_memory(doomed);
+	ast_free(doomed);
+}
+
 static void *fast_originate(void *data)
 {
 	struct fast_originate_helper *in = data;
@@ -3715,16 +3730,20 @@ static void *fast_originate(void *data)
 	char requested_channel[AST_CHANNEL_NAME];
 
 	if (!ast_strlen_zero(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, in->cap, in->data, in->timeout, in->app, in->appdata, &reason, 1,
+		res = ast_pbx_outgoing_app(in->tech, in->cap, (char *) in->data,
+			in->timeout, in->app, in->appdata, &reason, 1,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, in->cap, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1,
+		res = ast_pbx_outgoing_exten(in->tech, in->cap, (char *) in->data,
+			in->timeout, in->context, in->exten, in->priority, &reason, 1,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan);
 	}
+	/* Any vars memory was passed to the ast_pbx_outgoing_xxx() calls. */
+	in->vars = NULL;
 
 	if (!chan) {
 		snprintf(requested_channel, AST_CHANNEL_NAME, "%s/%s", in->tech, in->data);
@@ -3732,7 +3751,7 @@ static void *fast_originate(void *data)
 	/* Tell the manager what happened with the channel */
 	chans[0] = chan;
 	ast_manager_event_multichan(EVENT_FLAG_CALL, "OriginateResponse", chan ? 1 : 0, chans,
-		"%s%s"
+		"%s"
 		"Response: %s\r\n"
 		"Channel: %s\r\n"
 		"Context: %s\r\n"
@@ -3741,7 +3760,7 @@ static void *fast_originate(void *data)
 		"Uniqueid: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
-		in->idtext, ast_strlen_zero(in->idtext) ? "" : "\r\n", res ? "Failure" : "Success",
+		in->idtext, res ? "Failure" : "Success",
 		chan ? ast_channel_name(chan) : requested_channel, in->context, in->exten, reason,
 		chan ? ast_channel_uniqueid(chan) : "<null>",
 		S_OR(in->cid_num, "<unknown>"),
@@ -3752,9 +3771,7 @@ static void *fast_originate(void *data)
 	if (chan) {
 		ast_channel_unlock(chan);
 	}
-	in->cap = ast_format_cap_destroy(in->cap);
-	ast_string_field_free_memory(in);
-	ast_free(in);
+	destroy_fast_originate_helper(in);
 	return NULL;
 }
 
@@ -4098,18 +4115,19 @@ static int action_originate(struct mansession *s, const struct message *m)
 	vars = astman_get_variables(m);
 
 	if (ast_true(async)) {
-		struct fast_originate_helper *fast = ast_calloc(1, sizeof(*fast));
+		struct fast_originate_helper *fast;
+
+		fast = ast_calloc(1, sizeof(*fast));
 		if (!fast || ast_string_field_init(fast, 252)) {
-			if (fast) {
-				ast_free(fast);
-			}
+			ast_free(fast);
+			ast_variables_destroy(vars);
 			res = -1;
 		} else {
 			if (!ast_strlen_zero(id)) {
-				ast_string_field_build(fast, idtext, "ActionID: %s", id);
+				ast_string_field_build(fast, idtext, "ActionID: %s\r\n", id);
 			}
-			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
-			ast_copy_string(fast->data, data, sizeof(fast->data));
+			ast_string_field_set(fast, tech, tech);
+			ast_string_field_set(fast, data, data);
 			ast_string_field_set(fast, app, app);
 			ast_string_field_set(fast, appdata, appdata);
 			ast_string_field_set(fast, cid_num, l);
@@ -4123,9 +4141,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			fast->timeout = to;
 			fast->priority = pi;
 			if (ast_pthread_create_detached(&th, NULL, fast_originate, fast)) {
-				ast_format_cap_destroy(fast->cap);
-				ast_string_field_free_memory(fast);
-				ast_free(fast);
+				destroy_fast_originate_helper(fast);
 				res = -1;
 			} else {
 				res = 0;
@@ -4133,14 +4149,14 @@ static int action_originate(struct mansession *s, const struct message *m)
 		}
 	} else if (!ast_strlen_zero(app)) {
 		res = ast_pbx_outgoing_app(tech, cap, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
+		/* Any vars memory was passed to ast_pbx_outgoing_app(). */
 	} else {
 		if (exten && context && pi) {
 			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
+			/* Any vars memory was passed to ast_pbx_outgoing_exten(). */
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
-			if (vars) {
-				ast_variables_destroy(vars);
-			}
+			ast_variables_destroy(vars);
 			res = 0;
 			goto fast_orig_cleanup;
 		}

@@ -516,7 +516,10 @@ struct ast_channel_tech {
 
 	int properties;         /*!< Technology Properties */
 
-	/*! \brief Requester - to set up call data structures (pvt's) */
+	/*!
+	 * \brief Requester - to set up call data structures (pvt's)
+	 * \note data should be treated as const char *.
+	 */
 	struct ast_channel *(* const requester)(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
 
 	int (* const devicestate)(void *data);	/*!< Devicestate call back */
@@ -535,8 +538,11 @@ struct ast_channel_tech {
 	 */
 	int (* const send_digit_end)(struct ast_channel *chan, char digit, unsigned int duration);
 
-	/*! \brief Call a given phone number (address, etc), but don't
-	 *  take longer than timeout seconds to do so.  */
+	/*!
+	 * \brief Call a given phone number (address, etc), but don't
+	 * take longer than timeout seconds to do so.
+	 * \note addr should be treated as const char *.
+	 */
 	int (* const call)(struct ast_channel *chan, char *addr, int timeout);
 
 	/*! \brief Hangup (and possibly destroy) the channel */
@@ -1296,7 +1302,7 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  * \param type type of channel to request
  * \param format capabilities for requested channel
  * \param requestor channel asking for data
- * \param data data to pass to the channel requester
+ * \param data data to pass to the channel requester (Should be treated as const char *)
  * \param status status
  *
  * \details
@@ -1617,7 +1623,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer);
  * \brief Make a call
  * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \param chan which channel to make the call on
- * \param addr destination of the call
+ * \param addr destination of the call (Should be treated as const char *)
  * \param timeout time to wait on for connect
  * \details
  * Place a call, take no longer than timeout ms.
