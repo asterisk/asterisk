@@ -52,17 +52,17 @@ enum ast_audiohook_direction {
 };
 
 enum ast_audiohook_flags {
-	AST_AUDIOHOOK_TRIGGER_MODE = (3 << 0),  /*!< When audiohook should be triggered to do something */
-	AST_AUDIOHOOK_TRIGGER_READ = (1 << 0),  /*!< Audiohook wants to be triggered when reading audio in */
+	AST_AUDIOHOOK_TRIGGER_MODE  = (3 << 0), /*!< When audiohook should be triggered to do something */
+	AST_AUDIOHOOK_TRIGGER_READ  = (1 << 0), /*!< Audiohook wants to be triggered when reading audio in */
 	AST_AUDIOHOOK_TRIGGER_WRITE = (2 << 0), /*!< Audiohook wants to be triggered when writing audio out */
-	AST_AUDIOHOOK_WANTS_DTMF = (1 << 1),    /*!< Audiohook also wants to receive DTMF frames */
-	AST_AUDIOHOOK_TRIGGER_SYNC = (1 << 2),  /*!< Audiohook wants to be triggered when both sides have combined audio available */
+	AST_AUDIOHOOK_WANTS_DTMF    = (1 << 2), /*!< Audiohook also wants to receive DTMF frames */
+	AST_AUDIOHOOK_TRIGGER_SYNC  = (1 << 3), /*!< Audiohook wants to be triggered when both sides have combined audio available */
 	/*! Audiohooks with this flag set will not allow for a large amount of samples to build up on its
 	 * slinfactories. We will flush the factories if they contain too many samples.
 	 */
-	AST_AUDIOHOOK_SMALL_QUEUE = (1 << 3),
-	AST_AUDIOHOOK_MUTE_READ = (1 << 4),     /*!< audiohook should be mute frames read */
-	AST_AUDIOHOOK_MUTE_WRITE = (1 << 5),    /*!< audiohook should be mute frames written */
+	AST_AUDIOHOOK_SMALL_QUEUE   = (1 << 4),
+	AST_AUDIOHOOK_MUTE_READ     = (1 << 5), /*!< audiohook should be mute frames read */
+	AST_AUDIOHOOK_MUTE_WRITE    = (1 << 6), /*!< audiohook should be mute frames written */
 };
 
 enum ast_audiohook_init_flags {
