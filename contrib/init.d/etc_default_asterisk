@@ -28,6 +28,9 @@ COLOR=yes
 #MAXCALLS=1000
 
 # Default console verbosity.  This may be raised or lowered on the console.
+# Note this is analogous to the -v command line switch, which by default
+# will cause Asterisk to start in console mode and run in the foreground,
+# unless the always fork (-F) option is also provided.
 #VERBOSITY=3
 
 # Enable internal timing if the DAHDI timer is available.  The default
