@@ -17255,7 +17255,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	
 /* the last argument is left-aligned, so we don't need a size anyways */
 #define FORMAT2 "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-11s %-32.32s %s\n"
-#define FORMAT  "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8d %-11s %-32.32s %s\n"
+#define FORMAT  "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-11s %-32.32s %s\n"
 
 	char name[256];
 	int total_peers = 0;
@@ -17359,7 +17359,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ", 	/* permit/deny */
-			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr), status,
+			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_stringify_port(&peer->addr), status,
 			peer->description ? peer->description : "",
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 
@@ -17369,7 +17369,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ",       /* permit/deny */
-			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr), status,
+			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_stringify_port(&peer->addr), status,
 			peer->description ? peer->description : "",
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 		} else {	/* Manager format */
@@ -17380,7 +17380,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			"ObjectName: %s\r\n"
 			"ChanObjectType: peer\r\n"	/* "peer" or "user" */
 			"IPaddress: %s\r\n"
-			"IPport: %d\r\n"
+			"IPport: %s\r\n"
 			"Dynamic: %s\r\n"
 			"Forcerport: %s\r\n"
 			"VideoSupport: %s\r\n"
@@ -17391,8 +17391,8 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			"Description: %s\r\n\r\n",
 			idtext,
 			peer->name,
-			ast_sockaddr_isnull(&peer->addr) ? "-none-" : ast_sockaddr_stringify_fmt(&peer->addr, AST_SOCKADDR_STR_HOST),
-			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_port(&peer->addr),
+			ast_sockaddr_isnull(&peer->addr) ? "-none-" : ast_sockaddr_stringify_addr(&peer->addr),
+			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_stringify_port(&peer->addr),
 			peer->host_dynamic ? "yes" : "no", 	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",	/* NAT=yes? */
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
