@@ -1421,17 +1421,17 @@ static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
 	const char *name = arg;
-	size_t name_len = *(size_t *)data;
+	size_t name_len = *(size_t *) data;
 	int ret = CMP_MATCH;
 
 	if (ast_strlen_zero(name)) {
-		ast_log(LOG_ERROR, "BUG! Must supply a name, or a channel with a name to match on!\n");
+		ast_log(LOG_ERROR, "BUG! Must supply a channel name or partial name to match!\n");
 		return CMP_STOP;
 	}
 
 	ast_channel_lock(chan);
-
-	if ((!name_len && strcasecmp(ast_channel_name(chan), name)) || (name_len && strncasecmp(ast_channel_name(chan), name, name_len))) {
+	if ((!name_len && strcasecmp(ast_channel_name(chan), name))
+		|| (name_len && strncasecmp(ast_channel_name(chan), name, name_len))) {
 		ret = 0; /* name match failed, keep looking */
 	}
 	ast_channel_unlock(chan);
@@ -1442,7 +1442,8 @@ static int ast_channel_by_name_cb(void *obj, void *arg, void *data, int flags)
 static int ast_channel_by_exten_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *chan = obj;
-	char *context = arg, *exten = data;
+	char *context = arg;
+	char *exten = data;
 	int ret = CMP_MATCH;
 
 	if (ast_strlen_zero(exten) || ast_strlen_zero(context)) {
@@ -1465,18 +1466,18 @@ static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flag
 {
 	struct ast_channel *chan = obj;
 	char *uniqueid = arg;
-	size_t name_len = *(size_t *) data;
+	size_t id_len = *(size_t *) data;
 	int ret = CMP_MATCH;
 
 	if (ast_strlen_zero(uniqueid)) {
-		ast_log(LOG_ERROR, "BUG! Must have a uniqueid to match!\n");
+		ast_log(LOG_ERROR, "BUG! Must supply a uniqueid or partial uniqueid to match!\n");
 		return CMP_STOP;
 	}
 
 	ast_channel_lock(chan);
-	if ((!name_len && strcasecmp(ast_channel_uniqueid(chan), uniqueid)) ||
-			(name_len && strncasecmp(ast_channel_uniqueid(chan), uniqueid, name_len))) {
-		ret = 0;
+	if ((!id_len && strcasecmp(ast_channel_uniqueid(chan), uniqueid))
+		|| (id_len && strncasecmp(ast_channel_uniqueid(chan), uniqueid, id_len))) {
+		ret = 0; /* uniqueid match failed, keep looking */
 	}
 	ast_channel_unlock(chan);
 
@@ -1500,11 +1501,9 @@ struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_ite
 	return NULL;
 }
 
-static struct ast_channel_iterator *channel_iterator_search(const char *name,
-	size_t name_len, const char *exten, const char *context)
+struct ast_channel_iterator *ast_channel_iterator_by_exten_new(const char *exten, const char *context)
 {
 	struct ast_channel_iterator *i;
-	char *l_name = (char *) name;
 	char *l_exten = (char *) exten;
 	char *l_context = (char *) context;
 
@@ -1512,14 +1511,9 @@ static struct ast_channel_iterator *channel_iterator_search(const char *name,
 		return NULL;
 	}
 
-	if (ast_strlen_zero(name)
-		&& !(i->active_iterator = (void *) ast_channel_callback(ast_channel_by_exten_cb,
-			l_context, l_exten, OBJ_MULTIPLE))) {
-		ast_free(i);
-		return NULL;
-	} else if (!(i->active_iterator = (void *) ast_channel_callback(ast_channel_by_name_cb,
-		l_name, &name_len,
-		OBJ_MULTIPLE | (name_len == 0 /* match the whole word, so optimize */ ? OBJ_KEY : 0)))) {
+	i->active_iterator = (void *) ast_channel_callback(ast_channel_by_exten_cb,
+		l_context, l_exten, OBJ_MULTIPLE);
+	if (!i->active_iterator) {
 		ast_free(i);
 		return NULL;
 	}
@@ -1527,14 +1521,24 @@ static struct ast_channel_iterator *channel_iterator_search(const char *name,
 	return i;
 }
 
-struct ast_channel_iterator *ast_channel_iterator_by_exten_new(const char *exten, const char *context)
-{
-	return channel_iterator_search(NULL, 0, exten, context);
-}
-
 struct ast_channel_iterator *ast_channel_iterator_by_name_new(const char *name, size_t name_len)
 {
-	return channel_iterator_search(name, name_len, NULL, NULL);
+	struct ast_channel_iterator *i;
+	char *l_name = (char *) name;
+
+	if (!(i = ast_calloc(1, sizeof(*i)))) {
+		return NULL;
+	}
+
+	i->active_iterator = (void *) ast_channel_callback(ast_channel_by_name_cb,
+		l_name, &name_len,
+		OBJ_MULTIPLE | (name_len == 0 /* match the whole word, so optimize */ ? OBJ_KEY : 0));
+	if (!i->active_iterator) {
+		ast_free(i);
+		return NULL;
+	}
+
+	return i;
 }
 
 struct ast_channel_iterator *ast_channel_iterator_all_new(void)
@@ -1559,67 +1563,41 @@ struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i)
 /* Legacy function, not currently used for lookups, but we need a cmp_fn */
 static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 {
-	struct ast_channel *cmp_args = arg;
-	size_t name_len;
-	int ret = CMP_MATCH;
-
-	/* This is sort of a hack.  Basically, we're using an arbitrary field
-	 * in ast_channel to pass the name_len for a prefix match.  If this
-	 * gets changed, then the uses of ao2_find() must be changed, too. */
-	name_len = cmp_args->rings;
-
-	if (!ast_strlen_zero(ast_channel_name(cmp_args))) { /* match by name */
-		ret = ast_channel_by_name_cb(obj, arg, &name_len, flags);
-	} else if (!ast_strlen_zero(cmp_args->exten)) {
-		ret = ast_channel_by_exten_cb(obj, cmp_args->context, cmp_args->exten, flags);
-	} else if (!ast_strlen_zero(ast_channel_uniqueid(cmp_args))) {
-		ret = ast_channel_by_uniqueid_cb(obj, (void *) ast_channel_uniqueid(cmp_args), &name_len, flags);
-	} else {
-		ret = 0;
-	}
-
-	return ret;
+	ast_log(LOG_ERROR, "BUG! Should never be called!\n");
+	return CMP_STOP;
 }
 
-static struct ast_channel *ast_channel_get_full(const char *name, size_t name_len,
-	const char *exten, const char *context)
+struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name_len)
 {
 	struct ast_channel *chan;
 	char *l_name = (char *) name;
-	char *l_exten = (char *) exten;
-	char *l_context = (char *) context;
 
-	if (ast_strlen_zero(name)
-		&& (chan = ast_channel_callback(ast_channel_by_exten_cb, l_context, l_exten, 0))) {
-		return chan;
-	} else if ((chan = ast_channel_callback(ast_channel_by_name_cb, l_name, &name_len,
-		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0))) {
+	chan = ast_channel_callback(ast_channel_by_name_cb, l_name, &name_len,
+		(name_len == 0) /* optimize if it is a complete name match */ ? OBJ_KEY : 0);
+	if (chan) {
 		return chan;
 	}
 
-	/* If we haven't found by name or context yet and don't have a name, give up. */
-	if (!name) {
+	if (ast_strlen_zero(l_name)) {
+		/* We didn't have a name to search for so quit. */
 		return NULL;
 	}
 
-	/* If name was specified, but the result was NULL, 
-	 * try a search on uniqueid, instead. */
+	/* Now try a search for uniqueid. */
 	return ast_channel_callback(ast_channel_by_uniqueid_cb, l_name, &name_len, 0);
 }
 
 struct ast_channel *ast_channel_get_by_name(const char *name)
 {
-	return ast_channel_get_full(name, 0, NULL, NULL);
-}
-
-struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name_len)
-{
-	return ast_channel_get_full(name, name_len, NULL, NULL);
+	return ast_channel_get_by_name_prefix(name, 0);
 }
 
 struct ast_channel *ast_channel_get_by_exten(const char *exten, const char *context)
 {
-	return ast_channel_get_full(NULL, 0, exten, context);
+	char *l_exten = (char *) exten;
+	char *l_context = (char *) context;
+
+	return ast_channel_callback(ast_channel_by_exten_cb, l_context, l_exten, 0);
 }
 
 int ast_is_deferrable_frame(const struct ast_frame *frame)

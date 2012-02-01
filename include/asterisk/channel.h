@@ -2527,10 +2527,11 @@ struct ast_channel_iterator;
 /*!
  * \brief Destroy a channel iterator
  *
- * \arg i the itereator to destroy
+ * \param i the itereator to destroy
  *
+ * \details
  * This function is used to destroy a channel iterator that was retrieved by
- * using one of the channel_iterator_new() functions.
+ * using one of the channel_iterator_xxx_new() functions.
  *
  * \return NULL, for convenience to clear out the pointer to the iterator that
  * was just destroyed.
@@ -2542,12 +2543,15 @@ struct ast_channel_iterator *ast_channel_iterator_destroy(struct ast_channel_ite
 /*!
  * \brief Create a new channel iterator based on extension
  *
- * \arg exten The extension that channels must be in
- * \arg context The context that channels must be in (optional)
+ * \param exten The extension that channels must be in
+ * \param context The context that channels must be in
  *
+ * \details
  * After creating an iterator using this function, the ast_channel_iterator_next()
  * function can be used to iterate through all channels that are currently
  * in the specified context and extension.
+ *
+ * \note You must call ast_channel_iterator_destroy() when done.
  *
  * \retval NULL on failure
  * \retval a new channel iterator based on the specified parameters
@@ -2559,14 +2563,17 @@ struct ast_channel_iterator *ast_channel_iterator_by_exten_new(const char *exten
 /*!
  * \brief Create a new channel iterator based on name
  *
- * \arg name channel name or channel uniqueid to match
- * \arg name_len number of characters in the channel name to match on.  This
+ * \param name channel name or channel uniqueid to match
+ * \param name_len number of characters in the channel name to match on.  This
  *      would be used to match based on name prefix.  If matching on the full
  *      channel name is desired, then this parameter should be 0.
  *
+ * \details
  * After creating an iterator using this function, the ast_channel_iterator_next()
  * function can be used to iterate through all channels that exist that have
  * the specified name or name prefix.
+ *
+ * \note You must call ast_channel_iterator_destroy() when done.
  *
  * \retval NULL on failure
  * \retval a new channel iterator based on the specified parameters
@@ -2578,8 +2585,11 @@ struct ast_channel_iterator *ast_channel_iterator_by_name_new(const char *name,	
 /*!
  * \brief Create a new channel iterator
  *
+ * \details
  * After creating an iterator using this function, the ast_channel_iterator_next()
  * function can be used to iterate through all channels that exist.
+ *
+ * \note You must call ast_channel_iterator_destroy() when done.
  *
  * \retval NULL on failure
  * \retval a new channel iterator
@@ -2591,9 +2601,10 @@ struct ast_channel_iterator *ast_channel_iterator_all_new(void);
 /*!
  * \brief Get the next channel for a channel iterator
  *
- * \arg i the channel iterator that was created using one of the
- *  channel_iterator_new() functions.
+ * \param i the channel iterator that was created using one of the
+ *  channel_iterator_xxx_new() functions.
  *
+ * \details
  * This function should be used to iterate through all channels that match a
  * specified set of parameters that were provided when the iterator was created.
  *
@@ -2610,6 +2621,7 @@ struct ast_channel *ast_channel_iterator_next(struct ast_channel_iterator *i);
 /*!
  * \brief Call a function with every active channel
  *
+ * \details
  * This function executes a callback one time for each active channel on the
  * system.  The channel is provided as an argument to the function.
  *
@@ -2624,8 +2636,9 @@ struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
 /*!
  * \brief Find a channel by name
  *
- * \arg name the name or uniqueid of the channel to search for
+ * \param name the name or uniqueid of the channel to search for
  *
+ * \details
  * Find a channel that has the same name as the provided argument.
  *
  * \retval a channel with the name specified by the argument
@@ -2638,9 +2651,10 @@ struct ast_channel *ast_channel_get_by_name(const char *name);
 /*!
  * \brief Find a channel by a name prefix
  *
- * \arg name The channel name or uniqueid prefix to search for
- * \arg name_len Only search for up to this many characters from the name
+ * \param name The channel name or uniqueid prefix to search for
+ * \param name_len Only search for up to this many characters from the name
  *
+ * \details
  * Find a channel that has the same name prefix as specified by the arguments.
  *
  * \retval a channel with the name prefix specified by the arguments
@@ -2653,9 +2667,10 @@ struct ast_channel *ast_channel_get_by_name_prefix(const char *name, size_t name
 /*!
  * \brief Find a channel by extension and context
  *
- * \arg exten the extension to search for
- * \arg context the context to search for (optional)
+ * \param exten the extension to search for
+ * \param context the context to search for
  *
+ * \details
  * Return a channel that is currently at the specified extension and context.
  *
  * \retval a channel that is at the specified extension and context
