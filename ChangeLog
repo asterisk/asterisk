@@ -1,6 +1,9 @@
-2012-01-30  Asterisk Development Team <asteriskteam@digium.com>
+2012-02-01  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.2.0-rc1 Released.
+
+	* Test results:
+	  http://bamboo.asterisk.org/browse/TESTING-ASTERISK1020RCS-2
 
 2012-01-30 12:48 +0000 [r353261]  Kevin P. Fleming <kpfleming@digium.com>
 
