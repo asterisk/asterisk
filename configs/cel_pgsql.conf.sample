@@ -54,6 +54,11 @@
 ;	extra
 
 [global]
+; Use 'show_user_defined' to put "USER_DEFINED" in the eventtype field,
+; instead of (by default) just putting the user defined event name there.
+;
+;show_user_defined=yes
+
 ;hostname=localhost
 ;port=5432
 ;dbname=asterisk

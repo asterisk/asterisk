@@ -24,6 +24,7 @@
 ;
 ;    eventtype   - The name of the CEL event.
 ;    eventtime   - The timestamp of the CEL event.
+;    eventenum   - Like eventtype but is "USER_DEFINED" for a user defined event.
 ;    userdeftype - User defined event type name from CELGenUserEvent().
 ;    eventextra  - Extra data included with this CEL event, typically along with
 ;                  an event of type USER_DEFINED from CELGenUserEvent().

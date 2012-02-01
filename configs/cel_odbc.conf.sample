@@ -2,6 +2,13 @@
 ; Asterisk Channel Event Logging (CEL) - Adaptive ODBC Backend
 ;
 
+; General module options category.
+[general]
+; Use 'show_user_defined' to put "USER_DEFINED" in the eventtype field,
+; instead of (by default) just putting the user defined event name there.
+;
+;show_user_defined=yes
+
 ; This configuration defines the connections and tables for which CEL records
 ; may be populated.  Each context specifies a different CEL table to be used.
 ;
@@ -90,7 +97,7 @@
 ;alias dst => dest
 ;alias dstchannel => dest_channel
 
-; Any filter specified MUST match exactly or the CE will be discarded
+; Any filter specified MUST match exactly or the event will be discarded
 ;filter accountcode => somename
 ;filter src => 123
 

@@ -19,17 +19,17 @@
  * \brief FreeTDS CEL logger
  *
  * See also
- * \arg \ref Config_cdr
+ * \arg \ref Config_cel
  * \arg http://www.freetds.org/
- * \ingroup cdr_drivers
+ * \ingroup cel_drivers
  */
 
 /*! \verbatim
  *
- * Table Structure for `cdr`
+ * Table Structure for `cel`
  *
 
-CREATE TABLE [dbo].[cdr] (
+CREATE TABLE [dbo].[cel] (
 	[accountcode] [varchar] (20) NULL ,
 	[cidname] [varchar] (80) NULL ,
 	[cidnum] [varchar] (80) NULL ,
@@ -204,7 +204,9 @@ retry:
 		")",
 		settings->table, accountcode_ai, clidnum_ai, clid_ai, cidani_ai, cidrdnis_ai,
 		ciddnid_ai, exten_ai, context_ai, channel_ai, app_ai, appdata_ai, start,
-		record.event_name, ast_cel_get_ama_flag_name(record.amaflag), uniqueid_ai, linkedid_ai,
+		(record.event_type == AST_CEL_USER_DEFINED)
+			? record.user_defined_name : record.event_name,
+		ast_cel_get_ama_flag_name(record.amaflag), uniqueid_ai, linkedid_ai,
 		userfield_ai, peer_ai);
 
 	if (erc == FAIL) {

@@ -63,6 +63,12 @@ static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword 
 static int connected = 0;
 static int maxsize = 512, maxsize2 = 512;
 
+/*! \brief show_user_def is off by default */
+#define CEL_SHOW_USERDEF_DEFAULT	0
+
+/*! TRUE if we should set the eventtype field to USER_DEFINED on user events. */
+static unsigned char cel_show_user_def;
+
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 
 static PGconn	*conn = NULL;
@@ -70,12 +76,12 @@ static PGresult	*result = NULL;
 static struct ast_event_sub *event_sub = NULL;
 
 struct columns {
-        char *name;
-        char *type;
-        int len;
-        unsigned int notnull:1;
-        unsigned int hasdefault:1;
-        AST_RWLIST_ENTRY(columns) list;
+	char *name;
+	char *type;
+	int len;
+	unsigned int notnull:1;
+	unsigned int hasdefault:1;
+	AST_RWLIST_ENTRY(columns) list;
 };
 
 static AST_RWLIST_HEAD_STATIC(psql_columns, columns);
@@ -185,8 +191,13 @@ static void pgsql_log(const struct ast_event *event, void *userdata)
 					ast_str_append(&sql2, 0, "%s%f", SEP, (double) record.event_type);
 				} else {
 					/* Char field, probably */
-					LENGTHEN_BUF2(strlen(record.event_name) + 1);
-					ast_str_append(&sql2, 0, "%s'%s'", SEP, record.event_name);
+					const char *event_name;
+
+					event_name = (!cel_show_user_def
+						&& record.event_type == AST_CEL_USER_DEFINED)
+						? record.user_defined_name : record.event_name;
+					LENGTHEN_BUF2(strlen(event_name) + 1);
+					ast_str_append(&sql2, 0, "%s'%s'", SEP, event_name);
 				}
 			} else if (strcmp(cur->name, "amaflags") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
@@ -449,6 +460,10 @@ static int process_my_load_module(struct ast_config *cfg)
 	if (!(table = ast_strdup(tmp))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	cel_show_user_def = CEL_SHOW_USERDEF_DEFAULT;
+	if ((tmp = ast_variable_retrieve(cfg, "global", "show_user_defined"))) {
+		cel_show_user_def = ast_true(tmp) ? 1 : 0;
+	}
 	if (option_debug) {
 		if (ast_strlen_zero(pghostname)) {
 			ast_debug(3, "cel_pgsql: using default unix socket\n");
@@ -460,6 +475,8 @@ static int process_my_load_module(struct ast_config *cfg)
 		ast_debug(3, "cel_pgsql: got dbname of %s\n", pgdbname);
 		ast_debug(3, "cel_pgsql: got password of %s\n", pgpassword);
 		ast_debug(3, "cel_pgsql: got sql table name of %s\n", table);
+		ast_debug(3, "cel_pgsql: got show_user_defined of %s\n",
+			cel_show_user_def ? "Yes" : "No");
 	}
 
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);

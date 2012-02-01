@@ -105,6 +105,13 @@ events=APP_START,CHAN_START,CHAN_END,ANSWER,HANGUP,BRIDGE_START,BRIDGE_END
 ; Default value:   no
 ;enabled=yes
 
+; Use 'show_user_defined' to put "USER_DEFINED" in the EventName header,
+; instead of (by default) just putting the user defined event name there.
+; When enabled the UserDefType header is added for user defined events to
+; provide the user defined event name.
+;
+;show_user_defined=yes
+
 ;
 ; RADIUS CEL Backend 
 ;

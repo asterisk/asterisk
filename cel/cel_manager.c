@@ -49,7 +49,16 @@ static const char DATE_FORMAT[] = "%Y-%m-%d %T";
 
 static const char CONF_FILE[] = "cel.conf";
 
+/*! \brief AMI CEL is off by default */
+#define CEL_AMI_ENABLED_DEFAULT		0
+
 static int enablecel;
+
+/*! \brief show_user_def is off by default */
+#define CEL_SHOW_USERDEF_DEFAULT	0
+
+/*! TRUE if we should set the EventName header to USER_DEFINED on user events. */
+static unsigned char cel_show_user_def;
 
 static struct ast_event_sub *event_sub;
 
@@ -57,6 +66,8 @@ static void manager_log(const struct ast_event *event, void *userdata)
 {
 	struct ast_tm timeresult;
 	char start_time[80] = "";
+	char user_defined_header[160];
+	const char *event_name;
 	struct ast_cel_event_record record = {
 		.version = AST_CEL_EVENT_RECORD_VERSION,
 	};
@@ -71,6 +82,17 @@ static void manager_log(const struct ast_event *event, void *userdata)
 
 	ast_localtime(&record.event_time, &timeresult, NULL);
 	ast_strftime(start_time, sizeof(start_time), DATE_FORMAT, &timeresult);
+
+	event_name = record.event_name;
+	user_defined_header[0] = '\0';
+	if (record.event_type == AST_CEL_USER_DEFINED) {
+		if (cel_show_user_def) {
+			snprintf(user_defined_header, sizeof(user_defined_header),
+				"UserDefType: %s\r\n", record.user_defined_name);
+		} else {
+			event_name = record.user_defined_name;
+		}
+	}
 
 	manager_event(EVENT_FLAG_CALL, "CEL",
 		"EventName: %s\r\n"
@@ -92,8 +114,9 @@ static void manager_log(const struct ast_event *event, void *userdata)
 		"Userfield: %s\r\n"
 		"Peer: %s\r\n"
 		"PeerAccount: %s\r\n"
+		"%s"
 		"Extra: %s\r\n",
-		record.event_name,
+		event_name,
 		record.account_code,
 		record.caller_id_num,
 		record.caller_id_name,
@@ -112,6 +135,7 @@ static void manager_log(const struct ast_event *event, void *userdata)
 		record.user_field,
 		record.peer,
 		record.peer_account,
+		user_defined_header,
 		record.extra);
 }
 
@@ -121,7 +145,8 @@ static int load_config(int reload)
 	struct ast_config *cfg;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_variable *v;
-	int newenablecel = 0;
+	int newenablecel = CEL_AMI_ENABLED_DEFAULT;
+	int new_cel_show_user_def = CEL_SHOW_USERDEF_DEFAULT;
 
 	cfg = ast_config_load(CONF_FILE, config_flags);
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
@@ -141,7 +166,9 @@ static int load_config(int reload)
 
 		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 			if (!strcasecmp(v->name, "enabled")) {
-				newenablecel = ast_true(v->value);
+				newenablecel = ast_true(v->value) ? 1 : 0;
+			} else if (!strcasecmp(v->name, "show_user_defined")) {
+				new_cel_show_user_def = ast_true(v->value) ? 1 : 0;
 			} else {
 				ast_log(LOG_NOTICE, "Unknown option '%s' specified "
 						"for cel_manager.\n", v->name);
@@ -151,6 +178,7 @@ static int load_config(int reload)
 
 	ast_config_destroy(cfg);
 
+	cel_show_user_def = new_cel_show_user_def;
 	if (enablecel && !newenablecel) {
 		if (event_sub) {
 			event_sub = ast_event_unsubscribe(event_sub);

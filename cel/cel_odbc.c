@@ -53,6 +53,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define	CONFIG	"cel_odbc.conf"
 static struct ast_event_sub *event_sub = NULL;
 
+/*! \brief show_user_def is off by default */
+#define CEL_SHOW_USERDEF_DEFAULT	0
+
+/*! TRUE if we should set the eventtype field to USER_DEFINED on user events. */
+static unsigned char cel_show_user_def;
+
 /* Optimization to reduce number of memory allocations */
 static int maxsize = 512, maxsize2 = 512;
 
@@ -103,7 +109,20 @@ static int load_config(void)
 		return -1;
 	}
 
+	/* Process the general category */
+	cel_show_user_def = CEL_SHOW_USERDEF_DEFAULT;
+	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+		if (!strcasecmp(var->name, "show_user_defined")) {
+			cel_show_user_def = ast_true(var->value) ? 1 : 0;
+		} else {
+			/* Unknown option name. */
+		}
+	}
+
 	for (catg = ast_category_browse(cfg, NULL); catg; catg = ast_category_browse(cfg, catg)) {
+		if (!strcasecmp(catg, "general")) {
+			continue;
+		}
 		var = ast_variable_browse(cfg, catg);
 		if (!var)
 			continue;
@@ -476,7 +495,12 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					 * form (but only when we're dealing with a character-based field).
 					 */
 					if (strcasecmp(entry->name, "eventtype") == 0) {
-						snprintf(colbuf, sizeof(colbuf), "%s", record.event_name);
+						const char *event_name;
+
+						event_name = (!cel_show_user_def
+							&& record.event_type == AST_CEL_USER_DEFINED)
+							? record.user_defined_name : record.event_name;
+						snprintf(colbuf, sizeof(colbuf), "%s", event_name);
 					}
 
 					/* Truncate too-long fields */

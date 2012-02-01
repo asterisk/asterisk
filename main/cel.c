@@ -402,6 +402,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 {
 	struct varshead *headp;
 	struct ast_var_t *newvariable;
+	const char *mixed_name;
 	char timebuf[30];
 	struct ast_channel *tchan;
 	struct ast_cel_event_record record = {
@@ -422,7 +423,9 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	}
 
 	/* next, fill the channel with their data */
-	if ((newvariable = ast_var_assign("eventtype", record.event_name))) {
+	mixed_name = (record.event_type == AST_CEL_USER_DEFINED)
+		? record.user_defined_name : record.event_name;
+	if ((newvariable = ast_var_assign("eventtype", mixed_name))) {
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
@@ -439,6 +442,9 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
+	if ((newvariable = ast_var_assign("eventenum", record.event_name))) {
+		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+	}
 	if ((newvariable = ast_var_assign("userdeftype", record.user_defined_name))) {
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
@@ -598,13 +604,11 @@ int ast_cel_fill_record(const struct ast_event *e, struct ast_cel_event_record *
 	r->event_time.tv_sec = ast_event_get_ie_uint(e, AST_EVENT_IE_CEL_EVENT_TIME);
 	r->event_time.tv_usec = ast_event_get_ie_uint(e, AST_EVENT_IE_CEL_EVENT_TIME_USEC);
 
-	r->user_defined_name = "";
-
+	r->event_name = ast_cel_get_type_name(r->event_type);
 	if (r->event_type == AST_CEL_USER_DEFINED) {
 		r->user_defined_name = ast_event_get_ie_str(e, AST_EVENT_IE_CEL_USEREVENT_NAME);
-		r->event_name = r->user_defined_name;
 	} else {
-		r->event_name = ast_cel_get_type_name(r->event_type);
+		r->user_defined_name = "";
 	}
 
 	r->caller_id_name   = S_OR(ast_event_get_ie_str(e, AST_EVENT_IE_CEL_CIDNAME), "");
