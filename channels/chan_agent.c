@@ -330,11 +330,11 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 } while(0)
 
 /*--- Forward declarations */
-static struct ast_channel *agent_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
-static int agent_devicestate(void *data);
+static struct ast_channel *agent_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static int agent_devicestate(const char *data);
 static int agent_digit_begin(struct ast_channel *ast, char digit);
 static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int agent_call(struct ast_channel *ast, char *dest, int timeout);
+static int agent_call(struct ast_channel *ast, const char *dest, int timeout);
 static int agent_hangup(struct ast_channel *ast);
 static int agent_answer(struct ast_channel *ast);
 static struct ast_frame *agent_read(struct ast_channel *ast);
@@ -772,7 +772,7 @@ static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 	return 0;
 }
 
-static int agent_call(struct ast_channel *ast, char *dest, int timeout)
+static int agent_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
@@ -1353,11 +1353,11 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 }
 
 /*! \brief Part of the Asterisk PBX interface */
-static struct ast_channel *agent_request(const char *type, struct ast_format_cap *cap, const struct ast_channel* requestor, void *data, int *cause)
+static struct ast_channel *agent_request(const char *type, struct ast_format_cap *cap, const struct ast_channel* requestor, const char *data, int *cause)
 {
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;
-	char *s;
+	const char *s;
 	ast_group_t groupmatch;
 	int groupoff;
 	int waitforagent=0;
@@ -2240,10 +2240,10 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, const char *data)
 }
 
 /*! \brief Part of PBX channel interface */
-static int agent_devicestate(void *data)
+static int agent_devicestate(const char *data)
 {
 	struct agent_pvt *p;
-	char *s;
+	const char *s;
 	ast_group_t groupmatch;
 	int groupoff;
 	int res = AST_DEVICE_INVALID;

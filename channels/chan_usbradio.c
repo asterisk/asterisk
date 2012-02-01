@@ -667,14 +667,14 @@ static int setformat(struct chan_usbradio_pvt *o, int mode);
 
 static struct ast_channel *usbradio_request(const char *type, struct ast_format_cap *cap,
 		const struct ast_channel *requestor,
-		void *data, int *cause);
+		const char *data, int *cause);
 static int usbradio_digit_begin(struct ast_channel *c, char digit);
 static int usbradio_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int usbradio_text(struct ast_channel *c, const char *text);
 static int usbradio_hangup(struct ast_channel *c);
 static int usbradio_answer(struct ast_channel *c);
 static struct ast_frame *usbradio_read(struct ast_channel *chan);
-static int usbradio_call(struct ast_channel *c, char *dest, int timeout);
+static int usbradio_call(struct ast_channel *c, const char *dest, int timeout);
 static int usbradio_write(struct ast_channel *chan, struct ast_frame *f);
 static int usbradio_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen);
 static int usbradio_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
@@ -1253,7 +1253,7 @@ static void *hidthread(void *arg)
 /*
  * returns a pointer to the descriptor with the given name
  */
-static struct chan_usbradio_pvt *find_desc(char *dev)
+static struct chan_usbradio_pvt *find_desc(const char *dev)
 {
 	struct chan_usbradio_pvt *o = NULL;
 
@@ -1683,7 +1683,7 @@ static void ring(struct chan_usbradio_pvt *o, int x)
 /*
  * handler for incoming calls. Either autoanswer, or start ringing
  */
-static int usbradio_call(struct ast_channel *c, char *dest, int timeout)
+static int usbradio_call(struct ast_channel *c, const char *dest, int timeout)
 {
 	struct chan_usbradio_pvt *o = c->tech_pvt;
 
@@ -2217,7 +2217,7 @@ static struct ast_channel *usbradio_new(struct chan_usbradio_pvt *o, char *ext, 
 }
 /*
 */
-static struct ast_channel *usbradio_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *usbradio_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *c;
 	struct chan_usbradio_pvt *o = find_desc(data);
@@ -2226,10 +2226,10 @@ static struct ast_channel *usbradio_request(const char *type, struct ast_format_
 
 	if (0)
 	{
-		ast_log(LOG_WARNING, "usbradio_request type <%s> data 0x%p <%s>\n", type, data, (char *) data);
+		ast_log(LOG_WARNING, "usbradio_request type <%s> data 0x%p <%s>\n", type, data, data);
 	}
 	if (o == NULL) {
-		ast_log(LOG_NOTICE, "Device %s not found\n", (char *) data);
+		ast_log(LOG_NOTICE, "Device %s not found\n", data);
 		/* XXX we could default to 'dsp' perhaps ? */
 		return NULL;
 	}

@@ -151,10 +151,10 @@ static struct phone_pvt {
 static char cid_num[AST_MAX_EXTENSION];
 static char cid_name[AST_MAX_EXTENSION];
 
-static struct ast_channel *phone_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *phone_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static int phone_digit_begin(struct ast_channel *ast, char digit);
 static int phone_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int phone_call(struct ast_channel *ast, char *dest, int timeout);
+static int phone_call(struct ast_channel *ast, const char *dest, int timeout);
 static int phone_hangup(struct ast_channel *ast);
 static int phone_answer(struct ast_channel *ast);
 static struct ast_frame *phone_read(struct ast_channel *ast);
@@ -284,7 +284,7 @@ static int phone_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 	return 0;
 }
 
-static int phone_call(struct ast_channel *ast, char *dest, int timeout)
+static int phone_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct phone_pvt *p;
 
@@ -325,7 +325,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	
 	if (p->mode == MODE_FXS) {
-		char *digit = strchr(dest, '/');
+		const char *digit = strchr(dest, '/');
 		if (digit)
 		{
 		  digit++;
@@ -1231,11 +1231,11 @@ static struct phone_pvt *mkif(const char *iface, int mode, int txgain, int rxgai
 	return tmp;
 }
 
-static struct ast_channel *phone_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *phone_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct phone_pvt *p;
 	struct ast_channel *tmp = NULL;
-	char *name = data;
+	const char *name = data;
 
 	/* Search for an unowned channel */
 	if (ast_mutex_lock(&iflock)) {

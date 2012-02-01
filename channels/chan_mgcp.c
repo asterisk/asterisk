@@ -441,8 +441,8 @@ static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 static char *mgcp_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int reload_config(int reload);
 
-static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
-static int mgcp_call(struct ast_channel *ast, char *dest, int timeout);
+static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
+static int mgcp_call(struct ast_channel *ast, const char *dest, int timeout);
 static int mgcp_hangup(struct ast_channel *ast);
 static int mgcp_answer(struct ast_channel *ast);
 static struct ast_frame *mgcp_read(struct ast_channel *ast);
@@ -451,7 +451,7 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int mgcp_senddigit_begin(struct ast_channel *ast, char digit);
 static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int mgcp_devicestate(void *data);
+static int mgcp_devicestate(const char *data);
 static void add_header_offhook(struct mgcp_subchannel *sub, struct mgcp_request *resp, char *tone);
 static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp_instance *rtp);
 static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v);
@@ -832,7 +832,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 	return res;
 }
 
-static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
+static int mgcp_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	int res;
 	struct mgcp_endpoint *p;
@@ -1357,7 +1357,7 @@ static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int 
  *
  *  \return device status result (from devicestate.h) AST_DEVICE_INVALID (not available) or AST_DEVICE_UNKNOWN (available but unknown state)
  */
-static int mgcp_devicestate(void *data)
+static int mgcp_devicestate(const char *data)
 {
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e = NULL;
@@ -3920,12 +3920,11 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct mgcp_subchannel *sub;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
-	char *dest = data;
 
 	if (!(ast_format_cap_has_joint(cap, global_capability))) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), cap));

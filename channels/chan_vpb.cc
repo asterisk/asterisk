@@ -331,10 +331,10 @@ static struct vpb_pvt {
 
 static struct ast_channel *vpb_new(struct vpb_pvt *i, enum ast_channel_state state, const char *context, const char *linkedid);
 static void *do_chanreads(void *pvt);
-static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static int vpb_digit_begin(struct ast_channel *ast, char digit);
 static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int vpb_call(struct ast_channel *ast, char *dest, int timeout);
+static int vpb_call(struct ast_channel *ast, const char *dest, int timeout);
 static int vpb_hangup(struct ast_channel *ast);
 static int vpb_answer(struct ast_channel *ast);
 static struct ast_frame *vpb_read(struct ast_channel *ast);
@@ -1787,11 +1787,11 @@ static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int durat
 }
 
 /* Places a call out of a VPB channel */
-static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
+static int vpb_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	int res = 0, i;
-	char *s = strrchr(dest, '/');
+	const char *s = strrchr(dest, '/');
 	char dialstring[254] = "";
 
 /*
@@ -2505,11 +2505,11 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	return tmp;
 }
 
-static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *vdata, int *cause) 
+static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause) 
 {
 	struct vpb_pvt *p;
 	struct ast_channel *tmp = NULL;
-	char *sepstr, *data = (char *)vdata, *name;
+	char *sepstr, *name;
 	const char *s;
 	int group = -1;
 	struct ast_format slin;

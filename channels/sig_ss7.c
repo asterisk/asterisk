@@ -1407,7 +1407,7 @@ static unsigned char cid_pres2ss7screen(int cid_pres)
  * \retval 0 on success.
  * \retval -1 on error.
  */
-int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, char *rdest)
+int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rdest)
 {
 	char ss7_called_nai;
 	int called_nai_strip;

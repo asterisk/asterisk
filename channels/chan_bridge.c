@@ -51,8 +51,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging.h"
 #include "asterisk/astobj2.h"
 
-static struct ast_channel *bridge_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
-static int bridge_call(struct ast_channel *ast, char *dest, int timeout);
+static struct ast_channel *bridge_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static int bridge_call(struct ast_channel *ast, const char *dest, int timeout);
 static int bridge_hangup(struct ast_channel *ast);
 static struct ast_frame *bridge_read(struct ast_channel *ast);
 static int bridge_write(struct ast_channel *ast, struct ast_frame *f);
@@ -116,7 +116,7 @@ static int bridge_write(struct ast_channel *ast, struct ast_frame *f)
 }
 
 /*! \brief Called when the channel should actually be dialed */
-static int bridge_call(struct ast_channel *ast, char *dest, int timeout)
+static int bridge_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct bridge_pvt *p = ast->tech_pvt;
 
@@ -155,7 +155,7 @@ static int bridge_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Called when we want to place a call somewhere, but not actually call it... yet */
-static struct ast_channel *bridge_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *bridge_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct bridge_pvt *p = NULL;
 	struct ast_format slin;

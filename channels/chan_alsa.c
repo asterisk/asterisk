@@ -135,13 +135,13 @@ static int autoanswer = 1;
 static int mute = 0;
 static int noaudiocapture = 0;
 
-static struct ast_channel *alsa_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *alsa_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static int alsa_digit(struct ast_channel *c, char digit, unsigned int duration);
 static int alsa_text(struct ast_channel *c, const char *text);
 static int alsa_hangup(struct ast_channel *c);
 static int alsa_answer(struct ast_channel *c);
 static struct ast_frame *alsa_read(struct ast_channel *chan);
-static int alsa_call(struct ast_channel *c, char *dest, int timeout);
+static int alsa_call(struct ast_channel *c, const char *dest, int timeout);
 static int alsa_write(struct ast_channel *chan, struct ast_frame *f);
 static int alsa_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen);
 static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
@@ -313,7 +313,7 @@ static void grab_owner(void)
 	}
 }
 
-static int alsa_call(struct ast_channel *c, char *dest, int timeout)
+static int alsa_call(struct ast_channel *c, const char *dest, int timeout)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL };
 
@@ -597,7 +597,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	return tmp;
 }
 
-static struct ast_channel *alsa_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *alsa_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_format tmpfmt;
 	char buf[256];

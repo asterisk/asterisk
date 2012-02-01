@@ -7367,7 +7367,7 @@ AST_APP_OPTIONS(sig_pri_call_opts, BEGIN_OPTIONS
 END_OPTIONS);
 
 /*! \note Parsing must remain in sync with sig_pri_extract_called_num_subaddr(). */
-int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, int timeout, int layer1)
+int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rdest, int timeout, int layer1)
 {
 	char dest[256]; /* must be same length as p->dialdest */
 	struct ast_party_subaddress dialed_subaddress; /* Called subaddress */

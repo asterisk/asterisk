@@ -5295,7 +5295,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	return new_chan;
 }
 
-struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
+struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
 {
 	int dummy_outstate;
 	int cause = 0;
@@ -5309,9 +5309,9 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	else
 		outstate = &dummy_outstate;	/* make outstate always a valid pointer */
 
-	chan = ast_request(type, cap, requestor, data, &cause);
+	chan = ast_request(type, cap, requestor, addr, &cause);
 	if (!chan) {
-		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, addr);
 		handle_cause(cause, outstate);
 		return NULL;
 	}
@@ -5357,8 +5357,8 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	}
 	ast_channel_set_connected_line(chan, &connected, NULL);
 
-	if (ast_call(chan, data, 0)) {	/* ast_call failed... */
-		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+	if (ast_call(chan, addr, 0)) {	/* ast_call failed... */
+		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, addr);
 	} else {
 		res = 1;	/* mark success in case chan->_state is already AST_STATE_UP */
 		while (timeout && chan->_state != AST_STATE_UP) {
@@ -5461,7 +5461,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 		if (chan->cdr) {
 			char tmp[256];
 
-			snprintf(tmp, sizeof(tmp), "%s/%s", type, (char *)data);
+			snprintf(tmp, sizeof(tmp), "%s/%s", type, addr);
 			ast_cdr_setapp(chan->cdr, "Dial", tmp);
 			ast_cdr_update(chan);
 			ast_cdr_start(chan->cdr);
@@ -5478,9 +5478,9 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	return chan;
 }
 
-struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int timeout, int *outstate, const char *cidnum, const char *cidname)
+struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr, int timeout, int *outstate, const char *cidnum, const char *cidname)
 {
-	return __ast_request_and_dial(type, cap, requestor, data, timeout, outstate, cidnum, cidname, NULL);
+	return __ast_request_and_dial(type, cap, requestor, addr, timeout, outstate, cidnum, cidname, NULL);
 }
 
 static int set_security_requirements(const struct ast_channel *requestor, struct ast_channel *out)
@@ -5523,7 +5523,7 @@ static int set_security_requirements(const struct ast_channel *requestor, struct
 	return 0;
 }
 
-struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_channel *requestor, void *data, int *cause)
+struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_channel *requestor, const char *addr, int *cause)
 {
 	struct chanlist *chan;
 	struct ast_channel *c;
@@ -5580,7 +5580,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		ast_format_cap_remove_bytype(joint_cap, AST_FORMAT_TYPE_AUDIO);
 		ast_format_cap_add(joint_cap, &best_audio_fmt);
 
-		if (!(c = chan->tech->requester(type, joint_cap, requestor, data, cause))) {
+		if (!(c = chan->tech->requester(type, joint_cap, requestor, addr, cause))) {
 			ast_format_cap_destroy(joint_cap);
 			return NULL;
 		}
@@ -5604,7 +5604,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 	return NULL;
 }
 
-int ast_call(struct ast_channel *chan, char *addr, int timeout)
+int ast_call(struct ast_channel *chan, const char *addr, int timeout)
 {
 	/* Place an outgoing call, but don't wait any longer than timeout ms before returning.
 	   If the remote end does not answer within the timeout, then do NOT hang up, but

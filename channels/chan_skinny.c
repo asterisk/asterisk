@@ -1469,11 +1469,11 @@ struct skinnysession {
 	AST_LIST_ENTRY(skinnysession) list;
 };
 
-static struct ast_channel *skinny_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *skinny_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
 static AST_LIST_HEAD_STATIC(sessions, skinnysession);
 
-static int skinny_devicestate(void *data);
-static int skinny_call(struct ast_channel *ast, char *dest, int timeout);
+static int skinny_devicestate(const char *data);
+static int skinny_call(struct ast_channel *ast, const char *dest, int timeout);
 static int skinny_hangup(struct ast_channel *ast);
 static int skinny_answer(struct ast_channel *ast);
 static struct ast_frame *skinny_read(struct ast_channel *ast);
@@ -4362,7 +4362,7 @@ static int skinny_autoanswer_cb(const void *data)
 	return 0;
 }
 
-static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
+static int skinny_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	int res = 0;
 	struct skinny_subchannel *sub = ast->tech_pvt;
@@ -7060,7 +7060,7 @@ static void *accept_thread(void *ignore)
 	return 0;
 }
 
-static int skinny_devicestate(void *data)
+static int skinny_devicestate(const char *data)
 {
 	struct skinny_line *l;
 	char *tmp;
@@ -7072,13 +7072,12 @@ static int skinny_devicestate(void *data)
 	return get_devicestate(l);
 }
 
-static struct ast_channel *skinny_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *skinny_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct skinny_line *l;
 	struct skinny_subline *subline = NULL;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
-	char *dest = data;
 
 	if (!(ast_format_cap_has_type(cap, AST_FORMAT_TYPE_AUDIO))) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), cap));

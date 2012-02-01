@@ -686,8 +686,8 @@ static int unload_module(void);
 static int reload_config(void);
 static void show_main_page(struct unistimsession *pte);
 static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, 
-	void *data, int *cause);
-static int unistim_call(struct ast_channel *ast, char *dest, int timeout);
+	const char *dest, int *cause);
+static int unistim_call(struct ast_channel *ast, const char *dest, int timeout);
 static int unistim_hangup(struct ast_channel *ast);
 static int unistim_answer(struct ast_channel *ast);
 static struct ast_frame *unistim_read(struct ast_channel *ast);
@@ -3744,7 +3744,7 @@ static struct unistimsession *channel_to_session(struct ast_channel *ast)
 
 /*--- unistim_call: Initiate UNISTIM call from PBX ---*/
 /*      used from the dial() application      */
-static int unistim_call(struct ast_channel *ast, char *dest, int timeout)
+static int unistim_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	int res = 0;
 	struct unistim_subchannel *sub;
@@ -4740,14 +4740,13 @@ static int restart_monitor(void)
 
 /*--- unistim_request: PBX interface function ---*/
 /* UNISTIM calls initiated by the PBX arrive here */
-static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data,
+static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest,
 										   int *cause)
 {
 	struct unistim_subchannel *sub;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
 	char tmp2[256];
-	char *dest = data;
 
 	if (!(ast_format_cap_has_joint(cap, global_cap))) {
 		ast_log(LOG_NOTICE,

@@ -71,10 +71,10 @@ static struct ast_jb_conf global_jbconf;
 
 /* Channel Definition */
 static struct ast_channel *ooh323_request(const char *type, struct ast_format_cap *cap,
-			const struct ast_channel *requestor,  void *data, int *cause);
+			const struct ast_channel *requestor,  const char *data, int *cause);
 static int ooh323_digit_begin(struct ast_channel *ast, char digit);
 static int ooh323_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int ooh323_call(struct ast_channel *ast, char *dest, int timeout);
+static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout);
 static int ooh323_hangup(struct ast_channel *ast);
 static int ooh323_answer(struct ast_channel *ast);
 static struct ast_frame *ooh323_read(struct ast_channel *ast);
@@ -561,7 +561,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	Possible data values - peername, exten/peername, exten@ip
  */
 static struct ast_channel *ooh323_request(const char *type, struct ast_format_cap *cap,
-		const struct ast_channel *requestor, void *data, int *cause)
+		const struct ast_channel *requestor, const char *data, int *cause)
 
 {
 	struct ast_channel *chan = NULL;
@@ -574,7 +574,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 	int port = 0;
 
 	if (gH323Debug)
-		ast_verb(0, "---   ooh323_request - data %s format %s\n", (char*)data,  
+		ast_verb(0, "---   ooh323_request - data %s format %s\n", data,
 										ast_getformatname_multiple(formats,FORMAT_STRING_SIZE,cap));
 
 	if (!(ast_format_cap_has_type(cap, AST_FORMAT_TYPE_AUDIO))) {
@@ -585,7 +585,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 	p = ooh323_alloc(0,0); /* Initial callRef is zero */
 
 	if (!p) {
-		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", (char*)data);
+		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", data);
 		return NULL;
 	}
 	ast_mutex_lock(&p->lock);
@@ -917,7 +917,7 @@ static int ooh323_digit_end(struct ast_channel *chan, char digit, unsigned int d
 }
 
 
-static int ooh323_call(struct ast_channel *ast, char *dest, int timeout)
+static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct ooh323_pvt *p = ast->tech_pvt;
 	char destination[256];

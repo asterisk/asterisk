@@ -358,7 +358,7 @@ static int rec_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	return 0;
 }
-static struct ast_channel *rec_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *rec_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static struct ast_channel_tech record_tech = {
 	.type = "ConfBridgeRec",
 	.description = "Conference Bridge Recording Channel",
@@ -366,7 +366,7 @@ static struct ast_channel_tech record_tech = {
 	.read = rec_read,
 	.write = rec_write,
 };
-static struct ast_channel *rec_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *rec_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *tmp;
 	struct ast_format fmt;

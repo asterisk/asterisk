@@ -351,7 +351,7 @@ void analog_delete(struct analog_pvt *doomed);
 
 void analog_free(struct analog_pvt *p);
 
-int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int timeout);
+int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest, int timeout);
 
 int analog_hangup(struct analog_pvt *p, struct ast_channel *ast);
 

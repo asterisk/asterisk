@@ -589,7 +589,7 @@ struct sig_pri_span {
 };
 
 void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdest, char *called, size_t called_buff_size);
-int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, int timeout, int layer1);
+int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rdest, int timeout, int layer1);
 
 int sig_pri_hangup(struct sig_pri_chan *p, struct ast_channel *ast);
 

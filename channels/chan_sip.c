@@ -1227,10 +1227,10 @@ static struct ast_config *notify_types = NULL;    /*!< The list of manual NOTIFY
 	in coming releases. */
 
 /*--- PBX interface functions */
-static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
-static int sip_devicestate(void *data);
+static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
+static int sip_devicestate(const char *data);
 static int sip_sendtext(struct ast_channel *ast, const char *text);
-static int sip_call(struct ast_channel *ast, char *dest, int timeout);
+static int sip_call(struct ast_channel *ast, const char *dest, int timeout);
 static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data, int datalen);
 static int sip_hangup(struct ast_channel *ast);
 static int sip_answer(struct ast_channel *ast);
@@ -1373,7 +1373,6 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 
 /*--- Device monitoring and Device/extension state/event handling */
 static int cb_extensionstate(const char *context, const char *exten, enum ast_extension_states state, void *data);
-static int sip_devicestate(void *data);
 static int sip_poke_noanswer(const void *data);
 static int sip_poke_peer(struct sip_peer *peer, int force);
 static void sip_poke_all_peers(void);
@@ -5568,7 +5567,7 @@ static int auto_congest(const void *arg)
 
 /*! \brief Initiate SIP call from PBX
  *      used from the dial() application      */
-static int sip_call(struct ast_channel *ast, char *dest, int timeout)
+static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	int res;
 	struct sip_pvt *p = ast->tech_pvt;	/* chan is locked, so the reference cannot go away */
@@ -27304,7 +27303,7 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	!= AST_DEVICE_NOT_INUSE and != AST_DEVICE_UNKNOWN
 
 */
-static int sip_devicestate(void *data)
+static int sip_devicestate(const char *data)
 {
 	char *host;
 	char *tmp;
@@ -27383,14 +27382,13 @@ static int sip_devicestate(void *data)
  *	or	SIP/host!dnid
  * \endverbatim
 */
-static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct sip_pvt *p;
 	struct ast_channel *tmpc = NULL;
 	char *ext = NULL, *host;
 	char tmp[256];
 	char tmp2[256];
-	char *dest = data;
 	char *dnid;
 	char *secret = NULL;
 	char *md5secret = NULL;

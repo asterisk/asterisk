@@ -171,11 +171,11 @@ static struct ast_format_cap *global_capability;
 AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of jingle_pvt's) */
 
 /* Forward declarations */
-static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static int jingle_sendtext(struct ast_channel *ast, const char *text);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
 static int jingle_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int jingle_call(struct ast_channel *ast, char *dest, int timeout);
+static int jingle_call(struct ast_channel *ast, const char *dest, int timeout);
 static int jingle_hangup(struct ast_channel *ast);
 static int jingle_answer(struct ast_channel *ast);
 static int jingle_newcall(struct jingle *client, ikspak *pak);
@@ -1498,7 +1498,7 @@ static int jingle_auto_congest(void *nothing)
 
 /*! \brief Initiate new call, part of PBX interface 
  * 	dest is the dial string */
-static int jingle_call(struct ast_channel *ast, char *dest, int timeout)
+static int jingle_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct jingle_pvt *p = ast->tech_pvt;
 
@@ -1542,7 +1542,7 @@ static int jingle_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct jingle_pvt *p = NULL;
 	struct jingle *client = NULL;
@@ -1556,7 +1556,7 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 			if (sender && (sender[0] != '\0'))
 				to = strsep(&s, "/");
 			if (!to) {
-				ast_log(LOG_ERROR, "Bad arguments in Jingle Dialstring: %s\n", (char*) data);
+				ast_log(LOG_ERROR, "Bad arguments in Jingle Dialstring: %s\n", data);
 				return NULL;
 			}
 		}

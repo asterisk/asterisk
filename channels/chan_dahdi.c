@@ -1505,11 +1505,11 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 }
 
 
-static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static int dahdi_digit_begin(struct ast_channel *ast, char digit);
 static int dahdi_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int dahdi_sendtext(struct ast_channel *c, const char *text);
-static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout);
+static int dahdi_call(struct ast_channel *ast, const char *rdest, int timeout);
 static int dahdi_hangup(struct ast_channel *ast);
 static int dahdi_answer(struct ast_channel *ast);
 static struct ast_frame *dahdi_read(struct ast_channel *ast);
@@ -1521,7 +1521,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 static int dahdi_queryoption(struct ast_channel *chan, int option, void *data, int *datalen);
 static int dahdi_func_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
 static int dahdi_func_write(struct ast_channel *chan, const char *function, char *data, const char *value);
-static int dahdi_devicestate(void *data);
+static int dahdi_devicestate(const char *data);
 static int dahdi_cc_callback(struct ast_channel *inbound, const char *dest, ast_cc_callback_fn callback);
 
 static struct ast_channel_tech dahdi_tech = {
@@ -5322,7 +5322,7 @@ static int dahdi_callwait(struct ast_channel *ast)
 	return 0;
 }
 
-static int dahdi_call(struct ast_channel *ast, char *rdest, int timeout)
+static int dahdi_call(struct ast_channel *ast, const char *rdest, int timeout)
 {
 	struct dahdi_pvt *p = ast->tech_pvt;
 	int x, res, mysig;
@@ -13594,7 +13594,7 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	return p;
 }
 
-static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	int callwait = 0;
 	struct dahdi_pvt *p;
@@ -13666,7 +13666,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 				break;
 			default:
-				ast_log(LOG_WARNING, "Unknown option '%c' in '%s'\n", start.opt, (char *)data);
+				ast_log(LOG_WARNING, "Unknown option '%c' in '%s'\n", start.opt, data);
 				break;
 			}
 
@@ -13716,7 +13716,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				}
 #endif	/* defined(HAVE_PRI) */
 			} else {
-				snprintf(p->dialstring, sizeof(p->dialstring), "DAHDI/%s", (char *) data);
+				snprintf(p->dialstring, sizeof(p->dialstring), "DAHDI/%s", data);
 			}
 			break;
 		}
@@ -13764,10 +13764,10 @@ next:
  * \retval device_state enum ast_device_state value.
  * \retval AST_DEVICE_UNKNOWN if we could not determine the device's state.
  */
-static int dahdi_devicestate(void *data)
+static int dahdi_devicestate(const char *data)
 {
 #if defined(HAVE_PRI)
-	char *device;
+	const char *device;
 	unsigned span;
 	int res;
 

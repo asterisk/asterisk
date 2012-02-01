@@ -198,15 +198,15 @@ static char *mblsendsms_desc =
 static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num,
 		const struct ast_channel *requestor);
 static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *cap,
-		const struct ast_channel *requestor, void *data, int *cause);
-static int mbl_call(struct ast_channel *ast, char *dest, int timeout);
+		const struct ast_channel *requestor, const char *data, int *cause);
+static int mbl_call(struct ast_channel *ast, const char *dest, int timeout);
 static int mbl_hangup(struct ast_channel *ast);
 static int mbl_answer(struct ast_channel *ast);
 static int mbl_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static struct ast_frame *mbl_read(struct ast_channel *ast);
 static int mbl_write(struct ast_channel *ast, struct ast_frame *frame);
 static int mbl_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
-static int mbl_devicestate(void *data);
+static int mbl_devicestate(const char *data);
 
 static void do_alignment_detection(struct mbl_pvt *pvt, char *buf, int buflen);
 
@@ -868,7 +868,7 @@ e_return:
 }
 
 static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *cap,
-		const struct ast_channel *requestor, void *data, int *cause)
+		const struct ast_channel *requestor, const char *data, int *cause)
 {
 
 	struct ast_channel *chn = NULL;
@@ -890,7 +890,7 @@ static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *
 		return NULL;
 	}
 
-	dest_dev = ast_strdupa((char *)data);
+	dest_dev = ast_strdupa(data);
 
 	dest_num = strchr(dest_dev, '/');
 	if (dest_num)
@@ -939,14 +939,13 @@ static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *
 
 }
 
-static int mbl_call(struct ast_channel *ast, char *dest, int timeout)
+static int mbl_call(struct ast_channel *ast, const char *dest, int timeout)
 {
-
 	struct mbl_pvt *pvt;
-	char *dest_dev = NULL;
+	char *dest_dev;
 	char *dest_num = NULL;
 
-	dest_dev = ast_strdupa((char *)dest);
+	dest_dev = ast_strdupa(dest);
 
 	pvt = ast->tech_pvt;
 
@@ -1179,14 +1178,14 @@ static int mbl_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 }
 
-static int mbl_devicestate(void *data)
+static int mbl_devicestate(const char *data)
 {
 
 	char *device;
 	int res = AST_DEVICE_INVALID;
 	struct mbl_pvt *pvt;
 
-	device = ast_strdupa(S_OR((char *) data, ""));
+	device = ast_strdupa(S_OR(data, ""));
 
 	ast_debug(1, "Checking device state for device %s\n", device);
 

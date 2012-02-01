@@ -473,14 +473,23 @@ struct ast_set_party_redirecting {
 	struct ast_set_party_id to;
 };
 
-/*! \brief Typedef for a custom read function */
-typedef int (*ast_acf_read_fn_t)(struct ast_channel *, const char *, char *, char *, size_t);
+/*!
+ * \brief Typedef for a custom read function
+ * \note data should be treated as const char *.
+ */
+typedef int (*ast_acf_read_fn_t)(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
 
-/*! \brief Typedef for a custom read2 function */
-typedef int (*ast_acf_read2_fn_t)(struct ast_channel *, const char *, char *, struct ast_str **, ssize_t);
+/*!
+ * \brief Typedef for a custom read2 function
+ * \note data should be treated as const char *.
+ */
+typedef int (*ast_acf_read2_fn_t)(struct ast_channel *chan, const char *cmd, char *data, struct ast_str **str, ssize_t len);
 
-/*! \brief Typedef for a custom write function */
-typedef int (*ast_acf_write_fn_t)(struct ast_channel *, const char *, char *, const char *);
+/*!
+ * \brief Typedef for a custom write function
+ * \note data should be treated as const char *.
+ */
+typedef int (*ast_acf_write_fn_t)(struct ast_channel *chan, const char *function, char *data, const char *value);
 
 /*! \brief Structure to handle passing func_channel_write info to channels via setoption */
 typedef struct {
@@ -518,11 +527,23 @@ struct ast_channel_tech {
 
 	/*!
 	 * \brief Requester - to set up call data structures (pvt's)
-	 * \note data should be treated as const char *.
+	 *
+	 * \param type type of channel to request
+	 * \param cap Format capabilities for requested channel
+	 * \param requestor channel asking for data
+	 * \param addr destination of the call
+	 * \param cause Cause of failure
+	 *
+	 * \details
+	 * Request a channel of a given type, with addr as optional information used
+	 * by the low level module
+	 *
+	 * \retval NULL failure
+	 * \retval non-NULL channel on success
 	 */
-	struct ast_channel *(* const requester)(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+	struct ast_channel *(* const requester)(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr, int *cause);
 
-	int (* const devicestate)(void *data);	/*!< Devicestate call back */
+	int (* const devicestate)(const char *device_number);	/*!< Devicestate call back */
 
 	/*!
 	 * \brief Start sending a literal DTMF digit
@@ -539,11 +560,15 @@ struct ast_channel_tech {
 	int (* const send_digit_end)(struct ast_channel *chan, char digit, unsigned int duration);
 
 	/*!
-	 * \brief Call a given phone number (address, etc), but don't
-	 * take longer than timeout seconds to do so.
-	 * \note addr should be treated as const char *.
+	 * \brief Make a call
+	 * \note The channel is locked when called.
+	 * \param chan which channel to make the call on
+	 * \param addr destination of the call
+	 * \param timeout time to wait on for connect (Doesn't seem to be used.)
+	 * \retval 0 on success
+	 * \retval -1 on failure
 	 */
-	int (* const call)(struct ast_channel *chan, char *addr, int timeout);
+	int (* const call)(struct ast_channel *chan, const char *addr, int timeout);
 
 	/*! \brief Hangup (and possibly destroy) the channel */
 	int (* const hangup)(struct ast_channel *chan);
@@ -600,10 +625,16 @@ struct ast_channel_tech {
 	/*! \brief Find bridged channel */
 	struct ast_channel *(* const bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
 
-	/*! \brief Provide additional read items for CHANNEL() dialplan function */
+	/*!
+	 * \brief Provide additional read items for CHANNEL() dialplan function
+	 * \note data should be treated as a const char *.
+	 */
 	int (* func_channel_read)(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
 
-	/*! \brief Provide additional write items for CHANNEL() dialplan function */
+	/*!
+	 * \brief Provide additional write items for CHANNEL() dialplan function
+	 * \note data should be treated as a const char *.
+	 */
 	int (* func_channel_write)(struct ast_channel *chan, const char *function, char *data, const char *value);
 
 	/*! \brief Retrieve base channel (agent and local) */
@@ -1300,19 +1331,19 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  * \brief Requests a channel
  *
  * \param type type of channel to request
- * \param format capabilities for requested channel
+ * \param request_cap Format capabilities for requested channel
  * \param requestor channel asking for data
- * \param data data to pass to the channel requester (Should be treated as const char *)
- * \param status status
+ * \param addr destination of the call
+ * \param cause Cause of failure
  *
  * \details
- * Request a channel of a given type, with data as optional information used
+ * Request a channel of a given type, with addr as optional information used
  * by the low level module
  *
  * \retval NULL failure
  * \retval non-NULL channel on success
  */
-struct ast_channel *ast_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *status);
+struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_channel *requestor, const char *addr, int *cause);
 
 /*!
  * \brief Request a channel of a given type, with data as optional information used
@@ -1321,7 +1352,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *cap, co
  * \param type type of channel to request
  * \param format capabilities for requested channel
  * \param requestor channel asking for data
- * \param data data to pass to the channel requester
+ * \param addr destination of the call
  * \param timeout maximum amount of time to wait for an answer
  * \param reason why unsuccessful (if unsuccessful)
  * \param cid_num Caller-ID Number
@@ -1330,7 +1361,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *cap, co
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data,
+struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr,
 	int timeout, int *reason, const char *cid_num, const char *cid_name);
 
 /*!
@@ -1339,7 +1370,7 @@ struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap
  * \param type type of channel to request
  * \param format capabilities for requested channel
  * \param requestor channel requesting data
- * \param data data to pass to the channel requester
+ * \param addr destination of the call
  * \param timeout maximum amount of time to wait for an answer
  * \param reason why unsuccessful (if unsuccessful)
  * \param cid_num Caller-ID Number
@@ -1348,7 +1379,7 @@ struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data,
+struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr,
 	int timeout, int *reason, const char *cid_num, const char *cid_name, struct outgoing_helper *oh);
 
 /*!
@@ -1623,15 +1654,14 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer);
  * \brief Make a call
  * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \param chan which channel to make the call on
- * \param addr destination of the call (Should be treated as const char *)
- * \param timeout time to wait on for connect
+ * \param addr destination of the call
+ * \param timeout time to wait on for connect (Doesn't seem to be used.)
  * \details
  * Place a call, take no longer than timeout ms.
- * \return -1 on failure, 0 on not enough time
- * (does not automatically stop ringing), and
- * the number of seconds the connect took otherwise.
+ * \retval 0 on success
+ * \retval -1 on failure
  */
-int ast_call(struct ast_channel *chan, char *addr, int timeout);
+int ast_call(struct ast_channel *chan, const char *addr, int timeout);
 
 /*!
  * \brief Indicates condition of channel

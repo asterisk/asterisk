@@ -282,7 +282,7 @@ void sig_ss7_link_noalarm(struct sig_ss7_linkset *linkset, int which);
 int sig_ss7_add_sigchan(struct sig_ss7_linkset *linkset, int which, int ss7type, int transport, int inalarm, int networkindicator, int pointcode, int adjpointcode);
 
 int sig_ss7_available(struct sig_ss7_chan *p);
-int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, char *rdest);
+int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rdest);
 int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast);
 int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast);
 void sig_ss7_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_ss7_chan *pchan);

@@ -67,8 +67,8 @@ struct nbs_pvt {
 	struct ast_module_user *u;		/*! for holding a reference to this module */
 };
 
-static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
-static int nbs_call(struct ast_channel *ast, char *dest, int timeout);
+static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static int nbs_call(struct ast_channel *ast, const char *dest, int timeout);
 static int nbs_hangup(struct ast_channel *ast);
 static struct ast_frame *nbs_xread(struct ast_channel *ast);
 static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame);
@@ -83,7 +83,7 @@ static struct ast_channel_tech nbs_tech = {
 	.write = nbs_xwrite,
 };
 
-static int nbs_call(struct ast_channel *ast, char *dest, int timeout)
+static int nbs_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct nbs_pvt *p;
 
@@ -117,7 +117,7 @@ static void nbs_destroy(struct nbs_pvt *p)
 	ast_free(p);
 }
 
-static struct nbs_pvt *nbs_alloc(void *data)
+static struct nbs_pvt *nbs_alloc(const char *data)
 {
 	struct nbs_pvt *p;
 	int flags = 0;
@@ -251,7 +251,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 }
 
 
-static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct nbs_pvt *p;
 	struct ast_channel *tmp = NULL;

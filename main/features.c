@@ -902,7 +902,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	const char *caller_name, struct ast_channel *requestor,
-	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, void *data,
+	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, const char *addr,
 	int timeout, int *outstate, const char *language);
 
 /*!
@@ -3369,7 +3369,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_bridge_config 
  * \param transferee Channel that the dialed channel will be transferred to.
  * \param type Channel technology type to dial.
  * \param format Codec formats for dialed channel.
- * \param data Dialed channel extra parameters for ast_request() and ast_call().
+ * \param addr destination of the call
  * \param timeout Time limit for dialed channel to answer in ms. Must be greater than zero.
  * \param outstate Status of dialed channel if unsuccessful.
  * \param language Language of the caller.
@@ -3395,7 +3395,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_bridge_config 
  */
 static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	const char *caller_name, struct ast_channel *requestor,
-	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, void *data,
+	struct ast_channel *transferee, const char *type, struct ast_format_cap *cap, const char *addr,
 	int timeout, int *outstate, const char *language)
 {
 	int state = 0;
@@ -3428,8 +3428,8 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 
 	caller_hungup = ast_check_hangup(caller);
 
-	if (!(chan = ast_request(type, tmp_cap, requestor, data, &cause))) {
-		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+	if (!(chan = ast_request(type, tmp_cap, requestor, addr, &cause))) {
+		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, addr);
 		switch (cause) {
 		case AST_CAUSE_BUSY:
 			state = AST_CONTROL_BUSY;
@@ -3452,8 +3452,8 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 	ast_connected_line_copy_from_caller(&chan->connected, &requestor->caller);
 	ast_channel_unlock(chan);
 
-	if (ast_call(chan, data, timeout)) {
-		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+	if (ast_call(chan, addr, timeout)) {
+		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, addr);
 		switch (chan->hangupcause) {
 		case AST_CAUSE_BUSY:
 			state = AST_CONTROL_BUSY;

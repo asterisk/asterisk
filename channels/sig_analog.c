@@ -1002,7 +1002,7 @@ static void analog_set_inthreeway(struct analog_pvt *p, enum analog_sub sub, int
 	}
 }
 
-int analog_call(struct analog_pvt *p, struct ast_channel *ast, char *rdest, int timeout)
+int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest, int timeout)
 {
 	int res, idx, mysig;
 	char *c, *n, *l;

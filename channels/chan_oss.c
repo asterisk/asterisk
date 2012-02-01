@@ -329,14 +329,14 @@ static struct chan_oss_pvt oss_default = {
 static int setformat(struct chan_oss_pvt *o, int mode);
 
 static struct ast_channel *oss_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor,
-									   void *data, int *cause);
+									   const char *data, int *cause);
 static int oss_digit_begin(struct ast_channel *c, char digit);
 static int oss_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int oss_text(struct ast_channel *c, const char *text);
 static int oss_hangup(struct ast_channel *c);
 static int oss_answer(struct ast_channel *c);
 static struct ast_frame *oss_read(struct ast_channel *chan);
-static int oss_call(struct ast_channel *c, char *dest, int timeout);
+static int oss_call(struct ast_channel *c, const char *dest, int timeout);
 static int oss_write(struct ast_channel *chan, struct ast_frame *f);
 static int oss_indicate(struct ast_channel *chan, int cond, const void *data, size_t datalen);
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
@@ -590,7 +590,7 @@ static int oss_text(struct ast_channel *c, const char *text)
 /*!
  * \brief handler for incoming calls. Either autoanswer, or start ringing
  */
-static int oss_call(struct ast_channel *c, char *dest, int timeout)
+static int oss_call(struct ast_channel *c, const char *dest, int timeout)
 {
 	struct chan_oss_pvt *o = c->tech_pvt;
 	struct ast_frame f = { AST_FRAME_CONTROL, };
@@ -834,7 +834,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	return c;
 }
 
-static struct ast_channel *oss_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *oss_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *c;
 	struct chan_oss_pvt *o;
@@ -849,7 +849,7 @@ static struct ast_channel *oss_request(const char *type, struct ast_format_cap *
 	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
 	o = find_desc(args.name);
 
-	ast_log(LOG_WARNING, "oss_request ty <%s> data 0x%p <%s>\n", type, data, (char *) data);
+	ast_log(LOG_WARNING, "oss_request ty <%s> data 0x%p <%s>\n", type, data, data);
 	if (o == NULL) {
 		ast_log(LOG_NOTICE, "Device %s not found\n", args.name);
 		/* XXX we could default to 'dsp' perhaps ? */

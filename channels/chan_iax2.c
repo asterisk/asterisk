@@ -1167,8 +1167,8 @@ static int maxnontrunkcall = 1;
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int expire_registry(const void *data);
 static int iax2_answer(struct ast_channel *c);
-static int iax2_call(struct ast_channel *c, char *dest, int timeout);
-static int iax2_devicestate(void *data);
+static int iax2_call(struct ast_channel *c, const char *dest, int timeout);
+static int iax2_devicestate(const char *data);
 static int iax2_digit_begin(struct ast_channel *c, char digit);
 static int iax2_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int iax2_do_register(struct iax2_registry *reg);
@@ -1193,7 +1193,7 @@ static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, c
 static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_locked(unsigned short callno, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int);
-static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static struct ast_frame *iax2_read(struct ast_channel *c);
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
@@ -5074,7 +5074,7 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	}
 }
 
-static int iax2_call(struct ast_channel *c, char *dest, int timeout)
+static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 {
 	struct sockaddr_in sin;
 	char *l=NULL, *n=NULL, *tmpstr;
@@ -12168,7 +12168,7 @@ static void free_context(struct iax2_context *con)
 	}
 }
 
-static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	int callno;
 	int res;
@@ -12183,7 +12183,7 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 	parse_dial_string(tmpstr, &pds);
 
 	if (ast_strlen_zero(pds.peer)) {
-		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", (char *) data);
+		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", data);
 		return NULL;
 	}
 	memset(&cai, 0, sizeof(cai));
@@ -14055,7 +14055,7 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 }
 
 /*! \brief Part of the device state notification system ---*/
-static int iax2_devicestate(void *data)
+static int iax2_devicestate(const char *data)
 {
 	struct parsed_dial_string pds;
 	char *tmp = ast_strdupa(data);
@@ -14066,7 +14066,7 @@ static int iax2_devicestate(void *data)
 	parse_dial_string(tmp, &pds);
 
 	if (ast_strlen_zero(pds.peer)) {
-		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", (char *) data);
+		ast_log(LOG_WARNING, "No peer provided in the IAX2 dial string '%s'\n", data);
 		return res;
 	}
 

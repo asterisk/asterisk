@@ -186,14 +186,14 @@ static struct ast_jb_conf global_jbconf;
 
 /*! Channel Technology Callbacks @{ */
 static struct ast_channel *console_request(const char *type, struct ast_format_cap *cap,
-	const struct ast_channel *requestor, void *data, int *cause);
+	const struct ast_channel *requestor, const char *data, int *cause);
 static int console_digit_begin(struct ast_channel *c, char digit);
 static int console_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int console_text(struct ast_channel *c, const char *text);
 static int console_hangup(struct ast_channel *c);
 static int console_answer(struct ast_channel *c);
 static struct ast_frame *console_read(struct ast_channel *chan);
-static int console_call(struct ast_channel *c, char *dest, int timeout);
+static int console_call(struct ast_channel *c, const char *dest, int timeout);
 static int console_write(struct ast_channel *chan, struct ast_frame *f);
 static int console_indicate(struct ast_channel *chan, int cond, 
 	const void *data, size_t datalen);
@@ -444,14 +444,14 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 	return chan;
 }
 
-static struct ast_channel *console_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *console_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *chan = NULL;
 	struct console_pvt *pvt;
 	char buf[512];
 
 	if (!(pvt = find_pvt(data))) {
-		ast_log(LOG_ERROR, "Console device '%s' not found\n", (char *) data);
+		ast_log(LOG_ERROR, "Console device '%s' not found\n", data);
 		return NULL;
 	}
 
@@ -554,7 +554,7 @@ static struct ast_frame *console_read(struct ast_channel *chan)
 	return &ast_null_frame;
 }
 
-static int console_call(struct ast_channel *c, char *dest, int timeout)
+static int console_call(struct ast_channel *c, const char *dest, int timeout)
 {
 	struct console_pvt *pvt = c->tech_pvt;
 	enum ast_control_frame_type ctrl;

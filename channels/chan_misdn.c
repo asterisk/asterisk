@@ -6484,7 +6484,7 @@ static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchan
 /*** AST Indications Start ***/
 /*****************************/
 
-static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
+static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	int port = 0;
 	int r;
@@ -7772,7 +7772,7 @@ static struct chan_list *chan_list_init(int orig)
 	return cl;
 }
 
-static struct ast_channel *misdn_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *misdn_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *ast;
 	char group[BUFFERSIZE + 1] = "";
@@ -7797,7 +7797,7 @@ static struct ast_channel *misdn_request(const char *type, struct ast_format_cap
 		AST_APP_ARG(opts);	/* options token */
 	);
 
-	snprintf(dial_str, sizeof(dial_str), "%s/%s", misdn_type, (char *) data);
+	snprintf(dial_str, sizeof(dial_str), "%s/%s", misdn_type, data);
 
 	/*
 	 * data is ---v

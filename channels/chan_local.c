@@ -92,10 +92,10 @@ static struct ast_jb_conf g_jb_conf = {
 	.target_extra = -1,
 };
 
-static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 static int local_digit_begin(struct ast_channel *ast, char digit);
 static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int local_call(struct ast_channel *ast, char *dest, int timeout);
+static int local_call(struct ast_channel *ast, const char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_answer(struct ast_channel *ast);
 static struct ast_frame *local_read(struct ast_channel *ast);
@@ -104,7 +104,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int local_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 static int local_sendtext(struct ast_channel *ast, const char *text);
-static int local_devicestate(void *data);
+static int local_devicestate(const char *data);
 static struct ast_channel *local_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 static int local_queryoption(struct ast_channel *ast, int option, void *data, int *datalen);
 static int local_setoption(struct ast_channel *chan, int option, void *data, int datalen);
@@ -277,7 +277,7 @@ setoption_cleanup:
 }
 
 /*! \brief Adds devicestate to local channels */
-static int local_devicestate(void *data)
+static int local_devicestate(const char *data)
 {
 	char *exten = ast_strdupa(data);
 	char *context = NULL, *opts = NULL;
@@ -809,7 +809,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 
 /*! \brief Initiate new call, part of PBX interface
  *         dest is the dial string */
-static int local_call(struct ast_channel *ast, char *dest, int timeout)
+static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int pvt_locked = 0;
@@ -1185,7 +1185,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct local_pvt *p = NULL;
 	struct ast_channel *chan = NULL;

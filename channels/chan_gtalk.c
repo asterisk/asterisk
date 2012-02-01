@@ -175,12 +175,12 @@ static struct ast_format_cap *global_capability;
 AST_MUTEX_DEFINE_STATIC(gtalklock); /*!< Protect the interface list (of gtalk_pvt's) */
 
 /* Forward declarations */
-static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
 /*static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration);*/
 static int gtalk_sendtext(struct ast_channel *ast, const char *text);
 static int gtalk_digit_begin(struct ast_channel *ast, char digit);
 static int gtalk_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
-static int gtalk_call(struct ast_channel *ast, char *dest, int timeout);
+static int gtalk_call(struct ast_channel *ast, const char *dest, int timeout);
 static int gtalk_hangup(struct ast_channel *ast);
 static int gtalk_answer(struct ast_channel *ast);
 static int gtalk_action(struct gtalk *client, struct gtalk_pvt *p, const char *action);
@@ -1852,7 +1852,7 @@ static int gtalk_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 
 /*!\brief Initiate new call, part of PBX interface
  * dest is the dial string */
-static int gtalk_call(struct ast_channel *ast, char *dest, int timeout)
+static int gtalk_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct gtalk_pvt *p = ast->tech_pvt;
 
@@ -1897,7 +1897,7 @@ static int gtalk_hangup(struct ast_channel *ast)
 }
 
 /*!\brief Part of PBX interface */
-static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct gtalk_pvt *p = NULL;
 	struct gtalk *client = NULL;
@@ -1912,7 +1912,7 @@ static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap
 				to = strsep(&s, "/");
 			}
 			if (!to) {
-				ast_log(LOG_ERROR, "Bad arguments in Gtalk Dialstring: %s\n", (char*) data);
+				ast_log(LOG_ERROR, "Bad arguments in Gtalk Dialstring: %s\n", data);
 				return NULL;
 			}
 		}

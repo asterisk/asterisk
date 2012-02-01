@@ -242,10 +242,10 @@ static void delete_users(void);
 static void delete_aliases(void);
 static void prune_peers(void);
 
-static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause);
+static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
 static int oh323_digit_begin(struct ast_channel *c, char digit);
 static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int duration);
-static int oh323_call(struct ast_channel *c, char *dest, int timeout);
+static int oh323_call(struct ast_channel *c, const char *dest, int timeout);
 static int oh323_hangup(struct ast_channel *c);
 static int oh323_answer(struct ast_channel *c);
 static struct ast_frame *oh323_read(struct ast_channel *c);
@@ -587,7 +587,7 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
  * destination.
  * Returns -1 on error, 0 on success.
  */
-static int oh323_call(struct ast_channel *c, char *dest, int timeout)
+static int oh323_call(struct ast_channel *c, const char *dest, int timeout)
 {
 	int res = 0;
 	struct oh323_pvt *pvt = (struct oh323_pvt *)c->tech_pvt;
@@ -1787,21 +1787,20 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 		return 0;
 	}
 }
-static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, void *data, int *cause)
+static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct oh323_pvt *pvt;
 	struct ast_channel *tmpc = NULL;
-	char *dest = (char *)data;
 	char *ext, *host;
 	char *h323id = NULL;
 	char tmp[256], tmp1[256];
 
 	if (h323debug)
-		ast_debug(1, "type=%s, format=%s, data=%s.\n", type, ast_getformatname_multiple(tmp, sizeof(tmp), cap), (char *)data);
+		ast_debug(1, "type=%s, format=%s, data=%s.\n", type, ast_getformatname_multiple(tmp, sizeof(tmp), cap), dest);
 
 	pvt = oh323_alloc(0);
 	if (!pvt) {
-		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", (char *)data);
+		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", dest);
 		return NULL;
 	}
 	if (!(ast_format_cap_has_type(cap, AST_FORMAT_TYPE_AUDIO))) {
