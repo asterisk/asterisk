@@ -2644,6 +2644,39 @@ static void my_pri_open_media(void *p)
 }
 #endif	/* defined(HAVE_PRI) */
 
+#if defined(HAVE_PRI)
+/*!
+ * \internal
+ * \brief Ask DAHDI to dial the given dial string.
+ * \since 1.8.11
+ *
+ * \param p Channel private control structure.
+ * \param dial_string String to pass to DAHDI to dial.
+ *
+ * \note The channel private lock needs to be held when calling.
+ *
+ * \return Nothing
+ */
+static void my_pri_dial_digits(void *p, const char *dial_string)
+{
+	struct dahdi_dialoperation zo = {
+		.op = DAHDI_DIAL_OP_APPEND,
+	};
+	struct dahdi_pvt *pvt = p;
+	int res;
+
+	snprintf(zo.dialstr, sizeof(zo.dialstr), "T%s", dial_string);
+	ast_debug(1, "Channel %d: Sending '%s' to DAHDI_DIAL.\n", pvt->channel, zo.dialstr);
+	res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_DIAL, &zo);
+	if (res) {
+		ast_log(LOG_WARNING, "Channel %d: Couldn't dial '%s': %s\n",
+			pvt->channel, dial_string, strerror(errno));
+	} else {
+		pvt->dialing = 1;
+	}
+}
+#endif	/* defined(HAVE_PRI) */
+
 static int unalloc_sub(struct dahdi_pvt *p, int x);
 
 static int my_unallocate_sub(void *pvt, enum analog_sub analogsub)
@@ -3342,6 +3375,7 @@ static struct sig_pri_callback dahdi_pri_callbacks =
 	.update_span_devstate = dahdi_pri_update_span_devstate,
 	.module_ref = my_module_ref,
 	.module_unref = my_module_unref,
+	.dial_digits = my_pri_dial_digits,
 	.open_media = my_pri_open_media,
 	.ami_channel_event = my_ami_channel_event,
 };
@@ -7892,6 +7926,29 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			tone_zone_play_tone(p->subs[idx].dfd, -1);
 		break;
 	case DAHDI_EVENT_DIALCOMPLETE:
+		/* DAHDI has completed dialing all digits sent using DAHDI_DIAL. */
+#if defined(HAVE_PRI)
+		if (dahdi_sig_pri_lib_handles(p->sig)) {
+			if (p->inalarm) {
+				break;
+			}
+			if (ioctl(p->subs[idx].dfd, DAHDI_DIALING, &x) == -1) {
+				ast_log(LOG_DEBUG, "DAHDI_DIALING ioctl failed on %s: %s\n", ast->name,
+					strerror(errno));
+				return NULL;
+			}
+			if (x) {
+				/* Still dialing in DAHDI driver */
+				break;
+			}
+			/*
+			 * The ast channel is locked and the private may be locked more
+			 * than once.
+			 */
+			sig_pri_dial_complete(p->sig_pvt, ast);
+			break;
+		}
+#endif	/* defined(HAVE_PRI) */
 #ifdef HAVE_OPENR2
 		if ((p->sig & SIG_MFCR2) && p->r2chan && ast->_state != AST_STATE_UP) {
 			/* we don't need to do anything for this event for R2 signaling

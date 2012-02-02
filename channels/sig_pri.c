@@ -137,6 +137,8 @@ static const char *sig_pri_call_level2str(enum sig_pri_call_level level)
 		return "Proceeding";
 	case SIG_PRI_CALL_LEVEL_ALERTING:
 		return "Alerting";
+	case SIG_PRI_CALL_LEVEL_DEFER_DIAL:
+		return "DeferDial";
 	case SIG_PRI_CALL_LEVEL_CONNECT:
 		return "Connect";
 	}
@@ -213,6 +215,13 @@ static void sig_pri_make_cc_dialstring(struct sig_pri_chan *p, char *buf, size_t
 	}
 }
 #endif	/* defined(HAVE_PRI_CCSS) */
+
+static void sig_pri_dial_digits(struct sig_pri_chan *p, const char *dial_string)
+{
+	if (p->calls->dial_digits) {
+		p->calls->dial_digits(p->chan_pvt, dial_string);
+	}
+}
 
 /*!
  * \internal
@@ -1460,6 +1469,7 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 #if defined(HAVE_PRI_SETUP_KEYPAD)
 		strcpy(new_chan->keypad_digits, old_chan->keypad_digits);
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+		strcpy(new_chan->deferred_digits, old_chan->deferred_digits);
 #if defined(HAVE_PRI_AOC_EVENTS)
 		new_chan->aoc_s_request_invoke_id = old_chan->aoc_s_request_invoke_id;
 		new_chan->aoc_e = old_chan->aoc_e;
@@ -5719,14 +5729,28 @@ static void *pri_dchannel(void *vpri)
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
 				sig_pri_handle_subcmds(pri, chanpos, e->e, e->answer.channel,
 					e->answer.subcmds, e->answer.call);
-				if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_CONNECT) {
-					pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_CONNECT;
+				if (!ast_strlen_zero(pri->pvts[chanpos]->deferred_digits)) {
+					/* We have some 'w' deferred digits to dial now. */
+					ast_verb(3,
+						"Span %d: Channel %d/%d dialing deferred digit string: %s\n",
+						pri->span, pri->pvts[chanpos]->logicalspan,
+						pri->pvts[chanpos]->prioffset,
+						pri->pvts[chanpos]->deferred_digits);
+					if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_DEFER_DIAL) {
+						pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_DEFER_DIAL;
+					}
+					sig_pri_dial_digits(pri->pvts[chanpos],
+						pri->pvts[chanpos]->deferred_digits);
+				} else {
+					if (pri->pvts[chanpos]->call_level < SIG_PRI_CALL_LEVEL_CONNECT) {
+						pri->pvts[chanpos]->call_level = SIG_PRI_CALL_LEVEL_CONNECT;
+					}
+					sig_pri_open_media(pri->pvts[chanpos]);
+					pri_queue_control(pri, chanpos, AST_CONTROL_ANSWER);
+					sig_pri_set_dialing(pri->pvts[chanpos], 0);
+					/* Enable echo cancellation if it's not on already */
+					sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 				}
-				sig_pri_open_media(pri->pvts[chanpos]);
-				pri_queue_control(pri, chanpos, AST_CONTROL_ANSWER);
-				/* Enable echo cancellation if it's not on already */
-				sig_pri_set_dialing(pri->pvts[chanpos], 0);
-				sig_pri_set_echocanceller(pri->pvts[chanpos], 1);
 
 #ifdef SUPPORT_USERUSER
 				if (!ast_strlen_zero(e->answer.useruserinfo)) {
@@ -6432,7 +6456,14 @@ void sig_pri_extract_called_num_subaddr(struct sig_pri_chan *p, const char *rdes
 	if (strlen(number) < p->stripmsd) {
 		number = "";
 	} else {
+		char *deferred;
+
 		number += p->stripmsd;
+		deferred = strchr(number, 'w');
+		if (deferred) {
+			/* Remove any 'w' deferred digits. */
+			*deferred = '\0';
+		}
 		while (isalpha(*number)) {
 			++number;
 		}
@@ -6548,7 +6579,6 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		}
 		dialed_subaddress.str = s;
 		dialed_subaddress.valid = 1;
-		s = NULL;
 	}
 
 	l = NULL;
@@ -6577,6 +6607,21 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
 		return -1;
 	}
+
+	/* Extract any 'w' deferred digits. */
+	s = strchr(c + p->stripmsd, 'w');
+	if (s) {
+		*s++ = '\0';
+		ast_copy_string(p->deferred_digits, s, sizeof(p->deferred_digits));
+		/*
+		 * Since we have a 'w', this means that there will not be any
+		 * more normal dialed digits.  Therefore, the sending complete
+		 * ie needs to be sent with any normal digits.
+		 */
+	} else {
+		p->deferred_digits[0] = '\0';
+	}
+
 	pri_grab(p, p->pri);
 	if (!(p->call = pri_new_call(p->pri->pri))) {
 		ast_log(LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
@@ -6584,7 +6629,8 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 		return -1;
 	}
 	if (!(sr = pri_sr_new())) {
-		ast_log(LOG_WARNING, "Failed to allocate setup request channel %d\n", p->channel);
+		ast_log(LOG_WARNING, "Failed to allocate setup request on channel %d\n",
+			p->channel);
 		pri_destroycall(p->pri->pri, p->call);
 		p->call = NULL;
 		pri_rel(p->pri);
@@ -7304,6 +7350,40 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
 		}
 	}
 	return 1;
+}
+
+/*!
+ * \brief DTMF dial string complete.
+ * \since 1.8.11
+ *
+ * \param pvt sig_pri private channel structure.
+ * \param ast Asterisk channel
+ *
+ * \note Channel and private lock are already held.
+ *
+ * \return Nothing
+ */
+void sig_pri_dial_complete(struct sig_pri_chan *pvt, struct ast_channel *ast)
+{
+	/* If we just completed 'w' deferred dialing digits, we need to answer now. */
+	if (pvt->call_level == SIG_PRI_CALL_LEVEL_DEFER_DIAL) {
+		pvt->call_level = SIG_PRI_CALL_LEVEL_CONNECT;
+
+		sig_pri_open_media(pvt);
+		{
+			struct ast_frame f = {AST_FRAME_CONTROL, };
+
+			if (pvt->calls->queue_control) {
+				pvt->calls->queue_control(pvt->chan_pvt, AST_CONTROL_ANSWER);
+			}
+
+			f.subclass.integer = AST_CONTROL_ANSWER;
+			ast_queue_frame(ast, &f);
+		}
+		sig_pri_set_dialing(pvt, 0);
+		/* Enable echo cancellation if it's not on already */
+		sig_pri_set_echocanceller(pvt, 1);
+	}
 }
 
 #if defined(HAVE_PRI_MWI)

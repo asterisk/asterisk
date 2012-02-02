@@ -95,6 +95,8 @@ enum sig_pri_call_level {
 	SIG_PRI_CALL_LEVEL_PROCEEDING,
 	/*! Called party is being alerted of the call. (ALERTING) */
 	SIG_PRI_CALL_LEVEL_ALERTING,
+	/*! Call is dialing 'w' deferred digits. (CONNECT) */
+	SIG_PRI_CALL_LEVEL_DEFER_DIAL,
 	/*! Call is connected/answered. (CONNECT) */
 	SIG_PRI_CALL_LEVEL_CONNECT,
 };
@@ -136,6 +138,7 @@ struct sig_pri_callback {
 	const char *(* const get_orig_dialstring)(void *pvt);
 	void (* const make_cc_dialstring)(void *pvt, char *buf, size_t buf_size);
 	void (* const update_span_devstate)(struct sig_pri_span *pri);
+	void (* const dial_digits)(void *pvt, const char *dial_string);
 
 	void (* const open_media)(void *pvt);
 
@@ -227,6 +230,8 @@ struct sig_pri_chan {
 	/*! \brief Keypad digits that came in with the SETUP message. */
 	char keypad_digits[AST_MAX_EXTENSION];
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
+	/*! 'w' deferred dialing digits. */
+	char deferred_digits[AST_MAX_EXTENSION];
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 	struct pri_subcmd_aoc_e aoc_e;
@@ -507,6 +512,7 @@ void sig_pri_init_pri(struct sig_pri_span *pri);
 /* If return 0, it means this function was able to handle it (pre setup digits).  If non zero, the user of this
  * functions should handle it normally (generate inband DTMF) */
 int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char digit);
+void sig_pri_dial_complete(struct sig_pri_chan *pvt, struct ast_channel *ast);
 
 void sig_pri_stop_pri(struct sig_pri_span *pri);
 int sig_pri_start_pri(struct sig_pri_span *pri);
