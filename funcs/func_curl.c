@@ -51,6 +51,113 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 
+/*** DOCUMENTATION
+	<function name="CURL" language="en_US">
+		<synopsis>
+			Retrieve content from a remote web or ftp server
+		</synopsis>
+		<syntax>
+			<parameter name="url" required="true" />
+			<parameter name="post-data">
+				<para>If specified, an <literal>HTTP POST</literal> will be
+				performed with the content of
+				<replaceable>post-data</replaceable>, instead of an
+				<literal>HTTP GET</literal> (default).</para>
+			</parameter>
+		</syntax>
+		<description />
+		<see-also>
+			<ref type="function">CURLOPT</ref>
+		</see-also>
+	</function>
+	<function name="CURLOPT" language="en_US">
+		<synopsis>
+			Sets various options for future invocations of CURL.
+		</synopsis>
+		<syntax>
+			<parameter name="key" required="yes">
+				<enumlist>
+					<enum name="cookie">
+						<para>A cookie to send with the request.  Multiple
+						cookies are supported.</para>
+					</enum>
+					<enum name="conntimeout">
+						<para>Number of seconds to wait for a connection to succeed</para>
+					</enum>
+					<enum name="dnstimeout">
+						<para>Number of seconds to wait for DNS to be resolved</para>
+					</enum>
+					<enum name="ftptext">
+						<para>For FTP URIs, force a text transfer (boolean)</para>
+					</enum>
+					<enum name="ftptimeout">
+						<para>For FTP URIs, number of seconds to wait for a
+						server response</para>
+					</enum>
+					<enum name="header">
+						<para>Include header information in the result
+						(boolean)</para>
+					</enum>
+					<enum name="httptimeout">
+						<para>For HTTP(S) URIs, number of seconds to wait for a
+						server response</para>
+					</enum>
+					<enum name="maxredirs">
+						<para>Maximum number of redirects to follow</para>
+					</enum>
+					<enum name="proxy">
+						<para>Hostname or IP address to use as a proxy server</para>
+					</enum>
+					<enum name="proxytype">
+						<para>Type of <literal>proxy</literal></para>
+						<enumlist>
+							<enum name="http" />
+							<enum name="socks4" />
+							<enum name="socks5" />
+						</enumlist>
+					</enum>
+					<enum name="proxyport">
+						<para>Port number of the <literal>proxy</literal></para>
+					</enum>
+					<enum name="proxyuserpwd">
+						<para>A <replaceable>username</replaceable><literal>:</literal><replaceable>password</replaceable>
+						combination to use for authenticating requests through a
+						<literal>proxy</literal></para>
+					</enum>
+					<enum name="referer">
+						<para>Referer URL to use for the request</para>
+					</enum>
+					<enum name="useragent">
+						<para>UserAgent string to use for the request</para>
+					</enum>
+					<enum name="userpwd">
+						<para>A <replaceable>username</replaceable><literal>:</literal><replaceable>password</replaceable>
+						to use for authentication when the server response to
+						an initial request indicates a 401 status code.</para>
+					</enum>
+					<enum name="ssl_verifypeer">
+						<para>Whether to verify the server certificate against
+						a list of known root certificate authorities (boolean).</para>
+					</enum>
+					<enum name="hashcompat">
+						<para>Assuming the responses will be in <literal>key1=value1&amp;key2=value2</literal>
+						format, reformat the response such that it can be used
+						by the <literal>HASH</literal> function.</para>
+					</enum>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Options may be set globally or per channel.  Per-channel
+			settings will override global settings.</para>
+		</description>
+		<see-also>
+			<ref type="function">CURL</ref>
+			<ref type="function">HASH</ref>
+		</see-also>
+	</function>
+ ***/
+
 #define CURLVERSION_ATLEAST(a,b,c) \
 	((LIBCURL_VERSION_MAJOR > (a)) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR > (b))) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR == (b)) && (LIBCURL_VERSION_PATCH >= (c))))
 
