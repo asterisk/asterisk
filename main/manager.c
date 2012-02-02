@@ -6491,6 +6491,7 @@ static int __init_manager(int reload)
 	char a1_hash[256];
 	struct sockaddr_in ami_desc_local_address_tmp = { 0, };
 	struct sockaddr_in amis_desc_local_address_tmp = { 0, };
+	int tls_was_enabled = 0;
 
 	if (!registered) {
 		/* Register default actions */
@@ -6556,10 +6557,15 @@ static int __init_manager(int reload)
 
 	/* default values */
 	ast_copy_string(global_realm, S_OR(ast_config_AST_SYSTEM_NAME, DEFAULT_REALM), sizeof(global_realm));
-	memset(&ami_desc.local_address, 0, sizeof(struct sockaddr_in));
-	memset(&amis_desc.local_address, 0, sizeof(amis_desc.local_address));
-	amis_desc_local_address_tmp.sin_port = htons(5039);
+	ast_sockaddr_setnull(&ami_desc.local_address);
+	ast_sockaddr_setnull(&amis_desc.local_address);
+
+	ami_desc_local_address_tmp.sin_family = AF_INET;
+	amis_desc_local_address_tmp.sin_family = AF_INET;
+
 	ami_desc_local_address_tmp.sin_port = htons(DEFAULT_MANAGER_PORT);
+
+	tls_was_enabled = (reload && ami_tls_cfg.enabled);
 
 	ami_tls_cfg.enabled = 0;
 	if (ami_tls_cfg.certfile) {
@@ -6634,13 +6640,16 @@ static int __init_manager(int reload)
 		}
 	}
 
-	ami_desc_local_address_tmp.sin_family = AF_INET;
-	amis_desc_local_address_tmp.sin_family = AF_INET;
+	ast_sockaddr_to_sin(&amis_desc.local_address, &amis_desc_local_address_tmp);
 
 	/* if the amis address has not been set, default is the same as non secure ami */
 	if (!amis_desc_local_address_tmp.sin_addr.s_addr) {
 		amis_desc_local_address_tmp.sin_addr =
 		    ami_desc_local_address_tmp.sin_addr;
+	}
+
+	if (!amis_desc_local_address_tmp.sin_port) {
+		amis_desc_local_address_tmp.sin_port = htons(DEFAULT_MANAGER_TLS_PORT);
 	}
 
 	if (manager_enabled) {
@@ -6897,7 +6906,9 @@ static int __init_manager(int reload)
 	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: Manager\r\nStatus: %s\r\nMessage: Manager reload Requested\r\n", manager_enabled ? "Enabled" : "Disabled");
 
 	ast_tcptls_server_start(&ami_desc);
-	if (ast_ssl_setup(amis_desc.tls_cfg)) {
+	if (tls_was_enabled && !ami_tls_cfg.enabled) {
+		ast_tcptls_server_stop(&amis_desc);
+	} else if (ast_ssl_setup(amis_desc.tls_cfg)) {
 		ast_tcptls_server_start(&amis_desc);
 	}
 	return 0;
