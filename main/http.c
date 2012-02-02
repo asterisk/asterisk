@@ -1005,13 +1005,15 @@ static int __ast_http_load(int reload)
 	uint32_t bindport = DEFAULT_PORT;
 	struct ast_sockaddr *addrs = NULL;
 	int num_addrs = 0;
+	int http_tls_was_enabled = 0;
 
 	cfg = ast_config_load2("http.conf", "http", config_flags);
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
 	}
 
-	/* default values */
+	http_tls_was_enabled = (reload && http_tls_cfg.enabled);
+
 	http_tls_cfg.enabled = 0;
 	if (http_tls_cfg.certfile) {
 		ast_free(http_tls_cfg.certfile);
@@ -1033,6 +1035,8 @@ static int __ast_http_load(int reload)
 		ast_free(redirect);
 	}
 	AST_RWLIST_UNLOCK(&uri_redirects);
+
+	ast_sockaddr_setnull(&https_desc.local_address);
 
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
@@ -1113,8 +1117,9 @@ static int __ast_http_load(int reload)
 			ast_sockaddr_set_port(&https_desc.local_address, DEFAULT_TLS_PORT);
 		}
 	}
-
-	if (enabled && !ast_sockaddr_isnull(&https_desc.local_address)) {
+	if (http_tls_was_enabled && !http_tls_cfg.enabled) {
+		ast_tcptls_server_stop(&https_desc);
+	} else if (http_tls_cfg.enabled && !ast_sockaddr_isnull(&https_desc.local_address)) {
 		/* We can get here either because a TLS-specific address was specified
 		 * or because we copied the non-TLS address here. In the case where
 		 * we read an explicit address from the config, there may have been
