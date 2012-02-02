@@ -16628,10 +16628,9 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	int havepattern = FALSE;
 	struct sip_peer *peer;
 	struct ao2_iterator i;
-	
+
 /* the last argument is left-aligned, so we don't need a size anyways */
 #define FORMAT2 "%-25.25s  %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-10s %s\n"
-#define FORMAT  "%-25.25s  %-39.39s %-3.3s %-3.3s %-3.3s %-8s %-10s %s\n"
 
 	char name[256];
 	int total_peers = 0;
@@ -16645,8 +16644,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 	int objcount = ao2_container_count(peers);
 	struct sip_peer **peerarray;
 	int k;
-	
-	
+
 	realtimepeers = ast_check_realtime("sippeers");
 	peerarray = ast_calloc(sizeof(struct sip_peer *), objcount);
 
@@ -16672,10 +16670,9 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 
 	if (!s) /* Normal list */
 		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "ACL", "Port", "Status", (realtimepeers ? "Realtime" : ""));
-	
 
 	i = ao2_iterator_init(peers, 0);
-	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {	
+	while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 		ao2_lock(peer);
 
 		if (!(peer->type & SIP_TYPE_PEER)) {
@@ -16695,15 +16692,30 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 		ao2_unlock(peer);
 	}
 	ao2_iterator_destroy(&i);
-	
+
 	qsort(peerarray, total_peers, sizeof(struct sip_peer *), peercomparefunc);
 
 	for(k=0; k < total_peers; k++) {
 		char status[20] = "";
 		char srch[2000];
 		char pstatus;
+
+		/*
+		 * tmp_port and tmp_host store copies of ast_sockaddr_stringify strings since the
+		 * string pointers for that function aren't valid between subsequent calls to
+		 * ast_sockaddr_stringify functions
+		 */
+		char *tmp_port;
+		char *tmp_host;
+
 		peer = peerarray[k];
-		
+
+		tmp_port = ast_sockaddr_isnull(&peer->addr) ?
+			"0" : ast_strdupa(ast_sockaddr_stringify_port(&peer->addr));
+
+		tmp_host = ast_sockaddr_isnull(&peer->addr) ?
+			"(Unspecified)" : ast_strdupa(ast_sockaddr_stringify_addr(&peer->addr));
+
 		ao2_lock(peer);
 		if (havepattern && regexec(&regexbuf, peer->name, 0, NULL, 0)) {
 			ao2_unlock(peer);
@@ -16715,7 +16727,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
 			ast_copy_string(name, peer->name, sizeof(name));
-		
+
 		pstatus = peer_status(peer, status, sizeof(status));
 		if (pstatus == 1)
 			peers_mon_online++;
@@ -16730,21 +16742,21 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			}
 		}
 
-		snprintf(srch, sizeof(srch), FORMAT, name,
-			ast_sockaddr_isnull(&peer->addr) ? "(Unspecified)" : ast_sockaddr_stringify_addr(&peer->addr),
-			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
+		snprintf(srch, sizeof(srch), FORMAT2, name,
+			tmp_host,
+			peer->host_dynamic ? " D " : "   ",	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
-			peer->ha ? " A " : "   ", 	/* permit/deny */
-			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_stringify_port(&peer->addr), status,
+			peer->ha ? " A " : "   ",	/* permit/deny */
+			tmp_port, status,
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 
 		if (!s)  {/* Normal CLI list */
-			ast_cli(fd, FORMAT, name,
-			ast_sockaddr_isnull(&peer->addr) ? "(Unspecified)" : ast_sockaddr_stringify_addr(&peer->addr),
-			peer->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
+			ast_cli(fd, FORMAT2, name,
+			tmp_host,
+			peer->host_dynamic ? " D " : "   ",	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ",       /* permit/deny */
-			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_stringify_port(&peer->addr), status,
+			tmp_port, status,
 			realtimepeers ? (peer->is_realtime ? "Cached RT":"") : "");
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
@@ -16764,9 +16776,9 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 			"RealtimeDevice: %s\r\n\r\n",
 			idtext,
 			peer->name,
-			ast_sockaddr_isnull(&peer->addr) ? "-none-" : ast_sockaddr_stringify_addr(&peer->addr),
-			ast_sockaddr_isnull(&peer->addr) ? 0 : ast_sockaddr_stringify_port(&peer->addr),
-			peer->host_dynamic ? "yes" : "no", 	/* Dynamic or not? */
+			ast_sockaddr_isnull(&peer->addr) ? "-none-" : tmp_host,
+			ast_sockaddr_isnull(&peer->addr) ? "0" : tmp_port,
+			peer->host_dynamic ? "yes" : "no",	/* Dynamic or not? */
 			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",	/* NAT=yes? */
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
 			ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
@@ -16777,7 +16789,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 		ao2_unlock(peer);
 		peer = peerarray[k] = unref_peer(peer, "toss iterator peer ptr");
 	}
-	
+
 	if (!s)
 		ast_cli(fd, "%d sip peers [Monitored: %d online, %d offline Unmonitored: %d online, %d offline]\n",
 		        total_peers, peers_mon_online, peers_mon_offline, peers_unmon_online, peers_unmon_offline);
@@ -16787,11 +16799,10 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 
 	if (total)
 		*total = total_peers;
-	
+
 	ast_free(peerarray);
-	
+
 	return CLI_SUCCESS;
-#undef FORMAT
 #undef FORMAT2
 }
 
