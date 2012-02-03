@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2012, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -374,6 +374,43 @@ static struct ast_channel_tech agent_tech = {
 };
 
 /*!
+ * \brief Locks the owning channel for a LOCKED pvt while obeying locking order. The pvt
+ * must enter this function locked and will be returned locked, but this function will
+ * unlock the pvt for a short time, so it can't be used while expecting the pvt to remain
+ * static. If function returns a non NULL channel, it will need to be unlocked and
+ * unrefed once it is no longer needed.
+ *
+ * \param pvt Pointer to the LOCKED agent_pvt for which the owner is needed
+ * \ret locked channel which owns the pvt at the time of completion. NULL if not available.
+ */
+static struct ast_channel *agent_lock_owner(struct agent_pvt *pvt)
+{
+	struct ast_channel *owner;
+
+	for (;;) {
+		if (!pvt->owner) { /* No owner. Nothing to do. */
+			return NULL;
+		}
+
+		/* If we don't ref the owner, it could be killed when we unlock the pvt. */
+		owner = ast_channel_ref(pvt->owner);
+
+		/* Locking order requires us to lock channel, then pvt. */
+		ast_mutex_unlock(&pvt->lock);
+		ast_channel_lock(owner);
+		ast_mutex_lock(&pvt->lock);
+
+		/* Check if owner changed during pvt unlock period */
+		if (owner != pvt->owner) { /* Channel changed. Unref and do another pass. */
+			ast_channel_unlock(owner);
+			owner = ast_channel_unref(owner);
+		} else { /* Channel stayed the same. Return it. */
+			return owner;
+		}
+	}
+}
+
+/*!
  * Adds an agent to the global list of agents.
  *
  * \param agent A string with the username, password and real name of an agent. As defined in agents.conf. Example: "13,169,John Smith"
@@ -553,7 +590,11 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	struct ast_frame *f = NULL;
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, { AST_CONTROL_ANSWER } };
 	int cur_time = time(NULL);
+	struct ast_channel *owner;
+
 	ast_mutex_lock(&p->lock);
+	owner = agent_lock_owner(p);
+
 	CHECK_FORMATS(ast, p);
 	if (!p->start) {
 		p->start = cur_time;
@@ -583,13 +624,11 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			int howlong = cur_time - p->start;
 			if (p->autologoff && (howlong >= p->autologoff)) {
 				ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
-				if (p->owner || p->chan) {
-					while (p->owner && ast_channel_trylock(p->owner)) {
-						DEADLOCK_AVOIDANCE(&p->lock);
-					}
-					if (p->owner) {
-						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
-						ast_channel_unlock(p->owner);
+				if (owner || p->chan) {
+					if (owner) {
+						ast_softhangup(owner, AST_SOFTHANGUP_EXPLICIT);
+						ast_channel_unlock(owner);
+						owner = ast_channel_unref(owner);
 					}
 
 					while (p->chan && ast_channel_trylock(p->chan)) {
@@ -649,6 +688,11 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			/* pass everything else on through */
 			break;
 		}
+	}
+
+	if (owner) {
+		ast_channel_unlock(owner);
+		owner = ast_channel_unref(owner);
 	}
 
 	CLEANUP(ast,p);
@@ -888,6 +932,14 @@ int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base)
 static int agent_hangup(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->tech_pvt;
+	struct ast_channel *indicate_chan = NULL;
+	char *tmp_moh; /* moh buffer for indicating after unlocking p */
+
+	if (p->pending) {
+		AST_LIST_LOCK(&agents);
+		AST_LIST_REMOVE(&agents, p, list);
+		AST_LIST_UNLOCK(&agents);
+	}
 
 	ast_mutex_lock(&p->lock);
 	p->owner = NULL;
@@ -910,7 +962,7 @@ static int agent_hangup(struct ast_channel *ast)
 	if (p->start && (ast->_state != AST_STATE_UP)) {
 		p->start = 0;
 	} else
-		p->start = 0; 
+		p->start = 0;
 	if (p->chan) {
 		p->chan->_bridge = NULL;
 		/* If they're dead, go ahead and hang up on the agent now */
@@ -919,14 +971,20 @@ static int agent_hangup(struct ast_channel *ast)
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 			ast_channel_unlock(p->chan);
 		} else if (p->loginstart) {
-			ast_channel_lock(p->chan);
-			ast_indicate_data(p->chan, AST_CONTROL_HOLD, 
-				S_OR(p->moh, NULL),
-				!ast_strlen_zero(p->moh) ? strlen(p->moh) + 1 : 0);
-			ast_channel_unlock(p->chan);
+			indicate_chan = ast_channel_ref(p->chan);
+			tmp_moh = ast_strdupa(p->moh);
 		}
 	}
 	ast_mutex_unlock(&p->lock);
+
+	if (indicate_chan) {
+		ast_channel_lock(indicate_chan);
+		ast_indicate_data(indicate_chan, AST_CONTROL_HOLD,
+			S_OR(tmp_moh, NULL),
+			!ast_strlen_zero(tmp_moh) ? strlen(tmp_moh) + 1 : 0);
+		ast_channel_unlock(indicate_chan);
+		indicate_chan = ast_channel_unref(indicate_chan);
+	}
 
 	/* Only register a device state change if the agent is still logged in */
 	if (!p->loginstart) {
@@ -935,11 +993,6 @@ static int agent_hangup(struct ast_channel *ast)
 		ast_devstate_changed(AST_DEVICE_NOT_INUSE, "Agent/%s", p->agent);
 	}
 
-	if (p->pending) {
-		AST_LIST_LOCK(&agents);
-		AST_LIST_REMOVE(&agents, p, list);
-		AST_LIST_UNLOCK(&agents);
-	}
 	if (p->abouttograb) {
 		/* Let the "about to grab" thread know this isn't valid anymore, and let it
 		   kill it later */
@@ -1492,6 +1545,8 @@ static force_inline int powerof(unsigned int d)
 /*!
  * Lists agents and their status to the Manager API.
  * It is registered on load_module() and it gets called by the manager backend.
+ * This function locks both the pvt and the channel that owns it for a while, but
+ * does not keep these locks.
  * \param s
  * \param m
  * \returns 
@@ -1514,7 +1569,9 @@ static int action_agents(struct mansession *s, const struct message *m)
 	astman_send_ack(s, m, "Agents will follow");
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
-        	ast_mutex_lock(&p->lock);
+		struct ast_channel *owner;
+		ast_mutex_lock(&p->lock);
+		owner = agent_lock_owner(p);
 
 		/* Status Values:
 		   AGENT_LOGGEDOFF - Agent isn't logged in
@@ -1529,16 +1586,14 @@ static int action_agents(struct mansession *s, const struct message *m)
 
 		if (p->chan) {
 			loginChan = ast_strdupa(ast_channel_name(p->chan));
-			if (p->owner && p->owner->_bridge) {
+			if (owner && owner->_bridge) {
 				talkingto = S_COR(p->chan->caller.id.number.valid,
 					p->chan->caller.id.number.str, "n/a");
-				ast_channel_lock(p->owner);
-				if ((bridge = ast_bridged_channel(p->owner))) {
+				if ((bridge = ast_bridged_channel(owner))) {
 					talkingtoChan = ast_strdupa(ast_channel_name(bridge));
 				} else {
 					talkingtoChan = "n/a";
 				}
-				ast_channel_unlock(p->owner);
 				status = "AGENT_ONCALL";
 			} else {
 				talkingto = "n/a";
@@ -1550,6 +1605,11 @@ static int action_agents(struct mansession *s, const struct message *m)
 			talkingto = "n/a";
 			talkingtoChan = "n/a";
 			status = "AGENT_LOGGEDOFF";
+		}
+
+		if (owner) {
+			ast_channel_unlock(owner);
+			owner = ast_channel_unref(owner);
 		}
 
 		astman_append(s, "Event: Agents\r\n"
@@ -1583,14 +1643,14 @@ static int agent_logoff(const char *agent, int soft)
 			ret = 0;
 			if (p->owner || p->chan) {
 				if (!soft) {
+					struct ast_channel *owner;
 					ast_mutex_lock(&p->lock);
+					owner = agent_lock_owner(p);
 
-					while (p->owner && ast_channel_trylock(p->owner)) {
-						DEADLOCK_AVOIDANCE(&p->lock);
-					}
-					if (p->owner) {
-						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
-						ast_channel_unlock(p->owner);
+					if (owner) {
+						ast_softhangup(owner, AST_SOFTHANGUP_EXPLICIT);
+						ast_channel_unlock(owner);
+						owner = ast_channel_unref(owner);
 					}
 
 					while (p->chan && ast_channel_trylock(p->chan)) {
@@ -1727,7 +1787,9 @@ static char *agents_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
+		struct ast_channel *owner;
 		ast_mutex_lock(&p->lock);
+		owner = agent_lock_owner(p);
 		if (p->pending) {
 			if (p->group)
 				ast_cli(a->fd, "-- Pending call to group %d\n", powerof(p->group));
@@ -1740,10 +1802,11 @@ static char *agents_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 				username[0] = '\0';
 			if (p->chan) {
 				snprintf(location, sizeof(location), "logged in on %s", ast_channel_name(p->chan));
-				if (p->owner && ast_bridged_channel(p->owner))
+				if (owner && ast_bridged_channel(owner)) {
 					snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_channel_name(ast_bridged_channel(p->owner)));
-				 else 
+				} else {
 					strcpy(talkingto, " is idle");
+				}
 				online_agents++;
 			} else {
 				strcpy(location, "not logged in");
@@ -1755,6 +1818,11 @@ static char *agents_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			ast_cli(a->fd, "%-12.12s %s%s%s%s\n", p->agent, 
 				username, location, talkingto, music);
 			count_agents++;
+		}
+
+		if (owner) {
+			ast_channel_unlock(owner);
+			owner = ast_channel_unref(owner);
 		}
 		ast_mutex_unlock(&p->lock);
 	}
@@ -1796,21 +1864,32 @@ static char *agents_show_online(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
+		struct ast_channel *owner;
+
 		agent_status = 0;       /* reset it to offline */
 		ast_mutex_lock(&p->lock);
+		owner = agent_lock_owner(p);
+
 		if (!ast_strlen_zero(p->name))
 			snprintf(username, sizeof(username), "(%s) ", p->name);
 		else
 			username[0] = '\0';
 		if (p->chan) {
 			snprintf(location, sizeof(location), "logged in on %s", ast_channel_name(p->chan));
-			if (p->owner && ast_bridged_channel(p->owner)) 
+			if (p->owner && ast_bridged_channel(p->owner)) {
 				snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_channel_name(ast_bridged_channel(p->owner)));
-			else 
+			} else {
 				strcpy(talkingto, " is idle");
+			}
 			agent_status = 1;
 			online_agents++;
 		}
+
+		if (owner) {
+			ast_channel_unlock(owner);
+			owner = ast_channel_unref(owner);
+		}
+
 		if (!ast_strlen_zero(p->moh))
 			snprintf(music, sizeof(music), " (musiconhold is '%s')", p->moh);
 		if (agent_status)
@@ -2386,12 +2465,16 @@ static int agents_data_provider_get(const struct ast_data_search *search,
 
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
+		struct ast_channel *owner;
+
 		data_agent = ast_data_add_node(data_root, "agent");
 		if (!data_agent) {
 			continue;
 		}
 
 		ast_mutex_lock(&p->lock);
+		owner = agent_lock_owner(p);
+
 		if (!(p->pending)) {
 			ast_data_add_str(data_agent, "id", p->agent);
 			ast_data_add_structure(agent_pvt, data_agent, p);
@@ -2402,17 +2485,25 @@ static int agents_data_provider_get(const struct ast_data_search *search,
 				if (!data_channel) {
 					ast_mutex_unlock(&p->lock);
 					ast_data_remove_node(data_root, data_agent);
+					if (owner) {
+						ast_channel_unlock(owner);
+						owner = ast_channel_unref(owner);
+					}
 					continue;
 				}
 				ast_channel_data_add_structure(data_channel, p->chan, 0);
-				if (p->owner && ast_bridged_channel(p->owner)) {
+				if (owner && ast_bridged_channel(owner)) {
 					data_talkingto = ast_data_add_node(data_agent, "talkingto");
 					if (!data_talkingto) {
 						ast_mutex_unlock(&p->lock);
 						ast_data_remove_node(data_root, data_agent);
+						if (owner) {
+							ast_channel_unlock(owner);
+							owner = ast_channel_unref(owner);
+						}
 						continue;
 					}
-					ast_channel_data_add_structure(data_talkingto, ast_bridged_channel(p->owner), 0);
+					ast_channel_data_add_structure(data_talkingto, ast_bridged_channel(owner), 0);
 				}
 			} else {
 				ast_data_add_node(data_agent, "talkingto");
@@ -2420,6 +2511,12 @@ static int agents_data_provider_get(const struct ast_data_search *search,
 			}
 			ast_data_add_str(data_agent, "musiconhold", p->moh);
 		}
+
+		if (owner) {
+			ast_channel_unlock(owner);
+			owner = ast_channel_unref(owner);
+		}
+
 		ast_mutex_unlock(&p->lock);
 
 		/* if this agent doesn't match remove the added agent. */
