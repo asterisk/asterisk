@@ -28,6 +28,7 @@
 ;[third]
 ;connection=sqlserver
 ;table=AsteriskCDR
+;schema=public ; for databases which support schemas
 ;usegmtime=yes ; defaults to no
 ;alias src => source
 ;alias channel => source_channel

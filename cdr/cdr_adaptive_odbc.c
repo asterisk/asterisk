@@ -72,6 +72,7 @@ struct columns {
 struct tables {
 	char *connection;
 	char *table;
+	char *schema;
 	unsigned int usegmtime:1;
 	AST_LIST_HEAD_NOLOCK(odbc_columns, columns) columns;
 	AST_RWLIST_ENTRY(tables) list;
@@ -90,7 +91,8 @@ static int load_config(void)
 	char columnname[80];
 	char connection[40];
 	char table[40];
-	int lenconnection, lentable, usegmtime = 0;
+	char schema[40];
+	int lenconnection, lentable, lenschema, usegmtime = 0;
 	SQLLEN sqlptr;
 	int res = 0;
 	SQLHSTMT stmt = NULL;
@@ -132,6 +134,12 @@ static int load_config(void)
 		ast_copy_string(table, tmp, sizeof(table));
 		lentable = strlen(table);
 
+		if (ast_strlen_zero(tmp = ast_variable_retrieve(cfg, catg, "schema"))) {
+			tmp = "";
+		}
+		ast_copy_string(schema, tmp, sizeof(schema));
+		lenschema = strlen(schema);
+
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed on connection '%s'!\n", connection);
@@ -139,16 +147,19 @@ static int load_config(void)
 			continue;
 		}
 
-		res = SQLColumns(stmt, NULL, 0, NULL, 0, (unsigned char *)table, SQL_NTS, (unsigned char *)"%", SQL_NTS);
+		res = SQLColumns(stmt, NULL, 0, lenschema == 0 ? NULL : (unsigned char *)schema, SQL_NTS, (unsigned char *)table, SQL_NTS, (unsigned char *)"%", SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_ERROR, "Unable to query database columns on connection '%s'.  Skipping.\n", connection);
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			continue;
 		}
 
-		tableptr = ast_calloc(sizeof(char), sizeof(*tableptr) + lenconnection + 1 + lentable + 1);
+		tableptr = ast_calloc(sizeof(char), sizeof(*tableptr) + lenconnection + 1 + lentable + 1 + lenschema + 1);
 		if (!tableptr) {
-			ast_log(LOG_ERROR, "Out of memory creating entry for table '%s' on connection '%s'\n", table, connection);
+			ast_log(LOG_ERROR, "Out of memory creating entry for table '%s' on connection '%s'%s%s%s\n", table, connection,
+				lenschema ? " (schema '" : "", lenschema ? schema : "", lenschema ? "')" : "");
+			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			res = -1;
 			break;
@@ -157,8 +168,10 @@ static int load_config(void)
 		tableptr->usegmtime = usegmtime;
 		tableptr->connection = (char *)tableptr + sizeof(*tableptr);
 		tableptr->table = (char *)tableptr + sizeof(*tableptr) + lenconnection + 1;
+		tableptr->schema = (char *)tableptr + sizeof(*tableptr) + lenconnection + 1 + lentable + 1;
 		ast_copy_string(tableptr->connection, connection, lenconnection + 1);
 		ast_copy_string(tableptr->table, table, lentable + 1);
+		ast_copy_string(tableptr->schema, schema, lenschema + 1);
 
 		ast_verb(3, "Found adaptive CDR table %s@%s.\n", tableptr->table, tableptr->connection);
 
@@ -228,6 +241,7 @@ static int load_config(void)
 			if (!entry) {
 				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s' in table '%s' on connection '%s'\n", columnname, table, connection);
 				res = -1;
+				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				break;
 			}
 			entry->name = (char *)entry + sizeof(*entry);
@@ -376,7 +390,11 @@ static int odbc_log(struct ast_cdr *cdr)
 
 	AST_LIST_TRAVERSE(&odbc_tables, tableptr, list) {
 		int first = 1;
-		ast_str_set(&sql, 0, "INSERT INTO %s (", tableptr->table);
+		if (ast_strlen_zero(tableptr->schema)) {
+			ast_str_set(&sql, 0, "INSERT INTO %s (", tableptr->table);
+		} else {
+			ast_str_set(&sql, 0, "INSERT INTO %s.%s (", tableptr->schema, tableptr->table);
+		}
 		ast_str_set(&sql2, 0, " VALUES (");
 
 		/* No need to check the connection now; we'll handle any failure in prepare_and_execute */
