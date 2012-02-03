@@ -2919,7 +2919,6 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		if (!(details = find_details(chan))) {
 			ast_log(LOG_ERROR, "no FAX session details found on chan %s for T.38 gateway session, odd\n", ast_channel_name(chan));
 			ast_framehook_detach(chan, gateway->framehook);
-			details->gateway_id = -1;
 			return f;
 		}
 	}
