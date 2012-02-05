@@ -377,6 +377,7 @@ AST_EXT_LIB_SETUP([BFD], [Debug symbol decoding], [bfd])
 AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace], [execinfo])
 AST_EXT_LIB_SETUP([BLUETOOTH], [Bluetooth], [bluetooth])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
+AST_EXT_LIB_SETUP([COROSYNC], [Corosync], [cpg])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
@@ -409,7 +410,6 @@ AST_EXT_LIB_SETUP([NEON29], [neon29], [neon29])
 AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
 AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
-AST_EXT_LIB_SETUP([OPENAIS], [OpenAIS], [openais])
 AST_EXT_LIB_SETUP([OPENR2], [MFR2], [openr2])
 AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
@@ -1985,31 +1985,7 @@ AST_EXT_LIB_CHECK([LUA], [lua], [luaL_register], [lua.h], [-lm])
 
 AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
 
-# This is a bit complex... in reality, Asterisk's AIS support is dependent on finding
-# *any* implementation of AIS, not just OpenAIS. However, the configure script needs
-# to know the specifics of each possible implementation, and then represent the one
-# that was found as 'AIS'.
-
-PBX_AIS=0
-
-# OpenAIS installs its libraries into /usr/lib/openais by default, so check there
-
-AST_EXT_LIB_CHECK([OPENAIS], [SaClm], [saClmInitialize], [openais/saClm.h], [-L/usr/lib/openais -L/usr/lib64/openais])
-
-if test "${PBX_OPENAIS}" = 1; then
-   PBX_AIS=1
-   if test -n "${OPENAIS_DIR}"; then
-      AIS_INCLUDE="${OPENAIS_INCLUDE}/openais"
-      AIS_LIB="-lSaEvt ${OPENAIS_LIB}"
-   else
-      AIS_INCLUDE="-I/usr/include/openais"
-      AIS_LIB="-lSaClm -lSaEvt -L/usr/lib/openais -L/usr/lib64/openais"
-   fi
-fi
-
-AC_SUBST(PBX_AIS)
-AC_SUBST(AIS_INCLUDE)
-AC_SUBST(AIS_LIB)
+AST_EXT_LIB_CHECK([COROSYNC], [cpg], [cpg_join], [corosync/cpg.h], [-lcfg])
 
 AST_EXT_LIB_CHECK([SPEEX], [speex], [speex_encode], [speex/speex.h], [-lm])
 

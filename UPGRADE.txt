@@ -26,6 +26,12 @@ Parking:
  - The comebacktoorigin setting must now be set per parking lot. The setting in
    the general section will not be applied automatically to each parking lot.
 
+res_ais:
+ - Users of res_ais in versions of Asterisk prior to Asterisk 11 must change
+   to use the res_corosync module, instead.  OpenAIS is deprecated, but
+   Corosync is still actively developed and maintained.  Corosync came out of
+   the OpenAIS project.
+
 Dialplan Functions:
  - MAILBOX_EXISTS has been deprecated. Use VM_INFO with the 'exists' parameter
    instead.

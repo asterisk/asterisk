@@ -160,6 +160,15 @@ Text Messaging
    instead of simply the uri.  This is the format that MessageSend() can use
    in the from parameter for outgoing SIP messages.
 
+res_corosync
+------------
+ * A new module, res_corosync, has been introduced.  This module uses the
+   Corosync cluster enginer (http://www.corosync.org) to allow a local cluster
+   of Asterisk servers to both Message Waiting Indication (MWI) and/or
+   Device State (presence) information.  This module is very similar to, and
+   is a replacement for the res_ais module that was in previous releases of
+   Asterisk.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 1.8 to Asterisk 10 -------------------
 ------------------------------------------------------------------------------

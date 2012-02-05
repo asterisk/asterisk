@@ -1,0 +1,31 @@
+;
+; Sample configuration file for res_corosync.
+;
+; This module allows events to be shared amongst a local cluster of
+; Asterisk servers.  Specifically, the types of events that may be
+; shared include:
+;
+;   - Device State (for shared presence information)
+;
+;   - Message Waiting Indication, or MWI (to allow Voicemail to live on
+;     a server that is different from where the phones are registered)
+;
+; For more information about Corosync, see: http://www.corosync.org/
+;
+
+[general]
+
+;
+;  Publish Message Waiting Indication (MWI) events from this server to the
+;  cluster.
+;publish_event = mwi
+;
+;  Subscribe to MWI events from the cluster.
+;subscribe_event = mwi
+;
+;  Publish Device State (presence) events from this server to the cluster.
+;publish_event = device_state
+;
+;  Subscribe to Device State (presence) events from the cluster.
+;subscribe_event = device_state
+;
