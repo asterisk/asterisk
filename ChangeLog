@@ -1,3 +1,25 @@
+2012-02-06  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.9.1 Released.
+
+	* channels/chan_agent.c: Fixes deadlocks occuring in chan_agent due to
+	  r335976. Bad locking order was added to chan_agent to prevent
+	  segfaults from having no locking in a patch by irroot. This patch
+	  addresses the bad locking order by releasing locks before getting the
+	  right locking order to stop deadlocks from occuring when doing
+	  multiple interactions with agents. (closes issue ASTERISK-19285)
+	  Reported by: Alex Villacis Lasso
+	  Review: https://reviewboard.asterisk.org/r/1708/
+
+	* channels/chan_sip.c: Ensure entering T.38 passthrough does not cause
+	  an infinite loop. After R340970 Asterisk was still polling the RTCP
+	  file descriptor after RTCP is shut down and removed. If the
+	  descriptor happened to have data ready when the removal occured then
+	  Asterisk would go into an infinite loop trying to read data that it
+	  can never actually access. This change disables the audio RTCP file
+	  descriptor for the duration of the T.38 transaction. (closes issue
+	  ASTERISK-18951) Reported-by: Kristijan Vrban
+
 2012-01-27  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.9.0 Released.
