@@ -35,24 +35,12 @@
 #if defined(HAVE_PRI_CCSS)
 /*! PRI debug message flags when normal PRI debugging is turned on at the command line. */
 #define SIG_PRI_DEBUG_NORMAL	\
-	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE \
-	| PRI_DEBUG_CC)
-
-/*! PRI debug message flags when intense PRI debugging is turned on at the command line. */
-#define SIG_PRI_DEBUG_INTENSE	\
-	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE \
-	| PRI_DEBUG_CC | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_DUMP)
-
+	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE | PRI_DEBUG_CC)
 #else
 
 /*! PRI debug message flags when normal PRI debugging is turned on at the command line. */
 #define SIG_PRI_DEBUG_NORMAL	\
-	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE)
-
-/*! PRI debug message flags when intense PRI debugging is turned on at the command line. */
-#define SIG_PRI_DEBUG_INTENSE	\
-	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE \
-	| PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_DUMP)
+	(PRI_DEBUG_APDU | PRI_DEBUG_Q931_STATE | PRI_DEBUG_Q921_STATE)
 #endif	/* !defined(HAVE_PRI_CCSS) */
 
 #if 0

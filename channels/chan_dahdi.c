@@ -14319,13 +14319,22 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 {
 	int span;
 	int x;
+	int debugmask = 0;
 	int level = 0;
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "pri set debug {on|off|0|1|2} span";
+		e->command = "pri set debug {on|off|hex|intense|0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15} span";
 		e->usage =
-			"Usage: pri set debug {<level>|on|off} span <span>\n"
-			"       Enables debugging on a given PRI span\n";
+			"Usage: pri set debug {<level>|on|off|hex|intense} span <span>\n"
+			"       Enables debugging on a given PRI span\n"
+			"	Level is a bitmap of the following values:\n"
+			"	1 General debugging incl. state changes\n"
+			"	2 Decoded Q.931 messages\n"
+			"	4 Decoded Q.921 messages\n"
+			"	8 Raw hex dumps of Q.921 frames\n"
+			"       on - equivalent to 3\n"
+			"       hex - equivalent to 8\n"
+			"       intense - equivalent to 15\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_span_4(a->line, a->word, a->pos, a->n);
@@ -14335,9 +14344,13 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 
 	if (!strcasecmp(a->argv[3], "on")) {
-		level = 1;
+		level = 3;
 	} else if (!strcasecmp(a->argv[3], "off")) {
 		level = 0;
+	} else if (!strcasecmp(a->argv[3], "intense")) {
+		level = 15;
+	} else if (!strcasecmp(a->argv[3], "hex")) {
+		level = 8;
 	} else {
 		level = atoi(a->argv[3]);
 	}
@@ -14351,20 +14364,15 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SUCCESS;
 	}
 
+	if (level & 1) debugmask |= SIG_PRI_DEBUG_NORMAL;
+	if (level & 2) debugmask |= PRI_DEBUG_Q931_DUMP;
+	if (level & 4) debugmask |= PRI_DEBUG_Q921_DUMP;
+	if (level & 8) debugmask |= PRI_DEBUG_Q921_RAW;
+
 	/* Set debug level in libpri */
 	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
 		if (pris[span - 1].pri.dchans[x]) {
-			switch (level) {
-			case 0:
-				pri_set_debug(pris[span - 1].pri.dchans[x], 0);
-				break;
-			case 1:
-				pri_set_debug(pris[span - 1].pri.dchans[x], SIG_PRI_DEBUG_NORMAL);
-				break;
-			default:
-				pri_set_debug(pris[span - 1].pri.dchans[x], SIG_PRI_DEBUG_INTENSE);
-				break;
-			}
+			pri_set_debug(pris[span - 1].pri.dchans[x], debugmask);
 		}
 	}
 	if (level == 0) {
