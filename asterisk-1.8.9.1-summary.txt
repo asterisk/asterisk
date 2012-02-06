@@ -1,0 +1,202 @@
+                                Release Summary
+
+                                asterisk-1.8.9.1
+
+                                Date: 2012-02-06
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.9.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   5 jrose                  
+   4 rmudgett               
+   2 alecdavis              
+   2 kpfleming              
+   2 russell                
+   2 twilson                
+   1 kmoore                 
+   1 mjordan                
+   1 mmichelson             
+   1 seanbright             
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                      | Issues          |
+   |          |            |                              | Referenced      |
+   |----------+------------+------------------------------+-----------------|
+   | 352955   | rmudgett   | Audit of ao2_iterator_init() |                 |
+   |          |            | usage for v1.8.              |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Make failed PauseMonitor and |                 |
+   | 352959   | jrose      | UnpauseMonitor with no valid | ASTERISK-19249  |
+   |          |            | channel not close AMI        |                 |
+   |          |            | session.                     |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Update ast_set_default_eid() |                 |
+   | 353077   | russell    | to find more network         |                 |
+   |          |            | interfaces.                  |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 353126   | kpfleming  | Add 'L16-256' MIME subtype   |                 |
+   |          |            | alias for slin16.            |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 353175   | russell    | Find even more network       |                 |
+   |          |            | interfaces.                  |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Clarify log WARNING message  |                 |
+   | 353260   | kpfleming  | when port-zero SDP 'm' lines |                 |
+   |          |            | received.                    |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | RFC3261 Section 8.1.1.5. The |                 |
+   | 353320   | alecdavis  | sequence number value MUST   |                 |
+   |          |            | be expressible as a 32-bit   |                 |
+   |          |            | unsigned integer             |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | prevent debug messsges       |                 |
+   | 353368   | alecdavis  | displaying -ve Cseq numbers. |                 |
+   |          |            | Missed in R353320            |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 353371   | twilson    | Re-link peers by IP when     | ASTERISK-19106  |
+   |          |            | dnsmgr changes the IP        |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Fix memory leak in error     |                 |
+   | 353454   | rmudgett   | paths for                    |                 |
+   |          |            | action_originate().          |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 353502   | twilson    | Allow res_calendar to be     | ASTERISK-16744  |
+   |          |            | unloaded                     |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Added clarification for the  |                 |
+   | 353550   | mjordan    | VERBOSITY setting to         | ASTERISK-17030  |
+   |          |            | etc_default_asterisk         |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 353598   | seanbright | Resolve an overlap in the    | ASTERISK-19246  |
+   |          |            | ast_audiohook_flags values.  |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Use                          |                 |
+   | 353720   | jrose      | ast_sockaddr_stringify_fmt   | ASTERISK-16930  |
+   |          |            | wrappers for various         |                 |
+   |          |            | functions in chan_sip        |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Fix sip show peers port      | ASTERISK-16930, |
+   | 353769   | jrose      | output, align columns, and   | ASTERISK-19281  |
+   |          |            | fix ami port output.         |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Fix TLS port binding         | ASTERISK-16959, |
+   | 353770   | mmichelson | behavior as well as reload   | ASTERISK-19201, |
+   |          |            | behavior:                    | ASTERISK-19204  |
+   |----------+------------+------------------------------+-----------------|
+   | 353818   | jrose      | Backports some documentation | ASTERISK-19186  |
+   |          |            | for func_curl from 10 to 1.8 |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Restore the 'w' modifier     |                 |
+   | 353867   | rmudgett   | support for ISDN spans.      | ASTERISK-19176  |
+   |          |            | Dial(DAHDI/g0/1234w888)      |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Ensure entering T.38         |                 |
+   | 353915   | kmoore     | passthrough does not cause   | ASTERISK-18951  |
+   |          |            | an infinite loop             |                 |
+   |----------+------------+------------------------------+-----------------|
+   | 353999   | jrose      | Fixes deadlocks occuring in  | ASTERISK-19285  |
+   |          |            | chan_agent due to r335976    |                 |
+   |----------+------------+------------------------------+-----------------|
+   |          |            | Add missing headers to AMI   |                 |
+   | 354116   | rmudgett   | UnParkedCall event to        | ASTERISK-19240  |
+   |          |            | uniquely identify the call.  |                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ UPGRADE.txt                         |    6
+ apps/app_chanspy.c                  |   13 -
+ apps/app_queue.c                    |   31 +-
+ channels/chan_agent.c               |  171 +++++++++++---
+ channels/chan_dahdi.c               |   57 ++++
+ channels/chan_iax2.c                |   16 -
+ channels/chan_sip.c                 |  414 +++++++++++++++++++++++-------------
+ channels/sig_pri.c                  |   98 +++++++-
+ channels/sig_pri.h                  |    6
+ channels/sip/include/dialog.h       |    4
+ channels/sip/include/sip.h          |   16 -
+ configs/http.conf.sample            |    3
+ configs/manager.conf.sample         |    3
+ contrib/init.d/etc_default_asterisk |    3
+ funcs/func_curl.c                   |  107 +++++++++
+ include/asterisk/audiohook.h        |   11
+ include/asterisk/channel.h          |   16 -
+ include/asterisk/dnsmgr.h           |   27 ++
+ include/asterisk/indications.h      |    3
+ include/asterisk/manager.h          |    1
+ main/dnsmgr.c                       |   31 ++
+ main/features.c                     |    9
+ main/http.c                         |   27 +-
+ main/indications.c                  |    2
+ main/manager.c                      |   82 ++++---
+ main/netsock.c                      |   32 ++
+ main/pbx.c                          |    1
+ main/rtp_engine.c                   |    1
+ main/taskprocessor.c                |    2
+ res/res_calendar.c                  |   42 ++-
+ res/res_monitor.c                   |   35 +--
+ res/res_odbc.c                      |    5
+ res/res_srtp.c                      |   46 ++--
+ res/snmp/agent.c                    |    9
+ 34 files changed, 991 insertions(+), 339 deletions(-)
+
+     ----------------------------------------------------------------------
