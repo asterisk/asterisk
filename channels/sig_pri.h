@@ -45,7 +45,7 @@
 
 #if 0
 /*! PRI debug message flags set on initial startup. */
-#define SIG_PRI_DEBUG_DEFAULT	SIG_PRI_DEBUG_NORMAL
+#define SIG_PRI_DEBUG_DEFAULT	(SIG_PRI_DEBUG_NORMAL | PRI_DEBUG_Q931_DUMP)
 #else
 /*! PRI debug message flags set on initial startup. */
 #define SIG_PRI_DEBUG_DEFAULT	0
