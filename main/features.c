@@ -5103,16 +5103,20 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		ast_manager_event(pu->chan, EVENT_FLAG_CALL, "UnParkedCall",
 			"Exten: %s\r\n"
 			"Channel: %s\r\n"
+			"Parkinglot: %s\r\n"
 			"From: %s\r\n"
 			"CallerIDNum: %s\r\n"
 			"CallerIDName: %s\r\n"
 			"ConnectedLineNum: %s\r\n"
-			"ConnectedLineName: %s\r\n",
-			pu->parkingexten, ast_channel_name(pu->chan), ast_channel_name(chan),
+			"ConnectedLineName: %s\r\n"
+			"Uniqueid: %s\r\n",
+			pu->parkingexten, ast_channel_name(pu->chan), pu->parkinglot->name,
+			ast_channel_name(chan),
 			S_COR(pu->chan->caller.id.number.valid, pu->chan->caller.id.number.str, "<unknown>"),
 			S_COR(pu->chan->caller.id.name.valid, pu->chan->caller.id.name.str, "<unknown>"),
 			S_COR(pu->chan->connected.id.number.valid, pu->chan->connected.id.number.str, "<unknown>"),
-			S_COR(pu->chan->connected.id.name.valid, pu->chan->connected.id.name.str, "<unknown>")
+			S_COR(pu->chan->connected.id.name.valid, pu->chan->connected.id.name.str, "<unknown>"),
+			ast_channel_uniqueid(pu->chan)
 			);
 
 		/* Stop entertaining the caller. */
