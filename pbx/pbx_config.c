@@ -912,11 +912,16 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 	case CLI_INIT:
 		e->command = "dialplan add extension";
 		e->usage =
-			"Usage: dialplan add extension <exten>,<priority>,<app>,<app-data>\n"
-			"       into <context> [replace]\n\n"
-			"       This command will add new extension into <context>. If there is an\n"
-			"       existence of extension with the same priority and last 'replace'\n"
-			"       arguments is given here we simply replace this extension.\n"
+			"Usage: dialplan add extension <exten>,<priority>,<app> into <context> [replace]\n"
+			"\n"
+			"       app can be either:\n"
+			"         app-name\n"
+			"         app-name(app-data)\n"
+			"         app-name,<app-data>\n"
+			"\n"
+			"       This command will add the new extension into <context>.  If\n"
+			"       an extension with the same priority already exists and the\n"
+			"       'replace' option is given we will replace the extension.\n"
 			"\n"
 			"Example: dialplan add extension 6123,1,Dial,IAX/216.207.245.56/6123 into local\n"
 			"         Now, you can dial 6123 and talk to Markster :)\n";
@@ -954,23 +959,27 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 		}
 	}
 	app = whole_exten;
-	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
-		*start = *end = '\0';
-		app_data = start + 1;
-	} else {
-		if (app) {
+	if (app) {
+		if ((start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
+			*start = *end = '\0';
+			app_data = start + 1;
+		} else {
 			app_data = strchr(app, ',');
 			if (app_data) {
-				*app_data = '\0';
-				app_data++;
+				*app_data++ = '\0';
 			}
-		} else	
-			app_data = NULL;
+		}
+	} else {
+		app_data = NULL;
 	}
 
-	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT))
+	if (!exten || !prior || !app) {
 		return CLI_SHOWUSAGE;
-	
+	}
+
+	if (!app_data) {
+		app_data = "";
+	}
 	into_context = a->argv[5];
 
 	if (!ast_context_find(into_context)) {
@@ -978,15 +987,13 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 	}
 
 	if (!ast_context_find_or_create(NULL, NULL, into_context, registrar)) {
-		ast_cli(a->fd, "ast_context_find_or_create() failed\n");
-		ast_cli(a->fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n", exten, prior, app, app_data, into_context);
+		ast_cli(a->fd, "Failed to add '%s,%s,%s(%s)' extension into '%s' context\n",
+			exten, prior, app, app_data, into_context);
 		return CLI_FAILURE;
 	}
 
-	if (!app_data)
-		app_data="";
 	if (ast_add_extension(into_context, a->argc == 7 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
-		(void *)strdup(app_data), ast_free_ptr, registrar)) {
+		ast_strdup(app_data), ast_free_ptr, registrar)) {
 		switch (errno) {
 		case ENOMEM:
 			ast_cli(a->fd, "Out of free memory\n");
@@ -1006,19 +1013,20 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 			break;
 
 		default:
-			ast_cli(a->fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n",
+			ast_cli(a->fd, "Failed to add '%s,%s,%s(%s)' extension into '%s' context\n",
 					exten, prior, app, app_data, into_context);
 			break;
 		}
 		return CLI_FAILURE;
 	}
 
-	if (a->argc == 7)
-		ast_cli(a->fd, "Extension %s@%s (%s) replace by '%s,%s,%s,%s'\n",
+	if (a->argc == 7) {
+		ast_cli(a->fd, "Extension %s@%s (%s) replace by '%s,%s,%s(%s)'\n",
 			exten, into_context, prior, exten, prior, app, app_data);
-	else
-		ast_cli(a->fd, "Extension '%s,%s,%s,%s' added into '%s' context\n",
+	} else {
+		ast_cli(a->fd, "Extension '%s,%s,%s(%s)' added into '%s' context\n",
 			exten, prior, app, app_data, into_context);
+	}
 
 	return CLI_SUCCESS;
 }
@@ -1575,7 +1583,7 @@ process_extension:
 							"The use of '%s' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X%c' instead at line %d of %s\n",
 							realext, realext[1], v->lineno, vfile);
 					}
-					if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), ast_free_ptr, registrar)) {
+					if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, ast_strdup(data), ast_free_ptr, registrar)) {
 						ast_log(LOG_WARNING,
 							"Unable to register extension at line %d of %s\n",
 							v->lineno, vfile);
@@ -1744,9 +1752,9 @@ static void pbx_load_users(void)
 			/* If voicemail, use "stdexten" else use plain old dial */
 			if (hasvoicemail) {
 				snprintf(tmp, sizeof(tmp), "%s,stdexten(${HINT})", cat);
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", strdup(tmp), ast_free_ptr, registrar);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", ast_strdup(tmp), ast_free_ptr, registrar);
 			} else {
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", strdup("${HINT}"), ast_free_ptr, registrar);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", ast_strdup("${HINT}"), ast_free_ptr, registrar);
 			}
 			altexts = ast_variable_retrieve(cfg, cat, "alternateexts");
 			if (!ast_strlen_zero(altexts)) {
@@ -1755,7 +1763,7 @@ static void pbx_load_users(void)
 				c = altcopy;
 				ext = strsep(&c, ",");
 				while (ext) {
-					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", strdup(tmp), ast_free_ptr, registrar);
+					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", ast_strdup(tmp), ast_free_ptr, registrar);
 					ext = strsep(&c, ",");
 				}
 			}
