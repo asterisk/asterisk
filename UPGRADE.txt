@@ -58,6 +58,10 @@ AMI:
   - DBDelTree now correctly returns an error when 0 rows are deleted just as
     the DBDel action does.
 
+app_meetme:
+  - The 'c' option (announce user count) will now work even if the 'q' (quiet)
+    option is enabled.
+
 SIP
 ===
  - A new option "tonezone" for setting default tonezone for the channel driver

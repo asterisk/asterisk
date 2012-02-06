@@ -2617,8 +2617,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				ast_waitstream(chan, "");
 	}
 
-	if (!ast_test_flag64(confflags, CONFFLAG_QUIET) && ast_test_flag64(confflags, CONFFLAG_ANNOUNCEUSERCOUNT) &&
-		conf->users > 1) {
+	if (ast_test_flag64(confflags, CONFFLAG_ANNOUNCEUSERCOUNT) && conf->users > 1) {
 		int keepplaying = 1;
 
 		if (conf->users == 2) { 
