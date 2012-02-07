@@ -154,6 +154,7 @@ fi
 
 # gets rid of excessive spaces. Leves nothing if there were only white spaces:
 LIVE_AST_LD_PATH_EXTRA=`echo $LIVE_AST_LD_PATH_EXTRA | tr ' ' :`
+LIVE_AST_LD_PATH_EXTRA="$BASE_DIR/usr/lib:$LIVE_AST_LD_PATH_EXTRA"
 
 set_ld_env() {
   if [ "$LIVE_AST_LD_PATH_EXTRA$LD_LIBRARY_PATH" = '' ]; then return; fi
