@@ -64,10 +64,14 @@ username character varying(80) DEFAULT '' NOT NULL,
 allow character varying(200) DEFAULT '!all,g729,ilbc,gsm,ulaw,alaw',
 musiconhold character varying(100),
 regseconds bigint DEFAULT 0::bigint NOT NULL,
-ipaddr character varying(40) DEFAULT '' NOT NULL,
+ipaddr character varying(45) DEFAULT '' NOT NULL,
 regexten character varying(80) DEFAULT '' NOT NULL,
 cancallforward character varying(3) DEFAULT 'yes',
-lastms integer DEFAULT -1 NOT NULL
+lastms integer DEFAULT 0 NOT NULL,
+defaultuser character varying(80),
+fullcontact character varying(80),
+regserver character varying(30),
+useragent character varying(40)
 );
 
 drop table voicemail_users;
