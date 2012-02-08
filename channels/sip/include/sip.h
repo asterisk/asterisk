@@ -1261,6 +1261,7 @@ struct sip_peer {
 		AST_STRING_FIELD(zone);         /*!< Tonezone for this device */
 		AST_STRING_FIELD(record_on_feature); /*!< Feature to use when receiving INFO with record: on during a call */
 		AST_STRING_FIELD(record_off_feature); /*!< Feature to use when receiving INFO with record: off during a call */
+		AST_STRING_FIELD(callback); /*!< Callback extension */
 		);
 	struct sip_socket socket;       /*!< Socket used for this peer */
 	enum sip_transport default_outbound_transport;   /*!< Peer Registration may change the default outbound transport.
@@ -1345,7 +1346,7 @@ struct sip_peer {
  * \todo Convert this to astobj2
  */
 struct sip_registry {
-	ASTOBJ_COMPONENTS_FULL(struct sip_registry,1,1);
+	ASTOBJ_COMPONENTS_FULL(struct sip_registry, 80, 1);
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(callid);     /*!< Global Call-ID */
 		AST_STRING_FIELD(realm);      /*!< Authorization realm */

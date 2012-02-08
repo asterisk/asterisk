@@ -1456,13 +1456,14 @@ static void destroy_association(struct sip_peer *peer);
 static void set_insecure_flags(struct ast_flags *flags, const char *value, int lineno);
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v);
 static void set_socket_transport(struct sip_socket *socket, int transport);
+static int peer_ipcmp_cb_full(void *obj, void *arg, void *data, int flags);
 
 /* Realtime device support */
 static void realtime_update_peer(const char *peername, struct ast_sockaddr *addr, const char *username, const char *fullcontact, const char *useragent, int expirey, unsigned short deprecated_username, int lastms);
 static void update_peer(struct sip_peer *p, int expire);
 static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config);
 static const char *get_name_from_variable(const struct ast_variable *var);
-static struct sip_peer *realtime_peer(const char *peername, struct ast_sockaddr *sin, int devstate_only, int which_objects);
+static struct sip_peer *realtime_peer(const char *peername, struct ast_sockaddr *sin, char *callbackexten, int devstate_only, int which_objects);
 static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*--- Internal UA client handling (outbound registrations) */
@@ -4893,7 +4894,7 @@ static struct ast_variable *realtime_peer_get_sippeer_helper(const char **name, 
 /* If varregs is NULL, we don't use sipregs. If we return true, then *name is
  * set. Using empty if-bodies instead of goto's while avoiding unnecessary
  * indents. */
-static int realtime_peer_by_addr(const char **name, struct ast_sockaddr *addr, const char *ipaddr, struct ast_variable **var, struct ast_variable **varregs)
+static int realtime_peer_by_addr(const char **name, struct ast_sockaddr *addr, const char *ipaddr, const char *callbackexten, struct ast_variable **var, struct ast_variable **varregs)
 {
 	char portstring[6]; /* up to 5 digits plus null terminator */
 	ast_copy_string(portstring, ast_sockaddr_stringify_port(addr), sizeof(portstring));
@@ -4901,8 +4902,11 @@ static int realtime_peer_by_addr(const char **name, struct ast_sockaddr *addr, c
 	/* We're not finding this peer by this name anymore. Reset it. */
 	*name = NULL;
 
-	/* First check for fixed IP hosts */
-	if ((*var = ast_load_realtime("sippeers", "host", ipaddr, "port", portstring, SENTINEL))) {
+	/* First check for fixed IP hosts with matching callbackextensions, if specified */
+	if (!ast_strlen_zero(callbackexten) && (*var = ast_load_realtime("sippeers", "host", ipaddr, "port", portstring, "callbackextension", callbackexten, SENTINEL))) {
+		;
+	/* Check for fixed IP hosts */
+	} else if ((*var = ast_load_realtime("sippeers", "host", ipaddr, "port", portstring, SENTINEL))) {
 		;
 	/* Check for registered hosts (in sipregs) */
 	} else if (varregs && (*varregs = ast_load_realtime("sipregs", "ipaddr", ipaddr, "port", portstring, SENTINEL)) &&
@@ -4953,6 +4957,38 @@ static int realtime_peer_by_addr(const char **name, struct ast_sockaddr *addr, c
 	return 1;
 }
 
+static int register_realtime_peers_with_callbackextens(void)
+{
+	struct ast_config *cfg;
+	char *cat = NULL;
+
+	if (!(ast_check_realtime("sippeers"))) {
+		return 0;
+	}
+
+	/* This is hacky. We want name to be the cat, so it is the first property */
+	if (!(cfg = ast_load_realtime_multientry("sippeers", "name LIKE", "%", "callbackextension LIKE", "%", SENTINEL))) {
+		return -1;
+	}
+
+	while ((cat = ast_category_browse(cfg, cat))) {
+		struct sip_peer *peer;
+		struct ast_variable *var = ast_category_root(cfg, cat);
+
+		if (!(peer = build_peer(cat, var, NULL, TRUE, FALSE))) {
+			continue;
+		}
+		ast_log(LOG_NOTICE, "Created realtime peer '%s' for registration\n", peer->name);
+
+		peer->is_realtime = 1;
+		sip_unref_peer(peer, "register_realtime_peers: Done registering releasing");
+	}
+
+	ast_config_destroy(cfg);
+
+	return 0;
+}
+
 /*! \brief  realtime_peer: Get peer from realtime storage
  * Checks the "sippeers" realtime family from extconfig.conf
  * Checks the "sipregs" realtime family from extconfig.conf if it's configured.
@@ -4962,7 +4998,7 @@ static int realtime_peer_by_addr(const char **name, struct ast_sockaddr *addr, c
  * \note This is never called with both newpeername and addr at the same time.
  * If you do, be prepared to get a peer with a different name than newpeername.
  */
-static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockaddr *addr, int devstate_only, int which_objects)
+static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockaddr *addr, char *callbackexten, int devstate_only, int which_objects)
 {
 	struct sip_peer *peer = NULL;
 	struct ast_variable *var = NULL;
@@ -4978,7 +5014,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct ast_sockad
 
 	if (newpeername && realtime_peer_by_name(&newpeername, addr, ipaddr, &var, realtimeregs ? &varregs : NULL)) {
 		;
-	} else if (addr && realtime_peer_by_addr(&newpeername, addr, ipaddr, &var, realtimeregs ? &varregs : NULL)) {
+	} else if (addr && realtime_peer_by_addr(&newpeername, addr, ipaddr, callbackexten, &var, realtimeregs ? &varregs : NULL)) {
 		;
 	} else {
 		return NULL;
@@ -5054,20 +5090,7 @@ static int find_by_name(void *obj, void *arg, void *data, int flags)
 	return CMP_MATCH | CMP_STOP;
 }
 
-/*!
- * \brief Locate device by name or ip address
- * \param peer, sin, realtime, devstate_only, transport
- * \param which_objects Define which objects should be matched when doing a lookup
- *        by name.  Valid options are FINDUSERS, FINDPEERS, or FINDALLDEVICES.
- *        Note that this option is not used at all when doing a lookup by IP.
- *
- *	This is used on find matching device on name or ip/port.
- * If the device was declared as type=peer, we don't match on peer name on incoming INVITEs.
- *
- * \note Avoid using this function in new functions if there is a way to avoid it,
- * since it might cause a database lookup.
- */
-struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int realtime, int which_objects, int devstate_only, int transport)
+static struct sip_peer *sip_find_peer_full(const char *peer, struct ast_sockaddr *addr, char *callbackexten, int realtime, int which_objects, int devstate_only, int transport)
 {
 	struct sip_peer *p = NULL;
 	struct sip_peer tmp_peer;
@@ -5079,10 +5102,10 @@ struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int 
 		ast_sockaddr_copy(&tmp_peer.addr, addr);
 		tmp_peer.flags[0].flags = 0;
 		tmp_peer.transports = transport;
-		p = ao2_t_find(peers_by_ip, &tmp_peer, OBJ_POINTER, "ao2_find in peers_by_ip table"); /* WAS:  p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp); */
+		p = ao2_t_callback_data(peers_by_ip, OBJ_POINTER, peer_ipcmp_cb_full, &tmp_peer, callbackexten, "ao2_find in peers_by_ip table");
 		if (!p) {
 			ast_set_flag(&tmp_peer.flags[0], SIP_INSECURE_PORT);
-			p = ao2_t_find(peers_by_ip, &tmp_peer, OBJ_POINTER, "ao2_find in peers_by_ip table 2"); /* WAS:  p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp); */
+			p = ao2_t_callback_data(peers_by_ip, OBJ_POINTER, peer_ipcmp_cb_full, &tmp_peer, callbackexten, "ao2_find in peers_by_ip table 2");
 			if (p) {
 				return p;
 			}
@@ -5090,7 +5113,9 @@ struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int 
 	}
 
 	if (!p && (realtime || devstate_only)) {
-		p = realtime_peer(peer, addr, devstate_only, which_objects);
+		/* realtime_peer will return a peer with matching callbackexten if possible, otherwise one matching
+		 * without the callbackexten */
+		p = realtime_peer(peer, addr, callbackexten, devstate_only, which_objects);
 		if (p) {
 			switch (which_objects) {
 			case FINDUSERS:
@@ -5112,6 +5137,29 @@ struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int 
 	}
 
 	return p;
+}
+
+/*!
+ * \brief Locate device by name or ip address
+ * \param peer, sin, realtime, devstate_only, transport
+ * \param which_objects Define which objects should be matched when doing a lookup
+ *        by name.  Valid options are FINDUSERS, FINDPEERS, or FINDALLDEVICES.
+ *        Note that this option is not used at all when doing a lookup by IP.
+ *
+ *	This is used on find matching device on name or ip/port.
+ * If the device was declared as type=peer, we don't match on peer name on incoming INVITEs.
+ *
+ * \note Avoid using this function in new functions if there is a way to avoid it,
+ * since it might cause a database lookup.
+ */
+struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int realtime, int which_objects, int devstate_only, int transport)
+{
+	return sip_find_peer_full(peer, addr, NULL, realtime, which_objects, devstate_only, transport);
+}
+
+static struct sip_peer *sip_find_peer_by_ip_and_exten(struct ast_sockaddr *addr, char *callbackexten, int transport)
+{
+	return sip_find_peer_full(NULL, addr, callbackexten, TRUE, FINDPEERS, FALSE, transport);
 }
 
 /*! \brief Set nat mode on the various data sockets */
@@ -8410,16 +8458,16 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 /*! \brief create sip_registry object from register=> line in sip.conf and link into reg container */
 static int sip_register(const char *value, int lineno)
 {
-	struct sip_registry *reg;
+	struct sip_registry *reg, *tmp;
 
 	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
 		return -1;
 	}
 
-	ast_atomic_fetchadd_int(&regobjs, 1);
 	ASTOBJ_INIT(reg);
 
+	ast_copy_string(reg->name, value, sizeof(reg->name));
 	if (sip_parse_register_line(reg, default_expiry, value, lineno)) {
 		registry_unref(reg, "failure to parse, unref the reg pointer");
 		return -1;
@@ -8430,8 +8478,13 @@ static int sip_register(const char *value, int lineno)
 		reg->refresh = reg->expiry = reg->configured_expiry = default_expiry;
 	}
 
-	/* Add the new registry entry to the list */
-	ASTOBJ_CONTAINER_LINK(&regl, reg);
+	/* Add the new registry entry to the list, but only if it isn't already there */
+	if ((tmp = ASTOBJ_CONTAINER_FIND(&regl, reg->name))) {
+		registry_unref(tmp, "throw away found registry");
+	} else {
+		ast_atomic_fetchadd_int(&regobjs, 1);
+		ASTOBJ_CONTAINER_LINK(&regl, reg);
+	}
 
 	/* release the reference given by ASTOBJ_INIT. The container has another reference */
 	registry_unref(reg, "unref the reg pointer");
@@ -16330,7 +16383,14 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 
 		/* Then find devices based on IP */
 		if (!peer) {
-			peer = sip_find_peer(NULL, &p->recv, TRUE, FINDPEERS, FALSE, p->socket.type);
+			char *uri_tmp, *callback = NULL, *dummy;
+			uri_tmp = ast_strdupa(uri2);
+			parse_uri(uri_tmp, "sip:,sips:", &callback, &dummy, &dummy, &dummy);
+			if (!ast_strlen_zero(callback) && (peer = sip_find_peer_by_ip_and_exten(&p->recv, callback, p->socket.type))) {
+				; /* found, fall through */
+			} else {
+				peer = sip_find_peer(NULL, &p->recv, TRUE, FINDPEERS, FALSE, p->socket.type);
+			}
 		}
 	}
 
@@ -28180,7 +28240,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	time_t regseconds = 0;
 	struct ast_flags peerflags[3] = {{(0)}};
 	struct ast_flags mask[3] = {{(0)}};
-	char callback[256] = "";
 	struct sip_peer tmp_peer;
 	const char *srvlookup = NULL;
 	static int deprecation_warning = 1;
@@ -28486,7 +28545,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			} else if (!strcasecmp(v->name, "regexten")) {
 				ast_string_field_set(peer, regexten, v->value);
 			} else if (!strcasecmp(v->name, "callbackextension")) {
-				ast_copy_string(callback, v->value, sizeof(callback));
+				ast_string_field_set(peer, callback, v->value);
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
@@ -28858,9 +28917,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 	ast_free_ha(oldha);
 	ast_free_ha(olddirectmediaha);
-	if (!ast_strlen_zero(callback)) { /* build string from peer info */
+	if (!ast_strlen_zero(peer->callback)) { /* build string from peer info */
 		char *reg_string;
-		if (asprintf(&reg_string, "%s?%s:%s@%s/%s", peer->name, peer->username, !ast_strlen_zero(peer->remotesecret) ? peer->remotesecret : peer->secret, peer->tohost, callback) < 0) {
+		if (asprintf(&reg_string, "%s?%s:%s@%s/%s", peer->name, peer->username, !ast_strlen_zero(peer->remotesecret) ? peer->remotesecret : peer->secret, peer->tohost, peer->callback) < 0) {
 			ast_log(LOG_WARNING, "asprintf() failed: %s\n", strerror(errno));
 		} else if (reg_string) {
 			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
@@ -30023,6 +30082,8 @@ static int reload_config(enum channelreloadreason reason)
 	/* Release configuration from memory */
 	ast_config_destroy(cfg);
 
+	register_realtime_peers_with_callbackextens();
+
 	/* Load the list of manual NOTIFY types to support */
 	if (notify_types) {
 		ast_config_destroy(notify_types);
@@ -30811,9 +30872,17 @@ static int peer_iphash_cb(const void *obj, const int flags)
  *
  * \note the peer's addr struct provides to fields combined to make a key: the sin_addr.s_addr and sin_port fields.
  */
-static int peer_ipcmp_cb(void *obj, void *arg, int flags)
+static int peer_ipcmp_cb_full(void *obj, void *arg, void *data, int flags)
 {
 	struct sip_peer *peer = obj, *peer2 = arg;
+	char *callback = data;
+
+	if (!ast_strlen_zero(callback) && strcasecmp(peer->callback, callback)) {
+		/* We require a callback extension match, but don't have one */
+		return 0;
+	}
+
+	/* At this point, we match the callback extension if we need to. Carry on. */
 
 	if (ast_sockaddr_cmp_addr(&peer->addr, &peer2->addr)) {
 		/* IP doesn't match */
@@ -30836,6 +30905,10 @@ static int peer_ipcmp_cb(void *obj, void *arg, int flags)
 			(CMP_MATCH | CMP_STOP) : 0;
 }
 
+static int peer_ipcmp_cb(void *obj, void *arg, int flags)
+{
+	return peer_ipcmp_cb_full(obj, arg, NULL, flags);
+}
 
 static int threadt_hash_cb(const void *obj, const int flags)
 {

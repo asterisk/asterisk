@@ -71,7 +71,8 @@ lastms integer DEFAULT 0 NOT NULL,
 defaultuser character varying(80),
 fullcontact character varying(80),
 regserver character varying(30),
-useragent character varying(40)
+useragent character varying(40),
+callbackextension character varying(40)
 );
 
 drop table voicemail_users;

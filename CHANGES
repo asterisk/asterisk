@@ -54,6 +54,11 @@ SIP Changes
    lookup service.
  * A new setting for autocreatepeer (autocreatepeer=persistent) allows peers
    created using that setting to not be removed during SIP reload.
+ * Add support to realtime for the 'callbackextension' option
+ * When multiple peers exist with the same address, but differing
+   callbackextension options, incoming requests that are matched by address
+   will be matched to the peer with the matching callbackextension if it is
+   available.
 
 Chan_local changes
 ------------------
