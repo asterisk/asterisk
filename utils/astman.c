@@ -155,12 +155,11 @@ static void __attribute__((format(printf, 2, 3))) fdprintf(int fd, char *fmt, ..
 {
 	char stuff[4096];
 	va_list ap;
-	int res;
 
 	va_start(ap, fmt);
 	vsnprintf(stuff, sizeof(stuff), fmt, ap);
 	va_end(ap);
-	if ((res = write(fd, stuff, strlen(stuff))) < 0) {
+	if (write(fd, stuff, strlen(stuff)) < 0) {
 		fprintf(stderr, "write() failed: %s\n", strerror(errno));
 	}
 }

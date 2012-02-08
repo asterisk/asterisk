@@ -1949,9 +1949,8 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 	*vms_p->introfn = '\0';
 
 	ast_mutex_lock(&vms_p->lock);
-	init_mailstream(vms_p, GREETINGS_FOLDER);
-	if (!vms_p->mailstream) {
-		ast_log(AST_LOG_ERROR, "IMAP mailstream is NULL\n");
+	if (init_mailstream(vms_p, GREETINGS_FOLDER) || !vms_p->mailstream) {
+		ast_log(AST_LOG_ERROR, "IMAP mailstream is NULL or can't init_mailstream\n");
 		ast_mutex_unlock(&vms_p->lock);
 		return -1;
 	}
@@ -2570,7 +2569,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
  */
 static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir, char *flag)
 {
-	struct vm_state *sendvms = NULL, *destvms = NULL;
+	struct vm_state *sendvms = NULL;
 	char messagestring[10]; /*I guess this could be a problem if someone has more than 999999999 messages...*/
 	if (msgnum >= recip->maxmsg) {
 		ast_log(LOG_WARNING, "Unable to copy mail, mailbox %s is full\n", recip->mailbox);
@@ -2580,7 +2579,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		ast_log(LOG_ERROR, "Couldn't get vm_state for originator's mailbox!!\n");
 		return -1;
 	}
-	if (!(destvms = get_vm_state_by_imapuser(recip->imapuser, 0))) {
+	if (!get_vm_state_by_imapuser(recip->imapuser, 0)) {
 		ast_log(LOG_ERROR, "Couldn't get vm_state for destination mailbox!\n");
 		return -1;
 	}
@@ -2704,7 +2703,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 {
 	SEARCHPGM *pgm;
 	SEARCHHEADER *hdr;
-	int ret, urgent = 0;
+	int urgent = 0;
 
 	/* If Urgent, then look at INBOX */
 	if (box == 11) {
@@ -2720,7 +2719,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	vms->imapversion = vmu->imapversion;
 	ast_debug(3, "Before init_mailstream, user is %s\n", vmu->imapuser);
 
-	if ((ret = init_mailstream(vms, box)) || !vms->mailstream) {
+	if (init_mailstream(vms, box) || !vms->mailstream) {
 		ast_log(AST_LOG_ERROR, "Could not initialize mailstream\n");
 		return -1;
 	}
@@ -3047,7 +3046,7 @@ static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len)
 
 static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len)
 {
-	char *start, *quote, *eol_pnt;
+	char *start, *eol_pnt;
 
 	if (ast_strlen_zero(mailbox))
 		return NULL;
@@ -3057,15 +3056,16 @@ static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len)
 
 	ast_copy_string(buf, start+6, len);
 
-	if (!(quote = strchr(buf, '\"'))) {
-		if (!(eol_pnt = strchr(buf, '/')))
-			eol_pnt = strchr(buf,'}');
-		*eol_pnt = '\0';
+	if (!(quote = strchr(buf, '"'))) {
+		if ((eol_pnt = strchr(buf, '/')) || (eol_pnt = strchr(buf, '}'))) {
+			*eol_pnt = '\0';
+		}
 		return buf;
 	} else {
-		eol_pnt = strchr(buf+1,'\"');
-		*eol_pnt = '\0';
-		return buf+1;
+		if ((eol_pnt = strchr(quote + 1, '"'))) {
+			*eol_pnt = '\0';
+		}
+		return quote + 1;
 	}
 }
 
@@ -6347,8 +6347,8 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 		COPY(dir, msg, ddir, x, username, context, sfn, dfn);
 	}
 	ast_unlock_path(ddir);
-#endif
 	return 0;
+#endif
 }
 
 static int adsi_logo(unsigned char *buf)
@@ -7344,10 +7344,10 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			prompt_played++;
 			if (res || prompt_played > 4)
 				break;
-			if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0))
+			if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#")) < 0)
 				break;
 		}
-		
+
 		/* start all over if no username */
 		if (ast_strlen_zero(username))
 			continue;
@@ -12775,7 +12775,7 @@ static int vmsayname_exec(struct ast_channel *chan, const char *data)
 		context = "default";
 	}
 
-	if ((res = sayname(chan, args_copy, context) < 0)) {
+	if ((res = sayname(chan, args_copy, context)) < 0) {
 		ast_debug(3, "Greeting not found for '%s@%s', falling back to mailbox number.\n", args_copy, context);
 		res = ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
 		if (!res) {

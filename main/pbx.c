@@ -3891,7 +3891,7 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 {
 	/* Substitutes variables into buf, based on string templ */
 	char *cp4 = NULL;
-	const char *tmp, *whereweare;
+	const char *whereweare;
 	int orig_size = 0;
 	int offset, offset2, isfunction;
 	const char *nextvar, *nextexp, *nextthing;
@@ -3901,7 +3901,7 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 	struct ast_str *substr1 = ast_str_create(16), *substr2 = NULL, *substr3 = ast_str_create(16);
 
 	ast_str_reset(*buf);
-	whereweare = tmp = templ;
+	whereweare = templ;
 	while (!ast_strlen_zero(whereweare)) {
 		/* reset our buffer */
 		ast_str_reset(substr3);
@@ -4082,7 +4082,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 {
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
 	char *cp4 = NULL;
-	const char *tmp, *whereweare, *orig_cp2 = cp2;
+	const char *whereweare, *orig_cp2 = cp2;
 	int length, offset, offset2, isfunction;
 	char *workspace = NULL;
 	char *ltmp = NULL, *var = NULL;
@@ -4091,7 +4091,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 	int pos, brackets, needsub, len;
 
 	*cp2 = 0; /* just in case nothing ends up there */
-	whereweare=tmp=cp1;
+	whereweare = cp1;
 	while (!ast_strlen_zero(whereweare) && count) {
 		/* Assume we're copying the whole remaining string */
 		pos = strlen(whereweare);

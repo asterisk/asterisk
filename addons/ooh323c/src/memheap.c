@@ -726,7 +726,7 @@ void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_)
    OSMemLink** ppMemLink;
    OSMemBlk* pMemBlk;
    OSMemElemDescr* pElem;
-   OSMemLink* pMemLink, *pPrevMemLink = 0;
+   OSMemLink* pMemLink;
    void *newMem_p;
    unsigned nbytes, nunits;
 
@@ -758,7 +758,6 @@ void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_)
          *(int*)(((char*)pMemLink) + sizeof (OSMemLink)) = nbytes_;
          return pMemLink->pMemBlk;
       }
-      pPrevMemLink = pMemLink;
    }
 
    /* Round number of bytes to nearest 8-byte boundary */

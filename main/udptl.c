@@ -1045,7 +1045,6 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 {
 	unsigned int seq;
 	unsigned int len = f->datalen;
-	int res;
 	/* if no max datagram size is provided, use default value */
 	const int bufsize = (s->far_max_datagram > 0) ? s->far_max_datagram : DEFAULT_FAX_MAX_DATAGRAM;
 	uint8_t buf[bufsize];
@@ -1083,12 +1082,14 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 	len = udptl_build_packet(s, buf, sizeof(buf), f->data.ptr, len);
 
 	if ((signed int) len > 0 && !ast_sockaddr_isnull(&s->them)) {
-		if ((res = ast_sendto(s->fd, buf, len, 0, &s->them)) < 0)
+		if (ast_sendto(s->fd, buf, len, 0, &s->them) < 0) {
 			ast_log(LOG_NOTICE, "UDPTL (%s): Transmission error to %s: %s\n",
 				LOG_TAG(s), ast_sockaddr_stringify(&s->them), strerror(errno));
-		if (udptl_debug_test_addr(&s->them))
+		}
+		if (udptl_debug_test_addr(&s->them)) {
 			ast_verb(1, "UDPTL (%s): packet to %s (seq %d, len %d)\n",
 				LOG_TAG(s), ast_sockaddr_stringify(&s->them), seq, len);
+		}
 	}
 		
 	return 0;

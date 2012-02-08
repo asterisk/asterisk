@@ -214,7 +214,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			break;
 		}
 
-		if ((res = ast_waitfor(chan, -1) < 0)) {
+		if ((res = ast_waitfor(chan, -1)) < 0) {
 			ast_debug(1, "Waitfor returned %d\n", res);
 			continue;
 		}

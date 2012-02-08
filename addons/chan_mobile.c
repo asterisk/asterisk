@@ -2975,7 +2975,6 @@ static int sdp_search(char *addr, int profile)
 
 static sdp_session_t *sdp_register(void)
 {
-
 	uint32_t service_uuid_int[] = {0, 0, 0, GENERIC_AUDIO_SVCLASS_ID};
 	uint8_t rfcomm_channel = 1;
 	const char *service_name = "Asterisk PABX";
@@ -3021,8 +3020,12 @@ static sdp_session_t *sdp_register(void)
 
 	if (!(session = sdp_connect(BDADDR_ANY, BDADDR_LOCAL, SDP_RETRY_IF_BUSY)))
 		ast_log(LOG_WARNING, "Failed to connect sdp and create session.\n");
-	else
-		sdp_record_register(session, record, 0);
+	else {
+		if (sdp_record_register(session, record, 0) < 0) {
+			ast_log(LOG_WARNING, "Failed to sdp_record_register error: %d\n", errno);
+			return NULL;
+		}
+	}
 
 	sdp_data_free(channel);
 	sdp_list_free(rfcomm_list, 0);
@@ -4083,18 +4086,17 @@ static void *do_discovery(void *data)
 static void *do_sco_listen(void *data)
 {
 	struct adapter_pvt *adapter = (struct adapter_pvt *) data;
-	int res;
 
 	while (!check_unloading()) {
 		/* check for new sco connections */
-		if ((res = ast_io_wait(adapter->accept_io, 0)) == -1) {
+		if (ast_io_wait(adapter->accept_io, 0) == -1) {
 			/* handle errors */
 			ast_log(LOG_ERROR, "ast_io_wait() failed for adapter %s\n", adapter->id);
 			break;
 		}
 
 		/* handle audio data */
-		if ((res = ast_io_wait(adapter->io, 1)) == -1) {
+		if (ast_io_wait(adapter->io, 1) == -1) {
 			ast_log(LOG_ERROR, "ast_io_wait() failed for audio on adapter %s\n", adapter->id);
 			break;
 		}

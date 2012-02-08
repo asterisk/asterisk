@@ -474,7 +474,6 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 	int64_t flength, i; /* iterator needs to be signed, so it can go negative and terminate the loop */
 	int64_t offset_offset = -1, length_offset = -1;
 	char dos_state = 0;
-	size_t readlen;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(offset);
@@ -636,7 +635,7 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 				/* Don't let previous values influence current counts, due to short reads */
 				memset(fbuf, 0, sizeof(fbuf));
 			}
-			if (fread(fbuf, 1, sizeof(fbuf), ff) && !feof(ff)) {
+			if (fread(fbuf, 1, sizeof(fbuf), ff) < sizeof(fbuf) && !feof(ff)) {
 				ast_log(LOG_ERROR, "Short read?!!\n");
 				fclose(ff);
 				return -1;
@@ -688,8 +687,10 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 		ast_debug(3, "offset=%" PRId64 ", length=%" PRId64 ", offset_offset=%" PRId64 ", length_offset=%" PRId64 "\n", offset, length, offset_offset, length_offset);
 		for (i = offset_offset; i < flength; i += sizeof(fbuf)) {
 			char *pos;
-			if ((readlen = fread(fbuf, 1, sizeof(fbuf), ff)) < sizeof(fbuf) && !feof(ff)) {
+			if (fread(fbuf, 1, sizeof(fbuf), ff) < sizeof(fbuf) && !feof(ff)) {
 				ast_log(LOG_ERROR, "Short read?!!\n");
+				fclose(ff);
+				return -1;
 			}
 			for (pos = fbuf; pos < fbuf + sizeof(fbuf); pos++) {
 				LINE_COUNTER(pos, format, current_length);

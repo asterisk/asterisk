@@ -614,7 +614,6 @@ struct osp_metrics {
 	float min;			/* Minimum */
 	float max;			/* Maximum */
 	float avg;			/* Average */
-	float ndev;			/* Normal deviation */
 	float sdev;			/* Standard deviation */
 };
 
@@ -1452,7 +1451,7 @@ static int osp_create_callid(
 
 	if (callid == NULL) {
 		ast_log(LOG_ERROR, "Invalid parameters\n");
-		res = OSP_ERROR;
+		return OSP_ERROR;
 	}
 
 	callid->len = sizeof(callid->buf);
@@ -1463,6 +1462,7 @@ static int osp_create_callid(
 	case OSP_CALLID_SIP:
 	case OSP_CALLID_IAX:
 		res = OSP_FAILED;
+		break;
 	default:
 		res = OSP_ERROR;
 		break;
@@ -1529,7 +1529,7 @@ static int osp_lookup(
 
 	if (results == NULL) {
 		ast_log(LOG_ERROR, "Invalid parameters\n");
-		res = OSP_ERROR;
+		return OSP_ERROR;
 	}
 
 	osp_convert_inout(results->dest, dest, sizeof(dest));
@@ -1787,7 +1787,7 @@ static int osp_lookup(
 /*!
  * \brief OSP Lookup Next function
  * \param name OSP provider name
- * \param cause Asterisk hangup cuase
+ * \param cause Asterisk hangup cause
  * \param results Lookup results, in/output
  * \return OSP_OK Found , OSP_FAILED No route, OSP_ERROR Error
  */
@@ -1809,7 +1809,7 @@ static int osp_next(
 
 	if (results == NULL) {
 		ast_log(LOG_ERROR, "Invalid parameters\n");
-		res = OSP_ERROR;
+		return OSP_ERROR;
 	}
 
 	results->outtech[0] = '\0';

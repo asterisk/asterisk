@@ -251,7 +251,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 			break;
 		}
 
-		if ((r = ast_waitfor(chan, -1) < 0)) {
+		if ((r = ast_waitfor(chan, -1)) < 0) {
 			ast_debug(1, "Waitfor returned %d\n", r);
 			continue;
 		}

@@ -3518,7 +3518,6 @@ static int function_ooh323_write(struct ast_channel *chan, const char *cmd, char
 
 static int load_module(void)
 {
-	int res;
 	struct ooAliases * pNewAlias = NULL;
 	struct ooh323_peer *peer = NULL;
 	struct ast_format tmpfmt;
@@ -3566,7 +3565,7 @@ static int load_module(void)
 	}
 
 
-	if (!(res = reload_config(0))) {
+	if (!reload_config(0)) {
 		/* Make sure we can register our OOH323 channel type */
 		if (ast_channel_register(&ooh323_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
@@ -3622,10 +3621,10 @@ static int load_module(void)
 		ast_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		while (peer) {
-         if(peer->h323id) ooH323EpAddAliasH323ID(peer->h323id);
-         if(peer->email)  ooH323EpAddAliasEmailID(peer->email);
-         if(peer->e164)   ooH323EpAddAliasDialedDigits(peer->e164);
-         if(peer->url)    ooH323EpAddAliasURLID(peer->url);
+			if(peer->h323id) ooH323EpAddAliasH323ID(peer->h323id);
+			if(peer->email)  ooH323EpAddAliasEmailID(peer->email);
+			if(peer->e164)   ooH323EpAddAliasDialedDigits(peer->e164);
+         		if(peer->url)    ooH323EpAddAliasURLID(peer->url);
 			peer = peer->next;
 		}
 		ast_mutex_unlock(&peerl.lock);
@@ -3667,7 +3666,7 @@ static int load_module(void)
   
 		/* Create H.323 listener */
 		if (ooCreateH323Listener() != OO_OK) {
-         ast_log(LOG_ERROR, "OOH323 Listener Creation failure. "
+         		ast_log(LOG_ERROR, "OOH323 Listener Creation failure. "
                             "OOH323 DISABLED\n");
 		
 			ooH323EpDestroy();
@@ -3675,7 +3674,7 @@ static int load_module(void)
 		}
 
 		if (ooh323c_start_stack_thread() < 0) {
-         ast_log(LOG_ERROR, "Failed to start OOH323 stack thread. "
+			ast_log(LOG_ERROR, "Failed to start OOH323 stack thread. "
                             "OOH323 DISABLED\n");
 			ooH323EpDestroy();
 			return 1;
@@ -4186,7 +4185,6 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 	/* XXX Deal with Video */
 	struct ooh323_pvt *p;
 	struct ast_sockaddr tmp;
-	int mode;
 
 	if (gH323Debug)
 		ast_verb(0, "---   ooh323_set_peer - %s\n", ast_channel_name(chan));
@@ -4195,7 +4193,10 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 		return 0;
 	}
 
-	mode = ooh323_convertAsteriskCapToH323Cap(&chan->writeformat); 
+	if (ooh323_convertAsteriskCapToH323Cap(&chan->writeformat) < 0) {
+		ast_log(LOG_WARNING, "Unknown format.\n");
+		return -1;
+	}
 	p = (struct ooh323_pvt *) chan->tech_pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");

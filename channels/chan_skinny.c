@@ -275,7 +275,8 @@ struct register_message {
 	uint32_t maxStreams;
 	uint32_t space;
 	uint8_t protocolVersion;
-	char space2[3] ;
+	/*! \brief space2 is used for newer version of skinny */
+	char space2[3];
 };
 
 #define IP_PORT_MESSAGE 0x0002
@@ -459,6 +460,7 @@ struct start_media_transmission_message_ip6 {
 	uint32_t packetSize;
 	uint32_t payloadType;
 	struct media_qualifier qualifier;
+	/*! \brief space2 is used for newer version of skinny */
 	uint32_t space2[19];
 };
 

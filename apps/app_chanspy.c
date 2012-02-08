@@ -614,7 +614,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	   has arrived, since the spied-on channel could have gone away while
 	   we were waiting
 	*/
-	while ((res = ast_waitfor(chan, -1) > -1) && csth.spy_audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING) {
+	while (ast_waitfor(chan, -1) > -1 && csth.spy_audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING) {
 		if (!(f = ast_read(chan)) || ast_check_hangup(chan)) {
 			running = -1;
 			break;
@@ -771,7 +771,6 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	int waitms;
 	int res;
 	char *ptr;
-	int num;
 	int num_spyed_upon = 1;
 	struct ast_channel_iterator *iter = NULL;
 
@@ -962,6 +961,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 					res = ast_app_sayname(chan, local_mailbox, local_context);
 				}
 				if (!ast_test_flag(flags, OPTION_NAME) || res < 0) {
+					int num;
 					if (!ast_test_flag(flags, OPTION_NOTECH)) {
 						if (ast_fileexists(peer_name, NULL, NULL) > 0) {
 							res = ast_streamfile(chan, peer_name, ast_channel_language(chan));
@@ -976,8 +976,9 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 							res = ast_say_character_str(chan, peer_name, "", ast_channel_language(chan));
 						}
 					}
-					if ((num = atoi(ptr)))
-						ast_say_digits(chan, atoi(ptr), "", ast_channel_language(chan));
+					if ((num = atoi(ptr))) {
+						ast_say_digits(chan, num, "", ast_channel_language(chan));
+					}
 				}
 			}
 

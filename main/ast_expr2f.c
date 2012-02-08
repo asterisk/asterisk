@@ -2586,35 +2586,38 @@ static char *expr2_token_subst(const char *mess)
 }
 
 int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
-{	
+{
 	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
 	char spacebuf[8000]; /* best safe than sorry */
-	char spacebuf2[8000]; /* best safe than sorry */
 	int i=0;
 	char *s2 = expr2_token_subst(s);
 	spacebuf[0] = 0;
-	
-	for(i=0;i< (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);i++) spacebuf2[i] = ' ';  /* uh... assuming yyg is defined, then I can use the yycolumn macro,
-																								which is the same thing as... get this:
-													yyg->yy_buffer_stack[yyg->yy_buffer_stack_top]->yy_bs_column
-													I was tempted to just use yy_buf_pos in the STATE, but..., well:
-														a. the yy_buf_pos is the current position in the buffer, which
-															may not relate to the entire string/buffer because of the
-															buffering.
-														b. but, analysis of the situation is that when you use the
-															ast_yy_scan_string func, it creates a single buffer the size of
-															string, so the two would be the same... 
-													so, in the end, the yycolumn macro is available, shorter, therefore easier. */
-	spacebuf2[i++]='^';
-	spacebuf2[i]= 0;
+
+	for (i = 0; i < (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); i++) {
+		spacebuf[i] = ' ';
+	}
+	/* uh... assuming yyg is defined, then I can use the yycolumn macro,
+	which is the same thing as... get this:
+	yyg->yy_buffer_stack[yyg->yy_buffer_stack_top]->yy_bs_column
+	I was tempted to just use yy_buf_pos in the STATE, but..., well:
+	a. the yy_buf_pos is the current position in the buffer, which
+		may not relate to the entire string/buffer because of the
+		buffering.
+	b. but, analysis of the situation is that when you use the
+		ast_yy_scan_string func, it creates a single buffer the size of
+		string, so the two would be the same...
+		so, in the end, the yycolumn macro is available, shorter, therefore easier. */
+
+	spacebuf[i++] = '^';
+	spacebuf[i] = 0;
 
 #ifdef STANDALONE3
 	/* easier to read in the standalone version */
-	printf("ast_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
-			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
+	printf("ast_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",
+			(extra_error_message_supplied ? extra_error_message : ""), s2, parseio->string, spacebuf);
 #else
-	ast_log(LOG_WARNING,"ast_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
-			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
+	ast_log(LOG_WARNING,"ast_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",
+			(extra_error_message_supplied ? extra_error_message : ""), s2, parseio->string, spacebuf);
 #endif
 #ifndef STANDALONE
 	ast_log(LOG_WARNING,"If you have questions, please refer to https://wiki.asterisk.org/wiki/display/AST/Channel+Variables\n");

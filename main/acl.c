@@ -127,9 +127,9 @@ static int get_local_address(struct ast_sockaddr *ourip)
 	struct ifaddrs *ifap, *ifaphead;
 	int rtnerr;
 	const struct sockaddr_in *sin;
+	int best_score = -100;
 #endif /* BSD_OR_LINUX */
 	struct in_addr best_addr;
-	int best_score = -100;
 	memset(&best_addr, 0, sizeof(best_addr));
 
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || defined(__linux__) || defined(__Darwin__) || defined(__GLIBC__)

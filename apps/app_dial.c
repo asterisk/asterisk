@@ -1706,7 +1706,6 @@ static int setup_privacy_args(struct privacy_args *pa,
 	char callerid[60];
 	int res;
 	char *l;
-	int silencethreshold;
 
 	if (chan->caller.id.number.valid
 		&& !ast_strlen_zero(chan->caller.id.number.str)) {
@@ -1781,7 +1780,7 @@ static int setup_privacy_args(struct privacy_args *pa,
 			   "At the tone, please say your name:"
 
 			*/
-			silencethreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
+			int silencethreshold = ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE);
 			ast_answer(chan);
 			res = ast_play_and_record(chan, "priv-recordintro", pa->privintro, 4, "sln", &duration, NULL, silencethreshold, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
 									/* don't think we'll need a lock removed, we took care of

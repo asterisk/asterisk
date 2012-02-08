@@ -387,7 +387,6 @@ enum {TOC_NONE,TOC_PHASE,TOC_NOTONE};
  */
 struct sound {
 	int ind;
-	char *desc;
 	short *data;
 	int datalen;
 	int samplen;

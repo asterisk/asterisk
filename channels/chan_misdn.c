@@ -7406,7 +7406,6 @@ static struct ast_frame *misdn_read(struct ast_channel *ast)
 static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct chan_list *ch;
-	int i  = 0;
 
 	if (!ast || !(ch = MISDN_ASTERISK_TECH_PVT(ast))) {
 		return -1;

@@ -1504,7 +1504,7 @@ static int unload_module(void)
 	AST_RWLIST_WRLOCK(&queries);
 
 	AST_RWLIST_UNLOCK(&queries);
-	return 0;
+	return res;
 }
 
 static int reload(void)

@@ -3099,7 +3099,7 @@ static int try_firmware(char *s)
 
 	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)ast_random());
 
-	if ((res = stat(s, &stbuf) < 0)) {
+	if (stat(s, &stbuf) < 0) {
 		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
 		return -1;
 	}

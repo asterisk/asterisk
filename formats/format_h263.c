@@ -56,9 +56,8 @@ struct h263_desc {
 static int h263_open(struct ast_filestream *s)
 {
 	unsigned int ts;
-	int res;
 
-	if ((res = fread(&ts, 1, sizeof(ts), s->f)) < sizeof(ts)) {
+	if (fread(&ts, 1, sizeof(ts), s->f) < sizeof(ts)) {
 		ast_log(LOG_WARNING, "Empty file!\n");
 		return -1;
 	}
