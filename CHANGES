@@ -28,6 +28,8 @@ CLI Changes
 -------------------
  * mixmonitor list <channel> command will now show MixMonitor ID, and the filenames
    of all running mixmonitors on a channel.
+ * The debuglevel of "pri set debug" is now a bitmask ranging from 0 to 15 if
+   numeric instead of 0, 1, or 2.
 
 ConfBridge
 -------------------
