@@ -18899,6 +18899,9 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 	int size,res,fd,len,x;
 	int bytes=0;
 	/* Initial carrier (imaginary) */
+	float cr = 1.0;
+	float ci = 0.0;
+	float scont = 0.0;
 	int idx;
 
 	if (!text[0]) {
