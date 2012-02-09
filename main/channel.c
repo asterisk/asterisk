@@ -2570,21 +2570,25 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 	}
 }
 
-/*! \brief Hangup a channel */
-int ast_hangup(struct ast_channel *chan)
+static void destroy_hooks(struct ast_channel *chan)
 {
-	char extra_str[64]; /* used for cel logging below */
-
-	ast_autoservice_stop(chan);
-
-	ao2_lock(channels);
-	ast_channel_lock(chan);
-
 	if (chan->audiohooks) {
 		ast_audiohook_detach_list(chan->audiohooks);
 		chan->audiohooks = NULL;
 	}
+
 	ast_framehook_list_destroy(chan);
+}
+
+/*! \brief Hangup a channel */
+int ast_hangup(struct ast_channel *chan)
+{
+	char extra_str[64]; /* used for cel logging below */
+	int was_zombie;
+
+	ast_autoservice_stop(chan);
+
+	ast_channel_lock(chan);
 
 	/*
 	 * Do the masquerade if someone is setup to masquerade into us.
@@ -2596,16 +2600,13 @@ int ast_hangup(struct ast_channel *chan)
 	 */
 	while (chan->masq) {
 		ast_channel_unlock(chan);
-		ao2_unlock(channels);
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 
 			/* Abort the loop or we might never leave. */
-			ao2_lock(channels);
 			ast_channel_lock(chan);
 			break;
 		}
-		ao2_lock(channels);
 		ast_channel_lock(chan);
 	}
 
@@ -2616,13 +2617,20 @@ int ast_hangup(struct ast_channel *chan)
 		 * to free it later.
 		 */
 		ast_set_flag(chan, AST_FLAG_ZOMBIE);
+		destroy_hooks(chan);
 		ast_channel_unlock(chan);
-		ao2_unlock(channels);
 		return 0;
 	}
 
+	if (!(was_zombie = ast_test_flag(chan, AST_FLAG_ZOMBIE))) {
+		ast_set_flag(chan, AST_FLAG_ZOMBIE);
+	}
+
+	ast_channel_unlock(chan);
 	ao2_unlink(channels, chan);
-	ao2_unlock(channels);
+	ast_channel_lock(chan);
+
+	destroy_hooks(chan);
 
 	free_translation(chan);
 	/* Close audio stream */
@@ -2657,14 +2665,9 @@ int ast_hangup(struct ast_channel *chan)
 			(long) pthread_self(), ast_channel_name(chan), (long)chan->blocker, chan->blockproc);
 		ast_assert(ast_test_flag(chan, AST_FLAG_BLOCKING) == 0);
 	}
-	if (!ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
+	if (!was_zombie) {
 		ast_debug(1, "Hanging up channel '%s'\n", ast_channel_name(chan));
 
-		/*
-		 * This channel is now dead so mark it as a zombie so anyone
-		 * left holding a reference to this channel will not use it.
-		 */
-		ast_set_flag(chan, AST_FLAG_ZOMBIE);
 		if (chan->tech->hangup) {
 			chan->tech->hangup(chan);
 		}
