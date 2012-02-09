@@ -19444,17 +19444,19 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			return;
 		}
 
-		/* If dtmf-relay or vnd.nortelnetworks.digits, parse the signal and duration; otherwise use the body as the signal */
+		/* If dtmf-relay or vnd.nortelnetworks.digits, parse the signal and duration;
+		 * otherwise use the body as the signal */
 		if (strcasecmp(c, "application/dtmf")) {
 			const char *msg_body;
 
-			if (ast_strlen_zero(msg_body = get_body(req, "Signal", '=')) && ast_strlen_zero(msg_body = get_body(req, "d", '='))) {
-				ast_log(LOG_WARNING, "Unable to retrieve DTMF signal for INFO message on call %s\n", p->callid);
+			if (   ast_strlen_zero(msg_body = get_body(req, "Signal", '='))
+				&& ast_strlen_zero(msg_body = get_body(req, "d", '='))) {
+				ast_log(LOG_WARNING, "Unable to retrieve DTMF signal for INFO message on "
+						"call %s\n", p->callid);
 				transmit_response(p, "200 OK", req);
 				return;
-			} else {
-				ast_copy_string(buf, msg_body, sizeof(buf));
 			}
+			ast_copy_string(buf, msg_body, sizeof(buf));
 
 			if (!ast_strlen_zero((msg_body = get_body(req, "Duration", '=')))) {
 				sscanf(msg_body, "%30u", &duration);
@@ -19485,7 +19487,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		} else if ('a' <= buf[0] && buf[0] <= 'd') {
 			event = 12 + buf[0] - 'a';
 		} else if ((sscanf(buf, "%30u", &event) != 1) || event > 16) {
-			ast_log(AST_LOG_WARNING, "Unable to convert DTMF event signal code to a valid value for INFO message on call %s\n", p->callid);
+			ast_log(AST_LOG_WARNING, "Unable to convert DTMF event signal code to a valid "
+					"value for INFO message on call %s\n", p->callid);
 			transmit_response(p, "200 OK", req);
 			return;
 		}
@@ -19506,7 +19509,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 				f.subclass.integer = '*';
 			} else if (event == 11) {
 				f.subclass.integer = '#';
-			} else if (event < 16) {
+			} else {
 				f.subclass.integer = 'A' + (event - 12);
 			}
 			f.len = duration;
