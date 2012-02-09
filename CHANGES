@@ -59,6 +59,12 @@ SIP Changes
    callbackextension options, incoming requests that are matched by address
    will be matched to the peer with the matching callbackextension if it is
    available.
+ * NAT settings are now a combinable list of options. The equivalent of the
+   deprecated nat=yes is nat=force_rport,comedia. nat=no behaves as before.
+ * Two new NAT options, auto_force_rport and auto_comedia, have been added
+   which set the force_rport and comedia options automatically if Asterisk
+   detects that an incoming SIP request crossed a NAT after being sent by
+   the remote endpoint.
 
 Chan_local changes
 ------------------
@@ -124,6 +130,12 @@ AMI (Asterisk Manager Interface) changes
  * MixMonitor will now show IDs associated with the mixmonitor upon creating them
    if the i(variable) option is used. StopMixMonitor will accept MixMonitorID as
    on option to close specific MixMonitors.
+
+ * The SIPshowpeer manager action response field "SIP-Forcerport" has been updated
+   to include information about peers configured with nat=auto_force_rport by
+   returning "A" if auto_force_rport is set and nat is detected, and "a" if it is
+   set and nat is not detected. "Y" and "N" are still returned if auto_force_rport
+   is not enabled.
 
 FAX changes
 -----------

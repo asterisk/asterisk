@@ -765,11 +765,128 @@ AST_TEST_DEFINE(sip_parse_host_line_test)
 
 }
 
+/*! \brief Parse the comma-separated nat= option values */
+void sip_parse_nat_option(const char *value, struct ast_flags *mask, struct ast_flags *flags)
+{
+	char *parse, *this;
+
+	if (!(parse = ast_strdupa(value))) {
+		return;
+	}
+
+	/* Since we need to completely override the general settings if we are being called
+	 * later for a peer, always set the flags for all options on the mask */
+	ast_set_flag(&mask[0], SIP_NAT_FORCE_RPORT);
+	ast_set_flag(&mask[1], SIP_PAGE2_SYMMETRICRTP);
+	ast_set_flag(&mask[2], SIP_PAGE3_NAT_AUTO_RPORT);
+	ast_set_flag(&mask[2], SIP_PAGE3_NAT_AUTO_COMEDIA);
+
+	while ((this = strsep(&parse, ","))) {
+		if (ast_false(this)) {
+			ast_clear_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+			ast_clear_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
+			ast_clear_flag(&flags[2], SIP_PAGE3_NAT_AUTO_RPORT);
+			ast_clear_flag(&flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA);
+			break; /* It doesn't make sense to have no + something else */
+		} else if (!strcasecmp(this, "yes")) {
+			ast_log(LOG_WARNING, "nat=yes is deprecated, use nat=force_rport,comedia instead\n");
+			ast_set_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+			ast_set_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
+			ast_clear_flag(&flags[2], SIP_PAGE3_NAT_AUTO_RPORT);
+			ast_clear_flag(&flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA);
+			break; /* It doesn't make sense to have yes + something else */
+		} else if (!strcasecmp(this, "force_rport") && !ast_test_flag(&flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
+			ast_set_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+		} else if (!strcasecmp(this, "comedia") && !ast_test_flag(&flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA)) {
+			ast_set_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
+		} else if (!strcasecmp(this, "auto_force_rport")) {
+			ast_set_flag(&flags[2], SIP_PAGE3_NAT_AUTO_RPORT);
+			/* In case someone did something dumb like nat=force_rport,auto_force_rport */
+			ast_clear_flag(&flags[0], SIP_NAT_FORCE_RPORT);
+		} else if (!strcasecmp(this, "auto_comedia")) {
+			ast_set_flag(&flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA);
+			/* In case someone did something dumb like nat=comedia,auto_comedia*/
+			ast_clear_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP);
+		}
+	}
+}
+
+#define TEST_FORCE_RPORT      1 << 0
+#define TEST_COMEDIA          1 << 1
+#define TEST_AUTO_FORCE_RPORT 1 << 2
+#define TEST_AUTO_COMEDIA     1 << 3
+static int match_nat_options(int val, struct ast_flags *flags)
+{
+	if ((!ast_test_flag(&flags[0], SIP_NAT_FORCE_RPORT)) != !(val & TEST_FORCE_RPORT)) {
+		return 0;
+	}
+	if (!ast_test_flag(&flags[1], SIP_PAGE2_SYMMETRICRTP) != !(val & TEST_COMEDIA)) {
+		return 0;
+	}
+	if (!ast_test_flag(&flags[2], SIP_PAGE3_NAT_AUTO_RPORT) != !(val & TEST_AUTO_FORCE_RPORT)) {
+		return 0;
+	}
+	if (!ast_test_flag(&flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA) != !(val & TEST_AUTO_COMEDIA)) {
+	   return 0;
+	}
+	return 1;
+}
+
+AST_TEST_DEFINE(sip_parse_nat_test)
+{
+	int i, res = AST_TEST_PASS;
+	struct ast_flags mask[3] = {{0}}, flags[3] = {{0}};
+	struct {
+		const char *str;
+		int i;
+	} options[] = {
+		{ "yes", TEST_FORCE_RPORT | TEST_COMEDIA },
+		{ "no", 0 },
+		{ "force_rport", TEST_FORCE_RPORT },
+		{ "comedia", TEST_COMEDIA },
+		{ "auto_force_rport", TEST_AUTO_FORCE_RPORT },
+		{ "auto_comedia", TEST_AUTO_COMEDIA },
+		{ "force_rport,auto_force_rport", TEST_AUTO_FORCE_RPORT },
+		{ "auto_force_rport,force_rport", TEST_AUTO_FORCE_RPORT },
+		{ "comedia,auto_comedia", TEST_AUTO_COMEDIA },
+		{ "auto_comedia,comedia", TEST_AUTO_COMEDIA },
+		{ "force_rport,comedia", TEST_FORCE_RPORT | TEST_COMEDIA },
+		{ "force_rport,auto_comedia", TEST_FORCE_RPORT | TEST_AUTO_COMEDIA },
+		{ "force_rport,yes,no", TEST_FORCE_RPORT | TEST_COMEDIA },
+		{ "auto_comedia,no,yes", 0 },
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sip_parse_nat_test";
+		info->category = "/channels/chan_sip/";
+		info->summary = "tests sip.conf nat line parsing";
+		info->description =
+							"Tests parsing of various nat line configurations. "
+							"Verifies output matches expected behavior.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(options); i++) {
+		sip_parse_nat_option(options[i].str, mask, flags);
+		if (!match_nat_options(options[i].i, flags)) {
+			ast_test_status_update(test, "Failed nat=%s\n", options[i].str);
+			res = AST_TEST_FAIL;
+		}
+		memset(flags, 0, sizeof(flags));
+		memset(mask, 0, sizeof(mask));
+	}
+
+	return res;
+}
 /*! \brief SIP test registration */
 void sip_config_parser_register_tests(void)
 {
 	AST_TEST_REGISTER(sip_parse_register_line_test);
 	AST_TEST_REGISTER(sip_parse_host_line_test);
+	AST_TEST_REGISTER(sip_parse_nat_test);
 }
 
 /*! \brief SIP test registration */
@@ -777,5 +894,6 @@ void sip_config_parser_unregister_tests(void)
 {
 	AST_TEST_UNREGISTER(sip_parse_register_line_test);
 	AST_TEST_UNREGISTER(sip_parse_host_line_test);
+	AST_TEST_UNREGISTER(sip_parse_nat_test);
 }
 

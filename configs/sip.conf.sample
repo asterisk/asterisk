@@ -831,17 +831,34 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; However, this is only useful if the external traffic can reach us.
 ; The following settings are allowed (both globally and in individual sections):
 ;
-;        nat = no                ; Use rport if the remote side says to use it.
-;        nat = force_rport       ; Force rport to always be on. (default)
-;        nat = yes               ; Force rport to always be on and perform comedia RTP handling.
-;        nat = comedia           ; Use rport if the remote side says to use it and perform comedia RTP handling.
+;   nat = no                ; Do no special NAT handling other than RFC3581
+;   nat = force_rport       ; Pretend there was an rport parameter even if there wasn't
+;   nat = comedia           ; Send media to the port Asterisk received it from regardless
+;                           ; of where the SDP says to send it.
+;   nat = auto_force_rport  ; Set the force_rport option if Asterisk detects NAT (default)
+;   nat = auto_comedia      ; Set the comedia option if Asterisk detects NAT
+;
+; The nat settings can be combined. For example, to set both force_rport and comedia
+; one would set nat=force_rport,comedia. If any of the comma-separated options is 'no',
+; Asterisk will ignore any other settings and set nat=no. If one of the "auto" settings
+; is used in conjunction with its non-auto counterpart (nat=comedia,auto_comedia), then
+; the non-auto option will be ignored.
+;
+; The RFC 3581-defined 'rport' parameter allows a client to request that Asterisk send
+; SIP responses to it via the source IP and port from which the request originated
+; instead of the address/port listed in the top-most Via header. This is useful if a
+; client knows that it is behind a NAT and therefore cannot guess from what address/port
+; its request will be sent. Asterisk will always honor the 'rport' parameter if it is
+; sent. The force_rport setting causes Asterisk to always send responses back to the
+; address/port from which it received requests; even if the other side doesn't support
+; adding the 'rport' parameter.
 ;
 ; 'comedia RTP handling' refers to the technique of sending RTP to the port that the
 ; the other endpoint's RTP arrived from, and means 'connection-oriented media'. This is
 ; only partially related to RFC 4145 which was referred to as COMEDIA while it was in
 ; draft form. This method is used to accomodate endpoints that may be located behind
-; NAT devices, and as such the port number they tell Asterisk to send RTP packets to
-; for their media streams is not actual port number that will be used on the nearer
+; NAT devices, and as such the address/port they tell Asterisk to send RTP packets to
+; for their media streams is not the actual address/port that will be used on the nearer
 ; side of the NAT.
 ;
 ; IT IS IMPORTANT TO NOTE that if the nat setting in the general section differs from

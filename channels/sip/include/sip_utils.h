@@ -80,4 +80,10 @@ int hangup_sip2cause(int cause);
 */
 const char *hangup_cause2sip(int cause);
 
+/*! \brief Return a string describing the force_rport value for the given flags */
+const char *force_rport_string(struct ast_flags *flags);
+
+/*! \brief Return a string describing the comedia value for the given flags */
+const char *comedia_string(struct ast_flags *flags);
+
 #endif
