@@ -7459,8 +7459,6 @@ static const char *find_full_alias(const char *name, const char *_default)
 
 static const char *__get_header(const struct sip_request *req, const char *name, int *start)
 {
-	int pass;
-
 	/*
 	 * Technically you can place arbitrary whitespace both before and after the ':' in
 	 * a header, although RFC3261 clearly says you shouldn't before, and place just
@@ -7470,24 +7468,25 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 	 * Anyways, pedanticsipchecking controls whether we allow spaces before ':',
 	 * and we always allow spaces after that for compatibility.
 	 */
-	for (pass = 0; name && pass < 2;pass++) {
-		int x, len = strlen(name);
-		for (x = *start; x < req->headers; x++) {
-			const char *header = REQ_OFFSET_TO_STR(req, header[x]);
-			if (!strncasecmp(header, name, len)) {
-				const char *r = header + len;	/* skip name */
-				if (sip_cfg.pedanticsipchecking) {
-					r = ast_skip_blanks(r);
-				}
-
-				if (*r == ':') {
-					*start = x+1;
-					return ast_skip_blanks(r+1);
-				}
-			}
+	const char *sname = find_alias(name, NULL);
+	int x, len = strlen(name), slen = (sname ? 1 : 0);
+	for (x = *start; x < req->headers; x++) {
+		const char *header = REQ_OFFSET_TO_STR(req, header[x]);
+		int smatch = 0, match = !strncasecmp(header, name, len);
+		if (slen) {
+			smatch = !strncasecmp(header, sname, slen);
 		}
-		if (pass == 0) { /* Try aliases */
-			name = find_alias(name, NULL);
+		if (match || smatch) {
+			/* skip name */
+			const char *r = header + (match ? len : slen );
+			if (sip_cfg.pedanticsipchecking) {
+				r = ast_skip_blanks(r);
+			}
+
+			if (*r == ':') {
+				*start = x+1;
+				return ast_skip_blanks(r+1);
+			}
 		}
 	}
 
