@@ -521,8 +521,6 @@ static void rebuild_matrix(int samples)
 					 * 3. if x->y->z results in a more optimal sample rate conversion. */
 					if (!tr_matrix[x][z].step) {
 						better_choice = 1;
-					} else if ((newcost < tr_matrix[x][z].cost) && (new_rate_change <= tr_matrix[x][z].rate_change)) {
-						better_choice = 1;
 					} else if (new_rate_change < tr_matrix[x][z].rate_change) {
 						better_choice = 1;
 					} else {
