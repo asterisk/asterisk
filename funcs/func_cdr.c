@@ -140,7 +140,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			with this function, and this variable will be stored on the cdr.</para>
 			<note><para>For setting CDR values, the <literal>l</literal> flag does not apply to
 			setting the <literal>accountcode</literal>, <literal>userfield</literal>, or
-			<literal>amaflags</literal>.</para></note>
+			<literal>amaflags</literal>.</para><para>CDRs can only be modified before the bridge
+			between two channels is torn down. For example, CDRs may not be modified after the
+			<literal>Dial</literal> application has returned.</para></note>
 			<para>Raw values for <literal>disposition</literal>:</para>
 			<enumlist>
 				<enum name="0">
