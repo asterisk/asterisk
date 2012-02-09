@@ -18898,11 +18898,17 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 	struct pollfd fds[1];
 	int size,res,fd,len,x;
 	int bytes=0;
-	/* Initial carrier (imaginary) */
+	int idx;
+
+	/*
+	 * Initial carrier (imaginary)
+	 *
+	 * Note: The following float variables are used by the
+	 * PUT_CLID_MARKMS and PUT_CLID() macros.
+	 */
 	float cr = 1.0;
 	float ci = 0.0;
 	float scont = 0.0;
-	int idx;
 
 	if (!text[0]) {
 		return(0); /* if nothing to send, don't */
