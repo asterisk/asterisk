@@ -1,3 +1,27 @@
+2012-02-09  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.9.2 Released.
+
+	* channels/chan_sip.c: Fix SIP INFO DTMF handling for non-numeric
+	  codes. In ASTERISK-18924, SIP INFO DTMF handling was changed to
+	  account for both lowercase alphatbetic DTMF events, as well as
+	  uppercase alphabetic DTMF events.  When this occurred, the comparison
+	  of the character buffer containing the event code was changed such
+	  that the buffer was first compared against '0' and '9' to determine if
+	  it was numeric.  Unfortunately, since the first character in the
+	  buffer will typically be '1' in the case of non-numeric event codes
+	  (10-16), this caused those codes to be converted to a DTMF event of
+	  '1'.  This patch fixes that, and cleans up handling of both
+	  application/dtmf-relay and application/dtmf content types.
+	  Review: https://reviewboard.asterisk.org/r/1722/
+	  (closes issue ASTERISK-19290) Reported by: Ira Emus
+	  Tested by: mjordan
+
+	* apps/app_parkandannounce.c: Fix crash in ParkAndAnnounce from
+	  uninitialized caller_id storage (closes issue ASTERISK-19311)
+	  Reported by: tootai 
+	  Tested by: rmudgett
+
 2012-02-06  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.9.1 Released.

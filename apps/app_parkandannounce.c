@@ -140,6 +140,7 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Save the CallerID because the masquerade turns chan into a ZOMBIE. */
+	ast_party_id_init(&caller_id);
 	ast_channel_lock(chan);
 	ast_party_id_copy(&caller_id, &chan->caller.id);
 	ast_channel_unlock(chan);
