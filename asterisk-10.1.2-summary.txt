@@ -1,0 +1,118 @@
+                                Release Summary
+
+                                asterisk-10.1.2
+
+                                Date: 2012-02-09
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-10.1.1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   2 mjordan                
+   2 rmudgett               
+   1 jrose                  
+   1 mmichelson             
+   1 russell                
+   1 twilson                
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                    | Issues Referenced |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Improved documentation of  |                   |
+   | 354217   | rmudgett   | CLI "dialplan add          | ASTERISK-19222    |
+   |          |            | extension" command.        |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Fix column duplication bug |                   |
+   | 354270   | jrose      | in module reload for       | ASTERISK-19216    |
+   |          |            | cdr_pgsql.                 |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 354349   | twilson    | Fix multiple SIP realtime  | ASTERISK-19172    |
+   |          |            | issues                     |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 354493   | russell    | Remove some unnecessary    |                   |
+   |          |            | locking from ast_hangup(). |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 354496   | rmudgett   | Fix crash in               | ASTERISK-19311    |
+   |          |            | ParkAndAnnounce.           |                   |
+   |----------+------------+----------------------------+-------------------|
+   | 354543   | mjordan    | Fix SIP INFO DTMF handling | ASTERISK-18924,   |
+   |          |            | for non-numeric codes      | ASTERISK-19290    |
+   |----------+------------+----------------------------+-------------------|
+   | 354546   | mmichelson | Adding reload support to   | ASTERISK-16712    |
+   |          |            | res_fax.so                 |                   |
+   |----------+------------+----------------------------+-------------------|
+   |          |            | Clean-up of minor          |                   |
+   | 354548   | mjordan    | formatting issues in       |                   |
+   |          |            | r354542/3/4                |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ apps/app_parkandannounce.c               |    1
+ cdr/cdr_pgsql.c                          |  135 ++++++++++++------------
+ channels/chan_sip.c                      |  113 +++++++-------------
+ contrib/realtime/postgresql/realtime.sql |    8 +
+ main/channel.c                           |   39 +++----
+ pbx/pbx_config.c                         |   68 +++++++-----
+ res/res_fax.c                            |  168 +++++++++++++++++++++----------
+ 7 files changed, 287 insertions(+), 245 deletions(-)
+
+     ----------------------------------------------------------------------
