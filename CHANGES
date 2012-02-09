@@ -30,6 +30,10 @@ RTP changes
    mode has successfully exited. These changes are based on how pjmedia handles
    media sources and source changes.
 
+FAX changes
+------------
+ * res_fax now has module reload support.
+
 ------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 1.8.7.1 -----------------------------
 ------------------------------------------------------------------------------
