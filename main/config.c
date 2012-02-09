@@ -1538,7 +1538,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				while ((comment_p = strchr(new_buf, COMMENT_META))) {
 					if ((comment_p > new_buf) && (*(comment_p - 1) == '\\')) {
 						/* Escaped semicolons aren't comments. */
-						new_buf = comment_p + 1;
+						new_buf = comment_p;
+						/* write over the \ and bring the null terminator with us */
+						memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
 					} else if (comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
 						/* Meta-Comment start detected ";--" */
 						if (comment < MAX_NESTED_COMMENTS) {
