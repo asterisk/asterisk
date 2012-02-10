@@ -3515,7 +3515,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 					ast_set_flag(chan2, AST_FLAG_BRIDGE_HANGUP_DONT); /* don't let the after-bridge code run the h-exten */
 					ast_channel_unlock(chan2);
 				}
-				if (context2) {
+				if (!ast_strlen_zero(context2)) {
 					res = ast_async_goto(chan2, context2, exten2, pi2);
 				} else {
 					res = ast_async_goto(chan2, context, exten, pi);
@@ -3535,10 +3535,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Redirect failed");
 	}
 
-	if (chan) {
-		chan = ast_channel_unref(chan);
-	}
-
+	chan = ast_channel_unref(chan);
 	if (chan2) {
 		chan2 = ast_channel_unref(chan2);
 	}
