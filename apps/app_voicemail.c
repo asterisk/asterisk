@@ -3046,7 +3046,7 @@ static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len)
 
 static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len)
 {
-	char *start, *eol_pnt;
+	char *start, *eol_pnt, *quote;
 
 	if (ast_strlen_zero(mailbox))
 		return NULL;
