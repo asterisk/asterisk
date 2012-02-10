@@ -1,3 +1,60 @@
+2012-02-10  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.10.0-rc2 Released.
+
+	* channels/chan_sip.c: Fix SIP INFO DTMF handling for non-numeric
+	  codes. In ASTERISK-18924, SIP INFO DTMF handling was changed to
+	  account for both lowercase alphatbetic DTMF events, as well as
+	  uppercase alphabetic DTMF events.  When this occurred, the comparison
+	  of the character buffer containing the event code was changed such
+	  that the buffer was first compared against '0' and '9' to determine if
+	  it was numeric.  Unfortunately, since the first character in the
+	  buffer will typically be '1' in the case of non-numeric event codes
+	  (10-16), this caused those codes to be converted to a DTMF event of
+	  '1'.  This patch fixes that, and cleans up handling of both
+	  application/dtmf-relay and application/dtmf content types.
+	  Review: https://reviewboard.asterisk.org/r/1722/
+	  (closes issue ASTERISK-19290) Reported by: Ira Emus
+	  Tested by: mjordan
+
+	* apps/app_parkandannounce.c: Fix crash in ParkAndAnnounce from
+	  uninitialized caller_id storage (closes issue ASTERISK-19311)
+	  Reported by: tootai 
+	  Tested by: rmudgett
+
+	* channels/chan_agent.c: Fixes deadlocks occuring in chan_agent due to
+	  r335976. Bad locking order was added to chan_agent to prevent
+	  segfaults from having no locking in a patch by irroot. This patch
+	  addresses the bad locking order by releasing locks before getting the
+	  right locking order to stop deadlocks from occuring when doing
+	  multiple interactions with agents. (closes issue ASTERISK-19285)
+	  Reported by: Alex Villacis Lasso
+	  Review: https://reviewboard.asterisk.org/r/1708/
+
+	* channels/chan_sip.c: Ensure entering T.38 passthrough does not cause
+	  an infinite loop. After R340970 Asterisk was still polling the RTCP
+	  file descriptor after RTCP is shut down and removed. If the
+	  descriptor happened to have data ready when the removal occured then
+	  Asterisk would go into an infinite loop trying to read data that it
+	  can never actually access. This change disables the audio RTCP file
+	  descriptor for the duration of the T.38 transaction. (closes issue
+	  ASTERISK-18951) Reported-by: Kristijan Vrban
+
+	* channels/chan_sip.c,include/asterisk/dnsmgr.h,main/dnsmgr.c: Re-link
+	  peers by IP when dnsmgr changes the IP  Asterisk's dnsmgr currently
+	  takes a pointer to an ast_sockaddr and updates it anytime an address
+	  resolves to something different. There are a couple of issues with
+	  this. First, the ast_sockaddr is usually the address of an ast_sockaddr
+	  inside a refcounted struct and we never bump the refcount of those
+	  structs when using dnsmgr. This makes it possible that a refresh could
+	  happen after the destructor for that object is called (despite 
+	  ast_dnsmgr_release being called in that destructor). Second, the
+	  module using dnsmgr cannot be aware of an address changing without
+	  polling for it in the code. If an action needs to be taken on address
+	  update (like re-linking a SIP peer in the peers_by_ip table), then
+	  polling for this change negates many of the benefits of having dnsmgr
+	  in the first place.
+
 2012-02-01 Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.10.0-rc1 Released.

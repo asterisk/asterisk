@@ -2877,6 +2877,11 @@ static int match_and_cleanup_peer_sched(void *peerobj, void *arg, int flags)
 
 	if (which == SIP_PEERS_ALL || peer->the_mark) {
 		peer_sched_cleanup(peer);
+		if (peer->dnsmgr) {
+			ast_dnsmgr_release(peer->dnsmgr);
+			peer->dnsmgr = NULL;
+			unref_peer(peer, "Release peer from dnsmgr");
+		}
 		return CMP_MATCH;
 	}
 	return 0;
@@ -4647,8 +4652,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ao2_t_ref(peer->auth, -1, "Removing peer authentication");
 		peer->auth = NULL;
 	}
-	if (peer->dnsmgr)
-		ast_dnsmgr_release(peer->dnsmgr);
 
 	if (peer->socket.tcptls_session) {
 		ao2_ref(peer->socket.tcptls_session, -1);
@@ -5385,6 +5388,12 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	return 0;
 }
 
+/*! \brief The default sip port for the given transport */
+static inline int default_sip_port(enum sip_transport type)
+{
+	return type == SIP_TRANSPORT_TLS ? STANDARD_TLS_PORT : STANDARD_SIP_PORT;
+}
+
 /*! \brief create address structure from device name
  *      Or, if peer not found, find it in the global DNS
  *      returns TRUE (-1) on failure, FALSE on success */
@@ -5487,9 +5496,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 	}
 
 	if (!ast_sockaddr_port(&dialog->sa)) {
-		ast_sockaddr_set_port(&dialog->sa,
-				      (dialog->socket.type == SIP_TRANSPORT_TLS) ?
-				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+		ast_sockaddr_set_port(&dialog->sa, default_sip_port(dialog->socket.type));
 	}
 	ast_sockaddr_copy(&dialog->recv, &dialog->sa);
 	return 0;
@@ -5704,12 +5711,11 @@ static void sip_registry_destroy(struct sip_registry *reg)
 		reg->call = dialog_unref(reg->call, "unref reg->call");
 		/* reg->call = sip_destroy(reg->call); */
 	}
-	AST_SCHED_DEL(sched, reg->expire);	
+	AST_SCHED_DEL(sched, reg->expire);
 	AST_SCHED_DEL(sched, reg->timeout);
-	
+
 	ast_string_field_free_memory(reg);
 	ast_atomic_fetchadd_int(&regobjs, -1);
-	ast_dnsmgr_release(reg->dnsmgr);
 	ast_free(reg);
 }
 
@@ -5723,7 +5729,6 @@ static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi)
 	
 	AST_SCHED_DEL(sched, mwi->resub);
 	ast_string_field_free_memory(mwi);
-	ast_dnsmgr_release(mwi->dnsmgr);
 	ast_free(mwi);
 }
 
@@ -9211,6 +9216,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			/* Ensure RTCP is enabled since it may be inactive
 			   if we're coming back from a T.38 session */
 			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 1);
+			/* Ensure audio RTCP reads are enabled */
+			if (p->owner) {
+				ast_channel_set_fd(p->owner, 1, ast_rtp_instance_fd(p->rtp, 1));
+			}
 
 			if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) {
 				ast_clear_flag(&p->flags[0], SIP_DTMF);
@@ -9227,6 +9236,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if (udptlportno > 0) {
 			if (debug)
 				ast_verbose("Got T.38 Re-invite without audio. Keeping RTP active during T.38 session.\n");
+			/* Prevent audio RTCP reads */
+			if (p->owner) {
+				ast_channel_set_fd(p->owner, 1, -1);
+			}
 			/* Silence RTCP while audio RTP is inactive */
 			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 0);
 		} else {
@@ -12314,6 +12327,72 @@ static int sip_subscribe_mwi_do(const void *data)
 	return 0;
 }
 
+static void on_dns_update_registry(struct ast_sockaddr *old, struct ast_sockaddr *new, void *data)
+{
+	struct sip_registry *reg = data;
+	const char *old_str;
+
+	/* This shouldn't happen, but just in case */
+	if (ast_sockaddr_isnull(new)) {
+		ast_debug(1, "Empty sockaddr change...ignoring!\n");
+		return;
+	}
+
+	if (!ast_sockaddr_port(new)) {
+		ast_sockaddr_set_port(new, reg->portno);
+	}
+
+	old_str = ast_strdupa(ast_sockaddr_stringify(old));
+
+	ast_debug(1, "Changing registry %s from %s to %s\n", S_OR(reg->peername, reg->hostname), old_str, ast_sockaddr_stringify(new));
+	ast_sockaddr_copy(&reg->us, new);
+}
+
+static void on_dns_update_peer(struct ast_sockaddr *old, struct ast_sockaddr *new, void *data)
+{
+	struct sip_peer *peer = data;
+	const char *old_str;
+
+	/* This shouldn't happen, but just in case */
+	if (ast_sockaddr_isnull(new)) {
+		ast_debug(1, "Empty sockaddr change...ignoring!\n");
+		return;
+	}
+
+	if (!ast_sockaddr_isnull(&peer->addr)) {
+		ao2_unlink(peers_by_ip, peer);
+	}
+
+	if (!ast_sockaddr_port(new)) {
+		ast_sockaddr_set_port(new, default_sip_port(peer->socket.type));
+	}
+
+	old_str = ast_strdupa(ast_sockaddr_stringify(old));
+	ast_debug(1, "Changing peer %s address from %s to %s\n", peer->name, old_str, ast_sockaddr_stringify(new));
+
+	ao2_lock(peer);
+	ast_sockaddr_copy(&peer->addr, new);
+	ao2_unlock(peer);
+
+	ao2_link(peers_by_ip, peer);
+}
+
+static void on_dns_update_mwi(struct ast_sockaddr *old, struct ast_sockaddr *new, void *data)
+{
+	struct sip_subscription_mwi *mwi = data;
+	const char *old_str;
+
+	/* This shouldn't happen, but just in case */
+	if (ast_sockaddr_isnull(new)) {
+		ast_debug(1, "Empty sockaddr change...ignoring!\n");
+		return;
+	}
+
+	old_str = ast_strdupa(ast_sockaddr_stringify(old));
+	ast_debug(1, "Changing mwi %s from %s to %s\n", mwi->hostname, old_str, ast_sockaddr_stringify(new));
+	ast_sockaddr_copy(&mwi->us, new);
+}
+
 /*! \brief Actually setup an MWI subscription or resubscribe */
 static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 {
@@ -12323,7 +12402,11 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(mwi->transport), get_srv_protocol(mwi->transport));
 
 		mwi->us.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
-		ast_dnsmgr_lookup(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
+		ASTOBJ_REF(mwi); /* Add a ref for storing the mwi on the dnsmgr for updates */
+		ast_dnsmgr_lookup_cb(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_mwi, mwi);
+		if (!mwi->dnsmgr) {
+			ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy); /* dnsmgr disabled, remove reference */
+		}
 	}
 
 	/* If we already have a subscription up simply send a resubscription */
@@ -13004,17 +13087,8 @@ static int sip_reg_timeout(const void *data)
 	}
 
 	if (r->dnsmgr) {
-		struct sip_peer *peer;
 		/* If the registration has timed out, maybe the IP changed.  Force a refresh. */
 		ast_dnsmgr_refresh(r->dnsmgr);
-		/* If we are resolving a peer, we have to make sure the refreshed address gets copied */
-		if ((peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE, 0))) {
-			ast_sockaddr_copy(&peer->addr, &r->us);
-			if (r->portno) {
-				ast_sockaddr_set_port(&peer->addr, r->portno);
-			}
-			peer = unref_peer(peer, "unref after find_peer");
-		}
 	}
 
 	/* If the initial tranmission failed, we may not have an existing dialog,
@@ -13103,7 +13177,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		 * or peer NULL. Since we're only concerned with its existence, we're not going to
 		 * bother getting a ref to the proxy*/
 		if (!obproxy_get(r->call, peer)) {
-			ast_dnsmgr_lookup(peer ? peer->tohost : r->hostname, &r->us, &r->dnsmgr, sip_cfg.srvlookup ? transport : NULL);
+			registry_addref(r, "add reg ref for dnsmgr");
+			ast_dnsmgr_lookup_cb(peer ? peer->tohost : r->hostname, &r->us, &r->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_registry, r);
+			if (!r->dnsmgr) {
+				/*dnsmgr refresh disabled, no reference added! */
+				registry_unref(r, "remove reg ref, dnsmgr disabled");
+			}
 		}
 		if (peer) {
 			peer = unref_peer(peer, "removing peer ref for dnsmgr_lookup");
@@ -13136,18 +13215,21 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		}
 
 		/* Use port number specified if no SRV record was found */
-		if (!ast_sockaddr_port(&r->us) && r->portno) {
-			ast_sockaddr_set_port(&r->us, r->portno);
-		}
-
-		/* It is possible that DNS is unavailable at the time the peer is created. Here, if
-		 * we've updated the address in the registry, we copy it to the peer so that
-		 * create_addr() can copy it to the dialog via create_addr_from_peer */
-		if ((peer = find_peer(r->hostname, NULL, TRUE, FINDPEERS, FALSE, 0))) {
-			if (ast_sockaddr_isnull(&peer->addr) && !(ast_sockaddr_isnull(&r->us))) {
-				ast_sockaddr_copy(&peer->addr, &r->us);
+		if (!ast_sockaddr_isnull(&r->us)) {
+			if (!ast_sockaddr_port(&r->us) && r->portno) {
+				ast_sockaddr_set_port(&r->us, r->portno);
 			}
-			peer = unref_peer(peer, "unref after find_peer");
+
+			/* It is possible that DNS was unavailable at the time the peer was created.
+			 * Here, if we've updated the address in the registry via manually calling
+			 * ast_dnsmgr_lookup_cb() above, then we call the same function that dnsmgr would
+			 * call if it was updating a peer's address */
+			if ((peer = find_peer(S_OR(r->peername, r->hostname), NULL, TRUE, FINDPEERS, FALSE, 0))) {
+				if (ast_sockaddr_cmp(&peer->addr, &r->us)) {
+					on_dns_update_peer(&peer->addr, &r->us, peer);
+				}
+				peer = unref_peer(peer, "unref after find_peer");
+			}
 		}
 
 		/* Find address to hostname */
@@ -13961,9 +14043,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->portinuri = ast_sockaddr_port(&testsa) ? TRUE : FALSE;
 
 		if (!ast_sockaddr_port(&testsa)) {
-			ast_sockaddr_set_port(&testsa,
-						  transport_type == SIP_TRANSPORT_TLS ?
-						  STANDARD_TLS_PORT : STANDARD_SIP_PORT);
+			ast_sockaddr_set_port(&testsa, default_sip_port(transport_type));
 		}
 
 		ast_sockaddr_copy(&peer->addr, &testsa);
@@ -18623,7 +18703,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 
 	/* Need to check the media/type */
 	if (!strcasecmp(c, "application/dtmf-relay") ||
-	    !strcasecmp(c, "application/vnd.nortelnetworks.digits")) {
+	    !strcasecmp(c, "application/vnd.nortelnetworks.digits") ||
+	    !strcasecmp(c, "application/dtmf")) {
 		unsigned int duration = 0;
 
 		if (!p->owner) {	/* not a PBX call */
@@ -18632,91 +18713,62 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			return;
 		}
 
-		/* Try getting the "signal=" part */
-		if (ast_strlen_zero(c = get_body(req, "Signal", '=')) && ast_strlen_zero(c = get_body(req, "d", '='))) {
-			ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
-			transmit_response(p, "200 OK", req); /* Should return error */
-			return;
+		/* If dtmf-relay or vnd.nortelnetworks.digits, parse the signal and duration;
+		 * otherwise use the body as the signal */
+		if (strcasecmp(c, "application/dtmf")) {
+			const char *msg_body;
+
+			if (   ast_strlen_zero(msg_body = get_body(req, "Signal", '='))
+				&& ast_strlen_zero(msg_body = get_body(req, "d", '='))) {
+				ast_log(LOG_WARNING, "Unable to retrieve DTMF signal for INFO message on "
+						"call %s\n", p->callid);
+				transmit_response(p, "200 OK", req);
+				return;
+			}
+			ast_copy_string(buf, msg_body, sizeof(buf));
+
+			if (!ast_strlen_zero((msg_body = get_body(req, "Duration", '=')))) {
+				sscanf(msg_body, "%30u", &duration);
+			}
 		} else {
-			ast_copy_string(buf, c, sizeof(buf));
+			/* Type is application/dtmf, simply use what's in the message body */
+			get_msg_text(buf, sizeof(buf), req);
 		}
 
-		if (!ast_strlen_zero((c = get_body(req, "Duration", '='))))
-			duration = atoi(c);
-		if (!duration)
-			duration = 100; /* 100 ms */
-
-
+		/* An empty message body requires us to send a 200 OK */
 		if (ast_strlen_zero(buf)) {
 			transmit_response(p, "200 OK", req);
 			return;
 		}
 
-		if ('0' <= buf[0] && buf[0] <= '9') {
-			event = buf[0] - '0';
-		} else if (buf[0] == '*') {
+		if (!duration) {
+			duration = 100; /* 100 ms */
+		}
+
+		if (buf[0] == '*') {
 			event = 10;
 		} else if (buf[0] == '#') {
 			event = 11;
+		} else if (buf[0] == '!') {
+			event = 16;
 		} else if ('A' <= buf[0] && buf[0] <= 'D') {
 			event = 12 + buf[0] - 'A';
 		} else if ('a' <= buf[0] && buf[0] <= 'd') {
 			event = 12 + buf[0] - 'a';
-		} else if (buf[0] == '!') {
-			event = 16;
-		} else {
-			/* Unknown digit */
-			event = 0;
+		} else if ((sscanf(buf, "%30u", &event) != 1) || event > 16) {
+			ast_log(AST_LOG_WARNING, "Unable to convert DTMF event signal code to a valid "
+					"value for INFO message on call %s\n", p->callid);
+			transmit_response(p, "200 OK", req);
+			return;
 		}
+
 		if (event == 16) {
 			/* send a FLASH event */
 			struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_FLASH, } };
 			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
+			if (sipdebug) {
 				ast_verbose("* DTMF-relay event received: FLASH\n");
-		} else {
-			/* send a DTMF event */
-			struct ast_frame f = { AST_FRAME_DTMF, };
-			if (event < 10) {
-				f.subclass.integer = '0' + event;
-			} else if (event == 10) {
-				f.subclass.integer = '*';
-			} else if (event == 11) {
-				f.subclass.integer = '#';
-			} else if (event < 16) {
-				f.subclass.integer = 'A' + (event - 12);
 			}
-			f.len = duration;
-			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
-				ast_verbose("* DTMF-relay event received: %c\n", (int) f.subclass.integer);
-		}
-		transmit_response(p, "200 OK", req);
-		return;
-	} else if (!strcasecmp(c, "application/dtmf")) {
-		/*! \todo Note: Doesn't read the duration of the DTMF. Should be fixed. */
-		unsigned int duration = 0;
-
-		if (!p->owner) {	/* not a PBX call */
-			transmit_response(p, "481 Call leg/transaction does not exist", req);
-			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			return;
-		}
-
-		get_msg_text(buf, sizeof(buf), req);
-		duration = 100; /* 100 ms */
-
-		if (ast_strlen_zero(buf)) {
-			transmit_response(p, "200 OK", req);
-			return;
-		}
-		event = atoi(buf);
-		if (event == 16) {
-			/* send a FLASH event */
-			struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_FLASH }, };
-			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
-				ast_verbose("* DTMF-relay event received: FLASH\n");
 		} else {
 			/* send a DTMF event */
 			struct ast_frame f = { AST_FRAME_DTMF, };
@@ -18726,20 +18778,17 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 				f.subclass.integer = '*';
 			} else if (event == 11) {
 				f.subclass.integer = '#';
-			} else if (event < 16) {
-				f.subclass.integer = 'A' + (event - 12);
 			} else {
-				/* Unknown digit. */
-				f.subclass.integer = '0';
+				f.subclass.integer = 'A' + (event - 12);
 			}
 			f.len = duration;
 			ast_queue_frame(p->owner, &f);
-			if (sipdebug)
+			if (sipdebug) {
 				ast_verbose("* DTMF-relay event received: %c\n", (int) f.subclass.integer);
+			}
 		}
 		transmit_response(p, "200 OK", req);
 		return;
-
 	} else if (!strcasecmp(c, "application/media_control+xml")) {
 		/* Eh, we'll just assume it's a fast picture update for now */
 		if (p->owner)
@@ -27650,10 +27699,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(peer->socket.type), get_srv_protocol(peer->socket.type));
 
 		peer->addr.ss.ss_family = get_address_family_filter(&bindaddr); /* Filter address family */
-		if (ast_dnsmgr_lookup(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup && !peer->portinuri ? transport : NULL)) {
+		if (ast_dnsmgr_lookup_cb(_srvlookup, &peer->addr, &peer->dnsmgr, sip_cfg.srvlookup && !peer->portinuri ? transport : NULL,
+					on_dns_update_peer, ref_peer(peer, "Store peer on dnsmgr"))) {
 			ast_log(LOG_ERROR, "srvlookup failed for host: %s, on peer %s, removing peer\n", _srvlookup, peer->name);
+			unref_peer(peer, "dnsmgr lookup failed, getting rid of peer dnsmgr ref");
 			unref_peer(peer, "getting rid of a peer pointer");
 			return NULL;
+		}
+		if (!peer->dnsmgr) {
+			/* dnsmgr refresh disabeld, release reference */
+			unref_peer(peer, "dnsmgr disabled, unref peer");
 		}
 
 		ast_string_field_set(peer, tohost, srvlookup);
@@ -27770,7 +27825,7 @@ static void cleanup_all_regs(void)
 		/* First, destroy all outstanding registry calls */
 		/* This is needed, since otherwise active registry entries will not be destroyed */
 		ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {  /* regl is locked */
-				ASTOBJ_RDLOCK(iterator); /* now regl is locked, and the object is also locked */
+				ASTOBJ_WRLOCK(iterator); /* now regl is locked, and the object is also locked */
 				if (iterator->call) {
 					ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
 					/* This will also remove references to the registry */
@@ -27782,6 +27837,11 @@ static void cleanup_all_regs(void)
 				}
 				if (iterator->timeout > -1) {
 					AST_SCHED_DEL_UNREF(sched, iterator->timeout, registry_unref(iterator, "reg ptr unref from reload config"));
+				}
+				if (iterator->dnsmgr) {
+					ast_dnsmgr_release(iterator->dnsmgr);
+					iterator->dnsmgr = NULL;
+					registry_unref(iterator, "reg ptr unref from dnsmgr");
 				}
 				ASTOBJ_UNLOCK(iterator);
 		} while(0));
@@ -30394,6 +30454,16 @@ static int unload_module(void)
 	cleanup_all_regs();
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&regl);
+
+	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
+		ASTOBJ_WRLOCK(iterator);
+		if (iterator->dnsmgr) {
+			ast_dnsmgr_release(iterator->dnsmgr);
+			iterator->dnsmgr = NULL;
+			ASTOBJ_UNREF(iterator, sip_subscribe_mwi_destroy);
+		}
+		ASTOBJ_UNLOCK(iterator);
+	} while(0));
 	ASTOBJ_CONTAINER_DESTROYALL(&submwil, sip_subscribe_mwi_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&submwil);
 
