@@ -791,8 +791,8 @@ static void *do_notify(void *data)
 
 		answered = ast_dial_answered_steal(dial);
 		if (ast_strlen_zero(event->owner->notify_app)) {
-			ast_copy_string(answered->context, event->owner->notify_context, sizeof(answered->context));
-			ast_copy_string(answered->exten, event->owner->notify_extension, sizeof(answered->exten));
+			ast_channel_context_set(answered, event->owner->notify_context);
+			ast_channel_exten_set(answered, event->owner->notify_extension);
 			answered->priority = 1;
 			ast_pbx_run(answered);
 		}

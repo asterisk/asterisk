@@ -1094,8 +1094,8 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		/* Set the owner of this channel */
 		pvt->owner = ch;
 
-		ast_copy_string(ch->context, pvt->context, sizeof(ch->context));
-		ast_copy_string(ch->exten, pvt->exten, sizeof(ch->exten));
+		ast_channel_context_set(ch, pvt->context);
+		ast_channel_exten_set(ch, pvt->exten);
 		ch->priority = 1;
 		if (!ast_strlen_zero(pvt->accountcode)) {
 			ast_channel_accountcode_set(ch, pvt->accountcode);

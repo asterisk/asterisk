@@ -155,8 +155,8 @@ static int log_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (lnum > -1) {
-		snprintf(context, sizeof(context), "@ %s", chan->context);
-		snprintf(extension, sizeof(extension), "Ext. %s", chan->exten);
+		snprintf(context, sizeof(context), "@ %s", ast_channel_context(chan));
+		snprintf(extension, sizeof(extension), "Ext. %s", ast_channel_exten(chan));
 
 		ast_log(lnum, extension, chan->priority, context, "%s\n", args.msg);
 	}

@@ -266,7 +266,7 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 		"TransferRate: %d\r\n"
 		"FileName: %s\r\n",
 		ast_channel_name(s->chan),
-		s->chan->exten,
+		ast_channel_exten(s->chan),
 		S_COR(s->chan->caller.id.number.valid, s->chan->caller.id.number.str, ""),
 		S_COR(s->chan->caller.id.name.valid, s->chan->caller.id.name.str, ""),
 		S_COR(s->chan->connected.id.number.valid, s->chan->connected.id.number.str, ""),

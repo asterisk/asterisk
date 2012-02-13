@@ -288,7 +288,7 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 				return -1;
 			}
 		} else {
-			if (!pickup_by_exten(chan, exten, !ast_strlen_zero(context) ? context : chan->context)) {
+			if (!pickup_by_exten(chan, exten, !ast_strlen_zero(context) ? context : ast_channel_context(chan))) {
 				/* Pickup successful.  Stop the dialplan this channel is a zombie. */
 				return -1;
 			}

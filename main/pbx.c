@@ -1533,11 +1533,11 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 		ast_cdr_setapp(c->cdr, app->name, data);
 
 	/* save channel values */
-	saved_c_appl= c->appl;
-	saved_c_data= c->data;
+	saved_c_appl= ast_channel_appl(c);
+	saved_c_data= ast_channel_data(c);
 
-	c->appl = app->name;
-	c->data = data;
+	ast_channel_appl_set(c, app->name);
+	ast_channel_data_set(c, data);
 	ast_cel_report_event(c, AST_CEL_APP_START, NULL, NULL, NULL);
 
 	if (app->module)
@@ -1553,8 +1553,8 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 		__ast_module_user_remove(app->module, u);
 	ast_cel_report_event(c, AST_CEL_APP_END, NULL, NULL, NULL);
 	/* restore channel values */
-	c->appl = saved_c_appl;
-	c->data = saved_c_data;
+	ast_channel_appl_set(c, saved_c_appl);
+	ast_channel_data_set(c, saved_c_data);
 	return res;
 }
 
@@ -3306,13 +3306,13 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 				}
 			}
 		} else if (!strcmp(var, "HINT")) {
-			s = ast_str_get_hint(str, maxlen, NULL, 0, c, c->context, c->exten) ? ast_str_buffer(*str) : NULL;
+			s = ast_str_get_hint(str, maxlen, NULL, 0, c, ast_channel_context(c), ast_channel_exten(c)) ? ast_str_buffer(*str) : NULL;
 		} else if (!strcmp(var, "HINTNAME")) {
-			s = ast_str_get_hint(NULL, 0, str, maxlen, c, c->context, c->exten) ? ast_str_buffer(*str) : NULL;
+			s = ast_str_get_hint(NULL, 0, str, maxlen, c, ast_channel_context(c), ast_channel_exten(c)) ? ast_str_buffer(*str) : NULL;
 		} else if (!strcmp(var, "EXTEN")) {
-			s = c->exten;
+			s = ast_channel_exten(c);
 		} else if (!strcmp(var, "CONTEXT")) {
-			s = c->context;
+			s = ast_channel_context(c);
 		} else if (!strcmp(var, "PRIORITY")) {
 			ast_str_set(str, maxlen, "%d", c->priority);
 			s = ast_str_buffer(*str);
@@ -3436,8 +3436,8 @@ static int raise_exception(struct ast_channel *chan, const char *reason, int pri
 		exception = ds->data;
 
 	ast_string_field_set(exception, reason, reason);
-	ast_string_field_set(exception, context, chan->context);
-	ast_string_field_set(exception, exten, chan->exten);
+	ast_string_field_set(exception, context, ast_channel_context(chan));
+	ast_string_field_set(exception, exten, ast_channel_exten(chan));
 	exception->priority = chan->priority;
 	set_ext_pri(chan, "e", priority);
 	return 0;
@@ -4359,10 +4359,10 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
 				return -1;
 			}
-			if (c->context != context)
-				ast_copy_string(c->context, context, sizeof(c->context));
-			if (c->exten != exten)
-				ast_copy_string(c->exten, exten, sizeof(c->exten));
+			if (ast_channel_context(c) != context)
+				ast_channel_context_set(c, context);
+			if (ast_channel_exten(c) != exten)
+				ast_channel_exten_set(c, exten);
 			c->priority = priority;
 			pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 #ifdef CHANNEL_TRACE
@@ -4386,7 +4386,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					"Application: %s\r\n"
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
-					ast_channel_name(c), c->context, c->exten, c->priority, app->name, passdata, ast_channel_uniqueid(c));
+					ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority, app->name, passdata, ast_channel_uniqueid(c));
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
@@ -5057,7 +5057,7 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 {
 	ast_channel_lock(c);
-	ast_copy_string(c->exten, exten, sizeof(c->exten));
+	ast_channel_exten_set(c, exten);
 	c->priority = pri;
 	ast_channel_unlock(c);
 }
@@ -5074,7 +5074,7 @@ static int collect_digits(struct ast_channel *c, int waittime, char *buf, int bu
 	int digit;
 
 	buf[pos] = '\0';	/* make sure it is properly terminated */
-	while (ast_matchmore_extension(c, c->context, buf, 1,
+	while (ast_matchmore_extension(c, ast_channel_context(c), buf, 1,
 		S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 		/* As long as we're willing to wait, and as long as it's not defined,
 		   keep reading digits until we can't possibly get a right answer anymore.  */
@@ -5119,9 +5119,9 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 	ast_set_flag(c, AST_FLAG_IN_AUTOLOOP);
 
-	if (ast_strlen_zero(c->exten)) {
+	if (ast_strlen_zero(ast_channel_exten(c))) {
 		/* If not successful fall back to 's' - but only if there is no given exten  */
-		ast_verb(2, "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", ast_channel_name(c), c->context, c->exten, c->priority);
+		ast_verb(2, "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority);
 		/* XXX the original code used the existing priority in the call to
 		 * ast_exists_extension(), and reset it to 1 afterwards.
 		 * I believe the correct thing is to set it to 1 immediately.
@@ -5143,7 +5143,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		int timeout = 0;
 
 		/* loop on priorities in this context/exten */
-		while (!(res = ast_spawn_extension(c, c->context, c->exten, c->priority,
+		while (!(res = ast_spawn_extension(c, ast_channel_context(c), ast_channel_exten(c), c->priority,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL),
 			&found, 1))) {
 			if (!ast_check_hangup(c)) {
@@ -5157,14 +5157,14 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				continue;
 			}
 			if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
-				if (ast_exists_extension(c, c->context, "T", 1,
+				if (ast_exists_extension(c, ast_channel_context(c), "T", 1,
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 					set_ext_pri(c, "T", 1);
 					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 					memset(&c->whentohangup, 0, sizeof(c->whentohangup));
 					ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 					continue;
-				} else if (ast_exists_extension(c, c->context, "e", 1,
+				} else if (ast_exists_extension(c, ast_channel_context(c), "e", 1,
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 					raise_exception(c, "ABSOLUTETIMEOUT", 1);
 					/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
@@ -5178,7 +5178,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				break;
 			}
 			ast_debug(1, "Extension %s, priority %d returned normally even though call was hung up\n",
-				c->exten, c->priority);
+				ast_channel_exten(c), c->priority);
 			error = 1;
 			break;
 		} /* end while  - from here on we can use 'break' to go out */
@@ -5190,28 +5190,28 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 				dst_exten[pos++] = digit = res;
 				dst_exten[pos] = '\0';
 			} else if (res == AST_PBX_INCOMPLETE) {
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited INCOMPLETE on '%s'\n", c->context, c->exten, c->priority, ast_channel_name(c));
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited INCOMPLETE on '%s'\n", c->context, c->exten, c->priority, ast_channel_name(c));
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited INCOMPLETE on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited INCOMPLETE on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
 
 				/* Don't cycle on incomplete - this will happen if the only extension that matches is our "incomplete" extension */
-				if (!ast_matchmore_extension(c, c->context, c->exten, 1,
+				if (!ast_matchmore_extension(c, ast_channel_context(c), ast_channel_exten(c), 1,
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 					invalid = 1;
 				} else {
-					ast_copy_string(dst_exten, c->exten, sizeof(dst_exten));
+					ast_copy_string(dst_exten, ast_channel_exten(c), sizeof(dst_exten));
 					digit = 1;
 					pos = strlen(dst_exten);
 				}
 			} else {
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, ast_channel_name(c));
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, ast_channel_name(c));
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
 
 				if ((res == AST_PBX_ERROR)
-					&& ast_exists_extension(c, c->context, "e", 1,
+					&& ast_exists_extension(c, ast_channel_context(c), "e", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 					/* if we are already on the 'e' exten, don't jump to it again */
-					if (!strcmp(c->exten, "e")) {
-						ast_verb(2, "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, ast_channel_name(c));
+					if (!strcmp(ast_channel_exten(c), "e")) {
+						ast_verb(2, "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
 						error = 1;
 					} else {
 						raise_exception(c, "ERROR", 1);
@@ -5224,14 +5224,14 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 					continue;
 				}
 				if (c->_softhangup & AST_SOFTHANGUP_TIMEOUT) {
-					if (ast_exists_extension(c, c->context, "T", 1,
+					if (ast_exists_extension(c, ast_channel_context(c), "T", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 						set_ext_pri(c, "T", 1);
 						/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 						memset(&c->whentohangup, 0, sizeof(c->whentohangup));
 						ast_channel_clear_softhangup(c, AST_SOFTHANGUP_TIMEOUT);
 						continue;
-					} else if (ast_exists_extension(c, c->context, "e", 1,
+					} else if (ast_exists_extension(c, ast_channel_context(c), "e", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 						raise_exception(c, "ABSOLUTETIMEOUT", 1);
 						/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
@@ -5259,24 +5259,24 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		 * and continue, or we can drop out entirely. */
 
 		if (invalid
-			|| !ast_exists_extension(c, c->context, c->exten, 1,
+			|| !ast_exists_extension(c, ast_channel_context(c), ast_channel_exten(c), 1,
 				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 			/*!\note
 			 * If there is no match at priority 1, it is not a valid extension anymore.
 			 * Try to continue at "i" (for invalid) or "e" (for exception) or exit if
 			 * neither exist.
 			 */
-			if (ast_exists_extension(c, c->context, "i", 1,
+			if (ast_exists_extension(c, ast_channel_context(c), "i", 1,
 				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-				ast_verb(3, "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, ast_channel_name(c));
-				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", c->exten);
+				ast_verb(3, "Sent into invalid extension '%s' in context '%s' on %s\n", ast_channel_exten(c), ast_channel_context(c), ast_channel_name(c));
+				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", ast_channel_exten(c));
 				set_ext_pri(c, "i", 1);
-			} else if (ast_exists_extension(c, c->context, "e", 1,
+			} else if (ast_exists_extension(c, ast_channel_context(c), "e", 1,
 				S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 				raise_exception(c, "INVALID", 1);
 			} else {
 				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
-					ast_channel_name(c), c->exten, c->context);
+					ast_channel_name(c), ast_channel_exten(c), ast_channel_context(c));
 				error = 1; /* we know what to do with it */
 				break;
 			}
@@ -5309,41 +5309,41 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			if (res == AST_PBX_INCOMPLETE && ast_strlen_zero(&dst_exten[pos]))
 				timeout = 1;
 			if (!timeout
-				&& ast_exists_extension(c, c->context, dst_exten, 1,
+				&& ast_exists_extension(c, ast_channel_context(c), dst_exten, 1,
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) { /* Prepare the next cycle */
 				set_ext_pri(c, dst_exten, 1);
 			} else {
 				/* No such extension */
 				if (!timeout && !ast_strlen_zero(dst_exten)) {
 					/* An invalid extension */
-					if (ast_exists_extension(c, c->context, "i", 1,
+					if (ast_exists_extension(c, ast_channel_context(c), "i", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
-						ast_verb(3, "Invalid extension '%s' in context '%s' on %s\n", dst_exten, c->context, ast_channel_name(c));
+						ast_verb(3, "Invalid extension '%s' in context '%s' on %s\n", dst_exten, ast_channel_context(c), ast_channel_name(c));
 						pbx_builtin_setvar_helper(c, "INVALID_EXTEN", dst_exten);
 						set_ext_pri(c, "i", 1);
-					} else if (ast_exists_extension(c, c->context, "e", 1,
+					} else if (ast_exists_extension(c, ast_channel_context(c), "e", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 						raise_exception(c, "INVALID", 1);
 					} else {
 						ast_log(LOG_WARNING,
 							"Invalid extension '%s', but no rule 'i' or 'e' in context '%s'\n",
-							dst_exten, c->context);
+							dst_exten, ast_channel_context(c));
 						found = 1; /* XXX disable message */
 						break;
 					}
 				} else {
 					/* A simple timeout */
-					if (ast_exists_extension(c, c->context, "t", 1,
+					if (ast_exists_extension(c, ast_channel_context(c), "t", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 						ast_verb(3, "Timeout on %s\n", ast_channel_name(c));
 						set_ext_pri(c, "t", 1);
-					} else if (ast_exists_extension(c, c->context, "e", 1,
+					} else if (ast_exists_extension(c, ast_channel_context(c), "e", 1,
 						S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 						raise_exception(c, "RESPONSETIMEOUT", 1);
 					} else {
 						ast_log(LOG_WARNING,
 							"Timeout, but no rule 't' or 'e' in context '%s'\n",
-							c->context);
+							ast_channel_context(c));
 						found = 1; /* XXX disable message */
 						break;
 					}
@@ -5368,21 +5368,21 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 
 	if ((!args || !args->no_hangup_chan)
 		&& !ast_test_flag(c, AST_FLAG_BRIDGE_HANGUP_RUN)
-		&& ast_exists_extension(c, c->context, "h", 1,
+		&& ast_exists_extension(c, ast_channel_context(c), "h", 1,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))) {
 		set_ext_pri(c, "h", 1);
 		if (c->cdr && ast_opt_end_cdr_before_h_exten) {
 			ast_cdr_end(c->cdr);
 		}
-		while ((res = ast_spawn_extension(c, c->context, c->exten, c->priority,
+		while ((res = ast_spawn_extension(c, ast_channel_context(c), ast_channel_exten(c), c->priority,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL),
 			&found, 1)) == 0) {
 			c->priority++;
 		}
 		if (found && res) {
 			/* Something bad happened, or a hangup has been requested. */
-			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, ast_channel_name(c));
-			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, ast_channel_name(c));
+			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
+			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(c), ast_channel_exten(c), c->priority, ast_channel_name(c));
 		}
 	}
 	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
@@ -8293,9 +8293,9 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 	ast_channel_lock(chan);
 
 	if (!ast_strlen_zero(context))
-		ast_copy_string(chan->context, context, sizeof(chan->context));
+		ast_channel_context_set(chan, context);
 	if (!ast_strlen_zero(exten))
-		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+		ast_channel_exten_set(chan, exten);
 	if (priority > -1) {
 		chan->priority = priority;
 		/* see flag description in channel.h for explanation */
@@ -8337,8 +8337,8 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 	 * the PBX, we have to make a new channel, masquerade, and start the PBX
 	 * at the new location */
 	tmpvars.accountcode = ast_strdupa(ast_channel_accountcode(chan));
-	tmpvars.exten = ast_strdupa(chan->exten);
-	tmpvars.context = ast_strdupa(chan->context);
+	tmpvars.exten = ast_strdupa(ast_channel_exten(chan));
+	tmpvars.context = ast_strdupa(ast_channel_context(chan));
 	tmpvars.linkedid = ast_strdupa(ast_channel_linkedid(chan));
 	tmpvars.name = ast_strdupa(ast_channel_name(chan));
 	tmpvars.amaflags = chan->amaflags;
@@ -8660,8 +8660,8 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		struct ast_channel *c = ast_dummy_channel_alloc();
 
 		if (c) {
-			ast_copy_string(c->exten, extension, sizeof(c->exten));
-			ast_copy_string(c->context, con->name, sizeof(c->context));
+			ast_channel_exten_set(c, extension);
+			ast_channel_context_set(c, con->name);
 		}
 		pbx_substitute_variables_helper(c, application, expand_buf, sizeof(expand_buf));
 		application = expand_buf;
@@ -8884,9 +8884,9 @@ static void *async_wait(void *data)
 				ast_log(LOG_WARNING, "No such application '%s'\n", as->app);
 		} else {
 			if (!ast_strlen_zero(as->context))
-				ast_copy_string(chan->context, as->context, sizeof(chan->context));
+				ast_channel_context_set(chan, as->context);
 			if (!ast_strlen_zero(as->exten))
-				ast_copy_string(chan->exten, as->exten, sizeof(chan->exten));
+				ast_channel_exten_set(chan, as->exten);
 			if (as->priority > 0)
 				chan->priority = as->priority;
 			/* Run the PBX */
@@ -9022,7 +9022,7 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 				if (chan) {
 					char failed_reason[4] = "";
 					if (!ast_strlen_zero(context))
-						ast_copy_string(chan->context, context, sizeof(chan->context));
+						ast_channel_context_set(chan, context);
 					set_ext_pri(chan, "failed", 1);
 					ast_set_variables(chan, vars);
 					snprintf(failed_reason, sizeof(failed_reason), "%d", *reason);
@@ -9849,19 +9849,19 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, const char *data)
 		if (ast_check_hangup(chan)) {
 			/* Call is hungup for some reason. */
 			res = -1;
-		} else if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1,
+		} else if (ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_verb(3, "Timeout on %s, continuing...\n", ast_channel_name(chan));
-		} else if (ast_exists_extension(chan, chan->context, "t", 1,
+		} else if (ast_exists_extension(chan, ast_channel_context(chan), "t", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_verb(3, "Timeout on %s, going to 't'\n", ast_channel_name(chan));
 			set_ext_pri(chan, "t", 0); /* 0 will become 1, next time through the loop */
-		} else if (ast_exists_extension(chan, chan->context, "e", 1,
+		} else if (ast_exists_extension(chan, ast_channel_context(chan), "e", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			raise_exception(chan, "RESPONSETIMEOUT", 0); /* 0 will become 1, next time through the loop */
 		} else {
 			ast_log(LOG_WARNING, "Timeout but no rule 't' or 'e' in context '%s'\n",
-				chan->context);
+				ast_channel_context(chan));
 			res = -1;
 		}
 	}
@@ -9908,7 +9908,7 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 		if ((context = pbx_builtin_getvar_helper(chan, "MACRO_CONTEXT"))) {
 			args.context = ast_strdupa(context);
 		} else {
-			args.context = chan->context;
+			args.context = ast_strdupa(ast_channel_context(chan));
 		}
 		ast_channel_unlock(chan);
 	}
@@ -9979,8 +9979,10 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
 		&& !ast_matchmore_extension(chan, args.context, exten, 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
-		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
-		ast_copy_string(chan->context, args.context, sizeof(chan->context));
+		char buf[2] = { 0, };
+		snprintf(buf, sizeof(buf), "%c", res);
+		ast_channel_exten_set(chan, buf);
+		ast_channel_context_set(chan, args.context);
 		chan->priority = 0;
 		res = 0;
 	}
@@ -9996,7 +9998,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, const char *data)
 {
 	int res = ast_parseable_goto(chan, data);
 	if (!res)
-		ast_verb(3, "Goto (%s,%s,%d)\n", chan->context, chan->exten, chan->priority + 1);
+		ast_verb(3, "Goto (%s,%s,%d)\n", ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 1);
 	return res;
 }
 
@@ -10221,7 +10223,7 @@ int pbx_builtin_setvar_multiple(struct ast_channel *chan, const char *vdata)
 		} else if (!chan) {
 			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '='\n", pair.name);
 		} else {
-			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '=' (in %s@%s:%d\n", pair.name, chan->exten, chan->context, chan->priority);
+			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '=' (in %s@%s:%d\n", pair.name, ast_channel_exten(chan), ast_channel_context(chan), chan->priority);
 		}
 	}
 
@@ -10687,9 +10689,9 @@ static int __ast_goto_if_exists(struct ast_channel *chan, const char *context, c
 		return -2;
 
 	if (context == NULL)
-		context = chan->context;
+		context = ast_channel_context(chan);
 	if (exten == NULL)
-		exten = chan->exten;
+		exten = ast_channel_exten(chan);
 
 	goto_func = (async) ? ast_async_goto : ast_explicit_goto;
 	if (ast_exists_extension(chan, context, exten, priority,
@@ -10742,8 +10744,8 @@ static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string,
 		pri++;
 	}
 	if (sscanf(pri, "%30d", &ipri) != 1) {
-		ipri = ast_findlabel_extension(chan, context ? context : chan->context,
-			exten ? exten : chan->exten, pri,
+		ipri = ast_findlabel_extension(chan, context ? context : ast_channel_context(chan),
+			exten ? exten : ast_channel_exten(chan), pri,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
 		if (ipri < 1) {
 			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);

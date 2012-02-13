@@ -3586,7 +3586,7 @@ static int handle_response_cmgr(struct mbl_pvt *pvt, char *buf)
 			return -1;
 		}
 
-		strcpy(chan->exten, "sms");
+		ast_channel_exten_set(chan, "sms");
 		pbx_builtin_setvar_helper(chan, "SMSSRC", from_number);
 		pbx_builtin_setvar_helper(chan, "SMSTXT", text);
 
@@ -3970,7 +3970,7 @@ static void *do_monitor_headset(void *data)
 
 				ast_channel_set_fd(chan, 0, pvt->sco_socket);
 
-				ast_copy_string(chan->exten, "s", AST_MAX_EXTENSION);
+				ast_channel_exten_set(chan, "s");
 				if (ast_pbx_start(chan)) {
 					ast_log(LOG_ERROR, "[%s] unable to start pbx on incoming call\n", pvt->id);
 					ast_hangup(chan);

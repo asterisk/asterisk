@@ -436,8 +436,8 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 		/* Notify the module monitors that use count for resource has changed*/
 		ast_update_use_count();
 
-		ast_copy_string(ch->context, i->context, sizeof(ch->context));
-		ast_copy_string(ch->exten, i->exten, sizeof(ch->exten));
+		ast_channel_context_set(ch, i->context);
+		ast_channel_exten_set(ch, i->exten);
 
 		ch->priority = 1;
 
@@ -4640,12 +4640,12 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 			p->faxdetected = 1;
 			ooRequestChangeMode(p->callToken, 1);
 		} else if ((dfr->subclass.integer == 'f') && !p->faxdetected) {
-			const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
-			if ((strcmp(p->owner->exten, "fax")) &&
+			const char *target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
+			if ((strcmp(ast_channel_exten(p->owner), "fax")) &&
 			    (ast_exists_extension(p->owner, target_context, "fax", 1,
 		            S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL)))) {
 				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(p->owner));
-				pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
+				pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));
 				if (ast_async_goto(p->owner, target_context, "fax", 1)) {
 					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner),target_context);
 				}
@@ -4718,12 +4718,12 @@ void onModeChanged(ooCallData *call, int t38mode) {
 			if ((p->faxdetect & FAXDETECT_T38) && !p->faxdetected) {
                        		const char *target_context;
 				ast_debug(1, "* Detected T.38 Request\n");
-				target_context = S_OR(p->owner->macrocontext, p->owner->context);
-                        	if ((strcmp(p->owner->exten, "fax")) &&
+				target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
+                        	if ((strcmp(ast_channel_exten(p->owner), "fax")) &&
                             		(ast_exists_extension(p->owner, target_context, "fax", 1,
                             		S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL)))) {
                                 	ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(p->owner));
-                                	pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
+                                	pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));
                                 	if (ast_async_goto(p->owner, target_context, "fax", 1)) {
                                         	ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner),target_context);
 					}

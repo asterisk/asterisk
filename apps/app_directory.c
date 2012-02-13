@@ -248,9 +248,9 @@ static int compare(const char *text, const char *template)
 
 static int goto_exten(struct ast_channel *chan, const char *dialcontext, char *ext)
 {
-	if (!ast_goto_if_exists(chan, S_OR(dialcontext, chan->context), ext, 1) ||
-		(!ast_strlen_zero(chan->macrocontext) &&
-		!ast_goto_if_exists(chan, chan->macrocontext, ext, 1))) {
+	if (!ast_goto_if_exists(chan, S_OR(dialcontext, ast_channel_context(chan)), ext, 1) ||
+		(!ast_strlen_zero(ast_channel_macrocontext(chan)) &&
+		!ast_goto_if_exists(chan, ast_channel_macrocontext(chan), ext, 1))) {
 		return 0;
 	} else {
 		ast_log(LOG_WARNING, "Can't find extension '%s' in current context.  "
@@ -292,7 +292,7 @@ static int select_entry(struct ast_channel *chan, const char *dialcontext, const
 
 	if (ast_test_flag(flags, OPT_FROMVOICEMAIL)) {
 		/* We still want to set the exten though */
-		ast_copy_string(chan->exten, item->exten, sizeof(chan->exten));
+		ast_channel_exten_set(chan, item->exten);
 	} else if (ast_goto_if_exists(chan, S_OR(dialcontext, item->context), item->exten, 1)) {
 		ast_log(LOG_WARNING,
 			"Can't find extension '%s' in context '%s'.  "

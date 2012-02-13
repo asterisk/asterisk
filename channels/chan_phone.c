@@ -874,11 +874,11 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;
-		ast_copy_string(tmp->context, cntx, sizeof(tmp->context));
+		ast_channel_context_set(tmp, cntx);
 		if (!ast_strlen_zero(i->ext))
-			ast_copy_string(tmp->exten, i->ext, sizeof(tmp->exten));
+			ast_channel_exten_set(tmp, i->ext);
 		else
-			strcpy(tmp->exten, "s");
+			ast_channel_exten_set(tmp, "s");
 		if (!ast_strlen_zero(i->language))
 			ast_channel_language_set(tmp, i->language);
 

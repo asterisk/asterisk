@@ -70,8 +70,8 @@ static enum ast_test_result_state test_chan_integer(struct ast_test *test,
 }
 
 static enum ast_test_result_state test_chan_string(struct ast_test *test,
-		struct ast_channel *c, char *cfield, size_t cfieldsize,
-		const char *expression)
+		struct ast_channel *c, void (*setter)(struct ast_channel *, const char *),
+		const char *(*getter)(const struct ast_channel *), const char *expression)
 {
 	const char *values[] = { "one", "three", "reallylongdinosaursoundingthingwithwordsinit" };
 	int i, okay = 1;
@@ -79,13 +79,13 @@ static enum ast_test_result_state test_chan_string(struct ast_test *test,
 	struct ast_str *str = ast_str_create(16);
 
 	for (i = 0; i < ARRAY_LEN(values); i++) {
-		ast_copy_string(cfield, values[i], cfieldsize);
+		setter(c, values[i]);
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
 		ast_test_status_update(test, "Testing '%s' . . . . . %s\n",
 				expression, okay ? "passed" : "FAILED");
-		if (strcmp(cfield, ast_str_buffer(str)) != 0 || strcmp(cfield, workspace) != 0) {
-			ast_test_status_update(test, "%s != %s != %s\n", cfield, ast_str_buffer(str), workspace);
+		if (strcmp(getter(c), ast_str_buffer(str)) != 0 || strcmp(getter(c), workspace) != 0) {
+			ast_test_status_update(test, "%s != %s != %s\n", getter(c), ast_str_buffer(str), workspace);
 			okay = 0;
 		}
 	}
@@ -234,8 +234,8 @@ AST_TEST_DEFINE(test_substitution)
 	TEST(test_chan_integer(test, c, &c->dialed.transit_network_select, "${CALLINGTNS}"));
 	TEST(test_chan_integer(test, c, &c->hangupcause, "${HANGUPCAUSE}"));
 	TEST(test_chan_integer(test, c, &c->priority, "${PRIORITY}"));
-	TEST(test_chan_string(test, c, c->context, sizeof(c->context), "${CONTEXT}"));
-	TEST(test_chan_string(test, c, c->exten, sizeof(c->exten), "${EXTEN}"));
+	TEST(test_chan_string(test, c, ast_channel_context_set, ast_channel_context, "${CONTEXT}"));
+	TEST(test_chan_string(test, c, ast_channel_exten_set, ast_channel_exten, "${EXTEN}"));
 	TEST(test_chan_variable(test, c, "CHANNEL(language)"));
 	TEST(test_chan_variable(test, c, "CHANNEL(musicclass)"));
 	TEST(test_chan_variable(test, c, "CHANNEL(parkinglot)"));

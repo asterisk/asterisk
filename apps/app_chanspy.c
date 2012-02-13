@@ -779,10 +779,10 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		ast_channel_lock(chan);
 		if ((c = pbx_builtin_getvar_helper(chan, "SPY_EXIT_CONTEXT"))) {
 			ast_copy_string(exitcontext, c, sizeof(exitcontext));
-		} else if (!ast_strlen_zero(chan->macrocontext)) {
-			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
+		} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))) {
+			ast_copy_string(exitcontext, ast_channel_macrocontext(chan), sizeof(exitcontext));
 		} else {
-			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
+			ast_copy_string(exitcontext, ast_channel_context(chan), sizeof(exitcontext));
 		}
 		ast_channel_unlock(chan);
 	}
@@ -1186,7 +1186,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 		args.context = ptr;
 	}
 	if (ast_strlen_zero(args.context))
-		args.context = ast_strdupa(chan->context);
+		args.context = ast_strdupa(ast_channel_context(chan));
 
 	if (args.options) {
 		char *opts[OPT_ARG_ARRAY_SIZE];

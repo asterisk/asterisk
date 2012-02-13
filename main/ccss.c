@@ -1981,7 +1981,7 @@ static int cc_interfaces_datastore_init(struct ast_channel *chan) {
 		return -1;
 	}
 
-	if (!(monitor = cc_extension_monitor_init(S_OR(chan->macroexten, chan->exten), S_OR(chan->macrocontext, chan->context), 0))) {
+	if (!(monitor = cc_extension_monitor_init(S_OR(ast_channel_macroexten(chan), ast_channel_exten(chan)), S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan)), 0))) {
 		ast_free(interfaces);
 		return -1;
 	}
@@ -2298,8 +2298,8 @@ int ast_cc_call_init(struct ast_channel *chan, int *ignore_cc)
 	}
 
 	/* Situation 2 has occurred */
-	if (!(monitor = cc_extension_monitor_init(S_OR(chan->macroexten, chan->exten),
-			S_OR(chan->macrocontext, chan->context), interfaces->dial_parent_id))) {
+	if (!(monitor = cc_extension_monitor_init(S_OR(ast_channel_macroexten(chan), ast_channel_exten(chan)),
+			S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan)), interfaces->dial_parent_id))) {
 		return -1;
 	}
 	monitor->core_id = interfaces->core_id;
@@ -2514,8 +2514,8 @@ static int cc_generic_agent_init(struct ast_cc_agent *agent, struct ast_channel 
 	if (chan->caller.id.name.valid && chan->caller.id.name.str) {
 		ast_copy_string(generic_pvt->cid_name, chan->caller.id.name.str, sizeof(generic_pvt->cid_name));
 	}
-	ast_copy_string(generic_pvt->exten, S_OR(chan->macroexten, chan->exten), sizeof(generic_pvt->exten));
-	ast_copy_string(generic_pvt->context, S_OR(chan->macrocontext, chan->context), sizeof(generic_pvt->context));
+	ast_copy_string(generic_pvt->exten, S_OR(ast_channel_macroexten(chan), ast_channel_exten(chan)), sizeof(generic_pvt->exten));
+	ast_copy_string(generic_pvt->context, S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan)), sizeof(generic_pvt->context));
 	agent->private_data = generic_pvt;
 	ast_set_flag(agent, AST_CC_AGENT_SKIP_OFFER);
 	return 0;
@@ -2684,8 +2684,8 @@ static void *generic_recall(void *data)
 	ast_setup_cc_recall_datastore(chan, agent->core_id);
 	ast_cc_agent_set_interfaces_chanvar(chan);
 
-	ast_copy_string(chan->exten, generic_pvt->exten, sizeof(chan->exten));
-	ast_copy_string(chan->context, generic_pvt->context, sizeof(chan->context));
+	ast_channel_exten_set(chan, generic_pvt->exten);
+	ast_channel_context_set(chan, generic_pvt->context);
 	chan->priority = 1;
 
 	pbx_builtin_setvar_helper(chan, "CC_EXTEN", generic_pvt->exten);

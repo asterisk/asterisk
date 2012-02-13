@@ -914,9 +914,9 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				}				
 			}
 			if (concise) {
-				ast_cli(a->fd, CONCISE_FORMAT_STRING, ast_channel_name(c), c->context, c->exten, c->priority, ast_state2str(c->_state),
-					c->appl ? c->appl : "(None)",
-					S_OR(c->data, ""),	/* XXX different from verbose ? */
+				ast_cli(a->fd, CONCISE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority, ast_state2str(c->_state),
+					ast_channel_appl(c) ? ast_channel_appl(c) : "(None)",
+					S_OR(ast_channel_data(c), ""),	/* XXX different from verbose ? */
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
 					S_OR(ast_channel_accountcode(c), ""),
 					S_OR(ast_channel_peeraccount(c), ""),
@@ -925,9 +925,9 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 					bc ? ast_channel_name(bc) : "(None)",
 					ast_channel_uniqueid(c));
 			} else if (verbose) {
-				ast_cli(a->fd, VERBOSE_FORMAT_STRING, ast_channel_name(c), c->context, c->exten, c->priority, ast_state2str(c->_state),
-					c->appl ? c->appl : "(None)",
-					c->data ? S_OR(c->data, "(Empty)" ): "(None)",
+				ast_cli(a->fd, VERBOSE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), c->priority, ast_state2str(c->_state),
+					ast_channel_appl(c) ? ast_channel_appl(c) : "(None)",
+					ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)" ): "(None)",
 					S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
 					durbuf,
 					S_OR(ast_channel_accountcode(c), ""),
@@ -937,10 +937,10 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				char locbuf[40] = "(None)";
 				char appdata[40] = "(None)";
 				
-				if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
-					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
-				if (c->appl)
-					snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, S_OR(c->data, ""));
+				if (!ast_strlen_zero(ast_channel_context(c)) && !ast_strlen_zero(ast_channel_exten(c))) 
+					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", ast_channel_exten(c), ast_channel_context(c), c->priority);
+				if (ast_channel_appl(c))
+					snprintf(appdata, sizeof(appdata), "%s(%s)", ast_channel_appl(c), S_OR(ast_channel_data(c), ""));
 				ast_cli(a->fd, FORMAT_STRING, ast_channel_name(c), locbuf, ast_state2str(c->_state), appdata);
 			}
 		}
@@ -1495,9 +1495,9 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 		(long)c->whentohangup.tv_sec,
 		cdrtime, c->_bridge ? ast_channel_name(c->_bridge) : "<none>", ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
-		c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
-		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+		ast_channel_context(c), ast_channel_exten(c), c->priority, c->callgroup, c->pickupgroup, (ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
+		(ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)"),
+		(ast_test_flag(c, AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"));
 	
 	if (pbx_builtin_serialize_variables(c, &obuf)) {
 		ast_str_append(&output, 0, "      Variables:\n%s\n", ast_str_buffer(obuf));

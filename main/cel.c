@@ -462,8 +462,8 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	tchan->redirecting.from.number.str = ast_strdup(record.caller_id_rdnis);
 	tchan->dialed.number.str = ast_strdup(record.caller_id_dnid);
 
-	ast_copy_string(tchan->exten, record.extension, sizeof(tchan->exten));
-	ast_copy_string(tchan->context, record.context, sizeof(tchan->context));
+	ast_channel_exten_set(tchan, record.extension);
+	ast_channel_context_set(tchan, record.context);
 	ast_channel_name_set(tchan, record.channel_name);
 	ast_channel_uniqueid_set(tchan, record.unique_id);
 	ast_channel_linkedid_set(tchan, record.linked_id);
@@ -475,8 +475,8 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
-	tchan->appl = ast_strdup(record.application_name);
-	tchan->data = ast_strdup(record.application_data);
+	ast_channel_appl_set(tchan, ast_strdup(record.application_name));
+	ast_channel_data_set(tchan, ast_strdup(record.application_data));
 	tchan->amaflags = record.amaflag;
 
 	return tchan;
@@ -512,7 +512,7 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 
 	if (event_type == AST_CEL_APP_START || event_type == AST_CEL_APP_END) {
 		char *app;
-		if (!(app = ao2_find(appset, (char *) chan->appl, OBJ_POINTER))) {
+		if (!(app = ao2_find(appset, (char *) ast_channel_appl(chan), OBJ_POINTER))) {
 			ast_mutex_unlock(&reload_lock);
 			if (peer) {
 				ast_channel_unref(peer);
@@ -561,11 +561,11 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 			S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, ""),
 		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR,
 			S_OR(chan->dialed.number.str, ""),
-		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, chan->exten,
-		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, chan->context,
+		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, ast_channel_exten(chan),
+		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, ast_channel_context(chan),
 		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, ast_channel_name(chan),
-		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->appl, ""),
-		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, S_OR(chan->data, ""),
+		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, S_OR(ast_channel_appl(chan), ""),
+		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, S_OR(ast_channel_data(chan), ""),
 		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, chan->amaflags,
 		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, ast_channel_accountcode(chan),
 		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, ast_channel_peeraccount(chan),

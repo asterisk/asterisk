@@ -141,10 +141,10 @@ static int parkandannounce_exec(struct ast_channel *chan, const char *data)
 		ast_parseable_goto(chan, args.return_context);
 	}
 
-	ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n", chan->context, chan->exten,
+	ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n", ast_channel_context(chan), ast_channel_exten(chan),
 		chan->priority,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
-	if (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority,
+	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 	}

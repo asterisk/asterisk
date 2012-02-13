@@ -1813,7 +1813,7 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 		/* Check to see if context is what it should be, if not set to be. */
 		else if (strcmp(p->context,p->defcontext) != 0) {
 			ast_copy_string(p->context, p->defcontext, sizeof(p->context));
-			ast_copy_string(chan->context,p->defcontext,sizeof(chan->context));
+			ast_channel_context_set(chan, p->defcontext);
 		}
 
 		for (;;) {
@@ -1889,7 +1889,7 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 			if (distMatches == 3) {
 				/* The ring matches, set the context to whatever is for distinctive ring.. */
 				ast_copy_string(p->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(p->context));
-				ast_copy_string(chan->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(chan->context));
+				ast_channel_context_set(chan, S_OR(p->drings.ringContext[counter].contextData, p->defcontext));
 				ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
 				break;
 			}
@@ -2087,8 +2087,8 @@ static void my_handle_dtmf(void *pvt, struct ast_channel *ast, enum analog_sub a
 					ast_dsp_set_features(p->dsp, p->dsp_features);
 					ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast_channel_name(ast));
 				}
-				if (strcmp(ast->exten, "fax")) {
-					const char *target_context = S_OR(ast->macrocontext, ast->context);
+				if (strcmp(ast_channel_exten(ast), "fax")) {
+					const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
 
 					/* We need to unlock 'ast' here because ast_exists_extension has the
 					 * potential to start autoservice on the channel. Such action is prone
@@ -2102,7 +2102,7 @@ static void my_handle_dtmf(void *pvt, struct ast_channel *ast, enum analog_sub a
 						ast_mutex_lock(&p->lock);
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(ast));
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
+						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast_channel_exten(ast));
 						if (ast_async_goto(ast, target_context, "fax", 1))
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), target_context);
 					} else {
@@ -7840,8 +7840,8 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 					ast_dsp_set_features(p->dsp, p->dsp_features);
 					ast_debug(1, "Disabling FAX tone detection on %s after tone received\n", ast_channel_name(ast));
 				}
-				if (strcmp(ast->exten, "fax")) {
-					const char *target_context = S_OR(ast->macrocontext, ast->context);
+				if (strcmp(ast_channel_exten(ast), "fax")) {
+					const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
 
 					/* We need to unlock 'ast' here because ast_exists_extension has the
 					 * potential to start autoservice on the channel. Such action is prone
@@ -7855,7 +7855,7 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 						ast_mutex_lock(&p->lock);
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(ast));
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
+						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast_channel_exten(ast));
 						if (ast_async_goto(ast, target_context, "fax", 1))
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), target_context);
 					} else {
@@ -9742,7 +9742,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	if (i->amaflags)
 		tmp->amaflags = i->amaflags;
 	i->subs[idx].owner = tmp;
-	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
+	ast_channel_context_set(tmp, i->context);
 	if (!analog_lib_handles(i->sig, i->radio, i->oprmode)) {
 		ast_channel_call_forward_set(tmp, i->call_forward);
 	}
@@ -9750,7 +9750,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	if (!i->adsi)
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 	if (!ast_strlen_zero(i->exten))
-		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+		ast_channel_exten_set(tmp, i->exten);
 	if (!ast_strlen_zero(i->rdnis)) {
 		tmp->redirecting.from.number.valid = 1;
 		tmp->redirecting.from.number.str = ast_strdup(i->rdnis);
@@ -10064,8 +10064,8 @@ static void *analog_ss_thread(void *data)
 				/* If we got the first digit, get the rest */
 				len = 1;
 				dtmfbuf[len] = '\0';
-				while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
-					if (ast_exists_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
+				while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
+					if (ast_exists_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
 						timeout = matchdigittimeout;
 					} else {
 						timeout = gendigittimeout;
@@ -10206,9 +10206,9 @@ static void *analog_ss_thread(void *data)
 			}
 		}
 
-		if (ast_exists_extension(chan, chan->context, exten, 1,
+		if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
-			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+			ast_channel_exten_set(chan, exten);
 			if (p->dsp) ast_dsp_digitreset(p->dsp);
 			res = ast_pbx_run(chan);
 			if (res) {
@@ -10217,7 +10217,7 @@ static void *analog_ss_thread(void *data)
 			}
 			goto quit;
 		} else {
-			ast_verb(2, "Unknown extension '%s' in context '%s' requested\n", exten, chan->context);
+			ast_verb(2, "Unknown extension '%s' in context '%s' requested\n", exten, ast_channel_context(chan));
 			sleep(2);
 			res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_INFO);
 			if (res < 0)
@@ -10259,12 +10259,12 @@ static void *analog_ss_thread(void *data)
 				exten[len++]=res;
 				exten[len] = '\0';
 			}
-			if (!ast_ignore_pattern(chan->context, exten))
+			if (!ast_ignore_pattern(ast_channel_context(chan), exten))
 				tone_zone_play_tone(p->subs[idx].dfd, -1);
 			else
 				tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_DIALTONE);
-			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && !ast_parking_ext_valid(exten, chan, chan->context)) {
-				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
+			if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num) && !ast_parking_ext_valid(exten, chan, ast_channel_context(chan))) {
+				if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
 						ast_copy_string(p->call_forward, exten, sizeof(p->call_forward));
@@ -10281,7 +10281,7 @@ static void *analog_ss_thread(void *data)
 						getforward = 0;
 					} else {
 						res = tone_zone_play_tone(p->subs[idx].dfd, -1);
-						ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+						ast_channel_exten_set(chan, exten);
 						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid)
 								ast_set_callerid(chan, p->cid_num, NULL, p->cid_num);
@@ -10399,13 +10399,13 @@ static void *analog_ss_thread(void *data)
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
-			} else if ((p->transfer || p->canpark) && ast_parking_ext_valid(exten, chan, chan->context) &&
+			} else if ((p->transfer || p->canpark) && ast_parking_ext_valid(exten, chan, ast_channel_context(chan)) &&
 						p->subs[SUB_THREEWAY].owner &&
 						ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
 				/* This is a three way call, the main call being a real channel,
 					and we're parking the first call. */
 				ast_masq_park_call_exten(ast_bridged_channel(p->subs[SUB_THREEWAY].owner),
-					chan, exten, chan->context, 0, NULL);
+					chan, exten, ast_channel_context(chan), 0, NULL);
 				ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
 				break;
 			} else if (p->hidecallerid && !strcmp(exten, "*82")) {
@@ -10457,17 +10457,17 @@ static void *analog_ss_thread(void *data)
 					ast_hangup(chan);
 					goto quit;
 				}
-			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1,
+			} else if (!ast_canmatch_extension(chan, ast_channel_context(chan), exten, 1,
 				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
 				&& !canmatch_featurecode(exten)) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
 					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<Unknown Caller>"),
-					chan->context);
+					ast_channel_context(chan));
 				break;
 			}
 			if (!timeout)
 				timeout = gendigittimeout;
-			if (len && !ast_ignore_pattern(chan->context, exten))
+			if (len && !ast_ignore_pattern(ast_channel_context(chan), exten))
 				tone_zone_play_tone(p->subs[idx].dfd, -1);
 		}
 		break;
@@ -10479,7 +10479,7 @@ static void *analog_ss_thread(void *data)
 			smdi_msg = ast_smdi_md_message_wait(p->smdi_iface, SMDI_MD_WAIT_TIMEOUT);
 
 			if (smdi_msg != NULL) {
-				ast_copy_string(chan->exten, smdi_msg->fwd_st, sizeof(chan->exten));
+				ast_channel_exten_set(chan, smdi_msg->fwd_st);
 
 				if (smdi_msg->type == 'B')
 					pbx_builtin_setvar_helper(chan, "_SMDI_VM_TYPE", "b");
@@ -10670,7 +10670,7 @@ static void *analog_ss_thread(void *data)
 						/* Check to see if context is what it should be, if not set to be. */
 						if (strcmp(p->context,p->defcontext) != 0) {
 							ast_copy_string(p->context, p->defcontext, sizeof(p->context));
-							ast_copy_string(chan->context,p->defcontext,sizeof(chan->context));
+							ast_channel_context_set(chan, p->defcontext);
 						}
 
 						for (;;) {
@@ -10741,7 +10741,7 @@ static void *analog_ss_thread(void *data)
 							if (distMatches == 3) {
 								/* The ring matches, set the context to whatever is for distinctive ring.. */
 								ast_copy_string(p->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(p->context));
-								ast_copy_string(chan->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(chan->context));
+								ast_channel_context_set(chan, S_OR(p->drings.ringContext[counter].contextData, p->defcontext));
 								ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
 								break;
 							}
@@ -10825,7 +10825,7 @@ static void *analog_ss_thread(void *data)
 					/* Check to see if context is what it should be, if not set to be. */
 					if (strcmp(p->context,p->defcontext) != 0) {
 						ast_copy_string(p->context, p->defcontext, sizeof(p->context));
-						ast_copy_string(chan->context,p->defcontext,sizeof(chan->context));
+						ast_channel_context_set(chan, p->defcontext);
 					}
 
 					/* Take out of linear mode for Caller*ID processing */
@@ -10984,7 +10984,7 @@ static void *analog_ss_thread(void *data)
 							if (distMatches == 3) {
 								/* The ring matches, set the context to whatever is for distinctive ring.. */
 								ast_copy_string(p->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(p->context));
-								ast_copy_string(chan->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(chan->context));
+								ast_channel_context_set(chan, S_OR(p->drings.ringContext[counter].contextData, p->defcontext));
 								ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
 								break;
 							}

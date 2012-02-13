@@ -1942,9 +1942,9 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 			/* "Mailbox:domain:macrocontext:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode" */
 			"%s:%s:%s:%s:%d:%s:%s:%s:%s:%d:%s:%s\n",
 			username,
-			chan->context,
-			chan->macrocontext, 
-			chan->exten,
+			ast_channel_context(chan),
+			ast_channel_macrocontext(chan), 
+			ast_channel_exten(chan),
 			chan->priority,
 			ast_channel_name(chan),
 			callerid,
@@ -2308,13 +2308,13 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 				ouseexten = 1;
 			}
-		} else if (ast_exists_extension(chan, chan->context, "o", 1,
+		} else if (ast_exists_extension(chan, ast_channel_context(chan), "o", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ouseexten = 1;
 		}
-		else if (!ast_strlen_zero(chan->macrocontext)
-			&& ast_exists_extension(chan, chan->macrocontext, "o", 1,
+		else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
+			&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "o", 1,
 				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ousemacro = 1;
@@ -2326,11 +2326,11 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 		}
-	} else if (ast_exists_extension(chan, chan->context, "a", 1,
+	} else if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-	} else if (!ast_strlen_zero(chan->macrocontext)
-		&& ast_exists_extension(chan, chan->macrocontext, "a", 1,
+	} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
+		&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "a", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 		ausemacro = 1;
@@ -2371,24 +2371,22 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	/* Check for a '*' here in case the caller wants to escape from voicemail to something
 	   other than the operator -- an automated attendant or mailbox login for example */
 	if (res == '*') {
-		chan->exten[0] = 'a';
-		chan->exten[1] = '\0';
+		ast_channel_exten_set(chan, "a");
 		if (!ast_strlen_zero(vmu->exit)) {
-			ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-		} else if (ausemacro && !ast_strlen_zero(chan->macrocontext)) {
-			ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
+			ast_channel_context_set(chan, vmu->exit);
+		} else if (ausemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
+			ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 		}
 		chan->priority = 0;
 		pbx_builtin_setvar_helper(chan, "MVM_GREET_STATUS", "USEREXIT");
 		res = 0;
 	} else if (res == '0') { /* Check for a '0' here */
 		if(ouseexten || ousemacro) {
-			chan->exten[0] = 'o';
-			chan->exten[1] = '\0';
+			ast_channel_exten_set(chan, "o");
 			if (!ast_strlen_zero(vmu->exit)) {
-				ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-			} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
-				ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
+				ast_channel_context_set(chan, vmu->exit);
+			} else if (ousemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
+				ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 			}
 			ast_play_and_wait(chan, "transfer");
 			chan->priority = 0;

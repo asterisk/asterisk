@@ -129,7 +129,7 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 		AST_APP_ARG(timeout);
 	);
-	
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ReadExten requires at least one argument\n");
 		pbx_builtin_setvar_helper(chan, "READEXTENSTATUS", "ERROR");
@@ -145,14 +145,17 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 		return 0;
 	}
 
-	if (ast_strlen_zero(arglist.filename))
+	if (ast_strlen_zero(arglist.filename)) {
 		arglist.filename = NULL;
+	}
 
-	if (ast_strlen_zero(arglist.context))
-		arglist.context = chan->context;
+	if (ast_strlen_zero(arglist.context)) {
+		arglist.context = ast_strdupa(ast_channel_context(chan));
+	}
 
-	if (!ast_strlen_zero(arglist.options))
+	if (!ast_strlen_zero(arglist.options)) {
 		ast_app_parse_options(readexten_app_options, &flags, NULL, arglist.options);
+	}
 
 	if (!ast_strlen_zero(arglist.timeout)) {
 		timeout = atoi(arglist.timeout);

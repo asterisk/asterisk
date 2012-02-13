@@ -901,8 +901,8 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	if (!ast_strlen_zero(client->musicclass))
 		ast_channel_musicclass_set(tmp, client->musicclass);
 	i->owner = tmp;
-	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
-	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+	ast_channel_context_set(tmp, client->context);
+	ast_channel_exten_set(tmp, i->exten);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
 	if (!ast_strlen_zero(i->cid_num)) {

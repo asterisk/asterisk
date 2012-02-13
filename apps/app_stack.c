@@ -402,7 +402,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Create the return address, but don't save it until we know that the Gosub destination exists */
-	newframe = gosub_allocate_frame(chan->context, chan->exten, chan->priority + 1, max_argc);
+	newframe = gosub_allocate_frame(ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 1, max_argc);
 
 	if (!newframe) {
 		return -1;
@@ -414,13 +414,13 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (!ast_exists_extension(chan, chan->context, chan->exten,
+	if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan),
 		ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		ast_log(LOG_ERROR, "Attempt to reach a non-existent destination for gosub: (Context:%s, Extension:%s, Priority:%d)\n",
-				chan->context, chan->exten, ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority);
-		ast_copy_string(chan->context, newframe->context, sizeof(chan->context));
-		ast_copy_string(chan->exten, newframe->extension, sizeof(chan->exten));
+				ast_channel_context(chan), ast_channel_exten(chan), ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP) ? chan->priority + 1 : chan->priority);
+		ast_channel_context_set(chan, newframe->context);
+		ast_channel_exten_set(chan, newframe->extension);
 		chan->priority = newframe->priority;
 		ast_free(newframe);
 		return -1;
@@ -605,8 +605,8 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	}
 
 	/* Save previous location, since we're going to change it */
-	ast_copy_string(old_context, chan->context, sizeof(old_context));
-	ast_copy_string(old_extension, chan->exten, sizeof(old_extension));
+	ast_copy_string(old_context, ast_channel_context(chan), sizeof(old_context));
+	ast_copy_string(old_extension, ast_channel_exten(chan), sizeof(old_extension));
 	old_priority = chan->priority;
 
 	if (!(theapp = pbx_findapp("Gosub"))) {
@@ -667,8 +667,8 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	}
 
 	/* Restore previous location */
-	ast_copy_string(chan->context, old_context, sizeof(chan->context));
-	ast_copy_string(chan->exten, old_extension, sizeof(chan->exten));
+	ast_channel_context_set(chan, old_context);
+	ast_channel_exten_set(chan, old_extension);
 	chan->priority = old_priority;
 
 	return RESULT_SUCCESS;

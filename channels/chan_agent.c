@@ -1103,9 +1103,9 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 	}
 #endif	
 	if (p->pending)
-		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", linkedid, 0, "Agent/P%s-%d", p->agent, (int) ast_random() & 0xffff);
+		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? ast_channel_exten(p->chan):"", p->chan ? ast_channel_context(p->chan):"", linkedid, 0, "Agent/P%s-%d", p->agent, (int) ast_random() & 0xffff);
 	else
-		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? p->chan->exten:"", p->chan ? p->chan->context:"", linkedid, 0, "Agent/%s", p->agent);
+		tmp = ast_channel_alloc(0, state, 0, 0, "", p->chan ? ast_channel_exten(p->chan):"", p->chan ? ast_channel_context(p->chan):"", linkedid, 0, "Agent/%s", p->agent);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate agent channel structure\n");
 		return NULL;
@@ -1119,8 +1119,8 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state, const char 
 		ast_format_copy(&tmp->readformat, &p->chan->readformat);
 		ast_format_copy(&tmp->rawreadformat, &p->chan->readformat);
 		ast_channel_language_set(tmp, ast_channel_language(p->chan));
-		ast_copy_string(tmp->context, p->chan->context, sizeof(tmp->context));
-		ast_copy_string(tmp->exten, p->chan->exten, sizeof(tmp->exten));
+		ast_channel_context_set(tmp, ast_channel_context(p->chan));
+		ast_channel_exten_set(tmp, ast_channel_exten(p->chan));
 		/* XXX Is this really all we copy form the originating channel?? */
 	} else {
 		ast_format_set(&tmp->writeformat, AST_FORMAT_SLINEAR, 0);
@@ -1353,7 +1353,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				/* Safe -- agent lock already held */
 				ast_setstate(parent, AST_STATE_UP);
 				ast_setstate(chan, AST_STATE_UP);
-				ast_copy_string(parent->context, chan->context, sizeof(parent->context));
+				ast_channel_context_set(parent, ast_channel_context(chan));
 				ast_channel_masquerade(parent, chan);
 				ast_hangup(chan);
 				p->abouttograb = 0;

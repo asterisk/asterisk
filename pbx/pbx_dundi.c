@@ -4541,9 +4541,9 @@ static int dundi_helper(struct ast_channel *chan, const char *context, const cha
 		if (!strcasecmp(exten, "s")) {
 			exten = pbx_builtin_getvar_helper(chan, "ARG1");
 			if (ast_strlen_zero(exten))
-				exten = chan->macroexten;
+				exten = ast_channel_macroexten(chan);
 			if (ast_strlen_zero(exten))
-				exten = chan->exten;
+				exten = ast_channel_exten(chan);
 			if (ast_strlen_zero(exten)) {
 				ast_log(LOG_WARNING, "Called in Macro mode with no ARG1 or MACRO_EXTEN?\n");
 				return -1;
@@ -4593,9 +4593,9 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 		if (!strcasecmp(exten, "s")) {
 			exten = pbx_builtin_getvar_helper(chan, "ARG1");
 			if (ast_strlen_zero(exten))
-				exten = chan->macroexten;
+				exten = ast_channel_macroexten(chan);
 			if (ast_strlen_zero(exten))
-				exten = chan->exten;
+				exten = ast_channel_exten(chan);
 			if (ast_strlen_zero(exten)) {
 				ast_log(LOG_WARNING, "Called in Macro mode with no ARG1 or MACRO_EXTEN?\n");
 				return -1;

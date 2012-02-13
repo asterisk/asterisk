@@ -785,9 +785,9 @@ struct ast_channel {
 							 *   Do not access directly, use ast_bridged_channel(chan) */
 	struct ast_channel *masq;			/*!< Channel that will masquerade as us */
 	struct ast_channel *masqr;			/*!< Who we are masquerading as */
-	const char *blockproc;				/*!< Procedure causing blocking */
-	const char *appl;				/*!< Current application */
-	const char *data;				/*!< Data passed to current application */
+	const char *__do_not_use_blockproc;				/*!< Procedure causing blocking */
+	const char *__do_not_use_appl;				/*!< Current application */
+	const char *__do_not_use_data;				/*!< Data passed to current application */
 	struct ast_sched_context *sched;                /*!< Schedule context */
 	struct ast_filestream *stream;			/*!< Stream itself. */
 	struct ast_filestream *vstream;			/*!< Video Stream itself. */
@@ -900,10 +900,10 @@ struct ast_channel {
 	struct ast_bridge *bridge;                      /*!< Bridge this channel is participating in */
 	struct ast_timer *timer;			/*!< timer object that provided timingfd */
 
-	char context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
-	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
-	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
-	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
+	char __do_not_use_context[AST_MAX_CONTEXT];			/*!< Dialplan: Current extension context */
+	char __do_not_use_exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
+	char __do_not_use_macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
+	char __do_not_use_macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
 	char emulate_dtmf_digit;			/*!< Digit being emulated */
 };
 
@@ -2471,10 +2471,10 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 
 #define CHECK_BLOCKING(c) do { 	 \
 	if (ast_test_flag(c, AST_FLAG_BLOCKING)) {\
-		ast_debug(1, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), ast_channel_name(c), (long) (c)->blocker, (c)->blockproc); \
+		ast_debug(1, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), ast_channel_name(c), (long) (c)->blocker, ast_channel_blockproc(c)); \
 	} else { \
 		(c)->blocker = pthread_self(); \
-		(c)->blockproc = __PRETTY_FUNCTION__; \
+		ast_channel_blockproc_set((c), __PRETTY_FUNCTION__); \
 		ast_set_flag(c, AST_FLAG_BLOCKING); \
 	} } while (0)
 
@@ -3630,4 +3630,19 @@ const char *ast_channel_parkinglot(const struct ast_channel *chan);
 const char *ast_channel_hangupsource(const struct ast_channel *chan);
 const char *ast_channel_dialcontext(const struct ast_channel *chan);
 
+const char *ast_channel_appl(const struct ast_channel *chan);
+void ast_channel_appl_set(struct ast_channel *chan, const char *value);
+const char *ast_channel_blockproc(const struct ast_channel *chan);
+void ast_channel_blockproc_set(struct ast_channel *chan, const char *value);
+const char *ast_channel_data(const struct ast_channel *chan);
+void ast_channel_data_set(struct ast_channel *chan, const char *value);
+
+const char *ast_channel_context(const struct ast_channel *chan);
+void ast_channel_context_set(struct ast_channel *chan, const char *value);
+const char *ast_channel_exten(const struct ast_channel *chan);
+void ast_channel_exten_set(struct ast_channel *chan, const char *value);
+const char *ast_channel_macrocontext(const struct ast_channel *chan);
+void ast_channel_macrocontext_set(struct ast_channel *chan, const char *value);
+const char *ast_channel_macroexten(const struct ast_channel *chan);
+void ast_channel_macroexten_set(struct ast_channel *chan, const char *value);
 #endif /* _ASTERISK_CHANNEL_H */

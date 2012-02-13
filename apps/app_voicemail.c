@@ -5800,12 +5800,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 				ouseexten = 1;
 			}
-		} else if (ast_exists_extension(chan, chan->context, "o", 1,
+		} else if (ast_exists_extension(chan, ast_channel_context(chan), "o", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ouseexten = 1;
-		} else if (!ast_strlen_zero(chan->macrocontext)
-			&& ast_exists_extension(chan, chan->macrocontext, "o", 1,
+		} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
+			&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "o", 1,
 				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ousemacro = 1;
@@ -5817,11 +5817,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
 		}
-	} else if (ast_exists_extension(chan, chan->context, "a", 1,
+	} else if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
-	} else if (!ast_strlen_zero(chan->macrocontext)
-		&& ast_exists_extension(chan, chan->macrocontext, "a", 1,
+	} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
+		&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "a", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 		strncat(ecodes, "*", sizeof(ecodes) - strlen(ecodes) - 1);
 		ausemacro = 1;
@@ -5832,7 +5832,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			char e[2] = "";
 			e[0] = *code;
 			if (strchr(ecodes, e[0]) == NULL
-				&& ast_canmatch_extension(chan, chan->context, e, 1,
+				&& ast_canmatch_extension(chan, ast_channel_context(chan), e, 1,
 					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 				strncat(ecodes, e, sizeof(ecodes) - strlen(ecodes) - 1);
 			}
@@ -5891,12 +5891,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	/* Check for a '*' here in case the caller wants to escape from voicemail to something
 	 other than the operator -- an automated attendant or mailbox login for example */
 	if (res == '*') {
-		chan->exten[0] = 'a';
-		chan->exten[1] = '\0';
+		ast_channel_exten_set(chan, "a");
 		if (!ast_strlen_zero(vmu->exit)) {
-			ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-		} else if (ausemacro && !ast_strlen_zero(chan->macrocontext)) {
-			ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
+			ast_channel_context_set(chan, vmu->exit);
+		} else if (ausemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
+			ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 		}
 		chan->priority = 0;
 		free_user(vmu);
@@ -5909,12 +5908,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	if (ast_test_flag(vmu, VM_OPERATOR) && res == '0') {
 	transfer:
 		if (ouseexten || ousemacro) {
-			chan->exten[0] = 'o';
-			chan->exten[1] = '\0';
+			ast_channel_exten_set(chan, "o");
 			if (!ast_strlen_zero(vmu->exit)) {
-				ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
-			} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
-				ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
+				ast_channel_context_set(chan, vmu->exit);
+			} else if (ousemacro && !ast_strlen_zero(ast_channel_macrocontext(chan))) {
+				ast_channel_context_set(chan, ast_channel_macrocontext(chan));
 			}
 			ast_play_and_wait(chan, "transfer");
 			chan->priority = 0;
@@ -5928,7 +5926,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	/* Allow all other digits to exit Voicemail and return to the dialplan */
 	if (ast_test_flag(options, OPT_DTMFEXIT) && res > 0) {
 		if (!ast_strlen_zero(options->exitcontext))
-			ast_copy_string(chan->context, options->exitcontext, sizeof(chan->context));
+			ast_channel_context_set(chan, options->exitcontext);
 		free_user(vmu);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		ast_free(tmp);
@@ -6020,9 +6018,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				"Unknown");
 			ast_store_realtime("voicemail_data",
 				"origmailbox", ext,
-				"context", chan->context,
-				"macrocontext", chan->macrocontext,
-				"exten", chan->exten,
+				"context", ast_channel_context(chan),
+				"macrocontext", ast_channel_macrocontext(chan),
+				"exten", ast_channel_exten(chan),
 				"priority", priority,
 				"callerchan", ast_channel_name(chan),
 				"callerid", callerid,
@@ -6058,9 +6056,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				"origtime=%ld\n"
 				"category=%s\n",
 				ext,
-				chan->context,
-				chan->macrocontext, 
-				chan->exten,
+				ast_channel_context(chan),
+				ast_channel_macrocontext(chan), 
+				ast_channel_exten(chan),
 				S_COR(chan->redirecting.from.number.valid,
 					chan->redirecting.from.number.str, "unknown"),
 				chan->priority,
@@ -7306,32 +7304,32 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			if (cmd < 0 || cmd == 't')
 				break;
 		}
-		
+
 		if (use_directory) {
 			/* use app_directory */
-			
-			char old_context[sizeof(chan->context)];
-			char old_exten[sizeof(chan->exten)];
-			int old_priority;
+
 			struct ast_app* directory_app;
 
 			directory_app = pbx_findapp("Directory");
 			if (directory_app) {
 				char vmcontext[256];
+				char *old_context;
+				char *old_exten;
+				int old_priority;
 				/* make backup copies */
-				memcpy(old_context, chan->context, sizeof(chan->context));
-				memcpy(old_exten, chan->exten, sizeof(chan->exten));
+				old_context = ast_strdupa(ast_channel_context(chan));
+				old_exten = ast_strdupa(ast_channel_exten(chan));
 				old_priority = chan->priority;
-				
+
 				/* call the the Directory, changes the channel */
 				snprintf(vmcontext, sizeof(vmcontext), "%s,,v", context ? context : "default");
 				res = pbx_exec(chan, directory_app, vmcontext);
-				
-				ast_copy_string(username, chan->exten, sizeof(username));
-				
+
+				ast_copy_string(username, ast_channel_exten(chan), sizeof(username));
+
 				/* restore the old context, exten, and priority */
-				memcpy(chan->context, old_context, sizeof(chan->context));
-				memcpy(chan->exten, old_exten, sizeof(chan->exten));
+				ast_channel_context_set(chan, old_context);
+				ast_channel_exten_set(chan, old_exten);
 				chan->priority = old_priority;
 			} else {
 				ast_log(AST_LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
@@ -9874,7 +9872,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		} else if (mailbox[0] == '*') {
 			/* user entered '*' */
 			ast_verb(4, "Mailbox begins with '*', attempting jump to extension 'a'\n");
-			if (ast_exists_extension(chan, chan->context, "a", 1,
+			if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
 				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 				return -1;
 			}
@@ -9909,7 +9907,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			} else if (password[0] == '*') {
 				/* user entered '*' */
 				ast_verb(4, "Password begins with '*', attempting jump to extension 'a'\n");
-				if (ast_exists_extension(chan, chan->context, "a", 1,
+				if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
 					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 					mailbox[0] = '*';
 					return -1;
@@ -10088,10 +10086,10 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	ast_debug(1, "After vm_authenticate\n");
 
 	if (vms.username[0] == '*') {
-		ast_debug(1, "user pressed * in context '%s'\n", chan->context);
+		ast_debug(1, "user pressed * in context '%s'\n", ast_channel_context(chan));
 
 		/* user entered '*' */
-		if (!ast_goto_if_exists(chan, chan->context, "a", 1)) {
+		if (!ast_goto_if_exists(chan, ast_channel_context(chan), "a", 1)) {
 			ast_test_suite_event_notify("REDIRECT", "Message: redirecting user to 'a' extension");
 			res = 0;	/* prevent hangup */
 			goto out;
@@ -11250,7 +11248,7 @@ static int vmauthenticate(struct ast_channel *chan, const char *data)
 		res = 0;
 	} else if (mailbox[0] == '*') {
 		/* user entered '*' */
-		if (!ast_goto_if_exists(chan, chan->context, "a", 1)) {
+		if (!ast_goto_if_exists(chan, ast_channel_context(chan), "a", 1)) {
 			res = 0;	/* prevent hangup */
 		}
 	}
@@ -13445,9 +13443,9 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 	if (!ast_strlen_zero(destination)) {
 		if (destination[strlen(destination) -1 ] == '*')
 			return 0; 
-		ast_verb(3, "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
-		ast_copy_string(chan->exten, destination, sizeof(chan->exten));
-		ast_copy_string(chan->context, outgoing_context, sizeof(chan->context));
+		ast_verb(3, "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, ast_channel_context(chan));
+		ast_channel_exten_set(chan, destination);
+		ast_channel_context_set(chan, outgoing_context);
 		chan->priority = 0;
 		return 9;
 	}

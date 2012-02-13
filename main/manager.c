@@ -3357,8 +3357,8 @@ static int action_status(struct mansession *s, const struct message *m)
 			S_COR(c->connected.id.name.valid, c->connected.id.name.str, "<unknown>"),
 			ast_channel_accountcode(c),
 			c->_state,
-			ast_state2str(c->_state), c->context,
-			c->exten, c->priority, (long)elapsed_seconds, bridge, ast_channel_uniqueid(c), ast_str_buffer(str), idText);
+			ast_state2str(c->_state), ast_channel_context(c),
+			ast_channel_exten(c), c->priority, (long)elapsed_seconds, bridge, ast_channel_uniqueid(c), ast_str_buffer(str), idText);
 		} else {
 			astman_append(s,
 				"Event: Status\r\n"
@@ -4605,8 +4605,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"AccountCode: %s\r\n"
 			"BridgedChannel: %s\r\n"
 			"BridgedUniqueID: %s\r\n"
-			"\r\n", idText, ast_channel_name(c), ast_channel_uniqueid(c), c->context, c->exten, c->priority, c->_state,
-			ast_state2str(c->_state), c->appl ? c->appl : "", c->data ? S_OR(c->data, "") : "",
+			"\r\n", idText, ast_channel_name(c), ast_channel_uniqueid(c), ast_channel_context(c), ast_channel_exten(c), c->priority, c->_state,
+			ast_state2str(c->_state), ast_channel_appl(c) ? ast_channel_appl(c) : "", ast_channel_data(c) ? S_OR(ast_channel_data(c), "") : "",
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, ""),
 			S_COR(c->caller.id.name.valid, c->caller.id.name.str, ""),
 			S_COR(c->connected.id.number.valid, c->connected.id.number.str, ""),

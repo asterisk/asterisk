@@ -3173,8 +3173,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	if (qe->cancel_answered_elsewhere) {
 		ast_set_flag(tmp->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 	}
-	tmp->chan->appl = "AppQueue";
-	tmp->chan->data = "(Outgoing Line)";
+	ast_channel_appl_set(tmp->chan, "AppQueue");
+	ast_channel_data_set(tmp->chan, "(Outgoing Line)");
 	memset(&tmp->chan->whentohangup, 0, sizeof(tmp->chan->whentohangup));
 
 	/* If the new channel has no callerid, try to guess what it should be */
@@ -3188,8 +3188,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			ast_channel_set_caller_event(tmp->chan, &caller, NULL);
 		} else if (!ast_strlen_zero(qe->chan->dialed.number.str)) {
 			ast_set_callerid(tmp->chan, qe->chan->dialed.number.str, NULL, NULL);
-		} else if (!ast_strlen_zero(S_OR(qe->chan->macroexten, qe->chan->exten))) {
-			ast_set_callerid(tmp->chan, S_OR(qe->chan->macroexten, qe->chan->exten), NULL, NULL); 
+		} else if (!ast_strlen_zero(S_OR(ast_channel_macroexten(qe->chan), ast_channel_exten(qe->chan)))) {
+			ast_set_callerid(tmp->chan, S_OR(ast_channel_macroexten(qe->chan), ast_channel_exten(qe->chan)), NULL, NULL); 
 		}
 		tmp->dial_callerid_absent = 1;
 	}
@@ -3209,12 +3209,12 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 	/* Inherit context and extension */
 	macrocontext = pbx_builtin_getvar_helper(qe->chan, "MACRO_CONTEXT");
-	ast_channel_dialcontext_set(tmp->chan, ast_strlen_zero(macrocontext) ? qe->chan->context : macrocontext);
+	ast_channel_dialcontext_set(tmp->chan, ast_strlen_zero(macrocontext) ? ast_channel_context(qe->chan) : macrocontext);
 	macroexten = pbx_builtin_getvar_helper(qe->chan, "MACRO_EXTEN");
 	if (!ast_strlen_zero(macroexten))
-		ast_copy_string(tmp->chan->exten, macroexten, sizeof(tmp->chan->exten));
+		ast_channel_exten_set(tmp->chan, macroexten);
 	else
-		ast_copy_string(tmp->chan->exten, qe->chan->exten, sizeof(tmp->chan->exten));
+		ast_channel_exten_set(tmp->chan, ast_channel_exten(qe->chan));
 	if (ast_cdr_isset_unanswered()) {
 		/* they want to see the unanswered dial attempts! */
 		/* set up the CDR fields on all the CDRs to give sensical information */
@@ -3222,8 +3222,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		strcpy(tmp->chan->cdr->clid, qe->chan->cdr->clid);
 		strcpy(tmp->chan->cdr->channel, qe->chan->cdr->channel);
 		strcpy(tmp->chan->cdr->src, qe->chan->cdr->src);
-		strcpy(tmp->chan->cdr->dst, qe->chan->exten);
-		strcpy(tmp->chan->cdr->dcontext, qe->chan->context);
+		strcpy(tmp->chan->cdr->dst, ast_channel_exten(qe->chan));
+		strcpy(tmp->chan->cdr->dcontext, ast_channel_context(qe->chan));
 		strcpy(tmp->chan->cdr->lastapp, qe->chan->cdr->lastapp);
 		strcpy(tmp->chan->cdr->lastdata, qe->chan->cdr->lastdata);
 		tmp->chan->cdr->amaflags = qe->chan->cdr->amaflags;
@@ -3268,7 +3268,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 			S_COR(qe->chan->caller.id.name.valid, qe->chan->caller.id.name.str, "unknown"),
 			S_COR(qe->chan->connected.id.number.valid, qe->chan->connected.id.number.str, "unknown"),
 			S_COR(qe->chan->connected.id.name.valid, qe->chan->connected.id.name.str, "unknown"),
-			qe->chan->context, qe->chan->exten, qe->chan->priority, ast_channel_uniqueid(qe->chan),
+			ast_channel_context(qe->chan), ast_channel_exten(qe->chan), qe->chan->priority, ast_channel_uniqueid(qe->chan),
 			qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 
 		ast_channel_unlock(tmp->chan);
@@ -3689,7 +3689,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						*stuff++ = '\0';
 						tech = tmpchan;
 					} else {
-						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(o->chan), o->chan->context);
+						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(o->chan), ast_channel_context(o->chan));
 						stuff = tmpchan;
 						tech = "Local";
 					}
@@ -3726,7 +3726,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							ast_party_number_init(&o->chan->redirecting.from.number);
 							o->chan->redirecting.from.number.valid = 1;
 							o->chan->redirecting.from.number.str =
-								ast_strdup(S_OR(in->macroexten, in->exten));
+								ast_strdup(S_OR(ast_channel_macroexten(in), ast_channel_exten(in)));
 						}
 
 						o->chan->dialed.transit_network_select = in->dialed.transit_network_select;
@@ -4313,7 +4313,7 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	struct ast_datastore *datastore;
 
 	ast_queue_log(qe->parent->name, ast_channel_uniqueid(qe->chan), member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
-				new_chan->exten, new_chan->context, (long) (callstart - qe->start),
+				ast_channel_exten(new_chan), ast_channel_context(new_chan), (long) (callstart - qe->start),
 				(long) (time(NULL) - callstart), qe->opos);
 
 	update_queue(qe->parent, member, callcompletedinsl, (time(NULL) - callstart));
@@ -5037,8 +5037,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				char *gosub_args, *gosub_argstart;
 
 				/* Set where we came from */
-				ast_copy_string(peer->context, "app_queue_gosub_virtual_context", sizeof(peer->context));
-				ast_copy_string(peer->exten, "s", sizeof(peer->exten));
+				ast_channel_context_set(peer, "app_queue_gosub_virtual_context");
+				ast_channel_exten_set(peer, "s");
 				peer->priority = 0;
 
 				gosub_argstart = strchr(gosubexec, ',');
@@ -5143,8 +5143,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					queuename, ast_channel_uniqueid(qe->chan), ast_channel_name(peer), member->interface, member->membername,
 					(long) time(NULL) - qe->start, ast_channel_uniqueid(peer), (long)(orig - to > 0 ? (orig - to) / 1000 : 0),
 					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
-		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
+		ast_copy_string(oldcontext, ast_channel_context(qe->chan), sizeof(oldcontext));
+		ast_copy_string(oldexten, ast_channel_exten(qe->chan), sizeof(oldexten));
 	
 		if ((queue_end_bridge = ao2_alloc(sizeof(*queue_end_bridge), NULL))) {
 			queue_end_bridge->q = qe->parent;
@@ -5172,9 +5172,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			struct ast_datastore *tds;
 
 			/* detect a blind transfer */
-			if (!(qe->chan->_softhangup | peer->_softhangup) && (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten))) {
+			if (!(qe->chan->_softhangup | peer->_softhangup) && (strcasecmp(oldcontext, ast_channel_context(qe->chan)) || strcasecmp(oldexten, ast_channel_exten(qe->chan)))) {
 				ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "TRANSFER", "%s|%s|%ld|%ld|%d",
-					qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
+					ast_channel_exten(qe->chan), ast_channel_context(qe->chan), (long) (callstart - qe->start),
 					(long) (time(NULL) - callstart), qe->opos);
 				send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 			} else if (ast_check_hangup(qe->chan)) {

@@ -1829,10 +1829,10 @@ static void *do_idle_thread(void *v_pvt)
 			switch (f->subclass.integer) {
 			case AST_CONTROL_ANSWER:
 				/* Launch the PBX */
-				ast_copy_string(chan->exten, pvt->pri->idleext, sizeof(chan->exten));
-				ast_copy_string(chan->context, pvt->pri->idlecontext, sizeof(chan->context));
+				ast_channel_exten_set(chan, pvt->pri->idleext);
+				ast_channel_context_set(chan, pvt->pri->idlecontext);
 				chan->priority = 1;
-				ast_verb(4, "Idle channel '%s' answered, sending to %s@%s\n", ast_channel_name(chan), chan->exten, chan->context);
+				ast_verb(4, "Idle channel '%s' answered, sending to %s@%s\n", ast_channel_name(chan), ast_channel_exten(chan), ast_channel_context(chan));
 				ast_pbx_run(chan);
 				/* It's already hungup, return immediately */
 				return NULL;
@@ -1884,12 +1884,12 @@ static void *pri_ss_thread(void *data)
 	ast_copy_string(exten, p->exten, sizeof(exten));
 	len = strlen(exten);
 	res = 0;
-	while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
-		if (len && !ast_ignore_pattern(chan->context, exten))
+	while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
+		if (len && !ast_ignore_pattern(ast_channel_context(chan), exten))
 			sig_pri_play_tone(p, -1);
 		else
 			sig_pri_play_tone(p, SIG_PRI_TONE_DIALTONE);
-		if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num))
+		if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num))
 			timeout = pri_matchdigittimeout;
 		else
 			timeout = pri_gendigittimeout;
@@ -1925,9 +1925,9 @@ static void *pri_ss_thread(void *data)
 		}
 	}
 	sig_pri_play_tone(p, -1);
-	if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
+	if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 		/* Start the real PBX */
-		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+		ast_channel_exten_set(chan, exten);
 		sig_pri_dsp_reset_and_flush_digits(p);
 #if defined(ISSUE_16789)
 		/*
@@ -1943,7 +1943,7 @@ static void *pri_ss_thread(void *data)
 		 * early on non-dial through extensions.
 		 */
 		if ((p->pri->overlapdial & DAHDI_OVERLAPDIAL_INCOMING)
-			&& !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
+			&& !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 			sig_pri_lock_private(p);
 			if (p->pri->pri) {
 				pri_grab(p, p->pri);
@@ -1964,7 +1964,7 @@ static void *pri_ss_thread(void *data)
 			ast_log(LOG_WARNING, "PBX exited non-zero!\n");
 		}
 	} else {
-		ast_debug(1, "No such possible extension '%s' in context '%s'\n", exten, chan->context);
+		ast_debug(1, "No such possible extension '%s' in context '%s'\n", exten, ast_channel_context(chan));
 		chan->hangupcause = AST_CAUSE_UNALLOCATED;
 		ast_hangup(chan);
 		p->exten[0] = '\0';

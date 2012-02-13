@@ -136,7 +136,7 @@ static int acf_isexten_exec(struct ast_channel *chan, const char *cmd, char *par
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.context)) {
-		args.context = chan->context;
+		args.context = ast_strdupa(ast_channel_context(chan));
 	}
 
 	if (ast_strlen_zero(args.extension)) {

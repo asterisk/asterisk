@@ -935,8 +935,8 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			ast_copy_string(cdr->accountcode, ast_channel_accountcode(c), sizeof(cdr->accountcode));
 			ast_copy_string(cdr->peeraccount, ast_channel_peeraccount(c), sizeof(cdr->peeraccount));
 			/* Destination information */
-			ast_copy_string(cdr->dst, S_OR(c->macroexten,c->exten), sizeof(cdr->dst));
-			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext,c->context), sizeof(cdr->dcontext));
+			ast_copy_string(cdr->dst, S_OR(ast_channel_macroexten(c),ast_channel_exten(c)), sizeof(cdr->dst));
+			ast_copy_string(cdr->dcontext, S_OR(ast_channel_macrocontext(c),ast_channel_context(c)), sizeof(cdr->dcontext));
 			/* Unique call identifier */
 			ast_copy_string(cdr->uniqueid, ast_channel_uniqueid(c), sizeof(cdr->uniqueid));
 			/* Linked call identifier */
@@ -1124,8 +1124,8 @@ int ast_cdr_update(struct ast_channel *c)
 			ast_copy_string(cdr->linkedid, ast_channel_linkedid(c), sizeof(cdr->linkedid));
 
 			/* Destination information */ /* XXX privilege macro* ? */
-			ast_copy_string(cdr->dst, S_OR(c->macroexten, c->exten), sizeof(cdr->dst));
-			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext, c->context), sizeof(cdr->dcontext));
+			ast_copy_string(cdr->dst, S_OR(ast_channel_macroexten(c), ast_channel_exten(c)), sizeof(cdr->dst));
+			ast_copy_string(cdr->dcontext, S_OR(ast_channel_macrocontext(c), ast_channel_context(c)), sizeof(cdr->dcontext));
 		}
 	}
 

@@ -896,14 +896,14 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			}
 		} else if (e->data == VPB_FAX) {
 			if (!p->faxhandled) {
-				if (strcmp(p->owner->exten, "fax")) {
-					const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
+				if (strcmp(ast_channel_exten(p->owner), "fax")) {
+					const char *target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
 
 					if (ast_exists_extension(p->owner, target_context, "fax", 1,
 						S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(p->owner));
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-						pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
+						pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));
 						if (ast_async_goto(p->owner, target_context, "fax", 1)) {
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner), target_context);
 						}
@@ -2469,11 +2469,11 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		}
 		tmp->tech_pvt = me;
 		
-		ast_copy_string(tmp->context, context, sizeof(tmp->context));
+		ast_channel_context_set(tmp, context);
 		if (!ast_strlen_zero(me->ext))
-			ast_copy_string(tmp->exten, me->ext, sizeof(tmp->exten));
+			ast_channel_exten_set(tmp, me->ext);
 		else
-			strcpy(tmp->exten, "s");
+			ast_channel_exten_set(tmp, "s");
 		if (!ast_strlen_zero(me->language))
 			ast_channel_language_set(tmp, me->language);
 

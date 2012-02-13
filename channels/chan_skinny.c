@@ -4235,7 +4235,7 @@ static void *skinny_newcall(void *data)
 	ast_party_number_free(&c->connected.id.number);
 	ast_party_number_init(&c->connected.id.number);
 	c->connected.id.number.valid = 1;
-	c->connected.id.number.str = ast_strdup(c->exten);
+	c->connected.id.number.str = ast_strdup(ast_channel_exten(c));
 	ast_party_name_free(&c->connected.id.name);
 	ast_party_name_init(&c->connected.id.name);
 #endif
@@ -4243,7 +4243,7 @@ static void *skinny_newcall(void *data)
 	if (!sub->rtp) {
 		start_rtp(sub);
 	}
-	ast_verb(3, "Sub %d - Calling %s@%s\n", sub->callid, c->exten, c->context);
+	ast_verb(3, "Sub %d - Calling %s@%s\n", sub->callid, ast_channel_exten(c), ast_channel_context(c));
 	res = ast_pbx_run(c);
 	if (res) {
 		ast_log(LOG_WARNING, "PBX exited non-zero\n");
@@ -4286,11 +4286,11 @@ static void *skinny_ss(void *data)
 		timeout = 0;
 		len = strlen(sub->exten);
 
-		if (!ast_ignore_pattern(c->context, sub->exten)) {
+		if (!ast_ignore_pattern(ast_channel_context(c), sub->exten)) {
 			transmit_stop_tone(d, l->instance, sub->callid);
 		}
-		if (ast_exists_extension(c, c->context, sub->exten, 1, l->cid_num)) {
-			if (!res || !ast_matchmore_extension(c, c->context, sub->exten, 1, l->cid_num)) {
+		if (ast_exists_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
+			if (!res || !ast_matchmore_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
 				if (l->getforward) {
 					/* Record this as the forwarding extension */
 					set_callforwards(l, sub->exten, l->getforward);
@@ -4331,12 +4331,12 @@ static void *skinny_ss(void *data)
 				ast_hangup(c);
 			}
 			return NULL;
-		} else if (!ast_canmatch_extension(c, c->context, sub->exten, 1,
+		} else if (!ast_canmatch_extension(c, ast_channel_context(c), sub->exten, 1,
 			S_COR(c->caller.id.number.valid, c->caller.id.number.str, NULL))
 			&& ((sub->exten[0] != '*') || (!ast_strlen_zero(sub->exten) > 2))) {
 			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", sub->exten,
 				S_COR(c->caller.id.number.valid, c->caller.id.number.str, "<Unknown Caller>"),
-				c->context);
+				ast_channel_context(c));
 			if (d->hookstate == SKINNY_OFFHOOK) {
 				transmit_start_tone(d, SKINNY_REORDER, l->instance, sub->callid);
 				/* hang out for 3 seconds to let congestion play */
@@ -4347,7 +4347,7 @@ static void *skinny_ss(void *data)
 		if (!timeout) {
 			timeout = gendigittimeout;
 		}
-		if (len && !ast_ignore_pattern(c->context, sub->exten)) {
+		if (len && !ast_ignore_pattern(ast_channel_context(c), sub->exten)) {
 			ast_indicate(c, -1);
 		}
 	}
@@ -4928,11 +4928,11 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		}
 
 		if (subline) {
-			ast_copy_string(tmp->context, subline->context, sizeof(tmp->context));
+			ast_channel_context_set(tmp, subline->context);
 		} else {
-			ast_copy_string(tmp->context, l->context, sizeof(tmp->context));
+			ast_channel_context_set(tmp, l->context);
 		}
-		ast_copy_string(tmp->exten, l->exten, sizeof(tmp->exten));
+		ast_channel_exten_set(tmp, l->exten);
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
@@ -5201,8 +5201,8 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		}
 		break;
 	case SUBSTATE_DIALING:
-		if (ast_strlen_zero(sub->exten) || !ast_exists_extension(c, c->context, sub->exten, 1, l->cid_num)) {
-			ast_log(LOG_WARNING, "Exten (%s)@(%s) does not exist, unable to set substate DIALING on sub %d\n", sub->exten, c->context, sub->callid);
+		if (ast_strlen_zero(sub->exten) || !ast_exists_extension(c, ast_channel_context(c), sub->exten, 1, l->cid_num)) {
+			ast_log(LOG_WARNING, "Exten (%s)@(%s) does not exist, unable to set substate DIALING on sub %d\n", sub->exten, ast_channel_context(c), sub->callid);
 			return;
 		}
 
@@ -5222,17 +5222,17 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 
 		if  (AST_LIST_FIRST(&l->sublines)) {
 			if (subline) {
-				ast_copy_string(c->exten, subline->exten, sizeof(c->exten));
-				ast_copy_string(c->context, "sla_stations", sizeof(c->context));
+				ast_channel_exten_set(c, subline->exten);
+				ast_channel_context_set(c, "sla_stations");
 			} else {
 				pbx_builtin_setvar_helper(c, "_DESTEXTEN", sub->exten);
-				pbx_builtin_setvar_helper(c, "_DESTCONTEXT", c->context);
-				ast_copy_string(c->exten, l->dialoutexten, sizeof(c->exten));
-				ast_copy_string(c->context, l->dialoutcontext, sizeof(c->context));
+				pbx_builtin_setvar_helper(c, "_DESTCONTEXT", ast_channel_context(c));
+				ast_channel_exten_set(c, l->dialoutexten);
+				ast_channel_context_set(c, l->dialoutcontext);
 				ast_copy_string(l->lastnumberdialed, sub->exten, sizeof(l->lastnumberdialed));
 			}
 		} else {
-			ast_copy_string(c->exten, sub->exten, sizeof(c->exten));
+			ast_channel_exten_set(c, sub->exten);
 			ast_copy_string(l->lastnumberdialed, sub->exten, sizeof(l->lastnumberdialed));
 		}
 		

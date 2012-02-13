@@ -329,35 +329,35 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANAPP:
-		if (chan->appl) {
-			strncpy(string_ret, chan->appl, sizeof(string_ret));
+		if (ast_channel_appl(chan)) {
+			strncpy(string_ret, ast_channel_appl(chan), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANDATA:
-		if (chan->data) {
-			strncpy(string_ret, chan->data, sizeof(string_ret));
+		if (ast_channel_data(chan)) {
+			strncpy(string_ret, ast_channel_data(chan), sizeof(string_ret));
 			string_ret[sizeof(string_ret) - 1] = '\0';
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
 		break;
 	case ASTCHANCONTEXT:
-		strncpy(string_ret, chan->context, sizeof(string_ret));
+		strncpy(string_ret, ast_channel_context(chan), sizeof(string_ret));
 		string_ret[sizeof(string_ret) - 1] = '\0';
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANMACROCONTEXT:
-		strncpy(string_ret, chan->macrocontext, sizeof(string_ret));
+		strncpy(string_ret, ast_channel_macrocontext(chan), sizeof(string_ret));
 		string_ret[sizeof(string_ret) - 1] = '\0';
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
 		break;
 	case ASTCHANMACROEXTEN:
-		strncpy(string_ret, chan->macroexten, sizeof(string_ret));
+		strncpy(string_ret, ast_channel_macroexten(chan), sizeof(string_ret));
 		string_ret[sizeof(string_ret) - 1] = '\0';
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;
@@ -367,7 +367,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANEXTEN:
-		strncpy(string_ret, chan->exten, sizeof(string_ret));
+		strncpy(string_ret, ast_channel_exten(chan), sizeof(string_ret));
 		string_ret[sizeof(string_ret) - 1] = '\0';
 		*var_len = strlen(string_ret);
 		ret = (u_char *)string_ret;

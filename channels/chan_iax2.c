@@ -5134,7 +5134,7 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 		pds.context = cai.peercontext;
 
 	/* Keep track of the context for outgoing calls too */
-	ast_copy_string(c->context, cai.context, sizeof(c->context));
+	ast_channel_context_set(c, cai.context);
 
 	if (pds.port)
 		sin.sin_port = htons(atoi(pds.port));
@@ -5199,8 +5199,8 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 
 	ast_mutex_lock(&iaxsl[callno]);
 
-	if (!ast_strlen_zero(c->context))
-		ast_string_field_set(iaxs[callno], context, c->context);
+	if (!ast_strlen_zero(ast_channel_context(c)))
+		ast_string_field_set(iaxs[callno], context, ast_channel_context(c));
 
 	if (pds.username)
 		ast_string_field_set(iaxs[callno], username, pds.username);
@@ -5850,8 +5850,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		ast_channel_accountcode_set(tmp, i->accountcode);
 	if (i->amaflags)
 		tmp->amaflags = i->amaflags;
-	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
-	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+	ast_channel_context_set(tmp, i->context);
+	ast_channel_exten_set(tmp, i->exten);
 	if (i->adsi)
 		tmp->adsicpe = i->peeradsicpe;
 	else
@@ -9389,8 +9389,8 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	struct ast_channel *chan1m, *chan2m;/* Chan2m: The transferer, chan1m: The transferee */
 	pthread_t th;
 
-	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), chan1->exten, chan1->context, ast_channel_linkedid(chan1), chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
-	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), chan2->exten, chan2->context, ast_channel_linkedid(chan2), chan2->amaflags, "IAXPeer/%s", ast_channel_name(chan2));
+	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), ast_channel_exten(chan1), ast_channel_context(chan1), ast_channel_linkedid(chan1), chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
+	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), ast_channel_exten(chan2), ast_channel_context(chan2), ast_channel_linkedid(chan2), chan2->amaflags, "IAXPeer/%s", ast_channel_name(chan2));
 	d = ast_calloc(1, sizeof(*d));
 	if (!chan1m || !chan2m || !d) {
 		if (chan1m) {
@@ -9428,8 +9428,8 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	}
 
 	/* Setup the extensions and such */
-	ast_copy_string(chan1m->context, chan1->context, sizeof(chan1m->context));
-	ast_copy_string(chan1m->exten, chan1->exten, sizeof(chan1m->exten));
+	ast_channel_context_set(chan1m, ast_channel_context(chan1));
+	ast_channel_exten_set(chan1m, ast_channel_exten(chan1));
 	chan1m->priority = chan1->priority;
 
 	ast_do_masquerade(chan1m);
@@ -9453,8 +9453,8 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2, const 
 	}
 
 	/* Setup the extensions and such */
-	ast_copy_string(chan2m->context, chan2->context, sizeof(chan2m->context));
-	ast_copy_string(chan2m->exten, chan2->exten, sizeof(chan2m->exten));
+	ast_channel_context_set(chan2m, ast_channel_context(chan2));
+	ast_channel_exten_set(chan2m, ast_channel_exten(chan2));
 	chan2m->priority = chan2->priority;
 
 	ast_do_masquerade(chan2m);

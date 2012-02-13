@@ -212,8 +212,8 @@ static int lua_pbx_exec(lua_State *L)
 	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 	
-	context = ast_strdupa(chan->context);
-	exten = ast_strdupa(chan->exten);
+	context = ast_strdupa(ast_channel_context(chan));
+	exten = ast_strdupa(ast_channel_exten(chan));
 	priority = chan->priority;
 	
 	lua_concat_args(L, 2, nargs);
@@ -246,13 +246,13 @@ static int lua_pbx_exec(lua_State *L)
 		return lua_error(L);
 	}
 
-	if (strcmp(context, chan->context)) {
+	if (strcmp(context, ast_channel_context(chan))) {
 		lua_pushstring(L, context);
-		lua_pushstring(L, chan->context);
+		lua_pushstring(L, ast_channel_context(chan));
 		lua_pushliteral(L, "context");
-	} else if (strcmp(exten, chan->exten)) {
+	} else if (strcmp(exten, ast_channel_exten(chan))) {
 		lua_pushstring(L, exten);
-		lua_pushstring(L, chan->exten);
+		lua_pushstring(L, ast_channel_exten(chan));
 		lua_pushliteral(L, "exten");
 	} else if (priority != chan->priority) {
 		lua_pushinteger(L, priority);

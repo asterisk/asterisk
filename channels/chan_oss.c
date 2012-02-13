@@ -1193,7 +1193,7 @@ static char *console_transfer(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 	tmp = ast_ext_ctx(a->argv[2], &ext, &ctx);
 	if (ctx == NULL)			/* supply default context if needed */
-		ctx = o->owner->context;
+		ctx = ast_strdupa(ast_channel_context(o->owner));
 	if (!ast_exists_extension(b, ctx, ext, 1,
 		S_COR(b->caller.id.number.valid, b->caller.id.number.str, NULL))) {
 		ast_cli(a->fd, "No such extension exists\n");

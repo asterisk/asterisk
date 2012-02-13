@@ -2056,7 +2056,7 @@ static void *unistim_ss(void *data)
 	int res;
 
 	ast_verb(3, "Starting switch on '%s@%s-%d' to %s\n", l->name, l->parent->name, sub->subtype, s->device->phone_number);
-	ast_copy_string(chan->exten, s->device->phone_number, sizeof(chan->exten));
+	ast_channel_exten_set(chan, s->device->phone_number);
 	ast_copy_string(s->device->redial_number, s->device->phone_number,
 					sizeof(s->device->redial_number));
 	ast_setstate(chan, AST_STATE_RING);

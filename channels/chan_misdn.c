@@ -3626,7 +3626,7 @@ static int misdn_overlap_dial_task(const void *data)
 
 	if (ast_strlen_zero(ch->bc->dialed.number)) {
 		dad = "s";
-		strcpy(ch->ast->exten, dad);
+		ast_channel_exten_set(ch->ast, dad);
 	} else {
 		dad = ch->bc->dialed.number;
 	}
@@ -4149,7 +4149,7 @@ static void print_bc_info(int fd, struct chan_list *help, struct misdn_bchannel 
 		bc->channel,
 		bc->nt ? "NT" : "TE",
 		help->originator == ORG_AST ? "*" : "I",
-		ast ? ast->exten : "",
+		ast ? ast_channel_exten(ast) : "",
 		(ast && ast->caller.id.name.valid && ast->caller.id.name.str)
 			? ast->caller.id.name.str : "",
 		(ast && ast->caller.id.number.valid && ast->caller.id.number.str)
@@ -4158,7 +4158,7 @@ static void print_bc_info(int fd, struct chan_list *help, struct misdn_bchannel 
 		bc->redirecting.from.number,
 		bc->redirecting.to.name,
 		bc->redirecting.to.number,
-		ast ? ast->context : "",
+		ast ? ast_channel_context(ast) : "",
 		misdn_get_ch_state(help));
 	if (misdn_debug[bc->port] > 0) {
 		ast_cli(fd,
@@ -4251,7 +4251,7 @@ static char *handle_cli_misdn_show_channels(struct ast_cli_entry *e, int cmd, st
 					" --> hold_port: %d\n"
 					" --> hold_channel: %d\n",
 					help->l3id,
-					ast->exten,
+					ast_channel_exten(ast),
 					S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
 					S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""),
 					help->hold.port,
@@ -4259,7 +4259,7 @@ static char *handle_cli_misdn_show_channels(struct ast_cli_entry *e, int cmd, st
 					);
 			} else {
 				ast_cli(a->fd, "* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n",
-					ast->exten,
+					ast_channel_exten(ast),
 					S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""));
 			}
 		}
@@ -5965,7 +5965,7 @@ static int read_config(struct chan_list *ch)
 
 	misdn_cfg_get(bc->port, MISDN_CFG_CONTEXT, ch->context, sizeof(ch->context));
 
-	ast_copy_string(ast->context, ch->context, sizeof(ast->context));
+	ast_channel_context_set(ast, ch->context);
 
 #ifdef MISDN_1_2
 	update_pipeline_config(bc);
@@ -6037,7 +6037,7 @@ static int read_config(struct chan_list *ch)
 		/* Add configured prefix to dialed.number */
 		misdn_add_number_prefix(bc->port, bc->dialed.number_type, bc->dialed.number, sizeof(bc->dialed.number));
 
-		ast_copy_string(ast->exten, bc->dialed.number, sizeof(ast->exten));
+		ast_channel_exten_set(ast, bc->dialed.number);
 
 		misdn_cfg_get(bc->port, MISDN_CFG_OVERLAP_DIAL, &ch->overlap_dial, sizeof(ch->overlap_dial));
 		ast_mutex_init(&ch->overlap_tv_lock);
@@ -6452,7 +6452,7 @@ static void misdn_update_redirecting(struct ast_channel *ast, struct misdn_bchan
 	} else {
 		int match;	/* TRUE if the dialed number matches the redirecting to number */
 
-		match = (strcmp(ast->exten, bc->redirecting.to.number) == 0) ? 1 : 0;
+		match = (strcmp(ast_channel_exten(ast), bc->redirecting.to.number) == 0) ? 1 : 0;
 		if (!bc->div_leg_3_tx_pending
 			|| !match) {
 			/* Send DivertingLegInformation1 */
@@ -6569,10 +6569,10 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 		}
 		AST_LIST_UNLOCK(&misdn_cc_records_db);
 
-		ast_copy_string(ast->exten, newbc->dialed.number, sizeof(ast->exten));
+		ast_channel_exten_set(ast, newbc->dialed.number);
 
 		chan_misdn_log(1, port, "* Call completion to: %s\n", newbc->dialed.number);
-		chan_misdn_log(2, port, " --> * tech:%s context:%s\n", ast_channel_name(ast), ast->context);
+		chan_misdn_log(2, port, " --> * tech:%s context:%s\n", ast_channel_name(ast), ast_channel_context(ast));
 	} else
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	{
@@ -6591,9 +6591,9 @@ static int misdn_call(struct ast_channel *ast, const char *dest, int timeout)
 		}
 
 		chan_misdn_log(1, port, "* CALL: %s\n", dest);
-		chan_misdn_log(2, port, " --> * dialed:%s tech:%s context:%s\n", args.ext, ast_channel_name(ast), ast->context);
+		chan_misdn_log(2, port, " --> * dialed:%s tech:%s context:%s\n", args.ext, ast_channel_name(ast), ast_channel_context(ast));
 
-		ast_copy_string(ast->exten, args.ext, sizeof(ast->exten));
+		ast_channel_exten_set(ast, args.ext);
 		ast_copy_string(newbc->dialed.number, args.ext, sizeof(newbc->dialed.number));
 
 		if (ast_strlen_zero(newbc->caller.name)
@@ -6872,7 +6872,7 @@ static int misdn_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 		if (strlen(bc->dialed.number) < sizeof(bc->dialed.number) - 1) {
 			strncat(bc->dialed.number, buf, sizeof(bc->dialed.number) - strlen(bc->dialed.number) - 1);
 		}
-		ast_copy_string(p->ast->exten, bc->dialed.number, sizeof(p->ast->exten));
+		ast_channel_exten_set(p->ast, bc->dialed.number);
 		misdn_lib_send_event(bc, EVENT_INFORMATION);
 		break;
 	default:
@@ -7139,8 +7139,8 @@ static int misdn_hangup(struct ast_channel *ast)
 	chan_misdn_log(1, bc->port,
 		"* IND : HANGUP\tpid:%d context:%s dialed:%s caller:\"%s\" <%s> State:%s\n",
 		bc->pid,
-		ast->context,
-		ast->exten,
+		ast_channel_context(ast),
+		ast_channel_exten(ast),
 		(ast->caller.id.name.valid && ast->caller.id.name.str)
 			? ast->caller.id.name.str : "",
 		(ast->caller.id.number.valid && ast->caller.id.number.str)
@@ -7279,21 +7279,21 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 			isdn_lib_stop_dtmf(tmp->bc);
 			switch (tmp->faxdetect) {
 			case 1:
-				if (strcmp(ast->exten, "fax")) {
+				if (strcmp(ast_channel_exten(ast), "fax")) {
 					char *context;
 					char context_tmp[BUFFERSIZE];
 					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
-					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
+					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast_channel_macrocontext(ast)) ? ast_channel_context(ast) : ast_channel_macrocontext(ast)) : context_tmp;
 					if (ast_exists_extension(ast, context, "fax", 1,
 						S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
 						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast_channel_name(ast), context);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
+						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast_channel_exten(ast));
 						if (ast_async_goto(ast, context, "fax", 1)) {
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), context);
 						}
 					} else {
-						ast_log(LOG_NOTICE, "Fax detected but no fax extension, context:%s exten:%s\n", context, ast->exten);
+						ast_log(LOG_NOTICE, "Fax detected but no fax extension, context:%s exten:%s\n", context, ast_channel_exten(ast));
 					}
 				} else {
 					ast_debug(1, "Already in a fax extension, not redirecting\n");
@@ -7480,7 +7480,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (!ch->dropped_frame_cnt) {
 			chan_misdn_log(5, ch->bc->port,
 				"BC not active (nor bridged) dropping: %d frames addr:%x exten:%s cid:%s ch->state:%s bc_state:%d l3id:%x\n",
-				frame->samples, ch->bc->addr, ast->exten,
+				frame->samples, ch->bc->addr, ast_channel_exten(ast),
 				S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""),
 				misdn_get_ch_state(ch), ch->bc->bc_state, ch->bc->l3_id);
 		}
@@ -7594,7 +7594,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 		}
 
 		if (f->frametype == AST_FRAME_DTMF) {
-			chan_misdn_log(1, 0, "Read DTMF %d from %s\n", f->subclass.integer, who->exten);
+			chan_misdn_log(1, 0, "Read DTMF %d from %s\n", f->subclass.integer, ast_channel_exten(who));
 
 			*fo = f;
 			*rc = who;
@@ -8152,7 +8152,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		tmp->priority = 1;
 
 		if (exten) {
-			ast_copy_string(tmp->exten, exten, sizeof(tmp->exten));
+			ast_channel_exten_set(tmp, exten);
 		} else {
 			chan_misdn_log(1, 0, "misdn_new: no exten given.\n");
 		}
@@ -8449,8 +8449,8 @@ static void release_chan(struct chan_list *ch, struct misdn_bchannel *bc)
 		chan_misdn_log(1, bc->port,
 			"* RELEASING CHANNEL pid:%d context:%s dialed:%s caller:\"%s\" <%s>\n",
 			bc->pid,
-			ast->context,
-			ast->exten,
+			ast_channel_context(ast),
+			ast_channel_exten(ast),
 			S_COR(ast->caller.id.name.valid, ast->caller.id.name.str, ""),
 			S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, ""));
 
@@ -8617,7 +8617,7 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 	char *predial;
 	struct ast_frame fr;
 
-	predial = ast_strdupa(ast->exten);
+	predial = ast_strdupa(ast_channel_exten(ast));
 
 	ch->state = MISDN_DIALING;
 
@@ -8637,16 +8637,16 @@ static void do_immediate_setup(struct misdn_bchannel *bc, struct chan_list *ch, 
 
 	chan_misdn_log(1, bc->port,
 		"* Starting Ast context:%s dialed:%s caller:\"%s\" <%s> with 's' extension\n",
-		ast->context,
-		ast->exten,
+		ast_channel_context(ast),
+		ast_channel_exten(ast),
 		(ast->caller.id.name.valid && ast->caller.id.name.str)
 			? ast->caller.id.name.str : "",
 		(ast->caller.id.number.valid && ast->caller.id.number.str)
 			? ast->caller.id.number.str : "");
 
-	strcpy(ast->exten, "s");
+	ast_channel_exten_set(ast, "s");
 
-	if (!ast_canmatch_extension(ast, ast->context, ast->exten, 1, bc->caller.number) || pbx_start_chan(ch) < 0) {
+	if (!ast_canmatch_extension(ast, ast_channel_context(ast), ast_channel_exten(ast), 1, bc->caller.number) || pbx_start_chan(ch) < 0) {
 		ast = NULL;
 		bc->out_cause = AST_CAUSE_UNALLOCATED;
 		hangup_chan(ch, bc);
@@ -10012,10 +10012,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 
 			strncat(bc->dialed.number, bc->info_dad, sizeof(bc->dialed.number) - strlen(bc->dialed.number) - 1);
-			ast_copy_string(ch->ast->exten, bc->dialed.number, sizeof(ch->ast->exten));
+			ast_channel_exten_set(ch->ast, bc->dialed.number);
 
 			/* Check for Pickup Request first */
-			if (!strcmp(ch->ast->exten, ast_pickup_ext())) {
+			if (!strcmp(ast_channel_exten(ch->ast), ast_pickup_ext())) {
 				if (ast_pickup_call(ch->ast)) {
 					hangup_chan(ch, bc);
 				} else {
@@ -10031,7 +10031,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					ast_log(LOG_WARNING,
 						"Extension '%s@%s' can never match. Jumping to 'i' extension. port:%d\n",
 						bc->dialed.number, ch->context, bc->port);
-					strcpy(ch->ast->exten, "i");
+					ast_channel_exten_set(ch->ast, "i");
 
 					ch->state = MISDN_DIALING;
 					start_pbx(ch, bc, ch->ast);
@@ -10088,7 +10088,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if (ch->state != MISDN_CONNECTED) {
 				if (digits) {
 					strncat(bc->dialed.number, bc->info_dad, sizeof(bc->dialed.number) - strlen(bc->dialed.number) - 1);
-					ast_copy_string(ch->ast->exten, bc->dialed.number, sizeof(ch->ast->exten));
+					ast_channel_exten_set(ch->ast, bc->dialed.number);
 					ast_cdr_update(ch->ast);
 				}
 
@@ -10251,7 +10251,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		/* Check for Pickup Request first */
-		if (!strcmp(chan->exten, ast_pickup_ext())) {
+		if (!strcmp(ast_channel_exten(chan), ast_pickup_ext())) {
 			if (!ch->noautorespond_on_setup) {
 				/* Sending SETUP_ACK */
 				misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE);
@@ -10291,7 +10291,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				ast_log(LOG_WARNING,
 					"Extension '%s@%s' can never match. Jumping to 'i' extension. port:%d\n",
 					bc->dialed.number, ch->context, bc->port);
-				strcpy(ch->ast->exten, "i");
+				ast_channel_exten_set(ch->ast, "i");
 				misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE);
 				ch->state = MISDN_DIALING;
 				start_pbx(ch, bc, chan);
@@ -10409,7 +10409,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if (!ch->ast) {
 				break;
 			}
-			ast_copy_string(ch->ast->exten, bc->dialed.number, sizeof(ch->ast->exten));
+			ast_channel_exten_set(ch->ast, bc->dialed.number);
 			ast_copy_string(bc->info_dad, bc->infos_pending, sizeof(bc->info_dad));
 			ast_copy_string(bc->infos_pending, "", sizeof(bc->infos_pending));
 

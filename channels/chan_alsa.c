@@ -578,9 +578,9 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 
 	tmp->tech_pvt = p;
 	if (!ast_strlen_zero(p->context))
-		ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
+		ast_channel_context_set(tmp, p->context);
 	if (!ast_strlen_zero(p->exten))
-		ast_copy_string(tmp->exten, p->exten, sizeof(tmp->exten));
+		ast_channel_exten_set(tmp, p->exten);
 	if (!ast_strlen_zero(language))
 		ast_channel_language_set(tmp, language);
 	p->owner = tmp;

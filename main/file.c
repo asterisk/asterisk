@@ -1410,7 +1410,7 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
 	/* in the current or specified context being pressed */
 
 	if (!context)
-		context = c->context;
+		context = ast_channel_context(c);
 	return waitstream_core(c, NULL, NULL, NULL, 0,
 		-1, -1, context);
 }

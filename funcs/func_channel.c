@@ -350,17 +350,17 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, ast_channel_peeraccount(chan), len);
 	else if (!strcasecmp(data, "hangupsource"))
 		locked_copy_string(chan, buf, ast_channel_hangupsource(chan), len);
-	else if (!strcasecmp(data, "appname") && chan->appl)
-		locked_copy_string(chan, buf, chan->appl, len);
-	else if (!strcasecmp(data, "appdata") && chan->data)
-		locked_copy_string(chan, buf, chan->data, len);
-	else if (!strcasecmp(data, "exten") && chan->data)
-		locked_copy_string(chan, buf, chan->exten, len);
-	else if (!strcasecmp(data, "context") && chan->data)
-		locked_copy_string(chan, buf, chan->context, len);
-	else if (!strcasecmp(data, "userfield") && chan->data)
+	else if (!strcasecmp(data, "appname") && ast_channel_appl(chan))
+		locked_copy_string(chan, buf, ast_channel_appl(chan), len);
+	else if (!strcasecmp(data, "appdata") && ast_channel_data(chan))
+		locked_copy_string(chan, buf, ast_channel_data(chan), len);
+	else if (!strcasecmp(data, "exten") && ast_channel_data(chan))
+		locked_copy_string(chan, buf, ast_channel_exten(chan), len);
+	else if (!strcasecmp(data, "context") && ast_channel_data(chan))
+		locked_copy_string(chan, buf, ast_channel_context(chan), len);
+	else if (!strcasecmp(data, "userfield") && ast_channel_data(chan))
 		locked_copy_string(chan, buf, ast_channel_userfield(chan), len);
-	else if (!strcasecmp(data, "channame") && chan->data)
+	else if (!strcasecmp(data, "channame") && ast_channel_data(chan))
 		locked_copy_string(chan, buf, ast_channel_name(chan), len);
 	else if (!strcasecmp(data, "linkedid")) {
 		ast_channel_lock(chan);

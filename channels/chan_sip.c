@@ -7263,7 +7263,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 	i->owner = tmp;
 	ast_module_ref(ast_module_info->self);
-	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
+	ast_channel_context_set(tmp, i->context);
 	/*Since it is valid to have extensions in the dialplan that have unescaped characters in them
 	 * we should decode the uri before storing it in the channel, but leave it encoded in the sip_pvt
 	 * structure so that there aren't issues when forming URI's
@@ -7276,7 +7276,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
-	ast_copy_string(tmp->exten, exten, sizeof(tmp->exten));
+	ast_channel_exten_set(tmp, exten);
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
@@ -7616,8 +7616,8 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 
 	/* If we detect a CNG tone and fax detection is enabled then send us off to the fax extension */
 	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_CNG)) {
-		if (strcmp(ast->exten, "fax")) {
-			const char *target_context = S_OR(ast->macrocontext, ast->context);
+		if (strcmp(ast_channel_exten(ast), "fax")) {
+			const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
 			/* We need to unlock 'ast' here because
 			 * ast_exists_extension has the potential to start and
 			 * stop an autoservice on the channel. Such action is
@@ -7630,7 +7630,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 				ast_channel_lock(ast);
 				sip_pvt_lock(p);
 				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(ast));
-				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
+				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast_channel_exten(ast));
 				if (ast_async_goto(ast, target_context, "fax", 1)) {
 					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), target_context);
 				}
@@ -9599,13 +9599,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				/* If fax detection is enabled then send us off to the fax extension */
 				if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_T38)) {
 					ast_channel_lock(p->owner);
-					if (strcmp(p->owner->exten, "fax")) {
-						const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
+					if (strcmp(ast_channel_exten(p->owner), "fax")) {
+						const char *target_context = S_OR(ast_channel_macrocontext(p->owner), ast_channel_context(p->owner));
 						ast_channel_unlock(p->owner);
 						if (ast_exists_extension(p->owner, target_context, "fax", 1,
 							S_COR(p->owner->caller.id.number.valid, p->owner->caller.id.number.str, NULL))) {
 							ast_verb(2, "Redirecting '%s' to fax extension due to peer T.38 re-INVITE\n", ast_channel_name(p->owner));
-							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
+							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", ast_channel_exten(p->owner));
 							if (ast_async_goto(p->owner, target_context, "fax", 1)) {
 								ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner), target_context);
 							}
@@ -12946,8 +12946,8 @@ static int find_calling_channel(void *obj, void *arg, void *data, int flags)
 	ast_channel_lock(c);
 
 	res = (c->pbx &&
-			(!strcasecmp(c->macroexten, p->exten) || !strcasecmp(c->exten, p->exten)) &&
-			(sip_cfg.notifycid == IGNORE_CONTEXT || !strcasecmp(c->context, p->context)));
+			(!strcasecmp(ast_channel_macroexten(c), p->exten) || !strcasecmp(ast_channel_exten(c), p->exten)) &&
+			(sip_cfg.notifycid == IGNORE_CONTEXT || !strcasecmp(ast_channel_context(c), p->context)));
 
 	ast_channel_unlock(c);
 
@@ -16196,7 +16196,7 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 	/* By default, use the context in the channel sending the REFER */
 	if (ast_strlen_zero(transfer_context)) {
-		transfer_context = S_OR(transferer->owner->macrocontext,
+		transfer_context = S_OR(ast_channel_macrocontext(transferer->owner),
 					S_OR(transferer->context, sip_cfg.default_context));
 	}
 
@@ -16256,7 +16256,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 
 	/* By default, use the context in the channel sending the REFER */
 	if (ast_strlen_zero(transfer_context)) {
-		transfer_context = S_OR(p->owner->macrocontext,
+		transfer_context = S_OR(ast_channel_macrocontext(p->owner),
 					S_OR(p->context, sip_cfg.default_context));
 	}
 	if (ast_exists_extension(NULL, transfer_context, c, 1, NULL)) {
@@ -22251,8 +22251,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	struct ast_channel *transferee, *transferer;
 	pthread_t th;
 
-	transferee = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan1), chan1->exten, chan1->context, ast_channel_linkedid(chan1), chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
-	transferer = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), chan2->exten, chan2->context, ast_channel_linkedid(chan2), chan2->amaflags, "SIPPeer/%s", ast_channel_name(chan2));
+	transferee = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan1), ast_channel_exten(chan1), ast_channel_context(chan1), ast_channel_linkedid(chan1), chan1->amaflags, "Parking/%s", ast_channel_name(chan1));
+	transferer = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(chan2), ast_channel_exten(chan2), ast_channel_context(chan2), ast_channel_linkedid(chan2), chan2->amaflags, "SIPPeer/%s", ast_channel_name(chan2));
 	d = ast_calloc(1, sizeof(*d));
 	if (!transferee || !transferer || !d) {
 		if (transferee) {
@@ -22290,8 +22290,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	}
 
 	/* Setup the extensions and such */
-	ast_copy_string(transferee->context, chan1->context, sizeof(transferee->context));
-	ast_copy_string(transferee->exten, chan1->exten, sizeof(transferee->exten));
+	ast_channel_context_set(transferee, ast_channel_context(chan1));
+	ast_channel_exten_set(transferee, ast_channel_exten(chan1));
 	transferee->priority = chan1->priority;
 
 	ast_do_masquerade(transferee);
@@ -22314,8 +22314,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	}
 
 	/* Setup the extensions and such */
-	ast_copy_string(transferer->context, chan2->context, sizeof(transferer->context));
-	ast_copy_string(transferer->exten, chan2->exten, sizeof(transferer->exten));
+	ast_channel_context_set(transferer, ast_channel_context(chan2));
+	ast_channel_exten_set(transferer, ast_channel_exten(chan2));
 	transferer->priority = chan2->priority;
 
 	ast_do_masquerade(transferer);
@@ -24362,7 +24362,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	sip_pvt_unlock(p);
 
 	/* Parking a call.  DO NOT hold any locks while calling ast_parking_ext_valid() */
-	if (localtransfer && ast_parking_ext_valid(refer_to, current.chan1, current.chan1->context)) {
+	if (localtransfer && ast_parking_ext_valid(refer_to, current.chan1, ast_channel_context(current.chan1))) {
 		sip_pvt_lock(p);
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);
 		p->refer->status = REFER_200OK;
@@ -24391,7 +24391,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		}
 
 		/* DO NOT hold any locks while calling sip_park */
-		if (sip_park(current.chan2, current.chan1, req, seqno, refer_to, current.chan1->context)) {
+		if (sip_park(current.chan2, current.chan1, req, seqno, refer_to, ast_channel_context(current.chan1))) {
 			sip_pvt_lock(p);
 			transmit_notify_with_sipfrag(p, seqno, "500 Internal Server Error", TRUE);
 		} else {

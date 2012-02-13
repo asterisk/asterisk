@@ -1380,7 +1380,7 @@ static int priority_jump(struct rpt *myrpt, struct ast_channel *chan)
 	int res=0;
 
 	// if (ast_test_flag(&flags,OPT_JUMP) && ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101) == 0){
-	if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101) == 0){
+	if (ast_goto_if_exists(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 101) == 0){
 		res = 0;
 	} else {
 		res = -1;
@@ -5487,8 +5487,8 @@ struct ast_format_cap *cap = NULL;
 		}
 	}
 
-	ast_copy_string(mychannel->exten, myrpt->exten, sizeof(mychannel->exten) - 1);
-	ast_copy_string(mychannel->context, myrpt->patchcontext, sizeof(mychannel->context) - 1);
+	ast_channel_exten_set(mychannel, myrpt->exten);
+	ast_channel_context_set(mychannel, myrpt->patchcontext);
 	
 	if (myrpt->p.acctcode)
 		ast_cdr_setaccount(mychannel,myrpt->p.acctcode);
@@ -5825,8 +5825,8 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 #ifndef	NEW_ASTERISK
 		l->chan->whentohangup = 0;
 #endif
-		l->chan->appl = "Apprpt";
-		l->chan->data = "(Remote Rx)";
+		ast_channel_appl_set(l->chan, "Apprpt");
+		ast_channel_data_set(l->chan, "(Remote Rx)");
 		if (debug > 3)
 			ast_log(LOG_NOTICE, "rpt (remote) initiating call to %s/%s on %s\n",
 		deststr, tele, ast_channel_name(l->chan));
@@ -10408,8 +10408,8 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 #ifndef	NEW_ASTERISK
 		l->chan->whentohangup = 0;
 #endif
-		l->chan->appl = "Apprpt";
-		l->chan->data = "(Remote Rx)";
+		ast_channel_appl_set(l->chan, "Apprpt");
+		ast_channel_data_set(l->chan, "(Remote Rx)");
 		ast_verb(3, "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
 			deststr, tele, ast_channel_name(l->chan));
 		l->chan->caller.id.number.valid = 1;
@@ -13435,17 +13435,17 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 #else
 		if(exten)
 #endif
-			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
+			ast_channel_exten_set(chan, exten);
 		if(context)
-			strncpy(chan->context, context, sizeof(chan->context)-1);
+			ast_channel_context_set(chan, context);
 		} else {  /* increment the priority by default*/
 			chan->priority++;
 		}
 
 		ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n",
-			chan->context, chan->exten, chan->priority,
+			ast_channel_context(chan), ast_channel_exten(chan), chan->priority,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, ""));
-		if (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority,
+		if (!ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 			ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 		}
@@ -13824,8 +13824,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 #ifndef	NEW_ASTERISK
 		myrpt->rxchannel->whentohangup = 0;
 #endif
-		myrpt->rxchannel->appl = "Apprpt";
-		myrpt->rxchannel->data = "(Link Rx)";
+		ast_channel_appl_set(myrpt->rxchannel, "Apprpt");
+		ast_channel_data_set(myrpt->rxchannel, "(Link Rx)");
 		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
 			myrpt->rxchanname,tele,ast_channel_name(myrpt->rxchannel));
 		rpt_mutex_unlock(&myrpt->lock);
@@ -13866,8 +13866,8 @@ static int rpt_exec(struct ast_channel *chan, const char *data)
 #ifndef	NEW_ASTERISK
 			myrpt->txchannel->whentohangup = 0;
 #endif
-			myrpt->txchannel->appl = "Apprpt";
-			myrpt->txchannel->data = "(Link Tx)";
+			ast_channel_appl_set(myrpt->txchannel, "Apprpt");
+			ast_channel_data_set(myrpt->txchannel, "(Link Tx)");
 			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
 				myrpt->txchanname,tele,ast_channel_name(myrpt->txchannel));
 			rpt_mutex_unlock(&myrpt->lock);

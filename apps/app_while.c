@@ -163,14 +163,14 @@ static int find_matching_endwhile(struct ast_channel *chan)
 		struct ast_exten *e;
 
 		if (!ast_rdlock_context(c)) {
-			if (!strcmp(ast_get_context_name(c), chan->context)) {
+			if (!strcmp(ast_get_context_name(c), ast_channel_context(chan))) {
 				/* This is the matching context we want */
 				int cur_priority = chan->priority + 1, level=1;
 
-				for (e = find_matching_priority(c, chan->exten, cur_priority,
+				for (e = find_matching_priority(c, ast_channel_exten(chan), cur_priority,
 					S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
 					e;
-					e = find_matching_priority(c, chan->exten, ++cur_priority,
+					e = find_matching_priority(c, ast_channel_exten(chan), ++cur_priority,
 						S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
 					if (!strcasecmp(ast_get_extension_app(e), "WHILE")) {
 						level++;
@@ -235,10 +235,10 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 	if (!end)
 		condition = ast_strdupa(data);
 
-	size = strlen(chan->context) + strlen(chan->exten) + 32;
+	size = strlen(ast_channel_context(chan)) + strlen(ast_channel_exten(chan)) + 32;
 	my_name = alloca(size);
 	memset(my_name, 0, size);
-	snprintf(my_name, size, "%s_%s_%d", chan->context, chan->exten, chan->priority);
+	snprintf(my_name, size, "%s_%s_%d", ast_channel_context(chan), ast_channel_exten(chan), chan->priority);
 	
 	ast_channel_lock(chan);
 	if (end) {
@@ -271,7 +271,7 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 				ast_verb(3, "Jumping to priority %d\n", pri);
 				chan->priority = pri;
 			} else {
-				ast_log(LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
+				ast_log(LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", ast_channel_context(chan), ast_channel_exten(chan), chan->priority);
 			}
 		}
 		ast_channel_unlock(chan);
@@ -280,10 +280,10 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 
 	if (!end && !while_pri) {
 		char *goto_str;
-		size = strlen(chan->context) + strlen(chan->exten) + 32;
+		size = strlen(ast_channel_context(chan)) + strlen(ast_channel_exten(chan)) + 32;
 		goto_str = alloca(size);
 		memset(goto_str, 0, size);
-		snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority);
+		snprintf(goto_str, size, "%s,%s,%d", ast_channel_context(chan), ast_channel_exten(chan), chan->priority);
 		pbx_builtin_setvar_helper(chan, varname, goto_str);
 	}
 
@@ -292,10 +292,10 @@ static int _while_exec(struct ast_channel *chan, const char *data, int end)
 		snprintf(end_varname, VAR_SIZE, "END_%s", varname);
 		if (! pbx_builtin_getvar_helper(chan, end_varname)) {
 			char *goto_str;
-			size = strlen(chan->context) + strlen(chan->exten) + 32;
+			size = strlen(ast_channel_context(chan)) + strlen(ast_channel_exten(chan)) + 32;
 			goto_str = alloca(size);
 			memset(goto_str, 0, size);
-			snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority+1);
+			snprintf(goto_str, size, "%s,%s,%d", ast_channel_context(chan), ast_channel_exten(chan), chan->priority+1);
 			pbx_builtin_setvar_helper(chan, end_varname, goto_str);
 		}
 		ast_parseable_goto(chan, while_pri);

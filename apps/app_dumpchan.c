@@ -160,14 +160,14 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		sec,
 		c->_bridge ? ast_channel_name(c->_bridge) : "<none>",
 		ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
-		c->context,
-		c->exten,
+		ast_channel_context(c),
+		ast_channel_exten(c),
 		c->priority,
 		ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
 		ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
-		c->appl ? c->appl : "(N/A)",
-		c->data ? S_OR(c->data, "(Empty)") : "(None)",
-		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+		ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)",
+		ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)",
+		(ast_test_flag(c, AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"));
 
 	return 0;
 }

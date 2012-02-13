@@ -52,9 +52,9 @@ AST_DATA_STRUCTURE(ast_callerid, DATA_EXPORT_CALLERID);
 #endif
 
 #define DATA_EXPORT_CHANNEL(MEMBER)						\
-	MEMBER(ast_channel, blockproc, AST_DATA_STRING)				\
-	MEMBER(ast_channel, appl, AST_DATA_STRING)				\
-	MEMBER(ast_channel, data, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_blockproc, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_appl, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_data, AST_DATA_STRING)				\
 	MEMBER(ast_channel, __do_not_use_name, AST_DATA_STRING) \
 	MEMBER(ast_channel, __do_not_use_language, AST_DATA_STRING)				\
 	MEMBER(ast_channel, __do_not_use_musicclass, AST_DATA_STRING)			\
@@ -75,10 +75,10 @@ AST_DATA_STRUCTURE(ast_callerid, DATA_EXPORT_CALLERID);
 	MEMBER(ast_channel, fout, AST_DATA_UNSIGNED_INTEGER)			\
 	MEMBER(ast_channel, emulate_dtmf_duration, AST_DATA_UNSIGNED_INTEGER)	\
 	MEMBER(ast_channel, visible_indication, AST_DATA_INTEGER)		\
-	MEMBER(ast_channel, context, AST_DATA_STRING)				\
-	MEMBER(ast_channel, exten, AST_DATA_STRING)				\
-	MEMBER(ast_channel, macrocontext, AST_DATA_STRING)			\
-	MEMBER(ast_channel, macroexten, AST_DATA_STRING)
+	MEMBER(ast_channel, __do_not_use_context, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_exten, AST_DATA_STRING)				\
+	MEMBER(ast_channel, __do_not_use_macrocontext, AST_DATA_STRING)			\
+	MEMBER(ast_channel, __do_not_use_macroexten, AST_DATA_STRING)
 
 AST_DATA_STRUCTURE(ast_channel, DATA_EXPORT_CHANNEL);
 
@@ -293,3 +293,62 @@ DEFINE_STRINGFIELD_GETTER_FOR(linkedid)
 DEFINE_STRINGFIELD_GETTER_FOR(parkinglot)
 DEFINE_STRINGFIELD_GETTER_FOR(hangupsource)
 DEFINE_STRINGFIELD_GETTER_FOR(dialcontext)
+
+const char *ast_channel_appl(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_appl;
+}
+void ast_channel_appl_set(struct ast_channel *chan, const char *value)
+{
+	chan->__do_not_use_appl = value;
+}
+const char *ast_channel_blockproc(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_blockproc;
+}
+void ast_channel_blockproc_set(struct ast_channel *chan, const char *value)
+{
+	chan->__do_not_use_blockproc = value;
+}
+const char *ast_channel_data(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_data;
+}
+void ast_channel_data_set(struct ast_channel *chan, const char *value)
+{
+	chan->__do_not_use_data = value;
+}
+
+
+const char *ast_channel_context(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_context;
+}
+void ast_channel_context_set(struct ast_channel *chan, const char *value)
+{
+	ast_copy_string(chan->__do_not_use_context, value, sizeof(chan->__do_not_use_context));
+}
+const char *ast_channel_exten(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_exten;
+}
+void ast_channel_exten_set(struct ast_channel *chan, const char *value)
+{
+	ast_copy_string(chan->__do_not_use_exten, value, sizeof(chan->__do_not_use_exten));
+}
+const char *ast_channel_macrocontext(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_macrocontext;
+}
+void ast_channel_macrocontext_set(struct ast_channel *chan, const char *value)
+{
+	ast_copy_string(chan->__do_not_use_macrocontext, value, sizeof(chan->__do_not_use_macrocontext));
+}
+const char *ast_channel_macroexten(const struct ast_channel *chan)
+{
+	return chan->__do_not_use_macroexten;
+}
+void ast_channel_macroexten_set(struct ast_channel *chan, const char *value)
+{
+	ast_copy_string(chan->__do_not_use_macroexten, value, sizeof(chan->__do_not_use_macroexten));
+}

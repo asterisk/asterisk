@@ -517,20 +517,20 @@ static int ast_channel_trace_data_update(struct ast_channel *chan, struct ast_ch
 		return 0;
 	/* If the last saved context does not match the current one
 	   OR we have not saved any context so far, then save the current context */
-	if ((!AST_LIST_EMPTY(&traced->trace) && strcasecmp(AST_LIST_FIRST(&traced->trace)->context, chan->context)) ||
+	if ((!AST_LIST_EMPTY(&traced->trace) && strcasecmp(AST_LIST_FIRST(&traced->trace)->context, ast_channel_context(chan))) ||
 	    (AST_LIST_EMPTY(&traced->trace))) {
 		/* Just do some debug logging */
 		if (AST_LIST_EMPTY(&traced->trace))
-			ast_debug(1, "Setting initial trace context to %s\n", chan->context);
+			ast_debug(1, "Setting initial trace context to %s\n", ast_channel_context(chan));
 		else
-			ast_debug(1, "Changing trace context from %s to %s\n", AST_LIST_FIRST(&traced->trace)->context, chan->context);
+			ast_debug(1, "Changing trace context from %s to %s\n", AST_LIST_FIRST(&traced->trace)->context, ast_channel_context(chan));
 		/* alloc or bail out */
 		trace = ast_malloc(sizeof(*trace));
 		if (!trace)
 			return -1;
 		/* save the current location and store it in the trace list */
-		ast_copy_string(trace->context, chan->context, sizeof(trace->context));
-		ast_copy_string(trace->exten, chan->exten, sizeof(trace->exten));
+		ast_copy_string(trace->context, ast_channel_context(chan), sizeof(trace->context));
+		ast_copy_string(trace->exten, ast_channel_exten(chan), sizeof(trace->exten));
 		trace->priority = chan->priority;
 		AST_LIST_INSERT_HEAD(&traced->trace, trace, entry);
 	}
@@ -1088,16 +1088,8 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	else
 		ast_channel_accountcode_set(tmp, ast_default_accountcode);
 		
-	if (!ast_strlen_zero(context))
-		ast_copy_string(tmp->context, context, sizeof(tmp->context));
-	else
-		strcpy(tmp->context, "default");
-
-	if (!ast_strlen_zero(exten))
-		ast_copy_string(tmp->exten, exten, sizeof(tmp->exten));
-	else
-		strcpy(tmp->exten, "s");
-
+	ast_channel_context_set(tmp, S_OR(context, "default"));
+	ast_channel_exten_set(tmp, S_OR(exten, "s"));
 	tmp->priority = 1;
 
 	tmp->cdr = ast_cdr_alloc();
@@ -1452,9 +1444,9 @@ static int ast_channel_by_exten_cb(void *obj, void *arg, void *data, int flags)
 	}
 
 	ast_channel_lock(chan);
-	if (strcasecmp(chan->context, context) && strcasecmp(chan->macrocontext, context)) {
+	if (strcasecmp(ast_channel_context(chan), context) && strcasecmp(ast_channel_macrocontext(chan), context)) {
 		ret = 0; /* Context match failed, continue */
-	} else if (strcasecmp(chan->exten, exten) && strcasecmp(chan->macroexten, exten)) {
+	} else if (strcasecmp(ast_channel_exten(chan), exten) && strcasecmp(ast_channel_macroexten(chan), exten)) {
 		ret = 0; /* Extension match failed, continue */
 	}
 	ast_channel_unlock(chan);
@@ -2662,7 +2654,7 @@ int ast_hangup(struct ast_channel *chan)
 	if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 			"is blocked by thread %ld in procedure %s!  Expect a failure\n",
-			(long) pthread_self(), ast_channel_name(chan), (long)chan->blocker, chan->blockproc);
+			(long) pthread_self(), ast_channel_name(chan), (long)chan->blocker, ast_channel_blockproc(chan));
 		ast_assert(ast_test_flag(chan, AST_FLAG_BLOCKING) == 0);
 	}
 	if (!was_zombie) {
@@ -5245,7 +5237,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 		const char *forward_context;
 		ast_channel_lock(orig);
 		forward_context = pbx_builtin_getvar_helper(orig, "FORWARD_CONTEXT");
-		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(orig), S_OR(forward_context, orig->context));
+		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(orig), S_OR(forward_context, ast_channel_context(orig)));
 		ast_channel_unlock(orig);
 		data = tmpchan;
 		type = "Local";
@@ -5444,9 +5436,9 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	/* Final fixups */
 	if (oh) {
 		if (!ast_strlen_zero(oh->context))
-			ast_copy_string(chan->context, oh->context, sizeof(chan->context));
+			ast_channel_context_set(chan, oh->context);
 		if (!ast_strlen_zero(oh->exten))
-			ast_copy_string(chan->exten, oh->exten, sizeof(chan->exten));
+			ast_channel_exten_set(chan, oh->exten);
 		if (oh->priority)	
 			chan->priority = oh->priority;
 	}

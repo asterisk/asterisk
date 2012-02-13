@@ -2296,7 +2296,7 @@ static int ospauth_exec(
 
 	res = osp_auth(provider, &handle, source,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
-		chan->exten, token, &timelimit);
+		ast_channel_exten(chan), token, &timelimit);
 	if (res > 0) {
 		status = AST_OSP_SUCCESS;
 	} else {

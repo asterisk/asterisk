@@ -270,8 +270,8 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 	cap_request = NULL;
 	cap_all_audio = ast_format_cap_destroy(cap_all_audio);
 
-	channel->owner->appl = "AppDial2";
-	channel->owner->data = "(Outgoing Line)";
+	ast_channel_appl_set(channel->owner, "AppDial2");
+	ast_channel_data_set(channel->owner, "(Outgoing Line)");
 	memset(&channel->owner->whentohangup, 0, sizeof(channel->owner->whentohangup));
 
 	/* Inherit everything from he who spawned this dial */
@@ -413,7 +413,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_INCOMPLETE:
-			ast_verb(3, "%s dialed Incomplete extension %s\n", ast_channel_name(channel->owner), channel->owner->exten);
+			ast_verb(3, "%s dialed Incomplete extension %s\n", ast_channel_name(channel->owner), ast_channel_exten(channel->owner));
 			ast_indicate(chan, AST_CONTROL_INCOMPLETE);
 			break;
 		case AST_CONTROL_RINGING:

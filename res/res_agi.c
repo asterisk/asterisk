@@ -1742,8 +1742,8 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 		S_COR(chan->redirecting.from.number.valid, chan->redirecting.from.number.str, "unknown"));
 
 	/* Context information */
-	ast_agi_send(fd, chan, "agi_context: %s\n", chan->context);
-	ast_agi_send(fd, chan, "agi_extension: %s\n", chan->exten);
+	ast_agi_send(fd, chan, "agi_context: %s\n", ast_channel_context(chan));
+	ast_agi_send(fd, chan, "agi_extension: %s\n", ast_channel_exten(chan));
 	ast_agi_send(fd, chan, "agi_priority: %d\n", chan->priority);
 	ast_agi_send(fd, chan, "agi_enhanced: %s\n", enhanced ? "1.0" : "0.0");
 
@@ -2207,7 +2207,7 @@ static int handle_setcontext(struct ast_channel *chan, AGI *agi, int argc, const
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_copy_string(chan->context, argv[2], sizeof(chan->context));
+	ast_channel_context_set(chan, argv[2]);
 	ast_agi_send(agi->fd, chan, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -2216,7 +2216,7 @@ static int handle_setextension(struct ast_channel *chan, AGI *agi, int argc, con
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_copy_string(chan->exten, argv[2], sizeof(chan->exten));
+	ast_channel_exten_set(chan, argv[2]);
 	ast_agi_send(agi->fd, chan, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -2229,7 +2229,7 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, cons
 		return RESULT_SHOWUSAGE;
 
 	if (sscanf(argv[2], "%30d", &pri) != 1) {
-		pri = ast_findlabel_extension(chan, chan->context, chan->exten, argv[2],
+		pri = ast_findlabel_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), argv[2],
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL));
 		if (pri < 1)
 			return RESULT_SHOWUSAGE;
@@ -2632,7 +2632,7 @@ static int handle_verbose(struct ast_channel *chan, AGI *agi, int argc, const ch
 	if (argv[2])
 		sscanf(argv[2], "%30d", &level);
 
-	ast_verb(level, "%s: %s\n", chan->data, argv[1]);
+	ast_verb(level, "%s: %s\n", ast_channel_data(chan), argv[1]);
 
 	ast_agi_send(agi->fd, chan, "200 result=1\n");
 

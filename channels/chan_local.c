@@ -893,8 +893,8 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 	}
 	ast_set_cc_interfaces_chanvar(chan, reduced_dest);
 
-	exten = ast_strdupa(chan->exten);
-	context = ast_strdupa(chan->context);
+	exten = ast_strdupa(ast_channel_exten(chan));
+	context = ast_strdupa(ast_channel_context(chan));
 
 	ao2_unlock(p);
 	pvt_locked = 0;
@@ -1173,9 +1173,9 @@ static struct ast_channel *local_new(struct local_pvt *p, int state, const char 
 	p->u_owner = ast_module_user_add(p->owner);
 	p->u_chan = ast_module_user_add(p->chan);
 
-	ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
-	ast_copy_string(tmp2->context, p->context, sizeof(tmp2->context));
-	ast_copy_string(tmp2->exten, p->exten, sizeof(tmp->exten));
+	ast_channel_context_set(tmp, p->context);
+	ast_channel_context_set(tmp2, p->context);
+	ast_channel_exten_set(tmp2, p->exten);
 	tmp->priority = 1;
 	tmp2->priority = 1;
 

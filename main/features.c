@@ -837,8 +837,8 @@ static int parkinglot_cmp_cb(void *obj, void *arg, int flags)
  */
 static void set_c_e_p(struct ast_channel *chan, const char *context, const char *ext, int pri)
 {
-	ast_copy_string(chan->context, context, sizeof(chan->context));
-	ast_copy_string(chan->exten, ext, sizeof(chan->exten));
+	ast_channel_context_set(chan, context);
+	ast_channel_exten_set(chan, ext);
 	chan->priority = pri;
 }
 
@@ -918,10 +918,10 @@ static void *bridge_call_thread(void *data)
 	struct ast_bridge_thread_obj *tobj = data;
 	int res;
 
-	tobj->chan->appl = !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge";
-	tobj->chan->data = ast_channel_name(tobj->peer);
-	tobj->peer->appl = !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge";
-	tobj->peer->data = ast_channel_name(tobj->chan);
+	ast_channel_appl_set(tobj->chan, !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge");
+	ast_channel_data_set(tobj->chan, ast_channel_name(tobj->peer));
+	ast_channel_appl_set(tobj->peer, !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge");
+	ast_channel_data_set(tobj->peer, ast_channel_name(tobj->chan));
 
 	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 
@@ -1398,8 +1398,8 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 		}
 	}
 
-	chan->appl = "Parked Call";
-	chan->data = NULL;
+	ast_channel_appl_set(chan, "Parked Call");
+	ast_channel_data_set(chan, NULL);
 
 	pu->chan = chan;
 
@@ -1466,10 +1466,10 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	 * we set a flag
 	 */
 	ast_copy_string(pu->context, 
-		S_OR(args->return_con, S_OR(chan->macrocontext, chan->context)), 
+		S_OR(args->return_con, S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan))), 
 		sizeof(pu->context));
 	ast_copy_string(pu->exten, 
-		S_OR(args->return_ext, S_OR(chan->macroexten, chan->exten)), 
+		S_OR(args->return_ext, S_OR(ast_channel_macroexten(chan), ast_channel_exten(chan))), 
 		sizeof(pu->exten));
 	pu->priority = args->return_pri ? args->return_pri : 
 		(chan->macropriority ? chan->macropriority : chan->priority);
@@ -1635,8 +1635,8 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, s
 	struct ast_channel *chan;
 
 	/* Make a new, channel that we'll use to masquerade in the real one */
-	chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(rchan), rchan->exten,
-		rchan->context, ast_channel_linkedid(rchan), rchan->amaflags, "Parked/%s", ast_channel_name(rchan));
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, ast_channel_accountcode(rchan), ast_channel_exten(rchan),
+		ast_channel_context(rchan), ast_channel_linkedid(rchan), rchan->amaflags, "Parked/%s", ast_channel_name(rchan));
 	if (!chan) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
 		if (!ast_test_flag(args, AST_PARK_OPT_SILENCE)) {
@@ -1687,11 +1687,11 @@ static int masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, s
 	}
 
 	/* Setup the extensions and such */
-	set_c_e_p(chan, rchan->context, rchan->exten, rchan->priority);
+	set_c_e_p(chan, ast_channel_context(rchan), ast_channel_exten(rchan), rchan->priority);
 
 	/* Setup the macro extension and such */
-	ast_copy_string(chan->macrocontext,rchan->macrocontext,sizeof(chan->macrocontext));
-	ast_copy_string(chan->macroexten,rchan->macroexten,sizeof(chan->macroexten));
+	ast_channel_macrocontext_set(chan, ast_channel_macrocontext(rchan));
+	ast_channel_macroexten_set(chan, ast_channel_macroexten(rchan));
 	chan->macropriority = rchan->macropriority;
 
 	/* Manually do the masquerade to make sure it is complete. */
@@ -2231,10 +2231,10 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
 		s = pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT");
 	}
 	if (ast_strlen_zero(s)) { /* Use the non-macro context to transfer the call XXX ? */
-		s = transferer->macrocontext;
+		s = ast_channel_macrocontext(transferer);
 	}
 	if (ast_strlen_zero(s)) {
-		s = transferer->context;
+		s = ast_channel_context(transferer);
 	}
 	return s;  
 }
@@ -2725,7 +2725,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	xferchan->writeformat = transferee->writeformat;
 
 	ast_channel_masquerade(xferchan, transferee);
-	ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
+	ast_explicit_goto(xferchan, ast_channel_context(transferee), ast_channel_exten(transferee), transferee->priority);
 	xferchan->_state = AST_STATE_UP;
 	ast_clear_flag(xferchan, AST_FLAGS_ALL);
 
@@ -3582,7 +3582,7 @@ static struct ast_channel *feature_request_and_dial(struct ast_channel *caller,
 					ast_frfree(f);
 					break;
 				} else if (f->subclass.integer == AST_CONTROL_INCOMPLETE) {
-					ast_verb(3, "%s dialed incomplete extension %s; ignoring\n", ast_channel_name(chan), chan->exten);
+					ast_verb(3, "%s dialed incomplete extension %s; ignoring\n", ast_channel_name(chan), ast_channel_exten(chan));
 				} else if (f->subclass.integer == AST_CONTROL_CONGESTION) {
 					state = f->subclass.integer;
 					ast_verb(3, "%s is congested\n", ast_channel_name(chan));
@@ -3699,9 +3699,9 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
 {
 	ast_log(LOG_NOTICE, "______ %s (%lx)______\n", title, (unsigned long) chan);
 	ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
-		ast_channel_name(chan), chan->appl, chan->data, chan->context, chan->exten, chan->priority);
+		ast_channel_name(chan), ast_channel_appl(chan), ast_channel_data(chan), ast_channel_context(chan), ast_channel_exten(chan), chan->priority);
 	ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
-		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
+		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), chan->amaflags, ast_channel_macrocontext(chan), ast_channel_macroexten(chan), chan->macropriority);
 	ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
 		chan->masq, chan->masqr,
 		chan->_bridge, ast_channel_uniqueid(chan), ast_channel_linkedid(chan));
@@ -3950,8 +3950,8 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 			 * them to the bridge_cdr instead */
 			bridge_cdr->next = chan_cdr->next;
 			chan_cdr->next = NULL;
-			ast_copy_string(bridge_cdr->lastapp, S_OR(chan->appl, ""), sizeof(bridge_cdr->lastapp));
-			ast_copy_string(bridge_cdr->lastdata, S_OR(chan->data, ""), sizeof(bridge_cdr->lastdata));
+			ast_copy_string(bridge_cdr->lastapp, S_OR(ast_channel_appl(chan), ""), sizeof(bridge_cdr->lastapp));
+			ast_copy_string(bridge_cdr->lastdata, S_OR(ast_channel_data(chan), ""), sizeof(bridge_cdr->lastdata));
 			if (peer_cdr && !ast_strlen_zero(peer_cdr->userfield)) {
 				ast_copy_string(bridge_cdr->userfield, peer_cdr->userfield, sizeof(bridge_cdr->userfield));
 			}
@@ -3962,15 +3962,15 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 			ast_copy_string(bridge_cdr->channel, ast_channel_name(chan), sizeof(bridge_cdr->channel));
 			ast_copy_string(bridge_cdr->dstchannel, ast_channel_name(peer), sizeof(bridge_cdr->dstchannel));
 			ast_copy_string(bridge_cdr->uniqueid, ast_channel_uniqueid(chan), sizeof(bridge_cdr->uniqueid));
-			ast_copy_string(bridge_cdr->lastapp, S_OR(chan->appl, ""), sizeof(bridge_cdr->lastapp));
-			ast_copy_string(bridge_cdr->lastdata, S_OR(chan->data, ""), sizeof(bridge_cdr->lastdata));
+			ast_copy_string(bridge_cdr->lastapp, S_OR(ast_channel_appl(chan), ""), sizeof(bridge_cdr->lastapp));
+			ast_copy_string(bridge_cdr->lastdata, S_OR(ast_channel_data(chan), ""), sizeof(bridge_cdr->lastdata));
 			ast_cdr_setcid(bridge_cdr, chan);
 			bridge_cdr->disposition = (chan->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NULL;
 			bridge_cdr->amaflags = chan->amaflags ? chan->amaflags :  ast_default_amaflags;
 			ast_copy_string(bridge_cdr->accountcode, ast_channel_accountcode(chan), sizeof(bridge_cdr->accountcode));
 			/* Destination information */
-			ast_copy_string(bridge_cdr->dst, chan->exten, sizeof(bridge_cdr->dst));
-			ast_copy_string(bridge_cdr->dcontext, chan->context, sizeof(bridge_cdr->dcontext));
+			ast_copy_string(bridge_cdr->dst, ast_channel_exten(chan), sizeof(bridge_cdr->dst));
+			ast_copy_string(bridge_cdr->dcontext, ast_channel_context(chan), sizeof(bridge_cdr->dcontext));
 			if (peer_cdr) {
 				bridge_cdr->start = peer_cdr->start;
 				ast_copy_string(bridge_cdr->userfield, peer_cdr->userfield, sizeof(bridge_cdr->userfield));
@@ -4305,13 +4305,13 @@ before_you_go:
 	 */
 	if (ast_test_flag(&config->features_caller, AST_FEATURE_NO_H_EXTEN)) {
 		h_context = NULL;
-	} else if (ast_exists_extension(chan, chan->context, "h", 1,
+	} else if (ast_exists_extension(chan, ast_channel_context(chan), "h", 1,
 		S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
-		h_context = chan->context;
-	} else if (!ast_strlen_zero(chan->macrocontext)
-		&& ast_exists_extension(chan, chan->macrocontext, "h", 1,
+		h_context = ast_channel_context(chan);
+	} else if (!ast_strlen_zero(ast_channel_macrocontext(chan))
+		&& ast_exists_extension(chan, ast_channel_macrocontext(chan), "h", 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))) {
-		h_context = chan->macrocontext;
+		h_context = ast_channel_macrocontext(chan);
 	} else {
 		h_context = NULL;
 	}
@@ -4346,17 +4346,17 @@ before_you_go:
 			ast_copy_string(savelastdata, bridge_cdr->lastdata, sizeof(bridge_cdr->lastdata));
 			chan->cdr = bridge_cdr;
 		}
-		ast_copy_string(save_context, chan->context, sizeof(save_context));
-		ast_copy_string(save_exten, chan->exten, sizeof(save_exten));
+		ast_copy_string(save_context, ast_channel_context(chan), sizeof(save_context));
+		ast_copy_string(save_exten, ast_channel_exten(chan), sizeof(save_exten));
 		save_prio = chan->priority;
-		if (h_context != chan->context) {
-			ast_copy_string(chan->context, h_context, sizeof(chan->context));
+		if (h_context != ast_channel_context(chan)) {
+			ast_channel_context_set(chan, h_context);
 		}
-		ast_copy_string(chan->exten, "h", sizeof(chan->exten));
+		ast_channel_exten_set(chan, "h");
 		chan->priority = 1;
 		ast_channel_unlock(chan);
 
-		while ((spawn_error = ast_spawn_extension(chan, chan->context, chan->exten,
+		while ((spawn_error = ast_spawn_extension(chan, ast_channel_context(chan), ast_channel_exten(chan),
 			chan->priority,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL),
 			&found, 1)) == 0) {
@@ -4364,14 +4364,14 @@ before_you_go:
 		}
 		if (found && spawn_error) {
 			/* Something bad happened, or a hangup has been requested. */
-			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, ast_channel_name(chan));
-			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", chan->context, chan->exten, chan->priority, ast_channel_name(chan));
+			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", ast_channel_context(chan), ast_channel_exten(chan), chan->priority, ast_channel_name(chan));
+			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", ast_channel_context(chan), ast_channel_exten(chan), chan->priority, ast_channel_name(chan));
 		}
 
 		/* swap it back */
 		ast_channel_lock(chan);
-		ast_copy_string(chan->context, save_context, sizeof(chan->context));
-		ast_copy_string(chan->exten, save_exten, sizeof(chan->exten));
+		ast_channel_context_set(chan, save_context);
+		ast_channel_exten_set(chan, save_exten);
 		chan->priority = save_prio;
 		if (bridge_cdr) {
 			if (chan->cdr == bridge_cdr) {
@@ -4686,8 +4686,8 @@ static int manage_parked_call(struct parkeduser *pu, const struct pollfd *pfds, 
 		ast_cel_report_event(pu->chan, AST_CEL_PARK_END, NULL, "ParkedCallTimeOut", NULL);
 
 		ast_verb(2, "Timeout for %s parked on %d (%s). Returning to %s,%s,%d\n",
-			ast_channel_name(pu->chan), pu->parkingnum, pu->parkinglot->name, pu->chan->context,
-			pu->chan->exten, pu->chan->priority);
+			ast_channel_name(pu->chan), pu->parkingnum, pu->parkinglot->name, ast_channel_context(pu->chan),
+			ast_channel_exten(pu->chan), pu->chan->priority);
 
 		/* Start up the PBX, or hang them up */
 		if (ast_pbx_start(chan))  {
@@ -4977,9 +4977,9 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 	 * Setup the exten/priority to be s/1 since we don't know where
 	 * this call should return.
 	 */
-	ast_copy_string(orig_exten, chan->exten, sizeof(orig_exten));
+	ast_copy_string(orig_exten, ast_channel_exten(chan), sizeof(orig_exten));
 	orig_priority = chan->priority;
-	strcpy(chan->exten, "s");
+	ast_channel_exten_set(chan, "s");
 	chan->priority = 1;
 
 	/* Park the call */
@@ -5009,7 +5009,7 @@ static int park_call_exec(struct ast_channel *chan, const char *data)
 	}
 	if (res) {
 		/* Park failed, try to continue in the dialplan. */
-		ast_copy_string(chan->exten, orig_exten, sizeof(chan->exten));
+		ast_channel_exten_set(chan, orig_exten);
 		chan->priority = orig_priority;
 		res = 0;
 	} else {
@@ -6823,7 +6823,7 @@ static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *t
 	ast_do_masquerade(tmpchan);
 
 	/* when returning from bridge, the channel will continue at the next priority */
-	ast_explicit_goto(tmpchan, chan->context, chan->exten, chan->priority + 1);
+	ast_explicit_goto(tmpchan, ast_channel_context(chan), ast_channel_exten(chan), chan->priority + 1);
 }
 
 /*!
@@ -7636,7 +7636,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
 	if (!ast_check_hangup(final_dest_chan) && !ast_test_flag(&opts, OPT_CALLEE_KILL)) {
 		ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n",
-			final_dest_chan->context, final_dest_chan->exten,
+			ast_channel_context(final_dest_chan), ast_channel_exten(final_dest_chan),
 			final_dest_chan->priority, ast_channel_name(final_dest_chan));
 
 		if (ast_pbx_start(final_dest_chan) != AST_PBX_SUCCESS) {

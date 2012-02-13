@@ -1908,8 +1908,8 @@ static void *__analog_ss_thread(void *data)
 				/* If we got the first digit, get the rest */
 				len = 1;
 				dtmfbuf[len] = '\0';
-				while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
-					if (ast_exists_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
+				while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
+					if (ast_exists_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
 						timeout = analog_matchdigittimeout;
 					} else {
 						timeout = analog_gendigittimeout;
@@ -2059,9 +2059,9 @@ static void *__analog_ss_thread(void *data)
 
 		analog_dsp_set_digitmode(p, ANALOG_DIGITMODE_DTMF);
 
-		if (ast_exists_extension(chan, chan->context, exten, 1,
+		if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1,
 			chan->caller.id.number.valid ? chan->caller.id.number.str : NULL)) {
-			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+			ast_channel_exten_set(chan, exten);
 			analog_dsp_reset_and_flush_digits(p);
 			res = ast_pbx_run(chan);
 			if (res) {
@@ -2070,7 +2070,7 @@ static void *__analog_ss_thread(void *data)
 			}
 			goto quit;
 		} else {
-			ast_verb(3, "Unknown extension '%s' in context '%s' requested\n", exten, chan->context);
+			ast_verb(3, "Unknown extension '%s' in context '%s' requested\n", exten, ast_channel_context(chan));
 			sleep(2);
 			res = analog_play_tone(p, idx, ANALOG_TONE_INFO);
 			if (res < 0) {
@@ -2116,13 +2116,13 @@ static void *__analog_ss_thread(void *data)
 				exten[len++]=res;
 				exten[len] = '\0';
 			}
-			if (!ast_ignore_pattern(chan->context, exten)) {
+			if (!ast_ignore_pattern(ast_channel_context(chan), exten)) {
 				analog_play_tone(p, idx, -1);
 			} else {
 				analog_play_tone(p, idx, ANALOG_TONE_DIALTONE);
 			}
-			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && !ast_parking_ext_valid(exten, chan, chan->context)) {
-				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
+			if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num) && !ast_parking_ext_valid(exten, chan, ast_channel_context(chan))) {
+				if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
 						ast_copy_string(p->call_forward, exten, sizeof(p->call_forward));
@@ -2140,7 +2140,7 @@ static void *__analog_ss_thread(void *data)
 						getforward = 0;
 					} else {
 						res = analog_play_tone(p, idx, -1);
-						ast_copy_string(chan->exten, exten, sizeof(chan->exten));
+						ast_channel_exten_set(chan, exten);
 						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid) {
 								ast_set_callerid(chan, p->cid_num, NULL, p->cid_num);
@@ -2265,14 +2265,14 @@ static void *__analog_ss_thread(void *data)
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
-			} else if ((p->transfer || p->canpark) && ast_parking_ext_valid(exten, chan, chan->context) &&
+			} else if ((p->transfer || p->canpark) && ast_parking_ext_valid(exten, chan, ast_channel_context(chan)) &&
 						p->subs[ANALOG_SUB_THREEWAY].owner &&
 						ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner)) {
 				/* This is a three way call, the main call being a real channel,
 					and we're parking the first call. */
 				ast_masq_park_call_exten(
 					ast_bridged_channel(p->subs[ANALOG_SUB_THREEWAY].owner), chan, exten,
-					chan->context, 0, NULL);
+					ast_channel_context(chan), 0, NULL);
 				ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
 				break;
 			} else if (!ast_strlen_zero(p->lastcid_num) && !strcmp(exten, "*60")) {
@@ -2332,19 +2332,19 @@ static void *__analog_ss_thread(void *data)
 					ast_hangup(chan);
 					goto quit;
 				}
-			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1,
+			} else if (!ast_canmatch_extension(chan, ast_channel_context(chan), exten, 1,
 				chan->caller.id.number.valid ? chan->caller.id.number.str : NULL)
 				&& !analog_canmatch_featurecode(exten)) {
 				ast_debug(1, "Can't match %s from '%s' in context %s\n", exten,
 					chan->caller.id.number.valid && chan->caller.id.number.str
 						? chan->caller.id.number.str : "<Unknown Caller>",
-					chan->context);
+					ast_channel_context(chan));
 				break;
 			}
 			if (!timeout) {
 				timeout = analog_gendigittimeout;
 			}
-			if (len && !ast_ignore_pattern(chan->context, exten)) {
+			if (len && !ast_ignore_pattern(ast_channel_context(chan), exten)) {
 				analog_play_tone(p, idx, -1);
 			}
 		}
@@ -2356,7 +2356,7 @@ static void *__analog_ss_thread(void *data)
 		if (p->use_smdi && p->smdi_iface) {
 			smdi_msg = ast_smdi_md_message_wait(p->smdi_iface, ANALOG_SMDI_MD_WAIT_TIMEOUT);
 			if (smdi_msg != NULL) {
-				ast_copy_string(chan->exten, smdi_msg->fwd_st, sizeof(chan->exten));
+				ast_channel_exten_set(chan, smdi_msg->fwd_st);
 
 				if (smdi_msg->type == 'B')
 					pbx_builtin_setvar_helper(chan, "_SMDI_VM_TYPE", "b");

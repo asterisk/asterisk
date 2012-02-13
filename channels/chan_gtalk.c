@@ -1192,8 +1192,8 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		ast_channel_parkinglot_set(tmp, client->parkinglot);
 	i->owner = tmp;
 	ast_module_ref(ast_module_info->self);
-	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
-	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+	ast_channel_context_set(tmp, client->context);
+	ast_channel_exten_set(tmp, i->exten);
 
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s")) {
 		tmp->dialed.number.str = ast_strdup(i->exten);

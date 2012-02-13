@@ -1534,8 +1534,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		ast_channel_call_forward_set(tmp, i->call_forward);
-		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
-		ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+		ast_channel_context_set(tmp, i->context);
+		ast_channel_exten_set(tmp, i->exten);
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
@@ -2990,7 +2990,7 @@ static void *mgcp_ss(void *data)
 		timeout = 0;
 		len = strlen(p->dtmf_buf);
 
-		if (!ast_ignore_pattern(chan->context, p->dtmf_buf)) {
+		if (!ast_ignore_pattern(ast_channel_context(chan), p->dtmf_buf)) {
 			/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 			ast_indicate(chan, -1);
 		} else {
@@ -2998,8 +2998,8 @@ static void *mgcp_ss(void *data)
 			/*tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALTONE);*/
 			transmit_notify_request(sub, "L/dl");
 		}
-		if (ast_exists_extension(chan, chan->context, p->dtmf_buf, 1, p->cid_num)) {
-			if (!res || !ast_matchmore_extension(chan, chan->context, p->dtmf_buf, 1, p->cid_num)) {
+		if (ast_exists_extension(chan, ast_channel_context(chan), p->dtmf_buf, 1, p->cid_num)) {
+			if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), p->dtmf_buf, 1, p->cid_num)) {
 				if (getforward) {
 					/* Record this as the forwarding extension */
 					ast_copy_string(p->call_forward, p->dtmf_buf, sizeof(p->call_forward));
@@ -3021,7 +3021,7 @@ static void *mgcp_ss(void *data)
 				} else {
 					/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 					ast_indicate(chan, -1);
-					ast_copy_string(chan->exten, p->dtmf_buf, sizeof(chan->exten));
+					ast_channel_exten_set(chan, p->dtmf_buf);
 					chan->dialed.number.str = ast_strdup(p->dtmf_buf);
 					memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 					ast_set_callerid(chan,
@@ -3129,12 +3129,12 @@ static void *mgcp_ss(void *data)
 			getforward = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			len = 0;
-		} else if (ast_parking_ext_valid(p->dtmf_buf, chan, chan->context) &&
+		} else if (ast_parking_ext_valid(p->dtmf_buf, chan, ast_channel_context(chan)) &&
 			sub->next->owner && ast_bridged_channel(sub->next->owner)) {
 			/* This is a three way call, the main call being a real channel,
 			   and we're parking the first call. */
 			ast_masq_park_call_exten(ast_bridged_channel(sub->next->owner), chan,
-				p->dtmf_buf, chan->context, 0, NULL);
+				p->dtmf_buf, ast_channel_context(chan), 0, NULL);
 			ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
 			break;
 		} else if (!ast_strlen_zero(p->lastcallerid) && !strcmp(p->dtmf_buf, "*60")) {
@@ -3156,17 +3156,17 @@ static void *mgcp_ss(void *data)
 			len = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			timeout = firstdigittimeout;
-		} else if (!ast_canmatch_extension(chan, chan->context, p->dtmf_buf, 1,
+		} else if (!ast_canmatch_extension(chan, ast_channel_context(chan), p->dtmf_buf, 1,
 			S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, NULL))
 			&& ((p->dtmf_buf[0] != '*') || (strlen(p->dtmf_buf) > 2))) {
 			ast_debug(1, "Can't match %s from '%s' in context %s\n", p->dtmf_buf,
 				S_COR(chan->caller.id.number.valid, chan->caller.id.number.str, "<Unknown Caller>"),
-				chan->context);
+				ast_channel_context(chan));
 			break;
 		}
 		if (!timeout)
 			timeout = gendigittimeout;
-		if (len && !ast_ignore_pattern(chan->context, p->dtmf_buf))
+		if (len && !ast_ignore_pattern(ast_channel_context(chan), p->dtmf_buf))
 			/*tone_zone_play_tone(p->subs[index].zfd, -1);*/
 			ast_indicate(chan, -1);
 	}

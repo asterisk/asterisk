@@ -234,8 +234,8 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;
-		ast_copy_string(tmp->context, context, sizeof(tmp->context));
-		ast_copy_string(tmp->exten, "s",  sizeof(tmp->exten));
+		ast_channel_context_set(tmp, context);
+		ast_channel_exten_set(tmp, "s");
 		ast_channel_language_set(tmp, "");
 		i->owner = tmp;
 		i->u = ast_module_user_add(tmp);

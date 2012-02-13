@@ -106,7 +106,7 @@ static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_c
 	char exten[AST_MAX_EXTENSION] = "";
 	struct ast_channel *chan = NULL;
 	struct ast_bridge_features_blind_transfer *blind_transfer = hook_pvt;
-	const char *context = (blind_transfer && !ast_strlen_zero(blind_transfer->context) ? blind_transfer->context : bridge_channel->chan->context);
+	const char *context = (blind_transfer && !ast_strlen_zero(blind_transfer->context) ? blind_transfer->context : ast_channel_context(bridge_channel->chan));
 
 	/* Grab the extension to transfer to */
 	if (!grab_transfer(bridge_channel->chan, exten, sizeof(exten), context)) {
@@ -171,7 +171,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	struct ast_bridge_features caller_features, called_features;
 	enum ast_bridge_channel_state attended_bridge_result;
 	struct ast_bridge_features_attended_transfer *attended_transfer = hook_pvt;
-	const char *context = (attended_transfer && !ast_strlen_zero(attended_transfer->context) ? attended_transfer->context : bridge_channel->chan->context);
+	const char *context = (attended_transfer && !ast_strlen_zero(attended_transfer->context) ? attended_transfer->context : ast_channel_context(bridge_channel->chan));
 
 	/* Grab the extension to transfer to */
 	if (!grab_transfer(bridge_channel->chan, exten, sizeof(exten), context)) {
