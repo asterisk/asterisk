@@ -7280,10 +7280,10 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 			switch (tmp->faxdetect) {
 			case 1:
 				if (strcmp(ast_channel_exten(ast), "fax")) {
-					char *context;
+					const char *context;
 					char context_tmp[BUFFERSIZE];
 					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
-					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast_channel_macrocontext(ast)) ? ast_channel_context(ast) : ast_channel_macrocontext(ast)) : context_tmp;
+					context = S_OR(context_tmp, S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast)));
 					if (ast_exists_extension(ast, context, "fax", 1,
 						S_COR(ast->caller.id.number.valid, ast->caller.id.number.str, NULL))) {
 						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast_channel_name(ast), context);
