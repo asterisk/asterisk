@@ -614,7 +614,7 @@ static int announce_user_count(struct conference_bridge *conference_bridge, stru
 				"")) {
 				return -1;
 			}
-		} else {
+		} else if (ast_fileexists(there_are, NULL, NULL) && ast_fileexists(other_in_party, NULL, NULL)) {
 			play_sound_file(conference_bridge, there_are);
 			play_sound_number(conference_bridge, conference_bridge->users - 1);
 			play_sound_file(conference_bridge, other_in_party);
@@ -1146,6 +1146,12 @@ static int alloc_playback_chan(struct conference_bridge *conference_bridge)
 static int play_sound_helper(struct conference_bridge *conference_bridge, const char *filename, int say_number)
 {
 	struct ast_channel *underlying_channel;
+
+	/* Do not waste resources trying to play files that do not exist */
+	if (!ast_fileexists(filename, NULL, NULL)) {
+		ast_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
+		return 0;
+	}
 
 	ast_mutex_lock(&conference_bridge->playback_lock);
 	if (!(conference_bridge->playback_chan)) {
