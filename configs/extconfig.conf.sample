@@ -61,6 +61,10 @@
 ;    curl ... res_config_curl
 ;    ldap ... res_config_ldap
 ;
+; Note: The res_config_pgsql and res_config_sqlite backends configure the
+; database used in their respective configuration files and ignore the
+; database name configured in this file.
+;
 ;iaxusers => odbc,asterisk
 ;iaxpeers => odbc,asterisk
 ;sippeers => odbc,asterisk

@@ -317,6 +317,12 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	const char *newparam, *newval;
 	struct ast_variable *var = NULL, *prev = NULL;
 
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
+
 	if (!tablename) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return NULL;
@@ -455,6 +461,12 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	struct ast_variable *var = NULL;
 	struct ast_config *cfg = NULL;
 	struct ast_category *cat = NULL;
+
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
 
 	if (!table) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
@@ -617,6 +629,12 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 	struct tables *table;
 	struct columns *column = NULL;
 
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
+
 	if (!tablename) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return -1;
@@ -755,6 +773,12 @@ static int update2_pgsql(const char *database, const char *tablename, va_list ap
 	struct ast_str *where = ast_str_thread_get(&where_buf, 100);
 	struct tables *table;
 
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
+
 	if (!tablename) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return -1;
@@ -887,6 +911,12 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 	int pgresult;
 	const char *newparam, *newval;
 
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
+
 	if (!table) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return -1;
@@ -978,6 +1008,12 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 256);
 	struct ast_str *buf1 = ast_str_thread_get(&where_buf, 60), *buf2 = ast_str_thread_get(&escapebuf_buf, 60);
 	const char *newparam, *newval;
+
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
 
 	if (!table) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
@@ -1071,10 +1107,16 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat = NULL;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
-	char last[80] = "";
+	char last[80];
 	int last_cat_metric = 0;
 
 	last[0] = '\0';
+
+	/*
+	 * Ignore database from the extconfig.conf since it is
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
 
 	if (!file || !strcmp(file, RES_CONFIG_PGSQL_CONF)) {
 		ast_log(LOG_WARNING, "PostgreSQL RealTime: Cannot configure myself.\n");
@@ -1139,7 +1181,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 				cur_cat = ast_category_new(field_category, "", 99999);
 				if (!cur_cat)
 					break;
-				strcpy(last, field_category);
+				ast_copy_string(last, field_category, sizeof(last));
 				last_cat_metric = atoi(field_cat_metric);
 				ast_category_append(cfg, cur_cat);
 			}
@@ -1160,10 +1202,17 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 static int require_pgsql(const char *database, const char *tablename, va_list ap)
 {
 	struct columns *column;
-	struct tables *table = find_table(database, tablename);
+	struct tables *table;
 	char *elm;
 	int type, size, res = 0;
 
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
+
+	table = find_table(database, tablename);
 	if (!table) {
 		ast_log(LOG_WARNING, "Table %s not found in database.  This table should exist if you're using realtime.\n", tablename);
 		return -1;
@@ -1288,6 +1337,13 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 static int unload_pgsql(const char *database, const char *tablename)
 {
 	struct tables *cur;
+
+	/*
+	 * Ignore database from the extconfig.conf since it was
+	 * configured by res_pgsql.conf.
+	 */
+	database = dbname;
+
 	ast_debug(2, "About to lock table cache list\n");
 	AST_LIST_LOCK(&psql_tables);
 	ast_debug(2, "About to traverse table cache list\n");
@@ -1492,7 +1548,7 @@ static int pgsql_reconnect(const char *database)
 
 	/* DB password can legitimately be 0-length */
 	if ((!pgsqlConn) && (!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && !ast_strlen_zero(my_database)) {
-		struct ast_str *connInfo = ast_str_create(32);
+		struct ast_str *connInfo = ast_str_create(128);
 
 		ast_str_set(&connInfo, 0, "host=%s port=%d dbname=%s user=%s",
 			S_OR(dbhost, dbsock), dbport, my_database, dbuser);
@@ -1514,7 +1570,7 @@ static int pgsql_reconnect(const char *database)
 		} else {
 			ast_log(LOG_ERROR,
 					"PostgreSQL RealTime: Failed to connect database %s on %s: %s\n",
-					dbname, dbhost, PQresultErrorMessage(NULL));
+					my_database, dbhost, PQresultErrorMessage(NULL));
 			return 0;
 		}
 	} else {
