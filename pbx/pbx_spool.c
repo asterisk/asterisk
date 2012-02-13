@@ -761,14 +761,17 @@ static void *scan_thread(void *unused)
 	struct dirent *de;
 	char fn[256];
 	int res;
-	time_t last = 0, next = 0, now;
+	int force_poll = 1;
+	time_t last = 0;
+	time_t next = 0;
+	time_t now;
 	struct timespec ts = { .tv_sec = 1 };
 
 	while (!ast_fully_booted) {
 		nanosleep(&ts, NULL);
 	}
 
-	for(;;) {
+	for (;;) {
 		/* Wait a sec */
 		nanosleep(&ts, NULL);
 		time(&now);
@@ -779,34 +782,50 @@ static void *scan_thread(void *unused)
 		}
 
 		/* Make sure it is time for us to execute our check */
-		if ((st.st_mtime == last) && (next && (next > now)))
+		if (!force_poll && st.st_mtime == last && (!next || now < next)) {
+			/*
+			 * The directory timestamp did not change and any delayed
+			 * call-file is not ready to be executed.
+			 */
 			continue;
+		}
 
 #if 0
 		printf("atime: %ld, mtime: %ld, ctime: %ld\n", st.st_atime, st.st_mtime, st.st_ctime);
 		printf("Ooh, something changed / timeout\n");
 #endif
-		next = 0;
-		last = st.st_mtime;
 
 		if (!(dir = opendir(qdir))) {
 			ast_log(LOG_WARNING, "Unable to open directory %s: %s\n", qdir, strerror(errno));
 			continue;
 		}
 
+		/*
+		 * Since the dir timestamp is available at one second
+		 * resolution, we cannot know if it was updated within the same
+		 * second after we scanned it.  Therefore, we will force another
+		 * scan if the dir was just modified.
+		 */
+		force_poll = (st.st_mtime == now);
+
+		next = 0;
+		last = st.st_mtime;
 		while ((de = readdir(dir))) {
 			snprintf(fn, sizeof(fn), "%s/%s", qdir, de->d_name);
 			if (stat(fn, &st)) {
 				ast_log(LOG_WARNING, "Unable to stat %s: %s\n", fn, strerror(errno));
 				continue;
 			}
-			if (!S_ISREG(st.st_mode))
+			if (!S_ISREG(st.st_mode)) {
+				/* Not a regular file. */
 				continue;
+			}
 			if (st.st_mtime <= now) {
 				res = scan_service(fn, now);
 				if (res > 0) {
-					/* Update next service time */
-					if (!next || (res < next)) {
+					/* The call-file is delayed or to be retried later. */
+					if (!next || res < next) {
+						/* This delayed call file expires earlier. */
 						next = res;
 					}
 				} else if (res) {
@@ -816,9 +835,11 @@ static void *scan_thread(void *unused)
 					next = st.st_mtime;
 				}
 			} else {
-				/* Update "next" update if necessary */
-				if (!next || (st.st_mtime < next))
+				/* The file's timestamp is in the future. */
+				if (!next || st.st_mtime < next) {
+					/* This call-file's timestamp expires earlier. */
 					next = st.st_mtime;
+				}
 			}
 		}
 		closedir(dir);
